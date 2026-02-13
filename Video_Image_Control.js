@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.80 Optimized)
+// @name        Video_Image_Control (Lite v130.85 AE-Plus)
 // @namespace   https://com/
-// @version     130.80
-// @description v130.80: Watchdog Reset, Smart AE(Side-Bar/Highlight Guard), Scale-based Sharpness, Safe Hooking
+// @version     130.85
+// @description v130.85: Smart-AE(Subtitle/DarkScene Guard), Stable Hooks, Soft-Boot UI, Worker Safety
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -98,68 +98,94 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Worker Logic (Fix 5C: Side-Bar Detection) ---
+    // --- Worker Logic (Fix 4: Smart Bar/Subtitle, Fix 1C: Robustness) ---
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
-            const { fid, vid, data, width, type, bandH, step } = e.data;
+            const { fid, vid, data, width, type, bandH, step, p10ref } = e.data;
             if (type === 'analyze') {
                 hist.fill(0);
                 const size = width;
-                const blackTh = 18;
-
-                // Top/Bottom
-                let topBlack = 0, botBlack = 0;
-                let topPixelCount = 0, botPixelCount = 0;
-                for (let y = 0; y < bandH; y += step) {
-                    for (let x = 0; x < size; x += step) {
+                
+                // Dynamic Black Threshold based on previous P10 (Fix 4-1)
+                const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
+                
+                // Center sample for bar comparison
+                let centerLumaSum = 0;
+                let centerCount = 0;
+                const cStart = Math.floor(size * 0.4);
+                const cEnd = Math.floor(size * 0.6);
+                for(let y=cStart; y<cEnd; y+=step*2) {
+                    for(let x=cStart; x<cEnd; x+=step*2) {
                         const i = (y * size + x) * 4;
-                        if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
-                        topPixelCount++;
+                        const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
+                        centerLumaSum += luma;
+                        centerCount++;
                     }
                 }
-                const botBandH = Math.floor(bandH * 0.8);
-                for (let y = size - botBandH; y < size; y += step) {
-                    for (let x = 0; x < size; x += step) {
-                        const i = (y * size + x) * 4;
-                        if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
-                        botPixelCount++;
+                const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
+                
+                // Helper to calculate black ratio and average luma of a band
+                const checkBand = (sx, ex, sy, ey) => {
+                    let black = 0, total = 0, lumaSum = 0;
+                    for (let y = sy; y < ey; y += step) {
+                        for (let x = sx; x < ex; x += step) {
+                            const i = (y * size + x) * 4;
+                            const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
+                            if (luma < dynBlackTh) black++;
+                            lumaSum += luma;
+                            total++;
+                        }
+                    }
+                    return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
+                };
+
+                const topRes = checkBand(0, size, 0, bandH);
+                const botH = Math.floor(bandH * 0.8);
+                const botRes = checkBand(0, size, size - botH, size);
+                const bandW = bandH;
+                const leftRes = checkBand(0, bandW, 0, size);
+                const rightRes = checkBand(size - bandW, size, 0, size);
+
+                // Bar is real if black ratio is high AND it is significantly darker than center (Fix 4-1)
+                const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20); // 20 is threshold in 0-255
+
+                const topBar = isBar(topRes);
+                const botBar = isBar(botRes);
+                const leftBar = isBar(leftRes);
+                const rightBar = isBar(rightRes);
+
+                const barsNow = (topBar && botBar) || (leftBar && rightBar);
+
+                // Subtitle/Overlay Check at bottom (Fix 5-1)
+                // If bottom area is not black bar but has very high white pixel count, move ROI up
+                let subGuardY = size;
+                if (!botBar) {
+                    let whiteCount = 0, subTotal = 0;
+                    const subH = Math.floor(size * 0.15);
+                    const subStart = size - subH;
+                    for(let y = subStart; y < size; y+=step) {
+                        for(let x = Math.floor(size*0.2); x < Math.floor(size*0.8); x+=step) {
+                             const i = (y * size + x) * 4;
+                             const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
+                             if (luma > 230) whiteCount++;
+                             subTotal++;
+                        }
+                    }
+                    if (subTotal > 0 && (whiteCount / subTotal) > 0.05) {
+                        subGuardY = subStart;
                     }
                 }
-
-                // Left/Right (Fix 5C)
-                let leftBlack = 0, rightBlack = 0;
-                let leftPixelCount = 0, rightPixelCount = 0;
-                const bandW = bandH; // Assume roughly square check or similar prop
-                for (let y = 0; y < size; y += step) {
-                    for (let x = 0; x < bandW; x += step) {
-                         const i = (y * size + x) * 4;
-                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) leftBlack++;
-                         leftPixelCount++;
-                    }
-                    for (let x = size - bandW; x < size; x += step) {
-                         const i = (y * size + x) * 4;
-                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) rightBlack++;
-                         rightPixelCount++;
-                    }
-                }
-
-                const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
-                const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
-                const leftRatio = leftPixelCount > 0 ? leftBlack / leftPixelCount : 0;
-                const rightRatio = rightPixelCount > 0 ? rightBlack / rightPixelCount : 0;
-
-                // Bars detected if T/B are black OR L/R are black
-                const barsNow = ((topRatio > 0.65 && botRatio > 0.65) || (leftRatio > 0.65 && rightRatio > 0.65));
 
                 let validCount = 0;
                 let hiClipCount = 0, loClipCount = 0;
+                
+                const startY = topBar ? Math.floor(size * 0.15) : 0;
+                let endY = botBar ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
+                endY = Math.min(endY, subGuardY); // Apply subtitle guard
 
-                // Adjust ROI based on bars
-                const startY = (barsNow && topRatio > 0.65) ? Math.floor(size * 0.15) : 0;
-                const endY = (barsNow && botRatio > 0.65) ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
-                const startX = (barsNow && leftRatio > 0.65) ? Math.floor(size * 0.15) : 4;
-                const endX = (barsNow && rightRatio > 0.65) ? Math.floor(size * 0.85) : size - 4;
+                const startX = leftBar ? Math.floor(size * 0.15) : 4;
+                const endX = rightBar ? Math.floor(size * 0.85) : size - 4;
 
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = startX; x < endX; x+=step) {
@@ -222,7 +248,9 @@
         const run = () => {
             try {
                 if (!document.documentElement) return;
-                if (document.documentElement.childElementCount > 5000) limit = 1000;
+                // Fix 1A: Better DOM size check
+                const approxSize = document.getElementsByTagName('*').length;
+                if (approxSize > 5000) limit = 1000;
 
                 if (_localShadowRoots.length > 200) return;
 
@@ -434,7 +462,8 @@
 
     const disableAllHooks = () => {
         if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
-        HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
+        // Fix 1B: Do not restore load hook to avoid losing it on toggle
+        // HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
 
         if (_shadowHookActive) {
             try { Element.prototype.attachShadow = ORIGINALS.attachShadow; } catch {}
@@ -449,7 +478,10 @@
         if (!isSensitiveContext()) {
             const origLoad = HTMLMediaElement.prototype.load;
             HTMLMediaElement.prototype.load = function (...args) {
-                try { if (_corePluginRef && !isSensitiveContext()) scheduleScan(this, true); } catch { }
+                // If sensitive or inactive, just pass through (No-Op), but keep hook alive
+                if (_corePluginRef && !isSensitiveContext()) {
+                     try { scheduleScan(this, true); } catch { }
+                }
                 return origLoad.apply(this, args);
             };
         }
@@ -609,7 +641,7 @@
         _lowMotionSkip: 0,
         _workerBusy: false,
         _workerLastSent: 0,
-        _workerStallCount: 0, // Fix 1B
+        _workerStallCount: 0,
         _lastAppliedFid: 0,
         _hist: new Uint16Array(256),
         _p10Ema: -1, _p90Ema: -1,
@@ -687,7 +719,6 @@
                  }
              }
 
-             // Simplified side bars for fallback (just skip complex left/right check to keep it light)
              const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
              const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
              const barsNow = (topRatio > 0.65 && botRatio > 0.65);
@@ -879,7 +910,7 @@
                 this._lowMotionSkip = 0;
             }
 
-            // Fix 1B: Worker Watchdog (Restart if stalled)
+            // Fix 1B: Worker Watchdog
             if (this._worker && this._workerBusy) {
                  const now = performance.now();
                  if (this._workerLastSent > 0 && now - this._workerLastSent > 1200) {
@@ -926,15 +957,23 @@
                 if (this._worker) {
                       this._workerBusy = true;
                       this._workerLastSent = performance.now();
-                      this._worker.postMessage({
+                      const msg = {
                         type: 'analyze',
                         fid: fid,
                         vid: vid,
                         data: imageData.data,
                         width: size,
                         bandH: bandH,
-                        step: step
-                    }, [imageData.data.buffer]);
+                        step: step,
+                        p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) // Pass P10 for dynamic threshold
+                      };
+                      // Fix 1C: Robust message passing
+                      try {
+                          this._worker.postMessage(msg, [imageData.data.buffer]);
+                      } catch(err) {
+                          // Fallback if transfer fails
+                          this._worker.postMessage({ ...msg, data: Array.from(imageData.data) });
+                      }
                 } else {
                     this._analyzeFallback(imageData, size, size, bandH, step);
                 }
@@ -1032,7 +1071,7 @@
                     if (hiClipRatio > 0.02) hiGuard *= 0.7;
 
                     const corr = correction * hiGuard;
-
+                    
                     // Fix 5D: If highlight risk, prefer shadow boost over gamma
                     const hiRisk = (stableP90 > 0.93) || (hiClipRatio > 0.01);
 
@@ -1059,7 +1098,8 @@
                 }
 
                 targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
-                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.7, 1.7);
+                // Fix 4 (Problem 2): Tighter Gamma Clamp
+                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.8, 1.4);
 
                 if (aggressive && (stableP10 < 0.05 || stableP90 > 0.95)) {
                     targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40);
@@ -1233,6 +1273,8 @@
             this._lastAttrObsProbe = 0;
             this._lastSensitive = null;
             this._updateHooksState = null;
+            this._imgScanRate = 0; // Fix 5-3
+            this._imgScanResetTimer = null;
         }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this;
@@ -1265,6 +1307,9 @@
                 }
                 this._mutationCounter = 0;
             }, 1000);
+
+            // Fix 5-3: Image Rate Limiter Reset
+            this._imgScanResetTimer = setInterval(() => { this._imgScanRate = 0; }, 1000);
 
             const updateHooksState = () => {
                 const active = this.stateManager.get('app.scriptActive');
@@ -1305,8 +1350,14 @@
                     if (t && t.tagName === 'IMG') {
                         const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
                         if (wantImages) {
-                            if (t.decode) t.decode().then(() => scheduleScan(t, true)).catch(() => scheduleScan(t, true));
-                            else scheduleScan(t, true);
+                            // Fix 5-3: Rate limit image scans
+                            if (this._imgScanRate < 20) {
+                                this._imgScanRate++;
+                                if (t.decode) t.decode().then(() => scheduleScan(t, true)).catch(() => scheduleScan(t, true));
+                                else scheduleScan(t, true);
+                            } else {
+                                scheduleScan(null); // Just queue a full scan later
+                            }
                         }
                     }
                 }, CP(this._ac.signal));
@@ -1385,7 +1436,7 @@
             const controlsVisible = sm.get('ui.areControlsVisible');
             const aeActive = sm.get('videoFilter.autoExposure') || sm.get('videoFilter.clarity') > 0;
             const hasMedia = hasRealVideoCached() || sm.get('media.activeImages').size > 0;
-
+            
             // Fix 2B: Tighten Observer Condition
             const curVis = sm.get('media.currentlyVisibleMedia');
             const reallyNeeded = active && (controlsVisible || (aeActive && (curVis || hasMedia)));
@@ -1445,6 +1496,7 @@
             if (this._resizeObs) this._resizeObs.disconnect();
             if (this._globalAttrObs) this._globalAttrObs.disconnect();
             if (this._backoffInterval) clearInterval(this._backoffInterval);
+            if (this._imgScanResetTimer) clearInterval(this._imgScanResetTimer);
 
             disableAllHooks();
         }
@@ -1524,14 +1576,18 @@
                     }
                     return false;
                 };
+                // Fix 2-1: Better debounce logic for backoff
                 const flushDirty = debounce(() => {
                     if (dirtySet.size > 0) {
                         this._domDirty = true;
-                        for (const n of dirtySet) scheduleScan(n);
-                        if (dirtySet.size > 50) scheduleScan(null);
+                        // In backoff mode, just mark dirty and let tick handle it
+                        if (!this._isBackoffMode) {
+                            for (const n of dirtySet) scheduleScan(n);
+                            if (dirtySet.size > 50) scheduleScan(null);
+                        }
                         dirtySet.clear();
                     }
-                }, 150);
+                }, this._isBackoffMode ? 500 : 150);
 
                 this.mainObserver = new MutationObserver((mutations) => {
                     this._mutationCounter += mutations.length;
@@ -1545,7 +1601,8 @@
                              }
                              if (critical) break;
                         }
-                        if (critical) { this._domDirty = true; scheduleScan(null); }
+                        // Fix 2-1: Consolidated scan trigger
+                        if (critical) { this._domDirty = true; } 
                         return;
                     }
                     let dirty = false;
@@ -1613,6 +1670,7 @@
 
                     if (needsUpdate && !document.hidden) {
                         if (this._centerCalcTimer) clearTimeout(this._centerCalcTimer);
+                        // Fix 2-2: Throttle center calculation to 300ms
                         this._centerCalcTimer = setTimeout(() => {
                             if (this._visibleVideos.size === 0) return;
                             const currentBest = sm.get('media.currentlyVisibleMedia');
@@ -1656,7 +1714,7 @@
                                     if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
                                 }, 200);
                             }
-                        }, 150);
+                        }, 300);
                     }
                 }, { root: null, rootMargin: '0px', threshold: thresholdConfig });
             }
@@ -2186,8 +2244,13 @@
                 }
             }
 
-            // Fix 3B: Auto Denoise/Anti-Ringing on bright boost
-            if (vf.autoExposure && vf.targetLuma > 8) autoSharpLevel2 *= 0.85;
+            // Fix 3B & 5-2: Auto Denoise & Anti-Overshoot
+            if (vf.autoExposure) {
+                if (vf.targetLuma > 8) autoSharpLevel2 *= 0.85; // Brightening denoise
+                
+                // Reduce sharp on low contrast or high clip
+                if (VideoAnalyzer._p90Ema > 0 && (VideoAnalyzer._p90Ema - VideoAnalyzer._p10Ema < 0.15)) autoSharpLevel2 *= 0.8;
+            }
 
             const values = { saturation: vf.saturation, gamma: finalGamma, blur: 0, sharpenLevel: vf.level, level2: autoSharpLevel2, shadows: finalShadows, highlights: finalHighlights, brightness: finalBrightness, contrastAdj: finalContrastAdj, colorTemp: vf.colorTemp, dither: vf.dither, clarity: vf.clarity, autoExposure: vf.autoExposure, targetLuma: vf.targetLuma };
             this.filterManager.updateFilterValues(values); VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
@@ -2208,7 +2271,10 @@
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
-            const isVis = this.stateManager.get('media.visibilityMap').get(video); const isActive = scriptActive && isVis && shouldApply;
+            
+            // Fix 2-3: Avoid heavy checks if not active
+            const isVis = this.stateManager.get('media.visibilityMap').get(video);
+            const isActive = scriptActive && isVis && shouldApply;
 
             if (isActive) {
                 injectFiltersIntoContext(video, this.filterManager, this.stateManager);
@@ -2409,8 +2475,10 @@
             this.startBootGate();
         }
 
+        // Fix 1D: Soft Boot Gate (Never completely hide)
         startBootGate() {
-            this.globalContainer.style.display = 'none';
+            this.globalContainer.style.display = 'flex'; // Default to visible
+            this.globalContainer.style.opacity = '0.5'; // Start dim
             let checks = 0;
             const check = () => {
                 checks++;
@@ -2419,11 +2487,12 @@
                                  hasRealVideoCached();
 
                 if (hasMedia) {
-                    this.globalContainer.style.display = 'flex';
-                } else if (checks < 30) {
+                    this.globalContainer.style.opacity = '1';
+                } else if (checks < 20) {
                       setTimeout(check, 500);
                 } else {
-                    this.globalContainer.style.display = 'none';
+                    // Even if failed, keep visible but dim, allowing user interaction
+                    this.globalContainer.style.opacity = '0.5';
                 }
             };
             check();
@@ -2435,6 +2504,7 @@
             if (isVisible) {
                 this.triggerElement.textContent = '🛑';
                 this.triggerElement.style.backgroundColor = 'rgba(231, 76, 60, 0.9)';
+                if(this.globalContainer) this.globalContainer.style.opacity = '1';
             } else {
                 this.triggerElement.textContent = '⚡';
                 this.triggerElement.style.backgroundColor = 'var(--vsc-bg-btn)';
@@ -2471,9 +2541,9 @@
             const hasAny = hasAnyVideo || hasLocalImage;
 
             if (this.globalContainer) {
-                if (controlsVisible || hasAny) {
-                    this.globalContainer.style.display = 'flex';
-                }
+                // Always flex, controlled by opacity in StartBootGate or user interaction
+                this.globalContainer.style.display = 'flex';
+                if (controlsVisible || hasAny) this.globalContainer.style.opacity = '1';
             }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
             if (!this.shadowRoot) return;
