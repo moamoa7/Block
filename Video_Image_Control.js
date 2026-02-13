@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.67 Final_Shadow_Fix)
+// @name        Video_Image_Control (Lite v130.68 Refactored)
 // @namespace   https://com/
-// @version     130.67
-// @description v130.67: Fix "Chicken-Egg" ShadowDOM issue, Early Hook Injection.
+// @version     130.68
+// @description v130.68: Stability Fixes, Performance Opt, HDR Safety, Clean UI.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -25,11 +25,16 @@
     Object.defineProperty(window, '__VSC_BOOT_GUARD__', { value: true, configurable: false, writable: false });
 
     const IS_TOP = window === window.top;
-    const VSC_DEBUG = false;
     let _corePluginRef = null;
 
     // 2. Constants & Configuration
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
+    
+    // [Fix 1] Define MEDIA_EVENTS to prevent crash
+    const MEDIA_EVENTS = [
+        'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata', 
+        'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'
+    ];
 
     // Device detection
     const DEVICE_RAM = navigator.deviceMemory || 4;
@@ -83,30 +88,35 @@
 
     // --- Shadow DOM & Detection Logic ---
     const dirtyRoots = new Set();
-    let pendingScan = false;
     let _scanRaf = null;
     let _lastFullScanTime = 0;
+    
+    // [Optimization] Localize ShadowRoot list to reduce global pollution
+    // Only expose to window if absolutely necessary for debugging or external tools
+    const _localShadowRoots = [];
+    const _localShadowSet = new WeakSet();
 
     const registerShadowRoot = (sr) => {
         if (!sr) return;
-        window._shadowDomList_ = window._shadowDomList_ || [];
-        window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
-        if (!window._shadowDomSet_.has(sr)) {
-            window._shadowDomSet_.add(sr);
-            window._shadowDomList_.push(sr);
+        if (!_localShadowSet.has(sr)) {
+            _localShadowSet.add(sr);
+            _localShadowRoots.push(sr);
             // Notify core plugin if active
             if (_corePluginRef) _corePluginRef.scanSpecificRoot(sr);
         }
     };
 
-    // ✅ [PATCH 1] Collect already-open ShadowRoots once
+    // [Optimization] Limit excessive scanning on huge pages
     let _didCollectOpenSR = false;
-    function collectOpenShadowRootsOnce(limit = 5000) {
+    function collectOpenShadowRootsOnce(limit = 3000) {
         if (_didCollectOpenSR) return;
         _didCollectOpenSR = true;
         const run = () => {
             try {
                 if (!document.documentElement) return;
+                // If page is too huge, use a smaller limit
+                if (document.documentElement.childElementCount > 5000) limit = 1000;
+                
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
                 while ((n = walker.nextNode()) && i < limit) {
@@ -149,11 +159,9 @@
         }
         if (_scanRaf) return;
         _scanRaf = requestAnimationFrame(() => {
-            _scanRaf = null; if (pendingScan) return; pendingScan = true;
+            _scanRaf = null;
             scheduleWork(() => {
-                pendingScan = false;
                 if (!_corePluginRef) return;
-                // No need to disable hooks here, separate management
                 if (dirtyRoots.size > 0) {
                     const now = Date.now();
                     if (dirtyRoots.size > (IS_LOW_END ? 60 : 40) && (now - _lastFullScanTime > 1500)) {
@@ -178,15 +186,37 @@
         }
     };
 
+    // [Fix 2] Enhanced Sensitive Context Detection
     let _sensCache = { t: 0, v: false };
+    let _sensitiveLockUntil = performance.now() + 2000; // Force sensitivity check for first 2 seconds on matching URLs
+    
+    // Release the lock after DOMContentLoaded + timeout
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
+    } else {
+         setTimeout(() => { _sensitiveLockUntil = 0; }, 1000);
+    }
+
+    const isSensitiveUrl = () => {
+        const url = location.href.toLowerCase();
+        return /(login|signin|auth|account|member|session|checkout|payment|bank|verify|secure)/i.test(url);
+    };
+
     const isSensitiveContext = () => {
-        if (!document.documentElement) return false;
         const now = Date.now();
         if (now - _sensCache.t < 300) return _sensCache.v;
+
+        // Boot-phase safety lock
+        if (performance.now() < _sensitiveLockUntil && isSensitiveUrl()) {
+             _sensCache = { t: now, v: true };
+             return true;
+        }
+
+        if (!document.documentElement) return false;
+        
         let result = false;
-        const url = location.href.toLowerCase();
-        if (/(login|signin|auth|account|member|session|checkout|payment|bank|verify)/i.test(url)) {
-            try { if (document.querySelector('input[type="password"], input[name*="otp"]')) result = true; } catch(e) {}
+        if (isSensitiveUrl()) {
+            try { if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"]')) result = true; } catch(e) {}
         }
         _sensCache = { t: now, v: result };
         return result;
@@ -202,13 +232,16 @@
             if (el.tagName === 'IFRAME' || el.tagName === 'CANVAS') return true;
             return !!el.src || !!el.currentSrc || (el.offsetWidth > 0 && el.offsetHeight > 0) || !!el.getAttribute('data-src');
         };
-        const vids = document.querySelectorAll('video');
-        for (const v of vids) { if (v.isConnected && isValid(v)) { found = true; break; } }
-        if (!found && document.querySelector('iframe')) found = true;
-        if (!found && window._shadowDomList_) {
-            const cap = Math.min(window._shadowDomList_.length, 50);
+        // [Fix 4] Optimization: use getElementsByTagName instead of querySelectorAll
+        const vids = document.getElementsByTagName('video');
+        for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
+        
+        if (!found && document.getElementsByTagName('iframe').length > 0) found = true;
+        
+        if (!found && _localShadowRoots.length > 0) {
+            const cap = Math.min(_localShadowRoots.length, 50);
             for (let i = 0; i < cap; i++) {
-                const sr = window._shadowDomList_[i];
+                const sr = _localShadowRoots[i];
                 if (!sr) continue;
                 try {
                     const v = sr.querySelector ? sr.querySelector('video, iframe, canvas') : null;
@@ -237,11 +270,9 @@
     const enableShadowHook = () => {
         if (_shadowHookActive || isSensitiveContext()) return;
         try {
-            window._shadowDomList_ = window._shadowDomList_ || [];
-            window._shadowDomSet_ = window._shadowDomSet_ || new WeakSet();
-            if (!Object.getOwnPropertyDescriptor(window, '_shadowDomList_')) {
-                 Object.defineProperty(window, '_shadowDomList_', { value: window._shadowDomList_, enumerable: false, writable: true, configurable: true });
-            }
+            // Only expose if needed, otherwise use local
+            // window._shadowDomList_ = window._shadowDomList_ || []; 
+            
             Element.prototype.attachShadow = function (init) {
                 const shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 try {
@@ -259,7 +290,6 @@
         } catch(e) {}
     };
 
-    // ✅ [PATCH 2] Enable Shadow hook early so we can SEE players living in Shadow DOM
     safeGuard(() => {
         if (!isSensitiveContext()) {
             enableShadowHook();
@@ -270,6 +300,9 @@
     const patchDescriptorSafely = (d) => { if (!d) return; const isAccessor = ('get' in d) || ('set' in d); if (!isAccessor && d.writable === false) d.writable = true; };
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
+        // [Fix 3] Safety check: Don't hook if page is hidden to avoid background interference
+        if (document.visibilityState === 'hidden') return;
+
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
         const safeDefineProperty = function (obj, key, descriptor) {
@@ -294,9 +327,9 @@
         Object.defineProperty = safeDefineProperty; Object.defineProperties = safeDefineProperties;
         _hooksActive = true;
     };
+    
     const disableAllHooks = () => {
         if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
-        // Note: Shadow hook is usually not disabled once enabled to prevent inconsistency
         HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
     };
 
@@ -337,8 +370,7 @@
         if (root === document && element.parentElement) {
             let cachedRoot = _shadowRootCache.get(element);
             if (!cachedRoot || !cachedRoot.host || !cachedRoot.host.isConnected) {
-                const shadowRoots = window._shadowDomList_ || [];
-                for (const sRoot of shadowRoots) { if (sRoot.contains(element)) { root = sRoot; _shadowRootCache.set(element, sRoot); break; } }
+                for (const sRoot of _localShadowRoots) { if (sRoot.contains(element)) { root = sRoot; _shadowRootCache.set(element, sRoot); break; } }
             } else root = cachedRoot;
         }
         if (ownerDoc === document && root === document) return;
@@ -684,6 +716,9 @@
 
                 let contrastFactor = 1.0;
                 if ((p90 - p10) < 0.1) contrastFactor = 0.3;
+                
+                // [Fix 4] High contrast detection (HDR Safety)
+                const isHighContrast = (p90 > 0.9 && p10 < 0.1);
 
                 const currentLuma = p50;
                 if (this.lastAvgLuma >= 0) {
@@ -691,7 +726,8 @@
                     this._highMotion = (delta > 0.08);
                     if (delta > 0.25) {
                          this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0;
-                         this._evAggressiveUntil = performance.now() + 500;
+                         // Reduce aggression on high contrast scenes to prevent flickering
+                         this._evAggressiveUntil = performance.now() + (isHighContrast ? 200 : 500);
                     } else if (delta > 0.15) {
                         this._userBoostUntil = performance.now() + 300;
                     }
@@ -746,9 +782,11 @@
                 }
 
                 const smooth = (curr, target) => {
-                    if (aggressive) return target;
+                    if (aggressive && !isHighContrast) return target;
                     const diff = target - curr;
                     let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.05 : 0.1);
+                    // Slow down on HDR scenes
+                    if (isHighContrast) speed *= 0.5;
                     if (Math.abs(diff) < 0.005) return curr;
                     return curr + diff * speed;
                 };
@@ -767,7 +805,6 @@
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    // [Safety] Stop analysis if tainted and no alternative found (prevent infinite loop)
                     try {
                         this.canvas.width = this.canvas.width;
                         this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
@@ -782,7 +819,7 @@
                          this._kickImmediateAnalyze();
                          return;
                     }
-                    this.stop(); // ✅ Stop loop
+                    this.stop();
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
                 }
             }
@@ -803,7 +840,6 @@
             this.stateManager.init();
             this.plugins.forEach(p => p.init(this.stateManager));
             this.stateManager.set('app.isInitialized', true);
-            // ✅ CRITICAL FIX: Trigger plugin initialization cycle
             this.stateManager.set('app.pluginsInitialized', true);
             window.addEventListener('pagehide', (e) => { if (!e.persisted) this.destroyAll(); });
         }
@@ -859,16 +895,17 @@
                 const active = this.stateManager.get('app.scriptActive');
                 const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
                 const hasVideo = hasActiveVideo || hasRealVideoCached();
+                const sensitive = isSensitiveContext();
 
-                // ✅ [PATCH 2] Enable Shadow hook early so we can SEE players living in Shadow DOM
-                if (!isSensitiveContext()) {
+                // [Fix 3] Enable shadow hook early but respect sensitivity
+                if (!sensitive) {
                     enableShadowHook();
                 }
 
-                if (active && hasVideo && !isSensitiveContext()) {
+                if (active && hasVideo && !sensitive) {
                     enablePropertyHooks();
                 } else {
-                    if (!active) disableAllHooks();
+                    if (!active || sensitive) disableAllHooks();
                 }
             };
             this._updateHooksState = updateHooksState;
@@ -880,7 +917,7 @@
                         this._domDirty = true;
                         const sr = e.detail.shadowRoot;
                         if (!sr[VSC_SR_MO]) {
-                            const isHeavy = (window._shadowDomList_ && window._shadowDomList_.length > 300);
+                            const isHeavy = (_localShadowRoots.length > 300);
                             const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
                             const smo = new MutationObserver(() => scheduleScan(sr));
                             smo.observe(sr, config);
@@ -921,7 +958,6 @@
                     }
                 }, { capture: true, passive: true, signal: this._ac.signal });
 
-                // [Enhanced] Safari support
                 const fsChange = () => {
                     const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                     if (fsEl) {
@@ -959,7 +995,6 @@
                     for (const e of entries) {
                         const t = e.target;
                         if (t.tagName === 'VIDEO') needed = true;
-                        // [Enhanced] 작은 비디오도 커지면 재스캔
                         if (t.tagName === 'VIDEO' && e.contentRect.width > 50) needed = true;
                         else if (t.tagName === 'IMG' && e.contentRect.height > 100) needed = true;
                     }
@@ -974,7 +1009,7 @@
                 document.getElementsByTagName('video').length > 0 ||
                 document.getElementsByTagName('iframe').length > 0 ||
                 document.getElementsByTagName('source').length > 0 ||
-                (Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0);
+                (_localShadowRoots.length > 0);
 
             if (active && !this._globalAttrObs && hasCandidates) {
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
@@ -985,7 +1020,6 @@
                         const tag = t.nodeName;
                         if (tag === 'SOURCE') {
                             scheduleScan(t.parentNode, true); dirty = true;
-                            // [Enhanced] picture 태그 지원
                             if (t.parentNode && t.parentNode.tagName === 'PICTURE') dirty = true;
                         }
                         else if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') { scheduleScan(t, true); dirty = true; }
@@ -1053,16 +1087,22 @@
             }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
-            // [Optimized] Pruning interval increased to 15000ms
-            if (window._shadowDomList_ && Date.now() - this._lastShadowPrune > 15000) {
+            
+            // [Fix 6] Optimized ShadowRoot Pruning (Backwards iteration + splicing)
+            if (_localShadowRoots.length > 0 && Date.now() - this._lastShadowPrune > 15000) {
                 this._lastShadowPrune = Date.now();
-                window._shadowDomList_ = window._shadowDomList_.filter(r => {
-                    const alive = r && r.host && r.host.isConnected;
-                    if (!alive && r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
-                    return alive;
-                });
+                let i = _localShadowRoots.length;
+                while (i--) {
+                     const r = _localShadowRoots[i];
+                     const alive = r && r.host && r.host.isConnected;
+                     if (!alive) {
+                         if (r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
+                         _localShadowRoots.splice(i, 1);
+                         _localShadowSet.delete(r);
+                     }
+                }
             }
-            // [Safety] Re-enable Global Observer if lost
+            
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) {
                 const now = Date.now();
                 if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) {
@@ -1139,7 +1179,6 @@
                     if (dirty) flushDirty();
                 });
 
-                // [Optimized] DOMContentLoaded 이후엔 Body만 관찰
                 if (document.body) this.mainObserver.observe(document.body, { childList: true, subtree: true });
                 else {
                     this.mainObserver.observe(document.documentElement, { childList: true, subtree: true });
@@ -1157,13 +1196,11 @@
                     const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
-                        // [Optimized] Safari compat
                         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                         const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
                         if (visMap) visMap.set(e.target, isVisible);
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
 
-                        // [Fixed] Iframe/Canvas visibility update
                         if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS') {
                             if (visMap) visMap.set(e.target, isVisible);
                             sm.set('media.visibilityChange', { target: e.target, isVisible });
@@ -1195,7 +1232,6 @@
                                 if (m.tagName === 'VIDEO') {
                                     const area = (m.clientWidth || 0) * (m.clientHeight || 0); let score = area;
                                     if (!m.paused) score *= 2.5;
-                                    // [New] 재생 중 가산점 (RVFC 지원 시)
                                     if ('requestVideoFrameCallback' in m && !m.paused) score *= 1.2;
 
                                     if (m.readyState >= 3) score *= 1.5; if (!m.muted && m.volume > 0) score *= 1.2;
@@ -1241,7 +1277,6 @@
             if (node.tagName === 'VIDEO') {
                 const vw = node.videoWidth || 0;
                 const vh = node.videoHeight || 0;
-                // [Fixed] Also check clientWidth/Height for ok.ru
                 const cw = node.clientWidth || 0;
                 const ch = node.clientHeight || 0;
 
@@ -1376,8 +1411,7 @@
             if (!root) return { media, images, iframes }; if (depth > CONFIG.SCAN.MAX_DEPTH) return { media, images, iframes };
             const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
             if (root === document) {
-                // [Optimized] Shadow scan only at document level
-                const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0;
+                const hasShadow = _localShadowRoots.length > 0;
                 if (!document.querySelector('video, iframe, canvas, img, source') && !hasShadow) return { media, images, iframes };
 
                 const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images, iframes);
@@ -1393,17 +1427,16 @@
                 const candidates = root.querySelectorAll(wantImages ? SEL.MEDIA : SEL.FILTER_TARGET);
                 candidates.forEach(el => this._checkAndAdd(el, media, images, iframes));
             }
-            if (root === document) { const hasShadow = Array.isArray(window._shadowDomList_) && window._shadowDomList_.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images, iframes }; }
+            if (root === document) { const hasShadow = _localShadowRoots.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images, iframes }; }
             if (root.nodeType === 1) this._checkAndAdd(root, media, images, iframes);
             if (visited.has(root)) return { media, images, iframes }; visited.add(root);
 
-            // [Optimized] Only recurse into shadow roots if explicitly requested (usually on full scan from document)
             if (!skipShadowScan && root === document) {
-                (window._shadowDomList_ || []).forEach(shadowRoot => {
+                _localShadowRoots.forEach(shadowRoot => {
                     let flags = shadowRoot[VSC_FLAG] | 0;
                     if (!(flags & FLAG_OBSERVED)) {
                         try {
-                            const isHeavy = (window._shadowDomList_ && window._shadowDomList_.length > 300);
+                            const isHeavy = (_localShadowRoots.length > 300);
                             const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
                             const smo = new MutationObserver(() => scheduleScan(shadowRoot));
                             smo.observe(shadowRoot, config);
@@ -1457,7 +1490,6 @@
             };
             on(media, 'playing', onPlaying, P(signal));
 
-            // [Fixed] Reset tainted status on src change
             on(media, 'loadedmetadata', () => VideoAnalyzer.taintedResources.delete(media), P(signal));
 
             const attrMo = new MutationObserver((mutations) => {
@@ -1495,7 +1527,6 @@
         }
         attachImageListeners(image) {
             if (!image || !this.intersectionObserver) return false;
-            // Iframe doesn't need SVG context
             if (image.tagName !== 'IFRAME' && this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
             const visMap = this.stateManager.get('media.visibilityMap'); if (visMap) visMap.set(image, false);
             if (!this._observedImages.has(image)) {
@@ -1504,17 +1535,12 @@
             return true;
         }
         detachImageListeners(image) { try { this.intersectionObserver.unobserve(image); } catch (e) { } this._observedImages.delete(image); if (this._resizeObs) this._resizeObs.unobserve(image); }
-        // [New] Dedicated iframe listener
         attachIframeListeners(iframe) {
             if (!iframe || !this.intersectionObserver) return false;
-
-            // [PATCH] Inject SVG filter context for iframes (ShadowDOM support)
             if (this.stateManager.filterManagers.video) {
                 injectFiltersIntoContext(iframe, this.stateManager.filterManagers.video, this.stateManager);
             }
-
             const visMap = this.stateManager.get('media.visibilityMap');
-            // Init visibility based on rect
             const rect = iframe.getBoundingClientRect();
             const isVisible = rect.width > 0 && rect.height > 0 && rect.top < innerHeight && rect.bottom > 0;
             if (visMap) visMap.set(iframe, isVisible);
@@ -1555,7 +1581,6 @@
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
             if (this.stateManager.get('app.scriptActive')) { this.filterManager.init(); this.imageFilterManager.init(); this.applyAllVideoFilters(); this.applyAllImageFilters(); }
 
-            // [Fixed] 주기적 ShadowRoot 정리 (메모리 누수 방지)
             this._pruneTimer = setInterval(() => {
                 if (this.filterManager) this.filterManager.prune();
                 if (this.imageFilterManager) this.imageFilterManager.prune();
@@ -1563,7 +1588,6 @@
         }
         destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if (this._rafId) cancelAnimationFrame(this._rafId); if (this._imageRafId) cancelAnimationFrame(this._imageRafId); if (this._mediaStateRafId) cancelAnimationFrame(this._mediaStateRafId); if (this._pruneTimer) { clearInterval(this._pruneTimer); this._pruneTimer = null; } }
 
-        // ✅ [Smart Escalation: Class -> Inline fallback]
         setInlineFilter(el, filterCss) {
             if (!_prevInlineStyle.has(el)) {
                 _prevInlineStyle.set(el, {
@@ -1579,7 +1603,7 @@
         }
 
         restoreInlineFilter(el) {
-            if (el.dataset.vscInlineFilter !== '1') return; // 내가 건드린 것만 복구
+            if (el.dataset.vscInlineFilter !== '1') return;
             const prev = _prevInlineStyle.get(el);
             if (prev) {
                 el.style.filter = prev.filter;
@@ -1601,7 +1625,6 @@
                 init() { if (this._isInitialized) return; safeGuard(() => {
                     const { svgNode, styleElement } = this._createElements();
                     this._svgNode = svgNode; this._styleElement = styleElement;
-                    // [Safety] Body check
                     const container = document.body || document.documentElement;
                     if (container) container.appendChild(svgNode);
                     (document.head || document.documentElement).appendChild(styleElement);
@@ -1609,7 +1632,6 @@
                     this._isInitialized = true;
                 }, `${this.constructor.name}.init`); }
                 registerContext(svgElement) { this._activeFilterRoots.add(svgElement); }
-                // [Fixed] 죽은 ShadowRoot 정리 메소드
                 prune() {
                     for (const root of this._activeFilterRoots) {
                         if (!root || !root.isConnected) {
@@ -1747,7 +1769,6 @@
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVis = this.stateManager.get('media.visibilityMap').get(video); const isActive = scriptActive && isVis && shouldApply;
 
-            // [PATCH] Active Injection: Force inject filters if active (robust against DOM resets)
             if (isActive) {
                 injectFiltersIntoContext(video, this.filterManager, this.stateManager);
                 if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform';
@@ -1755,25 +1776,23 @@
                 if (video.style.willChange) video.style.willChange = '';
             }
 
-            // [Smart Escalation] Class -> Inline !important fallback
             const filterId = this.filterManager._options.settings.SHARPEN_ID + '_combined_filter';
-            const filterCss = `url("#${filterId}")`; // Added Quotes for WebKit safety
+            const filterCss = `url("#${filterId}")`;
 
             if (isActive) {
-                // 1. Try Class
                 video.classList.add('vsc-video-filter-active');
-
-                // 2. Check if it worked
-                const cs = window.getComputedStyle(video);
-                const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
-
-                if (!currentFilter.includes(filterId)) {
-                    // 3. Escalate to Inline if class failed
-                    this.setInlineFilter(video, filterCss);
-                } else {
-                    // 4. De-escalate (Clean up inline if class works)
-                    this.restoreInlineFilter(video);
-                }
+                
+                // [Fix 7] Robust Filter Detection (Browser-safe)
+                requestAnimationFrame(() => {
+                    const cs = window.getComputedStyle(video);
+                    const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
+                    // Check both "url(#id)" and "url('#id')" formats
+                    if (!currentFilter.includes(filterId)) {
+                        this.setInlineFilter(video, filterCss);
+                    } else {
+                        this.restoreInlineFilter(video);
+                    }
+                });
             } else {
                 video.classList.remove('vsc-video-filter-active');
                 this.restoreInlineFilter(video);
@@ -1787,7 +1806,6 @@
             const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp');
             const shouldApply = level > 0 || colorTemp !== 0; const isVis = this.stateManager.get('media.visibilityMap').get(image); const isActive = isVis && shouldApply;
 
-            // [PATCH] Active Injection for Images
             if (isActive) injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager);
 
             image.classList.toggle('vsc-image-filter-active', isActive);
@@ -1856,6 +1874,10 @@
                 .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid var(--vsc-border); padding-bottom: 6px; } .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } .vsc-hr { height: 1px; background: var(--vsc-border); width: 100%; margin: 4px 0; }
                 .slider-control { display: flex; flex-direction: column; gap: 4px; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '13px' : '14px'}; color: var(--vsc-text); } input[type=range] { width: 100%; margin: 0; cursor: pointer; }
                 .vsc-monitor { font-size: 11px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; } .vsc-monitor.warn { color: #e74c3c; font-weight: bold; }
+                /* [Fix 5] Clean UI styles */
+                .vsc-trigger { width: ${isMobile ? '42px' : '48px'}; height: ${isMobile ? '42px' : '48px'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: ${isMobile ? '22px' : '24px'}; user-select: none; touch-action: none; order: 1; transition: background 0.3s; }
+                .vsc-rescan { width: 34px; height: 34px; background: var(--vsc-bg-btn); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; margin-top: 5px; order: 3; }
+                #vsc-global-container { position: fixed; top: 50%; right: 1vmin; z-index: ${CONFIG.UI.MAX_Z}; transform: translateY(-50%) translate(var(--vsc-translate-x, 0), var(--vsc-translate-y, 0)); display: flex; align-items: flex-start; gap: 5px; }
             `;
             return this._cachedStyles;
         }
@@ -1875,15 +1897,18 @@
         createGlobalUI() {
             const isMobile = this.stateManager.get('app.isMobile');
             this.globalContainer = document.createElement('div');
+            this.globalContainer.id = 'vsc-global-container'; // Use ID for CSS styling
             this.globalContainer.setAttribute('data-vsc-internal', '1');
             const tx = this.uiState.x || 0; const ty = this.uiState.y || 0;
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
+            
+            // Define vars on container for scoped usage if needed, but CSS handles it better
             const vars = { '--vsc-bg-dark': 'rgba(0,0,0,0.7)', '--vsc-bg-btn': 'rgba(0,0,0,0.5)', '--vsc-bg-accent': 'rgba(52, 152, 219, 0.7)', '--vsc-bg-warn': 'rgba(231, 76, 60, 0.9)', '--vsc-bg-active': 'rgba(76, 209, 55, 0.4)', '--vsc-text': 'white', '--vsc-text-accent': '#f39c12', '--vsc-text-active': '#4cd137', '--vsc-border': '#555' };
             for (const [k, v] of Object.entries(vars)) this.globalContainer.style.setProperty(k, v);
-            Object.assign(this.globalContainer.style, { position: 'fixed', top: '50%', right: '1vmin', zIndex: CONFIG.UI.MAX_Z, transform: 'translateY(-50%) translate(var(--vsc-translate-x), var(--vsc-translate-y))', display: 'flex', alignItems: 'flex-start', gap: '5px' }); // [Fixed] Force flex
+            
             this.mainControlsContainer = document.createElement('div'); this.mainControlsContainer.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:5px;';
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
-            Object.assign(this.triggerElement.style, { width: isMobile ? '42px' : '48px', height: isMobile ? '42px' : '48px', background: 'var(--vsc-bg-btn)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: isMobile ? '22px' : '24px', userSelect: 'none', touchAction: 'none', order: '1' });
+            this.triggerElement.className = 'vsc-trigger'; // Apply class instead of inline styles
 
             this.triggerElement.addEventListener('click', (e) => {
                 if (this.wasDragged || this._longPressTriggered) {
@@ -1898,22 +1923,12 @@
                 } else {
                     this.stateManager.set('app.scriptActive', true);
                     this.stateManager.set('ui.areControlsVisible', true);
-                    // ✅ No Auto-OFF Logic (Retry only)
                     const ensureMediaSoon = (count) => {
                         const sm = this.stateManager;
                         if (!sm.get('app.scriptActive')) return;
-
-                        const hasMediaState =
-                            sm.get('media.activeMedia').size > 0 ||
-                            sm.get('media.activeImages').size > 0 ||
-                            sm.get('media.activeIframes').size > 0;
-
-                        // Check DOM directly (generic fallback)
-                        const hasMediaDom =
-                            !!document.querySelector('video, iframe') || hasRealVideoCached();
-
+                        const hasMediaState = sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0 || sm.get('media.activeIframes').size > 0;
+                        const hasMediaDom = !!document.querySelector('video, iframe') || hasRealVideoCached();
                         if (hasMediaState || hasMediaDom) return;
-
                         if (count > 0) {
                             triggerBurstScan(250);
                             setTimeout(() => ensureMediaSoon(count - 1), 900);
@@ -1926,7 +1941,7 @@
             });
 
             const rescanTrigger = document.createElement('div'); rescanTrigger.textContent = '↻';
-            Object.assign(rescanTrigger.style, { width: '34px', height: '34px', background: 'var(--vsc-bg-btn)', color: 'white', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: '18px', marginTop: '5px', order: '3' });
+            rescanTrigger.className = 'vsc-rescan';
             rescanTrigger.addEventListener('click', () => { if (window.vscPluginManager) { const core = window.vscPluginManager.plugins.find(p => p.name === 'CoreMedia'); if(core) { core.resetScanInterval(); core.scanAndApply(); } } });
             this.speedButtonsContainer = document.createElement('div'); this.speedButtonsContainer.id = 'vsc-speed-buttons-container'; this.speedButtonsContainer.style.cssText = 'display:none; flex-direction:column; gap:5px;';
             this.attachDragAndDrop();
@@ -1940,14 +1955,17 @@
                 this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn);
             });
 
-            // ✅ [Restored Clean Mode: Ghost UI until detected]
+            // Add styles to head for the external UI parts (outside shadow DOM)
+            const globalStyle = document.createElement('style');
+            globalStyle.textContent = this.getStyles().replace(':host', '#vsc-global-container, #vsc-ui-host');
+            document.head.appendChild(globalStyle);
+
             this.startBootGate();
         }
 
         startBootGate() {
             this.globalContainer.style.display = 'none'; // Initially hidden
             let checks = 0;
-            // First pass check
             const check = () => {
                 checks++;
                 const hasMedia = this.stateManager.get('media.activeMedia').size > 0 ||
@@ -1959,7 +1977,6 @@
                 } else if (checks < 30) { // Keep checking for 15s
                      setTimeout(check, 500);
                 } else {
-                    // Final hide if nothing found
                     this.globalContainer.style.display = 'none';
                 }
             };
@@ -1985,7 +2002,6 @@
             }
             if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; }
             if (this.speedButtonsContainer) {
-                // [Fixed] Generic Check for Video Presence to prevent flickering
                 const hasVideo =
                     [...this.stateManager.get('media.activeMedia')].some(m => m && m.tagName === 'VIDEO') ||
                     !!document.querySelector('video, iframe') ||
@@ -1996,7 +2012,6 @@
             this.updateUIVisibility();
         }
         updateUIVisibility() {
-            // [Fixed] 롱프레스 시 hideUntilReload가 true면 강제로 숨김 처리
             if (this.stateManager.get('ui.hideUntilReload')) {
                 if (this.globalContainer) this.globalContainer.style.display = 'none';
                 return;
@@ -2005,18 +2020,13 @@
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set(); const activeIframes = this.stateManager.get('media.activeIframes') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0; const hasIframe = activeIframes.size > 0;
-
-            // [Fixed] Robust check for updateUIVisibility as well
             const hasDomVideo = !!document.querySelector('video, iframe') || hasRealVideoCached();
             const hasAnyVideo = hasLocalVideo || hasIframe || hasDomVideo;
             const hasAny = hasAnyVideo || hasLocalImage;
 
             if (this.globalContainer) {
-                // If controls are actively ON, force show. Otherwise respect detection.
                 if (controlsVisible || hasAny) {
                     this.globalContainer.style.display = 'flex';
-                } else {
-                   // Keep hidden if nothing found yet (BootGate handles initial check)
                 }
             }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
@@ -2127,7 +2137,7 @@
                 if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
                 const { autoParams, tainted } = e.detail;
                 if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
-                else { monitor.classList.remove('warn'); monitor.textContent = `Gamma: ${autoParams.gamma.toFixed(2)} | Bright: ${autoParams.bright.toFixed(0)}`; }
+                else { monitor.textContent = `Gamma: ${autoParams.gamma.toFixed(2)} | Bright: ${autoParams.bright.toFixed(0)}`; monitor.classList.remove('warn'); }
             };
             document.addEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
             const imgMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controls);
@@ -2201,7 +2211,6 @@
         pluginManager.register(new CoreMediaPlugin());
         pluginManager.register(new SvgFilterPlugin());
         pluginManager.register(new PlaybackControlPlugin());
-        // [Fixed] Removed duplicate UIPlugin registration for IS_TOP
         pluginManager.initAll();
     }
 
