@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.74 Stable)
+// @name        Video_Image_Control (Lite v130.75 Advanced AE)
 // @namespace   https://com/
-// @version     130.74
-// @description v130.74: Fixed Worker Race, Enhanced AE Logic, Mobile Optimization, Safe State Injection.
+// @version     130.75
+// @description v130.75: Fixed Freeze Bug, Advanced AE (EMA/ClipRatio), Worker Backlog Fix, Mobile Battery Opt.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -29,6 +29,7 @@
 
     // 2. Constants & Configuration
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
+    const VSC_AUDIO_SRC = Symbol('vsc_audio_src'); // Fix 4C: Symbol for safety
 
     const MEDIA_EVENTS = [
         'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata',
@@ -97,7 +98,7 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Worker Logic String (Reuse Array, Frame ID) ---
+    // --- Worker Logic String (Reuse Array, Clip Ratios) ---
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
@@ -131,6 +132,7 @@
                 const barsNow = (topRatio > 0.65 && botRatio > 0.65);
 
                 let validCount = 0;
+                let hiClipCount = 0, loClipCount = 0; // Fix 5B: Clip Ratio
                 const startY = barsNow ? Math.floor(size * 0.15) : 0;
                 const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
 
@@ -140,10 +142,15 @@
                         const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
                         hist[luma]++;
                         validCount++;
+                        if (luma >= 250) hiClipCount++;
+                        if (luma <= 5) loClipCount++;
                     }
                 }
 
                 let p10 = -1, p50 = -1, p90 = -1;
+                const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
+                const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
+
                 if (validCount > 0) {
                     let sum = 0;
                     const t10 = validCount * 0.10;
@@ -161,7 +168,7 @@
                 if (p50 < 0) p50 = 0.5;
                 if (p90 < 0) p90 = 0.9;
 
-                self.postMessage({ type: 'result', fid, vid, p10, p50, p90, barsNow });
+                self.postMessage({ type: 'result', fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio });
             }
         };
     `;
@@ -574,6 +581,11 @@
         _frameId: 0,
         _videoIds: new WeakMap(),
         _lowMotionFrames: 0,
+        _lowMotionSkip: 0, // Fix 1A: Separate counter
+        _workerBusy: false, // Fix 1C: Worker backlog
+        _lastAppliedFid: 0, // Fix 1B: Stale results
+        _hist: new Uint16Array(256), // Fix 2A: Reuse fallback hist
+        _p10Ema: -1, _p90Ema: -1, // Fix 5A: EMA for stability
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
 
@@ -604,16 +616,24 @@
                 }
             }
             this._roiP50History = [];
+            this._p10Ema = -1; this._p90Ema = -1;
         },
         _getVideoId(v) {
             if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2));
             return this._videoIds.get(v);
         },
         _handleWorkerMessage(e) {
-            const { type, fid, vid, p10, p50, p90, barsNow } = e.data;
+            this._workerBusy = false; // Release busy flag
+            const { type, fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio } = e.data;
             if (type !== 'result' || !this.targetVideo) return;
             if (vid !== this._getVideoId(this.targetVideo)) return;
-            this._processAnalysisResult(p10, p50, p90, barsNow);
+            
+            // Fix 1B: Stale Result Check
+            if (!this._lastAppliedFid) this._lastAppliedFid = 0;
+            if (fid < this._lastAppliedFid) return;
+            this._lastAppliedFid = fid;
+
+            this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
         },
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
@@ -641,8 +661,12 @@
              const botRatio = pixelCountBot > 0 ? botBlack / pixelCountBot : 0;
              const barsNow = (topRatio > 0.65 && botRatio > 0.65);
 
-             const hist = new Uint16Array(256);
+             if (!this._hist) this._hist = new Uint16Array(256); // Safety
+             this._hist.fill(0);
+             const hist = this._hist;
+
              let validCount = 0;
+             let hiClipCount = 0, loClipCount = 0;
              const startY = barsNow ? Math.floor(size * 0.15) : 0;
              const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
 
@@ -652,10 +676,15 @@
                      const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
                      hist[luma]++;
                      validCount++;
+                     if (luma >= 250) hiClipCount++;
+                     if (luma <= 5) loClipCount++;
                  }
              }
 
              let p10 = 0.1, p50 = 0.5, p90 = 0.9;
+             const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
+             const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
+
              if (validCount > 0) {
                  let sum = 0;
                  const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
@@ -667,7 +696,7 @@
                      if (!f90 && sum >= t90) { p90 = i / 255; f90 = true; }
                  }
              }
-             this._processAnalysisResult(p10, p50, p90, barsNow);
+             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
         },
         _pickBestVideoNow() {
             const pip = document.pictureInPictureElement;
@@ -718,6 +747,8 @@
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true;
             this._roiP50History = [];
+            this._p10Ema = -1; this._p90Ema = -1;
+            this._lowMotionSkip = 0;
             this.loop();
         },
         stop() {
@@ -728,6 +759,7 @@
             this.handle = null; this.targetVideo = null; this.frameSkipCounter = 0;
             this.lastAvgLuma = -1; this._highMotion = false;
             this._roiP50History = [];
+            this._p10Ema = -1; this._p90Ema = -1;
         },
         updateSettings(settings) {
             const prev = this.currentSettings;
@@ -742,6 +774,7 @@
                 if (evChanged || aeTurnedOn) {
                     this._evAggressiveUntil = now + 800;
                     this.dynamicSkipThreshold = 0;
+                    this._lowMotionFrames = 0; // Wake up from low motion
                 }
             }
              if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) {
@@ -795,8 +828,25 @@
             if (!this.ctx) return;
             if (this.taintedResources.has(this.targetVideo)) return;
 
-            // Stable Scene Check
-            if (this._lowMotionFrames > 60 && (this.frameSkipCounter % 5 !== 0)) return;
+            // Fix 2B: Visibility Check to save battery
+            const visMap = this.stateManager.get('media.visibilityMap');
+            const isVis = visMap ? visMap.get(this.targetVideo) : true;
+            if (isVis === false && !document.pictureInPictureElement && !document.fullscreenElement) return;
+
+            // Fix 1A: Safe Low Motion Logic
+            if (this._lowMotionFrames > 60) {
+                this._lowMotionSkip++;
+                if (this._lowMotionSkip % 5 !== 0) return;
+            } else {
+                this._lowMotionSkip = 0;
+            }
+
+            // Fix 1C: Worker Backlog Check
+            if (this._worker && this._workerBusy) {
+                // If aggressive mode is on (e.g. user just changed EV), ignore busy flag to force update
+                const isAggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
+                if (!isAggressive) return; 
+            }
 
             const startTime = performance.now();
             const aggressive = (this._evAggressiveUntil && startTime < this._evAggressiveUntil);
@@ -822,6 +872,7 @@
                 const vid = this._getVideoId(this.targetVideo);
 
                 if (this._worker) {
+                     this._workerBusy = true; // Mark busy
                      this._worker.postMessage({
                         type: 'analyze',
                         fid: fid,
@@ -859,7 +910,7 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 1);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-        _processAnalysisResult(p10, p50, p90, barsNow) {
+        _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
 
             this._roiP50History.push(p50);
@@ -867,15 +918,21 @@
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
             const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
 
-            let contrastFactor = 1.0;
-            if ((p90 - p10) < 0.1) contrastFactor = 0.3;
+            // Fix 5A: EMA for p10/p90 stability
+            this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
+            this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
+            const stableP10 = aggressive ? p10 : this._p10Ema;
+            const stableP90 = aggressive ? p90 : this._p90Ema;
 
-            const isHighContrast = (p90 > 0.9 && p10 < 0.1);
+            let contrastFactor = 1.0;
+            if ((stableP90 - stableP10) < 0.1) contrastFactor = 0.3;
+
+            const isHighContrast = (stableP90 > 0.9 && stableP10 < 0.1);
 
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
-
+                
                 // Low Motion Detection
                 if (delta < 0.003) this._lowMotionFrames++; else this._lowMotionFrames = 0;
 
@@ -901,10 +958,10 @@
             if (isAutoExp) {
                 const u = evValue / 20;
                 const boostFactor = Math.tanh(u);
-                const headroom = Math.max(0.0, 1.0 - p90);
-                const floor = Math.max(0.1, p10);
+                const headroom = Math.max(0.0, 1.0 - stableP90);
+                const floor = Math.max(0.1, stableP10);
 
-                const spread = (p90 - p10);
+                const spread = (stableP90 - stableP10);
                 let baseTarget = IS_MOBILE ? 0.38 : 0.35;
                 if (p50m < 0.18) baseTarget += 0.02;
 
@@ -918,22 +975,27 @@
                 const correction = error * 5.0 * contrastFactor;
 
                 if (correction > 0) {
-                    // Highlight Clipping Guard
-                    const hiClip = Math.max(0, p90 - 0.93);
-                    const hiGuard = 1 - Utils.clamp(hiClip / 0.07, 0, 1);
+                    // Highlight Clipping Guard (Ratio based + p90)
+                    const hiClip = Math.max(0, stableP90 - 0.93);
+                    let hiGuard = 1 - Utils.clamp(hiClip / 0.07, 0, 1);
+                    if (hiClipRatio > 0.02) hiGuard *= 0.7; // Extra dampen if actual clip exists
+                    
                     const corr = correction * hiGuard;
 
-                    const safeGammaBoost = (p90 > 0.9) ? 0.4 : 0.8;
+                    // Fix 5C: Bias towards brightness for small corrections
+                    const safeGammaBoost = (stableP90 > 0.9) ? 0.4 : 0.8;
                     targetAdaptiveGamma += corr * safeGammaBoost;
-                    targetAdaptiveBright += corr * 4;
+                    targetAdaptiveBright += corr * 6; // More brightness
                     if (!isHighContrast) targetShadowsAdj += corr * 5;
                 } else {
                     // Shadow Crushing Guard
-                    const loClip = Math.max(0, 0.05 - p10);
-                    const loGuard = 1 - Utils.clamp(loClip / 0.05, 0, 1);
+                    const loClip = Math.max(0, 0.05 - stableP10);
+                    let loGuard = 1 - Utils.clamp(loClip / 0.05, 0, 1);
+                    if (loClipRatio > 0.02) loGuard *= 0.7;
+
                     const absCorr = Math.abs(correction) * loGuard;
 
-                    const safeGammaCut = (p10 < 0.1) ? 0.3 : 0.6;
+                    const safeGammaCut = (stableP10 < 0.1) ? 0.3 : 0.6;
                     targetAdaptiveGamma -= absCorr * safeGammaCut;
                     targetAdaptiveBright -= absCorr * 3;
                     if (!isHighContrast) targetHighlightsAdj += absCorr * 10;
@@ -942,7 +1004,7 @@
                 targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
                 targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.7, 1.7);
 
-                if (aggressive && (p10 < 0.05 || p90 > 0.95)) {
+                if (aggressive && (stableP10 < 0.05 || stableP90 > 0.95)) {
                     targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40);
                 }
 
@@ -956,7 +1018,7 @@
                 const maxLumaFactor = (isAutoExp && evValue < 0) ? 0.5 : 0.7;
                 const lumaFactor = Math.max(0.2, maxLumaFactor - p50m);
                 let dampener = isAutoExp ? (evValue < 0 ? 0.4 : 0.6) : 1.0;
-                if (p10 < 0.06 && p90 < 0.5) dampener *= 0.5;
+                if (stableP10 < 0.06 && stableP90 < 0.5) dampener *= 0.5;
 
                 targetClarityComp = Math.min(10, (intensity * 10) * lumaFactor * dampener);
             }
@@ -1050,14 +1112,14 @@
 
                 if (this.ctx.state === 'suspended') this.ctx.resume();
 
-                if (!media._vscSource) {
+                if (!media[VSC_AUDIO_SRC]) { // Fix 4C: Use Symbol
                     try {
-                        media._vscSource = this.ctx.createMediaElementSource(media);
+                        media[VSC_AUDIO_SRC] = this.ctx.createMediaElementSource(media);
                     } catch(e) {
                         return;
                     }
                 }
-                this.source = media._vscSource;
+                this.source = media[VSC_AUDIO_SRC];
 
                 this.compressor = this.ctx.createDynamicsCompressor();
                 this.compressor.threshold.value = CONFIG.AUDIO.THRESHOLD;
@@ -2001,7 +2063,7 @@
                         if (sharpenLevel !== undefined) {
                             let strCoarse = 0; let strFine = 0;
                             if (isImage) { strFine = Math.min(4.0, sharpenLevel * 0.12); strCoarse = 0; } else { strCoarse = Math.min(3.0, sharpenLevel * 0.05); strFine = (values.level2 !== undefined) ? Math.min(3.0, values.level2 * 0.06) : 0; }
-                            if (IS_MOBILE) strFine *= 0.8; // Mobile Optimization
+                            if (IS_MOBILE) strFine *= 0.8;
                             const sCurve = (x) => x * x * (3 - 2 * x); const fineProgress = Math.min(1, strFine / 3.0); const fineSigma = 0.5 - (sCurve(fineProgress) * 0.3); const fineK = sCurve(fineProgress) * 3.5; const coarseProgress = Math.min(1, strCoarse / 3.0); const coarseSigma = 1.5 - (sCurve(coarseProgress) * 0.8); const coarseK = sCurve(coarseProgress) * 2.0; const safeFineK = Math.min(6.0, fineK); const safeCoarseK = Math.min(4.0, coarseK);
                             if (strFine <= 0.01) { cache.blurFine.forEach(el => Utils.setAttr(el, 'stdDeviation', "0")); cache.compFine.forEach(el => { Utils.setAttr(el, 'k2', "1"); Utils.setAttr(el, 'k3', "0"); }); } else { cache.blurFine.forEach(el => Utils.setAttr(el, 'stdDeviation', fineSigma.toFixed(2))); cache.compFine.forEach(el => { Utils.setAttr(el, 'k2', (1 + safeFineK).toFixed(3)); Utils.setAttr(el, 'k3', (-safeFineK).toFixed(3)); }); }
                             if (strCoarse <= 0.01) { cache.blurCoarse.forEach(el => Utils.setAttr(el, 'stdDeviation', "0")); cache.compCoarse.forEach(el => { Utils.setAttr(el, 'k2', "1"); Utils.setAttr(el, 'k3', "0"); }); } else { cache.blurCoarse.forEach(el => Utils.setAttr(el, 'stdDeviation', coarseSigma.toFixed(2))); cache.compCoarse.forEach(el => { Utils.setAttr(el, 'k2', (1 + safeCoarseK).toFixed(3)); Utils.setAttr(el, 'k3', (-safeCoarseK).toFixed(3)); }); }
@@ -2078,7 +2140,8 @@
 
                     const cs = window.getComputedStyle(video);
                     const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
-                    if (!currentFilter.includes(filterId)) {
+                    // Fix 3A: Inline fallback hardening
+                    if (!currentFilter.includes(filterId) && !/url\(.*#.*_combined_filter.*\)/.test(currentFilter)) {
                         this.setInlineFilter(video, filterCss);
                     } else {
                         this.restoreInlineFilter(video);
@@ -2450,7 +2513,7 @@
                 this.currentPos = { x: this.uiState.x, y: this.uiState.y };
                 this.globalContainer.style.transition = 'none';
                 try { this.triggerElement.setPointerCapture(e.pointerId); } catch(err){}
-
+                
                 if (e.type === 'pointerdown') {
                     this.triggerElement.addEventListener('pointermove', onDragMove);
                     this.triggerElement.addEventListener('pointerup', onDragEnd);
@@ -2480,7 +2543,7 @@
                 if (!this.isDragging) return;
                 let cx = e.clientX, cy = e.clientY;
                 if (e.type === 'touchmove') { cx = e.touches[0].clientX; cy = e.touches[0].clientY; e.preventDefault(); }
-
+                
                 this.delta = { x: cx - this.startPos.x, y: cy - this.startPos.y };
                 if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI.DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI.DRAG_THRESHOLD)) {
                     this.wasDragged = true;
@@ -2499,7 +2562,7 @@
                     lastDragEnd = Date.now();
                 }
                 this.isDragging = false; this.globalContainer.style.transition = '';
-
+                
                 this.triggerElement.removeEventListener('pointermove', onDragMove);
                 this.triggerElement.removeEventListener('pointerup', onDragEnd);
                 this.triggerElement.removeEventListener('pointercancel', onDragEnd);
@@ -2512,14 +2575,14 @@
                 try { this.triggerElement.releasePointerCapture(e.pointerId); } catch(err){}
                 setTimeout(() => { this.wasDragged = false; }, 50);
             };
-
+            
             if (window.PointerEvent) {
                 this.triggerElement.addEventListener('pointerdown', onDragStart);
             } else {
                 this.triggerElement.addEventListener('mousedown', onDragStart);
                 this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
             }
-
+            
             this.triggerElement.addEventListener('click', (e) => { if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
         }
     }
