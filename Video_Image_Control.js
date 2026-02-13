@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.75 Advanced AE)
+// @name        Video_Image_Control (Lite v130.76 Advanced AE)
 // @namespace   https://com/
-// @version     130.75
-// @description v130.75: Fixed Freeze Bug, Advanced AE (EMA/ClipRatio), Worker Backlog Fix, Mobile Battery Opt.
+// @version     130.76
+// @description v130.76: Worker Watchdog, Precise Pixel Counting, Hook Safety, Audio Resume Fix
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -29,7 +29,7 @@
 
     // 2. Constants & Configuration
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
-    const VSC_AUDIO_SRC = Symbol('vsc_audio_src'); // Fix 4C: Symbol for safety
+    const VSC_AUDIO_SRC = Symbol('vsc_audio_src');
 
     const MEDIA_EVENTS = [
         'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata',
@@ -98,7 +98,7 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Worker Logic String (Reuse Array, Clip Ratios) ---
+    // --- Worker Logic (Fix 1B: Precise Pixel Counting) ---
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
@@ -108,11 +108,13 @@
                 const size = width;
                 const blackTh = 18;
                 let topBlack = 0, botBlack = 0;
+                let topPixelCount = 0, botPixelCount = 0;
 
                 for (let y = 0; y < bandH; y += step) {
                     for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
+                        topPixelCount++;
                     }
                 }
 
@@ -121,18 +123,16 @@
                     for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
+                        botPixelCount++;
                     }
                 }
 
-                const pixelCountTop = ((bandH * size) / (step * step));
-                const pixelCountBot = ((botBandH * size) / (step * step));
-
-                const topRatio = pixelCountTop > 0 ? topBlack / pixelCountTop : 0;
-                const botRatio = pixelCountBot > 0 ? botBlack / pixelCountBot : 0;
+                const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
+                const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
                 const barsNow = (topRatio > 0.65 && botRatio > 0.65);
 
                 let validCount = 0;
-                let hiClipCount = 0, loClipCount = 0; // Fix 5B: Clip Ratio
+                let hiClipCount = 0, loClipCount = 0;
                 const startY = barsNow ? Math.floor(size * 0.15) : 0;
                 const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
 
@@ -411,7 +411,8 @@
         if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
         HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
 
-        if (_shadowHookActive && isSensitiveContext()) {
+        // Fix 1C: Robust AttachShadow Restore
+        if (_shadowHookActive) {
             try { Element.prototype.attachShadow = ORIGINALS.attachShadow; } catch {}
             _shadowHookActive = false;
         }
@@ -581,11 +582,12 @@
         _frameId: 0,
         _videoIds: new WeakMap(),
         _lowMotionFrames: 0,
-        _lowMotionSkip: 0, // Fix 1A: Separate counter
-        _workerBusy: false, // Fix 1C: Worker backlog
-        _lastAppliedFid: 0, // Fix 1B: Stale results
-        _hist: new Uint16Array(256), // Fix 2A: Reuse fallback hist
-        _p10Ema: -1, _p90Ema: -1, // Fix 5A: EMA for stability
+        _lowMotionSkip: 0,
+        _workerBusy: false,
+        _workerLastSent: 0, // Fix 1A: Watchdog timestamp
+        _lastAppliedFid: 0,
+        _hist: new Uint16Array(256),
+        _p10Ema: -1, _p90Ema: -1,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
 
@@ -611,6 +613,8 @@
                     this._workerUrl = URL.createObjectURL(blob);
                     this._worker = new Worker(this._workerUrl);
                     this._worker.onmessage = this._handleWorkerMessage.bind(this);
+                    this._worker.onerror = () => { this._workerBusy = false; }; // Fix 1A
+                    this._worker.onmessageerror = () => { this._workerBusy = false; }; // Fix 1A
                 } catch (e) {
                     this._worker = null;
                 }
@@ -623,12 +627,12 @@
             return this._videoIds.get(v);
         },
         _handleWorkerMessage(e) {
-            this._workerBusy = false; // Release busy flag
+            this._workerBusy = false;
+            this._workerLastSent = 0; // Clear watchdog
             const { type, fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio } = e.data;
             if (type !== 'result' || !this.targetVideo) return;
             if (vid !== this._getVideoId(this.targetVideo)) return;
-            
-            // Fix 1B: Stale Result Check
+
             if (!this._lastAppliedFid) this._lastAppliedFid = 0;
             if (fid < this._lastAppliedFid) return;
             this._lastAppliedFid = fid;
@@ -640,11 +644,13 @@
              const size = width;
              const blackTh = 18;
              let topBlack = 0, botBlack = 0;
+             let topPixelCount = 0, botPixelCount = 0; // Fix 1B: Explicit count
 
              for (let y = 0; y < bandH; y += step) {
                  for (let x = 0; x < size; x += step) {
                      const i = (y * size + x) * 4;
                      if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
+                     topPixelCount++;
                  }
              }
              const botBandH = Math.floor(bandH * 0.8);
@@ -652,16 +658,15 @@
                  for (let x = 0; x < size; x += step) {
                      const i = (y * size + x) * 4;
                      if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
+                     botPixelCount++;
                  }
              }
 
-             const pixelCountTop = ((bandH * size) / (step * step));
-             const pixelCountBot = ((botBandH * size) / (step * step));
-             const topRatio = pixelCountTop > 0 ? topBlack / pixelCountTop : 0;
-             const botRatio = pixelCountBot > 0 ? botBlack / pixelCountBot : 0;
+             const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
+             const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
              const barsNow = (topRatio > 0.65 && botRatio > 0.65);
 
-             if (!this._hist) this._hist = new Uint16Array(256); // Safety
+             if (!this._hist) this._hist = new Uint16Array(256);
              this._hist.fill(0);
              const hist = this._hist;
 
@@ -744,6 +749,16 @@
             if (this.isRunning && this.targetVideo === video) return;
             this.targetVideo = video;
             this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
+
+            // Fix 2C: Dynamic Canvas Size
+            if (this.canvas) {
+                 const vw = video.videoWidth || video.clientWidth || 0;
+                 const targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
+                 if (this.canvas.width !== targetSize) {
+                     this.canvas.width = targetSize; this.canvas.height = targetSize;
+                 }
+            }
+
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true;
             this._roiP50History = [];
@@ -774,7 +789,7 @@
                 if (evChanged || aeTurnedOn) {
                     this._evAggressiveUntil = now + 800;
                     this.dynamicSkipThreshold = 0;
-                    this._lowMotionFrames = 0; // Wake up from low motion
+                    this._lowMotionFrames = 0;
                 }
             }
              if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) {
@@ -828,12 +843,10 @@
             if (!this.ctx) return;
             if (this.taintedResources.has(this.targetVideo)) return;
 
-            // Fix 2B: Visibility Check to save battery
             const visMap = this.stateManager.get('media.visibilityMap');
             const isVis = visMap ? visMap.get(this.targetVideo) : true;
             if (isVis === false && !document.pictureInPictureElement && !document.fullscreenElement) return;
 
-            // Fix 1A: Safe Low Motion Logic
             if (this._lowMotionFrames > 60) {
                 this._lowMotionSkip++;
                 if (this._lowMotionSkip % 5 !== 0) return;
@@ -841,11 +854,15 @@
                 this._lowMotionSkip = 0;
             }
 
-            // Fix 1C: Worker Backlog Check
+            // Fix 1A: Worker Watchdog
             if (this._worker && this._workerBusy) {
-                // If aggressive mode is on (e.g. user just changed EV), ignore busy flag to force update
-                const isAggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
-                if (!isAggressive) return; 
+                 const now = performance.now();
+                 if (this._workerLastSent > 0 && now - this._workerLastSent > 1000) {
+                     this._workerBusy = false; this._workerLastSent = 0;
+                 } else {
+                     const isAggressive = (this._evAggressiveUntil && now < this._evAggressiveUntil);
+                     if (!isAggressive) return;
+                 }
             }
 
             const startTime = performance.now();
@@ -865,15 +882,16 @@
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
 
-                const step = (IS_LOW_END && size > 20) ? 3 : (IS_LOW_END ? 2 : (IS_HIGH_END ? 2 : 2));
+                const step = (size <= 24) ? 1 : 2;
                 const bandH = Math.max(1, Math.floor(size * 0.10));
 
                 const fid = ++this._frameId;
                 const vid = this._getVideoId(this.targetVideo);
 
                 if (this._worker) {
-                     this._workerBusy = true; // Mark busy
-                     this._worker.postMessage({
+                      this._workerBusy = true;
+                      this._workerLastSent = performance.now(); // Mark time
+                      this._worker.postMessage({
                         type: 'analyze',
                         fid: fid,
                         vid: vid,
@@ -918,7 +936,6 @@
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
             const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
 
-            // Fix 5A: EMA for p10/p90 stability
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
             this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
             const stableP10 = aggressive ? p10 : this._p10Ema;
@@ -932,8 +949,6 @@
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
-                
-                // Low Motion Detection
                 if (delta < 0.003) this._lowMotionFrames++; else this._lowMotionFrames = 0;
 
                 if (this._highMotion) {
@@ -967,7 +982,6 @@
 
                 const targetMid = Utils.clamp(baseTarget + (spread < 0.15 ? 0.03 : -0.02), 0.30, 0.40);
 
-                // Enhanced Mixed Error Calculation
                 const baseErr = (targetMid - p50m) * 0.35;
                 const userErr = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
                 const error = baseErr + userErr;
@@ -975,20 +989,17 @@
                 const correction = error * 5.0 * contrastFactor;
 
                 if (correction > 0) {
-                    // Highlight Clipping Guard (Ratio based + p90)
                     const hiClip = Math.max(0, stableP90 - 0.93);
                     let hiGuard = 1 - Utils.clamp(hiClip / 0.07, 0, 1);
-                    if (hiClipRatio > 0.02) hiGuard *= 0.7; // Extra dampen if actual clip exists
-                    
+                    if (hiClipRatio > 0.02) hiGuard *= 0.7;
+
                     const corr = correction * hiGuard;
 
-                    // Fix 5C: Bias towards brightness for small corrections
                     const safeGammaBoost = (stableP90 > 0.9) ? 0.4 : 0.8;
                     targetAdaptiveGamma += corr * safeGammaBoost;
-                    targetAdaptiveBright += corr * 6; // More brightness
+                    targetAdaptiveBright += corr * 6;
                     if (!isHighContrast) targetShadowsAdj += corr * 5;
                 } else {
-                    // Shadow Crushing Guard
                     const loClip = Math.max(0, 0.05 - stableP10);
                     let loGuard = 1 - Utils.clamp(loClip / 0.05, 0, 1);
                     if (loClipRatio > 0.02) loGuard *= 0.7;
@@ -1101,7 +1112,11 @@
         }
         attach(media) {
             if (!media || media.tagName !== 'VIDEO') return;
-            if (this.targetMedia === media && this.initialized) return;
+            if (this.targetMedia === media && this.initialized) {
+                 // Fix 3D: Resume if suspended
+                 if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+                 return;
+            }
 
             this.detach();
             this.targetMedia = media;
@@ -1112,7 +1127,7 @@
 
                 if (this.ctx.state === 'suspended') this.ctx.resume();
 
-                if (!media[VSC_AUDIO_SRC]) { // Fix 4C: Use Symbol
+                if (!media[VSC_AUDIO_SRC]) {
                     try {
                         media[VSC_AUDIO_SRC] = this.ctx.createMediaElementSource(media);
                     } catch(e) {
@@ -1326,6 +1341,7 @@
             const shouldRun = active && (controlsVisible || aeActive) && (hasMedia || aeActive);
 
             if (shouldRun && !this._globalAttrObs) {
+                // Fix 2B: Throttle more aggressively
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
                     let dirty = false;
                     for (const m of ms) {
@@ -1339,7 +1355,7 @@
                         else if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') { scheduleScan(t, true); dirty = true; }
                     }
                     if (dirty) this._domDirty = true;
-                }, 150));
+                }, 200));
                 this._globalAttrObs.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
             } else if (!shouldRun && this._globalAttrObs) {
                 this._globalAttrObs.disconnect(); this._globalAttrObs = null;
@@ -1380,6 +1396,9 @@
             if (this._resizeObs) this._resizeObs.disconnect();
             if (this._globalAttrObs) this._globalAttrObs.disconnect();
             if (this._backoffInterval) clearInterval(this._backoffInterval);
+
+            // Restore hooks (Fix 1C)
+            disableAllHooks();
         }
         _pruneDisconnected() {
             const sm = this.stateManager;
@@ -1453,7 +1472,7 @@
                     const tag = n.nodeName;
                     if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE' || tag === 'CANVAS') return true;
                     if (n.childElementCount > 0 && n.querySelector) {
-                         return !!n.querySelector(SEL.MEDIA);
+                          return !!n.querySelector(SEL.MEDIA);
                     }
                     return false;
                 };
@@ -2140,7 +2159,6 @@
 
                     const cs = window.getComputedStyle(video);
                     const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
-                    // Fix 3A: Inline fallback hardening
                     if (!currentFilter.includes(filterId) && !/url\(.*#.*_combined_filter.*\)/.test(currentFilter)) {
                         this.setInlineFilter(video, filterCss);
                     } else {
@@ -2513,7 +2531,7 @@
                 this.currentPos = { x: this.uiState.x, y: this.uiState.y };
                 this.globalContainer.style.transition = 'none';
                 try { this.triggerElement.setPointerCapture(e.pointerId); } catch(err){}
-                
+
                 if (e.type === 'pointerdown') {
                     this.triggerElement.addEventListener('pointermove', onDragMove);
                     this.triggerElement.addEventListener('pointerup', onDragEnd);
@@ -2543,7 +2561,7 @@
                 if (!this.isDragging) return;
                 let cx = e.clientX, cy = e.clientY;
                 if (e.type === 'touchmove') { cx = e.touches[0].clientX; cy = e.touches[0].clientY; e.preventDefault(); }
-                
+
                 this.delta = { x: cx - this.startPos.x, y: cy - this.startPos.y };
                 if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI.DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI.DRAG_THRESHOLD)) {
                     this.wasDragged = true;
@@ -2562,7 +2580,7 @@
                     lastDragEnd = Date.now();
                 }
                 this.isDragging = false; this.globalContainer.style.transition = '';
-                
+
                 this.triggerElement.removeEventListener('pointermove', onDragMove);
                 this.triggerElement.removeEventListener('pointerup', onDragEnd);
                 this.triggerElement.removeEventListener('pointercancel', onDragEnd);
@@ -2575,14 +2593,14 @@
                 try { this.triggerElement.releasePointerCapture(e.pointerId); } catch(err){}
                 setTimeout(() => { this.wasDragged = false; }, 50);
             };
-            
+
             if (window.PointerEvent) {
                 this.triggerElement.addEventListener('pointerdown', onDragStart);
             } else {
                 this.triggerElement.addEventListener('mousedown', onDragStart);
                 this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
             }
-            
+
             this.triggerElement.addEventListener('click', (e) => { if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
         }
     }
