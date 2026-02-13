@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.71 Fix)
+// @name        Video_Image_Control (Lite v130.72 Fix)
 // @namespace   https://com/
-// @version     130.71
-// @description v130.71: Fixed ReferenceError (Class Ordering), WebWorker AE, Audio Compressor.
+// @version     130.72
+// @description v130.72: Fixed Worker Histogram, Added Median P50, Optimized AE/Canvas, Audio Boost Slider, CSP Fallback.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -29,9 +29,9 @@
 
     // 2. Constants & Configuration
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
-    
+
     const MEDIA_EVENTS = [
-        'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata', 
+        'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata',
         'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'
     ];
 
@@ -39,6 +39,7 @@
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_HIGH_END = DEVICE_RAM >= 8;
     const IS_LOW_END = DEVICE_RAM < 4;
+    const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
 
     const CONFIG = {
         DEBUG: false,
@@ -46,13 +47,14 @@
         FILTER: {
             VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 6, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
-            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, MIN_VIDEO_SIZE: 50, MIN_IMAGE_SIZE: 200,
+            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
+            MIN_VIDEO_SIZE: 50, MIN_IMAGE_SIZE: IS_MOBILE ? 160 : 200, // Fix 4C: Lower limit for mobile
             MOBILE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             DESKTOP_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
         AUDIO: {
-            THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25, BOOST_DB: 6
+            THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 // Fix 3B: Removed unused BOOST_DB
         },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
@@ -64,12 +66,12 @@
 
     const BASE_SEL = 'video, iframe, canvas, source';
     const FILTER_TARGET_SEL = 'video, img, iframe, canvas';
-    const SEL = { 
-        MEDIA: `${BASE_SEL}, img`, 
+    const SEL = {
+        MEDIA: `${BASE_SEL}, img`,
         FILTER_TARGET: FILTER_TARGET_SEL,
-        NOIMG_TARGET: 'video, iframe, canvas' 
+        NOIMG_TARGET: 'video, iframe, canvas'
     };
-    
+
     const VSC_FLAG = Symbol('vsc_flags');
     const FLAG_OBSERVED = 1, FLAG_VIDEO_INJ = 2, FLAG_IMAGE_INJ = 4;
 
@@ -96,6 +98,8 @@
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
     // --- Worker Logic (Inline Blob) ---
+    // Fix 1A: p10/p50/p90 initialization to -1
+    // Fix 6(4): Bottom band threshold logic tweaked
     const workerBlob = new Blob([`
         self.onmessage = function(e) {
             const { data, width, height, type, bandH, step } = e.data;
@@ -103,31 +107,37 @@
                 const size = width;
                 const blackTh = 18;
                 let topBlack = 0, botBlack = 0;
-                
+
+                // Top Band
                 for (let y = 0; y < bandH; y += step) {
                     for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
                     }
                 }
-                for (let y = size - bandH; y < size; y += step) {
+
+                // Bottom Band (Fix 6-4: Reduced slightly to avoid subs collision)
+                const botBandH = Math.floor(bandH * 0.8);
+                for (let y = size - botBandH; y < size; y += step) {
                     for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
                     }
                 }
-                
-                const pixelCount = ((bandH * size) / (step * step)); 
-                const topRatio = topBlack / pixelCount;
-                const botRatio = botBlack / pixelCount;
+
+                const pixelCountTop = ((bandH * size) / (step * step));
+                const pixelCountBot = ((botBandH * size) / (step * step));
+
+                const topRatio = pixelCountTop > 0 ? topBlack / pixelCountTop : 0;
+                const botRatio = pixelCountBot > 0 ? botBlack / pixelCountBot : 0;
                 const barsNow = (topRatio > 0.65 && botRatio > 0.65);
-                
+
                 const hist = new Uint16Array(256);
                 let validCount = 0;
-                
+
                 const startY = barsNow ? Math.floor(size * 0.15) : 0;
-                const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88); 
-                
+                const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
+
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = 4; x < size - 4; x+=step) {
                         const i = (y * size + x) * 4;
@@ -136,8 +146,8 @@
                         validCount++;
                     }
                 }
-                
-                let p10 = 0, p50 = 0, p90 = 0;
+
+                let p10 = -1, p50 = -1, p90 = -1; // Fix 1A: Init to -1
                 if (validCount > 0) {
                     let sum = 0;
                     const t10 = validCount * 0.10;
@@ -145,14 +155,17 @@
                     const t90 = validCount * 0.90;
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
-                        if (p10 === 0 && sum >= t10) p10 = i / 255;
-                        if (p50 === 0 && sum >= t50) p50 = i / 255;
-                        if (p90 === 0 && sum >= t90) p90 = i / 255;
+                        if (p10 < 0 && sum >= t10) p10 = i / 255;
+                        if (p50 < 0 && sum >= t50) p50 = i / 255;
+                        if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
-                } else {
-                    p10=0.1; p50=0.5; p90=0.9;
                 }
-                
+
+                // Fallback if still -1
+                if (p10 < 0) p10 = 0.1;
+                if (p50 < 0) p50 = 0.5;
+                if (p90 < 0) p90 = 0.9;
+
                 self.postMessage({ type: 'result', p10, p50, p90, barsNow });
             }
         };
@@ -163,7 +176,7 @@
     const dirtyRoots = new Set();
     let _scanRaf = null;
     let _lastFullScanTime = 0;
-    
+
     const _localShadowRoots = [];
     const _localShadowSet = new WeakSet();
 
@@ -184,7 +197,7 @@
             try {
                 if (!document.documentElement) return;
                 if (document.documentElement.childElementCount > 5000) limit = 1000;
-                
+
                 if (_localShadowRoots.length > 200) return;
 
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
@@ -258,7 +271,7 @@
 
     let _sensCache = { t: 0, v: false };
     let _sensitiveLockUntil = performance.now() + 2000;
-    
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
     } else {
@@ -303,9 +316,9 @@
         };
         const vids = document.getElementsByTagName('video');
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
-        
+
         if (!found && document.getElementsByTagName('iframe').length > 0) found = true;
-        
+
         if (!found && _localShadowRoots.length > 0) {
             const cap = Math.min(_localShadowRoots.length, 50);
             for (let i = 0; i < cap; i++) {
@@ -391,11 +404,11 @@
         Object.defineProperty = safeDefineProperty; Object.defineProperties = safeDefineProperties;
         _hooksActive = true;
     };
-    
+
     const disableAllHooks = () => {
         if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
         HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
-        
+
         if (_shadowHookActive && isSensitiveContext()) {
             try { Element.prototype.attachShadow = ORIGINALS.attachShadow; } catch {}
             _shadowHookActive = false;
@@ -496,9 +509,9 @@
             const mask = type === 'video' ? FLAG_VIDEO_INJ : FLAG_IMAGE_INJ;
             try {
                 if (!root.getElementById(svgNode.id)) {
-                     const clonedSvg = svgNode.cloneNode(true);
-                     root.appendChild(clonedSvg);
-                     manager.registerContext(clonedSvg);
+                      const clonedSvg = svgNode.cloneNode(true);
+                      root.appendChild(clonedSvg);
+                      manager.registerContext(clonedSvg);
                 }
                 const view = root.ownerDocument ? root.ownerDocument.defaultView : (root.host ? root.host.ownerDocument.defaultView : null);
                 const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
@@ -515,16 +528,15 @@
             this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null };
         }
         init() {
-            const isMobile = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-            const videoDefaults = isMobile ? CONFIG.FILTER.MOBILE_SETTINGS : CONFIG.FILTER.DESKTOP_SETTINGS;
+            const videoDefaults = IS_MOBILE ? CONFIG.FILTER.MOBILE_SETTINGS : CONFIG.FILTER.DESKTOP_SETTINGS;
             const safeInt = Utils.safeInt;
 
             this.state = {
-                app: { isInitialized: false, isMobile, scriptActive: false },
+                app: { isInitialized: false, isMobile: IS_MOBILE, scriptActive: false },
                 media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
-                audio: { enabled: false, boost: 0 },
+                audio: { enabled: false, boost: 6 }, // Fix 3B: Default 6dB
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
                 playback: { currentRate: 1.0, targetRate: 1.0 }
             };
@@ -558,8 +570,8 @@
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
         hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
-        _hist: null, _evAggressiveUntil: 0, _lbConf: 0, _aeBlockedUntil: 0, _roiP50History: [],
-        _rois: [],
+        _evAggressiveUntil: 0,
+        _roiP50History: [],
         taintedResources: new WeakSet(),
         _worker: null,
 
@@ -571,7 +583,8 @@
                 } else {
                     this.canvas = document.createElement('canvas');
                 }
-                const size = IS_HIGH_END ? 48 : (IS_LOW_END ? 16 : 32);
+                // Fix 2A: Lower canvas size for mid/low tier
+                const size = IS_HIGH_END ? 48 : (IS_LOW_END ? 16 : 24);
                 this.canvas.width = size; this.canvas.height = size;
             }
             if (!this.ctx) {
@@ -579,16 +592,76 @@
                 if (this.ctx) this.ctx.imageSmoothingEnabled = false;
             }
             if (!this._worker) {
-                this._worker = new Worker(workerUrl);
-                this._worker.onmessage = this._handleWorkerMessage.bind(this);
+                // Fix 4A: Worker Fallback Logic
+                try {
+                    this._worker = new Worker(workerUrl);
+                    this._worker.onmessage = this._handleWorkerMessage.bind(this);
+                } catch (e) {
+                    this._worker = null;
+                }
             }
-            this._roiP50History = [0.5, 0.5, 0.5];
+            this._roiP50History = []; // Reset history
         },
         _handleWorkerMessage(e) {
             const { type, p10, p50, p90, barsNow } = e.data;
             if (type === 'result') {
                 this._processAnalysisResult(p10, p50, p90, barsNow);
             }
+        },
+        // Fix 4A: Main Thread Fallback for AE
+        _analyzeFallback(imageData, width, height, bandH, step) {
+             const data = imageData.data;
+             const size = width;
+             const blackTh = 18;
+             let topBlack = 0, botBlack = 0;
+
+             for (let y = 0; y < bandH; y += step) {
+                 for (let x = 0; x < size; x += step) {
+                     const i = (y * size + x) * 4;
+                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
+                 }
+             }
+             const botBandH = Math.floor(bandH * 0.8);
+             for (let y = size - botBandH; y < size; y += step) {
+                 for (let x = 0; x < size; x += step) {
+                     const i = (y * size + x) * 4;
+                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
+                 }
+             }
+
+             const pixelCountTop = ((bandH * size) / (step * step));
+             const pixelCountBot = ((botBandH * size) / (step * step));
+             const topRatio = pixelCountTop > 0 ? topBlack / pixelCountTop : 0;
+             const botRatio = pixelCountBot > 0 ? botBlack / pixelCountBot : 0;
+             const barsNow = (topRatio > 0.65 && botRatio > 0.65);
+
+             const hist = new Uint16Array(256);
+             let validCount = 0;
+             const startY = barsNow ? Math.floor(size * 0.15) : 0;
+             const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
+
+             for (let y = startY; y < endY; y+=step) {
+                 for (let x = 4; x < size - 4; x+=step) {
+                     const i = (y * size + x) * 4;
+                     const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
+                     hist[luma]++;
+                     validCount++;
+                 }
+             }
+
+             let p10 = 0.1, p50 = 0.5, p90 = 0.9;
+             if (validCount > 0) {
+                 let sum = 0;
+                 const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
+                 let f10 = false, f50 = false, f90 = false;
+                 for (let i = 0; i < 256; i++) {
+                     sum += hist[i];
+                     if (!f10 && sum >= t10) { p10 = i / 255; f10 = true; }
+                     if (!f50 && sum >= t50) { p50 = i / 255; f50 = true; }
+                     if (!f90 && sum >= t90) { p90 = i / 255; f90 = true; }
+                 }
+             }
+             this._processAnalysisResult(p10, p50, p90, barsNow);
         },
         _pickBestVideoNow() {
             const pip = document.pictureInPictureElement;
@@ -625,13 +698,16 @@
             this.targetVideo = video;
             this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
             if (!this.canvas) this.init(this.stateManager);
-            this.isRunning = true; this.loop();
+            this.isRunning = true;
+            this._roiP50History = []; // Fix 6(5): Reset P50 history on start
+            this.loop();
         },
         stop() {
             this.isRunning = false;
             if (this.handle && this.targetVideo && this.hasRVFC) { try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { } }
             this.handle = null; this.targetVideo = null; this.frameSkipCounter = 0;
-            this.lastAvgLuma = -1; this._highMotion = false; this._lbConf = 0;
+            this.lastAvgLuma = -1; this._highMotion = false;
+            this._roiP50History = [];
         },
         updateSettings(settings) {
             const prev = this.currentSettings;
@@ -671,8 +747,13 @@
             }
         },
         loop() {
+            // Fix 1B: Guard against execution after stop
             if (!this.isRunning || !this.targetVideo) return;
-            const cb = () => { try { this.processFrame(); } catch (e) { if (CONFIG.DEBUG) console.warn(e); } this.loop(); };
+            const cb = () => {
+                if (!this.isRunning || !this.targetVideo) return;
+                try { this.processFrame(); } catch (e) { if (CONFIG.DEBUG) console.warn(e); }
+                this.loop();
+            };
             if (this.hasRVFC) this.handle = this.targetVideo.requestVideoFrameCallback(cb);
             else {
                 this.processFrame();
@@ -708,18 +789,23 @@
                 const size = this.canvas.width;
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
-                
+
                 const step = IS_LOW_END ? 3 : 2;
                 const bandH = Math.max(1, Math.floor(size * 0.10));
 
-                this._worker.postMessage({
-                    type: 'analyze',
-                    data: imageData.data,
-                    width: size,
-                    height: size,
-                    bandH: bandH,
-                    step: step
-                }, [imageData.data.buffer]);
+                if (this._worker) {
+                     this._worker.postMessage({
+                        type: 'analyze',
+                        data: imageData.data,
+                        width: size,
+                        height: size,
+                        bandH: bandH,
+                        step: step
+                    }, [imageData.data.buffer]);
+                } else {
+                    // Fallback execution
+                    this._analyzeFallback(imageData, size, size, bandH, step);
+                }
 
             } catch (e) {
                 if (e.name === 'SecurityError') {
@@ -747,15 +833,19 @@
         },
         _processAnalysisResult(p10, p50, p90, barsNow) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
-            
-            this._lbConf = Utils.clamp((this._lbConf || 0) * 0.9 + (barsNow ? 0.12 : -0.08), 0, 1);
-            
+
+            // Fix 6(5): Median Filter for P50
+            this._roiP50History.push(p50);
+            if (this._roiP50History.length > 5) this._roiP50History.shift();
+            const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
+            const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
+
             let contrastFactor = 1.0;
             if ((p90 - p10) < 0.1) contrastFactor = 0.3;
-            
+
             const isHighContrast = (p90 > 0.9 && p10 < 0.1);
 
-            const currentLuma = p50;
+            const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
                 if (this._highMotion) {
@@ -763,10 +853,10 @@
                 } else {
                     if (delta > 0.10) this._highMotion = true;
                 }
-                
+
                 if (delta > 0.25) {
-                     this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0;
-                     this._evAggressiveUntil = performance.now() + (isHighContrast ? 200 : 500);
+                      this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0;
+                      this._evAggressiveUntil = performance.now() + (isHighContrast ? 200 : 500);
                 } else if (delta > 0.15) {
                     this._userBoostUntil = performance.now() + 300;
                 }
@@ -784,15 +874,15 @@
                 const floor = Math.max(0.1, p10);
 
                 const spread = (p90 - p10);
+                // Fix 6(3): Spread based targetMid
                 let baseTarget = 0.35;
-                if (p50 < 0.18) baseTarget = 0.38;
-                else if (p50 > 0.55) baseTarget = 0.33;
-                
-                const targetMid = Utils.clamp(baseTarget + (spread < 0.12 ? 0.03 : 0.0), 0.33, 0.40);
+                if (p50m < 0.18) baseTarget = 0.38;
+
+                const targetMid = Utils.clamp(baseTarget + (spread < 0.15 ? 0.03 : -0.02), 0.30, 0.40);
 
                 let error = 0;
                 if (evValue === 0) {
-                    error = (targetMid - p50) * 0.35;
+                    error = (targetMid - p50m) * 0.35;
                 } else {
                     error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
                 }
@@ -812,14 +902,16 @@
                     targetAdaptiveBright -= absCorr * 3;
                     if (!isHighContrast) targetHighlightsAdj += absCorr * 10;
                 }
-                
-                if (this.dynamicSkipThreshold > 12) {
-                    targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -25, 25);
-                } else {
+
+                // Fix 6(2): Clamp Ranges reduced
+                targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
+                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.7, 1.7);
+
+                // Aggressive window override
+                if (aggressive && (p10 < 0.05 || p90 > 0.95)) {
                     targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40);
                 }
-                
-                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.6, 2.0);
+
                 targetShadowsAdj = Utils.clamp(targetShadowsAdj, -40, 40);
                 targetHighlightsAdj = Utils.clamp(targetHighlightsAdj, -20, 80);
             }
@@ -828,15 +920,18 @@
             if (this.currentSettings.clarity > 0) {
                 const intensity = this.currentSettings.clarity / 50;
                 const maxLumaFactor = (isAutoExp && evValue < 0) ? 0.5 : 0.7;
-                const lumaFactor = Math.max(0.2, maxLumaFactor - p50);
+                const lumaFactor = Math.max(0.2, maxLumaFactor - p50m);
                 let dampener = isAutoExp ? (evValue < 0 ? 0.4 : 0.6) : 1.0;
+                // Fix 6(6): Reduce clarityComp if very dark
+                if (p10 < 0.06 && p90 < 0.5) dampener *= 0.5;
+
                 targetClarityComp = Math.min(10, (intensity * 10) * lumaFactor * dampener);
             }
 
             const smooth = (curr, target) => {
                 if (aggressive && !isHighContrast) {
                     const diff = target - curr;
-                    return curr + diff * 0.2; 
+                    return curr + diff * 0.2;
                 }
                 const diff = target - curr;
                 let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.05 : 0.1);
@@ -855,7 +950,7 @@
             this._lastShadowsAdj = this.currentShadowsAdj;
             this._lastHighlightsAdj = this.currentHighlightsAdj;
 
-            this.notifyUpdate({ gamma: this.currentAdaptiveGamma, bright: this.currentAdaptiveBright, clarityComp: this.currentClarityComp, shadowsAdj: this.currentShadowsAdj, highlightsAdj: this.currentHighlightsAdj }, p50, this.targetVideo, false);
+            this.notifyUpdate({ gamma: this.currentAdaptiveGamma, bright: this.currentAdaptiveBright, clarityComp: this.currentClarityComp, shadowsAdj: this.currentShadowsAdj, highlightsAdj: this.currentHighlightsAdj }, p50m, this.targetVideo, false);
         },
         notifyUpdate(autoParams, luma, videoInfo, tainted = false) {
             document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted, videoInfo } }));
@@ -864,7 +959,7 @@
 
     // [Fix: Order] Class Plugin must be defined before AudioController
     class Plugin { constructor(name) { this.name = name; this.stateManager = null; this.subscriptions = []; this._ac = new AbortController(); } init(stateManager) { this.stateManager = stateManager; } destroy() { this.subscriptions.forEach(unsubscribe => unsubscribe()); this.subscriptions = []; this._ac.abort(); } subscribe(key, callback) { this.subscriptions.push(this.stateManager.subscribe(key, callback)); } }
-    
+
     class PluginManager {
         constructor(stateManager) { this.plugins = []; this.stateManager = stateManager; }
         register(plugin) { this.plugins.push(plugin); }
@@ -914,25 +1009,25 @@
         attach(media) {
             if (!media || media.tagName !== 'VIDEO') return;
             if (this.targetMedia === media && this.initialized) return;
-            
+
             this.detach();
             this.targetMedia = media;
-            
+
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
                 if (!this.ctx) this.ctx = new AudioContext();
-                
+
                 if (this.ctx.state === 'suspended') this.ctx.resume();
 
                 if (!media._vscSource) {
                     try {
                         media._vscSource = this.ctx.createMediaElementSource(media);
                     } catch(e) {
-                        return; 
+                        return;
                     }
                 }
                 this.source = media._vscSource;
-                
+
                 this.compressor = this.ctx.createDynamicsCompressor();
                 this.compressor.threshold.value = CONFIG.AUDIO.THRESHOLD;
                 this.compressor.knee.value = CONFIG.AUDIO.KNEE;
@@ -944,11 +1039,12 @@
                 const boost = Math.pow(10, this.stateManager.get('audio.boost') / 20);
                 this.gain.gain.value = boost;
 
-                this.source.disconnect();
+                // Fix 7: Safe disconnect logic
+                try { this.source.disconnect(); } catch (e) {}
                 this.source.connect(this.compressor);
                 this.compressor.connect(this.gain);
                 this.gain.connect(this.ctx.destination);
-                
+
                 this.initialized = true;
             } catch (e) {
                 log('Audio attach failed', e);
@@ -1132,8 +1228,10 @@
             const sm = this.stateManager;
             const controlsVisible = sm.get('ui.areControlsVisible');
             const aeActive = sm.get('videoFilter.autoExposure') || sm.get('videoFilter.clarity') > 0;
-            
-            const shouldRun = active && (controlsVisible || aeActive);
+            const hasMedia = hasRealVideoCached() || sm.get('media.activeImages').size > 0;
+
+            // Fix 2C: Tighten global attr logic
+            const shouldRun = active && (controlsVisible || aeActive) && (hasMedia || aeActive);
 
             if (shouldRun && !this._globalAttrObs) {
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
@@ -1169,6 +1267,14 @@
         }
         destroy() {
             super.destroy(); _corePluginRef = null;
+
+            // Fix 1C: Clean up Worker
+            if (VideoAnalyzer._worker) {
+                VideoAnalyzer._worker.terminate();
+                VideoAnalyzer._worker = null;
+                URL.revokeObjectURL(workerUrl);
+            }
+
             if (this._historyOrig) {
                 history.pushState = this._historyOrig.pushState;
                 history.replaceState = this._historyOrig.replaceState;
@@ -1211,21 +1317,21 @@
             }
             this._cleanupDeadIframes();
             this._pruneDisconnected();
-            
+
             if (_localShadowRoots.length > 0 && Date.now() - this._lastShadowPrune > 15000) {
                 this._lastShadowPrune = Date.now();
                 let i = _localShadowRoots.length;
                 while (i--) {
-                     const r = _localShadowRoots[i];
-                     const alive = r && r.host && r.host.isConnected;
-                     if (!alive) {
-                         if (r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
-                         _localShadowRoots.splice(i, 1);
-                         _localShadowSet.delete(r);
-                     }
+                      const r = _localShadowRoots[i];
+                      const alive = r && r.host && r.host.isConnected;
+                      if (!alive) {
+                          if (r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
+                          _localShadowRoots.splice(i, 1);
+                          _localShadowSet.delete(r);
+                      }
                 }
             }
-            
+
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) {
                 const now = Date.now();
                 if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) {
@@ -1316,7 +1422,12 @@
 
                 this.intersectionObserver = new IntersectionObserver(entries => {
                     const sm = this.stateManager;
-                    const visMap = sm.get('media.visibilityMap'); let needsUpdate = false;
+                    const visMap = sm.get('media.visibilityMap');
+                    let needsUpdate = false;
+
+                    // Fix 2B: Reduce set frequency
+                    let lastVisTarget = null, lastVisState = false;
+
                     entries.forEach(e => {
                         const pipEl = document.pictureInPictureElement;
                         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
@@ -1326,17 +1437,21 @@
 
                         if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS') {
                             if (visMap) visMap.set(e.target, isVisible);
-                            sm.set('media.visibilityChange', { target: e.target, isVisible });
+                            // Simple batching: last one wins for state, but individual map updated
+                            lastVisTarget = e.target; lastVisState = isVisible;
                         }
                         else if (e.target.tagName === 'VIDEO') {
                             if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target);
-                            sm.set('media.visibilityChange', { target: e.target, isVisible });
+                            lastVisTarget = e.target; lastVisState = isVisible;
                             needsUpdate = true;
                         }
-                        else if (e.target.tagName === 'IMG') sm.set('media.visibilityChange', { target: e.target, isVisible });
+                        else if (e.target.tagName === 'IMG') { lastVisTarget = e.target; lastVisState = isVisible; }
 
                         if (!e.target.isConnected) { this.intersectionObserver.unobserve(e.target); this._visibleVideos.delete(e.target); }
                     });
+
+                    if (lastVisTarget) sm.set('media.visibilityChange', { target: lastVisTarget, isVisible: lastVisState });
+
                     if (needsUpdate && !document.hidden) {
                         if (this._centerCalcTimer) clearTimeout(this._centerCalcTimer);
                         this._centerCalcTimer = setTimeout(() => {
@@ -1418,6 +1533,7 @@
                 const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
                 if (wantImages) {
                     const w = node.naturalWidth || node.offsetWidth || 0; const h = node.naturalHeight || node.offsetHeight || 0;
+                    // Fix 4C: Updated logic from CONFIG
                     if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(node);
                 }
             } else if (node.tagName === 'IFRAME') {
@@ -1541,6 +1657,7 @@
                 if (wantImages) {
                     const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
                         const img = docImages[i]; const w = img.naturalWidth || img.offsetWidth || 0; const h = img.naturalHeight || img.offsetHeight || 0;
+                        // Fix 4C
                         if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(img);
                     }
                 }
@@ -1614,6 +1731,10 @@
             on(media, 'playing', onPlaying, P(signal));
 
             on(media, 'loadedmetadata', () => VideoAnalyzer.taintedResources.delete(media), P(signal));
+
+            // Fix 4B: CORS Reset on other events
+            const resetTaint = () => { if (VideoAnalyzer.taintedResources.has(media)) VideoAnalyzer.taintedResources.delete(media); };
+            on(media, 'canplay', resetTaint, P(signal));
 
             const attrMo = new MutationObserver((mutations) => {
                 let triggered = false;
@@ -1697,7 +1818,7 @@
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
             this.throttledUpdate = throttle((e) => {
-                const { autoParams, videoInfo } = e.detail; 
+                const { autoParams, videoInfo } = e.detail;
                 const currentMedia = this.stateManager.get('media.currentlyVisibleMedia');
                 if (videoInfo && videoInfo !== currentMedia) return;
 
@@ -1879,11 +2000,11 @@
             const vf = this.stateManager.get('videoFilter');
             let auto = this.lastAutoParams || { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
             if (!vf.autoExposure) { auto = { ...auto, gamma: 1.0, bright: 0, shadowsAdj: 0, highlightsAdj: 0 }; }
-            
+
             const finalGamma = Utils.clamp(vf.gamma * (auto.gamma || 1.0), 0.6, 2.2);
             const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0); const finalContrastAdj = vf.contrastAdj; const finalHighlights = vf.highlights + (auto.highlightsAdj || 0); const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
-            
-            let autoSharpLevel2 = vf.level2; 
+
+            let autoSharpLevel2 = vf.level2;
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
 
@@ -1893,7 +2014,7 @@
         }
         applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; const values = { sharpenLevel: level, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
         updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
-        
+
         _getFilterCheckTs(el) {
             if (!this._filterCheckMap) this._filterCheckMap = new WeakMap();
             return this._filterCheckMap.get(el) || 0;
@@ -1920,11 +2041,11 @@
 
             if (isActive) {
                 video.classList.add('vsc-video-filter-active');
-                
+
                 requestAnimationFrame(() => {
                     const now = performance.now();
                     const last = this._getFilterCheckTs(video);
-                    if (now - last < 1200) return; 
+                    if (now - last < 1200) return;
                     this._setFilterCheckTs(video, now);
 
                     const cs = window.getComputedStyle(video);
@@ -2043,10 +2164,10 @@
             this.globalContainer.setAttribute('data-vsc-internal', '1');
             const tx = this.uiState.x || 0; const ty = this.uiState.y || 0;
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
-            
+
             const vars = { '--vsc-bg-dark': 'rgba(0,0,0,0.7)', '--vsc-bg-btn': 'rgba(0,0,0,0.5)', '--vsc-bg-accent': 'rgba(52, 152, 219, 0.7)', '--vsc-bg-warn': 'rgba(231, 76, 60, 0.9)', '--vsc-bg-active': 'rgba(76, 209, 55, 0.4)', '--vsc-text': 'white', '--vsc-text-accent': '#f39c12', '--vsc-text-active': '#4cd137', '--vsc-border': '#555' };
             for (const [k, v] of Object.entries(vars)) this.globalContainer.style.setProperty(k, v);
-            
+
             this.mainControlsContainer = document.createElement('div'); this.mainControlsContainer.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:5px;';
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             this.triggerElement.className = 'vsc-trigger';
@@ -2234,13 +2355,13 @@
             Object.assign(powerBtn.style, { width: '40px', flex: '0 0 40px', color: '#e74c3c' });
             powerBtn.onclick = () => { this.stateManager.set('app.scriptActive', false); this.stateManager.set('ui.areControlsVisible', false); this.showToast('Script OFF'); };
             topRow.append(powerBtn); topRow.append(createToggle('📸 자동', 'videoFilter.autoExposure'));
-            
+
             // Audio Toggle
             topRow.append(createToggle('🔊 부스트', 'audio.enabled'));
 
             const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn vsc-btn-lg'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '필터 초기화';
             Object.assign(videoResetBtn.style, { width: '40px', flex: '0 0 40px' });
-            videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); };
+            videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, clarity: 0, autoExposure: false, targetLuma: 0, highlights: 0, shadows: 0, gamma: 1.0, saturation: 100, contrastAdj: 1.0, dither: 0, colorTemp: 0 }); this.stateManager.set('audio.enabled', false); this.stateManager.set('audio.boost', 6); this.showToast('필터 및 오디오 초기화됨'); };
             topRow.append(videoResetBtn);
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
             const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [-10, -5, 0, 5, 10, 15].map(v => ({ txt: (v > 0 ? '+' : '') + v, val: v })) }];
@@ -2267,9 +2388,13 @@
             videoSubMenu.append(topRow, document.createElement('div'), gridTable);
             const SLIDER_CONFIG = [{ label: '노출 보정 (EV)', id: 'v-target', min: -30, max: 30, step: 1, key: 'videoFilter.targetLuma', unit: '', fmt: v => `${v > 0 ? '+' : ''}${v}` }, { label: '샤프(윤곽)', id: 'v-sh1', min: 0, max: 50, step: 1, key: 'videoFilter.level', unit: '단계', fmt: v => v.toFixed(0) }, { label: '샤프(디테일)', id: 'v-sh2', min: 0, max: 50, step: 1, key: 'videoFilter.level2', unit: '단계', fmt: v => v.toFixed(0) }, { label: '명료도', id: 'v-cl', min: 0, max: 50, step: 1, key: 'videoFilter.clarity', unit: '', fmt: v => v.toFixed(0) }, { label: '색온도', id: 'v-ct', min: -25, max: 25, step: 1, key: 'videoFilter.colorTemp', unit: '', fmt: v => v.toFixed(0) }, { label: '그레인', id: 'v-dt', min: 0, max: 100, step: 5, key: 'videoFilter.dither', unit: '', fmt: v => v.toFixed(0) }];
             videoSubMenu.appendChild(this._createSlider(SLIDER_CONFIG[0].label, SLIDER_CONFIG[0].id, SLIDER_CONFIG[0].min, SLIDER_CONFIG[0].max, SLIDER_CONFIG[0].step, SLIDER_CONFIG[0].key, SLIDER_CONFIG[0].unit, SLIDER_CONFIG[0].fmt).control);
-            
+
             const grid = document.createElement('div'); grid.className = 'vsc-grid';
             SLIDER_CONFIG.slice(1).forEach(cfg => { grid.appendChild(this._createSlider(cfg.label, cfg.id, cfg.min, cfg.max, cfg.step, cfg.key, cfg.unit, cfg.fmt).control); });
+
+            // Fix 7: Added Audio Boost Slider to UI
+            grid.appendChild(this._createSlider('오디오증폭', 'a-boost', 0, 12, 1, 'audio.boost', 'dB', v => `+${v}`).control);
+
             videoSubMenu.appendChild(grid); return videoSubMenu;
         }
         renderAllControls() {
