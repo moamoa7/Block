@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.68 Refactored)
+// @name        Video_Image_Control (Lite v130.69 Final_Refactor)
 // @namespace   https://com/
-// @version     130.68
-// @description v130.68: Stability Fixes, Performance Opt, HDR Safety, Clean UI.
+// @version     130.69
+// @description v130.69: Transform Fix, AE Polish, Canvas Logic, Motion Safety.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -30,7 +30,6 @@
     // 2. Constants & Configuration
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
     
-    // [Fix 1] Define MEDIA_EVENTS to prevent crash
     const MEDIA_EVENTS = [
         'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata', 
         'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'
@@ -60,7 +59,11 @@
         UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
     };
 
-    const SEL = { MEDIA: 'video, img, iframe, canvas, source', FILTER_TARGET: 'video, img, iframe, canvas' };
+    // [Fix 6-A] Simplified Selectors
+    const BASE_SEL = 'video, iframe, canvas, source';
+    const FILTER_TARGET_SEL = 'video, img, iframe, canvas';
+    const SEL = { MEDIA: `${BASE_SEL}, img`, FILTER_TARGET: FILTER_TARGET_SEL };
+    
     const VSC_FLAG = Symbol('vsc_flags');
     const FLAG_OBSERVED = 1, FLAG_VIDEO_INJ = 2, FLAG_IMAGE_INJ = 4;
 
@@ -91,8 +94,7 @@
     let _scanRaf = null;
     let _lastFullScanTime = 0;
     
-    // [Optimization] Localize ShadowRoot list to reduce global pollution
-    // Only expose to window if absolutely necessary for debugging or external tools
+    // Localize ShadowRoot list
     const _localShadowRoots = [];
     const _localShadowSet = new WeakSet();
 
@@ -101,12 +103,10 @@
         if (!_localShadowSet.has(sr)) {
             _localShadowSet.add(sr);
             _localShadowRoots.push(sr);
-            // Notify core plugin if active
             if (_corePluginRef) _corePluginRef.scanSpecificRoot(sr);
         }
     };
 
-    // [Optimization] Limit excessive scanning on huge pages
     let _didCollectOpenSR = false;
     function collectOpenShadowRootsOnce(limit = 3000) {
         if (_didCollectOpenSR) return;
@@ -114,9 +114,7 @@
         const run = () => {
             try {
                 if (!document.documentElement) return;
-                // If page is too huge, use a smaller limit
                 if (document.documentElement.childElementCount > 5000) limit = 1000;
-                
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
                 while ((n = walker.nextNode()) && i < limit) {
@@ -186,11 +184,9 @@
         }
     };
 
-    // [Fix 2] Enhanced Sensitive Context Detection
     let _sensCache = { t: 0, v: false };
-    let _sensitiveLockUntil = performance.now() + 2000; // Force sensitivity check for first 2 seconds on matching URLs
+    let _sensitiveLockUntil = performance.now() + 2000;
     
-    // Release the lock after DOMContentLoaded + timeout
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
     } else {
@@ -205,15 +201,8 @@
     const isSensitiveContext = () => {
         const now = Date.now();
         if (now - _sensCache.t < 300) return _sensCache.v;
-
-        // Boot-phase safety lock
-        if (performance.now() < _sensitiveLockUntil && isSensitiveUrl()) {
-             _sensCache = { t: now, v: true };
-             return true;
-        }
-
+        if (performance.now() < _sensitiveLockUntil && isSensitiveUrl()) { _sensCache = { t: now, v: true }; return true; }
         if (!document.documentElement) return false;
-        
         let result = false;
         if (isSensitiveUrl()) {
             try { if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"]')) result = true; } catch(e) {}
@@ -229,10 +218,18 @@
         let found = false;
         const isValid = (el) => {
             if (!el) return false;
-            if (el.tagName === 'IFRAME' || el.tagName === 'CANVAS') return true;
+            // [Fix 1-C] Canvas size check
+            if (el.tagName === 'CANVAS') {
+                try {
+                    const r = el.getBoundingClientRect();
+                    if (r.width < 200 || r.height < 150) return false;
+                    if (r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) return false;
+                    return true;
+                } catch(e) { return false; }
+            }
+            if (el.tagName === 'IFRAME') return true;
             return !!el.src || !!el.currentSrc || (el.offsetWidth > 0 && el.offsetHeight > 0) || !!el.getAttribute('data-src');
         };
-        // [Fix 4] Optimization: use getElementsByTagName instead of querySelectorAll
         const vids = document.getElementsByTagName('video');
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
         
@@ -270,9 +267,6 @@
     const enableShadowHook = () => {
         if (_shadowHookActive || isSensitiveContext()) return;
         try {
-            // Only expose if needed, otherwise use local
-            // window._shadowDomList_ = window._shadowDomList_ || []; 
-            
             Element.prototype.attachShadow = function (init) {
                 const shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 try {
@@ -300,7 +294,7 @@
     const patchDescriptorSafely = (d) => { if (!d) return; const isAccessor = ('get' in d) || ('set' in d); if (!isAccessor && d.writable === false) d.writable = true; };
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
-        // [Fix 3] Safety check: Don't hook if page is hidden to avoid background interference
+        // [Fix 1-B] Check visibility
         if (document.visibilityState === 'hidden') return;
 
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
@@ -629,21 +623,27 @@
                 const bandH = Math.max(1, Math.floor(size * 0.10));
                 let topBlack = 0, botBlack = 0;
                 const totalBandPixels = bandH * size;
+                
+                // [Fix 2-B] Step Optimization for low-end
+                const step = IS_LOW_END ? 3 : 2;
 
-                for (let y = 0; y < bandH; y+=2) {
-                    for (let x = 0; x < size; x+=2) {
+                for (let y = 0; y < bandH; y += step) {
+                    for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
                     }
                 }
-                for (let y = size - bandH; y < size; y+=2) {
-                    for (let x = 0; x < size; x+=2) {
+                for (let y = size - bandH; y < size; y += step) {
+                    for (let x = 0; x < size; x += step) {
                         const i = (y * size + x) * 4;
                         if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
                     }
                 }
-                const topRatio = topBlack / (totalBandPixels/4);
-                const botRatio = botBlack / (totalBandPixels/4);
+                // Adjust ratio calc based on step
+                const pixelCount = (totalBandPixels / (step * step));
+                const topRatio = topBlack / pixelCount;
+                const botRatio = botBlack / pixelCount;
+                
                 const barsNow = (topRatio > 0.65 && botRatio > 0.65);
                 this._lbConf = Utils.clamp((this._lbConf || 0) * 0.9 + (barsNow ? 0.12 : -0.08), 0, 1);
                 const isLetterbox = this._lbConf > 0.6;
@@ -668,8 +668,8 @@
                     this._rois.forEach((r, idx) => {
                         let sum = 0, count = 0;
                         const startY = r.y, endY = r.y + r.h;
-                        for(let y=startY; y<endY; y+=2) {
-                            for(let x=4; x<size-4; x+=2) {
+                        for(let y=startY; y<endY; y+=step) {
+                            for(let x=4; x<size-4; x+=step) {
                                 const i = (y * size + x) * 4;
                                 sum += (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
                                 count++;
@@ -687,10 +687,13 @@
                 hist.fill(0);
 
                 let validCount = 0;
-                const finalStartY = bestRoi.y, finalEndY = bestRoi.y + bestRoi.h;
-                for (let y = finalStartY; y < finalEndY; y+=2) {
+                const finalStartY = bestRoi.y;
+                // [Fix 4-A] Exclude bottom 12% to avoid subtitles/UI
+                const finalEndY = Math.min(bestRoi.y + bestRoi.h, Math.floor(size * 0.88));
+                
+                for (let y = finalStartY; y < finalEndY; y+=step) {
                     const rowOffset = y * size * 4;
-                    for (let x = 4; x < size - 4; x+=2) {
+                    for (let x = 4; x < size - 4; x+=step) {
                         const i = rowOffset + x * 4;
                         const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
                         hist[luma]++;
@@ -717,7 +720,6 @@
                 let contrastFactor = 1.0;
                 if ((p90 - p10) < 0.1) contrastFactor = 0.3;
                 
-                // [Fix 4] High contrast detection (HDR Safety)
                 const isHighContrast = (p90 > 0.9 && p10 < 0.1);
 
                 const currentLuma = p50;
@@ -744,9 +746,15 @@
                     const headroom = Math.max(0.0, 1.0 - p90);
                     const floor = Math.max(0.1, p10);
 
+                    // [Fix 7] Adaptive Target p50
+                    // Lower target for high contrast/bright scenes to avoid washout
+                    const spread = (p90 - p10);
+                    const baseTarget = 0.35; 
+                    const targetMid = Utils.clamp(baseTarget + (spread < 0.12 ? 0.03 : 0.0), 0.33, 0.40);
+
                     let error = 0;
                     if (evValue === 0) {
-                        error = (0.38 - p50) * 0.35;
+                        error = (targetMid - p50) * 0.35;
                     } else {
                         error = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
                     }
@@ -782,10 +790,13 @@
                 }
 
                 const smooth = (curr, target) => {
-                    if (aggressive && !isHighContrast) return target;
+                    // [Fix 7-3] Always apply some smoothing even in aggressive mode to prevent flickering
+                    if (aggressive && !isHighContrast) {
+                        const diff = target - curr;
+                        return curr + diff * 0.2; 
+                    }
                     const diff = target - curr;
                     let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.05 : 0.1);
-                    // Slow down on HDR scenes
                     if (isHighContrast) speed *= 0.5;
                     if (Math.abs(diff) < 0.005) return curr;
                     return curr + diff * speed;
@@ -882,6 +893,12 @@
             on(window, 'popstate', () => triggerBurstScan(250), P(this._ac.signal));
             on(window, 'hashchange', () => triggerBurstScan(250), P(this._ac.signal));
 
+            // [Fix 1-B] Hook State Deactivation on Visibility Change
+            on(document, 'visibilitychange', () => {
+                try { this._updateHooksState?.(); } catch {}
+                if (document.hidden) { try { VideoAnalyzer.stop(); } catch {} }
+            }, P(this._ac.signal));
+
             this._backoffInterval = setInterval(() => {
                 if (this._mutationCounter > 60) {
                     if (!this._isBackoffMode) { this._isBackoffMode = true; log("Backoff Mode ON"); }
@@ -897,12 +914,9 @@
                 const hasVideo = hasActiveVideo || hasRealVideoCached();
                 const sensitive = isSensitiveContext();
 
-                // [Fix 3] Enable shadow hook early but respect sensitivity
-                if (!sensitive) {
-                    enableShadowHook();
-                }
+                if (!sensitive) enableShadowHook();
 
-                if (active && hasVideo && !sensitive) {
+                if (active && hasVideo && !sensitive && document.visibilityState === 'visible') {
                     enablePropertyHooks();
                 } else {
                     if (!active || sensitive) disableAllHooks();
@@ -982,6 +996,9 @@
                 }
                 this.updateGlobalAttrObs(active);
             });
+            // [Fix 2-C] Also update global obs when AE/Clarity changes
+            this.subscribe('videoFilter.autoExposure', () => this.updateGlobalAttrObs(this.stateManager.get('app.scriptActive')));
+            this.subscribe('videoFilter.clarity', () => this.updateGlobalAttrObs(this.stateManager.get('app.scriptActive')));
 
             this.subscribe('media.activeMedia', () => updateHooksState());
             updateHooksState();
@@ -1005,13 +1022,14 @@
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
-            const hasCandidates =
-                document.getElementsByTagName('video').length > 0 ||
-                document.getElementsByTagName('iframe').length > 0 ||
-                document.getElementsByTagName('source').length > 0 ||
-                (_localShadowRoots.length > 0);
+            const sm = this.stateManager;
+            const controlsVisible = sm.get('ui.areControlsVisible');
+            const aeActive = sm.get('videoFilter.autoExposure') || sm.get('videoFilter.clarity') > 0;
+            
+            // [Fix 2-C] Restrict global observer
+            const shouldRun = active && (controlsVisible || aeActive);
 
-            if (active && !this._globalAttrObs && hasCandidates) {
+            if (shouldRun && !this._globalAttrObs) {
                 this._globalAttrObs = new MutationObserver(throttle((ms) => {
                     let dirty = false;
                     for (const m of ms) {
@@ -1027,7 +1045,7 @@
                     if (dirty) this._domDirty = true;
                 }, 150));
                 this._globalAttrObs.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
-            } else if (!active && this._globalAttrObs) {
+            } else if (!shouldRun && this._globalAttrObs) {
                 this._globalAttrObs.disconnect(); this._globalAttrObs = null;
             }
         }
@@ -1088,7 +1106,7 @@
             this._cleanupDeadIframes();
             this._pruneDisconnected();
             
-            // [Fix 6] Optimized ShadowRoot Pruning (Backwards iteration + splicing)
+            // Optimized ShadowRoot Pruning
             if (_localShadowRoots.length > 0 && Date.now() - this._lastShadowPrune > 15000) {
                 this._lastShadowPrune = Date.now();
                 let i = _localShadowRoots.length;
@@ -1127,10 +1145,11 @@
                 const dirtySet = new Set();
                 const mayContainMedia = (n) => {
                     if (!n || n.nodeType !== 1) return false;
+                    // [Fix 6-A] Simplified checks
                     const tag = n.nodeName;
                     if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE' || tag === 'CANVAS') return true;
                     if (n.childElementCount > 0 && n.querySelector) {
-                         return !!n.querySelector('video, iframe, img, source, canvas');
+                         return !!n.querySelector(SEL.MEDIA);
                     }
                     return false;
                 };
@@ -1527,7 +1546,8 @@
         }
         attachImageListeners(image) {
             if (!image || !this.intersectionObserver) return false;
-            if (image.tagName !== 'IFRAME' && this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
+            // [Fix 6-B] Simplified logic
+            if (this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
             const visMap = this.stateManager.get('media.visibilityMap'); if (visMap) visMap.set(image, false);
             if (!this._observedImages.has(image)) {
                 try { this.intersectionObserver.observe(image); this._observedImages.add(image); if (this._resizeObs) this._resizeObs.observe(image); } catch (e) { return false; }
@@ -1593,12 +1613,13 @@
                 _prevInlineStyle.set(el, {
                     filter: el.style.filter || '',
                     webkitFilter: el.style.webkitFilter || '',
-                    transform: el.style.transform || ''
+                    // [Fix 1-A] Remove transform override
+                    // transform: el.style.transform || ''
                 });
             }
             el.style.setProperty('filter', filterCss, 'important');
             el.style.setProperty('-webkit-filter', filterCss, 'important');
-            el.style.setProperty('transform', 'translateZ(0)', 'important');
+            // el.style.setProperty('transform', 'translateZ(0)', 'important');
             el.dataset.vscInlineFilter = '1';
         }
 
@@ -1608,12 +1629,12 @@
             if (prev) {
                 el.style.filter = prev.filter;
                 el.style.webkitFilter = prev.webkitFilter;
-                el.style.transform = prev.transform;
+                // el.style.transform = prev.transform;
                 _prevInlineStyle.delete(el);
             } else {
                 el.style.removeProperty('filter');
                 el.style.removeProperty('-webkit-filter');
-                el.style.removeProperty('transform');
+                // el.style.removeProperty('transform');
             }
             delete el.dataset.vscInlineFilter;
         }
@@ -1646,7 +1667,8 @@
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`; const combinedFilterNoGrainId = `${settings.SHARPEN_ID}_combined_filter_nograin`;
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
                     const style = document.createElement('style'); style.id = styleId;
-                    const cssContent = ` .${className} { filter: url(#${combinedFilterId}) !important; transform: translateZ(0); } .${className}.no-grain { filter: url(#${combinedFilterNoGrainId}) !important; } `;
+                    // [Fix 1-A] Remove transform from CSS
+                    const cssContent = ` .${className} { filter: url(#${combinedFilterId}) !important; } .${className}.no-grain { filter: url(#${combinedFilterNoGrainId}) !important; } `;
                     style.textContent = cssContent;
                     const buildChain = (id, includeGrain) => {
                         const filter = createSvgElement('filter', { id: id, "color-interpolation-filters": "sRGB" });
@@ -1756,14 +1778,33 @@
             const vf = this.stateManager.get('videoFilter');
             let auto = this.lastAutoParams || { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
             if (!vf.autoExposure) { auto = { ...auto, gamma: 1.0, bright: 0, shadowsAdj: 0, highlightsAdj: 0 }; }
-            const finalGamma = vf.gamma * (auto.gamma || 1.0); const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0); const finalContrastAdj = vf.contrastAdj; const finalHighlights = vf.highlights + (auto.highlightsAdj || 0); const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
-            let autoSharpLevel2 = vf.level2; if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
+            
+            // [Fix 7-2] Clamp final gamma
+            const finalGamma = Utils.clamp(vf.gamma * (auto.gamma || 1.0), 0.6, 2.2);
+            const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0); const finalContrastAdj = vf.contrastAdj; const finalHighlights = vf.highlights + (auto.highlightsAdj || 0); const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
+            
+            let autoSharpLevel2 = vf.level2; 
+            if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
+            // [Fix 4-C] Reduce detail sharpen on high motion
+            if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
+
             const values = { saturation: vf.saturation, gamma: finalGamma, blur: 0, sharpenLevel: vf.level, level2: autoSharpLevel2, shadows: finalShadows, highlights: finalHighlights, brightness: finalBrightness, contrastAdj: finalContrastAdj, colorTemp: vf.colorTemp, dither: vf.dither, clarity: vf.clarity, autoExposure: vf.autoExposure, targetLuma: vf.targetLuma };
             this.filterManager.updateFilterValues(values); VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
             this.updateMediaFilterStates();
         }
         applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; const values = { sharpenLevel: level, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
         updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
+        
+        // [Fix 2-A] Filter Check Throttling
+        _getFilterCheckTs(el) {
+            if (!this._filterCheckMap) this._filterCheckMap = new WeakMap();
+            return this._filterCheckMap.get(el) || 0;
+        }
+        _setFilterCheckTs(el, ts) {
+            if (!this._filterCheckMap) this._filterCheckMap = new WeakMap();
+            this._filterCheckMap.set(el, ts);
+        }
+
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
@@ -1782,11 +1823,15 @@
             if (isActive) {
                 video.classList.add('vsc-video-filter-active');
                 
-                // [Fix 7] Robust Filter Detection (Browser-safe)
                 requestAnimationFrame(() => {
+                    const now = performance.now();
+                    const last = this._getFilterCheckTs(video);
+                    // Throttle computed style check (1.2s)
+                    if (now - last < 1200) return; 
+                    this._setFilterCheckTs(video, now);
+
                     const cs = window.getComputedStyle(video);
                     const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
-                    // Check both "url(#id)" and "url('#id')" formats
                     if (!currentFilter.includes(filterId)) {
                         this.setInlineFilter(video, filterCss);
                     } else {
@@ -1874,7 +1919,7 @@
                 .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid var(--vsc-border); padding-bottom: 6px; } .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } .vsc-hr { height: 1px; background: var(--vsc-border); width: 100%; margin: 4px 0; }
                 .slider-control { display: flex; flex-direction: column; gap: 4px; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '13px' : '14px'}; color: var(--vsc-text); } input[type=range] { width: 100%; margin: 0; cursor: pointer; }
                 .vsc-monitor { font-size: 11px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; } .vsc-monitor.warn { color: #e74c3c; font-weight: bold; }
-                /* [Fix 5] Clean UI styles */
+                /* UI styles moved to CSS */
                 .vsc-trigger { width: ${isMobile ? '42px' : '48px'}; height: ${isMobile ? '42px' : '48px'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: ${isMobile ? '22px' : '24px'}; user-select: none; touch-action: none; order: 1; transition: background 0.3s; }
                 .vsc-rescan { width: 34px; height: 34px; background: var(--vsc-bg-btn); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; margin-top: 5px; order: 3; }
                 #vsc-global-container { position: fixed; top: 50%; right: 1vmin; z-index: ${CONFIG.UI.MAX_Z}; transform: translateY(-50%) translate(var(--vsc-translate-x, 0), var(--vsc-translate-y, 0)); display: flex; align-items: flex-start; gap: 5px; }
@@ -1902,13 +1947,12 @@
             const tx = this.uiState.x || 0; const ty = this.uiState.y || 0;
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
             
-            // Define vars on container for scoped usage if needed, but CSS handles it better
             const vars = { '--vsc-bg-dark': 'rgba(0,0,0,0.7)', '--vsc-bg-btn': 'rgba(0,0,0,0.5)', '--vsc-bg-accent': 'rgba(52, 152, 219, 0.7)', '--vsc-bg-warn': 'rgba(231, 76, 60, 0.9)', '--vsc-bg-active': 'rgba(76, 209, 55, 0.4)', '--vsc-text': 'white', '--vsc-text-accent': '#f39c12', '--vsc-text-active': '#4cd137', '--vsc-border': '#555' };
             for (const [k, v] of Object.entries(vars)) this.globalContainer.style.setProperty(k, v);
             
             this.mainControlsContainer = document.createElement('div'); this.mainControlsContainer.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:5px;';
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
-            this.triggerElement.className = 'vsc-trigger'; // Apply class instead of inline styles
+            this.triggerElement.className = 'vsc-trigger';
 
             this.triggerElement.addEventListener('click', (e) => {
                 if (this.wasDragged || this._longPressTriggered) {
@@ -1955,7 +1999,6 @@
                 this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn);
             });
 
-            // Add styles to head for the external UI parts (outside shadow DOM)
             const globalStyle = document.createElement('style');
             globalStyle.textContent = this.getStyles().replace(':host', '#vsc-global-container, #vsc-ui-host');
             document.head.appendChild(globalStyle);
@@ -1964,7 +2007,7 @@
         }
 
         startBootGate() {
-            this.globalContainer.style.display = 'none'; // Initially hidden
+            this.globalContainer.style.display = 'none';
             let checks = 0;
             const check = () => {
                 checks++;
@@ -1973,8 +2016,8 @@
                                  hasRealVideoCached();
 
                 if (hasMedia) {
-                    this.globalContainer.style.display = 'flex'; // Show when detected
-                } else if (checks < 30) { // Keep checking for 15s
+                    this.globalContainer.style.display = 'flex';
+                } else if (checks < 30) {
                      setTimeout(check, 500);
                 } else {
                     this.globalContainer.style.display = 'none';
