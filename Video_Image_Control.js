@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.6 Minimal AE & Robust)
+// @name        Video_Image_Control (v132.0.8 Bypass & Robust)
 // @namespace   https://com/
-// @version     132.0.6
-// @description v132.0.6: p55 AE Target, Strength-first Deadband, Audio Promise Fix, Canvas Support, and Robust Worker Fallback.
+// @version     132.0.8
+// @description v132.0.8: True Filter Bypass (Fixes grey blacks), p55 Logic Fix, Linear AE, and Dry/Wet Audio.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -45,7 +45,8 @@
         FILTER: {
             VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 6, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
-            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, DEFAULT_AE_STRENGTH: 40, // Tuned down for minimal intervention
+            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, 
+            DEFAULT_AE_STRENGTH: 40,
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
@@ -79,7 +80,6 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => { try { target.addEventListener(type, listener, options); } catch(e){} };
 
-    // --- Worker: Added p55 calculation ---
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
@@ -102,9 +102,6 @@
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
                 
-                // Optimized checkBand (omitted detailed implementation for brevity, logic same as before)
-                // ... (Band checking logic) ...
-                // Re-implementing simplified band check for self-contained worker string
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -161,7 +158,7 @@
                     }
                 }
 
-                let p10 = -1, p50 = -1, p90 = -1, p55 = -1; // Added p55
+                let p10 = -1, p50 = -1, p90 = -1, p55 = -1;
                 const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
                 const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
 
@@ -169,14 +166,14 @@
                     let sum = 0;
                     const t10 = validCount * 0.10;
                     const t50 = validCount * 0.50;
-                    const t55 = validCount * 0.55; // Target for p55
+                    const t55 = validCount * 0.55;
                     const t90 = validCount * 0.90;
                     
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
                         if (p10 < 0 && sum >= t10) p10 = i / 255;
                         if (p50 < 0 && sum >= t50) p50 = i / 255;
-                        if (p55 < 0 && sum >= t55) p55 = i / 255; // Capture p55
+                        if (p55 < 0 && sum >= t55) p55 = i / 255;
                         if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
                 }
@@ -500,8 +497,8 @@
     }
 
     const VideoAnalyzer = {
-        canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 45 },
-        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
+        canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40 },
+        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0, currentLinearGain: 1.0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
         _lastBarsState: false, _aeActive: false,
 
@@ -564,16 +561,37 @@
                      botPixelCount++;
                  }
              }
+             let leftBlack = 0, rightBlack = 0, leftPixelCount = 0, rightPixelCount = 0;
+             for (let y = 0; y < size; y += step) {
+                for(let x=0; x < bandH; x+=step) {
+                    const i = (y * size + x) * 4;
+                    if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) leftBlack++;
+                    leftPixelCount++;
+                }
+                for(let x=size-bandH; x < size; x+=step) {
+                    const i = (y * size + x) * 4;
+                    if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) rightBlack++;
+                    rightPixelCount++;
+                }
+             }
+
              const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
              const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
-             const barsNow = (topRatio > 0.65 && botRatio > 0.65);
+             const leftRatio = leftPixelCount > 0 ? leftBlack / leftPixelCount : 0;
+             const rightRatio = rightPixelCount > 0 ? rightBlack / rightPixelCount : 0;
+
+             const barsNow = (topRatio > 0.65 && botRatio > 0.65) || (leftRatio > 0.65 && rightRatio > 0.65);
+
              if (!this._hist) this._hist = new Uint16Array(256);
              this._hist.fill(0); const hist = this._hist;
              let validCount = 0, hiClipCount = 0, loClipCount = 0;
              const startY = barsNow ? Math.floor(size * 0.15) : 0;
              const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
+             const startX = barsNow && leftRatio > 0.65 ? Math.floor(size * 0.15) : 4;
+             const endX = barsNow && rightRatio > 0.65 ? Math.floor(size * 0.85) : size - 4;
+
              for (let y = startY; y < endY; y+=step) {
-                 for (let x = 4; x < size - 4; x+=step) {
+                 for (let x = startX; x < endX; x+=step) {
                      const i = (y * size + x) * 4;
                      const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
                      hist[luma]++; validCount++;
@@ -630,7 +648,7 @@
                         if (c._vscLastPlay && now - c._vscLastPlay < 5000) score *= 2.0;
                         if (c.duration && !isNaN(c.duration) && c.duration < 2) score *= 0.1;
                     } else { // Canvas
-                        score *= 0.5; // Lower priority than video
+                        score *= 0.5;
                     }
 
                     const dist = Math.sqrt(Math.pow(rect.x + rect.width/2 - cx, 2) + Math.pow(rect.y + rect.height/2 - cy, 2));
@@ -662,13 +680,14 @@
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0;
             
-            // v132.0.5: Force immediate update to clear "Monitoring Off"
+            // v132.0.8: Force immediate update to clear "Monitoring Off"
             this.notifyUpdate({
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
                 shadowsAdj: this.currentShadowsAdj,
-                highlightsAdj: this.currentHighlightsAdj
+                highlightsAdj: this.currentHighlightsAdj,
+                linearGain: this.currentLinearGain
             }, 0.5, this.targetVideo, false);
 
             this.loop();
@@ -778,7 +797,6 @@
                         const msg = { type: 'analyze', fid, vid, buf, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
                         try { this._worker.postMessage(msg, [buf]); }
                         catch(err) {
-                            // v132.0.6: Immediate fallback on transfer failure
                             this._workerBusy = false; this._workerLastSent = 0;
                             this._analyzeFallback(imageData, size, size, bandH, step);
                         }
@@ -808,7 +826,10 @@
                 this._lastBarsState = barsNow;
             }
 
-            this._roiP50History.push(p55 || p50); // v132.0.6: Use p55 for history
+            // v132.0.8: Fix p55 bug
+            const mid = Number.isFinite(p55) ? p55 : p50;
+            this._roiP50History.push(mid);
+
             if (this._roiP50History.length > 5) this._roiP50History.shift();
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
             const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
@@ -826,23 +847,25 @@
                 if (delta > 0.25) {
                     this.currentAdaptiveGamma = 1.0;
                     this.currentAdaptiveBright = 0;
+                    this.currentLinearGain = 1.0;
                     this._evAggressiveUntil = performance.now() + 800;
                 }
             }
             this.lastAvgLuma = currentLuma;
 
             let targetAdaptiveGamma = 1.0, targetAdaptiveBright = 0, targetShadowsAdj = 0, targetHighlightsAdj = 0;
+            let targetLinearGain = 1.0;
+
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                const targetMid = 0.49;
+                const targetMid = 0.47;
                 let rawEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                 rawEV += userEV;
                 
-                // v132.0.6: Apply strength BEFORE deadband for minimal intervention
                 const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
                 rawEV *= aeStr;
 
@@ -871,18 +894,19 @@
                     rawEV *= (1.0 - 0.70 * loGate);
                 }
 
-                // v132.0.6: Tight clamp
-                rawEV = Utils.clamp(rawEV, -0.30, 0.35);
+                rawEV = Utils.clamp(rawEV, -0.25, 0.30);
 
                 if (this._highMotion && !aggressive) {
                     rawEV *= 0.8;
                 }
 
-                targetAdaptiveGamma = Math.pow(2, rawEV * 0.65);
-                targetAdaptiveBright = (rawEV > 0.2) ? (rawEV - 0.2) * 3.0 : 0;
+                targetLinearGain = Math.pow(2, rawEV);
+                
+                targetAdaptiveGamma = 1.0; 
+                targetAdaptiveBright = 0; 
 
-                if (rawEV > 0) targetShadowsAdj = rawEV * 4.0;
-                if (hiClipRatio > 0.005) targetHighlightsAdj = hiClipRatio * 120;
+                if (rawEV > 0) targetShadowsAdj = rawEV * 2.0; 
+                if (hiClipRatio > 0.005) targetHighlightsAdj = hiClipRatio * 80;
             }
 
             let targetClarityComp = 0;
@@ -899,12 +923,13 @@
                 return curr + diff * (diff > 0 ? upSpeed : downSpeed);
             };
             
-            // v132.0.6: Slower smooth for minimal intervention
             const baseUp = aggressive ? 0.20 : 0.02;
             const baseDown = aggressive ? 0.20 : 0.06;
 
             this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma, baseUp, baseDown);
             this.currentAdaptiveBright = smooth(this.currentAdaptiveBright || 0, targetAdaptiveBright, baseUp, baseDown);
+            this.currentLinearGain = smooth(this.currentLinearGain || 1.0, targetLinearGain, baseUp, baseDown);
+
             this.currentClarityComp = smooth(this._lastClarityComp || 0, targetClarityComp, 0.1, 0.1);
             this.currentShadowsAdj = smooth(this._lastShadowsAdj || 0, targetShadowsAdj, 0.1, 0.1);
             this.currentHighlightsAdj = smooth(this._lastHighlightsAdj || 0, targetHighlightsAdj, 0.1, 0.1);
@@ -918,7 +943,8 @@
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
                 shadowsAdj: this.currentShadowsAdj,
-                highlightsAdj: this.currentHighlightsAdj
+                highlightsAdj: this.currentHighlightsAdj,
+                linearGain: this.currentLinearGain
             }, p50m, this.targetVideo, false);
         },
         notifyUpdate(autoParams, luma, videoInfo, tainted = false) {
@@ -1127,7 +1153,6 @@
             }
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
             const sm = this.stateManager; const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
-            // v132.0.6: Aggressive idle if inactive
             if (!sm.get('app.scriptActive') && !sm.get('ui.areControlsVisible')) {
                 this.currentScanInterval = 15000;
             } else if ((sm.get('media.activeMedia').size > 0) || hasPotential) { 
@@ -1135,7 +1160,6 @@
             } else { 
                 this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5); 
             }
-
             this.scheduleNextScan();
         }
         ensureObservers() {
@@ -1304,7 +1328,7 @@
     }
 
     class SvgFilterPlugin extends Plugin {
-        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this._mediaStateRafId = null; }
+        constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this._mediaStateRafId = null; this.isGlobalBypass = false; }
         init(stateManager) {
             super.init(stateManager);
             this.filterManager = this._createManager({ settings: CONFIG.FILTER.SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
@@ -1338,7 +1362,8 @@
                 let isChanged = false;
                 if (vf.autoExposure) {
                     isChanged = Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.003 ||
-                                Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.2;
+                                Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.2 ||
+                                Math.abs((this.lastAutoParams.linearGain || 1.0) - (autoParams.linearGain || 1.0)) > 0.01;
                 }
                 if (!isChanged && vf.clarity > 0) {
                     isChanged = Math.abs(this.lastAutoParams.clarityComp - autoParams.clarityComp) > 0.2;
@@ -1356,7 +1381,6 @@
             this._pruneTimer = setInterval(() => {
                 if (this.filterManager) this.filterManager.prune();
                 if (this.imageFilterManager) this.imageFilterManager.prune();
-                // v132.0.5: Enforce filters
                 const v = this.stateManager.get('media.currentlyVisibleMedia');
                 if (v && v.isConnected) this._updateVideoFilterState(v);
             }, 3000);
@@ -1444,13 +1468,18 @@
                         } else {
                             const lumaContrast = createSvgElement('feColorMatrix', { "data-vsc-id": "luma_contrast_matrix", in: lastOut, type: "matrix", values: "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0", result: "luma_contrast_out" });
                             const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "luma_contrast_out", type: "saturate", values: (settings.SAT / 100).toString(), result: "saturate_out" });
-                            const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "saturate_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA).toString() })));
+                            
+                            // v132.0.8: Linear Exposure
+                            const linearExp = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear_exposure", in: "saturate_out", result: "linear_out" });
+                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"linear", slope:"1", intercept:"0" })));
+
+                            const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "linear_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA).toString() })));
                             const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
                             const colorTemp = createSvgElement('feComponentTransfer', { "data-vsc-id": "post_colortemp", in: "tone_out", result: "final_out" });
                             colorTemp.append(createSvgElement('feFuncR', { "data-vsc-id": "ct_red", type: "linear", slope: "1", intercept: "0" }));
                             colorTemp.append(createSvgElement('feFuncG', { "data-vsc-id": "ct_green", type: "linear", slope: "1", intercept: "0" }));
                             colorTemp.append(createSvgElement('feFuncB', { "data-vsc-id": "ct_blue", type: "linear", slope: "1", intercept: "0" }));
-                            filter.append(lumaContrast, saturation, gamma, toneCurve, colorTemp);
+                            filter.append(lumaContrast, saturation, linearExp, gamma, toneCurve, colorTemp);
                         }
                         return filter;
                     };
@@ -1461,9 +1490,9 @@
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
                     const v = (val) => (val === undefined || val === null) ? 0 : Number(val);
-                    const sig = [v(values.gamma), v(values.sharpenLevel), v(values.level2), v(values.colorTemp), v(values.saturation), v(values.shadows), v(values.highlights), v(values.brightness), v(values.contrastAdj), v(values.dither), v(values.clarity), values.autoExposure ? 1 : 0].join('|');
+                    const sig = [v(values.gamma), v(values.sharpenLevel), v(values.level2), v(values.colorTemp), v(values.saturation), v(values.shadows), v(values.highlights), v(values.brightness), v(values.contrastAdj), v(values.dither), v(values.clarity), v(values.linearGain), values.autoExposure ? 1 : 0].join('|');
                     if (this._lastValues === sig) return; this._lastValues = sig;
-                    const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity } = values;
+                    const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity, linearGain } = values;
                     let currentToneTable = null; const contrastSafe = (contrastAdj == null) ? 1.0 : Number(contrastAdj);
                     const toneKey = (shadows !== undefined) ? `${(+shadows).toFixed(2)}_${(+highlights).toFixed(2)}_${(+brightness || 0).toFixed(2)}_${(+contrastSafe || 1).toFixed(3)}` : null;
                     if (toneKey) {
@@ -1494,7 +1523,9 @@
                             cache = {
                                 blurFine: rootNode.querySelectorAll('[data-vsc-id="sharpen_blur_fine"]'), compFine: rootNode.querySelectorAll('[data-vsc-id="sharpen_comp_fine"]'), blurCoarse: rootNode.querySelectorAll('[data-vsc-id="sharpen_blur_coarse"]'), compCoarse: rootNode.querySelectorAll('[data-vsc-id="sharpen_comp_coarse"]'), saturate: rootNode.querySelectorAll('[data-vsc-id="saturate"]'),
                                 gammaFuncs: rootNode.querySelectorAll('[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB'), toneCurveFuncs: rootNode.querySelectorAll('[data-vsc-id="tone_curve"] feFuncR, [data-vsc-id="tone_curve"] feFuncG, [data-vsc-id="tone_curve"] feFuncB'),
-                                ctRed: rootNode.querySelectorAll('[data-vsc-id="ct_red"]'), ctGreen: rootNode.querySelectorAll('[data-vsc-id="ct_green"]'), ctBlue: rootNode.querySelectorAll('[data-vsc-id="ct_blue"]'), lumaContrastMatrix: rootNode.querySelectorAll('[data-vsc-id="luma_contrast_matrix"]'), clarityFuncs: rootNode.querySelectorAll('[data-vsc-id="clarity_func"]'), grainComp: rootNode.querySelector('[data-vsc-id="grain_comp"]'), appliedToneKey: null
+                                ctRed: rootNode.querySelectorAll('[data-vsc-id="ct_red"]'), ctGreen: rootNode.querySelectorAll('[data-vsc-id="ct_green"]'), ctBlue: rootNode.querySelectorAll('[data-vsc-id="ct_blue"]'), lumaContrastMatrix: rootNode.querySelectorAll('[data-vsc-id="luma_contrast_matrix"]'), clarityFuncs: rootNode.querySelectorAll('[data-vsc-id="clarity_func"]'), grainComp: rootNode.querySelector('[data-vsc-id="grain_comp"]'), 
+                                exposureFuncs: rootNode.querySelectorAll('[data-vsc-id="exposure_func"]'),
+                                appliedToneKey: null
                             }; this._elementCache.set(rootNode, cache);
                         }
                         if (clarity !== undefined && cache.clarityFuncs) {
@@ -1512,6 +1543,7 @@
                         }
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
                         if (saturation !== undefined && cache.saturate) cache.saturate.forEach(el => Utils.setAttr(el, 'values', (saturation / 100).toString()));
+                        if (linearGain !== undefined && cache.exposureFuncs) cache.exposureFuncs.forEach(el => Utils.setAttr(el, 'slope', linearGain.toFixed(3)));
                         if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); cache.gammaFuncs.forEach(el => Utils.setAttr(el, 'exponent', exp)); }
                         if (currentToneTable && cache.toneCurveFuncs) { if (cache.appliedToneKey !== toneKey) { cache.appliedToneKey = toneKey; cache.toneCurveFuncs.forEach(el => Utils.setAttr(el, 'tableValues', currentToneTable)); } }
                         if (contrastSafe !== undefined && cache.lumaContrastMatrix) { const cAmount = (contrastSafe - 1.0) * 0.9; const r = 0.2126 * cAmount; const g = 0.7152 * cAmount; const b = 0.0722 * cAmount; const mVals = [1 + r, g, b, 0, 0, r, 1 + g, b, 0, 0, r, g, 1 + b, 0, 0, 0, 0, 0, 1, 0].join(' '); cache.lumaContrastMatrix.forEach(el => Utils.setAttr(el, 'values', mVals)); }
@@ -1535,7 +1567,8 @@
             const aeOn = !!vf.autoExposure;
             const clOn = (vf.clarity > 0);
 
-            const autoGamma = aeOn ? (auto.gamma || 1.0) : 1.0;
+            const autoGain = aeOn ? (auto.linearGain || 1.0) : 1.0;
+            const autoGamma = aeOn ? (auto.gamma || 1.0) : 1.0; 
             const autoBright = aeOn ? (auto.bright || 0) : 0;
             const autoShadows = aeOn ? (auto.shadowsAdj || 0) : 0;
             const autoHighlights = aeOn ? (auto.highlightsAdj || 0) : 0;
@@ -1546,14 +1579,8 @@
             const finalBrightness = vf.brightness + autoBright + clarityComp;
             const finalShadows = vf.shadows + autoShadows;
             const finalHighlights = vf.highlights + autoHighlights;
-
             const finalContrastAdj = vf.contrastAdj;
-
             let finalSaturation = vf.saturation;
-            if (aeOn) {
-                if (finalGamma > 1.05) finalSaturation += (finalGamma - 1.0) * 12;
-                if (finalBrightness > 10) finalSaturation += finalBrightness * 0.15;
-            }
 
             let autoSharpLevel2 = vf.level2;
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
@@ -1572,6 +1599,25 @@
                 }
             }
 
+            // v132.0.8: Calculate neutral state for filter bypass
+            const isUserNeutral = vf.level === 0 && vf.level2 === 0 &&
+                                  Math.abs(vf.gamma - 1.0) < 0.001 &&
+                                  vf.brightness === 0 &&
+                                  Math.abs(vf.contrastAdj - 1.0) < 0.001 &&
+                                  vf.saturation === 100 &&
+                                  vf.shadows === 0 && vf.highlights === 0 &&
+                                  vf.colorTemp === 0 && vf.dither === 0 &&
+                                  vf.clarity === 0;
+
+            const isAutoNeutral = !vf.autoExposure || (
+                Math.abs((auto.linearGain || 1.0) - 1.0) < 0.002 &&
+                Math.abs((auto.gamma || 1.0) - 1.0) < 0.002 &&
+                Math.abs((auto.bright || 0)) < 0.5
+            );
+            
+            // Set Global Bypass Flag
+            this.isGlobalBypass = isUserNeutral && isAutoNeutral;
+
             const values = {
                 saturation: finalSaturation,
                 gamma: finalGamma,
@@ -1586,7 +1632,8 @@
                 dither: vf.dither,
                 clarity: vf.clarity,
                 autoExposure: vf.autoExposure,
-                targetLuma: vf.targetLuma
+                targetLuma: vf.targetLuma,
+                linearGain: autoGain 
             };
             this.filterManager.updateFilterValues(values);
             VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma, aeStrength: vf.aeStrength });
@@ -1603,7 +1650,8 @@
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
             const isVisRaw = this.stateManager.get('media.visibilityMap').get(video);
             const isVis = (isVisRaw !== false);
-            const isActive = scriptActive && isVis && shouldApply;
+            // v132.0.8: Logic updated to respect global bypass
+            const isActive = scriptActive && isVis && shouldApply && !this.isGlobalBypass;
 
             if (isActive) {
                 injectFiltersIntoContext(video, this.filterManager, this.stateManager);
@@ -1640,7 +1688,11 @@
                         }
                     }, 400);
                 });
-            } else { video.classList.remove('vsc-video-filter-active'); this.restoreInlineFilter(video); }
+            } else { 
+                // Bypass Active: Remove everything
+                video.classList.remove('vsc-video-filter-active'); 
+                this.restoreInlineFilter(video); 
+            }
 
             if (useNoGrain) video.classList.add('no-grain'); else video.classList.remove('no-grain');
         }
@@ -1993,7 +2045,7 @@
                 if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
                 const { autoParams, tainted } = e.detail;
                 if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
-                else { monitor.textContent = `Gamma: ${autoParams.gamma.toFixed(2)} | Bright: ${autoParams.bright.toFixed(0)}`; monitor.classList.remove('warn'); }
+                else { monitor.textContent = `Linear: ${autoParams.linearGain ? autoParams.linearGain.toFixed(2) : '1.00'} | Gamma: ${autoParams.gamma.toFixed(2)}`; monitor.classList.remove('warn'); }
             };
             document.addEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
             const imgMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controls);
