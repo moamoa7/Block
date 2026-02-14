@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.33 Night Mode Fix)
+// @name        Video_Image_Control (v132.0.34 Minimal & Robust)
 // @namespace   https://com/
-// @version     132.0.33
-// @description v132.0.33: Fixed oily look in dark scenes (Low-light EV cap, SQRT Knee curve, Conditional P90 gating for secondary adjustments).
+// @version     132.0.34
+// @description v132.0.34: Fixed Logic Bugs (TargetMid order, State Mutation), Optimized Worker/RVFC, and Refined for "Minimal Intervention" (SQRT Knee, P98 Cap).
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -47,7 +47,7 @@
             VIDEO_DEFAULT_LEVEL: 0, VIDEO_DEFAULT_LEVEL2: 0, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
-            DEFAULT_AE_STRENGTH: 35,
+            DEFAULT_AE_STRENGTH: 35, // [v34] Standardized to 35
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
@@ -130,7 +130,7 @@
                 const rightRes = checkBand(size - bandH, size, 0, size);
                 const barsNow = (topRes.ratio > 0.65 && topRes.mean < centerMean - 20 && botRes.ratio > 0.65) || (leftRes.ratio > 0.65 && rightRes.ratio > 0.65);
 
-                let validCount = 0, hiClipCount = 0, loClipCount = 0;
+                let validCount = 0;
                 let sumR = 0, sumG = 0, sumB = 0;
                 let sumLuma = 0;
                 let sumLumaSq = 0;
@@ -166,15 +166,10 @@
                         sumR += r; sumG += g; sumB += b;
                         sumLuma += luma;
                         sumLumaSq += luma * luma;
-
-                        if (luma >= 250) hiClipCount++;
-                        if (luma <= 5) loClipCount++;
                     }
                 }
 
                 let p10 = -1, p50 = -1, p55 = -1, p90 = -1, p98 = -1;
-                const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
-                const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
 
                 let avgR = 0, avgG = 0, avgB = 0, avgLuma = 0, stdDev = 0;
                 if (validCount > 0) {
@@ -201,7 +196,8 @@
                 }
                 if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p55 < 0) p55 = 0.55; if (p90 < 0) p90 = 0.9; if (p98 < 0) p98 = 0.98;
 
-                self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, p98, barsNow, hiClipRatio, loClipRatio, avgR, avgG, avgB, avgLuma, stdDev });
+                // [v34] Removed barsNow, hiClipRatio, loClipRatio (Optimization)
+                self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB });
             }
         };
     `;
@@ -574,27 +570,15 @@
         _getVideoId(v) { if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2)); return this._videoIds.get(v); },
         _handleWorkerMessage(e) {
             this._workerBusy = false; this._workerLastSent = 0;
-            const { type, fid, vid, p10, p50, p55, p90, p98, barsNow, hiClipRatio, loClipRatio, avgLuma, stdDev, avgR, avgG, avgB } = e.data;
+            const { type, fid, vid, p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB } = e.data; // [v34] Removed unused barsNow, hiClip, loClip
             if (type !== 'result' || !this.targetVideo || vid !== this._getVideoId(this.targetVideo)) return;
             if (!this._lastAppliedFid) this._lastAppliedFid = 0; if (fid < this._lastAppliedFid) return;
             this._lastAppliedFid = fid;
-            this._processAnalysisResult(p10, p50, p55, p90, p98, barsNow, hiClipRatio, loClipRatio, avgLuma, stdDev, avgR, avgG, avgB);
+            this._processAnalysisResult(p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB);
         },
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
              const size = width;
-             const blackTh = 18;
-
-             let topBlack = 0, topPixelCount = 0;
-             for (let y = 0; y < bandH; y += step) {
-                 for (let x = 0; x < size; x += step) {
-                     const i = (y * size + x) * 4;
-                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
-                     topPixelCount++;
-                 }
-             }
-             const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
-
              let sumLuma = 0;
              let count = 0;
              for (let y = 0; y < size; y += step) {
@@ -605,8 +589,7 @@
                  }
              }
              const avgLuma = count > 0 ? (sumLuma/count)/255 : 0.5;
-
-             this._processAnalysisResult(0.1, 0.5, 0.55, 0.9, 0.98, topRatio > 0.65, 0, 0, avgLuma, 0.1, 0.33, 0.33, 0.33);
+             this._processAnalysisResult(0.1, 0.5, 0.55, 0.9, 0.98, avgLuma, 0.1, 0.33, 0.33, 0.33);
         },
 
         _pickBestVideoNow() {
@@ -751,6 +734,11 @@
                 if (!this._rvfcCb) {
                     this._rvfcCb = () => {
                         if (!this.isRunning || !this.targetVideo) return;
+                        // [v34] Stop loop if document hidden to save CPU
+                        if (document.hidden) {
+                             setTimeout(() => { if (this.isRunning) this.handle = this.targetVideo.requestVideoFrameCallback(this._rvfcCb); }, 500);
+                             return;
+                        }
                         try { this.processFrame(); } catch (e) { if (CONFIG.DEBUG) console.warn(e); }
                         this.handle = this.targetVideo.requestVideoFrameCallback(this._rvfcCb);
                     };
@@ -871,7 +859,7 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 1);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-        _processAnalysisResult(p10, p50, p55, p90, p98, barsNow, hiClipRatio, loClipRatio, avgLuma, stdDev, avgR, avgG, avgB) {
+        _processAnalysisResult(p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB) {
 
             const currStats = { luma: avgLuma, r: avgR, g: avgG, b: avgB };
             let isCut = false;
@@ -891,10 +879,6 @@
             }
 
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
-
-            if (barsNow !== this._lastBarsState) {
-                this._lastBarsState = barsNow;
-            }
 
             const mid = Number.isFinite(p55) ? p55 : p50;
             this._roiP50History.push(mid);
@@ -919,35 +903,37 @@
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                let targetMid = 0.44;
-                // [v33] Adaptive Target
-                if (avgLuma > 0.6) targetMid = 0.38;
-                else if (avgLuma > 0.8) targetMid = 0.35;
+
+                // [v34] Corrected Logic Order for TargetMid
+                let targetMid = 0.34;
+                if (avgLuma > 0.8) targetMid = 0.32; // Very Bright -> Aim lower
+                else if (avgLuma > 0.6) targetMid = 0.34; // Bright -> Aim low-ish
 
                 let baseEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
-                const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
+                const aeStr = (this.currentSettings.aeStrength ?? 35) / 100;
 
-                let autoEV = Utils.clamp(baseEV * aeStr, -0.25, 0.30);
+                let autoEV = Utils.clamp(baseEV * aeStr, -0.25, 0.28);
                 let rawEV = autoEV + userEV;
 
-                // [v33] Low-light gloss guard (Limit +EV in dark scenes)
-                const lowLight = (p50m < 0.18) || (avgLuma < 0.22);
-                if (lowLight && rawEV > 0) {
-                     const capEV = 0.18; // Cap positive boost in low light
-                     rawEV = Math.min(rawEV, capEV);
-                     const hiPresence = Utils.clamp((stableP90 - 0.70) / 0.20, 0, 1);
-                     rawEV *= (1.0 - 0.55 * hiPresence); // Further reduce if highlights exist
-                     if (stdDev < 0.07) rawEV *= (stdDev / 0.07); // Reduce for flat/noisy scenes
-                }
-
-                if (stableP90 > 0.01) {
-                    const maxSafeGain = 0.98 / stableP90;
+                // [v34] Enhanced Safety Caps (P98 based)
+                if (p98 > 0.01) {
+                    const maxSafeGain = 0.99 / p98; // Very Strict Cap
                     const maxSafeEV = Math.log2(maxSafeGain);
                     if (rawEV > maxSafeEV) {
                         rawEV = Math.min(rawEV, maxSafeEV);
                     }
+                }
+
+                // [v34] Low-light Gloss Guard
+                const lowLight = (p50m < 0.18) || (avgLuma < 0.22);
+                if (lowLight && rawEV > 0) {
+                     const capEV = 0.15; // Conservative cap
+                     rawEV = Math.min(rawEV, capEV);
+                     const hiPresence = Utils.clamp((stableP90 - 0.70) / 0.20, 0, 1);
+                     rawEV *= (1.0 - 0.6 * hiPresence);
+                     if (stdDev < 0.07) rawEV *= (stdDev / 0.07);
                 }
 
                 if (stdDev < 0.05) {
@@ -972,8 +958,8 @@
                     this._aeActive = true;
                 }
 
-                // Global clamp -1.0 ~ +0.5
-                rawEV = Utils.clamp(rawEV, -1.0, 0.5);
+                // Global clamp -1.0 ~ +0.4
+                rawEV = Utils.clamp(rawEV, -1.0, 0.4);
 
                 if (this._highMotion && !aggressive) {
                     rawEV *= 0.8;
@@ -1061,7 +1047,6 @@
             if (!this.ctx || !this.dryGain || !this.wetGain) return;
             if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
             const t = this.ctx.currentTime;
-            // Dry/Wet Crossfade for perfect bypass
             this.dryGain.gain.setTargetAtTime(enabled ? 0 : 1, t, 0.05);
             this.wetGain.gain.setTargetAtTime(enabled ? Math.pow(10, this.stateManager.get('audio.boost') / 20) : 0, t, 0.05);
         }
@@ -1515,7 +1500,7 @@
 
         _createManager(options) {
             class SvgFilterManager {
-                constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._gainTableCache = new Map(); this._lastValues = null; this._clarityTableCache = new Map(); } // [v33] _gainTableCache
+                constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._gainTableCache = new Map(); this._lastValues = null; this._clarityTableCache = new Map(); } // [v34] gainTableCache
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
                 init() { if (this._isInitialized) return; safeGuard(() => {
                     const { svgNode, styleElement } = this._createElements();
@@ -1576,7 +1561,7 @@
 
                             // v132.0.28: Integrated Gain+Rolloff Node
                             const linearExp = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear_exposure", in: "saturate_out", result: "linear_out" });
-                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"table", tableValues:"0 1" }))); // Use tableValues instead of slope
+                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"table", tableValues:"0 1" })));
 
                             const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "linear_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA).toString() })));
                             const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
@@ -1634,7 +1619,6 @@
                                 gammaFuncs: rootNode.querySelectorAll('[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB'), toneCurveFuncs: rootNode.querySelectorAll('[data-vsc-id="tone_curve"] feFuncR, [data-vsc-id="tone_curve"] feFuncG, [data-vsc-id="tone_curve"] feFuncB'),
                                 ctRed: rootNode.querySelectorAll('[data-vsc-id="ct_red"]'), ctGreen: rootNode.querySelectorAll('[data-vsc-id="ct_green"]'), ctBlue: rootNode.querySelectorAll('[data-vsc-id="ct_blue"]'), lumaContrastMatrix: rootNode.querySelectorAll('[data-vsc-id="luma_contrast_matrix"]'), clarityFuncs: rootNode.querySelectorAll('[data-vsc-id="clarity_func"]'), grainComp: rootNode.querySelector('[data-vsc-id="grain_comp"]'),
                                 exposureFuncs: rootNode.querySelectorAll('[data-vsc-id="exposure_func"]'),
-                                hlRolloffFuncs: rootNode.querySelectorAll('[data-vsc-id="hl_rolloff_func"]'), // [v132.0.26] Cache for rolloff
                                 appliedToneKey: null
                             }; this._elementCache.set(rootNode, cache);
                         }
@@ -1654,7 +1638,7 @@
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
                         if (saturation !== undefined && cache.saturate) cache.saturate.forEach(el => Utils.setAttr(el, 'values', (saturation / 100).toString()));
 
-                        // [v33] Optimized Unified Gain+Rolloff Table Construction with Caching & SQRT Knee
+                        // [v34] Optimized Unified Gain+Rolloff Table Construction with Caching & SQRT Knee
                         if (cache.exposureFuncs) {
                             const gainKey = `gain_${gainQ.toFixed(2)}`;
                             let tableVal = this._gainTableCache.get(gainKey);
@@ -1665,7 +1649,7 @@
                                 } else if (gainQ <= 1.0) {
                                     tableVal = `0 ${gainQ.toFixed(4)}`;
                                 } else {
-                                    // [v33] SQRT-based Knee for Softer Rolloff
+                                    // [v34] SQRT-based Knee for Softer Rolloff
                                     const steps = 256;
                                     const vals = [];
                                     const knee = Utils.clamp(0.80 / Math.sqrt(gainQ), 0.45, 0.80); // Softer knee
@@ -1730,12 +1714,12 @@
             let finalContrastAdj = vf.contrastAdj;
             let finalSaturation = vf.saturation;
 
-            // --- [v132.0.33 Logic] ---
+            // --- [v132.0.34 Logic] ---
             const userEV = Utils.clamp((vf.targetLuma || 0) / 30, -1.0, 1.0);
             const manualGain = Math.pow(2, userEV);
             const totalGain = aeOn ? (autoGain || 1.0) : manualGain;
 
-            // [v32] Use local variables, DO NOT mutate state directly
+            // [v34] Use local variables, DO NOT mutate state directly
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
             if (effectiveClarity > 0) { autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15); }
@@ -1743,14 +1727,11 @@
 
             // [Bonus: High-Gain Clarity/Sharp Dampening]
             if (totalGain > 1.05) {
-                const w = Utils.clamp((totalGain - 1.05) / 0.5, 0, 1);
-                // Reduce sharpening noise in brightened footage
-                if (effectiveClarity > 0) effectiveClarity *= (1 - 0.4 * w);
-                autoSharpLevel2 *= (1 - 0.3 * w);
-
+                // v34: Removed automatic damping of Clarity/Sharpness to respect user settings ("Minimal Intervention")
+                // Only touch highlights/sat/shadows if strictly necessary
                 const boostFactor = totalGain - 1.0;
 
-                // [v33] Conditional Secondary Adjustments (P90 Gate)
+                // [v34] Conditional Secondary Adjustments (P90 Gate)
                 // Use VideoAnalyzer._p90Ema directly if available
                 const currentP90 = (typeof VideoAnalyzer !== 'undefined' && VideoAnalyzer._p90Ema) ? VideoAnalyzer._p90Ema : 0;
                 // Gate: 0 if no highlights, 1 if highlights > 0.85
@@ -2171,7 +2152,7 @@
             Object.assign(videoResetBtn.style, { width: '40px', flex: '0 0 40px' });
             videoResetBtn.onclick = () => {
                 // v132.0.18: Reset
-                this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: 0, level2: 0, clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40, gamma: 1.0, contrastAdj: 1.0, brightness: 0, saturation: 100, highlights: 0, shadows: 0, dither: 0, colorTemp: 0 });
+                this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: 0, level2: 0, clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 35, gamma: 1.0, contrastAdj: 1.0, brightness: 0, saturation: 100, highlights: 0, shadows: 0, dither: 0, colorTemp: 0 });
                 this.stateManager.set('audio.enabled', false); this.stateManager.set('audio.boost', 6); this.showToast('필터 및 오디오 초기화됨');
             };
             topRow.append(videoResetBtn);
