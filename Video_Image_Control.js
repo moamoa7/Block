@@ -740,22 +740,25 @@
 _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
 
+            // 1. 바(Bar) 감지 안정화
             if (barsNow !== this._lastBarsState) {
                 this._barStableCounter++;
                 if (this._barStableCounter > 5) { this._lastBarsState = barsNow; this._barStableCounter = 0; }
             } else { this._barStableCounter = 0; }
 
+            // 2. p50(중간톤) 히스토리 관리 (Median 필터)
             this._roiP50History.push(p50);
             if (this._roiP50History.length > 5) this._roiP50History.shift();
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
             const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
 
+            // EMA (지수 이동 평균)
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
             this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
             const stableP10 = aggressive ? p10 : this._p10Ema;
             const stableP90 = aggressive ? p90 : this._p90Ema;
 
-            // 장면 전환 감지
+            // 3. 장면 전환 감지
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
@@ -768,61 +771,85 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             }
             this.lastAvgLuma = currentLuma;
 
+            // --- [핵심 수정 시작] ---
             let targetAdaptiveGamma = 1.0, targetAdaptiveBright = 0, targetShadowsAdj = 0, targetHighlightsAdj = 0;
             const evValue = this.currentSettings.targetLuma || 0;
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
-                const evBias = evValue * 0.015;
+                // (1) 이상적인 목표 밝기 (Standard Middle Gray)
+                const idealTarget = 0.38;
 
-                // 목표 밝기 설정
-                let baseTarget = p50m;
-                // 너무 어두운 영상 보정
-                if (p50m < 0.1) baseTarget = Math.max(p50m, 0.1);
+                // (2) Auto Strength (자동 보정 강도) 계산 - 부드러운 곡선(Hysteresis) 적용
+                // p50이 0.38 근처면 보정 강도를 낮춤 (이미 적정 노출이므로)
+                // 멀어질수록 강도를 높임. 단, 너무 어둡거나(0.05) 너무 밝으면(0.95) 부작용 방지 위해 다시 낮춤
+                let dist = Math.abs(p50m - idealTarget);
+                // 거리가 0이면 강도 0.1, 거리가 멀면 최대 0.5까지 부드럽게 증가
+                let autoStrength = 0.1 + (0.4 * Math.min(1.0, dist * 4.0));
 
-                const targetMid = Utils.clamp(baseTarget + evBias, 0.05, 0.95);
+                // 다이내믹 레인지가 이미 훌륭하면(HDR급) 굳이 건드리지 않음
+                if (stableP90 - stableP10 > 0.85) autoStrength *= 0.5;
 
-                // [수정] 감마 방향 정반대로 수정
-                // 목표(targetMid)가 현재(p50m)보다 높으면(밝아야 하면), diff > 0
-                // SVG 로직상 감마 수치가 1.0보다 커야(1.2 등) -> exponent가 1/1.2 = 0.83이 되어 밝아짐
-                let diff = targetMid - p50m;
+                // (3) Base Target 계산 (현재 밝기와 이상적 밝기의 타협점)
+                let baseTarget = (p50m * (1 - autoStrength)) + (idealTarget * autoStrength);
 
-                // 감마 계산 (기본 1.0에서 diff만큼 더함)
-                // diff가 +0.2면 Gamma 1.2 -> 밝아짐
-                // diff가 -0.2면 Gamma 0.8 -> 어두워짐
-                targetAdaptiveGamma = 1.0 + (diff * 1.5);
+                // (4) [PRO] EV 적용 (Multiplier 방식)
+                // EV 20당 1 Stop (2배) 밝기 변화로 매핑
+                // 예: EV +10 -> 2^(0.5) = 1.41배 밝게 목표 설정
+                const evStops = evValue / 20.0;
+                const evGain = Math.pow(2, evStops);
 
-                // [수정] 밝기(Offset) 직접 연동
-                // EV가 +면 밝기도 같이 올려줌 (기존에는 0으로 고정되어 있었음)
-                // 감마만 쓰면 회색이 되므로 밝기 오프셋을 섞음
-                if (evValue !== 0) {
-                    targetAdaptiveBright = evValue * 0.8; // EV 10당 밝기 8 증가
+                // 최종 목표 밝기 (0.05 ~ 0.95 안전 범위 클램핑)
+                let finalTarget = Utils.clamp(baseTarget * evGain, 0.05, 0.95);
+
+                // (5) [PRO] 감마(Exponent) 계산 - Power Curve Logic
+                // 공식: Current^Exp = Target  =>  Exp = log(Target) / log(Current)
+                // 안전장치: log(0) 방지를 위해 아주 작은 값(eps) 더함
+                const eps = 0.001;
+                const safeCurrent = Utils.clamp(p50m, eps, 1 - eps);
+                const safeTarget = Utils.clamp(finalTarget, eps, 1 - eps);
+
+                // 목표를 달성하기 위한 지수(Exponent) 계산
+                let requiredExp = Math.log(safeTarget) / Math.log(safeCurrent);
+
+                // 너무 과도한 왜곡 방지 (0.5 ~ 2.2 범위 제한)
+                requiredExp = Utils.clamp(requiredExp, 0.5, 2.0);
+
+                // SVG의 feFuncGamma exponent는 이 값의 역수이거나 그대로 사용됨.
+                // 이전 로직(VideoAnalyzer)에서는 1.0보다 크면 밝게 처리했으므로,
+                // Gamma Value = 1 / Exp 로 변환하여 전달 (Exp가 1보다 작을수록 밝아짐 -> Gamma는 1보다 커짐)
+                targetAdaptiveGamma = 1.0 / requiredExp;
+
+                // (6) 데이터 기반 추가 보정 (Constraints)
+
+                // [Shadow Boost] 감마로 밝혔는데도 블랙이 묻히면(loClip) 강제 리프트
+                if (loClipRatio > 0.005) {
+                    targetShadowsAdj += Math.min(50, loClipRatio * 500);
                 }
 
-                // [수정] 그림자(Shadow) 보정
-                // 감마를 올려서 밝게 만들면 검은색이 회색으로 뜸 -> 그림자를 눌러줘야 함
-                if (diff > 0) {
-                    // 밝게 할 때: 그림자를 살짝 눌러서(마이너스) 명암비 유지
-                    targetShadowsAdj = -(diff * 30);
-                } else {
-                    // 어둡게 할 때: 그림자가 너무 묻히지 않게 살짝 뺌
-                    targetShadowsAdj = 0;
+                // [Highlight Protection]
+                // EV를 올렸거나(evGain > 1), 목표가 원본보다 밝으면(targetAdaptiveGamma > 1) 하이라이트 압축
+                if (evGain > 1.0 || targetAdaptiveGamma > 1.05) {
+                    // 이미 하이라이트가 많으면(stableP90 > 0.85) 더 강하게 압축
+                    const highRisk = Math.max(0, stableP90 - 0.85) * 200;
+                    // EV를 올린 만큼 비례해서 압축
+                    const evComp = Math.max(0, (evGain - 1.0) * 30);
+
+                    targetHighlightsAdj -= (highRisk + evComp);
                 }
 
-                // [수정] 하이라이트 보호
-                // EV를 많이 올렸을 때 하이라이트가 타지 않도록 압축
-                if (evValue > 0) {
-                    targetHighlightsAdj = -(evValue * 2.5); // EV 10당 하이라이트 -25
-                }
+                // EV를 +로 줬을 때 쉐도우도 살짝 같이 올려줌 (자연스러운 톤)
+                if (evValue > 0) targetShadowsAdj += evValue * 0.5;
 
-                // 안전 범위 제한
-                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.5, 2.2); // 범위 넓힘
-                targetShadowsAdj = Utils.clamp(targetShadowsAdj, -40, 40);
+                // 최종 안전 범위 제한
+                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.5, 2.5);
+                targetShadowsAdj = Utils.clamp(targetShadowsAdj, -40, 60);
                 targetHighlightsAdj = Utils.clamp(targetHighlightsAdj, -100, 20);
-                targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
             }
 
-            // 명료도(Clarity) 적용
+            // --- [핵심 수정 끝] ---
+
+            // 명료도(Clarity) 적용 (기존 동일)
             let targetClarityComp = 0;
             if (this.currentSettings.clarity > 0) {
                 const intensity = this.currentSettings.clarity / 50;
@@ -830,11 +857,14 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
                 targetClarityComp = Math.min(10, (intensity * 8) * lumaFactor);
             }
 
+            // 스무딩 (Smoothing) - 반응 속도 조절
             const smooth = (curr, target) => {
                 const diff = target - curr;
                 if (Math.abs(diff) < 0.002) return target;
-                let speed = 0.08; // 반응 속도 약간 올림
+                let speed = 0.08;
                 if (this._highMotion) speed = 0.03;
+                // 감마(밝기)가 급격히 변할 때는 눈부심 방지 위해 약간 천천히
+                if (targetAdaptiveGamma > curr && Math.abs(diff) > 0.2) speed = 0.04;
                 return curr + diff * speed;
             };
 
