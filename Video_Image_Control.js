@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.9 Final Perfect)
+// @name        Video_Image_Control (v132.0.12 Syntax Fix)
 // @namespace   https://com/
-// @version     132.0.9
-// @description v132.0.9: Fix re-attach bug, Separate UserEV/AutoStrength, Neutral Snap for Bypass, and Default Sharp 0.
+// @version     132.0.12
+// @description v132.0.12: Fixed SyntaxError in CoreMediaPlugin (Moved cache init to constructor).
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -43,7 +43,6 @@
         DEBUG: false,
         FLAGS: { GLOBAL_ATTR_OBS: true },
         FILTER: {
-            // v132.0.9: Default Sharpness 0 for true minimal intervention (Bypass friendly)
             VIDEO_DEFAULT_LEVEL: 0, VIDEO_DEFAULT_LEVEL2: 0, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, 
@@ -68,9 +67,9 @@
         fastHash: (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16); },
         setAttr: (el, name, val) => { if (!el) return; if (val == null) { if (el.hasAttribute(name)) el.removeAttribute(name); return; } const s = String(val); if (el.getAttribute(name) !== s) el.setAttribute(name, s); },
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host,
-        safeGetItem: (k) => { try { return sessionStorage.getItem(k); } catch(e) { return null; } },
-        safeSetItem: (k, v) => { try { sessionStorage.setItem(k, v); } catch(e) {} },
-        safeRemoveItem: (k) => { try { sessionStorage.removeItem(k); } catch(e) {} }
+        safeGetItem: (k) => { try { return localStorage.getItem(k); } catch(e) { return null; } },
+        safeSetItem: (k, v) => { try { localStorage.setItem(k, v); } catch(e) {} },
+        safeRemoveItem: (k) => { try { localStorage.removeItem(k); } catch(e) {} }
     };
 
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
@@ -102,6 +101,7 @@
                     }
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
+                
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -114,14 +114,17 @@
                     }
                     return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
                 };
+
                 const botH = Math.max(1, Math.floor(bandH * 0.8));
                 const topRes = checkBand(0, size, 0, bandH);
                 const botRes = checkBand(0, size, size - botH, size);
                 const leftRes = checkBand(0, bandH, 0, size);
                 const rightRes = checkBand(size - bandH, size, 0, size);
+
                 const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20);
                 const topBar = isBar(topRes), botBar = isBar(botRes), leftBar = isBar(leftRes), rightBar = isBar(rightRes);
                 const barsNow = (topBar && botBar) || (leftBar && rightBar);
+                
                 let subGuardY = size;
                 if (!botBar) {
                     let whiteCount = 0, subTotal = 0;
@@ -137,12 +140,14 @@
                     }
                     if (subTotal > 0 && (whiteCount / subTotal) > 0.05) subGuardY = subStart;
                 }
+
                 let validCount = 0, hiClipCount = 0, loClipCount = 0;
                 const startY = topBar ? Math.floor(size * 0.15) : 0;
                 let endY = botBar ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
                 endY = Math.min(endY, subGuardY);
                 const startX = leftBar ? Math.floor(size * 0.15) : 4;
                 const endX = rightBar ? Math.floor(size * 0.85) : size - 4;
+
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = startX; x < endX; x+=step) {
                         const i = (y * size + x) * 4;
@@ -152,15 +157,18 @@
                         if (luma <= 5) loClipCount++;
                     }
                 }
+
                 let p10 = -1, p50 = -1, p90 = -1, p55 = -1;
                 const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
                 const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
+
                 if (validCount > 0) {
                     let sum = 0;
                     const t10 = validCount * 0.10;
                     const t50 = validCount * 0.50;
                     const t55 = validCount * 0.55;
                     const t90 = validCount * 0.90;
+                    
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
                         if (p10 < 0 && sum >= t10) p10 = i / 255;
@@ -169,7 +177,11 @@
                         if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
                 }
-                if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p55 < 0) p55 = 0.55; if (p90 < 0) p90 = 0.9;
+                if (p10 < 0) p10 = 0.1; 
+                if (p50 < 0) p50 = 0.5; 
+                if (p55 < 0) p55 = 0.55; 
+                if (p90 < 0) p90 = 0.9;
+
                 self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio });
             }
         };
@@ -605,6 +617,19 @@
              }
              this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio);
         },
+        
+        // v132.0.11: Iframe Cache & Helper (Fixed placement)
+        _iframeDocCache: new WeakMap(),
+        _tryGetIframeDoc(fr) {
+             const now = performance.now();
+             const c = this._iframeDocCache.get(fr);
+             if (c && (now - c.t) < 3000) return c.ok ? c.doc : null;
+             let doc = null, ok = false;
+             try { doc = fr.contentDocument; ok = !!doc; } catch {}
+             this._iframeDocCache.set(fr, { t: now, ok, doc });
+             return ok ? doc : null;
+        },
+
         _pickBestVideoNow() {
             const pip = document.pictureInPictureElement; if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
             const fs = document.fullscreenElement; if (fs) { const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video'); if (v && v.isConnected) return v; }
@@ -624,11 +649,15 @@
             const cx = window.innerWidth / 2;
             const cy = window.innerHeight / 2;
             const now = Date.now();
+            const screenArea = window.innerWidth * window.innerHeight;
 
             for(let i=0; i<candidates.length; i++) {
                 const c = candidates[i]; if (!c.isConnected) continue;
                 const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
                     let score = rect.width * rect.height;
+                    const area = rect.width * rect.height;
+                    const isBig = area > screenArea * 0.12;
+
                     if (c.tagName === 'VIDEO') {
                         if (!c.paused) score *= 2.0;
                         if (c.readyState >= 3) score *= 1.5;
@@ -636,6 +665,7 @@
                         if (!c.muted && c.volume > 0) score *= 1.5;
                         if (c._vscLastPlay && now - c._vscLastPlay < 5000) score *= 2.0;
                         if (c.duration && !isNaN(c.duration) && c.duration < 2) score *= 0.1;
+                        if (isBig) score *= 1.5;
                     } else { // Canvas
                         score *= 0.5;
                     }
@@ -653,7 +683,23 @@
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
             if (!this.ctx || !this.canvas) this.init(this.stateManager);
             if (!this.ctx) return;
-            if (this.isRunning && this.targetVideo && this.targetVideo !== video) this.stop();
+
+            // v132.0.10: Ghosting Fix
+            if (this.targetVideo && this.targetVideo !== video) {
+                this.currentAdaptiveGamma = 1.0;
+                this.currentAdaptiveBright = 0;
+                this.currentLinearGain = 1.0;
+                this.currentClarityComp = 0;
+                this.currentShadowsAdj = 0;
+                this.currentHighlightsAdj = 0;
+                this._lastAppliedFid = 0;
+                this._frameId = 0;
+                this._roiP50History = [];
+                this._p10Ema = -1;
+                this._p90Ema = -1;
+            }
+
+            if (this.isRunning && this.targetVideo !== video) this.stop();
             if (settings) this.currentSettings = { ...this.currentSettings, ...settings };
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
@@ -669,7 +715,7 @@
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0;
             
-            // v132.0.9: Force immediate update
+            // v132.0.8: Force immediate update (Monitoring Off Fix)
             this.notifyUpdate({
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
@@ -786,6 +832,7 @@
                         const msg = { type: 'analyze', fid, vid, buf, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
                         try { this._worker.postMessage(msg, [buf]); }
                         catch(err) {
+                            // v132.0.6: Immediate fallback on transfer failure
                             this._workerBusy = false; this._workerLastSent = 0;
                             this._analyzeFallback(imageData, size, size, bandH, step);
                         }
@@ -815,7 +862,7 @@
                 this._lastBarsState = barsNow;
             }
 
-            // v132.0.9: Correct p55 Logic
+            // v132.0.8: Fix p55 bug
             const mid = Number.isFinite(p55) ? p55 : p50;
             this._roiP50History.push(mid);
 
@@ -849,14 +896,14 @@
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                const targetMid = 0.46; // v132.0.9: Tuned to 0.46
-                let baseEV = Math.log2(targetMid / safeCurrent);
+                const targetMid = 0.47;
+                let rawEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
-                const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
+                rawEV += userEV;
                 
-                // v132.0.9: Apply userEV separately (user intent preservation)
-                let rawEV = baseEV * aeStr + userEV;
+                const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
+                rawEV *= aeStr;
 
                 const range = Math.max(0, stableP90 - this._p10Ema);
                 if (range < 0.25) rawEV *= 0.75;
@@ -867,7 +914,7 @@
                 const deadIn  = 0.10;
                 const th = this._aeActive ? deadIn : deadOut;
 
-                if (Math.abs(baseEV * aeStr) < th && userEV === 0) { // Check only auto-part for deadband
+                if (Math.abs(rawEV) < th) {
                     rawEV = 0;
                     this._aeActive = false;
                 } else {
@@ -889,7 +936,6 @@
                     rawEV *= 0.8;
                 }
 
-                // v132.0.9: Linear Mode
                 targetLinearGain = Math.pow(2, rawEV);
                 
                 targetAdaptiveGamma = 1.0; 
@@ -981,6 +1027,7 @@
             if (!this.ctx || !this.dryGain || !this.wetGain) return;
             if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
             const t = this.ctx.currentTime;
+            // Dry/Wet Crossfade for perfect bypass
             this.dryGain.gain.setTargetAtTime(enabled ? 0 : 1, t, 0.05);
             this.wetGain.gain.setTargetAtTime(enabled ? Math.pow(10, this.stateManager.get('audio.boost') / 20) : 0, t, 0.05);
         }
@@ -1023,8 +1070,10 @@
             } catch (e) {}
         }
         detach() {
-            if (this.source) { try { this.source.disconnect(); this.source.connect(this.ctx.destination); } catch(e) {} }
-            this.source = null; this.targetMedia = null;
+            if (this.source) { try { this.source.disconnect(); } catch(e) {} }
+            this.source = null; 
+            this.targetMedia = null;
+            if (this.dryGain) this.dryGain.gain.value = 1; 
             if (this.ctx && this.ctx.state === 'running') this.ctx.suspend();
         }
     }
@@ -1071,7 +1120,7 @@
                 let sawMediaNode = false;
                 for (const m of mutations) {
                     for (const n of m.addedNodes) {
-                        if (n && n.nodeType === 1) {
+                        if (n && n.nodeType === 1) { // v132.0.10: Check nodeType
                             if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); }
                             else if (n.querySelector?.('video, iframe')) { sawMediaNode = true; scheduleScan(n, true); }
                         }
@@ -1216,13 +1265,12 @@
             for (let i = 0; i < frames.length; i++) this._checkAndAdd(frames[i], media, images, iframes);
 
             for (let i = 0; i < frames.length; i++) {
-                try {
-                    const doc = frames[i].contentDocument;
-                    if (doc) {
-                        const r = this.findAllElements(doc, depth + 1, true);
-                        r.media.forEach(m => media.add(m));
-                    }
-                } catch(e) {}
+                // v132.0.10: Smart Iframe Cache
+                const doc = this._tryGetIframeDoc(frames[i]);
+                if (doc) {
+                    const r = this.findAllElements(doc, depth + 1, true);
+                    r.media.forEach(m => media.add(m));
+                }
             }
 
             if (this.stateManager.get('ui.areControlsVisible')) {
@@ -1244,6 +1292,18 @@
             }
             return { media, images, iframes };
         }
+        // v132.0.12: Iframe Cache & Helper (Corrected placement)
+        _iframeDocCache = new WeakMap(); // Correct property initialization
+        _tryGetIframeDoc(fr) {
+             const now = performance.now();
+             const c = this._iframeDocCache.get(fr);
+             if (c && (now - c.t) < 3000) return c.ok ? c.doc : null;
+             let doc = null, ok = false;
+             try { doc = fr.contentDocument; ok = !!doc; } catch {}
+             this._iframeDocCache.set(fr, { t: now, ok, doc });
+             return ok ? doc : null;
+        }
+
         scanSpecificRoot(root) {
             this.ensureObservers();
             const media = new Set(), images = new Set(), iframes = new Set();
@@ -1266,7 +1326,7 @@
             try { frame.addEventListener('load', onLoad, { passive: true }); } catch (e) { }
         }
         attachMediaListeners(media) {
-            // v132.0.9: Allow re-attaching to same element if needed (SPA support)
+            // v132.0.10: Robust re-attach check
             const owner = media.getAttribute('data-vsc-controlled-by');
             if (owner && owner !== VSC_INSTANCE_ID) return false;
             
@@ -1277,7 +1337,7 @@
             if (media.tagName === 'VIDEO') {
                 const attrMo = new MutationObserver(debounce((mutations) => { 
                     for(const m of mutations) if(m.type==='attributes') { VideoAnalyzer.taintedResources.delete(media); scheduleScan(media, true); } 
-                }, 100)); // v132.0.9: Debounced
+                }, 100));
                 const hasSource = !!media.querySelector('source');
                 attrMo.observe(media, { attributes: true, subtree: hasSource, attributeFilter: ['src', 'poster', 'data-src'] });
                 this.stateManager.get('media.mediaListenerMap').set(media, () => { attrMo.disconnect(); });
@@ -1291,7 +1351,6 @@
              const cleanup = listenerMap.get(media); if (cleanup) cleanup(); listenerMap.delete(media);
              try { this.intersectionObserver.unobserve(media); } catch (e) { } this._visibleVideos.delete(media);
              if (this._resizeObs) this._resizeObs.unobserve(media);
-             // v132.0.9: Explicitly remove attribute for re-attachment
              try { media.removeAttribute('data-vsc-controlled-by'); } catch {}
         }
         attachImageListeners(image) {
@@ -1558,7 +1617,7 @@
         _applyAllVideoFiltersActual() {
             if (!this.filterManager.isInitialized()) return;
             if (!this.stateManager.get('app.scriptActive')) {
-                // v132.0.9: Explicitly reset linearGain to 1.0
+                // v132.0.9: Explicitly reset linearGain
                 this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, linearGain: 1.0, autoExposure: 0 });
                 VideoAnalyzer.stop(); this.updateMediaFilterStates(); return;
             }
@@ -2027,9 +2086,11 @@
                 { label: '그레인', id: 'v-dt', min: 0, max: 100, step: 5, key: 'videoFilter.dither', unit: '', fmt: v => v.toFixed(0) }
             ];
 
+            // Tab 1: Exposure Sliders
             tab1Content.appendChild(this._createSlider(SLIDER_CONFIG[0].label, SLIDER_CONFIG[0].id, SLIDER_CONFIG[0].min, SLIDER_CONFIG[0].max, SLIDER_CONFIG[0].step, SLIDER_CONFIG[0].key, SLIDER_CONFIG[0].unit, SLIDER_CONFIG[0].fmt).control);
             tab1Content.appendChild(this._createSlider(SLIDER_CONFIG[1].label, SLIDER_CONFIG[1].id, SLIDER_CONFIG[1].min, SLIDER_CONFIG[1].max, SLIDER_CONFIG[1].step, SLIDER_CONFIG[1].key, SLIDER_CONFIG[1].unit, SLIDER_CONFIG[1].fmt).control);
 
+            // Tab 2: Detail/Color Sliders in 2 columns
             const grid = document.createElement('div'); grid.className = 'vsc-grid';
             SLIDER_CONFIG.slice(2).forEach(cfg => { grid.appendChild(this._createSlider(cfg.label, cfg.id, cfg.min, cfg.max, cfg.step, cfg.key, cfg.unit, cfg.fmt).control); });
             grid.appendChild(this._createSlider('오디오증폭', 'a-boost', 0, 12, 1, 'audio.boost', 'dB', v => `+${v}`).control);
