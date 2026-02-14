@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.16 Hotfix)
+// @name        Video_Image_Control (v132.0.18 Hotfix 3)
 // @namespace   https://com/
-// @version     132.0.16
-// @description v132.0.16: Fix 'th' ReferenceError in AE logic. (Previous updates: rIC fix, sqrt opt, split EV clamp)
+// @version     132.0.18
+// @description v132.0.18: Fix TypeError in candidate scan (WeakMap iteration), Restore stability.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -635,7 +635,7 @@
         },
         
         _pickBestVideoNow() {
-            // v132.0.14: Pin Priority
+            // v132.0.14: Pin Priority (User Interaction)
             if (VSC_PINNED.el && VSC_PINNED.el.isConnected && Date.now() < VSC_PINNED.until) {
                 if (VSC_PINNED.el.tagName === 'VIDEO' || VSC_PINNED.el.tagName === 'CANVAS') return VSC_PINNED.el;
                 if (VSC_PINNED.el.tagName === 'IFRAME') {
@@ -650,7 +650,7 @@
             }
 
             const sm = this.stateManager; 
-            // v132.0.14: Optimized Candidate Search (Use Active Set first)
+            // v132.0.18: Fixed TypeError (Use activeMedia Set instead of WeakMap)
             let candidates = sm ? [...(sm.get('media.activeMedia') || [])] : [];
             if (candidates.length === 0) {
                 candidates = Array.from(document.querySelectorAll('video, canvas'));
@@ -880,13 +880,14 @@
                     if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
                          this.targetVideo = next; this.hasRVFC = (next.tagName === 'VIDEO' && 'requestVideoFrameCallback' in next); this._kickImmediateAnalyze(); return;
                     }
+                    const taintedVideo = this.targetVideo; // v132.0.17: Store ref
                     this.stop();
                     // v132.0.14: Notify tainted
                     const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                     const manualGain = Math.pow(2, userEV);
-                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, this.targetVideo, true);
+                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, taintedVideo, true);
                 } else {
-                    // v132.0.14: Handle other drawImage errors (TypeError/InvalidState)
+                    // v132.0.14: Handle other drawImage errors
                     const next = this._pickBestVideoNow();
                     if(next && next !== this.targetVideo) {
                         this.targetVideo = next; this.hasRVFC = (next.tagName === 'VIDEO' && 'requestVideoFrameCallback' in next); this._kickImmediateAnalyze(); return;
@@ -931,6 +932,7 @@
             }
             this.lastAvgLuma = currentLuma;
 
+            let targetAdaptiveGamma = 1.0, targetAdaptiveBright = 0, targetShadowsAdj = 0, targetHighlightsAdj = 0;
             let targetLinearGain = 1.0;
 
             const isAutoExp = this.currentSettings.autoExposure;
@@ -981,6 +983,7 @@
                     rawEV *= 0.8;
                 }
 
+                // v132.0.14: Pure Linear Mode (Gamma fixed at 1.0)
                 targetLinearGain = Math.pow(2, rawEV);
             }
 
@@ -1019,12 +1022,14 @@
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
+                shadowsAdj: this.currentShadowsAdj,
+                highlightsAdj: this.currentHighlightsAdj,
                 linearGain: this.currentLinearGain,
                 tainted: false
             }, p50m, this.targetVideo, false);
         },
         notifyUpdate(autoParams, luma, videoInfo, tainted = false) {
-            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted, videoInfo } }));
+            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted, videoInfo, aeActive: this._aeActive } })); // v132.0.17: aeActive
         }
     };
 
@@ -1268,7 +1273,6 @@
                     entries.forEach(e => {
                         const isVisible = e.isIntersecting && e.intersectionRatio > 0;
                         if (this.stateManager.get('media.visibilityMap')) this.stateManager.get('media.visibilityMap').set(e.target, isVisible);
-                        // v132.0.10: Removed unused _intersectionRatios
                         if (e.target.tagName === 'VIDEO') { if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target); needsUpdate = true; }
                     });
                     if (needsUpdate && !document.hidden) {
@@ -1456,7 +1460,7 @@
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
 
             this.throttledUpdate = throttle((e) => {
-                const { autoParams, videoInfo } = e.detail;
+                const { autoParams, videoInfo, aeActive } = e.detail; // v132.0.17: aeActive param
                 const currentMedia = this.stateManager.get('media.currentlyVisibleMedia');
                 if (videoInfo && videoInfo !== currentMedia) return;
 
@@ -1472,11 +1476,12 @@
                 if (!isChanged && vf.clarity > 0) {
                     isChanged = Math.abs(this.lastAutoParams.clarityComp - autoParams.clarityComp) > 0.2;
                 }
-
-                if (isChanged) {
-                    this.lastAutoParams = autoParams;
-                    this.applyAllVideoFilters();
-                }
+                
+                // v132.0.17: Always update for monitoring
+                this.lastAutoParams = autoParams;
+                this.lastAutoParams.aeActive = aeActive;
+                this.applyAllVideoFilters();
+                
             }, 100);
 
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
