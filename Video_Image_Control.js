@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0 Minimal Tuned)
+// @name        Video_Image_Control (v132.0 Mobile UI Mod)
 // @namespace   https://com/
-// @version     132.0
-// @description v132.0: Critical fixes (SessionStorage, Worker), AE Tuning (EV range, Saturation), Performance (Style calc, Shadow DOM), and Better Target Selection.
+// @version     132.0.1
+// @description v132.0 Mod: Video UI split into tabs (Exposure/Detail) for better mobile experience.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -539,7 +539,6 @@
             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
         },
         _analyzeFallback(imageData, width, height, bandH, step) {
-            // (Same fallback code as before - omitted for brevity but required)
              const data = imageData.data;
              const size = width;
              const blackTh = 18;
@@ -1641,6 +1640,12 @@
                 .vsc-trigger { width: ${isMobile ? '42px' : '48px'}; height: ${isMobile ? '42px' : '48px'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: ${isMobile ? '22px' : '24px'}; user-select: none; touch-action: none; order: 1; transition: background 0.3s; }
                 .vsc-rescan { width: 34px; height: 34px; background: var(--vsc-bg-btn); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; margin-top: 5px; order: 3; }
                 #vsc-global-container { position: fixed; top: 50%; right: 1vmin; z-index: ${CONFIG.UI.MAX_Z}; transform: translateY(-50%) translate(var(--vsc-translate-x, 0), var(--vsc-translate-y, 0)); display: flex; align-items: flex-start; gap: 5px; }
+                /* Tab Styles */
+                .vsc-tab-header { display: flex; border-bottom: 1px solid var(--vsc-border); margin-bottom: 8px; }
+                .vsc-tab-btn { flex: 1; background: none; border: none; color: #aaa; padding: 8px 4px; cursor: pointer; border-bottom: 2px solid transparent; font-weight: bold; font-size: ${isMobile ? '13px' : '14px'}; }
+                .vsc-tab-btn.active { color: var(--vsc-text); border-bottom-color: var(--vsc-bg-accent); }
+                .vsc-tab-content { display: none; flex-direction: column; gap: 6px; }
+                .vsc-tab-content.active { display: flex; }
             `;
             return this._cachedStyles;
         }
@@ -1820,6 +1825,29 @@
             Object.assign(videoResetBtn.style, { width: '40px', flex: '0 0 40px' });
             videoResetBtn.onclick = () => { this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 45, gamma: 1.0, contrastAdj: 1.0, brightness: 0, saturation: 100, highlights: 0, shadows: 0, dither: 0, colorTemp: 0 }); this.stateManager.set('audio.enabled', false); this.stateManager.set('audio.boost', 6); this.showToast('필터 및 오디오 초기화됨'); };
             topRow.append(videoResetBtn);
+
+            // Common Header
+            videoSubMenu.append(topRow);
+
+            // Tab Buttons
+            const tabHeader = document.createElement('div'); tabHeader.className = 'vsc-tab-header';
+            const tabBtn1 = document.createElement('button'); tabBtn1.className = 'vsc-tab-btn active'; tabBtn1.textContent = '노출/프리셋';
+            const tabBtn2 = document.createElement('button'); tabBtn2.className = 'vsc-tab-btn'; tabBtn2.textContent = '화질/상세';
+            tabHeader.append(tabBtn1, tabBtn2);
+            videoSubMenu.append(tabHeader);
+
+            const tab1Content = document.createElement('div'); tab1Content.className = 'vsc-tab-content active';
+            const tab2Content = document.createElement('div'); tab2Content.className = 'vsc-tab-content';
+
+            // Tab Toggle Logic
+            const switchTab = (t1) => {
+                tabBtn1.classList.toggle('active', t1); tabBtn2.classList.toggle('active', !t1);
+                tab1Content.classList.toggle('active', t1); tab2Content.classList.toggle('active', !t1);
+            };
+            tabBtn1.onclick = () => switchTab(true);
+            tabBtn2.onclick = () => switchTab(false);
+
+            // --- Tab 1 Content: Presets & Exposure ---
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
             // v132.0: EV preset value tuning (match new clamp range)
             const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [-5, 0, 5, 10].map(v => ({ txt: (v > 0 ? '+' : '') + v, val: v * 2 })) }];
@@ -1843,11 +1871,12 @@
                     this.subscribe('videoFilter.targetLuma', updateEv); this.subscribe('videoFilter.autoExposure', updateEv); updateEv();
                 }
             });
-            videoSubMenu.append(topRow, document.createElement('div'), gridTable);
+            tab1Content.appendChild(gridTable);
 
             const SLIDER_CONFIG = [
                 { label: 'AE 강도', id: 'v-str', min: 0, max: 100, step: 5, key: 'videoFilter.aeStrength', unit: '%', fmt: v => `${v}%` },
                 { label: '노출 보정 (EV)', id: 'v-target', min: -30, max: 30, step: 1, key: 'videoFilter.targetLuma', unit: '', fmt: v => `${v > 0 ? '+' : ''}${v}` },
+
                 { label: '감마 (Gamma)', id: 'v-gamma', min: 0.5, max: 2.5, step: 0.05, key: 'videoFilter.gamma', unit: '', fmt: v => v.toFixed(2) },
                 { label: '대비 (Contrast)', id: 'v-contrast', min: 0.5, max: 2.0, step: 0.05, key: 'videoFilter.contrastAdj', unit: '', fmt: v => v.toFixed(2) },
                 { label: '밝기 (Bright)', id: 'v-bright', min: -50, max: 50, step: 1, key: 'videoFilter.brightness', unit: '', fmt: v => v.toFixed(0) },
@@ -1860,15 +1889,18 @@
                 { label: '그레인', id: 'v-dt', min: 0, max: 100, step: 5, key: 'videoFilter.dither', unit: '', fmt: v => v.toFixed(0) }
             ];
 
-            videoSubMenu.appendChild(this._createSlider(SLIDER_CONFIG[0].label, SLIDER_CONFIG[0].id, SLIDER_CONFIG[0].min, SLIDER_CONFIG[0].max, SLIDER_CONFIG[0].step, SLIDER_CONFIG[0].key, SLIDER_CONFIG[0].unit, SLIDER_CONFIG[0].fmt).control);
-            videoSubMenu.appendChild(this._createSlider(SLIDER_CONFIG[1].label, SLIDER_CONFIG[1].id, SLIDER_CONFIG[1].min, SLIDER_CONFIG[1].max, SLIDER_CONFIG[1].step, SLIDER_CONFIG[1].key, SLIDER_CONFIG[1].unit, SLIDER_CONFIG[1].fmt).control);
+            // Tab 1: Exposure Sliders
+            tab1Content.appendChild(this._createSlider(SLIDER_CONFIG[0].label, SLIDER_CONFIG[0].id, SLIDER_CONFIG[0].min, SLIDER_CONFIG[0].max, SLIDER_CONFIG[0].step, SLIDER_CONFIG[0].key, SLIDER_CONFIG[0].unit, SLIDER_CONFIG[0].fmt).control);
+            tab1Content.appendChild(this._createSlider(SLIDER_CONFIG[1].label, SLIDER_CONFIG[1].id, SLIDER_CONFIG[1].min, SLIDER_CONFIG[1].max, SLIDER_CONFIG[1].step, SLIDER_CONFIG[1].key, SLIDER_CONFIG[1].unit, SLIDER_CONFIG[1].fmt).control);
 
+            // Tab 2: Detail/Color Sliders in 2 columns
             const grid = document.createElement('div'); grid.className = 'vsc-grid';
             SLIDER_CONFIG.slice(2).forEach(cfg => { grid.appendChild(this._createSlider(cfg.label, cfg.id, cfg.min, cfg.max, cfg.step, cfg.key, cfg.unit, cfg.fmt).control); });
-
             grid.appendChild(this._createSlider('오디오증폭', 'a-boost', 0, 12, 1, 'audio.boost', 'dB', v => `+${v}`).control);
+            tab2Content.appendChild(grid);
 
-            videoSubMenu.appendChild(grid); return videoSubMenu;
+            videoSubMenu.append(tab1Content, tab2Content);
+            return videoSubMenu;
         }
         renderAllControls() {
             if (this.shadowRoot.querySelector('#vsc-main-container')) return;
