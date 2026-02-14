@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Refined v131.0 AE-Pro)
+// @name        Video_Image_Control (v131.2 Stable-Pro)
 // @namespace   https://com/
-// @version     131.0
-// @description v131.0: Smart-AE(Highlight-Only Compress), Stable Hooks, Noise Guard, Safe Context Logic
+// @version     131.2
+// @description v131.2: Fix Playback Sync, Robust Iframe Detect, Shadow Boost AE, Optimized Observers
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -95,7 +95,7 @@
                 hist.fill(0);
                 const size = width;
                 const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
-
+                
                 let centerLumaSum = 0, centerCount = 0;
                 const cStart = Math.floor(size * 0.4), cEnd = Math.floor(size * 0.6);
                 for(let y=cStart; y<cEnd; y+=step*2) {
@@ -106,7 +106,7 @@
                     }
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
-
+                
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -206,7 +206,7 @@
                 const approxSize = document.getElementsByTagName('*').length;
                 if (approxSize > 5000) limit = 500;
                 if (_localShadowRoots.length > 200) return;
-
+                
                 const startTime = performance.now();
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
@@ -268,7 +268,7 @@
         if(_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d)); }
     };
 
-    // --- Safety Checks (Refined) ---
+    // --- Safety Checks ---
     let _sensCache = { t: 0, v: false };
     let _sensitiveLockUntil = performance.now() + 2000;
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
@@ -311,7 +311,16 @@
         };
         const vids = document.getElementsByTagName('video');
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
-        if (!found && document.getElementsByTagName('iframe').length > 0) found = true;
+        
+        // Fix 2-1: Robust Iframe Detection (Avoid ads/trackers)
+        if (!found) {
+            const ifs = document.getElementsByTagName('iframe');
+            for (let i=0; i<ifs.length; i++){
+                const r = ifs[i].getBoundingClientRect?.();
+                if (r && r.width >= 120 && r.height >= 120 && r.bottom > 0 && r.top < innerHeight) { found = true; break; }
+            }
+        }
+        
         if (!found && _localShadowRoots.length > 0) {
             const cap = Math.min(_localShadowRoots.length, 50);
             for (let i = 0; i < cap; i++) {
@@ -325,7 +334,7 @@
     };
 
     // --- Hooks ---
-    const ORIGINALS = { defineProperty: Object.defineProperty, defineProperties: Object.defineProperties, attachShadow: Element.prototype.attachShadow, mediaLoad: HTMLMediaElement.prototype.load };
+    const ORIGINALS = { defineProperty: Object.defineProperty, defineProperties: Object.defineProperties, attachShadow: Element.prototype.attachShadow };
     const _prevInlineStyle = new WeakMap();
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
@@ -413,7 +422,7 @@
         const styleId = manager.getStyleNode().id; const svgId = manager.getSvgNode().id;
         const targetRoot = (root instanceof ShadowRoot) ? root : document.head;
 
-        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (root.getElementById(styleId)) return; } }
+        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (root.getElementById(styleId)) return; } } 
         else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (ownerDoc.getElementById(styleId)) return; }
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
@@ -509,6 +518,66 @@
             this._lastAppliedFid = fid;
             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
         },
+        _analyzeFallback(imageData, width, height, bandH, step) {
+             const data = imageData.data;
+             const size = width;
+             const blackTh = 18;
+             let topBlack = 0, botBlack = 0, topPixelCount = 0, botPixelCount = 0;
+
+             for (let y = 0; y < bandH; y += step) {
+                 for (let x = 0; x < size; x += step) {
+                     const i = (y * size + x) * 4;
+                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
+                     topPixelCount++;
+                 }
+             }
+             const botBandH = Math.max(1, Math.floor(bandH * 0.8));
+             for (let y = size - botBandH; y < size; y += step) {
+                 for (let x = 0; x < size; x += step) {
+                     const i = (y * size + x) * 4;
+                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
+                     botPixelCount++;
+                 }
+             }
+
+             const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
+             const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
+             const barsNow = (topRatio > 0.65 && botRatio > 0.65);
+
+             if (!this._hist) this._hist = new Uint16Array(256);
+             this._hist.fill(0); const hist = this._hist;
+
+             let validCount = 0, hiClipCount = 0, loClipCount = 0;
+             const startY = barsNow ? Math.floor(size * 0.15) : 0;
+             const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
+
+             for (let y = startY; y < endY; y+=step) {
+                 for (let x = 4; x < size - 4; x+=step) {
+                     const i = (y * size + x) * 4;
+                     const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
+                     hist[luma]++; validCount++;
+                     if (luma >= 250) hiClipCount++;
+                     if (luma <= 5) loClipCount++;
+                 }
+             }
+
+             let p10 = 0.1, p50 = 0.5, p90 = 0.9;
+             const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
+             const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
+
+             if (validCount > 0) {
+                 let sum = 0;
+                 const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
+                 let f10 = false, f50 = false, f90 = false;
+                 for (let i = 0; i < 256; i++) {
+                     sum += hist[i];
+                     if (!f10 && sum >= t10) { p10 = i / 255; f10 = true; }
+                     if (!f50 && sum >= t50) { p50 = i / 255; f50 = true; }
+                     if (!f90 && sum >= t90) { p90 = i / 255; f90 = true; }
+                 }
+             }
+             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
+        },
         _pickBestVideoNow() {
             const pip = document.pictureInPictureElement; if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
             const fs = document.fullscreenElement; if (fs) { const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video'); if (v && v.isConnected) return v; }
@@ -516,7 +585,15 @@
             const candidates = document.querySelectorAll('video'); let best = null, maxScore = -1;
             for(let i=0; i<candidates.length; i++) {
                 const c = candidates[i]; if (!c.isConnected) continue;
-                const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) { const score = rect.width * rect.height; if (score > maxScore) { maxScore = score; best = c; } }
+                const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
+                    // Fix 3A: Improved scoring criteria
+                    let score = rect.width * rect.height;
+                    if (!c.paused) score *= 2.0;
+                    if (c.readyState >= 3) score *= 1.5;
+                    if (c.src || c.srcObject) score *= 1.2;
+                    if (c.muted && c.volume === 0) score *= 0.5; // Penalize muted background vids
+                    if (score > maxScore) { maxScore = score; best = c; } 
+                }
             }
             return best;
         },
@@ -638,7 +715,11 @@
                 if (this._worker) {
                        this._workerBusy = true; this._workerLastSent = performance.now();
                        const msg = { type: 'analyze', fid, vid, data: imageData.data, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
-                       try { this._worker.postMessage(msg, [imageData.data.buffer]); } catch(err) { this._worker.postMessage({ ...msg, data: Array.from(imageData.data) }); }
+                       // Fix 1C: Robust Worker Message (Avoid DataCloneError)
+                       try { this._worker.postMessage(msg, [imageData.data.buffer]); } 
+                       catch(err) { this._worker.postMessage({ ...msg, data: imageData.data }); }
+                } else {
+                    this._analyzeFallback(imageData, size, size, bandH, step);
                 }
             } catch (e) {
                 if (e.name === 'SecurityError') {
@@ -658,7 +739,7 @@
         },
         _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
-
+            
             if (barsNow !== this._lastBarsState) {
                 this._barStableCounter++;
                 if (this._barStableCounter > 5) { this._lastBarsState = barsNow; this._barStableCounter = 0; }
@@ -723,12 +804,17 @@
                 } else {
                     const clipRisk = Math.max(0, stableP90 - 0.92);
                     const clipRisk2 = Math.max(0, hiClipRatio - 0.005);
-                    const hStrength = (clipRisk * 140) + (clipRisk2 * 600);
+                    const hStrength = (clipRisk * 140) + (clipRisk2 * 600); 
                     const userBias = 1 + Math.min(1.0, Math.abs(boostFactor));
-
+                    
                     targetHighlightsAdj += hStrength * userBias;
                     targetAdaptiveGamma = Math.max(1.0, targetAdaptiveGamma);
                     targetAdaptiveBright = Math.max(0, targetAdaptiveBright);
+                }
+
+                // Fix 5B: Shadow Boost for crushed blacks
+                if (loClipRatio > 0.03) {
+                     targetShadowsAdj += loClipRatio * 200; // Boost shadows
                 }
 
                 targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
@@ -752,6 +838,10 @@
                 if (aggressive && !isHighContrast) { const diff = target - curr; return curr + diff * 0.2; }
                 const diff = target - curr;
                 let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.03 : 0.1);
+                
+                // Fix 5C: Faster convergence on low motion
+                if (this._lowMotionFrames > 30) speed = Math.max(speed, IS_MOBILE ? 0.15 : 0.2);
+                
                 if (isHighContrast) speed *= 0.5;
                 if (Math.abs(diff) < 0.005) return curr;
                 return curr + diff * speed;
@@ -844,7 +934,8 @@
             const sm = this.stateManager;
             const reallyNeeded = active && (sm.get('ui.areControlsVisible') || (sm.get('videoFilter.autoExposure') && !document.hidden));
             if (reallyNeeded && !this._globalAttrObs) {
-                this._globalAttrObs = new MutationObserver(throttle((ms) => { let dirty = false; for (const m of ms) { if (m.target && ['VIDEO','IMG','IFRAME','SOURCE'].includes(m.target.nodeName)) { dirty = true; break; } } if (dirty) { this._domDirty = true; } }, 200));
+                // Fix 2-2: Relaxed throttle for global observer
+                this._globalAttrObs = new MutationObserver(throttle((ms) => { let dirty = false; for (const m of ms) { if (m.target && ['VIDEO','IMG','IFRAME','SOURCE'].includes(m.target.nodeName)) { dirty = true; break; } } if (dirty) { this._domDirty = true; } }, IS_MOBILE ? 300 : 200));
                 this._globalAttrObs.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
             } else if (!reallyNeeded && this._globalAttrObs) { this._globalAttrObs.disconnect(); this._globalAttrObs = null; }
         }
@@ -984,6 +1075,7 @@
             try { this.intersectionObserver.observe(iframe); } catch(e) { return false; }
             return true;
         }
+        // Fix 1B: Explicit unobserve on prune
         _pruneDisconnected() {
              const sm = this.stateManager;
              const prune = (key, detachFn) => {
@@ -992,8 +1084,14 @@
                  if(ch) sm.set(key, next);
              };
              prune('media.activeMedia', this.detachMediaListeners.bind(this));
-             prune('media.activeImages', (img) => { if(this._resizeObs) this._resizeObs.unobserve(img); this._observedImages.delete(img); });
-             prune('media.activeIframes', null);
+             prune('media.activeImages', (img) => { 
+                 try { this.intersectionObserver.unobserve(img); } catch {}
+                 if(this._resizeObs) this._resizeObs.unobserve(img); 
+                 this._observedImages.delete(img); 
+             });
+             prune('media.activeIframes', (fr) => {
+                 try { this.intersectionObserver.unobserve(fr); } catch {}
+             });
         }
     }
 
@@ -1145,9 +1243,9 @@
                             const genSCurveTable = (sh, hi, br = 0, contrast = 1.0) => {
                                 const steps = 256; const vals = []; const clamp = Utils.clamp; const smoothstep = (t) => t * t * (3 - 2 * t);
                                 const shN = clamp((sh || 0) / 100, -1, 1); const hiN = clamp((hi || 0) / 100, -1, 1); const b = clamp((br || 0) / 100, -1, 1) * 0.12; const c = clamp(Number(contrast || 1.0), 0.8, 1.4);
-                                const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40);
+                                const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40); 
                                 // Fix 5-4: Late shoulder for better midtone protection during highlight compression
-                                const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95);
+                                const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95); 
                                 const toeStrength = 0.18 + 0.22 * Math.abs(shN); const shoulderStrength = 0.08 + 0.18 * Math.abs(hiN);
                                 for (let i = 0; i < steps; i++) {
                                     let x = i / (steps - 1); let y = x; y = clamp(y + b, 0, 1); y = clamp(0.5 + (y - 0.5) * c, 0, 1);
@@ -1282,6 +1380,18 @@
             this.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate));
             this.subscribe('media.activeMedia', () => { this.setPlaybackRate(this.stateManager.get('playback.targetRate')); });
             this.setPlaybackRate(this.stateManager.get('playback.targetRate'));
+            
+            // Fix 1A: Global rate change listener for sync
+            document.addEventListener('ratechange', (e) => {
+                const v = e.target;
+                if (v && v.tagName === 'VIDEO') {
+                    // Sync only if significant diff (avoid loop)
+                    const cur = this.stateManager.get('playback.currentRate');
+                    if (Math.abs(v.playbackRate - cur) > 0.05) {
+                        this.stateManager.set('playback.currentRate', v.playbackRate);
+                    }
+                }
+            }, { capture: true, passive: true });
         }
         setPlaybackRate(rate) {
             this.stateManager.get('media.activeMedia').forEach(media => {
@@ -1289,6 +1399,8 @@
                 if (Math.abs((media.playbackRate || 1) - rate) < 0.01) return;
                 try { media.playbackRate = rate; } catch { }
             });
+            // Fix 1A: Update state immediately
+            this.stateManager.set('playback.currentRate', rate);
         }
     }
 
@@ -1369,7 +1481,7 @@
             this.triggerElement.className = 'vsc-trigger';
 
             this.triggerElement.addEventListener('pointerdown', (e) => {
-                if (['BUTTON', 'SELECT', 'INPUT'].includes(e.target.tagName)) return;
+                if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
                 this._longPressTriggered = false;
                 if (this.pressTimer) clearTimeout(this.pressTimer);
                 this.pressTimer = setTimeout(() => {
