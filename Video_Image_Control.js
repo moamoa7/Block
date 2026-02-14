@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.24 Anti-Oil Fix)
+// @name        Video_Image_Control (v132.0.31 Final Rescue)
 // @namespace   https://com/
-// @version     132.0.24
-// @description v132.0.24: Fixed Anti-Oil logic (inverted highlight sign) & prevented double-counting of User EV in gain calculation.
+// @version     132.0.31
+// @description v132.0.31: Fixed "AudioController is not defined" error. Contains all previous fixes (EV +0.5 limit, Anti-Oil, No-Flash UI).
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -918,7 +918,10 @@
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                const targetMid = 0.44;
+                // [v132.0.28] Unified Tone-mapping: Lower target to prevent washout
+                let targetMid = 0.38;
+                if (avgLuma > 0.6) targetMid = 0.34;
+
                 let baseEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
@@ -926,6 +929,15 @@
 
                 let autoEV = Utils.clamp(baseEV * aeStr, -0.25, 0.30);
                 let rawEV = autoEV + userEV;
+
+                // [v132.0.29] Safety Cap for Auto Exposure
+                if (stableP90 > 0.01) {
+                    const maxSafeGain = 0.95 / stableP90;
+                    const maxSafeEV = Math.log2(maxSafeGain);
+                    if (rawEV > maxSafeEV) {
+                        rawEV = Math.min(rawEV, maxSafeEV);
+                    }
+                }
 
                 if (stdDev < 0.05) {
                     rawEV *= (stdDev / 0.05);
@@ -958,7 +970,8 @@
                     rawEV *= (1.0 - 0.70 * loGate);
                 }
 
-                rawEV = Utils.clamp(rawEV, -1.0, 1.0);
+                // [v132.0.29] Limit Max EV to +0.5 to prevent oiliness
+                rawEV = Utils.clamp(rawEV, -1.0, 0.5);
 
                 if (this._highMotion && !aggressive) {
                     rawEV *= 0.8;
@@ -1018,6 +1031,7 @@
         destroyAll() { this.plugins.forEach(p => p.destroy()); }
     }
 
+    // [Restored AudioController]
     class AudioController extends Plugin {
         constructor() { super('Audio'); this.ctx = null; this.compressor = null; this.dryGain = null; this.wetGain = null; this.source = null; this.targetMedia = null; }
         init(stateManager) {
@@ -1046,7 +1060,6 @@
             if (!this.ctx || !this.dryGain || !this.wetGain) return;
             if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
             const t = this.ctx.currentTime;
-            // Dry/Wet Crossfade for perfect bypass
             this.dryGain.gain.setTargetAtTime(enabled ? 0 : 1, t, 0.05);
             this.wetGain.gain.setTargetAtTime(enabled ? Math.pow(10, this.stateManager.get('audio.boost') / 20) : 0, t, 0.05);
         }
@@ -1559,9 +1572,9 @@
                             const lumaContrast = createSvgElement('feColorMatrix', { "data-vsc-id": "luma_contrast_matrix", in: lastOut, type: "matrix", values: "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0", result: "luma_contrast_out" });
                             const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "luma_contrast_out", type: "saturate", values: (settings.SAT / 100).toString(), result: "saturate_out" });
 
-                            // v132.0.13: Linear Exposure Node
+                            // v132.0.28: Integrated Gain+Rolloff Node
                             const linearExp = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear_exposure", in: "saturate_out", result: "linear_out" });
-                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"linear", slope:"1", intercept:"0" })));
+                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"table", tableValues:"0 1" }))); // Use tableValues instead of slope
 
                             const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "linear_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA).toString() })));
                             const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
@@ -1633,7 +1646,41 @@
                         }
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
                         if (saturation !== undefined && cache.saturate) cache.saturate.forEach(el => Utils.setAttr(el, 'values', (saturation / 100).toString()));
-                        if (linearGain !== undefined && cache.exposureFuncs) cache.exposureFuncs.forEach(el => Utils.setAttr(el, 'slope', linearGain.toFixed(3)));
+
+                        // [v132.0.28] Unified Gain+Rolloff Table Construction
+                        if (linearGain !== undefined && cache.exposureFuncs) {
+                            let tableVal = "0 1";
+                            const gain = linearGain || 1.0;
+                            if (Math.abs(gain - 1.0) < 0.01) {
+                                tableVal = "0 1"; // Identity
+                            } else if (gain <= 1.0) {
+                                tableVal = `0 ${gain.toFixed(4)}`; // Linear dimming
+                            } else {
+                                // High Gain with Soft Rolloff (Anti-Oil)
+                                const steps = 256;
+                                const vals = [];
+                                // Knee point: Start bending earlier as gain increases to avoid hard clip
+                                const t = Math.max(0.6, 0.95 - (gain - 1.0) * 0.3);
+                                for (let i = 0; i < steps; i++) {
+                                    let x = i / (steps - 1);
+                                    let y = x * gain;
+                                    if (y > t) {
+                                        // Soft rolloff using hyperbolic tan or exponential decay to asymptotic 1.0
+                                        // Simple quadratic bezier blending to 1.0
+                                        const overshoot = y - t;
+                                        // Map overshoot to 0..1 range in the remaining headroom
+                                        const headroom = 1.0 - t;
+                                        // y = t + headroom * tanh(overshoot / headroom)?
+                                        // Simpler: y = t + headroom * (1 - exp(-overshoot/headroom))
+                                        y = t + headroom * (1 - Math.exp(-overshoot / headroom));
+                                    }
+                                    vals.push(Math.round(Utils.clamp(y, 0, 1) * 10000) / 10000);
+                                }
+                                tableVal = vals.join(' ');
+                            }
+                            cache.exposureFuncs.forEach(el => Utils.setAttr(el, 'tableValues', tableVal));
+                        }
+
                         if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); cache.gammaFuncs.forEach(el => Utils.setAttr(el, 'exponent', exp)); }
                         if (currentToneTable && cache.toneCurveFuncs) { if (cache.appliedToneKey !== toneKey) { cache.appliedToneKey = toneKey; cache.toneCurveFuncs.forEach(el => Utils.setAttr(el, 'tableValues', currentToneTable)); } }
                         if (contrastSafe !== undefined && cache.lumaContrastMatrix) { const cAmount = (contrastSafe - 1.0) * 0.9; const r = 0.2126 * cAmount; const g = 0.7152 * cAmount; const b = 0.0722 * cAmount; const mVals = [1 + r, g, b, 0, 0, r, 1 + g, b, 0, 0, r, g, 1 + b, 0, 0, 0, 0, 0, 1, 0].join(' '); cache.lumaContrastMatrix.forEach(el => Utils.setAttr(el, 'values', mVals)); }
@@ -1673,36 +1720,23 @@
             const finalContrastAdj = vf.contrastAdj;
             let finalSaturation = vf.saturation;
 
-            // --- [v132.0.24 Anti-Oil Logic Fix] ---
+            // --- [v132.0.28 Simplified Gain Logic] ---
             const userEV = Utils.clamp((vf.targetLuma || 0) / 30, -1.0, 1.0);
             const manualGain = Math.pow(2, userEV);
-            // autoExposure ON이면 autoGain에 이미 userEV가 포함될 수 있으니 중복 곱 방지
             const totalGain = aeOn ? (autoGain || 1.0) : manualGain;
-
-            if (totalGain > 1.05) {
-                const boostFactor = totalGain - 1.0;
-
-                // 1) 하이라이트 압축: "양수"가 하이라이트를 내림(롤오프)
-                const highlightDamp = boostFactor * 50;   // 튜닝 포인트
-                finalHighlights += highlightDamp;         // ★ 핵심: +=
-
-                // 2) 채도 약간 감소 (과포화/번들거림 완화)
-                const satDamp = Math.min(10, boostFactor * 15);
-                finalSaturation -= satDamp;
-
-                // 3) 블랙 뜨는 것 방지(살짝 눌러줌)
-                finalShadows -= (boostFactor * 5);
-
-                // (선택) 너무 과해지지 않게 클램프
-                finalHighlights = Utils.clamp(finalHighlights, -100, 100);
-                finalSaturation = Utils.clamp(finalSaturation, 40, 200);
-                finalShadows    = Utils.clamp(finalShadows, -100, 100);
-            }
-            // --------------------------------------
 
             let autoSharpLevel2 = vf.level2;
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
+
+            // [Bonus: High-Gain Clarity/Sharp Dampening]
+            if (totalGain > 1.05) {
+                const w = Utils.clamp((totalGain - 1.05) / 0.5, 0, 1);
+                // Reduce sharpening noise in brightened footage
+                if (vf.clarity > 0) vf.clarity *= (1 - 0.4 * w);
+                autoSharpLevel2 *= (1 - 0.3 * w);
+            }
+            // ------------------------------------
 
             const v = this.stateManager.get('media.currentlyVisibleMedia');
             if (v && v.tagName === 'VIDEO') {
@@ -1749,7 +1783,7 @@
                 clarity: vf.clarity,
                 autoExposure: vf.autoExposure,
                 targetLuma: vf.targetLuma,
-                linearGain: autoGain
+                linearGain: totalGain // Pass totalGain directly to linearExp node
             };
             this.filterManager.updateFilterValues(values);
             VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma, aeStrength: vf.aeStrength });
@@ -2134,7 +2168,8 @@
             tabBtn2.onclick = () => switchTab(false);
 
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
-            const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [{txt: '-0.5', val: -15}, {txt: '0', val: 0}, {txt: '+0.3', val: 10}, {txt: '+0.7', val: 20}] }];
+            // [Updated UI Presets] 15 = 0.5 EV
+            const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [{txt: '-0.5', val: -15}, {txt: '0', val: 0}, {txt: '+0.5', val: 15}] }];
             PRESET_CONFIG.forEach(cfg => {
                 const label = document.createElement('div'); label.className = 'vsc-label'; label.textContent = cfg.label; gridTable.appendChild(label);
                 if (cfg.type === 'sharp') {
@@ -2149,7 +2184,9 @@
                 } else if (cfg.type === 'ev') {
                     cfg.items.forEach(it => {
                         const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = it.txt; b.dataset.evVal = it.val;
-                        b.onclick = () => { this.stateManager.batchSet('videoFilter', { targetLuma: it.val, autoExposure: true }); triggerBurstScan(); }; gridTable.appendChild(b);
+                        // [Fixed] Removed triggerBurstScan() to prevent flashing
+                        b.onclick = () => { this.stateManager.batchSet('videoFilter', { targetLuma: it.val, autoExposure: true }); }; 
+                        gridTable.appendChild(b);
                     });
                     const updateEv = () => { const ae = this.stateManager.get('videoFilter.autoExposure'); const tv = this.stateManager.get('videoFilter.targetLuma'); gridTable.querySelectorAll(`button[data-ev-val]`).forEach(b => { const m = ae && (parseInt(b.dataset.evVal) === tv); b.classList.toggle('active', m); }); };
                     this.subscribe('videoFilter.targetLuma', updateEv); this.subscribe('videoFilter.autoExposure', updateEv); updateEv();
