@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260212
+! Version: 20260214
 !
 !
 !
@@ -433,6 +433,8 @@ chzzk.naver.com##div[class*="skin_container__"]:style(display:none !important;)
 chzzk.naver.com##header#header:style(transform: translateY(0px) !important;)
 chzzk.naver.com##aside#sidebar:style(transform: translateY(60px) !important; height: calc(100vh - 60px) !important;)
 chzzk.naver.com##div#layout-body:style(padding-top: 60px !important;)
+! - 영상내 치지직 로딩 이미지 삭제
+chzzk.naver.com##.pzp-pc__loading-indicator
 !
 !
 ! 트위치 (https://www.twitch.tv/)
