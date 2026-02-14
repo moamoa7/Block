@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v131.2 Stable-Pro)
+// @name        Video_Image_Control (v131.3 Refactored)
 // @namespace   https://com/
-// @version     131.2
-// @description v131.2: Fix Playback Sync, Robust Iframe Detect, Shadow Boost AE, Optimized Observers
+// @version     131.3
+// @description v131.3: Logic Safety Fixes, Battery Opt, Canvas Support, Code Cleanup
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -55,7 +55,7 @@
         },
         AUDIO: { THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 },
         SCAN: {
-            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
+            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, INTERVAL_IDLE: 15000, // Fix 2-1: IDLE interval added
             MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
             MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd', 'href']
         },
@@ -67,7 +67,7 @@
     const SEL = { MEDIA: `${BASE_SEL}, img`, FILTER_TARGET: FILTER_TARGET_SEL, NOIMG_TARGET: 'video, iframe, canvas' };
 
     const VSC_FLAG = Symbol('vsc_flags');
-    const FLAG_OBSERVED = 1, FLAG_VIDEO_INJ = 2, FLAG_IMAGE_INJ = 4;
+    const FLAG_VIDEO_INJ = 2, FLAG_IMAGE_INJ = 4; // Fix 4-1: Removed unused FLAG_OBSERVED
 
     const Utils = {
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
@@ -90,8 +90,14 @@
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
-            const { fid, vid, data, width, type, bandH, step, p10ref } = e.data;
+            const { fid, vid, data: rawData, width, type, bandH, step, p10ref } = e.data;
             if (type === 'analyze') {
+                // Fix 1-2: Safer Type Handling for Worker Data
+                let data = rawData;
+                if (data && data.byteLength && !(data instanceof Uint8ClampedArray) && !(data instanceof Uint8Array)) {
+                    try { data = new Uint8ClampedArray(data); } catch(e) {}
+                }
+
                 hist.fill(0);
                 const size = width;
                 const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
@@ -312,7 +318,6 @@
         const vids = document.getElementsByTagName('video');
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
 
-        // Fix 2-1: Robust Iframe Detection (Avoid ads/trackers)
         if (!found) {
             const ifs = document.getElementsByTagName('iframe');
             for (let i=0; i<ifs.length; i++){
@@ -586,12 +591,11 @@
             for(let i=0; i<candidates.length; i++) {
                 const c = candidates[i]; if (!c.isConnected) continue;
                 const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
-                    // Fix 3A: Improved scoring criteria
                     let score = rect.width * rect.height;
                     if (!c.paused) score *= 2.0;
                     if (c.readyState >= 3) score *= 1.5;
                     if (c.src || c.srcObject) score *= 1.2;
-                    if (c.muted && c.volume === 0) score *= 0.5; // Penalize muted background vids
+                    if (c.muted && c.volume === 0) score *= 0.5;
                     if (score > maxScore) { maxScore = score; best = c; }
                 }
             }
@@ -715,7 +719,6 @@
                 if (this._worker) {
                        this._workerBusy = true; this._workerLastSent = performance.now();
                        const msg = { type: 'analyze', fid, vid, data: imageData.data, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
-                       // Fix 1C: Robust Worker Message (Avoid DataCloneError)
                        try { this._worker.postMessage(msg, [imageData.data.buffer]); }
                        catch(err) { this._worker.postMessage({ ...msg, data: imageData.data }); }
                 } else {
@@ -737,28 +740,24 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 1);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-_processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
+        _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
 
-            // 1. 바(Bar) 감지 안정화
             if (barsNow !== this._lastBarsState) {
                 this._barStableCounter++;
                 if (this._barStableCounter > 5) { this._lastBarsState = barsNow; this._barStableCounter = 0; }
             } else { this._barStableCounter = 0; }
 
-            // 2. p50(중간톤) 히스토리 관리 (Median 필터)
             this._roiP50History.push(p50);
             if (this._roiP50History.length > 5) this._roiP50History.shift();
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
             const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
 
-            // EMA (지수 이동 평균)
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
             this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
             const stableP10 = aggressive ? p10 : this._p10Ema;
             const stableP90 = aggressive ? p90 : this._p90Ema;
 
-            // 3. 장면 전환 감지
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
@@ -771,85 +770,46 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             }
             this.lastAvgLuma = currentLuma;
 
-            // --- [핵심 수정 시작] ---
             let targetAdaptiveGamma = 1.0, targetAdaptiveBright = 0, targetShadowsAdj = 0, targetHighlightsAdj = 0;
             const evValue = this.currentSettings.targetLuma || 0;
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
-                // (1) 이상적인 목표 밝기 (Standard Middle Gray)
                 const idealTarget = 0.38;
-
-                // (2) Auto Strength (자동 보정 강도) 계산 - 부드러운 곡선(Hysteresis) 적용
-                // p50이 0.38 근처면 보정 강도를 낮춤 (이미 적정 노출이므로)
-                // 멀어질수록 강도를 높임. 단, 너무 어둡거나(0.05) 너무 밝으면(0.95) 부작용 방지 위해 다시 낮춤
                 let dist = Math.abs(p50m - idealTarget);
-                // 거리가 0이면 강도 0.1, 거리가 멀면 최대 0.5까지 부드럽게 증가
                 let autoStrength = 0.1 + (0.4 * Math.min(1.0, dist * 4.0));
-
-                // 다이내믹 레인지가 이미 훌륭하면(HDR급) 굳이 건드리지 않음
                 if (stableP90 - stableP10 > 0.85) autoStrength *= 0.5;
 
-                // (3) Base Target 계산 (현재 밝기와 이상적 밝기의 타협점)
                 let baseTarget = (p50m * (1 - autoStrength)) + (idealTarget * autoStrength);
-
-                // (4) [PRO] EV 적용 (Multiplier 방식)
-                // EV 20당 1 Stop (2배) 밝기 변화로 매핑
-                // 예: EV +10 -> 2^(0.5) = 1.41배 밝게 목표 설정
                 const evStops = evValue / 20.0;
                 const evGain = Math.pow(2, evStops);
-
-                // 최종 목표 밝기 (0.05 ~ 0.95 안전 범위 클램핑)
                 let finalTarget = Utils.clamp(baseTarget * evGain, 0.05, 0.95);
 
-                // (5) [PRO] 감마(Exponent) 계산 - Power Curve Logic
-                // 공식: Current^Exp = Target  =>  Exp = log(Target) / log(Current)
-                // 안전장치: log(0) 방지를 위해 아주 작은 값(eps) 더함
                 const eps = 0.001;
                 const safeCurrent = Utils.clamp(p50m, eps, 1 - eps);
                 const safeTarget = Utils.clamp(finalTarget, eps, 1 - eps);
 
-                // 목표를 달성하기 위한 지수(Exponent) 계산
                 let requiredExp = Math.log(safeTarget) / Math.log(safeCurrent);
-
-                // 너무 과도한 왜곡 방지 (0.5 ~ 2.2 범위 제한)
                 requiredExp = Utils.clamp(requiredExp, 0.5, 2.0);
-
-                // SVG의 feFuncGamma exponent는 이 값의 역수이거나 그대로 사용됨.
-                // 이전 로직(VideoAnalyzer)에서는 1.0보다 크면 밝게 처리했으므로,
-                // Gamma Value = 1 / Exp 로 변환하여 전달 (Exp가 1보다 작을수록 밝아짐 -> Gamma는 1보다 커짐)
                 targetAdaptiveGamma = 1.0 / requiredExp;
 
-                // (6) 데이터 기반 추가 보정 (Constraints)
-
-                // [Shadow Boost] 감마로 밝혔는데도 블랙이 묻히면(loClip) 강제 리프트
                 if (loClipRatio > 0.005) {
                     targetShadowsAdj += Math.min(50, loClipRatio * 500);
                 }
 
-                // [Highlight Protection]
-                // EV를 올렸거나(evGain > 1), 목표가 원본보다 밝으면(targetAdaptiveGamma > 1) 하이라이트 압축
                 if (evGain > 1.0 || targetAdaptiveGamma > 1.05) {
-                    // 이미 하이라이트가 많으면(stableP90 > 0.85) 더 강하게 압축
                     const highRisk = Math.max(0, stableP90 - 0.85) * 200;
-                    // EV를 올린 만큼 비례해서 압축
                     const evComp = Math.max(0, (evGain - 1.0) * 30);
-
                     targetHighlightsAdj -= (highRisk + evComp);
                 }
 
-                // EV를 +로 줬을 때 쉐도우도 살짝 같이 올려줌 (자연스러운 톤)
                 if (evValue > 0) targetShadowsAdj += evValue * 0.5;
 
-                // 최종 안전 범위 제한
                 targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.5, 2.5);
                 targetShadowsAdj = Utils.clamp(targetShadowsAdj, -40, 60);
                 targetHighlightsAdj = Utils.clamp(targetHighlightsAdj, -100, 20);
             }
 
-            // --- [핵심 수정 끝] ---
-
-            // 명료도(Clarity) 적용 (기존 동일)
             let targetClarityComp = 0;
             if (this.currentSettings.clarity > 0) {
                 const intensity = this.currentSettings.clarity / 50;
@@ -857,13 +817,11 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
                 targetClarityComp = Math.min(10, (intensity * 8) * lumaFactor);
             }
 
-            // 스무딩 (Smoothing) - 반응 속도 조절
             const smooth = (curr, target) => {
                 const diff = target - curr;
                 if (Math.abs(diff) < 0.002) return target;
                 let speed = 0.08;
                 if (this._highMotion) speed = 0.03;
-                // 감마(밝기)가 급격히 변할 때는 눈부심 방지 위해 약간 천천히
                 if (targetAdaptiveGamma > curr && Math.abs(diff) > 0.2) speed = 0.04;
                 return curr + diff * speed;
             };
@@ -917,7 +875,7 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
     }
 
     class CoreMediaPlugin extends Plugin {
-        constructor() { super('CoreMedia'); this.mainObserver = null; this.intersectionObserver = null; this.scanTimerId = null; this.emptyScanCount = 0; this.baseScanInterval = IS_TOP ? CONFIG.SCAN.INTERVAL_TOP : CONFIG.SCAN.INTERVAL_IFRAME; this.currentScanInterval = this.baseScanInterval; this._seenIframes = new WeakSet(); this._observedImages = new WeakSet(); this._iframeBurstCooldown = new WeakMap(); this._iframeObservers = new Map(); this._iframeInternalObservers = new Map(); this._lastImmediateScan = new WeakMap(); this._mediaAttributeObservers = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false; this._visibleVideos = new Set(); this._intersectionRatios = new WeakMap(); this._domDirty = true; this._mutationCounter = 0; this._isBackoffMode = false; this._backoffInterval = null; this._historyOrig = null; this._lastShadowPrune = 0; this._lastAttrObsProbe = 0; this._lastSensitive = null; this._updateHooksState = null; this._imgScanRate = 0; this._imgScanResetTimer = null; }
+        constructor() { super('CoreMedia'); this.mainObserver = null; this.intersectionObserver = null; this.scanTimerId = null; this.emptyScanCount = 0; this.baseScanInterval = IS_TOP ? CONFIG.SCAN.INTERVAL_TOP : CONFIG.SCAN.INTERVAL_IFRAME; this.currentScanInterval = this.baseScanInterval; this._seenIframes = new WeakSet(); this._observedImages = new WeakSet(); this._lastImmediateScan = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false; this._visibleVideos = new Set(); this._intersectionRatios = new WeakMap(); this._domDirty = true; this._mutationCounter = 0; this._isBackoffMode = false; this._backoffInterval = null; this._historyOrig = null; this._lastShadowPrune = 0; this._lastAttrObsProbe = 0; this._lastSensitive = null; this._updateHooksState = null; }
         init(stateManager) {
             super.init(stateManager); _corePluginRef = this; VideoAnalyzer.ensureStateManager(stateManager);
             if (!this._historyOrig) {
@@ -925,9 +883,14 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
                 ['pushState', 'replaceState'].forEach(fn => { const orig = this._historyOrig[fn]; history[fn] = function (...args) { const r = orig.apply(this, args); try { triggerBurstScan(250); } catch { } return r; }; });
             }
             on(window, 'popstate', () => triggerBurstScan(250), P(this._ac.signal)); on(window, 'hashchange', () => triggerBurstScan(250), P(this._ac.signal));
-            on(document, 'visibilitychange', () => { try { this._updateHooksState?.(); } catch {} if (document.hidden) { try { VideoAnalyzer.stop(); } catch {} } }, P(this._ac.signal));
+            // Fix 2-3: Stronger stop on background/blur
+            const stopAnalyzer = () => { try { VideoAnalyzer.stop(); } catch {} };
+            on(document, 'visibilitychange', () => { try { this._updateHooksState?.(); } catch {} if (document.hidden) stopAnalyzer(); }, P(this._ac.signal));
+            on(window, 'pagehide', stopAnalyzer, P(this._ac.signal));
+            on(window, 'blur', stopAnalyzer, P(this._ac.signal));
+
             this._backoffInterval = setInterval(() => { if (this._mutationCounter > 60) { if (!this._isBackoffMode) { this._isBackoffMode = true; } } else { if (this._isBackoffMode) { this._isBackoffMode = false; scheduleScan(null); } } this._mutationCounter = 0; }, 1000);
-            this._imgScanResetTimer = setInterval(() => { this._imgScanRate = 0; }, 1000);
+
             const updateHooksState = () => {
                 const active = this.stateManager.get('app.scriptActive');
                 const hasPlaying = [...(this.stateManager.get('media.activeMedia')||[])].some(v => v && v.tagName==='VIDEO' && !v.paused && v.readyState>=2);
@@ -955,7 +918,6 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             const sm = this.stateManager;
             const reallyNeeded = active && (sm.get('ui.areControlsVisible') || (sm.get('videoFilter.autoExposure') && !document.hidden));
             if (reallyNeeded && !this._globalAttrObs) {
-                // Fix 2-2: Relaxed throttle for global observer
                 this._globalAttrObs = new MutationObserver(throttle((ms) => { let dirty = false; for (const m of ms) { if (m.target && ['VIDEO','IMG','IFRAME','SOURCE'].includes(m.target.nodeName)) { dirty = true; break; } } if (dirty) { this._domDirty = true; } }, IS_MOBILE ? 300 : 200));
                 this._globalAttrObs.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
             } else if (!reallyNeeded && this._globalAttrObs) { this._globalAttrObs.disconnect(); this._globalAttrObs = null; }
@@ -966,7 +928,7 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             if (this._historyOrig) { history.pushState = this._historyOrig.pushState; history.replaceState = this._historyOrig.replaceState; this._historyOrig = null; }
             if (this.mainObserver) this.mainObserver.disconnect(); if (this.intersectionObserver) this.intersectionObserver.disconnect();
             if (this.scanTimerId) clearTimeout(this.scanTimerId); if (this._resizeObs) this._resizeObs.disconnect(); if (this._globalAttrObs) this._globalAttrObs.disconnect();
-            if (this._backoffInterval) clearInterval(this._backoffInterval); if (this._imgScanResetTimer) clearInterval(this._imgScanResetTimer);
+            if (this._backoffInterval) clearInterval(this._backoffInterval);
             disableAllHooks();
         }
         tick() {
@@ -980,6 +942,12 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
             const sm = this.stateManager; const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
             if ((sm.get('media.activeMedia').size > 0) || hasPotential) { this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; } else { this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5); }
+
+            // Fix 2-1: Performance Optimization when Script is OFF
+            if (!sm.get('app.scriptActive') && !sm.get('ui.areControlsVisible')) {
+                this.currentScanInterval = CONFIG.SCAN.INTERVAL_IDLE; // Very slow scan
+            }
+
             this.scheduleNextScan();
         }
         ensureObservers() {
@@ -1022,7 +990,12 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
         resetScanInterval() { this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scheduleNextScan(); } }
         scanAndApply() { const visited = new WeakSet(); this._processAllElements(visited, !this._didInitialShadowFullScan); this._didInitialShadowFullScan = true; }
         _checkAndAdd(node, media, images, iframes) {
+             // Fix 3-1: Support for Canvas
              if (node.tagName === 'VIDEO') media.add(node);
+             else if (node.tagName === 'CANVAS') {
+                 // Basic size check to avoid tracking pixels/ads
+                 if (node.width > 100 && node.height > 100) media.add(node);
+             }
              else if (node.tagName === 'IMG') { if (this.stateManager.get('ui.areControlsVisible')) images.add(node); }
              else if (node.tagName === 'IFRAME') { this._hookIframe(node); iframes.add(node); }
              else if (node.tagName === 'SOURCE' && node.parentNode && node.parentNode.tagName === 'VIDEO') media.add(node.parentNode);
@@ -1073,7 +1046,7 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             const attrMo = new MutationObserver((mutations) => { for(const m of mutations) if(m.type==='attributes') { VideoAnalyzer.taintedResources.delete(media); scheduleScan(media, true); } });
             const hasSource = !!media.querySelector('source');
             attrMo.observe(media, { attributes: true, subtree: hasSource, attributeFilter: ['src', 'poster', 'data-src'] });
-            this._mediaAttributeObservers.set(media, attrMo);
+            // Fix 4-1: Removed separate _mediaAttributeObservers map, closure is enough
             this.stateManager.get('media.mediaListenerMap').set(media, () => { attrMo.disconnect(); });
             if (this._resizeObs) this._resizeObs.observe(media);
             return true;
@@ -1096,7 +1069,6 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             try { this.intersectionObserver.observe(iframe); } catch(e) { return false; }
             return true;
         }
-        // Fix 1B: Explicit unobserve on prune
         _pruneDisconnected() {
              const sm = this.stateManager;
              const prune = (key, detachFn) => {
@@ -1265,7 +1237,6 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
                                 const steps = 256; const vals = []; const clamp = Utils.clamp; const smoothstep = (t) => t * t * (3 - 2 * t);
                                 const shN = clamp((sh || 0) / 100, -1, 1); const hiN = clamp((hi || 0) / 100, -1, 1); const b = clamp((br || 0) / 100, -1, 1) * 0.12; const c = clamp(Number(contrast || 1.0), 0.8, 1.4);
                                 const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40);
-                                // Fix 5-4: Late shoulder for better midtone protection during highlight compression
                                 const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95);
                                 const toeStrength = 0.18 + 0.22 * Math.abs(shN); const shoulderStrength = 0.08 + 0.18 * Math.abs(hiN);
                                 for (let i = 0; i < steps; i++) {
@@ -1317,7 +1288,7 @@ _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0)
             return new SvgFilterManager(options);
         }
         applyAllVideoFilters() { if (this._rafId) return; this._rafId = requestAnimationFrame(() => { this._rafId = null; this._applyAllVideoFiltersActual(); }); }
-_applyAllVideoFiltersActual() {
+        _applyAllVideoFiltersActual() {
             if (!this.filterManager.isInitialized()) return;
             if (!this.stateManager.get('app.scriptActive')) {
                 this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, autoExposure: 0 });
@@ -1327,27 +1298,17 @@ _applyAllVideoFiltersActual() {
             let auto = this.lastAutoParams || { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
             if (!vf.autoExposure) { auto = { ...auto, gamma: 1.0, bright: 0, shadowsAdj: 0, highlightsAdj: 0 }; }
 
-            // [확인] 여기서 vf.gamma * auto.gamma 가 최종 감마
-            // auto.gamma가 1.2면 -> 최종 감마 1.2 -> SVG exponent = 1/1.2 = 0.83 (밝아짐). OK.
             const finalGamma = Utils.clamp(vf.gamma * (auto.gamma || 1.0), 0.5, 2.5);
-
-            // [수정] 밝기(Offset) 적용
-            // auto.bright가 이제 0이 아니라 EV값에 따라 변함
             const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0);
-
-            const finalContrastAdj = vf.contrastAdj; // 자동 대비 조절 삭제됨
+            const finalContrastAdj = vf.contrastAdj;
             const finalHighlights = vf.highlights + (auto.highlightsAdj || 0);
             const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
 
-            // 채도 보상
             let finalSaturation = vf.saturation;
             if (vf.autoExposure) {
                 let satBoost = 0;
-                // 감마가 1.0보다 크면(밝아지면) 채도 보상
                 if (finalGamma > 1.05) satBoost += (finalGamma - 1.0) * 20;
-                // 밝기(Offset)가 올라가면 채도 보상
                 if (finalBrightness > 0) satBoost += finalBrightness * 0.3;
-
                 finalSaturation += Math.min(20, satBoost);
             }
 
@@ -1355,7 +1316,6 @@ _applyAllVideoFiltersActual() {
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
 
-            // ... (샤픈 모바일 로직 기존 동일) ...
             const v = this.stateManager.get('media.currentlyVisibleMedia');
             if (v && v.tagName === 'VIDEO') {
                 const vw = v.videoWidth || 0, vh = v.videoHeight || 0;
@@ -1390,7 +1350,7 @@ _applyAllVideoFiltersActual() {
             this.updateMediaFilterStates();
         }
         applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; let scaleFactor = IS_MOBILE ? 0.8 : 1.0; const values = { sharpenLevel: level * scaleFactor, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
-        updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
+        updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO' || media.tagName === 'CANVAS') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
 
         _getFilterCheckTs(el) { if (!this._filterCheckMap) this._filterCheckMap = new WeakMap(); return this._filterCheckMap.get(el) || 0; }
         _setFilterCheckTs(el, ts) { if (!this._filterCheckMap) this._filterCheckMap = new WeakMap(); this._filterCheckMap.set(el, ts); }
@@ -1398,7 +1358,8 @@ _applyAllVideoFiltersActual() {
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
-            const isVis = this.stateManager.get('media.visibilityMap').get(video);
+            const isVisRaw = this.stateManager.get('media.visibilityMap').get(video);
+            const isVis = (isVisRaw !== false); // Fix 1-1: Treat undefined as visible
             const isActive = scriptActive && isVis && shouldApply;
 
             if (isActive) {
@@ -1422,7 +1383,10 @@ _applyAllVideoFiltersActual() {
         _updateImageFilterState(image) {
             const scriptActive = this.stateManager.get('app.scriptActive'); if (!scriptActive) { image.classList.remove('vsc-image-filter-active'); return; }
             const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp');
-            const shouldApply = level > 0 || colorTemp !== 0; const isVis = this.stateManager.get('media.visibilityMap').get(image); const isActive = isVis && shouldApply;
+            const shouldApply = level > 0 || colorTemp !== 0;
+            const isVisRaw = this.stateManager.get('media.visibilityMap').get(image);
+            const isVis = (isVisRaw !== false); // Fix 1-1
+            const isActive = isVis && shouldApply;
             if (isActive) injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager);
             image.classList.toggle('vsc-image-filter-active', isActive);
         }
@@ -1434,12 +1398,9 @@ _applyAllVideoFiltersActual() {
             this.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate));
             this.subscribe('media.activeMedia', () => { this.setPlaybackRate(this.stateManager.get('playback.targetRate')); });
             this.setPlaybackRate(this.stateManager.get('playback.targetRate'));
-
-            // Fix 1A: Global rate change listener for sync
             document.addEventListener('ratechange', (e) => {
                 const v = e.target;
                 if (v && v.tagName === 'VIDEO') {
-                    // Sync only if significant diff (avoid loop)
                     const cur = this.stateManager.get('playback.currentRate');
                     if (Math.abs(v.playbackRate - cur) > 0.05) {
                         this.stateManager.set('playback.currentRate', v.playbackRate);
@@ -1453,13 +1414,12 @@ _applyAllVideoFiltersActual() {
                 if (Math.abs((media.playbackRate || 1) - rate) < 0.01) return;
                 try { media.playbackRate = rate; } catch { }
             });
-            // Fix 1A: Update state immediately
             this.stateManager.set('playback.currentRate', rate);
         }
     }
 
     class UIPlugin extends Plugin {
-        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false; }
+        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; }
         init(stateManager) {
             super.init(stateManager);
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
@@ -1534,51 +1494,14 @@ _applyAllVideoFiltersActual() {
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             this.triggerElement.className = 'vsc-trigger';
 
-            this.triggerElement.addEventListener('pointerdown', (e) => {
-                if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-                this._longPressTriggered = false;
-                if (this.pressTimer) clearTimeout(this.pressTimer);
-                this.pressTimer = setTimeout(() => {
-                    if (!this.isDragging) {
-                        this._longPressTriggered = true;
-                        this.stateManager.set('app.scriptActive', false);
-                        this.stateManager.set('ui.areControlsVisible', false);
-                        this.showToast('Script OFF (Long Press)');
-                        this.updateTriggerStyle();
-                    }
-                }, 800);
-            });
-
-            this.triggerElement.addEventListener('pointerup', (e) => {
-                if (this.pressTimer) clearTimeout(this.pressTimer);
-                if (this.wasDragged) return;
-                if (this._longPressTriggered) { this._longPressTriggered = false; return; }
-
-                const isVisible = this.stateManager.get('ui.areControlsVisible');
-                triggerBurstScan();
-                if (isVisible) {
-                    this.stateManager.set('ui.areControlsVisible', false);
-                } else {
-                    this.stateManager.set('app.scriptActive', true);
-                    this.stateManager.set('ui.areControlsVisible', true);
-                    const ensureMediaSoon = (count) => {
-                        const sm = this.stateManager;
-                        if (!sm.get('app.scriptActive')) return;
-                        const hasMediaState = sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0 || sm.get('media.activeIframes').size > 0;
-                        const hasMediaDom = !!document.querySelector('video, iframe') || hasRealVideoCached();
-                        if (hasMediaState || hasMediaDom) return;
-                        if (count > 0) { triggerBurstScan(250); setTimeout(() => ensureMediaSoon(count - 1), 900); }
-                        else { this.showToast('미디어를 아직 못 찾았어요 (로딩 지연/iframe/CORS일 수 있음)'); }
-                    };
-                    setTimeout(() => ensureMediaSoon(10), 500);
-                }
-            });
-
             const rescanTrigger = document.createElement('div'); rescanTrigger.textContent = '↻';
             rescanTrigger.className = 'vsc-rescan';
             rescanTrigger.addEventListener('click', () => { if (window.vscPluginManager) { const core = window.vscPluginManager.plugins.find(p => p.name === 'CoreMedia'); if(core) { core.resetScanInterval(); core.scanAndApply(); } } });
+
             this.speedButtonsContainer = document.createElement('div'); this.speedButtonsContainer.id = 'vsc-speed-buttons-container'; this.speedButtonsContainer.style.cssText = 'display:none; flex-direction:column; gap:5px;';
-            this.attachDragAndDrop();
+
+            this.attachDragAndDrop(); // Handles unified click/longpress/drag
+
             this.mainControlsContainer.append(this.triggerElement, rescanTrigger);
             this.globalContainer.append(this.mainControlsContainer, this.speedButtonsContainer);
             document.body.appendChild(this.globalContainer);
@@ -1771,10 +1694,25 @@ _applyAllVideoFiltersActual() {
         }
         attachDragAndDrop() {
             let lastDragEnd = 0;
-            const onDragStart = (e) => {
+            // Fix 4-2: Unified UI Event Handler (Drag + Long Press + Click)
+            const onPointerDown = (e) => {
                 if (['BUTTON', 'SELECT', 'INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
                 this.isDragging = true; this.wasDragged = false;
                 this._longPressTriggered = false;
+                if (this.pressTimer) clearTimeout(this.pressTimer);
+
+                // Long Press Logic
+                this.pressTimer = setTimeout(() => {
+                    if (this.isDragging && !this.wasDragged) { // Only if not moved yet
+                        this._longPressTriggered = true;
+                        this.stateManager.set('app.scriptActive', false);
+                        this.stateManager.set('ui.areControlsVisible', false);
+                        this.showToast('Script OFF (Long Press)');
+                        this.updateTriggerStyle();
+                        this.isDragging = false; // Cancel drag
+                    }
+                }, 800);
+
                 this.delta = { x: 0, y: 0 }; this.startPos = { x: e.clientX, y: e.clientY };
                 if (e.type === 'touchstart') { this.startPos = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }
                 this.currentPos = { x: this.uiState.x, y: this.uiState.y };
@@ -1794,7 +1732,9 @@ _applyAllVideoFiltersActual() {
                     document.addEventListener('mouseup', onDragEnd);
                 }
             };
+
             const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; };
+
             const onDragMove = (e) => {
                 if (!this.isDragging) return;
                 let cx = e.clientX, cy = e.clientY;
@@ -1803,20 +1743,43 @@ _applyAllVideoFiltersActual() {
                 this.delta = { x: cx - this.startPos.x, y: cy - this.startPos.y };
                 if (!this.wasDragged && (Math.abs(this.delta.x) > CONFIG.UI.DRAG_THRESHOLD || Math.abs(this.delta.y) > CONFIG.UI.DRAG_THRESHOLD)) {
                     this.wasDragged = true;
-                    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
+                    if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; } // Moved enough, cancel long press
                 }
                 if (this.wasDragged && this.animationFrameId === null) { this.animationFrameId = requestAnimationFrame(updatePosition); }
             };
+
             const onDragEnd = (e) => {
                 if (this.pressTimer) { clearTimeout(this.pressTimer); this.pressTimer = null; }
-                if (!this.isDragging) return;
+                if (!this.isDragging && !this._longPressTriggered) return; // Already handled or invalid
+
                 if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; }
                 const dx = this.delta?.x || 0; const dy = this.delta?.y || 0;
                 if (this.wasDragged) {
                     this.uiState.x += dx; this.uiState.y += dy;
                     try { sessionStorage.setItem('vsc_ui_pos', JSON.stringify(this.uiState)); } catch { }
                     lastDragEnd = Date.now();
+                } else if (!this._longPressTriggered) {
+                    // Click Logic (Not dragged, Not long pressed)
+                    const isVisible = this.stateManager.get('ui.areControlsVisible');
+                    triggerBurstScan();
+                    if (isVisible) {
+                        this.stateManager.set('ui.areControlsVisible', false);
+                    } else {
+                        this.stateManager.set('app.scriptActive', true);
+                        this.stateManager.set('ui.areControlsVisible', true);
+                        const ensureMediaSoon = (count) => {
+                            const sm = this.stateManager;
+                            if (!sm.get('app.scriptActive')) return;
+                            const hasMediaState = sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0 || sm.get('media.activeIframes').size > 0;
+                            const hasMediaDom = !!document.querySelector('video, iframe') || hasRealVideoCached();
+                            if (hasMediaState || hasMediaDom) return;
+                            if (count > 0) { triggerBurstScan(250); setTimeout(() => ensureMediaSoon(count - 1), 900); }
+                            else { this.showToast('미디어를 아직 못 찾았어요 (로딩 지연/iframe/CORS일 수 있음)'); }
+                        };
+                        setTimeout(() => ensureMediaSoon(10), 500);
+                    }
                 }
+
                 this.isDragging = false; this.globalContainer.style.transition = '';
 
                 this.triggerElement.removeEventListener('pointermove', onDragMove);
@@ -1833,13 +1796,18 @@ _applyAllVideoFiltersActual() {
             };
 
             if (window.PointerEvent) {
-                this.triggerElement.addEventListener('pointerdown', onDragStart);
+                this.triggerElement.addEventListener('pointerdown', onPointerDown);
             } else {
-                this.triggerElement.addEventListener('mousedown', onDragStart);
-                this.triggerElement.addEventListener('touchstart', onDragStart, { passive: false });
+                this.triggerElement.addEventListener('mousedown', onPointerDown);
+                this.triggerElement.addEventListener('touchstart', onPointerDown, { passive: false });
             }
 
-            this.triggerElement.addEventListener('click', (e) => { if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) { e.stopPropagation(); e.preventDefault(); } }, { capture: true });
+            // Prevent default click if dragged/long-pressed recently
+            this.triggerElement.addEventListener('click', (e) => {
+                if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) {
+                    e.stopPropagation(); e.preventDefault();
+                }
+            }, { capture: true });
         }
     }
 
