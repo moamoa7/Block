@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Lite v130.85 AE-Plus)
+// @name        Video_Image_Control (Refined v131.0 AE-Pro)
 // @namespace   https://com/
-// @version     130.85
-// @description v130.85: Smart-AE(Subtitle/DarkScene Guard), Stable Hooks, Soft-Boot UI, Worker Safety
+// @version     131.0
+// @description v131.0: Smart-AE(Highlight-Only Compress), Stable Hooks, Noise Guard, Safe Context Logic
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -36,7 +36,6 @@
         'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'
     ];
 
-    // Device detection
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_HIGH_END = DEVICE_RAM >= 8;
     const IS_LOW_END = DEVICE_RAM < 4;
@@ -54,9 +53,7 @@
             DESKTOP_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 },
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
-        AUDIO: {
-            THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25
-        },
+        AUDIO: { THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 },
         SCAN: {
             INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
             MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
@@ -67,11 +64,7 @@
 
     const BASE_SEL = 'video, iframe, canvas, source';
     const FILTER_TARGET_SEL = 'video, img, iframe, canvas';
-    const SEL = {
-        MEDIA: `${BASE_SEL}, img`,
-        FILTER_TARGET: FILTER_TARGET_SEL,
-        NOIMG_TARGET: 'video, iframe, canvas'
-    };
+    const SEL = { MEDIA: `${BASE_SEL}, img`, FILTER_TARGET: FILTER_TARGET_SEL, NOIMG_TARGET: 'video, iframe, canvas' };
 
     const VSC_FLAG = Symbol('vsc_flags');
     const FLAG_OBSERVED = 1, FLAG_VIDEO_INJ = 2, FLAG_IMAGE_INJ = 4;
@@ -84,21 +77,16 @@
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host
     };
 
-    // --- Core Helpers ---
     const log = (...args) => { if (CONFIG.DEBUG) console.log('[VSC]', ...args); };
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
-    const scheduleWork = (cb) => {
-        const wrapped = (deadline) => { try { cb(deadline); } catch (e) { if (CONFIG.DEBUG) console.error(e); } };
-        if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 });
-        return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1);
-    };
+    const scheduleWork = (cb) => { const wrapped = (d) => { try { cb(d); } catch (e) { if (CONFIG.DEBUG) console.error(e); } }; if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 }); return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1); };
     const P = (signal) => ({ passive: true, signal });
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => target.addEventListener(type, listener, options);
 
-    // --- Worker Logic (Fix 4: Smart Bar/Subtitle, Fix 1C: Robustness) ---
+    // --- Worker Logic ---
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
@@ -106,26 +94,19 @@
             if (type === 'analyze') {
                 hist.fill(0);
                 const size = width;
-                
-                // Dynamic Black Threshold based on previous P10 (Fix 4-1)
                 const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
-                
-                // Center sample for bar comparison
-                let centerLumaSum = 0;
-                let centerCount = 0;
-                const cStart = Math.floor(size * 0.4);
-                const cEnd = Math.floor(size * 0.6);
+
+                let centerLumaSum = 0, centerCount = 0;
+                const cStart = Math.floor(size * 0.4), cEnd = Math.floor(size * 0.6);
                 for(let y=cStart; y<cEnd; y+=step*2) {
                     for(let x=cStart; x<cEnd; x+=step*2) {
                         const i = (y * size + x) * 4;
                         const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
-                        centerLumaSum += luma;
-                        centerCount++;
+                        centerLumaSum += luma; centerCount++;
                     }
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
-                
-                // Helper to calculate black ratio and average luma of a band
+
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -133,32 +114,22 @@
                             const i = (y * size + x) * 4;
                             const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
                             if (luma < dynBlackTh) black++;
-                            lumaSum += luma;
-                            total++;
+                            lumaSum += luma; total++;
                         }
                     }
                     return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
                 };
 
+                const botH = Math.max(1, Math.floor(bandH * 0.8));
                 const topRes = checkBand(0, size, 0, bandH);
-                const botH = Math.floor(bandH * 0.8);
                 const botRes = checkBand(0, size, size - botH, size);
-                const bandW = bandH;
-                const leftRes = checkBand(0, bandW, 0, size);
-                const rightRes = checkBand(size - bandW, size, 0, size);
+                const leftRes = checkBand(0, bandH, 0, size);
+                const rightRes = checkBand(size - bandH, size, 0, size);
 
-                // Bar is real if black ratio is high AND it is significantly darker than center (Fix 4-1)
-                const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20); // 20 is threshold in 0-255
-
-                const topBar = isBar(topRes);
-                const botBar = isBar(botRes);
-                const leftBar = isBar(leftRes);
-                const rightBar = isBar(rightRes);
-
+                const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20);
+                const topBar = isBar(topRes), botBar = isBar(botRes), leftBar = isBar(leftRes), rightBar = isBar(rightRes);
                 const barsNow = (topBar && botBar) || (leftBar && rightBar);
 
-                // Subtitle/Overlay Check at bottom (Fix 5-1)
-                // If bottom area is not black bar but has very high white pixel count, move ROI up
                 let subGuardY = size;
                 if (!botBar) {
                     let whiteCount = 0, subTotal = 0;
@@ -172,18 +143,13 @@
                              subTotal++;
                         }
                     }
-                    if (subTotal > 0 && (whiteCount / subTotal) > 0.05) {
-                        subGuardY = subStart;
-                    }
+                    if (subTotal > 0 && (whiteCount / subTotal) > 0.05) subGuardY = subStart;
                 }
 
-                let validCount = 0;
-                let hiClipCount = 0, loClipCount = 0;
-                
+                let validCount = 0, hiClipCount = 0, loClipCount = 0;
                 const startY = topBar ? Math.floor(size * 0.15) : 0;
                 let endY = botBar ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
-                endY = Math.min(endY, subGuardY); // Apply subtitle guard
-
+                endY = Math.min(endY, subGuardY);
                 const startX = leftBar ? Math.floor(size * 0.15) : 4;
                 const endX = rightBar ? Math.floor(size * 0.85) : size - 4;
 
@@ -191,8 +157,7 @@
                     for (let x = startX; x < endX; x+=step) {
                         const i = (y * size + x) * 4;
                         const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
-                        hist[luma]++;
-                        validCount++;
+                        hist[luma]++; validCount++;
                         if (luma >= 250) hiClipCount++;
                         if (luma <= 5) loClipCount++;
                     }
@@ -204,9 +169,7 @@
 
                 if (validCount > 0) {
                     let sum = 0;
-                    const t10 = validCount * 0.10;
-                    const t50 = validCount * 0.50;
-                    const t90 = validCount * 0.90;
+                    const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
                         if (p10 < 0 && sum >= t10) p10 = i / 255;
@@ -214,29 +177,21 @@
                         if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
                 }
-
-                if (p10 < 0) p10 = 0.1;
-                if (p50 < 0) p50 = 0.5;
-                if (p90 < 0) p90 = 0.9;
-
+                if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p90 < 0) p90 = 0.9;
                 self.postMessage({ type: 'result', fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio });
             }
         };
     `;
 
-    // --- Shadow DOM & Detection Logic ---
+    // --- Shadow DOM & Detection ---
     const dirtyRoots = new Set();
-    let _scanRaf = null;
-    let _lastFullScanTime = 0;
-
-    const _localShadowRoots = [];
-    const _localShadowSet = new WeakSet();
+    let _scanRaf = null, _lastFullScanTime = 0;
+    const _localShadowRoots = [], _localShadowSet = new WeakSet();
 
     const registerShadowRoot = (sr) => {
         if (!sr) return;
         if (!_localShadowSet.has(sr)) {
-            _localShadowSet.add(sr);
-            _localShadowRoots.push(sr);
+            _localShadowSet.add(sr); _localShadowRoots.push(sr);
             if (_corePluginRef) _corePluginRef.scanSpecificRoot(sr);
         }
     };
@@ -248,17 +203,17 @@
         const run = () => {
             try {
                 if (!document.documentElement) return;
-                // Fix 1A: Better DOM size check
                 const approxSize = document.getElementsByTagName('*').length;
-                if (approxSize > 5000) limit = 1000;
-
+                if (approxSize > 5000) limit = 500;
                 if (_localShadowRoots.length > 200) return;
 
+                const startTime = performance.now();
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
                 while ((n = walker.nextNode()) && i < limit) {
                     if (n.shadowRoot) registerShadowRoot(n.shadowRoot);
                     i++;
+                    if (i % 50 === 0 && performance.now() - startTime > 10) break;
                 }
             } catch (e) {}
         };
@@ -277,22 +232,17 @@
 
     const scheduleScan = (rootOrNull, immediate = false) => {
         if (Utils.isShadowRoot(rootOrNull)) registerShadowRoot(rootOrNull);
-
         if (immediate && _corePluginRef) {
-            safeGuard(() => {
-                if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull);
-                else _corePluginRef.scanAndApply();
-            }, 'immediateScan');
+            safeGuard(() => { if (rootOrNull) _corePluginRef.scanSpecificRoot(rootOrNull); else _corePluginRef.scanAndApply(); }, 'immediateScan');
             return;
         }
-
         if (rootOrNull) {
-             if (Utils.isShadowRoot(rootOrNull)) { if (rootOrNull.host && rootOrNull.host.isConnected) dirtyRoots.add(rootOrNull); }
-             else if (rootOrNull.isConnected) {
-                 const tag = rootOrNull.nodeName;
-                 if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'CANVAS') dirtyRoots.add(rootOrNull);
-                 else if (isGoodScanRoot(rootOrNull)) dirtyRoots.add(rootOrNull);
-             }
+            if (Utils.isShadowRoot(rootOrNull)) { if (rootOrNull.host && rootOrNull.host.isConnected) dirtyRoots.add(rootOrNull); }
+            else if (rootOrNull.isConnected) {
+                const tag = rootOrNull.nodeName;
+                if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'CANVAS') dirtyRoots.add(rootOrNull);
+                else if (isGoodScanRoot(rootOrNull)) dirtyRoots.add(rootOrNull);
+            }
         }
         if (_scanRaf) return;
         _scanRaf = requestAnimationFrame(() => {
@@ -304,8 +254,7 @@
                     if (dirtyRoots.size > (IS_LOW_END ? 60 : 40) && (now - _lastFullScanTime > 1500)) {
                         dirtyRoots.clear(); _lastFullScanTime = now;
                         safeGuard(() => _corePluginRef.scanAndApply(), 'scanAndApply');
-                    }
-                    else {
+                    } else {
                         const roots = [...dirtyRoots]; dirtyRoots.clear();
                         for (const r of roots) if (r.isConnected || (Utils.isShadowRoot(r) && r.host && r.host.isConnected)) safeGuard(() => _corePluginRef.scanSpecificRoot(r), 'scanSpecificRoot');
                     }
@@ -316,23 +265,16 @@
     };
 
     const triggerBurstScan = (delay = 200) => {
-        if(_corePluginRef) {
-            _corePluginRef.resetScanInterval();
-            scheduleScan(null, true);
-            [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d));
-        }
+        if(_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d)); }
     };
 
+    // --- Safety Checks (Refined) ---
     let _sensCache = { t: 0, v: false };
     let _sensitiveLockUntil = performance.now() + 2000;
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
+    else setTimeout(() => { _sensitiveLockUntil = 0; }, 1000);
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
-    } else {
-         setTimeout(() => { _sensitiveLockUntil = 0; }, 1000);
-    }
-
-    const SENSITIVE_KEYWORDS = ['login', 'signin', 'auth', 'account', 'member', 'session', 'checkout', 'payment', 'bank', 'verify', 'secure'];
+    const SENSITIVE_KEYWORDS = ['checkout', 'payment', 'bank', 'verify', 'kakaobank', 'toss'];
     const isSensitiveUrl = () => {
         const url = location.href.toLowerCase();
         return SENSITIVE_KEYWORDS.some(kw => url.includes(kw));
@@ -344,8 +286,11 @@
         if (performance.now() < _sensitiveLockUntil && isSensitiveUrl()) { _sensCache = { t: now, v: true }; return true; }
         if (!document.documentElement) return false;
         let result = false;
-        if (isSensitiveUrl()) {
-            try { if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"]')) result = true; } catch(e) {}
+        if (isSensitiveUrl()) result = true;
+        else {
+            try {
+                if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"], input[autocomplete="current-password"]')) result = true;
+            } catch(e) {}
         }
         _sensCache = { t: now, v: result };
         return result;
@@ -359,48 +304,32 @@
         const isValid = (el) => {
             if (!el) return false;
             if (el.tagName === 'CANVAS') {
-                try {
-                    const r = el.getBoundingClientRect();
-                    if (r.width < 200 || r.height < 150) return false;
-                    if (r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) return false;
-                    return true;
-                } catch(e) { return false; }
+                try { const r = el.getBoundingClientRect(); return r.width >= 200 && r.height >= 150 && r.bottom > 0 && r.top < innerHeight; } catch(e) { return false; }
             }
             if (el.tagName === 'IFRAME') return true;
-            return !!el.src || !!el.currentSrc || (el.offsetWidth > 0 && el.offsetHeight > 0) || !!el.getAttribute('data-src');
+            return !!el.src || !!el.currentSrc || !!el.srcObject || !!el.querySelector('source') || !!el.getAttribute('data-src') || !!el.getAttribute('data-video-src');
         };
         const vids = document.getElementsByTagName('video');
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
-
         if (!found && document.getElementsByTagName('iframe').length > 0) found = true;
-
         if (!found && _localShadowRoots.length > 0) {
             const cap = Math.min(_localShadowRoots.length, 50);
             for (let i = 0; i < cap; i++) {
                 const sr = _localShadowRoots[i];
                 if (!sr) continue;
-                try {
-                    const v = sr.querySelector ? sr.querySelector('video, iframe, canvas') : null;
-                    if (v && isValid(v)) { found = true; break; }
-                } catch(e) {}
+                try { const v = sr.querySelector ? sr.querySelector('video, iframe, canvas') : null; if (v && isValid(v)) { found = true; break; } } catch(e) {}
             }
         }
         _hasVideoCache = { t: now, v: found };
         return found;
     };
 
-    // --- Hook Logic ---
-    const ORIGINALS = {
-        defineProperty: Object.defineProperty,
-        defineProperties: Object.defineProperties,
-        attachShadow: Element.prototype.attachShadow,
-        mediaLoad: HTMLMediaElement.prototype.load,
-    };
+    // --- Hooks ---
+    const ORIGINALS = { defineProperty: Object.defineProperty, defineProperties: Object.defineProperties, attachShadow: Element.prototype.attachShadow, mediaLoad: HTMLMediaElement.prototype.load };
     const _prevInlineStyle = new WeakMap();
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
-    let _hooksActive = false;
-    let _shadowHookActive = false;
+    let _hooksActive = false, _shadowHookActive = false;
     const VSC_SR_MO = Symbol('vsc_sr_mo');
 
     const enableShadowHook = () => {
@@ -410,12 +339,7 @@
                 const shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 try {
                     if (this.id === 'vsc-ui-host') return shadowRoot;
-                    if (shadowRoot) {
-                        registerShadowRoot(shadowRoot);
-                        requestAnimationFrame(() => {
-                            document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }));
-                        });
-                    }
+                    if (shadowRoot) { registerShadowRoot(shadowRoot); requestAnimationFrame(() => document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }))); }
                 } catch (e) {}
                 return shadowRoot;
             };
@@ -423,18 +347,12 @@
         } catch(e) {}
     };
 
-    safeGuard(() => {
-        if (!isSensitiveContext()) {
-            enableShadowHook();
-            collectOpenShadowRootsOnce();
-        }
-    }, "earlyShadowHook");
+    safeGuard(() => { if (!isSensitiveContext()) { enableShadowHook(); collectOpenShadowRootsOnce(); } }, "earlyShadowHook");
 
     const patchDescriptorSafely = (d) => { if (!d) return; const isAccessor = ('get' in d) || ('set' in d); if (!isAccessor && d.writable === false) d.writable = true; };
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
         if (document.visibilityState === 'hidden') return;
-
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
         const safeDefineProperty = function (obj, key, descriptor) {
@@ -447,11 +365,7 @@
         const safeDefineProperties = function (obj, props) {
              if (isMediaEl(obj) && props) {
                 const patchedProps = { ...props };
-                for (const k in patchedProps) {
-                    if (protectKeys.includes(k) && patchedProps[k]) {
-                        const patched = { ...patchedProps[k] }; patchDescriptorSafely(patched); patchedProps[k] = patched;
-                    }
-                }
+                for (const k in patchedProps) { if (protectKeys.includes(k) && patchedProps[k]) { const patched = { ...patchedProps[k] }; patchDescriptorSafely(patched); patchedProps[k] = patched; } }
                 try { return ORIGINALS.defineProperties.call(this, obj, patchedProps); } catch (e) { return ORIGINALS.defineProperties.call(this, obj, props); }
             }
             return ORIGINALS.defineProperties.call(this, obj, props);
@@ -462,13 +376,7 @@
 
     const disableAllHooks = () => {
         if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
-        // Fix 1B: Do not restore load hook to avoid losing it on toggle
-        // HTMLMediaElement.prototype.load = ORIGINALS.mediaLoad;
-
-        if (_shadowHookActive) {
-            try { Element.prototype.attachShadow = ORIGINALS.attachShadow; } catch {}
-            _shadowHookActive = false;
-        }
+        if (_shadowHookActive) { try { Element.prototype.attachShadow = ORIGINALS.attachShadow; } catch {} _shadowHookActive = false; }
     };
 
     if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
@@ -478,10 +386,7 @@
         if (!isSensitiveContext()) {
             const origLoad = HTMLMediaElement.prototype.load;
             HTMLMediaElement.prototype.load = function (...args) {
-                // If sensitive or inactive, just pass through (No-Op), but keep hook alive
-                if (_corePluginRef && !isSensitiveContext()) {
-                     try { scheduleScan(this, true); } catch { }
-                }
+                if (_corePluginRef && !isSensitiveContext()) try { scheduleScan(this, true); } catch { }
                 return origLoad.apply(this, args);
             };
         }
@@ -489,107 +394,59 @@
 
     function getSharedStyleSheetForView(view, cssText) {
         if (!view || !view.CSSStyleSheet) return null;
-        let map = _realmSheetCache.get(view);
-        if (!map) { map = new Map(); _realmSheetCache.set(view, map); }
-        const key = Utils.fastHash(cssText);
-        let sheet = map.get(key);
+        let map = _realmSheetCache.get(view); if (!map) { map = new Map(); _realmSheetCache.set(view, map); }
+        const key = Utils.fastHash(cssText); let sheet = map.get(key);
         if (!sheet) { try { sheet = new view.CSSStyleSheet(); sheet.replaceSync(cssText); map.set(key, sheet); } catch (e) { return null; } }
         return sheet;
     }
 
-    function whenDocReady(doc, cb) {
-        if (!doc) return;
-        if (doc.body && (doc.readyState === 'complete' || doc.readyState === 'interactive')) cb();
-        else doc.addEventListener('DOMContentLoaded', () => { if (doc.body) cb(); else setTimeout(cb, 100); }, { once: true });
-    }
-
-    // --- Global Context Injection ---
     function injectFiltersIntoContext(element, manager, stateManager) {
         if (!manager || !manager.isInitialized() || !stateManager) return;
-        let root = element.getRootNode();
-        const ownerDoc = element.ownerDocument;
+        let root = element.getRootNode(); const ownerDoc = element.ownerDocument;
         if (root === document && element.parentElement) {
             let cachedRoot = _shadowRootCache.get(element);
-            if (!cachedRoot || !cachedRoot.host || !cachedRoot.host.isConnected) {
-                for (const sRoot of _localShadowRoots) { if (sRoot.contains(element)) { root = sRoot; _shadowRootCache.set(element, sRoot); break; } }
-            } else root = cachedRoot;
+            if (!cachedRoot || !cachedRoot.host || !cachedRoot.host.isConnected) { for (const sRoot of _localShadowRoots) { if (sRoot.contains(element)) { root = sRoot; _shadowRootCache.set(element, sRoot); break; } } } else root = cachedRoot;
         }
         if (ownerDoc === document && root === document) return;
         const type = (manager === stateManager.filterManagers.video) ? 'video' : 'image';
         const attr = `data-vsc-filters-injected-${type}`;
-
-        const styleId = manager.getStyleNode().id;
-        const svgId = manager.getSvgNode().id;
+        const styleId = manager.getStyleNode().id; const svgId = manager.getSvgNode().id;
         const targetRoot = (root instanceof ShadowRoot) ? root : document.head;
 
-        if (Utils.isShadowRoot(root)) {
-            if (root.host && root.host.hasAttribute(attr)) {
-                if (root.getElementById(styleId)) return;
-            }
-        } else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) {
-             if (ownerDoc.getElementById(styleId)) return;
-        }
+        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (root.getElementById(styleId)) return; } }
+        else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (ownerDoc.getElementById(styleId)) return; }
 
-        const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode();
-        if (!svgNode || !styleNode) return;
-
+        const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
         const safelyAppendStyle = (targetRoot, styleEl, sharedSheet) => {
             let appended = false;
-            if (sharedSheet && ('adoptedStyleSheets' in targetRoot)) {
-                try {
-                    const sheets = targetRoot.adoptedStyleSheets;
-                    if (!sheets.includes(sharedSheet)) targetRoot.adoptedStyleSheets = [...sheets, sharedSheet];
-                    appended = true;
-                } catch (e) { }
-            }
-            if (!appended) {
-                if (!targetRoot.querySelector(`#${styleEl.id}`)) {
-                    const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot;
-                    if (container) container.appendChild(styleEl.cloneNode(true));
-                }
-            }
+            if (sharedSheet && ('adoptedStyleSheets' in targetRoot)) { try { const sheets = targetRoot.adoptedStyleSheets; if (!sheets.includes(sharedSheet)) targetRoot.adoptedStyleSheets = [...sheets, sharedSheet]; appended = true; } catch (e) { } }
+            if (!appended) { if (!targetRoot.querySelector(`#${styleEl.id}`)) { const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot; if (container) container.appendChild(styleEl.cloneNode(true)); } }
         };
 
         if (ownerDoc !== document) {
-            if (!ownerDoc.body) { whenDocReady(ownerDoc, () => injectFiltersIntoContext(element, manager, stateManager)); return; }
-            if (!ownerDoc.getElementById(svgNode.id)) {
-                const clonedSvg = svgNode.cloneNode(true);
-                ownerDoc.body.appendChild(clonedSvg);
-                manager.registerContext(clonedSvg);
-            }
-            const view = ownerDoc.defaultView;
-            const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-            safelyAppendStyle(ownerDoc, styleNode, sharedSheet);
-            ownerDoc.documentElement.setAttribute(attr, 'true');
+            if (!ownerDoc.body) { setTimeout(() => injectFiltersIntoContext(element, manager, stateManager), 100); return; }
+            if (!ownerDoc.getElementById(svgNode.id)) { const clonedSvg = svgNode.cloneNode(true); ownerDoc.body.appendChild(clonedSvg); manager.registerContext(clonedSvg); }
+            const view = ownerDoc.defaultView; const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
+            safelyAppendStyle(ownerDoc, styleNode, sharedSheet); ownerDoc.documentElement.setAttribute(attr, 'true');
             return;
         }
         if (Utils.isShadowRoot(root)) {
-            let flags = (root[VSC_FLAG] | 0);
-            const mask = type === 'video' ? FLAG_VIDEO_INJ : FLAG_IMAGE_INJ;
+            let flags = (root[VSC_FLAG] | 0); const mask = type === 'video' ? FLAG_VIDEO_INJ : FLAG_IMAGE_INJ;
             try {
-                if (!root.getElementById(svgNode.id)) {
-                      const clonedSvg = svgNode.cloneNode(true);
-                      root.appendChild(clonedSvg);
-                      manager.registerContext(clonedSvg);
-                }
+                if (!root.getElementById(svgNode.id)) { const clonedSvg = svgNode.cloneNode(true); root.appendChild(clonedSvg); manager.registerContext(clonedSvg); }
                 const view = root.ownerDocument ? root.ownerDocument.defaultView : (root.host ? root.host.ownerDocument.defaultView : null);
                 const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
-                safelyAppendStyle(root, styleNode, sharedSheet);
-                root[VSC_FLAG] = (flags | mask);
-                if (root.host) root.host.setAttribute(attr, 'true');
+                safelyAppendStyle(root, styleNode, sharedSheet); root[VSC_FLAG] = (flags | mask); if (root.host) root.host.setAttribute(attr, 'true');
             } catch (e) { }
         }
     }
 
     // --- State Manager ---
     class StateManager {
-        constructor() {
-            this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null };
-        }
+        constructor() { this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null }; }
         init() {
             const videoDefaults = IS_MOBILE ? CONFIG.FILTER.MOBILE_SETTINGS : CONFIG.FILTER.DESKTOP_SETTINGS;
             const safeInt = Utils.safeInt;
-
             this.state = {
                 app: { isInitialized: false, isMobile: IS_MOBILE, scriptActive: false },
                 media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
@@ -603,67 +460,34 @@
         get(key) { return key.split('.').reduce((o, i) => (o ? o[i] : undefined), this.state); }
         set(key, value) {
             const keys = key.split('.'); let obj = this.state;
-            for (let i = 0; i < keys.length - 1; i++) {
-                if (obj === undefined) return;
-                obj = obj[keys[i]];
-            }
-            const finalKey = keys[keys.length - 1]; if (obj === undefined) return;
-            const oldValue = obj[finalKey];
-            if (!Object.is(oldValue, value)) {
-                obj[finalKey] = value;
-                this.notify(key, value, oldValue);
-            }
+            for (let i = 0; i < keys.length - 1; i++) { if (obj === undefined) return; obj = obj[keys[i]]; }
+            const finalKey = keys[keys.length - 1]; if (obj === undefined) return; const oldValue = obj[finalKey];
+            if (!Object.is(oldValue, value)) { obj[finalKey] = value; this.notify(key, value, oldValue); }
         }
         batchSet(prefix, obj) { for (const [k, v] of Object.entries(obj)) this.set(`${prefix}.${k}`, v); }
         subscribe(key, callback) { if (!this.listeners[key]) this.listeners[key] = []; this.listeners[key].push(callback); return () => { this.listeners[key] = this.listeners[key].filter(cb => cb !== callback); }; }
         notify(key, newValue, oldValue) {
             if (this.listeners[key]) this.listeners[key].forEach(callback => callback(newValue, oldValue));
-            let currentKey = key;
-            while (currentKey.includes('.')) { const prefix = currentKey.substring(0, currentKey.lastIndexOf('.')); const wildcardKey = `${prefix}.*`; if (this.listeners[wildcardKey]) this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue)); currentKey = prefix; }
+            let currentKey = key; while (currentKey.includes('.')) { const prefix = currentKey.substring(0, currentKey.lastIndexOf('.')); const wildcardKey = `${prefix}.*`; if (this.listeners[wildcardKey]) this.listeners[wildcardKey].forEach(callback => callback(key, newValue, oldValue)); currentKey = prefix; }
         }
     }
 
     const VideoAnalyzer = {
-        canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null,
-        stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0 },
+        canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0 },
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0,
-        _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0,
-        hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null,
-        _evAggressiveUntil: 0,
-        _roiP50History: [],
-        taintedResources: new WeakSet(),
-        _worker: null,
-        _workerUrl: null,
-        _rvfcCb: null,
-        _frameId: 0,
-        _videoIds: new WeakMap(),
-        _lowMotionFrames: 0,
-        _lowMotionSkip: 0,
-        _workerBusy: false,
-        _workerLastSent: 0,
-        _workerStallCount: 0,
-        _lastAppliedFid: 0,
-        _hist: new Uint16Array(256),
-        _p10Ema: -1, _p90Ema: -1,
+        _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _userBoostUntil: 0, _stopTimeout: null, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
+        _barStableCounter: 0, _lastBarsState: false,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
-
         init(stateManager) {
             this.ensureStateManager(stateManager);
             if (!this.canvas) {
-                if (typeof OffscreenCanvas !== 'undefined') {
-                    this.canvas = new OffscreenCanvas(32, 32);
-                } else {
-                    this.canvas = document.createElement('canvas');
-                }
+                if (typeof OffscreenCanvas !== 'undefined') this.canvas = new OffscreenCanvas(32, 32);
+                else this.canvas = document.createElement('canvas');
                 const size = (IS_LOW_END && !IS_HIGH_END) ? 24 : (IS_HIGH_END ? 48 : 24);
                 this.canvas.width = size; this.canvas.height = size;
             }
-            if (!this.ctx) {
-                this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
-                if (this.ctx) this.ctx.imageSmoothingEnabled = false;
-            }
-            // Lazy Worker Init
+            if (!this.ctx) { this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false }); if (this.ctx) this.ctx.imageSmoothingEnabled = false; }
             if (!this._worker && !this._workerUrl) {
                 try {
                     const blob = new Blob([WORKER_CODE], { type: 'application/javascript' });
@@ -672,124 +496,31 @@
                     this._worker.onmessage = this._handleWorkerMessage.bind(this);
                     this._worker.onerror = () => { this._workerBusy = false; };
                     this._worker.onmessageerror = () => { this._workerBusy = false; };
-                } catch (e) {
-                    this._worker = null;
-                }
+                } catch (e) { this._worker = null; }
             }
-            this._roiP50History = [];
-            this._p10Ema = -1; this._p90Ema = -1;
+            this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
         },
-        _getVideoId(v) {
-            if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2));
-            return this._videoIds.get(v);
-        },
+        _getVideoId(v) { if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2)); return this._videoIds.get(v); },
         _handleWorkerMessage(e) {
-            this._workerBusy = false;
-            this._workerLastSent = 0;
+            this._workerBusy = false; this._workerLastSent = 0;
             const { type, fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio } = e.data;
-            if (type !== 'result' || !this.targetVideo) return;
-            if (vid !== this._getVideoId(this.targetVideo)) return;
-
-            if (!this._lastAppliedFid) this._lastAppliedFid = 0;
-            if (fid < this._lastAppliedFid) return;
+            if (type !== 'result' || !this.targetVideo || vid !== this._getVideoId(this.targetVideo)) return;
+            if (!this._lastAppliedFid) this._lastAppliedFid = 0; if (fid < this._lastAppliedFid) return;
             this._lastAppliedFid = fid;
-
             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
         },
-        _analyzeFallback(imageData, width, height, bandH, step) {
-             const data = imageData.data;
-             const size = width;
-             const blackTh = 18;
-             let topBlack = 0, botBlack = 0;
-             let topPixelCount = 0, botPixelCount = 0;
-
-             for (let y = 0; y < bandH; y += step) {
-                 for (let x = 0; x < size; x += step) {
-                     const i = (y * size + x) * 4;
-                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) topBlack++;
-                     topPixelCount++;
-                 }
-             }
-             const botBandH = Math.floor(bandH * 0.8);
-             for (let y = size - botBandH; y < size; y += step) {
-                 for (let x = 0; x < size; x += step) {
-                     const i = (y * size + x) * 4;
-                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
-                     botPixelCount++;
-                 }
-             }
-
-             const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
-             const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
-             const barsNow = (topRatio > 0.65 && botRatio > 0.65);
-
-             if (!this._hist) this._hist = new Uint16Array(256);
-             this._hist.fill(0);
-             const hist = this._hist;
-
-             let validCount = 0;
-             let hiClipCount = 0, loClipCount = 0;
-             const startY = barsNow ? Math.floor(size * 0.15) : 0;
-             const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
-
-             for (let y = startY; y < endY; y+=step) {
-                 for (let x = 4; x < size - 4; x+=step) {
-                     const i = (y * size + x) * 4;
-                     const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
-                     hist[luma]++;
-                     validCount++;
-                     if (luma >= 250) hiClipCount++;
-                     if (luma <= 5) loClipCount++;
-                 }
-             }
-
-             let p10 = 0.1, p50 = 0.5, p90 = 0.9;
-             const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
-             const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
-
-             if (validCount > 0) {
-                 let sum = 0;
-                 const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
-                 let f10 = false, f50 = false, f90 = false;
-                 for (let i = 0; i < 256; i++) {
-                     sum += hist[i];
-                     if (!f10 && sum >= t10) { p10 = i / 255; f10 = true; }
-                     if (!f50 && sum >= t50) { p50 = i / 255; f50 = true; }
-                     if (!f90 && sum >= t90) { p90 = i / 255; f90 = true; }
-                 }
-             }
-             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
-        },
         _pickBestVideoNow() {
-            const pip = document.pictureInPictureElement;
-            if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
-            const fs = document.fullscreenElement;
-            if (fs) {
-                const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
-                if (v && v.isConnected) return v;
-            }
-            const sm = this.stateManager;
-            let v = sm ? sm.get('media.currentlyVisibleMedia') : null;
-            if (v && v.isConnected && v.tagName === 'VIDEO') return v;
-
-            const candidates = document.querySelectorAll('video');
-            let best = null, maxScore = -1;
+            const pip = document.pictureInPictureElement; if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
+            const fs = document.fullscreenElement; if (fs) { const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video'); if (v && v.isConnected) return v; }
+            const sm = this.stateManager; let v = sm ? sm.get('media.currentlyVisibleMedia') : null; if (v && v.isConnected && v.tagName === 'VIDEO') return v;
+            const candidates = document.querySelectorAll('video'); let best = null, maxScore = -1;
             for(let i=0; i<candidates.length; i++) {
-                const c = candidates[i];
-                if (!c.isConnected) continue;
-                const rect = c.getBoundingClientRect();
-                if (rect.width > 10 && rect.height > 10) {
-                    const score = rect.width * rect.height;
-                    if (score > maxScore) { maxScore = score; best = c; }
-                }
+                const c = candidates[i]; if (!c.isConnected) continue;
+                const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) { const score = rect.width * rect.height; if (score > maxScore) { maxScore = score; best = c; } }
             }
             return best;
         },
-        _kickImmediateAnalyze() {
-            const run = () => { try { if (!this.targetVideo || !this.ctx) return; this.processFrame(true); } catch {} };
-            try { queueMicrotask(run); } catch { setTimeout(run, 0); }
-            requestAnimationFrame(run);
-        },
+        _kickImmediateAnalyze() { const run = () => { try { if (!this.targetVideo || !this.ctx) return; this.processFrame(true); } catch {} }; try { queueMicrotask(run); } catch { setTimeout(run, 0); } requestAnimationFrame(run); },
         start(video, settings) {
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
             if (!this.ctx || !this.canvas) this.init(this.stateManager);
@@ -799,75 +530,41 @@
             const isClarityActive = this.currentSettings.clarity > 0;
             const isAutoExposure = this.currentSettings.autoExposure;
             if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
-            if (this.taintedResources.has(video)) {
-                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, video, true);
-                return;
-            }
+            if (this.taintedResources.has(video)) { this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, video, true); return; }
             if (this.isRunning && this.targetVideo === video) return;
-            this.targetVideo = video;
-            this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
-
+            this.targetVideo = video; this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
             if (this.canvas) {
-                 const vw = video.videoWidth || video.clientWidth || 0;
-                 const targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
-                 if (this.canvas.width !== targetSize) {
-                     this.canvas.width = targetSize; this.canvas.height = targetSize;
-                 }
+                const vw = video.videoWidth || video.clientWidth || 0;
+                const targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
+                if (this.canvas.width !== targetSize) { this.canvas.width = targetSize; this.canvas.height = targetSize; }
             }
-
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
-            this.isRunning = true;
-            this._roiP50History = [];
-            this._p10Ema = -1; this._p90Ema = -1;
-            this._lowMotionSkip = 0;
+            this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0; this._barStableCounter = 0;
             this.loop();
         },
         stop() {
             this.isRunning = false;
-            if (this.hasRVFC && this.targetVideo && this.handle) {
-                try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { }
-            }
-            this.handle = null; this.targetVideo = null; this.frameSkipCounter = 0;
-            this.lastAvgLuma = -1; this._highMotion = false;
-            this._roiP50History = [];
-            this._p10Ema = -1; this._p90Ema = -1;
+            if (this.hasRVFC && this.targetVideo && this.handle) { try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { } }
+            this.handle = null; this.targetVideo = null; this.frameSkipCounter = 0; this.lastAvgLuma = -1; this._highMotion = false;
+            this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
         },
         updateSettings(settings) {
-            const prev = this.currentSettings;
-            this.currentSettings = { ...this.currentSettings, ...settings };
+            const prev = this.currentSettings; this.currentSettings = { ...this.currentSettings, ...settings };
             const now = performance.now();
             const evChanged = settings && Object.prototype.hasOwnProperty.call(settings, 'targetLuma') && settings.targetLuma !== prev.targetLuma;
             const aeTurnedOn = settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && settings.autoExposure && !prev.autoExposure;
-
             if (settings && (Object.prototype.hasOwnProperty.call(settings, 'targetLuma') || Object.prototype.hasOwnProperty.call(settings, 'autoExposure') || Object.prototype.hasOwnProperty.call(settings, 'clarity'))) {
-                this.frameSkipCounter = 999;
-                this._userBoostUntil = now + 1500;
-                if (evChanged || aeTurnedOn) {
-                    this._evAggressiveUntil = now + 800;
-                    this.dynamicSkipThreshold = 0;
-                    this._lowMotionFrames = 0;
-                }
+                this.frameSkipCounter = 999; this._userBoostUntil = now + 1500;
+                if (evChanged || aeTurnedOn) { this._evAggressiveUntil = now + 800; this.dynamicSkipThreshold = 0; this._lowMotionFrames = 0; }
             }
-             if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) {
-                this._evAggressiveUntil = 0;
-            }
-            const isClarityActive = this.currentSettings.clarity > 0;
-            const isAutoExposure = this.currentSettings.autoExposure;
+            if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) { this._evAggressiveUntil = 0; }
+            const isClarityActive = this.currentSettings.clarity > 0; const isAutoExposure = this.currentSettings.autoExposure;
             if (isClarityActive || isAutoExposure) {
                 const best = this._pickBestVideoNow();
-                if (best) {
-                    this.start(best, {
-                        autoExposure: this.currentSettings.autoExposure,
-                        clarity: this.currentSettings.clarity,
-                        targetLuma: this.currentSettings.targetLuma
-                    });
-                }
-                if (evChanged || aeTurnedOn) {
-                    this._kickImmediateAnalyze();
-                }
+                if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity, targetLuma: this.currentSettings.targetLuma }); }
+                if (evChanged || aeTurnedOn) { this._kickImmediateAnalyze(); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
-                this.stop();
-                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
+                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
             }
         },
         loop() {
@@ -890,10 +587,7 @@
         processFrame(allowPausedOnce = false) {
             if (!this.targetVideo || this.targetVideo.ended) { this.stop(); return; }
             if (document.hidden) return;
-            if (this.targetVideo.paused && !allowPausedOnce) {
-                if (!this._stopTimeout) this._stopTimeout = setTimeout(() => this.stop(), 2000);
-                return;
-            }
+            if (this.targetVideo.paused && !allowPausedOnce) { if (!this._stopTimeout) this._stopTimeout = setTimeout(() => this.stop(), 2000); return; }
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
             if (this.targetVideo.readyState < 2) return;
             if (!this.ctx) return;
@@ -903,27 +597,17 @@
             const isVis = visMap ? visMap.get(this.targetVideo) : true;
             if (isVis === false && !document.pictureInPictureElement && !document.fullscreenElement) return;
 
-            if (this._lowMotionFrames > 60) {
-                this._lowMotionSkip++;
-                if (this._lowMotionSkip % 5 !== 0) return;
-            } else {
-                this._lowMotionSkip = 0;
-            }
+            if (this._lowMotionFrames > 60) { this._lowMotionSkip++; if (this._lowMotionSkip % 5 !== 0) return; } else { this._lowMotionSkip = 0; }
 
-            // Fix 1B: Worker Watchdog
             if (this._worker && this._workerBusy) {
                  const now = performance.now();
                  if (this._workerLastSent > 0 && now - this._workerLastSent > 1200) {
                      this._workerStallCount = (this._workerStallCount || 0) + 1;
                      this._workerBusy = false; this._workerLastSent = 0;
-
                      if (this._workerStallCount >= 2) {
                          try { this._worker.terminate(); } catch {}
-                         this._worker = null;
-                         if (this._workerUrl) URL.revokeObjectURL(this._workerUrl);
-                         this._workerUrl = null;
-                         this._workerStallCount = 0;
-                         this.init(this.stateManager);
+                         this._worker = null; if (this._workerUrl) URL.revokeObjectURL(this._workerUrl); this._workerUrl = null;
+                         this._workerStallCount = 0; this.init(this.stateManager);
                      }
                  } else {
                      const isAggressive = (this._evAggressiveUntil && now < this._evAggressiveUntil);
@@ -933,7 +617,6 @@
 
             const startTime = performance.now();
             const aggressive = (this._evAggressiveUntil && startTime < this._evAggressiveUntil);
-
             let baseThreshold = this.hasRVFC ? 10 : 0;
             if (this._highMotion) baseThreshold = this.hasRVFC ? 6 : 3;
             if (aggressive) baseThreshold = 0;
@@ -947,52 +630,23 @@
                 const size = this.canvas.width;
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
-
                 const step = (size <= 24) ? 1 : 2;
                 const bandH = Math.max(1, Math.floor(size * 0.10));
-
                 const fid = ++this._frameId;
                 const vid = this._getVideoId(this.targetVideo);
 
                 if (this._worker) {
-                      this._workerBusy = true;
-                      this._workerLastSent = performance.now();
-                      const msg = {
-                        type: 'analyze',
-                        fid: fid,
-                        vid: vid,
-                        data: imageData.data,
-                        width: size,
-                        bandH: bandH,
-                        step: step,
-                        p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) // Pass P10 for dynamic threshold
-                      };
-                      // Fix 1C: Robust message passing
-                      try {
-                          this._worker.postMessage(msg, [imageData.data.buffer]);
-                      } catch(err) {
-                          // Fallback if transfer fails
-                          this._worker.postMessage({ ...msg, data: Array.from(imageData.data) });
-                      }
-                } else {
-                    this._analyzeFallback(imageData, size, size, bandH, step);
+                       this._workerBusy = true; this._workerLastSent = performance.now();
+                       const msg = { type: 'analyze', fid, vid, data: imageData.data, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
+                       try { this._worker.postMessage(msg, [imageData.data.buffer]); } catch(err) { this._worker.postMessage({ ...msg, data: Array.from(imageData.data) }); }
                 }
-
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    try {
-                        this.canvas.width = this.canvas.width;
-                        this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false });
-                        if (this.ctx) this.ctx.imageSmoothingEnabled = false;
-                    } catch {}
-
+                    try { this.canvas.width = this.canvas.width; this.ctx = this.canvas.getContext('2d', { willReadFrequently: true, alpha: false }); if (this.ctx) this.ctx.imageSmoothingEnabled = false; } catch {}
                     this.taintedResources.add(this.targetVideo);
                     const next = this._pickBestVideoNow();
                     if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
-                         this.targetVideo = next;
-                         this.hasRVFC = 'requestVideoFrameCallback' in next;
-                         this._kickImmediateAnalyze();
-                         return;
+                         this.targetVideo = next; this.hasRVFC = 'requestVideoFrameCallback' in next; this._kickImmediateAnalyze(); return;
                     }
                     this.stop();
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
@@ -1004,6 +658,11 @@
         },
         _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
+
+            if (barsNow !== this._lastBarsState) {
+                this._barStableCounter++;
+                if (this._barStableCounter > 5) { this._lastBarsState = barsNow; this._barStableCounter = 0; }
+            } else { this._barStableCounter = 0; }
 
             this._roiP50History.push(p50);
             if (this._roiP50History.length > 5) this._roiP50History.shift();
@@ -1017,26 +676,15 @@
 
             let contrastFactor = 1.0;
             if ((stableP90 - stableP10) < 0.1) contrastFactor = 0.3;
-
             const isHighContrast = (stableP90 > 0.9 && stableP10 < 0.1);
 
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
                 if (delta < 0.003) this._lowMotionFrames++; else this._lowMotionFrames = 0;
-
-                if (this._highMotion) {
-                    if (delta < 0.06) this._highMotion = false;
-                } else {
-                    if (delta > 0.10) this._highMotion = true;
-                }
-
-                if (delta > 0.25) {
-                      this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0;
-                      this._evAggressiveUntil = performance.now() + (isHighContrast ? 200 : 500);
-                } else if (delta > 0.15) {
-                    this._userBoostUntil = performance.now() + 300;
-                }
+                if (this._highMotion) { if (delta < 0.06) this._highMotion = false; } else { if (delta > 0.10) this._highMotion = true; }
+                if (delta > 0.25) { this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0; this._evAggressiveUntil = performance.now() + (isHighContrast ? 200 : 500); }
+                else if (delta > 0.15) { this._userBoostUntil = performance.now() + 300; }
             }
             this.lastAvgLuma = currentLuma;
 
@@ -1045,66 +693,47 @@
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
-                const u = evValue / 20;
-                const boostFactor = Math.tanh(u);
+                const u = evValue / 20; const boostFactor = Math.tanh(u);
                 const headroom = Math.max(0.0, 1.0 - stableP90);
                 const floor = Math.max(0.1, stableP10);
-
                 const spread = (stableP90 - stableP10);
                 let baseTarget = IS_MOBILE ? 0.38 : 0.35;
                 if (p50m < 0.18) baseTarget += 0.02;
-                // Fix 5A: Raise target for bright content
                 if (stableP90 > 0.92 && stableP10 > 0.12) baseTarget += 0.02;
-
                 const targetMid = Utils.clamp(baseTarget + (spread < 0.15 ? 0.03 : -0.02), 0.30, 0.40);
-
                 const baseErr = (targetMid - p50m) * 0.35;
                 const userErr = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
                 const error = baseErr + userErr;
-
-                // Fix 5B: Slower correction speed (was 5.0)
                 const correction = error * 4.0 * contrastFactor;
 
                 if (correction > 0) {
                     const hiClip = Math.max(0, stableP90 - 0.93);
                     let hiGuard = 1 - Utils.clamp(hiClip / 0.07, 0, 1);
                     if (hiClipRatio > 0.02) hiGuard *= 0.7;
-
                     const corr = correction * hiGuard;
-                    
-                    // Fix 5D: If highlight risk, prefer shadow boost over gamma
                     const hiRisk = (stableP90 > 0.93) || (hiClipRatio > 0.01);
 
                     if (hiRisk) {
-                        targetAdaptiveGamma += corr * 0.25;
-                        targetShadowsAdj += corr * 6;
+                        targetAdaptiveGamma += corr * 0.25; targetShadowsAdj += corr * 6;
                     } else {
                         const safeGammaBoost = (stableP90 > 0.9) ? 0.4 : 0.8;
-                        targetAdaptiveGamma += corr * safeGammaBoost;
-                        targetAdaptiveBright += corr * 6;
+                        targetAdaptiveGamma += corr * safeGammaBoost; targetAdaptiveBright += corr * 6;
                         if (!isHighContrast) targetShadowsAdj += corr * 5;
                     }
                 } else {
-                    const loClip = Math.max(0, 0.05 - stableP10);
-                    let loGuard = 1 - Utils.clamp(loClip / 0.05, 0, 1);
-                    if (loClipRatio > 0.02) loGuard *= 0.7;
+                    const clipRisk = Math.max(0, stableP90 - 0.92);
+                    const clipRisk2 = Math.max(0, hiClipRatio - 0.005);
+                    const hStrength = (clipRisk * 140) + (clipRisk2 * 600);
+                    const userBias = 1 + Math.min(1.0, Math.abs(boostFactor));
 
-                    const absCorr = Math.abs(correction) * loGuard;
-
-                    const safeGammaCut = (stableP10 < 0.1) ? 0.3 : 0.6;
-                    targetAdaptiveGamma -= absCorr * safeGammaCut;
-                    targetAdaptiveBright -= absCorr * 3;
-                    if (!isHighContrast) targetHighlightsAdj += absCorr * 10;
+                    targetHighlightsAdj += hStrength * userBias;
+                    targetAdaptiveGamma = Math.max(1.0, targetAdaptiveGamma);
+                    targetAdaptiveBright = Math.max(0, targetAdaptiveBright);
                 }
 
                 targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
-                // Fix 4 (Problem 2): Tighter Gamma Clamp
                 targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.8, 1.4);
-
-                if (aggressive && (stableP10 < 0.05 || stableP90 > 0.95)) {
-                    targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40);
-                }
-
+                if (aggressive && (stableP10 < 0.05 || stableP90 > 0.95)) { targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40); }
                 targetShadowsAdj = Utils.clamp(targetShadowsAdj, -40, 40);
                 targetHighlightsAdj = Utils.clamp(targetHighlightsAdj, -20, 80);
             }
@@ -1116,17 +745,12 @@
                 const lumaFactor = Math.max(0.2, maxLumaFactor - p50m);
                 let dampener = isAutoExp ? (evValue < 0 ? 0.4 : 0.6) : 1.0;
                 if (stableP10 < 0.06 && stableP90 < 0.5) dampener *= 0.5;
-
                 targetClarityComp = Math.min(10, (intensity * 10) * lumaFactor * dampener);
             }
 
             const smooth = (curr, target) => {
-                if (aggressive && !isHighContrast) {
-                    const diff = target - curr;
-                    return curr + diff * 0.2;
-                }
+                if (aggressive && !isHighContrast) { const diff = target - curr; return curr + diff * 0.2; }
                 const diff = target - curr;
-                // Fix 5B: Slower speed
                 let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.03 : 0.1);
                 if (isHighContrast) speed *= 0.5;
                 if (Math.abs(diff) < 0.005) return curr;
@@ -1151,861 +775,225 @@
     };
 
     class Plugin { constructor(name) { this.name = name; this.stateManager = null; this.subscriptions = []; this._ac = new AbortController(); } init(stateManager) { this.stateManager = stateManager; } destroy() { this.subscriptions.forEach(unsubscribe => unsubscribe()); this.subscriptions = []; this._ac.abort(); } subscribe(key, callback) { this.subscriptions.push(this.stateManager.subscribe(key, callback)); } }
-
     class PluginManager {
         constructor(stateManager) { this.plugins = []; this.stateManager = stateManager; }
         register(plugin) { this.plugins.push(plugin); }
-        initAll() {
-            this.stateManager.init();
-            this.plugins.forEach(p => p.init(this.stateManager));
-            this.stateManager.set('app.isInitialized', true);
-            this.stateManager.set('app.pluginsInitialized', true);
-            window.addEventListener('pagehide', (e) => { if (!e.persisted) this.destroyAll(); });
-        }
+        initAll() { this.stateManager.init(); this.plugins.forEach(p => p.init(this.stateManager)); this.stateManager.set('app.isInitialized', true); this.stateManager.set('app.pluginsInitialized', true); window.addEventListener('pagehide', (e) => { if (!e.persisted) this.destroyAll(); }); }
         destroyAll() { this.plugins.forEach(p => p.destroy()); }
     }
 
     class AudioController extends Plugin {
-        constructor() {
-            super('Audio');
-            this.ctx = null;
-            this.compressor = null;
-            this.gain = null;
-            this.source = null;
-            this.targetMedia = null;
-            this.initialized = false;
-        }
-        init(stateManager) {
-            super.init(stateManager);
-            this.subscribe('audio.enabled', (enabled) => this.toggle(enabled));
-            this.subscribe('audio.boost', (val) => this.setBoost(val));
-            this.subscribe('media.currentlyVisibleMedia', (media) => {
-                if (this.stateManager.get('audio.enabled')) this.attach(media);
-            });
-        }
-        toggle(enabled) {
-            if (enabled) {
-                const media = this.stateManager.get('media.currentlyVisibleMedia');
-                if (media) this.attach(media);
-            } else {
-                this.detach();
-            }
-        }
-        setBoost(val) {
-            if (this.gain) {
-                const boost = Math.pow(10, val / 20);
-                this.gain.gain.setTargetAtTime(boost, this.ctx.currentTime, 0.1);
-            }
-        }
+        constructor() { super('Audio'); this.ctx = null; this.compressor = null; this.gain = null; this.source = null; this.targetMedia = null; this.initialized = false; }
+        init(stateManager) { super.init(stateManager); this.subscribe('audio.enabled', (enabled) => this.toggle(enabled)); this.subscribe('audio.boost', (val) => this.setBoost(val)); this.subscribe('media.currentlyVisibleMedia', (media) => { if (this.stateManager.get('audio.enabled')) this.attach(media); }); }
+        toggle(enabled) { if (enabled) { const media = this.stateManager.get('media.currentlyVisibleMedia'); if (media) this.attach(media); } else { this.detach(); } }
+        setBoost(val) { if (this.gain) { const boost = Math.pow(10, val / 20); this.gain.gain.setTargetAtTime(boost, this.ctx.currentTime, 0.1); } }
         attach(media) {
             if (!media || media.tagName !== 'VIDEO') return;
-            if (this.targetMedia === media && this.initialized) {
-                 if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
-                 return;
-            }
-
-            this.detach();
-            this.targetMedia = media;
-
+            if (this.targetMedia === media && this.initialized) { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); return; }
+            this.detach(); this.targetMedia = media;
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
-                if (!this.ctx) this.ctx = new AudioContext();
-
-                if (this.ctx.state === 'suspended') this.ctx.resume();
-
-                if (!media[VSC_AUDIO_SRC]) {
-                    try {
-                        media[VSC_AUDIO_SRC] = this.ctx.createMediaElementSource(media);
-                    } catch(e) {
-                        return;
-                    }
-                }
+                if (!this.ctx) this.ctx = new AudioContext(); if (this.ctx.state === 'suspended') this.ctx.resume();
+                if (!media[VSC_AUDIO_SRC]) { try { media[VSC_AUDIO_SRC] = this.ctx.createMediaElementSource(media); } catch(e) { return; } }
                 this.source = media[VSC_AUDIO_SRC];
-
-                this.compressor = this.ctx.createDynamicsCompressor();
-                this.compressor.threshold.value = CONFIG.AUDIO.THRESHOLD;
-                this.compressor.knee.value = CONFIG.AUDIO.KNEE;
-                this.compressor.ratio.value = CONFIG.AUDIO.RATIO;
-                this.compressor.attack.value = CONFIG.AUDIO.ATTACK;
-                this.compressor.release.value = CONFIG.AUDIO.RELEASE;
-
-                this.gain = this.ctx.createGain();
-                const boost = Math.pow(10, this.stateManager.get('audio.boost') / 20);
-                this.gain.gain.value = boost;
-
-                try { this.source.disconnect(); } catch (e) {}
-                this.source.connect(this.compressor);
-                this.compressor.connect(this.gain);
-                this.gain.connect(this.ctx.destination);
-
+                this.compressor = this.ctx.createDynamicsCompressor(); this.compressor.threshold.value = CONFIG.AUDIO.THRESHOLD; this.compressor.knee.value = CONFIG.AUDIO.KNEE; this.compressor.ratio.value = CONFIG.AUDIO.RATIO; this.compressor.attack.value = CONFIG.AUDIO.ATTACK; this.compressor.release.value = CONFIG.AUDIO.RELEASE;
+                this.gain = this.ctx.createGain(); this.gain.gain.value = Math.pow(10, this.stateManager.get('audio.boost') / 20);
+                try { this.source.disconnect(); } catch (e) {} this.source.connect(this.compressor); this.compressor.connect(this.gain); this.gain.connect(this.ctx.destination);
                 this.initialized = true;
-            } catch (e) {
-                log('Audio attach failed', e);
-            }
+            } catch (e) {}
         }
-        detach() {
-            if (this.initialized && this.source) {
-                try {
-                    this.source.disconnect();
-                    this.source.connect(this.ctx.destination);
-                } catch(e) {}
-            }
-            this.initialized = false;
-            this.targetMedia = null;
-        }
+        detach() { if (this.initialized && this.source) { try { this.source.disconnect(); this.source.connect(this.ctx.destination); } catch(e) {} } this.initialized = false; this.targetMedia = null; }
     }
 
     class CoreMediaPlugin extends Plugin {
-        constructor() {
-            super('CoreMedia');
-            this.mainObserver = null; this.intersectionObserver = null; this.scanTimerId = null;
-            this.emptyScanCount = 0; this.baseScanInterval = IS_TOP ? CONFIG.SCAN.INTERVAL_TOP : CONFIG.SCAN.INTERVAL_IFRAME; this.currentScanInterval = this.baseScanInterval;
-            this._seenIframes = new WeakSet(); this._observedImages = new WeakSet(); this._iframeBurstCooldown = new WeakMap(); this._iframeObservers = new Map(); this._iframeInternalObservers = new Map();
-            this._lastImmediateScan = new WeakMap(); this._mediaAttributeObservers = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false;
-            this._visibleVideos = new Set();
-            this._intersectionRatios = new WeakMap();
-            this._domDirty = true;
-            this._mutationCounter = 0;
-            this._isBackoffMode = false;
-            this._backoffInterval = null;
-            this._historyOrig = null;
-            this._lastShadowPrune = 0;
-            this._lastAttrObsProbe = 0;
-            this._lastSensitive = null;
-            this._updateHooksState = null;
-            this._imgScanRate = 0; // Fix 5-3
-            this._imgScanResetTimer = null;
-        }
+        constructor() { super('CoreMedia'); this.mainObserver = null; this.intersectionObserver = null; this.scanTimerId = null; this.emptyScanCount = 0; this.baseScanInterval = IS_TOP ? CONFIG.SCAN.INTERVAL_TOP : CONFIG.SCAN.INTERVAL_IFRAME; this.currentScanInterval = this.baseScanInterval; this._seenIframes = new WeakSet(); this._observedImages = new WeakSet(); this._iframeBurstCooldown = new WeakMap(); this._iframeObservers = new Map(); this._iframeInternalObservers = new Map(); this._lastImmediateScan = new WeakMap(); this._mediaAttributeObservers = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false; this._visibleVideos = new Set(); this._intersectionRatios = new WeakMap(); this._domDirty = true; this._mutationCounter = 0; this._isBackoffMode = false; this._backoffInterval = null; this._historyOrig = null; this._lastShadowPrune = 0; this._lastAttrObsProbe = 0; this._lastSensitive = null; this._updateHooksState = null; this._imgScanRate = 0; this._imgScanResetTimer = null; }
         init(stateManager) {
-            super.init(stateManager); _corePluginRef = this;
-            VideoAnalyzer.ensureStateManager(stateManager);
-
+            super.init(stateManager); _corePluginRef = this; VideoAnalyzer.ensureStateManager(stateManager);
             if (!this._historyOrig) {
                 this._historyOrig = { pushState: history.pushState, replaceState: history.replaceState };
-                ['pushState', 'replaceState'].forEach(fn => {
-                    const orig = this._historyOrig[fn];
-                    history[fn] = function (...args) {
-                        const r = orig.apply(this, args);
-                        try { triggerBurstScan(250); } catch { }
-                        return r;
-                    };
-                });
+                ['pushState', 'replaceState'].forEach(fn => { const orig = this._historyOrig[fn]; history[fn] = function (...args) { const r = orig.apply(this, args); try { triggerBurstScan(250); } catch { } return r; }; });
             }
-            on(window, 'popstate', () => triggerBurstScan(250), P(this._ac.signal));
-            on(window, 'hashchange', () => triggerBurstScan(250), P(this._ac.signal));
-
-            on(document, 'visibilitychange', () => {
-                try { this._updateHooksState?.(); } catch {}
-                if (document.hidden) { try { VideoAnalyzer.stop(); } catch {} }
-            }, P(this._ac.signal));
-
-            this._backoffInterval = setInterval(() => {
-                if (this._mutationCounter > 60) {
-                    if (!this._isBackoffMode) { this._isBackoffMode = true; log("Backoff Mode ON"); }
-                } else {
-                    if (this._isBackoffMode) { this._isBackoffMode = false; scheduleScan(null); }
-                }
-                this._mutationCounter = 0;
-            }, 1000);
-
-            // Fix 5-3: Image Rate Limiter Reset
+            on(window, 'popstate', () => triggerBurstScan(250), P(this._ac.signal)); on(window, 'hashchange', () => triggerBurstScan(250), P(this._ac.signal));
+            on(document, 'visibilitychange', () => { try { this._updateHooksState?.(); } catch {} if (document.hidden) { try { VideoAnalyzer.stop(); } catch {} } }, P(this._ac.signal));
+            this._backoffInterval = setInterval(() => { if (this._mutationCounter > 60) { if (!this._isBackoffMode) { this._isBackoffMode = true; } } else { if (this._isBackoffMode) { this._isBackoffMode = false; scheduleScan(null); } } this._mutationCounter = 0; }, 1000);
             this._imgScanResetTimer = setInterval(() => { this._imgScanRate = 0; }, 1000);
-
             const updateHooksState = () => {
                 const active = this.stateManager.get('app.scriptActive');
-                const hasActiveVideo = (this.stateManager.get('media.activeMedia')?.size || 0) > 0;
-                const hasVideo = hasActiveVideo || hasRealVideoCached();
-                const sensitive = isSensitiveContext();
-                // Fix 1A: Safer hooking condition (Must have playing video)
                 const hasPlaying = [...(this.stateManager.get('media.activeMedia')||[])].some(v => v && v.tagName==='VIDEO' && !v.paused && v.readyState>=2);
-
+                const sensitive = isSensitiveContext();
                 if (!sensitive) enableShadowHook();
-
-                if (active && hasVideo && hasPlaying && !sensitive && document.visibilityState === 'visible') {
-                    enablePropertyHooks();
-                } else {
-                    if (!active || sensitive) disableAllHooks();
-                }
+                if (active && hasPlaying && !sensitive && document.visibilityState === 'visible') enablePropertyHooks(); else if (!active || sensitive) disableAllHooks();
             };
             this._updateHooksState = updateHooksState;
-
             this.subscribe('app.pluginsInitialized', () => safeGuard(() => {
                 this.ensureObservers(); this.scanAndApply(); this.runStartupBoost();
-                on(document, 'addShadowRoot', (e) => {
-                    if (e.detail && e.detail.shadowRoot) {
-                        this._domDirty = true;
-                        const sr = e.detail.shadowRoot;
-                        if (!sr[VSC_SR_MO]) {
-                            const isHeavy = (_localShadowRoots.length > 300);
-                            const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
-                            const smo = new MutationObserver(() => scheduleScan(sr));
-                            smo.observe(sr, config);
-                            sr[VSC_SR_MO] = smo;
-                        }
-                        this.scanSpecificRoot(sr);
-                    }
-                }, P(this._ac.signal));
-                on(document, 'load', (e) => {
-                    const t = e.target;
-                    if (t && t.tagName === 'IMG') {
-                        const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
-                        if (wantImages) {
-                            // Fix 5-3: Rate limit image scans
-                            if (this._imgScanRate < 20) {
-                                this._imgScanRate++;
-                                if (t.decode) t.decode().then(() => scheduleScan(t, true)).catch(() => scheduleScan(t, true));
-                                else scheduleScan(t, true);
-                            } else {
-                                scheduleScan(null); // Just queue a full scan later
-                            }
-                        }
-                    }
-                }, CP(this._ac.signal));
-                MEDIA_EVENTS.forEach(evt => on(document, evt, (e) => {
-                    const t = e.target;
-                    if (t && t.tagName === 'VIDEO') {
-                        const now = performance.now(); const last = this._lastImmediateScan.get(t) || 0;
-                        if (now - last > 120) { this._lastImmediateScan.set(t, now); scheduleScan(t, true); }
-                    }
-                }, CP(this._ac.signal)));
-
-                on(document, 'vsc-media-played', (e) => {
-                    if (e.detail && e.detail.target) {
-                        this.stateManager.set('media.lastInteractedVideo', { el: e.detail.target, ts: Date.now() });
-                    }
-                }, P(this._ac.signal));
-
-                on(document, 'pointerdown', (e) => {
-                    const path = e.composedPath ? e.composedPath() : [];
-                    const vid = path.find(n => n && n.tagName === 'VIDEO') || (e.target && e.target.closest && e.target.closest('video'));
-                    if (vid) {
-                        this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
-                    }
-                }, { capture: true, passive: true, signal: this._ac.signal });
-
-                const fsChange = () => {
-                    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-                    if (fsEl) {
-                        const vid = (fsEl.tagName === 'VIDEO') ? fsEl : fsEl.querySelector('video');
-                        if (vid) {
-                            this.stateManager.set('media.currentlyVisibleMedia', vid);
-                            this.stateManager.set('media.lastInteractedVideo', { el: vid, ts: Date.now() });
-                        }
-                    }
-                };
-                on(document, 'fullscreenchange', fsChange, P(this._ac.signal));
-                on(document, 'webkitfullscreenchange', fsChange, P(this._ac.signal));
-
+                on(document, 'addShadowRoot', (e) => { if (e.detail && e.detail.shadowRoot) { this._domDirty = true; registerShadowRoot(e.detail.shadowRoot); } }, P(this._ac.signal));
+                on(document, 'load', (e) => { const t = e.target; if (t && t.tagName === 'IMG') { if (this.stateManager.get('ui.areControlsVisible')) scheduleScan(t, true); } }, CP(this._ac.signal));
+                MEDIA_EVENTS.forEach(evt => on(document, evt, (e) => { const t = e.target; if (t && t.tagName === 'VIDEO') { const now = performance.now(); const last = this._lastImmediateScan.get(t) || 0; if (now - last > 120) { this._lastImmediateScan.set(t, now); scheduleScan(t, true); } } }, CP(this._ac.signal)));
                 this.scheduleNextScan();
             }, 'CoreMedia pluginsInitialized'));
-
-            this.subscribe('app.scriptActive', (active, old) => {
-                updateHooksState();
-                if (active && !old) {
-                    collectOpenShadowRootsOnce();
-                    triggerBurstScan(250);
-                }
-                this.updateGlobalAttrObs(active);
-            });
+            this.subscribe('app.scriptActive', (active) => { updateHooksState(); if (active) { collectOpenShadowRootsOnce(); triggerBurstScan(250); } this.updateGlobalAttrObs(active); });
             this.subscribe('videoFilter.autoExposure', () => this.updateGlobalAttrObs(this.stateManager.get('app.scriptActive')));
-            this.subscribe('videoFilter.clarity', () => this.updateGlobalAttrObs(this.stateManager.get('app.scriptActive')));
-
-            this.subscribe('media.activeMedia', () => updateHooksState());
-            updateHooksState();
-
-            const throttledReset = throttle(() => this.resetScanInterval(), 300);
-            ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => on(document, evt, throttledReset, CP(this._ac.signal)));
-
-            if ('ResizeObserver' in window) {
-                this._resizeObs = new ResizeObserver(throttle(entries => {
-                    let needed = false;
-                    for (const e of entries) {
-                        const t = e.target;
-                        if (t.tagName === 'VIDEO') needed = true;
-                        if (t.tagName === 'VIDEO' && e.contentRect.width > 50) needed = true;
-                        else if (t.tagName === 'IMG' && e.contentRect.height > 100) needed = true;
-                    }
-                    if (needed) scheduleScan(null);
-                }, 200));
-            }
+            this.subscribe('media.activeMedia', () => updateHooksState()); updateHooksState();
+            const throttledReset = throttle(() => this.resetScanInterval(), 300); ['mousedown', 'keydown', 'scroll', 'touchstart'].forEach(evt => on(document, evt, throttledReset, CP(this._ac.signal)));
+            if ('ResizeObserver' in window) { this._resizeObs = new ResizeObserver(throttle(entries => { for (const e of entries) { if (e.target.tagName === 'VIDEO' || e.target.tagName === 'IMG') scheduleScan(null); } }, 200)); }
             if (this.stateManager.get('app.scriptActive')) this.updateGlobalAttrObs(true);
         }
         updateGlobalAttrObs(active) {
             if (!CONFIG.FLAGS.GLOBAL_ATTR_OBS) return;
             const sm = this.stateManager;
-            const controlsVisible = sm.get('ui.areControlsVisible');
-            const aeActive = sm.get('videoFilter.autoExposure') || sm.get('videoFilter.clarity') > 0;
-            const hasMedia = hasRealVideoCached() || sm.get('media.activeImages').size > 0;
-            
-            // Fix 2B: Tighten Observer Condition
-            const curVis = sm.get('media.currentlyVisibleMedia');
-            const reallyNeeded = active && (controlsVisible || (aeActive && (curVis || hasMedia)));
-
+            const reallyNeeded = active && (sm.get('ui.areControlsVisible') || (sm.get('videoFilter.autoExposure') && !document.hidden));
             if (reallyNeeded && !this._globalAttrObs) {
-                this._globalAttrObs = new MutationObserver(throttle((ms) => {
-                    let dirty = false;
-                    for (const m of ms) {
-                        const t = m.target;
-                        if (!t) continue;
-                        const tag = t.nodeName;
-                        if (tag === 'SOURCE') {
-                            scheduleScan(t.parentNode, true); dirty = true;
-                            if (t.parentNode && t.parentNode.tagName === 'PICTURE') dirty = true;
-                        }
-                        else if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME') { scheduleScan(t, true); dirty = true; }
-                    }
-                    if (dirty) this._domDirty = true;
-                }, 200));
+                this._globalAttrObs = new MutationObserver(throttle((ms) => { let dirty = false; for (const m of ms) { if (m.target && ['VIDEO','IMG','IFRAME','SOURCE'].includes(m.target.nodeName)) { dirty = true; break; } } if (dirty) { this._domDirty = true; } }, 200));
                 this._globalAttrObs.observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
-            } else if (!reallyNeeded && this._globalAttrObs) {
-                this._globalAttrObs.disconnect(); this._globalAttrObs = null;
-            }
+            } else if (!reallyNeeded && this._globalAttrObs) { this._globalAttrObs.disconnect(); this._globalAttrObs = null; }
         }
-        runStartupBoost() {
-            const aggressiveScan = () => {
-                const sm = this.stateManager;
-                const hasAny = sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0 || document.querySelector(SEL.FILTER_TARGET);
-                if (!hasAny) {
-                    scheduleScan(null, true);
-                    if (performance.now() < 10000) setTimeout(aggressiveScan, 1000);
-                }
-            };
-            const times = [300, 1500, 5000];
-            times.forEach(d => setTimeout(aggressiveScan, d));
-        }
+        runStartupBoost() { const aggressiveScan = () => { if (this.stateManager.get('media.activeMedia').size === 0) scheduleScan(null, true); }; [300, 1500, 5000].forEach(d => setTimeout(aggressiveScan, d)); }
         destroy() {
-            super.destroy(); _corePluginRef = null;
-
-            if (VideoAnalyzer._worker) {
-                VideoAnalyzer._worker.terminate();
-                VideoAnalyzer._worker = null;
-            }
-            if (VideoAnalyzer._workerUrl) {
-                URL.revokeObjectURL(VideoAnalyzer._workerUrl);
-                VideoAnalyzer._workerUrl = null;
-            }
-
-            if (this._historyOrig) {
-                history.pushState = this._historyOrig.pushState;
-                history.replaceState = this._historyOrig.replaceState;
-                this._historyOrig = null;
-            }
-            if (this.mainObserver) { this.mainObserver.disconnect(); this.mainObserver = null; }
-            if (this.intersectionObserver) { this.intersectionObserver.disconnect(); this.intersectionObserver = null; }
-            if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scanTimerId = null; }
-            if (this._resizeObs) this._resizeObs.disconnect();
-            if (this._globalAttrObs) this._globalAttrObs.disconnect();
-            if (this._backoffInterval) clearInterval(this._backoffInterval);
-            if (this._imgScanResetTimer) clearInterval(this._imgScanResetTimer);
-
+            super.destroy(); _corePluginRef = null; if (VideoAnalyzer._worker) { VideoAnalyzer._worker.terminate(); VideoAnalyzer._worker = null; } if (VideoAnalyzer._workerUrl) URL.revokeObjectURL(VideoAnalyzer._workerUrl);
+            if (this._historyOrig) { history.pushState = this._historyOrig.pushState; history.replaceState = this._historyOrig.replaceState; this._historyOrig = null; }
+            if (this.mainObserver) this.mainObserver.disconnect(); if (this.intersectionObserver) this.intersectionObserver.disconnect();
+            if (this.scanTimerId) clearTimeout(this.scanTimerId); if (this._resizeObs) this._resizeObs.disconnect(); if (this._globalAttrObs) this._globalAttrObs.disconnect();
+            if (this._backoffInterval) clearInterval(this._backoffInterval); if (this._imgScanResetTimer) clearInterval(this._imgScanResetTimer);
             disableAllHooks();
-        }
-        _pruneDisconnected() {
-            const sm = this.stateManager;
-            const curMedia = sm.get('media.activeMedia');
-            if (curMedia && curMedia.size) {
-                let changed = false; const next = new Set();
-                for (const v of curMedia) { if (v && v.isConnected) next.add(v); else { this.detachMediaListeners(v); changed = true; } }
-                if (changed) sm.set('media.activeMedia', next);
-            }
-            const curImages = sm.get('media.activeImages');
-            if (curImages && curImages.size) {
-                let changed = false; const next = new Set();
-                for (const img of curImages) { if (img && img.isConnected) next.add(img); else { this.detachImageListeners(img); changed = true; } }
-                if (changed) sm.set('media.activeImages', next);
-            }
-            const curIframes = sm.get('media.activeIframes');
-            if (curIframes && curIframes.size) {
-                let changed = false; const next = new Set();
-                for (const iframe of curIframes) { if (iframe && iframe.isConnected) next.add(iframe); else { changed = true; } }
-                if (changed) sm.set('media.activeIframes', next);
-            }
         }
         tick() {
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
-            const nowSens = isSensitiveContext();
-            if (this._lastSensitive !== nowSens) {
-                this._lastSensitive = nowSens;
-                try { this._updateHooksState?.(); } catch {}
-            }
-            this._cleanupDeadIframes();
-            this._pruneDisconnected();
-
+            const nowSens = isSensitiveContext(); if (this._lastSensitive !== nowSens) { this._lastSensitive = nowSens; try { this._updateHooksState?.(); } catch {} }
+            this._cleanupDeadIframes(); this._pruneDisconnected();
             if (_localShadowRoots.length > 0 && Date.now() - this._lastShadowPrune > 15000) {
                 this._lastShadowPrune = Date.now();
-                let i = _localShadowRoots.length;
-                while (i--) {
-                      const r = _localShadowRoots[i];
-                      const alive = r && r.host && r.host.isConnected;
-                      if (!alive) {
-                          if (r?.[VSC_SR_MO]) { try { r[VSC_SR_MO].disconnect(); } catch {} r[VSC_SR_MO] = null; }
-                          _localShadowRoots.splice(i, 1);
-                          _localShadowSet.delete(r);
-                      }
-                }
+                let i = _localShadowRoots.length; while (i--) { const r = _localShadowRoots[i]; if (!r || !r.host || !r.host.isConnected) { if (r[VSC_SR_MO]) r[VSC_SR_MO].disconnect(); _localShadowRoots.splice(i, 1); _localShadowSet.delete(r); } }
             }
-
-            if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) {
-                const now = Date.now();
-                if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) {
-                    this._lastAttrObsProbe = now;
-                    this.updateGlobalAttrObs(true);
-                }
-            }
-
-            const sm = this.stateManager;
-            const activeMedia = sm.get('media.activeMedia'); const activeImages = sm.get('media.activeImages');
-            const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0 || (sm.get('ui.areControlsVisible') && document.images.length > 0);
-
-            if ((activeMedia && activeMedia.size > 0) || (activeImages && activeImages.size > 0) || hasPotential) {
-                this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval;
-            } else {
-                this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5);
-            }
+            if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
+            const sm = this.stateManager; const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
+            if ((sm.get('media.activeMedia').size > 0) || hasPotential) { this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; } else { this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5); }
             this.scheduleNextScan();
         }
         ensureObservers() {
             if (!this.mainObserver) {
-                const dirtySet = new Set();
-                const mayContainMedia = (n) => {
-                    if (!n || n.nodeType !== 1) return false;
-                    const tag = n.nodeName;
-                    if (tag === 'VIDEO' || tag === 'IMG' || tag === 'IFRAME' || tag === 'SOURCE' || tag === 'CANVAS') return true;
-                    if (n.childElementCount > 0 && n.querySelector) {
-                          return !!n.querySelector(SEL.MEDIA);
-                    }
-                    return false;
-                };
-                // Fix 2-1: Better debounce logic for backoff
-                const flushDirty = debounce(() => {
-                    if (dirtySet.size > 0) {
-                        this._domDirty = true;
-                        // In backoff mode, just mark dirty and let tick handle it
-                        if (!this._isBackoffMode) {
-                            for (const n of dirtySet) scheduleScan(n);
-                            if (dirtySet.size > 50) scheduleScan(null);
-                        }
-                        dirtySet.clear();
-                    }
-                }, this._isBackoffMode ? 500 : 150);
-
-                this.mainObserver = new MutationObserver((mutations) => {
-                    this._mutationCounter += mutations.length;
-                    if (this._isBackoffMode) {
-                        let critical = false;
-                        for (const m of mutations) {
-                             if (m.addedNodes.length > 0) {
-                                 for (const n of m.addedNodes) {
-                                     if (n.nodeType === 1 && mayContainMedia(n)) { critical = true; break; }
-                                 }
-                             }
-                             if (critical) break;
-                        }
-                        // Fix 2-1: Consolidated scan trigger
-                        if (critical) { this._domDirty = true; } 
-                        return;
-                    }
-                    let dirty = false;
-                    if (mutations.length > 50) { this._domDirty = true; scheduleScan(null); return; }
-                    for (const m of mutations) {
-                        if (m.type === 'childList') {
-                            for (const n of m.addedNodes) {
-                                if (n.nodeType === 11) {
-                                    for (let c = n.firstChild; c; c = c.nextSibling) {
-                                        if (c.nodeType === 1 && mayContainMedia(c)) { dirtySet.add(c); dirty = true; }
-                                    }
-                                    continue;
-                                }
-                                if (n.nodeType === 1 && !n.closest('[data-vsc-internal]')) {
-                                    if (n.nodeName === 'SOURCE') { const p = n.parentNode; if (p && p.nodeName === 'VIDEO') { dirtySet.add(p); dirty = true; } continue; }
-                                    if (mayContainMedia(n)) { dirtySet.add(n); dirty = true; }
-                                }
-                            }
-                        }
-                    }
-                    if (dirty) flushDirty();
-                });
-
-                if (document.body) this.mainObserver.observe(document.body, { childList: true, subtree: true });
-                else {
-                    this.mainObserver.observe(document.documentElement, { childList: true, subtree: true });
-                    window.addEventListener('DOMContentLoaded', () => {
-                        this.mainObserver.disconnect();
-                        if (document.body) this.mainObserver.observe(document.body, { childList: true, subtree: true });
-                    });
-                }
+                const flushDirty = debounce(() => { if (this._domDirty && !this._isBackoffMode) scheduleScan(null); }, this._isBackoffMode ? 500 : 150);
+                this.mainObserver = new MutationObserver((mutations) => { this._mutationCounter += mutations.length; if (mutations.length > 50 || this._isBackoffMode) { this._domDirty = true; return; } let dirty = false; for (const m of mutations) { if (m.addedNodes.length > 0) { for(const n of m.addedNodes) { if (n.nodeType === 1 && (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME' || n.querySelector?.('video, iframe'))) { dirty = true; break; } } } if (dirty) break; } if (dirty) { this._domDirty = true; flushDirty(); } });
+                this.mainObserver.observe(document.documentElement, { childList: true, subtree: true });
             }
             if (!this.intersectionObserver) {
-                const thresholdConfig = IS_LOW_END ? [0, 0.2, 0.6] : [0, 0.25, 0.5, 0.75, 1.0];
-
                 this.intersectionObserver = new IntersectionObserver(entries => {
-                    const sm = this.stateManager;
-                    const visMap = sm.get('media.visibilityMap');
                     let needsUpdate = false;
-
-                    let lastVisTarget = null, lastVisState = false;
-
                     entries.forEach(e => {
-                        const pipEl = document.pictureInPictureElement;
-                        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-                        const isVisible = (e.isIntersecting && e.intersectionRatio > 0) || (pipEl === e.target) || (fsEl && (fsEl === e.target || fsEl.contains(e.target)));
-                        if (visMap) visMap.set(e.target, isVisible);
+                        const isVisible = e.isIntersecting && e.intersectionRatio > 0;
+                        if (this.stateManager.get('media.visibilityMap')) this.stateManager.get('media.visibilityMap').set(e.target, isVisible);
                         this._intersectionRatios.set(e.target, e.intersectionRatio);
-
-                        if (e.target.tagName === 'IFRAME' || e.target.tagName === 'CANVAS') {
-                            if (visMap) visMap.set(e.target, isVisible);
-                            lastVisTarget = e.target; lastVisState = isVisible;
-                        }
-                        else if (e.target.tagName === 'VIDEO') {
-                            if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target);
-                            lastVisTarget = e.target; lastVisState = isVisible;
-                            needsUpdate = true;
-                        }
-                        else if (e.target.tagName === 'IMG') { lastVisTarget = e.target; lastVisState = isVisible; }
-
-                        if (!e.target.isConnected) { this.intersectionObserver.unobserve(e.target); this._visibleVideos.delete(e.target); }
+                        if (e.target.tagName === 'VIDEO') { if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target); needsUpdate = true; }
                     });
-
-                    if (lastVisTarget) sm.set('media.visibilityChange', { target: lastVisTarget, isVisible: lastVisState });
-
                     if (needsUpdate && !document.hidden) {
                         if (this._centerCalcTimer) clearTimeout(this._centerCalcTimer);
-                        // Fix 2-2: Throttle center calculation to 300ms
                         this._centerCalcTimer = setTimeout(() => {
                             if (this._visibleVideos.size === 0) return;
-                            const currentBest = sm.get('media.currentlyVisibleMedia');
-                            const lastInteracted = sm.get('media.lastInteractedVideo');
-                            let bestCandidate = null; let maxScore = -1;
-                            const cx = window.innerWidth / 2; const cy = window.innerHeight / 2;
-                            let centerEl = null;
-
-                            // Fix 2C: Reduce elementsFromPoint calls
-                            if (this._visibleVideos.size > 3) {
-                                try { const stack = document.elementsFromPoint(cx, cy); for (const el of stack) { if (el && !el.closest('[data-vsc-internal]')) { centerEl = el; break; } } } catch {}
-                            }
-
+                            const currentBest = this.stateManager.get('media.currentlyVisibleMedia');
+                            let best = null, maxScore = -1;
                             for (const m of this._visibleVideos) {
-                                if (m.tagName === 'VIDEO') {
-                                    const area = (m.clientWidth || 0) * (m.clientHeight || 0); let score = area;
-                                    if (!m.paused) score *= 2.5;
-                                    if ('requestVideoFrameCallback' in m && !m.paused) score *= 1.2;
-
-                                    if (m.readyState >= 3) score *= 1.5; if (!m.muted && m.volume > 0) score *= 1.2;
-                                    if (m.ended) score *= 0.5; if (document.pictureInPictureElement === m) score *= 3.0;
-                                    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-                                    if (fsEl && (fsEl === m || fsEl.contains(m))) score *= 4.0;
-                                    if (m.loop && m.muted && m.autoplay && !m.controls) score *= 0.6;
-                                    if (m.controls) score *= 1.2;
-
-                                    if (lastInteracted && lastInteracted.el === m && (Date.now() - lastInteracted.ts < 30000)) { score *= 4.0; }
-
-                                    const ratio = this._intersectionRatios.get(m) || 0; score *= (0.5 + ratio * 0.5);
-                                    if (centerEl && (m === centerEl || m.contains(centerEl) || centerEl.contains(m))) { score *= 2.0; } else { const rect = m.getBoundingClientRect(); const mx = rect.left + rect.width / 2; const my = rect.top + rect.height / 2; const dist = Math.hypot(mx - cx, my - cy); const maxDist = Math.hypot(cx, cy) || 1; score *= (1.2 - Math.min(1.0, dist / maxDist)); }
-                                    if (score > maxScore) { maxScore = score; bestCandidate = m; }
-                                }
+                                let score = (m.clientWidth * m.clientHeight) * (m.paused ? 1 : 2.5);
+                                if (score > maxScore) { maxScore = score; best = m; }
                             }
-                            if (bestCandidate && bestCandidate !== currentBest) {
-                                if (currentBest && currentBest !== bestCandidate) VideoAnalyzer.stop();
-                                sm.set('media.currentlyVisibleMedia', bestCandidate);
-
-                                if (this._changeTimer) clearTimeout(this._changeTimer);
-                                this._changeTimer = setTimeout(() => {
-                                    const vf = sm.get('videoFilter'); const active = sm.get('app.scriptActive');
-                                    if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(bestCandidate, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
-                                }, 200);
+                            if (best && best !== currentBest) {
+                                if (currentBest) VideoAnalyzer.stop();
+                                this.stateManager.set('media.currentlyVisibleMedia', best);
+                                const vf = this.stateManager.get('videoFilter');
+                                if (this.stateManager.get('app.scriptActive') && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(best, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
                             }
                         }, 300);
                     }
-                }, { root: null, rootMargin: '0px', threshold: thresholdConfig });
+                }, { threshold: [0, 0.25, 0.5] });
             }
         }
-        scheduleNextScan() {
-            if (this.scanTimerId) clearTimeout(this.scanTimerId);
-            this.scanTimerId = setTimeout(() => {
-                if (document.hidden) { this.currentScanInterval = this.baseScanInterval; this.scheduleNextScan(); return; }
-                const wrapped = () => safeGuard(() => { this.tick(); }, 'tick');
-                if (window.requestIdleCallback) window.requestIdleCallback(wrapped, { timeout: 1000 }); else setTimeout(wrapped, 1);
-            }, this.currentScanInterval);
-        }
+        scheduleNextScan() { if (this.scanTimerId) clearTimeout(this.scanTimerId); this.scanTimerId = setTimeout(() => { if (document.hidden) { this.currentScanInterval = this.baseScanInterval; this.scheduleNextScan(); return; } safeGuard(() => { this.tick(); }, 'tick'); }, this.currentScanInterval); }
         resetScanInterval() { this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; if (this.scanTimerId) { clearTimeout(this.scanTimerId); this.scheduleNextScan(); } }
         scanAndApply() { const visited = new WeakSet(); this._processAllElements(visited, !this._didInitialShadowFullScan); this._didInitialShadowFullScan = true; }
         _checkAndAdd(node, media, images, iframes) {
-            if (node.tagName === 'VIDEO') {
-                const vw = node.videoWidth || 0;
-                const vh = node.videoHeight || 0;
-                const cw = node.clientWidth || 0;
-                const ch = node.clientHeight || 0;
-
-                let sizeOk = (vw >= CONFIG.FILTER.MIN_VIDEO_SIZE || vh >= CONFIG.FILTER.MIN_VIDEO_SIZE) ||
-                             (cw >= CONFIG.FILTER.MIN_VIDEO_SIZE || ch >= CONFIG.FILTER.MIN_VIDEO_SIZE);
-
-                if (!sizeOk) {
-                    const ow = node.offsetWidth || 0;
-                    const oh = node.offsetHeight || 0;
-                    sizeOk = (ow >= CONFIG.FILTER.MIN_VIDEO_SIZE || oh >= CONFIG.FILTER.MIN_VIDEO_SIZE);
-                }
-                const isPotential = (node.src || node.currentSrc || node.srcObject || node.querySelector('source') || node.getAttribute('data-src') || node.getAttribute('data-video-src') || node.getAttribute('data-url'));
-                const isPlayableHidden = !sizeOk && (node.duration > 0 || node.readyState >= 1);
-                if (sizeOk || isPotential || isPlayableHidden) media.add(node);
-            } else if (node.tagName === 'IMG') {
-                const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
-                if (wantImages) {
-                    const w = node.naturalWidth || node.offsetWidth || 0; const h = node.naturalHeight || node.offsetHeight || 0;
-                    if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(node);
-                }
-            } else if (node.tagName === 'IFRAME') {
-                this._hookIframe(node);
-                iframes.add(node);
-            } else if (node.tagName === 'CANVAS') {
-                iframes.add(node);
-            }
-            else if (node.tagName === 'SOURCE' && node.parentNode && node.parentNode.tagName === 'VIDEO') { media.add(node.parentNode); }
+             if (node.tagName === 'VIDEO') media.add(node);
+             else if (node.tagName === 'IMG') { if (this.stateManager.get('ui.areControlsVisible')) images.add(node); }
+             else if (node.tagName === 'IFRAME') { this._hookIframe(node); iframes.add(node); }
+             else if (node.tagName === 'SOURCE' && node.parentNode && node.parentNode.tagName === 'VIDEO') media.add(node.parentNode);
         }
         scanSpecificRoot(root) {
-            if (!root) return;
-            if (root.nodeType === 1 && (root.tagName === 'VIDEO' || root.tagName === 'IMG')) {
-                const media = new Set(), images = new Set(), iframes = new Set();
-                this._checkAndAdd(root, media, images, iframes);
-                this._applyToSets(media, images, iframes);
-                return;
-            }
-            const visited = new WeakSet(); const { media, images, iframes } = this.findAllElements(root, 0, true, visited); this._applyToSets(media, images, iframes);
+            const media = new Set(), images = new Set(), iframes = new Set();
+            if (root.nodeType === 1 && (root.tagName === 'VIDEO' || root.tagName === 'IMG')) this._checkAndAdd(root, media, images, iframes);
+            else { const r = this.findAllElements(root, 0, true, new WeakSet()); r.media.forEach(m=>media.add(m)); r.images.forEach(i=>images.add(i)); r.iframes.forEach(f=>iframes.add(f)); }
+            this._applyToSets(media, images, iframes);
         }
         _applyToSets(mediaSet, imageSet, iframeSet) {
-            const sm = this.stateManager;
-            const currentMedia = new Set(sm.get('media.activeMedia')); const currentImages = new Set(sm.get('media.activeImages')); const currentIframes = new Set(sm.get('media.activeIframes'));
-            let mediaChanged = false, imagesChanged = false, iframesChanged = false;
-
-            for (const el of mediaSet) {
-                if (el.isConnected && this.attachMediaListeners(el)) { if (!currentMedia.has(el)) { currentMedia.add(el); mediaChanged = true; } }
-            }
-            for (const el of imageSet) {
-                if (el.isConnected && this.attachImageListeners(el)) { if (!currentImages.has(el)) { currentImages.add(el); imagesChanged = true; } }
-            }
-             for (const el of iframeSet) {
-                if (el.isConnected && this.attachIframeListeners(el)) { if (!currentIframes.has(el)) { currentIframes.add(el); iframesChanged = true; } }
-            }
-
-            if (mediaChanged) sm.set('media.activeMedia', currentMedia);
-            if (imagesChanged) sm.set('media.activeImages', currentImages);
-            if (iframesChanged) sm.set('media.activeIframes', currentIframes);
-
-            if ((mediaChanged || currentMedia.size > 0 || currentImages.size > 0) && !sm.get('ui.globalContainer')) { sm.set('ui.createRequested', true); }
+             const sm = this.stateManager;
+             const curM = new Set(sm.get('media.activeMedia')), curI = new Set(sm.get('media.activeImages')), curF = new Set(sm.get('media.activeIframes'));
+             let ch = false;
+             mediaSet.forEach(m => { if (m.isConnected && this.attachMediaListeners(m) && !curM.has(m)) { curM.add(m); ch = true; } });
+             imageSet.forEach(i => { if (i.isConnected && this.attachImageListeners(i) && !curI.has(i)) { curI.add(i); ch = true; } });
+             iframeSet.forEach(f => { if (f.isConnected && this.attachIframeListeners(f) && !curF.has(f)) { curF.add(f); ch = true; } });
+             if (ch) { sm.set('media.activeMedia', curM); sm.set('media.activeImages', curI); sm.set('media.activeIframes', curF); if (!sm.get('ui.globalContainer')) sm.set('ui.createRequested', true); }
         }
         _processAllElements(visited, scanShadow = true) {
             const { media, images, iframes } = this.findAllElements(document, 0, !scanShadow, visited);
-            this._syncSet(media, 'media.activeMedia', this.attachMediaListeners.bind(this), this.detachMediaListeners.bind(this));
-            this._syncSet(images, 'media.activeImages', this.attachImageListeners.bind(this), this.detachImageListeners.bind(this));
-
-             const activeSet = this.stateManager.get('media.activeIframes') || new Set();
-             const nextActiveSet = new Set(iframes);
-             let changed = false;
-             for (const oldEl of activeSet) { if(oldEl && oldEl.isConnected) nextActiveSet.add(oldEl); else { changed = true; } }
-             for (const el of nextActiveSet) { if (this.attachIframeListeners(el)) { if(!activeSet.has(el)) changed = true; } }
-
-             if (changed || activeSet.size !== nextActiveSet.size) this.stateManager.set('media.activeIframes', nextActiveSet);
-
-            const sm = this.stateManager;
-            if (!sm.get('ui.globalContainer')) { if (sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0) { sm.set('ui.createRequested', true); } }
-        }
-        _syncSet(newSet, stateKey, attachFn, detachFn) {
-            const activeSet = this.stateManager.get(stateKey);
-            const nextActiveSet = new Set(newSet);
-            let changed = false;
-            if (activeSet) {
-                for (const oldEl of activeSet) {
-                    if (oldEl && oldEl.isConnected) { nextActiveSet.add(oldEl); }
-                    else { detachFn(oldEl); changed = true; }
-                }
-            }
-            for (const el of nextActiveSet) {
-                if (el.isConnected) {
-                    if (attachFn(el)) { if (!activeSet || !activeSet.has(el)) changed = true; }
-                }
-            }
-            if (changed || (activeSet && activeSet.size !== nextActiveSet.size)) {
-                this.stateManager.set(stateKey, nextActiveSet);
-            }
+            this._applyToSets(media, images, iframes);
         }
         _cleanupDeadIframes() {
-            for (const [frame, mo] of this._iframeObservers) {
-                if (!frame || !frame.isConnected) {
-                    try { mo.disconnect(); } catch { } this._iframeObservers.delete(frame);
-                    const internal = this._iframeInternalObservers.get(frame);
-                    if (internal && internal.mo) { try { internal.mo.disconnect(); } catch { } }
-                    this._iframeInternalObservers.delete(frame);
-                    try { frame.removeEventListener('load', frame._vscOnLoad, { passive: true }); } catch { }
-                }
-            }
+             for (const [frame, mo] of this._iframeObservers) { if (!frame || !frame.isConnected) { mo.disconnect(); this._iframeObservers.delete(frame); } }
         }
         _hookIframe(frame) {
-            if (!frame || this._seenIframes.has(frame)) return; this._seenIframes.add(frame); if (this._iframeObservers.has(frame)) return;
-            const burstRescan = () => {
-                const now = Date.now(); const last = this._iframeBurstCooldown.get(frame) || 0;
-                if (now - last < 1500) return; this._iframeBurstCooldown.set(frame, now);
-                triggerBurstScan(200);
-            };
-            const attachInternalObserver = () => {
-                try {
-                    const doc = frame.contentDocument; if (!doc || !doc.body) return;
-                    this.scanSpecificRoot(doc.body);
-                    const prev = this._iframeInternalObservers.get(frame); if (prev && prev.doc === doc) return;
-                    if (prev && prev.mo) { try { prev.mo.disconnect(); } catch { } }
-                    const internalMo = new MutationObserver((mutations) => { burstRescan(); this._domDirty = true; });
-                    internalMo.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS });
-                    this._iframeInternalObservers.set(frame, { doc, mo: internalMo });
-                } catch { }
-            };
-            const onLoad = () => { burstRescan(); attachInternalObserver(); }; frame._vscOnLoad = onLoad;
+            if (!frame || this._seenIframes.has(frame)) return; this._seenIframes.add(frame);
+            const onLoad = () => { triggerBurstScan(200); };
             try { frame.addEventListener('load', onLoad, { passive: true }); } catch (e) { }
-            const mo = new MutationObserver((ms) => { if (!frame.isConnected) return; for (const m of ms) if (m.type === 'attributes') { burstRescan(); this._domDirty = true; break; } });
-            try { mo.observe(frame, { attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS }); this._iframeObservers.set(frame, mo); } catch { }
-            attachInternalObserver();
         }
         findAllElements(root, depth, skipShadowScan, visited) {
-            const media = new Set(); const images = new Set(); const iframes = new Set();
-            if (!root) return { media, images, iframes }; if (depth > CONFIG.SCAN.MAX_DEPTH) return { media, images, iframes };
-            const wantImages = this.stateManager.get('ui.areControlsVisible') || (this.stateManager.get('imageFilter.level') > 0 || this.stateManager.get('imageFilter.colorTemp') !== 0);
-            if (root === document) {
-                const hasShadow = _localShadowRoots.length > 0;
-                if (!document.querySelector('video, iframe, canvas, img, source') && !hasShadow) return { media, images, iframes };
-
-                const docVideos = document.getElementsByTagName('video'); for (let i = 0; i < docVideos.length; i++) this._checkAndAdd(docVideos[i], media, images, iframes);
-                if (wantImages) {
-                    const docImages = document.images; for (let i = 0; i < docImages.length; i++) {
-                        const img = docImages[i]; const w = img.naturalWidth || img.offsetWidth || 0; const h = img.naturalHeight || img.offsetHeight || 0;
-                        if ((w >= CONFIG.FILTER.MIN_IMAGE_SIZE && h >= CONFIG.FILTER.MIN_IMAGE_SIZE) || (w * h >= 200000)) images.add(img);
-                    }
-                }
-                const docIframes = document.getElementsByTagName('iframe'); for (let i = 0; i < docIframes.length; i++) this._checkAndAdd(docIframes[i], media, images, iframes);
-                const docCanvas = document.getElementsByTagName('canvas'); for (let i = 0; i < docCanvas.length; i++) this._checkAndAdd(docCanvas[i], media, images, iframes);
-            } else {
-                const candidates = root.querySelectorAll(wantImages ? SEL.MEDIA : SEL.NOIMG_TARGET);
-                candidates.forEach(el => this._checkAndAdd(el, media, images, iframes));
-            }
-            if (root === document) { const hasShadow = _localShadowRoots.length > 0; if (!media.size && !images.size && !hasShadow) return { media, images, iframes }; }
-            if (root.nodeType === 1) this._checkAndAdd(root, media, images, iframes);
-            if (visited.has(root)) return { media, images, iframes }; visited.add(root);
-
-            if (!skipShadowScan && root === document) {
-                _localShadowRoots.forEach(shadowRoot => {
-                    let flags = shadowRoot[VSC_FLAG] | 0;
-                    if (!(flags & FLAG_OBSERVED)) {
-                        try {
-                            const isHeavy = (_localShadowRoots.length > 300);
-                            const config = isHeavy ? { childList: true, subtree: true } : { childList: true, subtree: true, attributes: true, attributeFilter: CONFIG.SCAN.MUTATION_ATTRS };
-                            const smo = new MutationObserver(() => scheduleScan(shadowRoot));
-                            smo.observe(shadowRoot, config);
-                            shadowRoot[VSC_FLAG] = (flags | FLAG_OBSERVED);
-                            shadowRoot[VSC_SR_MO] = smo;
-                        } catch (e) { }
-                    }
-                    try {
-                        const res = this.findAllElements(shadowRoot, depth + 1, true, visited);
-                        res.media.forEach(m => media.add(m));
-                        res.images.forEach(i => images.add(i));
-                        res.iframes.forEach(f => iframes.add(f));
-                    } catch (e) { }
+            const media = new Set(), images = new Set(), iframes = new Set();
+            if (!root || depth > CONFIG.SCAN.MAX_DEPTH) return { media, images, iframes };
+            const els = root.querySelectorAll(SEL.MEDIA); els.forEach(el => this._checkAndAdd(el, media, images, iframes));
+            if (!skipShadowScan) {
+                _localShadowRoots.forEach(sr => {
+                    try { const r = this.findAllElements(sr, depth + 1, true, visited); r.media.forEach(m => media.add(m)); r.images.forEach(i => images.add(i)); r.iframes.forEach(f => iframes.add(f)); } catch(e){}
                 });
             }
             return { media, images, iframes };
         }
         attachMediaListeners(media) {
-            const owner = media.getAttribute('data-vsc-controlled-by');
-            if (owner && owner !== VSC_INSTANCE_ID) return false;
-            if (this.stateManager.get('media.mediaListenerMap').has(media)) return true;
+            if (media.getAttribute('data-vsc-controlled-by') === VSC_INSTANCE_ID) return false;
             try { this.intersectionObserver.observe(media); } catch (e) { return false; }
             media.setAttribute('data-vsc-controlled-by', VSC_INSTANCE_ID);
-            const rect = media.getBoundingClientRect ? media.getBoundingClientRect() : null;
-            const isVisible = !!rect && rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < innerHeight && rect.left < innerWidth;
-            const visMap = this.stateManager.get('media.visibilityMap');
-            if (visMap) visMap.set(media, isVisible);
-            if (isVisible) this._visibleVideos.add(media);
             if (this.stateManager.filterManagers.video) injectFiltersIntoContext(media, this.stateManager.filterManagers.video, this.stateManager);
-            const ac = new AbortController(); const signal = ac.signal;
-            const handleRescan = throttle(() => this.resetScanInterval(), 250);
-            on(media, 'loadedmetadata', handleRescan, P(signal)); on(media, 'loadeddata', handleRescan, P(signal));
-            const updateRate = () => this.stateManager.set('playback.currentRate', media.playbackRate);
-            on(media, 'play', updateRate, P(signal)); on(media, 'ratechange', updateRate, P(signal));
-            const enforceRate = throttle(() => {
-                if (!this.stateManager.get('app.scriptActive')) return;
-                const target = this.stateManager.get('playback.targetRate');
-                if (Math.abs((media.playbackRate || 1) - target) > 0.01) { try { media.playbackRate = target; } catch { } }
-            }, 250);
-            on(media, 'ratechange', enforceRate, P(signal)); on(media, 'play', enforceRate, P(signal));
-            const onPiP = () => { const visMap = this.stateManager.get('media.visibilityMap'); if (visMap) visMap.set(media, true); this.stateManager.set('media.currentlyVisibleMedia', media); };
-            on(media, 'enterpictureinpicture', onPiP, P(signal));
-            const onPlaying = () => {
-                if (this.stateManager.filterManagers.video) injectFiltersIntoContext(media, this.stateManager.filterManagers.video, this.stateManager);
-                const isVis = this.stateManager.get('media.visibilityMap').get(media);
-                if (isVis) {
-                    this.stateManager.set('media.currentlyVisibleMedia', media);
-                    const vf = this.stateManager.get('videoFilter'); const active = this.stateManager.get('app.scriptActive');
-                    if (active && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(media, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
-                }
-            };
-            on(media, 'playing', onPlaying, P(signal));
-
-            on(media, 'loadedmetadata', () => VideoAnalyzer.taintedResources.delete(media), P(signal));
-
-            const resetTaint = () => { if (VideoAnalyzer.taintedResources.has(media)) VideoAnalyzer.taintedResources.delete(media); };
-            on(media, 'canplay', resetTaint, P(signal));
-
-            const attrMo = new MutationObserver((mutations) => {
-                let triggered = false;
-                for (const m of mutations) {
-                    if (m.type === 'attributes') {
-                        if (m.target === media && (m.attributeName === 'src' || m.attributeName === 'poster' || m.attributeName === 'data-src')) {
-                            VideoAnalyzer.taintedResources.delete(media);
-                            triggered = true;
-                        }
-                        if (m.target.nodeName === 'SOURCE' && m.attributeName === 'src') {
-                            VideoAnalyzer.taintedResources.delete(media);
-                            triggered = true;
-                        }
-                    }
-                }
-                if (triggered) scheduleScan(media, true);
-            });
-            const isGlobalWatching = CONFIG.FLAGS.GLOBAL_ATTR_OBS && this.stateManager.get('app.scriptActive');
-            const inShadow = (() => { const rn = media.getRootNode?.(); return rn && rn.nodeType === 11 && rn.host; })();
-            attrMo.observe(media, { attributes: true, subtree: !isGlobalWatching || inShadow || !!media.querySelector('source'), attributeFilter: ['src', 'poster', 'data-src', 'data-url'] });
+            const attrMo = new MutationObserver((mutations) => { for(const m of mutations) if(m.type==='attributes') { VideoAnalyzer.taintedResources.delete(media); scheduleScan(media, true); } });
+            const hasSource = !!media.querySelector('source');
+            attrMo.observe(media, { attributes: true, subtree: hasSource, attributeFilter: ['src', 'poster', 'data-src'] });
             this._mediaAttributeObservers.set(media, attrMo);
-            this.stateManager.get('media.mediaListenerMap').set(media, () => { ac.abort(); attrMo.disconnect(); });
+            this.stateManager.get('media.mediaListenerMap').set(media, () => { attrMo.disconnect(); });
             if (this._resizeObs) this._resizeObs.observe(media);
             return true;
         }
         detachMediaListeners(media) {
-            const listenerMap = this.stateManager.get('media.mediaListenerMap'); if (!listenerMap.has(media)) return;
-            if (media.getAttribute('data-vsc-controlled-by') === VSC_INSTANCE_ID) media.removeAttribute('data-vsc-controlled-by');
-            const cleanup = listenerMap.get(media); if (typeof cleanup === 'function') cleanup();
-            listenerMap.delete(media);
-            try { this.intersectionObserver.unobserve(media); } catch (e) { }
-            this._visibleVideos.delete(media); this._mediaAttributeObservers.delete(media);
-            if (this._resizeObs) this._resizeObs.unobserve(media);
+             const listenerMap = this.stateManager.get('media.mediaListenerMap');
+             const cleanup = listenerMap.get(media); if (cleanup) cleanup(); listenerMap.delete(media);
+             try { this.intersectionObserver.unobserve(media); } catch (e) { } this._visibleVideos.delete(media);
+             if (this._resizeObs) this._resizeObs.unobserve(media);
         }
         attachImageListeners(image) {
-            if (!image || !this.intersectionObserver) return false;
-            if (this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
-            const visMap = this.stateManager.get('media.visibilityMap'); if (visMap) visMap.set(image, false);
-            if (!this._observedImages.has(image)) {
-                try { this.intersectionObserver.observe(image); this._observedImages.add(image); if (this._resizeObs) this._resizeObs.observe(image); } catch (e) { return false; }
-            }
-            return true;
+             if (!image || !this.intersectionObserver) return false;
+             if (this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
+             if (!this._observedImages.has(image)) { try { this.intersectionObserver.observe(image); this._observedImages.add(image); if (this._resizeObs) this._resizeObs.observe(image); } catch (e) { return false; } }
+             return true;
         }
-        detachImageListeners(image) { try { this.intersectionObserver.unobserve(image); } catch (e) { } this._observedImages.delete(image); if (this._resizeObs) this._resizeObs.unobserve(image); }
         attachIframeListeners(iframe) {
             if (!iframe || !this.intersectionObserver) return false;
-            if (this.stateManager.filterManagers.video) {
-                injectFiltersIntoContext(iframe, this.stateManager.filterManagers.video, this.stateManager);
-            }
-            const visMap = this.stateManager.get('media.visibilityMap');
-            const rect = iframe.getBoundingClientRect();
-            const isVisible = rect.width > 0 && rect.height > 0 && rect.top < innerHeight && rect.bottom > 0;
-            if (visMap) visMap.set(iframe, isVisible);
-
+            if (this.stateManager.filterManagers.video) injectFiltersIntoContext(iframe, this.stateManager.filterManagers.video, this.stateManager);
             try { this.intersectionObserver.observe(iframe); } catch(e) { return false; }
             return true;
+        }
+        _pruneDisconnected() {
+             const sm = this.stateManager;
+             const prune = (key, detachFn) => {
+                 const set = sm.get(key); if(!set) return; let ch = false; const next = new Set();
+                 for(const el of set) { if(el && el.isConnected) next.add(el); else { if(detachFn) detachFn(el); ch = true; } }
+                 if(ch) sm.set(key, next);
+             };
+             prune('media.activeMedia', this.detachMediaListeners.bind(this));
+             prune('media.activeImages', (img) => { if(this._resizeObs) this._resizeObs.unobserve(img); this._observedImages.delete(img); });
+             prune('media.activeIframes', null);
         }
     }
 
@@ -2157,7 +1145,10 @@
                             const genSCurveTable = (sh, hi, br = 0, contrast = 1.0) => {
                                 const steps = 256; const vals = []; const clamp = Utils.clamp; const smoothstep = (t) => t * t * (3 - 2 * t);
                                 const shN = clamp((sh || 0) / 100, -1, 1); const hiN = clamp((hi || 0) / 100, -1, 1); const b = clamp((br || 0) / 100, -1, 1) * 0.12; const c = clamp(Number(contrast || 1.0), 0.8, 1.4);
-                                const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40); const shoulder = clamp(0.70 - hiN * 0.10, 0.55, 0.92); const toeStrength = 0.18 + 0.22 * Math.abs(shN); const shoulderStrength = 0.08 + 0.18 * Math.abs(hiN);
+                                const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40);
+                                // Fix 5-4: Late shoulder for better midtone protection during highlight compression
+                                const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95);
+                                const toeStrength = 0.18 + 0.22 * Math.abs(shN); const shoulderStrength = 0.08 + 0.18 * Math.abs(hiN);
                                 for (let i = 0; i < steps; i++) {
                                     let x = i / (steps - 1); let y = x; y = clamp(y + b, 0, 1); y = clamp(0.5 + (y - 0.5) * c, 0, 1);
                                     if (shN !== 0 && y < toe) { const t = clamp(y / Math.max(1e-6, toe), 0, 1); const ss = smoothstep(t); const dir = Math.sign(shN); y = y + dir * (toe - y) * toeStrength * (1 - ss); }
@@ -2224,31 +1215,21 @@
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
 
-            // Fix 3A: Scale-based Sharpness (Detail)
             const v = this.stateManager.get('media.currentlyVisibleMedia');
             if (v && v.tagName === 'VIDEO') {
                 const vw = v.videoWidth || 0, vh = v.videoHeight || 0;
                 const cw = v.clientWidth || 0, ch = v.clientHeight || 0;
                 if (vw && vh && cw && ch) {
-                    const sx = cw / vw;
-                    const sy = ch / vh;
-                    const scale = Math.max(sx, sy);
-
-                    let off = 0;
-                    if (scale > 1.15) off = (scale - 1.15) * 8;
-                    else if (scale < 0.90) off = -(0.90 - scale) * 6;
+                    const sx = cw / vw; const sy = ch / vh; const scale = Math.max(sx, sy);
+                    let off = 0; if (scale > 1.15) off = (scale - 1.15) * 8; else if (scale < 0.90) off = -(0.90 - scale) * 6;
                     off = Math.max(-6, Math.min(6, off));
-
                     if (IS_MOBILE) off *= 0.7;
                     autoSharpLevel2 = Utils.clamp(autoSharpLevel2 + off, 0, IS_MOBILE ? 18 : 30);
                 }
             }
 
-            // Fix 3B & 5-2: Auto Denoise & Anti-Overshoot
             if (vf.autoExposure) {
-                if (vf.targetLuma > 8) autoSharpLevel2 *= 0.85; // Brightening denoise
-                
-                // Reduce sharp on low contrast or high clip
+                if (vf.targetLuma > 8) autoSharpLevel2 *= 0.85;
                 if (VideoAnalyzer._p90Ema > 0 && (VideoAnalyzer._p90Ema - VideoAnalyzer._p10Ema < 0.15)) autoSharpLevel2 *= 0.8;
             }
 
@@ -2256,73 +1237,41 @@
             this.filterManager.updateFilterValues(values); VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
             this.updateMediaFilterStates();
         }
-        applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; const values = { sharpenLevel: level, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
+        applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; let scaleFactor = IS_MOBILE ? 0.8 : 1.0; const values = { sharpenLevel: level * scaleFactor, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
         updateMediaFilterStates() { if (this._mediaStateRafId) return; this._mediaStateRafId = requestAnimationFrame(() => { this._mediaStateRafId = null; this.stateManager.get('media.activeMedia').forEach(media => { if (media.tagName === 'VIDEO') this._updateVideoFilterState(media); }); this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
 
-        _getFilterCheckTs(el) {
-            if (!this._filterCheckMap) this._filterCheckMap = new WeakMap();
-            return this._filterCheckMap.get(el) || 0;
-        }
-        _setFilterCheckTs(el, ts) {
-            if (!this._filterCheckMap) this._filterCheckMap = new WeakMap();
-            this._filterCheckMap.set(el, ts);
-        }
+        _getFilterCheckTs(el) { if (!this._filterCheckMap) this._filterCheckMap = new WeakMap(); return this._filterCheckMap.get(el) || 0; }
+        _setFilterCheckTs(el, ts) { if (!this._filterCheckMap) this._filterCheckMap = new WeakMap(); this._filterCheckMap.set(el, ts); }
 
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
-            
-            // Fix 2-3: Avoid heavy checks if not active
             const isVis = this.stateManager.get('media.visibilityMap').get(video);
             const isActive = scriptActive && isVis && shouldApply;
 
             if (isActive) {
                 injectFiltersIntoContext(video, this.filterManager, this.stateManager);
-                // Fix 2A: Restrict will-change to active video
-                if (video === this.stateManager.get('media.currentlyVisibleMedia')) {
-                     if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform';
-                } else {
-                     if (video.style.willChange) video.style.willChange = '';
-                }
-            } else {
-                if (video.style.willChange) video.style.willChange = '';
-            }
+                if (video === this.stateManager.get('media.currentlyVisibleMedia')) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; } else { if (video.style.willChange) video.style.willChange = ''; }
+            } else { if (video.style.willChange) video.style.willChange = ''; }
 
             const filterId = this.filterManager._options.settings.SHARPEN_ID + '_combined_filter';
             const filterCss = `url("#${filterId}")`;
 
             if (isActive) {
                 video.classList.add('vsc-video-filter-active');
-
                 requestAnimationFrame(() => {
-                    const now = performance.now();
-                    const last = this._getFilterCheckTs(video);
-                    if (now - last < 1200) return;
-                    this._setFilterCheckTs(video, now);
-
-                    const cs = window.getComputedStyle(video);
-                    const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
-                    if (!currentFilter.includes(filterId) && !/url\(.*#.*_combined_filter.*\)/.test(currentFilter)) {
-                        this.setInlineFilter(video, filterCss);
-                    } else {
-                        this.restoreInlineFilter(video);
-                    }
+                    const now = performance.now(); const last = this._getFilterCheckTs(video); if (now - last < 1200) return; this._setFilterCheckTs(video, now);
+                    const cs = window.getComputedStyle(video); const currentFilter = (cs.filter || '') + (cs.webkitFilter || '');
+                    if (!currentFilter.includes(filterId) && !/url\(.*#.*_combined_filter.*\)/.test(currentFilter)) { this.setInlineFilter(video, filterCss); } else { this.restoreInlineFilter(video); }
                 });
-            } else {
-                video.classList.remove('vsc-video-filter-active');
-                this.restoreInlineFilter(video);
-            }
-
-            if (vf.dither === 0) video.classList.add('no-grain');
-            else video.classList.remove('no-grain');
+            } else { video.classList.remove('vsc-video-filter-active'); this.restoreInlineFilter(video); }
+            if (vf.dither === 0) video.classList.add('no-grain'); else video.classList.remove('no-grain');
         }
         _updateImageFilterState(image) {
             const scriptActive = this.stateManager.get('app.scriptActive'); if (!scriptActive) { image.classList.remove('vsc-image-filter-active'); return; }
             const level = this.stateManager.get('imageFilter.level'); const colorTemp = this.stateManager.get('imageFilter.colorTemp');
             const shouldApply = level > 0 || colorTemp !== 0; const isVis = this.stateManager.get('media.visibilityMap').get(image); const isActive = isVis && shouldApply;
-
             if (isActive) injectFiltersIntoContext(image, this.imageFilterManager, this.stateManager);
-
             image.classList.toggle('vsc-image-filter-active', isActive);
         }
     }
@@ -2347,7 +1296,6 @@
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false; }
         init(stateManager) {
             super.init(stateManager);
-
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
             const onCreateRequested = () => { if (document.body) createUI(); else document.addEventListener('DOMContentLoaded', createUI, { once: true }); };
             this.subscribe('ui.createRequested', (req) => { if (req) onCreateRequested(); }); if (this.stateManager.get('ui.createRequested')) onCreateRequested();
@@ -2355,10 +1303,7 @@
             this.subscribe('media.activeMedia', () => this.updateUIVisibility());
             this.subscribe('media.activeImages', () => this.updateUIVisibility());
             this.subscribe('media.activeIframes', () => this.updateUIVisibility());
-            this.subscribe('playback.currentRate', rate => {
-                this.updateActiveSpeedButton(rate);
-                this.showToast(`${rate.toFixed(2)}x`);
-            });
+            this.subscribe('playback.currentRate', rate => { this.updateActiveSpeedButton(rate); this.showToast(`${rate.toFixed(2)}x`); });
             this.subscribe('ui.warningMessage', msg => this.showToast(msg));
             this.subscribe('ui.areControlsVisible', () => { this.updateTriggerStyle(); });
             this.subscribe('app.scriptActive', () => this.updateTriggerStyle());
@@ -2411,7 +1356,7 @@
         createGlobalUI() {
             const isMobile = this.stateManager.get('app.isMobile');
             this.globalContainer = document.createElement('div');
-            this.globalContainer.id = 'vsc-global-container'; // Use ID for CSS styling
+            this.globalContainer.id = 'vsc-global-container';
             this.globalContainer.setAttribute('data-vsc-internal', '1');
             const tx = this.uiState.x || 0; const ty = this.uiState.y || 0;
             this.globalContainer.style.setProperty('--vsc-translate-x', `${tx}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${ty}px`);
@@ -2423,12 +1368,26 @@
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             this.triggerElement.className = 'vsc-trigger';
 
-            this.triggerElement.addEventListener('click', (e) => {
-                if (this.wasDragged || this._longPressTriggered) {
-                    e.stopPropagation(); e.preventDefault();
-                    this._longPressTriggered = false;
-                    return;
-                }
+            this.triggerElement.addEventListener('pointerdown', (e) => {
+                if (['BUTTON', 'SELECT', 'INPUT'].includes(e.target.tagName)) return;
+                this._longPressTriggered = false;
+                if (this.pressTimer) clearTimeout(this.pressTimer);
+                this.pressTimer = setTimeout(() => {
+                    if (!this.isDragging) {
+                        this._longPressTriggered = true;
+                        this.stateManager.set('app.scriptActive', false);
+                        this.stateManager.set('ui.areControlsVisible', false);
+                        this.showToast('Script OFF (Long Press)');
+                        this.updateTriggerStyle();
+                    }
+                }, 800);
+            });
+
+            this.triggerElement.addEventListener('pointerup', (e) => {
+                if (this.pressTimer) clearTimeout(this.pressTimer);
+                if (this.wasDragged) return;
+                if (this._longPressTriggered) { this._longPressTriggered = false; return; }
+
                 const isVisible = this.stateManager.get('ui.areControlsVisible');
                 triggerBurstScan();
                 if (isVisible) {
@@ -2442,12 +1401,8 @@
                         const hasMediaState = sm.get('media.activeMedia').size > 0 || sm.get('media.activeImages').size > 0 || sm.get('media.activeIframes').size > 0;
                         const hasMediaDom = !!document.querySelector('video, iframe') || hasRealVideoCached();
                         if (hasMediaState || hasMediaDom) return;
-                        if (count > 0) {
-                            triggerBurstScan(250);
-                            setTimeout(() => ensureMediaSoon(count - 1), 900);
-                        } else {
-                            this.showToast('미디어를 아직 못 찾았어요 (로딩 지연/iframe/CORS일 수 있음)');
-                        }
+                        if (count > 0) { triggerBurstScan(250); setTimeout(() => ensureMediaSoon(count - 1), 900); }
+                        else { this.showToast('미디어를 아직 못 찾았어요 (로딩 지연/iframe/CORS일 수 있음)'); }
                     };
                     setTimeout(() => ensureMediaSoon(10), 500);
                 }
@@ -2475,25 +1430,16 @@
             this.startBootGate();
         }
 
-        // Fix 1D: Soft Boot Gate (Never completely hide)
         startBootGate() {
-            this.globalContainer.style.display = 'flex'; // Default to visible
-            this.globalContainer.style.opacity = '0.5'; // Start dim
+            this.globalContainer.style.display = 'flex';
+            this.globalContainer.style.opacity = '0.5';
             let checks = 0;
             const check = () => {
                 checks++;
-                const hasMedia = this.stateManager.get('media.activeMedia').size > 0 ||
-                                 this.stateManager.get('media.activeIframes').size > 0 ||
-                                 hasRealVideoCached();
-
-                if (hasMedia) {
-                    this.globalContainer.style.opacity = '1';
-                } else if (checks < 20) {
-                      setTimeout(check, 500);
-                } else {
-                    // Even if failed, keep visible but dim, allowing user interaction
-                    this.globalContainer.style.opacity = '0.5';
-                }
+                const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || this.stateManager.get('media.activeIframes').size > 0 || hasRealVideoCached();
+                if (hasMedia) { this.globalContainer.style.opacity = '1'; }
+                else if (checks < 20) { setTimeout(check, 500); }
+                else { this.globalContainer.style.opacity = '0.5'; }
             };
             check();
         }
@@ -2518,30 +1464,20 @@
             }
             if (this.hostElement) { this.hostElement.style.display = isVisible ? 'flex' : 'none'; }
             if (this.speedButtonsContainer) {
-                const hasVideo =
-                    [...this.stateManager.get('media.activeMedia')].some(m => m && m.tagName === 'VIDEO') ||
-                    !!document.querySelector('video, iframe') ||
-                    hasRealVideoCached();
-
+                const hasVideo = [...this.stateManager.get('media.activeMedia')].some(m => m && m.tagName === 'VIDEO') || !!document.querySelector('video, iframe') || hasRealVideoCached();
                 this.speedButtonsContainer.style.display = isVisible && hasVideo ? 'flex' : 'none';
             }
             this.updateUIVisibility();
         }
         updateUIVisibility() {
-            if (this.stateManager.get('ui.hideUntilReload')) {
-                if (this.globalContainer) this.globalContainer.style.display = 'none';
-                return;
-            }
-
+            if (this.stateManager.get('ui.hideUntilReload')) { if (this.globalContainer) this.globalContainer.style.display = 'none'; return; }
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set(); const activeIframes = this.stateManager.get('media.activeIframes') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0; const hasIframe = activeIframes.size > 0;
             const hasDomVideo = !!document.querySelector('video, iframe') || hasRealVideoCached();
-            const hasAnyVideo = hasLocalVideo || hasIframe || hasDomVideo;
-            const hasAny = hasAnyVideo || hasLocalImage;
+            const hasAnyVideo = hasLocalVideo || hasIframe || hasDomVideo; const hasAny = hasAnyVideo || hasLocalImage;
 
             if (this.globalContainer) {
-                // Always flex, controlled by opacity in StartBootGate or user interaction
                 this.globalContainer.style.display = 'flex';
                 if (controlsVisible || hasAny) this.globalContainer.style.opacity = '1';
             }
@@ -2691,17 +1627,6 @@
                     document.addEventListener('mousemove', onDragMove);
                     document.addEventListener('mouseup', onDragEnd);
                 }
-
-                if (this.pressTimer) clearTimeout(this.pressTimer);
-                this.pressTimer = setTimeout(() => {
-                    if (!this.wasDragged) {
-                        this._longPressTriggered = true;
-                        this.stateManager.set('ui.areControlsVisible', false);
-                        this.stateManager.set('app.scriptActive', false);
-                        this.stateManager.set('ui.hideUntilReload', true);
-                        this.globalContainer.style.display = 'none';
-                    }
-                }, 1000);
             };
             const updatePosition = () => { if (!this.isDragging || !this.globalContainer) return; const newX = this.currentPos.x + this.delta.x; const newY = this.currentPos.y + this.delta.y; this.globalContainer.style.setProperty('--vsc-translate-x', `${newX}px`); this.globalContainer.style.setProperty('--vsc-translate-y', `${newY}px`); this.animationFrameId = null; };
             const onDragMove = (e) => {
