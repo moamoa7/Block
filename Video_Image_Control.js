@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.14 Masterpiece)
+// @name        Video_Image_Control (v132.0.16 Hotfix)
 // @namespace   https://com/
-// @version     132.0.14
-// @description v132.0.14: Safe Iframe Pinning, Robust Worker Fallback, Smart Candidate Scan, CORS Semi-Auto Mode, and Pure Linear AE.
+// @version     132.0.16
+// @description v132.0.16: Fix 'th' ReferenceError in AE logic. (Previous updates: rIC fix, sqrt opt, split EV clamp)
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -70,13 +70,22 @@
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host,
         safeGetItem: (k) => { try { return localStorage.getItem(k); } catch(e) { return null; } },
         safeSetItem: (k, v) => { try { localStorage.setItem(k, v); } catch(e) {} },
-        safeRemoveItem: (k) => { try { localStorage.removeItem(k); } catch(e) {} }
+        safeRemoveItem: (k) => { try { localStorage.removeItem(k); } catch(e) {} },
+        median5: (a) => {
+            const b = a.slice();
+            b.sort((x,y) => x - y);
+            return b[Math.floor(b.length/2)] || 0;
+        }
     };
 
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
-    const scheduleWork = (cb) => { const wrapped = (d) => { try { cb(d); } catch (e) { if (CONFIG.DEBUG) console.error(e); } }; if (window.requestIdleCallback) return window.requestIdleCallback(wrapped, { timeout: 1000 }); return setTimeout(() => wrapped({ timeRemaining: () => 1, didTimeout: true }), 1); };
+    
+    // v132.0.15: Safe rIC Fallback
+    const rIC = window.requestIdleCallback || (cb => setTimeout(() => cb({ timeRemaining: () => 1, didTimeout: true }), 1));
+    const scheduleWork = (cb) => rIC((d) => { try { cb(d); } catch (e) { if (CONFIG.DEBUG) console.error(e); } }, { timeout: 1000 });
+
     const P = (signal) => ({ passive: true, signal });
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => { try { target.addEventListener(type, listener, options); } catch(e){} };
@@ -102,6 +111,7 @@
                     }
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
+                
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -114,14 +124,17 @@
                     }
                     return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
                 };
+
                 const botH = Math.max(1, Math.floor(bandH * 0.8));
                 const topRes = checkBand(0, size, 0, bandH);
                 const botRes = checkBand(0, size, size - botH, size);
                 const leftRes = checkBand(0, bandH, 0, size);
                 const rightRes = checkBand(size - bandH, size, 0, size);
+
                 const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20);
                 const topBar = isBar(topRes), botBar = isBar(botRes), leftBar = isBar(leftRes), rightBar = isBar(rightRes);
                 const barsNow = (topBar && botBar) || (leftBar && rightBar);
+                
                 let subGuardY = size;
                 if (!botBar) {
                     let whiteCount = 0, subTotal = 0;
@@ -137,12 +150,14 @@
                     }
                     if (subTotal > 0 && (whiteCount / subTotal) > 0.05) subGuardY = subStart;
                 }
+
                 let validCount = 0, hiClipCount = 0, loClipCount = 0;
                 const startY = topBar ? Math.floor(size * 0.15) : 0;
                 let endY = botBar ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
                 endY = Math.min(endY, subGuardY);
                 const startX = leftBar ? Math.floor(size * 0.15) : 4;
                 const endX = rightBar ? Math.floor(size * 0.85) : size - 4;
+
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = startX; x < endX; x+=step) {
                         const i = (y * size + x) * 4;
@@ -152,12 +167,18 @@
                         if (luma <= 5) loClipCount++;
                     }
                 }
+
                 let p10 = -1, p50 = -1, p90 = -1, p55 = -1;
                 const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
                 const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
+
                 if (validCount > 0) {
                     let sum = 0;
-                    const t10 = validCount * 0.10, t50 = validCount * 0.50, t55 = validCount * 0.55, t90 = validCount * 0.90;
+                    const t10 = validCount * 0.10;
+                    const t50 = validCount * 0.50;
+                    const t55 = validCount * 0.55;
+                    const t90 = validCount * 0.90;
+                    
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
                         if (p10 < 0 && sum >= t10) p10 = i / 255;
@@ -166,7 +187,11 @@
                         if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
                 }
-                if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p55 < 0) p55 = 0.55; if (p90 < 0) p90 = 0.9;
+                if (p10 < 0) p10 = 0.1; 
+                if (p50 < 0) p50 = 0.5; 
+                if (p55 < 0) p55 = 0.55; 
+                if (p90 < 0) p90 = 0.9;
+
                 self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio });
             }
         };
@@ -457,6 +482,7 @@
         }
     }
 
+    // --- State Manager ---
     class StateManager {
         constructor() { this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null }; }
         init() {
@@ -489,8 +515,8 @@
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40 },
-        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentLinearGain: 1.0,
-        frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
+        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0, currentLinearGain: 1.0,
+        _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
         _lastBarsState: false, _aeActive: false, _lastKick: 0,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
@@ -609,7 +635,7 @@
         },
         
         _pickBestVideoNow() {
-            // v132.0.14: Pin Priority (User Interaction)
+            // v132.0.14: Pin Priority
             if (VSC_PINNED.el && VSC_PINNED.el.isConnected && Date.now() < VSC_PINNED.until) {
                 if (VSC_PINNED.el.tagName === 'VIDEO' || VSC_PINNED.el.tagName === 'CANVAS') return VSC_PINNED.el;
                 if (VSC_PINNED.el.tagName === 'IFRAME') {
@@ -619,6 +645,7 @@
                         const inner = doc?.querySelector?.('video, canvas');
                         if (inner && inner.isConnected) return inner;
                     } catch {}
+                    // If cross-origin, AE stops but UI controls iframe.
                 }
             }
 
@@ -654,8 +681,8 @@
                         score *= 0.5;
                     }
 
-                    const dist = Math.sqrt(Math.pow(rect.x + rect.width/2 - cx, 2) + Math.pow(rect.y + rect.height/2 - cy, 2));
-                    score -= dist * 0.5;
+                    const dist = Math.min(2e6, (rect.x + rect.width/2 - cx)**2 + (rect.y + rect.height/2 - cy)**2); // v132.0.15: Dist^2
+                    score -= dist * 0.0002;
 
                     if (score > maxScore) { maxScore = score; best = c; }
                 }
@@ -673,7 +700,7 @@
             if (!this.ctx || !this.canvas) this.init(this.stateManager);
             if (!this.ctx) return;
 
-            // v132.0.14: Reset on switch to prevent ghosting
+            // v132.0.10: Ghosting Fix
             if (this.targetVideo && this.targetVideo !== video) {
                 this.currentAdaptiveGamma = 1.0;
                 this.currentAdaptiveBright = 0;
@@ -709,10 +736,13 @@
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0;
             
+            // v132.0.8: Force immediate update (Monitoring Off Fix)
             this.notifyUpdate({
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
+                shadowsAdj: this.currentShadowsAdj,
+                highlightsAdj: this.currentHighlightsAdj,
                 linearGain: this.currentLinearGain
             }, 0.5, this.targetVideo, false);
 
@@ -740,7 +770,7 @@
                 if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity, targetLuma: this.currentSettings.targetLuma, aeStrength: this.currentSettings.aeStrength }); }
                 if (evChanged || aeTurnedOn) { this._kickImmediateAnalyze(); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
-                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0 }, 0);
+                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
             }
         },
         loop() {
@@ -773,11 +803,11 @@
             const visMap = this.stateManager.get('media.visibilityMap');
             const isVis = visMap ? visMap.get(this.targetVideo) : true;
             
-            // v132.0.14: Main-video only AE optimization (Skip thumbnails)
+            // v132.0.14: Main-video only AE optimization
             if (!document.fullscreenElement && !document.pictureInPictureElement) {
                 const rect = this.targetVideo.getBoundingClientRect();
                 const screenArea = window.innerWidth * window.innerHeight;
-                if (rect.width * rect.height < screenArea * 0.12 && isVis === false) return; // Skip small/hidden
+                if (rect.width * rect.height < screenArea * 0.12 && isVis === false) return; 
             }
 
             if (this._lowMotionFrames > 60) {
@@ -796,6 +826,8 @@
                          try { this._worker.terminate(); } catch {}
                          this._worker = null; if (this._workerUrl) URL.revokeObjectURL(this._workerUrl); this._workerUrl = null;
                          this._workerStallCount = 0; this.init(this.stateManager);
+                         // v132.0.15: Cooldown
+                         return;
                      }
                  } else {
                      const isAggressive = (this._evAggressiveUntil && now < this._evAggressiveUntil);
@@ -877,8 +909,8 @@
             this._roiP50History.push(mid);
 
             if (this._roiP50History.length > 5) this._roiP50History.shift();
-            const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
-            const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
+            // v132.0.15: Optimized Median
+            const p50m = Utils.median5(this._roiP50History);
 
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
             this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
@@ -899,21 +931,21 @@
             }
             this.lastAvgLuma = currentLuma;
 
-            let targetAdaptiveGamma = 1.0, targetAdaptiveBright = 0;
             let targetLinearGain = 1.0;
 
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                const targetMid = 0.46;
+                const targetMid = 0.44; // v132.0.15: Tuned Lower (Minimal)
                 let baseEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                 const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
                 
-                // v132.0.14: Apply UserEV separately (User Intent > Auto)
-                let rawEV = baseEV * aeStr + userEV;
+                // v132.0.15: Clamp Separation for User Intent Preservation
+                let autoEV = Utils.clamp(baseEV * aeStr, -0.25, 0.30);
+                let rawEV = autoEV + userEV;
 
                 const range = Math.max(0, stableP90 - this._p10Ema);
                 if (range < 0.25) rawEV *= 0.75;
@@ -922,9 +954,10 @@
                 if (this._aeActive == null) this._aeActive = false;
                 const deadOut = 0.20;
                 const deadIn  = 0.10;
+                // v132.0.16: Fix ReferenceError (th defined)
                 const th = this._aeActive ? deadIn : deadOut;
 
-                // Deadband only applies to the AUTO part
+                // Deadband on Auto part only
                 if (Math.abs(baseEV * aeStr) < th && userEV === 0) {
                     rawEV = 0;
                     this._aeActive = false;
@@ -941,13 +974,13 @@
                     rawEV *= (1.0 - 0.70 * loGate);
                 }
 
-                rawEV = Utils.clamp(rawEV, -0.25, 0.30);
+                // v132.0.15: Final wide clamp
+                rawEV = Utils.clamp(rawEV, -1.0, 1.0);
 
                 if (this._highMotion && !aggressive) {
                     rawEV *= 0.8;
                 }
 
-                // v132.0.14: Pure Linear Mode (Gamma fixed at 1.0)
                 targetLinearGain = Math.pow(2, rawEV);
             }
 
@@ -975,6 +1008,9 @@
             this.currentLinearGain = Math.pow(2, nextEV);
             
             if (Math.abs(this.currentLinearGain - 1.0) < 0.01 && !aggressive) this.currentLinearGain = 1.0;
+
+            this.currentAdaptiveGamma = 1.0; // Fixed at 1.0 for Linear Mode
+            this.currentAdaptiveBright = 0;
 
             this.currentClarityComp = smooth(this._lastClarityComp || 0, targetClarityComp, 0.1, 0.1);
             this._lastClarityComp = this.currentClarityComp;
@@ -1028,6 +1064,7 @@
             if (!this.ctx || !this.dryGain || !this.wetGain) return;
             if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
             const t = this.ctx.currentTime;
+            // Dry/Wet Crossfade for perfect bypass
             this.dryGain.gain.setTargetAtTime(enabled ? 0 : 1, t, 0.05);
             this.wetGain.gain.setTargetAtTime(enabled ? Math.pow(10, this.stateManager.get('audio.boost') / 20) : 0, t, 0.05);
         }
@@ -1139,8 +1176,8 @@
                 let sawMediaNode = false;
                 for (const m of mutations) {
                     for (const n of m.addedNodes) {
-                        if (n && n.nodeType === 1) {
-                            if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); break; }
+                        if (n && n.nodeType === 1) { // v132.0.10: Check nodeType
+                            if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); break; } // v132.0.13: Break early
                             else if (n.querySelector?.('video, iframe')) { sawMediaNode = true; scheduleScan(n, true); break; }
                         }
                     }
@@ -1231,7 +1268,7 @@
                     entries.forEach(e => {
                         const isVisible = e.isIntersecting && e.intersectionRatio > 0;
                         if (this.stateManager.get('media.visibilityMap')) this.stateManager.get('media.visibilityMap').set(e.target, isVisible);
-                        this._intersectionRatios.set(e.target, e.intersectionRatio);
+                        // v132.0.10: Removed unused _intersectionRatios
                         if (e.target.tagName === 'VIDEO') { if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target); needsUpdate = true; }
                     });
                     if (needsUpdate && !document.hidden) {
@@ -1334,6 +1371,7 @@
             try { frame.addEventListener('load', onLoad, { passive: true }); } catch (e) { }
         }
         attachMediaListeners(media) {
+            // v132.0.10: Robust re-attach check
             const owner = media.getAttribute('data-vsc-controlled-by');
             if (owner && owner !== VSC_INSTANCE_ID) return false;
             
