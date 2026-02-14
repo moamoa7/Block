@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.12 Syntax Fix)
+// @name        Video_Image_Control (v132.0.13 Robust Final)
 // @namespace   https://com/
-// @version     132.0.12
-// @description v132.0.12: Fixed SyntaxError in CoreMediaPlugin (Moved cache init to constructor).
+// @version     132.0.13
+// @description v132.0.13: Syntax Fixes (Class Fields), Dead Code Removal, Smarter Sensitive Check, and Video Pinning Logic.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -30,6 +30,7 @@
     // 2. Constants & Configuration
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
     const VSC_AUDIO_SRC = Symbol('vsc_audio_src');
+    const VSC_PINNED = { el: null, until: 0 }; // v132.0.13: Global Pinning State
 
     const MEDIA_EVENTS = ['play', 'playing', 'pause', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'];
     const DEVICE_RAM = navigator.deviceMemory || 4;
@@ -294,7 +295,7 @@
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
     else setTimeout(() => { _sensitiveLockUntil = 0; }, 1000);
 
-    const SENSITIVE_KEYWORDS = ['checkout', 'payment', 'bank', 'verify', 'kakaobank', 'toss'];
+    const SENSITIVE_KEYWORDS = ['checkout', 'payment', 'bank', 'kakaobank', 'toss']; // v132.0.13: Removed 'verify'
     const isSensitiveUrl = () => { return SENSITIVE_KEYWORDS.some(kw => location.href.toLowerCase().includes(kw)); };
 
     const isSensitiveContext = () => {
@@ -304,7 +305,13 @@
         if (!document.documentElement) return false;
         let result = isSensitiveUrl();
         if (!result) {
-            try { if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"]')) result = true; } catch(e) {}
+            const u = location.href.toLowerCase();
+            // v132.0.13: Smarter verify check
+            if (u.includes('verify')) {
+                try { if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"]')) result = true; } catch(e) {}
+            } else {
+                try { if (document.querySelector('input[type="password"], input[name*="cvc"]')) result = true; } catch(e) {}
+            }
         }
         _sensCache = { t: now, v: result };
         return result;
@@ -327,7 +334,8 @@
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
         if (!found) {
             const ifs = document.getElementsByTagName('iframe');
-            for (let i=0; i<ifs.length; i++) {
+            const max = IS_LOW_END ? 60 : 200; // v132.0.13: Limit iframe check on low-end
+            for (let i=0; i<ifs.length && i<max; i++) {
                 const r = ifs[i].getBoundingClientRect?.();
                 if (r && r.width >= 120 && r.height >= 120 && r.bottom > 0 && r.top < innerHeight) { found = true; break; }
             }
@@ -501,7 +509,7 @@
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40 },
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0, currentLinearGain: 1.0,
         _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
-        _lastBarsState: false, _aeActive: false,
+        _lastBarsState: false, _aeActive: false, _lastKick: 0,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
         init(stateManager) {
@@ -617,20 +625,9 @@
              }
              this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio);
         },
-        
-        // v132.0.11: Iframe Cache & Helper (Fixed placement)
-        _iframeDocCache: new WeakMap(),
-        _tryGetIframeDoc(fr) {
-             const now = performance.now();
-             const c = this._iframeDocCache.get(fr);
-             if (c && (now - c.t) < 3000) return c.ok ? c.doc : null;
-             let doc = null, ok = false;
-             try { doc = fr.contentDocument; ok = !!doc; } catch {}
-             this._iframeDocCache.set(fr, { t: now, ok, doc });
-             return ok ? doc : null;
-        },
-
         _pickBestVideoNow() {
+            if (VSC_PINNED.el && VSC_PINNED.el.isConnected && Date.now() < VSC_PINNED.until) return VSC_PINNED.el;
+
             const pip = document.pictureInPictureElement; if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
             const fs = document.fullscreenElement; if (fs) { const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video'); if (v && v.isConnected) return v; }
             const sm = this.stateManager; let v = sm ? sm.get('media.currentlyVisibleMedia') : null; if (v && v.isConnected && v.tagName === 'VIDEO') return v;
@@ -678,7 +675,12 @@
             }
             return best;
         },
-        _kickImmediateAnalyze() { const run = () => { try { if (!this.targetVideo || !this.ctx) return; this.processFrame(true); } catch {} }; try { queueMicrotask(run); } catch { setTimeout(run, 0); } requestAnimationFrame(run); },
+        _kickImmediateAnalyze() { 
+            const now = performance.now();
+            if (this._lastKick && now - this._lastKick < 60) return;
+            this._lastKick = now;
+            requestAnimationFrame(() => { try { if (this.targetVideo && this.ctx) this.processFrame(true); } catch {} });
+        },
         start(video, settings) {
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
             if (!this.ctx || !this.canvas) this.init(this.stateManager);
@@ -715,7 +717,6 @@
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
             this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0;
             
-            // v132.0.8: Force immediate update (Monitoring Off Fix)
             this.notifyUpdate({
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
@@ -896,14 +897,14 @@
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                const targetMid = 0.47;
-                let rawEV = Math.log2(targetMid / safeCurrent);
+                const targetMid = 0.46; // v132.0.10: Tuned
+                let baseEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
-                rawEV += userEV;
-                
                 const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
-                rawEV *= aeStr;
+                
+                // v132.0.10: Apply userEV separately
+                let rawEV = baseEV * aeStr + userEV;
 
                 const range = Math.max(0, stableP90 - this._p10Ema);
                 if (range < 0.25) rawEV *= 0.75;
@@ -914,7 +915,7 @@
                 const deadIn  = 0.10;
                 const th = this._aeActive ? deadIn : deadOut;
 
-                if (Math.abs(rawEV) < th) {
+                if (Math.abs(baseEV * aeStr) < th && userEV === 0) {
                     rawEV = 0;
                     this._aeActive = false;
                 } else {
@@ -936,13 +937,12 @@
                     rawEV *= 0.8;
                 }
 
+                // v132.0.10: Log-space Smoothing preparation (Linear Mode)
                 targetLinearGain = Math.pow(2, rawEV);
                 
                 targetAdaptiveGamma = 1.0; 
                 targetAdaptiveBright = 0; 
-
-                if (rawEV > 0) targetShadowsAdj = rawEV * 2.0; 
-                if (hiClipRatio > 0.005) targetHighlightsAdj = hiClipRatio * 80;
+                // Pure Linear Mode: No shadows/highlights auto-adjustment
             }
 
             let targetClarityComp = 0;
@@ -962,12 +962,17 @@
             const baseUp = aggressive ? 0.20 : 0.02;
             const baseDown = aggressive ? 0.20 : 0.06;
 
+            // v132.0.10: Log-space smoothing for Gain
+            const currentEV = Math.log2(this.currentLinearGain || 1.0);
+            const targetEV = Math.log2(targetLinearGain);
+            const nextEV = smooth(currentEV, targetEV, baseUp, baseDown);
+            this.currentLinearGain = Math.pow(2, nextEV);
+            
+            // Snap to neutral
+            if (Math.abs(this.currentLinearGain - 1.0) < 0.01 && !aggressive) this.currentLinearGain = 1.0;
+
             this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma, baseUp, baseDown);
             this.currentAdaptiveBright = smooth(this.currentAdaptiveBright || 0, targetAdaptiveBright, baseUp, baseDown);
-            this.currentLinearGain = smooth(this.currentLinearGain || 1.0, targetLinearGain, baseUp, baseDown);
-            
-            // v132.0.9: Snap to neutral for bypass
-            if (Math.abs(this.currentLinearGain - 1.0) < 0.01 && !aggressive) this.currentLinearGain = 1.0;
 
             this.currentClarityComp = smooth(this._lastClarityComp || 0, targetClarityComp, 0.1, 0.1);
             this.currentShadowsAdj = smooth(this._lastShadowsAdj || 0, targetShadowsAdj, 0.1, 0.1);
@@ -1081,7 +1086,21 @@
     class CoreMediaPlugin extends Plugin {
         constructor() { super('CoreMedia'); this.mainObserver = null; this.intersectionObserver = null; this.scanTimerId = null; this.emptyScanCount = 0; this.baseScanInterval = IS_TOP ? CONFIG.SCAN.INTERVAL_TOP : CONFIG.SCAN.INTERVAL_IFRAME; this.currentScanInterval = this.baseScanInterval; this._seenIframes = new WeakSet(); this._observedImages = new WeakSet();
         this._lastImmediateScan = new WeakMap(); this._globalAttrObs = null; this._didInitialShadowFullScan = false; this._visibleVideos = new Set(); this._intersectionRatios = new WeakMap(); this._domDirty = true; this._mutationCounter = 0; this._isBackoffMode = false; this._backoffInterval = null; this._historyOrig = null; this._lastShadowPrune = 0; this._lastAttrObsProbe = 0; this._lastSensitive = null; this._updateHooksState = null; this.lastInteractedMedia = null;
-        this._shadowScanIndex = 0; }
+        // v132.0.12: Moved init to constructor
+        this._shadowScanIndex = 0; 
+        this._iframeDocCache = new WeakMap();
+        }
+
+        // v132.0.12: Moved helper to class method
+        _tryGetIframeDoc(fr) {
+             const now = performance.now();
+             const c = this._iframeDocCache.get(fr);
+             if (c && (now - c.t) < 3000) return c.ok ? c.doc : null;
+             let doc = null, ok = false;
+             try { doc = fr.contentDocument; ok = !!doc; } catch {}
+             this._iframeDocCache.set(fr, { t: now, ok, doc });
+             return ok ? doc : null;
+        }
 
         init(stateManager) {
             super.init(stateManager); this.ensureObservers(); _corePluginRef = this; VideoAnalyzer.ensureStateManager(stateManager);
@@ -1095,21 +1114,30 @@
             on(window, 'pagehide', stopAnalyzer, P(this._ac.signal));
             on(window, 'blur', stopAnalyzer, P(this._ac.signal));
 
+            // v132.0.13: Global Pinning Logic
             on(document, 'pointerdown', (e) => {
                 let target = e.target;
                 while(target && target !== document) {
                     if (target.tagName === 'VIDEO' || target.tagName === 'IFRAME') {
                         this.lastInteractedMedia = target;
+                        VSC_PINNED.el = target;
+                        VSC_PINNED.until = Date.now() + 15000; // Pin for 15s
                         return;
                     }
                     target = target.parentElement;
                 }
             }, CP(this._ac.signal));
 
-            MEDIA_EVENTS.forEach(evt => on(document, evt, (e) => {
+            // v132.0.13: Immediate play detection
+            on(document, 'play', (e) => {
                 const t = e.target;
-                if (t && t.tagName === 'VIDEO') { this.lastInteractedMedia = t; t._vscLastPlay = Date.now(); }
-            }, CP(this._ac.signal)));
+                if (t && t.tagName === 'VIDEO') { 
+                    this.lastInteractedMedia = t; 
+                    t._vscLastPlay = Date.now();
+                    // Promote to active if significant
+                    if (t.getBoundingClientRect().width > 100) this.stateManager.set('media.currentlyVisibleMedia', t);
+                }
+            }, CP(this._ac.signal));
 
             this._backoffInterval = setInterval(() => { if (this._mutationCounter > 80) { if (!this._isBackoffMode) { this._isBackoffMode = true; } } else { if (this._isBackoffMode) { this._isBackoffMode = false; scheduleScan(null); } } this._mutationCounter = 0; }, 1000);
 
@@ -1121,10 +1149,11 @@
                 for (const m of mutations) {
                     for (const n of m.addedNodes) {
                         if (n && n.nodeType === 1) { // v132.0.10: Check nodeType
-                            if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); }
-                            else if (n.querySelector?.('video, iframe')) { sawMediaNode = true; scheduleScan(n, true); }
+                            if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); break; } // v132.0.13: Break early
+                            else if (n.querySelector?.('video, iframe')) { sawMediaNode = true; scheduleScan(n, true); break; }
                         }
                     }
+                    if (sawMediaNode) break;
                 }
                 if (sawMediaNode) this._domDirty = true;
                 if (mutations.length > 50 || this._isBackoffMode) { this._domDirty = true; return; }
@@ -1265,7 +1294,7 @@
             for (let i = 0; i < frames.length; i++) this._checkAndAdd(frames[i], media, images, iframes);
 
             for (let i = 0; i < frames.length; i++) {
-                // v132.0.10: Smart Iframe Cache
+                // v132.0.12: Smart Iframe Cache
                 const doc = this._tryGetIframeDoc(frames[i]);
                 if (doc) {
                     const r = this.findAllElements(doc, depth + 1, true);
@@ -1292,18 +1321,6 @@
             }
             return { media, images, iframes };
         }
-        // v132.0.12: Iframe Cache & Helper (Corrected placement)
-        _iframeDocCache = new WeakMap(); // Correct property initialization
-        _tryGetIframeDoc(fr) {
-             const now = performance.now();
-             const c = this._iframeDocCache.get(fr);
-             if (c && (now - c.t) < 3000) return c.ok ? c.doc : null;
-             let doc = null, ok = false;
-             try { doc = fr.contentDocument; ok = !!doc; } catch {}
-             this._iframeDocCache.set(fr, { t: now, ok, doc });
-             return ok ? doc : null;
-        }
-
         scanSpecificRoot(root) {
             this.ensureObservers();
             const media = new Set(), images = new Set(), iframes = new Set();
@@ -1487,13 +1504,16 @@
                     this._isInitialized = true;
                 }, `${this.constructor.name}.init`); }
                 registerContext(svgElement) { this._activeFilterRoots.add(svgElement); }
+                // v132.0.13: Fix prune safety (delete while iterating)
                 prune() {
+                    const dead = [];
                     for (const root of this._activeFilterRoots) {
-                        if (!root || !root.isConnected) {
-                            this._activeFilterRoots.delete(root);
-                            this._elementCache.delete(root);
-                        }
+                        if (!root || !root.isConnected) dead.push(root);
                     }
+                    dead.forEach(root => {
+                        this._activeFilterRoots.delete(root);
+                        this._elementCache.delete(root);
+                    });
                 }
                 _createElements() {
                     const createSvgElement = (tag, attr, ...children) => { const el = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attr) el.setAttribute(k, attr[k]); el.append(...children); return el; };
