@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.25 Real Photometric)
+// @name        Video_Image_Control (v132.0.24 Anti-Oil Fix)
 // @namespace   https://com/
-// @version     132.0.25
-// @description v132.0.25: Anchored Linear AE. Fixes "Oily Face" (Gamma artifacts) and "Grey Blacks" (Linear artifacts) simultaneously.
+// @version     132.0.24
+// @description v132.0.24: Fixed Anti-Oil logic (inverted highlight sign) & prevented double-counting of User EV in gain calculation.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -100,6 +100,7 @@
                 const size = width;
                 const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
                 let centerLumaSum = 0, centerCount = 0;
+
                 const cStart = Math.floor(size * 0.4), cEnd = Math.floor(size * 0.6);
                 for(let y=cStart; y<cEnd; y+=step*2) {
                     for(let x=cStart; x<cEnd; x+=step*2) {
@@ -122,7 +123,6 @@
                     }
                     return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
                 };
-
                 const botH = Math.max(1, Math.floor(bandH * 0.8));
                 const topRes = checkBand(0, size, 0, bandH);
                 const botRes = checkBand(0, size, size - botH, size);
@@ -533,7 +533,7 @@
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40 },
-        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentLinearGain: 1.0, currentIntercept: 0,
+        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentLinearGain: 1.0,
         _lastClarityComp: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
         _lastBarsState: false, _aeActive: false, _lastKick: 0, _workerCooldown: 0,
         _lastFrameStats: null,
@@ -678,7 +678,6 @@
                 this.currentAdaptiveGamma = 1.0;
                 this.currentAdaptiveBright = 0;
                 this.currentLinearGain = 1.0;
-                this.currentIntercept = 0;
                 this.currentClarityComp = 0;
                 this._lastAppliedFid = 0;
                 this._frameId = 0;
@@ -698,7 +697,7 @@
             if (this.taintedResources.has(video)) {
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                 const manualGain = Math.pow(2, userEV);
-                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, intercept: 0, tainted: true }, 0, video, true);
+                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, video, true);
                 return;
             }
             if (this.isRunning && this.targetVideo === video) return;
@@ -715,8 +714,7 @@
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
-                linearGain: this.currentLinearGain,
-                intercept: this.currentIntercept
+                linearGain: this.currentLinearGain
             }, 0.5, this.targetVideo, false);
 
             this.loop();
@@ -743,7 +741,7 @@
                 if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity, targetLuma: this.currentSettings.targetLuma, aeStrength: this.currentSettings.aeStrength }); }
                 if (evChanged || aeTurnedOn) { this._kickImmediateAnalyze(); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
-                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0, intercept: 0 }, 0);
+                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0 }, 0);
             }
         },
         loop() {
@@ -859,7 +857,7 @@
                     this.stop();
                     const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                     const manualGain = Math.pow(2, userEV);
-                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, intercept: 0, tainted: true }, 0, taintedVideo, true);
+                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, taintedVideo, true);
                 } else {
                     const next = this._pickBestVideoNow();
                     if(next && next !== this.targetVideo) {
@@ -916,7 +914,6 @@
             this.lastAvgLuma = currentLuma;
 
             let targetLinearGain = 1.0;
-            let targetIntercept = 0.0;
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
@@ -967,18 +964,7 @@
                     rawEV *= 0.8;
                 }
 
-                // v132.0.25: Anchored Linear Logic (Hybrid)
-                if (rawEV > 0) {
-                     // Positive EV: Use Linear Gain but anchor blacks with negative intercept
-                     const gain = Math.pow(2, rawEV);
-                     targetLinearGain = gain;
-                     // Heuristic: drop blacks slightly to prevent washout
-                     targetIntercept = -(gain - 1.0) * 0.03;
-                } else {
-                     // Negative EV: Pure Linear Gain (Standard dimming)
-                     targetLinearGain = Math.pow(2, rawEV);
-                     targetIntercept = 0;
-                }
+                targetLinearGain = Math.pow(2, rawEV);
             }
 
             let targetClarityComp = 0;
@@ -1005,8 +991,6 @@
 
             if (Math.abs(this.currentLinearGain - 1.0) < 0.01 && !aggressive) this.currentLinearGain = 1.0;
 
-            this.currentIntercept = smooth(this.currentIntercept || 0, targetIntercept, baseUp, baseDown);
-
             this.currentAdaptiveGamma = 1.0;
             this.currentAdaptiveBright = 0;
 
@@ -1018,7 +1002,6 @@
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
                 linearGain: this.currentLinearGain,
-                intercept: this.currentIntercept,
                 tainted: false
             }, p50m, this.targetVideo, false);
         },
@@ -1597,10 +1580,9 @@
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
                     const v = (val) => (val === undefined || val === null) ? 0 : Number(val);
-                    // v132.0.25: Added intercept to sig
-                    const sig = [v(values.gamma), v(values.sharpenLevel), v(values.level2), v(values.colorTemp), v(values.saturation), v(values.shadows), v(values.highlights), v(values.brightness), v(values.contrastAdj), v(values.dither), v(values.clarity), v(values.linearGain), v(values.intercept), values.autoExposure ? 1 : 0].join('|');
+                    const sig = [v(values.gamma), v(values.sharpenLevel), v(values.level2), v(values.colorTemp), v(values.saturation), v(values.shadows), v(values.highlights), v(values.brightness), v(values.contrastAdj), v(values.dither), v(values.clarity), v(values.linearGain), values.autoExposure ? 1 : 0].join('|');
                     if (this._lastValues === sig) return; this._lastValues = sig;
-                    const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity, linearGain, intercept } = values;
+                    const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity, linearGain } = values;
                     let currentToneTable = null; const contrastSafe = (contrastAdj == null) ? 1.0 : Number(contrastAdj);
                     const toneKey = (shadows !== undefined) ? `${(+shadows).toFixed(2)}_${(+highlights).toFixed(2)}_${(+brightness || 0).toFixed(2)}_${(+contrastSafe || 1).toFixed(3)}` : null;
                     if (toneKey) {
@@ -1651,15 +1633,7 @@
                         }
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
                         if (saturation !== undefined && cache.saturate) cache.saturate.forEach(el => Utils.setAttr(el, 'values', (saturation / 100).toString()));
-
-                        // v132.0.25: Update Intercept as well
-                        if (linearGain !== undefined && cache.exposureFuncs) {
-                            cache.exposureFuncs.forEach(el => {
-                                Utils.setAttr(el, 'slope', linearGain.toFixed(3));
-                                if (intercept !== undefined) Utils.setAttr(el, 'intercept', intercept.toFixed(3));
-                            });
-                        }
-
+                        if (linearGain !== undefined && cache.exposureFuncs) cache.exposureFuncs.forEach(el => Utils.setAttr(el, 'slope', linearGain.toFixed(3)));
                         if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); cache.gammaFuncs.forEach(el => Utils.setAttr(el, 'exponent', exp)); }
                         if (currentToneTable && cache.toneCurveFuncs) { if (cache.appliedToneKey !== toneKey) { cache.appliedToneKey = toneKey; cache.toneCurveFuncs.forEach(el => Utils.setAttr(el, 'tableValues', currentToneTable)); } }
                         if (contrastSafe !== undefined && cache.lumaContrastMatrix) { const cAmount = (contrastSafe - 1.0) * 0.9; const r = 0.2126 * cAmount; const g = 0.7152 * cAmount; const b = 0.0722 * cAmount; const mVals = [1 + r, g, b, 0, 0, r, 1 + g, b, 0, 0, r, g, 1 + b, 0, 0, 0, 0, 0, 1, 0].join(' '); cache.lumaContrastMatrix.forEach(el => Utils.setAttr(el, 'values', mVals)); }
@@ -1674,8 +1648,8 @@
         _applyAllVideoFiltersActual() {
             if (!this.filterManager.isInitialized()) return;
             if (!this.stateManager.get('app.scriptActive')) {
-                // v132.0.25: Explicit reset including intercept
-                this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, linearGain: 1.0, intercept: 0, autoExposure: 0 });
+                // v132.0.13: Explicit reset
+                this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, linearGain: 1.0, autoExposure: 0 });
                 VideoAnalyzer.stop(); this.updateMediaFilterStates(); return;
             }
             const vf = this.stateManager.get('videoFilter');
@@ -1685,7 +1659,6 @@
             const clOn = (vf.clarity > 0);
 
             const autoGain = aeOn ? (auto.linearGain || 1.0) : 1.0;
-            const autoIntercept = aeOn ? (auto.intercept || 0) : 0;
             const autoGamma = aeOn ? (auto.gamma || 1.0) : 1.0;
             const autoBright = aeOn ? (auto.bright || 0) : 0;
             const autoShadows = aeOn ? (auto.shadowsAdj || 0) : 0;
@@ -1694,11 +1667,38 @@
             const clarityComp = clOn ? (auto.clarityComp || 0) : 0;
 
             const finalGamma = Utils.clamp(vf.gamma * autoGamma, 0.5, 2.5);
-            const finalBrightness = vf.brightness + autoBright + clarityComp;
-            const finalShadows = vf.shadows + autoShadows;
-            const finalHighlights = vf.highlights + autoHighlights;
+            let finalBrightness = vf.brightness + autoBright + clarityComp;
+            let finalShadows = vf.shadows + autoShadows;
+            let finalHighlights = vf.highlights + autoHighlights;
             const finalContrastAdj = vf.contrastAdj;
             let finalSaturation = vf.saturation;
+
+            // --- [v132.0.24 Anti-Oil Logic Fix] ---
+            const userEV = Utils.clamp((vf.targetLuma || 0) / 30, -1.0, 1.0);
+            const manualGain = Math.pow(2, userEV);
+            // autoExposure ON이면 autoGain에 이미 userEV가 포함될 수 있으니 중복 곱 방지
+            const totalGain = aeOn ? (autoGain || 1.0) : manualGain;
+
+            if (totalGain > 1.05) {
+                const boostFactor = totalGain - 1.0;
+
+                // 1) 하이라이트 압축: "양수"가 하이라이트를 내림(롤오프)
+                const highlightDamp = boostFactor * 50;   // 튜닝 포인트
+                finalHighlights += highlightDamp;         // ★ 핵심: +=
+
+                // 2) 채도 약간 감소 (과포화/번들거림 완화)
+                const satDamp = Math.min(10, boostFactor * 15);
+                finalSaturation -= satDamp;
+
+                // 3) 블랙 뜨는 것 방지(살짝 눌러줌)
+                finalShadows -= (boostFactor * 5);
+
+                // (선택) 너무 과해지지 않게 클램프
+                finalHighlights = Utils.clamp(finalHighlights, -100, 100);
+                finalSaturation = Utils.clamp(finalSaturation, 40, 200);
+                finalShadows    = Utils.clamp(finalShadows, -100, 100);
+            }
+            // --------------------------------------
 
             let autoSharpLevel2 = vf.level2;
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
@@ -1749,8 +1749,7 @@
                 clarity: vf.clarity,
                 autoExposure: vf.autoExposure,
                 targetLuma: vf.targetLuma,
-                linearGain: autoGain,
-                intercept: autoIntercept // v132.0.25
+                linearGain: autoGain
             };
             this.filterManager.updateFilterValues(values);
             VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma, aeStrength: vf.aeStrength });
@@ -2035,12 +2034,13 @@
             styleEl.textContent = this.getStyles();
             this.shadowRoot.appendChild(styleEl);
 
-            // v132.0.23: Restored renderAllControls call AND its definition
+            // v132.0.23: Restored renderAllControls call AND restored its definition below
             this.renderAllControls();
 
             this.mainControlsContainer.prepend(this.hostElement);
         }
 
+        // v132.0.23: Restored Missing Function
         renderAllControls() {
             if (this.shadowRoot.querySelector('#vsc-main-container')) return;
             const main = document.createElement('div'); main.id = 'vsc-main-container';
@@ -2054,8 +2054,7 @@
                 else {
                     const evVal = Math.log2(autoParams.linearGain || 1.0).toFixed(2);
                     const activeMark = aeActive ? '(A)' : '';
-                    const int = autoParams.intercept ? ` ${autoParams.intercept.toFixed(3)}` : '';
-                    monitor.textContent = `${activeMark} EV: ${evVal > 0 ? '+' : ''}${evVal}${int}`;
+                    monitor.textContent = `${activeMark} EV: ${evVal > 0 ? '+' : ''}${evVal} | Linear: ${(autoParams.linearGain || 1.0).toFixed(2)}`;
                     monitor.classList.remove('warn');
                 }
             };
