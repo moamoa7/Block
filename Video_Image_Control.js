@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.20 Critical Hotfix)
+// @name        Video_Image_Control (v132.0.25 Real Photometric)
 // @namespace   https://com/
-// @version     132.0.20
-// @description v132.0.20: Fix TypeError (Remove WeakMap keys call), Dynamic Deadband, and Performance Tuning.
+// @version     132.0.25
+// @description v132.0.25: Anchored Linear AE. Fixes "Oily Face" (Gamma artifacts) and "Grey Blacks" (Linear artifacts) simultaneously.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -81,7 +81,6 @@
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
     const debounce = (fn, wait) => { let t; return function (...args) { clearTimeout(t); t = setTimeout(() => fn.apply(this, args), wait); }; };
     const throttle = (fn, limit) => { let inThrottle; return function (...args) { if (!inThrottle) { fn.apply(this, args); inThrottle = true; setTimeout(() => inThrottle = false, limit); } }; };
-
     const rIC = window.requestIdleCallback || (cb => setTimeout(() => cb({ timeRemaining: () => 1, didTimeout: true }), 1));
     const scheduleWork = (cb) => rIC((d) => { try { cb(d); } catch (e) { if (CONFIG.DEBUG) console.error(e); } }, { timeout: 1000 });
 
@@ -129,55 +128,68 @@
                 const botRes = checkBand(0, size, size - botH, size);
                 const leftRes = checkBand(0, bandH, 0, size);
                 const rightRes = checkBand(size - bandH, size, 0, size);
-
-                const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20);
-                const topBar = isBar(topRes), botBar = isBar(botRes), leftBar = isBar(leftRes), rightBar = isBar(rightRes);
-                const barsNow = (topBar && botBar) || (leftBar && rightBar);
-
-                let subGuardY = size;
-                if (!botBar) {
-                    let whiteCount = 0, subTotal = 0;
-                    const subH = Math.floor(size * 0.15);
-                    const subStart = size - subH;
-                    for(let y = subStart; y < size; y+=step) {
-                        for(let x = Math.floor(size*0.2); x < Math.floor(size*0.8); x+=step) {
-                             const i = (y * size + x) * 4;
-                             const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
-                             if (luma > 230) whiteCount++;
-                             subTotal++;
-                        }
-                    }
-                    if (subTotal > 0 && (whiteCount / subTotal) > 0.05) subGuardY = subStart;
-                }
+                const barsNow = (topRes.ratio > 0.65 && topRes.mean < centerMean - 20 && botRes.ratio > 0.65) || (leftRes.ratio > 0.65 && rightRes.ratio > 0.65);
 
                 let validCount = 0, hiClipCount = 0, loClipCount = 0;
-                const startY = topBar ? Math.floor(size * 0.15) : 0;
-                let endY = botBar ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
-                endY = Math.min(endY, subGuardY);
-                const startX = leftBar ? Math.floor(size * 0.15) : 4;
-                const endX = rightBar ? Math.floor(size * 0.85) : size - 4;
+                let sumR = 0, sumG = 0, sumB = 0;
+                let sumLuma = 0;
+                let sumLumaSq = 0;
+
+                const startY = (topRes.ratio > 0.65) ? Math.floor(size * 0.15) : 0;
+                let endY = (botRes.ratio > 0.65) ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
+                const startX = (leftRes.ratio > 0.65) ? Math.floor(size * 0.15) : 4;
+                const endX = (rightRes.ratio > 0.65) ? Math.floor(size * 0.85) : size - 4;
+
+                if (!(botRes.ratio > 0.65)) {
+                    let white = 0, subTot = 0;
+                    for(let y = size - Math.floor(size*0.15); y < size; y+=step) {
+                        for(let x=startX; x<endX; x+=step) {
+                            const i = (y*size+x)*4;
+                             if (((data[i]*54+data[i+1]*183+data[i+2]*19)>>8) > 230) white++;
+                             subTot++;
+                        }
+                    }
+                    if(subTot > 0 && (white/subTot) > 0.05) endY = size - Math.floor(size*0.15);
+                }
 
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = startX; x < endX; x+=step) {
                         const i = (y * size + x) * 4;
-                        const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
-                        hist[luma]++; validCount++;
+                        const r = data[i];
+                        const g = data[i+1];
+                        const b = data[i+2];
+                        const luma = (r*54 + g*183 + b*19) >> 8;
+
+                        hist[luma]++;
+                        validCount++;
+
+                        sumR += r; sumG += g; sumB += b;
+                        sumLuma += luma;
+                        sumLumaSq += luma * luma;
+
                         if (luma >= 250) hiClipCount++;
                         if (luma <= 5) loClipCount++;
                     }
                 }
 
-                let p10 = -1, p50 = -1, p90 = -1, p55 = -1;
+                let p10 = -1, p50 = -1, p55 = -1, p90 = -1;
                 const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
                 const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
 
+                let avgR = 0, avgG = 0, avgB = 0, avgLuma = 0, stdDev = 0;
                 if (validCount > 0) {
-                    let sum = 0;
-                    const t10 = validCount * 0.10;
-                    const t50 = validCount * 0.50;
-                    const t55 = validCount * 0.55;
-                    const t90 = validCount * 0.90;
+                    const inv = 1 / validCount;
+                    avgR = (sumR * inv) / 255;
+                    avgG = (sumG * inv) / 255;
+                    avgB = (sumB * inv) / 255;
+                    avgLuma = (sumLuma * inv) / 255;
 
+                    const meanSq = (sumLumaSq * inv) / (255*255);
+                    const variance = meanSq - (avgLuma * avgLuma);
+                    stdDev = Math.sqrt(Math.max(0, variance));
+
+                    let sum = 0;
+                    const t10 = validCount * 0.10, t50 = validCount * 0.50, t55 = validCount * 0.55, t90 = validCount * 0.90;
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
                         if (p10 < 0 && sum >= t10) p10 = i / 255;
@@ -186,12 +198,9 @@
                         if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
                 }
-                if (p10 < 0) p10 = 0.1;
-                if (p50 < 0) p50 = 0.5;
-                if (p55 < 0) p55 = 0.55;
-                if (p90 < 0) p90 = 0.9;
+                if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p55 < 0) p55 = 0.55; if (p90 < 0) p90 = 0.9;
 
-                self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio });
+                self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio, avgR, avgG, avgB, avgLuma, stdDev });
             }
         };
     `;
@@ -524,9 +533,10 @@
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40 },
-        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentShadowsAdj: 0, currentHighlightsAdj: 0, currentLinearGain: 1.0,
-        _lastClarityComp: 0, _lastShadowsAdj: 0, _lastHighlightsAdj: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
+        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentLinearGain: 1.0, currentIntercept: 0,
+        _lastClarityComp: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
         _lastBarsState: false, _aeActive: false, _lastKick: 0, _workerCooldown: 0,
+        _lastFrameStats: null,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
         init(stateManager) {
@@ -558,21 +568,23 @@
             }
             this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
             this._workerCooldown = 0;
+            this._lastFrameStats = null;
         },
         _getVideoId(v) { if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2)); return this._videoIds.get(v); },
         _handleWorkerMessage(e) {
             this._workerBusy = false; this._workerLastSent = 0;
-            const { type, fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio } = e.data;
+            const { type, fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio, avgLuma, stdDev, avgR, avgG, avgB } = e.data;
             if (type !== 'result' || !this.targetVideo || vid !== this._getVideoId(this.targetVideo)) return;
             if (!this._lastAppliedFid) this._lastAppliedFid = 0; if (fid < this._lastAppliedFid) return;
             this._lastAppliedFid = fid;
-            this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio);
+            this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio, avgLuma, stdDev, avgR, avgG, avgB);
         },
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
              const size = width;
              const blackTh = 18;
-             let topBlack = 0, botBlack = 0, topPixelCount = 0, botPixelCount = 0;
+
+             let topBlack = 0, topPixelCount = 0;
              for (let y = 0; y < bandH; y += step) {
                  for (let x = 0; x < size; x += step) {
                      const i = (y * size + x) * 4;
@@ -580,72 +592,23 @@
                      topPixelCount++;
                  }
              }
-             const botBandH = Math.max(1, Math.floor(bandH * 0.8));
-             for (let y = size - botBandH; y < size; y += step) {
+             const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
+
+             let sumLuma = 0;
+             let count = 0;
+             for (let y = 0; y < size; y += step) {
                  for (let x = 0; x < size; x += step) {
                      const i = (y * size + x) * 4;
-                     if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) botBlack++;
-                     botPixelCount++;
+                     sumLuma += (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
+                     count++;
                  }
              }
-             let leftBlack = 0, rightBlack = 0, leftPixelCount = 0, rightPixelCount = 0;
-             for (let y = 0; y < size; y += step) {
-                for(let x=0; x < bandH; x+=step) {
-                    const i = (y * size + x) * 4;
-                    if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) leftBlack++;
-                    leftPixelCount++;
-                }
-                for(let x=size-bandH; x < size; x+=step) {
-                    const i = (y * size + x) * 4;
-                    if (((data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8) < blackTh) rightBlack++;
-                    rightPixelCount++;
-                }
-             }
+             const avgLuma = count > 0 ? (sumLuma/count)/255 : 0.5;
 
-             const topRatio = topPixelCount > 0 ? topBlack / topPixelCount : 0;
-             const botRatio = botPixelCount > 0 ? botBlack / botPixelCount : 0;
-             const leftRatio = leftPixelCount > 0 ? leftBlack / leftPixelCount : 0;
-             const rightRatio = rightPixelCount > 0 ? rightBlack / rightPixelCount : 0;
-
-             const barsNow = (topRatio > 0.65 && botRatio > 0.65) || (leftRatio > 0.65 && rightRatio > 0.65);
-
-             if (!this._hist) this._hist = new Uint16Array(256);
-             this._hist.fill(0); const hist = this._hist;
-             let validCount = 0, hiClipCount = 0, loClipCount = 0;
-             const startY = barsNow ? Math.floor(size * 0.15) : 0;
-             const endY = barsNow ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
-             const startX = barsNow && leftRatio > 0.65 ? Math.floor(size * 0.15) : 4;
-             const endX = barsNow && rightRatio > 0.65 ? Math.floor(size * 0.85) : size - 4;
-
-             for (let y = startY; y < endY; y+=step) {
-                 for (let x = startX; x < endX; x+=step) {
-                     const i = (y * size + x) * 4;
-                     const luma = (data[i] * 54 + data[i+1] * 183 + data[i+2] * 19) >> 8;
-                     hist[luma]++; validCount++;
-                     if (luma >= 250) hiClipCount++;
-                     if (luma <= 5) loClipCount++;
-                 }
-             }
-             let p10 = 0.1, p50 = 0.5, p90 = 0.9, p55 = 0.55;
-             const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
-             const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
-             if (validCount > 0) {
-                 let sum = 0;
-                 const t10 = validCount * 0.10, t50 = validCount * 0.50, t55 = validCount * 0.55, t90 = validCount * 0.90;
-                 let f10 = false, f50 = false, f55 = false, f90 = false;
-                 for (let i = 0; i < 256; i++) {
-                     sum += hist[i];
-                     if (!f10 && sum >= t10) { p10 = i / 255; f10 = true; }
-                     if (!f50 && sum >= t50) { p50 = i / 255; f50 = true; }
-                     if (!f55 && sum >= t55) { p55 = i / 255; f55 = true; }
-                     if (!f90 && sum >= t90) { p90 = i / 255; f90 = true; }
-                 }
-             }
-             this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio);
+             this._processAnalysisResult(0.1, 0.5, 0.55, 0.9, topRatio > 0.65, 0, 0, avgLuma, 0.1, 0.33, 0.33, 0.33);
         },
 
         _pickBestVideoNow() {
-            // v132.0.19: Enhanced Pinning - Prioritize pinned if valid
             if (VSC_PINNED.el && VSC_PINNED.el.isConnected && Date.now() < VSC_PINNED.until) {
                 if (VSC_PINNED.el.tagName === 'VIDEO' || VSC_PINNED.el.tagName === 'CANVAS') return VSC_PINNED.el;
                 if (VSC_PINNED.el.tagName === 'IFRAME') {
@@ -654,12 +617,10 @@
                         const inner = doc?.querySelector?.('video, canvas');
                         if (inner && inner.isConnected) return inner;
                     } catch {}
-                    // Iframe itself is handled by the script instance INSIDE it.
                 }
             }
 
             const sm = this.stateManager;
-            // v132.0.20: Fixed TypeError by using activeMedia (Set) instead of WeakMap keys
             let candidates = sm ? [...(sm.get('media.activeMedia') || [])] : [];
 
             if (candidates.length === 0) {
@@ -713,11 +674,11 @@
             if (!this.ctx || !this.canvas) this.init(this.stateManager);
             if (!this.ctx) return;
 
-            // v132.0.10: Ghosting Fix
             if (this.targetVideo && this.targetVideo !== video) {
                 this.currentAdaptiveGamma = 1.0;
                 this.currentAdaptiveBright = 0;
                 this.currentLinearGain = 1.0;
+                this.currentIntercept = 0;
                 this.currentClarityComp = 0;
                 this._lastAppliedFid = 0;
                 this._frameId = 0;
@@ -725,7 +686,8 @@
                 this._p10Ema = -1;
                 this._p90Ema = -1;
                 this._aeActive = false;
-                this._workerCooldown = 0; // Reset cooldown on switch
+                this._workerCooldown = 0;
+                this._lastFrameStats = null;
             }
 
             if (this.isRunning && this.targetVideo !== video) this.stop();
@@ -736,7 +698,7 @@
             if (this.taintedResources.has(video)) {
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                 const manualGain = Math.pow(2, userEV);
-                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, video, true);
+                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, intercept: 0, tainted: true }, 0, video, true);
                 return;
             }
             if (this.isRunning && this.targetVideo === video) return;
@@ -753,7 +715,8 @@
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
-                linearGain: this.currentLinearGain
+                linearGain: this.currentLinearGain,
+                intercept: this.currentIntercept
             }, 0.5, this.targetVideo, false);
 
             this.loop();
@@ -780,7 +743,7 @@
                 if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity, targetLuma: this.currentSettings.targetLuma, aeStrength: this.currentSettings.aeStrength }); }
                 if (evChanged || aeTurnedOn) { this._kickImmediateAnalyze(); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
-                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0);
+                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0, intercept: 0 }, 0);
             }
         },
         loop() {
@@ -813,7 +776,6 @@
             const visMap = this.stateManager.get('media.visibilityMap');
             const isVis = visMap ? visMap.get(this.targetVideo) : true;
 
-            // v132.0.14: Main-video only AE optimization
             if (!document.fullscreenElement && !document.pictureInPictureElement) {
                 const rect = this.targetVideo.getBoundingClientRect();
                 const screenArea = window.innerWidth * window.innerHeight;
@@ -827,7 +789,6 @@
                  if (this._lowMotionSkip % skipRate !== 0) return;
             } else { this._lowMotionSkip = 0; }
 
-            // v132.0.19: Cooldown Logic
             if (this._workerCooldown > 0) {
                 if (performance.now() < this._workerCooldown) return;
                 this._workerCooldown = 0;
@@ -838,11 +799,11 @@
                  if (this._workerLastSent > 0 && now - this._workerLastSent > 1200) {
                      this._workerStallCount = (this._workerStallCount || 0) + 1;
                      this._workerBusy = false; this._workerLastSent = 0;
-                     if (this._workerStallCount >= 3) { // Increased threshold
+                     if (this._workerStallCount >= 3) {
                          try { this._worker.terminate(); } catch {}
                          this._worker = null; if (this._workerUrl) URL.revokeObjectURL(this._workerUrl); this._workerUrl = null;
                          this._workerStallCount = 0; this.init(this.stateManager);
-                         this._workerCooldown = performance.now() + 3000; // 3s Cooldown
+                         this._workerCooldown = performance.now() + 3000;
                          return;
                      }
                  } else {
@@ -877,7 +838,6 @@
                         const msg = { type: 'analyze', fid, vid, buf, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
                         try { this._worker.postMessage(msg, [buf]); }
                         catch(err) {
-                            // v132.0.14: Safe Fallback with Buffer Check
                             this._workerBusy = false; this._workerLastSent = 0;
                             let safeData = imageData;
                             if (!safeData.data || safeData.data.byteLength === 0) {
@@ -890,20 +850,17 @@
                 }
             } catch (e) {
                 if (e.name === 'SecurityError') {
-                    // Taint logic...
                     this.taintedResources.add(this.targetVideo);
                     const next = this._pickBestVideoNow();
                     if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
                          this.targetVideo = next; this.hasRVFC = (next.tagName === 'VIDEO' && 'requestVideoFrameCallback' in next); this._kickImmediateAnalyze(); return;
                     }
-                    const taintedVideo = this.targetVideo; // v132.0.17: Store ref
+                    const taintedVideo = this.targetVideo;
                     this.stop();
-                    // v132.0.14: Notify tainted
                     const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                     const manualGain = Math.pow(2, userEV);
-                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, taintedVideo, true);
+                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, intercept: 0, tainted: true }, 0, taintedVideo, true);
                 } else {
-                    // v132.0.14: Handle other drawImage errors
                     const next = this._pickBestVideoNow();
                     if(next && next !== this.targetVideo) {
                         this.targetVideo = next; this.hasRVFC = (next.tagName === 'VIDEO' && 'requestVideoFrameCallback' in next); this._kickImmediateAnalyze(); return;
@@ -915,7 +872,25 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 1);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-        _processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
+        _processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio, avgLuma, stdDev, avgR, avgG, avgB) {
+
+            const currStats = { luma: avgLuma, r: avgR, g: avgG, b: avgB };
+            let isCut = false;
+            if (this._lastFrameStats) {
+                const dL = Math.abs(currStats.luma - this._lastFrameStats.luma);
+                const currRB = currStats.r - currStats.b;
+                const lastRB = this._lastFrameStats.r - this._lastFrameStats.b;
+                const dC = Math.abs(currRB - lastRB);
+
+                if ((dL + dC * 0.8) > 0.15) isCut = true;
+            }
+            this._lastFrameStats = currStats;
+
+            if (isCut) {
+                this._evAggressiveUntil = performance.now() + 800;
+                this._lowMotionFrames = 0;
+            }
+
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
 
             if (barsNow !== this._lastBarsState) {
@@ -926,7 +901,6 @@
             this._roiP50History.push(mid);
 
             if (this._roiP50History.length > 5) this._roiP50History.shift();
-            // v132.0.15: Optimized Median
             const p50m = Utils.median5(this._roiP50History);
 
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
@@ -938,46 +912,39 @@
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
                 if (delta < 0.003) this._lowMotionFrames++; else this._lowMotionFrames = 0;
                 if (this._highMotion) { if (delta < 0.06) this._highMotion = false; } else { if (delta > 0.10) this._highMotion = true; }
-
-                if (delta > 0.25) {
-                    this.currentAdaptiveGamma = 1.0;
-                    this.currentAdaptiveBright = 0;
-                    this.currentLinearGain = 1.0;
-                    this._evAggressiveUntil = performance.now() + 800;
-                }
             }
             this.lastAvgLuma = currentLuma;
 
             let targetLinearGain = 1.0;
-
+            let targetIntercept = 0.0;
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
                 const safeCurrent = Math.max(0.02, p50m);
-                const targetMid = 0.44; // v132.0.15: Tuned Lower (Minimal)
+                const targetMid = 0.44;
                 let baseEV = Math.log2(targetMid / safeCurrent);
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                 const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
 
-                // v132.0.15: Clamp Separation for User Intent Preservation
                 let autoEV = Utils.clamp(baseEV * aeStr, -0.25, 0.30);
                 let rawEV = autoEV + userEV;
+
+                if (stdDev < 0.05) {
+                    rawEV *= (stdDev / 0.05);
+                }
 
                 const range = Math.max(0, stableP90 - this._p10Ema);
                 if (range < 0.25) rawEV *= 0.75;
                 if (range < 0.18) rawEV *= 0.60;
 
                 if (this._aeActive == null) this._aeActive = false;
-
-                // v132.0.19: Dynamic Deadband
                 let deadOut = 0.20, deadIn = 0.10;
                 if (this._lowMotionFrames > 60 && range < 0.20) {
                     deadOut = 0.30; deadIn = 0.15;
                 }
                 const th = this._aeActive ? deadIn : deadOut;
 
-                // Deadband on Auto part only
                 if (Math.abs(baseEV * aeStr) < th && userEV === 0) {
                     rawEV = 0;
                     this._aeActive = false;
@@ -994,15 +961,24 @@
                     rawEV *= (1.0 - 0.70 * loGate);
                 }
 
-                // v132.0.15: Final wide clamp
                 rawEV = Utils.clamp(rawEV, -1.0, 1.0);
 
                 if (this._highMotion && !aggressive) {
                     rawEV *= 0.8;
                 }
 
-                // v132.0.14: Pure Linear Mode (Gamma fixed at 1.0)
-                targetLinearGain = Math.pow(2, rawEV);
+                // v132.0.25: Anchored Linear Logic (Hybrid)
+                if (rawEV > 0) {
+                     // Positive EV: Use Linear Gain but anchor blacks with negative intercept
+                     const gain = Math.pow(2, rawEV);
+                     targetLinearGain = gain;
+                     // Heuristic: drop blacks slightly to prevent washout
+                     targetIntercept = -(gain - 1.0) * 0.03;
+                } else {
+                     // Negative EV: Pure Linear Gain (Standard dimming)
+                     targetLinearGain = Math.pow(2, rawEV);
+                     targetIntercept = 0;
+                }
             }
 
             let targetClarityComp = 0;
@@ -1022,7 +998,6 @@
             const baseUp = aggressive ? 0.20 : 0.02;
             const baseDown = aggressive ? 0.20 : 0.06;
 
-            // v132.0.14: Log-space Smoothing for Linear Gain
             const currentEV = Math.log2(this.currentLinearGain || 1.0);
             const targetEV = Math.log2(targetLinearGain);
             const nextEV = smooth(currentEV, targetEV, baseUp, baseDown);
@@ -1030,7 +1005,9 @@
 
             if (Math.abs(this.currentLinearGain - 1.0) < 0.01 && !aggressive) this.currentLinearGain = 1.0;
 
-            this.currentAdaptiveGamma = 1.0; // Fixed at 1.0 for Linear Mode
+            this.currentIntercept = smooth(this.currentIntercept || 0, targetIntercept, baseUp, baseDown);
+
+            this.currentAdaptiveGamma = 1.0;
             this.currentAdaptiveBright = 0;
 
             this.currentClarityComp = smooth(this._lastClarityComp || 0, targetClarityComp, 0.1, 0.1);
@@ -1040,14 +1017,13 @@
                 gamma: this.currentAdaptiveGamma,
                 bright: this.currentAdaptiveBright,
                 clarityComp: this.currentClarityComp,
-                shadowsAdj: this.currentShadowsAdj,
-                highlightsAdj: this.currentHighlightsAdj,
                 linearGain: this.currentLinearGain,
+                intercept: this.currentIntercept,
                 tainted: false
             }, p50m, this.targetVideo, false);
         },
         notifyUpdate(autoParams, luma, videoInfo, tainted = false) {
-            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted, videoInfo, aeActive: this._aeActive } })); // v132.0.17: aeActive
+            document.dispatchEvent(new CustomEvent('vsc-smart-limit-update', { detail: { autoParams, luma, tainted, videoInfo, aeActive: this._aeActive } }));
         }
     };
 
@@ -1621,9 +1597,10 @@
                 updateFilterValues(values) {
                     if (!this.isInitialized()) return;
                     const v = (val) => (val === undefined || val === null) ? 0 : Number(val);
-                    const sig = [v(values.gamma), v(values.sharpenLevel), v(values.level2), v(values.colorTemp), v(values.saturation), v(values.shadows), v(values.highlights), v(values.brightness), v(values.contrastAdj), v(values.dither), v(values.clarity), v(values.linearGain), values.autoExposure ? 1 : 0].join('|');
+                    // v132.0.25: Added intercept to sig
+                    const sig = [v(values.gamma), v(values.sharpenLevel), v(values.level2), v(values.colorTemp), v(values.saturation), v(values.shadows), v(values.highlights), v(values.brightness), v(values.contrastAdj), v(values.dither), v(values.clarity), v(values.linearGain), v(values.intercept), values.autoExposure ? 1 : 0].join('|');
                     if (this._lastValues === sig) return; this._lastValues = sig;
-                    const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity, linearGain } = values;
+                    const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity, linearGain, intercept } = values;
                     let currentToneTable = null; const contrastSafe = (contrastAdj == null) ? 1.0 : Number(contrastAdj);
                     const toneKey = (shadows !== undefined) ? `${(+shadows).toFixed(2)}_${(+highlights).toFixed(2)}_${(+brightness || 0).toFixed(2)}_${(+contrastSafe || 1).toFixed(3)}` : null;
                     if (toneKey) {
@@ -1674,7 +1651,15 @@
                         }
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
                         if (saturation !== undefined && cache.saturate) cache.saturate.forEach(el => Utils.setAttr(el, 'values', (saturation / 100).toString()));
-                        if (linearGain !== undefined && cache.exposureFuncs) cache.exposureFuncs.forEach(el => Utils.setAttr(el, 'slope', linearGain.toFixed(3)));
+
+                        // v132.0.25: Update Intercept as well
+                        if (linearGain !== undefined && cache.exposureFuncs) {
+                            cache.exposureFuncs.forEach(el => {
+                                Utils.setAttr(el, 'slope', linearGain.toFixed(3));
+                                if (intercept !== undefined) Utils.setAttr(el, 'intercept', intercept.toFixed(3));
+                            });
+                        }
+
                         if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); cache.gammaFuncs.forEach(el => Utils.setAttr(el, 'exponent', exp)); }
                         if (currentToneTable && cache.toneCurveFuncs) { if (cache.appliedToneKey !== toneKey) { cache.appliedToneKey = toneKey; cache.toneCurveFuncs.forEach(el => Utils.setAttr(el, 'tableValues', currentToneTable)); } }
                         if (contrastSafe !== undefined && cache.lumaContrastMatrix) { const cAmount = (contrastSafe - 1.0) * 0.9; const r = 0.2126 * cAmount; const g = 0.7152 * cAmount; const b = 0.0722 * cAmount; const mVals = [1 + r, g, b, 0, 0, r, 1 + g, b, 0, 0, r, g, 1 + b, 0, 0, 0, 0, 0, 1, 0].join(' '); cache.lumaContrastMatrix.forEach(el => Utils.setAttr(el, 'values', mVals)); }
@@ -1689,8 +1674,8 @@
         _applyAllVideoFiltersActual() {
             if (!this.filterManager.isInitialized()) return;
             if (!this.stateManager.get('app.scriptActive')) {
-                // v132.0.13: Explicit reset
-                this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, linearGain: 1.0, autoExposure: 0 });
+                // v132.0.25: Explicit reset including intercept
+                this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, linearGain: 1.0, intercept: 0, autoExposure: 0 });
                 VideoAnalyzer.stop(); this.updateMediaFilterStates(); return;
             }
             const vf = this.stateManager.get('videoFilter');
@@ -1700,6 +1685,7 @@
             const clOn = (vf.clarity > 0);
 
             const autoGain = aeOn ? (auto.linearGain || 1.0) : 1.0;
+            const autoIntercept = aeOn ? (auto.intercept || 0) : 0;
             const autoGamma = aeOn ? (auto.gamma || 1.0) : 1.0;
             const autoBright = aeOn ? (auto.bright || 0) : 0;
             const autoShadows = aeOn ? (auto.shadowsAdj || 0) : 0;
@@ -1763,7 +1749,8 @@
                 clarity: vf.clarity,
                 autoExposure: vf.autoExposure,
                 targetLuma: vf.targetLuma,
-                linearGain: autoGain
+                linearGain: autoGain,
+                intercept: autoIntercept // v132.0.25
             };
             this.filterManager.updateFilterValues(values);
             VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma, aeStrength: vf.aeStrength });
@@ -2046,8 +2033,38 @@
             this.stateManager.set('ui.shadowRoot', this.shadowRoot);
             const styleEl = document.createElement('style');
             styleEl.textContent = this.getStyles();
-            this.shadowRoot.appendChild(styleEl); this.renderAllControls(); this.mainControlsContainer.prepend(this.hostElement);
+            this.shadowRoot.appendChild(styleEl);
+
+            // v132.0.23: Restored renderAllControls call AND its definition
+            this.renderAllControls();
+
+            this.mainControlsContainer.prepend(this.hostElement);
         }
+
+        renderAllControls() {
+            if (this.shadowRoot.querySelector('#vsc-main-container')) return;
+            const main = document.createElement('div'); main.id = 'vsc-main-container';
+            const controls = document.createElement('div'); controls.id = 'vsc-controls-container';
+            const videoMenu = this._buildVideoMenu(controls);
+            const monitor = document.createElement('div'); monitor.className = 'vsc-monitor'; monitor.textContent = 'Monitoring Off'; videoMenu.appendChild(monitor);
+            this.boundSmartLimitUpdate = (e) => {
+                if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
+                const { autoParams, tainted, aeActive } = e.detail;
+                if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
+                else {
+                    const evVal = Math.log2(autoParams.linearGain || 1.0).toFixed(2);
+                    const activeMark = aeActive ? '(A)' : '';
+                    const int = autoParams.intercept ? ` ${autoParams.intercept.toFixed(3)}` : '';
+                    monitor.textContent = `${activeMark} EV: ${evVal > 0 ? '+' : ''}${evVal}${int}`;
+                    monitor.classList.remove('warn');
+                }
+            };
+            document.addEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
+            const imgMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controls);
+            imgMenu.append(this._createSlider('샤프닝', 'i-sh', 0, 20, 1, 'imageFilter.level', '단계', v => v.toFixed(0)).control, this._createSlider('색온도', 'i-ct', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control);
+            main.appendChild(controls); this.shadowRoot.appendChild(main);
+        }
+
         _createControlGroup(id, icon, title, parent) {
             const group = document.createElement('div'); group.id = id; group.className = 'vsc-control-group';
             const mainBtn = document.createElement('button'); mainBtn.className = 'vsc-btn vsc-btn-main'; mainBtn.textContent = icon; mainBtn.title = title;
@@ -2169,28 +2186,6 @@
 
             videoSubMenu.append(tab1Content, tab2Content);
             return videoSubMenu;
-        }
-        renderAllControls() {
-            if (this.shadowRoot.querySelector('#vsc-main-container')) return;
-            const main = document.createElement('div'); main.id = 'vsc-main-container';
-            const controls = document.createElement('div'); controls.id = 'vsc-controls-container';
-            const videoMenu = this._buildVideoMenu(controls);
-            const monitor = document.createElement('div'); monitor.className = 'vsc-monitor'; monitor.textContent = 'Monitoring Off'; videoMenu.appendChild(monitor);
-            this.boundSmartLimitUpdate = (e) => {
-                if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
-                const { autoParams, tainted, aeActive } = e.detail;
-                if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
-                else {
-                    const evVal = Math.log2(autoParams.linearGain || 1.0).toFixed(2);
-                    const activeMark = aeActive ? '(A)' : '';
-                    monitor.textContent = `${activeMark} EV: ${evVal > 0 ? '+' : ''}${evVal} | Linear: ${(autoParams.linearGain || 1.0).toFixed(2)}`;
-                    monitor.classList.remove('warn');
-                }
-            };
-            document.addEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
-            const imgMenu = this._createControlGroup('vsc-image-controls', '🎨', '이미지 필터', controls);
-            imgMenu.append(this._createSlider('샤프닝', 'i-sh', 0, 20, 1, 'imageFilter.level', '단계', v => v.toFixed(0)).control, this._createSlider('색온도', 'i-ct', -7, 4, 1, 'imageFilter.colorTemp', '', v => v.toFixed(0)).control);
-            main.appendChild(controls); this.shadowRoot.appendChild(main);
         }
         attachDragAndDrop() {
             let lastDragEnd = 0;
