@@ -95,7 +95,7 @@
                 hist.fill(0);
                 const size = width;
                 const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
-                
+
                 let centerLumaSum = 0, centerCount = 0;
                 const cStart = Math.floor(size * 0.4), cEnd = Math.floor(size * 0.6);
                 for(let y=cStart; y<cEnd; y+=step*2) {
@@ -106,7 +106,7 @@
                     }
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
-                
+
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -206,7 +206,7 @@
                 const approxSize = document.getElementsByTagName('*').length;
                 if (approxSize > 5000) limit = 500;
                 if (_localShadowRoots.length > 200) return;
-                
+
                 const startTime = performance.now();
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
@@ -311,7 +311,7 @@
         };
         const vids = document.getElementsByTagName('video');
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
-        
+
         // Fix 2-1: Robust Iframe Detection (Avoid ads/trackers)
         if (!found) {
             const ifs = document.getElementsByTagName('iframe');
@@ -320,7 +320,7 @@
                 if (r && r.width >= 120 && r.height >= 120 && r.bottom > 0 && r.top < innerHeight) { found = true; break; }
             }
         }
-        
+
         if (!found && _localShadowRoots.length > 0) {
             const cap = Math.min(_localShadowRoots.length, 50);
             for (let i = 0; i < cap; i++) {
@@ -422,7 +422,7 @@
         const styleId = manager.getStyleNode().id; const svgId = manager.getSvgNode().id;
         const targetRoot = (root instanceof ShadowRoot) ? root : document.head;
 
-        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (root.getElementById(styleId)) return; } } 
+        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (root.getElementById(styleId)) return; } }
         else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (ownerDoc.getElementById(styleId)) return; }
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
@@ -592,7 +592,7 @@
                     if (c.readyState >= 3) score *= 1.5;
                     if (c.src || c.srcObject) score *= 1.2;
                     if (c.muted && c.volume === 0) score *= 0.5; // Penalize muted background vids
-                    if (score > maxScore) { maxScore = score; best = c; } 
+                    if (score > maxScore) { maxScore = score; best = c; }
                 }
             }
             return best;
@@ -716,7 +716,7 @@
                        this._workerBusy = true; this._workerLastSent = performance.now();
                        const msg = { type: 'analyze', fid, vid, data: imageData.data, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
                        // Fix 1C: Robust Worker Message (Avoid DataCloneError)
-                       try { this._worker.postMessage(msg, [imageData.data.buffer]); } 
+                       try { this._worker.postMessage(msg, [imageData.data.buffer]); }
                        catch(err) { this._worker.postMessage({ ...msg, data: imageData.data }); }
                 } else {
                     this._analyzeFallback(imageData, size, size, bandH, step);
@@ -737,9 +737,9 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 1);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-        _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
+_processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
-            
+
             if (barsNow !== this._lastBarsState) {
                 this._barStableCounter++;
                 if (this._barStableCounter > 5) { this._lastBarsState = barsNow; this._barStableCounter = 0; }
@@ -755,17 +755,16 @@
             const stableP10 = aggressive ? p10 : this._p10Ema;
             const stableP90 = aggressive ? p90 : this._p90Ema;
 
-            let contrastFactor = 1.0;
-            if ((stableP90 - stableP10) < 0.1) contrastFactor = 0.3;
-            const isHighContrast = (stableP90 > 0.9 && stableP10 < 0.1);
-
+            // 장면 전환 감지
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
                 if (delta < 0.003) this._lowMotionFrames++; else this._lowMotionFrames = 0;
                 if (this._highMotion) { if (delta < 0.06) this._highMotion = false; } else { if (delta > 0.10) this._highMotion = true; }
-                if (delta > 0.25) { this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0; this._evAggressiveUntil = performance.now() + (isHighContrast ? 200 : 500); }
-                else if (delta > 0.15) { this._userBoostUntil = performance.now() + 300; }
+                if (delta > 0.25) {
+                    this.currentAdaptiveGamma = 1.0; this.currentAdaptiveBright = 0;
+                    this._evAggressiveUntil = performance.now() + 500;
+                }
             }
             this.lastAvgLuma = currentLuma;
 
@@ -774,76 +773,68 @@
             const isAutoExp = this.currentSettings.autoExposure;
 
             if (isAutoExp) {
-                const u = evValue / 20; const boostFactor = Math.tanh(u);
-                const headroom = Math.max(0.0, 1.0 - stableP90);
-                const floor = Math.max(0.1, stableP10);
-                const spread = (stableP90 - stableP10);
-                let baseTarget = IS_MOBILE ? 0.38 : 0.35;
-                if (p50m < 0.18) baseTarget += 0.02;
-                if (stableP90 > 0.92 && stableP10 > 0.12) baseTarget += 0.02;
-                const targetMid = Utils.clamp(baseTarget + (spread < 0.15 ? 0.03 : -0.02), 0.30, 0.40);
-                const baseErr = (targetMid - p50m) * 0.35;
-                const userErr = boostFactor * (boostFactor > 0 ? headroom : floor) * 0.5;
-                const error = baseErr + userErr;
-                const correction = error * 4.0 * contrastFactor;
+                const evBias = evValue * 0.015;
 
-                if (correction > 0) {
-                    const hiClip = Math.max(0, stableP90 - 0.93);
-                    let hiGuard = 1 - Utils.clamp(hiClip / 0.07, 0, 1);
-                    if (hiClipRatio > 0.02) hiGuard *= 0.7;
-                    const corr = correction * hiGuard;
-                    const hiRisk = (stableP90 > 0.93) || (hiClipRatio > 0.01);
+                // 목표 밝기 설정
+                let baseTarget = p50m;
+                // 너무 어두운 영상 보정
+                if (p50m < 0.1) baseTarget = Math.max(p50m, 0.1);
 
-                    if (hiRisk) {
-                        targetAdaptiveGamma += corr * 0.25; targetShadowsAdj += corr * 6;
-                    } else {
-                        const safeGammaBoost = (stableP90 > 0.9) ? 0.4 : 0.8;
-                        targetAdaptiveGamma += corr * safeGammaBoost; targetAdaptiveBright += corr * 6;
-                        if (!isHighContrast) targetShadowsAdj += corr * 5;
-                    }
+                const targetMid = Utils.clamp(baseTarget + evBias, 0.05, 0.95);
+
+                // [수정] 감마 방향 정반대로 수정
+                // 목표(targetMid)가 현재(p50m)보다 높으면(밝아야 하면), diff > 0
+                // SVG 로직상 감마 수치가 1.0보다 커야(1.2 등) -> exponent가 1/1.2 = 0.83이 되어 밝아짐
+                let diff = targetMid - p50m;
+
+                // 감마 계산 (기본 1.0에서 diff만큼 더함)
+                // diff가 +0.2면 Gamma 1.2 -> 밝아짐
+                // diff가 -0.2면 Gamma 0.8 -> 어두워짐
+                targetAdaptiveGamma = 1.0 + (diff * 1.5);
+
+                // [수정] 밝기(Offset) 직접 연동
+                // EV가 +면 밝기도 같이 올려줌 (기존에는 0으로 고정되어 있었음)
+                // 감마만 쓰면 회색이 되므로 밝기 오프셋을 섞음
+                if (evValue !== 0) {
+                    targetAdaptiveBright = evValue * 0.8; // EV 10당 밝기 8 증가
+                }
+
+                // [수정] 그림자(Shadow) 보정
+                // 감마를 올려서 밝게 만들면 검은색이 회색으로 뜸 -> 그림자를 눌러줘야 함
+                if (diff > 0) {
+                    // 밝게 할 때: 그림자를 살짝 눌러서(마이너스) 명암비 유지
+                    targetShadowsAdj = -(diff * 30);
                 } else {
-                    const clipRisk = Math.max(0, stableP90 - 0.92);
-                    const clipRisk2 = Math.max(0, hiClipRatio - 0.005);
-                    const hStrength = (clipRisk * 140) + (clipRisk2 * 600); 
-                    const userBias = 1 + Math.min(1.0, Math.abs(boostFactor));
-                    
-                    targetHighlightsAdj += hStrength * userBias;
-                    targetAdaptiveGamma = Math.max(1.0, targetAdaptiveGamma);
-                    targetAdaptiveBright = Math.max(0, targetAdaptiveBright);
+                    // 어둡게 할 때: 그림자가 너무 묻히지 않게 살짝 뺌
+                    targetShadowsAdj = 0;
                 }
 
-                // Fix 5B: Shadow Boost for crushed blacks
-                if (loClipRatio > 0.03) {
-                     targetShadowsAdj += loClipRatio * 200; // Boost shadows
+                // [수정] 하이라이트 보호
+                // EV를 많이 올렸을 때 하이라이트가 타지 않도록 압축
+                if (evValue > 0) {
+                    targetHighlightsAdj = -(evValue * 2.5); // EV 10당 하이라이트 -25
                 }
 
-                targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
-                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.8, 1.4);
-                if (aggressive && (stableP10 < 0.05 || stableP90 > 0.95)) { targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -40, 40); }
+                // 안전 범위 제한
+                targetAdaptiveGamma = Utils.clamp(targetAdaptiveGamma, 0.5, 2.2); // 범위 넓힘
                 targetShadowsAdj = Utils.clamp(targetShadowsAdj, -40, 40);
-                targetHighlightsAdj = Utils.clamp(targetHighlightsAdj, -20, 80);
+                targetHighlightsAdj = Utils.clamp(targetHighlightsAdj, -100, 20);
+                targetAdaptiveBright = Utils.clamp(targetAdaptiveBright, -30, 30);
             }
 
+            // 명료도(Clarity) 적용
             let targetClarityComp = 0;
             if (this.currentSettings.clarity > 0) {
                 const intensity = this.currentSettings.clarity / 50;
-                const maxLumaFactor = (isAutoExp && evValue < 0) ? 0.5 : 0.7;
-                const lumaFactor = Math.max(0.2, maxLumaFactor - p50m);
-                let dampener = isAutoExp ? (evValue < 0 ? 0.4 : 0.6) : 1.0;
-                if (stableP10 < 0.06 && stableP90 < 0.5) dampener *= 0.5;
-                targetClarityComp = Math.min(10, (intensity * 10) * lumaFactor * dampener);
+                const lumaFactor = Math.max(0.3, 0.8 - p50m);
+                targetClarityComp = Math.min(10, (intensity * 8) * lumaFactor);
             }
 
             const smooth = (curr, target) => {
-                if (aggressive && !isHighContrast) { const diff = target - curr; return curr + diff * 0.2; }
                 const diff = target - curr;
-                let speed = (this._userBoostUntil && performance.now() < this._userBoostUntil) ? 0.35 : (this._highMotion ? 0.03 : 0.1);
-                
-                // Fix 5C: Faster convergence on low motion
-                if (this._lowMotionFrames > 30) speed = Math.max(speed, IS_MOBILE ? 0.15 : 0.2);
-                
-                if (isHighContrast) speed *= 0.5;
-                if (Math.abs(diff) < 0.005) return curr;
+                if (Math.abs(diff) < 0.002) return target;
+                let speed = 0.08; // 반응 속도 약간 올림
+                if (this._highMotion) speed = 0.03;
                 return curr + diff * speed;
             };
 
@@ -1084,10 +1075,10 @@
                  if(ch) sm.set(key, next);
              };
              prune('media.activeMedia', this.detachMediaListeners.bind(this));
-             prune('media.activeImages', (img) => { 
+             prune('media.activeImages', (img) => {
                  try { this.intersectionObserver.unobserve(img); } catch {}
-                 if(this._resizeObs) this._resizeObs.unobserve(img); 
-                 this._observedImages.delete(img); 
+                 if(this._resizeObs) this._resizeObs.unobserve(img);
+                 this._observedImages.delete(img);
              });
              prune('media.activeIframes', (fr) => {
                  try { this.intersectionObserver.unobserve(fr); } catch {}
@@ -1243,9 +1234,9 @@
                             const genSCurveTable = (sh, hi, br = 0, contrast = 1.0) => {
                                 const steps = 256; const vals = []; const clamp = Utils.clamp; const smoothstep = (t) => t * t * (3 - 2 * t);
                                 const shN = clamp((sh || 0) / 100, -1, 1); const hiN = clamp((hi || 0) / 100, -1, 1); const b = clamp((br || 0) / 100, -1, 1) * 0.12; const c = clamp(Number(contrast || 1.0), 0.8, 1.4);
-                                const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40); 
+                                const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40);
                                 // Fix 5-4: Late shoulder for better midtone protection during highlight compression
-                                const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95); 
+                                const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95);
                                 const toeStrength = 0.18 + 0.22 * Math.abs(shN); const shoulderStrength = 0.08 + 0.18 * Math.abs(hiN);
                                 for (let i = 0; i < steps; i++) {
                                     let x = i / (steps - 1); let y = x; y = clamp(y + b, 0, 1); y = clamp(0.5 + (y - 0.5) * c, 0, 1);
@@ -1296,7 +1287,7 @@
             return new SvgFilterManager(options);
         }
         applyAllVideoFilters() { if (this._rafId) return; this._rafId = requestAnimationFrame(() => { this._rafId = null; this._applyAllVideoFiltersActual(); }); }
-        _applyAllVideoFiltersActual() {
+_applyAllVideoFiltersActual() {
             if (!this.filterManager.isInitialized()) return;
             if (!this.stateManager.get('app.scriptActive')) {
                 this.filterManager.updateFilterValues({ saturation: 100, gamma: 1.0, blur: 0, sharpenLevel: 0, level2: 0, shadows: 0, highlights: 0, brightness: 0, contrastAdj: 1.0, colorTemp: 0, dither: 0, clarity: 0, autoExposure: 0 });
@@ -1306,13 +1297,35 @@
             let auto = this.lastAutoParams || { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 };
             if (!vf.autoExposure) { auto = { ...auto, gamma: 1.0, bright: 0, shadowsAdj: 0, highlightsAdj: 0 }; }
 
-            const finalGamma = Utils.clamp(vf.gamma * (auto.gamma || 1.0), 0.6, 2.2);
-            const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0); const finalContrastAdj = vf.contrastAdj; const finalHighlights = vf.highlights + (auto.highlightsAdj || 0); const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
+            // [확인] 여기서 vf.gamma * auto.gamma 가 최종 감마
+            // auto.gamma가 1.2면 -> 최종 감마 1.2 -> SVG exponent = 1/1.2 = 0.83 (밝아짐). OK.
+            const finalGamma = Utils.clamp(vf.gamma * (auto.gamma || 1.0), 0.5, 2.5);
+
+            // [수정] 밝기(Offset) 적용
+            // auto.bright가 이제 0이 아니라 EV값에 따라 변함
+            const finalBrightness = vf.brightness + (auto.bright || 0) + (auto.clarityComp || 0);
+
+            const finalContrastAdj = vf.contrastAdj; // 자동 대비 조절 삭제됨
+            const finalHighlights = vf.highlights + (auto.highlightsAdj || 0);
+            const finalShadows = vf.shadows + (auto.shadowsAdj || 0);
+
+            // 채도 보상
+            let finalSaturation = vf.saturation;
+            if (vf.autoExposure) {
+                let satBoost = 0;
+                // 감마가 1.0보다 크면(밝아지면) 채도 보상
+                if (finalGamma > 1.05) satBoost += (finalGamma - 1.0) * 20;
+                // 밝기(Offset)가 올라가면 채도 보상
+                if (finalBrightness > 0) satBoost += finalBrightness * 0.3;
+
+                finalSaturation += Math.min(20, satBoost);
+            }
 
             let autoSharpLevel2 = vf.level2;
             if (vf.clarity > 0) { autoSharpLevel2 += Math.min(5, vf.clarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
 
+            // ... (샤픈 모바일 로직 기존 동일) ...
             const v = this.stateManager.get('media.currentlyVisibleMedia');
             if (v && v.tagName === 'VIDEO') {
                 const vw = v.videoWidth || 0, vh = v.videoHeight || 0;
@@ -1326,13 +1339,24 @@
                 }
             }
 
-            if (vf.autoExposure) {
-                if (vf.targetLuma > 8) autoSharpLevel2 *= 0.85;
-                if (VideoAnalyzer._p90Ema > 0 && (VideoAnalyzer._p90Ema - VideoAnalyzer._p10Ema < 0.15)) autoSharpLevel2 *= 0.8;
-            }
-
-            const values = { saturation: vf.saturation, gamma: finalGamma, blur: 0, sharpenLevel: vf.level, level2: autoSharpLevel2, shadows: finalShadows, highlights: finalHighlights, brightness: finalBrightness, contrastAdj: finalContrastAdj, colorTemp: vf.colorTemp, dither: vf.dither, clarity: vf.clarity, autoExposure: vf.autoExposure, targetLuma: vf.targetLuma };
-            this.filterManager.updateFilterValues(values); VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
+            const values = {
+                saturation: finalSaturation,
+                gamma: finalGamma,
+                blur: 0,
+                sharpenLevel: vf.level,
+                level2: autoSharpLevel2,
+                shadows: finalShadows,
+                highlights: finalHighlights,
+                brightness: finalBrightness,
+                contrastAdj: finalContrastAdj,
+                colorTemp: vf.colorTemp,
+                dither: vf.dither,
+                clarity: vf.clarity,
+                autoExposure: vf.autoExposure,
+                targetLuma: vf.targetLuma
+            };
+            this.filterManager.updateFilterValues(values);
+            VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma });
             this.updateMediaFilterStates();
         }
         applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; let scaleFactor = IS_MOBILE ? 0.8 : 1.0; const values = { sharpenLevel: level * scaleFactor, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
@@ -1380,7 +1404,7 @@
             this.subscribe('playback.targetRate', (rate) => this.setPlaybackRate(rate));
             this.subscribe('media.activeMedia', () => { this.setPlaybackRate(this.stateManager.get('playback.targetRate')); });
             this.setPlaybackRate(this.stateManager.get('playback.targetRate'));
-            
+
             // Fix 1A: Global rate change listener for sync
             document.addEventListener('ratechange', (e) => {
                 const v = e.target;
