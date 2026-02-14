@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.5 Final Fix)
+// @name        Video_Image_Control (v132.0.6 Minimal AE & Robust)
 // @namespace   https://com/
-// @version     132.0.5
-// @description v132.0.5: Fix AE Monitoring Off bug, Perfect Audio Dry/Wet Bypass, Enhanced Play-hook Detection.
+// @version     132.0.6
+// @description v132.0.6: p55 AE Target, Strength-first Deadband, Audio Promise Fix, Canvas Support, and Robust Worker Fallback.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -31,11 +31,7 @@
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
     const VSC_AUDIO_SRC = Symbol('vsc_audio_src');
 
-    const MEDIA_EVENTS = [
-        'play', 'playing', 'pause', 'loadedmetadata', 'loadeddata',
-        'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'
-    ];
-
+    const MEDIA_EVENTS = ['play', 'playing', 'pause', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'];
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_HIGH_END = DEVICE_RAM >= 8;
     const IS_LOW_END = DEVICE_RAM < 4;
@@ -49,7 +45,7 @@
         FILTER: {
             VIDEO_DEFAULT_LEVEL: 15, VIDEO_DEFAULT_LEVEL2: 6, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
-            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, DEFAULT_AE_STRENGTH: 45,
+            DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0, DEFAULT_AE_STRENGTH: 40, // Tuned down for minimal intervention
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
@@ -83,6 +79,7 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
     const on = (target, type, listener, options) => { try { target.addEventListener(type, listener, options); } catch(e){} };
 
+    // --- Worker: Added p55 calculation ---
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
@@ -104,6 +101,10 @@
                     }
                 }
                 const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
+                
+                // Optimized checkBand (omitted detailed implementation for brevity, logic same as before)
+                // ... (Band checking logic) ...
+                // Re-implementing simplified band check for self-contained worker string
                 const checkBand = (sx, ex, sy, ey) => {
                     let black = 0, total = 0, lumaSum = 0;
                     for (let y = sy; y < ey; y += step) {
@@ -116,14 +117,17 @@
                     }
                     return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
                 };
+
                 const botH = Math.max(1, Math.floor(bandH * 0.8));
                 const topRes = checkBand(0, size, 0, bandH);
                 const botRes = checkBand(0, size, size - botH, size);
                 const leftRes = checkBand(0, bandH, 0, size);
                 const rightRes = checkBand(size - bandH, size, 0, size);
+
                 const isBar = (res) => res.ratio > 0.65 && (res.mean < centerMean - 20);
                 const topBar = isBar(topRes), botBar = isBar(botRes), leftBar = isBar(leftRes), rightBar = isBar(rightRes);
                 const barsNow = (topBar && botBar) || (leftBar && rightBar);
+                
                 let subGuardY = size;
                 if (!botBar) {
                     let whiteCount = 0, subTotal = 0;
@@ -139,12 +143,14 @@
                     }
                     if (subTotal > 0 && (whiteCount / subTotal) > 0.05) subGuardY = subStart;
                 }
+
                 let validCount = 0, hiClipCount = 0, loClipCount = 0;
                 const startY = topBar ? Math.floor(size * 0.15) : 0;
                 let endY = botBar ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
                 endY = Math.min(endY, subGuardY);
                 const startX = leftBar ? Math.floor(size * 0.15) : 4;
                 const endX = rightBar ? Math.floor(size * 0.85) : size - 4;
+
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = startX; x < endX; x+=step) {
                         const i = (y * size + x) * 4;
@@ -154,21 +160,32 @@
                         if (luma <= 5) loClipCount++;
                     }
                 }
-                let p10 = -1, p50 = -1, p90 = -1;
+
+                let p10 = -1, p50 = -1, p90 = -1, p55 = -1; // Added p55
                 const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
                 const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
+
                 if (validCount > 0) {
                     let sum = 0;
-                    const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
+                    const t10 = validCount * 0.10;
+                    const t50 = validCount * 0.50;
+                    const t55 = validCount * 0.55; // Target for p55
+                    const t90 = validCount * 0.90;
+                    
                     for (let i = 0; i < 256; i++) {
                         sum += hist[i];
                         if (p10 < 0 && sum >= t10) p10 = i / 255;
                         if (p50 < 0 && sum >= t50) p50 = i / 255;
+                        if (p55 < 0 && sum >= t55) p55 = i / 255; // Capture p55
                         if (p90 < 0 && sum >= t90) p90 = i / 255;
                     }
                 }
-                if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p90 < 0) p90 = 0.9;
-                self.postMessage({ type: 'result', fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio });
+                if (p10 < 0) p10 = 0.1; 
+                if (p50 < 0) p50 = 0.5; 
+                if (p55 < 0) p55 = 0.55; 
+                if (p90 < 0) p90 = 0.9;
+
+                self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio });
             }
         };
     `;
@@ -203,7 +220,6 @@
                 else if (approxCount > 3000) limit = 800;
 
                 if (_localShadowRoots.length > 200) return;
-
                 const startTime = performance.now();
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
@@ -276,29 +292,22 @@
         if(_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d)); }
     };
 
-    // --- Safety Checks ---
     let _sensCache = { t: 0, v: false };
     let _sensitiveLockUntil = performance.now() + 2000;
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(() => { _sensitiveLockUntil = 0; }, 1000), { once: true });
     else setTimeout(() => { _sensitiveLockUntil = 0; }, 1000);
 
     const SENSITIVE_KEYWORDS = ['checkout', 'payment', 'bank', 'verify', 'kakaobank', 'toss'];
-    const isSensitiveUrl = () => {
-        const url = location.href.toLowerCase();
-        return SENSITIVE_KEYWORDS.some(kw => url.includes(kw));
-    };
+    const isSensitiveUrl = () => { return SENSITIVE_KEYWORDS.some(kw => location.href.toLowerCase().includes(kw)); };
 
     const isSensitiveContext = () => {
         const now = Date.now();
         if (now - _sensCache.t < 300) return _sensCache.v;
         if (performance.now() < _sensitiveLockUntil && isSensitiveUrl()) { _sensCache = { t: now, v: true }; return true; }
         if (!document.documentElement) return false;
-        let result = false;
-        if (isSensitiveUrl()) result = true;
-        else {
-            try {
-                if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"], input[autocomplete="current-password"]')) result = true;
-            } catch(e) {}
+        let result = isSensitiveUrl();
+        if (!result) {
+            try { if (document.querySelector('input[type="password"], input[name*="otp"], input[name*="cvc"]')) result = true; } catch(e) {}
         }
         _sensCache = { t: now, v: result };
         return result;
@@ -321,7 +330,7 @@
         for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
         if (!found) {
             const ifs = document.getElementsByTagName('iframe');
-            for (let i=0; i<ifs.length; i++){
+            for (let i=0; i<ifs.length; i++) {
                 const r = ifs[i].getBoundingClientRect?.();
                 if (r && r.width >= 120 && r.height >= 120 && r.bottom > 0 && r.top < innerHeight) { found = true; break; }
             }
@@ -338,14 +347,12 @@
         return found;
     };
 
-    // --- Hooks ---
     const ORIGINALS = { defineProperty: Object.defineProperty, defineProperties: Object.defineProperties, attachShadow: Element.prototype.attachShadow };
     const _prevInlineStyle = new WeakMap();
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
     let _hooksActive = false, _shadowHookActive = false;
 
-    // Hook play() to capture timestamp for better scoring
     safeGuard(() => {
         const origPlay = HTMLMediaElement.prototype.play;
         HTMLMediaElement.prototype.play = function (...args) {
@@ -462,7 +469,6 @@
         }
     }
 
-    // --- State Manager ---
     class StateManager {
         constructor() { this.state = {}; this.listeners = {}; this.filterManagers = { video: null, image: null }; }
         init() {
@@ -532,11 +538,11 @@
         _getVideoId(v) { if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2)); return this._videoIds.get(v); },
         _handleWorkerMessage(e) {
             this._workerBusy = false; this._workerLastSent = 0;
-            const { type, fid, vid, p10, p50, p90, barsNow, hiClipRatio, loClipRatio } = e.data;
+            const { type, fid, vid, p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio } = e.data;
             if (type !== 'result' || !this.targetVideo || vid !== this._getVideoId(this.targetVideo)) return;
             if (!this._lastAppliedFid) this._lastAppliedFid = 0; if (fid < this._lastAppliedFid) return;
             this._lastAppliedFid = fid;
-            this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
+            this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio);
         },
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
@@ -575,21 +581,22 @@
                      if (luma <= 5) loClipCount++;
                  }
              }
-             let p10 = 0.1, p50 = 0.5, p90 = 0.9;
+             let p10 = 0.1, p50 = 0.5, p90 = 0.9, p55 = 0.55;
              const hiClipRatio = validCount > 0 ? hiClipCount / validCount : 0;
              const loClipRatio = validCount > 0 ? loClipCount / validCount : 0;
              if (validCount > 0) {
                  let sum = 0;
-                 const t10 = validCount * 0.10, t50 = validCount * 0.50, t90 = validCount * 0.90;
-                 let f10 = false, f50 = false, f90 = false;
+                 const t10 = validCount * 0.10, t50 = validCount * 0.50, t55 = validCount * 0.55, t90 = validCount * 0.90;
+                 let f10 = false, f50 = false, f55 = false, f90 = false;
                  for (let i = 0; i < 256; i++) {
                      sum += hist[i];
                      if (!f10 && sum >= t10) { p10 = i / 255; f10 = true; }
                      if (!f50 && sum >= t50) { p50 = i / 255; f50 = true; }
+                     if (!f55 && sum >= t55) { p55 = i / 255; f55 = true; }
                      if (!f90 && sum >= t90) { p90 = i / 255; f90 = true; }
                  }
              }
-             this._processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio, loClipRatio);
+             this._processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio, loClipRatio);
         },
         _pickBestVideoNow() {
             const pip = document.pictureInPictureElement; if (pip && pip.isConnected && pip.tagName === 'VIDEO') return pip;
@@ -598,10 +605,10 @@
 
             if (_corePluginRef && _corePluginRef.lastInteractedMedia && _corePluginRef.lastInteractedMedia.isConnected) return _corePluginRef.lastInteractedMedia;
 
-            const candidates = Array.from(document.querySelectorAll('video'));
+            const candidates = Array.from(document.querySelectorAll('video, canvas'));
             _localShadowRoots.forEach(sr => {
                 try {
-                    const srVids = sr.querySelectorAll('video');
+                    const srVids = sr.querySelectorAll('video, canvas');
                     if(srVids.length) candidates.push(...srVids);
                 } catch(e){}
             });
@@ -615,12 +622,16 @@
                 const c = candidates[i]; if (!c.isConnected) continue;
                 const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
                     let score = rect.width * rect.height;
-                    if (!c.paused) score *= 2.0;
-                    if (c.readyState >= 3) score *= 1.5;
-                    if (c.src || c.srcObject) score *= 1.2;
-                    if (!c.muted && c.volume > 0) score *= 1.5;
-                    if (c._vscLastPlay && now - c._vscLastPlay < 5000) score *= 2.0;
-                    if (c.duration && !isNaN(c.duration) && c.duration < 2) score *= 0.1;
+                    if (c.tagName === 'VIDEO') {
+                        if (!c.paused) score *= 2.0;
+                        if (c.readyState >= 3) score *= 1.5;
+                        if (c.src || c.srcObject) score *= 1.2;
+                        if (!c.muted && c.volume > 0) score *= 1.5;
+                        if (c._vscLastPlay && now - c._vscLastPlay < 5000) score *= 2.0;
+                        if (c.duration && !isNaN(c.duration) && c.duration < 2) score *= 0.1;
+                    } else { // Canvas
+                        score *= 0.5; // Lower priority than video
+                    }
 
                     const dist = Math.sqrt(Math.pow(rect.x + rect.width/2 - cx, 2) + Math.pow(rect.y + rect.height/2 - cy, 2));
                     score -= dist * 0.5;
@@ -642,9 +653,9 @@
             if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
             if (this.taintedResources.has(video)) { this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, video, true); return; }
             if (this.isRunning && this.targetVideo === video) return;
-            this.targetVideo = video; this.hasRVFC = 'requestVideoFrameCallback' in this.targetVideo;
+            this.targetVideo = video; this.hasRVFC = (video.tagName === 'VIDEO' && 'requestVideoFrameCallback' in video);
             if (this.canvas) {
-                const vw = video.videoWidth || video.clientWidth || 0;
+                const vw = video.videoWidth || video.width || video.clientWidth || 0;
                 const targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
                 if (this.canvas.width !== targetSize) { this.canvas.width = targetSize; this.canvas.height = targetSize; }
             }
@@ -705,11 +716,12 @@
             }
         },
         processFrame(allowPausedOnce = false) {
-            if (!this.targetVideo || this.targetVideo.ended) { this.stop(); return; }
+            if (!this.targetVideo) { this.stop(); return; }
+            if (this.targetVideo.tagName === 'VIDEO' && this.targetVideo.ended) { this.stop(); return; }
             if (document.hidden) return;
-            if (this.targetVideo.paused && !allowPausedOnce) { if (!this._stopTimeout) this._stopTimeout = setTimeout(() => this.stop(), 2000); return; }
+            if (this.targetVideo.tagName === 'VIDEO' && this.targetVideo.paused && !allowPausedOnce) { if (!this._stopTimeout) this._stopTimeout = setTimeout(() => this.stop(), 2000); return; }
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
-            if (this.targetVideo.readyState < 2) return;
+            if (this.targetVideo.tagName === 'VIDEO' && this.targetVideo.readyState < 2) return;
             if (!this.ctx) return;
             if (this.taintedResources.has(this.targetVideo)) return;
 
@@ -766,8 +778,9 @@
                         const msg = { type: 'analyze', fid, vid, buf, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
                         try { this._worker.postMessage(msg, [buf]); }
                         catch(err) {
-                            try { this._worker.postMessage(msg); }
-                            catch(err2) { this._workerBusy = false; this._workerLastSent = 0; }
+                            // v132.0.6: Immediate fallback on transfer failure
+                            this._workerBusy = false; this._workerLastSent = 0;
+                            this._analyzeFallback(imageData, size, size, bandH, step);
                         }
                 } else {
                     this._analyzeFallback(imageData, size, size, bandH, step);
@@ -778,7 +791,7 @@
                     this.taintedResources.add(this.targetVideo);
                     const next = this._pickBestVideoNow();
                     if (next && next !== this.targetVideo && !this.taintedResources.has(next)) {
-                         this.targetVideo = next; this.hasRVFC = 'requestVideoFrameCallback' in next; this._kickImmediateAnalyze(); return;
+                         this.targetVideo = next; this.hasRVFC = (next.tagName === 'VIDEO' && 'requestVideoFrameCallback' in next); this._kickImmediateAnalyze(); return;
                     }
                     this.stop();
                     this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }, 0, this.targetVideo, true);
@@ -788,14 +801,14 @@
             if (duration > 4.0) this.dynamicSkipThreshold = Math.min(30, (this.dynamicSkipThreshold || 0) + 1);
             else if (duration < 1.0 && this.dynamicSkipThreshold > 0) this.dynamicSkipThreshold = Math.max(0, this.dynamicSkipThreshold - 1);
         },
-        _processAnalysisResult(p10, p50, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
+        _processAnalysisResult(p10, p50, p55, p90, barsNow, hiClipRatio = 0, loClipRatio = 0) {
             const aggressive = (this._evAggressiveUntil && performance.now() < this._evAggressiveUntil);
 
             if (barsNow !== this._lastBarsState) {
                 this._lastBarsState = barsNow;
             }
 
-            this._roiP50History.push(p50);
+            this._roiP50History.push(p55 || p50); // v132.0.6: Use p55 for history
             if (this._roiP50History.length > 5) this._roiP50History.shift();
             const sortedP50 = [...this._roiP50History].sort((a,b) => a - b);
             const p50m = sortedP50[Math.floor(sortedP50.length / 2)];
@@ -828,6 +841,10 @@
 
                 const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
                 rawEV += userEV;
+                
+                // v132.0.6: Apply strength BEFORE deadband for minimal intervention
+                const aeStr = (this.currentSettings.aeStrength ?? 40) / 100;
+                rawEV *= aeStr;
 
                 const range = Math.max(0, stableP90 - this._p10Ema);
                 if (range < 0.25) rawEV *= 0.75;
@@ -843,8 +860,6 @@
                     this._aeActive = false;
                 } else {
                     this._aeActive = true;
-                    const aeStr = (this.currentSettings.aeStrength ?? 45) / 100;
-                    rawEV *= aeStr;
                 }
 
                 if (rawEV > 0) {
@@ -856,7 +871,8 @@
                     rawEV *= (1.0 - 0.70 * loGate);
                 }
 
-                rawEV = Utils.clamp(rawEV, -0.35, 0.45);
+                // v132.0.6: Tight clamp
+                rawEV = Utils.clamp(rawEV, -0.30, 0.35);
 
                 if (this._highMotion && !aggressive) {
                     rawEV *= 0.8;
@@ -882,9 +898,10 @@
                 if (Math.abs(diff) < 0.002) return target;
                 return curr + diff * (diff > 0 ? upSpeed : downSpeed);
             };
-
-            const baseUp = aggressive ? 0.20 : 0.035;
-            const baseDown = aggressive ? 0.20 : 0.10;
+            
+            // v132.0.6: Slower smooth for minimal intervention
+            const baseUp = aggressive ? 0.20 : 0.02;
+            const baseDown = aggressive ? 0.20 : 0.06;
 
             this.currentAdaptiveGamma = smooth(this.currentAdaptiveGamma || 1.0, targetAdaptiveGamma, baseUp, baseDown);
             this.currentAdaptiveBright = smooth(this.currentAdaptiveBright || 0, targetAdaptiveBright, baseUp, baseDown);
@@ -935,21 +952,22 @@
             }
         }
         setBoost(val) {
-            if (this.wetGain) {
+            if (this.wetGain && this.ctx) {
+                if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
                 const boost = Math.pow(10, val / 20);
                 this.wetGain.gain.setTargetAtTime(boost, this.ctx.currentTime, 0.05);
             }
         }
         updateMix(enabled) {
             if (!this.ctx || !this.dryGain || !this.wetGain) return;
-            if (this.ctx.state === 'suspended') this.ctx.resume();
+            if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
             const t = this.ctx.currentTime;
             this.dryGain.gain.setTargetAtTime(enabled ? 0 : 1, t, 0.05);
             this.wetGain.gain.setTargetAtTime(enabled ? Math.pow(10, this.stateManager.get('audio.boost') / 20) : 0, t, 0.05);
         }
         attach(media) {
             if (!media || media.tagName !== 'VIDEO') return;
-            if (this.targetMedia === media && this.source) { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); return; }
+            if (this.targetMedia === media && this.source) { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{}); return; }
             
             this.targetMedia = media;
             try {
@@ -973,7 +991,7 @@
                     this.wetGain.connect(this.ctx.destination);
                 }
                 
-                if (this.ctx.state === 'suspended') this.ctx.resume();
+                if (this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{});
 
                 if (!media[VSC_AUDIO_SRC]) { try { media[VSC_AUDIO_SRC] = this.ctx.createMediaElementSource(media); } catch(e) { return; } }
                 this.source = media[VSC_AUDIO_SRC];
@@ -1109,10 +1127,13 @@
             }
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
             const sm = this.stateManager; const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
-            if ((sm.get('media.activeMedia').size > 0) || hasPotential) { this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; } else { this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5); }
-
+            // v132.0.6: Aggressive idle if inactive
             if (!sm.get('app.scriptActive') && !sm.get('ui.areControlsVisible')) {
-                this.currentScanInterval = CONFIG.SCAN.INTERVAL_IDLE;
+                this.currentScanInterval = 15000;
+            } else if ((sm.get('media.activeMedia').size > 0) || hasPotential) { 
+                this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval; 
+            } else { 
+                this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5); 
             }
 
             this.scheduleNextScan();
@@ -1335,6 +1356,7 @@
             this._pruneTimer = setInterval(() => {
                 if (this.filterManager) this.filterManager.prune();
                 if (this.imageFilterManager) this.imageFilterManager.prune();
+                // v132.0.5: Enforce filters
                 const v = this.stateManager.get('media.currentlyVisibleMedia');
                 if (v && v.isConnected) this._updateVideoFilterState(v);
             }, 3000);
@@ -1376,7 +1398,7 @@
                     this._svgNode = svgNode; this._styleElement = styleElement;
                     const container = document.body || document.documentElement;
                     if (container) container.appendChild(svgNode);
-                    else { document.addEventListener('DOMContentLoaded', () => { document.body.appendChild(svgNode); }); } 
+                    else { document.addEventListener('DOMContentLoaded', () => { document.body.appendChild(svgNode); }); }
                     (document.head || document.documentElement).appendChild(styleElement);
                     this._activeFilterRoots.add(this._svgNode);
                     this._isInitialized = true;
@@ -1894,7 +1916,6 @@
             
             videoSubMenu.append(topRow);
 
-            // Tab Buttons
             const tabHeader = document.createElement('div'); tabHeader.className = 'vsc-tab-header';
             const tabBtn1 = document.createElement('button'); tabBtn1.className = 'vsc-tab-btn active'; tabBtn1.textContent = '노출/프리셋';
             const tabBtn2 = document.createElement('button'); tabBtn2.className = 'vsc-tab-btn'; tabBtn2.textContent = '화질/상세';
@@ -1911,7 +1932,6 @@
             tabBtn1.onclick = () => switchTab(true);
             tabBtn2.onclick = () => switchTab(false);
 
-            // Tab 1: Presets & Exposure
             const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
             const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [-5, 0, 5, 10].map(v => ({ txt: (v > 0 ? '+' : '') + v, val: v * 2 })) }];
             PRESET_CONFIG.forEach(cfg => {
