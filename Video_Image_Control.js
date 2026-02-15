@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.36 Restored Presets)
+// @name        Video_Image_Control (v132.0.37 Robust & Smart AE)
 // @namespace   https://com/
-// @version     132.0.36
-// @description v132.0.36: Restored "Sharpness Presets" (S/M/L/XL/Off) and Fixed "Dark Scene Detection" logic (removed avgLuma constraint).
+// @version     132.0.37
+// @description v132.0.37: Safe Hook Recovery, ROI(Letterbox) ignored in AE, "2-Gear" Boost for Dark Scenes, and Optimization.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -43,12 +43,13 @@
     // [v35] Minimal AE Constants
     const MIN_AE = {
         STRENGTH: 0.25,
-        MID_OK_MIN: 0.22,      // [Fix applied] This will now work strictly
+        MID_OK_MIN: 0.22,
         MID_OK_MAX: 0.60,
         P98_CLIP: 0.985,
-        MAX_UP_EV: 0.18,
+        MAX_UP_EV: 0.18,       // Base cap
+        MAX_UP_EV_DARK: 0.25,  // [v37] Boost cap for very dark scenes
         MAX_DOWN_EV: -0.25,
-        DEAD_OUT: 0.10,        // [Tuned] More sensitive
+        DEAD_OUT: 0.10,
         DEAD_IN: 0.05
     };
 
@@ -102,22 +103,22 @@
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
         self.onmessage = function(e) {
-            const { fid, vid, buf, width, type, bandH, step, p10ref } = e.data;
+            const { fid, vid, buf, width, type, bandH, step } = e.data;
             if (type === 'analyze') {
                 let data = null;
                 if (buf) { try { data = new Uint8ClampedArray(buf); } catch(e) {} } else if (e.data.data) { try { data = new Uint8ClampedArray(e.data.data); } catch(e) {} }
                 if (!data) return;
                 hist.fill(0);
                 const size = width;
-                const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
-
+                
                 let validCount = 0;
                 let sumR = 0, sumG = 0, sumB = 0;
                 let sumLuma = 0;
                 let sumLumaSq = 0;
 
-                const startY = 0;
-                const endY = size;
+                // [v37] ROI: Exclude top/bottom bars (Letterbox)
+                const startY = bandH; 
+                const endY = size - bandH;
                 const startX = 0;
                 const endX = size;
 
@@ -338,13 +339,16 @@
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
     let _hooksActive = false, _shadowHookActive = false;
+    // [v37] Saved References for Safe Recovery
+    let _savedDefineProperty = null, _savedDefineProperties = null;
 
     safeGuard(() => {
         const origPlay = HTMLMediaElement.prototype.play;
         HTMLMediaElement.prototype.play = function (...args) {
             try { this._vscLastPlay = Date.now(); } catch (e) {}
             try {
-                 if (_corePluginRef && !isSensitiveContext()) {
+                 // [v37] Check scriptActive for safety
+                 if (_corePluginRef && _corePluginRef.stateManager.get('app.scriptActive') && !isSensitiveContext()) {
                      _corePluginRef.scheduleNextScan();
                      VSC_PINNED.el = this;
                      VSC_PINNED.until = Date.now() + 10000;
@@ -378,29 +382,38 @@
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
         if (document.visibilityState === 'hidden') return;
+        // [v37] Save current state before patching
+        _savedDefineProperty = Object.defineProperty;
+        _savedDefineProperties = Object.defineProperties;
+
         const protectKeys = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
         const isMediaEl = (o) => o && o.nodeType === 1 && (o.tagName === 'VIDEO' || o.tagName === 'AUDIO');
         const safeDefineProperty = function (obj, key, descriptor) {
             if (isMediaEl(obj) && protectKeys.includes(key) && descriptor) {
                 const patched = { ...descriptor }; patchDescriptorSafely(patched);
-                try { return ORIGINALS.defineProperty.call(this, obj, key, patched); } catch (e) { return ORIGINALS.defineProperty.call(this, obj, key, descriptor); }
+                try { return (_savedDefineProperty || ORIGINALS.defineProperty).call(this, obj, key, patched); } catch (e) { return (_savedDefineProperty || ORIGINALS.defineProperty).call(this, obj, key, descriptor); }
             }
-            return ORIGINALS.defineProperty.call(this, obj, key, descriptor);
+            return (_savedDefineProperty || ORIGINALS.defineProperty).call(this, obj, key, descriptor);
         };
         const safeDefineProperties = function (obj, props) {
              if (isMediaEl(obj) && props) {
                 const patchedProps = { ...props };
                 for (const k in patchedProps) { if (protectKeys.includes(k) && patchedProps[k]) { const patched = { ...patchedProps[k] }; patchDescriptorSafely(patched); patchedProps[k] = patched; } }
-                try { return ORIGINALS.defineProperties.call(this, obj, patchedProps); } catch (e) { return ORIGINALS.defineProperties.call(this, obj, props); }
+                try { return (_savedDefineProperties || ORIGINALS.defineProperties).call(this, obj, patchedProps); } catch (e) { return (_savedDefineProperties || ORIGINALS.defineProperties).call(this, obj, props); }
             }
-            return ORIGINALS.defineProperties.call(this, obj, props);
+            return (_savedDefineProperties || ORIGINALS.defineProperties).call(this, obj, props);
         };
         Object.defineProperty = safeDefineProperty; Object.defineProperties = safeDefineProperties;
         _hooksActive = true;
     };
 
     const disableAllHooks = () => {
-        if (_hooksActive) { Object.defineProperty = ORIGINALS.defineProperty; Object.defineProperties = ORIGINALS.defineProperties; _hooksActive = false; }
+        if (_hooksActive) {
+            // [v37] Restore to saved state or ORIGINAL
+            Object.defineProperty = _savedDefineProperty || ORIGINALS.defineProperty;
+            Object.defineProperties = _savedDefineProperties || ORIGINALS.defineProperties;
+            _hooksActive = false;
+        }
         if (_shadowHookActive) { try { Element.prototype.attachShadow = ORIGINALS.attachShadow; } catch {} _shadowHookActive = false; }
     };
 
@@ -474,7 +487,6 @@
             this.state = {
                 app: { isInitialized: false, isMobile: IS_MOBILE, scriptActive: false },
                 media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
-                // [v35] Removed targetLuma, aeStrength
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 audio: { enabled: false, boost: 6 },
@@ -503,6 +515,7 @@
         _lastClarityComp: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
         _lastBarsState: false, _aeActive: false, _lastKick: 0, _workerCooldown: 0,
         _lastFrameStats: null,
+        _lastNoWorkerAnalyze: 0, // [v37] Fallback throttling
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
         init(stateManager) {
@@ -686,10 +699,15 @@
             }
             if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) { this._evAggressiveUntil = 0; }
             const isClarityActive = this.currentSettings.clarity > 0; const isAutoExposure = this.currentSettings.autoExposure;
+            
+            // [v37] Optimized Update: Only restart if switching video or turning ON
             if (isClarityActive || isAutoExposure) {
+                if (this.isRunning && this.targetVideo && this.targetVideo.isConnected) {
+                     if (aeTurnedOn) this._kickImmediateAnalyze();
+                     return; 
+                }
                 const best = this._pickBestVideoNow();
                 if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity }); }
-                if (aeTurnedOn) { this._kickImmediateAnalyze(); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
                 this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0 }, 0);
             }
@@ -746,6 +764,13 @@
                 this._workerCooldown = 0;
             }
 
+            // [v37] Fallback Throttling
+            if (!this._worker) {
+                 const now = performance.now();
+                 if (now - (this._lastNoWorkerAnalyze||0) < 250) return; 
+                 this._lastNoWorkerAnalyze = now;
+            }
+
             if (this._worker && this._workerBusy) {
                  const now = performance.now();
                  if (this._workerLastSent > 0 && now - this._workerLastSent > 1200) {
@@ -780,6 +805,7 @@
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
                 const step = (size <= 24) ? 1 : 2;
+                // [v37] bandH utilized for ROI inside worker
                 const bandH = Math.max(1, Math.floor(size * 0.10));
                 const fid = ++this._frameId;
                 const vid = this._getVideoId(this.targetVideo);
@@ -867,16 +893,13 @@
 
             // [v35] Minimal Intervention Mode (AE = Safety Guard)
             if (isAutoExp) {
-                const aeStr = MIN_AE.STRENGTH;
+                const aeStr = MIN_AE.STRENGTH; 
 
                 // 1. Check conditions to intervene
                 const midOk = (p50m >= MIN_AE.MID_OK_MIN && p50m <= MIN_AE.MID_OK_MAX);
                 const clipRisk = (p98 >= MIN_AE.P98_CLIP);
-
-                // [v36 Fix] Removed avgLuma < 0.35 constraint. Now obeys MIN setting.
+                // [v36 Fix] Removed avgLuma constraint
                 const tooDark = (p50m < MIN_AE.MID_OK_MIN);
-
-                // "Too Bright" means midtones are blown out OR explicit clip risk
                 const tooBright = (p50m > MIN_AE.MID_OK_MAX) || clipRisk;
 
                 let rawEV = 0;
@@ -891,19 +914,26 @@
                     let targetMid = 0.34;
                     if (avgLuma > 0.8) targetMid = 0.32;
                     else if (avgLuma > 0.6) targetMid = 0.34;
-
+                    
                     // [Test Fix] If we entered because it's too dark, ensure we aim at least MIN
                     if (tooDark) targetMid = Math.max(0.34, MIN_AE.MID_OK_MIN);
 
                     let baseEV = Math.log2(targetMid / safeCurrent);
+                    
+                    // [v37] 2-Gear Boost for Dark Scenes
+                    let maxUp = MIN_AE.MAX_UP_EV;
+                    // If REALLY dark (p50 < 0.14) AND highlights safe (p98 < 0.75), allow more boost
+                    if (p50m < 0.14 && p98 < 0.75) {
+                        maxUp = MIN_AE.MAX_UP_EV_DARK; // 0.25 EV
+                    }
 
                     // Clamp autoEV strictly
-                    let autoEV = Utils.clamp(baseEV * aeStr, MIN_AE.MAX_DOWN_EV, MIN_AE.MAX_UP_EV);
+                    let autoEV = Utils.clamp(baseEV * aeStr, MIN_AE.MAX_DOWN_EV, maxUp);
 
                     // If clipping risk exists, prevent boosting
                     if (clipRisk && autoEV > 0) autoEV = 0;
 
-                    rawEV = autoEV;
+                    rawEV = autoEV; 
 
                     // [Safety Cap] P98 hard limit
                     if (p98 > 0.01) {
@@ -912,7 +942,7 @@
                         if (rawEV > maxSafeEV) rawEV = Math.min(rawEV, maxSafeEV);
                     }
 
-                    // Hysteresis to prevent flickering around threshold
+                    // Hysteresis
                     if (this._aeActive == null) this._aeActive = false;
                     const th = this._aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
 
@@ -922,12 +952,17 @@
                     } else {
                         this._aeActive = true;
                     }
-
+                    
                     // Final Clamp
-                    rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, MIN_AE.MAX_UP_EV);
+                    rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
                 }
 
-                if (stdDev < 0.05) rawEV *= (stdDev / 0.05); // Reduce for flat scenes
+                // [v37] Gentle damping for dark flat scenes (less reduction)
+                if (stdDev < 0.05) {
+                    // If dark flat scene, don't reduce as much as bright flat scene
+                    const damping = (p50m < 0.18) ? 0.8 : (stdDev / 0.05);
+                    rawEV *= damping; 
+                }
                 if (this._highMotion && !aggressive) rawEV *= 0.8;
 
                 targetLinearGain = Math.pow(2, rawEV);
@@ -1602,7 +1637,7 @@
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
                         if (saturation !== undefined && cache.saturate) cache.saturate.forEach(el => Utils.setAttr(el, 'values', (saturation / 100).toString()));
 
-                        // [v34] Optimized Unified Gain+Rolloff Table Construction with Caching & SQRT Knee
+                        // [v33] Optimized Unified Gain+Rolloff Table Construction with Caching & SQRT Knee
                         if (cache.exposureFuncs) {
                             const gainKey = `gain_${gainQ.toFixed(2)}`;
                             let tableVal = this._gainTableCache.get(gainKey);
@@ -1613,7 +1648,7 @@
                                 } else if (gainQ <= 1.0) {
                                     tableVal = `0 ${gainQ.toFixed(4)}`;
                                 } else {
-                                    // [v34] SQRT-based Knee for Softer Rolloff
+                                    // [v33] SQRT-based Knee for Softer Rolloff
                                     const steps = 256;
                                     const vals = [];
                                     const knee = Utils.clamp(0.80 / Math.sqrt(gainQ), 0.45, 0.80); // Softer knee
@@ -1678,9 +1713,8 @@
             let finalContrastAdj = vf.contrastAdj;
             let finalSaturation = vf.saturation;
 
-            // --- [v132.0.34 Logic] ---
-            const userEV = 0; // [v35] User EV removed
-            const totalGain = (autoGain || 1.0);
+            // --- [v132.0.35 Simplified Gain Logic] ---
+            const totalGain = (autoGain || 1.0); // AE Only. No manual gain.
 
             // [v34] Use local variables, DO NOT mutate state directly
             let effectiveClarity = vf.clarity;
@@ -2106,7 +2140,7 @@
                     this.stateManager.set(key, next);
                     // [v35] Trigger instant scan when AE is toggled on
                     if (key === 'videoFilter.autoExposure' && next) triggerBurstScan(200);
-                };
+                }; 
                 this.subscribe(key, render); render(this.stateManager.get(key)); return btn;
             };
             const powerBtn = document.createElement('button'); powerBtn.className = 'vsc-btn vsc-btn-lg'; powerBtn.textContent = '⏸︎'; powerBtn.title = '전체 기능 끄기';
@@ -2128,7 +2162,7 @@
             // [v36] Restored Sharpness Presets
             const presetContainer = document.createElement('div');
             presetContainer.className = 'vsc-align-grid';
-
+            
             const label = document.createElement('div');
             label.className = 'vsc-label';
             label.textContent = '샤프';
@@ -2164,7 +2198,7 @@
             };
             this.subscribe('videoFilter.activeSharpPreset', updateSharp);
             updateSharp(this.stateManager.get('videoFilter.activeSharpPreset'));
-
+            
             videoSubMenu.appendChild(presetContainer);
 
             // [v35] Simplified Slider Grid (No tabs)
