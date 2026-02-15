@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.57 Optimized)
+// @name        Video_Image_Control (v132.0.59 Optimized)
 // @namespace   https://com/
-// @version     132.0.57
-// @description v132.0.57: AE Hold timestamp fix, Safe Worker stall recovery, Optimized Rect calls, AE Target Mid tuned.
+// @version     132.0.59
+// @description v132.0.59: HOTFIX - Restored missing event helpers (P/CP reference error), Stability improvements.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -46,7 +46,7 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v57] Refined AE Constants
+    // [v58] Tuned AE Constants
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.28 : 0.30,
         STRENGTH_DARK: IS_MOBILE ? 0.30 : 0.32,
@@ -80,7 +80,7 @@
         },
         AUDIO: { THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 },
         SCAN: {
-            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, INTERVAL_IDLE: 15000,
+            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
             MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
             MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd']
         },
@@ -123,9 +123,11 @@
     const rIC = window.requestIdleCallback || (cb => setTimeout(() => cb({ timeRemaining: () => 1, didTimeout: true }), IS_MOBILE ? 16 : 4));
     const scheduleWork = (cb) => rIC((d) => { try { cb(d); } catch (e) { if (CONFIG.DEBUG) console.error(e); } }, { timeout: 1000 });
 
+    const on = (target, type, listener, options) => { try { target.addEventListener(type, listener, options); } catch(e){} };
+
+    // [v59] Restored helpers to fix ReferenceError
     const P = (signal) => ({ passive: true, signal });
     const CP = (signal) => ({ capture: true, passive: true, signal });
-    const on = (target, type, listener, options) => { try { target.addEventListener(type, listener, options); } catch(e){} };
 
     function disableAllHooks() {} 
 
@@ -238,7 +240,6 @@
     let _scanRaf = null, _lastFullScanTime = 0;
     let _fullScanQueued = false;
     let _lastBackoffScan = 0;
-    let _lastBackoffForceScan = 0; 
     const _localShadowRoots = [], _localShadowSet = new Set();
     const VSC_SR_MO = Symbol('vsc_sr_mo');
 
@@ -973,14 +974,18 @@
                 const size = this.canvas.width;
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
+                // [v45] Force step 2 on mobile to save CPU
                 const step = IS_MOBILE ? 2 : ((size <= 32) ? 1 : 2);
+                // [v54] Step increase during aggressive
+                const finalStep = aggressive ? step + 1 : step;
+                
                 const fid = ++this._frameId;
                 const vid = this._getVideoId(this.targetVideo);
 
                 if (this._worker) {
                         this._workerBusy = true; this._workerLastSent = performance.now();
                         const buf = imageData.data.buffer;
-                        const msg = { type: 'analyze', fid, vid, buf, width: size, step };
+                        const msg = { type: 'analyze', fid, vid, buf, width: size, step: finalStep };
                         try { this._worker.postMessage(msg, [buf]); }
                         catch(err) {
                             this._workerBusy = false; this._workerLastSent = 0;
@@ -1038,7 +1043,7 @@
 
             const aggressive = (this._evAggressiveUntil && now < this._evAggressiveUntil);
 
-            // [v56] AE Hold on Cut (Corrected timestamp usage in plugin)
+            // [v57] AE Hold on Cut (Safe Timestamp)
             if (isCut || (this._aeHoldUntil && now < this._aeHoldUntil)) {
                 if (isCut) this._aeHoldUntil = now + 600;
             }
@@ -1089,68 +1094,82 @@
                     // [v57] Force break hold if clip risk detected
                     this._aeHoldUntil = 0;
                 } 
-                else if (midTooDark && !isLowKey && !lowContrastDark) {
-                    const safeCurrent = Math.max(0.02, p50m);
-                    let targetMid = 0.34;
-                    if (avgLuma > 0.8) targetMid = 0.32;
-                    else if (avgLuma > 0.6) targetMid = 0.34;
-                    
-                    // [v57] Tuned Target Mid (0.31 base)
-                    targetMid = Math.max(0.31, MIN_AE.MID_OK_MIN);
-                    
-                    // Very dark exception
-                    if (p50m < 0.08) targetMid = 0.33;
-
-                    let baseEV = Math.log2(targetMid / safeCurrent);
-
-                    let maxUp = MIN_AE.MAX_UP_EV;
-                    const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
-                    
-                    if (p50m < 0.08 && headroomEV > 0.6 && stdDev < 0.18) {
-                         maxUp = Math.min(MIN_AE.MAX_UP_EV_EXTRA, headroomEV * 0.75); 
-                    } else if (p50m < 0.14 && headroomEV > 0.4) {
-                         maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.6);
+                else if (midTooDark && !isLowKey) {
+                    let allowNudge = false;
+                    if (lowContrastDark && p50m < 0.10 && p98 < 0.60 && clipFrac < dynamicClipLimit) {
+                        allowNudge = true;
                     }
 
-                    let currentAeStr = aeStr;
-                    if (p50m < 0.08) currentAeStr = MIN_AE.STRENGTH_DARK;
+                    if (!lowContrastDark || allowNudge) {
+                        const safeCurrent = Math.max(0.02, p50m);
+                        let targetMid = 0.34;
+                        if (avgLuma > 0.8) targetMid = 0.32;
+                        else if (avgLuma > 0.6) targetMid = 0.34;
+                        
+                        // [v57] Tuned Target Mid (0.31 base)
+                        targetMid = Math.max(0.31, MIN_AE.MID_OK_MIN);
+                        
+                        // Very dark exception
+                        if (p50m < 0.08) targetMid = 0.33;
 
-                    let autoEV = Utils.clamp(baseEV * currentAeStr, MIN_AE.MAX_DOWN_EV, maxUp);
+                        let baseEV = Math.log2(targetMid / safeCurrent);
 
-                    let rawEV = autoEV;
+                        let maxUp = MIN_AE.MAX_UP_EV;
+                        const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
+                        
+                        if (p50m < 0.08 && headroomEV > 0.6 && stdDev < 0.18) {
+                             maxUp = Math.min(MIN_AE.MAX_UP_EV_EXTRA, headroomEV * 0.75); 
+                        } else if (p50m < 0.14 && headroomEV > 0.4) {
+                             maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.6);
+                        }
 
-                    if (p98 > 0.01) {
-                        const maxSafeGain = 0.99 / p98;
-                        const maxSafeEV = Math.log2(maxSafeGain);
-                        if (rawEV > maxSafeEV) rawEV = Math.min(rawEV, maxSafeEV);
-                    }
+                        if (allowNudge) {
+                            maxUp = Math.min(maxUp, 0.12);
+                        }
 
-                    if (this._aeActive == null) this._aeActive = false;
-                    const th = this._aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
+                        let currentAeStr = aeStr;
+                        if (p50m < 0.08) currentAeStr = MIN_AE.STRENGTH_DARK;
 
-                    if (Math.abs(rawEV) < th) {
-                        rawEV = 0;
-                        this._aeActive = false;
+                        let autoEV = Utils.clamp(baseEV * currentAeStr, MIN_AE.MAX_DOWN_EV, maxUp);
+
+                        let rawEV = autoEV;
+
+                        if (p98 > 0.01) {
+                            const maxSafeGain = 0.99 / p98;
+                            const maxSafeEV = Math.log2(maxSafeGain);
+                            if (rawEV > maxSafeEV) rawEV = Math.min(rawEV, maxSafeEV);
+                        }
+
+                        if (this._aeActive == null) this._aeActive = false;
+                        const th = this._aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
+
+                        if (Math.abs(rawEV) < th) {
+                            rawEV = 0;
+                            this._aeActive = false;
+                        } else {
+                            this._aeActive = true;
+                        }
+
+                        rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
+                        
+                        if (stdDev < 0.05) {
+                            const damping = 0.95; 
+                            rawEV *= damping;
+                        }
+                        if (this._highMotion && !aggressive) rawEV *= 0.8;
+
+                        targetLinearGain = Math.pow(2, rawEV);
                     } else {
-                        this._aeActive = true;
+                         targetLinearGain = 1.0;
+                         this._aeActive = false;
                     }
-
-                    rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
-                    
-                    if (stdDev < 0.05) {
-                        const damping = 0.95; 
-                        rawEV *= damping;
-                    }
-                    if (this._highMotion && !aggressive) rawEV *= 0.8;
-
-                    targetLinearGain = Math.pow(2, rawEV);
                 } else {
                     targetLinearGain = 1.0;
                     this._aeActive = false;
                 }
             }
 
-            // AE Hold
+            // [v55] AE Hold application
             if (this._aeHoldUntil && now < this._aeHoldUntil && !aggressive) {
                  targetLinearGain = this.currentLinearGain || 1.0;
             }
@@ -1402,8 +1421,6 @@
             }
 
             const updateHooksState = () => {
-                const active = this.stateManager.get('app.scriptActive');
-                const hasPlaying = [...(this.stateManager.get('media.activeMedia')||[])].some(v => v && v.tagName==='VIDEO' && !v.paused && v.readyState>=2);
                 const sensitive = isSensitiveContext();
                 if (!sensitive) enableShadowHook();
                 // [v47] Property hooks removed, targeted relax only
