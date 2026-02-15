@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.52 Optimized)
+// @name        Video_Image_Control (v132.0.53 Optimized)
 // @namespace   https://com/
-// @version     132.0.52
-// @description v132.0.52: CRITICAL FIX - Initialization deadlock resolved (UI now visible), Time-based AE, Backoff scan.
+// @version     132.0.53
+// @description v132.0.53: Fixed AE params overwrite bug, Smart Backoff bypass, Conservative AE tuning.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,13 +19,10 @@
 (function () {
     'use strict';
 
-    // 1. Boot Guard (Renamed to prevent collision with main())
+    // 1. Boot Guard (Consolidated)
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
-    
-    // [v52] Key renamed: Separated injection guard from app state
     const VSC_BOOT_KEY = '__VSC_BOOT_LOCK__'; 
     if (window[VSC_BOOT_KEY]) return;
-    
     try {
         Object.defineProperty(window, VSC_BOOT_KEY, { value: true, writable: false });
     } catch (e) {
@@ -49,7 +46,7 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v50] Time-based Smoothing & Adaptive Trigger
+    // [v53] Conservative AE Constants
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.28 : 0.30,
         STRENGTH_DARK: IS_MOBILE ? 0.30 : 0.32,
@@ -57,15 +54,15 @@
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004, 
-        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.18,      
-        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.38, 
-        MAX_UP_EV_EXTRA: IS_MOBILE ? 0.30 : 0.50,
+        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.16,      // [v53] Lowered slightly
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.32, // [v53] Lowered slightly
+        MAX_UP_EV_EXTRA: IS_MOBILE ? 0.30 : 0.40,// [v53] Lowered slightly
         MAX_DOWN_EV: 0,
-        DEAD_OUT: 0.08,
+        DEAD_OUT: 0.10, // [v53] Increased deadband to reduce micro-adjustments
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
         LOWKEY_P10: 0.10,
-        TAU_UP: 700,
+        TAU_UP: 800,   // [v53] Slower reaction up
         TAU_DOWN: 900,
         TAU_AGGRESSIVE: 120
     };
@@ -283,11 +280,12 @@
     };
 
     let _lastRootish = 0;
-    const scheduleScan = (rootOrNull, immediate = false) => {
+    const scheduleScan = (rootOrNull, immediate = false, isUserAction = false) => {
         if (Utils.isShadowRoot(rootOrNull)) registerShadowRoot(rootOrNull);
         
         if (immediate && _corePluginRef) {
-            if (_corePluginRef._isBackoffMode) {
+            // [v53] Backoff bypass on user action
+            if (_corePluginRef._isBackoffMode && !isUserAction) {
                 const now = Date.now();
                 if (now - _lastBackoffScan > 1800) {
                     _lastBackoffScan = now;
@@ -352,7 +350,11 @@
         const now = Date.now();
         if (now - _lastBurstTime < 250) return;
         _lastBurstTime = now;
-        if(_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d)); }
+        if(_corePluginRef) { 
+            _corePluginRef.resetScanInterval(); 
+            scheduleScan(null, true, true); // [v53] User action hint
+            [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d)); 
+        }
     };
 
     let _sensCache = { t: 0, v: false };
@@ -448,12 +450,11 @@
         const origPlay = HTMLMediaElement.prototype.play;
         HTMLMediaElement.prototype.play = function (...args) {
             try { this._vscLastPlay = Date.now(); } catch (e) {}
-            // [v46] Targeted unlock on play
             try { relaxMediaLocks(this); } catch(e) {}
             
             try {
                  if (_corePluginRef && _corePluginRef.stateManager.get('app.scriptActive') && !isSensitiveContext()) {
-                     _corePluginRef.scheduleNextScan();
+                     _corePluginRef.scheduleNextScan(true); // User action hint
                      VSC_PINNED.el = this;
                      VSC_PINNED.until = Date.now() + 10000;
                      if (this.getBoundingClientRect().width > 100 && _corePluginRef.stateManager) {
@@ -916,6 +917,7 @@
                          try { this._worker.terminate(); } catch {}
                          this._worker = null; if (this._workerUrl) URL.revokeObjectURL(this._workerUrl); this._workerUrl = null;
                          this._workerStallCount = 0;
+                         // [v44] Progressive backoff for worker failure
                          this._workerRetryCount = (this._workerRetryCount || 0) + 1;
                          this._workerCooldown = performance.now() + Math.min(30000, 3000 * this._workerRetryCount);
                          this.init(this.stateManager);
@@ -1049,6 +1051,7 @@
                 
                 const lowContrastDark = (stdDev < 0.06 && p50m < 0.14 && p98 < 0.70);
                 
+                // [v50] PC only: Relax trigger slightly for very dark scenes
                 const effectiveMidMin = (p50m < 0.10 && !IS_MOBILE) ? 0.18 : MIN_AE.MID_OK_MIN;
                 const midTooDark = p50m < effectiveMidMin;
                 
@@ -1062,11 +1065,12 @@
                 } 
                 else if (midTooDark && !isLowKey && !lowContrastDark) {
                     const safeCurrent = Math.max(0.02, p50m);
-                    let targetMid = 0.34;
+                    let targetMid = 0.34; // Base target
                     if (avgLuma > 0.8) targetMid = 0.32;
                     else if (avgLuma > 0.6) targetMid = 0.34;
-
-                    targetMid = Math.max(0.34, MIN_AE.MID_OK_MIN);
+                    
+                    // [v53] Target mid lower for minimal intervention (was 0.34)
+                    targetMid = Math.max(0.32, MIN_AE.MID_OK_MIN);
 
                     let baseEV = Math.log2(targetMid / safeCurrent);
 
@@ -1639,6 +1643,7 @@
             this.subscribe('media.visTick', () => this.updateMediaFilterStates());
             this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
 
+            // [v53] AE Params Overwrite Fix
             this.throttledUpdate = throttle((e) => {
                 const { autoParams, videoInfo, aeActive } = e.detail;
                 const currentMedia = this.stateManager.get('media.currentlyVisibleMedia');
@@ -1649,18 +1654,22 @@
 
                 let isChanged = false;
                 if (vf.autoExposure) {
-                    isChanged = Math.abs(this.lastAutoParams.gamma - autoParams.gamma) > 0.003 ||
-                                Math.abs(this.lastAutoParams.bright - autoParams.bright) > 0.2 ||
-                                Math.abs((this.lastAutoParams.linearGain || 1.0) - (autoParams.linearGain || 1.0)) > 0.01;
+                    const prevGain = this.lastAutoParams.linearGain || 1.0;
+                    const nextGain = autoParams.linearGain || 1.0;
+                    isChanged = Math.abs(nextGain - prevGain) > 0.002;
                 }
                 if (!isChanged && vf.clarity > 0) {
-                    isChanged = Math.abs(this.lastAutoParams.clarityComp - autoParams.clarityComp) > 0.2;
+                    isChanged = Math.abs(this.lastAutoParams.clarityComp - (autoParams.clarityComp||0)) > 0.2;
                 }
 
-                this.lastAutoParams = autoParams;
-                this.lastAutoParams.aeActive = aeActive;
+                // Merge instead of overwrite
+                this.lastAutoParams = {
+                    ...this.lastAutoParams,
+                    linearGain: autoParams.linearGain || 1.0,
+                    aeActive: aeActive
+                };
+                
                 this.applyAllVideoFilters();
-
             }, 100);
 
             document.addEventListener('vsc-smart-limit-update', this.throttledUpdate);
@@ -2550,8 +2559,6 @@
     }
 
     function main() {
-        if (window.__VSC_ENGINE_STARTED) return;
-        window.__VSC_ENGINE_STARTED = true;
         const stateManager = new StateManager();
         const pluginManager = new PluginManager(stateManager);
         window.vscPluginManager = pluginManager;
