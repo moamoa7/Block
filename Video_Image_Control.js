@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.37 Robust & Smart AE)
+// @name        Video_Image_Control (v132.0.40 Instant UI Fix)
 // @namespace   https://com/
-// @version     132.0.37
-// @description v132.0.37: Safe Hook Recovery, ROI(Letterbox) ignored in AE, "2-Gear" Boost for Dark Scenes, and Optimization.
+// @version     132.0.40
+// @description v132.0.40: Fixed "Missing Icon" bug by forcing UI creation on init. Script now starts in "Active" mode by default.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -44,11 +44,11 @@
     const MIN_AE = {
         STRENGTH: 0.25,
         MID_OK_MIN: 0.22,
-        MID_OK_MAX: 0.60,
-        P98_CLIP: 0.985,
-        MAX_UP_EV: 0.18,       // Base cap
-        MAX_UP_EV_DARK: 0.25,  // [v37] Boost cap for very dark scenes
-        MAX_DOWN_EV: -0.25,
+        MID_OK_MAX: 1.0,
+        P98_CLIP: 1.0,
+        MAX_UP_EV: 0.18,
+        MAX_UP_EV_DARK: 0.25,
+        MAX_DOWN_EV: 0,
         DEAD_OUT: 0.10,
         DEAD_IN: 0.05
     };
@@ -60,6 +60,7 @@
             VIDEO_DEFAULT_LEVEL: 0, VIDEO_DEFAULT_LEVEL2: 0, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
+            DEFAULT_AE_STRENGTH: 35,
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
@@ -110,20 +111,34 @@
                 if (!data) return;
                 hist.fill(0);
                 const size = width;
-                
+
                 let validCount = 0;
                 let sumR = 0, sumG = 0, sumB = 0;
                 let sumLuma = 0;
                 let sumLumaSq = 0;
 
-                // [v37] ROI: Exclude top/bottom bars (Letterbox)
-                const startY = bandH; 
-                const endY = size - bandH;
-                const startX = 0;
-                const endX = size;
+                let topLuma = 0, botLuma = 0;
+                const checkRow = (sy, ey) => {
+                    let s = 0, c = 0;
+                    for(let y=sy; y<ey; y+=step) {
+                        for(let x=0; x<size; x+=step*4) {
+                             const i = (y*size+x)*4;
+                             s += (data[i]*54+data[i+1]*183+data[i+2]*19)>>8; c++;
+                        }
+                    }
+                    return c > 0 ? s/c : 0;
+                };
+
+                const barH = Math.floor(size * 0.12);
+                topLuma = checkRow(0, 3);
+                botLuma = checkRow(size-3, size);
+
+                let startY = 0, endY = size;
+                if (topLuma < 15) startY = barH;
+                if (botLuma < 15) endY = size - barH;
 
                 for (let y = startY; y < endY; y+=step) {
-                    for (let x = startX; x < endX; x+=step) {
+                    for (let x = 0; x < size; x+=step) {
                         const i = (y * size + x) * 4;
                         const r = data[i];
                         const g = data[i+1];
@@ -299,39 +314,46 @@
         return result;
     };
 
-    let _hasVideoCache = { t: 0, v: false };
+    let _hasVideoCache = { t: 0, v: false, req: 0 }; // [v38] Throttle Check
     const hasRealVideoCached = () => {
         const now = Date.now();
         if (now - _hasVideoCache.t < 500) return _hasVideoCache.v;
-        let found = false;
-        const isValid = (el) => {
-            if (!el) return false;
-            if (el.tagName === 'CANVAS') {
-                try { const r = el.getBoundingClientRect(); return r.width >= 200 && r.height >= 150 && r.bottom > 0 && r.top < innerHeight; } catch(e) { return false; }
-            }
-            if (el.tagName === 'IFRAME') return true;
-            return !!el.src || !!el.currentSrc || !!el.srcObject || !!el.querySelector('source') || !!el.getAttribute('data-src') || !!el.getAttribute('data-video-src');
-        };
-        const vids = document.getElementsByTagName('video');
-        for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
-        if (!found) {
-            const ifs = document.getElementsByTagName('iframe');
-            const max = IS_LOW_END ? 60 : 200;
-            for (let i=0; i<ifs.length && i<max; i++) {
-                const r = ifs[i].getBoundingClientRect?.();
-                if (r && r.width >= 120 && r.height >= 120 && r.bottom > 0 && r.top < innerHeight) { found = true; break; }
-            }
+
+        // [v38] RAF Throttle for DOM check
+        if (!_hasVideoCache.req) {
+            _hasVideoCache.req = requestAnimationFrame(() => {
+                 _hasVideoCache.req = 0;
+                 let found = false;
+                 const isValid = (el) => {
+                     if (!el) return false;
+                     if (el.tagName === 'CANVAS') {
+                         try { const r = el.getBoundingClientRect(); return r.width >= 200 && r.height >= 150 && r.bottom > 0 && r.top < innerHeight; } catch(e) { return false; }
+                     }
+                     if (el.tagName === 'IFRAME') return true;
+                     return !!el.src || !!el.currentSrc || !!el.srcObject || !!el.querySelector('source') || !!el.getAttribute('data-src') || !!el.getAttribute('data-video-src');
+                 };
+                 const vids = document.getElementsByTagName('video');
+                 for (let i = 0; i < vids.length; i++) { if (vids[i].isConnected && isValid(vids[i])) { found = true; break; } }
+                 if (!found) {
+                     const ifs = document.getElementsByTagName('iframe');
+                     const max = IS_LOW_END ? 60 : 200;
+                     for (let i=0; i<ifs.length && i<max; i++) {
+                         const r = ifs[i].getBoundingClientRect?.();
+                         if (r && r.width >= 120 && r.height >= 120 && r.bottom > 0 && r.top < innerHeight) { found = true; break; }
+                     }
+                 }
+                 if (!found && _localShadowRoots.length > 0) {
+                     const cap = Math.min(_localShadowRoots.length, 50);
+                     for (let i = 0; i < cap; i++) {
+                         const sr = _localShadowRoots[i];
+                         if (!sr) continue;
+                         try { const v = sr.querySelector ? sr.querySelector('video, iframe, canvas') : null; if (v && isValid(v)) { found = true; break; } } catch(e) {}
+                     }
+                 }
+                 _hasVideoCache = { t: Date.now(), v: found, req: 0 };
+            });
         }
-        if (!found && _localShadowRoots.length > 0) {
-            const cap = Math.min(_localShadowRoots.length, 50);
-            for (let i = 0; i < cap; i++) {
-                const sr = _localShadowRoots[i];
-                if (!sr) continue;
-                try { const v = sr.querySelector ? sr.querySelector('video, iframe, canvas') : null; if (v && isValid(v)) { found = true; break; } } catch(e) {}
-            }
-        }
-        _hasVideoCache = { t: now, v: found };
-        return found;
+        return _hasVideoCache.v;
     };
 
     const ORIGINALS = { defineProperty: Object.defineProperty, defineProperties: Object.defineProperties, attachShadow: Element.prototype.attachShadow };
@@ -339,7 +361,6 @@
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
     let _hooksActive = false, _shadowHookActive = false;
-    // [v37] Saved References for Safe Recovery
     let _savedDefineProperty = null, _savedDefineProperties = null;
 
     safeGuard(() => {
@@ -347,7 +368,6 @@
         HTMLMediaElement.prototype.play = function (...args) {
             try { this._vscLastPlay = Date.now(); } catch (e) {}
             try {
-                 // [v37] Check scriptActive for safety
                  if (_corePluginRef && _corePluginRef.stateManager.get('app.scriptActive') && !isSensitiveContext()) {
                      _corePluginRef.scheduleNextScan();
                      VSC_PINNED.el = this;
@@ -382,7 +402,6 @@
     const enablePropertyHooks = () => {
         if (_hooksActive || isSensitiveContext()) return;
         if (document.visibilityState === 'hidden') return;
-        // [v37] Save current state before patching
         _savedDefineProperty = Object.defineProperty;
         _savedDefineProperties = Object.defineProperties;
 
@@ -409,7 +428,6 @@
 
     const disableAllHooks = () => {
         if (_hooksActive) {
-            // [v37] Restore to saved state or ORIGINAL
             Object.defineProperty = _savedDefineProperty || ORIGINALS.defineProperty;
             Object.defineProperties = _savedDefineProperties || ORIGINALS.defineProperties;
             _hooksActive = false;
@@ -485,12 +503,14 @@
             const videoDefaults = CONFIG.FILTER.SETTINGS;
             const safeInt = Utils.safeInt;
             this.state = {
-                app: { isInitialized: false, isMobile: IS_MOBILE, scriptActive: false },
-                media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
+                // [v40] Default: Active & Request UI
+                app: { isInitialized: false, isMobile: IS_MOBILE, scriptActive: true },
+                media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null, visTick: 0 },
                 videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 audio: { enabled: false, boost: 6 },
-                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
+                // [v40] Default: createRequested=true
+                ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: true, hideUntilReload: false },
                 playback: { currentRate: 1.0, targetRate: 1.0 }
             };
         }
@@ -511,11 +531,11 @@
 
     const VideoAnalyzer = {
         canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false },
-        currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentLinearGain: 1.0,
+        currentLinearGain: 1.0,
         _lastClarityComp: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
-        _lastBarsState: false, _aeActive: false, _lastKick: 0, _workerCooldown: 0,
+        _aeActive: false, _lastKick: 0, _workerCooldown: 0,
         _lastFrameStats: null,
-        _lastNoWorkerAnalyze: 0, // [v37] Fallback throttling
+        _lastNoWorkerAnalyze: 0,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
         init(stateManager) {
@@ -563,15 +583,34 @@
              const size = width;
              let sumLuma = 0;
              let count = 0;
+             let hist = this._hist;
+             hist.fill(0);
+
              for (let y = 0; y < size; y += step) {
                  for (let x = 0; x < size; x += step) {
                      const i = (y * size + x) * 4;
-                     sumLuma += (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
+                     const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
+                     sumLuma += luma;
+                     hist[luma]++;
                      count++;
                  }
              }
              const avgLuma = count > 0 ? (sumLuma/count)/255 : 0.5;
-             this._processAnalysisResult(0.1, 0.5, 0.55, 0.9, 0.98, avgLuma, 0.1, 0.33, 0.33, 0.33);
+
+             let p10 = -1, p50 = -1, p90 = -1, p98 = -1;
+             let sum = 0;
+             const t10 = count * 0.1, t50 = count * 0.5, t90 = count * 0.9, t98 = count * 0.98;
+
+             for(let i=0; i<256; i++) {
+                 sum += hist[i];
+                 if(p10<0 && sum>=t10) p10 = i/255;
+                 if(p50<0 && sum>=t50) p50 = i/255;
+                 if(p90<0 && sum>=t90) p90 = i/255;
+                 if(p98<0 && sum>=t98) p98 = i/255;
+             }
+             if(p10<0) p10=0.1; if(p50<0) p50=0.5; if(p90<0) p90=0.9; if(p98<0) p98=0.98;
+
+             this._processAnalysisResult(p10, p50, p50, p90, p98, avgLuma, 0.1, 0.33, 0.33, 0.33);
         },
 
         _pickBestVideoNow() {
@@ -641,10 +680,7 @@
             if (!this.ctx) return;
 
             if (this.targetVideo && this.targetVideo !== video) {
-                this.currentAdaptiveGamma = 1.0;
-                this.currentAdaptiveBright = 0;
                 this.currentLinearGain = 1.0;
-                this.currentClarityComp = 0;
                 this._lastAppliedFid = 0;
                 this._frameId = 0;
                 this._roiP50History = [];
@@ -661,7 +697,7 @@
             const isAutoExposure = this.currentSettings.autoExposure;
             if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
             if (this.taintedResources.has(video)) {
-                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0, tainted: true }, 0, video, true);
+                this.notifyUpdate({ linearGain: 1.0, tainted: true }, 0, video, true);
                 return;
             }
             if (this.isRunning && this.targetVideo === video) return;
@@ -675,9 +711,6 @@
             this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0;
 
             this.notifyUpdate({
-                gamma: this.currentAdaptiveGamma,
-                bright: this.currentAdaptiveBright,
-                clarityComp: this.currentClarityComp,
                 linearGain: this.currentLinearGain
             }, 0.5, this.targetVideo, false);
 
@@ -699,17 +732,17 @@
             }
             if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) { this._evAggressiveUntil = 0; }
             const isClarityActive = this.currentSettings.clarity > 0; const isAutoExposure = this.currentSettings.autoExposure;
-            
+
             // [v37] Optimized Update: Only restart if switching video or turning ON
             if (isClarityActive || isAutoExposure) {
                 if (this.isRunning && this.targetVideo && this.targetVideo.isConnected) {
                      if (aeTurnedOn) this._kickImmediateAnalyze();
-                     return; 
+                     return;
                 }
                 const best = this._pickBestVideoNow();
                 if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity }); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
-                this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0 }, 0);
+                this.stop(); this.notifyUpdate({ linearGain: 1.0 }, 0);
             }
         },
         loop() {
@@ -754,7 +787,7 @@
 
             if (this._lowMotionFrames > 60) {
                  this._lowMotionSkip++;
-                 const isIdle = !this._aeActive && Math.abs(this.currentAdaptiveGamma - 1.0) < 0.01;
+                 const isIdle = !this._aeActive;
                  const skipRate = isIdle ? 12 : 5;
                  if (this._lowMotionSkip % skipRate !== 0) return;
             } else { this._lowMotionSkip = 0; }
@@ -767,7 +800,7 @@
             // [v37] Fallback Throttling
             if (!this._worker) {
                  const now = performance.now();
-                 if (now - (this._lastNoWorkerAnalyze||0) < 250) return; 
+                 if (now - (this._lastNoWorkerAnalyze||0) < 250) return;
                  this._lastNoWorkerAnalyze = now;
             }
 
@@ -813,7 +846,7 @@
                 if (this._worker) {
                         this._workerBusy = true; this._workerLastSent = performance.now();
                         const buf = imageData.data.buffer;
-                        const msg = { type: 'analyze', fid, vid, buf, width: size, bandH, step, p10ref: (this._p10Ema > 0 ? this._p10Ema : 0.1) };
+                        const msg = { type: 'analyze', fid, vid, buf, width: size, bandH, step }; // [v38] Clean msg
                         try { this._worker.postMessage(msg, [buf]); }
                         catch(err) {
                             this._workerBusy = false; this._workerLastSent = 0;
@@ -836,7 +869,7 @@
                     const taintedVideo = this.targetVideo;
                     this.stop();
                     // [v35] Tainted fallback is now just 1.0 (no manual control)
-                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0, tainted: true }, 0, taintedVideo, true);
+                    this.notifyUpdate({ linearGain: 1.0, tainted: true }, 0, taintedVideo, true);
                 } else {
                     const next = this._pickBestVideoNow();
                     if(next && next !== this.targetVideo) {
@@ -893,12 +926,12 @@
 
             // [v35] Minimal Intervention Mode (AE = Safety Guard)
             if (isAutoExp) {
-                const aeStr = MIN_AE.STRENGTH; 
+                const aeStr = MIN_AE.STRENGTH;
 
                 // 1. Check conditions to intervene
                 const midOk = (p50m >= MIN_AE.MID_OK_MIN && p50m <= MIN_AE.MID_OK_MAX);
                 const clipRisk = (p98 >= MIN_AE.P98_CLIP);
-                // [v36 Fix] Removed avgLuma constraint
+                // [v36] Removed avgLuma constraint
                 const tooDark = (p50m < MIN_AE.MID_OK_MIN);
                 const tooBright = (p50m > MIN_AE.MID_OK_MAX) || clipRisk;
 
@@ -911,20 +944,21 @@
                 } else {
                     // 3. Intervention required
                     const safeCurrent = Math.max(0.02, p50m);
+                    // [v34] Corrected Logic Order
                     let targetMid = 0.34;
                     if (avgLuma > 0.8) targetMid = 0.32;
                     else if (avgLuma > 0.6) targetMid = 0.34;
-                    
-                    // [Test Fix] If we entered because it's too dark, ensure we aim at least MIN
+
                     if (tooDark) targetMid = Math.max(0.34, MIN_AE.MID_OK_MIN);
 
                     let baseEV = Math.log2(targetMid / safeCurrent);
-                    
-                    // [v37] 2-Gear Boost for Dark Scenes
+
+                    // [v37] 2-Gear Boost: Headroom check
                     let maxUp = MIN_AE.MAX_UP_EV;
-                    // If REALLY dark (p50 < 0.14) AND highlights safe (p98 < 0.75), allow more boost
-                    if (p50m < 0.14 && p98 < 0.75) {
-                        maxUp = MIN_AE.MAX_UP_EV_DARK; // 0.25 EV
+                    const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
+                    // If plenty of headroom AND very dark, allow more boost
+                    if (p50m < 0.14 && headroomEV > 0.4) {
+                         maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.6);
                     }
 
                     // Clamp autoEV strictly
@@ -933,7 +967,7 @@
                     // If clipping risk exists, prevent boosting
                     if (clipRisk && autoEV > 0) autoEV = 0;
 
-                    rawEV = autoEV; 
+                    rawEV = autoEV;
 
                     // [Safety Cap] P98 hard limit
                     if (p98 > 0.01) {
@@ -952,28 +986,19 @@
                     } else {
                         this._aeActive = true;
                     }
-                    
+
                     // Final Clamp
                     rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
                 }
 
-                // [v37] Gentle damping for dark flat scenes (less reduction)
+                // [v37] Gentle damping for dark flat scenes
                 if (stdDev < 0.05) {
-                    // If dark flat scene, don't reduce as much as bright flat scene
-                    const damping = (p50m < 0.18) ? 0.8 : (stdDev / 0.05);
-                    rawEV *= damping; 
+                    const damping = (tooDark) ? 0.95 : (stdDev / 0.05); // Don't crush dark flat scenes
+                    rawEV *= damping;
                 }
                 if (this._highMotion && !aggressive) rawEV *= 0.8;
 
                 targetLinearGain = Math.pow(2, rawEV);
-            }
-
-            let targetClarityComp = 0;
-            if (this.currentSettings.clarity > 0) {
-                const intensity = this.currentSettings.clarity / 50;
-                const lumaFactor = Math.max(0.3, 0.8 - p50m);
-                const motionFactor = this._highMotion ? 0.6 : 1.0;
-                targetClarityComp = Math.min(10, (intensity * 8) * lumaFactor * motionFactor);
             }
 
             const smooth = (curr, target, upSpeed, downSpeed) => {
@@ -992,16 +1017,7 @@
 
             if (Math.abs(this.currentLinearGain - 1.0) < 0.01 && !aggressive) this.currentLinearGain = 1.0;
 
-            this.currentAdaptiveGamma = 1.0;
-            this.currentAdaptiveBright = 0;
-
-            this.currentClarityComp = smooth(this._lastClarityComp || 0, targetClarityComp, 0.1, 0.1);
-            this._lastClarityComp = this.currentClarityComp;
-
             this.notifyUpdate({
-                gamma: this.currentAdaptiveGamma,
-                bright: this.currentAdaptiveBright,
-                clarityComp: this.currentClarityComp,
                 linearGain: this.currentLinearGain,
                 tainted: false
             }, p50m, this.targetVideo, false);
@@ -1252,19 +1268,25 @@
                         if (this.stateManager.get('media.visibilityMap')) this.stateManager.get('media.visibilityMap').set(e.target, isVisible);
                         if (e.target.tagName === 'VIDEO') { if (isVisible) this._visibleVideos.add(e.target); else this._visibleVideos.delete(e.target); needsUpdate = true; }
                     });
-                    if (needsUpdate && !document.hidden) {
-                        if (this._centerCalcTimer) clearTimeout(this._centerCalcTimer);
-                        this._centerCalcTimer = setTimeout(() => {
-                            if (this._visibleVideos.size === 0) return;
-                            const currentBest = this.stateManager.get('media.currentlyVisibleMedia');
-                            const newBest = VideoAnalyzer._pickBestVideoNow();
-                            if (newBest && newBest !== currentBest) {
-                                if (currentBest) VideoAnalyzer.stop();
-                                this.stateManager.set('media.currentlyVisibleMedia', newBest);
-                                const vf = this.stateManager.get('videoFilter');
-                                if (this.stateManager.get('app.scriptActive') && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(newBest, { autoExposure: vf.autoExposure, clarity: vf.clarity });
-                            }
-                        }, 300);
+                    if (needsUpdate) {
+                         // [v38] Update visTick to force filter update
+                         const t = this.stateManager.get('media.visTick') || 0;
+                         this.stateManager.set('media.visTick', t + 1);
+
+                         if (!document.hidden) {
+                             if (this._centerCalcTimer) clearTimeout(this._centerCalcTimer);
+                             this._centerCalcTimer = setTimeout(() => {
+                                 if (this._visibleVideos.size === 0) return;
+                                 const currentBest = this.stateManager.get('media.currentlyVisibleMedia');
+                                 const newBest = VideoAnalyzer._pickBestVideoNow();
+                                 if (newBest && newBest !== currentBest) {
+                                     if (currentBest) VideoAnalyzer.stop();
+                                     this.stateManager.set('media.currentlyVisibleMedia', newBest);
+                                     const vf = this.stateManager.get('videoFilter');
+                                     if (this.stateManager.get('app.scriptActive') && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(newBest, { autoExposure: vf.autoExposure, clarity: vf.clarity });
+                                 }
+                             }, 300);
+                         }
                     }
                 }, { threshold: [0, 0.25, 0.5], rootMargin: '200px 0px 200px 0px' });
             }
@@ -1431,9 +1453,12 @@
             });
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
             this.subscribe('videoFilter.autoExposure', (on, old) => { if (on && !old) { this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.applyAllVideoFilters(); } });
+            // videoFilter.targetLuma removed
             this.subscribe('imageFilter.level', (val) => { this.applyAllImageFilters(); if (val > 0) { const core = window.vscPluginManager?.plugins?.find(p => p.name === 'CoreMedia'); if (core) core.scanAndApply(); } });
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
-            this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
+            // [v38] Changed subscription key to visTick
+            this.subscribe('media.visTick', () => this.updateMediaFilterStates());
+            this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
 
             this.throttledUpdate = throttle((e) => {
                 const { autoParams, videoInfo, aeActive } = e.detail;
@@ -1821,6 +1846,10 @@
                 video.classList.add('vsc-video-filter-active');
                 requestAnimationFrame(() => {
                     const now = performance.now(); const last = this._getFilterCheckTs(video); if (now - last < 1200) return; this._setFilterCheckTs(video, now);
+
+                    // [v38] Optimization: Skip check if video not visible
+                    if (!isVis) return;
+
                     const cs = window.getComputedStyle(video);
 
                     const norm = (s) => (s || '').replace(/\s+/g,'').replace(/"/g,'');
@@ -2140,7 +2169,7 @@
                     this.stateManager.set(key, next);
                     // [v35] Trigger instant scan when AE is toggled on
                     if (key === 'videoFilter.autoExposure' && next) triggerBurstScan(200);
-                }; 
+                };
                 this.subscribe(key, render); render(this.stateManager.get(key)); return btn;
             };
             const powerBtn = document.createElement('button'); powerBtn.className = 'vsc-btn vsc-btn-lg'; powerBtn.textContent = '⏸︎'; powerBtn.title = '전체 기능 끄기';
@@ -2162,7 +2191,7 @@
             // [v36] Restored Sharpness Presets
             const presetContainer = document.createElement('div');
             presetContainer.className = 'vsc-align-grid';
-            
+
             const label = document.createElement('div');
             label.className = 'vsc-label';
             label.textContent = '샤프';
@@ -2198,7 +2227,7 @@
             };
             this.subscribe('videoFilter.activeSharpPreset', updateSharp);
             updateSharp(this.stateManager.get('videoFilter.activeSharpPreset'));
-            
+
             videoSubMenu.appendChild(presetContainer);
 
             // [v35] Simplified Slider Grid (No tabs)
