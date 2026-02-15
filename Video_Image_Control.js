@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.40 Instant UI Fix)
+// @name        Video_Image_Control (v132.0.41 Optimized)
 // @namespace   https://com/
-// @version     132.0.40
-// @description v132.0.40: Fixed "Missing Icon" bug by forcing UI creation on init. Script now starts in "Active" mode by default.
+// @version     132.0.41
+// @description v132.0.41: Optimized AE logic, fixed Worker sampling bug, improved detection resilience, and tuned safety parameters.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -40,17 +40,17 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v35] Minimal AE Constants
+    // [v41] Minimal AE Constants - Tuned for Safety & Effectiveness
     const MIN_AE = {
-        STRENGTH: 0.25,
+        STRENGTH: 0.28,       // Slightly increased from 0.25
         MID_OK_MIN: 0.22,
         MID_OK_MAX: 1.0,
-        P98_CLIP: 1.0,
-        MAX_UP_EV: 0.18,
-        MAX_UP_EV_DARK: 0.25,
+        P98_CLIP: 0.985,      // Changed from 1.0 to actually trigger protection
+        MAX_UP_EV: 0.22,      // Increased from 0.18
+        MAX_UP_EV_DARK: 0.32, // Increased for very dark scenes
         MAX_DOWN_EV: 0,
-        DEAD_OUT: 0.10,
-        DEAD_IN: 0.05
+        DEAD_OUT: 0.08,       // Tightened from 0.10
+        DEAD_IN: 0.04         // Tightened from 0.05
     };
 
     const CONFIG = {
@@ -121,7 +121,7 @@
                 const checkRow = (sy, ey) => {
                     let s = 0, c = 0;
                     for(let y=sy; y<ey; y+=step) {
-                        for(let x=0; x<size; x+=step*4) {
+                        for(let x=0; x<size; x+=step) { // [v41] Fix: x+=step (was x+=step*4)
                              const i = (y*size+x)*4;
                              s += (data[i]*54+data[i+1]*183+data[i+2]*19)>>8; c++;
                         }
@@ -581,12 +581,18 @@
         _analyzeFallback(imageData, width, height, bandH, step) {
              const data = imageData.data;
              const size = width;
+
+             // [v41] Fallback also needs ROI to match worker logic
+             const barH = Math.floor(size * 0.12);
+             const startY = barH;
+             const endY = size - barH;
+
              let sumLuma = 0;
              let count = 0;
              let hist = this._hist;
              hist.fill(0);
 
-             for (let y = 0; y < size; y += step) {
+             for (let y = startY; y < endY; y += step) {
                  for (let x = 0; x < size; x += step) {
                      const i = (y * size + x) * 4;
                      const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
@@ -704,7 +710,8 @@
             this.targetVideo = video; this.hasRVFC = (video.tagName === 'VIDEO' && 'requestVideoFrameCallback' in video);
             if (this.canvas) {
                 const vw = video.videoWidth || video.width || video.clientWidth || 0;
-                const targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
+                let targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
+                if (IS_MOBILE) targetSize = 24; // [v41] Fixed size for mobile
                 if (this.canvas.width !== targetSize) { this.canvas.width = targetSize; this.canvas.height = targetSize; }
             }
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
@@ -736,8 +743,8 @@
             // [v37] Optimized Update: Only restart if switching video or turning ON
             if (isClarityActive || isAutoExposure) {
                 if (this.isRunning && this.targetVideo && this.targetVideo.isConnected) {
-                     if (aeTurnedOn) this._kickImmediateAnalyze();
-                     return;
+                      if (aeTurnedOn) this._kickImmediateAnalyze();
+                      return;
                 }
                 const best = this._pickBestVideoNow();
                 if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity }); }
@@ -1141,6 +1148,11 @@
             on(document, 'visibilitychange', () => { try { this._updateHooksState?.(); } catch {} if (document.hidden) stopAnalyzer(); }, P(this._ac.signal));
             on(window, 'pagehide', stopAnalyzer, P(this._ac.signal));
             on(window, 'blur', stopAnalyzer, P(this._ac.signal));
+
+            // [v41] Improved resilience for dynamically loaded content
+            on(document, 'readystatechange', () => {
+                if (document.readyState === 'interactive' || document.readyState === 'complete') triggerBurstScan(200);
+            }, P(this._ac.signal));
 
             on(document, 'pointerdown', (e) => {
                 let target = e.target;
@@ -1797,6 +1809,13 @@
 
             this.isGlobalBypass = isUserNeutral && isAutoNeutral;
 
+            // [v41] Stop Analyzer if bypass (CPU Saver)
+            if (this.isGlobalBypass) {
+                if (!vf.autoExposure && vf.clarity <= 0) {
+                     VideoAnalyzer.stop();
+                }
+            }
+
             const values = {
                 saturation: finalSaturation,
                 gamma: finalGamma,
@@ -2017,9 +2036,13 @@
                 this.speedButtonsContainer.appendChild(btn); this.speedButtons.push(btn);
             });
 
-            const globalStyle = document.createElement('style');
-            globalStyle.textContent = this.getStyles().replace(':host', '#vsc-global-container, #vsc-ui-host');
-            document.head.appendChild(globalStyle);
+            // [v41] Prevent duplicate style injection
+            if (!document.getElementById('vsc-global-style')) {
+                const globalStyle = document.createElement('style');
+                globalStyle.id = 'vsc-global-style';
+                globalStyle.textContent = this.getStyles().replace(':host', '#vsc-global-container, #vsc-ui-host');
+                document.head.appendChild(globalStyle);
+            }
 
             this.startBootGate();
         }
