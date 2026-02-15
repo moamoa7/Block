@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.42 Optimized)
+// @name        Video_Image_Control (v132.0.43 Optimized)
 // @namespace   https://com/
-// @version     132.0.42
-// @description v132.0.42: Synced Fallback ROI with Worker, added ClipFrac detection, optimized burst scans, cleaned up CSS/unused params.
+// @version     132.0.43
+// @description v132.0.43: Optimized AE selection, Immediate Clip Return, Enhanced Fallback stats, Mobile optimizations.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -41,16 +41,16 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v42] Updated AE Constants
+    // [v43] Tuned AE Constants (PC vs Mobile split logic applied in logic)
     const MIN_AE = {
         STRENGTH: 0.28,
-        STRENGTH_DARK: 0.35, // [v42] Higher strength for very dark scenes
+        STRENGTH_DARK: 0.35,
         MID_OK_MIN: 0.22,
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
-        CLIP_FRAC_LIMIT: 0.002, // [v42] 0.2% pixels clipped limit
-        MAX_UP_EV: 0.15,
-        MAX_UP_EV_DARK: 0.20, // [v42] Increased for very dark scenes
+        CLIP_FRAC_LIMIT: 0.004, // [v43] Relaxed to 0.4% to avoid noise triggers
+        MAX_UP_EV: IS_MOBILE ? 0.18 : 0.22,      // [v43] PC: 0.22, Mobile: 0.18
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.30, // [v43] PC: 0.30, Mobile: 0.24
         MAX_DOWN_EV: 0,
         DEAD_OUT: 0.08,
         DEAD_IN: 0.04
@@ -63,7 +63,7 @@
             VIDEO_DEFAULT_LEVEL: 0, VIDEO_DEFAULT_LEVEL2: 0, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
-            DEFAULT_AE_STRENGTH: 35,
+            DEFAULT_AE_STRENGTH: 35, // Unused but kept for structure compatibility
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
@@ -158,7 +158,7 @@
                 }
 
                 let p10 = -1, p50 = -1, p55 = -1, p90 = -1, p98 = -1;
-                let clipFrac = 0; // [v42] Added clipFrac
+                let clipFrac = 0;
 
                 let avgR = 0, avgG = 0, avgB = 0, avgLuma = 0, stdDev = 0;
                 if (validCount > 0) {
@@ -397,9 +397,10 @@
         if (_shadowHookActive || isSensitiveContext()) return;
         try {
             Element.prototype.attachShadow = function (init) {
+                // [v43] Safety check: prevent duplicate registration
+                if (this.id === 'vsc-ui-host') return ORIGINALS.attachShadow.call(this, init);
                 const shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 try {
-                    if (this.id === 'vsc-ui-host') return shadowRoot;
                     if (shadowRoot) { registerShadowRoot(shadowRoot); requestAnimationFrame(() => document.dispatchEvent(new CustomEvent('addShadowRoot', { detail: { shadowRoot: shadowRoot } }))); }
                 } catch (e) {}
                 return shadowRoot;
@@ -615,7 +616,7 @@
              if (topLuma < 15) startY = barH;
              if (botLuma < 15) endY = size - barH;
 
-             let sumLuma = 0;
+             let sumLuma = 0, sumLumaSq = 0;
              let count = 0;
              let hist = this._hist;
              hist.fill(0);
@@ -625,12 +626,21 @@
                      const i = (y * size + x) * 4;
                      const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
                      sumLuma += luma;
+                     sumLumaSq += luma * luma;
                      hist[luma]++;
                      count++;
                  }
              }
-             const avgLuma = count > 0 ? (sumLuma/count)/255 : 0.5;
-             const clipFrac = count > 0 ? (hist[254] + hist[255]) / count : 0; // [v42] Added clipFrac
+
+             let avgLuma = 0.5, stdDev = 0.1, clipFrac = 0;
+             if (count > 0) {
+                 const inv = 1 / count;
+                 avgLuma = (sumLuma * inv) / 255;
+                 const meanSq = (sumLumaSq * inv) / (255 * 255);
+                 const variance = meanSq - (avgLuma * avgLuma);
+                 stdDev = Math.sqrt(Math.max(0, variance)); // [v43] Calc stdDev in fallback
+                 clipFrac = (hist[254] + hist[255]) * inv;
+             }
 
              let p10 = -1, p50 = -1, p90 = -1, p98 = -1;
              let sum = 0;
@@ -645,7 +655,7 @@
              }
              if(p10<0) p10=0.1; if(p50<0) p50=0.5; if(p90<0) p90=0.9; if(p98<0) p98=0.98;
 
-             this._processAnalysisResult(p10, p50, p50, p90, p98, avgLuma, 0.1, 0.33, 0.33, 0.33, clipFrac);
+             this._processAnalysisResult(p10, p50, p50, p90, p98, avgLuma, stdDev, 0.33, 0.33, 0.33, clipFrac);
         },
 
         _pickBestVideoNow() {
@@ -669,14 +679,19 @@
                  candidates = [...new Set(candidates)];
             }
 
+            // [v43] Optimization: Prefer visible videos
+            const visMap = sm?.get('media.visibilityMap');
+            const visibleCandidates = candidates.filter(v => visMap ? visMap.get(v) !== false : true);
+            const pool = visibleCandidates.length > 0 ? visibleCandidates : candidates;
+
             let best = null, maxScore = -Infinity;
             const cx = window.innerWidth / 2;
             const cy = window.innerHeight / 2;
             const now = Date.now();
             const screenArea = window.innerWidth * window.innerHeight;
 
-            for(let i=0; i<candidates.length; i++) {
-                const c = candidates[i]; if (!c.isConnected) continue;
+            for(let i=0; i<pool.length; i++) {
+                const c = pool[i]; if (!c.isConnected) continue;
                 const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
                     let score = rect.width * rect.height;
                     const area = rect.width * rect.height;
@@ -877,6 +892,12 @@
             // [v42] Data Saver Throttling
             if (IS_DATA_SAVER && !aggressive) effectiveThreshold += 5;
 
+            // [v43] Mobile optimization for complex textures or stable scenes
+            if (IS_MOBILE && !aggressive) {
+                if (this._lastFrameStats && this._lastFrameStats.stdDev > 0.15) effectiveThreshold += 2;
+                if (this._lowMotionFrames > 30) effectiveThreshold += 3;
+            }
+
             this.frameSkipCounter++;
             if (this.frameSkipCounter < effectiveThreshold) return;
             this.frameSkipCounter = 0;
@@ -931,7 +952,7 @@
         },
         _processAnalysisResult(p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB, clipFrac = 0) {
 
-            const currStats = { luma: avgLuma, r: avgR, g: avgG, b: avgB };
+            const currStats = { luma: avgLuma, r: avgR, g: avgG, b: avgB, stdDev };
             let isCut = false;
             if (this._lastFrameStats) {
                 const dL = Math.abs(currStats.luma - this._lastFrameStats.luma);
@@ -970,6 +991,7 @@
 
             let targetLinearGain = 1.0;
             const isAutoExp = this.currentSettings.autoExposure;
+            let tempBaseDown = 0.06; // Default down speed
 
             // [v35] Minimal Intervention Mode (AE = Safety Guard)
             if (isAutoExp) {
@@ -981,17 +1003,14 @@
                 // [v42] Enhanced Clip Check
                 const clipRisk = (p98 >= MIN_AE.P98_CLIP) || (clipFrac > MIN_AE.CLIP_FRAC_LIMIT);
 
-                // [v36] Removed avgLuma constraint
-                const tooDark = (p50m < MIN_AE.MID_OK_MIN);
-                const tooBright = (p50m > MIN_AE.MID_OK_MAX) || clipRisk;
-
-                let rawEV = 0;
-
-                // 2. Core Logic: If scene is fine, DO NOTHING (rawEV = 0)
-                if (!tooDark && !tooBright && midOk && !clipRisk) {
-                    rawEV = 0;
+                // [v43] If clip risk, force return to neutral immediately
+                if (clipRisk) {
+                    targetLinearGain = 1.0;
                     this._aeActive = false;
-                } else {
+                    tempBaseDown = 0.25; // [v43] Fast return
+                }
+                // 2. Core Logic: If scene is fine, DO NOTHING
+                else if (!midOk) { // Only intervene if too dark
                     // 3. Intervention required
                     const safeCurrent = Math.max(0.02, p50m);
                     // [v34] Corrected Logic Order
@@ -999,6 +1018,7 @@
                     if (avgLuma > 0.8) targetMid = 0.32;
                     else if (avgLuma > 0.6) targetMid = 0.34;
 
+                    const tooDark = (p50m < MIN_AE.MID_OK_MIN);
                     if (tooDark) targetMid = Math.max(0.34, MIN_AE.MID_OK_MIN);
 
                     let baseEV = Math.log2(targetMid / safeCurrent);
@@ -1021,10 +1041,7 @@
 
                     let autoEV = Utils.clamp(baseEV * currentAeStr, MIN_AE.MAX_DOWN_EV, maxUp);
 
-                    // If clipping risk exists, prevent boosting
-                    if (clipRisk && autoEV > 0) autoEV = 0;
-
-                    rawEV = autoEV;
+                    let rawEV = autoEV;
 
                     // [Safety Cap] P98 hard limit
                     if (p98 > 0.01) {
@@ -1046,16 +1063,20 @@
 
                     // Final Clamp
                     rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
-                }
 
-                // [v37] Gentle damping for dark flat scenes
-                if (stdDev < 0.05) {
-                    const damping = (tooDark) ? 0.95 : (stdDev / 0.05); // Don't crush dark flat scenes
-                    rawEV *= damping;
-                }
-                if (this._highMotion && !aggressive) rawEV *= 0.8;
+                    // [v37] Gentle damping for dark flat scenes
+                    if (stdDev < 0.05) {
+                        const damping = (tooDark) ? 0.95 : (stdDev / 0.05); // Don't crush dark flat scenes
+                        rawEV *= damping;
+                    }
+                    if (this._highMotion && !aggressive) rawEV *= 0.8;
 
-                targetLinearGain = Math.pow(2, rawEV);
+                    targetLinearGain = Math.pow(2, rawEV);
+                } else {
+                    // Mid OK and No Clip Risk -> Neutral
+                    targetLinearGain = 1.0;
+                    this._aeActive = false;
+                }
             }
 
             const smooth = (curr, target, upSpeed, downSpeed) => {
@@ -1065,7 +1086,7 @@
             };
 
             const baseUp = aggressive ? 0.20 : 0.02;
-            const baseDown = aggressive ? 0.20 : 0.06;
+            const baseDown = aggressive ? 0.20 : tempBaseDown;
 
             const currentEV = Math.log2(this.currentLinearGain || 1.0);
             const targetEV = Math.log2(targetLinearGain);
@@ -1234,6 +1255,9 @@
                 if (this._mutationCounter > 80) { this._domDirty = true; return; }
 
                 let sawMediaNode = false;
+                // [v43] Backoff sampling optimization
+                if (this._isBackoffMode && Math.random() > 0.1) return;
+
                 for (const m of mutations) {
                     for (const n of m.addedNodes) {
                         if (n && n.nodeType === 1) { // v132.0.10: Check nodeType
@@ -1325,6 +1349,7 @@
         }
         ensureObservers() {
             if (!this.intersectionObserver) {
+                const margin = IS_MOBILE ? '80px 0px 120px 0px' : '200px 0px 200px 0px'; // [v43] Mobile optimization
                 this.intersectionObserver = new IntersectionObserver(entries => {
                     let needsUpdate = false;
                     entries.forEach(e => {
@@ -1352,7 +1377,7 @@
                              }, 300);
                          }
                     }
-                }, { threshold: [0, 0.25, 0.5], rootMargin: '200px 0px 200px 0px' });
+                }, { threshold: [0, 0.25, 0.5], rootMargin: margin });
             }
         }
         scheduleNextScan() { if (this.scanTimerId) clearTimeout(this.scanTimerId); this.scanTimerId = setTimeout(() => { if (document.hidden) { this.currentScanInterval = this.baseScanInterval; this.scheduleNextScan(); return; } safeGuard(() => { this.tick(); }, 'tick'); }, this.currentScanInterval); }
@@ -1552,6 +1577,7 @@
             if (this.stateManager.get('app.scriptActive')) { this.filterManager.init(); this.imageFilterManager.init(); this.applyAllVideoFilters(); this.applyAllImageFilters(); }
 
             this._pruneTimer = setInterval(() => {
+                if (document.hidden) return; // [v43] Suspend interval
                 if (this.filterManager) this.filterManager.prune();
                 if (this.imageFilterManager) this.imageFilterManager.prune();
                 const v = this.stateManager.get('media.currentlyVisibleMedia');
