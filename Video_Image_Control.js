@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.53 Optimized)
+// @name        Video_Image_Control (v132.0.54 Optimized)
 // @namespace   https://com/
-// @version     132.0.53
-// @description v132.0.53: Fixed AE params overwrite bug, Smart Backoff bypass, Conservative AE tuning.
+// @version     132.0.54
+// @description v132.0.54: Fix iframe draw crash, Relaxed iframe scan margin, Low-Contrast AE nudge, Vis-Ratio scoring.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,7 +19,7 @@
 (function () {
     'use strict';
 
-    // 1. Boot Guard (Consolidated)
+    // 1. Boot Guard
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
     const VSC_BOOT_KEY = '__VSC_BOOT_LOCK__'; 
     if (window[VSC_BOOT_KEY]) return;
@@ -46,7 +46,7 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v53] Conservative AE Constants
+    // [v54] Tuned AE Constants
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.28 : 0.30,
         STRENGTH_DARK: IS_MOBILE ? 0.30 : 0.32,
@@ -54,15 +54,15 @@
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004, 
-        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.16,      // [v53] Lowered slightly
-        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.32, // [v53] Lowered slightly
-        MAX_UP_EV_EXTRA: IS_MOBILE ? 0.30 : 0.40,// [v53] Lowered slightly
+        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.20,      // [v54] PC bump to 0.20
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.38, 
+        MAX_UP_EV_EXTRA: IS_MOBILE ? 0.30 : 0.50,
         MAX_DOWN_EV: 0,
-        DEAD_OUT: 0.10, // [v53] Increased deadband to reduce micro-adjustments
+        DEAD_OUT: 0.08,
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
         LOWKEY_P10: 0.10,
-        TAU_UP: 800,   // [v53] Slower reaction up
+        TAU_UP: 700,
         TAU_DOWN: 900,
         TAU_AGGRESSIVE: 120
     };
@@ -454,7 +454,8 @@
             
             try {
                  if (_corePluginRef && _corePluginRef.stateManager.get('app.scriptActive') && !isSensitiveContext()) {
-                     _corePluginRef.scheduleNextScan(true); // User action hint
+                     // [v54] Fixed incorrect args usage
+                     triggerBurstScan(150);
                      VSC_PINNED.el = this;
                      VSC_PINNED.until = Date.now() + 10000;
                      if (this.getBoundingClientRect().width > 100 && _corePluginRef.stateManager) {
@@ -704,7 +705,8 @@
                         const inner = doc?.querySelector?.('video, canvas');
                         if (inner && inner.isConnected) return inner;
                      } catch {}
-                     return el; // pick iframe itself as fallback
+                     // [v54] Don't return iframe itself for AE target (prevents drawImage error)
+                     continue; 
                 }
             }
 
@@ -728,7 +730,10 @@
                  candidates = [...new Set(candidates)];
             }
 
+            // [v54] Vis-Ratio check: prefer videos that are actually seen
             const visMap = sm?.get('media.visibilityMap');
+            // intersectionRatio > 0.3 is better than just "true"
+            // But we keep it simple: filter out completely invisible
             const visibleCandidates = candidates.filter(v => visMap ? visMap.get(v) !== false : true);
             const pool = visibleCandidates.length > 0 ? visibleCandidates : candidates;
 
@@ -777,6 +782,9 @@
             requestAnimationFrame(() => { try { if (this.targetVideo && this.ctx) this.processFrame(true); } catch {} });
         },
         start(video, settings) {
+            // [v54] Safety Check: Don't analyze IFRAMES directly
+            if (!video || (video.tagName !== 'VIDEO' && video.tagName !== 'CANVAS')) return;
+
             if (this._stopTimeout) { clearTimeout(this._stopTimeout); this._stopTimeout = null; }
             if (!this.ctx || !this.canvas) this.init(this.stateManager);
             if (!this.ctx) return;
@@ -917,7 +925,6 @@
                          try { this._worker.terminate(); } catch {}
                          this._worker = null; if (this._workerUrl) URL.revokeObjectURL(this._workerUrl); this._workerUrl = null;
                          this._workerStallCount = 0;
-                         // [v44] Progressive backoff for worker failure
                          this._workerRetryCount = (this._workerRetryCount || 0) + 1;
                          this._workerCooldown = performance.now() + Math.min(30000, 3000 * this._workerRetryCount);
                          this.init(this.stateManager);
@@ -955,7 +962,11 @@
                 const size = this.canvas.width;
                 this.ctx.drawImage(this.targetVideo, 0, 0, size, size);
                 const imageData = this.ctx.getImageData(0, 0, size, size);
-                const step = IS_MOBILE ? 2 : ((size <= 32) ? 1 : 2);
+                // [v45] Force step 2 on mobile to save CPU
+                // [v54] Increase step during aggressive mode to reduce heat
+                const baseStep = IS_MOBILE ? 2 : ((size <= 32) ? 1 : 2);
+                const step = aggressive ? baseStep + 1 : baseStep;
+
                 const fid = ++this._frameId;
                 const vid = this._getVideoId(this.targetVideo);
 
@@ -1051,7 +1062,6 @@
                 
                 const lowContrastDark = (stdDev < 0.06 && p50m < 0.14 && p98 < 0.70);
                 
-                // [v50] PC only: Relax trigger slightly for very dark scenes
                 const effectiveMidMin = (p50m < 0.10 && !IS_MOBILE) ? 0.18 : MIN_AE.MID_OK_MIN;
                 const midTooDark = p50m < effectiveMidMin;
                 
@@ -1063,65 +1073,78 @@
                     targetLinearGain = 1.0;
                     this._aeActive = false;
                 } 
-                else if (midTooDark && !isLowKey && !lowContrastDark) {
-                    const safeCurrent = Math.max(0.02, p50m);
-                    let targetMid = 0.34; // Base target
-                    if (avgLuma > 0.8) targetMid = 0.32;
-                    else if (avgLuma > 0.6) targetMid = 0.34;
-                    
-                    // [v53] Target mid lower for minimal intervention (was 0.34)
-                    targetMid = Math.max(0.32, MIN_AE.MID_OK_MIN);
-
-                    let baseEV = Math.log2(targetMid / safeCurrent);
-
-                    let maxUp = MIN_AE.MAX_UP_EV;
-                    const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
-                    
-                    if (p50m < 0.08 && headroomEV > 0.6 && stdDev < 0.18) {
-                         maxUp = Math.min(MIN_AE.MAX_UP_EV_EXTRA, headroomEV * 0.75); 
-                    } else if (p50m < 0.14 && headroomEV > 0.4) {
-                         maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.6);
+                else if (midTooDark && !isLowKey) {
+                    // [v54] Nudge logic for Low-Contrast Dark scenes (instead of total block)
+                    let allowNudge = false;
+                    if (lowContrastDark && p50m < 0.10 && p98 < 0.60 && clipFrac < dynamicClipLimit) {
+                        allowNudge = true;
                     }
 
-                    let currentAeStr = aeStr;
-                    if (p50m < 0.08) currentAeStr = MIN_AE.STRENGTH_DARK;
+                    if (!lowContrastDark || allowNudge) {
+                        const safeCurrent = Math.max(0.02, p50m);
+                        let targetMid = 0.34;
+                        if (avgLuma > 0.8) targetMid = 0.32;
+                        else if (avgLuma > 0.6) targetMid = 0.34;
+                        
+                        targetMid = Math.max(0.32, MIN_AE.MID_OK_MIN);
 
-                    let autoEV = Utils.clamp(baseEV * currentAeStr, MIN_AE.MAX_DOWN_EV, maxUp);
+                        let baseEV = Math.log2(targetMid / safeCurrent);
 
-                    let rawEV = autoEV;
+                        let maxUp = MIN_AE.MAX_UP_EV;
+                        const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
+                        
+                        if (p50m < 0.08 && headroomEV > 0.6 && stdDev < 0.18) {
+                            maxUp = Math.min(MIN_AE.MAX_UP_EV_EXTRA, headroomEV * 0.75); 
+                        } else if (p50m < 0.14 && headroomEV > 0.4) {
+                            maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.6);
+                        }
 
-                    if (p98 > 0.01) {
-                        const maxSafeGain = 0.99 / p98;
-                        const maxSafeEV = Math.log2(maxSafeGain);
-                        if (rawEV > maxSafeEV) rawEV = Math.min(rawEV, maxSafeEV);
-                    }
+                        // [v54] Restrict nudge amount
+                        if (allowNudge) {
+                            maxUp = Math.min(maxUp, 0.12);
+                        }
 
-                    if (this._aeActive == null) this._aeActive = false;
-                    const th = this._aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
+                        let currentAeStr = aeStr;
+                        if (p50m < 0.08) currentAeStr = MIN_AE.STRENGTH_DARK;
 
-                    if (Math.abs(rawEV) < th) {
-                        rawEV = 0;
-                        this._aeActive = false;
+                        let autoEV = Utils.clamp(baseEV * currentAeStr, MIN_AE.MAX_DOWN_EV, maxUp);
+                        let rawEV = autoEV;
+
+                        if (p98 > 0.01) {
+                            const maxSafeGain = 0.99 / p98;
+                            const maxSafeEV = Math.log2(maxSafeGain);
+                            if (rawEV > maxSafeEV) rawEV = Math.min(rawEV, maxSafeEV);
+                        }
+
+                        if (this._aeActive == null) this._aeActive = false;
+                        const th = this._aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
+
+                        if (Math.abs(rawEV) < th) {
+                            rawEV = 0;
+                            this._aeActive = false;
+                        } else {
+                            this._aeActive = true;
+                        }
+
+                        rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
+                        
+                        if (stdDev < 0.05) {
+                            const damping = 0.95; 
+                            rawEV *= damping;
+                        }
+                        if (this._highMotion && !aggressive) rawEV *= 0.8;
+
+                        targetLinearGain = Math.pow(2, rawEV);
                     } else {
-                        this._aeActive = true;
+                         targetLinearGain = 1.0;
+                         this._aeActive = false;
                     }
-
-                    rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
-                    
-                    if (stdDev < 0.05) {
-                        const damping = 0.95; 
-                        rawEV *= damping;
-                    }
-                    if (this._highMotion && !aggressive) rawEV *= 0.8;
-
-                    targetLinearGain = Math.pow(2, rawEV);
                 } else {
                     targetLinearGain = 1.0;
                     this._aeActive = false;
                 }
             }
 
-            // [v50] Time-based Smoothing
             const now = performance.now();
             const dt = now - (this.lastApplyTime || now);
             this.lastApplyTime = now;
@@ -1501,9 +1524,10 @@
             for (let i = 0; i < frames.length; i++) this._checkAndAdd(frames[i], media, images, iframes);
 
             for (let i = 0; i < frames.length; i++) {
-                // [v47] Viewport-aware iframe scan
+                // [v54] Relaxed Viewport-aware iframe scan (Mobile 700px margin)
                 const r = frames[i].getBoundingClientRect ? frames[i].getBoundingClientRect() : null;
-                if (r && (r.bottom < -300 || r.top > window.innerHeight + 300)) continue;
+                const margin = IS_MOBILE ? 700 : 300;
+                if (r && (r.bottom < -margin || r.top > window.innerHeight + margin)) continue;
 
                 // v132.0.12: Smart Iframe Cache
                 const doc = this._tryGetIframeDoc(frames[i]);
