@@ -49,8 +49,8 @@
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.002, // [v42] 0.2% pixels clipped limit
-        MAX_UP_EV: 0.22,
-        MAX_UP_EV_DARK: 0.35, // [v42] Increased for very dark scenes
+        MAX_UP_EV: 0.15,
+        MAX_UP_EV_DARK: 0.20, // [v42] Increased for very dark scenes
         MAX_DOWN_EV: 0,
         DEAD_OUT: 0.08,
         DEAD_IN: 0.04
@@ -171,7 +171,7 @@
                     const meanSq = (sumLumaSq * inv) / (255*255);
                     const variance = meanSq - (avgLuma * avgLuma);
                     stdDev = Math.sqrt(Math.max(0, variance));
-                    
+
                     clipFrac = (hist[254] + hist[255]) * inv;
 
                     let sum = 0;
@@ -296,7 +296,7 @@
         const now = Date.now();
         if (now - _lastBurstTime < 250) return;
         _lastBurstTime = now;
-        
+
         if(_corePluginRef) { _corePluginRef.resetScanInterval(); scheduleScan(null, true); [delay, delay * 4, delay * 8].forEach(d => setTimeout(() => scheduleScan(null), d)); }
     };
 
@@ -680,7 +680,7 @@
                 const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
                     let score = rect.width * rect.height;
                     const area = rect.width * rect.height;
-                    
+
                     // [v42] Exclusion for very small videos
                     if (area < screenArea * 0.06 && document.pictureInPictureElement !== c) {
                          score *= 0.1;
@@ -873,7 +873,7 @@
             if (aggressive) baseThreshold = 0;
 
             let effectiveThreshold = baseThreshold + (this.dynamicSkipThreshold || 0);
-            
+
             // [v42] Data Saver Throttling
             if (IS_DATA_SAVER && !aggressive) effectiveThreshold += 5;
 
@@ -977,10 +977,10 @@
 
                 // 1. Check conditions to intervene
                 const midOk = (p50m >= MIN_AE.MID_OK_MIN && p50m <= MIN_AE.MID_OK_MAX);
-                
+
                 // [v42] Enhanced Clip Check
                 const clipRisk = (p98 >= MIN_AE.P98_CLIP) || (clipFrac > MIN_AE.CLIP_FRAC_LIMIT);
-                
+
                 // [v36] Removed avgLuma constraint
                 const tooDark = (p50m < MIN_AE.MID_OK_MIN);
                 const tooBright = (p50m > MIN_AE.MID_OK_MAX) || clipRisk;
@@ -1006,7 +1006,7 @@
                     // [v37] 2-Gear Boost: Headroom check
                     let maxUp = MIN_AE.MAX_UP_EV;
                     const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
-                    
+
                     // [v42] Dark Boost 2-Gear Logic
                     if (p50m < 0.10 && headroomEV > 0.45) {
                          maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.7);
@@ -2191,7 +2191,7 @@
                      this._lastTaintToast = true;
                 }
                 if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
-                
+
                 if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
                 else {
                     const evVal = Math.log2(autoParams.linearGain || 1.0).toFixed(2);
