@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.46 Optimized)
+// @name        Video_Image_Control (v132.0.47 Optimized)
 // @namespace   https://com/
-// @version     132.0.46
-// @description v132.0.46: Removed global hooking (Stable), Smart Low-Key/Subtitle AE logic, Refined small player detection.
+// @version     132.0.47
+// @description v132.0.47: ShadowDOM safety, Targeted Lock Relax, Smart Subtitle/Low-Key AE, Viewport-aware iframe scan.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -22,7 +22,7 @@
     // 1. Boot Guard
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
     if (window.__VSC_ENGINE_STARTED) return;
-    
+
     const IS_TOP = window === window.top;
     let _corePluginRef = null;
 
@@ -40,21 +40,21 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v46] Intelligent "Minimal Intervention" AE Constants
+    // [v47] Intelligent AE Constants
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.28 : 0.30,
         STRENGTH_DARK: IS_MOBILE ? 0.30 : 0.32,
         MID_OK_MIN: IS_MOBILE ? 0.14 : 0.16,
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
-        CLIP_FRAC_LIMIT: 0.004, 
-        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.18,      
-        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.33, // [v46] Boosted for PC Dark scenes
+        CLIP_FRAC_LIMIT: 0.004,
+        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.18,
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.38, // [v47] Boosted for PC Dark scenes (approx 1.3x)
         MAX_DOWN_EV: 0,
         DEAD_OUT: 0.08,
         DEAD_IN: 0.04,
-        // [v46] Low-Key Protection Thresholds
-        LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.22,
+        // [v47] Low-Key Protection Thresholds
+        LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24, // [v47] Slightly stricter on PC
         LOWKEY_P10: 0.10
     };
 
@@ -98,6 +98,13 @@
             if (root.getElementsByTagName) return root.getElementsByTagName(tag);
             if (root.querySelectorAll) return root.querySelectorAll(tag);
             return [];
+        },
+        // [v47] Safe querySelector for ID (ShadowRoot friendly)
+        qById: (root, id) => {
+            try {
+                const safe = (window.CSS && CSS.escape) ? CSS.escape(id) : id.replace(/[^a-zA-Z0-9\-_]/g, '\\$&');
+                return root && root.querySelector ? root.querySelector(`#${safe}`) : null;
+            } catch { return null; }
         }
     };
 
@@ -178,7 +185,7 @@
                     const meanSq = (sumLumaSq * inv) / (255*255);
                     const variance = meanSq - (avgLuma * avgLuma);
                     stdDev = Math.sqrt(Math.max(0, variance));
-                    
+
                     clipFrac = (hist[253] + hist[254] + hist[255]) * inv;
 
                     let sum = 0;
@@ -203,6 +210,7 @@
     const dirtyRoots = new Set();
     let _scanRaf = null, _lastFullScanTime = 0;
     let _fullScanQueued = false;
+    let _lastBackoffScan = 0; // [v47] Backoff Throttle
     const _localShadowRoots = [], _localShadowSet = new Set();
     const VSC_SR_MO = Symbol('vsc_sr_mo');
 
@@ -225,6 +233,11 @@
         const run = () => {
             try {
                 if (!document.documentElement) return;
+                const approxCount = document.all ? document.all.length : document.getElementsByTagName('*').length;
+                if (approxCount > 8000) limit = 300;
+                else if (approxCount > 3000) limit = 800;
+
+                if (_localShadowRoots.length > 200) return;
                 const startTime = performance.now();
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
@@ -251,8 +264,18 @@
     let _lastRootish = 0;
     const scheduleScan = (rootOrNull, immediate = false) => {
         if (Utils.isShadowRoot(rootOrNull)) registerShadowRoot(rootOrNull);
-        
+
         if (immediate && _corePluginRef) {
+            // [v47] Prevent Immediate Scan Spam during Backoff
+            if (_corePluginRef._isBackoffMode) {
+                const now = Date.now();
+                if (now - _lastBackoffScan > 1800) {
+                    _lastBackoffScan = now;
+                } else {
+                    return; // Skip immediate scan
+                }
+            }
+
             if (rootOrNull) {
                 safeGuard(() => _corePluginRef.scanSpecificRoot(rootOrNull), 'immediateScanRoot');
             } else {
@@ -381,22 +404,22 @@
         return _hasVideoCache.v;
     };
 
-    const ORIGINALS = { defineProperty: Object.defineProperty, defineProperties: Object.defineProperties, attachShadow: Element.prototype.attachShadow };
+    const ORIGINALS = { attachShadow: Element.prototype.attachShadow }; // [v47] defineProperty removed
     const _prevInlineStyle = new WeakMap();
     const _realmSheetCache = new WeakMap();
     const _shadowRootCache = new WeakMap();
     let _shadowHookActive = false;
 
-    // [v46] Replaced global hooking with targeted lock relaxation
+    // [v47] Safe Targeted Unlock (Own Property Only)
     const PROTECT_KEYS = ['playbackRate', 'currentTime', 'volume', 'muted', 'onratechange'];
     function relaxMediaLocks(el) {
         if (!el || (el.tagName !== 'VIDEO' && el.tagName !== 'AUDIO')) return;
         for (const k of PROTECT_KEYS) {
             try {
                 const d = Object.getOwnPropertyDescriptor(el, k);
-                if (!d) continue;
-                if (d.configurable === false) continue;
-                if ('writable' in d && d.writable === false) {
+                // Only unlock if it's an OWN property that is locked (writable: false)
+                // Do not touch prototype chains to avoid site breakage.
+                if (d && d.configurable && 'writable' in d && d.writable === false) {
                     Object.defineProperty(el, k, { ...d, writable: true });
                 }
             } catch {}
@@ -409,7 +432,7 @@
             try { this._vscLastPlay = Date.now(); } catch (e) {}
             // [v46] Targeted unlock on play
             try { relaxMediaLocks(this); } catch(e) {}
-            
+
             try {
                  if (_corePluginRef && _corePluginRef.stateManager.get('app.scriptActive') && !isSensitiveContext()) {
                      _corePluginRef.scheduleNextScan();
@@ -441,6 +464,21 @@
 
     safeGuard(() => { if (!isSensitiveContext()) { enableShadowHook(); collectOpenShadowRootsOnce(); } }, "earlyShadowHook");
 
+    // [v47] removed enablePropertyHooks / disableAllHooks (Global hooking logic)
+
+    if (window.hasOwnProperty('__VideoSpeedControlInitialized')) return;
+    Object.defineProperty(window, '__VideoSpeedControlInitialized', { value: true, writable: false });
+
+    try {
+        if (!isSensitiveContext()) {
+            const origLoad = HTMLMediaElement.prototype.load;
+            HTMLMediaElement.prototype.load = function (...args) {
+                if (_corePluginRef && !isSensitiveContext()) try { scheduleScan(this, true); } catch { }
+                return origLoad.apply(this, args);
+            };
+        }
+    } catch { }
+
     function getSharedStyleSheetForView(view, cssText) {
         if (!view || !view.CSSStyleSheet) return null;
         let map = _realmSheetCache.get(view); if (!map) { map = new Map(); _realmSheetCache.set(view, map); }
@@ -462,26 +500,26 @@
         const styleId = manager.getStyleNode().id; const svgId = manager.getSvgNode().id;
         const targetRoot = (root instanceof ShadowRoot) ? root : document.head;
 
-        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (root.getElementById(styleId)) return; } }
-        else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (ownerDoc.getElementById(styleId)) return; }
+        if (Utils.isShadowRoot(root)) { if (root.host && root.host.hasAttribute(attr)) { if (Utils.qById(root, styleId)) return; } }
+        else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (Utils.qById(ownerDoc, styleId)) return; }
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
         const safelyAppendStyle = (targetRoot, styleEl, sharedSheet) => {
             let appended = false;
             if (sharedSheet && ('adoptedStyleSheets' in targetRoot)) { try { const sheets = targetRoot.adoptedStyleSheets; if (!sheets.includes(sharedSheet)) targetRoot.adoptedStyleSheets = [...sheets, sharedSheet]; appended = true; } catch (e) { } }
-            if (!appended) { if (!targetRoot.querySelector(`#${styleEl.id}`)) { const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot; if (container) container.appendChild(styleEl.cloneNode(true)); } }
+            if (!appended) { if (!Utils.qById(targetRoot, styleEl.id)) { const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot; if (container) container.appendChild(styleEl.cloneNode(true)); } }
         };
 
         if (ownerDoc !== document) {
             if (!ownerDoc.body) { setTimeout(() => injectFiltersIntoContext(element, manager, stateManager), 100); return; }
-            if (!ownerDoc.getElementById(svgNode.id)) { const clonedSvg = svgNode.cloneNode(true); ownerDoc.body.appendChild(clonedSvg); manager.registerContext(clonedSvg); }
+            if (!Utils.qById(ownerDoc, svgNode.id)) { const clonedSvg = svgNode.cloneNode(true); ownerDoc.body.appendChild(clonedSvg); manager.registerContext(clonedSvg); }
             const view = ownerDoc.defaultView; const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
             safelyAppendStyle(ownerDoc, styleNode, sharedSheet); ownerDoc.documentElement.setAttribute(attr, 'true');
             return;
         }
         if (Utils.isShadowRoot(root)) {
             try {
-                if (!root.getElementById(svgNode.id)) { const clonedSvg = svgNode.cloneNode(true); root.appendChild(clonedSvg); manager.registerContext(clonedSvg); }
+                if (!Utils.qById(root, svgNode.id)) { const clonedSvg = svgNode.cloneNode(true); root.appendChild(clonedSvg); manager.registerContext(clonedSvg); }
                 const view = root.ownerDocument ? root.ownerDocument.defaultView : (root.host ? root.host.ownerDocument.defaultView : null);
                 const sharedSheet = view ? getSharedStyleSheetForView(view, styleNode.textContent) : null;
                 safelyAppendStyle(root, styleNode, sharedSheet); if (root.host) root.host.setAttribute(attr, 'true');
@@ -608,14 +646,14 @@
                      count++;
                  }
              }
-             
+
              let avgLuma = 0.5, stdDev = 0.1, clipFrac = 0;
              if (count > 0) {
                  const inv = 1 / count;
                  avgLuma = (sumLuma * inv) / 255;
                  const meanSq = (sumLumaSq * inv) / (255 * 255);
                  const variance = meanSq - (avgLuma * avgLuma);
-                 stdDev = Math.sqrt(Math.max(0, variance)); 
+                 stdDev = Math.sqrt(Math.max(0, variance));
                  clipFrac = (hist[253] + hist[254] + hist[255]) * inv;
              }
 
@@ -671,12 +709,11 @@
                 const rect = c.getBoundingClientRect(); if (rect.width > 10 && rect.height > 10) {
                     let score = rect.width * rect.height;
                     const area = rect.width * rect.height;
-                    
+
                     // [v46] Enhanced Small Player Detection
-                    // Penalty reduced (0.25) if interacted, helping detection in complex sites
                     const isHot = (c.tagName === 'VIDEO' && (!c.paused || (c._vscLastPlay && now - c._vscLastPlay < 15000)));
                     if (area < screenArea * 0.06 && !isHot && document.pictureInPictureElement !== c) {
-                         score *= 0.25; 
+                         score *= 0.5; // [v46] Relaxed penalty (was 0.25)
                     }
 
                     const isBig = area > screenArea * 0.12;
@@ -686,11 +723,11 @@
                         if (c.readyState >= 3) score *= 1.5;
                         if (c.src || c.srcObject) score *= 1.2;
                         if (!c.muted && c.volume > 0) score *= 1.5;
-                        if (c._vscLastPlay && now - c._vscLastPlay < 15000) score *= 3.0; 
+                        if (c._vscLastPlay && now - c._vscLastPlay < 15000) score *= 3.0;
                         if (c.duration && !isNaN(c.duration) && c.duration < 2) score *= 0.1;
                         if (document.fullscreenElement === c || document.pictureInPictureElement === c) score *= 3.0;
                         if (isBig) score *= 1.5;
-                    } else { 
+                    } else {
                         score *= 0.5;
                     }
 
@@ -740,7 +777,7 @@
                 const vw = video.videoWidth || video.width || video.clientWidth || 0;
                 let targetSize = (vw > 640 && IS_HIGH_END) ? 48 : (IS_LOW_END ? 24 : 32);
                 if (IS_MOBILE) targetSize = 24;
-                if (IS_DATA_SAVER) targetSize = 24; 
+                if (IS_DATA_SAVER) targetSize = 24;
                 if (this.canvas.width !== targetSize) { this.canvas.width = targetSize; this.canvas.height = targetSize; }
             }
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
@@ -758,7 +795,7 @@
         stop() {
             this.isRunning = false;
             if (this.hasRVFC && this.targetVideo && this.handle) { try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { } }
-            this.handle = null; this._rvfcCb = null; 
+            this.handle = null; this._rvfcCb = null;
             this.targetVideo = null; this.frameSkipCounter = 0; this.lastAvgLuma = -1; this._highMotion = false;
             this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
         },
@@ -871,12 +908,13 @@
             if (aggressive) baseThreshold = 0;
 
             let effectiveThreshold = baseThreshold + (this.dynamicSkipThreshold || 0);
-            
+
             if (IS_DATA_SAVER && !aggressive) effectiveThreshold += 5;
-            
-            // [v46] Smart Throttling for Mobile
+
+            // [v47] Smart Battery Throttling for Mobile
             if (IS_MOBILE && !aggressive) {
-                if (!this._aeActive) effectiveThreshold += 2;
+                // If AE inactive or gain stable, slow down analysis
+                if (!this._aeActive || Math.abs(this.currentLinearGain - 1.0) < 0.02) effectiveThreshold += 3;
                 if (this._lastFrameStats && this._lastFrameStats.stdDev > 0.15) effectiveThreshold += 2;
                 if (this._lowMotionFrames > 30) effectiveThreshold += 3;
             }
@@ -961,7 +999,7 @@
 
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
             this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
-            
+
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
                 const delta = Math.abs(currentLuma - this.lastAvgLuma);
@@ -981,25 +1019,29 @@
                 // [v44] Dynamic Clip Limit based on pixel count to handle noise
                 const minClipPixels = 3;
                 const dynamicClipLimit = Math.max(MIN_AE.CLIP_FRAC_LIMIT, (validCount > 0 ? minClipPixels / validCount : 0));
-                
-                // [v46] Smart Low-Key & Subtitle Protection
-                // If ClipFrac is small, it might be subtitles, so don't block entirely unless p98 is also extreme.
-                const highlightSmall = clipFrac < dynamicClipLimit * 0.6;
-                
-                const isLowKey = (stdDev > MIN_AE.LOWKEY_STDDEV && p10 > MIN_AE.LOWKEY_P10) || 
-                                 (p90 > 0.82) || 
-                                 (p98 > 0.92 && !highlightSmall);
+
+                // [v47] Smart Low-Key & Subtitle Protection
+                const highlightSmall = clipFrac < dynamicClipLimit * 0.7; // Relaxed
+
+                // [v47] Low-Key: Only if mid is VERY dark, otherwise if mid is ok, don't protect too aggressively
+                // And we check if blacks are lifted (p10) or contrast is high (stdDev)
+                const isLowKey = ((stdDev > MIN_AE.LOWKEY_STDDEV && p10 > MIN_AE.LOWKEY_P10) && p50m < 0.20) ||
+                                 ((p90 > 0.82) && p50m < 0.18) ||
+                                 ((p98 > 0.92 && !highlightSmall) && p50m < 0.20);
 
                 const midTooDark = p50m < MIN_AE.MID_OK_MIN;
-                
+
+                // [v47] Subtitle Heuristic: Small high clips + dark mid + high contrast
+                const subtitleLikely = (clipFrac > dynamicClipLimit) && (p98 > 0.96) && (p50m < 0.22) && (stdDev > 0.06) && (highlightSmall || p90 < 0.75);
+
                 // 1. Check clip risk
-                const clipRisk = (p98 >= MIN_AE.P98_CLIP && !highlightSmall) || (clipFrac > dynamicClipLimit);
-                
+                const clipRisk = ((p98 >= MIN_AE.P98_CLIP && !highlightSmall) || (clipFrac > dynamicClipLimit)) && !subtitleLikely;
+
                 if (clipRisk) {
                     targetLinearGain = 1.0;
                     this._aeActive = false;
-                    tempBaseDown = 0.25; 
-                } 
+                    tempBaseDown = 0.25;
+                }
                 else if (midTooDark && !isLowKey) {
                     // 3. Intervention required
                     const safeCurrent = Math.max(0.02, p50m);
@@ -1013,7 +1055,7 @@
 
                     let maxUp = MIN_AE.MAX_UP_EV;
                     const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
-                    
+
                     if (p50m < 0.08 && headroomEV > 0.6 && stdDev < 0.18) {
                          maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.75);
                     } else if (p50m < 0.14 && headroomEV > 0.4) {
@@ -1045,9 +1087,9 @@
                     }
 
                     rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, maxUp);
-                    
+
                     if (stdDev < 0.05) {
-                        const damping = 0.95; 
+                        const damping = 0.95;
                         rawEV *= damping;
                     }
                     if (this._highMotion && !aggressive) rawEV *= 0.8;
@@ -1199,14 +1241,14 @@
             on(document, 'visibilitychange', () => { try { this._updateHooksState?.(); } catch {} if (document.hidden) stopAnalyzer(); }, P(this._ac.signal));
             on(window, 'pagehide', stopAnalyzer, P(this._ac.signal));
             on(window, 'blur', stopAnalyzer, P(this._ac.signal));
-            
+
             // [v46] BFCache fix: Ensure state refresh
             on(window, 'pageshow', (e) => {
-                if (e.persisted) { 
-                    try { 
-                        triggerBurstScan(150); 
+                if (e.persisted) {
+                    try {
+                        triggerBurstScan(150);
                         if (this.stateManager.get('videoFilter.autoExposure')) VideoAnalyzer._kickImmediateAnalyze();
-                    } catch {} 
+                    } catch {}
                 }
             }, P(this._ac.signal));
 
@@ -1239,7 +1281,7 @@
                     if (this.stateManager.get('videoFilter.autoExposure')) VideoAnalyzer._kickImmediateAnalyze();
                 }
             }, CP(this._ac.signal));
-            
+
             // [v44] Additional triggers
             ['seeked', 'loadedmetadata'].forEach(evt => {
                 on(document, evt, (e) => {
@@ -1416,6 +1458,10 @@
             for (let i = 0; i < frames.length; i++) this._checkAndAdd(frames[i], media, images, iframes);
 
             for (let i = 0; i < frames.length; i++) {
+                // [v47] Viewport-aware iframe scan
+                const r = frames[i].getBoundingClientRect ? frames[i].getBoundingClientRect() : null;
+                if (r && (r.bottom < -300 || r.top > window.innerHeight + 300)) continue;
+
                 // v132.0.12: Smart Iframe Cache
                 const doc = this._tryGetIframeDoc(frames[i]);
                 if (doc) {
@@ -2221,7 +2267,7 @@
                      this._lastTaintToast = true;
                 }
                 if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
-                
+
                 if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
                 else {
                     const evVal = Math.log2(autoParams.linearGain || 1.0).toFixed(2);
