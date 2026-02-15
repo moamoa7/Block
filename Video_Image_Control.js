@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.34 Minimal & Robust)
+// @name        Video_Image_Control (v132.0.36 Restored Presets)
 // @namespace   https://com/
-// @version     132.0.34
-// @description v132.0.34: Fixed Logic Bugs (TargetMid order, State Mutation), Optimized Worker/RVFC, and Refined for "Minimal Intervention" (SQRT Knee, P98 Cap).
+// @version     132.0.36
+// @description v132.0.36: Restored "Sharpness Presets" (S/M/L/XL/Off) and Fixed "Dark Scene Detection" logic (removed avgLuma constraint).
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -40,14 +40,25 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
+    // [v35] Minimal AE Constants
+    const MIN_AE = {
+        STRENGTH: 0.25,
+        MID_OK_MIN: 0.22,      // [Fix applied] This will now work strictly
+        MID_OK_MAX: 0.60,
+        P98_CLIP: 0.985,
+        MAX_UP_EV: 0.18,
+        MAX_DOWN_EV: -0.25,
+        DEAD_OUT: 0.10,        // [Tuned] More sensitive
+        DEAD_IN: 0.05
+    };
+
     const CONFIG = {
         DEBUG: false,
         FLAGS: { GLOBAL_ATTR_OBS: true },
         FILTER: {
             VIDEO_DEFAULT_LEVEL: 0, VIDEO_DEFAULT_LEVEL2: 0, IMAGE_DEFAULT_LEVEL: 15,
-            DEFAULT_AUTO_EXPOSURE: false, DEFAULT_TARGET_LUMA: 0, DEFAULT_CLARITY: 0,
+            DEFAULT_AUTO_EXPOSURE: false, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
-            DEFAULT_AE_STRENGTH: 35, // [v34] Standardized to 35
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
         },
@@ -99,58 +110,16 @@
                 hist.fill(0);
                 const size = width;
                 const dynBlackTh = Math.max(10, Math.min(26, Math.floor((p10ref || 0.1) * 255 * 0.6)));
-                let centerLumaSum = 0, centerCount = 0;
-
-                const cStart = Math.floor(size * 0.4), cEnd = Math.floor(size * 0.6);
-                for(let y=cStart; y<cEnd; y+=step*2) {
-                    for(let x=cStart; x<cEnd; x+=step*2) {
-                        const i = (y * size + x) * 4;
-                        const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
-                        centerLumaSum += luma; centerCount++;
-                    }
-                }
-                const centerMean = centerCount > 0 ? centerLumaSum / centerCount : 128;
-
-                const checkBand = (sx, ex, sy, ey) => {
-                    let black = 0, total = 0, lumaSum = 0;
-                    for (let y = sy; y < ey; y += step) {
-                        for (let x = sx; x < ex; x += step) {
-                            const i = (y * size + x) * 4;
-                            const luma = (data[i]*54 + data[i+1]*183 + data[i+2]*19) >> 8;
-                            if (luma < dynBlackTh) black++;
-                            lumaSum += luma; total++;
-                        }
-                    }
-                    return { ratio: total > 0 ? black / total : 0, mean: total > 0 ? lumaSum / total : 0 };
-                };
-                const botH = Math.max(1, Math.floor(bandH * 0.8));
-                const topRes = checkBand(0, size, 0, bandH);
-                const botRes = checkBand(0, size, size - botH, size);
-                const leftRes = checkBand(0, bandH, 0, size);
-                const rightRes = checkBand(size - bandH, size, 0, size);
-                const barsNow = (topRes.ratio > 0.65 && topRes.mean < centerMean - 20 && botRes.ratio > 0.65) || (leftRes.ratio > 0.65 && rightRes.ratio > 0.65);
 
                 let validCount = 0;
                 let sumR = 0, sumG = 0, sumB = 0;
                 let sumLuma = 0;
                 let sumLumaSq = 0;
 
-                const startY = (topRes.ratio > 0.65) ? Math.floor(size * 0.15) : 0;
-                let endY = (botRes.ratio > 0.65) ? Math.floor(size * 0.85) : Math.floor(size * 0.88);
-                const startX = (leftRes.ratio > 0.65) ? Math.floor(size * 0.15) : 4;
-                const endX = (rightRes.ratio > 0.65) ? Math.floor(size * 0.85) : size - 4;
-
-                if (!(botRes.ratio > 0.65)) {
-                    let white = 0, subTot = 0;
-                    for(let y = size - Math.floor(size*0.15); y < size; y+=step) {
-                        for(let x=startX; x<endX; x+=step) {
-                            const i = (y*size+x)*4;
-                             if (((data[i]*54+data[i+1]*183+data[i+2]*19)>>8) > 230) white++;
-                             subTot++;
-                        }
-                    }
-                    if(subTot > 0 && (white/subTot) > 0.05) endY = size - Math.floor(size*0.15);
-                }
+                const startY = 0;
+                const endY = size;
+                const startX = 0;
+                const endX = size;
 
                 for (let y = startY; y < endY; y+=step) {
                     for (let x = startX; x < endX; x+=step) {
@@ -196,7 +165,6 @@
                 }
                 if (p10 < 0) p10 = 0.1; if (p50 < 0) p50 = 0.5; if (p55 < 0) p55 = 0.55; if (p90 < 0) p90 = 0.9; if (p98 < 0) p98 = 0.98;
 
-                // [v34] Removed barsNow, hiClipRatio, loClipRatio (Optimization)
                 self.postMessage({ type: 'result', fid, vid, p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB });
             }
         };
@@ -506,7 +474,8 @@
             this.state = {
                 app: { isInitialized: false, isMobile: IS_MOBILE, scriptActive: false },
                 media: { activeMedia: new Set(), activeImages: new Set(), activeIframes: new Set(), mediaListenerMap: new WeakMap(), visibilityMap: new WeakMap(), currentlyVisibleMedia: null },
-                videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, targetLuma: CONFIG.FILTER.DEFAULT_TARGET_LUMA, aeStrength: CONFIG.FILTER.DEFAULT_AE_STRENGTH, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
+                // [v35] Removed targetLuma, aeStrength
+                videoFilter: { level: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL, level2: CONFIG.FILTER.VIDEO_DEFAULT_LEVEL2, gamma: parseFloat(videoDefaults.GAMMA), shadows: safeInt(videoDefaults.SHADOWS), highlights: safeInt(videoDefaults.HIGHLIGHTS), brightness: CONFIG.FILTER.DEFAULT_BRIGHTNESS, contrastAdj: CONFIG.FILTER.DEFAULT_CONTRAST, saturation: parseInt(videoDefaults.SAT, 10), colorTemp: safeInt(videoDefaults.TEMP), dither: safeInt(videoDefaults.DITHER), autoExposure: CONFIG.FILTER.DEFAULT_AUTO_EXPOSURE, clarity: CONFIG.FILTER.DEFAULT_CLARITY, activeSharpPreset: 'none' },
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 audio: { enabled: false, boost: 6 },
                 ui: { shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null, createRequested: false, hideUntilReload: false },
@@ -529,7 +498,7 @@
     }
 
     const VideoAnalyzer = {
-        canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 40 },
+        canvas: null, ctx: null, handle: null, isRunning: false, targetVideo: null, stateManager: null, currentSettings: { clarity: 0, autoExposure: false },
         currentAdaptiveGamma: 1.0, currentAdaptiveBright: 0, currentClarityComp: 0, currentLinearGain: 1.0,
         _lastClarityComp: 0, frameSkipCounter: 0, dynamicSkipThreshold: 0, hasRVFC: false, lastAvgLuma: -1, _highMotion: false, _evAggressiveUntil: 0, _roiP50History: [], taintedResources: new WeakSet(), _worker: null, _workerUrl: null, _rvfcCb: null, _frameId: 0, _videoIds: new WeakMap(), _lowMotionFrames: 0, _lowMotionSkip: 0, _workerBusy: false, _workerLastSent: 0, _workerStallCount: 0, _lastAppliedFid: 0, _hist: new Uint16Array(256), _p10Ema: -1, _p90Ema: -1,
         _lastBarsState: false, _aeActive: false, _lastKick: 0, _workerCooldown: 0,
@@ -570,7 +539,7 @@
         _getVideoId(v) { if (!this._videoIds.has(v)) this._videoIds.set(v, Math.random().toString(36).slice(2)); return this._videoIds.get(v); },
         _handleWorkerMessage(e) {
             this._workerBusy = false; this._workerLastSent = 0;
-            const { type, fid, vid, p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB } = e.data; // [v34] Removed unused barsNow, hiClip, loClip
+            const { type, fid, vid, p10, p50, p55, p90, p98, avgLuma, stdDev, avgR, avgG, avgB } = e.data;
             if (type !== 'result' || !this.targetVideo || vid !== this._getVideoId(this.targetVideo)) return;
             if (!this._lastAppliedFid) this._lastAppliedFid = 0; if (fid < this._lastAppliedFid) return;
             this._lastAppliedFid = fid;
@@ -679,9 +648,7 @@
             const isAutoExposure = this.currentSettings.autoExposure;
             if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
             if (this.taintedResources.has(video)) {
-                const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
-                const manualGain = Math.pow(2, userEV);
-                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, video, true);
+                this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0, tainted: true }, 0, video, true);
                 return;
             }
             if (this.isRunning && this.targetVideo === video) return;
@@ -712,18 +679,17 @@
         updateSettings(settings) {
             const prev = this.currentSettings; this.currentSettings = { ...this.currentSettings, ...settings };
             const now = performance.now();
-            const evChanged = settings && Object.prototype.hasOwnProperty.call(settings, 'targetLuma') && settings.targetLuma !== prev.targetLuma;
             const aeTurnedOn = settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && settings.autoExposure && !prev.autoExposure;
-            if (settings && (Object.prototype.hasOwnProperty.call(settings, 'targetLuma') || Object.prototype.hasOwnProperty.call(settings, 'autoExposure') || Object.prototype.hasOwnProperty.call(settings, 'clarity'))) {
+            if (settings && (Object.prototype.hasOwnProperty.call(settings, 'autoExposure') || Object.prototype.hasOwnProperty.call(settings, 'clarity'))) {
                 this.frameSkipCounter = 999;
-                if (evChanged || aeTurnedOn) { this._evAggressiveUntil = now + 800; this.dynamicSkipThreshold = 0; this._lowMotionFrames = 0; }
+                if (aeTurnedOn) { this._evAggressiveUntil = now + 800; this.dynamicSkipThreshold = 0; this._lowMotionFrames = 0; }
             }
             if (settings && Object.prototype.hasOwnProperty.call(settings, 'autoExposure') && !settings.autoExposure) { this._evAggressiveUntil = 0; }
             const isClarityActive = this.currentSettings.clarity > 0; const isAutoExposure = this.currentSettings.autoExposure;
             if (isClarityActive || isAutoExposure) {
                 const best = this._pickBestVideoNow();
-                if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity, targetLuma: this.currentSettings.targetLuma, aeStrength: this.currentSettings.aeStrength }); }
-                if (evChanged || aeTurnedOn) { this._kickImmediateAnalyze(); }
+                if (best) { this.start(best, { autoExposure: this.currentSettings.autoExposure, clarity: this.currentSettings.clarity }); }
+                if (aeTurnedOn) { this._kickImmediateAnalyze(); }
             } else if (!isClarityActive && !isAutoExposure && this.isRunning) {
                 this.stop(); this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0 }, 0);
             }
@@ -734,7 +700,6 @@
                 if (!this._rvfcCb) {
                     this._rvfcCb = () => {
                         if (!this.isRunning || !this.targetVideo) return;
-                        // [v34] Stop loop if document hidden to save CPU
                         if (document.hidden) {
                              setTimeout(() => { if (this.isRunning) this.handle = this.targetVideo.requestVideoFrameCallback(this._rvfcCb); }, 500);
                              return;
@@ -844,9 +809,8 @@
                     }
                     const taintedVideo = this.targetVideo;
                     this.stop();
-                    const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
-                    const manualGain = Math.pow(2, userEV);
-                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: manualGain, tainted: true }, 0, taintedVideo, true);
+                    // [v35] Tainted fallback is now just 1.0 (no manual control)
+                    this.notifyUpdate({ gamma: 1.0, bright: 0, clarityComp: 0, linearGain: 1.0, tainted: true }, 0, taintedVideo, true);
                 } else {
                     const next = this._pickBestVideoNow();
                     if(next && next !== this.targetVideo) {
@@ -901,69 +865,70 @@
             let targetLinearGain = 1.0;
             const isAutoExp = this.currentSettings.autoExposure;
 
+            // [v35] Minimal Intervention Mode (AE = Safety Guard)
             if (isAutoExp) {
-                const safeCurrent = Math.max(0.02, p50m);
+                const aeStr = MIN_AE.STRENGTH;
 
-                // [v34] Corrected Logic Order for TargetMid
-                let targetMid = 0.34;
-                if (avgLuma > 0.8) targetMid = 0.32; // Very Bright -> Aim lower
-                else if (avgLuma > 0.6) targetMid = 0.34; // Bright -> Aim low-ish
+                // 1. Check conditions to intervene
+                const midOk = (p50m >= MIN_AE.MID_OK_MIN && p50m <= MIN_AE.MID_OK_MAX);
+                const clipRisk = (p98 >= MIN_AE.P98_CLIP);
 
-                let baseEV = Math.log2(targetMid / safeCurrent);
+                // [v36 Fix] Removed avgLuma < 0.35 constraint. Now obeys MIN setting.
+                const tooDark = (p50m < MIN_AE.MID_OK_MIN);
 
-                const userEV = Utils.clamp((this.currentSettings.targetLuma || 0) / 30, -1.0, 1.0);
-                const aeStr = (this.currentSettings.aeStrength ?? 35) / 100;
+                // "Too Bright" means midtones are blown out OR explicit clip risk
+                const tooBright = (p50m > MIN_AE.MID_OK_MAX) || clipRisk;
 
-                let autoEV = Utils.clamp(baseEV * aeStr, -0.25, 0.28);
-                let rawEV = autoEV + userEV;
+                let rawEV = 0;
 
-                // [v34] Enhanced Safety Caps (P98 based)
-                if (p98 > 0.01) {
-                    const maxSafeGain = 0.99 / p98; // Very Strict Cap
-                    const maxSafeEV = Math.log2(maxSafeGain);
-                    if (rawEV > maxSafeEV) {
-                        rawEV = Math.min(rawEV, maxSafeEV);
-                    }
-                }
-
-                // [v34] Low-light Gloss Guard
-                const lowLight = (p50m < 0.18) || (avgLuma < 0.22);
-                if (lowLight && rawEV > 0) {
-                     const capEV = 0.15; // Conservative cap
-                     rawEV = Math.min(rawEV, capEV);
-                     const hiPresence = Utils.clamp((stableP90 - 0.70) / 0.20, 0, 1);
-                     rawEV *= (1.0 - 0.6 * hiPresence);
-                     if (stdDev < 0.07) rawEV *= (stdDev / 0.07);
-                }
-
-                if (stdDev < 0.05) {
-                    rawEV *= (stdDev / 0.05);
-                }
-
-                const range = Math.max(0, stableP90 - this._p10Ema);
-                if (range < 0.25) rawEV *= 0.75;
-                if (range < 0.18) rawEV *= 0.60;
-
-                if (this._aeActive == null) this._aeActive = false;
-                let deadOut = 0.20, deadIn = 0.10;
-                if (this._lowMotionFrames > 60 && range < 0.20) {
-                    deadOut = 0.30; deadIn = 0.15;
-                }
-                const th = this._aeActive ? deadIn : deadOut;
-
-                if (Math.abs(baseEV * aeStr) < th && userEV === 0) {
+                // 2. Core Logic: If scene is fine, DO NOTHING (rawEV = 0)
+                if (!tooDark && !tooBright && midOk && !clipRisk) {
                     rawEV = 0;
                     this._aeActive = false;
                 } else {
-                    this._aeActive = true;
+                    // 3. Intervention required
+                    const safeCurrent = Math.max(0.02, p50m);
+                    let targetMid = 0.34;
+                    if (avgLuma > 0.8) targetMid = 0.32;
+                    else if (avgLuma > 0.6) targetMid = 0.34;
+
+                    // [Test Fix] If we entered because it's too dark, ensure we aim at least MIN
+                    if (tooDark) targetMid = Math.max(0.34, MIN_AE.MID_OK_MIN);
+
+                    let baseEV = Math.log2(targetMid / safeCurrent);
+
+                    // Clamp autoEV strictly
+                    let autoEV = Utils.clamp(baseEV * aeStr, MIN_AE.MAX_DOWN_EV, MIN_AE.MAX_UP_EV);
+
+                    // If clipping risk exists, prevent boosting
+                    if (clipRisk && autoEV > 0) autoEV = 0;
+
+                    rawEV = autoEV;
+
+                    // [Safety Cap] P98 hard limit
+                    if (p98 > 0.01) {
+                        const maxSafeGain = 0.99 / p98;
+                        const maxSafeEV = Math.log2(maxSafeGain);
+                        if (rawEV > maxSafeEV) rawEV = Math.min(rawEV, maxSafeEV);
+                    }
+
+                    // Hysteresis to prevent flickering around threshold
+                    if (this._aeActive == null) this._aeActive = false;
+                    const th = this._aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
+
+                    if (Math.abs(rawEV) < th) {
+                        rawEV = 0;
+                        this._aeActive = false;
+                    } else {
+                        this._aeActive = true;
+                    }
+
+                    // Final Clamp
+                    rawEV = Utils.clamp(rawEV, MIN_AE.MAX_DOWN_EV, MIN_AE.MAX_UP_EV);
                 }
 
-                // Global clamp -1.0 ~ +0.4
-                rawEV = Utils.clamp(rawEV, -1.0, 0.4);
-
-                if (this._highMotion && !aggressive) {
-                    rawEV *= 0.8;
-                }
+                if (stdDev < 0.05) rawEV *= (stdDev / 0.05); // Reduce for flat scenes
+                if (this._highMotion && !aggressive) rawEV *= 0.8;
 
                 targetLinearGain = Math.pow(2, rawEV);
             }
@@ -1262,7 +1227,7 @@
                                 if (currentBest) VideoAnalyzer.stop();
                                 this.stateManager.set('media.currentlyVisibleMedia', newBest);
                                 const vf = this.stateManager.get('videoFilter');
-                                if (this.stateManager.get('app.scriptActive') && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(newBest, { autoExposure: vf.autoExposure, clarity: vf.clarity, targetLuma: vf.targetLuma, aeStrength: vf.aeStrength });
+                                if (this.stateManager.get('app.scriptActive') && (vf.autoExposure || vf.clarity > 0)) VideoAnalyzer.start(newBest, { autoExposure: vf.autoExposure, clarity: vf.clarity });
                             }
                         }, 300);
                     }
@@ -1431,7 +1396,6 @@
             });
             this.subscribe('videoFilter.*', this.applyAllVideoFilters.bind(this));
             this.subscribe('videoFilter.autoExposure', (on, old) => { if (on && !old) { this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.applyAllVideoFilters(); } });
-            this.subscribe('videoFilter.targetLuma', () => { if (this.stateManager.get('videoFilter.autoExposure')) { this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.applyAllVideoFilters(); } });
             this.subscribe('imageFilter.level', (val) => { this.applyAllImageFilters(); if (val > 0) { const core = window.vscPluginManager?.plugins?.find(p => p.name === 'CoreMedia'); if (core) core.scanAndApply(); } });
             this.subscribe('imageFilter.colorTemp', this.applyAllImageFilters.bind(this));
             this.subscribe('media.visibilityChange', () => this.updateMediaFilterStates()); this.subscribe('ui.areControlsVisible', () => this.updateMediaFilterStates()); this.subscribe('app.scriptActive', () => { this.updateMediaFilterStates(); });
@@ -1500,7 +1464,7 @@
 
         _createManager(options) {
             class SvgFilterManager {
-                constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._gainTableCache = new Map(); this._lastValues = null; this._clarityTableCache = new Map(); } // [v34] gainTableCache
+                constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._gainTableCache = new Map(); this._lastValues = null; this._clarityTableCache = new Map(); }
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
                 init() { if (this._isInitialized) return; safeGuard(() => {
                     const { svgNode, styleElement } = this._createElements();
@@ -1561,7 +1525,7 @@
 
                             // v132.0.28: Integrated Gain+Rolloff Node
                             const linearExp = createSvgElement('feComponentTransfer', { "data-vsc-id": "linear_exposure", in: "saturate_out", result: "linear_out" });
-                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"table", tableValues:"0 1" })));
+                            ['R','G','B'].forEach(c => linearExp.append(createSvgElement('feFunc'+c, { "data-vsc-id": "exposure_func", type:"table", tableValues:"0 1" }))); // Use tableValues instead of slope
 
                             const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "linear_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA).toString() })));
                             const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
@@ -1715,9 +1679,8 @@
             let finalSaturation = vf.saturation;
 
             // --- [v132.0.34 Logic] ---
-            const userEV = Utils.clamp((vf.targetLuma || 0) / 30, -1.0, 1.0);
-            const manualGain = Math.pow(2, userEV);
-            const totalGain = aeOn ? (autoGain || 1.0) : manualGain;
+            const userEV = 0; // [v35] User EV removed
+            const totalGain = (autoGain || 1.0);
 
             // [v34] Use local variables, DO NOT mutate state directly
             let effectiveClarity = vf.clarity;
@@ -1789,12 +1752,11 @@
                 dither: vf.dither,
                 clarity: effectiveClarity, // Use effective value
                 autoExposure: vf.autoExposure,
-                targetLuma: vf.targetLuma,
                 linearGain: totalGain
             };
             this.filterManager.updateFilterValues(values);
             // Pass effectiveClarity to analyzer for consistent logic
-            VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: effectiveClarity, targetLuma: vf.targetLuma, aeStrength: vf.aeStrength });
+            VideoAnalyzer.updateSettings({ autoExposure: vf.autoExposure, clarity: effectiveClarity });
             this.updateMediaFilterStates();
         }
         applyAllImageFilters() { if (this._imageRafId) return; this._imageRafId = requestAnimationFrame(() => { this._imageRafId = null; if (!this.imageFilterManager.isInitialized()) return; const active = this.stateManager.get('app.scriptActive'); const level = active ? this.stateManager.get('imageFilter.level') : 0; const colorTemp = active ? this.stateManager.get('imageFilter.colorTemp') : 0; let scaleFactor = IS_MOBILE ? 0.8 : 1.0; const values = { sharpenLevel: level * scaleFactor, colorTemp: colorTemp }; this.imageFilterManager.updateFilterValues(values); this.updateMediaFilterStates(); }); }
@@ -2095,7 +2057,7 @@
                 if (tainted) { monitor.textContent = '🔒 보안(CORS) 제한됨'; monitor.classList.add('warn'); }
                 else {
                     const evVal = Math.log2(autoParams.linearGain || 1.0).toFixed(2);
-                    const activeMark = aeActive ? '(A)' : '';
+                    const activeMark = aeActive ? '(Auto)' : '(Safe)';
                     monitor.textContent = `${activeMark} EV: ${evVal > 0 ? '+' : ''}${evVal} | Linear: ${(autoParams.linearGain || 1.0).toFixed(2)}`;
                     monitor.classList.remove('warn');
                 }
@@ -2126,7 +2088,7 @@
             slider.oninput = () => {
                 const val = parseFloat(slider.value); updateText(val);
                 if (stateKey.startsWith('videoFilter.')) { if (stateKey.includes('level') || stateKey.includes('level2')) this.stateManager.set('videoFilter.activeSharpPreset', 'custom'); }
-                if (stateKey === 'videoFilter.targetLuma') { triggerBurstScan(); }
+                // if (stateKey === 'videoFilter.targetLuma') { triggerBurstScan(); } // Removed in v36
                 this.showToast(`${label}: ${formatFn ? formatFn(val) : val + unit}`);
                 debouncedSetState(val);
             };
@@ -2139,78 +2101,78 @@
             const createToggle = (label, key) => {
                 const btn = document.createElement('button'); btn.className = 'vsc-btn vsc-btn-lg'; btn.textContent = label;
                 const render = (v) => { btn.classList.toggle('active', !!v); };
-                btn.onclick = () => this.stateManager.set(key, !this.stateManager.get(key)); this.subscribe(key, render); render(this.stateManager.get(key)); return btn;
+                btn.onclick = () => {
+                    const next = !this.stateManager.get(key);
+                    this.stateManager.set(key, next);
+                    // [v35] Trigger instant scan when AE is toggled on
+                    if (key === 'videoFilter.autoExposure' && next) triggerBurstScan(200);
+                };
+                this.subscribe(key, render); render(this.stateManager.get(key)); return btn;
             };
             const powerBtn = document.createElement('button'); powerBtn.className = 'vsc-btn vsc-btn-lg'; powerBtn.textContent = '⏸︎'; powerBtn.title = '전체 기능 끄기';
             Object.assign(powerBtn.style, { width: '40px', flex: '0 0 40px', color: '#e74c3c' });
             powerBtn.onclick = () => { this.stateManager.set('app.scriptActive', false); this.stateManager.set('ui.areControlsVisible', false); this.showToast('Script OFF'); };
-            topRow.append(powerBtn); topRow.append(createToggle('📸 자동', 'videoFilter.autoExposure'));
-
+            topRow.append(powerBtn); topRow.append(createToggle('📸 자동 (AE)', 'videoFilter.autoExposure'));
             topRow.append(createToggle('🔊 부스트', 'audio.enabled'));
 
             const videoResetBtn = document.createElement('button'); videoResetBtn.className = 'vsc-btn vsc-btn-lg'; videoResetBtn.textContent = '↺'; videoResetBtn.title = '필터 초기화';
             Object.assign(videoResetBtn.style, { width: '40px', flex: '0 0 40px' });
             videoResetBtn.onclick = () => {
-                // v132.0.18: Reset
-                this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: 0, level2: 0, clarity: 0, autoExposure: false, targetLuma: 0, aeStrength: 35, gamma: 1.0, contrastAdj: 1.0, brightness: 0, saturation: 100, highlights: 0, shadows: 0, dither: 0, colorTemp: 0 });
+                // [v35] Simplified Reset
+                this.stateManager.batchSet('videoFilter', { activeSharpPreset: 'none', level: 0, level2: 0, clarity: 0, autoExposure: false, gamma: 1.0, contrastAdj: 1.0, brightness: 0, saturation: 100, highlights: 0, shadows: 0, dither: 0, colorTemp: 0 });
                 this.stateManager.set('audio.enabled', false); this.stateManager.set('audio.boost', 6); this.showToast('필터 및 오디오 초기화됨');
             };
             topRow.append(videoResetBtn);
-
             videoSubMenu.append(topRow);
 
-            const tabHeader = document.createElement('div'); tabHeader.className = 'vsc-tab-header';
-            const tabBtn1 = document.createElement('button'); tabBtn1.className = 'vsc-tab-btn active'; tabBtn1.textContent = '노출/프리셋';
-            const tabBtn2 = document.createElement('button'); tabBtn2.className = 'vsc-tab-btn'; tabBtn2.textContent = '화질/상세';
-            tabHeader.append(tabBtn1, tabBtn2);
-            videoSubMenu.append(tabHeader);
+            // [v36] Restored Sharpness Presets
+            const presetContainer = document.createElement('div');
+            presetContainer.className = 'vsc-align-grid';
 
-            const tab1Content = document.createElement('div'); tab1Content.className = 'vsc-tab-content active';
-            const tab2Content = document.createElement('div'); tab2Content.className = 'vsc-tab-content';
+            const label = document.createElement('div');
+            label.className = 'vsc-label';
+            label.textContent = '샤프';
+            presetContainer.appendChild(label);
 
-            const switchTab = (t1) => {
-                tabBtn1.classList.toggle('active', t1); tabBtn2.classList.toggle('active', !t1);
-                tab1Content.classList.toggle('active', t1); tab2Content.classList.toggle('active', !t1);
-            };
-            tabBtn1.onclick = () => switchTab(true);
-            tabBtn2.onclick = () => switchTab(false);
+            const sharpPresets = [
+                { txt: 'S', key: 'sharpS', l1: 8, l2: 3 },
+                { txt: 'M', key: 'sharpM', l1: 15, l2: 6 },
+                { txt: 'L', key: 'sharpL', l1: 25, l2: 10 },
+                { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 },
+                { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }
+            ];
 
-            const gridTable = document.createElement('div'); gridTable.className = 'vsc-align-grid';
-            // [Updated UI Presets] 15 = 0.5 EV
-            const PRESET_CONFIG = [{ type: 'sharp', label: '샤프', items: [{ txt: 'S', key: 'sharpS', l1: 8, l2: 3 }, { txt: 'M', key: 'sharpM', l1: 15, l2: 6 }, { txt: 'L', key: 'sharpL', l1: 25, l2: 10 }, { txt: 'XL', key: 'sharpXL', l1: 35, l2: 15 }, { txt: '끔', key: 'sharpOFF', l1: 0, l2: 0 }] }, { type: 'ev', label: '노출', items: [{txt: '-0.5', val: -15}, {txt: '0', val: 0}, {txt: '+0.5', val: 15}] }];
-            PRESET_CONFIG.forEach(cfg => {
-                const label = document.createElement('div'); label.className = 'vsc-label'; label.textContent = cfg.label; gridTable.appendChild(label);
-                if (cfg.type === 'sharp') {
-                    cfg.items.forEach(it => {
-                        const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = it.txt; b.dataset.presetKey = it.key;
-                        b.onclick = () => { this.stateManager.batchSet('videoFilter', { level: it.l1, level2: it.l2, activeSharpPreset: it.key }); };
-                        gridTable.appendChild(b);
+            sharpPresets.forEach(it => {
+                const b = document.createElement('button');
+                b.className = 'vsc-btn';
+                b.textContent = it.txt;
+                b.dataset.presetKey = it.key;
+                b.onclick = () => {
+                    this.stateManager.batchSet('videoFilter', {
+                        level: it.l1,
+                        level2: it.l2,
+                        activeSharpPreset: it.key
                     });
-                    const updateSharp = (k) => { gridTable.querySelectorAll(`button[data-preset-key]`).forEach(b => b.classList.toggle('active', b.dataset.presetKey === k)); };
-                    this.subscribe('videoFilter.activeSharpPreset', updateSharp); updateSharp(this.stateManager.get('videoFilter.activeSharpPreset'));
-                    gridTable.append(document.createElement('div'), document.createElement('div'));
-                } else if (cfg.type === 'ev') {
-                    cfg.items.forEach(it => {
-                        const b = document.createElement('button'); b.className = 'vsc-btn'; b.textContent = it.txt; b.dataset.evVal = it.val;
-                        // [Fixed] Removed triggerBurstScan() to prevent flashing
-                        b.onclick = () => { this.stateManager.batchSet('videoFilter', { targetLuma: it.val, autoExposure: true }); }; 
-                        gridTable.appendChild(b);
-                    });
-                    const updateEv = () => { const ae = this.stateManager.get('videoFilter.autoExposure'); const tv = this.stateManager.get('videoFilter.targetLuma'); gridTable.querySelectorAll(`button[data-ev-val]`).forEach(b => { const m = ae && (parseInt(b.dataset.evVal) === tv); b.classList.toggle('active', m); }); };
-                    this.subscribe('videoFilter.targetLuma', updateEv); this.subscribe('videoFilter.autoExposure', updateEv); updateEv();
-                }
+                };
+                presetContainer.appendChild(b);
             });
-            tab1Content.appendChild(gridTable);
 
+            const updateSharp = (k) => {
+                 presetContainer.querySelectorAll('button[data-preset-key]').forEach(b => {
+                     b.classList.toggle('active', b.dataset.presetKey === k);
+                 });
+            };
+            this.subscribe('videoFilter.activeSharpPreset', updateSharp);
+            updateSharp(this.stateManager.get('videoFilter.activeSharpPreset'));
+
+            videoSubMenu.appendChild(presetContainer);
+
+            // [v35] Simplified Slider Grid (No tabs)
             const SLIDER_CONFIG = [
-                { label: 'AE 강도', id: 'v-str', min: 0, max: 100, step: 5, key: 'videoFilter.aeStrength', unit: '%', fmt: v => `${v}%` },
-                { label: '노출 보정 (EV)', id: 'v-target', min: -30, max: 30, step: 1, key: 'videoFilter.targetLuma', unit: '', fmt: v => (v/30).toFixed(2) },
-
                 { label: '감마 (Gamma)', id: 'v-gamma', min: 0.5, max: 2.5, step: 0.05, key: 'videoFilter.gamma', unit: '', fmt: v => v.toFixed(2) },
                 { label: '대비 (Contrast)', id: 'v-contrast', min: 0.5, max: 2.0, step: 0.05, key: 'videoFilter.contrastAdj', unit: '', fmt: v => v.toFixed(2) },
                 { label: '밝기 (Bright)', id: 'v-bright', min: -50, max: 50, step: 1, key: 'videoFilter.brightness', unit: '', fmt: v => v.toFixed(0) },
                 { label: '채도 (Sat)', id: 'v-sat', min: 0, max: 200, step: 5, key: 'videoFilter.saturation', unit: '%', fmt: v => v.toFixed(0) },
-
                 { label: '샤프(윤곽)', id: 'v-sh1', min: 0, max: 50, step: 1, key: 'videoFilter.level', unit: '단계', fmt: v => v.toFixed(0) },
                 { label: '샤프(디테일)', id: 'v-sh2', min: 0, max: 50, step: 1, key: 'videoFilter.level2', unit: '단계', fmt: v => v.toFixed(0) },
                 { label: '명료도', id: 'v-cl', min: 0, max: 50, step: 5, key: 'videoFilter.clarity', unit: '', fmt: v => v.toFixed(0) },
@@ -2218,17 +2180,11 @@
                 { label: '그레인', id: 'v-dt', min: 0, max: 100, step: 5, key: 'videoFilter.dither', unit: '', fmt: v => v.toFixed(0) }
             ];
 
-            // Tab 1: Exposure Sliders
-            tab1Content.appendChild(this._createSlider(SLIDER_CONFIG[0].label, SLIDER_CONFIG[0].id, SLIDER_CONFIG[0].min, SLIDER_CONFIG[0].max, SLIDER_CONFIG[0].step, SLIDER_CONFIG[0].key, SLIDER_CONFIG[0].unit, SLIDER_CONFIG[0].fmt).control);
-            tab1Content.appendChild(this._createSlider(SLIDER_CONFIG[1].label, SLIDER_CONFIG[1].id, SLIDER_CONFIG[1].min, SLIDER_CONFIG[1].max, SLIDER_CONFIG[1].step, SLIDER_CONFIG[1].key, SLIDER_CONFIG[1].unit, SLIDER_CONFIG[1].fmt).control);
-
-            // Tab 2: Detail/Color Sliders in 2 columns
             const grid = document.createElement('div'); grid.className = 'vsc-grid';
-            SLIDER_CONFIG.slice(2).forEach(cfg => { grid.appendChild(this._createSlider(cfg.label, cfg.id, cfg.min, cfg.max, cfg.step, cfg.key, cfg.unit, cfg.fmt).control); });
+            SLIDER_CONFIG.forEach(cfg => { grid.appendChild(this._createSlider(cfg.label, cfg.id, cfg.min, cfg.max, cfg.step, cfg.key, cfg.unit, cfg.fmt).control); });
             grid.appendChild(this._createSlider('오디오증폭', 'a-boost', 0, 12, 1, 'audio.boost', 'dB', v => `+${v}`).control);
-            tab2Content.appendChild(grid);
+            videoSubMenu.append(grid);
 
-            videoSubMenu.append(tab1Content, tab2Content);
             return videoSubMenu;
         }
         attachDragAndDrop() {
