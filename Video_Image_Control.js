@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.48 Optimized)
+// @name        Video_Image_Control (v132.0.49 Optimized)
 // @namespace   https://com/
-// @version     132.0.48
-// @description v132.0.48: ShadowDOM safety, Targeted Lock Relax, Strict Low-Key & Subtitle ROI logic, Battery saver.
+// @version     132.0.49
+// @description v132.0.49: Fixed ROI normalization bug, Smart Backoff scan, Conditional Dark Boost, Subtitle clips separated.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v48] Intelligent "Minimal Intervention" AE Constants
+    // [v49] Intelligent "Minimal Intervention" AE Constants
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.28 : 0.30,
         STRENGTH_DARK: IS_MOBILE ? 0.30 : 0.32,
@@ -49,7 +49,9 @@
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004, 
         MAX_UP_EV: IS_MOBILE ? 0.14 : 0.18,      
-        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.38, 
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.24 : 0.38, // [v47] Boosted for PC Dark scenes
+        // [v49] Extra Boost Limit for Very Dark Scenes (PC only)
+        MAX_UP_EV_EXTRA: IS_MOBILE ? 0.30 : 0.50,
         MAX_DOWN_EV: 0,
         DEAD_OUT: 0.08,
         DEAD_IN: 0.04,
@@ -67,11 +69,11 @@
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
-            SECONDARY_ADJ: false // [v48] AE 2nd adjustments default OFF
+            SECONDARY_ADJ: false 
         },
         AUDIO: { THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 },
         SCAN: {
-            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000,
+            INTERVAL_TOP: 5000, INTERVAL_IFRAME: 2000, INTERVAL_MAX: 15000, INTERVAL_IDLE: 15000,
             MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
             MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd']
         },
@@ -100,7 +102,6 @@
             if (root.querySelectorAll) return root.querySelectorAll(tag);
             return [];
         },
-        // [v47] Safe querySelector for ID (ShadowRoot friendly)
         qById: (root, id) => {
             try {
                 const safe = (window.CSS && CSS.escape) ? CSS.escape(id) : id.replace(/[^a-zA-Z0-9\-_]/g, '\\$&');
@@ -135,7 +136,7 @@
                 let sumLuma = 0;
                 let sumLumaSq = 0;
 
-                let topLuma = 0, botLuma = 0;
+                // [v49] Corrected Normalization (0-255 -> 0.0-1.0)
                 const checkRow = (sy, ey) => {
                     let s = 0, c = 0;
                     for(let y=sy; y<ey; y+=step) {
@@ -144,22 +145,22 @@
                              s += (data[i]*54+data[i+1]*183+data[i+2]*19)>>8; c++;
                         }
                     }
-                    return c > 0 ? s/c : 0;
+                    return c > 0 ? (s/c)/255.0 : 0; 
                 };
 
                 const barH = Math.floor(size * 0.12);
-                topLuma = checkRow(0, 3);
-                botLuma = checkRow(size-3, size);
+                const topLuma = checkRow(0, 3);
+                const botLuma = checkRow(size-3, size);
+                const BLK = 15.0 / 255.0;
 
                 let startY = 0, endY = size;
-                if (topLuma < 15) startY = barH;
+                if (topLuma < BLK) startY = barH;
                 
-                // [v48] Subtitle/ROI Smart Cut
-                // If bottom is significantly brighter than top (e.g. subtitles), cut it out
-                if (botLuma < 15) {
+                // [v49] Fixed Subtitle/ROI Smart Cut Logic
+                if (botLuma < BLK) {
                     endY = size - barH;
-                } else if (botLuma > 0.6 && topLuma < 0.3) {
-                     // Likely subtitles on black bar or just subtitles
+                } else if ((botLuma - topLuma) > 0.15 && botLuma > 0.20) {
+                     // Subtitle likely (bottom brighter than top significantly)
                      endY = size - Math.floor(size * 0.20); 
                 }
 
@@ -242,11 +243,6 @@
         const run = () => {
             try {
                 if (!document.documentElement) return;
-                const approxCount = document.all ? document.all.length : document.getElementsByTagName('*').length;
-                if (approxCount > 8000) limit = 300;
-                else if (approxCount > 3000) limit = 800;
-
-                if (_localShadowRoots.length > 200) return;
                 const startTime = performance.now();
                 const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT);
                 let n, i = 0;
@@ -281,7 +277,7 @@
                 if (now - _lastBackoffScan > 1800) {
                     _lastBackoffScan = now;
                 } else {
-                    return; // Skip immediate scan
+                    return; 
                 }
             }
 
@@ -426,7 +422,6 @@
         for (const k of PROTECT_KEYS) {
             try {
                 const d = Object.getOwnPropertyDescriptor(el, k);
-                // Only unlock if it's an OWN property that is locked (writable: false)
                 if (d && d.configurable && 'writable' in d && d.writable === false) {
                     Object.defineProperty(el, k, { ...d, writable: true });
                 }
@@ -626,19 +621,22 @@
                          c++;
                      }
                  }
-                 return c ? (s / c) : 0;
+                 // [v49] Corrected Normalization
+                 return c > 0 ? (s/c)/255.0 : 0;
              };
 
              const barH = Math.floor(size * 0.12);
              const topLuma = checkRow(0, 3);
              const botLuma = checkRow(size - 3, size);
+             const BLK = 15.0/255.0;
 
              let startY = 0, endY = size;
-             if (topLuma < 15) startY = barH;
-             // [v48] Fallback ROI Logic: Sync with Worker
-             if (botLuma < 15) {
+             if (topLuma < BLK) startY = barH;
+             
+             // [v49] Fixed Fallback ROI Logic
+             if (botLuma < BLK) {
                  endY = size - barH;
-             } else if (botLuma > 0.6 && topLuma < 0.3) {
+             } else if ((botLuma - topLuma) > 0.15 && botLuma > 0.20) {
                  endY = size - Math.floor(size * 0.20); 
              }
 
@@ -1040,7 +1038,7 @@
                                  ((p90 > 0.82) && p50m < 0.18) || 
                                  ((p98 > 0.92 && !highlightSmall) && p50m < 0.20);
                 
-                // [v48] Low-Contrast Dark Scene Protection
+                // [v48] Strict Low-Contrast Dark Scene Protection
                 const lowContrastDark = (stdDev < 0.06 && p50m < 0.14 && p98 < 0.70);
                 
                 const midTooDark = p50m < MIN_AE.MID_OK_MIN;
@@ -1070,10 +1068,11 @@
                     let maxUp = MIN_AE.MAX_UP_EV;
                     const headroomEV = Math.log2(0.98 / Math.max(0.01, p98));
                     
+                    // [v49] Conditional Extra Dark Boost (PC only)
                     if (p50m < 0.08 && headroomEV > 0.6 && stdDev < 0.18) {
-                         maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.75);
+                         maxUp = Math.min(MIN_AE.MAX_UP_EV_EXTRA, headroomEV * 0.75); // Up to 0.50 EV
                     } else if (p50m < 0.14 && headroomEV > 0.4) {
-                         maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK * 0.9, headroomEV * 0.6);
+                         maxUp = Math.min(MIN_AE.MAX_UP_EV_DARK, headroomEV * 0.6);
                     }
 
                     let currentAeStr = aeStr;
@@ -1312,18 +1311,29 @@
                 if (this._mutationCounter > 80) { this._domDirty = true; return; }
 
                 let sawMediaNode = false;
-                // [v43] Backoff sampling optimization
-                if (this._isBackoffMode && Math.random() > 0.1) return;
-
-                for (const m of mutations) {
-                    for (const n of m.addedNodes) {
-                        if (n && n.nodeType === 1) { // v132.0.10: Check nodeType
-                            if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); break; } // v132.0.13: Break early
-                            else if (n.querySelector?.('video, iframe')) { sawMediaNode = true; scheduleScan(n, true); break; }
+                // [v49] Improved Backoff Logic: Always check if critical elements are added
+                if (this._isBackoffMode) {
+                    for (const m of mutations) {
+                        for (const n of m.addedNodes) {
+                            if (n && n.nodeType === 1 && (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME' || n.querySelector?.('video, iframe'))) {
+                                sawMediaNode = true; break;
+                            }
                         }
+                        if (sawMediaNode) break;
                     }
-                    if (sawMediaNode) break;
+                    if (!sawMediaNode && Math.random() > 0.1) return; // Skip non-critical updates
+                } else {
+                    for (const m of mutations) {
+                        for (const n of m.addedNodes) {
+                            if (n && n.nodeType === 1) { 
+                                if (n.nodeName === 'VIDEO' || n.nodeName === 'IFRAME') { sawMediaNode = true; scheduleScan(n, true); break; }
+                                else if (n.querySelector?.('video, iframe')) { sawMediaNode = true; scheduleScan(n, true); break; }
+                            }
+                        }
+                        if (sawMediaNode) break;
+                    }
                 }
+                
                 if (sawMediaNode) this._domDirty = true;
                 if (mutations.length > 50 || this._isBackoffMode) { this._domDirty = true; return; }
                 let dirty = false;
@@ -1344,7 +1354,7 @@
                 const hasPlaying = [...(this.stateManager.get('media.activeMedia')||[])].some(v => v && v.tagName==='VIDEO' && !v.paused && v.readyState>=2);
                 const sensitive = isSensitiveContext();
                 if (!sensitive) enableShadowHook();
-                if (active && hasPlaying && !sensitive && document.visibilityState === 'visible') enablePropertyHooks(); else if (!active || sensitive) disableAllHooks();
+                // [v47] Property hooks removed, targeted relax only
             };
             this._updateHooksState = updateHooksState;
             this.subscribe('app.pluginsInitialized', () => safeGuard(() => {
