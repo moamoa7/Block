@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.75 AE-AutoKick-RescueUI)
+// @name        Video_Image_Control (v132.0.79 AE-AutoKick-NoBgIcon)
 // @namespace   https://com/
-// @version     132.0.75
-// @description v132.0.75: Final UI Fixes - Opacity Rescue, Interaction Probing, Relaxed Thresholds
+// @version     132.0.79
+// @description v132.0.79: Removed black circle background from the lightning icon (Style Update Only)
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -93,31 +93,28 @@
 
     const SEL = { FILTER_TARGET: 'video, img, iframe, canvas' };
 
-    // [v132.0.75] 스마트 전체화면 감지 헬퍼 (회전 보정 + Avail + 완화된 임계값)
+    const _vscVp = () => {
+        const vv = window.visualViewport;
+        return { w: vv ? vv.width : window.innerWidth, h: vv ? vv.height : window.innerHeight };
+    };
+
     const isChildFullscreenLikely = () => {
-        // 1) Fullscreen API (가능하면)
         const fe = document.fullscreenElement || document.webkitFullscreenElement;
         if (fe) return true;
 
-        // 2) iframe 내부면: viewport vs screen 비율로 추정
         if (window !== window.top) {
-            const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
-            const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-
+            const { w: vw, h: vh } = _vscVp();
             let sw = screen.availWidth || screen.width || 0;
             let sh = screen.availHeight || screen.height || 0;
-            if (!sw || !sh) return false;
+            if (!sw || !sh || sw < 100 || sh < 100) return false;
 
-            // 회전 보정: viewport가 가로인데 screen이 세로로 남아있는 케이스 방지
             const vLand = vw > vh;
             const sLand = sw > sh;
             if (vLand !== sLand) [sw, sh] = [sh, sw];
 
-            // [v75] 임계값 완화: 주소창/툴바 고려
-            const edgeTh = IS_MOBILE ? 0.80 : 0.85;  
-            const areaTh = IS_MOBILE ? 0.70 : 0.78; 
+            const edgeTh = IS_MOBILE ? 0.80 : 0.85;
+            const areaTh = IS_MOBILE ? 0.70 : 0.78;
 
-            // “가로/세로 각각 충족” 또는 “전체 면적 충족” 중 하나만 만족해도 통과
             const fillsEdge = (vw >= sw * edgeTh) && (vh >= sh * edgeTh);
             const fillsArea = ((vw * vh) / (sw * sh)) >= areaTh;
 
@@ -1766,7 +1763,7 @@
             else { const r = this.findAllElements(root, 0, true); r.media.forEach(m=>media.add(m)); r.images.forEach(i=>images.add(i)); r.iframes.forEach(f=>iframes.add(f)); }
             this._applyToSets(media, images, iframes);
         }
-        // [v75] Optimized _applyToSets with UI Guard
+        // [v132.0.78] Optimized _applyToSets with UI Guard
         _applyToSets(mediaSet, imageSet, iframeSet) {
              const sm = this.stateManager;
              const curM = sm.get('media.activeMedia');
@@ -1807,7 +1804,7 @@
                  if (nextM !== curM) sm.set('media.activeMedia', nextM);
                  if (nextI !== curI) sm.set('media.activeImages', nextI);
                  if (nextF !== curF) sm.set('media.activeIframes', nextF);
-                 // [v71] UI Creation Guard
+                 // [v78] UI Creation Guard
                  if (!sm.get('ui.globalContainer')) {
                      const allowUI = IS_TOP || isChildFullscreenLikely();
                      if (allowUI) sm.set('ui.createRequested', true);
@@ -2397,13 +2394,13 @@
         init(stateManager) {
             super.init(stateManager);
             // [v132.0.75] createUI Helper: Retry logic & correct state flag handling
-            const createUI = () => { 
-                if (this.globalContainer) return; 
-                this.createGlobalUI(); 
+            const createUI = () => {
+                if (this.globalContainer) return;
+                this.createGlobalUI();
                 if (this.globalContainer) {
-                    this.stateManager.set('ui.globalContainer', this.globalContainer); 
-                    this.stateManager.set('ui.createRequested', false); 
-                    this.updateUIVisibility(); 
+                    this.stateManager.set('ui.globalContainer', this.globalContainer);
+                    this.stateManager.set('ui.createRequested', false);
+                    this.updateUIVisibility();
                 } else {
                     setTimeout(() => this.stateManager.set('ui.createRequested', true), 200);
                 }
@@ -2419,7 +2416,19 @@
             this.subscribe('ui.areControlsVisible', () => { this.updateTriggerStyle(); });
             this.subscribe('app.scriptActive', () => this.updateTriggerStyle());
             const vscMessage = Utils.safeGetItem('vsc_message'); if (vscMessage) { this.showToast(vscMessage); Utils.safeRemoveItem('vsc_message'); }
-            this.boundFullscreenChange = () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } };
+
+            // [v132.0.78] FIX: Fullscreen Z-Index War - Repeatedly force UI to top
+            this.boundFullscreenChange = () => {
+                const fullscreenRoot = document.fullscreenElement || document.body;
+                if (this.globalContainer && fullscreenRoot) {
+                    fullscreenRoot.appendChild(this.globalContainer);
+                    // Retry appending to beat player UI layers
+                    setTimeout(() => fullscreenRoot.appendChild(this.globalContainer), 150);
+                    setTimeout(() => fullscreenRoot.appendChild(this.globalContainer), 400);
+                    setTimeout(() => fullscreenRoot.appendChild(this.globalContainer), 1000);
+                }
+            };
+
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
             const savedPos = Utils.safeGetItem('vsc_ui_pos'); if (savedPos) { try { const p = JSON.parse(savedPos); this.uiState = p; } catch { } }
 
@@ -2499,9 +2508,10 @@
                 .vsc-col { display: flex; flex-direction: column; gap: 6px; width: 100%; margin-bottom: 10px; border-bottom: 1px solid var(--vsc-border); padding-bottom: 6px; } .vsc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; } .vsc-hr { height: 1px; background: var(--vsc-border); width: 100%; margin: 4px 0; }
                 .slider-control { display: flex; flex-direction: column; gap: 4px; } .slider-control label { display: flex; justify-content: space-between; font-size: ${isMobile ? '13px' : '14px'}; color: var(--vsc-text); } input[type=range] { width: 100%; margin: 0; cursor: pointer; }
                 .vsc-monitor { font-size: 11px; color: #aaa; margin-top: 5px; text-align: center; border-top: 1px solid #444; padding-top: 3px; } .vsc-monitor.warn { color: #e74c3c; font-weight: bold; }
-                .vsc-trigger { width: ${isMobile ? '42px' : '48px'}; height: ${isMobile ? '42px' : '48px'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: ${isMobile ? '22px' : '24px'}; user-select: none; touch-action: none; order: 1; transition: background 0.3s; }
+                /* [v132.0.79] Removed background, added shadow */
+                .vsc-trigger { width: ${isMobile ? '42px' : '48px'}; height: ${isMobile ? '42px' : '48px'}; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: ${isMobile ? '22px' : '24px'}; user-select: none; touch-action: none; order: 1; transition: background 0.3s; text-shadow: 0 0 4px rgba(0,0,0,0.8); }
                 .vsc-rescan { width: 34px; height: 34px; background: var(--vsc-bg-btn); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; margin-top: 5px; order: 3; }
-                #vsc-global-container { position: fixed; top: 50%; right: 1vmin; z-index: ${CONFIG.UI.MAX_Z}; transform: translateY(-50%) translate(var(--vsc-translate-x, 0), var(--vsc-translate-y, 0)); display: flex; align-items: flex-start; gap: 5px; }
+                #vsc-global-container { position: fixed; top: 50%; right: 1vmin; z-index: ${CONFIG.UI.MAX_Z} !important; transform: translateY(-50%) translate(var(--vsc-translate-x, 0), var(--vsc-translate-y, 0)); display: flex; align-items: flex-start; gap: 5px; pointer-events: auto; }
             `;
             return this._cachedStyles;
         }
@@ -2518,8 +2528,8 @@
             }
         }
 
-        createGlobalUI(force = false) { 
-            // [v132.0.75] UI Creation Guard: Do NOT create if iframe and not fullscreen-likely (unless forced)
+        createGlobalUI(force = false) {
+            // [v132.0.77] UI Creation Guard: Do NOT create if iframe and not fullscreen-likely (unless forced)
             if (!force && !IS_TOP && !isChildFullscreenLikely()) return;
 
             const isMobile = this.stateManager.get('app.isMobile');
@@ -2535,6 +2545,8 @@
             this.mainControlsContainer = document.createElement('div'); this.mainControlsContainer.style.cssText = 'display:flex; flex-direction:column; align-items:center; gap:5px;';
             this.triggerElement = document.createElement('div'); this.triggerElement.textContent = '⚡';
             this.triggerElement.className = 'vsc-trigger';
+            // [v132.0.79] Initial style: transparent
+            this.triggerElement.style.backgroundColor = 'transparent';
 
             const rescanTrigger = document.createElement('div'); rescanTrigger.textContent = '↻';
             rescanTrigger.className = 'vsc-rescan';
@@ -2597,7 +2609,8 @@
                 if(this.globalContainer) this.globalContainer.style.opacity = '1';
             } else {
                 this.triggerElement.textContent = '⚡';
-                this.triggerElement.style.backgroundColor = 'var(--vsc-bg-btn)';
+                // [v132.0.79] Ensure transparent background for default state
+                this.triggerElement.style.backgroundColor = 'transparent';
                 if(this.globalContainer) this.globalContainer.style.opacity = isActive ? '1' : '0.2';
             }
         }
@@ -2646,7 +2659,7 @@
                     this.startBootGate(); // Restart boot sequence to check media & set initial opacity
                     this.updateTriggerStyle(); // Sync trigger state
                 }
-                
+
                 if (controlsVisible || hasAny) this.globalContainer.style.opacity = '1';
             }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
@@ -3007,6 +3020,9 @@
             this.triggerElement.addEventListener('touchstart', onPointerDown, { passive: false });
 
             this.triggerElement.addEventListener('click', (e) => {
+                // [v132.0.78] FIX: Reset Drag State on Click to Prevent "Frozen Button"
+                this.isDragging = false;
+                this.wasDragged = false;
                 if (Date.now() - lastDragEnd < 400 || this._longPressTriggered) {
                     e.stopPropagation(); e.preventDefault();
                 }
