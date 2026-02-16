@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.68 AE-AutoKick)
+// @name        Video_Image_Control (v132.0.74 AE-AutoKick-PreCreateUI)
 // @namespace   https://com/
-// @version     132.0.68
-// @description v132.0.68: Fix AE initial start failure & Enhance media detection.
+// @version     132.0.74
+// @description v132.0.74: Fix "First Fullscreen UI Missing" by Pre-creating UI (Hidden) & Force-Check
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -50,7 +50,6 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v67 Tuned] Mobile/OLED Optimized
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.24 : 0.28,
         STRENGTH_DARK: IS_MOBILE ? 0.28 : 0.32,
@@ -93,6 +92,38 @@
     };
 
     const SEL = { FILTER_TARGET: 'video, img, iframe, canvas' };
+
+    // [v132.0.73] 스마트 전체화면 감지 헬퍼 (강화판: 회전 보정 + Avail + 면적비)
+    const isChildFullscreenLikely = () => {
+        // 1) Fullscreen API (가능하면)
+        const fe = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fe) return true;
+
+        // 2) iframe 내부면: viewport vs screen 비율로 추정
+        if (window !== window.top) {
+            const vw = window.visualViewport ? window.visualViewport.width : window.innerWidth;
+            const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+            let sw = screen.availWidth || screen.width || 0;
+            let sh = screen.availHeight || screen.height || 0;
+            if (!sw || !sh) return false;
+
+            // 회전 보정: viewport가 가로인데 screen이 세로로 남아있는 케이스 방지
+            const vLand = vw > vh;
+            const sLand = sw > sh;
+            if (vLand !== sLand) [sw, sh] = [sh, sw];
+
+            // “가로/세로 각각” + “면적” 둘 중 하나만 만족해도 fullscreen으로 인정
+            const edgeTh = IS_MOBILE ? 0.82 : 0.85;      // 기존(0.85/0.88)보다 약간 완화
+            const areaTh = IS_MOBILE ? 0.72 : 0.78;      // 주소창/툴바 때문에 한쪽이 살짝 부족해도 통과
+
+            const fillsEdge = (vw >= sw * edgeTh) && (vh >= sh * edgeTh);
+            const fillsArea = ((vw * vh) / (sw * sh)) >= areaTh;
+
+            return fillsEdge || fillsArea;
+        }
+        return false;
+    };
 
     const Utils = {
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
@@ -493,7 +524,7 @@
                 if (this.id === 'vsc-ui-host') return ORIGINALS.attachShadow.call(this, init);
                 let shadowRoot;
                 try {
-                       shadowRoot = ORIGINALS.attachShadow.call(this, init);
+                        shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 } catch(e) { throw e; }
 
                 try {
@@ -1520,7 +1551,7 @@
                 let sawMediaNode = false;
                 if (this._isBackoffMode) {
                     const now = Date.now();
-                    if (now - this._lastBackoffForceScan > 2500) {
+                    if (now - this._lastBackoffForceScan > 250) {
                          this._lastBackoffForceScan = now;
                          scheduleScan(null);
                     }
@@ -1733,7 +1764,7 @@
             else { const r = this.findAllElements(root, 0, true); r.media.forEach(m=>media.add(m)); r.images.forEach(i=>images.add(i)); r.iframes.forEach(f=>iframes.add(f)); }
             this._applyToSets(media, images, iframes);
         }
-        // [v67] Optimized _applyToSets: Reduce GC by copying Sets only when necessary
+        // [v71] Optimized _applyToSets with UI Guard
         _applyToSets(mediaSet, imageSet, iframeSet) {
              const sm = this.stateManager;
              const curM = sm.get('media.activeMedia');
@@ -1774,7 +1805,11 @@
                  if (nextM !== curM) sm.set('media.activeMedia', nextM);
                  if (nextI !== curI) sm.set('media.activeImages', nextI);
                  if (nextF !== curF) sm.set('media.activeIframes', nextF);
-                 if (!sm.get('ui.globalContainer')) sm.set('ui.createRequested', true);
+                 // [v71] UI Creation Guard
+                 if (!sm.get('ui.globalContainer')) {
+                     const allowUI = IS_TOP || isChildFullscreenLikely();
+                     if (allowUI) sm.set('ui.createRequested', true);
+                 }
              }
         }
         _hookIframe(frame) {
@@ -2149,7 +2184,6 @@
 
             const totalGain = (autoGain || 1.0);
 
-            // [v67] Smart Contrast (Tuned): Lower contrast boost to prevent oily faces, add slight saturation
             if (totalGain > 1.0) {
                 const g = totalGain - 1.0;
                 const p90 = (VideoAnalyzer && VideoAnalyzer._p90Ema > 0) ? VideoAnalyzer._p90Ema : 0;
@@ -2169,7 +2203,6 @@
             if (effectiveClarity > 0) { autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
 
-            // [v67] Dampen sharpness on bright scenes
             if (totalGain > 1.02) {
                 const p90 = (VideoAnalyzer && VideoAnalyzer._p90Ema > 0) ? VideoAnalyzer._p90Ema : 0;
                 if (p90 > 0.88) {
@@ -2361,7 +2394,24 @@
         }
         init(stateManager) {
             super.init(stateManager);
-            const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
+
+            // [v132.0.74] createUI Helper: Retry logic & correct state flag handling
+            const createUI = () => { 
+                if (this.globalContainer) return; 
+
+                // Attempt to create. Will be blocked by guard unless forced or fullscreen.
+                this.createGlobalUI(); 
+
+                if (this.globalContainer) {
+                    this.stateManager.set('ui.globalContainer', this.globalContainer); 
+                    this.stateManager.set('ui.createRequested', false); 
+                    this.updateUIVisibility(); // Ensure hidden if pre-created
+                } else {
+                    // Retry short-term if failed (handle transition animation delay)
+                    setTimeout(() => this.stateManager.set('ui.createRequested', true), 200);
+                }
+            };
+
             const onCreateRequested = () => { if (document.body) createUI(); else document.addEventListener('DOMContentLoaded', createUI, { once: true }); };
             this.subscribe('ui.createRequested', (req) => { if (req) onCreateRequested(); }); if (this.stateManager.get('ui.createRequested')) onCreateRequested();
             this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
@@ -2385,6 +2435,35 @@
                 }
             };
             document.addEventListener('fullscreenchange', this.boundChildFullscreenChange);
+
+            // [v132.0.74] NEW: Pre-create UI in Iframes (Hidden) + VisualViewport Listener
+            if (!IS_TOP) {
+                // 1) Pre-create UI hidden
+                const preCreate = () => {
+                    if (this.globalContainer) return;
+                    this.createGlobalUI(true); // Force create
+                    if (this.globalContainer) {
+                        this.stateManager.set('ui.globalContainer', this.globalContainer);
+                        this.updateUIVisibility(); // Hide immediately
+                    }
+                };
+                if (document.body) preCreate();
+                else document.addEventListener('DOMContentLoaded', preCreate, { once: true });
+
+                // 2) Enhanced Resize Detection
+                const onMaybeFs = debounce(() => {
+                    this.updateUIVisibility();
+                }, 120);
+                window.addEventListener('resize', onMaybeFs, { passive: true, signal: this._ac.signal });
+                if (window.visualViewport) {
+                    window.visualViewport.addEventListener('resize', onMaybeFs, { passive: true, signal: this._ac.signal });
+                }
+            }
+
+            // [NEW] 전체화면 전환 시 UI 가시성 즉시 재계산
+            document.addEventListener('fullscreenchange', () => {
+                this.updateUIVisibility();
+            });
         }
         destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
         // [v65] Fix: Remove child fullscreen listener
@@ -2430,7 +2509,10 @@
             }
         }
 
-        createGlobalUI() {
+        createGlobalUI(force = false) { // [v132.0.74] Added force parameter
+            // [v132.0.74] UI Creation Guard: Do NOT create if iframe and not fullscreen-likely (unless forced)
+            if (!force && !IS_TOP && !isChildFullscreenLikely()) return;
+
             const isMobile = this.stateManager.get('app.isMobile');
             this.globalContainer = document.createElement('div');
             this.globalContainer.id = 'vsc-global-container';
@@ -2474,6 +2556,15 @@
         }
 
         startBootGate() {
+            // [v132.0.74] Boot Guard for Iframe - Ensure hidden on pre-create
+            if (!IS_TOP && !isChildFullscreenLikely()) {
+                if (this.globalContainer) {
+                    this.globalContainer.style.display = 'none';
+                    this.globalContainer.style.opacity = '0';
+                }
+                return;
+            }
+
             this.globalContainer.style.display = 'flex';
             this.globalContainer.style.opacity = '0.5';
             let checks = 0;
@@ -2515,13 +2606,19 @@
             this.updateUIVisibility();
         }
         updateUIVisibility() {
-            if (this.stateManager.get('ui.hideUntilReload')) { if (this.globalContainer) this.globalContainer.style.display = 'none'; return; }
-            const controlsVisible = this.stateManager.get('ui.areControlsVisible');
-
-            if (!IS_TOP && !document.fullscreenElement && !controlsVisible) {
+            if (this.stateManager.get('ui.hideUntilReload')) {
                 if (this.globalContainer) this.globalContainer.style.display = 'none';
                 return;
             }
+
+            // [v132.0.74] 프레임(iframe)인데 전체화면 가능성도 없다면 무조건 숨김
+            if (!IS_TOP && !isChildFullscreenLikely()) {
+                 if (this.globalContainer) this.globalContainer.style.display = 'none';
+                 return;
+            }
+
+            // 이하 로직은 Top이거나, 프레임이 전체화면일 때만 실행됨
+            const controlsVisible = this.stateManager.get('ui.areControlsVisible');
 
             const activeMedia = this.stateManager.get('media.activeMedia') || new Set(); const activeImages = this.stateManager.get('media.activeImages') || new Set(); const activeIframes = this.stateManager.get('media.activeIframes') || new Set();
             const hasLocalVideo = [...activeMedia].some(m => m && m.tagName === 'VIDEO'); const hasLocalImage = activeImages.size > 0; const hasIframe = activeIframes.size > 0;
@@ -2572,8 +2669,8 @@
             this.boundSmartLimitUpdate = (e) => {
                 const { autoParams, tainted, aeActive } = e.detail;
                 if (tainted && !this._lastTaintToast) {
-                     this.showToast('⚠️ 보안(CORS) 제한됨: CSS Fallback 적용');
-                     this._lastTaintToast = true;
+                      this.showToast('⚠️ 보안(CORS) 제한됨: CSS Fallback 적용');
+                      this._lastTaintToast = true;
                 }
                 if (!videoMenu.parentElement.classList.contains('submenu-visible')) return;
 
@@ -3017,7 +3114,12 @@
         if (!this.isTop && d.type === 'welcome') {
           this.token = d.token || null;
           applySyncState(this.sm, d.payload, (v) => { this._applyingRemote = v; });
-          if (this.sm.get('ui.areControlsVisible')) this.sm.set('ui.createRequested', true);
+          // [v69] Only request UI creation if child is fullscreen likely
+          if (this.sm.get('ui.areControlsVisible')) {
+              if (isChildFullscreenLikely()) {
+                  this.sm.set('ui.createRequested', true);
+              }
+          }
           return;
         }
 
@@ -3025,7 +3127,12 @@
           if (!this.token) return;
           if (d.token && d.token !== this.token) return;
           applySyncState(this.sm, d.payload, (v) => { this._applyingRemote = v; });
-          if (this.sm.get('ui.areControlsVisible')) this.sm.set('ui.createRequested', true);
+          // [v69] Only request UI creation if child is fullscreen likely
+          if (this.sm.get('ui.areControlsVisible')) {
+              if (isChildFullscreenLikely()) {
+                  this.sm.set('ui.createRequested', true);
+              }
+          }
           return;
         }
 
@@ -3042,6 +3149,8 @@
         const stateManager = new StateManager();
         const pluginManager = new PluginManager(stateManager);
         window.vscPluginManager = pluginManager;
+
+        // [v69] UIPlugin registered everywhere, visibility controlled by internal logic
         pluginManager.register(new UIPlugin());
         pluginManager.register(new CoreMediaPlugin());
         pluginManager.register(new SvgFilterPlugin());
@@ -3053,7 +3162,6 @@
             const fs = new FrameSync(stateManager);
             window.__vscFrameSync = fs;
             fs.start();
-            // [v67] Clean up FrameSync on unload
             window.addEventListener('pagehide', () => fs.destroy(), { once: true });
         } catch {}
     }
