@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.62 Optimized)
+// @name        Video_Image_Control (v132.0.63 Optimized)
 // @namespace   https://com/
-// @version     132.0.62
-// @description v132.0.62: FrameSync (Iframe Sync), Mutation Sampling, Mobile AE Tuning, Offscreen Fix.
+// @version     132.0.63
+// @description v132.0.63: Style Dup Fix, FrameSync Security, AE Idle Opt, Backoff Detection, Mobile OLED Tune.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -36,7 +36,7 @@
     const VSC_INSTANCE_ID = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : Math.random().toString(36).slice(2);
     const VSC_AUDIO_SRC = Symbol('vsc_audio_src');
     const VSC_PINNED = { el: null, until: 0 };
-    const VSC_MSG = 'vsc-ctrl-v1'; // [v62] Message Protocol
+    const VSC_MSG = 'vsc-ctrl-v1';
 
     const MEDIA_EVENTS = ['play', 'playing', 'pause', 'loadedmetadata', 'loadeddata', 'canplay', 'canplaythrough', 'seeking', 'seeked', 'emptied', 'ratechange', 'durationchange'];
     const DEVICE_RAM = navigator.deviceMemory || 4;
@@ -50,7 +50,7 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v62] Mobile/OLED Tuning
+    // [v63] Mobile/OLED Optimized Tuning
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.24 : 0.28,
         STRENGTH_DARK: IS_MOBILE ? 0.28 : 0.32,
@@ -58,18 +58,21 @@
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004,
-        MAX_UP_EV: IS_MOBILE ? 0.12 : 0.18,
+        // [v63] Lower max up for OLED comfort
+        MAX_UP_EV: IS_MOBILE ? 0.10 : 0.18, 
         MAX_UP_EV_DARK: IS_MOBILE ? 0.22 : 0.28,
         MAX_UP_EV_EXTRA: IS_MOBILE ? 0.28 : 0.35,
         MAX_DOWN_EV: 0,
-        DEAD_OUT: 0.10,
+        // [v63] Wider dead zone for mobile
+        DEAD_OUT: IS_MOBILE ? 0.12 : 0.10, 
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
         LOWKEY_P10: 0.10,
-        TAU_UP: 950,    // [v62] Slower ramp up for OLED comfort
+        TAU_UP: 950,
         TAU_DOWN: 900,
         TAU_AGGRESSIVE: 200,
-        TARGET_MID_BASE: IS_MOBILE ? 0.27 : 0.30 // [v62] Slightly lower base
+        // [v63] Slightly lower base for mobile
+        TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30 
     };
 
     const CONFIG = {
@@ -89,7 +92,7 @@
             MAX_DEPTH: IS_HIGH_END ? 8 : (IS_LOW_END ? 4 : 6),
             MUTATION_ATTRS: ['src', 'srcset', 'poster', 'data-src', 'data-srcset', 'data-url', 'data-original', 'data-video-src', 'data-poster', 'type', 'loading', 'data-lazy-src', 'data-lazy', 'data-bg', 'data-background', 'aria-src', 'data-file', 'data-mp4', 'data-hls', 'data-stream', 'data-video', 'data-video-url', 'data-stream-url', 'data-player-src', 'data-m3u8', 'data-mpd']
         },
-        UI: { MAX_Z: 2147483647, DRAG_THRESHOLD: 5, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
+        UI: { MAX_Z: 2147483647, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
     };
 
     const SEL = { FILTER_TARGET: 'video, img, iframe, canvas' };
@@ -321,14 +324,13 @@
 
         if (rootOrNull) {
             if (rootOrNull.nodeType === 1) {
-                // [v62] Fix: Bypass throttle if it contains video
                 if (!SCAN_TAGS.has(rootOrNull.nodeName)) {
-                     const hasMediaQuick = rootOrNull.querySelector?.('video,iframe,canvas');
-                     if (!hasMediaQuick) {
+                      const hasMediaQuick = rootOrNull.querySelector?.('video,iframe,canvas');
+                      if (!hasMediaQuick) {
                         const now = performance.now();
                         if (now - _lastRootish < 200) rootOrNull = null;
                         _lastRootish = now;
-                     }
+                      }
                 }
             }
             if (rootOrNull) {
@@ -493,7 +495,7 @@
                 if (this.id === 'vsc-ui-host') return ORIGINALS.attachShadow.call(this, init);
                 let shadowRoot;
                 try {
-                     shadowRoot = ORIGINALS.attachShadow.call(this, init);
+                      shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 } catch(e) { throw e; }
 
                 try {
@@ -532,10 +534,25 @@
         else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (Utils.qById(ownerDoc, styleId)) return; }
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
+        
+        // [v63] Fix: Safe append logic avoiding duplication
         const safelyAppendStyle = (targetRoot, styleEl, sharedSheet) => {
             let appended = false;
-            if (sharedSheet && ('adoptedStyleSheets' in targetRoot)) { try { const sheets = targetRoot.adoptedStyleSheets; if (!sheets.includes(sharedSheet)) targetRoot.adoptedStyleSheets = [...sheets, sharedSheet]; appended = true; } catch (e) { } }
-            if (!appended) { if (!Utils.qById(targetRoot, styleEl.id)) { const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot; if (container) container.appendChild(styleEl.cloneNode(true)); } }
+            if (sharedSheet && ('adoptedStyleSheets' in targetRoot)) {
+                try {
+                    const sheets = targetRoot.adoptedStyleSheets || [];
+                    if (!sheets.includes(sharedSheet)) {
+                        targetRoot.adoptedStyleSheets = [...sheets, sharedSheet];
+                    }
+                    appended = true;
+                } catch (e) { }
+            }
+            if (!appended) {
+                if (!Utils.qById(targetRoot, styleEl.id)) {
+                    const container = (targetRoot === ownerDoc) ? targetRoot.head : targetRoot;
+                    if (container) container.appendChild(styleEl.cloneNode(true));
+                }
+            }
         };
 
         if (ownerDoc !== document) {
@@ -568,8 +585,8 @@
                 imageFilter: { level: CONFIG.FILTER.IMAGE_DEFAULT_LEVEL, colorTemp: parseInt(CONFIG.FILTER.IMAGE_SETTINGS.TEMP || 0, 10) },
                 audio: { enabled: false, boost: 6 },
                 ui: {
-                    shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null, warningMessage: null,
-                    createRequested: IS_TOP, // [v62] Top only default
+                    shadowRoot: null, hostElement: null, areControlsVisible: false, globalContainer: null,
+                    createRequested: IS_TOP,
                     hideUntilReload: false
                 },
                 playback: { currentRate: 1.0, targetRate: 1.0 }
@@ -602,7 +619,6 @@
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
         init(stateManager) {
             this.ensureStateManager(stateManager);
-            // [v62] OffscreenCanvas Safety
             if (!this.canvas) {
                 let oc = null;
                 try { if (typeof OffscreenCanvas !== 'undefined') { oc = new OffscreenCanvas(32, 32); if (!oc.getContext) oc = null; } } catch { oc = null; }
@@ -831,9 +847,14 @@
 
             if (this.isRunning && this.targetVideo !== video) this.stop();
             if (settings) this.currentSettings = { ...this.currentSettings, ...settings };
-            const isClarityActive = this.currentSettings.clarity > 0;
-            const isAutoExposure = this.currentSettings.autoExposure;
-            if (!isClarityActive && !isAutoExposure) { if (this.isRunning) this.stop(); return; }
+            
+            // [v63] Fix: Only run analyzer loop if AutoExposure is ON
+            const isAutoExposure = !!this.currentSettings.autoExposure;
+            if (!isAutoExposure) { 
+                if (this.isRunning) this.stop(); 
+                return; 
+            }
+
             if (this.taintedResources.has(video)) {
                 this.notifyUpdate({ linearGain: 1.0, tainted: true }, 0, video, true);
                 return;
@@ -880,24 +901,23 @@
             this.currentSettings = next;
             const now = performance.now();
 
-            const isClarityActive = next.clarity > 0;
             const isAutoExposure = !!next.autoExposure;
 
-            // [v62] Optimization: Strict stop if both OFF
-            if (!isClarityActive && !isAutoExposure) {
+            // [v63] Optimization: Strict stop if AE is OFF
+            if (!isAutoExposure) {
                 if (this.isRunning) this.stop();
                 this.notifyUpdate({ linearGain: 1.0 }, 0);
                 return;
             }
 
             const aeTurnedOn = next.autoExposure && !prev.autoExposure;
-            if (aeTurnedOn || settings.clarity) {
+            if (aeTurnedOn) {
                 this.frameSkipCounter = 999;
-                if (aeTurnedOn) { this._evAggressiveUntil = now + 800; this.dynamicSkipThreshold = 0; this._lowMotionFrames = 0; }
+                this._evAggressiveUntil = now + 800; this.dynamicSkipThreshold = 0; this._lowMotionFrames = 0;
             }
             if (!next.autoExposure && prev.autoExposure) { this._evAggressiveUntil = 0; }
 
-            if (isClarityActive || isAutoExposure) {
+            if (isAutoExposure) {
                 if (this.isRunning && this.targetVideo && this.targetVideo.isConnected) {
                         if (aeTurnedOn) this._kickImmediateAnalyze();
                         return;
@@ -1104,7 +1124,6 @@
 
             if (isAutoExp) {
                 const aeStr = MIN_AE.STRENGTH;
-                // [v62] Dynamic clip threshold for mobile
                 const minClipPixels = (validCount < 220) ? 2 : 5;
                 const dynamicClipLimit = Math.max(MIN_AE.CLIP_FRAC_LIMIT, (validCount > 0 ? minClipPixels / validCount : 0));
 
@@ -1322,6 +1341,8 @@
         this._iframeDocCache = new WeakMap();
         this._lastBackoffForceScan = 0;
         this._playDetectTimer = 0;
+        // [v63] tick Cache
+        this._cachedHasPotential = false;
         }
 
         _tryGetIframeDoc(fr) {
@@ -1423,9 +1444,25 @@
 
             this.mainObserver = new MutationObserver((mutations) => {
                 this._mutationCounter += mutations.length;
-                // [v62] Fix: Sampling even in backoff mode
+                this._domDirty = true;
+                
+                // [v63] Fix: Backoff should check for new media even if muted
+                if (this._isBackoffMode) {
+                     const cap = Math.min(8, mutations.length);
+                     for(let i=0; i<cap; i++) {
+                         const m = mutations[i];
+                         for(const n of (m.addedNodes||[])) {
+                             if(n && n.nodeType===1) {
+                                 if(MEDIA_TAGS.has(n.nodeName) || n.querySelector?.('video,iframe,canvas')) {
+                                     scheduleScan(n, true);
+                                     return;
+                                 }
+                             }
+                         }
+                     }
+                }
+
                 if (this._mutationCounter > 100) {
-                    this._domDirty = true;
                     let sawMedia = false;
                     const cap = Math.min(25, mutations.length);
                     for (let i = 0; i < cap; i++) {
@@ -1527,10 +1564,17 @@
                 } }
             }
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
-            const sm = this.stateManager; const hasPotential = document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
+            const sm = this.stateManager; 
+            
+            // [v63] Fix: Use cache for hasPotential
+            const activeSize = sm.get('media.activeMedia').size;
+            if (this._domDirty || activeSize === 0) {
+                 this._cachedHasPotential = activeSize > 0 || document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
+            }
+            
             if (!sm.get('app.scriptActive') && !sm.get('ui.areControlsVisible')) {
                 this.currentScanInterval = 15000;
-            } else if ((sm.get('media.activeMedia').size > 0) || hasPotential) {
+            } else if (this._cachedHasPotential) {
                 this.emptyScanCount = 0; this.currentScanInterval = this.baseScanInterval;
             } else {
                 this.emptyScanCount++; if (this.emptyScanCount > 3) this.currentScanInterval = Math.min(CONFIG.SCAN.INTERVAL_MAX, this.currentScanInterval * 1.5);
@@ -1756,9 +1800,6 @@
                     const prevGain = this.lastAutoParams.linearGain || 1.0;
                     const nextGain = autoParams.linearGain || 1.0;
                     isChanged = Math.abs(nextGain - prevGain) > 0.002;
-                }
-                if (!isChanged && vf.clarity > 0) {
-                    isChanged = Math.abs(this.lastAutoParams.clarityComp - (autoParams.clarityComp||0)) > 0.2;
                 }
 
                 this.lastAutoParams = {
@@ -2019,10 +2060,8 @@
             const autoShadows = aeOn ? (auto.shadowsAdj || 0) : 0;
             const autoHighlights = aeOn ? (auto.highlightsAdj || 0) : 0;
 
-            const clarityComp = clOn ? (auto.clarityComp || 0) : 0;
-
             const finalGamma = Utils.clamp(vf.gamma * autoGamma, 0.5, 2.5);
-            let finalBrightness = vf.brightness + autoBright + clarityComp;
+            let finalBrightness = vf.brightness + autoBright;
             let finalShadows = vf.shadows + autoShadows;
             let finalHighlights = vf.highlights + autoHighlights;
             let finalContrastAdj = vf.contrastAdj;
@@ -2233,7 +2272,6 @@
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
             const savedPos = Utils.safeGetItem('vsc_ui_pos'); if (savedPos) { try { const p = JSON.parse(savedPos); this.uiState = p; } catch { } }
 
-            // [v62] Child UI Logic: Create UI only on Fullscreen
             document.addEventListener('fullscreenchange', () => {
                 if (!IS_TOP && document.fullscreenElement) {
                     this.stateManager.set('ui.createRequested', true);
@@ -2369,7 +2407,6 @@
             if (this.stateManager.get('ui.hideUntilReload')) { if (this.globalContainer) this.globalContainer.style.display = 'none'; return; }
             const controlsVisible = this.stateManager.get('ui.areControlsVisible');
 
-            // [v62] Child UI Hide Logic
             if (!IS_TOP && !document.fullscreenElement && !controlsVisible) {
                 if (this.globalContainer) this.globalContainer.style.display = 'none';
                 return;
@@ -2696,14 +2733,25 @@
                             triggerBurstScan(100);
 
                             if (!isVisible) {
+                                // [v63] Auto-Recovery for Media Not Found
                                 const ensureMediaSoon = (count) => {
                                     if (!this.stateManager.get('app.scriptActive')) return;
                                     const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || hasRealVideoCached();
                                     if (hasMedia) return;
-                                    if (count > 0) { triggerBurstScan(250); setTimeout(() => ensureMediaSoon(count - 1), 900); }
-                                    else { this.showToast('미디어를 찾을 수 없습니다.'); }
+                                    
+                                    if (count > 0) {
+                                         triggerBurstScan(250); 
+                                         // Force Deep Scan on last attempts
+                                         if (count < 4) scheduleScan(null);
+                                         setTimeout(() => ensureMediaSoon(count - 1), 500);
+                                    } else {
+                                         // Final attempt: Scan all iframes deeply
+                                         const frames = document.getElementsByTagName('iframe');
+                                         for(let i=0; i<frames.length; i++) scheduleScan(frames[i], true);
+                                         this.showToast('미디어를 찾을 수 없습니다.');
+                                    }
                                 };
-                                setTimeout(() => ensureMediaSoon(10), 500);
+                                setTimeout(() => ensureMediaSoon(8), 200);
                             }
                         }
                     }
@@ -2738,7 +2786,6 @@
         }
     }
 
-    // [v62] Frame Sync Logic
     function exportSyncState(sm) {
       const pick = (k) => sm.get(k);
       return {
@@ -2856,8 +2903,10 @@
           return;
         }
 
+        // [v63] Security Fix: Require token for state updates
         if (!this.isTop && d.type === 'state') {
-          if (this.token && d.token && d.token !== this.token) return;
+          if (!this.token) return;
+          if (d.token && d.token !== this.token) return;
           applySyncState(this.sm, d.payload, (v) => { this._applyingRemote = v; });
           if (this.sm.get('ui.areControlsVisible')) this.sm.set('ui.createRequested', true);
           return;
