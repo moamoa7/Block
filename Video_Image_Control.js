@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.87 Optimized-Refined)
+// @name        Video_Image_Control (v132.0.88 Optimized-Refined)
 // @namespace   https://github.com/
-// @version     132.0.87
-// @description v132.0.87: Crash Fixes, EV-Based AE, Time-EMA, Iframe UI Hide Logic, Performance Coalescing
+// @version     132.0.88
+// @description v132.0.88: SVG Instance Fix, Inline Filter Force, AE Gate Refined, Child UI Destroy
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -150,6 +150,7 @@
                 return root && root.querySelector ? root.querySelector(`#${safe}`) : null;
             } catch { return null; }
         },
+        // [v132.0.88] Merges existing CSS filter with injected filter
         mergeFilter: (existing, injected) => {
             const e = (existing || '').trim();
             const i = (injected || '').trim();
@@ -162,6 +163,19 @@
                 .replace(/\s+/g, ' ')
                 .trim();
             return (cleaned ? cleaned + ' ' : '') + i;
+        },
+        ensureDomReady: () => {
+            if (document.head && document.body) return Promise.resolve();
+            return new Promise(res => {
+                const onReady = () => {
+                    if (document.head && document.body) {
+                        document.removeEventListener('DOMContentLoaded', onReady, true);
+                        res();
+                    }
+                };
+                document.addEventListener('DOMContentLoaded', onReady, true);
+                if (document.readyState === 'interactive' || document.readyState === 'complete') onReady();
+            });
         }
     };
 
@@ -1929,28 +1943,27 @@
         destroy() { super.destroy(); if (this.throttledUpdate) document.removeEventListener('vsc-smart-limit-update', this.throttledUpdate); if (this._rafId) cancelAnimationFrame(this._rafId); if (this._imageRafId) cancelAnimationFrame(this._imageRafId); }
 
         setInlineFilter(el, filterCss) {
-            if (!el) return;
-            if (el.dataset.vscSavedFilter === undefined) {
-                el.dataset.vscSavedFilter = el.style.filter || '';
-                el.dataset.vscSavedWebkitFilter = el.style.webkitFilter || '';
+            if (!el || el.nodeType !== 1) return;
+            if (el.dataset.vscPrevFilter === undefined) {
+                el.dataset.vscPrevFilter = el.style.getPropertyValue('filter') || '';
+                el.dataset.vscPrevWebkitFilter = el.style.getPropertyValue('-webkit-filter') || '';
             }
-            el.style.filter = Utils.mergeFilter(el.dataset.vscSavedFilter, filterCss);
-            el.style.webkitFilter = Utils.mergeFilter(el.dataset.vscSavedWebkitFilter, filterCss);
+            el.style.setProperty('filter', filterCss, 'important');
+            el.style.setProperty('-webkit-filter', filterCss, 'important');
             el.dataset.vscInlineFilter = '1';
         }
 
         restoreInlineFilter(el) {
-            if (!el) return;
-            if (el.dataset.vscSavedFilter !== undefined) {
-                el.style.filter = el.dataset.vscSavedFilter;
-                el.style.webkitFilter = el.dataset.vscSavedWebkitFilter;
-                delete el.dataset.vscSavedFilter;
-                delete el.dataset.vscSavedWebkitFilter;
-            } else {
-                el.style.filter = '';
-                el.style.webkitFilter = '';
-            }
-            el.dataset.vscInlineFilter = '0';
+            if (!el || el.nodeType !== 1) return;
+            const prev = el.dataset.vscPrevFilter;
+            const prevW = el.dataset.vscPrevWebkitFilter;
+            if (prev !== undefined) el.style.setProperty('filter', prev);
+            else el.style.removeProperty('filter');
+            if (prevW !== undefined) el.style.setProperty('-webkit-filter', prevW);
+            else el.style.removeProperty('-webkit-filter');
+            delete el.dataset.vscPrevFilter;
+            delete el.dataset.vscPrevWebkitFilter;
+            delete el.dataset.vscInlineFilter;
         }
 
         _scheduleRaf(slotKey, fn) {
@@ -1962,28 +1975,34 @@
         }
 
         _createManager(options) {
+            // [v132.0.88] Instance ID to prevent conflict
+            const INSTANCE = VSC_INSTANCE_ID;
+            options.svgId = `${options.svgId}-${INSTANCE}`;
+            options.styleId = `${options.styleId}-${INSTANCE}`;
+
             class SvgFilterManager {
                 constructor(options) { this._isInitialized = false; this._styleElement = null; this._svgNode = null; this._options = options; this._elementCache = new WeakMap(); this._activeFilterRoots = new Set(); this._globalToneCache = { key: null, table: null }; this._gainTableCache = new Map(); this._lastValues = null; this._clarityTableCache = new Map(); this._pruneTimer = null; this._pending = null; this._raf = 0; }
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
                 init() { if (this._isInitialized) return; safeGuard(() => {
                     const { svgId, styleId } = this._options;
-                    // Remove old nodes to prevent duplicates
+                    // Remove old nodes of same instance
                     const oldSvg = document.getElementById(svgId); if(oldSvg) oldSvg.remove();
                     const oldStyle = document.getElementById(styleId); if(oldStyle) oldStyle.remove();
 
-                    const { svgNode, styleElement } = this._createElements();
-                    this._svgNode = svgNode; this._styleElement = styleElement;
-                    const container = document.body || document.documentElement;
-                    if (container) container.appendChild(svgNode);
-                    else { document.addEventListener('DOMContentLoaded', () => { document.body.appendChild(svgNode); }); }
-                    (document.head || document.documentElement).appendChild(styleElement);
-                    this._activeFilterRoots.add(this._svgNode);
-                    this._isInitialized = true;
+                    Utils.ensureDomReady().then(() => {
+                        if (this._isInitialized) return;
+                        const { svgNode, styleElement } = this._createElements();
+                        this._svgNode = svgNode; this._styleElement = styleElement;
+                        document.body.appendChild(svgNode);
+                        document.head.appendChild(styleElement);
+                        this._activeFilterRoots.add(this._svgNode);
+                        this._isInitialized = true;
 
-                    if (!this._pruneTimer) {
-                        this._pruneTimer = setInterval(() => this.prune(), 4000);
-                        window.addEventListener('pagehide', () => { try { clearInterval(this._pruneTimer); } catch {} this._pruneTimer = null; }, { once: true });
-                    }
+                        if (!this._pruneTimer) {
+                            this._pruneTimer = setInterval(() => this.prune(), 4000);
+                            window.addEventListener('pagehide', () => { try { clearInterval(this._pruneTimer); } catch {} this._pruneTimer = null; }, { once: true });
+                        }
+                    });
                 }, `${this.constructor.name}.init`); }
                 registerContext(svgElement) { this._activeFilterRoots.add(svgElement); }
 
@@ -2014,9 +2033,14 @@
                     const { settings, svgId, styleId, className, isImage } = this._options;
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`; const combinedFilterNoGrainId = `${settings.SHARPEN_ID}_combined_filter_nograin`;
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
+                    // [v132.0.88] Mark instance
+                    svg.dataset.vscInstance = VSC_INSTANCE_ID;
+
                     const style = document.createElement('style'); style.id = styleId;
-                    const cssContent = ` .${className} { filter: url(#${combinedFilterId}) !important; } .${className}.no-grain { filter: url(#${combinedFilterNoGrainId}) !important; } `;
-                    style.textContent = cssContent;
+                    style.dataset.vscInstance = VSC_INSTANCE_ID;
+                    // Class only used for state marking now, inline filter is primary
+                    style.textContent = ` .${className} {} .${className}.no-grain {} `;
+
                     const buildChain = (id, includeGrain) => {
                         const filter = createSvgElement('filter', { id: id, "color-interpolation-filters": "sRGB" });
                         const clarityTransfer = createSvgElement('feComponentTransfer', { "data-vsc-id": "clarity_transfer", in: "SourceGraphic", result: "clarity_out" });
@@ -2056,9 +2080,7 @@
                         } else {
                             const lumaContrast = createSvgElement('feColorMatrix', { "data-vsc-id": "luma_contrast_matrix", in: lastOut, type: "matrix", values: "1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0", result: "luma_contrast_out" });
                             const saturation = createSvgElement('feColorMatrix', { "data-vsc-id": "saturate", in: "luma_contrast_out", type: "saturate", values: (settings.SAT / 100).toString(), result: "saturate_out" });
-                            // Exposure as table, properly connected
                             const exposure = createFuncGroup("exposure", { inId: "saturate_out", resultId: "linear_out", type: "table" });
-                            // Gamma taking linear_out as input
                             const gamma = createSvgElement('feComponentTransfer', { "data-vsc-id": "gamma", in: "linear_out", result: "gamma_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'gamma', exponent: (1 / settings.GAMMA).toString() })));
                             const toneCurve = createSvgElement('feComponentTransfer', { "data-vsc-id": "tone_curve", in: "gamma_out", result: "tone_out" }, ...['R', 'G', 'B'].map(ch => createSvgElement(`feFunc${ch}`, { type: 'table', tableValues: "0 1" })));
                             const colorTemp = createFuncGroup("post_colortemp", { inId: "tone_out" });
@@ -2074,11 +2096,11 @@
                     if (!this.isInitialized()) return;
                     const v = (val) => (val === undefined || val === null) ? 0 : Number(val);
                     const gain = (values.linearGain == null) ? 1.0 : Number(values.linearGain);
-                    const gainQ = Math.round(gain * 100); // 1.23 -> 123 integer key
+                    const gainQ = Math.round(gain * 100);
 
                     const q = (x, step) => Math.round((Number(x) || 0) / step) * step;
                     const bQ = q(values.brightness, 0.5);
-                    const cQ = q(values.contrastAdj, 0.02); // 0.02 step for cache saving
+                    const cQ = q(values.contrastAdj, 0.02);
                     const shQ = q(values.shadows, 1);
                     const hiQ = q(values.highlights, 1);
                     const satQ = q(values.saturation, 1);
@@ -2092,7 +2114,6 @@
 
                     const { saturation, gamma, sharpenLevel, level2, shadows, highlights, brightness, contrastAdj, colorTemp, dither, clarity } = values;
                     let currentToneTable = null; const contrastSafe = (contrastAdj == null) ? 1.0 : Number(contrastAdj);
-                    // Remove contrast from tone curve cache key as it is handled by matrix
                     const toneKey = (shadows !== undefined) ? `${shQ}_${hiQ}_${bQ}` : null;
                     if (toneKey) {
                         if (this._globalToneCache.key !== toneKey) {
@@ -2104,7 +2125,6 @@
                                 const toeStrength = 0.18 + 0.22 * Math.abs(shN); const shoulderStrength = 0.08 + 0.18 * Math.abs(hiN);
                                 for (let i = 0; i < steps; i++) {
                                     let x = i / (steps - 1); let y = x; y = clamp(y + b, 0, 1);
-                                    // Removed contrast logic from curve: y = clamp(0.5 + (y - 0.5) * c, 0, 1);
                                     if (shN !== 0 && y < toe) { const t = clamp(y / Math.max(1e-6, toe), 0, 1); const ss = smoothstep(t); const dir = Math.sign(shN); y = y + dir * (toe - y) * toeStrength * (1 - ss); }
                                     if (hiN !== 0 && y > shoulder) { const t = clamp((y - shoulder) / Math.max(1e-6, (1 - shoulder)), 0, 1); const ss = smoothstep(t); const dir = Math.sign(hiN); y = y - dir * shoulderStrength * ss * t; }
                                     vals.push(Math.round(clamp(y, 0, 1) * 10000) / 10000);
@@ -2125,7 +2145,8 @@
                                 gammaFuncs: rootNode.querySelectorAll('[data-vsc-id="gamma"] feFuncR, [data-vsc-id="gamma"] feFuncG, [data-vsc-id="gamma"] feFuncB'), toneCurveFuncs: rootNode.querySelectorAll('[data-vsc-id="tone_curve"] feFuncR, [data-vsc-id="tone_curve"] feFuncG, [data-vsc-id="tone_curve"] feFuncB'),
                                 ctRed: rootNode.querySelectorAll('[data-vsc-id="ct_red"]'), ctGreen: rootNode.querySelectorAll('[data-vsc-id="ct_green"]'), ctBlue: rootNode.querySelectorAll('[data-vsc-id="ct_blue"]'), lumaContrastMatrix: rootNode.querySelectorAll('[data-vsc-id="luma_contrast_matrix"]'), clarityFuncs: rootNode.querySelectorAll('[data-vsc-id="clarity_func"]'), grainComp: rootNode.querySelector('[data-vsc-id="grain_comp"]'),
                                 exposureFuncs: rootNode.querySelectorAll('[data-vsc-id="exposure_func"]'),
-                                appliedToneKey: null
+                                appliedToneKey: null,
+                                last: { sat: null, gamma: null, contrastQ: null }
                             }; this._elementCache.set(rootNode, cache);
                         }
                         if (clarity !== undefined && cache.clarityFuncs) {
@@ -2148,10 +2169,16 @@
                             if (strCoarse <= 0.01) { Utils.setAttrAll(cache.blurCoarse, 'stdDeviation', "0"); cache.compCoarse.forEach(el => { Utils.setAttr(el, 'k2', "1"); Utils.setAttr(el, 'k3', "0"); }); } else { Utils.setAttrAll(cache.blurCoarse, 'stdDeviation', coarseSigma.toFixed(2)); cache.compCoarse.forEach(el => { Utils.setAttr(el, 'k2', (1 + safeCoarseK).toFixed(3)); Utils.setAttr(el, 'k3', (-safeCoarseK).toFixed(3)); }); }
                         }
                         if (dither !== undefined && cache.grainComp) { const val = dither / 100; const amount = val * 0.25; Utils.setAttr(cache.grainComp, 'k3', amount.toFixed(3)); }
-                        if (saturation !== undefined && cache.saturate) Utils.setAttrAll(cache.saturate, 'values', (saturation / 100).toString());
+                        if (saturation !== undefined && cache.saturate) {
+                            const satVal = (saturation / 100);
+                            if (cache.last.sat !== satVal) {
+                                cache.last.sat = satVal;
+                                Utils.setAttrAll(cache.saturate, 'values', satVal.toString());
+                            }
+                        }
 
                         if (cache.exposureFuncs) {
-                            const gainKey = gainQ; // integer key
+                            const gainKey = gainQ;
                             let tableVal = this._gainTableCache.get(gainKey);
                             if (!tableVal) {
                                 const realGain = gainQ / 100;
@@ -2173,9 +2200,22 @@
                             Utils.setAttrAll(cache.exposureFuncs, 'tableValues', tableVal);
                         }
 
-                        if (gamma !== undefined && cache.gammaFuncs) { const exp = (1 / gamma).toString(); Utils.setAttrAll(cache.gammaFuncs, 'exponent', exp); }
+                        if (gamma !== undefined && cache.gammaFuncs) {
+                            const exp = (1 / gamma);
+                            if (cache.last.gamma !== exp) {
+                                cache.last.gamma = exp;
+                                Utils.setAttrAll(cache.gammaFuncs, 'exponent', exp.toString());
+                            }
+                        }
                         if (currentToneTable && cache.toneCurveFuncs) { if (cache.appliedToneKey !== toneKey) { cache.appliedToneKey = toneKey; Utils.setAttrAll(cache.toneCurveFuncs, 'tableValues', currentToneTable); } }
-                        if (contrastSafe !== undefined && cache.lumaContrastMatrix) { const cAmount = (contrastSafe - 1.0) * 0.9; const r = 0.2126 * cAmount; const g = 0.7152 * cAmount; const b = 0.0722 * cAmount; const mVals = [1 + r, g, b, 0, 0, r, 1 + g, b, 0, 0, r, g, 1 + b, 0, 0, 0, 0, 0, 1, 0].join(' '); Utils.setAttrAll(cache.lumaContrastMatrix, 'values', mVals); }
+                        const cQ2 = Math.round(contrastSafe * 200) / 200;
+                        if (contrastSafe !== undefined && cache.lumaContrastMatrix && cache.last.contrastQ !== cQ2) {
+                            cache.last.contrastQ = cQ2;
+                            const cAmount = (cQ2 - 1.0) * 0.9;
+                            const r = 0.2126 * cAmount, g = 0.7152 * cAmount, b = 0.0722 * cAmount;
+                            const mVals = [1 + r, g, b, 0, 0, r, 1 + g, b, 0, 0, r, g, 1 + b, 0, 0, 0, 0, 0, 1, 0].join(' ');
+                            Utils.setAttrAll(cache.lumaContrastMatrix, 'values', mVals);
+                        }
                         if (colorTemp !== undefined && cache.ctBlue && cache.ctRed && cache.ctGreen) { const t = colorTemp; const warm = Math.max(0, t); const cool = Math.max(0, -t); const rSlope = 1 + warm * 0.003 - cool * 0.005; const gSlope = 1 + warm * 0.002 - cool * 0.004; const bSlope = 1 - warm * 0.006 + cool * 0.000; const clamp = Utils.clamp; const rs = clamp(rSlope, 0.7, 1.3).toFixed(3); const gs = clamp(gSlope, 0.7, 1.3).toFixed(3); const bs = clamp(bSlope, 0.7, 1.3).toFixed(3); Utils.setAttrAll(cache.ctRed, 'slope', rs); Utils.setAttrAll(cache.ctGreen, 'slope', gs); Utils.setAttrAll(cache.ctBlue, 'slope', bs); }
                     }
                     dead.forEach(node => this._activeFilterRoots.delete(node));
@@ -2185,28 +2225,31 @@
         }
         applyAllVideoFilters() { this._scheduleRaf('_rafId', () => { this._applyAllVideoFiltersActual(); this.stateManager.get('media.activeMedia').forEach(media => { if (MEDIA_TAGS.has(media.tagName)) this._updateVideoFilterState(media); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
 
-        _computeAeTuning({ totalGain, p90, colorfulness }) {
+        _computeAeTuning({ totalGain, p90, p50, p10, colorfulness }) {
             const clamp = Utils.clamp;
             const smooth01 = (t) => t * t * (3 - 2 * t);
 
             const tg = Math.max(1.0, totalGain || 1.0);
-
-            // EV-based logic for natural scaling
             const ev = Math.log2(tg);
             const ev01 = clamp(ev / 1.5, 0, 1);
 
             const gainGate = smooth01(clamp((tg - 1.05) / 0.30, 0, 1));
-            const hiGate = smooth01(clamp(((p90 || 0) - 0.82) / 0.10, 0, 1));
+
+            // [v132.0.88] Refined gates with p50/p10
+            const hiBase = smooth01(clamp(((p90 || 0) - 0.82) / 0.10, 0, 1));
+            const midBright = smooth01(clamp(((p50 || 0) - 0.62) / 0.12, 0, 1));
+            const hiGate = clamp(hiBase * (0.65 + 0.35 * midBright), 0, 1);
+
+            const darkGate = smooth01(clamp((0.18 - (p10 || 0)) / 0.12, 0, 1));
 
             const cf = (colorfulness === undefined) ? 0.5 : colorfulness;
             const lowColorGate = smooth01(clamp((0.32 - cf) / 0.18, 0, 1));
 
-            const contrastBoost = ev01 * (IS_MOBILE ? 0.045 : 0.065) * gainGate * (1 - hiGate);
-            const highlightRecover = ev01 * (IS_MOBILE ? 7.0 : 8.5) * gainGate * hiGate;
-            const shadowLift = ev01 * (IS_MOBILE ? 4.0 : 5.5) * gainGate * (1 - hiGate);
-
-            const satBoost = lowColorGate * gainGate * (IS_MOBILE ? 1.1 : 1.8);
-            const gammaPull = ev01 * gainGate * (IS_MOBILE ? 0.045 : 0.060);
+            const contrastBoost = ev01 * (IS_MOBILE ? 0.040 : 0.058) * gainGate * (1 - hiGate);
+            const highlightRecover = ev01 * (IS_MOBILE ? 6.5 : 8.0) * gainGate * hiGate;
+            const shadowLift = ev01 * (IS_MOBILE ? 3.6 : 5.0) * gainGate * darkGate * (1 - hiGate * 0.35);
+            const satBoost = lowColorGate * gainGate * (IS_MOBILE ? 1.0 : 1.6);
+            const gammaPull = ev01 * gainGate * (IS_MOBILE ? 0.040 : 0.055) * (0.65 + 0.35 * midBright);
 
             return { contrastBoost, highlightRecover, shadowLift, satBoost, gammaPull, hiGate, gainGate };
         }
@@ -2217,7 +2260,7 @@
             const dt = Math.max(0, now - last);
             this._aeLastT = now;
 
-            const tau = 180; // ms
+            const tau = 180;
             const a = 1 - Math.exp(-dt / tau);
 
             if (!this._aeEma) this._aeEma = { ...target };
@@ -2264,13 +2307,17 @@
             const va = VA();
 
             if (totalGain > 1.0) {
+                // Use available stats or 0
                 const p90 = (va && va._p90Ema > 0) ? va._p90Ema : 0;
-                const tune = this._computeAeTuning({ totalGain, p90, colorfulness: auto.colorfulness });
+                // p50/p10 are currently not tracked by VA but logic is ready
+                const p50 = 0;
+                const p10 = 0;
+
+                const tune = this._computeAeTuning({ totalGain, p90, p50, p10, colorfulness: auto.colorfulness });
 
                 finalContrastAdj += tune.contrastBoost;
                 finalSaturation += tune.satBoost;
 
-                // Protect user manual settings: reduce auto correction if user pushed limits
                 const userHi = vf.highlights || 0;
                 const userSh = vf.shadows || 0;
                 const userHiGate = Utils.clamp(1 - Math.abs(userHi) / 30, 0.35, 1);
@@ -2284,7 +2331,13 @@
 
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
-            if (effectiveClarity > 0) { autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15); }
+
+            // [v132.0.88] Prevent over-sharpening
+            if (effectiveClarity > 0) {
+                const headroom = Utils.clamp(1 - (vf.level2 / 30), 0.25, 1.0);
+                autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15) * headroom;
+            }
+
             if (va && va._highMotion) autoSharpLevel2 *= 0.7;
 
             if (totalGain > 1.02) {
@@ -2428,37 +2481,9 @@
             const filterId = useNoGrain ? `${sid}_combined_filter_nograin` : `${sid}_combined_filter`;
             const filterCss = `url("#${filterId}")`;
 
-
             if (isActive) {
                 video.classList.add('vsc-video-filter-active');
-                requestAnimationFrame(() => {
-                    const now = performance.now(); const last = this._getFilterCheckTs(video); if (now - last < 1200) return; this._setFilterCheckTs(video, now);
-
-                    if (!isVis) return;
-
-                    if (video.dataset.vscInlineFilter === '1' && video.style.filter.includes(filterId)) return;
-
-                    const cs = window.getComputedStyle(video);
-
-                    const norm = (s) => (s || '').replace(/\s+/g,'').replace(/"/g,'');
-                    const currentFilter = norm(cs.filter) + norm(cs.webkitFilter);
-                    const targetFilter = norm(filterCss);
-
-                    if (!currentFilter.includes(targetFilter) && !currentFilter.includes('combined_filter')) {
-                        this.setInlineFilter(video, filterCss);
-                    } else {
-                        this.restoreInlineFilter(video);
-                    }
-
-                    setTimeout(() => {
-                        if (!video.isConnected) return;
-                        if (video.dataset.vscInlineFilter !== '1') {
-                            const cs2 = window.getComputedStyle(video);
-                            const cur2 = norm(cs2.filter) + norm(cs2.webkitFilter);
-                            if (!cur2.includes(targetFilter) && !cur2.includes('combined_filter')) this.setInlineFilter(video, filterCss);
-                        }
-                    }, 400);
-                });
+                this.setInlineFilter(video, filterCss);
             } else {
                 video.classList.remove('vsc-video-filter-active');
                 this.restoreInlineFilter(video);
@@ -2546,8 +2571,8 @@
             this._onHideUi = () => {
                 if (IS_TOP) return;
                 this._fsHintUntil = 0;
-                this._localSuppressedUntil = Date.now() + 2000;
-                this._hideLocalUi({ destroy: false });
+                this._localSuppressedUntil = Date.now() + 3000;
+                this._hideLocalUi({ destroy: true });
             };
             window.addEventListener('vsc-hide-ui', this._onHideUi, { signal: this._ac.signal });
 
@@ -2692,7 +2717,7 @@
         }
 
         createGlobalUI(force = false) {
-            // [v132.0.87] Child constraint: only create on force/hint
+            // [v132.0.88] Child constraint: only create on force/hint
             if (!IS_TOP && !force && !this._isFsHint()) return;
 
             if (this.globalContainer) return;
@@ -3320,7 +3345,7 @@
       _onMessage(e) {
         const d = e.data;
         if (!d || d.ch !== VSC_MSG) return;
-        if (d.payload && JSON.stringify(d.payload).length > 200000) return;
+        if (d.payload && typeof d.payload !== 'object') return;
 
         const allowed = ['hello', 'welcome', 'state', 'update', 'force-ui', 'hide-ui'];
         if (!allowed.includes(d.type)) return;
