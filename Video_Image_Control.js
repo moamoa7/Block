@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.63 Optimized)
+// @name        Video_Image_Control (v132.0.64 Bright+Contrast)
 // @namespace   https://com/
-// @version     132.0.63
-// @description v132.0.63: Style Dup Fix, FrameSync Security, AE Idle Opt, Backoff Detection, Mobile OLED Tune.
+// @version     132.0.64
+// @description v132.0.64: AE Tuned for Higher Brightness & Auto-Contrast linkage.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -84,7 +84,7 @@
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
-            SECONDARY_ADJ: false
+            SECONDARY_ADJ: true // [v64] Auto Contrast 활성화
         },
         AUDIO: { THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 },
         SCAN: {
@@ -535,7 +535,6 @@
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
 
-        // [v63] Fix: Safe append logic avoiding duplication
         const safelyAppendStyle = (targetRoot, styleEl, sharedSheet) => {
             let appended = false;
             if (sharedSheet && ('adoptedStyleSheets' in targetRoot)) {
@@ -848,7 +847,6 @@
             if (this.isRunning && this.targetVideo !== video) this.stop();
             if (settings) this.currentSettings = { ...this.currentSettings, ...settings };
 
-            // [v63] Fix: Only run analyzer loop if AutoExposure is ON
             const isAutoExposure = !!this.currentSettings.autoExposure;
             if (!isAutoExposure) {
                 if (this.isRunning) this.stop();
@@ -903,7 +901,6 @@
 
             const isAutoExposure = !!next.autoExposure;
 
-            // [v63] Optimization: Strict stop if AE is OFF
             if (!isAutoExposure) {
                 if (this.isRunning) this.stop();
                 this.notifyUpdate({ linearGain: 1.0 }, 0);
@@ -1341,7 +1338,6 @@
         this._iframeDocCache = new WeakMap();
         this._lastBackoffForceScan = 0;
         this._playDetectTimer = 0;
-        // [v63] tick Cache
         this._cachedHasPotential = false;
         }
 
@@ -1446,7 +1442,6 @@
                 this._mutationCounter += mutations.length;
                 this._domDirty = true;
 
-                // [v63] Fix: Backoff should check for new media even if muted
                 if (this._isBackoffMode) {
                      const cap = Math.min(8, mutations.length);
                      for(let i=0; i<cap; i++) {
@@ -1566,7 +1561,6 @@
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
             const sm = this.stateManager;
 
-            // [v63] Fix: Use cache for hasPotential
             const activeSize = sm.get('media.activeMedia').size;
             if (this._domDirty || activeSize === 0) {
                  this._cachedHasPotential = activeSize > 0 || document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
@@ -2069,6 +2063,9 @@
 
             const totalGain = (autoGain || 1.0);
 
+            // [v64] Smart Contrast: Increase contrast as gain increases to prevent washout
+            if (totalGain > 1.0) finalContrastAdj += (totalGain - 1.0) * 0.4;
+
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
             if (effectiveClarity > 0) { autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15); }
@@ -2080,7 +2077,6 @@
                 const p90Gate = Utils.clamp((currentP90 - 0.85) / 0.10, 0, 1);
 
                 finalHighlights += (boostFactor * 12) * p90Gate;
-                finalSaturation -= Math.min(4, boostFactor * 4) * p90Gate;
                 finalShadows -= (boostFactor * 0.3) * p90Gate;
             }
 
@@ -2733,7 +2729,7 @@
                             triggerBurstScan(100);
 
                             if (!isVisible) {
-                                // [v63] Auto-Recovery for Media Not Found
+                                // [v64] Auto-Recovery for Media Not Found
                                 const ensureMediaSoon = (count) => {
                                     if (!this.stateManager.get('app.scriptActive')) return;
                                     const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || hasRealVideoCached();
@@ -2903,7 +2899,6 @@
           return;
         }
 
-        // [v63] Security Fix: Require token for state updates
         if (!this.isTop && d.type === 'state') {
           if (!this.token) return;
           if (d.token && d.token !== this.token) return;
