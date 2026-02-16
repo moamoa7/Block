@@ -112,8 +112,8 @@
             const sLand = sw > sh;
             if (vLand !== sLand) [sw, sh] = [sh, sw];
 
-            const edgeTh = IS_MOBILE ? 0.80 : 0.85;
-            const areaTh = IS_MOBILE ? 0.70 : 0.78;
+            const edgeTh = IS_MOBILE ? 0.94 : 0.96;
+            const areaTh = IS_MOBILE ? 0.90 : 0.94;
 
             const fillsEdge = (vw >= sw * edgeTh) && (vh >= sh * edgeTh);
             const fillsArea = ((vw * vh) / (sw * sh)) >= areaTh;
