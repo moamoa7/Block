@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.74 AE-AutoKick-PreCreateUI)
+// @name        Video_Image_Control (v132.0.75 AE-AutoKick-RescueUI)
 // @namespace   https://com/
-// @version     132.0.74
-// @description v132.0.74: Fix "First Fullscreen UI Missing" by Pre-creating UI (Hidden) & Force-Check
+// @version     132.0.75
+// @description v132.0.75: Final UI Fixes - Opacity Rescue, Interaction Probing, Relaxed Thresholds
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -93,7 +93,7 @@
 
     const SEL = { FILTER_TARGET: 'video, img, iframe, canvas' };
 
-    // [v132.0.73] 스마트 전체화면 감지 헬퍼 (강화판: 회전 보정 + Avail + 면적비)
+    // [v132.0.75] 스마트 전체화면 감지 헬퍼 (회전 보정 + Avail + 완화된 임계값)
     const isChildFullscreenLikely = () => {
         // 1) Fullscreen API (가능하면)
         const fe = document.fullscreenElement || document.webkitFullscreenElement;
@@ -113,10 +113,11 @@
             const sLand = sw > sh;
             if (vLand !== sLand) [sw, sh] = [sh, sw];
 
-            // “가로/세로 각각” + “면적” 둘 중 하나만 만족해도 fullscreen으로 인정
-            const edgeTh = IS_MOBILE ? 0.82 : 0.85;      // 기존(0.85/0.88)보다 약간 완화
-            const areaTh = IS_MOBILE ? 0.72 : 0.78;      // 주소창/툴바 때문에 한쪽이 살짝 부족해도 통과
+            // [v75] 임계값 완화: 주소창/툴바 고려
+            const edgeTh = IS_MOBILE ? 0.80 : 0.85;  
+            const areaTh = IS_MOBILE ? 0.70 : 0.78; 
 
+            // “가로/세로 각각 충족” 또는 “전체 면적 충족” 중 하나만 만족해도 통과
             const fillsEdge = (vw >= sw * edgeTh) && (vh >= sh * edgeTh);
             const fillsArea = ((vw * vh) / (sw * sh)) >= areaTh;
 
@@ -718,6 +719,7 @@
 
              let startY = 0, endY = h;
              if (topLuma < BLK) startY = barH;
+
              if (botLuma < BLK) {
                  endY = h - barH;
              } else if ((botLuma - topLuma) > 0.15 && botLuma > 0.20) {
@@ -1764,7 +1766,7 @@
             else { const r = this.findAllElements(root, 0, true); r.media.forEach(m=>media.add(m)); r.images.forEach(i=>images.add(i)); r.iframes.forEach(f=>iframes.add(f)); }
             this._applyToSets(media, images, iframes);
         }
-        // [v71] Optimized _applyToSets with UI Guard
+        // [v75] Optimized _applyToSets with UI Guard
         _applyToSets(mediaSet, imageSet, iframeSet) {
              const sm = this.stateManager;
              const curM = sm.get('media.activeMedia');
@@ -2394,24 +2396,18 @@
         }
         init(stateManager) {
             super.init(stateManager);
-
-            // [v132.0.74] createUI Helper: Retry logic & correct state flag handling
+            // [v132.0.75] createUI Helper: Retry logic & correct state flag handling
             const createUI = () => { 
                 if (this.globalContainer) return; 
-
-                // Attempt to create. Will be blocked by guard unless forced or fullscreen.
                 this.createGlobalUI(); 
-
                 if (this.globalContainer) {
                     this.stateManager.set('ui.globalContainer', this.globalContainer); 
                     this.stateManager.set('ui.createRequested', false); 
-                    this.updateUIVisibility(); // Ensure hidden if pre-created
+                    this.updateUIVisibility(); 
                 } else {
-                    // Retry short-term if failed (handle transition animation delay)
                     setTimeout(() => this.stateManager.set('ui.createRequested', true), 200);
                 }
             };
-
             const onCreateRequested = () => { if (document.body) createUI(); else document.addEventListener('DOMContentLoaded', createUI, { once: true }); };
             this.subscribe('ui.createRequested', (req) => { if (req) onCreateRequested(); }); if (this.stateManager.get('ui.createRequested')) onCreateRequested();
             this.subscribe('ui.areControlsVisible', isVisible => this.onControlsVisibilityChange(isVisible));
@@ -2422,7 +2418,6 @@
             this.subscribe('ui.warningMessage', msg => this.showToast(msg));
             this.subscribe('ui.areControlsVisible', () => { this.updateTriggerStyle(); });
             this.subscribe('app.scriptActive', () => this.updateTriggerStyle());
-
             const vscMessage = Utils.safeGetItem('vsc_message'); if (vscMessage) { this.showToast(vscMessage); Utils.safeRemoveItem('vsc_message'); }
             this.boundFullscreenChange = () => { const fullscreenRoot = document.fullscreenElement || document.body; if (this.globalContainer && this.globalContainer.parentElement !== fullscreenRoot) { fullscreenRoot.appendChild(this.globalContainer); } };
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
@@ -2436,9 +2431,8 @@
             };
             document.addEventListener('fullscreenchange', this.boundChildFullscreenChange);
 
-            // [v132.0.74] NEW: Pre-create UI in Iframes (Hidden) + VisualViewport Listener
+            // [v132.0.75] NEW: Pre-create UI in Iframes (Hidden) + VisualViewport Listener + Boot Probe
             if (!IS_TOP) {
-                // 1) Pre-create UI hidden
                 const preCreate = () => {
                     if (this.globalContainer) return;
                     this.createGlobalUI(true); // Force create
@@ -2450,7 +2444,6 @@
                 if (document.body) preCreate();
                 else document.addEventListener('DOMContentLoaded', preCreate, { once: true });
 
-                // 2) Enhanced Resize Detection
                 const onMaybeFs = debounce(() => {
                     this.updateUIVisibility();
                 }, 120);
@@ -2458,15 +2451,31 @@
                 if (window.visualViewport) {
                     window.visualViewport.addEventListener('resize', onMaybeFs, { passive: true, signal: this._ac.signal });
                 }
+
+                // [v132.0.75] Fullscreen Probe (2 seconds) on interaction
+                const kickVisibilityProbe = () => {
+                    let tries = 0;
+                    const probe = () => {
+                        tries++;
+                        this.updateUIVisibility();
+                        if (isChildFullscreenLikely() || tries >= 20) return;
+                        setTimeout(probe, 100);
+                    };
+                    probe();
+                };
+                document.addEventListener('keydown', kickVisibilityProbe, { passive: true, signal: this._ac.signal });
+                document.addEventListener('play', kickVisibilityProbe, { capture: true, passive: true, signal: this._ac.signal });
             }
 
-            // [NEW] 전체화면 전환 시 UI 가시성 즉시 재계산
             document.addEventListener('fullscreenchange', () => {
-                this.updateUIVisibility();
+                const burstCheck = (count = 5) => {
+                    this.updateUIVisibility();
+                    if (count > 0) setTimeout(() => burstCheck(count - 1), 200);
+                };
+                burstCheck();
             });
         }
         destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
-        // [v65] Fix: Remove child fullscreen listener
         if (this.boundChildFullscreenChange) document.removeEventListener('fullscreenchange', this.boundChildFullscreenChange);
         }
 
@@ -2509,8 +2518,8 @@
             }
         }
 
-        createGlobalUI(force = false) { // [v132.0.74] Added force parameter
-            // [v132.0.74] UI Creation Guard: Do NOT create if iframe and not fullscreen-likely (unless forced)
+        createGlobalUI(force = false) { 
+            // [v132.0.75] UI Creation Guard: Do NOT create if iframe and not fullscreen-likely (unless forced)
             if (!force && !IS_TOP && !isChildFullscreenLikely()) return;
 
             const isMobile = this.stateManager.get('app.isMobile');
@@ -2556,7 +2565,7 @@
         }
 
         startBootGate() {
-            // [v132.0.74] Boot Guard for Iframe - Ensure hidden on pre-create
+            // [v132.0.75] Boot Guard for Iframe - Ensure hidden on pre-create
             if (!IS_TOP && !isChildFullscreenLikely()) {
                 if (this.globalContainer) {
                     this.globalContainer.style.display = 'none';
@@ -2611,9 +2620,14 @@
                 return;
             }
 
-            // [v132.0.74] 프레임(iframe)인데 전체화면 가능성도 없다면 무조건 숨김
+            // [v132.0.75] FIX: If waking up from hidden state, restore opacity!
+            const wasHidden = this.globalContainer && this.globalContainer.style.display === 'none';
+
             if (!IS_TOP && !isChildFullscreenLikely()) {
-                 if (this.globalContainer) this.globalContainer.style.display = 'none';
+                 if (this.globalContainer) {
+                     this.globalContainer.style.display = 'none';
+                     // Keep opacity as is or set to 0
+                 }
                  return;
             }
 
@@ -2627,6 +2641,12 @@
 
             if (this.globalContainer) {
                 this.globalContainer.style.display = 'flex';
+                // [v132.0.75] Opacity Rescue logic
+                if (wasHidden || this.globalContainer.style.opacity === '0') {
+                    this.startBootGate(); // Restart boot sequence to check media & set initial opacity
+                    this.updateTriggerStyle(); // Sync trigger state
+                }
+                
                 if (controlsVisible || hasAny) this.globalContainer.style.opacity = '1';
             }
             if (this.speedButtonsContainer) { this.speedButtonsContainer.style.display = controlsVisible && hasAnyVideo ? 'flex' : 'none'; }
