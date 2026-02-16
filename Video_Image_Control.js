@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.88 Optimized-Refined)
+// @name        Video_Image_Control (v132.0.89 Optimized-Refined)
 // @namespace   https://github.com/
-// @version     132.0.88
-// @description v132.0.88: SVG Instance Fix, Inline Filter Force, AE Gate Refined, Child UI Destroy
+// @version     132.0.89
+// @description v132.0.89: Advanced AE Proxy(p50/p10), Smart Tone Mapping, Child UI Destroy Fix
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -150,7 +150,6 @@
                 return root && root.querySelector ? root.querySelector(`#${safe}`) : null;
             } catch { return null; }
         },
-        // [v132.0.88] Merges existing CSS filter with injected filter
         mergeFilter: (existing, injected) => {
             const e = (existing || '').trim();
             const i = (injected || '').trim();
@@ -1318,6 +1317,10 @@
                 shadowsAdj: shadowsAdj,
                 highlightsAdj: highlightsAdj,
                 colorfulness: avgSat,
+                autoGamma: 1.0, // Initial defaults
+                autoBright: 0,
+                autoShadows: shadowsAdj,
+                autoHighlights: highlightsAdj,
                 tainted: false
             }, p50m, this.targetVideo, false);
         },
@@ -1931,7 +1934,12 @@
                     shadowsAdj: applyDeadband(autoParams.shadowsAdj ?? 0, this.lastAutoParams.shadowsAdj, 1.0),
                     highlightsAdj: applyDeadband(autoParams.highlightsAdj ?? 0, this.lastAutoParams.highlightsAdj, 1.0),
                     aeActive: aeActive,
-                    colorfulness: colorfulness ?? 0.5
+                    colorfulness: colorfulness ?? 0.5,
+                    // [v132.0.89] Pass auto signal for proxy
+                    autoGamma: autoParams.autoGamma,
+                    autoBright: autoParams.autoBright,
+                    autoShadows: autoParams.autoShadows,
+                    autoHighlights: autoParams.autoHighlights
                 };
 
                 this.applyAllVideoFilters();
@@ -1975,7 +1983,6 @@
         }
 
         _createManager(options) {
-            // [v132.0.88] Instance ID to prevent conflict
             const INSTANCE = VSC_INSTANCE_ID;
             options.svgId = `${options.svgId}-${INSTANCE}`;
             options.styleId = `${options.styleId}-${INSTANCE}`;
@@ -1985,7 +1992,6 @@
                 isInitialized() { return this._isInitialized; } getSvgNode() { return this._svgNode; } getStyleNode() { return this._styleElement; }
                 init() { if (this._isInitialized) return; safeGuard(() => {
                     const { svgId, styleId } = this._options;
-                    // Remove old nodes of same instance
                     const oldSvg = document.getElementById(svgId); if(oldSvg) oldSvg.remove();
                     const oldStyle = document.getElementById(styleId); if(oldStyle) oldStyle.remove();
 
@@ -2033,12 +2039,10 @@
                     const { settings, svgId, styleId, className, isImage } = this._options;
                     const combinedFilterId = `${settings.SHARPEN_ID}_combined_filter`; const combinedFilterNoGrainId = `${settings.SHARPEN_ID}_combined_filter_nograin`;
                     const svg = createSvgElement('svg', { id: svgId, style: 'display:none;position:absolute;width:0;height:0;' });
-                    // [v132.0.88] Mark instance
                     svg.dataset.vscInstance = VSC_INSTANCE_ID;
 
                     const style = document.createElement('style'); style.id = styleId;
                     style.dataset.vscInstance = VSC_INSTANCE_ID;
-                    // Class only used for state marking now, inline filter is primary
                     style.textContent = ` .${className} {} .${className}.no-grain {} `;
 
                     const buildChain = (id, includeGrain) => {
@@ -2225,6 +2229,38 @@
         }
         applyAllVideoFilters() { this._scheduleRaf('_rafId', () => { this._applyAllVideoFiltersActual(); this.stateManager.get('media.activeMedia').forEach(media => { if (MEDIA_TAGS.has(media.tagName)) this._updateVideoFilterState(media); }); this.stateManager.get('media.activeIframes').forEach(iframe => { this._updateVideoFilterState(iframe); }); }); }
 
+        _approxP50P10FromAuto({ p90, totalGain, autoGamma, autoBright, autoShadows, autoHighlights }) {
+            const clamp = Utils.clamp;
+            const tg = Math.max(1.0, totalGain || 1.0);
+            const ev = Math.log2(tg);
+            const ev01 = clamp(ev / 1.5, 0, 1);
+            const p90v = clamp(p90 || 0, 0, 1);
+
+            const bN = clamp((Number(autoBright) || 0) / 12, -1, 1);
+            const gN = clamp(((Number(autoGamma) || 1.0) - 1.0) / 0.35, -1, 1);
+            const shN = clamp((Number(autoShadows) || 0) / 18, -1, 1);
+            const hiN = clamp((Number(autoHighlights) || 0) / 18, -1, 1);
+
+            const midDark = clamp(0.50 * gN + 0.30 * bN + 0.25 * shN - 0.20 * hiN, -1, 1);
+            const lowDark = clamp(0.65 * shN + 0.25 * bN + 0.20 * gN, -1, 1);
+
+            let baseOff50 = 0.30 - 0.10 * ev01;
+            let baseOff10 = 0.62 - 0.14 * ev01;
+
+            let off50 = baseOff50 + 0.10 * midDark;
+            let off10 = baseOff10 + 0.16 * lowDark;
+
+            off50 = clamp(off50, 0.12, 0.55);
+            off10 = clamp(off10, 0.30, 0.92);
+
+            if (off10 < off50 + 0.18) off10 = off50 + 0.18;
+
+            const p50 = clamp(p90v - off50, 0, 1);
+            const p10 = clamp(p90v - off10, 0, 1);
+
+            return { p50, p10 };
+        }
+
         _computeAeTuning({ totalGain, p90, p50, p10, colorfulness }) {
             const clamp = Utils.clamp;
             const smooth01 = (t) => t * t * (3 - 2 * t);
@@ -2235,21 +2271,26 @@
 
             const gainGate = smooth01(clamp((tg - 1.05) / 0.30, 0, 1));
 
-            // [v132.0.88] Refined gates with p50/p10
-            const hiBase = smooth01(clamp(((p90 || 0) - 0.82) / 0.10, 0, 1));
-            const midBright = smooth01(clamp(((p50 || 0) - 0.62) / 0.12, 0, 1));
+            const p90v = clamp(p90 || 0, 0, 1);
+            const p50v = clamp((p50 ?? (p90v - 0.30)), 0, 1);
+            const p10v = clamp((p10 ?? (p90v - 0.62)), 0, 1);
+
+            const hiBase = smooth01(clamp((p90v - 0.82) / 0.10, 0, 1));
+            const midBright = smooth01(clamp(((p50v - 0.62) / 0.12), 0, 1));
             const hiGate = clamp(hiBase * (0.65 + 0.35 * midBright), 0, 1);
 
-            const darkGate = smooth01(clamp((0.18 - (p10 || 0)) / 0.12, 0, 1));
+            // [v132.0.89] Smart gates
+            const midGate = smooth01(clamp((p50v - 0.62) / 0.12, 0, 1));
+            const darkGate = smooth01(clamp((0.18 - p10v) / 0.12, 0, 1));
 
             const cf = (colorfulness === undefined) ? 0.5 : colorfulness;
             const lowColorGate = smooth01(clamp((0.32 - cf) / 0.18, 0, 1));
 
-            const contrastBoost = ev01 * (IS_MOBILE ? 0.040 : 0.058) * gainGate * (1 - hiGate);
             const highlightRecover = ev01 * (IS_MOBILE ? 6.5 : 8.0) * gainGate * hiGate;
-            const shadowLift = ev01 * (IS_MOBILE ? 3.6 : 5.0) * gainGate * darkGate * (1 - hiGate * 0.35);
+            const shadowLift = ev01 * (IS_MOBILE ? 3.8 : 5.3) * gainGate * darkGate * (1 - hiGate * 0.35);
+            const contrastBoost = ev01 * (IS_MOBILE ? 0.040 : 0.060) * gainGate * (1 - hiGate) * (1 - midGate * 0.45);
             const satBoost = lowColorGate * gainGate * (IS_MOBILE ? 1.0 : 1.6);
-            const gammaPull = ev01 * gainGate * (IS_MOBILE ? 0.040 : 0.055) * (0.65 + 0.35 * midBright);
+            const gammaPull = ev01 * gainGate * (IS_MOBILE ? 0.040 : 0.055) * (1 - midGate * 0.55);
 
             return { contrastBoost, highlightRecover, shadowLift, satBoost, gammaPull, hiGate, gainGate };
         }
@@ -2307,12 +2348,17 @@
             const va = VA();
 
             if (totalGain > 1.0) {
-                // Use available stats or 0
                 const p90 = (va && va._p90Ema > 0) ? va._p90Ema : 0;
-                // p50/p10 are currently not tracked by VA but logic is ready
-                const p50 = 0;
-                const p10 = 0;
-
+                // [v132.0.89] Proxy P50/P10 from Auto Signals
+                const { p50, p10 } = this._approxP50P10FromAuto({
+                    p90,
+                    totalGain,
+                    autoGamma: auto.autoGamma,
+                    autoBright: auto.autoBright,
+                    autoShadows: auto.autoShadows,
+                    autoHighlights: auto.autoHighlights
+                });
+                
                 const tune = this._computeAeTuning({ totalGain, p90, p50, p10, colorfulness: auto.colorfulness });
 
                 finalContrastAdj += tune.contrastBoost;
@@ -2324,20 +2370,22 @@
                 const userShGate = Utils.clamp(1 - Math.abs(userSh) / 30, 0.35, 1);
 
                 finalHighlights += tune.highlightRecover * userHiGate;
-                finalShadows += tune.shadowLift * userShGate;
+                
+                // [v132.0.89] Limit shadow lift
+                const maxLift = IS_MOBILE ? 10 : 14;
+                finalShadows += Utils.clamp(tune.shadowLift, -maxLift, maxLift) * userShGate;
 
                 finalGamma = Utils.clamp(finalGamma * (1 - tune.gammaPull), 0.5, 2.5);
             }
 
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
-
-            // [v132.0.88] Prevent over-sharpening
+            
             if (effectiveClarity > 0) {
                 const headroom = Utils.clamp(1 - (vf.level2 / 30), 0.25, 1.0);
                 autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15) * headroom;
             }
-
+            
             if (va && va._highMotion) autoSharpLevel2 *= 0.7;
 
             if (totalGain > 1.02) {
@@ -2717,7 +2765,7 @@
         }
 
         createGlobalUI(force = false) {
-            // [v132.0.88] Child constraint: only create on force/hint
+            // [v132.0.89] Child constraint: only create on force/hint
             if (!IS_TOP && !force && !this._isFsHint()) return;
 
             if (this.globalContainer) return;
@@ -3313,7 +3361,7 @@
             this._broadcast({ type: 'state', payload: exportSyncState(this.sm) });
           }, delay);
         };
-
+        
         const keys = [
             'app.scriptActive', 'ui.areControlsVisible', 'ui.hideUntilReload',
             'videoFilter.*', 'imageFilter.*', 'audio.*', 'playback.targetRate'
@@ -3345,6 +3393,8 @@
       _onMessage(e) {
         const d = e.data;
         if (!d || d.ch !== VSC_MSG) return;
+        
+        // [v132.0.89] Simple payload check
         if (d.payload && typeof d.payload !== 'object') return;
 
         const allowed = ['hello', 'welcome', 'state', 'update', 'force-ui', 'hide-ui'];
