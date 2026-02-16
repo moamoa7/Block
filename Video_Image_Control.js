@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.66 Face-Tune)
+// @name        Video_Image_Control (v132.0.68 AE-AutoKick)
 // @namespace   https://com/
-// @version     132.0.66
-// @description v132.0.66: Lower Auto-Contrast to fix shiny faces & Added Saturation compensation.
+// @version     132.0.68
+// @description v132.0.68: Fix AE initial start failure & Enhance media detection.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -50,7 +50,7 @@
 
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
-    // [v63] Mobile/OLED Optimized Tuning
+    // [v67 Tuned] Mobile/OLED Optimized
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.24 : 0.28,
         STRENGTH_DARK: IS_MOBILE ? 0.28 : 0.32,
@@ -58,8 +58,8 @@
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004,
-        MAX_UP_EV: IS_MOBILE ? 0.10 : 0.18,
-        MAX_UP_EV_DARK: IS_MOBILE ? 0.22 : 0.28,
+        MAX_UP_EV: IS_MOBILE ? 0.14 : 0.18,
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.26 : 0.28,
         MAX_UP_EV_EXTRA: IS_MOBILE ? 0.28 : 0.35,
         MAX_DOWN_EV: 0,
         DEAD_OUT: IS_MOBILE ? 0.12 : 0.10,
@@ -238,7 +238,6 @@
         };
     `;
 
-    // --- Shadow DOM & Detection ---
     const dirtyRoots = new Set();
     let _scanRaf = null, _lastFullScanTime = 0;
     let _fullScanQueued = false;
@@ -380,7 +379,6 @@
 
     const isSensitiveContext = () => {
         const now = Date.now();
-        // [v65] Optimization: Use dynamic TTL. If safe, check less often.
         const ttl = _sensCache.v ? 300 : (IS_MOBILE ? 450 : 800);
         if (now - _sensCache.t < ttl) return _sensCache.v;
 
@@ -797,7 +795,8 @@
                     if (!c.paused) score *= 2.5;
                     if (c.readyState >= 3) score *= 1.5;
                     if (c.src || c.srcObject) score *= 1.2;
-                    if (!c.muted && c.volume > 0) score *= 1.5;
+                    // [v67] Automation: Increased audio weight for better stability
+                    if (!c.muted && c.volume > 0) score *= 2.0;
                     if (c._vscLastPlay && now - c._vscLastPlay < 15000) score *= 3.0;
                     if (c.duration && !isNaN(c.duration) && c.duration < 2) score *= 0.1;
                     if (document.fullscreenElement === c) score *= 3.0;
@@ -888,10 +887,24 @@
         },
         stop() {
             this.isRunning = false;
+
+            // [v67] Fix: Clear pending timeout
+            if (this._stopTimeout) {
+                clearTimeout(this._stopTimeout);
+                this._stopTimeout = null;
+            }
+
             if (this.hasRVFC && this.targetVideo && this.handle) { try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { } }
             this.handle = null; this._rvfcCb = null;
             this.targetVideo = null; this.frameSkipCounter = 0; this.lastAvgLuma = -1; this._highMotion = false;
             this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
+
+            // [v67] Fix: Reset analyzer state flags
+            this._workerBusy = false;
+            this._workerLastSent = 0;
+            this._aeHoldUntil = 0;
+            this._evAggressiveUntil = 0;
+            this._aeActive = false;
         },
         updateSettings(settings) {
             const next = { ...this.currentSettings, ...settings };
@@ -910,7 +923,26 @@
             const aeTurnedOn = next.autoExposure && !prev.autoExposure;
             if (aeTurnedOn) {
                 this.frameSkipCounter = 999;
-                this._evAggressiveUntil = now + 800; this.dynamicSkipThreshold = 0; this._lowMotionFrames = 0;
+                // [v68] Auto-Kick: Set aggressive mode for longer to catch first frame
+                this._evAggressiveUntil = now + 1500;
+                this.dynamicSkipThreshold = 0;
+                this._lowMotionFrames = 0;
+
+                // [v68] Auto-Kick: Ensure we have a video and start immediately
+                const best = this._pickBestVideoNow();
+                if (best) {
+                    this.start(best, { autoExposure: next.autoExposure, clarity: next.clarity });
+                } else {
+                    // Recursive find if not immediately available
+                    const findAndStart = (count) => {
+                        if (!this.currentSettings.autoExposure || this.isRunning) return;
+                        const v = this._pickBestVideoNow();
+                        if (v) this.start(v, { autoExposure: next.autoExposure, clarity: next.clarity });
+                        else if (count > 0) setTimeout(() => findAndStart(count - 1), 200);
+                    };
+                    findAndStart(10); // Try for 2 seconds
+                }
+                this._kickImmediateAnalyze();
             }
             if (!next.autoExposure && prev.autoExposure) { this._evAggressiveUntil = 0; }
 
@@ -1115,6 +1147,14 @@
                 if (this._highMotion) { if (delta < 0.06) this._highMotion = false; } else { if (delta > 0.10) this._highMotion = true; }
             }
             this.lastAvgLuma = currentLuma;
+
+            // [v67] Performance: Deeper sleep for idle AE
+            if (!aggressive && !this._aeActive && Math.abs(this.currentLinearGain - 1.0) < 0.01 && this._lowMotionFrames > 30) {
+                const cap = IS_MOBILE ? 40 : 55;
+                this.dynamicSkipThreshold = Math.min(cap, (this.dynamicSkipThreshold || 0) + 2);
+            } else {
+                this.dynamicSkipThreshold = Math.max(0, (this.dynamicSkipThreshold || 0) - 3);
+            }
 
             let targetLinearGain = 1.0;
             const isAutoExp = this.currentSettings.autoExposure;
@@ -1548,6 +1588,14 @@
             if (this.mainObserver) this.mainObserver.disconnect(); if (this.intersectionObserver) this.intersectionObserver.disconnect();
             if (this.scanTimerId) clearTimeout(this.scanTimerId); if (this._resizeObs) this._resizeObs.disconnect(); if (this._globalAttrObs) this._globalAttrObs.disconnect();
             if (this._backoffInterval) clearInterval(this._backoffInterval);
+
+            // [v67] Fix: Restore attached shadow hook
+            try {
+                if (_shadowHookActive && ORIGINALS.attachShadow) {
+                    Element.prototype.attachShadow = ORIGINALS.attachShadow;
+                    _shadowHookActive = false;
+                }
+            } catch {}
         }
         tick() {
             if (this._domDirty) { this._domDirty = false; scheduleScan(null); }
@@ -1685,14 +1733,49 @@
             else { const r = this.findAllElements(root, 0, true); r.media.forEach(m=>media.add(m)); r.images.forEach(i=>images.add(i)); r.iframes.forEach(f=>iframes.add(f)); }
             this._applyToSets(media, images, iframes);
         }
+        // [v67] Optimized _applyToSets: Reduce GC by copying Sets only when necessary
         _applyToSets(mediaSet, imageSet, iframeSet) {
              const sm = this.stateManager;
-             const curM = new Set(sm.get('media.activeMedia')), curI = new Set(sm.get('media.activeImages')), curF = new Set(sm.get('media.activeIframes'));
-             let ch = false;
-             mediaSet.forEach(m => { if (m.isConnected && this.attachMediaListeners(m) && !curM.has(m)) { curM.add(m); ch = true; } });
-             imageSet.forEach(i => { if (i.isConnected && this.attachImageListeners(i) && !curI.has(i)) { curI.add(i); ch = true; } });
-             iframeSet.forEach(f => { if (f.isConnected && this.attachIframeListeners(f) && !curF.has(f)) { curF.add(f); ch = true; } });
-             if (ch) { sm.set('media.activeMedia', curM); sm.set('media.activeImages', curI); sm.set('media.activeIframes', curF); if (!sm.get('ui.globalContainer')) sm.set('ui.createRequested', true); }
+             const curM = sm.get('media.activeMedia');
+             const curI = sm.get('media.activeImages');
+             const curF = sm.get('media.activeIframes');
+
+             let nextM = curM, nextI = curI, nextF = curF;
+             let changed = false;
+
+             for (const m of mediaSet) {
+                 if (!m.isConnected) continue;
+                 if (!this.attachMediaListeners(m)) continue;
+                 if (!curM.has(m)) {
+                     if (nextM === curM) nextM = new Set(curM);
+                     nextM.add(m); changed = true;
+                 }
+             }
+
+             for (const i of imageSet) {
+                 if (!i.isConnected) continue;
+                 if (!this.attachImageListeners(i)) continue;
+                 if (!curI.has(i)) {
+                     if (nextI === curI) nextI = new Set(curI);
+                     nextI.add(i); changed = true;
+                 }
+             }
+
+             for (const f of iframeSet) {
+                 if (!f.isConnected) continue;
+                 if (!this.attachIframeListeners(f)) continue;
+                 if (!curF.has(f)) {
+                     if (nextF === curF) nextF = new Set(curF);
+                     nextF.add(f); changed = true;
+                 }
+             }
+
+             if (changed) {
+                 if (nextM !== curM) sm.set('media.activeMedia', nextM);
+                 if (nextI !== curI) sm.set('media.activeImages', nextI);
+                 if (nextF !== curF) sm.set('media.activeIframes', nextF);
+                 if (!sm.get('ui.globalContainer')) sm.set('ui.createRequested', true);
+             }
         }
         _hookIframe(frame) {
             if (!frame || this._seenIframes.has(frame)) return; this._seenIframes.add(frame);
@@ -2066,17 +2149,34 @@
 
             const totalGain = (autoGain || 1.0);
 
-            // [v66] Smart Contrast (Tuned): Lower contrast boost to prevent oily faces, add slight saturation
+            // [v67] Smart Contrast (Tuned): Lower contrast boost to prevent oily faces, add slight saturation
             if (totalGain > 1.0) {
-                const autoContrast = (totalGain - 1.0) * 0.15; // Gain +1.0당 대비 +0.15
-                finalContrastAdj += autoContrast;
-                finalSaturation += (totalGain - 1.0) * 3; // 채도도 살짝 보정
+                const g = totalGain - 1.0;
+                const p90 = (VideoAnalyzer && VideoAnalyzer._p90Ema > 0) ? VideoAnalyzer._p90Ema : 0;
+                const hiGate = Utils.clamp((p90 - 0.84) / 0.10, 0, 1);
+
+                const cK = IS_MOBILE ? 0.06 : 0.08;
+                finalContrastAdj += g * cK * (1 - hiGate);
+
+                const sK = IS_MOBILE ? 2.0 : 2.5;
+                finalSaturation += g * sK * (0.6 + 0.4 * (1 - hiGate));
+
+                finalHighlights += g * (IS_MOBILE ? 8 : 10) * hiGate;
             }
 
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
             if (effectiveClarity > 0) { autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15); }
             if (VideoAnalyzer._highMotion) autoSharpLevel2 *= 0.7;
+
+            // [v67] Dampen sharpness on bright scenes
+            if (totalGain > 1.02) {
+                const p90 = (VideoAnalyzer && VideoAnalyzer._p90Ema > 0) ? VideoAnalyzer._p90Ema : 0;
+                if (p90 > 0.88) {
+                    autoSharpLevel2 *= 0.85;
+                    effectiveClarity = Math.round(effectiveClarity * 0.85);
+                }
+            }
 
             if (CONFIG.FILTER.SECONDARY_ADJ && totalGain > 1.05) {
                 const boostFactor = totalGain - 1.0;
@@ -2839,10 +2939,12 @@
         this._applyingRemote = false;
         this._sendTimer = null;
         this._lastSend = 0;
+        this._boundMessage = null; // [v67] for cleanup
       }
 
       start() {
-        window.addEventListener('message', (e) => this._onMessage(e), true);
+        this._boundMessage = (e) => this._onMessage(e);
+        window.addEventListener('message', this._boundMessage, true);
         if (this.isTop) {
           this.token = Math.random().toString(36).slice(2) + Date.now().toString(36);
           this._hookTopBroadcast();
@@ -2850,6 +2952,11 @@
           this._postToParent({ type: 'hello', id: VSC_INSTANCE_ID });
           this._hookChildUpstream();
         }
+      }
+
+      destroy() {
+          if (this._boundMessage) window.removeEventListener('message', this._boundMessage, true);
+          this._ports.clear();
       }
 
       _hookTopBroadcast() {
@@ -2946,6 +3053,8 @@
             const fs = new FrameSync(stateManager);
             window.__vscFrameSync = fs;
             fs.start();
+            // [v67] Clean up FrameSync on unload
+            window.addEventListener('pagehide', () => fs.destroy(), { once: true });
         } catch {}
     }
 
