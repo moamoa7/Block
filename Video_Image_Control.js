@@ -59,12 +59,12 @@
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004,
         // [v63] Lower max up for OLED comfort
-        MAX_UP_EV: IS_MOBILE ? 0.10 : 0.18, 
+        MAX_UP_EV: IS_MOBILE ? 0.10 : 0.18,
         MAX_UP_EV_DARK: IS_MOBILE ? 0.22 : 0.28,
         MAX_UP_EV_EXTRA: IS_MOBILE ? 0.28 : 0.35,
         MAX_DOWN_EV: 0,
         // [v63] Wider dead zone for mobile
-        DEAD_OUT: IS_MOBILE ? 0.12 : 0.10, 
+        DEAD_OUT: IS_MOBILE ? 0.12 : 0.10,
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
         LOWKEY_P10: 0.10,
@@ -72,7 +72,7 @@
         TAU_DOWN: 900,
         TAU_AGGRESSIVE: 200,
         // [v63] Slightly lower base for mobile
-        TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30 
+        TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30
     };
 
     const CONFIG = {
@@ -534,7 +534,7 @@
         else if (ownerDoc && ownerDoc.documentElement.hasAttribute(attr)) { if (Utils.qById(ownerDoc, styleId)) return; }
 
         const svgNode = manager.getSvgNode(); const styleNode = manager.getStyleNode(); if (!svgNode || !styleNode) return;
-        
+
         // [v63] Fix: Safe append logic avoiding duplication
         const safelyAppendStyle = (targetRoot, styleEl, sharedSheet) => {
             let appended = false;
@@ -847,12 +847,12 @@
 
             if (this.isRunning && this.targetVideo !== video) this.stop();
             if (settings) this.currentSettings = { ...this.currentSettings, ...settings };
-            
+
             // [v63] Fix: Only run analyzer loop if AutoExposure is ON
             const isAutoExposure = !!this.currentSettings.autoExposure;
-            if (!isAutoExposure) { 
-                if (this.isRunning) this.stop(); 
-                return; 
+            if (!isAutoExposure) {
+                if (this.isRunning) this.stop();
+                return;
             }
 
             if (this.taintedResources.has(video)) {
@@ -1445,7 +1445,7 @@
             this.mainObserver = new MutationObserver((mutations) => {
                 this._mutationCounter += mutations.length;
                 this._domDirty = true;
-                
+
                 // [v63] Fix: Backoff should check for new media even if muted
                 if (this._isBackoffMode) {
                      const cap = Math.min(8, mutations.length);
@@ -1564,14 +1564,14 @@
                 } }
             }
             if (this.stateManager.get('app.scriptActive') && !this._globalAttrObs) { const now = Date.now(); if (!this._lastAttrObsProbe || now - this._lastAttrObsProbe > 8000) { this._lastAttrObsProbe = now; this.updateGlobalAttrObs(true); } }
-            const sm = this.stateManager; 
-            
+            const sm = this.stateManager;
+
             // [v63] Fix: Use cache for hasPotential
             const activeSize = sm.get('media.activeMedia').size;
             if (this._domDirty || activeSize === 0) {
                  this._cachedHasPotential = activeSize > 0 || document.getElementsByTagName('video').length > 0 || document.getElementsByTagName('iframe').length > 0;
             }
-            
+
             if (!sm.get('app.scriptActive') && !sm.get('ui.areControlsVisible')) {
                 this.currentScanInterval = 15000;
             } else if (this._cachedHasPotential) {
@@ -2738,9 +2738,9 @@
                                     if (!this.stateManager.get('app.scriptActive')) return;
                                     const hasMedia = this.stateManager.get('media.activeMedia').size > 0 || hasRealVideoCached();
                                     if (hasMedia) return;
-                                    
+
                                     if (count > 0) {
-                                         triggerBurstScan(250); 
+                                         triggerBurstScan(250);
                                          // Force Deep Scan on last attempts
                                          if (count < 4) scheduleScan(null);
                                          setTimeout(() => ensureMediaSoon(count - 1), 500);
