@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.64 Bright+Contrast)
+// @name        Video_Image_Control (v132.0.66 Face-Tune)
 // @namespace   https://com/
-// @version     132.0.64
-// @description v132.0.64: AE Tuned for Higher Brightness & Auto-Contrast linkage.
+// @version     132.0.66
+// @description v132.0.66: Lower Auto-Contrast to fix shiny faces & Added Saturation compensation.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -58,12 +58,10 @@
         MID_OK_MAX: 1.0,
         P98_CLIP: 0.985,
         CLIP_FRAC_LIMIT: 0.004,
-        // [v63] Lower max up for OLED comfort
         MAX_UP_EV: IS_MOBILE ? 0.10 : 0.18,
         MAX_UP_EV_DARK: IS_MOBILE ? 0.22 : 0.28,
         MAX_UP_EV_EXTRA: IS_MOBILE ? 0.28 : 0.35,
         MAX_DOWN_EV: 0,
-        // [v63] Wider dead zone for mobile
         DEAD_OUT: IS_MOBILE ? 0.12 : 0.10,
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
@@ -71,7 +69,6 @@
         TAU_UP: 950,
         TAU_DOWN: 900,
         TAU_AGGRESSIVE: 200,
-        // [v63] Slightly lower base for mobile
         TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30
     };
 
@@ -84,7 +81,7 @@
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
             SETTINGS: DEFAULT_SETTINGS,
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
-            SECONDARY_ADJ: true // [v64] Auto Contrast 활성화
+            SECONDARY_ADJ: true
         },
         AUDIO: { THRESHOLD: -50, KNEE: 40, RATIO: 12, ATTACK: 0, RELEASE: 0.25 },
         SCAN: {
@@ -383,7 +380,10 @@
 
     const isSensitiveContext = () => {
         const now = Date.now();
-        if (now - _sensCache.t < 300) return _sensCache.v;
+        // [v65] Optimization: Use dynamic TTL. If safe, check less often.
+        const ttl = _sensCache.v ? 300 : (IS_MOBILE ? 450 : 800);
+        if (now - _sensCache.t < ttl) return _sensCache.v;
+
         if (performance.now() < _sensitiveLockUntil && isSensitiveUrl()) { _sensCache = { t: now, v: true }; return true; }
         if (!document.documentElement) return false;
         let result = isSensitiveUrl();
@@ -495,7 +495,7 @@
                 if (this.id === 'vsc-ui-host') return ORIGINALS.attachShadow.call(this, init);
                 let shadowRoot;
                 try {
-                      shadowRoot = ORIGINALS.attachShadow.call(this, init);
+                       shadowRoot = ORIGINALS.attachShadow.call(this, init);
                 } catch(e) { throw e; }
 
                 try {
@@ -1288,6 +1288,9 @@
             if (!media || media.tagName !== 'VIDEO') return;
             if (this.targetMedia === media && this.source) { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{}); return; }
 
+            // [v65] Fix: Disconnect old source before attaching new one to prevent leaks
+            if (this.source) { try { this.source.disconnect(); } catch(e) {} this.source = null; }
+
             this.targetMedia = media;
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -1443,18 +1446,18 @@
                 this._domDirty = true;
 
                 if (this._isBackoffMode) {
-                     const cap = Math.min(8, mutations.length);
-                     for(let i=0; i<cap; i++) {
-                         const m = mutations[i];
-                         for(const n of (m.addedNodes||[])) {
-                             if(n && n.nodeType===1) {
-                                 if(MEDIA_TAGS.has(n.nodeName) || n.querySelector?.('video,iframe,canvas')) {
-                                     scheduleScan(n, true);
-                                     return;
-                                 }
-                             }
-                         }
-                     }
+                      const cap = Math.min(8, mutations.length);
+                      for(let i=0; i<cap; i++) {
+                          const m = mutations[i];
+                          for(const n of (m.addedNodes||[])) {
+                              if(n && n.nodeType===1) {
+                                  if(MEDIA_TAGS.has(n.nodeName) || n.querySelector?.('video,iframe,canvas')) {
+                                       scheduleScan(n, true);
+                                       return;
+                                  }
+                              }
+                          }
+                      }
                 }
 
                 if (this._mutationCounter > 100) {
@@ -2063,8 +2066,12 @@
 
             const totalGain = (autoGain || 1.0);
 
-            // [v64] Smart Contrast: Increase contrast as gain increases to prevent washout
-            if (totalGain > 1.0) finalContrastAdj += (totalGain - 1.0) * 0.4;
+            // [v66] Smart Contrast (Tuned): Lower contrast boost to prevent oily faces, add slight saturation
+            if (totalGain > 1.0) {
+                const autoContrast = (totalGain - 1.0) * 0.15; // Gain +1.0당 대비 +0.15
+                finalContrastAdj += autoContrast;
+                finalSaturation += (totalGain - 1.0) * 3; // 채도도 살짝 보정
+            }
 
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
@@ -2248,7 +2255,10 @@
     }
 
     class UIPlugin extends Plugin {
-        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false; }
+        constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false;
+        // [v65] Fix: Store bound function to remove listener later
+        this.boundChildFullscreenChange = null;
+        }
         init(stateManager) {
             super.init(stateManager);
             const createUI = () => { if (this.globalContainer) return; this.createGlobalUI(); this.stateManager.set('ui.globalContainer', this.globalContainer); this.stateManager.set('ui.createRequested', false); };
@@ -2268,13 +2278,18 @@
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
             const savedPos = Utils.safeGetItem('vsc_ui_pos'); if (savedPos) { try { const p = JSON.parse(savedPos); this.uiState = p; } catch { } }
 
-            document.addEventListener('fullscreenchange', () => {
+            // [v65] Fix: Use named function for removal
+            this.boundChildFullscreenChange = () => {
                 if (!IS_TOP && document.fullscreenElement) {
                     this.stateManager.set('ui.createRequested', true);
                 }
-            });
+            };
+            document.addEventListener('fullscreenchange', this.boundChildFullscreenChange);
         }
-        destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate); }
+        destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
+        // [v65] Fix: Remove child fullscreen listener
+        if (this.boundChildFullscreenChange) document.removeEventListener('fullscreenchange', this.boundChildFullscreenChange);
+        }
 
         getStyles() {
             if (this._cachedStyles) return this._cachedStyles;
