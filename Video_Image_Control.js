@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (v132.0.120 Mobile-Large-UI)
+// @name         Video_Image_Control (v132.0.121 Responsive-Hybrid)
 // @namespace    https://github.com/
-// @version      132.0.120
-// @description  v132.120: Fat-Finger Friendly UI + Audio Reset + v91 Engine + Full Sync
+// @version      132.0.121
+// @description  v132.121: PC/Mobile Dynamic Sizing + Landscape Scroll Fix + v91 Engine + Full Sync
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -205,8 +205,8 @@
         const build = () => {
             if (container) return; const host = h('div', { id:'vsc-host' }); const shadow = host.attachShadow({ mode:'open' });
             const style = `
-                .main { position: fixed; top: 10%; right: 20px; width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); }
-                .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid #444; }
+                .main { position: fixed; top: 10%; right: 20px; width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; }
+                .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid #444; position: sticky; top: -15px; background: rgba(25,25,25,1); z-index: 2; padding-top: 5px; }
                 .tab { flex: 1; padding: 12px; background: #222; border: 0; color: #999; cursor: pointer; border-radius: 10px 10px 0 0; font-weight: bold; font-size: 13px; }
                 .tab.active { background: #333; color: #3498db; border-bottom: 3px solid #3498db; }
                 .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; }
@@ -220,6 +220,27 @@
                 input[type=range] { width: 100%; accent-color: #3498db; cursor: pointer; height: 24px; margin: 4px 0; }
                 .monitor { font-size: 12px; color: #aaa; text-align: center; border-top: 1px solid #444; padding-top: 8px; margin-top: 12px; font-family: monospace; }
                 hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }
+
+                /* PC 전용 스타일 (가로 너비 축소, 폰트 축소) */
+                @media (min-width: 1024px) {
+                    .main { width: 280px; padding: 10px; top: 15%; right: 15px; }
+                    .tab { padding: 8px; font-size: 11px; }
+                    .btn { padding: 6px; font-size: 11px; }
+                    .pbtn { min-height: 28px; font-size: 10px; }
+                    .grid { column-gap: 8px; row-gap: 5px; }
+                    .slider label { font-size: 11px; }
+                    input[type=range] { height: 18px; }
+                }
+
+                /* 모바일 가로모드 대응 (컴팩트 레이아웃) */
+                @media (max-height: 450px) and (orientation: landscape) {
+                    .main { top: 5%; right: 10px; width: 340px; padding: 8px; max-height: 90vh; }
+                    .prow { margin-bottom: 4px; }
+                    .grid { row-gap: 4px; margin-top: 4px; }
+                    hr { margin: 6px 0; }
+                    .tab { padding: 6px; font-size: 12px; }
+                    .monitor { margin-top: 6px; padding-top: 4px; }
+                }
             `;
             const renderS = (cfg) => {
                 const valEl = h('span', {style:'color:#3498db'}, '0'); const inp = h('input', { type:'range', min:cfg.min, max:cfg.max, step:cfg.s });
