@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (v132.141.108-Clean-Fixed)
+// @name         Video_Image_Control (v132.141.110-Hotfix)
 // @namespace    https://github.com/
-// @version      132.141.108
-// @description  Clean & Stable: Error Fixed, No Drag/Save, Natural Tone AE V3
+// @version      132.141.110
+// @description  Critical Fix: Filters.update Crash, Multi-Doc Optimization, Stable AE V3
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -24,6 +24,11 @@
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const VSC_ID = Math.random().toString(36).slice(2);
     const VSC_MSG = 'vsc-ctrl-v1';
+
+    const CFG = {
+        VSC_ID, VSC_MSG, IS_TOP, IS_MOBILE,
+        SYNC_FRAMES: false
+    };
 
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.24 : 0.28,
@@ -146,6 +151,7 @@
         };
 
         const queueBroadcast = (payload) => {
+            if (!config.SYNC_FRAMES) return;
             pendingPayload = pendingPayload ? merge(pendingPayload, payload) : payload;
             if (broadcastTimer) return;
             broadcastTimer = setTimeout(() => {
@@ -164,29 +170,31 @@
             }, 100);
         };
 
-        window.addEventListener('message', (e) => {
-            if (e.data?.ch !== config.VSC_MSG || e.data.type !== 'state') return;
-            if (config.IS_TOP && e.data.sender === config.VSC_ID) return;
+        if (config.SYNC_FRAMES) {
+            window.addEventListener('message', (e) => {
+                if (e.data?.ch !== config.VSC_MSG || e.data.type !== 'state') return;
+                if (config.IS_TOP && e.data.sender === config.VSC_ID) return;
 
-            const payload = e.data.payload;
-            let changed = false;
-            for (const [cat, data] of Object.entries(payload || {})) {
-                state[cat] ||= {};
-                for (const [key, val] of Object.entries(data || {})) {
-                    if (LOCAL_ONLY.has(`${cat}.${key}`)) continue;
-                    if (state[cat][key] !== val) {
-                        state[cat][key] = val;
-                        emit(`${cat}.${key}`, val);
-                        changed = true;
+                const payload = e.data.payload;
+                let changed = false;
+                for (const [cat, data] of Object.entries(payload || {})) {
+                    state[cat] ||= {};
+                    for (const [key, val] of Object.entries(data || {})) {
+                        if (LOCAL_ONLY.has(`${cat}.${key}`)) continue;
+                        if (state[cat][key] !== val) {
+                            state[cat][key] = val;
+                            emit(`${cat}.${key}`, val);
+                            changed = true;
+                        }
                     }
                 }
-            }
-            if (changed) {
-                rev++;
-                scheduler.request(true);
-                if (config.IS_TOP) queueBroadcast(payload);
-            }
-        });
+                if (changed) {
+                    rev++;
+                    scheduler.request(true);
+                    if (config.IS_TOP) queueBroadcast(payload);
+                }
+            });
+        }
 
         return {
             rev: () => rev,
@@ -292,7 +300,7 @@
                else { images.add(node); seenElements.add(node); io.observe(node); node.addEventListener('load', () => scheduler.request(false), { once: true, passive: true }); }
                return;
             }
-
+            
             if (node.querySelector && (node.querySelector('video') || (wantImg && node.querySelector('img')))) {
                 scanMedia(node);
             }
@@ -302,9 +310,14 @@
         let moQueued = false;
         const flushPending = () => {
             moQueued = false;
-            for (const n of pendingNodes) processNode(n);
+            let changed = false;
+            for (const n of pendingNodes) {
+                const before = rev;
+                processNode(n);
+                if (rev !== before) changed = true;
+            }
             pendingNodes.clear();
-            scheduler.request(false);
+            if (changed) scheduler.request(false);
         };
         const observer = new MutationObserver((mutations) => {
             for (const m of mutations) for (const n of m.addedNodes) pendingNodes.add(n);
@@ -357,6 +370,11 @@
             rescanAll: () => {
                 const root = document.body || document.documentElement;
                 if(root) processNode(root);
+            },
+            setWantImages: (want) => {
+                if(want) return;
+                for(const i of images) try { io.unobserve(i); } catch(e){}
+                images.clear(); visible.images.clear(); dirty.images.clear(); rev++;
             }
         };
     };
@@ -440,7 +458,7 @@
             const k = `${sh}|${hi}|${br}|${con}|${gain}`;
             const hit = toneCache.get(k);
             if (hit) return hit;
-
+            
             const steps = 64;
             const out = new Array(steps);
             const shN = clamp(sh, -1, 1);
@@ -456,6 +474,7 @@
                 let x = i / (steps - 1);
                 x = clamp(x * g, 0, 1);
                 let y = (x - 0.5) * c + 0.5 + b;
+                
                 if (y < toe) {
                     const t = clamp(y / Math.max(1e-6, toe), 0, 1);
                     const s = smoothstep(t);
@@ -485,8 +504,8 @@
                 const fid = `${baseId}-${suffix}`;
                 const filter = h('filter', { ns: 'svg', id: fid, x: '-20%', y: '-20%', width: '140%', height: '140%', colorInterpolationFilters: 'sRGB' });
 
-                const sat = h('feColorMatrix', { ns: 'svg', type: 'saturate', values: '1', 'in': 'tmp', 'result': 'sat' }); // [Fix] Sat last
-
+                const sat = h('feColorMatrix', { ns: 'svg', type: 'saturate', values: '1', 'in': 'tmp', 'result': 'sat' }); // [Fix] Sat Last
+                
                 const linFns = {}, gamFns = {}, tmpFns = {};
                 const lin = h('feComponentTransfer', { ns: 'svg', result: 'lin' }, ['R', 'G', 'B'].map(c => { const fn = h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' }); linFns[c] = fn; return fn; }));
                 const gam = h('feComponentTransfer', { ns: 'svg', result: 'gam' }, ['R', 'G', 'B'].map(c => { const fn = h(`feFunc${c}`, { ns: 'svg', type: 'gamma', exponent: '1' }); gamFns[c] = fn; return fn; }));
@@ -498,7 +517,7 @@
                 const sh2 = h('feComposite', { ns: 'svg', in: 'sh1', in2: 'b2', operator: 'arithmetic', k2: '1', 'data-id': 'sh2', result: 'sh2' });
                 const bc = h('feGaussianBlur', { ns: 'svg', in: 'sh2', stdDeviation: '0', result: 'bc', 'data-id': 'bc' });
                 const cl = h('feComposite', { ns: 'svg', in: 'sh2', in2: 'bc', operator: 'arithmetic', k2: '1', 'data-id': 'cl', result: 'cl' });
-
+                
                 filter.append(lin, gam, tmp, sat, b1, sh1, b2, sh2, bc, cl);
 
                 let gr = null;
@@ -515,79 +534,80 @@
             const v0 = createFilter('v0', false);
             const iN = createFilter('iN', true);
             const i0 = createFilter('i0', false);
-
+            
             (doc.body || doc.documentElement).appendChild(svg);
             return { svg, video: { N: vN, O: v0 }, image: { N: iN, O: i0 } };
         }
 
-        function updateNodes(ctx, s, kind) {
-            const hasNoise = (s.dither || 0) > 0;
-            const nodes = kind === 'video' ? (hasNoise ? ctx.video.N : ctx.video.O) : (hasNoise ? ctx.image.N : ctx.image.O);
-
-            const q = (v, st) => Math.round(v / st) * st;
-            const key = [
-                q(s.gain, 0.01), q(s.gamma, 0.01), q(s.contrast, 0.01), q(s.bright, 0.2),
-                q(s.sat, 1), q(s.sharp, 1), q(s.sharp2, 1), q(s.clarity, 1), q(s.dither, 5), q(s.temp, 1),
-                q(s.aeGamma, 0.01), q(s.aeCon, 0.01), q(s.aeSat, 0.01), q(s.aeSh, 0.5), q(s.aeHi, 0.5), q(s.aeBr, 0.2)
-            ].join('|');
-
-            if (nodes.lastKey === key) return nodes.fid;
-            nodes.lastKey = key;
-
-            const qs = (el, attr, val) => el.setAttribute(attr, val);
-
-            qs(nodes.sat, 'values', ((s.sat / 100) * (s.aeSat || 1.0)).toFixed(2));
-
-            const effSh = (s.aeSh || 0) / 100;
-            const effHi = (s.aeHi || 0) / 100;
-            const effBr = ((s.bright || 0) + (s.aeBr || 0)) / 100;
-            const effCon = (s.contrast || 1.0) * (s.aeCon || 1.0);
-            const effGain = (s.gain || 1.0);
-            const table = getToneTableCached(effSh, effHi, effBr, effCon, effGain);
-            ['R', 'G', 'B'].forEach(c => nodes.linFns[c].setAttribute('tableValues', table));
-
-            const combinedGamma = (s.gamma || 1.0) * (s.aeGamma || 1.0);
-            const exp = (1 / clamp(combinedGamma, 0.2, 3.0)).toFixed(3);
-            ['R', 'G', 'B'].forEach(c => nodes.gamFns[c].setAttribute('exponent', exp));
-
-            const t = clamp(s.temp || 0, -25, 25);
-            let rs = 1, gs = 1, bs = 1;
-            if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.010; }
-            else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.010; }
-            nodes.tmpFns.R.setAttribute('slope', rs.toFixed(3));
-            nodes.tmpFns.G.setAttribute('slope', gs.toFixed(3));
-            nodes.tmpFns.B.setAttribute('slope', bs.toFixed(3));
-
-            const v1 = (s.sharp || 0) / 50;
-            const sigmaC = v1 > 0 ? (1.5 - (sCurve(Math.min(1, v1)) * 0.8)) : 0;
-            const kC = sCurve(Math.min(1, v1)) * 2.0;
-            qs(nodes.b1, 'stdDeviation', sigmaC.toFixed(2));
-            qs(nodes.sh1, 'k2', (1 + kC).toFixed(3));
-            qs(nodes.sh1, 'k3', (-kC).toFixed(3));
-
-            const v2 = (s.sharp2 || 0) / 50;
-            const sigmaF = v2 > 0 ? (0.5 - (sCurve(Math.min(1, v2)) * 0.3)) : 0;
-            const kF = sCurve(Math.min(1, v2)) * 3.5;
-            qs(nodes.b2, 'stdDeviation', sigmaF.toFixed(2));
-            qs(nodes.sh2, 'k2', (1 + kF).toFixed(3));
-            qs(nodes.sh2, 'k3', (-kF).toFixed(3));
-
-            const clVal = (s.clarity || 0) / 50;
-            qs(nodes.bc, 'stdDeviation', clVal > 0 ? '2.2' : '0');
-            qs(nodes.cl, 'k2', (1 + clVal).toFixed(3));
-            qs(nodes.cl, 'k3', (-clVal).toFixed(3));
-            if (nodes.gr) qs(nodes.gr, 'k3', ((s.dither || 0) / 100 * 0.22).toFixed(3));
-
-            return nodes.fid;
-        }
+        const q = (v, st) => {
+            v = Number(v); if (!Number.isFinite(v)) v = 0;
+            return Math.round(v / st) * st;
+        };
 
         return {
-            update: (el, s, kind) => {
-                const doc = el.ownerDocument || document;
+            // [Fix] Exposed Prepare Method
+            prepare: (doc, s, kind) => {
                 let ctx = ctxMap.get(doc);
                 if (!ctx) { ctx = buildSvg(doc); ctxMap.set(doc, ctx); }
-                const fid = updateNodes(ctx, s, kind);
-                const url = `url(#${fid})`;
+                
+                const hasNoise = (s.dither || 0) > 0;
+                const nodes = kind === 'video' ? (hasNoise ? ctx.video.N : ctx.video.O) : (hasNoise ? ctx.image.N : ctx.image.O);
+
+                const key = [
+                    q(s.gain, 0.01), q(s.gamma, 0.01), q(s.contrast, 0.01), q(s.bright, 0.2),
+                    q(s.sat, 1), q(s.sharp, 1), q(s.sharp2, 1), q(s.clarity, 1), q(s.dither, 5), q(s.temp, 1),
+                    q(s.aeGamma, 0.01), q(s.aeCon, 0.01), q(s.aeSat, 0.01), q(s.aeSh, 0.5), q(s.aeHi, 0.5), q(s.aeBr, 0.2)
+                ].join('|');
+
+                if (nodes.lastKey === key) return `url(#${nodes.fid})`;
+                nodes.lastKey = key;
+
+                const qs = (el, attr, val) => el.setAttribute(attr, val);
+                qs(nodes.sat, 'values', ((s.sat / 100) * (s.aeSat || 1.0)).toFixed(2));
+
+                const effSh = clamp((s.aeSh || 0) / 14, -1, 1);
+                const effHi = clamp((s.aeHi || 0) / 12, -1, 1);
+                const effBr = ((s.bright || 0) + (s.aeBr || 0)) / 100;
+                const effCon = (s.contrast || 1.0) * (s.aeCon || 1.0);
+                const effGain = (s.gain || 1.0);
+                const table = getToneTableCached(effSh, effHi, effBr, effCon, effGain);
+                ['R', 'G', 'B'].forEach(c => nodes.linFns[c].setAttribute('tableValues', table));
+
+                const combinedGamma = (s.gamma || 1.0) * (s.aeGamma || 1.0);
+                const exp = (1 / clamp(combinedGamma, 0.2, 3.0)).toFixed(3);
+                ['R', 'G', 'B'].forEach(c => nodes.gamFns[c].setAttribute('exponent', exp));
+
+                const t = clamp(s.temp || 0, -25, 25);
+                let rs = 1, gs = 1, bs = 1;
+                if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.010; }
+                else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.010; }
+                nodes.tmpFns.R.setAttribute('slope', rs.toFixed(3));
+                nodes.tmpFns.G.setAttribute('slope', gs.toFixed(3));
+                nodes.tmpFns.B.setAttribute('slope', bs.toFixed(3));
+
+                const v1 = (s.sharp || 0) / 50;
+                const sigmaC = v1 > 0 ? (1.5 - (sCurve(Math.min(1, v1)) * 0.8)) : 0;
+                const kC = sCurve(Math.min(1, v1)) * 2.0;
+                qs(nodes.b1, 'stdDeviation', sigmaC.toFixed(2));
+                qs(nodes.sh1, 'k2', (1 + kC).toFixed(3));
+                qs(nodes.sh1, 'k3', (-kC).toFixed(3));
+
+                const v2 = (s.sharp2 || 0) / 50;
+                const sigmaF = v2 > 0 ? (0.5 - (sCurve(Math.min(1, v2)) * 0.3)) : 0;
+                const kF = sCurve(Math.min(1, v2)) * 3.5;
+                qs(nodes.b2, 'stdDeviation', sigmaF.toFixed(2));
+                qs(nodes.sh2, 'k2', (1 + kF).toFixed(3));
+                qs(nodes.sh2, 'k3', (-kF).toFixed(3));
+
+                const clVal = (s.clarity || 0) / 50;
+                qs(nodes.bc, 'stdDeviation', clVal > 0 ? '2.2' : '0');
+                qs(nodes.cl, 'k2', (1 + clVal).toFixed(3));
+                qs(nodes.cl, 'k3', (-clVal).toFixed(3));
+                if (nodes.gr) qs(nodes.gr, 'k3', ((s.dither || 0) / 100 * 0.22).toFixed(3));
+
+                return `url(#${nodes.fid})`;
+            },
+            applyUrl: (el, url) => {
                 if (el.style.filter !== url) {
                     el.style.setProperty('filter', url, 'important');
                     el.style.setProperty('-webkit-filter', url, 'important');
@@ -600,12 +620,13 @@
         };
     };
 
-    const createAE = (sm, scheduler, { IS_MOBILE, MIN_AE, Utils }) => {
+    const createAE = (sm, scheduler, { IS_MOBILE, MIN_AE, Utils }, onAE) => {
         let worker, canvas, ctx2d;
         let activeVideo = null;
         let isRunning = false;
         let workerBusy = false;
         let fId = 0;
+        let targetToken = 0, lastFidApplied = 0;
 
         const { clamp } = Utils;
         let curGain = 1.0;
@@ -616,16 +637,18 @@
         let lastSampleT = 0;
         const SAMPLE_MIN_MS = 90;
         let clipStreak = 0, safeStreak = 0, suspendUntil = 0, lastAggressiveAt = 0;
+        let useRVFC = false;
 
         const WORKER_CODE = `
             const hist = new Uint16Array(256);
             const histM = new Uint16Array(256);
             self.onmessage = function(e) {
-                const { fid, buf, width, height, step } = e.data;
+                const { fid, buf, width, height, step, token } = e.data;
                 const data = new Uint8Array(buf);
                 hist.fill(0); histM.fill(0);
                 const w = width, h = height;
                 let validCount=0, sumLuma=0, sumLumaSq=0, sumMaxMin=0;
+                let sumRedDom = 0;
 
                 const y0 = Math.floor(h * 0.10), y1 = Math.ceil(h * 0.90);
                 const x0 = Math.floor(w * 0.05), x1 = Math.ceil(w * 0.95);
@@ -639,7 +662,7 @@
                         const i = (y * w + x) * 4;
                         const r = data[i], g = data[i+1], b = data[i+2];
                         const luma = (r*54 + g*183 + b*19) >> 8;
-
+                        
                         let max = r; if(g>max) max=g; if(b>max) max=b;
                         let min = r; if(g<min) min=g; if(b<min) min=b;
 
@@ -654,18 +677,22 @@
                         sumLuma += luma;
                         sumLumaSq += luma * luma;
                         sumMaxMin += (max - min);
+
+                        const redDom = Math.max(0, r - ((g + b) >> 1));
+                        sumRedDom += redDom;
                     }
                 }
 
                 let p10=-1, p50=-1, p90=-1, p98=-1, p98m=-1;
                 let clipFrac=0, clipFracBottom=0;
-                let avgLuma=0, stdDev=0, avgSat=0;
+                let avgLuma=0, stdDev=0, avgSat=0, redDominance=0;
                 let botAvg=0, botStd=0;
 
                 if (validCount > 0) {
                     const inv = 1 / validCount;
                     avgLuma = (sumLuma * inv) / 255;
                     avgSat = (sumMaxMin * inv) / 255;
+                    redDominance = (sumRedDom * inv) / 255;
                     const meanSq = (sumLumaSq * inv) / (255*255);
                     stdDev = Math.sqrt(Math.max(0, meanSq - (avgLuma * avgLuma)));
                     clipFrac = (hist[253] + hist[254] + hist[255]) * inv;
@@ -694,7 +721,7 @@
                     }
                 }
                 if(p10<0) p10=0.1; if(p50<0) p50=0.5; if(p90<0) p90=0.9; if(p98<0) p98=0.98; if(p98m<0) p98m=p98;
-                self.postMessage({ fid, p10, p50, p90, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd });
+                self.postMessage({ fid, token, p10, p50, p90, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd, redDominance });
             };
         `;
 
@@ -722,7 +749,7 @@
             const p98 = clamp(stats.p98, 0.01, 0.999);
             const p98m = clamp(stats.p98m ?? p98, 0.01, 0.999);
             const stdDev = clamp(stats.stdDev, 0, 1);
-
+            
             const darkStart = IS_MOBILE ? 0.22 : 0.26;
             const darkFull  = IS_MOBILE ? 0.12 : 0.16;
             const contrast = clamp((stats.p90 - stats.p10), 0, 1);
@@ -766,17 +793,20 @@
             const kB = IS_MOBILE ? 10.0 : 12.5;
             const kS = IS_MOBILE ? 10.0 : 14.0;
             const kH = IS_MOBILE ? 6.0  : 7.5;
-            const kC = IS_MOBILE ? 0.020: 0.030;
+            const kC = IS_MOBILE ? 0.020: 0.030; 
             const kG = IS_MOBILE ? 0.030: 0.045;
-            const kSat= IS_MOBILE ? 0.40 : 0.50;
+            const kSat= IS_MOBILE ? 0.30 : 0.40; 
 
             const clipRisk = !!flags?.clipRisk;
             const toneGateBase = smooth01(clamp((stats.stdDev || 0) / 0.18, 0, 1));
             const toneGate = clipRisk ? 1.0 : Math.max(0.25, toneGateBase);
             const darkFlat = smooth01(clamp((0.10 - p50) / 0.10, 0, 1)) * smooth01(clamp((0.08 - (p90 - p10)) / 0.08, 0, 1));
-
             const veryDark = smooth01(clamp((0.20 - p50) / 0.12, 0, 1));
             const lowLightSatLimiter = 1 - veryDark * 0.60;
+
+            const rd = clamp(stats.redDominance || 0, 0, 1);
+            const skinWarmRisk = smooth01(clamp((rd - 0.08) / 0.10, 0, 1));
+            const satRedLimiter = 1 - skinWarmRisk * 0.75;
 
             return {
                 brightness: exposureGate * ev01 * kB * midErr * (1 - hiRisk * 0.65),
@@ -784,7 +814,7 @@
                 highlightRecover: toneGate * (kH * hiRisk) * (clipRisk ? 1.25 : 1.0),
                 contrastBoost: toneGate * (kC * clamp((p50 - 0.55) / 0.20, -1, 1)) * (1 - hiRisk),
                 gammaPull: toneGate * (kG * clamp(midErr / 0.20, -1, 1)) * (1 - hiRisk * 0.7),
-                satBoost: toneGate * kSat * lowColor * lowLightSatLimiter * (1 - hiRisk * 0.6) * (1 - darkFlat * 0.85)
+                satBoost: toneGate * kSat * lowColor * lowLightSatLimiter * (1 - hiRisk * 0.6) * (1 - darkFlat * 0.85) * satRedLimiter
             };
         };
 
@@ -802,18 +832,20 @@
             return s;
         };
 
-        const emitAE = (ae) => {
-            document.dispatchEvent(new CustomEvent('vsc-ae-res', { detail: { ae } }));
-        };
-
         const processResult = (data) => {
-            const { p10, p50, p90, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd } = data;
+            if (!data) return;
+            if ((data.token ?? -1) !== targetToken) return;
+            if (data.fid && data.fid < lastFidApplied) return;
+            if (data.fid) lastFidApplied = data.fid;
+
+            const { p10, p50, p90, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd, redDominance } = data;
             const now = performance.now();
 
             if (lastLuma >= 0) {
                 const delta = Math.abs(avgLuma - lastLuma);
                 if (delta < 0.003) lowMotionFrames++;
                 else lowMotionFrames = 0;
+                
                 if (delta > 0.10) {
                     if (now - lastAggressiveAt > 600) {
                         evAggressiveUntil = now + 800;
@@ -845,6 +877,8 @@
                 aeActive = false;
             } else {
                 targetEV = computeTargetEV({ p10, p50, p90, p98, p98m, stdDev });
+                if (subtitleLikely && targetEV > 0) targetEV *= 0.65;
+
                 const th = aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
                 if (Math.abs(targetEV) < th) { targetEV = 0; aeActive = false; }
                 else aeActive = true;
@@ -870,28 +904,35 @@
             curGain = Math.pow(2, currentEV + diff * alpha);
             if (Math.abs(curGain - 1.0) < 0.01) curGain = 1.0;
 
-            const stats = updateEma({ p90, p50, p10, avgSat, stdDev });
+            const stats = updateEma({ p90, p50, p10, avgSat, stdDev, redDominance });
             const flags = { clipRisk: suspended };
 
             if (suspended) {
-                emitAE({ g: 1, c: 1, s: 1, sh: 0, hi: 0, br: 0, gain: curGain });
+                try { onAE?.({ g: 1, c: 1, s: 1, sh: 0, hi: 0, br: 0, gain: curGain }); } catch(e){}
                 return;
             }
 
-            const tune = computeAeTuningV3(curGain, stats, flags);
-            const q05 = (x) => Math.round(x * 2) / 2;
+            const tg = Math.max(1.0, curGain);
+            const ev01 = clamp(Math.log2(tg) / 1.6, 0, 1);
+            
+            const exposureGate = (tg - 1.01) / 0.18;
+            const gate = clamp(exposureGate, 0, 1);
+            const toneGate = Math.max(0.25, gate);
 
+            const hiRisk = clamp((stats.p90 - 0.86) / 0.10, 0, 1);
+            const toeCtrl = clamp((IS_MOBILE?9:11) * gate * ev01 * (1 - hiRisk*0.5), 0, 14);
+            const shoulderCtrl = clamp((IS_MOBILE?10:13) * toneGate * hiRisk, 0, 14);
+
+            const q05 = (x) => Math.round(x * 2) / 2;
+            
             const res = {
-                g: clamp(1.0 + tune.gammaPull, 0.7, 1.35),
-                c: clamp(1.0 + tune.contrastBoost, 0.92, 1.28),
-                s: clamp(1.0 + tune.satBoost, 1.0, 1.30),
-                sh: q05(tune.shadowLift),
-                hi: q05(tune.highlightRecover),
-                br: clamp(tune.brightness, -12, 12),
+                g: 1.0, c: 1.0, s: 1.0,
+                sh: q05(toeCtrl),
+                hi: q05(shoulderCtrl),
+                br: 0,
                 gain: curGain
             };
-
-            emitAE(res);
+            try { onAE?.(res); } catch(e){}
         };
 
         const sampleFrame = (v) => {
@@ -915,7 +956,7 @@
                 ctx2d.drawImage(v, 0, 0, 32, 32);
                 const d = ctx2d.getImageData(0, 0, 32, 32);
                 workerBusy = true;
-                worker.postMessage({ buf: d.data.buffer, width: 32, height: 32, fid: ++fId, step: 1 }, [d.data.buffer]);
+                worker.postMessage({ buf: d.data.buffer, width: 32, height: 32, fid: ++fId, step: 1, token: targetToken }, [d.data.buffer]);
             } catch (e) {
                 workerBusy = false;
                 v.__vsc_tainted = true;
@@ -932,30 +973,44 @@
             if (!isRunning) return;
             const active = sm.get(P.APP_ACT) && sm.get(P.V_AE);
             if (!active || !activeVideo || !activeVideo.isConnected) {
-                schedule(800);
+                if (!useRVFC) schedule(800);
                 return;
             }
             sampleFrame(activeVideo);
-            const interval = (dynamicSkipThreshold >= 12) ? 160 : SAMPLE_MIN_MS;
-            schedule(interval);
+            if (!useRVFC) {
+                const interval = (dynamicSkipThreshold >= 12) ? 160 : SAMPLE_MIN_MS;
+                schedule(interval);
+            }
+        };
+
+        const rvfcLoop = () => {
+            if (!isRunning) return;
+            const v = activeVideo;
+            if (!v || !useRVFC) return;
+            tick();
+            try { v.requestVideoFrameCallback(rvfcLoop); } catch(e) {}
         };
 
         return {
             setTarget: (v) => {
                 if (v !== activeVideo) {
                     activeVideo = v;
+                    targetToken++;
                     workerBusy = false;
                     evAggressiveUntil = performance.now() + 800;
                     dynamicSkipThreshold = 0;
                     frameSkipCounter = 0;
                     lowMotionFrames = 0;
                     lastLuma = -1;
-                    if (v && v.requestVideoFrameCallback) v.requestVideoFrameCallback(() => tick());
+                    
+                    useRVFC = !!v?.requestVideoFrameCallback;
+                    if (useRVFC && v) try { v.requestVideoFrameCallback(rvfcLoop); } catch(e) {}
                 }
             },
             start: () => {
                 init();
-                if (!isRunning) { isRunning = true; schedule(0); }
+                if (!isRunning) { isRunning = true; }
+                if (!useRVFC) schedule(0);
             },
             wake: () => {
                 evAggressiveUntil = performance.now() + 1000;
@@ -991,6 +1046,20 @@
 
         const getRoot = () => document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement;
 
+        const promoteFullscreenContainerIfVideo = async () => {
+            const fs = getRoot();
+            if (!fs || fs.tagName !== 'VIDEO') return;
+            const parent = fs.parentElement;
+            if (!parent || parent === fs) return;
+            try {
+                if (document.exitFullscreen) await document.exitFullscreen();
+                else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } catch (e) {}
+            requestAnimationFrame(() => {
+                try { parent.requestFullscreen?.(); } catch (e) { try { parent.webkitRequestFullscreen?.(); } catch (e2) {} }
+            });
+        };
+
         const build = () => {
             if (container) return;
             const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' });
@@ -1021,20 +1090,11 @@
                 const update = (v) => { valEl.textContent = cfg.f(Number(v)); inp.value = v; };
                 sm.sub(cfg.k, update);
                 update(sm.get(cfg.k));
-
+                
                 let rafId = 0, pending = null;
-                const flush = () => {
-                    rafId = 0; if (pending == null) return;
-                    sm.set(cfg.k, pending); pending = null;
-                };
-                inp.addEventListener('input', () => {
-                    const v = Number(inp.value);
-                    valEl.textContent = cfg.f(v); pending = v;
-                    if (!rafId) rafId = requestAnimationFrame(flush);
-                }, { passive: true });
-                inp.addEventListener('pointerup', () => {
-                    document.dispatchEvent(new CustomEvent('vsc-user-tweak'));
-                }, { passive: true });
+                const flush = () => { rafId = 0; if (pending == null) return; sm.set(cfg.k, pending); pending = null; };
+                inp.addEventListener('input', () => { const v = Number(inp.value); valEl.textContent = cfg.f(v); pending = v; if (!rafId) rafId = requestAnimationFrame(flush); }, { passive: true });
+                inp.addEventListener('pointerup', () => { document.dispatchEvent(new CustomEvent('vsc-user-tweak')); }, { passive: true });
 
                 return h('div', { class: 'slider' }, h('label', {}, cfg.l, valEl), inp);
             };
@@ -1061,9 +1121,9 @@
                     h('button', { id: 'boost-btn', class: 'btn', onclick: () => sm.set(P.A_EN, !sm.get(P.A_EN)) }, '🔊 부스트')
                 ),
                 h('div', { class: 'prow' },
-                    h('button', { class: 'btn', onclick: () => {
-                        sm.batch('video', { ...defaults.video, presetS: sm.get('video.presetS'), presetB: sm.get('video.presetB') });
-                        sm.batch('audio', defaults.audio);
+                    h('button', { class: 'btn', onclick: () => { 
+                        sm.batch('video', { ...defaults.video, presetS: sm.get('video.presetS'), presetB: sm.get('video.presetB') }); 
+                        sm.batch('audio', defaults.audio); 
                         document.dispatchEvent(new CustomEvent('vsc-user-tweak'));
                     } }, '↺ 리셋'),
                     h('button', { id: 'pwr-btn', class: 'btn', onclick: () => sm.set(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power')
@@ -1077,7 +1137,7 @@
                     { txt: 'DS', g: 1.00, b: 3.6, c: 1.00, s: 100 },
                     { txt: 'DM', g: 1.10, b: 7.2, c: 1.00, s: 100 },
                     { txt: 'DL', g: 1.22, b: 10.8, c: 1.00, s: 100 }
-                ], 'video.presetB', (it) => sm.batch('video', { gamma: it.g, bright: it.b, contrast: 1.0, sat: 100 }), { gamma: 1.0, bright: 0, contrast: 1.0, sat: 100 }), // [Fix] Presets no longer change sat/contrast
+                ], 'video.presetB', (it) => sm.batch('video', { gamma: it.g, bright: it.b, contrast: it.c, sat: it.s }), { gamma: 1.0, bright: 0, contrast: 1.0, sat: 100 }),
                 h('hr'),
                 h('div', { class: 'grid' }, SLIDERS.map(renderSlider)),
                 h('hr'),
@@ -1103,7 +1163,7 @@
                     h('button', { id: 't-v', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'video') }, 'VIDEO'),
                     h('button', { id: 't-i', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'image') }, 'IMAGE')
                 ]),
-                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v141 Fixed)')
+                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v141 Hotfix)')
             ]));
 
             sm.sub(P.APP_TAB, v => {
@@ -1117,16 +1177,15 @@
             sm.sub(P.APP_ACT, v => $('#pwr-btn').style.color = v ? '#2ecc71' : '#e74c3c');
 
             container = host;
-
-            // [Fixed] Safe append to root
             getRoot().appendChild(container);
         };
 
         gearTrigger = h('div', {
             'data-vsc-ui': '1',
             style: 'position:fixed;top:45%;right:0;width:44px;height:44px;background:rgba(0,0,0,0.7);z-index:2147483647;cursor:pointer;display:none;align-items:center;justify-content:center;border-radius:12px 0 0 12px;color:#fff;font-size:22px;',
-            onclick: () => {
+            onclick: async () => {
                 build();
+                await promoteFullscreenContainerIfVideo();
                 sm.set(P.APP_UI, !sm.get(P.APP_UI));
                 requestUISync();
             }
@@ -1146,8 +1205,7 @@
         };
         ['fullscreenchange', 'webkitfullscreenchange', 'resize', 'scroll'].forEach(ev => window.addEventListener(ev, requestUISync, { passive: true }));
         requestUISync();
-
-        // [Fix] Ensure trigger is attached early
+        
         if (document.body) getRoot().appendChild(gearTrigger);
         else document.addEventListener('DOMContentLoaded', () => getRoot().appendChild(gearTrigger));
 
@@ -1171,7 +1229,7 @@
     // ==========================================
     const Utils = createUtils();
     const Scheduler = createScheduler();
-    const Store = createStore(DEFAULTS, { VSC_ID, VSC_MSG, IS_TOP }, Scheduler);
+    const Store = createStore(DEFAULTS, { VSC_ID, VSC_MSG, IS_TOP, SYNC_FRAMES: CFG.SYNC_FRAMES }, Scheduler);
     const FEATURES = {
         images: () => {
             if (!Store.get(P.APP_ACT)) return false;
@@ -1184,20 +1242,24 @@
     const Registry = createRegistry(Scheduler, FEATURES);
     const Filters = createFilters(Utils, { VSC_ID });
     const Audio = createAudio(Store);
-    const AE = createAE(Store, Scheduler, { IS_MOBILE, MIN_AE, Utils });
+    const AE = createAE(Store, Scheduler, { IS_MOBILE, MIN_AE, Utils }, (ae) => {
+        currentAE = ae;
+        Scheduler.request(false);
+    });
     const UI = createUI(Utils, Store, Scheduler, DEFAULTS, { IS_TOP });
 
     let currentAE = { g: 1, c: 1, s: 1, sh: 0, hi: 0, br: 0, gain: 1.0 };
-    document.addEventListener('vsc-ae-res', (e) => { currentAE = e.detail.ae; Scheduler.request(false); });
     document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
 
     let lastSRev = -1, lastRRev = -1;
     let lastPrune = 0;
     let lastWantImages = false;
+    let lastPickedVideo = null;
 
     const syncImageScan = () => {
         const want = FEATURES.images();
         if (want && !lastWantImages) Registry.rescanAll();
+        if (!want && lastWantImages) Registry.setWantImages(false);
         lastWantImages = want;
     };
     Store.sub(P.APP_TAB, syncImageScan);
@@ -1208,10 +1270,13 @@
         const fs = document.fullscreenElement || document.webkitFullscreenElement;
         if (fs) {
             const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
-            if (v && videos.has(v) && v.isConnected && v.readyState >= 2) return v;
+            if (v && videos.has(v) && v.isConnected && v.readyState >= 2) { lastPickedVideo = v; return v; }
         }
-        if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) {
-            return document.pictureInPictureElement;
+        if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) { lastPickedVideo = document.pictureInPictureElement; return document.pictureInPictureElement; }
+        
+        if (lastPickedVideo && videos.has(lastPickedVideo) && lastPickedVideo.isConnected && lastPickedVideo.readyState >= 2) {
+             const r = lastPickedVideo.getBoundingClientRect();
+             if (r.width*r.height > 12000) return lastPickedVideo;
         }
 
         const cx = window.innerWidth * 0.5;
@@ -1223,23 +1288,31 @@
             if (!v || !v.isConnected || v.readyState < 2) continue;
             const r = v.getBoundingClientRect();
             const area = r.width * r.height;
-            if (area < 10000) continue;
+            if (area < 12000) continue;
 
-            const playing = !v.paused ? 1 : 0;
+            const playing = (!v.paused && !v.ended) ? 1 : 0;
             const dist = Math.hypot((r.left + r.width * 0.5) - cx, (r.top + r.height * 0.5) - cy);
-            const distScore = 1 / (1 + dist / 1000);
-            const ctrlBonus = v.controls ? 0.8 : 0;
-            const score = (playing * 5) + (area / 100000) + (distScore * 3) + ctrlBonus;
+            const distScore = 1 / (1 + dist / 900);
+            const ctrlBonus = v.controls ? 0.6 : 0;
+            const score = (playing * 6) + (area / 110000) + (distScore * 3) + ctrlBonus;
 
             if (score > bestScore) { bestScore = score; best = v; }
         }
+        lastPickedVideo = best || lastPickedVideo;
         return best;
     };
 
     const applyVideoFilters = (visibleVideos, vVals, active) => {
+        const urlMap = new Map(); // Doc -> URL cache
         for (const el of visibleVideos) {
             if (!active) { Filters.clear(el); continue; }
-            Filters.update(el, vVals, 'video');
+            const doc = el.ownerDocument || document;
+            let url = urlMap.get(doc);
+            if (!url) {
+                url = Filters.prepare(doc, vVals, 'video');
+                urlMap.set(doc, url);
+            }
+            Filters.applyUrl(el, url);
             TOUCHED.videos.add(el);
             if (!el.__vsc_bound) {
                 el.__vsc_bound = true;
@@ -1250,12 +1323,19 @@
     };
 
     const applyImageFilters = (visibleImages, iVals, active) => {
+        const urlMap = new Map();
         for (const el of visibleImages) {
             if (!active) { Filters.clear(el); continue; }
             const w = el.naturalWidth || el.width;
             const h = el.naturalHeight || el.height;
             if (w > 50 && h > 50) {
-                Filters.update(el, iVals, 'image');
+                const doc = el.ownerDocument || document;
+                let url = urlMap.get(doc);
+                if (!url) {
+                     url = Filters.prepare(doc, iVals, 'image');
+                     urlMap.set(doc, url);
+                }
+                Filters.applyUrl(el, url);
                 TOUCHED.images.add(el);
             }
         }
@@ -1298,25 +1378,19 @@
             const vf = Store.get('video');
             const img = Store.get('image');
 
-            let aeGain = 1.0, aeGamma = 1.0, aeCon = 1.0, aeSat = 1.0, aeSh = 0, aeHi = 0, aeBr = 0;
+            let aeGain = 1.0, aeSh = 0, aeHi = 0;
             if (FEATURES.ae()) {
-                aeGain = currentAE.gain; aeGamma = currentAE.g;
-                aeCon = currentAE.c; aeSat = currentAE.s;
-                aeSh = currentAE.sh; aeHi = currentAE.hi;
-                aeBr = currentAE.br;
+                aeGain = currentAE.gain;
+                aeSh = currentAE.sh; // Tone Control
+                aeHi = currentAE.hi; // Tone Control
             }
 
             const hasPreset = (vf.presetB !== 'brOFF' || vf.presetS !== 'off');
             const userStrong = Math.abs(vf.bright)>10 || Math.abs(vf.gamma-1)>0.1 || Math.abs(vf.contrast-1)>0.1 || Math.abs(vf.sat-100)>25;
             const styleMix = (hasPreset || userStrong) ? 0.55 : 1.0;
-
-            let effAeGamma = 1.0 + (aeGamma - 1.0) * styleMix;
-            let effAeCon = 1.0 + (aeCon - 1.0) * styleMix;
-            let effAeSat = 1.0 + (aeSat - 1.0) * Math.min(styleMix, 0.70);
-            let effAeSh = aeSh * styleMix; let effAeHi = aeHi * styleMix; let effAeBr = aeBr * styleMix;
-
-            effAeSat = Math.min(effAeSat, hasPreset ? 1.12 : 1.22);
-            effAeCon = Math.min(effAeCon, hasPreset ? 1.10 : 1.20);
+            
+            let effAeSh = aeSh * styleMix;
+            let effAeHi = aeHi * styleMix;
 
             let sharpMul = 1.0;
             if (FEATURES.ae()) {
@@ -1327,8 +1401,8 @@
 
             const vVals = {
                 gain: aeGain, gamma: vf.gamma, contrast: vf.contrast, bright: vf.bright, sat: vf.sat,
-                aeGamma: effAeGamma, aeCon: effAeCon, aeSat: effAeSat, aeSh: effAeSh, aeHi: effAeHi, aeBr: effAeBr,
-                sharp: Math.round(vf.sharp * sharpMul), sharp2: Math.round(vf.sharp2 * sharpMul),
+                aeGamma: 1.0, aeCon: 1.0, aeSat: 1.0, aeSh: effAeSh, aeHi: effAeHi, aeBr: 0,
+                sharp: Math.round(vf.sharp * sharpMul), sharp2: Math.round(vf.sharp2 * sharpMul), 
                 clarity: Math.round(vf.clarity * sharpMul), dither: vf.dither, temp: vf.temp
             };
 
