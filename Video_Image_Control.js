@@ -185,7 +185,7 @@
             try { return !!(doc && doc.documentElement && doc.documentElement.contains(node)); } catch { return false; }
         },
         safeAppend: (parent, child) => { try { parent && child && parent.appendChild(child); return true; } catch { return false; } },
-        
+
         // [Safety] Helpers
         deepFreeze: (o) => {
             if (!o || typeof o !== 'object' || Object.isFrozen(o)) return o;
@@ -256,7 +256,7 @@
         ensureNum(cfg, 'FILTER.SETTINGS.HIGHLIGHTS', 0, -50, 50);
         ensureNum(cfg, 'FILTER.SETTINGS.BRIGHTNESS', 0, -50, 50);
         ensureNum(cfg, 'UI.MAX_Z', 2147483647, 1, 2147483647);
-        
+
         if (!cfg.FILTER.SETTINGS.SHARPEN_ID) cfg.FILTER.SETTINGS.SHARPEN_ID = 'vsc_sharp';
         if (!cfg.FILTER.IMAGE_SETTINGS.SHARPEN_ID) cfg.FILTER.IMAGE_SETTINGS.SHARPEN_ID = 'vsc_img_sharp';
         if (!Array.isArray(cfg.UI.SPEED_PRESETS)) cfg.UI.SPEED_PRESETS = [0.8, 1.0, 1.2, 1.5, 2.0];
@@ -2281,14 +2281,14 @@
         constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this.isGlobalBypass = false; this._aeEma = null; this._aeLastT = 0; }
         init(stateManager) {
             super.init(stateManager);
-            
+
             // Factory called once
             const { SvgFilterManager, injectFiltersIntoContext } = defineSvgFilterLib();
-            
+
             // Instantiated twice with different options
             this.filterManager = new SvgFilterManager({ settings: CONFIG.FILTER.SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
             this.imageFilterManager = new SvgFilterManager({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
-            
+
             this._injectFiltersIntoContext = injectFiltersIntoContext;
             this._injectImage = injectFiltersIntoContext; // Shared helper
 
@@ -3727,9 +3727,9 @@
         Utils.freezePath(CONFIG, 'UI.MAX_Z');
         Utils.freezePath(CONFIG, 'UI.HIDDEN_CLASS');
         Utils.freezePath(CONFIG, 'FILTER.SETTINGS.SHARPEN_ID');
-        
+
         applyExternalConfigPatchOnce();
-        
+
         if (CONFIG.DEBUG) startConfigTamperCheck();
 
         const stateManager = new StateManager();
