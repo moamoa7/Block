@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (v132.0.136 Full-V91-Engine)
+// @name         Video_Image_Control (v132.0.137 True-V91-Engine)
 // @namespace    https://github.com/
-// @version      132.0.136
-// @description  v132.136: Restore Full V91 AE Tuning (Tone Mapping) + Registry Performance
+// @version      132.137
+// @description  v132.137: Restored 'TableFactory' & 'StdDev' Logic (Real v91 Tone Mapping) + Registry Opt
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -23,8 +23,16 @@
     const VSC_ID = Math.random().toString(36).slice(2);
     const VSC_MSG = 'vsc-ctrl-v1';
 
+    // [V91 Authentic Constants]
+    const MIN_AE = {
+        STRENGTH: IS_MOBILE ? 0.24 : 0.28,
+        TAU_UP: 950, TAU_DOWN: 900,
+        TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30,
+        MAX_UP_EV_DARK: IS_MOBILE ? 0.30 : 0.34
+    };
+
     const DEFAULTS = {
-        video: { gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0, ae: false, presetS: 'off', presetB: 'brOFF' },
+        video: { gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, shadows: 0, highlights: 0, temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0, ae: false, presetS: 'off', presetB: 'brOFF' },
         image: { level: 15, temp: 0 },
         audio: { enabled: false, boost: 6 },
         playback: { rate: 1.0 },
@@ -71,7 +79,6 @@
         let state = JSON.parse(JSON.stringify(DEFAULTS));
         const listeners = new Map();
         const LOCAL_ONLY = new Set(['app.uiVisible', 'app.tab', 'video.gain']); 
-        
         const emit = (key, val) => { listeners.get(key)?.forEach(cb => cb(val)); const cat = key.split('.')[0]; listeners.get(cat + '.*')?.forEach(cb => cb(val)); };
         const postToFrames = (msg) => {
             msg.sender = VSC_ID;
@@ -79,7 +86,6 @@
             const frames = document.getElementsByTagName('iframe');
             for (let i = 0; i < frames.length; i++) try { frames[i].contentWindow?.postMessage(msg, '*'); } catch(e){}
         };
-
         window.addEventListener('message', (e) => {
             if (e.data?.ch !== VSC_MSG || e.data.type !== 'state' || e.data.sender === VSC_ID) return;
             const payload = e.data.payload;
@@ -91,7 +97,6 @@
             }
             window.dispatchEvent(new CustomEvent('vsc-ignite-fast'));
         });
-
         return { 
             get: (p) => p.split('.').reduce((o, k) => (o ? o[k] : undefined), state), 
             set: (path, val) => {
@@ -119,10 +124,10 @@
         return { attach: (v) => { if (!v || v.tagName !== 'VIDEO' || v.__vsc_audio) return; try { const AC = window.AudioContext || window.webkitAudioContext; if (!ctx) { ctx = new AC(); compressor = ctx.createDynamicsCompressor(); dry = ctx.createGain(); dry.connect(ctx.destination); wet = ctx.createGain(); compressor.connect(wet); wet.connect(ctx.destination); } const source = ctx.createMediaElementSource(v); source.connect(dry); source.connect(compressor); v.__vsc_audio = true; updateMix(); } catch(e) {} }, update: updateMix };
     });
 
-    // 5. Analyzer (Full V91 Logic: p90 + Full Stats)
+    // 5. Analyzer (Restored StdDev & Stats)
     def('Analyzer', () => {
         let worker, canvas, ctx, busy = false, fId = 0, lastApplyT = performance.now();
-        let curGain = 1.0, curAE = { b:0, c:1, g:1, s:1 }; // AE 결과값
+        let curGain = 1.0, curAE = { b:0, c:1, g:1, s:1, sh:0, hi:0 }; 
         let roiP50 = [], roiP90 = [];
         const { clamp } = use('Utils');
 
@@ -131,34 +136,34 @@
             const blob = new Blob([`self.onmessage=e=>{
                 const {buf,w,h,fid}=e.data; const data=new Uint8Array(buf);
                 const x0=(w*0.25)|0, x1=(w*0.75)|0, y0=(h*0.25)|0, y1=(h*0.75)|0;
-                const hist=new Uint32Array(256); let n=0;
-                for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){ const i=(y*w+x)*4; const l=(data[i]*54+data[i+1]*183+data[i+2]*19)>>8; hist[l]++; n++; }
-                let acc=0, p10=-1, p50=-1, p90=-1; 
-                const t10=n*0.1, t50=n*0.5, t90=n*0.9;
-                for(let i=0; i<256; i++){ acc+=hist[i]; if(p10<0 && acc>=t10) p10=i/255; if(p50<0 && acc>=t50) p50=i/255; if(p90<0 && acc>=t90) p90=i/255; }
-                self.postMessage({fid, p10, p50: p50<0?0.25:p50, p90: p90<0?0.75:p90});
+                const hist=new Uint32Array(256); let n=0, sumL=0, sumLsq=0;
+                for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){ 
+                    const i=(y*w+x)*4; const l=(data[i]*54+data[i+1]*183+data[i+2]*19)>>8; 
+                    hist[l]++; sumL+=l; sumLsq+=l*l; n++; 
+                }
+                if(n<10){ self.postMessage({fid, p50:0.25, p90:0.75, std:0.1}); return; }
+                const avg = sumL/n; const variance = (sumLsq/n) - (avg*avg);
+                const std = Math.sqrt(Math.max(0, variance))/255;
+                let acc=0, p50=-1, p90=-1; 
+                for(let i=0; i<256; i++){ acc+=hist[i]; if(p50<0 && acc>=n*0.5) p50=i/255; if(p90<0 && acc>=n*0.9) p90=i/255; }
+                self.postMessage({fid, p50: p50<0?0.25:p50, p90: p90<0?0.75:p90, std});
             };`], { type: 'text/javascript' });
             worker = new Worker(URL.createObjectURL(blob));
             
             worker.onmessage = (e) => { 
                 busy = false; const now = performance.now();
-                const { p10, p50, p90 } = e.data;
+                const { p50, p90, std } = e.data;
                 roiP50.push(p50); if(roiP50.length>5) roiP50.shift();
                 roiP90.push(p90); if(roiP90.length>5) roiP90.shift();
                 
                 const p50m = use('Utils').median5(roiP50);
                 const p90m = use('Utils').median5(roiP90);
-                const isMobile = /Mobi|Android/i.test(navigator.userAgent);
 
-                // --- [V91 Advanced AE Logic Engine] ---
-                const targetMid = isMobile ? 0.26 : 0.30;
-                const strength = isMobile ? 0.24 : 0.28;
+                // --- [V91 TONE MAPPING ENGINE] ---
+                let ev = Math.log2(MIN_AE.TARGET_MID_BASE / Math.max(0.02, p50m)) * MIN_AE.STRENGTH;
+                ev = clamp(ev, -0.12, MIN_AE.MAX_UP_EV_DARK);
                 
-                // 1. Basic Exposure
-                let ev = Math.log2(targetMid / Math.max(0.02, p50m)) * strength;
-                ev = clamp(ev, -0.12, isMobile ? 0.30 : 0.34);
-                
-                // 2. Highlight Protection (Cap)
+                // Highlight Protection
                 if (p90m > 0.01) { const maxEv = Math.log2(0.95 / p90m); ev = Math.min(ev, maxEv); }
                 
                 const targetLinearGain = Math.pow(2, ev);
@@ -166,21 +171,24 @@
                 curGain += (targetLinearGain - curGain) * alpha; 
                 lastApplyT = now;
 
-                // 3. Dynamic Tone Mapping (The "Secret Sauce")
-                // Gain이 높을수록(밝아질수록) 대비와 채도를 높이고 감마를 낮춰서 물빠짐 방지
-                const boost = Math.max(1.0, curGain);
-                const ev01 = clamp(Math.log2(boost) / 1.6, 0, 1);
+                // V91 Tunning Constants
+                const ev01 = clamp(Math.log2(Math.max(1, curGain)) / 1.6, 0, 1);
                 const hiRisk = clamp((p90m - 0.86) / 0.10, 0, 1);
+                const midErr = clamp(0.58 - 0.05*ev01 - p50m, -0.25, 0.25);
+                const darkNeed = clamp((0.16 - (p50m*0.5)) / 0.14, 0, 1); // Approx p10
                 
-                const contrastBoost = ev01 * 0.045 * (1 - hiRisk) * clamp((p50m - 0.55) / 0.20, -1, 1);
+                const contrastBoost = ev01 * 0.045 * (1 - hiRisk) * clamp((p50m - 0.55)/0.20, -1, 1);
                 const gammaPull = ev01 * 0.045 * (1 - hiRisk * 0.7);
-                const satBoost = ev01 * (isMobile ? 1.0 : 1.35) * (1 - hiRisk * 0.6); // 채도 보정
+                const shadowLift = ev01 * 14.0 * darkNeed * (1 - hiRisk * 0.35); // Key Logic!
+                const highlightRecover = ev01 * 7.5 * hiRisk;
+                const satBoost = ev01 * 1.35 * (1 - hiRisk * 0.6);
 
-                // Result Params
                 curAE = {
-                    g: clamp(1.0 - gammaPull, 0.5, 1.5), // Auto Gamma
-                    c: clamp(1.0 + contrastBoost, 0.8, 1.4), // Auto Contrast
-                    s: clamp(1.0 + satBoost, 1.0, 1.5), // Auto Saturation
+                    g: clamp(1.0 - gammaPull, 0.5, 1.5),
+                    c: clamp(1.0 + contrastBoost, 0.8, 1.4),
+                    s: clamp(1.0 + satBoost, 1.0, 1.5),
+                    sh: shadowLift, // Shadow lift for TableFactory
+                    hi: highlightRecover,
                     gain: curGain
                 };
 
@@ -194,10 +202,41 @@
         };
     });
 
-    // 6. Filters (Updated to accept V91 AE Params)
+    // 6. Filters (Restored TableFactory)
     def('Filters', () => {
         const { h, clamp } = use('Utils'); const ctxMap = new WeakMap();
         const sCurve = (x) => x * x * (3 - 2 * x);
+
+        // [V91 Table Factory]
+        const getToneTable = (shadows, highlights, brightness, contrast) => {
+            const steps = 64; const vals = [];
+            const shN = clamp(shadows/100, -1, 1);
+            const hiN = clamp(highlights/100, -1, 1);
+            const b = clamp(brightness/100, -1, 1) * 0.12;
+            const toe = clamp(0.20 + shN * 0.10, 0.05, 0.40);
+            const shoulder = clamp(0.82 - hiN * 0.06, 0.70, 0.95);
+            
+            for (let i = 0; i < steps; i++) {
+                let x = i / (steps - 1);
+                // 1. Contrast Pivot (0.5)
+                let y = (x - 0.5) * contrast + 0.5 + b;
+                // 2. Toe (Shadows)
+                if (shN !== 0 && y < toe) {
+                    const t = clamp(y / Math.max(1e-6, toe), 0, 1);
+                    const ss = t * t * (3 - 2 * t);
+                    y = y + Math.sign(shN) * (toe - y) * (0.18 + 0.22 * Math.abs(shN)) * (1 - ss);
+                }
+                // 3. Shoulder (Highlights)
+                if (hiN !== 0 && y > shoulder) {
+                    const t = clamp((y - shoulder) / Math.max(1e-6, (1 - shoulder)), 0, 1);
+                    const ss = t * t * (3 - 2 * t);
+                    y = y - Math.sign(hiN) * (0.08 + 0.18 * Math.abs(hiN)) * ss * t;
+                }
+                vals.push(clamp(y, 0, 1).toFixed(3));
+            }
+            return vals.join(' ');
+        };
+
         function buildSvg(doc) {
             const baseId = `vsc-f-${VSC_ID}`;
             const svg = h('svg', { ns:'svg', width:'0', height:'0', style:'position:absolute;left:-9999px;top:-9999px;width:0;height:0;overflow:hidden;pointer-events:none;', 'aria-hidden':'true' });
@@ -205,10 +244,14 @@
             const makeFilter = (suffix) => {
                 const fid = `${baseId}-${suffix}`;
                 const filter = h('filter', { ns:'svg', id:fid, x:'-20%', y:'-20%', width:'140%', height:'140%', colorInterpolationFilters:'sRGB' });
+                
                 const sat = h('feColorMatrix', { ns:'svg', type:'saturate', values:'1', 'data-id':'sat' });
-                const lin = h('feComponentTransfer', { ns:'svg', result:'lin' }, ['R','G','B'].map(c => h(`feFunc${c}`, { ns:'svg', type:'linear', slope:'1', intercept:'0', 'data-id':`lin${c}` })));
+                // Tone Curve (Table Based) - This is the V91 Magic
+                const lin = h('feComponentTransfer', { ns:'svg', result:'lin' }, ['R','G','B'].map(c => h(`feFunc${c}`, { ns:'svg', type:'table', tableValues:'0 1', 'data-id':`lin${c}` })));
                 const gam = h('feComponentTransfer', { ns:'svg', result:'gam' }, ['R','G','B'].map(c => h(`feFunc${c}`, { ns:'svg', type:'gamma', exponent:'1', 'data-id':`gm${c}` })));
                 const tmp = h('feComponentTransfer', { ns:'svg', result:'tmp' }, ['R','G','B'].map(c => h(`feFunc${c}`, { ns:'svg', type:'linear', 'data-id':`tp${c}` })));
+                
+                // Sharpening
                 const b1 = h('feGaussianBlur', { ns:'svg', in:'tmp', stdDeviation:'0', result:'b1', 'data-id':'b1' });
                 const sh1 = h('feComposite', { ns:'svg', in:'tmp', in2:'b1', operator:'arithmetic', k2:'1', 'data-id':'sh1', result:'sh1' });
                 const b2 = h('feGaussianBlur', { ns:'svg', in:'sh1', stdDeviation:'0', result:'b2', 'data-id':'b2' });
@@ -217,40 +260,44 @@
                 const cl = h('feComposite', { ns:'svg', in:'sh2', in2:'bc', operator:'arithmetic', k2:'1', 'data-id':'cl', result:'cl' });
                 const turb = h('feTurbulence', { ns:'svg', type:'fractalNoise', baseFrequency:'0.85', result:'noise' });
                 const gr = h('feComposite', { ns:'svg', in:'cl', in2:'noise', operator:'arithmetic', k2:'1', k3:'0', 'data-id':'gr' });
+                
                 filter.append(sat, lin, gam, tmp, b1, sh1, b2, sh2, bc, cl, turb, gr); defs.append(filter);
                 return { fid, sat, lin, gam, tmp, b1, sh1, b2, sh2, bc, cl, gr, lastKey:'' };
             };
             const video = makeFilter('v'), image = makeFilter('i'); (doc.body || doc.documentElement).appendChild(svg); return { svg, video, image };
         }
         function updateNodes(nodes, s) {
-            const key = `${s.gain}|${s.gamma}|${s.contrast}|${s.brightN}|${s.sat}|${s.sharp}|${s.sharp2}|${s.clarity}|${s.dither}|${s.temp}`;
+            const key = `${s.gain}|${s.gamma}|${s.contrast}|${s.bright}|${s.shadows}|${s.highlights}|${s.sat}|${s.sharp}|${s.sharp2}|${s.clarity}|${s.dither}|${s.temp}`;
             if (nodes.lastKey === key) return; nodes.lastKey = key;
             const qs = (el, attr, val) => el.setAttribute(attr, val);
             
-            // Saturation: User Sat * AE Boost
+            // Saturation: User * AE
             qs(nodes.sat, 'values', ((s.sat/100) * (s.aeSat||1.0)).toFixed(2));
             
-            // Linear: (User Contrast * AE Contrast) * AE Gain
-            const con = clamp(s.contrast||1.0, 0.5, 2.0) * (s.aeCon||1.0);
-            const gain = clamp(s.gain || 1.0, 0.1, 5.0);
-            const slope = con * gain;
-            const bri = clamp((s.brightN||0), -0.25, 0.25);
-            const intercept = 0.5 - (0.5 * con) + bri;
+            // Tone Table Generation (V91 Logic: Shadows/Highlights/Contrast in one table)
+            // Combine User Settings + AE Adjustments
+            const effSh = (s.shadows||0) + (s.aeSh||0);
+            const effHi = (s.highlights||0) + (s.aeHi||0); // AE Highlight Recover
+            const effBr = s.bright||0;
+            const effCon = (s.contrast||1.0) * (s.gain||1.0); // AE Gain -> Contrast Slope
             
-            ['R','G','B'].forEach(c => { const el = nodes.lin.querySelector(`[data-id="lin${c}"]`); qs(el, 'slope', slope.toFixed(3)); qs(el, 'intercept', intercept.toFixed(4)); });
-            
-            // Gamma: User Gamma * AE Gamma (AE Gamma is typically < 1.0 to pull down shadows)
+            const table = getToneTable(effSh, effHi, effBr, effCon);
+            ['R','G','B'].forEach(c => qs(nodes.lin.querySelector(`[data-id="lin${c}"]`), 'tableValues', table));
+
+            // Gamma
             const combinedGamma = (s.gamma||1.0) * (s.aeGamma||1.0);
             const exp = (1 / clamp(combinedGamma, 0.2, 3.0)).toFixed(3);
             ['R','G','B'].forEach(c => qs(nodes.gam.querySelector(`[data-id="gm${c}"]`), 'exponent', exp));
             
+            // Temp & Sharpen (Same as before)
             const t = clamp(s.temp||0, -25, 25); let r=1, g=1, b=1; if(t>0){ r=1+t*0.012; g=1+t*0.003; b=1-t*0.010; } else { const k=-t; b=1+k*0.012; g=1+k*0.003; r=1-k*0.010; }
             qs(nodes.tmp.querySelector('[data-id="tpR"]'), 'slope', r.toFixed(3)); qs(nodes.tmp.querySelector('[data-id="tpG"]'), 'slope', g.toFixed(3)); qs(nodes.tmp.querySelector('[data-id="tpB"]'), 'slope', b.toFixed(3));
-            const v1 = (s.sharp||0)/50, sigmaC = v1 > 0 ? (1.5 - (sCurve(Math.min(1, v1)) * 0.8)) : 0, kC = sCurve(Math.min(1, v1)) * 2.0;
-            qs(nodes.b1, 'stdDeviation', sigmaC.toFixed(2)); qs(nodes.sh1, 'k2', (1 + kC).toFixed(3)); qs(nodes.sh1, 'k3', (-kC).toFixed(3));
-            const v2 = (s.sharp2||0)/50, sigmaF = v2 > 0 ? (0.5 - (sCurve(Math.min(1, v2)) * 0.3)) : 0, kF = sCurve(Math.min(1, v2)) * 3.5;
-            qs(nodes.b2, 'stdDeviation', sigmaF.toFixed(2)); qs(nodes.sh2, 'k2', (1 + kF).toFixed(3)); qs(nodes.sh2, 'k3', (-kF).toFixed(3));
-            const cl = (s.clarity||0)/50; qs(nodes.bc, 'stdDeviation', cl>0?'2.2':'0'); qs(nodes.cl, 'k2', 1+cl); qs(nodes.cl, 'k3', -cl);
+            
+            const v1=(s.sharp||0)/50, sigmaC=v1>0?(1.5-(sCurve(Math.min(1,v1))*0.8)):0, kC=sCurve(Math.min(1,v1))*2.0;
+            qs(nodes.b1, 'stdDeviation', sigmaC.toFixed(2)); qs(nodes.sh1, 'k2', (1+kC).toFixed(3)); qs(nodes.sh1, 'k3', (-kC).toFixed(3));
+            const v2=(s.sharp2||0)/50, sigmaF=v2>0?(0.5-(sCurve(Math.min(1,v2))*0.3)):0, kF=sCurve(Math.min(1,v2))*3.5;
+            qs(nodes.b2, 'stdDeviation', sigmaF.toFixed(2)); qs(nodes.sh2, 'k2', (1+kF).toFixed(3)); qs(nodes.sh2, 'k3', (-kF).toFixed(3));
+            const cl=(s.clarity||0)/50; qs(nodes.bc, 'stdDeviation', cl>0?'2.2':'0'); qs(nodes.cl, 'k2', 1+cl); qs(nodes.cl, 'k3', -cl);
             qs(nodes.gr, 'k3', ((s.dither||0)/100 * 0.22).toFixed(3));
         }
         return { 
@@ -264,7 +311,7 @@
         };
     });
 
-    // 7. UI Engine
+    // 7. UI Engine (Same)
     def('UI', () => {
         const { h } = use('Utils'); const sm = use('Store'); let container, monitorEl, trigger;
         const SLIDERS = [
@@ -274,7 +321,7 @@
             { l:'명료', k:'video.clarity', min:0, max:50, s:5, f:v=>v.toFixed(0) }, { l:'색온도', k:'video.temp', min:-25, max:25, s:1, f:v=>v.toFixed(0) },
             { l:'그레인', k:'video.dither', min:0, max:100, s:5, f:v=>v.toFixed(0) }, { l:'오디오증폭', k:'audio.boost', min:0, max:12, s:1, f:v=>`+${v}dB` }
         ];
-        const PRESETS_B = [{txt:'S',g:1.00,b:2,c:1.00,s:100,key:'brS'},{txt:'M',g:1.10,b:4,c:1.00,s:102,key:'brM'},{txt:'L',g:1.20,b:6,c:1.00,s:104,key:'brL'},{txt:'DS',g:1.00,b:3.6,c:1.02,s:100,key:'brDS'},{txt:'DM',g:1.15,b:7.2,c:1.04,s:101,key:'brDM'},{txt:'DL',g:1.30,b:10.8,c:1.06,s:102,key:'brDL'}];
+        const PRESETS_B = [{txt:'S',g:1.0,b:2,c:1.0,s:100,key:'brS'},{txt:'M',g:1.1,b:4,c:1.0,s:102,key:'brM'},{txt:'L',g:1.2,b:6,c:1.0,s:104,key:'brL'},{txt:'DS',g:1.0,b:3.6,c:1.02,s:100,key:'brDS'},{txt:'DM',g:1.15,b:7.2,c:1.04,s:101,key:'brDM'},{txt:'DL',g:1.30,b:10.8,c:1.06,s:102,key:'brDL'}];
 
         const fullReset = () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.set('playback.rate', DEFAULTS.playback.rate); };
         const build = () => {
@@ -315,12 +362,12 @@
                 h('div', { class:'prow' }, h('button', { class:'btn', onclick:()=>sm.set('app.uiVisible', false) }, '✕ 닫기'), h('button', { id:'ae-btn', class:'btn', onclick:()=>sm.set('video.ae', !sm.get('video.ae')) }, '🤖 자동'), h('button', { id:'boost-btn', class:'btn', onclick:()=>sm.set('audio.enabled', !sm.get('audio.enabled')) }, '🔊 부스트')),
                 h('div', { class:'prow' }, h('button', { class:'btn', onclick:()=>fullReset() }, '↺ 리셋'), h('button', { id:'pwr-btn', class:'btn', onclick:()=>sm.set('app.active', !sm.get('app.active')) }, '⚡ Power')),
                 renderP('샤프', [{l:'S',v1:8,v2:3},{l:'M',v1:15,v2:6},{l:'L',v1:25,v2:10},{l:'XL',v1:35,v2:15},{l:'끔',v1:0,v2:0}], 'video.presetS', (it)=>sm.batch('video', {sharp:it?it.v1:0,sharp2:it?it.v2:0})),
-                renderP('밝기', PRESETS_B, 'video.presetB', (it)=>sm.batch('video', it?{gamma:it.g,bright:it.b,contrast:it.c,sat:it.s}:{gamma:1,bright:0,contrast:1,sat:100})),
+                renderP('밝기', PRESETS_B, 'video.presetB', (it)=>sm.batch('video', {gamma:it?it.g:1.0,bright:it?it.b:0,contrast:it?it.c:1.0,sat:it?it.s:100})),
                 h('hr'), h('div', { class:'grid' }, SLIDERS.map(renderS)), h('hr'), 
                 h('div', { class:'prow', style:'justify-content:center;gap:4px;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class:'pbtn', style:'flex:1;min-height:36px;' }, s+'x'); b.onclick = (e) => { e.stopPropagation(); sm.set('playback.rate', s); }; sm.sub('playback.rate', v => b.classList.toggle('active', Math.abs(v-s)<0.01)); return b; }))
             ]);
             const bodyI = h('div', { id:'p-i', style:'display:none' }, [ h('div', { class:'grid' }, [ renderS({l:'이미지 윤곽', k:'image.level', min:0, max:50, s:1, f:v=>v.toFixed(0)}), renderS({l:'이미지 색온도', k:'image.temp', min:-20, max:20, s:1, f:v=>v.toFixed(0)}) ]) ]);
-            shadow.append(h('style', {}, style), h('div', { class:'main' }, [ h('div', { class:'tabs' }, [h('button', { id:'t-v', class:'tab active', onclick:()=>sm.set('app.tab', 'video') }, 'VIDEO'), h('button', { id:'t-i', class:'tab', onclick:()=>sm.set('app.tab', 'image') }, 'IMAGE')]), bodyV, bodyI, monitorEl = h('div', { class:'monitor' }, 'Ready') ]));
+            shadow.append(h('style', {}, style), h('div', { class:'main' }, [ h('div', { class:'tabs' }, [h('button', { id:'t-v', class:'tab active', onclick:()=>sm.set('app.tab', 'video') }, 'VIDEO'), h('button', { id:'t-i', class:'tab', onclick:()=>sm.set('app.tab', 'image') }, 'IMAGE')]), bodyV, bodyI, monitorEl = h('div', { class:'monitor' }, 'Ready (V137)') ]));
             sm.sub('app.tab', v => { shadow.getElementById('t-v').classList.toggle('active', v==='video'); shadow.getElementById('t-i').classList.toggle('active', v==='image'); shadow.getElementById('p-v').style.display = v==='video' ? 'block' : 'none'; shadow.getElementById('p-i').style.display = v==='image' ? 'block' : 'none'; });
             sm.sub('video.ae', v => shadow.getElementById('ae-btn').classList.toggle('active', !!v)); sm.sub('audio.enabled', v => shadow.getElementById('boost-btn').classList.toggle('active', !!v)); sm.sub('app.active', v => shadow.getElementById('pwr-btn').style.color = v ? '#2ecc71' : '#e74c3c');
             container = host; (document.body || document.documentElement).appendChild(container); sm.sub('app.uiVisible', v => container.style.display = v ? 'block' : 'none');
@@ -332,9 +379,8 @@
 
     // 8. Orchestrator
     const sm = use('Store'), Filters = use('Filters'), UI = use('UI'), Audio = use('Audio'); 
-    let curAE = { g:1, c:1, s:1, gain:1.0 }, _applyQueued = false;
-    const BRIGHT_EV_PER_STEP = IS_MOBILE ? 0.028 : 0.024; 
-
+    let curAE = { g:1, c:1, s:1, sh:0, hi:0, gain:1.0 }, _applyQueued = false;
+    
     function scheduleApply(imm = false) { if (imm) { apply(); return; } if (_applyQueued) return; _applyQueued = true; requestAnimationFrame(() => { _applyQueued = false; apply(); }); }
     document.addEventListener('vsc-ae-res', (e) => { curAE = e.detail.ae; scheduleApply(); });
     window.addEventListener('vsc-ignite-fast', () => scheduleApply(true));
@@ -344,22 +390,18 @@
         const vf = sm.get('video'), img = sm.get('image'), active = sm.get('app.active');
         use('Registry').prune(); 
 
-        // [Full V91 Logic: Merge AE Tuning with User Settings]
-        let aeGain=1.0, aeGamma=1.0, aeCon=1.0, aeSat=1.0;
-        if (active && vf.ae) { aeGain = curAE.gain; aeGamma = curAE.g; aeCon = curAE.c; aeSat = curAE.s; }
-
-        const brightEV = vf.ae ? (vf.bright * BRIGHT_EV_PER_STEP) : 0;
-        const totalGain = aeGain * Math.pow(2, brightEV);
-        const brightN = vf.ae ? 0 : use('Utils').clamp(vf.bright / 255, -0.25, 0.25);
+        let aeGain=1.0, aeGamma=1.0, aeCon=1.0, aeSat=1.0, aeSh=0, aeHi=0;
+        if (active && vf.ae) { aeGain=curAE.gain; aeGamma=curAE.g; aeCon=curAE.c; aeSat=curAE.s; aeSh=curAE.sh; aeHi=curAE.hi; }
 
         const vVals = { 
-            gain: totalGain, gamma: vf.gamma, contrast: vf.contrast, brightN: brightN, sat: vf.sat, 
-            aeGamma, aeCon, aeSat, // AE Tunning Params
+            gain: aeGain, gamma: vf.gamma, contrast: vf.contrast, bright: vf.bright, sat: vf.sat,
+            shadows: vf.shadows, highlights: vf.highlights,
+            aeGamma, aeCon, aeSat, aeSh, aeHi,
             sharp: vf.sharp, sharp2: vf.sharp2, clarity: vf.clarity, dither: vf.dither, temp: vf.temp 
         };
-        const iVals = { gain: 1.0, gamma: 1.0, contrast: 1.0, brightN: 0, sat: 100, sharp: img.level, sharp2: 0, clarity: 0, dither: 0, temp: img.temp };
+        const iVals = { gain: 1.0, gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, sharp: img.level, sharp2: 0, clarity: 0, dither: 0, temp: img.temp };
 
-        if (active && vf.ae && sm.get('app.uiVisible')) UI.update(`AE ON | EV: ${Math.log2(totalGain).toFixed(2)}`, true);
+        if (active && vf.ae && sm.get('app.uiVisible')) UI.update(`AE ON | EV: ${Math.log2(aeGain).toFixed(2)}`, true);
         if (active && vf.ae) use('Analyzer').wake();
 
         for (const el of use('Registry').videos) { 
