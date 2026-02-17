@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.90 Optimized-Refined)
+// @name        Video_Image_Control (v132.0.91 Optimized-Refined-Fix)
 // @namespace   https://github.com/
-// @version     132.0.90
-// @description v132.0.90: SVG Filter Refactor, Context-Aware Inject, AE Key Fix, UI Cleanup
+// @version     132.0.91
+// @description v132.0.91: Fix Missing Method applyAllVideoFilters, SVG Filter Refactor, AE Key Fix
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -2376,10 +2376,10 @@
                 const { p50, p10 } = this._approxP50P10FromAuto({
                     p90,
                     totalGain,
-                    autoGamma,
-                    autoBright,
-                    autoShadows,
-                    autoHighlights
+                    autoGamma: auto.autoGamma,
+                    autoBright: auto.autoBright,
+                    autoShadows: auto.autoShadows,
+                    autoHighlights: auto.autoHighlights
                 });
                 
                 const tune = this._computeAeTuning({ totalGain, p90, p50, p10, colorfulness: auto.colorfulness });
@@ -2570,6 +2570,19 @@
             const isActive = isVis && shouldApply;
             if (isActive) this._injectImage(image, this.imageFilterManager, this.stateManager);
             image.classList.toggle('vsc-image-filter-active', isActive);
+        }
+        
+        // [v132.0.91] Restored applyAllVideoFilters method
+        applyAllVideoFilters() {
+            this._scheduleRaf('_rafId', () => {
+                this._applyAllVideoFiltersActual();
+                this.stateManager.get('media.activeMedia').forEach(media => {
+                    if (MEDIA_TAGS.has(media.tagName)) this._updateVideoFilterState(media);
+                });
+                this.stateManager.get('media.activeIframes').forEach(iframe => {
+                    this._updateVideoFilterState(iframe);
+                });
+            });
         }
     }
 
