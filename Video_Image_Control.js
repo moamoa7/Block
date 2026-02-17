@@ -2,7 +2,7 @@
 // @name        Video_Image_Control (v132.0.91 Optimized-Refined-Fix)
 // @namespace   https://github.com/
 // @version     132.0.91
-// @description v132.0.91: Fix Missing Method applyAllVideoFilters, SVG Filter Refactor, AE Key Fix
+// @description v132.0.91: AE Logic V2, Integer Hash Opt, Event Cleanup, Security Fixes
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -127,6 +127,7 @@
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
         safeInt: (v, d = 0) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : d; },
         fastHash: (str) => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(16); },
+        sigPack: (...nums) => { let h = 2166136261; for (let i = 0; i < nums.length; i++) { h ^= (nums[i] | 0); h = Math.imul(h, 16777619); } return h >>> 0; },
         setAttr: (el, name, val) => { if (!el) return; if (val == null) { if (el.hasAttribute(name)) el.removeAttribute(name); return; } const s = String(val); if (el.getAttribute(name) !== s) el.setAttribute(name, s); },
         setAttrAll: (nodeList, name, val) => { if (!nodeList) return; for (const el of nodeList) Utils.setAttr(el, name, val); },
         isShadowRoot: (n) => !!n && n.nodeType === 11 && !!n.host,
@@ -150,19 +151,6 @@
                 return root && root.querySelector ? root.querySelector(`#${safe}`) : null;
             } catch { return null; }
         },
-        mergeFilter: (existing, injected) => {
-            const e = (existing || '').trim();
-            const i = (injected || '').trim();
-            if (!e) return i;
-            if (!i) return e;
-            const cleaned = e
-                .replace(/brightness\([^)]+\)/g, '')
-                .replace(/contrast\([^)]+\)/g, '')
-                .replace(/saturate\([^)]+\)/g, '')
-                .replace(/\s+/g, ' ')
-                .trim();
-            return (cleaned ? cleaned + ' ' : '') + i;
-        },
         ensureDomReady: () => {
             if (document.head && document.body) return Promise.resolve();
             return new Promise(res => {
@@ -175,7 +163,13 @@
                 document.addEventListener('DOMContentLoaded', onReady, true);
                 if (document.readyState === 'interactive' || document.readyState === 'complete') onReady();
             });
-        }
+        },
+        isNodeConnected: (doc, node) => {
+            if (!node) return false;
+            if (typeof node.isConnected === 'boolean') return node.isConnected;
+            try { return !!(doc && doc.documentElement && doc.documentElement.contains(node)); } catch { return false; }
+        },
+        safeAppend: (parent, child) => { try { parent && child && parent.appendChild(child); return true; } catch { return false; } }
     };
 
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
@@ -231,7 +225,7 @@
                 if (botLuma < BLK) {
                     endY = h - barH;
                 } else if ((botLuma - topLuma) > 0.15 && botLuma > 0.20) {
-                     endY = h - Math.floor(h * 0.20);
+                      endY = h - Math.floor(h * 0.20);
                 }
 
                 const bottomStart = h - Math.floor(h * 0.20);
@@ -563,20 +557,13 @@
         return sheet;
     }
 
-    // [v132.0.90] Refactored inject function (Full)
-    function injectFiltersIntoContext(targetEl, filterManager, stateManager) {
+    function ensureSvgFilterContext(targetEl, manager) {
         if (!targetEl) return false;
-        let doc;
-        try { doc = targetEl.ownerDocument; } catch { return false; }
+        let doc = null;
+        try { doc = targetEl.ownerDocument; } catch {}
         if (!doc) return false;
-
-        if (!filterManager.isInitialized()) filterManager.init();
-
-        // Ensure context exists in this document
-        const ctx = filterManager.ensureContext(doc);
-        if (!ctx) return false;
-
-        return true;
+        if (!manager.isInitialized()) manager.init();
+        return !!manager.ensureContext(doc);
     }
 
     // --- State Manager ---
@@ -623,6 +610,7 @@
         _aeActive: false, _lastKick: 0, _workerCooldown: 0, _workerRetryCount: 0, _workerSuccessCount: 0,
         _lastFrameStats: null,
         _lastNoWorkerAnalyze: 0,
+        _p50Ema: -1,
 
         ensureStateManager(sm) { if (!this.stateManager && sm) this.stateManager = sm; },
         init(stateManager) {
@@ -654,7 +642,7 @@
                     this._workerUrl = null; this._worker = null;
                 }
             }
-            this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
+            this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._p50Ema = -1;
             this._workerCooldown = 0;
             this._lastFrameStats = null;
             this.lastApplyTime = performance.now();
@@ -783,7 +771,7 @@
                 const isHot = (isVideo && (!c.paused || (c._vscLastPlay && now - c._vscLastPlay < 15000)));
 
                 if (area < screenArea * 0.06 && !isHot && document.pictureInPictureElement !== c) {
-                     score *= 0.5;
+                      score *= 0.5;
                 }
 
                 if (isVideo) {
@@ -832,6 +820,7 @@
                 this._roiP50History = [];
                 this._p10Ema = -1;
                 this._p90Ema = -1;
+                this._p50Ema = -1;
                 this._aeActive = false;
                 this._workerCooldown = 0;
                 this._lastFrameStats = null;
@@ -870,7 +859,7 @@
                 if (this.canvas.width !== targetSize) { this.canvas.width = targetSize; this.canvas.height = targetSize; }
             }
             if (!this._worker && !this._workerUrl) this.init(this.stateManager);
-            this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._lowMotionSkip = 0;
+            this.isRunning = true; this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._p50Ema = -1; this._lowMotionSkip = 0;
 
             this.notifyUpdate({
                 linearGain: this.currentLinearGain
@@ -890,7 +879,7 @@
             if (this.hasRVFC && this.targetVideo && this.handle) { try { this.targetVideo.cancelVideoFrameCallback(this.handle); } catch { } }
             this.handle = null; this._rvfcCb = null;
             this.targetVideo = null; this.frameSkipCounter = 0; this.lastAvgLuma = -1; this._highMotion = false;
-            this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1;
+            this._roiP50History = []; this._p10Ema = -1; this._p90Ema = -1; this._p50Ema = -1;
 
             this._workerBusy = false;
             this._workerLastSent = 0;
@@ -1133,6 +1122,7 @@
 
             this._p10Ema = (this._p10Ema < 0) ? p10 : (p10 * 0.2 + this._p10Ema * 0.8);
             this._p90Ema = (this._p90Ema < 0) ? p90 : (p90 * 0.2 + this._p90Ema * 0.8);
+            this._p50Ema = (this._p50Ema < 0) ? p50m : (p50m * 0.2 + this._p50Ema * 0.8);
 
             const currentLuma = p50m;
             if (this.lastAvgLuma >= 0) {
@@ -1278,7 +1268,7 @@
                 shadowsAdj: shadowsAdj,
                 highlightsAdj: highlightsAdj,
                 colorfulness: avgSat,
-                autoGamma: 1.0, 
+                autoGamma: 1.0,
                 autoBright: 0,
                 autoShadows: shadowsAdj,
                 autoHighlights: highlightsAdj,
@@ -1787,7 +1777,7 @@
 
             try { this.intersectionObserver.observe(media); } catch (e) { return false; }
             media.setAttribute('data-vsc-controlled-by', VSC_INSTANCE_ID);
-            if (this.stateManager.filterManagers.video) injectFiltersIntoContext(media, this.stateManager.filterManagers.video, this.stateManager);
+            if (this.stateManager.filterManagers.video) ensureSvgFilterContext(media, this.stateManager.filterManagers.video);
 
             if (media.tagName === 'VIDEO') {
                 const attrMo = new MutationObserver(debounce((mutations) => {
@@ -1812,13 +1802,13 @@
              if (!image || !this.intersectionObserver) return false;
              if (image.naturalWidth > 0 && image.naturalWidth < 32) return false;
 
-             if (this.stateManager.filterManagers.image) injectFiltersIntoContext(image, this.stateManager.filterManagers.image, this.stateManager);
+             if (this.stateManager.filterManagers.image) ensureSvgFilterContext(image, this.stateManager.filterManagers.image);
              if (!this._observedImages.has(image)) { try { this.intersectionObserver.observe(image); this._observedImages.add(image); if (this._resizeObs) this._resizeObs.observe(image); } catch (e) { return false; } }
              return true;
         }
         attachIframeListeners(iframe) {
             if (!iframe || !this.intersectionObserver) return false;
-            if (this.stateManager.filterManagers.video) injectFiltersIntoContext(iframe, this.stateManager.filterManagers.video, this.stateManager);
+            if (this.stateManager.filterManagers.video) ensureSvgFilterContext(iframe, this.stateManager.filterManagers.video);
             try { this.intersectionObserver.observe(iframe); } catch(e) { return false; }
             return true;
         }
@@ -1841,7 +1831,7 @@
         }
     }
 
-    // [v132.0.90] Refactored SvgFilterPlugin
+    // [v132.0.91] Refactored SvgFilterPlugin
     function createSvgFilterManagerRefactored(options) {
         const INSTANCE = VSC_INSTANCE_ID;
         options.svgId = `${options.svgId}-${INSTANCE}`;
@@ -1852,6 +1842,8 @@
             ensureDomReady: () => Utils.ensureDomReady(),
             setAttr: (el, k, v) => Utils.setAttr(el, k, v),
             setAttrAll: (list, k, v) => Utils.setAttrAll(list, k, v),
+            safeAppend: Utils.safeAppend,
+            isNodeConnected: Utils.isNodeConnected
         };
         const SVGNS = 'http://www.w3.org/2000/svg';
 
@@ -2046,15 +2038,19 @@
             }, `${this.constructor.name}.init`); }
             ensureContext(doc) {
                 if (!doc || !doc.documentElement) return null;
-                let ctx = this._contexts.get(doc); if (ctx && ctx.svgNode && ctx.svgNode.isConnected) return ctx;
+                let ctx = this._contexts.get(doc); if (ctx && ctx.svgNode && U.isNodeConnected(doc, ctx.svgNode)) return ctx;
                 const { svgId, styleId } = this._options;
-                try { const oldSvg = doc.getElementById(svgId); if (oldSvg && oldSvg.dataset?.vscInstance === INSTANCE) oldSvg.remove(); } catch {}
-                try { const oldStyle = doc.getElementById(styleId); if (oldStyle && oldStyle.dataset?.vscInstance === INSTANCE) oldStyle.remove(); } catch {}
+                try { const oldSvg = doc.getElementById(svgId); if (oldSvg && oldSvg.dataset && oldSvg.dataset.vscInstance === INSTANCE) oldSvg.remove(); } catch {}
+                try { const oldStyle = doc.getElementById(styleId); if (oldStyle && oldStyle.dataset && oldStyle.dataset.vscInstance === INSTANCE) oldStyle.remove(); } catch {}
                 const { svgNode, styleNode } = this._createElements(doc);
                 const body = doc.body || doc.documentElement; const head = doc.head || doc.documentElement;
-                try { body.appendChild(svgNode); } catch {}
-                if (styleNode) { try { head.appendChild(styleNode); } catch {} }
-                ctx = { doc, svgNode, styleNode, cache: buildRootCache(svgNode) };
+
+                const svgOk = U.safeAppend(body, svgNode);
+                const styleOk = styleNode ? U.safeAppend(head, styleNode) : true;
+
+                if (!svgOk) return null;
+
+                ctx = { doc, svgNode, styleNode: styleOk ? styleNode : null, cache: buildRootCache(svgNode) };
                 this._contexts.set(doc, ctx); return ctx;
             }
             requestUpdate(values) {
@@ -2065,25 +2061,45 @@
             updateFilterValues(values) {
                 if (!this.isInitialized()) return;
                 const q = (x, step) => Math.round((Number(x) || 0) / step) * step;
-                const gammaQ = q(values.gamma, 0.02); const shQ = q(values.shadows, 1); const hiQ = q(values.highlights, 1); const brQ = q(values.brightness, 0.5); const satQ = q(values.saturation, 1); const ctQ = q(values.colorTemp, 1); const conQ = q(values.contrastAdj, 0.02);
-                const gain = (values.linearGain == null) ? 1.0 : Number(values.linearGain); const gainQ = Math.round(gain * 100);
-                const ditherQ = q(values.dither, 5); const clarityQ = (values.clarity === undefined) ? null : q(values.clarity, 1);
-                const sh1Q = q(values.sharpenLevel, 0.5); const sh2Q = q(values.level2, 0.5); const sharpKey = `${sh1Q}|${sh2Q}|${IS_MOBILE ? 1 : 0}`;
-                const sigStr = [gammaQ, conQ, brQ, shQ, hiQ, satQ, ctQ, ditherQ, clarityQ ?? 'n', gainQ, sharpKey, values.autoExposure ? 1 : 0].join('|');
-                const sig = Utils.fastHash(sigStr); if (this._lastSig === sig) return; this._lastSig = sig;
+
+                const gammaQ = Math.round(q(values.gamma, 0.02) * 100);
+                const conQ = Math.round(q(values.contrastAdj, 0.02) * 100);
+                const brQ = Math.round(q(values.brightness, 0.5) * 10);
+                const shQ = Math.round(q(values.shadows, 1));
+                const hiQ = Math.round(q(values.highlights, 1));
+                const satQ = Math.round(q(values.saturation, 1));
+                const ctQ = Math.round(q(values.colorTemp, 1));
+                const ditherQ = Math.round(q(values.dither, 5));
+                const clarityQ = (values.clarity === undefined) ? -9999 : Math.round(q(values.clarity, 1));
+
+                const gain = (values.linearGain == null) ? 1.0 : Number(values.linearGain);
+                const gainQ = Math.round(gain * 100);
+
+                const sh1Q = Math.round(q(values.sharpenLevel, 0.5) * 10);
+                const sh2Q = Math.round(q(values.level2, 0.5) * 10);
+                const sharpMobile = IS_MOBILE ? 1 : 0;
+
+                const sig = Utils.sigPack(
+                    gammaQ, conQ, brQ, shQ, hiQ, satQ, ctQ, ditherQ, clarityQ, gainQ, sh1Q, sh2Q, sharpMobile,
+                    values.autoExposure ? 1 : 0
+                );
+                if (this._lastSig === sig) return;
+                this._lastSig = sig;
+
                 const isImage = !!this._options.isImage;
-                const derived = { satVal: isImage ? null : (satQ / 100), gammaExp: isImage ? null : (1 / (gammaQ || 1.0)), contrastQ: isImage ? null : (Math.round((conQ || 1.0) * 200) / 200), ctQ: ctQ, ditherQ: isImage ? null : ditherQ, gainKey: isImage ? null : gainQ, clarityKey: clarityQ, sharpKey: sharpKey, toneKey: isImage ? null : `${shQ}_${hiQ}_${brQ}`, toneTable: null };
-                if (!isImage) { derived.toneTable = this._factory.getToneTable(shQ, hiQ, brQ); }
+                const derived = { satVal: isImage ? null : (satQ / 100), gammaExp: isImage ? null : (1 / (gammaQ / 100 || 1.0)), contrastQ: isImage ? null : (conQ / 100), ctQ: ctQ, ditherQ: isImage ? null : ditherQ, gainKey: isImage ? null : gainQ, clarityKey: clarityQ, sharpKey: `${sh1Q}|${sh2Q}|${sharpMobile}`, toneKey: isImage ? null : `${shQ}_${hiQ}_${brQ}`, toneTable: null };
+                if (!isImage) { derived.toneTable = this._factory.getToneTable(shQ, hiQ, brQ / 10); }
+
                 const deadDocs = [];
                 for (const [doc, ctx] of this._contexts) {
-                    if (!ctx || !ctx.svgNode || !ctx.svgNode.isConnected) { deadDocs.push(doc); continue; }
+                    if (!ctx || !ctx.svgNode || !U.isNodeConnected(doc, ctx.svgNode)) { deadDocs.push(doc); continue; }
                     this._applier.apply(ctx.cache, values, derived);
                 }
                 deadDocs.forEach(d => this._contexts.delete(d));
                 if ((performance.now() | 0) % 1200 < 16) this._schedulePrune();
             }
             _schedulePrune() { if (this._pruneScheduled) return; this._pruneScheduled = true; const run = () => { this._pruneScheduled = false; this.prune(); }; if ('requestIdleCallback' in window) requestIdleCallback(run, { timeout: 1500 }); else setTimeout(run, 500); }
-            prune() { const dead = []; for (const [doc, ctx] of this._contexts) { if (!ctx || !ctx.svgNode || !ctx.svgNode.isConnected) dead.push(doc); } dead.forEach(d => this._contexts.delete(d)); }
+            prune() { const dead = []; for (const [doc, ctx] of this._contexts) { if (!ctx || !ctx.svgNode || !U.isNodeConnected(doc, ctx.svgNode)) dead.push(doc); } dead.forEach(d => this._contexts.delete(d)); }
             _createElements(doc) {
                 const createSvgElement = (tag, attr, ...children) => { const el = doc.createElementNS(SVGNS, tag); for (const k in attr) el.setAttribute(k, attr[k]); if (children && children.length) el.append(...children); return el; };
                 const { settings, svgId, styleId, className, isImage } = this._options;
@@ -2092,7 +2108,7 @@
                 svg.dataset.vscInstance = INSTANCE;
                 const styleNode = doc.createElement('style'); styleNode.id = styleId; styleNode.dataset.vscInstance = INSTANCE; styleNode.textContent = `.${className}{} .${className}.no-grain{}`;
                 const buildChain = (id, includeGrain) => {
-                    const filter = createSvgElement('filter', { id, 'color-interpolation-filters': 'sRGB' });
+                    const filter = createSvgElement('filter', { id, 'color-interpolation-filters': 'sRGB', x: '-20%', y: '-20%', width: '140%', height: '140%', filterUnits: 'objectBoundingBox' });
                     const clarityTransfer = createSvgElement('feComponentTransfer', { 'data-vsc-id': 'clarity_transfer', in: 'SourceGraphic', result: 'clarity_out' });
                     ['R','G','B'].forEach(c => clarityTransfer.append(createSvgElement('feFunc' + c, { 'data-vsc-id': 'clarity_func', type: 'table', tableValues: '0 1' })));
                     const blurFine = createSvgElement('feGaussianBlur', { 'data-vsc-id': 'sharpen_blur_fine', in: 'clarity_out', stdDeviation: '0', result: 'blur_fine_out' });
@@ -2128,16 +2144,7 @@
                 return { svgNode: svg, styleNode };
             }
         }
-        function injectFiltersIntoContext(targetEl, filterManager, stateManager) {
-            if (!targetEl) return false;
-            let doc; try { doc = targetEl.ownerDocument; } catch { return false; }
-            if (!doc) return false;
-            if (!filterManager.isInitialized()) filterManager.init();
-            const ctx = filterManager.ensureContext(doc);
-            if (!ctx) return false;
-            return true;
-        }
-        return { SvgFilterManager, injectFiltersIntoContext };
+        return { SvgFilterManager, injectFiltersIntoContext: ensureSvgFilterContext };
     }
 
     class SvgFilterPlugin extends Plugin {
@@ -2146,7 +2153,7 @@
             super.init(stateManager);
             const { SvgFilterManager, injectFiltersIntoContext } = createSvgFilterManagerRefactored({ settings: CONFIG.FILTER.SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
             const { SvgFilterManager: ImageManager, injectFiltersIntoContext: injectImage } = createSvgFilterManagerRefactored({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
-            
+
             this.filterManager = new SvgFilterManager({ settings: CONFIG.FILTER.SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
             this.imageFilterManager = new ImageManager({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
             this._injectFiltersIntoContext = injectFiltersIntoContext;
@@ -2201,7 +2208,6 @@
                     highlightsAdj: applyDeadband(autoParams.highlightsAdj ?? 0, this.lastAutoParams.highlightsAdj, 1.0),
                     aeActive: aeActive,
                     colorfulness: colorfulness ?? 0.5,
-                    // [v132.0.90] Fix: pass auto keys correctly
                     autoGamma: autoParams.autoGamma,
                     autoBright: autoParams.autoBright,
                     autoShadows: autoParams.autoShadows,
@@ -2248,6 +2254,87 @@
             });
         }
 
+        _getAeStats(va, auto, totalGain) {
+            let p90 = (va && va._p90Ema > 0) ? va._p90Ema : 0;
+            let p50 = (va && va._p50Ema > 0) ? va._p50Ema : null;
+            let p10 = (va && va._p10Ema > 0) ? va._p10Ema : null;
+
+            if (p50 == null || p10 == null) {
+                const approx = this._approxP50P10FromAuto({
+                    p90,
+                    totalGain,
+                    autoGamma: auto.autoGamma,
+                    autoBright: auto.autoBright,
+                    autoShadows: auto.autoShadows,
+                    autoHighlights: auto.autoHighlights
+                });
+                p50 = approx.p50;
+                p10 = approx.p10;
+            }
+
+            const cf = (auto.colorfulness === undefined) ? 0.5 : Number(auto.colorfulness);
+            return { p90, p50, p10, cf };
+        }
+
+        _updateAeStatsEma(stats) {
+            const now = performance.now();
+            const last = this._aeStatsLastT || now;
+            const dt = Math.max(0, now - last);
+            this._aeStatsLastT = now;
+
+            const tau = 220;
+            const a = 1 - Math.exp(-dt / tau);
+
+            if (!this._aeStatsEma) this._aeStatsEma = { ...stats };
+            const s = this._aeStatsEma;
+
+            const lerp = (p, q) => p + (q - p) * a;
+
+            s.p90 = lerp(s.p90, stats.p90);
+            s.p50 = lerp(s.p50, stats.p50);
+            s.p10 = lerp(s.p10, stats.p10);
+            s.cf  = lerp(s.cf,  stats.cf);
+
+            return s;
+        }
+
+        _computeAeTuningV2({ totalGain, stats }) {
+            const clamp = Utils.clamp;
+            const smooth01 = (t) => t * t * (3 - 2 * t);
+
+            const tg = Math.max(1.0, totalGain || 1.0);
+            const ev = Math.log2(tg);
+            const ev01 = clamp(ev / 1.6, 0, 1);
+
+            const p90 = clamp(stats.p90 || 0, 0, 1);
+            const p50 = clamp(stats.p50 || 0, 0, 1);
+            const p10 = clamp(stats.p10 || 0, 0, 1);
+            const cf  = clamp(stats.cf  || 0.5, 0, 1);
+
+            const gainGate = smooth01(clamp((tg - 1.05) / 0.35, 0, 1));
+            const hiRisk = smooth01(clamp((p90 - 0.86) / 0.10, 0, 1));
+            const targetP50 = 0.58 - 0.05 * ev01;
+            const midErr = clamp(targetP50 - p50, -0.25, 0.25);
+            const darkNeed = smooth01(clamp((0.16 - p10) / 0.14, 0, 1));
+            const lowColor = smooth01(clamp((0.34 - cf) / 0.20, 0, 1));
+
+            const kB = IS_MOBILE ? 10.0 : 12.5;
+            const kS = IS_MOBILE ? 10.0 : 14.0;
+            const kH = IS_MOBILE ?  6.0 :  7.5;
+            const kC = IS_MOBILE ? 0.030 : 0.045;
+            const kG = IS_MOBILE ? 0.030 : 0.045;
+            const kSat = IS_MOBILE ? 1.0 : 1.35;
+
+            const brightness = gainGate * ev01 * kB * midErr * (1 - hiRisk * 0.65);
+            const shadowLift = gainGate * ev01 * kS * darkNeed * (1 - hiRisk * 0.35);
+            const highlightRecover = gainGate * ev01 * kH * hiRisk;
+            const contrastBoost = gainGate * ev01 * kC * (1 - hiRisk) * clamp((p50 - 0.55) / 0.20, -1, 1);
+            const gammaPull = gainGate * ev01 * kG * clamp(midErr / 0.20, -1, 1) * (1 - hiRisk * 0.7);
+            const satBoost = gainGate * kSat * lowColor * (1 - hiRisk * 0.6);
+
+            return { brightness, shadowLift, highlightRecover, contrastBoost, gammaPull, satBoost };
+        }
+
         _approxP50P10FromAuto({ p90, totalGain, autoGamma, autoBright, autoShadows, autoHighlights }) {
             const clamp = Utils.clamp;
             const tg = Math.max(1.0, totalGain || 1.0);
@@ -2280,44 +2367,6 @@
             return { p50, p10 };
         }
 
-        _computeAeTuning({ totalGain, p90, p50, p10, colorfulness }) {
-            const clamp = Utils.clamp;
-            const smooth01 = (t) => t * t * (3 - 2 * t);
-
-            const tg = Math.max(1.0, totalGain || 1.0);
-            const ev = Math.log2(tg);
-            const ev01 = clamp(ev / 1.6, 0, 1);
-
-            const gainGate = smooth01(clamp((tg - 1.06) / 0.32, 0, 1));
-
-            const p90v = clamp(p90 || 0, 0, 1);
-            const p50v = clamp((p50 ?? (p90v - 0.30)), 0, 1);
-            const p10v = clamp((p10 ?? (p90v - 0.62)), 0, 1);
-
-            const hiBase = smooth01(clamp((p90v - 0.82) / 0.11, 0, 1));
-            const midGate = smooth01(clamp((p50v - 0.62) / 0.13, 0, 1));
-            const darkGate = smooth01(clamp((0.18 - p10v) / 0.13, 0, 1));
-
-            const cf = (colorfulness === undefined) ? 0.5 : Number(colorfulness);
-            const lowColorGate = smooth01(clamp((0.34 - cf) / 0.20, 0, 1));
-
-            const kH = IS_MOBILE ? 6.0 : 7.2;
-            const kS = IS_MOBILE ? 3.6 : 4.8;
-            const kC = IS_MOBILE ? 0.035 : 0.050;
-            const kG = IS_MOBILE ? 0.035 : 0.048;
-            const kSat = IS_MOBILE ? 1.0 : 1.4;
-
-            const hiGate = clamp(hiBase * (0.70 + 0.30 * (1 - midGate)), 0, 1);
-
-            const highlightRecover = ev01 * kH * gainGate * hiGate * (1 - midGate * 0.35);
-            const shadowLift = ev01 * kS * gainGate * darkGate * (1 - hiGate * 0.45);
-            const contrastBoost = ev01 * kC * gainGate * (1 - hiGate) * (1 - midGate * 0.60);
-            const satBoost = lowColorGate * gainGate * kSat * (1 - hiGate * 0.30);
-            const gammaPull = ev01 * gainGate * kG * (1 - midGate * 0.70);
-
-            return { contrastBoost, highlightRecover, shadowLift, satBoost, gammaPull, hiGate, gainGate };
-        }
-
         _smoothAe(target) {
             const now = performance.now();
             const last = this._aeLastT || now;
@@ -2342,6 +2391,27 @@
             s.blur = target.blur;
 
             return s;
+        }
+
+        _shouldSkipTarget(target) {
+            const q = (x, step) => Math.round((Number(x) || 0) / step) * step;
+            const packed = Utils.sigPack(
+                Math.round(q(target.gamma, 0.02) * 100),
+                Math.round(q(target.contrastAdj, 0.02) * 100),
+                Math.round(q(target.brightness, 1)),
+                Math.round(q(target.saturation, 1)),
+                Math.round(q(target.highlights, 1)),
+                Math.round(q(target.shadows, 1)),
+                Math.round(q(target.level2, 0.5) * 10),
+                Math.round(q(target.sharpenLevel, 0.5) * 10),
+                Math.round(q(target.dither, 5)),
+                Math.round(q(target.colorTemp, 1)),
+                target.autoExposure ? 1 : 0,
+                Math.round((target.linearGain || 1) * 100)
+            );
+            if (this._lastTargetSig === packed) return true;
+            this._lastTargetSig = packed;
+            return false;
         }
 
         _applyAllVideoFiltersActual() {
@@ -2371,18 +2441,9 @@
             const va = VA();
 
             if (totalGain > 1.0) {
-                const p90 = (va && va._p90Ema > 0) ? va._p90Ema : 0;
-                // [v132.0.90] Proxy P50/P10 from Auto Signals
-                const { p50, p10 } = this._approxP50P10FromAuto({
-                    p90,
-                    totalGain,
-                    autoGamma: auto.autoGamma,
-                    autoBright: auto.autoBright,
-                    autoShadows: auto.autoShadows,
-                    autoHighlights: auto.autoHighlights
-                });
-                
-                const tune = this._computeAeTuning({ totalGain, p90, p50, p10, colorfulness: auto.colorfulness });
+                const statsRaw = this._getAeStats(va, auto, totalGain);
+                const stats = this._updateAeStatsEma(statsRaw);
+                const tune = this._computeAeTuningV2({ totalGain, stats });
 
                 finalContrastAdj += tune.contrastBoost;
                 finalSaturation += tune.satBoost;
@@ -2393,21 +2454,21 @@
                 const userShGate = Utils.clamp(1 - Math.abs(userSh) / 30, 0.35, 1);
 
                 finalHighlights += tune.highlightRecover * userHiGate;
-                
+
                 const maxLift = IS_MOBILE ? 10 : 14;
                 finalShadows += Utils.clamp(tune.shadowLift, -maxLift, maxLift) * userShGate;
-
-                finalGamma = Utils.clamp(finalGamma * (1 - tune.gammaPull), 0.5, 2.5);
+                finalBrightness += Utils.clamp(tune.brightness, -12, 12);
+                finalGamma = Utils.clamp(finalGamma - tune.gammaPull, 0.5, 2.5);
             }
 
             let effectiveClarity = vf.clarity;
             let autoSharpLevel2 = vf.level2;
-            
+
             if (effectiveClarity > 0) {
                 const headroom = Utils.clamp(1 - (vf.level2 / 30), 0.25, 1.0);
                 autoSharpLevel2 += Math.min(5, effectiveClarity * 0.15) * headroom;
             }
-            
+
             if (va && va._highMotion) autoSharpLevel2 *= 0.7;
 
             if (totalGain > 1.02) {
@@ -2460,7 +2521,7 @@
 
             if (this.isGlobalBypass) {
                 if (!vf.autoExposure && vf.clarity <= 0) {
-                     if(va) va.stop();
+                      if(va) va.stop();
                 }
             }
 
@@ -2494,9 +2555,22 @@
             };
 
             const smoothed = this._smoothAe(target);
-            this.filterManager.requestUpdate(smoothed);
+            if (!this._shouldSkipTarget(smoothed)) {
+                this.filterManager.requestUpdate(smoothed);
+            }
 
             if(va) va.updateSettings({ autoExposure: vf.autoExposure, clarity: effectiveClarity });
+        }
+        applyAllVideoFilters() {
+            this._scheduleRaf('_rafId', () => {
+                this._applyAllVideoFiltersActual();
+                this.stateManager.get('media.activeMedia').forEach(media => {
+                    if (MEDIA_TAGS.has(media.tagName)) this._updateVideoFilterState(media);
+                });
+                this.stateManager.get('media.activeIframes').forEach(iframe => {
+                    this._updateVideoFilterState(iframe);
+                });
+            });
         }
         applyAllImageFilters() {
             this._scheduleRaf('_imageRafId', () => {
@@ -2509,10 +2583,6 @@
                 this.stateManager.get('media.activeImages').forEach(image => { this._updateImageFilterState(image); });
             });
         }
-
-        _getFilterCheckTs(el) { if (!this._filterCheckMap) this._filterCheckMap = new WeakMap(); return this._filterCheckMap.get(el) || 0; }
-        _setFilterCheckTs(el, ts) { if (!this._filterCheckMap) this._filterCheckMap = new WeakMap(); this._filterCheckMap.set(el, ts); }
-
         _updateVideoFilterState(video) {
             const scriptActive = this.stateManager.get('app.scriptActive'); const vf = this.stateManager.get('videoFilter');
             const shouldApply = vf.level > 0 || vf.level2 > 0 || Math.abs(vf.saturation - 100) > 0.1 || Math.abs(vf.gamma - 1.0) > 0.001 || vf.shadows !== 0 || vf.highlights !== 0 || vf.brightness !== 0 || Math.abs(vf.contrastAdj - 1.0) > 0.001 || vf.colorTemp !== 0 || vf.dither > 0 || vf.autoExposure > 0 || vf.clarity !== 0;
@@ -2542,7 +2612,7 @@
             const isActive = scriptActive && isVis && shouldApply && !this.isGlobalBypass;
 
             if (isActive) {
-                this._injectFiltersIntoContext(video, this.filterManager, this.stateManager);
+                ensureSvgFilterContext(video, this.filterManager);
                 if (video === this.stateManager.get('media.currentlyVisibleMedia')) { if (video.style.willChange !== 'filter, transform') video.style.willChange = 'filter, transform'; } else { if (video.style.willChange) video.style.willChange = ''; }
             } else { if (video.style.willChange) video.style.willChange = ''; }
 
@@ -2568,21 +2638,8 @@
             const isVisRaw = this.stateManager.get('media.visibilityMap').get(image);
             const isVis = (isVisRaw !== false);
             const isActive = isVis && shouldApply;
-            if (isActive) this._injectImage(image, this.imageFilterManager, this.stateManager);
+            if (isActive) ensureSvgFilterContext(image, this.imageFilterManager);
             image.classList.toggle('vsc-image-filter-active', isActive);
-        }
-        
-        // [v132.0.91] Restored applyAllVideoFilters method
-        applyAllVideoFilters() {
-            this._scheduleRaf('_rafId', () => {
-                this._applyAllVideoFiltersActual();
-                this.stateManager.get('media.activeMedia').forEach(media => {
-                    if (MEDIA_TAGS.has(media.tagName)) this._updateVideoFilterState(media);
-                });
-                this.stateManager.get('media.activeIframes').forEach(iframe => {
-                    this._updateVideoFilterState(iframe);
-                });
-            });
         }
     }
 
@@ -2614,7 +2671,6 @@
 
     class UIPlugin extends Plugin {
         constructor() { super('UI'); this.globalContainer = null; this.triggerElement = null; this.speedButtonsContainer = null; this.hostElement = null; this.shadowRoot = null; this.isDragging = false; this.wasDragged = false; this.startPos = { x: 0, y: 0 }; this.currentPos = { x: 0, y: 0 }; this.animationFrameId = null; this.speedButtons = []; this.uiElements = {}; this.uiState = { x: 0, y: 0 }; this.boundFullscreenChange = null; this.boundSmartLimitUpdate = null; this.delta = { x: 0, y: 0 }; this.toastEl = null; this.pressTimer = null; this._longPressTriggered = false;
-        this.boundChildFullscreenChange = null;
         this._fsHintUntil = 0;
         this._lastFsIframe = null;
         this._localSuppressedUntil = 0;
@@ -2622,6 +2678,14 @@
         }
         init(stateManager) {
             super.init(stateManager);
+
+            this._onWebkitBeginFs = (e) => {
+                this._fsHintUntil = Date.now() + 6000;
+                if (!this.globalContainer) this.createGlobalUI(true);
+                this.updateUIVisibility();
+            };
+            this._onWebkitEndFs = (e) => { this.updateUIVisibility(); };
+
             const createUI = (force = false) => {
                 if (this.globalContainer) return;
                 this.createGlobalUI(force);
@@ -2680,15 +2744,13 @@
             this.boundFullscreenChange = () => {
                 const fe = document.fullscreenElement || document.webkitFullscreenElement;
 
-                // Iframe fullscreen entered
                 if (fe && fe.tagName === 'IFRAME') {
-                     this._lastFsIframe = fe;
-                     postBurst(fe, 'force-ui');
-                     if (this.globalContainer) this.globalContainer.style.display = 'none';
-                     return;
+                      this._lastFsIframe = fe;
+                      postBurst(fe, 'force-ui');
+                      if (this.globalContainer) this.globalContainer.style.display = 'none';
+                      return;
                 }
 
-                // Iframe fullscreen exited (or general exit)
                 if (!fe) {
                     if (this._lastFsIframe) {
                         postBurst(this._lastFsIframe, 'hide-ui');
@@ -2711,27 +2773,23 @@
             };
 
             document.addEventListener('fullscreenchange', this.boundFullscreenChange);
-            document.addEventListener('webkitbeginfullscreen', (e) => {
-                this._fsHintUntil = Date.now() + 6000;
-                if (!this.globalContainer) this.createGlobalUI(true);
-                this.updateUIVisibility();
-            }, true);
-            document.addEventListener('webkitendfullscreen', (e) => {
-                this.updateUIVisibility();
-            }, true);
+            document.addEventListener('webkitbeginfullscreen', this._onWebkitBeginFs, true);
+            document.addEventListener('webkitendfullscreen', this._onWebkitEndFs, true);
 
             const savedPos = Utils.safeGetItem('vsc_ui_pos'); if (savedPos) { try { const p = JSON.parse(savedPos); this.uiState = p; } catch { } }
 
             if (!IS_TOP) {
-                const onMaybeFs = debounce(() => {
+                this._onResizeMaybeFs = debounce(() => {
                     if (!this.globalContainer && isChildFullscreenLikely()) {
                         this.stateManager.set('ui.createRequested', true);
                     }
                     this.updateUIVisibility();
                 }, 120);
-                window.addEventListener('resize', onMaybeFs, { passive: true, signal: this._ac.signal });
+
+                window.addEventListener('resize', this._onResizeMaybeFs, { passive: true, signal: this._ac.signal });
                 if (window.visualViewport) {
-                    window.visualViewport.addEventListener('resize', onMaybeFs, { passive: true, signal: this._ac.signal });
+                    this._onVVResizeMaybeFs = this._onResizeMaybeFs;
+                    window.visualViewport.addEventListener('resize', this._onVVResizeMaybeFs, { passive: true, signal: this._ac.signal });
                 }
 
                 const kickVisibilityProbe = () => {
@@ -2745,9 +2803,19 @@
                 document.addEventListener('play', kickVisibilityProbe, { capture: true, passive: true, signal: this._ac.signal });
             }
         }
-        destroy() { super.destroy(); if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; } if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange); if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
-        if (this._onForceUi) window.removeEventListener('vsc-force-ui', this._onForceUi);
-        if (this._onHideUi) window.removeEventListener('vsc-hide-ui', this._onHideUi);
+        destroy() {
+            super.destroy();
+            if (this.globalContainer) { this.globalContainer.remove(); this.globalContainer = null; }
+            if (this.boundFullscreenChange) document.removeEventListener('fullscreenchange', this.boundFullscreenChange);
+            if (this.boundSmartLimitUpdate) document.removeEventListener('vsc-smart-limit-update', this.boundSmartLimitUpdate);
+            if (this._onForceUi) window.removeEventListener('vsc-force-ui', this._onForceUi);
+            if (this._onHideUi) window.removeEventListener('vsc-hide-ui', this._onHideUi);
+            if (this._onWebkitBeginFs) document.removeEventListener('webkitbeginfullscreen', this._onWebkitBeginFs, true);
+            if (this._onWebkitEndFs) document.removeEventListener('webkitendfullscreen', this._onWebkitEndFs, true);
+            this._onWebkitBeginFs = null;
+            this._onWebkitEndFs = null;
+            this._onResizeMaybeFs = null;
+            this._onVVResizeMaybeFs = null;
         }
 
         _hideLocalUi({ destroy = false } = {}) {
@@ -2810,7 +2878,6 @@
         }
 
         createGlobalUI(force = false) {
-            // [v132.0.90] Child constraint: only create on force/hint
             if (!IS_TOP && !force && !this._isFsHint()) return;
 
             if (this.globalContainer) return;
@@ -2986,14 +3053,20 @@
         }
         updateActiveSpeedButton(rate) {
             if (this.speedButtons.length === 0) return;
-            this.speedButtons.forEach(b => {
+            const nextKey = rate.toFixed(2);
+            if (this._lastRateKey === nextKey) return;
+            this._lastRateKey = nextKey;
+
+            for (const b of this.speedButtons) {
                 const speed = parseFloat(b.dataset.speed);
-                if (speed) {
-                    const isActive = Math.abs(speed - rate) < 0.01;
-                    b.classList.toggle('vsc-speed-active', isActive);
-                    if(!isActive) b.style.background = 'var(--vsc-bg-accent)';
-                }
-            });
+                if (!speed) continue;
+                const isActive = Math.abs(speed - rate) < 0.01;
+                const wasActive = b.classList.contains('vsc-speed-active');
+                if (isActive === wasActive) continue;
+
+                b.classList.toggle('vsc-speed-active', isActive);
+                if (!isActive) b.style.background = 'var(--vsc-bg-accent)';
+            }
         }
         createControlsHost() {
             if (!this.mainControlsContainer) return;
@@ -3380,6 +3453,11 @@
       }
     }
 
+    const SYNC_KEYS = [
+        'app.scriptActive', 'ui.areControlsVisible', 'ui.hideUntilReload',
+        'videoFilter.*', 'imageFilter.*', 'audio.*', 'playback.targetRate'
+    ];
+
     class FrameSync {
       constructor(stateManager) {
         this.sm = stateManager;
@@ -3388,6 +3466,7 @@
         this._ports = new Map();
         this._boundMessage = null;
         this._applyingRemote = false;
+        this._nonce = Math.random().toString(36).slice(2);
       }
 
       start() {
@@ -3397,7 +3476,7 @@
           this.token = Math.random().toString(36).slice(2);
           this._hookTopBroadcast();
         } else {
-          this._postToParent({ type: 'hello', id: VSC_INSTANCE_ID });
+          this._postToParent({ type: 'hello', id: VSC_INSTANCE_ID, nonce: this._nonce });
           this._hookChildUpstream();
         }
       }
@@ -3419,12 +3498,7 @@
             this._broadcast({ type: 'state', payload: exportSyncState(this.sm) });
           }, delay);
         };
-        
-        const keys = [
-            'app.scriptActive', 'ui.areControlsVisible', 'ui.hideUntilReload',
-            'videoFilter.*', 'imageFilter.*', 'audio.*', 'playback.targetRate'
-        ];
-        keys.forEach(k => this.sm.subscribe(k, schedule));
+        SYNC_KEYS.forEach(k => this.sm.subscribe(k, schedule));
       }
 
       _hookChildUpstream() {
@@ -3437,11 +3511,7 @@
             this._postToParent({ type: 'update', token: this.token, payload: exportSyncState(this.sm) });
           }, 120);
         };
-        const keys = [
-            'app.scriptActive', 'ui.areControlsVisible', 'ui.hideUntilReload',
-            'videoFilter.*', 'imageFilter.*', 'audio.*', 'playback.targetRate'
-        ];
-        keys.forEach(k => this.sm.subscribe(k, scheduleUp));
+        SYNC_KEYS.forEach(k => this.sm.subscribe(k, scheduleUp));
       }
 
       _postToParent(msg) { try { window.parent.postMessage({ ch: VSC_MSG, ...msg }, '*'); } catch {} }
@@ -3451,7 +3521,7 @@
       _onMessage(e) {
         const d = e.data;
         if (!d || d.ch !== VSC_MSG) return;
-        
+
         if (d.payload && typeof d.payload !== 'object') return;
 
         const allowed = ['hello', 'welcome', 'state', 'update', 'force-ui', 'hide-ui'];
@@ -3467,13 +3537,14 @@
 
         if (this.isTop && d.type === 'hello') {
           if (e.source) {
-            this._ports.set(e.source, { t: Date.now() });
-            e.source.postMessage({ ch: VSC_MSG, type: 'welcome', token: this.token, payload: exportSyncState(this.sm) }, '*');
+            this._ports.set(e.source, { t: Date.now(), nonce: d.nonce });
+            e.source.postMessage({ ch: VSC_MSG, type: 'welcome', token: this.token, nonce: d.nonce, payload: exportSyncState(this.sm) }, '*');
           }
           return;
         }
 
         if (!this.isTop && d.type === 'welcome') {
+          if (d.nonce !== this._nonce) return;
           this.token = d.token || null;
           applySyncState(this.sm, d.payload, (v) => { this._applyingRemote = v; });
           if (this.sm.get('ui.areControlsVisible')) {
