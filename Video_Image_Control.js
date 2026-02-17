@@ -2,7 +2,7 @@
 // @name        Video_Image_Control (v132.0.91 Optimized-Refined-Fix)
 // @namespace   https://github.com/
 // @version     132.0.91
-// @description v132.0.91: AE Logic V2, Integer Hash Opt, Event Cleanup, Security Fixes
+// @description v132.0.91: AE Logic V2, Integer Hash Opt, Adv Config Guard, One-Shot Patch
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -48,6 +48,7 @@
     const MEDIA_TAGS = new Set(['VIDEO', 'CANVAS', 'IFRAME']);
     const SCAN_TAGS = new Set(['VIDEO', 'IMG', 'IFRAME', 'CANVAS']);
 
+    // [Safety] Default settings are immutable reference points
     const DEFAULT_SETTINGS = { GAMMA: 1.00, SHARPEN_ID: 'SharpenDynamic', SAT: 100, SHADOWS: 0, HIGHLIGHTS: 0, TEMP: 0, DITHER: 0, CLARITY: 0 };
 
     const MIN_AE = {
@@ -72,13 +73,14 @@
     };
 
     const CONFIG = {
-        DEBUG: false,
+        DEBUG: false, // Set to true to enable detailed logs & config tamper check
         FLAGS: { GLOBAL_ATTR_OBS: true },
         FILTER: {
             VIDEO_DEFAULT_LEVEL: 0, VIDEO_DEFAULT_LEVEL2: 0, IMAGE_DEFAULT_LEVEL: 15,
             DEFAULT_AUTO_EXPOSURE: false, DEFAULT_CLARITY: 0,
             DEFAULT_BRIGHTNESS: 0, DEFAULT_CONTRAST: 1.0,
-            SETTINGS: DEFAULT_SETTINGS,
+            // [Safety] Use copy of defaults to allow runtime modification via guardConfig
+            SETTINGS: { ...DEFAULT_SETTINGS },
             IMAGE_SETTINGS: { GAMMA: 1.00, SHARPEN_ID: 'ImageSharpenDynamic', SAT: 100, TEMP: 0 },
             SECONDARY_ADJ: true
         },
@@ -90,6 +92,19 @@
         },
         UI: { MAX_Z: 2147483647, HIDDEN_CLASS: 'vsc-hidden', SPEED_PRESETS: [5.0, 3.0, 2.0, 1.5, 1.2, 1.0, 0.5, 0.2] }
     };
+
+    // [Safety] Meta Slot for Extensions
+    (function initConfigMetaSlot(){
+        const META_KEY = '$meta';
+        if (!Object.prototype.hasOwnProperty.call(CONFIG, META_KEY)) {
+            Object.defineProperty(CONFIG, META_KEY, {
+                value: Object.create(null),
+                enumerable: false,
+                writable: false,
+                configurable: false
+            });
+        }
+    })();
 
     const SEL = { FILTER_TARGET: 'video, img, iframe, canvas' };
 
@@ -169,7 +184,39 @@
             if (typeof node.isConnected === 'boolean') return node.isConnected;
             try { return !!(doc && doc.documentElement && doc.documentElement.contains(node)); } catch { return false; }
         },
-        safeAppend: (parent, child) => { try { parent && child && parent.appendChild(child); return true; } catch { return false; } }
+        safeAppend: (parent, child) => { try { parent && child && parent.appendChild(child); return true; } catch { return false; } },
+        
+        // [Safety] Helpers
+        deepFreeze: (o) => {
+            if (!o || typeof o !== 'object' || Object.isFrozen(o)) return o;
+            Object.freeze(o);
+            for (const k of Object.keys(o)) Utils.deepFreeze(o[k]);
+            return o;
+        },
+        freezePath: (root, path) => {
+            const parts = path.split('.');
+            let cur = root;
+            for (let i = 0; i < parts.length - 1; i++) {
+                cur = cur?.[parts[i]];
+                if (!cur) return;
+            }
+            const last = parts[parts.length - 1];
+            const v = cur[last];
+            try { Object.defineProperty(cur, last, { value: v, writable: false, configurable: false, enumerable: true }); } catch {}
+        },
+        mergeDeepInPlace: (dst, src) => {
+            if (!src || typeof src !== 'object') return dst;
+            for (const k of Object.keys(src)) {
+                const sv = src[k];
+                if (sv && typeof sv === 'object' && !Array.isArray(sv)) {
+                    const dv = dst[k];
+                    dst[k] = Utils.mergeDeepInPlace((dv && typeof dv === 'object') ? dv : {}, sv);
+                } else {
+                    dst[k] = sv;
+                }
+            }
+            return dst;
+        }
     };
 
     const safeGuard = (fn, label = '') => { try { return fn(); } catch (e) { if (CONFIG.DEBUG) console.error(`[VSC] Error in ${label}:`, e); } };
@@ -183,6 +230,88 @@
     const CP = (signal) => ({ capture: true, passive: true, signal });
 
     const VA = () => (typeof VideoAnalyzer !== 'undefined' ? VideoAnalyzer : null);
+
+    // --- Config Safety & Patching ---
+    function ensureNum(obj, path, def, min, max) {
+        const parts = path.split('.');
+        let cur = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            const k = parts[i];
+            if (!cur[k] || typeof cur[k] !== 'object') cur[k] = {};
+            cur = cur[k];
+        }
+        const last = parts[parts.length - 1];
+        let v = Number(cur[last]);
+        if (!Number.isFinite(v)) v = def;
+        if (min != null) v = Math.max(min, v);
+        if (max != null) v = Math.min(max, v);
+        cur[last] = v;
+    }
+
+    function guardConfig(cfg) {
+        // [Safety] Ensure core numeric types & ranges (Unknown keys are allowed for flexibility)
+        ensureNum(cfg, 'FILTER.SETTINGS.SAT', 100, 0, 200);
+        ensureNum(cfg, 'FILTER.SETTINGS.GAMMA', 1.0, 0.5, 2.5);
+        ensureNum(cfg, 'FILTER.SETTINGS.SHADOWS', 0, -50, 50);
+        ensureNum(cfg, 'FILTER.SETTINGS.HIGHLIGHTS', 0, -50, 50);
+        ensureNum(cfg, 'FILTER.SETTINGS.BRIGHTNESS', 0, -50, 50);
+        ensureNum(cfg, 'UI.MAX_Z', 2147483647, 1, 2147483647);
+        
+        if (!cfg.FILTER.SETTINGS.SHARPEN_ID) cfg.FILTER.SETTINGS.SHARPEN_ID = 'vsc_sharp';
+        if (!cfg.FILTER.IMAGE_SETTINGS.SHARPEN_ID) cfg.FILTER.IMAGE_SETTINGS.SHARPEN_ID = 'vsc_img_sharp';
+        if (!Array.isArray(cfg.UI.SPEED_PRESETS)) cfg.UI.SPEED_PRESETS = [0.8, 1.0, 1.2, 1.5, 2.0];
+        if (!cfg.UI.HIDDEN_CLASS) cfg.UI.HIDDEN_CLASS = 'vsc-hidden';
+
+        return cfg;
+    }
+
+    function applyExternalConfigPatchOnce() {
+        // One-shot merge for external scripts/extensions
+        const patch = window.__VSC_CONFIG_PATCH__;
+        if (!patch || typeof patch !== 'object') return;
+
+        try {
+            Utils.mergeDeepInPlace(CONFIG, patch);
+        } catch (e) {
+            console.warn('[VSC] Config Patch Failed:', e);
+        } finally {
+            try { guardConfig(CONFIG); } catch {}
+        }
+    }
+
+    function configSignature(cfg) {
+        // Low-cost signature for critical paths
+        const s = [
+            cfg?.FILTER?.SETTINGS?.GAMMA,
+            cfg?.FILTER?.SETTINGS?.SAT,
+            cfg?.FILTER?.SETTINGS?.SHARPEN_ID,
+            cfg?.UI?.MAX_Z,
+            cfg?.FILTER?.SECONDARY_ADJ ? 1 : 0
+        ].join('|');
+        return Utils.fastHash(s);
+    }
+
+    function startConfigTamperCheck(intervalMs = 2500) {
+        let last = configSignature(CONFIG);
+        const tick = () => {
+            const now = configSignature(CONFIG);
+            if (now !== last) {
+                console.warn('[VSC] Config Changed Detected', { before: last, after: now });
+                // Optional: Re-guard if needed
+                guardConfig(CONFIG);
+                last = now;
+            }
+            schedule();
+        };
+        const schedule = () => {
+            if ('requestIdleCallback' in window) {
+                requestIdleCallback(tick, { timeout: intervalMs });
+            } else {
+                setTimeout(tick, intervalMs);
+            }
+        };
+        schedule();
+    }
 
     const WORKER_CODE = `
         const hist = new Uint16Array(256);
@@ -1831,12 +1960,10 @@
         }
     }
 
-    // [v132.0.91] Refactored SvgFilterPlugin
-    function createSvgFilterManagerRefactored(options) {
+    // [v132.0.91] Factory for SvgFilterManager Classes
+    function defineSvgFilterLib() {
         const INSTANCE = VSC_INSTANCE_ID;
-        options.svgId = `${options.svgId}-${INSTANCE}`;
-        options.styleId = `${options.styleId}-${INSTANCE}`;
-
+        const SVGNS = 'http://www.w3.org/2000/svg';
         const U = {
             clamp: (v, a, b) => Utils.clamp(v, a, b),
             ensureDomReady: () => Utils.ensureDomReady(),
@@ -1845,7 +1972,6 @@
             safeAppend: Utils.safeAppend,
             isNodeConnected: Utils.isNodeConnected
         };
-        const SVGNS = 'http://www.w3.org/2000/svg';
 
         class TableFactory {
             constructor() {
@@ -2028,8 +2154,12 @@
 
         class SvgFilterManager {
             constructor(options) {
-                this._options = options;
-                this._isInitialized = false; this._contexts = new Map(); this._factory = new TableFactory(); this._applier = new FilterApplier(this._factory, options);
+                // Attach instance ID to IDs here
+                this._options = { ...options };
+                this._options.svgId = `${options.svgId}-${INSTANCE}`;
+                this._options.styleId = `${options.styleId}-${INSTANCE}`;
+
+                this._isInitialized = false; this._contexts = new Map(); this._factory = new TableFactory(); this._applier = new FilterApplier(this._factory, this._options);
                 this._pending = null; this._raf = 0; this._lastSig = null; this._pruneScheduled = false;
             }
             isInitialized() { return this._isInitialized; }
@@ -2151,13 +2281,16 @@
         constructor() { super('SvgFilter'); this.filterManager = null; this.imageFilterManager = null; this.lastAutoParams = { gamma: 1.0, bright: 0, clarityComp: 0, shadowsAdj: 0, highlightsAdj: 0 }; this.throttledUpdate = null; this._rafId = null; this._imageRafId = null; this.isGlobalBypass = false; this._aeEma = null; this._aeLastT = 0; }
         init(stateManager) {
             super.init(stateManager);
-            const { SvgFilterManager, injectFiltersIntoContext } = createSvgFilterManagerRefactored({ settings: CONFIG.FILTER.SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
-            const { SvgFilterManager: ImageManager, injectFiltersIntoContext: injectImage } = createSvgFilterManagerRefactored({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
-
+            
+            // Factory called once
+            const { SvgFilterManager, injectFiltersIntoContext } = defineSvgFilterLib();
+            
+            // Instantiated twice with different options
             this.filterManager = new SvgFilterManager({ settings: CONFIG.FILTER.SETTINGS, svgId: 'vsc-video-svg-filters', styleId: 'vsc-video-styles', className: 'vsc-video-filter-active', isImage: false });
-            this.imageFilterManager = new ImageManager({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
+            this.imageFilterManager = new SvgFilterManager({ settings: CONFIG.FILTER.IMAGE_SETTINGS, svgId: 'vsc-image-svg-filters', styleId: 'vsc-image-styles', className: 'vsc-image-filter-active', isImage: true });
+            
             this._injectFiltersIntoContext = injectFiltersIntoContext;
-            this._injectImage = injectImage;
+            this._injectImage = injectFiltersIntoContext; // Shared helper
 
             this.filterManager.init(); this.imageFilterManager.init();
             this.stateManager.filterManagers.video = this.filterManager; this.stateManager.filterManagers.image = this.imageFilterManager;
@@ -3589,6 +3722,16 @@
     }
 
     function main() {
+        Utils.deepFreeze(DEFAULT_SETTINGS);
+        Utils.deepFreeze(MIN_AE);
+        Utils.freezePath(CONFIG, 'UI.MAX_Z');
+        Utils.freezePath(CONFIG, 'UI.HIDDEN_CLASS');
+        Utils.freezePath(CONFIG, 'FILTER.SETTINGS.SHARPEN_ID');
+        
+        applyExternalConfigPatchOnce();
+        
+        if (CONFIG.DEBUG) startConfigTamperCheck();
+
         const stateManager = new StateManager();
         const pluginManager = new PluginManager(stateManager);
         window.vscPluginManager = pluginManager;
