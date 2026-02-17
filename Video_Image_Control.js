@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Image_Control (v132.0.135 UI-Freeze-Fix)
+// @name         Video_Image_Control (v132.0.136 Full-V91-Engine)
 // @namespace    https://github.com/
-// @version      132.0.135
-// @description  v132.135: Fix AE Freeze + Silent Background Sync + Registry Performance + V91 Logic
+// @version      132.0.136
+// @description  v132.136: Restore Full V91 AE Tuning (Tone Mapping) + Registry Performance
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -22,13 +22,6 @@
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const VSC_ID = Math.random().toString(36).slice(2);
     const VSC_MSG = 'vsc-ctrl-v1';
-
-    const MIN_AE = {
-        STRENGTH: IS_MOBILE ? 0.24 : 0.28,
-        TAU_UP: 950, TAU_DOWN: 900,
-        TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30,
-        MAX_UP_EV_DARK: IS_MOBILE ? 0.30 : 0.34
-    };
 
     const DEFAULTS = {
         video: { gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0, ae: false, presetS: 'off', presetB: 'brOFF' },
@@ -57,7 +50,7 @@
         }
     }));
 
-    // 2. Registry (Optimized Observer)
+    // 2. Registry
     def('Registry', () => {
         const videos = new Set(), images = new Set(), seen = new WeakSet();
         const add = (n) => {
@@ -73,11 +66,11 @@
         return { videos, images, prune: () => { for(const v of videos) if(!v.isConnected) videos.delete(v); for(const i of images) if(!i.isConnected) images.delete(i); } };
     });
 
-    // 3. Store (Silent AE Update - No Loopback)
+    // 3. Store
     def('Store', () => {
         let state = JSON.parse(JSON.stringify(DEFAULTS));
         const listeners = new Map();
-        const LOCAL_ONLY = new Set(['app.uiVisible', 'app.tab', 'video.gain']); // gain은 통신에서 제외 (렉 방지)
+        const LOCAL_ONLY = new Set(['app.uiVisible', 'app.tab', 'video.gain']); 
         
         const emit = (key, val) => { listeners.get(key)?.forEach(cb => cb(val)); const cat = key.split('.')[0]; listeners.get(cat + '.*')?.forEach(cb => cb(val)); };
         const postToFrames = (msg) => {
@@ -126,29 +119,72 @@
         return { attach: (v) => { if (!v || v.tagName !== 'VIDEO' || v.__vsc_audio) return; try { const AC = window.AudioContext || window.webkitAudioContext; if (!ctx) { ctx = new AC(); compressor = ctx.createDynamicsCompressor(); dry = ctx.createGain(); dry.connect(ctx.destination); wet = ctx.createGain(); compressor.connect(wet); wet.connect(ctx.destination); } const source = ctx.createMediaElementSource(v); source.connect(dry); source.connect(compressor); v.__vsc_audio = true; updateMix(); } catch(e) {} }, update: updateMix };
     });
 
-    // 5. Analyzer (Worker Optimization)
+    // 5. Analyzer (Full V91 Logic: p90 + Full Stats)
     def('Analyzer', () => {
-        let worker, canvas, ctx, busy = false, fId = 0, lastApplyT = performance.now(), curGain = 1.0, roiP50 = [];
+        let worker, canvas, ctx, busy = false, fId = 0, lastApplyT = performance.now();
+        let curGain = 1.0, curAE = { b:0, c:1, g:1, s:1 }; // AE 결과값
+        let roiP50 = [], roiP90 = [];
+        const { clamp } = use('Utils');
+
         const init = () => {
             if (worker) return;
             const blob = new Blob([`self.onmessage=e=>{
                 const {buf,w,h,fid}=e.data; const data=new Uint8Array(buf);
                 const x0=(w*0.25)|0, x1=(w*0.75)|0, y0=(h*0.25)|0, y1=(h*0.75)|0;
                 const hist=new Uint32Array(256); let n=0;
-                for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){ const i=(y*w+x)*4; hist[(data[i]*54+data[i+1]*183+data[i+2]*19)>>8]++; n++; }
-                let p50=-1, sum=0; for(let i=0;i<256;i++){ sum+=hist[i]; if(p50<0 && sum>=n*0.5) p50=i/255; }
-                self.postMessage({fid, p50: p50<0 ? 0.25 : p50});
+                for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){ const i=(y*w+x)*4; const l=(data[i]*54+data[i+1]*183+data[i+2]*19)>>8; hist[l]++; n++; }
+                let acc=0, p10=-1, p50=-1, p90=-1; 
+                const t10=n*0.1, t50=n*0.5, t90=n*0.9;
+                for(let i=0; i<256; i++){ acc+=hist[i]; if(p10<0 && acc>=t10) p10=i/255; if(p50<0 && acc>=t50) p50=i/255; if(p90<0 && acc>=t90) p90=i/255; }
+                self.postMessage({fid, p10, p50: p50<0?0.25:p50, p90: p90<0?0.75:p90});
             };`], { type: 'text/javascript' });
             worker = new Worker(URL.createObjectURL(blob));
+            
             worker.onmessage = (e) => { 
                 busy = false; const now = performance.now();
-                roiP50.push(e.data.p50); if(roiP50.length > 5) roiP50.shift();
+                const { p10, p50, p90 } = e.data;
+                roiP50.push(p50); if(roiP50.length>5) roiP50.shift();
+                roiP90.push(p90); if(roiP90.length>5) roiP90.shift();
+                
                 const p50m = use('Utils').median5(roiP50);
-                const autoEV = use('Utils').clamp(Math.log2(MIN_AE.TARGET_MID_BASE / Math.max(0.02, p50m)) * MIN_AE.STRENGTH, 0, MIN_AE.MAX_UP_EV_DARK);
-                const targetGain = Math.pow(2, autoEV);
-                const alpha = 1 - Math.exp(-(now - lastApplyT) / (targetGain > curGain ? MIN_AE.TAU_UP : MIN_AE.TAU_DOWN));
-                curGain += (targetGain - curGain) * alpha; lastApplyT = now;
-                document.dispatchEvent(new CustomEvent('vsc-ae-res', { detail: { gain: curGain } }));
+                const p90m = use('Utils').median5(roiP90);
+                const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
+                // --- [V91 Advanced AE Logic Engine] ---
+                const targetMid = isMobile ? 0.26 : 0.30;
+                const strength = isMobile ? 0.24 : 0.28;
+                
+                // 1. Basic Exposure
+                let ev = Math.log2(targetMid / Math.max(0.02, p50m)) * strength;
+                ev = clamp(ev, -0.12, isMobile ? 0.30 : 0.34);
+                
+                // 2. Highlight Protection (Cap)
+                if (p90m > 0.01) { const maxEv = Math.log2(0.95 / p90m); ev = Math.min(ev, maxEv); }
+                
+                const targetLinearGain = Math.pow(2, ev);
+                const alpha = 1 - Math.exp(-(now - lastApplyT) / (targetLinearGain > curGain ? 950 : 900));
+                curGain += (targetLinearGain - curGain) * alpha; 
+                lastApplyT = now;
+
+                // 3. Dynamic Tone Mapping (The "Secret Sauce")
+                // Gain이 높을수록(밝아질수록) 대비와 채도를 높이고 감마를 낮춰서 물빠짐 방지
+                const boost = Math.max(1.0, curGain);
+                const ev01 = clamp(Math.log2(boost) / 1.6, 0, 1);
+                const hiRisk = clamp((p90m - 0.86) / 0.10, 0, 1);
+                
+                const contrastBoost = ev01 * 0.045 * (1 - hiRisk) * clamp((p50m - 0.55) / 0.20, -1, 1);
+                const gammaPull = ev01 * 0.045 * (1 - hiRisk * 0.7);
+                const satBoost = ev01 * (isMobile ? 1.0 : 1.35) * (1 - hiRisk * 0.6); // 채도 보정
+
+                // Result Params
+                curAE = {
+                    g: clamp(1.0 - gammaPull, 0.5, 1.5), // Auto Gamma
+                    c: clamp(1.0 + contrastBoost, 0.8, 1.4), // Auto Contrast
+                    s: clamp(1.0 + satBoost, 1.0, 1.5), // Auto Saturation
+                    gain: curGain
+                };
+
+                document.dispatchEvent(new CustomEvent('vsc-ae-res', { detail: { ae: curAE } }));
             };
             canvas = document.createElement('canvas'); canvas.width = canvas.height = 32; ctx = canvas.getContext('2d', { alpha: false });
         };
@@ -158,7 +194,7 @@
         };
     });
 
-    // 6. Filters
+    // 6. Filters (Updated to accept V91 AE Params)
     def('Filters', () => {
         const { h, clamp } = use('Utils'); const ctxMap = new WeakMap();
         const sCurve = (x) => x * x * (3 - 2 * x);
@@ -187,14 +223,27 @@
             const video = makeFilter('v'), image = makeFilter('i'); (doc.body || doc.documentElement).appendChild(svg); return { svg, video, image };
         }
         function updateNodes(nodes, s) {
-            const key = `${s.gamma}|${s.contrast}|${s.bright}|${s.sat}|${s.sharp}|${s.sharp2}|${s.clarity}|${s.dither}|${s.temp}`;
+            const key = `${s.gain}|${s.gamma}|${s.contrast}|${s.brightN}|${s.sat}|${s.sharp}|${s.sharp2}|${s.clarity}|${s.dither}|${s.temp}`;
             if (nodes.lastKey === key) return; nodes.lastKey = key;
             const qs = (el, attr, val) => el.setAttribute(attr, val);
-            qs(nodes.sat, 'values', (s.sat/100).toFixed(2));
-            const con = clamp(s.contrast||1.0, 0.5, 2.0), bri = clamp((s.bright||0)/255, -0.25, 0.25), inter = 0.5 - 0.5 * con + bri;
-            ['R','G','B'].forEach(c => { const el = nodes.lin.querySelector(`[data-id="lin${c}"]`); qs(el, 'slope', con.toFixed(3)); qs(el, 'intercept', inter.toFixed(4)); });
-            const exp = (1 / clamp(s.gamma||1.0, 0.2, 3.0)).toFixed(3);
+            
+            // Saturation: User Sat * AE Boost
+            qs(nodes.sat, 'values', ((s.sat/100) * (s.aeSat||1.0)).toFixed(2));
+            
+            // Linear: (User Contrast * AE Contrast) * AE Gain
+            const con = clamp(s.contrast||1.0, 0.5, 2.0) * (s.aeCon||1.0);
+            const gain = clamp(s.gain || 1.0, 0.1, 5.0);
+            const slope = con * gain;
+            const bri = clamp((s.brightN||0), -0.25, 0.25);
+            const intercept = 0.5 - (0.5 * con) + bri;
+            
+            ['R','G','B'].forEach(c => { const el = nodes.lin.querySelector(`[data-id="lin${c}"]`); qs(el, 'slope', slope.toFixed(3)); qs(el, 'intercept', intercept.toFixed(4)); });
+            
+            // Gamma: User Gamma * AE Gamma (AE Gamma is typically < 1.0 to pull down shadows)
+            const combinedGamma = (s.gamma||1.0) * (s.aeGamma||1.0);
+            const exp = (1 / clamp(combinedGamma, 0.2, 3.0)).toFixed(3);
             ['R','G','B'].forEach(c => qs(nodes.gam.querySelector(`[data-id="gm${c}"]`), 'exponent', exp));
+            
             const t = clamp(s.temp||0, -25, 25); let r=1, g=1, b=1; if(t>0){ r=1+t*0.012; g=1+t*0.003; b=1-t*0.010; } else { const k=-t; b=1+k*0.012; g=1+k*0.003; r=1-k*0.010; }
             qs(nodes.tmp.querySelector('[data-id="tpR"]'), 'slope', r.toFixed(3)); qs(nodes.tmp.querySelector('[data-id="tpG"]'), 'slope', g.toFixed(3)); qs(nodes.tmp.querySelector('[data-id="tpB"]'), 'slope', b.toFixed(3));
             const v1 = (s.sharp||0)/50, sigmaC = v1 > 0 ? (1.5 - (sCurve(Math.min(1, v1)) * 0.8)) : 0, kC = sCurve(Math.min(1, v1)) * 2.0;
@@ -221,12 +270,13 @@
         const SLIDERS = [
             { l:'감마', k:'video.gamma', min:0.5, max:2.5, s:0.05, f:v=>v.toFixed(2) }, { l:'대비', k:'video.contrast', min:0.5, max:2.0, s:0.05, f:v=>v.toFixed(2) },
             { l:'밝기', k:'video.bright', min:-50, max:50, s:1, f:v=>v.toFixed(0) }, { l:'채도', k:'video.sat', min:0, max:200, s:5, f:v=>v.toFixed(0) },
-            { l:'윤곽', k:'video.sharp', min:0, max:50, s:1, f:v=>v.toFixed(0) }, { l:'디테일', k:'video.sharp2', min:0, max:50, s:1, f:v=>v.toFixed(0) },
+            { l:'윤곽(V91)', k:'video.sharp', min:0, max:50, s:1, f:v=>v.toFixed(0) }, { l:'디테일(V91)', k:'video.sharp2', min:0, max:50, s:1, f:v=>v.toFixed(0) },
             { l:'명료', k:'video.clarity', min:0, max:50, s:5, f:v=>v.toFixed(0) }, { l:'색온도', k:'video.temp', min:-25, max:25, s:1, f:v=>v.toFixed(0) },
             { l:'그레인', k:'video.dither', min:0, max:100, s:5, f:v=>v.toFixed(0) }, { l:'오디오증폭', k:'audio.boost', min:0, max:12, s:1, f:v=>`+${v}dB` }
         ];
-        const PRESETS_B = [{txt:'S',g:1.0,b:2,c:1.0,s:100,key:'brS'},{txt:'M',g:1.1,b:4,c:1.0,s:102,key:'brM'},{txt:'L',g:1.2,b:6,c:1.0,s:104,key:'brL'},{txt:'DS',g:1.0,b:3.6,c:1.02,s:100,key:'brDS'},{txt:'DM',g:1.15,b:7.2,c:1.04,s:101,key:'brDM'},{txt:'DL',g:1.30,b:10.8,c:1.06,s:102,key:'brDL'}];
+        const PRESETS_B = [{txt:'S',g:1.00,b:2,c:1.00,s:100,key:'brS'},{txt:'M',g:1.10,b:4,c:1.00,s:102,key:'brM'},{txt:'L',g:1.20,b:6,c:1.00,s:104,key:'brL'},{txt:'DS',g:1.00,b:3.6,c:1.02,s:100,key:'brDS'},{txt:'DM',g:1.15,b:7.2,c:1.04,s:101,key:'brDM'},{txt:'DL',g:1.30,b:10.8,c:1.06,s:102,key:'brDL'}];
 
+        const fullReset = () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.set('playback.rate', DEFAULTS.playback.rate); };
         const build = () => {
             if (container) return; const host = h('div', { id:'vsc-host' }); const shadow = host.attachShadow({ mode:'open' });
             const style = `
@@ -235,7 +285,7 @@
                 .tab { flex: 1; padding: 12px; background: #222; border: 0; color: #999; cursor: pointer; border-radius: 10px 10px 0 0; font-weight: bold; font-size: 13px; }
                 .tab.active { background: #333; color: #3498db; border-bottom: 3px solid #3498db; }
                 .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; }
-                .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; }
+                .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; }
                 .btn.active { background: #3498db; color: white; border-color: #2980b9; }
                 .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; }
                 .pbtn.active { background: #e67e22; color: white; border-color: #d35400; }
@@ -245,6 +295,7 @@
                 input[type=range] { width: 100%; accent-color: #3498db; cursor: pointer; height: 24px; margin: 4px 0; }
                 .monitor { font-size: 12px; color: #aaa; text-align: center; border-top: 1px solid #444; padding-top: 8px; margin-top: 12px; }
                 hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }
+                @media (min-width: 1024px) { .main { width: 320px; padding: 15px; top: 15%; right: 50px; } .tab { padding: 12px; font-size: 13px; } .btn { padding: 8px; font-size: 12px; } .pbtn { min-height: 32px; font-size: 11px; } .slider label { font-size: 13px; } input[type=range] { height: 22px; } .grid { column-gap: 12px; row-gap: 8px; } }
                 @media (max-height: 450px) and (orientation: landscape) { .main { top: 5%; right: 50px; width: 360px; padding: 8px; max-height: 90vh; } .tab { padding: 6px; font-size: 12px; } .grid { row-gap: 4px; } hr { margin: 6px 0; } }
             `;
             const renderS = (cfg) => {
@@ -256,15 +307,15 @@
             const renderP = (label, items, key, on) => {
                 const r = h('div', { class:'prow' }, h('div', {style:'font-size:11px;width:35px;line-height:34px;font-weight:bold'}, label));
                 items.forEach(it => { const b = h('button', { class:'pbtn', style:'flex:1' }, it.l || it.txt); b.onclick = (e) => { e.stopPropagation(); sm.set(key, it.l || it.txt); on(it); }; sm.sub(key, v => b.classList.toggle('active', v === (it.l || it.txt))); r.append(b); });
-                const off = h('button', { class:'pbtn', style:'flex:1' }, 'OFF'); off.onclick = (e) => { e.stopPropagation(); sm.set(key, 'off'); on(null); }; 
+                const off = h('button', { class:'pbtn', style:'flex:1' }, 'OFF'); off.onclick = (e) => { e.stopPropagation(); sm.set(key, 'off'); if(key==='video.presetB') fullReset(); else on(null); }; 
                 sm.sub(key, v => off.classList.toggle('active', v === 'off')); r.append(off); return r;
             };
 
             const bodyV = h('div', { id:'p-v' }, [
                 h('div', { class:'prow' }, h('button', { class:'btn', onclick:()=>sm.set('app.uiVisible', false) }, '✕ 닫기'), h('button', { id:'ae-btn', class:'btn', onclick:()=>sm.set('video.ae', !sm.get('video.ae')) }, '🤖 자동'), h('button', { id:'boost-btn', class:'btn', onclick:()=>sm.set('audio.enabled', !sm.get('audio.enabled')) }, '🔊 부스트')),
-                h('div', { class:'prow' }, h('button', { class:'btn', onclick:()=>{ sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); } }, '↺ 리셋'), h('button', { id:'pwr-btn', class:'btn', onclick:()=>sm.set('app.active', !sm.get('app.active')) }, '⚡ Power')),
-                renderP('샤프', [{l:'S',v1:8,v2:3},{l:'M',v1:15,v2:6},{l:'L',v1:25,v2:10},{l:'XL',v1:35,v2:15}], 'video.presetS', (it)=>sm.batch('video', {sharp:it?it.v1:0,sharp2:it?it.v2:0})),
-                renderP('밝기', PRESETS_B, 'video.presetB', (it)=>sm.batch('video', {gamma:it?it.g:1.0,bright:it?it.b:0,contrast:it?it.c:1.0,sat:it?it.s:100})),
+                h('div', { class:'prow' }, h('button', { class:'btn', onclick:()=>fullReset() }, '↺ 리셋'), h('button', { id:'pwr-btn', class:'btn', onclick:()=>sm.set('app.active', !sm.get('app.active')) }, '⚡ Power')),
+                renderP('샤프', [{l:'S',v1:8,v2:3},{l:'M',v1:15,v2:6},{l:'L',v1:25,v2:10},{l:'XL',v1:35,v2:15},{l:'끔',v1:0,v2:0}], 'video.presetS', (it)=>sm.batch('video', {sharp:it?it.v1:0,sharp2:it?it.v2:0})),
+                renderP('밝기', PRESETS_B, 'video.presetB', (it)=>sm.batch('video', it?{gamma:it.g,bright:it.b,contrast:it.c,sat:it.s}:{gamma:1,bright:0,contrast:1,sat:100})),
                 h('hr'), h('div', { class:'grid' }, SLIDERS.map(renderS)), h('hr'), 
                 h('div', { class:'prow', style:'justify-content:center;gap:4px;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class:'pbtn', style:'flex:1;min-height:36px;' }, s+'x'); b.onclick = (e) => { e.stopPropagation(); sm.set('playback.rate', s); }; sm.sub('playback.rate', v => b.classList.toggle('active', Math.abs(v-s)<0.01)); return b; }))
             ]);
@@ -280,21 +331,45 @@
     });
 
     // 8. Orchestrator
-    const sm = use('Store'), Filters = use('Filters'), UI = use('UI'), Audio = use('Audio'); let curGain = 1.0, _applyQueued = false;
+    const sm = use('Store'), Filters = use('Filters'), UI = use('UI'), Audio = use('Audio'); 
+    let curAE = { g:1, c:1, s:1, gain:1.0 }, _applyQueued = false;
+    const BRIGHT_EV_PER_STEP = IS_MOBILE ? 0.028 : 0.024; 
+
     function scheduleApply(imm = false) { if (imm) { apply(); return; } if (_applyQueued) return; _applyQueued = true; requestAnimationFrame(() => { _applyQueued = false; apply(); }); }
-    document.addEventListener('vsc-ae-res', (e) => { curGain = e.detail.gain; scheduleApply(); });
+    document.addEventListener('vsc-ae-res', (e) => { curAE = e.detail.ae; scheduleApply(); });
     window.addEventListener('vsc-ignite-fast', () => scheduleApply(true));
     window.addEventListener('vsc-ignite', () => scheduleApply());
 
     function apply() {
         const vf = sm.get('video'), img = sm.get('image'), active = sm.get('app.active');
-        const R = use('Registry'); R.prune(); const gain = (active && vf.ae) ? curGain : 1.0;
-        const vVals = { gamma: use('Utils').clamp(vf.gamma * gain, 0.5, 2.5), contrast: vf.contrast, bright: vf.bright, sat: vf.sat, sharp: vf.sharp, sharp2: vf.sharp2, clarity: vf.clarity, dither: vf.dither, temp: vf.temp };
-        const iVals = { gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, sharp: img.level, sharp2: 0, clarity: 0, dither: 0, temp: img.temp };
-        if (active && vf.ae && sm.get('app.uiVisible')) UI.update(`AE ON | EV: ${Math.log2(gain).toFixed(2)}`, true);
+        use('Registry').prune(); 
+
+        // [Full V91 Logic: Merge AE Tuning with User Settings]
+        let aeGain=1.0, aeGamma=1.0, aeCon=1.0, aeSat=1.0;
+        if (active && vf.ae) { aeGain = curAE.gain; aeGamma = curAE.g; aeCon = curAE.c; aeSat = curAE.s; }
+
+        const brightEV = vf.ae ? (vf.bright * BRIGHT_EV_PER_STEP) : 0;
+        const totalGain = aeGain * Math.pow(2, brightEV);
+        const brightN = vf.ae ? 0 : use('Utils').clamp(vf.bright / 255, -0.25, 0.25);
+
+        const vVals = { 
+            gain: totalGain, gamma: vf.gamma, contrast: vf.contrast, brightN: brightN, sat: vf.sat, 
+            aeGamma, aeCon, aeSat, // AE Tunning Params
+            sharp: vf.sharp, sharp2: vf.sharp2, clarity: vf.clarity, dither: vf.dither, temp: vf.temp 
+        };
+        const iVals = { gain: 1.0, gamma: 1.0, contrast: 1.0, brightN: 0, sat: 100, sharp: img.level, sharp2: 0, clarity: 0, dither: 0, temp: img.temp };
+
+        if (active && vf.ae && sm.get('app.uiVisible')) UI.update(`AE ON | EV: ${Math.log2(totalGain).toFixed(2)}`, true);
         if (active && vf.ae) use('Analyzer').wake();
-        for (const el of R.videos) { if (!active) { Filters.clear(el); if (el.__vsc_origRate != null) el.playbackRate = el.__vsc_origRate; continue; } Filters.update(el, vVals, 'video'); use('Analyzer').attach(el); Audio.attach(el); if (Math.abs(el.playbackRate - sm.get('playback.rate')) > 0.01) el.playbackRate = sm.get('playback.rate'); }
-        for (const el of R.images) { if (!active) { Filters.clear(el); continue; } if (el.width > 50) Filters.update(el, iVals, 'image'); }
+
+        for (const el of use('Registry').videos) { 
+            if (!active) { Filters.clear(el); if (el.__vsc_origRate != null) el.playbackRate = el.__vsc_origRate; continue; } 
+            Filters.update(el, vVals, 'video'); use('Analyzer').attach(el); Audio.attach(el); 
+            const desiredRate = sm.get('playback.rate');
+            if (el.__vsc_origRate == null) el.__vsc_origRate = el.playbackRate;
+            if (Math.abs(el.playbackRate - desiredRate) > 0.01) el.playbackRate = desiredRate; 
+        }
+        for (const el of use('Registry').images) { if (!active) { Filters.clear(el); continue; } if (el.width > 50) Filters.update(el, iVals, 'image'); }
         Audio.update();
     }
     sm.sub('app.active', (v) => { if(v) scheduleApply(true); else apply(); });
