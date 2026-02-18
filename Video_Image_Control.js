@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v134_ToneFix)
+// @name        Video_Image_Control (Local_Indep_v134_UXFix)
 // @namespace   https://github.com/
-// @version     134.0.0.1
-// @description Video Control: Tone Curve Re-arch, Gamma Split, Light Dither, Optimized AE
+// @version     134.0.0.2
+// @description Video Control: Tone Re-arch + Auto-Enable UX Fix
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -29,7 +29,7 @@
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_LOW_END = DEVICE_RAM < 4;
-    const VERSION_STR = "v134.ToneFix";
+    const VERSION_STR = "v134.UXFix";
     const VSC_ID = Math.random().toString(36).slice(2);
 
     // Symbol Keys
@@ -93,7 +93,6 @@
         }
     });
 
-    // New Preset Structure: using 'mid' instead of complex curves
     const TONE_PRESET2 = Object.freeze({
         neutral: { toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.00, sat: 1.00, br: 0.0, tmp: 0.0 },
         redSkin: { toe: 1.4, shoulder: 0.6, mid: 0.35, con: 1.03, sat: 1.05, br: 0.8, tmp: +2.0 },
@@ -258,7 +257,7 @@
             contrast: clamp(contrast, 0.5, 2.0),
             bright: clamp(bright, -50, 50),
             satF: clamp(satF, 0.0, 2.0),
-            mid: clamp((A.mid || 0) * styleMix, -1, 1), // New mid parameter
+            mid: clamp((A.mid || 0) * styleMix, -1, 1),
             sharp: clamp(sharp, 0, 50),
             sharp2: clamp(sharp2, 0, 50),
             clarity: clamp(clarity, 0, 50),
@@ -920,6 +919,13 @@
                     const def = (key === 'video.aeProfile') ? 'balanced' : 'neutral';
                     const next = (cur === it.v) ? def : it.v;
                     sm.set(key, next);
+                    // [UX Fix] If user selects a profile/tone, auto-enable AE
+                    if (next && next !== 'off' && next !== 'neutral' && next !== 'balanced') {
+                        if (!sm.get(P.V_AE)) sm.set(P.V_AE, true);
+                    } else if (key === P.V_AE_PROFILE && next !== 'balanced') { // Standard check
+                         if (!sm.get(P.V_AE)) sm.set(P.V_AE, true);
+                    }
+
                     if (key === P.V_AE_PROFILE && next) {
                         const rec = (next === 'cinematic') ? 'highlight' : (next === 'bright' ? 'redSkin' : 'neutral');
                         if (!sm.get(P.V_TONE_PRE)) sm.set(P.V_TONE_PRE, rec);
