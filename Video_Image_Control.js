@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v140_Fix_RefError)
+// @name        Video_Image_Control (Local_Indep_v141_UltimateRefined)
 // @namespace   https://github.com/
-// @version     140.0.0.2
-// @description Video Control: Fix 'a is not defined' error in processResult
+// @version     141.0.0.1
+// @description Video Control: Enhanced Chroma Guard, Smart Tone Lock, Audio Bypass
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -44,11 +44,10 @@
         });
     })();
 
-    // --- GLOBAL CONSTANTS ---
     const IS_TOP = window === window.top;
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const IS_LOW_END = (navigator.deviceMemory || 4) < 4;
-    const VERSION_STR = "v140.FixRef";
+    const VERSION_STR = "v141.Refined";
     const VSC_ID = Math.random().toString(36).slice(2);
 
     const VSCX = Object.freeze({
@@ -88,11 +87,10 @@
         }
     });
 
-    // New: Distinct Look Weights per Profile
     const AE_LOOK = Object.freeze({
         balanced: { brMul: 1.00, satMul: 1.00, conAdd: 0.00, midMul: 1.00, toeMul: 1.00, shMul: 1.00 },
-        cinematic: { brMul: 0.88, satMul: 0.92, conAdd: -0.01, midMul: 0.92, toeMul: 1.10, shMul: 1.15 }, 
-        bright: { brMul: 1.15, satMul: 1.06, conAdd: +0.01, midMul: 1.05, toeMul: 0.95, shMul: 0.88 },   
+        cinematic: { brMul: 0.88, satMul: 0.92, conAdd: -0.01, midMul: 0.92, toeMul: 1.10, shMul: 1.15 },
+        bright: { brMul: 1.15, satMul: 1.06, conAdd: +0.01, midMul: 1.05, toeMul: 0.95, shMul: 0.88 },
     });
 
     const PRESET = Object.freeze({
@@ -193,28 +191,22 @@
         const hasTime = (v.currentTime > 0.2 && (v.duration === Infinity || v.duration > 1)) ? 1 : 0;
         const dist = Math.hypot((r.left + r.width * 0.5) - __lastUserPt.x, (r.top + r.height * 0.5) - __lastUserPt.y);
         const distScore = 1 / (1 + dist / 850);
-        
         const userRecent01 = Math.max(0, 1 - (now - __lastUserPt.t) / 2500);
         const userBoost = userRecent01 * (1 / (1 + dist / 500)) * 3.2;
-
         const ir = (v[VSCX.ir] == null) ? 0.01 : v[VSCX.ir];
         const irScore = Math.min(1, ir) * 3.2;
-
         const bgLike = (v.muted && !v.controls && playing) ? 1 : 0;
         const big01 = Math.min(1, area / (900 * 500));
         const bgPenalty = bgLike ? (1.6 * (1 - 0.65 * big01)) : 0;
-
         const audible = (!v.muted && (v.volume == null || v.volume > 0.01)) ? 1 : 0;
         const audibleBase = audible * 1.35;
         const audioScore = audioBoostOn ? (audible * 1.2) : 0;
-
         return (playing * 6.0) + (hasTime * 2.4) + (areaScore * 1.2) + (distScore * 3.0) + userBoost + irScore + audibleBase + audioScore - bgPenalty;
     }
 
     function pickBestVideo(videos) {
         const now = performance.now();
         if (!videos || videos.size === 0) { __currentTarget = null; __currentScore = -1; __currentSince = now; return null; }
-        
         if (__lastClickedVideo && videos.has(__lastClickedVideo) && __lastClickedVideo.isConnected && __lastClickedVideo.readyState >= 2) {
             if (now - __lastUserPt.t < 900) { __currentTarget = __lastClickedVideo; __currentScore = Infinity; __currentSince = now; return __lastClickedVideo; }
         }
@@ -223,9 +215,7 @@
             const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
             if (v && videos.has(v) && v.isConnected && v.readyState >= 2) { __currentTarget = v; __currentScore = Infinity; __currentSince = now; return v; }
         }
-        if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) { 
-            __currentTarget = document.pictureInPictureElement; __currentScore = Infinity; __currentSince = now; return document.pictureInPictureElement; 
-        }
+        if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) { __currentTarget = document.pictureInPictureElement; __currentScore = Infinity; __currentSince = now; return document.pictureInPictureElement; }
 
         const audioBoostOn = Store.get(P.A_EN) && Store.get(P.APP_ACT);
         const limited = [];
@@ -248,13 +238,11 @@
 
         const curScore = (__currentTarget && videos.has(__currentTarget)) ? scoreVideo(__currentTarget, audioBoostOn, now) : -Infinity;
         let best = __currentTarget, bestScore = curScore;
-
         for (const it of limited) {
             const v = it.v;
             const s = scoreVideo(v, audioBoostOn, now);
             if (s > bestScore) { bestScore = s; best = v; }
         }
-        
         const userRecent01 = Math.max(0, 1 - (now - __lastUserPt.t) / 2500);
         const hysteresis = 1.35 + 0.65 * userRecent01;
         const MIN_HOLD_MS = 900;
@@ -266,7 +254,6 @@
                 if (delta < MIN_SWITCH_DELTA) return __currentTarget;
             }
         }
-        
         if (best !== __currentTarget) { __currentTarget = best; __currentScore = bestScore; __currentSince = now; }
         return __currentTarget;
     }
@@ -275,7 +262,6 @@
         if (CFG.applyToAllVisibleVideos) return visibleVideos;
         const set = new Set();
         if (target) set.add(target);
-        
         const top = [];
         const N = Math.max(0, CFG.extraBigVideos | 0);
         if (N > 0) {
@@ -421,22 +407,23 @@
         const cfGate = Math.max(0, Math.min(1, (cf - 0.10) / 0.22));
         sharpMul *= (0.72 + 0.28 * cfGate);
 
+        // --- Chroma Guard (Enhanced) ---
         const satVal = clamp(satF, 0, 2.0);
         const satStress = Math.min(1, Math.abs(satVal - 1) / 0.55);
         const tempStress = Math.min(1, Math.abs(temp) / 25);
         const hiRisk = clamp(A.hiRisk || 0, 0, 1);
         const cf01 = clamp(cf, 0, 1);
         
-        const chromaStress = (satStress * 0.75) + (tempStress * 0.55);
-        const riskStress = (hiRisk * 0.65) + ((1 - cf01) * 0.40);
-        const guard = 1 / (1 + chromaStress * 0.85 + riskStress * 0.70);
+        const chromaStress = (satStress * 0.85) + (tempStress * 0.65);
+        const riskStress = (hiRisk * 0.70) + ((1 - cf01) * 0.45);
+        const guard = 1 / (1 + chromaStress * 1.05 + riskStress * 0.85);
         
-        sharpMul *= (0.70 + 0.30 * guard);
+        sharpMul *= (0.66 + 0.34 * guard);
 
         let sharp = ((vUser.sharp || 0) + preSharp) * sharpMul;
-        const hfGuard = 1 / (1 + chromaStress * 1.25 + riskStress * 0.95);
-        let sharp2 = ((vUser.sharp2 || 0) + preSharp2) * sharpMul * (0.62 + 0.38 * hfGuard);
-        let clarity = (vUser.clarity || 0) * sharpMul * (0.58 + 0.42 * hfGuard);
+        const hfGuard = 1 / (1 + chromaStress * 1.45 + riskStress * 1.10);
+        let sharp2 = ((vUser.sharp2 || 0) + preSharp2) * sharpMul * (0.58 + 0.42 * hfGuard);
+        let clarity = (vUser.clarity || 0) * sharpMul * (0.54 + 0.46 * hfGuard);
 
         const styleMix = ((vUser.presetB !== 'brOFF' || vUser.presetS !== 'off') ||
             (Math.abs(vUser.bright || 0) > 10 || Math.abs((vUser.gamma || 1) - 1) > 0.1 ||
@@ -1043,11 +1030,11 @@
             };
 
             const dt = Math.min(now - lastEmaT, 500); lastEmaT = now;
-            // Calculate smoothing factor 'a' FIRST
+            // 1. Calculate smoothing factor
             const tauStats = clamp((activeVideo?.paused ? 360 : cfg.DT_CAP_MS) + (1 - __motion01) * 180, 180, 650);
             const a = 1 - Math.exp(-dt / tauStats);
 
-            // Update stats with 'a'
+            // 2. Update stats
             for (const k of Object.keys(lastStats)) { const v = stats[k]; if (Number.isFinite(v)) lastStats[k] = lastStats[k] < 0 ? v : v * a + lastStats[k] * (1 - a); }
 
             if (lastLuma >= 0) {
@@ -1062,6 +1049,8 @@
             if (Math.abs(targetEV) < cfg.DEAD_IN) targetEV = 0;
 
             const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS); lastApplyT = now;
+            
+            // 3. Update Gain
             const clip01 = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 4.0), 0, 1);
             const baseTau = (now < evAggressiveUntil) ? cfg.TAU_AGGRESSIVE : (targetEV > Math.log2(curGain) ? cfg.TAU_UP : cfg.TAU_DOWN);
             const tauClip = baseTau * (1 + clip01 * 0.9);
@@ -1102,11 +1091,15 @@
 
             let shoulder = (6.0 + 7.0 * ev01) * hiR;
             shoulder += 3.0 * clip01; shoulder *= (1 - skin01 * 0.10); shoulder = clamp(shoulder, 0, 12.0);
-            
+
             const profName = sm.get(P.V_AE_PROFILE) || 'balanced';
             const L = AE_LOOK[profName] || AE_LOOK.balanced;
             br *= L.brMul; satF = 1 + ((satF - 1) * L.satMul); conF = clamp(conF + L.conAdd, 0.90, 1.12);
             mid *= L.midMul; toe *= L.toeMul; shoulder *= L.shMul;
+            
+            // Final safe clamping
+            br = clamp(br, -8.0, 8.0); satF = clamp(satF, cfg.SAT_MIN, cfg.SAT_MAX);
+            mid = clamp(mid, -0.85, 0.85); toe = clamp(toe, 0, 10.0); shoulder = clamp(shoulder, 0, 12.0);
 
             onAE?.({ gain: curGain, gammaF: 1, conF, satF, mid, toe, shoulder, brightAdd: br, tempAdd: 0, hiRisk: hiR, cf: lastStats.cf, luma: data.avgLuma * 100, clipFrac: lastStats.clipFrac, rd: lastStats.rd });
         };
@@ -1280,9 +1273,14 @@
                     sm.set(key, next);
                     if (next && next !== 'off' && next !== 'neutral' && next !== 'balanced') { if (!sm.get(P.V_AE)) sm.set(P.V_AE, true); }
                     else if (key === P.V_AE_PROFILE && next !== 'balanced') { if (!sm.get(P.V_AE)) sm.set(P.V_AE, true); }
+                    
+                    // Smart Tone Suggestion (Only once if unlocked)
                     if (key === P.V_AE_PROFILE && next) {
-                        const rec = (next === 'cinematic') ? 'highlight' : (next === 'bright' ? 'redSkin' : 'neutral');
-                        if (!sm.get(P.V_TONE_PRE)) sm.set(P.V_TONE_PRE, rec);
+                        const locked = !!sm.get(P.V_TONE_LOCK);
+                        if (!locked && !sm.get(P.V_TONE_PRE)) {
+                            const rec = (next === 'cinematic') ? 'highlight' : (next === 'bright' ? 'redSkin' : 'neutral');
+                            sm.set(P.V_TONE_PRE, rec);
+                        }
                         document.dispatchEvent(new CustomEvent('vsc-ae-wake'));
                     }
                     document.dispatchEvent(new CustomEvent('vsc-user-tweak'));
@@ -1298,12 +1296,21 @@
             const r = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
             items.forEach(it => {
                 const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.l || it.txt);
-                b.onclick = () => { sm.set(key, it.l || it.txt); document.dispatchEvent(new CustomEvent('vsc-user-tweak')); scheduler.request(true); };
+                b.onclick = () => { 
+                    sm.set(key, it.l || it.txt); 
+                    // Lock tone if user manually selects tone
+                    if (key === P.V_TONE_PRE) sm.set(P.V_TONE_LOCK, true);
+                    document.dispatchEvent(new CustomEvent('vsc-user-tweak')); scheduler.request(true); 
+                };
                 sm.sub(key, v => b.classList.toggle('active', v === (it.l || it.txt)));
                 r.append(b);
             });
             const off = h('button', { class: 'pbtn', style: 'flex:1' }, 'OFF');
-            off.onclick = () => { sm.set(key, key === P.V_PRE_B ? 'brOFF' : 'off'); document.dispatchEvent(new CustomEvent('vsc-user-tweak')); scheduler.request(true); };
+            off.onclick = () => { 
+                sm.set(key, key === P.V_PRE_B ? 'brOFF' : 'off'); 
+                if (key === P.V_TONE_PRE) sm.set(P.V_TONE_LOCK, true);
+                document.dispatchEvent(new CustomEvent('vsc-user-tweak')); scheduler.request(true); 
+            };
             sm.sub(key, v => off.classList.toggle('active', v === 'off' || v === 'brOFF'));
             return r.append(off), r;
         };
@@ -1346,7 +1353,7 @@
                     h('button', { id: 'boost-btn', class: 'btn', onclick: () => sm.set(P.A_EN, !sm.get(P.A_EN)) }, '🔊 부스트')
                 ),
                 h('div', { class: 'prow' },
-                    h('button', { class: 'btn', onclick: () => { sm.batch('video', { ...defaults.video }); sm.batch('audio', defaults.audio); document.dispatchEvent(new CustomEvent('vsc-user-tweak')); } }, '↺ 리셋'),
+                    h('button', { class: 'btn', onclick: () => { sm.batch('video', { ...defaults.video, toneLocked: false }); sm.batch('audio', defaults.audio); document.dispatchEvent(new CustomEvent('vsc-user-tweak')); } }, '↺ 리셋'),
                     h('button', { id: 'pwr-btn', class: 'btn', onclick: () => sm.set(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power')
                 ),
                 renderChoiceRow('AE', [{ t: '표준', v: 'balanced' }, { t: '영화', v: 'cinematic' }, { t: '밝게', v: 'bright' }], P.V_AE_PROFILE),
@@ -1371,7 +1378,22 @@
             gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
             const shadow = gearHost.attachShadow({ mode: 'open' });
             const style = `
-                .gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff;font:700 20px/46px sans-serif;text-align:center;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease; opacity: 1; -webkit-tap-highlight-color: transparent;}
+                .gear{
+                    position:fixed;top:50%;right:10px;transform:translateY(-50%);
+                    width:46px;height:46px;border-radius:50%;
+                    background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);
+                    border:1px solid rgba(255,255,255,0.18);
+                    color:#fff;
+                    display:flex;align-items:center;justify-content:center;
+                    font:700 22px/1 sans-serif;
+                    padding:0; margin:0;
+                    cursor:pointer;pointer-events:auto;z-index:2147483647;
+                    box-shadow:0 12px 44px rgba(0,0,0,0.55);
+                    user-select:none;
+                    transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease; 
+                    opacity: 1;
+                    -webkit-tap-highlight-color: transparent;
+                }
                 @media (hover:hover) and (pointer:fine){
                     .gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}
                 }
