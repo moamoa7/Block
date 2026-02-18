@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v137_Fix2)
+// @name        Video_Image_Control (Local_Indep_v140_Hotfix)
 // @namespace   https://github.com/
-// @version     137.0.0.2
-// @description Video Control: Chroma Guard, Audio Bypass, Smart AE, Fix Ref Errors
+// @version     140.0.0.1
+// @description Video Control: Fix missing core functions (pickBestVideo, etc.)
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -44,11 +44,11 @@
         });
     })();
 
+    // --- GLOBAL CONSTANTS ---
     const IS_TOP = window === window.top;
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
-    const DEVICE_RAM = navigator.deviceMemory || 4;
-    const IS_LOW_END = DEVICE_RAM < 4;
-    const VERSION_STR = "v137.Fix2";
+    const IS_LOW_END = (navigator.deviceMemory || 4) < 4;
+    const VERSION_STR = "v140.Hotfix";
     const VSC_ID = Math.random().toString(36).slice(2);
 
     const VSCX = Object.freeze({
@@ -142,50 +142,205 @@
     const TOUCHED = { videos: new Set(), images: new Set() };
     const CFG = { applyToAllVisibleVideos: false, extraBigVideos: 1 };
 
-    // ==========================================
-    // HELPERS
-    // ==========================================
+    // --- Core Logic Helpers (Hoisted & Restored) ---
+    function split2(p) {
+        const i = p.indexOf('.');
+        return (i > 0) ? [p.slice(0, i), p.slice(i + 1)] : [p, ''];
+    }
 
     const lerp = (a, b, t) => a + (b - a) * t;
 
-    const createUtils = () => ({
-        clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
-        h: (tag, props = {}, ...children) => {
-            const el = (tag === 'svg' || props.ns === 'svg') ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
-            for (const [k, v] of Object.entries(props)) {
-                if (k.startsWith('on')) {
-                    el.addEventListener(k.slice(2).toLowerCase(), (e) => {
-                        if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation();
-                        v(e);
-                    });
-                } else if (k === 'style') {
-                    if (typeof v === 'string') el.style.cssText = v;
-                    else Object.assign(el.style, v);
-                } else if (k === 'class') el.className = v;
-                else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v);
-            }
-            children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
-            return el;
-        },
-        deepClone: (x) => {
-            if (window.structuredClone) return structuredClone(x);
-            return JSON.parse(JSON.stringify(x));
-        },
-        createLRU: (max = 384) => {
-            const m = new Map();
-            return {
-                get(k) {
-                    if (!m.has(k)) return undefined;
-                    const v = m.get(k); m.delete(k); m.set(k, v); return v;
-                },
-                set(k, v) {
-                    if (m.has(k)) m.delete(k);
-                    m.set(k, v);
-                    if (m.size > max) m.delete(m.keys().next().value);
-                }
-            };
+    function getRectCached(v, now, maxAgeMs = 250) {
+        const t0 = v.__vscRectT || 0;
+        let r = v[VSCX.rect];
+        if (!r || (now - t0) > maxAgeMs) {
+            r = v.getBoundingClientRect();
+            v[VSCX.rect] = r;
+            v.__vscRectT = now;
         }
-    });
+        return r;
+    }
+
+    function isActuallyVisibleFast(el) {
+        if (!el || !el.isConnected) return false;
+        if (el[VSCX.visible] === false) return false;
+        const r = el[VSCX.rect] || el.getBoundingClientRect();
+        if (r.width < 80 || r.height < 60) return false;
+        if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return false;
+        return true;
+    }
+
+    function scoreVideo(v, audioBoostOn, now) {
+        if (!v || v.readyState < 2) return -Infinity;
+        if (!isActuallyVisibleFast(v)) return -Infinity;
+
+        const r = getRectCached(v, now, 250);
+        const area = r.width * r.height;
+        const areaScore = Math.log2(1 + area / 20000);
+        const playing = (!v.paused && !v.ended) ? 1 : 0;
+        const hasTime = (v.currentTime > 0.2 && (v.duration === Infinity || v.duration > 1)) ? 1 : 0;
+        const dist = Math.hypot((r.left + r.width * 0.5) - __lastUserPt.x, (r.top + r.height * 0.5) - __lastUserPt.y);
+        const distScore = 1 / (1 + dist / 850);
+
+        // user interaction boost
+        const userRecent01 = Math.max(0, 1 - (now - __lastUserPt.t) / 2500);
+        const userBoost = userRecent01 * (1 / (1 + dist / 500)) * 3.2;
+
+        const ir = (v[VSCX.ir] == null) ? 0.01 : v[VSCX.ir];
+        const irScore = Math.min(1, ir) * 3.2;
+
+        const bgLike = (v.muted && !v.controls && playing) ? 1 : 0;
+        const big01 = Math.min(1, area / (900 * 500));
+        const bgPenalty = bgLike ? (1.6 * (1 - 0.65 * big01)) : 0;
+
+        const audible = (!v.muted && (v.volume == null || v.volume > 0.01)) ? 1 : 0;
+        const audibleBase = audible * 1.35;
+        const audioScore = audioBoostOn ? (audible * 1.2) : 0;
+
+        return (playing * 6.0) + (hasTime * 2.4) + (areaScore * 1.2) + (distScore * 3.0) + userBoost + irScore + audibleBase + audioScore - bgPenalty;
+    }
+
+    function pickBestVideo(videos) {
+        const now = performance.now();
+        if (!videos || videos.size === 0) { __currentTarget = null; __currentScore = -1; __currentSince = now; return null; }
+
+        // Priority checks
+        if (__lastClickedVideo && videos.has(__lastClickedVideo) && __lastClickedVideo.isConnected && __lastClickedVideo.readyState >= 2) {
+            if (now - __lastUserPt.t < 900) { __currentTarget = __lastClickedVideo; __currentScore = Infinity; __currentSince = now; return __lastClickedVideo; }
+        }
+        const fs = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fs) {
+            const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
+            if (v && videos.has(v) && v.isConnected && v.readyState >= 2) { __currentTarget = v; __currentScore = Infinity; __currentSince = now; return v; }
+        }
+        if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) {
+            __currentTarget = document.pictureInPictureElement; __currentScore = Infinity; __currentSince = now; return document.pictureInPictureElement;
+        }
+
+        const audioBoostOn = Store.get(P.A_EN) && Store.get(P.APP_ACT);
+
+        // Sort-Free Top K
+        const limited = [];
+        const pushTopK = (v) => {
+            const ir = (v[VSCX.ir] == null) ? 0 : v[VSCX.ir];
+            const r = getRectCached(v, now, 350);
+            const area = r.width * r.height;
+            // Relaxed filter
+            if (ir < 0.01 && area < 160 * 120) return;
+            const item = { ir, area, v };
+
+            // Insert sorted (desc)
+            let i = 0;
+            while (i < limited.length) {
+                const a = limited[i];
+                // simple score metric for candidacy: ir + area
+                if (item.ir > a.ir || (item.ir === a.ir && item.area > a.area)) break;
+                i++;
+            }
+            limited.splice(i, 0, item);
+            if (limited.length > 10) limited.length = 10;
+        };
+        for (const v of videos) pushTopK(v);
+
+        // Score top candidates
+        const curScore = (__currentTarget && videos.has(__currentTarget)) ? scoreVideo(__currentTarget, audioBoostOn, now) : -Infinity;
+        let best = __currentTarget, bestScore = curScore;
+
+        for (const it of limited) {
+            const v = it.v;
+            const s = scoreVideo(v, audioBoostOn, now);
+            if (s > bestScore) { bestScore = s; best = v; }
+        }
+
+        const userRecent01 = Math.max(0, 1 - (now - __lastUserPt.t) / 2500);
+        const hysteresis = 1.35 + 0.65 * userRecent01;
+        const MIN_HOLD_MS = 900;
+        const MIN_SWITCH_DELTA = 1.15;
+
+        if ((__currentTarget && (now - __currentSince) < MIN_HOLD_MS)) {
+            if (best !== __currentTarget) {
+                const delta = bestScore - curScore;
+                if (delta < MIN_SWITCH_DELTA) return __currentTarget;
+            }
+        }
+
+        if (best !== __currentTarget) { __currentTarget = best; __currentScore = bestScore; __currentSince = now; }
+        return __currentTarget;
+    }
+
+    function buildApplySet(visibleVideos, target) {
+        if (CFG.applyToAllVisibleVideos) return visibleVideos;
+        const set = new Set();
+        if (target) set.add(target);
+
+        const top = [];
+        const N = Math.max(0, CFG.extraBigVideos | 0);
+        if (N > 0) {
+            const pushTop = (area, v) => {
+                let i = 0;
+                while (i < top.length && top[i].area >= area) i++;
+                top.splice(i, 0, { area, v });
+                if (top.length > N) top.length = N;
+            };
+            const now = performance.now();
+            for (const v of visibleVideos) {
+                if (!v || v === target) continue;
+                const r = getRectCached(v, now, 350);
+                pushTop(r.width * r.height, v);
+            }
+            for (const it of top) set.add(it.v);
+        }
+        return set;
+    }
+
+    function computeQualityTier({ IS_LOW_END, visibleCount, applyAll }) {
+        let tier = IS_LOW_END ? 1 : 0;
+        if (applyAll && visibleCount >= 2) tier = Math.max(tier, 1);
+        if (visibleCount >= 4) tier = Math.max(tier, 1);
+        if (visibleCount >= 7) tier = Math.max(tier, 2);
+        return tier;
+    }
+
+    function createUtils() {
+        return {
+            clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
+            h: (tag, props = {}, ...children) => {
+                const el = (tag === 'svg' || props.ns === 'svg') ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
+                for (const [k, v] of Object.entries(props)) {
+                    if (k.startsWith('on')) {
+                        el.addEventListener(k.slice(2).toLowerCase(), (e) => {
+                            if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation();
+                            v(e);
+                        });
+                    } else if (k === 'style') {
+                        if (typeof v === 'string') el.style.cssText = v;
+                        else Object.assign(el.style, v);
+                    } else if (k === 'class') el.className = v;
+                    else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v);
+                }
+                children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
+                return el;
+            },
+            deepClone: (x) => {
+                if (window.structuredClone) return structuredClone(x);
+                return JSON.parse(JSON.stringify(x));
+            },
+            createLRU: (max = 384) => {
+                const m = new Map();
+                return {
+                    get(k) {
+                        if (!m.has(k)) return undefined;
+                        const v = m.get(k); m.delete(k); m.set(k, v); return v;
+                    },
+                    set(k, v) {
+                        if (m.has(k)) m.delete(k);
+                        m.set(k, v);
+                        if (m.size > max) m.delete(m.keys().next().value);
+                    }
+                };
+            }
+        };
+    }
 
     const makeNoiseDataURL = (size = 64, seed = 1337) => {
         const c = document.createElement('canvas'); c.width = c.height = size;
@@ -268,15 +423,14 @@
         const tempStress = Math.min(1, Math.abs(temp) / 25);
         const hiRisk = clamp(A.hiRisk || 0, 0, 1);
         const cf01 = clamp(cf, 0, 1);
-        
+
         const chromaStress = (satStress * 0.75) + (tempStress * 0.55);
         const riskStress = (hiRisk * 0.65) + ((1 - cf01) * 0.40);
         const guard = 1 / (1 + chromaStress * 0.85 + riskStress * 0.70);
-        
+
         sharpMul *= (0.70 + 0.30 * guard);
 
         let sharp = ((vUser.sharp || 0) + preSharp) * sharpMul;
-        
         const hfGuard = 1 / (1 + chromaStress * 1.25 + riskStress * 0.95);
         let sharp2 = ((vUser.sharp2 || 0) + preSharp2) * sharpMul * (0.62 + 0.38 * hfGuard);
         let clarity = (vUser.clarity || 0) * sharpMul * (0.58 + 0.42 * hfGuard);
@@ -319,10 +473,7 @@
         (v.toe | 0) === 0 && (v.shoulder | 0) === 0
     );
 
-    // ==========================================
-    // MODULES
-    // ==========================================
-    const createScheduler = () => {
+    function createScheduler() {
         let queued = false, force = false, applyFn = null;
         const request = (immediate = false) => {
             if (immediate === true) force = true;
@@ -336,14 +487,9 @@
             });
         };
         return { registerApply: (fn) => { applyFn = fn; }, request };
-    };
+    }
 
-    const split2 = (p) => {
-        const i = p.indexOf('.');
-        return (i > 0) ? [p.slice(0, i), p.slice(i + 1)] : [p, ''];
-    };
-
-    const createLocalStore = (defaults, scheduler, Utils) => {
+    function createLocalStore(defaults, scheduler, Utils) {
         let state = Utils.deepClone(defaults);
         let rev = 0;
         const listeners = new Map();
@@ -391,9 +537,9 @@
                 };
             }
         };
-    };
+    }
 
-    const createRegistry = (scheduler, featureCheck, { IS_LOW_END }) => {
+    function createRegistry(scheduler, featureCheck, { IS_LOW_END }) {
         const videos = new Set(), images = new Set();
         const visible = { videos: new Set(), images: new Set() };
         const dirty = { videos: new Set(), images: new Set() };
@@ -466,7 +612,7 @@
             for (const o of observers) o.disconnect(); observers.clear(); shadowObsCount = 0;
             const root = document.body || document.documentElement; if (root) { scanQ.push(root); connectObserver(root); }
         };
-        
+
         document.addEventListener('vsc-shadow-root', (e) => {
              try { if(e.detail) connectObserver(e.detail, true); } catch(_) {}
         });
@@ -499,14 +645,14 @@
             },
             rescanAll: () => { scanQ.push(document.body || document.documentElement); }
         };
-    };
+    }
 
-    const createAudio = (sm) => {
+    function createAudio(sm) {
         let ctx, compressor, dry, wet, target = null, currentSrc = null;
         const srcMap = new WeakMap();
         const onGesture = () => { try { if (ctx?.state === 'suspended') ctx.resume(); } catch (_) { } };
         window.addEventListener('pointerdown', onGesture, { once: true, passive: true });
-        
+
         const ensureCtx = () => {
             if (ctx) return true;
             const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
@@ -517,12 +663,12 @@
             compressor.ratio.value = 4;
             compressor.attack.value = 0.005;
             compressor.release.value = 0.20;
-            
+
             dry = ctx.createGain(); dry.connect(ctx.destination);
             wet = ctx.createGain(); compressor.connect(wet); wet.connect(ctx.destination);
             return true;
         };
-        
+
         const updateMix = () => {
             if (!ctx) return;
             const en = sm.get(P.A_EN) && sm.get(P.APP_ACT);
@@ -530,9 +676,9 @@
             dry.gain.setTargetAtTime(en ? 0 : 1, ctx.currentTime, 0.05);
             wet.gain.setTargetAtTime(en ? boost : 0, ctx.currentTime, 0.05);
         };
-        
+
         const disconnect = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) { } currentSrc = null; target = null; } };
-        
+
         return {
             setTarget: (v) => {
                 if (v !== target) {
@@ -556,12 +702,12 @@
             hasCtx: () => !!ctx,
             isHooked: () => !!currentSrc
         };
-    };
+    }
 
-    const createFilters = (Utils, config) => {
+    function createFilters(Utils, config) {
         const { h, clamp, createLRU } = Utils; const ctxMap = new WeakMap();
         const toneCache = createLRU(IS_LOW_END ? 256 : 512);
-        const prepCache = new WeakMap(); 
+        const prepCache = new WeakMap();
 
         const setAttrIfChanged = (node, attr, val, stateObj, keyName) => {
             if (!node) return;
@@ -717,7 +863,7 @@
                     detail: { O: createFilter('i-det-0', false, true), N: createFilter('i-det-N', true, true) }
                 }
             };
-            
+
             const tryAppend = () => {
                 const r = doc.documentElement || doc.body;
                 if(r) { r.appendChild(svg); return true; }
@@ -729,6 +875,11 @@
             }
             return ctx;
         };
+
+        const makePrepKey = (kind, s, tier) => [
+            kind, tier, q(s.gain,0.02), q(s.gamma,0.01), q(s.contrast,0.01), q(s.bright,0.2), q(s.satF,0.01),
+            q(s.mid,0.02), q(s.toe,0.2), q(s.shoulder,0.2), q(s.temp,0.2), q(s.sharp,0.2), q(s.sharp2,0.2), q(s.clarity,0.2), q(s.dither,1)
+        ].join('|');
 
         function prepare(doc, s, kind, tier = 0) {
             let ctx = ctxMap.get(doc); if (!ctx) { ctx = buildSvg(doc); ctxMap.set(doc, ctx); }
@@ -791,25 +942,18 @@
             return `url(#${nodes.fid})`;
         }
 
-        const makePrepKey = (kind, s, tier) => [
-            kind, tier, q(s.gain,0.02), q(s.gamma,0.01), q(s.contrast,0.01), q(s.bright,0.2), q(s.satF,0.01),
-            q(s.mid,0.02), q(s.toe,0.2), q(s.shoulder,0.2), q(s.temp,0.2), q(s.sharp,0.2), q(s.sharp2,0.2), q(s.clarity,0.2), q(s.dither,1)
-        ].join('|');
-
         const prepareCached = (doc, s, kind, tier = 0) => {
              let m = prepCache.get(doc); if(!m) { m=new Map(); prepCache.set(doc,m); }
              const key = makePrepKey(kind, s, tier);
              const hit = m.get(key); if(hit) return hit;
-             
              let url;
              try { url = prepare(doc, s, kind, tier); } catch(e) { return ''; }
-
              m.clear(); m.set(key, url);
              return url;
         };
 
         return { prepare, prepareCached, applyUrl: (el, url) => { if (el.style.filter !== url) { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); } }, clear: (el) => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); } };
-    };
+    }
 
     const WORKER_CODE = `
         const histAll = new Uint32Array(256), histTop = new Uint32Array(256);
@@ -861,11 +1005,12 @@
         };
     `;
 
-    const createAE = (sm, { IS_MOBILE, Utils }, onAE) => {
+    function createAE(sm, { IS_MOBILE, Utils }, onAE) {
         let worker, canvas, ctx2d, activeVideo = null, isRunning = false, workerBusy = false, targetToken = 0;
         let lastStats = { p10: -1, p35: -1, p50: -1, p60: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, std: 0, rd: 0 };
         let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0, curGain = 1.0;
         let evAggressiveUntil = 0, useRVFC = false, rvfcToken = 0, __prevFrame = null, __motion01 = 1;
+        let pausedTimer = 0;
         const { clamp } = Utils; const getCfg = () => getAeCfg(IS_MOBILE, sm.get(P.V_AE_PROFILE));
 
         const computeTargetEV = (stats, cfg) => {
@@ -911,14 +1056,16 @@
             if (Math.abs(targetEV) < cfg.DEAD_IN) targetEV = 0;
 
             const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS); lastApplyT = now;
-            const alphaA = 1 - Math.exp(-dtA / (now < evAggressiveUntil ? cfg.TAU_AGGRESSIVE : (targetEV > Math.log2(curGain) ? cfg.TAU_UP : cfg.TAU_DOWN)));
+            const clip01 = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 4.0), 0, 1);
+            const baseTau = (now < evAggressiveUntil) ? cfg.TAU_AGGRESSIVE : (targetEV > Math.log2(curGain) ? cfg.TAU_UP : cfg.TAU_DOWN);
+            const tauClip = baseTau * (1 + clip01 * 0.9);
+            const alphaA = 1 - Math.exp(-dtA / tauClip);
             curGain = Math.pow(2, Math.log2(curGain) + (targetEV - Math.log2(curGain)) * alphaA);
 
             const smth = (t) => t * t * (3 - 2 * t);
             const ev01 = clamp(Math.log2(curGain) / 1.55, 0, 1);
             const p10 = clamp(lastStats.p10, 0, 1), p50 = clamp(lastStats.p50, 0, 1), p90 = clamp(lastStats.p90, 0, 1), p95 = clamp(lastStats.p95, 0, 1);
             const skin01 = clamp(((lastStats.rd || 0) - 0.05) / 0.08, 0, 1);
-            const clip01 = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 4.0), 0, 1);
             const sceneContrast = clamp(p90 - p10, 0, 1);
             const flat01 = smth(clamp((0.44 - sceneContrast) / 0.24, 0, 1));
             const lowKey01 = smth(clamp((0.22 - p50) / 0.14, 0, 1));
@@ -932,6 +1079,9 @@
 
             let satBoost01 = smth(clamp((0.26 - (lastStats.cf || 0.5)) / 0.18, 0, 1));
             let satF = 1 + satBoost01 * 0.38 * (1 - hiR * 0.70) * (1 - skin01 * 0.30);
+
+            const skinLowKey = skin01 * lowKey01;
+            satF *= (1 - skinLowKey * 0.10);
             satF = clamp(satF, cfg.SAT_MIN, cfg.SAT_MAX);
 
             const midBias = clamp((0.50 - p50) / 0.22, -1, 1);
@@ -939,7 +1089,10 @@
             mid += skin01 * 0.22 * (1 - hiR); mid -= clip01 * 0.18; mid = clamp(mid, -0.85, 0.85);
 
             let toe = (4.0 + 7.0 * ev01) * lowKey01;
-            toe *= (1 - hiR * 0.55); toe *= (0.80 + 0.35 * skin01); toe = clamp(toe, 0, 10.0);
+            toe *= (1 - hiR * 0.65);
+            toe *= (1 - clip01 * 0.45);
+            toe *= (0.80 + 0.35 * skin01);
+            toe = clamp(toe, 0, 9.0);
 
             let shoulder = (6.0 + 7.0 * ev01) * hiR;
             shoulder += 3.0 * clip01; shoulder *= (1 - skin01 * 0.10); shoulder = clamp(shoulder, 0, 12.0);
@@ -962,7 +1115,7 @@
             const d = cnt ? (diff / cnt) : 0; __motion01 = Math.max(0, Math.min(1, d / 28));
         };
 
-        const disableAEHard = () => { try { worker?.terminate(); } catch (_) { } worker = null; workerBusy = false; isRunning = false; targetToken++; try { sm.set(P.V_AE, false); } catch (e) { } };
+        const disableAEHard = () => { try { worker?.terminate(); } catch (_) { } worker = null; workerBusy = false; isRunning = false; targetToken++; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) { } workerUrl = null; } try { sm.set(P.V_AE, false); } catch (e) { } };
         let workerUrl = null;
         const ensureWorker = () => {
             if (worker) return worker;
@@ -1000,6 +1153,22 @@
             } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
         };
 
+        const startPausedTimer = () => {
+            if (pausedTimer) return;
+            pausedTimer = setInterval(() => {
+                if (!isRunning) return;
+                const v = activeVideo;
+                if (!v) return;
+                if (v.paused) sample(v);
+            }, 650);
+        };
+
+        const stopPausedTimer = () => {
+            if (!pausedTimer) return;
+            clearInterval(pausedTimer);
+            pausedTimer = 0;
+        };
+
         const tick = () => {
             if (!isRunning) return;
             const active = sm.get(P.APP_ACT) && sm.get(P.V_AE);
@@ -1021,24 +1190,25 @@
                 ensureWorker();
                 if (!isRunning) {
                     isRunning = true;
-                    // Reset AE timers to prevent jump
                     const now = performance.now();
                     lastApplyT = now; lastEmaT = now; lastSampleT = 0;
+                    startPausedTimer();
                     if (useRVFC && activeVideo) try { activeVideo.requestVideoFrameCallback(() => rvfcLoop(rvfcToken)); } catch (_) { }
                     else tick();
                 }
             },
-            stop: () => { isRunning = false; try { worker?.terminate(); } catch (_) { } worker = null; if (workerUrl) { URL.revokeObjectURL(workerUrl); workerUrl = null; } activeVideo = null; curGain = 1; },
+            stop: () => {
+                isRunning = false; stopPausedTimer();
+                try { worker?.terminate(); } catch (_) { } worker = null;
+                if (workerUrl) { URL.revokeObjectURL(workerUrl); workerUrl = null; }
+                activeVideo = null; curGain = 1;
+            },
             wake: () => { evAggressiveUntil = performance.now() + 1000; },
             userTweak: () => { lastStats = { p10: -1, p35: -1, p50: -1, p60: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, std: 0, rd: 0 }; lastEmaT = 0; curGain = 1; evAggressiveUntil = performance.now() + 1200; }
         };
-    };
+    }
 
-    const Utils = createUtils();
-    const Scheduler = createScheduler();
-    const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
-
-    const createUI = (Utils, sm, defaults, config, registry, scheduler) => {
+    function createUI(sm, defaults, config, registry, scheduler) {
         const { h } = Utils;
         let container, monitorEl, gearHost, gearBtn;
         let fadeTimer = 0;
@@ -1190,8 +1360,10 @@
             gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
             const shadow = gearHost.attachShadow({ mode: 'open' });
             const style = `
-                .gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff;font:700 20px/46px sans-serif;text-align:center;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease; opacity: 1;}
-                .gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65); opacity: 1 !important;}
+                .gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff;font:700 20px/46px sans-serif;text-align:center;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease; opacity: 1; -webkit-tap-highlight-color: transparent;}
+                @media (hover:hover) and (pointer:fine){
+                    .gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}
+                }
                 .gear:active{transform:translateY(-50%) scale(0.98);}
                 .gear.open { outline: 2px solid rgba(52,152,219,0.85); opacity: 1 !important; }
                 .gear.inactive { opacity: 0.45; }
@@ -1201,7 +1373,7 @@
             `;
             gearBtn = h('button', { class: 'gear', onclick: () => sm.set(P.APP_UI, !sm.get(P.APP_UI)) }, '⚙');
             shadow.append(h('style', {}, style), gearBtn, h('div', { class: 'hint' }, '설정 (Alt+Shift+V)'));
-            
+
             const wake = () => {
                 if (gearBtn) gearBtn.style.opacity = '1';
                 clearTimeout(fadeTimer);
@@ -1253,7 +1425,12 @@
             update: (text, isAE) => { if (monitorEl && sm.get(P.APP_UI)) { monitorEl.textContent = text; monitorEl.style.color = isAE ? "#2ecc71" : "#aaa"; } },
             destroy: () => { detachNodesHard(); }
         };
-    };
+    }
+
+    // --- Main Execution (Last) ---
+    const Utils = createUtils();
+    const Scheduler = createScheduler();
+    const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
 
     const FEATURES = {
         active: () => Store.get(P.APP_ACT),
@@ -1265,9 +1442,14 @@
         ae: () => Store.get(P.APP_ACT) && Store.get(P.V_AE),
         audio: () => Store.get(P.APP_ACT) && Store.get(P.A_EN)
     };
+
     const Registry = createRegistry(Scheduler, FEATURES, { IS_LOW_END });
     const Filters = createFilters(Utils, { VSC_ID });
     const Audio = createAudio(Store);
+    const UI = createUI(Store, DEFAULTS, { IS_TOP }, Registry, Scheduler);
+
+    UI.ensure();
+    Store.sub(P.APP_UI, (v) => { UI.ensure(); Scheduler.request(true); });
 
     let currentAE = { gain: 1.0, gammaF: 1.0, conF: 1.0, satF: 1.0, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, luma: 0, hiRisk: 0, cf: 0.5 };
     let aeRev = 0;
@@ -1279,30 +1461,29 @@
         if (changed) { aeRev++; Scheduler.request(false); }
     });
 
-    const UI = createUI(Utils, Store, DEFAULTS, { IS_TOP }, Registry, Scheduler);
-    UI.ensure();
-    Store.sub(P.APP_UI, (v) => { UI.ensure(); Scheduler.request(true); });
-
-    document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
-    document.addEventListener('vsc-ae-wake', () => { if (FEATURES.ae()) AE.wake(); });
-
     let lastSRev = -1, lastRRev = -1, lastAeRev = -1;
     let lastPrune = 0, lastWantImages = false;
     let __currentTarget = null, __currentScore = -1, __currentSince = 0;
     let __lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: 0 };
     let __lastClickedVideo = null;
+    let lastUiEnsureT = 0;
 
-    const markUserIntent = (x, y) => { __lastUserPt = { x, y, t: performance.now() }; };
     window.addEventListener('pointerdown', (e) => {
-        markUserIntent(e.clientX, e.clientY);
+        __lastUserPt = { x: e.clientX, y: e.clientY, t: performance.now() };
         const el = document.elementFromPoint(e.clientX, e.clientY);
         const v = el?.closest?.('video');
         if (v) __lastClickedVideo = v;
     }, { passive: true });
-    window.addEventListener('wheel', () => markUserIntent(innerWidth * 0.5, innerHeight * 0.5), { passive: true });
-    window.addEventListener('keydown', () => markUserIntent(innerWidth * 0.5, innerHeight * 0.5), { passive: true });
+    window.addEventListener('wheel', () => __lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() }, { passive: true });
+    window.addEventListener('keydown', (e) => {
+        __lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
+    }, { passive: true });
+
+    document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
+    document.addEventListener('vsc-ae-wake', () => { if (FEATURES.ae()) AE.wake(); });
 
     const getRateState = (v) => { let st = v[VSCX.rateState]; if (!st) st = v[VSCX.rateState] = { orig: null, lastSetAt: 0 }; return st; };
+    const restoreRateOne = (el) => { try { const st = el[VSCX.rateState]; if (st?.orig != null) el.playbackRate = st.orig; } catch (_) { } if (el[VSCX.rateState]) el[VSCX.rateState].orig = null; };
     const bindVideoOnce = (v) => {
         if (v[VSCX.bound]) return; v[VSCX.bound] = true;
         v.addEventListener('seeking', () => AE.wake(), { passive: true });
@@ -1315,25 +1496,17 @@
         }, { passive: true });
     };
 
-    const clearVideoOne = (el) => { try { Filters.clear(el); } catch (_) { } TOUCHED.videos.delete(el); };
-    const clearImageOne = (el) => { try { Filters.clear(el); } catch (_) { } TOUCHED.images.delete(el); };
-    const restoreRateOne = (el) => { try { const st = el[VSCX.rateState]; if (st?.orig != null) el.playbackRate = st.orig; } catch (_) { } if (el[VSCX.rateState]) el[VSCX.rateState].orig = null; };
-
-    const docFilterKey = new WeakMap();
     const docFilterKeyImg = new WeakMap();
 
     const applyVideoFilters = (visibleVideos, dirtyVideos, vVals, activeFx, tier) => {
-        for (const el of dirtyVideos) { if (!el || el.tagName !== 'VIDEO') continue; if (!activeFx || el[VSCX.visible] === false) clearVideoOne(el); }
+        for (const el of dirtyVideos) { if (!el || el.tagName !== 'VIDEO') continue; if (!activeFx || el[VSCX.visible] === false) try { Filters.clear(el); } catch(_){} }
         if (!activeFx) return;
         let lastDoc = null, url = null;
         for (const el of visibleVideos) {
             if (!el || el.tagName !== 'VIDEO') continue; if (el[VSCX.visible] === false) continue;
-            // CrossOrigin removed for safety
             const doc = el.ownerDocument || document;
             if (doc !== lastDoc) {
                 lastDoc = doc;
-                // Try cached key first
-                // Use fallback if prepareCached returns empty (rare)
                 url = Filters.prepareCached(doc, vVals, 'video', tier);
                 if (!url) url = Filters.prepare(doc, vVals, 'video', tier);
             }
@@ -1344,17 +1517,16 @@
     };
 
     const applyImageFilters = (visibleImages, dirtyImages, iVals, activeFx) => {
-        for (const el of dirtyImages) { if (!el || el.tagName !== 'IMG') continue; if (!activeFx || el[VSCX.visible] === false) clearImageOne(el); }
+        for (const el of dirtyImages) { if (!el || el.tagName !== 'IMG') continue; if (!activeFx || el[VSCX.visible] === false) try { Filters.clear(el); } catch(_){} }
         if (!activeFx) return;
         let lastDoc = null, url = null;
         for (const el of visibleImages) {
             if (!el || el.tagName !== 'IMG') continue; if (el[VSCX.visible] === false) continue;
-            const w = el.naturalWidth || el.width, h = el.naturalHeight || el.height;
-            if (w <= 50 || h <= 50) continue;
             const doc = el.ownerDocument || document;
             if (doc !== lastDoc) {
                 lastDoc = doc;
                 url = Filters.prepareCached(doc, iVals, 'image', 0);
+                if (!url) url = Filters.prepare(doc, iVals, 'image', 0);
             }
             Filters.applyUrl(el, url);
             TOUCHED.images.add(el);
@@ -1382,146 +1554,6 @@
         TOUCHED.videos.clear(); TOUCHED.images.clear();
     };
 
-    const syncImageScan = () => {
-        const want = FEATURES.images();
-        if (want && !lastWantImages) Registry.rescanAll();
-        if (!want && lastWantImages) {
-            const removed = Registry.setWantImages(false);
-            for (const el of removed) { try { Filters.clear(el); } catch (e) { } TOUCHED.images.delete(el); }
-            Scheduler.request(true);
-        }
-        lastWantImages = want;
-    };
-    Store.sub(P.APP_TAB, syncImageScan); Store.sub(P.I_LVL, syncImageScan); Store.sub(P.I_TMP, syncImageScan);
-    Store.sub(P.V_AE, (v) => { if (!v) AE.stop?.(); });
-
-    function getRectCached(v, now, maxAgeMs = 250) {
-        const t0 = v.__vscRectT || 0;
-        let r = v[VSCX.rect];
-        if (!r || (now - t0) > maxAgeMs) {
-            r = v.getBoundingClientRect();
-            v[VSCX.rect] = r;
-            v.__vscRectT = now;
-        }
-        return r;
-    }
-
-    function isActuallyVisibleFast(el) {
-        if (!el || !el.isConnected) return false;
-        if (el[VSCX.visible] === false) return false;
-        const r = el[VSCX.rect] || el.getBoundingClientRect();
-        if (r.width < 80 || r.height < 60) return false;
-        if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return false;
-        return true;
-    }
-
-    const scoreVideo = (v, audioBoostOn, now) => {
-        if (!v || v.readyState < 2) return -Infinity;
-        if (!isActuallyVisibleFast(v)) return -Infinity;
-        const r = getRectCached(v, now, 250);
-        const area = r.width * r.height;
-        const areaScore = Math.log2(1 + area / 20000);
-        const playing = (!v.paused && !v.ended) ? 1 : 0;
-        const hasTime = (v.currentTime > 0.2 && (v.duration === Infinity || v.duration > 1)) ? 1 : 0;
-        const dist = Math.hypot((r.left + r.width * 0.5) - __lastUserPt.x, (r.top + r.height * 0.5) - __lastUserPt.y);
-        const distScore = 1 / (1 + dist / 850);
-        const userRecent01 = Math.max(0, 1 - (now - __lastUserPt.t) / 2500);
-        const userBoost = userRecent01 * (1 / (1 + dist / 500)) * 3.2;
-        const ir = (v[VSCX.ir] == null) ? 0.01 : v[VSCX.ir];
-        const irScore = Math.min(1, ir) * 3.2;
-        const bgLike = (v.muted && !v.controls && playing) ? 1 : 0;
-        const big01 = Math.min(1, area / (900 * 500));
-        const bgPenalty = bgLike ? (1.6 * (1 - 0.65 * big01)) : 0;
-        const audible = (!v.muted && (v.volume == null || v.volume > 0.01)) ? 1 : 0;
-        const audioScore = audioBoostOn ? (audible * 2.0) : 0;
-        return (playing * 6.0) + (hasTime * 2.4) + (areaScore * 1.2) + (distScore * 3.0) + userBoost + irScore + audioScore - bgPenalty;
-    };
-
-    const pickBestVideo = (videos) => {
-        const now = performance.now();
-        if (!videos || videos.size === 0) { __currentTarget = null; __currentScore = -1; __currentSince = now; return null; }
-        if (__lastClickedVideo && videos.has(__lastClickedVideo) && __lastClickedVideo.isConnected && __lastClickedVideo.readyState >= 2) {
-            if (now - __lastUserPt.t < 900) { __currentTarget = __lastClickedVideo; __currentScore = Infinity; __currentSince = now; return __lastClickedVideo; }
-        }
-        const fs = document.fullscreenElement || document.webkitFullscreenElement;
-        if (fs) {
-            const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
-            if (v && videos.has(v) && v.isConnected && v.readyState >= 2) { __currentTarget = v; __currentScore = Infinity; __currentSince = now; return v; }
-        }
-        if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) { __currentTarget = document.pictureInPictureElement; __currentScore = Infinity; __currentSince = now; return document.pictureInPictureElement; }
-
-        const audioBoostOn = Store.get(P.A_EN) && Store.get(P.APP_ACT);
-        
-        // Sort-Free Top K Selection
-        const limited = [];
-        const pushTopK = (v) => {
-            const ir = (v[VSCX.ir] == null) ? 0 : v[VSCX.ir];
-            const r = getRectCached(v, now, 350);
-            const area = r.width * r.height;
-            // Relaxed filter: include large videos even if IR is low (e.g. big background)
-            if (ir < 0.01 && area < 160 * 120) return;
-            const item = { ir, area, v };
-            let i = 0;
-            while (i < limited.length) {
-                const a = limited[i];
-                if (item.ir > a.ir || (item.ir === a.ir && item.area > a.area)) break;
-                i++;
-            }
-            limited.splice(i, 0, item);
-            if (limited.length > 10) limited.length = 10;
-        };
-        for (const v of videos) pushTopK(v);
-
-        const curScore = (__currentTarget && videos.has(__currentTarget)) ? scoreVideo(__currentTarget, audioBoostOn, now) : -Infinity;
-        let best = __currentTarget, bestScore = curScore;
-        for (const it of limited) {
-            const v = it.v;
-            const s = scoreVideo(v, audioBoostOn, now);
-            if (s > bestScore) { bestScore = s; best = v; }
-        }
-        
-        const userRecent01 = Math.max(0, 1 - (now - __lastUserPt.t) / 2500);
-        const hysteresis = 1.35 + 0.65 * userRecent01;
-
-        if ((__currentTarget && (now - __currentSince) < 900) && best !== __currentTarget && bestScore < curScore + hysteresis) return __currentTarget;
-        if (best !== __currentTarget) { __currentTarget = best; __currentScore = bestScore; __currentSince = now; }
-        return __currentTarget;
-    };
-
-    function buildApplySet(visibleVideos, target) {
-        if (CFG.applyToAllVisibleVideos) return visibleVideos;
-        const set = new Set();
-        if (target) set.add(target);
-        
-        // Sort-Free Top N Selection for applySet
-        const top = [];
-        const N = Math.max(0, CFG.extraBigVideos | 0);
-        if (N > 0) {
-            const pushTop = (area, v) => {
-                let i = 0;
-                while (i < top.length && top[i].area >= area) i++;
-                top.splice(i, 0, { area, v });
-                if (top.length > N) top.length = N;
-            };
-            const now = performance.now();
-            for (const v of visibleVideos) {
-                if (!v || v === target) continue;
-                const r = getRectCached(v, now, 350);
-                pushTop(r.width * r.height, v);
-            }
-            for (const it of top) set.add(it.v);
-        }
-        return set;
-    }
-
-    function computeQualityTier({ IS_LOW_END, visibleCount, applyAll }) {
-        let tier = IS_LOW_END ? 1 : 0;
-        if (applyAll && visibleCount >= 2) tier = Math.max(tier, 1);
-        if (visibleCount >= 4) tier = Math.max(tier, 1);
-        if (visibleCount >= 7) tier = Math.max(tier, 2);
-        return tier;
-    }
-
     Scheduler.registerApply((force) => {
         try {
             const app = Store.getCat('app');
@@ -1529,8 +1561,8 @@
             if (!active) { cleanupAllTouched(); Audio.update(); AE.stop?.(); return; }
 
             const sRev = Store.rev(), rRev = Registry.rev();
-            const prevRRev = lastRRev; 
-            
+            const prevRRev = lastRRev;
+
             if (!force && sRev === lastSRev && rRev === lastRRev && aeRev === lastAeRev) return;
             lastSRev = sRev; lastRRev = rRev; lastAeRev = aeRev;
 
@@ -1551,7 +1583,6 @@
                 Audio.setTarget(null);
             } else {
                 if (wantAE) { AE.setTarget(target); AE.start(); }
-                // Keep connection alive for bypass even if boost OFF, if context exists
                 const keepBypass = Audio.hasCtx?.() || Audio.isHooked?.();
                 if (wantAudio || keepBypass) Audio.setTarget(target);
                 else Audio.setTarget(null);
@@ -1561,9 +1592,12 @@
             const aeOutRaw = wantAE ? currentAE : null;
             const userStyle = Math.abs(vf.bright || 0) / 50 + Math.abs((vf.gamma || 1) - 1) / 1.0 + Math.abs((vf.contrast || 1) - 1) / 1.0 + Math.abs((vf.sat || 100) - 100) / 100;
             const aeMix = 1 - 0.65 * Math.min(1, userStyle / 1.25);
+
+            const mixLog2 = (g, t) => Math.pow(2, Math.log2(Math.max(1e-6, g)) * t);
+
             const aeOut = aeOutRaw ? {
                 ...aeOutRaw,
-                gain: Math.pow(Math.max(1e-6, aeOutRaw.gain ?? 1), aeMix),
+                gain: mixLog2(aeOutRaw.gain ?? 1, aeMix),
                 brightAdd: (aeOutRaw.brightAdd ?? 0) * aeMix,
                 conF: 1 + ((aeOutRaw.conF ?? 1) - 1) * aeMix,
                 satF: 1 + ((aeOutRaw.satF ?? 1) - 1) * aeMix,
@@ -1581,6 +1615,7 @@
             const videoFxOn = active && !isNeutralVideoParams(vVals);
 
             if (app.uiVisible) {
+                if (now - lastUiEnsureT > 450) { UI.ensure(); lastUiEnsureT = now; }
                 if (wantAE) UI.update(`AE: ${vVals.gain.toFixed(2)}x L:${Math.round(currentAE.luma || 0)}% C:${((currentAE.clipFrac || 0) * 100).toFixed(1)}%`, true);
                 else UI.update(`Ready (${VERSION_STR})`, false);
             }
@@ -1589,7 +1624,7 @@
             const tier = computeQualityTier({ IS_LOW_END, visibleCount: applySet.size, applyAll: CFG.applyToAllVisibleVideos });
 
             applyVideoFilters(applySet, vidsDirty, vVals, videoFxOn, tier);
-            
+
             for (const v of Array.from(TOUCHED.videos)) {
                 if (!v || !v.isConnected) { TOUCHED.videos.delete(v); continue; }
                 const shouldHave = videoFxOn && applySet.has(v) && v[VSCX.visible] !== false;
@@ -1608,10 +1643,6 @@
 
         } catch (e) { try { console.warn('[VSC] apply crashed:', e); } catch (_) { } }
     });
-
-    Store.sub(P.APP_ACT, () => { try { Registry.refreshObservers?.(); } catch (_) { } Scheduler.request(true); });
-    ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => { window.addEventListener(ev, () => { try { UI.ensure(); } catch (_) { } Scheduler.request(true); }, { passive: true }); });
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) Scheduler.request(true); }, { passive: true });
 
     let tickTimer = 0;
     const startTick = () => { if (tickTimer) return; tickTimer = setInterval(() => { if (!Store.get(P.APP_ACT)) return; if (document.hidden) return; Scheduler.request(false); }, 12000); };
