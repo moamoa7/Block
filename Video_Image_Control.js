@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.93-SecureUI)
+// @name        Video_Image_Control (v132.0.94-SecureAE)
 // @namespace   https://github.com/
-// @version     132.0.93.0
-// @description Base: v132 + SecureSync + FullscreenUIFix + AE Quality
+// @version     132.0.94.0
+// @description Base: v132 + SecureToken + ScanQueue + AE Quality(RedSkin/Highlight)
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -126,7 +126,7 @@
         return { registerApply: (fn) => { applyFn = fn; }, request };
     };
 
-    // [Secure] Sync Store with Handshake Token
+    // [Secure] Sync Store with Token Handshake (No Broadcast)
     const createSyncStore = (defaults, scheduler, config) => {
         let state = JSON.parse(JSON.stringify(defaults));
         let rev = 0;
@@ -134,12 +134,13 @@
         const IS_TOP = config.IS_TOP;
         let frameWins = [];
 
-        // Security Constants
         const SYNC_HELLO = 'VSC_HELLO';
-        const SYNC_ACK = 'VSC_ACK';
         const SYNC_TYPE = 'VSC_SYNC';
-        const TOP_TOKEN = IS_TOP ? (Math.random().toString(36).slice(2) + Date.now().toString(36)) : null;
-        let SYNC_TOKEN = null;
+        
+        // TOP: source별 token 발급/검증
+        let SYNC_TOKEN = null; // iframe 자신의 token
+        const peerTokens = IS_TOP ? new WeakMap() : null; // key: e.source (WindowProxy), val: token
+        const peers = IS_TOP ? new Set() : null;          // token 발급된 peer window set
 
         // [Optimized] Debounced Frame Refresh
         let rfQueued = false;
@@ -185,18 +186,29 @@
             } catch (e) { }
         };
 
-        const broadcast = (path, val, excludeSource = null) => {
-            const msg = { type: SYNC_TYPE, token: SYNC_TOKEN || TOP_TOKEN, path, val, fromTop: IS_TOP };
-            broadcastRaw(msg, excludeSource);
+        // TOP -> peer별 token을 붙여서 개별 전송(브로드캐스트 금지)
+        const broadcastToPeers = (path, val, excludeSource = null) => {
+            if (!IS_TOP) {
+                const msg = { type: SYNC_TYPE, token: SYNC_TOKEN, path, val };
+                return broadcastRaw(msg);
+            }
+            const next = [];
+            for (const w of peers) {
+                if (!w || w === excludeSource) { if (w) next.push(w); continue; }
+                const tok = peerTokens.get(w);
+                if (!tok) continue;
+                try { w.postMessage({ type: SYNC_TYPE, token: tok, path, val }, '*'); next.push(w); } catch (_) {}
+            }
+            peers.clear();
+            for (const w of next) peers.add(w);
         };
 
-        // Handshake Init
-        if (IS_TOP) {
-            const helloMsg = { type: SYNC_HELLO, token: TOP_TOKEN };
-            setTimeout(() => broadcastRaw(helloMsg), 50);
-            setTimeout(() => broadcastRaw(helloMsg), 250);
-            setTimeout(() => broadcastRaw(helloMsg), 800);
-        } else {
+        const broadcast = (path, val, excludeSource = null) => {
+            broadcastToPeers(path, val, excludeSource);
+        };
+
+        // Handshake Init (TOP은 broadcast 안 함, iframe이 ask)
+        if (!IS_TOP) {
             try { window.top?.postMessage({ type: SYNC_HELLO, ask: 1 }, '*'); } catch (e) { }
         }
 
@@ -206,18 +218,29 @@
 
             // 1. Handshake
             if (d.type === SYNC_HELLO) {
-                if (IS_TOP && d.ask) { // If iframe asks, reply with token
-                    try { e.source?.postMessage({ type: SYNC_HELLO, token: TOP_TOKEN }, '*'); } catch (_) { }
-                } else if (!IS_TOP && d.token) { // If top sends token, save it
+                if (IS_TOP && d.ask) { 
+                    const src = e.source;
+                    if (!src) return;
+                    // 이미 발급된 peer면 재발급하지 않음 (유지)
+                    let tok = peerTokens.get(src);
+                    if (!tok) {
+                        tok = Math.random().toString(36).slice(2) + Date.now().toString(36);
+                        peerTokens.set(src, tok);
+                        peers.add(src);
+                    }
+                    try { src.postMessage({ type: SYNC_HELLO, token: tok }, '*'); } catch (_) {}
+                } else if (!IS_TOP && d.token) {
                     SYNC_TOKEN = d.token;
-                    try { window.top?.postMessage({ type: SYNC_ACK, token: SYNC_TOKEN }, '*'); } catch (_) { }
                 }
                 return;
             }
 
             // 2. Sync with Token Validation
             if (d.type === SYNC_TYPE) {
-                const tokenOk = (IS_TOP ? (d.token === TOP_TOKEN) : (d.token && d.token === SYNC_TOKEN));
+                const tokenOk = IS_TOP
+                    ? (e.source && peerTokens.get(e.source) === d.token)
+                    : (d.token && d.token === SYNC_TOKEN);
+
                 if (!tokenOk) return;
 
                 const [cat, key] = d.path.split('.');
@@ -264,7 +287,38 @@
         };
     };
 
-    const createRegistry = (scheduler, featureCheck) => {
+    // [Optimization] Scan Queue for MutationObserver
+    const createScanQueue = (processNode) => {
+        const q = [];
+        let scheduled = false;
+
+        const schedule = () => {
+            if (scheduled) return;
+            scheduled = true;
+
+            const runner = (deadline) => {
+                scheduled = false;
+                const hasBudget = deadline?.timeRemaining
+                    ? () => deadline.timeRemaining() > 2
+                    : () => true;
+
+                while (q.length && hasBudget()) {
+                    const node = q.shift();
+                    try { processNode(node); } catch (_) {}
+                }
+                if (q.length) schedule();
+            };
+
+            if (typeof requestIdleCallback === 'function') requestIdleCallback(runner, { timeout: 120 });
+            else requestAnimationFrame(() => runner(null));
+        };
+
+        return {
+            push(node) { if (!node) return; q.push(node); schedule(); }
+        };
+    };
+
+    const createRegistry = (scheduler, featureCheck, { IS_LOW_END }) => {
         const videos = new Set();
         const images = new Set();
         const seenElements = new WeakSet();
@@ -272,15 +326,26 @@
         const dirty = { videos: new Set(), images: new Set() };
         let rev = 0;
 
+        // [Stability] Safe attachShadow Patch
         const origAttachShadow = Element.prototype.attachShadow;
         if (origAttachShadow) {
-            Element.prototype.attachShadow = function (init) {
-                const shadow = origAttachShadow.call(this, init);
-                if (shadow) observeRoot(shadow);
-                return shadow;
-            };
+            try {
+                const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'attachShadow');
+                const writable = !desc || desc.writable || !!desc.set;
+                if (writable) {
+                    Element.prototype.attachShadow = function(init) {
+                        const shadow = origAttachShadow.call(this, init);
+                        try { if (shadow) observeRoot(shadow); } catch (_) {}
+                        return shadow;
+                    };
+                    window.addEventListener('pagehide', () => {
+                        try { Element.prototype.attachShadow = origAttachShadow; } catch (_) {}
+                    }, { once: true });
+                }
+            } catch (_) {}
         }
 
+        const rm = IS_LOW_END ? '120px' : '300px';
         const io = new IntersectionObserver((entries) => {
             let changed = false;
             for (const e of entries) {
@@ -296,9 +361,8 @@
                 }
             }
             if (changed) { rev++; scheduler.request(false); }
-        }, { root: null, threshold: 0.01, rootMargin: '300px' });
+        }, { root: null, threshold: 0.01, rootMargin: rm });
 
-        // [Fix] UI Check crossing Shadow DOM
         const isInVscUI = (node) => {
             if (!node || node.nodeType !== 1) return false;
             if (node.closest?.('[data-vsc-ui="1"]')) return true;
@@ -335,11 +399,13 @@
             if (featureCheck.images()) safeQSA(node, 'img').forEach(observeMediaEl);
         };
 
+        const scanQ = createScanQueue(processNode);
+
         const observeRoot = (root) => {
             if (!root) return;
             processNode(root);
             new MutationObserver((mutations) => {
-                for (const m of mutations) for (const n of m.addedNodes) processNode(n);
+                for (const m of mutations) for (const n of m.addedNodes) scanQ.push(n);
             }).observe(root, { childList: true, subtree: true });
         };
 
@@ -559,7 +625,7 @@
         };
     };
 
-    const createAE = (sm, scheduler, { IS_MOBILE, MIN_AE, Utils }, onAE) => {
+    const createAE = (sm, { IS_MOBILE, MIN_AE, Utils }, onAE) => {
         let worker, canvas, ctx2d;
         let activeVideo = null;
         let isRunning = false;
@@ -571,7 +637,7 @@
         const { clamp } = Utils;
         let curGain = 1.0;
         let aeActive = false;
-        let lastStats = { p10: -1, p50: -1, p90: -1, cf: 0.5, std: 0.0, rd: 0.0 };
+        let lastStats = { p10: -1, p50: -1, p90: -1, p95: -1, cf: 0.5, std: 0.0, rd: 0.0 };
         let lastApplyT = 0, lastEmaT = 0, lastLuma = -1;
         let lowMotionFrames = 0, dynamicSkipThreshold = 0, frameSkipCounter = 0, evAggressiveUntil = 0;
         let lastSampleT = 0;
@@ -619,7 +685,7 @@
                         sumRedDom += redDom;
                     }
                 }
-                let p10=-1, p50=-1, p90=-1, p98=-1, p98m=-1;
+                let p10=-1, p50=-1, p90=-1, p95=-1, p98=-1, p98m=-1;
                 let clipFrac=0, clipFracBottom=0;
                 let avgLuma=0, stdDev=0, avgSat=0, redDominance=0;
                 let botAvg=0, botStd=0;
@@ -639,12 +705,13 @@
                         botStd = Math.sqrt(Math.max(0, meanSqb - botAvg*botAvg));
                     }
                     let sum = 0;
-                    const t10=validCount*0.1, t50=validCount*0.5, t90=validCount*0.9, t98=validCount*0.98;
+                    const t10=validCount*0.1, t50=validCount*0.5, t90=validCount*0.9, t95=validCount*0.95, t98=validCount*0.98;
                     for(let i=0; i<256; i++) {
                         sum += hist[i];
                         if(p10<0 && sum>=t10) p10=i/255;
                         if(p50<0 && sum>=t50) p50=i/255;
                         if(p90<0 && sum>=t90) p90=i/255;
+                        if(p95<0 && sum>=t95) p95=i/255;
                         if(p98<0 && sum>=t98) p98=i/255;
                     }
                     let sumM = 0;
@@ -653,8 +720,8 @@
                         if(sumM >= t98) { p98m = i/255; break; }
                     }
                 }
-                if(p10<0) p10=0.1; if(p50<0) p50=0.5; if(p90<0) p90=0.9; if(p98<0) p98=0.98; if(p98m<0) p98m=p98;
-                self.postMessage({ fid, token, p10, p50, p90, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd, redDominance });
+                if(p10<0) p10=0.1; if(p50<0) p50=0.5; if(p90<0) p90=0.9; if(p95<0) p95=0.95; if(p98<0) p98=0.98; if(p98m<0) p98m=p98;
+                self.postMessage({ fid, token, p10, p50, p90, p95, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd, redDominance });
             };
         `;
 
@@ -701,6 +768,7 @@
             const p50 = clamp(stats.p50, 0.01, 0.99);
             const p98 = clamp(stats.p98, 0.01, 0.999);
             const p98m = clamp(stats.p98m ?? p98, 0.01, 0.999);
+            const p95 = clamp(stats.p95 ?? stats.p90, 0.01, 0.999); // [Quality] Highlight Guard
             const stdDev = clamp(stats.stdDev, 0, 1);
             const darkStart = IS_MOBILE ? 0.22 : 0.26;
             const darkFull = IS_MOBILE ? 0.12 : 0.16;
@@ -722,7 +790,8 @@
 
             const maxSafeGainL = 0.99 / p98;
             const maxSafeGainM = 0.99 / p98m;
-            const maxSafeGain = Math.min(maxSafeGainL, maxSafeGainM);
+            const maxSafeGain95 = 0.985 / p95; // [Quality] Check p95
+            const maxSafeGain = Math.min(maxSafeGainL, maxSafeGainM, maxSafeGain95);
             const maxSafeEV = Math.log2(Math.max(1.0, maxSafeGain));
             if (ev > maxSafeEV) ev = maxSafeEV;
 
@@ -746,7 +815,6 @@
             const midErr = clamp(targetP50 - p50, -0.25, 0.25);
             const darkNeed = smooth01(clamp((0.16 - p10) / 0.14, 0, 1));
             const lowColor = smooth01(clamp((0.34 - cf) / 0.20, 0, 1));
-            // [Quality] Red Skin Protection
             const redRisk = smooth01(clamp((rd - 0.06) / 0.10, 0, 1));
 
             const kB = IS_MOBILE ? 10.0 : 12.5;
@@ -766,11 +834,16 @@
             return { brightness, shadowLift, highlightRecover, contrastBoost, gammaPull, satBoost };
         };
 
-        const updateEma = (stats) => {
+        // [Quality] Variable TAU based on Motion/Playing
+        const updateEma = (stats, motion01, playing) => {
             const now = performance.now();
             const dt = Math.max(1, now - (lastEmaT || now));
             lastEmaT = now;
-            const tau = 220;
+            
+            const base = playing ? 220 : 360;
+            const m = clamp(motion01 ?? 0.1, 0, 1);
+            const tau = clamp(base + (1 - m) * 180, 180, 650);
+
             const a = 1 - Math.exp(-dt / tau);
             const s = lastStats;
             s.p90 = (s.p90 < 0) ? stats.p90 : (stats.p90 * a + s.p90 * (1 - a));
@@ -788,7 +861,7 @@
             if (data.fid && data.fid < lastFidApplied) return;
             if (data.fid) lastFidApplied = data.fid;
 
-            const { p10, p50, p90, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd, redDominance } = data;
+            const { p10, p50, p90, p95, p98, p98m, stdDev, clipFrac, clipFracBottom, avgSat, avgLuma, botAvg, botStd, redDominance } = data;
             const now = performance.now();
 
             if (lastLuma >= 0) {
@@ -814,15 +887,24 @@
             const clipLimit = MIN_AE.CLIP_FRAC_LIMIT;
             const highlightSmall = clipFrac < clipLimit * 0.7;
             const uiBarLikely = (botAvg > 0.20 && botStd < 0.08);
-            const subtitleLikely = (clipFracBottom > clipLimit * 1.5) && (p98 > 0.96) && (p50 < 0.22) && (stdDev > 0.06) && !uiBarLikely;
+            
+            // [Quality] Conservative Subtitle Detection
+            const subtitleLikely = 
+                (clipFracBottom > clipLimit * 1.8) &&
+                (p98 > 0.965) &&
+                (p50 < 0.20) &&
+                (stdDev > 0.07) &&
+                (botStd > 0.035) &&
+                !uiBarLikely;
+
             const clipRisk = ((p98 >= MIN_AE.P98_CLIP && !highlightSmall) || (clipFrac > clipLimit)) && !subtitleLikely;
 
             if (clipRisk) { clipStreak++; } else { clipStreak = 0; }
             if (clipStreak >= 3) suspendUntil = now + 1200;
             const suspended = now < suspendUntil;
 
-            // [Quality] EMA for Stability
-            const statsE = updateEma({ p90, p50, p10, avgSat, stdDev, redDominance });
+            const playingNow = (!activeVideo?.paused && !activeVideo?.ended);
+            const statsE = updateEma({ p90, p50, p10, avgSat, stdDev, redDominance }, __motion01, playingNow);
 
             let targetEV = 0;
             if (suspended) {
@@ -831,9 +913,9 @@
             } else {
                 targetEV = computeTargetEV({
                     p10: statsE.p10, p50: statsE.p50, p90: statsE.p90,
-                    p98, p98m, stdDev: statsE.std
+                    p98, p98m, p95, stdDev: statsE.std
                 });
-                if (subtitleLikely && targetEV > 0) targetEV *= 0.55;
+                if (subtitleLikely && targetEV > 0) targetEV *= 0.70; // Gentle dimming
                 const th = aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
                 if (Math.abs(targetEV) < th) { targetEV = 0; aeActive = false; }
                 else aeActive = true;
@@ -844,6 +926,10 @@
                 if (tooBright) {
                     const down = clamp(Math.log2(0.58 / Math.max(0.01, p50)) * 0.33, MIN_AE.MAX_DOWN_EV, 0);
                     targetEV = Math.min(targetEV, down);
+                }
+                // [Quality] Limit EV up if midtone is already bright
+                if (p50 > 0.45 && targetEV > 0) {
+                    targetEV = Math.min(targetEV, 0.06);
                 }
             }
 
@@ -941,7 +1027,6 @@
             if (!isRunning) return;
             const active = sm.get(P.APP_ACT) && sm.get(P.V_AE);
             if (!active || !activeVideo || !activeVideo.isConnected) {
-                // [Optimization] Fallback timer even if RVFC is active
                 schedule(800);
                 return;
             }
@@ -1003,7 +1088,7 @@
         };
     };
 
-    const createUI = (Utils, sm, scheduler, defaults, config, registry) => {
+    const createUI = (Utils, sm, defaults, config, registry) => {
         const { h } = Utils;
         let container, monitorEl, gearTrigger;
 
@@ -1020,11 +1105,9 @@
             { l: '오디오', k: P.A_BST, min: 0, max: 12, s: 1, f: v => `+${v}dB` }
         ];
 
-        // [Fix] UI Root Finder for Video Fullscreen
         const getUiRoot = () => {
             const fs = document.fullscreenElement || document.webkitFullscreenElement;
             if (fs) {
-                // Video tags cannot have children; use parent or host
                 if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode().host || document.body;
                 return fs;
             }
@@ -1171,7 +1254,7 @@
                     h('button', { id: 't-v', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'video') }, 'VIDEO'),
                     h('button', { id: 't-i', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'image') }, 'IMAGE')
                 ]),
-                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v132.0.93 Secure)')
+                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v132.0.94 SecureAE)')
             ]));
 
             sm.sub(P.APP_TAB, v => {
@@ -1208,7 +1291,6 @@
                 const root = getUiRoot();
                 if (gearTrigger.parentElement !== root) root.appendChild(gearTrigger);
                 if (container && container.parentElement !== root) root.appendChild(container);
-                // [Fix] Always show gear if I am the active frame (Top or Fullscreen Frame)
                 gearTrigger.style.display = (config.IS_TOP || document.fullscreenElement) ? 'flex' : 'none';
             });
         };
@@ -1249,20 +1331,20 @@
         ae: () => Store.get(P.APP_ACT) && Store.get(P.V_AE),
         audio: () => Store.get(P.APP_ACT) && Store.get(P.A_EN)
     };
-    const Registry = createRegistry(Scheduler, FEATURES);
+    const Registry = createRegistry(Scheduler, FEATURES, { IS_LOW_END });
     const Filters = createFilters(Utils, { VSC_ID });
     const Audio = createAudio(Store);
 
     let currentAE = { gain: 1.0, aeGamma: 1.0, aeCon: 1.0, aeSat: 1.0, aeSh: 0, aeHi: 0, aeBr: 0, luma: 0 };
     let aeRev = 0;
 
-    const AE = createAE(Store, Scheduler, { IS_MOBILE, MIN_AE, Utils }, (ae) => {
+    const AE = createAE(Store, { IS_MOBILE, MIN_AE, Utils }, (ae) => {
         currentAE = ae;
         aeRev++;
         Scheduler.request(false);
     });
 
-    const UI = createUI(Utils, Store, Scheduler, DEFAULTS, { IS_TOP }, Registry);
+    const UI = createUI(Utils, Store, DEFAULTS, { IS_TOP }, Registry);
 
     document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
 
@@ -1284,6 +1366,14 @@
     Store.sub(P.V_AE, (v) => { if (!v) AE.stop?.(); });
 
     const pickBestVideo = (videos) => {
+        // [Optimized] Fast Path: Reuse Last Target
+        if (lastPickedVideo && videos.has(lastPickedVideo) && lastPickedVideo.isConnected && lastPickedVideo.readyState >= 2) {
+            const r0 = lastPickedVideo.getBoundingClientRect();
+            const area0 = r0.width * r0.height;
+            const inVp0 = !(r0.bottom < 0 || r0.top > innerHeight || r0.right < 0 || r0.left > innerWidth);
+            if (inVp0 && area0 >= 12000) return lastPickedVideo;
+        }
+
         const fs = document.fullscreenElement || document.webkitFullscreenElement;
         if (fs) {
             const v = (fs.tagName === 'VIDEO') ? fs : fs.querySelector?.('video');
