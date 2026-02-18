@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.95-Refactor)
+// @name        Video_Image_Control (v132.0.99.2-UIInitFix)
 // @namespace   https://github.com/
-// @version     132.0.95.0
-// @description Base: v132 + Fix(SVG/Secure) + AE Refactor(Profiles/Anti-Orange)
+// @version     132.0.99.2
+// @description Base: v132 + Fix(SVG/Secure/AE) + UI Initialization Fix
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -30,9 +30,10 @@
     const VSC_ID = Math.random().toString(36).slice(2);
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_LOW_END = DEVICE_RAM < 4;
+    const VERSION_STR = "v132.0.99.2";
 
     // ==============================
-    // AE CONFIG PROFILES (PC/Mobile)
+    // AE CONFIG PROFILES
     // ==============================
     const AE_COMMON = Object.freeze({
         P98_CLIP: 0.985, CLIP_FRAC_LIMIT: 0.004,
@@ -73,19 +74,14 @@
         const dev = isMobile ? AE_DEVICE.mobile : AE_DEVICE.pc;
         const delta = AE_PROFILE_DELTA[profileName] || AE_PROFILE_DELTA.balanced;
         const out = { ...AE_COMMON, ...dev };
-
         const addRel = (k) => { if (delta[k] != null) out[k] = (out[k] ?? 0) + delta[k]; };
         ['STRENGTH', 'TARGET_MID_BASE', 'MAX_UP_EV', 'SAT_MAX', 'TAU_UP', 'TAU_DOWN'].forEach(addRel);
-
         out.STRENGTH = Math.max(0.12, Math.min(0.38, out.STRENGTH));
         out.TARGET_MID_BASE = Math.max(0.20, Math.min(0.36, out.TARGET_MID_BASE));
         out.MAX_UP_EV = Math.max(0.08, Math.min(0.30, out.MAX_UP_EV));
         return Object.freeze(out);
     }
 
-    // ==============================
-    // PRESET LAYERS
-    // ==============================
     const PRESET = Object.freeze({
         sharp: {
             off: { sharpAdd: 0, sharp2Add: 0 },
@@ -112,8 +108,8 @@
             temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0,
             ae: false, presetS: 'off', presetB: 'brOFF',
             presetMix: 1.0,
-            aeProfile: 'balanced', // balanced | cinematic | bright
-            tonePreset: 'neutral', // neutral | redSkin | highlight
+            aeProfile: null, // [Fix] Start as NULL (Off)
+            tonePreset: null, // [Fix] Start as NULL (Off)
             toneStrength: 1.0
         },
         image: { level: 15, temp: 0 },
@@ -181,7 +177,6 @@
         return { registerApply: (fn) => { applyFn = fn; }, request };
     };
 
-    // [Secure] Sync Store with Peer Tokens
     const createSyncStore = (defaults, scheduler, config) => {
         let state = (typeof structuredClone === 'function') ? structuredClone(defaults) : JSON.parse(JSON.stringify(defaults));
         let rev = 0;
@@ -191,7 +186,6 @@
         const SYNC_HELLO = 'VSC_HELLO';
         const SYNC_TYPE = 'VSC_SYNC';
 
-        // TOP: source별 token 발급/검증
         let SYNC_TOKEN = null;
         const peerTokens = IS_TOP ? new WeakMap() : null;
         const peers = IS_TOP ? new Set() : null;
@@ -221,7 +215,6 @@
             for (const w of next) peers.add(w);
         };
 
-        // Handshake Init (iframe asks TOP)
         if (!IS_TOP) {
             try { window.top?.postMessage({ type: SYNC_HELLO, ask: 1 }, '*'); } catch (e) { }
         }
@@ -230,7 +223,6 @@
             const d = e.data;
             if (!d || !d.type) return;
 
-            // 1. Handshake
             if (d.type === SYNC_HELLO) {
                 if (IS_TOP && d.ask) {
                     const src = e.source;
@@ -248,7 +240,6 @@
                 return;
             }
 
-            // 2. Sync with Token Validation
             if (d.type === SYNC_TYPE) {
                 const tokenOk = IS_TOP
                     ? (e.source && peerTokens.get(e.source) === d.token)
@@ -307,7 +298,6 @@
         };
     };
 
-    // [Optimization] Scan Queue for MutationObserver
     const createScanQueue = (processNode) => {
         const q = [];
         let scheduled = false;
@@ -337,7 +327,6 @@
         const dirty = { videos: new Set(), images: new Set() };
         let rev = 0;
 
-        // [Stability] Safe attachShadow Patch
         const origAttachShadow = Element.prototype.attachShadow;
         if (origAttachShadow) {
             try {
@@ -391,7 +380,7 @@
 
         const processNode = (node) => {
             if (!node) return;
-            if (node.nodeType === 11) { // ShadowRoot
+            if (node.nodeType === 11) {
                 const wantImg = featureCheck.images();
                 safeQSA(node, wantImg ? 'video,img' : 'video').forEach(observeMediaEl);
                 return;
@@ -532,7 +521,6 @@
             const defs = h('defs', { ns: 'svg' });
             svg.append(defs);
 
-            // [Fix] Correct Chain: Source -> lin -> gam -> tmp -> sat -> blur -> sh -> bc -> cl
             const createFilter = (suffix, withNoise) => {
                 const fid = `${baseId}-${suffix}`;
                 const filter = h('filter', { ns: 'svg', id: fid, x: '-20%', y: '-20%', width: '140%', height: '140%', 'color-interpolation-filters': 'sRGB' });
@@ -572,7 +560,6 @@
                 if (!ctx) { ctx = buildSvg(doc); ctxMap.set(doc, ctx); }
                 const nodes = kind === 'video' ? (s.dither > 0 ? ctx.video.N : ctx.video.O) : (s.dither > 0 ? ctx.image.N : ctx.image.O);
 
-                // [Optimization] Compact key
                 const key = [
                     q(s.satF, 0.01), q(s.gain, 0.01), q(s.gamma, 0.01), q(s.contrast, 0.01), q(s.bright, 0.2),
                     q(s.sharp, 1), q(s.sharp2, 1), q(s.clarity, 1), q(s.dither, 5), q(s.temp, 1),
@@ -796,7 +783,6 @@
             const contrast = clamp((stats.p90 - stats.p10), 0, 1);
             const lowKey = (stdDev > cfg.LOWKEY_STDDEV) && (p50 < 0.22) && (contrast > 0.35);
 
-            // [Quality] Mixed Key
             const key = clamp(p50 * 0.60 + p35 * 0.30 + p60 * 0.10, 0.01, 0.99);
 
             let targetMid = cfg.TARGET_MID_BASE;
@@ -838,7 +824,7 @@
             const targetP50 = 0.58 - 0.05 * ev01;
             const midErr = clamp(targetP50 - p50, -0.25, 0.25);
             const darkNeed = smooth01(clamp((0.16 - p10) / 0.14, 0, 1));
-            const lowColor = smooth01(clamp((0.26 - cf) / 0.16, 0, 1)); // [Quality] Chroma based
+            const lowColor = smooth01(clamp((0.26 - cf) / 0.16, 0, 1));
 
             const kB = IS_MOBILE ? 10.0 : 12.5;
             const kS = IS_MOBILE ? 10.0 : 14.0;
@@ -996,10 +982,9 @@
             aeShOut = q05(clamp(aeShOut + tuning.shadowLift, 0, 14));
             aeHiOut = q05(clamp(aeHiOut + tuning.highlightRecover, 0, 14));
 
-            // [Refactor] Tone Preset Absorption + Anti-Orange
             const ts = clamp(toneStrength ?? 1.0, 0, 1);
             const hiRisk = clamp((statsE.p90 - 0.84) / 0.12, 0, 1);
-            const redRisk = (1.0 / (1.0 + Math.exp(-((statsE.rd - 0.06) / 0.02)))) * ((statsE.rd - 0.06) / 0.10 > 0 ? 1 : 0); // approx smooth01
+            const redRisk = (1.0 / (1.0 + Math.exp(-((statsE.rd - 0.06) / 0.02)))) * ((statsE.rd - 0.06) / 0.10 > 0 ? 1 : 0);
             const lowColor = (1.0 / (1.0 + Math.exp(-((0.26 - statsE.cf) / 0.03)))) * ((0.26 - statsE.cf) / 0.16 > 0 ? 1 : 0);
 
             const antiOrange = (1 - 0.85 * redRisk);
@@ -1233,11 +1218,20 @@
                 return r;
             };
 
+            // [UI Initialization Fix] Initial check for active class
             const renderChoiceRow = (label, items, key) => {
                 const r = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
                 items.forEach(it => {
                     const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.t);
-                    b.onclick = () => { sm.set(key, it.v); document.dispatchEvent(new CustomEvent('vsc-user-tweak')); };
+                    b.onclick = () => {
+                        const cur = sm.get(key);
+                        const def = (key === 'video.aeProfile') ? 'balanced' : 'neutral';
+                        const next = (cur === it.v) ? def : it.v;
+                        sm.set(key, next);
+                        document.dispatchEvent(new CustomEvent('vsc-user-tweak'));
+                    };
+                    // Set initial state immediately
+                    b.classList.toggle('active', sm.get(key) === it.v);
                     sm.sub(key, v => b.classList.toggle('active', v === it.v));
                     r.append(b);
                 });
@@ -1253,6 +1247,21 @@
                         onclick: () => {
                             const nextState = !sm.get(P.V_AE);
                             sm.set(P.V_AE, nextState);
+
+                            // [UI Reset Logic]
+                            if (nextState) {
+                                // ON -> Force Default if null
+                                const curProfile = sm.get(P.V_AE_PROFILE);
+                                const curTone = sm.get(P.V_TONE_PRE);
+                                if (!curProfile) sm.set(P.V_AE_PROFILE, 'balanced');
+                                if (!curTone) sm.set(P.V_TONE_PRE, 'neutral');
+                            } else {
+                                // OFF -> Clear Selection
+                                sm.set(P.V_AE_PROFILE, null);
+                                sm.set(P.V_TONE_PRE, null);
+                            }
+                            document.dispatchEvent(new CustomEvent('vsc-user-tweak'));
+
                             if (nextState && config.IS_TOP) {
                                 const videos = Array.from(registry.videos);
                                 if (videos.length === 0) {
@@ -1274,8 +1283,8 @@
                     }, '↺ 리셋'),
                     h('button', { id: 'pwr-btn', class: 'btn', onclick: () => sm.set(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power')
                 ),
-                renderChoiceRow('AE', [{ t: 'BAL', v: 'balanced' }, { t: 'CIN', v: 'cinematic' }, { t: 'BRI', v: 'bright' }], 'video.aeProfile'),
-                renderChoiceRow('톤', [{ t: 'NEU', v: 'neutral' }, { t: 'SKIN', v: 'redSkin' }, { t: 'HI', v: 'highlight' }], 'video.tonePreset'),
+                renderChoiceRow('AE', [{ t: '표준', v: 'balanced' }, { t: '영화', v: 'cinematic' }, { t: '밝게', v: 'bright' }], 'video.aeProfile'),
+                renderChoiceRow('톤', [{ t: '기본', v: 'neutral' }, { t: '피부', v: 'redSkin' }, { t: '조명', v: 'highlight' }], 'video.tonePreset'),
                 renderPresetRow('샤프', [{ l: 'S' }, { l: 'M' }, { l: 'L' }, { l: 'XL' }], 'video.presetS'),
                 renderPresetRow('밝기', [{ txt: 'S' }, { txt: 'M' }, { txt: 'L' }, { txt: 'DS' }, { txt: 'DM' }, { txt: 'DL' }], 'video.presetB'),
                 h('hr'),
@@ -1303,7 +1312,7 @@
                     h('button', { id: 't-v', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'video') }, 'VIDEO'),
                     h('button', { id: 't-i', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'image') }, 'IMAGE')
                 ]),
-                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v132.0.95 Refactor)')
+                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, `Ready (${VERSION_STR})`)
             ]));
 
             sm.sub(P.APP_TAB, v => {
@@ -1590,7 +1599,6 @@
 
             if (!wantAE) AE.stop?.();
 
-            // [Refactor] Compose Pipeline
             const aeOut = wantAE ? currentAE : null;
             const vVals = composeVideoParams(vf, aeOut, DEFAULTS.video, Utils);
 
@@ -1599,8 +1607,13 @@
                 sharp: img.level, sharp2: 0, clarity: 0, dither: 0, temp: img.temp
             };
 
-            if (wantAE && Store.get(P.APP_UI)) {
-                UI.update(`AE: ${vVals.gain.toFixed(2)}x (In: ${currentAE.luma || 0}%)`, true);
+            // [UI Sync Fix] Reset Message on Stop
+            if (Store.get(P.APP_UI)) {
+                if (wantAE) {
+                    UI.update(`AE: ${vVals.gain.toFixed(2)}x (In: ${currentAE.luma || 0}%)`, true);
+                } else {
+                    UI.update(`Ready (${VERSION_STR})`, false);
+                }
             }
 
             const { visible } = Registry;
