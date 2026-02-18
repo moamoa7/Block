@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.91-Sync-Patched)
+// @name        Video_Image_Control (v132.0.92-Fixed)
 // @namespace   https://github.com/
-// @version     132.0.91.5
-// @description Base: v141 / Logic: v91 Pure / Fix: Sync & UI Warning Added
+// @version     132.0.92.0
+// @description Base: v132 (Sync+UI) + Fix: ShadowDOM/Relay/AE-Leak/Red-Skin
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,7 +19,7 @@
 (function () {
     'use strict';
 
-    // 1. Boot Guard
+    // 1. Boot Guard & Environment Check
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
     const VSC_BOOT_KEY = '__VSC_BOOT_LOCK__';
     if (window[VSC_BOOT_KEY]) return;
@@ -32,12 +32,14 @@
     const IS_TOP = window === window.top;
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const VSC_ID = Math.random().toString(36).slice(2);
-    const VSC_MSG = 'vsc-ctrl-v1';
 
-    // [수정됨] 프레임 간 동기화를 위해 true로 변경
-    const SYNC_FRAMES = true;
+    // [Performance] Device Capability Check
+    const DEVICE_RAM = navigator.deviceMemory || 4;
+    const IS_LOW_END = DEVICE_RAM < 4;
 
-    // v91 Config
+    const SYNC_FRAMES = true; // [Fix] 실제 동작에 반영되도록 수정됨
+
+    // [Config] Optimized AE Parameters
     const MIN_AE = {
         STRENGTH: IS_MOBILE ? 0.24 : 0.28,
         P98_CLIP: 0.985,
@@ -48,21 +50,16 @@
         DEAD_OUT: IS_MOBILE ? 0.12 : 0.10,
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
-
-        // Smoothing Tuning
         TAU_UP: 950,
         TAU_DOWN: 900,
         TAU_AGGRESSIVE: 200,
-
         TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30,
         SAT_MIN: 0.95,
         SAT_MAX: 1.05,
-
         V91_AECON_MIN: 0.85,
         V91_AECON_MAX: 1.35,
         V91_AEGAM_MIN: 0.5,
         V91_AEGAM_MAX: 2.5,
-
         TONE_BASE_SOFTEN: 1.0,
         DT_CAP_MS: 220,
         PLAYING_MAX_SKIP: 3
@@ -95,15 +92,13 @@
     const TOUCHED = { videos: new Set(), images: new Set() };
 
     // ==========================================
-    // MODULE FACTORIES
+    // MODULES
     // ==========================================
 
     const createUtils = () => ({
         clamp: (v, min, max) => Math.min(max, Math.max(min, v)),
         h: (tag, props = {}, ...children) => {
-            const el = (tag === 'svg' || props.ns === 'svg')
-                ? document.createElementNS('http://www.w3.org/2000/svg', tag)
-                : document.createElement(tag);
+            const el = (tag === 'svg' || props.ns === 'svg') ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
             for (const [k, v] of Object.entries(props)) {
                 if (k.startsWith('on')) {
                     el.addEventListener(k.slice(2).toLowerCase(), (e) => {
@@ -116,9 +111,7 @@
                 } else if (k === 'class') el.className = v;
                 else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v);
             }
-            children.flat().forEach(c => {
-                if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c);
-            });
+            children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
             return el;
         }
     });
@@ -127,7 +120,6 @@
         let queued = false;
         let force = false;
         let applyFn = null;
-
         const request = (immediate = false) => {
             if (immediate === true) force = true;
             if (queued) return;
@@ -136,22 +128,17 @@
                 queued = false;
                 const doForce = force;
                 force = false;
-                if (applyFn) {
-                    try { applyFn(doForce); }
-                    catch (e) { console.warn('[VSC] Apply error:', e); }
-                }
+                if (applyFn) { try { applyFn(doForce); } catch (e) { console.warn('[VSC] Apply error:', e); } }
             });
         };
-
         return { registerApply: (fn) => { applyFn = fn; }, request };
     };
 
-    // [새로 구현됨] 프레임 간 통신(Sync)을 지원하는 Store
-    const createSyncStore = (defaults, scheduler, config) => {
+    // [Fix] Local Only Store (SYNC_FRAMES = false일 때 사용)
+    const createLocalStore = (defaults, scheduler) => {
         let state = JSON.parse(JSON.stringify(defaults));
         let rev = 0;
         const listeners = new Map();
-        const IS_TOP = config.IS_TOP;
 
         const emit = (key, val) => {
             const a = listeners.get(key); if (a) for (const cb of a) cb(val);
@@ -159,28 +146,97 @@
             const b = listeners.get(cat + '.*'); if (b) for (const cb of b) cb(val);
         };
 
-        const broadcast = (path, val) => {
+        return {
+            rev: () => rev,
+            get: (p) => p.split('.').reduce((o, k) => (o ? o[k] : undefined), state),
+            set: (path, val) => {
+                const [cat, key] = path.split('.');
+                state[cat] ||= {};
+                if (state[cat][key] === val) return;
+                state[cat][key] = val; rev++;
+                emit(path, val);
+                scheduler.request(false);
+            },
+            batch: (cat, obj) => {
+                state[cat] ||= {};
+                let has = false;
+                for (const [k, v] of Object.entries(obj)) {
+                    if (state[cat][k] !== v) {
+                        state[cat][k] = v;
+                        emit(`${cat}.${k}`, v);
+                        has = true;
+                    }
+                }
+                if (has) { rev++; scheduler.request(false); }
+            },
+            sub: (k, f) => {
+                const a = listeners.get(k) || [];
+                a.push(f); listeners.set(k, a);
+            }
+        };
+    };
+
+    // [Fix] Sync Store (중계 로직 강화)
+    const createSyncStore = (defaults, scheduler, config) => {
+        let state = JSON.parse(JSON.stringify(defaults));
+        let rev = 0;
+        const listeners = new Map();
+        const IS_TOP = config.IS_TOP;
+        let frameWins = [];
+
+        // [Performance] iframe 목록 캐싱
+        const refreshFrames = () => {
+            try {
+                frameWins = Array.from(document.querySelectorAll('iframe'))
+                    .map(f => f.contentWindow)
+                    .filter(Boolean);
+            } catch (_) { frameWins = []; }
+        };
+
+        if (IS_TOP) {
+            refreshFrames();
+            // iframe 추가/삭제 감지
+            new MutationObserver(() => refreshFrames())
+                .observe(document.documentElement, { childList: true, subtree: true });
+        }
+
+        const emit = (key, val) => {
+            const a = listeners.get(key); if (a) for (const cb of a) cb(val);
+            const cat = key.split('.')[0];
+            const b = listeners.get(cat + '.*'); if (b) for (const cb of b) cb(val);
+        };
+
+        // [Fix] Broadcast: QuerySelectorAll 대신 캐시 사용 + 제외할 소스 지정 가능
+        const broadcast = (path, val, excludeSource = null) => {
             const msg = { type: 'VSC_SYNC', path, val, fromTop: IS_TOP };
             try {
                 if (IS_TOP) {
-                    const frames = document.querySelectorAll('iframe');
-                    frames.forEach(f => f.contentWindow?.postMessage(msg, '*'));
+                    for (const w of frameWins) {
+                        if (w !== excludeSource) w?.postMessage(msg, '*');
+                    }
                 } else {
                     window.top?.postMessage(msg, '*');
                 }
             } catch (e) { }
         };
 
+        // [Fix] Message Handler: Top이 받으면 다른 프레임에 중계
         window.addEventListener('message', (e) => {
             const d = e.data;
             if (!d || d.type !== 'VSC_SYNC') return;
+
             const [cat, key] = d.path.split('.');
             state[cat] ||= {};
-            if (state[cat][key] !== d.val) {
-                state[cat][key] = d.val;
-                rev++;
-                emit(d.path, d.val);
-                scheduler.request(false);
+            if (state[cat][key] === d.val) return;
+
+            state[cat][key] = d.val;
+            rev++;
+            emit(d.path, d.val);
+            scheduler.request(false);
+
+            // ★ 핵심: Top이면 “다른 프레임들”에 다시 중계 (보낸 프레임 제외)
+            if (IS_TOP) {
+                broadcast(d.path, d.val, e.source);
             }
         });
 
@@ -217,6 +273,7 @@
         };
     };
 
+    // [Registry] Shadow DOM 지원 및 초기 스캔 강화
     const createRegistry = (scheduler, featureCheck) => {
         const videos = new Set();
         const images = new Set();
@@ -224,6 +281,16 @@
         const visible = { videos: new Set(), images: new Set() };
         const dirty = { videos: new Set(), images: new Set() };
         let rev = 0;
+
+        // Shadow DOM Hook
+        const origAttachShadow = Element.prototype.attachShadow;
+        if (origAttachShadow) {
+            Element.prototype.attachShadow = function (init) {
+                const shadow = origAttachShadow.call(this, init);
+                if (shadow) observeRoot(shadow);
+                return shadow;
+            };
+        }
 
         const io = new IntersectionObserver((entries) => {
             let changed = false;
@@ -243,45 +310,59 @@
         }, { root: null, threshold: 0.01, rootMargin: '300px' });
 
         const isInVscUI = (node) => {
-            if (!node) return false;
-            const el = (node.nodeType === 1) ? node : null;
-            if (el?.closest?.('[data-vsc-ui="1"]')) return true;
-            return false;
+            if (!node || node.nodeType !== 1) return false;
+            return !!node.closest?.('[data-vsc-ui="1"]');
         };
 
+        const safeQSA = (root, sel) => {
+            try { return root?.querySelectorAll ? root.querySelectorAll(sel) : []; } catch (_) { return []; }
+        };
+
+        const observeMediaEl = (el) => {
+            if (!el || seenElements.has(el) || isInVscUI(el)) return;
+            if (el.tagName === 'VIDEO') {
+                videos.add(el); seenElements.add(el); io.observe(el);
+            } else if (featureCheck.images() && el.tagName === 'IMG') {
+                images.add(el); seenElements.add(el); io.observe(el);
+            }
+        };
+
+        // [Fix] 재귀적 노드 처리 (ShadowRoot 대응)
         const processNode = (node) => {
-            if (!node || seenElements.has(node)) return;
-            if (node.nodeType === 1 && isInVscUI(node)) { seenElements.add(node); return; }
+            if (!node) return;
+
+            // ShadowRoot / DocumentFragment 처리
+            if (node.nodeType === 11) {
+                safeQSA(node, 'video').forEach(observeMediaEl);
+                if (featureCheck.images()) safeQSA(node, 'img').forEach(observeMediaEl);
+                return;
+            }
+
+            // Element 노드만 처리
             if (node.nodeType !== 1) return;
 
-            if (node.tagName === 'VIDEO') {
-                videos.add(node); seenElements.add(node); io.observe(node);
-            } else if (featureCheck.images() && node.tagName === 'IMG') {
-                images.add(node); seenElements.add(node); io.observe(node);
-            }
+            // UI 내부는 스캔 제외
+            if (isInVscUI(node)) { seenElements.add(node); return; }
 
-            if (node.querySelectorAll) {
-                const vids = node.querySelectorAll('video');
-                vids.forEach(v => {
-                    if (!seenElements.has(v) && !isInVscUI(v)) { videos.add(v); seenElements.add(v); io.observe(v); }
-                });
-                if (featureCheck.images()) {
-                    const imgs = node.querySelectorAll('img');
-                    imgs.forEach(i => {
-                        if (!seenElements.has(i) && !isInVscUI(i)) { images.add(i); seenElements.add(i); io.observe(i); }
-                    });
-                }
-            }
+            // 자신이 VIDEO/IMG면 먼저
+            if (node.tagName === 'VIDEO' || node.tagName === 'IMG') observeMediaEl(node);
+
+            // 자식들 스캔
+            safeQSA(node, 'video').forEach(observeMediaEl);
+            if (featureCheck.images()) safeQSA(node, 'img').forEach(observeMediaEl);
         };
 
-        const observer = new MutationObserver((mutations) => {
-            for (const m of mutations) for (const n of m.addedNodes) processNode(n);
-        });
+        const observeRoot = (root) => {
+            if (!root) return;
+            processNode(root);
+            new MutationObserver((mutations) => {
+                for (const m of mutations) for (const n of m.addedNodes) processNode(n);
+            }).observe(root, { childList: true, subtree: true });
+        };
 
         const start = () => {
             if (document.body) {
-                processNode(document.body);
-                observer.observe(document.body, { childList: true, subtree: true });
+                observeRoot(document.body);
             } else { setTimeout(start, 100); }
         };
         start();
@@ -369,7 +450,8 @@
         const getToneTableCached = (sh, hi, br, con, gain) => {
             const k = `${sh}|${hi}|${br}|${con}|${gain}`;
             if (toneCache.has(k)) return toneCache.get(k);
-            const steps = 64, out = new Array(steps);
+            const steps = 96; // [Fix] 64 -> 96 steps for better quality
+            const out = new Array(steps);
             const shN = clamp(sh, -1, 1), hiN = clamp(hi, -1, 1), b = clamp(br, -1, 1) * 0.10;
             const g = clamp(gain || 1.0, 0.7, 1.8), c = clamp(con || 1.0, 0.85, 1.35);
             const toe = clamp(0.18 + shN * 0.08, 0.06, 0.30), shoulder = clamp(0.86 - hiN * 0.06, 0.72, 0.95);
@@ -495,16 +577,15 @@
         };
     };
 
-    // ==========================================
-    // AE (v91 PURE LOGIC + SYNC FIX)
-    // ==========================================
+    // [AE Upgrade] 고성능 워커 코드 적용 (CPU 점유율 감소)
     const createAE = (sm, scheduler, { IS_MOBILE, MIN_AE, Utils }, onAE) => {
         let worker, canvas, ctx2d;
         let activeVideo = null;
         let isRunning = false;
         let workerBusy = false;
         let fId = 0;
-        let targetToken = 0, lastFidApplied = 0;
+        let targetToken = 0;
+        let lastFidApplied = 0;
 
         const { clamp } = Utils;
         let curGain = 1.0;
@@ -513,30 +594,14 @@
         let lastApplyT = 0, lastEmaT = 0, lastLuma = -1;
         let lowMotionFrames = 0, dynamicSkipThreshold = 0, frameSkipCounter = 0, evAggressiveUntil = 0;
         let lastSampleT = 0;
-        const SAMPLE_MIN_MS = 90;
 
         let clipStreak = 0, suspendUntil = 0, lastAggressiveAt = 0;
         let useRVFC = false;
         let rvfcToken = 0;
-
         let __prevFrame = null;
         let __motion01 = 1;
 
-        function _motionFromFrame(u8) {
-            if (!u8 || u8.length < 64) { __motion01 = 1; return __motion01; }
-            if (!__prevFrame) { __prevFrame = new Uint8Array(u8); __motion01 = 1; return __motion01; }
-            let sum = 0, cnt = 0;
-            for (let i = 0; i < u8.length; i += 16) {
-                sum += Math.abs(u8[i] - __prevFrame[i]);
-                sum += Math.abs(u8[i + 1] - __prevFrame[i + 1]);
-                sum += Math.abs(u8[i + 2] - __prevFrame[i + 2]);
-                cnt++;
-            }
-            __prevFrame = new Uint8Array(u8);
-            __motion01 = sum / (cnt * 255 * 3);
-            return __motion01;
-        }
-
+        // [New] Optimized Worker Code
         const WORKER_CODE = `
             const hist = new Uint16Array(256);
             const histM = new Uint16Array(256);
@@ -613,6 +678,27 @@
             };
         `;
 
+        // [Fix] Memory Reuse
+        function _motionFromFrame(u8) {
+            if (!u8 || u8.length < 64) { __motion01 = 1; return __motion01; }
+            if (!__prevFrame || __prevFrame.length !== u8.length) {
+                __prevFrame = new Uint8Array(u8.length);
+                __prevFrame.set(u8);
+                __motion01 = 1;
+                return __motion01;
+            }
+            let sum = 0, cnt = 0;
+            for (let i = 0; i < u8.length; i += 16) {
+                sum += Math.abs(u8[i] - __prevFrame[i]);
+                sum += Math.abs(u8[i + 1] - __prevFrame[i + 1]);
+                sum += Math.abs(u8[i + 2] - __prevFrame[i + 2]);
+                cnt++;
+            }
+            __prevFrame.set(u8);
+            __motion01 = sum / (cnt * 255 * 3);
+            return __motion01;
+        }
+
         const disableAEHard = () => {
             worker = null; workerBusy = false; isRunning = false;
             try { sm.set(P.V_AE, false); } catch (e) { }
@@ -667,6 +753,7 @@
             return ev;
         };
 
+        // [Fix] Red Skin & Tone Tuning
         const _computeAeTuningV2 = (totalGain, stats, flags) => {
             const smooth01 = (t) => t * t * (3 - 2 * t);
             const tg = Math.max(1.0, totalGain || 1.0);
@@ -677,6 +764,7 @@
             const p50 = clamp(stats.p50 || 0, 0, 1);
             const p10 = clamp(stats.p10 || 0, 0, 1);
             const cf = clamp(stats.cf || 0.5, 0, 1);
+            const rd = clamp(stats.rd || 0.0, 0, 1); // Red Dominance
 
             const gainGate = smooth01(clamp((tg - 1.0) / 0.35, 0, 1));
             const hiRisk = smooth01(clamp((p90 - 0.86) / 0.10, 0, 1));
@@ -684,6 +772,9 @@
             const midErr = clamp(targetP50 - p50, -0.25, 0.25);
             const darkNeed = smooth01(clamp((0.16 - p10) / 0.14, 0, 1));
             const lowColor = smooth01(clamp((0.34 - cf) / 0.20, 0, 1));
+
+            // [Fix] Red Skin Protection
+            const redRisk = smooth01(clamp((rd - 0.06) / 0.10, 0, 1));
 
             const kB = IS_MOBILE ? 10.0 : 12.5;
             const kS = IS_MOBILE ? 10.0 : 14.0;
@@ -699,7 +790,9 @@
 
             const contrastBoost = gainGate * ev01 * kC * (1 - hiRisk) * clamp((p50 - 0.55) / 0.20, -1, 1);
             const gammaPull = gainGate * ev01 * kG * clamp(midErr / 0.20, -1, 1) * (1 - hiRisk * 0.7);
-            const satBoost = gainGate * kSat * lowColor * (1 - hiRisk * 0.6);
+
+            // [Fix] Reduce Saturation on Red-Heavy Scenes
+            const satBoost = gainGate * kSat * lowColor * (1 - hiRisk * 0.6) * (1 - redRisk * 0.85);
 
             return { brightness, shadowLift, highlightRecover, contrastBoost, gammaPull, satBoost };
         };
@@ -759,12 +852,21 @@
             if (clipStreak >= 3) suspendUntil = now + 1200;
             const suspended = now < suspendUntil;
 
+            // [Fix] Use EMA for Stability
+            const statsE = updateEma({ p90, p50, p10, avgSat, stdDev, redDominance });
+
             let targetEV = 0;
             if (suspended) {
                 targetEV = 0;
                 aeActive = false;
             } else {
-                targetEV = computeTargetEV({ p10, p50, p90, p98, p98m, stdDev });
+                targetEV = computeTargetEV({
+                    p10: statsE.p10,
+                    p50: statsE.p50,
+                    p90: statsE.p90,
+                    p98, p98m, // Raw for safety
+                    stdDev: statsE.std
+                });
                 if (subtitleLikely && targetEV > 0) targetEV *= 0.55;
                 const th = aeActive ? MIN_AE.DEAD_IN : MIN_AE.DEAD_OUT;
                 if (Math.abs(targetEV) < th) { targetEV = 0; aeActive = false; }
@@ -793,7 +895,6 @@
             curGain = Math.pow(2, currentEV + diff * alpha);
             if (Math.abs(curGain - 1.0) < 0.01) curGain = 1.0;
 
-            const statsE = updateEma({ p90, p50, p10, avgSat, stdDev, redDominance });
             const midPct = Math.round(statsE.p50 * 100);
 
             if (suspended) {
@@ -802,7 +903,6 @@
             }
 
             const tg = Math.max(1.0, curGain);
-
             const ev01 = clamp(Math.log2(tg) / 1.6, 0, 1);
             const exposureGate = clamp((tg - 1.01) / 0.18, 0, 1);
             const hiRisk01 = clamp((statsE.p90 - 0.84) / 0.12, 0, 1);
@@ -844,7 +944,7 @@
 
             const now = performance.now();
             if (v.paused) { if (now - lastSampleT < 600) return; }
-            else { if (now - lastSampleT < SAMPLE_MIN_MS) return; }
+            else { if (now - lastSampleT < 90) return; }
             lastSampleT = now;
 
             const playing = (!v.paused && !v.ended);
@@ -859,15 +959,19 @@
             try {
                 if (!canvas) {
                     canvas = document.createElement('canvas');
-                    canvas.width = canvas.height = 32;
+                    let size = (IS_LOW_END) ? 24 : 32;
+                    canvas.width = size; canvas.height = size;
                     ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
                     if (!ctx2d) { v.__vsc_tainted = true; return; }
                 }
-                ctx2d.drawImage(v, 0, 0, 32, 32);
-                const d = ctx2d.getImageData(0, 0, 32, 32);
+                const size = canvas.width;
+                ctx2d.drawImage(v, 0, 0, size, size);
+                const d = ctx2d.getImageData(0, 0, size, size);
                 _motionFromFrame(d.data);
+
                 workerBusy = true;
-                worker.postMessage({ buf: d.data.buffer, width: 32, height: 32, fid: ++fId, step: 1, token: targetToken }, [d.data.buffer]);
+                const step = (size <= 24) ? 1 : 2;
+                worker.postMessage({ buf: d.data.buffer, width: size, height: size, fid: ++fId, step, token: targetToken }, [d.data.buffer]);
             } catch (e) {
                 workerBusy = false; v.__vsc_tainted = true;
             }
@@ -882,7 +986,9 @@
             if (!active || !activeVideo || !activeVideo.isConnected) { if (!useRVFC) schedule(800); return; }
             sampleFrame(activeVideo);
             if (!useRVFC) {
-                const interval = (dynamicSkipThreshold >= 12) ? 160 : SAMPLE_MIN_MS;
+                let interval = 90;
+                if (dynamicSkipThreshold >= 12) interval = 160;
+                if (IS_LOW_END) interval = Math.max(interval, 200);
                 schedule(interval);
             }
         };
@@ -918,6 +1024,17 @@
                 }
             },
             start: () => { init(); if (!isRunning) { isRunning = true; } if (!useRVFC) schedule(0); },
+            // [Fix] Stop Method for CPU Protection
+            stop: () => {
+                isRunning = false;
+                workerBusy = false;
+                activeVideo = null;
+                rvfcToken++;
+                useRVFC = false;
+                clearTimeout(timerId);
+                curGain = 1.0;
+                aeActive = false;
+            },
             wake: () => { evAggressiveUntil = performance.now() + 1000; dynamicSkipThreshold = 0; },
             userTweak: () => {
                 const now = performance.now();
@@ -1027,7 +1144,6 @@
             const bodyV = h('div', { id: 'p-v' }, [
                 h('div', { class: 'prow' },
                     h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'),
-                    // [수정됨] AE 버튼 클릭 시 영상 유무 체크 및 경고 로직 추가
                     h('button', {
                         id: 'ae-btn',
                         class: 'btn',
@@ -1097,7 +1213,7 @@
                     h('button', { id: 't-v', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'video') }, 'VIDEO'),
                     h('button', { id: 't-i', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'image') }, 'IMAGE')
                 ]),
-                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v132.0.91 Sync)')
+                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v132.0.92 Fixed)')
             ]));
 
             sm.sub(P.APP_TAB, v => {
@@ -1164,8 +1280,10 @@
     const Utils = createUtils();
     const Scheduler = createScheduler();
 
-    // [수정됨] 항상 동기화 스토어 사용
-    const Store = createSyncStore(DEFAULTS, Scheduler, { IS_TOP });
+    // [Fix] Toggle Store Type based on Config
+    const Store = SYNC_FRAMES
+        ? createSyncStore(DEFAULTS, Scheduler, { IS_TOP })
+        : createLocalStore(DEFAULTS, Scheduler);
 
     const FEATURES = {
         images: () => {
@@ -1189,7 +1307,6 @@
         Scheduler.request(false);
     });
 
-    // [수정됨] Registry를 UI에 전달 (영상 유무 체크용)
     const UI = createUI(Utils, Store, Scheduler, DEFAULTS, { IS_TOP }, Registry);
 
     document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
@@ -1209,6 +1326,10 @@
     Store.sub(P.I_LVL, syncImageScan);
     Store.sub(P.I_TMP, syncImageScan);
 
+    // [Fix] Stop AE Loop when Disabled
+    Store.sub(P.V_AE, (v) => { if (!v) AE.stop?.(); });
+
+    // [Fix] Better Video Picking (Background vs Content)
     const pickBestVideo = (videos) => {
         const fs = document.fullscreenElement || document.webkitFullscreenElement;
         if (fs) {
@@ -1216,11 +1337,6 @@
             if (v && videos.has(v) && v.isConnected && v.readyState >= 2) { lastPickedVideo = v; return v; }
         }
         if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) { lastPickedVideo = document.pictureInPictureElement; return document.pictureInPictureElement; }
-
-        if (lastPickedVideo && videos.has(lastPickedVideo) && lastPickedVideo.isConnected && lastPickedVideo.readyState >= 2) {
-            const r = lastPickedVideo.getBoundingClientRect();
-            if (r.width * r.height > 12000) return lastPickedVideo;
-        }
 
         const cx = window.innerWidth * 0.5;
         const cy = window.innerHeight * 0.5;
@@ -1233,11 +1349,20 @@
             const area = r.width * r.height;
             if (area < 12000) continue;
 
+            const inViewport = !(r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth);
+            if (!inViewport) continue;
+
             const playing = (!v.paused && !v.ended) ? 1 : 0;
+            const hasTime = (v.currentTime > 0.2 && (v.duration === Infinity || v.duration > 1)) ? 1 : 0;
+
             const dist = Math.hypot((r.left + r.width * 0.5) - cx, (r.top + r.height * 0.5) - cy);
-            const distScore = 1 / (1 + dist / 900);
-            const ctrlBonus = v.controls ? 0.6 : 0;
-            const score = (playing * 6) + (area / 110000) + (distScore * 3) + ctrlBonus;
+            const distScore = 1 / (1 + dist / 850);
+
+            // Penalties for Background Videos
+            const bgPenalty = (v.muted && !v.controls && playing) ? 0.6 : 0;
+            const fullBgPenalty = (area > innerWidth * innerHeight * 0.75 && !hasTime && !v.controls) ? 1.0 : 0;
+
+            const score = (playing * 6) + (hasTime * 2.5) + (area / 120000) + (distScore * 3.2) + (v.controls ? 0.4 : 0) - bgPenalty - fullBgPenalty;
 
             if (score > bestScore) { bestScore = score; best = v; }
         }
@@ -1301,7 +1426,7 @@
     Scheduler.registerApply((force) => {
         try {
             const active = Store.get(P.APP_ACT);
-            if (!active) { cleanupAllTouched(); Audio.update(); return; }
+            if (!active) { cleanupAllTouched(); Audio.update(); AE.stop?.(); return; }
 
             const sRev = Store.rev();
             const rRev = Registry.rev();
@@ -1319,6 +1444,8 @@
             const wantImages = FEATURES.images();
             const wantAE = FEATURES.ae();
             const wantAudio = FEATURES.audio();
+
+            if (!wantAE) AE.stop?.();
 
             let aeGain = 1.0, aeSh = 0, aeHi = 0, aeGamma = 1.0, aeCon = 1.0, aeSat = 1.0, aeBr = 0;
             if (wantAE) {
