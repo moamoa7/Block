@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (v132.0.91-Opt-v91AE-FinalSync)
+// @name        Video_Image_Control (v132.0.91-Sync-Patched)
 // @namespace   https://github.com/
-// @version     132.0.91.4
-// @description Base: v141 / Logic: v91 Pure / Fix: Immediate Contrast Sync (No Lag, No Gate)
+// @version     132.0.91.5
+// @description Base: v141 / Logic: v91 Pure / Fix: Sync & UI Warning Added
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -33,7 +33,9 @@
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const VSC_ID = Math.random().toString(36).slice(2);
     const VSC_MSG = 'vsc-ctrl-v1';
-    const SYNC_FRAMES = false;
+
+    // [수정됨] 프레임 간 동기화를 위해 true로 변경
+    const SYNC_FRAMES = true;
 
     // v91 Config
     const MIN_AE = {
@@ -46,7 +48,7 @@
         DEAD_OUT: IS_MOBILE ? 0.12 : 0.10,
         DEAD_IN: 0.04,
         LOWKEY_STDDEV: IS_MOBILE ? 0.20 : 0.24,
-        
+
         // Smoothing Tuning
         TAU_UP: 950,
         TAU_DOWN: 900,
@@ -55,7 +57,7 @@
         TARGET_MID_BASE: IS_MOBILE ? 0.26 : 0.30,
         SAT_MIN: 0.95,
         SAT_MAX: 1.05,
-        
+
         V91_AECON_MIN: 0.85,
         V91_AECON_MAX: 1.35,
         V91_AEGAM_MIN: 0.5,
@@ -144,16 +146,43 @@
         return { registerApply: (fn) => { applyFn = fn; }, request };
     };
 
-    const createStoreLite = (defaults, scheduler) => {
+    // [새로 구현됨] 프레임 간 통신(Sync)을 지원하는 Store
+    const createSyncStore = (defaults, scheduler, config) => {
         let state = JSON.parse(JSON.stringify(defaults));
         let rev = 0;
         const listeners = new Map();
+        const IS_TOP = config.IS_TOP;
 
         const emit = (key, val) => {
             const a = listeners.get(key); if (a) for (const cb of a) cb(val);
             const cat = key.split('.')[0];
             const b = listeners.get(cat + '.*'); if (b) for (const cb of b) cb(val);
         };
+
+        const broadcast = (path, val) => {
+            const msg = { type: 'VSC_SYNC', path, val, fromTop: IS_TOP };
+            try {
+                if (IS_TOP) {
+                    const frames = document.querySelectorAll('iframe');
+                    frames.forEach(f => f.contentWindow?.postMessage(msg, '*'));
+                } else {
+                    window.top?.postMessage(msg, '*');
+                }
+            } catch (e) { }
+        };
+
+        window.addEventListener('message', (e) => {
+            const d = e.data;
+            if (!d || d.type !== 'VSC_SYNC') return;
+            const [cat, key] = d.path.split('.');
+            state[cat] ||= {};
+            if (state[cat][key] !== d.val) {
+                state[cat][key] = d.val;
+                rev++;
+                emit(d.path, d.val);
+                scheduler.request(false);
+            }
+        });
 
         return {
             rev: () => rev,
@@ -165,6 +194,7 @@
                 state[cat][key] = val;
                 rev++;
                 emit(path, val);
+                broadcast(path, val);
             },
             batch: (cat, obj) => {
                 state[cat] ||= {};
@@ -173,6 +203,7 @@
                     if (state[cat][k] !== v) {
                         state[cat][k] = v;
                         emit(`${cat}.${k}`, v);
+                        broadcast(`${cat}.${k}`, v);
                         has = true;
                     }
                 }
@@ -418,10 +449,10 @@
                 const qall = (list, k, v) => Array.from(list.children).forEach(c => c.setAttribute(k, v));
 
                 qs(nodes.sat, 'values', ((s.sat / 100) * (s.aeSat || 1.0)).toFixed(2));
-                
+
                 const table = getToneTableCached(Utils.clamp((s.aeSh || 0) / 14, -1, 1), Utils.clamp((s.aeHi || 0) / 12, -1, 1), ((s.bright || 0) + (s.aeBr || 0)) / 100, (s.contrast || 1.0) * (s.aeCon || 1.0), s.gain || 1.0);
                 qall(nodes.lin, 'tableValues', table);
-                
+
                 const combinedGamma = (s.gamma || 1.0) * (s.aeGamma || 1.0);
                 qall(nodes.gam, 'exponent', (1 / Utils.clamp(combinedGamma, 0.2, 3.0)).toFixed(3));
 
@@ -647,7 +678,6 @@
             const p10 = clamp(stats.p10 || 0, 0, 1);
             const cf = clamp(stats.cf || 0.5, 0, 1);
 
-            // [FIX] Immediate Gate: Start reaction at 1.0 (removed 1.01 margin)
             const gainGate = smooth01(clamp((tg - 1.0) / 0.35, 0, 1));
             const hiRisk = smooth01(clamp((p90 - 0.86) / 0.10, 0, 1));
             const targetP50 = 0.58 - 0.05 * ev01;
@@ -658,16 +688,15 @@
             const kB = IS_MOBILE ? 10.0 : 12.5;
             const kS = IS_MOBILE ? 10.0 : 14.0;
             const kH = IS_MOBILE ? 6.0 : 7.5;
-            
-            // [FIX] Tuning: Slightly stronger contrast reaction
-            const kC = IS_MOBILE ? 0.035 : 0.050; 
+
+            const kC = IS_MOBILE ? 0.035 : 0.050;
             const kG = IS_MOBILE ? 0.035 : 0.050;
             const kSat = IS_MOBILE ? 1.0 : 1.35;
 
             const brightness = gainGate * ev01 * kB * midErr * (1 - hiRisk * 0.65);
             const shadowLift = gainGate * ev01 * kS * darkNeed * (1 - hiRisk * 0.35);
             const highlightRecover = gainGate * ev01 * kH * hiRisk;
-            
+
             const contrastBoost = gainGate * ev01 * kC * (1 - hiRisk) * clamp((p50 - 0.55) / 0.20, -1, 1);
             const gammaPull = gainGate * ev01 * kG * clamp(midErr / 0.20, -1, 1) * (1 - hiRisk * 0.7);
             const satBoost = gainGate * kSat * lowColor * (1 - hiRisk * 0.6);
@@ -772,42 +801,38 @@
                 return;
             }
 
-            // [FIXED] Sync Logic: 
-            // Calculate Tone Mapping based on CURRENT Smoothed Gain (curGain).
             const tg = Math.max(1.0, curGain);
-            
+
             const ev01 = clamp(Math.log2(tg) / 1.6, 0, 1);
             const exposureGate = clamp((tg - 1.01) / 0.18, 0, 1);
             const hiRisk01 = clamp((statsE.p90 - 0.84) / 0.12, 0, 1);
             const toeCtrlRaw = clamp((IS_MOBILE ? 10 : 12) * exposureGate * ev01 * (1 - hiRisk01 * 0.55), 0, 14);
             const shoulderCtrlRaw = clamp((IS_MOBILE ? 12 : 15) * Math.max(0.25, exposureGate) * hiRisk01, 0, 14);
             const soften = clamp(MIN_AE.TONE_BASE_SOFTEN ?? 1.0, 0.6, 1.0);
-            
+
             const q05 = (x) => Math.round(x * 2) / 2;
             let aeShOut = q05(toeCtrlRaw * soften);
             let aeHiOut = q05(shoulderCtrlRaw * soften);
 
-            // Pass 'tg' (Current Gain) to tuning function
             const tuning = _computeAeTuningV2(tg, statsE, { clipRisk, subtitleLikely });
 
-            // Apply tuning results immediately (No extra smoothing)
             let aeBr = clamp(tuning.brightness, -10, 12);
             let aeCon = clamp(1 + tuning.contrastBoost, MIN_AE.V91_AECON_MIN, MIN_AE.V91_AECON_MAX);
             let aeGamma = clamp(1 + tuning.gammaPull, MIN_AE.V91_AEGAM_MIN, MIN_AE.V91_AEGAM_MAX);
             let aeSat = clamp(1 + tuning.satBoost, MIN_AE.SAT_MIN, MIN_AE.SAT_MAX);
-            
+
             aeShOut = q05(clamp(aeShOut + tuning.shadowLift, 0, 14));
             aeHiOut = q05(clamp(aeHiOut + tuning.highlightRecover, 0, 14));
 
-            const res = { 
-                gain: curGain, 
-                aeGamma, 
-                aeCon, 
-                aeSat, 
-                aeSh: aeShOut, 
-                aeHi: aeHiOut, 
-                aeBr, 
-                luma: midPct 
+            const res = {
+                gain: curGain,
+                aeGamma,
+                aeCon,
+                aeSat,
+                aeSh: aeShOut,
+                aeHi: aeHiOut,
+                aeBr,
+                luma: midPct
             };
             try { onAE?.(res); } catch (e) { }
         };
@@ -818,7 +843,7 @@
             if (v.__vsc_visible === false) return;
 
             const now = performance.now();
-            if (v.paused) { if (now - lastSampleT < 600) return; } 
+            if (v.paused) { if (now - lastSampleT < 600) return; }
             else { if (now - lastSampleT < SAMPLE_MIN_MS) return; }
             lastSampleT = now;
 
@@ -907,7 +932,7 @@
         };
     };
 
-    const createUI = (Utils, sm, scheduler, defaults, config) => {
+    const createUI = (Utils, sm, scheduler, defaults, config, registry) => {
         const { h } = Utils;
         let container, monitorEl, gearTrigger;
 
@@ -1002,7 +1027,29 @@
             const bodyV = h('div', { id: 'p-v' }, [
                 h('div', { class: 'prow' },
                     h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'),
-                    h('button', { id: 'ae-btn', class: 'btn', onclick: () => sm.set(P.V_AE, !sm.get(P.V_AE)) }, '🤖 자동'),
+                    // [수정됨] AE 버튼 클릭 시 영상 유무 체크 및 경고 로직 추가
+                    h('button', {
+                        id: 'ae-btn',
+                        class: 'btn',
+                        onclick: () => {
+                            const nextState = !sm.get(P.V_AE);
+                            sm.set(P.V_AE, nextState);
+                            if (nextState && config.IS_TOP) {
+                                const videos = Array.from(registry.videos);
+                                if (videos.length === 0) {
+                                    if (monitorEl) {
+                                        monitorEl.textContent = "⚠️ 탑 프레임: 영상 없음 (하위 프레임 제어 중)";
+                                        monitorEl.style.color = "#e67e22";
+                                    }
+                                } else if (!videos.some(v => !v.__vsc_tainted)) {
+                                    if (monitorEl) {
+                                        monitorEl.textContent = "🚫 탑 프레임: 보안(CORS) 제한으로 제어 불가";
+                                        monitorEl.style.color = "#e74c3c";
+                                    }
+                                }
+                            }
+                        }
+                    }, '🤖 자동'),
                     h('button', { id: 'boost-btn', class: 'btn', onclick: () => sm.set(P.A_EN, !sm.get(P.A_EN)) }, '🔊 부스트')
                 ),
                 h('div', { class: 'prow' },
@@ -1050,7 +1097,7 @@
                     h('button', { id: 't-v', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'video') }, 'VIDEO'),
                     h('button', { id: 't-i', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'image') }, 'IMAGE')
                 ]),
-                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v141 + v91 Final)')
+                bodyV, bodyI, monitorEl = h('div', { class: 'monitor' }, 'Ready (v132.0.91 Sync)')
             ]));
 
             sm.sub(P.APP_TAB, v => {
@@ -1116,9 +1163,9 @@
     // ==========================================
     const Utils = createUtils();
     const Scheduler = createScheduler();
-    const Store = SYNC_FRAMES
-        ? createStore(DEFAULTS, { VSC_ID, VSC_MSG, IS_TOP, SYNC_FRAMES: true }, Scheduler)
-        : createStoreLite(DEFAULTS, Scheduler);
+
+    // [수정됨] 항상 동기화 스토어 사용
+    const Store = createSyncStore(DEFAULTS, Scheduler, { IS_TOP });
 
     const FEATURES = {
         images: () => {
@@ -1142,7 +1189,8 @@
         Scheduler.request(false);
     });
 
-    const UI = createUI(Utils, Store, Scheduler, DEFAULTS, { IS_TOP });
+    // [수정됨] Registry를 UI에 전달 (영상 유무 체크용)
+    const UI = createUI(Utils, Store, Scheduler, DEFAULTS, { IS_TOP }, Registry);
 
     document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
 
