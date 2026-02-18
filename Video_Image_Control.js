@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v135_Fix2)
+// @name        Video_Image_Control (Local_Indep_v135_PerfAudioFinal)
 // @namespace   https://github.com/
-// @version     135.0.0.3
-// @description Video Control: Fix getAeCfg reference error
+// @version     135.0.0.6
+// @description Video Control: Real Audio Bypass, Sort-Free Engine, Smart AE Init
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -29,10 +29,9 @@
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const DEVICE_RAM = navigator.deviceMemory || 4;
     const IS_LOW_END = DEVICE_RAM < 4;
-    const VERSION_STR = "v135.Fix2";
+    const VERSION_STR = "v135.Final";
     const VSC_ID = Math.random().toString(36).slice(2);
 
-    // Symbol Keys
     const VSCX = Object.freeze({
         visible: Symbol('vsc.visible'),
         rect: Symbol('vsc.rect'),
@@ -43,9 +42,6 @@
         audioFail: Symbol('vsc.audioFail')
     });
 
-    // ==============================
-    // CONFIG CONSTANTS
-    // ==============================
     const AE_COMMON = Object.freeze({
         CLIP_FRAC_LIMIT: 0.0032,
         DEAD_IN: 0.035,
@@ -484,14 +480,23 @@
         const srcMap = new WeakMap();
         const onGesture = () => { try { if (ctx?.state === 'suspended') ctx.resume(); } catch (_) { } };
         window.addEventListener('pointerdown', onGesture, { once: true, passive: true });
+        
         const ensureCtx = () => {
             if (ctx) return true;
             const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
             ctx = new AC(); compressor = ctx.createDynamicsCompressor();
+            // Audio Quality Tuning
+            compressor.threshold.value = -24;
+            compressor.knee.value = 24;
+            compressor.ratio.value = 4;
+            compressor.attack.value = 0.005;
+            compressor.release.value = 0.20;
+            
             dry = ctx.createGain(); dry.connect(ctx.destination);
             wet = ctx.createGain(); compressor.connect(wet); wet.connect(ctx.destination);
             return true;
         };
+        
         const updateMix = () => {
             if (!ctx) return;
             const en = sm.get(P.A_EN) && sm.get(P.APP_ACT);
@@ -499,24 +504,38 @@
             dry.gain.setTargetAtTime(en ? 0 : 1, ctx.currentTime, 0.05);
             wet.gain.setTargetAtTime(en ? boost : 0, ctx.currentTime, 0.05);
         };
+        
         const disconnect = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) { } currentSrc = null; target = null; } };
+        
         return {
             setTarget: (v) => {
-                if (!(sm.get(P.A_EN) && sm.get(P.APP_ACT))) { disconnect(); return; }
-                if (v === target) { updateMix(); return; }
-                disconnect(); if (!v || !ensureCtx()) return;
-                try {
-                    let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); }
-                    s.connect(dry); s.connect(compressor); currentSrc = s; target = v; updateMix();
-                } catch (_) { v[VSCX.audioFail] = true; disconnect(); }
+                if (v !== target) {
+                    if (currentSrc) disconnect();
+                    target = v;
+                }
+                const enabled = sm.get(P.A_EN) && sm.get(P.APP_ACT);
+                const shouldUseGraph = enabled || !!ctx;
+
+                if (v && !currentSrc && shouldUseGraph) {
+                    if (ensureCtx()) {
+                        try {
+                            let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); }
+                            s.connect(dry); s.connect(compressor); currentSrc = s;
+                        } catch (_) { v[VSCX.audioFail] = true; disconnect(); }
+                    }
+                }
+                updateMix();
             },
-            update: updateMix
+            update: updateMix,
+            hasCtx: () => !!ctx,
+            isHooked: () => !!currentSrc
         };
     };
 
     const createFilters = (Utils, config) => {
         const { h, clamp, createLRU } = Utils; const ctxMap = new WeakMap();
         const toneCache = createLRU(IS_LOW_END ? 256 : 512);
+        const docFilterKey = new WeakMap(); // Re-enabled
 
         const setAttrIfChanged = (node, attr, val, stateObj, keyName) => {
             if (!node) return;
@@ -739,7 +758,7 @@
             return `url(#${nodes.fid})`;
         };
 
-        return { prepare, applyUrl: (el, url) => { if (el.style.filter !== url) { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); } }, clear: (el) => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); } };
+        return { prepare, applyUrl: (el, url) => { if (el.style.filter !== url) { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); } }, clear: (el) => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); }, docFilterKey };
     };
 
     const WORKER_CODE = `
@@ -830,7 +849,12 @@
             const a = 1 - Math.exp(-dt / tau);
             for (const k of Object.keys(lastStats)) { const v = stats[k]; if (Number.isFinite(v)) lastStats[k] = lastStats[k] < 0 ? v : v * a + lastStats[k] * (1 - a); }
 
-            if (lastLuma >= 0 && Math.abs(data.avgLuma - lastLuma) > (0.1 * ((__motion01 < 0.05) ? 1 : 0.35))) evAggressiveUntil = now + (__motion01 < 0.05 ? 900 : 450);
+            if (lastLuma >= 0) {
+                const dl = Math.abs(data.avgLuma - lastLuma);
+                const cf = clamp(lastStats.cf || 0.5, 0, 1);
+                const thr = (0.055 - 0.020 * (1 - cf)) * (__motion01 < 0.08 ? 1.0 : 0.55);
+                if (dl > thr) evAggressiveUntil = now + (__motion01 < 0.08 ? 900 : 450);
+            }
             lastLuma = data.avgLuma;
 
             let targetEV = computeTargetEV(lastStats, cfg); if (subLikely) targetEV *= 0.85;
@@ -947,6 +971,9 @@
                 ensureWorker();
                 if (!isRunning) {
                     isRunning = true;
+                    // Reset AE timers to prevent jump
+                    const now = performance.now();
+                    lastApplyT = now; lastEmaT = now; lastSampleT = 0;
                     if (useRVFC && activeVideo) try { activeVideo.requestVideoFrameCallback(() => rvfcLoop(rvfcToken)); } catch (_) { }
                     else tick();
                 }
@@ -1194,12 +1221,11 @@
     Store.sub(P.APP_UI, (v) => { UI.ensure(); Scheduler.request(true); });
 
     document.addEventListener('vsc-user-tweak', () => { if (FEATURES.ae()) AE.userTweak(); });
-    document.addEventListener('vsc-audio-gesture', () => Scheduler.request(true));
     document.addEventListener('vsc-ae-wake', () => { if (FEATURES.ae()) AE.wake(); });
 
     let lastSRev = -1, lastRRev = -1, lastAeRev = -1;
     let lastPrune = 0, lastWantImages = false;
-    let __pickCacheV = null, __pickCacheT = 0, __currentTarget = null, __currentScore = -1, __currentSince = 0;
+    let __currentTarget = null, __currentScore = -1, __currentSince = 0;
     let __lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: 0 };
     let __lastClickedVideo = null;
 
@@ -1243,7 +1269,9 @@
             const doc = el.ownerDocument || document;
             if (doc !== lastDoc) {
                 lastDoc = doc;
-                url = Filters.prepare(doc, vVals, 'video', tier);
+                const key = `${tier}|${(vVals.gain||1).toFixed(3)}|${(vVals.gamma||1).toFixed(3)}|${(vVals.contrast||1).toFixed(3)}|${(vVals.bright||0).toFixed(2)}|${(vVals.satF||1).toFixed(3)}|${(vVals.mid||0).toFixed(3)}|${(vVals.toe||0).toFixed(2)}|${(vVals.shoulder||0).toFixed(2)}|${(vVals.temp||0).toFixed(2)}|${(vVals.sharp||0).toFixed(2)}|${(vVals.sharp2||0).toFixed(2)}|${(vVals.clarity||0).toFixed(2)}|${(vVals.dither||0).toFixed(0)}`;
+                if (docFilterKey.get(doc) !== key) { docFilterKey.set(doc, key); url = Filters.prepare(doc, vVals, 'video', tier); }
+                if (!url) url = Filters.prepare(doc, vVals, 'video', tier);
             }
             Filters.applyUrl(el, url);
             TOUCHED.videos.add(el);
@@ -1317,7 +1345,16 @@
     const scoreVideo = (v, audioBoostOn, now) => {
         if (!v || v.readyState < 2) return -Infinity;
         if (!isActuallyVisibleFast(v)) return -Infinity;
-        const r = v[VSCX.rect] || v.getBoundingClientRect();
+        
+        // Rect 갱신 (저비용)
+        const lastRectT = v.__vscRectT || 0;
+        let r = v[VSCX.rect];
+        if (!r || (now - lastRectT) > 250) {
+            r = v.getBoundingClientRect();
+            v[VSCX.rect] = r;
+            v.__vscRectT = now;
+        }
+
         const area = r.width * r.height;
         const areaScore = Math.log2(1 + area / 20000);
         const playing = (!v.paused && !v.ended) ? 1 : 0;
@@ -1349,19 +1386,30 @@
         if (document.pictureInPictureElement && videos.has(document.pictureInPictureElement)) { __currentTarget = document.pictureInPictureElement; __currentScore = Infinity; __currentSince = now; return document.pictureInPictureElement; }
 
         const audioBoostOn = Store.get(P.A_EN) && Store.get(P.APP_ACT);
-        const cand = [];
-        for (const v of videos) {
+        
+        // Sort-Free Top K Selection
+        const limited = [];
+        const pushTopK = (v) => {
             const ir = (v[VSCX.ir] == null) ? 0 : v[VSCX.ir];
-            if (ir < 0.01) continue;
+            if (ir < 0.01) return;
             const r = v[VSCX.rect] || v.getBoundingClientRect();
-            cand.push([ir, r.width * r.height, v]);
-        }
-        cand.sort((a, b) => (b[0] - a[0]) || (b[1] - a[1]));
-        const limited = cand.slice(0, 10).map(x => x[2]);
+            const area = r.width * r.height;
+            const item = { ir, area, v };
+            let i = 0;
+            while (i < limited.length) {
+                const a = limited[i];
+                if (item.ir > a.ir || (item.ir === a.ir && item.area > a.area)) break;
+                i++;
+            }
+            limited.splice(i, 0, item);
+            if (limited.length > 10) limited.length = 10;
+        };
+        for (const v of videos) pushTopK(v);
 
         const curScore = (__currentTarget && videos.has(__currentTarget)) ? scoreVideo(__currentTarget, audioBoostOn, now) : -Infinity;
         let best = __currentTarget, bestScore = curScore;
-        for (const v of limited) {
+        for (const it of limited) {
+            const v = it.v;
             const s = scoreVideo(v, audioBoostOn, now);
             if (s > bestScore) { bestScore = s; best = v; }
         }
@@ -1374,14 +1422,24 @@
         if (CFG.applyToAllVisibleVideos) return visibleVideos;
         const set = new Set();
         if (target) set.add(target);
-        const candidates = [];
-        for (const v of visibleVideos) {
-            if (!v || v === target) continue;
-            const r = v.getBoundingClientRect();
-            candidates.push([r.width * r.height, v]);
+        
+        // Sort-Free Top N Selection for applySet
+        const top = [];
+        const N = Math.max(0, CFG.extraBigVideos | 0);
+        if (N > 0) {
+            const pushTop = (area, v) => {
+                let i = 0;
+                while (i < top.length && top[i].area >= area) i++;
+                top.splice(i, 0, { area, v });
+                if (top.length > N) top.length = N;
+            };
+            for (const v of visibleVideos) {
+                if (!v || v === target) continue;
+                const r = v.getBoundingClientRect();
+                pushTop(r.width * r.height, v);
+            }
+            for (const it of top) set.add(it.v);
         }
-        candidates.sort((a, b) => b[0] - a[0]);
-        for (let i = 0; i < Math.min(CFG.extraBigVideos, candidates.length); i++) set.add(candidates[i][1]);
         return set;
     }
 
@@ -1400,6 +1458,8 @@
             if (!active) { cleanupAllTouched(); Audio.update(); AE.stop?.(); return; }
 
             const sRev = Store.rev(), rRev = Registry.rev();
+            const prevRRev = lastRRev; // Store for comparison
+            
             if (!force && sRev === lastSRev && rRev === lastRRev && aeRev === lastAeRev) return;
             lastSRev = sRev; lastRRev = rRev; lastAeRev = aeRev;
 
@@ -1416,11 +1476,15 @@
 
             const target = pickBestVideo(visible.videos);
             if (!target) {
+                // If no target, stop AE but keep audio graph if connected (bypass)
                 if (wantAE) AE.stop?.();
-                if (wantAudio) Audio.setTarget(null);
+                Audio.setTarget(null); 
             } else {
                 if (wantAE) { AE.setTarget(target); AE.start(); }
-                if (wantAudio) Audio.setTarget(target); else Audio.setTarget(null);
+                // [Fix] Keep connection alive for bypass even if boost OFF, if context exists
+                const keepBypass = Audio.hasCtx?.() || Audio.isHooked?.();
+                if (wantAudio || keepBypass) Audio.setTarget(target);
+                else Audio.setTarget(null);
             }
             Audio.update();
 
@@ -1470,7 +1534,7 @@
             else applyImageFilters(new Set(), imgsDirty, iVals, false);
             applyPlaybackRate(applySet, vidsDirty, Store.get(P.PB_RATE), active);
 
-            if (rRev !== lastRRev || dirty.videos.size > 0) UI.ensure();
+            if (force || rRev !== prevRRev || dirty.videos.size > 0 || dirty.images.size > 0) UI.ensure();
 
         } catch (e) { try { console.warn('[VSC] apply crashed:', e); } catch (_) { } }
     });
