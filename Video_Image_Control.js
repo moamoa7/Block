@@ -25,23 +25,37 @@
     if (window[VSC_BOOT_KEY]) return;
     try { Object.defineProperty(window, VSC_BOOT_KEY, { value: true, writable: false }); } catch (e) { window[VSC_BOOT_KEY] = true; }
 
-    // 1-1. Safe attachShadow Patch
+    // 1-1. Safe attachShadow Patch (hardened)
     const VSC_PATCH = Symbol.for('vsc.patch.attachShadow');
     (function patchAttachShadowOnce() {
-        const proto = Element.prototype;
-        if (!proto.attachShadow || proto[VSC_PATCH]) return;
-        const desc = Object.getOwnPropertyDescriptor(proto, 'attachShadow');
-        const orig = desc?.value;
-        if (typeof orig !== 'function') return;
-        Object.defineProperty(proto, VSC_PATCH, { value: true });
-        Object.defineProperty(proto, 'attachShadow', {
-            ...desc,
-            value: function (init) {
-                const shadow = orig.call(this, init);
-                try { if (shadow) document.dispatchEvent(new CustomEvent('vsc-shadow-root', { detail: shadow })); } catch (_) { }
-                return shadow;
-            }
-        });
+        try {
+            const proto = Element.prototype;
+            if (!proto.attachShadow || proto[VSC_PATCH]) return;
+
+            const desc = Object.getOwnPropertyDescriptor(proto, 'attachShadow');
+            const orig = desc && desc.value;
+            if (typeof orig !== 'function') return;
+
+            try { Object.defineProperty(proto, VSC_PATCH, { value: true }); }
+            catch (_) { proto[VSC_PATCH] = true; }
+
+            Object.defineProperty(proto, 'attachShadow', {
+                ...desc,
+                value: function (init) {
+                    const shadow = orig.call(this, init);
+                    try {
+                        const mode = init && init.mode;
+                        // 안티치트 방지를 위해 open 모드일 때만 이벤트 발생
+                        if (shadow && mode === 'open') {
+                            document.dispatchEvent(new CustomEvent('vsc-shadow-root', { detail: shadow }));
+                        }
+                    } catch (_) {}
+                    return shadow;
+                }
+            });
+        } catch (e) {
+            try { console.warn('[VSC] attachShadow patch failed:', e); } catch(_) {}
+        }
     })();
 
     const IS_TOP = window === window.top;
@@ -70,14 +84,14 @@
     });
 
     const AE_DEVICE_BASE = Object.freeze({
-        pc: { STRENGTH: 0.62, MAX_UP_EV: 0.55, MAX_DOWN_EV: -0.36, TARGET_MID_BASE: 0.28 },
-        mobile: { STRENGTH: 0.52, MAX_UP_EV: 0.50, MAX_DOWN_EV: -0.32, TARGET_MID_BASE: 0.27 }
+        pc: { STRENGTH: 0.62, MAX_UP_EV: 0.50, MAX_DOWN_EV: -0.36, TARGET_MID_BASE: 0.265 },
+        mobile: { STRENGTH: 0.52, MAX_UP_EV: 0.48, MAX_DOWN_EV: -0.32, TARGET_MID_BASE: 0.260 }
     });
 
     const AE_PROFILES = Object.freeze({
         balanced: {
             delta: {
-                STRENGTH: -0.06, TARGET_MID_BASE: -0.015, MAX_UP_EV: -0.08,
+                STRENGTH: -0.06, TARGET_MID_BASE: -0.020, MAX_UP_EV: -0.10,
                 TAU_UP: +120, TAU_DOWN: +120, SAT_MAX: -0.02
             },
             look: { brMul: 0.98, satMul: 0.98, conAdd: -0.008, midMul: 0.98, toeMul: 1.08, shMul: 1.00 }
@@ -180,7 +194,7 @@
 
     const lerp = (a, b, t) => a + (b - a) * t;
 
-    function getRectCached(v, now, maxAgeMs = 250) {
+    function getRectCached(v, now, maxAgeMs = 420) {
         const t0 = v.__vscRectT || 0;
         let r = v[VSCX.rect];
         if (!r || (now - t0) > maxAgeMs) {
@@ -194,7 +208,7 @@
     function isActuallyVisibleFast(el, now) {
         if (!el || !el.isConnected) return null;
         if (el[VSCX.visible] === false) return null;
-        const r = getRectCached(el, now, 250);
+        const r = getRectCached(el, now, 420);
         if (r.width < 80 || r.height < 60) return null;
         if (r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth) return null;
         return r;
@@ -218,10 +232,16 @@
 
         const ir = (v[VSCX.ir] == null) ? 0.01 : v[VSCX.ir];
         const irScore = Math.min(1, ir) * 3.2;
+        
+        const audible = (!v.muted && (v.volume == null || v.volume > 0.01)) ? 1 : 0;
         const bgLike = (v.muted && !v.controls && playing) ? 1 : 0;
         const big01 = Math.min(1, area / (900 * 500));
-        const bgPenalty = bgLike ? (1.6 * (1 - 0.65 * big01)) : 0;
-        const audible = (!v.muted && (v.volume == null || v.volume > 0.01)) ? 1 : 0;
+        let bgPenalty = 0;
+        if (bgLike && !audible) {
+            bgPenalty = (1.6 * (1 - 0.65 * big01));
+            if (userRecent01 > 0.15) bgPenalty *= 0.55;
+        }
+        
         const audibleBase = audible * 1.35;
         const audioScore = audioBoostOn ? (audible * 1.2) : 0;
         return (playing * 6.0) + (hasTime * 2.4) + (areaScore * 1.2) + (distScore * 3.0) + userBoost + irScore + audibleBase + audioScore - bgPenalty;
@@ -244,7 +264,7 @@
         const limited = [];
         const pushTopK = (v) => {
             const ir = (v[VSCX.ir] == null) ? 0 : v[VSCX.ir];
-            const r = getRectCached(v, now, 350);
+            const r = getRectCached(v, now, 420);
             const area = r.width * r.height;
             if (ir < 0.01 && area < 160 * 120) return;
             const item = { ir, area, v };
@@ -296,7 +316,7 @@
             const now = performance.now();
             for (const v of visibleVideos) {
                 if (!v || v === target) continue;
-                const r = getRectCached(v, now, 350);
+                const r = getRectCached(v, now, 420);
                 pushTop(r.width * r.height, v);
             }
             for (const it of top) set.add(it.v);
@@ -381,11 +401,9 @@
         expMix = clamp(expMix, 0.18, 1.00);
         toneMix = clamp(toneMix, 0.06, 1.00);
 
-        // [PATCH] Removed Tone Preset Specific Exceptions in Mixing
         return { expMix, toneMix };
     }
 
-    // [NEW] Unified Damping Guard Helper
     function computeToneStrengthEff(vf, ae, Utils) {
         const { clamp } = Utils;
         const tonePreset = vf?.tonePreset || null;
@@ -583,7 +601,7 @@
         };
 
         const toneName = vUser.tonePreset;
-        const toneStr = vUser.toneStrength; // vUser is already vfEff in Scheduler
+        const toneStr = vUser.toneStrength;
         if (toneName && toneName !== 'neutral') {
             const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
             out = applyTonePreset2(out, toneName, toneStr, aeProfileForTone, Utils);
@@ -627,11 +645,15 @@
         let state = Utils.deepClone(defaults);
         let rev = 0;
         const listeners = new Map();
+
         const emit = (key, val) => {
-            const a = listeners.get(key); if (a) for (const cb of a) cb(val);
+            const a = listeners.get(key);
+            if (a) for (const cb of a) { try { cb(val); } catch(_) {} }
             const cat = key.split('.')[0];
-            const b = listeners.get(cat + '.*'); if (b) for (const cb of b) cb(val);
+            const b = listeners.get(cat + '.*');
+            if (b) for (const cb of b) { try { cb(val); } catch(_) {} }
         };
+
         return {
             rev: () => rev,
             getCat: (cat) => (state[cat] ||= {}),
@@ -659,9 +681,10 @@
                 if (has) { rev++; scheduler.request(false); }
             },
             sub: (k, f) => {
-                const a = listeners.get(k) || [];
-                a.push(f); listeners.set(k, a);
-                return () => { const cur = listeners.get(k); if (!cur) return; const i = cur.indexOf(f); if (i >= 0) cur.splice(i, 1); };
+                let s = listeners.get(k);
+                if (!s) { s = new Set(); listeners.set(k, s); }
+                s.add(f);
+                return () => { const cur = listeners.get(k); if (cur) cur.delete(f); };
             }
         };
     }
@@ -705,10 +728,27 @@
         };
 
         const WorkQ = (() => {
-            const q = []; let head = 0; let scheduled = false;
+            const q = [], bigQ = [];
+            let head = 0, bigHead = 0;
+            let scheduled = false;
             let epoch = 1; const mark = new WeakMap();
-            const schedule = () => { if (scheduled) return; scheduled = true; const runner = (dl) => drain(dl); if (window.requestIdleCallback) requestIdleCallback(runner); else requestAnimationFrame(() => runner()); };
-            const enqueue = (n) => { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch); q.push(n); schedule(); };
+            
+            const schedule = () => { 
+                if (scheduled) return; 
+                scheduled = true; 
+                const runner = (dl) => drain(dl); 
+                if (window.requestIdleCallback) requestIdleCallback(runner); else requestAnimationFrame(() => runner()); 
+            };
+            
+            const enqueue = (n) => { 
+                if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; 
+                const m = mark.get(n); if (m === epoch) return; 
+                mark.set(n, epoch); 
+                const isBig = (n.nodeType === 1 && (n.childElementCount || 0) > 1600);
+                (isBig ? bigQ : q).push(n); 
+                schedule(); 
+            };
+            
             const scanNode = (n) => {
                 if (!n) return;
                 const wantImg = featureCheck.images();
@@ -717,25 +757,27 @@
                 if (n.nodeType === 1) {
                     const tag = n.tagName;
                     if (tag === 'VIDEO' || (wantImg && tag === 'IMG')) { observeMediaEl(n); return; }
-
-                    const childCnt = n.childElementCount || 0;
-                    if (childCnt > 1200) {
-                        requestAnimationFrame(() => {
-                            try { n.querySelectorAll?.(sel)?.forEach(observeMediaEl); } catch (_) { }
-                        });
-                        return;
-                    }
-
                     if (n.querySelectorAll) n.querySelectorAll(sel).forEach(observeMediaEl);
                     return;
                 }
                 if (n.nodeType === 11) { try { n.querySelectorAll?.(sel)?.forEach(observeMediaEl); } catch (_) { } }
             };
+            
             const drain = (dl) => {
                 scheduled = false; const start = performance.now();
                 const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
-                while (head < q.length && budget()) { const n = q[head++]; try { scanNode(n); } catch (_) { } }
-                if (head >= q.length) { q.length = 0; head = 0; epoch++; return; }
+                
+                while (bigHead < bigQ.length && budget()) { 
+                    const n = bigQ[bigHead++]; 
+                    try { scanNode(n); } catch (_) { } 
+                    break; 
+                }
+                while (head < q.length && budget()) { 
+                    const n = q[head++]; 
+                    try { scanNode(n); } catch (_) { } 
+                }
+                
+                if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
                 schedule();
             };
             return Object.freeze({ enqueue });
@@ -971,7 +1013,7 @@
                 let lum, lumB1, lumHP1, shAdd1, lumB2, lumHP2, shAdd2, lumBC, lumHPC, clAdd;
                 if (withDetail) {
                     lum = h('feColorMatrix', {
-                        ns: 'svg', in: last, type: 'matrix',
+                        ns: 'svg', in: 'tmp', type: 'matrix',
                         values: '0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0', result: 'lum'
                     });
                     lumB1 = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumB1' });
@@ -1148,6 +1190,7 @@
             let sumAll=0, sumSqAll=0, nAll=0, sumTop=0, sumSqTop=0, nTop=0;
             let clipAll=0, clipBottom=0, botSum=0, botSumSq=0, botN=0;
             let rSum=0, gSum=0, bSum=0;
+            let skinCnt=0, skinAcc=0;
             const botY0 = Math.floor(height * 0.78), stride = width * 4;
             for(let y=0; y<height; y+=step){
                 const row = y*stride; const isTop = (y < botY0); const isBottom = !isTop;
@@ -1159,6 +1202,15 @@
                     if(isTop) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; }
                     if(Y >= 251){ clipAll++; if(isBottom) clipBottom++; }
                     if(isBottom){ botSum += Y; botSumSq += Y*Y; botN++; }
+
+                    const Yf = Y / 255;
+                    const rf = r/255, gf = g/255, bf = b/255;
+                    if (Yf > 0.20 && Yf < 0.78) {
+                        const redish = Math.max(0, Math.min(1, (rf - gf) * 1.8 + (rf - bf) * 1.2));
+                        const notTooSatBlue = Math.max(0, 1 - (bf - rf) * 2.0);
+                        const s = redish * notTooSatBlue;
+                        if (s > 0.10) { skinAcc += s; skinCnt++; }
+                    }
                 }
             }
             const avgAll = nAll ? (sumAll/nAll) : 0;
@@ -1173,12 +1225,14 @@
             const cfAll = Math.min(1, stdAll/0.22); const cfTop = Math.min(1, stdTop/0.22);
             const rgbSum = (rSum+gSum+bSum) || 1;
             const redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28));
+            const skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.25) : 0;
+
             self.postMessage({
                 token,
                 p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p60: pctFromHist(histAll, nAll, 0.60), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98),
                 avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0,
                 p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p60T: pctFromHist(histTop, nTop || 1, 0.60), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98),
-                stdDevT: stdTop, cfT: cfTop, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, redDominance
+                stdDevT: stdTop, cfT: cfTop, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, redDominance, skinScore
             });
         };
     `;
@@ -1239,7 +1293,8 @@
             const stats = {
                 p10: subLikely ? data.p10T : data.p10, p35: subLikely ? data.p35T : data.p35, p50: subLikely ? data.p50T : data.p50, p60: subLikely ? data.p60T : data.p60,
                 p90: subLikely ? data.p90T : data.p90, p95: subLikely ? data.p95T : data.p95, p98: subLikely ? data.p98T : data.p98,
-                clipFrac: data.clipFrac, cf: subLikely ? (data.cfT ?? data.cf) : data.cf, std: subLikely ? data.stdDevT : data.stdDev, rd: data.redDominance
+                clipFrac: data.clipFrac, cf: subLikely ? (data.cfT ?? data.cf) : data.cf, std: subLikely ? data.stdDevT : data.stdDev, 
+                rd: (data.skinScore != null) ? data.skinScore : data.redDominance
             };
 
             const dt = Math.min(now - lastEmaT, 500); lastEmaT = now;
@@ -1325,15 +1380,13 @@
             }
 
             // ===== Apply Unified Guards =====
-            // Highlight guard: br/shoulder 중심 + conF 약간
             br *= (1 - 0.85 * gHi);
             shoulder *= (1 - 0.60 * gHi);
             conF = clamp(conF - 0.010 * gHi, 0.90, 1.12);
 
-            // Skin guard: sat/con 상한 (피부로 보일 때만)
             if (gSkin > 0.25) {
-                const satCap = 1.10 - 0.06 * gSkin;  // 1.10 ~ 1.04
-                const conCap = 1.08 - 0.03 * gSkin;  // 1.08 ~ 1.05
+                const satCap = 1.10 - 0.06 * gSkin;
+                const conCap = 1.08 - 0.03 * gSkin;
                 satF = Math.min(satF, Math.max(cfg.SAT_MIN, satCap));
                 conF = Math.min(conF, conCap);
             }
@@ -1364,13 +1417,20 @@
 
         const disableAEHard = () => { try { worker?.terminate(); } catch (_) { } worker = null; workerBusy = false; isRunning = false; targetToken++; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) { } workerUrl = null; } try { sm.set(P.V_AE, false); } catch (e) { } };
         let workerUrl = null;
+        
         const ensureWorker = () => {
             if (worker) return worker;
-            if (!workerUrl) workerUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' }));
-            worker = new Worker(workerUrl);
-            worker.onmessage = (e) => { workerBusy = false; processResult(e.data); };
-            worker.onerror = () => { workerBusy = false; disableAEHard(); };
-            return worker;
+            try {
+                if (!workerUrl) workerUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' }));
+                worker = new Worker(workerUrl);
+                worker.onmessage = (e) => { workerBusy = false; processResult(e.data); };
+                worker.onerror = () => { workerBusy = false; disableAEHard(); };
+                return worker;
+            } catch (e) {
+                try { console.warn('[VSC] worker blocked, AE disabled:', e); } catch (_) {}
+                disableAEHard();
+                return null;
+            }
         };
 
         const rvfcLoop = (token) => {
@@ -1396,7 +1456,8 @@
                 ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
                 const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
                 _motionFromFrame(d.data); workerBusy = true;
-                ensureWorker().postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
+                const wk = ensureWorker();
+                if (wk) wk.postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
             } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
         };
 
@@ -1517,7 +1578,6 @@
                     }
                 };
 
-                // [수정된 UI 갱신 로직] AE 프로필 버튼은 video.ae 상태와 병합하여 평가
                 if (key === P.V_AE_PROFILE) {
                     const updateAeState = () => {
                         const isAeOn = sm.get(P.V_AE);
@@ -1526,10 +1586,10 @@
                     };
                     sm.sub(P.V_AE, updateAeState);
                     sm.sub(P.V_AE_PROFILE, updateAeState);
-                    updateAeState(); // 초기 상태 렌더링
+                    updateAeState();
                 } else {
                     sm.sub(key, v => b.classList.toggle('active', v === it.v));
-                    b.classList.toggle('active', sm.get(key) === it.v); // 초기 상태 렌더링
+                    b.classList.toggle('active', sm.get(key) === it.v);
                 }
 
                 r.append(b);
@@ -1539,23 +1599,35 @@
 
         const renderPresetRow = (label, items, key) => {
             const r = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
+            
+            const syncBtn = (btn, expected) => {
+                const v = sm.get(key);
+                btn.classList.toggle('active', v === expected);
+            };
+
             items.forEach(it => {
-                const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.l || it.txt);
+                const val = (it.l || it.txt);
+                const b = h('button', { class: 'pbtn', style: 'flex:1' }, val);
                 b.onclick = () => {
-                    sm.set(key, it.l || it.txt);
+                    sm.set(key, val);
                     const affectsAE = (key === P.V_PRE_B);
                     if (affectsAE) fireAE(2, true); else fireApplyOnly(true);
                 };
-                sm.sub(key, v => b.classList.toggle('active', v === (it.l || it.txt)));
+                sm.sub(key, v => b.classList.toggle('active', v === val));
+                syncBtn(b, val);
                 r.append(b);
             });
+
+            const offVal = (key === P.V_PRE_B) ? 'brOFF' : 'off';
             const off = h('button', { class: 'pbtn', style: 'flex:1' }, 'OFF');
             off.onclick = () => {
-                sm.set(key, key === P.V_PRE_B ? 'brOFF' : 'off');
+                sm.set(key, offVal);
                 const affectsAE = (key === P.V_PRE_B);
                 if (affectsAE) fireAE(2, true); else fireApplyOnly(true);
             };
             sm.sub(key, v => off.classList.toggle('active', v === 'off' || v === 'brOFF'));
+            off.classList.toggle('active', sm.get(key) === 'off' || sm.get(key) === 'brOFF');
+
             return r.append(off), r;
         };
 
@@ -1724,7 +1796,11 @@
             if (Store.get(P.APP_TAB) === 'image') return true;
             return Store.get(P.I_LVL) !== DEFAULTS.image.level || Store.get(P.I_TMP) !== DEFAULTS.image.temp;
         },
-        ae: () => Store.get(P.APP_ACT) && Store.get(P.V_AE),
+        ae: () => {
+            if (!(Store.get(P.APP_ACT) && Store.get(P.V_AE))) return false;
+            const s = Utils.clamp(Store.get(P.V_AE_STR) ?? 1.0, 0, 1);
+            return s > 0.02;
+        },
         audio: () => Store.get(P.APP_ACT) && Store.get(P.A_EN)
     };
 
@@ -1895,7 +1971,6 @@
 
             const aeOutRaw = wantAE ? currentAE : null;
 
-            // [NEW] Damped toneStrength injection (Unified Damp Guard)
             let vfEff = vf0;
             if (vf0.tonePreset && vf0.tonePreset !== 'neutral') {
                 const tEff = computeToneStrengthEff(vf0, wantAE ? currentAE : null, Utils);
