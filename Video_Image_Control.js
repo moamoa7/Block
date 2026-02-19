@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v153_UnifiedCore)
+// @name        Video_Image_Control (Local_Indep_v154_UnifiedCore)
 // @namespace   https://github.com/
-// @version     153.0.0.0
-// @description Video Control: Unified Guards, AE-Strength, Perf-Opt, AppController (Hotfix)
+// @version     154.0.0.0
+// @description Video Control: Zero-Alloc, 3-Tier SVG Variants, Profile Look, Performance
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -72,7 +72,7 @@
     })();
 
     const CONFIG = Object.freeze({
-        VERSION: "v153.UnifiedCore",
+        VERSION: "v154.ZeroAlloc",
         IS_TOP: window === window.top,
         IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
         IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -92,7 +92,6 @@
         audioFail: Symbol('vsc.audioFail')
     });
 
-    // === AE CONSTANTS (Unified) ===
     const AE_COMMON = Object.freeze({
         CLIP_FRAC_LIMIT: 0.0032,
         DEAD_IN: 0.035,
@@ -225,8 +224,10 @@
         return r;
     }
 
-    function createTargeting({ Utils }) {
-        let __currentTarget = null, __currentScore = -1, __currentSince = 0;
+    function createTargeting() {
+        let __currentTarget = null, __currentSince = 0;
+        const __applySetReuse = new Set();
+        const __topBuf = [];
         
         function isActuallyVisibleFast(el, now, maxAgeMs = 420) {
             if (!el || !el.isConnected) return null;
@@ -336,35 +337,44 @@
                     if (delta < MIN_SWITCH_DELTA) return __currentTarget;
                 }
             }
-            if (best !== __currentTarget) { __currentTarget = best; __currentScore = bestScore; __currentSince = now; }
+            if (best !== __currentTarget) { __currentTarget = best; __currentSince = now; }
             return __currentTarget;
         };
 
-        const buildApplySet = (visibleVideos, target, extraBigVideos, applyToAllVisibleVideos) => {
-            if (applyToAllVisibleVideos) return visibleVideos;
-            const set = new Set();
-            if (target) set.add(target);
-            const top = [];
-            const N = Math.max(0, extraBigVideos | 0);
-            if (N > 0) {
-                const pushTop = (area, v) => {
-                    let i = 0;
-                    while (i < top.length && top[i].area >= area) i++;
-                    top.splice(i, 0, { area, v });
-                    if (top.length > N) top.length = N;
-                };
-                const now = performance.now();
-                for (const v of visibleVideos) {
-                    if (!v || v === target) continue;
-                    const r = getRectCached(v, now, 420);
-                    pushTop(r.width * r.height, v);
-                }
-                for (const it of top) set.add(it.v);
+        const buildApplySetReuse = (visibleVideos, target, extraBigVideos, applyToAllVisibleVideos) => {
+            __applySetReuse.clear();
+            if (applyToAllVisibleVideos) {
+                for (const v of visibleVideos) __applySetReuse.add(v);
+                return __applySetReuse;
             }
-            return set;
+            if (target) __applySetReuse.add(target);
+            
+            const N = Math.max(0, extraBigVideos | 0);
+            if (N <= 0) return __applySetReuse;
+            
+            __topBuf.length = 0;
+            const now = performance.now();
+            
+            const pushTop = (area, v) => {
+                if (area < 260 * 160) return;
+                if (__topBuf.length === 0) { __topBuf.push({ area, v }); return; }
+                let i = 0;
+                while (i < __topBuf.length && __topBuf[i].area >= area) i++;
+                __topBuf.splice(i, 0, { area, v });
+                if (__topBuf.length > N) __topBuf.length = N;
+            };
+            
+            for (const v of visibleVideos) {
+                if (!v || v === target) continue;
+                const r = getRectCached(v, now, 420);
+                pushTop(r.width * r.height, v);
+            }
+            
+            for (let i = 0; i < __topBuf.length; i++) __applySetReuse.add(__topBuf[i].v);
+            return __applySetReuse;
         };
 
-        return Object.freeze({ pick, buildApplySet });
+        return Object.freeze({ pick, buildApplySetReuse });
     }
 
     function createEventBus() {
@@ -401,7 +411,7 @@
         return Object.freeze({ on, emit, signal });
     }
 
-    function computeAeMix2(vf, Utils) {
+    function computeAeMix2Into(out, vf, Utils) {
         const { clamp } = Utils;
         const mix = clamp(vf.presetMix ?? 1.0, 0, 1);
         const pB = PRESET.grade[vf.presetB] || PRESET.grade.brOFF;
@@ -437,10 +447,8 @@
         toneMix = clamp(toneMix, 0.06, 1.00);
 
         const snap = (x) => Math.round(x / 0.02) * 0.02;
-        expMix = snap(expMix);
-        toneMix = snap(toneMix);
-
-        return { expMix, toneMix };
+        out.expMix = snap(expMix);
+        out.toneMix = snap(toneMix);
     }
 
     function computeToneStrengthEff(vf, ae, Utils) {
@@ -524,108 +532,122 @@
         });
     }
 
-    function applyTonePreset2(base, presetName, strength, aeProfileName, Utils) {
+    function applyTonePreset2Inline(out, presetName, strength, aeProfileName, Utils) {
         const { clamp } = Utils;
+        if (!presetName || presetName === 'neutral') return out;
+      
         const p0 = TONE_PRESET2[presetName] || TONE_PRESET2.neutral;
-        const t0 = clamp(strength ?? 1.0, 0, 1);
-        let p = { ...p0 }, t = t0;
-
+        let t = clamp(strength ?? 1.0, 0, 1);
+      
+        let toe = p0.toe, shoulder = p0.shoulder, mid = p0.mid, con = p0.con, sat = p0.sat, br = p0.br, tmp = p0.tmp;
+      
         if (presetName === 'highlight') {
-            if (aeProfileName === 'bright') { p.shoulder *= 0.65; p.br *= 0.65; t *= 0.90; }
-            else if (aeProfileName === 'cinematic') { p.br *= 0.75; p.con = 1.00; t *= 0.95; }
+          if (aeProfileName === 'bright') { shoulder *= 0.65; br *= 0.65; t *= 0.90; }
+          else if (aeProfileName === 'cinematic') { br *= 0.75; con = 1.00; t *= 0.95; }
+        } else if (presetName === 'redSkin') {
+          if (aeProfileName === 'bright') { sat = 1.03; br *= 0.70; t *= 0.92; }
+          else if (aeProfileName === 'cinematic') { sat = 1.03; tmp *= 0.80; }
         }
-        if (presetName === 'redSkin') {
-            if (aeProfileName === 'bright') { p.sat = 1.03; p.br *= 0.70; t *= 0.92; }
-            else if (aeProfileName === 'cinematic') { p.sat = 1.03; p.tmp *= 0.80; }
-        }
-
-        return {
-            ...base,
-            mid: clamp((base.mid || 0) + (p.mid * t), -1, 1),
-            contrast: clamp(base.contrast * (1 + (p.con - 1) * t), 0.5, 2.0),
-            satF: clamp(base.satF * (1 + (p.sat - 1) * t), 0.0, 2.0),
-            bright: clamp(base.bright + (p.br * t), -50, 50),
-            temp: clamp(base.temp + (p.tmp * t), -25, 25),
-            toe: clamp(base.toe + (p.toe * t), -14, 14),
-            shoulder: clamp(base.shoulder + (p.shoulder * t), -14, 14),
-        };
+      
+        out.mid = clamp((out.mid || 0) + (mid * t), -1, 1);
+        out.contrast = clamp((out.contrast || 1) * (1 + (con - 1) * t), 0.5, 2.0);
+        out.satF = clamp((out.satF || 1) * (1 + (sat - 1) * t), 0.0, 2.0);
+        out.bright = clamp((out.bright || 0) + (br * t), -50, 50);
+        out.temp = clamp((out.temp || 0) + (tmp * t), -25, 25);
+        out.toe = clamp((out.toe || 0) + (toe * t), -14, 14);
+        out.shoulder = clamp((out.shoulder || 0) + (shoulder * t), -14, 14);
+      
+        return out;
     }
 
-    function composeVideoParams(vUser, ae, defaultsVideo, Utils) {
+    function composeVideoParamsInto(out, vUser, ae, defaultsVideo, Utils) {
         const clamp = Utils.clamp;
         const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
+      
         const pS = PRESET.sharp[vUser.presetS] || PRESET.sharp.off;
         const pB = PRESET.grade[vUser.presetB] || PRESET.grade.brOFF;
-
+      
         const preGammaF = lerp(1.0, pB.gammaF, mix);
-        const preConF = lerp(1.0, pB.conF, mix);
-        const preSatF = lerp(1.0, pB.satF, mix);
+        const preConF   = lerp(1.0, pB.conF,   mix);
+        const preSatF   = lerp(1.0, pB.satF,   mix);
         const preBright = (pB.brightAdd || 0) * mix;
-        const preTemp = (pB.tempAdd || 0) * mix;
-        const preSharp = (pS.sharpAdd || 0) * mix;
+        const preTemp   = (pB.tempAdd   || 0) * mix;
+        const preSharp  = (pS.sharpAdd  || 0) * mix;
         const preSharp2 = (pS.sharp2Add || 0) * mix;
-
+      
         const A = ae || { gain: 1, gammaF: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, hiRisk: 0, cf: 0.5, mid: 0 };
-
-        let gamma = (vUser.gamma || 1.0) * preGammaF * (A.gammaF || 1.0);
-        let contrast = (vUser.contrast || 1.0) * preConF * (A.conF || 1.0);
-        let satF = ((vUser.sat || 100) / 100) * preSatF * (A.satF || 1.0);
-        let bright = (vUser.bright || 0) + preBright + (A.brightAdd || 0);
-        let temp = (vUser.temp || 0) + preTemp + (A.tempAdd || 0);
-
+      
+        let gamma    = (vUser.gamma || 1.0)    * preGammaF * (A.gammaF || 1.0);
+        let contrast = (vUser.contrast || 1.0) * preConF   * (A.conF   || 1.0);
+        let satF     = ((vUser.sat || 100) / 100) * preSatF * (A.satF || 1.0);
+        let bright   = (vUser.bright || 0) + preBright + (A.brightAdd || 0);
+        let temp     = (vUser.temp || 0)   + preTemp   + (A.tempAdd   || 0);
+      
         const gain = clamp(A.gain || 1.0, 1.0, 8.0);
         const hiRisk01 = clamp(A.hiRisk || 0, 0, 1);
         const userSharp01 = clamp((((vUser.sharp || 0) + preSharp) / 50), 0, 1);
-
+      
         let sharpMulBase = Math.max(0.62, 1 / (1 + (gain - 1.0) * 1.25));
-        let sharpMulHF = Math.max(0.50, 1 / (1 + (gain - 1.0) * 1.80));
-
+        let sharpMulHF   = Math.max(0.50, 1 / (1 + (gain - 1.0) * 1.80));
+      
         sharpMulBase *= (1 - 0.18 * hiRisk01);
-        sharpMulHF *= (1 - 0.42 * hiRisk01);
-
+        sharpMulHF   *= (1 - 0.42 * hiRisk01);
+      
         const cf = (A.cf != null) ? A.cf : 0.5;
         const cfGate = Math.max(0, Math.min(1, (cf - 0.10) / 0.22));
         sharpMulBase *= (0.82 + 0.18 * cfGate);
-        sharpMulHF *= (0.65 + 0.35 * cfGate);
-
+        sharpMulHF   *= (0.65 + 0.35 * cfGate);
+      
         const satVal = clamp(satF, 0, 2.0);
-        const satStress = Math.min(1, Math.abs(satVal - 1) / 0.55);
-        const toneDamp = clamp(1 - satStress * 0.35, 0.65, 1.0);
-        
+        const satStress  = Math.min(1, Math.abs(satVal - 1) / 0.55);
         const tempStress = Math.min(1, Math.abs(temp) / 25);
         const cf01 = clamp(cf, 0, 1);
+      
         const chromaStress = (satStress * 0.85) + (tempStress * 0.65);
-        const riskStress = (hiRisk01 * 0.70) + ((1 - cf01) * 0.45);
-        const guard = 1 / (1 + chromaStress * 1.05 + riskStress * 0.85);
+        const riskStress   = (hiRisk01 * 0.70) + ((1 - cf01) * 0.45);
+        const guard   = 1 / (1 + chromaStress * 1.05 + riskStress * 0.85);
         const hfGuard = 1 / (1 + chromaStress * 1.45 + riskStress * 1.10);
-
+      
         const relaxBase = 0.55 * userSharp01;
-        const relaxHF = 0.40 * userSharp01;
+        const relaxHF   = 0.40 * userSharp01;
         sharpMulBase *= lerp((0.78 + 0.22 * guard), 1.0, relaxBase);
-        sharpMulHF *= lerp((0.55 + 0.45 * hfGuard), 1.0, relaxHF);
-
-        let sharp = ((vUser.sharp || 0) + preSharp) * sharpMulBase;
-        let sharp2 = ((vUser.sharp2 || 0) + preSharp2) * sharpMulHF;
+        sharpMulHF   *= lerp((0.55 + 0.45 * hfGuard), 1.0, relaxHF);
+      
+        let sharp   = ((vUser.sharp  || 0) + preSharp)  * sharpMulBase;
+        let sharp2  = ((vUser.sharp2 || 0) + preSharp2) * sharpMulHF;
         let clarity = (vUser.clarity || 0) * sharpMulHF;
-
-        const manualStyle = (Math.abs(vUser.bright || 0) > 10) || (Math.abs((vUser.gamma || 1) - 1) > 0.10) || (Math.abs((vUser.contrast || 1) - 1) > 0.10) || (Math.abs((vUser.sat || 100) - 100) > 25);
+      
+        const manualStyle =
+          (Math.abs(vUser.bright || 0) > 10) ||
+          (Math.abs((vUser.gamma || 1) - 1) > 0.10) ||
+          (Math.abs((vUser.contrast || 1) - 1) > 0.10) ||
+          (Math.abs((vUser.sat || 100) - 100) > 25);
+      
         const styleMix = manualStyle ? 0.80 : 1.00;
-
-        let out = {
-            gain, gamma: clamp(gamma, 0.5, 2.5), contrast: clamp(contrast, 0.5, 2.0),
-            bright: clamp(bright, -50, 50), satF: satVal,
-            mid: clamp((A.mid || 0) * styleMix * toneDamp, -1, 1),
-            sharp: clamp(sharp, 0, 50), sharp2: clamp(sharp2, 0, 50), clarity: clamp(clarity, 0, 50),
-            dither: vUser.dither || 0, temp: clamp(temp, -25, 25),
-            toe: (A.toe || 0) * styleMix * toneDamp, shoulder: (A.shoulder || 0) * styleMix * toneDamp
-        };
-
+        const toneDamp = clamp(1 - satStress * 0.35, 0.65, 1.0);
+      
+        out.gain     = gain;
+        out.gamma    = clamp(gamma, 0.5, 2.5);
+        out.contrast = clamp(contrast, 0.5, 2.0);
+        out.bright   = clamp(bright, -50, 50);
+        out.satF     = satVal;
+      
+        out.mid      = clamp((A.mid || 0) * styleMix * toneDamp, -1, 1);
+        out.toe      = (A.toe || 0) * styleMix * toneDamp;
+        out.shoulder = (A.shoulder || 0) * styleMix * toneDamp;
+      
+        out.sharp    = clamp(sharp, 0, 50);
+        out.sharp2   = clamp(sharp2, 0, 50);
+        out.clarity  = clamp(clarity, 0, 50);
+        out.dither   = vUser.dither || 0;
+        out.temp     = clamp(temp, -25, 25);
+      
         const toneName = vUser.tonePreset;
-        const toneStr = vUser.toneStrength;
         if (toneName && toneName !== 'neutral') {
-            const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
-            out = applyTonePreset2(out, toneName, toneStr, aeProfileForTone, Utils);
+          const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
+          applyTonePreset2Inline(out, toneName, vUser.toneStrength, aeProfileForTone, Utils);
         }
+      
         return out;
     }
 
@@ -648,30 +670,46 @@
     function createScheduler(minIntervalMs = 16) {
         let queued = false, force = false, applyFn = null;
         let lastRun = 0;
-
-        const request = (immediate = false) => {
-            if (immediate) force = true;
-            if (queued) return;
-
-            queued = true;
-            requestAnimationFrame(() => {
-                queued = false;
-
-                const now = performance.now();
-                const doForce = force;
-                force = false;
-
-                if (!doForce && (now - lastRun) < minIntervalMs) {
-                    request(false);
-                    return;
-                }
-
-                lastRun = now;
-                if (applyFn) { try { applyFn(doForce); } catch (_) {} }
-            });
+        let timer = 0;
+      
+        const run = () => {
+          queued = false;
+      
+          const now = performance.now();
+          const doForce = force;
+          force = false;
+      
+          const dt = now - lastRun;
+          if (!doForce && dt < minIntervalMs) {
+            const wait = Math.max(0, minIntervalMs - dt);
+            if (!timer) {
+              timer = setTimeout(() => {
+                timer = 0;
+                requestAnimationFrame(run);
+              }, wait);
+            }
+            return;
+          }
+      
+          lastRun = now;
+          if (applyFn) {
+            try { applyFn(doForce); } catch (_) {}
+          }
         };
-
-        return { registerApply: (fn) => { applyFn = fn; }, request };
+      
+        const request = (immediate = false) => {
+          if (immediate) force = true;
+          if (queued) return;
+          queued = true;
+      
+          if (timer) { clearTimeout(timer); timer = 0; }
+          requestAnimationFrame(run);
+        };
+      
+        return {
+          registerApply: (fn) => { applyFn = fn; },
+          request
+        };
     }
 
     function createLocalStore(defaults, scheduler, Utils) {
@@ -722,16 +760,16 @@
         };
     }
 
-    function createRegistry(scheduler, featureCheck, { IS_LOW_END }) {
+    function createRegistry(scheduler, featureCheck) {
         const videos = new Set(), images = new Set();
         const visible = { videos: new Set(), images: new Set() };
-        const dirty = { videos: new Set(), images: new Set() };
+        let dirty = { videos: new Set(), images: new Set() };
         let rev = 0;
         let observingImages = false;
 
         const observedShadowHosts = new WeakSet();
         const shadowRootsLRU = [];
-        const SHADOW_LRU_MAX = IS_LOW_END ? 8 : 24;
+        const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? 8 : 24;
 
         const io = new IntersectionObserver((entries) => {
             if (!featureCheck.active()) return; 
@@ -754,7 +792,7 @@
                 }
             }
             if (changed) { rev++; scheduler.request(false); }
-        }, { root: null, threshold: 0.01, rootMargin: IS_LOW_END ? '120px' : '300px' });
+        }, { root: null, threshold: 0.01, rootMargin: CONFIG.IS_LOW_END ? '120px' : '300px' });
 
         const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
         const observeMediaEl = (el) => {
@@ -901,11 +939,15 @@
             videos, images, visible, rev: () => rev, refreshObservers,
             syncImageObservation,
             prune: () => {
-                pruneBatch(videos, visible.videos, dirty.videos, TOUCHED.videos, io.unobserve.bind(io), IS_LOW_END ? 120 : 220);
-                pruneBatch(images, visible.images, dirty.images, TOUCHED.images, io.unobserve.bind(io), IS_LOW_END ? 120 : 220);
+                pruneBatch(videos, visible.videos, dirty.videos, TOUCHED.videos, io.unobserve.bind(io), CONFIG.IS_LOW_END ? 120 : 220);
+                pruneBatch(images, visible.images, dirty.images, TOUCHED.images, io.unobserve.bind(io), CONFIG.IS_LOW_END ? 120 : 220);
                 rev++;
             },
-            consumeDirty: () => { const out = { videos: new Set(dirty.videos), images: new Set(dirty.images) }; dirty.videos.clear(); dirty.images.clear(); return out; },
+            consumeDirty: () => {
+                const out = dirty;
+                dirty = { videos: new Set(), images: new Set() };
+                return out;
+            },
             rescanAll: () => { WorkQ.enqueue(document.body || document.documentElement); }
         };
     }
@@ -1002,8 +1044,34 @@
     function createFiltersUnified(Utils, config) {
         const { h, clamp, createLRU } = Utils;
       
-        const ctxMap = new WeakMap(); 
+        const ctxMap = new WeakMap();
         const toneCache = createLRU(CONFIG.IS_LOW_END ? 256 : 512);
+      
+        const makeNoiseDataURL = (size = 64, seed = 1337) => {
+          const c = document.createElement('canvas');
+          c.width = c.height = size;
+          const ctx2 = c.getContext('2d', { alpha: false });
+          const img = ctx2.createImageData(size, size);
+      
+          let a = seed >>> 0;
+          const rnd = () => {
+            a |= 0; a = (a + 0x6D2B79F5) | 0;
+            let t = Math.imul(a ^ (a >>> 15), 1 | a);
+            t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          };
+      
+          for (let i = 0; i < img.data.length; i += 4) {
+            const n = Math.floor(128 + (rnd() - 0.5) * 90);
+            img.data[i] = img.data[i + 1] = img.data[i + 2] = n;
+            img.data[i + 3] = 255;
+          }
+          ctx2.putImageData(img, 0, 0);
+          return c.toDataURL('image/png');
+        };
+      
+        let NOISE_URL = null;
+        const getNoiseUrl = () => (NOISE_URL ||= makeNoiseDataURL(64, 133));
       
         const qInt = (v, step) => Math.round(v / step);
         const setAttr = (node, attr, val, st, key) => {
@@ -1013,8 +1081,8 @@
           node.setAttribute(attr, val);
         };
       
-        const makeKey = (kind, s) => [
-          kind,
+        const makeKey = (kind, variant, s) => [
+          kind, variant,
           qInt(s.gain, 0.04),
           qInt(s.gamma, 0.01),
           qInt(s.contrast, 0.01),
@@ -1035,14 +1103,16 @@
           return t * t * (3 - 2 * t);
         };
       
-        function getToneTableCached(steps, toeN, shoulderN, midN, bright, contrast, gain) {
-          const key = `${steps}|${qInt(toeN, 0.02)}|${qInt(shoulderN, 0.02)}|${qInt(midN, 0.02)}|${qInt(bright, 0.2)}|${qInt(contrast, 0.01)}|${qInt(gain, 0.04)}`;
+        function getToneTableCached(steps, toeN, shoulderN, midN, bright, contrast, gain, invGamma) {
+          const key = `${steps}|${qInt(toeN, 0.02)}|${qInt(shoulderN, 0.02)}|${qInt(midN, 0.02)}|${qInt(bright, 0.2)}|${qInt(contrast, 0.01)}|${qInt(gain, 0.04)}|${qInt(invGamma, 0.01)}`;
           const hit = toneCache.get(key);
           if (hit) return hit;
       
           if (
             toeN === 0 && shoulderN === 0 && midN === 0 &&
-            bright === 0 && contrast === 1 && Math.abs(gain - 1) < 0.01
+            bright === 0 && contrast === 1 &&
+            Math.abs(gain - 1) < 0.01 &&
+            Math.abs(invGamma - 1) < 0.01
           ) {
             const res0 = '0 1';
             toneCache.set(key, res0);
@@ -1051,9 +1121,11 @@
       
           const br = (bright / 1000);
           const con = contrast;
+      
           const toeEnd = 0.34 + toeN * 0.06;
           const toeAmt = Math.abs(toeN);
           const toeSign = toeN >= 0 ? 1 : -1;
+      
           const shoulderStart = 0.90 - shoulderN * 0.10;
           const shAmt = Math.abs(shoulderN);
       
@@ -1064,8 +1136,11 @@
           const out = new Array(steps);
           let prev = 0;
       
+          const ig = clamp(invGamma, 0.2, 3.0);
+      
           for (let i = 0; i < steps; i++) {
             const x0 = i / (steps - 1);
+      
             let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
       
             const midShape = 4 * x * (1 - x);
@@ -1101,6 +1176,8 @@
             if (y < prev) y = prev;
             prev = y;
       
+            y = clamp(Math.pow(y, ig), 0, 1);
+      
             const yy = Math.round(y * 100000) / 100000;
             out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy));
           }
@@ -1115,8 +1192,16 @@
           const t = clamp(temp ?? 0, -25, 25);
       
           let rs = 1, gs = 1, bs = 1;
-          if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.010; }
-          else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.010; }
+          if (t > 0) {
+            rs = 1 + t * 0.012;
+            gs = 1 + t * 0.003;
+            bs = 1 - t * 0.010;
+          } else {
+            const k = -t;
+            bs = 1 + k * 0.012;
+            gs = 1 + k * 0.003;
+            rs = 1 - k * 0.010;
+          }
       
           const s = sat;
           const ir = 0.213, ig = 0.715, ib = 0.072;
@@ -1137,91 +1222,123 @@
             0, 0, 0, 1, 0
           ].map(x => (Math.round(x * 100000) / 100000));
       
-          return { key: `${t.toFixed(2)}|${sat.toFixed(3)}|${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`, values: v.join(' ') };
-        }
-      
-        const makeNoiseDataURL = (size = 64, seed = 1337) => {
-          const c = document.createElement('canvas'); c.width = c.height = size;
-          const ctx = c.getContext('2d', { alpha: false });
-          const img = ctx.createImageData(size, size);
-          let a = seed >>> 0;
-          const rnd = () => {
-            a |= 0; a = (a + 0x6D2B79F5) | 0;
-            let t = Math.imul(a ^ (a >>> 15), 1 | a);
-            t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+          return {
+            key: `${t.toFixed(2)}|${sat.toFixed(3)}|${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`,
+            values: v.join(' ')
           };
-          for (let i = 0; i < img.data.length; i += 4) {
-            const n = Math.floor(128 + (rnd() - 0.5) * 90);
-            img.data[i] = img.data[i + 1] = img.data[i + 2] = n; img.data[i + 3] = 255;
-          }
-          ctx.putImageData(img, 0, 0);
-          return c.toDataURL('image/png');
-        };
-        let NOISE_URL = null;
-        const getNoiseUrl = () => (NOISE_URL ||= makeNoiseDataURL(64, 133));
+        }
       
         function buildSvg(doc) {
           const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
           const defs = h('defs', { ns: 'svg' });
           svg.append(defs);
       
-          function mkUnifiedFilter(kind) {
-            const fid = `vsc-${kind}-${config.VSC_ID}`; 
+          const tryAppend = () => {
+            const r = doc.documentElement || doc.body;
+            if (r) { r.appendChild(svg); return true; }
+            return false;
+          };
+          if (!tryAppend()) {
+            const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50);
+            setTimeout(() => clearInterval(t), 3000);
+          }
+      
+          function appendCommon(filter, baseId) {
+            const tone = h('feComponentTransfer', { ns: 'svg', result: `${baseId}-tone` },
+              ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' }))
+            );
+      
+            const col = h('feColorMatrix', {
+              ns: 'svg',
+              in: `${baseId}-tone`,
+              type: 'matrix',
+              values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
+              result: `${baseId}-col`
+            });
+      
+            filter.append(tone, col);
+      
+            return { toneFuncs: Array.from(tone.children), col };
+          }
+      
+          function appendDetail(filter, baseId) {
+            const lum = h('feColorMatrix', {
+              ns: 'svg',
+              in: `${baseId}-tone`,
+              type: 'matrix',
+              values: '0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0',
+              result: `${baseId}-lum`
+            });
+      
+            const lumB1 = h('feGaussianBlur', { ns: 'svg', in: `${baseId}-lum`, stdDeviation: '0', result: `${baseId}-lumB1` });
+            const lumHP1 = h('feComposite', { ns: 'svg', in: `${baseId}-lum`, in2: `${baseId}-lumB1`, operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: `${baseId}-lumHP1` });
+            const shAdd1 = h('feComposite', { ns: 'svg', in: `${baseId}-col`, in2: `${baseId}-lumHP1`, operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: `${baseId}-sh1` });
+      
+            const lumB2 = h('feGaussianBlur', { ns: 'svg', in: `${baseId}-lum`, stdDeviation: '0', result: `${baseId}-lumB2` });
+            const lumHP2 = h('feComposite', { ns: 'svg', in: `${baseId}-lum`, in2: `${baseId}-lumB2`, operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: `${baseId}-lumHP2` });
+            const shAdd2 = h('feComposite', { ns: 'svg', in: `${baseId}-sh1`, in2: `${baseId}-lumHP2`, operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: `${baseId}-sh2` });
+      
+            const lumBC = h('feGaussianBlur', { ns: 'svg', in: `${baseId}-lum`, stdDeviation: '0', result: `${baseId}-lumBC` });
+            const lumHPC = h('feComposite', { ns: 'svg', in: `${baseId}-lum`, in2: `${baseId}-lumBC`, operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: `${baseId}-lumHPC` });
+            const clAdd = h('feComposite', { ns: 'svg', in: `${baseId}-sh2`, in2: `${baseId}-lumHPC`, operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: `${baseId}-det` });
+      
+            filter.append(lum, lumB1, lumHP1, shAdd1, lumB2, lumHP2, shAdd2, lumBC, lumHPC, clAdd);
+      
+            return { lumB1, shAdd1, lumB2, shAdd2, lumBC, clAdd, detOut: clAdd };
+          }
+      
+          function appendNoise(filter, baseId, inId) {
+            const feImg = h('feImage', { ns: 'svg', href: getNoiseUrl(), preserveAspectRatio: 'none', result: `${baseId}-noiseImg` });
+            const feTile = h('feTile', { ns: 'svg', in: `${baseId}-noiseImg`, result: `${baseId}-noise` });
+            const feComp = h('feComposite', {
+              ns: 'svg',
+              in: inId,
+              in2: `${baseId}-noise`,
+              operator: 'arithmetic',
+              k1: '0', k2: '1', k3: '0', k4: '0',
+              result: `${baseId}-out`
+            });
+            filter.append(feImg, feTile, feComp);
+            return { feComp, outId: `${baseId}-out` };
+          }
+      
+          function mkFilterVariant(kind, variant) {
+            const fid = `vsc-${kind}-${variant}-${config.VSC_ID}`;
+      
             const filter = h('filter', {
-              ns: 'svg', id: fid,
+              ns: 'svg',
+              id: fid,
               'color-interpolation-filters': 'sRGB',
               x: '-15%', y: '-15%', width: '130%', height: '130%'
             });
       
-            const tone = h('feComponentTransfer', { ns: 'svg', result: 'tone' },
-              ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' }))
-            );
+            const baseId = `${kind}-${variant}-${config.VSC_ID}`;
+            const common = appendCommon(filter, baseId);
       
-            const gam = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'gam' },
-              ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'gamma', amplitude: '1', exponent: '1', offset: '0' }))
-            );
+            let detail = null;
+            let noise = null;
+            let outId = `${baseId}-col`; 
       
-            const col = h('feColorMatrix', { ns: 'svg', in: 'gam', type: 'matrix', values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0', result: 'col' });
+            if (variant === 'detail' || variant === 'full') {
+              detail = appendDetail(filter, baseId);
+              outId = `${baseId}-det`;
+            }
+            if (variant === 'full') {
+              noise = appendNoise(filter, baseId, `${baseId}-det`);
+              outId = noise.outId;
+            } 
       
-            const lum = h('feColorMatrix', {
-              ns: 'svg', in: 'gam', type: 'matrix',
-              values: '0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0',
-              result: 'lum'
-            });
-      
-            const lumB1 = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumB1' });
-            const lumHP1 = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumB1', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'lumHP1' });
-            const shAdd1 = h('feComposite', { ns: 'svg', in: 'col', in2: 'lumHP1', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'sh1' });
-      
-            const lumB2 = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumB2' });
-            const lumHP2 = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumB2', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'lumHP2' });
-            const shAdd2 = h('feComposite', { ns: 'svg', in: 'sh1', in2: 'lumHP2', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'sh2' });
-      
-            const lumBC = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumBC' });
-            const lumHPC = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumBC', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'lumHPC' });
-            const clAdd = h('feComposite', { ns: 'svg', in: 'sh2', in2: 'lumHPC', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'det' });
-      
-            const feImg = h('feImage', { ns: 'svg', href: getNoiseUrl(), preserveAspectRatio: 'none', result: 'noiseImg' });
-            const feTile = h('feTile', { ns: 'svg', in: 'noiseImg', result: 'noise' });
-            const feComp = h('feComposite', { ns: 'svg', in: 'det', in2: 'noise', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'out' });
-      
-            filter.append(tone, gam, col, lum, lumB1, lumHP1, shAdd1, lumB2, lumHP2, shAdd2, lumBC, lumHPC, clAdd, feImg, feTile, feComp);
             defs.append(filter);
       
             return {
               fid,
-              toneFuncs: Array.from(tone.children),
-              gamFuncs: Array.from(gam.children),
-              col, 
-              lumB1, shAdd1,
-              lumB2, shAdd2,
-              lumBC, clAdd,
-              feComp,
+              common,
+              detail,
+              noise,
               st: {
                 lastKey: '',
-                toneKey: '', toneTable: '',
-                gammaKey: '',
+                toneKey: '',
+                toneTable: '',
                 colKey: '',
                 detailKey: '',
                 noiseKey: '',
@@ -1233,121 +1350,19 @@
       
           const ctx = {
             svg, defs,
-            video: mkUnifiedFilter('video'),
-            image: mkUnifiedFilter('image')
-          };
-      
-          const tryAppend = () => {
-            const r = doc.documentElement || doc.body;
-            if (r) { r.appendChild(svg); return true; }
-            return false;
-          };
-          if (!tryAppend()) {
-            const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50);
-            setTimeout(() => clearInterval(t), 3000);
-          }
-          return ctx;
-        }
-      
-        function updateTone(nodes, sEff) {
-          const st = nodes.st;
-          const toeN = clamp((sEff.toe || 0) / 14, -1, 1);
-          const shN = clamp((sEff.shoulder || 0) / 16, -1, 1);
-          const midN = clamp((sEff.mid || 0), -1, 1);
-      
-          const ditherOn = (sEff.dither || 0) > 0;
-          const steps = ditherOn ? (CONFIG.IS_LOW_END ? 64 : 96) : (CONFIG.IS_LOW_END ? 96 : 128);
-      
-          const kToe = qInt(toeN, 0.02);
-          const kSh = qInt(shN, 0.02);
-          const kMid = qInt(midN, 0.02);
-          const kBr = qInt(sEff.bright || 0, 0.2);
-          const kCon = qInt(sEff.contrast || 1, 0.01);
-          const kGain = qInt(sEff.gain || 1, 0.04);
-      
-          const toneKey = `${steps}|${kToe}|${kSh}|${kMid}|${kBr}|${kCon}|${kGain}`;
-          if (st.toneKey !== toneKey) {
-            st.toneKey = toneKey;
-            const table = getToneTableCached(
-              steps,
-              kToe * 0.02,
-              kSh * 0.02,
-              kMid * 0.02,
-              kBr * 0.2,
-              kCon * 0.01,
-              kGain * 0.04
-            );
-            if (st.toneTable !== table) {
-              st.toneTable = table;
-              for (const fn of nodes.toneFuncs) fn.setAttribute('tableValues', table);
+            video: {
+              basic: mkFilterVariant('video', 'basic'),
+              detail: mkFilterVariant('video', 'detail'),
+              full: mkFilterVariant('video', 'full')
+            },
+            image: {
+              basic: mkFilterVariant('image', 'basic'),
+              detail: mkFilterVariant('image', 'detail'),
+              full: mkFilterVariant('image', 'full')
             }
-          }
-        }
+          };
       
-        function updateGammaAndColor(nodes, sEff) {
-          const st = nodes.st;
-      
-          const invG = 1 / clamp(sEff.gamma || 1, 0.2, 3);
-          const gk = invG.toFixed(4);
-          if (st.gammaKey !== gk) {
-            st.gammaKey = gk;
-            for (const fn of nodes.gamFuncs) fn.setAttribute('exponent', gk);
-          }
-      
-          const cm = buildColorMatrix(sEff.temp || 0, sEff.satF ?? 1);
-          if (st.colKey !== cm.key) {
-            st.colKey = cm.key;
-            nodes.col.setAttribute('values', cm.values);
-          }
-        }
-      
-        function updateDetail(nodes, sEff) {
-          const st = nodes.st;
-      
-          const g = clamp(sEff.gain || 1, 1, 8);
-          const hiProtect = clamp((g - 1) / 4.0 + Math.max(0, (sEff.shoulder || 0)) / 18, 0, 1);
-      
-          const scaleBase = 1 - hiProtect * 0.25;
-          const scaleHF = 1 - hiProtect * 0.55;
-      
-          const sharpAdj = (sEff.sharp || 0) * scaleBase;
-          const sharp2Adj = (sEff.sharp2 || 0) * scaleHF;
-          const clarAdj = (sEff.clarity || 0) * (1 - hiProtect * 0.35);
-      
-          const detailKey = `${sharpAdj.toFixed(2)}|${sharp2Adj.toFixed(2)}|${clarAdj.toFixed(2)}`;
-          if (st.detailKey === detailKey) return;
-          st.detailKey = detailKey;
-      
-          const r1 = sharpAdj > 0 ? (1.10 + (sharpAdj / 50) * 0.60) : 0;
-          const r2 = sharp2Adj > 0 ? (0.60 + (sharp2Adj / 50) * 0.40) : 0;
-          const rc = clarAdj > 0 ? (2.20 + (clarAdj / 50) * 1.00) : 0;
-      
-          const k1 = sharpAdj > 0 ? (sharpAdj / 50) * 1.50 : 0;
-          const k2 = sharp2Adj > 0 ? (sharp2Adj / 50) * 1.20 : 0;
-          const kc = clarAdj > 0 ? (clarAdj / 50) * 0.50 : 0;
-      
-          setAttr(nodes.lumB1, 'stdDeviation', r1 ? r1.toFixed(2) : '0', st, '__b1');
-          setAttr(nodes.shAdd1, 'k3', k1 ? k1.toFixed(3) : '0', st, '__kSharp');
-      
-          setAttr(nodes.lumB2, 'stdDeviation', r2 ? r2.toFixed(2) : '0', st, '__b2');
-          setAttr(nodes.shAdd2, 'k3', k2 ? k2.toFixed(3) : '0', st, '__kSharp2');
-      
-          setAttr(nodes.lumBC, 'stdDeviation', rc ? rc.toFixed(2) : '0', st, '__bc');
-          setAttr(nodes.clAdd, 'k3', kc ? kc.toFixed(3) : '0', st, '__kClar');
-        }
-      
-        function updateNoise(nodes, sEff) {
-          const st = nodes.st;
-          const amt = clamp((sEff.dither || 0) / 100, 0, 1);
-      
-          const k3 = (amt * 0.04).toFixed(4);
-          const k4 = (-0.5 * amt * 0.04).toFixed(4);
-          const nk = `${k3}|${k4}`;
-          if (st.noiseKey !== nk) {
-            st.noiseKey = nk;
-            nodes.feComp.setAttribute('k3', k3);
-            nodes.feComp.setAttribute('k4', k4);
-          }
+          return ctx;
         }
       
         function ensureCtx(doc) {
@@ -1359,29 +1374,138 @@
           return ctx;
         }
       
-        function prepare(doc, s, kind) {
+        function updateToneAndColor(nodes, sEff) {
+          const st = nodes.st;
+      
+          const toeN = clamp((sEff.toe || 0) / 14, -1, 1);
+          const shN  = clamp((sEff.shoulder || 0) / 16, -1, 1);
+          const midN = clamp((sEff.mid || 0), -1, 1);
+      
+          const ditherOn = (sEff.dither || 0) > 0;
+          const steps = ditherOn ? (CONFIG.IS_LOW_END ? 64 : 96) : (CONFIG.IS_LOW_END ? 96 : 128);
+      
+          const kToe = qInt(toeN, 0.02);
+          const kSh  = qInt(shN, 0.02);
+          const kMid = qInt(midN, 0.02);
+          const kBr  = qInt(sEff.bright || 0, 0.2);
+          const kCon = qInt(sEff.contrast || 1, 0.01);
+          const kGain = qInt(sEff.gain || 1, 0.04);
+      
+          const gamma = clamp(sEff.gamma || 1, 0.2, 3);
+          const invG = 1 / gamma;
+          const kInvG = qInt(invG, 0.01);
+      
+          const toneKey = `${steps}|${kToe}|${kSh}|${kMid}|${kBr}|${kCon}|${kGain}|${kInvG}`;
+          if (st.toneKey !== toneKey) {
+            st.toneKey = toneKey;
+            const table = getToneTableCached(
+              steps,
+              kToe * 0.02,
+              kSh * 0.02,
+              kMid * 0.02,
+              kBr * 0.2,
+              kCon * 0.01,
+              kGain * 0.04,
+              kInvG * 0.01
+            );
+            if (st.toneTable !== table) {
+              st.toneTable = table;
+              for (const fn of nodes.common.toneFuncs) fn.setAttribute('tableValues', table);
+            }
+          }
+      
+          const cm = buildColorMatrix(sEff.temp || 0, sEff.satF ?? 1);
+          if (st.colKey !== cm.key) {
+            st.colKey = cm.key;
+            nodes.common.col.setAttribute('values', cm.values);
+          }
+        }
+      
+        function updateDetail(nodes, sEff) {
+          const st = nodes.st;
+          const d = nodes.detail;
+          if (!d) return;
+      
+          const g = clamp(sEff.gain || 1, 1, 8);
+          const hiProtect = clamp((g - 1) / 4.0 + Math.max(0, (sEff.shoulder || 0)) / 18, 0, 1);
+      
+          const scaleBase = 1 - hiProtect * 0.25;
+          const scaleHF   = 1 - hiProtect * 0.55;
+      
+          const sharpAdj  = (sEff.sharp || 0)   * scaleBase;
+          const sharp2Adj = (sEff.sharp2 || 0)  * scaleHF;
+          const clarAdj   = (sEff.clarity || 0) * (1 - hiProtect * 0.35);
+      
+          const detailKey = `${sharpAdj.toFixed(2)}|${sharp2Adj.toFixed(2)}|${clarAdj.toFixed(2)}`;
+          if (st.detailKey === detailKey) return;
+          st.detailKey = detailKey;
+      
+          const r1 = sharpAdj  > 0 ? (1.10 + (sharpAdj  / 50) * 0.60) : 0;
+          const r2 = sharp2Adj > 0 ? (0.60 + (sharp2Adj / 50) * 0.40) : 0;
+          const rc = clarAdj   > 0 ? (2.20 + (clarAdj   / 50) * 1.00) : 0;
+      
+          const k1 = sharpAdj  > 0 ? (sharpAdj  / 50) * 1.50 : 0;
+          const k2 = sharp2Adj > 0 ? (sharp2Adj / 50) * 1.20 : 0;
+          const kc = clarAdj   > 0 ? (clarAdj   / 50) * 0.50 : 0;
+      
+          setAttr(d.lumB1, 'stdDeviation', r1 ? r1.toFixed(2) : '0', st, '__b1');
+          setAttr(d.shAdd1, 'k3', k1 ? k1.toFixed(3) : '0', st, '__kSharp');
+      
+          setAttr(d.lumB2, 'stdDeviation', r2 ? r2.toFixed(2) : '0', st, '__b2');
+          setAttr(d.shAdd2, 'k3', k2 ? k2.toFixed(3) : '0', st, '__kSharp2');
+      
+          setAttr(d.lumBC, 'stdDeviation', rc ? rc.toFixed(2) : '0', st, '__bc');
+          setAttr(d.clAdd, 'k3', kc ? kc.toFixed(3) : '0', st, '__kClar');
+        }
+      
+        function updateNoise(nodes, sEff) {
+          const st = nodes.st;
+          const n = nodes.noise;
+          if (!n) return;
+      
+          const amt = clamp((sEff.dither || 0) / 100, 0, 1);
+          const k3 = (amt * 0.04).toFixed(4);
+          const k4 = (-0.5 * amt * 0.04).toFixed(4);
+          const nk = `${k3}|${k4}`;
+      
+          if (st.noiseKey !== nk) {
+            st.noiseKey = nk;
+            n.feComp.setAttribute('k3', k3);
+            n.feComp.setAttribute('k4', k4);
+          }
+        }
+      
+        function pickVariant(sEff) {
+          const detailOn = (sEff.sharp > 0.01) || (sEff.sharp2 > 0.01) || (sEff.clarity > 0.01);
+          const noiseOn = (sEff.dither || 0) > 0.5;
+          if (noiseOn) return 'full';
+          if (detailOn) return 'detail';
+          return 'basic';
+        }
+      
+        function prepare(doc, sEff, kind) {
           const ctx = ensureCtx(doc);
-          const nodes = (kind === 'video') ? ctx.video : ctx.image;
-          
-          const key = makeKey(kind, s);
+      
+          const variant = pickVariant(sEff);
+          const nodes = ctx[kind][variant];
+      
+          const key = makeKey(kind, variant, sEff);
           if (nodes.st.lastKey !== key) {
-              nodes.st.lastKey = key;
-              updateTone(nodes, s);
-              updateGammaAndColor(nodes, s);
-              updateDetail(nodes, s);
-              updateNoise(nodes, s);
+            nodes.st.lastKey = key;
+            updateToneAndColor(nodes, sEff);
+            if (variant === 'detail' || variant === 'full') updateDetail(nodes, sEff);
+            if (variant === 'full') updateNoise(nodes, sEff);
           }
       
           return `url(#${nodes.fid})`;
         }
       
-        const prepareCached = (doc, s, kind) => {
-          try { return prepare(doc, s, kind); } catch (_) { return ''; }
-        };
-      
         return {
           prepare,
-          prepareCached,
+          prepareCached: (doc, sEff, kind) => {
+            try { return prepare(doc, sEff, kind); }
+            catch (_) { return ''; }
+          },
           applyUrl: (el, url) => {
             if (el.style.filter !== url) {
               el.style.setProperty('filter', url, 'important');
@@ -1581,11 +1705,21 @@
             let mid = ev01 * 0.55 * clamp((0.50 - p50) / 0.22, -1, 1);
             let toe = (4.0 + 7.0 * ev01) * lowKey01;
             let shoulder = (6.0 + 7.0 * ev01) * risk01;
+
+            const look = getLook && getLook();
+            if (look) {
+                br *= (look.brMul ?? 1.0);
+                satF *= (look.satMul ?? 1.0);
+                conF += (look.conAdd ?? 0);
+                mid *= (look.midMul ?? 1.0);
+                toe *= (look.toeMul ?? 1.0);
+                shoulder *= (look.shMul ?? 1.0);
+            }
             
             br *= (1 - 0.85 * risk01);
             shoulder *= (1 - 0.60 * risk01);
-            conF = clamp(conF - 0.012 * risk01, 0.90, 1.12);
-            satF = clamp(satF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.16 - 0.10 * risk01));
+            conF = clamp(conF - 0.012 * risk01, 0.90, 1.14);
+            satF = clamp(satF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.18 - 0.10 * risk01));
             
             br = clamp(br, -14.0, 14.0);
             mid = clamp(mid, -0.95, 0.95);
@@ -2031,15 +2165,26 @@
             if (s.forceApply) Scheduler.request(true);
         });
       
+        const __vfEff = { ...DEFAULTS.video };
+        const __aeOut = { gain: 1, gammaF: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, luma: 0, hiRisk: 0, cf: 0.5, mid: 0, clipFrac: 0, rd: 0 };
+        const __vVals = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, mid: 0, sharp: 0, sharp2: 0, clarity: 0, dither: 0, temp: 0, toe: 0, shoulder: 0 };
+        const __iVals = { satF: 1, gain: 1, gamma: 1, contrast: 1, bright: 0, sharp: 0, sharp2: 0, clarity: 0, dither: 0, temp: 0, toe: 0, shoulder: 0, mid: 0 };
+      
         let lastSRev = -1, lastRRev = -1, lastAeRev = -1;
         let lastPrune = 0;
         let aeRev = 0;
-        let currentAE = { gain: 1.0, gammaF: 1.0, conF: 1.0, satF: 1.0, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, luma: 0, hiRisk: 0, cf: 0.5 };
+        let currentAE = { ...__aeOut };
       
         const onAE = (ae) => { currentAE = ae; aeRev++; Scheduler.request(false); };
         if (AE && AE.__setOnAE) AE.__setOnAE(onAE); 
 
-        const restoreRateOne = (el) => { try { const st = el[VSCX.rateState]; if (st?.orig != null) el.playbackRate = st.orig; } catch (_) { } if (el[VSCX.rateState]) el[VSCX.rateState].orig = null; };
+        const restoreRateOne = (el) => { 
+            try { 
+                const st = el[VSCX.rateState]; 
+                if (st?.orig != null) el.playbackRate = st.orig; 
+                if (st) st.orig = null;
+            } catch (_) { } 
+        };
         
         const onEvictVideo = (v) => {
             try { Filters.clear(v); } catch (_) {}
@@ -2055,7 +2200,11 @@
             TOUCHED.videos.clear(); TOUCHED.images.clear();
         };
 
-        const getRateState = (v) => { let st = v[VSCX.rateState]; if (!st) st = v[VSCX.rateState] = { orig: null, lastSetAt: 0 }; return st; };
+        const getRateState = (v) => { 
+            let st = v[VSCX.rateState]; 
+            if (!st) st = v[VSCX.rateState] = { orig: null, lastSetAt: 0 }; 
+            return st; 
+        };
         const bindVideoOnce = (v) => {
             if (v[VSCX.bound]) return; v[VSCX.bound] = true;
             v.addEventListener('seeking', () => Bus.signal({ aeLevel: 1 }), { passive: true });
@@ -2068,12 +2217,17 @@
             }, { passive: true });
         };
         
-        const applyVideoFilters = (visibleVideos, dirtyVideos, vVals, activeFx) => {
-            for (const el of dirtyVideos) { if (!el || el.tagName !== 'VIDEO') continue; if (!activeFx || el[VSCX.visible] === false) try { Filters.clear(el); } catch (_) { } }
+        const applyVideoFilters = (applySet, dirtyVideos, vVals, activeFx) => {
+            for (const el of dirtyVideos) { 
+                if (!el || el.tagName !== 'VIDEO') continue; 
+                if (!activeFx || el[VSCX.visible] === false) { try { Filters.clear(el); } catch (_) { } }
+            }
             if (!activeFx) return;
-            let lastDoc = null, url = null;
-            for (const el of visibleVideos) {
-                if (!el || el.tagName !== 'VIDEO') continue; if (el[VSCX.visible] === false) continue;
+
+            let lastDoc = null, url = '';
+            for (const el of applySet) {
+                if (!el || el.tagName !== 'VIDEO') continue; 
+                if (el[VSCX.visible] === false) continue;
                 const doc = el.ownerDocument || document;
                 if (doc !== lastDoc) {
                     lastDoc = doc;
@@ -2086,11 +2240,16 @@
         };
 
         const applyImageFilters = (visibleImages, dirtyImages, iVals, activeFx) => {
-            for (const el of dirtyImages) { if (!el || el.tagName !== 'IMG') continue; if (!activeFx || el[VSCX.visible] === false) try { Filters.clear(el); } catch (_) { } }
+            for (const el of dirtyImages) { 
+                if (!el || el.tagName !== 'IMG') continue; 
+                if (!activeFx || el[VSCX.visible] === false) { try { Filters.clear(el); } catch (_) { } }
+            }
             if (!activeFx) return;
-            let lastDoc = null, url = null;
+
+            let lastDoc = null, url = '';
             for (const el of visibleImages) {
-                if (!el || el.tagName !== 'IMG') continue; if (el[VSCX.visible] === false) continue;
+                if (!el || el.tagName !== 'IMG') continue; 
+                if (el[VSCX.visible] === false) continue;
                 const doc = el.ownerDocument || document;
                 if (doc !== lastDoc) {
                     lastDoc = doc;
@@ -2174,69 +2333,95 @@
                 let vfEff = vf0;
                 if (vf0.tonePreset && vf0.tonePreset !== 'neutral') {
                     const tEff = computeToneStrengthEff(vf0, wantAE ? currentAE : null, Utils);
-                    vfEff = { ...vf0, toneStrength: tEff };
+                    for (const k in __vfEff) __vfEff[k] = vf0[k];
+                    __vfEff.toneStrength = tEff;
+                    vfEff = __vfEff;
                 }
         
-                let { expMix, toneMix } = computeAeMix2(vfEff, Utils);
+                computeAeMix2Into(__vVals, vfEff, Utils);
+                let expMix = __vVals.expMix;
+                let toneMix = __vVals.toneMix;
         
                 const aeStr = Utils.clamp(vfEff.aeStrength ?? 1.0, 0, 1);
                 expMix *= aeStr;
                 toneMix *= aeStr;
         
                 const mixLog2 = (g, t) => Math.pow(2, Math.log2(Math.max(1e-6, g)) * t);
-                const aeOutRaw = wantAE ? currentAE : null;
+                const aeRaw = wantAE ? currentAE : null;
+                
+                let aeOut = null;
+                if (aeRaw) {
+                    __aeOut.gain = mixLog2(aeRaw.gain ?? 1, expMix);
+                    __aeOut.gammaF = 1;
+                    __aeOut.brightAdd = (aeRaw.brightAdd ?? 0) * expMix;
+                    __aeOut.tempAdd = 0;
+            
+                    __aeOut.conF = 1 + ((aeRaw.conF ?? 1) - 1) * toneMix;
+                    __aeOut.satF = 1 + ((aeRaw.satF ?? 1) - 1) * toneMix;
+                    __aeOut.mid  = (aeRaw.mid ?? 0) * toneMix;
+                    __aeOut.toe  = (aeRaw.toe ?? 0) * toneMix;
+                    __aeOut.shoulder = (aeRaw.shoulder ?? 0) * toneMix;
+            
+                    __aeOut.hiRisk = aeRaw.hiRisk ?? 0;
+                    __aeOut.cf = aeRaw.cf ?? 0.5;
+                    __aeOut.luma = aeRaw.luma ?? 0;
+                    __aeOut.clipFrac = aeRaw.clipFrac ?? 0;
+                    __aeOut.rd = aeRaw.rd ?? 0;
+            
+                    aeOut = __aeOut;
+                }
         
-                const aeOut = aeOutRaw ? {
-                    ...aeOutRaw,
-                    gain: mixLog2(aeOutRaw.gain ?? 1, expMix),
-                    brightAdd: (aeOutRaw.brightAdd ?? 0) * expMix,
-                    conF: 1 + ((aeOutRaw.conF ?? 1) - 1) * toneMix,
-                    satF: 1 + ((aeOutRaw.satF ?? 1) - 1) * toneMix,
-                    mid: (aeOutRaw.mid ?? 0) * toneMix,
-                    toe: (aeOutRaw.toe ?? 0) * toneMix,
-                    shoulder: (aeOutRaw.shoulder ?? 0) * toneMix
-                } : null;
+                composeVideoParamsInto(__vVals, vfEff, aeOut, DEFAULTS.video, Utils);
         
-                const vVals = composeVideoParams(vfEff, aeOut, DEFAULTS.video, Utils);
+                __iVals.satF = 1.0;
+                __iVals.gain = 1.0;
+                __iVals.gamma = 1.0;
+                __iVals.contrast = 1.0;
+                __iVals.bright = 0;
+                __iVals.sharp = img.level;
+                __iVals.sharp2 = 0;
+                __iVals.clarity = 0;
+                __iVals.dither = 0;
+                __iVals.temp = img.temp;
+                __iVals.toe = 0;
+                __iVals.shoulder = 0;
+                __iVals.mid = 0;
         
-                const iVals = {
-                    satF: 1.0, gain: 1.0, gamma: 1.0, contrast: 1.0, bright: 0,
-                    sharp: img.level, sharp2: 0, clarity: 0, dither: 0,
-                    temp: img.temp, toe: 0, shoulder: 0, mid: 0
-                };
-        
-                const videoFxOn = !isNeutralVideoParams(vVals);
+                const videoFxOn = !isNeutralVideoParams(__vVals);
         
                 if (enableUI && app.uiVisible) {
-                    if (wantAE) UI.update(`AE: ${vVals.gain.toFixed(2)}x L:${Math.round(currentAE.luma || 0)}%`, true);
+                    if (wantAE) UI.update(`AE: ${__vVals.gain.toFixed(2)}x L:${Math.round(currentAE.luma || 0)}%`, true);
                     else UI.update(`Ready (${CONFIG.VERSION})`, false);
                 }
         
-                const applySet = Targeting.buildApplySet(visible.videos, target, CFG.extraBigVideos, CFG.applyToAllVisibleVideos);
+                const applySet = Targeting.buildApplySetReuse(visible.videos, target, CFG.extraBigVideos, CFG.applyToAllVisibleVideos);
         
-                applyVideoFilters(applySet, vidsDirty, vVals, videoFxOn);
+                applyVideoFilters(applySet, vidsDirty, __vVals, videoFxOn);
 
-                for (const v of Array.from(TOUCHED.videos)) {
+                for (const v of TOUCHED.videos) {
                     if (!v || !v.isConnected) { TOUCHED.videos.delete(v); continue; }
                     const shouldHave = videoFxOn && applySet.has(v) && v[VSCX.visible] !== false;
-                    if (!shouldHave) { onEvictVideo(v); TOUCHED.videos.delete(v); }
+                    if (!shouldHave) { 
+                        try { Filters.clear(v); } catch (_) { } 
+                        TOUCHED.videos.delete(v); 
+                    }
                 }
         
-                if (wantImages) applyImageFilters(visible.images, imgsDirty, iVals, true);
+                if (wantImages) applyImageFilters(visible.images, imgsDirty, __iVals, true);
                 else {
-                    for (const imgEl of Array.from(TOUCHED.images)) {
+                    for (const imgEl of TOUCHED.images) {
                         if (!imgEl || !imgEl.isConnected) { TOUCHED.images.delete(imgEl); continue; }
-                        onEvictImage(imgEl);
+                        try { Filters.clear(imgEl); } catch (_) { }
                         TOUCHED.images.delete(imgEl);
                     }
-                    applyImageFilters(new Set(), imgsDirty, iVals, false);
+                    applyImageFilters(new Set(), imgsDirty, __iVals, false);
                 }
         
                 const desiredRate = Store.get(P.PB_RATE);
                 const pbActive = active && Math.abs((desiredRate || 1) - 1.0) > 0.01;
                 applyPlaybackRate(applySet, vidsDirty, desiredRate, pbActive);
         
-                if (enableUI && (force || dirty.videos.size || dirty.images.size)) UI.ensure();
+                if (enableUI && (force || vidsDirty.size || imgsDirty.size)) UI.ensure();
         
             } catch (e) { try { console.warn('[VSC] apply crashed:', e); } catch(_) {} }
         });
