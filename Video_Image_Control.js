@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v152_UnifiedCore)
+// @name        Video_Image_Control (Local_Indep_v153_UnifiedCore)
 // @namespace   https://github.com/
-// @version     152.0.0.0
-// @description Video Control: Unified Guards, AE-Strength, Perf-Opt, AppController (Optimized)
+// @version     153.0.0.0
+// @description Video Control: Unified Guards, AE-Strength, Perf-Opt, AppController (Hotfix)
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -72,7 +72,7 @@
     })();
 
     const CONFIG = Object.freeze({
-        VERSION: "v152.UnifiedCore",
+        VERSION: "v153.UnifiedCore",
         IS_TOP: window === window.top,
         IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
         IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -206,6 +206,7 @@
         }
     }
 
+    // === Shared Helpers ===
     function split2(p) {
         const i = p.indexOf('.');
         return (i > 0) ? [p.slice(0, i), p.slice(i + 1)] : [p, ''];
@@ -213,19 +214,19 @@
 
     const lerp = (a, b, t) => a + (b - a) * t;
 
+    function getRectCached(v, now, maxAgeMs = 420) {
+        const t0 = v.__vscRectT || 0;
+        let r = v[VSCX.rect];
+        if (!r || (now - t0) > maxAgeMs) {
+            r = v.getBoundingClientRect();
+            v[VSCX.rect] = r;
+            v.__vscRectT = now;
+        }
+        return r;
+    }
+
     function createTargeting({ Utils }) {
         let __currentTarget = null, __currentScore = -1, __currentSince = 0;
-
-        function getRectCached(v, now, maxAgeMs = 420) {
-            const t0 = v.__vscRectT || 0;
-            let r = v[VSCX.rect];
-            if (!r || (now - t0) > maxAgeMs) {
-                r = v.getBoundingClientRect();
-                v[VSCX.rect] = r;
-                v.__vscRectT = now;
-            }
-            return r;
-        }
         
         function isActuallyVisibleFast(el, now, maxAgeMs = 420) {
             if (!el || !el.isConnected) return null;
