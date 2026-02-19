@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v148_AeStrength)
+// @name        Video_Image_Control (Local_Indep_v149_UnifiedGuards)
 // @namespace   https://github.com/
-// @version     148.0.0.0
-// @description Video Control: AE-Strength-Slider, Tone-Neutral-Fix, EventBus-Leveling, Perf-Opt
+// @version     149.0.0.0
+// @description Video Control: Unified Guards (Skin/Hi/Damp), AE-Strength, Perf-Opt
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -47,7 +47,7 @@
     const IS_TOP = window === window.top;
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const IS_LOW_END = (navigator.deviceMemory || 4) < 4;
-    const VERSION_STR = "v148.AE-Str";
+    const VERSION_STR = "v149.Guards";
     const VSC_ID = Math.random().toString(36).slice(2);
 
     const VSCX = Object.freeze({
@@ -129,7 +129,7 @@
             temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0,
             ae: false, presetS: 'off', presetB: 'brOFF',
             presetMix: 1.0, aeProfile: null, tonePreset: null, toneStrength: 1.0,
-            aeStrength: 1.0 // [NEW] AE Strength Default
+            aeStrength: 1.0
         },
         image: { level: 15, temp: 0 },
         audio: { enabled: false, boost: 6 },
@@ -140,7 +140,7 @@
     const P = Object.freeze({
         APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_TAB: 'app.tab',
         V_AE: 'video.ae', V_AE_PROFILE: 'video.aeProfile',
-        V_AE_STR: 'video.aeStrength', // [NEW] AE Strength Key
+        V_AE_STR: 'video.aeStrength',
         V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength',
         V_GAMMA: 'video.gamma', V_CONTR: 'video.contrast', V_BRIGHT: 'video.bright',
         V_SAT: 'video.sat', V_SHARP: 'video.sharp', V_SHARP2: 'video.sharp2',
@@ -381,15 +381,36 @@
         expMix = clamp(expMix, 0.18, 1.00);
         toneMix = clamp(toneMix, 0.06, 1.00);
 
-        if (toneOn && vf.tonePreset === 'highlight') {
-            toneMix *= (1 - 0.12 * toneStr);
-            expMix *= (1 - 0.05 * toneStr);
-        }
-        if (toneOn && vf.tonePreset === 'redSkin') {
-            toneMix *= (1 - 0.10 * toneStr);
+        // [PATCH] Removed Tone Preset Specific Exceptions in Mixing
+        return { expMix, toneMix };
+    }
+
+    // [NEW] Unified Damping Guard Helper
+    function computeToneStrengthEff(vf, ae, Utils) {
+        const { clamp } = Utils;
+        const tonePreset = vf?.tonePreset || null;
+        if (!tonePreset || tonePreset === 'neutral') return 0;
+
+        const t0 = clamp(vf.toneStrength ?? 1.0, 0, 1);
+        if (!ae) return t0;
+
+        const hi = clamp(ae.hiRisk ?? 0, 0, 1);
+        const clip01 = clamp((ae.clipFrac ?? 0) / (AE_COMMON.CLIP_FRAC_LIMIT * 3.0), 0, 1);
+        const cf = clamp(ae.cf ?? 0.5, 0, 1);
+        const skin01 = clamp(((ae.rd ?? 0) - 0.05) / 0.08, 0, 1);
+
+        let damp = 1.0;
+        damp *= (1 - 0.26 * hi);
+        damp *= (1 - 0.20 * clip01);
+        damp *= (0.88 + 0.12 * cf);
+
+        if (tonePreset === 'highlight') {
+            damp *= (1 - 0.24 * hi - 0.18 * clip01);
+        } else if (tonePreset === 'redSkin') {
+            damp *= (1 - 0.22 * skin01);
         }
 
-        return { expMix, toneMix };
+        return clamp(t0 * damp, 0, 1);
     }
 
     function createUtils() {
@@ -562,7 +583,7 @@
         };
 
         const toneName = vUser.tonePreset;
-        const toneStr = vUser.toneStrength;
+        const toneStr = vUser.toneStrength; // vUser is already vfEff in Scheduler
         if (toneName && toneName !== 'neutral') {
             const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
             out = applyTonePreset2(out, toneName, toneStr, aeProfileForTone, Utils);
@@ -852,14 +873,7 @@
         };
 
         function getToneTableCached3(steps, toeN, shoulderN, midN, bright, contrast, gain) {
-            toeN = qInt(clamp(toeN, -1, 1), 0.02) * 0.02;
-            shoulderN = qInt(clamp(shoulderN, -1, 1), 0.02) * 0.02;
-            midN = qInt(clamp(midN, -1, 1), 0.02) * 0.02;
-            contrast = qInt(clamp(contrast, 0.5, 2.0), 0.01) * 0.01;
-            bright = qInt(clamp(bright, -50, 50), 0.2) * 0.2;
-            gain = qInt(clamp(gain, 0.7, 8.0), 0.02) * 0.02;
-
-            const key = `${steps}|${toeN}|${shoulderN}|${midN}|${bright}|${contrast}|${gain}`;
+            const key = `${steps}|${qInt(toeN, 0.02)}|${qInt(shoulderN, 0.02)}|${qInt(midN, 0.02)}|${qInt(bright, 0.2)}|${qInt(contrast, 0.01)}|${qInt(gain, 0.02)}`;
             const hit = toneCache.get(key);
             if (hit) return hit;
 
@@ -1244,79 +1258,85 @@
             let targetEV = computeTargetEV(lastStats, cfg); if (subLikely) targetEV *= 0.85;
             if (Math.abs(targetEV) < cfg.DEAD_IN) targetEV = 0;
 
-            const clip01 = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 4.0), 0, 1);
-            const clipHard = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 3.0), 0, 1);
+            // ===== Unified Guard Strengths (single source of truth) =====
+            const hiRisk01 = clamp(Math.max((lastStats.p95 - 0.88) / 0.10, (lastStats.p90 - 0.86) / 0.10), 0, 1);
+            const clipSoft01 = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 4.0), 0, 1);
+            const clipHard01 = clamp((lastStats.clipFrac - cfg.CLIP_FRAC_LIMIT) / (cfg.CLIP_FRAC_LIMIT * 3.0), 0, 1);
 
-            const hiR = clamp(Math.max((lastStats.p95 - 0.88) / 0.10, (lastStats.p90 - 0.86) / 0.10), 0, 1);
-            if (hiR > 0.5 || clipHard > 0.5) targetEV *= (1 - 0.20 * hiR) * (1 - 0.18 * clipHard);
+            const gHi = clamp(0.24 * hiRisk01 + 0.22 * clipHard01, 0, 0.45);
+
+            const skin01 = clamp(((lastStats.rd || 0) - 0.05) / 0.08, 0, 1);
+            const cf01 = clamp(lastStats.cf || 0.5, 0, 1);
+            const gSkin = skin01 * (1 - hiRisk01) * (0.70 + 0.30 * cf01);
+
+            // targetEV highlight damping unified via gHi (prevents double-damping)
+            targetEV *= (1 - 0.22 * gHi);
 
             const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS); lastApplyT = now;
             const baseTau = (now < evAggressiveUntil) ? cfg.TAU_AGGRESSIVE : (targetEV > Math.log2(curGain) ? cfg.TAU_UP : cfg.TAU_DOWN);
-            const tauClip = baseTau * (1 + clip01 * 0.9);
+            const tauClip = baseTau * (1 + clipSoft01 * 0.9);
             const alphaA = 1 - Math.exp(-dtA / tauClip);
             curGain = Math.pow(2, Math.log2(curGain) + (targetEV - Math.log2(curGain)) * alphaA);
 
             const smth = (t) => t * t * (3 - 2 * t);
             const ev01 = clamp(Math.log2(curGain) / 1.55, 0, 1);
             const p50 = clamp(lastStats.p50, 0, 1), p10 = clamp(lastStats.p10, 0, 1), p90 = clamp(lastStats.p90, 0, 1);
-            const skin01 = clamp(((lastStats.rd || 0) - 0.05) / 0.08, 0, 1);
             const sceneContrast = clamp(p90 - p10, 0, 1);
             const flat01 = smth(clamp((0.44 - sceneContrast) / 0.24, 0, 1));
             const lowKey01 = smth(clamp((0.22 - p50) / 0.14, 0, 1));
-            const animeLike = (flat01 > 0.62 && lastStats.cf > 0.55 && hiR < 0.55);
+            const animeLike = (flat01 > 0.62 && lastStats.cf > 0.55 && hiRisk01 < 0.55);
 
             let br = ev01 * 6.0 * clamp(0.52 - p50, -0.20, 0.20);
-            br *= (1 - clip01 * 0.85); br += skin01 * lowKey01 * 0.8; br = clamp(br, -8.0, 8.0);
+            br *= (1 - clipSoft01 * 0.85); br += skin01 * lowKey01 * 0.8; br = clamp(br, -8.0, 8.0);
 
-            let conF = 1 + ev01 * 0.035 * flat01 * (1 - hiR * 0.75) * (1 - skin01 * 0.18);
+            let conF = 1 + ev01 * 0.035 * flat01 * (1 - hiRisk01 * 0.75) * (1 - skin01 * 0.18);
             conF = clamp(conF, 0.92, 1.10);
 
             let satBoost01 = smth(clamp((0.26 - (lastStats.cf || 0.5)) / 0.18, 0, 1));
-            let satF = 1 + satBoost01 * 0.38 * (1 - hiR * 0.70) * (1 - skin01 * 0.30);
+            let satF = 1 + satBoost01 * 0.38 * (1 - hiRisk01 * 0.70) * (1 - skin01 * 0.30);
             const skinLowKey = skin01 * lowKey01;
             satF *= (1 - skinLowKey * 0.10);
             satF = clamp(satF, cfg.SAT_MIN, cfg.SAT_MAX);
 
             const midBias = clamp((0.50 - p50) / 0.22, -1, 1);
             let mid = (ev01 * 0.65) * midBias;
-            mid += skin01 * 0.22 * (1 - hiR); mid -= clip01 * 0.18; mid = clamp(mid, -0.85, 0.85);
+            mid += skin01 * 0.22 * (1 - hiRisk01); mid -= clipSoft01 * 0.18; mid = clamp(mid, -0.85, 0.85);
 
             let toe = (4.0 + 7.0 * ev01) * lowKey01;
-            toe *= (1 - hiR * 0.65); toe *= (1 - clip01 * 0.45); toe *= (0.80 + 0.35 * skin01); toe = clamp(toe, 0, 9.0);
+            toe *= (1 - hiRisk01 * 0.65); toe *= (1 - clipSoft01 * 0.45); toe *= (0.80 + 0.35 * skin01); toe = clamp(toe, 0, 9.0);
 
-            let shoulder = (6.0 + 7.0 * ev01) * hiR;
-            shoulder += 3.0 * clip01; shoulder *= (1 - skin01 * 0.10); shoulder = clamp(shoulder, 0, 12.0);
+            let shoulder = (6.0 + 7.0 * ev01) * hiRisk01;
+            shoulder += 3.0 * clipSoft01; shoulder *= (1 - skin01 * 0.10); shoulder = clamp(shoulder, 0, 12.0);
 
             const L = getLook();
             br *= L.brMul; satF = 1 + ((satF - 1) * L.satMul); conF = clamp(conF + L.conAdd, 0.90, 1.12);
             mid *= L.midMul; toe *= L.toeMul; shoulder *= L.shMul;
 
             const profile = sm.get(P.V_AE_PROFILE) || 'balanced';
-            const tonePreset = sm.get(P.V_TONE_PRE) || null;
-            const toneStr = tonePreset ? clamp(sm.get(P.V_TONE_STR) ?? 1.0, 0, 1) : 0;
 
             if (profile === 'bright') {
-                const k = 0.22 + 0.28 * hiR + 0.20 * clipHard;
-                br *= (1 - k);
-                shoulder *= (1 - (0.24 + 0.32 * clipHard) * (0.6 + 0.4 * hiR));
+                br *= 0.94;
+                shoulder *= 0.94;
             }
-            if (tonePreset === 'highlight' && toneStr > 0) {
-                const k = (0.18 + 0.22 * hiR + 0.18 * clipHard) * toneStr;
-                br *= (1 - k);
-                shoulder *= (1 - (0.28 + 0.30 * clipHard) * toneStr);
-                conF = clamp(conF - 0.010 * toneStr, 0.90, 1.10);
-            }
-            if (tonePreset === 'redSkin' && toneStr > 0) {
-                const skinSatCap = 1.00 + 0.07 * (1 - toneStr);
-                if (skin01 > 0.45) satF = Math.min(satF, skinSatCap);
-                if (profile !== 'cinematic' && skin01 > 0.35 && hiR < 0.45) br *= (1 - 0.10 * toneStr);
-            }
+
             if (animeLike) {
                 satF = Math.min(satF, profile === 'bright' ? 1.08 : 1.06);
                 conF = clamp(conF, 0.95, 1.07);
             }
 
-            shoulder *= (1 - 0.30 * hiR) * (1 - 0.22 * clip01);
+            // ===== Apply Unified Guards =====
+            // Highlight guard: br/shoulder 중심 + conF 약간
+            br *= (1 - 0.85 * gHi);
+            shoulder *= (1 - 0.60 * gHi);
+            conF = clamp(conF - 0.010 * gHi, 0.90, 1.12);
+
+            // Skin guard: sat/con 상한 (피부로 보일 때만)
+            if (gSkin > 0.25) {
+                const satCap = 1.10 - 0.06 * gSkin;  // 1.10 ~ 1.04
+                const conCap = 1.08 - 0.03 * gSkin;  // 1.08 ~ 1.05
+                satF = Math.min(satF, Math.max(cfg.SAT_MIN, satCap));
+                conF = Math.min(conF, conCap);
+            }
 
             br = clamp(br, -14.0, 14.0);
             satF = clamp(satF, cfg.SAT_MIN, cfg.SAT_MAX);
@@ -1324,7 +1344,7 @@
             toe = clamp(toe, 0, 14.0);
             shoulder = clamp(shoulder, 0, 16.0);
 
-            onAE?.({ gain: curGain, gammaF: 1, conF, satF, mid, toe, shoulder, brightAdd: br, tempAdd: 0, hiRisk: hiR, cf: lastStats.cf, luma: data.avgLuma * 100, clipFrac: lastStats.clipFrac, rd: lastStats.rd });
+            onAE?.({ gain: curGain, gammaF: 1, conF, satF, mid, toe, shoulder, brightAdd: br, tempAdd: 0, hiRisk: hiRisk01, cf: lastStats.cf, luma: data.avgLuma * 100, clipFrac: lastStats.clipFrac, rd: lastStats.rd });
         };
 
         const _motionFromFrame = (rgba) => {
@@ -1460,7 +1480,7 @@
             { l: '그레인', k: P.V_DITHER, min: 0, max: 100, s: 5, f: v => v.toFixed(0) },
             { l: '오디오', k: P.A_BST, min: 0, max: 12, s: 1, f: v => `+${v}dB` },
             { l: '톤 강도', k: P.V_TONE_STR, min: 0, max: 1, s: 0.05, f: v => v.toFixed(2) },
-            { l: 'AE 강도', k: P.V_AE_STR, min: 0, max: 1, s: 0.05, f: v => v.toFixed(2) } // [NEW] Replaced Preset Mix
+            { l: 'AE 강도', k: P.V_AE_STR, min: 0, max: 1, s: 0.05, f: v => v.toFixed(2) }
         ];
 
         const getUiRoot = () => {
@@ -1481,7 +1501,7 @@
                 const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.t);
                 b.onclick = () => {
                     const cur = sm.get(key);
-                    
+
                     if (key === P.V_AE_PROFILE) {
                         if (!sm.get(P.V_AE)) sm.set(P.V_AE, true);
                         if (it.v === 'balanced') sm.set(P.V_AE_PROFILE, 'balanced');
@@ -1496,7 +1516,22 @@
                         return;
                     }
                 };
-                sm.sub(key, v => b.classList.toggle('active', v === it.v));
+
+                // [수정된 UI 갱신 로직] AE 프로필 버튼은 video.ae 상태와 병합하여 평가
+                if (key === P.V_AE_PROFILE) {
+                    const updateAeState = () => {
+                        const isAeOn = sm.get(P.V_AE);
+                        const currentProfile = sm.get(P.V_AE_PROFILE);
+                        b.classList.toggle('active', !!isAeOn && currentProfile === it.v);
+                    };
+                    sm.sub(P.V_AE, updateAeState);
+                    sm.sub(P.V_AE_PROFILE, updateAeState);
+                    updateAeState(); // 초기 상태 렌더링
+                } else {
+                    sm.sub(key, v => b.classList.toggle('active', v === it.v));
+                    b.classList.toggle('active', sm.get(key) === it.v); // 초기 상태 렌더링
+                }
+
                 r.append(b);
             });
             return r;
@@ -1530,7 +1565,6 @@
             const update = (v) => { valEl.textContent = cfg.f(Number(v)); inp.value = v; };
             sm.sub(cfg.k, update); update(sm.get(cfg.k));
 
-            // [NEW] Added V_AE_STR to Wake Keys
             const AE_INPUT_WAKE_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_SAT, P.V_TEMP, P.V_PRE_MIX, P.V_TONE_STR, P.V_AE_STR]);
             const AE_CHANGE_HARD_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_PRE_MIX]);
 
@@ -1571,20 +1605,20 @@
             const bodyV = h('div', { id: 'p-v' }, [
                 h('div', { class: 'prow' },
                     h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'),
-                    h('button', { id: 'ae-btn', class: 'btn', onclick: () => { 
+                    h('button', { id: 'ae-btn', class: 'btn', onclick: () => {
                         const on = !!sm.get(P.V_AE);
-                        if (on) { sm.set(P.V_AE, false); } 
+                        if (on) { sm.set(P.V_AE, false); }
                         else { sm.set(P.V_AE, true); sm.set(P.V_AE_PROFILE, 'balanced'); }
                         fireAE(2, true);
                     } }, '🤖 자동'),
                     h('button', { id: 'boost-btn', class: 'btn', onclick: () => sm.set(P.A_EN, !sm.get(P.A_EN)) }, '🔊 부스트')
                 ),
                 h('div', { class: 'prow' },
-                    h('button', { class: 'btn', onclick: () => { sm.batch('video', { ...defaults.video, toneLocked: false }); sm.batch('audio', defaults.audio); fireAE(2, true); } }, '↺ 리셋'),
+                    h('button', { class: 'btn', onclick: () => { sm.batch('video', defaults.video); sm.batch('audio', defaults.audio); fireAE(2, true); } }, '↺ 리셋'),
                     h('button', { id: 'pwr-btn', class: 'btn', onclick: () => sm.set(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power')
                 ),
                 renderChoiceRow('AE', [{ t: '표준', v: 'balanced' }, { t: '영화', v: 'cinematic' }, { t: '밝게', v: 'bright' }], P.V_AE_PROFILE),
-                renderChoiceRow('톤', [{ t: '기본', v: 'neutral' }, { t: '피부', v: 'redSkin' }, { t: '조명', v: 'highlight' }], P.V_TONE_PRE),
+                renderChoiceRow('톤', [{ t: '기본', v: 'neutral' }, { t: '조명', v: 'highlight' }, { t: '피부', v: 'redSkin' }], P.V_TONE_PRE),
                 renderPresetRow('샤프', [{ l: 'S' }, { l: 'M' }, { l: 'L' }, { l: 'XL' }], P.V_PRE_S),
                 renderPresetRow('밝기', [{ txt: 'S' }, { txt: 'M' }, { txt: 'L' }, { txt: 'DS' }, { txt: 'DM' }, { txt: 'DL' }], P.V_PRE_B),
                 h('hr'), h('div', { class: 'grid' }, SLIDERS.map(renderSlider)), h('hr'),
@@ -1841,7 +1875,7 @@
             const now = performance.now();
             if (now - lastPrune > 2000) { Registry.prune(); lastPrune = now; }
 
-            const vf = Store.getCat('video'), img = Store.getCat('image');
+            const vf0 = Store.getCat('video'), img = Store.getCat('image');
             const wantImages = FEATURES.images(), wantAE = FEATURES.ae(), wantAudio = FEATURES.audio();
             const { visible } = Registry;
             const dirty = Registry.consumeDirty();
@@ -1860,10 +1894,16 @@
             Audio.update();
 
             const aeOutRaw = wantAE ? currentAE : null;
-            let { expMix, toneMix } = computeAeMix2(vf, Utils);
-            
-            // [NEW] AE Strength Slider Integration
-            const aeStr = Utils.clamp(vf.aeStrength ?? 1.0, 0, 1);
+
+            // [NEW] Damped toneStrength injection (Unified Damp Guard)
+            let vfEff = vf0;
+            if (vf0.tonePreset && vf0.tonePreset !== 'neutral') {
+                const tEff = computeToneStrengthEff(vf0, wantAE ? currentAE : null, Utils);
+                vfEff = { ...vf0, toneStrength: tEff };
+            }
+
+            let { expMix, toneMix } = computeAeMix2(vfEff, Utils);
+            const aeStr = Utils.clamp(vfEff.aeStrength ?? 1.0, 0, 1);
             expMix *= aeStr;
             toneMix *= aeStr;
 
@@ -1880,16 +1920,7 @@
                 shoulder: (aeOutRaw.shoulder ?? 0) * toneMix,
             } : null;
 
-            const toneStr = vf.tonePreset ? Utils.clamp(vf.toneStrength ?? 1.0, 0, 1) : 0;
-            if (aeOut && vf.tonePreset === 'highlight') {
-                aeOut.shoulder *= (1 - 0.28 * toneStr);
-                aeOut.brightAdd *= (1 - 0.18 * toneStr);
-            }
-            if (aeOut && vf.tonePreset === 'redSkin') {
-                aeOut.satF = 1 + (aeOut.satF - 1) * (1 - 0.35 * toneStr);
-            }
-
-            const vVals = composeVideoParams(vf, aeOut, DEFAULTS.video, Utils);
+            const vVals = composeVideoParams(vfEff, aeOut, DEFAULTS.video, Utils);
             const iVals = {
                 satF: 1.0, gain: 1.0, gamma: 1.0, contrast: 1.0, bright: 0,
                 sharp: img.level, sharp2: 0, clarity: 0, dither: 0, temp: img.temp, toe: 0, shoulder: 0, mid: 0
