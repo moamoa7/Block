@@ -1,8 +1,7 @@
-// === PART 1/4 ===
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v161_1_AELiteCore)
+// @name        Video_Image_Control (Local_Indep_v162_0_AELiteCore)
 // @namespace   https://github.com/
-// @version     161.1.0.0
+// @version     162.0.0.0
 // @description Video Control: Zero-Alloc, Single-pass Lite/Full SVG, Target+AE+UserLock Unified, AE shared-state (no alloc)
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
@@ -60,7 +59,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: 'v161.1.AELiteCore',
+    VERSION: 'v162.0.AELiteCore',
     IS_TOP: window === window.top,
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -118,12 +117,11 @@
     image: { level: 15, temp: 0 },
     audio: { enabled: false, boost: 6 },
     playback: { rate: 1.0 },
-    app: { active: true, uiVisible: false, tab: 'video', applyAll: false, extraTopK: 2 }
+    app: { active: true, uiVisible: false, tab: 'video' }
   };
 
   const P = Object.freeze({
     APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_TAB: 'app.tab',
-    APP_APPLY_ALL: 'app.applyAll', APP_EXTRA_TOPK: 'app.extraTopK',
 
     V_AE: 'video.ae', V_AE_PROFILE: 'video.aeProfile', V_AE_STR: 'video.aeStrength',
     V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength',
@@ -460,6 +458,7 @@
     }
 
     function update(visibleVideos, lastClicked, lastUserPt, audioBoostOn, now) {
+      const prevActive = active;
       const { cand, delta, curScore, bestScore } = chooseCandidate(visibleVideos, now, lastUserPt, audioBoostOn);
       const clickT = (window.__lastClickT != null) ? window.__lastClickT : (lastUserPt?.t || 0);
       const userForced = !!(cand && cand === lastClicked && (now - clickT) < 1800);
@@ -473,9 +472,10 @@
         if ((bestScore - curScore) < CFG.MIN_SWITCH_DELTA) next = active;
       }
 
+      let strong = false;
       if (next !== active) {
         const coolOk = (now - lastSwitchT) > CFG.SWITCH_COOLDOWN_MS;
-        const strong = (delta != null) && (delta > CFG.STRONG_DELTA);
+        strong = (delta != null) && (delta > CFG.STRONG_DELTA);
         if (userForced || (strong && coolOk)) {
           active = next; activeSince = now; lastSwitchT = now; pending = null; pendingSince = 0;
         } else {
@@ -489,17 +489,22 @@
       } else {
         pending = null; pendingSince = 0;
       }
-      return { target: active };
+      
+      const switched = (active !== prevActive);
+      return { 
+        target: active,
+        switched,
+        switchReason: switched ? (userForced ? 'user' : (strong ? 'strong' : 'soft')) : 'none'
+      };
     }
 
-    function buildApplySet(visibleVideos, target, extraTopK, applyAll, lastUserPt, audioBoostOn, now) {
+    function buildApplySet(visibleVideos, target, now, lastUserPt, audioBoostOn) {
       applySet.clear();
-      if (applyAll) { for (const v of visibleVideos) applySet.add(v); return applySet; }
       if (target) applySet.add(target);
-      const N = Math.max(0, extraTopK | 0);
-      if (N <= 0) return applySet;
-
+      
+      const N = 2; // Hardcoded fallback for UI simplifications
       bufTop.length = 0;
+      
       for (const v of visibleVideos) {
         if (!v || v === target) continue;
         const s = scoreVideoCached(v, audioBoostOn, now, lastUserPt);
@@ -517,13 +522,18 @@
   function createRegistry(scheduler, featureCheck) {
     const videos = new Set(), images = new Set();
     const visible = { videos: new Set(), images: new Set() };
-    let dirty = { videos: new Set(), images: new Set() };
+    let dirtyA = { videos: new Set(), images: new Set() };
+    let dirtyB = { videos: new Set(), images: new Set() };
+    let dirty = dirtyA;
+    
     let rev = 0;
     let observingImages = false;
 
     const observedShadowHosts = new WeakSet();
     const shadowRootsLRU = [];
     const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? 8 : 24;
+
+    const shadowObs = new WeakMap(); // root -> MutationObserver
 
     const io = new IntersectionObserver((entries) => {
       if (!featureCheck.active()) return;
@@ -629,8 +639,12 @@
     })();
 
     const observers = new Set();
-    const connectObserver = (root) => {
+    
+    function connectObserver(root) {
       if (!root) return;
+      const prev = shadowObs.get(root);
+      if (prev) return;
+      
       const mo = new MutationObserver((muts) => {
         if (!featureCheck.active()) return;
         for (const m of muts) {
@@ -646,11 +660,24 @@
         }
       });
       mo.observe(root, { childList: true, subtree: true });
+      shadowObs.set(root, mo);
       observers.add(mo);
       WorkQ.enqueue(root);
-    };
+    }
+
+    function pruneShadowObservers() {
+      for (let i = shadowRootsLRU.length - 1; i >= 0; i--) {
+        const it = shadowRootsLRU[i];
+        if (!it || !it.host || !it.host.isConnected) {
+          const mo = it?.root ? shadowObs.get(it.root) : null;
+          if (mo) { try { mo.disconnect(); } catch (_) {} shadowObs.delete(it.root); observers.delete(mo); }
+          shadowRootsLRU.splice(i, 1);
+        }
+      }
+    }
 
     const refreshObservers = () => {
+      pruneShadowObservers();
       for (const o of observers) o.disconnect();
       observers.clear();
       for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); }
@@ -710,19 +737,21 @@
       refreshObservers,
       syncImageObservation,
       prune: () => {
+        pruneShadowObservers();
         const a = pruneBatch(videos, visible.videos, dirty.videos, TOUCHED.videos, io.unobserve.bind(io), CONFIG.IS_LOW_END ? 120 : 220);
         const b = pruneBatch(images, visible.images, dirty.images, TOUCHED.images, io.unobserve.bind(io), CONFIG.IS_LOW_END ? 120 : 220);
         if (a || b) rev++;
       },
       consumeDirty: () => {
         const out = dirty;
-        dirty = { videos: new Set(), images: new Set() };
+        dirty = (dirty === dirtyA) ? dirtyB : dirtyA;
+        dirty.videos.clear();
+        dirty.images.clear();
         return out;
       },
       rescanAll: () => { WorkQ.enqueue(document.body || document.documentElement); }
     });
   }
-// === PART 2/4 ===
 
   // --- Audio Boost (WebAudio) ---
   function createAudio(sm) {
@@ -943,12 +972,10 @@
       return res;
     }
 
-    function buildColorMatrixCached(temp, satF) {
-      const sat = clamp(satF ?? 1, 0, 2.5);
+    function buildTempMatrixCached(temp) {
       const t = clamp(temp ?? 0, -25, 25);
       const kt = Math.round(t / 0.2) * 0.2;
-      const ks = Math.round(sat / 0.01) * 0.01;
-      const key = `${kt.toFixed(1)}|${ks.toFixed(2)}`;
+      const key = `T|${kt.toFixed(1)}`;
       const hit = colorCache.get(key);
       if (hit) return hit;
 
@@ -956,21 +983,33 @@
       if (kt > 0) { rs = 1 + kt * 0.012; gs = 1 + kt * 0.003; bs = 1 - kt * 0.010; }
       else { const k = -kt; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.010; }
 
+      const round5 = (x) => (Math.round(x * 100000) / 100000);
+      const values =
+        `${round5(rs)} 0 0 0 0  0 ${round5(gs)} 0 0 0  0 0 ${round5(bs)} 0 0  0 0 0 1 0`;
+
+      const out = { key, values };
+      colorCache.set(key, out);
+      return out;
+    }
+
+    function buildSatMatrixCached(satF) {
+      const sat = clamp(satF ?? 1, 0, 2.5);
+      const ks = Math.round(sat / 0.01) * 0.01;
+      const key = `S|${ks.toFixed(2)}`;
+      const hit = colorCache.get(key);
+      if (hit) return hit;
+
       const s = ks;
       const ir = 0.213, ig = 0.715, ib = 0.072;
-      const a = (1 - s) * ir + s, b = (1 - s) * ir, c = (1 - s) * ir;
-      const d = (1 - s) * ig, e = (1 - s) * ig + s, f = (1 - s) * ig;
-      const g = (1 - s) * ib, h = (1 - s) * ib, i = (1 - s) * ib + s;
+      const a = (1 - s) * ir + s, b = (1 - s) * ir,     c = (1 - s) * ir;
+      const d = (1 - s) * ig,     e = (1 - s) * ig + s, f = (1 - s) * ig;
+      const g = (1 - s) * ib,     h = (1 - s) * ib,     i = (1 - s) * ib + s;
 
       const round5 = (x) => (Math.round(x * 100000) / 100000);
-      const v0 = (rs * a), v1 = (rs * d), v2 = (rs * g);
-      const v5 = (gs * b), v6 = (gs * e), v7 = (gs * h);
-      const v10 = (bs * c), v11 = (bs * f), v12 = (bs * i);
-
       const values =
-        `${round5(v0)} ${round5(v1)} ${round5(v2)} 0 0  ` +
-        `${round5(v5)} ${round5(v6)} ${round5(v7)} 0 0  ` +
-        `${round5(v10)} ${round5(v11)} ${round5(v12)} 0 0  ` +
+        `${round5(a)} ${round5(d)} ${round5(g)} 0 0  ` +
+        `${round5(b)} ${round5(e)} ${round5(h)} 0 0  ` +
+        `${round5(c)} ${round5(f)} ${round5(i)} 0 0  ` +
         `0 0 0 1 0`;
 
       const out = { key, values };
@@ -991,16 +1030,23 @@
           x: '-15%', y: '-15%', width: '130%', height: '130%'
         });
 
-        const tone = h('feComponentTransfer', { ns: 'svg', result: 'tone' },
+        const tempM = h('feColorMatrix', {
+          ns: 'svg', in: 'SourceGraphic', type: 'matrix',
+          values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
+          result: 'temp'
+        });
+
+        const tone = h('feComponentTransfer', { ns: 'svg', in: 'temp', result: 'tone' },
           ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' }))
         );
-        const col = h('feColorMatrix', {
+
+        const satM = h('feColorMatrix', {
           ns: 'svg', in: 'tone', type: 'matrix',
           values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
           result: 'col'
         });
 
-        filter.append(tone, col);
+        filter.append(tempM, tone, satM);
 
         let lumB, det, feComp;
         if (!lite) {
@@ -1027,16 +1073,18 @@
         return {
           fid,
           toneFuncs: Array.from(tone.children),
-          col,
+          tempM,
+          satM,
+          col: satM, 
           lumB, det, feComp,
-          st: { lastKey: '', toneKey: '', toneTable: '', colKey: '', detailKey: '', noiseKey: '', __b: '', __k: '' }
+          st: { lastKey: '', toneKey: '', toneTable: '', tempKey: '', satKey: '', detailKey: '', noiseKey: '', __b: '', __k: '' }
         };
       }
 
-      // image lite/full both
       const ctx = {
         svg, defs,
-        video: mkFilter('video', false),
+        videoLite: mkFilter('video-lite', true),
+        videoFull: mkFilter('video-full', false),
         imageLite: mkFilter('image-lite', true),
         imageFull: mkFilter('image-full', false)
       };
@@ -1078,10 +1126,17 @@
 
     function updateColor(nodes, sEff) {
       const st = nodes.st;
-      const cm = buildColorMatrixCached(sEff.temp || 0, sEff.satF ?? 1);
-      if (st.colKey !== cm.key) {
-        st.colKey = cm.key;
-        nodes.col.setAttribute('values', cm.values);
+
+      const tm = buildTempMatrixCached(sEff.temp || 0);
+      if (st.tempKey !== tm.key) {
+        st.tempKey = tm.key;
+        nodes.tempM.setAttribute('values', tm.values);
+      }
+
+      const sm = buildSatMatrixCached(sEff.satF ?? 1);
+      if (st.satKey !== sm.key) {
+        st.satKey = sm.key;
+        nodes.satM.setAttribute('values', sm.values);
       }
     }
 
@@ -1126,10 +1181,18 @@
       if (!ctx) { ctx = buildSvg(doc); ctxMap.set(doc, ctx); }
 
       let nodes, kindKey = kind;
-      if (kind === 'video') nodes = ctx.video;
-      else {
+      if (kind === 'video') {
+        const det0 = Math.abs(s.detail || 0) < 0.5;
+        const dith0 = (s.dither || 0) <= 0;
+        const toneHeavy = (Math.abs(s.toe || 0) + Math.abs(s.shoulder || 0) + Math.abs(s.mid || 0)) > 0.6;
+      
+        const wantFull = !(det0 && dith0) || toneHeavy; 
+        nodes = wantFull ? ctx.videoFull : ctx.videoLite;
+        kindKey = wantFull ? 'videoFull' : 'videoLite';
+      } else {
         const d = +((s && s.detail != null) ? s.detail : baseImgDetail);
-        const wantFull = Math.abs(d - baseImgDetail) >= 1;
+        const dDelta = Math.abs(d - baseImgDetail);
+        const wantFull = (dDelta >= 8) || ((s.dither || 0) > 0) || (d >= 28);
         nodes = wantFull ? ctx.imageFull : ctx.imageLite;
         kindKey = wantFull ? 'imageFull' : 'imageLite';
       }
@@ -1174,7 +1237,6 @@
       }
     });
   }
-// === PART 3/4 ===
 
   // --- AE Engine (worker + auto profile + userLock gating) ---
   const AE_COMMON = Object.freeze({
@@ -1546,7 +1608,7 @@
     };
   `;
 
-  // v161.1 핵심: AE는 aeState(shared object)를 직접 갱신(in-place) → 콜백 객체 할당 0
+  // v162 핵심: AE는 aeState(shared object)를 직접 갱신(in-place) → 콜백 객체 할당 0
   function createAE(sm, { IS_MOBILE, Utils }, aeState, onUpdate) {
     const { clamp } = Utils;
 
@@ -1744,17 +1806,30 @@
       const cf  = clamp(s.cf ?? 0.5, 0, 1);
       const skin = clamp(s.rd ?? 0, 0, 1);
       const lowClip = clamp(s.clipLowFrac ?? 0, 0, 1);
+      const p90 = clamp(s.p90 ?? 0.9, 0, 1);
+      const p10 = clamp(s.p10 ?? 0.1, 0, 1);
+
+      const sceneContrast = clamp(p90 - p10, 0, 1);
+      const flat01 = clamp((0.46 - sceneContrast) / 0.26, 0, 1);
+      const lowKey01 = clamp((0.23 - p50) / 0.14, 0, 1);
+
       if (risk01 > 0.58) return 'hdrSafe';
-      if (p50 < 0.22 && cf > 0.35 && lowClip < 0.03) return 'night';
+
       if (skin > 0.22) return 'soft';
-      if (cf > 0.55 && skin < 0.12) return 'vivid';
+
+      if (p50 < 0.20 && cf > 0.30 && lowClip < 0.035) return 'night';
+      if (lowKey01 > 0.55 && risk01 < 0.25 && flat01 < 0.55) return 'bright'; 
+
+      if (flat01 > 0.65 && risk01 < 0.35) return 'cinematic';
+
+      if (cf > 0.55 && skin < 0.12 && risk01 < 0.45) return 'vivid';
+
       return 'balanced';
     };
 
     const processResult = (data) => {
       if (!data || data.token !== targetToken) return;
-      if (__userLock01 > 0.65) return;
-
+      
       const pack = getPack();
       const cfg = pack.cfg;
       const now = performance.now();
@@ -1823,8 +1898,13 @@
       const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS);
       lastApplyT = now;
 
-      const lockSlow = 1 + (__userLock01 * 2.2);
-      const alphaA = 1 - Math.exp(-dtA / (tau * lockSlow));
+      const lock01 = clamp(__userLock01, 0, 1);
+      const lockFreeze = (lock01 > 0.70) ? clamp((lock01 - 0.70) / 0.30, 0, 1) : 0;
+      const lockOutMul = (1 - lockFreeze);
+      const lockSlow = 1 + (lock01 * 2.2);
+      
+      const alphaA0 = 1 - Math.exp(-dtA / (tau * lockSlow));
+      const alphaA = alphaA0 * lockOutMul;
 
       const nextEV = curEV + (targetEV - curEV) * alphaA;
       curGain = Math.pow(2, nextEV);
@@ -1966,7 +2046,6 @@
       hintProfileChanged: () => { __autoHoldUntil = 0; hardResetStats(); }
     });
   }
-// === PART 4/4 ===
 
   // --- UI (Trigger policy + setAndHint + UserLock) ---
   function createUI(sm, defaults, registry, scheduler, bus) {
@@ -2475,14 +2554,17 @@
         if (target !== __lastTarget) {
           __lastTarget = target;
           __lastTargetSwitchAt = now;
-          if (wantAE && !aeUnavailable && target) AE.setTarget(target, { keepGain: true });
+          if (wantAE && !aeUnavailable && target) {
+            const keepGain = (policyRes.switchReason === 'user' || policyRes.switchReason === 'soft');
+            AE.setTarget(target, { keepGain });
+          }
         }
 
         if (!target) {
           if (wantAE && !aeUnavailable) AE.stop?.();
           Audio.setTarget(null);
         } else {
-          if (wantAE && !aeUnavailable) { AE.setTarget(target, { keepGain: true }); AE.start(); }
+          if (wantAE && !aeUnavailable) AE.start();
           const keepBypass = Audio.hasCtx?.() || Audio.isHooked?.();
           if (wantAudio || keepBypass) Audio.setTarget(target);
           else Audio.setTarget(null);
@@ -2568,9 +2650,7 @@
           else UI.update(`Ready (${CONFIG.VERSION})`, false);
         }
 
-        const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
-        const extraApplyTopK = Store.get(P.APP_EXTRA_TOPK) | 0;
-        const applySet = Targeting.buildApplySet(visible.videos, target, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, now);
+        const applySet = Targeting.buildApplySet(visible.videos, target, now, window.__lastUserPt, wantAudio);
 
         applyVideoFilters(applySet, vidsDirty, __vVals, videoFxOn);
 
@@ -2683,7 +2763,7 @@
   const Filters = createFiltersUnified(Utils, { VSC_ID: CONFIG.VSC_ID, IMG_BASE_DETAIL: DEFAULTS.image.level });
   const Audio = createAudio(Store);
 
-  // v161.1: AE shared-state (single object, in-place updates)
+  // v162: AE shared-state (single object, in-place updates)
   const AE_STATE = {
     gain: 1, gammaF: 1, conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0,
     hiRisk: 0, cf: 0.5, luma: 0, clipFrac: 0, rd: 0
