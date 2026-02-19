@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v146_ToneFix)
+// @name        Video_Image_Control (Local_Indep_v148_AeStrength)
 // @namespace   https://github.com/
-// @version     146.0.0.0
-// @description Video Control: Sharp-Only-Neutral, Lazy-Filter, AE-Mix-V3, Auto-Cleanup
+// @version     148.0.0.0
+// @description Video Control: AE-Strength-Slider, Tone-Neutral-Fix, EventBus-Leveling, Perf-Opt
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -47,7 +47,7 @@
     const IS_TOP = window === window.top;
     const IS_MOBILE = /Mobi|Android|iPhone/i.test(navigator.userAgent);
     const IS_LOW_END = (navigator.deviceMemory || 4) < 4;
-    const VERSION_STR = "v146.ToneFix";
+    const VERSION_STR = "v148.AE-Str";
     const VSC_ID = Math.random().toString(36).slice(2);
 
     const VSCX = Object.freeze({
@@ -129,7 +129,7 @@
             temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0,
             ae: false, presetS: 'off', presetB: 'brOFF',
             presetMix: 1.0, aeProfile: null, tonePreset: null, toneStrength: 1.0,
-            toneLocked: false
+            aeStrength: 1.0 // [NEW] AE Strength Default
         },
         image: { level: 15, temp: 0 },
         audio: { enabled: false, boost: 6 },
@@ -140,8 +140,8 @@
     const P = Object.freeze({
         APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_TAB: 'app.tab',
         V_AE: 'video.ae', V_AE_PROFILE: 'video.aeProfile',
+        V_AE_STR: 'video.aeStrength', // [NEW] AE Strength Key
         V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength',
-        V_TONE_LOCK: 'video.toneLocked',
         V_GAMMA: 'video.gamma', V_CONTR: 'video.contrast', V_BRIGHT: 'video.bright',
         V_SAT: 'video.sat', V_SHARP: 'video.sharp', V_SHARP2: 'video.sharp2',
         V_CLARITY: 'video.clarity', V_TEMP: 'video.temp', V_DITHER: 'video.dither',
@@ -326,11 +326,12 @@
             for (const fn of s) { try { fn(payload); } catch (_) { } }
         };
         let queued = false;
-        let agg = { affectsAE: false, wakeAE: false, forceApply: false };
+        let agg = { aeLevel: 0, forceApply: false };
         const signal = (p) => {
             if (p) {
-                if (p.affectsAE) agg.affectsAE = true;
-                if (p.wakeAE) agg.wakeAE = true;
+                if (p.affectsAE) agg.aeLevel = Math.max(agg.aeLevel, 2);
+                if (p.wakeAE) agg.aeLevel = Math.max(agg.aeLevel, 1);
+                if (p.aeLevel != null) agg.aeLevel = Math.max(agg.aeLevel, (p.aeLevel | 0));
                 if (p.forceApply) agg.forceApply = true;
             }
             if (queued) return;
@@ -338,7 +339,7 @@
             requestAnimationFrame(() => {
                 queued = false;
                 const out = agg;
-                agg = { affectsAE: false, wakeAE: false, forceApply: false };
+                agg = { aeLevel: 0, forceApply: false };
                 emit('signal', out);
             });
         };
@@ -368,7 +369,7 @@
             Math.abs(((pB.satF || 1) - 1) * mix) / 0.25 +
             Math.abs((pB.tempAdd || 0) * mix) / 10;
 
-        const toneOn = !!vf.tonePreset;
+        const toneOn = !!vf.tonePreset && vf.tonePreset !== 'neutral';
         const toneStr = toneOn ? clamp(vf.toneStrength ?? 1.0, 0, 1) : 0;
 
         const expIntent = clamp(manualExp + presetExp + toneStr * 0.20, 0, 3.0);
@@ -493,7 +494,6 @@
         };
     }
 
-    // [Refined] Split-Sharpness Logic for Better Retention
     function composeVideoParams(vUser, ae, defaultsVideo, Utils) {
         const clamp = Utils.clamp;
         const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
@@ -520,7 +520,6 @@
         const hiRisk01 = clamp(A.hiRisk || 0, 0, 1);
         const userSharp01 = clamp((((vUser.sharp || 0) + preSharp) / 50), 0, 1);
 
-        // [Fix] Split Sharpness: Base is protected less, HF protected more
         let sharpMulBase = Math.max(0.62, 1 / (1 + (gain - 1.0) * 1.25));
         let sharpMulHF = Math.max(0.50, 1 / (1 + (gain - 1.0) * 1.80));
 
@@ -541,7 +540,6 @@
         const guard = 1 / (1 + chromaStress * 1.05 + riskStress * 0.85);
         const hfGuard = 1 / (1 + chromaStress * 1.45 + riskStress * 1.10);
 
-        // Allow user intent to override protection slightly
         const relaxBase = 0.55 * userSharp01;
         const relaxHF = 0.40 * userSharp01;
         sharpMulBase *= lerp((0.78 + 0.22 * guard), 1.0, relaxBase);
@@ -565,7 +563,10 @@
 
         const toneName = vUser.tonePreset;
         const toneStr = vUser.toneStrength;
-        if (toneName) out = applyTonePreset2(out, toneName, toneStr, vUser.aeProfile, Utils);
+        if (toneName && toneName !== 'neutral') {
+            const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
+            out = applyTonePreset2(out, toneName, toneStr, aeProfileForTone, Utils);
+        }
         return out;
     }
 
@@ -576,9 +577,13 @@
         Math.abs((v.bright ?? 0)) < 0.01 &&
         Math.abs((v.satF ?? 1) - 1) < 0.001 &&
         Math.abs((v.mid ?? 0)) < 0.001 &&
-        (v.sharp | 0) === 0 && (v.sharp2 | 0) === 0 && (v.clarity | 0) === 0 &&
-        (v.dither | 0) === 0 && (v.temp | 0) === 0 &&
-        (v.toe | 0) === 0 && (v.shoulder | 0) === 0
+        Math.abs(v.sharp ?? 0) < 0.01 &&
+        Math.abs(v.sharp2 ?? 0) < 0.01 &&
+        Math.abs(v.clarity ?? 0) < 0.01 &&
+        Math.abs(v.dither ?? 0) < 0.01 &&
+        Math.abs(v.temp ?? 0) < 0.01 &&
+        Math.abs(v.toe ?? 0) < 0.01 &&
+        Math.abs(v.shoulder ?? 0) < 0.01
     );
 
     function createScheduler() {
@@ -685,23 +690,25 @@
             const enqueue = (n) => { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch); q.push(n); schedule(); };
             const scanNode = (n) => {
                 if (!n) return;
+                const wantImg = featureCheck.images();
+                const sel = wantImg ? 'video,img' : 'video';
+
                 if (n.nodeType === 1) {
                     const tag = n.tagName;
-                    if (tag === 'VIDEO' || tag === 'IMG') { observeMediaEl(n); return; }
+                    if (tag === 'VIDEO' || (wantImg && tag === 'IMG')) { observeMediaEl(n); return; }
 
-                    // [Perf] If huge subtree, defer (avoid immediate deep query)
                     const childCnt = n.childElementCount || 0;
                     if (childCnt > 1200) {
                         requestAnimationFrame(() => {
-                            try { n.querySelectorAll?.('video,img')?.forEach(observeMediaEl); } catch (_) { }
+                            try { n.querySelectorAll?.(sel)?.forEach(observeMediaEl); } catch (_) { }
                         });
                         return;
                     }
 
-                    if (n.querySelectorAll) n.querySelectorAll('video,img').forEach(observeMediaEl);
+                    if (n.querySelectorAll) n.querySelectorAll(sel).forEach(observeMediaEl);
                     return;
                 }
-                if (n.nodeType === 11) { if (n.querySelectorAll) n.querySelectorAll('video,img').forEach(observeMediaEl); }
+                if (n.nodeType === 11) { try { n.querySelectorAll?.(sel)?.forEach(observeMediaEl); } catch (_) { } }
             };
             const drain = (dl) => {
                 scheduled = false; const start = performance.now();
@@ -753,9 +760,9 @@
         refreshObservers();
 
         function pruneBatch(set, visibleSet, dirtySet, touchedSet, unobserveFn, batch = 200) {
-            const arr = Array.from(set);
-            for (let i = 0; i < Math.min(batch, arr.length); i++) {
-                const el = arr[i];
+            let i = 0;
+            for (const el of set) {
+                if (i++ >= batch) break;
                 if (!el || !el.isConnected) {
                     set.delete(el); visibleSet.delete(el); dirtySet.delete(el); touchedSet.delete(el);
                     try { unobserveFn(el); } catch (_) { }
@@ -771,11 +778,6 @@
                 rev++;
             },
             consumeDirty: () => { const out = { videos: new Set(dirty.videos), images: new Set(dirty.images) }; dirty.videos.clear(); dirty.images.clear(); return out; },
-            setWantImages: (want) => {
-                if (want) return [];
-                const removed = Array.from(images); images.clear(); visible.images.clear(); dirty.images.clear(); rev++;
-                for (const i of removed) io.unobserve(i); return removed;
-            },
             rescanAll: () => { WorkQ.enqueue(document.body || document.documentElement); }
         };
     }
@@ -824,7 +826,6 @@
         };
     }
 
-    // [New] Fully Refactored Filters: Lazy Creation & Expanded Bounds
     function createFilters(Utils, config) {
         const { h, clamp, createLRU } = Utils;
         const ctxMap = new WeakMap();
@@ -850,7 +851,6 @@
             return t * t * (3 - 2 * t);
         };
 
-        // [Fix] Corrected Tone Table Logic: Exact Identity at Neutral
         function getToneTableCached3(steps, toeN, shoulderN, midN, bright, contrast, gain) {
             toeN = qInt(clamp(toeN, -1, 1), 0.02) * 0.02;
             shoulderN = qInt(clamp(shoulderN, -1, 1), 0.02) * 0.02;
@@ -863,7 +863,6 @@
             const hit = toneCache.get(key);
             if (hit) return hit;
 
-            // [New] If everything is strictly neutral, return flat identity
             if (toeN === 0 && shoulderN === 0 && midN === 0 && bright === 0 && contrast === 1 && Math.abs(gain - 1) < 0.01) {
                 const res0 = '0 1';
                 toneCache.set(key, res0);
@@ -878,7 +877,6 @@
             const shoulderStart = 0.90 - shoulderN * 0.10;
             const shAmt = Math.abs(shoulderN);
 
-            // [New] Log-based Gain Curve to ensure Gain=1.0 is linear
             const ev = Math.log2(Math.max(1e-6, gain));
             const g = ev * 0.90;
             const denom = 1 - Math.exp(-g);
@@ -888,8 +886,6 @@
 
             for (let i = 0; i < steps; i++) {
                 const x0 = i / (steps - 1);
-
-                // Gain Curve
                 let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
 
                 const midShape = 4 * x * (1 - x);
@@ -908,11 +904,14 @@
                     x = clamp(shoulderStart + (1 - shoulderStart) * rolled, 0, 1);
                 }
                 let y = clamp((x - 0.5) * con + 0.5 + br, 0, 1);
-                const clipStart = 0.92;
+
+                const g01 = clamp((gain - 1.0) / 2.2, 0, 1);
+                const clipStart = 0.92 - 0.018 * g01;
                 if (y > clipStart) {
                     const tt = (y - clipStart) / (1 - clipStart);
                     const ww = tt * tt * (3 - 2 * tt);
-                    const k = (0.45 + 0.55 * shAmt); // Highlight Compression
+                    const kBase = (0.45 + 0.55 * shAmt);
+                    const k = kBase * (1.0 + 0.35 * g01);
                     y = clamp(clipStart + (y - clipStart) * (1 - ww * k), 0, 1);
                 }
                 if (y < prev) y = prev;
@@ -931,11 +930,7 @@
             const out = { ...s };
             if (kind === 'video') {
                 if (tier >= 1) { out.sharp2 *= 0.35; out.clarity *= 0.50; out.dither *= 0.75; }
-                if (tier >= 2) {
-                    out.sharp2 = 0; out.clarity = 0; out.dither = 0;
-                    // [Refined] Don't kill base sharpness too much
-                    out.sharp *= 0.92;
-                }
+                if (tier >= 2) { out.sharp2 = 0; out.clarity = 0; out.dither = 0; out.sharp *= 0.92; }
             } else {
                 if (tier >= 1) out.sharp *= 0.75; if (tier >= 2) out.sharp *= 0.55;
             }
@@ -948,7 +943,6 @@
 
             const mkFilter = (suffix, withNoise, withDetail) => {
                 const fid = `vsc-f-${config.VSC_ID}-${suffix}`;
-                // [Fix] Expand bounds to prevent clipping at edges
                 const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '-15%', y: '-15%', width: '130%', height: '130%' });
                 const tone = h('feComponentTransfer', { ns: 'svg', result: 'tone' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
                 const gam = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'gam' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'gamma', amplitude: '1', exponent: '1', offset: '0' })));
@@ -966,19 +960,15 @@
                         ns: 'svg', in: last, type: 'matrix',
                         values: '0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0', result: 'lum'
                     });
-                    // Stage 1
                     lumB1 = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumB1' });
                     lumHP1 = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumB1', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'lumHP1' });
                     shAdd1 = h('feComposite', { ns: 'svg', in: last, in2: 'lumHP1', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'sh1' });
-                    // Stage 2
                     lumB2 = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumB2' });
                     lumHP2 = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumB2', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'lumHP2' });
                     shAdd2 = h('feComposite', { ns: 'svg', in: 'sh1', in2: 'lumHP2', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'sh2' });
-                    // Stage 3
                     lumBC = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumBC' });
                     lumHPC = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumBC', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'lumHPC' });
                     clAdd = h('feComposite', { ns: 'svg', in: 'sh2', in2: 'lumHPC', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'cl' });
-
                     filter.append(lum, lumB1, lumHP1, shAdd1, lumB2, lumHP2, shAdd2, lumBC, lumHPC, clAdd);
                     last = 'cl';
                 }
@@ -999,7 +989,6 @@
                 };
             };
 
-            // [Lazy] Container for lazy creation
             const ctx = {
                 defs,
                 video: { B: { O: null, N: null }, D: { O: null, N: null } },
@@ -1027,10 +1016,18 @@
             const midN = clamp((sEff.mid || 0), -1, 1);
             const ditherOn = (sEff.dither || 0) > 0;
             const steps = pickToneSteps(tier, ditherOn);
-            const toneKey = `${steps}|${toeN.toFixed(3)}|${shN.toFixed(3)}|${midN.toFixed(3)}|${(sEff.bright || 0).toFixed(2)}|${(sEff.contrast || 1).toFixed(3)}|${(sEff.gain || 1).toFixed(3)}`;
+
+            const kToe = qInt(toeN, 0.02);
+            const kSh = qInt(shN, 0.02);
+            const kMid = qInt(midN, 0.02);
+            const kBr = qInt(sEff.bright || 0, 0.2);
+            const kCon = qInt(sEff.contrast || 1, 0.01);
+            const kGain = qInt(sEff.gain || 1, 0.02);
+
+            const toneKey = `${steps}|${kToe}|${kSh}|${kMid}|${kBr}|${kCon}|${kGain}`;
             if (st.toneKey !== toneKey) {
                 st.toneKey = toneKey;
-                const table = getToneTableCached3(steps, toeN, shN, midN, sEff.bright || 0, sEff.contrast || 1, sEff.gain || 1);
+                const table = getToneTableCached3(steps, kToe * 0.02, kSh * 0.02, kMid * 0.02, kBr * 0.2, kCon * 0.01, kGain * 0.02);
                 if (st.toneTable !== table) { st.toneTable = table; for (const fn of nodes.toneFuncs) fn.setAttribute('tableValues', table); }
             }
         };
@@ -1039,7 +1036,6 @@
             if (!nodes.withDetail) return;
             const st = nodes.st;
 
-            // [Refined] Split Base/HF Protection
             const g = clamp(sEff.gain || 1, 1, 8);
             const sh = clamp((sEff.shoulder || 0) / 16, 0, 1);
             const hiProtect = clamp((g - 1) / 3.8 + sh * 0.75, 0, 1);
@@ -1061,8 +1057,6 @@
 
             const k1 = sharpAdj > 0 ? (sharpAdj / 50) * 1.50 : 0;
             const k2 = sharp2Adj > 0 ? (sharp2Adj / 50) * 1.20 : 0;
-
-            // [Fix] ReferenceError: clarity is not defined -> Use clarAdj
             const kc = clarAdj > 0 ? (clarAdj / 50) * 0.50 : 0;
 
             setAttr(nodes.lumB1, 'stdDeviation', r1 ? r1.toFixed(2) : '0', st, '__b1');
@@ -1100,7 +1094,6 @@
             const sEff = downgradeForTier(s, kind, tier);
             const ditherOn = (sEff.dither || 0) > 0;
             const needDetail = (sEff.sharp > 0.001) || (sEff.sharp2 > 0.001) || (sEff.clarity > 0.001);
-            // [Lazy] Generate node on demand
             const nodes = ctx.ensureNodes(kind, needDetail, ditherOn);
             updateTone(nodes, sEff, tier);
             updateDetail(nodes, sEff);
@@ -1201,7 +1194,6 @@
 
             let targetMid = cfg.TARGET_MID_BASE; if (p50 < 0.12) targetMid += 0.04;
 
-            // [New] highlight-aware targetMid (reduce white veil)
             const hiR0 = clamp((stats.p95 - 0.88) / 0.10, 0, 1);
             const hiR1 = clamp((stats.p98 - 0.96) / 0.03, 0, 1);
             const clip0 = clamp((stats.clipFrac ?? 0) / (cfg.CLIP_FRAC_LIMIT * 3.5), 0, 1);
@@ -1217,7 +1209,12 @@
             const upCapExtra = (1 - clip) * 1.0;
             const upCap = cfg.MAX_UP_EV * (0.55 + 0.45 * upCapExtra);
             ev = clamp(ev, cfg.MAX_DOWN_EV, upCap);
-            return Math.min(ev, maxSafeEV);
+            ev = Math.min(ev, maxSafeEV);
+
+            const hiHard = (stats.p95 > 0.92) || (stats.p98 > 0.975) || ((stats.clipFrac ?? 0) > cfg.CLIP_FRAC_LIMIT * 1.2);
+            if (hiHard) ev = Math.min(ev, 0);
+
+            return ev;
         };
 
         const processResult = (data) => {
@@ -1463,7 +1460,7 @@
             { l: '그레인', k: P.V_DITHER, min: 0, max: 100, s: 5, f: v => v.toFixed(0) },
             { l: '오디오', k: P.A_BST, min: 0, max: 12, s: 1, f: v => `+${v}dB` },
             { l: '톤 강도', k: P.V_TONE_STR, min: 0, max: 1, s: 0.05, f: v => v.toFixed(2) },
-            { l: '프리셋 믹스', k: P.V_PRE_MIX, min: 0, max: 1, s: 0.05, f: v => v.toFixed(2) }
+            { l: 'AE 강도', k: P.V_AE_STR, min: 0, max: 1, s: 0.05, f: v => v.toFixed(2) } // [NEW] Replaced Preset Mix
         ];
 
         const getUiRoot = () => {
@@ -1475,7 +1472,8 @@
             return document.body || document.documentElement;
         };
 
-        const fire = (affectsAE, wakeAE, forceApply = true) => { bus.signal({ affectsAE: !!affectsAE, wakeAE: !!wakeAE, forceApply: !!forceApply }); };
+        const fireAE = (level, forceApply = true) => bus.signal({ aeLevel: level, forceApply: !!forceApply });
+        const fireApplyOnly = (forceApply = true) => bus.signal({ aeLevel: 0, forceApply: !!forceApply });
 
         const renderChoiceRow = (label, items, key) => {
             const r = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
@@ -1483,29 +1481,20 @@
                 const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.t);
                 b.onclick = () => {
                     const cur = sm.get(key);
-                    const def = (key === 'video.aeProfile') ? 'balanced' : 'neutral';
-                    const next = (cur === it.v) ? def : it.v;
-                    sm.set(key, next);
-                    if (key === P.V_AE_PROFILE) { if (!sm.get(P.V_AE)) sm.set(P.V_AE, true); }
-                    if (key === P.V_AE_PROFILE && next) {
-                        const locked = !!sm.get(P.V_TONE_LOCK);
-                        if (!locked) {
-                            if (!sm.get(P.V_TONE_PRE)) {
-                                const rec = (next === 'cinematic') ? 'highlight' : (next === 'bright' ? 'redSkin' : 'neutral');
-                                sm.set(P.V_TONE_PRE, rec);
-                            }
-                            const curStr = sm.get(P.V_TONE_STR);
-                            if (curStr == null || Math.abs(curStr - DEFAULTS.video.toneStrength) < 0.001) {
-                                const s = (next === 'cinematic') ? 0.75 : (next === 'bright' ? 0.78 : 0.85);
-                                sm.set(P.V_TONE_STR, s);
-                            }
-                        }
+                    
+                    if (key === P.V_AE_PROFILE) {
+                        if (!sm.get(P.V_AE)) sm.set(P.V_AE, true);
+                        if (it.v === 'balanced') sm.set(P.V_AE_PROFILE, 'balanced');
+                        else sm.set(P.V_AE_PROFILE, (cur === it.v) ? 'balanced' : it.v);
+                        fireAE(2, true);
+                        return;
                     }
-                    const isAeProfile = (key === P.V_AE_PROFILE);
-                    const isTone = (key === P.V_TONE_PRE);
-                    if (isAeProfile) fire(true, true, true);
-                    else if (isTone) fire(true, true, true);
-                    else fire(false, false, true);
+
+                    if (key === P.V_TONE_PRE) {
+                        sm.set(P.V_TONE_PRE, (cur === it.v) ? null : it.v);
+                        fireAE(1, true);
+                        return;
+                    }
                 };
                 sm.sub(key, v => b.classList.toggle('active', v === it.v));
                 r.append(b);
@@ -1519,9 +1508,8 @@
                 const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.l || it.txt);
                 b.onclick = () => {
                     sm.set(key, it.l || it.txt);
-                    if (key === P.V_TONE_PRE) sm.set(P.V_TONE_LOCK, true);
                     const affectsAE = (key === P.V_PRE_B);
-                    fire(affectsAE, affectsAE, true);
+                    if (affectsAE) fireAE(2, true); else fireApplyOnly(true);
                 };
                 sm.sub(key, v => b.classList.toggle('active', v === (it.l || it.txt)));
                 r.append(b);
@@ -1529,9 +1517,8 @@
             const off = h('button', { class: 'pbtn', style: 'flex:1' }, 'OFF');
             off.onclick = () => {
                 sm.set(key, key === P.V_PRE_B ? 'brOFF' : 'off');
-                if (key === P.V_TONE_PRE) sm.set(P.V_TONE_LOCK, true);
                 const affectsAE = (key === P.V_PRE_B);
-                fire(affectsAE, affectsAE, true);
+                if (affectsAE) fireAE(2, true); else fireApplyOnly(true);
             };
             sm.sub(key, v => off.classList.toggle('active', v === 'off' || v === 'brOFF'));
             return r.append(off), r;
@@ -1542,7 +1529,21 @@
             const inp = h('input', { type: 'range', min: cfg.min, max: cfg.max, step: cfg.s });
             const update = (v) => { valEl.textContent = cfg.f(Number(v)); inp.value = v; };
             sm.sub(cfg.k, update); update(sm.get(cfg.k));
-            inp.oninput = () => { valEl.textContent = cfg.f(Number(inp.value)); sm.set(cfg.k, Number(inp.value)); };
+
+            // [NEW] Added V_AE_STR to Wake Keys
+            const AE_INPUT_WAKE_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_SAT, P.V_TEMP, P.V_PRE_MIX, P.V_TONE_STR, P.V_AE_STR]);
+            const AE_CHANGE_HARD_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_PRE_MIX]);
+
+            inp.oninput = () => {
+                const nv = Number(inp.value);
+                valEl.textContent = cfg.f(nv);
+                sm.set(cfg.k, nv);
+                if (AE_INPUT_WAKE_KEYS.has(cfg.k)) fireAE(1, true); else fireApplyOnly(true);
+            };
+            inp.onchange = () => {
+                if (AE_CHANGE_HARD_KEYS.has(cfg.k)) fireAE(2, true);
+                else if (AE_INPUT_WAKE_KEYS.has(cfg.k)) fireAE(1, true);
+            };
             return h('div', { class: 'slider' }, h('label', {}, cfg.l, valEl), inp);
         };
 
@@ -1570,11 +1571,16 @@
             const bodyV = h('div', { id: 'p-v' }, [
                 h('div', { class: 'prow' },
                     h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'),
-                    h('button', { id: 'ae-btn', class: 'btn', onclick: () => { const n = !sm.get(P.V_AE); sm.set(P.V_AE, n); if (n) { if (!sm.get(P.V_AE_PROFILE)) sm.set(P.V_AE_PROFILE, 'balanced'); if (!sm.get(P.V_TONE_PRE)) sm.set(P.V_TONE_PRE, 'neutral'); } else { sm.set(P.V_AE_PROFILE, null); sm.set(P.V_TONE_PRE, null); } fire(true, true, true); } }, '🤖 자동'),
+                    h('button', { id: 'ae-btn', class: 'btn', onclick: () => { 
+                        const on = !!sm.get(P.V_AE);
+                        if (on) { sm.set(P.V_AE, false); } 
+                        else { sm.set(P.V_AE, true); sm.set(P.V_AE_PROFILE, 'balanced'); }
+                        fireAE(2, true);
+                    } }, '🤖 자동'),
                     h('button', { id: 'boost-btn', class: 'btn', onclick: () => sm.set(P.A_EN, !sm.get(P.A_EN)) }, '🔊 부스트')
                 ),
                 h('div', { class: 'prow' },
-                    h('button', { class: 'btn', onclick: () => { sm.batch('video', { ...defaults.video, toneLocked: false }); sm.batch('audio', defaults.audio); fire(true, true, true); } }, '↺ 리셋'),
+                    h('button', { class: 'btn', onclick: () => { sm.batch('video', { ...defaults.video, toneLocked: false }); sm.batch('audio', defaults.audio); fireAE(2, true); } }, '↺ 리셋'),
                     h('button', { id: 'pwr-btn', class: 'btn', onclick: () => sm.set(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power')
                 ),
                 renderChoiceRow('AE', [{ t: '표준', v: 'balanced' }, { t: '영화', v: 'cinematic' }, { t: '밝게', v: 'bright' }], P.V_AE_PROFILE),
@@ -1640,7 +1646,6 @@
             mount();
         };
 
-        // [Fix] Ensure UI mount after body exists (document-start safe)
         if (!document.body) {
             document.addEventListener('DOMContentLoaded', () => {
                 try { ensure(); scheduler.request(true); } catch (_) { }
@@ -1669,6 +1674,15 @@
     const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
     const Bus = createEventBus();
 
+    function normalizeAeProfile(sm) {
+        if (sm.get(P.V_AE)) {
+            const prof = sm.get(P.V_AE_PROFILE);
+            if (!prof) sm.set(P.V_AE_PROFILE, 'balanced');
+        }
+    }
+    Store.sub(P.V_AE, () => normalizeAeProfile(Store));
+    Store.sub(P.V_AE_PROFILE, () => normalizeAeProfile(Store));
+
     const FEATURES = {
         active: () => Store.get(P.APP_ACT),
         images: () => {
@@ -1682,7 +1696,6 @@
 
     const Registry = createRegistry(Scheduler, FEATURES, { IS_LOW_END });
 
-    // [Fix] document-start body race: ensure observers once body exists
     (function ensureRegistryAfterBodyReady() {
         const run = () => {
             try { Registry.refreshObservers(); } catch (_) { }
@@ -1713,8 +1726,11 @@
     });
 
     Bus.on('signal', (s) => {
-        if (s.affectsAE && FEATURES.ae()) AE.userTweak();
-        if (s.wakeAE && FEATURES.ae()) AE.wake();
+        const aeOn = FEATURES.ae();
+        if (aeOn) {
+            if ((s.aeLevel | 0) >= 2) AE.userTweak();
+            if ((s.aeLevel | 0) >= 1) AE.wake();
+        }
         if (s.forceApply) Scheduler.request(true);
     });
 
@@ -1734,13 +1750,12 @@
     window.addEventListener('wheel', () => __lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() }, { passive: true });
     window.addEventListener('keydown', (e) => { __lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() }; }, { passive: true });
 
-    // Helpers utilizing closure state
     const getRateState = (v) => { let st = v[VSCX.rateState]; if (!st) st = v[VSCX.rateState] = { orig: null, lastSetAt: 0 }; return st; };
     const restoreRateOne = (el) => { try { const st = el[VSCX.rateState]; if (st?.orig != null) el.playbackRate = st.orig; } catch (_) { } if (el[VSCX.rateState]) el[VSCX.rateState].orig = null; };
     const bindVideoOnce = (v) => {
         if (v[VSCX.bound]) return; v[VSCX.bound] = true;
-        v.addEventListener('seeking', () => Bus.signal({ wakeAE: true }), { passive: true });
-        v.addEventListener('play', () => Bus.signal({ wakeAE: true }), { passive: true });
+        v.addEventListener('seeking', () => Bus.signal({ aeLevel: 1 }), { passive: true });
+        v.addEventListener('play', () => Bus.signal({ aeLevel: 1 }), { passive: true });
         v.addEventListener('ratechange', () => {
             const st = getRateState(v); const now = performance.now();
             if (now - st.lastSetAt < 90) return;
@@ -1845,7 +1860,13 @@
             Audio.update();
 
             const aeOutRaw = wantAE ? currentAE : null;
-            const { expMix, toneMix } = computeAeMix2(vf, Utils);
+            let { expMix, toneMix } = computeAeMix2(vf, Utils);
+            
+            // [NEW] AE Strength Slider Integration
+            const aeStr = Utils.clamp(vf.aeStrength ?? 1.0, 0, 1);
+            expMix *= aeStr;
+            toneMix *= aeStr;
+
             const mixLog2 = (g, t) => Math.pow(2, Math.log2(Math.max(1e-6, g)) * t);
 
             let aeOut = aeOutRaw ? {
