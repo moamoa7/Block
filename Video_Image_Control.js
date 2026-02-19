@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v154_UnifiedCore)
+// @name        Video_Image_Control (Local_Indep_v155_AELiteCore)
 // @namespace   https://github.com/
-// @version     154.0.0.0
-// @description Video Control: Zero-Alloc, 3-Tier SVG Variants, Profile Look, Performance
+// @version     155.0.0.0
+// @description Video Control: Zero-Alloc, Single-pass Lite SVG, Profile Look, AE Core V2
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -72,7 +72,7 @@
     })();
 
     const CONFIG = Object.freeze({
-        VERSION: "v154.ZeroAlloc",
+        VERSION: "v155.AELiteCore",
         IS_TOP: window === window.top,
         IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
         IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -92,6 +92,7 @@
         audioFail: Symbol('vsc.audioFail')
     });
 
+    // === AE CONSTANTS (Unified) ===
     const AE_COMMON = Object.freeze({
         CLIP_FRAC_LIMIT: 0.0032,
         DEAD_IN: 0.035,
@@ -224,7 +225,7 @@
         return r;
     }
 
-    function createTargeting() {
+    function createTargeting({ Utils }) {
         let __currentTarget = null, __currentSince = 0;
         const __applySetReuse = new Set();
         const __topBuf = [];
@@ -411,40 +412,28 @@
         return Object.freeze({ on, emit, signal });
     }
 
-    function computeAeMix2Into(out, vf, Utils) {
+    function computeAeMix3Into(out, vf, Utils) {
         const { clamp } = Utils;
         const mix = clamp(vf.presetMix ?? 1.0, 0, 1);
         const pB = PRESET.grade[vf.presetB] || PRESET.grade.brOFF;
 
-        const manualExp =
-            Math.abs(vf.bright || 0) / 50 +
-            Math.abs((vf.gamma || 1) - 1) / 0.65 +
-            Math.abs((vf.contrast || 1) - 1) / 0.55;
+        const manualExp = Math.abs(vf.bright || 0) / 55 + Math.abs((vf.gamma || 1) - 1) / 0.75 + Math.abs((vf.contrast || 1) - 1) / 0.65;
+        const manualCol = Math.abs((vf.sat || 100) - 100) / 120 + Math.abs(vf.temp || 0) / 20;
 
-        const manualCol =
-            Math.abs((vf.sat || 100) - 100) / 110 +
-            Math.abs(vf.temp || 0) / 18;
-
-        const presetExp =
-            Math.abs((pB.brightAdd || 0) * mix) / 50 +
-            Math.abs(((pB.gammaF || 1) - 1) * mix) / 0.28 +
-            Math.abs(((pB.conF || 1) - 1) * mix) / 0.22;
-
-        const presetCol =
-            Math.abs(((pB.satF || 1) - 1) * mix) / 0.25 +
-            Math.abs((pB.tempAdd || 0) * mix) / 10;
+        const presetExp = Math.abs((pB.brightAdd || 0) * mix) / 55 + Math.abs(((pB.gammaF || 1) - 1) * mix) / 0.32 + Math.abs(((pB.conF || 1) - 1) * mix) / 0.26;
+        const presetCol = Math.abs(((pB.satF || 1) - 1) * mix) / 0.30 + Math.abs((pB.tempAdd || 0) * mix) / 12;
 
         const toneOn = !!vf.tonePreset && vf.tonePreset !== 'neutral';
         const toneStr = toneOn ? clamp(vf.toneStrength ?? 1.0, 0, 1) : 0;
 
-        const expIntent = clamp(manualExp + presetExp + toneStr * 0.20, 0, 3.0);
-        const toneIntent = clamp((manualExp * 0.55) + manualCol + presetCol + (toneStr * 0.95), 0, 3.5);
+        const expIntent  = clamp(manualExp + presetExp + toneStr * 0.18, 0, 3.0);
+        const toneIntent = clamp((manualExp * 0.55) + manualCol + presetCol + toneStr * 0.95, 0, 3.5);
 
-        let expMix = 1 - (0.58 * clamp(expIntent / 1.35, 0, 1));
-        let toneMix = 1 - (0.72 * clamp(toneIntent / 1.35, 0, 1));
+        let expMix  = 1 - 0.60 * clamp(expIntent / 1.45, 0, 1);
+        let toneMix = 1 - 0.75 * clamp(toneIntent / 1.45, 0, 1);
 
-        expMix = clamp(expMix, 0.18, 1.00);
-        toneMix = clamp(toneMix, 0.06, 1.00);
+        expMix  = clamp(expMix, 0.20, 1.00);
+        toneMix = clamp(toneMix, 0.08, 1.00);
 
         const snap = (x) => Math.round(x / 0.02) * 0.02;
         out.expMix = snap(expMix);
@@ -462,18 +451,15 @@
         const hi = clamp(ae.hiRisk ?? 0, 0, 1);
         const clip01 = clamp((ae.clipFrac ?? 0) / (AE_COMMON.CLIP_FRAC_LIMIT * 3.0), 0, 1);
         const cf = clamp(ae.cf ?? 0.5, 0, 1);
-        const skin01 = clamp(((ae.rd ?? 0) - 0.05) / 0.08, 0, 1);
+        const skin01 = clamp(((ae.rd ?? 0) - 0.06) / 0.09, 0, 1);
 
         let damp = 1.0;
-        damp *= (1 - 0.26 * hi);
-        damp *= (1 - 0.20 * clip01);
-        damp *= (0.88 + 0.12 * cf);
+        damp *= (1 - 0.30 * hi);
+        damp *= (1 - 0.24 * clip01);
+        damp *= (0.86 + 0.14 * cf);
 
-        if (tonePreset === 'highlight') {
-            damp *= (1 - 0.24 * hi - 0.18 * clip01);
-        } else if (tonePreset === 'redSkin') {
-            damp *= (1 - 0.22 * skin01);
-        }
+        if (tonePreset === 'highlight') damp *= (1 - 0.22 * hi - 0.18 * clip01);
+        if (tonePreset === 'redSkin') damp *= (1 - 0.22 * skin01);
 
         return clamp(t0 * damp, 0, 1);
     }
@@ -1043,479 +1029,389 @@
 
     function createFiltersUnified(Utils, config) {
         const { h, clamp, createLRU } = Utils;
-      
         const ctxMap = new WeakMap();
-        const toneCache = createLRU(CONFIG.IS_LOW_END ? 256 : 512);
-      
+        const toneCache = createLRU(CONFIG.IS_LOW_END ? 320 : 720);
+        const colorCache = createLRU(CONFIG.IS_LOW_END ? 256 : 512);
+        
         const makeNoiseDataURL = (size = 64, seed = 1337) => {
-          const c = document.createElement('canvas');
-          c.width = c.height = size;
-          const ctx2 = c.getContext('2d', { alpha: false });
-          const img = ctx2.createImageData(size, size);
-      
-          let a = seed >>> 0;
-          const rnd = () => {
-            a |= 0; a = (a + 0x6D2B79F5) | 0;
-            let t = Math.imul(a ^ (a >>> 15), 1 | a);
-            t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
-            return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-          };
-      
-          for (let i = 0; i < img.data.length; i += 4) {
-            const n = Math.floor(128 + (rnd() - 0.5) * 90);
-            img.data[i] = img.data[i + 1] = img.data[i + 2] = n;
-            img.data[i + 3] = 255;
-          }
-          ctx2.putImageData(img, 0, 0);
-          return c.toDataURL('image/png');
+            const c = document.createElement('canvas');
+            c.width = c.height = size;
+            const ctx2 = c.getContext('2d', { alpha: false });
+            const img = ctx2.createImageData(size, size);
+        
+            let a = seed >>> 0;
+            const rnd = () => {
+                a |= 0; a = (a + 0x6D2B79F5) | 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t ^= t + Math.imul(t ^ (t >>> 7), 61 | t);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        
+            for (let i = 0; i < img.data.length; i += 4) {
+                const n = Math.floor(128 + (rnd() - 0.5) * 90);
+                img.data[i] = img.data[i + 1] = img.data[i + 2] = n;
+                img.data[i + 3] = 255;
+            }
+            ctx2.putImageData(img, 0, 0);
+            return c.toDataURL('image/png');
         };
-      
+        
         let NOISE_URL = null;
         const getNoiseUrl = () => (NOISE_URL ||= makeNoiseDataURL(64, 133));
-      
+        
         const qInt = (v, step) => Math.round(v / step);
         const setAttr = (node, attr, val, st, key) => {
-          if (!node) return;
-          if (st[key] === val) return;
-          st[key] = val;
-          node.setAttribute(attr, val);
+            if (!node) return;
+            if (st[key] === val) return;
+            st[key] = val;
+            node.setAttribute(attr, val);
         };
-      
-        const makeKey = (kind, variant, s) => [
-          kind, variant,
-          qInt(s.gain, 0.04),
-          qInt(s.gamma, 0.01),
-          qInt(s.contrast, 0.01),
-          qInt(s.bright, 0.2),
-          qInt(s.satF, 0.01),
-          qInt(s.mid, 0.02),
-          qInt(s.toe, 0.2),
-          qInt(s.shoulder, 0.2),
-          qInt(s.temp, 0.2),
-          qInt(s.sharp, 0.2),
-          qInt(s.sharp2, 0.2),
-          qInt(s.clarity, 0.2),
-          qInt(s.dither, 1)
+        
+        const makeKey = (kind, s) => [
+            kind,
+            qInt(s.gain, 0.04),
+            qInt(s.gamma, 0.01),
+            qInt(s.contrast, 0.01),
+            qInt(s.bright, 0.2),
+            qInt(s.satF, 0.01),
+            qInt(s.mid, 0.02),
+            qInt(s.toe, 0.2),
+            qInt(s.shoulder, 0.2),
+            qInt(s.temp, 0.2),
+            qInt(s.sharp, 0.2),
+            qInt(s.sharp2, 0.2),
+            qInt(s.clarity, 0.2),
+            qInt(s.dither, 1)
         ].join('|');
-      
+        
         const smoothstep = (a, b, x) => {
-          const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a))));
-          return t * t * (3 - 2 * t);
+            const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a))));
+            return t * t * (3 - 2 * t);
         };
-      
-        function getToneTableCached(steps, toeN, shoulderN, midN, bright, contrast, gain, invGamma) {
-          const key = `${steps}|${qInt(toeN, 0.02)}|${qInt(shoulderN, 0.02)}|${qInt(midN, 0.02)}|${qInt(bright, 0.2)}|${qInt(contrast, 0.01)}|${qInt(gain, 0.04)}|${qInt(invGamma, 0.01)}`;
-          const hit = toneCache.get(key);
-          if (hit) return hit;
-      
-          if (
-            toeN === 0 && shoulderN === 0 && midN === 0 &&
-            bright === 0 && contrast === 1 &&
-            Math.abs(gain - 1) < 0.01 &&
-            Math.abs(invGamma - 1) < 0.01
-          ) {
-            const res0 = '0 1';
-            toneCache.set(key, res0);
-            return res0;
-          }
-      
-          const br = (bright / 1000);
-          const con = contrast;
-      
-          const toeEnd = 0.34 + toeN * 0.06;
-          const toeAmt = Math.abs(toeN);
-          const toeSign = toeN >= 0 ? 1 : -1;
-      
-          const shoulderStart = 0.90 - shoulderN * 0.10;
-          const shAmt = Math.abs(shoulderN);
-      
-          const ev = Math.log2(Math.max(1e-6, gain));
-          const g = ev * 0.90;
-          const denom = 1 - Math.exp(-g);
-      
-          const out = new Array(steps);
-          let prev = 0;
-      
-          const ig = clamp(invGamma, 0.2, 3.0);
-      
-          for (let i = 0; i < steps; i++) {
-            const x0 = i / (steps - 1);
-      
-            let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
-      
-            const midShape = 4 * x * (1 - x);
-            x = clamp(x + midN * 0.06 * midShape, 0, 1);
-      
-            if (toeAmt > 1e-6) {
-              const w = 1 - smoothstep(0, toeEnd, x);
-              const delta = (toeEnd - x) * w * w;
-              x = clamp(x + toeSign * toeAmt * 0.55 * delta, 0, 1);
+        
+        function getToneTableCached(steps, toeN, shoulderN, midN, bright, contrast, gain, gamma) {
+            const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(bright,0.2)}|${qInt(contrast,0.01)}|${qInt(gain,0.04)}|${qInt(gamma,0.01)}`;
+            const hit = toneCache.get(key);
+            if (hit) return hit;
+        
+            if (
+                toeN === 0 && shoulderN === 0 && midN === 0 &&
+                bright === 0 && contrast === 1 &&
+                Math.abs(gain - 1) < 0.01 &&
+                Math.abs(gamma - 1) < 0.01
+            ) {
+                const res0 = '0 1';
+                toneCache.set(key, res0);
+                return res0;
             }
-      
-            if (shAmt > 1e-6 && x > shoulderStart) {
-              const t = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart));
-              const k = Math.max(0.7, 1.2 + shAmt * 6.5);
-              const n = 1 - Math.exp(-k * t);
-              const d = 1 - Math.exp(-k);
-              const rolled = d > 1e-6 ? (n / d) : t;
-              x = clamp(shoulderStart + (1 - shoulderStart) * rolled, 0, 1);
+        
+            const invG = 1 / clamp(gamma || 1, 0.2, 3);
+            const br = (bright / 1000);
+            const con = contrast;
+        
+            const toeEnd = 0.34 + toeN * 0.06;
+            const toeAmt = Math.abs(toeN);
+            const toeSign = toeN >= 0 ? 1 : -1;
+        
+            const shoulderStart = 0.90 - shoulderN * 0.10;
+            const shAmt = Math.abs(shoulderN);
+        
+            const ev = Math.log2(Math.max(1e-6, gain));
+            const g = ev * 0.90;
+            const denom = 1 - Math.exp(-g);
+        
+            const out = new Array(steps);
+            let prev = 0;
+        
+            for (let i = 0; i < steps; i++) {
+                const x0 = i / (steps - 1);
+                let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
+        
+                const midShape = 4 * x * (1 - x);
+                x = clamp(x + midN * 0.06 * midShape, 0, 1);
+        
+                if (toeAmt > 1e-6) {
+                    const w = 1 - smoothstep(0, toeEnd, x);
+                    const delta = (toeEnd - x) * w * w;
+                    x = clamp(x + toeSign * toeAmt * 0.55 * delta, 0, 1);
+                }
+        
+                if (shAmt > 1e-6 && x > shoulderStart) {
+                    const t = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart));
+                    const k = Math.max(0.7, 1.2 + shAmt * 6.5);
+                    const n = 1 - Math.exp(-k * t);
+                    const d = 1 - Math.exp(-k);
+                    const rolled = d > 1e-6 ? (n / d) : t;
+                    x = clamp(shoulderStart + (1 - shoulderStart) * rolled, 0, 1);
+                }
+        
+                let y = clamp((x - 0.5) * con + 0.5 + br, 0, 1);
+        
+                const g01 = clamp((gain - 1.0) / 2.2, 0, 1);
+                const clipStart = 0.92 - 0.018 * g01;
+                if (y > clipStart) {
+                    const tt = (y - clipStart) / (1 - clipStart);
+                    const ww = tt * tt * (3 - 2 * tt);
+                    const kk = (0.45 + 0.55 * shAmt) * (1.0 + 0.35 * g01);
+                    y = clamp(clipStart + (y - clipStart) * (1 - ww * kk), 0, 1);
+                }
+        
+                if (Math.abs(invG - 1) > 0.001) y = Math.pow(y, invG);
+        
+                if (y < prev) y = prev;
+                prev = y;
+        
+                const yy = Math.round(y * 100000) / 100000;
+                out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy));
             }
-      
-            let y = clamp((x - 0.5) * con + 0.5 + br, 0, 1);
-      
-            const g01 = clamp((gain - 1.0) / 2.2, 0, 1);
-            const clipStart = 0.92 - 0.018 * g01;
-            if (y > clipStart) {
-              const tt = (y - clipStart) / (1 - clipStart);
-              const ww = tt * tt * (3 - 2 * tt);
-              const kBase = (0.45 + 0.55 * shAmt);
-              const kk = kBase * (1.0 + 0.35 * g01);
-              y = clamp(clipStart + (y - clipStart) * (1 - ww * kk), 0, 1);
-            }
-      
-            if (y < prev) y = prev;
-            prev = y;
-      
-            y = clamp(Math.pow(y, ig), 0, 1);
-      
-            const yy = Math.round(y * 100000) / 100000;
-            out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy));
-          }
-      
-          const res = out.join(' ');
-          toneCache.set(key, res);
-          return res;
+        
+            const res = out.join(' ');
+            toneCache.set(key, res);
+            return res;
         }
-      
-        function buildColorMatrix(temp, satF) {
-          const sat = clamp(satF ?? 1, 0, 2.5);
-          const t = clamp(temp ?? 0, -25, 25);
-      
-          let rs = 1, gs = 1, bs = 1;
-          if (t > 0) {
-            rs = 1 + t * 0.012;
-            gs = 1 + t * 0.003;
-            bs = 1 - t * 0.010;
-          } else {
-            const k = -t;
-            bs = 1 + k * 0.012;
-            gs = 1 + k * 0.003;
-            rs = 1 - k * 0.010;
-          }
-      
-          const s = sat;
-          const ir = 0.213, ig = 0.715, ib = 0.072;
-          const a = (1 - s) * ir + s;
-          const b = (1 - s) * ir;
-          const c = (1 - s) * ir;
-          const d = (1 - s) * ig;
-          const e = (1 - s) * ig + s;
-          const f = (1 - s) * ig;
-          const g = (1 - s) * ib;
-          const h = (1 - s) * ib;
-          const i = (1 - s) * ib + s;
-      
-          const v = [
-            (rs * a), (rs * d), (rs * g), 0, 0,
-            (gs * b), (gs * e), (gs * h), 0, 0,
-            (bs * c), (bs * f), (bs * i), 0, 0,
-            0, 0, 0, 1, 0
-          ].map(x => (Math.round(x * 100000) / 100000));
-      
-          return {
-            key: `${t.toFixed(2)}|${sat.toFixed(3)}|${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`,
-            values: v.join(' ')
-          };
+        
+        function buildColorMatrixCached(temp, satF) {
+            const sat = clamp(satF ?? 1, 0, 2.5);
+            const t = clamp(temp ?? 0, -25, 25);
+        
+            const kt = Math.round(t / 0.2) * 0.2;
+            const ks = Math.round(sat / 0.01) * 0.01;
+            const key = `${kt.toFixed(1)}|${ks.toFixed(2)}`;
+        
+            const hit = colorCache.get(key);
+            if (hit) return hit;
+        
+            let rs = 1, gs = 1, bs = 1;
+            if (kt > 0) { rs = 1 + kt * 0.012; gs = 1 + kt * 0.003; bs = 1 - kt * 0.010; }
+            else { const k = -kt; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.010; }
+        
+            const s = ks;
+            const ir = 0.213, ig = 0.715, ib = 0.072;
+            const a = (1 - s) * ir + s;
+            const b = (1 - s) * ir;
+            const c = (1 - s) * ir;
+            const d = (1 - s) * ig;
+            const e = (1 - s) * ig + s;
+            const f = (1 - s) * ig;
+            const g = (1 - s) * ib;
+            const h = (1 - s) * ib;
+            const i = (1 - s) * ib + s;
+        
+            const round5 = (x) => (Math.round(x * 100000) / 100000);
+        
+            const v0  = (rs * a), v1  = (rs * d), v2  = (rs * g);
+            const v5  = (gs * b), v6  = (gs * e), v7  = (gs * h);
+            const v10 = (bs * c), v11 = (bs * f), v12 = (bs * i);
+        
+            const values =
+                `${round5(v0)} ${round5(v1)} ${round5(v2)} 0 0  ` +
+                `${round5(v5)} ${round5(v6)} ${round5(v7)} 0 0  ` +
+                `${round5(v10)} ${round5(v11)} ${round5(v12)} 0 0  ` +
+                `0 0 0 1 0`;
+        
+            const out = { key, values };
+            colorCache.set(key, out);
+            return out;
         }
-      
+        
         function buildSvg(doc) {
-          const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
-          const defs = h('defs', { ns: 'svg' });
-          svg.append(defs);
-      
-          const tryAppend = () => {
-            const r = doc.documentElement || doc.body;
-            if (r) { r.appendChild(svg); return true; }
-            return false;
-          };
-          if (!tryAppend()) {
-            const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50);
-            setTimeout(() => clearInterval(t), 3000);
-          }
-      
-          function appendCommon(filter, baseId) {
-            const tone = h('feComponentTransfer', { ns: 'svg', result: `${baseId}-tone` },
-              ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' }))
-            );
-      
-            const col = h('feColorMatrix', {
-              ns: 'svg',
-              in: `${baseId}-tone`,
-              type: 'matrix',
-              values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
-              result: `${baseId}-col`
-            });
-      
-            filter.append(tone, col);
-      
-            return { toneFuncs: Array.from(tone.children), col };
-          }
-      
-          function appendDetail(filter, baseId) {
-            const lum = h('feColorMatrix', {
-              ns: 'svg',
-              in: `${baseId}-tone`,
-              type: 'matrix',
-              values: '0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0',
-              result: `${baseId}-lum`
-            });
-      
-            const lumB1 = h('feGaussianBlur', { ns: 'svg', in: `${baseId}-lum`, stdDeviation: '0', result: `${baseId}-lumB1` });
-            const lumHP1 = h('feComposite', { ns: 'svg', in: `${baseId}-lum`, in2: `${baseId}-lumB1`, operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: `${baseId}-lumHP1` });
-            const shAdd1 = h('feComposite', { ns: 'svg', in: `${baseId}-col`, in2: `${baseId}-lumHP1`, operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: `${baseId}-sh1` });
-      
-            const lumB2 = h('feGaussianBlur', { ns: 'svg', in: `${baseId}-lum`, stdDeviation: '0', result: `${baseId}-lumB2` });
-            const lumHP2 = h('feComposite', { ns: 'svg', in: `${baseId}-lum`, in2: `${baseId}-lumB2`, operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: `${baseId}-lumHP2` });
-            const shAdd2 = h('feComposite', { ns: 'svg', in: `${baseId}-sh1`, in2: `${baseId}-lumHP2`, operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: `${baseId}-sh2` });
-      
-            const lumBC = h('feGaussianBlur', { ns: 'svg', in: `${baseId}-lum`, stdDeviation: '0', result: `${baseId}-lumBC` });
-            const lumHPC = h('feComposite', { ns: 'svg', in: `${baseId}-lum`, in2: `${baseId}-lumBC`, operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: `${baseId}-lumHPC` });
-            const clAdd = h('feComposite', { ns: 'svg', in: `${baseId}-sh2`, in2: `${baseId}-lumHPC`, operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: `${baseId}-det` });
-      
-            filter.append(lum, lumB1, lumHP1, shAdd1, lumB2, lumHP2, shAdd2, lumBC, lumHPC, clAdd);
-      
-            return { lumB1, shAdd1, lumB2, shAdd2, lumBC, clAdd, detOut: clAdd };
-          }
-      
-          function appendNoise(filter, baseId, inId) {
-            const feImg = h('feImage', { ns: 'svg', href: getNoiseUrl(), preserveAspectRatio: 'none', result: `${baseId}-noiseImg` });
-            const feTile = h('feTile', { ns: 'svg', in: `${baseId}-noiseImg`, result: `${baseId}-noise` });
-            const feComp = h('feComposite', {
-              ns: 'svg',
-              in: inId,
-              in2: `${baseId}-noise`,
-              operator: 'arithmetic',
-              k1: '0', k2: '1', k3: '0', k4: '0',
-              result: `${baseId}-out`
-            });
-            filter.append(feImg, feTile, feComp);
-            return { feComp, outId: `${baseId}-out` };
-          }
-      
-          function mkFilterVariant(kind, variant) {
-            const fid = `vsc-${kind}-${variant}-${config.VSC_ID}`;
-      
-            const filter = h('filter', {
-              ns: 'svg',
-              id: fid,
-              'color-interpolation-filters': 'sRGB',
-              x: '-15%', y: '-15%', width: '130%', height: '130%'
-            });
-      
-            const baseId = `${kind}-${variant}-${config.VSC_ID}`;
-            const common = appendCommon(filter, baseId);
-      
-            let detail = null;
-            let noise = null;
-            let outId = `${baseId}-col`; 
-      
-            if (variant === 'detail' || variant === 'full') {
-              detail = appendDetail(filter, baseId);
-              outId = `${baseId}-det`;
+            const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
+            const defs = h('defs', { ns: 'svg' });
+            svg.append(defs);
+        
+            function mkUnifiedFilter(kind) {
+                const fid = `vsc-${kind}-${config.VSC_ID}`;
+                const filter = h('filter', {
+                    ns: 'svg', id: fid,
+                    'color-interpolation-filters': 'sRGB',
+                    x: '-15%', y: '-15%', width: '130%', height: '130%'
+                });
+        
+                const tone = h('feComponentTransfer', { ns: 'svg', result: 'tone' },
+                    ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' }))
+                );
+        
+                const col = h('feColorMatrix', {
+                    ns: 'svg', in: 'tone', type: 'matrix',
+                    values: '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0',
+                    result: 'col'
+                });
+        
+                const lum = h('feColorMatrix', {
+                    ns: 'svg', in: 'tone', type: 'matrix',
+                    values: '0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0.2126 0.7152 0.0722 0 0  0 0 0 1 0',
+                    result: 'lum'
+                });
+        
+                const lumB = h('feGaussianBlur', { ns: 'svg', in: 'lum', stdDeviation: '0', result: 'lumB' });
+                const lumHP = h('feComposite', { ns: 'svg', in: 'lum', in2: 'lumB', operator: 'arithmetic', k2: '1', k3: '-1', k4: '0', result: 'hp' });
+                const det = h('feComposite', { ns: 'svg', in: 'col', in2: 'hp', operator: 'arithmetic', k2: '1', k3: '0', k4: '0', result: 'det' });
+        
+                const feImg = h('feImage', { ns: 'svg', href: getNoiseUrl(), preserveAspectRatio: 'none', result: 'noiseImg' });
+                const feTile = h('feTile', { ns: 'svg', in: 'noiseImg', result: 'noise' });
+                const feComp = h('feComposite', { ns: 'svg', in: 'det', in2: 'noise', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'out' });
+        
+                filter.append(tone, col, lum, lumB, lumHP, det, feImg, feTile, feComp);
+                defs.append(filter);
+        
+                return {
+                    fid,
+                    toneFuncs: Array.from(tone.children),
+                    col,
+                    lumB,
+                    det,
+                    feComp,
+                    st: {
+                        lastKey: '',
+                        toneKey: '', toneTable: '',
+                        colKey: '',
+                        detailKey: '',
+                        noiseKey: '',
+                        __b: '', __k: ''
+                    }
+                };
             }
-            if (variant === 'full') {
-              noise = appendNoise(filter, baseId, `${baseId}-det`);
-              outId = noise.outId;
-            } 
-      
-            defs.append(filter);
-      
-            return {
-              fid,
-              common,
-              detail,
-              noise,
-              st: {
-                lastKey: '',
-                toneKey: '',
-                toneTable: '',
-                colKey: '',
-                detailKey: '',
-                noiseKey: '',
-                __b1: '', __b2: '', __bc: '',
-                __kSharp: '', __kSharp2: '', __kClar: ''
-              }
+        
+            const ctx = { svg, defs, video: mkUnifiedFilter('video'), image: mkUnifiedFilter('image') };
+        
+            const tryAppend = () => {
+                const r = doc.documentElement || doc.body;
+                if (r) { r.appendChild(svg); return true; }
+                return false;
             };
-          }
-      
-          const ctx = {
-            svg, defs,
-            video: {
-              basic: mkFilterVariant('video', 'basic'),
-              detail: mkFilterVariant('video', 'detail'),
-              full: mkFilterVariant('video', 'full')
-            },
-            image: {
-              basic: mkFilterVariant('image', 'basic'),
-              detail: mkFilterVariant('image', 'detail'),
-              full: mkFilterVariant('image', 'full')
+            if (!tryAppend()) {
+                const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50);
+                setTimeout(() => clearInterval(t), 3000);
             }
-          };
-      
-          return ctx;
+            return ctx;
         }
-      
+        
         function ensureCtx(doc) {
-          let ctx = ctxMap.get(doc);
-          if (!ctx) {
-            ctx = buildSvg(doc);
-            ctxMap.set(doc, ctx);
-          }
-          return ctx;
-        }
-      
-        function updateToneAndColor(nodes, sEff) {
-          const st = nodes.st;
-      
-          const toeN = clamp((sEff.toe || 0) / 14, -1, 1);
-          const shN  = clamp((sEff.shoulder || 0) / 16, -1, 1);
-          const midN = clamp((sEff.mid || 0), -1, 1);
-      
-          const ditherOn = (sEff.dither || 0) > 0;
-          const steps = ditherOn ? (CONFIG.IS_LOW_END ? 64 : 96) : (CONFIG.IS_LOW_END ? 96 : 128);
-      
-          const kToe = qInt(toeN, 0.02);
-          const kSh  = qInt(shN, 0.02);
-          const kMid = qInt(midN, 0.02);
-          const kBr  = qInt(sEff.bright || 0, 0.2);
-          const kCon = qInt(sEff.contrast || 1, 0.01);
-          const kGain = qInt(sEff.gain || 1, 0.04);
-      
-          const gamma = clamp(sEff.gamma || 1, 0.2, 3);
-          const invG = 1 / gamma;
-          const kInvG = qInt(invG, 0.01);
-      
-          const toneKey = `${steps}|${kToe}|${kSh}|${kMid}|${kBr}|${kCon}|${kGain}|${kInvG}`;
-          if (st.toneKey !== toneKey) {
-            st.toneKey = toneKey;
-            const table = getToneTableCached(
-              steps,
-              kToe * 0.02,
-              kSh * 0.02,
-              kMid * 0.02,
-              kBr * 0.2,
-              kCon * 0.01,
-              kGain * 0.04,
-              kInvG * 0.01
-            );
-            if (st.toneTable !== table) {
-              st.toneTable = table;
-              for (const fn of nodes.common.toneFuncs) fn.setAttribute('tableValues', table);
+            let ctx = ctxMap.get(doc);
+            if (!ctx) {
+                ctx = buildSvg(doc);
+                ctxMap.set(doc, ctx);
             }
-          }
-      
-          const cm = buildColorMatrix(sEff.temp || 0, sEff.satF ?? 1);
-          if (st.colKey !== cm.key) {
-            st.colKey = cm.key;
-            nodes.common.col.setAttribute('values', cm.values);
-          }
+            return ctx;
         }
-      
+        
+        function updateTone(nodes, sEff) {
+            const st = nodes.st;
+        
+            const toeN = clamp((sEff.toe || 0) / 14, -1, 1);
+            const shN  = clamp((sEff.shoulder || 0) / 16, -1, 1);
+            const midN = clamp((sEff.mid || 0), -1, 1);
+        
+            const ditherOn = (sEff.dither || 0) > 0;
+            const steps = ditherOn ? (CONFIG.IS_LOW_END ? 64 : 96) : (CONFIG.IS_LOW_END ? 96 : 128);
+        
+            const kToe = qInt(toeN, 0.02);
+            const kSh  = qInt(shN, 0.02);
+            const kMid = qInt(midN, 0.02);
+            const kBr  = qInt(sEff.bright || 0, 0.2);
+            const kCon = qInt(sEff.contrast || 1, 0.01);
+            const kGain = qInt(sEff.gain || 1, 0.04);
+            const kGam  = qInt(sEff.gamma || 1, 0.01);
+        
+            const toneKey = `${steps}|${kToe}|${kSh}|${kMid}|${kBr}|${kCon}|${kGain}|${kGam}`;
+            if (st.toneKey !== toneKey) {
+                st.toneKey = toneKey;
+                const table = getToneTableCached(
+                    steps,
+                    kToe * 0.02,
+                    kSh * 0.02,
+                    kMid * 0.02,
+                    kBr * 0.2,
+                    kCon * 0.01,
+                    kGain * 0.04,
+                    kGam * 0.01
+                );
+                if (st.toneTable !== table) {
+                    st.toneTable = table;
+                    for (const fn of nodes.toneFuncs) fn.setAttribute('tableValues', table);
+                }
+            }
+        }
+        
+        function updateColor(nodes, sEff) {
+            const st = nodes.st;
+            const cm = buildColorMatrixCached(sEff.temp || 0, sEff.satF ?? 1);
+            if (st.colKey !== cm.key) {
+                st.colKey = cm.key;
+                nodes.col.setAttribute('values', cm.values);
+            }
+        }
+        
         function updateDetail(nodes, sEff) {
-          const st = nodes.st;
-          const d = nodes.detail;
-          if (!d) return;
-      
-          const g = clamp(sEff.gain || 1, 1, 8);
-          const hiProtect = clamp((g - 1) / 4.0 + Math.max(0, (sEff.shoulder || 0)) / 18, 0, 1);
-      
-          const scaleBase = 1 - hiProtect * 0.25;
-          const scaleHF   = 1 - hiProtect * 0.55;
-      
-          const sharpAdj  = (sEff.sharp || 0)   * scaleBase;
-          const sharp2Adj = (sEff.sharp2 || 0)  * scaleHF;
-          const clarAdj   = (sEff.clarity || 0) * (1 - hiProtect * 0.35);
-      
-          const detailKey = `${sharpAdj.toFixed(2)}|${sharp2Adj.toFixed(2)}|${clarAdj.toFixed(2)}`;
-          if (st.detailKey === detailKey) return;
-          st.detailKey = detailKey;
-      
-          const r1 = sharpAdj  > 0 ? (1.10 + (sharpAdj  / 50) * 0.60) : 0;
-          const r2 = sharp2Adj > 0 ? (0.60 + (sharp2Adj / 50) * 0.40) : 0;
-          const rc = clarAdj   > 0 ? (2.20 + (clarAdj   / 50) * 1.00) : 0;
-      
-          const k1 = sharpAdj  > 0 ? (sharpAdj  / 50) * 1.50 : 0;
-          const k2 = sharp2Adj > 0 ? (sharp2Adj / 50) * 1.20 : 0;
-          const kc = clarAdj   > 0 ? (clarAdj   / 50) * 0.50 : 0;
-      
-          setAttr(d.lumB1, 'stdDeviation', r1 ? r1.toFixed(2) : '0', st, '__b1');
-          setAttr(d.shAdd1, 'k3', k1 ? k1.toFixed(3) : '0', st, '__kSharp');
-      
-          setAttr(d.lumB2, 'stdDeviation', r2 ? r2.toFixed(2) : '0', st, '__b2');
-          setAttr(d.shAdd2, 'k3', k2 ? k2.toFixed(3) : '0', st, '__kSharp2');
-      
-          setAttr(d.lumBC, 'stdDeviation', rc ? rc.toFixed(2) : '0', st, '__bc');
-          setAttr(d.clAdd, 'k3', kc ? kc.toFixed(3) : '0', st, '__kClar');
+            const st = nodes.st;
+        
+            const g = clamp(sEff.gain || 1, 1, 8);
+            const hiProtect = clamp((g - 1) / 4.0 + Math.max(0, (sEff.shoulder || 0)) / 18, 0, 1);
+        
+            const s1 = clamp((sEff.sharp || 0) / 50, 0, 1);
+            const s2 = clamp((sEff.sharp2 || 0) / 50, 0, 1);
+            const cl = clamp((sEff.clarity || 0) / 50, 0, 1);
+        
+            let r = 0.70 + 1.10 * s1 + 1.30 * s2 + 2.10 * cl;
+            r *= (1 - hiProtect * 0.55);
+            if (r < 0.01) r = 0;
+        
+            let k = (1.35 * s1 + 1.00 * s2 + 0.45 * cl);
+            k *= (1 - hiProtect * 0.50);
+        
+            const detailKey = `${r.toFixed(2)}|${k.toFixed(3)}`;
+            if (st.detailKey === detailKey) return;
+            st.detailKey = detailKey;
+        
+            setAttr(nodes.lumB, 'stdDeviation', r ? r.toFixed(2) : '0', st, '__b');
+            setAttr(nodes.det,  'k3',          k ? k.toFixed(3) : '0', st, '__k');
         }
-      
+        
         function updateNoise(nodes, sEff) {
-          const st = nodes.st;
-          const n = nodes.noise;
-          if (!n) return;
-      
-          const amt = clamp((sEff.dither || 0) / 100, 0, 1);
-          const k3 = (amt * 0.04).toFixed(4);
-          const k4 = (-0.5 * amt * 0.04).toFixed(4);
-          const nk = `${k3}|${k4}`;
-      
-          if (st.noiseKey !== nk) {
-            st.noiseKey = nk;
-            n.feComp.setAttribute('k3', k3);
-            n.feComp.setAttribute('k4', k4);
-          }
-        }
-      
-        function pickVariant(sEff) {
-          const detailOn = (sEff.sharp > 0.01) || (sEff.sharp2 > 0.01) || (sEff.clarity > 0.01);
-          const noiseOn = (sEff.dither || 0) > 0.5;
-          if (noiseOn) return 'full';
-          if (detailOn) return 'detail';
-          return 'basic';
-        }
-      
-        function prepare(doc, sEff, kind) {
-          const ctx = ensureCtx(doc);
-      
-          const variant = pickVariant(sEff);
-          const nodes = ctx[kind][variant];
-      
-          const key = makeKey(kind, variant, sEff);
-          if (nodes.st.lastKey !== key) {
-            nodes.st.lastKey = key;
-            updateToneAndColor(nodes, sEff);
-            if (variant === 'detail' || variant === 'full') updateDetail(nodes, sEff);
-            if (variant === 'full') updateNoise(nodes, sEff);
-          }
-      
-          return `url(#${nodes.fid})`;
-        }
-      
-        return {
-          prepare,
-          prepareCached: (doc, sEff, kind) => {
-            try { return prepare(doc, sEff, kind); }
-            catch (_) { return ''; }
-          },
-          applyUrl: (el, url) => {
-            if (el.style.filter !== url) {
-              el.style.setProperty('filter', url, 'important');
-              el.style.setProperty('-webkit-filter', url, 'important');
+            const st = nodes.st;
+            const amt = clamp((sEff.dither || 0) / 100, 0, 1);
+        
+            const k3 = (amt * 0.04).toFixed(4);
+            const k4 = (-0.5 * amt * 0.04).toFixed(4);
+            const nk = `${k3}|${k4}`;
+            if (st.noiseKey !== nk) {
+                st.noiseKey = nk;
+                nodes.feComp.setAttribute('k3', k3);
+                nodes.feComp.setAttribute('k4', k4);
             }
-          },
-          clear: (el) => {
-            el.style.removeProperty('filter');
-            el.style.removeProperty('-webkit-filter');
-          }
+        }
+        
+        function prepare(doc, s, kind) {
+            const ctx = ensureCtx(doc);
+            const nodes = (kind === 'video') ? ctx.video : ctx.image;
+        
+            const key = makeKey(kind, s);
+            if (nodes.st.lastKey !== key) {
+                nodes.st.lastKey = key;
+                updateTone(nodes, s);
+                updateColor(nodes, s);
+                updateDetail(nodes, s);
+                updateNoise(nodes, s);
+            }
+        
+            return `url(#${nodes.fid})`;
+        }
+        
+        return {
+            prepare,
+            prepareCached: (doc, s, kind) => {
+                try { return prepare(doc, s, kind); } catch (_) { return ''; }
+            },
+            applyUrl: (el, url) => {
+                if (el.style.filter !== url) {
+                    el.style.setProperty('filter', url, 'important');
+                    el.style.setProperty('-webkit-filter', url, 'important');
+                }
+            },
+            clear: (el) => {
+                el.style.removeProperty('filter');
+                el.style.removeProperty('-webkit-filter');
+            }
         };
     }
 
@@ -1582,279 +1478,350 @@
     `;
 
     function createAE(sm, { IS_MOBILE, Utils }, onAE) {
-        let worker, canvas, ctx2d, activeVideo = null, isRunning = false, workerBusy = false, targetToken = 0;
-        let lastStats = { p10: -1, p35: -1, p50: -1, p60: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, std: 0, rd: 0 };
-        let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0, curGain = 1.0;
-        let evAggressiveUntil = 0, useRVFC = false, rvfcToken = 0, __prevFrame = null, __motion01 = 1;
-        let outEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0, gain: 1 };
+        let worker, canvas, ctx2d, activeVideo = null;
+        let isRunning = false, workerBusy = false, targetToken = 0;
+      
+        let lastStats = { p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, rd: 0 };
+        let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0;
+      
+        let curGain = 1.0;
+        let useRVFC = false, rvfcToken = 0;
+        let __prevFrame = null, __motion01 = 1;
         let pausedTimer = 0;
+      
         const { clamp } = Utils;
-
+      
         let __packKey = '', __pack = null;
         const getPack = () => {
-            const name = sm.get(P.V_AE_PROFILE) || 'balanced';
-            const key = (IS_MOBILE ? 'm|' : 'p|') + name;
-            if (key !== __packKey) { __packKey = key; __pack = getAePack(IS_MOBILE, name); }
-            return __pack;
+          const name = sm.get(P.V_AE_PROFILE) || 'balanced';
+          const key = (IS_MOBILE ? 'm|' : 'p|') + name;
+          if (key !== __packKey) { __packKey = key; __pack = getAePack(IS_MOBILE, name); }
+          return __pack;
         };
         const getCfg = () => getPack().cfg;
         const getLook = () => getPack().look;
-
+      
         const riskFrom = (p95, p98, clipFrac, clipLimit) => {
-          const hi0 = clamp((p95 - 0.88) / 0.10, 0, 1);
-          const hi1 = clamp((p98 - 0.965) / 0.030, 0, 1);
-          const clp = clamp((clipFrac - clipLimit) / (clipLimit * 4.0), 0, 1);
-          return clamp(Math.max(hi0 * 0.75 + hi1 * 0.85, clp), 0, 1);
+          const hi95 = clamp((p95 - 0.885) / 0.095, 0, 1);
+          const hi98 = clamp((p98 - 0.968) / 0.028, 0, 1);
+          const clp  = clamp((clipFrac - clipLimit) / (clipLimit * 4.0), 0, 1);
+          return clamp(Math.max(hi95 * 0.70 + hi98 * 0.90, clp), 0, 1);
         };
-        
+      
         const sceneChangeFrom = (avgLumaNow, avgLumaPrev, motion01, cf01) => {
           if (avgLumaPrev < 0) return 1;
           const dl = Math.abs(avgLumaNow - avgLumaPrev);
           const m = clamp(motion01, 0, 1);
           const c = clamp(cf01, 0, 1);
-          const x = dl / (0.040 + 0.020 * (1 - c) + 0.015 * (1 - m));
-          return clamp(x, 0, 1);
+          const denom = (0.040 + 0.020 * (1 - c) + 0.015 * (1 - m));
+          return clamp(dl / denom, 0, 1);
         };
-        
+      
         const targetMidFrom = (base, p50, risk01) => {
-          const darkBoost = clamp((0.16 - p50) / 0.10, 0, 1) * 0.045; 
-          const riskCut   = risk01 * 0.030;                           
+          const darkBoost = clamp((0.17 - p50) / 0.11, 0, 1) * 0.050;
+          const riskCut   = risk01 * 0.030;
           return clamp(base + darkBoost - riskCut, 0.20, 0.34);
         };
-
-        const computeTargetEV = (stats, cfg) => {
-            const p35 = clamp(stats.p35 ?? stats.p50, 0.01, 0.99);
-            const p50 = clamp(stats.p50, 0.01, 0.99);
-          
-            const key = clamp(p50 * 0.70 + p35 * 0.30, 0.01, 0.99);
-          
-            const risk01 = riskFrom(stats.p95 ?? stats.p90, stats.p98 ?? stats.p95, stats.clipFrac ?? 0, cfg.CLIP_FRAC_LIMIT);
-            const targetMid = targetMidFrom(cfg.TARGET_MID_BASE, p50, risk01);
-          
-            let ev = Math.log2(targetMid / key) * cfg.STRENGTH;
-          
-            ev = clamp(ev, cfg.MAX_DOWN_EV, cfg.MAX_UP_EV * (1 - 0.35 * risk01));
-          
-            if (risk01 > 0.55) ev = Math.min(ev, 0);
-          
-            const p95 = clamp(stats.p95 ?? stats.p90, 0.01, 0.999);
-            const p98 = clamp(stats.p98 ?? stats.p95, 0.01, 0.999);
-            const safeCap = Math.log2(Math.max(1, Math.min(0.985 / p98, 0.98 / p95))) - (0.06 * risk01);
-            ev = Math.min(ev, safeCap);
-          
-            if (Math.abs(ev) < cfg.DEAD_IN) ev = 0;
-          
-            return ev;
+      
+        const computeTargetEV = (s, cfg) => {
+          const p35 = clamp(s.p35 ?? s.p50, 0.01, 0.99);
+          const p50 = clamp(s.p50, 0.01, 0.99);
+      
+          const key = clamp(p50 * 0.72 + p35 * 0.28, 0.01, 0.99);
+      
+          const risk01 = riskFrom(s.p95 ?? s.p90, s.p98 ?? s.p95, s.clipFrac ?? 0, cfg.CLIP_FRAC_LIMIT);
+          const targetMid = targetMidFrom(cfg.TARGET_MID_BASE, p50, risk01);
+      
+          let ev = Math.log2(targetMid / key) * cfg.STRENGTH;
+      
+          ev = clamp(ev, cfg.MAX_DOWN_EV, cfg.MAX_UP_EV * (1 - 0.35 * risk01));
+          if (risk01 > 0.58) ev = Math.min(ev, 0);
+      
+          const p95 = clamp(s.p95 ?? s.p90, 0.01, 0.999);
+          const p98 = clamp(s.p98 ?? s.p95, 0.01, 0.999);
+          const safeCap = Math.log2(Math.max(1, Math.min(0.985 / p98, 0.980 / p95))) - (0.06 * risk01);
+          ev = Math.min(ev, safeCap);
+      
+          if (Math.abs(ev) < cfg.DEAD_IN) ev = 0;
+          return ev;
         };
-
-        const processResult = (data) => {
-            if (!data || data.token !== targetToken) return;
-            const cfg = getCfg(); const now = performance.now();
-            const uiBar = (data.botAvg > 0.2 && data.botStd < 0.06) || (data.clipFracBottom > (cfg.CLIP_FRAC_LIMIT * 4) && data.botStd < 0.04);
-            const subLikely = (data.clipFracBottom > cfg.CLIP_FRAC_LIMIT * 2) && data.p98 > 0.97 && data.p50 < 0.22 && data.stdDev > 0.06 && data.botStd > 0.045 && !uiBar;
-            const stats = {
-                p10: subLikely ? data.p10T : data.p10, p35: subLikely ? data.p35T : data.p35, p50: subLikely ? data.p50T : data.p50, p60: subLikely ? data.p60T : data.p60,
-                p90: subLikely ? data.p90T : data.p90, p95: subLikely ? data.p95T : data.p95, p98: subLikely ? data.p98T : data.p98,
-                clipFrac: data.clipFrac, cf: subLikely ? (data.cfT ?? data.cf) : data.cf, std: subLikely ? data.stdDevT : data.stdDev, 
-                rd: (data.skinScore != null) ? data.skinScore : data.redDominance
-            };
-
-            const dt = Math.min(now - lastEmaT, 500); lastEmaT = now;
-            const tauStats = clamp((activeVideo?.paused ? 360 : cfg.DT_CAP_MS) + (1 - __motion01) * 180, 180, 650);
-            
-            const risk01 = riskFrom(lastStats.p95, lastStats.p98, lastStats.clipFrac ?? 0, cfg.CLIP_FRAC_LIMIT);
-            const cf01 = clamp(lastStats.cf ?? 0.5, 0, 1);
-            
-            const sc01 = sceneChangeFrom(data.avgLuma, lastLuma, __motion01, cf01);
-            lastLuma = data.avgLuma;
-
-            const scBoost = clamp((sc01 - 0.55) / 0.35, 0, 1); 
-            const aBase = 1 - Math.exp(-dt / tauStats);
-            const a = clamp(aBase + scBoost * 0.35, 0, 1); 
-            
-            for (const k of Object.keys(lastStats)) { 
-                const v = stats[k]; 
-                if (Number.isFinite(v)) lastStats[k] = lastStats[k] < 0 ? v : v * a + lastStats[k] * (1 - a); 
-            }
-            
-            let targetEV = computeTargetEV(lastStats, cfg);
-            
-            const aggressive = (now < evAggressiveUntil);
-            const tauMult = aggressive ? 0.55 : 1.0;
-            const tauBase = (sc01 > 0.55) ? cfg.TAU_AGGRESSIVE : (targetEV > Math.log2(curGain) ? cfg.TAU_UP : cfg.TAU_DOWN);
-            const tau = tauBase * (1 + risk01 * 1.10) * tauMult;
-            
-            const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS);
-            lastApplyT = now;
-            
-            const alphaA = 1 - Math.exp(-dtA / tau);
-            const curEV = Math.log2(curGain);
-            curGain = Math.pow(2, curEV + (targetEV - curEV) * alphaA);
-            
-            const ev01 = clamp(Math.log2(curGain) / 1.55, 0, 1);
-            const p50 = clamp(lastStats.p50, 0, 1);
-            const p10 = clamp(lastStats.p10, 0, 1);
-            const p90 = clamp(lastStats.p90, 0, 1);
-            const sceneContrast = clamp(p90 - p10, 0, 1);
-            const flat01 = clamp((0.45 - sceneContrast) / 0.25, 0, 1);
-            const lowKey01 = clamp((0.22 - p50) / 0.14, 0, 1);
-            
-            let br = ev01 * 6.5 * clamp(0.52 - p50, -0.20, 0.20);
-            let conF = 1 + ev01 * 0.045 * flat01;
-            let satF = 1 + (1 - cf01) * 0.22 * (1 - risk01 * 0.65);
-            let mid = ev01 * 0.55 * clamp((0.50 - p50) / 0.22, -1, 1);
-            let toe = (4.0 + 7.0 * ev01) * lowKey01;
-            let shoulder = (6.0 + 7.0 * ev01) * risk01;
-
-            const look = getLook && getLook();
-            if (look) {
-                br *= (look.brMul ?? 1.0);
-                satF *= (look.satMul ?? 1.0);
-                conF += (look.conAdd ?? 0);
-                mid *= (look.midMul ?? 1.0);
-                toe *= (look.toeMul ?? 1.0);
-                shoulder *= (look.shMul ?? 1.0);
-            }
-            
-            br *= (1 - 0.85 * risk01);
-            shoulder *= (1 - 0.60 * risk01);
-            conF = clamp(conF - 0.012 * risk01, 0.90, 1.14);
-            satF = clamp(satF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.18 - 0.10 * risk01));
-            
-            br = clamp(br, -14.0, 14.0);
-            mid = clamp(mid, -0.95, 0.95);
-            toe = clamp(toe, 0, 14.0);
-            shoulder = clamp(shoulder, 0, 16.0);
-
-            const tauOut = aggressive ? 90 : 140; 
-            const alphaOut = 1 - Math.exp(-dtA / tauOut);
-            const raw = { gain: curGain, conF, satF, mid, toe, shoulder, brightAdd: br };
-            
-            outEma.gain      = outEma.gain      + (raw.gain      - outEma.gain)      * alphaOut;
-            outEma.conF      = outEma.conF      + (raw.conF      - outEma.conF)      * alphaOut;
-            outEma.satF      = outEma.satF      + (raw.satF      - outEma.satF)      * alphaOut;
-            outEma.mid       = outEma.mid       + (raw.mid       - outEma.mid)       * alphaOut;
-            outEma.toe       = outEma.toe       + (raw.toe       - outEma.toe)       * alphaOut;
-            outEma.shoulder  = outEma.shoulder  + (raw.shoulder  - outEma.shoulder)  * alphaOut;
-            outEma.brightAdd = outEma.brightAdd + (raw.brightAdd - outEma.brightAdd) * alphaOut;
-            
-            if (onAE) {
-                onAE({
-                  gain: outEma.gain, gammaF: 1,
-                  conF: outEma.conF, satF: outEma.satF,
-                  mid: outEma.mid, toe: outEma.toe, shoulder: outEma.shoulder,
-                  brightAdd: outEma.brightAdd, tempAdd: 0,
-                  hiRisk: risk01, cf: cf01,
-                  luma: data.avgLuma * 100,
-                  clipFrac: lastStats.clipFrac,
-                  rd: lastStats.rd
-                });
-            }
+      
+        const computeLook = (ev, s, risk01, cfg) => {
+          const p50 = clamp(s.p50 ?? 0.5, 0, 1);
+          const p10 = clamp(s.p10 ?? 0.1, 0, 1);
+          const p90 = clamp(s.p90 ?? 0.9, 0, 1);
+      
+          const cf01 = clamp(s.cf ?? 0.5, 0, 1);
+      
+          const sceneContrast = clamp(p90 - p10, 0, 1);
+          const flat01 = clamp((0.46 - sceneContrast) / 0.26, 0, 1);
+          const lowKey01 = clamp((0.23 - p50) / 0.14, 0, 1);
+      
+          const evNorm = clamp(ev / 1.55, -1, 1);
+          const up01 = clamp(evNorm, 0, 1);
+      
+          let brightAdd = (up01 * 7.0) * clamp(0.52 - p50, -0.22, 0.22);
+          let mid = (up01 * 0.55) * clamp((0.50 - p50) / 0.22, -1, 1);
+      
+          let toe = (4.2 + 7.2 * up01) * lowKey01;
+          let shoulder = (5.8 + 7.2 * up01) * risk01;
+      
+          let conF = 1 + (up01 * 0.050) * flat01 - (0.012 * risk01);
+      
+          let satF = 1 + (1 - cf01) * 0.22 * (1 - risk01 * 0.65);
+          satF = clamp(satF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.16 - 0.10 * risk01));
+      
+          brightAdd *= (1 - 0.85 * risk01);
+          shoulder  *= (1 - 0.60 * risk01);
+      
+          brightAdd = clamp(brightAdd, -14, 14);
+          mid       = clamp(mid, -0.95, 0.95);
+          toe       = clamp(toe, 0, 14);
+          shoulder  = clamp(shoulder, 0, 16);
+          conF      = clamp(conF, 0.90, 1.12);
+      
+          return { conF, satF, mid, toe, shoulder, brightAdd };
         };
-
-        const _motionFromFrame = (rgba) => {
-            const step = CONFIG.IS_LOW_END ? 32 : 16;
-            if (!__prevFrame) {
-                __prevFrame = new Uint8Array(Math.ceil(rgba.length / (4 * step)));
-                let j = 0; for (let i = 0; i < rgba.length; i += 4 * step) { const y = (0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]) | 0; __prevFrame[j++] = y; }
-                __motion01 = 1; return;
-            }
-            let diff = 0, cnt = 0, j = 0;
-            for (let i = 0; i < rgba.length && j < __prevFrame.length; i += 4 * step) {
-                const y = (0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]) | 0;
-                diff += Math.abs(y - __prevFrame[j]); __prevFrame[j++] = y; cnt++;
-            }
-            const d = cnt ? (diff / cnt) : 0; __motion01 = Math.max(0, Math.min(1, d / 28));
+      
+        const disableAEHard = () => {
+          try { worker?.terminate(); } catch (_) {}
+          worker = null;
+          workerBusy = false;
+          isRunning = false;
+          targetToken++;
+          if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; }
+          try { sm.set(P.V_AE, false); } catch (_) {}
         };
-
-        const disableAEHard = () => { try { worker?.terminate(); } catch (_) { } worker = null; workerBusy = false; isRunning = false; targetToken++; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) { } workerUrl = null; } try { sm.set(P.V_AE, false); } catch (e) { } };
+      
         let workerUrl = null;
-        
         const ensureWorker = () => {
-            if (worker) return worker;
-            try {
-                if (!workerUrl) workerUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' }));
-                worker = new Worker(workerUrl);
-                worker.onmessage = (e) => { workerBusy = false; processResult(e.data); };
-                worker.onerror = () => { workerBusy = false; disableAEHard(); };
-                return worker;
-            } catch (e) {
-                try { console.warn('[VSC] worker blocked, AE disabled:', e); } catch (_) {}
-                disableAEHard();
-                return null;
+          if (worker) return worker;
+          try {
+            if (!workerUrl) workerUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' }));
+            worker = new Worker(workerUrl);
+            worker.onmessage = (e) => { workerBusy = false; processResult(e.data); };
+            worker.onerror = () => { workerBusy = false; disableAEHard(); };
+            return worker;
+          } catch (e) {
+            try { console.warn('[VSC] worker blocked, AE disabled:', e); } catch (_) {}
+            disableAEHard();
+            return null;
+          }
+        };
+      
+        const _motionFromFrame = (rgba) => {
+          const step = CONFIG.IS_LOW_END ? 32 : 16;
+          if (!__prevFrame) {
+            __prevFrame = new Uint8Array(Math.ceil(rgba.length / (4 * step)));
+            let j = 0;
+            for (let i = 0; i < rgba.length; i += 4 * step) {
+              const y = (0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]) | 0;
+              __prevFrame[j++] = y;
             }
+            __motion01 = 1;
+            return;
+          }
+          let diff = 0, cnt = 0, j = 0;
+          for (let i = 0; i < rgba.length && j < __prevFrame.length; i += 4 * step) {
+            const y = (0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]) | 0;
+            diff += Math.abs(y - __prevFrame[j]);
+            __prevFrame[j++] = y;
+            cnt++;
+          }
+          const d = cnt ? (diff / cnt) : 0;
+          __motion01 = clamp(d / 28, 0, 1);
         };
-
-        const rvfcLoop = (token) => {
-            if (!isRunning || token !== rvfcToken) return;
-            const v = activeVideo;
-            if (!v || !useRVFC) return;
-            const now = performance.now();
-            const minInterval = (v.paused ? 600 : (CONFIG.IS_LOW_END ? 120 : 90)) + (1 - __motion01) * 80;
-            if (now - lastSampleT >= minInterval) sample(v);
-            try { v.requestVideoFrameCallback(() => rvfcLoop(token)); } catch (e) { }
+      
+        const processResult = (data) => {
+          if (!data || data.token !== targetToken) return;
+          const cfg = getCfg();
+          const now = performance.now();
+      
+          const uiBar = (data.botAvg > 0.2 && data.botStd < 0.06) || (data.clipFracBottom > (cfg.CLIP_FRAC_LIMIT * 4) && data.botStd < 0.04);
+          const subLikely = (data.clipFracBottom > cfg.CLIP_FRAC_LIMIT * 2) && data.p98 > 0.97 && data.p50 < 0.22 && data.stdDev > 0.06 && data.botStd > 0.045 && !uiBar;
+      
+          const stats = {
+            p10: subLikely ? data.p10T : data.p10,
+            p35: subLikely ? data.p35T : data.p35,
+            p50: subLikely ? data.p50T : data.p50,
+            p90: subLikely ? data.p90T : data.p90,
+            p95: subLikely ? data.p95T : data.p95,
+            p98: subLikely ? data.p98T : data.p98,
+            clipFrac: data.clipFrac,
+            cf: subLikely ? (data.cfT ?? data.cf) : data.cf,
+            rd: (data.skinScore != null) ? data.skinScore : data.redDominance
+          };
+      
+          const dt = Math.min(now - lastEmaT, 500);
+          lastEmaT = now;
+          const tauStats = clamp((activeVideo?.paused ? 380 : cfg.DT_CAP_MS) + (1 - __motion01) * 160, 180, 650);
+          const a = 1 - Math.exp(-dt / tauStats);
+      
+          for (const k of Object.keys(lastStats)) {
+            const v = stats[k];
+            if (!Number.isFinite(v)) continue;
+            lastStats[k] = (lastStats[k] < 0) ? v : (v * a + lastStats[k] * (1 - a));
+          }
+      
+          const cf01 = clamp(lastStats.cf ?? 0.5, 0, 1);
+          const risk01 = riskFrom(lastStats.p95, lastStats.p98, lastStats.clipFrac ?? 0, cfg.CLIP_FRAC_LIMIT);
+      
+          const sc01 = sceneChangeFrom(data.avgLuma, lastLuma, __motion01, cf01);
+          lastLuma = data.avgLuma;
+      
+          const targetEV = computeTargetEV(lastStats, cfg);
+      
+          const curEV = Math.log2(curGain);
+          const wantUp = targetEV > curEV;
+          const tauBase = (sc01 > 0.55) ? cfg.TAU_AGGRESSIVE : (wantUp ? cfg.TAU_UP : cfg.TAU_DOWN);
+          const tau = tauBase * (1 + risk01 * 1.10);
+      
+          const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS);
+          lastApplyT = now;
+      
+          const alphaA = 1 - Math.exp(-dtA / tau);
+          const nextEV = curEV + (targetEV - curEV) * alphaA;
+          curGain = Math.pow(2, nextEV);
+      
+          const look = computeLook(nextEV, lastStats, risk01, cfg);
+      
+          if (onAE) {
+            onAE({
+              gain: curGain,
+              gammaF: 1, 
+              conF: look.conF,
+              satF: look.satF,
+              mid: look.mid,
+              toe: look.toe,
+              shoulder: look.shoulder,
+              brightAdd: look.brightAdd,
+              tempAdd: 0,
+              hiRisk: risk01,
+              cf: cf01,
+              luma: data.avgLuma * 100,
+              clipFrac: lastStats.clipFrac,
+              rd: lastStats.rd
+            });
+          }
         };
-
+      
         const sample = (v) => {
-            if (!isRunning || !v || v[VSCX.tainted] || document.hidden) return;
-            if (v.readyState < 2 || v[VSCX.visible] === false) return;
-            const now = performance.now();
-            const minInterval = (v.paused ? 600 : (CONFIG.IS_LOW_END ? 120 : 90)) + (1 - __motion01) * 80;
-            if (now - lastSampleT < minInterval) return;
-            lastSampleT = now;
-            if (workerBusy) return;
-            try {
-                if (!canvas) { canvas = document.createElement('canvas'); canvas.width = canvas.height = CONFIG.IS_LOW_END ? 24 : 32; ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false }); }
-                ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
-                const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
-                _motionFromFrame(d.data); workerBusy = true;
-                const wk = ensureWorker();
-                if (wk) wk.postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
-            } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
+          if (!isRunning || !v) return;
+          if (document.hidden) return;
+          if (v[VSCX.tainted]) return;
+          if (v.readyState < 2) return;
+          if (v[VSCX.visible] === false) return;
+      
+          const now = performance.now();
+          const base = (v.paused ? 600 : (CONFIG.IS_LOW_END ? 120 : 90));
+          const minInterval = base + (1 - __motion01) * 80;
+      
+          if (now - lastSampleT < minInterval) return;
+          lastSampleT = now;
+      
+          if (workerBusy) return;
+      
+          try {
+            if (!canvas) {
+              canvas = document.createElement('canvas');
+              canvas.width = canvas.height = CONFIG.IS_LOW_END ? 24 : 32;
+              ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
+            }
+      
+            ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
+            const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
+      
+            _motionFromFrame(d.data);
+      
+            workerBusy = true;
+            const wk = ensureWorker();
+            if (wk) wk.postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
+            else workerBusy = false;
+      
+          } catch (_) {
+            workerBusy = false;
+            v[VSCX.tainted] = true;
+          }
         };
-
-        const startPausedTimer = () => {
-            if (pausedTimer) return;
-            pausedTimer = setInterval(() => { if (!isRunning) return; const v = activeVideo; if (!v) return; if (v.paused) sample(v); }, 650);
+      
+        const rvfcLoop = (token) => {
+          if (!isRunning || token !== rvfcToken) return;
+          const v = activeVideo;
+          if (!v || !useRVFC) return;
+          sample(v);
+          try { v.requestVideoFrameCallback(() => rvfcLoop(token)); } catch (_) {}
         };
-        const stopPausedTimer = () => { if (!pausedTimer) return; clearInterval(pausedTimer); pausedTimer = 0; };
+      
         const tick = () => {
-            if (!isRunning) return;
-            const active = sm.get(P.APP_ACT) && sm.get(P.V_AE);
-            if (!active || !activeVideo || !activeVideo.isConnected) { if (!useRVFC) setTimeout(tick, 800); return; }
-            sample(activeVideo);
-            if (!useRVFC) setTimeout(tick, 90);
+          if (!isRunning) return;
+          const active = sm.get(P.APP_ACT) && sm.get(P.V_AE);
+          if (!active || !activeVideo || !activeVideo.isConnected) { setTimeout(tick, 800); return; }
+          sample(activeVideo);
+          setTimeout(tick, 90);
         };
-
+      
+        const startPausedTimer = () => {
+          if (pausedTimer) return;
+          pausedTimer = setInterval(() => {
+            if (!isRunning) return;
+            const v = activeVideo;
+            if (!v) return;
+            if (v.paused) sample(v);
+          }, 650);
+        };
+      
+        const stopPausedTimer = () => {
+          if (!pausedTimer) return;
+          clearInterval(pausedTimer);
+          pausedTimer = 0;
+        };
+      
         return {
-            setTarget: (v) => {
-                if (v !== activeVideo) {
-                    activeVideo = v; targetToken++; rvfcToken = targetToken;
-                    workerBusy = false; __prevFrame = null; useRVFC = !!v?.requestVideoFrameCallback;
-                    lastSampleT = 0;
-                    if (isRunning && useRVFC && v) try { v.requestVideoFrameCallback(() => rvfcLoop(rvfcToken)); } catch (_) { }
-                }
-            },
-            start: () => {
-                ensureWorker();
-                if (!isRunning) {
-                    isRunning = true;
-                    const now = performance.now();
-                    lastApplyT = now; lastEmaT = now; lastSampleT = 0;
-                    startPausedTimer();
-                    if (useRVFC && activeVideo) try { activeVideo.requestVideoFrameCallback(() => rvfcLoop(rvfcToken)); } catch (_) { }
-                    else tick();
-                }
-            },
-            stop: () => {
-                isRunning = false; stopPausedTimer();
-                try { worker?.terminate(); } catch (_) { } worker = null;
-                if (workerUrl) { URL.revokeObjectURL(workerUrl); workerUrl = null; }
-                activeVideo = null; curGain = 1;
-            },
-            wake: () => { evAggressiveUntil = performance.now() + 1000; },
-            userTweak: () => { lastStats = { p10: -1, p35: -1, p50: -1, p60: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, std: 0, rd: 0 }; lastEmaT = performance.now(); evAggressiveUntil = performance.now() + 700; },
-            __setOnAE: (fn) => { onAE = fn; }
+          setTarget: (v) => {
+            if (v !== activeVideo) {
+              activeVideo = v;
+              targetToken++;
+              rvfcToken = targetToken;
+              workerBusy = false;
+              __prevFrame = null;
+              useRVFC = !!v?.requestVideoFrameCallback;
+              lastSampleT = 0;
+              lastLuma = -1;
+              lastStats = { p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, rd: 0 };
+              if (isRunning && useRVFC && v) {
+                try { v.requestVideoFrameCallback(() => rvfcLoop(rvfcToken)); } catch (_) {}
+              }
+            }
+          },
+          start: () => {
+            ensureWorker();
+            if (!isRunning) {
+              isRunning = true;
+              const now = performance.now();
+              lastApplyT = now; lastEmaT = now; lastSampleT = 0;
+              startPausedTimer();
+              if (useRVFC && activeVideo) {
+                try { activeVideo.requestVideoFrameCallback(() => rvfcLoop(rvfcToken)); } catch (_) { tick(); }
+              } else tick();
+            }
+          },
+          stop: () => {
+            isRunning = false;
+            stopPausedTimer();
+            try { worker?.terminate(); } catch (_) {}
+            worker = null;
+            if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; }
+            activeVideo = null;
+            curGain = 1;
+            lastLuma = -1;
+            __prevFrame = null;
+          },
+          wake: () => {},
+          userTweak: () => {
+            lastStats = { p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, rd: 0 };
+            lastEmaT = performance.now();
+          },
+          __setOnAE: (fn) => { onAE = fn; }
         };
     }
 
@@ -2338,7 +2305,7 @@
                     vfEff = __vfEff;
                 }
         
-                computeAeMix2Into(__vVals, vfEff, Utils);
+                computeAeMix3Into(__vVals, vfEff, Utils);
                 let expMix = __vVals.expMix;
                 let toneMix = __vVals.toneMix;
         
