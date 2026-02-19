@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v155_AELiteCore)
+// @name        Video_Image_Control (Local_Indep_v156_AELiteCore)
 // @namespace   https://github.com/
-// @version     155.0.0.0
-// @description Video Control: Zero-Alloc, Single-pass Lite SVG, Profile Look, AE Core V2
+// @version     156.0.0.0
+// @description Video Control: Zero-Alloc, Single-pass Lite SVG, Detail Unified, AE Core V2
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -72,7 +72,7 @@
     })();
 
     const CONFIG = Object.freeze({
-        VERSION: "v155.AELiteCore",
+        VERSION: "v156.AELiteCore",
         IS_TOP: window === window.top,
         IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
         IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -102,41 +102,44 @@
     });
 
     const AE_DEVICE_BASE = Object.freeze({
-        pc: { STRENGTH: 0.62, MAX_UP_EV: 0.50, MAX_DOWN_EV: -0.36, TARGET_MID_BASE: 0.265 },
-        mobile: { STRENGTH: 0.52, MAX_UP_EV: 0.48, MAX_DOWN_EV: -0.32, TARGET_MID_BASE: 0.260 }
+        pc:     { STRENGTH: 0.62, MAX_UP_EV: 0.50, MAX_DOWN_EV: -0.36, TARGET_MID_BASE: 0.265, TONE_BIAS_BASE: 0.0 },
+        mobile: { STRENGTH: 0.52, MAX_UP_EV: 0.48, MAX_DOWN_EV: -0.32, TARGET_MID_BASE: 0.260, TONE_BIAS_BASE: 0.0 }
     });
 
     const AE_PROFILES = Object.freeze({
         balanced: {
-            delta: {
-                STRENGTH: -0.06, TARGET_MID_BASE: -0.020, MAX_UP_EV: -0.10,
-                TAU_UP: +120, TAU_DOWN: +120, SAT_MAX: -0.02
-            },
-            look: { brMul: 0.98, satMul: 0.98, conAdd: -0.008, midMul: 0.98, toeMul: 1.08, shMul: 1.00 }
+            STRENGTH: 0.56,
+            TARGET_MID_BASE: 0.245,
+            MAX_UP_EV: 0.40,
+            MAX_DOWN_EV: -0.34,
+            TONE_BIAS: 0.0,
+            LOOK: { brMul: 0.98, satMul: 0.98, conMul: 1.00 }
         },
         cinematic: {
-            delta: {
-                STRENGTH: -0.22, TARGET_MID_BASE: -0.045, MAX_UP_EV: -0.28, MAX_DOWN_EV: -0.10,
-                TAU_UP: +220, TAU_DOWN: +260, TAU_AGGRESSIVE: +60, SAT_MAX: -0.10, SAT_MIN: +0.02
-            },
-            look: { brMul: 0.88, satMul: 0.90, conAdd: -0.020, midMul: 0.92, toeMul: 1.30, shMul: 1.05 }
+            STRENGTH: 0.44,
+            TARGET_MID_BASE: 0.220,
+            MAX_UP_EV: 0.24,
+            MAX_DOWN_EV: -0.42,
+            TONE_BIAS: -0.65,
+            LOOK: { brMul: 0.90, satMul: 0.92, conMul: 0.99 }
         },
         bright: {
-            delta: {
-                STRENGTH: +0.18, TARGET_MID_BASE: +0.050, MAX_UP_EV: +0.22, MAX_DOWN_EV: +0.06,
-                TAU_UP: -160, TAU_DOWN: -120, TAU_AGGRESSIVE: -40, SAT_MAX: +0.14, SAT_MIN: +0.02
-            },
-            look: { brMul: 1.12, satMul: 1.10, conAdd: +0.010, midMul: 1.08, toeMul: 0.92, shMul: 0.92 }
+            STRENGTH: 0.70,
+            TARGET_MID_BASE: 0.285,
+            MAX_UP_EV: 0.62,
+            MAX_DOWN_EV: -0.26,
+            TONE_BIAS: +0.65,
+            LOOK: { brMul: 1.08, satMul: 1.06, conMul: 1.01 }
         }
     });
 
     const PRESET = Object.freeze({
-        sharp: {
-            off: { sharpAdd: 0, sharp2Add: 0 },
-            S: { sharpAdd: 8, sharp2Add: 3 },
-            M: { sharpAdd: 15, sharp2Add: 6 },
-            L: { sharpAdd: 25, sharp2Add: 10 },
-            XL: { sharpAdd: 35, sharp2Add: 15 }
+        detail: { 
+            off: { detailAdd: 0 },
+            S:   { detailAdd: 10 },
+            M:   { detailAdd: 18 },
+            L:   { detailAdd: 28 },
+            XL:  { detailAdd: 38 }
         },
         grade: {
             brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 },
@@ -158,7 +161,9 @@
     const DEFAULTS = {
         video: {
             gamma: 1.0, contrast: 1.0, bright: 0, sat: 100,
-            temp: 0, sharp: 0, sharp2: 0, dither: 0, clarity: 0,
+            temp: 0,
+            detail: 0,
+            dither: 0,
             ae: false, presetS: 'off', presetB: 'brOFF',
             presetMix: 1.0, aeProfile: null, tonePreset: null, toneStrength: 1.0,
             aeStrength: 1.0
@@ -175,8 +180,9 @@
         V_AE_STR: 'video.aeStrength',
         V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength',
         V_GAMMA: 'video.gamma', V_CONTR: 'video.contrast', V_BRIGHT: 'video.bright',
-        V_SAT: 'video.sat', V_SHARP: 'video.sharp', V_SHARP2: 'video.sharp2',
-        V_CLARITY: 'video.clarity', V_TEMP: 'video.temp', V_DITHER: 'video.dither',
+        V_SAT: 'video.sat', 
+        V_DETAIL: 'video.detail',
+        V_TEMP: 'video.temp', V_DITHER: 'video.dither',
         V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix',
         A_EN: 'audio.enabled', A_BST: 'audio.boost',
         PB_RATE: 'playback.rate',
@@ -184,7 +190,10 @@
     });
 
     const TOUCHED = { videos: new Set(), images: new Set() };
-    const CFG = { applyToAllVisibleVideos: false, extraBigVideos: 1 };
+    const CFG = { 
+        applyToAllVisibleVideos: false, 
+        extraApplyTopK: 2 
+    };
 
     function touchedAddLimited(set, el, onEvict) {
         if (!el) return;
@@ -342,7 +351,7 @@
             return __currentTarget;
         };
 
-        const buildApplySetReuse = (visibleVideos, target, extraBigVideos, applyToAllVisibleVideos) => {
+        const buildApplySetReuse = (visibleVideos, target, extraApplyTopK, applyToAllVisibleVideos, lastUserPt, audioBoostOn) => {
             __applySetReuse.clear();
             if (applyToAllVisibleVideos) {
                 for (const v of visibleVideos) __applySetReuse.add(v);
@@ -350,28 +359,23 @@
             }
             if (target) __applySetReuse.add(target);
             
-            const N = Math.max(0, extraBigVideos | 0);
+            const N = Math.max(0, extraApplyTopK | 0);
             if (N <= 0) return __applySetReuse;
             
-            __topBuf.length = 0;
             const now = performance.now();
-            
-            const pushTop = (area, v) => {
-                if (area < 260 * 160) return;
-                if (__topBuf.length === 0) { __topBuf.push({ area, v }); return; }
-                let i = 0;
-                while (i < __topBuf.length && __topBuf[i].area >= area) i++;
-                __topBuf.splice(i, 0, { area, v });
-                if (__topBuf.length > N) __topBuf.length = N;
-            };
+            __topBuf.length = 0; 
             
             for (const v of visibleVideos) {
                 if (!v || v === target) continue;
-                const r = getRectCached(v, now, 420);
-                pushTop(r.width * r.height, v);
+                const s = scoreVideo(v, audioBoostOn, now, lastUserPt);
+                if (!Number.isFinite(s) || s <= -1e8) continue;
+                __topBuf.push({ v, s });
             }
             
-            for (let i = 0; i < __topBuf.length; i++) __applySetReuse.add(__topBuf[i].v);
+            __topBuf.sort((a, b) => b.s - a.s);
+            for (let i = 0; i < __topBuf.length && i < N; i++) {
+                __applySetReuse.add(__topBuf[i].v);
+            }
             return __applySetReuse;
         };
 
@@ -426,8 +430,10 @@
         const toneOn = !!vf.tonePreset && vf.tonePreset !== 'neutral';
         const toneStr = toneOn ? clamp(vf.toneStrength ?? 1.0, 0, 1) : 0;
 
+        const detailIntent = Math.abs(vf.detail || 0) / 50;
+
         const expIntent  = clamp(manualExp + presetExp + toneStr * 0.18, 0, 3.0);
-        const toneIntent = clamp((manualExp * 0.55) + manualCol + presetCol + toneStr * 0.95, 0, 3.5);
+        const toneIntent = clamp((manualExp * 0.55) + manualCol + presetCol + toneStr * 0.95 + detailIntent * 0.25, 0, 3.5);
 
         let expMix  = 1 - 0.60 * clamp(expIntent / 1.45, 0, 1);
         let toneMix = 1 - 0.75 * clamp(toneIntent / 1.45, 0, 1);
@@ -500,7 +506,7 @@
                         m.set(k, v);
                         if (m.size > max) m.delete(m.keys().next().value);
                     }
-                };
+                }
             }
         };
     }
@@ -508,25 +514,39 @@
     function getAePack(isMobile, profileName) {
         const dev = isMobile ? AE_DEVICE_BASE.mobile : AE_DEVICE_BASE.pc;
         const prof = AE_PROFILES[profileName] || AE_PROFILES.balanced;
-        const delta = prof.delta || {};
-        const out = { ...AE_COMMON, ...dev };
-        const addRel = (k) => { if (delta[k] != null) out[k] = (out[k] ?? 0) + delta[k]; };
-        ['STRENGTH', 'TARGET_MID_BASE', 'MAX_UP_EV', 'MAX_DOWN_EV', 'TAU_UP', 'TAU_DOWN', 'TAU_AGGRESSIVE', 'SAT_MIN', 'SAT_MAX'].forEach(addRel);
+
+        const cfg = {
+            ...AE_COMMON,
+            STRENGTH:        prof.STRENGTH ?? dev.STRENGTH,
+            TARGET_MID_BASE: prof.TARGET_MID_BASE ?? dev.TARGET_MID_BASE,
+            MAX_UP_EV:       prof.MAX_UP_EV ?? dev.MAX_UP_EV,
+            MAX_DOWN_EV:     prof.MAX_DOWN_EV ?? dev.MAX_DOWN_EV,
+            TONE_BIAS:       (prof.TONE_BIAS ?? 0) + (dev.TONE_BIAS_BASE ?? 0),
+
+            TAU_UP: AE_COMMON.TAU_UP,
+            TAU_DOWN: AE_COMMON.TAU_DOWN,
+            TAU_AGGRESSIVE: AE_COMMON.TAU_AGGRESSIVE,
+            SAT_MIN: AE_COMMON.SAT_MIN,
+            SAT_MAX: AE_COMMON.SAT_MAX
+        };
+
+        const look = prof.LOOK || { brMul: 1.0, satMul: 1.0, conMul: 1.0 };
+
         return Object.freeze({
-            cfg: Object.freeze(out),
-            look: Object.freeze(prof.look || AE_PROFILES.balanced.look)
+            cfg: Object.freeze(cfg),
+            look: Object.freeze(look)
         });
     }
 
     function applyTonePreset2Inline(out, presetName, strength, aeProfileName, Utils) {
         const { clamp } = Utils;
         if (!presetName || presetName === 'neutral') return out;
-      
+        
         const p0 = TONE_PRESET2[presetName] || TONE_PRESET2.neutral;
         let t = clamp(strength ?? 1.0, 0, 1);
-      
+        
         let toe = p0.toe, shoulder = p0.shoulder, mid = p0.mid, con = p0.con, sat = p0.sat, br = p0.br, tmp = p0.tmp;
-      
+        
         if (presetName === 'highlight') {
           if (aeProfileName === 'bright') { shoulder *= 0.65; br *= 0.65; t *= 0.90; }
           else if (aeProfileName === 'cinematic') { br *= 0.75; con = 1.00; t *= 0.95; }
@@ -534,7 +554,7 @@
           if (aeProfileName === 'bright') { sat = 1.03; br *= 0.70; t *= 0.92; }
           else if (aeProfileName === 'cinematic') { sat = 1.03; tmp *= 0.80; }
         }
-      
+        
         out.mid = clamp((out.mid || 0) + (mid * t), -1, 1);
         out.contrast = clamp((out.contrast || 1) * (1 + (con - 1) * t), 0.5, 2.0);
         out.satF = clamp((out.satF || 1) * (1 + (sat - 1) * t), 0.0, 2.0);
@@ -542,98 +562,69 @@
         out.temp = clamp((out.temp || 0) + (tmp * t), -25, 25);
         out.toe = clamp((out.toe || 0) + (toe * t), -14, 14);
         out.shoulder = clamp((out.shoulder || 0) + (shoulder * t), -14, 14);
-      
+        
         return out;
     }
 
     function composeVideoParamsInto(out, vUser, ae, defaultsVideo, Utils) {
         const clamp = Utils.clamp;
         const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
-      
-        const pS = PRESET.sharp[vUser.presetS] || PRESET.sharp.off;
+
+        const pD = PRESET.detail[vUser.presetS] || PRESET.detail.off;
         const pB = PRESET.grade[vUser.presetB] || PRESET.grade.brOFF;
-      
-        const preGammaF = lerp(1.0, pB.gammaF, mix);
-        const preConF   = lerp(1.0, pB.conF,   mix);
-        const preSatF   = lerp(1.0, pB.satF,   mix);
-        const preBright = (pB.brightAdd || 0) * mix;
-        const preTemp   = (pB.tempAdd   || 0) * mix;
-        const preSharp  = (pS.sharpAdd  || 0) * mix;
-        const preSharp2 = (pS.sharp2Add || 0) * mix;
-      
+
+        const preGammaF  = lerp(1.0, pB.gammaF, mix);
+        const preConF    = lerp(1.0, pB.conF,   mix);
+        const preSatF    = lerp(1.0, pB.satF,   mix);
+        const preBright  = (pB.brightAdd || 0) * mix;
+        const preTemp    = (pB.tempAdd   || 0) * mix;
+        const preDetail  = (pD.detailAdd || 0) * mix;
+
         const A = ae || { gain: 1, gammaF: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, hiRisk: 0, cf: 0.5, mid: 0 };
-      
-        let gamma    = (vUser.gamma || 1.0)    * preGammaF * (A.gammaF || 1.0);
-        let contrast = (vUser.contrast || 1.0) * preConF   * (A.conF   || 1.0);
+
+        let gamma    = (vUser.gamma || 1.0) * preGammaF * (A.gammaF || 1.0);
+        let contrast = (vUser.contrast || 1.0) * preConF * (A.conF || 1.0);
         let satF     = ((vUser.sat || 100) / 100) * preSatF * (A.satF || 1.0);
         let bright   = (vUser.bright || 0) + preBright + (A.brightAdd || 0);
-        let temp     = (vUser.temp || 0)   + preTemp   + (A.tempAdd   || 0);
-      
+        let temp     = (vUser.temp || 0)   + preTemp   + (A.tempAdd || 0);
+
         const gain = clamp(A.gain || 1.0, 1.0, 8.0);
         const hiRisk01 = clamp(A.hiRisk || 0, 0, 1);
-        const userSharp01 = clamp((((vUser.sharp || 0) + preSharp) / 50), 0, 1);
-      
-        let sharpMulBase = Math.max(0.62, 1 / (1 + (gain - 1.0) * 1.25));
-        let sharpMulHF   = Math.max(0.50, 1 / (1 + (gain - 1.0) * 1.80));
-      
-        sharpMulBase *= (1 - 0.18 * hiRisk01);
-        sharpMulHF   *= (1 - 0.42 * hiRisk01);
-      
-        const cf = (A.cf != null) ? A.cf : 0.5;
-        const cfGate = Math.max(0, Math.min(1, (cf - 0.10) / 0.22));
-        sharpMulBase *= (0.82 + 0.18 * cfGate);
-        sharpMulHF   *= (0.65 + 0.35 * cfGate);
-      
-        const satVal = clamp(satF, 0, 2.0);
-        const satStress  = Math.min(1, Math.abs(satVal - 1) / 0.55);
-        const tempStress = Math.min(1, Math.abs(temp) / 25);
-        const cf01 = clamp(cf, 0, 1);
-      
-        const chromaStress = (satStress * 0.85) + (tempStress * 0.65);
-        const riskStress   = (hiRisk01 * 0.70) + ((1 - cf01) * 0.45);
-        const guard   = 1 / (1 + chromaStress * 1.05 + riskStress * 0.85);
-        const hfGuard = 1 / (1 + chromaStress * 1.45 + riskStress * 1.10);
-      
-        const relaxBase = 0.55 * userSharp01;
-        const relaxHF   = 0.40 * userSharp01;
-        sharpMulBase *= lerp((0.78 + 0.22 * guard), 1.0, relaxBase);
-        sharpMulHF   *= lerp((0.55 + 0.45 * hfGuard), 1.0, relaxHF);
-      
-        let sharp   = ((vUser.sharp  || 0) + preSharp)  * sharpMulBase;
-        let sharp2  = ((vUser.sharp2 || 0) + preSharp2) * sharpMulHF;
-        let clarity = (vUser.clarity || 0) * sharpMulHF;
-      
+
+        const userDetail = (vUser.detail || 0) + preDetail;
+        const detail01 = clamp(userDetail / 50, 0, 1);
+
+        const protect = clamp((gain - 1.0) / 4.0 + (A.shoulder || 0) / 18 + hiRisk01 * 0.7, 0, 1);
+        const detailMul = lerp(1.0, 0.55, protect);
+        const detail = clamp(userDetail * detailMul, 0, 50);
+
         const manualStyle =
-          (Math.abs(vUser.bright || 0) > 10) ||
-          (Math.abs((vUser.gamma || 1) - 1) > 0.10) ||
-          (Math.abs((vUser.contrast || 1) - 1) > 0.10) ||
-          (Math.abs((vUser.sat || 100) - 100) > 25);
-      
-        const styleMix = manualStyle ? 0.80 : 1.00;
-        const toneDamp = clamp(1 - satStress * 0.35, 0.65, 1.0);
-      
+            (Math.abs(vUser.bright || 0) > 10) ||
+            (Math.abs((vUser.gamma || 1) - 1) > 0.10) ||
+            (Math.abs((vUser.contrast || 1) - 1) > 0.10) ||
+            (Math.abs((vUser.sat || 100) - 100) > 25) ||
+            (Math.abs((vUser.temp || 0)) > 8) ||
+            (detail01 > 0.6);
+
+        const styleMix = manualStyle ? 0.82 : 1.00;
+
         out.gain     = gain;
         out.gamma    = clamp(gamma, 0.5, 2.5);
         out.contrast = clamp(contrast, 0.5, 2.0);
         out.bright   = clamp(bright, -50, 50);
-        out.satF     = satVal;
-      
-        out.mid      = clamp((A.mid || 0) * styleMix * toneDamp, -1, 1);
-        out.toe      = (A.toe || 0) * styleMix * toneDamp;
-        out.shoulder = (A.shoulder || 0) * styleMix * toneDamp;
-      
-        out.sharp    = clamp(sharp, 0, 50);
-        out.sharp2   = clamp(sharp2, 0, 50);
-        out.clarity  = clamp(clarity, 0, 50);
+        out.satF     = clamp(satF, 0.0, 2.0);
+        out.mid      = clamp((A.mid || 0) * styleMix, -1, 1);
+        out.detail   = detail;
         out.dither   = vUser.dither || 0;
         out.temp     = clamp(temp, -25, 25);
-      
+        out.toe      = (A.toe || 0) * styleMix;
+        out.shoulder = (A.shoulder || 0) * styleMix;
+
         const toneName = vUser.tonePreset;
         if (toneName && toneName !== 'neutral') {
-          const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
-          applyTonePreset2Inline(out, toneName, vUser.toneStrength, aeProfileForTone, Utils);
+            const aeProfileForTone = (vUser.ae && vUser.aeProfile) ? vUser.aeProfile : null;
+            applyTonePreset2Inline(out, toneName, vUser.toneStrength, aeProfileForTone, Utils);
         }
-      
         return out;
     }
 
@@ -644,27 +635,25 @@
         Math.abs((v.bright ?? 0)) < 0.01 &&
         Math.abs((v.satF ?? 1) - 1) < 0.001 &&
         Math.abs((v.mid ?? 0)) < 0.001 &&
-        Math.abs(v.sharp ?? 0) < 0.01 &&
-        Math.abs(v.sharp2 ?? 0) < 0.01 &&
-        Math.abs(v.clarity ?? 0) < 0.01 &&
-        Math.abs(v.dither ?? 0) < 0.01 &&
-        Math.abs(v.temp ?? 0) < 0.01 &&
-        Math.abs(v.toe ?? 0) < 0.01 &&
-        Math.abs(v.shoulder ?? 0) < 0.01
+        Math.abs((v.detail ?? 0)) < 0.01 &&
+        Math.abs((v.dither ?? 0)) < 0.01 &&
+        Math.abs((v.temp ?? 0)) < 0.01 &&
+        Math.abs((v.toe ?? 0)) < 0.01 &&
+        Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
     function createScheduler(minIntervalMs = 16) {
         let queued = false, force = false, applyFn = null;
         let lastRun = 0;
         let timer = 0;
-      
+        
         const run = () => {
           queued = false;
-      
+        
           const now = performance.now();
           const doForce = force;
           force = false;
-      
+        
           const dt = now - lastRun;
           if (!doForce && dt < minIntervalMs) {
             const wait = Math.max(0, minIntervalMs - dt);
@@ -676,22 +665,22 @@
             }
             return;
           }
-      
+        
           lastRun = now;
           if (applyFn) {
             try { applyFn(doForce); } catch (_) {}
           }
         };
-      
+        
         const request = (immediate = false) => {
           if (immediate) force = true;
           if (queued) return;
           queued = true;
-      
+        
           if (timer) { clearTimeout(timer); timer = 0; }
           requestAnimationFrame(run);
         };
-      
+        
         return {
           registerApply: (fn) => { applyFn = fn; },
           request
@@ -1078,9 +1067,7 @@
             qInt(s.toe, 0.2),
             qInt(s.shoulder, 0.2),
             qInt(s.temp, 0.2),
-            qInt(s.sharp, 0.2),
-            qInt(s.sharp2, 0.2),
-            qInt(s.clarity, 0.2),
+            qInt(s.detail, 0.2),
             qInt(s.dither, 1)
         ].join('|');
         
@@ -1348,15 +1335,13 @@
             const g = clamp(sEff.gain || 1, 1, 8);
             const hiProtect = clamp((g - 1) / 4.0 + Math.max(0, (sEff.shoulder || 0)) / 18, 0, 1);
         
-            const s1 = clamp((sEff.sharp || 0) / 50, 0, 1);
-            const s2 = clamp((sEff.sharp2 || 0) / 50, 0, 1);
-            const cl = clamp((sEff.clarity || 0) / 50, 0, 1);
+            const d01 = clamp((sEff.detail || 0) / 50, 0, 1);
         
-            let r = 0.70 + 1.10 * s1 + 1.30 * s2 + 2.10 * cl;
+            let r = 0.70 + 2.60 * d01;
             r *= (1 - hiProtect * 0.55);
             if (r < 0.01) r = 0;
         
-            let k = (1.35 * s1 + 1.00 * s2 + 0.45 * cl);
+            let k = 1.55 * d01;
             k *= (1 - hiProtect * 0.50);
         
             const detailKey = `${r.toFixed(2)}|${k.toFixed(3)}`;
@@ -1480,17 +1465,17 @@
     function createAE(sm, { IS_MOBILE, Utils }, onAE) {
         let worker, canvas, ctx2d, activeVideo = null;
         let isRunning = false, workerBusy = false, targetToken = 0;
-      
+        
         let lastStats = { p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: 0, cf: 0.5, rd: 0 };
         let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0;
-      
+        
         let curGain = 1.0;
         let useRVFC = false, rvfcToken = 0;
         let __prevFrame = null, __motion01 = 1;
         let pausedTimer = 0;
-      
+        
         const { clamp } = Utils;
-      
+        
         let __packKey = '', __pack = null;
         const getPack = () => {
           const name = sm.get(P.V_AE_PROFILE) || 'balanced';
@@ -1500,14 +1485,14 @@
         };
         const getCfg = () => getPack().cfg;
         const getLook = () => getPack().look;
-      
+        
         const riskFrom = (p95, p98, clipFrac, clipLimit) => {
           const hi95 = clamp((p95 - 0.885) / 0.095, 0, 1);
           const hi98 = clamp((p98 - 0.968) / 0.028, 0, 1);
           const clp  = clamp((clipFrac - clipLimit) / (clipLimit * 4.0), 0, 1);
           return clamp(Math.max(hi95 * 0.70 + hi98 * 0.90, clp), 0, 1);
         };
-      
+        
         const sceneChangeFrom = (avgLumaNow, avgLumaPrev, motion01, cf01) => {
           if (avgLumaPrev < 0) return 1;
           const dl = Math.abs(avgLumaNow - avgLumaPrev);
@@ -1516,73 +1501,85 @@
           const denom = (0.040 + 0.020 * (1 - c) + 0.015 * (1 - m));
           return clamp(dl / denom, 0, 1);
         };
-      
+        
         const targetMidFrom = (base, p50, risk01) => {
           const darkBoost = clamp((0.17 - p50) / 0.11, 0, 1) * 0.050;
           const riskCut   = risk01 * 0.030;
           return clamp(base + darkBoost - riskCut, 0.20, 0.34);
         };
-      
+        
         const computeTargetEV = (s, cfg) => {
           const p35 = clamp(s.p35 ?? s.p50, 0.01, 0.99);
           const p50 = clamp(s.p50, 0.01, 0.99);
-      
+        
           const key = clamp(p50 * 0.72 + p35 * 0.28, 0.01, 0.99);
-      
+        
           const risk01 = riskFrom(s.p95 ?? s.p90, s.p98 ?? s.p95, s.clipFrac ?? 0, cfg.CLIP_FRAC_LIMIT);
           const targetMid = targetMidFrom(cfg.TARGET_MID_BASE, p50, risk01);
-      
+        
           let ev = Math.log2(targetMid / key) * cfg.STRENGTH;
-      
+        
           ev = clamp(ev, cfg.MAX_DOWN_EV, cfg.MAX_UP_EV * (1 - 0.35 * risk01));
           if (risk01 > 0.58) ev = Math.min(ev, 0);
-      
+        
           const p95 = clamp(s.p95 ?? s.p90, 0.01, 0.999);
           const p98 = clamp(s.p98 ?? s.p95, 0.01, 0.999);
           const safeCap = Math.log2(Math.max(1, Math.min(0.985 / p98, 0.980 / p95))) - (0.06 * risk01);
           ev = Math.min(ev, safeCap);
-      
+        
           if (Math.abs(ev) < cfg.DEAD_IN) ev = 0;
           return ev;
         };
-      
-        const computeLook = (ev, s, risk01, cfg) => {
+        
+        const computeLook = (ev, s, risk01, cfg, lookMul) => {
           const p50 = clamp(s.p50 ?? 0.5, 0, 1);
           const p10 = clamp(s.p10 ?? 0.1, 0, 1);
           const p90 = clamp(s.p90 ?? 0.9, 0, 1);
-      
+        
           const cf01 = clamp(s.cf ?? 0.5, 0, 1);
-      
+        
           const sceneContrast = clamp(p90 - p10, 0, 1);
           const flat01 = clamp((0.46 - sceneContrast) / 0.26, 0, 1);
           const lowKey01 = clamp((0.23 - p50) / 0.14, 0, 1);
-      
+        
           const evNorm = clamp(ev / 1.55, -1, 1);
           const up01 = clamp(evNorm, 0, 1);
-      
+        
           let brightAdd = (up01 * 7.0) * clamp(0.52 - p50, -0.22, 0.22);
           let mid = (up01 * 0.55) * clamp((0.50 - p50) / 0.22, -1, 1);
-      
+        
           let toe = (4.2 + 7.2 * up01) * lowKey01;
           let shoulder = (5.8 + 7.2 * up01) * risk01;
-      
+        
           let conF = 1 + (up01 * 0.050) * flat01 - (0.012 * risk01);
-      
           let satF = 1 + (1 - cf01) * 0.22 * (1 - risk01 * 0.65);
-          satF = clamp(satF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.16 - 0.10 * risk01));
-      
+          
           brightAdd *= (1 - 0.85 * risk01);
           shoulder  *= (1 - 0.60 * risk01);
-      
+          
+          const bias = clamp(cfg.TONE_BIAS ?? 0, -1, 1);
+          brightAdd *= (1 + 0.10 * bias);
+          satF      *= (1 + 0.08 * bias);
+          conF      *= (1 + 0.02 * bias);
+          shoulder  *= (1 - 0.12 * bias);
+          toe       *= (1 + 0.08 * (-bias));
+
+          satF = clamp(satF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.16 - 0.10 * risk01));
+          conF = clamp(conF, 0.90, 1.12);
           brightAdd = clamp(brightAdd, -14, 14);
-          mid       = clamp(mid, -0.95, 0.95);
-          toe       = clamp(toe, 0, 14);
-          shoulder  = clamp(shoulder, 0, 16);
-          conF      = clamp(conF, 0.90, 1.12);
-      
+          toe = clamp(toe, 0, 14);
+          shoulder = clamp(shoulder, 0, 16);
+          mid = clamp(mid, -0.95, 0.95);
+
+          if (lookMul) {
+              brightAdd *= (lookMul.brMul ?? 1);
+              satF      *= (lookMul.satMul ?? 1);
+              conF      *= (lookMul.conMul ?? 1);
+          }
+        
           return { conF, satF, mid, toe, shoulder, brightAdd };
         };
-      
+        
         const disableAEHard = () => {
           try { worker?.terminate(); } catch (_) {}
           worker = null;
@@ -1592,7 +1589,7 @@
           if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; }
           try { sm.set(P.V_AE, false); } catch (_) {}
         };
-      
+        
         let workerUrl = null;
         const ensureWorker = () => {
           if (worker) return worker;
@@ -1608,7 +1605,7 @@
             return null;
           }
         };
-      
+        
         const _motionFromFrame = (rgba) => {
           const step = CONFIG.IS_LOW_END ? 32 : 16;
           if (!__prevFrame) {
@@ -1631,15 +1628,16 @@
           const d = cnt ? (diff / cnt) : 0;
           __motion01 = clamp(d / 28, 0, 1);
         };
-      
+        
         const processResult = (data) => {
           if (!data || data.token !== targetToken) return;
-          const cfg = getCfg();
+          const pack = getPack();
+          const cfg = pack.cfg;
           const now = performance.now();
-      
+        
           const uiBar = (data.botAvg > 0.2 && data.botStd < 0.06) || (data.clipFracBottom > (cfg.CLIP_FRAC_LIMIT * 4) && data.botStd < 0.04);
           const subLikely = (data.clipFracBottom > cfg.CLIP_FRAC_LIMIT * 2) && data.p98 > 0.97 && data.p50 < 0.22 && data.stdDev > 0.06 && data.botStd > 0.045 && !uiBar;
-      
+        
           const stats = {
             p10: subLikely ? data.p10T : data.p10,
             p35: subLikely ? data.p35T : data.p35,
@@ -1651,40 +1649,40 @@
             cf: subLikely ? (data.cfT ?? data.cf) : data.cf,
             rd: (data.skinScore != null) ? data.skinScore : data.redDominance
           };
-      
+        
           const dt = Math.min(now - lastEmaT, 500);
           lastEmaT = now;
           const tauStats = clamp((activeVideo?.paused ? 380 : cfg.DT_CAP_MS) + (1 - __motion01) * 160, 180, 650);
           const a = 1 - Math.exp(-dt / tauStats);
-      
+        
           for (const k of Object.keys(lastStats)) {
             const v = stats[k];
             if (!Number.isFinite(v)) continue;
             lastStats[k] = (lastStats[k] < 0) ? v : (v * a + lastStats[k] * (1 - a));
           }
-      
+        
           const cf01 = clamp(lastStats.cf ?? 0.5, 0, 1);
           const risk01 = riskFrom(lastStats.p95, lastStats.p98, lastStats.clipFrac ?? 0, cfg.CLIP_FRAC_LIMIT);
-      
+        
           const sc01 = sceneChangeFrom(data.avgLuma, lastLuma, __motion01, cf01);
           lastLuma = data.avgLuma;
-      
+        
           const targetEV = computeTargetEV(lastStats, cfg);
-      
+        
           const curEV = Math.log2(curGain);
           const wantUp = targetEV > curEV;
           const tauBase = (sc01 > 0.55) ? cfg.TAU_AGGRESSIVE : (wantUp ? cfg.TAU_UP : cfg.TAU_DOWN);
           const tau = tauBase * (1 + risk01 * 1.10);
-      
+        
           const dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS);
           lastApplyT = now;
-      
+        
           const alphaA = 1 - Math.exp(-dtA / tau);
           const nextEV = curEV + (targetEV - curEV) * alphaA;
           curGain = Math.pow(2, nextEV);
-      
-          const look = computeLook(nextEV, lastStats, risk01, cfg);
-      
+        
+          const look = computeLook(nextEV, lastStats, risk01, cfg, pack.look);
+        
           if (onAE) {
             onAE({
               gain: curGain,
@@ -1704,46 +1702,46 @@
             });
           }
         };
-      
+        
         const sample = (v) => {
           if (!isRunning || !v) return;
           if (document.hidden) return;
           if (v[VSCX.tainted]) return;
           if (v.readyState < 2) return;
           if (v[VSCX.visible] === false) return;
-      
+        
           const now = performance.now();
           const base = (v.paused ? 600 : (CONFIG.IS_LOW_END ? 120 : 90));
           const minInterval = base + (1 - __motion01) * 80;
-      
+        
           if (now - lastSampleT < minInterval) return;
           lastSampleT = now;
-      
+        
           if (workerBusy) return;
-      
+        
           try {
             if (!canvas) {
               canvas = document.createElement('canvas');
               canvas.width = canvas.height = CONFIG.IS_LOW_END ? 24 : 32;
               ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
             }
-      
+        
             ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
             const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
-      
+        
             _motionFromFrame(d.data);
-      
+        
             workerBusy = true;
             const wk = ensureWorker();
             if (wk) wk.postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
             else workerBusy = false;
-      
+        
           } catch (_) {
             workerBusy = false;
             v[VSCX.tainted] = true;
           }
         };
-      
+        
         const rvfcLoop = (token) => {
           if (!isRunning || token !== rvfcToken) return;
           const v = activeVideo;
@@ -1751,7 +1749,7 @@
           sample(v);
           try { v.requestVideoFrameCallback(() => rvfcLoop(token)); } catch (_) {}
         };
-      
+        
         const tick = () => {
           if (!isRunning) return;
           const active = sm.get(P.APP_ACT) && sm.get(P.V_AE);
@@ -1759,7 +1757,7 @@
           sample(activeVideo);
           setTimeout(tick, 90);
         };
-      
+        
         const startPausedTimer = () => {
           if (pausedTimer) return;
           pausedTimer = setInterval(() => {
@@ -1769,13 +1767,13 @@
             if (v.paused) sample(v);
           }, 650);
         };
-      
+        
         const stopPausedTimer = () => {
           if (!pausedTimer) return;
           clearInterval(pausedTimer);
           pausedTimer = 0;
         };
-      
+        
         return {
           setTarget: (v) => {
             if (v !== activeVideo) {
@@ -1838,7 +1836,7 @@
         let container, monitorEl, gearHost, gearBtn;
         let fadeTimer = 0;
         
-        const AE_INPUT_WAKE_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_SAT, P.V_TEMP, P.V_PRE_MIX, P.V_TONE_STR, P.V_AE_STR]);
+        const AE_INPUT_WAKE_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_SAT, P.V_TEMP, P.V_PRE_MIX, P.V_TONE_STR, P.V_AE_STR, P.V_DETAIL]);
         const AE_CHANGE_HARD_KEYS = new Set([P.V_GAMMA, P.V_CONTR, P.V_BRIGHT, P.V_PRE_MIX]);
         
         const detachNodesHard = () => {
@@ -1866,9 +1864,7 @@
             { l: '대비', k: P.V_CONTR, min: 0.5, max: 2.0, s: 0.05, f: v => v.toFixed(2) },
             { l: '밝기', k: P.V_BRIGHT, min: -50, max: 50, s: 1, f: v => v.toFixed(0) },
             { l: '채도', k: P.V_SAT, min: 0, max: 200, s: 5, f: v => v.toFixed(0) },
-            { l: '윤곽', k: P.V_SHARP, min: 0, max: 50, s: 1, f: v => v.toFixed(0) },
-            { l: '디테일', k: P.V_SHARP2, min: 0, max: 50, s: 1, f: v => v.toFixed(0) },
-            { l: '명료', k: P.V_CLARITY, min: 0, max: 50, s: 5, f: v => v.toFixed(0) },
+            { l: 'DETAIL', k: P.V_DETAIL, min: 0, max: 50, s: 1, f: v => v.toFixed(0) },
             { l: '색온도', k: P.V_TEMP, min: -25, max: 25, s: 1, f: v => v.toFixed(0) },
             { l: '그레인', k: P.V_DITHER, min: 0, max: 100, s: 5, f: v => v.toFixed(0) },
             { l: '오디오', k: P.A_BST, min: 0, max: 12, s: 1, f: v => `+${v}dB` },
@@ -2020,7 +2016,7 @@
                 ),
                 renderChoiceRow('AE', [{ t: '표준', v: 'balanced' }, { t: '영화', v: 'cinematic' }, { t: '밝게', v: 'bright' }], P.V_AE_PROFILE),
                 renderChoiceRow('톤', [{ t: '기본', v: 'neutral' }, { t: '조명', v: 'highlight' }, { t: '피부', v: 'redSkin' }], P.V_TONE_PRE),
-                renderPresetRow('샤프', [{ l: 'S' }, { l: 'M' }, { l: 'L' }, { l: 'XL' }], P.V_PRE_S),
+                renderPresetRow('DET', [{ l: 'S' }, { l: 'M' }, { l: 'L' }, { l: 'XL' }], P.V_PRE_S),
                 renderPresetRow('밝기', [{ txt: 'S' }, { txt: 'M' }, { txt: 'L' }, { txt: 'DS' }, { txt: 'DM' }, { txt: 'DL' }], P.V_PRE_B),
                 h('hr'), h('div', { class: 'grid' }, SLIDERS.map(renderSlider)), h('hr'),
                 h('div', { class: 'prow', style: 'justify-content:center;gap:4px;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = () => sm.set(P.PB_RATE, s); sm.sub(P.PB_RATE, v => b.classList.toggle('active', Math.abs(v - s) < 0.01)); return b; }))
@@ -2115,14 +2111,14 @@
             UI.ensure();
             Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
         }
-      
+        
         const syncImg = () => { try { Registry.syncImageObservation?.(); } catch (_) {} };
         Store.sub(P.APP_ACT, syncImg);
         Store.sub(P.APP_TAB, syncImg);
         Store.sub(P.I_LVL, syncImg);
         Store.sub(P.I_TMP, syncImg);
         syncImg();
-      
+        
         Bus.on('signal', (s) => {
             const aeOn = FEATURES.ae();
             if (aeOn) {
@@ -2131,17 +2127,17 @@
             }
             if (s.forceApply) Scheduler.request(true);
         });
-      
+        
         const __vfEff = { ...DEFAULTS.video };
         const __aeOut = { gain: 1, gammaF: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, luma: 0, hiRisk: 0, cf: 0.5, mid: 0, clipFrac: 0, rd: 0 };
-        const __vVals = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, mid: 0, sharp: 0, sharp2: 0, clarity: 0, dither: 0, temp: 0, toe: 0, shoulder: 0 };
-        const __iVals = { satF: 1, gain: 1, gamma: 1, contrast: 1, bright: 0, sharp: 0, sharp2: 0, clarity: 0, dither: 0, temp: 0, toe: 0, shoulder: 0, mid: 0 };
-      
+        const __vVals = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, mid: 0, detail: 0, dither: 0, temp: 0, toe: 0, shoulder: 0 };
+        const __iVals = { satF: 1, gain: 1, gamma: 1, contrast: 1, bright: 0, detail: 0, dither: 0, temp: 0, toe: 0, shoulder: 0, mid: 0 };
+        
         let lastSRev = -1, lastRRev = -1, lastAeRev = -1;
         let lastPrune = 0;
         let aeRev = 0;
         let currentAE = { ...__aeOut };
-      
+        
         const onAE = (ae) => { currentAE = ae; aeRev++; Scheduler.request(false); };
         if (AE && AE.__setOnAE) AE.__setOnAE(onAE); 
 
@@ -2160,7 +2156,7 @@
         const onEvictImage = (img) => {
             try { Filters.clear(img); } catch (_) {}
         };
-      
+        
         const cleanupTouched = (TOUCHED) => {
             for (const v of TOUCHED.videos) { onEvictVideo(v); }
             for (const i of TOUCHED.images) { onEvictImage(i); }
@@ -2250,7 +2246,7 @@
                 bindVideoOnce(v);
             }
         };
-      
+        
         Scheduler.registerApply((force) => {
             try {
                 const app = Store.getCat('app');
@@ -2345,9 +2341,7 @@
                 __iVals.gamma = 1.0;
                 __iVals.contrast = 1.0;
                 __iVals.bright = 0;
-                __iVals.sharp = img.level;
-                __iVals.sharp2 = 0;
-                __iVals.clarity = 0;
+                __iVals.detail = img.level;
                 __iVals.dither = 0;
                 __iVals.temp = img.temp;
                 __iVals.toe = 0;
@@ -2361,7 +2355,7 @@
                     else UI.update(`Ready (${CONFIG.VERSION})`, false);
                 }
         
-                const applySet = Targeting.buildApplySetReuse(visible.videos, target, CFG.extraBigVideos, CFG.applyToAllVisibleVideos);
+                const applySet = Targeting.buildApplySetReuse(visible.videos, target, CFG.extraApplyTopK, CFG.applyToAllVisibleVideos, window.__lastUserPt, wantAudio);
         
                 applyVideoFilters(applySet, vidsDirty, __vVals, videoFxOn);
 
@@ -2392,7 +2386,7 @@
         
             } catch (e) { try { console.warn('[VSC] apply crashed:', e); } catch(_) {} }
         });
-      
+        
         let tickTimer = 0;
         const startTick = () => {
             if (tickTimer) return;
@@ -2404,14 +2398,14 @@
         };
         const stopTick = () => { if (!tickTimer) return; clearInterval(tickTimer); tickTimer = 0; };
         const refreshTick = () => { (FEATURES.ae() || FEATURES.audio()) ? startTick() : stopTick(); };
-      
+        
         Store.sub(P.V_AE, refreshTick);
         Store.sub(P.A_EN, refreshTick);
         Store.sub(P.APP_ACT, refreshTick);
         refreshTick();
-      
+        
         Scheduler.request(true);
-      
+        
         return Object.freeze({
             destroy() {
                 stopTick();
