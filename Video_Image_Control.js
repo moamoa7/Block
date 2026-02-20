@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v162_1_1_AELiteCore4_Sharp3Skin)
+// @name        Video_Control (v162_1_2)
 // @namespace   https://github.com/
-// @version     162.1.1.0
-// @description Video Control: Zero-Alloc, Single-pass Lite/Full SVG, Target+AE+UserLock Unified, AE 4 profiles (Auto/Std/Bright/CinemaHDR), Sharp3 restore + Auto Skin Protect
+// @version     162.1.2
+// @description Video Control: Zero-Alloc, Single-pass Lite/Full SVG, Target+AE+UserLock Unified, AE 4 profiles (Auto/Std/Bright/CinemaHDR), Sharp3 restore + Auto Skin Protect + UI Event Shield
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -59,7 +59,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: 'v162.1.1.AELiteCore4_Sharp3Skin',
+    VERSION: 'v162.1.2.AELiteCore4_Sharp3Skin',
     IS_TOP: window === window.top,
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -68,6 +68,15 @@
   });
 
   const ENABLE_UI = true;
+
+  // ✅ PATCH 1: isInVscUI 전역화 (Registry 내부에서 이동)
+  function isInVscUI(node) {
+    if (!node) return false;
+    if (node.closest?.('[data-vsc-ui="1"]')) return true;
+    const host = node.getRootNode?.().host;
+    if (host?.closest?.('[data-vsc-ui="1"]')) return true;
+    return false;
+  }
 
   const VSCX = Object.freeze({
     visible: Symbol('vsc.visible'),
@@ -94,7 +103,6 @@
       highlight: { label: '조명', toe: 0.4, shoulder: 2.6, mid: -0.15, con: 0.99, sat: 0.98, br: -0.2, tmp: -1.0 },
       redSkin: { label: '피부', toe: 1.4, shoulder: 0.6, mid: 0.35, con: 1.03, sat: 1.05, br: 0.8, tmp: +2.0 }
     },
-    // presetS는 "샤프 디테일"에만 가산(윤곽/명료는 사용자 슬라이더로)
     detail: { off: { detailAdd: 0 }, S: { detailAdd: 10 }, M: { detailAdd: 18 }, L: { detailAdd: 28 }, XL: { detailAdd: 38 } },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 },
@@ -110,12 +118,10 @@
   const DEFAULTS = {
     video: {
       gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, temp: 0,
-      // ✅ Sharp 3 restore
-      outline: 0,   // 샤프 윤곽
-      detail: 0,    // 샤프 디테일
-      clarity: 0,   // 명료(중간톤 콘트라스트)
+      outline: 0,
+      detail: 0,
+      clarity: 0,
       dither: 0,
-
       ae: false, aeProfile: 'auto', aeStrength: 1.0,
       tonePreset: null, toneStrength: 1.0,
       presetS: 'off', presetB: 'brOFF', presetMix: 1.0
@@ -128,20 +134,12 @@
 
   const P = Object.freeze({
     APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_TAB: 'app.tab',
-
     V_AE: 'video.ae', V_AE_PROFILE: 'video.aeProfile', V_AE_STR: 'video.aeStrength',
     V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength',
-
     V_GAMMA: 'video.gamma', V_CONTR: 'video.contrast', V_BRIGHT: 'video.bright',
     V_SAT: 'video.sat', V_TEMP: 'video.temp',
-    // ✅ Sharp 3 restore
-    V_OUTLINE: 'video.outline',
-    V_DETAIL: 'video.detail',
-    V_CLARITY: 'video.clarity',
-    V_DITHER: 'video.dither',
-
+    V_OUTLINE: 'video.outline', V_DETAIL: 'video.detail', V_CLARITY: 'video.clarity', V_DITHER: 'video.dither',
     V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix',
-
     I_LVL: 'image.level', I_TMP: 'image.temp',
     A_EN: 'audio.enabled', A_BST: 'audio.boost',
     PB_RATE: 'playback.rate'
@@ -169,7 +167,6 @@
     const split2 = (p) => { const i = p.indexOf('.'); return (i > 0) ? [p.slice(0, i), p.slice(i + 1)] : [p, '']; };
     const lerp = (a, b, t) => a + (b - a) * t;
 
-    // ✅ h(): pointerdown 선점 + click 중복 방지(0alloc, element에 타임스탬프만 저장)
     const h = (tag, props = {}, ...children) => {
       const el = (tag === 'svg' || props.ns === 'svg')
         ? document.createElementNS('http://www.w3.org/2000/svg', tag)
@@ -222,6 +219,7 @@
     };
     return Object.freeze({ clamp, split2, lerp, h, deepClone, createLRU });
   })();
+
   // --- Scheduler (RAF + interval cap) ---
   function createScheduler(minIntervalMs = 16) {
     let queued = false, force = false, applyFn = null;
@@ -303,7 +301,6 @@
   }
 
   // --- EventBus (aggregated signals) ---
-  // ✅ PATCH v162.1.1: requestAnimationFrame closure 제거(고정 flush)
   function createEventBus() {
     const subs = new Map();
     const on = (name, fn) => {
@@ -556,8 +553,6 @@
     return Object.freeze({ update, buildApplySet });
   }
 
-  // --- Registry, Audio ---
-  // (PART 3/4에서 계속)
   // --- Registry: observe video/img visibility + scan DOM/shadow ---
   function createRegistry(scheduler, featureCheck) {
     const videos = new Set(), images = new Set();
@@ -573,7 +568,7 @@
     const shadowRootsLRU = [];
     const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? 8 : 24;
 
-    const shadowObs = new WeakMap(); // root -> MutationObserver
+    const shadowObs = new WeakMap();
 
     const io = new IntersectionObserver((entries) => {
       if (!featureCheck.active()) return;
@@ -598,7 +593,6 @@
       if (changed) { rev++; scheduler.request(false); }
     }, { root: null, threshold: 0.01, rootMargin: CONFIG.IS_LOW_END ? '120px' : '300px' });
 
-    const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
     const observeMediaEl = (el) => {
       if (!featureCheck.active() || !el || isInVscUI(el)) return;
       if (el.tagName === 'VIDEO') { if (videos.has(el)) return; videos.add(el); io.observe(el); }
@@ -881,7 +875,6 @@
   }
 
   // --- Filters (SVG) Lite/Full + caching ---
-  // ✅ Sharp3: outline + detail 분리(필터 내부는 1-pass지만 radius/k를 분리 매핑)
   function createFiltersUnified(utils, config) {
     const { h, clamp, createLRU } = utils;
     const ctxMap = new WeakMap();
@@ -921,7 +914,6 @@
       node.setAttribute(attr, val);
     };
 
-    // ✅ makeKey: outline 추가
     const makeKey = (kind, s) => [
       kind,
       qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01),
@@ -1184,7 +1176,6 @@
       }
     }
 
-    // ✅ outline/detail 분리 매핑
     function updateDetail(nodes, sEff) {
       if (!nodes.lumB) return;
       const st = nodes.st;
@@ -1195,12 +1186,10 @@
       const d01 = clamp((sEff.detail || 0) / 50, 0, 1);
       const amt01 = clamp(Math.max(o01, d01), 0, 1);
 
-      // radius: 윤곽(큰 반경) 비중↑, 디테일(작은 반경) 비중↓
       let r = 0.65 + (2.55 * o01) + (0.95 * d01);
       r *= (1 - hiProtect * 0.55);
       if (r < 0.01 || amt01 < 1e-4) r = 0;
 
-      // k: 디테일(강도) 비중↑
       let k = (0.95 * o01) + (2.20 * d01);
       k *= (1 - hiProtect * 0.50);
       if (k < 1e-4) k = 0;
@@ -1309,7 +1298,6 @@
     cinemaHdr:{ STRENGTH: 0.42, TARGET_MID_BASE: 0.230, MAX_UP_EV: 0.22, MAX_DOWN_EV: -0.52, TONE_BIAS: -0.35, TEMP_BIAS: 0, LOOK: { brMul: 0.92, satMul: 0.93, conMul: 0.99 } }
   });
 
-  // ✅ PATCH v162.1.1: AE fallback 객체 무할당
   const AE_ZERO = Object.freeze({
     gain: 1, gammaF: 1, conF: 1, satF: 1,
     mid: 0, toe: 0, shoulder: 0,
@@ -1368,7 +1356,6 @@
     const toneOn = !!vf.tonePreset && vf.tonePreset !== 'neutral';
     const toneStr = toneOn ? clamp(vf.toneStrength ?? 1.0, 0, 1) : 0;
 
-    // ✅ Sharp3: outline/detail/clarity를 “디테일 의도”로 반영
     const sharpIntent = Math.max(Math.abs(vf.outline ?? 0), Math.abs(vf.detail ?? 0), Math.abs(vf.clarity ?? 0)) / 50;
 
     const expIntent  = clamp(manualExp + presetExp + toneStr * 0.18, 0, 3.0);
@@ -1483,7 +1470,7 @@
     const preSatF    = Utils.lerp(1.0, (pB.satF   ?? 1), mix);
     const preBright  = (pB.brightAdd ?? 0) * mix;
     const preTemp    = (pB.tempAdd   ?? 0) * mix;
-    const preDetail  = (pD.detailAdd ?? 0) * mix; // ✅ 디테일에만 가산
+    const preDetail  = (pD.detailAdd ?? 0) * mix;
 
     const A = ae || AE_ZERO;
 
@@ -1493,7 +1480,6 @@
     const uBr    = (vUser.bright ?? 0);
     const uTmp   = (vUser.temp ?? 0);
 
-    // ✅ Sharp3 inputs
     const uOut   = (vUser.outline ?? 0);
     const uDet   = (vUser.detail ?? 0);
     const uCla   = (vUser.clarity ?? 0);
@@ -1509,35 +1495,28 @@
     const gain = clamp((A.gain ?? 1.0), 1.0, 8.0);
     const hiRisk01 = clamp(A.hiRisk || 0, 0, 1);
 
-    // ✅ Auto Skin Protect (AE worker skinScore 기반; AE off면 0)
     const skin01 = clamp(A.rd ?? 0, 0, 1);
 
-    // 사용자 샤프 값
     const userOutline0 = clamp(uOut, 0, 50);
     const userDetail0  = clamp(uDet + preDetail, 0, 50);
     const clarity0     = clamp(uCla, 0, 50);
 
-    // 하이라이트/게인 위험 보호
     const protect = clamp((gain - 1.0) / 4.0 + (A.shoulder || 0) / 18 + hiRisk01 * 0.7, 0, 1);
 
-    // ✅ 얼굴 왜곡 방지: 피부가 많을수록/하이라이트 위험일수록 샤프&명료를 자동 감쇠
     const skinSharpK = (1 - 0.60 * skin01) * (1 - 0.18 * hiRisk01);
     const skinDetailK = (1 - 0.72 * skin01) * (1 - 0.22 * hiRisk01);
     const skinClarityK = (1 - 0.65 * skin01) * (1 - 0.18 * hiRisk01);
 
-    // ✅ 샤프 윤곽/디테일 최종
     const outlineMul = Utils.lerp(1.0, 0.55, protect) * skinSharpK;
     const detailMul  = Utils.lerp(1.0, 0.50, protect) * skinDetailK;
 
     const outline = clamp(userOutline0 * outlineMul, 0, 50);
     const detail  = clamp(userDetail0  * detailMul,  0, 50);
 
-    // ✅ 명료: 중간톤 콘트라스트/미드 약간 + (피부/위험시 감쇠)
     const cla01 = clamp(clarity0 / 50, 0, 1) * skinClarityK;
     const claProtect = clamp(protect * 0.85 + hiRisk01 * 0.35, 0, 1);
     const claK = (1 - 0.45 * claProtect);
 
-    // 명료는 과하면 얼굴 “눌림/찢김”처럼 보여서 상한을 보수적으로
     contrast = 1 + (contrast - 1) * (1 - 0.35 * claProtect);
     satF = 1 + (satF - 1) * (1 - 0.40 * claProtect);
 
@@ -1558,7 +1537,6 @@
 
     out.mid      = clamp(((A.mid || 0) * styleMix) + (cla01 * 0.22 * (1 - 0.55 * skin01)), -1, 1);
 
-    // ✅ Sharp3 outputs for filter
     out.outline  = outline;
     out.detail   = detail;
 
@@ -1689,7 +1667,6 @@
   `;
 
   // --- createAE ---
-  // ✅ PATCH v162.1.1: rVFC / setTimeout 클로저 제거(고정 콜백)
   function createAE(sm, { IS_MOBILE, Utils }, aeState, onUpdate) {
     const { clamp } = Utils;
 
@@ -1717,7 +1694,6 @@
 
     let __packKey = '', __pack = null;
 
-    // ✅ stable callbacks
     let __rvfcToken = 0;
     function __rvfcCb() { loop(__rvfcToken); }
 
@@ -2129,8 +2105,6 @@
     });
   }
 
-  // --- UI + Controller + Main ---
-  // (PART 4/4에서 계속)
   // --- UI (Trigger policy + setAndHint + UserLock) ---
   function createUI(sm, defaults, registry, scheduler, bus) {
     const { h } = Utils;
@@ -2148,7 +2122,6 @@
       [P.V_SAT]:     { aeLevel: 1, lockMs: 1800, lockAmp: 0.85 },
       [P.V_TEMP]:    { aeLevel: 1, lockMs: 1800, lockAmp: 0.85 },
 
-      // ✅ Sharp 3 restore triggers
       [P.V_OUTLINE]: { aeLevel: 1, lockMs: 2000, lockAmp: 0.90 },
       [P.V_DETAIL]:  { aeLevel: 1, lockMs: 2000, lockAmp: 0.90 },
       [P.V_CLARITY]: { aeLevel: 1, lockMs: 2000, lockAmp: 0.90 },
@@ -2236,7 +2209,6 @@
       return r;
     };
 
-    // ✅ Sharp 3 restore: 윤곽/디테일/명료 3개
     const SLIDERS = [
       { l:'감마',   k:P.V_GAMMA,  min:0.5, max:2.5, s:0.05, f:v=>v.toFixed(2) },
       { l:'대비',   k:P.V_CONTR,  min:0.5, max:2.0, s:0.05, f:v=>v.toFixed(2) },
@@ -2268,11 +2240,34 @@
       return h('div', { class:'slider' }, h('label', {}, cfg.l, valEl), inp);
     };
 
+    // ✅ PATCH 3-1 수정: 캡처 단계 제거, 버블 단계에서만 바깥으로 새는 것을 차단
+    function addUiEventShield(shadowRoot) {
+      const shield = (e) => {
+        // UI 내부 요소의 핸들러(Utils.h에서 등록된)가 먼저 실행된 후,
+        // 섀도우 루트로 올라온 찌꺼기(?) 이벤트가 페이지로 나가지 못하게 막음
+        e.stopPropagation();
+      };
+
+      const types = [
+        'pointerdown','pointerup','click','dblclick',
+        'mousedown','mouseup','touchstart','touchend',
+        'contextmenu','wheel'
+      ];
+
+      for (const t of types) {
+        // capture: false (버블링 단계)
+        shadowRoot.addEventListener(t, shield, { capture: false, passive: false });
+      }
+    }
+
     const build = () => {
       if (container) return;
       const host = Utils.h('div', { id:'vsc-host', 'data-vsc-ui':'1' });
       const shadow = host.attachShadow({ mode:'open' });
 
+      addUiEventShield(shadow); // 실드 적용
+
+      // ✅ PATCH BONUS-2: input[type=range] 에 touch-action: none 추가
       const style = `
         .main{position:fixed;top:10%;right:70px;width:320px;background:rgba(25,25,25,.96);backdrop-filter:blur(12px);
           color:#eee;padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;
@@ -2288,7 +2283,7 @@
         .grid{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;row-gap:8px;margin-top:8px;}
         .slider{display:flex;flex-direction:column;gap:4px;color:#ccc;}
         .slider label{display:flex;justify-content:space-between;font-size:13px;font-weight:500;}
-        input[type=range]{width:100%;accent-color:#3498db;cursor:pointer;height:24px;margin:4px 0;}
+        input[type=range]{width:100%;accent-color:#3498db;cursor:pointer;height:24px;margin:4px 0; touch-action:none;}
         .monitor{font-size:12px;color:#aaa;text-align:center;border-top:1px solid #444;padding-top:8px;margin-top:12px;}
         hr{border:0;border-top:1px solid #444;width:100%;margin:10px 0;}
       `;
@@ -2363,6 +2358,9 @@
       if (gearHost) return;
       gearHost = h('div', { id:'vsc-gear-host', 'data-vsc-ui':'1', style:'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
       const shadow = gearHost.attachShadow({ mode:'open' });
+
+      addUiEventShield(shadow); // 실드 적용
+
       const style = `
         .gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%;
           background:rgba(25,25,25,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);color:#fff;
@@ -2526,10 +2524,8 @@
       }, { passive:true });
     };
 
-    // Map reuse (no per-tick alloc)
     const __urlByDocVideo = new Map();
     const __urlByDocImage = new Map();
-    // ✅ PATCH v162.1.1: empty Set reuse (no new Set())
     const __EMPTY_SET = new Set();
 
     const applyVideoFilters = (applySet, dirtyVideos, vVals, activeFx) => {
@@ -2645,7 +2641,13 @@
         const imgsDirty = dirty.images;
 
         const policyRes = Targeting.update(visible.videos, window.__lastClickedVideo, window.__lastUserPt, wantAudio, now);
-        const target = policyRes.target;
+        let target = policyRes.target;
+
+        // ✅ PATCH 3-2: UI 상호작용 후 1800ms 동안 타겟 고정 (Target Lock)
+        const uiHot = (now - (window.__vscUiInteractT || 0)) < 1800;
+        if (uiHot && __lastTarget && __lastTarget.isConnected && __lastTarget[VSCX.visible] !== false) {
+          target = __lastTarget;
+        }
 
         if (target !== __lastTarget) {
           __lastTarget = target;
@@ -2726,7 +2728,6 @@
 
         composeVideoParamsInto(__vVals, vfEff, aeOut, DEFAULTS.video);
 
-        // image params
         __iVals.satF = 1.0;
         __iVals.gain = 1.0;
         __iVals.gamma = 1.0;
@@ -2763,7 +2764,6 @@
             try { Filters.clear(imgEl); } catch (_) {}
             TOUCHED.images.delete(imgEl);
           }
-          // ✅ PATCH v162.1.1: new Set() 제거
           applyImageFilters(__EMPTY_SET, imgsDirty, __iVals, false);
         }
 
@@ -2861,7 +2861,6 @@
   const Filters = createFiltersUnified(Utils, { VSC_ID: CONFIG.VSC_ID, IMG_BASE_DETAIL: DEFAULTS.image.level });
   const Audio = createAudio(Store);
 
-  // AE shared-state (single object, in-place updates)
   const AE_STATE = {
     gain: 1, gammaF: 1, conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0,
     hiRisk: 0, cf: 0.5, luma: 0, clipFrac: 0, rd: 0
@@ -2870,6 +2869,8 @@
   const AE = createAE(Store, { IS_MOBILE: CONFIG.IS_MOBILE, Utils }, AE_STATE, () => Scheduler.request(false));
   const UI = ENABLE_UI ? createUI(Store, DEFAULTS, Registry, Scheduler, Bus) : { ensure(){}, update(){}, destroy(){} };
 
+  // ✅ PATCH 2: UI 상호작용 기록용 전역 변수 추가
+  window.__vscUiInteractT = 0;
   window.__lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: 0 };
   window.__lastClickT = 0;
   window.__lastClickedVideo = null;
@@ -2878,13 +2879,21 @@
     const p = window.__lastUserPt;
     p.x = x; p.y = y; p.t = performance.now();
   }
+
+  // ✅ PATCH 2: 전역 이벤트에서 UI 이벤트 제외 및 기록
   window.addEventListener('pointerdown', (e) => {
+    if (isInVscUI(e.target)) {
+      window.__vscUiInteractT = performance.now();
+      return;
+    }
+    const now = performance.now();
     setUserPt(e.clientX, e.clientY);
-    window.__lastClickT = window.__lastUserPt.t;
+    window.__lastClickT = now;
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const v = el?.closest?.('video');
     if (v) window.__lastClickedVideo = v;
-  }, { passive:true });
+  }, { passive: true, capture: true }); // capture 적용
+
   window.addEventListener('wheel', () => setUserPt(innerWidth * 0.5, innerHeight * 0.5), { passive:true });
   window.addEventListener('keydown', () => setUserPt(innerWidth * 0.5, innerHeight * 0.5), { passive:true });
 
