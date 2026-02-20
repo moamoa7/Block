@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Image_Control (Local_Indep_v162_0_AELiteCore)
+// @name        Video_Image_Control (Local_Indep_v162_1_1_AELiteCore4_Sharp3Skin)
 // @namespace   https://github.com/
-// @version     162.0.0.0
-// @description Video Control: Zero-Alloc, Single-pass Lite/Full SVG, Target+AE+UserLock Unified, AE shared-state (no alloc)
+// @version     162.1.1.0
+// @description Video Control: Zero-Alloc, Single-pass Lite/Full SVG, Target+AE+UserLock Unified, AE 4 profiles (Auto/Std/Bright/CinemaHDR), Sharp3 restore + Auto Skin Protect
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -59,7 +59,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: 'v162.0.AELiteCore',
+    VERSION: 'v162.1.1.AELiteCore4_Sharp3Skin',
     IS_TOP: window === window.top,
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -84,32 +84,38 @@
   // --- PRESETS (trimmed, used-only) ---
   const PRESETS = Object.freeze({
     aeProfiles: {
-      auto: { label: '자동' },
-      balanced: { label: '표준' },
-      cinematic: { label: '영화' },
-      bright: { label: '밝게' },
-      soft: { label: '소프트' },
-      night: { label: '야간' },
-      hdrSafe: { label: 'HDR' },
-      vivid: { label: '비비드' }
+      auto: { label: 'Auto' },
+      standard: { label: 'Standard' },
+      bright: { label: 'Bright' },
+      cinemaHdr: { label: 'Cinema/HDR' }
     },
     tone: {
       neutral: { label: '기본', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.00, sat: 1.00, br: 0.0, tmp: 0.0 },
       highlight: { label: '조명', toe: 0.4, shoulder: 2.6, mid: -0.15, con: 0.99, sat: 0.98, br: -0.2, tmp: -1.0 },
       redSkin: { label: '피부', toe: 1.4, shoulder: 0.6, mid: 0.35, con: 1.03, sat: 1.05, br: 0.8, tmp: +2.0 }
     },
+    // presetS는 "샤프 디테일"에만 가산(윤곽/명료는 사용자 슬라이더로)
     detail: { off: { detailAdd: 0 }, S: { detailAdd: 10 }, M: { detailAdd: 18 }, L: { detailAdd: 28 }, XL: { detailAdd: 38 } },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 },
-      S: { gammaF: 1.00, brightAdd: 2, conF: 1.00, satF: 1.00, tempAdd: 0 },
-      M: { gammaF: 1.08, brightAdd: 4, conF: 1.00, satF: 1.00, tempAdd: 0 },
-      L: { gammaF: 1.16, brightAdd: 6, conF: 1.00, satF: 1.00, tempAdd: 0 }
+      S:     { gammaF: 1.00, brightAdd: 2, conF: 1.00, satF: 1.00, tempAdd: 0 },
+      M:     { gammaF: 1.08, brightAdd: 4, conF: 1.00, satF: 1.00, tempAdd: 0 },
+      L:     { gammaF: 1.16, brightAdd: 6, conF: 1.00, satF: 1.00, tempAdd: 0 },
+      DS:    { gammaF: 1.00, brightAdd: 3.6, conF: 1.00, satF: 1.00, tempAdd: 0 },
+      DM:    { gammaF: 1.10, brightAdd: 7.2, conF: 1.00, satF: 1.00, tempAdd: 0 },
+      DL:    { gammaF: 1.22, brightAdd: 10.8, conF: 1.00, satF: 1.00, tempAdd: 0 }
     }
   });
 
   const DEFAULTS = {
     video: {
-      gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, temp: 0, detail: 0, dither: 0,
+      gamma: 1.0, contrast: 1.0, bright: 0, sat: 100, temp: 0,
+      // ✅ Sharp 3 restore
+      outline: 0,   // 샤프 윤곽
+      detail: 0,    // 샤프 디테일
+      clarity: 0,   // 명료(중간톤 콘트라스트)
+      dither: 0,
+
       ae: false, aeProfile: 'auto', aeStrength: 1.0,
       tonePreset: null, toneStrength: 1.0,
       presetS: 'off', presetB: 'brOFF', presetMix: 1.0
@@ -127,7 +133,13 @@
     V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength',
 
     V_GAMMA: 'video.gamma', V_CONTR: 'video.contrast', V_BRIGHT: 'video.bright',
-    V_SAT: 'video.sat', V_TEMP: 'video.temp', V_DETAIL: 'video.detail', V_DITHER: 'video.dither',
+    V_SAT: 'video.sat', V_TEMP: 'video.temp',
+    // ✅ Sharp 3 restore
+    V_OUTLINE: 'video.outline',
+    V_DETAIL: 'video.detail',
+    V_CLARITY: 'video.clarity',
+    V_DITHER: 'video.dither',
+
     V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix',
 
     I_LVL: 'image.level', I_TMP: 'image.temp',
@@ -156,6 +168,8 @@
     const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
     const split2 = (p) => { const i = p.indexOf('.'); return (i > 0) ? [p.slice(0, i), p.slice(i + 1)] : [p, '']; };
     const lerp = (a, b, t) => a + (b - a) * t;
+
+    // ✅ h(): pointerdown 선점 + click 중복 방지(0alloc, element에 타임스탬프만 저장)
     const h = (tag, props = {}, ...children) => {
       const el = (tag === 'svg' || props.ns === 'svg')
         ? document.createElementNS('http://www.w3.org/2000/svg', tag)
@@ -163,19 +177,41 @@
 
       for (const [k, v] of Object.entries(props)) {
         if (k.startsWith('on')) {
-          el.addEventListener(k.slice(2).toLowerCase(), (e) => {
-            if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation();
-            v(e);
-          });
+          const evName = k.slice(2).toLowerCase();
+          const PD_KEY = '__vsc_pd_t';
+
+          const handler = (e) => {
+            try {
+              if (e && e.type === 'click') {
+                const t0 = el[PD_KEY] || 0;
+                if (t0 && (performance.now() - t0) < 450) return;
+              }
+              if (e && e.type === 'pointerdown') el[PD_KEY] = performance.now();
+
+              if (tag === 'button' || tag === 'input') e.preventDefault?.();
+              e.stopPropagation?.();
+              e.stopImmediatePropagation?.();
+            } catch (_) {}
+
+            try { v(e); } catch (_) {}
+          };
+
+          el.addEventListener(evName, handler, { passive: false });
+          if (evName === 'click') {
+            el.addEventListener('pointerdown', handler, { passive: false });
+          }
+
         } else if (k === 'style') {
           if (typeof v === 'string') el.style.cssText = v;
           else Object.assign(el.style, v);
         } else if (k === 'class') el.className = v;
         else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v);
       }
+
       children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
       return el;
     };
+
     const deepClone = (x) => (window.structuredClone ? structuredClone(x) : JSON.parse(JSON.stringify(x)));
     const createLRU = (max = 384) => {
       const m = new Map();
@@ -186,7 +222,6 @@
     };
     return Object.freeze({ clamp, split2, lerp, h, deepClone, createLRU });
   })();
-
   // --- Scheduler (RAF + interval cap) ---
   function createScheduler(minIntervalMs = 16) {
     let queued = false, force = false, applyFn = null;
@@ -268,6 +303,7 @@
   }
 
   // --- EventBus (aggregated signals) ---
+  // ✅ PATCH v162.1.1: requestAnimationFrame closure 제거(고정 flush)
   function createEventBus() {
     const subs = new Map();
     const on = (name, fn) => {
@@ -289,6 +325,22 @@
     let lockAmpAgg = 0;
     let profileChangedAgg = false;
 
+    function flush() {
+      queued = false;
+      emit('signal', {
+        aeLevel: aeLevelAgg,
+        forceApply: forceApplyAgg,
+        userLockMs: lockMsAgg,
+        userLockAmp: lockAmpAgg,
+        profileChanged: profileChangedAgg
+      });
+      aeLevelAgg = 0;
+      forceApplyAgg = false;
+      lockMsAgg = 0;
+      lockAmpAgg = 0;
+      profileChangedAgg = false;
+    }
+
     const signal = (p) => {
       if (p) {
         if (p.affectsAE) aeLevelAgg = Math.max(aeLevelAgg, 2);
@@ -303,21 +355,7 @@
 
       if (queued) return;
       queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        emit('signal', {
-          aeLevel: aeLevelAgg,
-          forceApply: forceApplyAgg,
-          userLockMs: lockMsAgg,
-          userLockAmp: lockAmpAgg,
-          profileChanged: profileChangedAgg
-        });
-        aeLevelAgg = 0;
-        forceApplyAgg = false;
-        lockMsAgg = 0;
-        lockAmpAgg = 0;
-        profileChangedAgg = false;
-      });
+      requestAnimationFrame(flush);
     };
 
     return Object.freeze({ on, emit, signal });
@@ -489,9 +527,9 @@
       } else {
         pending = null; pendingSince = 0;
       }
-      
+
       const switched = (active !== prevActive);
-      return { 
+      return {
         target: active,
         switched,
         switchReason: switched ? (userForced ? 'user' : (strong ? 'strong' : 'soft')) : 'none'
@@ -501,10 +539,10 @@
     function buildApplySet(visibleVideos, target, now, lastUserPt, audioBoostOn) {
       applySet.clear();
       if (target) applySet.add(target);
-      
-      const N = 2; // Hardcoded fallback for UI simplifications
+
+      const N = 2;
       bufTop.length = 0;
-      
+
       for (const v of visibleVideos) {
         if (!v || v === target) continue;
         const s = scoreVideoCached(v, audioBoostOn, now, lastUserPt);
@@ -518,6 +556,8 @@
     return Object.freeze({ update, buildApplySet });
   }
 
+  // --- Registry, Audio ---
+  // (PART 3/4에서 계속)
   // --- Registry: observe video/img visibility + scan DOM/shadow ---
   function createRegistry(scheduler, featureCheck) {
     const videos = new Set(), images = new Set();
@@ -525,7 +565,7 @@
     let dirtyA = { videos: new Set(), images: new Set() };
     let dirtyB = { videos: new Set(), images: new Set() };
     let dirty = dirtyA;
-    
+
     let rev = 0;
     let observingImages = false;
 
@@ -639,12 +679,12 @@
     })();
 
     const observers = new Set();
-    
+
     function connectObserver(root) {
       if (!root) return;
       const prev = shadowObs.get(root);
       if (prev) return;
-      
+
       const mo = new MutationObserver((muts) => {
         if (!featureCheck.active()) return;
         for (const m of muts) {
@@ -841,6 +881,7 @@
   }
 
   // --- Filters (SVG) Lite/Full + caching ---
+  // ✅ Sharp3: outline + detail 분리(필터 내부는 1-pass지만 radius/k를 분리 매핑)
   function createFiltersUnified(utils, config) {
     const { h, clamp, createLRU } = utils;
     const ctxMap = new WeakMap();
@@ -880,10 +921,13 @@
       node.setAttribute(attr, val);
     };
 
+    // ✅ makeKey: outline 추가
     const makeKey = (kind, s) => [
       kind,
       qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01),
-      qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.detail, 0.2), qInt(s.dither, 1)
+      qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2),
+      qInt(s.outline || 0, 0.2), qInt(s.detail || 0, 0.2),
+      qInt(s.dither, 1)
     ].join('|');
 
     const smoothstep = (a, b, x) => {
@@ -1075,7 +1119,7 @@
           toneFuncs: Array.from(tone.children),
           tempM,
           satM,
-          col: satM, 
+          col: satM,
           lumB, det, feComp,
           st: { lastKey: '', toneKey: '', toneTable: '', tempKey: '', satKey: '', detailKey: '', noiseKey: '', __b: '', __k: '' }
         };
@@ -1140,19 +1184,26 @@
       }
     }
 
+    // ✅ outline/detail 분리 매핑
     function updateDetail(nodes, sEff) {
       if (!nodes.lumB) return;
       const st = nodes.st;
       const g = clamp(sEff.gain || 1, 1, 8);
       const hiProtect = clamp((g - 1) / 4.0 + Math.max(0, (sEff.shoulder || 0)) / 18, 0, 1);
+
+      const o01 = clamp((sEff.outline || 0) / 50, 0, 1);
       const d01 = clamp((sEff.detail || 0) / 50, 0, 1);
+      const amt01 = clamp(Math.max(o01, d01), 0, 1);
 
-      let r = 0.70 + 2.60 * d01;
+      // radius: 윤곽(큰 반경) 비중↑, 디테일(작은 반경) 비중↓
+      let r = 0.65 + (2.55 * o01) + (0.95 * d01);
       r *= (1 - hiProtect * 0.55);
-      if (r < 0.01) r = 0;
+      if (r < 0.01 || amt01 < 1e-4) r = 0;
 
-      let k = 1.55 * d01;
+      // k: 디테일(강도) 비중↑
+      let k = (0.95 * o01) + (2.20 * d01);
       k *= (1 - hiProtect * 0.50);
+      if (k < 1e-4) k = 0;
 
       const detailKey = `${r.toFixed(2)}|${k.toFixed(3)}`;
       if (st.detailKey === detailKey) return;
@@ -1182,11 +1233,11 @@
 
       let nodes, kindKey = kind;
       if (kind === 'video') {
-        const det0 = Math.abs(s.detail || 0) < 0.5;
+        const det0 = (Math.abs(s.detail || 0) < 0.5) && (Math.abs(s.outline || 0) < 0.5);
         const dith0 = (s.dither || 0) <= 0;
         const toneHeavy = (Math.abs(s.toe || 0) + Math.abs(s.shoulder || 0) + Math.abs(s.mid || 0)) > 0.6;
-      
-        const wantFull = !(det0 && dith0) || toneHeavy; 
+
+        const wantFull = !(det0 && dith0) || toneHeavy;
         nodes = wantFull ? ctx.videoFull : ctx.videoLite;
         kindKey = wantFull ? 'videoFull' : 'videoLite';
       } else {
@@ -1238,7 +1289,7 @@
     });
   }
 
-  // --- AE Engine (worker + auto profile + userLock gating) ---
+  // --- AE Engine ---
   const AE_COMMON = Object.freeze({
     CLIP_FRAC_LIMIT: 0.0032,
     DEAD_IN: 0.035,
@@ -1253,13 +1304,17 @@
   });
 
   const AE_PROFILES = Object.freeze({
-    balanced: { STRENGTH: 0.56, TARGET_MID_BASE: 0.245, MAX_UP_EV: 0.40, MAX_DOWN_EV: -0.34, TONE_BIAS: 0.0, TEMP_BIAS: 0, LOOK: { brMul: 0.98, satMul: 0.98, conMul: 1.00 } },
-    cinematic:{ STRENGTH: 0.44, TARGET_MID_BASE: 0.220, MAX_UP_EV: 0.24, MAX_DOWN_EV: -0.42, TONE_BIAS: -0.65, TEMP_BIAS: 0, LOOK: { brMul: 0.90, satMul: 0.92, conMul: 0.99 } },
-    bright:   { STRENGTH: 0.70, TARGET_MID_BASE: 0.285, MAX_UP_EV: 0.62, MAX_DOWN_EV: -0.26, TONE_BIAS: +0.65, TEMP_BIAS: +1.0, LOOK: { brMul: 1.08, satMul: 1.06, conMul: 1.01 } },
-    soft:     { STRENGTH: 0.52, TARGET_MID_BASE: 0.250, MAX_UP_EV: 0.44, MAX_DOWN_EV: -0.30, TONE_BIAS: +0.10, TEMP_BIAS: +1.5, LOOK: { brMul: 1.00, satMul: 0.97, conMul: 0.98 } },
-    night:    { STRENGTH: 0.82, TARGET_MID_BASE: 0.305, MAX_UP_EV: 0.80, MAX_DOWN_EV: -0.18, TONE_BIAS: +0.30, TEMP_BIAS: +2.0, LOOK: { brMul: 1.10, satMul: 1.00, conMul: 0.98 } },
-    hdrSafe:  { STRENGTH: 0.40, TARGET_MID_BASE: 0.230, MAX_UP_EV: 0.20, MAX_DOWN_EV: -0.52, TONE_BIAS: -0.10, TEMP_BIAS: 0, LOOK: { brMul: 0.92, satMul: 0.95, conMul: 0.98 } },
-    vivid:    { STRENGTH: 0.60, TARGET_MID_BASE: 0.260, MAX_UP_EV: 0.50, MAX_DOWN_EV: -0.32, TONE_BIAS: +0.20, TEMP_BIAS: 0, LOOK: { brMul: 1.02, satMul: 1.12, conMul: 1.06 } }
+    standard: { STRENGTH: 0.56, TARGET_MID_BASE: 0.245, MAX_UP_EV: 0.40, MAX_DOWN_EV: -0.34, TONE_BIAS: 0.0, TEMP_BIAS: 0, LOOK: { brMul: 0.98, satMul: 0.98, conMul: 1.00 } },
+    bright:   { STRENGTH: 0.70, TARGET_MID_BASE: 0.285, MAX_UP_EV: 0.62, MAX_DOWN_EV: -0.26, TONE_BIAS: +0.55, TEMP_BIAS: +1.0, LOOK: { brMul: 1.08, satMul: 1.06, conMul: 1.01 } },
+    cinemaHdr:{ STRENGTH: 0.42, TARGET_MID_BASE: 0.230, MAX_UP_EV: 0.22, MAX_DOWN_EV: -0.52, TONE_BIAS: -0.35, TEMP_BIAS: 0, LOOK: { brMul: 0.92, satMul: 0.93, conMul: 0.99 } }
+  });
+
+  // ✅ PATCH v162.1.1: AE fallback 객체 무할당
+  const AE_ZERO = Object.freeze({
+    gain: 1, gammaF: 1, conF: 1, satF: 1,
+    mid: 0, toe: 0, shoulder: 0,
+    brightAdd: 0, tempAdd: 0,
+    hiRisk: 0, cf: 0.5, clipFrac: 0, rd: 0, luma: 0
   });
 
   const AE_PROFILE_FINAL = (() => {
@@ -1282,27 +1337,20 @@
   })();
 
   const AE_MIX_TUNE = Object.freeze({
-    balanced: { expBase: 1.00, toneBase: 1.00, conflictK: 1.00 },
-    cinematic:{ expBase: 0.95, toneBase: 0.95, conflictK: 1.05 },
-    bright:   { expBase: 1.05, toneBase: 1.02, conflictK: 0.95 },
-    soft:     { expBase: 0.98, toneBase: 0.92, conflictK: 1.20 },
-    night:    { expBase: 1.12, toneBase: 0.95, conflictK: 1.05 },
-    hdrSafe:  { expBase: 0.82, toneBase: 0.88, conflictK: 1.30 },
-    vivid:    { expBase: 0.95, toneBase: 1.10, conflictK: 1.25 }
+    standard:  { expBase: 1.00, toneBase: 1.00, conflictK: 1.00 },
+    bright:    { expBase: 1.05, toneBase: 1.02, conflictK: 0.95 },
+    cinemaHdr: { expBase: 0.88, toneBase: 0.90, conflictK: 1.25 }
   });
 
   const AE_AUTO_MIX_BIAS = Object.freeze({
-    balanced: { exp: 1.00, tone: 1.00 },
-    cinematic:{ exp: 0.95, tone: 0.92 },
-    bright:   { exp: 1.05, tone: 0.96 },
-    soft:     { exp: 0.98, tone: 0.88 },
-    night:    { exp: 1.10, tone: 0.90 },
-    hdrSafe:  { exp: 0.80, tone: 0.78 },
-    vivid:    { exp: 0.95, tone: 1.05 }
+    standard:  { exp: 1.00, tone: 1.00 },
+    bright:    { exp: 1.05, tone: 0.96 },
+    cinemaHdr: { exp: 0.82, tone: 0.86 }
   });
 
   function getAePackFast(isMobile, profileName) {
-    const cfg = (isMobile ? AE_PROFILE_FINAL.mobile : AE_PROFILE_FINAL.pc)[profileName] || AE_PROFILE_FINAL.pc.balanced;
+    const table = isMobile ? AE_PROFILE_FINAL.mobile : AE_PROFILE_FINAL.pc;
+    const cfg = table[profileName] || AE_PROFILE_FINAL.pc.standard;
     return { cfg, look: cfg.LOOK };
   }
 
@@ -1319,10 +1367,12 @@
 
     const toneOn = !!vf.tonePreset && vf.tonePreset !== 'neutral';
     const toneStr = toneOn ? clamp(vf.toneStrength ?? 1.0, 0, 1) : 0;
-    const detailIntent = Math.abs(vf.detail ?? 0) / 50;
+
+    // ✅ Sharp3: outline/detail/clarity를 “디테일 의도”로 반영
+    const sharpIntent = Math.max(Math.abs(vf.outline ?? 0), Math.abs(vf.detail ?? 0), Math.abs(vf.clarity ?? 0)) / 50;
 
     const expIntent  = clamp(manualExp + presetExp + toneStr * 0.18, 0, 3.0);
-    const toneIntent = clamp((manualExp * 0.55) + manualCol + presetCol + toneStr * 0.95 + detailIntent * 0.25, 0, 3.5);
+    const toneIntent = clamp((manualExp * 0.55) + manualCol + presetCol + toneStr * 0.95 + sharpIntent * 0.25, 0, 3.5);
 
     let expMix  = 1 - 0.60 * clamp(expIntent / 1.45, 0, 1);
     let toneMix = 1 - 0.75 * clamp(toneIntent / 1.45, 0, 1);
@@ -1330,25 +1380,25 @@
     expMix  = clamp(expMix, 0.20, 1.00);
     toneMix = clamp(toneMix, 0.08, 1.00);
 
-    const prof = (aeMeta && aeMeta.profileResolved) ? aeMeta.profileResolved : (vf.aeProfile || 'balanced');
-    const t = AE_MIX_TUNE[prof] || AE_MIX_TUNE.balanced;
+    const prof = (aeMeta && aeMeta.profileResolved) ? aeMeta.profileResolved : (vf.aeProfile || 'standard');
+    const t = AE_MIX_TUNE[prof] || AE_MIX_TUNE.standard;
 
-    const confRaw = manualExp * 0.80 + manualCol * 1.10 + presetExp * 0.50 + presetCol * 0.70 + detailIntent * 0.95 + toneStr * 0.55;
+    const confRaw = manualExp * 0.80 + manualCol * 1.10 + presetExp * 0.50 + presetCol * 0.70 + sharpIntent * 0.95 + toneStr * 0.55;
     const conf01 = clamp(confRaw / 2.35, 0, 1);
 
     expMix  *= t.expBase;
     toneMix *= t.toneBase;
 
-    const b = AE_AUTO_MIX_BIAS[prof] || AE_AUTO_MIX_BIAS.balanced;
+    const b = AE_AUTO_MIX_BIAS[prof] || AE_AUTO_MIX_BIAS.standard;
     expMix  *= b.exp;
     toneMix *= b.tone;
 
     expMix  *= (1 - conf01 * (0.34 * t.conflictK));
     toneMix *= (1 - conf01 * (0.58 * t.conflictK));
-    toneMix *= (1 - 0.22 * clamp(detailIntent / 0.75, 0, 1));
+    toneMix *= (1 - 0.22 * clamp(sharpIntent / 0.75, 0, 1));
 
     const hi = clamp(aeMeta?.hiRisk ?? 0, 0, 1);
-    const hiToneK = (prof === 'hdrSafe') ? 0.42 : 0.30;
+    const hiToneK = (prof === 'cinemaHdr') ? 0.42 : 0.30;
     toneMix *= (1 - hi * hiToneK);
     expMix  *= (1 - hi * 0.14);
 
@@ -1404,10 +1454,10 @@
 
     if (presetName === 'highlight') {
       if (aeProfileName === 'bright') { shoulder *= 0.65; br *= 0.65; t *= 0.90; }
-      else if (aeProfileName === 'cinematic') { br *= 0.75; con = 1.00; t *= 0.95; }
+      else if (aeProfileName === 'cinemaHdr') { br *= 0.75; con = 1.00; t *= 0.95; }
     } else if (presetName === 'redSkin') {
       if (aeProfileName === 'bright') { sat = 1.03; br *= 0.70; t *= 0.92; }
-      else if (aeProfileName === 'cinematic') { sat = 1.03; tmp *= 0.80; }
+      else if (aeProfileName === 'cinemaHdr') { sat = 1.03; tmp *= 0.80; }
     }
 
     out.mid = clamp((out.mid || 0) + (mid * t), -1, 1);
@@ -1420,7 +1470,7 @@
     return out;
   }
 
-  // --- composeVideoParamsInto with AE-Manual conflict minimization ---
+  // --- composeVideoParamsInto (Sharp3 + Auto Skin Protect) ---
   function composeVideoParamsInto(out, vUser, ae, defaultsVideo) {
     const clamp = Utils.clamp;
     const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
@@ -1433,16 +1483,21 @@
     const preSatF    = Utils.lerp(1.0, (pB.satF   ?? 1), mix);
     const preBright  = (pB.brightAdd ?? 0) * mix;
     const preTemp    = (pB.tempAdd   ?? 0) * mix;
-    const preDetail  = (pD.detailAdd ?? 0) * mix;
+    const preDetail  = (pD.detailAdd ?? 0) * mix; // ✅ 디테일에만 가산
 
-    const A = ae || { gain: 1, gammaF: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, hiRisk: 0, cf: 0.5, mid: 0 };
+    const A = ae || AE_ZERO;
 
     const uGamma = (vUser.gamma ?? 1.0);
     const uCon   = (vUser.contrast ?? 1.0);
     const uSat   = (vUser.sat ?? 100);
     const uBr    = (vUser.bright ?? 0);
     const uTmp   = (vUser.temp ?? 0);
+
+    // ✅ Sharp3 inputs
+    const uOut   = (vUser.outline ?? 0);
     const uDet   = (vUser.detail ?? 0);
+    const uCla   = (vUser.clarity ?? 0);
+
     const uDith  = (vUser.dither ?? 0);
 
     let gamma    = uGamma * preGammaF * (A.gammaF ?? 1.0);
@@ -1454,34 +1509,59 @@
     const gain = clamp((A.gain ?? 1.0), 1.0, 8.0);
     const hiRisk01 = clamp(A.hiRisk || 0, 0, 1);
 
-    const userDetail = uDet + preDetail;
-    const detail01 = clamp(userDetail / 50, 0, 1);
+    // ✅ Auto Skin Protect (AE worker skinScore 기반; AE off면 0)
+    const skin01 = clamp(A.rd ?? 0, 0, 1);
 
+    // 사용자 샤프 값
+    const userOutline0 = clamp(uOut, 0, 50);
+    const userDetail0  = clamp(uDet + preDetail, 0, 50);
+    const clarity0     = clamp(uCla, 0, 50);
+
+    // 하이라이트/게인 위험 보호
     const protect = clamp((gain - 1.0) / 4.0 + (A.shoulder || 0) / 18 + hiRisk01 * 0.7, 0, 1);
+
+    // ✅ 얼굴 왜곡 방지: 피부가 많을수록/하이라이트 위험일수록 샤프&명료를 자동 감쇠
+    const skinSharpK = (1 - 0.60 * skin01) * (1 - 0.18 * hiRisk01);
+    const skinDetailK = (1 - 0.72 * skin01) * (1 - 0.22 * hiRisk01);
+    const skinClarityK = (1 - 0.65 * skin01) * (1 - 0.18 * hiRisk01);
+
+    // ✅ 샤프 윤곽/디테일 최종
+    const outlineMul = Utils.lerp(1.0, 0.55, protect) * skinSharpK;
+    const detailMul  = Utils.lerp(1.0, 0.50, protect) * skinDetailK;
+
+    const outline = clamp(userOutline0 * outlineMul, 0, 50);
+    const detail  = clamp(userDetail0  * detailMul,  0, 50);
+
+    // ✅ 명료: 중간톤 콘트라스트/미드 약간 + (피부/위험시 감쇠)
+    const cla01 = clamp(clarity0 / 50, 0, 1) * skinClarityK;
+    const claProtect = clamp(protect * 0.85 + hiRisk01 * 0.35, 0, 1);
+    const claK = (1 - 0.45 * claProtect);
+
+    // 명료는 과하면 얼굴 “눌림/찢김”처럼 보여서 상한을 보수적으로
+    contrast = 1 + (contrast - 1) * (1 - 0.35 * claProtect);
+    satF = 1 + (satF - 1) * (1 - 0.40 * claProtect);
+
+    out.gain     = gain;
+    out.gamma    = clamp(gamma, 0.5, 2.5);
+    out.contrast = clamp(contrast * (1 + cla01 * 0.16 * claK), 0.5, 2.0);
+    out.bright   = clamp(bright, -50, 50);
+    out.satF     = clamp(satF, 0.0, 2.0);
 
     const devBr = Math.abs(uBr) / 40;
     const devG  = Math.abs(uGamma - 1) / 0.35;
     const devC  = Math.abs(uCon - 1) / 0.35;
     const devS  = Math.abs(uSat - 100) / 80;
     const devT  = Math.abs(uTmp) / 14;
-    const devD  = detail01;
+    const devD  = Math.max(outline, detail) / 50;
     const dev = clamp(0.20*devBr + 0.22*devG + 0.22*devC + 0.18*devS + 0.12*devT + 0.16*devD, 0, 1);
     const styleMix = 1 - 0.38 * dev;
 
-    const scProtect = clamp(protect * 0.85 + hiRisk01 * 0.35, 0, 1);
-    contrast = 1 + (contrast - 1) * (1 - 0.35 * scProtect);
-    satF = 1 + (satF - 1) * (1 - 0.40 * scProtect);
+    out.mid      = clamp(((A.mid || 0) * styleMix) + (cla01 * 0.22 * (1 - 0.55 * skin01)), -1, 1);
 
-    const detailMul = Utils.lerp(1.0, 0.55, protect);
-    const detail = clamp(userDetail * detailMul, 0, 50);
-
-    out.gain     = gain;
-    out.gamma    = clamp(gamma, 0.5, 2.5);
-    out.contrast = clamp(contrast, 0.5, 2.0);
-    out.bright   = clamp(bright, -50, 50);
-    out.satF     = clamp(satF, 0.0, 2.0);
-    out.mid      = clamp((A.mid || 0) * styleMix, -1, 1);
+    // ✅ Sharp3 outputs for filter
+    out.outline  = outline;
     out.detail   = detail;
+
     out.dither   = uDith;
     out.temp     = clamp(temp, -25, 25);
     out.toe      = (A.toe || 0) * styleMix;
@@ -1502,6 +1582,7 @@
     Math.abs((v.bright ?? 0)) < 0.01 &&
     Math.abs((v.satF ?? 1) - 1) < 0.001 &&
     Math.abs((v.mid ?? 0)) < 0.001 &&
+    Math.abs((v.outline ?? 0)) < 0.01 &&
     Math.abs((v.detail ?? 0)) < 0.01 &&
     Math.abs((v.dither ?? 0)) < 0.01 &&
     Math.abs((v.temp ?? 0)) < 0.01 &&
@@ -1520,7 +1601,7 @@
       histAll.fill(0); histTop.fill(0); histBot.fill(0);
       let sumAll=0,sumSqAll=0,nAll=0, sumTop=0,sumSqTop=0,nTop=0;
       let clipAll=0,clipLowAll=0,clipBottom=0, botSum=0,botSumSq=0,botN=0;
-      let rSum=0,gSum=0,bSum=0, skinCnt=0,skinAcc=0;
+      let skinCnt=0,skinAcc=0;
       const botY0=Math.floor(height*0.78), stride=width*4;
       let botBrightRows=0,botRowCount=0;
 
@@ -1531,7 +1612,6 @@
           const i=row+x*4; const r=data[i],g=data[i+1],b=data[i+2];
           const Y=(0.2126*r+0.7152*g+0.0722*b)|0;
           histAll[Y]++; sumAll+=Y; sumSqAll+=Y*Y; nAll++;
-          rSum+=r; gSum+=g; bSum+=b;
 
           if(isTop){ histTop[Y]++; sumTop+=Y; sumSqTop+=Y*Y; nTop++; }
           else { histBot[Y]++; botSum+=Y; botSumSq+=Y*Y; botN++; }
@@ -1608,7 +1688,8 @@
     };
   `;
 
-  // v162 핵심: AE는 aeState(shared object)를 직접 갱신(in-place) → 콜백 객체 할당 0
+  // --- createAE ---
+  // ✅ PATCH v162.1.1: rVFC / setTimeout 클로저 제거(고정 콜백)
   function createAE(sm, { IS_MOBILE, Utils }, aeState, onUpdate) {
     const { clamp } = Utils;
 
@@ -1623,7 +1704,7 @@
 
     const __meta = {
       hiRisk: 0, luma: 0, clipFrac: 0, cf: 0.5, rd: 0,
-      profileResolved: 'balanced'
+      profileResolved: 'standard'
     };
 
     let lastStats = { p05:-1,p10:-1,p35:-1,p50:-1,p90:-1,p95:-1,p98:-1, clipFrac:-1, clipLowFrac:-1, cf:-1, rd:-1 };
@@ -1632,13 +1713,17 @@
     let __prevFrame = null, __motion01 = 1;
 
     let loopToken = 0, lastLoopT = 0, sampleCount = 0;
-    let __autoProfile = 'balanced', __autoHoldUntil = 0;
+    let __autoProfile = 'standard', __autoHoldUntil = 0;
 
     let __packKey = '', __pack = null;
 
+    // ✅ stable callbacks
+    let __rvfcToken = 0;
+    function __rvfcCb() { loop(__rvfcToken); }
+
     const getResolvedProfile = () => {
-      const sel = sm.get(P.V_AE_PROFILE) || 'balanced';
-      return (sel === 'auto') ? (__autoProfile || 'balanced') : sel;
+      const sel = sm.get(P.V_AE_PROFILE) || 'standard';
+      return (sel === 'auto') ? (__autoProfile || 'standard') : sel;
     };
 
     const getPack = () => {
@@ -1813,23 +1898,17 @@
       const flat01 = clamp((0.46 - sceneContrast) / 0.26, 0, 1);
       const lowKey01 = clamp((0.23 - p50) / 0.14, 0, 1);
 
-      if (risk01 > 0.58) return 'hdrSafe';
-
-      if (skin > 0.22) return 'soft';
-
-      if (p50 < 0.20 && cf > 0.30 && lowClip < 0.035) return 'night';
-      if (lowKey01 > 0.55 && risk01 < 0.25 && flat01 < 0.55) return 'bright'; 
-
-      if (flat01 > 0.65 && risk01 < 0.35) return 'cinematic';
-
-      if (cf > 0.55 && skin < 0.12 && risk01 < 0.45) return 'vivid';
-
-      return 'balanced';
+      if (risk01 > 0.55) return 'cinemaHdr';
+      if (skin > 0.28 && risk01 > 0.35) return 'cinemaHdr';
+      if (p50 < 0.20 && cf > 0.25 && lowClip < 0.040) return 'bright';
+      if (lowKey01 > 0.55 && risk01 < 0.30 && flat01 < 0.60) return 'bright';
+      if (flat01 > 0.70 && risk01 < 0.45) return 'cinemaHdr';
+      return 'standard';
     };
 
     const processResult = (data) => {
       if (!data || data.token !== targetToken) return;
-      
+
       const pack = getPack();
       const cfg = pack.cfg;
       const now = performance.now();
@@ -1875,8 +1954,8 @@
       if (selected === 'auto') {
         if (now >= __autoHoldUntil) {
           const next = chooseAutoProfile(lastStats, risk01);
-          if (next !== __autoProfile) { __autoProfile = next; __autoHoldUntil = now + 4000; }
-          else __autoHoldUntil = now + 1200;
+          if (next !== __autoProfile) { __autoProfile = next; __autoHoldUntil = now + 3800; }
+          else __autoHoldUntil = now + 1100;
         }
       }
 
@@ -1902,7 +1981,7 @@
       const lockFreeze = (lock01 > 0.70) ? clamp((lock01 - 0.70) / 0.30, 0, 1) : 0;
       const lockOutMul = (1 - lockFreeze);
       const lockSlow = 1 + (lock01 * 2.2);
-      
+
       const alphaA0 = 1 - Math.exp(-dtA / (tau * lockSlow));
       const alphaA = alphaA0 * lockOutMul;
 
@@ -1911,7 +1990,6 @@
 
       const look = computeLook(nextEV, lastStats, risk01, cfg, pack.look);
 
-      // shared AE state update (in-place, no alloc)
       const tempBias = clamp(cfg.TEMP_BIAS ?? 0, -6, 6);
       aeState.gain = curGain;
       aeState.gammaF = 1;
@@ -1929,7 +2007,6 @@
       aeState.clipFrac = lastStats.clipFrac;
       aeState.rd = lastStats.rd;
 
-      // meta ref update (in-place, no alloc)
       __meta.hiRisk = risk01;
       __meta.cf = cf01;
       __meta.luma = data.avgLuma * 100;
@@ -1988,10 +2065,15 @@
         const interval = v.paused ? 280 : (CONFIG.IS_LOW_END ? 110 : 85);
         if (now - lastLoopT > interval) { lastLoopT = now; sample(v); }
       }
+
       if (v && v.requestVideoFrameCallback && !v.paused) {
-        try { v.requestVideoFrameCallback(() => loop(token)); return; } catch (_) {}
+        try {
+          __rvfcToken = token;
+          v.requestVideoFrameCallback(__rvfcCb);
+          return;
+        } catch (_) {}
       }
-      setTimeout(() => loop(token), 90);
+      setTimeout(loop, 90, token);
     };
 
     const hardResetStats = () => {
@@ -2047,6 +2129,8 @@
     });
   }
 
+  // --- UI + Controller + Main ---
+  // (PART 4/4에서 계속)
   // --- UI (Trigger policy + setAndHint + UserLock) ---
   function createUI(sm, defaults, registry, scheduler, bus) {
     const { h } = Utils;
@@ -2063,7 +2147,12 @@
 
       [P.V_SAT]:     { aeLevel: 1, lockMs: 1800, lockAmp: 0.85 },
       [P.V_TEMP]:    { aeLevel: 1, lockMs: 1800, lockAmp: 0.85 },
+
+      // ✅ Sharp 3 restore triggers
+      [P.V_OUTLINE]: { aeLevel: 1, lockMs: 2000, lockAmp: 0.90 },
       [P.V_DETAIL]:  { aeLevel: 1, lockMs: 2000, lockAmp: 0.90 },
+      [P.V_CLARITY]: { aeLevel: 1, lockMs: 2000, lockAmp: 0.90 },
+
       [P.V_DITHER]:  { aeLevel: 1, lockMs: 1400, lockAmp: 0.70 },
 
       [P.V_TONE_STR]:{ aeLevel: 1, lockMs: 1600, lockAmp: 0.80 },
@@ -2112,7 +2201,8 @@
           const cur = sm.get(key);
           if (key === P.V_AE_PROFILE) {
             if (!sm.get(P.V_AE)) setAndHint(P.V_AE, true, true);
-            setAndHint(P.V_AE_PROFILE, (cur === it.v) ? 'balanced' : it.v, true);
+            const next = (cur === it.v && it.v !== 'auto') ? 'auto' : it.v;
+            setAndHint(P.V_AE_PROFILE, next, true);
             return;
           }
           if (key === P.V_TONE_PRE) {
@@ -2146,12 +2236,17 @@
       return r;
     };
 
+    // ✅ Sharp 3 restore: 윤곽/디테일/명료 3개
     const SLIDERS = [
       { l:'감마',   k:P.V_GAMMA,  min:0.5, max:2.5, s:0.05, f:v=>v.toFixed(2) },
       { l:'대비',   k:P.V_CONTR,  min:0.5, max:2.0, s:0.05, f:v=>v.toFixed(2) },
       { l:'밝기',   k:P.V_BRIGHT, min:-50, max:50, s:1,    f:v=>v.toFixed(0) },
       { l:'채도',   k:P.V_SAT,    min:0,   max:200,s:5,    f:v=>v.toFixed(0) },
-      { l:'DETAIL', k:P.V_DETAIL, min:0,   max:50, s:1,    f:v=>v.toFixed(0) },
+
+      { l:'샤프 윤곽', k:P.V_OUTLINE, min:0, max:50, s:1, f:v=>v.toFixed(0) },
+      { l:'샤프 디테일',k:P.V_DETAIL,  min:0, max:50, s:1, f:v=>v.toFixed(0) },
+      { l:'명료',     k:P.V_CLARITY, min:0, max:50, s:1, f:v=>v.toFixed(0) },
+
       { l:'색온도', k:P.V_TEMP,   min:-25, max:25, s:1,    f:v=>v.toFixed(0) },
       { l:'그레인', k:P.V_DITHER, min:0,   max:100,s:5,    f:v=>v.toFixed(0) },
       { l:'오디오', k:P.A_BST,    min:0,   max:12, s:1,    f:v=>`+${v}dB` },
@@ -2175,7 +2270,7 @@
 
     const build = () => {
       if (container) return;
-      const host = h('div', { id:'vsc-host', 'data-vsc-ui':'1' });
+      const host = Utils.h('div', { id:'vsc-host', 'data-vsc-ui':'1' });
       const shadow = host.attachShadow({ mode:'open' });
 
       const style = `
@@ -2204,15 +2299,15 @@
           h('button', { id:'ae-btn', class:'btn', onclick: () => {
             const on = !!sm.get(P.V_AE);
             if (on) setAndHint(P.V_AE, false, true);
-            else { setAndHint(P.V_AE, true, true); setAndHint(P.V_AE_PROFILE, 'auto', true); }
-          } }, '🤖 자동'),
+            else { setAndHint(P.V_AE, true, true); if (!sm.get(P.V_AE_PROFILE)) setAndHint(P.V_AE_PROFILE, 'auto', true); }
+          } }, '🤖 AE'),
           h('button', { id:'boost-btn', class:'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN), true) }, '🔊 부스트')
         ]),
         h('div', { class:'prow' }, [
           h('button', { class:'btn', onclick: () => { sm.batch('video', defaults.video); sm.batch('audio', defaults.audio); bus.signal({ aeLevel:2, forceApply:true, userLockMs:800, userLockAmp:0.35 }); } }, '↺ 리셋'),
           h('button', { id:'pwr-btn', class:'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT), true) }, '⚡ Power')
         ]),
-        renderChoiceRow('AE', Object.entries(PRESETS.aeProfiles).map(([id,o]) => ({ t:o.label, v:id })), P.V_AE_PROFILE),
+        renderChoiceRow('PROF', Object.entries(PRESETS.aeProfiles).map(([id,o]) => ({ t:o.label, v:id })), P.V_AE_PROFILE),
         renderChoiceRow('톤', Object.entries(PRESETS.tone).map(([id,o]) => ({ t:o.label, v:id })), P.V_TONE_PRE),
         renderPresetRow('DET', Object.keys(PRESETS.detail).filter(k=>k!=='off'), P.V_PRE_S, 'off'),
         renderPresetRow('밝기', Object.keys(PRESETS.grade).filter(k=>k!=='brOFF'), P.V_PRE_B, 'brOFF'),
@@ -2332,7 +2427,7 @@
     });
   }
 
-  // --- Controller / Runner (integrated UserLock + Map reuse + AE shared-state) ---
+  // --- Controller / Runner ---
   function createAppController({ Store, Registry, Scheduler, Bus, Filters, Audio, AE, aeState, UI, DEFAULTS, FEATURES, P, Targeting }) {
     if (ENABLE_UI) {
       UI.ensure();
@@ -2383,10 +2478,10 @@
 
     const __vfEff = { ...DEFAULTS.video };
     const __aeMix = { gain:1, gammaF:1, conF:1, satF:1, toe:0, shoulder:0, brightAdd:0, tempAdd:0, luma:0, hiRisk:0, cf:0.5, mid:0, clipFrac:0, rd:0 };
-    const __vVals = { gain:1, gamma:1, contrast:1, bright:0, satF:1, mid:0, detail:0, dither:0, temp:0, toe:0, shoulder:0, expMix:1, toneMix:1 };
+    const __vVals = { gain:1, gamma:1, contrast:1, bright:0, satF:1, mid:0, outline:0, detail:0, dither:0, temp:0, toe:0, shoulder:0, expMix:1, toneMix:1 };
     const __iVals = { satF:1, gain:1, gamma:1, contrast:1, bright:0, detail:0, dither:0, temp:0, toe:0, shoulder:0, mid:0 };
 
-    const __aeMetaFallback = { hiRisk: 0, luma: 0, clipFrac: 0, cf: 0.5, rd: 0, profileResolved: 'balanced' };
+    const __aeMetaFallback = { hiRisk: 0, luma: 0, clipFrac: 0, cf: 0.5, rd: 0, profileResolved: 'standard' };
 
     let lastSRev = -1, lastRRev = -1;
     let lastPrune = 0;
@@ -2434,6 +2529,8 @@
     // Map reuse (no per-tick alloc)
     const __urlByDocVideo = new Map();
     const __urlByDocImage = new Map();
+    // ✅ PATCH v162.1.1: empty Set reuse (no new Set())
+    const __EMPTY_SET = new Set();
 
     const applyVideoFilters = (applySet, dirtyVideos, vVals, activeFx) => {
       for (const el of dirtyVideos) {
@@ -2550,7 +2647,6 @@
         const policyRes = Targeting.update(visible.videos, window.__lastClickedVideo, window.__lastUserPt, wantAudio, now);
         const target = policyRes.target;
 
-        // target switch detection (robust)
         if (target !== __lastTarget) {
           __lastTarget = target;
           __lastTargetSwitchAt = now;
@@ -2571,7 +2667,6 @@
         }
         Audio.update();
 
-        // tone strength eff (lock aware)
         let vfEff = vf0;
         if (vf0.tonePreset && vf0.tonePreset !== 'neutral') {
           const tEff = computeToneStrengthEff(vf0, (wantAE && !aeUnavailable) ? aeState : null, userLock01);
@@ -2589,7 +2684,8 @@
           __aeMetaFallback.clipFrac = 0;
           __aeMetaFallback.cf = 0.5;
           __aeMetaFallback.rd = 0;
-          __aeMetaFallback.profileResolved = (Store.get(P.V_AE_PROFILE) || 'balanced') === 'auto' ? 'balanced' : (Store.get(P.V_AE_PROFILE) || 'balanced');
+          const sel = Store.get(P.V_AE_PROFILE) || 'standard';
+          __aeMetaFallback.profileResolved = (sel === 'auto') ? 'standard' : sel;
           aeMeta = __aeMetaFallback;
         }
 
@@ -2667,7 +2763,8 @@
             try { Filters.clear(imgEl); } catch (_) {}
             TOUCHED.images.delete(imgEl);
           }
-          applyImageFilters(new Set(), imgsDirty, __iVals, false);
+          // ✅ PATCH v162.1.1: new Set() 제거
+          applyImageFilters(__EMPTY_SET, imgsDirty, __iVals, false);
         }
 
         const desiredRate = Store.get(P.PB_RATE);
@@ -2718,6 +2815,7 @@
     if (!sm.get(P.V_AE)) return;
     const prof = sm.get(P.V_AE_PROFILE);
     if (prof == null || prof === '') sm.set(P.V_AE_PROFILE, 'auto');
+    if (prof && !AE_PROFILES[prof] && prof !== 'auto') sm.set(P.V_AE_PROFILE, 'standard');
   }
   const normOnce = (() => {
     let inFlight = false;
@@ -2763,7 +2861,7 @@
   const Filters = createFiltersUnified(Utils, { VSC_ID: CONFIG.VSC_ID, IMG_BASE_DETAIL: DEFAULTS.image.level });
   const Audio = createAudio(Store);
 
-  // v162: AE shared-state (single object, in-place updates)
+  // AE shared-state (single object, in-place updates)
   const AE_STATE = {
     gain: 1, gammaF: 1, conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0,
     hiRisk: 0, cf: 0.5, luma: 0, clipFrac: 0, rd: 0
