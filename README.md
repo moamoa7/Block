@@ -7,11 +7,11 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
-※ Video_Image_Control.js
-- 이미지 및 비디오 선명하게 보기 / 영상 배속 등
+※ Video_Control.js
+- 비디오 선명하게 보기 / 영상 배속 / 영상 자동보정 등
 
 ```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Image_Control.js
+https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 ```
 <br>
 
