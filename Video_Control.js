@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.3.0.31_Ultimate_FS_Iframe)
+// @name        Video_Control (v159.3.0.32_Ultimate_FS_Iframe)
 // @namespace   https://github.com/
-// @version     159.3.0.31
-// @description Video Control: Zero-Alloc, Iframe Inject, FS Wrapper, WebKit PiP, AE & Rate Fixes, UI Sync, TrustedTypes Guard
+// @version     159.3.0.32
+// @description Video Control: Zero-Alloc, Iframe Inject, FS Wrapper, WebKit PiP, AE & Rate Fixes, UI Sync, TrustedTypes Guard, GC Opt
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -69,7 +69,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.3.0.31_Ultimate",
+    VERSION: "v159.3.0.32_Ultimate",
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
     TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
@@ -1101,21 +1101,18 @@
       const rawLook = computeLook(nextEV, lastStats, risk01, cfg, pack.look);
       const look = smoothLook(rawLook, dtA, __motion01, risk01);
 
-      __lastMeta = {
-        ...__lastMeta,
-        hiRisk: risk01,
-        cf: clamp(lastStats.cf ?? 0.5, 0, 1),
-        luma: data.avgLuma * 100,
-        clipFrac: lastStats.clipFrac,
-        skinScore: skinScore,
-        profileResolved: getResolvedProfile(),
-        subLikely: !!subLikely,
-        gainApplied: curGain,
-        p50: lastStats.p50,
-        p95: lastStats.p95,
-        p98: lastStats.p98,
-        motion01: __motion01
-      };
+      __lastMeta.hiRisk = risk01;
+      __lastMeta.cf = clamp(lastStats.cf ?? 0.5, 0, 1);
+      __lastMeta.luma = data.avgLuma * 100;
+      __lastMeta.clipFrac = lastStats.clipFrac;
+      __lastMeta.skinScore = skinScore;
+      __lastMeta.profileResolved = getResolvedProfile();
+      __lastMeta.subLikely = !!subLikely;
+      __lastMeta.gainApplied = curGain;
+      __lastMeta.p50 = lastStats.p50;
+      __lastMeta.p95 = lastStats.p95;
+      __lastMeta.p98 = lastStats.p98;
+      __lastMeta.motion01 = __motion01;
 
       const aeLook = { gain: curGain, conF: look.conF, satF: look.satF, mid: look.mid, toe: look.toe, shoulder: look.shoulder, brightAdd: look.brightAdd, tempAdd: clamp(cfg.TEMP_BIAS ?? 0, -6, 6) };
 
@@ -1282,12 +1279,7 @@
       });
 
       inp.oninput = () => { const nv = Number(inp.value); valEl.textContent = cfg.f(nv); setCoalesced(nv); };
-      inp.onchange = () => {
-        const nv = Number(inp.value);
-        const cur = Number(sm.get(cfg.k));
-        if (Object.is(cur, nv)) return;
-        setAndHint(cfg.k, nv, true);
-      };
+      inp.onchange = () => { setAndHint(cfg.k, Number(inp.value), true); };
       return h('div', { class: 'slider' }, h('label', {}, cfg.l, valEl), inp);
     };
 
@@ -1362,8 +1354,8 @@
   const restoreRateOne = (el) => { try { const st = el[VSCX.rateState]; if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el, 220); el.playbackRate = nextRate; st.orig = null; } catch (_) {} };
   const onEvictRateVideo = (v) => { try { restoreRateOne(v); } catch (_) {} };
   const onEvictVideo = (v) => {
-    try { __vscClearVideoFilter && __vscClearVideoFilter(v); } catch (_) {}
-    try { restoreRateOne(v); } catch (_) {}
+    if (__vscClearVideoFilter) try { __vscClearVideoFilter(v); } catch (_) {}
+    restoreRateOne(v);
   };
   const cleanupTouched = (TOUCHED) => { for (const v of TOUCHED.videos) onEvictVideo(v); TOUCHED.videos.clear(); for (const v of TOUCHED.rateVideos) onEvictRateVideo(v); TOUCHED.rateVideos.clear(); };
 
