@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.3.0.29_Ultimate_FS_Iframe)
+// @name        Video_Control (v159.3.0.31_Ultimate_FS_Iframe)
 // @namespace   https://github.com/
-// @version     159.3.0.29
-// @description Video Control: Zero-Alloc, Iframe Inject, FS Wrapper, WebKit PiP, AE & Rate Fixes, UI Sync
+// @version     159.3.0.31
+// @description Video Control: Zero-Alloc, Iframe Inject, FS Wrapper, WebKit PiP, AE & Rate Fixes, UI Sync, TrustedTypes Guard
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
+  if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com') || location.protocol === 'about:' || location.href === 'about:blank') return;
   const VSC_BOOT_KEY = '__VSC_BOOT_LOCK__';
   if (window[VSC_BOOT_KEY]) return;
   try { Object.defineProperty(window, VSC_BOOT_KEY, { value: true, writable: false }); } catch (e) { window[VSC_BOOT_KEY] = true; }
@@ -69,7 +69,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.3.0.29_Ultimate",
+    VERSION: "v159.3.0.31_Ultimate",
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
     TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
@@ -869,6 +869,7 @@
     let __sameFrameSkipStreak = 0;
     let __autoProfileVotes = [];
     const { clamp } = Utils; let __packKey = '', __pack = null;
+    let __unavailable = false;
     const AE_STAT_KEYS = Object.freeze(['p05', 'p10', 'p35', 'p50', 'p90', 'p95', 'p98', 'clipFrac', 'clipLowFrac', 'cf', 'rd']);
     const getResolvedProfile = () => { const sel = sm.get(P.V_AE_PROFILE) || 'standard'; return (sel === 'auto') ? (__autoProfile || 'standard') : sel; };
     const getPack = () => { const name = getResolvedProfile(), key = (IS_MOBILE ? 'm|' : 'p|') + name; if (key !== __packKey) { __packKey = key; __pack = getAePack(IS_MOBILE, name); } return __pack; };
@@ -945,8 +946,35 @@
       return { conF: outConF, satF: outSatF, mid: clamp(mid, -0.95, 0.95), toe: clamp(toe, 0, 14), shoulder: clamp(shoulder, 0, 16), brightAdd: outBrightAdd };
     };
 
-    const disableAEHard = () => { try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; isRunning = false; loopToken++; targetToken++; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; } };
-    const ensureWorker = () => { if (worker) return worker; try { if (!workerUrl) workerUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' })); worker = new Worker(workerUrl); worker.onmessage = (e) => { workerBusy = false; processResult(e.data); }; worker.onerror = () => { workerBusy = false; disableAEHard(); }; return worker; } catch (e) { try { console.warn('[VSC] worker blocked, AE engine unavailable:', e); } catch (_) {} disableAEHard(); return null; } };
+    let workerPolicy = null;
+    const disableAEHard = () => { try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; isRunning = false; loopToken++; targetToken++; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } __unavailable = true; };
+    const ensureWorker = () => {
+      if (__unavailable) return null;
+      if (worker) return worker;
+      if (location.protocol === 'about:' || location.href === 'about:blank') { disableAEHard(); return null; }
+      try {
+        if (!workerUrl) {
+          let rawUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' }));
+          if (window.trustedTypes && window.trustedTypes.createPolicy) {
+            try {
+              if (!workerPolicy) workerPolicy = window.trustedTypes.createPolicy('vsc-tw-policy', { createScriptURL: s => s });
+              workerUrl = workerPolicy.createScriptURL(rawUrl);
+            } catch (_) { workerUrl = rawUrl; }
+          } else {
+            workerUrl = rawUrl;
+          }
+        }
+        worker = new Worker(workerUrl);
+        worker.onmessage = (e) => { workerBusy = false; processResult(e.data); };
+        worker.onerror = () => { workerBusy = false; disableAEHard(); };
+        return worker;
+      } catch (e) {
+        try { console.warn('[VSC] AE worker blocked by CSP/TrustedTypes. AE unavailable.'); } catch (_) {}
+        disableAEHard();
+        return null;
+      }
+    };
+
     const _motionFromFrame = (rgba) => { const step = CONFIG.IS_LOW_END ? 32 : 16; if (!__prevFrame) { __prevFrame = new Uint8Array(Math.ceil(rgba.length / (4 * step))); let j = 0; for (let i = 0; i < rgba.length; i += 4 * step) { __prevFrame[j++] = (0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]) | 0; } __motion01 = 1; return; } let diff = 0, cnt = 0, j = 0; for (let i = 0; i < rgba.length && j < __prevFrame.length; i += 4 * step) { const y = (0.2126 * rgba[i] + 0.7152 * rgba[i + 1] + 0.0722 * rgba[i + 2]) | 0; diff += Math.abs(y - __prevFrame[j]); __prevFrame[j++] = y; cnt++; } __motion01 = clamp((cnt ? (diff / cnt) : 0) / 28, 0, 1); };
 
     function chooseAutoProfileScored(s, risk01, prev, subLikely = false) {
@@ -1153,9 +1181,10 @@
     const hardResetStats = () => { invalidatePendingSample(); __prevFrame = null; __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; __lastLookSent = null; resetAutoClassifierState(); };
     const softResetStats = () => { invalidatePendingSample(); __prevFrame = null; __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; sampleCount = Math.min(sampleCount, 1); lastEmaT = performance.now(); lastApplyT = performance.now(); __subCandidateStreak = 0; __subLikelyHoldUntil = 0; __lastLookSent = null; };
     const stopSoft = () => { isRunning = false; loopToken++; activeVideo = null; };
-    const stopHard = () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; __prevFrame = null; targetToken++; };
+    const stopHard = () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; __prevFrame = null; targetToken++; __unavailable = true; };
 
     return {
+      isUnavailable: () => __unavailable,
       getResolvedProfile, getMeta: () => ({ ...__lastMeta, profileResolved: getResolvedProfile() }),
       setTarget: (v, opts = {}) => { if (v === activeVideo) return; activeVideo = v; curGain = opts.keepGain ? clamp(curGain, 0.60, 6.0) : 1.0; resetAutoClassifierState(); if (opts.softReset) softResetStats(); else hardResetStats(); },
       start: () => { const wk = ensureWorker(); if (!wk) { isRunning = false; return; } if (!isRunning) { isRunning = true; loopToken++; lastLoopT = 0; lastApplyT = lastEmaT = performance.now(); lastSampleT = 0; loop(loopToken); } },
@@ -1518,7 +1547,6 @@
 
     let __activeTarget = null, __lastHadAnyT = 0;
 
-    // 호이스팅 문제 해결: applySet을 block scope 상단으로 이동
     let applySet = null;
 
     Scheduler.registerApply((force) => {
@@ -1567,12 +1595,14 @@
           }
         }
 
-        const aeShouldRun = !!(__activeTarget && wantAE);
+        const aeUnavailable = AE.isUnavailable ? AE.isUnavailable() : false;
+        const aeShouldRun = !!(__activeTarget && wantAE && !aeUnavailable);
+
         if (aeShouldRun) { AE.start(); } else { AE.stop?.(); }
         if (wantAudio || Audio.hasCtx?.() || Audio.isHooked?.()) Audio.setTarget(__activeTarget || null); else Audio.setTarget(null);
         Audio.update();
 
-        const aeMeta = (wantAE && AE.getMeta) ? AE.getMeta() : { profileResolved: (Store.get(P.V_AE_PROFILE) || 'standard'), hiRisk: 0, subLikely: false, clipFrac: 0, cf: 0.5, skinScore: 0 };
+        const aeMeta = (wantAE && !aeUnavailable && AE.getMeta) ? AE.getMeta() : { profileResolved: (Store.get(P.V_AE_PROFILE) || 'standard'), hiRisk: 0, subLikely: false, clipFrac: 0, cf: 0.5, skinScore: 0 };
 
         let vfEff = vf0; if (vf0.tonePreset && vf0.tonePreset !== 'off' && vf0.tonePreset !== 'neutral') { const tEff = computeToneStrengthEff(vf0, aeMeta, Utils); for (const k in __vfEff) __vfEff[k] = vf0[k]; __vfEff.toneStrength = tEff; vfEff = __vfEff; }
 
@@ -1608,7 +1638,6 @@
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
         const extraApplyTopK = Store.get(P.APP_EXTRA_TOPK) | 0;
 
-        // applySet을 스코프 상단에 선언된 변수에 할당하여 TDZ 오류 방지
         applySet = Targeting.buildApplySetReuse(visible.videos, __activeTarget, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, pick.topCandidates);
 
         const desiredRate = Store.get(P.PB_RATE);
