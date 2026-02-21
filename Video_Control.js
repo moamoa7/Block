@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.3.0.12_Final_PiP_Toggle)
+// @name        Video_Control (v159.3.0.13_CoreFix)
 // @namespace   https://github.com/
-// @version     159.3.0.12
-// @description Video Control: Zero-Alloc, Brightness 0.30, AE Fix, Smooth Tone, PiP Toggle Button Layout
+// @version     159.3.0.13
+// @description Video Control: Zero-Alloc, Down-EV Fix, Robust PiP Toggle, AE Stats Fix, Targeting Boost
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -19,7 +19,6 @@
 (function () {
   'use strict';
 
-  // --- Boot Guard ---
   if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
   const VSC_BOOT_KEY = '__VSC_BOOT_LOCK__';
   if (window[VSC_BOOT_KEY]) return;
@@ -27,7 +26,6 @@
 
   const AE_ZERO = Object.freeze({ gain: 1, gammaF: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, hiRisk: 0, cf: 0.5, mid: 0, rd: 0, luma: 0, clipFrac: 0 });
 
-  // --- Safe attachShadow Patch ---
   (function patchAttachShadowOnce() {
     try {
       const proto = Element.prototype;
@@ -50,7 +48,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.3.0.12_Final",
+    VERSION: "v159.3.0.13_CoreFix",
     IS_TOP: window === window.top,
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
@@ -100,7 +98,15 @@
     if (!r || (now - t0) > maxAgeMs) { r = v.getBoundingClientRect(); v[VSCX.rect] = r; v.__vscRectT = now; } return r;
   }
 
-  // ====== PIP UTILS ======
+  // ====== ROBUST PIP UTILS ======
+  async function findWebkitPiPVideo() {
+    const vids = document.querySelectorAll('video');
+    for (const v of vids) {
+      try { if (typeof v.webkitPresentationMode === 'string' && v.webkitPresentationMode === 'picture-in-picture') return v; } catch (_) {}
+    }
+    return null;
+  }
+
   async function enterPiP(video) {
     if (!video || video.readyState < 2) return false;
     if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') {
@@ -113,15 +119,32 @@
     return false;
   }
 
-  async function exitPiP() {
+  async function exitPiP(preferredVideo = null) {
     if (document.pictureInPictureElement && document.exitPictureInPicture) {
       try { await document.exitPictureInPicture(); return true; } catch (_) {}
     }
-    const v = document.querySelector('video');
-    if (v && typeof v.webkitPresentationMode === 'string' && v.webkitPresentationMode === 'picture-in-picture' && typeof v.webkitSetPresentationMode === 'function') {
-      try { v.webkitSetPresentationMode('inline'); return true; } catch (_) {}
+    const candidates = [];
+    if (preferredVideo) candidates.push(preferredVideo);
+    const wk = await findWebkitPiPVideo();
+    if (wk) candidates.push(wk);
+    for (const v of candidates) {
+      try {
+        if (v && typeof v.webkitPresentationMode === 'string' && v.webkitPresentationMode === 'picture-in-picture' && typeof v.webkitSetPresentationMode === 'function') {
+          v.webkitSetPresentationMode('inline'); return true;
+        }
+      } catch (_) {}
     }
     return false;
+  }
+
+  async function togglePiPFor(video) {
+    if (!video || video.readyState < 2) return false;
+    const pipEl = document.pictureInPictureElement;
+    if (pipEl === video) return exitPiP(video);
+    if (pipEl && pipEl !== video && document.exitPictureInPicture) {
+      try { await document.exitPictureInPicture(); } catch (_) {}
+    }
+    return enterPiP(video);
   }
 
   function createTargeting({ Utils }) {
@@ -152,7 +175,12 @@
       const autoplay = v.autoplay || v.hasAttribute?.('autoplay'), loop = v.loop || v.hasAttribute?.('loop'), noControls = !v.controls;
       const edgeLike = (r.top < 40 || (innerHeight - r.bottom) < 40 || r.left < 20 || (innerWidth - r.right) < 20), tiny = area < (260 * 160);
       if (v.muted && autoplay && noControls) { bgPenalty += 1.1 * (1 - 0.60 * big01); if (edgeLike) bgPenalty += 0.9 * (1 - 0.70 * big01); if (tiny) bgPenalty += 0.8; if (loop) bgPenalty += 0.35 * (1 - 0.50 * big01); } else if (bgLike && !audible) { bgPenalty = (1.6 * (1 - 0.65 * big01)); if (userRecent01 > 0.15) bgPenalty *= 0.55; }
-      return (playing * 6.0) + (hasTime * 2.4) + (areaScore * 1.2) + (distScore * 3.0) + userBoost + irScore + (audible * 1.35) + (audioBoostOn ? audible * 1.2 : 0) - bgPenalty;
+      
+      // ✅ PIP & Last Clicked Boosting
+      const pipBoost = (document.pictureInPictureElement === v) ? 3.5 : 0;
+      const clickedBoost = (v === window.__lastClickedVideo && (now - (window.__lastClickT || 0)) < 1800) ? 2.0 : 0;
+
+      return (playing * 6.0) + (hasTime * 2.4) + (areaScore * 1.2) + (distScore * 3.0) + userBoost + irScore + (audible * 1.35) + (audioBoostOn ? audible * 1.2 : 0) + pipBoost + clickedBoost - bgPenalty;
     }
 
     const scoreVideoCached = (v, audioBoostOn, now, lastUserPt) => {
@@ -302,7 +330,10 @@
     const preSharp = (pD.sharpAdd || 0) * mix, preSharp2 = (pD.sharp2Add || 0) * mix, preClarity = (pD.clarityAdd || 0) * mix;
     const A = ae || AE_ZERO;
     let gamma = (vUser.gamma || 1.0) * preGammaF * (A.gammaF || 1.0), contrast = (vUser.contrast || 1.0) * preConF * (A.conF || 1.0), satF = ((vUser.sat || 100) / 100) * preSatF * (A.satF || 1.0), bright = (vUser.bright || 0) + preBright + (A.brightAdd || 0), temp = (vUser.temp || 0) + preTemp + (A.tempAdd || 0);
-    const gain = clamp(A.gain || 1.0, 1.0, 8.0);
+    
+    // ✅ FIX 1: Down-EV limit softened (1.0 -> 0.60) to allow dark scene adjustments
+    const gain = clamp(A.gain ?? 1.0, 0.60, 8.0);
+    
     let sharpMul = Math.max(0.88, 1 / (1 + (gain - 1.0) * 0.4)) * (1 - Math.min(0.08, (A.hiRisk || 0) * 0.1)) * (0.92 + 0.08 * Math.max(0, Math.min(1, ((A.cf != null ? A.cf : 0.5) - 0.10) / 0.22)));
     const chromaStress = (Math.min(1, Math.abs(satF - 1) / 0.55) * 0.85) + (Math.min(1, Math.abs(temp) / 25) * 0.65);
     const riskStress = (clamp(A.hiRisk || 0, 0, 1) * 0.70) + ((1 - clamp(A.cf != null ? A.cf : 0.5, 0, 1)) * 0.45);
@@ -447,7 +478,8 @@
     return { prepareCached: (doc, s) => { try { return prepare(doc, s); } catch (e) { try { console.warn('[VSC] filter prepare failed:', e); } catch(_) {} return null; } }, applyUrl: (el, url) => { if (!el) return; if (!url) { if (el[VSCX.applied]) { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el[VSCX.applied] = false; } return; } if (el.style.filter !== url) { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); el[VSCX.applied] = true; } }, clear: (el) => { if (!el || !el[VSCX.applied]) return; el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el[VSCX.applied] = false; } };
   }
 
-  const WORKER_CODE = `const histAll = new Uint32Array(256), histTop = new Uint32Array(256), histBot = new Uint32Array(256); function pctFromHist(h, n, p){ const t = n * p; let a = 0; for(let i=0;i<256;i++){ a += h[i]; if(a >= t) return i/255; } return 1; } self.onmessage = function(e){ const {buf, width, height, step, token} = e.data || {}; if(!buf || !width || !height) return; const data = new Uint8ClampedArray(buf); histAll.fill(0); histTop.fill(0); histBot.fill(0); let sumAll=0, sumSqAll=0, nAll=0, sumTop=0, sumSqTop=0, nTop=0, clipAll=0, clipBottom=0, clipLowAll=0, botSum=0, botSumSq=0, botN=0, rSum=0, gSum=0, bSum=0, skinCnt=0, skinAcc=0; const botY0 = Math.floor(height * 0.78), stride = width * 4; let botBrightRows = 0, botRowCount = 0; for(let y=0; y<height; y+=step){ const row = y*stride; const isTop = (y < botY0); const isBottom = !isTop; let rowSum=0, rowSumSq=0, rowCnt=0; for(let x=0; x<width; x+=step){ const i = row + x*4; const r = data[i], g = data[i+1], b = data[i+2]; const Y = (0.2126*r + 0.7152*g + 0.0722*b) | 0; histAll[Y]++; sumAll += Y; sumSqAll += Y*Y; nAll++; rSum += r; gSum += g; bSum += b; if(isTop) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; } else { histBot[Y]++; botSum += Y; botSumSq += Y*Y; botN++; } if(Y >= 251){ clipAll++; if(isBottom) clipBottom++; } if(Y <= 4){ clipLowAll++; } if(isBottom){ rowSum += Y; rowSumSq += Y*Y; rowCnt++; } const Yf = Y / 255, rf = r/255, gf = g/255, bf = b/255; if (Yf > 0.20 && Yf < 0.78) { const redish = Math.max(0, Math.min(1, (rf - gf) * 1.8 + (rf - bf) * 1.2)); const notTooSatBlue = Math.max(0, 1 - (bf - rf) * 2.0); const s = redish * notTooSatBlue; if (s > 0.10) { skinAcc += s; skinCnt++; } } } if (isBottom && rowCnt > 0){ botRowCount++; const avg = rowSum / rowCnt, varr = (rowSumSq / rowCnt) - avg*avg, std = Math.sqrt(Math.max(0,varr)); if (avg > 238 && std < 7.0) botBrightRows++; } } const avgAll = nAll ? (sumAll/nAll) : 0, varAll = nAll ? (sumSqAll/nAll - avgAll*avgAll) : 0, stdAll = Math.sqrt(Math.max(0,varAll))/255, avgTop = nTop ? (sumTop/nTop) : avgAll, varTop = nTop ? (sumSqTop/nTop - avgTop*avgTop) : varAll, stdTop = Math.sqrt(Math.max(0,varTop))/255, botAvg = botN ? (botSum/botN)/255 : 0, botVar = botN ? (botSumSq/botN - (botSum/botN)**2) : 0, botStd = Math.sqrt(Math.max(0,botVar))/255, cfAll = Math.min(1, stdAll/0.22), cfTop = Math.min(1, stdTop/0.22), rgbSum = (rSum+gSum+bSum) || 1, redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28)), skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.25) : 0; self.postMessage({ token, p02: pctFromHist(histAll, nAll, 0.02), p05: pctFromHist(histAll, nAll, 0.05), p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p60: pctFromHist(histAll, nAll, 0.60), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98), avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0, clipLowFrac: nAll ? (clipLowAll/nAll) : 0, p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p60T: pctFromHist(histTop, nTop || 1, 0.60), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98), stdDevT: stdTop, cfT: cfTop, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, botP95: pctFromHist(histBot, botN || 1, 0.95), botBrightRows, botRowCount, redDominance, skinScore }); };`;
+  // ✅ Fix 5-1: Add clipTop logic and clean up unused p60/p60T
+  const WORKER_CODE = `const histAll = new Uint32Array(256), histTop = new Uint32Array(256), histBot = new Uint32Array(256); function pctFromHist(h, n, p){ const t = n * p; let a = 0; for(let i=0;i<256;i++){ a += h[i]; if(a >= t) return i/255; } return 1; } self.onmessage = function(e){ const {buf, width, height, step, token} = e.data || {}; if(!buf || !width || !height) return; const data = new Uint8ClampedArray(buf); histAll.fill(0); histTop.fill(0); histBot.fill(0); let sumAll=0, sumSqAll=0, nAll=0, sumTop=0, sumSqTop=0, nTop=0, clipAll=0, clipBottom=0, clipTop=0, clipLowAll=0, botSum=0, botSumSq=0, botN=0, rSum=0, gSum=0, bSum=0, skinCnt=0, skinAcc=0; const botY0 = Math.floor(height * 0.78), stride = width * 4; let botBrightRows = 0, botRowCount = 0; for(let y=0; y<height; y+=step){ const row = y*stride; const isTop = (y < botY0); const isBottom = !isTop; let rowSum=0, rowSumSq=0, rowCnt=0; for(let x=0; x<width; x+=step){ const i = row + x*4; const r = data[i], g = data[i+1], b = data[i+2]; const Y = (0.2126*r + 0.7152*g + 0.0722*b) | 0; histAll[Y]++; sumAll += Y; sumSqAll += Y*Y; nAll++; rSum += r; gSum += g; bSum += b; if(isTop) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; } else { histBot[Y]++; botSum += Y; botSumSq += Y*Y; botN++; } if(Y >= 251){ clipAll++; if(isBottom) clipBottom++; if(isTop) clipTop++; } if(Y <= 4){ clipLowAll++; } if(isBottom){ rowSum += Y; rowSumSq += Y*Y; rowCnt++; } const Yf = Y / 255, rf = r/255, gf = g/255, bf = b/255; if (Yf > 0.20 && Yf < 0.78) { const redish = Math.max(0, Math.min(1, (rf - gf) * 1.8 + (rf - bf) * 1.2)); const notTooSatBlue = Math.max(0, 1 - (bf - rf) * 2.0); const s = redish * notTooSatBlue; if (s > 0.10) { skinAcc += s; skinCnt++; } } } if (isBottom && rowCnt > 0){ botRowCount++; const avg = rowSum / rowCnt, varr = (rowSumSq / rowCnt) - avg*avg, std = Math.sqrt(Math.max(0,varr)); if (avg > 238 && std < 7.0) botBrightRows++; } } const avgAll = nAll ? (sumAll/nAll) : 0, varAll = nAll ? (sumSqAll/nAll - avgAll*avgAll) : 0, stdAll = Math.sqrt(Math.max(0,varAll))/255, avgTop = nTop ? (sumTop/nTop) : avgAll, varTop = nTop ? (sumSqTop/nTop - avgTop*avgTop) : varAll, stdTop = Math.sqrt(Math.max(0,varTop))/255, botAvg = botN ? (botSum/botN)/255 : 0, botVar = botN ? (botSumSq/botN - (botSum/botN)**2) : 0, botStd = Math.sqrt(Math.max(0,botVar))/255, cfAll = Math.min(1, stdAll/0.22), cfTop = Math.min(1, stdTop/0.22), rgbSum = (rSum+gSum+bSum) || 1, redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28)), skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.25) : 0; self.postMessage({ token, p02: pctFromHist(histAll, nAll, 0.02), p05: pctFromHist(histAll, nAll, 0.05), p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98), avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0, clipFracTop: nTop ? (clipTop/nTop) : 0, clipLowFrac: nAll ? (clipLowAll/nAll) : 0, p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98), stdDevT: stdTop, cfT: cfTop, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, botP95: pctFromHist(histBot, botN || 1, 0.95), botBrightRows, botRowCount, redDominance, skinScore }); };`;
 
   function createAE(sm, { IS_MOBILE, Utils }, onAE) {
     let worker = null, workerUrl = null, canvas = null, ctx2d = null, activeVideo = null, isRunning = false, workerBusy = false, targetToken = 0;
@@ -456,6 +488,7 @@
     let lastStats = { p02: -1, p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 };
     let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0, curGain = 1.0, __prevFrame = null, __motion01 = 1, sampleCount = 0, lastLoopT = 0;
     let __autoProfile = 'standard', __autoHoldUntil = 0, __lastMeta = { hiRisk: 0, luma: 0, clipFrac: 0, cf: 0.5, rd: 0, profileResolved: 'standard' };
+    let __subLikelyHoldUntil = 0; // ✅ Fix 5-2: Hysteresis for SubLikely
     const { clamp } = Utils; let __packKey = '', __pack = null;
     const AE_STAT_KEYS = Object.freeze(['p02', 'p05', 'p10', 'p35', 'p50', 'p90', 'p95', 'p98', 'clipFrac', 'clipLowFrac', 'cf', 'rd']);
     const getResolvedProfile = () => { const sel = sm.get(P.V_AE_PROFILE) || 'standard'; return (sel === 'auto') ? (__autoProfile || 'standard') : sel; };
@@ -468,7 +501,13 @@
       let brightAdd = (up01 * 7.0) * clamp(0.52 - p50, -0.22, 0.22), mid = (up01 * 0.55) * clamp((0.50 - p50) / 0.22, -1, 1), toe = (3.6 + 5.6 * upE) * lowKey01 * (1 - 0.55 * risk01), shoulder = (4.8 + 5.2 * upE) * (risk01 * 0.85 + 0.15) * (1 - 0.25 * lowKey01), conF = 1 + (up01 * 0.050) * clamp((0.46 - clamp((clamp(s.p90 ?? 0.9, 0, 1) - clamp(s.p10 ?? 0.1, 0, 1)), 0, 1)) / 0.26, 0, 1) - (0.012 * risk01), satF = 1 + (1 - clamp(s.cf ?? 0.5, 0, 1)) * 0.22 * (1 - risk01 * 0.65); 
       brightAdd *= (1 - 0.85 * risk01); shoulder *= (1 - 0.60 * risk01); 
       const dn01 = clamp((-ev) / 1.10, 0, 1); const dnE = dn01 * dn01 * (3 - 2 * dn01);
-      if (dn01 > 0) { satF *= (1 - 0.05 * dn01 * (0.5 + 0.5 * risk01)); conF = 1 + (conF - 1) * (1 - 0.20 * dn01); shoulder += 1.1 * dnE * (0.4 + 0.6 * risk01); brightAdd -= 1.2 * dnE * risk01; }
+      if (dn01 > 0) { 
+        satF *= (1 - 0.05 * dn01 * (0.5 + 0.5 * risk01)); 
+        conF = 1 + (conF - 1) * (1 - 0.20 * dn01); 
+        shoulder += 1.1 * dnE * (0.4 + 0.6 * risk01); 
+        brightAdd -= 1.2 * dnE * risk01; 
+        mid -= 0.10 * dnE * (0.6 + 0.4 * risk01); // ✅ Fix 5-3: Reduce mid tone on Down-EV
+      }
       const bias = clamp(cfg.TONE_BIAS ?? 0, -1, 1); brightAdd *= (1 + 0.10 * bias); satF *= (1 + 0.08 * bias); conF *= (1 + 0.02 * bias); shoulder *= (1 - 0.12 * bias); toe *= (1 + 0.08 * (-bias)); 
       const skinProtect = clamp(s.rd ?? 0, 0, 1) * 0.35; satF = satF * (1 - skinProtect * 0.35); conF = 1 + (conF - 1) * (1 - skinProtect * 0.25); shoulder *= (1 - skinProtect * 0.20 * risk01); 
       const crush01 = clamp((0.045 - clamp(s.p05 ?? 0.05, 0, 1)) / 0.030, 0, 1) * 0.65 + clamp((clamp(s.clipLowFrac ?? 0, 0, 1) - 0.010) / 0.030, 0, 1) * 0.75; 
@@ -493,8 +532,14 @@
     const processResult = (data) => {
       if (!data || data.token !== targetToken) return;
       const pack = getPack(), cfg = pack.cfg, now = performance.now(); sampleCount++;
-      const barRowRatio = (data.botRowCount > 0) ? (data.botBrightRows / data.botRowCount) : 0, uiBar = (barRowRatio > 0.55) || ((data.botAvg > 0.22 && data.botStd < 0.055) || (data.clipFracBottom > (cfg.CLIP_FRAC_LIMIT * 4) && data.botStd < 0.045)), subLikely = !uiBar && (barRowRatio > 0.12 && barRowRatio < 0.55) && (data.botP95 > 0.92) && (data.p50 < 0.24) && (data.stdDev > 0.055) && (data.botStd > 0.040);
-      const stats = { p02: data.p02, p05: data.p05, p10: subLikely ? data.p10T : data.p10, p35: subLikely ? data.p35T : data.p35, p50: subLikely ? data.p50T : data.p50, p90: subLikely ? data.p90T : data.p90, p95: subLikely ? data.p95T : data.p95, p98: subLikely ? data.p98T : data.p98, clipFrac: data.clipFrac, clipLowFrac: data.clipLowFrac, cf: subLikely ? (data.cfT ?? data.cf) : data.cf, rd: (data.skinScore != null) ? data.skinScore : data.redDominance };
+      const barRowRatio = (data.botRowCount > 0) ? (data.botBrightRows / data.botRowCount) : 0, uiBar = (barRowRatio > 0.55) || ((data.botAvg > 0.22 && data.botStd < 0.055) || (data.clipFracBottom > (cfg.CLIP_FRAC_LIMIT * 4) && data.botStd < 0.045));
+      const subCandidate = !uiBar && (barRowRatio > 0.12 && barRowRatio < 0.55) && (data.botP95 > 0.92) && (data.p50 < 0.24) && (data.stdDev > 0.055) && (data.botStd > 0.040);
+      if (subCandidate) __subLikelyHoldUntil = now + 700;
+      const subLikely = subCandidate || (now < __subLikelyHoldUntil);
+
+      const clipFracEff = subLikely ? Math.min(data.clipFrac, (data.clipFracTop ?? data.clipFrac) * 1.12) : data.clipFrac;
+
+      const stats = { p02: data.p02, p05: data.p05, p10: subLikely ? data.p10T : data.p10, p35: subLikely ? data.p35T : data.p35, p50: subLikely ? data.p50T : data.p50, p90: subLikely ? data.p90T : data.p90, p95: subLikely ? data.p95T : data.p95, p98: subLikely ? data.p98T : data.p98, clipFrac: clipFracEff, clipLowFrac: data.clipLowFrac, cf: subLikely ? (data.cfT ?? data.cf) : data.cf, rd: (data.skinScore != null) ? data.skinScore : data.redDominance };
       const dt = Math.min(now - lastEmaT, 500); lastEmaT = now; const a = 1 - Math.exp(-dt / clamp((activeVideo?.paused ? 380 : cfg.DT_CAP_MS) + (1 - __motion01) * 160, 180, 650));
       for (let i=0; i < AE_STAT_KEYS.length; i++) { const k = AE_STAT_KEYS[i]; const v = stats[k]; if (Number.isFinite(v)) lastStats[k] = (lastStats[k] < 0) ? v : (v * a + lastStats[k] * (1 - a)); }
       const risk01 = riskFrom(Math.max(0, lastStats.p95), Math.max(0, lastStats.p98), Math.max(0, lastStats.clipFrac ?? 0), cfg.CLIP_FRAC_LIMIT);
@@ -518,10 +563,12 @@
       } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
     };
     const loop = (token) => { if (!isRunning || token !== loopToken) return; const v = activeVideo, now = performance.now(); if (sm.get(P.APP_ACT) && sm.get(P.V_AE) && v && v.isConnected && !document.hidden && now - lastLoopT > (v.paused ? 280 : (CONFIG.IS_LOW_END ? 110 : 85))) { lastLoopT = now; sample(v); } if (v && v.requestVideoFrameCallback && !v.paused) { try { v.requestVideoFrameCallback(__loopCb); return; } catch (_) {} } setTimeout(__loopCb, 90); };
-    const hardResetStats = () => { workerBusy = false; __prevFrame = null; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p02: -1, p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); };
+    
+    // ✅ Fix 2: Invalidate pending worker response on reset
+    const hardResetStats = () => { targetToken++; workerBusy = false; __prevFrame = null; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p02: -1, p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); };
     return {
       getResolvedProfile, getMeta: () => ({ ...__lastMeta, profileResolved: getResolvedProfile() }),
-      setTarget: (v, opts = {}) => { if (v === activeVideo) return; activeVideo = v; targetToken++; curGain = opts.keepGain ? clamp(curGain, 1.0, 6.0) : 1.0; hardResetStats(); },
+      setTarget: (v, opts = {}) => { if (v === activeVideo) return; activeVideo = v; curGain = opts.keepGain ? clamp(curGain, 1.0, 6.0) : 1.0; hardResetStats(); },
       start: () => { const wk = ensureWorker(); if (!wk) { isRunning = false; return; } if (!isRunning) { isRunning = true; loopToken++; lastLoopT = 0; lastApplyT = lastEmaT = performance.now(); lastSampleT = 0; loop(loopToken); } },
       stop: () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; __prevFrame = null; },
       wake: () => { lastSampleT = 0; lastLoopT = 0; },
@@ -545,17 +592,15 @@
     
     const build = () => {
       if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
-      // ✅ Removed .pip-btn CSS coloring rule
       const style = `.main { position: fixed; top: 50%; right: 70px; transform: translateY(-50%); width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; } .tabs { display: flex; gap: 4px; margin-bottom: 12px; border-bottom: 2px solid #444; position: sticky; top: -15px; background: #191919; z-index: 2; padding-top: 5px; } .tab { flex: 1; padding: 12px; background: #222; border: 0; color: #999; cursor: pointer; border-radius: 10px 10px 0 0; font-weight: bold; font-size: 13px; } .tab.active { background: #333; color: #3498db; border-bottom: 3px solid #3498db; } .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; } .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; } .btn.active { background: #3498db; color: white; border-color: #2980b9; } .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; } .pbtn.active { background: #e67e22; color: white; border-color: #d35400; } .grid { display: grid; grid-template-columns: 1fr 1fr; column-gap: 12px; row-gap: 8px; margin-top: 8px; } .slider { display: flex; flex-direction: column; gap: 4px; color: #ccc; } .slider label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 500; } input[type=range] { width: 100%; accent-color: #3498db; cursor: pointer; height: 24px; margin: 4px 0; } .monitor { font-size: 12px; color: #aaa; text-align: center; border-top: 1px solid #444; padding-top: 8px; margin-top: 12px; } hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }`;
       
       const bodyMain = h('div', { id: 'p-main' }, [
-        // ✅ Layout updated as requested, PiP uses normal class
         h('div', { class: 'prow' }, [
            h('button', { id: 'ae-btn', class: 'btn', onclick: () => { if (sm.get(P.V_AE)) { setAndHint(P.V_AE, false, true); } else { setAndHint(P.V_AE, true, true); if(!sm.get(P.V_AE_PROFILE)) setAndHint(P.V_AE_PROFILE, 'auto', true); } } }, '🤖 자동'),
            h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN), true) }, '🔊 부스트')
         ]),
         h('div', { class: 'prow' }, [
-           h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(!v) return; if(document.pictureInPictureElement){ await exitPiP(); }else{ await enterPiP(v); } } }, '📺 PiP 모드'),
+           h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PiP 모드'),
            h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'),
            h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT), true) }, '⚡ Power')
         ]),
@@ -681,12 +726,12 @@
     if (!(e.altKey && e.shiftKey && e.code === 'KeyP')) return;
     const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
     const v = window.__VSC_APP__?.getActiveVideo(); if (!v) return;
-    if (document.pictureInPictureElement === v) { await exitPiP(); return; }
-    await enterPiP(v);
+    await togglePiPFor(v);
   }, true);
 
   let __vscLastUserGestureAt = 0;
   let __vscAutoPiPEnabled = true;
+  let __vscAutoPiPCooldownUntil = 0;
   ['pointerdown', 'keydown'].forEach(type => {
     window.addEventListener(type, () => { __vscLastUserGestureAt = performance.now(); }, { passive: true, capture: true });
   });
@@ -694,12 +739,23 @@
   document.addEventListener('visibilitychange', async () => {
     if (!__vscAutoPiPEnabled) return;
     if (document.visibilityState !== 'hidden') return;
+    const now = performance.now();
+    if (now < __vscAutoPiPCooldownUntil) return;
+    
     const v = window.__VSC_APP__?.getActiveVideo();
     if (!v || v.paused || v.ended) return; 
     if (document.pictureInPictureElement === v) return;
-    const recentGesture = (performance.now() - __vscLastUserGestureAt) < 10000;
+    if (v.disablePictureInPicture === true) return;
+    
+    const recentGesture = (now - __vscLastUserGestureAt) < 3000;
     if (!recentGesture) return;
-    try { await enterPiP(v); } catch (_) {}
+    
+    try { 
+      const ok = await enterPiP(v); 
+      if(!ok) __vscAutoPiPCooldownUntil = performance.now() + 15000;
+    } catch (_) {
+      __vscAutoPiPCooldownUntil = performance.now() + 15000;
+    }
   }, true);
 
 })();
