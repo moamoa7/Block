@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.0.0_NextGen)
+// @name        Video_Control (v159.4.0.1_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.0.0
-// @description Video Control: OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc, UI Sync
+// @version     159.4.0.1
+// @description Video Control: OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc, UI Sync, Audio Ramping, Hash Sig
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -69,7 +69,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.0.0_NextGen",
+    VERSION: "v159.4.0.1_NextGen",
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
     TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
@@ -78,7 +78,18 @@
   });
 
   const ENABLE_UI = true;
-  const VSCX = Object.freeze({ visible: Symbol('vsc.visible'), rect: Symbol('vsc.rect'), ir: Symbol('vsc.ir'), bound: Symbol('vsc.bound'), rateState: Symbol('vsc.rateState'), tainted: Symbol('vsc.tainted'), audioFail: Symbol('vsc.audioFail'), applied: Symbol('vsc.applied'), desiredRate: Symbol('vsc.desiredRate') });
+  const VSCX = Object.freeze({ 
+    visible: Symbol('vsc.visible'), 
+    rect: Symbol('vsc.rect'), 
+    ir: Symbol('vsc.ir'), 
+    bound: Symbol('vsc.bound'), 
+    rateState: Symbol('vsc.rateState'), 
+    tainted: Symbol('vsc.tainted'), 
+    audioFail: Symbol('vsc.audioFail'), 
+    applied: Symbol('vsc.applied'), 
+    desiredRate: Symbol('vsc.desiredRate'),
+    lastFilterUrl: Symbol('vsc.lastFilterUrl') // 추가: 스타일 캐싱용
+  });
 
   const AE_COMMON = Object.freeze({ CLIP_FRAC_LIMIT: 0.0032, DEAD_IN: 0.035, TAU_UP: 820, TAU_DOWN: 760, TAU_AGGRESSIVE: 220, SAT_MIN: 0.88, SAT_MAX: 1.16, DT_CAP_MS: 220 });
 
@@ -124,6 +135,21 @@
   function getRectCached(v, now, maxAgeMs = 420) {
     const t0 = v.__vscRectT || 0; let r = v[VSCX.rect]; const epoch = v.__vscRectEpoch || 0;
     if (!r || (now - t0) > maxAgeMs || epoch !== __vscRectEpoch) { r = v.getBoundingClientRect(); v[VSCX.rect] = r; v.__vscRectT = now; v.__vscRectEpoch = __vscRectEpoch; } return r;
+  }
+
+  // ====== Stable ID 생성기 (해시용) ======
+  const __vscElemIds = new WeakMap();
+  let __vscElemIdSeq = 1;
+  function getElemId(el) {
+    if (!el) return 0;
+    let id = __vscElemIds.get(el);
+    if (!id) { id = __vscElemIdSeq++; __vscElemIds.set(el, id); }
+    return id;
+  }
+  function hashApplySet(set) {
+    let sum = 0;
+    for (const el of set) sum += getElemId(el);
+    return sum; 
   }
 
   // ====== 1. IFRAME INJECTION ======
@@ -264,7 +290,6 @@
   async function enterPiP(video) {
     if (!video || video.readyState < 2) return false;
 
-    // 1. Next-Gen Document PiP (필터 유지)
     if ('documentPictureInPicture' in window) {
       if (__activeDocumentPiPWindow) return true;
       try {
@@ -317,7 +342,6 @@
       }
     }
 
-    // 2. Fallback PiP
     if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') {
       if (document.pictureInPictureElement === video) return true;
       try { await video.requestPictureInPicture(); return true; } catch (e) { return false; }
@@ -869,7 +893,23 @@
     const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
     const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; window.addEventListener('pointerdown', onGesture, { passive: true, capture: true }); window.addEventListener('keydown', onGesture, { passive: true, capture: true }); };
     const ensureCtx = () => { if (ctx) return true; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false; ctx = new AC(); ensureGestureResumeHook(); compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -24; compressor.knee.value = 24; compressor.ratio.value = 4; compressor.attack.value = 0.005; compressor.release.value = 0.20; dry = ctx.createGain(); wet = ctx.createGain(); dry.connect(ctx.destination); wet.connect(ctx.destination); compressor.connect(wet); return true; };
-    const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const boost = Math.pow(10, sm.get(P.A_BST) / 20); const dryTarget = en ? 0 : 1; const wetTarget = en ? boost : 0; if (lastDryOn !== dryTarget) { dry.gain.setTargetAtTime(dryTarget, ctx.currentTime, 0.05); lastDryOn = dryTarget; } if (lastWetGain == null || Math.abs(lastWetGain - wetTarget) > 1e-4) { wet.gain.setTargetAtTime(wetTarget, ctx.currentTime, 0.05); lastWetGain = wetTarget; } if (currentSrc) { if (en && !wetConnected) { try { currentSrc.connect(compressor); wetConnected = true; } catch (_) {} } else if (!en && wetConnected) { try { currentSrc.disconnect(compressor); wetConnected = false; } catch (_) {} } } };
+    const updateMix = () => { 
+      if (!ctx) return; 
+      const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); 
+      const boost = Math.pow(10, sm.get(P.A_BST) / 20); 
+      const dryTarget = en ? 0 : 1; 
+      const wetTarget = en ? boost : 0; 
+      const t = ctx.currentTime;
+      if (lastDryOn !== dryTarget) { 
+        try { dry.gain.cancelScheduledValues(t); dry.gain.setTargetAtTime(dryTarget, t, 0.015); } catch(e) { dry.gain.value = dryTarget; }
+        lastDryOn = dryTarget; 
+      } 
+      if (lastWetGain == null || Math.abs(lastWetGain - wetTarget) > 1e-4) { 
+        try { wet.gain.cancelScheduledValues(t); wet.gain.setTargetAtTime(wetTarget, t, 0.015); } catch(e) { wet.gain.value = wetTarget; }
+        lastWetGain = wetTarget; 
+      } 
+      if (currentSrc) { if (en && !wetConnected) { try { currentSrc.connect(compressor); wetConnected = true; } catch (_) {} } else if (!en && wetConnected) { try { currentSrc.disconnect(compressor); wetConnected = false; } catch (_) {} } } 
+    };
     const disconnectAll = () => { if (currentSrc) { try { if (wetConnected) currentSrc.disconnect(compressor); currentSrc.disconnect(dry); } catch (_) {} } currentSrc = null; target = null; wetConnected = false; };
     return { setTarget: (v) => { const enabled = sm.get(P.A_EN) && sm.get(P.APP_ACT); if (v && v[VSCX.audioFail]) { if (v !== target) { disconnectAll(); target = v; } updateMix(); return; } if (v !== target) { disconnectAll(); target = v; } if (!v) { updateMix(); return; } if (!ensureCtx()) return; if (!currentSrc && (enabled || (ctx && sm.get(P.APP_ACT)))) { try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(dry); currentSrc = s; } catch (_) { v[VSCX.audioFail] = true; disconnectAll(); } } updateMix(); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc };
   }
@@ -953,7 +993,26 @@
       const url = `url(#${nodes.fid})`; dc.key = key; dc.url = url; return url;
     }
 
-    return { prepareCached: (doc, s) => { try { return prepare(doc, s); } catch (e) { try { console.warn('[VSC] filter prepare failed:', e); } catch(_) {} return null; } }, applyUrl: (el, url) => { if (!el) return; if (!url) { if (el[VSCX.applied]) { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el[VSCX.applied] = false; } return; } if (el.style.filter !== url) { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); el[VSCX.applied] = true; } }, clear: (el) => { if (!el || !el[VSCX.applied]) return; el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el[VSCX.applied] = false; } };
+    return { 
+      prepareCached: (doc, s) => { try { return prepare(doc, s); } catch (e) { try { console.warn('[VSC] filter prepare failed:', e); } catch(_) {} return null; } }, 
+      applyUrl: (el, url) => { 
+        if (!el) return; 
+        if (!url) { 
+          if (el[VSCX.applied]) { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el[VSCX.applied] = false; el[VSCX.lastFilterUrl] = null; } 
+          return; 
+        } 
+        if (el[VSCX.lastFilterUrl] === url) return;
+        el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); 
+        el[VSCX.applied] = true; 
+        el[VSCX.lastFilterUrl] = url;
+      }, 
+      clear: (el) => { 
+        if (!el || !el[VSCX.applied]) return; 
+        el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); 
+        el[VSCX.applied] = false; 
+        el[VSCX.lastFilterUrl] = null;
+      } 
+    };
   }
 
   const WORKER_CODE = `
@@ -1527,7 +1586,7 @@
     ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => { window.addEventListener(ev, () => { try { ensure(); } catch (_) {} }, { passive: true }); });
     window.addEventListener('keydown', (e) => { if (!(e && e.altKey && e.shiftKey && e.code === 'KeyV')) return; const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return; if (!allowUiInThisDoc()) return; setAndHint(P.APP_UI, !sm.get(P.APP_UI), true); ensure(); scheduler.request(true); });
 
-    window.__VSC_UI_Ensure = ensure;
+    if (CONFIG.DEBUG) window.__VSC_UI_Ensure = ensure;
 
     return { 
       ensure, 
@@ -1612,9 +1671,9 @@
   const __reconcileCandidates = new Set();
   let __lastReconcileSig = '';
   
-  function makeReconcileSig(applySet, vVals, desiredRate, pbActive, videoFxOn) {
+  function makeReconcileSig(applySet, vVals, desiredRate, pbActive, videoFxOn, activeTarget) {
     return [
-      videoFxOn ? 1 : 0, pbActive ? 1 : 0, desiredRate ?? 1, applySet.size,
+      videoFxOn ? 1 : 0, pbActive ? 1 : 0, desiredRate ?? 1, applySet.size, hashApplySet(applySet), getElemId(activeTarget),
       vVals.gain?.toFixed(2), vVals.gamma?.toFixed(2), vVals.contrast?.toFixed(2),
       vVals.bright?.toFixed(1), vVals.satF?.toFixed(2), vVals.temp?.toFixed(1),
       vVals.sharp?.toFixed(1), vVals.sharp2?.toFixed(1), vVals.clarity?.toFixed(1),
@@ -1733,8 +1792,6 @@
     const onAE = (ae) => { currentAE = ae; aeRev++; Scheduler.request(false); }; if (AE && AE.__setOnAE) AE.__setOnAE(onAE);
 
     let __activeTarget = null, __lastHadAnyT = 0;
-    
-    let applySet = null;
 
     Scheduler.registerApply((force) => {
       try {
@@ -1825,7 +1882,7 @@
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL); 
         const extraApplyTopK = Store.get(P.APP_EXTRA_TOPK) | 0;
         
-        applySet = Targeting.buildApplySetReuse(visible.videos, __activeTarget, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, pick.topCandidates);
+        const applySet = Targeting.buildApplySetReuse(visible.videos, __activeTarget, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, pick.topCandidates);
 
         const desiredRate = Store.get(P.PB_RATE); 
         const pbActive = active && !!Store.get(P.PB_EN);
@@ -1840,7 +1897,7 @@
           }
         };
 
-        const reconcileSig = makeReconcileSig(applySet, __vVals, desiredRate, pbActive, videoFxOn);
+        const reconcileSig = makeReconcileSig(applySet, __vVals, desiredRate, pbActive, videoFxOn, __activeTarget);
         if (!force && vidsDirty.size === 0 && reconcileSig === __lastReconcileSig) {
            doUIUpdate();
            return;
