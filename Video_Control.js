@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Video_Control (v159.3.0.22_Ultimate_FS_Iframe)
+// @name        Video_Control (v159.3.0.23_Ultimate_FS_Iframe)
 // @namespace   https://github.com/
-// @version     159.3.0.22
+// @version     159.3.0.23
 // @description Video Control: Zero-Alloc, Iframe Inject, FS Wrapper, WebKit PiP, AE & Rate Fixes
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
@@ -69,7 +69,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.3.0.22_Ultimate_FS_Iframe",
+    VERSION: "v159.3.0.23_Ultimate_FS_Iframe",
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
     TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
@@ -314,18 +314,20 @@
       return { v, r, area, ir, cx, cy, pip };
     }
 
-    function scoreVideoPrepared(f, audioBoostOn, now, lastUserPt) {
+    function scoreVideoPrepared(f, audioBoostOn, now, lastUserPt, vp) {
       const v = f.v;
       const areaScore = Math.log2(1 + f.area / 20000);
       const playing = (!v.paused && !v.ended) ? 1 : 0;
       const hasTime = (v.currentTime > 0.2 && (v.duration === Infinity || v.duration > 1)) ? 1 : 0;
 
-      const dist = Math.hypot(f.cx - lastUserPt.x, f.cy - lastUserPt.y);
+      const dx = f.cx - lastUserPt.x;
+      const dy = f.cy - lastUserPt.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
       const distScore = 1 / (1 + dist / 850);
 
-      const vcx = innerWidth * 0.5;
-      const vcy = innerHeight * 0.5;
-      const centerDist = Math.hypot(f.cx - vcx, f.cy - vcy);
+      const cdx = f.cx - vp.cx;
+      const cdy = f.cy - vp.cy;
+      const centerDist = Math.sqrt(cdx * cdx + cdy * cdy);
       const centerScore = 1 / (1 + centerDist / 900);
 
       const userRecent01 = Math.max(0, 1 - (now - lastUserPt.t) / 2500);
@@ -338,7 +340,7 @@
       const autoplay = v.autoplay || v.hasAttribute?.('autoplay'), loop = v.loop || v.hasAttribute?.('loop'), noControls = !v.controls;
 
       const r = f.r;
-      const edgeLike = (r.top < 40 || (innerHeight - r.bottom) < 40 || r.left < 20 || (innerWidth - r.right) < 20), tiny = f.area < (260 * 160);
+      const edgeLike = (r.top < 40 || (vp.h - r.bottom) < 40 || r.left < 20 || (vp.w - r.right) < 20), tiny = f.area < (260 * 160);
 
       const W = TARGETING_WEIGHTS;
       if (v.muted && autoplay && noControls) { bgPenalty += W.bgPenaltyMutedAutoplayNoControls * (1 - 0.60 * big01); if (edgeLike) bgPenalty += W.bgPenaltyEdge * (1 - 0.70 * big01); if (tiny) bgPenalty += W.bgPenaltyTiny; if (loop) bgPenalty += W.bgPenaltyLoop * (1 - 0.50 * big01); } else if (bgLike && !audible) { bgPenalty = (1.6 * (1 - 0.65 * big01)); if (userRecent01 > 0.15) bgPenalty *= 0.55; }
@@ -349,18 +351,65 @@
       return (playing * W.playing) + (hasTime * W.hasTime) + (areaScore * W.area) + (distScore * (W.dist * 0.72)) + (centerScore * 0.75) + userBoost + irScore + (audible * W.audible) + (audioBoostOn ? audible * W.audibleAudioBoostBonus : 0) + pipBoost + clickedBoost - bgPenalty;
     }
 
+    function preScoreCandidate(f) {
+      const v = f.v;
+      const irTerm = Math.min(1, f.ir) * 3.0;
+      const areaTerm = Math.log2(1 + f.area / 20000) * 1.2;
+      const playingTerm = (!v.paused && !v.ended) ? 1.2 : 0;
+      const hasTimeTerm = (v.currentTime > 0.2) ? 0.4 : 0;
+      const audibleTerm = (!v.muted && (v.volume == null || v.volume > 0.01)) ? 0.7 : 0;
+      const pipTerm = f.pip ? 3.5 : 0;
+      return irTerm + areaTerm + playingTerm + hasTimeTerm + audibleTerm + pipTerm;
+    }
+
+    function pushCandidateForced(buf, f, N) {
+      if (!f) return;
+      for (let i = 0; i < buf.length; i++) {
+        if (buf[i].f?.v === f.v) return;
+      }
+      insertTopN(buf, { f, s: Infinity }, N);
+    }
+
+    function shouldSwitchTarget({ now, current, candidate, pickDelta, pendingTarget, pendingSince, lastSwitchT, lastClickVideo, lastClickT }) {
+      if (candidate === current) return { next: current, commit: false, pendingTarget: null, pendingSince: 0 };
+      const userForced = !!(candidate && candidate === lastClickVideo && (now - lastClickT) < 1800);
+      const coolOk = (now - lastSwitchT) > 900;
+      const strong = (pickDelta != null) && (pickDelta > 1.80);
+      if (userForced || (strong && coolOk)) {
+        return { next: candidate, commit: true, pendingTarget: null, pendingSince: 0 };
+      }
+      if (pendingTarget !== candidate) {
+        return { next: current, commit: false, pendingTarget: candidate, pendingSince: now };
+      }
+      if ((now - pendingSince) > 720 && coolOk) {
+        return { next: candidate, commit: true, pendingTarget: null, pendingSince: 0 };
+      }
+      return { next: current, commit: false, pendingTarget, pendingSince };
+    }
+
     const pickDetailed = (videos, lastUserPt, audioBoostOn) => {
       const now = performance.now();
+      const vp = { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 };
       if (!videos || videos.size === 0) {
         __currentTarget = null; __currentSince = now;
         __pickRes.target = null; __pickRes.bestScore = -Infinity; __pickRes.curScore = -Infinity; __pickRes.delta = 0; __pickRes.secondScore = -Infinity; __pickRes.now = now;
         return __pickRes;
       }
+
+      const MAX_CAND_PRE = 14;
       __limitedBuf.length = 0;
       for (const v of videos) {
         const f = buildCandidateFeature(v, now);
         if (!f) continue;
-        insertTopN(__limitedBuf, { f, s: (Math.min(1, f.ir) * 3.0) + (Math.log2(1 + f.area / 20000) * 1.2) }, 10);
+        insertTopN(__limitedBuf, { f, s: preScoreCandidate(f) }, MAX_CAND_PRE);
+      }
+
+      if (__currentTarget && videos.has(__currentTarget)) {
+        pushCandidateForced(__limitedBuf, buildCandidateFeature(__currentTarget, now), MAX_CAND_PRE);
+      }
+      const pipEl = document.pictureInPictureElement;
+      if (pipEl && videos.has(pipEl)) {
+        pushCandidateForced(__limitedBuf, buildCandidateFeature(pipEl, now), MAX_CAND_PRE);
       }
 
       let best = __currentTarget, bestScore = -Infinity, secondScore = -Infinity;
@@ -368,14 +417,14 @@
 
       if (__currentTarget && videos.has(__currentTarget)) {
         const fCur = buildCandidateFeature(__currentTarget, now);
-        if (fCur) curScore = scoreVideoPrepared(fCur, audioBoostOn, now, lastUserPt);
+        if (fCur) curScore = scoreVideoPrepared(fCur, audioBoostOn, now, lastUserPt, vp);
         best = __currentTarget;
         bestScore = curScore;
       }
 
       __lastTopCandidates.length = 0;
       for (const it of __limitedBuf) {
-        const s = scoreVideoPrepared(it.f, audioBoostOn, now, lastUserPt);
+        const s = scoreVideoPrepared(it.f, audioBoostOn, now, lastUserPt, vp);
         if (Number.isFinite(s)) insertTopN(__lastTopCandidates, { v: it.f.v, s }, 6);
 
         if (s > bestScore) { secondScore = bestScore; bestScore = s; best = it.f.v; }
@@ -389,11 +438,20 @@
       }
 
       let delta = bestScore - curScore;
-      if (__currentTarget && (now - __currentSince) < 1400 && best !== __currentTarget && delta < 1.15) {
-         __pickRes.target = __currentTarget; __pickRes.bestScore = curScore; __pickRes.curScore = curScore; __pickRes.delta = 0; __pickRes.secondScore = secondScore; __pickRes.now = now;
-         return __pickRes;
+      const switchDecision = shouldSwitchTarget({
+        now, current: __currentTarget, candidate: best, pickDelta: delta,
+        pendingTarget: window.__vscPendingTarget, pendingSince: window.__vscPendingSince,
+        lastSwitchT: window.__vscLastSwitchT, lastClickVideo: window.__lastClickedVideo, lastClickT: window.__lastClickT
+      });
+
+      if (switchDecision.commit) {
+         __currentTarget = switchDecision.next;
+         __currentSince = now;
+         window.__vscLastSwitchT = now;
       }
-      if (best !== __currentTarget) { __currentTarget = best; __currentSince = now; }
+      window.__vscPendingTarget = switchDecision.pendingTarget;
+      window.__vscPendingSince = switchDecision.pendingSince;
+
       __pickRes.target = __currentTarget; __pickRes.bestScore = bestScore; __pickRes.curScore = curScore; __pickRes.delta = delta; __pickRes.secondScore = secondScore; __pickRes.now = now;
       return __pickRes;
     };
@@ -412,11 +470,11 @@
         return __applySetReuse;
       }
 
-      const now = performance.now(); __topBuf.length = 0;
+      const now = performance.now(); const vp = { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 }; __topBuf.length = 0;
       for (const v of visibleVideos) {
         if (!v || v === target) continue;
         const f = buildCandidateFeature(v, now);
-        const s = f ? scoreVideoPrepared(f, audioBoostOn, now, lastUserPt) : -Infinity;
+        const s = f ? scoreVideoPrepared(f, audioBoostOn, now, lastUserPt, vp) : -Infinity;
         if (Number.isFinite(s) && s > -1e8) insertTopN(__topBuf, { v, s }, N);
       }
       for (let i = 0; i < __topBuf.length; i++) __applySetReuse.add(__topBuf[i].v);
@@ -480,7 +538,7 @@
       colorMix *= (1 - 0.20 * hi);
     }
 
-    const aeBrightLikely = clamp(Math.abs(aeMeta?.luma ?? 0) / 100, 0, 1) * 0.0 + clamp(Math.abs(aeMeta?.clipFrac ?? 0) / (AE_COMMON.CLIP_FRAC_LIMIT * 4), 0, 1) * 0.35 + clamp(aeMeta?.hiRisk ?? 0, 0, 1) * 0.65;
+    const aeBrightLikely = clamp(Math.abs(aeMeta?.luma ?? 0) / 100, 0, 1) * 0.20 + clamp(Math.abs(aeMeta?.clipFrac ?? 0) / (AE_COMMON.CLIP_FRAC_LIMIT * 4), 0, 1) * 0.35 + clamp(aeMeta?.hiRisk ?? 0, 0, 1) * 0.45;
     const userBrightIntent = clamp(Math.abs(vf.bright || 0) / 25 + Math.abs((vf.gamma || 1) - 1) / 0.20 + Math.abs((vf.contrast || 1) - 1) / 0.20, 0, 2.0) / 2.0;
     expMix *= (1 - 0.18 * userBrightIntent * (0.5 + 0.5 * aeBrightLikely));
 
@@ -889,7 +947,7 @@
       const cnt = { standard: 0, bright: 0, cinemaHdr: 0 };
       for (const p of __autoProfileVotes) if (cnt[p] != null) cnt[p]++;
       let voted = prev || 'standard';
-      let bestN = -1;
+      let bestN = cnt[voted] ?? -1;
       for (const [k, n] of Object.entries(cnt)) { if (n > bestN) { bestN = n; voted = k; } }
       return { next: voted, margin: picked.margin };
     }
@@ -897,7 +955,8 @@
     function getAutoHoldMs(prev, next, changed) { if (!changed) return 1100; if ((prev === 'bright' && next === 'cinemaHdr') || (prev === 'cinemaHdr' && next === 'bright')) return 4800; return 3000; }
 
     let __lastAeSent = null;
-    function aeAlmostSame(a, b) {
+    let __lastLookSent = null;
+    function aeLookAlmostSame(a, b) {
       if (!a || !b) return false;
       return (
         Math.abs((a.gain ?? 1) - (b.gain ?? 1)) < 0.015 &&
@@ -906,7 +965,8 @@
         Math.abs((a.mid ?? 0) - (b.mid ?? 0)) < 0.02 &&
         Math.abs((a.toe ?? 0) - (b.toe ?? 0)) < 0.10 &&
         Math.abs((a.shoulder ?? 0) - (b.shoulder ?? 0)) < 0.10 &&
-        Math.abs((a.brightAdd ?? 0) - (b.brightAdd ?? 0)) < 0.12
+        Math.abs((a.brightAdd ?? 0) - (b.brightAdd ?? 0)) < 0.12 &&
+        Math.abs((a.tempAdd ?? 0) - (b.tempAdd ?? 0)) < 0.08
       );
     }
 
@@ -987,11 +1047,11 @@
         motion01: __motion01
       };
 
-      const aePayload = { gain: curGain, conF: look.conF, satF: look.satF, mid: look.mid, toe: look.toe, shoulder: look.shoulder, brightAdd: look.brightAdd, tempAdd: clamp(cfg.TEMP_BIAS ?? 0, -6, 6), hiRisk: risk01, cf: __lastMeta.cf, luma: __lastMeta.luma, clipFrac: lastStats.clipFrac, skinScore: skinScore };
+      const aeLook = { gain: curGain, conF: look.conF, satF: look.satF, mid: look.mid, toe: look.toe, shoulder: look.shoulder, brightAdd: look.brightAdd, tempAdd: clamp(cfg.TEMP_BIAS ?? 0, -6, 6) };
 
-      if (!aeAlmostSame(aePayload, __lastAeSent)) {
-        __lastAeSent = { ...aePayload };
-        onAE && onAE(aePayload);
+      if (!aeLookAlmostSame(aeLook, __lastLookSent)) {
+        __lastLookSent = { ...aeLook };
+        onAE && onAE({ ...aeLook, ...__lastMeta });
       }
     };
 
@@ -1045,8 +1105,8 @@
 
     const invalidatePendingSample = () => { targetToken++; workerBusy = false; };
     const resetAutoClassifierState = () => { __autoProfileVotes.length = 0; __subLikelyHoldUntil = 0; __subCandidateStreak = 0; __autoHoldUntil = 0; };
-    const hardResetStats = () => { invalidatePendingSample(); __prevFrame = null; __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; resetAutoClassifierState(); };
-    const softResetStats = () => { invalidatePendingSample(); __prevFrame = null; __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; sampleCount = Math.min(sampleCount, 1); lastEmaT = performance.now(); lastApplyT = performance.now(); __subCandidateStreak = 0; __subLikelyHoldUntil = 0; };
+    const hardResetStats = () => { invalidatePendingSample(); __prevFrame = null; __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; __lastAeSent = null; __lastLookSent = null; resetAutoClassifierState(); };
+    const softResetStats = () => { invalidatePendingSample(); __prevFrame = null; __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; sampleCount = Math.min(sampleCount, 1); lastEmaT = performance.now(); lastApplyT = performance.now(); __subCandidateStreak = 0; __subLikelyHoldUntil = 0; __lastAeSent = null; __lastLookSent = null; };
     const stopSoft = () => { isRunning = false; loopToken++; activeVideo = null; };
     const stopHard = () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; if (workerUrl) { try { URL.revokeObjectURL(workerUrl); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; __prevFrame = null; targetToken++; };
 
@@ -1078,7 +1138,14 @@
           const updateToneState = () => { const cur = sm.get(key) || 'neutral'; b.classList.toggle('active', cur === it.v); };
           sub(key, updateToneState); updateToneState();
         } else {
-          b.onclick = () => { const cur = sm.get(key); if (key === P.V_AE_PROFILE) { if (!sm.get(P.V_AE)) setAndHint(P.V_AE, true, true); setAndHint(P.V_AE_PROFILE, it.v === 'auto' ? 'auto' : (cur === it.v ? 'standard' : it.v), true); return; } };
+          b.onclick = () => {
+            const cur = sm.get(key);
+            if (key === P.V_AE_PROFILE) {
+              if (!sm.get(P.V_AE)) setAndHint(P.V_AE, true, true);
+              setAndHint(P.V_AE_PROFILE, it.v === 'auto' ? 'auto' : (cur === it.v ? 'auto' : it.v), true); // 수정: 해제 시 'auto'로 복귀
+              return;
+            }
+          };
           if (key === P.V_AE_PROFILE) { const updateAeState = () => { b.classList.toggle('active', !!sm.get(P.V_AE) && sm.get(P.V_AE_PROFILE) === it.v); }; sub(P.V_AE, updateAeState); sub(P.V_AE_PROFILE, updateAeState); updateAeState(); }
           else { sub(key, v => b.classList.toggle('active', v === it.v)); b.classList.toggle('active', sm.get(key) === it.v); }
         }
@@ -1087,7 +1154,34 @@
       return r;
     };
     const renderPresetRow = (label, items, key) => { const r = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label)); items.forEach(it => { const val = (it.l || it.txt), b = h('button', { class: 'pbtn', style: 'flex:1' }, val); b.onclick = () => setAndHint(key, val, true); sub(key, v => b.classList.toggle('active', v === val)); b.classList.toggle('active', sm.get(key) === val); r.append(b); }); const offVal = (key === P.V_PRE_B) ? 'brOFF' : 'off', off = h('button', { class: 'pbtn', style: 'flex:1' }, 'OFF'); off.onclick = () => setAndHint(key, offVal, true); sub(key, v => off.classList.toggle('active', v === 'off' || v === 'brOFF')); off.classList.toggle('active', sm.get(key) === 'off' || sm.get(key) === 'brOFF'); r.append(off); return r; };
-    const renderSlider = (cfg) => { const valEl = h('span', { style: 'color:#3498db' }, '0'), inp = h('input', { type: 'range', min: cfg.min, max: cfg.max, step: cfg.s }); const update = (v) => { valEl.textContent = cfg.f(Number(v)); inp.value = v; }; sub(cfg.k, update); update(sm.get(cfg.k)); inp.oninput = () => { const nv = Number(inp.value); valEl.textContent = cfg.f(nv); setAndHint(cfg.k, nv, true); }; return h('div', { class: 'slider' }, h('label', {}, cfg.l, valEl), inp); };
+
+    function makeRafCoalescedSetter(commitFn) {
+      let raf = 0;
+      let pending;
+      return (v) => {
+        pending = v;
+        if (raf) return;
+        raf = requestAnimationFrame(() => {
+          raf = 0;
+          commitFn(pending);
+        });
+      };
+    }
+
+    const renderSlider = (cfg) => {
+      const valEl = h('span', { style: 'color:#3498db' }, '0'), inp = h('input', { type: 'range', min: cfg.min, max: cfg.max, step: cfg.s });
+      const update = (v) => { valEl.textContent = cfg.f(Number(v)); inp.value = v; };
+      sub(cfg.k, update); update(sm.get(cfg.k));
+
+      const setCoalesced = makeRafCoalescedSetter((nv) => {
+        sm.set(cfg.k, nv);
+        bus.signal({ aeLevel: 1, forceApply: true, userLockMs: 900, userLockAmp: 0.45 });
+      });
+
+      inp.oninput = () => { const nv = Number(inp.value); valEl.textContent = cfg.f(nv); setCoalesced(nv); };
+      inp.onchange = () => { const nv = Number(inp.value); setAndHint(cfg.k, nv, true); };
+      return h('div', { class: 'slider' }, h('label', {}, cfg.l, valEl), inp);
+    };
 
     const build = () => {
       if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
@@ -1302,8 +1396,10 @@
         if (aeShouldRun) { AE.setTarget(__activeTarget, { keepGain: true, softReset: false }); AE.start(); } else { AE.stop?.(); }
         if (wantAudio || Audio.hasCtx?.() || Audio.isHooked?.()) Audio.setTarget(__activeTarget || null); else Audio.setTarget(null);
         Audio.update();
-        let vfEff = vf0; if (vf0.tonePreset && vf0.tonePreset !== 'neutral') { const aeForTone = wantAE ? currentAE : null; const tEff = computeToneStrengthEff(vf0, aeForTone, Utils); for (const k in __vfEff) __vfEff[k] = vf0[k]; __vfEff.toneStrength = tEff; vfEff = __vfEff; }
-        const aeMeta = (wantAE && AE.getMeta) ? AE.getMeta() : { profileResolved: (Store.get(P.V_AE_PROFILE) || 'standard'), hiRisk: 0, subLikely: false };
+
+        const aeMeta = (wantAE && AE.getMeta) ? AE.getMeta() : { profileResolved: (Store.get(P.V_AE_PROFILE) || 'standard'), hiRisk: 0, subLikely: false, clipFrac: 0, cf: 0.5, skinScore: 0 };
+
+        let vfEff = vf0; if (vf0.tonePreset && vf0.tonePreset !== 'neutral') { const tEff = computeToneStrengthEff(vf0, aeMeta, Utils); for (const k in __vfEff) __vfEff[k] = vf0[k]; __vfEff.toneStrength = tEff; vfEff = __vfEff; }
 
         computeAeMix3Into(__aeMix, vfEff, aeMeta, Utils, userLock01);
         smoothAeMix(now, __aeMix, __aeMix);
@@ -1314,7 +1410,7 @@
         let colorMix = __aeMix.colorMix * aeStr;
 
         let aeOut = null;
-        if (wantAE ? currentAE : null) {
+        if (aeShouldRun && currentAE) {
           const raw = currentAE;
           __aeOut.gain = Math.pow(2, Math.log2(Math.max(1e-6, raw.gain ?? 1)) * expMix);
           __aeOut.brightAdd = (raw.brightAdd ?? 0) * expMix;
@@ -1324,19 +1420,18 @@
           __aeOut.mid = (raw.mid ?? 0) * toneMix;
           __aeOut.toe = (raw.toe ?? 0) * toneMix;
           __aeOut.shoulder = (raw.shoulder ?? 0) * toneMix;
-          __aeOut.hiRisk = raw.hiRisk ?? 0;
-          __aeOut.cf = raw.cf ?? 0.5;
-          __aeOut.luma = raw.luma ?? 0;
-          __aeOut.clipFrac = raw.clipFrac ?? 0;
-          __aeOut.skinScore = raw.skinScore ?? 0;
+          __aeOut.hiRisk = aeMeta.hiRisk ?? __aeOut.hiRisk;
+          __aeOut.cf = aeMeta.cf ?? __aeOut.cf;
+          __aeOut.luma = aeMeta.luma ?? __aeOut.luma;
+          __aeOut.clipFrac = aeMeta.clipFrac ?? __aeOut.clipFrac;
+          __aeOut.skinScore = aeMeta.skinScore ?? __aeOut.skinScore;
           aeOut = __aeOut;
         }
         composeVideoParamsInto(__vVals, vfEff, aeOut, Utils, aeMeta?.profileResolved || null);
         const videoFxOn = !isNeutralVideoParams(__vVals);
         if (enableUI && Store.getCatRef('app').uiVisible) {
           if (wantAE) {
-            const meta = AE.getMeta ? AE.getMeta() : {};
-            UI.update(`AE(${aeMeta.profileResolved}) G:${__vVals.gain.toFixed(2)}x L:${Math.round(currentAE.luma || 0)}% P50:${Math.round((meta.p50||0)*100)} P95:${Math.round((meta.p95||0)*100)}${meta.subLikely ? ' [SUB]' : ''}`, true);
+            UI.update(`AE(${aeMeta.profileResolved}) G:${__vVals.gain.toFixed(2)}x L:${Math.round(currentAE.luma || 0)}% P50:${Math.round((aeMeta.p50||0)*100)} P95:${Math.round((aeMeta.p95||0)*100)}${aeMeta.subLikely ? ' [SUB]' : ''}`, true);
           } else {
             UI.update(`Ready (${CONFIG.VERSION})`, false);
           }
