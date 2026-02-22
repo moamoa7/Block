@@ -2097,7 +2097,16 @@
       gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
       const style = `.gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover + .hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''}`;
       applyShadowStyle(shadow, style, h);
-      gearBtn = h('button', { class: 'gear', onclick: () => setAndHint(P.APP_UI, !sm.get(P.APP_UI), true) }, '⚙'); shadow.append(gearBtn, h('div', { class: 'hint' }, '설정 (Alt+Shift+V)'));
+      let isDragging = false; // 드래그 상태를 추적하는 변수 추가
+
+      gearBtn = h('button', { class: 'gear', onclick: (e) => {
+        if (isDragging) {
+          e.preventDefault();
+          e.stopPropagation();
+          return; // 드래그 중이었다면 클릭 무시
+        }
+        setAndHint(P.APP_UI, !sm.get(P.APP_UI), true);
+      } }, '⚙');
 
       const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); };
 
@@ -2106,37 +2115,52 @@
       bootWakeTimer = setTimeout(wake, 2000);
 
       // --- 톱니바퀴 아이콘 수직 드래그 로직 ---
-      const handleGearDrag = (e) => {
-        if (e.target !== gearBtn) return;
-        e.preventDefault();
-        const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-        const rect = gearBtn.getBoundingClientRect();
+const handleGearDrag = (e) => {
+  if (e.target !== gearBtn) return;
+  // e.preventDefault(); <-- 이 줄을 삭제하세요! (모바일 click 증발 원인)
 
-        gearBtn.style.transform = 'none';
-        gearBtn.style.top = `${rect.top}px`;
+  isDragging = false; // 드래그 초기화
+  const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+  const rect = gearBtn.getBoundingClientRect();
 
-        const onMove = (ev) => {
-          const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
-          let newTop = rect.top + (currentY - startY);
-          newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
-          gearBtn.style.top = `${newTop}px`;
-        };
+  gearBtn.style.transform = 'none';
+  gearBtn.style.top = `${rect.top}px`;
 
-        const onUp = () => {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('mouseup', onUp);
-          window.removeEventListener('touchmove', onMove);
-          window.removeEventListener('touchend', onUp);
-        };
+  const onMove = (ev) => {
+    const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
 
-        window.addEventListener('mousemove', onMove, { passive: true });
-        window.addEventListener('mouseup', onUp);
-        window.addEventListener('touchmove', onMove, { passive: true });
-        window.addEventListener('touchend', onUp);
-      };
+    // 5px 이상 움직였을 때만 드래그로 판정 (오터치 방지)
+    if (Math.abs(currentY - startY) > 5) {
+      isDragging = true;
+      if (ev.cancelable) ev.preventDefault(); // 모바일 화면 스크롤 방지
+    }
 
-      gearBtn.addEventListener('mousedown', handleGearDrag);
-      gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
+    if (isDragging) {
+      let newTop = rect.top + (currentY - startY);
+      newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
+      gearBtn.style.top = `${newTop}px`;
+    }
+  };
+
+  const onUp = () => {
+    // 이벤트가 끝난 후 아주 잠깐 대기하여 클릭 이벤트가 무시되도록 한 뒤 상태 초기화
+    setTimeout(() => { isDragging = false; }, 50);
+
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    window.removeEventListener('touchmove', onMove);
+    window.removeEventListener('touchend', onUp);
+  };
+
+  window.addEventListener('mousemove', onMove, { passive: false });
+  window.addEventListener('mouseup', onUp);
+  // 주의: preventDefault()를 사용하려면 passive: false로 설정해야 합니다.
+  window.addEventListener('touchmove', onMove, { passive: false });
+  window.addEventListener('touchend', onUp);
+};
+
+gearBtn.addEventListener('mousedown', handleGearDrag);
+gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
       // ----------------------------------------
 
       const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
