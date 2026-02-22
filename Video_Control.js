@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.0.3_NextGen)
+// @name        Video_Control (v159.4.1.0_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.0.3
+// @version     159.4.1.0
 // @description Video Control: Adaptive Sampling, Subtitle/Skin AI, OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
@@ -27,6 +27,14 @@
   window.__VSC_INTERNAL__ ||= {};
   let __vscClearVideoFilter = null;
   let __vscUserSignalRev = 0;
+
+  function vscSignal(payload) {
+    try { window.__VSC_INTERNAL__?.Bus?.signal?.(payload); } catch (_) {}
+  }
+
+  function isEditableTarget(t) {
+    return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable));
+  }
 
   const EXPERIMENTAL = Object.freeze({
     APPLY_ALL_VISIBLE_VIDEOS: false,
@@ -69,7 +77,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.0.3_NextGen",
+    VERSION: "v159.4.1.0_NextGen",
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
     TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
@@ -111,7 +119,6 @@
   const TOUCHED = { videos: new Set(), rateVideos: new Set() };
   function touchedAddLimited(set, el, onEvict) { if (!el) return; if (set.has(el)) { set.delete(el); set.add(el); return; } set.add(el); if (set.size <= CONFIG.TOUCHED_MAX) return; const it = set.values(); const dropN = Math.ceil(CONFIG.TOUCHED_MAX * 0.25); for (let i = 0; i < dropN; i++) { const v = it.next().value; if (v == null) break; set.delete(v); try { onEvict && onEvict(v); } catch (_) {} } }
   const insertTopN = (arr, item, N) => { let i = 0; while (i < arr.length && arr[i].s >= item.s) i++; if (i >= N) return; arr.splice(i, 0, item); if (arr.length > N) arr.length = N; };
-  function split2(p) { const i = p.indexOf('.'); return (i > 0) ? [p.slice(0, i), p.slice(i + 1)] : [p, '']; }
   const lerp = (a, b, t) => a + (b - a) * t;
 
   let __vscRectEpoch = 0;
@@ -136,9 +143,18 @@
     return id;
   }
   function hashApplySet(set) {
-    let sum = 0;
-    for (const el of set) sum += getElemId(el);
-    return sum;
+    let sum = 0 >>> 0;
+    let sumSq = 0 >>> 0;
+    let xor = 0 >>> 0;
+    let n = 0;
+    for (const el of set) {
+      const id = (getElemId(el) | 0) >>> 0;
+      n++;
+      sum = (sum + id) >>> 0;
+      sumSq = (sumSq + Math.imul(id, id)) >>> 0;
+      xor ^= (id + 0x9e3779b9 + ((xor << 6) >>> 0) + (xor >>> 2)) >>> 0;
+    }
+    return `${n}:${sum.toString(36)}:${sumSq.toString(36)}:${xor.toString(36)}`;
   }
 
   // ====== 1. IFRAME INJECTION ======
@@ -379,8 +395,8 @@
       }
     }
 
+    if (document.pictureInPictureElement === video) return true;
     if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') {
-      if (document.pictureInPictureElement === video) return true;
       try { await video.requestPictureInPicture(); return true; } catch (e) { return false; }
     }
     if (typeof video.webkitSupportsPresentationMode === 'function' && video.webkitSupportsPresentationMode('picture-in-picture')) {
@@ -408,6 +424,14 @@
     if (__activeDocumentPiPWindow || document.pictureInPictureElement === video) return exitPiP(video);
     if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); } catch (_) {} }
     return enterPiP(video);
+  }
+
+  function isPiPActiveVideo(el) {
+    if (!el || el.tagName !== 'VIDEO') return false;
+    try { if (document.pictureInPictureElement === el) return true; } catch (_) {}
+    try { if (typeof el.webkitPresentationMode === 'string' && el.webkitPresentationMode === 'picture-in-picture') return true; } catch (_) {}
+    if (__activeDocumentPiPWindow) return true;
+    return false;
   }
 
   // ====== TARGETING WEIGHTS ======
@@ -701,6 +725,17 @@
     return out;
   }
 
+  function applyTempSatCap(out, clamp) {
+    out.temp = clamp(out.temp || 0, -25, 25);
+    const tempStress01 = clamp(Math.abs(out.temp || 0) / 18, 0, 1);
+    if (tempStress01 > 0) {
+      const satCap = 1.18 - 0.10 * tempStress01;
+      out.satF = clamp(out.satF, 0.0, satCap);
+    } else {
+      out.satF = clamp(out.satF, 0.0, 2.0);
+    }
+  }
+
   function composeVideoParamsInto(out, vUser, ae, Utils, resolvedAeProfileName) {
     const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
     const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off; const pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
@@ -732,26 +767,12 @@
     const styleMix = 1.00 - 0.18 * manualIntent01;
     out.gain = gain; out.gamma = clamp(gamma, 0.5, 2.5); out.contrast = clamp(contrast, 0.5, 2.0); out.bright = clamp(bright, -50, 50); out.mid = clamp(((A.mid || 0) * styleMix), -1, 1); out.sharp = clamp(sharp, 0, 50); out.sharp2 = clamp(sharp2, 0, 50); out.clarity = clamp(clarity, 0, 50); out.dither = vUser.dither || 0; out.temp = clamp(temp, -25, 25); out.toe = (A.toe || 0) * styleMix; out.shoulder = (A.shoulder || 0) * styleMix;
 
-    const tempStress01 = clamp(Math.abs(out.temp || 0) / 18, 0, 1);
-    if (tempStress01 > 0) {
-        const satCap = 1.18 - 0.10 * tempStress01;
-        out.satF = clamp(satF, 0.0, satCap);
-    } else {
-        out.satF = clamp(satF, 0.0, 2.0);
-    }
+    applyTempSatCap(out, clamp);
 
     if (vUser.tonePreset && vUser.tonePreset !== 'off' && vUser.tonePreset !== 'neutral') {
         const toneAeProfileName = vUser.ae ? (resolvedAeProfileName || vUser.aeProfile || 'auto') : null;
         applyTonePreset2Inline(out, vUser.tonePreset, vUser.toneStrength, toneAeProfileName, Utils);
-
-        out.temp = clamp(out.temp || 0, -25, 25);
-        const tempStress01b = clamp(Math.abs(out.temp || 0) / 18, 0, 1);
-        if (tempStress01b > 0) {
-          const satCap2 = 1.18 - 0.10 * tempStress01b;
-          out.satF = clamp(out.satF, 0.0, satCap2);
-        } else {
-          out.satF = clamp(out.satF, 0.0, 2.0);
-        }
+        applyTempSatCap(out, clamp);
         out.contrast = clamp(out.contrast, 0.5, 2.0);
         out.bright   = clamp(out.bright, -50, 50);
     }
@@ -761,41 +782,103 @@
   const isNeutralVideoParams = (v) => ( Math.abs((v.gain ?? 1) - 1) < 0.001 && Math.abs((v.gamma ?? 1) - 1) < 0.001 && Math.abs((v.contrast ?? 1) - 1) < 0.001 && Math.abs((v.bright ?? 0)) < 0.01 && Math.abs((v.satF ?? 1) - 1) < 0.001 && Math.abs((v.mid ?? 0)) < 0.001 && Math.abs((v.sharp ?? 0)) < 0.01 && Math.abs((v.sharp2 ?? 0)) < 0.01 && Math.abs((v.clarity ?? 0)) < 0.01 && Math.abs((v.dither ?? 0)) < 0.01 && Math.abs((v.temp ?? 0)) < 0.01 && Math.abs((v.toe ?? 0)) < 0.01 && Math.abs((v.shoulder ?? 0)) < 0.01 );
 
   function createScheduler(minIntervalMs = 16) {
-    let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0;
-    function timerCb() { timer = 0; requestAnimationFrame(run); }
-    const run = () => { queued = false; const now = performance.now(); const doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) { timer = setTimeout(timerCb, wait); } return; } lastRun = now; if (applyFn) { try { applyFn(doForce); } catch (_) {} } };
+    let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0;
+
+    function queueRaf() {
+      if (rafId) return;
+      rafId = requestAnimationFrame(run);
+    }
+
+    function timerCb() { timer = 0; queueRaf(); }
+
+    function run() {
+      rafId = 0;
+      queued = false;
+      const now = performance.now();
+      const doForce = force;
+      force = false;
+      const dt = now - lastRun;
+
+      if (!doForce && dt < minIntervalMs) {
+        const wait = Math.max(0, minIntervalMs - dt);
+        if (!timer) timer = setTimeout(timerCb, wait);
+        return;
+      }
+
+      lastRun = now;
+      if (applyFn) { try { applyFn(doForce); } catch (_) {} }
+    }
+
     const request = (immediate = false) => {
       if (immediate) {
         force = true;
         if (timer) { clearTimeout(timer); timer = 0; }
-        if (!queued) queued = true;
-        requestAnimationFrame(run);
+        if (!queued) {
+          queued = true;
+          queueRaf();
+        }
         return;
       }
       if (queued) return;
       queued = true;
       if (timer) { clearTimeout(timer); timer = 0; }
-      requestAnimationFrame(run);
+      queueRaf();
     };
+
     return { registerApply: (fn) => { applyFn = fn; }, request };
   }
 
   function createLocalStore(defaults, scheduler, Utils) {
     let rev = 0;
     const listeners = new Map();
-    const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch(_) {} } const [cat] = key.split('.'); const b = listeners.get(cat + '.*'); if (b) for (const cb of b) { try { cb(val); } catch(_) {} } };
+
+    const emit = (key, val) => {
+      const a = listeners.get(key);
+      if (a) for (const cb of a) { try { cb(val); } catch (_) {} }
+
+      const dot = key.indexOf('.');
+      if (dot > 0) {
+        const catStar = key.slice(0, dot) + '.*';
+        const b = listeners.get(catStar);
+        if (b) for (const cb of b) { try { cb(val); } catch (_) {} }
+      }
+    };
 
     const state = Utils.deepClone(defaults);
     const proxyCache = {};
+    let batchDepth = 0;
+    let batchChanged = false;
+    const batchEmits = [];
+
+    function flushBatch() {
+      if (!batchChanged) return;
+      rev++;
+      for (let i = 0; i < batchEmits.length; i++) {
+        const { key, val } = batchEmits[i];
+        emit(key, val);
+      }
+      batchEmits.length = 0;
+      batchChanged = false;
+      scheduler.request(false);
+    }
+
+    function notifyChange(fullPath, val) {
+      if (batchDepth > 0) {
+        batchChanged = true;
+        batchEmits.push({ key: fullPath, val });
+        return;
+      }
+      rev++;
+      emit(fullPath, val);
+      scheduler.request(false);
+    }
 
     function createProxyDeep(obj, pathPrefix) {
       return new Proxy(obj, {
         get(target, prop) {
           if (typeof target[prop] === 'object' && target[prop] !== null) {
-            const cacheKey = pathPrefix ? `${pathPrefix}.${prop}` : prop;
-            if (!proxyCache[cacheKey]) {
-              proxyCache[cacheKey] = createProxyDeep(target[prop], cacheKey);
-            }
+            const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop);
+            if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(target[prop], cacheKey);
             return proxyCache[cacheKey];
           }
           return target[prop];
@@ -803,10 +886,8 @@
         set(target, prop, val) {
           if (!Object.is(target[prop], val)) {
             target[prop] = val;
-            rev++;
-            const fullPath = pathPrefix ? `${pathPrefix}.${prop}` : prop;
-            emit(fullPath, val);
-            scheduler.request(false);
+            const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop);
+            notifyChange(fullPath, val);
           }
           return true;
         }
@@ -821,8 +902,21 @@
       getCatRef: (cat) => proxyState[cat],
       get: (p) => { const [c, k] = p.split('.'); return state[c]?.[k]; },
       set: (p, val) => { const [c, k] = p.split('.'); if (k) proxyState[c][k] = val; },
-      batch: (cat, obj) => { for (const [k, v] of Object.entries(obj)) { proxyState[cat][k] = v; } },
-      sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => { const cur = listeners.get(k); if (cur) cur.delete(f); }; }
+      batch: (cat, obj) => {
+        batchDepth++;
+        try {
+          for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v;
+        } finally {
+          batchDepth--;
+          if (batchDepth === 0) flushBatch();
+        }
+      },
+      sub: (k, f) => {
+        let s = listeners.get(k);
+        if (!s) { s = new Set(); listeners.set(k, s); }
+        s.add(f);
+        return () => { const cur = listeners.get(k); if (cur) cur.delete(f); };
+      }
     };
   }
 
@@ -851,12 +945,35 @@
     }, { root: null, threshold: 0.01, rootMargin: CONFIG.IS_LOW_END ? '120px' : '300px' });
     const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
 
-    const observeVideo = (el) => { if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return; patchFullscreenRequest(el); videos.add(el); io.observe(el); };
+    const ro = new ResizeObserver((entries) => {
+      let changed = false;
+      const now = performance.now();
+      for (const e of entries) {
+        const el = e.target;
+        if (!el || el.tagName !== 'VIDEO') continue;
+        el[VSCX.rect] = e.contentRect ? el.getBoundingClientRect() : null;
+        el.__vscRectT = now;
+        el.__vscRectEpoch = -1;
+        dirty.videos.add(el);
+        changed = true;
+      }
+      if (changed) requestRefreshCoalesced();
+    });
+
+    const observeVideo = (el) => {
+      if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
+      patchFullscreenRequest(el);
+      videos.add(el);
+      io.observe(el);
+      try { ro.observe(el); } catch (_) {}
+    };
 
     const WorkQ = (() => {
       const q = [], bigQ = []; let head = 0, bigHead = 0, scheduled = false, epoch = 1; const mark = new WeakMap();
+      const isInputPending = navigator.scheduling?.isInputPending?.bind(navigator.scheduling);
+
       function drainRunnerIdle(dl) { drain(dl); } function drainRunnerRaf() { drain(); }
-      const schedule = () => { if (scheduled) return; scheduled = true; if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle); else requestAnimationFrame(drainRunnerRaf); };
+      const schedule = () => { if (scheduled) return; scheduled = true; if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); };
       const enqueue = (n) => { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch); (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n); schedule(); };
       const scanNode = (n) => {
         if (!n) return;
@@ -869,7 +986,26 @@
           try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
         }
       };
-      const drain = (dl) => { scheduled = false; const start = performance.now(); const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6; while (bigHead < bigQ.length && budget()) { scanNode(bigQ[bigHead++]); break; } while (head < q.length && budget()) { scanNode(q[head++]); } if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; } schedule(); };
+      const drain = (dl) => {
+        scheduled = false; const start = performance.now();
+        const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
+
+        const shouldYieldForInput = () => {
+          try { return !!isInputPending?.({ includeContinuous: true }); } catch (_) { return false; }
+        };
+
+        while (bigHead < bigQ.length && budget()) {
+          if (shouldYieldForInput()) break;
+          scanNode(bigQ[bigHead++]);
+          break;
+        }
+        while (head < q.length && budget()) {
+          if (shouldYieldForInput()) break;
+          scanNode(q[head++]);
+        }
+        if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
+        schedule();
+      };
       return Object.freeze({ enqueue });
     })();
 
@@ -927,7 +1063,9 @@
         const el = n.value;
         if (el && !el.isConnected) {
           set.delete(el); visibleSet.delete(el); dirtySet.delete(el);
-          try { unobserveFn(el); } catch (_) {} removed++;
+          try { unobserveFn(el); } catch (_) {}
+          try { ro.unobserve(el); } catch (_) {}
+          removed++;
         }
         scanned++;
       }
@@ -973,7 +1111,7 @@
     function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
       const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(gain,0.06)}`; const hit = toneCache.get(key); if (hit) return hit;
       if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; }
-      const toeEnd = 0.34 + toeN * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN), ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g), pivot = clamp(0.50 + midN * 0.06, 0.44, 0.56);
+      const toeEnd = 0.34 + toeN * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN), ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g);
       const out = new Array(steps); let prev = 0;
       for (let i = 0; i < steps; i++) {
         const x0 = i / (steps - 1); let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0; x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
@@ -1225,7 +1363,7 @@
     let loopToken = 0;
     const scheduleNextLoop = (token, v) => { const cb = (now, meta) => loop(token, meta); if (v && v.requestVideoFrameCallback && !v.paused) { try { v.requestVideoFrameCallback(cb); return; } catch (_) {} } setTimeout(() => cb(performance.now(), null), 90); };
     let lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 };
-    let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0, curGain = 1.0, __prevFrame = null, __motion01 = 1, sampleCount = 0, lastLoopT = 0;
+    let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0, curGain = 1.0, __motion01 = 1, sampleCount = 0, lastLoopT = 0;
     let __autoProfile = 'standard', __autoHoldUntil = 0, __lastMeta = { hiRisk: 0, luma: 0, clipFrac: 0, cf: 0.5, skinScore: 0, profileResolved: 'standard', subLikely: false, p50: 0, p95: 0, p98: 0, motion01: 0 };
     let __subLikelyHoldUntil = 0;
     let __subCandidateStreak = 0;
@@ -1233,6 +1371,7 @@
     let __lastSampleMediaTime = -1;
     let __sameFrameSkipStreak = 0;
     let __autoProfileVotes = [];
+    let bitmapFailStreak = 0;
 
     let __sceneChange01 = 1;
     let __aeBurstUntil = 0;
@@ -1253,6 +1392,26 @@
       x = clamp(x, 0, 1);
       return x * x * (3 - 2 * x);
     };
+
+    function createDecodeStressTracker() {
+      let lastTotal = 0; let lastDropped = 0; let ema = 0;
+      return function getStress01(v) {
+        try {
+          const q = v?.getVideoPlaybackQuality?.();
+          if (!q) return ema;
+          const total = q.totalVideoFrames || 0;
+          const dropped = q.droppedVideoFrames || 0;
+          const dTotal = Math.max(0, total - lastTotal);
+          const dDrop = Math.max(0, dropped - lastDropped);
+          lastTotal = total; lastDropped = dropped;
+          const ratio = dTotal > 0 ? (dDrop / dTotal) : 0;
+          const s = Math.max(0, Math.min(1, ratio / 0.12));
+          ema = ema <= 0 ? s : (ema * 0.82 + s * 0.18);
+          return ema;
+        } catch (_) { return ema; }
+      };
+    }
+    const getDecodeStress01 = createDecodeStressTracker();
 
     function computeAdaptiveSampleIntervalMs(v, now) {
       const paused = !!v?.paused;
@@ -1276,6 +1435,9 @@
       ms *= (1 + __userLock01 * 2.8);
       ms *= (1 + Math.min(4, __workerStallStreak) * 0.16);
       ms /= Math.min(2.4, Math.max(0.65, rate));
+
+      const decodeStress01 = getDecodeStress01(v);
+      if (decodeStress01 > 0.05) ms *= (1 + decodeStress01 * 1.1);
 
       if (paused) return clamp(ms, 180, 1200);
       return clamp(ms, CONFIG.IS_LOW_END ? 38 : 28, CONFIG.IS_LOW_END ? 240 : 190);
@@ -1568,7 +1730,7 @@
       }
     };
 
-    const sample = (v, rvfcMeta = null) => {
+    const sample = async (v, rvfcMeta = null) => {
       if (!isRunning || !v || document.hidden || v[VSCX.tainted] || v.readyState < 2 || v[VSCX.visible] === false || (v.videoWidth|0) === 0 || (v.videoHeight|0) === 0) return;
 
       const mediaT = Number.isFinite(rvfcMeta?.mediaTime) ? rvfcMeta.mediaTime : (Number.isFinite(v.currentTime) ? v.currentTime : -1);
@@ -1603,15 +1765,31 @@
 
         if (window.createImageBitmap && window.OffscreenCanvas) {
           workerBusy = true;
-          createImageBitmap(v, { resizeWidth: w, resizeHeight: h, resizeQuality: 'pixelated' })
-            .then(bitmap => {
-              if (!isRunning) { bitmap.close(); workerBusy = false; return; }
-              wk.postMessage({ bitmap, width: w, height: h, step: w<=24?1:2, token: targetToken }, [bitmap]);
-            })
-            .catch(err => {
-              workerBusy = false;
-              v[VSCX.tainted] = true;
-            });
+          try {
+            const bitmap = await createImageBitmap(v, { resizeWidth: w, resizeHeight: h, resizeQuality: 'pixelated' });
+            if (!isRunning) { bitmap.close(); workerBusy = false; return; }
+            bitmapFailStreak = 0;
+            wk.postMessage({ bitmap, width: w, height: h, step: w<=24?1:2, token: targetToken }, [bitmap]);
+          } catch (err) {
+            workerBusy = false;
+            bitmapFailStreak++;
+            if (bitmapFailStreak < 3) {
+              try {
+                if (!canvas) {
+                  canvas = document.createElement('canvas');
+                  canvas.width = w; canvas.height = h;
+                  ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
+                }
+                ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
+                const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
+                workerBusy = true;
+                wk.postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
+                return;
+              } catch (_) {}
+            }
+            v[VSCX.tainted] = true;
+            vscSignal({ aeLevel: 2, forceApply: true });
+          }
         } else {
           if (!canvas) {
             canvas = document.createElement('canvas');
@@ -1790,7 +1968,7 @@
     const ensure = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } ensureGear(); if (sm.get(P.APP_UI)) { build(); if (container) container.style.display = 'block'; } else { if (container) container.style.display = 'none'; } mount(); };
     if (!document.body) { document.addEventListener('DOMContentLoaded', () => { try { ensure(); scheduler.request(true); } catch (_) {} }, { once: true }); }
     ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => { window.addEventListener(ev, () => { try { ensure(); } catch (_) {} }, { passive: true }); });
-    window.addEventListener('keydown', (e) => { if (!(e && e.altKey && e.shiftKey && e.code === 'KeyV')) return; const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return; if (!allowUiInThisDoc()) return; setAndHint(P.APP_UI, !sm.get(P.APP_UI), true); ensure(); scheduler.request(true); });
+    window.addEventListener('keydown', (e) => { if (!(e && e.altKey && e.shiftKey && e.code === 'KeyV')) return; if (isEditableTarget(e.target)) return; if (!allowUiInThisDoc()) return; setAndHint(P.APP_UI, !sm.get(P.APP_UI), true); ensure(); scheduler.request(true); });
 
     if (CONFIG.DEBUG) window.__VSC_UI_Ensure = ensure;
 
@@ -1836,15 +2014,15 @@
       v.__vscRectEpoch = -1;
       const st = v[VSCX.rateState];
       if (st) { st.orig = null; st.lastSetAt = 0; st.suppressSyncUntil = 0; }
-      try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 2, forceApply: true }); } catch (_) {}
+      vscSignal({ aeLevel: 2, forceApply: true });
     };
 
     v.addEventListener('loadstart', softResetTransientFlags, { passive: true });
     v.addEventListener('loadedmetadata', softResetTransientFlags, { passive: true });
     v.addEventListener('emptied', softResetTransientFlags, { passive: true });
 
-    v.addEventListener('seeking', () => { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 1 }); }, { passive: true });
-    v.addEventListener('play', () => { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 1 }); }, { passive: true });
+    v.addEventListener('seeking', () => { vscSignal({ aeLevel: 1 }); }, { passive: true });
+    v.addEventListener('play', () => { vscSignal({ aeLevel: 1 }); }, { passive: true });
     v.addEventListener('ratechange', () => {
       const st = getRateState(v);
       const now = performance.now();
@@ -1879,10 +2057,11 @@
 
   function makeReconcileSig(applySet, vVals, desiredRate, pbActive, videoFxOn, activeTarget) {
     return [
-      videoFxOn ? 1 : 0, pbActive ? 1 : 0, desiredRate ?? 1, applySet.size, hashApplySet(applySet), getElemId(activeTarget),
+      videoFxOn ? 1 : 0, pbActive ? 1 : 0, desiredRate ?? 1, hashApplySet(applySet), getElemId(activeTarget),
       vVals.gain?.toFixed(2), vVals.gamma?.toFixed(2), vVals.contrast?.toFixed(2),
       vVals.bright?.toFixed(1), vVals.satF?.toFixed(2), vVals.temp?.toFixed(1),
       vVals.sharp?.toFixed(1), vVals.sharp2?.toFixed(1), vVals.clarity?.toFixed(1),
+      vVals.mid?.toFixed(3), vVals.dither?.toFixed(0),
       vVals.toe?.toFixed(1), vVals.shoulder?.toFixed(1)
     ].join('|');
   }
@@ -1900,7 +2079,7 @@
     for (const el of candidates) {
       if (!el || el.tagName !== 'VIDEO' || !el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); continue; }
       const visible = (el[VSCX.visible] !== false);
-      const shouldApply = visible && applySet.has(el);
+      const shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
 
       if (!shouldApply) {
         Filters.clear(el);
@@ -2171,7 +2350,7 @@
 
   window.addEventListener('keydown', async (e) => {
     if (!(e.altKey && e.shiftKey && e.code === 'KeyP')) return;
-    const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (isEditableTarget(e.target)) return;
     const v = __VSC_APP__?.getActiveVideo(); if (!v) return;
     await togglePiPFor(v);
   }, true);
@@ -2221,6 +2400,21 @@
       }
     }
   }, true);
+
+  (function addPageLifecycleHooks() {
+    window.addEventListener('freeze', () => {
+      try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 0 }); } catch (_) {}
+      try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.Bus?.signal?.({ forceApply: true }); } catch (_) {}
+    }, { capture: true });
+
+    window.addEventListener('pageshow', () => {
+      try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 2, forceApply: true }); } catch (_) {}
+    }, { capture: true });
+
+    window.addEventListener('pagehide', () => {
+      try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 0 }); } catch (_) {}
+    }, { capture: true });
+  })();
 
   watchIframes();
 
