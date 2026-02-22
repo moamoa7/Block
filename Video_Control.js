@@ -2115,52 +2115,51 @@
       bootWakeTimer = setTimeout(wake, 2000);
 
       // --- 톱니바퀴 아이콘 수직 드래그 로직 ---
-const handleGearDrag = (e) => {
-  if (e.target !== gearBtn) return;
-  // e.preventDefault(); <-- 이 줄을 삭제하세요! (모바일 click 증발 원인)
+      const handleGearDrag = (e) => {
+        if (e.target !== gearBtn) return;
 
-  isDragging = false; // 드래그 초기화
-  const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-  const rect = gearBtn.getBoundingClientRect();
+        isDragging = false; // 드래그 초기화
+        const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        const rect = gearBtn.getBoundingClientRect();
 
-  gearBtn.style.transform = 'none';
-  gearBtn.style.top = `${rect.top}px`;
+        gearBtn.style.transform = 'none';
+        gearBtn.style.top = `${rect.top}px`;
 
-  const onMove = (ev) => {
-    const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
+        const onMove = (ev) => {
+          const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
 
-    // 5px 이상 움직였을 때만 드래그로 판정 (오터치 방지)
-    if (Math.abs(currentY - startY) > 5) {
-      isDragging = true;
-      if (ev.cancelable) ev.preventDefault(); // 모바일 화면 스크롤 방지
-    }
+          // 5px 이상 움직였을 때만 드래그로 판정 (오터치 방지)
+          if (Math.abs(currentY - startY) > 5) {
+            isDragging = true;
+            if (ev.cancelable) ev.preventDefault(); // 모바일 화면 스크롤 방지
+          }
 
-    if (isDragging) {
-      let newTop = rect.top + (currentY - startY);
-      newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
-      gearBtn.style.top = `${newTop}px`;
-    }
-  };
+          if (isDragging) {
+            let newTop = rect.top + (currentY - startY);
+            newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
+            gearBtn.style.top = `${newTop}px`;
+          }
+        };
 
-  const onUp = () => {
-    // 이벤트가 끝난 후 아주 잠깐 대기하여 클릭 이벤트가 무시되도록 한 뒤 상태 초기화
-    setTimeout(() => { isDragging = false; }, 50);
+        const onUp = () => {
+          // 이벤트가 끝난 후 아주 잠깐 대기하여 클릭 이벤트가 무시되도록 한 뒤 상태 초기화
+          setTimeout(() => { isDragging = false; }, 50);
 
-    window.removeEventListener('mousemove', onMove);
-    window.removeEventListener('mouseup', onUp);
-    window.removeEventListener('touchmove', onMove);
-    window.removeEventListener('touchend', onUp);
-  };
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onUp);
+        };
 
-  window.addEventListener('mousemove', onMove, { passive: false });
-  window.addEventListener('mouseup', onUp);
-  // 주의: preventDefault()를 사용하려면 passive: false로 설정해야 합니다.
-  window.addEventListener('touchmove', onMove, { passive: false });
-  window.addEventListener('touchend', onUp);
-};
+        window.addEventListener('mousemove', onMove, { passive: false });
+        window.addEventListener('mouseup', onUp);
+        // 주의: preventDefault()를 사용하려면 passive: false로 설정해야 합니다.
+        window.addEventListener('touchmove', onMove, { passive: false });
+        window.addEventListener('touchend', onUp);
+      };
 
-gearBtn.addEventListener('mousedown', handleGearDrag);
-gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
+      gearBtn.addEventListener('mousedown', handleGearDrag);
+      gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
       // ----------------------------------------
 
       const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
