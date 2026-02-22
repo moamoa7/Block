@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v81.3 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v81.4 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     81.3.0-KR-ULTRA-Infinity-Autonomous
-// @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU, LoAF)
+// @version     81.4.0-KR-ULTRA-Infinity-Autonomous
+// @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU, Advanced LoAF/INP)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -27,6 +27,31 @@
         catch {
             try { location.reload(); } catch {}
         }
+    };
+
+    const safeJsonParse = (str, fallback = null) => {
+        try {
+            const v = JSON.parse(str);
+            return v ?? fallback;
+        } catch {
+            return fallback;
+        }
+    };
+
+    const makeTTLCache = () => {
+        let value = null;
+        let ts = 0;
+        return {
+            get(ttl, compute) {
+                const now = Date.now();
+                if (value !== null && (now - ts) < ttl) return value;
+                value = compute();
+                ts = now;
+                return value;
+            },
+            set(v) { value = v; ts = Date.now(); },
+            clear() { value = null; ts = 0; }
+        };
     };
 
     // [Safe Storage Wrapper with True LRU & Memory Cache]
@@ -140,7 +165,6 @@
     });
 
     const hostEndsWithAny = (h, list) => list.some(d => h === d || h.endsWith('.' + d));
-    const safeJsonParse = (str) => { try { return JSON.parse(str) || {}; } catch { return {}; } };
 
     const onReady = (cb) => {
         if (document.readyState !== 'loading') cb();
@@ -157,6 +181,15 @@
         cb();
     };
 
+    const getActivationStart = () => {
+        try {
+            const nav = performance.getEntriesByType('navigation')[0];
+            return Number(nav?.activationStart || 0);
+        } catch {
+            return 0;
+        }
+    };
+
     // Bucket & Freshness
     const normSeg = (s) => {
         if (/^\d+$/.test(s)) return ':id';
@@ -169,19 +202,13 @@
 
     // ✅ Event Bus
     const Bus = {
-        on(name, fn, target = win) {
-            target.addEventListener(name, fn);
-        },
-        emit(name, detail) { 
-            win.dispatchEvent(new CustomEvent(name, { detail })); 
-        }
+        on(name, fn, target = win) { target.addEventListener(name, fn); },
+        emit(name, detail) { win.dispatchEvent(new CustomEvent(name, { detail })); }
     };
 
     // ✅ BaseModule with AbortController
     class BaseModule {
-        constructor() {
-            this._ac = new AbortController();
-        }
+        constructor() { this._ac = new AbortController(); }
         on(target, type, listener, options) {
             if (!target || !target.addEventListener) return;
             const opts = (typeof options === 'object' && options !== null)
@@ -189,12 +216,8 @@
                 : { capture: options === true, signal: this._ac.signal };
             target.addEventListener(type, listener, opts);
         }
-        destroy() {
-            try { this._ac.abort(); } catch {}
-        }
-        safeInit() {
-            try { this.init(); } catch (e) { log('Module Error', e); }
-        }
+        destroy() { try { this._ac.abort(); } catch {} }
+        safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } }
         init() {}
     }
 
@@ -211,7 +234,8 @@
     // [Safe Init] Hoist Config/API
     let Config = {
         codecMode: 'off', passive: false, gpu: false, memory: false,
-        allowIframe: false, rtcGuard: false, downgradeLevel: 0
+        allowIframe: false, rtcGuard: false, downgradeLevel: 0,
+        memoryContainMode: 'safe'
     };
 
     const API = {
@@ -226,7 +250,7 @@
                 const ctrl = new AbortController();
                 win.scheduler
                     .postTask(() => cb(), { delay: timeout, priority, signal: ctrl.signal })
-                    .catch(() => { /* aborted / ignored */ });
+                    .catch(() => {});
                 return { kind: 'postTask', ctrl };
             }
             if (win.requestIdleCallback) {
@@ -244,12 +268,8 @@
         },
         raf(cb) { return win.requestAnimationFrame(cb); },
         async yield(priority = 'user-visible') {
-            if (win.scheduler?.yield) {
-                try { await win.scheduler.yield(); return; } catch {}
-            }
-            if (win.scheduler?.postTask) {
-                try { await win.scheduler.postTask(() => {}, { priority }); return; } catch {}
-            }
+            if (win.scheduler?.yield) { try { await win.scheduler.yield(); return; } catch {} }
+            if (win.scheduler?.postTask) { try { await win.scheduler.postTask(() => {}, { priority }); return; } catch {} }
             await new Promise(r => setTimeout(r, 0));
         }
     };
@@ -272,7 +292,7 @@
     };
 
     // [Config Helpers]
-    const SAN_KEYS = ['autoDowngraded', '_restore', 'downgradeReason'];
+    const SAN_KEYS = ['_restore', 'downgradeReason'];
     const sanitizeConfig = (o) => {
         const out = { ...o };
         for (const k of SAN_KEYS) delete out[k];
@@ -308,12 +328,11 @@
     let LCP_KEY = getLcpKey();
     let INTERACTIVE_KEY = getInteractiveKey();
 
-    // Runtime Configuration
     let RuntimeConfig = {};
 
     const Env = {
         storageKey: `PerfX_ULTRA_${hostname}`,
-        getOverrides() { return safeJsonParse(S.get(this.storageKey)); },
+        getOverrides() { return safeJsonParse(S.get(this.storageKey), {}); },
         saveOverrides(data) {
             const safeData = sanitizeConfig(data);
             S.set(this.storageKey, JSON.stringify(safeData));
@@ -321,14 +340,12 @@
         }
     };
 
-    // Init Config
     RuntimeConfig = Env.getOverrides();
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // ✅ Hoisted Interactive Check
     const applyInteractiveMemory = () => {
-        const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
+        const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY), null);
         if (fresh(isInteractiveStored, DAY)) {
             log('Interactive Site Known: Starting Safe');
             RuntimeConfig = { ...RuntimeConfig, passive: false, memory: false, gpu: false, rtcGuard: false };
@@ -360,7 +377,7 @@
             }
         }
 
-        const forcedProfile = safeJsonParse(S.get(getProfileKey()));
+        const forcedProfile = safeJsonParse(S.get(getProfileKey()), null);
         if (fresh(forcedProfile, WEEK)) {
             log('Adaptive Profile: Balanced Mode Enforced');
             RuntimeConfig = { ...RuntimeConfig, memory: false };
@@ -425,7 +442,6 @@
         }
     } catch(e) {}
 
-    // Global Detection & Flags
     const isMobile = win.matchMedia ? win.matchMedia('(pointer:coarse)').matches : /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const isCritical = hostEndsWithAny(hostname, [...LISTS.BANKS_KR, ...LISTS.GOV_KR]) || LISTS.CRITICAL_SUB.test(hostname);
     const isLayoutSensitive = LISTS.LAYOUT_KEYWORDS.some(k => hostname.includes(k));
@@ -433,7 +449,6 @@
     const isVideoSite = hostEndsWithAny(hostname, LISTS.OTT_KR);
     const isSafeMode = isCritical || RuntimeConfig._sessionSafe;
 
-    // [Power State]
     const baseLowPower = (navigator.hardwareConcurrency ?? 4) < 4;
 
     const perfState = {
@@ -512,15 +527,12 @@
     navigator.connection?.addEventListener?.('change', refreshPerfState);
     computeState();
 
-    // ==========================================
-    // 1. Populate Config & API
-    // ==========================================
     const Q_KEY = `perfx-quarantine:${hostname}`;
     let Q_CACHE = null;
 
     const checkQuarantine = (now = Date.now()) => {
         if (Q_CACHE && (now - Q_CACHE.ts) < DAY) return Q_CACHE;
-        const q = safeJsonParse(S.get(Q_KEY));
+        const q = safeJsonParse(S.get(Q_KEY), null);
         if (q && (now - q.ts) < DAY) { Q_CACHE = q; return q; }
         return null;
     };
@@ -539,7 +551,8 @@
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
         allowIframe: RuntimeConfig.allowIframe ?? false,
         rtcGuard: RuntimeConfig.rtcGuard ?? false,
-        downgradeLevel: RuntimeConfig.downgradeLevel || 0
+        downgradeLevel: RuntimeConfig.downgradeLevel || 0,
+        memoryContainMode: RuntimeConfig.memoryContainMode || 'safe'
     };
 
     if (isSafeMode) {
@@ -583,13 +596,12 @@
             reloadPage();
         },
         showStatus: () => {
-            const info = `[PerfX v81.3]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
+            const info = `[PerfX v81.4]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
             if (typeof GM_notification !== 'undefined') GM_notification({ title: 'PerfX Status', text: info, timeout: 5000 });
             else console.log(info);
         }
     });
 
-    // SPA Route Listener
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
 
@@ -659,7 +671,6 @@
         }
     };
 
-    // ✅ SPA History API Hooking with QueueMicrotask
     if (!win.__perfx_history_patched) {
         win.__perfx_history_patched = true;
 
@@ -689,8 +700,8 @@
         if (RuntimeConfig.disabled) {
             GM_registerMenuCommand(`✅ 최적화 켜기`, () => API.toggleConfig('disabled'));
         } else {
-            GM_registerMenuCommand(`🚫 끄기 (영구)`, () => API.toggleConfig('disabled'));
-            GM_registerMenuCommand(`⏸ 이번 세션만 끄기`, API.toggleSessionSafe);
+            GM_registerMenuCommand(`❌ 최적화 끄기 (영구)`, () => API.toggleConfig('disabled'));
+            GM_registerMenuCommand(`⏸️ 이번 세션만 끄기`, API.toggleSessionSafe);
             GM_registerMenuCommand(`🧹 설정/학습 초기화`, API.resetAll);
             GM_registerMenuCommand(`📊 현재 상태 보기`, API.showStatus);
             GM_registerMenuCommand(`⚡ 모드: 울트라`, () => API.profile('ultra'));
@@ -705,83 +716,163 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '81.3.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '81.4.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V29 (LoAF + Event Timing)
+    // 2. Autonomous V30 (Safe PO, LoAF Weighting, Resource Observer)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !RuntimeConfig._sessionSafe) {
-        try {
-            let clsTotal = 0, loadTotal = 0;
-            let loafTotal = 0, slowEventScore = 0; // ✅
-            let lastCls = 0, lastLoad = 0, lastLoaf = 0, lastSlowEvent = 0; // ✅
-            let recoveryStreak = 0;
-
-            if (SUPPORTED_TYPES.has('layout-shift')) { new PerformanceObserver((l)=> { for(const e of l.getEntries()) if(!e.hadRecentInput) clsTotal+=e.value; }).observe({type:'layout-shift',buffered:true}); }
-            if (SUPPORTED_TYPES.has('longtask')) { new PerformanceObserver((l)=> { loadTotal+=l.getEntries().length; }).observe({type:'longtask',buffered:true}); }
-            
-            // ✅ LoAF
-            if (SUPPORTED_TYPES.has('long-animation-frame')) {
-                new PerformanceObserver((list) => {
-                    for (const e of list.getEntries()) { loafTotal += 1; }
-                }).observe({ type: 'long-animation-frame', buffered: true });
+        const poList = [];
+        const safePO = (type, cb, opt = {}) => {
+            try {
+                if (!SUPPORTED_TYPES.has(type)) return null;
+                const po = new PerformanceObserver(cb);
+                po.observe({ type, buffered: true, ...opt });
+                poList.push(po);
+                return po;
+            } catch (e) {
+                log(`PO(${type}) init fail`, e);
+                return null;
             }
-            
-            // ✅ Event Timing (INP)
-            if (SUPPORTED_TYPES.has('event')) {
-                new PerformanceObserver((list) => {
-                    for (const e of list.getEntries()) {
-                        if ((e.duration || 0) >= 80) slowEventScore += (e.duration >= 160 ? 2 : 1);
+        };
+
+        let clsTotal = 0, longTaskCount = 0, longTaskDur = 0;
+        let loafCount = 0, loafDur = 0, loafBlock = 0, slowInteractionScore = 0;
+        let lastCls = 0, lastLtDur = 0, lastLoafCount = 0, lastLoafBlock = 0, lastSlowScore = 0;
+        let resourceBytes = 0, slowResourceCount = 0;
+        let lastResBytes = 0, lastSlowRes = 0;
+        let recoveryStreak = 0;
+
+        const interactionMaxDur = new Map();
+        let interactionGcTs = performance.now();
+
+        safePO('layout-shift', (l) => {
+            for (const e of l.getEntries()) { if (!e.hadRecentInput) clsTotal += e.value; }
+        });
+
+        safePO('longtask', (l) => {
+            for (const e of l.getEntries()) {
+                longTaskCount += 1;
+                longTaskDur += (e.duration || 0);
+            }
+        });
+        
+        safePO('long-animation-frame', (l) => {
+            for (const e of l.getEntries()) {
+                loafCount += 1;
+                loafDur += (e.duration || 0);
+                loafBlock += (e.blockingDuration || e.duration || 0);
+            }
+        });
+        
+        safePO('event', (l) => {
+            const now = performance.now();
+            for (const e of l.getEntries()) {
+                const dur = e.duration || 0;
+                if (dur < 80) continue;
+                const iid = e.interactionId || 0;
+                if (iid > 0) {
+                    const prev = interactionMaxDur.get(iid) || 0;
+                    if (dur > prev) interactionMaxDur.set(iid, dur);
+                } else {
+                    slowInteractionScore += (dur >= 160 ? 2 : 1);
+                }
+            }
+            if (now - interactionGcTs > 3000) {
+                for (const maxDur of interactionMaxDur.values()) {
+                    slowInteractionScore += (maxDur >= 200 ? 2 : 1);
+                }
+                interactionMaxDur.clear();
+                interactionGcTs = now;
+            }
+        }, { durationThreshold: 40 });
+
+        safePO('largest-contentful-paint', (list) => {
+            const entries = list.getEntries();
+            if (entries.length > 0) {
+                const lcp = entries[entries.length - 1];
+                const url = lcp.url || lcp.element?.src || lcp.element?.currentSrc;
+                if (url) {
+                    const currentLCP = normUrl(url);
+                    if (currentLCP !== RuntimeConfig._lcp) {
+                        RuntimeConfig._lcp = currentLCP;
+                        schedulePersistLCP();
+                        Bus.emit('perfx-lcp-update', { url: currentLCP });
                     }
-                }).observe({ type: 'event', buffered: true, durationThreshold: 40 });
+                }
             }
+        });
 
-            if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
-                new PerformanceObserver((list) => {
-                    const entries = list.getEntries();
-                    if (entries.length > 0) {
-                        const lcp = entries[entries.length - 1];
-                        const url = lcp.url || lcp.element?.src || lcp.element?.currentSrc;
-                        if (url) {
-                            const currentLCP = normUrl(url);
-                            if (currentLCP !== RuntimeConfig._lcp) {
-                                RuntimeConfig._lcp = currentLCP;
-                                schedulePersistLCP();
-                                Bus.emit('perfx-lcp-update', { url: currentLCP });
-                            }
-                        }
-                    }
-                }).observe({type: 'largest-contentful-paint', buffered: true});
+        // ✅ 동적 네트워크 미디어 조절
+        safePO('resource', (list) => {
+            for (const e of list.getEntries()) {
+                const it = e.initiatorType || '';
+                if (!['img', 'video', 'script', 'fetch', 'xmlhttprequest'].includes(it)) continue;
+                resourceBytes += (e.transferSize || 0);
+                if ((e.duration || 0) > 800) slowResourceCount += 1;
             }
+        });
 
-            let healthTimer = null;
-            let hasVideoCache = null, hasVideoTs = 0;
-            const hasVideo = () => {
-                const t = Date.now();
-                if (hasVideoCache !== null && (t - hasVideoTs) < 30000) return hasVideoCache;
-                hasVideoCache = !!document.querySelector('video, source[type*="video"]');
-                hasVideoTs = t;
-                return hasVideoCache;
-            };
+        const adaptMediaCapsByResources = () => {
+            const bytesDelta = resourceBytes - lastResBytes;
+            const slowDelta = slowResourceCount - lastSlowRes;
+            lastResBytes = resourceBytes;
+            lastSlowRes = slowResourceCount;
 
-            const checkHealth = () => {
+            if (bytesDelta > 8 * 1024 * 1024 || slowDelta >= 5) {
+                perfState.MEDIA_CAP = Math.max(80, Math.floor(perfState.MEDIA_CAP * 0.85));
+                Bus.emit('perfx-power-change');
+                log('Adaptive MEDIA_CAP down', { bytesDelta, slowDelta, mediaCap: perfState.MEDIA_CAP });
+            }
+        };
+
+        const videoPresenceCache = makeTTLCache();
+        const hasVideo = () => videoPresenceCache.get(30000, () => !!document.querySelector('video, source[type*="video"]'));
+
+        let healthTimer = null;
+        let ignoreHealthUntil = 0;
+
+        const scheduleHealthNext = (ms = 5000) => {
+            if (healthTimer) clearTimeout(healthTimer);
+            healthTimer = setTimeout(checkHealth, ms);
+        };
+
+        onPageActivated(() => {
+            const activationStart = getActivationStart();
+            if (activationStart > 0) {
+                ignoreHealthUntil = performance.now() + 2000;
+                log('Prerender activated, temporary health grace window');
+            }
+        });
+
+        const checkHealth = () => {
+            try {
                 if (document.hidden) return;
+                if (performance.now() < ignoreHealthUntil) {
+                    scheduleHealthNext(3000);
+                    return;
+                }
+
                 const clsDelta = clsTotal - lastCls;
-                const loadDelta = loadTotal - lastLoad;
-                const loafDelta = loafTotal - lastLoaf; // ✅
-                const slowEventDelta = slowEventScore - lastSlowEvent; // ✅
+                const ltDurDelta = longTaskDur - lastLtDur;
+                const loafCountDelta = loafCount - lastLoafCount;
+                const loafBlockDelta = loafBlock - lastLoafBlock;
+                const slowScoreDelta = slowInteractionScore - lastSlowScore;
                 
-                lastCls = clsTotal; lastLoad = loadTotal;
-                lastLoaf = loafTotal; lastSlowEvent = slowEventScore;
+                lastCls = clsTotal; 
+                lastLtDur = longTaskDur;
+                lastLoafCount = loafCount; 
+                lastLoafBlock = loafBlock; 
+                lastSlowScore = slowInteractionScore;
 
                 const c = RuntimeConfig;
                 const currentLevel = c.downgradeLevel || 0;
                 
                 const TH = {
-                    L1_CLS: 0.05 * perfState.perfMultiplier,
                     L2_CLS: 0.2 * perfState.perfMultiplier,
-                    L2_LOAD: 15 * perfState.perfMultiplier,
-                    L2_LOAF: Math.max(2, Math.round(4 * perfState.perfMultiplier)),
+                    L2_LT_DUR: 250 * perfState.perfMultiplier,
+                    L2_LOAF_BLOCK: 120 * perfState.perfMultiplier,
+                    L2_LOAF_COUNT: Math.max(2, Math.round(4 * perfState.perfMultiplier)),
                     L2_EVT: Math.max(2, Math.round(3 * perfState.perfMultiplier))
                 };
                 
@@ -804,15 +895,19 @@
                     Env.saveOverrides(c);
                     Bus.emit('perfx-config');
                     API.shutdownMemory();
+                    
+                    scheduleHealthNext(5000); // ✅ Fix 1-1
                     return;
                 }
 
+                const degradeByFrameJank = loafBlockDelta > TH.L2_LOAF_BLOCK || (loafCountDelta > TH.L2_LOAF_COUNT && ltDurDelta > TH.L2_LT_DUR);
+
                 // L2
-                if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD || loafDelta > TH.L2_LOAF || slowEventDelta > TH.L2_EVT) && currentLevel < 2) {
+                if ((clsDelta > TH.L2_CLS || degradeByFrameJank || slowScoreDelta > TH.L2_EVT) && currentLevel < 2) {
                     if (!c._restore) c._restore = { ...Config };
                     
                     c.downgradeLevel = 2;
-                    c.downgradeReason = { cls: clsDelta, load: loadDelta };
+                    c.downgradeReason = { cls: clsDelta, load: loafCountDelta };
                     c.gpu = false; 
                     c.memory = false; 
                     c.codecMode = 'soft';
@@ -821,13 +916,7 @@
                     
                     Env.saveOverrides(c);
                     
-                    // ✅ State Sync (1-7)
-                    Object.assign(Config, {
-                        gpu: false,
-                        memory: false,
-                        codecMode: 'soft',
-                        downgradeLevel: 2
-                    });
+                    Object.assign(Config, { gpu: false, memory: false, codecMode: 'soft', downgradeLevel: 2 });
                     
                     API.shutdownMemory();
                     Bus.emit('perfx-config');
@@ -835,7 +924,7 @@
                     recoveryStreak = 0;
                 }
                 // Recovery
-                else if (currentLevel > 0 && clsDelta < 0.01 && loadDelta < 1 && loafDelta < 1 && slowEventDelta < 1) {
+                else if (currentLevel > 0 && clsDelta < 0.01 && !degradeByFrameJank && slowScoreDelta < 1) {
                     recoveryStreak++;
                     if (recoveryStreak >= 4) {
                         const isQ = checkQuarantine(now);
@@ -848,7 +937,7 @@
                             Object.assign(c, c._restore);
                             delete c._restore;
                         }
-                        delete c.downgradeLevel; delete c.autoDowngraded; delete c.downgradeReason;
+                        delete c.downgradeLevel; delete c.downgradeReason;
                         Env.saveOverrides(c);
                         Bus.emit('perfx-config');
                         log('Restored');
@@ -857,25 +946,32 @@
                 } else {
                     recoveryStreak = 0;
                 }
-                healthTimer = setTimeout(checkHealth, 5000);
-            };
 
-            const startLoop = () => { if (!healthTimer) checkHealth(); };
-            const stopLoop = () => { if (healthTimer) clearTimeout(healthTimer); healthTimer = null; };
-            Bus.on('visibilitychange', () => {
-                if (document.hidden) { stopLoop(); persistLCP(); }
-                else startLoop();
-            }, document);
-            win.addEventListener('pagehide', persistLCP);
-            startLoop();
-        } catch(e) {}
+                adaptMediaCapsByResources();
+
+            } catch (e) {
+                log('checkHealth error', e);
+            } finally {
+                if (!document.hidden && !healthTimer) scheduleHealthNext(5000);
+            }
+        };
+
+        const stopLoop = () => { if (healthTimer) clearTimeout(healthTimer); healthTimer = null; };
+        Bus.on('visibilitychange', () => {
+            if (document.hidden) { stopLoop(); persistLCP(); }
+            else { if (!healthTimer) scheduleHealthNext(5000); }
+        }, document);
+        win.addEventListener('pagehide', persistLCP);
+        
+        if (!healthTimer) scheduleHealthNext(5000);
+
     }
 
     // ==========================================
     // 3. Core Modules
     // ==========================================
 
-    // [Core 0] WebRTC Guard (Proxy + Reflect)
+    // [Core 0] WebRTC Guard (Refined Proxy/Reflect)
     class WebRTCGuard extends BaseModule {
         init() {
             if (!Config.rtcGuard || isSafeMode) return;
@@ -901,8 +997,8 @@
                         }
                     });
                 } else {
-                    Wrapped = function(config, constraints) {
-                        const pc = new Peer(config, constraints);
+                    Wrapped = function(...args) {
+                        const pc = new Peer(...args);
                         if (typeof pc.createDataChannel === 'function') {
                             pc.createDataChannel = function() {
                                 throw new DOMException('RTCDataChannel blocked by PerfX policy', 'NotAllowedError');
@@ -910,13 +1006,11 @@
                         }
                         return pc;
                     };
-                    try { Wrapped.prototype = Peer.prototype; } catch {}
-                    try { Object.setPrototypeOf(Wrapped, Peer); } catch {}
                 }
 
-                try { Object.defineProperty(Wrapped, MARK, { value: true }); } catch {}
                 try { Object.setPrototypeOf(Wrapped, Peer); } catch {}
                 try { Wrapped.prototype = Peer.prototype; } catch {}
+                try { Object.defineProperty(Wrapped, MARK, { value: true }); } catch {}
 
                 win[prop] = Wrapped;
             };
@@ -927,7 +1021,7 @@
         }
     }
 
-    // [Core 1] EventPassivator
+    // [Core 1] EventPassivator with Strict Ruleset
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -936,31 +1030,37 @@
             let passiveArmed = false;
             setTimeout(() => { passiveArmed = true; }, 1500);
 
-            const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
-            const PASSIVE_OPT_OUT_SEL = '[data-perfx-no-passive], .mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas';
-            const FORCE_PASSIVE_TYPES = new Set(['wheel', 'mousewheel']);
+            const PASSIVE_RULES = {
+                FORCE_TYPES: new Set(['wheel', 'mousewheel']),
+                SKIP_HOSTS: [ /figma\.com$/i, /miro\.com$/i, /excalidraw\.com$/i ],
+                SKIP_TARGET_SELECTORS: [
+                    '.mapboxgl-map', '.leaflet-container', '.monaco-editor', 
+                    '.CodeMirror', '.cm-editor', 'canvas', '[data-perfx-no-passive]'
+                ]
+            };
 
-            const shouldSkipPassivePatch = (target) => {
-                try { return !!(target && target instanceof Element && target.closest?.(PASSIVE_OPT_OUT_SEL)); } catch { return false; }
+            const shouldSkipPassiveByHost = (hn) => PASSIVE_RULES.SKIP_HOSTS.some(re => re.test(hn));
+            const shouldSkipPassiveByTarget = (target) => {
+                try {
+                    if (!(target instanceof Element)) return false;
+                    return !!target.closest(PASSIVE_RULES.SKIP_TARGET_SELECTORS.join(', '));
+                } catch { return false; }
             };
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
             targets.forEach(proto => {
                 const origAdd = proto.addEventListener;
                 proto.addEventListener = function(type, listener, options) {
-                    if (!Config.passive || !passiveArmed) return origAdd.call(this, type, listener, options);
+                    if (!Config.passive || !passiveArmed || !PASSIVE_RULES.FORCE_TYPES.has(type) || shouldSkipPassiveByHost(location.hostname) || this === window || this === document || shouldSkipPassiveByTarget(this)) {
+                        return origAdd.call(this, type, listener, options);
+                    }
 
-                    if (FORCE_PASSIVE_TYPES.has(type)) {
-                        if (!isTopLevelTarget(this) && shouldSkipPassivePatch(this)) {
-                            return origAdd.call(this, type, listener, options);
-                        }
-                        const isObj = typeof options === 'object' && options !== null;
-                        if (!isObj || options.passive === undefined) {
-                            try {
-                                const finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true };
-                                return origAdd.call(this, type, listener, finalOptions);
-                            } catch {}
-                        }
+                    const isObj = typeof options === 'object' && options !== null;
+                    if (!isObj || options.passive === undefined) {
+                        try {
+                            const finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true };
+                            return origAdd.call(this, type, listener, finalOptions);
+                        } catch {}
                     }
                     return origAdd.call(this, type, listener, options);
                 };
@@ -1121,7 +1221,12 @@
             } else {
                 el.style.containIntrinsicSize = `${Math.max(1, w)}px ${Math.max(1, h)}px`;
             }
-            el.style.contain = 'layout paint';
+
+            if (Config.memoryContainMode === 'aggressive') {
+                el.style.contain = 'layout paint';
+            } else {
+                el.style.contain = 'paint';
+            }
         }
 
         restoreStyle(el) {
@@ -1156,6 +1261,11 @@
         startIO() {
             if (this.visObs) this.visObs.disconnect();
             if (!Config.memory && !Config.gpu) return;
+            
+            if (!document.body) {
+                onReady(() => this.startIO());
+                return;
+            }
 
             this.obsCount = 0;
             this.observed = new WeakSet();
@@ -1203,6 +1313,10 @@
 
         startMO() {
             if (!Config.memory) return;
+            if (!document.body) {
+                onReady(() => this.startMO());
+                return;
+            }
             if (this.mutObs) this.mutObs.disconnect();
 
             const target = document.querySelector(FEED_SEL) || document.body;
@@ -1234,12 +1348,12 @@
         }
     }
 
-    // [Core 4] NetworkAssistant (Author Intent + Single Map)
+    // [Core 4] NetworkAssistant 
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
-            const seenState = new WeakMap(); // ✅ Unified Near/Far map
+            const seenState = new WeakMap(); 
             const distMap = new WeakMap();
             const observing = new Set();
             let imgSlots = 0, vidSlots = 0;
@@ -1396,16 +1510,6 @@
             
             onReady(() => { startProtection(true); rebuildObserver(); });
 
-            this.on(document, 'visibilitychange', () => {
-                if (document.hidden) {
-                    if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
-                    if (this.mo) this.mo.disconnect();
-                } else {
-                    startProtection(false);
-                    if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
-                }
-            });
-
             const safeObserve = (el) => {
                 if (!vpObs) return;
                 const isVid = el.tagName === 'VIDEO';
@@ -1520,13 +1624,28 @@
             });
             this.mo.observe(document.documentElement, { childList: true, subtree: true });
 
+            this.on(document, 'visibilitychange', () => {
+                if (document.hidden) {
+                    if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
+                    if (this.mo) this.mo.disconnect();
+                } else {
+                    startProtection(false);
+                    ensureObs();
+                    // ✅ 탭 복구 시 누락된 미디어 노드 재스캔
+                    scanInChunks(document.getElementsByTagName('img'), 200, perfState.SCAN_STEP, (n) => scheduleNode(n, true));
+                    scanInChunks(document.getElementsByTagName('video'), 80, perfState.SCAN_STEP, (n) => scheduleNode(n, true));
+                    
+                    if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
+                }
+            });
+
             this.on(win, 'pagehide', (e) => {
                 if (!e.persisted && vpObs) vpObs.disconnect();
             });
         }
     }
 
-    // Module Init Wrap (document.prerendering 지원)
+    // Module Init Wrap
     onPageActivated(() => {
         [
             new WebRTCGuard(),
@@ -1536,7 +1655,7 @@
             new NetworkAssistant()
         ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
         
-        if (debug) log(`PerfX v81.3 Ready`);
+        if (debug) log(`PerfX v81.4 Ready`);
     });
 
 })();
