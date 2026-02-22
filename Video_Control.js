@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.2.16_UltraSlim)
+// @name        Video_Control (v159.4.2.18_UltraSlim)
 // @namespace   https://github.com/
-// @version     159.4.2.16
-// @description Video Control: UltraSlim Edition. Bug-fixed, SVG Render, Safe SPA Detach, Zero-Alloc
+// @version     159.4.2.18
+// @description Video Control: UltraSlim Edition. Bug-fixed, SVG Render, Safe SPA Detach, Zero-Alloc, Advanced Zoom/Pan Fix
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -58,7 +58,7 @@
 
   const __IS_LOW_END = detectLowEnd();
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.2.16_UltraSlim", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
+    VERSION: "v159.4.2.18_UltraSlim", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
     VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false
   });
 
@@ -235,6 +235,189 @@
     if (__activeDocumentPiPWindow || document.pictureInPictureElement === video) return exitPiP(video);
     if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); } catch (_) {} }
     return enterPiP(video);
+  }
+
+  // ✅ Global Zoom & Pan Controller (Overlay Bypass Fixed)
+  function createZoomManager(Utils) {
+    const stateMap = new WeakMap();
+    let rafId = null;
+    let activeVideo = null;
+    let isPanning = false;
+    let startX = 0, startY = 0;
+    let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+
+    const getSt = (v) => {
+      let st = stateMap.get(v);
+      if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '' }; stateMap.set(v, st); }
+      return st;
+    };
+
+    const update = (v) => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const st = getSt(v);
+        v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
+        if (st.scale <= 1) {
+          st.scale = 1; st.tx = 0; st.ty = 0;
+          v.style.transform = '';
+          v.style.transformOrigin = '';
+          v.style.cursor = '';
+          if (st.zoomed) {
+            v.style.zIndex = st.origZIndex;
+            v.style.position = st.origPosition;
+            st.zoomed = false;
+          }
+        } else {
+          if (!st.zoomed) {
+            st.origZIndex = v.style.zIndex;
+            st.origPosition = v.style.position;
+            st.zoomed = true;
+          }
+          v.style.transformOrigin = '0 0';
+          v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
+          v.style.cursor = isPanning ? 'grabbing' : 'grab';
+          v.style.zIndex = '2147483646';
+          if (window.getComputedStyle(v).position === 'static') {
+            v.style.position = 'relative';
+          }
+        }
+      });
+    };
+
+    const zoomTo = (v, newScale, clientX, clientY) => {
+      const st = getSt(v);
+      const rect = v.getBoundingClientRect();
+      const currentX = clientX - rect.left;
+      const currentY = clientY - rect.top;
+      const ix = currentX / st.scale;
+      const iy = currentY / st.scale;
+      const originalLeft = rect.left - st.tx;
+      const originalTop = rect.top - st.ty;
+      st.tx = clientX - originalLeft - ix * newScale;
+      st.ty = clientY - originalTop - iy * newScale;
+      st.scale = newScale;
+      update(v);
+    };
+
+    const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; update(v); } };
+    const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
+
+    const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+
+    // ✅ FIXED: 투명 오버레이를 무시하고 활성화된 메인 비디오를 강제로 찾아냅니다.
+    function getTargetVideo(e) {
+      const path = typeof e.composedPath === 'function' ? e.composedPath() : null;
+      if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } }
+      const el = document.elementFromPoint(e.clientX || (e.touches && e.touches[0]?.clientX), e.clientY || (e.touches && e.touches[0]?.clientY));
+      let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null;
+      // 마우스 아래에 비디오가 안 잡혀도(오버레이 방해), VSC가 인식한 활성 비디오가 있으면 그걸 씁니다.
+      if (!v && window.__VSC_INTERNAL__?.App) {
+          v = window.__VSC_INTERNAL__.App.getActiveVideo();
+      }
+      return v;
+    }
+
+    window.addEventListener('wheel', e => {
+      if (!e.altKey) return;
+      const v = getTargetVideo(e); if (!v) return;
+      e.preventDefault(); e.stopPropagation();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      const st = getSt(v);
+      let newScale = Math.min(Math.max(1, st.scale * delta), 10);
+      if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
+    }, { passive: false, capture: true });
+
+    window.addEventListener('mousedown', e => {
+      if (!e.altKey) return;
+      const v = getTargetVideo(e); if (!v) return;
+      const st = getSt(v);
+      if (st.scale > 1 || e.altKey) {
+        e.preventDefault(); e.stopPropagation();
+        activeVideo = v; isPanning = true; st.hasPanned = false;
+        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
+        update(v);
+      }
+    }, { capture: true });
+
+    window.addEventListener('mousemove', e => {
+      if (!isPanning || !activeVideo) return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(activeVideo);
+      const dx = e.clientX - startX - st.tx; const dy = e.clientY - startY - st.ty;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
+      st.tx = e.clientX - startX; st.ty = e.clientY - startY;
+      update(activeVideo);
+    }, { capture: true });
+
+    window.addEventListener('mouseup', e => {
+      if (isPanning) {
+        if (activeVideo) {
+           const st = getSt(activeVideo);
+           if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+           update(activeVideo);
+        }
+        isPanning = false; activeVideo = null;
+      }
+    }, { capture: true });
+
+    window.addEventListener('dblclick', e => {
+      if (!e.altKey) return;
+      const v = getTargetVideo(e); if (!v) return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(v);
+      if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
+    }, { capture: true });
+
+    window.addEventListener('touchstart', e => {
+      const v = getTargetVideo(e); if (!v) return;
+      const st = getSt(v);
+      if (e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        activeVideo = v; pinchState.active = true;
+        pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale;
+        const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y;
+      } else if (e.touches.length === 1 && st.scale > 1) {
+        activeVideo = v; isPanning = true; st.hasPanned = false;
+        startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!activeVideo) return;
+      const st = getSt(activeVideo);
+      if (pinchState.active && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        const dist = getTouchDist(e.touches); const center = getTouchCenter(e.touches);
+        let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
+        newScale = Math.min(Math.max(1, newScale), 10);
+        if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; }
+        else {
+          zoomTo(activeVideo, newScale, center.x, center.y);
+          st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy;
+          update(activeVideo);
+        }
+        pinchState.lastCx = center.x; pinchState.lastCy = center.y;
+      } else if (isPanning && e.touches.length === 1) {
+        if (e.cancelable) e.preventDefault();
+        const dx = e.touches[0].clientX - startX - st.tx; const dy = e.touches[0].clientY - startY - st.ty;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
+        st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY;
+        update(activeVideo);
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchend', e => {
+      if (!activeVideo) return;
+      if (e.touches.length < 2) pinchState.active = false;
+      if (e.touches.length === 0) {
+        if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) { e.preventDefault(); }
+        isPanning = false; update(activeVideo); activeVideo = null;
+      }
+    }, { passive: false, capture: true });
+
+    return { resetZoom, zoomTo, isZoomed };
   }
 
   const TARGETING_WEIGHTS = Object.freeze({ playing: 6.0, hasTime: 2.4, area: 1.2, dist: 3.0, audible: 1.35, pipBoostVisible: 2.4, pipBoostHidden: 3.8, clickedBoost: 2.0, bgPenaltyMutedAutoplayNoControls: 1.1, bgPenaltyEdge: 0.9, bgPenaltyTiny: 0.8, bgPenaltyLoop: 0.35 });
@@ -426,7 +609,7 @@
     out.gain = gain;
     out.gamma = clamp(gamma, 0.5, 2.5);
     out.contrast = clamp(contrast, 0.5, 2.3);
-    out.satF = clamp(satF, 0.0, 2.0); // ✅ Fixed: Assigned correctly
+    out.satF = clamp(satF, 0.0, 2.0);
     out.bright = clamp(bright, -50, 50);
     out.mid = clamp(A.mid || 0, -1, 1);
     out.sharp = clamp(sharp, 0, 50);
@@ -462,7 +645,7 @@
   function createLocalStore(defaults, scheduler, Utils) {
     let rev = 0; const listeners = new Map();
     const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } };
-    const state = Utils.deepClone(defaults); const proxyCache = {}; const pathCache = new Map(); // ✅ Fixed: Path parsing cache added
+    const state = Utils.deepClone(defaults); const proxyCache = {}; const pathCache = new Map();
     let batchDepth = 0, batchChanged = false; const batchEmits = new Map();
     const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; };
     function flushBatch() { if (!batchChanged) return; rev++; for (const [key, val] of batchEmits) { emit(key, val); } batchEmits.clear(); batchChanged = false; scheduler.request(false); }
@@ -566,7 +749,6 @@
     let loopToken = 0;
     const scheduleNextLoop = (token, v) => { loopDriver.scheduleVideoFrame(v, (now, meta) => loop(token, meta), 'raf', 90); };
 
-    // ✅ Fixed: Changed rd to skinScore in AE_STAT_KEYS and lastStats initialization
     const AE_STAT_KEYS = Object.freeze(['p05', 'p10', 'p35', 'p50', 'p90', 'p95', 'p98', 'clipFrac', 'clipLowFrac', 'cf', 'skinScore']);
     let lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, skinScore: -1 };
 
@@ -663,8 +845,6 @@
       __skinEma = (__skinEma <= 0) ? rawSkinScore : mixv(__skinEma, rawSkinScore, 0.18); const skinScore = __skinEma;
       const refP10 = mixv(data.p10T ?? data.p10, data.p10M ?? data.p10, 0.60); const refP35 = mixv(data.p35T ?? data.p35, data.p35M ?? data.p35, 0.60); const refP50 = mixv(data.p50T ?? data.p50, data.p50M ?? data.p50, 0.60); const refP90 = mixv(data.p90T ?? data.p90, data.p90M ?? data.p90, 0.60); const refP95 = mixv(data.p95T ?? data.p95, data.p95M ?? data.p95, 0.60); const refP98 = mixv(data.p98T ?? data.p98, data.p98M ?? data.p98, 0.60); const refCf = mixv(data.cfT ?? data.cf, data.cfM ?? data.cf, 0.60);
       const clipFracEff = (subW > 0.01) ? mixv(data.clipFrac, Math.min(data.clipFrac, Math.min((data.clipFracTop ?? data.clipFrac) * 1.12, data.clipFrac)), subW) : data.clipFrac;
-
-      // ✅ Fixed: Replaced rd with skinScore
       const stats = { p05: data.p05, p10: mixv(data.p10, refP10, subW), p35: mixv(data.p35, refP35, subW), p50: mixv(data.p50, refP50, subW), p90: mixv(data.p90, refP90, subW), p95: mixv(data.p95, refP95, subW), p98: mixv(data.p98, refP98, subW), clipFrac: clipFracEff, clipLowFrac: data.clipLowFrac, cf: mixv(data.cf, refCf, subW), skinScore };
 
       const dt = Math.min(now - lastEmaT, 500); lastEmaT = now; const a = 1 - Math.exp(-dt / clamp((activeVideo?.paused ? 380 : cfg.DT_CAP_MS) + (1 - __motion01) * 160, 180, 650));
@@ -771,17 +951,50 @@
         h('div', { class: 'prow' }, [
           h('button', { id: 'ae-btn', class: 'btn', onclick: () => setAndHint(P.V_AE, !sm.get(P.V_AE), true) }, '🤖 AE 보정'),
           h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP'),
-          h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT), true) }, '⚡ Power')
+
+          // ✅ FIXED: Zoom Test & Reset Button
+          h('button', { id: 'zoom-btn', class: 'btn', onclick: () => {
+            const v = window.__VSC_APP__?.getActiveVideo();
+            if(v) {
+              const zm = window.__VSC_INTERNAL__.ZoomManager;
+              if (zm.isZoomed(v)) {
+                zm.resetZoom(v);
+              } else {
+                // 아직 줌이 안 된 상태면 바로 1.5배 확대시켜줌 (작동 확인 피드백)
+                const rect = v.getBoundingClientRect();
+                zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2);
+              }
+            }
+          } }, '🔍 줌 제어'),
         ]),
-        h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('playback', DEFAULTS.playback); bus.signal({ aeLevel:2, forceApply:true, userLockMs:800, userLockAmp:0.35 }); } }, '↺ 리셋') ]),
+        h('div', { class: 'prow' },[
+        h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT), true) }, '⚡ Power'), h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('playback', DEFAULTS.playback); bus.signal({ aeLevel:2, forceApply:true, userLockMs:800, userLockAmp:0.35 }); } }, '↺ 리셋') ]),
         renderButtonRow({ label: '톤', key: P.V_TONE_PRE, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.tone).filter(k=>k!=='off').map(k => ({ text: PRESETS.tone[k].label, value: k })) }),
         renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }),
         renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k=>k!=='brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'), h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = () => { setAndHint(P.PB_RATE, s, false); setAndHint(P.PB_EN, true, true); }; sub(P.PB_RATE, v => { const isEn = sm.get(P.PB_EN); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); sub(P.PB_EN, isEn => { const v = sm.get(P.PB_RATE); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); b.classList.toggle('active', sm.get(P.PB_EN) && Math.abs((sm.get(P.PB_RATE) || 1) - s) < 0.01); return b; }))
       ]);
-      const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain, monitorEl = h('div', { class: 'monitor' }, `Ready (${CONFIG.VERSION})`) ]); shadow.append(mainPanel);
+      monitorEl = h('div', { class: 'monitor' }, `Ready (${CONFIG.VERSION})`);
+      const zoomHint = h('div', { class: 'monitor', style: 'margin-top:4px; font-size:10px; color:#888; border-top:none; padding-top:0;' }, '💡 줌/패닝: 🔍 버튼 누르거나 Alt + 휠/드래그');
+      const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain, monitorEl, zoomHint ]); shadow.append(mainPanel);
       dragHandle.addEventListener('mousedown', (e) => { e.preventDefault(); let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`; function onMove(ev) { mainPanel.style.top = `${rect.top + (ev.clientY - startY)}px`; mainPanel.style.left = `${rect.left + (ev.clientX - startX)}px`; } function onUp() { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); } window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); });
       sub(P.V_AE, v => shadow.querySelector('#ae-btn').classList.toggle('active', !!v)); sub(P.APP_ACT, v => shadow.querySelector('#pwr-btn').style.color = v ? '#2ecc71' : '#e74c3c');
+
+      // Update Zoom Button Style in a loop (since Zoom state isn't tracked in Store)
+      setInterval(() => {
+        const btn = shadow.querySelector('#zoom-btn');
+        if (!btn) return;
+        const v = window.__VSC_APP__?.getActiveVideo();
+        const zm = window.__VSC_INTERNAL__.ZoomManager;
+        if (v && zm && zm.isZoomed(v)) {
+            btn.classList.add('active');
+            btn.textContent = '🔍 리셋';
+        } else {
+            btn.classList.remove('active');
+            btn.textContent = '🔍 줌 제어';
+        }
+      }, 500);
+
       container = host; getUiRoot().appendChild(container);
     };
 
@@ -819,7 +1032,6 @@
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el, 220); el.playbackRate = nextRate; st.orig = null; } catch (_) {} };
 
-  // ✅ Fixed: Deduplicated restoreRateOne in cleanupTouched
   const onEvictRateVideo = (v) => { try { restoreRateOne(v); } catch (_) {} };
   const onEvictVideo = (v) => { if (__vscClearVideoFilter) try { __vscClearVideoFilter(v); } catch (_) {} restoreRateOne(v); };
   const cleanupTouched = (TOUCHED) => {
@@ -881,7 +1093,6 @@
     const __aeMix = { expMix: 1, toneMix: 1, colorMix: 1 }, __aeMixEma = { expMix: 1, toneMix: 1, colorMix: 1 }; let __aeMixLastT = 0;
     function smoothAeMix(now, target, out) { const dt = Math.min(200, Math.max(0, now - (__aeMixLastT || now))); __aeMixLastT = now; const tau = 120, a = 1 - Math.exp(-dt / tau); __aeMixEma.expMix += (target.expMix - __aeMixEma.expMix) * a; __aeMixEma.toneMix += (target.toneMix - __aeMixEma.toneMix) * a; __aeMixEma.colorMix += (target.colorMix - __aeMixEma.colorMix) * a; out.expMix = __aeMixEma.expMix; out.toneMix = __aeMixEma.toneMix; out.colorMix = __aeMixEma.colorMix; }
 
-    // ✅ Fixed: Added step param to q()
     const __aeMixCache = new Map(); function q(v, step = 1) { const s = Number.isFinite(step) && step > 0 ? step : 1; return Math.round((+v || 0) / s); }
 
     function computeAeMix3Cached(outMix, vf, aeMeta, Utils, userLock01) {
@@ -913,7 +1124,6 @@
 
         composeVideoParamsInto(__vVals, vfEff, aeOut, Utils);
 
-        // ✅ Fixed: Added DropRatio based sharp dampening for low-end safety
         if (__activeTarget) {
           const dropRatio = getDropRatioSafe(__activeTarget);
           if (dropRatio > 0.03) {
@@ -962,6 +1172,11 @@
   const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END });
   const AE = createAE(Store, { Utils }, null);
   __vscClearVideoFilter = (v) => Filters.clear(v);
+
+  // ✅ Initialize Zoom Manager
+  const ZoomManager = createZoomManager(Utils);
+  window.__VSC_INTERNAL__.ZoomManager = ZoomManager;
+
   const makeUI = createUIFactory(ENABLE_UI), UI = makeUI(Store, Registry, Scheduler, Bus, Utils);
 
   window.__lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: 0 }; window.__lastClickedVideo = null; window.__lastClickT = 0;
