@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.2.1_NextGen)
+// @name        Video_Control (v159.4.2.3_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.2.1
+// @version     159.4.2.3
 // @description Video Control: Adaptive Sampling, Subtitle/Skin AI, OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
@@ -79,12 +79,23 @@
     } catch (e) { try { console.warn('[VSC] attachShadow patch failed:', e); } catch(_) {} }
   })();
 
+  function detectMobile() {
+    try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {}
+    return /Mobi|Android|iPhone/i.test(navigator.userAgent);
+  }
+  function detectLowEnd() {
+    const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4;
+    const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4;
+    const saveData = !!navigator.connection?.saveData;
+    return mem < 4 || cores <= 4 || saveData;
+  }
+
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.2.1_NextGen",
-    IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
-    IS_LOW_END: (navigator.deviceMemory || 4) < 4,
-    TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
-    VSC_ID: Math.random().toString(36).slice(2),
+    VERSION: "v159.4.2.3_NextGen",
+    IS_MOBILE: detectMobile(),
+    IS_LOW_END: detectLowEnd(),
+    TOUCHED_MAX: detectLowEnd() ? 60 : 140,
+    VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
     DEBUG: false
   });
 
@@ -789,6 +800,15 @@
     };
   }
 
+  function normalizeNumberPath(sm, path, fallback, min = -Infinity, max = Infinity, isInt = false) {
+    let v = +sm.get(path);
+    if (!Number.isFinite(v)) v = fallback;
+    if (isInt) v = Math.round(v);
+    v = Math.min(max, Math.max(min, v));
+    if (!Object.is(sm.get(path), v)) sm.set(path, v);
+    return v;
+  }
+
   function normalizeVideoState(sm, PRESETS, P, Utils) {
     const tone = sm.get(P.V_TONE_PRE);
     if (tone !== 'off' && !(tone in PRESETS.tone)) sm.set(P.V_TONE_PRE, 'off');
@@ -804,20 +824,29 @@
     if (!Object.is(toneStr, sm.get(P.V_TONE_STR))) sm.set(P.V_TONE_STR, toneStr);
   }
 
+  function normalizeAudioPlaybackState(sm, P) {
+    const aEn = !!sm.get(P.A_EN);
+    if (sm.get(P.A_EN) !== aEn) sm.set(P.A_EN, aEn);
+    normalizeNumberPath(sm, P.A_BST, 6, 0, 30);
+    const pbEn = !!sm.get(P.PB_EN);
+    if (sm.get(P.PB_EN) !== pbEn) sm.set(P.PB_EN, pbEn);
+    normalizeNumberPath(sm, P.PB_RATE, 1.0, 0.07, 16);
+  }
+
   function createRegistry(scheduler, featureCheck) {
     const videos = new Set(); const visible = { videos: new Set() };
     let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
     const shadowRootsLRU = []; const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? 8 : 24; const observedShadowHosts = new WeakSet();
 
     let __refreshQueued = false;
-    function requestRefreshCoalesced() {
-      if (__refreshQueued) return;
-      __refreshQueued = true;
-      requestAnimationFrame(() => {
-        __refreshQueued = false;
-        scheduler.request(false); // 조건문 삭제: 기능이 꺼져있어도 UI를 띄우기 위해 무조건 호출
-      });
-    }
+    function requestRefreshCoalesced() {
+      if (__refreshQueued) return;
+      __refreshQueued = true;
+      requestAnimationFrame(() => {
+        __refreshQueued = false;
+        scheduler.request(false);
+      });
+    }
 
     const io = new IntersectionObserver((entries) => {
       let changed = false; const now = performance.now();
@@ -982,16 +1011,24 @@
       if (currentSrc) { if (en && !wetConnected) { try { currentSrc.connect(compressor); wetConnected = true; } catch (_) {} } else if (!en && wetConnected) { try { currentSrc.disconnect(compressor); wetConnected = false; } catch (_) {} } }
     };
     const disconnectAll = () => { if (currentSrc) { try { if (wetConnected) currentSrc.disconnect(compressor); currentSrc.disconnect(dry); } catch (_) {} } currentSrc = null; target = null; wetConnected = false; };
+    async function destroy() {
+      try { disconnectAll(); } catch (_) {}
+      try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {}
+      try { if (ctx && ctx.state !== 'closed') { await ctx.close(); } } catch (_) {}
+      ctx = null; compressor = null; dry = null; wet = null; currentSrc = null; target = null; wetConnected = false; lastDryOn = null; lastWetGain = null;
+    }
     return { setTarget: (v) => {
         const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         if (v && v[VSCX.audioFail]) { if (v !== target) { disconnectAll(); target = v; } updateMix(); return; }
         if (v !== target) { disconnectAll(); target = v; }
         if (!v) { updateMix(); return; }
-        if (!enabled) { if (currentSrc) disconnectAll(); updateMix(); return; }
+
+        if (!enabled && !currentSrc) { updateMix(); return; }
+
         if (!ensureCtx()) return;
         if (!currentSrc) { try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(dry); currentSrc = s; } catch (_) { v[VSCX.audioFail] = true; disconnectAll(); } }
         updateMix();
-      }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc };
+      }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
   }
 
   function createFiltersVideoOnly(Utils, config) {
@@ -1299,11 +1336,23 @@
       return x * x * (3 - 2 * x);
     };
 
+    function recycleWorkerJob(job) {
+      if (!job) return;
+      try { if (typeof job.recycle === 'function') { job.recycle(); return; } } catch (_) {}
+      try { const bmp = job.msg?.bitmap; if (bmp && typeof bmp.close === 'function') bmp.close(); } catch (_) {}
+      try { if (job.msg && job.msg.buf) job.msg.buf = null; } catch (_) {}
+    }
+
+    function clearPendingWorkerJob() {
+      recycleWorkerJob(__pendingWorkerJob);
+      __pendingWorkerJob = null;
+    }
+
     function bumpAeEpoch() {
       __aeEpoch = ((__aeEpoch + 1) | 0) || 1;
       __lastAcceptedSeq = 0;
       __lastAcceptedMediaTime = -1;
-      __pendingWorkerJob = null;
+      clearPendingWorkerJob();
       __inFlight = 0;
       __workerBusySince = 0;
       __lastPresentedFrames = -1;
@@ -1328,21 +1377,22 @@
       try {
         __inFlight++;
         if (!__workerBusySince) __workerBusySince = performance.now();
+        workerBusy = true;
         if (job.transfer && job.transfer.length) worker.postMessage(job.msg, job.transfer);
         else worker.postMessage(job.msg);
         return true;
       } catch (_) {
         __inFlight = Math.max(0, __inFlight - 1);
+        workerBusy = false;
+        recycleWorkerJob(job);
         return false;
       }
     }
 
     function enqueueWorkerJobLatestWins(job) {
-      if (!worker) return false;
+      if (!worker) { recycleWorkerJob(job); return false; }
       if (__inFlight < MAX_WORKER_INFLIGHT) return postToWorkerNow(job);
-      if (__pendingWorkerJob && __pendingWorkerJob.recycle) {
-        try { __pendingWorkerJob.recycle(); } catch (_) {}
-      }
+      if (__pendingWorkerJob) recycleWorkerJob(__pendingWorkerJob);
       __pendingWorkerJob = job;
       return true;
     }
@@ -1354,6 +1404,26 @@
       if (!job) return;
       __pendingWorkerJob = null;
       postToWorkerNow(job);
+    }
+
+    function makeWorkerJobBase({ width, height, seq, mediaTime }) {
+      return { width, height, step: width <= 24 ? 1 : 2, token: targetToken, seq, epoch: __aeEpoch, mediaTime };
+    }
+
+    function enqueueBitmapJob(bitmap, w, h, seq, mediaTime) {
+      return enqueueWorkerJobLatestWins({
+        msg: { bitmap, ...makeWorkerJobBase({ width: w, height: h, seq, mediaTime }) },
+        transfer: [bitmap],
+        recycle() { try { bitmap.close(); } catch (_) {} }
+      });
+    }
+
+    function enqueueBufferJob(buf, w, h, seq, mediaTime, d) {
+      return enqueueWorkerJobLatestWins({
+        msg: { buf, ...makeWorkerJobBase({ width: w, height: h, seq, mediaTime }) },
+        transfer: [buf],
+        recycle() { try { if (d) d.data = null; } catch (_) {} }
+      });
     }
 
     function createDecodeStressTracker() {
@@ -1498,13 +1568,20 @@
           const d = e.data || {};
           __inFlight = Math.max(0, __inFlight - 1);
           if (__inFlight === 0) __workerBusySince = 0;
-          if (d.epoch != null && d.epoch !== __aeEpoch) { flushPendingWorkerJob(); return; }
-          if (d.seq != null && d.seq <= __lastAcceptedSeq) { flushPendingWorkerJob(); return; }
+
+          const finishWorkerTurnAndMaybeFlush = () => {
+            workerBusy = false;
+            flushPendingWorkerJob();
+          };
+
+          if (d.epoch != null && d.epoch !== __aeEpoch) return finishWorkerTurnAndMaybeFlush();
+          if (d.seq != null && d.seq <= __lastAcceptedSeq) return finishWorkerTurnAndMaybeFlush();
           if (Number.isFinite(d.mediaTime)) {
-            if (__lastAcceptedMediaTime >= 0 && d.mediaTime + 1e-4 < __lastAcceptedMediaTime) { flushPendingWorkerJob(); return; }
+            if (__lastAcceptedMediaTime >= 0 && d.mediaTime + 1e-4 < __lastAcceptedMediaTime) return finishWorkerTurnAndMaybeFlush();
             __lastAcceptedMediaTime = d.mediaTime;
           }
           if (d.seq != null) __lastAcceptedSeq = d.seq;
+
           workerBusy = false;
           processResult(d);
           flushPendingWorkerJob();
@@ -1770,13 +1847,11 @@
         const seq = (++__sampleSeq) | 0;
 
         if (window.createImageBitmap && window.OffscreenCanvas) {
-          workerBusy = true;
           try {
             const bitmap = await createImageBitmap(v, { resizeWidth: w, resizeHeight: h, resizeQuality: 'pixelated' });
-            if (!isRunning) { bitmap.close(); workerBusy = false; return; }
+            if (!isRunning) { bitmap.close(); return; }
             bitmapFailStreak = 0;
-            const msg = { bitmap, width: w, height: h, step: w<=24?1:2, token: targetToken, seq, epoch: __aeEpoch, mediaTime };
-            enqueueWorkerJobLatestWins({ msg, transfer: [bitmap] });
+            if (!enqueueBitmapJob(bitmap, w, h, seq, mediaTime)) return;
           } catch (err) {
             workerBusy = false;
             bitmapFailStreak++;
@@ -1789,11 +1864,7 @@
                 }
                 ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
                 const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
-                workerBusy = true;
-                enqueueWorkerJobLatestWins({
-                  msg: { buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken, seq, epoch: __aeEpoch, mediaTime },
-                  transfer: [d.data.buffer]
-                });
+                if (!enqueueBufferJob(d.data.buffer, canvas.width, canvas.height, seq, mediaTime, d)) return;
                 return;
               } catch (_) {}
             }
@@ -1808,11 +1879,7 @@
             if (!ctx2d) { v[VSCX.tainted] = true; return; }
           }
           ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
-          workerBusy = true;
-          enqueueWorkerJobLatestWins({
-            msg: { buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken, seq, epoch: __aeEpoch, mediaTime },
-            transfer: [d.data.buffer]
-          });
+          if (!enqueueBufferJob(d.data.buffer, canvas.width, canvas.height, seq, mediaTime, d)) return;
         }
       } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
     };
@@ -1824,7 +1891,7 @@
       scheduleNextLoop(token, v);
     };
 
-    const invalidatePendingSample = () => { targetToken++; workerBusy = false; __pendingWorkerJob = null; __inFlight = 0; __workerBusySince = 0; __lastPresentedFrames = -1; };
+    const invalidatePendingSample = () => { targetToken++; workerBusy = false; clearPendingWorkerJob(); __inFlight = 0; __workerBusySince = 0; __lastPresentedFrames = -1; };
     const resetAutoClassifierState = () => { __autoProfileVotes.length = 0; __subLikelyHoldUntil = 0; __autoHoldUntil = 0; __prevSceneStats = null; };
     const hardResetStats = () => { invalidatePendingSample(); bumpAeEpoch(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; __lastLookSent = null; __subConfEma = 0; __sceneChange01 = 1; __aeBurstUntil = 0; __workerStallStreak = 0; __skinEma = 0; resetAutoClassifierState(); gainAB.reset(1.0); };
     const softResetStats = () => { invalidatePendingSample(); bumpAeEpoch(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; sampleCount = Math.min(sampleCount, 1); lastEmaT = performance.now(); lastApplyT = performance.now(); __subLikelyHoldUntil = 0; __lastLookSent = null; gainAB.reset(curGain); };
@@ -1905,19 +1972,15 @@
         }
       };
 
-      // --- 누락되었던 연동 로직 복구 ---
       const sync = () => {
         let isActive = sm.get(key) === value;
-        // 키가 AE 프로필일 경우, 메인 AE 스위치(P.V_AE)가 켜져있는지 추가로 확인
         if (key === P.V_AE_PROFILE) isActive = isActive && !!sm.get(P.V_AE);
         b.classList.toggle('active', isActive);
       };
 
       sub(key, sync);
-      // AE 프로필 버튼은 메인 AE 스위치의 변화도 구독하여 즉각 반영
       if (key === P.V_AE_PROFILE) sub(P.V_AE, sync);
       sync();
-      // ---------------------------------
 
       row.append(b);
     };
@@ -1991,7 +2054,6 @@
 
       const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open')) gearBtn.style.opacity = '0.15'; }, 2500); };
 
-      // 핵심 수정 부분: 마우스 이벤트 감지를 gearHost가 아닌 화면 전체(window)로 변경
       window.addEventListener('mousemove', wake, { passive: true });
       window.addEventListener('touchstart', wake, { passive: true });
       setTimeout(wake, 2000);
@@ -2302,7 +2364,7 @@
     const refreshTick = () => { (FEATURES.ae() || FEATURES.audio()) ? startTick() : stopTick(); };
     Store.sub(P.V_AE, refreshTick); Store.sub(P.A_EN, refreshTick); Store.sub(P.APP_ACT, refreshTick); refreshTick();
     Scheduler.request(true);
-    return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { AE.stopHard?.(); } catch (_) {} try { Audio.setTarget(null); } catch (_) {} } });
+    return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { AE.stopHard?.(); } catch (_) {} try { Audio.setTarget(null); } catch (_) {} try { Audio.destroy?.(); } catch (_) {} } });
   }
 
   const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
@@ -2312,6 +2374,10 @@
   const normalizeAllVideo = () => normalizeVideoState(Store, PRESETS, P, Utils);
   [ P.V_TONE_PRE, P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_AE_STR, P.V_TONE_STR, P.V_AE, P.V_AE_PROFILE ].forEach(k => Store.sub(k, normalizeAllVideo));
   normalizeAllVideo();
+
+  const normalizeAllAudioPlayback = () => normalizeAudioPlaybackState(Store, P);
+  [P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE].forEach(k => Store.sub(k, normalizeAllAudioPlayback));
+  normalizeAllAudioPlayback();
 
   const FEATURES = { ae: () => { if (!(Store.get(P.APP_ACT) && Store.get(P.V_AE))) return false; return Utils.clamp(Store.get(P.V_AE_STR) ?? 1.0, 0, 1) > 0.02; }, audio: () => Store.get(P.APP_ACT) && Store.get(P.A_EN) };
   const Registry = createRegistry(Scheduler, FEATURES), Targeting = createTargeting({ Utils });
@@ -2386,11 +2452,10 @@
         __vscAutoPiPCooldownUntil = performance.now() + 15000;
       }
     } else if (document.visibilityState === 'visible') {
-      if (!__vscAutoEnteredPiP) return;
       const pipEl = document.pictureInPictureElement;
 
       const wk = findWebkitPiPVideo();
-      if (pipEl || wk) {
+      if (pipEl || wk || __activeDocumentPiPWindow) {
         try {
           await exitPiP(v || pipEl || wk);
         } catch (e) {
