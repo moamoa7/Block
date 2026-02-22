@@ -490,17 +490,17 @@
     const on = (name, fn) => { let s = subs.get(name); if (!s) { s = new Set(); subs.set(name, s); } s.add(fn); return () => s.delete(fn); };
     const emit = (name, payload) => { const s = subs.get(name); if (!s) return; for (const fn of s) { try { fn(payload); } catch (_) {} } };
     let queued = false, aeLevelAgg = 0, forceApplyAgg = false, lockMsAgg = 0, lockAmpAgg = 0, profileChangedAgg = false;
-    
+
     function flush() {
       queued = false;
       const payload = { aeLevel: aeLevelAgg, forceApply: forceApplyAgg, userLockMs: lockMsAgg, userLockAmp: lockAmpAgg, profileChanged: profileChangedAgg };
       emit('signal', payload);
       aeLevelAgg = 0; forceApplyAgg = false; lockMsAgg = 0; lockAmpAgg = 0; profileChangedAgg = false;
     }
-    
-    const signal = (p) => { 
-      if (p) { if (p.affectsAE) aeLevelAgg = Math.max(aeLevelAgg, 2); if (p.wakeAE) aeLevelAgg = Math.max(aeLevelAgg, 1); if (p.aeLevel != null) aeLevelAgg = Math.max(aeLevelAgg, (p.aeLevel | 0)); if (p.forceApply) forceApplyAgg = true; if (p.userLockMs) lockMsAgg = Math.max(lockMsAgg, (p.userLockMs | 0)); if (p.userLockAmp != null) lockAmpAgg = Math.max(lockAmpAgg, +p.userLockAmp); if (p.profileChanged) profileChangedAgg = true; } 
-      if (!queued) { queued = true; requestAnimationFrame(flush); } 
+
+    const signal = (p) => {
+      if (p) { if (p.affectsAE) aeLevelAgg = Math.max(aeLevelAgg, 2); if (p.wakeAE) aeLevelAgg = Math.max(aeLevelAgg, 1); if (p.aeLevel != null) aeLevelAgg = Math.max(aeLevelAgg, (p.aeLevel | 0)); if (p.forceApply) forceApplyAgg = true; if (p.userLockMs) lockMsAgg = Math.max(lockMsAgg, (p.userLockMs | 0)); if (p.userLockAmp != null) lockAmpAgg = Math.max(lockAmpAgg, +p.userLockAmp); if (p.profileChanged) profileChangedAgg = true; }
+      if (!queued) { queued = true; requestAnimationFrame(flush); }
     };
     return Object.freeze({ on, emit, signal });
   }
@@ -653,14 +653,14 @@
 
   function createScheduler(minIntervalMs = 16) {
     let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0;
-    
+
     function queueRaf() {
       if (rafId) return;
       rafId = requestAnimationFrame(run);
     }
-    
+
     function timerCb() { timer = 0; queueRaf(); }
-    
+
     function run() {
       rafId = 0;
       queued = false;
@@ -668,17 +668,17 @@
       const doForce = force;
       force = false;
       const dt = now - lastRun;
-      
+
       if (!doForce && dt < minIntervalMs) {
         const wait = Math.max(0, minIntervalMs - dt);
         if (!timer) timer = setTimeout(timerCb, wait);
         return;
       }
-      
+
       lastRun = now;
       if (applyFn) { try { applyFn(doForce); } catch (_) {} }
     }
-    
+
     const request = (immediate = false) => {
       if (immediate) {
         force = true;
@@ -694,18 +694,18 @@
       if (timer) { clearTimeout(timer); timer = 0; }
       queueRaf();
     };
-    
+
     return { registerApply: (fn) => { applyFn = fn; }, request };
   }
 
   function createLocalStore(defaults, scheduler, Utils) {
     let rev = 0;
     const listeners = new Map();
-  
+
     const emit = (key, val) => {
       const a = listeners.get(key);
       if (a) for (const cb of a) { try { cb(val); } catch (_) {} }
-  
+
       const dot = key.indexOf('.');
       if (dot > 0) {
         const catStar = key.slice(0, dot) + '.*';
@@ -713,13 +713,13 @@
         if (b) for (const cb of b) { try { cb(val); } catch (_) {} }
       }
     };
-  
+
     const state = Utils.deepClone(defaults);
     const proxyCache = {};
     let batchDepth = 0;
     let batchChanged = false;
-    const batchEmits = new Map(); 
-  
+    const batchEmits = new Map();
+
     function flushBatch() {
       if (!batchChanged) return;
       rev++;
@@ -730,7 +730,7 @@
       batchChanged = false;
       scheduler.request(false);
     }
-  
+
     function notifyChange(fullPath, val) {
       if (batchDepth > 0) {
         batchChanged = true;
@@ -741,7 +741,7 @@
       emit(fullPath, val);
       scheduler.request(false);
     }
-  
+
     function createProxyDeep(obj, pathPrefix) {
       return new Proxy(obj, {
         get(target, prop) {
@@ -762,9 +762,9 @@
         }
       });
     }
-  
+
     const proxyState = createProxyDeep(state, '');
-  
+
     return {
       state: proxyState,
       rev: () => rev,
@@ -810,14 +810,14 @@
     const shadowRootsLRU = []; const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? 8 : 24; const observedShadowHosts = new WeakSet();
 
     let __refreshQueued = false;
-    function requestRefreshCoalesced() {
-      if (__refreshQueued) return;
-      __refreshQueued = true;
-      requestAnimationFrame(() => {
-        __refreshQueued = false;
-        if (featureCheck.ae() || featureCheck.audio()) scheduler.request(false);
-      });
-    }
+    function requestRefreshCoalesced() {
+      if (__refreshQueued) return;
+      __refreshQueued = true;
+      requestAnimationFrame(() => {
+        __refreshQueued = false;
+        scheduler.request(false); // 조건문 삭제: 기능이 꺼져있어도 UI를 띄우기 위해 무조건 호출
+      });
+    }
 
     const io = new IntersectionObserver((entries) => {
       let changed = false; const now = performance.now();
@@ -844,11 +844,11 @@
       if (changed) requestRefreshCoalesced();
     });
 
-    const observeVideo = (el) => { 
-      if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return; 
-      patchFullscreenRequest(el); 
-      videos.add(el); 
-      io.observe(el); 
+    const observeVideo = (el) => {
+      if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
+      patchFullscreenRequest(el);
+      videos.add(el);
+      io.observe(el);
       try { ro.observe(el); } catch (_) {}
     };
 
@@ -870,25 +870,25 @@
           try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
         }
       };
-      const drain = (dl) => { 
-        scheduled = false; const start = performance.now(); 
-        const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6; 
-        
+      const drain = (dl) => {
+        scheduled = false; const start = performance.now();
+        const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
+
         const shouldYieldForInput = () => {
           try { return !!isInputPending?.({ includeContinuous: true }); } catch (_) { return false; }
         };
 
-        while (bigHead < bigQ.length && budget()) { 
+        while (bigHead < bigQ.length && budget()) {
           if (shouldYieldForInput()) break;
-          scanNode(bigQ[bigHead++]); 
-          break; 
-        } 
-        while (head < q.length && budget()) { 
+          scanNode(bigQ[bigHead++]);
+          break;
+        }
+        while (head < q.length && budget()) {
           if (shouldYieldForInput()) break;
-          scanNode(q[head++]); 
-        } 
-        if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; } 
-        schedule(); 
+          scanNode(q[head++]);
+        }
+        if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
+        schedule();
       };
       return Object.freeze({ enqueue });
     })();
@@ -947,8 +947,8 @@
         const el = n.value;
         if (el && !el.isConnected) {
           set.delete(el); visibleSet.delete(el); dirtySet.delete(el);
-          try { unobserveFn(el); } catch (_) {} 
-          try { ro.unobserve(el); } catch (_) {} 
+          try { unobserveFn(el); } catch (_) {}
+          try { ro.unobserve(el); } catch (_) {}
           removed++;
         }
         scanned++;
@@ -982,15 +982,15 @@
       if (currentSrc) { if (en && !wetConnected) { try { currentSrc.connect(compressor); wetConnected = true; } catch (_) {} } else if (!en && wetConnected) { try { currentSrc.disconnect(compressor); wetConnected = false; } catch (_) {} } }
     };
     const disconnectAll = () => { if (currentSrc) { try { if (wetConnected) currentSrc.disconnect(compressor); currentSrc.disconnect(dry); } catch (_) {} } currentSrc = null; target = null; wetConnected = false; };
-    return { setTarget: (v) => { 
+    return { setTarget: (v) => {
         const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
-        if (v && v[VSCX.audioFail]) { if (v !== target) { disconnectAll(); target = v; } updateMix(); return; } 
-        if (v !== target) { disconnectAll(); target = v; } 
-        if (!v) { updateMix(); return; } 
+        if (v && v[VSCX.audioFail]) { if (v !== target) { disconnectAll(); target = v; } updateMix(); return; }
+        if (v !== target) { disconnectAll(); target = v; }
+        if (!v) { updateMix(); return; }
         if (!enabled) { if (currentSrc) disconnectAll(); updateMix(); return; }
-        if (!ensureCtx()) return; 
-        if (!currentSrc) { try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(dry); currentSrc = s; } catch (_) { v[VSCX.audioFail] = true; disconnectAll(); } } 
-        updateMix(); 
+        if (!ensureCtx()) return;
+        if (!currentSrc) { try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(dry); currentSrc = s; } catch (_) { v[VSCX.audioFail] = true; disconnectAll(); } }
+        updateMix();
       }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc };
   }
 
@@ -1271,7 +1271,7 @@
     let __skinEma = 0;
     let __subConfEma = 0;
     let __prevSceneStats = null;
-    
+
     let __aeEpoch = 1;
     let __sampleSeq = 0;
     let __lastAcceptedSeq = 0;
@@ -1280,7 +1280,7 @@
     let __workerBusySince = 0;
     let __pendingWorkerJob = null;
     let __lastPresentedFrames = -1;
-    
+
     let __lastAppliedLook = null;
     let __lastApplyCommitT = 0;
 
@@ -1368,7 +1368,7 @@
           const dDrop = Math.max(0, dropped - lastDropped);
           lastTotal = total; lastDropped = dropped;
           const ratio = dTotal > 0 ? (dDrop / dTotal) : 0;
-          const s = Math.max(0, Math.min(1, ratio / 0.12)); 
+          const s = Math.max(0, Math.min(1, ratio / 0.12));
           ema = ema <= 0 ? s : (ema * 0.82 + s * 0.18);
           return ema;
         } catch (_) { return ema; }
@@ -1494,7 +1494,7 @@
           }
         }
         worker = new Worker(workerUrl);
-        worker.onmessage = (e) => { 
+        worker.onmessage = (e) => {
           const d = e.data || {};
           __inFlight = Math.max(0, __inFlight - 1);
           if (__inFlight === 0) __workerBusySince = 0;
@@ -1505,8 +1505,8 @@
             __lastAcceptedMediaTime = d.mediaTime;
           }
           if (d.seq != null) __lastAcceptedSeq = d.seq;
-          workerBusy = false; 
-          processResult(d); 
+          workerBusy = false;
+          processResult(d);
           flushPendingWorkerJob();
         };
         worker.onerror = () => { workerBusy = false; disableAEHard(); };
@@ -1703,7 +1703,7 @@
 
       const curEV = Math.log2(curGain), dtA = Math.min(now - lastApplyT, cfg.DT_CAP_MS); lastApplyT = now;
       const lock01 = clamp(__userLock01, 0, 1), nextEV = curEV + (targetEV - curEV) * ((1 - Math.exp(-dtA / (((sc01 > 0.55) ? cfg.TAU_AGGRESSIVE : ((targetEV > curEV && risk01 <= 0.70) ? cfg.TAU_UP : cfg.TAU_DOWN)) * (1 + risk01 * 1.10) * (1 + lock01 * 2.2)))) * (1 - ((lock01 > 0.70) ? clamp((lock01 - 0.70) / 0.30, 0, 1) : 0)));
-      
+
       const dtSec = Math.max(1/120, Math.min(0.25, dtA / 1000));
       const gainRaw = Utils.clamp(Math.pow(2, nextEV), 0.5, 2.0);
       curGain = Utils.clamp(gainAB.update(gainRaw, dtSec), 0.5, 2.0);
@@ -1787,7 +1787,7 @@
                   canvas.width = w; canvas.height = h;
                   ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false });
                 }
-                ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); 
+                ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height);
                 const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
                 workerBusy = true;
                 enqueueWorkerJobLatestWins({
@@ -1892,27 +1892,39 @@
     const getUiRoot = () => { const fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs) { if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs; if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.body || document.documentElement; return fs; } return document.body || document.documentElement; };
 
     function renderButtonRow({ label, items, key, offValue = null, toggleActiveToOff = false, onSelect = null }) {
-      const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
-      const addBtn = (text, value) => {
-        const b = h('button', { class: 'pbtn', style: 'flex:1' }, text);
-        b.onclick = () => {
-          if (onSelect) return onSelect(value);
-          const cur = sm.get(key);
-          if (toggleActiveToOff && offValue != null && cur === value && value !== offValue) {
-            setAndHint(key, offValue, true);
-          } else {
-            setAndHint(key, value, true);
-          }
-        };
-        const sync = (v) => b.classList.toggle('active', v === value);
-        sub(key, sync);
-        sync(sm.get(key));
-        row.append(b);
+    const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
+    const addBtn = (text, value) => {
+      const b = h('button', { class: 'pbtn', style: 'flex:1' }, text);
+      b.onclick = () => {
+        if (onSelect) return onSelect(value);
+        const cur = sm.get(key);
+        if (toggleActiveToOff && offValue != null && cur === value && value !== offValue) {
+          setAndHint(key, offValue, true);
+        } else {
+          setAndHint(key, value, true);
+        }
       };
-      for (const it of items) addBtn(it.text, it.value);
-      if (offValue != null && !items.some(it => it.value === offValue)) addBtn('OFF', offValue);
-      return row;
-    }
+
+      // --- 누락되었던 연동 로직 복구 ---
+      const sync = () => {
+        let isActive = sm.get(key) === value;
+        // 키가 AE 프로필일 경우, 메인 AE 스위치(P.V_AE)가 켜져있는지 추가로 확인
+        if (key === P.V_AE_PROFILE) isActive = isActive && !!sm.get(P.V_AE);
+        b.classList.toggle('active', isActive);
+      };
+
+      sub(key, sync);
+      // AE 프로필 버튼은 메인 AE 스위치의 변화도 구독하여 즉각 반영
+      if (key === P.V_AE_PROFILE) sub(P.V_AE, sync);
+      sync();
+      // ---------------------------------
+
+      row.append(b);
+    };
+    for (const it of items) addBtn(it.text, it.value);
+    if (offValue != null && !items.some(it => it.value === offValue)) addBtn('OFF', offValue);
+    return row;
+  }
 
     function makeRafCoalescedSetter(commitFn) {
       let raf = 0; let pending;
@@ -1976,8 +1988,14 @@
       const style = `.gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover + .hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''}`;
       applyShadowStyle(shadow, style, h);
       gearBtn = h('button', { class: 'gear', onclick: () => setAndHint(P.APP_UI, !sm.get(P.APP_UI), true) }, '⚙'); shadow.append(gearBtn, h('div', { class: 'hint' }, '설정 (Alt+Shift+V)'));
+
       const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open')) gearBtn.style.opacity = '0.15'; }, 2500); };
-      gearHost.addEventListener('mousemove', wake, { passive: true }); gearHost.addEventListener('touchstart', wake, { passive: true }); setTimeout(wake, 2000);
+
+      // 핵심 수정 부분: 마우스 이벤트 감지를 gearHost가 아닌 화면 전체(window)로 변경
+      window.addEventListener('mousemove', wake, { passive: true });
+      window.addEventListener('touchstart', wake, { passive: true });
+      setTimeout(wake, 2000);
+
       const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
       sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
     };
@@ -2391,11 +2409,11 @@
       try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 0 }); } catch (_) {}
       try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.Bus?.signal?.({ forceApply: true }); } catch (_) {}
     }, { capture: true, signal: __globalSig });
-  
+
     window.addEventListener('pageshow', () => {
       try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 2, forceApply: true }); } catch (_) {}
     }, { capture: true, signal: __globalSig });
-  
+
     window.addEventListener('pagehide', () => {
       try { window.__VSC_INTERNAL__?.Bus?.signal?.({ aeLevel: 0 }); } catch (_) {}
     }, { capture: true, signal: __globalSig });
