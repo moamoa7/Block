@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.2.3_NextGen)
+// @name        Video_Control (v159.4.2.4_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.2.3
-// @description Video Control: Adaptive Sampling, Subtitle/Skin AI, OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc
+// @version     159.4.2.4
+// @description Video Control: Adaptive Sampling, Subtitle/Skin AI, OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc, Draggable UI
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -41,8 +41,7 @@
 
   const EXPERIMENTAL = Object.freeze({
     APPLY_ALL_VISIBLE_VIDEOS: false,
-    EXTRA_APPLY_TOPK: 2,
-    AUTO_PIP_ON_TAB_HIDE: true
+    EXTRA_APPLY_TOPK: 2
   });
 
   const AE_ZERO = Object.freeze({ gain: 1, conF: 1, satF: 1, toe: 0, shoulder: 0, brightAdd: 0, tempAdd: 0, hiRisk: 0, cf: 0.5, mid: 0, rd: 0, skinScore: 0, luma: 0, clipFrac: 0 });
@@ -90,11 +89,13 @@
     return mem < 4 || cores <= 4 || saveData;
   }
 
+  const __IS_LOW_END = detectLowEnd();
+
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.2.3_NextGen",
+    VERSION: "v159.4.2.4_NextGen",
     IS_MOBILE: detectMobile(),
-    IS_LOW_END: detectLowEnd(),
-    TOUCHED_MAX: detectLowEnd() ? 60 : 140,
+    IS_LOW_END: __IS_LOW_END,
+    TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
     VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
     DEBUG: false
   });
@@ -119,6 +120,7 @@
   const PRESETS = Object.freeze({
     aeProfiles: { auto: { label: '자동' }, standard: { label: '표준' }, bright: { label: '밝게' }, cinemaHdr: { label: '영화/HDR' } },
     tone: {
+      off: null,
       neutral: { label: '기본', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.00, sat: 1.00, br: 0.0, tmp: 0.0 },
       highlight: { label: '조명', toe: 0.4, shoulder: 2.6, mid: -0.15, con: 0.99, sat: 0.98, br: -0.2, tmp: -1.0 },
       redSkin: { label: '피부', toe: 1.4, shoulder: 0.6, mid: 0.35, con: 1.03, sat: 1.05, br: 0.8, tmp: +2.0 }
@@ -283,8 +285,8 @@
     for (const v of vids) { try { if (typeof v.webkitPresentationMode === 'string' && v.webkitPresentationMode === 'picture-in-picture') return v; } catch (_) {} }
     return null;
   }
-  let __vscAutoEnteredPiP = false;
   let __activeDocumentPiPWindow = null;
+  let __activeDocumentPiPVideo = null;
   let __pipPlaceholder = null;
   let __pipOrigParent = null;
   let __pipOrigNext = null;
@@ -292,10 +294,22 @@
 
   function resetPiPState() {
     __activeDocumentPiPWindow = null;
+    __activeDocumentPiPVideo = null;
     __pipPlaceholder = null;
     __pipOrigParent = null;
     __pipOrigNext = null;
     __pipOrigCss = "";
+  }
+
+  function getActivePiPVideo() {
+    const wk = findWebkitPiPVideo(); if (wk) return wk;
+    if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement;
+    if (__activeDocumentPiPWindow && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo;
+    return null;
+  }
+
+  function isPiPActiveVideo(el) {
+    return !!el && (el === getActivePiPVideo());
   }
 
   async function enterPiP(video) {
@@ -305,6 +319,7 @@
       try {
         const pipWindow = await window.documentPictureInPicture.requestWindow({ width: Math.max(video.videoWidth / 2, 400), height: Math.max(video.videoHeight / 2, 225) });
         __activeDocumentPiPWindow = pipWindow;
+        __activeDocumentPiPVideo = video;
         __pipOrigParent = video.parentNode;
         __pipOrigNext = video.nextSibling;
         __pipOrigCss = video.style.cssText;
@@ -347,7 +362,11 @@
     return false;
   }
   async function exitPiP(preferredVideo = null) {
-    if (__activeDocumentPiPWindow) { __activeDocumentPiPWindow.close(); __activeDocumentPiPWindow = null; return true; }
+    if (__activeDocumentPiPWindow) {
+      __activeDocumentPiPWindow.close();
+      // resetPiPState(); <-- 여기 있던 상태 초기화 함수를 삭제합니다!
+      return true;
+    }
     if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); return true; } catch (_) {} }
     const candidates = []; if (preferredVideo) candidates.push(preferredVideo);
     const wk = findWebkitPiPVideo(); if (wk) candidates.push(wk);
@@ -358,18 +377,9 @@
   }
   async function togglePiPFor(video) {
     if (!video || video.readyState < 2) return false;
-    __vscAutoEnteredPiP = false;
     if (__activeDocumentPiPWindow || document.pictureInPictureElement === video) return exitPiP(video);
     if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); } catch (_) {} }
     return enterPiP(video);
-  }
-
-  function isPiPActiveVideo(el) {
-    if (!el || el.tagName !== 'VIDEO') return false;
-    try { if (document.pictureInPictureElement === el) return true; } catch (_) {}
-    try { if (typeof el.webkitPresentationMode === 'string' && el.webkitPresentationMode === 'picture-in-picture') return true; } catch (_) {}
-    if (__activeDocumentPiPWindow) return true;
-    return false;
   }
 
   const TARGETING_WEIGHTS = Object.freeze({
@@ -387,7 +397,7 @@
       if (!v || v.readyState < 2) return null;
       const r = getRectCached(v, now, 420);
       const visibleGeom = !(r.width < 80 || r.height < 60 || r.bottom < 0 || r.top > innerHeight || r.right < 0 || r.left > innerWidth);
-      const pip = (__activeDocumentPiPWindow) || (document.pictureInPictureElement === v);
+      const pip = isPiPActiveVideo(v);
       if (!visibleGeom && !pip) return null;
 
       const area = r.width * r.height;
@@ -446,7 +456,9 @@
 
     const pickDetailed = (videos, lastUserPt, audioBoostOn) => {
       const now = performance.now();
-      const vp = { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 };
+      const vv = window.visualViewport;
+      const vp = vv ? { w: vv.width, h: vv.height, cx: vv.offsetLeft + vv.width * 0.5, cy: vv.offsetTop + vv.height * 0.5 } : { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 };
+
       if (!videos || videos.size === 0) { __pickRes.target = null; __pickRes.bestScore = -Infinity; __pickRes.curScore = -Infinity; __pickRes.delta = 0; __pickRes.secondScore = -Infinity; __pickRes.now = now; return __pickRes; }
 
       const MAX_CAND_PRE = 14;
@@ -484,7 +496,10 @@
         for (const it of topCandidates) { if (it.v !== target) __applySetReuse.add(it.v); if (__applySetReuse.size >= (target ? N + 1 : N)) break; }
         return __applySetReuse;
       }
-      const now = performance.now(); const vp = { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 }; __topBuf.length = 0;
+      const now = performance.now();
+      const vv = window.visualViewport;
+      const vp = vv ? { w: vv.width, h: vv.height, cx: vv.offsetLeft + vv.width * 0.5, cy: vv.offsetTop + vv.height * 0.5 } : { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 };
+      __topBuf.length = 0;
       for (const v of visibleVideos) {
         if (!v || v === target) continue;
         const f = buildCandidateFeature(v, now); const s = f ? scoreVideoPrepared(f, audioBoostOn, now, lastUserPt, vp) : -Infinity;
@@ -597,8 +612,9 @@
   }
 
   function applyTonePreset2Inline(out, presetName, strength, aeProfileName, Utils) {
-    if (!presetName || presetName === 'off' || presetName === 'neutral') return out;
-    const p0 = PRESETS.tone[presetName] || PRESETS.tone.neutral; let t = Utils.clamp(strength ?? 1.0, 0, 1);
+    if (!presetName || presetName === 'off') return out;
+    const p0 = PRESETS.tone[presetName]; if(!p0) return out;
+    let t = Utils.clamp(strength ?? 1.0, 0, 1);
     let toe = p0.toe, shoulder = p0.shoulder, mid = p0.mid, con = p0.con, sat = p0.sat, br = p0.br, tmp = p0.tmp;
     if (presetName === 'highlight') { if (aeProfileName === 'bright') { shoulder *= 0.65; br *= 0.65; t *= 0.90; } else if (aeProfileName === 'cinemaHdr') { br *= 0.75; con = 1.00; t *= 0.95; } }
     else if (presetName === 'redSkin') { if (aeProfileName === 'bright') { sat = 1.03; br *= 0.70; t *= 0.92; } else if (aeProfileName === 'cinemaHdr') { sat = 1.03; tmp *= 0.80; } }
@@ -816,24 +832,22 @@
     if (!(pS in PRESETS.detail)) sm.set(P.V_PRE_S, 'off');
     const pB = sm.get(P.V_PRE_B);
     if (!(pB in PRESETS.grade)) sm.set(P.V_PRE_B, 'brOFF');
-    const mix = Utils.clamp(+sm.get(P.V_PRE_MIX) || 0, 0, 1);
-    if (!Object.is(mix, sm.get(P.V_PRE_MIX))) sm.set(P.V_PRE_MIX, mix);
-    const aeStr = Utils.clamp(+sm.get(P.V_AE_STR) || 0, 0, 1);
-    if (!Object.is(aeStr, sm.get(P.V_AE_STR))) sm.set(P.V_AE_STR, aeStr);
-    const toneStr = Utils.clamp(+sm.get(P.V_TONE_STR) || 0, 0, 1);
-    if (!Object.is(toneStr, sm.get(P.V_TONE_STR))) sm.set(P.V_TONE_STR, toneStr);
+
+    normalizeNumberPath(sm, P.V_PRE_MIX, 1.0, 0, 1);
+    normalizeNumberPath(sm, P.V_AE_STR, 1.0, 0, 1);
+    normalizeNumberPath(sm, P.V_TONE_STR, 1.0, 0, 1);
   }
 
   function normalizeAudioPlaybackState(sm, P) {
     const aEn = !!sm.get(P.A_EN);
     if (sm.get(P.A_EN) !== aEn) sm.set(P.A_EN, aEn);
-    normalizeNumberPath(sm, P.A_BST, 6, 0, 30);
+    normalizeNumberPath(sm, P.A_BST, 6, 0, 12);
     const pbEn = !!sm.get(P.PB_EN);
     if (sm.get(P.PB_EN) !== pbEn) sm.set(P.PB_EN, pbEn);
     normalizeNumberPath(sm, P.PB_RATE, 1.0, 0.07, 16);
   }
 
-  function createRegistry(scheduler, featureCheck) {
+  function createRegistry(scheduler) {
     const videos = new Set(); const visible = { videos: new Set() };
     let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
     const shadowRootsLRU = []; const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? 8 : 24; const observedShadowHosts = new WeakSet();
@@ -1938,7 +1952,9 @@
   }
 
   function createUI(sm, registry, scheduler, bus, Utils) {
-    const { h } = Utils; let container, monitorEl, gearHost, gearBtn, fadeTimer = 0;
+    const { h } = Utils; let container, monitorEl, gearHost, gearBtn;
+    let fadeTimer = 0; let bootWakeTimer = 0;
+    const uiWakeCtrl = new AbortController();
     const bag = createDisposerBag();
     const sub = (k, fn) => bag.add(sm.sub(k, fn));
     const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
@@ -2033,14 +2049,45 @@
           items: [ { text: PRESETS.aeProfiles.auto.label, value: 'auto' }, { text: PRESETS.aeProfiles.standard.label, value: 'standard' }, { text: PRESETS.aeProfiles.bright.label, value: 'bright' }, { text: PRESETS.aeProfiles.cinemaHdr.label, value: 'cinemaHdr' } ],
           onSelect: (v) => { const isAeOn = sm.get(P.V_AE); if (isAeOn && sm.get(P.V_AE_PROFILE) === v) { setAndHint(P.V_AE, false, true); } else { if (!isAeOn) setAndHint(P.V_AE, true, false); setAndHint(P.V_AE_PROFILE, v, true); } }
         }),
-        renderButtonRow({ label: '톤', key: P.V_TONE_PRE, offValue: 'off', toggleActiveToOff: true, items: Object.entries(PRESETS.tone).map(([id, o]) => ({ text: o.label, value: id })) }),
+        renderButtonRow({ label: '톤', key: P.V_TONE_PRE, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.tone).filter(k=>k!=='off').map(k => ({ text: PRESETS.tone[k].label, value: k })) }),
         renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }),
         renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k=>k!=='brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'),
         h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = () => { setAndHint(P.PB_RATE, s, false); setAndHint(P.PB_EN, true, true); }; sub(P.PB_RATE, v => { const isEn = sm.get(P.PB_EN); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); sub(P.PB_EN, isEn => { const v = sm.get(P.PB_RATE); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); b.classList.toggle('active', sm.get(P.PB_EN) && Math.abs((sm.get(P.PB_RATE) || 1) - s) < 0.01); return b; }))
       ]);
       const bodyDetail = h('div', { id: 'p-detail', style: 'display:none' }, [ h('div', { class: 'grid' }, SLIDERS.map(renderSlider)) ]);
-      shadow.append(h('div', { class: 'main' }, [ h('div', { class: 'tabs' }, [ h('button', { id: 't-main', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'main') }, '메인'), h('button', { id: 't-detail', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'detail') }, '상세조정') ]), bodyMain, bodyDetail, monitorEl = h('div', { class: 'monitor' }, `Ready (${CONFIG.VERSION})`) ]));
+
+      const tabsHandle = h('div', { class: 'tabs', style: 'cursor: move;' }, [
+        h('button', { id: 't-main', class: 'tab active', onclick: () => sm.set(P.APP_TAB, 'main') }, '메인'),
+        h('button', { id: 't-detail', class: 'tab', onclick: () => sm.set(P.APP_TAB, 'detail') }, '상세조정')
+      ]);
+
+      const mainPanel = h('div', { class: 'main' }, [ tabsHandle, bodyMain, bodyDetail, monitorEl = h('div', { class: 'monitor' }, `Ready (${CONFIG.VERSION})`) ]);
+      shadow.append(mainPanel);
+
+      tabsHandle.addEventListener('mousedown', (e) => {
+        if (e.target.tagName === 'BUTTON') return;
+        e.preventDefault();
+        let startX = e.clientX, startY = e.clientY;
+        const rect = mainPanel.getBoundingClientRect();
+
+        mainPanel.style.transform = 'none';
+        mainPanel.style.top = `${rect.top}px`;
+        mainPanel.style.right = 'auto';
+        mainPanel.style.left = `${rect.left}px`;
+
+        function onMove(ev) {
+          mainPanel.style.top = `${rect.top + (ev.clientY - startY)}px`;
+          mainPanel.style.left = `${rect.left + (ev.clientX - startX)}px`;
+        }
+        function onUp() {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+        }
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+      });
+
       sub(P.APP_TAB, v => { shadow.querySelector('#t-main').classList.toggle('active', v === 'main'); shadow.querySelector('#t-detail').classList.toggle('active', v === 'detail'); shadow.querySelector('#p-main').style.display = v === 'main' ? 'block' : 'none'; shadow.querySelector('#p-detail').style.display = v === 'detail' ? 'block' : 'none'; });
       sub(P.V_AE, v => shadow.querySelector('#ae-btn').classList.toggle('active', !!v)); sub(P.A_EN, v => shadow.querySelector('#boost-btn').classList.toggle('active', !!v)); sub(P.APP_ACT, v => shadow.querySelector('#pwr-btn').style.color = v ? '#2ecc71' : '#e74c3c');
       container = host; getUiRoot().appendChild(container);
@@ -2052,11 +2099,45 @@
       applyShadowStyle(shadow, style, h);
       gearBtn = h('button', { class: 'gear', onclick: () => setAndHint(P.APP_UI, !sm.get(P.APP_UI), true) }, '⚙'); shadow.append(gearBtn, h('div', { class: 'hint' }, '설정 (Alt+Shift+V)'));
 
-      const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open')) gearBtn.style.opacity = '0.15'; }, 2500); };
+      const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); };
 
-      window.addEventListener('mousemove', wake, { passive: true });
-      window.addEventListener('touchstart', wake, { passive: true });
-      setTimeout(wake, 2000);
+      window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal });
+      window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal });
+      bootWakeTimer = setTimeout(wake, 2000);
+
+      // --- 톱니바퀴 아이콘 수직 드래그 로직 ---
+      const handleGearDrag = (e) => {
+        if (e.target !== gearBtn) return;
+        e.preventDefault();
+        const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+        const rect = gearBtn.getBoundingClientRect();
+
+        gearBtn.style.transform = 'none';
+        gearBtn.style.top = `${rect.top}px`;
+
+        const onMove = (ev) => {
+          const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
+          let newTop = rect.top + (currentY - startY);
+          newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
+          gearBtn.style.top = `${newTop}px`;
+        };
+
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('touchend', onUp);
+        };
+
+        window.addEventListener('mousemove', onMove, { passive: true });
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchmove', onMove, { passive: true });
+        window.addEventListener('touchend', onUp);
+      };
+
+      gearBtn.addEventListener('mousedown', handleGearDrag);
+      gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
+      // ----------------------------------------
 
       const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
       sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
@@ -2078,7 +2159,13 @@
         monitorEl.textContent = text;
         monitorEl.style.color = isAE ? "#2ecc71" : "#aaa";
       },
-      destroy: () => { bag.flush(); detachNodesHard(); }
+      destroy: () => {
+        try { uiWakeCtrl.abort(); } catch {}
+        clearTimeout(fadeTimer);
+        clearTimeout(bootWakeTimer);
+        bag.flush();
+        detachNodesHard();
+      }
     };
   }
 
@@ -2380,7 +2467,7 @@
   normalizeAllAudioPlayback();
 
   const FEATURES = { ae: () => { if (!(Store.get(P.APP_ACT) && Store.get(P.V_AE))) return false; return Utils.clamp(Store.get(P.V_AE_STR) ?? 1.0, 0, 1) > 0.02; }, audio: () => Store.get(P.APP_ACT) && Store.get(P.A_EN) };
-  const Registry = createRegistry(Scheduler, FEATURES), Targeting = createTargeting({ Utils });
+  const Registry = createRegistry(Scheduler), Targeting = createTargeting({ Utils });
   (function ensureRegistryAfterBodyReady() { const run = () => { try { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } catch (_) {} }; if (document.body) { run(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); run(); } }); try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} document.addEventListener('DOMContentLoaded', () => run(), { once: true, signal: __globalSig }); })();
 
   const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID }), Audio = createAudio(Store), AE = createAE(Store, { IS_MOBILE: CONFIG.IS_MOBILE, Utils }, null);
@@ -2422,51 +2509,6 @@
     if (isEditableTarget(e.target)) return;
     const v = __VSC_APP__?.getActiveVideo(); if (!v) return;
     await togglePiPFor(v);
-  }, { capture: true, signal: __globalSig });
-
-  let __vscLastUserGestureAt = 0;
-  let __vscAutoPiPEnabled = EXPERIMENTAL.AUTO_PIP_ON_TAB_HIDE;
-  let __vscAutoPiPCooldownUntil = 0;
-  ['pointerdown', 'keydown'].forEach(type => {
-    window.addEventListener(type, () => { __vscLastUserGestureAt = performance.now(); }, { passive: true, capture: true, signal: __globalSig });
-  });
-
-  document.addEventListener('visibilitychange', async () => {
-    const now = performance.now();
-    const v = __VSC_APP__?.getActiveVideo();
-
-    if (document.visibilityState === 'hidden') {
-      if (!__vscAutoPiPEnabled || now < __vscAutoPiPCooldownUntil) return;
-      if (!v || v.paused || v.ended) return;
-      if (document.pictureInPictureElement === v) return;
-      if (v.disablePictureInPicture === true) return;
-
-      const recentGesture = (now - __vscLastUserGestureAt) < 3000;
-      if (!recentGesture) return;
-
-      try {
-        const ok = await enterPiP(v);
-        if(ok) __vscAutoEnteredPiP = true;
-        else __vscAutoPiPCooldownUntil = performance.now() + 15000;
-      } catch (_) {
-        __vscAutoPiPCooldownUntil = performance.now() + 15000;
-      }
-    } else if (document.visibilityState === 'visible') {
-      const pipEl = document.pictureInPictureElement;
-
-      const wk = findWebkitPiPVideo();
-      if (pipEl || wk || __activeDocumentPiPWindow) {
-        try {
-          await exitPiP(v || pipEl || wk);
-        } catch (e) {
-          console.warn('[VSC] Auto exit PiP failed:', e);
-        } finally {
-          __vscAutoEnteredPiP = false;
-        }
-      } else {
-        __vscAutoEnteredPiP = false;
-      }
-    }
   }, { capture: true, signal: __globalSig });
 
   (function addPageLifecycleHooks() {
