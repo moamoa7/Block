@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.2.10_NextGen)
+// @name        Video_Control (v159.4.2.11_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.2.10
+// @version     159.4.2.11
 // @description Video Control: Hybrid Rendering (SVG + WebGL2), Adaptive Sampling, Subtitle/Skin AI, Document PiP, Zero-Alloc, Draggable UI
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
@@ -88,7 +88,7 @@
 
   const __IS_LOW_END = detectLowEnd();
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.2.10_NextGen", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
+    VERSION: "v159.4.2.11_NextGen", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
     VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false
   });
 
@@ -114,10 +114,10 @@
       off: null,
       neutral: { label: '기본', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.00, sat: 1.00, br: 0.0, tmp: 0.0 },
       redSkin: { label: '피부', toe: 1.4, shoulder: 0.6, mid: 0.35, con: 1.03, sat: 1.05, br: 0.8, tmp: +2.0 },
-      gvfFilm: { label: 'GVF 필름', toe: 0.2, shoulder: 0.3, mid: 0.0, con: 1.08, sat: 1.08, br: 1.0, tmp: 2.0 },
-      gvfAnime: { label: 'GVF 애니', toe: 0.0, shoulder: 0.0, mid: 0.1, con: 1.10, sat: 1.16, br: 3.0, tmp: 0.0 },
-      gvfGaming: { label: 'GVF 게이밍', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.12, sat: 1.06, br: 1.0, tmp: 0.0 },
-      gvfVibrant: { label: 'GVF 생동감', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.05, sat: 1.35, br: 0.0, tmp: 0.0 },
+      gvfFilm: { label: '필름', toe: 0.2, shoulder: 0.3, mid: 0.0, con: 1.08, sat: 1.08, br: 1.0, tmp: 2.0 },
+      gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.0, mid: 0.1, con: 1.10, sat: 1.16, br: 3.0, tmp: 0.0 },
+      gvfGaming: { label: '게이밍', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.12, sat: 1.06, br: 1.0, tmp: 0.0 },
+      gvfVibrant: { label: '생동감', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.05, sat: 1.35, br: 0.0, tmp: 0.0 },
     },
     detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 5, sharp2Add: 6, clarityAdd: 5 }, M: { sharpAdd: 10, sharp2Add: 12, clarityAdd: 8 }, L: { sharpAdd: 18, sharp2Add: 22, clarityAdd: 12 }, XL: { sharpAdd: 25, sharp2Add: 35, clarityAdd: 15 } },
     grade: { brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 }, S: { gammaF: 1.00, brightAdd: 2, conF: 1.00, satF: 1.00, tempAdd: 0 }, M: { gammaF: 1.08, brightAdd: 4, conF: 1.00, satF: 1.00, tempAdd: 0 }, L: { gammaF: 1.16, brightAdd: 6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DS: { gammaF: 1.00, brightAdd: 3.6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DM: { gammaF: 1.10, brightAdd: 7.2, conF: 1.00, satF: 1.00, tempAdd: 0 }, DL: { gammaF: 1.22, brightAdd: 10.8, conF: 1.00, satF: 1.00, tempAdd: 0 } }
@@ -327,6 +327,52 @@
     };
   }
 
+  // --- 유틸 1: RGB 템프 연산 공통화 (Part 4-3 반영) ---
+  function tempToRgbGain(temp) {
+    const t = Math.max(-25, Math.min(25, Number(temp) || 0));
+    let rs = 1, gs = 1, bs = 1;
+    if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.010; }
+    else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.010; }
+    return { rs, gs, bs };
+  }
+
+  // --- 유틸 2: RVFC / rAF 통합 프레임 드라이버 (Part 1-1, 4-1 반영) ---
+  function createFrameDriver() {
+    let rafId = 0, timerId = 0, rvfcId = 0, lastVideo = null;
+    function clear() {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+      if (timerId) { clearTimeout(timerId); timerId = 0; }
+      if (lastVideo && rvfcId && typeof lastVideo.cancelVideoFrameCallback === 'function') {
+        try { lastVideo.cancelVideoFrameCallback(rvfcId); } catch (_) {}
+      }
+      rvfcId = 0;
+    }
+    function scheduleVideoFrame(nextVideo, cb, fallback = 'raf', fallbackMs = 90) {
+      clear(); lastVideo = nextVideo || null;
+      if (lastVideo && !lastVideo.paused && typeof lastVideo.requestVideoFrameCallback === 'function') {
+        try { rvfcId = lastVideo.requestVideoFrameCallback((now, meta) => { rvfcId = 0; cb(now, meta); }); return; } catch (_) {}
+      }
+      if (fallback === 'timeout') { timerId = setTimeout(() => { timerId = 0; cb(performance.now(), null); }, fallbackMs); }
+      else { rafId = requestAnimationFrame((t) => { rafId = 0; cb(t, null); }); }
+    }
+    return Object.freeze({ clear, scheduleVideoFrame });
+  }
+
+  // --- 유틸 3: 인라인 스타일 안전 패치/복원 (Part 1-4 반영) ---
+  function patchInlineStyleImportant(el, patchObj) {
+    const prev = new Map();
+    for (const [prop, value] of Object.entries(patchObj)) {
+      prev.set(prop, { val: el.style.getPropertyValue(prop), prio: el.style.getPropertyPriority(prop) });
+      el.style.setProperty(prop, value, 'important');
+    }
+    return function restore() {
+      for (const [prop, info] of prev.entries()) {
+        if (info.val) el.style.setProperty(prop, info.val, info.prio || '');
+        else el.style.removeProperty(prop);
+      }
+    };
+  }
+
   function getAePack(isMobile, profileName) {
     const dev = isMobile ? AE_DEVICE_BASE.mobile : AE_DEVICE_BASE.pc, prof = AE_PROFILES[profileName] || AE_PROFILES.standard;
     const cfg = { ...AE_COMMON, STRENGTH: prof.STRENGTH ?? dev.STRENGTH, TARGET_MID_BASE: prof.TARGET_MID_BASE ?? dev.TARGET_MID_BASE, MAX_UP_EV: prof.MAX_UP_EV ?? dev.MAX_UP_EV, MAX_DOWN_EV: prof.MAX_DOWN_EV ?? dev.MAX_DOWN_EV, TONE_BIAS: (prof.TONE_BIAS ?? 0), TEMP_BIAS: (prof.TEMP_BIAS ?? 0) };
@@ -347,10 +393,8 @@
     if (tempStress01 > 0) { const satCap = 1.18 - 0.10 * tempStress01; out.satF = clamp(out.satF, 0.0, satCap); } else { out.satF = clamp(out.satF, 0.0, 2.0); }
   }
 
-  // ★ GVF 스타일 이중 베이스 필터 적용 ★
   function composeVideoParamsInto(out, vUser, ae, Utils, resolvedAeProfileName) {
     const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
-    // 가중치 상향 조정: 더 진하고 어둡게
     const GVF_BASE_CON = 1.10, GVF_BASE_SAT = 1.15, GVF_BASE_TOE = 0.65;
     const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
     const preGammaF = lerp(1.0, pB.gammaF, mix), preConF = lerp(1.0, pB.conF, mix), preSatF = lerp(1.0, pB.satF, mix), preBright = (pB.brightAdd || 0) * mix, preTemp = (pB.tempAdd || 0) * mix;
@@ -370,8 +414,7 @@
     const manualIntent = Math.abs(vUser.bright || 0) / 22 + Math.abs((vUser.gamma || 1) - 1) / 0.14 + Math.abs((vUser.contrast || 1) - 1) / 0.14 + Math.abs((vUser.sat || 100) - 100) / 35 + Math.abs(vUser.temp || 0) / 9 + Math.abs(vUser.sharp || 0) / 35 + Math.abs(vUser.sharp2 || 0) / 35 + Math.abs(vUser.clarity || 0) / 30;
     const manualIntent01 = clamp(manualIntent / 2.2, 0, 1); const styleMix = 1.00 - 0.18 * manualIntent01;
     out.gain = gain; out.gamma = clamp(gamma, 0.5, 2.5); out.contrast = clamp(contrast, 0.5, 2.3); out.bright = clamp(bright, -50, 50); out.mid = clamp(((A.mid || 0) * styleMix), -1, 1); out.sharp = clamp(sharp, 0, 50); out.sharp2 = clamp(sharp2, 0, 50); out.clarity = clamp(clarity, 0, 50); out.dither = vUser.dither || 0; out.temp = clamp(temp, -25, 25);
-    out.toe = clamp(((A.toe || 0) * styleMix) + GVF_BASE_TOE, 0, 15); // 더 깊은 블랙
-    out.shoulder = (A.shoulder || 0) * styleMix;
+    out.toe = clamp(((A.toe || 0) * styleMix) + GVF_BASE_TOE, 0, 15); out.shoulder = (A.shoulder || 0) * styleMix;
     applyTempSatCap(out, clamp);
     if (vUser.tonePreset && vUser.tonePreset !== 'off' && vUser.tonePreset !== 'neutral') { const toneAeProfileName = vUser.ae ? (resolvedAeProfileName || vUser.aeProfile || 'auto') : null; applyTonePreset2Inline(out, vUser.tonePreset, vUser.toneStrength, toneAeProfileName, Utils); applyTempSatCap(out, clamp); out.contrast = clamp(out.contrast, 0.5, 2.3); out.bright   = clamp(out.bright, -50, 50); }
     return out;
@@ -478,7 +521,8 @@
         if (st.bcLinKey !== bcLinKey) { st.bcLinKey = bcLinKey; for (const fn of nodes.bcLinFuncs) { fn.setAttribute('slope', con.toFixed(3)); fn.setAttribute('intercept', intercept.toFixed(4)); } }
         const gk = (1/clamp(s.gamma||1,0.2,3)).toFixed(4); if (st.gammaKey !== gk) { st.gammaKey = gk; for (const fn of nodes.gamFuncs) fn.setAttribute('exponent', gk); }
         setAttr(nodes.sat, 'values', clamp(s.satF ?? 1, 0, 2.5).toFixed(2), st, 'satKey');
-        const t = clamp(s.temp || 0, -25, 25); let rs = 1, gs = 1, bs = 1; if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.01; } else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.01; } const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`; if (st.tempKey !== tmk) { st.tempKey = tmk; nodes.tmpFuncs[0].setAttribute('slope', rs.toFixed(3)); nodes.tmpFuncs[1].setAttribute('slope', gs.toFixed(3)); nodes.tmpFuncs[2].setAttribute('slope', bs.toFixed(3)); }
+        const { rs, gs, bs } = tempToRgbGain(s.temp);
+        const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`; if (st.tempKey !== tmk) { st.tempKey = tmk; nodes.tmpFuncs[0].setAttribute('slope', rs.toFixed(3)); nodes.tmpFuncs[1].setAttribute('slope', gs.toFixed(3)); nodes.tmpFuncs[2].setAttribute('slope', bs.toFixed(3)); }
         const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
         if (st.detailKey !== dk) { st.detailKey = dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8; setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.75 - sc(Math.min(1, v1)) * 0.3).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3'); const v2 = (s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 3.8; setAttr(nodes.b2, 'stdDeviation', v2 > 0 ? '0.28' : '0', st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3'); const clVal = (s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3'); }
         const amt = clamp((s.dither || 0) / 100, 0, 1), nk = `${(amt * 0.04).toFixed(4)}|${(-0.5 * amt * 0.04).toFixed(4)}`; if (st.noiseKey !== nk) { st.noiseKey = nk; nodes.feComp.setAttribute('k3', (amt * 0.04).toFixed(4)); nodes.feComp.setAttribute('k4', (-0.5 * amt * 0.04).toFixed(4)); }
@@ -494,53 +538,134 @@
 
   function createFiltersWebGL(Utils) {
     const { clamp } = Utils; const pipelines = new WeakMap();
-    class WebGL2Pipeline {
-      constructor() { this.canvas = null; this.gl = null; this.program = null; this.videoTexture = null; this.video = null; this.active = false; this.rafId = null; this.vVals = null; this.originalParent = null; this.originalNextSibling = null; this.originalStyle = null; }
+
+    function compileShaderChecked(gl, type, source) {
+      const shader = gl.createShader(type);
+      if (!shader) throw new Error('gl.createShader failed');
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const log = gl.getShaderInfoLog(shader) || '(no log)';
+        gl.deleteShader(shader);
+        throw new Error(`Shader compile failed: ${log}`);
+      }
+      return shader;
+    }
+
+    function linkProgramChecked(gl, vs, fs) {
+      const program = gl.createProgram();
+      if (!program) throw new Error('gl.createProgram failed');
+      gl.attachShader(program, vs);
+      gl.attachShader(program, fs);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const log = gl.getProgramInfoLog(program) || '(no log)';
+        gl.deleteProgram(program);
+        throw new Error(`Program link failed: ${log}`);
+      }
+      return program;
+    }
+
+    class WebGLPipeline {
+      constructor() {
+        this.canvas = null; this.gl = null; this.program = null; this.videoTexture = null;
+        this.video = null; this.active = false; this.vVals = null;
+        this.originalParent = null; this.originalNextSibling = null; this.restoreVideoStyle = null;
+        this.renderDriver = createFrameDriver();
+        this.uploadFailCount = 0; this.disabledUntil = 0;
+      }
       init() {
         this.canvas = document.createElement('canvas'); this.canvas.style.width = '100%'; this.canvas.style.height = '100%'; this.canvas.style.objectFit = 'contain'; this.canvas.style.display = 'block';
-        let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: true, powerPreference: 'high-performance' }); if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: true }); if (!gl) return false; this.gl = gl;
+        let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+        if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+        if (!gl) return false; this.gl = gl;
         const vsSource = `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`;
         const fsSource = `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; color = color + (color - blur) * uParams2.y * 3.0; color = clamp(color, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); color = luma + (color - luma) * uParams.z; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`;
-        const compileShader = (type, source) => { const shader = gl.createShader(type); gl.shaderSource(shader, source); gl.compileShader(shader); return shader; };
-        const vs = compileShader(gl.VERTEX_SHADER, vsSource), fs = compileShader(gl.FRAGMENT_SHADER, fsSource);
-        this.program = gl.createProgram(); gl.attachShader(this.program, vs); gl.attachShader(this.program, fs); gl.linkProgram(this.program); gl.useProgram(this.program);
-        this.uResolution = gl.getUniformLocation(this.program, 'uResolution'); this.uVideoTex = gl.getUniformLocation(this.program, 'uVideoTex'); this.uParams = gl.getUniformLocation(this.program, 'uParams'); this.uParams2 = gl.getUniformLocation(this.program, 'uParams2'); this.uRGBGain = gl.getUniformLocation(this.program, 'uRGBGain');
-        const aPosition = gl.getAttribLocation(this.program, 'aPosition'), aTexCoord = gl.getAttribLocation(this.program, 'aTexCoord'), vertices = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); const tCoords = new Float32Array([0,0, 1,0, 0,1, 1,1]);
-        this.vBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); gl.enableVertexAttribArray(aPosition); gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
-        this.tBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.bufferData(gl.ARRAY_BUFFER, tCoords, gl.STATIC_DRAW); gl.enableVertexAttribArray(aTexCoord); gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
-        this.videoTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        return true;
+
+        try {
+          const vs = compileShaderChecked(gl, gl.VERTEX_SHADER, vsSource);
+          const fs = compileShaderChecked(gl, gl.FRAGMENT_SHADER, fsSource);
+          this.program = linkProgramChecked(gl, vs, fs);
+          gl.useProgram(this.program);
+          gl.deleteShader(vs); gl.deleteShader(fs);
+
+          this.uResolution = gl.getUniformLocation(this.program, 'uResolution'); this.uVideoTex = gl.getUniformLocation(this.program, 'uVideoTex'); this.uParams = gl.getUniformLocation(this.program, 'uParams'); this.uParams2 = gl.getUniformLocation(this.program, 'uParams2'); this.uRGBGain = gl.getUniformLocation(this.program, 'uRGBGain');
+          const aPosition = gl.getAttribLocation(this.program, 'aPosition'), aTexCoord = gl.getAttribLocation(this.program, 'aTexCoord'), vertices = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); const tCoords = new Float32Array([0,0, 1,0, 0,1, 1,1]);
+          this.vBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); gl.enableVertexAttribArray(aPosition); gl.vertexAttribPointer(aPosition, 2, gl.FLOAT, false, 0, 0);
+          this.tBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.bufferData(gl.ARRAY_BUFFER, tCoords, gl.STATIC_DRAW); gl.enableVertexAttribArray(aTexCoord); gl.vertexAttribPointer(aTexCoord, 2, gl.FLOAT, false, 0, 0);
+          this.videoTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          return true;
+        } catch (err) {
+          try { console.warn('[VSC] WebGL init failed:', err); } catch (_) {}
+          this.disposeGLResources(); return false;
+        }
       }
       attachToVideo(video) {
         if (!this.active && !this.init()) return false;
-        this.video = video; this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling; this.originalStyle = video.getAttribute('style') || '';
-        video.style.setProperty('position', 'absolute', 'important'); video.style.setProperty('opacity', '0', 'important'); video.style.setProperty('pointer-events', 'none', 'important'); video.style.setProperty('width', '1px', 'important'); video.style.setProperty('height', '1px', 'important');
+        this.video = video; this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling;
+        this.restoreVideoStyle = patchInlineStyleImportant(video, { position: 'absolute', opacity: '0', pointerEvents: 'none', width: '1px', height: '1px' });
         if (this.originalParent) { if (this.originalNextSibling) this.originalParent.insertBefore(this.canvas, this.originalNextSibling); else this.originalParent.appendChild(this.canvas); }
         this.active = true; this.startRenderLoop(); return true;
       }
       updateParams(vVals) { this.vVals = vVals; }
       render() {
         if (!this.active || !this.gl || !this.video || !this.vVals) return; const gl = this.gl, video = this.video;
+        const now = performance.now(); if (now < this.disabledUntil) return;
         if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
         if (this.canvas.parentNode !== video.parentNode && video.parentNode) { this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling; video.parentNode.insertBefore(this.canvas, video.nextSibling); }
         const cs = window.getComputedStyle(video); if (this.canvas.style.objectFit !== cs.objectFit) { this.canvas.style.objectFit = cs.objectFit || 'contain'; }
         const w = video.videoWidth, h = video.videoHeight; if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); gl.uniform2f(this.uResolution, w, h); }
-        const t = clamp(this.vVals.temp || 0, -25, 25); let rs = 1, gs = 1, bs = 1; if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.01; } else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.01; }
+        const { rs, gs, bs } = tempToRgbGain(this.vVals.temp);
         gl.uniform4f(this.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0); gl.uniform4f(this.uParams2, this.vVals.bright || 0.0, (this.vVals.sharp || 0) / 50.0, this.vVals.dither || 0.0, 0.0); gl.uniform3f(this.uRGBGain, rs, gs, bs);
-        try { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); } catch (_) {}
+        try {
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          this.uploadFailCount = 0;
+        } catch (_) {
+          this.uploadFailCount++;
+          if (this.uploadFailCount >= 6) { this.disabledUntil = now + 3000; this.uploadFailCount = 0; }
+        }
       }
-      startRenderLoop() { if (this.rafId) cancelAnimationFrame(this.rafId); let lastT = 0; const loop = (t) => { if (!this.active || !this.video) return; if (t - lastT >= 16) { lastT = t; this.render(); } this.rafId = requestAnimationFrame(loop); }; this.rafId = requestAnimationFrame(loop); }
-      shutdown() { this.active = false; if (this.rafId) cancelAnimationFrame(this.rafId); if (this.video) this.video.setAttribute('style', this.originalStyle || ''); if (this.canvas && this.canvas.parentNode) this.canvas.parentNode.removeChild(this.canvas); }
+      startRenderLoop() {
+        const loopFn = (now, meta) => {
+          if (!this.active || !this.video) return;
+          this.render();
+          this.renderDriver.scheduleVideoFrame(this.video, loopFn, 'raf');
+        };
+        this.renderDriver.scheduleVideoFrame(this.video, loopFn, 'raf');
+      }
+      disposeGLResources() {
+        const gl = this.gl; if (!gl) return;
+        try {
+          if (this.videoTexture) { gl.deleteTexture(this.videoTexture); this.videoTexture = null; }
+          if (this.vBuf) { gl.deleteBuffer(this.vBuf); this.vBuf = null; }
+          if (this.tBuf) { gl.deleteBuffer(this.tBuf); this.tBuf = null; }
+          if (this.program) { gl.deleteProgram(this.program); this.program = null; }
+        } catch (_) {}
+        this.gl = null;
+      }
+      shutdown() {
+        this.active = false; this.renderDriver.clear();
+        try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null;
+        if (this.canvas && this.canvas.parentNode) this.canvas.parentNode.removeChild(this.canvas);
+        this.disposeGLResources();
+      }
     }
-    return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGL2Pipeline(); if (!pipe.attachToVideo(el)) return; pipelines.set(el, pipe); } pipe.updateParams(vVals); }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
+    return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); if (!pipe.attachToVideo(el)) return; pipelines.set(el, pipe); } pipe.updateParams(vVals); }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
   }
-
-  const WORKER_CODE = `const histAll = new Uint32Array(256), histTop = new Uint32Array(256), histBot = new Uint32Array(256), histMid = new Uint32Array(256); let prevFrame = null, offCanvas = null, offCtx = null; function pctFromHist(h, n, p) { const t = n * p; let a = 0; for(let i=0;i<256;i++){ a += h[i]; if(a >= t) return i/255; } return 1; } function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); } function skinLikeYCbCr(r, g, b, y8) { if (y8 < 35 || y8 > 235) return 0; const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b; const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b; if (cb < 77 || cb > 127 || cr < 133 || cr > 173) return 0; const cbD = Math.abs(cb - 102) / 25; const crD = Math.abs(cr - 153) / 20; const chromaScore = clamp01(1 - (cbD * 0.55 + crD * 0.70)); const bf = b / 255, rf = r / 255, gf = g / 255; const antiBlue = clamp01(1 - Math.max(0, (bf - rf) * 1.8)); const rgBalance = clamp01(1 - Math.abs((rf - gf) - 0.08) * 2.8); return chromaScore * (0.65 + 0.35 * antiBlue) * (0.60 + 0.40 * rgBalance); } self.onmessage = function(e) { const {buf, bitmap, width, height, step, token, seq, epoch, mediaTime} = e.data || {}; if(!width || !height) return; let data; if (bitmap) { if (!offCanvas) { offCanvas = new OffscreenCanvas(width, height); offCtx = offCanvas.getContext('2d', { willReadFrequently: true, alpha: false }); } else if (offCanvas.width !== width || offCanvas.height !== height) { offCanvas.width = width; offCanvas.height = height; } offCtx.drawImage(bitmap, 0, 0, width, height); data = offCtx.getImageData(0, 0, width, height).data; bitmap.close(); } else if (buf) { data = new Uint8ClampedArray(buf); } else { return; } let diff = 0, mCnt = 0, j = 0; const stepM = step; const pLen = Math.ceil(data.length / (4 * stepM)); if (!prevFrame || prevFrame.length !== pLen) { prevFrame = new Uint8Array(pLen); for (let i = 0; i < data.length; i += 4 * stepM) { prevFrame[j++] = (0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]) | 0; } diff = 0; } else { for (let i = 0; i < data.length && j < prevFrame.length; i += 4 * stepM) { const y = (0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]) | 0; diff += Math.abs(y - prevFrame[j]); prevFrame[j++] = y; mCnt++; } } const motion01 = mCnt ? Math.min(1, Math.max(0, (diff / mCnt) / 28)) : 1; histAll.fill(0); histTop.fill(0); histBot.fill(0); histMid.fill(0); let sumAll=0, sumSqAll=0, nAll=0; let sumTop=0, sumSqTop=0, nTop=0; let sumMid=0, sumSqMid=0, nMid=0; let clipAll=0, clipBottom=0, clipTop=0, clipLowAll=0; let botSum=0, botSumSq=0, botN=0; let botBrightRows=0, botRowCount=0; let botWhitePix=0, botPix=0, botEdgePix=0, botEdgePairs=0, botTextLikePix=0; let rSum=0, gSum=0, bSum=0, skinCnt=0, skinAcc=0; const botY0 = Math.floor(height * 0.78); const midY0 = Math.floor(height * 0.18); const midY1 = Math.floor(height * 0.82); const stride = width * 4; for(let y=0; y<height; y+=step){ const row = y*stride; const isTop = (y < botY0); const isBottom = !isTop; const isMid = (y >= midY0 && y < midY1); let rowSum=0, rowSumSq=0, rowCnt=0; let prevRowY = -1; for(let x=0; x<width; x+=step){ const i = row + x*4; const r = data[i], g = data[i+1], b = data[i+2]; const Y = (0.2126*r + 0.7152*g + 0.0722*b) | 0; histAll[Y]++; sumAll += Y; sumSqAll += Y*Y; nAll++; rSum += r; gSum += g; bSum += b; if(isTop) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; } else { histBot[Y]++; botSum += Y; botSumSq += Y*Y; botN++; } if(isMid) { histMid[Y]++; sumMid += Y; sumSqMid += Y*Y; nMid++; } if(Y >= 251){ clipAll++; if(isBottom) clipBottom++; if(isTop) clipTop++; } if(Y <= 4){ clipLowAll++; } if(isBottom){ botPix++; rowSum += Y; rowSumSq += Y*Y; rowCnt++; if (Y > 228) botWhitePix++; if (prevRowY >= 0) { const dY = Math.abs(Y - prevRowY); botEdgePairs++; if (dY > 24) botEdgePix++; if (Y > 205 && dY > 18) botTextLikePix++; } prevRowY = Y; } const s = skinLikeYCbCr(r, g, b, Y); if (s > 0) { const nx = (x / Math.max(1, width - 1)) * 2 - 1; const ny = (y / Math.max(1, height - 1)) * 2 - 1; const centerW = clamp01(1 - (Math.abs(nx) * 0.55 + Math.abs(ny) * 0.35)); skinAcc += s * (0.70 + 0.30 * centerW); skinCnt++; } } if (isBottom && rowCnt > 0){ botRowCount++; const avg = rowSum / rowCnt, varr = (rowSumSq / rowCnt) - avg*avg, std = Math.sqrt(Math.max(0,varr)); if (avg > 236 && std < 8.5) botBrightRows++; } } const avgAll = nAll ? (sumAll/nAll) : 0, varAll = nAll ? (sumSqAll/nAll - avgAll*avgAll) : 0, stdAll = Math.sqrt(Math.max(0,varAll))/255; const avgTop = nTop ? (sumTop/nTop) : avgAll, varTop = nTop ? (sumSqTop/nTop - avgTop*avgTop) : varAll, stdTop = Math.sqrt(Math.max(0,varTop))/255; const avgMid = nMid ? (sumMid/nMid) : avgAll, varMid = nMid ? (sumSqMid/nMid - avgMid*avgMid) : varAll, stdMid = Math.sqrt(Math.max(0,varMid))/255; const botAvg = botN ? (botSum/botN)/255 : 0, botVar = botN ? (botSumSq/botN - (botSum/botN)**2) : 0, botStd = Math.sqrt(Math.max(0,botVar))/255; const cfAll = Math.min(1, stdAll/0.22), cfTop = Math.min(1, stdTop/0.22), cfMid = Math.min(1, stdMid/0.22); const rgbSum = (rSum+gSum+bSum) || 1, redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28)), skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.22) : 0; const botWhiteFrac = botPix ? (botWhitePix / botPix) : 0; const botEdgeFrac = botEdgePairs ? (botEdgePix / botEdgePairs) : 0; const botTextLike = botPix ? (botTextLikePix / botPix) : 0; self.postMessage({ token, seq, epoch, mediaTime, motion01, p05: pctFromHist(histAll, nAll, 0.05), p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98), avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0, clipFracTop: nTop ? (clipTop/nTop) : 0, clipLowFrac: nAll ? (clipLowAll/nAll) : 0, p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98), stdDevT: stdTop, cfT: cfTop, p10M: pctFromHist(histMid, nMid || 1, 0.10), p35M: pctFromHist(histMid, nMid || 1, 0.35), p50M: pctFromHist(histMid, nMid || 1, 0.50), p90M: pctFromHist(histMid, nMid || 1, 0.90), p95M: pctFromHist(histMid, nMid || 1, 0.95), p98M: pctFromHist(histMid, nMid || 1, 0.98), stdDevM: stdMid, cfM: cfMid, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, botP95: pctFromHist(histBot, botN || 1, 0.95), botBrightRows, botRowCount, botWhiteFrac, botEdgeFrac, botTextLike, redDominance, skinScore }); };`;
+const WORKER_CODE = `const histAll = new Uint32Array(256), histTop = new Uint32Array(256), histBot = new Uint32Array(256), histMid = new Uint32Array(256); let prevFrame = null, offCanvas = null, offCtx = null; function pctFromHist(h, n, p) { const t = n * p; let a = 0; for(let i=0;i<256;i++){ a += h[i]; if(a >= t) return i/255; } return 1; } function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); } function skinLikeYCbCr(r, g, b, y8) { if (y8 < 35 || y8 > 235) return 0; const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b; const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b; if (cb < 77 || cb > 127 || cr < 133 || cr > 173) return 0; const cbD = Math.abs(cb - 102) / 25; const crD = Math.abs(cr - 153) / 20; const chromaScore = clamp01(1 - (cbD * 0.55 + crD * 0.70)); const bf = b / 255, rf = r / 255, gf = g / 255; const antiBlue = clamp01(1 - Math.max(0, (bf - rf) * 1.8)); const rgBalance = clamp01(1 - Math.abs((rf - gf) - 0.08) * 2.8); return chromaScore * (0.65 + 0.35 * antiBlue) * (0.60 + 0.40 * rgBalance); } self.onmessage = function(e) { const {buf, bitmap, width, height, step, token, seq, epoch, mediaTime} = e.data || {}; if(!width || !height) return; let data; if (bitmap) { if (!offCanvas) { offCanvas = new OffscreenCanvas(width, height); offCtx = offCanvas.getContext('2d', { willReadFrequently: true, alpha: false }); } else if (offCanvas.width !== width || offCanvas.height !== height) { offCanvas.width = width; offCanvas.height = height; } offCtx.drawImage(bitmap, 0, 0, width, height); data = offCtx.getImageData(0, 0, width, height).data; bitmap.close(); } else if (buf) { data = new Uint8ClampedArray(buf); } else { return; } let diff = 0, mCnt = 0, j = 0; const stepM = step; const pLen = Math.ceil(data.length / (4 * stepM)); if (!prevFrame || prevFrame.length !== pLen) { prevFrame = new Uint8Array(pLen); for (let i = 0; i < data.length; i += 4 * stepM) { prevFrame[j++] = (0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]) | 0; } diff = 0; } else { for (let i = 0; i < data.length && j < prevFrame.length; i += 4 * stepM) { const y = (0.2126*data[i] + 0.7152*data[i+1] + 0.0722*data[i+2]) | 0; diff += Math.abs(y - prevFrame[j]); prevFrame[j++] = y; mCnt++; } } const motion01 = mCnt ? Math.min(1, Math.max(0, (diff / mCnt) / 28)) : 1; histAll.fill(0); histTop.fill(0); histBot.fill(0); histMid.fill(0); let sumAll=0, sumSqAll=0, nAll=0; let sumTop=0, sumSqTop=0, nTop=0; let sumMid=0, sumSqMid=0, nMid=0; let clipAll=0, clipBottom=0, clipTop=0, clipLowAll=0; let botSum=0, botSumSq=0, botN=0; let botBrightRows=0, botRowCount=0; let botWhitePix=0, botPix=0, botEdgePix=0, botEdgePairs=0, botTextLikePix=0; let rSum=0, gSum=0, bSum=0, skinCnt=0, skinAcc=0; const botY0 = Math.floor(height * 0.78); const midY0 = Math.floor(height * 0.18); const midY1 = Math.floor(height * 0.82); const stride = width * 4; for(let y=0; y<height; y+=step){ const row = y*stride; const isUpperBand = (y < botY0); const isBottomBand = !isUpperBand; const isMid = (y >= midY0 && y < midY1); let rowSum=0, rowSumSq=0, rowCnt=0; let prevRowY = -1; for(let x=0; x<width; x+=step){ const i = row + x*4; const r = data[i], g = data[i+1], b = data[i+2]; const Y = (0.2126*r + 0.7152*g + 0.0722*b) | 0; histAll[Y]++; sumAll += Y; sumSqAll += Y*Y; nAll++; rSum += r; gSum += g; bSum += b; if(isUpperBand) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; } else { histBot[Y]++; botSum += Y; botSumSq += Y*Y; botN++; } if(isMid) { histMid[Y]++; sumMid += Y; sumSqMid += Y*Y; nMid++; } if(Y >= 251){ clipAll++; if(isBottomBand) clipBottom++; if(isUpperBand) clipTop++; } if(Y <= 4){ clipLowAll++; } if(isBottomBand){ botPix++; rowSum += Y; rowSumSq += Y*Y; rowCnt++; if (Y > 228) botWhitePix++; if (prevRowY >= 0) { const dY = Math.abs(Y - prevRowY); botEdgePairs++; if (dY > 24) botEdgePix++; if (Y > 205 && dY > 18) botTextLikePix++; } prevRowY = Y; } const s = skinLikeYCbCr(r, g, b, Y); if (s > 0) { const nx = (x / Math.max(1, width - 1)) * 2 - 1; const ny = (y / Math.max(1, height - 1)) * 2 - 1; const centerW = clamp01(1 - (Math.abs(nx) * 0.55 + Math.abs(ny) * 0.35)); skinAcc += s * (0.70 + 0.30 * centerW); skinCnt++; } } if (isBottomBand && rowCnt > 0){ botRowCount++; const avg = rowSum / rowCnt, varr = (rowSumSq / rowCnt) - avg*avg, std = Math.sqrt(Math.max(0,varr)); if (avg > 236 && std < 8.5) botBrightRows++; } } const avgAll = nAll ? (sumAll/nAll) : 0, varAll = nAll ? (sumSqAll/nAll - avgAll*avgAll) : 0, stdAll = Math.sqrt(Math.max(0,varAll))/255; const avgTop = nTop ? (sumTop/nTop) : avgAll, varTop = nTop ? (sumSqTop/nTop - avgTop*avgTop) : varAll, stdTop = Math.sqrt(Math.max(0,varTop))/255; const avgMid = nMid ? (sumMid/nMid) : avgAll, varMid = nMid ? (sumSqMid/nMid - avgMid*avgMid) : varAll, stdMid = Math.sqrt(Math.max(0,varMid))/255; const botAvg = botN ? (botSum/botN)/255 : 0, botVar = botN ? (botSumSq/botN - (botSum/botN)**2) : 0, botStd = Math.sqrt(Math.max(0,botVar))/255; const cfAll = Math.min(1, stdAll/0.22), cfTop = Math.min(1, stdTop/0.22), cfMid = Math.min(1, stdMid/0.22); const rgbSum = (rSum+gSum+bSum) || 1, redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28)), skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.22) : 0; const botWhiteFrac = botPix ? (botWhitePix / botPix) : 0; const botEdgeFrac = botEdgePairs ? (botEdgePix / botEdgePairs) : 0; const botTextLike = botPix ? (botTextLikePix / botPix) : 0; self.postMessage({ token, seq, epoch, mediaTime, motion01, p05: pctFromHist(histAll, nAll, 0.05), p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98), avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0, clipFracTop: nTop ? (clipTop/nTop) : 0, clipLowFrac: nAll ? (clipLowAll/nAll) : 0, p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98), stdDevT: stdTop, cfT: cfTop, p10M: pctFromHist(histMid, nMid || 1, 0.10), p35M: pctFromHist(histMid, nMid || 1, 0.35), p50M: pctFromHist(histMid, nMid || 1, 0.50), p90M: pctFromHist(histMid, nMid || 1, 0.90), p95M: pctFromHist(histMid, nMid || 1, 0.95), p98M: pctFromHist(histMid, nMid || 1, 0.98), stdDevM: stdMid, cfM: cfMid, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, botP95: pctFromHist(histBot, botN || 1, 0.95), botBrightRows, botRowCount, botWhiteFrac, botEdgeFrac, botTextLike, redDominance, skinScore }); };`;
 
   function createAE(sm, { IS_MOBILE, Utils }, onAE) {
-    let worker = null, workerUrl = null, canvas = null, ctx2d = null, activeVideo = null, isRunning = false, workerBusy = false, targetToken = 0;
+    let worker = null, workerUrl = null, canvas = null, ctx2d = null, activeVideo = null, isRunning = false, targetToken = 0;
     let __userLock01 = 0; const setUserLock01 = (v) => { __userLock01 = Utils.clamp(v || 0, 0, 1); };
-    let loopToken = 0; const scheduleNextLoop = (token, v) => { const cb = (now, meta) => loop(token, meta); if (v && v.requestVideoFrameCallback && !v.paused) { try { v.requestVideoFrameCallback(cb); return; } catch (_) {} } setTimeout(() => cb(performance.now(), null), 90); };
+
+    const loopDriver = createFrameDriver();
+    let loopToken = 0;
+    const scheduleNextLoop = (token, v) => {
+      loopDriver.scheduleVideoFrame(v, (now, meta) => loop(token, meta), 'raf', 90);
+    };
+
     let lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 };
     let lastApplyT = 0, lastEmaT = 0, lastLuma = -1, lastSampleT = 0, curGain = 1.0, __motion01 = 1, sampleCount = 0, lastLoopT = 0;
     let __autoProfile = 'standard', __autoHoldUntil = 0, __lastMeta = { hiRisk: 0, luma: 0, clipFrac: 0, cf: 0.5, skinScore: 0, profileResolved: 'standard', subLikely: false, p50: 0, p95: 0, p98: 0, motion01: 0 };
@@ -555,17 +680,21 @@
     const getPack = () => { const name = getResolvedProfile(), key = (IS_MOBILE ? 'm|' : 'p|') + name; if (key !== __packKey) { __packKey = key; __pack = getAePack(IS_MOBILE, name); } return __pack; };
     const riskFrom = (p95, p98, clipFrac, clipLimit) => clamp(Math.max(clamp((p95 - 0.885) / 0.095, 0, 1) * 0.70 + clamp((p98 - 0.968) / 0.028, 0, 1) * 0.90, clamp((clipFrac - clipLimit) / (clipLimit * 4.0), 0, 1)), 0, 1);
     const smoothstep01 = (x) => { x = clamp(x, 0, 1); return x * x * (3 - 2 * x); };
-    function recycleWorkerJob(job) { if (!job) return; try { if (typeof job.recycle === 'function') { job.recycle(); return; } } catch (_) {} try { const bmp = job.msg?.bitmap; if (bmp && typeof bmp.close === 'function') bmp.close(); } catch (_) {} try { if (job.msg && job.msg.buf) job.msg.buf = null; } catch (_) {} }
+
+    const isWorkerBusy = () => (__inFlight > 0);
+
+    function recycleWorkerJob(job) { if (!job) return; try { if (typeof job.recycle === 'function') { job.recycle(); return; } } catch (_) {} try { const bmp = job.msg?.bitmap; if (bmp && typeof bmp.close === 'function') bmp.close(); } catch (_) {} }
     function clearPendingWorkerJob() { recycleWorkerJob(__pendingWorkerJob); __pendingWorkerJob = null; }
     function bumpAeEpoch() { __aeEpoch = ((__aeEpoch + 1) | 0) || 1; __lastAcceptedSeq = 0; __lastAcceptedMediaTime = -1; clearPendingWorkerJob(); __inFlight = 0; __workerBusySince = 0; __lastPresentedFrames = -1; }
     function isDuplicatePresentedFrame(rvfcMeta, mediaTime) { const pf = rvfcMeta && Number.isFinite(rvfcMeta.presentedFrames) ? (rvfcMeta.presentedFrames | 0) : -1; if (pf >= 0) { if (pf === __lastPresentedFrames) return true; __lastPresentedFrames = pf; return false; } if (__lastSampleMediaTime >= 0 && Math.abs((mediaTime || 0) - __lastSampleMediaTime) < 1e-4) { return true; } return false; }
     const MAX_WORKER_INFLIGHT = 1;
-    function postToWorkerNow(job) { if (!worker) return false; try { __inFlight++; if (!__workerBusySince) __workerBusySince = performance.now(); workerBusy = true; if (job.transfer && job.transfer.length) worker.postMessage(job.msg, job.transfer); else worker.postMessage(job.msg); return true; } catch (_) { __inFlight = Math.max(0, __inFlight - 1); workerBusy = false; recycleWorkerJob(job); return false; } }
+    function postToWorkerNow(job) { if (!worker) return false; try { __inFlight++; if (!__workerBusySince) __workerBusySince = performance.now(); if (job.transfer && job.transfer.length) worker.postMessage(job.msg, job.transfer); else worker.postMessage(job.msg); return true; } catch (_) { __inFlight = Math.max(0, __inFlight - 1); recycleWorkerJob(job); return false; } }
     function enqueueWorkerJobLatestWins(job) { if (!worker) { recycleWorkerJob(job); return false; } if (__inFlight < MAX_WORKER_INFLIGHT) return postToWorkerNow(job); if (__pendingWorkerJob) recycleWorkerJob(__pendingWorkerJob); __pendingWorkerJob = job; return true; }
     function flushPendingWorkerJob() { if (!worker) return; if (__inFlight >= MAX_WORKER_INFLIGHT) return; const job = __pendingWorkerJob; if (!job) return; __pendingWorkerJob = null; postToWorkerNow(job); }
     function makeWorkerJobBase({ width, height, seq, mediaTime }) { return { width, height, step: width <= 24 ? 1 : 2, token: targetToken, seq, epoch: __aeEpoch, mediaTime }; }
     function enqueueBitmapJob(bitmap, w, h, seq, mediaTime) { return enqueueWorkerJobLatestWins({ msg: { bitmap, ...makeWorkerJobBase({ width: w, height: h, seq, mediaTime }) }, transfer: [bitmap], recycle() { try { bitmap.close(); } catch (_) {} } }); }
-    function enqueueBufferJob(buf, w, h, seq, mediaTime, d) { return enqueueWorkerJobLatestWins({ msg: { buf, ...makeWorkerJobBase({ width: w, height: h, seq, mediaTime }) }, transfer: [buf], recycle() { try { if (d) d.data = null; } catch (_) {} } }); }
+    function enqueueBufferJob(buf, w, h, seq, mediaTime) { return enqueueWorkerJobLatestWins({ msg: { buf, ...makeWorkerJobBase({ width: w, height: h, seq, mediaTime }) }, transfer: [buf] }); }
+
     function createDecodeStressTracker() { const stMap = new WeakMap(); return { getStress01(v) { try { if (!v) return 0; const q = v.getVideoPlaybackQuality?.(); let st = stMap.get(v); if (!st) { st = { lastTotal: 0, lastDropped: 0, ema: 0 }; stMap.set(v, st); } if (!q) return st.ema; const total = q.totalVideoFrames || 0; const dropped = q.droppedVideoFrames || 0; if (total < st.lastTotal || dropped < st.lastDropped) { st.lastTotal = total; st.lastDropped = dropped; st.ema = 0; return st.ema; } const dTotal = Math.max(0, total - st.lastTotal); const dDrop = Math.max(0, dropped - st.lastDropped); st.lastTotal = total; st.lastDropped = dropped; const ratio = dTotal > 0 ? (dDrop / dTotal) : 0; const s = Math.max(0, Math.min(1, ratio / 0.12)); st.ema = st.ema <= 0 ? s : (st.ema * 0.82 + s * 0.18); return st.ema; } catch (_) { return 0; } }, reset(v) { if (v) stMap.delete(v); } }; }
     const decodeStress = createDecodeStressTracker();
     function computeAdaptiveSampleIntervalMs(v, now) { const paused = !!v?.paused; const rate = (v && Number.isFinite(v.playbackRate) && v.playbackRate > 0) ? v.playbackRate : 1; const risk01 = clamp(__lastMeta?.hiRisk ?? 0, 0, 1); const subLikely = !!(__lastMeta?.subLikely); const cf01 = clamp(lastStats.cf ?? 0.5, 0, 1); const stableScene = (__motion01 < 0.10) && (cf01 > 0.22); const sameTargetAndStable = stableScene && risk01 < 0.25; const gainDeltaEv = Math.abs(Math.log2(Math.max(1e-6, curGain)) - Math.log2(Math.max(1e-6, __lastSampleCheckGain))); const gainStable = gainDeltaEv < 0.03; let ms = paused ? 520 : (CONFIG.IS_LOW_END ? 112 : 82); ms += (1 - __motion01) * 72; ms -= risk01 * 20; if (now < __aeBurstUntil) ms *= 0.58; if (subLikely) ms *= 0.82; if (sameTargetAndStable) ms *= gainStable ? 1.85 : 1.20; const warmup01 = clamp(sampleCount / 4, 0, 1); ms *= (1.00 - (1 - warmup01) * 0.28); ms *= (1 + __userLock01 * 2.8); ms *= (1 + Math.min(4, __workerStallStreak) * 0.16); ms /= Math.min(2.4, Math.max(0.65, rate)); const decodeStress01 = decodeStress.getStress01(v); if (decodeStress01 > 0.05) ms *= (1 + decodeStress01 * 1.1); if (paused) return clamp(ms, 180, 1200); return clamp(ms, CONFIG.IS_LOW_END ? 38 : 28, CONFIG.IS_LOW_END ? 240 : 190); }
@@ -575,8 +704,8 @@
     function smoothLook(look, dtMs, motion01, risk01) { const dt = Math.min(220, dtMs); const tauBright = 140 + (1 - motion01) * 80 + risk01 * 40; const tauMid = 160 + (1 - motion01) * 100 + risk01 * 50; const tauCon = 190 + (1 - motion01) * 120 + risk01 * 60; const tauSat = 230 + (1 - motion01) * 140 + risk01 * 80; const tauToe = 260 + (1 - motion01) * 150 + risk01 * 100; const tauSh = 280 + (1 - motion01) * 160 + risk01 * 120; const aBright = 1 - Math.exp(-dt / Math.max(80, tauBright)); const aMid = 1 - Math.exp(-dt / Math.max(90, tauMid)); const aCon = 1 - Math.exp(-dt / Math.max(100, tauCon)); const aSat = 1 - Math.exp(-dt / Math.max(110, tauSat)); const aToe = 1 - Math.exp(-dt / Math.max(120, tauToe)); const aSh = 1 - Math.exp(-dt / Math.max(130, tauSh)); if (!__lookEmaInit) { __lookEma = { ...look }; __lookEmaInit = true; return look; } __lookEma.conF += (look.conF - __lookEma.conF) * aCon; __lookEma.satF += (look.satF - __lookEma.satF) * aSat; __lookEma.mid += (look.mid - __lookEma.mid) * aMid; __lookEma.toe += (look.toe - __lookEma.toe) * aToe; __lookEma.shoulder += (look.shoulder - __lookEma.shoulder) * aSh; __lookEma.brightAdd += (look.brightAdd - __lookEma.brightAdd) * aBright; return __lookEma; }
     const computeTargetEV = (s, cfg) => { const p50 = clamp(s.p50, 0.01, 0.99), risk01 = riskFrom(s.p95 ?? s.p90, s.p98 ?? s.p95, Math.max(0, s.clipFrac ?? 0), cfg.CLIP_FRAC_LIMIT); let ev = Math.log2(clamp(cfg.TARGET_MID_BASE + clamp((0.17 - p50) / 0.11, 0, 1) * 0.050 - risk01 * 0.030, 0.20, 0.34) / clamp(p50 * 0.72 + clamp(s.p35 ?? s.p50, 0.01, 0.99) * 0.28, 0.01, 0.99)) * cfg.STRENGTH; ev = clamp(ev, cfg.MAX_DOWN_EV, cfg.MAX_UP_EV * (1 - 0.35 * risk01)); if (risk01 > 0.58) ev = Math.min(ev, 0); ev = Math.min(ev, Math.log2(Math.max(1, Math.min(0.985 / clamp(s.p98 ?? s.p95, 0.01, 0.999), 0.980 / clamp(s.p95 ?? s.p90, 0.01, 0.999)))) - (0.06 * risk01)); const deadUp = cfg.DEAD_IN; const deadDown = cfg.DEAD_IN * 0.65; if (ev >= 0 && ev < deadUp) return 0; if (ev < 0 && -ev < deadDown) return 0; return ev; };
     const computeLook = (ev, s, risk01, cfg, lookMul) => { const p50 = clamp(s.p50 ?? 0.5, 0, 1), up01 = clamp(clamp(ev / 1.55, -1, 1), 0, 1), upE = up01 * up01 * (3 - 2 * up01), lowKey01 = clamp((0.23 - p50) / 0.14, 0, 1); let brightAdd = (up01 * 7.0) * clamp(0.52 - p50, -0.22, 0.22), mid = (up01 * 0.55) * clamp((0.50 - p50) / 0.22, -1, 1), toe = (3.6 + 5.6 * upE) * lowKey01 * (1 - 0.55 * risk01), shoulder = (4.8 + 5.2 * upE) * (risk01 * 0.85 + 0.15) * (1 - 0.25 * lowKey01), conF = 1 + (up01 * 0.050) * clamp((0.46 - clamp((clamp(s.p90 ?? 0.9, 0, 1) - clamp(s.p10 ?? 0.1, 0, 1)), 0, 1)) / 0.26, 0, 1) - (0.012 * risk01), satF = 1 + (1 - clamp(s.cf ?? 0.5, 0, 1)) * 0.22 * (1 - risk01 * 0.65); brightAdd *= (1 - 0.85 * risk01); shoulder *= (1 - 0.60 * risk01); const dn01 = clamp((-ev) / 1.10, 0, 1); const dnE = dn01 * dn01 * (3 - 2 * dn01); if (dn01 > 0) { satF *= (1 - 0.05 * dn01 * (0.5 + 0.5 * risk01)); conF = 1 + (conF - 1) * (1 - 0.20 * dn01); shoulder += 1.1 * dnE * (0.4 + 0.6 * risk01); brightAdd -= 1.2 * dnE * risk01; mid -= 0.10 * dnE * (0.6 + 0.4 * risk01); toe *= (1 - 0.18 * dn01); } const bias = clamp(cfg.TONE_BIAS ?? 0, -1, 1); brightAdd *= (1 + 0.10 * bias); satF *= (1 + 0.08 * bias); conF *= (1 + 0.02 * bias); shoulder *= (1 - 0.12 * bias); toe *= (1 + 0.08 * (-bias)); const skinProtect = clamp(s.rd ?? 0, 0, 1) * 0.35; satF = satF * (1 - skinProtect * 0.35); conF = 1 + (conF - 1) * (1 - skinProtect * 0.25); shoulder *= (1 - skinProtect * 0.20 * risk01); const crush01 = clamp((0.045 - clamp(s.p05 ?? 0.05, 0, 1)) / 0.030, 0, 1) * 0.65 + clamp((clamp(s.clipLowFrac ?? 0, 0, 1) - 0.010) / 0.030, 0, 1) * 0.75; toe *= (1 - 0.55 * crush01); conF = 1 + (conF - 1) * (1 - 0.35 * crush01); let outConF = conF * (lookMul.conMul ?? 1); let outSatF = satF * (lookMul.satMul ?? 1); let outBrightAdd = brightAdd * (lookMul.brMul ?? 1); outConF = clamp(outConF, 0.90, 1.12); outSatF = clamp(outSatF, cfg.SAT_MIN, Math.min(cfg.SAT_MAX, 1.16 - 0.10 * risk01)); outBrightAdd = clamp(outBrightAdd, -14, 14); return { conF: outConF, satF: outSatF, mid: clamp(mid, -0.95, 0.95), toe: clamp(toe, 0, 14), shoulder: clamp(shoulder, 0, 16), brightAdd: outBrightAdd }; };
-    const disableAEHard = () => { try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; isRunning = false; loopToken++; targetToken++; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } __unavailable = true; };
-    const ensureWorker = () => { if (__unavailable) return null; if (worker) return worker; if (location.protocol === 'about:' || location.href === 'about:blank') { disableAEHard(); return null; } try { if (!workerUrl) { let rawUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' })); if (window.trustedTypes && window.trustedTypes.createPolicy) { try { if (!workerPolicy) workerPolicy = window.trustedTypes.createPolicy('vsc-tw-policy', { createScriptURL: s => s }); workerUrl = workerPolicy.createScriptURL(rawUrl); } catch (_) { workerUrl = rawUrl; } } else { workerUrl = rawUrl; } } worker = new Worker(workerUrl); worker.onmessage = (e) => { const d = e.data || {}; __inFlight = Math.max(0, __inFlight - 1); if (__inFlight === 0) __workerBusySince = 0; const finishWorkerTurnAndMaybeFlush = () => { workerBusy = false; flushPendingWorkerJob(); }; if (d.epoch != null && d.epoch !== __aeEpoch) return finishWorkerTurnAndMaybeFlush(); if (d.seq != null && d.seq <= __lastAcceptedSeq) return finishWorkerTurnAndMaybeFlush(); if (Number.isFinite(d.mediaTime)) { if (__lastAcceptedMediaTime >= 0 && d.mediaTime + 1e-4 < __lastAcceptedMediaTime) return finishWorkerTurnAndMaybeFlush(); __lastAcceptedMediaTime = d.mediaTime; } if (d.seq != null) __lastAcceptedSeq = d.seq; workerBusy = false; processResult(d); flushPendingWorkerJob(); }; worker.onerror = () => { workerBusy = false; disableAEHard(); }; return worker; } catch (e) { try { console.warn('[VSC] AE worker blocked by CSP/TrustedTypes. AE unavailable.'); } catch (_) {} disableAEHard(); return null; } };
+    const disableAEHard = () => { try { worker?.terminate(); } catch (_) {} worker = null; isRunning = false; loopToken++; loopDriver.clear(); targetToken++; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } __unavailable = true; };
+    const ensureWorker = () => { if (__unavailable) return null; if (worker) return worker; if (location.protocol === 'about:' || location.href === 'about:blank') { disableAEHard(); return null; } try { if (!workerUrl) { let rawUrl = URL.createObjectURL(new Blob([WORKER_CODE], { type: 'text/javascript' })); if (window.trustedTypes && window.trustedTypes.createPolicy) { try { if (!workerPolicy) workerPolicy = window.trustedTypes.createPolicy('vsc-tw-policy', { createScriptURL: s => s }); workerUrl = workerPolicy.createScriptURL(rawUrl); } catch (_) { workerUrl = rawUrl; } } else { workerUrl = rawUrl; } } worker = new Worker(workerUrl); worker.onmessage = (e) => { const d = e.data || {}; __inFlight = Math.max(0, __inFlight - 1); if (__inFlight === 0) __workerBusySince = 0; const finishWorkerTurnAndMaybeFlush = () => { flushPendingWorkerJob(); }; if (d.epoch != null && d.epoch !== __aeEpoch) return finishWorkerTurnAndMaybeFlush(); if (d.seq != null && d.seq <= __lastAcceptedSeq) return finishWorkerTurnAndMaybeFlush(); if (Number.isFinite(d.mediaTime)) { if (__lastAcceptedMediaTime >= 0 && d.mediaTime + 1e-4 < __lastAcceptedMediaTime) return finishWorkerTurnAndMaybeFlush(); __lastAcceptedMediaTime = d.mediaTime; } if (d.seq != null) __lastAcceptedSeq = d.seq; processResult(d); flushPendingWorkerJob(); }; worker.onerror = () => { disableAEHard(); }; return worker; } catch (e) { try { console.warn('[VSC] AE worker blocked. AE unavailable.'); } catch (_) {} disableAEHard(); return null; } };
     function chooseAutoProfileScored(s, risk01, prev, subLikely = false) { const p50 = clamp(s.p50 ?? 0.5, 0, 1), cf = clamp(s.cf ?? 0.5, 0, 1), clipLow = clamp(s.clipLowFrac ?? 0, 0, 1), rd = clamp(s.rd ?? 0, 0, 1); const dyn = clamp((clamp(s.p90 ?? 0.9, 0, 1) - clamp(s.p10 ?? 0.1, 0, 1)), 0, 1), flat01 = clamp((0.46 - dyn) / 0.26, 0, 1), lowKey01 = clamp((0.23 - p50) / 0.14, 0, 1); const score = { standard: 0.35 + (1 - Math.abs(p50 - 0.28) / 0.28) * 0.25 + (1 - risk01) * 0.10, bright: 0.10 + lowKey01 * 0.45 + cf * 0.15 + (1 - Math.min(1, clipLow / 0.04)) * 0.15 - risk01 * 0.15, cinemaHdr: 0.10 + flat01 * 0.25 + risk01 * 0.45 + rd * 0.10 }; if (subLikely) { score.bright -= 0.10; score.standard += 0.04; score.cinemaHdr += 0.03; } if (prev && score[prev] != null) score[prev] += 0.08; const entries = Object.entries(score).sort((a, b) => b[1] - a[1]); const [bestName, bestScore] = entries[0]; const secondScore = entries[1]?.[1] ?? -Infinity; return { next: bestName, margin: bestScore - secondScore }; }
     function chooseAutoProfileStable(s, risk01, prev, subLikely = false) { const picked = chooseAutoProfileScored(s, risk01, prev, subLikely); __autoProfileVotes.push(picked.next); if (__autoProfileVotes.length > 5) __autoProfileVotes.shift(); const cnt = { standard: 0, bright: 0, cinemaHdr: 0 }; for (const p of __autoProfileVotes) if (cnt[p] != null) cnt[p]++; let voted = prev || 'standard'; let bestN = -1; for (const [k, n] of Object.entries(cnt)) { if (n > bestN) { bestN = n; voted = k; } } return { next: voted, margin: picked.margin }; }
     function getAutoHoldMs(prev, next, changed) { if (!changed) return 1100; if ((prev === 'bright' && next === 'cinemaHdr') || (prev === 'cinemaHdr' && next === 'bright')) return 4800; return 3000; }
@@ -640,31 +769,31 @@
       const mediaTime = v.currentTime || 0; if (isDuplicatePresentedFrame(rvfcMeta, mediaTime)) { __sameFrameSkipStreak = Math.min(__sameFrameSkipStreak + 1, 255); return; } __sameFrameSkipStreak = 0;
       const now = performance.now(); let intervalMs = computeAdaptiveSampleIntervalMs(v, now); const inBurst = now < __aeBurstUntil; intervalMs += (inBurst ? -40 : +10); if (inBurst) intervalMs = Math.max(16, intervalMs);
       if (now - lastSampleT < intervalMs) return;
-      if (__inFlight >= MAX_WORKER_INFLIGHT || workerBusy) { __workerStallStreak++; lastSampleT = now - Math.min(intervalMs * 0.75, 40); return; }
+      if (__inFlight >= MAX_WORKER_INFLIGHT || isWorkerBusy()) { __workerStallStreak++; lastSampleT = now - Math.min(intervalMs * 0.75, 40); return; }
       try {
         const wk = ensureWorker(); if (!wk) return; const w = CONFIG.IS_LOW_END ? 24 : 32; const h = w; lastSampleT = now; __lastSampleCheckGain = curGain; const seq = (++__sampleSeq) | 0;
         if (window.createImageBitmap && window.OffscreenCanvas) {
           try {
             const bitmap = await createImageBitmap(v, { resizeWidth: w, resizeHeight: h, resizeQuality: 'pixelated' }); if (!isRunning) { bitmap.close(); return; } bitmapFailStreak = 0; if (!enqueueBitmapJob(bitmap, w, h, seq, mediaTime)) return;
           } catch (err) {
-            workerBusy = false; bitmapFailStreak++;
-            if (bitmapFailStreak < 3) { try { if (!canvas) { canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false }); } ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height); if (!enqueueBufferJob(d.data.buffer, canvas.width, canvas.height, seq, mediaTime, d)) return; return; } catch (_) {} }
+            bitmapFailStreak++;
+            if (bitmapFailStreak < 3) { try { if (!canvas) { canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false }); } ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height); if (!enqueueBufferJob(d.data.buffer, canvas.width, canvas.height, seq, mediaTime)) return; return; } catch (_) {} }
             v[VSCX.tainted] = true; vscSignal({ aeLevel: 2, forceApply: true });
           }
         } else {
           if (!canvas) { canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h; ctx2d = canvas.getContext('2d', { willReadFrequently: true, alpha: false }); if (!ctx2d) { v[VSCX.tainted] = true; return; } }
-          ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height); if (!enqueueBufferJob(d.data.buffer, canvas.width, canvas.height, seq, mediaTime, d)) return;
+          ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height); if (!enqueueBufferJob(d.data.buffer, canvas.width, canvas.height, seq, mediaTime)) return;
         }
-      } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
+      } catch (_) { v[VSCX.tainted] = true; }
     };
 
     const loop = (token, rvfcMeta = null) => { if (!isRunning || token !== loopToken) return; const v = activeVideo, now = performance.now(); if (sm.get(P.APP_ACT) && sm.get(P.V_AE) && v && v.isConnected && !document.hidden && now - lastLoopT > (v.paused ? 280 : (CONFIG.IS_LOW_END ? 110 : 85))) { lastLoopT = now; sample(v, rvfcMeta); } scheduleNextLoop(token, v); };
-    const invalidatePendingSample = () => { targetToken++; workerBusy = false; clearPendingWorkerJob(); __inFlight = 0; __workerBusySince = 0; __lastPresentedFrames = -1; };
+    const invalidatePendingSample = () => { targetToken++; loopDriver.clear(); clearPendingWorkerJob(); __inFlight = 0; __workerBusySince = 0; __lastPresentedFrames = -1; };
     const resetAutoClassifierState = () => { __autoProfileVotes.length = 0; __subLikelyHoldUntil = 0; __autoHoldUntil = 0; __prevSceneStats = null; };
     const hardResetStats = () => { invalidatePendingSample(); bumpAeEpoch(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; __lastLookSent = null; __subConfEma = 0; __sceneChange01 = 1; __aeBurstUntil = 0; __workerStallStreak = 0; __skinEma = 0; resetAutoClassifierState(); gainAB.reset(1.0); };
     const softResetStats = () => { invalidatePendingSample(); bumpAeEpoch(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; sampleCount = Math.min(sampleCount, 1); lastEmaT = performance.now(); lastApplyT = performance.now(); __subLikelyHoldUntil = 0; __lastLookSent = null; gainAB.reset(curGain); };
-    const stopSoft = () => { isRunning = false; loopToken++; activeVideo = null; };
-    const stopHard = () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; targetToken++; __unavailable = true; bumpAeEpoch(); };
+    const stopSoft = () => { isRunning = false; loopToken++; activeVideo = null; loopDriver.clear(); };
+    const stopHard = () => { isRunning = false; loopToken++; loopDriver.clear(); try { worker?.terminate(); } catch (_) {} worker = null; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; targetToken++; __unavailable = true; bumpAeEpoch(); };
 
     return { isUnavailable: () => __unavailable, getResolvedProfile, getMeta: () => ({ ...__lastMeta, profileResolved: getResolvedProfile() }), setTarget: (v, opts = {}) => { if (v === activeVideo) return; const prev = activeVideo; activeVideo = v; if (prev && prev !== v) { try { decodeStress.reset(prev); } catch (_) {} } curGain = opts.keepGain ? clamp(curGain, 0.60, 2.0) : 1.0; if (opts.softReset) softResetStats(); else hardResetStats(); }, start: () => { const wk = ensureWorker(); if (!wk) { isRunning = false; return; } if (!isRunning) { isRunning = true; loopToken++; lastLoopT = 0; lastApplyT = lastEmaT = performance.now(); lastSampleT = 0; loop(loopToken); } }, stop: stopSoft, stopHard: stopHard, wake: () => { lastSampleT = 0; lastLoopT = 0; }, userTweak: () => { hardResetStats(); lastSampleT = 0; lastLoopT = 0; }, __setOnAE: (fn) => { onAE = fn; }, setUserLock01, hintProfileChanged: () => { bumpAeEpoch(); hardResetStats(); } };
   }
@@ -673,8 +802,19 @@
 
   const __styleCache = new Map();
   function applyShadowStyle(shadow, cssText, h) {
-    try { if ('adoptedStyleSheets' in shadow && 'replaceSync' in CSSStyleSheet.prototype) { let sheet = __styleCache.get(cssText); if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); __styleCache.set(cssText, sheet); } shadow.adoptedStyleSheets = [...shadow.adoptedStyleSheets, sheet]; return; } } catch (_) {}
-    shadow.append(h('style', {}, cssText));
+    try {
+      if ('adoptedStyleSheets' in shadow && 'replaceSync' in CSSStyleSheet.prototype) {
+        let sheet = __styleCache.get(cssText);
+        if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); __styleCache.set(cssText, sheet); }
+        const cur = shadow.adoptedStyleSheets || [];
+        if (!cur.includes(sheet)) { shadow.adoptedStyleSheets = [...cur, sheet]; }
+        return;
+      }
+    } catch (_) {}
+    const marker = 'data-vsc-style';
+    if (!shadow.querySelector(`style[${marker}="1"]`)) {
+      shadow.append(h('style', { [marker]: '1' }, cssText));
+    }
   }
 
   function createDisposerBag() { const fns = []; return { add(fn) { if (typeof fn === 'function') fns.push(fn); return fn; }, flush() { for (let i = fns.length - 1; i >= 0; i--) { try { fns[i](); } catch (_) {} } fns.length = 0; } }; }
