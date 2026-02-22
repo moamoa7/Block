@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v81.1 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v81.2 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     81.1.0-KR-ULTRA-Infinity-Autonomous
+// @version     81.2.0-KR-ULTRA-Infinity-Autonomous
 // @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU)
 // @author      KiwiFruit
 // @match       *://*/*
@@ -21,8 +21,12 @@
     const DAY = 86400000;
     const WEEK = 7 * DAY;
 
-    // [Safe Storage Wrapper with True LRU]
+    // [Safe Storage Wrapper with True LRU & Memory Cache]
     const S = {
+        _idxCache: null,
+        _idxDirty: false,
+        _idxTimer: null,
+
         get(k) {
             try {
                 const v = localStorage.getItem(k);
@@ -38,25 +42,43 @@
         },
         remove(k) { try { localStorage.removeItem(k); } catch {} },
 
+        _getPerfXIdx() {
+            if (this._idxCache) return this._idxCache;
+            try {
+                this._idxCache = JSON.parse(localStorage.getItem('PerfX_IDX') || '[]');
+                if (!Array.isArray(this._idxCache)) this._idxCache = [];
+            } catch {
+                this._idxCache = [];
+            }
+            return this._idxCache;
+        },
+
         _trackKey(k) {
             if (!k.startsWith('PerfX_') && !k.startsWith('perfx-')) return;
             if (k === 'PerfX_IDX') return;
 
-            const idxKey = 'PerfX_IDX';
             try {
-                let idx = JSON.parse(localStorage.getItem(idxKey) || '[]');
+                const idx = this._getPerfXIdx();
                 const limit = win.matchMedia('(pointer:coarse)').matches ? 50 : 100;
 
-                // Move to end (Most Recently Used)
-                idx = idx.filter(x => x !== k);
+                const pos = idx.indexOf(k);
+                if (pos !== -1) idx.splice(pos, 1);
                 idx.push(k);
 
-                // Prune
                 while (idx.length > limit) {
                     const old = idx.shift();
-                    localStorage.removeItem(old);
+                    try { localStorage.removeItem(old); } catch {}
                 }
-                localStorage.setItem(idxKey, JSON.stringify(idx));
+
+                this._idxDirty = true;
+                if (!this._idxTimer) {
+                    this._idxTimer = setTimeout(() => {
+                        this._idxTimer = null;
+                        if (!this._idxDirty) return;
+                        this._idxDirty = false;
+                        try { localStorage.setItem('PerfX_IDX', JSON.stringify(this._idxCache || [])); } catch {}
+                    }, 250);
+                }
             } catch {}
         },
 
@@ -101,24 +123,41 @@
     const getPathBucket = () => win.location.pathname.split('/').filter(Boolean).slice(0, 2).map(normSeg).join('/');
     const fresh = (obj, ms) => obj && obj.ts && (Date.now() - obj.ts) < ms;
 
-    // ✅ Safe Event Bus
+    // ✅ Event Bus (단순화 및 EventTarget 호환)
     const Bus = {
-        _evts: {},
         on(name, fn, target = win) {
-            const key = `${name}::${target === document ? 'doc' : 'win'}`;
-            if (!this._evts[key]) {
-                this._evts[key] = [];
-                target.addEventListener(name, (e) => (this._evts[key] || []).forEach(f => f(e)));
-            }
-            this._evts[key].push(fn);
+            target.addEventListener(name, fn);
         },
-        emit(name, detail) { win.dispatchEvent(new CustomEvent(name, { detail })); }
+        emit(name, detail) { 
+            win.dispatchEvent(new CustomEvent(name, { detail })); 
+        }
     };
+
+    // ✅ BaseModule with AbortController for clean event management
+    class BaseModule {
+        constructor() {
+            this._ac = new AbortController();
+        }
+        on(target, type, listener, options) {
+            if (!target || !target.addEventListener) return;
+            const opts = (typeof options === 'object' && options !== null)
+                ? { ...options, signal: this._ac.signal }
+                : { capture: options === true, signal: this._ac.signal };
+            target.addEventListener(type, listener, opts);
+        }
+        destroy() {
+            try { this._ac.abort(); } catch {}
+        }
+        safeInit() {
+            try { this.init(); } catch (e) { log('Module Error', e); }
+        }
+        init() {}
+    }
 
     // ✅ True Distance Helper
     const viewH = () => win.visualViewport?.height || win.innerHeight;
     const distToViewport = (r) => {
-        if (!r) return -1; // -1 means Unknown (Keep it safe)
+        if (!r) return -1;
         const h = viewH();
         if (r.bottom < 0) return -r.bottom;
         if (r.top > h) return r.top - h;
@@ -128,7 +167,7 @@
     // [Safe Init] Hoist Config/API
     let Config = {
         codecMode: 'off', passive: false, gpu: false, memory: false,
-        allowIframe: false, rtcGuard: true, downgradeLevel: 0
+        allowIframe: false, rtcGuard: false, downgradeLevel: 0 // ✅ WebRTCGuard 기본 OFF
     };
 
     const API = {
@@ -136,21 +175,52 @@
         shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {}, showStatus: () => {}
     };
 
+    // ✅ Modern Scheduler (postTask/yield 우선, fallback 유지)
     const scheduler = {
-        request: (cb, timeout = 200) => (win.requestIdleCallback) ? win.requestIdleCallback(cb, { timeout }) : setTimeout(cb, timeout),
-        cancel: (id) => (id && (win.cancelIdleCallback ? win.cancelIdleCallback(id) : clearTimeout(id))),
-        raf: (cb) => win.requestAnimationFrame(cb)
+        request(cb, timeout = 200, priority = 'background') {
+            if (win.scheduler?.postTask) {
+                const ctrl = new AbortController();
+                const promise = win.scheduler.postTask(() => cb(), { delay: timeout, priority, signal: ctrl.signal });
+                return { kind: 'postTask', ctrl, promise };
+            }
+            if (win.requestIdleCallback) {
+                return { kind: 'ric', id: win.requestIdleCallback(cb, { timeout }) };
+            }
+            return { kind: 'timeout', id: setTimeout(cb, timeout) };
+        },
+        cancel(handle) {
+            if (!handle) return;
+            try {
+                if (handle.kind === 'postTask') handle.ctrl.abort();
+                else if (handle.kind === 'ric' && win.cancelIdleCallback) win.cancelIdleCallback(handle.id);
+                else if (handle.kind === 'timeout') clearTimeout(handle.id);
+            } catch {}
+        },
+        raf(cb) { return win.requestAnimationFrame(cb); },
+        async yield(priority = 'user-visible') {
+            if (win.scheduler?.yield) {
+                try { await win.scheduler.yield(); return; } catch {}
+            }
+            if (win.scheduler?.postTask) {
+                try { await win.scheduler.postTask(() => {}, { priority }); return; } catch {}
+            }
+            await new Promise(r => setTimeout(r, 0));
+        }
     };
 
-    // ✅ Robust Chunk Scan Utility
+    // ✅ Robust Chunk Scan Utility (Yield 지원)
     const scanInChunks = (list, limit, step, fn) => {
         if (!list || typeof list.length !== 'number' || list.length === 0) return;
         let i = 0;
-        const run = () => {
-            const len = list.length; // Live collection check
-            const end = Math.min(i + step, limit, len);
+        const run = async () => {
+            const len = list.length;
+            const max = Math.min(limit, len);
+            const end = Math.min(i + step, max);
             for (; i < end; i++) fn(list[i]);
-            if (i < Math.min(limit, len)) scheduler.request(run);
+            if (i < max) {
+                await scheduler.yield('background').catch(() => {});
+                scheduler.request(run, 0, 'background');
+            }
         };
         run();
     };
@@ -177,8 +247,8 @@
     };
 
     // [Constants]
-    const FEED_SEL = '[role="feed"], .feed, .list, .timeline';
-    const ITEM_SEL = '[role="article"], .item, .post, li, article, section';
+    const FEED_SEL = '[role="feed"], [data-perfx-feed], .feed, .timeline';
+    const ITEM_SEL = '[role="article"], [data-perfx-item], article, .item, .post'; // ✅ 최적화 (li, section 제거)
     const SUPPORTED_TYPES = new Set(typeof PerformanceObserver !== 'undefined' ? (PerformanceObserver.supportedEntryTypes || []) : []);
 
     // [Config & State]
@@ -323,7 +393,6 @@
 
     const perfState = {
         isLowPowerMode: baseLowPower,
-        batteryLow: false,
         perfMultiplier: 1.0,
         DOM_CAP: 2000,
         MEDIA_CAP: 800,
@@ -351,7 +420,7 @@
         const saveData = !!navigator.connection?.saveData;
         const net = navigator.connection?.effectiveType || '4g';
 
-        perfState.isLowPowerMode = baseLowPower || saveData || perfState.batteryLow;
+        perfState.isLowPowerMode = baseLowPower || saveData;
 
         let m = (hc <= 4 || dm <= 4 || isMobile) ? 0.8 : 1.0;
         if (saveData) m *= 0.85;
@@ -390,16 +459,6 @@
         Bus.emit('perfx-power-change');
     };
 
-    if ('getBattery' in navigator) {
-        navigator.getBattery().then(b => {
-            const update = () => {
-                perfState.batteryLow = (!b.charging && b.level < 0.2);
-                refreshPerfState();
-            };
-            update(); b.addEventListener('levelchange', update); b.addEventListener('chargingchange', update);
-        }).catch(() => {});
-    }
-
     let rzT = null;
     const triggerRefresh = () => refreshPerfState();
     win.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(triggerRefresh, 200); });
@@ -432,7 +491,7 @@
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !perfState.isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
         allowIframe: RuntimeConfig.allowIframe ?? false,
-        rtcGuard: RuntimeConfig.rtcGuard ?? true,
+        rtcGuard: RuntimeConfig.rtcGuard ?? false, // ✅ WebRTCGuard 기본 OFF
         downgradeLevel: RuntimeConfig.downgradeLevel || 0
     };
 
@@ -446,8 +505,8 @@
     Object.assign(API, {
         profile: (mode) => {
             const presets = {
-                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed, rtcGuard: true },
-                balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed, rtcGuard: true },
+                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed, rtcGuard: false }, // ✅ 기본 OFF
+                balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed, rtcGuard: false },
                 safe: { codecMode: 'off', passive: false, gpu: false, memory: false, rtcGuard: false }
             };
             const p = presets[mode] || presets.balanced;
@@ -472,7 +531,7 @@
             location.reload();
         },
         showStatus: () => {
-            const info = `[PerfX v81.1]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
+            const info = `[PerfX v81.2]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
             if (typeof GM_notification !== 'undefined') GM_notification({ title: 'PerfX Status', text: info, timeout: 5000 });
             else console.log(info);
         }
@@ -508,6 +567,7 @@
                 if (RuntimeConfig._lcp !== nUrl) {
                     RuntimeConfig._lcp = nUrl;
                     persistLCP();
+                    Bus.emit('perfx-lcp-update', { url: nUrl }); // ✅ 캐시 업데이트 신호
                 }
             }
         };
@@ -579,7 +639,7 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '81.1.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '81.2.0', config: Config, ...API };
 
     // ==========================================
     // 2. Autonomous V28
@@ -604,6 +664,7 @@
                             if (currentLCP !== RuntimeConfig._lcp) {
                                 RuntimeConfig._lcp = currentLCP;
                                 schedulePersistLCP();
+                                Bus.emit('perfx-lcp-update', { url: currentLCP }); // ✅ 캐시 업데이트 신호
                             }
                         }
                     }
@@ -647,7 +708,7 @@
                     Q_CACHE = qVal;
 
                     c.downgradeCount = 0; c.unstableTs = now;
-                    S.set(getProfileKey(), JSON.stringify({ ts: now })); // Auto-Downgrade Profile
+                    S.set(getProfileKey(), JSON.stringify({ ts: now }));
                     Object.assign(c, modules); Object.assign(Config, modules);
                     Env.saveOverrides(c);
                     Bus.emit('perfx-config');
@@ -709,7 +770,6 @@
     // ==========================================
     // 3. Core Modules
     // ==========================================
-    class BaseModule { safeInit() { try { this.init(); } catch (e) { log('Module Error', e); } } init() {} }
 
     // [Core 0] WebRTC Guard (Grid Defense)
     class WebRTCGuard extends BaseModule {
@@ -722,9 +782,8 @@
 
             const proxiedPeer = function(config, constraints) {
                 const pc = new origPeer(config, constraints);
-                const origCreateChannel = pc.createDataChannel;
                 pc.createDataChannel = function() {
-                    return { close: () => {}, send: () => {}, readyState: 'closed' }; // Block DataChannel (Grid)
+                    throw new DOMException('RTCDataChannel blocked by PerfX policy', 'NotAllowedError'); // ✅ 예외 발생 (1-4)
                 };
                 return pc;
             };
@@ -735,7 +794,7 @@
         }
     }
 
-    // [Core 1] EventPassivator v5.2
+    // [Core 1] EventPassivator v5.3 (단순화 및 Opt-out 추가)
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -744,23 +803,13 @@
             let passiveArmed = false;
             setTimeout(() => { passiveArmed = true; }, 1500);
 
-            const needsPDCache = new WeakMap();
-            const checkNeedsPD = (listener) => {
-                if (!listener) return false;
-                if (needsPDCache.has(listener)) return needsPDCache.get(listener);
-                let res = false;
-                try {
-                    const fn = typeof listener === 'function' ? listener : listener.handleEvent;
-                    if (fn) {
-                        const str = Function.prototype.toString.call(fn);
-                        res = str.includes('preventDefault') || str.includes('returnValue');
-                    }
-                } catch {}
-                needsPDCache.set(listener, res);
-                return res;
-            };
-
             const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
+            const PASSIVE_OPT_OUT_SEL = '[data-perfx-no-passive], .mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas'; // ✅ (3-2)
+            const FORCE_PASSIVE_TYPES = new Set(['wheel', 'mousewheel']); // ✅ (3-4) touchmove는 기본 보수적 유지
+
+            const shouldSkipPassivePatch = (target) => {
+                try { return !!(target && target instanceof Element && target.closest?.(PASSIVE_OPT_OUT_SEL)); } catch { return false; }
+            };
 
             const targets = [win.EventTarget && win.EventTarget.prototype].filter(Boolean);
             targets.forEach(proto => {
@@ -768,21 +817,17 @@
                 proto.addEventListener = function(type, listener, options) {
                     if (!Config.passive || !passiveArmed) return origAdd.call(this, type, listener, options);
 
-                    if (type === 'wheel' || type === 'mousewheel' || type === 'touchmove') {
-                        if (!isTopLevelTarget(this) && this instanceof Element && this.closest && this.closest('.mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas')) {
+                    if (FORCE_PASSIVE_TYPES.has(type)) {
+                        if (!isTopLevelTarget(this) && shouldSkipPassivePatch(this)) {
                             return origAdd.call(this, type, listener, options);
                         }
 
-                        if (isMobile && type === 'touchmove') return origAdd.call(this, type, listener, options);
-
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
-                            if (!checkNeedsPD(listener)) {
-                                try {
-                                    let finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true };
-                                    return origAdd.call(this, type, listener, finalOptions);
-                                } catch (e) {}
-                            }
+                            try {
+                                const finalOptions = isObj ? { ...options, passive: true } : { capture: options === true, passive: true };
+                                return origAdd.call(this, type, listener, finalOptions);
+                            } catch {}
                         }
                     }
                     return origAdd.call(this, type, listener, options);
@@ -791,42 +836,65 @@
         }
     }
 
-    // [Core 2] CodecOptimizer v2.6
+    // [Core 2] CodecOptimizer v2.7 (effectiveCodecMode & MediaCapabilities)
     class CodecOptimizer extends BaseModule {
         init() {
-            if (Config.codecMode === 'off') return;
-            if (isVideoSite) return;
+            if (Config.codecMode === 'off' || isVideoSite) return;
 
-            if (!perfState.isLowPowerMode && Config.codecMode === 'hard') Config.codecMode = 'soft';
+            const requestedCodecMode = Config.codecMode; // ✅ 사용자 설정 보존 (1-3)
+            let effectiveCodecMode = requestedCodecMode;
+            if (!perfState.isLowPowerMode && requestedCodecMode === 'hard') {
+                effectiveCodecMode = 'soft'; // 실행 시점 유효값만 변경
+            }
 
             setTimeout(() => {
-                if (document.querySelector('video, source[type*="video"]') && Config.codecMode === 'hard') {
-                    Config.codecMode = 'soft';
+                if (document.querySelector('video, source[type*="video"]') && effectiveCodecMode === 'hard') {
+                    effectiveCodecMode = 'soft';
                 }
             }, 800);
+
+            // ✅ MediaCapabilities 정책 보조 (2-2)
+            const codecPolicy = { av1: { supported: null, smooth: null, powerEfficient: null } };
+            async function probeCodecCapabilities() {
+                if (!navigator.mediaCapabilities?.decodingInfo) return;
+                try {
+                    const res = await navigator.mediaCapabilities.decodingInfo({
+                        type: 'file',
+                        video: { contentType: 'video/mp4; codecs="av01.0.05M.08"', width: 1280, height: 720, bitrate: 2500000, framerate: 30 }
+                    });
+                    codecPolicy.av1 = { supported: !!res.supported, smooth: !!res.smooth, powerEfficient: !!res.powerEfficient };
+                } catch {}
+            }
+            probeCodecCapabilities();
 
             const shouldBlock = (t) => {
                 if (typeof t !== 'string') return false;
                 const v = t.toLowerCase();
-                if (Config.codecMode === 'hard') {
-                    return v.includes('av01') || /vp9|vp09/.test(v);
+
+                if (effectiveCodecMode === 'hard') return v.includes('av01') || /vp9|vp09/.test(v);
+                
+                if (effectiveCodecMode === 'soft' && v.includes('av01')) {
+                    if (codecPolicy.av1.supported === true && codecPolicy.av1.smooth === true && codecPolicy.av1.powerEfficient === true) {
+                        return false; // 기기가 충분히 원활하게 돌린다면 허용
+                    }
+                    return true;
                 }
-                if (Config.codecMode === 'soft') return v.includes('av01');
                 return false;
             };
 
             const hook = (target, prop, isProto, marker) => {
                 if (!target) return;
                 const root = isProto ? target.prototype : target;
-                if (root[marker]) return;
+                if (!root || root[marker]) return;
                 try {
                     const orig = root[prop];
+                    if (typeof orig !== 'function') return;
                     root[prop] = function(t) {
                         if (shouldBlock(t)) return isProto ? '' : false;
                         return orig.apply(this, arguments);
                     };
                     root[marker] = true;
-                } catch(e) {}
+                } catch {}
             };
 
             if (win.MediaSource) hook(win.MediaSource, 'isTypeSupported', false, Symbol.for('perfx.ms'));
@@ -834,11 +902,13 @@
         }
     }
 
-    // [Core 3] DomWatcher v4.2
+    // [Core 3] DomWatcher v4.3 (CIS Auto Fallback)
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
             this.supportsCV = 'contentVisibility' in document.documentElement.style;
+            this.supportsCISAuto = !!(win.CSS?.supports?.('contain-intrinsic-size', 'auto 1px auto 1px')); // ✅ (2-3)
+
             if (Config.memory && !this.supportsCV) Config.memory = false;
             if (!('IntersectionObserver' in win)) return;
 
@@ -870,29 +940,36 @@
 
             onReady(() => { if(Config.memory || Config.gpu) { this.startIO(); this.startMO(); } });
 
-            Bus.on('perfx-power-change', () => {
+            this.on(win, 'perfx-power-change', () => { // ✅ BaseModule this.on 적용 (3-1)
                 if (this.ioTimeout) clearTimeout(this.ioTimeout);
                 this.ioTimeout = setTimeout(() => this.startIO(), 1000);
             });
-            Bus.on('perfx-config', () => { API.shutdownMemory(); API.restartMemory(); });
-            Bus.on('perfx-route', () => { API.shutdownMemory(); API.restartMemory(); });
+            this.on(win, 'perfx-config', () => { API.shutdownMemory(); API.restartMemory(); });
+            this.on(win, 'perfx-route', () => { API.shutdownMemory(); API.restartMemory(); });
+        }
+
+        // ✅ Opt-out 및 예외 처리 강화 (3-2)
+        isOptimizable(el, rect) {
+            if (!el || el.nodeType !== 1) return false;
+            if (el.closest?.('[data-perfx-no-cv], [contenteditable="true"], video, canvas, iframe, form')) return false;
+            const tn = el.tagName;
+            if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'META') return false;
+            if (el.hasAttribute('aria-live')) return false;
+
+            if (!rect || rect.height < 50 || rect.width < 50) return false;
+            const area = rect.width * rect.height;
+            if (isMobile && area < 2000) return false;
+            if (!isMobile && area < 3000) return false;
+
+            if (area > (win.innerWidth * win.innerHeight * 0.15)) {
+                if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return false;
+            }
+            return true;
         }
 
         applyOptimization(el, rect) {
             if (this.styleMap.has(el)) return;
-            const tn = el.tagName;
-            if (tn === 'SCRIPT' || tn === 'STYLE' || tn === 'META' || tn === 'VIDEO' || tn === 'CANVAS' || tn === 'IFRAME' || tn === 'FORM') return;
-            if (el.hasAttribute('aria-live') || el.isContentEditable) return;
-
-            if (!rect || rect.height < 50 || rect.width < 50) return;
-
-            const area = rect.width * rect.height;
-            if (isMobile && area < 2000) return;
-            if (!isMobile && area < 3000) return;
-
-            if (area > (win.innerWidth * win.innerHeight * 0.15)) {
-                if (el.childElementCount > 6 && el.querySelector('video,canvas,iframe,form,[aria-live],[contenteditable]')) return;
-            }
+            if (!this.isOptimizable(el, rect)) return;
 
             const style = getComputedStyle(el);
             if (style.position === 'sticky' || style.position === 'fixed') return;
@@ -907,8 +984,13 @@
 
             const w = Math.min(2000, Math.ceil(rect.width));
             const h = Math.min(2000, Math.ceil(rect.height));
-            el.style.containIntrinsicSize = `${w}px ${h}px`;
+            
             el.style.contentVisibility = 'auto';
+            if (this.supportsCISAuto) { // ✅ CIS auto fallback (2-3)
+                el.style.containIntrinsicSize = `auto ${Math.max(1, w)}px auto ${Math.max(1, h)}px`;
+            } else {
+                el.style.containIntrinsicSize = `${Math.max(1, w)}px ${Math.max(1, h)}px`;
+            }
             el.style.contain = 'layout paint';
         }
 
@@ -970,6 +1052,12 @@
                 }
             };
 
+            const queryFeedItems = (root) => {
+                let items = root.querySelectorAll(ITEM_SEL);
+                if (!items.length && root.matches?.('[role="list"], ul, ol')) items = root.querySelectorAll(':scope > li');
+                return items;
+            };
+
             if (Config.gpu) document.querySelectorAll('canvas').forEach(this.observeSafe);
 
             if (Config.memory) {
@@ -977,7 +1065,7 @@
                 scanInChunks(root.children, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
 
                 if (root.tagName !== 'BODY') {
-                    const items = root.querySelectorAll(ITEM_SEL);
+                    const items = queryFeedItems(root); // ✅ fallback li (4-2)
                     scanInChunks(items, 50, perfState.SCAN_STEP, this.observeSafe);
                 }
             }
@@ -1016,12 +1104,11 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v4.2 (TDZ Fix & Full Logic)
+    // [Core 4] NetworkAssistant v4.3
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
-            // ✅ No TDZ: Declare first
             const nearSet = new WeakMap();
             const farSet = new WeakMap();
             const distMap = new WeakMap();
@@ -1031,9 +1118,20 @@
             let vpObs = null;
             let currentGen = 0;
 
-            // [Fix] 누락된 변수 선언 추가 (Add Missing Declarations)
             const batchQueue = new Map();
             let batchTimer = null;
+
+            let lcpUrlCached = RuntimeConfig._lcp || S.get(LCP_KEY) || null; // ✅ LCP URL 캐시 (3-3)
+
+            let protectTimer = null;
+            let isProtectionPhase = false; // ✅ 섀도잉 픽스 (1-1)
+
+            const startProtection = (force = false) => {
+                isProtectionPhase = true;
+                const ms = force ? perfState.PROTECT_MS : Math.min(1000, perfState.PROTECT_MS / 3);
+                if (protectTimer) clearTimeout(protectTimer);
+                protectTimer = setTimeout(() => { isProtectionPhase = false; protectTimer = null; }, ms);
+            };
 
             const decSlot = (el) => {
                 if (observing.has(el)) {
@@ -1044,11 +1142,22 @@
                 }
             };
 
-            const setImgLazy = (img, setPriority = true) => {
-                if (!img || img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
-                img.setAttribute('loading', 'lazy');
-                img.setAttribute('decoding', 'async');
-                if (setPriority) img.setAttribute('fetchpriority', 'low');
+            const setImgLazy = (img, setPriority = true) => { // ✅ fetchPriority 보강 픽스 (1-2)
+                if (!img || img.complete) return;
+                const currentLoading = (img.getAttribute('loading') || '').toLowerCase();
+                const currentFP = (img.getAttribute('fetchpriority') || '').toLowerCase();
+
+                if (!currentLoading) img.loading = 'lazy';
+                if (!img.hasAttribute('decoding')) img.decoding = 'async';
+                
+                if (setPriority && currentFP !== 'high') {
+                    try {
+                        if ('fetchPriority' in img) img.fetchPriority = 'low';
+                        else if (!img.hasAttribute('fetchpriority')) img.setAttribute('fetchpriority', 'low');
+                    } catch {
+                        if (!img.hasAttribute('fetchpriority')) img.setAttribute('fetchpriority', 'low');
+                    }
+                }
             };
 
             const applyLazy = (img, rect) => {
@@ -1113,50 +1222,42 @@
 
                 observing.forEach(el => vpObs.observe(el));
 
-                // Recalc
                 imgSlots = 0; vidSlots = 0;
                 observing.forEach(el => {
                     if (el.tagName === 'VIDEO') vidSlots++; else imgSlots++;
                 });
             };
 
-            Bus.on('perfx-power-change', rebuildObserver);
-            Bus.on('perfx-config', () => {
+            this.on(win, 'perfx-power-change', rebuildObserver);
+            this.on(win, 'perfx-config', () => {
                 if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
                 batchQueue.clear();
                 rebuildObserver();
             });
+            this.on(win, 'perfx-lcp-update', (e) => { lcpUrlCached = e.detail?.url || lcpUrlCached; });
 
-            let protectTimer = null;
-            const startProtection = (force = false) => {
-                let isProtectionPhase = true;
-                const ms = force ? perfState.PROTECT_MS : Math.min(1000, perfState.PROTECT_MS / 3);
-                if (protectTimer) clearTimeout(protectTimer);
-                protectTimer = setTimeout(() => { isProtectionPhase = false; protectTimer = null; }, ms);
-                return isProtectionPhase;
-            };
-            let isProtectionPhase = startProtection(true); // init
-
-            Bus.on('perfx-route', (e) => {
+            this.on(win, 'perfx-route', (e) => {
+                lcpUrlCached = RuntimeConfig._lcp || S.get(LCP_KEY) || null;
                 if (e.detail?.force) {
                     currentGen++;
                     observing.forEach(el => { try{vpObs.unobserve(el);}catch{} });
                     observing.clear();
                     rebuildObserver();
                 }
-                isProtectionPhase = startProtection(e.detail?.force);
+                startProtection(e.detail?.force);
             });
-            onReady(() => { isProtectionPhase = startProtection(true); rebuildObserver(); });
+            
+            onReady(() => { startProtection(true); rebuildObserver(); });
 
-            Bus.on('visibilitychange', () => {
+            this.on(document, 'visibilitychange', () => {
                 if (document.hidden) {
                     if (batchTimer) { scheduler.cancel(batchTimer); batchTimer = null; }
                     if (this.mo) this.mo.disconnect();
                 } else {
-                    isProtectionPhase = startProtection(false);
+                    startProtection(false);
                     if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
                 }
-            }, document);
+            });
 
             const safeObserve = (el) => {
                 if (!vpObs) return;
@@ -1178,11 +1279,16 @@
             };
 
             const processImg = (img, fromMutation) => {
-                if (img.hasAttribute('loading') || img.hasAttribute('fetchpriority')) return;
-                const lcpUrl = RuntimeConfig._lcp || S.get(LCP_KEY);
-                if (lcpUrl) {
+                if (img.hasAttribute('loading') && img.hasAttribute('fetchpriority')) return;
+                
+                if (lcpUrlCached) { // ✅ LCP 캐시 사용 (3-3)
                     const cur = normUrl(img.currentSrc || img.src);
-                    if (cur === lcpUrl) { img.setAttribute('loading', 'eager'); img.setAttribute('fetchpriority', 'high'); return; }
+                    if (cur === lcpUrlCached) { 
+                        img.loading = 'eager'; 
+                        if ('fetchPriority' in img) img.fetchPriority = 'high';
+                        else img.setAttribute('fetchpriority', 'high'); 
+                        return; 
+                    }
                 }
 
                 if (fromMutation && !isProtectionPhase) {
@@ -1200,7 +1306,6 @@
             const flushQueue = () => {
                 batchQueue.forEach((fromMutation, node) => {
                     if (!node.isConnected) return;
-                    // ✅ Iframe Support
                     if (node.tagName === 'IFRAME') {
                         if (!node.hasAttribute('loading') && !isCritical) node.loading = 'lazy';
                         return;
@@ -1257,7 +1362,7 @@
             });
             this.mo.observe(document.documentElement, { childList: true, subtree: true });
 
-            win.addEventListener('pagehide', (e) => {
+            this.on(win, 'pagehide', (e) => {
                 if (!e.persisted && vpObs) vpObs.disconnect();
             });
         }
@@ -1265,13 +1370,13 @@
 
     // Module Init
     [
-        new WebRTCGuard(),
+        new WebRTCGuard(), // ✅ (1-4에 따라 로딩은 하되 내부 정책으로 기본 OFF 처리됨)
         new EventPassivator(),
         new CodecOptimizer(),
         new DomWatcher(),
         new NetworkAssistant()
     ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
 
-    if (debug) log(`PerfX v81.1 Ready`);
+    if (debug) log(`PerfX v81.2 Ready`);
 
 })();
