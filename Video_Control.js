@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.2.4_NextGen)
+// @name        Video_Control (v159.4.2.6_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.2.4
+// @version     159.4.2.6
 // @description Video Control: Adaptive Sampling, Subtitle/Skin AI, OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc, Draggable UI
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
@@ -92,7 +92,7 @@
   const __IS_LOW_END = detectLowEnd();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.2.4_NextGen",
+    VERSION: "v159.4.2.6_NextGen",
     IS_MOBILE: detectMobile(),
     IS_LOW_END: __IS_LOW_END,
     TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
@@ -364,7 +364,6 @@
   async function exitPiP(preferredVideo = null) {
     if (__activeDocumentPiPWindow) {
       __activeDocumentPiPWindow.close();
-      // resetPiPState(); <-- 여기 있던 상태 초기화 함수를 삭제합니다!
       return true;
     }
     if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); return true; } catch (_) {} }
@@ -515,10 +514,11 @@
     const subs = new Map();
     const on = (name, fn) => { let s = subs.get(name); if (!s) { s = new Set(); subs.set(name, s); } s.add(fn); return () => s.delete(fn); };
     const emit = (name, payload) => { const s = subs.get(name); if (!s) return; for (const fn of s) { try { fn(payload); } catch (_) {} } };
-    let queued = false, aeLevelAgg = 0, forceApplyAgg = false, lockMsAgg = 0, lockAmpAgg = 0, profileChangedAgg = false;
+    let queued = false, flushTimer = 0, aeLevelAgg = 0, forceApplyAgg = false, lockMsAgg = 0, lockAmpAgg = 0, profileChangedAgg = false;
 
     function flush() {
       queued = false;
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = 0; }
       const payload = { aeLevel: aeLevelAgg, forceApply: forceApplyAgg, userLockMs: lockMsAgg, userLockAmp: lockAmpAgg, profileChanged: profileChangedAgg };
       emit('signal', payload);
       aeLevelAgg = 0; forceApplyAgg = false; lockMsAgg = 0; lockAmpAgg = 0; profileChangedAgg = false;
@@ -526,7 +526,11 @@
 
     const signal = (p) => {
       if (p) { if (p.affectsAE) aeLevelAgg = Math.max(aeLevelAgg, 2); if (p.wakeAE) aeLevelAgg = Math.max(aeLevelAgg, 1); if (p.aeLevel != null) aeLevelAgg = Math.max(aeLevelAgg, (p.aeLevel | 0)); if (p.forceApply) forceApplyAgg = true; if (p.userLockMs) lockMsAgg = Math.max(lockMsAgg, (p.userLockMs | 0)); if (p.userLockAmp != null) lockAmpAgg = Math.max(lockAmpAgg, +p.userLockAmp); if (p.profileChanged) profileChangedAgg = true; }
-      if (!queued) { queued = true; requestAnimationFrame(flush); }
+      if (!queued) {
+        queued = true;
+        if (document.visibilityState === 'hidden') { flushTimer = setTimeout(flush, 0); }
+        else { requestAnimationFrame(flush); }
+      }
     };
     return Object.freeze({ on, emit, signal });
   }
@@ -1006,7 +1010,25 @@
     let lastDryOn = null; let lastWetGain = null; let gestureHooked = false;
     const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
     const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; window.addEventListener('pointerdown', onGesture, { passive: true, capture: true, signal: __globalSig }); window.addEventListener('keydown', onGesture, { passive: true, capture: true, signal: __globalSig }); };
-    const ensureCtx = () => { if (ctx) return true; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false; ctx = new AC(); ensureGestureResumeHook(); compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -24; compressor.knee.value = 24; compressor.ratio.value = 4; compressor.attack.value = 0.005; compressor.release.value = 0.20; dry = ctx.createGain(); wet = ctx.createGain(); dry.connect(ctx.destination); wet.connect(ctx.destination); compressor.connect(wet); return true; };
+    const ensureCtx = () => {
+      if (ctx) return true;
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return false;
+      try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); }
+      ensureGestureResumeHook();
+      compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.value = -24;
+      compressor.knee.value = 24;
+      compressor.ratio.value = 4;
+      compressor.attack.value = 0.005;
+      compressor.release.value = 0.20;
+      dry = ctx.createGain();
+      wet = ctx.createGain();
+      dry.connect(ctx.destination);
+      wet.connect(ctx.destination);
+      compressor.connect(wet);
+      return true;
+    };
     const updateMix = () => {
       if (!ctx) return;
       const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
@@ -1024,7 +1046,13 @@
       }
       if (currentSrc) { if (en && !wetConnected) { try { currentSrc.connect(compressor); wetConnected = true; } catch (_) {} } else if (!en && wetConnected) { try { currentSrc.disconnect(compressor); wetConnected = false; } catch (_) {} } }
     };
-    const disconnectAll = () => { if (currentSrc) { try { if (wetConnected) currentSrc.disconnect(compressor); currentSrc.disconnect(dry); } catch (_) {} } currentSrc = null; target = null; wetConnected = false; };
+    const disconnectAll = () => {
+      if (currentSrc) {
+        if (wetConnected) { try { currentSrc.disconnect(compressor); } catch (_) {} }
+        try { currentSrc.disconnect(dry); } catch (_) {}
+      }
+      currentSrc = null; target = null; wetConnected = false;
+    };
     async function destroy() {
       try { disconnectAll(); } catch (_) {}
       try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {}
@@ -1441,24 +1469,40 @@
     }
 
     function createDecodeStressTracker() {
-      let lastTotal = 0; let lastDropped = 0; let ema = 0;
-      return function getStress01(v) {
-        try {
-          const q = v?.getVideoPlaybackQuality?.();
-          if (!q) return ema;
-          const total = q.totalVideoFrames || 0;
-          const dropped = q.droppedVideoFrames || 0;
-          const dTotal = Math.max(0, total - lastTotal);
-          const dDrop = Math.max(0, dropped - lastDropped);
-          lastTotal = total; lastDropped = dropped;
-          const ratio = dTotal > 0 ? (dDrop / dTotal) : 0;
-          const s = Math.max(0, Math.min(1, ratio / 0.12));
-          ema = ema <= 0 ? s : (ema * 0.82 + s * 0.18);
-          return ema;
-        } catch (_) { return ema; }
+      const stMap = new WeakMap();
+      return {
+        getStress01(v) {
+          try {
+            if (!v) return 0;
+            const q = v.getVideoPlaybackQuality?.();
+            let st = stMap.get(v);
+            if (!st) { st = { lastTotal: 0, lastDropped: 0, ema: 0 }; stMap.set(v, st); }
+            if (!q) return st.ema;
+
+            const total = q.totalVideoFrames || 0;
+            const dropped = q.droppedVideoFrames || 0;
+
+            if (total < st.lastTotal || dropped < st.lastDropped) {
+              st.lastTotal = total;
+              st.lastDropped = dropped;
+              st.ema = 0;
+              return st.ema;
+            }
+
+            const dTotal = Math.max(0, total - st.lastTotal);
+            const dDrop = Math.max(0, dropped - st.lastDropped);
+            st.lastTotal = total; st.lastDropped = dropped;
+
+            const ratio = dTotal > 0 ? (dDrop / dTotal) : 0;
+            const s = Math.max(0, Math.min(1, ratio / 0.12));
+            st.ema = st.ema <= 0 ? s : (st.ema * 0.82 + s * 0.18);
+            return st.ema;
+          } catch (_) { return 0; }
+        },
+        reset(v) { if (v) stMap.delete(v); }
       };
     }
-    const getDecodeStress01 = createDecodeStressTracker();
+    const decodeStress = createDecodeStressTracker();
 
     function computeAdaptiveSampleIntervalMs(v, now) {
       const paused = !!v?.paused;
@@ -1483,7 +1527,7 @@
       ms *= (1 + Math.min(4, __workerStallStreak) * 0.16);
       ms /= Math.min(2.4, Math.max(0.65, rate));
 
-      const decodeStress01 = getDecodeStress01(v);
+      const decodeStress01 = decodeStress.getStress01(v);
       if (decodeStress01 > 0.05) ms *= (1 + decodeStress01 * 1.1);
 
       if (paused) return clamp(ms, 180, 1200);
@@ -1915,7 +1959,14 @@
     return {
       isUnavailable: () => __unavailable,
       getResolvedProfile, getMeta: () => ({ ...__lastMeta, profileResolved: getResolvedProfile() }),
-      setTarget: (v, opts = {}) => { if (v === activeVideo) return; activeVideo = v; curGain = opts.keepGain ? clamp(curGain, 0.60, 6.0) : 1.0; if (opts.softReset) softResetStats(); else hardResetStats(); },
+      setTarget: (v, opts = {}) => {
+        if (v === activeVideo) return;
+        const prev = activeVideo;
+        activeVideo = v;
+        if (prev && prev !== v) { try { decodeStress.reset(prev); } catch (_) {} }
+        curGain = opts.keepGain ? clamp(curGain, 0.60, 2.0) : 1.0;
+        if (opts.softReset) softResetStats(); else hardResetStats();
+      },
       start: () => { const wk = ensureWorker(); if (!wk) { isRunning = false; return; } if (!isRunning) { isRunning = true; loopToken++; lastLoopT = 0; lastApplyT = lastEmaT = performance.now(); lastSampleT = 0; loop(loopToken); } },
       stop: stopSoft, stopHard: stopHard, wake: () => { lastSampleT = 0; lastLoopT = 0; }, userTweak: () => { hardResetStats(); lastSampleT = 0; lastLoopT = 0; }, __setOnAE: (fn) => { onAE = fn; }, setUserLock01, hintProfileChanged: () => { bumpAeEpoch(); hardResetStats(); }
     };
@@ -2097,16 +2148,20 @@
       gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
       const style = `.gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover + .hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''}`;
       applyShadowStyle(shadow, style, h);
-      let isDragging = false; // 드래그 상태를 추적하는 변수 추가
+
+      let dragThresholdMet = false;
 
       gearBtn = h('button', { class: 'gear', onclick: (e) => {
-        if (isDragging) {
+        if (dragThresholdMet) {
           e.preventDefault();
           e.stopPropagation();
-          return; // 드래그 중이었다면 클릭 무시
+          return; // 드래그 상태라면 네이티브 클릭을 무시
         }
         setAndHint(P.APP_UI, !sm.get(P.APP_UI), true);
       } }, '⚙');
+
+      // 🔥 [문제의 원인 해결] DOM 트리(Shadow DOM)에 생성된 버튼을 실제로 붙여넣습니다.
+      shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
 
       const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); };
 
@@ -2114,11 +2169,11 @@
       window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal });
       bootWakeTimer = setTimeout(wake, 2000);
 
-      // --- 톱니바퀴 아이콘 수직 드래그 로직 ---
+      // --- 톱니바퀴 아이콘 수직 드래그 로직 (모바일 터치 최적화) ---
       const handleGearDrag = (e) => {
         if (e.target !== gearBtn) return;
 
-        isDragging = false; // 드래그 초기화
+        dragThresholdMet = false;
         const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
         const rect = gearBtn.getBoundingClientRect();
 
@@ -2128,13 +2183,13 @@
         const onMove = (ev) => {
           const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
 
-          // 5px 이상 움직였을 때만 드래그로 판정 (오터치 방지)
-          if (Math.abs(currentY - startY) > 5) {
-            isDragging = true;
-            if (ev.cancelable) ev.preventDefault(); // 모바일 화면 스크롤 방지
+          // 10px 이상 움직였을 때 드래그로 확정 (모바일 오터치 방지 임계값 증가)
+          if (Math.abs(currentY - startY) > 10) {
+            dragThresholdMet = true;
+            if (ev.cancelable) ev.preventDefault(); // 스크롤 방지
           }
 
-          if (isDragging) {
+          if (dragThresholdMet) {
             let newTop = rect.top + (currentY - startY);
             newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
             gearBtn.style.top = `${newTop}px`;
@@ -2142,8 +2197,8 @@
         };
 
         const onUp = () => {
-          // 이벤트가 끝난 후 아주 잠깐 대기하여 클릭 이벤트가 무시되도록 한 뒤 상태 초기화
-          setTimeout(() => { isDragging = false; }, 50);
+          // 아주 짧은 시간 동안 플래그를 유지하여 onClick 핸들러가 드래그를 걸러낼 수 있게 함
+          setTimeout(() => { dragThresholdMet = false; }, 100);
 
           window.removeEventListener('mousemove', onMove);
           window.removeEventListener('mouseup', onUp);
@@ -2153,7 +2208,6 @@
 
         window.addEventListener('mousemove', onMove, { passive: false });
         window.addEventListener('mouseup', onUp);
-        // 주의: preventDefault()를 사용하려면 passive: false로 설정해야 합니다.
         window.addEventListener('touchmove', onMove, { passive: false });
         window.addEventListener('touchend', onUp);
       };
