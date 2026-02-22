@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.0.2_NextGen)
+// @name        Video_Control (v159.4.0.3_NextGen)
 // @namespace   https://github.com/
-// @version     159.4.0.2
-// @description Video Control: OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc, UI Sync, Hash Sig, GC Opt
+// @version     159.4.0.3
+// @description Video Control: Adaptive Sampling, Subtitle/Skin AI, OffscreenCanvas AE, Document PiP, Proxy Store, Zero-Alloc
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -69,7 +69,7 @@
   })();
 
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.0.2_NextGen",
+    VERSION: "v159.4.0.3_NextGen",
     IS_MOBILE: /Mobi|Android|iPhone/i.test(navigator.userAgent),
     IS_LOW_END: (navigator.deviceMemory || 4) < 4,
     TOUCHED_MAX: ((navigator.deviceMemory || 4) < 4) ? 60 : 140,
@@ -1036,7 +1036,7 @@
         setAttr(nodes.sat, 'values', clamp(s.satF ?? 1, 0, 2.5).toFixed(2), st, 'satKey');
         const t = clamp(s.temp || 0, -25, 25); let rs = 1, gs = 1, bs = 1; if (t > 0) { rs = 1 + t * 0.012; gs = 1 + t * 0.003; bs = 1 - t * 0.01; } else { const k = -t; bs = 1 + k * 0.012; gs = 1 + k * 0.003; rs = 1 - k * 0.01; } const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`; if (st.tempKey !== tmk) { st.tempKey = tmk; nodes.tmpFuncs[0].setAttribute('slope', rs.toFixed(3)); nodes.tmpFuncs[1].setAttribute('slope', gs.toFixed(3)); nodes.tmpFuncs[2].setAttribute('slope', bs.toFixed(3)); }
         const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
-        if (st.detailKey !== dk) { st.detailKey = dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8; setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (1.1 - sc(Math.min(1, v1)) * 0.4).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3'); const v2 = (s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 3.8; setAttr(nodes.b2, 'stdDeviation', v2 > 0 ? '0.38' : '0', st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3'); const clVal = (s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3'); }
+        if (st.detailKey !== dk) { st.detailKey = dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8; setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.85 - sc(Math.min(1, v1)) * 0.3).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3'); const v2 = (s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 3.8; setAttr(nodes.b2, 'stdDeviation', v2 > 0 ? '0.32' : '0', st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3'); const clVal = (s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3'); }
         const amt = clamp((s.dither || 0) / 100, 0, 1), nk = `${(amt * 0.04).toFixed(4)}|${(-0.5 * amt * 0.04).toFixed(4)}`; if (st.noiseKey !== nk) { st.noiseKey = nk; nodes.feComp.setAttribute('k3', (amt * 0.04).toFixed(4)); nodes.feComp.setAttribute('k4', (-0.5 * amt * 0.04).toFixed(4)); }
       }
       const url = `url(#${nodes.fid})`; dc.key = key; dc.url = url; return url;
@@ -1065,11 +1065,25 @@
   }
 
   const WORKER_CODE = `
-    const histAll = new Uint32Array(256), histTop = new Uint32Array(256), histBot = new Uint32Array(256);
+    const histAll = new Uint32Array(256), histTop = new Uint32Array(256), histBot = new Uint32Array(256), histMid = new Uint32Array(256);
     let prevFrame = null;
     let offCanvas = null;
     let offCtx = null;
     function pctFromHist(h, n, p) { const t = n * p; let a = 0; for(let i=0;i<256;i++){ a += h[i]; if(a >= t) return i/255; } return 1; }
+    function clamp01(x) { return x < 0 ? 0 : (x > 1 ? 1 : x); }
+    function skinLikeYCbCr(r, g, b, y8) {
+      if (y8 < 35 || y8 > 235) return 0;
+      const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b;
+      const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b;
+      if (cb < 77 || cb > 127 || cr < 133 || cr > 173) return 0;
+      const cbD = Math.abs(cb - 102) / 25;
+      const crD = Math.abs(cr - 153) / 20;
+      const chromaScore = clamp01(1 - (cbD * 0.55 + crD * 0.70));
+      const bf = b / 255, rf = r / 255, gf = g / 255;
+      const antiBlue = clamp01(1 - Math.max(0, (bf - rf) * 1.8));
+      const rgBalance = clamp01(1 - Math.abs((rf - gf) - 0.08) * 2.8);
+      return chromaScore * (0.65 + 0.35 * antiBlue) * (0.60 + 0.40 * rgBalance);
+    }
 
     self.onmessage = function(e) {
       const {buf, bitmap, width, height, step, token} = e.data || {};
@@ -1112,29 +1126,95 @@
       }
       const motion01 = mCnt ? Math.min(1, Math.max(0, (diff / mCnt) / 28)) : 1;
 
-      histAll.fill(0); histTop.fill(0); histBot.fill(0);
-      let sumAll=0, sumSqAll=0, nAll=0, sumTop=0, sumSqTop=0, nTop=0, clipAll=0, clipBottom=0, clipTop=0, clipLowAll=0, botSum=0, botSumSq=0, botN=0, rSum=0, gSum=0, bSum=0, skinCnt=0, skinAcc=0;
-      const botY0 = Math.floor(height * 0.78), stride = width * 4;
-      let botBrightRows = 0, botRowCount = 0;
+      histAll.fill(0); histTop.fill(0); histBot.fill(0); histMid.fill(0);
+      let sumAll=0, sumSqAll=0, nAll=0;
+      let sumTop=0, sumSqTop=0, nTop=0;
+      let sumMid=0, sumSqMid=0, nMid=0;
+      let clipAll=0, clipBottom=0, clipTop=0, clipLowAll=0;
+      let botSum=0, botSumSq=0, botN=0;
+      let botBrightRows=0, botRowCount=0;
+      let botWhitePix=0, botPix=0, botEdgePix=0, botEdgePairs=0, botTextLikePix=0;
+      let rSum=0, gSum=0, bSum=0, skinCnt=0, skinAcc=0;
+
+      const botY0 = Math.floor(height * 0.78);
+      const midY0 = Math.floor(height * 0.18);
+      const midY1 = Math.floor(height * 0.82);
+      const stride = width * 4;
 
       for(let y=0; y<height; y+=step){
-        const row = y*stride; const isTop = (y < botY0); const isBottom = !isTop; let rowSum=0, rowSumSq=0, rowCnt=0;
+        const row = y*stride;
+        const isTop = (y < botY0);
+        const isBottom = !isTop;
+        const isMid = (y >= midY0 && y < midY1);
+        let rowSum=0, rowSumSq=0, rowCnt=0;
+        let prevRowY = -1;
+
         for(let x=0; x<width; x+=step){
-          const i = row + x*4; const r = data[i], g = data[i+1], b = data[i+2]; const Y = (0.2126*r + 0.7152*g + 0.0722*b) | 0;
-          histAll[Y]++; sumAll += Y; sumSqAll += Y*Y; nAll++; rSum += r; gSum += g; bSum += b;
-          if(isTop) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; } else { histBot[Y]++; botSum += Y; botSumSq += Y*Y; botN++; }
+          const i = row + x*4;
+          const r = data[i], g = data[i+1], b = data[i+2];
+          const Y = (0.2126*r + 0.7152*g + 0.0722*b) | 0;
+
+          histAll[Y]++; sumAll += Y; sumSqAll += Y*Y; nAll++;
+          rSum += r; gSum += g; bSum += b;
+
+          if(isTop) { histTop[Y]++; sumTop += Y; sumSqTop += Y*Y; nTop++; }
+          else { histBot[Y]++; botSum += Y; botSumSq += Y*Y; botN++; }
+
+          if(isMid) { histMid[Y]++; sumMid += Y; sumSqMid += Y*Y; nMid++; }
+
           if(Y >= 251){ clipAll++; if(isBottom) clipBottom++; if(isTop) clipTop++; }
           if(Y <= 4){ clipLowAll++; }
-          if(isBottom){ rowSum += Y; rowSumSq += Y*Y; rowCnt++; }
-          const Yf = Y / 255, rf = r/255, gf = g/255, bf = b/255;
-          if (Yf > 0.20 && Yf < 0.78) { const redish = Math.max(0, Math.min(1, (rf - gf) * 1.8 + (rf - bf) * 1.2)); const notTooSatBlue = Math.max(0, 1 - (bf - rf) * 2.0); const s = redish * notTooSatBlue; if (s > 0.10) { skinAcc += s; skinCnt++; } }
+
+          if(isBottom){
+            botPix++; rowSum += Y; rowSumSq += Y*Y; rowCnt++;
+            if (Y > 228) botWhitePix++;
+            if (prevRowY >= 0) {
+              const dY = Math.abs(Y - prevRowY);
+              botEdgePairs++;
+              if (dY > 24) botEdgePix++;
+              if (Y > 205 && dY > 18) botTextLikePix++;
+            }
+            prevRowY = Y;
+          }
+
+          const s = skinLikeYCbCr(r, g, b, Y);
+          if (s > 0) {
+            const nx = (x / Math.max(1, width - 1)) * 2 - 1;
+            const ny = (y / Math.max(1, height - 1)) * 2 - 1;
+            const centerW = clamp01(1 - (Math.abs(nx) * 0.55 + Math.abs(ny) * 0.35));
+            skinAcc += s * (0.70 + 0.30 * centerW);
+            skinCnt++;
+          }
         }
-        if (isBottom && rowCnt > 0){ botRowCount++; const avg = rowSum / rowCnt, varr = (rowSumSq / rowCnt) - avg*avg, std = Math.sqrt(Math.max(0,varr)); if (avg > 238 && std < 7.0) botBrightRows++; }
+        if (isBottom && rowCnt > 0){
+          botRowCount++;
+          const avg = rowSum / rowCnt, varr = (rowSumSq / rowCnt) - avg*avg, std = Math.sqrt(Math.max(0,varr));
+          if (avg > 236 && std < 8.5) botBrightRows++;
+        }
       }
 
-      const avgAll = nAll ? (sumAll/nAll) : 0, varAll = nAll ? (sumSqAll/nAll - avgAll*avgAll) : 0, stdAll = Math.sqrt(Math.max(0,varAll))/255, avgTop = nTop ? (sumTop/nTop) : avgAll, varTop = nTop ? (sumSqTop/nTop - avgTop*avgTop) : varAll, stdTop = Math.sqrt(Math.max(0,varTop))/255, botAvg = botN ? (botSum/botN)/255 : 0, botVar = botN ? (botSumSq/botN - (botSum/botN)**2) : 0, botStd = Math.sqrt(Math.max(0,botVar))/255, cfAll = Math.min(1, stdAll/0.22), cfTop = Math.min(1, stdTop/0.22), rgbSum = (rSum+gSum+bSum) || 1, redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28)), skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.25) : 0;
+      const avgAll = nAll ? (sumAll/nAll) : 0, varAll = nAll ? (sumSqAll/nAll - avgAll*avgAll) : 0, stdAll = Math.sqrt(Math.max(0,varAll))/255;
+      const avgTop = nTop ? (sumTop/nTop) : avgAll, varTop = nTop ? (sumSqTop/nTop - avgTop*avgTop) : varAll, stdTop = Math.sqrt(Math.max(0,varTop))/255;
+      const avgMid = nMid ? (sumMid/nMid) : avgAll, varMid = nMid ? (sumSqMid/nMid - avgMid*avgMid) : varAll, stdMid = Math.sqrt(Math.max(0,varMid))/255;
+      const botAvg = botN ? (botSum/botN)/255 : 0, botVar = botN ? (botSumSq/botN - (botSum/botN)**2) : 0, botStd = Math.sqrt(Math.max(0,botVar))/255;
 
-      self.postMessage({ token, motion01, p05: pctFromHist(histAll, nAll, 0.05), p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98), avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0, clipFracTop: nTop ? (clipTop/nTop) : 0, clipLowFrac: nAll ? (clipLowAll/nAll) : 0, p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98), stdDevT: stdTop, cfT: cfTop, clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, botP95: pctFromHist(histBot, botN || 1, 0.95), botBrightRows, botRowCount, redDominance, skinScore });
+      const cfAll = Math.min(1, stdAll/0.22), cfTop = Math.min(1, stdTop/0.22), cfMid = Math.min(1, stdMid/0.22);
+      const rgbSum = (rSum+gSum+bSum) || 1, redDominance = Math.max(0, Math.min(1, (rSum/rgbSum) - 0.28)), skinScore = skinCnt ? Math.min(1, (skinAcc/skinCnt) * 1.22) : 0;
+
+      const botWhiteFrac = botPix ? (botWhitePix / botPix) : 0;
+      const botEdgeFrac = botEdgePairs ? (botEdgePix / botEdgePairs) : 0;
+      const botTextLike = botPix ? (botTextLikePix / botPix) : 0;
+
+      self.postMessage({
+        token, motion01,
+        p05: pctFromHist(histAll, nAll, 0.05), p10: pctFromHist(histAll, nAll, 0.10), p35: pctFromHist(histAll, nAll, 0.35), p50: pctFromHist(histAll, nAll, 0.50), p90: pctFromHist(histAll, nAll, 0.90), p95: pctFromHist(histAll, nAll, 0.95), p98: pctFromHist(histAll, nAll, 0.98),
+        avgLuma: avgAll/255, stdDev: stdAll, cf: cfAll, clipFrac: nAll ? (clipAll/nAll) : 0, clipFracTop: nTop ? (clipTop/nTop) : 0, clipLowFrac: nAll ? (clipLowAll/nAll) : 0,
+        p10T: pctFromHist(histTop, nTop || 1, 0.10), p35T: pctFromHist(histTop, nTop || 1, 0.35), p50T: pctFromHist(histTop, nTop || 1, 0.50), p90T: pctFromHist(histTop, nTop || 1, 0.90), p95T: pctFromHist(histTop, nTop || 1, 0.95), p98T: pctFromHist(histTop, nTop || 1, 0.98), stdDevT: stdTop, cfT: cfTop,
+        p10M: pctFromHist(histMid, nMid || 1, 0.10), p35M: pctFromHist(histMid, nMid || 1, 0.35), p50M: pctFromHist(histMid, nMid || 1, 0.50), p90M: pctFromHist(histMid, nMid || 1, 0.90), p95M: pctFromHist(histMid, nMid || 1, 0.95), p98M: pctFromHist(histMid, nMid || 1, 0.98), stdDevM: stdMid, cfM: cfMid,
+        clipFracBottom: botN ? (clipBottom/botN) : 0, botAvg, botStd, botP95: pctFromHist(histBot, botN || 1, 0.95), botBrightRows, botRowCount,
+        botWhiteFrac, botEdgeFrac, botTextLike,
+        redDominance, skinScore
+      });
     };
   `;
 
@@ -1153,6 +1233,14 @@
     let __lastSampleMediaTime = -1;
     let __sameFrameSkipStreak = 0;
     let __autoProfileVotes = [];
+
+    let __sceneChange01 = 1;
+    let __aeBurstUntil = 0;
+    let __workerStallStreak = 0;
+    let __skinEma = 0;
+    let __subConfEma = 0;
+    let __prevSceneStats = null;
+
     const { clamp } = Utils; let __packKey = '', __pack = null;
     let __unavailable = false;
     let workerPolicy = null;
@@ -1160,6 +1248,38 @@
     const getResolvedProfile = () => { const sel = sm.get(P.V_AE_PROFILE) || 'standard'; return (sel === 'auto') ? (__autoProfile || 'standard') : sel; };
     const getPack = () => { const name = getResolvedProfile(), key = (IS_MOBILE ? 'm|' : 'p|') + name; if (key !== __packKey) { __packKey = key; __pack = getAePack(IS_MOBILE, name); } return __pack; };
     const riskFrom = (p95, p98, clipFrac, clipLimit) => clamp(Math.max(clamp((p95 - 0.885) / 0.095, 0, 1) * 0.70 + clamp((p98 - 0.968) / 0.028, 0, 1) * 0.90, clamp((clipFrac - clipLimit) / (clipLimit * 4.0), 0, 1)), 0, 1);
+
+    const smoothstep01 = (x) => {
+      x = clamp(x, 0, 1);
+      return x * x * (3 - 2 * x);
+    };
+
+    function computeAdaptiveSampleIntervalMs(v, now) {
+      const paused = !!v?.paused;
+      const rate = (v && Number.isFinite(v.playbackRate) && v.playbackRate > 0) ? v.playbackRate : 1;
+      const risk01 = clamp(__lastMeta?.hiRisk ?? 0, 0, 1);
+      const subLikely = !!(__lastMeta?.subLikely);
+      const cf01 = clamp(lastStats.cf ?? 0.5, 0, 1);
+      const stableScene = (__motion01 < 0.10) && (cf01 > 0.22);
+      const sameTargetAndStable = stableScene && risk01 < 0.25;
+      const gainDeltaEv = Math.abs(Math.log2(Math.max(1e-6, curGain)) - Math.log2(Math.max(1e-6, __lastSampleCheckGain)));
+      const gainStable = gainDeltaEv < 0.03;
+
+      let ms = paused ? 520 : (CONFIG.IS_LOW_END ? 112 : 82);
+      ms += (1 - __motion01) * 72;
+      ms -= risk01 * 20;
+      if (now < __aeBurstUntil) ms *= 0.58;
+      if (subLikely) ms *= 0.82;
+      if (sameTargetAndStable) ms *= gainStable ? 1.85 : 1.20;
+      const warmup01 = clamp(sampleCount / 4, 0, 1);
+      ms *= (1.00 - (1 - warmup01) * 0.28);
+      ms *= (1 + __userLock01 * 2.8);
+      ms *= (1 + Math.min(4, __workerStallStreak) * 0.16);
+      ms /= Math.min(2.4, Math.max(0.65, rate));
+
+      if (paused) return clamp(ms, 180, 1200);
+      return clamp(ms, CONFIG.IS_LOW_END ? 38 : 28, CONFIG.IS_LOW_END ? 240 : 190);
+    }
 
     function sceneChangeFromStats(avgLumaNow, avgLumaPrev, motion01, cf01, prevStats, currStats, clamp) {
       if (avgLumaPrev < 0 || !prevStats) return 1;
@@ -1171,7 +1291,6 @@
       const histTerm = (p50Delta / 0.06) * 0.8 + (p95Delta / 0.05) * 0.9 + (cfDelta / 0.10) * 0.4;
       return clamp(Math.max(luminanceTerm, histTerm), 0, 1);
     }
-    let __prevSceneStats = null;
     const mixv = (a, b, w) => (a * (1 - w) + b * w);
 
     let __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 };
@@ -1314,39 +1433,75 @@
       const now = performance.now(); sampleCount++;
       __motion01 = data.motion01 !== undefined ? data.motion01 : __motion01;
 
-      const barRowRatio = (data.botRowCount > 0) ? (data.botBrightRows / data.botRowCount) : 0, uiBar = (barRowRatio > 0.55) || ((data.botAvg > 0.22 && data.botStd < 0.055) || (data.clipFracBottom > (cfg.CLIP_FRAC_LIMIT * 4) && data.botStd < 0.045));
+      const barRowRatio = (data.botRowCount > 0) ? (data.botBrightRows / data.botRowCount) : 0;
 
-      const subCandidate = !uiBar && (barRowRatio > 0.12 && barRowRatio < 0.55) && (data.botP95 > 0.92) && (data.p50 < 0.24) && (data.stdDev > 0.055) && (data.botStd > 0.040);
-      if (subCandidate) __subCandidateStreak++;
-      else __subCandidateStreak = 0;
-      if (__subCandidateStreak >= 2) __subLikelyHoldUntil = now + 700;
+      const uiBarScore = clamp(
+        (barRowRatio > 0.55 ? 0.55 : 0) +
+        clamp(((data.botAvg ?? 0) - 0.22) / 0.16, 0, 1) * 0.20 +
+        clamp((0.060 - (data.botStd ?? 0)) / 0.035, 0, 1) * 0.20 +
+        clamp((0.18 - (data.botEdgeFrac ?? 0)) / 0.12, 0, 1) * 0.15 +
+        clamp(((data.botWhiteFrac ?? 0) - 0.35) / 0.25, 0, 1) * 0.10,
+        0, 1
+      );
 
-      const subLikely = (__subCandidateStreak >= 2) || (now < __subLikelyHoldUntil);
+      const subTextScore = clamp(
+        clamp(((data.botTextLike ?? 0) - 0.04) / 0.20, 0, 1) * 0.45 +
+        clamp(((data.botEdgeFrac ?? 0) - 0.10) / 0.30, 0, 1) * 0.25 +
+        clamp(((data.botP95 ?? 0) - 0.90) / 0.08, 0, 1) * 0.15 +
+        clamp((0.28 - (data.p50 ?? 0.5)) / 0.12, 0, 1) * 0.15,
+        0, 1
+      );
+
+      const subBandPrior = (barRowRatio > 0.10 && barRowRatio < 0.58) ? 0.12 : 0.0;
+      let subConf = clamp(subTextScore + subBandPrior - uiBarScore * 0.85, 0, 1);
+      if ((data.stdDev ?? 0) < 0.040 && (data.botStd ?? 0) < 0.030) subConf *= 0.55;
+
+      __subConfEma = (__subConfEma <= 0) ? subConf : (subConf * 0.28 + __subConfEma * 0.72);
+
+      const subOnTh = 0.58;
+      const subKeepTh = 0.34;
+      if (__subConfEma > subOnTh) {
+        __subLikelyHoldUntil = now + 850;
+      } else if (__subConfEma > subKeepTh && now < __subLikelyHoldUntil) {
+        __subLikelyHoldUntil = now + 220;
+      }
+
+      const subLikely = (__subConfEma > subOnTh) || (now < __subLikelyHoldUntil);
 
       let subW = 0;
       if (subLikely) {
-        subW = 0.70;
-        if (barRowRatio > 0.20 && barRowRatio < 0.45) subW += 0.15;
-        if (data.botP95 > 0.95) subW += 0.10;
+        subW = smoothstep01((__subConfEma - 0.30) / 0.50);
+        subW *= (0.82 + 0.18 * clamp(((data.botTextLike ?? 0) - 0.03) / 0.18, 0, 1));
         subW = clamp(subW, 0, 0.92);
       }
 
+      const rawSkinScore = (data.skinScore != null) ? data.skinScore : (data.redDominance ?? 0);
+      __skinEma = (__skinEma <= 0) ? rawSkinScore : mixv(__skinEma, rawSkinScore, 0.18);
+      const skinScore = __skinEma;
+
+      const refP10 = mixv(data.p10T ?? data.p10, data.p10M ?? data.p10, 0.60);
+      const refP35 = mixv(data.p35T ?? data.p35, data.p35M ?? data.p35, 0.60);
+      const refP50 = mixv(data.p50T ?? data.p50, data.p50M ?? data.p50, 0.60);
+      const refP90 = mixv(data.p90T ?? data.p90, data.p90M ?? data.p90, 0.60);
+      const refP95 = mixv(data.p95T ?? data.p95, data.p95M ?? data.p95, 0.60);
+      const refP98 = mixv(data.p98T ?? data.p98, data.p98M ?? data.p98, 0.60);
+      const refCf = mixv(data.cfT ?? data.cf, data.cfM ?? data.cf, 0.60);
+
       const clipFracEff = (subW > 0.01)
-        ? mixv(data.clipFrac, Math.min(data.clipFrac, (data.clipFracTop ?? data.clipFrac) * 1.12), subW)
+        ? mixv(data.clipFrac, Math.min(data.clipFrac, Math.min((data.clipFracTop ?? data.clipFrac) * 1.12, data.clipFrac)), subW)
         : data.clipFrac;
 
-      const skinScore = (data.skinScore != null) ? data.skinScore : data.redDominance;
       const stats = {
-        p05: mixv(data.p05, data.p05, subW),
-        p10: mixv(data.p10, data.p10T ?? data.p10, subW),
-        p35: mixv(data.p35, data.p35T ?? data.p35, subW),
-        p50: mixv(data.p50, data.p50T ?? data.p50, subW),
-        p90: mixv(data.p90, data.p90T ?? data.p90, subW),
-        p95: mixv(data.p95, data.p95T ?? data.p95, subW),
-        p98: mixv(data.p98, data.p98T ?? data.p98, subW),
+        p05: data.p05,
+        p10: mixv(data.p10, refP10, subW),
+        p35: mixv(data.p35, refP35, subW),
+        p50: mixv(data.p50, refP50, subW),
+        p90: mixv(data.p90, refP90, subW),
+        p95: mixv(data.p95, refP95, subW),
+        p98: mixv(data.p98, refP98, subW),
         clipFrac: clipFracEff,
         clipLowFrac: data.clipLowFrac,
-        cf: mixv(data.cf, data.cfT ?? data.cf, subW),
+        cf: mixv(data.cf, refCf, subW),
         rd: skinScore
       };
 
@@ -1358,6 +1513,12 @@
       const sc01 = sceneChangeFromStats(data.avgLuma, lastLuma, __motion01, clamp(lastStats.cf ?? 0.5, 0, 1), __prevSceneStats, currSceneStats, clamp);
       __prevSceneStats = { ...currSceneStats };
       lastLuma = data.avgLuma;
+
+      __sceneChange01 = sc01;
+      if (sc01 > 0.72) {
+        __aeBurstUntil = now + (activeVideo?.paused ? 0 : 420);
+      }
+      __workerStallStreak = 0;
 
       if (sm.get(P.V_AE_PROFILE) === 'auto' && now >= __autoHoldUntil) {
         const prev = __autoProfile; const picked = chooseAutoProfileStable(lastStats, risk01, prev, subLikely);
@@ -1422,32 +1583,29 @@
       }
 
       const now = performance.now();
-      const gainDeltaEv = Math.abs(Math.log2(Math.max(1e-6, curGain)) - Math.log2(Math.max(1e-6, __lastSampleCheckGain)));
-      const gainStable = gainDeltaEv < 0.03;
-      const risk01 = clamp(__lastMeta?.hiRisk ?? 0, 0, 1);
-      const stableScene = (__motion01 < 0.10) && ((lastStats.cf ?? 0.5) > 0.22);
-      const sameTargetAndStable = stableScene && risk01 < 0.25;
-      const rate = (v && Number.isFinite(v.playbackRate) && v.playbackRate > 0) ? v.playbackRate : 1;
+      const intervalMs = computeAdaptiveSampleIntervalMs(v, now);
 
-      let baseInterval = (v.paused ? 600 : (CONFIG.IS_LOW_END ? 120 : 90)) + (1 - __motion01) * 80;
-      baseInterval /= Math.min(2.2, Math.max(0.7, rate));
+      if (now - lastSampleT < intervalMs) return;
 
-      if (sameTargetAndStable) baseInterval *= 1.75;
-      baseInterval *= (1 + __userLock01 * 3.5);
-      if (now - lastSampleT < baseInterval) return;
+      if (workerBusy) {
+        __workerStallStreak++;
+        lastSampleT = now - Math.min(intervalMs * 0.75, 40);
+        return;
+      }
 
-      lastSampleT = now; if (workerBusy) return;
       try {
         const wk = ensureWorker();
         if (!wk) return;
         const w = CONFIG.IS_LOW_END ? 24 : 32; const h = w;
+
+        lastSampleT = now;
+        __lastSampleCheckGain = curGain;
 
         if (window.createImageBitmap && window.OffscreenCanvas) {
           workerBusy = true;
           createImageBitmap(v, { resizeWidth: w, resizeHeight: h, resizeQuality: 'pixelated' })
             .then(bitmap => {
               if (!isRunning) { bitmap.close(); workerBusy = false; return; }
-              __lastSampleCheckGain = curGain;
               wk.postMessage({ bitmap, width: w, height: h, step: w<=24?1:2, token: targetToken }, [bitmap]);
             })
             .catch(err => {
@@ -1463,7 +1621,6 @@
           }
           ctx2d.drawImage(v, 0, 0, canvas.width, canvas.height); const d = ctx2d.getImageData(0, 0, canvas.width, canvas.height);
           workerBusy = true;
-          __lastSampleCheckGain = curGain;
           wk.postMessage({ buf: d.data.buffer, width: canvas.width, height: canvas.height, step: canvas.width <= 24 ? 1 : 2, token: targetToken }, [d.data.buffer]);
         }
       } catch (_) { workerBusy = false; v[VSCX.tainted] = true; }
@@ -1478,10 +1635,10 @@
 
     const invalidatePendingSample = () => { targetToken++; workerBusy = false; };
     const resetAutoClassifierState = () => { __autoProfileVotes.length = 0; __subLikelyHoldUntil = 0; __subCandidateStreak = 0; __autoHoldUntil = 0; __prevSceneStats = null; };
-    const hardResetStats = () => { invalidatePendingSample(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; __lastLookSent = null; resetAutoClassifierState(); };
+    const hardResetStats = () => { invalidatePendingSample(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; lastLuma = -1; sampleCount = 0; lastStats = { p05: -1, p10: -1, p35: -1, p50: -1, p90: -1, p95: -1, p98: -1, clipFrac: -1, clipLowFrac: -1, cf: -1, rd: -1 }; lastEmaT = performance.now(); lastApplyT = performance.now(); __lookEmaInit = false; __lookEma = { conF: 1, satF: 1, mid: 0, toe: 0, shoulder: 0, brightAdd: 0 }; __lastLookSent = null; __subConfEma = 0; __sceneChange01 = 1; __aeBurstUntil = 0; __workerStallStreak = 0; __skinEma = 0; __prevSceneStats = null; resetAutoClassifierState(); };
     const softResetStats = () => { invalidatePendingSample(); __lastSampleMediaTime = -1; __sameFrameSkipStreak = 0; lastSampleT = 0; sampleCount = Math.min(sampleCount, 1); lastEmaT = performance.now(); lastApplyT = performance.now(); __subCandidateStreak = 0; __subLikelyHoldUntil = 0; __lastLookSent = null; };
     const stopSoft = () => { isRunning = false; loopToken++; activeVideo = null; };
-    const stopHard = () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; __prevFrame = null; targetToken++; __unavailable = true; };
+    const stopHard = () => { isRunning = false; loopToken++; try { worker?.terminate(); } catch (_) {} worker = null; workerBusy = false; if (workerUrl) { try { URL.revokeObjectURL(String(workerUrl)); } catch (_) {} workerUrl = null; } activeVideo = null; curGain = 1.0; lastLuma = -1; targetToken++; __unavailable = true; };
 
     return {
       isUnavailable: () => __unavailable,
@@ -1842,6 +1999,8 @@
 
     let __activeTarget = null, __lastHadAnyT = 0;
 
+    let applySet = null;
+
     Scheduler.registerApply((force) => {
       try {
         const active = !!Store.getCatRef('app').active;
@@ -1931,7 +2090,7 @@
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
         const extraApplyTopK = Store.get(P.APP_EXTRA_TOPK) | 0;
 
-        const applySet = Targeting.buildApplySetReuse(visible.videos, __activeTarget, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, pick.topCandidates);
+        applySet = Targeting.buildApplySetReuse(visible.videos, __activeTarget, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, pick.topCandidates);
 
         const desiredRate = Store.get(P.PB_RATE);
         const pbActive = active && !!Store.get(P.PB_EN);
