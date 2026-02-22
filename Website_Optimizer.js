@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v81.2 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 (v81.3 ULTRA Infinity Autonomous)
 // @namespace   http://tampermonkey.net/
-// @version     81.2.0-KR-ULTRA-Infinity-Autonomous
-// @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU)
+// @version     81.3.0-KR-ULTRA-Infinity-Autonomous
+// @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU, LoAF)
 // @author      KiwiFruit
 // @match       *://*/*
 // @grant       unsafeWindow
@@ -21,26 +21,63 @@
     const DAY = 86400000;
     const WEEK = 7 * DAY;
 
+    // [Global Helpers]
+    const reloadPage = () => {
+        try { win.location.reload(); }
+        catch {
+            try { location.reload(); } catch {}
+        }
+    };
+
     // [Safe Storage Wrapper with True LRU & Memory Cache]
     const S = {
         _idxCache: null,
         _idxDirty: false,
         _idxTimer: null,
 
+        _flushIdxSoon() {
+            this._idxDirty = true;
+            if (this._idxTimer) return;
+            this._idxTimer = setTimeout(() => {
+                this._idxTimer = null;
+                if (!this._idxDirty) return;
+                this._idxDirty = false;
+                try { localStorage.setItem('PerfX_IDX', JSON.stringify(this._idxCache || [])); } catch {}
+            }, 250);
+        },
+
         get(k) {
             try {
                 const v = localStorage.getItem(k);
-                if (v !== null) this._trackKey(k); // ✅ Read Tracking
+                if (v !== null) this._trackKey(k);
                 return v;
             } catch { return null; }
         },
+
         set(k, v) {
             try {
                 localStorage.setItem(k, v);
                 this._trackKey(k);
             } catch {}
         },
-        remove(k) { try { localStorage.removeItem(k); } catch {} },
+
+        remove(k) {
+            try { localStorage.removeItem(k); } catch {}
+            try {
+                if (k === 'PerfX_IDX') {
+                    this._idxCache = [];
+                    this._idxDirty = false;
+                    return;
+                }
+                if (Array.isArray(this._idxCache)) {
+                    const pos = this._idxCache.indexOf(k);
+                    if (pos !== -1) {
+                        this._idxCache.splice(pos, 1);
+                        this._flushIdxSoon();
+                    }
+                }
+            } catch {}
+        },
 
         _getPerfXIdx() {
             if (this._idxCache) return this._idxCache;
@@ -69,16 +106,7 @@
                     const old = idx.shift();
                     try { localStorage.removeItem(old); } catch {}
                 }
-
-                this._idxDirty = true;
-                if (!this._idxTimer) {
-                    this._idxTimer = setTimeout(() => {
-                        this._idxTimer = null;
-                        if (!this._idxDirty) return;
-                        this._idxDirty = false;
-                        try { localStorage.setItem('PerfX_IDX', JSON.stringify(this._idxCache || [])); } catch {}
-                    }, 250);
-                }
+                this._flushIdxSoon();
             } catch {}
         },
 
@@ -90,6 +118,12 @@
                     if (k && prefixes.some(p => k.startsWith(p))) toRemove.push(k);
                 }
                 toRemove.forEach(k => localStorage.removeItem(k));
+
+                if (Array.isArray(this._idxCache)) {
+                    const before = this._idxCache.length;
+                    this._idxCache = this._idxCache.filter(k => !prefixes.some(p => k.startsWith(p)));
+                    if (this._idxCache.length !== before) this._flushIdxSoon();
+                }
             } catch {}
         }
     };
@@ -113,6 +147,16 @@
         else win.addEventListener('DOMContentLoaded', cb, { once: true });
     };
 
+    const onPageActivated = (cb) => {
+        try {
+            if (document.prerendering) {
+                document.addEventListener('prerenderingchange', () => cb(), { once: true });
+                return;
+            }
+        } catch {}
+        cb();
+    };
+
     // Bucket & Freshness
     const normSeg = (s) => {
         if (/^\d+$/.test(s)) return ':id';
@@ -123,7 +167,7 @@
     const getPathBucket = () => win.location.pathname.split('/').filter(Boolean).slice(0, 2).map(normSeg).join('/');
     const fresh = (obj, ms) => obj && obj.ts && (Date.now() - obj.ts) < ms;
 
-    // ✅ Event Bus (단순화 및 EventTarget 호환)
+    // ✅ Event Bus
     const Bus = {
         on(name, fn, target = win) {
             target.addEventListener(name, fn);
@@ -133,7 +177,7 @@
         }
     };
 
-    // ✅ BaseModule with AbortController for clean event management
+    // ✅ BaseModule with AbortController
     class BaseModule {
         constructor() {
             this._ac = new AbortController();
@@ -167,7 +211,7 @@
     // [Safe Init] Hoist Config/API
     let Config = {
         codecMode: 'off', passive: false, gpu: false, memory: false,
-        allowIframe: false, rtcGuard: false, downgradeLevel: 0 // ✅ WebRTCGuard 기본 OFF
+        allowIframe: false, rtcGuard: false, downgradeLevel: 0
     };
 
     const API = {
@@ -175,13 +219,15 @@
         shutdownMemory: () => {}, restartMemory: () => {}, resetAll: () => {}, showStatus: () => {}
     };
 
-    // ✅ Modern Scheduler (postTask/yield 우선, fallback 유지)
+    // ✅ Modern Scheduler
     const scheduler = {
         request(cb, timeout = 200, priority = 'background') {
             if (win.scheduler?.postTask) {
                 const ctrl = new AbortController();
-                const promise = win.scheduler.postTask(() => cb(), { delay: timeout, priority, signal: ctrl.signal });
-                return { kind: 'postTask', ctrl, promise };
+                win.scheduler
+                    .postTask(() => cb(), { delay: timeout, priority, signal: ctrl.signal })
+                    .catch(() => { /* aborted / ignored */ });
+                return { kind: 'postTask', ctrl };
             }
             if (win.requestIdleCallback) {
                 return { kind: 'ric', id: win.requestIdleCallback(cb, { timeout }) };
@@ -208,7 +254,7 @@
         }
     };
 
-    // ✅ Robust Chunk Scan Utility (Yield 지원)
+    // ✅ Robust Chunk Scan Utility
     const scanInChunks = (list, limit, step, fn) => {
         if (!list || typeof list.length !== 'number' || list.length === 0) return;
         let i = 0;
@@ -248,7 +294,7 @@
 
     // [Constants]
     const FEED_SEL = '[role="feed"], [data-perfx-feed], .feed, .timeline';
-    const ITEM_SEL = '[role="article"], [data-perfx-item], article, .item, .post'; // ✅ 최적화 (li, section 제거)
+    const ITEM_SEL = '[role="article"], [data-perfx-item], article, .item, .post';
     const SUPPORTED_TYPES = new Set(typeof PerformanceObserver !== 'undefined' ? (PerformanceObserver.supportedEntryTypes || []) : []);
 
     // [Config & State]
@@ -280,7 +326,7 @@
     const debug = !!RuntimeConfig.debug;
     const log = (...args) => debug && console.log('%c[PerfX]', 'color: #00ff00; background: #000; padding: 2px 4px; border-radius: 2px;', ...args);
 
-    // ✅ Hoisted Interactive Check (TDZ Safe)
+    // ✅ Hoisted Interactive Check
     const applyInteractiveMemory = () => {
         const isInteractiveStored = safeJsonParse(S.get(INTERACTIVE_KEY));
         if (fresh(isInteractiveStored, DAY)) {
@@ -314,7 +360,6 @@
             }
         }
 
-        // Auto-Downgrade Profile Check
         const forcedProfile = safeJsonParse(S.get(getProfileKey()));
         if (fresh(forcedProfile, WEEK)) {
             log('Adaptive Profile: Balanced Mode Enforced');
@@ -332,7 +377,7 @@
                 log('Sensitive Page Detected: Entering Safe Mode');
                 sessionStorage.setItem(SESSION_OFF_KEY, '1');
                 sessionStorage.setItem(INTENT_RELOAD, '1');
-                location.reload();
+                reloadPage();
             }
 
             const checkInteractive = () => {
@@ -353,7 +398,7 @@
                     if (!sessionStorage.getItem(INTENT_INTERACTIVE)) {
                         sessionStorage.setItem(INTENT_INTERACTIVE, '1');
                         sessionStorage.setItem(INTENT_RELOAD, '1');
-                        location.reload();
+                        reloadPage();
                         return true;
                     }
 
@@ -460,8 +505,10 @@
     };
 
     let rzT = null;
-    const triggerRefresh = () => refreshPerfState();
-    win.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(triggerRefresh, 200); });
+    win.addEventListener('resize', () => {
+        clearTimeout(rzT);
+        rzT = setTimeout(refreshPerfState, 200);
+    });
     navigator.connection?.addEventListener?.('change', refreshPerfState);
     computeState();
 
@@ -491,7 +538,7 @@
         gpu: RuntimeConfig.gpu ?? (!isLayoutSensitive && !perfState.isLowPowerMode),
         memory: RuntimeConfig.memory ?? (!isLayoutSensitive && !isHeavyFeed),
         allowIframe: RuntimeConfig.allowIframe ?? false,
-        rtcGuard: RuntimeConfig.rtcGuard ?? false, // ✅ WebRTCGuard 기본 OFF
+        rtcGuard: RuntimeConfig.rtcGuard ?? false,
         downgradeLevel: RuntimeConfig.downgradeLevel || 0
     };
 
@@ -505,7 +552,7 @@
     Object.assign(API, {
         profile: (mode) => {
             const presets = {
-                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed, rtcGuard: false }, // ✅ 기본 OFF
+                ultra: { codecMode: 'hard', passive: true, gpu: true, memory: !isHeavyFeed, rtcGuard: false },
                 balanced: { codecMode: 'soft', passive: true, gpu: false, memory: !isHeavyFeed, rtcGuard: false },
                 safe: { codecMode: 'off', passive: false, gpu: false, memory: false, rtcGuard: false }
             };
@@ -513,25 +560,30 @@
             const current = Env.getOverrides();
             S.remove(Q_KEY); Q_CACHE = null;
             Env.saveOverrides({ ...current, ...p, disabled: false });
-            location.reload();
+            reloadPage();
         },
         toggleConfig: (key) => {
             const c = Env.getOverrides();
             c[key] = !c[key];
             Env.saveOverrides(c);
-            location.reload();
+            reloadPage();
         },
         toggleSessionSafe: () => {
              if (sessionStorage.getItem(SESSION_OFF_KEY)) sessionStorage.removeItem(SESSION_OFF_KEY);
              else sessionStorage.setItem(SESSION_OFF_KEY, '1');
-             location.reload();
+             reloadPage();
         },
         resetAll: () => {
-            S.clearPrefix(['PerfX_', 'perfx-', 'PerfX_IDX']);
-            location.reload();
+            S.clearPrefix(['PerfX_', 'perfx-']);
+            try {
+                sessionStorage.removeItem(SESSION_OFF_KEY);
+                sessionStorage.removeItem(INTENT_RELOAD);
+                sessionStorage.removeItem(INTENT_INTERACTIVE);
+            } catch {}
+            reloadPage();
         },
         showStatus: () => {
-            const info = `[PerfX v81.2]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
+            const info = `[PerfX v81.3]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
             if (typeof GM_notification !== 'undefined') GM_notification({ title: 'PerfX Status', text: info, timeout: 5000 });
             else console.log(info);
         }
@@ -541,7 +593,6 @@
     let lastKey = LCP_KEY;
     let lastRouteSignal = 0;
 
-    // ✅ SPA Hero Inference (Chunked)
     const detectHeroImage = () => {
         const imgs = document.images;
         if (!imgs.length) return;
@@ -567,7 +618,7 @@
                 if (RuntimeConfig._lcp !== nUrl) {
                     RuntimeConfig._lcp = nUrl;
                     persistLCP();
-                    Bus.emit('perfx-lcp-update', { url: nUrl }); // ✅ 캐시 업데이트 신호
+                    Bus.emit('perfx-lcp-update', { url: nUrl });
                 }
             }
         };
@@ -608,15 +659,30 @@
         }
     };
 
+    // ✅ SPA History API Hooking with QueueMicrotask
     if (!win.__perfx_history_patched) {
         win.__perfx_history_patched = true;
+
+        const wrapHistoryMethod = (orig) => function(...args) {
+            const ret = orig.apply(this, args);
+            queueMicrotask(() => {
+                try { onRoute(); }
+                catch (e) { log('onRoute error:', e); }
+            });
+            return ret;
+        };
+
         const origPush = history.pushState;
-        history.pushState = function() { origPush.apply(this, arguments); onRoute(); };
+        history.pushState = wrapHistoryMethod(origPush);
+
         const origRep = history.replaceState;
-        history.replaceState = function() { origRep.apply(this, arguments); onRoute(); };
+        history.replaceState = wrapHistoryMethod(origRep);
+
         win.addEventListener('popstate', onRoute);
         win.addEventListener('hashchange', onRoute);
-        win.addEventListener('pageshow', (e) => { if(e.persisted) Bus.emit('perfx-route', { force: true }); });
+        win.addEventListener('pageshow', (e) => {
+            if (e.persisted) Bus.emit('perfx-route', { force: true });
+        });
     }
 
     if (typeof GM_registerMenuCommand !== 'undefined') {
@@ -639,19 +705,36 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '81.2.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '81.3.0', config: Config, ...API };
 
     // ==========================================
-    // 2. Autonomous V28
+    // 2. Autonomous V29 (LoAF + Event Timing)
     // ==========================================
     if (SUPPORTED_TYPES.size > 0 && !RuntimeConfig._sessionSafe) {
         try {
             let clsTotal = 0, loadTotal = 0;
-            let lastCls = 0, lastLoad = 0;
+            let loafTotal = 0, slowEventScore = 0; // ✅
+            let lastCls = 0, lastLoad = 0, lastLoaf = 0, lastSlowEvent = 0; // ✅
             let recoveryStreak = 0;
 
             if (SUPPORTED_TYPES.has('layout-shift')) { new PerformanceObserver((l)=> { for(const e of l.getEntries()) if(!e.hadRecentInput) clsTotal+=e.value; }).observe({type:'layout-shift',buffered:true}); }
             if (SUPPORTED_TYPES.has('longtask')) { new PerformanceObserver((l)=> { loadTotal+=l.getEntries().length; }).observe({type:'longtask',buffered:true}); }
+            
+            // ✅ LoAF
+            if (SUPPORTED_TYPES.has('long-animation-frame')) {
+                new PerformanceObserver((list) => {
+                    for (const e of list.getEntries()) { loafTotal += 1; }
+                }).observe({ type: 'long-animation-frame', buffered: true });
+            }
+            
+            // ✅ Event Timing (INP)
+            if (SUPPORTED_TYPES.has('event')) {
+                new PerformanceObserver((list) => {
+                    for (const e of list.getEntries()) {
+                        if ((e.duration || 0) >= 80) slowEventScore += (e.duration >= 160 ? 2 : 1);
+                    }
+                }).observe({ type: 'event', buffered: true, durationThreshold: 40 });
+            }
 
             if (SUPPORTED_TYPES.has('largest-contentful-paint')) {
                 new PerformanceObserver((list) => {
@@ -664,7 +747,7 @@
                             if (currentLCP !== RuntimeConfig._lcp) {
                                 RuntimeConfig._lcp = currentLCP;
                                 schedulePersistLCP();
-                                Bus.emit('perfx-lcp-update', { url: currentLCP }); // ✅ 캐시 업데이트 신호
+                                Bus.emit('perfx-lcp-update', { url: currentLCP });
                             }
                         }
                     }
@@ -685,15 +768,23 @@
                 if (document.hidden) return;
                 const clsDelta = clsTotal - lastCls;
                 const loadDelta = loadTotal - lastLoad;
+                const loafDelta = loafTotal - lastLoaf; // ✅
+                const slowEventDelta = slowEventScore - lastSlowEvent; // ✅
+                
                 lastCls = clsTotal; lastLoad = loadTotal;
+                lastLoaf = loafTotal; lastSlowEvent = slowEventScore;
 
                 const c = RuntimeConfig;
                 const currentLevel = c.downgradeLevel || 0;
+                
                 const TH = {
                     L1_CLS: 0.05 * perfState.perfMultiplier,
                     L2_CLS: 0.2 * perfState.perfMultiplier,
-                    L2_LOAD: 15 * perfState.perfMultiplier
+                    L2_LOAD: 15 * perfState.perfMultiplier,
+                    L2_LOAF: Math.max(2, Math.round(4 * perfState.perfMultiplier)),
+                    L2_EVT: Math.max(2, Math.round(3 * perfState.perfMultiplier))
                 };
+                
                 const now = Date.now();
 
                 // Quarantine
@@ -717,21 +808,34 @@
                 }
 
                 // L2
-                if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD) && currentLevel < 2) {
+                if ((clsDelta > TH.L2_CLS || loadDelta > TH.L2_LOAD || loafDelta > TH.L2_LOAF || slowEventDelta > TH.L2_EVT) && currentLevel < 2) {
                     if (!c._restore) c._restore = { ...Config };
+                    
                     c.downgradeLevel = 2;
                     c.downgradeReason = { cls: clsDelta, load: loadDelta };
-                    c.gpu = false; c.memory = false; c.codecMode = 'soft';
+                    c.gpu = false; 
+                    c.memory = false; 
+                    c.codecMode = 'soft';
                     c.downgradeCount = (c.downgradeCount || 0) + 1;
                     c.unstableTs = now;
+                    
                     Env.saveOverrides(c);
-                    Object.assign(Config, {gpu:false, memory:false});
+                    
+                    // ✅ State Sync (1-7)
+                    Object.assign(Config, {
+                        gpu: false,
+                        memory: false,
+                        codecMode: 'soft',
+                        downgradeLevel: 2
+                    });
+                    
                     API.shutdownMemory();
+                    Bus.emit('perfx-config');
                     log(`Downgrade L2`);
                     recoveryStreak = 0;
                 }
                 // Recovery
-                else if (currentLevel > 0 && clsDelta < 0.01 && loadDelta < 1) {
+                else if (currentLevel > 0 && clsDelta < 0.01 && loadDelta < 1 && loafDelta < 1 && slowEventDelta < 1) {
                     recoveryStreak++;
                     if (recoveryStreak >= 4) {
                         const isQ = checkQuarantine(now);
@@ -771,30 +875,59 @@
     // 3. Core Modules
     // ==========================================
 
-    // [Core 0] WebRTC Guard (Grid Defense)
+    // [Core 0] WebRTC Guard (Proxy + Reflect)
     class WebRTCGuard extends BaseModule {
         init() {
             if (!Config.rtcGuard || isSafeMode) return;
             if (hostEndsWithAny(hostname, LISTS.RTC_ALLOW)) return;
 
-            const origPeer = win.RTCPeerConnection || win.webkitRTCPeerConnection || win.mozRTCPeerConnection;
-            if (!origPeer) return;
+            const patchPeerCtor = (prop) => {
+                const Peer = win[prop];
+                if (!Peer) return;
+                const MARK = Symbol.for(`perfx.rtc.${prop}`);
+                if (Peer[MARK]) return;
 
-            const proxiedPeer = function(config, constraints) {
-                const pc = new origPeer(config, constraints);
-                pc.createDataChannel = function() {
-                    throw new DOMException('RTCDataChannel blocked by PerfX policy', 'NotAllowedError'); // ✅ 예외 발생 (1-4)
-                };
-                return pc;
+                let Wrapped;
+                if (typeof Proxy !== 'undefined') {
+                    Wrapped = new Proxy(Peer, {
+                        construct(target, args, newTarget) {
+                            const pc = Reflect.construct(target, args, newTarget);
+                            if (typeof pc.createDataChannel === 'function') {
+                                pc.createDataChannel = function() {
+                                    throw new DOMException('RTCDataChannel blocked by PerfX policy', 'NotAllowedError');
+                                };
+                            }
+                            return pc;
+                        }
+                    });
+                } else {
+                    Wrapped = function(config, constraints) {
+                        const pc = new Peer(config, constraints);
+                        if (typeof pc.createDataChannel === 'function') {
+                            pc.createDataChannel = function() {
+                                throw new DOMException('RTCDataChannel blocked by PerfX policy', 'NotAllowedError');
+                            };
+                        }
+                        return pc;
+                    };
+                    try { Wrapped.prototype = Peer.prototype; } catch {}
+                    try { Object.setPrototypeOf(Wrapped, Peer); } catch {}
+                }
+
+                try { Object.defineProperty(Wrapped, MARK, { value: true }); } catch {}
+                try { Object.setPrototypeOf(Wrapped, Peer); } catch {}
+                try { Wrapped.prototype = Peer.prototype; } catch {}
+
+                win[prop] = Wrapped;
             };
-            proxiedPeer.prototype = origPeer.prototype;
-            if (win.RTCPeerConnection) win.RTCPeerConnection = proxiedPeer;
-            if (win.webkitRTCPeerConnection) win.webkitRTCPeerConnection = proxiedPeer;
-            if (win.mozRTCPeerConnection) win.mozRTCPeerConnection = proxiedPeer;
+
+            patchPeerCtor('RTCPeerConnection');
+            patchPeerCtor('webkitRTCPeerConnection');
+            patchPeerCtor('mozRTCPeerConnection');
         }
     }
 
-    // [Core 1] EventPassivator v5.3 (단순화 및 Opt-out 추가)
+    // [Core 1] EventPassivator
     class EventPassivator extends BaseModule {
         init() {
             if (win.__perfx_evt_patched) return;
@@ -804,8 +937,8 @@
             setTimeout(() => { passiveArmed = true; }, 1500);
 
             const isTopLevelTarget = (t) => t === win || t === document || t === document.body || t === document.documentElement;
-            const PASSIVE_OPT_OUT_SEL = '[data-perfx-no-passive], .mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas'; // ✅ (3-2)
-            const FORCE_PASSIVE_TYPES = new Set(['wheel', 'mousewheel']); // ✅ (3-4) touchmove는 기본 보수적 유지
+            const PASSIVE_OPT_OUT_SEL = '[data-perfx-no-passive], .mapboxgl-map, .leaflet-container, .monaco-editor, .CodeMirror, canvas';
+            const FORCE_PASSIVE_TYPES = new Set(['wheel', 'mousewheel']);
 
             const shouldSkipPassivePatch = (target) => {
                 try { return !!(target && target instanceof Element && target.closest?.(PASSIVE_OPT_OUT_SEL)); } catch { return false; }
@@ -821,7 +954,6 @@
                         if (!isTopLevelTarget(this) && shouldSkipPassivePatch(this)) {
                             return origAdd.call(this, type, listener, options);
                         }
-
                         const isObj = typeof options === 'object' && options !== null;
                         if (!isObj || options.passive === undefined) {
                             try {
@@ -836,15 +968,15 @@
         }
     }
 
-    // [Core 2] CodecOptimizer v2.7 (effectiveCodecMode & MediaCapabilities)
+    // [Core 2] CodecOptimizer
     class CodecOptimizer extends BaseModule {
         init() {
             if (Config.codecMode === 'off' || isVideoSite) return;
 
-            const requestedCodecMode = Config.codecMode; // ✅ 사용자 설정 보존 (1-3)
+            const requestedCodecMode = Config.codecMode;
             let effectiveCodecMode = requestedCodecMode;
             if (!perfState.isLowPowerMode && requestedCodecMode === 'hard') {
-                effectiveCodecMode = 'soft'; // 실행 시점 유효값만 변경
+                effectiveCodecMode = 'soft';
             }
 
             setTimeout(() => {
@@ -853,7 +985,6 @@
                 }
             }, 800);
 
-            // ✅ MediaCapabilities 정책 보조 (2-2)
             const codecPolicy = { av1: { supported: null, smooth: null, powerEfficient: null } };
             async function probeCodecCapabilities() {
                 if (!navigator.mediaCapabilities?.decodingInfo) return;
@@ -875,7 +1006,7 @@
                 
                 if (effectiveCodecMode === 'soft' && v.includes('av01')) {
                     if (codecPolicy.av1.supported === true && codecPolicy.av1.smooth === true && codecPolicy.av1.powerEfficient === true) {
-                        return false; // 기기가 충분히 원활하게 돌린다면 허용
+                        return false;
                     }
                     return true;
                 }
@@ -902,12 +1033,12 @@
         }
     }
 
-    // [Core 3] DomWatcher v4.3 (CIS Auto Fallback)
+    // [Core 3] DomWatcher
     class DomWatcher extends BaseModule {
         init() {
             if (isSafeMode) return;
             this.supportsCV = 'contentVisibility' in document.documentElement.style;
-            this.supportsCISAuto = !!(win.CSS?.supports?.('contain-intrinsic-size', 'auto 1px auto 1px')); // ✅ (2-3)
+            this.supportsCISAuto = !!(win.CSS?.supports?.('contain-intrinsic-size', 'auto 1px auto 1px'));
 
             if (Config.memory && !this.supportsCV) Config.memory = false;
             if (!('IntersectionObserver' in win)) return;
@@ -940,7 +1071,7 @@
 
             onReady(() => { if(Config.memory || Config.gpu) { this.startIO(); this.startMO(); } });
 
-            this.on(win, 'perfx-power-change', () => { // ✅ BaseModule this.on 적용 (3-1)
+            this.on(win, 'perfx-power-change', () => {
                 if (this.ioTimeout) clearTimeout(this.ioTimeout);
                 this.ioTimeout = setTimeout(() => this.startIO(), 1000);
             });
@@ -948,7 +1079,6 @@
             this.on(win, 'perfx-route', () => { API.shutdownMemory(); API.restartMemory(); });
         }
 
-        // ✅ Opt-out 및 예외 처리 강화 (3-2)
         isOptimizable(el, rect) {
             if (!el || el.nodeType !== 1) return false;
             if (el.closest?.('[data-perfx-no-cv], [contenteditable="true"], video, canvas, iframe, form')) return false;
@@ -986,7 +1116,7 @@
             const h = Math.min(2000, Math.ceil(rect.height));
             
             el.style.contentVisibility = 'auto';
-            if (this.supportsCISAuto) { // ✅ CIS auto fallback (2-3)
+            if (this.supportsCISAuto) {
                 el.style.containIntrinsicSize = `auto ${Math.max(1, w)}px auto ${Math.max(1, h)}px`;
             } else {
                 el.style.containIntrinsicSize = `${Math.max(1, w)}px ${Math.max(1, h)}px`;
@@ -1065,7 +1195,7 @@
                 scanInChunks(root.children, perfState.INIT_DOM_SCAN, perfState.SCAN_STEP, this.observeSafe);
 
                 if (root.tagName !== 'BODY') {
-                    const items = queryFeedItems(root); // ✅ fallback li (4-2)
+                    const items = queryFeedItems(root);
                     scanInChunks(items, 50, perfState.SCAN_STEP, this.observeSafe);
                 }
             }
@@ -1104,13 +1234,12 @@
         }
     }
 
-    // [Core 4] NetworkAssistant v4.3
+    // [Core 4] NetworkAssistant (Author Intent + Single Map)
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
-            const nearSet = new WeakMap();
-            const farSet = new WeakMap();
+            const seenState = new WeakMap(); // ✅ Unified Near/Far map
             const distMap = new WeakMap();
             const observing = new Set();
             let imgSlots = 0, vidSlots = 0;
@@ -1121,10 +1250,10 @@
             const batchQueue = new Map();
             let batchTimer = null;
 
-            let lcpUrlCached = RuntimeConfig._lcp || S.get(LCP_KEY) || null; // ✅ LCP URL 캐시 (3-3)
+            let lcpUrlCached = RuntimeConfig._lcp || S.get(LCP_KEY) || null;
 
             let protectTimer = null;
-            let isProtectionPhase = false; // ✅ 섀도잉 픽스 (1-1)
+            let isProtectionPhase = false;
 
             const startProtection = (force = false) => {
                 isProtectionPhase = true;
@@ -1142,21 +1271,39 @@
                 }
             };
 
-            const setImgLazy = (img, setPriority = true) => { // ✅ fetchPriority 보강 픽스 (1-2)
+            const getFetchPriority = (img) => {
+                try { if ('fetchPriority' in img) return String(img.fetchPriority || '').toLowerCase(); } catch {}
+                return (img.getAttribute('fetchpriority') || '').toLowerCase();
+            };
+
+            const setFetchPrioritySafe = (img, value) => {
+                try {
+                    if ('fetchPriority' in img) img.fetchPriority = value;
+                    else img.setAttribute('fetchpriority', value);
+                } catch {
+                    try { img.setAttribute('fetchpriority', value); } catch {}
+                }
+            };
+
+            const isAuthorCriticalImage = (img) => {
+                if (!img) return false;
+                const loading = (img.getAttribute('loading') || '').toLowerCase();
+                const fp = getFetchPriority(img);
+                return loading === 'eager' || fp === 'high' || !!img.closest?.('[data-perfx-critical]');
+            };
+
+            const setImgLazy = (img, setPriority = true) => {
                 if (!img || img.complete) return;
+                if (isAuthorCriticalImage(img)) return;
+
                 const currentLoading = (img.getAttribute('loading') || '').toLowerCase();
-                const currentFP = (img.getAttribute('fetchpriority') || '').toLowerCase();
+                const currentFP = getFetchPriority(img);
 
                 if (!currentLoading) img.loading = 'lazy';
                 if (!img.hasAttribute('decoding')) img.decoding = 'async';
                 
-                if (setPriority && currentFP !== 'high') {
-                    try {
-                        if ('fetchPriority' in img) img.fetchPriority = 'low';
-                        else if (!img.hasAttribute('fetchpriority')) img.setAttribute('fetchpriority', 'low');
-                    } catch {
-                        if (!img.hasAttribute('fetchpriority')) img.setAttribute('fetchpriority', 'low');
-                    }
+                if (setPriority && !currentFP) {
+                    setFetchPrioritySafe(img, 'low');
                 }
             };
 
@@ -1210,9 +1357,9 @@
                         }
 
                         if (e.isIntersecting) {
-                            nearSet.set(el, currentGen);
+                            seenState.set(el, { gen: currentGen, near: true });
                         } else {
-                            farSet.set(el, currentGen);
+                            seenState.set(el, { gen: currentGen, near: false });
                             applyLazy(el, e.boundingClientRect);
                         }
                         vpObs.unobserve(el);
@@ -1279,17 +1426,24 @@
             };
 
             const processImg = (img, fromMutation) => {
-                if (img.hasAttribute('loading') && img.hasAttribute('fetchpriority')) return;
+                if (!img || img.complete) return;
+
+                const loading = (img.getAttribute('loading') || '').toLowerCase();
+                const fp = getFetchPriority(img);
+
+                if (loading === 'eager' || fp === 'high') return;
                 
-                if (lcpUrlCached) { // ✅ LCP 캐시 사용 (3-3)
+                if (lcpUrlCached) {
                     const cur = normUrl(img.currentSrc || img.src);
                     if (cur === lcpUrlCached) { 
                         img.loading = 'eager'; 
-                        if ('fetchPriority' in img) img.fetchPriority = 'high';
-                        else img.setAttribute('fetchpriority', 'high'); 
+                        if (!img.hasAttribute('decoding')) img.decoding = 'sync';
+                        setFetchPrioritySafe(img, 'high'); 
                         return; 
                     }
                 }
+
+                if (loading === 'lazy' && fp === 'low') return;
 
                 if (fromMutation && !isProtectionPhase) {
                     if (imgSlots < MAX_IMG) { safeObserve(img); return; }
@@ -1297,8 +1451,12 @@
                     return;
                 }
 
-                if (nearSet.get(img) === currentGen) return;
-                if (farSet.get(img) === currentGen) { setImgLazy(img); return; }
+                const st = seenState.get(img);
+                if (st && st.gen === currentGen) {
+                    if (st.near) return;
+                    setImgLazy(img);
+                    return;
+                }
 
                 safeObserve(img);
             };
@@ -1368,15 +1526,17 @@
         }
     }
 
-    // Module Init
-    [
-        new WebRTCGuard(), // ✅ (1-4에 따라 로딩은 하되 내부 정책으로 기본 OFF 처리됨)
-        new EventPassivator(),
-        new CodecOptimizer(),
-        new DomWatcher(),
-        new NetworkAssistant()
-    ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
-
-    if (debug) log(`PerfX v81.2 Ready`);
+    // Module Init Wrap (document.prerendering 지원)
+    onPageActivated(() => {
+        [
+            new WebRTCGuard(),
+            new EventPassivator(),
+            new CodecOptimizer(),
+            new DomWatcher(),
+            new NetworkAssistant()
+        ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
+        
+        if (debug) log(`PerfX v81.3 Ready`);
+    });
 
 })();
