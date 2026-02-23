@@ -8,7 +8,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 <br>
 
 ※ Video_Control.js
-- 비디오 선명하게 보기 / 영상 배속 / 영상 자동보정 / PIP / 영상 ZOOM 등
+- 영상 화질 선명하게 보기 / 영상 배속 / 영상 자동보정 / PIP / 영상 ZOOM 등
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
