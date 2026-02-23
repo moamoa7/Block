@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name        Web 성능 최적화 (v81.4 ULTRA Infinity Autonomous)
+// @name        Web 성능 최적화 + Privacy Shield (v81.4 ULTRA Infinity)
 // @namespace   http://tampermonkey.net/
-// @version     81.4.0-KR-ULTRA-Infinity-Autonomous
-// @description [Ultimate] 끝없는 최적화 + Autonomous (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU, Advanced LoAF/INP)
-// @author      KiwiFruit
+// @version     81.4.1-KR-ULTRA-Privacy
+// @description [Ultimate] 끝없는 최적화 + Autonomous + Aggressive Privacy (WebRTC Guard, Full LCP Inference, Smart Shield, True LRU, Tracker Blocking, Fingerprint Spoofing)
+// @author      KiwiFruit & j0tsarup
 // @match       *://*/*
 // @grant       unsafeWindow
 // @grant       GM_registerMenuCommand
@@ -596,8 +596,9 @@
             reloadPage();
         },
         showStatus: () => {
-            const info = `[PerfX v81.4]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}`;
-            if (typeof GM_notification !== 'undefined') GM_notification({ title: 'PerfX Status', text: info, timeout: 5000 });
+            const psStats = win.__PS_STATS__ || { blockedRequests: 0, strippedParams: 0, cleanedLinks: 0 };
+            const info = `[PerfX v81.4 ULTRA Privacy]\nURL: ${getPathBucket()}\nMode: ${RuntimeConfig._sessionSafe ? 'SAFE' : 'ACTIVE'}\nPower: ${perfState.isLowPowerMode ? 'LOW' : 'HIGH'}\nCaps: DOM=${perfState.DOM_CAP}, MEDIA=${perfState.MEDIA_CAP}\nQuarantine: ${Q_CACHE ? 'YES' : 'NO'}\nRTC: ${Config.rtcGuard ? 'ON' : 'OFF'}\nModules: P=${Config.passive} M=${Config.memory} G=${Config.gpu} C=${Config.codecMode}\n\n🛡️ [Privacy Shield]\nBlocked Reqs: ${psStats.blockedRequests}\nCleaned Params: ${psStats.strippedParams}\nCleaned Links: ${psStats.cleanedLinks}`;
+            if (typeof GM_notification !== 'undefined') GM_notification({ title: 'PerfX + Privacy Status', text: info, timeout: 5000 });
             else console.log(info);
         }
     });
@@ -716,7 +717,7 @@
     try { isFramed = win.top !== win.self; } catch(e) { isFramed = true; }
     if (isFramed && !Config.allowIframe) return;
 
-    if (debug) win.perfx = { version: '81.4.0', config: Config, ...API };
+    if (debug) win.perfx = { version: '81.4.1', config: Config, ...API };
 
     // ==========================================
     // 2. Autonomous V30 (Safe PO, LoAF Weighting, Resource Observer)
@@ -756,7 +757,7 @@
                 longTaskDur += (e.duration || 0);
             }
         });
-        
+
         safePO('long-animation-frame', (l) => {
             for (const e of l.getEntries()) {
                 loafCount += 1;
@@ -764,7 +765,7 @@
                 loafBlock += (e.blockingDuration || e.duration || 0);
             }
         });
-        
+
         safePO('event', (l) => {
             const now = performance.now();
             for (const e of l.getEntries()) {
@@ -803,7 +804,6 @@
             }
         });
 
-        // ✅ 동적 네트워크 미디어 조절
         safePO('resource', (list) => {
             for (const e of list.getEntries()) {
                 const it = e.initiatorType || '';
@@ -858,16 +858,16 @@
                 const loafCountDelta = loafCount - lastLoafCount;
                 const loafBlockDelta = loafBlock - lastLoafBlock;
                 const slowScoreDelta = slowInteractionScore - lastSlowScore;
-                
-                lastCls = clsTotal; 
+
+                lastCls = clsTotal;
                 lastLtDur = longTaskDur;
-                lastLoafCount = loafCount; 
-                lastLoafBlock = loafBlock; 
+                lastLoafCount = loafCount;
+                lastLoafBlock = loafBlock;
                 lastSlowScore = slowInteractionScore;
 
                 const c = RuntimeConfig;
                 const currentLevel = c.downgradeLevel || 0;
-                
+
                 const TH = {
                     L2_CLS: 0.2 * perfState.perfMultiplier,
                     L2_LT_DUR: 250 * perfState.perfMultiplier,
@@ -875,7 +875,7 @@
                     L2_LOAF_COUNT: Math.max(2, Math.round(4 * perfState.perfMultiplier)),
                     L2_EVT: Math.max(2, Math.round(3 * perfState.perfMultiplier))
                 };
-                
+
                 const now = Date.now();
 
                 // Quarantine
@@ -895,8 +895,8 @@
                     Env.saveOverrides(c);
                     Bus.emit('perfx-config');
                     API.shutdownMemory();
-                    
-                    scheduleHealthNext(5000); // ✅ Fix 1-1
+
+                    scheduleHealthNext(5000);
                     return;
                 }
 
@@ -905,19 +905,19 @@
                 // L2
                 if ((clsDelta > TH.L2_CLS || degradeByFrameJank || slowScoreDelta > TH.L2_EVT) && currentLevel < 2) {
                     if (!c._restore) c._restore = { ...Config };
-                    
+
                     c.downgradeLevel = 2;
                     c.downgradeReason = { cls: clsDelta, load: loafCountDelta };
-                    c.gpu = false; 
-                    c.memory = false; 
+                    c.gpu = false;
+                    c.memory = false;
                     c.codecMode = 'soft';
                     c.downgradeCount = (c.downgradeCount || 0) + 1;
                     c.unstableTs = now;
-                    
+
                     Env.saveOverrides(c);
-                    
+
                     Object.assign(Config, { gpu: false, memory: false, codecMode: 'soft', downgradeLevel: 2 });
-                    
+
                     API.shutdownMemory();
                     Bus.emit('perfx-config');
                     log(`Downgrade L2`);
@@ -962,9 +962,8 @@
             else { if (!healthTimer) scheduleHealthNext(5000); }
         }, document);
         win.addEventListener('pagehide', persistLCP);
-        
-        if (!healthTimer) scheduleHealthNext(5000);
 
+        if (!healthTimer) scheduleHealthNext(5000);
     }
 
     // ==========================================
@@ -1034,7 +1033,7 @@
                 FORCE_TYPES: new Set(['wheel', 'mousewheel']),
                 SKIP_HOSTS: [ /figma\.com$/i, /miro\.com$/i, /excalidraw\.com$/i ],
                 SKIP_TARGET_SELECTORS: [
-                    '.mapboxgl-map', '.leaflet-container', '.monaco-editor', 
+                    '.mapboxgl-map', '.leaflet-container', '.monaco-editor',
                     '.CodeMirror', '.cm-editor', 'canvas', '[data-perfx-no-passive]'
                 ]
             };
@@ -1103,7 +1102,7 @@
                 const v = t.toLowerCase();
 
                 if (effectiveCodecMode === 'hard') return v.includes('av01') || /vp9|vp09/.test(v);
-                
+
                 if (effectiveCodecMode === 'soft' && v.includes('av01')) {
                     if (codecPolicy.av1.supported === true && codecPolicy.av1.smooth === true && codecPolicy.av1.powerEfficient === true) {
                         return false;
@@ -1214,7 +1213,7 @@
 
             const w = Math.min(2000, Math.ceil(rect.width));
             const h = Math.min(2000, Math.ceil(rect.height));
-            
+
             el.style.contentVisibility = 'auto';
             if (this.supportsCISAuto) {
                 el.style.containIntrinsicSize = `auto ${Math.max(1, w)}px auto ${Math.max(1, h)}px`;
@@ -1261,7 +1260,7 @@
         startIO() {
             if (this.visObs) this.visObs.disconnect();
             if (!Config.memory && !Config.gpu) return;
-            
+
             if (!document.body) {
                 onReady(() => this.startIO());
                 return;
@@ -1348,12 +1347,12 @@
         }
     }
 
-    // [Core 4] NetworkAssistant 
+    // [Core 4] NetworkAssistant
     class NetworkAssistant extends BaseModule {
         init() {
             if (isSafeMode) return;
 
-            const seenState = new WeakMap(); 
+            const seenState = new WeakMap();
             const distMap = new WeakMap();
             const observing = new Set();
             let imgSlots = 0, vidSlots = 0;
@@ -1415,7 +1414,7 @@
 
                 if (!currentLoading) img.loading = 'lazy';
                 if (!img.hasAttribute('decoding')) img.decoding = 'async';
-                
+
                 if (setPriority && !currentFP) {
                     setFetchPrioritySafe(img, 'low');
                 }
@@ -1507,7 +1506,7 @@
                 }
                 startProtection(e.detail?.force);
             });
-            
+
             onReady(() => { startProtection(true); rebuildObserver(); });
 
             const safeObserve = (el) => {
@@ -1536,14 +1535,14 @@
                 const fp = getFetchPriority(img);
 
                 if (loading === 'eager' || fp === 'high') return;
-                
+
                 if (lcpUrlCached) {
                     const cur = normUrl(img.currentSrc || img.src);
-                    if (cur === lcpUrlCached) { 
-                        img.loading = 'eager'; 
+                    if (cur === lcpUrlCached) {
+                        img.loading = 'eager';
                         if (!img.hasAttribute('decoding')) img.decoding = 'sync';
-                        setFetchPrioritySafe(img, 'high'); 
-                        return; 
+                        setFetchPrioritySafe(img, 'high');
+                        return;
                     }
                 }
 
@@ -1631,10 +1630,8 @@
                 } else {
                     startProtection(false);
                     ensureObs();
-                    // ✅ 탭 복구 시 누락된 미디어 노드 재스캔
                     scanInChunks(document.getElementsByTagName('img'), 200, perfState.SCAN_STEP, (n) => scheduleNode(n, true));
                     scanInChunks(document.getElementsByTagName('video'), 80, perfState.SCAN_STEP, (n) => scheduleNode(n, true));
-                    
                     if (this.mo) this.mo.observe(document.documentElement, { childList: true, subtree: true });
                 }
             });
@@ -1645,6 +1642,264 @@
         }
     }
 
+    // [Core 5] PrivacyAssistant
+    class PrivacyAssistant extends BaseModule {
+        init() {
+            this.stats = { blockedRequests: 0, strippedParams: 0, cleanedLinks: 0 };
+            win.__PS_STATS__ = this.stats;
+
+            this.TRACKING_PARAMS = new Set([
+                'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
+                'utm_source_platform', 'utm_creative_format', 'utm_marketing_tactic',
+                'gclid', 'gclsrc', 'dclid', 'gbraid', 'wbraid',
+                'fbclid', 'fb_action_ids', 'fb_action_types', 'fb_source',
+                'mc_cid', 'mc_eid', 'msclkid',
+                '_hsenc', '_hsmi', '__hssc', '__hstc', '__hsfp', 'hsCtaTracking',
+                'mkt_tok', 'mc_phishing_protection_id', 's_cid', 'icid',
+                'ref', 'referrer', 'source', 'affiliate', 'zanpid',
+                'origin', 'igshid', 'twclid', 'li_fat_id', 'yclid', 'email_source', 'CMP'
+            ]);
+
+            this.BLOCKED_PATTERNS = [
+                /google-analytics\.com/, /googletagmanager\.com/, /googletagservices\.com/,
+                /googlesyndication\.com\/pagead/, /doubleclick\.net/,
+                /facebook\.com\/tr\b/, /connect\.facebook\.net/,
+                /static\.ads-twitter\.com/, /t\.co\/i\/adsct/,
+                /snap\.licdn\.com/, /px\.ads\.linkedin\.com/,
+                /hotjar\.com/, /api\.mixpanel\.com/, /api\.amplitude\.com/,
+                /api\.segment\.io/, /cdn\.segment\.com/, /heapanalytics\.com/,
+                /fullstory\.com/, /static\.getclicky\.com/, /quantserve\.com/,
+                /scorecardresearch\.com/, /outbrain\.com\/paid/, /trc\.taboola\.com/,
+                /\/beacon(\b|\.)/, /\/pixel(\b|\.)/, /\/collect(\?|$)/, /\/analytics(\?|$)/
+            ];
+
+            // 1. Layer 1: Clean Tracking Parameters
+            this.cleanCurrentURL();
+            this.on(win, 'perfx-route', () => this.cleanCurrentURL());
+
+            // 2. Layer 4: Clean Search Engine Links
+            this.on(document, 'mousedown', (e) => {
+                const anchor = e.target.closest('a[href]');
+                if (anchor) this.unwrapSearchLink(anchor);
+            }, true); // use capture phase
+
+            onReady(() => {
+                document.querySelectorAll('a[href]').forEach(a => this.unwrapSearchLink(a));
+            });
+
+            // 3. Skip Layers 2 & 3 in Safe Mode to prevent breaking critical sites
+            if (isSafeMode) {
+                log('PrivacyAssistant: Safe Mode active. Spoofing and Network Blocking disabled.');
+                return;
+            }
+
+            // 4. Layer 2: Fingerprint Spoofing
+            this.spoofFingerprint();
+
+            // 5. Layer 3: Network Request Blocking
+            this.patchNetwork();
+            this.observeBeacons();
+        }
+
+        cleanURL(urlStr) {
+            let url;
+            try { url = new URL(urlStr); } catch { return urlStr; }
+
+            let stripped = 0;
+            this.TRACKING_PARAMS.forEach(p => {
+                if (url.searchParams.has(p)) {
+                    url.searchParams.delete(p);
+                    stripped++;
+                }
+            });
+
+            for (const key of [...url.searchParams.keys()]) {
+                if (key.startsWith('utm_')) {
+                    url.searchParams.delete(key);
+                    stripped++;
+                }
+            }
+
+            this.stats.strippedParams += stripped;
+            return stripped > 0 ? url.toString() : urlStr;
+        }
+
+        cleanCurrentURL() {
+            const cleaned = this.cleanURL(win.location.href);
+            if (cleaned !== win.location.href) {
+                history.replaceState(null, '', cleaned);
+            }
+        }
+
+        isBlocked(url) {
+            if (!url) return false;
+            return this.BLOCKED_PATTERNS.some(p => p.test(url));
+        }
+
+        defineOverride(obj, prop, value) {
+            try {
+                Object.defineProperty(obj, prop, {
+                    get: () => value,
+                    configurable: false,
+                });
+            } catch (_) {}
+        }
+
+        spoofFingerprint() {
+            // 2a. Canvas
+            const origToDataURL = HTMLCanvasElement.prototype.toDataURL;
+            HTMLCanvasElement.prototype.toDataURL = function (...args) {
+                const ctx = this.getContext('2d');
+                if (ctx) {
+                    const imageData = ctx.getImageData(0, 0, 1, 1);
+                    imageData.data[3] = imageData.data[3] === 0 ? 1 : 0;
+                    ctx.putImageData(imageData, 0, 0);
+                }
+                return origToDataURL.apply(this, args);
+            };
+
+            const origGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+            CanvasRenderingContext2D.prototype.getImageData = function (...args) {
+                const data = origGetImageData.apply(this, args);
+                data.data[3] ^= 1;
+                return data;
+            };
+
+            // 2b. WebGL
+            const getParam = WebGLRenderingContext.prototype.getParameter;
+            WebGLRenderingContext.prototype.getParameter = function (param) {
+                if (param === 37445) return 'Intel Inc.';
+                if (param === 37446) return 'Intel Iris OpenGL';
+                return getParam.call(this, param);
+            };
+            if (typeof WebGL2RenderingContext !== 'undefined') {
+                const getParam2 = WebGL2RenderingContext.prototype.getParameter;
+                WebGL2RenderingContext.prototype.getParameter = function (param) {
+                    if (param === 37445) return 'Intel Inc.';
+                    if (param === 37446) return 'Intel Iris OpenGL';
+                    return getParam2.call(this, param);
+                };
+            }
+
+            // 2c. AudioContext
+            if (typeof AudioBuffer !== 'undefined') {
+                const origGetChannelData = AudioBuffer.prototype.getChannelData;
+                AudioBuffer.prototype.getChannelData = function (...args) {
+                    const data = origGetChannelData.apply(this, args);
+                    if (data.length > 0) data[0] += 0.0000001 * (Math.random() - 0.5);
+                    return data;
+                };
+            }
+
+            // 2d. Navigator
+            this.defineOverride(Navigator.prototype, 'hardwareConcurrency', 4);
+            this.defineOverride(Navigator.prototype, 'deviceMemory', 8);
+            try {
+                Object.defineProperty(Navigator.prototype, 'plugins', {
+                    get: () => ({ length: 3 }),
+                    configurable: false,
+                });
+            } catch (_) {}
+            this.defineOverride(Navigator.prototype, 'languages', ['en-GB']);
+
+            // 2e. Screen
+            const W = Math.round(screen.width  / 100) * 100 || 1920;
+            const H = Math.round(screen.height / 100) * 100 || 1080;
+            this.defineOverride(Screen.prototype, 'width', W);
+            this.defineOverride(Screen.prototype, 'height', H);
+            this.defineOverride(Screen.prototype, 'availWidth', W);
+            this.defineOverride(Screen.prototype, 'availHeight', H);
+            this.defineOverride(Screen.prototype, 'colorDepth', 24);
+            this.defineOverride(Screen.prototype, 'pixelDepth', 24);
+        }
+
+        patchNetwork() {
+            const self = this;
+            
+            // XHR
+            const origOpen = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function (method, url, ...rest) {
+                if (self.isBlocked(url)) {
+                    self.stats.blockedRequests++;
+                    return origOpen.call(this, method, 'about:blank', ...rest);
+                }
+                return origOpen.call(this, method, url, ...rest);
+            };
+
+            // Fetch
+            const origFetch = win.fetch;
+            win.fetch = function (input, init) {
+                const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+                if (self.isBlocked(url)) {
+                    self.stats.blockedRequests++;
+                    return Promise.resolve(new Response('', { status: 200 }));
+                }
+                return origFetch.apply(this, arguments);
+            };
+        }
+
+        observeBeacons() {
+            this.beaconObs = new MutationObserver(mutations => {
+                for (const mutation of mutations) {
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType !== 1) continue;
+                        const tag = node.tagName;
+                        const src = node.src || node.href || '';
+                        if ((tag === 'SCRIPT' || tag === 'IMG' || tag === 'IFRAME') && this.isBlocked(src)) {
+                            node.remove();
+                            this.stats.blockedRequests++;
+                        }
+                    }
+                }
+            });
+            onReady(() => {
+                this.beaconObs.observe(document.documentElement, { childList: true, subtree: true });
+            });
+        }
+
+        unwrapSearchLink(anchor) {
+            const href = anchor.href || '';
+
+            // Google
+            if (/\bgoogle\.[a-z.]+\/url\b/.test(href)) {
+                try {
+                    const u = new URL(href);
+                    const dest = u.searchParams.get('q') || u.searchParams.get('url');
+                    if (dest) { anchor.href = dest; this.stats.cleanedLinks++; }
+                } catch (_) {}
+                return;
+            }
+
+            // Bing
+            if (/\bbing\.com\//.test(href)) {
+                const real = anchor.getAttribute('data-href');
+                if (real) { anchor.href = real; this.stats.cleanedLinks++; }
+                return;
+            }
+
+            // Yahoo
+            if (/\bsearch\.yahoo\.com\//.test(href)) {
+                try {
+                    const u = new URL(href);
+                    const dest = u.searchParams.get('url');
+                    if (dest) { anchor.href = decodeURIComponent(dest); this.stats.cleanedLinks++; }
+                } catch (_) {}
+                return;
+            }
+
+            // DuckDuckGo
+            if (/\bduckduckgo\.com\//.test(href)) {
+                const cleaned = this.cleanURL(href);
+                if (cleaned !== href) { anchor.href = cleaned; this.stats.cleanedLinks++; }
+            }
+        }
+        
+        destroy() {
+            super.destroy();
+            if (this.beaconObs) this.beaconObs.disconnect();
+        }
+    }
+
     // Module Init Wrap
     onPageActivated(() => {
         [
@@ -1652,10 +1907,11 @@
             new EventPassivator(),
             new CodecOptimizer(),
             new DomWatcher(),
-            new NetworkAssistant()
+            new NetworkAssistant(),
+            new PrivacyAssistant() // ✅ 새로 병합된 프라이버시 모듈
         ].forEach(m => m.safeInit ? m.safeInit() : (m.init && m.init()));
-        
-        if (debug) log(`PerfX v81.4 Ready`);
+
+        if (debug) log(`PerfX v81.4 Ready with Privacy Shield`);
     });
 
 })();
