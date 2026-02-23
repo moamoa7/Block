@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.5.25_UltraSlim_Plus_Fixed)
+// @name        Video_Control (v159.5.0.0_UltraSlim_Plus_WebGL_Fixed)
 // @namespace   https://github.com/
-// @version     159.4.5.25
-// @description Video Control: UltraSlim + WebGL/AudioBoost. Fixed PointerEvents, Drag Jitter, GL Context Lost, AE Memory Leaks. (Full Code)
+// @version     159.5.0.0
+// @description Video Control: UltraSlim + WebGL/AudioBoost. Fixed PointerEvents, Context Recovery, Dynamic Scaling, Paused RAF.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -29,7 +29,7 @@
   window.__VSC_INTERNAL__ ||= {};
   let __vscClearVideoFilter = null, __vscClearVideoFilterGL = null, __vscUserSignalRev = 0;
   function vscSignal(payload) { try { window.__VSC_INTERNAL__?.Bus?.signal?.(payload); } catch (_) {} }
-  function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)); }
+  function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
   const __globalHooksAC = new AbortController(), __globalSig = __globalHooksAC.signal;
   function waitForVisibility() {
@@ -49,26 +49,20 @@
   function detectLowEnd() { const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4; const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4; const saveData = !!navigator.connection?.saveData; return mem < 4 || cores <= 4 || saveData; }
 
   const __IS_LOW_END = detectLowEnd();
-  const CONFIG = Object.freeze({ VERSION: "v159.4.5.25_UltraSlim_Plus_Fixed", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
+  const CONFIG = Object.freeze({ VERSION: "v159.5.0.0_UltraSlim_Plus_WebGL_Fixed", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
   const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
   const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
   const videoStateMap = new WeakMap();
-  function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = { visible: false, rect: null, ir: 0, bound: false, rateState: null, tainted: false, audioFail: false, applied: false, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false }; videoStateMap.set(v, st); } return st; }
+  function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = { visible: false, rect: null, ir: 0, bound: false, rateState: null, tainted: false, audioFail: false, applied: false, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0 }; videoStateMap.set(v, st); } return st; }
 
   const ENABLE_UI = true;
   const AE_COMMON = Object.freeze({ CLIP_FRAC_LIMIT: 0.0032, DEAD_IN: 0.035, TAU_UP: 820, TAU_DOWN: 760, TAU_AGGRESSIVE: 220, SAT_MIN: 0.88, SAT_MAX: 1.16, DT_CAP_MS: 220 });
   const AE_STANDARD_PROFILE = Object.freeze({ STRENGTH: CONFIG.IS_MOBILE ? 0.52 : 0.62, TARGET_MID_BASE: 0.30, MAX_UP_EV: CONFIG.IS_MOBILE ? 0.48 : 0.50, MAX_DOWN_EV: CONFIG.IS_MOBILE ? -0.32 : -0.36, TONE_BIAS: 0.0, TEMP_BIAS: 0, LOOK: { brMul: 0.98, satMul: 0.98, conMul: 1.00 } });
 
   const PRESETS = Object.freeze({
-    tone: {
-      redSkin: { label: '피부', toe: 1.0, shoulder: 0.5, mid: 0.28, con: 1.02, sat: 1.03, br: 0.6, tmp: 1.0 },
-      gvfFilm: { label: '필름', toe: 0.2, shoulder: 0.25, mid: 0.0, con: 1.05, sat: 1.04, br: 0.6, tmp: 1.2 },
-      gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.0, mid: 0.08, con: 1.07, sat: 1.10, br: 2.0, tmp: 0.0 },
-      gvfGaming: { label: '게임', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.08, sat: 1.04, br: 0.6, tmp: 0.0 },
-      gvfVibrant: { label: '활력', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.02, sat: 1.22, br: 0.0, tmp: 0.0 },
-    },
+    tone: { redSkin: { label: '피부', toe: 1.0, shoulder: 0.5, mid: 0.28, con: 1.02, sat: 1.03, br: 0.6, tmp: 1.0 }, gvfFilm: { label: '필름', toe: 0.2, shoulder: 0.25, mid: 0.0, con: 1.05, sat: 1.04, br: 0.6, tmp: 1.2 }, gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.0, mid: 0.08, con: 1.07, sat: 1.10, br: 2.0, tmp: 0.0 }, gvfGaming: { label: '게임', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.08, sat: 1.04, br: 0.6, tmp: 0.0 }, gvfVibrant: { label: '활력', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.02, sat: 1.22, br: 0.0, tmp: 0.0 } },
     detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 5, sharp2Add: 6, clarityAdd: 5 }, M: { sharpAdd: 10, sharp2Add: 12, clarityAdd: 8 }, L: { sharpAdd: 18, sharp2Add: 22, clarityAdd: 12 }, XL: { sharpAdd: 25, sharp2Add: 35, clarityAdd: 15 } },
     grade: { brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 }, S: { gammaF: 1.00, brightAdd: 2, conF: 1.00, satF: 1.00, tempAdd: 0 }, M: { gammaF: 1.08, brightAdd: 4, conF: 1.00, satF: 1.00, tempAdd: 0 }, L: { gammaF: 1.16, brightAdd: 6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DS: { gammaF: 1.00, brightAdd: 3.6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DM: { gammaF: 1.10, brightAdd: 7.2, conF: 1.00, satF: 1.00, tempAdd: 0 }, DL: { gammaF: 1.22, brightAdd: 10.8, conF: 1.00, satF: 1.00, tempAdd: 0 } }
   });
@@ -511,19 +505,46 @@
     function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
     function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
 
+    function buildShaderSources(gl) {
+      const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext);
+      if (isGL2) {
+        return {
+          vs: `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`,
+          fs: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec2 uResolution;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvoid main() {\n  vec2 texel = 1.0 / uResolution;\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  if (uParams2.y > 0.0) {\n    vec3 cU = texture(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb;\n    vec3 cD = texture(uVideoTex, vTexCoord + vec2(0.0,  texel.y)).rgb;\n    vec3 cL = texture(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb;\n    vec3 cR = texture(uVideoTex, vTexCoord + vec2( texel.x, 0.0)).rgb;\n    vec3 blur = (color + cU + cD + cL + cR) * 0.2;\n    color = clamp(color + (color - blur) * uParams2.y * 3.0, 0.0, 1.0);\n  }\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  color = luma + (color - luma) * uParams.z;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  if (uParams2.z > 0.0) {\n    float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453);\n    color += (noise - 0.5) * (uParams2.z / 100.0);\n  }\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`
+        };
+      }
+      return {
+        vs: `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`,
+        fs: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; color = color + (color - blur) * uParams2.y * 3.0; color = clamp(color, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); color = luma + (color - luma) * uParams.z; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`
+      };
+    }
+
     class WebGLPipeline {
       constructor() {
         this.canvas = null; this.gl = null; this.program = null; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this.originalNextSibling = null; this.restoreVideoStyle = null; this.renderDriver = createFrameDriver(); this.disabledUntil = 0;
-        this._onContextLost = (e) => { e.preventDefault(); this.disabledUntil = performance.now() + 3000; this.active = false; };
-        this._onContextRestored = () => { try { this.disposeGLResources(); } catch (_) {} try { this.init(); if (this.video) this.active = true; } catch (_) { this.disabledUntil = performance.now() + 5000; } };
+        this._texW = 0; this._texH = 0;
+        this._loopToken = 0; this._loopRunning = false;
+        this._perf = { procMsEma: 0, frameSkip: 1, frameNo: 0 };
+        this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0;
+        this._onContextLost = (e) => { e.preventDefault(); this.disabledUntil = performance.now() + 3000; this.active = false; this._loopToken++; this._loopRunning = false; };
+        this._onContextRestored = () => {
+          try {
+            this.disposeGLResources({ keepCanvasListeners: true });
+            if (this.initGLResourcesOnExistingCanvas()) { if (this.video) { this.active = true; this.startRenderLoop(); } } else { this.disabledUntil = performance.now() + 5000; }
+          } catch (_) { this.disabledUntil = performance.now() + 5000; }
+        };
       }
-      init() {
-        this.canvas = document.createElement('canvas'); this.canvas.style.width = '100%'; this.canvas.style.height = '100%'; this.canvas.style.objectFit = 'contain'; this.canvas.style.display = 'block';
-        this.canvas.style.pointerEvents = 'none'; // ✅ 모바일 터치 패스스루
+      ensureCanvas() {
+        if (this.canvas) return;
+        this.canvas = document.createElement('canvas'); this.canvas.style.width = '100%'; this.canvas.style.height = '100%'; this.canvas.style.objectFit = 'contain'; this.canvas.style.display = 'block'; this.canvas.style.pointerEvents = 'none';
         this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false }); this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, { passive: true });
-        let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' }); if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' }); if (!gl) return false; this.gl = gl;
-        const vsSource = `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`;
-        const fsSource = `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; color = color + (color - blur) * uParams2.y * 3.0; color = clamp(color, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); color = luma + (color - luma) * uParams.z; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`;
+      }
+      initGLResourcesOnExistingCanvas() {
+        this.ensureCanvas();
+        let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+        if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+        if (!gl) return false; this.gl = gl;
+        const { vs: vsSource, fs: fsSource } = buildShaderSources(gl);
         try {
           const vs = compileShaderChecked(gl, gl.VERTEX_SHADER, vsSource), fs = compileShaderChecked(gl, gl.FRAGMENT_SHADER, fsSource); this.program = linkProgramChecked(gl, vs, fs); gl.useProgram(this.program); gl.deleteShader(vs); gl.deleteShader(fs);
           this.uResolution = gl.getUniformLocation(this.program, 'uResolution'); this.uVideoTex = gl.getUniformLocation(this.program, 'uVideoTex'); this.uParams = gl.getUniformLocation(this.program, 'uParams'); this.uParams2 = gl.getUniformLocation(this.program, 'uParams2'); this.uRGBGain = gl.getUniformLocation(this.program, 'uRGBGain');
@@ -534,32 +555,101 @@
           return true;
         } catch (err) { log.warn('WebGL Init Error:', err.message); this.disposeGLResources(); return false; }
       }
+      init() { return this.initGLResourcesOnExistingCanvas(); }
       attachToVideo(video) {
         if (!this.active && !this.init()) return false; this.video = video; this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling;
-        this.restoreVideoStyle = patchInlineStyleImportant(video, { opacity: '0.001' }); // ✅ 줌/팬을 위해 물리적 크기 유지, 투명하게 숨김
+        this.restoreVideoStyle = patchInlineStyleImportant(video, { opacity: '0.001' });
         if (this.originalParent) {
             if (window.getComputedStyle(this.originalParent).position === 'static') this.originalParent.style.position = 'relative';
             this.canvas.style.position = 'absolute'; this.canvas.style.top = '0'; this.canvas.style.left = '0';
             this.originalParent.insertBefore(this.canvas, video);
         }
+        if (this._styleObs) this._styleObs.disconnect();
+        this._styleObs = new MutationObserver(() => { this._styleDirty = true; });
+        try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
+        this._styleDirty = true;
         this.active = true; this.startRenderLoop(); return true;
       }
       updateParams(vVals) { this.vVals = vVals; }
+      syncCanvasPresentationFromVideo(video, now) {
+        if (!this.canvas || !video) return;
+        if (!this._styleDirty && (now - this._lastStyleSyncT) < 250) return;
+        const vs = window.getComputedStyle(video), cs = this.canvas.style;
+        if (cs.objectFit !== vs.objectFit) cs.objectFit = vs.objectFit || 'contain';
+        if (cs.objectPosition !== vs.objectPosition) cs.objectPosition = vs.objectPosition;
+        if (cs.transform !== video.style.transform) cs.transform = video.style.transform;
+        if (cs.transformOrigin !== video.style.transformOrigin) cs.transformOrigin = video.style.transformOrigin;
+        this._styleDirty = false; this._lastStyleSyncT = now;
+      }
       render() {
         if (!this.active || !this.gl || !this.video || !this.vVals) return; const gl = this.gl, video = this.video; const now = performance.now(); if (now < this.disabledUntil) return;
+        const st = getVState(video); if (st.webglDisabledUntil && now < st.webglDisabledUntil) return;
         if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
         if (this.canvas.parentNode !== video.parentNode && video.parentNode) { this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling; video.parentNode.insertBefore(this.canvas, video); }
-        const cs = this.canvas.style, vs = window.getComputedStyle(video); // ✅ 줌 동기화
-        if (cs.objectFit !== vs.objectFit) cs.objectFit = vs.objectFit || 'contain'; if (cs.objectPosition !== vs.objectPosition) cs.objectPosition = vs.objectPosition;
-        if (cs.transform !== video.style.transform) cs.transform = video.style.transform; if (cs.transformOrigin !== video.style.transformOrigin) cs.transformOrigin = video.style.transformOrigin;
-        const w = video.videoWidth, h = video.videoHeight; if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); gl.uniform2f(this.uResolution, w, h); }
-        const { rs, gs, bs } = tempToRgbGain(this.vVals.temp); gl.uniform4f(this.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0); gl.uniform4f(this.uParams2, this.vVals.bright || 0.0, (this.vVals.sharp || 0) / 50.0, this.vVals.dither || 0.0, 0.0); gl.uniform3f(this.uRGBGain, rs, gs, bs);
-        try { gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
-        catch (_) { globalThis.__webglFailCount = (globalThis.__webglFailCount || 0) + 1; if (globalThis.__webglFailCount >= 3) { log.error('WebGL repeated failure, falling back to SVG'); try { Store.set(P.APP_RENDER_MODE, 'svg'); } catch (_) {} globalThis.__webglFailCount = 0; } }
+        this.syncCanvasPresentationFromVideo(video, now);
+        const w = video.videoWidth, h = video.videoHeight;
+        if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); gl.uniform2f(this.uResolution, w, h); }
+        const perfScale = (this._perf.procMsEma > 14) ? 0.55 : (this._perf.procMsEma > 10 ? 0.8 : 1.0);
+        const sharpNorm = ((this.vVals.sharp || 0) / 50.0) * perfScale;
+        const ditherVal = (this.vVals.dither || 0.0) * (perfScale < 1 ? 0.4 : 1.0);
+        const { rs, gs, bs } = tempToRgbGain(this.vVals.temp);
+        gl.uniform4f(this.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
+        gl.uniform4f(this.uParams2, this.vVals.bright || 0.0, sharpNorm, ditherVal, 0.0);
+        gl.uniform3f(this.uRGBGain, rs, gs, bs);
+        try {
+          gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
+          if (this._texW !== w || this._texH !== h) {
+            this._texW = w; this._texH = h;
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+          }
+          gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+          st.webglFailCount = 0;
+        } catch (_) {
+          st.webglFailCount = (st.webglFailCount || 0) + 1;
+          if (st.webglFailCount >= 3) {
+            st.webglDisabledUntil = now + 10000; st.webglFailCount = 0;
+            log.warn('WebGL repeated failure on video, cooling down');
+          }
+        }
       }
-      startRenderLoop() { const loopFn = () => { if (!this.active || !this.video) return; this.render(); this.renderDriver.scheduleVideoFrame(this.video, loopFn, 'raf'); }; this.renderDriver.scheduleVideoFrame(this.video, loopFn, 'raf'); }
-      disposeGLResources() { const gl = this.gl; if (!gl) return; try { if (this.videoTexture) { gl.deleteTexture(this.videoTexture); this.videoTexture = null; } if (this.vBuf) { gl.deleteBuffer(this.vBuf); this.vBuf = null; } if (this.tBuf) { gl.deleteBuffer(this.tBuf); this.tBuf = null; } if (this.program) { gl.deleteProgram(this.program); this.program = null; } if (this.canvas) { this.canvas.removeEventListener('webglcontextlost', this._onContextLost); this.canvas.removeEventListener('webglcontextrestored', this._onContextRestored); } } catch (_) {} this.gl = null; }
-      shutdown() { this.active = false; this.renderDriver.clear(); try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null; if (this.canvas && this.canvas.parentNode) this.canvas.parentNode.removeChild(this.canvas); this.disposeGLResources(); }
+      startRenderLoop() {
+        if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken;
+        const loopFn = (now, meta) => {
+          if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; }
+          if (meta && Number.isFinite(meta.processingDuration)) {
+            const x = meta.processingDuration * 1000;
+            this._perf.procMsEma = this._perf.procMsEma ? (this._perf.procMsEma * 0.85 + x * 0.15) : x;
+            if (this._perf.procMsEma > 14) this._perf.frameSkip = 2; else if (this._perf.procMsEma > 9) this._perf.frameSkip = 1; else this._perf.frameSkip = 1;
+          }
+          this._perf.frameNo++;
+          if (this._perf.frameSkip > 1 && (this._perf.frameNo % this._perf.frameSkip) !== 0) { this.scheduleNextFrame(loopFn); return; }
+          this.render(); this.scheduleNextFrame(loopFn);
+        };
+        this.scheduleNextFrame(loopFn);
+      }
+      scheduleNextFrame(loopFn) {
+        const pausedOrHidden = !!(document.hidden || this.video?.paused);
+        this.renderDriver.scheduleVideoFrame(this.video, loopFn, pausedOrHidden ? 'timeout' : 'raf', pausedOrHidden ? 220 : 90);
+      }
+      disposeGLResources(opts = {}) {
+        const { keepCanvasListeners = false } = opts; const gl = this.gl;
+        if (gl) {
+          try {
+            if (this.videoTexture) { gl.deleteTexture(this.videoTexture); this.videoTexture = null; }
+            if (this.vBuf) { gl.deleteBuffer(this.vBuf); this.vBuf = null; }
+            if (this.tBuf) { gl.deleteBuffer(this.tBuf); this.tBuf = null; }
+            if (this.program) { gl.deleteProgram(this.program); this.program = null; }
+          } catch (_) {}
+        }
+        if (!keepCanvasListeners && this.canvas) { try { this.canvas.removeEventListener('webglcontextlost', this._onContextLost); this.canvas.removeEventListener('webglcontextrestored', this._onContextRestored); } catch (_) {} }
+        this.gl = null; this._texW = 0; this._texH = 0;
+      }
+      shutdown() {
+        this.active = false; this._loopToken++; this._loopRunning = false; this.renderDriver.clear(); if (this._styleObs) { this._styleObs.disconnect(); this._styleObs = null; }
+        try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null;
+        if (this.canvas && this.canvas.parentNode) this.canvas.parentNode.removeChild(this.canvas); this.disposeGLResources();
+      }
     }
     return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); if (!pipe.attachToVideo(el)) return; pipelines.set(el, pipe); } pipe.updateParams(vVals); }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
   }
@@ -833,9 +923,7 @@
     if (!document.body) { document.addEventListener('DOMContentLoaded', () => { try { ensure(); scheduler.request(true); } catch (_) {} }, { once: true, signal: __globalSig }); }
     ['fullscreenchange', 'webkitfullscreenchange'].forEach(ev => { window.addEventListener(ev, () => { try { ensure(); } catch (_) {} }, { passive: true, signal: __globalSig }); });
     window.addEventListener('keydown', (e) => {
-        const tagName = (e.target?.tagName || '').toLowerCase();
-        const isTextInput = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || e.target?.isContentEditable;
-        if (isTextInput) return;
+        if (isEditableTarget(e.target)) return;
         if (!(e && e.altKey && e.shiftKey && e.code === 'KeyV')) return;
         if (!allowUiInThisDoc()) return; setAndHint(P.APP_UI, !sm.get(P.APP_UI), true); ensure(); scheduler.request(true);
     }, { signal: __globalSig });
@@ -977,7 +1065,17 @@
   });
 
   waitForVisibility().then(() => {
-    (function ensureRegistryAfterBodyReady() { const run = () => { try { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } catch (_) {} }; if (document.body) { run(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); run(); } }); try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} document.addEventListener('DOMContentLoaded', () => run(), { once: true, signal: __globalSig }); })();
+    (function ensureRegistryAfterBodyReady() {
+      let ran = false;
+      const runOnce = () => {
+        if (ran) return; ran = true;
+        try { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } catch (_) {}
+      };
+      if (document.body) { runOnce(); return; }
+      const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } });
+      try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
+      document.addEventListener('DOMContentLoaded', runOnce, { once: true, signal: __globalSig });
+    })();
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END });
     const FiltersGL = createFiltersWebGL(Utils, Store);
@@ -1006,9 +1104,7 @@
     window.__VSC_APP__ = __VSC_APP__; window.__VSC_INTERNAL__.App = __VSC_APP__;
 
     window.addEventListener('keydown', async (e) => {
-        const tagName = (e.target?.tagName || '').toLowerCase();
-        const isTextInput = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || e.target?.isContentEditable;
-        if (isTextInput) return;
+        if (isEditableTarget(e.target)) return;
         if (!(e.altKey && e.shiftKey && e.code === 'KeyP')) return;
         const v = __VSC_APP__?.getActiveVideo(); if (!v) return; await togglePiPFor(v);
     }, { capture: true, signal: __globalSig });
