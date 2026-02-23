@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 <br>
 
 ※ Website_Optimizer.js
-- 웹페이지 최적화
+- 웹페이지 최적화 / Privacy Shield
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Website_Optimizer.js
