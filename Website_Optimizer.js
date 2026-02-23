@@ -1815,7 +1815,7 @@
 
         patchNetwork() {
             const self = this;
-            
+
             // XHR
             const origOpen = XMLHttpRequest.prototype.open;
             XMLHttpRequest.prototype.open = function (method, url, ...rest) {
@@ -1829,12 +1829,32 @@
             // Fetch
             const origFetch = win.fetch;
             win.fetch = function (input, init) {
-                const url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+                let url = '';
+                try {
+                    url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+                } catch (e) {}
+
+                // 1. 스크립트 자체 차단 리스트에 걸린 경우
                 if (self.isBlocked(url)) {
                     self.stats.blockedRequests++;
-                    return Promise.resolve(new Response('', { status: 200 }));
+                    // 플레이어의 JSON 파싱 에러를 막기 위해 빈 JSON 객체 반환
+                    return Promise.resolve(new Response(JSON.stringify({}), {
+                        status: 200,
+                        headers: { 'Content-Type': 'application/json' }
+                    }));
                 }
-                return origFetch.apply(this, arguments);
+
+                // 2. 외부 광고 차단기(ERR_BLOCKED_BY_CLIENT)에 의해 차단된 경우 방어
+                return origFetch.apply(this, arguments).catch(err => {
+                    if (err.name === 'TypeError' || err.message.includes('Failed to fetch')) {
+                        // SOOP LivePlayer 등이 뻗지 않도록 더미 데이터를 반환하여 통과시킴
+                        return new Response(JSON.stringify({}), {
+                            status: 200,
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                    }
+                    throw err; // 다른 종류의 에러는 그대로 던짐
+                });
             };
         }
 
@@ -1893,7 +1913,7 @@
                 if (cleaned !== href) { anchor.href = cleaned; this.stats.cleanedLinks++; }
             }
         }
-        
+
         destroy() {
             super.destroy();
             if (this.beaconObs) this.beaconObs.disconnect();
