@@ -464,13 +464,29 @@
             setAttr(nodes.sat, 'values', p.satVal, st, 'satKey');
             if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; nodes.tmpFuncs[0].setAttribute('slope', p.rs.toFixed(3)); nodes.tmpFuncs[1].setAttribute('slope', p.gs.toFixed(3)); nodes.tmpFuncs[2].setAttribute('slope', p.bs.toFixed(3)); }
             if (st.detailKey !== p.dk) {
-              st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8;
-              setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.75 - sc(Math.min(1, v1)) * 0.3).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
-              const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 2.8;
-              const b2std = v2 > 0 ? (0.34 + 0.10 * Math.min(1, v2)).toFixed(2) : '0';
-              setAttr(nodes.b2, 'stdDeviation', b2std, st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
-              const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3');
-            }
+  st.detailKey = p.dk;
+  const sc = (x) => x * x * (3 - 2 * x);
+
+  // 1차 샤프: 기본 윤곽 (v1)
+  const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2; // 게인 1.8 -> 2.2 상향
+  setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__b1');
+  setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2');
+  setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
+
+  // 2차 샤프: 미세 질감 및 날카로운 선 (v2) - 여기가 핵심 수정 포인트
+  const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 4.8; // 게인 4.5 -> 4.8 강화
+  // 반경을 가변형에서 0.25 고정형으로 변경 (선이 아주 얇고 날카로워짐)
+  const b2std = v2 > 0 ? '0.25' : '0';
+  setAttr(nodes.b2, 'stdDeviation', b2std, st, '__b2');
+  setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2');
+  setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
+
+  // 클라리티: 대비 강조
+  const clVal = (p.s.clarity || 0) / 50;
+  setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.1' : '0', st, '__bc');
+  setAttr(nodes.cl, 'k2', (1 + clVal * 1.5).toFixed(3), st, '__clk2'); // 클라리티 강도 보정
+  setAttr(nodes.cl, 'k3', (-clVal * 1.5).toFixed(3), st, '__clk3');
+}
           });
         }
       }
@@ -500,12 +516,12 @@
       if (isGL2) {
         return {
           vs: `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`,
-          fs: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec2 uResolution;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvoid main() {\n  vec2 texel = 1.0 / uResolution;\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  if (uParams2.y > 0.0) {\n    vec3 cU = texture(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb;\n    vec3 cD = texture(uVideoTex, vTexCoord + vec2(0.0,  texel.y)).rgb;\n    vec3 cL = texture(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb;\n    vec3 cR = texture(uVideoTex, vTexCoord + vec2( texel.x, 0.0)).rgb;\n    vec3 blur = (color + cU + cD + cL + cR) * 0.2;\n    vec3 hp = color - blur;\n    float e = abs(dot(hp, LUMA));\n    float x = clamp((e - 0.008) / 0.020, 0.0, 1.0);\n    float gate = x * x * (3.0 - 2.0 * x);\n    float luma0 = dot(color, LUMA);\n    float hi = clamp((luma0 - 0.78) / 0.22, 0.0, 1.0);\n    float hiReduce = 1.0 - 0.20 * (hi * hi * (3.0 - 2.0 * hi));\n    color = clamp(color + hp * (uParams2.y * 3.0) * gate * hiReduce, 0.0, 1.0);\n  }\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);\n  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);\n  float currentSat = uParams.z * (1.0 - 0.12 * satReduce);\n  color = luma + (color - luma) * currentSat;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  if (uParams2.z > 0.0) {\n    float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453);\n    color += (noise - 0.5) * (uParams2.z / 100.0);\n  }\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`
+          fs: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec2 uResolution;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvoid main() {\n  vec2 texel = 1.0 / uResolution;\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  if (uParams2.y > 0.0) {\n    vec3 cU = texture(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb;\n    vec3 cD = texture(uVideoTex, vTexCoord + vec2(0.0,  texel.y)).rgb;\n    vec3 cL = texture(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb;\n    vec3 cR = texture(uVideoTex, vTexCoord + vec2( texel.x, 0.0)).rgb;\n    vec3 blur = (color + cU + cD + cL + cR) * 0.2;\n    vec3 hp = color - blur;\n    float e = abs(dot(hp, LUMA));\n    float x = clamp((e - 0.005) / 0.020, 0.0, 1.0);\n    float gate = x * x * (3.0 - 2.0 * x);\n    float luma0 = dot(color, LUMA);\n    float hi = clamp((luma0 - 0.78) / 0.22, 0.0, 1.0);\n    float hiReduce = 1.0 - 0.20 * (hi * hi * (3.0 - 2.0 * hi));\n    color = clamp(color + hp * (uParams2.y * 5.5) * gate * hiReduce, 0.0, 1.0);\n  }\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);\n  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);\n  float currentSat = uParams.z * (1.0 - 0.12 * satReduce);\n  color = luma + (color - luma) * currentSat;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  if (uParams2.z > 0.0) {\n    float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453);\n    color += (noise - 0.5) * (uParams2.z / 100.0);\n  }\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`
         };
       }
       return {
         vs: `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`,
-        fs: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; vec3 hp = color - blur; float e = abs(dot(hp, LUMA)); float x = clamp((e - 0.015) / 0.020, 0.0, 1.0); float gate = x * x * (3.0 - 2.0 * x); float luma0 = dot(color, LUMA); float hi = clamp((luma0 - 0.78) / 0.22, 0.0, 1.0); float hiReduce = 1.0 - 0.20 * (hi * hi * (3.0 - 2.0 * hi)); color = clamp(color + hp * (uParams2.y * 3.0) * gate * hiReduce, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.12 * satReduce); color = luma + (color - luma) * currentSat; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`
+        fs: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; vec3 hp = color - blur; float e = abs(dot(hp, LUMA)); float x = clamp((e - 0.005) / 0.020, 0.0, 1.0); float gate = x * x * (3.0 - 2.0 * x); float luma0 = dot(color, LUMA); float hi = clamp((luma0 - 0.78) / 0.22, 0.0, 1.0); float hiReduce = 1.0 - 0.20 * (hi * hi * (3.0 - 2.0 * hi)); color = clamp(color + hp * (uParams2.y * 5.5) * gate * hiReduce, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.12 * satReduce); color = luma + (color - luma) * currentSat; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`
       };
     }
 
