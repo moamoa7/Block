@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.6.0_WebGL_Fixed_Optimized)
+// @name        Video_Control (v159.7.1_Quality_Refined)
 // @namespace   https://github.com/
-// @version     159.6.0
-// @description Video Control: WebGL/AudioBoost. Fixed PointerEvents, Context Recovery, Dynamic Scaling, Paused RAF. (AE & UI Monitor Removed)
+// @version     159.7.1
+// @description Video Control: WebGL/SVG High-Quality Filters. Added Threshold Gating, Adaptive Saturation, and Safe Tone Clamping.
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -24,7 +24,14 @@
   if (window[VSC_BOOT_KEY]) return;
   try { Object.defineProperty(window, VSC_BOOT_KEY, { value: true, writable: false }); } catch (e) { window[VSC_BOOT_KEY] = true; }
 
-  const VSC_POLICY = window.trustedTypes && window.trustedTypes.createPolicy ? window.trustedTypes.createPolicy('VSC_Trusted_Policy', { createHTML: s => s, createScript: s => s, createScriptURL: s => s }) : null;
+  let VSC_POLICY = null;
+  try {
+    VSC_POLICY = window.trustedTypes?.createPolicy?.('VSC_Trusted_Policy', {
+      createHTML: s => s, createScript: s => s, createScriptURL: s => s
+    }) || null;
+  } catch (_) {
+    VSC_POLICY = null;
+  }
 
   window.__VSC_INTERNAL__ ||= {};
   let __vscClearVideoFilter = null, __vscClearVideoFilterGL = null, __vscUserSignalRev = 0;
@@ -46,7 +53,7 @@
   function detectLowEnd() { const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4; const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4; const saveData = !!navigator.connection?.saveData; return mem < 4 || cores <= 4 || saveData; }
 
   const __IS_LOW_END = detectLowEnd();
-  const CONFIG = Object.freeze({ VERSION: "v159.6.0", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
+  const CONFIG = Object.freeze({ VERSION: "v159.7.1", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
   const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
   const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
@@ -57,8 +64,8 @@
   const ENABLE_UI = true;
 
   const PRESETS = Object.freeze({
-    tone: { redSkin: { label: '피부', toe: 1.0, shoulder: 0.5, mid: 0.28, con: 1.02, sat: 1.03, br: 0.6, tmp: 1.0 }, gvfFilm: { label: '필름', toe: 0.2, shoulder: 0.25, mid: 0.0, con: 1.05, sat: 1.04, br: 0.6, tmp: 1.2 }, gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.0, mid: 0.08, con: 1.07, sat: 1.10, br: 2.0, tmp: 0.0 }, gvfGaming: { label: '게임', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.08, sat: 1.04, br: 0.6, tmp: 0.0 }, gvfVibrant: { label: '활력', toe: 0.0, shoulder: 0.0, mid: 0.0, con: 1.02, sat: 1.22, br: 0.0, tmp: 0.0 } },
-    detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 5, sharp2Add: 6, clarityAdd: 5 }, M: { sharpAdd: 10, sharp2Add: 12, clarityAdd: 8 }, L: { sharpAdd: 18, sharp2Add: 22, clarityAdd: 12 }, XL: { sharpAdd: 25, sharp2Add: 35, clarityAdd: 15 } },
+    tone: { redSkin: { label: '피부', toe: 0.55, shoulder: 0.35, mid: 0.16, con: 1.02, sat: 1.02, br: 0.35, tmp: 0.55 }, gvfFilm: { label: '필름', toe: 0.18, shoulder: 0.25, mid: 0.02, con: 1.04, sat: 1.03, br: 0.35, tmp: 0.90 }, gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.04, mid: 0.06, con: 1.06, sat: 1.08, br: 1.10, tmp: 0.0 }, gvfGaming: { label: '게임', toe: 0.0, shoulder: 0.02, mid: 0.0, con: 1.07, sat: 1.04, br: 0.45, tmp: 0.0 }, gvfVibrant: { label: '활력', toe: 0.0, shoulder: 0.03, mid: 0.0, con: 1.02, sat: 1.15, br: 0.0, tmp: 0.0 } },
+    detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 5, sharp2Add: 3, clarityAdd: 4 }, M: { sharpAdd: 9, sharp2Add: 6, clarityAdd: 7 }, L: { sharpAdd: 15, sharp2Add: 10, clarityAdd: 10 }, XL: { sharpAdd: 21, sharp2Add: 16, clarityAdd: 12 } },
     grade: { brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 }, S: { gammaF: 1.00, brightAdd: 2, conF: 1.00, satF: 1.00, tempAdd: 0 }, M: { gammaF: 1.08, brightAdd: 4, conF: 1.00, satF: 1.00, tempAdd: 0 }, L: { gammaF: 1.16, brightAdd: 6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DS: { gammaF: 1.00, brightAdd: 3.6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DM: { gammaF: 1.10, brightAdd: 7.2, conF: 1.00, satF: 1.00, tempAdd: 0 }, DL: { gammaF: 1.22, brightAdd: 10.8, conF: 1.00, satF: 1.00, tempAdd: 0 } }
   });
 
@@ -158,7 +165,7 @@
     return enterPiP(video);
   }
 
-  function createZoomManager(Utils) {
+  function createZoomManager() {
     const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
     let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
     const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '' }; stateMap.set(v, st); } return st; };
@@ -183,7 +190,7 @@
     const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
     function getTargetVideo(e) { const path = typeof e.composedPath === 'function' ? e.composedPath() : null; if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } const el = document.elementFromPoint(e.clientX || (e.touches && e.touches[0]?.clientX), e.clientY || (e.touches && e.touches[0]?.clientY)); let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } return v; }
     window.addEventListener('wheel', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
-    window.addEventListener('mousedown', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1 || e.altKey) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
+    window.addEventListener('mousedown', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
     window.addEventListener('mousemove', e => { if (!isPanning || !activeVideo) return; e.preventDefault(); e.stopPropagation(); const st = getSt(activeVideo), dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.clientX - startX; st.ty = e.clientY - startY; update(activeVideo); }, { capture: true });
     window.addEventListener('mouseup', e => { if (isPanning) { if (activeVideo) { const st = getSt(activeVideo); if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); } update(activeVideo); } isPanning = false; activeVideo = null; } }, { capture: true });
     window.addEventListener('dblclick', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true });
@@ -195,7 +202,7 @@
 
   const TARGETING_WEIGHTS = Object.freeze({ playing: 6.0, hasTime: 2.4, area: 1.2, dist: 3.0, audible: 1.35, audibleAudioBoostBonus: 1.2, pipBoostVisible: 2.4, pipBoostHidden: 3.8, clickedBoost: 2.0, bgPenaltyMutedAutoplayNoControls: 1.1, bgPenaltyEdge: 0.9, bgPenaltyTiny: 0.8, bgPenaltyLoop: 0.35 });
 
-  function createTargeting({ Utils }) {
+  function createTargeting() {
     const __applySetReuse = new Set(), __topBuf = [], __limitedBuf = []; const __lastTopCandidates = [];
     const __pickRes = { target: null, topCandidates: __lastTopCandidates };
     function buildCandidateFeature(v, now) {
@@ -284,7 +291,7 @@
         children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); }); return el;
       },
       deepClone: (x) => (window.structuredClone ? structuredClone(x) : JSON.parse(JSON.stringify(x))),
-      createLRU: (max = 384) => { const m = new Map(); return { get(k) { if (!m.has(k)) return undefined; const v = m.get(k); m.delete(k); m.set(k, v); return v; }, set(k, v) { if (m.has(k)) m.delete(k); m.set(k, v); if (m.size > max) m.delete(m.keys().next().value); } }; }
+      createLRU: (max = 384) => { const m = new Map(); return { get(k) { if (!m.has(k)) return undefined; const v = m.get(k); m.delete(k); m.set(k, v); return v; }, set(k, v) { if (m.has(k)) m.delete(k); m.set(k, v); if (m.size > max) m.delete(m.keys().next().value); } } }
     };
   }
 
@@ -310,8 +317,22 @@
     return function restore() { for (const [prop, info] of prev.entries()) { if (info.val) el.style.setProperty(prop, info.val, info.prio || ''); else el.style.removeProperty(prop); } };
   }
 
+  function clampTonePreset(p) {
+    return {
+      ...p,
+      toe: Math.max(0, Math.min(1.0, p.toe ?? 0)),
+      shoulder: Math.max(0, Math.min(1.0, p.shoulder ?? 0)),
+      mid: Math.max(-0.5, Math.min(0.5, p.mid ?? 0)),
+      con: Math.max(0.8, Math.min(1.2, p.con ?? 1)),
+      sat: Math.max(0.8, Math.min(1.25, p.sat ?? 1)),
+      br: Math.max(-2.0, Math.min(2.0, p.br ?? 0)),
+      tmp: Math.max(-2.0, Math.min(2.0, p.tmp ?? 0))
+    };
+  }
+
   function applyTonePreset2Inline(out, presetName, strength, Utils) {
-    if (!presetName || presetName === 'off') return out; const p0 = PRESETS.tone[presetName]; if(!p0) return out;
+    if (!presetName || presetName === 'off') return out; const pRaw = PRESETS.tone[presetName]; if(!pRaw) return out;
+    const p0 = clampTonePreset(pRaw);
     let t = Utils.clamp(strength ?? 1.0, 0, 1), toe = p0.toe, shoulder = p0.shoulder, mid = p0.mid, con = p0.con, sat = p0.sat, br = p0.br, tmp = p0.tmp;
     out.mid = Utils.clamp((out.mid || 0) + (mid * t), -1, 1); out.contrast = Utils.clamp((out.contrast || 1) * (1 + (con - 1) * t), 0.5, 2.0); out.satF = Utils.clamp((out.satF || 1) * (1 + (sat - 1) * t), 0.0, 2.0); out.bright = Utils.clamp((out.bright || 0) + (br * t), -50, 50); out.temp = Utils.clamp((out.temp || 0) + (tmp * t), -25, 25); out.toe = Utils.clamp((out.toe || 0) + (toe * t), -14, 14); out.shoulder = Utils.clamp((out.shoulder || 0) + (shoulder * t), -14, 14); return out;
   }
@@ -363,7 +384,7 @@
   }
 
   function normalizeNumberPath(sm, path, fallback, min = -Infinity, max = Infinity, isInt = false) { let v = +sm.get(path); if (!Number.isFinite(v)) v = fallback; if (isInt) v = Math.round(v); v = Math.min(max, Math.max(min, v)); if (!Object.is(sm.get(path), v)) sm.set(path, v); return v; }
-  function normalizeVideoState(sm, PRESETS, P, Utils) { const tone = sm.get(P.V_TONE_PRE); if (tone !== 'off' && !(tone in PRESETS.tone)) sm.set(P.V_TONE_PRE, 'off'); const pS = sm.get(P.V_PRE_S); if (!(pS in PRESETS.detail)) sm.set(P.V_PRE_S, 'off'); const pB = sm.get(P.V_PRE_B); if (!(pB in PRESETS.grade)) sm.set(P.V_PRE_B, 'brOFF'); normalizeNumberPath(sm, P.V_PRE_MIX, 1.0, 0, 1); normalizeNumberPath(sm, P.V_TONE_STR, 1.0, 0, 1); }
+  function normalizeVideoState(sm, PRESETS, P) { const tone = sm.get(P.V_TONE_PRE); if (tone !== 'off' && !(tone in PRESETS.tone)) sm.set(P.V_TONE_PRE, 'off'); const pS = sm.get(P.V_PRE_S); if (!(pS in PRESETS.detail)) sm.set(P.V_PRE_S, 'off'); const pB = sm.get(P.V_PRE_B); if (!(pB in PRESETS.grade)) sm.set(P.V_PRE_B, 'brOFF'); normalizeNumberPath(sm, P.V_PRE_MIX, 1.0, 0, 1); normalizeNumberPath(sm, P.V_TONE_STR, 1.0, 0, 1); }
   function normalizeAudioPlaybackState(sm, P) { const aEn = !!sm.get(P.A_EN); if (sm.get(P.A_EN) !== aEn) sm.set(P.A_EN, aEn); normalizeNumberPath(sm, P.A_BST, 6, 0, 12); const pbEn = !!sm.get(P.PB_EN); if (sm.get(P.PB_EN) !== pbEn) sm.set(P.PB_EN, pbEn); normalizeNumberPath(sm, P.PB_RATE, 1.0, 0.07, 16); }
 
   function createRegistry(scheduler) {
@@ -445,8 +466,9 @@
             if (st.detailKey !== p.dk) {
               st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8;
               setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.75 - sc(Math.min(1, v1)) * 0.3).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
-              const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 3.8;
-              setAttr(nodes.b2, 'stdDeviation', v2 > 0 ? '0.28' : '0', st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
+              const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 2.8;
+              const b2std = v2 > 0 ? (0.34 + 0.10 * Math.min(1, v2)).toFixed(2) : '0';
+              setAttr(nodes.b2, 'stdDeviation', b2std, st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
               const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3');
             }
           });
@@ -468,7 +490,7 @@
     };
   }
 
-  function createFiltersWebGL(Utils, Store) {
+  function createFiltersWebGL(Utils) {
     const pipelines = new WeakMap();
     function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
     function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
@@ -478,12 +500,12 @@
       if (isGL2) {
         return {
           vs: `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`,
-          fs: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec2 uResolution;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvoid main() {\n  vec2 texel = 1.0 / uResolution;\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  if (uParams2.y > 0.0) {\n    vec3 cU = texture(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb;\n    vec3 cD = texture(uVideoTex, vTexCoord + vec2(0.0,  texel.y)).rgb;\n    vec3 cL = texture(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb;\n    vec3 cR = texture(uVideoTex, vTexCoord + vec2( texel.x, 0.0)).rgb;\n    vec3 blur = (color + cU + cD + cL + cR) * 0.2;\n    color = clamp(color + (color - blur) * uParams2.y * 3.0, 0.0, 1.0);\n  }\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  color = luma + (color - luma) * uParams.z;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  if (uParams2.z > 0.0) {\n    float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453);\n    color += (noise - 0.5) * (uParams2.z / 100.0);\n  }\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`
+          fs: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec2 uResolution;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvoid main() {\n  vec2 texel = 1.0 / uResolution;\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  if (uParams2.y > 0.0) {\n    vec3 cU = texture(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb;\n    vec3 cD = texture(uVideoTex, vTexCoord + vec2(0.0,  texel.y)).rgb;\n    vec3 cL = texture(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb;\n    vec3 cR = texture(uVideoTex, vTexCoord + vec2( texel.x, 0.0)).rgb;\n    vec3 blur = (color + cU + cD + cL + cR) * 0.2;\n    vec3 hp = color - blur;\n    float e = abs(dot(hp, LUMA));\n    float x = clamp((e - 0.015) / 0.020, 0.0, 1.0);\n    float gate = x * x * (3.0 - 2.0 * x);\n    float luma0 = dot(color, LUMA);\n    float hi = clamp((luma0 - 0.78) / 0.22, 0.0, 1.0);\n    float hiReduce = 1.0 - 0.20 * (hi * hi * (3.0 - 2.0 * hi));\n    color = clamp(color + hp * (uParams2.y * 3.0) * gate * hiReduce, 0.0, 1.0);\n  }\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);\n  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);\n  float currentSat = uParams.z * (1.0 - 0.12 * satReduce);\n  color = luma + (color - luma) * currentSat;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  if (uParams2.z > 0.0) {\n    float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453);\n    color += (noise - 0.5) * (uParams2.z / 100.0);\n  }\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`
         };
       }
       return {
         vs: `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`,
-        fs: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; color = color + (color - blur) * uParams2.y * 3.0; color = clamp(color, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); color = luma + (color - luma) * uParams.z; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`
+        fs: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) { vec3 cU = texture2D(uVideoTex, vTexCoord + vec2(0.0, -texel.y)).rgb; vec3 cD = texture2D(uVideoTex, vTexCoord + vec2(0.0, texel.y)).rgb; vec3 cL = texture2D(uVideoTex, vTexCoord + vec2(-texel.x, 0.0)).rgb; vec3 cR = texture2D(uVideoTex, vTexCoord + vec2(texel.x, 0.0)).rgb; vec3 blur = (color + cU + cD + cL + cR) * 0.2; vec3 hp = color - blur; float e = abs(dot(hp, LUMA)); float x = clamp((e - 0.015) / 0.020, 0.0, 1.0); float gate = x * x * (3.0 - 2.0 * x); float luma0 = dot(color, LUMA); float hi = clamp((luma0 - 0.78) / 0.22, 0.0, 1.0); float hiReduce = 1.0 - 0.20 * (hi * hi * (3.0 - 2.0 * hi)); color = clamp(color + hp * (uParams2.y * 3.0) * gate * hiReduce, 0.0, 1.0); } color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.12 * satReduce); color = luma + (color - luma) * currentSat; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } if (uParams2.z > 0.0) { float noise = fract(sin(dot(vTexCoord, vec2(12.9898, 78.233))) * 43758.5453); color += (noise - 0.5) * (uParams2.z / 100.0); } gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`
       };
     }
 
@@ -583,15 +605,17 @@
       }
       startRenderLoop() {
         if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken;
-        const loopFn = (now, meta) => {
+        const loopFn = (_now, meta) => {
           if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; }
           if (meta && Number.isFinite(meta.processingDuration)) {
             const x = meta.processingDuration * 1000;
             this._perf.procMsEma = this._perf.procMsEma ? (this._perf.procMsEma * 0.85 + x * 0.15) : x;
-            if (this._perf.procMsEma > 14) this._perf.frameSkip = 2; else if (this._perf.procMsEma > 9) this._perf.frameSkip = 1; else this._perf.frameSkip = 1;
+            if (this._perf.procMsEma > 14) this._perf.frameSkip = 2;
+            else if (this._perf.procMsEma > 9) this._perf.frameSkip = 1;
+            else this._perf.frameSkip = 0;
           }
           this._perf.frameNo++;
-          if (this._perf.frameSkip > 1 && (this._perf.frameNo % this._perf.frameSkip) !== 0) { this.scheduleNextFrame(loopFn); return; }
+          if (this._perf.frameSkip > 0 && (this._perf.frameNo % (this._perf.frameSkip + 1)) !== 0) { this.scheduleNextFrame(loopFn); return; }
           this.render(); this.scheduleNextFrame(loopFn);
         };
         this.scheduleNextFrame(loopFn);
@@ -639,6 +663,18 @@
 
   function createDisposerBag() { const fns = []; return { add(fn) { if (typeof fn === 'function') fns.push(fn); return fn; }, flush() { for (let i = fns.length - 1; i >= 0; i--) { try { fns[i](); } catch (_) {} } fns.length = 0; } }; }
 
+  function bindWindowDrag(onMove, onEnd) {
+    const ac = new AbortController();
+    const sig = ac.signal;
+    window.addEventListener('mousemove', onMove, { passive: false, signal: sig });
+    window.addEventListener('mouseup', end, { signal: sig });
+    window.addEventListener('touchmove', onMove, { passive: false, signal: sig });
+    window.addEventListener('touchend', end, { signal: sig });
+    window.addEventListener('blur', end, { signal: sig });
+    function end(ev) { try { onEnd?.(ev); } finally { try { ac.abort(); } catch (_) {} } }
+    return () => { try { ac.abort(); } catch (_) {} };
+  }
+
   function createUI(sm, registry, scheduler, bus, Utils) {
     const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0;
     const uiWakeCtrl = new AbortController(), bag = createDisposerBag(), sub = (k, fn) => bag.add(sm.sub(k, fn));
@@ -669,7 +705,7 @@
 
       const bodyMain = h('div', { id: 'p-main' }, [
         h('div', { class: 'prow' }, [
-          h('button', { id: 'rm-btn', class: 'btn', style: `color: ${isWebGL ? '#ffaa00' : '#88ccff'}; border-color: ${isWebGL ? '#ffaa00' : '#88ccff'};`, onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') }, `🎨 ${isWebGL ? 'WebGL' : 'SVG'}`),        
+          h('button', { id: 'rm-btn', class: 'btn', style: `color: ${isWebGL ? '#ffaa00' : '#88ccff'}; border-color: ${isWebGL ? '#ffaa00' : '#88ccff'};`, onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') }, `🎨 ${isWebGL ? 'WebGL' : 'SVG'}`),
           h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 오디오업')]),
         h('div', { class: 'prow' },[
           h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP'),
@@ -695,7 +731,21 @@
         h('hr'), h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = () => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; sub(P.PB_RATE, v => { const isEn = sm.get(P.PB_EN); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); sub(P.PB_EN, isEn => { const v = sm.get(P.PB_RATE); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); b.classList.toggle('active', sm.get(P.PB_EN) && Math.abs((sm.get(P.PB_RATE) || 1) - s) < 0.01); return b; }))
       ]);
       const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel);
-      dragHandle.addEventListener('mousedown', (e) => { e.preventDefault(); let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`; function onMove(ev) { mainPanel.style.top = `${rect.top + (ev.clientY - startY)}px`; mainPanel.style.left = `${rect.left + (ev.clientX - startX)}px`; } function onUp() { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); } window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); });
+      dragHandle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        let startX = e.clientX, startY = e.clientY;
+        const rect = mainPanel.getBoundingClientRect();
+        mainPanel.style.transform = 'none';
+        mainPanel.style.top = `${rect.top}px`;
+        mainPanel.style.right = 'auto';
+        mainPanel.style.left = `${rect.left}px`;
+        bindWindowDrag(
+          (ev) => {
+            mainPanel.style.top = `${rect.top + (ev.clientY - startY)}px`;
+            mainPanel.style.left = `${rect.left + (ev.clientX - startX)}px`;
+          }
+        );
+      });
       sub(P.A_EN, v => shadow.querySelector('#boost-btn').classList.toggle('active', !!v));
       sub(P.APP_ACT, v => shadow.querySelector('#pwr-btn').style.color = v ? '#2ecc71' : '#e74c3c');
       sub(P.APP_RENDER_MODE, v => { const btn = shadow.querySelector('#rm-btn'); if(btn) { btn.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; btn.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; btn.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; } });
@@ -726,8 +776,11 @@
               }
               if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; }
           };
-          const onUp = () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; }, 100); window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
-          window.addEventListener('mousemove', onMove, { passive: false }); window.addEventListener('mouseup', onUp); window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onUp);
+          const onUp = () => {
+              gearBtn.style.transition = '';
+              setTimeout(() => { dragThresholdMet = false; }, 100);
+          };
+          bindWindowDrag(onMove, onUp);
       };
       gearBtn.addEventListener('mousedown', handleGearDrag); gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
       const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
@@ -765,13 +818,18 @@
       if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; }
       vscSignal({ forceApply: true });
     };
-    v.addEventListener('loadstart', softResetTransientFlags, { passive: true }); v.addEventListener('loadedmetadata', softResetTransientFlags, { passive: true }); v.addEventListener('emptied', softResetTransientFlags, { passive: true });
-    v.addEventListener('seeking', () => { vscSignal({ forceApply: true }); }, { passive: true }); v.addEventListener('play', () => { vscSignal({ forceApply: true }); }, { passive: true });
+    ['loadstart', 'loadedmetadata', 'emptied'].forEach(ev => v.addEventListener(ev, softResetTransientFlags, { passive: true }));
+    ['seeking', 'play'].forEach(ev => v.addEventListener(ev, () => { vscSignal({ forceApply: true }); }, { passive: true }));
     v.addEventListener('ratechange', () => { const rSt = getRateState(v); const now = performance.now(); if ((now - (rSt.lastSetAt || 0)) < 180) return; if (now < (rSt.suppressSyncUntil || 0)) return; const refs = window.__VSC_INTERNAL__; const app = refs?.App; const store = refs?.Store; if (!store) return; const desired = st.desiredRate; if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.01) return; const activeVideo = app?.getActiveVideo?.() || null; const applyAll = !!store.get?.(P.APP_APPLY_ALL); if (!applyAll) { if (!activeVideo || v !== activeVideo) return; } const cur = v.playbackRate; if (Number.isFinite(cur) && cur > 0) { store.set(P.PB_RATE, cur); if (store.get?.(P.PB_EN) !== false) store.set(P.PB_EN, true); } }, { passive: true });
   };
 
   const __urlByDocVideo = new Map(), __reconcileCandidates = new Set(); let __lastReconcileSig = '';
   function makeReconcileSig(applySet, vVals, desiredRate, pbActive, videoFxOn, activeTarget, rMode) { return [ videoFxOn ? 1 : 0, pbActive ? 1 : 0, desiredRate ?? 1, hashApplySet(applySet), getElemId(activeTarget), rMode, vVals.gain?.toFixed(2), vVals.gamma?.toFixed(2), vVals.contrast?.toFixed(2), vVals.bright?.toFixed(1), vVals.satF?.toFixed(2), vVals.temp?.toFixed(1), vVals.sharp?.toFixed(1), vVals.sharp2?.toFixed(1), vVals.clarity?.toFixed(1), vVals.mid?.toFixed(3), vVals.dither?.toFixed(0), vVals.toe?.toFixed(1), vVals.shoulder?.toFixed(1) ].join('|'); }
+
+  function clearAllVideoFx(el, Filters, FiltersGL) {
+    Filters.clear(el);
+    FiltersGL.clear(el);
+  }
 
   function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Filters, FiltersGL, rMode }) {
     const candidates = __reconcileCandidates; candidates.clear();
@@ -781,7 +839,7 @@
       if (!el || el.tagName !== 'VIDEO' || !el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); continue; }
       const st = getVState(el);
       const visible = (st.visible !== false), shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
-      if (!shouldApply) { Filters.clear(el); FiltersGL.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); bindVideoOnce(el); continue; }
+      if (!shouldApply) { clearAllVideoFx(el, Filters, FiltersGL); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); bindVideoOnce(el); continue; }
 
       if (videoFxOn) {
           if (rMode === 'webgl') {
@@ -789,7 +847,7 @@
           } else {
               FiltersGL.clear(el); const doc = el.ownerDocument || document; let url = __urlByDocVideo.get(doc); if (url === undefined) { url = Filters.prepareCached(doc, vVals); __urlByDocVideo.set(doc, url); } Filters.applyUrl(el, url); touchedAddLimited(TOUCHED.videos, el, onEvictVideo);
           }
-      } else { Filters.clear(el); FiltersGL.clear(el); TOUCHED.videos.delete(el); }
+      } else { clearAllVideoFx(el, Filters, FiltersGL); TOUCHED.videos.delete(el); }
 
       if (pbActive) { const rSt = getRateState(el); if (rSt.orig == null) rSt.orig = el.playbackRate; const lastDesired = st.desiredRate; if (!Object.is(lastDesired, desiredRate) || Math.abs(el.playbackRate - desiredRate) > 0.01) { st.desiredRate = desiredRate; markInternalRateChange(el, 160); try { el.playbackRate = desiredRate; } catch (_) {} } touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo); } else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
       bindVideoOnce(el);
@@ -812,9 +870,9 @@
 
     Scheduler.registerApply((force) => {
       try {
-        const active = !!Store.getCatRef('app').active; 
+        const active = !!Store.getCatRef('app').active;
         if (!active) { cleanupTouched(TOUCHED); Audio.update(); return; }
-        
+
         const sRev = Store.rev(), rRev = Registry.rev(), userSigRev = __vscUserSignalRev; if (!force && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
         lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev; const now = performance.now(); if (now - lastPrune > 2000) { Registry.prune(); pruneTouchedDisconnected(); lastPrune = now; }
 
@@ -834,9 +892,9 @@
         const videoFxOn = !isNeutralVideoParams(__vVals), applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL), extraApplyTopK = Store.get(P.APP_EXTRA_TOPK) | 0;
         applySet = Targeting.buildApplySetReuse(visible.videos, __activeTarget, extraApplyTopK, applyToAllVisibleVideos, window.__lastUserPt, wantAudio, pick.topCandidates);
         const desiredRate = Store.get(P.PB_RATE), pbActive = active && !!Store.get(P.PB_EN), rMode = Store.get(P.APP_RENDER_MODE) || 'svg';
-        
+
         const reconcileSig = makeReconcileSig(applySet, __vVals, desiredRate, pbActive, videoFxOn, __activeTarget, rMode);
-        
+
         if (!force && vidsDirty.size === 0 && reconcileSig === __lastReconcileSig) return;
         __lastReconcileSig = reconcileSig;
 
@@ -850,19 +908,19 @@
     Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); });
     if (Store.get(P.APP_ACT)) startTick();
     Scheduler.request(true);
-    return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); } catch (_) {} try { Audio.destroy?.(); } catch (_) {} } });
+    return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); } catch (_) {} try { Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
   }
 
   const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
   window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store;
-  const normalizeAllVideo = () => normalizeVideoState(Store, PRESETS, P, Utils);
+  const normalizeAllVideo = () => normalizeVideoState(Store, PRESETS, P);
   [ P.V_TONE_PRE, P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_TONE_STR ].forEach(k => Store.sub(k, normalizeAllVideo)); normalizeAllVideo();
 
   const normalizeAllAudioPlayback = () => normalizeAudioPlaybackState(Store, P);
   [P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE].forEach(k => Store.sub(k, normalizeAllAudioPlayback)); normalizeAllAudioPlayback();
 
   const FEATURES = { audio: () => Store.get(P.APP_ACT) && Store.get(P.A_EN) };
-  const Registry = createRegistry(Scheduler), Targeting = createTargeting({ Utils });
+  const Registry = createRegistry(Scheduler), Targeting = createTargeting();
 
   initSpaUrlDetector((nextUrl) => {
     log.info('SPA URL changed, rescanning...', nextUrl);
@@ -883,13 +941,13 @@
     })();
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END });
-    const FiltersGL = createFiltersWebGL(Utils, Store);
+    const FiltersGL = createFiltersWebGL(Utils);
     const Audio = createAudio(Store);
 
     __vscClearVideoFilter = (v) => Filters.clear(v);
     __vscClearVideoFilterGL = (v) => FiltersGL.clear(v);
 
-    const ZoomManager = createZoomManager(Utils);
+    const ZoomManager = createZoomManager();
     window.__VSC_INTERNAL__.ZoomManager = ZoomManager;
 
     const makeUI = createUIFactory(ENABLE_UI), UI = makeUI(Store, Registry, Scheduler, Bus, Utils);
