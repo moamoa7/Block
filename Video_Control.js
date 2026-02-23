@@ -64,7 +64,7 @@
   const ENABLE_UI = true;
 
   const PRESETS = Object.freeze({
-    tone: { redSkin: { label: '피부', toe: 0.55, shoulder: 0.35, mid: 0.16, con: 1.02, sat: 1.02, br: 0.35, tmp: 0.55 }, gvfFilm: { label: '필름', toe: 0.18, shoulder: 0.25, mid: 0.02, con: 1.04, sat: 1.03, br: 0.35, tmp: 0.90 }, gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.04, mid: 0.06, con: 1.06, sat: 1.08, br: 1.10, tmp: 0.0 }, gvfGaming: { label: '게임', toe: 0.0, shoulder: 0.02, mid: 0.0, con: 1.07, sat: 1.04, br: 0.45, tmp: 0.0 }, gvfVibrant: { label: '활력', toe: 0.0, shoulder: 0.03, mid: 0.0, con: 1.02, sat: 1.15, br: 0.0, tmp: 0.0 } },
+    tone: { redSkin: { label: '피부', toe: 0.80, shoulder: 0.42, mid: 0.22, con: 1.04, sat: 1.05, br: 0.55, tmp: 0.85 }, gvfFilm: { label: '필름', toe: 0.26, shoulder: 0.33, mid: 0.04, con: 1.07, sat: 1.06, br: 0.55, tmp: 1.10 }, gvfAnime: { label: '애니', toe: 0.0, shoulder: 0.10, mid: 0.10, con: 1.10, sat: 1.15, br: 1.55, tmp: 0.0 }, gvfGaming: { label: '게임', toe: 0.0, shoulder: 0.06, mid: 0.02, con: 1.10, sat: 1.07, br: 0.70, tmp: 0.0 }, gvfVibrant: { label: '활력', toe: 0.0, shoulder: 0.06, mid: 0.02, con: 1.04, sat: 1.24, br: 0.10, tmp: 0.0 } },
     detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 5, sharp2Add: 3, clarityAdd: 4 }, M: { sharpAdd: 9, sharp2Add: 6, clarityAdd: 7 }, L: { sharpAdd: 15, sharp2Add: 10, clarityAdd: 10 }, XL: { sharpAdd: 21, sharp2Add: 16, clarityAdd: 12 } },
     grade: { brOFF: { gammaF: 1.00, brightAdd: 0, conF: 1.00, satF: 1.00, tempAdd: 0 }, S: { gammaF: 1.00, brightAdd: 2, conF: 1.00, satF: 1.00, tempAdd: 0 }, M: { gammaF: 1.08, brightAdd: 4, conF: 1.00, satF: 1.00, tempAdd: 0 }, L: { gammaF: 1.16, brightAdd: 6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DS: { gammaF: 1.00, brightAdd: 3.6, conF: 1.00, satF: 1.00, tempAdd: 0 }, DM: { gammaF: 1.10, brightAdd: 7.2, conF: 1.00, satF: 1.00, tempAdd: 0 }, DL: { gammaF: 1.22, brightAdd: 10.8, conF: 1.00, satF: 1.00, tempAdd: 0 } }
   });
@@ -343,7 +343,7 @@
   }
 
   function composeVideoParamsInto(out, vUser, Utils) {
-    const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1); const GVF_BASE_CON = 1.10, GVF_BASE_SAT = 1.05, GVF_BASE_TOE = 0.65;
+    const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1); const GVF_BASE_CON = 1.10, GVF_BASE_SAT = 1.02, GVF_BASE_TOE = 0.65;
     const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
     const preGammaF = lerp(1.0, pB.gammaF, mix), preConF = lerp(1.0, pB.conF, mix), preSatF = lerp(1.0, pB.satF, mix), preBright = (pB.brightAdd || 0) * mix, preTemp = (pB.tempAdd || 0) * mix;
     const preSharp = (pD.sharpAdd || 0) * mix, preSharp2 = (pD.sharp2Add || 0) * mix, preClarity = (pD.clarityAdd || 0) * mix;
