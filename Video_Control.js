@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name        Video_Control (v159.4.4.20_UltraSlim)
+// @name        Video_Control (v159.4.5.21_UltraSlim)
 // @namespace   https://github.com/
-// @version     159.4.4.20
-// @description Video Control: UltraSlim Edition. Bug-fixed, SVG Render, Safe SPA Detach, Zero-Alloc, Advanced Zoom/Pan Fix, Store Proxy Fix, Scheduling Update, TrustedTypes & Performance
+// @version     159.4.5.21
+// @description Video Control: UltraSlim Edition. Bug-fixed, SVG Render, Safe SPA Detach, Zero-Alloc, Advanced Zoom/Pan Fix, Store Proxy Fix, Scheduling Update, TrustedTypes & Performance, queueMicrotask Anti-Flicker
 // @match       *://*/*
 // @exclude     *://*.google.com/recaptcha/*
 // @exclude     *://*.hcaptcha.com/*
@@ -73,7 +73,7 @@
 
   const __IS_LOW_END = detectLowEnd();
   const CONFIG = Object.freeze({
-    VERSION: "v159.4.4.20_UltraSlim", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
+    VERSION: "v159.4.5.21_UltraSlim", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140,
     VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false
   });
 
@@ -880,15 +880,36 @@
       if (nodes.st.lastKey !== key) {
         nodes.st.lastKey = key; const st = nodes.st, steps = config.IS_LOW_END ? 96 : 128;
         const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08; const tk = `${steps}|${qInt(clamp((s.toe||0)/14,-1,1),0.02)}|${qInt(clamp((s.shoulder||0)/16,-1,1),0.02)}|${qInt(clamp(s.mid||0,-1,1),0.02)}|${qInt(s.gain||1,gainQ)}`;
-        if (st.toneKey !== tk) { st.toneKey = tk; const table = getToneTableCached(steps, qInt(clamp((s.toe||0)/14,-1,1),0.02)*0.02, qInt(clamp((s.shoulder||0)/16,-1,1),0.02)*0.02, qInt(clamp(s.mid||0,-1,1),0.02)*0.02, qInt(s.gain||1,gainQ)*gainQ); if (st.toneTable !== table) { st.toneTable = table; for (const fn of nodes.toneFuncs) fn.setAttribute('tableValues', table); } }
+        const table = (st.toneKey !== tk) ? getToneTableCached(steps, qInt(clamp((s.toe||0)/14,-1,1),0.02)*0.02, qInt(clamp((s.shoulder||0)/16,-1,1),0.02)*0.02, qInt(clamp(s.mid||0,-1,1),0.02)*0.02, qInt(s.gain||1,gainQ)*gainQ) : st.toneTable;
         const con = clamp(s.contrast || 1, 0.5, 2.0), brightOffset = clamp((s.bright || 0) / 1000, -0.2, 0.2), intercept = clamp(0.5 * (1 - con) + brightOffset, -1, 1), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
-        if (st.bcLinKey !== bcLinKey) { st.bcLinKey = bcLinKey; for (const fn of nodes.bcLinFuncs) { fn.setAttribute('slope', con.toFixed(3)); fn.setAttribute('intercept', intercept.toFixed(4)); } }
-        const gk = (1/clamp(s.gamma||1,0.2,3)).toFixed(4); if (st.gammaKey !== gk) { st.gammaKey = gk; for (const fn of nodes.gamFuncs) fn.setAttribute('exponent', gk); }
-        setAttr(nodes.sat, 'values', clamp(s.satF ?? 1, 0, 2.5).toFixed(2), st, 'satKey');
+        const gk = (1/clamp(s.gamma||1,0.2,3)).toFixed(4);
+        const satVal = clamp(s.satF ?? 1, 0, 2.5).toFixed(2);
         const { rs, gs, bs } = tempToRgbGain(s.temp);
-        const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`; if (st.tempKey !== tmk) { st.tempKey = tmk; nodes.tmpFuncs[0].setAttribute('slope', rs.toFixed(3)); nodes.tmpFuncs[1].setAttribute('slope', gs.toFixed(3)); nodes.tmpFuncs[2].setAttribute('slope', bs.toFixed(3)); }
+        const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`;
         const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
-        if (st.detailKey !== dk) { st.detailKey = dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8; setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.75 - sc(Math.min(1, v1)) * 0.3).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3'); const v2 = (s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 3.8; setAttr(nodes.b2, 'stdDeviation', v2 > 0 ? '0.28' : '0', st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3'); const clVal = (s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3'); }
+
+        st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, s };
+
+        if (!st._svgUpdatePending) {
+          st._svgUpdatePending = true;
+          queueMicrotask(() => {
+            st._svgUpdatePending = false;
+            const p = st._pending;
+            if (!p) return;
+            if (st.toneKey !== p.tk) { st.toneKey = p.tk; if (st.toneTable !== p.table) { st.toneTable = p.table; for (const fn of nodes.toneFuncs) fn.setAttribute('tableValues', p.table); } }
+            if (st.bcLinKey !== p.bcLinKey) { st.bcLinKey = p.bcLinKey; for (const fn of nodes.bcLinFuncs) { fn.setAttribute('slope', p.con.toFixed(3)); fn.setAttribute('intercept', p.intercept.toFixed(4)); } }
+            if (st.gammaKey !== p.gk) { st.gammaKey = p.gk; for (const fn of nodes.gamFuncs) fn.setAttribute('exponent', p.gk); }
+            setAttr(nodes.sat, 'values', p.satVal, st, 'satKey');
+            if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; nodes.tmpFuncs[0].setAttribute('slope', p.rs.toFixed(3)); nodes.tmpFuncs[1].setAttribute('slope', p.gs.toFixed(3)); nodes.tmpFuncs[2].setAttribute('slope', p.bs.toFixed(3)); }
+            if (st.detailKey !== p.dk) { 
+              st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x), v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 1.8; 
+              setAttr(nodes.b1, 'stdDeviation', v1 > 0 ? (0.75 - sc(Math.min(1, v1)) * 0.3).toFixed(2) : '0', st, '__b1'); setAttr(nodes.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3'); 
+              const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 3.8; 
+              setAttr(nodes.b2, 'stdDeviation', v2 > 0 ? '0.28' : '0', st, '__b2'); setAttr(nodes.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3'); 
+              const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.bc, 'stdDeviation', clVal > 0 ? '1.2' : '0', st, '__bc'); setAttr(nodes.cl, 'k2', (1 + clVal).toFixed(3), st, '__clk2'); setAttr(nodes.cl, 'k3', (-clVal).toFixed(3), st, '__clk3'); 
+            }
+          });
+        }
       }
       const url = `url(#${nodes.fid})`; dc.key = key; dc.url = url; return url;
     }
@@ -896,12 +917,17 @@
       prepareCached: (doc, s) => { try { return prepare(doc, s); } catch (e) { log.warn('filter prepare failed:', e); return null; } },
       applyUrl: (el, url) => {
         if (!el) return; const st = getVState(el);
-        if (!url) { if (st.applied) { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); st.applied = false; st.lastFilterUrl = null; } return; }
-        if (st.lastFilterUrl === url) return; el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); st.applied = true; st.lastFilterUrl = url;
+        if (!url) { 
+            if (st.applied) { queueMicrotask(() => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); }); st.applied = false; st.lastFilterUrl = null; } 
+            return; 
+        }
+        if (st.lastFilterUrl === url) return; 
+        queueMicrotask(() => { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); }); 
+        st.applied = true; st.lastFilterUrl = url;
       },
       clear: (el) => {
         if (!el) return; const st = getVState(el); if (!st.applied) return;
-        el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); st.applied = false; st.lastFilterUrl = null;
+        queueMicrotask(() => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); }); st.applied = false; st.lastFilterUrl = null;
       }
     };
   }
