@@ -591,10 +591,22 @@
         this._onContextRestored = () => { try { this.disposeGLResources({ keepCanvasListeners: true }); if (this.initGLResourcesOnExistingCanvas()) { if (this.video) { this.active = true; this.startRenderLoop(); } } else { this.disabledUntil = performance.now() + 5000; } } catch (_) { this.disabledUntil = performance.now() + 5000; } };
       }
       ensureCanvas() {
-        if (this.canvas) return;
-        this.canvas = document.createElement('canvas'); this.canvas.style.width = '100%'; this.canvas.style.height = '100%'; this.canvas.style.objectFit = 'contain'; this.canvas.style.display = 'block'; this.canvas.style.pointerEvents = 'none';
-        this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false }); this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, { passive: true });
-      }
+  if (this.canvas) return;
+  this.canvas = document.createElement('canvas');
+  this.canvas.style.cssText = `
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+    pointer-events: none; /* 터치 이벤트가 아래 비디오 컨트롤러로 전달되게 함 */
+    z-index: -1; /* 비디오 컨트롤러보다 뒤로 보내기 시도 */
+  `;
+  this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false });
+  this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, { passive: true });
+}
       initGLResourcesOnExistingCanvas() {
         this.ensureCanvas();
         let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
@@ -614,14 +626,27 @@
       }
       init() { return this.initGLResourcesOnExistingCanvas(); }
       attachToVideo(video) {
-        if (!this.active && !this.init()) return false; this.video = video; this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling;
-        this.restoreVideoStyle = patchInlineStyleImportant(video, { opacity: '0.001' });
-        if (this.originalParent) {
-            const cs = window.getComputedStyle(this.originalParent);
-            if (cs.position === 'static') { this._parentPrevPosition = this.originalParent.style.position || ''; this.originalParent.style.position = 'relative'; this._parentStylePatched = true; }
-            this.canvas.style.position = 'absolute'; this.canvas.style.top = '0'; this.canvas.style.left = '0';
-            this.originalParent.insertBefore(this.canvas, video);
-        }
+  if (!this.active && !this.init()) return false;
+  this.video = video;
+  this.originalParent = video.parentNode;
+
+  // 비디오를 투명하게 만들어 뒤에 있는 캔버스가 보이게 함
+  this.restoreVideoStyle = patchInlineStyleImportant(video, {
+    opacity: '0.001',
+    backgroundColor: 'transparent'
+  });
+
+  if (this.originalParent) {
+    const cs = window.getComputedStyle(this.originalParent);
+    if (cs.position === 'static') {
+      this._parentPrevPosition = this.originalParent.style.position || '';
+      this.originalParent.style.position = 'relative';
+      this._parentStylePatched = true;
+    }
+    // insertBefore 대신 prepend를 사용하여 부모의 가장 뒤쪽 레이어에 배치 시도
+    // 또는 비디오 바로 앞에 삽입
+    this.originalParent.insertBefore(this.canvas, video);
+  }
         if (this._styleObs) this._styleObs.disconnect();
         this._styleObs = new MutationObserver(() => { this._styleDirty = true; });
         try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
