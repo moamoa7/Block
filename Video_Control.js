@@ -63,7 +63,7 @@
       gvfGaming: { label: '게임', toe: 0.00, shoulder: 0.05, mid: 0.01, con: 1.08, sat: 1.08, br: 0.45, tmp: 0.00 },
       gvfVibrant: { label: '화사', toe: 0.03, shoulder: 0.07, mid: 0.04, con: 1.04, sat: 1.09, br: 0.52, tmp: 0.06 }
     },
-        detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 10, sharp2Add: 8, clarityAdd: 9 }, M: { sharpAdd: 20, sharp2Add: 16, clarityAdd: 18 }, L: { sharpAdd: 30, sharp2Add: 24, clarityAdd: 27 }, XL: { sharpAdd: 40, sharp2Add: 32, clarityAdd: 36 } },
+    detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 7, sharp2Add: 5, clarityAdd: 6 }, M: { sharpAdd: 14, sharp2Add: 10, clarityAdd: 12 }, L: { sharpAdd: 21, sharp2Add: 15, clarityAdd: 18 }, XL: { sharpAdd: 28, sharp2Add: 20, clarityAdd: 24 } },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
       S:     { gammaF: 1.00, brightAdd: 2 },
