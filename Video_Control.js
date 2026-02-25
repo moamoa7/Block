@@ -99,7 +99,8 @@
 
   const TONE_BACKEND_SCALE = {
     svg:   { toe: 1.00, shoulder: 1.00, mid: 1.00, con: 1.00, sat: 1.00, br: 1.00, tmp: 1.00 },
-    webgl: { toe: 0.78, shoulder: 0.85, mid: 0.80, con: 0.99, sat: 0.98, br: 0.82, tmp: 0.72 }
+    // ✅ 억제 차단: WebGL 백엔드에서도 스케일링 계수를 1.00으로 통일하여 퓨어값 전달
+    webgl: { toe: 1.00, shoulder: 1.00, mid: 1.00, con: 1.00, sat: 1.00, br: 1.00, tmp: 1.00 }
   };
 
   const DEFAULTS = { video: { presetS: 'off', presetB: 'brOFF', presetMix: 0.90, tonePreset: 'off', toneStrength: 0.80 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg' } };
