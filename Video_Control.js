@@ -1,19 +1,19 @@
 // ==UserScript==
-// @name        Video_Control (v159.9.0)
-// @namespace   https://github.com/
-// @version     159.9.0
-// @description Video Control: Ultra-Lightweight Runtime. 2-Tier Pipelines (Lite/Full), Active-only Targeting, No Suppression.
-// @match       *://*/*
-// @exclude     *://*.google.com/recaptcha/*
-// @exclude     *://*.hcaptcha.com/*
-// @exclude     *://*.arkoselabs.com/*
-// @exclude     *://accounts.google.com/*
-// @exclude     *://*.stripe.com/*
-// @exclude     *://*.paypal.com/*
-// @exclude     *://challenges.cloudflare.com/*
-// @exclude     *://*.cloudflare.com/cdn-cgi/*
-// @run-at      document-start
-// @grant       none
+// @name         Video_Control (v159.9.4)
+// @namespace    https://github.com/
+// @version      159.9.4
+// @description  Video Control: Cinema Black Enhancement. Shadow bands now deepen blacks for better contrast.
+// @match        *://*/*
+// @exclude      *://*.google.com/recaptcha/*
+// @exclude      *://*.hcaptcha.com/*
+// @exclude      *://*.arkoselabs.com/*
+// @exclude      *://accounts.google.com/*
+// @exclude      *://*.stripe.com/*
+// @exclude      *://*.paypal.com/*
+// @exclude      *://challenges.cloudflare.com/*
+// @exclude      *://*.cloudflare.com/cdn-cgi/*
+// @run-at       document-start
+// @grant        none
 // ==/UserScript==
 
 (function () {
@@ -48,9 +48,8 @@
   function detectLowEnd() { const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4; const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4; const saveData = !!navigator.connection?.saveData; return mem < 4 || cores <= 4 || saveData; }
 
   const __IS_LOW_END = detectLowEnd();
-  const CONFIG = Object.freeze({ VERSION: "v159.9.0", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
+  const CONFIG = Object.freeze({ VERSION: "v159.9.4", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
-  // ✅ 프레임 스캔 활성화
   const FEATURE_FLAGS = Object.freeze({
     lightweightMode: true,
     trackShadowRoots: true,
@@ -59,13 +58,13 @@
   });
 
   const PERF_POLICY = Object.freeze({
-    svg: { useLiteFilterByDefault: true, detailThresholdLowEnd: 8, detailThresholdNormal: 3 },
-    webgl: { colorOnlySharpThresholdLowEnd: 0.06, colorOnlySharpThresholdNormal: 0.03 },
+    svg: { useLiteFilterByDefault: true, detailThresholdLowEnd: 1, detailThresholdNormal: 1 },
+    webgl: { colorOnlySharpThresholdLowEnd: 0.01, colorOnlySharpThresholdNormal: 0.01 },
     registry: { shadowLRUMaxLowEnd: 4, shadowLRUMaxNormal: 12, spaRescanDebounceMs: 220 }
   });
 
   const RUNTIME_GUARD = Object.freeze({
-    webgl: { failCooldownMs: 10000, failThreshold: 3 },
+    webgl: { failCooldownMs: 5000, failThreshold: 3 },
     audio: { createSourceCooldownMs: 5000 },
     targeting: { hysteresisMs: 650, hysteresisMargin: 0.8 }
   });
@@ -76,15 +75,13 @@
   const videoStateMap = new WeakMap();
   function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = { visible: false, rect: null, ir: 0, bound: false, rateState: null, tainted: false, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0 }; videoStateMap.set(v, st); } return st; }
 
+  const SHADOW_BAND = Object.freeze({
+    OUTER: 1, // 001
+    MID:   2, // 010
+    DEEP:  4  // 100
+  });
+
   const PRESETS = Object.freeze({
-    tone: {
-      off: { label: 'OFF', toe: 0, shoulder: 0, mid: 0, con: 1, sat: 1, br: 0, tmp: 0 },
-      redSkin: { label: '피부', toe: 0.46, shoulder: 0.28, mid: 0.10, con: 1.02, sat: 1.01, br: 0.28, tmp: 0.36 },
-      gvfFilm: { label: '필름', toe: 0.15, shoulder: 0.20, mid: 0.02, con: 1.035, sat: 1.02, br: 0.24, tmp: 0.56 },
-      gvfAnime: { label: '애니', toe: 0.00, shoulder: 0.04, mid: 0.03, con: 1.04, sat: 1.06, br: 0.48, tmp: 0.00 },
-      gvfGaming: { label: '게임', toe: 0.00, shoulder: 0.04, mid: 0.01, con: 1.06, sat: 1.06, br: 0.34, tmp: 0.00 },
-      gvfVibrant: { label: '화사', toe: 0.02, shoulder: 0.06, mid: 0.03, con: 1.035, sat: 1.07, br: 0.40, tmp: 0.05 }
-    },
     detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 7, sharp2Add: 5, clarityAdd: 6 }, M: { sharpAdd: 14, sharp2Add: 10, clarityAdd: 12 }, L: { sharpAdd: 21, sharp2Add: 15, clarityAdd: 18 }, XL: { sharpAdd: 28, sharp2Add: 20, clarityAdd: 24 } },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -97,14 +94,34 @@
     }
   });
 
-  const TONE_BACKEND_SCALE = {
-    svg:   { toe: 1.00, shoulder: 1.00, mid: 1.00, con: 1.00, sat: 1.00, br: 1.00, tmp: 1.00 },
-    // ✅ 억제 차단: WebGL 백엔드에서도 스케일링 계수를 1.00으로 통일하여 퓨어값 전달
-    webgl: { toe: 1.00, shoulder: 1.00, mid: 1.00, con: 1.00, sat: 1.00, br: 1.00, tmp: 1.00 }
+  const DEFAULTS = {
+    video: {
+      presetS: 'off',
+      presetB: 'brOFF',
+      presetMix: 0.90,
+      shadowBandMask: 0,
+      brightStepLevel: 0
+    },
+    audio: { enabled: false, boost: 6 },
+    playback: { rate: 1.0, enabled: false },
+    app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg' }
   };
 
-  const DEFAULTS = { video: { presetS: 'off', presetB: 'brOFF', presetMix: 0.90, tonePreset: 'off', toneStrength: 0.80 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg' } };
-  const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_RENDER_MODE: 'app.renderMode', V_TONE_PRE: 'video.tonePreset', V_TONE_STR: 'video.toneStrength', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
+  const P = Object.freeze({
+    APP_ACT: 'app.active',
+    APP_UI: 'app.uiVisible',
+    APP_APPLY_ALL: 'app.applyAll',
+    APP_RENDER_MODE: 'app.renderMode',
+    V_PRE_S: 'video.presetS',
+    V_PRE_B: 'video.presetB',
+    V_PRE_MIX: 'video.presetMix',
+    V_SHADOW_MASK: 'video.shadowBandMask',
+    V_BRIGHT_STEP: 'video.brightStepLevel',
+    A_EN: 'audio.enabled',
+    A_BST: 'audio.boost',
+    PB_RATE: 'playback.rate',
+    PB_EN: 'playback.enabled'
+  });
 
   if (FEATURE_FLAGS.trackShadowRoots) {
     (function patchAttachShadowOnce() {
@@ -154,7 +171,6 @@
 
   function getSelfCode() { try { if (document.currentScript?.textContent) { const t = document.currentScript.textContent.trim(); if (t.length > 200) return t; } } catch (_) {} return null; }
 
-  // ✅ 강력해진 iframe 강제 주입 로직
   function watchIframes() {
     const code = getSelfCode() || `(${function() {
         console.log("[VSC] Iframe Injection Fallback Active");
@@ -390,23 +406,6 @@
     return function restore() { for (const [prop, info] of prev.entries()) { if (info.val) el.style.setProperty(prop, info.val, info.prio || ''); else el.style.removeProperty(prop); } };
   }
 
-  function clampTonePreset(p) { return { ...p, toe: Math.max(0, Math.min(1.0, p.toe ?? 0)), shoulder: Math.max(0, Math.min(1.0, p.shoulder ?? 0)), mid: Math.max(-0.5, Math.min(0.5, p.mid ?? 0)), con: Math.max(0.8, Math.min(1.2, p.con ?? 1)), sat: Math.max(0.8, Math.min(1.55, p.sat ?? 1)), br: Math.max(-2.0, Math.min(5.0, p.br ?? 0)), tmp: Math.max(-2.0, Math.min(2.0, p.tmp ?? 0)) }; }
-
-  // ✅ 억제 제거 1: 해상도/HDR 비례 다운스케일 제거, 퓨어값 전달
-  function getAdaptiveToneStrength(vUser, video, backend, Utils) {
-    return Utils.clamp(vUser.toneStrength ?? 1.0, 0, 1);
-  }
-
-  function applyTonePreset2Inline(out, presetName, strength, Utils, backend) {
-    if (!presetName || presetName === 'off') return out; const pRaw = PRESETS.tone[presetName]; if(!pRaw) return out;
-    const sScale = TONE_BACKEND_SCALE[backend] || TONE_BACKEND_SCALE.svg;
-    const pScaled = { ...pRaw, toe: pRaw.toe * sScale.toe, shoulder: pRaw.shoulder * sScale.shoulder, mid: pRaw.mid * sScale.mid, con: 1 + (pRaw.con - 1) * sScale.con, sat: 1 + (pRaw.sat - 1) * sScale.sat, br: pRaw.br * sScale.br, tmp: pRaw.tmp * sScale.tmp };
-    const p0 = clampTonePreset(pScaled);
-    let t = Utils.clamp(strength ?? 1.0, 0, 1), toe = p0.toe, shoulder = p0.shoulder, mid = p0.mid, con = p0.con, sat = p0.sat, br = p0.br, tmp = p0.tmp;
-    out.mid = Utils.clamp((out.mid || 0) + (mid * t), -1, 1); out.contrast = Utils.clamp((out.contrast || 1) * (1 + (con - 1) * t), 0.5, 2.0); out.satF = Utils.clamp((out.satF || 1) * (1 + (sat - 1) * t), 0.0, 2.0); out.bright = Utils.clamp((out.bright || 0) + (br * t), -50, 50); out.temp = Utils.clamp((out.temp || 0) + (tmp * t), -25, 25); out.toe = Utils.clamp((out.toe || 0) + (toe * t), -14, 14); out.shoulder = Utils.clamp((out.shoulder || 0) + (shoulder * t), -14, 14); return out;
-  }
-
-  // ✅ 억제 제거 2: 샤프니스 기본 다운스케일 제거, 퓨어값 전달
   function composeBaseVideoParams(out, vUser, Utils) {
     const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1); const GVF_BASE_CON = 1.05, GVF_BASE_SAT = 1.02, GVF_BASE_TOE = 1.00;
     const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
@@ -418,17 +417,65 @@
     return out;
   }
 
-  function applyTonePresetToParams(out, vUser, Utils, backend, video = null) {
-    if (vUser.tonePreset && vUser.tonePreset !== 'off' && vUser.tonePreset !== 'neutral') {
-      const strength = getAdaptiveToneStrength(vUser, video, backend, Utils);
-      applyTonePreset2Inline(out, vUser.tonePreset, strength, Utils, backend);
+  // ✅ v159.9.4: 암부를 누르는(Darken/Crush) 로직으로 변경 (Toe 음수 적용, 대비 상승)
+  function applyShadowBandStack(out, shadowBandMask, Utils, video = null) {
+    const clamp = Utils.clamp;
+    const mask = (Number(shadowBandMask) | 0) & 7;
+    if (!mask) return out;
+
+    const bandTable = [
+      {
+        bit: SHADOW_BAND.OUTER,
+        add: { toe: -0.8, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 }
+      },
+      {
+        bit: SHADOW_BAND.MID,
+        add: { toe: -1.8, mid: -0.015, bright: -1.0, gammaMul: 0.980, contrastMul: 1.025, satMul: 1.010 }
+      },
+      {
+        bit: SHADOW_BAND.DEEP,
+        add: { toe: -3.0, mid: -0.005, bright: -0.5, gammaMul: 0.985, contrastMul: 1.020, satMul: 1.000 }
+      }
+    ];
+
+    let toeAdd = 0, midAdd = 0, brightAdd = 0;
+    let gammaMul = 1, contrastMul = 1, satMul = 1;
+    let activeCount = 0;
+
+    for (const band of bandTable) {
+      if ((mask & band.bit) === 0) continue;
+      activeCount++;
+      toeAdd += band.add.toe;
+      midAdd += band.add.mid;
+      brightAdd += band.add.bright;
+      gammaMul *= band.add.gammaMul;
+      contrastMul *= band.add.contrastMul;
+      satMul *= band.add.satMul;
     }
+
+    // 중복 적용 시 너무 까맣게 묻히는 것을 방지
+    if (activeCount >= 2) {
+      toeAdd = toeAdd >= -4.0 ? toeAdd : (-4.0 + (toeAdd + 4.0) * 0.7);
+      brightAdd = brightAdd >= -2.5 ? brightAdd : (-2.5 + (brightAdd + 2.5) * 0.7);
+    }
+    if (activeCount === 3) {
+      gammaMul = 1 + (gammaMul - 1) * 0.85;
+      contrastMul = 1 + (contrastMul - 1) * 0.90;
+    }
+
+    out.toe = clamp((out.toe || 0) + toeAdd, -14, 14);
+    out.mid = clamp((out.mid || 0) + midAdd, -1, 1);
+    out.bright = clamp((out.bright || 0) + brightAdd, -50, 50);
+    out.gamma = clamp((out.gamma || 1) * gammaMul, 0.5, 2.5);
+    out.contrast = clamp((out.contrast || 1) * contrastMul, 0.5, 2.3);
+    out.satF = clamp((out.satF || 1) * satMul, 0.0, 2.0);
+
     return out;
   }
 
   function composeVideoParamsInto(out, vUser, Utils, backend, video = null) {
     composeBaseVideoParams(out, vUser, Utils);
-    applyTonePresetToParams(out, vUser, Utils, backend, video);
+    applyShadowBandStack(out, vUser.shadowBandMask, Utils, video);
     return out;
   }
 
@@ -444,6 +491,10 @@
   }
 
   const isNeutralVideoParams = (v) => ( Math.abs((v.gain ?? 1) - 1) < 0.001 && Math.abs((v.gamma ?? 1) - 1) < 0.001 && Math.abs((v.contrast ?? 1) - 1) < 0.001 && Math.abs((v.bright ?? 0)) < 0.01 && Math.abs((v.satF ?? 1) - 1) < 0.001 && Math.abs((v.mid ?? 0)) < 0.001 && Math.abs((v.sharp ?? 0)) < 0.01 && Math.abs((v.sharp2 ?? 0)) < 0.01 && Math.abs((v.clarity ?? 0)) < 0.01 && Math.abs((v.temp ?? 0)) < 0.01 && Math.abs((v.toe ?? 0)) < 0.01 && Math.abs((v.shoulder ?? 0)) < 0.01 );
+
+  function createMainThreadPressureMonitor() {
+    return { getPressure: () => 0, applyScale: (vVals) => vVals, destroy: () => {} };
+  }
 
   function createVideoParamsMemo(Store, P, Utils, mtMonitor) {
       let lastKey = '';
@@ -484,7 +535,6 @@
     return { registerApply: (fn) => { applyFn = fn; }, request };
   }
 
-  // ✅ 동기화 통신기 (UI 열림 상태는 예외 처리)
   function createLocalStore(defaults, scheduler, Utils) {
     let rev = 0; const listeners = new Map();
     const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } };
@@ -493,7 +543,7 @@
     function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } }
 
     function broadcastState(key, val) {
-      if (key === P.APP_UI) return; // UI 표시 여부는 방송에서 제외 (각 프레임 독립 동작)
+      if (key === P.APP_UI) return;
       try {
         const msg = { __vsc_sync: true, p: key, val };
         if (window.top && window.top !== window.self) window.top.postMessage(msg, '*');
@@ -520,11 +570,26 @@
   function normalizeNumberPath(sm, path, fallback, min = -Infinity, max = Infinity, isInt = false) { let v = +sm.get(path); if (!Number.isFinite(v)) v = fallback; if (isInt) v = Math.round(v); v = Math.min(max, Math.max(min, v)); if (!Object.is(sm.get(path), v)) sm.set(path, v); return v; }
   function normalizeEnumPath(sm, path, dict, fallback) { let v = sm.get(path); if (!(v in dict)) { if (sm.get(path) !== fallback) sm.set(path, fallback); } }
 
-  const SCHEMA_VIDEO_NUM = [ [P.V_PRE_MIX, 0, 1, () => DEFAULTS.video.presetMix], [P.V_TONE_STR, 0, 1, () => DEFAULTS.video.toneStrength] ];
+  const SCHEMA_VIDEO_NUM = [ [P.V_PRE_MIX, 0, 1, () => DEFAULTS.video.presetMix] ];
   const SCHEMA_AUDIO_NUM = [ [P.A_BST, 0, 12, () => DEFAULTS.audio.boost], [P.PB_RATE, 0.07, 16, () => DEFAULTS.playback.rate] ];
   function normalizeBySchema(sm, numSchema, enumSchema = []) { for (const [path, min, max, dfn, isInt] of numSchema) normalizeNumberPath(sm, path, dfn(), min, max, isInt); for (const [path, dict, dfn] of enumSchema) normalizeEnumPath(sm, path, dict, dfn()); }
   function normalizeAppState(sm) { const rm = sm.get(P.APP_RENDER_MODE); if (rm !== 'svg' && rm !== 'webgl') sm.set(P.APP_RENDER_MODE, 'svg'); const aa = !!sm.get(P.APP_APPLY_ALL); if(sm.get(P.APP_APPLY_ALL) !== aa) sm.set(P.APP_APPLY_ALL, aa); }
-  function normalizeVideoState(sm) { normalizeBySchema(sm, SCHEMA_VIDEO_NUM, [ [P.V_TONE_PRE, PRESETS.tone, () => DEFAULTS.video.tonePreset], [P.V_PRE_S, PRESETS.detail, () => DEFAULTS.video.presetS], [P.V_PRE_B, PRESETS.grade, () => DEFAULTS.video.presetB] ]); }
+  function normalizeVideoState(sm) {
+    normalizeBySchema(sm, SCHEMA_VIDEO_NUM, [
+      [P.V_PRE_S, PRESETS.detail, () => DEFAULTS.video.presetS],
+      [P.V_PRE_B, PRESETS.grade, () => DEFAULTS.video.presetB]
+    ]);
+
+    let mask = Number(sm.get(P.V_SHADOW_MASK));
+    if (!Number.isFinite(mask)) mask = 0;
+    mask = Math.max(0, Math.min(7, mask | 0));
+    if (sm.get(P.V_SHADOW_MASK) !== mask) sm.set(P.V_SHADOW_MASK, mask);
+
+    let b = Number(sm.get(P.V_BRIGHT_STEP));
+    if (!Number.isFinite(b)) b = 0;
+    b = Math.max(0, Math.min(2, Math.round(b)));
+    if (sm.get(P.V_BRIGHT_STEP) !== b) sm.set(P.V_BRIGHT_STEP, b);
+  }
   function normalizeAudioPlaybackState(sm) { normalizeBySchema(sm, SCHEMA_AUDIO_NUM); const aEn = !!sm.get(P.A_EN); if (sm.get(P.A_EN) !== aEn) sm.set(P.A_EN, aEn); const pbEn = !!sm.get(P.PB_EN); if (sm.get(P.PB_EN) !== pbEn) sm.set(P.PB_EN, pbEn); }
 
   function createRegistry(scheduler) {
@@ -563,14 +628,13 @@
     return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { disconnectAll(); target = v; } updateMix(); return; } if (v !== target) { disconnectAll(); target = v; } if (!v) { updateMix(); return; } if (!enabled && !currentSrc) { updateMix(); return; } if (!ensureCtx()) return; if (!currentSrc) { try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(dry); currentSrc = s; } catch (_) { st.audioFailUntil = performance.now() + RUNTIME_GUARD.audio.createSourceCooldownMs; disconnectAll(); } } updateMix(); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
   }
 
-  // ✅ SVG 밀착 주입
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(config.IS_LOW_END ? 320 : 720);
     const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
     function wantsDetailPass(s) { const detailEnergy = Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.7 + Number(s.clarity || 0) * 0.7; return detailEnergy >= (config.IS_LOW_END ? PERF_POLICY.svg.detailThresholdLowEnd : PERF_POLICY.svg.detailThresholdNormal); }
     const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
-    function getToneTableCached(steps, toeN, shoulderN, midN, gain) { const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(gain,0.06)}`; const hit = toneCache.get(key); if (hit) return hit; if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; } const toeEnd = 0.34 + toeN * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN), ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g); const out = new Array(steps); let prev = 0; for (let i = 0; i < steps; i++) { const x0 = i / (steps - 1); let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0; x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1); if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); } if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); } let y = x; if (y < prev) y = prev; prev = y; const yy = Math.round(y * 100000) / 100000; out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy)); } const res = out.join(' '); toneCache.set(key, res); return res; }
+    function getToneTableCached(steps, toeN, shoulderN, midN, gain) { const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(gain,0.06)}`; const hit = toneCache.get(key); if (hit) return hit; if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; } const toeEnd = 0.34 + Math.abs(toeN) * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN), ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g); const out = new Array(steps); let prev = 0; for (let i = 0; i < steps; i++) { const x0 = i / (steps - 1); let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0; x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1); if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); } if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); } let y = x; if (y < prev) y = prev; prev = y; const yy = Math.round(y * 100000) / 100000; out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy)); } const res = out.join(' '); toneCache.set(key, res); return res; }
 
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
@@ -774,7 +838,6 @@
 
         const w = video.videoWidth, h = video.videoHeight;
 
-        // ✅ 억제 제거 4: 프레임 드랍 시 샤프니스 깎는 로직 삭제
         const sharpNorm = (this.vVals.sharp || 0) / 50.0;
         const useSharpen = sharpNorm >= (CONFIG.IS_LOW_END ? PERF_POLICY.webgl.colorOnlySharpThresholdLowEnd : PERF_POLICY.webgl.colorOnlySharpThresholdNormal);
         const kind = useSharpen ? 'sharp' : 'color';
@@ -867,7 +930,6 @@
     const uiWakeCtrl = new AbortController(), bag = createDisposerBag(), sub = (k, fn) => bag.add(sm.sub(k, fn));
     const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
 
-    // ✅ UI 생성 조건 (영상, 오브젝트 등이 있을 때만 톱니바퀴 노출)
     const allowUiInThisDoc = () => {
         if (registry.videos.size > 0) return true;
         const hasVideoElements = !!document.querySelector('video, object, embed');
@@ -885,6 +947,48 @@
       for (const it of items) addBtn(it.text, it.value); if (offValue !== undefined && offValue !== null && !items.some(it => it.value === offValue)) addBtn('OFF', offValue); return row;
     }
 
+    // ✅ v159.9.4: 블랙 누르기 용도에 맞게 툴팁 및 명칭 적용
+    function renderShadowBandMaskRow({ label = '블랙', key = P.V_SHADOW_MASK }) {
+      const row = h('div', { class: 'prow' },
+        h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label)
+      );
+
+      const items = [
+        { text: '외암', bit: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' },
+        { text: '중암', bit: SHADOW_BAND.MID,   title: '가운데 암부 진하게 (무게감 증가)' },
+        { text: '심암', bit: SHADOW_BAND.DEEP,  title: '가장 진한 블랙 (들뜬 블랙 제거)' }
+      ];
+
+      for (const it of items) {
+        const b = h('button', { class: 'pbtn', style: 'flex:1', title: it.title }, it.text);
+        b.onclick = () => {
+          const cur = (Number(sm.get(key)) | 0) & 7;
+          const next = (cur ^ it.bit) & 7;
+          sm.set(key, next);
+          bus.signal({ forceApply: true });
+        };
+        const sync = () => {
+          const mask = Number(sm.get(key)) | 0;
+          b.classList.toggle('active', (mask & it.bit) !== 0);
+        };
+        sub(key, sync);
+        sync();
+        row.append(b);
+      }
+
+      const off = h('button', { class: 'pbtn', style: 'flex:0.9' }, 'OFF');
+      off.onclick = () => {
+        sm.set(key, 0);
+        bus.signal({ forceApply: true });
+      };
+      const syncOff = () => off.classList.toggle('active', (Number(sm.get(key)) | 0) === 0);
+      sub(key, syncOff);
+      syncOff();
+      row.append(off);
+
+      return row;
+    }
+
     const build = () => {
       if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
       const style = `.main { position: fixed; top: 50%; right: 70px; transform: translateY(-50%); width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; } .header { display: flex; justify-content: center; margin-bottom: 12px; cursor: move; border-bottom: 2px solid #444; padding-bottom: 8px; font-weight: bold; font-size: 14px; color: #ccc;} .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; } .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; } .btn.active { background: #3498db; color: white; border-color: #2980b9; } .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; } .pbtn.active { background: #e67e22; color: white; border-color: #d35400; } hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }`;
@@ -895,7 +999,7 @@
         h('div', { class: 'prow' }, [ h('button', { id: 'rm-btn', class: 'btn', style: `color: ${isWebGL ? '#ffaa00' : '#88ccff'}; border-color: ${isWebGL ? '#ffaa00' : '#88ccff'};`, onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') }, `🎨 ${isWebGL ? 'WebGL' : 'SVG'}`), h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 오디오업')]),
         h('div', { class: 'prow' },[ h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP'), h('button', { id: 'zoom-btn', class: 'btn', onclick: () => { const zm = window.__VSC_INTERNAL__.ZoomManager; if (!zm) return; const v = window.__VSC_APP__?.getActiveVideo(); if(v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어'), h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power') ]),
         h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); bus.signal({ forceApply:true }); } }, '↺ 리셋') ]),
-        renderButtonRow({ label: '톤', key: P.V_TONE_PRE, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.tone).filter(k=>k!=='off').map(k => ({ text: PRESETS.tone[k].label, value: k })) }),
+        renderShadowBandMaskRow({ label: '블랙', key: P.V_SHADOW_MASK }),
         renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }),
         renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k=>k!=='brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'), h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = () => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; sub(P.PB_RATE, v => { const isEn = sm.get(P.PB_EN); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); sub(P.PB_EN, isEn => { const v = sm.get(P.PB_RATE); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); b.classList.toggle('active', sm.get(P.PB_EN) && Math.abs((sm.get(P.PB_RATE) || 1) - s) < 0.01); return b; }))
@@ -953,7 +1057,6 @@
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el, 220); el.playbackRate = nextRate; st.orig = null; } catch (_) {} };
 
-  // ✅ 비디오 기준으로 적용되도록 수정
   function createBackendAdapter(Filters, FiltersGL) {
     return {
       apply(video, mode, vVals) {
@@ -1020,18 +1123,13 @@
     candidates.clear();
   }
 
-  // ✅ 억제 제거 3: 부하 감지로 인한 강제 스케일 다운 제거
-  function createMainThreadPressureMonitor() {
-    return { getPressure: () => 0, applyScale: (vVals) => vVals, destroy: () => {} };
-  }
-
   function createThrottled(fn, ms = 120) {
     let last = 0, timer = 0;
     return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } };
   }
 
   function debugLogEffectiveVVals(vVals, vfUser, activeTarget, rMode) {
-    if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { preset: vfUser.tonePreset, toneStrength: vfUser.toneStrength, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp });
+    if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp });
   }
 
   function createAppController({ Store, Registry, Scheduler, Bus, Adapter, Audio, UI, Utils, P, Targeting }) {
@@ -1040,7 +1138,6 @@
     Bus.on('signal', (s) => { if (s.forceApply) Scheduler.request(true); });
 
     let __activeTarget = null, applySet = null, __lastAudioTarget = null, __lastAudioWant = null;
-    const __vfEff = { ...DEFAULTS.video };
     let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
     const mtMonitor = createMainThreadPressureMonitor();
@@ -1066,11 +1163,8 @@
         const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
         if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
 
-        let vfEff = vf0;
-        if (vf0.tonePreset && vf0.tonePreset !== 'off' && vf0.tonePreset !== 'neutral') { for (const k in __vfEff) __vfEff[k] = vf0[k]; __vfEff.toneStrength = Utils.clamp(vf0.toneStrength ?? 1.0, 0, 1); vfEff = __vfEff; }
-
-        const vValsEffective = videoParamsMemo.get(vfEff, rMode, __activeTarget);
-        debugLogEffectiveVVals(vValsEffective, vfEff, __activeTarget, rMode);
+        const vValsEffective = videoParamsMemo.get(vf0, rMode, __activeTarget);
+        debugLogEffectiveVVals(vValsEffective, vf0, __activeTarget, rMode);
 
         const videoFxOn = !isNeutralVideoParams(vValsEffective);
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
@@ -1100,7 +1194,6 @@
   const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
   window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store;
 
-  // ✅ 프레임 간 동기화 수신부 (UI 상태는 제외)
   window.addEventListener('message', (e) => {
     if (e.data && e.data.__vsc_sync) {
       const { p, val } = e.data;
@@ -1110,7 +1203,7 @@
   });
 
   const normalizeAllApp = () => normalizeAppState(Store); [ P.APP_RENDER_MODE, P.APP_APPLY_ALL ].forEach(k => Store.sub(k, normalizeAllApp)); normalizeAllApp();
-  const normalizeAllVideo = () => normalizeVideoState(Store); [ P.V_TONE_PRE, P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_TONE_STR ].forEach(k => Store.sub(k, normalizeAllVideo)); normalizeAllVideo();
+  const normalizeAllVideo = () => normalizeVideoState(Store); [ P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP ].forEach(k => Store.sub(k, normalizeAllVideo)); normalizeAllVideo();
   const normalizeAllAudioPlayback = () => normalizeAudioPlaybackState(Store); [P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE].forEach(k => Store.sub(k, normalizeAllAudioPlayback)); normalizeAllAudioPlayback();
 
   const Registry = createRegistry(Scheduler), Targeting = createTargeting();
