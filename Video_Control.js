@@ -95,7 +95,7 @@
     });
 
     const PRESETS = Object.freeze({
-      detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 6, sharp2Add: 4, clarityAdd: 2 }, M: { sharpAdd: 12, sharp2Add: 8, clarityAdd: 5 }, L: { sharpAdd: 19, sharp2Add: 11, clarityAdd: 8}, XL: { sharpAdd: 25, sharp2Add: 15, clarityAdd: 10 } },
+      detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 14, sharp2Add: 2, clarityAdd: 4 }, M: { sharpAdd: 16, sharp2Add: 10, clarityAdd: 10 }, L: { sharpAdd: 14, sharp2Add: 26, clarityAdd: 12}, XL: { sharpAdd: 18, sharp2Add: 16, clarityAdd: 32 } },
       grade: {
         brOFF: { gammaF: 1.00, brightAdd: 0 },
         S:     { gammaF: 1.02, brightAdd: 1.8 },
