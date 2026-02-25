@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.9)
+// @name         Video_Control (v159.9.11 - Ultimate Uncapped)
 // @namespace    https://github.com/
-// @version      159.9.9
-// @description  Video Control: Reliable iframe injection, optimized TT handling, WebGL fallback, UI Sync fixes.
+// @version      159.9.11
+// @description  Video Control: High-End PC version. No frame skips, no low-end downgrades, no HDR caps, direct unthrottled 1:1 parameter mapping.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -44,18 +44,9 @@
     }
 
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
-    function detectLowEnd() {
-      const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4;
-      const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4;
-      const conn = navigator.connection;
-      const saveData = !!conn?.saveData;
-      const et = (conn?.effectiveType || '').toLowerCase();
-      const slowNet = et === 'slow-2g' || et === '2g' || et === '3g';
-      return mem < 4 || cores <= 4 || saveData || slowNet;
-    }
-
-    const __IS_LOW_END = detectLowEnd();
-    const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
+    
+    // 저사양 판단 로직 삭제: 항상 고사양(High-End)으로 작동하도록 강제
+    const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: false, TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
     const FEATURE_FLAGS = Object.freeze({
       trackShadowRoots: true,
@@ -64,9 +55,7 @@
     });
 
     const PERF_POLICY = Object.freeze({
-      svg: { detailThresholdLowEnd: 1, detailThresholdNormal: 1 },
-      webgl: { colorOnlySharpThresholdLowEnd: 0.01, colorOnlySharpThresholdNormal: 0.01 },
-      registry: { shadowLRUMaxLowEnd: 4, shadowLRUMaxNormal: 12, spaRescanDebounceMs: 220 }
+      registry: { shadowLRUMax: 12, spaRescanDebounceMs: 220 }
     });
 
     const RUNTIME_GUARD = Object.freeze({
@@ -123,7 +112,7 @@
       video: {
         presetS: 'off',
         presetB: 'brOFF',
-        presetMix: 0.90,
+        presetMix: 1.0,
         shadowBandMask: 0,
         brightStepLevel: 0
       },
@@ -485,14 +474,25 @@
       return function restore() { for (const [prop, info] of prev.entries()) { if (info.val) el.style.setProperty(prop, info.val, info.prio || ''); else el.style.removeProperty(prop); } };
     }
 
+    // 완전히 해제된 직접 매핑 (보정치/가드 삭제)
     function composeBaseVideoParams(out, vUser, Utils) {
-      const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1); const GVF_BASE_CON = 1.05, GVF_BASE_SAT = 1.02, GVF_BASE_TOE = 1.00, GVF_BASE_TEMP = -1;
+      const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
       const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
       const preGammaF = lerp(1.0, pB.gammaF ?? 1.0, mix), preBright = (pB.brightAdd || 0) * mix;
       const preSharp = (pD.sharpAdd || 0) * mix, preSharp2 = (pD.sharp2Add || 0) * mix, preClarity = (pD.clarityAdd || 0) * mix;
 
-      out.gain = 1.0; out.gamma = clamp(preGammaF, 0.5, 2.5); out.contrast = clamp(1.0 * GVF_BASE_CON, 0.5, 2.3); out.satF = clamp(1.0 * GVF_BASE_SAT, 0.0, 2.0); out.bright = clamp(preBright, -50, 50); out.temp = clamp(GVF_BASE_TEMP, -25, 25); out.mid = 0; out.toe = clamp(GVF_BASE_TOE, 0, 15); out.shoulder = 0;
-      out.sharp = clamp(preSharp, 0, 50); out.sharp2 = clamp(preSharp2, 0, 50); out.clarity = clamp(preClarity, 0, 50);
+      out.gain = 1.0; 
+      out.gamma = clamp(preGammaF, 0.1, 5.0); 
+      out.contrast = clamp(1.0, 0.1, 5.0); 
+      out.satF = clamp(1.0, 0.0, 5.0); 
+      out.bright = clamp(preBright, -100, 100); 
+      out.temp = 0; 
+      out.mid = 0; 
+      out.toe = 0; 
+      out.shoulder = 0;
+      out.sharp = clamp(preSharp, 0, 100); 
+      out.sharp2 = clamp(preSharp2, 0, 100); 
+      out.clarity = clamp(preClarity, 0, 100);
       return out;
     }
 
@@ -509,11 +509,9 @@
 
       let toeAdd = 0, midAdd = 0, brightAdd = 0;
       let gammaMul = 1, contrastMul = 1, satMul = 1;
-      let activeCount = 0;
 
       for (const band of bandTable) {
         if (!ShadowMask.has(mask, band.bit)) continue;
-        activeCount++;
         toeAdd += band.add.toe;
         midAdd += band.add.mid;
         brightAdd += band.add.bright;
@@ -522,21 +520,12 @@
         satMul *= band.add.satMul;
       }
 
-      if (activeCount >= 2) {
-        toeAdd = toeAdd >= -4.0 ? toeAdd : (-4.0 + (toeAdd + 4.0) * 0.7);
-        brightAdd = brightAdd >= -2.5 ? brightAdd : (-2.5 + (brightAdd + 2.5) * 0.7);
-      }
-      if (activeCount === 3) {
-        gammaMul = 1 + (gammaMul - 1) * 0.85;
-        contrastMul = 1 + (contrastMul - 1) * 0.90;
-      }
-
-      out.toe = clamp((out.toe || 0) + toeAdd, -14, 14);
-      out.mid = clamp((out.mid || 0) + midAdd, -1, 1);
-      out.bright = clamp((out.bright || 0) + brightAdd, -50, 50);
-      out.gamma = clamp((out.gamma || 1) * gammaMul, 0.5, 2.5);
-      out.contrast = clamp((out.contrast || 1) * contrastMul, 0.5, 2.3);
-      out.satF = clamp((out.satF || 1) * satMul, 0.0, 2.0);
+      out.toe = clamp((out.toe || 0) + toeAdd, -50, 50);
+      out.mid = clamp((out.mid || 0) + midAdd, -5, 5);
+      out.bright = clamp((out.bright || 0) + brightAdd, -100, 100);
+      out.gamma = clamp((out.gamma || 1) * gammaMul, 0.1, 5.0);
+      out.contrast = clamp((out.contrast || 1) * contrastMul, 0.1, 5.0);
+      out.satF = clamp((out.satF || 1) * satMul, 0.0, 5.0);
 
       return out;
     }
@@ -553,9 +542,9 @@
       };
       const s = table[lvl];
 
-      out.bright   = clamp((out.bright || 0) + s.brightAdd, -50, 50);
-      out.gamma    = clamp((out.gamma || 1) * s.gammaMul, 0.5, 2.5);
-      out.contrast = clamp((out.contrast || 1) * s.contrastMul, 0.5, 2.3);
+      out.bright   = clamp((out.bright || 0) + s.brightAdd, -100, 100);
+      out.gamma    = clamp((out.gamma || 1) * s.gammaMul, 0.1, 5.0);
+      out.contrast = clamp((out.contrast || 1) * s.contrastMul, 0.1, 5.0);
       return out;
     }
 
@@ -566,22 +555,17 @@
       return out;
     }
 
+    // WebGL 매핑 단순화 (가중치 감쇄 완전 삭제)
     function projectVValsForWebGL(vVals) {
       const out = { ...vVals };
       const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
       const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-      out.sharp = clamp(sharp + sharp2 * 0.40 + clarity * 0.18, 0, 50);
+      out.sharp = clamp(sharp + sharp2 + clarity, 0, 100);
 
-      const toe = Number(out.toe || 0);
-      const shoulder = Number(out.shoulder || 0);
-      const mid = Number(out.mid || 0);
-
-      const toeDelta = toe - 1.0;
-
-      out.bright   = clamp(Number(out.bright || 0) + toeDelta * 0.55 + mid * 3.0, -50, 50);
-      out.contrast = clamp(Number(out.contrast || 1) * (1 + shoulder * 0.008 + mid * 0.010 - toeDelta * 0.010), 0.5, 2.3);
-      out.gamma    = clamp(Number(out.gamma || 1) * (1 - mid * 0.060), 0.5, 2.5);
+      out.bright   = clamp(Number(out.bright || 0), -100, 100);
+      out.contrast = clamp(Number(out.contrast || 1), 0.1, 5.0);
+      out.gamma    = clamp(Number(out.gamma || 1), 0.1, 5.0);
 
       out.sharp2 = 0; out.clarity = 0; out.toe = 0; out.shoulder = 0; out.mid = 0;
       return out;
@@ -701,9 +685,11 @@
 
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
-      const shadowRootsLRU = []; const SHADOW_LRU_MAX = CONFIG.IS_LOW_END ? PERF_POLICY.registry.shadowLRUMaxLowEnd : PERF_POLICY.registry.shadowLRUMaxNormal; const observedShadowHosts = new WeakSet();
+      const shadowRootsLRU = []; const SHADOW_LRU_MAX = PERF_POLICY.registry.shadowLRUMax; const observedShadowHosts = new WeakSet();
       let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
-      const io = new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.ir = e.intersectionRatio || 0; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: CONFIG.IS_LOW_END ? '120px' : '300px' });
+      
+      // 저사양 감지 삭제: 무조건 고사양 기준 (rootMargin: '300px')
+      const io = new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.ir = e.intersectionRatio || 0; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' });
       const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
       const ro = new ResizeObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); st.rect = e.contentRect ? el.getBoundingClientRect() : null; st.rectT = now; st.rectEpoch = -1; dirty.videos.add(el); changed = true; } if (changed) requestRefreshCoalesced(); });
       const observeVideo = (el) => { if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return; patchFullscreenRequest(el); videos.add(el); io.observe(el); try { ro.observe(el); } catch (_) {} };
@@ -721,7 +707,9 @@
       if (FEATURE_FLAGS.trackShadowRoots) { document.addEventListener('vsc-shadow-root', (e) => { try { const sr = e.detail; const host = sr?.host; if (!sr || !host || observedShadowHosts.has(host)) return; observedShadowHosts.add(host); shadowRootsLRU.push({ host, root: sr }); if (shadowRootsLRU.length > SHADOW_LRU_MAX) shadowRootsLRU.shift(); connectObserver(sr); } catch (_) {} }); }
       refreshObservers();
       let pruneIterVideos = null; function pruneBatchRoundRobinNoAlloc(set, visibleSet, dirtySet, unobserveFn, batch = 200) { let removed = 0; let scanned = 0; if (!pruneIterVideos) pruneIterVideos = set.values(); while (scanned < batch) { let n = pruneIterVideos.next(); if (n.done) { pruneIterVideos = set.values(); n = pruneIterVideos.next(); if (n.done) break; } const el = n.value; if (el && !el.isConnected) { set.delete(el); visibleSet.delete(el); dirtySet.delete(el); try { unobserveFn(el); } catch (_) {} try { ro.unobserve(el); } catch (_) {} removed++; } scanned++; } return removed; }
-      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, io.unobserve.bind(io), CONFIG.IS_LOW_END ? 120 : 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { for (const r of walkRoots(document.body || document.documentElement)) { WorkQ.enqueue(r); } } };
+      
+      // 저사양 감지 삭제: 무조건 고사양 기준 220개 배치 처리
+      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, io.unobserve.bind(io), 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { for (const r of walkRoots(document.body || document.documentElement)) { WorkQ.enqueue(r); } } };
     }
 
     function createAudio(sm) {
@@ -743,9 +731,13 @@
     }
 
     function createFiltersVideoOnly(Utils, config) {
-      const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(config.IS_LOW_END ? 320 : 720);
+      const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(720); // 항상 720 LRU
       const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
-      function wantsDetailPass(s) { const detailEnergy = Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.7 + Number(s.clarity || 0) * 0.7; return detailEnergy >= (config.IS_LOW_END ? PERF_POLICY.svg.detailThresholdLowEnd : PERF_POLICY.svg.detailThresholdNormal); }
+      
+      // 미세 효과 연산 차단 제거: 샤프니스가 0보다 크기만 하면 무조건 연산
+      function wantsDetailPass(s) {
+        return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0; 
+      }
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
       function getToneTableCached(steps, toeN, shoulderN, midN, gain) { const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(gain,0.06)}`; const hit = toneCache.get(key); if (hit) return hit; if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; } const toeEnd = 0.34 + Math.abs(toeN) * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN), ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g); const out = new Array(steps); let prev = 0; for (let i = 0; i < steps; i++) { const x0 = i / (steps - 1); let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0; x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1); if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); } if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); } let y = x; if (y < prev) y = prev; prev = y; const yy = Math.round(y * 100000) / 100000; out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy)); } const res = out.join(' '); toneCache.set(key, res); return res; }
@@ -794,11 +786,11 @@
         const detailOn = wantsDetailPass(s); const key = `${detailOn ? 'F' : 'L'}|${makeKeyBase(s)}`; if (dc.key === key) return dc.url;
         let nodes = ctxMap.get(root); if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
         if (nodes.st.lastKey !== key) {
-          nodes.st.lastKey = key; const st = nodes.st, steps = config.IS_LOW_END ? 96 : 128;
+          nodes.st.lastKey = key; const st = nodes.st, steps = 128; // 항상 128단계 매핑
           const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08; const tk = `${steps}|${qInt(clamp((s.toe||0)/14,-1,1),0.02)}|${qInt(clamp((s.shoulder||0)/16,-1,1),0.02)}|${qInt(clamp(s.mid||0,-1,1),0.02)}|${qInt(s.gain||1,gainQ)}`;
           const table = (st.toneKey !== tk) ? getToneTableCached(steps, qInt(clamp((s.toe||0)/14,-1,1),0.02)*0.02, qInt(clamp((s.shoulder||0)/16,-1,1),0.02)*0.02, qInt(clamp(s.mid||0,-1,1),0.02)*0.02, qInt(s.gain||1,gainQ)*gainQ) : st.toneTable;
-          const con = clamp(s.contrast || 1, 0.5, 2.0), brightOffset = clamp((s.bright || 0) / 1000, -0.2, 0.2), intercept = clamp(0.5 * (1 - con) + brightOffset, -1, 1), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
-          const gk = (1/clamp(s.gamma||1,0.2,3)).toFixed(4); const satVal = clamp(s.satF ?? 1, 0, 2.5).toFixed(2);
+          const con = clamp(s.contrast || 1, 0.1, 5.0), brightOffset = clamp((s.bright || 0) / 1000, -0.5, 0.5), intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
+          const gk = (1/clamp(s.gamma||1,0.1,5.0)).toFixed(4); const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`;
           const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
           st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, s, detailOn };
@@ -861,7 +853,6 @@
         constructor() {
           this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this.restoreVideoStyle = null; this.renderDriver = createFrameDriver(); this.disabledUntil = 0;
           this._texW = 0; this._texH = 0; this._loopToken = 0; this._loopRunning = false;
-          this._perf = { procMsEma: 0, frameSkip: 1, frameNo: 0 };
           this._qMon = { lastT: 0, lastDropped: 0, dropRateEma: 0 };
           this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0;
           this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null;
@@ -959,7 +950,8 @@
           const w = video.videoWidth, h = video.videoHeight;
 
           const sharpNorm = (this.vVals.sharp || 0) / 50.0;
-          const useSharpen = sharpNorm >= (CONFIG.IS_LOW_END ? PERF_POLICY.webgl.colorOnlySharpThresholdLowEnd : PERF_POLICY.webgl.colorOnlySharpThresholdNormal);
+          // 미세 샤프니스 차단 해제: 0보다 크기만 하면 무조건 연산
+          const useSharpen = sharpNorm > 0;
           const kind = useSharpen ? 'sharp' : 'color';
           const H = useSharpen ? this.handles_sharp : this.handles_color;
 
@@ -999,20 +991,18 @@
             }
           }
         }
+        
+        // 프레임 스킵 제거: 조건 없이 무조건 모든 프레임 렌더링
         startRenderLoop() {
           if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken;
           const loopFn = (now, meta) => {
             if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; }
-            if (meta) {
-              if (Number.isFinite(meta.processingDuration)) { const x = meta.processingDuration * 1000; this._perf.procMsEma = this._perf.procMsEma ? (this._perf.procMsEma * 0.85 + x * 0.15) : x; }
-              if (this._perf.procMsEma > 14) this._perf.frameSkip = 2; else if (this._perf.procMsEma > 9) this._perf.frameSkip = 1; else this._perf.frameSkip = 0;
-            }
-            this._perf.frameNo++;
-            if (this._perf.frameSkip > 0 && (this._perf.frameNo % (this._perf.frameSkip + 1)) !== 0) { this.scheduleNextFrame(loopFn); return; }
-            this.render(); this.scheduleNextFrame(loopFn);
+            this.render(); 
+            this.scheduleNextFrame(loopFn);
           };
           this.scheduleNextFrame(loopFn);
         }
+        
         scheduleNextFrame(loopFn) {
           const pausedOrHidden = !!(document.hidden || this.video?.paused);
           this.renderDriver.scheduleVideoFrame(this.video, loopFn, pausedOrHidden ? 'timeout' : 'raf', pausedOrHidden ? 220 : 90);
@@ -1100,7 +1090,7 @@
         if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
         const style = `.main { position: fixed; top: 50%; right: 70px; transform: translateY(-50%); width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; } .header { display: flex; justify-content: center; margin-bottom: 12px; cursor: move; border-bottom: 2px solid #444; padding-bottom: 8px; font-weight: bold; font-size: 14px; color: #ccc;} .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; } .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; } .btn.active { background: #3498db; color: white; border-color: #2980b9; } .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; } .pbtn.active { background: #e67e22; color: white; border-color: #d35400; } hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }`;
         applyShadowStyle(shadow, style, h);
-        const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
+        const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어 (Uncapped)');
 
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
         bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; });
