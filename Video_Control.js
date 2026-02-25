@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.6)
+// @name         Video_Control (v159.9.7)
 // @namespace    https://github.com/
-// @version      159.9.6
+// @version      159.9.7
 // @description  Video Control: Reliable iframe injection via VSC_MAIN stringification. Robust Shadow recovery.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -170,7 +170,6 @@
       wrap('pushState'); wrap('replaceState'); onWin('popstate', emitIfChanged, { passive: true });
     }
 
-    // ✅ 개선된 iframe 자동 주입기 (VSC_MAIN 전체를 동적으로 주입)
     function watchIframes() {
       const inject = (ifr) => {
         if (!ifr) return;
@@ -181,26 +180,21 @@
             const doc = ifr.contentDocument || win?.document;
             if (!win || !doc) return;
 
-            // 요소가 아니라 내부 window 기준으로 체크
             if (win.__VSC_BOOT_LOCK__) return;
 
             const host = doc.head || doc.documentElement;
             if (!host) return;
 
             const s = doc.createElement('script');
-            // VSC_MAIN 함수 자체를 문자열로 만들어 즉시 실행 형태로 주입
-            s.textContent = `;(${VSC_MAIN.toString()})();`;
+            const scriptContent = `;(${VSC_MAIN.toString()})();`;
+            s.textContent = VSC_POLICY ? VSC_POLICY.createScript(scriptContent) : scriptContent;
             host.appendChild(s);
             s.remove?.();
-          } catch (_) {
-            // cross-origin / sandbox 등은 실패 가능 (정상)
-          }
+          } catch (_) {}
         };
 
-        // 초기 시도
         tryInject();
 
-        // 문서가 나중에 로드되는 경우 대비
         if (!ifr.__vscLoadHooked) {
           ifr.__vscLoadHooked = true;
           ifr.addEventListener('load', tryInject, { passive: true });
@@ -327,12 +321,12 @@
         const vp = getViewportSnapshot();
         let best = null, bestScore = -Infinity;
 
-        for (const v of videos) {
-          if (!v || v.readyState < 2) continue;
+        const evalScore = (v) => {
+          if (!v || v.readyState < 2) return;
           const r = getRectCached(v, now, 420);
           const area = r.width * r.height;
           const pip = isPiPActiveVideo(v);
-          if (area < 160 * 120 && !pip) continue;
+          if (area < 160 * 120 && !pip) return;
 
           const cx = r.left + r.width * 0.5;
           const cy = r.top + r.height * 0.5;
@@ -352,6 +346,15 @@
           if (pip) s += 3.0;
 
           if (s > bestScore) { bestScore = s; best = v; }
+        };
+
+        for (const v of videos) {
+          evalScore(v);
+        }
+
+        const activePip = getActivePiPVideo();
+        if (activePip && activePip.isConnected && !videos.has(activePip)) {
+          evalScore(activePip);
         }
 
         if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) {
@@ -592,9 +595,12 @@
       function broadcastState(key, val) {
         if (key === P.APP_UI) return;
         try {
-          const msg = { __vsc_sync: true, p: key, val };
+          const msg = { __vsc_sync: true, token: 'VSC_SYNC_MSG_v159', p: key, val };
           if (window.top && window.top !== window.self) window.top.postMessage(msg, '*');
-          document.querySelectorAll('iframe').forEach(ifr => { try { ifr.contentWindow.postMessage(msg, '*'); } catch(_) {} });
+          const iframes = document.getElementsByTagName('iframe');
+          for (let i = 0; i < iframes.length; i++) {
+            try { iframes[i].contentWindow.postMessage(msg, '*'); } catch(_) {}
+          }
         } catch (_) {}
       }
 
@@ -1241,11 +1247,14 @@
     const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
     window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store;
 
+    const VALID_SYNC_KEYS = Object.values(P);
     window.addEventListener('message', (e) => {
-      if (e.data && e.data.__vsc_sync) {
+      if (e.data && e.data.__vsc_sync && e.data.token === 'VSC_SYNC_MSG_v159') {
         const { p, val } = e.data;
         if (p === P.APP_UI) return;
-        if (Store.get(p) !== val) Store.set(p, val);
+        if (VALID_SYNC_KEYS.includes(p)) {
+          if (Store.get(p) !== val) Store.set(p, val);
+        }
       }
     });
 
