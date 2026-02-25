@@ -911,12 +911,12 @@
           if (liftRiskN > 0.75 && morphRadius > 1) morphRadius = 1;
           morphRadius = Math.round(morphRadius);
 
-          const rngBlurStd = Math.max(0.45, Math.min(1.05, 0.50 + sharpN * 0.22 + hiResN * 0.14 + liftRiskN * 0.10));
+          const rngBlurStd = Math.max(0.42, Math.min(0.90, 0.46 + sharpN * 0.16 + hiResN * 0.10 + liftRiskN * 0.06));
 
           const th = Math.max(0.014, Math.min(0.042, 0.024 - sharpN * 0.009 + liftRiskN * 0.010 + (1 - contrastN) * 0.003));
           const knee = Math.max(0.014, Math.min(0.060, 0.024 + sharpN * 0.016 + liftRiskN * 0.012 + hiResN * 0.004));
           const gateGamma = Math.max(0.88, Math.min(1.18, 1.06 - sharpN * 0.14 + liftRiskN * 0.10));
-          const gateFloor = Math.max(0.002, Math.min(0.040, 0.006 + sharpN * 0.014 + liftRiskN * 0.018));
+          const gateFloor = Math.max(0.0, Math.min(0.012, 0.002 + sharpN * 0.006 + liftRiskN * 0.004));
           const gateCeil = Math.max(0.88, Math.min(0.98, 0.96 - sharpN * 0.05));
 
           const edgeGateTable = makeSoftKneeTable(64, th, knee, gateGamma, gateFloor, gateCeil);
@@ -929,8 +929,8 @@
           const hlReduce = Math.max(0.38, Math.min(0.82, 0.44 + sharpN * 0.22 + liftRiskN * 0.12));
           const hlKeepTable = makeHighlightKeepTable(64, hlStart, hlEnd, hlReduce);
 
-          const desatSat = Math.max(0.34, Math.min(0.68, 0.42 + (1 - sharpN) * 0.16 + liftRiskN * 0.06));
-          const chromaKeep = Math.max(0.12, Math.min(0.28, 0.16 + (1 - sharpN) * 0.10 - liftRiskN * 0.03));
+          const desatSat = Math.max(0.55, Math.min(0.82, 0.62 + (1 - sharpN) * 0.12 + liftRiskN * 0.04));
+          const chromaKeep = Math.max(0.24, Math.min(0.42, 0.30 + (1 - sharpN) * 0.08 - liftRiskN * 0.02));
 
           st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, ck, s, detailOn, edgeGateTable, hlKeepTable, morphRadius, rngBlurStd, desatSat, chromaKeep };
           if (!st._svgUpdatePending) {
