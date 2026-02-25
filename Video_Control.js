@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.7)
+// @name         Video_Control (v159.9.8)
 // @namespace    https://github.com/
-// @version      159.9.7
-// @description  Video Control: Reliable iframe injection via VSC_MAIN stringification. Robust Shadow recovery.
+// @version      159.9.8
+// @description  Video Control: Reliable iframe injection, optimized TT handling, WebGL fallback, UI Sync fixes.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -25,17 +25,15 @@
     if (window[VSC_BOOT_KEY]) return;
     try { Object.defineProperty(window, VSC_BOOT_KEY, { value: true, writable: false }); } catch (e) { window[VSC_BOOT_KEY] = true; }
 
-    let VSC_POLICY = null;
-    try { VSC_POLICY = window.trustedTypes?.createPolicy?.('VSC_Trusted_Policy', { createScript: s => s }) || null; } catch (_) { VSC_POLICY = null; }
-
     window.__VSC_INTERNAL__ ||= {};
     let __vscUserSignalRev = 0;
     function vscSignal(payload) { try { window.__VSC_INTERNAL__?.Bus?.signal?.(payload); } catch (_) {} }
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
     const __globalHooksAC = new AbortController(), __globalSig = __globalHooksAC.signal;
-    function onWin(type, fn, opts = {}) { window.addEventListener(type, fn, { ...opts, signal: __globalSig }); }
-    function onDoc(type, fn, opts = {}) { document.addEventListener(type, fn, { ...opts, signal: __globalSig }); }
+    function on(target, type, fn, opts = {}) { target.addEventListener(type, fn, { ...opts, signal: __globalSig }); }
+    const onWin = (type, fn, opts) => on(window, type, fn, opts);
+    const onDoc = (type, fn, opts) => on(document, type, fn, opts);
 
     function waitForVisibility() {
       if (document.visibilityState === 'visible') return Promise.resolve();
@@ -49,17 +47,16 @@
     function detectLowEnd() { const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4; const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4; const saveData = !!navigator.connection?.saveData; return mem < 4 || cores <= 4 || saveData; }
 
     const __IS_LOW_END = detectLowEnd();
-    const CONFIG = Object.freeze({ VERSION: "v159.9.7", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
+    const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
     const FEATURE_FLAGS = Object.freeze({
-      lightweightMode: true,
       trackShadowRoots: true,
       iframeInjection: true,
       zoomFeature: true
     });
 
     const PERF_POLICY = Object.freeze({
-      svg: { useLiteFilterByDefault: true, detailThresholdLowEnd: 1, detailThresholdNormal: 1 },
+      svg: { detailThresholdLowEnd: 1, detailThresholdNormal: 1 },
       webgl: { colorOnlySharpThresholdLowEnd: 0.01, colorOnlySharpThresholdNormal: 0.01 },
       registry: { shadowLRUMaxLowEnd: 4, shadowLRUMaxNormal: 12, spaRescanDebounceMs: 220 }
     });
@@ -73,13 +70,32 @@
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
     const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
-    const videoStateMap = new WeakMap();
-    function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = { visible: false, rect: null, ir: 0, bound: false, rateState: null, tainted: false, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0 }; videoStateMap.set(v, st); } return st; }
+    const VIDEO_STATE_TEMPLATE = Object.freeze({
+      visible: false,
+      rect: null,
+      ir: 0,
+      bound: false,
+      rateState: null,
+      audioFailUntil: 0,
+      applied: false,
+      fxBackend: null,
+      desiredRate: undefined,
+      lastFilterUrl: null,
+      rectT: 0,
+      rectEpoch: -1,
+      fsPatched: false,
+      webglFailCount: 0,
+      webglDisabledUntil: 0,
+      tainted: false
+    });
 
-    const SHADOW_BAND = Object.freeze({
-      OUTER: 1, // 001
-      MID:   2, // 010
-      DEEP:  4  // 100
+    const videoStateMap = new WeakMap();
+    function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = { ...VIDEO_STATE_TEMPLATE }; videoStateMap.set(v, st); } return st; }
+
+    const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
+    const ShadowMask = Object.freeze({
+      has(mask, bit) { return ((Number(mask) | 0) & bit) !== 0; },
+      toggle(mask, bit) { return (((Number(mask) | 0) ^ bit) & 7); }
     });
 
     const PRESETS = Object.freeze({
@@ -105,7 +121,7 @@
       },
       audio: { enabled: false, boost: 6 },
       playback: { rate: 1.0, enabled: false },
-      app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg' }
+      app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false }
     };
 
     const P = Object.freeze({
@@ -113,6 +129,7 @@
       APP_UI: 'app.uiVisible',
       APP_APPLY_ALL: 'app.applyAll',
       APP_RENDER_MODE: 'app.renderMode',
+      APP_ZOOM_EN: 'app.zoomEn',
       V_PRE_S: 'video.presetS',
       V_PRE_B: 'video.presetB',
       V_PRE_MIX: 'video.presetMix',
@@ -170,31 +187,26 @@
       wrap('pushState'); wrap('replaceState'); onWin('popstate', emitIfChanged, { passive: true });
     }
 
+    const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
     function watchIframes() {
       const inject = (ifr) => {
         if (!ifr) return;
-
         const tryInject = () => {
           try {
             const win = ifr.contentWindow;
             const doc = ifr.contentDocument || win?.document;
             if (!win || !doc) return;
-
             if (win.__VSC_BOOT_LOCK__) return;
-
             const host = doc.head || doc.documentElement;
             if (!host) return;
 
             const s = doc.createElement('script');
-            const scriptContent = `;(${VSC_MAIN.toString()})();`;
-            s.textContent = VSC_POLICY ? VSC_POLICY.createScript(scriptContent) : scriptContent;
+            s.text = __VSC_INJECT_SOURCE;
             host.appendChild(s);
             s.remove?.();
           } catch (_) {}
         };
-
         tryInject();
-
         if (!ifr.__vscLoadHooked) {
           ifr.__vscLoadHooked = true;
           ifr.addEventListener('load', tryInject, { passive: true });
@@ -202,7 +214,6 @@
       };
 
       document.querySelectorAll("iframe").forEach(inject);
-
       const mo = new MutationObserver((muts) => {
         for (const m of muts) {
           if (m.addedNodes) {
@@ -224,7 +235,19 @@
     function onFsChange() { const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; if (!fsEl) document.querySelectorAll('video').forEach(v => { if (fsWraps.has(v)) restoreFromFsWrapper(v); }); if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure(); }
     onDoc('fullscreenchange', onFsChange); onDoc('webkitfullscreenchange', onFsChange);
 
-    function findWebkitPiPVideo() { const vids = document.querySelectorAll('video'); for (const v of vids) { try { if (typeof v.webkitPresentationMode === 'string' && v.webkitPresentationMode === 'picture-in-picture') return v; } catch (_) {} } return null; }
+    function findWebkitPiPVideo() {
+      const rootBase = document.documentElement || document.body || document;
+      for (const root of walkRoots(rootBase)) {
+        const vids = root.querySelectorAll?.('video');
+        if (!vids) continue;
+        for (const v of vids) {
+          try {
+            if (typeof v.webkitPresentationMode === 'string' && v.webkitPresentationMode === 'picture-in-picture') return v;
+          } catch (_) {}
+        }
+      }
+      return null;
+    }
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
     function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
     function getActivePiPVideo() { const wk = findWebkitPiPVideo(); if (wk) return wk; if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
@@ -296,6 +319,7 @@
       const zoomTo = (v, newScale, clientX, clientY) => { const st = getSt(v), rect = v.getBoundingClientRect(), ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale; st.tx = clientX - (rect.left - st.tx) - ix * newScale; st.ty = clientY - (rect.top - st.ty) - iy * newScale; st.scale = newScale; update(v); };
       const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; update(v); } };
       const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
+      const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
       const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
       const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
       function getTargetVideo(e) { const path = typeof e.composedPath === 'function' ? e.composedPath() : null; if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } const el = document.elementFromPoint(e.clientX || (e.touches && e.touches[0]?.clientX), e.clientY || (e.touches && e.touches[0]?.clientY)); let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } return v; }
@@ -305,7 +329,7 @@
       onWin('mousemove', e => { if (!isPanning || !activeVideo) return; e.preventDefault(); e.stopPropagation(); const st = getSt(activeVideo), dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.clientX - startX; st.ty = e.clientY - startY; update(activeVideo); }, { capture: true });
       onWin('mouseup', e => { if (isPanning) { if (activeVideo) { const st = getSt(activeVideo); if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); } update(activeVideo); } isPanning = false; activeVideo = null; } }, { capture: true });
       onWin('dblclick', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true });
-      onWin('touchstart', e => { const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (e.touches.length === 2) { if (e.cancelable) e.preventDefault(); activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale; const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y; } else if (e.touches.length === 1 && st.scale > 1) { activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty; } }, { passive: false, capture: true });
+      onWin('touchstart', e => { if (CONFIG.IS_MOBILE && !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (e.touches.length === 2) { if (e.cancelable) e.preventDefault(); activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale; const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y; } else if (e.touches.length === 1 && st.scale > 1) { activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty; } }, { passive: false, capture: true });
       onWin('touchmove', e => { if (!activeVideo) return; const st = getSt(activeVideo); if (pinchState.active && e.touches.length === 2) { if (e.cancelable) e.preventDefault(); const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches); let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10); if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; } else { zoomTo(activeVideo, newScale, center.x, center.y); st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy; update(activeVideo); } pinchState.lastCx = center.x; pinchState.lastCy = center.y; } else if (isPanning && e.touches.length === 1) { if (e.cancelable) e.preventDefault(); const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY; update(activeVideo); } }, { passive: false, capture: true });
       onWin('touchend', e => { if (!activeVideo) return; if (e.touches.length < 2) pinchState.active = false; if (e.touches.length === 0) { if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) { e.preventDefault(); } isPanning = false; update(activeVideo); activeVideo = null; } }, { passive: false, capture: true });
       return { resetZoom, zoomTo, isZoomed };
@@ -436,24 +460,15 @@
       return out;
     }
 
-    function applyShadowBandStack(out, shadowBandMask, Utils, video = null) {
+    function applyShadowBandStack(out, shadowBandMask, Utils) {
       const clamp = Utils.clamp;
       const mask = (Number(shadowBandMask) | 0) & 7;
       if (!mask) return out;
 
       const bandTable = [
-        {
-          bit: SHADOW_BAND.OUTER,
-          add: { toe: -1.0, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 }
-        },
-        {
-          bit: SHADOW_BAND.MID,
-          add: { toe: -1.8, mid: -0.015, bright: -1.0, gammaMul: 0.980, contrastMul: 1.025, satMul: 1.010 }
-        },
-        {
-          bit: SHADOW_BAND.DEEP,
-          add: { toe: -3.0, mid: -0.005, bright: -0.5, gammaMul: 0.985, contrastMul: 1.020, satMul: 1.000 }
-        }
+        { bit: SHADOW_BAND.OUTER, add: { toe: -1.0, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 } },
+        { bit: SHADOW_BAND.MID, add: { toe: -1.8, mid: -0.015, bright: -1.0, gammaMul: 0.980, contrastMul: 1.025, satMul: 1.010 } },
+        { bit: SHADOW_BAND.DEEP, add: { toe: -3.0, mid: -0.005, bright: -0.5, gammaMul: 0.985, contrastMul: 1.020, satMul: 1.000 } }
       ];
 
       let toeAdd = 0, midAdd = 0, brightAdd = 0;
@@ -461,7 +476,7 @@
       let activeCount = 0;
 
       for (const band of bandTable) {
-        if ((mask & band.bit) === 0) continue;
+        if (!ShadowMask.has(mask, band.bit)) continue;
         activeCount++;
         toeAdd += band.add.toe;
         midAdd += band.add.mid;
@@ -508,9 +523,9 @@
       return out;
     }
 
-    function composeVideoParamsInto(out, vUser, Utils, backend, video = null) {
+    function composeVideoParamsInto(out, vUser, Utils) {
       composeBaseVideoParams(out, vUser, Utils);
-      applyShadowBandStack(out, vUser.shadowBandMask, Utils, video);
+      applyShadowBandStack(out, vUser.shadowBandMask, Utils);
       applyBrightStepStack(out, vUser.brightStepLevel, Utils);
       return out;
     }
@@ -532,21 +547,13 @@
       out.contrast = clamp(Number(out.contrast || 1) * (1 + shoulder * 0.008 + mid * 0.010 - toeDelta * 0.010), 0.5, 2.3);
       out.gamma    = clamp(Number(out.gamma || 1) * (1 - mid * 0.060), 0.5, 2.5);
 
-      out.sharp2 = 0;
-      out.clarity = 0;
-      out.toe = 0;
-      out.shoulder = 0;
-      out.mid = 0;
+      out.sharp2 = 0; out.clarity = 0; out.toe = 0; out.shoulder = 0; out.mid = 0;
       return out;
     }
 
     const isNeutralVideoParams = (v) => ( Math.abs((v.gain ?? 1) - 1) < 0.001 && Math.abs((v.gamma ?? 1) - 1) < 0.001 && Math.abs((v.contrast ?? 1) - 1) < 0.001 && Math.abs((v.bright ?? 0)) < 0.01 && Math.abs((v.satF ?? 1) - 1) < 0.001 && Math.abs((v.mid ?? 0)) < 0.001 && Math.abs((v.sharp ?? 0)) < 0.01 && Math.abs((v.sharp2 ?? 0)) < 0.01 && Math.abs((v.clarity ?? 0)) < 0.01 && Math.abs((v.temp ?? 0)) < 0.01 && Math.abs((v.toe ?? 0)) < 0.01 && Math.abs((v.shoulder ?? 0)) < 0.01 );
 
-    function createMainThreadPressureMonitor() {
-      return { getPressure: () => 0, applyScale: (vVals) => vVals, destroy: () => {} };
-    }
-
-    function createVideoParamsMemo(Store, P, Utils, mtMonitor) {
+    function createVideoParamsMemo(Store, P, Utils) {
         let lastKey = '';
         let lastSvg = null;
         let lastWebgl = null;
@@ -554,24 +561,21 @@
             get(vfUser, rMode, activeTarget) {
                 const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
                 const h = activeTarget ? (activeTarget.videoHeight || 0) : 0;
-                const press = mtMonitor.getPressure();
                 let hdr = 0; try { hdr = (window.matchMedia && matchMedia('(dynamic-range: high)').matches) ? 1 : 0; } catch (_) {}
-                const key = `${Store.rev()}|${rMode}|${w}x${h}|hdr:${hdr}|${press.toFixed(2)}`;
+                const key = `${Store.rev()}|${rMode}|${w}x${h}|hdr:${hdr}`;
 
                 if (key === lastKey && lastSvg && lastWebgl) {
                     return rMode === 'webgl' ? lastWebgl : lastSvg;
                 }
                 const base = {};
-                composeVideoParamsInto(base, vfUser, Utils, rMode === 'webgl' ? 'webgl' : 'svg', activeTarget);
-                const scaled = mtMonitor.applyScale(base);
+                composeVideoParamsInto(base, vfUser, Utils);
 
-                lastSvg = scaled;
-                lastWebgl = projectVValsForWebGL(scaled);
+                lastSvg = base;
+                lastWebgl = projectVValsForWebGL(base);
                 lastKey = key;
 
                 return rMode === 'webgl' ? lastWebgl : lastSvg;
-            },
-            invalidate() { lastKey = ''; }
+            }
         };
     }
 
@@ -620,30 +624,40 @@
       return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { proxyState[c] = val; return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } };
     }
 
-    function normalizeNumberPath(sm, path, fallback, min = -Infinity, max = Infinity, isInt = false) { let v = +sm.get(path); if (!Number.isFinite(v)) v = fallback; if (isInt) v = Math.round(v); v = Math.min(max, Math.max(min, v)); if (!Object.is(sm.get(path), v)) sm.set(path, v); return v; }
-    function normalizeEnumPath(sm, path, dict, fallback) { let v = sm.get(path); if (!(v in dict)) { if (sm.get(path) !== fallback) sm.set(path, fallback); } }
-
     const SCHEMA_VIDEO_NUM = [ [P.V_PRE_MIX, 0, 1, () => DEFAULTS.video.presetMix] ];
     const SCHEMA_AUDIO_NUM = [ [P.A_BST, 0, 12, () => DEFAULTS.audio.boost], [P.PB_RATE, 0.07, 16, () => DEFAULTS.playback.rate] ];
-    function normalizeBySchema(sm, numSchema, enumSchema = []) { for (const [path, min, max, dfn, isInt] of numSchema) normalizeNumberPath(sm, path, dfn(), min, max, isInt); for (const [path, dict, dfn] of enumSchema) normalizeEnumPath(sm, path, dict, dfn()); }
-    function normalizeAppState(sm) { const rm = sm.get(P.APP_RENDER_MODE); if (rm !== 'svg' && rm !== 'webgl') sm.set(P.APP_RENDER_MODE, 'svg'); const aa = !!sm.get(P.APP_APPLY_ALL); if(sm.get(P.APP_APPLY_ALL) !== aa) sm.set(P.APP_APPLY_ALL, aa); }
-    function normalizeVideoState(sm) {
-      normalizeBySchema(sm, SCHEMA_VIDEO_NUM, [
-        [P.V_PRE_S, PRESETS.detail, () => DEFAULTS.video.presetS],
-        [P.V_PRE_B, PRESETS.grade, () => DEFAULTS.video.presetB]
-      ]);
-
-      let mask = Number(sm.get(P.V_SHADOW_MASK));
-      if (!Number.isFinite(mask)) mask = 0;
-      mask = Math.max(0, Math.min(7, mask | 0));
-      if (sm.get(P.V_SHADOW_MASK) !== mask) sm.set(P.V_SHADOW_MASK, mask);
-
-      let b = Number(sm.get(P.V_BRIGHT_STEP));
-      if (!Number.isFinite(b)) b = 0;
-      b = Math.max(0, Math.min(3, Math.round(b)));
-      if (sm.get(P.V_BRIGHT_STEP) !== b) sm.set(P.V_BRIGHT_STEP, b);
+    function normalizeAppState(sm) {
+      let changed = false;
+      const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } };
+      const rm = sm.get(P.APP_RENDER_MODE); if (rm !== 'svg' && rm !== 'webgl') setIfDiff(P.APP_RENDER_MODE, 'svg');
+      setIfDiff(P.APP_APPLY_ALL, !!sm.get(P.APP_APPLY_ALL));
+      setIfDiff(P.APP_ZOOM_EN, !!sm.get(P.APP_ZOOM_EN));
+      return changed;
     }
-    function normalizeAudioPlaybackState(sm) { normalizeBySchema(sm, SCHEMA_AUDIO_NUM); const aEn = !!sm.get(P.A_EN); if (sm.get(P.A_EN) !== aEn) sm.set(P.A_EN, aEn); const pbEn = !!sm.get(P.PB_EN); if (sm.get(P.PB_EN) !== pbEn) sm.set(P.PB_EN, pbEn); }
+    function normalizeVideoState(sm) {
+      let changed = false;
+      const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } };
+      const preS = sm.get(P.V_PRE_S); if (!(preS in PRESETS.detail)) setIfDiff(P.V_PRE_S, DEFAULTS.video.presetS);
+      const preB = sm.get(P.V_PRE_B); if (!(preB in PRESETS.grade)) setIfDiff(P.V_PRE_B, DEFAULTS.video.presetB);
+      let mix = +sm.get(P.V_PRE_MIX); if (!Number.isFinite(mix)) mix = DEFAULTS.video.presetMix;
+      setIfDiff(P.V_PRE_MIX, Math.max(0, Math.min(1, mix)));
+      let mask = Number(sm.get(P.V_SHADOW_MASK)); if (!Number.isFinite(mask)) mask = 0;
+      setIfDiff(P.V_SHADOW_MASK, Math.max(0, Math.min(7, mask | 0)));
+      let b = Number(sm.get(P.V_BRIGHT_STEP)); if (!Number.isFinite(b)) b = 0;
+      setIfDiff(P.V_BRIGHT_STEP, Math.max(0, Math.min(3, Math.round(b))));
+      return changed;
+    }
+    function normalizeAudioPlaybackState(sm) {
+      let changed = false;
+      const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } };
+      let bst = +sm.get(P.A_BST); if (!Number.isFinite(bst)) bst = DEFAULTS.audio.boost;
+      setIfDiff(P.A_BST, Math.max(0, Math.min(12, bst)));
+      let rt = +sm.get(P.PB_RATE); if (!Number.isFinite(rt)) rt = DEFAULTS.playback.rate;
+      setIfDiff(P.PB_RATE, Math.max(0.07, Math.min(16, rt)));
+      setIfDiff(P.A_EN, !!sm.get(P.A_EN));
+      setIfDiff(P.PB_EN, !!sm.get(P.PB_EN));
+      return changed;
+    }
 
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -748,7 +762,7 @@
               if (st.toneKey !== p.tk) { st.toneKey = p.tk; if (st.toneTable !== p.table) { st.toneTable = p.table; for (const fn of nodes.common.toneFuncs) fn.setAttribute('tableValues', p.table); } }
               if (st.bcLinKey !== p.bcLinKey) { st.bcLinKey = p.bcLinKey; for (const fn of nodes.common.bcLinFuncs) { fn.setAttribute('slope', p.con.toFixed(3)); fn.setAttribute('intercept', p.intercept.toFixed(4)); } }
               if (st.gammaKey !== p.gk) { st.gammaKey = p.gk; for (const fn of nodes.common.gamFuncs) fn.setAttribute('exponent', p.gk); }
-              setAttr(nodes.common.sats[0], 'values', p.satVal, st, 'satKey'); setAttr(nodes.common.sats[1], 'values', p.satVal, st, 'satKey');
+              if (st.satKey !== p.satVal) { st.satKey = p.satVal; for (const satNode of nodes.common.sats) satNode.setAttribute('values', p.satVal); }
               if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; for(let i=0; i<nodes.common.tmpFuncs.length; i+=3) { nodes.common.tmpFuncs[i].setAttribute('slope', p.rs.toFixed(3)); nodes.common.tmpFuncs[i+1].setAttribute('slope', p.gs.toFixed(3)); nodes.common.tmpFuncs[i+2].setAttribute('slope', p.bs.toFixed(3)); } }
               if (p.detailOn && st.detailKey !== p.dk) {
                 st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
@@ -896,14 +910,19 @@
           const kind = useSharpen ? 'sharp' : 'color';
           const H = useSharpen ? this.handles_sharp : this.handles_color;
 
+          let programChanged = false;
           if (this.activeProgramKind !== kind) {
             this.activeProgramKind = kind;
+            programChanged = true;
             gl.useProgram(H.program);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.enableVertexAttribArray(H.aPosition); gl.vertexAttribPointer(H.aPosition, 2, gl.FLOAT, false, 0, 0);
             gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.enableVertexAttribArray(H.aTexCoord); gl.vertexAttribPointer(H.aTexCoord, 2, gl.FLOAT, false, 0, 0);
           }
 
-          if (this.canvas.width !== w || this.canvas.height !== h) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); if (H.uResolution) gl.uniform2f(H.uResolution, w, h); }
+          const resized = (this.canvas.width !== w || this.canvas.height !== h);
+          if (resized) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); }
+          if ((resized || programChanged) && H.uResolution) { gl.uniform2f(H.uResolution, w, h); }
+
           const { rs, gs, bs } = tempToRgbGain(this.vVals.temp);
           if (H.uParams) gl.uniform4f(H.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
           if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, 0.0, 0.0);
@@ -918,7 +937,13 @@
           } catch (err) {
             st.webglFailCount = (st.webglFailCount || 0) + 1;
             if (CONFIG.DEBUG) log.warn('WebGL render failure:', err);
-            if (st.webglFailCount >= RUNTIME_GUARD.webgl.failThreshold) { st.webglDisabledUntil = now + RUNTIME_GUARD.webgl.failCooldownMs; st.webglFailCount = 0; log.warn('WebGL repeated failure on video, cooling down'); }
+            if (st.webglFailCount >= RUNTIME_GUARD.webgl.failThreshold) {
+              st.tainted = true;
+              st.webglDisabledUntil = now + RUNTIME_GUARD.webgl.failCooldownMs;
+              st.webglFailCount = 0;
+              log.warn('WebGL repeated failure on video, cooling down');
+              window.__VSC_INTERNAL__?.Bus?.signal?.({ forceApply: true });
+            }
           }
         }
         startRenderLoop() {
@@ -994,62 +1019,54 @@
       function getFullscreenElementSafe() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
       const getUiRoot = () => { const fs = getFullscreenElementSafe(); if (fs) { if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs; if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.body || document.documentElement; return fs; } return document.body || document.documentElement; };
 
+      function bindClassToggle(btn, path, isActive) { const sync = () => { if (btn) btn.classList.toggle('active', isActive(sm.get(path))); }; sub(path, sync); sync(); return sync; }
+      function bindStyle(btn, path, apply) { const sync = () => { if (btn) apply(btn, sm.get(path)); }; sub(path, sync); sync(); return sync; }
+
       function renderButtonRow({ label, items, key, offValue = null, toggleActiveToOff = false }) {
         const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
-        const addBtn = (text, value) => { const b = h('button', { class: 'pbtn', style: 'flex:1' }, text); b.onclick = () => { const cur = sm.get(key); if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) { setAndHint(key, offValue); } else { setAndHint(key, value); } }; const sync = () => { b.classList.toggle('active', sm.get(key) === value); }; sub(key, sync); sync(); row.append(b); };
+        const addBtn = (text, value) => { const b = h('button', { class: 'pbtn', style: 'flex:1' }, text); b.onclick = () => { const cur = sm.get(key); if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) { setAndHint(key, offValue); } else { setAndHint(key, value); } }; bindClassToggle(b, key, v => v === value); row.append(b); };
         for (const it of items) addBtn(it.text, it.value); if (offValue !== undefined && offValue !== null && !items.some(it => it.value === offValue)) addBtn('OFF', offValue); return row;
       }
 
       function renderShadowBandMaskRow({ label = '블랙', key = P.V_SHADOW_MASK }) {
-        const row = h('div', { class: 'prow' },
-          h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label)
-        );
-
-        const items = [
-          { text: '외암', bit: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' },
-          { text: '중암', bit: SHADOW_BAND.MID,   title: '가운데 암부 진하게 (무게감 증가)' },
-          { text: '심암', bit: SHADOW_BAND.DEEP,  title: '가장 진한 블랙 (들뜬 블랙 제거)' }
-        ];
-
+        const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label) );
+        const items = [ { text: '외암', bit: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' }, { text: '중암', bit: SHADOW_BAND.MID, title: '가운데 암부 진하게 (무게감 증가)' }, { text: '심암', bit: SHADOW_BAND.DEEP, title: '가장 진한 블랙 (들뜬 블랙 제거)' } ];
         for (const it of items) {
           const b = h('button', { class: 'pbtn', style: 'flex:1', title: it.title }, it.text);
-          b.onclick = () => {
-            const cur = (Number(sm.get(key)) | 0) & 7;
-            const next = (cur ^ it.bit) & 7;
-            sm.set(key, next);
-            bus.signal({ forceApply: true });
-          };
-          const sync = () => {
-            const mask = Number(sm.get(key)) | 0;
-            b.classList.toggle('active', (mask & it.bit) !== 0);
-          };
-          sub(key, sync);
-          sync();
-          row.append(b);
+          b.onclick = () => { sm.set(key, ShadowMask.toggle(sm.get(key), it.bit)); bus.signal({ forceApply: true }); };
+          bindClassToggle(b, key, v => ShadowMask.has(v, it.bit)); row.append(b);
         }
-
         const off = h('button', { class: 'pbtn', style: 'flex:0.9' }, 'OFF');
-        off.onclick = () => {
-          sm.set(key, 0);
-          bus.signal({ forceApply: true });
-        };
-        const syncOff = () => off.classList.toggle('active', (Number(sm.get(key)) | 0) === 0);
-        sub(key, syncOff);
-        syncOff();
-        row.append(off);
-
-        return row;
+        off.onclick = () => { sm.set(key, 0); bus.signal({ forceApply: true }); };
+        bindClassToggle(off, key, v => (Number(v) | 0) === 0); row.append(off); return row;
       }
 
       const build = () => {
         if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
         const style = `.main { position: fixed; top: 50%; right: 70px; transform: translateY(-50%); width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; } .header { display: flex; justify-content: center; margin-bottom: 12px; cursor: move; border-bottom: 2px solid #444; padding-bottom: 8px; font-weight: bold; font-size: 14px; color: #ccc;} .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; } .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; } .btn.active { background: #3498db; color: white; border-color: #2980b9; } .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; } .pbtn.active { background: #e67e22; color: white; border-color: #d35400; } hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }`;
         applyShadowStyle(shadow, style, h);
-        const isWebGL = sm.get(P.APP_RENDER_MODE) === 'webgl'; const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
+        const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
+
+        const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
+        bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; });
+
+        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 오디오업');
+        bindClassToggle(boostBtn, P.A_EN, v => !!v);
+
+        const pipBtn = h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
+
+        const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', onclick: () => { const nextEn = !sm.get(P.APP_ZOOM_EN); setAndHint(P.APP_ZOOM_EN, nextEn); const zm = window.__VSC_INTERNAL__.ZoomManager; const v = window.__VSC_APP__?.getActiveVideo(); if (zm && v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어');
+        bindClassToggle(zoomBtn, P.APP_ZOOM_EN, v => !!v);
+
+        const pwrBtn = h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power');
+        bindStyle(pwrBtn, P.APP_ACT, (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; });
+
+        const applyAllBtn = h('button', { class: 'btn', onclick: () => setAndHint(P.APP_APPLY_ALL, !sm.get(P.APP_APPLY_ALL)) }, '전체 적용');
+        bindClassToggle(applyAllBtn, P.APP_APPLY_ALL, v => !!v);
 
         const bodyMain = h('div', { id: 'p-main' }, [
-          h('div', { class: 'prow' }, [ h('button', { id: 'rm-btn', class: 'btn', style: `color: ${isWebGL ? '#ffaa00' : '#88ccff'}; border-color: ${isWebGL ? '#ffaa00' : '#88ccff'};`, onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') }, `🎨 ${isWebGL ? 'WebGL' : 'SVG'}`), h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 오디오업')]),
-          h('div', { class: 'prow' },[ h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP'), h('button', { id: 'zoom-btn', class: 'btn', onclick: () => { const zm = window.__VSC_INTERNAL__.ZoomManager; if (!zm) return; const v = window.__VSC_APP__?.getActiveVideo(); if(v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어'), h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power') ]),
+          h('div', { class: 'prow' }, [ rmBtn, applyAllBtn, boostBtn ]),
+          h('div', { class: 'prow' }, [ pipBtn, zoomBtn, pwrBtn ]),
           h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); bus.signal({ forceApply:true }); } }, '↺ 리셋') ]),
           renderShadowBandMaskRow({ label: '블랙', key: P.V_SHADOW_MASK }),
           renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
@@ -1069,9 +1086,6 @@
             mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`;
           }, () => { stopDrag = null; });
         });
-        sub(P.A_EN, v => shadow.querySelector('#boost-btn').classList.toggle('active', !!v));
-        sub(P.APP_ACT, v => shadow.querySelector('#pwr-btn').style.color = v ? '#2ecc71' : '#e74c3c');
-        sub(P.APP_RENDER_MODE, v => { const btn = shadow.querySelector('#rm-btn'); if(btn) { btn.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; btn.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; btn.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; } });
 
         container = host; getUiRoot().appendChild(container);
       };
@@ -1112,16 +1126,18 @@
 
     function createBackendAdapter(Filters, FiltersGL) {
       return {
-        apply(video, mode, vVals) {
+        apply(video, mode, vVals, svgUrlCache) {
           const st = getVState(video);
-          if (mode === 'webgl') {
+          const effectiveMode = (mode === 'webgl' && !st.tainted) ? 'webgl' : 'svg';
+
+          if (effectiveMode === 'webgl') {
               if (st.fxBackend === 'svg') Filters.clear(video);
               FiltersGL.apply(video, vVals);
               st.fxBackend = 'webgl';
           } else {
               if (st.fxBackend === 'webgl') FiltersGL.clear(video);
-              let url = __svgFilterUrlByDoc.get(video);
-              if (url === undefined) { url = Filters.prepareCached(video, vVals); __svgFilterUrlByDoc.set(video, url); }
+              let url = svgUrlCache?.get(video);
+              if (url === undefined) { url = Filters.prepareCached(video, vVals); svgUrlCache?.set(video, url); }
               Filters.applyUrl(video, url);
               st.fxBackend = 'svg';
           }
@@ -1151,25 +1167,26 @@
     const bindVideoOnce = (v) => {
       const st = getVState(v); if (st.bound) return; st.bound = true;
       ensureMobileInlinePlaybackHints(v);
-      const softResetTransientFlags = () => { st.tainted = false; st.audioFailUntil = 0; st.rect = null; st.rectT = 0; st.rectEpoch = -1; if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; } vscSignal({ forceApply: true }); };
+      const softResetTransientFlags = () => { st.audioFailUntil = 0; st.rect = null; st.rectT = 0; st.rectEpoch = -1; if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; } vscSignal({ forceApply: true }); };
       ['loadstart', 'loadedmetadata', 'emptied'].forEach(ev => v.addEventListener(ev, softResetTransientFlags, { passive: true }));
       ['seeking', 'play'].forEach(ev => v.addEventListener(ev, () => { vscSignal({ forceApply: true }); }, { passive: true }));
       v.addEventListener('ratechange', () => { const rSt = getRateState(v); const now = performance.now(); if ((now - (rSt.lastSetAt || 0)) < 180) return; if (now < (rSt.suppressSyncUntil || 0)) return; const refs = window.__VSC_INTERNAL__; const app = refs?.App; const store = refs?.Store; if (!store) return; const desired = st.desiredRate; if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.01) return; const activeVideo = app?.getActiveVideo?.() || null; const applyAll = !!store.get?.(P.APP_APPLY_ALL); if (!applyAll) { if (!activeVideo || v !== activeVideo) return; } const cur = v.playbackRate; if (Number.isFinite(cur) && cur > 0) { store.set(P.PB_RATE, cur); if (store.get?.(P.PB_EN) !== false) store.set(P.PB_EN, true); } }, { passive: true });
     };
 
-    const __svgFilterUrlByDoc = new Map(), __reconcileCandidates = new Set(); let __lastLightSig = '';
+    const __reconcileCandidates = new Set(); let __lastLightSig = '';
     function makeLightSig({ activeTarget, rMode, pbActive, desiredRate, videoFxOn, storeRev }) { return [ storeRev, getElemId(activeTarget), rMode, pbActive ? 1 : 0, desiredRate ?? 1, videoFxOn ? 1 : 0 ].join('|'); }
 
     function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode }) {
       const candidates = __reconcileCandidates; candidates.clear();
       for (const v of dirtyVideos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of TOUCHED.videos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of TOUCHED.rateVideos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of applySet) if (v?.tagName === 'VIDEO') candidates.add(v);
-      __svgFilterUrlByDoc.clear();
+
+      const svgUrlCache = new WeakMap();
       for (const el of candidates) {
         if (!el || el.tagName !== 'VIDEO' || !el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); continue; }
         const st = getVState(el); const visible = (st.visible !== false), shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
         if (!shouldApply) { Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); bindVideoOnce(el); continue; }
 
-        if (videoFxOn) { Adapter.apply(el, rMode, vVals); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
+        if (videoFxOn) { Adapter.apply(el, rMode, vVals, svgUrlCache); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
         if (pbActive) { const rSt = getRateState(el); if (rSt.orig == null) rSt.orig = el.playbackRate; const lastDesired = st.desiredRate; if (!Object.is(lastDesired, desiredRate) || Math.abs(el.playbackRate - desiredRate) > 0.01) { st.desiredRate = desiredRate; markInternalRateChange(el, 160); try { el.playbackRate = desiredRate; } catch (_) {} } touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo); } else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
         bindVideoOnce(el);
       }
@@ -1193,8 +1210,7 @@
       let __activeTarget = null, applySet = null, __lastAudioTarget = null, __lastAudioWant = null;
       let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
-      const mtMonitor = createMainThreadPressureMonitor();
-      const videoParamsMemo = createVideoParamsMemo(Store, P, Utils, mtMonitor);
+      const videoParamsMemo = createVideoParamsMemo(Store, P, Utils);
       const audioUpdateThrottled = createThrottled(() => Audio.update(), 120);
 
       Scheduler.registerApply((force) => {
@@ -1241,7 +1257,7 @@
       const stopTick = () => { if (!tickTimer) return; clearInterval(tickTimer); tickTimer = 0; };
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); });
       if (Store.get(P.APP_ACT)) startTick(); Scheduler.request(true);
-      return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, destroy() { stopTick(); mtMonitor.destroy(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
+      return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
     }
 
     const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
@@ -1258,9 +1274,14 @@
       }
     });
 
-    const normalizeAllApp = () => normalizeAppState(Store); [ P.APP_RENDER_MODE, P.APP_APPLY_ALL ].forEach(k => Store.sub(k, normalizeAllApp)); normalizeAllApp();
-    const normalizeAllVideo = () => normalizeVideoState(Store); [ P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP ].forEach(k => Store.sub(k, normalizeAllVideo)); normalizeAllVideo();
-    const normalizeAllAudioPlayback = () => normalizeAudioPlaybackState(Store); [P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE].forEach(k => Store.sub(k, normalizeAllAudioPlayback)); normalizeAllAudioPlayback();
+    const normalizeAllApp = () => { if (normalizeAppState(Store)) Bus.signal({ forceApply: true }); };
+    [ P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN ].forEach(k => Store.sub(k, normalizeAllApp)); normalizeAllApp();
+
+    const normalizeAllVideo = () => { if (normalizeVideoState(Store)) Bus.signal({ forceApply: true }); };
+    [ P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP ].forEach(k => Store.sub(k, normalizeAllVideo)); normalizeAllVideo();
+
+    const normalizeAllAudioPlayback = () => { if (normalizeAudioPlaybackState(Store)) Bus.signal({ forceApply: true }); };
+    [P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE].forEach(k => Store.sub(k, normalizeAllAudioPlayback)); normalizeAllAudioPlayback();
 
     const Registry = createRegistry(Scheduler), Targeting = createTargeting();
 
