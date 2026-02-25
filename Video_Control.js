@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.4)
+// @name         Video_Control (v159.9.5)
 // @namespace    https://github.com/
-// @version      159.9.4
-// @description  Video Control: Cinema Black Enhancement. Shadow bands now deepen blacks for better contrast.
+// @version      159.9.5
+// @description  Video Control: Cinema Black Enhancement with Brightness Recovery. WebGL Shadow Curve Patched.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -48,7 +48,7 @@
   function detectLowEnd() { const mem = Number.isFinite(navigator.deviceMemory) ? navigator.deviceMemory : 4; const cores = Number.isFinite(navigator.hardwareConcurrency) ? navigator.hardwareConcurrency : 4; const saveData = !!navigator.connection?.saveData; return mem < 4 || cores <= 4 || saveData; }
 
   const __IS_LOW_END = detectLowEnd();
-  const CONFIG = Object.freeze({ VERSION: "v159.9.4", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
+  const CONFIG = Object.freeze({ VERSION: "v159.9.5", IS_MOBILE: detectMobile(), IS_LOW_END: __IS_LOW_END, TOUCHED_MAX: __IS_LOW_END ? 60 : 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
   const FEATURE_FLAGS = Object.freeze({
     lightweightMode: true,
@@ -417,7 +417,7 @@
     return out;
   }
 
-  // ✅ v159.9.4: 암부를 누르는(Darken/Crush) 로직으로 변경 (Toe 음수 적용, 대비 상승)
+  // ✅ v159.9.5: 외암 toe 수치를 -0.8에서 -1.0으로 보강
   function applyShadowBandStack(out, shadowBandMask, Utils, video = null) {
     const clamp = Utils.clamp;
     const mask = (Number(shadowBandMask) | 0) & 7;
@@ -426,7 +426,7 @@
     const bandTable = [
       {
         bit: SHADOW_BAND.OUTER,
-        add: { toe: -0.8, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 }
+        add: { toe: -1.0, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 }
       },
       {
         bit: SHADOW_BAND.MID,
@@ -453,7 +453,6 @@
       satMul *= band.add.satMul;
     }
 
-    // 중복 적용 시 너무 까맣게 묻히는 것을 방지
     if (activeCount >= 2) {
       toeAdd = toeAdd >= -4.0 ? toeAdd : (-4.0 + (toeAdd + 4.0) * 0.7);
       brightAdd = brightAdd >= -2.5 ? brightAdd : (-2.5 + (brightAdd + 2.5) * 0.7);
@@ -473,20 +472,58 @@
     return out;
   }
 
-  function composeVideoParamsInto(out, vUser, Utils, backend, video = null) {
-    composeBaseVideoParams(out, vUser, Utils);
-    applyShadowBandStack(out, vUser.shadowBandMask, Utils, video);
+  // ✅ v159.9.5: 밝기 복구(Bright Step) 로직 추가
+  function applyBrightStepStack(out, brightStepLevel, Utils) {
+    const clamp = Utils.clamp;
+    const lvl = Math.max(0, Math.min(3, Math.round(Number(brightStepLevel) || 0)));
+    if (!lvl) return out;
+
+    // 암부 버튼과 충돌하지 않게 "복구 보정" 성격으로 약하게
+    const table = {
+      1: { brightAdd: 1.8, gammaMul: 1.02, contrastMul: 0.995 },
+      2: { brightAdd: 3.8, gammaMul: 1.05, contrastMul: 0.990 },
+      3: { brightAdd: 6.0, gammaMul: 1.08, contrastMul: 0.985 }
+    };
+    const s = table[lvl];
+
+    out.bright   = clamp((out.bright || 0) + s.brightAdd, -50, 50);
+    out.gamma    = clamp((out.gamma || 1) * s.gammaMul, 0.5, 2.5);
+    out.contrast = clamp((out.contrast || 1) * s.contrastMul, 0.5, 2.3);
     return out;
   }
 
+  function composeVideoParamsInto(out, vUser, Utils, backend, video = null) {
+    composeBaseVideoParams(out, vUser, Utils);
+    applyShadowBandStack(out, vUser.shadowBandMask, Utils, video);
+    applyBrightStepStack(out, vUser.brightStepLevel, Utils);
+    return out;
+  }
+
+  // ✅ v159.9.5: WebGL 암부 체감 강화 (base toe 1.0 기준 Delta 계산)
   function projectVValsForWebGL(vVals) {
-    const out = { ...vVals }; const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+    const out = { ...vVals };
+    const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
     const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-    let sharpProjected = sharp + sharp2 * 0.40 + clarity * 0.18;
-    out.sharp = clamp(sharpProjected, 0, 50);
-    const toe = Number(out.toe || 0), shoulder = Number(out.shoulder || 0), mid = Number(out.mid || 0);
-    out.bright = clamp(Number(out.bright || 0) + toe * 0.14 + mid * 2.0, -50, 50); out.contrast = clamp(Number(out.contrast || 1) * (1 + shoulder * 0.008 + mid * 0.004), 0.5, 2.3); out.gamma = clamp(Number(out.gamma || 1) * (1 - mid * 0.035), 0.5, 2.5);
-    out.sharp2 = 0; out.clarity = 0; out.toe = 0; out.shoulder = 0; out.mid = 0;
+    out.sharp = clamp(sharp + sharp2 * 0.40 + clarity * 0.18, 0, 50);
+
+    const toe = Number(out.toe || 0);
+    const shoulder = Number(out.shoulder || 0);
+    const mid = Number(out.mid || 0);
+
+    // base toe(1.0) 기준으로 변화량만 반영
+    const toeDelta = toe - 1.0;
+
+    // 기존보다 체감이 살아나도록 계수 강화
+    out.bright   = clamp(Number(out.bright || 0) + toeDelta * 0.55 + mid * 3.0, -50, 50);
+    out.contrast = clamp(Number(out.contrast || 1) * (1 + shoulder * 0.008 + mid * 0.010 - toeDelta * 0.010), 0.5, 2.3);
+    out.gamma    = clamp(Number(out.gamma || 1) * (1 - mid * 0.060), 0.5, 2.5);
+
+    out.sharp2 = 0;
+    out.clarity = 0;
+    out.toe = 0;
+    out.shoulder = 0;
+    out.mid = 0;
     return out;
   }
 
@@ -587,7 +624,7 @@
 
     let b = Number(sm.get(P.V_BRIGHT_STEP));
     if (!Number.isFinite(b)) b = 0;
-    b = Math.max(0, Math.min(2, Math.round(b)));
+    b = Math.max(0, Math.min(3, Math.round(b)));
     if (sm.get(P.V_BRIGHT_STEP) !== b) sm.set(P.V_BRIGHT_STEP, b);
   }
   function normalizeAudioPlaybackState(sm) { normalizeBySchema(sm, SCHEMA_AUDIO_NUM); const aEn = !!sm.get(P.A_EN); if (sm.get(P.A_EN) !== aEn) sm.set(P.A_EN, aEn); const pbEn = !!sm.get(P.PB_EN); if (sm.get(P.PB_EN) !== pbEn) sm.set(P.PB_EN, pbEn); }
@@ -947,7 +984,6 @@
       for (const it of items) addBtn(it.text, it.value); if (offValue !== undefined && offValue !== null && !items.some(it => it.value === offValue)) addBtn('OFF', offValue); return row;
     }
 
-    // ✅ v159.9.4: 블랙 누르기 용도에 맞게 툴팁 및 명칭 적용
     function renderShadowBandMaskRow({ label = '블랙', key = P.V_SHADOW_MASK }) {
       const row = h('div', { class: 'prow' },
         h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label)
@@ -1000,6 +1036,7 @@
         h('div', { class: 'prow' },[ h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP'), h('button', { id: 'zoom-btn', class: 'btn', onclick: () => { const zm = window.__VSC_INTERNAL__.ZoomManager; if (!zm) return; const v = window.__VSC_APP__?.getActiveVideo(); if(v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어'), h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power') ]),
         h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); bus.signal({ forceApply:true }); } }, '↺ 리셋') ]),
         renderShadowBandMaskRow({ label: '블랙', key: P.V_SHADOW_MASK }),
+        renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
         renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }),
         renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k=>k!=='brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'), h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = () => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; sub(P.PB_RATE, v => { const isEn = sm.get(P.PB_EN); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); sub(P.PB_EN, isEn => { const v = sm.get(P.PB_RATE); b.classList.toggle('active', isEn && Math.abs(v - s) < 0.01); }); b.classList.toggle('active', sm.get(P.PB_EN) && Math.abs((sm.get(P.PB_RATE) || 1) - s) < 0.01); return b; }))
@@ -1129,7 +1166,7 @@
   }
 
   function debugLogEffectiveVVals(vVals, vfUser, activeTarget, rMode) {
-    if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp });
+    if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp });
   }
 
   function createAppController({ Store, Registry, Scheduler, Bus, Adapter, Audio, UI, Utils, P, Targeting }) {
