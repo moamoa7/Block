@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.14 - Ultimate Uncapped + Adaptive LERP SVG)
+// @name         Video_Control (v159.9.15 - Ultimate Uncapped + Adaptive LERP SVG)
 // @namespace    https://github.com/
-// @version      159.9.14
-// @description  Video Control: High-End PC version. No frame skips, CAS-like LERP blending, Alpha fixes, and dynamic tuning parameters.
+// @version      159.9.15
+// @description  Video Control: High-End PC version. No frame skips, CAS-like LERP blending, Alpha fixes, and dynamic tuning parameters. Uncapped sharpness & brightness.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -512,28 +512,31 @@
     }
 
     function composeBaseVideoParams(out, vUser, Utils) {
-      const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
-      const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
-      const preGammaF = lerp(1.0, pB.gammaF ?? 1.0, mix), preBright = (pB.brightAdd || 0) * mix;
-      const preSharp = (pD.sharpAdd || 0) * mix, preSharp2 = (pD.sharp2Add || 0) * mix, preClarity = (pD.clarityAdd || 0) * mix;
+      const mix = Math.max(0, Math.min(1, vUser.presetMix ?? 1.0));
+      const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
+      const pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
+      const preGammaF = lerp(1.0, pB.gammaF ?? 1.0, mix);
+      const preBright = (pB.brightAdd || 0) * mix;
+      const preSharp = (pD.sharpAdd || 0) * mix;
+      const preSharp2 = (pD.sharp2Add || 0) * mix;
+      const preClarity = (pD.clarityAdd || 0) * mix;
 
       out.gain = 1.0;
-      out.gamma = clamp(preGammaF, 0.1, 5.0);
-      out.contrast = clamp(1.0, 0.1, 5.0);
-      out.satF = clamp(1.0, 0.0, 5.0);
-      out.bright = clamp(preBright, -100, 100);
+      out.gamma = preGammaF;
+      out.contrast = 1.0;
+      out.satF = 1.0;
+      out.bright = preBright;
       out.temp = 0;
       out.mid = 0;
       out.toe = 0;
       out.shoulder = 0;
-      out.sharp = clamp(preSharp, 0, 100);
-      out.sharp2 = clamp(preSharp2, 0, 100);
-      out.clarity = clamp(preClarity, 0, 100);
+      out.sharp = preSharp;
+      out.sharp2 = preSharp2;
+      out.clarity = preClarity;
       return out;
     }
 
     function applyShadowBandStack(out, shadowBandMask, Utils) {
-      const clamp = Utils.clamp;
       const mask = (Number(shadowBandMask) | 0) & 7;
       if (!mask) return out;
 
@@ -556,18 +559,17 @@
         satMul *= band.add.satMul;
       }
 
-      out.toe = clamp((out.toe || 0) + toeAdd, -50, 50);
-      out.mid = clamp((out.mid || 0) + midAdd, -5, 5);
-      out.bright = clamp((out.bright || 0) + brightAdd, -100, 100);
-      out.gamma = clamp((out.gamma || 1) * gammaMul, 0.1, 5.0);
-      out.contrast = clamp((out.contrast || 1) * contrastMul, 0.1, 5.0);
-      out.satF = clamp((out.satF || 1) * satMul, 0.0, 5.0);
+      out.toe = (out.toe || 0) + toeAdd;
+      out.mid = (out.mid || 0) + midAdd;
+      out.bright = (out.bright || 0) + brightAdd;
+      out.gamma = (out.gamma || 1) * gammaMul;
+      out.contrast = (out.contrast || 1) * contrastMul;
+      out.satF = (out.satF || 1) * satMul;
 
       return out;
     }
 
     function applyBrightStepStack(out, brightStepLevel, Utils) {
-      const clamp = Utils.clamp;
       const lvl = Math.max(0, Math.min(3, Math.round(Number(brightStepLevel) || 0)));
       if (!lvl) return out;
 
@@ -578,9 +580,9 @@
       };
       const s = table[lvl];
 
-      out.bright   = clamp((out.bright || 0) + s.brightAdd, -100, 100);
-      out.gamma    = clamp((out.gamma || 1) * s.gammaMul, 0.1, 5.0);
-      out.contrast = clamp((out.contrast || 1) * s.contrastMul, 0.1, 5.0);
+      out.bright   = (out.bright || 0) + s.brightAdd;
+      out.gamma    = (out.gamma || 1) * s.gammaMul;
+      out.contrast = (out.contrast || 1) * s.contrastMul;
       return out;
     }
 
@@ -593,14 +595,13 @@
 
     function projectVValsForWebGL(vVals) {
       const out = { ...vVals };
-      const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
       const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-      out.sharp = clamp(sharp + sharp2 + clarity, 0, 100);
+      out.sharp = sharp + sharp2 + clarity;
 
-      out.bright   = clamp(Number(out.bright || 0), -100, 100);
-      out.contrast = clamp(Number(out.contrast || 1), 0.1, 5.0);
-      out.gamma    = clamp(Number(out.gamma || 1), 0.1, 5.0);
+      out.bright   = Number(out.bright || 0);
+      out.contrast = Number(out.contrast || 1);
+      out.gamma    = Number(out.gamma || 1);
 
       out.sharp2 = 0; out.clarity = 0; out.toe = 0; out.shoulder = 0; out.mid = 0;
       return out;
@@ -920,8 +921,8 @@
           const gateGamma = Math.max(0.84, Math.min(1.10, 1.00 - sharpN * 0.10 + liftRiskN * 0.06));
           const gateFloor = Math.max(0.002, Math.min(0.020, 0.004 + sharpN * 0.010 + liftRiskN * 0.004));
 
-          // 핵심: 샤프 올릴수록 gateCeil을 너무 낮추지 않기
-          const gateCeil = Math.max(0.92, Math.min(0.995, 0.975 - sharpN * 0.015 - liftRiskN * 0.010));
+          // 핵심: 샤프 올릴수록 gateCeil을 너무 낮추지 않기 (억제 해제)
+          const gateCeil = 0.998;
 
           const edgeGateTable = makeSoftKneeTable(64, th, knee, gateGamma, gateFloor, gateCeil);
 
@@ -930,8 +931,8 @@
           let hlEnd = 0.91 - brightLiftN * 0.02 + hiResN * 0.01;
           hlEnd = Math.max(hlStart + 0.10, Math.min(0.97, hlEnd));
 
-          // 핵심: 하이라이트 감쇠 증가폭 줄이기
-          const hlReduce = Math.max(0.30, Math.min(0.65, 0.36 + sharpN * 0.12 + liftRiskN * 0.10));
+          // 핵심: 하이라이트 감쇠 증가폭 파격 감소
+          const hlReduce = Math.max(0.15, Math.min(0.35, 0.20 + (sharpTotal / 200)));
           const hlKeepTable = makeHighlightKeepTable(64, hlStart, hlEnd, hlReduce);
 
           const desatSat = Math.max(0.55, Math.min(0.82, 0.62 + (1 - sharpN) * 0.12 + liftRiskN * 0.04));
