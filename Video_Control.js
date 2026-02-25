@@ -423,12 +423,12 @@
     }
 
     function composeBaseVideoParams(out, vUser, Utils) {
-      const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1); const GVF_BASE_CON = 1.05, GVF_BASE_SAT = 1.02, GVF_BASE_TOE = 1.00;
+      const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1); const GVF_BASE_CON = 1.05, GVF_BASE_SAT = 1.02, GVF_BASE_TOE = 1.00, GVF_BASE_TEMP = -1;
       const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
       const preGammaF = lerp(1.0, pB.gammaF ?? 1.0, mix), preBright = (pB.brightAdd || 0) * mix;
       const preSharp = (pD.sharpAdd || 0) * mix, preSharp2 = (pD.sharp2Add || 0) * mix, preClarity = (pD.clarityAdd || 0) * mix;
 
-      out.gain = 1.0; out.gamma = clamp(preGammaF, 0.5, 2.5); out.contrast = clamp(1.0 * GVF_BASE_CON, 0.5, 2.3); out.satF = clamp(1.0 * GVF_BASE_SAT, 0.0, 2.0); out.bright = clamp(preBright, -50, 50); out.temp = 0; out.mid = 0; out.toe = clamp(GVF_BASE_TOE, 0, 15); out.shoulder = 0;
+      out.gain = 1.0; out.gamma = clamp(preGammaF, 0.5, 2.5); out.contrast = clamp(1.0 * GVF_BASE_CON, 0.5, 2.3); out.satF = clamp(1.0 * GVF_BASE_SAT, 0.0, 2.0); out.bright = clamp(preBright, -50, 50); out.temp = clamp(GVF_BASE_TEMP, -25, 25); out.mid = 0; out.toe = clamp(GVF_BASE_TOE, 0, 15); out.shoulder = 0;
       out.sharp = clamp(preSharp, 0, 50); out.sharp2 = clamp(preSharp2, 0, 50); out.clarity = clamp(preClarity, 0, 50);
       return out;
     }
