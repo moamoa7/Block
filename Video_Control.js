@@ -95,7 +95,7 @@
     });
 
     const PRESETS = Object.freeze({
-      detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 7, sharp2Add: 5, clarityAdd: 6 }, M: { sharpAdd: 14, sharp2Add: 10, clarityAdd: 12 }, L: { sharpAdd: 21, sharp2Add: 15, clarityAdd: 18 }, XL: { sharpAdd: 28, sharp2Add: 20, clarityAdd: 24 } },
+      detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 10, sharp2Add: 7, clarityAdd: 8 }, M: { sharpAdd: 20, sharp2Add: 14, clarityAdd: 14 }, L: { sharpAdd: 32, sharp2Add: 22, clarityAdd: 20 }, XL: { sharpAdd: 46, sharp2Add: 30, clarityAdd: 26 } },
       grade: {
         brOFF: { gammaF: 1.00, brightAdd: 0 },
         S:     { gammaF: 1.02, brightAdd: 1.8 },
@@ -876,7 +876,11 @@
       function prepare(video, s) {
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
         let dc = urlCache.get(root); if (!dc) { dc = { key:'', url:'' }; urlCache.set(root, dc); }
-        const detailOn = wantsDetailPass(s); const key = `${detailOn ? 'F' : 'L'}|${makeKeyBase(s)}`; if (dc.key === key) return dc.url;
+        const detailOn = wantsDetailPass(s);
+        const vwKey = video.videoWidth || 0;
+        const vhKey = video.videoHeight || 0;
+        const key = `${detailOn ? 'F' : 'L'}|${vwKey}x${vhKey}|${makeKeyBase(s)}`;
+        if (dc.key === key) return dc.url;
         let nodes = ctxMap.get(root); if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
         if (nodes.st.lastKey !== key) {
           nodes.st.lastKey = key; const st = nodes.st, steps = 128;
@@ -907,17 +911,17 @@
           // Morph radius: integer clamping to prevent browser compat issues
           let morphRadius = 1;
           if (sharpN > 0.70 && pxScale > 1.90) morphRadius = 2;
-          else if (sharpN > 0.42 && pxScale > 1.35) morphRadius = 1.5;
-          if (liftRiskN > 0.75 && morphRadius > 1) morphRadius = 1;
-          morphRadius = Math.round(morphRadius);
+          else morphRadius = 1;
 
           const rngBlurStd = Math.max(0.42, Math.min(0.90, 0.46 + sharpN * 0.16 + hiResN * 0.10 + liftRiskN * 0.06));
 
-          const th = Math.max(0.014, Math.min(0.042, 0.024 - sharpN * 0.009 + liftRiskN * 0.010 + (1 - contrastN) * 0.003));
-          const knee = Math.max(0.014, Math.min(0.060, 0.024 + sharpN * 0.016 + liftRiskN * 0.012 + hiResN * 0.004));
-          const gateGamma = Math.max(0.88, Math.min(1.18, 1.06 - sharpN * 0.14 + liftRiskN * 0.10));
-          const gateFloor = Math.max(0.0, Math.min(0.012, 0.002 + sharpN * 0.006 + liftRiskN * 0.004));
-          const gateCeil = Math.max(0.88, Math.min(0.98, 0.96 - sharpN * 0.05));
+          const th = Math.max(0.012, Math.min(0.036, 0.021 - sharpN * 0.010 + liftRiskN * 0.008 + (1 - contrastN) * 0.002));
+          const knee = Math.max(0.012, Math.min(0.050, 0.020 + sharpN * 0.010 + liftRiskN * 0.008 + hiResN * 0.003));
+          const gateGamma = Math.max(0.84, Math.min(1.10, 1.00 - sharpN * 0.10 + liftRiskN * 0.06));
+          const gateFloor = Math.max(0.002, Math.min(0.020, 0.004 + sharpN * 0.010 + liftRiskN * 0.004));
+
+          // 핵심: 샤프 올릴수록 gateCeil을 너무 낮추지 않기
+          const gateCeil = Math.max(0.92, Math.min(0.995, 0.975 - sharpN * 0.015 - liftRiskN * 0.010));
 
           const edgeGateTable = makeSoftKneeTable(64, th, knee, gateGamma, gateFloor, gateCeil);
 
@@ -926,7 +930,8 @@
           let hlEnd = 0.91 - brightLiftN * 0.02 + hiResN * 0.01;
           hlEnd = Math.max(hlStart + 0.10, Math.min(0.97, hlEnd));
 
-          const hlReduce = Math.max(0.38, Math.min(0.82, 0.44 + sharpN * 0.22 + liftRiskN * 0.12));
+          // 핵심: 하이라이트 감쇠 증가폭 줄이기
+          const hlReduce = Math.max(0.30, Math.min(0.65, 0.36 + sharpN * 0.12 + liftRiskN * 0.10));
           const hlKeepTable = makeHighlightKeepTable(64, hlStart, hlEnd, hlReduce);
 
           const desatSat = Math.max(0.55, Math.min(0.82, 0.62 + (1 - sharpN) * 0.12 + liftRiskN * 0.04));
