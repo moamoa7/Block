@@ -86,10 +86,10 @@
       detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 7, sharp2Add: 5, clarityAdd: 6 }, M: { sharpAdd: 14, sharp2Add: 10, clarityAdd: 12 }, L: { sharpAdd: 21, sharp2Add: 15, clarityAdd: 18 }, XL: { sharpAdd: 28, sharp2Add: 20, clarityAdd: 24 } },
       grade: {
         brOFF: { gammaF: 1.00, brightAdd: 0 },
-        S:     { gammaF: 1.00, brightAdd: 2 },
-        M:     { gammaF: 1.08, brightAdd: 4 },
-        L:     { gammaF: 1.16, brightAdd: 6 },
-        DS:    { gammaF: 1.00, brightAdd: 3.6 },
+        S:     { gammaF: 1.02, brightAdd: 1.8 },
+        M:     { gammaF: 1.07, brightAdd: 4.4 },
+        L:     { gammaF: 1.15, brightAdd: 9 },
+        DS:    { gammaF: 1.05, brightAdd: 3.6 },
         DM:    { gammaF: 1.10, brightAdd: 7.2 },
         DL:    { gammaF: 1.20, brightAdd: 10.8 }
       }
