@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.12 - Ultimate Uncapped + Adaptive SVG)
+// @name         Video_Control (v159.9.14 - Ultimate Uncapped + Adaptive LERP SVG)
 // @namespace    https://github.com/
-// @version      159.9.12
-// @description  Video Control: High-End PC version. No frame skips, direct parameters, plus advanced CAS-like morphology edge-gating for SVG mode.
+// @version      159.9.14
+// @description  Video Control: High-End PC version. No frame skips, CAS-like LERP blending, Alpha fixes, and dynamic tuning parameters.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -44,8 +44,7 @@
     }
 
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
-    
-    // 저사양 판단 로직 삭제: 항상 고사양(High-End)으로 작동하도록 강제
+
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: false, TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
     const FEATURE_FLAGS = Object.freeze({
@@ -249,7 +248,45 @@
     function ensureFsWrapper(video) { if (fsWraps.has(video)) return fsWraps.get(video); if (!video || !video.parentNode) return null; const parent = video.parentNode; const wrap = document.createElement('div'); wrap.className = 'vsc-fs-wrap'; wrap.style.cssText = `position: relative; display: inline-block; width: 100%; height: 100%; max-width: 100%; background: black;`; const ph = document.createComment('vsc-video-placeholder'); parent.insertBefore(ph, video); parent.insertBefore(wrap, video); wrap.appendChild(video); wrap.__vscPlaceholder = ph; fsWraps.set(video, wrap); return wrap; }
     function restoreFromFsWrapper(video) { const wrap = fsWraps.get(video); if (!wrap) return; const ph = wrap.__vscPlaceholder; if (ph && ph.parentNode) { ph.parentNode.insertBefore(video, ph); ph.parentNode.removeChild(ph); } if (wrap.parentNode) wrap.parentNode.removeChild(wrap); fsWraps.delete(video); }
     function patchMethodSafe(obj, name, wrappedFn) { try { const ownDesc = Object.getOwnPropertyDescriptor(obj, name); if (ownDesc && ownDesc.writable === false && ownDesc.configurable === false) return false; obj[name] = wrappedFn; if (obj[name] === wrappedFn) return true; } catch (_) {} try { Object.defineProperty(obj, name, { configurable: true, writable: true, value: wrappedFn }); return true; } catch (_) {} return false; }
-    function patchFullscreenRequest(video) { const st = getVState(video); if (!video || st.fsPatched) return; st.fsPatched = true; if (typeof video.webkitEnterFullscreen === 'function') return; const origReq = video.requestFullscreen || video.webkitRequestFullscreen || video.msRequestFullscreen; if (!origReq) return; const runWrappedFs = () => { const wrap = ensureFsWrapper(video); const cleanupIfNotFullscreen = () => { const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; if (!fsEl && fsWraps.has(video)) restoreFromFsWrapper(video); }; if (wrap) { const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen || wrap.msRequestFullscreen; if (typeof req === 'function') { try { const ret = req.call(wrap); if (ret && typeof ret.then === 'function') return ret.catch((err) => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; } } } try { const ret = origReq.call(video); if (ret && typeof ret.then === 'function') return ret.catch((err) => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; } }; if (video.requestFullscreen) patchMethodSafe(video, 'requestFullscreen', function () { return runWrappedFs(); }); if (video.webkitRequestFullscreen) patchMethodSafe(video, 'webkitRequestFullscreen', function () { return runWrappedFs(); }); if (video.msRequestFullscreen) patchMethodSafe(video, 'msRequestFullscreen', function () { return runWrappedFs(); }); }
+
+    function patchFullscreenRequest(video) {
+      const st = getVState(video);
+      if (!video || st.fsPatched) return;
+      st.fsPatched = true;
+
+      const origReq = video.requestFullscreen || video.webkitRequestFullscreen || video.msRequestFullscreen;
+      if (!origReq) return;
+
+      const runWrappedFs = (...args) => {
+        const wrap = ensureFsWrapper(video);
+        const cleanupIfNotFullscreen = () => {
+          const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+          if (!fsEl && fsWraps.has(video)) restoreFromFsWrapper(video);
+        };
+
+        if (wrap) {
+          const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen || wrap.msRequestFullscreen;
+          if (typeof req === 'function') {
+            try {
+              const ret = req.apply(wrap, args);
+              if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; });
+              return ret;
+            } catch (err) { cleanupIfNotFullscreen(); throw err; }
+          }
+        }
+
+        try {
+          const ret = origReq.apply(video, args);
+          if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; });
+          return ret;
+        } catch (err) { cleanupIfNotFullscreen(); throw err; }
+      };
+
+      if (video.requestFullscreen) patchMethodSafe(video, 'requestFullscreen', function (...args) { return runWrappedFs(...args); });
+      if (video.webkitRequestFullscreen) patchMethodSafe(video, 'webkitRequestFullscreen', function (...args) { return runWrappedFs(...args); });
+      if (video.msRequestFullscreen) patchMethodSafe(video, 'msRequestFullscreen', function (...args) { return runWrappedFs(...args); });
+    }
+
     function onFsChange() { const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; if (!fsEl) document.querySelectorAll('video').forEach(v => { if (fsWraps.has(v)) restoreFromFsWrapper(v); }); if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure(); }
     onDoc('fullscreenchange', onFsChange); onDoc('webkitfullscreenchange', onFsChange);
 
@@ -474,24 +511,23 @@
       return function restore() { for (const [prop, info] of prev.entries()) { if (info.val) el.style.setProperty(prop, info.val, info.prio || ''); else el.style.removeProperty(prop); } };
     }
 
-    // 완전히 해제된 직접 매핑 (보정치/가드 삭제)
     function composeBaseVideoParams(out, vUser, Utils) {
       const clamp = Utils.clamp; const mix = clamp(vUser.presetMix ?? 1.0, 0, 1);
       const pD = PRESETS.detail[vUser.presetS] || PRESETS.detail.off, pB = PRESETS.grade[vUser.presetB] || PRESETS.grade.brOFF;
       const preGammaF = lerp(1.0, pB.gammaF ?? 1.0, mix), preBright = (pB.brightAdd || 0) * mix;
       const preSharp = (pD.sharpAdd || 0) * mix, preSharp2 = (pD.sharp2Add || 0) * mix, preClarity = (pD.clarityAdd || 0) * mix;
 
-      out.gain = 1.0; 
-      out.gamma = clamp(preGammaF, 0.1, 5.0); 
-      out.contrast = clamp(1.0, 0.1, 5.0); 
-      out.satF = clamp(1.0, 0.0, 5.0); 
-      out.bright = clamp(preBright, -100, 100); 
-      out.temp = 0; 
-      out.mid = 0; 
-      out.toe = 0; 
+      out.gain = 1.0;
+      out.gamma = clamp(preGammaF, 0.1, 5.0);
+      out.contrast = clamp(1.0, 0.1, 5.0);
+      out.satF = clamp(1.0, 0.0, 5.0);
+      out.bright = clamp(preBright, -100, 100);
+      out.temp = 0;
+      out.mid = 0;
+      out.toe = 0;
       out.shoulder = 0;
-      out.sharp = clamp(preSharp, 0, 100); 
-      out.sharp2 = clamp(preSharp2, 0, 100); 
+      out.sharp = clamp(preSharp, 0, 100);
+      out.sharp2 = clamp(preSharp2, 0, 100);
       out.clarity = clamp(preClarity, 0, 100);
       return out;
     }
@@ -555,7 +591,6 @@
       return out;
     }
 
-    // WebGL 매핑 단순화 (가중치 감쇄 완전 삭제)
     function projectVValsForWebGL(vVals) {
       const out = { ...vVals };
       const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -687,7 +722,7 @@
       const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
       const shadowRootsLRU = []; const SHADOW_LRU_MAX = PERF_POLICY.registry.shadowLRUMax; const observedShadowHosts = new WeakSet();
       let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
-      
+
       const io = new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.ir = e.intersectionRatio || 0; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' });
       const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
       const ro = new ResizeObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); st.rect = e.contentRect ? el.getBoundingClientRect() : null; st.rectT = now; st.rectEpoch = -1; dirty.videos.add(el); changed = true; } if (changed) requestRefreshCoalesced(); });
@@ -706,7 +741,7 @@
       if (FEATURE_FLAGS.trackShadowRoots) { document.addEventListener('vsc-shadow-root', (e) => { try { const sr = e.detail; const host = sr?.host; if (!sr || !host || observedShadowHosts.has(host)) return; observedShadowHosts.add(host); shadowRootsLRU.push({ host, root: sr }); if (shadowRootsLRU.length > SHADOW_LRU_MAX) shadowRootsLRU.shift(); connectObserver(sr); } catch (_) {} }); }
       refreshObservers();
       let pruneIterVideos = null; function pruneBatchRoundRobinNoAlloc(set, visibleSet, dirtySet, unobserveFn, batch = 200) { let removed = 0; let scanned = 0; if (!pruneIterVideos) pruneIterVideos = set.values(); while (scanned < batch) { let n = pruneIterVideos.next(); if (n.done) { pruneIterVideos = set.values(); n = pruneIterVideos.next(); if (n.done) break; } const el = n.value; if (el && !el.isConnected) { set.delete(el); visibleSet.delete(el); dirtySet.delete(el); try { unobserveFn(el); } catch (_) {} try { ro.unobserve(el); } catch (_) {} removed++; } scanned++; } return removed; }
-      
+
       return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, io.unobserve.bind(io), 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { for (const r of walkRoots(document.body || document.documentElement)) { WorkQ.enqueue(r); } } };
     }
 
@@ -731,9 +766,9 @@
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(720);
       const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
-      
+
       function wantsDetailPass(s) {
-        return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0; 
+        return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0;
       }
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
@@ -778,41 +813,49 @@
         lite.append(toneLite, bcLinLite, gamLite, tmpLite, satLite);
 
         const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '-15%', y: '-15%', width: '130%', height: '130%' });
-        
+
         // Base Tone & Gamma
         const tone = h('feComponentTransfer', { ns: 'svg', result: 'tone' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
         const bcLin = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'bcLin' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
         const gam = h('feComponentTransfer', { ns: 'svg', in: 'bcLin', result: 'gam' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'gamma', amplitude: '1', exponent: '1', offset: '0' })));
-        
-        // Morphology CAS-like Gate Construction
-        const lumBase = h('feColorMatrix', { ns: 'svg', in: 'gam', type: 'matrix', values: '0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0', result: 'lumBase' });
+
+        // Morphology CAS-like Gate Construction (Using bcLin as base to minimize gamma preset shifts)
+        const lumBase = h('feColorMatrix', { ns: 'svg', in: 'bcLin', type: 'matrix', values: '0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0', result: 'lumBase' });
         const rngMax = h('feMorphology', { ns: 'svg', in: 'lumBase', operator: 'dilate', radius: '1', result: 'rngMax' });
         const rngMin = h('feMorphology', { ns: 'svg', in: 'lumBase', operator: 'erode', radius: '1', result: 'rngMin' });
         const rng = h('feComposite', { ns: 'svg', in: 'rngMax', in2: 'rngMin', operator: 'arithmetic', k2: '1', k3: '-1', result: 'rng' });
-        const rngBlur = h('feGaussianBlur', { ns: 'svg', in: 'rng', stdDeviation: '0.6', result: 'rngBlur' });
-        
+
+        // Alpha fix for RNG to prevent white-outs
+        const rngA = h('feColorMatrix', { ns: 'svg', in: 'rng', type: 'matrix', values: '1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0', result: 'rngA' });
+        const rngBlur = h('feGaussianBlur', { ns: 'svg', in: 'rngA', stdDeviation: '0.6', result: 'rngBlur' });
+
         const edgeGate = h('feComponentTransfer', { ns: 'svg', in: 'rngBlur', result: 'edgeGate' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
         const hlKeep = h('feComponentTransfer', { ns: 'svg', in: 'lumBase', result: 'hlKeep' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '1 1' })));
         const gate = h('feBlend', { ns: 'svg', in: 'edgeGate', in2: 'hlKeep', mode: 'multiply', result: 'gate' });
-        const gateInv = h('feComponentTransfer', { ns: 'svg', in: 'gate', result: 'gateInv' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '-1', intercept: '1' })));
 
         // Base Sharpening (Unsharp Mask)
         const b1 = h('feGaussianBlur', { ns: 'svg', in: 'gam', stdDeviation: '0', result: 'b1' }), sh1 = h('feComposite', { ns: 'svg', in: 'gam', in2: 'b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'sh1' });
         const b2 = h('feGaussianBlur', { ns: 'svg', in: 'sh1', stdDeviation: '0', result: 'b2' }), sh2 = h('feComposite', { ns: 'svg', in: 'sh1', in2: 'b2', operator: 'arithmetic', k2: '1', k3: '0', result: 'sh2' });
         const bc = h('feGaussianBlur', { ns: 'svg', in: 'sh2', stdDeviation: '0', result: 'bc' }), cl = h('feComposite', { ns: 'svg', in: 'sh2', in2: 'bc', operator: 'arithmetic', k2: '1', result: 'cl' });
 
-        // Luma-Biased Sharp Result & Gate Application
+        // Luma-Biased Sharp Result
         const sharpDesat = h('feColorMatrix', { ns: 'svg', in: 'cl', type: 'saturate', values: '0.55', result: 'sharpDesat' });
         const sharpBiased = h('feComposite', { ns: 'svg', in: 'cl', in2: 'sharpDesat', operator: 'arithmetic', k2: '0.25', k3: '0.75', result: 'sharpBiased' });
-        const origMasked = h('feBlend', { ns: 'svg', in: 'gam', in2: 'gateInv', mode: 'multiply', result: 'origMasked' });
-        const sharpMasked = h('feBlend', { ns: 'svg', in: 'sharpBiased', in2: 'gate', mode: 'multiply', result: 'sharpMasked' });
-        const mixedSharp = h('feComposite', { ns: 'svg', in: 'origMasked', in2: 'sharpMasked', operator: 'arithmetic', k2: '1', k3: '1', result: 'mixedSharp' });
+
+        // LERP Masking: mixedSharp = gam * (1 - gate) + sharpBiased * gate
+        const invGate = h('feComponentTransfer', { ns: 'svg', in: 'gate', result: 'invGate' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '1 0' })));
+        const gamMasked = h('feComposite', { ns: 'svg', in: 'gam', in2: 'invGate', operator: 'arithmetic', k1: '1', result: 'gamMasked' });
+        const sharpMasked = h('feComposite', { ns: 'svg', in: 'sharpBiased', in2: 'gate', operator: 'arithmetic', k1: '1', result: 'sharpMasked' });
+        const mixedSharpSum = h('feComposite', { ns: 'svg', in: 'gamMasked', in2: 'sharpMasked', operator: 'arithmetic', k2: '1', k3: '1', result: 'mixedSharpSum' });
+
+        // Alpha fix for Final Sharp Result to prevent flashes/white-outs
+        const mixedSharp = h('feColorMatrix', { ns: 'svg', in: 'mixedSharpSum', type: 'matrix', values: '1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 1 0', result: 'mixedSharp' });
 
         // Final Temp & Sat
         const tmp = h('feComponentTransfer', { ns: 'svg', in: 'mixedSharp', result: 'tmp' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
         const sat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
-        
-        full.append(tone, bcLin, gam, lumBase, rngMax, rngMin, rng, rngBlur, edgeGate, hlKeep, gate, gateInv, b1, sh1, b2, sh2, bc, cl, sharpDesat, sharpBiased, origMasked, sharpMasked, mixedSharp, tmp, sat); defs.append(lite, full);
+
+        full.append(tone, bcLin, gam, lumBase, rngMax, rngMin, rng, rngA, rngBlur, edgeGate, hlKeep, gate, b1, sh1, b2, sh2, bc, cl, sharpDesat, sharpBiased, invGate, gamMasked, sharpMasked, mixedSharpSum, mixedSharp, tmp, sat); defs.append(lite, full);
 
         const tryAppend = () => {
           const target = root.body || root.documentElement || root;
@@ -826,7 +869,7 @@
           common: { toneFuncs: [...Array.from(toneLite.children), ...Array.from(tone.children)], bcLinFuncs: [...Array.from(bcLinLite.children), ...Array.from(bcLin.children)], gamFuncs: [...Array.from(gamLite.children), ...Array.from(gam.children)], tmpFuncs: [...Array.from(tmpLite.children), ...Array.from(tmp.children)], sats: [satLite, sat] },
           detail: { b1, sh1, b2, sh2, bc, cl },
           casLike: { rngMax, rngMin, rngBlur, edgeGateFuncs: Array.from(edgeGate.children), hlKeepFuncs: Array.from(hlKeep.children), sharpDesat, sharpBiased },
-          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', detailKey: '', __b1: '', __sh1k2: '', __sh1k3: '', __b2: '', __sh2k2: '', __sh2k3: '', __bc: '', __clk2: '', __clk3: '', edgeGateKey: '', edgeGateTable: '', hlKeepKey: '', hlKeepTable: '', morphKey: '', __rngR: '', __rngBlur: '', __sharpDesatSat: '', __sharpBiasK2: '', __sharpBiasK3: '' }
+          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', detailKey: '', casKey: '', __b1: '', __sh1k2: '', __sh1k3: '', __b2: '', __sh2k2: '', __sh2k3: '', __bc: '', __clk2: '', __clk3: '', edgeGateTable: '', hlKeepTable: '', morphKey: '', __rngMaxR: '', __rngMinR: '', __rngBlur: '', __sharpDesatSat: '', __sharpBiasK2: '', __sharpBiasK3: '' }
         };
       }
 
@@ -842,26 +885,54 @@
           const con = clamp(s.contrast || 1, 0.1, 5.0), brightOffset = clamp((s.bright || 0) / 1000, -0.5, 0.5), intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
           const gk = (1/clamp(s.gamma||1,0.1,5.0)).toFixed(4); const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`;
-          const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
-          
-          // CAS-like Parameters Calculation
-          const sharpTotal = (s.sharp || 0) + (s.sharp2 || 0) + (s.clarity || 0);
-          const sharpN = Math.max(0, Math.min(1, sharpTotal / 120));
-          const morphRadius = 1;
-          const rngBlurStd = 0.6 + sharpN * 0.35;
-          const th = 0.030 - sharpN * 0.014;
-          const knee = 0.018 + sharpN * 0.020;
-          const gateGamma = 1.15 - sharpN * 0.25;
-          const edgeGateTable = makeSoftKneeTable(64, th, knee, gateGamma, 0.0, 1.0);
-          const brightNorm = Math.max(-1, Math.min(1, (s.bright || 0) / 20));
-          const hlStart = 0.70 - Math.max(0, brightNorm) * 0.06;
-          const hlEnd = 0.93;
-          const hlReduce = 0.35 + sharpN * 0.20;
-          const hlKeepTable = makeHighlightKeepTable(64, hlStart, hlEnd, hlReduce);
-          const desatSat = 0.45 + (1 - sharpN) * 0.20;
-          const chromaKeep = 0.18 + (1 - sharpN) * 0.12;
 
-          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, s, detailOn, edgeGateTable, hlKeepTable, morphRadius, rngBlurStd, desatSat, chromaKeep };
+          // Separate Keys for Detail and CAS
+          const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
+          const sharpTotal = (s.sharp || 0) + (s.sharp2 || 0) + (s.clarity || 0);
+          const ck = [ sharpTotal.toFixed(2), (s.bright || 0).toFixed(2), (s.gamma || 1).toFixed(3), (s.contrast || 1).toFixed(3), (video.videoWidth || 0), (video.videoHeight || 0) ].join('|');
+
+          // CAS-like Parameters Calculation (tuned: more CAS-like / safer highlights / less chroma ringing)
+          const sharpN = Math.max(0, Math.min(1, sharpTotal / 115));
+
+          const vw = video.videoWidth || 0;
+          const vh = video.videoHeight || 0;
+          const pxScale = Math.sqrt((Math.max(1, vw * vh)) / (1280 * 720));
+          const hiResN = Math.max(0, Math.min(1, (pxScale - 1.0) / 1.8));
+
+          const brightLiftN = Math.max(0, Math.min(1, (s.bright || 0) / 12));
+          const gammaLiftN  = Math.max(0, Math.min(1, ((s.gamma || 1) - 1.0) / 0.18));
+          const contrastN   = Math.max(0, Math.min(1, ((s.contrast || 1) - 1.0) / 0.35));
+          const liftRiskN   = Math.max(brightLiftN, gammaLiftN * 0.9);
+
+          // Morph radius: integer clamping to prevent browser compat issues
+          let morphRadius = 1;
+          if (sharpN > 0.70 && pxScale > 1.90) morphRadius = 2;
+          else if (sharpN > 0.42 && pxScale > 1.35) morphRadius = 1.5;
+          if (liftRiskN > 0.75 && morphRadius > 1) morphRadius = 1;
+          morphRadius = Math.round(morphRadius);
+
+          const rngBlurStd = Math.max(0.45, Math.min(1.05, 0.50 + sharpN * 0.22 + hiResN * 0.14 + liftRiskN * 0.10));
+
+          const th = Math.max(0.014, Math.min(0.042, 0.024 - sharpN * 0.009 + liftRiskN * 0.010 + (1 - contrastN) * 0.003));
+          const knee = Math.max(0.014, Math.min(0.060, 0.024 + sharpN * 0.016 + liftRiskN * 0.012 + hiResN * 0.004));
+          const gateGamma = Math.max(0.88, Math.min(1.18, 1.06 - sharpN * 0.14 + liftRiskN * 0.10));
+          const gateFloor = Math.max(0.002, Math.min(0.040, 0.006 + sharpN * 0.014 + liftRiskN * 0.018));
+          const gateCeil = Math.max(0.88, Math.min(0.98, 0.96 - sharpN * 0.05));
+
+          const edgeGateTable = makeSoftKneeTable(64, th, knee, gateGamma, gateFloor, gateCeil);
+
+          let hlStart = 0.72 - brightLiftN * 0.07 - gammaLiftN * 0.06 - sharpN * 0.03;
+          hlStart = Math.max(0.56, Math.min(0.84, hlStart));
+          let hlEnd = 0.91 - brightLiftN * 0.02 + hiResN * 0.01;
+          hlEnd = Math.max(hlStart + 0.10, Math.min(0.97, hlEnd));
+
+          const hlReduce = Math.max(0.38, Math.min(0.82, 0.44 + sharpN * 0.22 + liftRiskN * 0.12));
+          const hlKeepTable = makeHighlightKeepTable(64, hlStart, hlEnd, hlReduce);
+
+          const desatSat = Math.max(0.34, Math.min(0.68, 0.42 + (1 - sharpN) * 0.16 + liftRiskN * 0.06));
+          const chromaKeep = Math.max(0.12, Math.min(0.28, 0.16 + (1 - sharpN) * 0.10 - liftRiskN * 0.03));
+
+          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, ck, s, detailOn, edgeGateTable, hlKeepTable, morphRadius, rngBlurStd, desatSat, chromaKeep };
           if (!st._svgUpdatePending) {
             st._svgUpdatePending = true;
             queueMicrotask(() => {
@@ -871,26 +942,33 @@
               if (st.gammaKey !== p.gk) { st.gammaKey = p.gk; for (const fn of nodes.common.gamFuncs) fn.setAttribute('exponent', p.gk); }
               if (st.satKey !== p.satVal) { st.satKey = p.satVal; for (const satNode of nodes.common.sats) satNode.setAttribute('values', p.satVal); }
               if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; for(let i=0; i<nodes.common.tmpFuncs.length; i+=3) { nodes.common.tmpFuncs[i].setAttribute('slope', p.rs.toFixed(3)); nodes.common.tmpFuncs[i+1].setAttribute('slope', p.gs.toFixed(3)); nodes.common.tmpFuncs[i+2].setAttribute('slope', p.bs.toFixed(3)); } }
-              if (p.detailOn && st.detailKey !== p.dk) {
-                st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
-                const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2; setAttr(nodes.detail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__b1'); setAttr(nodes.detail.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.detail.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
-                const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 4.8; setAttr(nodes.detail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__b2'); setAttr(nodes.detail.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.detail.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
-                const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.detail.bc, 'stdDeviation', clVal > 0 ? '1.1' : '0', st, '__bc'); setAttr(nodes.detail.cl, 'k2', (1 + clVal * 1.5).toFixed(3), st, '__clk2'); setAttr(nodes.detail.cl, 'k3', (-clVal * 1.5).toFixed(3), st, '__clk3');
-                
-                // CAS-like Updates
-                const morphKey = `${p.morphRadius}`;
-                if (st.morphKey !== morphKey) { st.morphKey = morphKey; setAttr(nodes.casLike.rngMax, 'radius', String(p.morphRadius), st, '__rngR'); setAttr(nodes.casLike.rngMin, 'radius', String(p.morphRadius), st, '__rngR'); }
-                const rngBlurKey = p.rngBlurStd.toFixed(2);
-                if (st.__rngBlur !== rngBlurKey) { st.__rngBlur = rngBlurKey; nodes.casLike.rngBlur.setAttribute('stdDeviation', rngBlurKey); }
-                const edgeGateKey = p.edgeGateTable;
-                if (st.edgeGateTable !== edgeGateKey) { st.edgeGateTable = edgeGateKey; for (const fn of nodes.casLike.edgeGateFuncs) fn.setAttribute('tableValues', p.edgeGateTable); }
-                const hlKeepKey = p.hlKeepTable;
-                if (st.hlKeepTable !== hlKeepKey) { st.hlKeepTable = hlKeepKey; for (const fn of nodes.casLike.hlKeepFuncs) fn.setAttribute('tableValues', p.hlKeepTable); }
-                const ds = p.desatSat.toFixed(2);
-                if (st.__sharpDesatSat !== ds) { st.__sharpDesatSat = ds; nodes.casLike.sharpDesat.setAttribute('values', ds); }
-                const k2 = p.chromaKeep.toFixed(3); const k3 = (1 - p.chromaKeep).toFixed(3);
-                if (st.__sharpBiasK2 !== k2) { st.__sharpBiasK2 = k2; nodes.casLike.sharpBiased.setAttribute('k2', k2); }
-                if (st.__sharpBiasK3 !== k3) { st.__sharpBiasK3 = k3; nodes.casLike.sharpBiased.setAttribute('k3', k3); }
+
+              if (p.detailOn) {
+                // 1) Core Sharp/Clarity Update
+                if (st.detailKey !== p.dk) {
+                  st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
+                  const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2; setAttr(nodes.detail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__b1'); setAttr(nodes.detail.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.detail.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
+                  const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 4.8; setAttr(nodes.detail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__b2'); setAttr(nodes.detail.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.detail.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
+                  const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.detail.bc, 'stdDeviation', clVal > 0 ? '1.1' : '0', st, '__bc'); setAttr(nodes.detail.cl, 'k2', (1 + clVal * 1.5).toFixed(3), st, '__clk2'); setAttr(nodes.detail.cl, 'k3', (-clVal * 1.5).toFixed(3), st, '__clk3');
+                }
+
+                // 2) CAS-like Update (Separated dependency)
+                if (st.casKey !== p.ck) {
+                  st.casKey = p.ck;
+                  const morphKey = `${p.morphRadius}`;
+                  if (st.morphKey !== morphKey) { st.morphKey = morphKey; setAttr(nodes.casLike.rngMax, 'radius', String(p.morphRadius), st, '__rngMaxR'); setAttr(nodes.casLike.rngMin, 'radius', String(p.morphRadius), st, '__rngMinR'); }
+                  const rngBlurKey = p.rngBlurStd.toFixed(2);
+                  if (st.__rngBlur !== rngBlurKey) { st.__rngBlur = rngBlurKey; nodes.casLike.rngBlur.setAttribute('stdDeviation', rngBlurKey); }
+                  const edgeGateKey = p.edgeGateTable;
+                  if (st.edgeGateTable !== edgeGateKey) { st.edgeGateTable = edgeGateKey; for (const fn of nodes.casLike.edgeGateFuncs) fn.setAttribute('tableValues', p.edgeGateTable); }
+                  const hlKeepKey = p.hlKeepTable;
+                  if (st.hlKeepTable !== hlKeepKey) { st.hlKeepTable = hlKeepKey; for (const fn of nodes.casLike.hlKeepFuncs) fn.setAttribute('tableValues', p.hlKeepTable); }
+                  const ds = p.desatSat.toFixed(2);
+                  if (st.__sharpDesatSat !== ds) { st.__sharpDesatSat = ds; nodes.casLike.sharpDesat.setAttribute('values', ds); }
+                  const k2 = p.chromaKeep.toFixed(3); const k3 = (1 - p.chromaKeep).toFixed(3);
+                  if (st.__sharpBiasK2 !== k2) { st.__sharpBiasK2 = k2; nodes.casLike.sharpBiased.setAttribute('k2', k2); }
+                  if (st.__sharpBiasK3 !== k3) { st.__sharpBiasK3 = k3; nodes.casLike.sharpBiased.setAttribute('k3', k3); }
+                }
               }
             });
           }
@@ -1073,17 +1151,17 @@
             }
           }
         }
-        
+
         startRenderLoop() {
           if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken;
           const loopFn = (now, meta) => {
             if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; }
-            this.render(); 
+            this.render();
             this.scheduleNextFrame(loopFn);
           };
           this.scheduleNextFrame(loopFn);
         }
-        
+
         scheduleNextFrame(loopFn) {
           const pausedOrHidden = !!(document.hidden || this.video?.paused);
           this.renderDriver.scheduleVideoFrame(this.video, loopFn, pausedOrHidden ? 'timeout' : 'raf', pausedOrHidden ? 220 : 90);
