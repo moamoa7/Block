@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.15 - Ultimate Uncapped + Adaptive LERP SVG + RCAS)
+// @name         Video_Control (v159.9.18 - Ultimate Uncapped + Adaptive LERP SVG + RCAS + True Brickwall AGC)
 // @namespace    https://github.com/
-// @version      159.9.15
-// @description  Video Control: High-End PC version. Directional RCAS WebGL, Resolution-aware Clarity, Adaptive LERP blending. Uncapped sharpness & brightness.
+// @version      159.9.18
+// @description  Video Control: High-End PC version. Directional RCAS WebGL (RGBA8 fixed, 9-px EdgeGate), True Brickwall Audio Routing, Seamless Master Fade.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -747,21 +747,226 @@
     }
 
     function createAudio(sm) {
-      let ctx, compressor, dry, wet, target = null, currentSrc = null, wetConnected = false; let srcMap = new WeakMap(); let lastDryOn = null; let lastWetGain = null; let gestureHooked = false;
+      let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, target = null, currentSrc = null;
+      let srcMap = new WeakMap();
+      let lastDryOn = null, lastWetGain = null;
+      let makeupDbEma = 0;
+      let switchTimer = 0, switchTok = 0;
+      let gestureHooked = false;
+
       const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
       const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
+
       const ensureCtx = () => {
-        if (ctx && ctx.state === 'closed') { ctx = null; compressor = null; dry = null; wet = null; currentSrc = null; wetConnected = false; srcMap = new WeakMap(); }
+        if (ctx && ctx.state === 'closed') {
+          ctx = null; compressor = null; limiter = null; wetInGain = null;
+          dryOut = null; wetOut = null; masterOut = null; currentSrc = null; target = null;
+          srcMap = new WeakMap();
+        }
         if (ctx) return true;
-        const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false;
-        try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); } ensureGestureResumeHook();
-        compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -24; compressor.knee.value = 24; compressor.ratio.value = 4; compressor.attack.value = 0.005; compressor.release.value = 0.20;
-        dry = ctx.createGain(); wet = ctx.createGain(); dry.connect(ctx.destination); wet.connect(ctx.destination); compressor.connect(wet); return true;
+
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+
+        try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); }
+        ensureGestureResumeHook();
+
+        // 🎛️ 추천 세트 A (기본/올라운더, 최소 개입)
+        compressor = ctx.createDynamicsCompressor();
+        compressor.threshold.value = -22;
+        compressor.knee.value = 24;
+        compressor.ratio.value = 2.6;
+        compressor.attack.value = 0.012;
+        compressor.release.value = 0.25;
+
+        // 🛡️ Brickwall 리미터
+        limiter = ctx.createDynamicsCompressor();
+        limiter.threshold.value = -1.2;
+        limiter.knee.value = 0.0;
+        limiter.ratio.value = 20.0;
+        limiter.attack.value = 0.0015;
+        limiter.release.value = 0.09;
+
+        dryOut = ctx.createGain();
+        wetOut = ctx.createGain();
+        wetInGain = ctx.createGain();
+        masterOut = ctx.createGain();
+
+        masterOut.connect(ctx.destination);
+        dryOut.connect(masterOut);
+        wetOut.connect(masterOut);
+
+        // ✅ True Brickwall 라우팅: 소스 -> 컴프 -> 부스트 -> 리미터 -> 출력
+        compressor.connect(wetInGain);
+        wetInGain.connect(limiter);
+        limiter.connect(wetOut);
+
+        return true;
       };
-      const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)), boost = Math.pow(10, sm.get(P.A_BST) / 20), dryTarget = en ? 0 : 1, wetTarget = en ? boost : 0, t = ctx.currentTime; if (lastDryOn !== dryTarget) { try { dry.gain.cancelScheduledValues(t); dry.gain.setTargetAtTime(dryTarget, t, 0.015); } catch(e) { dry.gain.value = dryTarget; } lastDryOn = dryTarget; } if (lastWetGain == null || Math.abs(lastWetGain - wetTarget) > 1e-4) { try { wet.gain.cancelScheduledValues(t); wet.gain.setTargetAtTime(wetTarget, t, 0.015); } catch(e) { wet.gain.value = wetTarget; } lastWetGain = wetTarget; } if (currentSrc) { if (en && !wetConnected) { try { currentSrc.connect(compressor); wetConnected = true; } catch (_) {} } else if (!en && wetConnected) { try { currentSrc.disconnect(compressor); wetConnected = false; } catch (_) {} } } };
-      const disconnectAll = () => { if (currentSrc) { if (wetConnected) { try { currentSrc.disconnect(compressor); } catch (_) {} } try { currentSrc.disconnect(dry); } catch (_) {} } currentSrc = null; target = null; wetConnected = false; };
-      async function destroy() { try { disconnectAll(); } catch (_) {} try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} try { if (ctx && ctx.state !== 'closed') { await ctx.close(); } } catch (_) {} ctx = null; compressor = null; dry = null; wet = null; currentSrc = null; target = null; wetConnected = false; lastDryOn = null; lastWetGain = null; srcMap = new WeakMap(); }
-      return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { disconnectAll(); target = v; } updateMix(); return; } if (v !== target) { disconnectAll(); target = v; } if (!v) { updateMix(); return; } if (!enabled && !currentSrc) { updateMix(); return; } if (!ensureCtx()) return; if (!currentSrc) { try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(dry); currentSrc = s; } catch (_) { st.audioFailUntil = performance.now() + RUNTIME_GUARD.audio.createSourceCooldownMs; disconnectAll(); } } updateMix(); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
+
+      const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => {
+        if (!ctx) return;
+        const t = ctx.currentTime;
+        try {
+          dryOut.gain.cancelScheduledValues(t);
+          wetOut.gain.cancelScheduledValues(t);
+          dryOut.gain.setTargetAtTime(dryTarget, t, tc);
+          wetOut.gain.setTargetAtTime(wetTarget, t, tc);
+        } catch (_) {
+          dryOut.gain.value = dryTarget;
+          wetOut.gain.value = wetTarget;
+        }
+      };
+
+      const fadeOutThen = (fn) => {
+        if (!ctx) { fn(); return; }
+        const tok = ++switchTok;
+        clearTimeout(switchTimer);
+
+        // ✅ 마스터 게인을 무음으로 크로스페이드 (타겟 전환 팝 방지)
+        const t = ctx.currentTime;
+        try {
+          masterOut.gain.cancelScheduledValues(t);
+          masterOut.gain.setValueAtTime(masterOut.gain.value, t);
+          masterOut.gain.linearRampToValueAtTime(0, t + 0.04); // 40ms Ramp
+        } catch (_) { masterOut.gain.value = 0; }
+
+        switchTimer = setTimeout(() => {
+          if (tok !== switchTok) return;
+
+          makeupDbEma = 0; // ✅ 이전 영상의 컴프 펌핑을 새 영상으로 넘기지 않기 위해 리셋
+
+          try { fn(); } catch (_) {}
+
+          // ✅ 타겟 교체 후 마스터 게인 원상 복구
+          if (ctx) {
+            const t2 = ctx.currentTime;
+            try {
+              masterOut.gain.cancelScheduledValues(t2);
+              masterOut.gain.setValueAtTime(0, t2);
+              masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04);
+            } catch (_) { masterOut.gain.value = 1; }
+          }
+        }, 60); // 60ms 딜레이 (40ms Ramp가 완전히 끝나는 것을 보장)
+      };
+
+      const disconnectAll = () => {
+        if (currentSrc) {
+          try { currentSrc.disconnect(); } catch (_) {}
+        }
+        currentSrc = null;
+        target = null;
+      };
+
+      const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+
+      const updateMix = () => {
+        if (!ctx) return;
+
+        const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+        const isHooked = !!currentSrc;
+        const actuallyEnabled = en && isHooked; // ✅ 소스 연결 실패 시 강제 원음 폴백 (무음 버그 방지)
+
+        const boostDb = Number(sm.get(P.A_BST) || 0);
+        const userBoost = Math.pow(10, boostDb / 20);
+
+        let redDb = 0;
+        try { redDb = Number(compressor?.reduction || 0); } catch (_) { redDb = 0; }
+        const redPos = clamp(-redDb, 0, 18);
+
+        // ✅ 메이크업 게인 산출 (데드존 2.0dB, 상한 2.8dB)
+        const makeupDbTarget = actuallyEnabled ? clamp(Math.max(0, redPos - 2.0) * 0.22, 0, 2.8) : 0;
+
+        makeupDbEma += (makeupDbTarget - makeupDbEma) * 0.06;
+        const makeup = Math.pow(10, makeupDbEma / 20);
+
+        const dryTarget = actuallyEnabled ? 0 : 1;
+        const wetTarget = actuallyEnabled ? 1 : 0; // wetOut은 이제 단순 스위치 역할
+
+        rampGainsSafe(dryTarget, wetTarget, 0.015); // ON/OFF 페이드
+
+        // ✅ 리미터 앞의 InGain에 부스트와 메이크업 통합 적용
+        if (wetInGain) {
+          try {
+            wetInGain.gain.setTargetAtTime(userBoost * makeup, ctx.currentTime, 0.05);
+          } catch (_) {
+            wetInGain.gain.value = userBoost * makeup;
+          }
+        }
+
+        lastDryOn = dryTarget;
+        lastWetGain = wetTarget;
+      };
+
+      async function destroy() {
+        try { fadeOutThen(() => disconnectAll()); } catch (_) {}
+        try {
+          if (gestureHooked) {
+            window.removeEventListener('pointerdown', onGesture, true);
+            window.removeEventListener('keydown', onGesture, true);
+            gestureHooked = false;
+          }
+        } catch (_) {}
+
+        try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
+        ctx = null; compressor = null; limiter = null; wetInGain = null;
+        dryOut = null; wetOut = null; masterOut = null; currentSrc = null; target = null;
+        lastDryOn = null; lastWetGain = null; makeupDbEma = 0; switchTok++;
+        srcMap = new WeakMap();
+      }
+
+      return {
+        setTarget: (v) => {
+          const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+          const st = v ? getVState(v) : null;
+
+          if (st && st.audioFailUntil > performance.now()) {
+            if (v !== target) {
+              fadeOutThen(() => { disconnectAll(); target = v; });
+            }
+            updateMix();
+            return;
+          }
+
+          if (!ensureCtx()) return;
+
+          if (v === target) {
+            updateMix();
+            return;
+          }
+
+          fadeOutThen(() => {
+            disconnectAll();
+            target = v;
+
+            if (!v) { updateMix(); return; }
+
+            try {
+              let s = srcMap.get(v);
+              if (!s) {
+                s = ctx.createMediaElementSource(v);
+                srcMap.set(v, s);
+              }
+
+              // ✅ 원음 경로(dryOut)와 효과 경로(compressor) 양쪽으로 쏴줌
+              s.connect(dryOut);
+              s.connect(compressor);
+
+              currentSrc = s;
+            } catch (_) {
+              if (st) st.audioFailUntil = performance.now() + RUNTIME_GUARD.audio.createSourceCooldownMs;
+              disconnectAll();
+            }
+
+            updateMix();
+          });
+        },
+
+        update: updateMix,
+        hasCtx: () => !!ctx,
+        isHooked: () => !!currentSrc,
+        destroy
+      };
     }
 
     function createFiltersVideoOnly(Utils, config) {
@@ -1062,8 +1267,9 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 
   vec3 hp = c - avg;
 
-  float minL = min(lc, min(min(ln, ls), min(lw, le)));
-  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
+  // ✅ 9픽셀 전체 기반 min/max (대각선 에지 보완)
+  float minL = min(min(lc, min(min(ln, ls), min(lw, le))), min(min(lnw, lne), min(lsw, lse)));
+  float maxL = max(max(lc, max(max(ln, ls), max(lw, le))), max(max(lnw, lne), max(lsw, lse)));
   float rangeL = max(1e-4, maxL - minL);
 
   float edgeGate = smoothstep(0.010, 0.085, rangeL);
@@ -1075,11 +1281,11 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float k = strength * edgeGate * hiReduce;
   vec3 outC = c + hp * (k * 2.2);
 
-  // 🛡️ 9픽셀 전체 기반의 더 튼튼하고 넓은 클램프 (안전장치 2)
+  // 🛡️ 9픽셀 전체 기반 클램프 (안전장치 2)
   vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
   vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
 
-  float pad = 0.06; // 고정 얇게
+  float pad = 0.06;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
 
   return outC;
@@ -1087,7 +1293,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 void main() {
   vec2 texel = 1.0 / uResolution;
   vec3 color = texture(uVideoTex, vTexCoord).rgb;
-  float strength = uParams2.y; // 캡(1.25) 제거
+  float strength = uParams2.y; // 캡 제거됨
   if (strength > 0.0) {
     color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength);
   }
@@ -1150,23 +1356,26 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   else if (gD1 >= gD2)                    avg = 0.5 * (nw + se);
   else                                    avg = 0.5 * (ne + sw);
   vec3 hp = c - avg;
-  float minL = min(lc, min(min(ln, ls), min(lw, le)));
-  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
+
+  // ✅ 9픽셀 전체 기반 min/max (대각선 에지 보완)
+  float minL = min(min(lc, min(min(ln, ls), min(lw, le))), min(min(lnw, lne), min(lsw, lse)));
+  float maxL = max(max(lc, max(max(ln, ls), max(lw, le))), max(max(lnw, lne), max(lsw, lse)));
   float rangeL = max(1e-4, maxL - minL);
+
   float edgeGate = smoothstep(0.010, 0.085, rangeL);
 
-  // 🛡️ 하이라이트 미세 감쇠 (안전장치 1) — WebGL2와 동일
+  // 🛡️ 하이라이트 미세 감쇠
   float hi = smoothstep(0.82, 0.96, lc);
   float hiReduce = mix(1.0, 0.88, hi);
 
   float k = strength * edgeGate * hiReduce;
   vec3 outC = c + hp * (k * 2.2);
 
-  // 🛡️ 9픽셀 전체 기반 클램프 (안전장치 2) — WebGL2와 동일
+  // 🛡️ 9픽셀 기반 클램프
   vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
   vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
 
-  float pad = 0.06; // 고정 얇게
+  float pad = 0.06;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
 
   return outC;
@@ -1174,7 +1383,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   void main() {
   vec2 texel = 1.0 / uResolution;
   vec3 color = texture2D(uVideoTex, vTexCoord).rgb;
-  float strength = uParams2.y; // 캡(1.25) 제거
+  float strength = uParams2.y; // 캡 제거됨
   if (strength > 0.0) {
     color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength);
   }
@@ -1198,6 +1407,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
         constructor() {
           this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this.restoreVideoStyle = null; this.renderDriver = createFrameDriver(); this.disabledUntil = 0;
           this._texW = 0; this._texH = 0; this._loopToken = 0; this._loopRunning = false;
+          this._isGL2 = false; // ✅ WebGL2 여부 저장 플래그
           this._qMon = { lastT: 0, lastDropped: 0, dropRateEma: 0 };
           this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0;
           this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null;
@@ -1220,6 +1430,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
         initGLResourcesOnExistingCanvas() {
           this.ensureCanvas();
           let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: true });
+          this._isGL2 = !!gl; // ✅ GL2 확인
           if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: true });
           if (!gl) return false; this.gl = gl;
           const src = buildShaderSources(gl);
@@ -1319,7 +1530,11 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 
           try {
             gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
-            if (this._texW !== w || this._texH !== h) { this._texW = w; this._texH = h; gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null); }
+            if (this._texW !== w || this._texH !== h) {
+              this._texW = w; this._texH = h;
+              const internalFormat = this._isGL2 ? gl.RGBA8 : gl.RGBA; // ✅ WebGL2 RGBA8 포맷 분기처리
+              gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            }
             gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             st.webglFailCount = 0;
