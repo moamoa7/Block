@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v165.0.1 - SVG Cache Bugfix)
+// @name         Video_Control (v166.0.0 - Physical 3-Tier SVG)
 // @namespace    https://github.com/
-// @version      165.0.1
-// @description  Video Control: High-End PC Max Performance. WebGL 5-Tap QoS, HDR Cache, Global CSS Containment. Fixed SVG filter stuck issue.
+// @version      166.0.0
+// @description  Video Control: High-End PC Max Performance. WebGL 5-Tap QoS, HDR Cache, Global CSS Containment. Elegant physical 3-Tier SVG Routing (LITE/FAST/FULL) and removed external SVG cache.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -27,7 +27,7 @@
 
     window.__VSC_INTERNAL__ ||= {};
     let __vscUserSignalRev = 0;
-    
+
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
     const __globalHooksAC = new AbortController(), __globalSig = __globalHooksAC.signal;
@@ -47,7 +47,7 @@
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: false, TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
-    const VSC_VERSION = '165.0.1';
+    const VSC_VERSION = '166.0.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -117,10 +117,10 @@
     }
 
     const videoStateMap = new WeakMap();
-    function getVState(v) { 
-      let st = videoStateMap.get(v); 
-      if (!st) { st = createVideoState(); videoStateMap.set(v, st); } 
-      return st; 
+    function getVState(v) {
+      let st = videoStateMap.get(v);
+      if (!st) { st = createVideoState(); videoStateMap.set(v, st); }
+      return st;
     }
 
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
@@ -333,8 +333,8 @@
       if (video.msRequestFullscreen) patchMethodSafe(video, 'msRequestFullscreen', function (...args) { return runWrappedFs(...args); });
     }
 
-    function onFsChange() { 
-      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; 
+    function onFsChange() {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
       if (!fsEl) {
         const rootBase = document.documentElement || document.body || document;
         for (const root of walkRoots(rootBase)) {
@@ -342,8 +342,8 @@
           if (!vids) continue;
           vids.forEach(v => { if (fsWraps.has(v)) restoreFromFsWrapper(v); });
         }
-      } 
-      if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure(); 
+      }
+      if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure();
     }
     onDoc('fullscreenchange', onFsChange); onDoc('webkitfullscreenchange', onFsChange);
 
@@ -360,13 +360,13 @@
       }
       return null;
     }
-    
+
     let __vscPiPCacheT = 0;
     let __vscPiPCacheV = null;
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
-    
+
     function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
-    
+
     function getActivePiPVideoSlow() {
       if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement;
       if (__activeDocumentPiPWindow && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo;
@@ -459,16 +459,16 @@
       const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
       const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
       const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
-      
-      function getTargetVideo(e) { 
-        const path = typeof e.composedPath === 'function' ? e.composedPath() : null; 
-        if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } 
+
+      function getTargetVideo(e) {
+        const path = typeof e.composedPath === 'function' ? e.composedPath() : null;
+        if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } }
         const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5);
         const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5);
-        const el = document.elementFromPoint(cx, cy); 
-        let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; 
-        if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } 
-        return v; 
+        const el = document.elementFromPoint(cx, cy);
+        let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null;
+        if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); }
+        return v;
       }
 
       onWin('wheel', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
@@ -690,7 +690,6 @@
         out.satF = (out.satF || 1.0) * autoMods.sat;
       }
 
-      // ✅ HDR 보정: 과도한 클리핑 완화
       if (isHdr) {
         out.bright = (out.bright || 0) * 0.65;
         out.contrast = 1.0 + ((out.contrast || 1.0) - 1.0) * 0.75;
@@ -719,7 +718,6 @@
 
     const isNeutralVideoParams = (v) => ( Math.abs((v.gain ?? 1) - 1) < 0.001 && Math.abs((v.gamma ?? 1) - 1) < 0.001 && Math.abs((v.contrast ?? 1) - 1) < 0.001 && Math.abs((v.bright ?? 0)) < 0.01 && Math.abs((v.satF ?? 1) - 1) < 0.001 && Math.abs((v.mid ?? 0)) < 0.001 && Math.abs((v.sharp ?? 0)) < 0.01 && Math.abs((v.sharp2 ?? 0)) < 0.01 && Math.abs((v.clarity ?? 0)) < 0.01 && Math.abs((v.temp ?? 0)) < 0.01 && Math.abs((v.toe ?? 0)) < 0.01 && Math.abs((v.shoulder ?? 0)) < 0.01 );
 
-    // ✅ QoS 기반 Memoization 캐싱
     function createVideoParamsMemo(Store, P, Utils) {
         let lastKey = '';
         let lastSvg = null;
@@ -730,10 +728,10 @@
                 const h = activeTarget ? (activeTarget.videoHeight || 0) : 0;
                 const hdr = VSC_MEDIA.isHdr() ? 1 : 0;
                 const qos = Store.get(P.APP_QOS) || 'balanced';
-                
+
                 const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods() || { br: 1.0, ct: 1.0, sat: 1.0 };
                 const autoKey = `${autoMods.br.toFixed(3)}|${autoMods.ct.toFixed(3)}|${autoMods.sat.toFixed(3)}`;
-                
+
                 const key = `${Store.rev()}|${rMode}|${qos}|${w}x${h}|hdr:${hdr}|auto:${autoKey}`;
 
                 if (key === lastKey && lastSvg && lastWebgl) {
@@ -742,11 +740,8 @@
                 const base = {};
                 composeVideoParamsInto(base, vfUser, Utils, hdr === 1);
 
-                // ✅ QoS 정책 (Fast: 디테일 통째로 끄고 Sharpness 제한)
                 base.__qos = qos;
                 if (qos === 'fast') {
-                  base.sharp2 = 0;
-                  base.clarity = 0;
                   base.sharp = Math.min(Number(base.sharp || 0), 18);
                 } else if (qos === 'balanced') {
                   base.sharp = Math.min(Number(base.sharp || 0), 36);
@@ -924,7 +919,6 @@
 
       const clamp = VSC_CLAMP;
 
-      // ✅ 오디오 펌핑(Makeup) 자동 보정 ON/OFF 옵션
       const VSC_AUDIO_AUTO_MAKEUP = true;
 
       function runAudioLoop(tok) {
@@ -1219,7 +1213,6 @@
       let ctx = null;
       try { ctx = c.getContext('2d', { willReadFrequently: true }); } catch (_) { try { ctx = c.getContext('2d'); } catch (__) {} }
 
-      // ✅ QoS 캔버스 동적 해상도 및 FPS 제어
       function applyAutoSceneQoS() {
         const qos = Store.get(P.APP_QOS) || 'balanced';
         const w = (qos === 'fast') ? 64 : (qos === 'quality') ? 112 : 96;
@@ -1278,7 +1271,6 @@
         return { mR: sumR*inv, mG: sumG*inv, mB: sumB*inv, mY, sdY: Math.sqrt(Math.max(0, (sumY2*inv) - (mY*mY))), mCh: sumCh*inv };
       }
 
-      // ✅ 동적 컷 감지 임계값 (분위수 활용)
       function detectCut(sig, lastSig) {
         if (!lastSig) return false;
         const score = (Math.abs(sig.mY - lastSig.mY) * 1.1) + (Math.abs(sig.mCh - lastSig.mCh) * 0.9) + (Math.abs((sig.mR - sig.mB) - (lastSig.mR - lastSig.mB)) * 0.7) + (Math.abs((sig.mG - sig.mB) - (lastSig.mG - lastSig.mB)) * 0.7);
@@ -1302,7 +1294,6 @@
         return AUTO.curFps;
       }
 
-      // ✅ RVFC 기반 안정적 스케줄링
       let __asRvfcId = 0;
       function scheduleNext(v, delayMs) {
         if (!AUTO.running) return;
@@ -1375,14 +1366,14 @@
             const errY = clamp(0.50 - sig.mY, -0.22, 0.22);
             const errSd = clamp(0.23 - sig.sdY, -0.18, 0.18);
             const errCh = clamp(0.12 - sig.mCh, -0.20, 0.20);
-            
+
             AUTO.tgt.br = clamp(1.0 + errY * 0.85, 0.78, 1.22);
             AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30);
             AUTO.tgt.sat = clamp(1.0 + (-errCh) * 0.90, 0.80, 1.45);
 
             const smoothA = isCut ? 0.16 : 0.05;
             const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
-            
+
             AUTO.cur.br = approach(AUTO.cur.br, AUTO.tgt.br, smoothA);
             AUTO.cur.ct = approach(AUTO.cur.ct, AUTO.tgt.ct, smoothA);
             AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, smoothA);
@@ -1423,68 +1414,87 @@
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(128);
       const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
 
-      // ✅ SVG Fast QoS (Detail 패스 배제)
-      function wantsDetailPass(s) {
-        if (s && s.__qos === 'fast') return false;
-        return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0;
-      }
-      
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
       function getToneTableCached(steps, toeN, shoulderN, midN, gain) { const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(gain,0.06)}`; const hit = toneCache.get(key); if (hit) return hit; if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; } const toeEnd = 0.34 + Math.abs(toeN) * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN), ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g); const out = new Array(steps); let prev = 0; for (let i = 0; i < steps; i++) { const x0 = i / (steps - 1); let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0; x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1); if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); } if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); } let y = x; if (y < prev) y = prev; prev = y; const yy = Math.round(y * 100000) / 100000; out[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy)); } const res = out.join(' '); toneCache.set(key, res); return res; }
 
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
-        const fidLite = `vsc-lite-${config.VSC_ID}`, fidFull = `vsc-full-${config.VSC_ID}`;
+        const fidLite = `vsc-lite-${config.VSC_ID}`, fidFast = `vsc-fast-${config.VSC_ID}`, fidFull = `vsc-full-${config.VSC_ID}`;
 
-        const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' });
-        const toneLite = h('feComponentTransfer', { ns: 'svg', result: 'tone' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
-        const bcLinLite = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'bcLin' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
-        const gamLite = h('feComponentTransfer', { ns: 'svg', in: 'bcLin', result: 'gam' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'gamma', amplitude: '1', exponent: '1', offset: '0' })));
-        const tmpLite = h('feComponentTransfer', { ns: 'svg', in: 'gam', result: 'tmp' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
-        const satLite = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
-        lite.append(toneLite, bcLinLite, gamLite, tmpLite, satLite);
-
-        const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '-15%', y: '-15%', width: '130%', height: '130%' });
-        const tone = h('feComponentTransfer', { ns: 'svg', result: 'tone' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
-        const bcLin = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'bcLin' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
-        const gam = h('feComponentTransfer', { ns: 'svg', in: 'bcLin', result: 'gam' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'gamma', amplitude: '1', exponent: '1', offset: '0' })));
-        
-        const b1 = h('feGaussianBlur', { ns: 'svg', in: 'gam', stdDeviation: '0', result: 'b1' }), sh1 = h('feComposite', { ns: 'svg', in: 'gam', in2: 'b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'sh1' });
-        const b2 = h('feGaussianBlur', { ns: 'svg', in: 'sh1', stdDeviation: '0', result: 'b2' }), sh2 = h('feComposite', { ns: 'svg', in: 'sh1', in2: 'b2', operator: 'arithmetic', k2: '1', k3: '0', result: 'sh2' });
-        const bc = h('feGaussianBlur', { ns: 'svg', in: 'sh2', stdDeviation: '0', result: 'bc' }), cl = h('feComposite', { ns: 'svg', in: 'sh2', in2: 'bc', operator: 'arithmetic', k2: '1', result: 'cl' });
-        
-        const tmp = h('feComponentTransfer', { ns: 'svg', in: 'cl', result: 'tmp' }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
-        const sat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
-        
-        full.append(tone, bcLin, gam, b1, sh1, b2, sh2, bc, cl, tmp, sat); defs.append(lite, full);
-
-        const tryAppend = () => {
-          const target = root.body || root.documentElement || root;
-          if (target && target.appendChild) { target.appendChild(svg); return true; }
-          return false;
+        const mkC = (p) => {
+          const t = h('feComponentTransfer', { ns: 'svg', result: `${p}_t` }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
+          const b = h('feComponentTransfer', { ns: 'svg', in: `${p}_t`, result: `${p}_b` }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
+          const g = h('feComponentTransfer', { ns: 'svg', in: `${p}_b`, result: `${p}_g` }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'gamma', amplitude: '1', exponent: '1', offset: '0' })));
+          return {t, b, g};
         };
+        const mkP = (p, inN) => {
+          const tm = h('feComponentTransfer', { ns: 'svg', in: inN, result: `${p}_tm` }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'linear', slope: '1', intercept: '0' })));
+          const s = h('feColorMatrix', { ns: 'svg', in: `${p}_tm`, type: 'saturate', values: '1', result: `${p}_s` });
+          return {tm, s};
+        };
+
+        // LITE Tier (No Sharp)
+        const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' });
+        const cL = mkC('l'), pL = mkP('l', 'l_g'); lite.append(cL.t, cL.b, cL.g, pL.tm, pL.s);
+
+        // FAST Tier (Single Blur)
+        const fast = h('filter', { ns: 'svg', id: fidFast, 'color-interpolation-filters': 'sRGB', x: '-5%', y: '-5%', width: '110%', height: '110%' });
+        const cF = mkC('f');
+        const fB1 = h('feGaussianBlur', { ns: 'svg', in: 'f_g', stdDeviation: '0', result: 'f_b1' });
+        const fSh1 = h('feComposite', { ns: 'svg', in: 'f_g', in2: 'f_b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'f_sh1' });
+        const pF = mkP('f', 'f_sh1');
+        fast.append(cF.t, cF.b, cF.g, fB1, fSh1, pF.tm, pF.s);
+
+        // FULL Tier (Cascade Blur)
+        const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '-15%', y: '-15%', width: '130%', height: '130%' });
+        const cU = mkC('u');
+        const uB1 = h('feGaussianBlur', { ns: 'svg', in: 'u_g', stdDeviation: '0', result: 'u_b1' });
+        const uSh1 = h('feComposite', { ns: 'svg', in: 'u_g', in2: 'u_b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'u_sh1' });
+        const uB2 = h('feGaussianBlur', { ns: 'svg', in: 'u_sh1', stdDeviation: '0', result: 'u_b2' });
+        const uSh2 = h('feComposite', { ns: 'svg', in: 'u_sh1', in2: 'u_b2', operator: 'arithmetic', k2: '1', k3: '0', result: 'u_sh2' });
+        const uBc = h('feGaussianBlur', { ns: 'svg', in: 'u_sh2', stdDeviation: '0', result: 'u_bc' });
+        const uCl = h('feComposite', { ns: 'svg', in: 'u_sh2', in2: 'u_bc', operator: 'arithmetic', k2: '1', result: 'u_cl' });
+        const pU = mkP('u', 'u_cl');
+        full.append(cU.t, cU.b, cU.g, uB1, uSh1, uB2, uSh2, uBc, uCl, pU.tm, pU.s);
+
+        defs.append(lite, fast, full);
+
+        const tryAppend = () => { const target = root.body || root.documentElement || root; if (target && target.appendChild) { target.appendChild(svg); return true; } return false; };
         if (!tryAppend()) { const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50); setTimeout(() => clearInterval(t), 3000); }
 
         return {
-          fidLite, fidFull,
-          common: { toneFuncs: [...Array.from(toneLite.children), ...Array.from(tone.children)], bcLinFuncs: [...Array.from(bcLinLite.children), ...Array.from(bcLin.children)], gamFuncs: [...Array.from(gamLite.children), ...Array.from(gam.children)], tmpFuncs: [...Array.from(tmpLite.children), ...Array.from(tmp.children)], sats: [satLite, sat] },
-          detail: { b1, sh1, b2, sh2, bc, cl },
-          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', detailKey: '', __b1: '', __sh1k2: '', __sh1k3: '', __b2: '', __sh2k2: '', __sh2k3: '', __bc: '', __clk2: '', __clk3: '' }
+          fidLite, fidFast, fidFull,
+          common: {
+            toneFuncs: [...Array.from(cL.t.children), ...Array.from(cF.t.children), ...Array.from(cU.t.children)],
+            bcLinFuncs: [...Array.from(cL.b.children), ...Array.from(cF.b.children), ...Array.from(cU.b.children)],
+            gamFuncs: [...Array.from(cL.g.children), ...Array.from(cF.g.children), ...Array.from(cU.g.children)],
+            tmpFuncs: [...Array.from(pL.tm.children), ...Array.from(pF.tm.children), ...Array.from(pU.tm.children)],
+            sats: [pL.s, pF.s, pU.s]
+          },
+          fastDetail: { b1: fB1, sh1: fSh1 },
+          fullDetail: { b1: uB1, sh1: uSh1, b2: uB2, sh2: uSh2, bc: uBc, cl: uCl },
+          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', fastKey: '', fullKey: '', __fB1: '', __fSh1k2: '', __fSh1k3: '', __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '' }
         };
       }
 
       function prepare(video, s) {
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
         let dc = urlCache.get(root); if (!dc) { dc = { key:'', url:'' }; urlCache.set(root, dc); }
-        const detailOn = wantsDetailPass(s);
+
+        let tier = 'lite';
+        const sharpTotal = (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0));
+        if (sharpTotal > 0) {
+            tier = s.__qos === 'fast' ? 'fast' : 'full';
+        }
+
         const vwKey = video.videoWidth || 0;
         const vhKey = video.videoHeight || 0;
-        const key = `${detailOn ? 'F' : 'L'}|${vwKey}x${vhKey}|${makeKeyBase(s)}`;
-        
+        const key = `${tier}|${vwKey}x${vhKey}|${makeKeyBase(s)}`;
+
         if (dc.key === key) return dc.url;
         let nodes = ctxMap.get(root); if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
-        
+
         if (nodes.st.lastKey !== key) {
           nodes.st.lastKey = key; const st = nodes.st, steps = 128;
           const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08; const tk = `${steps}|${qInt(clamp((s.toe||0)/14,-1,1),0.02)}|${qInt(clamp((s.shoulder||0)/16,-1,1),0.02)}|${qInt(clamp(s.mid||0,-1,1),0.02)}|${qInt(s.gain||1,gainQ)}`;
@@ -1492,10 +1502,10 @@
           const con = clamp(s.contrast || 1, 0.1, 5.0), brightOffset = clamp((s.bright || 0) / 1000, -0.5, 0.5), intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
           const gk = (1/clamp(s.gamma||1,0.1,5.0)).toFixed(4); const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`;
-          
+
           const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
 
-          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, s, detailOn };
+          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, s, tier };
           if (!st._svgUpdatePending) {
             st._svgUpdatePending = true;
             queueMicrotask(() => {
@@ -1505,17 +1515,40 @@
               if (st.gammaKey !== p.gk) { st.gammaKey = p.gk; for (const fn of nodes.common.gamFuncs) fn.setAttribute('exponent', p.gk); }
               if (st.satKey !== p.satVal) { st.satKey = p.satVal; for (const satNode of nodes.common.sats) satNode.setAttribute('values', p.satVal); }
               if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; for(let i=0; i<nodes.common.tmpFuncs.length; i+=3) { nodes.common.tmpFuncs[i].setAttribute('slope', p.rs.toFixed(3)); nodes.common.tmpFuncs[i+1].setAttribute('slope', p.gs.toFixed(3)); nodes.common.tmpFuncs[i+2].setAttribute('slope', p.bs.toFixed(3)); } }
-              
-              if (p.detailOn && st.detailKey !== p.dk) {
-                st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
-                const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2; setAttr(nodes.detail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__b1'); setAttr(nodes.detail.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.detail.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
-                const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 4.8; setAttr(nodes.detail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__b2'); setAttr(nodes.detail.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.detail.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
-                const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.detail.bc, 'stdDeviation', clVal > 0 ? '1.1' : '0', st, '__bc'); setAttr(nodes.detail.cl, 'k2', (1 + clVal * 1.5).toFixed(3), st, '__clk2'); setAttr(nodes.detail.cl, 'k3', (-clVal * 1.5).toFixed(3), st, '__clk3');
+
+              const sc = (x) => x * x * (3 - 2 * x);
+
+              if (p.tier === 'fast') {
+                  if (st.fastKey !== p.dk) {
+                      st.fastKey = p.dk;
+                      const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
+                      setAttr(nodes.fastDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__fB1');
+                      setAttr(nodes.fastDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__fSh1k2');
+                      setAttr(nodes.fastDetail.sh1, 'k3', (-kC).toFixed(3), st, '__fSh1k3');
+                  }
+              } else if (p.tier === 'full') {
+                  if (st.fullKey !== p.dk) {
+                      st.fullKey = p.dk;
+                      const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
+                      setAttr(nodes.fullDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__uB1');
+                      setAttr(nodes.fullDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__uSh1k2');
+                      setAttr(nodes.fullDetail.sh1, 'k3', (-kC).toFixed(3), st, '__uSh1k3');
+                      const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 4.8;
+                      setAttr(nodes.fullDetail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__uB2');
+                      setAttr(nodes.fullDetail.sh2, 'k2', (1 + kF).toFixed(3), st, '__uSh2k2');
+                      setAttr(nodes.fullDetail.sh2, 'k3', (-kF).toFixed(3), st, '__uSh2k3');
+                      const clVal = (p.s.clarity || 0) / 50;
+                      setAttr(nodes.fullDetail.bc, 'stdDeviation', clVal > 0 ? '1.1' : '0', st, '__uBc');
+                      setAttr(nodes.fullDetail.cl, 'k2', (1 + clVal * 1.5).toFixed(3), st, '__uClk2');
+                      setAttr(nodes.fullDetail.cl, 'k3', (-clVal * 1.5).toFixed(3), st, '__uClk3');
+                  }
               }
             });
           }
         }
-        const url = `url(#${detailOn ? nodes.fidFull : nodes.fidLite})`; dc.key = key; dc.url = url; return url;
+
+        const targetFid = tier === 'lite' ? nodes.fidLite : (tier === 'fast' ? nodes.fidFast : nodes.fidFull);
+        const url = `url(#${targetFid})`; dc.key = key; dc.url = url; return url;
       }
       return {
         prepareCached: (video, s) => { try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; } },
@@ -1536,7 +1569,6 @@
       function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
       function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
 
-      // ✅ WebGL1/2 단일화 템플릿: ColorOnly
       function buildFsColorOnly({ gl2 }) {
         const head = gl2
           ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n`
@@ -1568,7 +1600,6 @@ void main() {
 }`;
       }
 
-      // ✅ WebGL1/2 단일화 템플릿: Sharpen (Fast/Balanced 분기 내장)
       function buildFsSharpen({ gl2 }) {
         const head = gl2
           ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n`
@@ -1604,7 +1635,6 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 
   vec3 avg;
 
-  // QoS Fast 모드 (대각 생략 5-tap)
   if (uParams2.z > 0.5) {
     float sumW = wX + wY + 1e-6;
     avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e))) / sumW;
@@ -1639,7 +1669,6 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float edgeGate = smoothstep(0.010, 0.085, rangeL);
 
   float hi = smoothstep(0.82, 0.96, lc);
-  // ✅ HDR/밝기 감쇄 변수 적용
   float hiReduce = mix(1.0, uParams2.w, hi);
 
   float k = strength * edgeGate * hiReduce;
@@ -1676,7 +1705,7 @@ void main() {
 
       function buildShaderSources(gl) {
         const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext);
-        const vs = isGL2 
+        const vs = isGL2
           ? `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`
           : `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`;
         return {
@@ -1700,7 +1729,6 @@ void main() {
         ensureCanvas() {
           if (this.canvas) return;
           this.canvas = document.createElement('canvas');
-          // ✅ 글로벌 CSS Containment로 레이아웃 Thrashing 방지
           this.canvas.style.cssText = `position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; object-fit: contain !important; display: block !important; pointer-events: none !important; margin: 0 !important; padding: 0 !important; contain: strict !important; will-change: transform, opacity !important;`;
           this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false });
           this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, { passive: true });
@@ -1771,18 +1799,17 @@ void main() {
           this._styleDirty = false; this._lastStyleSyncT = now;
         }
 
-        // ✅ QoS 자동 강등 로직
         _updatePlaybackQuality(now) {
           const v = this.video; if (!v || typeof v.getVideoPlaybackQuality !== 'function') return;
           if (now - this._qMon.lastT < 1000) return;
           try {
             const q = v.getVideoPlaybackQuality(), dropped = q.droppedVideoFrames || 0;
-            if (this._qMon.lastT > 0) { 
-              const dd = Math.max(0, dropped - this._qMon.lastDropped); 
-              this._qMon.dropRateEma = this._qMon.dropRateEma ? (this._qMon.dropRateEma * 0.8 + dd * 0.2) : dd; 
+            if (this._qMon.lastT > 0) {
+              const dd = Math.max(0, dropped - this._qMon.lastDropped);
+              this._qMon.dropRateEma = this._qMon.dropRateEma ? (this._qMon.dropRateEma * 0.8 + dd * 0.2) : dd;
             }
             this._qMon.lastDropped = dropped; this._qMon.lastT = now;
-            
+
             if (this._qMon.dropRateEma > 2.5) {
               const st = getVState(v);
               st.tainted = true;
@@ -1822,14 +1849,13 @@ void main() {
 
           const { rs, gs, bs } = tempToRgbGain(this.vVals.temp);
           if (H.uParams) gl.uniform4f(H.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
-          
-          // ✅ WebGL QoS 및 HDR 연동 제어
+
           const qos = this.vVals.__qos || 'balanced';
           const litePath = (qos === 'fast');
           const isHdr = VSC_MEDIA.isHdr();
           const hiMin = isHdr ? 0.82 : 0.88;
           if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, litePath ? 1.0 : 0.0, hiMin);
-          
+
           if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs);
 
           try {
@@ -1921,13 +1947,13 @@ void main() {
           return false;
       };
 
-      function setAndHint(path, value) { 
-        const prev = sm.get(path); 
-        const changed = !Object.is(prev, value); 
-        if (changed) sm.set(path, value); 
-        (changed ? ApplyReq.hard() : ApplyReq.soft()); 
+      function setAndHint(path, value) {
+        const prev = sm.get(path);
+        const changed = !Object.is(prev, value);
+        if (changed) sm.set(path, value);
+        (changed ? ApplyReq.hard() : ApplyReq.soft());
       }
-      
+
       function getFullscreenElementSafe() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
       const getUiRoot = () => { const fs = getFullscreenElementSafe(); if (fs) { if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs; if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.body || document.documentElement; return fs; } return document.body || document.documentElement; };
 
@@ -1963,7 +1989,7 @@ void main() {
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
         bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; });
 
-        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 Brickwall 오디오');
+        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 Brickwall');
         bindClassToggle(boostBtn, P.A_EN, v => !!v);
 
         const pipBtn = h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
@@ -1971,7 +1997,7 @@ void main() {
         const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', onclick: () => { const nextEn = !sm.get(P.APP_ZOOM_EN); setAndHint(P.APP_ZOOM_EN, nextEn); const zm = window.__VSC_INTERNAL__.ZoomManager; const v = window.__VSC_APP__?.getActiveVideo(); if (zm && v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어');
         bindClassToggle(zoomBtn, P.APP_ZOOM_EN, v => !!v);
 
-        const autoSceneBtn = h('button', { class: 'btn', onclick: () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)) }, '✨ Auto Scene');
+        const autoSceneBtn = h('button', { class: 'btn', onclick: () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)) }, '✨ Auto');
         bindClassToggle(autoSceneBtn, P.APP_AUTO_SCENE, v => !!v);
 
         const applyAllBtn = h('button', { class: 'btn', onclick: () => setAndHint(P.APP_APPLY_ALL, !sm.get(P.APP_APPLY_ALL)) }, '전체 적용');
@@ -2043,10 +2069,10 @@ void main() {
 
     function createBackendAdapter(Filters, FiltersGL) {
       return {
-        apply(video, mode, vVals, svgUrlCache) {
+        apply(video, mode, vVals) {
           const st = getVState(video);
           const effectiveMode = (mode === 'webgl' && !st.tainted) ? 'webgl' : 'svg';
-          
+
           if (st.tainted && st.fxBackend === 'webgl') {
             FiltersGL.clear(video);
             st.fxBackend = null;
@@ -2063,8 +2089,7 @@ void main() {
               st.fxBackend = 'webgl';
           } else {
               if (st.fxBackend === 'webgl') FiltersGL.clear(video);
-              let url = svgUrlCache?.get(video);
-              if (url === undefined) { url = Filters.prepareCached(video, vVals); svgUrlCache?.set(video, url); }
+              let url = Filters.prepareCached(video, vVals);
               Filters.applyUrl(video, url);
               st.fxBackend = 'svg';
           }
@@ -2126,7 +2151,7 @@ void main() {
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
     }
 
-    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq, svgUrlCache }) {
+    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq }) {
       const candidates = __reconcileCandidates; candidates.clear();
       for (const v of dirtyVideos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of TOUCHED.videos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of TOUCHED.rateVideos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of applySet) if (v?.tagName === 'VIDEO') candidates.add(v);
 
@@ -2136,7 +2161,7 @@ void main() {
 
         if (!shouldApply) { clearVideoRuntimeState(el, Adapter, ApplyReq); continue; }
 
-        if (videoFxOn) { Adapter.apply(el, rMode, vVals, svgUrlCache); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
+        if (videoFxOn) { Adapter.apply(el, rMode, vVals); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
         if (pbActive) applyPlaybackRate(el, desiredRate); else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
         bindVideoOnce(el, ApplyReq);
       }
@@ -2197,8 +2222,7 @@ void main() {
           if (!force && vidsDirty.size === 0 && lightSig === __lastLightSig) return;
           __lastLightSig = lightSig;
 
-          const __svgUrlCache = new WeakMap();
-          reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq, svgUrlCache: __svgUrlCache });
+          reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq });
           if (force || vidsDirty.size) UI.ensure();
         } catch (e) { log.warn('apply crashed:', e); }
       });
