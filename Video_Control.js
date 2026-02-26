@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.18 - Ultimate Uncapped + Adaptive LERP SVG + RCAS + True Brickwall AGC)
+// @name         Video_Control (v159.9.21 - 19 Base + HPF/SoftClip Audio)
 // @namespace    https://github.com/
-// @version      159.9.18
-// @description  Video Control: High-End PC version. Directional RCAS WebGL (RGBA8 fixed, 9-px EdgeGate), True Brickwall Audio Routing, Seamless Master Fade.
+// @version      159.9.21
+// @description  Video Control: High-End PC version. Directional RCAS WebGL, True Brickwall + HPF/SoftClip Audio.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -747,12 +747,49 @@
     }
 
     function createAudio(sm) {
-      let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, target = null, currentSrc = null;
+      let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, target = null, currentSrc = null;
       let srcMap = new WeakMap();
       let lastDryOn = null, lastWetGain = null;
       let makeupDbEma = 0;
       let switchTimer = 0, switchTok = 0;
       let gestureHooked = false;
+
+      const VSC_AUD_HPF_HZ = 28;
+      const VSC_AUD_HPF_Q  = 0.707;
+
+      const VSC_AUD_CLIP_KNEE  = 0.985;
+      const VSC_AUD_CLIP_DRIVE = 6.0;
+
+      let __vscClipCurve = null;
+      function getSoftClipCurve() {
+        if (__vscClipCurve) return __vscClipCurve;
+
+        const n = 65536;
+        const knee  = VSC_AUD_CLIP_KNEE;
+        const drive = VSC_AUD_CLIP_DRIVE;
+
+        const curve = new Float32Array(n);
+        const tanhD = Math.tanh(drive);
+
+        for (let i = 0; i < n; i++) {
+          const x  = (i / (n - 1)) * 2 - 1; // -1..1
+          const ax = Math.abs(x);
+          let y;
+
+          if (ax <= knee) {
+            y = x; // knee 이하는 완전 선형(톤 변화 거의 0)
+          } else {
+            const t = (ax - knee) / Math.max(1e-6, (1 - knee)); // 0..1
+            const s = Math.tanh(drive * t) / tanhD;            // 0..1
+            y = Math.sign(x) * (knee + (1 - knee) * s);
+          }
+
+          curve[i] = y;
+        }
+
+        __vscClipCurve = curve;
+        return curve;
+      }
 
       const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
       const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
@@ -760,7 +797,7 @@
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
           ctx = null; compressor = null; limiter = null; wetInGain = null;
-          dryOut = null; wetOut = null; masterOut = null; currentSrc = null; target = null;
+          dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; currentSrc = null; target = null;
           srcMap = new WeakMap();
         }
         if (ctx) return true;
@@ -787,6 +824,17 @@
         limiter.attack.value = 0.0015;
         limiter.release.value = 0.09;
 
+        // ✅ HPF (초저역 럼블만 제거: 컴프 펌핑 감소)
+        hpf = ctx.createBiquadFilter();
+        hpf.type = 'highpass';
+        hpf.frequency.value = VSC_AUD_HPF_HZ;
+        hpf.Q.value = VSC_AUD_HPF_Q;
+
+        // ✅ SoftClip (리미터 뒤에서 초근접 피크만 라운딩)
+        clipper = ctx.createWaveShaper();
+        clipper.curve = getSoftClipCurve();
+        try { clipper.oversample = '4x'; } catch (_) {}
+
         dryOut = ctx.createGain();
         wetOut = ctx.createGain();
         wetInGain = ctx.createGain();
@@ -796,10 +844,14 @@
         dryOut.connect(masterOut);
         wetOut.connect(masterOut);
 
-        // ✅ True Brickwall 라우팅: 소스 -> 컴프 -> 부스트 -> 리미터 -> 출력
+        // ✅ True Brickwall 라우팅 (A안: HPF + SoftClip 추가)
+        // 소스 -> (dryOut)
+        // 소스 -> HPF -> 컴프 -> InGain(부스트+메이크업) -> 리미터 -> SoftClip -> wetOut
+        hpf.connect(compressor);
         compressor.connect(wetInGain);
         wetInGain.connect(limiter);
-        limiter.connect(wetOut);
+        limiter.connect(clipper);
+        clipper.connect(wetOut);
 
         return true;
       };
@@ -871,7 +923,14 @@
         const userBoost = Math.pow(10, boostDb / 20);
 
         let redDb = 0;
-        try { redDb = Number(compressor?.reduction || 0); } catch (_) { redDb = 0; }
+        try {
+          const r = compressor?.reduction;
+          redDb = (typeof r === 'number') ? r
+                : (r && typeof r.value === 'number') ? r.value
+                : 0;
+        } catch (_) { redDb = 0; }
+        if (!Number.isFinite(redDb)) redDb = 0;
+
         const redPos = clamp(-redDb, 0, 18);
 
         // ✅ 메이크업 게인 산출 (데드존 2.0dB, 상한 2.8dB)
@@ -910,7 +969,7 @@
 
         try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
         ctx = null; compressor = null; limiter = null; wetInGain = null;
-        dryOut = null; wetOut = null; masterOut = null; currentSrc = null; target = null;
+        dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; currentSrc = null; target = null;
         lastDryOn = null; lastWetGain = null; makeupDbEma = 0; switchTok++;
         srcMap = new WeakMap();
       }
@@ -950,7 +1009,7 @@
 
               // ✅ 원음 경로(dryOut)와 효과 경로(compressor) 양쪽으로 쏴줌
               s.connect(dryOut);
-              s.connect(compressor);
+              s.connect(hpf || compressor);
 
               currentSrc = s;
             } catch (_) {
@@ -1254,16 +1313,17 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float gD1 = abs(lne - lsw);
   float gD2 = abs(lnw - lse);
 
-  vec3 avg;
-  if (gX >= gY && gX >= gD1 && gX >= gD2) {
-    avg = 0.5 * (n + s);
-  } else if (gY >= gD1 && gY >= gD2) {
-    avg = 0.5 * (w + e);
-  } else if (gD1 >= gD2) {
-    avg = 0.5 * (nw + se);
-  } else {
-    avg = 0.5 * (ne + sw);
-  }
+  float wX  = pow(gX, 3.0);
+  float wY  = pow(gY, 3.0);
+  float wD1 = pow(gD1, 3.0);
+  float wD2 = pow(gD2, 3.0);
+  float sumW = wX + wY + wD1 + wD2 + 1e-6;
+  wX /= sumW; wY /= sumW; wD1 /= sumW; wD2 /= sumW;
+
+  vec3 avg = wX  * (0.5 * (n + s)) +
+             wY  * (0.5 * (w + e)) +
+             wD1 * (0.5 * (nw + se)) +
+             wD2 * (0.5 * (ne + sw));
 
   vec3 hp = c - avg;
 
@@ -1285,7 +1345,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
   vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
 
-  float pad = 0.06;
+  float pad = 0.05 + 0.03 * edgeGate;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
 
   return outC;
@@ -1350,11 +1410,16 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float gY  = abs(ls - ln);
   float gD1 = abs(lne - lsw);
   float gD2 = abs(lnw - lse);
-  vec3 avg;
-  if (gX >= gY && gX >= gD1 && gX >= gD2) avg = 0.5 * (n + s);
-  else if (gY >= gD1 && gY >= gD2)        avg = 0.5 * (w + e);
-  else if (gD1 >= gD2)                    avg = 0.5 * (nw + se);
-  else                                    avg = 0.5 * (ne + sw);
+  float wX  = pow(gX, 3.0);
+  float wY  = pow(gY, 3.0);
+  float wD1 = pow(gD1, 3.0);
+  float wD2 = pow(gD2, 3.0);
+  float sumW = wX + wY + wD1 + wD2 + 1e-6;
+  wX /= sumW; wY /= sumW; wD1 /= sumW; wD2 /= sumW;
+  vec3 avg = wX  * (0.5 * (n + s)) +
+             wY  * (0.5 * (w + e)) +
+             wD1 * (0.5 * (nw + se)) +
+             wD2 * (0.5 * (ne + sw));
   vec3 hp = c - avg;
 
   // ✅ 9픽셀 전체 기반 min/max (대각선 에지 보완)
@@ -1375,7 +1440,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
   vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
 
-  float pad = 0.06;
+  float pad = 0.05 + 0.03 * edgeGate;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
 
   return outC;
@@ -1582,7 +1647,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
           this.disposeGLResources();
         }
       }
-      return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); if (!pipe.attachToVideo(el)) return; pipelines.set(el, pipe); } pipe.updateParams(vVals); }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
+      return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); if (!pipe.attachToVideo(el)) return false; pipelines.set(el, pipe); } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
     }
 
     const __styleCache = new Map();
@@ -1653,7 +1718,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
         bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; });
 
-        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 오디오업');
+        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 음량 평준화');
         bindClassToggle(boostBtn, P.A_EN, v => !!v);
 
         const pipBtn = h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
@@ -1735,7 +1800,12 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 
           if (effectiveMode === 'webgl') {
               if (st.fxBackend === 'svg') Filters.clear(video);
-              FiltersGL.apply(video, vVals);
+              const ok = FiltersGL.apply(video, vVals);
+              if (!ok) {
+                  st.webglDisabledUntil = performance.now() + RUNTIME_GUARD.webgl.failCooldownMs;
+                  st.fxBackend = null;
+                  return;
+              }
               st.fxBackend = 'webgl';
           } else {
               if (st.fxBackend === 'webgl') FiltersGL.clear(video);
