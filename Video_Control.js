@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v162.0.2 - High-End + Auto Scene + Light SVG)
+// @name         Video_Control (v163.0.0 - High-End Optimized)
 // @namespace    https://github.com/
-// @version      162.0.2
-// @description  Video Control: High-End PC Max Performance. WebGL RCAS, Brickwall Audio, Auto Scene. Ultra-Light SVG Sharpening (v159.9 Ported). Fixed ReferenceError.
+// @version      163.0.0
+// @description  Video Control: High-End PC Max Performance. WebGL RCAS (GLSL Optimized), Brickwall Audio, Auto Scene (RVFC). Ultra-Light SVG. All logic deeply optimized.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -27,7 +27,7 @@
 
     window.__VSC_INTERNAL__ ||= {};
     let __vscUserSignalRev = 0;
-    function vscSignal(payload) { try { window.__VSC_INTERNAL__?.Bus?.signal?.(payload); } catch (_) {} }
+
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
     const __globalHooksAC = new AbortController(), __globalSig = __globalHooksAC.signal;
@@ -45,7 +45,6 @@
 
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
-    const IS_LOW_END_USER = false;
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: false, TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
     const FEATURE_FLAGS = Object.freeze({
@@ -62,6 +61,11 @@
       webgl: { failCooldownMs: 5000, failThreshold: 3 },
       audio: { createSourceCooldownMs: 5000 },
       targeting: { hysteresisMs: 650, hysteresisMargin: 0.8 }
+    });
+
+    const VSC_DEFENSE = Object.freeze({
+      webglCooldown: true,
+      audioCooldown: true
     });
 
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
@@ -185,6 +189,13 @@
     onWin('scroll', bumpRectEpoch, { passive: true, capture: true });
     onWin('resize', bumpRectEpoch, { passive: true });
     onWin('orientationchange', bumpRectEpoch, { passive: true });
+    try {
+      const vv = window.visualViewport;
+      if (vv) {
+        vv.addEventListener('resize', bumpRectEpoch, { passive: true, signal: __globalSig });
+        vv.addEventListener('scroll', bumpRectEpoch, { passive: true, signal: __globalSig });
+      }
+    } catch (_) {}
 
     function getRectCached(v, now, maxAgeMs = 420) {
       const st = getVState(v); const t0 = st.rectT || 0; let r = st.rect; const epoch = st.rectEpoch || 0;
@@ -221,7 +232,7 @@
             if (!host) return;
 
             const s = doc.createElement('script');
-            s.text = __VSC_INJECT_SOURCE;
+            s.textContent = __VSC_INJECT_SOURCE;
             host.appendChild(s);
             s.remove?.();
           } catch (_) {}
@@ -306,10 +317,35 @@
       }
       return null;
     }
+
+    let __vscPiPCacheT = 0;
+    let __vscPiPCacheV = null;
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
+
     function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
-    function getActivePiPVideo() { const wk = findWebkitPiPVideo(); if (wk) return wk; if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
-    function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
+
+    function getActivePiPVideoSlow() {
+      if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement;
+      if (__activeDocumentPiPWindow && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo;
+      try {
+        if (typeof HTMLVideoElement !== 'undefined' && typeof HTMLVideoElement.prototype.webkitPresentationMode === 'string') {
+          const wk = findWebkitPiPVideo();
+          if (wk) return wk;
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function getActivePiPVideoCached() {
+      const now = performance.now();
+      if ((now - __vscPiPCacheT) < 200) return __vscPiPCacheV;
+      __vscPiPCacheT = now;
+      __vscPiPCacheV = getActivePiPVideoSlow();
+      return __vscPiPCacheV;
+    }
+
+    function getActivePiPVideo() { return getActivePiPVideoCached(); }
+    function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideoCached()); }
 
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
@@ -594,7 +630,6 @@
       applyShadowBandStack(out, vUser.shadowBandMask, Utils);
       applyBrightStepStack(out, vUser.brightStepLevel, Utils);
 
-      // Auto Scene Dynamic Multipliers
       const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods();
       if (autoMods) {
         out.gain = (out.gain || 1.0) * autoMods.br;
@@ -607,6 +642,8 @@
 
     function projectVValsForWebGL(vVals) {
       const out = { ...vVals };
+      const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+
       const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
       let totalSharp = sharp + sharp2 + clarity;
       totalSharp = Math.max(0, Math.min(totalSharp, 150));
@@ -622,7 +659,6 @@
 
     const isNeutralVideoParams = (v) => ( Math.abs((v.gain ?? 1) - 1) < 0.001 && Math.abs((v.gamma ?? 1) - 1) < 0.001 && Math.abs((v.contrast ?? 1) - 1) < 0.001 && Math.abs((v.bright ?? 0)) < 0.01 && Math.abs((v.satF ?? 1) - 1) < 0.001 && Math.abs((v.mid ?? 0)) < 0.001 && Math.abs((v.sharp ?? 0)) < 0.01 && Math.abs((v.sharp2 ?? 0)) < 0.01 && Math.abs((v.clarity ?? 0)) < 0.01 && Math.abs((v.temp ?? 0)) < 0.01 && Math.abs((v.toe ?? 0)) < 0.01 && Math.abs((v.shoulder ?? 0)) < 0.01 );
 
-    // ✅ mtMonitor 매개변수 완전히 제거됨 (ReferenceError 해결)
     function createVideoParamsMemo(Store, P, Utils) {
         let lastKey = '';
         let lastSvg = null;
@@ -812,13 +848,15 @@
 
       const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
+      const VSC_AUDIO_AUTO_MAKEUP = true;
+
       function runAudioLoop(tok) {
         if (tok !== loopTok || !ctx) return;
 
         const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         const actuallyEnabled = en && currentSrc;
 
-        if (actuallyEnabled && analyser) {
+        if (VSC_AUDIO_AUTO_MAKEUP && actuallyEnabled && analyser) {
           analyser.getFloatTimeDomainData(dataArray);
           let sumSquare = 0;
           for(let i = 0; i < dataArray.length; i++) {
@@ -1069,7 +1107,7 @@
 
               currentSrc = s;
             } catch (_) {
-              if (st) st.audioFailUntil = performance.now() + RUNTIME_GUARD.audio.createSourceCooldownMs;
+              if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + RUNTIME_GUARD.audio.createSourceCooldownMs;
               disconnectAll();
             }
 
@@ -1167,25 +1205,43 @@
         return AUTO.curFps;
       }
 
+      let __asRvfcId = 0;
+      function scheduleNext(v, delayMs) {
+        if (!AUTO.running) return;
+        if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') {
+          const target = performance.now() + Math.max(0, delayMs|0);
+          try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
+          __asRvfcId = v.requestVideoFrameCallback(() => {
+            __asRvfcId = 0;
+            const remain = target - performance.now();
+            if (remain > 6) { scheduleNext(v, remain); return; }
+            loop();
+          });
+          return;
+        }
+        setTimeout(loop, Math.max(16, delayMs|0));
+      }
+
       function loop() {
         if (!AUTO.running) return;
         const now = performance.now();
         const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
 
+        const v = window.__VSC_APP__?.getActiveVideo?.();
+
         if (!en) {
           AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 };
-          setTimeout(loop, 500);
+          scheduleNext(v, 500);
           return;
         }
 
         if (AUTO.drmBlocked && now < AUTO.blockUntilMs) {
-          setTimeout(loop, 500);
+          scheduleNext(v, 500);
           return;
         }
 
-        const v = window.__VSC_APP__?.getActiveVideo?.();
         if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) {
-          setTimeout(loop, 500);
+          scheduleNext(v, 500);
           return;
         }
 
@@ -1239,11 +1295,11 @@
             }
           }
 
-          setTimeout(loop, Math.max(80, Math.round(1000 / Math.max(1, fps))));
+          scheduleNext(v, Math.max(80, Math.round(1000 / Math.max(1, fps))));
         } catch (e) {
           AUTO.drmBlocked = true;
           AUTO.blockUntilMs = performance.now() + 5000;
-          setTimeout(loop, 1000);
+          scheduleNext(v, 1000);
         }
       }
 
@@ -1402,46 +1458,51 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   vec3 s  = texture(tex, uv + vec2(0.0,  texel.y)).rgb;
   vec3 w  = texture(tex, uv + vec2(-texel.x, 0.0)).rgb;
   vec3 e  = texture(tex, uv + vec2( texel.x, 0.0)).rgb;
-  vec3 nw = texture(tex, uv + vec2(-texel.x, -texel.y)).rgb;
-  vec3 ne = texture(tex, uv + vec2( texel.x, -texel.y)).rgb;
-  vec3 sw = texture(tex, uv + vec2(-texel.x,  texel.y)).rgb;
-  vec3 se = texture(tex, uv + vec2( texel.x,  texel.y)).rgb;
 
   float lc  = dot(c,  LUMA);
   float ln  = dot(n,  LUMA);
   float ls  = dot(s,  LUMA);
   float lw  = dot(w,  LUMA);
   float le  = dot(e,  LUMA);
-  float lnw = dot(nw, LUMA);
-  float lne = dot(ne, LUMA);
-  float lsw = dot(sw, LUMA);
-  float lse = dot(se, LUMA);
 
   float gX  = abs(le - lw);
   float gY  = abs(ls - ln);
-  float gD1 = abs(lne - lsw);
-  float gD2 = abs(lnw - lse);
 
   float wX  = pow(gX, 3.0);
   float wY  = pow(gY, 3.0);
-  float wD1 = pow(gD1, 3.0);
-  float wD2 = pow(gD2, 3.0);
 
-  float sumW; vec3 avg;
+  vec3 avg;
+
   if (uParams2.z > 0.5) {
-    sumW = wX + wY + 1e-6;
-    wX /= sumW; wY /= sumW;
-    avg = wX * (0.5 * (n + s)) + wY * (0.5 * (w + e));
+    float sumW = wX + wY + 1e-6;
+    avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e))) / sumW;
   } else {
-    sumW = wX + wY + wD1 + wD2 + 1e-6;
-    wX /= sumW; wY /= sumW; wD1 /= sumW; wD2 /= sumW;
-    avg = wX * (0.5 * (n + s)) + wY * (0.5 * (w + e)) + wD1 * (0.5 * (nw + se)) + wD2 * (0.5 * (ne + sw));
+    vec3 nw = texture(tex, uv + vec2(-texel.x, -texel.y)).rgb;
+    vec3 ne = texture(tex, uv + vec2( texel.x, -texel.y)).rgb;
+    vec3 sw = texture(tex, uv + vec2(-texel.x,  texel.y)).rgb;
+    vec3 se = texture(tex, uv + vec2( texel.x,  texel.y)).rgb;
+
+    float lnw = dot(nw, LUMA);
+    float lne = dot(ne, LUMA);
+    float lsw = dot(sw, LUMA);
+    float lse = dot(se, LUMA);
+
+    float gD1 = abs(lne - lsw);
+    float gD2 = abs(lnw - lse);
+    float wD1 = pow(gD1, 3.0);
+    float wD2 = pow(gD2, 3.0);
+
+    float sumW = wX + wY + wD1 + wD2 + 1e-6;
+    avg = (wX * (0.5 * (n + s)) +
+           wY * (0.5 * (w + e)) +
+           wD1 * (0.5 * (nw + se)) +
+           wD2 * (0.5 * (ne + sw))) / sumW;
   }
 
   vec3 hp = c - avg;
 
-  float minL = min(min(lc, min(min(ln, ls), min(lw, le))), min(min(lnw, lne), min(lsw, lse)));
-  float maxL = max(max(lc, max(max(ln, ls), max(lw, le))), max(max(lnw, lne), max(lsw, lse)));
+  float minL = min(lc, min(min(ln, ls), min(lw, le)));
+  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
   float rangeL = max(1e-4, maxL - minL);
 
   float edgeGate = smoothstep(0.010, 0.085, rangeL);
@@ -1452,8 +1513,8 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float k = strength * edgeGate * hiReduce;
   vec3 outC = c + hp * (k * 2.2);
 
-  vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
-  vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
+  vec3 mn = min(min(c,n), min(s, min(w,e)));
+  vec3 mx = max(max(c,n), max(s, max(w,e)));
 
   float pad = 0.05 + 0.03 * edgeGate;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
@@ -1503,33 +1564,51 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   vec3 s  = texture2D(tex, uv + vec2(0.0,  texel.y)).rgb;
   vec3 w  = texture2D(tex, uv + vec2(-texel.x, 0.0)).rgb;
   vec3 e  = texture2D(tex, uv + vec2( texel.x, 0.0)).rgb;
-  vec3 nw = texture2D(tex, uv + vec2(-texel.x, -texel.y)).rgb;
-  vec3 ne = texture2D(tex, uv + vec2( texel.x, -texel.y)).rgb;
-  vec3 sw = texture2D(tex, uv + vec2(-texel.x,  texel.y)).rgb;
-  vec3 se = texture2D(tex, uv + vec2( texel.x,  texel.y)).rgb;
+
   float lc  = dot(c,  LUMA);
   float ln  = dot(n,  LUMA);
   float ls  = dot(s,  LUMA);
   float lw  = dot(w,  LUMA);
   float le  = dot(e,  LUMA);
-  float lnw = dot(nw, LUMA);
-  float lne = dot(ne, LUMA);
-  float lsw = dot(sw, LUMA);
-  float lse = dot(se, LUMA);
+
   float gX  = abs(le - lw);
   float gY  = abs(ls - ln);
-  float gD1 = abs(lne - lsw);
-  float gD2 = abs(lnw - lse);
+
   float wX  = pow(gX, 3.0);
   float wY  = pow(gY, 3.0);
-  float wD1 = pow(gD1, 3.0);
-  float wD2 = pow(gD2, 3.0);
 
-  float sumW; vec3 avg; if (uParams2.z > 0.5) { sumW = wX + wY + 1e-6; wX /= sumW; wY /= sumW; avg = wX * (0.5 * (n + s)) + wY * (0.5 * (w + e)); } else { sumW = wX + wY + wD1 + wD2 + 1e-6; wX /= sumW; wY /= sumW; wD1 /= sumW; wD2 /= sumW; avg = wX * (0.5 * (n + s)) + wY * (0.5 * (w + e)) + wD1 * (0.5 * (nw + se)) + wD2 * (0.5 * (ne + sw)); }
+  vec3 avg;
+
+  if (uParams2.z > 0.5) {
+    float sumW = wX + wY + 1e-6;
+    avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e))) / sumW;
+  } else {
+    vec3 nw = texture2D(tex, uv + vec2(-texel.x, -texel.y)).rgb;
+    vec3 ne = texture2D(tex, uv + vec2( texel.x, -texel.y)).rgb;
+    vec3 sw = texture2D(tex, uv + vec2(-texel.x,  texel.y)).rgb;
+    vec3 se = texture2D(tex, uv + vec2( texel.x,  texel.y)).rgb;
+
+    float lnw = dot(nw, LUMA);
+    float lne = dot(ne, LUMA);
+    float lsw = dot(sw, LUMA);
+    float lse = dot(se, LUMA);
+
+    float gD1 = abs(lne - lsw);
+    float gD2 = abs(lnw - lse);
+    float wD1 = pow(gD1, 3.0);
+    float wD2 = pow(gD2, 3.0);
+
+    float sumW = wX + wY + wD1 + wD2 + 1e-6;
+    avg = (wX * (0.5 * (n + s)) +
+           wY * (0.5 * (w + e)) +
+           wD1 * (0.5 * (nw + se)) +
+           wD2 * (0.5 * (ne + sw))) / sumW;
+  }
+
   vec3 hp = c - avg;
 
-  float minL = min(min(lc, min(min(ln, ls), min(lw, le))), min(min(lnw, lne), min(lsw, lse)));
-  float maxL = max(max(lc, max(max(ln, ls), max(lw, le))), max(max(lnw, lne), max(lsw, lse)));
+  float minL = min(lc, min(min(ln, ls), min(lw, le)));
+  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
   float rangeL = max(1e-4, maxL - minL);
 
   float edgeGate = smoothstep(0.010, 0.085, rangeL);
@@ -1540,15 +1619,15 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float k = strength * edgeGate * hiReduce;
   vec3 outC = c + hp * (k * 2.2);
 
-  vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
-  vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
+  vec3 mn = min(min(c,n), min(s, min(w,e)));
+  vec3 mx = max(max(c,n), max(s, max(w,e)));
 
   float pad = 0.05 + 0.03 * edgeGate;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
 
   return outC;
-  }
-  void main() {
+}
+void main() {
   vec2 texel = 1.0 / uResolution;
   vec3 color = texture2D(uVideoTex, vTexCoord).rgb;
   float strength = uParams2.y;
@@ -1711,7 +1790,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
             if (CONFIG.DEBUG) log.warn('WebGL render failure:', err);
             if (st.webglFailCount >= RUNTIME_GUARD.webgl.failThreshold) {
               st.tainted = true;
-              st.webglDisabledUntil = now + RUNTIME_GUARD.webgl.failCooldownMs;
+              if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + RUNTIME_GUARD.webgl.failCooldownMs;
               st.webglFailCount = 0;
               log.warn('WebGL repeated failure on video, cooling down');
               window.__VSC_INTERNAL__?.ApplyReq?.hard();
@@ -1785,7 +1864,13 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
           return false;
       };
 
-      function setAndHint(path, value) { const prev = sm.get(path), changed = !Object.is(prev, value); if (changed) sm.set(path, value); ApplyReq.hard(); }
+      function setAndHint(path, value) {
+        const prev = sm.get(path);
+        const changed = !Object.is(prev, value);
+        if (changed) sm.set(path, value);
+        (changed ? ApplyReq.hard() : ApplyReq.soft());
+      }
+
       function getFullscreenElementSafe() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
       const getUiRoot = () => { const fs = getFullscreenElementSafe(); if (fs) { if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs; if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.body || document.documentElement; return fs; } return document.body || document.documentElement; };
 
@@ -1908,7 +1993,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
               if (st.fxBackend === 'svg') Filters.clear(video);
               const ok = FiltersGL.apply(video, vVals);
               if (!ok) {
-                  st.webglDisabledUntil = performance.now() + RUNTIME_GUARD.webgl.failCooldownMs;
+                  if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = performance.now() + RUNTIME_GUARD.webgl.failCooldownMs;
                   st.fxBackend = null;
                   return;
               }
@@ -2068,25 +2153,24 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 
     Bus.on('signal', (s) => { if (s.forceApply) Scheduler.request(true); });
 
-    const VALID_SYNC_KEYS = Object.values(P);
     window.addEventListener('message', (e) => {
       if (e.data && e.data.__vsc_sync && e.data.token === 'VSC_SYNC_MSG_v159') {
         const { p, val } = e.data;
         if (p === P.APP_UI) return;
-        if (VALID_SYNC_KEYS.includes(p)) {
+        if (Object.values(P).includes(p)) {
           if (Store.get(p) !== val) Store.set(p, val);
         }
       }
     });
 
-    const normalizeAllApp = () => { if (normalizeBySchema(Store, APP_SCHEMA)) ApplyReq.hard(); };
-    [ P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE ].forEach(k => Store.sub(k, normalizeAllApp)); normalizeAllApp();
-
-    const normalizeAllVideo = () => { if (normalizeBySchema(Store, VIDEO_SCHEMA)) ApplyReq.hard(); };
-    [ P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP ].forEach(k => Store.sub(k, normalizeAllVideo)); normalizeAllVideo();
-
-    const normalizeAllAudioPlayback = () => { if (normalizeBySchema(Store, AUDIO_PLAYBACK_SCHEMA)) ApplyReq.hard(); };
-    [P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE].forEach(k => Store.sub(k, normalizeAllAudioPlayback)); normalizeAllAudioPlayback();
+    function bindNormalizer(keys, schema) {
+      const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); };
+      keys.forEach(k => Store.sub(k, run));
+      run();
+    }
+    bindNormalizer([P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE], APP_SCHEMA);
+    bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA);
+    bindNormalizer([P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
 
     const Registry = createRegistry(Scheduler), Targeting = createTargeting();
 
@@ -2152,7 +2236,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
         watchIframes();
       }
     });
-  } // End of VSC_MAIN
+  }
 
   VSC_MAIN();
 })();
