@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v163.0.0 - High-End Optimized)
+// @name         Video_Control (v164.0.0 - High-End QoS Optimized)
 // @namespace    https://github.com/
-// @version      163.0.0
-// @description  Video Control: High-End PC Max Performance. WebGL RCAS (GLSL Optimized), Brickwall Audio, Auto Scene (RVFC). Ultra-Light SVG. All logic deeply optimized.
+// @version      164.0.0
+// @description  Video Control: High-End PC Max Performance. WebGL QoS Drop-down, Unified GLSL, Adaptive Auto Scene, Robust PiP & Shadow DOM.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -47,6 +47,9 @@
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: false, TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
+    const VSC_VERSION = '164.0.0';
+    const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
+
     const FEATURE_FLAGS = Object.freeze({
       trackShadowRoots: true,
       iframeInjection: true,
@@ -65,33 +68,28 @@
 
     const VSC_DEFENSE = Object.freeze({
       webglCooldown: true,
-      audioCooldown: true
+      audioCooldown: true,
+      autoSceneDrmBackoff: true
     });
 
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
     const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
-    const VIDEO_STATE_TEMPLATE = Object.freeze({
-      visible: false,
-      rect: null,
-      ir: 0,
-      bound: false,
-      rateState: null,
-      audioFailUntil: 0,
-      applied: false,
-      fxBackend: null,
-      desiredRate: undefined,
-      lastFilterUrl: null,
-      rectT: 0,
-      rectEpoch: -1,
-      fsPatched: false,
-      webglFailCount: 0,
-      webglDisabledUntil: 0,
-      tainted: false
-    });
+    function createVideoState() {
+      return {
+        visible: false, rect: null, ir: 0, bound: false, rateState: null,
+        audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined,
+        lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false,
+        webglFailCount: 0, webglDisabledUntil: 0, tainted: false
+      };
+    }
 
     const videoStateMap = new WeakMap();
-    function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = { ...VIDEO_STATE_TEMPLATE }; videoStateMap.set(v, st); } return st; }
+    function getVState(v) {
+      let st = videoStateMap.get(v);
+      if (!st) { st = createVideoState(); videoStateMap.set(v, st); }
+      return st;
+    }
 
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
     const ShadowMask = Object.freeze({
@@ -301,7 +299,18 @@
       if (video.msRequestFullscreen) patchMethodSafe(video, 'msRequestFullscreen', function (...args) { return runWrappedFs(...args); });
     }
 
-    function onFsChange() { const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement; if (!fsEl) document.querySelectorAll('video').forEach(v => { if (fsWraps.has(v)) restoreFromFsWrapper(v); }); if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure(); }
+    function onFsChange() {
+      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+      if (!fsEl) {
+        const rootBase = document.documentElement || document.body || document;
+        for (const root of walkRoots(rootBase)) {
+          const vids = root.querySelectorAll?.('video');
+          if (!vids) continue;
+          vids.forEach(v => { if (fsWraps.has(v)) restoreFromFsWrapper(v); });
+        }
+      }
+      if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure();
+    }
     onDoc('fullscreenchange', onFsChange); onDoc('webkitfullscreenchange', onFsChange);
 
     function findWebkitPiPVideo() {
@@ -416,7 +425,17 @@
       const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
       const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
       const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
-      function getTargetVideo(e) { const path = typeof e.composedPath === 'function' ? e.composedPath() : null; if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } const el = document.elementFromPoint(e.clientX || (e.touches && e.touches[0]?.clientX), e.clientY || (e.touches && e.touches[0]?.clientY)); let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } return v; }
+
+      function getTargetVideo(e) {
+        const path = typeof e.composedPath === 'function' ? e.composedPath() : null;
+        if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } }
+        const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5);
+        const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5);
+        const el = document.elementFromPoint(cx, cy);
+        let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null;
+        if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); }
+        return v;
+      }
 
       onWin('wheel', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
       onWin('mousedown', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
@@ -625,7 +644,7 @@
       return out;
     }
 
-    function composeVideoParamsInto(out, vUser, Utils) {
+    function composeVideoParamsInto(out, vUser, Utils, isHdr) {
       composeBaseVideoParams(out, vUser, Utils);
       applyShadowBandStack(out, vUser.shadowBandMask, Utils);
       applyBrightStepStack(out, vUser.brightStepLevel, Utils);
@@ -637,6 +656,13 @@
         out.satF = (out.satF || 1.0) * autoMods.sat;
       }
 
+      // HDR Mitigation
+      if (isHdr) {
+        out.bright = (out.bright || 0) * 0.65;
+        out.contrast = 1.0 + ((out.contrast || 1.0) - 1.0) * 0.75;
+        out.satF = 1.0 + ((out.satF || 1.0) - 1.0) * 0.85;
+      }
+
       return out;
     }
 
@@ -645,7 +671,7 @@
       const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 
       const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-      let totalSharp = sharp + sharp2 + clarity;
+      let totalSharp = sharp + sharp2 * 0.40 + clarity * 0.18;
       totalSharp = Math.max(0, Math.min(totalSharp, 150));
       out.sharp = totalSharp;
 
@@ -678,7 +704,7 @@
                     return rMode === 'webgl' ? lastWebgl : lastSvg;
                 }
                 const base = {};
-                composeVideoParamsInto(base, vfUser, Utils);
+                composeVideoParamsInto(base, vfUser, Utils, hdr === 1);
 
                 lastSvg = base;
                 lastWebgl = projectVValsForWebGL(base);
@@ -709,7 +735,7 @@
       function broadcastState(key, val) {
         if (key === P.APP_UI) return;
         try {
-          const msg = { __vsc_sync: true, token: 'VSC_SYNC_MSG_v159', p: key, val };
+          const msg = { __vsc_sync: true, token: VSC_SYNC_TOKEN, p: key, val };
           if (window.top && window.top !== window.self) window.top.postMessage(msg, '*');
           const iframes = document.getElementsByTagName('iframe');
           for (let i = 0; i < iframes.length; i++) {
@@ -1132,8 +1158,8 @@
         cur: { br: 1.0, ct: 1.0, sat: 1.0 },
         tgt: { br: 1.0, ct: 1.0, sat: 1.0 },
         lastSig: null, lastLuma: null,
+        cutHist: [],
         motionEma: 0, motionAlpha: 0.30, motionThresh: 0.0075, motionFrames: 0, motionMinFrames: 5,
-        scoreEma: 0, scoreAlpha: 0.16,
         statsEma: null, statsAlpha: 0.12,
         drmBlocked: false, blockUntilMs: 0,
         tBoostUntil: 0, tBoostStart: 0, boostMs: 800, minBoostEarlyMs: 700,
@@ -1191,7 +1217,12 @@
         if (!lastSig) return false;
         const score = (Math.abs(sig.mY - lastSig.mY) * 1.1) + (Math.abs(sig.mCh - lastSig.mCh) * 0.9) + (Math.abs((sig.mR - sig.mB) - (lastSig.mR - lastSig.mB)) * 0.7) + (Math.abs((sig.mG - sig.mB) - (lastSig.mG - lastSig.mB)) * 0.7);
         sig.__cutScore = score;
-        return score > 0.14;
+        AUTO.cutHist.push(score);
+        if (AUTO.cutHist.length > 20) AUTO.cutHist.shift();
+        const sorted = AUTO.cutHist.slice().sort((a,b)=>a-b);
+        const q80 = sorted[Math.floor(sorted.length * 0.80)] || 0.14;
+        const thr = Math.max(0.10, Math.min(0.22, q80 * 1.05));
+        return score > thr;
       }
 
       function calculateAdaptiveFps(changeScore) {
@@ -1271,7 +1302,6 @@
           let fps = AUTO.curFps;
 
           if (allowUpdate) {
-            AUTO.scoreEma = (AUTO.scoreEma * (1 - AUTO.scoreAlpha)) + (clamp(sigRaw.__cutScore||0,0,1) * AUTO.scoreAlpha);
             fps = calculateAdaptiveFps(clamp(sigRaw.__cutScore||0,0,1));
             if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 10 : 8);
 
@@ -1297,9 +1327,13 @@
 
           scheduleNext(v, Math.max(80, Math.round(1000 / Math.max(1, fps))));
         } catch (e) {
-          AUTO.drmBlocked = true;
-          AUTO.blockUntilMs = performance.now() + 5000;
-          scheduleNext(v, 1000);
+          if (VSC_DEFENSE.autoSceneDrmBackoff) {
+            AUTO.drmBlocked = true;
+            AUTO.blockUntilMs = performance.now() + 5000;
+            scheduleNext(v, 1000);
+          } else {
+            scheduleNext(v, 300);
+          }
         }
       }
 
@@ -1432,18 +1466,12 @@
       function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
       function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
 
-      function buildShaderSources(gl) {
-        const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext);
-        if (isGL2) {
-          return {
-            vs: `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`,
-            fsColorOnly: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvec3 softClip(vec3 c, float knee) {\n  vec3 x = max(c - 1.0, vec3(0.0));\n  return c - (x * x) / (x + vec3(knee));\n}\nvoid main() {\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);\n  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);\n  float currentSat = uParams.z * (1.0 - 0.05 * satReduce);\n  color = luma + (color - luma) * currentSat;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  color = softClip(color, 0.18);\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`,
-            fsSharpen: `#version 300 es
-precision highp float;
-in vec2 vTexCoord;
-out vec4 outColor;
+      function buildFsColorOnly({ gl2 }) {
+        const head = gl2
+          ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n`
+          : `precision highp float;\nvarying vec2 vTexCoord;\n#define outColor gl_FragColor\n#define TEX texture2D\n`;
+        return head + `
 uniform sampler2D uVideoTex;
-uniform vec2 uResolution;
 uniform vec4 uParams;
 uniform vec4 uParams2;
 uniform vec3 uRGBGain;
@@ -1452,82 +1480,8 @@ vec3 softClip(vec3 c, float knee) {
   vec3 x = max(c - 1.0, vec3(0.0));
   return c - (x * x) / (x + vec3(knee));
 }
-vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) {
-  vec3 c  = texture(tex, uv).rgb;
-  vec3 n  = texture(tex, uv + vec2(0.0, -texel.y)).rgb;
-  vec3 s  = texture(tex, uv + vec2(0.0,  texel.y)).rgb;
-  vec3 w  = texture(tex, uv + vec2(-texel.x, 0.0)).rgb;
-  vec3 e  = texture(tex, uv + vec2( texel.x, 0.0)).rgb;
-
-  float lc  = dot(c,  LUMA);
-  float ln  = dot(n,  LUMA);
-  float ls  = dot(s,  LUMA);
-  float lw  = dot(w,  LUMA);
-  float le  = dot(e,  LUMA);
-
-  float gX  = abs(le - lw);
-  float gY  = abs(ls - ln);
-
-  float wX  = pow(gX, 3.0);
-  float wY  = pow(gY, 3.0);
-
-  vec3 avg;
-
-  if (uParams2.z > 0.5) {
-    float sumW = wX + wY + 1e-6;
-    avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e))) / sumW;
-  } else {
-    vec3 nw = texture(tex, uv + vec2(-texel.x, -texel.y)).rgb;
-    vec3 ne = texture(tex, uv + vec2( texel.x, -texel.y)).rgb;
-    vec3 sw = texture(tex, uv + vec2(-texel.x,  texel.y)).rgb;
-    vec3 se = texture(tex, uv + vec2( texel.x,  texel.y)).rgb;
-
-    float lnw = dot(nw, LUMA);
-    float lne = dot(ne, LUMA);
-    float lsw = dot(sw, LUMA);
-    float lse = dot(se, LUMA);
-
-    float gD1 = abs(lne - lsw);
-    float gD2 = abs(lnw - lse);
-    float wD1 = pow(gD1, 3.0);
-    float wD2 = pow(gD2, 3.0);
-
-    float sumW = wX + wY + wD1 + wD2 + 1e-6;
-    avg = (wX * (0.5 * (n + s)) +
-           wY * (0.5 * (w + e)) +
-           wD1 * (0.5 * (nw + se)) +
-           wD2 * (0.5 * (ne + sw))) / sumW;
-  }
-
-  vec3 hp = c - avg;
-
-  float minL = min(lc, min(min(ln, ls), min(lw, le)));
-  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
-  float rangeL = max(1e-4, maxL - minL);
-
-  float edgeGate = smoothstep(0.010, 0.085, rangeL);
-
-  float hi = smoothstep(0.82, 0.96, lc);
-  float hiReduce = mix(1.0, 0.88, hi);
-
-  float k = strength * edgeGate * hiReduce;
-  vec3 outC = c + hp * (k * 2.2);
-
-  vec3 mn = min(min(c,n), min(s, min(w,e)));
-  vec3 mx = max(max(c,n), max(s, max(w,e)));
-
-  float pad = 0.05 + 0.03 * edgeGate;
-  outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
-
-  return outC;
-}
 void main() {
-  vec2 texel = 1.0 / uResolution;
-  vec3 color = texture(uVideoTex, vTexCoord).rgb;
-  float strength = uParams2.y;
-  if (strength > 0.0) {
-    color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength);
-  }
+  vec3 color = TEX(uVideoTex, vTexCoord).rgb;
   color *= uRGBGain;
   color += (uParams2.x / 1000.0);
   color = (color - 0.5) * uParams.y + 0.5;
@@ -1540,14 +1494,14 @@ void main() {
   if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));
   color = softClip(color, 0.18);
   outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
-}`
-          };
-        }
-        return {
-          vs: `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`,
-          fsColorOnly: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); vec3 softClip(vec3 c, float knee) { vec3 x = max(c - 1.0, vec3(0.0)); return c - (x * x) / (x + vec3(knee)); } void main() { vec3 color = texture2D(uVideoTex, vTexCoord).rgb; color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } color = softClip(color, 0.18); gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`,
-          fsSharpen: `precision highp float;
-varying vec2 vTexCoord;
+}`;
+      }
+
+      function buildFsSharpen({ gl2 }) {
+        const head = gl2
+          ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n`
+          : `precision highp float;\nvarying vec2 vTexCoord;\n#define outColor gl_FragColor\n#define TEX texture2D\n`;
+        return head + `
 uniform sampler2D uVideoTex;
 uniform vec2 uResolution;
 uniform vec4 uParams;
@@ -1559,23 +1513,22 @@ vec3 softClip(vec3 c, float knee) {
   return c - (x * x) / (x + vec3(knee));
 }
 vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) {
-  vec3 c  = texture2D(tex, uv).rgb;
-  vec3 n  = texture2D(tex, uv + vec2(0.0, -texel.y)).rgb;
-  vec3 s  = texture2D(tex, uv + vec2(0.0,  texel.y)).rgb;
-  vec3 w  = texture2D(tex, uv + vec2(-texel.x, 0.0)).rgb;
-  vec3 e  = texture2D(tex, uv + vec2( texel.x, 0.0)).rgb;
+  vec3 c  = TEX(tex, uv).rgb;
+  vec3 n  = TEX(tex, uv + vec2(0.0, -texel.y)).rgb;
+  vec3 s  = TEX(tex, uv + vec2(0.0,  texel.y)).rgb;
+  vec3 w  = TEX(tex, uv + vec2(-texel.x, 0.0)).rgb;
+  vec3 e  = TEX(tex, uv + vec2( texel.x, 0.0)).rgb;
 
-  float lc  = dot(c,  LUMA);
-  float ln  = dot(n,  LUMA);
-  float ls  = dot(s,  LUMA);
-  float lw  = dot(w,  LUMA);
-  float le  = dot(e,  LUMA);
+  float lc = dot(c, LUMA);
+  float ln = dot(n, LUMA);
+  float ls = dot(s, LUMA);
+  float lw = dot(w, LUMA);
+  float le = dot(e, LUMA);
 
-  float gX  = abs(le - lw);
-  float gY  = abs(ls - ln);
-
-  float wX  = pow(gX, 3.0);
-  float wY  = pow(gY, 3.0);
+  float gX = abs(le - lw);
+  float gY = abs(ls - ln);
+  float wX = pow(gX, 3.0);
+  float wY = pow(gY, 3.0);
 
   vec3 avg;
 
@@ -1583,10 +1536,10 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
     float sumW = wX + wY + 1e-6;
     avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e))) / sumW;
   } else {
-    vec3 nw = texture2D(tex, uv + vec2(-texel.x, -texel.y)).rgb;
-    vec3 ne = texture2D(tex, uv + vec2( texel.x, -texel.y)).rgb;
-    vec3 sw = texture2D(tex, uv + vec2(-texel.x,  texel.y)).rgb;
-    vec3 se = texture2D(tex, uv + vec2( texel.x,  texel.y)).rgb;
+    vec3 nw = TEX(tex, uv + vec2(-texel.x, -texel.y)).rgb;
+    vec3 ne = TEX(tex, uv + vec2( texel.x, -texel.y)).rgb;
+    vec3 sw = TEX(tex, uv + vec2(-texel.x,  texel.y)).rgb;
+    vec3 se = TEX(tex, uv + vec2( texel.x,  texel.y)).rgb;
 
     float lnw = dot(nw, LUMA);
     float lne = dot(ne, LUMA);
@@ -1610,18 +1563,16 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   float minL = min(lc, min(min(ln, ls), min(lw, le)));
   float maxL = max(lc, max(max(ln, ls), max(lw, le)));
   float rangeL = max(1e-4, maxL - minL);
-
   float edgeGate = smoothstep(0.010, 0.085, rangeL);
 
   float hi = smoothstep(0.82, 0.96, lc);
-  float hiReduce = mix(1.0, 0.88, hi);
+  float hiReduce = mix(1.0, uParams2.w, hi);
 
   float k = strength * edgeGate * hiReduce;
   vec3 outC = c + hp * (k * 2.2);
 
   vec3 mn = min(min(c,n), min(s, min(w,e)));
   vec3 mx = max(max(c,n), max(s, max(w,e)));
-
   float pad = 0.05 + 0.03 * edgeGate;
   outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
 
@@ -1629,7 +1580,7 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 }
 void main() {
   vec2 texel = 1.0 / uResolution;
-  vec3 color = texture2D(uVideoTex, vTexCoord).rgb;
+  vec3 color = TEX(uVideoTex, vTexCoord).rgb;
   float strength = uParams2.y;
   if (strength > 0.0) {
     color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength);
@@ -1645,8 +1596,19 @@ void main() {
   color *= uParams.x;
   if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); }
   color = softClip(color, 0.18);
-  gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
-}`
+  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+}`;
+      }
+
+      function buildShaderSources(gl) {
+        const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext);
+        const vs = isGL2
+          ? `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`
+          : `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`;
+        return {
+          vs,
+          fsColorOnly: buildFsColorOnly({ gl2: isGL2 }),
+          fsSharpen: buildFsSharpen({ gl2: isGL2 })
         };
       }
 
@@ -1740,13 +1702,20 @@ void main() {
             const q = v.getVideoPlaybackQuality(), dropped = q.droppedVideoFrames || 0;
             if (this._qMon.lastT > 0) { const dd = Math.max(0, dropped - this._qMon.lastDropped); this._qMon.dropRateEma = this._qMon.dropRateEma ? (this._qMon.dropRateEma * 0.8 + dd * 0.2) : dd; }
             this._qMon.lastDropped = dropped; this._qMon.lastT = now;
+
+            if (this._qMon.dropRateEma > 2.5) {
+              const st = getVState(v);
+              st.tainted = true;
+              if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + 8000;
+              try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
+            }
           } catch (_) {}
         }
         render() {
           if (!this.active || !this.gl || !this.video || !this.vVals) return; const gl = this.gl, video = this.video; const now = performance.now(); if (now < this.disabledUntil) return;
           const st = getVState(video); if (st.webglDisabledUntil && now < st.webglDisabledUntil) return;
           if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
-          if (this.canvas.parentNode !== video.parentNode && video.parentNode) { this.originalParent = video.parentNode; this.originalNextSibling = video.nextSibling; video.parentNode.insertBefore(this.canvas, video); }
+          if (this.canvas.parentNode !== video.parentNode && video.parentNode) { this.originalParent = video.parentNode; video.parentNode.insertBefore(this.canvas, video); }
           this.syncCanvasPresentationFromVideo(video, now);
           this._updatePlaybackQuality(now);
 
@@ -1772,7 +1741,12 @@ void main() {
 
           const { rs, gs, bs } = tempToRgbGain(this.vVals.temp);
           if (H.uParams) gl.uniform4f(H.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
-          if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, CONFIG.IS_LOW_END ? 1.0 : 0.0, 0.0);
+
+          let isHdr = false;
+          try { isHdr = (window.matchMedia && matchMedia('(dynamic-range: high)').matches); } catch (_) {}
+          const hiMin = isHdr ? 0.82 : 0.88;
+          if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, CONFIG.IS_LOW_END ? 1.0 : 0.0, hiMin);
+
           if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs);
 
           try {
@@ -1901,7 +1875,7 @@ void main() {
         if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
         const style = `.main { position: fixed; top: 50%; right: 70px; transform: translateY(-50%); width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; } .header { display: flex; justify-content: center; margin-bottom: 12px; cursor: move; border-bottom: 2px solid #444; padding-bottom: 8px; font-weight: bold; font-size: 14px; color: #ccc;} .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; } .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; } .btn.active { background: #3498db; color: white; border-color: #2980b9; } .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; } .pbtn.active { background: #e67e22; color: white; border-color: #d35400; } hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }`;
         applyShadowStyle(shadow, style, h);
-        const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어 (Auto & Light SVG)');
+        const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
 
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
         bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; });
@@ -1989,6 +1963,11 @@ void main() {
           const st = getVState(video);
           const effectiveMode = (mode === 'webgl' && !st.tainted) ? 'webgl' : 'svg';
 
+          if (st.tainted && st.fxBackend === 'webgl') {
+            FiltersGL.clear(video);
+            st.fxBackend = null;
+          }
+
           if (effectiveMode === 'webgl') {
               if (st.fxBackend === 'svg') Filters.clear(video);
               const ok = FiltersGL.apply(video, vVals);
@@ -2063,11 +2042,10 @@ void main() {
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
     }
 
-    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq }) {
+    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq, svgUrlCache }) {
       const candidates = __reconcileCandidates; candidates.clear();
       for (const v of dirtyVideos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of TOUCHED.videos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of TOUCHED.rateVideos) if (v?.tagName === 'VIDEO') candidates.add(v); for (const v of applySet) if (v?.tagName === 'VIDEO') candidates.add(v);
 
-      const svgUrlCache = new WeakMap();
       for (const el of candidates) {
         if (!el || el.tagName !== 'VIDEO' || !el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); continue; }
         const st = getVState(el); const visible = (st.visible !== false), shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
@@ -2135,7 +2113,8 @@ void main() {
           if (!force && vidsDirty.size === 0 && lightSig === __lastLightSig) return;
           __lastLightSig = lightSig;
 
-          reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq });
+          const __svgUrlCache = new WeakMap();
+          reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq, svgUrlCache: __svgUrlCache });
           if (force || vidsDirty.size) UI.ensure();
         } catch (e) { log.warn('apply crashed:', e); }
       });
@@ -2154,7 +2133,7 @@ void main() {
     Bus.on('signal', (s) => { if (s.forceApply) Scheduler.request(true); });
 
     window.addEventListener('message', (e) => {
-      if (e.data && e.data.__vsc_sync && e.data.token === 'VSC_SYNC_MSG_v159') {
+      if (e.data && e.data.__vsc_sync && e.data.token === VSC_SYNC_TOKEN) {
         const { p, val } = e.data;
         if (p === P.APP_UI) return;
         if (Object.values(P).includes(p)) {
@@ -2236,7 +2215,7 @@ void main() {
         watchIframes();
       }
     });
-  }
+  } // End of VSC_MAIN
 
   VSC_MAIN();
 })();
