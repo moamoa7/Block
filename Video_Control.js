@@ -45,7 +45,7 @@
 
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
-    const IS_LOW_END_USER = true;
+    const IS_LOW_END_USER = false;
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), IS_LOW_END: IS_LOW_END_USER, TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
     const FEATURE_FLAGS = Object.freeze({
