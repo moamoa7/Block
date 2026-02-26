@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v159.9.15 - Ultimate Uncapped + Adaptive LERP SVG)
+// @name         Video_Control (v159.9.15 - Ultimate Uncapped + Adaptive LERP SVG + RCAS)
 // @namespace    https://github.com/
 // @version      159.9.15
-// @description  Video Control: High-End PC version. No frame skips, CAS-like LERP blending, Alpha fixes, and dynamic tuning parameters. Uncapped sharpness & brightness.
+// @description  Video Control: High-End PC version. Directional RCAS WebGL, Resolution-aware Clarity, Adaptive LERP blending. Uncapped sharpness & brightness.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -896,49 +896,44 @@
           const sharpTotal = (s.sharp || 0) + (s.sharp2 || 0) + (s.clarity || 0);
           const ck = [ sharpTotal.toFixed(2), (s.bright || 0).toFixed(2), (s.gamma || 1).toFixed(3), (s.contrast || 1).toFixed(3), (video.videoWidth || 0), (video.videoHeight || 0) ].join('|');
 
-          // CAS-like Parameters Calculation (tuned: more CAS-like / safer highlights / less chroma ringing)
-          const sharpN = Math.max(0, Math.min(1, sharpTotal / 115));
-
+          // --- Revised CAS-like params (SVG) ---
           const vw = video.videoWidth || 0;
           const vh = video.videoHeight || 0;
           const pxScale = Math.sqrt((Math.max(1, vw * vh)) / (1280 * 720));
-          const hiResN = Math.max(0, Math.min(1, (pxScale - 1.0) / 1.8));
-
+          const sharpN = Math.max(0, Math.min(1, sharpTotal / 110));
+          const hiResN  = Math.max(0, Math.min(1, (pxScale - 1.0) / 1.7));
           const brightLiftN = Math.max(0, Math.min(1, (s.bright || 0) / 12));
           const gammaLiftN  = Math.max(0, Math.min(1, ((s.gamma || 1) - 1.0) / 0.18));
           const contrastN   = Math.max(0, Math.min(1, ((s.contrast || 1) - 1.0) / 0.35));
           const liftRiskN   = Math.max(brightLiftN, gammaLiftN * 0.9);
 
-          // Morph radius: integer clamping to prevent browser compat issues
           let morphRadius = 1;
-          if (sharpN > 0.70 && pxScale > 1.90) morphRadius = 2;
-          else morphRadius = 1;
+          if (sharpN > 0.72 && pxScale > 1.90) morphRadius = 2;
 
-          const rngBlurStd = Math.max(0.42, Math.min(0.90, 0.46 + sharpN * 0.16 + hiResN * 0.10 + liftRiskN * 0.06));
+          const rngBlurStd = Math.max(0.42, Math.min(0.86, 0.46 + sharpN * 0.14 + hiResN * 0.10 + liftRiskN * 0.05));
+          const th = Math.max(0.010, Math.min(0.034, 0.020 - sharpN * 0.010 + liftRiskN * 0.010 + (1 - contrastN) * 0.002));
+          const knee = Math.max(0.016, Math.min(0.060, 0.024 + sharpN * 0.018 + liftRiskN * 0.010 + hiResN * 0.006));
+          const gateGamma = Math.max(0.78, Math.min(1.08, 1.02 - sharpN * 0.22 + liftRiskN * 0.08));
+          const gateFloor = Math.max(0.006, Math.min(0.028, 0.010 + sharpN * 0.010 + liftRiskN * 0.006 + (1 - hiResN) * 0.004));
 
-          const th = Math.max(0.012, Math.min(0.036, 0.021 - sharpN * 0.010 + liftRiskN * 0.008 + (1 - contrastN) * 0.002));
-          const knee = Math.max(0.012, Math.min(0.050, 0.020 + sharpN * 0.010 + liftRiskN * 0.008 + hiResN * 0.003));
-          const gateGamma = Math.max(0.84, Math.min(1.10, 1.00 - sharpN * 0.10 + liftRiskN * 0.06));
-          const gateFloor = Math.max(0.002, Math.min(0.020, 0.004 + sharpN * 0.010 + liftRiskN * 0.004));
-
-          // 핵심: 샤프 올릴수록 gateCeil을 너무 낮추지 않기 (억제 해제)
-          const gateCeil = 0.998;
+          const gateCeil = 1.0; // Uncapped logic enforced
 
           const edgeGateTable = makeSoftKneeTable(64, th, knee, gateGamma, gateFloor, gateCeil);
 
-          let hlStart = 0.72 - brightLiftN * 0.07 - gammaLiftN * 0.06 - sharpN * 0.03;
+          let hlStart = 0.70 - brightLiftN * 0.08 - gammaLiftN * 0.07 - sharpN * 0.03;
           hlStart = Math.max(0.56, Math.min(0.84, hlStart));
-          let hlEnd = 0.91 - brightLiftN * 0.02 + hiResN * 0.01;
+
+          let hlEnd = 0.92 - brightLiftN * 0.02 + hiResN * 0.01;
           hlEnd = Math.max(hlStart + 0.10, Math.min(0.97, hlEnd));
 
-          // 핵심: 하이라이트 감쇠 증가폭 파격 감소
-          const hlReduce = Math.max(0.15, Math.min(0.35, 0.20 + (sharpTotal / 200)));
+          const hlReduce = 0.15; // Preserving highlight punch
+
           const hlKeepTable = makeHighlightKeepTable(64, hlStart, hlEnd, hlReduce);
 
           const desatSat = Math.max(0.55, Math.min(0.82, 0.62 + (1 - sharpN) * 0.12 + liftRiskN * 0.04));
           const chromaKeep = Math.max(0.24, Math.min(0.42, 0.30 + (1 - sharpN) * 0.08 - liftRiskN * 0.02));
 
-          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, ck, s, detailOn, edgeGateTable, hlKeepTable, morphRadius, rngBlurStd, desatSat, chromaKeep };
+          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, ck, s, detailOn, edgeGateTable, hlKeepTable, morphRadius, rngBlurStd, desatSat, chromaKeep, hiResN };
           if (!st._svgUpdatePending) {
             st._svgUpdatePending = true;
             queueMicrotask(() => {
@@ -955,7 +950,14 @@
                   st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
                   const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2; setAttr(nodes.detail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__b1'); setAttr(nodes.detail.sh1, 'k2', (1 + kC).toFixed(3), st, '__sh1k2'); setAttr(nodes.detail.sh1, 'k3', (-kC).toFixed(3), st, '__sh1k3');
                   const v2 = (p.s.sharp2 || 0) / 50, kF = sc(Math.min(1, v2)) * 4.8; setAttr(nodes.detail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__b2'); setAttr(nodes.detail.sh2, 'k2', (1 + kF).toFixed(3), st, '__sh2k2'); setAttr(nodes.detail.sh2, 'k3', (-kF).toFixed(3), st, '__sh2k3');
-                  const clVal = (p.s.clarity || 0) / 50; setAttr(nodes.detail.bc, 'stdDeviation', clVal > 0 ? '1.1' : '0', st, '__bc'); setAttr(nodes.detail.cl, 'k2', (1 + clVal * 1.5).toFixed(3), st, '__clk2'); setAttr(nodes.detail.cl, 'k3', (-clVal * 1.5).toFixed(3), st, '__clk3');
+
+                  // --- clarity update (resolution-aware) ---
+                  const clVal = (p.s.clarity || 0) / 50;
+                  const clStd = clVal > 0 ? (0.85 + p.hiResN * 0.55).toFixed(2) : '0';
+                  const clGain = (1 + clVal * (1.15 + p.hiResN * 0.55));
+                  setAttr(nodes.detail.bc, 'stdDeviation', clStd, st, '__bc');
+                  setAttr(nodes.detail.cl, 'k2', clGain.toFixed(3), st, '__clk2');
+                  setAttr(nodes.detail.cl, 'k3', (-(clGain - 1)).toFixed(3), st, '__clk3');
                 }
 
                 // 2) CAS-like Update (Separated dependency)
@@ -1006,13 +1008,189 @@
           return {
             vs: `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`,
             fsColorOnly: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvec3 softClip(vec3 c, float knee) {\n  vec3 x = max(c - 1.0, vec3(0.0));\n  return c - (x * x) / (x + vec3(knee));\n}\nvoid main() {\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);\n  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);\n  float currentSat = uParams.z * (1.0 - 0.05 * satReduce);\n  color = luma + (color - luma) * currentSat;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  color = softClip(color, 0.18);\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`,
-            fsSharpen: `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\nuniform sampler2D uVideoTex;\nuniform vec2 uResolution;\nuniform vec4 uParams;\nuniform vec4 uParams2;\nuniform vec3 uRGBGain;\nconst vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);\nvec3 softClip(vec3 c, float knee) {\n  vec3 x = max(c - 1.0, vec3(0.0));\n  return c - (x * x) / (x + vec3(knee));\n}\nvec3 casLiteSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) {\n  vec3 c = texture(tex, uv).rgb;\n  vec3 n = texture(tex, uv + vec2(0.0, -texel.y)).rgb;\n  vec3 s = texture(tex, uv + vec2(0.0, texel.y)).rgb;\n  vec3 w = texture(tex, uv + vec2(-texel.x, 0.0)).rgb;\n  vec3 e = texture(tex, uv + vec2(texel.x, 0.0)).rgb;\n  float lC = dot(c, LUMA); float lN = dot(n, LUMA); float lS = dot(s, LUMA);\n  float lW = dot(w, LUMA); float lE = dot(e, LUMA);\n  float lMin = min(lC, min(min(lN, lS), min(lW, lE)));\n  float lMax = max(lC, max(max(lN, lS), max(lW, lE)));\n  float range = max(1e-4, lMax - lMin);\n  float edgeGate = smoothstep(0.02, 0.18, range);\n  float gain = strength * edgeGate;\n  vec3 avg4 = (n + s + w + e) * 0.25;\n  vec3 hp = c - avg4;\n  vec3 lo = min(c, min(min(n, s), min(w, e)));\n  vec3 hi = max(c, max(max(n, s), max(w, e)));\n  vec3 outC = c + hp * (gain * 2.2);\n  return clamp(outC, lo - range * 0.10, hi + range * 0.10);\n}\nvoid main() {\n  vec2 texel = 1.0 / uResolution;\n  vec3 color = texture(uVideoTex, vTexCoord).rgb;\n  if (uParams2.y > 0.0) color = casLiteSharpen(uVideoTex, vTexCoord, texel, uParams2.y);\n  color *= uRGBGain;\n  color += (uParams2.x / 1000.0);\n  color = (color - 0.5) * uParams.y + 0.5;\n  float luma = dot(color, LUMA);\n  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);\n  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);\n  float currentSat = uParams.z * (1.0 - 0.05 * satReduce);\n  color = luma + (color - luma) * currentSat;\n  color *= uParams.x;\n  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));\n  color = softClip(color, 0.18);\n  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);\n}`
+            fsSharpen: `#version 300 es
+precision highp float;
+in vec2 vTexCoord;
+out vec4 outColor;
+uniform sampler2D uVideoTex;
+uniform vec2 uResolution;
+uniform vec4 uParams;
+uniform vec4 uParams2;
+uniform vec3 uRGBGain;
+const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+vec3 softClip(vec3 c, float knee) {
+  vec3 x = max(c - 1.0, vec3(0.0));
+  return c - (x * x) / (x + vec3(knee));
+}
+vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) {
+  vec3 c  = texture(tex, uv).rgb;
+  vec3 n  = texture(tex, uv + vec2(0.0, -texel.y)).rgb;
+  vec3 s  = texture(tex, uv + vec2(0.0,  texel.y)).rgb;
+  vec3 w  = texture(tex, uv + vec2(-texel.x, 0.0)).rgb;
+  vec3 e  = texture(tex, uv + vec2( texel.x, 0.0)).rgb;
+  vec3 nw = texture(tex, uv + vec2(-texel.x, -texel.y)).rgb;
+  vec3 ne = texture(tex, uv + vec2( texel.x, -texel.y)).rgb;
+  vec3 sw = texture(tex, uv + vec2(-texel.x,  texel.y)).rgb;
+  vec3 se = texture(tex, uv + vec2( texel.x,  texel.y)).rgb;
+
+  float lc  = dot(c,  LUMA);
+  float ln  = dot(n,  LUMA);
+  float ls  = dot(s,  LUMA);
+  float lw  = dot(w,  LUMA);
+  float le  = dot(e,  LUMA);
+  float lnw = dot(nw, LUMA);
+  float lne = dot(ne, LUMA);
+  float lsw = dot(sw, LUMA);
+  float lse = dot(se, LUMA);
+
+  // 1. 방향성 탐지
+  float gX  = abs(le - lw);
+  float gY  = abs(ls - ln);
+  float gD1 = abs(lne - lsw);
+  float gD2 = abs(lnw - lse);
+
+  vec3 avg;
+  if (gX >= gY && gX >= gD1 && gX >= gD2) {
+    avg = 0.5 * (n + s);
+  } else if (gY >= gD1 && gY >= gD2) {
+    avg = 0.5 * (w + e);
+  } else if (gD1 >= gD2) {
+    avg = 0.5 * (nw + se);
+  } else {
+    avg = 0.5 * (ne + sw);
+  }
+
+  vec3 hp = c - avg;
+
+  float minL = min(lc, min(min(ln, ls), min(lw, le)));
+  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
+  float rangeL = max(1e-4, maxL - minL);
+
+  float edgeGate = smoothstep(0.010, 0.085, rangeL);
+
+  // 🛡️ 하이라이트 미세 감쇠 (안전장치 1)
+  float hi = smoothstep(0.82, 0.96, lc);
+  float hiReduce = mix(1.0, 0.88, hi);
+
+  float k = strength * edgeGate * hiReduce;
+  vec3 outC = c + hp * (k * 2.2);
+
+  // 🛡️ 9픽셀 전체 기반의 더 튼튼하고 넓은 클램프 (안전장치 2)
+  vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
+  vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
+
+  float pad = 0.06; // 고정 얇게
+  outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
+
+  return outC;
+}
+void main() {
+  vec2 texel = 1.0 / uResolution;
+  vec3 color = texture(uVideoTex, vTexCoord).rgb;
+  float strength = uParams2.y; // 캡(1.25) 제거
+  if (strength > 0.0) {
+    color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength);
+  }
+  color *= uRGBGain;
+  color += (uParams2.x / 1000.0);
+  color = (color - 0.5) * uParams.y + 0.5;
+  float luma = dot(color, LUMA);
+  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);
+  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);
+  float currentSat = uParams.z * (1.0 - 0.05 * satReduce);
+  color = luma + (color - luma) * currentSat;
+  color *= uParams.x;
+  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));
+  color = softClip(color, 0.18);
+  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+}`
           };
         }
         return {
           vs: `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`,
           fsColorOnly: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); vec3 softClip(vec3 c, float knee) { vec3 x = max(c - 1.0, vec3(0.0)); return c - (x * x) / (x + vec3(knee)); } void main() { vec3 color = texture2D(uVideoTex, vTexCoord).rgb; color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } color = softClip(color, 0.18); gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`,
-          fsSharpen: `precision highp float; varying vec2 vTexCoord; uniform sampler2D uVideoTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain; const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722); vec3 softClip(vec3 c, float knee) { vec3 x = max(c - 1.0, vec3(0.0)); return c - (x * x) / (x + vec3(knee)); } vec3 casLiteSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) { vec3 c = texture2D(tex, uv).rgb; vec3 n = texture2D(tex, uv + vec2(0.0, -texel.y)).rgb; vec3 s = texture2D(tex, uv + vec2(0.0, texel.y)).rgb; vec3 w = texture2D(tex, uv + vec2(-texel.x, 0.0)).rgb; vec3 e = texture2D(tex, uv + vec2(texel.x, 0.0)).rgb; float lC = dot(c, LUMA); float lN = dot(n, LUMA); float lS = dot(s, LUMA); float lW = dot(w, LUMA); float lE = dot(e, LUMA); float lMin = min(lC, min(min(lN, lS), min(lW, lE))); float lMax = max(lC, max(max(lN, lS), max(lW, lE))); float range = max(1e-4, lMax - lMin); float edgeGate = smoothstep(0.02, 0.18, range); float gain = strength * edgeGate; vec3 avg4 = (n + s + w + e) * 0.25; vec3 hp = c - avg4; vec3 lo = min(c, min(min(n, s), min(w, e))); vec3 hi = max(c, max(max(n, s), max(w, e))); vec3 outC = c + hp * (gain * 2.2); return clamp(outC, lo - range * 0.10, hi + range * 0.10); } void main() { vec2 texel = 1.0 / uResolution; vec3 color = texture2D(uVideoTex, vTexCoord).rgb; if (uParams2.y > 0.0) color = casLiteSharpen(uVideoTex, vTexCoord, texel, uParams2.y); color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5; float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat; color *= uParams.x; if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); } color = softClip(color, 0.18); gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0); }`
+          fsSharpen: `precision highp float;
+varying vec2 vTexCoord;
+uniform sampler2D uVideoTex;
+uniform vec2 uResolution;
+uniform vec4 uParams;
+uniform vec4 uParams2;
+uniform vec3 uRGBGain;
+const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+vec3 softClip(vec3 c, float knee) {
+  vec3 x = max(c - 1.0, vec3(0.0));
+  return c - (x * x) / (x + vec3(knee));
+}
+vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) {
+  vec3 c  = texture2D(tex, uv).rgb;
+  vec3 n  = texture2D(tex, uv + vec2(0.0, -texel.y)).rgb;
+  vec3 s  = texture2D(tex, uv + vec2(0.0,  texel.y)).rgb;
+  vec3 w  = texture2D(tex, uv + vec2(-texel.x, 0.0)).rgb;
+  vec3 e  = texture2D(tex, uv + vec2( texel.x, 0.0)).rgb;
+  vec3 nw = texture2D(tex, uv + vec2(-texel.x, -texel.y)).rgb;
+  vec3 ne = texture2D(tex, uv + vec2( texel.x, -texel.y)).rgb;
+  vec3 sw = texture2D(tex, uv + vec2(-texel.x,  texel.y)).rgb;
+  vec3 se = texture2D(tex, uv + vec2( texel.x,  texel.y)).rgb;
+  float lc  = dot(c,  LUMA);
+  float ln  = dot(n,  LUMA);
+  float ls  = dot(s,  LUMA);
+  float lw  = dot(w,  LUMA);
+  float le  = dot(e,  LUMA);
+  float lnw = dot(nw, LUMA);
+  float lne = dot(ne, LUMA);
+  float lsw = dot(sw, LUMA);
+  float lse = dot(se, LUMA);
+  float gX  = abs(le - lw);
+  float gY  = abs(ls - ln);
+  float gD1 = abs(lne - lsw);
+  float gD2 = abs(lnw - lse);
+  vec3 avg;
+  if (gX >= gY && gX >= gD1 && gX >= gD2) avg = 0.5 * (n + s);
+  else if (gY >= gD1 && gY >= gD2)        avg = 0.5 * (w + e);
+  else if (gD1 >= gD2)                    avg = 0.5 * (nw + se);
+  else                                    avg = 0.5 * (ne + sw);
+  vec3 hp = c - avg;
+  float minL = min(lc, min(min(ln, ls), min(lw, le)));
+  float maxL = max(lc, max(max(ln, ls), max(lw, le)));
+  float rangeL = max(1e-4, maxL - minL);
+  float edgeGate = smoothstep(0.010, 0.085, rangeL);
+
+  // 🛡️ 하이라이트 미세 감쇠 (안전장치 1) — WebGL2와 동일
+  float hi = smoothstep(0.82, 0.96, lc);
+  float hiReduce = mix(1.0, 0.88, hi);
+
+  float k = strength * edgeGate * hiReduce;
+  vec3 outC = c + hp * (k * 2.2);
+
+  // 🛡️ 9픽셀 전체 기반 클램프 (안전장치 2) — WebGL2와 동일
+  vec3 mn = min(min(min(min(c,n),s),min(w,e)), min(min(nw,ne), min(sw,se)));
+  vec3 mx = max(max(max(max(c,n),s),max(w,e)), max(max(nw,ne), max(sw,se)));
+
+  float pad = 0.06; // 고정 얇게
+  outC = clamp(outC, mn - pad * (mx - mn), mx + pad * (mx - mn));
+
+  return outC;
+  }
+  void main() {
+  vec2 texel = 1.0 / uResolution;
+  vec3 color = texture2D(uVideoTex, vTexCoord).rgb;
+  float strength = uParams2.y; // 캡(1.25) 제거
+  if (strength > 0.0) {
+    color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength);
+  }
+  color *= uRGBGain;
+  color += (uParams2.x / 1000.0);
+  color = (color - 0.5) * uParams.y + 0.5;
+  float luma = dot(color, LUMA);
+  float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0);
+  float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma);
+  float currentSat = uParams.z * (1.0 - 0.05 * satReduce);
+  color = luma + (color - luma) * currentSat;
+  color *= uParams.x;
+  if (uParams.w != 1.0) { color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w)); }
+  color = softClip(color, 0.18);
+  gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+}`
         };
       }
 
