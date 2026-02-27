@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.1.0 - Ultimate Stability & UI Fold)
+// @name         Video_Control (v170.2.0 - Menu Integration & Full Stability)
 // @namespace    https://github.com/
-// @version      170.1.0
-// @description  Video Control: High-End PC. Fixed WebGL Black Screen (Context Lost & RGBA8). Added Advanced UI Fold. Ultra-light AutoScene trigger. Adaptive Quality.
+// @version      170.2.0
+// @description  Video Control: High-End PC. Fixed WebGL Black Screen. Advanced UI Fold. Ultra-light AutoScene. Menu Integration for Policy. Adaptive Quality.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -13,7 +13,8 @@
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
 // @run-at       document-start
-// @grant        none
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 // ==/UserScript==
 
 (function () {
@@ -58,7 +59,7 @@
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
-    const VSC_VERSION = '170.1.0';
+    const VSC_VERSION = '170.2.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -93,7 +94,6 @@
       });
     })();
 
-    // ✅ 방어 및 차단 로직 프리셋
     const DEFENSE_PRESET = 'safe'; // 'safe' | 'simple'
     const VSC_DEFENSE = Object.freeze(
       DEFENSE_PRESET === 'simple'
@@ -1290,7 +1290,6 @@
             const r = data[idx], g = data[idx + 1], b = data[idx + 2];
             const l = (r * 0.2126 + g * 0.7152 + b * 0.0722) | 0;
 
-            // 저비용 chroma 근사: max(r,g,b)-min(r,g,b)
             const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
             const min = r < g ? (r < b ? r : b) : (g < b ? g : b);
             sumChroma += (max - min);
@@ -1434,7 +1433,6 @@
             AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35);
             AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30);
 
-            // 목표 chroma(대략 0.18)를 기준으로 채도 타겟 조정
             const curCh = Number(sig.chroma || 0);
             const errCh = clamp(0.18 - curCh, -0.18, 0.18);
             AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50);
@@ -2280,13 +2278,9 @@ void main() {
         const autoSceneBtn = h('button', { class: 'btn', onclick: () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)) }, '✨ Auto');
         bindClassToggle(autoSceneBtn, P.APP_AUTO_SCENE, v => !!v);
 
-        const applyAllBtn = h('button', { class: 'btn', onclick: () => setAndHint(P.APP_APPLY_ALL, !sm.get(P.APP_APPLY_ALL)) }, '전체 적용');
-        bindClassToggle(applyAllBtn, P.APP_APPLY_ALL, v => !!v);
-
         const pwrBtn = h('button', { id: 'pwr-btn', class: 'btn', onclick: () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)) }, '⚡ Power');
         bindStyle(pwrBtn, P.APP_ACT, (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; });
 
-        // ✅ 고급 설정 접기/펴기 (UI 폴딩) 버튼 및 컨테이너
         const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
         advToggleBtn.onclick = () => setAndHint(P.APP_ADV, !sm.get(P.APP_ADV));
         bindStyle(advToggleBtn, P.APP_ADV, (el, v) => {
@@ -2302,7 +2296,7 @@ void main() {
         bindStyle(advContainer, P.APP_ADV, (el, v) => { el.style.display = v ? 'flex' : 'none'; });
 
         const bodyMain = h('div', { id: 'p-main' }, [
-          h('div', { class: 'prow' }, [ rmBtn, applyAllBtn, autoSceneBtn ]),
+          h('div', { class: 'prow' }, [ rmBtn, autoSceneBtn ]), // '전체 적용' 버튼 삭제 반영됨
           h('div', { class: 'prow' }, [ pipBtn, zoomBtn, boostBtn ]),
           h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), pwrBtn, h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '↺ 리셋') ]),
           renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }),
@@ -2503,7 +2497,6 @@ void main() {
           const dropped = Number(q.droppedVideoFrames || 0);
           const total   = Number(q.totalVideoFrames || 0);
           const ratio = total > 0 ? (dropped / total) : 0;
-          // 프레임 드랍률 기준 (4% 이상 0.8배, 8% 이상 0.65배)
           qualityScale = ratio > 0.08 ? 0.65 : ratio > 0.04 ? 0.80 : 1.0;
         } catch (_) {}
         return qualityScale;
@@ -2529,11 +2522,10 @@ void main() {
           if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
 
           let vValsEffective = videoParamsMemo.get(vf0, rMode, __activeTarget);
-
-          // Adaptive Quality: 드랍 프레임 많을 경우 샤픈 살짝 깎아주기
+          
           const qs = updateQualityScale(__activeTarget);
           if (qs !== 1.0) {
-            vValsEffective = { ...vValsEffective }; // Shallow copy to avoid mutating memoized cache
+            vValsEffective = { ...vValsEffective };
             vValsEffective.sharp = (vValsEffective.sharp || 0) * qs;
             vValsEffective.sharp2 = (vValsEffective.sharp2 || 0) * qs;
             vValsEffective.clarity = (vValsEffective.clarity || 0) * qs;
@@ -2619,6 +2611,26 @@ void main() {
       if (FEATURE_FLAGS.zoomFeature) { ZoomManager = createZoomManager(); window.__VSC_INTERNAL__.ZoomManager = ZoomManager; }
 
       const UI = createUI(Store, Registry, ApplyReq, Utils);
+
+      // --- 스크립트 메뉴 (전체 적용 ON/OFF) 연동 (v170.2.0 추가) ---
+      let __gmMenuId = null;
+      const updateGmMenu = () => {
+        if (typeof GM_unregisterMenuCommand === 'function' && __gmMenuId !== null) {
+          try { GM_unregisterMenuCommand(__gmMenuId); } catch (_) {}
+        }
+        if (typeof GM_registerMenuCommand === 'function') {
+          const isAll = !!Store.get(P.APP_APPLY_ALL);
+          try {
+            __gmMenuId = GM_registerMenuCommand(`전체 비디오에 적용 : ${isAll ? 'ON 🟢' : 'OFF 🔴'}`, () => {
+              Store.set(P.APP_APPLY_ALL, !isAll);
+              ApplyReq.hard();
+            });
+          } catch (_) {}
+        }
+      };
+      Store.sub(P.APP_APPLY_ALL, updateGmMenu);
+      updateGmMenu();
+      // ----------------------------------------------------------------
 
       window.__lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
       function updateLastUserPt(x, y, t) { window.__lastUserPt.x = x; window.__lastUserPt.y = y; window.__lastUserPt.t = t; }
