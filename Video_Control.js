@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.10.0 - Full-Light Topology & filterRes Capping)
+// @name         Video_Control (v170.12.0 - UI Show Fix)
 // @namespace    https://github.com/
-// @version      170.10.0
-// @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization.
+// @version      170.12.0
+// @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization. Fixed: Gear click shows UI (display fix for Shadow DOM fixed panel).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -61,7 +61,6 @@
       return isMobileUA();
     }
 
-    // Lightweight device heuristic (used only for quality / safety fallbacks; keep it cheap).
     function detectLowEndDevice() {
       try {
         const hc = Number(navigator.hardwareConcurrency || 0);
@@ -82,7 +81,7 @@
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.10.0';
+    const VSC_VERSION = '170.12.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -144,7 +143,6 @@
 
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
 
-    // ShadowRoot tracking: registry listens for 'vsc-shadow-root' but the emitter must be installed.
     function installShadowRootEmitter() {
       if (!FEATURE_FLAGS.trackShadowRoots) return;
       if (window.__VSC_SHADOW_EMITTER_INSTALLED__) return;
@@ -163,7 +161,6 @@
       try { Object.defineProperty(proto, 'attachShadow', { value: patchedAttachShadow, configurable: true, writable: true }); }
       catch (_) { try { proto.attachShadow = patchedAttachShadow; } catch (__) {} }
 
-      // Backfill: some pages create shadow roots before our injection (esp. iframes). Keep this cheap + capped.
       queueMicrotask(() => {
         try {
           const base = document.documentElement || document.body;
@@ -1290,11 +1287,8 @@
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(720);
       
-      // Ultra-low-cost: update SVG attributes ONLY for the currently active tier (cuts common writes up to ~4x).
       const SVG_UPDATE_ACTIVE_TIER_ONLY = true;
 
-      // Ultra-cheap: skip setAttribute if the node's attr already equals the same string.
-      // Works even when "keys" change but the final attribute string value is identical.
       const __attrCache = new WeakMap();
       const setAttrCached = (node, attr, val) => {
         if (!node) return;
@@ -1387,7 +1381,6 @@
         const pUL = mkP('ul', 'ul_out');
         fullLight.append(cUL.t, cUL.b, cUL.g, ulB1, ulSh1, ulBc, ulCl, pUL.tm, pUL.s);
 
-        // Tier 3: Full-Light (No Morphology / No CAS Gate)
         const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '-10%', y: '-10%', width: '120%', height: '120%' });
         const cU = mkC('u');
 
@@ -2205,12 +2198,10 @@ void main() {
       const uiWakeCtrl = new AbortController(), bag = createDisposerBag(), sub = (k, fn) => bag.add(sm.sub(k, fn));
       const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
 
-      const allowUiInThisDoc = () => {
-          if (registry.videos.size > 0) return true;
-          const hasVideoElements = !!document.querySelector('video, object, embed');
-          if (hasVideoElements) return true;
-          return false;
-      };
+      // ===== FIX: allowUiInThisDoc now always returns true =====
+      // Previously returned false when no video present, hiding the gear button entirely.
+      // The gear should always be accessible so users can open the UI panel.
+      const allowUiInThisDoc = () => true;
 
       function setAndHint(path, value) {
         const prev = sm.get(path);
@@ -2220,11 +2211,14 @@ void main() {
       }
 
       function getFullscreenElementSafe() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+      
       const getUiRoot = () => {
         const fs = getFullscreenElementSafe();
         if (fs) {
+          if (fs.tagName === 'VIDEO') {
+            return fs.parentElement || document.documentElement || document.body;
+          }
           if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs;
-          if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.documentElement || document.body;
           return fs;
         }
         return document.documentElement || document.body;
@@ -2254,30 +2248,32 @@ void main() {
       }
 
       const clampVal = (v, a, b) => (v < a ? a : (v > b ? b : v));
+      
+      // ===== FIX: clampPanelIntoViewport - operates on .main inside shadow DOM =====
       const clampPanelIntoViewport = () => {
         try {
           if (!container) return;
-          const mainPanel = container.shadowRoot.querySelector('.main');
-          if (!mainPanel || mainPanel.style.display === 'none') return;
-          mainPanel.style.maxWidth = mainPanel.style.maxWidth || 'min(320px, calc(100vw - 24px))';
+          const mainPanel = container.shadowRoot && container.shadowRoot.querySelector('.main');
+          if (!mainPanel) return;
+          // Only clamp if panel is actually visible
+          if (mainPanel.style.display === 'none') return;
           const r = mainPanel.getBoundingClientRect();
+          if (!r.width && !r.height) return; // not rendered yet
           const vv = window.visualViewport;
           const vw = (vv && vv.width) ? vv.width : (window.innerWidth || document.documentElement.clientWidth || 0);
           const vh = (vv && vv.height) ? vv.height : (window.innerHeight || document.documentElement.clientHeight || 0);
           const offL = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
           const offT = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
           if (!vw || !vh) return;
-
-          const hasPos = (mainPanel.style.left && mainPanel.style.top);
-          if (hasPos) {
-            const w = r.width, h = r.height;
-            const left = clampVal(r.left, offL + 8, Math.max(offL + 8, offL + vw - w - 8));
-            const top  = clampVal(r.top,  offT + 8, Math.max(offT + 8, offT + vh - h - 8));
-            mainPanel.style.right = 'auto';
-            mainPanel.style.transform = 'none';
-            mainPanel.style.left = `${left}px`;
-            mainPanel.style.top  = `${top}px`;
-          }
+          const w = r.width || 300, panH = r.height || 400;
+          const curLeft = r.left;
+          const curTop = r.top;
+          const left = clampVal(curLeft, offL + 8, Math.max(offL + 8, offL + vw - w - 8));
+          const top  = clampVal(curTop,  offT + 8, Math.max(offT + 8, offT + vh - panH - 8));
+          mainPanel.style.right = 'auto';
+          mainPanel.style.transform = 'none';
+          mainPanel.style.left = `${left}px`;
+          mainPanel.style.top  = `${top}px`;
         } catch (_) {}
       };
 
@@ -2304,12 +2300,18 @@ void main() {
       window.addEventListener('orientationchange', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
       document.addEventListener('fullscreenchange', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
 
+      // ===== FIX: getMainPanel helper - gets .main from shadow root =====
+      const getMainPanel = () => container && container.shadowRoot && container.shadowRoot.querySelector('.main');
+
       const build = () => {
         if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
         const style = `
           *, *::before, *::after { box-sizing: border-box; }
           .main {
-            position: fixed; top: calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2)); right: 70px; transform: translateY(-50%);
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             width: min(320px, calc(100vw - 24px));
             background: rgba(25,25,25,0.96); backdrop-filter: blur(12px);
             color: #eee; padding: 15px; border-radius: 16px;
@@ -2319,19 +2321,21 @@ void main() {
             -webkit-overflow-scrolling: touch;
             overscroll-behavior: contain;
             touch-action: pan-y;
+            display: none;
+          }
+          .main.visible {
+            display: block;
           }
           @supports not ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
             .main { background: rgba(25,25,25,0.985); }
           }
           @media (max-width: 520px) {
             .main {
-              top: auto;
-              bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px));
-              right: max(12px, calc(env(safe-area-inset-right, 0px) + 12px));
-              left:  max(12px, calc(env(safe-area-inset-left, 0px) + 12px));
-              transform: none;
-              width: auto;
-              max-height: 70vh;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              width: min(300px, calc(100vw - 24px));
+              max-height: 80vh;
               padding: 12px;
               border-radius: 14px;
             }
@@ -2353,7 +2357,13 @@ void main() {
           .small { font-size: 11px; opacity: .75; }
           hr { border:0; border-top:1px solid rgba(255,255,255,0.14); margin:8px 0; }
         `;
-        applyShadowStyle(shadow, style, h);
+        // ===== NOTE: Each shadow DOM gets its OWN stylesheet - not shared =====
+        // applyShadowStyle uses adoptedStyleSheets with a shared instance which can break
+        // when two shadows adopt the same sheet. Use direct style injection here.
+        const styleEl = document.createElement('style');
+        styleEl.textContent = style;
+        shadow.appendChild(styleEl);
+
         const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
 
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
@@ -2420,10 +2430,46 @@ void main() {
       };
 
       const ensureGear = () => {
-        if (!allowUiInThisDoc()) return; if (gearHost) return;
+        if (gearHost) return;
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
-        const style = `.gear{position:fixed;top:calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2));right:max(10px, calc(env(safe-area-inset-right, 0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''} @media (max-width:520px){.gear{top:auto;bottom:max(16px,calc(env(safe-area-inset-bottom,0px)+16px));transform:none;}.hint{bottom:max(18px,calc(env(safe-area-inset-bottom,0px)+18px));}}`;
-        applyShadowStyle(shadow, style, h); let dragThresholdMet = false, stopDrag = null;
+        const style = `
+          .gear {
+            position: fixed;
+            top: 50%;
+            right: max(10px, calc(env(safe-area-inset-right, 0px) + 10px));
+            transform: translateY(-50%);
+            width: 46px; height: 46px; border-radius: 50%;
+            background: rgba(25,25,25,0.92); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.18); color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font: 700 22px/1 sans-serif; padding: 0; margin: 0; cursor: pointer;
+            pointer-events: auto; z-index: 2147483647;
+            box-shadow: 0 12px 44px rgba(0,0,0,0.55); user-select: none;
+            transition: transform .12s ease, opacity .3s ease, box-shadow .12s ease;
+            opacity: 1; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+          }
+          @media (hover:hover) and (pointer:fine) {
+            .gear:hover { transform: translateY(-50%) scale(1.06); box-shadow: 0 16px 52px rgba(0,0,0,0.65); }
+          }
+          .gear:active { transform: translateY(-50%) scale(0.98); }
+          .gear.open { outline: 2px solid rgba(52,152,219,0.85); opacity: 1 !important; }
+          .gear.inactive { opacity: 0.45; }
+          .hint {
+            position: fixed; right: 74px; bottom: 24px; padding: 6px 10px;
+            border-radius: 10px; background: rgba(25,25,25,0.88);
+            border: 1px solid rgba(255,255,255,0.14); color: rgba(255,255,255,0.82);
+            font: 600 11px/1.2 sans-serif; white-space: nowrap;
+            z-index: 2147483647; opacity: 0; transform: translateY(6px);
+            transition: opacity .15s ease, transform .15s ease; pointer-events: none;
+          }
+          .gear:hover + .hint { opacity: 1; transform: translateY(0); }
+          ${CONFIG.IS_MOBILE ? '.hint { display: none !important; }' : ''}
+        `;
+        const styleEl = document.createElement('style');
+        styleEl.textContent = style;
+        shadow.appendChild(styleEl);
+        
+        let dragThresholdMet = false, stopDrag = null;
         gearBtn = h('button', { class: 'gear' }, '⚙');
         shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
         
@@ -2477,25 +2523,73 @@ void main() {
           onGearActivate(e);
         }, { passive: false });
 
-        const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
+        // ===== FIX: syncGear no longer hides gear based on allowUiInThisDoc =====
+        const syncGear = () => {
+          if (!gearBtn) return;
+          gearBtn.classList.toggle('open', !!sm.get(P.APP_UI));
+          gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT));
+          gearBtn.style.display = 'flex'; // always show gear
+          wake();
+        };
         sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
       };
       
-      const mount = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) {} try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) {} };
-      
-      const ensure = () => { 
-        if (!allowUiInThisDoc()) { detachNodesHard(); return; } 
-        ensureGear(); 
-        if (sm.get(P.APP_UI)) { 
-          build(); 
-          if (container) {
-            container.style.display = 'block'; 
-            queueMicrotask(clampPanelIntoViewport);
+      const mount = () => {
+        const root = getUiRoot();
+        if (!root) return;
+        try {
+          if (gearHost && gearHost.parentNode !== root) {
+            root.appendChild(gearHost);
           }
-        } else { 
-          if (container) container.style.display = 'none'; 
-        } 
-        mount(); 
+        } catch (_) {}
+        try {
+          if (container && container.parentNode !== root) {
+            root.appendChild(container);
+          }
+        } catch (_) {}
+      };
+      
+      // ===== FIX: ensure() now toggles .visible class on .main inside shadow DOM =====
+      // The critical fix: .main has `position: fixed` so it ignores parent display:none.
+      // We must toggle display on .main itself (or use a .visible CSS class).
+      const ensure = () => {
+        ensureGear();
+        if (sm.get(P.APP_UI)) {
+          build();
+          const mainPanel = getMainPanel();
+          if (mainPanel) {
+            // ===== FIX: show panel by adding .visible class =====
+            if (!mainPanel.classList.contains('visible')) {
+              mainPanel.classList.add('visible');
+              // On first show, compute center position
+              queueMicrotask(() => {
+                try {
+                  if (!mainPanel.style.left) {
+                    const vv = window.visualViewport;
+                    const vw = vv ? vv.width : window.innerWidth;
+                    const vh = vv ? vv.height : window.innerHeight;
+                    const offL = vv ? (vv.offsetLeft || 0) : 0;
+                    const offT = vv ? (vv.offsetTop || 0) : 0;
+                    const w = Math.min(320, vw - 24);
+                    const panH = Math.min(vh * 0.85, 500);
+                    mainPanel.style.transform = 'none';
+                    mainPanel.style.left = `${offL + (vw - w) / 2}px`;
+                    mainPanel.style.top  = `${offT + (vh - panH) / 2}px`;
+                    mainPanel.style.right = 'auto';
+                  }
+                } catch (_) {}
+                clampPanelIntoViewport();
+              });
+            }
+          }
+        } else {
+          // ===== FIX: hide panel by removing .visible class =====
+          const mainPanel = getMainPanel();
+          if (mainPanel) {
+            mainPanel.classList.remove('visible');
+          }
+        }
+        mount();
         try { wakeGear?.(); } catch (_) {}
       };
       
