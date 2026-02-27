@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.19.0 - Stability & Shader Optimizations)
+// @name         Video_Control (v170.20.0 - Independent Audio Cinema Mode)
 // @namespace    https://github.com/
-// @version      170.19.0
-// @description  Video Control: High-End PC. Added dynamic WebGL 5-tap fallback, smart halo clamping, robust matchMedia fallback, and SVG update refactoring.
+// @version      170.20.0
+// @description  Video Control: High-End PC. Independent Audio Controls: Brickwall (Loudness) and Cinema (EQ). All previous SVG/WebGL/UI optimizations included.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -83,7 +83,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.19.0';
+    const VSC_VERSION = '170.20.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -220,7 +220,7 @@
 
     const DEFAULTS = {
       video: { presetS: 'off', presetB: 'brOFF', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 },
-      audio: { enabled: false, boost: 6 },
+      audio: { enabled: false, cinema: false, boost: 6 },
       playback: { rate: 1.0, enabled: false },
       app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false, autoScene: false, advanced: false }
     };
@@ -229,7 +229,7 @@
       APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_RENDER_MODE: 'app.renderMode',
       APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced',
       V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel',
-      A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
+      A_EN: 'audio.enabled', A_EQ: 'audio.cinema', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
     });
 
     const APP_SCHEMA = [
@@ -250,6 +250,7 @@
 
     const AUDIO_PLAYBACK_SCHEMA = [
       { type: 'bool', path: P.A_EN },
+      { type: 'bool', path: P.A_EQ },
       { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost },
       { type: 'bool', path: P.PB_EN },
       { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
@@ -740,7 +741,9 @@
     }
 
     function createAudio(sm) {
-      let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, target = null, currentSrc = null;
+      let ctx, compressor, limiter, wetInGain, hpf, clipper, target = null, currentSrc = null;
+      let eqSub, eqImpact, eqCut, eqHigh;
+      let inputGain, eqDryGain, eqWetGain, midGain, dynDryGain, dynWetGain, masterOut;
       let kWeightShelf, kWeightPass, analyser;
       let dataArray;
       let srcMap = new WeakMap();
@@ -751,7 +754,6 @@
 
       const VSC_AUD_HPF_HZ = 28;
       const VSC_AUD_HPF_Q  = 0.707;
-
       const VSC_AUD_CLIP_KNEE  = 0.985;
       const VSC_AUD_CLIP_DRIVE = 6.0;
 
@@ -785,14 +787,13 @@
       const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
 
       const clamp = VSC_CLAMP;
-
       const VSC_AUDIO_AUTO_MAKEUP = true;
 
       function runAudioLoop(tok) {
         if (tok !== loopTok || !ctx) return;
 
-        const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
-        const actuallyEnabled = en && currentSrc;
+        const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+        const actuallyEnabled = dynAct && currentSrc;
 
         if (VSC_AUDIO_AUTO_MAKEUP && actuallyEnabled && analyser) {
           analyser.getFloatTimeDomainData(dataArray);
@@ -819,11 +820,9 @@
           }
 
           const makeupDbTarget = clamp(Math.max(0, redPos - 2.0) * 0.22, 0, 2.8) * gateMult;
-
           const isAttack = makeupDbTarget < makeupDbEma;
           const alpha = isAttack ? 0.35 : 0.015;
           makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha;
-
         } else {
           makeupDbEma += (0 - makeupDbEma) * 0.1;
         }
@@ -847,7 +846,9 @@
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
           ctx = null; compressor = null; limiter = null; wetInGain = null;
-          dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; currentSrc = null; target = null;
+          inputGain = null; eqDryGain = null; eqWetGain = null; midGain = null; dynDryGain = null; dynWetGain = null; masterOut = null;
+          hpf = null; clipper = null; currentSrc = null; target = null;
+          eqSub = null; eqImpact = null; eqCut = null; eqHigh = null;
           kWeightShelf = null; kWeightPass = null; analyser = null; dataArray = null;
           srcMap = new WeakMap();
         }
@@ -858,6 +859,26 @@
 
         try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); }
         ensureGestureResumeHook();
+
+        inputGain = ctx.createGain();
+        eqDryGain = ctx.createGain();
+        eqWetGain = ctx.createGain();
+        midGain = ctx.createGain();
+        dynDryGain = ctx.createGain();
+        dynWetGain = ctx.createGain();
+        masterOut = ctx.createGain();
+
+        eqSub = ctx.createBiquadFilter();
+        eqSub.type = 'lowshelf'; eqSub.frequency.value = 85; eqSub.gain.value = 10.0;
+        
+        eqImpact = ctx.createBiquadFilter();
+        eqImpact.type = 'peaking'; eqImpact.frequency.value = 55; eqImpact.Q.value = 1.4; eqImpact.gain.value = 4.5;
+        
+        eqCut = ctx.createBiquadFilter();
+        eqCut.type = 'peaking'; eqCut.frequency.value = 400; eqCut.Q.value = 1.0; eqCut.gain.value = -3.5;
+        
+        eqHigh = ctx.createBiquadFilter();
+        eqHigh.type = 'highshelf'; eqHigh.frequency.value = 8000; eqHigh.gain.value = -2.0;
 
         compressor = ctx.createDynamicsCompressor();
         compressor.threshold.value = -22;
@@ -896,38 +917,39 @@
         kWeightPass.frequency.value = 38;
         kWeightPass.Q.value = 0.5;
 
-        dryOut = ctx.createGain();
-        wetOut = ctx.createGain();
         wetInGain = ctx.createGain();
-        masterOut = ctx.createGain();
+
+        // Routing
+        inputGain.connect(eqDryGain);
+        inputGain.connect(eqSub);
+        eqSub.connect(eqImpact); eqImpact.connect(eqCut); eqCut.connect(eqHigh); eqHigh.connect(eqWetGain);
+        
+        eqDryGain.connect(midGain);
+        eqWetGain.connect(midGain);
+
+        midGain.connect(dynDryGain);
+        midGain.connect(hpf);
+        hpf.connect(compressor); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(dynWetGain);
+
+        dynDryGain.connect(masterOut);
+        dynWetGain.connect(masterOut);
+
+        midGain.connect(kWeightShelf);
+        kWeightShelf.connect(kWeightPass); kWeightPass.connect(analyser);
 
         masterOut.connect(ctx.destination);
-        dryOut.connect(masterOut);
-        wetOut.connect(masterOut);
-
-        hpf.connect(compressor);
-        compressor.connect(wetInGain);
-        wetInGain.connect(limiter);
-        limiter.connect(clipper);
-        clipper.connect(wetOut);
-
-        kWeightShelf.connect(kWeightPass);
-        kWeightPass.connect(analyser);
 
         return true;
       };
 
-      const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => {
-        if (!ctx) return;
+      const rampGainsSafe = (node, targetVal, tc = 0.015) => {
+        if (!ctx || !node) return;
         const t = ctx.currentTime;
         try {
-          dryOut.gain.cancelScheduledValues(t);
-          wetOut.gain.cancelScheduledValues(t);
-          dryOut.gain.setTargetAtTime(dryTarget, t, tc);
-          wetOut.gain.setTargetAtTime(wetTarget, t, tc);
+          node.gain.cancelScheduledValues(t);
+          node.gain.setTargetAtTime(targetVal, t, tc);
         } catch (_) {
-          dryOut.gain.value = dryTarget;
-          wetOut.gain.value = wetTarget;
+          node.gain.value = targetVal;
         }
       };
 
@@ -970,16 +992,17 @@
         if (!ctx) return;
 
         const tok = ++loopTok;
-        const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+        const appAct = !!sm.get(P.APP_ACT);
+        const dynAct = !!(sm.get(P.A_EN) && appAct);
+        const eqAct = !!(sm.get(P.A_EQ) && appAct);
         const isHooked = !!currentSrc;
-        const actuallyEnabled = en && isHooked;
 
-        const dryTarget = actuallyEnabled ? 0 : 1;
-        const wetTarget = actuallyEnabled ? 1 : 0;
+        rampGainsSafe(eqDryGain, (eqAct && isHooked) ? 0 : 1);
+        rampGainsSafe(eqWetGain, (eqAct && isHooked) ? 1 : 0);
+        rampGainsSafe(dynDryGain, (dynAct && isHooked) ? 0 : 1);
+        rampGainsSafe(dynWetGain, (dynAct && isHooked) ? 1 : 0);
 
-        rampGainsSafe(dryTarget, wetTarget, 0.015);
-
-        if (actuallyEnabled) {
+        if (dynAct && isHooked) {
             runAudioLoop(tok);
         }
       };
@@ -997,7 +1020,9 @@
         loopTok++;
         try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
         ctx = null; compressor = null; limiter = null; wetInGain = null;
-        dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; currentSrc = null; target = null;
+        inputGain = null; eqDryGain = null; eqWetGain = null; midGain = null; dynDryGain = null; dynWetGain = null; masterOut = null;
+        hpf = null; clipper = null; currentSrc = null; target = null;
+        eqSub = null; eqImpact = null; eqCut = null; eqHigh = null;
         kWeightShelf = null; kWeightPass = null; analyser = null; dataArray = null;
         makeupDbEma = 0; switchTok++;
         srcMap = new WeakMap();
@@ -1005,7 +1030,7 @@
 
       return {
         setTarget: (v) => {
-          const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+          const enabled = !!((sm.get(P.A_EN) || sm.get(P.A_EQ)) && sm.get(P.APP_ACT));
           const st = v ? getVState(v) : null;
 
           if (st && st.audioFailUntil > performance.now()) {
@@ -1036,9 +1061,7 @@
                 srcMap.set(v, s);
               }
 
-              s.connect(dryOut);
-              s.connect(hpf || compressor);
-              if (kWeightShelf) s.connect(kWeightShelf);
+              s.connect(inputGain);
 
               currentSrc = s;
             } catch (_) {
@@ -1364,8 +1387,8 @@
         const res = out.join(' '); toneCache.set(key, res); return res;
       }
 
-      const SVG_MAX_PIX_FULL = config.SVG_MAX_PIX_FULL ?? (3840 * 2160);
-      const SVG_MAX_PIX_FAST = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
+      const SVG_MAX_PIX_FULL = config.SVG_MAX_PIX_FULL ?? (1280 * 720);
+      const SVG_MAX_PIX_FAST = config.SVG_MAX_PIX_FAST ?? (2560 * 1440);
 
       function calcFilterRes(vw, vh, maxPix) {
         vw = vw | 0; vh = vh | 0;
@@ -1547,12 +1570,12 @@
               const common = (SVG_UPDATE_ACTIVE_TIER_ONLY && nodes.commonByTier) ? (nodes.commonByTier[p.tier] || nodes.commonAll) : nodes.commonAll;
               const cst = (SVG_UPDATE_ACTIVE_TIER_ONLY && st.commonTier) ? (st.commonTier[p.tier] || st) : st;
 
-              const updateKey = (obj, key, next, apply) => {
+              function updateKey(obj, key, next, apply) {
                 if (obj[key] === next) return false;
                 obj[key] = next;
                 apply();
                 return true;
-              };
+              }
 
               updateKey(cst, 'toneKey', p.tk, () => {
                 if (cst.toneTable !== p.table) {
@@ -2084,6 +2107,10 @@ void main() {
           const resized = (this.canvas.width !== w || this.canvas.height !== h);
           if (resized) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); }
 
+          const rawPx = rawW * rawH;
+          const cheapSharpen = CONFIG.IS_LOW_END || rawPx >= (2560 * 1440) || sharpNorm < 0.12;
+          const tapMode = cheapSharpen ? 1.0 : 0.0;
+
           if ((resized || programChanged || this._lastRawW !== rawW || this._lastRawH !== rawH) && H.uResolution) {
             gl.uniform2f(H.uResolution, rawW, rawH);
             this._lastRawW = rawW; this._lastRawH = rawH;
@@ -2094,11 +2121,6 @@ void main() {
 
           const isHdr = VSC_MEDIA.isHdr();
           const hiReduce = isHdr ? 0.82 : 0.88;
-          
-          const rawPx = rawW * rawH;
-          const cheapSharpen = CONFIG.IS_LOW_END || rawPx >= (2560 * 1440) || sharpNorm < 0.12;
-          const tapMode = cheapSharpen ? 1.0 : 0.0;
-
           if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, tapMode, hiReduce);
 
           if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs);
@@ -2434,6 +2456,9 @@ void main() {
         const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: () => setAndHint(P.A_EN, !sm.get(P.A_EN)) }, '🔊 Brickwall');
         bindClassToggle(boostBtn, P.A_EN, v => !!v);
 
+        const cinemaBtn = h('button', { id: 'cinema-btn', class: 'btn', onclick: () => setAndHint(P.A_EQ, !sm.get(P.A_EQ)) }, '🎬 시네마 EQ');
+        bindClassToggle(cinemaBtn, P.A_EQ, v => !!v);
+
         const pipBtn = h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
 
         const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', onclick: () => { const nextEn = !sm.get(P.APP_ZOOM_EN); setAndHint(P.APP_ZOOM_EN, nextEn); const zm = window.__VSC_INTERNAL__.ZoomManager; const v = window.__VSC_APP__?.getActiveVideo(); if (zm && v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어');
@@ -2461,7 +2486,8 @@ void main() {
 
         const bodyMain = h('div', { id: 'p-main' }, [
           h('div', { class: 'prow' }, [ rmBtn, autoSceneBtn ]),
-          h('div', { class: 'prow' }, [ pipBtn, zoomBtn, boostBtn ]),
+          h('div', { class: 'prow' }, [ pipBtn, zoomBtn ]),
+          h('div', { class: 'prow' }, [ boostBtn, cinemaBtn ]),
           h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ 닫기'), pwrBtn, h('button', { class: 'btn', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '↺ 리셋') ]),
           renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }),
           advToggleBtn,
@@ -2772,6 +2798,11 @@ void main() {
       candidates.clear();
     }
 
+    function createThrottled(fn, ms = 120) {
+      let last = 0, timer = 0;
+      return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } };
+    }
+
     function debugLogEffectiveVVals(vVals, vfUser, activeTarget, rMode) {
       if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp, qos: vVals.__qos });
     }
@@ -2857,7 +2888,7 @@ void main() {
           lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev; const now = performance.now(); if (now - lastPrune > 2000) { Registry.prune(); pruneTouchedDisconnected(); lastPrune = now; }
 
           const vf0 = Store.getCatRef('video'), { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos;
-          const wantAudioNow = !!(Store.get(P.A_EN) && active);
+          const wantAudioNow = !!((Store.get(P.A_EN) || Store.get(P.A_EQ)) && active);
           const rMode = Store.get(P.APP_RENDER_MODE) || 'svg';
 
           const pick = Targeting.pickFastActiveOnly(visible.videos, window.__lastUserPt, wantAudioNow);
@@ -2929,7 +2960,7 @@ void main() {
     }
     bindNormalizer([P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV], APP_SCHEMA);
     bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA);
-    bindNormalizer([P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
+    bindNormalizer([P.A_EN, P.A_EQ, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
 
     const Registry = createRegistry(Scheduler), Targeting = createTargeting();
 
