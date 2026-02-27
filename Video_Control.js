@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.14.0 - UI Anchor Fix)
+// @name         Video_Control (v170.18.0 - Sharpness Math Fix)
 // @namespace    https://github.com/
-// @version      170.14.0
-// @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization. Fixed: UI panel naturally follows the gear icon during resize/zoom until explicitly dragged.
+// @version      170.18.0
+// @description  Video Control: High-End PC. Fixed the math bug in v170.17 that weakened the sharpening. Restored full 2.2x strength.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -81,7 +81,7 @@
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.14.0';
+    const VSC_VERSION = '170.18.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -465,7 +465,7 @@
         const path = typeof e.composedPath === 'function' ? e.composedPath() : null;
         if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } }
         const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5);
-        const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5);
+        const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientHeight : innerHeight * 0.5);
         const el = document.elementFromPoint(cx, cy);
         let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null;
         if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); }
@@ -1310,6 +1310,23 @@
         sCurve = (x) => x * x * (3 - 2 * x),
         smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return sCurve(t); };
 
+      const softCap = (x, knee = 1.0, max = 2.0) => {
+        x = Math.max(0, x);
+        if (x <= knee) return x;
+        const t = (x - knee) / Math.max(1e-6, (max - knee));
+        return knee + (max - knee) * (1 - Math.exp(-t));
+      };
+
+      const applyUnsharp = (bNode, shNode, st, keyB, keyK2, keyK3, v, kMul, stdBase, stdDrop) => {
+        const vn = softCap(v, 1.0, 2.0);
+        const scVal = sCurve(Math.min(1, vn));
+        const extra = Math.max(0, vn - 1);
+        const kC = (scVal + extra) * kMul;
+        setAttr(bNode, 'stdDeviation', v > 0 ? (stdBase - sCurve(Math.min(1, v)) * stdDrop).toFixed(2) : '0', st, keyB);
+        setAttr(shNode, 'k2', (1 + kC).toFixed(3), st, keyK2);
+        setAttr(shNode, 'k3', (-kC).toFixed(3), st, keyK3);
+      };
+
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
       function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
@@ -1332,8 +1349,8 @@
         const res = out.join(' '); toneCache.set(key, res); return res;
       }
 
-      const SVG_MAX_PIX_FULL = config.SVG_MAX_PIX_FULL ?? (1280 * 720);
-      const SVG_MAX_PIX_FAST = config.SVG_MAX_PIX_FAST ?? (1920 * 1080);
+      const SVG_MAX_PIX_FULL = config.SVG_MAX_PIX_FULL ?? (3840 * 2160);
+      const SVG_MAX_PIX_FAST = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
 
       function calcFilterRes(vw, vh, maxPix) {
         vw = vw | 0; vh = vh | 0;
@@ -1369,8 +1386,10 @@
         const cF = mkC('f');
         const fB1 = h('feGaussianBlur', { ns: 'svg', in: 'f_g', stdDeviation: '0', result: 'f_b1' });
         const fSh1 = h('feComposite', { ns: 'svg', in: 'f_g', in2: 'f_b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'f_sh1' });
-        const pF = mkP('f', 'f_sh1');
-        fast.append(cF.t, cF.b, cF.g, fB1, fSh1, pF.tm, pF.s);
+        const fB2 = h('feGaussianBlur', { ns: 'svg', in: 'f_sh1', stdDeviation: '0', result: 'f_b2' });
+        const fSh2 = h('feComposite', { ns: 'svg', in: 'f_sh1', in2: 'f_b2', operator: 'arithmetic', k2: '1', k3: '0', result: 'f_sh2' });
+        const pF = mkP('f', 'f_sh2');
+        fast.append(cF.t, cF.b, cF.g, fB1, fSh1, fB2, fSh2, pF.tm, pF.s);
 
         const fullLight = h('filter', { ns: 'svg', id: fidFullLight, 'color-interpolation-filters': 'sRGB', x: '-10%', y: '-10%', width: '120%', height: '120%' });
         const cUL = mkC('ul');
@@ -1446,7 +1465,7 @@
           filters: { lite, fast, fullLight, full },
           commonByTier,
           commonAll,
-          fastDetail: { b1: fB1, sh1: fSh1 },
+          fastDetail: { b1: fB1, sh1: fSh1, b2: fB2, sh2: fSh2 },
           fullLightDetail: { b1: ulB1, sh1: ulSh1, bc: ulBc, cl: ulCl },
           fullDetail: { b1: uB1, sh1: uSh1, b2: uB2, sh2: uSh2, bc: uBc, cl: uCl },
           st: {
@@ -1459,7 +1478,9 @@
               full: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' }
             },
             detailKey: '', fastKey: '', fullLightKey: '', fullKey: '',
-            __fB1: '', __fSh1k2: '', __fSh1k3: '', __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '', __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: ''
+            __fB1: '', __fSh1k2: '', __fSh1k3: '', __fB2: '', __fSh2k2: '', __fSh2k3: '', 
+            __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '', 
+            __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: ''
           }
         };
       }
@@ -1497,10 +1518,10 @@
           const gk = (1/clamp(s.gamma||1,0.1,5.0)).toFixed(4); const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const { rs, gs, bs } = tempToRgbGain(s.temp); const rsStr = rs.toFixed(3), gsStr = gs.toFixed(3), bsStr = bs.toFixed(3); const tmk = `${rsStr}|${gsStr}|${bsStr}`;
 
-          const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
-
           const pxScale = Math.sqrt((Math.max(1, vwKey * vhKey)) / (1280 * 720));
           const hiResN  = Math.max(0, Math.min(1, (pxScale - 1.0) / 1.7));
+
+          const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
 
           st._pending = { tk, table, bcLinKey, con, intercept, conStr, interceptStr, gk, satVal, tmk, rs, gs, bs, rsStr, gsStr, bsStr, dk, s, tier, vwKey, vhKey, hiResN };
           if (!st._svgUpdatePending) {
@@ -1544,19 +1565,26 @@
 
               if (p.tier === 'fast') {
                 if (st.fastKey !== p.dk) {
-                  st.fastKey = p.dk; const sc = sCurve;
-                  const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
-                  setAttr(nodes.fastDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__fB1');
-                  setAttr(nodes.fastDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__fSh1k2');
-                  setAttr(nodes.fastDetail.sh1, 'k3', (-kC).toFixed(3), st, '__fSh1k3');
+                  st.fastKey = p.dk;
+                  const v1 = (p.s.sharp || 0) / 50;
+                  applyUnsharp(nodes.fastDetail.b1, nodes.fastDetail.sh1, st, '__fB1', '__fSh1k2', '__fSh1k3', v1, 2.2, 0.65, 0.2);
+
+                  const v2 = (p.s.sharp2 || 0) / 50;
+                  const cl = (p.s.clarity || 0) / 50;
+                  const micro = Math.min(1, (v2 * 1.1) + (cl * 0.6));
+                  const kM = sCurve(micro) * 1.6;
+                  const std2 = micro > 0 ? '0.20' : '0';
+
+                  setAttr(nodes.fastDetail.b2, 'stdDeviation', std2, st, '__fB2');
+                  setAttr(nodes.fastDetail.sh2, 'k2', (1 + kM).toFixed(3), st, '__fSh2k2');
+                  setAttr(nodes.fastDetail.sh2, 'k3', (-kM).toFixed(3), st, '__fSh2k3');
                 }
               } else if (p.tier === 'full-light') {
                 if (st.fullLightKey !== p.dk) {
-                  st.fullLightKey = p.dk; const sc = sCurve;
-                  const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
-                  setAttr(nodes.fullLightDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__ulB1');
-                  setAttr(nodes.fullLightDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__ulSh1k2');
-                  setAttr(nodes.fullLightDetail.sh1, 'k3', (-kC).toFixed(3), st, '__ulSh1k3');
+                  st.fullLightKey = p.dk;
+                  const v1 = (p.s.sharp || 0) / 50;
+                  applyUnsharp(nodes.fullLightDetail.b1, nodes.fullLightDetail.sh1, st, '__ulB1', '__ulSh1k2', '__ulSh1k3', v1, 2.2, 0.65, 0.2);
+                  
                   const clVal = (p.s.clarity || 0) / 50;
                   const clStd = clVal > 0 ? (0.75 + p.hiResN * 0.35).toFixed(2) : '0';
                   const clGain = (1 + clVal * (1.05 + p.hiResN * 0.35));
@@ -1566,15 +1594,16 @@
                 }
               } else if (p.tier === 'full') {
                 if (st.fullKey !== p.dk) {
-                  st.fullKey = p.dk; const sc = sCurve;
-                  const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
-                  setAttr(nodes.fullDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__uB1');
-                  setAttr(nodes.fullDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__uSh1k2');
-                  setAttr(nodes.fullDetail.sh1, 'k3', (-kC).toFixed(3), st, '__uSh1k3');
-                  const v2 = (p.s.sharp2 || 0) / 50, kF = Math.min(sc(Math.min(1, v2)) * 4.8, 3.5);
+                  st.fullKey = p.dk;
+                  const v1 = (p.s.sharp || 0) / 50;
+                  applyUnsharp(nodes.fullDetail.b1, nodes.fullDetail.sh1, st, '__uB1', '__uSh1k2', '__uSh1k3', v1, 2.2, 0.65, 0.2);
+                  
+                  const v2 = (p.s.sharp2 || 0) / 50;
+                  const kF = Math.min(sCurve(Math.min(1, v2)) * 4.8, 3.5);
                   setAttr(nodes.fullDetail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__uB2');
                   setAttr(nodes.fullDetail.sh2, 'k2', (1 + kF).toFixed(3), st, '__uSh2k2');
                   setAttr(nodes.fullDetail.sh2, 'k3', (-kF).toFixed(3), st, '__uSh2k3');
+                  
                   const clVal = (p.s.clarity || 0) / 50;
                   const clStd = clVal > 0 ? (0.85 + p.hiResN * 0.55).toFixed(2) : '0';
                   const clGain = (1 + clVal * (1.15 + p.hiResN * 0.55));
@@ -2167,30 +2196,27 @@ void main() {
       };
     }
 
-    let __sharedStyleSheet = null;
-    function applyShadowStyle(shadow, cssText, h) {
-      try {
-        if ('adoptedStyleSheets' in shadow && 'replaceSync' in CSSStyleSheet.prototype) {
-          if (!__sharedStyleSheet) { __sharedStyleSheet = new CSSStyleSheet(); __sharedStyleSheet.replaceSync(cssText); }
-          const cur = shadow.adoptedStyleSheets || []; if (!cur.includes(__sharedStyleSheet)) { shadow.adoptedStyleSheets = [...cur, __sharedStyleSheet]; } return;
-        }
-      } catch (_) {}
-      const marker = 'data-vsc-style';
-      let stEl = shadow.querySelector(`style[${marker}="1"]`);
-      if (!stEl) {
-        stEl = h('style', { [marker]: '1' }, cssText);
-        shadow.append(stEl);
-      } else if (stEl.textContent !== cssText) {
-        stEl.textContent = cssText;
-      }
-    }
-
     function createDisposerBag() { const fns = []; return { add(fn) { if (typeof fn === 'function') fns.push(fn); return fn; }, flush() { for (let i = fns.length - 1; i >= 0; i--) { try { fns[i](); } catch (_) {} } fns.length = 0; } }; }
 
     function bindWindowDrag(onMove, onEnd) {
-      const ac = new AbortController(); const sig = ac.signal;
-      window.addEventListener('mousemove', onMove, { passive: false, signal: sig }); window.addEventListener('mouseup', end, { signal: sig }); window.addEventListener('touchmove', onMove, { passive: false, signal: sig }); window.addEventListener('touchend', end, { signal: sig }); window.addEventListener('blur', end, { signal: sig });
-      function end(ev) { try { onEnd?.(ev); } finally { try { ac.abort(); } catch (_) {} } } return () => { try { ac.abort(); } catch (_) {} };
+      const ac = new AbortController();
+      const sig = ac.signal;
+
+      const move = (e) => {
+        if (e.cancelable) e.preventDefault();
+        onMove?.(e);
+      };
+
+      window.addEventListener('pointermove', move, { passive: false, signal: sig });
+      window.addEventListener('pointerup', end, { signal: sig });
+      window.addEventListener('pointercancel', end, { signal: sig });
+      window.addEventListener('blur', end, { signal: sig });
+
+      function end(ev) {
+        try { onEnd?.(ev); }
+        finally { try { ac.abort(); } catch (_) {} }
+      }
+      return () => { try { ac.abort(); } catch (_) {} };
     }
 
     function createUI(sm, registry, ApplyReq, Utils) {
@@ -2441,8 +2467,7 @@ void main() {
           }, () => { stopDrag = null; });
         };
         
-        dragHandle.addEventListener('mousedown', startPanelDrag);
-        dragHandle.addEventListener('touchstart', startPanelDrag, { passive: false });
+        dragHandle.addEventListener('pointerdown', startPanelDrag);
         dragHandle.addEventListener('dblclick', (e) => {
           hasUserDraggedUI = false;
           clampPanelIntoViewport();
@@ -2525,7 +2550,7 @@ void main() {
               if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; }
           }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
         };
-        gearBtn.addEventListener('mousedown', handleGearDrag); gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
+        gearBtn.addEventListener('pointerdown', handleGearDrag);
         
         let lastToggle = 0;
         const onGearActivate = (e) => {
@@ -2825,9 +2850,10 @@ void main() {
           const qs = updateQualityScale(__activeTarget);
           if (qs !== 1.0) {
             vValsEffective = { ...vValsEffective };
-            vValsEffective.sharp = (vValsEffective.sharp || 0) * qs;
-            vValsEffective.sharp2 = (vValsEffective.sharp2 || 0) * qs;
-            vValsEffective.clarity = (vValsEffective.clarity || 0) * qs;
+            const qSharp = Math.sqrt(qs);
+            vValsEffective.sharp = (vValsEffective.sharp || 0) * qSharp;
+            vValsEffective.sharp2 = (vValsEffective.sharp2 || 0) * qSharp;
+            vValsEffective.clarity = (vValsEffective.clarity || 0) * qSharp;
             vValsEffective.__qos = 'fast';
           } else {
             vValsEffective.__qos = 'full';
@@ -2900,7 +2926,7 @@ void main() {
       const AutoScene = createAutoSceneManager(Store, P, Scheduler);
       window.__VSC_INTERNAL__.AutoScene = AutoScene;
 
-      const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END, SVG_MAX_PIX_FULL: 1280 * 720, SVG_MAX_PIX_FAST: 1920 * 1080 });
+      const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END, SVG_MAX_PIX_FULL: 3840 * 2160, SVG_MAX_PIX_FAST: CONFIG.IS_LOW_END ? (1920 * 1080) : (3840 * 2160) });
       const FiltersGL = createFiltersWebGL(Utils);
       const Adapter = createBackendAdapter(Filters, FiltersGL);
       window.__VSC_INTERNAL__.Adapter = Adapter;
