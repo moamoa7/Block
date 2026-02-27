@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.8.0 - Full-Light Topology & filterRes Capping)
+// @name         Video_Control (v170.9.0 - Full-Light Topology & filterRes Capping)
 // @namespace    https://github.com/
-// @version      170.8.0
+// @version      170.9.0
 // @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -82,7 +82,7 @@
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.8.0';
+    const VSC_VERSION = '170.9.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -2240,6 +2240,36 @@ void main() {
         bindClassToggle(off, key, v => (Number(v) | 0) === 0); row.append(off); return row;
       }
 
+      const clampVal = (v, a, b) => (v < a ? a : (v > b ? b : v));
+      const clampPanelIntoViewport = () => {
+        try {
+          if (!container) return;
+          const mainPanel = container.shadowRoot.querySelector('.main');
+          if (!mainPanel || mainPanel.style.display === 'none') return;
+          mainPanel.style.maxWidth = mainPanel.style.maxWidth || 'min(320px, calc(100vw - 24px))';
+          const r = mainPanel.getBoundingClientRect();
+          const vw = window.innerWidth || document.documentElement.clientWidth || 0;
+          const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+          if (!vw || !vh) return;
+
+          const hasPos = (mainPanel.style.left && mainPanel.style.top);
+          if (hasPos) {
+            const w = r.width, h = r.height;
+            const left = clampVal(r.left, 8, Math.max(8, vw - w - 8));
+            const top  = clampVal(r.top,  8, Math.max(8, vh - h - 8));
+            mainPanel.style.right = 'auto';
+            mainPanel.style.transform = 'none';
+            mainPanel.style.left = `${left}px`;
+            mainPanel.style.top  = `${top}px`;
+          }
+        } catch (_) {}
+      };
+
+      const onLayoutChange = () => queueMicrotask(clampPanelIntoViewport);
+      window.addEventListener('resize', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
+      window.addEventListener('orientationchange', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
+      document.addEventListener('fullscreenchange', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
+
       const build = () => {
         if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
         const style = `
@@ -2252,6 +2282,9 @@ void main() {
             z-index: 2147483647; border: 1px solid #555;
             font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7);
             overflow-y: auto; max-height: 85vh;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            touch-action: pan-y;
           }
           @supports not ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
             .main { background: rgba(25,25,25,0.985); }
@@ -2355,9 +2388,9 @@ void main() {
       const ensureGear = () => {
         if (!allowUiInThisDoc()) return; if (gearHost) return;
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
-        const style = `.gear{position:fixed;top:50%;right:max(10px, calc(env(safe-area-inset-right, 0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''} @media (max-width:520px){.gear{top:auto;bottom:max(16px,calc(env(safe-area-inset-bottom,0px)+16px));transform:none;}.hint{bottom:max(18px,calc(env(safe-area-inset-bottom,0px)+18px));}}`;
+        const style = `.gear{position:fixed;top:50%;right:max(10px, calc(env(safe-area-inset-right, 0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''} @media (max-width:520px){.gear{top:auto;bottom:max(16px,calc(env(safe-area-inset-bottom,0px)+16px));transform:none;}.hint{bottom:max(18px,calc(env(safe-area-inset-bottom,0px)+18px));}}`;
         applyShadowStyle(shadow, style, h); let dragThresholdMet = false, stopDrag = null;
-        gearBtn = h('button', { class: 'gear', onclick: (e) => { if (dragThresholdMet) { e.preventDefault(); e.stopPropagation(); return; } setAndHint(P.APP_UI, !sm.get(P.APP_UI)); } }, '⚙');
+        gearBtn = h('button', { class: 'gear' }, '⚙');
         shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
         const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); };
         window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); bootWakeTimer = setTimeout(wake, 2000);
@@ -2372,11 +2405,42 @@ void main() {
           }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
         };
         gearBtn.addEventListener('mousedown', handleGearDrag); gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
+        
+        let lastToggle = 0;
+        const onGearActivate = (e) => {
+          if (dragThresholdMet) { try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} return; }
+          const now = performance.now();
+          if (now - lastToggle < 300) { try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} return; }
+          lastToggle = now;
+          setAndHint(P.APP_UI, !sm.get(P.APP_UI));
+        };
+        gearBtn.addEventListener('touchend', onGearActivate, { passive: false });
+        gearBtn.addEventListener('click', (e) => {
+            if (e.detail === 0 && e.pointerType === '') { /* prevent simulated if needed */ }
+            onGearActivate(e);
+        }, { passive: false });
+
         const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
         sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
       };
+      
       const mount = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) {} try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) {} };
-      const ensure = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } ensureGear(); if (sm.get(P.APP_UI)) { build(); if (container) container.style.display = 'block'; } else { if (container) container.style.display = 'none'; } mount(); };
+      
+      const ensure = () => { 
+        if (!allowUiInThisDoc()) { detachNodesHard(); return; } 
+        ensureGear(); 
+        if (sm.get(P.APP_UI)) { 
+          build(); 
+          if (container) {
+            container.style.display = 'block'; 
+            queueMicrotask(clampPanelIntoViewport);
+          }
+        } else { 
+          if (container) container.style.display = 'none'; 
+        } 
+        mount(); 
+      };
+      
       if (!document.body) { onDoc('DOMContentLoaded', () => { try { ensure(); ApplyReq.hard(); } catch (_) {} }, { once: true }); }
       
       window.__VSC_UI_Ensure = ensure;
