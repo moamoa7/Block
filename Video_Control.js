@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.6.0 - Full-Light Topology & filterRes Capping)
+// @name         Video_Control (v170.7.0 - Full-Light Topology & filterRes Capping)
 // @namespace    https://github.com/
-// @version      170.6.0
+// @version      170.7.0
 // @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -14,7 +14,6 @@
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
-// @grant        GM_unregisterMenuCommand
 // ==/UserScript==
 
 (function () {
@@ -56,15 +55,28 @@
 
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
+    // Lightweight device heuristic (used only for quality / safety fallbacks; keep it cheap).
+    function detectLowEndDevice() {
+      try {
+        const hc = Number(navigator.hardwareConcurrency || 0);
+        const dm = Number(navigator.deviceMemory || 0);
+        const mobile = !!(navigator.userAgentData?.mobile || /Mobi|Android/i.test(navigator.userAgent));
+        if (dm && dm <= 4) return true;
+        if (hc && hc <= 4) return true;
+        if (mobile && ((dm && dm <= 6) || (hc && hc <= 6))) return true;
+      } catch (_) {}
+      return false;
+    }
+
     const CONFIG = Object.freeze({
       IS_MOBILE: detectMobile(),
-      IS_LOW_END: false,
+      IS_LOW_END: detectLowEndDevice(),
       TOUCHED_MAX: 140,
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.6.0';
+    const VSC_VERSION = '170.7.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -83,7 +95,7 @@
         if (window.matchMedia) {
           const mql = matchMedia('(dynamic-range: high)');
           hdr = mql.matches ? 1 : 0;
-          mql.addEventListener('change', (e) => { hdr = e.matches ? 1 : 0; }, { passive: true });
+          (mql.addEventListener ? mql.addEventListener.bind(mql) : mql.addListener.bind(mql))('change', (e) => { hdr = e.matches ? 1 : 0; });
         }
       } catch (_) {}
       return Object.freeze({ isHdr: () => hdr === 1 });
@@ -96,11 +108,33 @@
         : { webglCooldown: true,  audioCooldown: true,  autoSceneDrmBackoff: true,  hideAmbientGlow: true  }
     );
 
-    if (VSC_DEFENSE.hideAmbientGlow) {
-      const style = document.createElement('style');
-      style.textContent = `#cinematics, .ytp-glow-effect, .ytp-glow-canvas-container, [id^="ambient-"] { display: none !important; contain: strict !important; }`;
-      (document.head || document.documentElement).appendChild(style);
+    const DEFENSE_KEYS = Object.freeze({ hideAmbientGlow: 'vsc.hideAmbientGlow' });
+    function setHideAmbientGlow(enable) {
+      try {
+        const id = 'vsc-hide-ambient-style';
+        let style = document.getElementById(id);
+        if (enable) {
+          if (!style) {
+            style = document.createElement('style');
+            style.id = id;
+            style.textContent = `#cinematics, .ytp-glow-effect, .ytp-glow-canvas-container, [id^="ambient-"] { display: none !important; contain: strict !important; }`;
+            (document.head || document.documentElement).appendChild(style);
+          }
+        } else {
+          style?.remove?.();
+        }
+        try { localStorage.setItem(DEFENSE_KEYS.hideAmbientGlow, enable ? '1' : '0'); } catch (_) {}
+      } catch (_) {}
     }
+    const HIDE_AMBIENT_GLOW = (() => {
+      try {
+        const v = localStorage.getItem(DEFENSE_KEYS.hideAmbientGlow);
+        if (v === '1') return true;
+        if (v === '0') return false;
+      } catch (_) {}
+      return !!VSC_DEFENSE.hideAmbientGlow;
+    })();
+    setHideAmbientGlow(HIDE_AMBIENT_GLOW);
 
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const PERF_POLICY = Object.freeze({ registry: { shadowLRUMax: 12, spaRescanDebounceMs: 220 } });
@@ -179,8 +213,6 @@
       for (const v of set) { if (toEvict.length >= dropN) break; toEvict.push(v); }
       for (const v of toEvict) { set.delete(v); try { onEvict?.(v); } catch (_) {} }
     }
-
-    const lerp = (a, b, t) => a + (b - a) * t;
 
     let __vscRectEpoch = 0, __vscRectEpochQueued = false;
     function bumpRectEpoch() { if (__vscRectEpochQueued) return; __vscRectEpochQueued = true; requestAnimationFrame(() => { __vscRectEpochQueued = false; __vscRectEpoch++; }); }
@@ -270,11 +302,8 @@
     }
 
     function onFsChange() {
-      const fsEl = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
-      if (!fsEl) {
-        // Fallback for custom fs logic cleanup if necessary
-      }
-      if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure();
+      try { window.__VSC_UI_Ensure?.(); } catch (_) {}
+      try { window.__VSC_INTERNAL__?.ApplyReq?.hard?.(); } catch (_) {}
     }
     onDoc('fullscreenchange', onFsChange); onDoc('webkitfullscreenchange', onFsChange);
 
@@ -1202,7 +1231,7 @@
 
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(720);
-      const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
+      const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, sCurve = (x) => x * x * (3 - 2 * x), smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return sCurve(t); };
 
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
@@ -1242,7 +1271,7 @@
 
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
-        const fidLite = `vsc-lite-${config.VSC_ID}`, fidFast = `vsc-fast-${config.VSC_ID}`, fidFull = `vsc-full-${config.VSC_ID}`;
+        const fidLite = `vsc-lite-${config.VSC_ID}`, fidFast = `vsc-fast-${config.VSC_ID}`, fidFullLight = `vsc-full-light-${config.VSC_ID}`, fidFull = `vsc-full-${config.VSC_ID}`;
 
         const mkC = (p) => {
           const t = h('feComponentTransfer', { ns: 'svg', result: `${p}_t` }, ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', type: 'table', tableValues: '0 1' })));
@@ -1266,6 +1295,15 @@
         const pF = mkP('f', 'f_sh1');
         fast.append(cF.t, cF.b, cF.g, fB1, fSh1, pF.tm, pF.s);
 
+        const fullLight = h('filter', { ns: 'svg', id: fidFullLight, 'color-interpolation-filters': 'sRGB', x: '-10%', y: '-10%', width: '120%', height: '120%' });
+        const cUL = mkC('ul');
+        const ulB1 = h('feGaussianBlur', { ns: 'svg', in: 'ul_g', stdDeviation: '0', result: 'ul_b1' });
+        const ulSh1 = h('feComposite', { ns: 'svg', in: 'ul_g', in2: 'ul_b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'ul_sh1' });
+        const ulBc = h('feGaussianBlur', { ns: 'svg', in: 'ul_sh1', stdDeviation: '0', result: 'ul_bc' });
+        const ulCl = h('feComposite', { ns: 'svg', in: 'ul_sh1', in2: 'ul_bc', operator: 'arithmetic', k2: '1', k3: '0', result: 'ul_out' });
+        const pUL = mkP('ul', 'ul_out');
+        fullLight.append(cUL.t, cUL.b, cUL.g, ulB1, ulSh1, ulBc, ulCl, pUL.tm, pUL.s);
+
         // Tier 3: Full-Light (No Morphology / No CAS Gate)
         const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '-10%', y: '-10%', width: '120%', height: '120%' });
         const cU = mkC('u');
@@ -1285,23 +1323,24 @@
         const pU = mkP('u', 'sharpBiased');
         full.append(cU.t, cU.b, cU.g, uB1, uSh1, uB2, uSh2, uBc, uCl, sharpDesat, sharpBiased, pU.tm, pU.s);
 
-        defs.append(lite, fast, full);
+        defs.append(lite, fast, fullLight, full);
         const tryAppend = () => { const target = root.body || root.documentElement || root; if (target && target.appendChild) { target.appendChild(svg); return true; } return false; };
         if (!tryAppend()) { const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50); setTimeout(() => clearInterval(t), 3000); }
 
         return {
-          fidLite, fidFast, fidFull,
-          filters: { lite, fast, full },
+          fidLite, fidFast, fidFullLight, fidFull,
+          filters: { lite, fast, fullLight, full },
           common: {
-            toneFuncs: [...Array.from(cL.t.children), ...Array.from(cF.t.children), ...Array.from(cU.t.children)],
-            bcLinFuncs: [...Array.from(cL.b.children), ...Array.from(cF.b.children), ...Array.from(cU.b.children)],
-            gamFuncs: [...Array.from(cL.g.children), ...Array.from(cF.g.children), ...Array.from(cU.g.children)],
-            tmpFuncs: [...Array.from(pL.tm.children), ...Array.from(pF.tm.children), ...Array.from(pU.tm.children)],
-            sats: [pL.s, pF.s, pU.s]
+            toneFuncs: [...Array.from(cL.t.children), ...Array.from(cF.t.children), ...Array.from(cUL.t.children), ...Array.from(cU.t.children)],
+            bcLinFuncs: [...Array.from(cL.b.children), ...Array.from(cF.b.children), ...Array.from(cUL.b.children), ...Array.from(cU.b.children)],
+            gamFuncs: [...Array.from(cL.g.children), ...Array.from(cF.g.children), ...Array.from(cUL.g.children), ...Array.from(cU.g.children)],
+            tmpFuncs: [...Array.from(pL.tm.children), ...Array.from(pF.tm.children), ...Array.from(pUL.tm.children), ...Array.from(pU.tm.children)],
+            sats: [pL.s, pF.s, pUL.s, pU.s]
           },
           fastDetail: { b1: fB1, sh1: fSh1 },
+          fullLightDetail: { b1: ulB1, sh1: ulSh1, bc: ulBc, cl: ulCl },
           fullDetail: { b1: uB1, sh1: uSh1, b2: uB2, sh2: uSh2, bc: uBc, cl: uCl },
-          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', detailKey: '', __fB1: '', __fSh1k2: '', __fSh1k3: '', __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: '' }
+          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', detailKey: '', fastKey: '', fullLightKey: '', fullKey: '', __fB1: '', __fSh1k2: '', __fSh1k3: '', __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '', __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: '' }
         };
       }
 
@@ -1309,14 +1348,20 @@
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
         let dc = urlCache.get(root); if (!dc) { dc = { key:'', url:'' }; urlCache.set(root, dc); }
 
-        let tier = 'lite';
-        const sharpTotal = (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0));
-        if (sharpTotal > 0) {
-            tier = s.__qos === 'fast' ? 'fast' : 'full';
-        }
-
         const vwKey = video.videoWidth || 0;
         const vhKey = video.videoHeight || 0;
+
+        let tier = 'lite';
+        const sharpTotal = (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0));
+        const px = vwKey * vhKey;
+        const isHiRes = px >= (1920 * 1080);
+        const isLoRes = px > 0 && px <= (1280 * 720);
+        if (sharpTotal > 0) {
+          if (s.__qos === 'fast' || isHiRes) tier = 'fast';
+          else if (isLoRes && !(Number(s.sharp2 || 0) > 0)) tier = 'full-light';
+          else tier = 'full';
+        }
+
         const key = `${tier}|${vwKey}x${vhKey}|${makeKeyBase(s)}`;
 
         if (dc.key === key) return dc.url;
@@ -1347,16 +1392,30 @@
               if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; for(let i=0; i<nodes.common.tmpFuncs.length; i+=3) { nodes.common.tmpFuncs[i].setAttribute('slope', p.rs.toFixed(3)); nodes.common.tmpFuncs[i+1].setAttribute('slope', p.gs.toFixed(3)); nodes.common.tmpFuncs[i+2].setAttribute('slope', p.bs.toFixed(3)); } }
 
               if (p.tier === 'fast') {
-                if (st.detailKey !== p.dk) {
-                  st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
+                if (st.fastKey !== p.dk) {
+                  st.fastKey = p.dk; const sc = sCurve;
                   const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
                   setAttr(nodes.fastDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__fB1');
                   setAttr(nodes.fastDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__fSh1k2');
                   setAttr(nodes.fastDetail.sh1, 'k3', (-kC).toFixed(3), st, '__fSh1k3');
                 }
+              } else if (p.tier === 'full-light') {
+                if (st.fullLightKey !== p.dk) {
+                  st.fullLightKey = p.dk; const sc = sCurve;
+                  const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
+                  setAttr(nodes.fullLightDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__ulB1');
+                  setAttr(nodes.fullLightDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__ulSh1k2');
+                  setAttr(nodes.fullLightDetail.sh1, 'k3', (-kC).toFixed(3), st, '__ulSh1k3');
+                  const clVal = (p.s.clarity || 0) / 50;
+                  const clStd = clVal > 0 ? (0.75 + p.hiResN * 0.35).toFixed(2) : '0';
+                  const clGain = (1 + clVal * (1.05 + p.hiResN * 0.35));
+                  setAttr(nodes.fullLightDetail.bc, 'stdDeviation', clStd, st, '__ulBc');
+                  setAttr(nodes.fullLightDetail.cl, 'k2', clGain.toFixed(3), st, '__ulClk2');
+                  setAttr(nodes.fullLightDetail.cl, 'k3', (-(clGain - 1)).toFixed(3), st, '__ulClk3');
+                }
               } else if (p.tier === 'full') {
-                if (st.detailKey !== p.dk) {
-                  st.detailKey = p.dk; const sc = (x) => x * x * (3 - 2 * x);
+                if (st.fullKey !== p.dk) {
+                  st.fullKey = p.dk; const sc = sCurve;
                   const v1 = (p.s.sharp || 0) / 50, kC = sc(Math.min(1, v1)) * 2.2;
                   setAttr(nodes.fullDetail.b1, 'stdDeviation', v1 > 0 ? (0.65 - sc(Math.min(1, v1)) * 0.2).toFixed(2) : '0', st, '__uB1');
                   setAttr(nodes.fullDetail.sh1, 'k2', (1 + kC).toFixed(3), st, '__uSh1k2');
@@ -1374,14 +1433,14 @@
                 }
               }
 
-              const fr = (p.tier === 'full')
+              const fr = (p.tier === 'full' || p.tier === 'full-light')
                 ? calcFilterRes(p.vwKey, p.vhKey, SVG_MAX_PIX_FULL)
                 : (p.tier === 'fast')
                   ? calcFilterRes(p.vwKey, p.vhKey, SVG_MAX_PIX_FAST)
                   : '';
 
               if (fr !== false) {
-                const f = (p.tier === 'full') ? nodes.filters.full : ((p.tier === 'fast') ? nodes.filters.fast : null);
+                const f = (p.tier === 'full') ? nodes.filters.full : ((p.tier === 'full-light') ? nodes.filters.fullLight : ((p.tier === 'fast') ? nodes.filters.fast : null));
                 if (f && st.__filterRes !== fr) {
                   st.__filterRes = fr;
                   if (fr) f.setAttribute('filterRes', fr);
@@ -1391,7 +1450,7 @@
             });
           }
         }
-        const targetFid = tier === 'lite' ? nodes.fidLite : (tier === 'fast' ? nodes.fidFast : nodes.fidFull);
+        const targetFid = tier === 'lite' ? nodes.fidLite : (tier === 'fast' ? nodes.fidFast : (tier === 'full-light' ? nodes.fidFullLight : nodes.fidFull));
         const url = `url(#${targetFid})`; dc.key = key; dc.url = url; return url;
       }
       return {
@@ -2110,8 +2169,11 @@ void main() {
       };
       const mount = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) {} try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) {} };
       const ensure = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } ensureGear(); if (sm.get(P.APP_UI)) { build(); if (container) container.style.display = 'block'; } else { if (container) container.style.display = 'none'; } mount(); };
-      if (!document.body) { document.addEventListener('DOMContentLoaded', () => { try { ensure(); ApplyReq.hard(); } catch (_) {} }, { once: true, signal: __globalSig }); }
-      if (CONFIG.DEBUG) window.__VSC_UI_Ensure = ensure;
+      if (!document.body) { onDoc('DOMContentLoaded', () => { try { ensure(); ApplyReq.hard(); } catch (_) {} }, { once: true }); }
+      
+      window.__VSC_UI_Ensure = ensure;
+      if (CONFIG.DEBUG) window.__VSC_UI_Ensure_DEBUG = ensure;
+      
       return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); } };
     }
 
@@ -2239,6 +2301,44 @@ void main() {
       if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp, qos: vVals.__qos });
     }
 
+    function createVideoParamsMemo(Store, P, Utils) {
+      const clamp = Utils.clamp;
+      return {
+        get(vfUser, rMode, activeVideo) {
+          const detailP = PRESETS.detail[vfUser.presetS || 'off'];
+          const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
+          const out = {
+            sharp: detailP.sharpAdd || 0,
+            sharp2: detailP.sharp2Add || 0,
+            clarity: detailP.clarityAdd || 0,
+            gamma: gradeP.gammaF || 1.0,
+            bright: gradeP.brightAdd || 0,
+            contrast: 1.0, satF: 1.0, temp: 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, __qos: 'full'
+          };
+
+          const sMask = vfUser.shadowBandMask || 0;
+          if (sMask > 0) {
+            if ((sMask & SHADOW_BAND.DEEP) !== 0) { out.toe += 3.5; out.gamma *= 0.96; }
+            if ((sMask & SHADOW_BAND.MID) !== 0) { out.toe += 2.0; out.mid -= 0.08; }
+            if ((sMask & SHADOW_BAND.OUTER) !== 0) { out.mid -= 0.15; out.gamma *= 0.98; }
+          }
+          
+          const brStep = vfUser.brightStepLevel || 0;
+          if (brStep > 0) {
+            out.bright += brStep * 4.0;
+            out.mid += brStep * 0.12;
+            out.gamma *= (1.0 + brStep * 0.03);
+          }
+
+          return out;
+        }
+      };
+    }
+
+    function isNeutralVideoParams(p) {
+      return (p.sharp === 0 && p.sharp2 === 0 && p.clarity === 0 && p.gamma === 1.0 && p.bright === 0 && p.contrast === 1.0 && p.satF === 1.0 && p.temp === 0 && p.gain === 1.0 && p.mid === 0 && p.toe === 0 && p.shoulder === 0);
+    }
+
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
       UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) { try { Registry.refreshObservers?.(); Registry.rescanAll?.(); Scheduler.request(true); } catch (_) {} } });
@@ -2251,6 +2351,7 @@ void main() {
 
       let qualityScale = 1.0;
       let lastQCheck = 0;
+      let __lastQSample = { dropped: 0, total: 0 };
 
       function updateQualityScale(v) {
         if (!v || typeof v.getVideoPlaybackQuality !== 'function') return qualityScale;
@@ -2261,7 +2362,12 @@ void main() {
           const q = v.getVideoPlaybackQuality();
           const dropped = Number(q.droppedVideoFrames || 0);
           const total   = Number(q.totalVideoFrames || 0);
-          const ratio = total > 0 ? (dropped / total) : 0;
+          const dDropped = Math.max(0, dropped - (__lastQSample.dropped || 0));
+          const dTotal   = Math.max(0, total   - (__lastQSample.total   || 0));
+          __lastQSample = { dropped, total };
+          const denom = (dTotal > 0) ? dTotal : total;
+          const numer = (dTotal > 0) ? dDropped : dropped;
+          const ratio = denom > 0 ? (numer / denom) : 0;
           qualityScale = ratio > 0.08 ? 0.65 : ratio > 0.04 ? 0.80 : 1.0;
         } catch (_) {}
         return qualityScale;
@@ -2360,7 +2466,7 @@ void main() {
         if (document.body) { runOnce(); return; }
         const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } });
         try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
-        document.addEventListener('DOMContentLoaded', runOnce, { once: true, signal: __globalSig });
+        onDoc('DOMContentLoaded', runOnce, { once: true });
       })();
 
       const AutoScene = createAutoSceneManager(Store, P, Scheduler);
@@ -2387,6 +2493,10 @@ void main() {
             const next = !Store.get(P.APP_APPLY_ALL);
             Store.set(P.APP_APPLY_ALL, next);
             ApplyReq.hard();
+          });
+          GM_registerMenuCommand('Ambient Glow 숨김 토글 (선택/방어)', () => {
+            const enabled = !!document.getElementById('vsc-hide-ambient-style');
+            setHideAmbientGlow(!enabled);
           });
         } catch (_) {}
       };
@@ -2417,10 +2527,10 @@ void main() {
       }, { capture: true });
 
       (function addPageLifecycleHooks() {
-        onWin('freeze', () => { try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
+        onDoc('freeze', () => { try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
         onWin('pageshow', () => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
         onDoc('visibilitychange', () => { try { if (document.visibilityState === 'visible') window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { passive: true });
-        onWin('resume', () => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
+        onDoc('resume', () => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
       })();
 
       if (FEATURE_FLAGS.iframeInjection) {
