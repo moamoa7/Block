@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.0.0 - Ultimate Stability & UI Fold)
+// @name         Video_Control (v170.1.0 - Ultimate Stability & UI Fold)
 // @namespace    https://github.com/
-// @version      170.0.0
-// @description  Video Control: High-End PC. Fixed WebGL Black Screen (Context Lost & RGBA8). Added Advanced UI Fold. Ultra-light AutoScene trigger.
+// @version      170.1.0
+// @description  Video Control: High-End PC. Fixed WebGL Black Screen (Context Lost & RGBA8). Added Advanced UI Fold. Ultra-light AutoScene trigger. Adaptive Quality.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -30,8 +30,19 @@
 
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
-    const __globalHooksAC = new AbortController(), __globalSig = __globalHooksAC.signal;
-    function on(target, type, fn, opts = {}) { target.addEventListener(type, fn, { ...opts, signal: __globalSig }); }
+    const __globalHooksAC = new AbortController();
+    const __globalSig = __globalHooksAC.signal;
+
+    function on(target, type, fn, opts = {}) {
+      const merged = { ...opts };
+      try {
+        merged.signal = __globalSig;
+        target.addEventListener(type, fn, merged);
+      } catch (_) {
+        // signal 옵션 미지원 fallback
+        try { target.addEventListener(type, fn, opts); } catch (__) {}
+      }
+    }
     const onWin = (type, fn, opts) => on(window, type, fn, opts);
     const onDoc = (type, fn, opts) => on(document, type, fn, opts);
 
@@ -47,7 +58,7 @@
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
 
-    const VSC_VERSION = '170.0.0';
+    const VSC_VERSION = '170.1.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -122,7 +133,6 @@
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
     const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
-    // ✅ 영구적인 taint와 일시적인 Cooldown의 완벽 분리
     function createVideoState() {
       return {
         visible: false, rect: null, ir: 0, bound: false, rateState: null,
@@ -168,7 +178,7 @@
       },
       audio: { enabled: false, boost: 6 },
       playback: { rate: 1.0, enabled: false },
-      app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false, autoScene: false, advanced: false } // advanced 추가
+      app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false, autoScene: false, advanced: false }
     };
 
     const P = Object.freeze({
@@ -178,7 +188,7 @@
       APP_RENDER_MODE: 'app.renderMode',
       APP_ZOOM_EN: 'app.zoomEn',
       APP_AUTO_SCENE: 'app.autoScene',
-      APP_ADV: 'app.advanced', // UI 폴딩 상태
+      APP_ADV: 'app.advanced',
       V_PRE_S: 'video.presetS',
       V_PRE_B: 'video.presetB',
       V_PRE_MIX: 'video.presetMix',
@@ -862,10 +872,34 @@
       const shadowRootsLRU = []; const SHADOW_LRU_MAX = PERF_POLICY.registry.shadowLRUMax; const observedShadowHosts = new WeakSet();
       let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
 
-      const io = new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.ir = e.intersectionRatio || 0; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' });
+      const io = (typeof IntersectionObserver === 'function')
+        ? new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.ir = e.intersectionRatio || 0; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' })
+        : null;
+
       const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
-      const ro = new ResizeObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); st.rect = e.contentRect ? el.getBoundingClientRect() : null; st.rectT = now; st.rectEpoch = -1; dirty.videos.add(el); changed = true; } if (changed) requestRefreshCoalesced(); });
-      const observeVideo = (el) => { if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return; patchFullscreenRequest(el); videos.add(el); io.observe(el); try { ro.observe(el); } catch (_) {} };
+
+      const ro = (typeof ResizeObserver === 'function')
+        ? new ResizeObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); st.rect = e.contentRect ? el.getBoundingClientRect() : null; st.rectT = now; st.rectEpoch = -1; dirty.videos.add(el); changed = true; } if (changed) requestRefreshCoalesced(); })
+        : null;
+
+      const observeVideo = (el) => {
+        if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
+        patchFullscreenRequest(el);
+        videos.add(el);
+        if (io) {
+            io.observe(el);
+        } else {
+            const st = getVState(el);
+            st.visible = true;
+            if (!visible.videos.has(el)) {
+                visible.videos.add(el);
+                dirty.videos.add(el);
+                requestRefreshCoalesced();
+            }
+        }
+        if (ro) { try { ro.observe(el); } catch (_) {} }
+      };
+
       const WorkQ = (() => { const q = [], bigQ = []; let head = 0, bigHead = 0, scheduled = false, epoch = 1; const mark = new WeakMap(); const isInputPending = navigator.scheduling?.isInputPending?.bind(navigator.scheduling); function drainRunnerIdle(dl) { drain(dl); } function drainRunnerRaf() { drain(); } const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function') ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null; const schedule = () => { if (scheduled) return; scheduled = true; if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; } if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }; const enqueue = (n) => { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch); (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n); schedule(); }; const scanNode = (n) => { if (!n) return; if (n.nodeType === 1) { if (n.tagName === 'VIDEO') { observeVideo(n); return; } try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} return; } if (n.nodeType === 11) { try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} } }; const drain = (dl) => { scheduled = false; const start = performance.now(); const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6; const shouldYieldForInput = () => { try { return !!isInputPending?.({ includeContinuous: true }); } catch (_) { return false; } }; while (bigHead < bigQ.length && budget()) { if (shouldYieldForInput()) break; scanNode(bigQ[bigHead++]); break; } while (head < q.length && budget()) { if (shouldYieldForInput()) break; scanNode(q[head++]); } if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; } schedule(); }; return Object.freeze({ enqueue }); })();
       function nodeMayContainVideo(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false; if (n.nodeType === 1) { if (n.tagName === 'VIDEO') return true; if ((n.childElementCount || 0) === 0) return false; try { const list = n.getElementsByTagName ? n.getElementsByTagName('video') : null; return !!(list && list.length); } catch (_) { try { return !!(n.querySelector && n.querySelector('video')); } catch (_) { return false; } } } try { const list = n.querySelectorAll ? n.querySelectorAll('video') : null; return !!(list && list.length); } catch (_) { return false; } }
 
@@ -879,9 +913,9 @@
       };
       if (FEATURE_FLAGS.trackShadowRoots) { document.addEventListener('vsc-shadow-root', (e) => { try { const sr = e.detail; const host = sr?.host; if (!sr || !host || observedShadowHosts.has(host)) return; observedShadowHosts.add(host); shadowRootsLRU.push({ host, root: sr }); if (shadowRootsLRU.length > SHADOW_LRU_MAX) shadowRootsLRU.shift(); connectObserver(sr); } catch (_) {} }); }
       refreshObservers();
-      let pruneIterVideos = null; function pruneBatchRoundRobinNoAlloc(set, visibleSet, dirtySet, unobserveFn, batch = 200) { let removed = 0; let scanned = 0; if (!pruneIterVideos) pruneIterVideos = set.values(); while (scanned < batch) { let n = pruneIterVideos.next(); if (n.done) { pruneIterVideos = set.values(); n = pruneIterVideos.next(); if (n.done) break; } const el = n.value; if (el && !el.isConnected) { set.delete(el); visibleSet.delete(el); dirtySet.delete(el); try { unobserveFn(el); } catch (_) {} try { ro.unobserve(el); } catch (_) {} removed++; } scanned++; } return removed; }
+      let pruneIterVideos = null; function pruneBatchRoundRobinNoAlloc(set, visibleSet, dirtySet, unobserveFn, batch = 200) { let removed = 0; let scanned = 0; if (!pruneIterVideos) pruneIterVideos = set.values(); while (scanned < batch) { let n = pruneIterVideos.next(); if (n.done) { pruneIterVideos = set.values(); n = pruneIterVideos.next(); if (n.done) break; } const el = n.value; if (el && !el.isConnected) { set.delete(el); visibleSet.delete(el); dirtySet.delete(el); try { unobserveFn(el); } catch (_) {} if (ro) { try { ro.unobserve(el); } catch (_) {} } removed++; } scanned++; } return removed; }
 
-      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, io.unobserve.bind(io), 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { for (const r of walkRoots(document.body || document.documentElement)) { WorkQ.enqueue(r); } } };
+      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, (el) => { if (io) io.unobserve(el); }, 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { for (const r of walkRoots(document.body || document.documentElement)) { WorkQ.enqueue(r); } } };
     }
 
     function createAudio(sm) {
@@ -1247,6 +1281,7 @@
 
         let sum = 0, sum2 = 0, sumEdge = 0;
         let diffSum = 0;
+        let sumChroma = 0;
 
         for (let y = 0; y < sh; y += 2) {
           let row = y * sw;
@@ -1254,6 +1289,11 @@
           for (let x = 0; x < sw; x += 2) {
             const r = data[idx], g = data[idx + 1], b = data[idx + 2];
             const l = (r * 0.2126 + g * 0.7152 + b * 0.0722) | 0;
+
+            // 저비용 chroma 근사: max(r,g,b)-min(r,g,b)
+            const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
+            const min = r < g ? (r < b ? r : b) : (g < b ? g : b);
+            sumChroma += (max - min);
 
             const p = row + x;
             cur[p] = l;
@@ -1290,9 +1330,9 @@
 
         const bright = mean / 255;
         const contrast = std / 64;
-        const sat = 0.7;
+        const chroma = (sumChroma / samples) / 255;
 
-        return { bright, contrast, sat, edge, motion };
+        return { bright, contrast, chroma, edge, motion };
       }
 
       function detectCut(stats) {
@@ -1393,7 +1433,11 @@
 
             AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35);
             AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30);
-            AUTO.tgt.sat = clamp(1.08 + (-errCh || 0) * 0.90, 0.85, 1.50);
+
+            // 목표 chroma(대략 0.18)를 기준으로 채도 타겟 조정
+            const curCh = Number(sig.chroma || 0);
+            const errCh = clamp(0.18 - curCh, -0.18, 0.18);
+            AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50);
 
             const smoothA = isCut ? 0.16 : 0.05;
             const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
@@ -1437,10 +1481,6 @@
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(128);
       const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
-
-      function wantsDetailPass(s) {
-        return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0;
-      }
 
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
@@ -2450,6 +2490,25 @@ void main() {
       const videoParamsMemo = createVideoParamsMemo(Store, P, Utils);
       const audioUpdateThrottled = createThrottled(() => Audio.update(), 120);
 
+      let qualityScale = 1.0;
+      let lastQCheck = 0;
+
+      function updateQualityScale(v) {
+        if (!v || typeof v.getVideoPlaybackQuality !== 'function') return qualityScale;
+        const now = performance.now();
+        if (now - lastQCheck < 2000) return qualityScale;
+        lastQCheck = now;
+        try {
+          const q = v.getVideoPlaybackQuality();
+          const dropped = Number(q.droppedVideoFrames || 0);
+          const total   = Number(q.totalVideoFrames || 0);
+          const ratio = total > 0 ? (dropped / total) : 0;
+          // 프레임 드랍률 기준 (4% 이상 0.8배, 8% 이상 0.65배)
+          qualityScale = ratio > 0.08 ? 0.65 : ratio > 0.04 ? 0.80 : 1.0;
+        } catch (_) {}
+        return qualityScale;
+      }
+
       Scheduler.registerApply((force) => {
         try {
           const active = !!Store.getCatRef('app').active;
@@ -2469,7 +2528,17 @@ void main() {
           const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
           if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
 
-          const vValsEffective = videoParamsMemo.get(vf0, rMode, __activeTarget);
+          let vValsEffective = videoParamsMemo.get(vf0, rMode, __activeTarget);
+
+          // Adaptive Quality: 드랍 프레임 많을 경우 샤픈 살짝 깎아주기
+          const qs = updateQualityScale(__activeTarget);
+          if (qs !== 1.0) {
+            vValsEffective = { ...vValsEffective }; // Shallow copy to avoid mutating memoized cache
+            vValsEffective.sharp = (vValsEffective.sharp || 0) * qs;
+            vValsEffective.sharp2 = (vValsEffective.sharp2 || 0) * qs;
+            vValsEffective.clarity = (vValsEffective.clarity || 0) * qs;
+          }
+
           debugLogEffectiveVVals(vValsEffective, vf0, __activeTarget, rMode);
 
           const videoFxOn = !isNeutralVideoParams(vValsEffective);
