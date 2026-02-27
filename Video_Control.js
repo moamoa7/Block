@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.12.0 - UI Show Fix)
+// @name         Video_Control (v170.14.0 - UI Anchor Fix)
 // @namespace    https://github.com/
-// @version      170.12.0
-// @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization. Fixed: Gear click shows UI (display fix for Shadow DOM fixed panel).
+// @version      170.14.0
+// @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization. Fixed: UI panel naturally follows the gear icon during resize/zoom until explicitly dragged.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -81,7 +81,7 @@
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.12.0';
+    const VSC_VERSION = '170.14.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -2195,13 +2195,16 @@ void main() {
 
     function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null;
+      let hasUserDraggedUI = false;
       const uiWakeCtrl = new AbortController(), bag = createDisposerBag(), sub = (k, fn) => bag.add(sm.sub(k, fn));
       const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
 
-      // ===== FIX: allowUiInThisDoc now always returns true =====
-      // Previously returned false when no video present, hiding the gear button entirely.
-      // The gear should always be accessible so users can open the UI panel.
-      const allowUiInThisDoc = () => true;
+      const allowUiInThisDoc = () => {
+          if (registry.videos.size > 0) return true;
+          const hasVideoElements = !!document.querySelector('video, object, embed');
+          if (hasVideoElements) return true;
+          return false;
+      };
 
       function setAndHint(path, value) {
         const prev = sm.get(path);
@@ -2249,16 +2252,24 @@ void main() {
 
       const clampVal = (v, a, b) => (v < a ? a : (v > b ? b : v));
       
-      // ===== FIX: clampPanelIntoViewport - operates on .main inside shadow DOM =====
       const clampPanelIntoViewport = () => {
         try {
           if (!container) return;
           const mainPanel = container.shadowRoot && container.shadowRoot.querySelector('.main');
           if (!mainPanel) return;
-          // Only clamp if panel is actually visible
           if (mainPanel.style.display === 'none') return;
+          
+          if (!hasUserDraggedUI) {
+            mainPanel.style.left = '';
+            mainPanel.style.top = '';
+            mainPanel.style.right = '';
+            mainPanel.style.bottom = '';
+            mainPanel.style.transform = '';
+            return;
+          }
+
           const r = mainPanel.getBoundingClientRect();
-          if (!r.width && !r.height) return; // not rendered yet
+          if (!r.width && !r.height) return;
           const vv = window.visualViewport;
           const vw = (vv && vv.width) ? vv.width : (window.innerWidth || document.documentElement.clientWidth || 0);
           const vh = (vv && vv.height) ? vv.height : (window.innerHeight || document.documentElement.clientHeight || 0);
@@ -2300,7 +2311,6 @@ void main() {
       window.addEventListener('orientationchange', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
       document.addEventListener('fullscreenchange', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
 
-      // ===== FIX: getMainPanel helper - gets .main from shadow root =====
       const getMainPanel = () => container && container.shadowRoot && container.shadowRoot.querySelector('.main');
 
       const build = () => {
@@ -2308,10 +2318,10 @@ void main() {
         const style = `
           *, *::before, *::after { box-sizing: border-box; }
           .main {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            position: fixed; 
+            top: calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2)); 
+            right: max(70px, calc(env(safe-area-inset-right, 0px) + 70px)); 
+            transform: translateY(-50%);
             width: min(320px, calc(100vw - 24px));
             background: rgba(25,25,25,0.96); backdrop-filter: blur(12px);
             color: #eee; padding: 15px; border-radius: 16px;
@@ -2331,11 +2341,13 @@ void main() {
           }
           @media (max-width: 520px) {
             .main {
-              top: 50%;
-              left: 50%;
-              transform: translate(-50%, -50%);
-              width: min(300px, calc(100vw - 24px));
-              max-height: 80vh;
+              top: auto;
+              bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+              right: max(12px, calc(env(safe-area-inset-right, 0px) + 12px));
+              left:  max(12px, calc(env(safe-area-inset-left, 0px) + 12px));
+              transform: none;
+              width: auto;
+              max-height: 70vh;
               padding: 12px;
               border-radius: 14px;
             }
@@ -2357,14 +2369,11 @@ void main() {
           .small { font-size: 11px; opacity: .75; }
           hr { border:0; border-top:1px solid rgba(255,255,255,0.14); margin:8px 0; }
         `;
-        // ===== NOTE: Each shadow DOM gets its OWN stylesheet - not shared =====
-        // applyShadowStyle uses adoptedStyleSheets with a shared instance which can break
-        // when two shadows adopt the same sheet. Use direct style injection here.
         const styleEl = document.createElement('style');
         styleEl.textContent = style;
         shadow.appendChild(styleEl);
 
-        const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
+        const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl') });
         bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; });
@@ -2412,9 +2421,17 @@ void main() {
         const startPanelDrag = (e) => {
           const pt = (e && e.touches && e.touches[0]) ? e.touches[0] : e;
           if (!pt) return;
+          if (e.target && e.target.tagName === 'BUTTON') return; 
           if (e.cancelable) e.preventDefault(); stopDrag?.();
+
+          hasUserDraggedUI = true;
+
           let startX = pt.clientX, startY = pt.clientY; const rect = mainPanel.getBoundingClientRect();
-          mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`;
+          mainPanel.style.transform = 'none'; 
+          mainPanel.style.top = `${rect.top}px`; 
+          mainPanel.style.right = 'auto'; 
+          mainPanel.style.left = `${rect.left}px`;
+          
           stopDrag = bindWindowDrag((ev) => {
             const mv = (ev && ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
             if (!mv) return;
@@ -2423,14 +2440,27 @@ void main() {
             mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`;
           }, () => { stopDrag = null; });
         };
+        
         dragHandle.addEventListener('mousedown', startPanelDrag);
         dragHandle.addEventListener('touchstart', startPanelDrag, { passive: false });
+        dragHandle.addEventListener('dblclick', (e) => {
+          hasUserDraggedUI = false;
+          clampPanelIntoViewport();
+        });
 
         container = host; getUiRoot().appendChild(container);
       };
 
       const ensureGear = () => {
-        if (gearHost) return;
+        if (!allowUiInThisDoc()) {
+          if (gearHost) gearHost.style.display = 'none';
+          return;
+        }
+        if (gearHost) {
+          gearHost.style.display = 'block';
+          return;
+        }
+        
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
         const style = `
           .gear {
@@ -2523,13 +2553,11 @@ void main() {
           onGearActivate(e);
         }, { passive: false });
 
-        // ===== FIX: syncGear no longer hides gear based on allowUiInThisDoc =====
-        const syncGear = () => {
-          if (!gearBtn) return;
-          gearBtn.classList.toggle('open', !!sm.get(P.APP_UI));
-          gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT));
-          gearBtn.style.display = 'flex'; // always show gear
-          wake();
+        const syncGear = () => { 
+          if (!gearBtn) return; 
+          gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); 
+          gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); 
+          wake(); 
         };
         sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
       };
@@ -2549,41 +2577,17 @@ void main() {
         } catch (_) {}
       };
       
-      // ===== FIX: ensure() now toggles .visible class on .main inside shadow DOM =====
-      // The critical fix: .main has `position: fixed` so it ignores parent display:none.
-      // We must toggle display on .main itself (or use a .visible CSS class).
       const ensure = () => {
+        if (!allowUiInThisDoc()) { detachNodesHard(); return; }
         ensureGear();
         if (sm.get(P.APP_UI)) {
           build();
           const mainPanel = getMainPanel();
-          if (mainPanel) {
-            // ===== FIX: show panel by adding .visible class =====
-            if (!mainPanel.classList.contains('visible')) {
-              mainPanel.classList.add('visible');
-              // On first show, compute center position
-              queueMicrotask(() => {
-                try {
-                  if (!mainPanel.style.left) {
-                    const vv = window.visualViewport;
-                    const vw = vv ? vv.width : window.innerWidth;
-                    const vh = vv ? vv.height : window.innerHeight;
-                    const offL = vv ? (vv.offsetLeft || 0) : 0;
-                    const offT = vv ? (vv.offsetTop || 0) : 0;
-                    const w = Math.min(320, vw - 24);
-                    const panH = Math.min(vh * 0.85, 500);
-                    mainPanel.style.transform = 'none';
-                    mainPanel.style.left = `${offL + (vw - w) / 2}px`;
-                    mainPanel.style.top  = `${offT + (vh - panH) / 2}px`;
-                    mainPanel.style.right = 'auto';
-                  }
-                } catch (_) {}
-                clampPanelIntoViewport();
-              });
-            }
+          if (mainPanel && !mainPanel.classList.contains('visible')) {
+            mainPanel.classList.add('visible');
+            queueMicrotask(clampPanelIntoViewport);
           }
         } else {
-          // ===== FIX: hide panel by removing .visible class =====
           const mainPanel = getMainPanel();
           if (mainPanel) {
             mainPanel.classList.remove('visible');
