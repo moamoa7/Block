@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.9.0 - Full-Light Topology & filterRes Capping)
+// @name         Video_Control (v170.10.0 - Full-Light Topology & filterRes Capping)
 // @namespace    https://github.com/
-// @version      170.9.0
+// @version      170.10.0
 // @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -82,7 +82,7 @@
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.9.0';
+    const VSC_VERSION = '170.10.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -1966,7 +1966,12 @@ void main() {
           let zi = '1';
           if (vz && vz !== 'auto') {
             const n = parseInt(vz, 10);
-            zi = Number.isFinite(n) ? String(n + 1) : '1';
+            if (Number.isFinite(n)) {
+              const next = n + 1;
+              zi = String(Math.min(next, 2147483646));
+            } else {
+              zi = '1';
+            }
           }
           if (cs.zIndex !== zi) cs.zIndex = zi;
 
@@ -2196,7 +2201,7 @@ void main() {
     }
 
     function createUI(sm, registry, ApplyReq, Utils) {
-      const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0;
+      const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null;
       const uiWakeCtrl = new AbortController(), bag = createDisposerBag(), sub = (k, fn) => bag.add(sm.sub(k, fn));
       const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
 
@@ -2215,7 +2220,15 @@ void main() {
       }
 
       function getFullscreenElementSafe() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
-      const getUiRoot = () => { const fs = getFullscreenElementSafe(); if (fs) { if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs; if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.body || document.documentElement; return fs; } return document.body || document.documentElement; };
+      const getUiRoot = () => {
+        const fs = getFullscreenElementSafe();
+        if (fs) {
+          if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs;
+          if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.documentElement || document.body;
+          return fs;
+        }
+        return document.documentElement || document.body;
+      };
 
       function bindClassToggle(btn, path, isActive) { const sync = () => { if (btn) btn.classList.toggle('active', isActive(sm.get(path))); }; sub(path, sync); sync(); return sync; }
       function bindStyle(btn, path, apply) { const sync = () => { if (btn) apply(btn, sm.get(path)); }; sub(path, sync); sync(); return sync; }
@@ -2248,15 +2261,18 @@ void main() {
           if (!mainPanel || mainPanel.style.display === 'none') return;
           mainPanel.style.maxWidth = mainPanel.style.maxWidth || 'min(320px, calc(100vw - 24px))';
           const r = mainPanel.getBoundingClientRect();
-          const vw = window.innerWidth || document.documentElement.clientWidth || 0;
-          const vh = window.innerHeight || document.documentElement.clientHeight || 0;
+          const vv = window.visualViewport;
+          const vw = (vv && vv.width) ? vv.width : (window.innerWidth || document.documentElement.clientWidth || 0);
+          const vh = (vv && vv.height) ? vv.height : (window.innerHeight || document.documentElement.clientHeight || 0);
+          const offL = (vv && typeof vv.offsetLeft === 'number') ? vv.offsetLeft : 0;
+          const offT = (vv && typeof vv.offsetTop === 'number') ? vv.offsetTop : 0;
           if (!vw || !vh) return;
 
           const hasPos = (mainPanel.style.left && mainPanel.style.top);
           if (hasPos) {
             const w = r.width, h = r.height;
-            const left = clampVal(r.left, 8, Math.max(8, vw - w - 8));
-            const top  = clampVal(r.top,  8, Math.max(8, vh - h - 8));
+            const left = clampVal(r.left, offL + 8, Math.max(offL + 8, offL + vw - w - 8));
+            const top  = clampVal(r.top,  offT + 8, Math.max(offT + 8, offT + vh - h - 8));
             mainPanel.style.right = 'auto';
             mainPanel.style.transform = 'none';
             mainPanel.style.left = `${left}px`;
@@ -2264,6 +2280,24 @@ void main() {
           }
         } catch (_) {}
       };
+
+      const syncVVVars = () => {
+        try {
+          const root = document.documentElement;
+          const vv = window.visualViewport;
+          if (!root || !vv) return;
+          root.style.setProperty('--vsc-vv-top', `${Math.round(vv.offsetTop)}px`);
+          root.style.setProperty('--vsc-vv-h', `${Math.round(vv.height)}px`);
+        } catch (_) {}
+      };
+      syncVVVars();
+      try {
+        const vv = window.visualViewport;
+        if (vv) {
+          vv.addEventListener('resize', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiWakeCtrl.signal });
+          vv.addEventListener('scroll', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiWakeCtrl.signal });
+        }
+      } catch (_) {}
 
       const onLayoutChange = () => queueMicrotask(clampPanelIntoViewport);
       window.addEventListener('resize', onLayoutChange, { passive: true, signal: uiWakeCtrl.signal });
@@ -2275,7 +2309,7 @@ void main() {
         const style = `
           *, *::before, *::after { box-sizing: border-box; }
           .main {
-            position: fixed; top: 50%; right: 70px; transform: translateY(-50%);
+            position: fixed; top: calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2)); right: 70px; transform: translateY(-50%);
             width: min(320px, calc(100vw - 24px));
             background: rgba(25,25,25,0.96); backdrop-filter: blur(12px);
             color: #eee; padding: 15px; border-radius: 16px;
@@ -2388,11 +2422,22 @@ void main() {
       const ensureGear = () => {
         if (!allowUiInThisDoc()) return; if (gearHost) return;
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
-        const style = `.gear{position:fixed;top:50%;right:max(10px, calc(env(safe-area-inset-right, 0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''} @media (max-width:520px){.gear{top:auto;bottom:max(16px,calc(env(safe-area-inset-bottom,0px)+16px));transform:none;}.hint{bottom:max(18px,calc(env(safe-area-inset-bottom,0px)+18px));}}`;
+        const style = `.gear{position:fixed;top:calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2));right:max(10px, calc(env(safe-area-inset-right, 0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''} @media (max-width:520px){.gear{top:auto;bottom:max(16px,calc(env(safe-area-inset-bottom,0px)+16px));transform:none;}.hint{bottom:max(18px,calc(env(safe-area-inset-bottom,0px)+18px));}}`;
         applyShadowStyle(shadow, style, h); let dragThresholdMet = false, stopDrag = null;
         gearBtn = h('button', { class: 'gear' }, '⚙');
         shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
-        const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); };
+        
+        const wake = () => {
+          if (gearBtn) gearBtn.style.opacity = '1';
+          clearTimeout(fadeTimer);
+          const inFs = !!getFullscreenElementSafe();
+          if (inFs || CONFIG.IS_MOBILE) return;
+          fadeTimer = setTimeout(() => {
+            if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15';
+          }, 2500);
+        };
+        wakeGear = wake;
+        
         window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); bootWakeTimer = setTimeout(wake, 2000);
 
         const handleGearDrag = (e) => {
@@ -2414,10 +2459,22 @@ void main() {
           lastToggle = now;
           setAndHint(P.APP_UI, !sm.get(P.APP_UI));
         };
-        gearBtn.addEventListener('touchend', onGearActivate, { passive: false });
+        
+        let lastTouchAt = 0;
+        gearBtn.addEventListener('touchend', (e) => {
+          lastTouchAt = performance.now();
+          try { if (e && e.cancelable) e.preventDefault(); } catch(_) {}
+          try { e.stopPropagation?.(); } catch(_) {}
+          onGearActivate(e);
+        }, { passive: false });
         gearBtn.addEventListener('click', (e) => {
-            if (e.detail === 0 && e.pointerType === '') { /* prevent simulated if needed */ }
-            onGearActivate(e);
+          const now = performance.now();
+          if (now - lastTouchAt < 800) {
+            try { if (e && e.cancelable) e.preventDefault(); } catch(_) {}
+            try { e.stopPropagation?.(); } catch(_) {}
+            return;
+          }
+          onGearActivate(e);
         }, { passive: false });
 
         const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
@@ -2439,6 +2496,7 @@ void main() {
           if (container) container.style.display = 'none'; 
         } 
         mount(); 
+        try { wakeGear?.(); } catch (_) {}
       };
       
       if (!document.body) { onDoc('DOMContentLoaded', () => { try { ensure(); ApplyReq.hard(); } catch (_) {} }, { once: true }); }
