@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.22.0 - Ultimate Optimization & XL Boost)
+// @name         Video_Control (v170.23.0 - Clean XL & Desat Boost)
 // @namespace    https://github.com/
-// @version      170.22.0
-// @description  Video Control: High-End PC. Added SOOP-optimized XL Boost (Micro-pass), relaxed QoS, and advanced DOM/Event optimizations.
+// @version      170.23.0
+// @description  Video Control: High-End PC. Fast Tier Desaturation for cleaner visuals. XL Micro-pass Boost, FSR RCAS, and Advanced UI optimizations.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -115,7 +115,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.22.0';
+    const VSC_VERSION = '170.23.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -503,14 +503,14 @@
     function createZoomManager() {
       const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
       let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
-
-      const getSt = (v) => {
-        let st = stateMap.get(v);
-        if (!st) {
-            st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '' };
-            stateMap.set(v, st);
-        }
-        return st;
+      
+      const getSt = (v) => { 
+        let st = stateMap.get(v); 
+        if (!st) { 
+            st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '' }; 
+            stateMap.set(v, st); 
+        } 
+        return st; 
       };
 
       const update = (v) => {
@@ -521,10 +521,10 @@
             st.scale = 1; st.tx = 0; st.ty = 0; v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
             if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; st.origComputedPosition = ''; }
           } else {
-            if (!st.zoomed) {
-                st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.origComputedPosition = '';
+            if (!st.zoomed) { 
+                st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.origComputedPosition = ''; 
                 try { st.origComputedPosition = window.getComputedStyle(v).position; } catch (_) {}
-                st.zoomed = true;
+                st.zoomed = true; 
                 if (st.origComputedPosition === 'static') v.style.position = 'relative';
             }
             v.style.transformOrigin = '0 0'; v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`; v.style.cursor = isPanning ? 'grabbing' : 'grab'; v.style.zIndex = '2147483646';
@@ -651,7 +651,7 @@
 
     function createLocalStore(defaults, scheduler, Utils) {
       let rev = 0; const listeners = new Map();
-
+      
       const broadcastState = (key, val) => {
         if (key === P.APP_UI) return;
         try {
@@ -664,18 +664,18 @@
         } catch (_) {}
       };
 
-      const emit = (key, val) => {
-        const a = listeners.get(key);
-        if (a) for (const cb of a) { try { cb(val); } catch (_) {} }
-        const dot = key.indexOf('.');
-        if (dot > 0) {
-            const catStar = key.slice(0, dot) + '.*';
-            const b = listeners.get(catStar);
-            if (b) for (const cb of b) { try { cb(val); } catch (_) {} }
-        }
+      const emit = (key, val) => { 
+        const a = listeners.get(key); 
+        if (a) for (const cb of a) { try { cb(val); } catch (_) {} } 
+        const dot = key.indexOf('.'); 
+        if (dot > 0) { 
+            const catStar = key.slice(0, dot) + '.*'; 
+            const b = listeners.get(catStar); 
+            if (b) for (const cb of b) { try { cb(val); } catch (_) {} } 
+        } 
         broadcastState(key, val);
       };
-
+      
       const state = Utils.deepClone(defaults); const proxyCache = {}; const pathCache = Utils.createLRU(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map();
       const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; };
       function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } }
@@ -733,16 +733,16 @@
 
       const ioMargin = `${Math.min(500, Math.round((window.innerHeight||1080) * 0.4))}px`;
       const io = (typeof IntersectionObserver === 'function')
-        ? new IntersectionObserver((entries) => {
-            let changed = false; const now = performance.now();
-            for (const e of entries) {
-                const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el);
-                st.visible = isVis; st.ir = e.intersectionRatio || 0;
+        ? new IntersectionObserver((entries) => { 
+            let changed = false; const now = performance.now(); 
+            for (const e of entries) { 
+                const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); 
+                st.visible = isVis; st.ir = e.intersectionRatio || 0; 
                 st.rect = e.boundingClientRect; st.rectT = now; st.rectEpoch = __vscRectEpoch;
-                if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } }
-                else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } }
-            }
-            if (changed) { rev++; requestRefreshCoalesced(); }
+                if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } 
+                else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } 
+            } 
+            if (changed) { rev++; requestRefreshCoalesced(); } 
           }, { root: null, threshold: 0.01, rootMargin: ioMargin })
         : null;
 
@@ -796,7 +796,7 @@
       };
       if (FEATURE_FLAGS.trackShadowRoots) { document.addEventListener('vsc-shadow-root', (e) => { try { const sr = e.detail; const host = sr?.host; if (!sr || !host || observedShadowHosts.has(host)) return; observedShadowHosts.add(host); shadowRootsLRU.push({ host, root: sr }); if (shadowRootsLRU.length > SHADOW_LRU_MAX) shadowRootsLRU.shift(); connectObserver(sr); } catch (_) {} }); }
       refreshObservers();
-
+      
       function pruneDisconnected(set, visibleSet, dirtySet, unobserveFn) {
         let removed = 0;
         for (const el of set) {
@@ -923,12 +923,12 @@
               dynWetGain: audioCtx.createGain(),
               masterOut: audioCtx.createGain(),
               wetInGain: audioCtx.createGain(),
-
+              
               eqSub: audioCtx.createBiquadFilter(),
               eqImpact: audioCtx.createBiquadFilter(),
               eqCut: audioCtx.createBiquadFilter(),
               eqHigh: audioCtx.createBiquadFilter(),
-
+              
               compressor: audioCtx.createDynamicsCompressor(),
               limiter: audioCtx.createDynamicsCompressor(),
               hpf: audioCtx.createBiquadFilter(),
@@ -953,7 +953,7 @@
           n.inputGain.connect(n.eqDryGain);
           n.inputGain.connect(n.eqSub);
           n.eqSub.connect(n.eqImpact); n.eqImpact.connect(n.eqCut); n.eqCut.connect(n.eqHigh); n.eqHigh.connect(n.eqWetGain);
-
+          
           n.eqDryGain.connect(n.midGain);
           n.eqWetGain.connect(n.midGain);
 
@@ -984,7 +984,7 @@
         inputGain = nodes.inputGain; eqDryGain = nodes.eqDryGain; eqWetGain = nodes.eqWetGain; midGain = nodes.midGain; dynDryGain = nodes.dynDryGain; dynWetGain = nodes.dynWetGain; masterOut = nodes.masterOut; wetInGain = nodes.wetInGain;
         eqSub = nodes.eqSub; eqImpact = nodes.eqImpact; eqCut = nodes.eqCut; eqHigh = nodes.eqHigh;
         compressor = nodes.compressor; limiter = nodes.limiter; hpf = nodes.hpf; clipper = nodes.clipper; analyser = nodes.analyser;
-
+        
         dataArray = new Float32Array(analyser.fftSize);
 
         return true;
@@ -1241,7 +1241,7 @@
         AUTO.fpsHist.push(changeScore);
         if (AUTO.fpsHist.length > 5) AUTO.fpsHist.shift();
         const avgChange = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length;
-
+        
         let targetFps;
         if (avgChange < 0.1) {
             targetFps = 2 + (avgChange / 0.1) * 2;
@@ -1250,7 +1250,7 @@
         } else {
             targetFps = 7 + (Math.min(avgChange - 0.3, 0.7) / 0.7) * 3;
         }
-
+        
         const clamped = VSC_CLAMP(targetFps, AUTO.minFps, AUTO.maxFps);
         const rounded = Math.round(clamped * 2) / 2;
         AUTO.curFps += VSC_CLAMP(rounded - AUTO.curFps, -1, 1);
@@ -1378,7 +1378,7 @@
 
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(720);
-
+      
       const SVG_UPDATE_ACTIVE_TIER_ONLY = true;
 
       const __attrCache = new WeakMap();
@@ -1429,7 +1429,7 @@
         const g = Math.log2(Math.max(1e-6, gain)) * 0.90;
         const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
         const useExponential = Math.abs(denom) > 1e-6;
-
+        
         const STEPS = 64;
         const out = new Float32Array(STEPS); let prev = 0;
         for (let i = 0; i < STEPS; i++) {
@@ -1438,7 +1438,7 @@
           x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
           if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); }
           if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); }
-          let y = x; if (y < prev) y = prev; prev = y;
+          let y = x; if (y < prev) y = prev; prev = y; 
           out[i] = y;
         }
         const res = Array.from(out).map(yy => {
@@ -1487,8 +1487,12 @@
         const fSh1 = h('feComposite', { ns: 'svg', in: 'f_g', in2: 'f_b1', operator: 'arithmetic', k2: '1', k3: '0', result: 'f_sh1' });
         const fB2 = h('feGaussianBlur', { ns: 'svg', in: 'f_sh1', stdDeviation: '0', result: 'f_b2' });
         const fSh2 = h('feComposite', { ns: 'svg', in: 'f_sh1', in2: 'f_b2', operator: 'arithmetic', k2: '1', k3: '0', result: 'f_sh2' });
-        const pF = mkP('f', 'f_sh2');
-        fast.append(cF.t, cF.b, cF.g, fB1, fSh1, fB2, fSh2, pF.tm, pF.s);
+        
+        const fastDesat = h('feColorMatrix', { ns: 'svg', in: 'f_sh2', type: 'saturate', values: '0.85', result: 'fastDesat' });
+        const fastBiased = h('feComposite', { ns: 'svg', in: 'f_sh2', in2: 'fastDesat', operator: 'arithmetic', k2: '0.25', k3: '0.75', result: 'fastBiased' });
+
+        const pF = mkP('f', 'fastBiased');
+        fast.append(cF.t, cF.b, cF.g, fB1, fSh1, fB2, fSh2, fastDesat, fastBiased, pF.tm, pF.s);
 
         const fullLight = h('filter', { ns: 'svg', id: fidFullLight, 'color-interpolation-filters': 'sRGB', x: '-10%', y: '-10%', width: '120%', height: '120%' });
         const cUL = mkC('ul');
@@ -1553,8 +1557,8 @@
               full: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' }
             },
             detailKey: '', fastKey: '', fullLightKey: '', fullKey: '',
-            __fB1: '', __fSh1k2: '', __fSh1k3: '', __fB2: '', __fSh2k2: '', __fSh2k3: '',
-            __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '',
+            __fB1: '', __fSh1k2: '', __fSh1k3: '', __fB2: '', __fSh2k2: '', __fSh2k3: '', 
+            __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '', 
             __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: ''
           }
         };
@@ -1603,7 +1607,7 @@
             st._svgUpdatePending = true;
             queueMicrotask(() => {
               st._svgUpdatePending = false; const p = st._pending; if (!p) return;
-
+              
               const common = (SVG_UPDATE_ACTIVE_TIER_ONLY && nodes.commonByTier) ? (nodes.commonByTier[p.tier] || nodes.commonAll) : nodes.commonAll;
               const cst = (SVG_UPDATE_ACTIVE_TIER_ONLY && st.commonTier) ? (st.commonTier[p.tier] || st) : st;
 
@@ -1668,7 +1672,7 @@
                   st.fullLightKey = p.dk;
                   const v1 = (p.s.sharp || 0) / 50;
                   applyUnsharp(nodes.fullLightDetail.b1, nodes.fullLightDetail.sh1, st, '__ulB1', '__ulSh1k2', '__ulSh1k3', v1, 2.2, 0.65, 0.2);
-
+                  
                   const clVal = (p.s.clarity || 0) / 50;
                   const clStd = clVal > 0 ? (0.75 + p.hiResN * 0.35).toFixed(2) : '0';
                   const clGain = (1 + clVal * (1.05 + p.hiResN * 0.35));
@@ -1681,13 +1685,13 @@
                   st.fullKey = p.dk;
                   const v1 = (p.s.sharp || 0) / 50;
                   applyUnsharp(nodes.fullDetail.b1, nodes.fullDetail.sh1, st, '__uB1', '__uSh1k2', '__uSh1k3', v1, 2.2, 0.65, 0.2);
-
+                  
                   const v2 = (p.s.sharp2 || 0) / 50;
                   const kF = Math.min(sCurve(Math.min(1, v2)) * 4.8, 3.5);
                   setAttr(nodes.fullDetail.b2, 'stdDeviation', v2 > 0 ? '0.25' : '0', st, '__uB2');
                   setAttr(nodes.fullDetail.sh2, 'k2', (1 + kF).toFixed(3), st, '__uSh2k2');
                   setAttr(nodes.fullDetail.sh2, 'k3', (-kF).toFixed(3), st, '__uSh2k3');
-
+                  
                   const clVal = (p.s.clarity || 0) / 50;
                   const clStd = clVal > 0 ? (0.85 + p.hiResN * 0.55).toFixed(2) : '0';
                   const clGain = (1 + clVal * (1.15 + p.hiResN * 0.55));
@@ -1847,10 +1851,10 @@ vec3 rcasSharpen(sampler2D tex, vec2 uv, vec2 texel, float sharpness) {
   vec3 e = TEX(tex, uv).rgb;
   vec3 f = TEX(tex, uv + vec2( texel.x,  0.0)).rgb;
   vec3 h = TEX(tex, uv + vec2( 0.0,  texel.y)).rgb;
-
+  
   vec3 mn = min(b, min(d, min(e, min(f, h))));
   vec3 mx = max(b, max(d, max(e, max(f, h))));
-
+  
   if (uParams2.z < 0.5) {
       vec3 a = TEX(tex, uv + vec2(-texel.x, -texel.y)).rgb;
       vec3 c = TEX(tex, uv + vec2( texel.x, -texel.y)).rgb;
@@ -1859,7 +1863,7 @@ vec3 rcasSharpen(sampler2D tex, vec2 uv, vec2 texel, float sharpness) {
       mn = min(mn, min(a, min(c, min(g, i))));
       mx = max(mx, max(a, max(c, max(g, i))));
   }
-
+  
   float peak = -1.0 / mix(8.0, 5.0, clamp(sharpness, 0.0, 1.0));
   vec3 hitMin = mn / (4.0 * mx);
   vec3 hitMax = (peak - mx) / (4.0 * mn + peak);
@@ -2102,7 +2106,7 @@ void main() {
           const isXL = (this.vVals.sharp >= 18 && this.vVals.sharp2 >= 16 && this.vVals.clarity >= 24);
           const sharpNormBase = (this.vVals.sharp || 0) / 50.0;
           const sharpNorm = isXL ? (sharpNormBase * 1.35) : sharpNormBase;
-
+          
           const useSharpen = sharpNorm > 0;
           const kind = useSharpen ? 'sharp' : 'color';
           const H = useSharpen ? this.handles_sharp : this.handles_color;
@@ -2162,13 +2166,13 @@ void main() {
               const internalFormat = this._isGL2 ? gl.RGBA8 : gl.RGBA;
               gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, rawW, rawH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
             }
-
+            
             if (this._isGL2) {
                 gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, rawW, rawH, gl.RGBA, gl.UNSIGNED_BYTE, video);
             } else {
                 gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
             }
-
+            
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
             st.webglFailCount = 0;
 
@@ -2298,7 +2302,7 @@ void main() {
       }
 
       function getFullscreenElementSafe() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
-
+      
       const getUiRoot = () => {
         const fs = getFullscreenElementSafe();
         if (fs) {
@@ -2317,15 +2321,15 @@ void main() {
 
       function renderButtonRow({ label, items, key, offValue = null, toggleActiveToOff = false }) {
         const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
-        const addBtn = (text, value) => {
-            const b = h('button', { class: 'pbtn', style: 'flex:1' }, text);
-            b.onclick = (e) => {
+        const addBtn = (text, value) => { 
+            const b = h('button', { class: 'pbtn', style: 'flex:1' }, text); 
+            b.onclick = (e) => { 
                 e.stopPropagation();
-                const cur = sm.get(key);
-                if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) { setAndHint(key, offValue); } else { setAndHint(key, value); }
-            };
-            bindClassToggle(b, key, v => v === value);
-            row.append(b);
+                const cur = sm.get(key); 
+                if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) { setAndHint(key, offValue); } else { setAndHint(key, value); } 
+            }; 
+            bindClassToggle(b, key, v => v === value); 
+            row.append(b); 
         };
         for (const it of items) addBtn(it.text, it.value); if (offValue !== undefined && offValue !== null && !items.some(it => it.value === offValue)) addBtn('OFF', offValue); return row;
       }
@@ -2344,14 +2348,14 @@ void main() {
       }
 
       const clampVal = (v, a, b) => (v < a ? a : (v > b ? b : v));
-
+      
       const clampPanelIntoViewport = () => {
         try {
           if (!container) return;
           const mainPanel = container.shadowRoot && container.shadowRoot.querySelector('.main');
           if (!mainPanel) return;
           if (mainPanel.style.display === 'none') return;
-
+          
           if (!hasUserDraggedUI) {
             mainPanel.style.left = '';
             mainPanel.style.top = '';
@@ -2411,9 +2415,9 @@ void main() {
         const style = `
           *, *::before, *::after { box-sizing: border-box; }
           .main {
-            position: fixed;
-            top: calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2));
-            right: max(70px, calc(env(safe-area-inset-right, 0px) + 70px));
+            position: fixed; 
+            top: calc(var(--vsc-vv-top, 0px) + (var(--vsc-vv-h, 100vh) / 2)); 
+            right: max(70px, calc(env(safe-area-inset-right, 0px) + 70px)); 
             transform: translateY(-50%);
             width: min(320px, calc(100vw - 24px));
             background: rgba(25,25,25,0.96); backdrop-filter: blur(12px);
@@ -2517,21 +2521,21 @@ void main() {
         ]);
         const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel);
         let stopDrag = null;
-
+        
         const startPanelDrag = (e) => {
           const pt = (e && e.touches && e.touches[0]) ? e.touches[0] : e;
           if (!pt) return;
-          if (e.target && e.target.tagName === 'BUTTON') return;
+          if (e.target && e.target.tagName === 'BUTTON') return; 
           if (e.cancelable) e.preventDefault(); stopDrag?.();
 
           hasUserDraggedUI = true;
 
           let startX = pt.clientX, startY = pt.clientY; const rect = mainPanel.getBoundingClientRect();
-          mainPanel.style.transform = 'none';
-          mainPanel.style.top = `${rect.top}px`;
-          mainPanel.style.right = 'auto';
+          mainPanel.style.transform = 'none'; 
+          mainPanel.style.top = `${rect.top}px`; 
+          mainPanel.style.right = 'auto'; 
           mainPanel.style.left = `${rect.left}px`;
-
+          
           try { dragHandle.setPointerCapture(e.pointerId); } catch(_) {}
           stopDrag = bindElementDrag(dragHandle, (ev) => {
             const mv = (ev && ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
@@ -2541,7 +2545,7 @@ void main() {
             mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`;
           }, () => { stopDrag = null; });
         };
-
+        
         dragHandle.addEventListener('pointerdown', startPanelDrag);
         dragHandle.addEventListener('dblclick', (e) => {
           hasUserDraggedUI = false;
@@ -2560,7 +2564,7 @@ void main() {
           gearHost.style.display = 'block';
           return;
         }
-
+        
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
         const style = `
           .gear {
@@ -2598,11 +2602,11 @@ void main() {
         const styleEl = document.createElement('style');
         styleEl.textContent = style;
         shadow.appendChild(styleEl);
-
+        
         let dragThresholdMet = false, stopDrag = null;
         gearBtn = h('button', { class: 'gear' }, '⚙');
         shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
-
+        
         const wake = () => {
           if (gearBtn) gearBtn.style.opacity = '1';
           clearTimeout(fadeTimer);
@@ -2613,7 +2617,7 @@ void main() {
           }, 2500);
         };
         wakeGear = wake;
-
+        
         window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); bootWakeTimer = setTimeout(wake, 2000);
 
         const handleGearDrag = (e) => {
@@ -2627,7 +2631,7 @@ void main() {
           }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
         };
         gearBtn.addEventListener('pointerdown', handleGearDrag);
-
+        
         let lastToggle = 0;
         const onGearActivate = (e) => {
           if (dragThresholdMet) { try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} return; }
@@ -2636,7 +2640,7 @@ void main() {
           lastToggle = now;
           setAndHint(P.APP_UI, !sm.get(P.APP_UI));
         };
-
+        
         let lastTouchAt = 0;
         gearBtn.addEventListener('touchend', (e) => {
           lastTouchAt = performance.now();
@@ -2654,15 +2658,15 @@ void main() {
           onGearActivate(e);
         }, { passive: false });
 
-        const syncGear = () => {
-          if (!gearBtn) return;
-          gearBtn.classList.toggle('open', !!sm.get(P.APP_UI));
-          gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT));
-          wake();
+        const syncGear = () => { 
+          if (!gearBtn) return; 
+          gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); 
+          gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); 
+          wake(); 
         };
         sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
       };
-
+      
       const mount = () => {
         const root = getUiRoot();
         if (!root) return;
@@ -2677,7 +2681,7 @@ void main() {
           }
         } catch (_) {}
       };
-
+      
       const ensure = () => {
         if (!allowUiInThisDoc()) { detachNodesHard(); return; }
         ensureGear();
@@ -2697,12 +2701,12 @@ void main() {
         mount();
         try { wakeGear?.(); } catch (_) {}
       };
-
+      
       onPageReady(() => { try { ensure(); ApplyReq.hard(); } catch (_) {} });
-
+      
       window.__VSC_UI_Ensure = ensure;
       if (CONFIG.DEBUG) window.__VSC_UI_Ensure_DEBUG = ensure;
-
+      
       return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
     }
 
@@ -2842,7 +2846,7 @@ void main() {
             if ((sMask & SHADOW_BAND.MID) !== 0) { out.toe += 2.0; out.mid -= 0.08; }
             if ((sMask & SHADOW_BAND.OUTER) !== 0) { out.mid -= 0.15; out.gamma *= 0.98; }
           }
-
+          
           const brStep = vfUser.brightStepLevel || 0;
           if (brStep > 0) {
             out.bright += brStep * 4.0;
@@ -2877,7 +2881,7 @@ void main() {
         try {
           const po = new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
-              if (entry.duration > 100) {
+              if (entry.duration > 100) { 
                 qualityScale = Math.max(0.5, qualityScale - 0.15);
                 Scheduler.request(false);
               }
@@ -2903,12 +2907,12 @@ void main() {
           const denom = (dTotal > 0) ? dTotal : total;
           const numer = (dTotal > 0) ? dDropped : dropped;
           const ratio = denom > 0 ? (numer / denom) : 0;
-
+          
           let targetScale = 1.0;
           if (ratio > 0.12) targetScale = 0.70;
           else if (ratio > 0.06) targetScale = 0.85;
-
-          qualityScale = qualityScale * 0.8 + targetScale * 0.2;
+          
+          qualityScale = qualityScale * 0.8 + targetScale * 0.2; 
         } catch (_) {}
         return qualityScale;
       }
