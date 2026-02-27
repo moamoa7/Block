@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.18.0 - Sharpness Math Fix)
+// @name         Video_Control (v170.19.0 - Stability & Shader Optimizations)
 // @namespace    https://github.com/
-// @version      170.18.0
-// @description  Video Control: High-End PC. Fixed the math bug in v170.17 that weakened the sharpening. Restored full 2.2x strength.
+// @version      170.19.0
+// @description  Video Control: High-End PC. Added dynamic WebGL 5-tap fallback, smart halo clamping, robust matchMedia fallback, and SVG update refactoring.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -73,15 +73,17 @@
       return false;
     }
 
+    const DEBUG_BY_URL = /[?&]vsc_debug=1\b/.test(location.search);
+
     const CONFIG = Object.freeze({
       IS_MOBILE: detectMobile(),
       IS_LOW_END: detectLowEndDevice(),
       TOUCHED_MAX: 140,
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
-      DEBUG: false
+      DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.18.0';
+    const VSC_VERSION = '170.19.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -100,18 +102,28 @@
         if (window.matchMedia) {
           const mql = matchMedia('(dynamic-range: high)');
           hdr = mql.matches ? 1 : 0;
-          (mql.addEventListener ? mql.addEventListener.bind(mql) : mql.addListener.bind(mql))('change', (e) => { hdr = e.matches ? 1 : 0; });
+          const handler = (e) => { hdr = e.matches ? 1 : 0; };
+          if (mql.addEventListener) {
+            mql.addEventListener('change', handler);
+          } else if (mql.addListener) {
+            mql.addListener(handler);
+            if (__globalSig) {
+              __globalSig.addEventListener('abort', () => {
+                try { mql.removeListener(handler); } catch (_) {}
+              }, { once: true });
+            }
+          }
         }
       } catch (_) {}
       return Object.freeze({ isHdr: () => hdr === 1 });
     })();
 
-    const DEFENSE_PRESET = 'safe';
-    const VSC_DEFENSE = Object.freeze(
-      DEFENSE_PRESET === 'simple'
-        ? { webglCooldown: false, audioCooldown: false, autoSceneDrmBackoff: false, hideAmbientGlow: false }
-        : { webglCooldown: true,  audioCooldown: true,  autoSceneDrmBackoff: true,  hideAmbientGlow: true  }
-    );
+    const VSC_DEFENSE = Object.freeze({
+      webglCooldown: true,
+      audioCooldown: true,
+      autoSceneDrmBackoff: true,
+      hideAmbientGlow: true
+    });
 
     const DEFENSE_KEYS = Object.freeze({ hideAmbientGlow: 'vsc.hideAmbientGlow' });
     function setHideAmbientGlow(enable) {
@@ -292,7 +304,10 @@
     }
 
     function createDebounced(fn, ms = 250) {
-      let t = 0; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+      let t = 0;
+      const debounced = (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+      debounced.cancel = () => { if (t) { clearTimeout(t); t = 0; } };
+      return debounced;
     }
 
     function initSpaUrlDetector(onChanged) {
@@ -1532,36 +1547,42 @@
               const common = (SVG_UPDATE_ACTIVE_TIER_ONLY && nodes.commonByTier) ? (nodes.commonByTier[p.tier] || nodes.commonAll) : nodes.commonAll;
               const cst = (SVG_UPDATE_ACTIVE_TIER_ONLY && st.commonTier) ? (st.commonTier[p.tier] || st) : st;
 
-              if (cst.toneKey !== p.tk) {
-                cst.toneKey = p.tk;
+              const updateKey = (obj, key, next, apply) => {
+                if (obj[key] === next) return false;
+                obj[key] = next;
+                apply();
+                return true;
+              };
+
+              updateKey(cst, 'toneKey', p.tk, () => {
                 if (cst.toneTable !== p.table) {
                   cst.toneTable = p.table;
                   for (const fn of common.toneFuncs) setAttrCached(fn, 'tableValues', p.table);
                 }
-              }
-              if (cst.bcLinKey !== p.bcLinKey) {
-                cst.bcLinKey = p.bcLinKey;
+              });
+
+              updateKey(cst, 'bcLinKey', p.bcLinKey, () => {
                 for (const fn of common.bcLinFuncs) {
                   setAttrCached(fn, 'slope', p.conStr);
                   setAttrCached(fn, 'intercept', p.interceptStr);
                 }
-              }
-              if (cst.gammaKey !== p.gk) {
-                cst.gammaKey = p.gk;
+              });
+
+              updateKey(cst, 'gammaKey', p.gk, () => {
                 for (const fn of common.gamFuncs) setAttrCached(fn, 'exponent', p.gk);
-              }
-              if (cst.satKey !== p.satVal) {
-                cst.satKey = p.satVal;
+              });
+
+              updateKey(cst, 'satKey', p.satVal, () => {
                 for (const satNode of common.sats) setAttrCached(satNode, 'values', p.satVal);
-              }
-              if (cst.tempKey !== p.tmk) {
-                cst.tempKey = p.tmk;
+              });
+
+              updateKey(cst, 'tempKey', p.tmk, () => {
                 for (let i=0; i<common.tmpFuncs.length; i+=3) {
                   setAttrCached(common.tmpFuncs[i],   'slope', p.rsStr);
                   setAttrCached(common.tmpFuncs[i+1], 'slope', p.gsStr);
                   setAttrCached(common.tmpFuncs[i+2], 'slope', p.bsStr);
                 }
-              }
+              });
 
               if (p.tier === 'fast') {
                 if (st.fastKey !== p.dk) {
@@ -1809,8 +1830,9 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 
   vec3 mn = min(c, min(min(n,s), min(w,e)));
   vec3 mx = max(c, max(max(n,s), max(w,e)));
+  float halo = mix(0.03, 0.08, clamp(strength, 0.0, 1.0));
   vec3 span = mx - mn;
-  sharpened = clamp(sharpened, mn - span * 0.05, mx + span * 0.05);
+  sharpened = clamp(sharpened, mn - span * halo, mx + span * halo);
 
   return sharpened;
 }
@@ -2072,7 +2094,12 @@ void main() {
 
           const isHdr = VSC_MEDIA.isHdr();
           const hiReduce = isHdr ? 0.82 : 0.88;
-          if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, 0.0, hiReduce);
+          
+          const rawPx = rawW * rawH;
+          const cheapSharpen = CONFIG.IS_LOW_END || rawPx >= (2560 * 1440) || sharpNorm < 0.12;
+          const tapMode = cheapSharpen ? 1.0 : 0.0;
+
+          if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, tapMode, hiReduce);
 
           if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs);
 
@@ -2745,11 +2772,6 @@ void main() {
       candidates.clear();
     }
 
-    function createThrottled(fn, ms = 120) {
-      let last = 0, timer = 0;
-      return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } };
-    }
-
     function debugLogEffectiveVVals(vVals, vfUser, activeTarget, rMode) {
       if (!CONFIG.DEBUG) return; const w = activeTarget?.videoWidth || 0, h = activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, mode: rMode, size: `${w}x${h}`, contrast: vVals.contrast, satF: vVals.satF, bright: vVals.bright, gamma: vVals.gamma, sharp: vVals.sharp, temp: vVals.temp, qos: vVals.__qos });
     }
@@ -2800,7 +2822,7 @@ void main() {
       let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
       const videoParamsMemo = createVideoParamsMemo(Store, P, Utils);
-      const audioUpdateThrottled = createThrottled(() => Audio.update(), 120);
+      const audioUpdateThrottled = createDebounced(() => Audio.update(), 120);
 
       let qualityScale = 1.0;
       let lastQCheck = 0;
@@ -2926,7 +2948,7 @@ void main() {
       const AutoScene = createAutoSceneManager(Store, P, Scheduler);
       window.__VSC_INTERNAL__.AutoScene = AutoScene;
 
-      const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END, SVG_MAX_PIX_FULL: 3840 * 2160, SVG_MAX_PIX_FAST: CONFIG.IS_LOW_END ? (1920 * 1080) : (3840 * 2160) });
+      const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_LOW_END: CONFIG.IS_LOW_END, SVG_MAX_PIX_FULL: 3840 * 2160, SVG_MAX_PIX_FAST: CONFIG.IS_LOW_END ? (1920 * 1080) : (2560 * 1440) });
       const FiltersGL = createFiltersWebGL(Utils);
       const Adapter = createBackendAdapter(Filters, FiltersGL);
       window.__VSC_INTERNAL__.Adapter = Adapter;
