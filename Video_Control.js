@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.7.0 - Full-Light Topology & filterRes Capping)
+// @name         Video_Control (v170.8.0 - Full-Light Topology & filterRes Capping)
 // @namespace    https://github.com/
-// @version      170.7.0
+// @version      170.8.0
 // @description  Video Control: High-End PC. Adaptive 3-Tier SVG (Full-Light replaced CAS). WebGL & SVG Resolution Capping. Ultimate Optimization.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -53,14 +53,20 @@
       });
     }
 
-    function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
+    const UA_MOBILE_RE = /Mobi|Android|iPhone/i;
+    const isMobileUA = () => { try { return UA_MOBILE_RE.test(navigator.userAgent); } catch (_) { return false; } };
+
+    function detectMobile() {
+      try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {}
+      return isMobileUA();
+    }
 
     // Lightweight device heuristic (used only for quality / safety fallbacks; keep it cheap).
     function detectLowEndDevice() {
       try {
         const hc = Number(navigator.hardwareConcurrency || 0);
         const dm = Number(navigator.deviceMemory || 0);
-        const mobile = !!(navigator.userAgentData?.mobile || /Mobi|Android/i.test(navigator.userAgent));
+        const mobile = !!(navigator.userAgentData?.mobile || isMobileUA());
         if (dm && dm <= 4) return true;
         if (hc && hc <= 4) return true;
         if (mobile && ((dm && dm <= 6) || (hc && hc <= 6))) return true;
@@ -76,7 +82,7 @@
       DEBUG: false
     });
 
-    const VSC_VERSION = '170.7.0';
+    const VSC_VERSION = '170.8.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -137,6 +143,44 @@
     setHideAmbientGlow(HIDE_AMBIENT_GLOW);
 
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
+
+    // ShadowRoot tracking: registry listens for 'vsc-shadow-root' but the emitter must be installed.
+    function installShadowRootEmitter() {
+      if (!FEATURE_FLAGS.trackShadowRoots) return;
+      if (window.__VSC_SHADOW_EMITTER_INSTALLED__) return;
+      try { Object.defineProperty(window, '__VSC_SHADOW_EMITTER_INSTALLED__', { value: true, configurable: true }); }
+      catch (_) { window.__VSC_SHADOW_EMITTER_INSTALLED__ = true; }
+
+      const proto = Element.prototype;
+      const orig = proto.attachShadow;
+      if (typeof orig !== 'function') return;
+
+      const patchedAttachShadow = function(init) {
+        const sr = orig.call(this, init);
+        try { document.dispatchEvent(new CustomEvent('vsc-shadow-root', { detail: sr })); } catch (_) {}
+        return sr;
+      };
+      try { Object.defineProperty(proto, 'attachShadow', { value: patchedAttachShadow, configurable: true, writable: true }); }
+      catch (_) { try { proto.attachShadow = patchedAttachShadow; } catch (__) {} }
+
+      // Backfill: some pages create shadow roots before our injection (esp. iframes). Keep this cheap + capped.
+      queueMicrotask(() => {
+        try {
+          const base = document.documentElement || document.body;
+          if (!base) return;
+          const tw = document.createTreeWalker(base, NodeFilter.SHOW_ELEMENT);
+          let n = tw.currentNode, seen = 0;
+          while ((n = tw.nextNode()) && seen < 2500) {
+            seen++;
+            const sr = n.shadowRoot;
+            if (sr) { try { document.dispatchEvent(new CustomEvent('vsc-shadow-root', { detail: sr })); } catch (_) {} }
+          }
+        } catch (_) {}
+      });
+    }
+
+    installShadowRootEmitter();
+
     const PERF_POLICY = Object.freeze({ registry: { shadowLRUMax: 12, spaRescanDebounceMs: 220 } });
     const RUNTIME_GUARD = Object.freeze({ webgl: { failCooldownMs: 5000, failThreshold: 3 }, audio: { createSourceCooldownMs: 5000 }, targeting: { hysteresisMs: 650, hysteresisMargin: 0.8 } });
 
@@ -666,7 +710,21 @@
       refreshObservers();
       let pruneIterVideos = null; function pruneBatchRoundRobinNoAlloc(set, visibleSet, dirtySet, unobserveFn, batch = 200) { let removed = 0; let scanned = 0; if (!pruneIterVideos) pruneIterVideos = set.values(); while (scanned < batch) { let n = pruneIterVideos.next(); if (n.done) { pruneIterVideos = set.values(); n = pruneIterVideos.next(); if (n.done) break; } const el = n.value; if (el && !el.isConnected) { set.delete(el); visibleSet.delete(el); dirtySet.delete(el); try { unobserveFn(el); } catch (_) {} if (ro) { try { ro.unobserve(el); } catch (_) {} } removed++; } scanned++; } return removed; }
 
-      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, (el) => { if (io) io.unobserve(el); }, 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { walkRoots(document.documentElement).forEach(r => WorkQ.enqueue(r)); } };
+      return {
+        videos,
+        visible,
+        rev: () => rev,
+        refreshObservers,
+        prune: () => { const removed = pruneBatchRoundRobinNoAlloc(videos, visible.videos, dirty.videos, (el) => { if (io) io.unobserve(el); }, 220); if (removed) rev++; },
+        consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
+        rescanAll: () => {
+          try {
+            const base = document.documentElement || document.body;
+            if (!base) return;
+            for (const r of walkRoots(base)) WorkQ.enqueue(r);
+          } catch (_) {}
+        }
+      };
     }
 
     function createAudio(sm) {
@@ -1231,7 +1289,32 @@
 
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createLRU } = Utils; const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(720);
-      const qInt = (v, step) => Math.round(v / step), setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } }, sCurve = (x) => x * x * (3 - 2 * x), smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return sCurve(t); };
+      
+      // Ultra-low-cost: update SVG attributes ONLY for the currently active tier (cuts common writes up to ~4x).
+      const SVG_UPDATE_ACTIVE_TIER_ONLY = true;
+
+      // Ultra-cheap: skip setAttribute if the node's attr already equals the same string.
+      // Works even when "keys" change but the final attribute string value is identical.
+      const __attrCache = new WeakMap();
+      const setAttrCached = (node, attr, val) => {
+        if (!node) return;
+        const s = (val === undefined || val === null) ? '' : String(val);
+        let rec = __attrCache.get(node);
+        if (!rec) { rec = Object.create(null); __attrCache.set(node, rec); }
+        if (rec[attr] === s) return;
+        rec[attr] = s;
+        node.setAttribute(attr, s);
+      };
+
+      const qInt = (v, step) => Math.round(v / step),
+        setAttr = (node, attr, val, st, key) => {
+          if (node && st[key] !== val) {
+            st[key] = val;
+            setAttrCached(node, attr, val);
+          }
+        },
+        sCurve = (x) => x * x * (3 - 2 * x),
+        smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return sCurve(t); };
 
       const makeKeyBase = (s) => [ qInt(s.gain, 0.04), qInt(s.gamma, 0.01), qInt(s.contrast, 0.01), qInt(s.bright, 0.2), qInt(s.satF, 0.01), qInt(s.mid, 0.02), qInt(s.toe, 0.2), qInt(s.shoulder, 0.2), qInt(s.temp, 0.2), qInt(s.sharp, 0.2), qInt(s.sharp2, 0.2), qInt(s.clarity, 0.2) ].join('|');
 
@@ -1327,20 +1410,64 @@
         const tryAppend = () => { const target = root.body || root.documentElement || root; if (target && target.appendChild) { target.appendChild(svg); return true; } return false; };
         if (!tryAppend()) { const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50); setTimeout(() => clearInterval(t), 3000); }
 
+        const commonByTier = {
+          lite: {
+            toneFuncs: Array.from(cL.t.children),
+            bcLinFuncs: Array.from(cL.b.children),
+            gamFuncs: Array.from(cL.g.children),
+            tmpFuncs: Array.from(pL.tm.children),
+            sats: [pL.s]
+          },
+          fast: {
+            toneFuncs: Array.from(cF.t.children),
+            bcLinFuncs: Array.from(cF.b.children),
+            gamFuncs: Array.from(cF.g.children),
+            tmpFuncs: Array.from(pF.tm.children),
+            sats: [pF.s]
+          },
+          'full-light': {
+            toneFuncs: Array.from(cUL.t.children),
+            bcLinFuncs: Array.from(cUL.b.children),
+            gamFuncs: Array.from(cUL.g.children),
+            tmpFuncs: Array.from(pUL.tm.children),
+            sats: [pUL.s]
+          },
+          full: {
+            toneFuncs: Array.from(cU.t.children),
+            bcLinFuncs: Array.from(cU.b.children),
+            gamFuncs: Array.from(cU.g.children),
+            tmpFuncs: Array.from(pU.tm.children),
+            sats: [pU.s]
+          }
+        };
+        const commonAll = {
+          toneFuncs: [...commonByTier.lite.toneFuncs, ...commonByTier.fast.toneFuncs, ...commonByTier['full-light'].toneFuncs, ...commonByTier.full.toneFuncs],
+          bcLinFuncs: [...commonByTier.lite.bcLinFuncs, ...commonByTier.fast.bcLinFuncs, ...commonByTier['full-light'].bcLinFuncs, ...commonByTier.full.bcLinFuncs],
+          gamFuncs:  [...commonByTier.lite.gamFuncs,  ...commonByTier.fast.gamFuncs,  ...commonByTier['full-light'].gamFuncs,  ...commonByTier.full.gamFuncs],
+          tmpFuncs:  [...commonByTier.lite.tmpFuncs,  ...commonByTier.fast.tmpFuncs,  ...commonByTier['full-light'].tmpFuncs,  ...commonByTier.full.tmpFuncs],
+          sats:      [...commonByTier.lite.sats,      ...commonByTier.fast.sats,      ...commonByTier['full-light'].sats,      ...commonByTier.full.sats]
+        };
+
         return {
           fidLite, fidFast, fidFullLight, fidFull,
           filters: { lite, fast, fullLight, full },
-          common: {
-            toneFuncs: [...Array.from(cL.t.children), ...Array.from(cF.t.children), ...Array.from(cUL.t.children), ...Array.from(cU.t.children)],
-            bcLinFuncs: [...Array.from(cL.b.children), ...Array.from(cF.b.children), ...Array.from(cUL.b.children), ...Array.from(cU.b.children)],
-            gamFuncs: [...Array.from(cL.g.children), ...Array.from(cF.g.children), ...Array.from(cUL.g.children), ...Array.from(cU.g.children)],
-            tmpFuncs: [...Array.from(pL.tm.children), ...Array.from(pF.tm.children), ...Array.from(pUL.tm.children), ...Array.from(pU.tm.children)],
-            sats: [pL.s, pF.s, pUL.s, pU.s]
-          },
+          commonByTier,
+          commonAll,
           fastDetail: { b1: fB1, sh1: fSh1 },
           fullLightDetail: { b1: ulB1, sh1: ulSh1, bc: ulBc, cl: ulCl },
           fullDetail: { b1: uB1, sh1: uSh1, b2: uB2, sh2: uSh2, bc: uBc, cl: uCl },
-          st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', detailKey: '', fastKey: '', fullLightKey: '', fullKey: '', __fB1: '', __fSh1k2: '', __fSh1k3: '', __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '', __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: '' }
+          st: {
+            lastKey: '',
+            toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '',
+            commonTier: {
+              lite: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' },
+              fast: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' },
+              'full-light': { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' },
+              full: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' }
+            },
+            detailKey: '', fastKey: '', fullLightKey: '', fullKey: '',
+            __fB1: '', __fSh1k2: '', __fSh1k3: '', __ulB1: '', __ulSh1k2: '', __ulSh1k3: '', __ulBc: '', __ulClk2: '', __ulClk3: '', __uB1: '', __uSh1k2: '', __uSh1k3: '', __uB2: '', __uSh2k2: '', __uSh2k3: '', __uBc: '', __uClk2: '', __uClk3: '', __filterRes: ''
+          }
         };
       }
 
@@ -1370,26 +1497,57 @@
         if (nodes.st.lastKey !== key) {
           nodes.st.lastKey = key; const st = nodes.st, steps = 128;
           const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08; const tk = `${steps}|${qInt(clamp((s.toe||0)/14,-1,1),0.02)}|${qInt(clamp((s.shoulder||0)/16,-1,1),0.02)}|${qInt(clamp(s.mid||0,-1,1),0.02)}|${qInt(s.gain||1,gainQ)}`;
-          const table = (st.toneKey !== tk) ? getToneTableCached(steps, qInt(clamp((s.toe||0)/14,-1,1),0.02)*0.02, qInt(clamp((s.shoulder||0)/16,-1,1),0.02)*0.02, qInt(clamp(s.mid||0,-1,1),0.02)*0.02, qInt(s.gain||1,gainQ)*gainQ) : st.toneTable;
-          const con = clamp(s.contrast || 1, 0.1, 5.0), brightOffset = clamp((s.bright || 0) / 1000, -0.5, 0.5), intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
+          const tierSt0 = (SVG_UPDATE_ACTIVE_TIER_ONLY && st.commonTier) ? (st.commonTier[tier] || st) : st;
+          const table = (tierSt0.toneKey !== tk) ? getToneTableCached(steps, qInt(clamp((s.toe||0)/14,-1,1),0.02)*0.02, qInt(clamp((s.shoulder||0)/16,-1,1),0.02)*0.02, qInt(clamp(s.mid||0,-1,1),0.02)*0.02, qInt(s.gain||1,gainQ)*gainQ) : tierSt0.toneTable;
+          const con = clamp(s.contrast || 1, 0.1, 5.0), brightOffset = clamp((s.bright || 0) / 1000, -0.5, 0.5), intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5);
+          const conStr = con.toFixed(3), interceptStr = intercept.toFixed(4), bcLinKey = `${conStr}|${interceptStr}`;
           const gk = (1/clamp(s.gamma||1,0.1,5.0)).toFixed(4); const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
-          const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = `${rs.toFixed(3)}|${gs.toFixed(3)}|${bs.toFixed(3)}`;
+          const { rs, gs, bs } = tempToRgbGain(s.temp); const rsStr = rs.toFixed(3), gsStr = gs.toFixed(3), bsStr = bs.toFixed(3); const tmk = `${rsStr}|${gsStr}|${bsStr}`;
 
           const dk = `${(s.sharp || 0).toFixed(2)}|${(s.sharp2 || 0).toFixed(2)}|${(s.clarity || 0).toFixed(2)}`;
 
           const pxScale = Math.sqrt((Math.max(1, vwKey * vhKey)) / (1280 * 720));
           const hiResN  = Math.max(0, Math.min(1, (pxScale - 1.0) / 1.7));
 
-          st._pending = { tk, table, bcLinKey, con, intercept, gk, satVal, tmk, rs, gs, bs, dk, s, tier, vwKey, vhKey, hiResN };
+          st._pending = { tk, table, bcLinKey, con, intercept, conStr, interceptStr, gk, satVal, tmk, rs, gs, bs, rsStr, gsStr, bsStr, dk, s, tier, vwKey, vhKey, hiResN };
           if (!st._svgUpdatePending) {
             st._svgUpdatePending = true;
             queueMicrotask(() => {
               st._svgUpdatePending = false; const p = st._pending; if (!p) return;
-              if (st.toneKey !== p.tk) { st.toneKey = p.tk; if (st.toneTable !== p.table) { st.toneTable = p.table; for (const fn of nodes.common.toneFuncs) fn.setAttribute('tableValues', p.table); } }
-              if (st.bcLinKey !== p.bcLinKey) { st.bcLinKey = p.bcLinKey; for (const fn of nodes.common.bcLinFuncs) { fn.setAttribute('slope', p.con.toFixed(3)); fn.setAttribute('intercept', p.intercept.toFixed(4)); } }
-              if (st.gammaKey !== p.gk) { st.gammaKey = p.gk; for (const fn of nodes.common.gamFuncs) fn.setAttribute('exponent', p.gk); }
-              if (st.satKey !== p.satVal) { st.satKey = p.satVal; for (const satNode of nodes.common.sats) satNode.setAttribute('values', p.satVal); }
-              if (st.tempKey !== p.tmk) { st.tempKey = p.tmk; for(let i=0; i<nodes.common.tmpFuncs.length; i+=3) { nodes.common.tmpFuncs[i].setAttribute('slope', p.rs.toFixed(3)); nodes.common.tmpFuncs[i+1].setAttribute('slope', p.gs.toFixed(3)); nodes.common.tmpFuncs[i+2].setAttribute('slope', p.bs.toFixed(3)); } }
+              
+              const common = (SVG_UPDATE_ACTIVE_TIER_ONLY && nodes.commonByTier) ? (nodes.commonByTier[p.tier] || nodes.commonAll) : nodes.commonAll;
+              const cst = (SVG_UPDATE_ACTIVE_TIER_ONLY && st.commonTier) ? (st.commonTier[p.tier] || st) : st;
+
+              if (cst.toneKey !== p.tk) {
+                cst.toneKey = p.tk;
+                if (cst.toneTable !== p.table) {
+                  cst.toneTable = p.table;
+                  for (const fn of common.toneFuncs) setAttrCached(fn, 'tableValues', p.table);
+                }
+              }
+              if (cst.bcLinKey !== p.bcLinKey) {
+                cst.bcLinKey = p.bcLinKey;
+                for (const fn of common.bcLinFuncs) {
+                  setAttrCached(fn, 'slope', p.conStr);
+                  setAttrCached(fn, 'intercept', p.interceptStr);
+                }
+              }
+              if (cst.gammaKey !== p.gk) {
+                cst.gammaKey = p.gk;
+                for (const fn of common.gamFuncs) setAttrCached(fn, 'exponent', p.gk);
+              }
+              if (cst.satKey !== p.satVal) {
+                cst.satKey = p.satVal;
+                for (const satNode of common.sats) setAttrCached(satNode, 'values', p.satVal);
+              }
+              if (cst.tempKey !== p.tmk) {
+                cst.tempKey = p.tmk;
+                for (let i=0; i<common.tmpFuncs.length; i+=3) {
+                  setAttrCached(common.tmpFuncs[i],   'slope', p.rsStr);
+                  setAttrCached(common.tmpFuncs[i+1], 'slope', p.gsStr);
+                  setAttrCached(common.tmpFuncs[i+2], 'slope', p.bsStr);
+                }
+              }
 
               if (p.tier === 'fast') {
                 if (st.fastKey !== p.dk) {
@@ -2084,7 +2242,50 @@ void main() {
 
       const build = () => {
         if (container) return; const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
-        const style = `.main { position: fixed; top: 50%; right: 70px; transform: translateY(-50%); width: 320px; background: rgba(25,25,25,0.96); backdrop-filter: blur(12px); color: #eee; padding: 15px; border-radius: 16px; z-index: 2147483647; border: 1px solid #555; font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7); overflow-y: auto; max-height: 85vh; } .header { display: flex; justify-content: center; margin-bottom: 12px; cursor: move; border-bottom: 2px solid #444; padding-bottom: 8px; font-weight: bold; font-size: 14px; color: #ccc;} .prow { display: flex; gap: 4px; width: 100%; margin-bottom: 6px; } .btn { flex: 1; background: #3a3a3a; color: #eee; border: 1px solid #555; padding: 10px 6px; cursor: pointer; border-radius: 8px; font-size: 13px; font-weight: bold; transition: 0.2s; } .btn.active { background: #3498db; color: white; border-color: #2980b9; } .pbtn { background: #444; border: 1px solid #666; color: #eee; cursor: pointer; border-radius: 6px; font-size: 12px; min-height: 34px; font-weight: bold; } .pbtn.active { background: #e67e22; color: white; border-color: #d35400; } hr { border: 0; border-top: 1px solid #444; width: 100%; margin: 10px 0; }`;
+        const style = `
+          *, *::before, *::after { box-sizing: border-box; }
+          .main {
+            position: fixed; top: 50%; right: 70px; transform: translateY(-50%);
+            width: min(320px, calc(100vw - 24px));
+            background: rgba(25,25,25,0.96); backdrop-filter: blur(12px);
+            color: #eee; padding: 15px; border-radius: 16px;
+            z-index: 2147483647; border: 1px solid #555;
+            font-family: sans-serif; box-shadow: 0 12px 48px rgba(0,0,0,0.7);
+            overflow-y: auto; max-height: 85vh;
+          }
+          @supports not ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+            .main { background: rgba(25,25,25,0.985); }
+          }
+          @media (max-width: 520px) {
+            .main {
+              top: auto;
+              bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+              right: max(12px, calc(env(safe-area-inset-right, 0px) + 12px));
+              left:  max(12px, calc(env(safe-area-inset-left, 0px) + 12px));
+              transform: none;
+              width: auto;
+              max-height: 70vh;
+              padding: 12px;
+              border-radius: 14px;
+            }
+            .prow { flex-wrap: wrap; }
+            .btn, .pbtn { min-height: 38px; font-size: 12px; }
+          }
+          .header { display: flex; justify-content: center; margin-bottom: 12px; cursor: move; border-bottom: 2px solid #444; padding-bottom: 8px; font-size: 14px; font-weight: 700; }
+          .body { display: flex; flex-direction: column; gap: 10px; }
+          .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+          .btn { flex: 1; border: 1px solid #666; background: #222; color: #eee; padding: 10px 0; border-radius: 12px; cursor: pointer; font-weight: 700; }
+          .btn.active { background: #3498db; border-color: #3498db; }
+          .btn.warn { background: #8e44ad; border-color: #8e44ad; }
+          .prow { display:flex; gap:6px; align-items:center; }
+          .pbtn { border: 1px solid #666; background: #222; color: #eee; padding: 10px 6px; border-radius: 12px; cursor: pointer; font-weight: 700; }
+          .pbtn.active { background: #3498db; border-color: #3498db; }
+          .lab { font-size: 12px; font-weight: 700; }
+          .val { font-size: 12px; opacity: .9; }
+          .slider { width: 100%; }
+          .small { font-size: 11px; opacity: .75; }
+          hr { border:0; border-top:1px solid rgba(255,255,255,0.14); margin:8px 0; }
+        `;
         applyShadowStyle(shadow, style, h);
         const dragHandle = h('div', { class: 'header' }, 'VSC 렌더링 제어');
 
@@ -2130,16 +2331,23 @@ void main() {
         ]);
         const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel);
         let stopDrag = null;
-        dragHandle.addEventListener('mousedown', (e) => {
-          e.preventDefault(); stopDrag?.();
-          let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect();
+        
+        const startPanelDrag = (e) => {
+          const pt = (e && e.touches && e.touches[0]) ? e.touches[0] : e;
+          if (!pt) return;
+          if (e.cancelable) e.preventDefault(); stopDrag?.();
+          let startX = pt.clientX, startY = pt.clientY; const rect = mainPanel.getBoundingClientRect();
           mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`;
           stopDrag = bindWindowDrag((ev) => {
-            const dx = ev.clientX - startX, dy = ev.clientY - startY, panelRect = mainPanel.getBoundingClientRect();
+            const mv = (ev && ev.touches && ev.touches[0]) ? ev.touches[0] : ev;
+            if (!mv) return;
+            const dx = mv.clientX - startX, dy = mv.clientY - startY, panelRect = mainPanel.getBoundingClientRect();
             let nextLeft = Math.max(0, Math.min(window.innerWidth - panelRect.width, rect.left + dx)), nextTop = Math.max(0, Math.min(window.innerHeight - panelRect.height, rect.top + dy));
             mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`;
           }, () => { stopDrag = null; });
-        });
+        };
+        dragHandle.addEventListener('mousedown', startPanelDrag);
+        dragHandle.addEventListener('touchstart', startPanelDrag, { passive: false });
 
         container = host; getUiRoot().appendChild(container);
       };
@@ -2147,7 +2355,7 @@ void main() {
       const ensureGear = () => {
         if (!allowUiInThisDoc()) return; if (gearHost) return;
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
-        const style = `.gear{position:fixed;top:50%;right:10px;transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''}`;
+        const style = `.gear{position:fixed;top:50%;right:max(10px, calc(env(safe-area-inset-right, 0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%; background:rgba(25,25,25,0.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.18);color:#fff; display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer; pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,0.55);user-select:none; transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;} @media (hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,0.65);}} .gear:active{transform:translateY(-50%) scale(0.98);} .gear.open{outline:2px solid rgba(52,152,219,0.85);opacity:1 !important;} .gear.inactive{opacity:0.45;} .hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,0.88); border:1px solid rgba(255,255,255,0.14);color:rgba(255,255,255,0.82);font:600 11px/1.2 sans-serif;white-space:nowrap; z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none;} .gear:hover+.hint{opacity:1;transform:translateY(0);} ${CONFIG.IS_MOBILE ? '.hint{display:none !important;}' : ''} @media (max-width:520px){.gear{top:auto;bottom:max(16px,calc(env(safe-area-inset-bottom,0px)+16px));transform:none;}.hint{bottom:max(18px,calc(env(safe-area-inset-bottom,0px)+18px));}}`;
         applyShadowStyle(shadow, style, h); let dragThresholdMet = false, stopDrag = null;
         gearBtn = h('button', { class: 'gear', onclick: (e) => { if (dragThresholdMet) { e.preventDefault(); e.stopPropagation(); return; } setAndHint(P.APP_UI, !sm.get(P.APP_UI)); } }, '⚙');
         shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
@@ -2502,9 +2710,10 @@ void main() {
       };
       initGmMenu();
 
+      let __vscLastUserSignalT = 0;
       window.__lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
       function updateLastUserPt(x, y, t) { window.__lastUserPt.x = x; window.__lastUserPt.y = y; window.__lastUserPt.t = t; }
-      function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; try { Scheduler.request(false); } catch (_) {} } let __vscLastUserSignalT = 0;
+      function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; try { Scheduler.request(false); } catch (_) {} }
 
       onWin('pointerdown', (e) => { const now = performance.now(); updateLastUserPt(e.clientX, e.clientY, now); signalUserInteractionForRetarget(); }, { passive: true });
       onWin('wheel', (e) => { const x = Number.isFinite(e.clientX) ? e.clientX : innerWidth * 0.5; const y = Number.isFinite(e.clientY) ? e.clientY : innerHeight * 0.5; updateLastUserPt(x, y, performance.now()); signalUserInteractionForRetarget(); }, { passive: true });
