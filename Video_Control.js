@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.29.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.30.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.29.0
-// @description  Video Control: High-End PC. Added Smart Dynamic Bass Trim (Dialog Cinema EQ), Adaptive XL FSR RCAS & SVG Micro-pass (Desat/Bias). All ultimate optimizations intact.
+// @version      170.30.0
+// @description  Video Control: High-End PC. Fixed WebGL shader compilation, Auto Scene application, and audio GC leaks.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -118,7 +118,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.29.0';
+    const VSC_VERSION = '170.30.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -438,7 +438,7 @@
       return null;
     }
 
-    function getActivePiPVideoCached() {
+    function getActivePiPVideo() {
       const now = performance.now();
       if ((now - __vscPiPCacheT) < 200) return __vscPiPCacheV;
       __vscPiPCacheT = now;
@@ -446,8 +446,7 @@
       return __vscPiPCacheV;
     }
 
-    function getActivePiPVideo() { return getActivePiPVideoCached(); }
-    function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideoCached()); }
+    function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
     async function enterDocumentPiP(video) {
         const pipWindow = await window.documentPictureInPicture.requestWindow({ width: Math.max(video.videoWidth / 2, 400), height: Math.max(video.videoHeight / 2, 225) });
@@ -496,7 +495,7 @@
         }
       } catch (_) {}
       return false;
-    };
+    }
 
     async function exitPiP(preferredVideo = null) {
       if (__activeDocumentPiPWindow) { __activeDocumentPiPWindow.close(); return true; }
@@ -924,6 +923,7 @@
       let eqSub, eqImpact, eqCut, eqVoice, eqHigh;
       let inputGain, eqDryGain, eqWetGain, midGain, dynDryGain, dynWetGain, masterOut;
       let analyser, dataArray;
+      let freqDataArray = null;
       let srcMap = new WeakMap();
       let makeupDbEma = 0;
       let switchTimer = 0, switchTok = 0;
@@ -946,6 +946,8 @@
 
         const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         const eqAct = !!(sm.get(P.A_EQ) && sm.get(P.APP_ACT));
+        if (!dynAct && !eqAct) return;
+
         const actuallyEnabled = dynAct && currentSrc;
 
         if (analyser && currentSrc) {
@@ -987,10 +989,12 @@
             const lowA = hzToBin(40), lowB = hzToBin(140);
             const midA = hzToBin(300), midB = hzToBin(1200);
 
-            const freqData = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(freqData);
+            if (!freqDataArray || freqDataArray.length !== analyser.frequencyBinCount) {
+              freqDataArray = new Uint8Array(analyser.frequencyBinCount);
+            }
+            analyser.getByteFrequencyData(freqDataArray);
 
-            const avg = (a,b) => { let s=0, n=0; for (let i=a;i<=b;i++){ s += freqData[i]; n++; } return n ? s/n : 0; };
+            const avg = (a,b) => { let s=0, n=0; for (let i=a;i<=b;i++){ s += freqDataArray[i]; n++; } return n ? s/n : 0; };
             const lowE = avg(lowA, lowB);
             const midE = avg(midA, midB);
             const total = Math.max(1, lowE + midE);
@@ -1111,6 +1115,7 @@
         compressor = nodes.compressor; limiter = nodes.limiter; hpf = nodes.hpf; clipper = nodes.clipper; analyser = nodes.analyser;
 
         dataArray = new Float32Array(analyser.fftSize);
+        freqDataArray = new Uint8Array(analyser.frequencyBinCount);
 
         return true;
       };
@@ -1175,7 +1180,7 @@
         rampGainsSafe(dynDryGain, (dynAct && isHooked) ? 0 : 1);
         rampGainsSafe(dynWetGain, (dynAct && isHooked) ? 1 : 0);
 
-        if (dynAct && isHooked) {
+        if ((dynAct || eqAct) && isHooked) {
             runAudioLoop(tok);
         }
       };
@@ -1197,7 +1202,7 @@
         inputGain = null; eqDryGain = null; eqWetGain = null; midGain = null; dynDryGain = null; dynWetGain = null; masterOut = null;
         hpf = null; clipper = null; currentSrc = null; target = null;
         eqSub = null; eqImpact = null; eqCut = null; eqVoice = null; eqHigh = null;
-        analyser = null; dataArray = null;
+        analyser = null; dataArray = null; freqDataArray = null;
         makeupDbEma = 0; switchTok++;
         srcMap = new WeakMap();
       }
@@ -1413,7 +1418,8 @@
 
         if (!en) {
           AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 };
-          scheduleNext(v, 500);
+          AUTO.running = false;
+          Scheduler.request(true);
           return;
         }
 
@@ -2068,6 +2074,18 @@ void main() {
   }
   outColor = vec4(applyGrading(color), 1.0);
 }`;
+      }
+
+      function buildShaderSources(gl) {
+        const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext);
+        const vs = isGL2
+          ? `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}`
+          : `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`;
+        return {
+          vs,
+          fsColorOnly: buildFsColorOnly({ gl2: isGL2 }),
+          fsSharpen: buildFsSharpen({ gl2: isGL2 })
+        };
       }
 
       const tq = (n, q) => (Math.round(n / q) * q).toFixed(3);
@@ -3052,13 +3070,12 @@ void main() {
     function createVideoParamsMemo(Store, P, Utils) {
       const clamp = Utils.clamp;
       const getDetailLevel = (presetKey) => {
-        const k = String(presetKey || 'off').toLowerCase().trim();
-        if (k === 'off') return 'off';
-        if (k.includes('xl')) return 'xl';
-        if (k === 'l' || k.endsWith('l') || k.includes('large')) return 'l';
-        if (k === 'm' || k.endsWith('m') || k.includes('medium')) return 'm';
-        if (k === 's' || k.endsWith('s') || k.includes('small')) return 's';
-        return 'l';
+        const k = String(presetKey || 'off').toUpperCase().trim();
+        if (k === 'XL') return 'xl';
+        if (k === 'L') return 'l';
+        if (k === 'M') return 'm';
+        if (k === 'S') return 's';
+        return 'off';
       };
       return {
         get(vfUser, rMode, activeVideo) {
@@ -3070,7 +3087,7 @@ void main() {
             clarity: detailP.clarityAdd || 0,
             gamma: gradeP.gammaF || 1.0,
             bright: gradeP.brightAdd || 0,
-            contrast: 1.07, satF: 1.12, temp: -2, gain: 1.0, mid: 0, toe: 0, shoulder: 0, __qos: 'full'
+            contrast: 1.0, satF: 1.0, temp: 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, __qos: 'full'
           };
 
           const sMask = vfUser.shadowBandMask || 0;
@@ -3174,6 +3191,17 @@ void main() {
           if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
 
           let vValsEffective = videoParamsMemo.get(vf0, rMode, __activeTarget);
+
+          const autoScene = window.__VSC_INTERNAL__?.AutoScene;
+          if (autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
+            const mods = autoScene.getMods();
+            if (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0) {
+              vValsEffective = { ...vValsEffective };
+              vValsEffective.gain = (vValsEffective.gain || 1.0) * mods.br;
+              vValsEffective.contrast = (vValsEffective.contrast || 1.0) * mods.ct;
+              vValsEffective.satF = (vValsEffective.satF || 1.0) * mods.sat;
+            }
+          }
 
           const qs = updateQualityScale(__activeTarget);
           if (qs < 0.95) {
