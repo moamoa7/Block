@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.37.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.40.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.37.0
-// @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, ReferenceError fix for FEATURE_FLAGS.
+// @version      170.40.0
+// @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -68,7 +68,7 @@
 
     const DEBUG_BY_URL = /[?&]vsc_debug=1\b/.test(location.search);
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: DEBUG_BY_URL });
-    const VSC_VERSION = '170.37.0', VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
+    const VSC_VERSION = '170.40.0', VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
     function tempToRgbGain(temp) {
@@ -142,11 +142,11 @@
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
     const ShadowMask = Object.freeze({ has(mask, bit) { return ((Number(mask) | 0) & bit) !== 0; }, toggle(mask, bit) { return (((Number(mask) | 0) ^ bit) & 7); } });
     const PRESETS = Object.freeze({ detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0 }, S: { sharpAdd: 14, sharp2Add: 2, clarityAdd: 4 }, M: { sharpAdd: 16, sharp2Add: 10, clarityAdd: 10 }, L: { sharpAdd: 14, sharp2Add: 26, clarityAdd: 12}, XL: { sharpAdd: 18, sharp2Add: 16, clarityAdd: 24 } }, grade: { brOFF: { gammaF: 1.00, brightAdd: 0 }, S: { gammaF: 1.02, brightAdd: 1.8 }, M: { gammaF: 1.07, brightAdd: 4.4 }, L: { gammaF: 1.15, brightAdd: 9 }, DS: { gammaF: 1.05, brightAdd: 3.6 }, DM: { gammaF: 1.10, brightAdd: 7.2 }, DL: { gammaF: 1.20, brightAdd: 10.8 } } });
-    const DEFAULTS = { video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, cinema: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false, autoScene: false, advanced: false } };
-    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_RENDER_MODE: 'app.renderMode', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel', A_EN: 'audio.enabled', A_EQ: 'audio.cinema', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
+    const DEFAULTS = { video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, boost: 6, multiband: true, lufs: true, dialogue: false }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false, autoScene: false, advanced: false } };
+    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_RENDER_MODE: 'app.renderMode', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel', A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
     const APP_SCHEMA = [ { type: 'enum', path: P.APP_RENDER_MODE, values: ['svg', 'webgl'], fallback: () => 'svg' }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV } ];
     const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
-    const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'bool', path: P.A_EQ }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
+    const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
 
     const TOUCHED = { videos: new Set(), rateVideos: new Set() };
     function touchedAddLimited(set, el, onEvict) { if (!el) return; if (set.has(el)) { set.delete(el); set.add(el); return; } set.add(el); if (set.size <= CONFIG.TOUCHED_MAX) return; const dropN = Math.ceil(CONFIG.TOUCHED_MAX * 0.25); let dropped = 0; for (const v of set) { if (dropped >= dropN) break; set.delete(v); try { onEvict?.(v); } catch (_) {} dropped++; } }
@@ -351,62 +351,176 @@
     const SOFT_CLIP_CURVE = (() => { const n = 8192, knee = 0.92, drive = 4.0, tanhD = Math.tanh(drive), curve = new Float32Array(n); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1, ax = Math.abs(x); curve[i] = ax <= knee ? x : Math.sign(x) * (knee + (1 - knee) * Math.tanh(drive * (ax - knee) / Math.max(1e-6, 1 - knee)) / tanhD); } return curve; })();
 
     function createAudio(sm) {
-      let ctx, compressor, limiter, wetInGain, hpf, clipper, target = null, currentSrc = null, eqSub, eqImpact, eqCut, eqVoice, eqHigh, inputGain, eqDryGain, eqWetGain, midGain, dynDryGain, dynWetGain, masterOut, analyser, dataArray, freqDataArray = null, srcMap = new WeakMap(), makeupDbEma = 0, switchTimer = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
-      const VSC_AUD_HPF_HZ = 28, VSC_AUD_HPF_Q  = 0.707, clamp = VSC_CLAMP;
+      let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, clipper, hpf, analyser, dataArray, freqDataArray, srcMap = new WeakMap(), makeupDbEma = 0, switchTimer = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0, currentNodes = null;
+      const VSC_AUD_HPF_HZ = 28, VSC_AUD_HPF_Q = 0.707, clamp = VSC_CLAMP;
       const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') await ctx.resume(); if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
       const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
 
-      function runAudioLoop(tok) {
-        audioLoopTimerId = 0; if (tok !== loopTok || !ctx) return;
-        const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)), eqAct = !!(sm.get(P.A_EQ) && sm.get(P.APP_ACT)); if (!dynAct && !eqAct) return;
-        const actuallyEnabled = dynAct && currentSrc;
-        if (analyser && currentSrc) {
-          analyser.getFloatTimeDomainData(dataArray); let sumSquare = 0; for(let i = 0; i < dataArray.length; i++) sumSquare += dataArray[i] * dataArray[i];
-          const rms = Math.sqrt(sumSquare / dataArray.length), db = rms > 1e-6 ? 20 * Math.log10(rms) : -100;
-          if (actuallyEnabled) {
-            let redDb = 0; try { const r = compressor?.reduction; redDb = (typeof r === 'number') ? r : (r && typeof r.value === 'number') ? r.value : 0; } catch (_) {}
-            if (!Number.isFinite(redDb)) redDb = 0; const redPos = clamp(-redDb, 0, 18);
-            let gateMult = 1.0; if (db < -45) gateMult = 0.0; else if (db < -40) gateMult = (db - (-45)) / 5.0;
-            const makeupDbTarget = clamp(Math.max(0, redPos - 2.0) * 0.22, 0, 2.8) * gateMult; makeupDbEma += (makeupDbTarget - makeupDbEma) * (makeupDbTarget > makeupDbEma ? 0.35 : 0.015);
-          } else { makeupDbEma += (0 - makeupDbEma) * 0.1; }
-          if (eqAct && eqSub && eqImpact) {
-            const sr = ctx.sampleRate, hzToBin = (hz) => Math.min(analyser.frequencyBinCount - 1, Math.max(0, Math.round(hz / (sr/2) * analyser.frequencyBinCount))), lowA = hzToBin(40), lowB = hzToBin(140), midA = hzToBin(300), midB = hzToBin(1200);
-            if (!freqDataArray || freqDataArray.length !== analyser.frequencyBinCount) freqDataArray = new Uint8Array(analyser.frequencyBinCount);
-            analyser.getByteFrequencyData(freqDataArray);
-            const avg = (a,b) => { let s=0, n=0; for (let i=a;i<=b;i++){ s += freqDataArray[i]; n++; } return n ? s/n : 0; }, lowE = avg(lowA, lowB), midE = avg(midA, midB), total = Math.max(1, lowE + midE), lowR = lowE / total, trim = clamp((lowR - 0.55) * 10.0, 0.0, 2.5), baseSub = 3.0, baseImp = 2.0, t = ctx.currentTime;
-            try { eqSub.gain.setTargetAtTime(baseSub - trim, t, 0.2); eqImpact.gain.setTargetAtTime(baseImp - (trim * 0.7), t, 0.2); } catch(_) { eqSub.gain.value = baseSub - trim; eqImpact.gain.value = baseImp - (trim * 0.7); }
-          } else if (!eqAct && eqSub && eqImpact) { const t = ctx.currentTime; try { eqSub.gain.setTargetAtTime(3.0, t, 0.2); eqImpact.gain.setTargetAtTime(2.0, t, 0.2); } catch(_) { eqSub.gain.value = 3.0; eqImpact.gain.value = 2.0; } }
+      function createDynamicCinemaEQ(actx) {
+        const createBand = (type, freq, Q) => { const filter = actx.createBiquadFilter(); filter.type = type; filter.frequency.value = freq; filter.Q.value = Q; filter.gain.value = 0; return { filter, freq, type }; };
+        const bands = { sub: createBand('lowshelf', 80, 0.8), impact: createBand('peaking', 55, 1.2), cut: createBand('peaking', 300, 0.8), voice: createBand('peaking', 3200, 1.2), air: createBand('highshelf', 10000, 0.7) };
+        const input = actx.createGain(), output = actx.createGain(), chain = [bands.sub, bands.impact, bands.cut, bands.voice, bands.air];
+        input.connect(chain[0].filter); for (let i = 0; i < chain.length - 1; i++) chain[i].filter.connect(chain[i + 1].filter); chain[chain.length - 1].filter.connect(output);
+        const PROFILES = { cinema: { sub: 3.0, impact: 2.0, cut: -2.0, voice: 2.0, air: -0.5 }, cinemaWithMultiband: { sub: 1.5, impact: 1.0, cut: -2.0, voice: 1.5, air: -0.5 }, neutral: { sub: 0, impact: 0, cut: 0, voice: 0, air: 0 } };
+        let activeProfile = 'cinema', dialogueOffset = { sub: 0, impact: 0, cut: 0, voice: 0, air: 0 };
+        const applyGains = () => {
+          const profile = PROFILES[activeProfile] || PROFILES.neutral, t = actx.currentTime;
+          for (const [name, band] of Object.entries(bands)) {
+            const finalGain = VSC_CLAMP((profile[name] || 0) + (dialogueOffset[name] || 0), -12, 12);
+            try { band.filter.gain.setTargetAtTime(finalGain, t, 0.08); } catch (_) { band.filter.gain.value = finalGain; }
+          }
+        };
+        return { input, output, bands, setProfile: (name) => { activeProfile = name; applyGains(); }, setDialogueState: (isDialogue, ratio) => { if (isDialogue && ratio > 0.5) { const str = VSC_CLAMP((ratio - 0.5) * 2, 0, 1); dialogueOffset = { sub: -1.0 * str, impact: -0.5 * str, cut: -1.0 * str, voice: 1.5 * str, air: 0.8 * str }; } else { dialogueOffset = { sub: 0, impact: 0, cut: 0, voice: 0, air: 0 }; } applyGains(); } };
+      }
+
+      function buildMultibandDynamics(actx) {
+        const CROSSOVER_LOW = 200, CROSSOVER_HIGH = 4000;
+        const createLR4 = (freq, type) => { const f1 = actx.createBiquadFilter(), f2 = actx.createBiquadFilter(); f1.type = type; f2.type = type; f1.frequency.value = freq; f2.frequency.value = freq; f1.Q.value = 0.707; f2.Q.value = 0.707; f1.connect(f2); return { input: f1, output: f2 }; };
+        const input = actx.createGain(), lpLow = createLR4(CROSSOVER_LOW, 'lowpass'), hpLow = createLR4(CROSSOVER_LOW, 'highpass'), lpMid = createLR4(CROSSOVER_HIGH, 'lowpass'), hpHigh = createLR4(CROSSOVER_HIGH, 'highpass');
+        input.connect(lpLow.input); input.connect(hpLow.input); hpLow.output.connect(lpMid.input); hpLow.output.connect(hpHigh.input);
+        const compLow = actx.createDynamicsCompressor(); compLow.threshold.value = -18; compLow.knee.value = 8; compLow.ratio.value = 4.0; compLow.attack.value = 0.012; compLow.release.value = 0.25;
+        const compMid = actx.createDynamicsCompressor(); compMid.threshold.value = -14; compMid.knee.value = 10; compMid.ratio.value = 2.5; compMid.attack.value = 0.006; compMid.release.value = 0.18;
+        const compHigh = actx.createDynamicsCompressor(); compHigh.threshold.value = -12; compHigh.knee.value = 6; compHigh.ratio.value = 2.0; compHigh.attack.value = 0.003; compHigh.release.value = 0.12;
+        const gainLow = actx.createGain(), gainMid = actx.createGain(), gainHigh = actx.createGain();
+        lpLow.output.connect(compLow); compLow.connect(gainLow); lpMid.output.connect(compMid); compMid.connect(gainMid); hpHigh.output.connect(compHigh); compHigh.connect(gainHigh);
+        const output = actx.createGain(); gainLow.connect(output); gainMid.connect(output); gainHigh.connect(output);
+        return { input, output, bands: { low: { comp: compLow, gain: gainLow }, mid: { comp: compMid, gain: gainMid }, high: { comp: compHigh, gain: gainHigh } } };
+      }
+
+      function createLUFSMeter(actx) {
+        const preFilter = actx.createBiquadFilter(); preFilter.type = 'highshelf'; preFilter.frequency.value = 1681; preFilter.gain.value = 4.0;
+        const rlbFilter = actx.createBiquadFilter(); rlbFilter.type = 'highpass'; rlbFilter.frequency.value = 38; rlbFilter.Q.value = 0.5;
+        preFilter.connect(rlbFilter); const meterAnalyser = actx.createAnalyser(); meterAnalyser.fftSize = 2048; meterAnalyser.smoothingTimeConstant = 0; rlbFilter.connect(meterAnalyser);
+        const buffer = new Float32Array(meterAnalyser.fftSize), state = { momentaryBuf: new Float64Array(20), momentaryIdx: 0, momentaryFull: false, shortTermBuf: new Float64Array(150), shortTermIdx: 0, shortTermFull: false, integratedSum: 0, integratedCount: 0, momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 };
+        function measure() {
+          meterAnalyser.getFloatTimeDomainData(buffer); let sumSq = 0; for (let i = 0; i < buffer.length; i++) sumSq += buffer[i] * buffer[i]; const meanSq = sumSq / buffer.length;
+          state.momentaryBuf[state.momentaryIdx] = meanSq; state.momentaryIdx = (state.momentaryIdx + 1) % state.momentaryBuf.length; if (state.momentaryIdx === 0) state.momentaryFull = true;
+          const mCount = state.momentaryFull ? state.momentaryBuf.length : state.momentaryIdx; if (mCount > 0) { let mSum = 0; for (let i = 0; i < mCount; i++) mSum += state.momentaryBuf[i]; const mMean = mSum / mCount; state.momentaryLUFS = mMean > 1e-10 ? -0.691 + 10 * Math.log10(mMean) : -70; }
+          state.shortTermBuf[state.shortTermIdx] = meanSq; state.shortTermIdx = (state.shortTermIdx + 1) % state.shortTermBuf.length; if (state.shortTermIdx === 0) state.shortTermFull = true;
+          const sCount = state.shortTermFull ? state.shortTermBuf.length : state.shortTermIdx; if (sCount > 0) { let sSum = 0; for (let i = 0; i < sCount; i++) sSum += state.shortTermBuf[i]; const sMean = sSum / sCount; state.shortTermLUFS = sMean > 1e-10 ? -0.691 + 10 * Math.log10(sMean) : -70; }
+          if (state.momentaryLUFS > -70 && state.momentaryLUFS > state.integratedLUFS - 10) { state.integratedSum += meanSq; state.integratedCount++; const intMean = state.integratedSum / state.integratedCount; state.integratedLUFS = intMean > 1e-10 ? -0.691 + 10 * Math.log10(intMean) : -70; }
         }
-        const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
-        if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
-        audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 40);
+        return { input: preFilter, measure, reset: () => { state.momentaryBuf.fill(0); state.shortTermBuf.fill(0); state.momentaryIdx = 0; state.shortTermIdx = 0; state.momentaryFull = false; state.shortTermFull = false; state.integratedSum = 0; state.integratedCount = 0; state.momentaryLUFS = -70; state.shortTermLUFS = -70; state.integratedLUFS = -70; }, getState: () => state };
+      }
+
+      function createLoudnessNormalizer(actx, lufsMeter) {
+        const TARGET_LUFS = -14, MAX_GAIN_DB = 12, MIN_GAIN_DB = -6, SMOOTHING = 0.03, SETTLE_FRAMES = 75;
+        const gainNode = actx.createGain(); gainNode.gain.value = 1.0; let frameCount = 0, currentGainDb = 0;
+        function update() {
+          const lufs = lufsMeter.getState(); frameCount++; if (frameCount < SETTLE_FRAMES) return;
+          const measured = lufs.shortTermLUFS; if (measured <= -60) return;
+          const targetGainDb = VSC_CLAMP(TARGET_LUFS - measured, MIN_GAIN_DB, MAX_GAIN_DB); currentGainDb += (targetGainDb - currentGainDb) * 0.08; const linearGain = Math.pow(10, currentGainDb / 20);
+          try { gainNode.gain.setTargetAtTime(linearGain, actx.currentTime, SMOOTHING); } catch (_) { gainNode.gain.value = linearGain; }
+        }
+        return { node: gainNode, update, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; lufsMeter.reset(); } };
+      }
+
+      function createDialogueDetector(actx, analyserNode) {
+        const FFT_SIZE = 2048, sr = actx.sampleRate, binHz = sr / FFT_SIZE, DIALOGUE_LOW_BIN = Math.round(300 / binHz), DIALOGUE_HIGH_BIN = Math.round(3500 / binHz), MUSIC_LOW_BIN = Math.round(40 / binHz), MUSIC_HIGH_BIN = Math.round(250 / binHz), freqD = new Uint8Array(FFT_SIZE / 2);
+        const state = { dialogueRatio: 0, isDialogue: false, confidence: 0, _ema: 0, _histCount: 0, _histDialogue: 0 };
+        function detect() {
+          analyserNode.getByteFrequencyData(freqD); let dialogueEnergy = 0, musicEnergy = 0, totalEnergy = 0;
+          for (let i = MUSIC_LOW_BIN; i <= MUSIC_HIGH_BIN; i++) musicEnergy += freqD[i] * freqD[i];
+          for (let i = DIALOGUE_LOW_BIN; i <= DIALOGUE_HIGH_BIN; i++) dialogueEnergy += freqD[i] * freqD[i];
+          for (let i = 1; i < freqD.length; i++) totalEnergy += freqD[i] * freqD[i];
+          if (totalEnergy < 100) { state.dialogueRatio *= 0.95; state.isDialogue = false; return state; }
+          const rawRatio = dialogueEnergy / Math.max(1, totalEnergy), dialogueVsMusic = dialogueEnergy / Math.max(1, musicEnergy), avgFreq = totalEnergy / freqD.length; let specFlatness = 0;
+          for (let i = DIALOGUE_LOW_BIN; i <= DIALOGUE_HIGH_BIN; i++) { const dev = freqD[i] * freqD[i] - avgFreq; specFlatness += dev * dev; }
+          specFlatness = Math.sqrt(specFlatness / (DIALOGUE_HIGH_BIN - DIALOGUE_LOW_BIN + 1));
+          let score = 0; if (rawRatio > 0.35) score += 0.4; if (dialogueVsMusic > 2.0) score += 0.3; if (specFlatness > 5000) score += 0.3;
+          state._ema = state._ema * 0.85 + score * 0.15; state.dialogueRatio = state._ema; state.isDialogue = state._ema > 0.45; state._histCount++; if (state.isDialogue) state._histDialogue++; state.confidence = state._histCount > 50 ? state._histDialogue / state._histCount : 0; return state;
+        }
+        return { detect, reset: () => { state.dialogueRatio = 0; state.isDialogue = false; state.confidence = 0; state._ema = 0; state._histCount = 0; state._histDialogue = 0; }, getState: () => state };
       }
 
       function buildAudioGraph(audioCtx) {
-          const n = { inputGain: audioCtx.createGain(), eqDryGain: audioCtx.createGain(), eqWetGain: audioCtx.createGain(), midGain: audioCtx.createGain(), dynDryGain: audioCtx.createGain(), dynWetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), wetInGain: audioCtx.createGain(), eqSub: audioCtx.createBiquadFilter(), eqImpact: audioCtx.createBiquadFilter(), eqCut: audioCtx.createBiquadFilter(), eqVoice: audioCtx.createBiquadFilter(), eqHigh: audioCtx.createBiquadFilter(), compressor: audioCtx.createDynamicsCompressor(), limiter: audioCtx.createDynamicsCompressor(), hpf: audioCtx.createBiquadFilter(), clipper: audioCtx.createWaveShaper(), analyser: audioCtx.createAnalyser() };
-          n.eqSub.type = 'lowshelf'; n.eqSub.frequency.value = 80; n.eqSub.Q.value = 0.8; n.eqSub.gain.value = 3.0; n.eqImpact.type = 'peaking'; n.eqImpact.frequency.value = 55; n.eqImpact.Q.value = 1.2; n.eqImpact.gain.value = 2.0; n.eqCut.type = 'peaking'; n.eqCut.frequency.value = 300; n.eqCut.Q.value = 0.8; n.eqCut.gain.value = -2.0; n.eqVoice.type = 'peaking'; n.eqVoice.frequency.value = 3200; n.eqVoice.Q.value = 1.2; n.eqVoice.gain.value = 2.0; n.eqHigh.type = 'highshelf'; n.eqHigh.frequency.value = 10000; n.eqHigh.Q.value = 0.7; n.eqHigh.gain.value = -0.5;
-          n.compressor.threshold.value = -16; n.compressor.knee.value = 12; n.compressor.ratio.value = 3.0; n.compressor.attack.value = 0.008; n.compressor.release.value = 0.20; n.limiter.threshold.value = -1.2; n.limiter.knee.value = 0.0; n.limiter.ratio.value = 20.0; n.limiter.attack.value = 0.0015; n.limiter.release.value = 0.09; n.hpf.type = 'highpass'; n.hpf.frequency.value = VSC_AUD_HPF_HZ; n.hpf.Q.value = VSC_AUD_HPF_Q;
-          n.clipper.curve = SOFT_CLIP_CURVE; try { n.clipper.oversample = '4x'; } catch (_) {} n.analyser.fftSize = 2048;
-          n.inputGain.connect(n.eqDryGain); n.inputGain.connect(n.eqSub); n.eqSub.connect(n.eqImpact); n.eqImpact.connect(n.eqCut); n.eqCut.connect(n.eqVoice); n.eqVoice.connect(n.eqHigh); n.eqHigh.connect(n.eqWetGain);
-          n.eqDryGain.connect(n.midGain); n.eqWetGain.connect(n.midGain); n.midGain.connect(n.dynDryGain); n.midGain.connect(n.hpf); n.hpf.connect(n.compressor); n.compressor.connect(n.wetInGain); n.wetInGain.connect(n.limiter); n.limiter.connect(n.clipper); n.clipper.connect(n.dynWetGain);
-          n.dynDryGain.connect(n.masterOut); n.dynWetGain.connect(n.masterOut); n.midGain.connect(n.analyser); n.masterOut.connect(audioCtx.destination);
-          return n;
+        const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), wetInGain: audioCtx.createGain(), hpf: audioCtx.createBiquadFilter(), limiter: audioCtx.createDynamicsCompressor(), clipper: audioCtx.createWaveShaper(), analyser: audioCtx.createAnalyser() };
+        n.hpf.type = 'highpass'; n.hpf.frequency.value = VSC_AUD_HPF_HZ; n.hpf.Q.value = VSC_AUD_HPF_Q;
+        n.limiter.threshold.value = -1.2; n.limiter.knee.value = 0.0; n.limiter.ratio.value = 20.0; n.limiter.attack.value = 0.0015; n.limiter.release.value = 0.09;
+        n.clipper.curve = SOFT_CLIP_CURVE; try { n.clipper.oversample = '4x'; } catch (_) {} n.analyser.fftSize = 2048;
+
+        const dynamicEQ = createDynamicCinemaEQ(audioCtx), multiband = buildMultibandDynamics(audioCtx), lufsMeter = createLUFSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, lufsMeter), dialogueDetector = createDialogueDetector(audioCtx, n.analyser);
+
+        n.inputGain.connect(n.dryGain);
+        n.dryGain.connect(n.masterOut);
+
+        n.inputGain.connect(dynamicEQ.input);
+        dynamicEQ.output.connect(n.hpf);
+
+        n.hpf.connect(n.analyser);
+        n.hpf.connect(lufsMeter.input);
+        n.hpf.connect(multiband.input);
+
+        multiband.output.connect(loudnessNorm.node);
+        loudnessNorm.node.connect(n.wetInGain);
+        n.wetInGain.connect(n.limiter);
+        n.limiter.connect(n.clipper);
+        n.clipper.connect(n.wetGain);
+        n.wetGain.connect(n.masterOut);
+
+        n.masterOut.connect(audioCtx.destination);
+
+        n._dynamicEQ = dynamicEQ; n._multiband = multiband; n._lufsMeter = lufsMeter; n._loudnessNorm = loudnessNorm; n._dialogueDetector = dialogueDetector;
+        return n;
       }
 
       const ensureCtx = () => {
         if (ctx && ctx.state !== 'closed') return true; if (ctx) { ctx = null; srcMap = new WeakMap(); } const AC = window.AudioContext; if (!AC) return false;
         try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { try { ctx = new AC(); } catch (__) { return false; } } currentSrc = null; target = null; ensureGestureResumeHook();
         const nodes = buildAudioGraph(ctx);
-        inputGain = nodes.inputGain; eqDryGain = nodes.eqDryGain; eqWetGain = nodes.eqWetGain; midGain = nodes.midGain; dynDryGain = nodes.dynDryGain; dynWetGain = nodes.dynWetGain; masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; eqSub = nodes.eqSub; eqImpact = nodes.eqImpact; eqCut = nodes.eqCut; eqVoice = nodes.eqVoice; eqHigh = nodes.eqHigh; compressor = nodes.compressor; limiter = nodes.limiter; hpf = nodes.hpf; clipper = nodes.clipper; analyser = nodes.analyser; dataArray = new Float32Array(analyser.fftSize); freqDataArray = new Uint8Array(analyser.frequencyBinCount); return true;
+        inputGain = nodes.inputGain; dryGain = nodes.dryGain; wetGain = nodes.wetGain; masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; limiter = nodes.limiter; clipper = nodes.clipper; hpf = nodes.hpf; analyser = nodes.analyser; currentNodes = nodes; dataArray = new Float32Array(analyser.fftSize); freqDataArray = new Uint8Array(analyser.frequencyBinCount); return true;
       };
 
       const rampGainsSafe = (node, targetVal, tc = 0.015) => { if (!ctx || !node) return; const t = ctx.currentTime; try { node.gain.cancelScheduledValues(t); node.gain.setTargetAtTime(targetVal, t, tc); } catch (_) { node.gain.value = targetVal; } };
       const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimeout(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimeout(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); };
       const disconnectAll = () => { if (currentSrc) try { currentSrc.disconnect(); } catch (_) {} currentSrc = null; target = null; };
 
-      const updateMix = () => { if (!ctx) return; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } const tok = ++loopTok, appAct = !!sm.get(P.APP_ACT), dynAct = !!(sm.get(P.A_EN) && appAct), eqAct = !!(sm.get(P.A_EQ) && appAct), isHooked = !!currentSrc; rampGainsSafe(eqDryGain, (eqAct && isHooked) ? 0 : 1); rampGainsSafe(eqWetGain, (eqAct && isHooked) ? 1 : 0); rampGainsSafe(dynDryGain, (dynAct && isHooked) ? 0 : 1); rampGainsSafe(dynWetGain, (dynAct && isHooked) ? 1 : 0); if ((dynAct || eqAct) && isHooked) runAudioLoop(tok); };
+      function runAudioLoop(tok) {
+        audioLoopTimerId = 0; if (tok !== loopTok || !ctx) return;
+        const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); if (!dynAct) return;
+        const actuallyEnabled = dynAct && currentSrc;
+        if (analyser && currentSrc && currentNodes) {
+          analyser.getFloatTimeDomainData(dataArray); let sumSquare = 0; for(let i = 0; i < dataArray.length; i++) sumSquare += dataArray[i] * dataArray[i];
+          const rms = Math.sqrt(sumSquare / dataArray.length), db = rms > 1e-6 ? 20 * Math.log10(rms) : -100;
+          const mbActive = !!sm.get(P.A_MULTIBAND);
+          if (currentNodes._dynamicEQ) currentNodes._dynamicEQ.setProfile(mbActive ? 'cinemaWithMultiband' : 'cinema');
+          if (currentNodes._dialogueDetector && actuallyEnabled) {
+            const dState = currentNodes._dialogueDetector.detect(); const t = ctx.currentTime;
+            if (currentNodes._dynamicEQ) currentNodes._dynamicEQ.setDialogueState(dState.isDialogue, dState.dialogueRatio);
+            if (currentNodes._multiband && !!sm.get(P.A_DIALOGUE)) {
+              const mb = currentNodes._multiband.bands;
+              if (dState.isDialogue && dState.dialogueRatio > 0.5) {
+                const boost = clamp((dState.dialogueRatio - 0.5) * 2 * 1.5, 0, 2.0);
+                try { mb.mid.gain.gain.setTargetAtTime(1.0 + boost * 0.15, t, 0.08); mb.low.gain.gain.setTargetAtTime(1.0 - boost * 0.08, t, 0.08); mb.high.gain.gain.setTargetAtTime(1.0 + boost * 0.05, t, 0.08); } catch (_) {}
+              } else { try { mb.mid.gain.gain.setTargetAtTime(1.0, t, 0.15); mb.low.gain.gain.setTargetAtTime(1.0, t, 0.15); mb.high.gain.gain.setTargetAtTime(1.0, t, 0.15); } catch (_) {} }
+            }
+          }
+          if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS) && actuallyEnabled) { currentNodes._lufsMeter.measure(); currentNodes._loudnessNorm.update(); }
+          if (actuallyEnabled) {
+            let redDb = 0;
+            if (mbActive && currentNodes._multiband) { const rl = Math.abs(Number(currentNodes._multiband.bands.low.comp.reduction)||0), rm = Math.abs(Number(currentNodes._multiband.bands.mid.comp.reduction)||0), rh = Math.abs(Number(currentNodes._multiband.bands.high.comp.reduction)||0); redDb = -Math.max(rl, rm, rh); } else if (currentNodes.limiter) { const r = currentNodes.limiter.reduction; redDb = (typeof r === 'number') ? r : (r && typeof r.value === 'number') ? r.value : 0; }
+            if (!Number.isFinite(redDb)) redDb = 0; const redPos = clamp(-redDb, 0, 18); let gateMult = 1.0; if (db < -45) gateMult = 0.0; else if (db < -40) gateMult = (db - (-45)) / 5.0;
+            const makeupDbTarget = clamp(Math.max(0, redPos - 2.0) * 0.22, 0, 2.8) * gateMult; makeupDbEma += (makeupDbTarget - makeupDbEma) * (makeupDbTarget > makeupDbEma ? 0.35 : 0.015);
+          } else { makeupDbEma += (0 - makeupDbEma) * 0.1; }
+        }
+        const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
+        if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
+        audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 40);
+      }
 
-      async function destroy() { loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } try { fadeOutThen(() => disconnectAll()); } catch (_) {} try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} ctx = null; compressor = null; limiter = null; wetInGain = null; inputGain = null; eqDryGain = null; eqWetGain = null; midGain = null; dynDryGain = null; dynWetGain = null; masterOut = null; hpf = null; clipper = null; currentSrc = null; target = null; eqSub = null; eqImpact = null; eqCut = null; eqVoice = null; eqHigh = null; analyser = null; dataArray = null; freqDataArray = null; makeupDbEma = 0; switchTok++; srcMap = new WeakMap(); }
+      const updateMix = () => {
+        if (!ctx) return; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
+        const tok = ++loopTok, dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)), isHooked = !!currentSrc;
+        rampGainsSafe(dryGain, (dynAct && isHooked) ? 0 : 1); rampGainsSafe(wetGain, (dynAct && isHooked) ? 1 : 0);
+        if (currentNodes) {
+          const mbEnabled = dynAct && !!sm.get(P.A_MULTIBAND);
+          if (currentNodes._multiband) { const mb = currentNodes._multiband.bands, t = ctx.currentTime; try { mb.low.comp.ratio.setTargetAtTime(mbEnabled ? 4.0 : 1.0, t, 0.02); mb.mid.comp.ratio.setTargetAtTime(mbEnabled ? 2.5 : 1.0, t, 0.02); mb.high.comp.ratio.setTargetAtTime(mbEnabled ? 2.0 : 1.0, t, 0.02); } catch (_) {} }
+          if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !dynAct)) { try { currentNodes._loudnessNorm.node.gain.setTargetAtTime(1.0, ctx.currentTime, 0.05); } catch(_) {} currentNodes._loudnessNorm.reset(); }
+        }
+        if (dynAct && isHooked) runAudioLoop(tok);
+      };
+
+      async function destroy() { loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } try { fadeOutThen(() => disconnectAll()); } catch (_) {} try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; hpf = null; clipper = null; currentSrc = null; target = null; analyser = null; dataArray = null; freqDataArray = null; makeupDbEma = 0; switchTok++; srcMap = new WeakMap(); }
 
       return { setTarget: (v) => { const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) fadeOutThen(() => { disconnectAll(); target = v; }); updateMix(); return; } if (!ensureCtx()) return; if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); } s.connect(inputGain); currentSrc = s; } catch (_) { if (st) st.audioFailUntil = performance.now() + RUNTIME_GUARD.audio.createSourceCooldownMs; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
@@ -626,7 +740,7 @@
       class WebGLPipeline {
         constructor() {
           this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._texW = 0; this._texH = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._qMon = { lastT: 0, lastDropped: 0, dropRateEma: 0 }; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0;
-          this._onContextLost = (e) => { e.preventDefault(); const now = performance.now(); this.disabledUntil = now + 3000; this.active = false; this._loopToken++; this._loopRunning = false; if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; } try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {} try { const st = this.video ? getVState(this.video) : null; if (st && VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + 5000; } catch (_) {} try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} };
+          this._onContextLost = (e) => { e.preventDefault(); const now = performance.now(); this.disabledUntil = now + 3000; this.active = false; this._loopToken++; this._loopRunning = false; if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; } try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {} try { const st = this.video ? getVState(this.video) : null; if (st && RUNTIME_GUARD.webglCooldown) st.webglDisabledUntil = now + 5000; } catch (_) {} try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} };
           this._onContextRestored = () => { try { this._loopToken++; this._loopRunning = false; if (this._timerId) { clearTimeout(this._timerId); this._timerId = 0; } if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = 0; } if (this.video && this._rvfcId && typeof this.video.cancelVideoFrameCallback === 'function') { try { this.video.cancelVideoFrameCallback(this._rvfcId); } catch (_) {} this._rvfcId = 0; } if (this._postTaskAC) { this._postTaskAC.abort(); this._postTaskAC = null; } this.disposeGLResources({ keepCanvasListeners: true }); if (this.initGLResourcesOnExistingCanvas()) { if (this.video) { this.active = true; this._outputReady = false; this.canvas.style.opacity = '0'; this.startRenderLoop(); } } else { this.disabledUntil = performance.now() + 5000; } } catch (_) { this.disabledUntil = performance.now() + 5000; } };
         }
         ensureCanvas() { if (this.canvas) return; this.canvas = document.createElement('canvas'); this.canvas.style.cssText = `position:absolute!important;top:0!important;left:0!important;width:100%!important;height:100%!important;object-fit:contain!important;display:block!important;pointer-events:none!important;margin:0!important;padding:0!important;contain:strict!important;will-change:transform,opacity!important;opacity:0!important;`; this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false }); this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, { passive: true }); }
@@ -643,7 +757,7 @@
             this.vBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); this.tBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.bufferData(gl.ARRAY_BUFFER, tCoords, gl.STATIC_DRAW);
             this.videoTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             this.toneTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            const id = new Uint8Array(256 * 4); for (let i=0;i<256;i++){ const o=i*4; id[o]=id[o+1]=id[o+2]=i; id[o+3]=255; } gl.texImage2D(gl.TEXTURE_2D, 0, this._isGL2 ? gl.RGBA8 : gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, id);
+            const id = new Uint8Array(256 * 4); for (let i = 0; i < 256; i++) { const o = i * 4; id[o] = id[o+1] = id[o+2] = i; id[o+3] = 255; } gl.texImage2D(gl.TEXTURE_2D, 0, this._isGL2 ? gl.RGBA8 : gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, id);
             return true;
           } catch (err) { log.warn('WebGL Init Error:', err.message); this.disposeGLResources(); return false; }
         }
@@ -666,7 +780,7 @@
         }
         _updatePlaybackQuality(now) {
           const v = this.video; if (!v || typeof v.getVideoPlaybackQuality !== 'function') return; if (now - this._qMon.lastT < 1000) return;
-          try { const q = v.getVideoPlaybackQuality(), dropped = q.droppedVideoFrames || 0; if (this._qMon.lastT > 0) { const dd = Math.max(0, dropped - this._qMon.lastDropped); this._qMon.dropRateEma = this._qMon.dropRateEma ? (this._qMon.dropRateEma * 0.8 + dd * 0.2) : dd; } this._qMon.lastDropped = dropped; this._qMon.lastT = now; if (this._qMon.dropRateEma > 2.5) { const st = getVState(v); if (st && VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + 8000; try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} } } catch (_) {}
+          try { const q = v.getVideoPlaybackQuality(), dropped = q.droppedVideoFrames || 0; if (this._qMon.lastT > 0) { const dd = Math.max(0, dropped - this._qMon.lastDropped); this._qMon.dropRateEma = this._qMon.dropRateEma ? (this._qMon.dropRateEma * 0.8 + dd * 0.2) : dd; } this._qMon.lastDropped = dropped; this._qMon.lastT = now; if (this._qMon.dropRateEma > 2.5) { const st = getVState(v); if (st) st.webglDisabledUntil = now + 8000; try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} } } catch (_) {}
         }
         render() {
           if (!this.active || !this.gl || !this.video || !this.vVals) return; const gl = this.gl, video = this.video, now = performance.now(); if (now < this.disabledUntil) return;
@@ -682,7 +796,7 @@
           const rs = this.vVals._rs ?? 1, gs = this.vVals._gs ?? 1, bs = this.vVals._bs ?? 1; if (H.uParams) gl.uniform4f(H.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
           const hiReduce = isHdr ? 0.82 : 0.88; if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? prof.amount : 0.0, prof.tapMode, hiReduce);
           if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs); if (useSharpen && H.uSharpParams) gl.uniform3f(H.uSharpParams, prof.desatSat, prof.biasMix, prof.edgeDampMix);
-          const toe = this.vVals.toe || 0, mid = this.vVals.mid || 0, shoulder = this.vVals.shoulder || 0, toneKey = `${tq(toe,0.2)}|${tq(mid,0.02)}|${tq(shoulder,0.2)}|${tq(this.vVals.gain||1,0.06)}`;
+          const toe = this.vVals.toe || 0, mid = this.vVals.mid || 0, shoulder = this.vVals.shoulder || 0, toneKey = `${tq(toe, 0.2)}|${tq(mid, 0.02)}|${tq(shoulder, 0.2)}|${tq(this.vVals.gain || 1, 0.06)}`;
           if (this._toneKey !== toneKey && this.toneTexture) { this._toneKey = toneKey; const lut = buildToneLUT256(toe, mid, shoulder, this.vVals.gain || 1.0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, lut); }
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture);
           try {
@@ -694,7 +808,7 @@
           } catch (err) {
             st.webglFailCount = (st.webglFailCount || 0) + 1; if (CONFIG.DEBUG) log.warn('WebGL render failure:', err);
             const msg = String(err?.message || err || ''), looksTaint = /SecurityError|cross.origin|cross-origin|taint|insecure|Tainted|origin/i.test(msg);
-            if (st.webglFailCount >= RUNTIME_GUARD.webgl.failThreshold) { st.webglFailCount = 0; if (looksTaint) { st.webglTainted = true; log.warn('WebGL tainted/CORS-like failure → fallback to SVG'); } else { if (st && VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + RUNTIME_GUARD.webgl.failCooldownMs; log.warn('WebGL transient failure → cooldown then retry'); } try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }
+            if (st.webglFailCount >= RUNTIME_GUARD.webgl.failThreshold) { st.webglFailCount = 0; if (looksTaint) { st.webglTainted = true; log.warn('WebGL tainted/CORS-like failure → fallback to SVG'); } else { if (st) st.webglDisabledUntil = now + RUNTIME_GUARD.webgl.failCooldownMs; log.warn('WebGL transient failure → cooldown then retry'); } try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }
           }
         }
         startRenderLoop() { if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken; const loopFn = (now, meta) => { if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; } this.render(); this.scheduleNextFrame(loopFn); }; this.scheduleNextFrame(loopFn); }
@@ -720,10 +834,11 @@
           this.disposeGLResources();
         }
       }
+      const tq = (v, st) => Math.round(v / st) * st;
       return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
     }
 
-    function bindElementDrag(el, onMove, onEnd) { const ac = new AbortController(); const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); }; const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch(_) {} onEnd?.(e); }; el.addEventListener('pointermove', move, { passive: false, signal: ac.signal }); el.addEventListener('pointerup', up, { signal: ac.signal }); el.addEventListener('pointercancel', up, { signal: ac.signal }); return () => { ac.abort(); }; }
+    function bindElementDrag(el, onMove, onEnd) { const ac = new AbortController(); const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); }; const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); }; el.addEventListener('pointermove', move, { passive: false, signal: ac.signal }); el.addEventListener('pointerup', up, { signal: ac.signal }); el.addEventListener('pointercancel', up, { signal: ac.signal }); return () => { ac.abort(); }; }
 
     function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null; let hasUserDraggedUI = false;
@@ -769,52 +884,167 @@
         const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl'); } });
         bindReactive(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; }, sm, sub);
-        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.A_EN, !sm.get(P.A_EN)); } }, '🔊 Brickwall'); bindReactive(boostBtn, P.A_EN, (el, v) => el.classList.toggle('active', !!v), sm, sub);
-        const cinemaBtn = h('button', { id: 'cinema-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.A_EQ, !sm.get(P.A_EQ)); } }, '🎬 시네마 EQ'); bindReactive(cinemaBtn, P.A_EQ, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+
+        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.A_EN, !sm.get(P.A_EN)); } }, '🔊 Brickwall (EQ+Dyn)');
+        bindReactive(boostBtn, P.A_EN, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+
         const pipBtn = h('button', { class: 'btn', onclick: async (e) => { e.stopPropagation(); const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
-        const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); const nextEn = !sm.get(P.APP_ZOOM_EN); setAndHint(P.APP_ZOOM_EN, nextEn); const zm = window.__VSC_INTERNAL__.ZoomManager; const v = window.__VSC_APP__?.getActiveVideo(); if (zm && v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어'); bindReactive(zoomBtn, P.APP_ZOOM_EN, (el, v) => el.classList.toggle('active', !!v), sm, sub);
-        const autoSceneBtn = h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); } }, '✨ Auto Scene'); bindReactive(autoSceneBtn, P.APP_AUTO_SCENE, (el, v) => el.classList.toggle('active', !!v), sm, sub);
-        const pwrBtn = h('button', { id: 'pwr-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power'); bindReactive(pwrBtn, P.APP_ACT, (el, v) => el.style.color = v ? '#2ecc71' : '#e74c3c', sm, sub);
+        const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); const nextEn = !sm.get(P.APP_ZOOM_EN); setAndHint(P.APP_ZOOM_EN, nextEn); const zm = window.__VSC_INTERNAL__.ZoomManager; const v = window.__VSC_APP__?.getActiveVideo(); if (zm && v) { if (zm.isZoomed(v)) { zm.resetZoom(v); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); } } } }, '🔍 줌 제어');
+        bindReactive(zoomBtn, P.APP_ZOOM_EN, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+        const autoSceneBtn = h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); } }, '✨ Auto Scene');
+        bindReactive(autoSceneBtn, P.APP_AUTO_SCENE, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+        const pwrBtn = h('button', { id: 'pwr-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
+        bindReactive(pwrBtn, P.APP_ACT, (el, v) => el.style.color = v ? '#2ecc71' : '#e74c3c', sm, sub);
+
         const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
-        advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); }; bindReactive(advToggleBtn, P.APP_ADV, (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
-        const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [ renderShadowBandMaskRow({ label: '블랙', key: P.V_SHADOW_MASK }), renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }), renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k=>k!=='brOFF').map(k => ({ text: k, value: k })) }) ]);
+        advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
+        bindReactive(advToggleBtn, P.APP_ADV, (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
+
+        const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
+          renderShadowBandMaskRow({ label: '블랙', key: P.V_SHADOW_MASK }),
+          renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
+          renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
+          h('hr'),
+          (() => {
+            const r = h('div', { class: 'prow' });
+            r.append(h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '오디오'));
+            const mb = h('button', { class: 'pbtn', style: 'flex:1' }, '🎚️ 멀티밴드');
+            mb.onclick = (e) => { e.stopPropagation(); setAndHint(P.A_MULTIBAND, !sm.get(P.A_MULTIBAND)); };
+            bindReactive(mb, P.A_MULTIBAND, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+            const lf = h('button', { class: 'pbtn', style: 'flex:1' }, '📊 LUFS 정규화');
+            lf.onclick = (e) => { e.stopPropagation(); setAndHint(P.A_LUFS, !sm.get(P.A_LUFS)); };
+            bindReactive(lf, P.A_LUFS, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+            r.append(mb, lf);
+            return r;
+          })(),
+          (() => {
+            const r = h('div', { class: 'prow' });
+            r.append(h('div', { style: 'width:35px;' }, ''));
+            const dl = h('button', { class: 'pbtn', style: 'flex:1' }, '🗣️ 대화 감지(AI)');
+            dl.onclick = (e) => { e.stopPropagation(); setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE)); };
+            bindReactive(dl, P.A_DIALOGUE, (el, v) => el.classList.toggle('active', !!v), sm, sub);
+            r.append(dl);
+            return r;
+          })()
+        ]);
+
         bindReactive(advContainer, P.APP_ADV, (el, v) => el.style.display = v ? 'flex' : 'none', sm, sub);
-        const bodyMain = h('div', { id: 'p-main' }, [ h('div', { class: 'prow' }, [ rmBtn, autoSceneBtn ]), h('div', { class: 'prow' }, [ pipBtn, zoomBtn ]), h('div', { class: 'prow' }, [ boostBtn, cinemaBtn ]), h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'), pwrBtn, h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '↺ 리셋') ]), renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k => ({ text: k, value: k })) }), advToggleBtn, advContainer, h('hr'), h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = (e) => { e.stopPropagation(); setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; bindReactive(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => { el.classList.toggle('active', !!en && Math.abs(Number(rate||1) - s) < 0.01); }, sm, sub); return b; })) ]);
-        const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel); let stopDrag = null;
+
+        const bodyMain = h('div', { id: 'p-main' }, [
+          h('div', { class: 'prow' }, [ rmBtn, autoSceneBtn ]),
+          h('div', { class: 'prow' }, [ pipBtn, zoomBtn ]),
+          h('div', { class: 'prow' }, [ boostBtn ]),
+          h('div', { class: 'prow' }, [
+            h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'),
+            pwrBtn,
+            h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '↺ 리셋')
+          ]),
+          renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: k, value: k })) }),
+          advToggleBtn,
+          advContainer,
+          h('hr'),
+          h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => {
+            const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x');
+            b.onclick = (e) => { e.stopPropagation(); setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); };
+            bindReactive(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => { el.classList.toggle('active', !!en && Math.abs(Number(rate || 1) - s) < 0.01); }, sm, sub);
+            return b;
+          }))
+        ]);
+
+        const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]);
+        shadow.append(mainPanel);
+        let stopDrag = null;
         const startPanelDrag = (e) => {
-          const pt = (e && e.touches && e.touches[0]) ? e.touches[0] : e; if (!pt) return; if (e.target && e.target.tagName === 'BUTTON') return; if (e.cancelable) e.preventDefault(); stopDrag?.(); hasUserDraggedUI = true;
-          let startX = pt.clientX, startY = pt.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`;
-          try { dragHandle.setPointerCapture(e.pointerId); } catch(_) {}
-          stopDrag = bindElementDrag(dragHandle, (ev) => { const mv = (ev && ev.touches && ev.touches[0]) ? ev.touches[0] : ev; if (!mv) return; const dx = mv.clientX - startX, dy = mv.clientY - startY, panelRect = mainPanel.getBoundingClientRect(); let nextLeft = Math.max(0, Math.min(window.innerWidth - panelRect.width, rect.left + dx)), nextTop = Math.max(0, Math.min(window.innerHeight - panelRect.height, rect.top + dy)); mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`; }, () => { stopDrag = null; });
+          const pt = (e && e.touches && e.touches[0]) ? e.touches[0] : e; if (!pt) return;
+          if (e.target && e.target.tagName === 'BUTTON') return;
+          if (e.cancelable) e.preventDefault();
+          stopDrag?.();
+          hasUserDraggedUI = true;
+          let startX = pt.clientX, startY = pt.clientY;
+          const rect = mainPanel.getBoundingClientRect();
+          mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`;
+          try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {}
+          stopDrag = bindElementDrag(dragHandle, (ev) => {
+            const mv = (ev && ev.touches && ev.touches[0]) ? ev.touches[0] : ev; if (!mv) return;
+            const dx = mv.clientX - startX, dy = mv.clientY - startY, panelRect = mainPanel.getBoundingClientRect();
+            let nextLeft = Math.max(0, Math.min(window.innerWidth - panelRect.width, rect.left + dx)), nextTop = Math.max(0, Math.min(window.innerHeight - panelRect.height, rect.top + dy));
+            mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`;
+          }, () => { stopDrag = null; });
         };
-        dragHandle.addEventListener('pointerdown', startPanelDrag); dragHandle.addEventListener('dblclick', () => { hasUserDraggedUI = false; clampPanelIntoViewport(); });
-        container = host; getUiRoot().appendChild(container);
+        dragHandle.addEventListener('pointerdown', startPanelDrag);
+        dragHandle.addEventListener('dblclick', () => { hasUserDraggedUI = false; clampPanelIntoViewport(); });
+        container = host;
+        getUiRoot().appendChild(container);
       };
 
       const ensureGear = () => {
         if (!allowUiInThisDoc()) { if (gearHost) gearHost.style.display = 'none'; return; }
         if (gearHost) { gearHost.style.display = 'block'; return; }
-        gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
-        const style = `.gear{position:fixed;top:50%;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation}@media(hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,.65)}}.gear:active{transform:translateY(-50%) scale(.98)}.gear.open{outline:2px solid rgba(52,152,219,.85);opacity:1!important}.gear.inactive{opacity:.45}.hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,.88);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.82);font:600 11px/1.2 sans-serif;white-space:nowrap;z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none}.gear:hover+.hint{opacity:1;transform:translateY(0)}${CONFIG.IS_MOBILE?'.hint{display:none!important}':''}`;
+        gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
+        const shadow = gearHost.attachShadow({ mode: 'open' });
+        const style = `.gear{position:fixed;top:50%;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation}@media(hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,.65)}}.gear:active{transform:translateY(-50%) scale(.98)}.gear.open{outline:2px solid rgba(52,152,219,.85);opacity:1!important}.gear.inactive{opacity:.45}.hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,.88);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.82);font:600 11px/1.2 sans-serif;white-space:nowrap;z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none}.gear:hover+.hint{opacity:1;transform:translateY(0)}${CONFIG.IS_MOBILE ? '.hint{display:none!important}' : ''}`;
         const styleEl = document.createElement('style'); styleEl.textContent = style; shadow.appendChild(styleEl);
-        let dragThresholdMet = false, stopDrag = null; gearBtn = h('button', { class: 'gear' }, '⚙'); shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
-        const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); const inFs = !!document.fullscreenElement; if (inFs || CONFIG.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); }; wakeGear = wake;
-        window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); bootWakeTimer = setTimeout(wake, 2000);
-        const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY; const rect = gearBtn.getBoundingClientRect(); try { gearBtn.setPointerCapture(e.pointerId); } catch(_) {} stopDrag = bindElementDrag(gearBtn, (ev) => { const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY; if (Math.abs(currentY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; } }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); }; gearBtn.addEventListener('pointerdown', handleGearDrag);
-        let lastToggle = 0, lastTouchAt = 0; const onGearActivate = (e) => { if (dragThresholdMet) { try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} return; } const now = performance.now(); if (now - lastToggle < 300) { try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} return; } lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI)); };
-        gearBtn.addEventListener('touchend', (e) => { lastTouchAt = performance.now(); try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} try { e.stopPropagation?.(); } catch(_) {} onGearActivate(e); }, { passive: false }); gearBtn.addEventListener('click', (e) => { const now = performance.now(); if (now - lastTouchAt < 800) { try { if (e && e.cancelable) e.preventDefault(); } catch(_) {} try { e.stopPropagation?.(); } catch(_) {} return; } onGearActivate(e); }, { passive: false });
-        const syncGear = () => { if (!gearBtn) return; gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); wake(); }; sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
+        let dragThresholdMet = false, stopDrag = null;
+        gearBtn = h('button', { class: 'gear' }, '⚙');
+        shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
+        const wake = () => {
+          if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer);
+          const inFs = !!document.fullscreenElement; if (inFs || CONFIG.IS_MOBILE) return;
+          fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500);
+        };
+        wakeGear = wake;
+        window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal });
+        window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal });
+        bootWakeTimer = setTimeout(wake, 2000);
+        const handleGearDrag = (e) => {
+          if (e.target !== gearBtn) return;
+          dragThresholdMet = false; stopDrag?.();
+          const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
+          const rect = gearBtn.getBoundingClientRect();
+          try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {}
+          stopDrag = bindElementDrag(gearBtn, (ev) => {
+            const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
+            if (Math.abs(currentY - startY) > 10) {
+              if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; }
+              if (ev.cancelable) ev.preventDefault();
+            }
+            if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; }
+          }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
+        };
+        gearBtn.addEventListener('pointerdown', handleGearDrag);
+        let lastToggle = 0, lastTouchAt = 0;
+        const onGearActivate = (e) => {
+          if (dragThresholdMet) { try { if (e && e.cancelable) e.preventDefault(); } catch (_) {} return; }
+          const now = performance.now();
+          if (now - lastToggle < 300) { try { if (e && e.cancelable) e.preventDefault(); } catch (_) {} return; }
+          lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI));
+        };
+        gearBtn.addEventListener('touchend', (e) => { lastTouchAt = performance.now(); try { if (e && e.cancelable) e.preventDefault(); } catch (_) {} try { e.stopPropagation?.(); } catch (_) {} onGearActivate(e); }, { passive: false });
+        gearBtn.addEventListener('click', (e) => { const now = performance.now(); if (now - lastTouchAt < 800) { try { if (e && e.cancelable) e.preventDefault(); } catch (_) {} try { e.stopPropagation?.(); } catch (_) {} return; } onGearActivate(e); }, { passive: false });
+        const syncGear = () => { if (!gearBtn) return; gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); wake(); };
+        sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
       };
 
       const mount = () => { const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) {} try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) {} };
-      const ensure = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } ensureGear(); if (sm.get(P.APP_UI)) { build(); const mainPanel = getMainPanel(); if (mainPanel && !mainPanel.classList.contains('visible')) { mainPanel.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); } } else { const mainPanel = getMainPanel(); if (mainPanel) mainPanel.classList.remove('visible'); } mount(); try { wakeGear?.(); } catch (_) {} };
-      onPageReady(() => { try { ensure(); ApplyReq.hard(); } catch (_) {} }); window.__VSC_UI_Ensure = ensure; if (CONFIG.DEBUG) window.__VSC_UI_Ensure_DEBUG = ensure;
-      return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
+      const ensure = () => {
+        if (!allowUiInThisDoc()) { detachNodesHard(); return; }
+        ensureGear();
+        if (sm.get(P.APP_UI)) {
+          build(); const mainPanel = getMainPanel();
+          if (mainPanel && !mainPanel.classList.contains('visible')) { mainPanel.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); }
+        } else {
+          const mainPanel = getMainPanel(); if (mainPanel) mainPanel.classList.remove('visible');
+        }
+        mount(); try { wakeGear?.(); } catch (_) {}
+      };
+      onPageReady(() => { try { ensure(); ApplyReq.hard(); } catch (_) {} });
+      window.__VSC_UI_Ensure = ensure; if (CONFIG.DEBUG) window.__VSC_UI_Ensure_DEBUG = ensure;
+      return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch (_) {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
     }
 
     function getRateState(v) { const st = getVState(v); if (!st.rateState) { st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0 }; } return st.rateState; }
     function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
-    const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el, 220); el.playbackRate = nextRate; st.orig = null; } catch (_) {} };
+const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el, 220); el.playbackRate = nextRate; st.orig = null; } catch (_) {} };
 
     function createBackendAdapter(Filters, FiltersGL) {
       return {
@@ -890,7 +1120,7 @@
           const active = !!Store.getCatRef('app').active; if (!active) { cleanupTouched(TOUCHED); Audio.update(); return; }
           const sRev = Store.rev(), rRev = Registry.rev(), userSigRev = __vscUserSignalRev; if (!force && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
           lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev; const now = performance.now(); if (now - lastPrune > 2000) { Registry.prune(); lastPrune = now; }
-          const vf0 = Store.getCatRef('video'), { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos, wantAudioNow = !!((Store.get(P.A_EN) || Store.get(P.A_EQ)) && active), rMode = Store.get(P.APP_RENDER_MODE) || 'svg';
+          const vf0 = Store.getCatRef('video'), { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos, wantAudioNow = !!(Store.get(P.A_EN) && active), rMode = Store.get(P.APP_RENDER_MODE) || 'svg';
           const pick = Targeting.pickFastActiveOnly(visible.videos, window.__lastUserPt, wantAudioNow); let nextTarget = pick.target; if (!nextTarget) { if (__activeTarget) nextTarget = __activeTarget; } if (nextTarget !== __activeTarget) __activeTarget = nextTarget;
           const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null; if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else audioUpdateThrottled();
 
@@ -933,7 +1163,7 @@
     });
 
     function bindNormalizer(keys, schema) { const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); }; keys.forEach(k => Store.sub(k, run)); run(); }
-    bindNormalizer([P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV], APP_SCHEMA); bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA); bindNormalizer([P.A_EN, P.A_EQ, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
+    bindNormalizer([P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV], APP_SCHEMA); bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA); bindNormalizer([P.A_EN, P.A_BST, P.A_MULTIBAND, P.A_LUFS, P.A_DIALOGUE, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
 
     const Registry = createRegistry(Scheduler), Targeting = createTargeting();
     initSpaUrlDetector(createDebounced(() => { try { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } catch (_) {} }, PERF_POLICY.registry.spaRescanDebounceMs));
@@ -968,9 +1198,9 @@
       window.__VSC_APP__ = __VSC_APP__; window.__VSC_INTERNAL__.App = __VSC_APP__; AutoScene.start();
 
       onWin('keydown', async (e) => {
-          if (isEditableTarget(e.target)) return;
-          if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); try { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); } catch (_) {} return; }
-          if (e.altKey && e.shiftKey && e.code === 'KeyP') { const v = __VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); }
+        if (isEditableTarget(e.target)) return;
+        if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); try { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); } catch (_) {} return; }
+        if (e.altKey && e.shiftKey && e.code === 'KeyP') { const v = __VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); }
       }, { capture: true });
 
       onDoc('visibilitychange', () => { try { if (document.visibilityState === 'visible') window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { passive: true });
