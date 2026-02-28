@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v170.30.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.32.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.30.0
-// @description  Video Control: High-End PC. Fixed WebGL shader compilation, Auto Scene application, and audio GC leaks.
+// @version      170.32.0
+// @description  Video Control: High-End PC. Unified Tone Curve, Audio GC fix, WebGL texture optimizations, Batch microtasks.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -118,7 +118,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.30.0';
+    const VSC_VERSION = '170.32.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -128,6 +128,40 @@
       const r = 1 + 0.10 * t, b = 1 - 0.10 * t, g = 1 - 0.04 * Math.abs(t);
       const m = Math.max(r, g, b);
       return { rs: r / m, gs: g / m, bs: b / m };
+    }
+
+    // Unified Tone Curve function used by both SVG and WebGL
+    function computeToneCurve(steps, toeN, midN, shoulderN, gain) {
+      const clamp = VSC_CLAMP;
+      const g = Math.log2(Math.max(1e-6, gain)) * 0.90;
+      const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
+      const useExp = Math.abs(denom) > 1e-6;
+      const toeEnd = 0.34 + Math.abs(toeN) * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1;
+      const shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN);
+      const smoothstep = (a, b, x) => { const t = clamp((x - a) / Math.max(1e-6, (b - a)), 0, 1); return t * t * (3 - 2 * t); };
+
+      const out = new Float64Array(steps);
+      let prev = 0;
+      for (let i = 0; i < steps; i++) {
+        const x0 = i / (steps - 1);
+        let x = useExp ? (1 - Math.exp(-g * x0)) / denom : x0;
+        x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
+        if (toeAmt > 1e-6) {
+          const w = 1 - smoothstep(0, toeEnd, x);
+          x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1);
+        }
+        if (shAmt > 1e-6 && x > shoulderStart) {
+          const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart));
+          const kk = Math.max(0.7, 1.2 + shAmt * 6.5);
+          const shDen = (1 - Math.exp(-kk));
+          const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt;
+          x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1);
+        }
+        if (x < prev) x = prev;
+        prev = x;
+        out[i] = x;
+      }
+      return out;
     }
 
     const VSC_MEDIA = (() => {
@@ -231,7 +265,14 @@
     const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
     function createVideoState() {
-      return { visible: false, rect: null, ir: 0, bound: false, rateState: null, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, webglFailCount: 0, webglDisabledUntil: 0, webglTainted: false };
+      return {
+        visible: false, rect: null, ir: 0, rectT: 0, rectEpoch: -1,
+        bound: false,
+        applied: false, fxBackend: null, lastFilterUrl: null,
+        rateState: null, desiredRate: undefined,
+        audioFailUntil: 0,
+        webglFailCount: 0, webglDisabledUntil: 0, webglTainted: false
+      };
     }
 
     const videoStateMap = new WeakMap();
@@ -419,7 +460,7 @@
     }
 
     let __vscPiPCacheT = 0;
-    let __vscPiPCacheV = null;
+    let __vscPiPCacheRef = null;
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
 
     function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
@@ -440,10 +481,14 @@
 
     function getActivePiPVideo() {
       const now = performance.now();
-      if ((now - __vscPiPCacheT) < 200) return __vscPiPCacheV;
+      if ((now - __vscPiPCacheT) < 200 && __vscPiPCacheRef) {
+        const v = typeof __vscPiPCacheRef.deref === 'function' ? __vscPiPCacheRef.deref() : __vscPiPCacheRef;
+        if (v) return v;
+      }
       __vscPiPCacheT = now;
-      __vscPiPCacheV = getActivePiPVideoSlow();
-      return __vscPiPCacheV;
+      const v = getActivePiPVideoSlow();
+      __vscPiPCacheRef = v ? (typeof WeakRef !== 'undefined' ? new WeakRef(v) : v) : null;
+      return v;
     }
 
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
@@ -670,17 +715,28 @@
     function createLocalStore(defaults, scheduler, Utils) {
       let rev = 0; const listeners = new Map();
 
-      const broadcastState = (key, val) => {
-        if (key === P.APP_UI) return;
-        try {
-          const msg = { __vsc_sync: true, token: VSC_SYNC_TOKEN, p: key, val };
-          if (window.top && window.top !== window.self) window.top.postMessage(msg, '*');
+      const broadcastState = (() => {
+        let pending = null;
+        let scheduled = false;
+        const flush = () => {
+          scheduled = false;
+          if (!pending) return;
+          const entries = pending;
+          pending = null;
+          const msg = { __vsc_sync: true, token: VSC_SYNC_TOKEN, batch: entries };
+          try { if (window.top && window.top !== window.self) window.top.postMessage(msg, '*'); } catch (_) {}
           const iframes = document.getElementsByTagName('iframe');
           for (let i = 0; i < iframes.length; i++) {
             try { iframes[i].contentWindow.postMessage(msg, '*'); } catch(_) {}
           }
-        } catch (_) {}
-      };
+        };
+        return (key, val) => {
+          if (key === P.APP_UI) return;
+          if (!pending) pending = [];
+          pending.push({ p: key, val });
+          if (!scheduled) { scheduled = true; queueMicrotask(flush); }
+        };
+      })();
 
       const emit = (key, val) => {
         const a = listeners.get(key);
@@ -820,11 +876,13 @@
         const isInputPending = navigator.scheduling?.isInputPending?.bind(navigator.scheduling);
         function drainRunnerIdle(dl) { drain(dl); }
         function drainRunnerRaf() { drain(); }
-        const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function') ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null;
+
+        const postTaskVisible = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
+            ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'user-visible' })
+            : null;
 
         const schedule = () => {
             if (scheduled) return; scheduled = true;
-            if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; }
             if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf);
         };
 
@@ -833,8 +891,13 @@
             const m = mark.get(n);
             if (m === epochV) return;
             mark.set(n, epochV);
-            pending.push(n);
-            schedule();
+
+            if (postTaskVisible) {
+                postTaskVisible(() => scanNode(n)).catch(() => { pending.push(n); schedule(); });
+            } else {
+                pending.push(n);
+                schedule();
+            }
         };
 
         const scanNode = (n) => { if (!n) return; if (n.nodeType === 1) { if (n.tagName === 'VIDEO') { observeVideo(n); return; } try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} return; } if (n.nodeType === 11) { try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} } };
@@ -907,7 +970,7 @@
     }
 
     const SOFT_CLIP_CURVE = (() => {
-        const n = 8192, knee = 0.985, drive = 6.0;
+        const n = 8192, knee = 0.92, drive = 4.0;
         const tanhD = Math.tanh(drive);
         const curve = new Float32Array(n);
         for (let i = 0; i < n; i++) {
@@ -938,7 +1001,6 @@
       const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
 
       const clamp = VSC_CLAMP;
-      const VSC_AUDIO_AUTO_MAKEUP = true;
 
       function runAudioLoop(tok) {
         audioLoopTimerId = 0;
@@ -1001,7 +1063,7 @@
             const lowR = lowE / total;
 
             const trim = clamp((lowR - 0.55) * 10.0, 0.0, 2.5);
-            const baseSub = 4.0;
+            const baseSub = 3.0;
             const baseImp = 2.0;
 
             const t = ctx.currentTime;
@@ -1015,10 +1077,10 @@
           } else if (!eqAct && eqSub && eqImpact) {
              const t = ctx.currentTime;
              try {
-               eqSub.gain.setTargetAtTime(4.0, t, 0.2);
+               eqSub.gain.setTargetAtTime(3.0, t, 0.2);
                eqImpact.gain.setTargetAtTime(2.0, t, 0.2);
              } catch(_) {
-               eqSub.gain.value = 4.0;
+               eqSub.gain.value = 3.0;
                eqImpact.gain.value = 2.0;
              }
           }
@@ -1064,13 +1126,13 @@
               analyser: audioCtx.createAnalyser()
           };
 
-          n.eqSub.type = 'lowshelf'; n.eqSub.frequency.value = 90; n.eqSub.Q.value = 0.8; n.eqSub.gain.value = 4.0;
-          n.eqImpact.type = 'lowshelf'; n.eqImpact.frequency.value = 60; n.eqImpact.Q.value = 0.9; n.eqImpact.gain.value = 2.0;
-          n.eqCut.type = 'peaking'; n.eqCut.frequency.value = 250; n.eqCut.Q.value = 1.0; n.eqCut.gain.value = -3.0;
-          n.eqVoice.type = 'peaking'; n.eqVoice.frequency.value = 2800; n.eqVoice.Q.value = 1.0; n.eqVoice.gain.value = 2.5;
-          n.eqHigh.type = 'highshelf'; n.eqHigh.frequency.value = 9500; n.eqHigh.Q.value = 0.7; n.eqHigh.gain.value = -1.0;
+          n.eqSub.type = 'lowshelf'; n.eqSub.frequency.value = 80; n.eqSub.Q.value = 0.8; n.eqSub.gain.value = 3.0;
+          n.eqImpact.type = 'peaking'; n.eqImpact.frequency.value = 55; n.eqImpact.Q.value = 1.2; n.eqImpact.gain.value = 2.0;
+          n.eqCut.type = 'peaking'; n.eqCut.frequency.value = 300; n.eqCut.Q.value = 0.8; n.eqCut.gain.value = -2.0;
+          n.eqVoice.type = 'peaking'; n.eqVoice.frequency.value = 3200; n.eqVoice.Q.value = 1.2; n.eqVoice.gain.value = 2.0;
+          n.eqHigh.type = 'highshelf'; n.eqHigh.frequency.value = 10000; n.eqHigh.Q.value = 0.7; n.eqHigh.gain.value = -0.5;
 
-          n.compressor.threshold.value = -22; n.compressor.knee.value = 24; n.compressor.ratio.value = 2.6; n.compressor.attack.value = 0.012; n.compressor.release.value = 0.25;
+          n.compressor.threshold.value = -16; n.compressor.knee.value = 12; n.compressor.ratio.value = 3.0; n.compressor.attack.value = 0.008; n.compressor.release.value = 0.20;
           n.limiter.threshold.value = -1.2; n.limiter.knee.value = 0.0; n.limiter.ratio.value = 20.0; n.limiter.attack.value = 0.0015; n.limiter.release.value = 0.09;
           n.hpf.type = 'highpass'; n.hpf.frequency.value = VSC_AUD_HPF_HZ; n.hpf.Q.value = VSC_AUD_HPF_Q;
 
@@ -1100,13 +1162,18 @@
       }
 
       const ensureCtx = () => {
-        if (ctx?.state !== 'closed' && ctx) return true;
-        if (ctx?.state === 'closed') { ctx = null; srcMap = new WeakMap(); }
+        if (ctx && ctx.state !== 'closed') return true;
+        if (ctx) { ctx = null; srcMap = new WeakMap(); }
 
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return false;
 
-        try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); }
+        try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) {
+            try { ctx = new AC(); } catch (__) { return false; }
+        }
+        currentSrc = null;
+        target = null;
+
         ensureGestureResumeHook();
 
         const nodes = buildAudioGraph(ctx);
@@ -1168,6 +1235,7 @@
 
       const updateMix = () => {
         if (!ctx) return;
+        if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
 
         const tok = ++loopTok;
         const appAct = !!sm.get(P.APP_ACT);
@@ -1395,7 +1463,15 @@
       let __asRvfcId = 0;
       function scheduleNext(v, delayMs) {
         if (!AUTO.running) return;
-        if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') {
+        if (v?.paused || v?.ended) {
+          const resumeLoop = () => {
+             v.removeEventListener('play', resumeLoop);
+             if (AUTO.running) loop();
+           };
+          v.addEventListener('play', resumeLoop, { once: true });
+          return;
+        }
+        if (v && typeof v.requestVideoFrameCallback === 'function') {
           const target = performance.now() + Math.max(0, delayMs|0);
           try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
           __asRvfcId = v.requestVideoFrameCallback(() => {
@@ -1476,10 +1552,10 @@
             fps = calculateAdaptiveFps(VSC_CLAMP(sigRaw.motion||0,0,1));
             if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 10 : 8);
 
-            const errY = VSC_CLAMP(0.50 - sig.bright, -0.22, 0.22);
+            const errY = VSC_CLAMP(0.45 - sig.bright, -0.20, 0.25);
             const errSd = VSC_CLAMP(0.23 - sig.contrast, -0.18, 0.18);
 
-            AUTO.tgt.br = VSC_CLAMP(1.12 + errY * 0.98, 0.92, 1.35);
+            AUTO.tgt.br = VSC_CLAMP(1.0 + errY * 0.80, 0.92, 1.25);
             AUTO.tgt.ct = VSC_CLAMP(1.0 + (-errSd) * 0.85, 0.82, 1.30);
 
             const curCh = Number(sig.chroma || 0);
@@ -1532,6 +1608,18 @@
 
       const SVG_UPDATE_ACTIVE_TIER_ONLY = true;
 
+      const _pendingStyleUpdates = [];
+      let _styleFlushScheduled = false;
+      function scheduleStyleFlush() {
+        if (_styleFlushScheduled) return;
+        _styleFlushScheduled = true;
+        queueMicrotask(() => {
+          _styleFlushScheduled = false;
+          for (const fn of _pendingStyleUpdates) fn();
+          _pendingStyleUpdates.length = 0;
+        });
+      }
+
       const __attrCache = new WeakMap();
       const setAttrCached = (node, attr, val) => {
         if (!node) return;
@@ -1550,8 +1638,7 @@
             setAttrCached(node, attr, val);
           }
         },
-        sCurve = (x) => x * x * (3 - 2 * x),
-        smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return sCurve(t); };
+        sCurve = (x) => x * x * (3 - 2 * x);
 
       const softCap = (x, knee = 1.0, max = 2.0) => {
         x = Math.max(0, x);
@@ -1576,26 +1663,13 @@
         const key = `${steps}|${qInt(toeN,0.02)}|${qInt(shoulderN,0.02)}|${qInt(midN,0.02)}|${qInt(gain,0.06)}`;
         const hit = toneCache.get(key); if (hit) return hit;
         if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; }
-        const toeEnd = 0.34 + Math.abs(toeN) * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1, shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN);
-        const g = Math.log2(Math.max(1e-6, gain)) * 0.90;
-        const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
-        const useExponential = Math.abs(denom) > 1e-6;
 
-        const STEPS = 64;
-        const out = new Float32Array(STEPS); let prev = 0;
-        for (let i = 0; i < STEPS; i++) {
-          const x0 = i / (STEPS - 1);
-          let x = useExponential ? (1 - Math.exp(-g * x0)) / denom : x0;
-          x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
-          if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); }
-          if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); }
-          let y = x; if (y < prev) y = prev; prev = y;
-          out[i] = y;
-        }
-        const res = Array.from(out).map(yy => {
+        const curve = computeToneCurve(steps, toeN, midN, shoulderN, gain);
+        const res = Array.from(curve).map(yy => {
             const y = Math.round(yy * 100000) / 100000;
             return (y === 1 ? '1' : y === 0 ? '0' : String(y));
         }).join(' ');
+
         toneCache.set(key, res); return res;
       }
 
@@ -1761,7 +1835,7 @@
             queueMicrotask(() => {
               st._svgUpdatePending = false; const p = st._pending; if (!p) return;
 
-              const common = (SVG_UPDATE_ACTIVE_TIER_ONLY && nodes.commonByTier) ? (nodes.commonByTier[p.tier] || nodes.commonAll) : nodes.commonAll;
+              const common = nodes.commonByTier?.[p.tier] || nodes.commonAll;
               const cst = (SVG_UPDATE_ACTIVE_TIER_ONLY && st.commonTier) ? (st.commonTier[p.tier] || st) : st;
 
               function updateKey(obj, key, next, apply) {
@@ -1774,27 +1848,27 @@
               updateKey(cst, 'toneKey', p.tk, () => {
                 if (cst.toneTable !== p.table) {
                   cst.toneTable = p.table;
-                  for (const fn of common.toneFuncs) setAttrCached(fn, 'tableValues', p.table);
+                  if (common.toneFuncs) for (const fn of common.toneFuncs) setAttrCached(fn, 'tableValues', p.table);
                 }
               });
 
               updateKey(cst, 'bcLinKey', p.bcLinKey, () => {
-                for (const fn of common.bcLinFuncs) {
+                if (common.bcLinFuncs) for (const fn of common.bcLinFuncs) {
                   setAttrCached(fn, 'slope', p.conStr);
                   setAttrCached(fn, 'intercept', p.interceptStr);
                 }
               });
 
               updateKey(cst, 'gammaKey', p.gk, () => {
-                for (const fn of common.gamFuncs) setAttrCached(fn, 'exponent', p.gk);
+                if (common.gamFuncs) for (const fn of common.gamFuncs) setAttrCached(fn, 'exponent', p.gk);
               });
 
               updateKey(cst, 'satKey', p.satVal, () => {
-                for (const satNode of common.sats) setAttrCached(satNode, 'values', p.satVal);
+                if (common.sats) for (const satNode of common.sats) setAttrCached(satNode, 'values', p.satVal);
               });
 
               updateKey(cst, 'tempKey', p.tmk, () => {
-                for (let i=0; i<common.tmpFuncs.length; i+=3) {
+                if (common.tmpFuncs) for (let i=0; i<common.tmpFuncs.length; i+=3) {
                   setAttrCached(common.tmpFuncs[i],   'slope', p.rsStr);
                   setAttrCached(common.tmpFuncs[i+1], 'slope', p.gsStr);
                   setAttrCached(common.tmpFuncs[i+2], 'slope', p.bsStr);
@@ -1919,11 +1993,16 @@
         applyUrl: (el, url) => {
           if (!el) return; const st = getVState(el);
           if (!url) { if (st.applied) { queueMicrotask(() => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); }); st.applied = false; st.lastFilterUrl = null; } return; }
-          if (st.lastFilterUrl === url) return; queueMicrotask(() => { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); }); st.applied = true; st.lastFilterUrl = url;
+          if (st.lastFilterUrl === url) return;
+          _pendingStyleUpdates.push(() => { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); });
+          scheduleStyleFlush();
+          st.applied = true; st.lastFilterUrl = url;
         },
         clear: (el) => {
           if (!el) return; const st = getVState(el); if (!st.applied) return;
-          queueMicrotask(() => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); }); st.applied = false; st.lastFilterUrl = null;
+          _pendingStyleUpdates.push(() => { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); });
+          scheduleStyleFlush();
+          st.applied = false; st.lastFilterUrl = null;
         }
       };
     }
@@ -1934,37 +2013,10 @@
       function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
 
       function buildToneLUT256(toe, mid, shoulder, gain = 1.0) {
-        const clamp = VSC_CLAMP;
-        const steps = 256;
-        const out = new Uint8Array(steps * 4);
-
-        const t = clamp(toe / 14, -1, 1);
-        const s = clamp(shoulder / 16, -1, 1);
-        const m = clamp(mid, -1, 1);
-
-        const g = Math.log2(Math.max(1e-6, gain)) * 0.90;
-        const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
-        const useExp = Math.abs(denom) > 1e-6;
-
-        const smoothstep = (a,b,x)=>{ x = clamp((x-a)/(b-a),0,1); return x*x*(3-2*x); };
-
-        let prev = 0;
-        for (let i = 0; i < steps; i++) {
-          let x = i / 255;
-          if (useExp) x = (1 - Math.exp(-g * x)) / denom;
-          x = clamp(x + m * 0.06 * (4 * x * (1 - x)), 0, 1);
-          if (t !== 0) {
-            const w = smoothstep(0.0, 0.35, x);
-            x = clamp(x + t * 0.08 * (1 - w), 0, 1);
-          }
-          if (s !== 0) {
-            const w = smoothstep(0.85, 1.0, x);
-            x = clamp(x - s * 0.08 * w, 0, 1);
-          }
-          if (x < prev) x = prev;
-          prev = x;
-
-          const v = (x * 255 + 0.5) | 0;
+        const curve = computeToneCurve(256, VSC_CLAMP(toe / 14, -1, 1), VSC_CLAMP(mid, -1, 1), VSC_CLAMP(shoulder / 16, -1, 1), gain);
+        const out = new Uint8Array(256 * 4);
+        for (let i = 0; i < 256; i++) {
+          const v = (curve[i] * 255 + 0.5) | 0;
           const o = i * 4;
           out[o] = out[o+1] = out[o+2] = v;
           out[o+3] = 255;
@@ -2122,7 +2174,8 @@ void main() {
         let amount = clamp01(base * scale);
         if (amount > cap) amount = cap;
 
-        amount *= (1.0 - 0.10 * hiResN);
+        amount *= (1.0 - 0.25 * hiResN);
+        if (rawPx >= 3840 * 2160) amount *= 0.80;
         if (isHdr) amount *= 0.92;
 
         const cheap = (rawPx >= (2560 * 1440) && amount < 0.80) || (amount < 0.12);
@@ -2307,8 +2360,12 @@ void main() {
 
           let rawW = video.videoWidth;
           let rawH = video.videoHeight;
-          const MAX_W = 1920;
-          const MAX_H = 1080;
+          const dpr = Math.min(window.devicePixelRatio || 1, 2);
+          const displayW = video.clientWidth * dpr;
+          const displayH = video.clientHeight * dpr;
+          const MAX_W = Math.min(1920, Math.max(displayW, 640));
+          const MAX_H = Math.min(1080, Math.max(displayH, 360));
+
           let w = rawW;
           let h = rawH;
 
@@ -2369,16 +2426,20 @@ void main() {
 
           try {
             gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
-            if (this._texW !== rawW || this._texH !== rawH) {
-              this._texW = rawW; this._texH = rawH;
-              const internalFormat = this._isGL2 ? gl.RGBA8 : gl.RGBA;
-              gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, rawW, rawH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-            }
 
             if (this._isGL2) {
+                if (this._texW !== rawW || this._texH !== rawH) {
+                    this._texW = rawW; this._texH = rawH;
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, rawW, rawH, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                }
                 gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, rawW, rawH, gl.RGBA, gl.UNSIGNED_BYTE, video);
             } else {
-                gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                if (this._texW !== rawW || this._texH !== rawH) {
+                    this._texW = rawW; this._texH = rawH;
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                } else {
+                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                }
             }
 
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -3247,11 +3308,19 @@ void main() {
     window.__VSC_INTERNAL__.Store = Store; window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
 
     window.addEventListener('message', (e) => {
-      if (e.data && e.data.__vsc_sync && e.data.token === VSC_SYNC_TOKEN) {
-        const { p, val } = e.data;
-        if (p === P.APP_UI) return;
-        if (Object.values(P).includes(p)) {
-          if (Store.get(p) !== val) Store.set(p, val);
+      if (!e.data || !e.data.__vsc_sync || e.data.token !== VSC_SYNC_TOKEN) return;
+      try { if (e.origin !== location.origin && e.origin !== 'null') return; } catch (_) {}
+
+      if (e.data.batch) {
+        for (const item of e.data.batch) {
+          if (Object.values(P).includes(item.p) && Store.get(item.p) !== item.val) {
+            Store.set(item.p, item.val);
+          }
+        }
+      } else if (e.data.p) {
+        if (e.data.p === P.APP_UI) return;
+        if (Object.values(P).includes(e.data.p) && Store.get(e.data.p) !== e.data.val) {
+          Store.set(e.data.p, e.data.val);
         }
       }
     });
