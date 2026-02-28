@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.60.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.61.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.60.0
+// @version      170.61.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -2126,38 +2126,53 @@ function bindElementDrag(el, onMove, onEnd) {
       const build = () => {
         if (container) return;
         const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }), shadow = host.attachShadow({ mode: 'open' });
-        const style = `:host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2));right:max(70px,calc(env(safe-area-inset-right,0px) + 70px));transform:translateY(-50%);width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:auto;bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 12px));right:max(12px,calc(env(safe-area-inset-right,0px) + 12px));left:max(12px,calc(env(safe-area-inset-left,0px) + 12px));transform:none;width:auto;max-height:70vh;padding:12px;border-radius:14px}.prow{flex-wrap:wrap}.btn,.pbtn{min-height:38px;font-size:12px}}.header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active{background:var(--ac);border-color:var(--ac)}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.pbtn.active{background:var(--ac);border-color:var(--ac)}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.slider{width:100%}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}`;
+        const style = `:host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2));right:max(70px,calc(env(safe-area-inset-right,0px) + 70px));transform:translateY(-50%);width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:auto;bottom:max(12px,calc(env(safe-area-inset-bottom,0px) + 12px));right:max(12px,calc(env(safe-area-inset-right,0px) + 12px));left:max(12px,calc(env(safe-area-inset-left,0px) + 12px));transform:none;width:auto;max-height:70vh;padding:12px;border-radius:14px}.prow{flex-wrap:wrap}.btn,.pbtn{min-height:38px;font-size:12px}}.header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;}.btn.active{background:var(--ac);border-color:var(--ac)}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.pbtn.active{background:var(--ac);border-color:var(--ac)}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.slider{width:100%}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}`;
         const styleEl = document.createElement('style');
         styleEl.textContent = style;
         shadow.appendChild(styleEl);
 
         const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
-        const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl'); } });
+        // 1. 렌더링 모드 버튼 (SVG 전환 시 HDR 자동 끄기 연동)
+        const rmBtn = h('button', { id: 'rm-btn', class: 'btn' });
+        rmBtn.onclick = (e) => {
+          e.stopPropagation();
+          const nextMode = sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl';
+          sm.set(P.APP_RENDER_MODE, nextMode);
+          if (nextMode === 'svg') sm.set(P.APP_HDR_TONEMAP, false); // SVG 전환 시 HDR 강제 종료
+          ApplyReq.hard();
+        };
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; }, sm, sub);
 
-        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.2;' }, '🔊 Brickwall (EQ+Dyn)');
-        boostBtn.onclick = (e) => {
+        // 2. HDR 버튼 (메인으로 이동, 켜면 WebGL 강제 전환 연동)
+        const hdrBtn = h('button', { class: 'btn' }, '🎬 Rec.2020');
+        hdrBtn.onclick = (e) => {
           e.stopPropagation();
-          if (window.__VSC_INTERNAL__?.AudioWarmup) window.__VSC_INTERNAL__.AudioWarmup();
-          setAndHint(P.A_EN, !sm.get(P.A_EN));
+          if (!VSC_MEDIA.isHdr) {
+            hdrBtn.textContent = '⚠️ HDR 미감지';
+            setTimeout(() => { hdrBtn.textContent = '🎬 Rec.2020'; }, 2000);
+            return;
+          }
+          const nextHdr = !sm.get(P.APP_HDR_TONEMAP);
+          sm.set(P.APP_HDR_TONEMAP, nextHdr);
+          if (nextHdr && sm.get(P.APP_RENDER_MODE) !== 'webgl') {
+            sm.set(P.APP_RENDER_MODE, 'webgl'); // HDR 켜면 WebGL 자동 켬
+          }
+          ApplyReq.hard();
         };
-        bindReactive(boostBtn, [P.A_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
-
-        // 대화 감지(AI) - Brickwall에 종속되도록 UI 로직 수정
-        const dialogueBtn = h('button', { class: 'btn', style: 'flex: 0.8;' }, '🗣️ 대화');
-        dialogueBtn.onclick = (e) => {
-          e.stopPropagation();
-          if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE));
-        };
-        bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN], (el, v, aEn) => {
-          el.classList.toggle('active', !!(v && aEn));
-          el.style.opacity = aEn ? '1' : '0.35';
-          el.style.cursor = aEn ? 'pointer' : 'not-allowed';
+        bindReactive(hdrBtn, [P.APP_HDR_TONEMAP, P.APP_RENDER_MODE], (el, v, rMode) => {
+          el.classList.toggle('active', !!(v && rMode === 'webgl'));
+          el.style.opacity = VSC_MEDIA.isHdr ? '1' : '0.4';
         }, sm, sub);
 
-        const pipBtn = h('button', { class: 'btn', onclick: async (e) => { e.stopPropagation(); const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
-        const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn' }, '🔍 줌 제어');
+        // 3. 편의기능 버튼들
+        const autoSceneBtn = h('button', { class: 'btn', style: 'flex: 1.2;' }, '✨ 자동 씬');
+        bindReactive(autoSceneBtn, [P.APP_AUTO_SCENE], (el, v) => el.classList.toggle('active', !!v), sm, sub);
+        autoSceneBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); };
+
+        const pipBtn = h('button', { class: 'btn', style: 'flex: 0.9;', onclick: async (e) => { e.stopPropagation(); const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
+
+        const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', style: 'flex: 0.9;' }, '🔍 줌');
         zoomBtn.onclick = (e) => {
           e.stopPropagation();
           const zm = window.__VSC_INTERNAL__.ZoomManager;
@@ -2174,8 +2189,25 @@ function bindElementDrag(el, onMove, onEnd) {
         };
         bindReactive(zoomBtn, [P.APP_ZOOM_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
 
-        const autoSceneBtn = h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); } }, '✨ Auto Scene');
-        bindReactive(autoSceneBtn, [P.APP_AUTO_SCENE], (el, v) => el.classList.toggle('active', !!v), sm, sub);
+        // 4. 오디오 관련 버튼들
+        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5;' }, '🔊 Brickwall (EQ+Dyn)');
+        boostBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (window.__VSC_INTERNAL__?.AudioWarmup) window.__VSC_INTERNAL__.AudioWarmup();
+          setAndHint(P.A_EN, !sm.get(P.A_EN));
+        };
+        bindReactive(boostBtn, [P.A_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
+
+        const dialogueBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '🗣️ 대화 AI');
+        dialogueBtn.onclick = (e) => {
+          e.stopPropagation();
+          if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE));
+        };
+        bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN], (el, v, aEn) => {
+          el.classList.toggle('active', !!(v && aEn));
+          el.style.opacity = aEn ? '1' : '0.35';
+          el.style.cursor = aEn ? 'pointer' : 'not-allowed';
+        }, sm, sub);
 
         const pwrBtn = h('button', { id: 'pwr-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
         bindReactive(pwrBtn, [P.APP_ACT], (el, v) => el.style.color = v ? '#2ecc71' : '#e74c3c', sm, sub);
@@ -2196,26 +2228,6 @@ function bindElementDrag(el, onMove, onEnd) {
           renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
           renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
           h('hr'),
-          (() => {
-            const r = h('div', { class: 'prow' });
-            r.append(h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, 'HDR'));
-            const hdrBtn = h('button', { class: 'pbtn', style: 'flex:1' }, '🎬 Rec.2020 톤맵');
-            hdrBtn.onclick = (e) => {
-              e.stopPropagation();
-              if (!VSC_MEDIA.isHdr) {
-                hdrBtn.textContent = '⚠️ HDR 미감지';
-                setTimeout(() => { hdrBtn.textContent = '🎬 Rec.2020 톤맵'; }, 2000);
-                return;
-              }
-              setAndHint(P.APP_HDR_TONEMAP, !sm.get(P.APP_HDR_TONEMAP));
-            };
-            bindReactive(hdrBtn, [P.APP_HDR_TONEMAP], (el, v) => {
-              el.classList.toggle('active', !!v);
-              el.style.opacity = VSC_MEDIA.isHdr ? '1' : '0.5';
-            }, sm, sub);
-            r.append(hdrBtn);
-            return r;
-          })(),
           (() => {
             const r = h('div', { class: 'prow' });
             r.append(h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '오디오'));
@@ -2246,8 +2258,8 @@ function bindElementDrag(el, onMove, onEnd) {
         bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none', sm, sub);
 
         const bodyMain = h('div', { id: 'p-main' }, [
-          h('div', { class: 'prow' }, [ rmBtn, autoSceneBtn ]),
-          h('div', { class: 'prow' }, [ pipBtn, zoomBtn ]),
+          h('div', { class: 'prow' }, [ rmBtn, hdrBtn ]),
+          h('div', { class: 'prow' }, [ autoSceneBtn, pipBtn, zoomBtn ]),
           h('div', { class: 'prow' }, [ boostBtn, dialogueBtn ]),
           h('div', { class: 'prow' }, [
             h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'),
@@ -2258,6 +2270,7 @@ function bindElementDrag(el, onMove, onEnd) {
               sm.batch('audio', DEFAULTS.audio);
               sm.batch('playback', DEFAULTS.playback);
               sm.set(P.APP_AUTO_SCENE, false);
+              sm.set(P.APP_HDR_TONEMAP, false); // 리셋 시 HDR도 끄기
               ApplyReq.hard();
             } }, '↺ 리셋')
           ]),
@@ -2652,7 +2665,10 @@ function bindElementDrag(el, onMove, onEnd) {
         if (isEditableTarget(e.target)) return;
         if (e.altKey && e.shiftKey && e.code === 'KeyV') {
           e.preventDefault(); e.stopPropagation();
-          safe(() => { const st = window.__VSC_INTERNAL__?.Store; if (st) { st.set(P.APP_UI, !st.get(P.APP_UI)); ApplyReq.hard(); } });
+          safe(() => {
+            const st = window.__VSC_INTERNAL__?.Store;
+            if (st) { st.set(P.APP_UI, !st.get(P.APP_UI)); ApplyReq.hard(); }
+          });
           return;
         }
         if (e.altKey && e.shiftKey && e.code === 'KeyP') {
