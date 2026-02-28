@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.50.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.52.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.50.0
+// @version      170.52.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -92,7 +92,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.50.0';
+    const VSC_VERSION = '170.52.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -1449,7 +1449,7 @@
           } else { makeupDbEma += (0 - makeupDbEma) * 0.1; }
         }
         const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
-        if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
+        if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.02); } catch (_) { wetInGain.gain.value = finalGain; } }
 
         const loopInterval = document.hidden ? 500 : 100;
         audioLoopTimerId = setTimeout(() => runAudioLoop(tok), loopInterval);
@@ -1460,7 +1460,7 @@
         if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
         const tok = ++loopTok, dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)), isHooked = !!currentSrc;
         const wetTarget = (dynAct && isHooked) ? 1 : 0, dryTarget = 1 - wetTarget;
-        rampGainsSafe(dryGain, dryTarget); rampGainsSafe(wetGain, wetTarget);
+        rampGainsSafe(dryGain, dryTarget, 0.005); rampGainsSafe(wetGain, wetTarget, 0.005);
 
         if (currentNodes) {
           const mbEnabled = dynAct && !!sm.get(P.A_MULTIBAND);
@@ -1479,15 +1479,31 @@
       }
 
       return {
+        warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
         setTarget: (v) => {
           const st = v ? getVState(v) : null;
           if (st && st.audioFailUntil > performance.now()) {
-            if (v !== target) fadeOutThen(() => { disconnectAll(); target = v; }); updateMix(); return;
+            if (v !== target) { target = v; }
+            updateMix(); return;
           }
           if (!ensureCtx()) return;
           if (v === target) { updateMix(); return; }
-          fadeOutThen(() => {
-            disconnectAll(); target = v; if (!v) { updateMix(); return; }
+          
+          if (target !== null && v !== null && target !== v) {
+            fadeOutThen(() => {
+              disconnectAll(); target = v; if (!v) { updateMix(); return; }
+              try {
+                let s = srcMap.get(v);
+                if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); }
+                s.connect(inputGain); currentSrc = s;
+              } catch (_) {
+                if (st) st.audioFailUntil = performance.now() + AUDIO_FAIL_COOLDOWN_MS;
+                disconnectAll();
+              }
+              updateMix();
+            });
+          } else if (v !== null && !currentSrc) {
+            target = v;
             try {
               let s = srcMap.get(v);
               if (!s) { s = ctx.createMediaElementSource(v); srcMap.set(v, s); }
@@ -1497,7 +1513,9 @@
               disconnectAll();
             }
             updateMix();
-          });
+          } else if (v === null) {
+            fadeOutThen(() => { disconnectAll(); updateMix(); });
+          }
         },
         update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy
       };
@@ -2077,7 +2095,12 @@ return clamp(softClip(color,.18),0.,1.);
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl'); } });
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; }, sm, sub);
 
-        const boostBtn = h('button', { id: 'boost-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.A_EN, !sm.get(P.A_EN)); } }, '🔊 Brickwall (EQ+Dyn)');
+        const boostBtn = h('button', { id: 'boost-btn', class: 'btn' }, '🔊 Brickwall (EQ+Dyn)');
+        boostBtn.onclick = (e) => {
+          e.stopPropagation();
+          if (window.__VSC_INTERNAL__?.AudioWarmup) window.__VSC_INTERNAL__.AudioWarmup();
+          setAndHint(P.A_EN, !sm.get(P.A_EN));
+        };
         bindReactive(boostBtn, [P.A_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
 
         const pipBtn = h('button', { class: 'btn', onclick: async (e) => { e.stopPropagation(); const v = window.__VSC_APP__?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
@@ -2641,7 +2664,7 @@ return clamp(softClip(color,.18),0.,1.);
       });
 
       let __activeTarget = null, __lastAudioTarget = null, lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0, qualityScale = 1.0, lastQCheck = 0, __lastQSample = { dropped: 0, total: 0 };
-      const videoParamsMemo = createVideoParamsMemo(Store, P), audioUpdateThrottled = createDebounced(() => Audio.update(), 120);
+      const videoParamsMemo = createVideoParamsMemo(Store, P);
 
       if (typeof PerformanceObserver !== 'undefined') {
         try {
@@ -2712,11 +2735,9 @@ return clamp(softClip(color,.18),0.,1.);
           const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
           if (nextAudioTarget !== __lastAudioTarget) {
             Audio.setTarget(nextAudioTarget);
-            Audio.update();
             __lastAudioTarget = nextAudioTarget;
-          } else {
-            audioUpdateThrottled();
           }
+          Audio.update();
 
           const vf0 = Store.getCatRef('video');
           let vValsEffective = videoParamsMemo.get(vf0, rMode, __activeTarget);
@@ -2861,6 +2882,7 @@ return clamp(softClip(color,.18),0.,1.);
       window.__VSC_INTERNAL__.Adapter = Adapter;
 
       const Audio = createAudio(Store);
+      window.__VSC_INTERNAL__.AudioWarmup = Audio.warmup;
       let ZoomManager = createZoomManager();
       window.__VSC_INTERNAL__.ZoomManager = ZoomManager;
       const UI = createUI(Store, Registry, ApplyReq, Utils);
