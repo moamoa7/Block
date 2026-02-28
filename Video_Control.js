@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.61.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.62.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.61.0
+// @version      170.62.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -2133,21 +2133,26 @@ function bindElementDrag(el, onMove, onEnd) {
 
         const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
-        // 1. 렌더링 모드 버튼 (SVG 전환 시 HDR 자동 끄기 연동)
+        // 1. 렌더링 모드 버튼
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn' });
         rmBtn.onclick = (e) => {
           e.stopPropagation();
           const nextMode = sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl';
           sm.set(P.APP_RENDER_MODE, nextMode);
-          if (nextMode === 'svg') sm.set(P.APP_HDR_TONEMAP, false); // SVG 전환 시 HDR 강제 종료
+          if (nextMode === 'svg') sm.set(P.APP_HDR_TONEMAP, false);
           ApplyReq.hard();
         };
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => { el.textContent = `🎨 ${v === 'webgl' ? 'WebGL' : 'SVG'}`; el.style.color = v === 'webgl' ? '#ffaa00' : '#88ccff'; el.style.borderColor = v === 'webgl' ? '#ffaa00' : '#88ccff'; }, sm, sub);
 
-        // 2. HDR 버튼 (메인으로 이동, 켜면 WebGL 강제 전환 연동)
+        // 2. HDR 버튼 (모바일 사용 불가 처리)
         const hdrBtn = h('button', { class: 'btn' }, '🎬 Rec.2020');
         hdrBtn.onclick = (e) => {
           e.stopPropagation();
+          if (CONFIG.IS_MOBILE) {
+            hdrBtn.textContent = '모바일 미지원';
+            setTimeout(() => { hdrBtn.textContent = '🎬 Rec.2020'; }, 2000);
+            return;
+          }
           if (!VSC_MEDIA.isHdr) {
             hdrBtn.textContent = '⚠️ HDR 미감지';
             setTimeout(() => { hdrBtn.textContent = '🎬 Rec.2020'; }, 2000);
@@ -2156,13 +2161,21 @@ function bindElementDrag(el, onMove, onEnd) {
           const nextHdr = !sm.get(P.APP_HDR_TONEMAP);
           sm.set(P.APP_HDR_TONEMAP, nextHdr);
           if (nextHdr && sm.get(P.APP_RENDER_MODE) !== 'webgl') {
-            sm.set(P.APP_RENDER_MODE, 'webgl'); // HDR 켜면 WebGL 자동 켬
+            sm.set(P.APP_RENDER_MODE, 'webgl');
           }
           ApplyReq.hard();
         };
         bindReactive(hdrBtn, [P.APP_HDR_TONEMAP, P.APP_RENDER_MODE], (el, v, rMode) => {
           el.classList.toggle('active', !!(v && rMode === 'webgl'));
-          el.style.opacity = VSC_MEDIA.isHdr ? '1' : '0.4';
+          if (CONFIG.IS_MOBILE) {
+            el.style.opacity = '0.3';
+            el.style.cursor = 'not-allowed';
+            el.title = '모바일 기기 자체 하드웨어 톤맵 사용을 권장합니다.';
+          } else {
+            el.style.opacity = VSC_MEDIA.isHdr ? '1' : '0.4';
+            el.style.cursor = 'pointer';
+            el.title = '';
+          }
         }, sm, sub);
 
         // 3. 편의기능 버튼들
@@ -2232,7 +2245,6 @@ function bindElementDrag(el, onMove, onEnd) {
             const r = h('div', { class: 'prow' });
             r.append(h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '오디오'));
 
-            // 멀티밴드 - Brickwall 종속 UI 처리
             const mb = h('button', { class: 'pbtn', style: 'flex:1' }, '🎚️ 멀티밴드');
             mb.onclick = (e) => { e.stopPropagation(); if(sm.get(P.A_EN)) setAndHint(P.A_MULTIBAND, !sm.get(P.A_MULTIBAND)); };
             bindReactive(mb, [P.A_MULTIBAND, P.A_EN], (el, v, aEn) => {
@@ -2241,7 +2253,6 @@ function bindElementDrag(el, onMove, onEnd) {
               el.style.cursor = aEn ? 'pointer' : 'not-allowed';
             }, sm, sub);
 
-            // LUFS 정규화 - Brickwall 종속 UI 처리
             const lf = h('button', { class: 'pbtn', style: 'flex:1' }, '📊 LUFS 정규화');
             lf.onclick = (e) => { e.stopPropagation(); if(sm.get(P.A_EN)) setAndHint(P.A_LUFS, !sm.get(P.A_LUFS)); };
             bindReactive(lf, [P.A_LUFS, P.A_EN], (el, v, aEn) => {
@@ -2270,7 +2281,7 @@ function bindElementDrag(el, onMove, onEnd) {
               sm.batch('audio', DEFAULTS.audio);
               sm.batch('playback', DEFAULTS.playback);
               sm.set(P.APP_AUTO_SCENE, false);
-              sm.set(P.APP_HDR_TONEMAP, false); // 리셋 시 HDR도 끄기
+              sm.set(P.APP_HDR_TONEMAP, false);
               ApplyReq.hard();
             } }, '↺ 리셋')
           ]),
