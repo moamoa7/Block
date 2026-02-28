@@ -259,7 +259,7 @@
 
     const DEFAULTS = {
       video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 },
-      audio: { enabled: false, boost: 6, multiband: true, lufs: true, dialogue: false },
+      audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false },
       playback: { rate: 1.0, enabled: false },
       app: { active: true, uiVisible: false, applyAll: false, renderMode: 'svg', zoomEn: false, autoScene: false, advanced: false }
     };
@@ -284,7 +284,7 @@
     ];
     const AUDIO_PLAYBACK_SCHEMA = [
       { type: 'bool', path: P.A_EN },
-      { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost },
+      { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 },
       { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE },
       { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
     ];
@@ -1368,7 +1368,7 @@
         n.limiter.connect(lufsMeter.input);
         chain(n.limiter, n.analyser, n.wetGain, n.masterOut);
         n.masterOut.connect(audioCtx.destination);
-        
+
         n._dynamicEQ = dynamicEQ; n._multiband = multiband; n._lufsMeter = lufsMeter; n._loudnessNorm = loudnessNorm; n._dialogueDetector = dialogueDetector;
         return n;
       }
@@ -1450,7 +1450,7 @@
         }
         const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
         if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
-        
+
         const loopInterval = document.hidden ? 500 : 100;
         audioLoopTimerId = setTimeout(() => runAudioLoop(tok), loopInterval);
       }
@@ -1518,11 +1518,11 @@
       let ctx = null;
       try { ctx = c.getContext('2d', { willReadFrequently: true, desynchronized: true, alpha: false, colorSpace: 'srgb' }); } catch (_) { try { ctx = c.getContext('2d', { willReadFrequently: true }); } catch (__) {} }
 
-      function ensureLumaBuffers(AUTO, n) { 
-        if (AUTO._lumaN !== n) { 
-          AUTO._lumaN = n; AUTO._lumaA = new Uint8Array(n); AUTO._lumaB = new Uint8Array(n); AUTO._lumaFlip = 0; AUTO._hadFirstFrame = false; 
+      function ensureLumaBuffers(AUTO, n) {
+        if (AUTO._lumaN !== n) {
+          AUTO._lumaN = n; AUTO._lumaA = new Uint8Array(n); AUTO._lumaB = new Uint8Array(n); AUTO._lumaFlip = 0; AUTO._hadFirstFrame = false;
           AUTO.statsBuf.length = 0; AUTO.statsEma = null;
-        } 
+        }
       }
 
       function medianOf(arr, key) {
@@ -1647,7 +1647,7 @@
       const softClip = (x, knee = 1.0, max = 2.0) => { x = Math.max(0, x); if (x <= knee) return x; const t = (x - knee) / Math.max(1e-6, (max - knee)); return knee + (max - knee) * (1 - Math.exp(-t)); };
       const applyLumaWeight = (bNode, sumNode, v, kMul, stdBase, stdDrop, isK3 = false) => { const vn = softClip(v, 1.0, 2.0), scVal = sCurve(Math.min(1, vn)), extra = Math.max(0, vn - 1), w = (scVal + extra) * kMul; setAttr(bNode, 'stdDeviation', v > 0 ? (stdBase - sCurve(Math.min(1, v)) * stdDrop).toFixed(2) : '0'); setAttr(sumNode, isK3 ? 'k3' : 'k2', w.toFixed(3)); };
       const makeKeyBase = (s) => [ Math.round(s.gain / 0.04), Math.round(s.gamma / 0.01), Math.round(s.contrast / 0.01), Math.round(s.bright / 0.2), Math.round(s.satF / 0.01), Math.round(s.mid / 0.02), Math.round(s.toe / 0.2), Math.round(s.shoulder / 0.2), Math.round(s.temp / 0.2), Math.round(s.sharp / 0.2), Math.round(s.sharp2 / 0.2), Math.round(s.clarity / 0.2) ].join('|');
-      
+
       const _toneStrBuf = new Array(64);
       function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
         const key = `${steps}|${toeN}|${shoulderN}|${midN}|${gain}`; const hit = toneCache.get(key); if (hit) return hit;
@@ -2462,10 +2462,10 @@ return clamp(softClip(color,.18),0.,1.);
         ApplyReq.hard();
       };
 
-      const combinedSignal = (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') 
+      const combinedSignal = (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function')
         ? AbortSignal.any([st._ac.signal, __globalSig]) : st._ac.signal;
       const opts = { passive: true, signal: combinedSignal };
-      
+
       const videoEvents = [
         ['loadstart', softResetTransientFlags],
         ['loadedmetadata', softResetTransientFlags],
@@ -2694,7 +2694,7 @@ return clamp(softClip(color,.18),0.,1.);
 
           const { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos;
           const pick = Targeting.pickFastActiveOnly(visible.videos, window.__lastUserPt, wantAudioNow);
-          
+
           let nextTarget = pick.target;
           if (!nextTarget) { if (__activeTarget) nextTarget = __activeTarget; }
           if (nextTarget !== __activeTarget) __activeTarget = nextTarget;
