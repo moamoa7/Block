@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.62.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.63.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.62.0
+// @version      170.63.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -131,7 +131,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.60.0';
+    const VSC_VERSION = '170.63.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -1566,8 +1566,12 @@ function createTargeting() {
             AUTO._firstUpdateDone = true;
             fps = calculateAdaptiveFps(VSC_CLAMP(sigRaw.motion||0,0,1)); if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 10 : 8);
             let gainT = 1.0, ctT = 1.0, satT = 1.0, sharpScaleT = 1.0;
-            if (sig.bright < 0.25) { const darkIntentionality = 1.0 - VSC_CLAMP(sig.edge / 6, 0, 0.5); gainT = 1.0 + ((0.25 - sig.bright) / 0.25) * 0.20 * darkIntentionality; } else if (sig.bright > 0.75) gainT = 1.0 - ((sig.bright - 0.75) / 0.25) * 0.05;
-            if (sig.contrast < 0.12) ctT = 1.0 + ((0.12 - sig.contrast) / 0.12) * 0.10;
+
+            // --- 암부 감지 로직 강화 (v170.63.0) ---
+            if (sig.bright < 0.30) { const darkIntentionality = 1.0 - VSC_CLAMP(sig.edge / 10, 0, 0.25); gainT = 1.0 + ((0.30 - sig.bright) / 0.30) * 0.40 * darkIntentionality; } else if (sig.bright > 0.75) gainT = 1.0 - ((sig.bright - 0.75) / 0.25) * 0.08;
+            if (sig.contrast < 0.15) ctT = 1.0 + ((0.15 - sig.contrast) / 0.15) * 0.18;
+            // ---------------------------------------
+
             const cCh = Number(sig.chroma || 0); if (cCh < 0.08) satT = 1.0 + ((0.08 - cCh) / 0.08) * 0.12; else if (cCh > 0.35) satT = 1.0 - Math.min((cCh - 0.35) / 0.35, 1.0) * 0.08;
             const edgeVal = Number(sig.edge || 0); if (edgeVal > 12) { sharpScaleT = 1.0 - VSC_CLAMP((edgeVal - 12) / 13, 0, 1) * 0.40; } else if (edgeVal < 4) { sharpScaleT = 1.0 + VSC_CLAMP((4 - edgeVal) / 4, 0, 1) * 0.15; }
             const appDZ = (t, dz) => { const d = Math.abs(t - 1.0); return d < dz ? 1.0 : (t > 1.0 ? 1.0 + (d - dz) : 1.0 - (d - dz)); };
