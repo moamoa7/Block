@@ -2345,13 +2345,24 @@ function createBackendAdapter(Filters, FiltersGL) {
           ApplyReq.hard();
         };
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => {
-          const labels = { auto: '🎨 Auto', webgl: '🎨 WebGL', svg: '🎨 SVG' };
-          const colors = { auto: '#2ecc71', webgl: '#ffaa00', svg: '#88ccff' };
-          el.textContent = labels[v] || labels.auto;
-          el.style.color = colors[v] || colors.auto;
-          el.style.borderColor = colors[v] || colors.auto;
-          el.style.background = 'var(--btn-bg)';
-        }, sm, sub);
+  let actualBackend = '';
+  const activeV = window.__VSC_APP__?.getActiveVideo?.();
+  if (v === 'auto' && activeV) {
+    const st = videoStateMap.get(activeV);
+    // Auto 모드일 때 현재 내부적으로 작동 중인 모드를 괄호로 표시
+    if (st && st.fxBackend) {
+      actualBackend = st.fxBackend === 'webgl' ? ' (WebGL)' : ' (SVG)';
+    }
+  }
+
+  const labels = { auto: `🎨 Auto${actualBackend}`, webgl: '🎨 WebGL Force', svg: '🎨 SVG Force' };
+  const colors = { auto: '#2ecc71', webgl: '#ffaa00', svg: '#88ccff' };
+
+  el.textContent = labels[v] || labels.auto;
+  el.style.color = colors[v] || colors.auto;
+  el.style.borderColor = colors[v] || colors.auto;
+  el.style.background = 'var(--btn-bg)';
+}, sm, sub);
 
         const hdrBtn = h('button', { class: 'btn' }, '🎬 Rec.2020');
         hdrBtn.onclick = (e) => {
