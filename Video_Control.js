@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.87.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.88.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.87.0
+// @version      170.88.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -425,12 +425,18 @@
       const wrap = (name) => {
         const orig = history[name];
         if (typeof orig !== 'function') return;
+        if (orig.__vsc_wrapped) return;
         const wrapped = function (...args) {
           const ret = Reflect.apply(orig, this, args);
           queueMicrotask(emitIfChanged);
           return ret;
         };
-        Object.defineProperty(history, name, { value: wrapped, configurable: true, writable: true, enumerable: true });
+        wrapped.__vsc_wrapped = true;
+        try {
+          Object.defineProperty(history, name, { value: wrapped, configurable: true, writable: true, enumerable: true });
+        } catch (_) {
+          try { history[name] = wrapped; } catch (__) {}
+        }
       };
       wrap('pushState'); wrap('replaceState');
       on(window, 'popstate', emitIfChanged, OPT_P);
@@ -465,7 +471,16 @@
         if (rafId) return;
         rafId = requestAnimationFrame(run);
       }
-      function timerCb() { timer = 0; queueRaf(); }
+      function timerCb() {
+        timer = 0;
+        const now = performance.now();
+        const dt = now - lastRun;
+        if (dt >= minIntervalMs || force) {
+          run();
+        } else {
+          queueRaf();
+        }
+      }
       function run() {
         rafId = 0; queued = false;
         const now = performance.now();
@@ -511,23 +526,34 @@
         }
       } catch (_) {}
 
-      let _saveFailed = false;
-      const savePrefs = createDebounced(() => {
-        if (_saveFailed) return;
+      let _saveFailCount = 0;
+      const MAX_SAVE_RETRIES = 5;
+
+      function _doSave() {
+        if (_saveFailCount >= MAX_SAVE_RETRIES) return;
         try {
           const json = JSON.stringify(state);
           if (json.length > 8192) { log.warn('Settings too large, skipping save'); return; }
           localStorage.setItem('vsc_user_prefs_v1', json);
+          _saveFailCount = 0;
         } catch (e) {
           try {
             localStorage.removeItem('vsc_user_prefs_v1');
             localStorage.setItem('vsc_user_prefs_v1', JSON.stringify(state));
+            _saveFailCount = 0;
           } catch (_) {
-            _saveFailed = true;
-            log.warn('Settings save permanently failed - localStorage unavailable');
+            _saveFailCount++;
+            if (_saveFailCount >= MAX_SAVE_RETRIES) {
+              log.warn('Settings save disabled after repeated failures');
+            }
           }
         }
-      }, 1000);
+      }
+
+      const savePrefs = createDebounced(() => { _doSave(); }, 1000);
+
+      window.addEventListener('beforeunload', () => { savePrefs.cancel(); _doSave(); }, { once: true });
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') _doSave(); }, { passive: true });
 
       const emit = (path, val) => {
         const cbs = listeners.get(path);
@@ -581,8 +607,7 @@
         destroy: () => { savePrefs.cancel(); listeners.clear(); }
       };
     }
-
-    function normalizeBySchema(sm, schema) {
+function normalizeBySchema(sm, schema) {
       let changed = false;
       const set = (path, val) => {
         if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; }
@@ -914,8 +939,8 @@
 
       return { resetZoom, zoomTo, isZoomed, destroy: () => { if (rafId) cancelAnimationFrame(rafId); rafId = null; } };
     }
-// --- PART 1 END ---
-function createTargeting() {
+
+    function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
         const now = performance.now();
@@ -1141,7 +1166,6 @@ function createTargeting() {
           }
         };
 
-        let budgetCheckCount = 0;
         const drain = (dl) => {
           scheduled = false;
           activeSet.clear();
@@ -1149,9 +1173,10 @@ function createTargeting() {
           pending.length = 0;
           const start = performance.now();
           const isInputPending = navigator.scheduling?.isInputPending?.bind(navigator.scheduling);
+          let checkCount = 0;
           const budget = dl?.timeRemaining
-            ? () => dl.timeRemaining() > 2 && (++budgetCheckCount % 8 !== 0 || !(isInputPending?.()))
-            : () => (performance.now() - start) < 6 && (++budgetCheckCount % 8 !== 0 || !(isInputPending?.()));
+            ? () => dl.timeRemaining() > 2 && (++checkCount % 8 !== 0 || !(isInputPending?.()))
+            : () => (performance.now() - start) < 6 && (++checkCount % 8 !== 0 || !(isInputPending?.()));
 
           for (let i = 0; i < active.length; i++) {
             if (!budget()) {
@@ -1202,7 +1227,18 @@ function createTargeting() {
         prune: () => {
           for (const [root, mo] of observerMap) {
             if (root === document) continue;
-            if (!root.host?.isConnected) { mo.disconnect(); observerMap.delete(root); }
+            const host = root.host;
+            if (!host || !host.isConnected) {
+              mo.disconnect(); observerMap.delete(root);
+              for (const v of videos) {
+                try {
+                  if (v.getRootNode() === root) {
+                    videos.delete(v); visible.videos.delete(v); dirtyA.videos.delete(v); dirtyB.videos.delete(v);
+                    safe(() => { if(io) io.unobserve(v); ro?.unobserve(v); });
+                  }
+                } catch (_) {}
+              }
+            }
           }
           const removed = pruneDisconnected(videos, visible.videos, dirtyA.videos, (el) => { if (io) io.unobserve(el); });
           pruneDisconnected(videos, visible.videos, dirtyB.videos, () => {});
@@ -1255,11 +1291,9 @@ function createTargeting() {
       }
       return curve;
     })();
-    function getSoftClipCurve() { return _softClipCurve; }
 
     function chain(...nodes) {
       for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]);
-      return { input: nodes[0], output: nodes[nodes.length - 1] };
     }
 
     const globalSrcMap = new WeakMap();
@@ -1440,7 +1474,7 @@ function createTargeting() {
 
       function buildAudioGraph(audioCtx) {
         const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), hpf: mkBQ(audioCtx, 'highpass', 20, 0.707), limiter: mkComp(audioCtx, -1.0, 0.0, 20.0, 0.003, 0.12), clipper: audioCtx.createWaveShaper() };
-        n.clipper.curve = getSoftClipCurve(); try { n.clipper.oversample = '4x'; } catch (_) {}
+        n.clipper.curve = _softClipCurve; try { n.clipper.oversample = '4x'; } catch (_) {}
         const dynamicEQ = createDynamicCinemaEQ(audioCtx), multiband = buildMultibandDynamics(audioCtx), lufsMeter = createLUFSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, lufsMeter);
         n._dialogueProfile = createDialogueBoostProfile();
         n.wetInGain = loudnessNorm.node;
@@ -1579,28 +1613,54 @@ function createTargeting() {
               disconnectAll();
               if (intentToken !== switchTok) return;
               target = v; if (!v) { updateMix(); return; }
-              try {
-                let s = globalSrcMap.get(v);
-                if (s) { try { if (s.context !== ctx || s.context.state === 'closed') s = null; } catch (_) { s = null; } }
-                if (!s) { s = ctx.createMediaElementSource(v); globalSrcMap.set(v, s); }
-                s.connect(inputGain); currentSrc = s;
-              } catch (_) {
-                if (st) st.audioFailUntil = performance.now() + SYS.WFC;
-                disconnectAll();
+              let s = globalSrcMap.get(v);
+              let reusable = false;
+              if (s) {
+                try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) { reusable = false; }
+                if (!reusable) {
+                  try { s.disconnect(); } catch (_) {}
+                  globalSrcMap.delete(v); s = null;
+                }
               }
+              if (!s) {
+                try {
+                  s = ctx.createMediaElementSource(v);
+                  globalSrcMap.set(v, s);
+                } catch (e) {
+                  log.warn('createMediaElementSource failed:', e.message);
+                  if (st) st.audioFailUntil = performance.now() + SYS.WFC;
+                  disconnectAll();
+                  updateMix();
+                  return;
+                }
+              }
+              s.connect(inputGain); currentSrc = s;
               updateMix();
             });
           } else if (v !== null && !currentSrc) {
             target = v;
-            try {
-              let s = globalSrcMap.get(v);
-              if (s) { try { if (s.context !== ctx || s.context.state === 'closed') s = null; } catch (_) { s = null; } }
-              if (!s) { s = ctx.createMediaElementSource(v); globalSrcMap.set(v, s); }
-              s.connect(inputGain); currentSrc = s;
-            } catch (_) {
-              if (st) st.audioFailUntil = performance.now() + SYS.WFC;
-              disconnectAll();
+            let s = globalSrcMap.get(v);
+            let reusable = false;
+            if (s) {
+              try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) { reusable = false; }
+              if (!reusable) {
+                try { s.disconnect(); } catch (_) {}
+                globalSrcMap.delete(v); s = null;
+              }
             }
+            if (!s) {
+              try {
+                s = ctx.createMediaElementSource(v);
+                globalSrcMap.set(v, s);
+              } catch (e) {
+                log.warn('createMediaElementSource failed:', e.message);
+                if (st) st.audioFailUntil = performance.now() + SYS.WFC;
+                disconnectAll();
+                updateMix();
+                return;
+              }
+            }
+            s.connect(inputGain); currentSrc = s;
             updateMix();
           } else if (v === null) {
             fadeOutThen(() => { disconnectAll(); updateMix(); });
@@ -1609,7 +1669,6 @@ function createTargeting() {
         update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy
       };
     }
-// --- PART 2 END ---
 const appAsym = (c, t, au, ad) => {
       const d = t - c;
       if (Math.abs(d) < 0.002) return t;
@@ -1621,7 +1680,7 @@ const appAsym = (c, t, au, ad) => {
       const AUTO = {
         running: false, canvasW: 80, canvasH: 45, cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 },
         lastSig: null, cutScoreEma: 0.10, cutScoreBaseline: 0.05, motionEma: 0, motionAlpha: 0.30, motionThresh: 0.012, motionFrames: 0, motionMinFrames: 5,
-        statsEma: null, statsAlpha: 0.18, drmBlocked: false, blockUntilMs: 0, _drmSuccessCount: 0, _drmBackoffCount: 0,
+        statsEma: null, statsAlpha: 0.18, drmBlocked: false, blockUntilMs: 0, _drmSuccessCount: 0, _drmBackoffCount: 0, _permanentlyDisabled: false, _lastVideoRef: null,
         tBoostUntil: 0, tBoostStart: 0, boostMs: 400, minBoostEarlyMs: 500, changeEma: 0, minFps: 4, maxFps: 12, curFps: 4,
         _lumaN: 0, _lumaA: null, _lumaB: null, _lumaFlip: 0, statsBuf: [], _hadFirstFrame: false, _firstUpdateDone: false
       };
@@ -1742,6 +1801,22 @@ const appAsym = (c, t, au, ad) => {
         if (!AUTO.running) return;
         const now = performance.now(), en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
         const v = window[Symbol.for('__VSC_170__')]?.App?.getActiveVideo?.();
+
+        if (v && AUTO._lastVideoRef !== v) {
+          AUTO._lastVideoRef = v;
+          if (AUTO._permanentlyDisabled) {
+            AUTO._drmBackoffCount = 0;
+            AUTO._drmSuccessCount = 0;
+            AUTO.drmBlocked = false;
+            AUTO.blockUntilMs = 0;
+            AUTO._permanentlyDisabled = false;
+            AUTO._hadFirstFrame = false;
+            AUTO.statsEma = null;
+            AUTO.statsBuf.length = 0;
+            log.info('Auto Scene: reset DRM state for new video');
+          }
+        }
+
         if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; AUTO.running = false; Scheduler.request(true); return; }
         if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; }
         if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) { safe(() => Scheduler.request(true)); scheduleNext(v, 120); return; }
@@ -1786,7 +1861,8 @@ const appAsym = (c, t, au, ad) => {
           AUTO.blockUntilMs = performance.now() + backoffMs;
           if (AUTO._drmBackoffCount >= 5) {
             AUTO.running = false;
-            log.warn('Auto Scene disabled: DRM content detected');
+            AUTO._permanentlyDisabled = true;
+            log.warn('Auto Scene disabled: DRM content detected (will retry on video change)');
             return;
           }
           scheduleNext(v, Math.max(2000, backoffMs));
@@ -1843,15 +1919,38 @@ const appAsym = (c, t, au, ad) => {
       const makeKeyBase = (s) => [ Math.round(s.gain / 0.04), Math.round(s.gamma / 0.01), Math.round(s.contrast / 0.01), Math.round(s.bright / 0.2), Math.round(s.satF / 0.01), Math.round(s.mid / 0.02), Math.round(s.toe / 0.2), Math.round(s.shoulder / 0.2), Math.round(s.temp / 0.2), Math.round(s.sharp / 0.2), Math.round(s.sharp2 / 0.2), Math.round(s.clarity / 0.2) ].join('|');
 
       function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
-        const key = `${steps}|${toeN}|${shoulderN}|${midN}|${gain}`; const hit = toneCache.get(key); if (hit) return hit;
-        if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) { const res0 = '0 1'; toneCache.set(key, res0); return res0; }
-        const curve = computeToneCurve(steps, toeN, midN, shoulderN, gain);
+        const key = `${steps}|${toeN}|${shoulderN}|${midN}|${gain}`;
+        const hit = toneCache.get(key);
+        if (hit) return hit;
+        if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) {
+          const res0 = '0 1';
+          toneCache.set(key, res0);
+          return res0;
+        }
         const arr = new Array(steps);
+        const clamp = VSC_CLAMP;
+        const g = Math.log2(Math.max(1e-6, gain)) * 0.90;
+        const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
+        const useExp = Math.abs(denom) > 1e-6;
+        const toeEnd = 0.34 + Math.abs(toeN) * 0.06;
+        const toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1;
+        const shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN);
+        let prev = 0;
         for (let i = 0; i < steps; i++) {
-          const y = Math.round(curve[i] * 100000) / 100000;
+          const x0 = i / (steps - 1);
+          let x = useExp ? (1 - Math.exp(-g * x0)) / denom : x0;
+          x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
+          if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); }
+          if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); }
+          if (x <= prev) { const eps = Math.min(1e-5, (1.0 - prev) * 0.5); x = eps > 0 ? prev + eps : prev; }
+          x = Math.min(x, 1.0);
+          prev = x;
+          const y = Math.round(x * 100000) / 100000;
           arr[i] = y === 1 ? '1' : y === 0 ? '0' : String(y);
         }
-        const res = arr.join(' '); toneCache.set(key, res); return res;
+        const res = arr.join(' ');
+        toneCache.set(key, res);
+        return res;
       }
       const SVG_MAX_PIX_FAST = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
       function calcFilterRes(vw, vh, maxPix) { vw = vw | 0; vh = vh | 0; if (vw <= 0 || vh <= 0 || maxPix <= 0) return ''; const px = vw * vh; if (px <= maxPix) return `${vw} ${vh}`; const s = Math.sqrt(maxPix / px); return `${Math.max(1, Math.round(vw * s))} ${Math.max(1, Math.round(vh * s))}`; }
@@ -2043,40 +2142,45 @@ return clamp(softClip(color,.18),0.,1.);
         return sources;
       }
 
-      const _sharpResult = { amount: 0, tapMode: 1, desatSat: 1, biasMix: 0, edgeDampMix: 0.4 };
-      /**
-       * @returns {Object} 내부 재사용 객체 — 동기 사용 전용. 참조 보존 금지.
-       * @warning 반환값을 저장하지 마세요. 다음 호출 시 값이 변합니다.
-       */
       function getSharpProfile(vVals, rawW, rawH, isHdr) {
-        _sharpResult.amount = 0; _sharpResult.tapMode = 1; _sharpResult.desatSat = 1; _sharpResult.biasMix = 0; _sharpResult.edgeDampMix = 0.4;
+        let amount = 0, tapMode = 1, desatSat = 1, biasMix = 0, edgeDampMix = 0.4;
         const s1 = Number(vVals.sharp || 0), s2 = Number(vVals.sharp2 || 0), cl = Number(vVals.clarity || 0);
-        if (s1 <= 0.01 && s2 <= 0.01 && cl <= 0.01) return _sharpResult;
+        if (s1 <= 0.01 && s2 <= 0.01 && cl <= 0.01) return { amount, tapMode, desatSat, biasMix, edgeDampMix };
         let level = 'S'; const isXL = (s1 >= 18 && s2 >= 16 && cl >= 24); if (isXL) level = 'XL'; else if (s1 >= 14 && (s2 >= 10 || cl >= 14)) level = 'L'; else if (s1 >= 10 && (s2 >= 6  || cl >= 8 )) level = 'M';
         const rawPx = rawW * rawH, pxScale = Math.sqrt(Math.max(1, rawPx) / (1280 * 720)), hiResN = clamp01((pxScale - 1.0) / 1.7), n1 = clamp01(s1 / 18.0), n2 = clamp01(s2 / 16.0), n3 = clamp01(cl / 24.0); let base = clamp01((0.58 * n1) + (0.28 * n2) + (0.24 * n3));
-        let scale = 1.0, cap = 1.0, desatSat = 0.88, biasMix = 0.40, edgeDampMix = 0.33;
+        let scale = 1.0, cap = 1.0;
         if (level === 'S') { scale = 0.78; cap = 0.55; desatSat = 0.90; biasMix = 0.30; edgeDampMix = 0.38; } else if (level === 'M') { scale = 0.92; cap = 0.68; desatSat = 0.88; biasMix = 0.38; edgeDampMix = 0.33; } else if (level === 'L') { scale = 1.08; cap = 0.80; desatSat = 0.86; biasMix = 0.46; edgeDampMix = 0.28; } else { scale = 1.26; cap = 0.92; desatSat = 0.84; biasMix = 0.60; edgeDampMix = 0.22; }
-        let amount = clamp01(base * scale); if (amount > cap) amount = cap; amount *= (1.0 - 0.25 * hiResN); if (rawPx >= 3840 * 2160) amount *= 0.80;
+        amount = clamp01(base * scale); if (amount > cap) amount = cap; amount *= (1.0 - 0.25 * hiResN); if (rawPx >= 3840 * 2160) amount *= 0.80;
 
         const hdrActive = isHdr && !!vVals._hdrToneMap;
         if (hdrActive) amount *= 0.88;
         else if (isHdr) amount *= 0.95;
 
-        _sharpResult.amount = amount;
-        _sharpResult.tapMode = ((rawPx >= (2560 * 1440) && amount < 0.80) || (amount < 0.12)) ? 1.0 : 0.0;
-        _sharpResult.desatSat = desatSat;
-        _sharpResult.biasMix = biasMix;
-        _sharpResult.edgeDampMix = edgeDampMix;
-        return _sharpResult;
+        tapMode = ((rawPx >= (2560 * 1440) && amount < 0.80) || (amount < 0.12)) ? 1.0 : 0.0;
+        return { amount, tapMode, desatSat, biasMix, edgeDampMix };
       }
+
       class WebGLPipeline {
         constructor() {
           this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._initialStyleSynced = false; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0; this._contextLostCount = 0; this._suspended = false; this._lastRenderT = 0; this._styleRafPending = false; this._gpuTierEma = 0; this._paramsDirty = false;
           this._toneLutBuf = new Uint8Array(256 * 4);
           this._recoveryController = null;
-          this._onContextLost = (e) => { e.preventDefault(); const now = performance.now(); this._contextLostCount = (this._contextLostCount || 0) + 1; this.active = false; this._loopToken++; this._loopRunning = false; if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; } try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {} try { const st = this.video ? getVState(this.video) : null; if (st) st.webglDisabledUntil = now + SYS.WFC; } catch (_) {} this._recoveryController?.abort(); this._recoveryController = new AbortController(); const delay = Math.min(30000, 3000 * Math.pow(1.5, this._contextLostCount)); this.disabledUntil = now + delay; setTimeout(() => { if (!this._recoveryController.signal.aborted) { this.disabledUntil = 0; safe(() => window[Symbol.for('__VSC_170__')]?.ApplyReq?.hard()); } }, delay); safe(() => window[Symbol.for('__VSC_170__')]?.ApplyReq?.hard()); };
+          this._onContextLost = (e) => {
+            e.preventDefault(); const now = performance.now();
+            this._contextLostCount = Math.min((this._contextLostCount || 0) + 1, 8);
+            this.active = false; this._loopToken++; this._loopRunning = false;
+            if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; }
+            try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {}
+            try { const st = this.video ? getVState(this.video) : null; if (st) st.webglDisabledUntil = now + SYS.WFC; } catch (_) {}
+            this._recoveryController?.abort(); this._recoveryController = new AbortController();
+            const delay = Math.min(30000, 3000 * Math.pow(1.5, this._contextLostCount));
+            this.disabledUntil = now + delay;
+            setTimeout(() => { if (!this._recoveryController.signal.aborted) { this.disabledUntil = 0; safe(() => window[Symbol.for('__VSC_170__')]?.ApplyReq?.hard()); } }, delay);
+            safe(() => window[Symbol.for('__VSC_170__')]?.ApplyReq?.hard());
+          };
           this._onContextRestored = () => {
             try {
+              this._contextLostCount = Math.max(0, (this._contextLostCount || 0) - 1);
               const newToken = ++this._loopToken; this._loopRunning = false;
               if (this._timerId) { clearTimeout(this._timerId); this._timerId = 0; }
               if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = 0; }
@@ -2184,17 +2288,43 @@ return clamp(softClip(color,.18),0.,1.);
           if (!this._styleDirty) return;
           this._styleDirty = false;
           if (!this.canvas || !this.video) return;
-          const vs = window.getComputedStyle(this.video), cs = this.canvas.style;
-          cs.objectFit = vs.objectFit || 'contain';
-          cs.objectPosition = vs.objectPosition;
-          const tr = vs.transform;
-          cs.transform = (tr && tr !== 'none') ? tr : '';
-          cs.transformOrigin = vs.transformOrigin || '';
+
+          const vs = window.getComputedStyle(this.video);
+          const objectFit = vs.objectFit || 'contain';
+          const objectPosition = vs.objectPosition;
+          const transform = vs.transform;
+          const transformOrigin = vs.transformOrigin || '';
+          const vz = vs.zIndex;
+          let borderRadius, clipPath, webkitClipPath, mixBlendMode, isolation;
+          if (!this._initialStyleSynced) {
+            borderRadius = vs.borderRadius || '';
+            clipPath = vs.clipPath || '';
+            webkitClipPath = vs.webkitClipPath || '';
+            mixBlendMode = vs.mixBlendMode || '';
+            isolation = vs.isolation || '';
+          }
+
+          const cs = this.canvas.style;
+          cs.objectFit = objectFit;
+          cs.objectPosition = objectPosition;
+          cs.transform = (transform && transform !== 'none') ? transform : '';
+          cs.transformOrigin = transformOrigin;
+
           if (!this._initialStyleSynced) {
             this._initialStyleSynced = true;
-            cs.borderRadius = vs.borderRadius || ''; cs.clipPath = vs.clipPath || ''; cs.webkitClipPath = vs.webkitClipPath || ''; cs.mixBlendMode = vs.mixBlendMode || ''; cs.isolation = vs.isolation || '';
+            cs.borderRadius = borderRadius;
+            cs.clipPath = clipPath;
+            cs.webkitClipPath = webkitClipPath;
+            cs.mixBlendMode = mixBlendMode;
+            cs.isolation = isolation;
           }
-          const vz = vs.zIndex; let zi = '1'; if (vz && vz !== 'auto') { const n = parseInt(vz, 10); if (Number.isFinite(n)) { zi = String(Math.min(n + 1, 2147483646)); } } if (cs.zIndex !== zi) cs.zIndex = zi;
+
+          let zi = '1';
+          if (vz && vz !== 'auto') {
+            const n = parseInt(vz, 10);
+            if (Number.isFinite(n)) zi = String(Math.min(n + 1, 2147483646));
+          }
+          if (cs.zIndex !== zi) cs.zIndex = zi;
         }
         render() {
           if (!this.active || !this.gl || !this.video || !this.vVals) return; const gl = this.gl, video = this.video, now = performance.now(); if (now < this.disabledUntil) return;
@@ -2279,8 +2409,8 @@ return clamp(softClip(color,.18),0.,1.);
       }
       return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } pipe._paramsDirty = true; pipe._toneKey = ''; pipe.activeProgramKind = ''; } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } }, __getPipeline: (el) => pipelines.get(el) || null };
     }
-// --- PART 3 END ---
-function probeWebGLCapability() {
+
+    function probeWebGLCapability() {
       if (probeWebGLCapability._result !== undefined) return probeWebGLCapability._result;
       const result = { supported: false, tier: 'none', maxTextureSize: 0, failReason: '' };
       try {
@@ -2333,7 +2463,10 @@ function probeWebGLCapability() {
     function createBackendAdapter(Filters, FiltersGL) {
       let activeContextCount = 0;
       const fallbackTracker = new WeakMap();
+      const _backendChangeListeners = new Set();
       return {
+        onBackendChange(fn) { _backendChangeListeners.add(fn); return () => _backendChangeListeners.delete(fn); },
+        _notifyBackendChange(video, mode) { for (const fn of _backendChangeListeners) safe(() => fn(video, mode)); },
         apply(video, storeMode, vVals) {
           const st = getVState(video); const now = performance.now();
           const effectiveRequestedMode = resolveRenderMode(storeMode, video, st);
@@ -2359,6 +2492,7 @@ function probeWebGLCapability() {
                 fallbackTracker.set(video, tracker);
                 Filters.applyUrl(video, Filters.prepareCached(video, vVals));
                 st.fxBackend = 'svg';
+                this._notifyBackendChange(video, 'svg');
                 return;
               }
 
@@ -2394,6 +2528,7 @@ function probeWebGLCapability() {
                 }
               }
               st.fxBackend = 'webgl';
+              this._notifyBackendChange(video, 'webgl');
           } else {
               if (prevBackend === 'webgl') {
                 FiltersGL.clear(video);
@@ -2404,6 +2539,7 @@ function probeWebGLCapability() {
               const svgResult = Filters.prepareCached(video, vVals);
               Filters.applyUrl(video, { url: svgResult.url, changed: (prevBackend === 'webgl') });
               st.fxBackend = 'svg';
+              this._notifyBackendChange(video, 'svg');
           }
         },
         clear(video) {
@@ -2411,11 +2547,11 @@ function probeWebGLCapability() {
           if (st.fxBackend === 'webgl') { activeContextCount = Math.max(0, activeContextCount - 1); FiltersGL.clear(video); }
           else if (st.fxBackend === 'svg') { Filters.clear(video); }
           st.fxBackend = null;
+          this._notifyBackendChange(video, null);
         }
       };
     }
-
-    function bindElementDrag(el, onMove, onEnd) {
+function bindElementDrag(el, onMove, onEnd) {
       const ac = new AbortController();
       const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); };
       const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); };
@@ -2540,7 +2676,12 @@ function probeWebGLCapability() {
       const syncVVVars = () => {
         try {
           const root = document.documentElement, vv = window.visualViewport;
-          if (!root || !vv) return;
+          if (!root) return;
+          if (!vv) {
+            root.style.setProperty('--__vsc170-vv-top', '0px');
+            root.style.setProperty('--__vsc170-vv-h', `${window.innerHeight}px`);
+            return;
+          }
           root.style.setProperty('--__vsc170-vv-top', `${Math.round(vv.offsetTop)}px`);
           root.style.setProperty('--__vsc170-vv-h', `${Math.round(vv.height)}px`);
         } catch (_) {}
@@ -2596,6 +2737,24 @@ function probeWebGLCapability() {
           ApplyReq.hard();
         };
 
+        const syncAutoLabel = () => {
+          if (sm.get(P.APP_RENDER_MODE) !== 'auto') return;
+          const activeV = window[Symbol.for('__VSC_170__')]?.App?.getActiveVideo?.();
+          if (!activeV) return;
+          const st = getVState(activeV);
+          if (st?.fxBackend) {
+            const suffix = st.fxBackend === 'webgl' ? ' (WebGL)' : ' (SVG)';
+            rmBtn.textContent = `🎨 Auto${suffix}`;
+          }
+        };
+
+        if (__vscNs.Adapter?.onBackendChange) {
+          const unsub = __vscNs.Adapter.onBackendChange(() => syncAutoLabel());
+          uiUnsubs.push(unsub);
+        }
+        sub(P.APP_RENDER_MODE, syncAutoLabel);
+        sub(P.APP_ACT, syncAutoLabel);
+
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => {
           const labels = { auto: '🎨 Auto', webgl: '🎨 WebGL Force', svg: '🎨 SVG Force' };
           const colors = { auto: '#2ecc71', webgl: '#ffaa00', svg: '#88ccff' };
@@ -2603,26 +2762,8 @@ function probeWebGLCapability() {
           el.style.color = colors[v] || colors.auto;
           el.style.borderColor = colors[v] || colors.auto;
           el.style.background = 'var(--btn-bg)';
+          if (v === 'auto') queueMicrotask(syncAutoLabel);
         }, sm, sub);
-
-        const startAutoBackendWatcher = () => {
-          if (!rmBtn.isConnected) return;
-          if (sm.get(P.APP_RENDER_MODE) === 'auto') {
-            const activeV = window[Symbol.for('__VSC_170__')]?.App?.getActiveVideo?.();
-            if (activeV) {
-              const st = getVState(activeV);
-              if (st && st.fxBackend) {
-                const suffix = st.fxBackend === 'webgl' ? ' (WebGL)' : ' (SVG)';
-                const expectedText = `🎨 Auto${suffix}`;
-                if (rmBtn.textContent !== expectedText) {
-                  rmBtn.textContent = expectedText;
-                }
-              }
-            }
-          }
-          setTimeout(startAutoBackendWatcher, 500);
-        };
-        queueMicrotask(startAutoBackendWatcher);
 
         const hdrBtn = h('button', { class: 'btn' }, '🎬 Rec.2020');
         hdrBtn.onclick = (e) => {
@@ -2923,7 +3064,8 @@ function probeWebGLCapability() {
       const immediate = vids.filter(v => v.isConnected && getVState(v).visible);
       const deferred = vids.filter(v => !immediate.includes(v));
       for (const v of immediate) onEvictVideo(v);
-      for (const v of rateVids) onEvictRateVideo(v);
+      for (const v of rateVids
+) onEvictRateVideo(v);
       if (deferred.length > 0) {
         const cleanup = (deadline) => {
           while (deferred.length > 0) {
@@ -2977,10 +3119,8 @@ function probeWebGLCapability() {
       touchedAdd(TOUCHED.rateVideos, el);
     }
 
-    const _reconcileCandidates = new Set();
     function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, storeRMode, ApplyReq }) {
-      const candidates = _reconcileCandidates;
-      candidates.clear();
+      const candidates = new Set();
       for (const set of [dirtyVideos, TOUCHED.videos, TOUCHED.rateVideos, applySet]) {
         for (const v of set) if (v?.tagName === 'VIDEO') candidates.add(v);
       }
@@ -2996,7 +3136,6 @@ function probeWebGLCapability() {
         if (pbActive) { applyPlaybackRate(el, desiredRate); } else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
         bindVideoOnce(el, ApplyReq);
       }
-      candidates.clear();
     }
 
     function createVideoParamsMemo(Store, P) {
@@ -3028,9 +3167,7 @@ function probeWebGLCapability() {
     }
 
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
-      UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure();
-Scheduler.request(true);
-      });
+      UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
       let __activeTarget = null, __lastAudioTarget = null, lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0, qualityScale = 1.0, lastQCheck = 0, __lastQSample = { dropped: 0, total: 0 };
       const videoParamsMemo = createVideoParamsMemo(Store, P);
@@ -3066,7 +3203,7 @@ Scheduler.request(true);
         } catch (_) {}
         return qualityScale;
       }
-      const _applySetReuse = new Set();
+
       Scheduler.registerApply((force) => {
         try {
           const active = !!Store.getCatRef('app').active; if (!active) { cleanupTouched(TOUCHED); Audio.update(); return; }
@@ -3108,7 +3245,8 @@ Scheduler.request(true);
             vValsEffective = autoSceneVVals;
           }
           const videoFxOn = !isNeutralVideoParams(vValsEffective); const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
-          const applySet = _applySetReuse; applySet.clear();
+
+          const applySet = new Set();
           if (applyToAllVisibleVideos) { for (const v of visible.videos) applySet.add(v); } else if (__activeTarget) { applySet.add(__activeTarget); }
 
           const desiredRate = Store.get(P.PB_RATE);
@@ -3118,27 +3256,30 @@ Scheduler.request(true);
       });
 
       let tickTimer = 0;
+      let tickVisibilityHandler = null;
+
       const startTick = () => {
         if (tickTimer) return;
-        const onVisible = () => {
+        tickVisibilityHandler = () => {
           if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) {
             Scheduler.request(false);
           }
         };
-        document.addEventListener('visibilitychange', onVisible, { passive: true });
+        document.addEventListener('visibilitychange', tickVisibilityHandler, { passive: true });
         tickTimer = setInterval(() => {
           if (!Store.get(P.APP_ACT) || document.hidden) return;
           Scheduler.request(false);
         }, 30000);
-        tickTimer.__onVisible = onVisible;
       };
+
       const stopTick = () => {
         if (!tickTimer) return;
         clearInterval(tickTimer);
-        if (tickTimer.__onVisible) {
-          document.removeEventListener('visibilitychange', tickTimer.__onVisible);
-        }
         tickTimer = 0;
+        if (tickVisibilityHandler) {
+          document.removeEventListener('visibilitychange', tickVisibilityHandler);
+          tickVisibilityHandler = null;
+        }
       };
 
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); });
