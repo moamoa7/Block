@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.89.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.90.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.89.0
+// @version      170.90.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -632,7 +632,8 @@
         destroy: () => { savePrefs.cancel(); listeners.clear(); }
       };
     }
-function normalizeBySchema(sm, schema) {
+
+    function normalizeBySchema(sm, schema) {
       let changed = false;
       const set = (path, val) => {
         if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; }
@@ -1032,8 +1033,7 @@ function normalizeBySchema(sm, schema) {
       }
       return Object.freeze({ pickFastActiveOnly });
     }
-
-    function createRegistry(scheduler) {
+function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
       let __refreshQueued = false;
@@ -1145,7 +1145,11 @@ function normalizeBySchema(sm, schema) {
 
       const observeVideo = (el) => {
         if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
+        const wasEmpty = (videos.size === 0);
         videos.add(el);
+        if (wasEmpty) {
+          queueMicrotask(() => { safe(() => __vscNs.UIEnsure?.()); });
+        }
         if (io) io.observe(el);
         else {
           const st = getVState(el); st.visible = true;
@@ -1437,7 +1441,6 @@ function normalizeBySchema(sm, schema) {
         };
 
         function measure() {
-          const now = actx.currentTime;
           const actualWindowSec = meterAnalyser.fftSize / (actx.sampleRate || 48000);
           const dt = actualWindowSec;
           meterAnalyser.getFloatTimeDomainData(buffer);
@@ -2513,7 +2516,8 @@ return clamp(softClip(color,.18),0.,1.);
       }
       return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } pipe._paramsDirty = true; pipe._toneKey = ''; pipe.activeProgramKind = ''; } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } }, __getPipeline: (el) => pipelines.get(el) || null };
     }
-function probeWebGLCapability() {
+
+    function probeWebGLCapability() {
       if (probeWebGLCapability._result !== undefined) return probeWebGLCapability._result;
       const result = { supported: false, tier: 'none', maxTextureSize: 0, failReason: '' };
       try {
@@ -2654,7 +2658,7 @@ function probeWebGLCapability() {
         }
       };
     }
-    function bindElementDrag(el, onMove, onEnd) {
+function bindElementDrag(el, onMove, onEnd) {
       const ac = new AbortController();
       const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); };
       const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); };
@@ -2670,7 +2674,23 @@ function probeWebGLCapability() {
       const uiUnsubs = [];
       const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
       const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
-      const allowUiInThisDoc = () => { if (registry.videos.size > 0) return true; return !!document.querySelector('video, object, embed'); };
+
+      const allowUiInThisDoc = () => {
+        if (registry.videos.size > 0) return true;
+        if (document.querySelector('video, object, embed')) return true;
+        if (document.querySelector('[class*=player],[class*=Player],[id*=player],[id*=Player],[class*=video],[class*=Video],[data-player],[data-module]')) return true;
+        try {
+          const candidates = document.querySelectorAll('*');
+          for (let i = 0, len = Math.min(candidates.length, 200); i < len; i++) {
+            const el = candidates[i];
+            if (el.shadowRoot) {
+              const sv = el.shadowRoot.querySelector('video');
+              if (sv) return true;
+            }
+          }
+        } catch (_) {}
+        return false;
+      };
 
       safe(() => {
         if (typeof CSS === 'undefined' || !CSS.registerProperty) return;
@@ -2844,8 +2864,7 @@ function probeWebGLCapability() {
         if (__vscNs.Adapter?.onBackendChange) {
           const unsub = __vscNs.Adapter.onBackendChange((video, mode) => {
             if (sm.get(P.APP_RENDER_MODE) !== 'auto') return;
-            const activeV = window[Symbol.for('__VSC_170__')]?.App?.getActiveVideo?.();
-            if (video !== activeV || !mode) return;
+            if (!mode) return;
             const suffix = mode === 'webgl' ? ' (WebGL)' : ' (SVG)';
             rmBtn.textContent = `🎨 Auto${suffix}`;
           });
@@ -2865,6 +2884,9 @@ function probeWebGLCapability() {
 
         sub(P.APP_RENDER_MODE, syncAutoLabel);
         sub(P.APP_ACT, syncAutoLabel);
+
+        setTimeout(syncAutoLabel, 300);
+        setTimeout(syncAutoLabel, 1000);
 
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => {
           const labels = { auto: '🎨 Auto', webgl: '🎨 WebGL Force', svg: '🎨 SVG Force' };
@@ -3366,7 +3388,14 @@ function probeWebGLCapability() {
 
           const desiredRate = Store.get(P.PB_RATE);
           reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, storeRMode, ApplyReq });
-          if (force || vidsDirty.size) UI.ensure();
+          UI.ensure();
+
+          if (__activeTarget && storeRMode === 'auto') {
+            const _st = getVState(__activeTarget);
+            if (_st?.fxBackend) {
+              Adapter._notifyBackendChange(__activeTarget, _st.fxBackend);
+            }
+          }
         } catch (e) { log.warn('apply crashed:', e); }
       });
 
@@ -3374,7 +3403,7 @@ function probeWebGLCapability() {
       let tickVisibilityHandler = null;
 
       const startTick = () => {
-        stopTick(); // B-7: 기존 타이머 명시적 정리 후 시작하여 중복 누적 방지
+        stopTick();
         tickVisibilityHandler = () => {
           if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) {
             Scheduler.request(false);
@@ -3416,11 +3445,20 @@ function probeWebGLCapability() {
 
     const Registry = createRegistry(Scheduler);
     const Targeting = createTargeting();
-    // B-3: SPA 라우팅 시 남아있는 DOM 객체 찌꺼기 즉시 정리 (Registry.prune() 추가)
     initSpaUrlDetector(createDebounced(() => { safe(() => { Registry.prune(); Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); }, SYS.SRD));
 
     onPageReady(() => {
       installShadowRootEmitterIfNeeded();
+      const lateRescanDelays = [3000, 5000, 10000, 20000];
+      for (const delay of lateRescanDelays) {
+        setTimeout(() => {
+          safe(() => {
+            Registry.rescanAll();
+            Scheduler.request(true);
+            safe(() => __vscNs.UIEnsure?.());
+          });
+        }, delay);
+      }
       (function ensureRegistryAfterBodyReady() {
         let ran = false; const runOnce = () => { if (ran) return; ran = true; safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); };
         if (document.body) { runOnce(); return; }
@@ -3442,7 +3480,7 @@ function probeWebGLCapability() {
       let __vscLastUserSignalT = 0; __vscNs.lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
       function updateLastUserPt(x, y, t) { __vscNs.lastUserPt.x = x; __vscNs.lastUserPt.y = y; __vscNs.lastUserPt.t = t; }
       function signalUserInteractionForRetarget() {
-        const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; safe(() => Scheduler.request(false));
+        const now = performance.now(); if (now - __vscLastUserSignalT< 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; safe(() => Scheduler.request(false));
       }
       for (const [evt, getPt] of [['pointerdown', e => [e.clientX, e.clientY]], ['wheel', e => [Number.isFinite(e.clientX) ? e.clientX : innerWidth * 0.5, Number.isFinite(e.clientY) ? e.clientY : innerHeight * 0.5]], ['keydown', () => [innerWidth * 0.5, innerHeight * 0.5]], ['resize', () => [innerWidth * 0.5, innerHeight * 0.5]]]) {
         on(window, evt, (e) => { if (evt === 'resize') { const now = performance.now(); if (!__vscNs.lastUserPt || (now - __vscNs.lastUserPt.t) > 1200) updateLastUserPt(...getPt(e), now); } else { updateLastUserPt(...getPt(e), performance.now()); } signalUserInteractionForRetarget(); }, evt === 'keydown' ? undefined : OPT_P);
