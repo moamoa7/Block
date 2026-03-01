@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.75.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.76.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.75.0
+// @version      170.76.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -144,7 +144,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.75.0';
+    const VSC_VERSION = '170.76.0';
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
     const log = CONFIG.DEBUG ? {
@@ -203,7 +203,8 @@
       }
       return out;
     }
-const VSC_MEDIA = (() => {
+
+    const VSC_MEDIA = (() => {
       let cached = false;
       try {
         const mq = matchMedia('(dynamic-range: high)');
@@ -1124,7 +1125,7 @@ const VSC_MEDIA = (() => {
         }
       };
     }
-    let _softClipCurve = null;
+let _softClipCurve = null;
     function getSoftClipCurve() {
       if (_softClipCurve) return _softClipCurve;
       const n = 4096, knee = 0.92, drive = 4.0, tanhD = Math.tanh(drive);
@@ -1484,7 +1485,7 @@ const VSC_MEDIA = (() => {
       const alpha = d > 0 ? au : ad;
       return c + d * alpha;
     };
-function createAutoSceneManager(Store, P, Scheduler) {
+    function createAutoSceneManager(Store, P, Scheduler) {
       const AUTO = {
         running: false, canvasW: 160, canvasH: 90, cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 },
         lastSig: null, cutScoreEma: 0.10, cutScoreBaseline: 0.05, motionEma: 0, motionAlpha: 0.30, motionThresh: 0.012, motionFrames: 0, motionMinFrames: 5,
@@ -1623,8 +1624,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running && ctx) { AUTO.running = true; loop(); } });
       return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running && ctx) { AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; } };
     }
-
-    function createFiltersVideoOnly(Utils, config) {
+function createFiltersVideoOnly(Utils, config) {
       const { h, clamp } = Utils;
       function createLRU(max = 64) {
         const m = new Map();
@@ -1797,11 +1797,9 @@ function createAutoSceneManager(Store, P, Scheduler) {
           if (!url) { if (st.applied) { el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); st.applied = false; st.lastFilterUrl = null; } return; }
           if (st.lastFilterUrl === url && !forceReapply) return;
           if (st.lastFilterUrl === url && forceReapply) {
-            el.style.setProperty('filter', 'none', 'important');
-            queueMicrotask(() => {
-              el.style.setProperty('filter', url, 'important');
-              el.style.setProperty('-webkit-filter', url, 'important');
-            });
+            el.style.setProperty('filter', url, 'important');
+            el.style.setProperty('-webkit-filter', url, 'important');
+            void el.offsetWidth;
           } else {
             el.style.setProperty('filter', url, 'important');
             el.style.setProperty('-webkit-filter', url, 'important');
@@ -2019,7 +2017,7 @@ return clamp(softClip(color,.18),0.,1.);
               gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
             }
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); st.webglFailCount = 0;
-            if (!this._outputReady) { this._outputReady = true; this.canvas.style.opacity = '1'; if (!this._videoHidden) { this._prevVideoOpacity = video.style.opacity; this._prevVideoVisibility = video.style.visibility; video.style.setProperty('opacity', '0.001', 'important'); this._videoHidden = true; } }
+            if (!this._outputReady) { this._outputReady = true; if (!this._videoHidden) { this._prevVideoOpacity = video.style.opacity; this._prevVideoVisibility = video.style.visibility; video.style.setProperty('opacity', '0.001', 'important'); this._videoHidden = true; } this.canvas.style.opacity = '1'; }
           } catch (err) {
             st.webglFailCount = (st.webglFailCount || 0) + 1; if (CONFIG.DEBUG) log.warn('WebGL render failure:', err);
             const msg = String(err?.message || err || ''), looksTaint = /SecurityError|cross.origin|cross-origin|taint|insecure|Tainted|origin/i.test(msg);
@@ -2049,11 +2047,104 @@ return clamp(softClip(color,.18),0.,1.);
           try { if (this.canvas && this.canvas.parentNode) { this.canvas.remove(); } } catch (_) {}
           if (this._parentStylePatched && this._patchedParent) { try { this._patchedParent.style.position = this._parentPrevPosition; } catch (_) {} this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; }
           this.disposeGLResources();
-          if (wasHidden && videoRef) { queueMicrotask(() => { queueMicrotask(() => { videoRef.style.opacity = prevOpacity; videoRef.style.visibility = prevVisibility; }); }); }
+          if (wasHidden && videoRef) { videoRef.style.opacity = prevOpacity; videoRef.style.visibility = prevVisibility; }
         }
       }
-return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
+      return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } pipe._paramsDirty = true; pipe._toneKey = ''; pipe.activeProgramKind = ''; } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } }, __getPipeline: (el) => pipelines.get(el) || null };
     }
+function createBackendAdapter(Filters, FiltersGL) {
+      let activeContextCount = 0;
+      const fallbackTracker = new WeakMap();
+      return {
+        apply(video, storeMode, vVals) {
+          const st = getVState(video); const now = performance.now();
+          const effectiveRequestedMode = resolveRenderMode(storeMode, video);
+          const tracker = fallbackTracker.get(video) || { attempts: 0, lastAttempt: 0, backedOff: false };
+
+          const webglAllowed = (effectiveRequestedMode === 'webgl' && !st.webglTainted && !(st.webglDisabledUntil && now < st.webglDisabledUntil) && !tracker.backedOff);
+          const contextLimitReached = webglAllowed && activeContextCount >= SYS.MAX_CTX;
+          const effectiveMode = (webglAllowed && !contextLimitReached) ? 'webgl' : 'svg';
+
+          const prevBackend = st.fxBackend;
+          if (effectiveMode === 'webgl') {
+              const wasWebGL = (prevBackend === 'webgl');
+              if (!wasWebGL) activeContextCount++;
+
+              if (!FiltersGL.apply(video, vVals)) {
+                if (!wasWebGL) activeContextCount = Math.max(0, activeContextCount - 1);
+                FiltersGL.clear(video);
+                tracker.attempts++; tracker.lastAttempt = now;
+                if (tracker.attempts >= 3) {
+                  const backoffMs = Math.min(30000, 5000 * Math.pow(1.5, tracker.attempts - 3));
+                  st.webglDisabledUntil = now + backoffMs; tracker.backedOff = true;
+                  const weakVideo = new WeakRef(video);
+                  setTimeout(() => {
+                    const v = weakVideo.deref();
+                    if (!v || !v.isConnected) return;
+                    const t = fallbackTracker.get(v);
+                    if (t) { t.backedOff = false; t.attempts = Math.max(0, t.attempts - 1); fallbackTracker.set(v, t); }
+                    safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard());
+                  }, backoffMs);
+                }
+                fallbackTracker.set(video, tracker);
+                Filters.applyUrl(video, Filters.prepareCached(video, vVals));
+                st.fxBackend = 'svg';
+                return;
+              }
+
+              if (tracker.attempts > 0) {
+                tracker.attempts = Math.max(0, tracker.attempts - 1);
+                fallbackTracker.set(video, tracker);
+              }
+
+              if (prevBackend === 'svg') {
+                const pipe = FiltersGL.__getPipeline ? FiltersGL.__getPipeline(video) : null;
+                if (pipe && !pipe._outputReady) {
+                  if (!st._svgDeferredClear) {
+                    st._svgDeferredClear = true;
+                    const pollClear = () => {
+                      if (st.fxBackend !== 'webgl' || !pipe.active) {
+                        st._svgDeferredClear = false;
+                        return;
+                      }
+                      if (!pipe._outputReady) {
+                        requestAnimationFrame(pollClear);
+                        return;
+                      }
+                      Filters.clear(video);
+                      Filters.invalidateCache(video);
+                      st._svgDeferredClear = false;
+                    };
+                    requestAnimationFrame(pollClear);
+                  }
+                } else {
+                  Filters.clear(video);
+                  Filters.invalidateCache(video);
+                  st._svgDeferredClear = false;
+                }
+              }
+              st.fxBackend = 'webgl';
+          } else {
+              if (prevBackend === 'webgl') {
+                FiltersGL.clear(video);
+                activeContextCount = Math.max(0, activeContextCount - 1);
+                Filters.invalidateCache(video);
+              }
+              st._svgDeferredClear = false;
+              const svgResult = Filters.prepareCached(video, vVals);
+              Filters.applyUrl(video, { url: svgResult.url, changed: (prevBackend === 'webgl') });
+              st.fxBackend = 'svg';
+          }
+        },
+        clear(video) {
+          const st = getVState(video);
+          if (st.fxBackend === 'webgl') { activeContextCount = Math.max(0, activeContextCount - 1); FiltersGL.clear(video); }
+          else if (st.fxBackend === 'svg') { Filters.clear(video); }
+          st.fxBackend = null;
+        }
+      };
+    }
+
     function bindElementDrag(el, onMove, onEnd) {
       const ac = new AbortController();
       const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); };
@@ -2197,6 +2288,19 @@ return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe
           e.stopPropagation();
           const cur = sm.get(P.APP_RENDER_MODE);
           const next = cur === 'auto' ? 'webgl' : (cur === 'webgl' ? 'svg' : 'auto');
+          const activeV = window.__VSC_APP__?.getActiveVideo?.();
+          if (activeV) {
+            const vst = getVState(activeV);
+            if (window.__VSC_INTERNAL__?.Adapter) {
+              window.__VSC_INTERNAL__.Adapter.clear(activeV);
+            }
+            if (next !== 'svg') {
+              vst.webglTainted = false;
+              vst.webglFailCount = 0;
+              vst.webglDisabledUntil = 0;
+            }
+            vst._svgDeferredClear = false;
+          }
           sm.set(P.APP_RENDER_MODE, next);
           if (next === 'svg') sm.set(P.APP_HDR_TONEMAP, false);
           ApplyReq.hard();
@@ -2547,61 +2651,6 @@ return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe
         return 'svg';
       }
       return 'webgl';
-    }
-
-    function createBackendAdapter(Filters, FiltersGL) {
-      let activeContextCount = 0;
-      const fallbackTracker = new WeakMap();
-      return {
-        apply(video, storeMode, vVals) {
-          const st = getVState(video); const now = performance.now();
-          const effectiveRequestedMode = resolveRenderMode(storeMode, video);
-          const tracker = fallbackTracker.get(video) || { attempts: 0, lastAttempt: 0, backedOff: false };
-
-          const webglAllowed = (effectiveRequestedMode === 'webgl' && !st.webglTainted && !(st.webglDisabledUntil && now < st.webglDisabledUntil) && !tracker.backedOff);
-          const contextLimitReached = webglAllowed && activeContextCount >= SYS.MAX_CTX;
-          const effectiveMode = (webglAllowed && !contextLimitReached) ? 'webgl' : 'svg';
-
-          const prevBackend = st.fxBackend;
-          if (effectiveMode === 'webgl') {
-              const wasWebGL = (prevBackend === 'webgl');
-              if (!wasWebGL) activeContextCount++;
-              if (!FiltersGL.apply(video, vVals)) {
-                if (!wasWebGL) activeContextCount = Math.max(0, activeContextCount - 1);
-                FiltersGL.clear(video);
-                tracker.attempts++; tracker.lastAttempt = now;
-                if (tracker.attempts >= 3) {
-                  const backoffMs = Math.min(30000, 5000 * Math.pow(1.5, tracker.attempts - 3));
-                  st.webglDisabledUntil = now + backoffMs; tracker.backedOff = true;
-                  const weakVideo = new WeakRef(video);
-                  setTimeout(() => {
-                    const v = weakVideo.deref();
-                    if (!v || !v.isConnected) return;
-                    const t = fallbackTracker.get(v);
-                    if (t) { t.backedOff = false; t.attempts = Math.max(0, t.attempts - 1); fallbackTracker.set(v, t); }
-                    safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard());
-                  }, backoffMs);
-                }
-                fallbackTracker.set(video, tracker);
-                Filters.applyUrl(video, Filters.prepareCached(video, vVals)); st.fxBackend = 'svg'; return;
-              }
-              if (tracker.attempts > 0) { tracker.attempts = Math.max(0, tracker.attempts - 1); fallbackTracker.set(video, tracker); }
-              if (prevBackend === 'svg') { Filters.clear(video); }
-              st.fxBackend = 'webgl';
-          } else {
-              if (prevBackend === 'webgl') { safe(() => Filters.invalidateCache(video)); }
-              Filters.applyUrl(video, Filters.prepareCached(video, vVals));
-              if (prevBackend === 'webgl') { FiltersGL.clear(video); activeContextCount = Math.max(0, activeContextCount - 1); }
-              st.fxBackend = 'svg';
-          }
-        },
-        clear(video) {
-          const st = getVState(video);
-          if (st.fxBackend === 'webgl') { activeContextCount = Math.max(0, activeContextCount - 1); FiltersGL.clear(video); }
-          else if (st.fxBackend === 'svg') { Filters.clear(video); }
-          st.fxBackend = null;
-        }
-      };
     }
 
     function ensureMobileInlinePlaybackHints(video) {
