@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.78.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.81.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.78.0
+// @version      170.81.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -153,6 +153,7 @@
     });
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
+    const clamp01 = (x) => VSC_CLAMP(x, 0, 1);
 
     const log = CONFIG.DEBUG ? {
       error: (...a) => console.error('[VSC]', ...a),
@@ -799,8 +800,7 @@ function createScheduler(minIntervalMs = 32) {
 
       return { resetZoom, zoomTo, isZoomed };
     }
-
-    function createTargeting() {
+function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
         const now = performance.now();
@@ -1094,7 +1094,8 @@ function createScheduler(minIntervalMs = 32) {
         }
       };
     }
-let _softClipCurve = null;
+
+    let _softClipCurve = null;
     function getSoftClipCurve() {
       if (_softClipCurve) return _softClipCurve;
       const n = 4096, knee = 0.92, drive = 4.0, tanhD = Math.tanh(drive);
@@ -1444,8 +1445,7 @@ let _softClipCurve = null;
         update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy
       };
     }
-
-    const appAsym = (c, t, au, ad) => {
+const appAsym = (c, t, au, ad) => {
       const d = t - c;
       if (Math.abs(d) < 0.002) return t;
       const alpha = d > 0 ? au : ad;
@@ -1788,10 +1788,12 @@ function createFiltersWebGL(Utils) {
       function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
       function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
 
-      function buildToneLUT256(toe, mid, shoulder, gain = 1.0) {
+      function buildToneLUT256Into(out, toe, mid, shoulder, gain = 1.0) {
         const curve = computeToneCurve(256, VSC_CLAMP(toe / TOE_DIVISOR, -1, 1), VSC_CLAMP(mid, -1, 1), VSC_CLAMP(shoulder / 16, -1, 1), gain);
-        const out = new Uint8Array(256 * 4);
-        for (let i = 0; i < 256; i++) { const v = (curve[i] * 255 + 0.5) | 0, o = i * 4; out[o] = out[o+1] = out[o+2] = v; out[o+3] = 255; } return out;
+        for (let i = 0; i < 256; i++) {
+          const v = (curve[i] * 255 + 0.5) | 0, o = i * 4;
+          out[o] = out[o+1] = out[o+2] = v; out[o+3] = 255;
+        }
       }
 
       const GL2_HDR = `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n`;
@@ -1829,27 +1831,42 @@ return clamp(softClip(color,.18),0.,1.);
 }`;
 
       function buildFsColorOnly({ gl2 }) { return hdr(gl2) + glslHDR + glslCommon + `void main(){vec3 color=TEX(uVideoTex,vTexCoord).rgb;vec3 graded=applyGrading(color);outColor=vec4(applyHDRToneMap(graded,uHDRToneMap),1.);}`; }
-      function buildFsSharpen({ gl2 }) { return hdr(gl2) + `uniform vec2 uResolution;uniform vec3 uSharpParams;\n` + glslHDR + glslCommon + `vec3 satMix(vec3 c,float sat){float l=dot(c,LUMA);return vec3(l)+(c-vec3(l))*sat;}vec3 rcasSharpen(sampler2D tex,vec2 uv,vec2 texel,float sharpAmount){vec3 b=TEX(tex,uv+vec2(0.,-texel.y)).rgb,d=TEX(tex,uv+vec2(-texel.x,0.)).rgb,e=TEX(tex,uv).rgb,f=TEX(tex,uv+vec2(texel.x,0.)).rgb,h=TEX(tex,uv+vec2(0.,texel.y)).rgb;vec3 mn=min(b,min(d,min(e,min(f,h)))),mx=max(b,max(d,max(e,max(f,h))));if(uParams2.z<.5){vec3 a=TEX(tex,uv+vec2(-texel.x,-texel.y)).rgb,c=TEX(tex,uv+vec2(texel.x,-texel.y)).rgb,g=TEX(tex,uv+vec2(-texel.x,texel.y)).rgb,i=TEX(tex,uv+vec2(texel.x,texel.y)).rgb;mn=min(mn,min(a,min(c,min(g,i))));mx=max(mx,max(a,max(c,max(g,i))));}float aAmt=clamp(sharpAmount,0.,1.),peak=-1./mix(9.,3.6,aAmt);vec3 hitMin=mn/(4.*mx+1e-4),hitMax=(peak-mx)/(4.*mn+peak);float lobe=max(-.1875,min(max(max(hitMin.r,hitMax.r),max(max(hitMin.g,hitMax.g),max(hitMin.b,hitMax.b))),0.));float edgeLuma=abs(dot(b-e,LUMA))+abs(dot(d-e,LUMA))+abs(dot(f-e,LUMA))+abs(dot(h-e,LUMA)),edgeDamp=1.-smoothstep(.05,.25,edgeLuma*.25);lobe*=mix(1.,edgeDamp,clamp(uSharpParams.z,0.,1.));return(lobe*(b+d+f+h)+e)/(4.*lobe+1.);}void main(){vec2 texel=1./uResolution;vec3 color=TEX(uVideoTex,vTexCoord).rgb;float sharpAmount=uParams2.y;if(sharpAmount>0.){color=rcasSharpen(uVideoTex,vTexCoord,texel,sharpAmount);vec3 d0=satMix(color,uSharpParams.x);color=mix(color,d0,uSharpParams.y);}vec3 graded=applyGrading(color);outColor=vec4(applyHDRToneMap(graded,uHDRToneMap),1.);}`; }
+      function buildFsSharpen({ gl2 }) { return hdr(gl2) + `uniform vec2 uResolution;uniform vec3 uSharpParams;\n` + glslHDR + glslCommon + `vec3 satMix(vec3 c,float sat){float l=dot(c,LUMA);return vec3(l)+(c-vec3(l))*sat;}vec3 rcasSharpen(sampler2D tex,vec2 uv,vec2 texel,float sharpAmount){vec3 b=TEX(tex,uv+vec2(0.,-texel.y)).rgb,d=TEX(tex,uv+vec2(-texel.x,0.)).rgb,e=TEX(tex,uv).rgb,f=TEX(tex,uv+vec2(texel.x,0.)).rgb,h=TEX(tex,uv+vec2(0.,texel.y)).rgb;vec3 mn=min(b,min(d,min(e,min(f,h)))),mx=max(b,max(d,max(e,max(f,h))));if(uParams2.z<.5){vec3 a=TEX(tex,uv+vec2(-texel.x,-texel.y)).rgb,c=TEX(tex,uv+vec2(texel.x,-texel.y)).rgb,g=TEX(tex,uv+vec2(-texel.x,texel.y)).rgb,i=TEX(tex,uv+vec2(texel.x,texel.y)).rgb;mn=min(mn,min(a,min(c,min(g,i))));mx=max(mx,max(a,max(c,max(g,i))));}float aAmt=clamp01(sharpAmount),peak=-1./mix(9.,3.6,aAmt);vec3 hitMin=mn/(4.*mx+1e-4),hitMax=(peak-mx)/(4.*mn+peak);float lobe=max(-.1875,min(max(max(hitMin.r,hitMax.r),max(max(hitMin.g,hitMax.g),max(hitMin.b,hitMax.b))),0.));float edgeLuma=abs(dot(b-e,LUMA))+abs(dot(d-e,LUMA))+abs(dot(f-e,LUMA))+abs(dot(h-e,LUMA)),edgeDamp=1.-smoothstep(.05,.25,edgeLuma*.25);lobe*=mix(1.,edgeDamp,clamp01(uSharpParams.z));return(lobe*(b+d+f+h)+e)/(4.*lobe+1.);}void main(){vec2 texel=1./uResolution;vec3 color=TEX(uVideoTex,vTexCoord).rgb;float sharpAmount=uParams2.y;if(sharpAmount>0.){color=rcasSharpen(uVideoTex,vTexCoord,texel,sharpAmount);vec3 d0=satMix(color,uSharpParams.x);color=mix(color,d0,uSharpParams.y);}vec3 graded=applyGrading(color);outColor=vec4(applyHDRToneMap(graded,uHDRToneMap),1.);}`; }
       function buildShaderSources(gl) { const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext); return { vs: isGL2 ? `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main(){\n gl_Position=vec4(aPosition,0.,1.);\n vTexCoord=aTexCoord;\n}` : `attribute vec2 aPosition;attribute vec2 aTexCoord;varying vec2 vTexCoord;void main(){gl_Position=vec4(aPosition,0.,1.);vTexCoord=aTexCoord;}`, fsColorOnly: buildFsColorOnly({ gl2: isGL2 }), fsSharpen: buildFsSharpen({ gl2: isGL2 }) }; }
 
-      function clamp01(x){ return x < 0 ? 0 : (x > 1 ? 1 : x); }
+      const _sharpProfileResult = { amount: 0, tapMode: 1, desatSat: 1, biasMix: 0, edgeDampMix: 0.4 };
       function getSharpProfile(vVals, rawW, rawH, isHdr) {
-        const s1 = Number(vVals.sharp || 0), s2 = Number(vVals.sharp2 || 0), cl = Number(vVals.clarity || 0); if (s1 <= 0.01 && s2 <= 0.01 && cl <= 0.01) return { amount: 0.0, tapMode: 1.0, desatSat: 1.0, biasMix: 0.0, edgeDampMix: 0.4 };
+        const s1 = Number(vVals.sharp || 0), s2 = Number(vVals.sharp2 || 0), cl = Number(vVals.clarity || 0);
+        if (s1 <= 0.01 && s2 <= 0.01 && cl <= 0.01) {
+            _sharpProfileResult.amount = 0.0; _sharpProfileResult.tapMode = 1.0; _sharpProfileResult.desatSat = 1.0; _sharpProfileResult.biasMix = 0.0; _sharpProfileResult.edgeDampMix = 0.4;
+            return _sharpProfileResult;
+        }
         let level = 'S'; const isXL = (s1 >= 18 && s2 >= 16 && cl >= 24); if (isXL) level = 'XL'; else if (s1 >= 14 && (s2 >= 10 || cl >= 14)) level = 'L'; else if (s1 >= 10 && (s2 >= 6  || cl >= 8 )) level = 'M';
         const rawPx = rawW * rawH, pxScale = Math.sqrt(Math.max(1, rawPx) / (1280 * 720)), hiResN = clamp01((pxScale - 1.0) / 1.7), n1 = clamp01(s1 / 18.0), n2 = clamp01(s2 / 16.0), n3 = clamp01(cl / 24.0); let base = clamp01((0.58 * n1) + (0.28 * n2) + (0.24 * n3));
         let scale = 1.0, cap = 1.0, desatSat = 0.88, biasMix = 0.40, edgeDampMix = 0.33;
         if (level === 'S') { scale = 0.78; cap = 0.55; desatSat = 0.90; biasMix = 0.30; edgeDampMix = 0.38; } else if (level === 'M') { scale = 0.92; cap = 0.68; desatSat = 0.88; biasMix = 0.38; edgeDampMix = 0.33; } else if (level === 'L') { scale = 1.08; cap = 0.80; desatSat = 0.86; biasMix = 0.46; edgeDampMix = 0.28; } else { scale = 1.26; cap = 0.92; desatSat = 0.84; biasMix = 0.60; edgeDampMix = 0.22; }
-        let amount = clamp01(base * scale); if (amount > cap) amount = cap; amount *= (1.0 - 0.25 * hiResN); if (rawPx >= 3840 * 2160) amount *= 0.80; if (isHdr) amount *= 0.92;
-        return { amount, tapMode: ((rawPx >= (2560 * 1440) && amount < 0.80) || (amount < 0.12)) ? 1.0 : 0.0, desatSat, biasMix, edgeDampMix };
+        let amount = clamp01(base * scale); if (amount > cap) amount = cap; amount *= (1.0 - 0.25 * hiResN); if (rawPx >= 3840 * 2160) amount *= 0.80;
+
+        const hdrActive = isHdr && !!vVals._hdrToneMap;
+        if (hdrActive) amount *= 0.88;
+        else if (isHdr) amount *= 0.95;
+
+        _sharpProfileResult.amount = amount;
+        _sharpProfileResult.tapMode = ((rawPx >= (2560 * 1440) && amount < 0.80) || (amount < 0.12)) ? 1.0 : 0.0;
+        _sharpProfileResult.desatSat = desatSat;
+        _sharpProfileResult.biasMix = biasMix;
+        _sharpProfileResult.edgeDampMix = edgeDampMix;
+        return _sharpProfileResult;
       }
 
       class WebGLPipeline {
         constructor() {
-          this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._initialStyleSynced = false; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0; this._contextLostCount = 0; this._suspended = false; this._lastRenderT = 0; this._idleCheckTimer = 0; this._styleSyncTimer = 0; this._gpuTierEma = 0; this._paramsDirty = false;
+          this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._initialStyleSynced = false; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0; this._contextLostCount = 0; this._suspended = false; this._lastRenderT = 0; this._styleRafPending = false; this._gpuTierEma = 0; this._paramsDirty = false;
+          this._toneLutBuf = new Uint8Array(256 * 4);
           this._onContextLost = (e) => { e.preventDefault(); const now = performance.now(); this._contextLostCount = (this._contextLostCount || 0) + 1; this.disabledUntil = now + Math.min(30000, 3000 * Math.pow(1.5, this._contextLostCount)); this.active = false; this._loopToken++; this._loopRunning = false; if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; } try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {} try { const st = this.video ? getVState(this.video) : null; if (st) st.webglDisabledUntil = now + SYS.WFC; } catch (_) {} safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard()); };
           this._onContextRestored = () => {
             try {
-              this._loopToken++; this._loopRunning = false;
+              const newToken = ++this._loopToken; this._loopRunning = false;
               if (this._timerId) { clearTimeout(this._timerId); this._timerId = 0; }
               if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = 0; }
               if (this.video && this._rvfcId && typeof this.video.cancelVideoFrameCallback === 'function') {
@@ -1861,7 +1878,10 @@ return clamp(softClip(color,.18),0.,1.);
                 if (this.video) {
                   this.active = true; this._outputReady = false;
                   this.canvas.style.opacity = '0';
-                  this.startRenderLoop();
+                  requestAnimationFrame(() => {
+                    if (this._loopToken !== newToken) return;
+                    this.startRenderLoop();
+                  });
                 }
               } else {
                 if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; }
@@ -1890,7 +1910,9 @@ return clamp(softClip(color,.18),0.,1.);
             this.vBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); this.tBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.bufferData(gl.ARRAY_BUFFER, tCoords, gl.STATIC_DRAW);
             this.videoTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             this.toneTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            const id = new Uint8Array(256 * 4); for (let i = 0; i < 256; i++) { const o = i * 4; id[o] = id[o+1] = id[o+2] = i; id[o+3] = 255; } gl.texImage2D(gl.TEXTURE_2D, 0, this._isGL2 ? gl.RGBA8 : gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, id);
+
+            buildToneLUT256Into(this._toneLutBuf, 0, 0, 0, 1.0);
+            gl.texImage2D(gl.TEXTURE_2D, 0, this._isGL2 ? gl.RGBA8 : gl.RGBA, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, this._toneLutBuf);
             this._toneKey = '';
             return true;
           } catch (err) { log.warn('WebGL Init Error:', err.message); this.disposeGLResources(); return false; }
@@ -1910,44 +1932,45 @@ return clamp(softClip(color,.18),0.,1.);
           this._outputReady = false; this.canvas.style.opacity = '0'; this.startRenderLoop();
           return true;
         }
-        startIdleWatch() {
-          if (this._idleCheckTimer) return;
-          this._idleCheckTimer = setInterval(() => {
-            if (!this.active) { this.stopIdleWatch(); return; }
-            if (performance.now() - this._lastRenderT > 10000) this.suspendContext();
-          }, 5000);
-        }
-        stopIdleWatch() { if (this._idleCheckTimer) { clearInterval(this._idleCheckTimer); this._idleCheckTimer = 0; } }
         init() { return this.initGLResourcesOnExistingCanvas(); }
         attachToVideo(video) {
           if (this._suspended) { this.video = video; if (!this.resumeContext()) return false; }
           else if (!this.active && !this.init()) return false;
           this.video = video; this.originalParent = video.parentNode; this._videoHidden = false; this._outputReady = false; this._paramsDirty = true; this._toneKey = ''; this.activeProgramKind = ''; this.canvas.style.opacity = '0';
           if (this.originalParent) { const cs = window.getComputedStyle(this.originalParent); if (cs.position === 'static') { this._parentPrevPosition = this.originalParent.style.position || ''; this.originalParent.style.position = 'relative'; this._parentStylePatched = true; this._patchedParent = this.originalParent; } if (video.nextSibling) this.originalParent.insertBefore(this.canvas, video.nextSibling); else this.originalParent.appendChild(this.canvas); }
-          if (this._styleObs) this._styleObs.disconnect(); this._styleObs = new MutationObserver(() => { this._styleDirty = true; }); try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
-          try { video.addEventListener('transitionend', () => { this._styleDirty = true; }, OPT_P); } catch (_) {}
           this._styleDirty = true;
-          if (this._styleSyncTimer) clearInterval(this._styleSyncTimer);
-          this._styleSyncTimer = setInterval(() => { if (!this.active || !this.video || !this.canvas) return; this._syncStylesDeferred(); }, 600);
-          this.active = true; this.startRenderLoop(); this.startIdleWatch(); return true;
+          this._styleRafPending = false;
+          if (this._styleObs) this._styleObs.disconnect();
+          this._styleObs = new MutationObserver(() => {
+            this._styleDirty = true;
+            if (!this._styleRafPending) {
+              this._styleRafPending = true;
+              requestAnimationFrame(() => {
+                this._styleRafPending = false;
+                if (this._styleDirty) this._syncStylesDeferred();
+              });
+            }
+          });
+          try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
+          try { video.addEventListener('transitionend', () => { this._styleDirty = true; }, OPT_P); } catch (_) {}
+          this.active = true; this.startRenderLoop(); return true;
         }
         updateParams(vVals) { this.vVals = vVals; this._paramsDirty = true; }
         _syncStylesDeferred() {
           if (!this._styleDirty) return;
           this._styleDirty = false;
-          requestAnimationFrame(() => {
-            if (!this.canvas || !this.video) return;
-            const vs = window.getComputedStyle(this.video), cs = this.canvas.style;
-            if (cs.objectFit !== vs.objectFit) cs.objectFit = vs.objectFit || 'contain';
-            if (cs.objectPosition !== vs.objectPosition) cs.objectPosition = vs.objectPosition;
-            const tr = vs.transform, nextTr = (tr && tr !== 'none') ? tr : '';
-            if (cs.transform !== nextTr) { cs.transform = nextTr; cs.transformOrigin = vs.transformOrigin || ''; }
-            if (!this._initialStyleSynced) {
-              this._initialStyleSynced = true;
-              cs.borderRadius = vs.borderRadius || ''; cs.clipPath = vs.clipPath || ''; cs.webkitClipPath = vs.webkitClipPath || ''; cs.mixBlendMode = vs.mixBlendMode || ''; cs.isolation = vs.isolation || '';
-            }
-            const vz = vs.zIndex; let zi = '1'; if (vz && vz !== 'auto') { const n = parseInt(vz, 10); if (Number.isFinite(n)) { zi = String(Math.min(n + 1, 2147483646)); } } if (cs.zIndex !== zi) cs.zIndex = zi;
-          });
+          if (!this.canvas || !this.video) return;
+          const vs = window.getComputedStyle(this.video), cs = this.canvas.style;
+          cs.objectFit = vs.objectFit || 'contain';
+          cs.objectPosition = vs.objectPosition;
+          const tr = vs.transform;
+          cs.transform = (tr && tr !== 'none') ? tr : '';
+          cs.transformOrigin = vs.transformOrigin || '';
+          if (!this._initialStyleSynced) {
+            this._initialStyleSynced = true;
+            cs.borderRadius = vs.borderRadius || ''; cs.clipPath = vs.clipPath || ''; cs.webkitClipPath = vs.webkitClipPath || ''; cs.mixBlendMode = vs.mixBlendMode || ''; cs.isolation = vs.isolation || '';
+          }
+          const vz = vs.zIndex; let zi = '1'; if (vz && vz !== 'auto') { const n = parseInt(vz, 10); if (Number.isFinite(n)) { zi = String(Math.min(n + 1, 2147483646)); } } if (cs.zIndex !== zi) cs.zIndex = zi;
         }
         render() {
           if (!this.active || !this.gl || !this.video || !this.vVals) return; const gl = this.gl, video = this.video, now = performance.now(); if (now < this.disabledUntil) return;
@@ -1963,6 +1986,7 @@ return clamp(softClip(color,.18),0.,1.);
           const MAX_W = Math.min(3840, Math.max(displayW, 640)), MAX_H = Math.min(gpuTier, Math.max(displayH, 360));
           let w = rawW, h = rawH; if (w > MAX_W || h > MAX_H) { const scale = Math.min(MAX_W / w, MAX_H / h); w = Math.round(w * scale); h = Math.round(h * scale); }
           const isHdr = VSC_MEDIA.isHdr, prof = getSharpProfile(this.vVals, rawW, rawH, isHdr), useSharpen = prof.amount > 0.0, kind = useSharpen ? 'sharp' : 'color', H = useSharpen ? this.handles_sharp : this.handles_color;
+          if (!H || !H.program) return;
           let programChanged = false; const paramsDirty = this._paramsDirty; this._paramsDirty = false; if (this.activeProgramKind !== kind) { this.activeProgramKind = kind; programChanged = true; gl.useProgram(H.program); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.enableVertexAttribArray(H.aPosition); gl.vertexAttribPointer(H.aPosition, 2, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.enableVertexAttribArray(H.aTexCoord); gl.vertexAttribPointer(H.aTexCoord, 2, gl.FLOAT, false, 0, 0); }
           const resized = (this.canvas.width !== w || this.canvas.height !== h); if (resized) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); }
           if ((resized || programChanged || paramsDirty || this._lastRawW !== rawW || this._lastRawH !== rawH) && H.uResolution) { gl.uniform2f(H.uResolution, rawW, rawH); this._lastRawW = rawW; this._lastRawH = rawH; }
@@ -1972,7 +1996,7 @@ return clamp(softClip(color,.18),0.,1.);
           const hdrToneMap = (this.vVals._hdrToneMap && isHdr) ? 1.0 : 0.0; if (H.uHDRToneMap !== undefined && H.uHDRToneMap !== null) gl.uniform1f(H.uHDRToneMap, hdrToneMap);
           const toe = this.vVals.toe || 0, mid = this.vVals.mid || 0, shoulder = this.vVals.shoulder || 0, toneKey = `${tq(toe, 0.2)}|${tq(mid, 0.02)}|${tq(shoulder, 0.2)}|${tq(this.vVals.gain || 1, 0.06)}`;
           if (paramsDirty) this._toneKey = '';
-          if (this._toneKey !== toneKey && this.toneTexture) { this._toneKey = toneKey; const lut = buildToneLUT256(toe, mid, shoulder, this.vVals.gain || 1.0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, lut); }
+          if (this._toneKey !== toneKey && this.toneTexture) { this._toneKey = toneKey; buildToneLUT256Into(this._toneLutBuf, toe, mid, shoulder, this.vVals.gain || 1.0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, this._toneLutBuf); }
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture);
           try {
             gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
@@ -1993,7 +2017,14 @@ return clamp(softClip(color,.18),0.,1.);
         }
         startRenderLoop() { if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken; const loopFn = (now, meta) => { if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; } this.render(); this.scheduleNextFrame(loopFn); }; this.scheduleNextFrame(loopFn); }
         scheduleNextFrame(loopFn) {
-          const pausedOrHidden = !!(document.hidden || this.video?.paused); if (pausedOrHidden) { this._timerId = setTimeout(() => { this._timerId = 0; loopFn(performance.now(), null); }, 220); return; }
+          if (this._timerId) { clearTimeout(this._timerId); this._timerId = 0; }
+          if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = 0; }
+          const pausedOrHidden = !!(document.hidden || this.video?.paused);
+          if (pausedOrHidden) {
+            if (performance.now() - this._lastRenderT > 10000) { this.suspendContext(); return; }
+            this._timerId = setTimeout(() => { this._timerId = 0; loopFn(performance.now(), null); }, 220);
+            return;
+          }
           if (this.video && typeof this.video.requestVideoFrameCallback === 'function') { this._rvfcId = this.video.requestVideoFrameCallback(loopFn); return; }
           this._rafId = requestAnimationFrame(loopFn);
         }
@@ -2004,8 +2035,6 @@ return clamp(softClip(color,.18),0.,1.);
           this.gl = null; this.activeProgramKind = '';
         }
         shutdown() {
-          this.stopIdleWatch();
-          if (this._styleSyncTimer) { clearInterval(this._styleSyncTimer); this._styleSyncTimer = 0; }
           this.active = false; this._loopToken++; this._loopRunning = false; if (this._timerId) { clearTimeout(this._timerId); this._timerId = 0; } if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = 0; }
           if (this.video && this._rvfcId && typeof this.video.cancelVideoFrameCallback === 'function') { try { this.video.cancelVideoFrameCallback(this._rvfcId); } catch (_) {} this._rvfcId = 0; }
           if (this._styleObs) { this._styleObs.disconnect(); this._styleObs = null; }
@@ -2070,8 +2099,7 @@ return clamp(softClip(color,.18),0.,1.);
       }
       return 'webgl';
     }
-
-    function createBackendAdapter(Filters, FiltersGL) {
+function createBackendAdapter(Filters, FiltersGL) {
       let activeContextCount = 0;
       const fallbackTracker = new WeakMap();
       return {
@@ -2294,7 +2322,7 @@ return clamp(softClip(color,.18),0.,1.);
 
         const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
-        const rmBtn = h('button', { id: 'rm-btn', class: 'btn fill-active' });
+        const rmBtn = h('button', { class: 'btn fill-active' });
         rmBtn.onclick = (e) => {
           e.stopPropagation();
           const cur = sm.get(P.APP_RENDER_MODE);
@@ -2400,7 +2428,7 @@ return clamp(softClip(color,.18),0.,1.);
           el.style.cursor = aEn ? 'pointer' : 'not-allowed';
         }, sm, sub);
 
-        const pwrBtn = h('button', { id: 'pwr-btn', class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
+        const pwrBtn = h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
         bindReactive(pwrBtn, [P.APP_ACT], (el, v) => el.style.color = v ? '#2ecc71' : '#e74c3c', sm, sub);
 
         const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
@@ -2519,7 +2547,7 @@ return clamp(softClip(color,.18),0.,1.);
       const ensureGear = () => {
         if (!allowUiInThisDoc()) { if (gearHost) gearHost.style.display = 'none'; return; }
         if (gearHost) { gearHost.style.display = 'block'; return; }
-        gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
+        gearHost = h('div', { 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
         const shadow = gearHost.attachShadow({ mode: 'open' });
         const style = `.gear{position:fixed;top:50%;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation}@media(hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,.65)}}.gear:active{transform:translateY(-50%) scale(.98)}.gear.open{outline:2px solid rgba(52,152,219,.85);opacity:1!important}.gear.inactive{opacity:.45}.hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,.88);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.82);font:600 11px/1.2 sans-serif;white-space:nowrap;z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none}.gear:hover+.hint{opacity:1;transform:translateY(0)}${CONFIG.IS_MOBILE ? '.hint{display:none!important}' : ''}`;
         const styleEl = document.createElement('style');
@@ -2591,8 +2619,7 @@ return clamp(softClip(color,.18),0.,1.);
       window.__VSC_UI_Ensure = ensure;
       return { ensure, destroy: () => { uiUnsubs.forEach(u => safe(u)); uiUnsubs.length = 0; safe(() => uiWakeCtrl.abort()); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
     }
-
-    function getRateState(v) {
+function getRateState(v) {
       const st = getVState(v);
       if (!st.rateState) st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, _setAttempts: 0, _firstAttemptT: 0 };
       return st.rateState;
@@ -2679,8 +2706,10 @@ return clamp(softClip(color,.18),0.,1.);
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
     }
 
+    const _reconcileCandidates = new Set();
     function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, storeRMode, ApplyReq }) {
-      const candidates = new Set();
+      const candidates = _reconcileCandidates;
+      candidates.clear();
       for (const set of [dirtyVideos, TOUCHED.videos, TOUCHED.rateVideos, applySet]) {
         for (const v of set) if (v?.tagName === 'VIDEO') candidates.add(v);
       }
@@ -2692,6 +2721,7 @@ return clamp(softClip(color,.18),0.,1.);
         if (pbActive) { applyPlaybackRate(el, desiredRate); } else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
         bindVideoOnce(el, ApplyReq);
       }
+      candidates.clear();
     }
 
     function createVideoParamsMemo(Store, P) {
@@ -2727,6 +2757,7 @@ return clamp(softClip(color,.18),0.,1.);
       Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
       let __activeTarget = null, __lastAudioTarget = null, lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0, qualityScale = 1.0, lastQCheck = 0, __lastQSample = { dropped: 0, total: 0 };
       const videoParamsMemo = createVideoParamsMemo(Store, P);
+      const _autoSceneVVals = {};
       function updateQualityScale(v) {
         if (!v || typeof v.getVideoPlaybackQuality !== 'function') return qualityScale;
         const now = performance.now(); if (now - lastQCheck < 1000) return qualityScale; lastQCheck = now;
@@ -2772,13 +2803,17 @@ return clamp(softClip(color,.18),0.,1.);
           if (autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
             const mods = autoScene.getMods();
             if (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0 || mods.sharpScale !== 1.0) {
-              vValsEffective = { ...vValsEffective }; const uBr = vValsEffective.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
-              vValsEffective.gain = uBr * (1.0 + (mods.br - 1.0) * aSF); vValsEffective.contrast = (vValsEffective.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF); vValsEffective.satF = (vValsEffective.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
-              const userSharpTotal = (vValsEffective.sharp || 0) + (vValsEffective.sharp2 || 0) + (vValsEffective.clarity || 0);
+              Object.assign(_autoSceneVVals, vValsEffective); const uBr = _autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
+              _autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF); _autoSceneVVals.contrast = (_autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF); _autoSceneVVals.satF = (_autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
+              const userSharpTotal = (_autoSceneVVals.sharp || 0) + (_autoSceneVVals.sharp2 || 0) + (_autoSceneVVals.clarity || 0);
               const sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5); const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF) * (qs < 0.95 ? Math.sqrt(qs) : 1.0);
-              vValsEffective.sharp = (vValsEffective.sharp || 0) * combinedSharpScale; vValsEffective.sharp2 = (vValsEffective.sharp2 || 0) * combinedSharpScale; vValsEffective.clarity = (vValsEffective.clarity || 0) * combinedSharpScale;
+              _autoSceneVVals.sharp = (_autoSceneVVals.sharp || 0) * combinedSharpScale; _autoSceneVVals.sharp2 = (_autoSceneVVals.sharp2 || 0) * combinedSharpScale; _autoSceneVVals.clarity = (_autoSceneVVals.clarity || 0) * combinedSharpScale;
+              vValsEffective = _autoSceneVVals;
             }
-          } else if (qs < 0.95) { vValsEffective = { ...vValsEffective }; const qSharp = Math.sqrt(qs); vValsEffective.sharp = (vValsEffective.sharp || 0) * qSharp; vValsEffective.sharp2 = (vValsEffective.sharp2 || 0) * qSharp; vValsEffective.clarity = (vValsEffective.clarity || 0) * qSharp; }
+          } else if (qs < 0.95) {
+            Object.assign(_autoSceneVVals, vValsEffective); const qSharp = Math.sqrt(qs); _autoSceneVVals.sharp = (_autoSceneVVals.sharp || 0) * qSharp; _autoSceneVVals.sharp2 = (_autoSceneVVals.sharp2 || 0) * qSharp; _autoSceneVVals.clarity = (_autoSceneVVals.clarity || 0) * qSharp;
+            vValsEffective = _autoSceneVVals;
+          }
           const videoFxOn = !isNeutralVideoParams(vValsEffective); const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL), applySet = new Set();
           if (applyToAllVisibleVideos) { for (const v of visible.videos) applySet.add(v); } else if (__activeTarget) { applySet.add(__activeTarget); }
 
