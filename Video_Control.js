@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.70.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.71.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.70.0
+// @version      170.71.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -130,7 +130,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.70.0';
+    const VSC_VERSION = '170.71.0';
     const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -1100,7 +1100,19 @@ const PiPState = {
         }
       };
     }
-function chain(...nodes) {
+let _softClipCurve = null;
+    function getSoftClipCurve() {
+      if (_softClipCurve) return _softClipCurve;
+      const n = 4096, knee = 0.92, drive = 4.0, tanhD = Math.tanh(drive);
+      _softClipCurve = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        const x = (i / (n - 1)) * 2 - 1, ax = Math.abs(x);
+        _softClipCurve[i] = ax <= knee ? x : Math.sign(x) * (knee + (1 - knee) * Math.tanh(drive * (ax - knee) / Math.max(1e-6, 1 - knee)) / tanhD);
+      }
+      return _softClipCurve;
+    }
+
+    function chain(...nodes) {
       for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]);
       return { input: nodes[0], output: nodes[nodes.length - 1] };
     }
@@ -1278,16 +1290,8 @@ function chain(...nodes) {
 
       function buildAudioGraph(audioCtx) {
         const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), hpf: mkBQ(audioCtx, 'highpass', 20, 0.707), limiter: mkComp(audioCtx, -1.0, 0.0, 20.0, 0.003, 0.12), analyser: audioCtx.createAnalyser(), rawAnalyser: audioCtx.createAnalyser(), clipper: audioCtx.createWaveShaper() };
-
-        const n4096 = 4096, knee = 0.92, drive = 4.0, tanhD = Math.tanh(drive);
-        const curve = new Float32Array(n4096);
-        for (let i = 0; i < n4096; i++) {
-          const x = (i / (n4096 - 1)) * 2 - 1, ax = Math.abs(x);
-          curve[i] = ax <= knee ? x : Math.sign(x) * (knee + (1 - knee) * Math.tanh(drive * (ax - knee) / Math.max(1e-6, 1 - knee)) / tanhD);
-        }
-        n.clipper.curve = curve; try { n.clipper.oversample = '4x'; } catch (_) {}
+        n.clipper.curve = getSoftClipCurve(); try { n.clipper.oversample = '4x'; } catch (_) {}
         n.analyser.fftSize = 2048; n.rawAnalyser.fftSize = 2048;
-
         const dynamicEQ = createDynamicCinemaEQ(audioCtx), multiband = buildMultibandDynamics(audioCtx), lufsMeter = createLUFSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, lufsMeter), dialogueDetector = createDialogueDetector(audioCtx, n.rawAnalyser);
         n.wetInGain = loudnessNorm.node;
 
@@ -1848,7 +1852,7 @@ return clamp(softClip(color,.18),0.,1.);
             const vs = compileShaderChecked(gl, gl.VERTEX_SHADER, src.vs), fsColor = compileShaderChecked(gl, gl.FRAGMENT_SHADER, src.fsColorOnly), fsSharp = compileShaderChecked(gl, gl.FRAGMENT_SHADER, src.fsSharpen);
             const programColor = linkProgramChecked(gl, vs, fsColor), programSharp = linkProgramChecked(gl, vs, fsSharp); gl.deleteShader(vs); gl.deleteShader(fsColor); gl.deleteShader(fsSharp);
             this._bindProgramHandles(programColor, 'color'); this._bindProgramHandles(programSharp, 'sharp'); this.activeProgramKind = '';
-            const vertices = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); const tCoords = new Float32Array([0,0, 1,0, 0,1, 1,1]);
+            const vertices = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]); const tCoords = new Float32Array([0,0, 1,0, 0,1, 1,1]);
             this.vBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); this.tBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.bufferData(gl.ARRAY_BUFFER, tCoords, gl.STATIC_DRAW);
             this.videoTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
             this.toneTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -2011,7 +2015,6 @@ function bindElementDrag(el, onMove, onEnd) {
         return document.documentElement || document.body;
       }
 
-      // bindReactive: UI 버튼의 상태를 스토어 값과 동기화
       function bindReactive(btn, paths, apply, sm, sub) {
         const pathArr = Array.isArray(paths) ? paths : [paths];
         const sync = () => { if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); };
@@ -2114,6 +2117,7 @@ function bindElementDrag(el, onMove, onEnd) {
 
         const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
+        // 1. 렌더링 모드 버튼 3단 순환 (Auto -> WebGL -> SVG)
         const rmBtn = h('button', { id: 'rm-btn', class: 'btn fill-active' });
         rmBtn.onclick = (e) => {
           e.stopPropagation();
@@ -2132,6 +2136,7 @@ function bindElementDrag(el, onMove, onEnd) {
           el.style.background = 'var(--btn-bg)';
         }, sm, sub);
 
+        // 2. HDR 버튼
         const hdrBtn = h('button', { class: 'btn' }, '🎬 Rec.2020');
         hdrBtn.onclick = (e) => {
           e.stopPropagation();
@@ -2165,6 +2170,7 @@ function bindElementDrag(el, onMove, onEnd) {
           }
         }, sm, sub);
 
+        // 3. 편의기능 버튼들
         const autoSceneBtn = h('button', { class: 'btn', style: 'flex: 1.2;' }, '✨ 자동 씬');
         bindReactive(autoSceneBtn, [P.APP_AUTO_SCENE], (el, v) => el.classList.toggle('active', !!v), sm, sub);
         autoSceneBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); };
@@ -2188,6 +2194,7 @@ function bindElementDrag(el, onMove, onEnd) {
         };
         bindReactive(zoomBtn, [P.APP_ZOOM_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
 
+        // 4. 오디오 관련 버튼들
         const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5;' }, '🔊 Brickwall (EQ+Dyn)');
         boostBtn.onclick = (e) => {
           e.stopPropagation();
@@ -2414,6 +2421,7 @@ function bindElementDrag(el, onMove, onEnd) {
       } catch (_) {}
     };
 
+    // ★ WebGL 탐지 및 자동 폴백 평가 로직
     function probeWebGLCapability() {
       if (probeWebGLCapability._result !== undefined) return probeWebGLCapability._result;
       const result = { supported: false, tier: 'none', maxTextureSize: 0, failReason: '' };
@@ -2468,7 +2476,7 @@ function bindElementDrag(el, onMove, onEnd) {
       return 'webgl';
     }
 
-    function createBackendAdapter(Filters, FiltersGL, Store, P) {
+    function createBackendAdapter(Filters, FiltersGL) {
       let activeContextCount = 0;
       const fallbackTracker = new WeakMap();
       return {
@@ -2574,14 +2582,14 @@ function bindElementDrag(el, onMove, onEnd) {
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
     }
 
-    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq }) {
+    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, storeRMode, ApplyReq }) {
       const candidates = new Set(); const addIfVideo = (v) => { if (v?.tagName === 'VIDEO') candidates.add(v); };
       for (const v of dirtyVideos) addIfVideo(v); for (const v of TOUCHED.videos) addIfVideo(v); for (const v of TOUCHED.rateVideos) addIfVideo(v); for (const v of applySet) addIfVideo(v);
       for (const el of candidates) {
         if (!el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); continue; }
         const st = getVState(el); const visible = (st.visible !== false); const shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
         if (!shouldApply) { clearVideoRuntimeState(el, Adapter, ApplyReq); continue; }
-        if (videoFxOn) { Adapter.apply(el, rMode, vVals); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
+        if (videoFxOn) { Adapter.apply(el, storeRMode, vVals); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
         if (pbActive) { applyPlaybackRate(el, desiredRate); } else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
         bindVideoOnce(el, ApplyReq);
       }
@@ -2594,7 +2602,7 @@ function bindElementDrag(el, onMove, onEnd) {
       };
       const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 3.5, gamma: -0.04, mid: 0 }], [SHADOW_BAND.MID, { toe: 2.0, gamma: 0, mid: -0.08 }], [SHADOW_BAND.OUTER, { toe: 0, gamma: -0.02, mid: -0.15 }]]);
       return {
-        get(vfUser, rMode, activeVideo) {
+        get(vfUser, storeRMode, activeVideo) {
           const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
           const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, satF: 1.0, temp: 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, __qos: 'full', _hdrToneMap: !!Store.get(P.APP_HDR_TONEMAP) };
           const sMask = vfUser.shadowBandMask || 0;
@@ -2670,7 +2678,7 @@ function bindElementDrag(el, onMove, onEnd) {
           if (applyToAllVisibleVideos) { for (const v of visible.videos) applySet.add(v); } else if (__activeTarget) { applySet.add(__activeTarget); }
 
           const desiredRate = Store.get(P.PB_RATE);
-          reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, rMode: storeRMode, ApplyReq });
+          reconcileVideoEffects({ applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, storeRMode, ApplyReq });
           if (force || vidsDirty.size) UI.ensure();
         } catch (e) { log.warn('apply crashed:', e); }
       });
