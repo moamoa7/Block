@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.74.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.75.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.74.0
+// @version      170.75.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -33,7 +33,7 @@
     const OPT_PC = { passive: true, capture: true };
 
     const SYS = Object.freeze({
-      WFC: 5000, WFT: 3, AFC: 5000, SRD: 220, SLM: 24, MAX_CTX: 8
+      WFC: 5000, WFT: 3, AFC: 5000, SRD: 220, MAX_CTX: 8
     });
 
     function isEditableTarget(t) {
@@ -130,8 +130,9 @@
 
     function detectMobile() {
       try {
-        if ((navigator.maxTouchPoints || 0) >= 2 && matchMedia('(pointer: coarse)').matches) return true;
-        return /Mobi|Android|iPhone/i.test(navigator.userAgent);
+        if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return true;
+        if ((navigator.maxTouchPoints || 0) >= 2 && matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover)').matches) return true;
+        return false;
       } catch (_) { return false; }
     }
 
@@ -143,8 +144,7 @@
       DEBUG: DEBUG_BY_URL
     });
 
-    const VSC_VERSION = '170.74.0';
-    const VSC_SYNC_TOKEN = `VSC_SYNC_${VSC_VERSION}_${CONFIG.VSC_ID}`;
+    const VSC_VERSION = '170.75.0';
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
     const log = CONFIG.DEBUG ? {
@@ -203,12 +203,15 @@
       }
       return out;
     }
-
-    const VSC_MEDIA = {
-      get isHdr() {
-        try { return matchMedia('(dynamic-range: high)').matches; } catch { return false; }
-      }
-    };
+const VSC_MEDIA = (() => {
+      let cached = false;
+      try {
+        const mq = matchMedia('(dynamic-range: high)');
+        cached = mq.matches;
+        mq.addEventListener('change', e => { cached = e.matches; });
+      } catch (_) {}
+      return Object.freeze({ get isHdr() { return cached; } });
+    })();
 
     const HIDE_AMBIENT_KEY = 'vsc.hideAmbientGlow';
     function setHideAmbientGlow(enable) {
@@ -531,7 +534,7 @@
       }
       return changed;
     }
-const PiPState = {
+    const PiPState = {
       window: null, video: null, placeholder: null, origParent: null, origCss: '',
       reset() { Object.assign(this, { window: null, video: null, placeholder: null, origParent: null, origCss: '' }); }
     };
@@ -582,6 +585,7 @@ const PiPState = {
 
     function restoreFromDocumentPiP(video) {
       if (!video) { PiPState.reset(); return; }
+      const wasPlaying = !video.paused;
       try {
         video.style.cssText = PiPState.origCss || '';
         if (PiPState.placeholder?.parentNode?.isConnected) {
@@ -591,6 +595,9 @@ const PiPState = {
           PiPState.origParent.appendChild(video);
         } else {
           (document.body || document.documentElement)?.appendChild(video);
+        }
+        if (wasPlaying && video.paused) {
+          video.play().catch(() => {});
         }
       } catch (e) {
         log.warn('PiP restore failed:', e);
@@ -951,8 +958,9 @@ const PiPState = {
         const schedule = () => {
           if (scheduled) return;
           scheduled = true;
-          if (typeof scheduler !== 'undefined' && typeof scheduler.postTask === 'function') {
-            scheduler.postTask(drainRunnerIdle, { priority: 'background' }).catch(() => {
+          const webScheduler = window.scheduler;
+          if (webScheduler && typeof webScheduler.postTask === 'function') {
+            webScheduler.postTask(drainRunnerIdle, { priority: 'background' }).catch(() => {
               if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 });
               else requestAnimationFrame(drainRunnerRaf);
             });
@@ -1082,7 +1090,8 @@ const PiPState = {
       return {
         videos, visible, rev: () => rev, refreshObservers,
         prune: () => {
-          const removed = pruneDisconnected(videos, visible.videos, dirty.videos, (el) => { if (io) io.unobserve(el); });
+          const removed = pruneDisconnected(videos, visible.videos, dirtyA.videos, (el) => { if (io) io.unobserve(el); });
+          pruneDisconnected(videos, visible.videos, dirtyB.videos, () => {});
           if (removed) rev++;
         },
         consumeDirty: () => {
@@ -1200,7 +1209,7 @@ const PiPState = {
       }
 
       function buildMultibandDynamics(actx) {
-        const CROSSOVER_LOW = 120, CROSSOVER_HIGH = 4000;
+        const CROSSOVER_LOW = 200, CROSSOVER_HIGH = 3200;
         const createLR4 = (freq, type) => {
           const f1 = mkBQ(actx, type, freq, Math.SQRT1_2);
           const f2 = mkBQ(actx, type, freq, Math.SQRT1_2);
@@ -1316,9 +1325,10 @@ const PiPState = {
         chain(n.inputGain, n.hpf, dynamicEQ.input);
         chain(dynamicEQ.output, multiband.input);
 
-        chain(multiband.output, n.clipper, n.limiter);
+        chain(multiband.output, n.wetInGain);
+        chain(n.wetInGain, n.clipper, n.limiter);
         n.limiter.connect(lufsMeter.input);
-        chain(n.limiter, n.wetInGain, n.analyser, n.wetGain, n.masterOut);
+        chain(n.limiter, n.analyser, n.wetGain, n.masterOut);
 
         n.masterOut.connect(audioCtx.destination);
 
@@ -1472,7 +1482,7 @@ const PiPState = {
       const d = t - c;
       if (Math.abs(d) < 0.002) return t;
       const alpha = d > 0 ? au : ad;
-      return c + d * Math.min(alpha, 0.5);
+      return c + d * alpha;
     };
 function createAutoSceneManager(Store, P, Scheduler) {
       const AUTO = {
@@ -1533,7 +1543,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
       function calculateAdaptiveFps(changeScore) {
         AUTO.changeEma = (AUTO.changeEma || 0) * 0.7 + changeScore * 0.3;
         const avg = AUTO.changeEma;
-        let targetFps; if (avg < 0.1) targetFps = 3 + (avg / 0.1) * 2; else if (avg < 0.3) targetFps = 5 + ((avg - 0.1) / 0.2) * 3; else targetFps = 8 + (Math.min(avg - 0.3, 0.7) / 0.7) * 2;
+        let targetFps;
+        if (avg < 0.02) targetFps = 1;
+        else if (avg < 0.1) targetFps = 2 + (avg / 0.1) * 3;
+        else if (avg < 0.3) targetFps = 5 + ((avg - 0.1) / 0.2) * 3;
+        else targetFps = 8 + (Math.min(avg - 0.3, 0.7) / 0.7) * 2;
         const clamped = VSC_CLAMP(targetFps, AUTO.minFps, AUTO.maxFps); AUTO.curFps += VSC_CLAMP(Math.round(clamped * 2) / 2 - AUTO.curFps, -1, 1); return AUTO.curFps;
       }
 
@@ -1756,6 +1770,15 @@ function createAutoSceneManager(Store, P, Scheduler) {
       }
 
       return {
+        invalidateCache: (video) => {
+          try {
+            const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
+            const nodes = ctxMap.get(root);
+            if (nodes) { nodes.st.lastKey = ''; nodes.st.fullKey = ''; nodes.st.fastKey = ''; nodes.st.__filterRes = ''; }
+            const dc = urlCache.get(root);
+            if (dc) { dc.key = ''; dc.url = ''; }
+          } catch (_) {}
+        },
         prepareCached: (video, s) => {
           try {
             const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
@@ -1794,7 +1817,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
         }
       };
     }
-function createFiltersWebGL(Utils) {
+    function createFiltersWebGL(Utils) {
       const pipelines = new WeakMap();
       const tq = (v, st) => Math.round(v / st) * st;
       function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
@@ -1857,7 +1880,7 @@ return clamp(softClip(color,.18),0.,1.);
 
       class WebGLPipeline {
         constructor() {
-          this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._texW = 0; this._texH = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._initialStyleSynced = false; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0; this._contextLostCount = 0; this._suspended = false; this._lastRenderT = 0; this._idleCheckTimer = 0; this._styleSyncTimer = 0; this._gpuTierEma = 0;
+          this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._initialStyleSynced = false; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0; this._contextLostCount = 0; this._suspended = false; this._lastRenderT = 0; this._idleCheckTimer = 0; this._styleSyncTimer = 0; this._gpuTierEma = 0; this._paramsDirty = false;
           this._onContextLost = (e) => { e.preventDefault(); const now = performance.now(); this._contextLostCount = (this._contextLostCount || 0) + 1; this.disabledUntil = now + Math.min(30000, 3000 * Math.pow(1.5, this._contextLostCount)); this.active = false; this._loopToken++; this._loopRunning = false; if (this._videoHidden && this.video) { this.video.style.opacity = this._prevVideoOpacity; this.video.style.visibility = this._prevVideoVisibility; this._videoHidden = false; } try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {} try { const st = this.video ? getVState(this.video) : null; if (st) st.webglDisabledUntil = now + SYS.WFC; } catch (_) {} safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard()); };
           this._onContextRestored = () => {
             try {
@@ -1917,7 +1940,7 @@ return clamp(softClip(color,.18),0.,1.);
         }
         resumeContext() {
           if (!this._suspended) return true;
-          this._suspended = false;
+          this._suspended = false; this._paramsDirty = true; this._toneKey = ''; this.activeProgramKind = '';
           if (!this.initGLResourcesOnExistingCanvas()) { this.disabledUntil = performance.now() + 5000; return false; }
           this._outputReady = false; this.canvas.style.opacity = '0'; this.startRenderLoop();
           return true;
@@ -1934,15 +1957,16 @@ return clamp(softClip(color,.18),0.,1.);
         attachToVideo(video) {
           if (this._suspended) { this.video = video; if (!this.resumeContext()) return false; }
           else if (!this.active && !this.init()) return false;
-          this.video = video; this.originalParent = video.parentNode; this._videoHidden = false; this._outputReady = false; this.canvas.style.opacity = '0';
+          this.video = video; this.originalParent = video.parentNode; this._videoHidden = false; this._outputReady = false; this._paramsDirty = true; this._toneKey = ''; this.activeProgramKind = ''; this.canvas.style.opacity = '0';
           if (this.originalParent) { const cs = window.getComputedStyle(this.originalParent); if (cs.position === 'static') { this._parentPrevPosition = this.originalParent.style.position || ''; this.originalParent.style.position = 'relative'; this._parentStylePatched = true; this._patchedParent = this.originalParent; } if (video.nextSibling) this.originalParent.insertBefore(this.canvas, video.nextSibling); else this.originalParent.appendChild(this.canvas); }
           if (this._styleObs) this._styleObs.disconnect(); this._styleObs = new MutationObserver(() => { this._styleDirty = true; }); try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
           try { video.addEventListener('transitionend', () => { this._styleDirty = true; }, OPT_P); } catch (_) {}
           this._styleDirty = true;
+          if (this._styleSyncTimer) clearInterval(this._styleSyncTimer);
           this._styleSyncTimer = setInterval(() => { if (!this.active || !this.video || !this.canvas) return; this._syncStylesDeferred(); }, 600);
           this.active = true; this.startRenderLoop(); this.startIdleWatch(); return true;
         }
-        updateParams(vVals) { this.vVals = vVals; }
+        updateParams(vVals) { this.vVals = vVals; this._paramsDirty = true; }
         _syncStylesDeferred() {
           if (!this._styleDirty) return;
           this._styleDirty = false;
@@ -1974,14 +1998,15 @@ return clamp(softClip(color,.18),0.,1.);
           const MAX_W = Math.min(3840, Math.max(displayW, 640)), MAX_H = Math.min(gpuTier, Math.max(displayH, 360));
           let w = rawW, h = rawH; if (w > MAX_W || h > MAX_H) { const scale = Math.min(MAX_W / w, MAX_H / h); w = Math.round(w * scale); h = Math.round(h * scale); }
           const isHdr = VSC_MEDIA.isHdr, prof = getSharpProfile(this.vVals, rawW, rawH, isHdr), useSharpen = prof.amount > 0.0, kind = useSharpen ? 'sharp' : 'color', H = useSharpen ? this.handles_sharp : this.handles_color;
-          let programChanged = false; if (this.activeProgramKind !== kind) { this.activeProgramKind = kind; programChanged = true; gl.useProgram(H.program); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.enableVertexAttribArray(H.aPosition); gl.vertexAttribPointer(H.aPosition, 2, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.enableVertexAttribArray(H.aTexCoord); gl.vertexAttribPointer(H.aTexCoord, 2, gl.FLOAT, false, 0, 0); }
+          let programChanged = false; const paramsDirty = this._paramsDirty; this._paramsDirty = false; if (this.activeProgramKind !== kind) { this.activeProgramKind = kind; programChanged = true; gl.useProgram(H.program); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.enableVertexAttribArray(H.aPosition); gl.vertexAttribPointer(H.aPosition, 2, gl.FLOAT, false, 0, 0); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.enableVertexAttribArray(H.aTexCoord); gl.vertexAttribPointer(H.aTexCoord, 2, gl.FLOAT, false, 0, 0); }
           const resized = (this.canvas.width !== w || this.canvas.height !== h); if (resized) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); }
-          if ((resized || programChanged || this._lastRawW !== rawW || this._lastRawH !== rawH) && H.uResolution) { gl.uniform2f(H.uResolution, rawW, rawH); this._lastRawW = rawW; this._lastRawH = rawH; }
+          if ((resized || programChanged || paramsDirty || this._lastRawW !== rawW || this._lastRawH !== rawH) && H.uResolution) { gl.uniform2f(H.uResolution, rawW, rawH); this._lastRawW = rawW; this._lastRawH = rawH; }
           const rs = this.vVals._rs ?? 1, gs = this.vVals._gs ?? 1, bs = this.vVals._bs ?? 1; if (H.uParams) gl.uniform4f(H.uParams, this.vVals.gain || 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
           const hiReduce = isHdr ? 0.82 : 0.88; if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? prof.amount : 0.0, prof.tapMode, hiReduce);
           if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs); if (useSharpen && H.uSharpParams) gl.uniform3f(H.uSharpParams, prof.desatSat, prof.biasMix, prof.edgeDampMix);
           const hdrToneMap = (this.vVals._hdrToneMap && isHdr) ? 1.0 : 0.0; if (H.uHDRToneMap !== undefined && H.uHDRToneMap !== null) gl.uniform1f(H.uHDRToneMap, hdrToneMap);
           const toe = this.vVals.toe || 0, mid = this.vVals.mid || 0, shoulder = this.vVals.shoulder || 0, toneKey = `${tq(toe, 0.2)}|${tq(mid, 0.02)}|${tq(shoulder, 0.2)}|${tq(this.vVals.gain || 1, 0.06)}`;
+          if (paramsDirty) this._toneKey = '';
           if (this._toneKey !== toneKey && this.toneTexture) { this._toneKey = toneKey; const lut = buildToneLUT256(toe, mid, shoulder, this.vVals.gain || 1.0); gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, lut); }
           gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture);
           try {
@@ -2011,7 +2036,7 @@ return clamp(softClip(color,.18),0.,1.);
           const { keepCanvasListeners = false } = opts; const gl = this.gl;
           if (gl) { try { if (this.videoTexture) { gl.deleteTexture(this.videoTexture); this.videoTexture = null; } if (this.toneTexture) { gl.deleteTexture(this.toneTexture); this.toneTexture = null; } if (this.vBuf) { gl.deleteBuffer(this.vBuf); this.vBuf = null; } if (this.tBuf) { gl.deleteBuffer(this.tBuf); this.tBuf = null; } if (this.handles_color?.program) gl.deleteProgram(this.handles_color.program); if (this.handles_sharp?.program) gl.deleteProgram(this.handles_sharp.program); } catch (_) {} }
           if (!keepCanvasListeners && this.canvas) { try { this.canvas.removeEventListener('webglcontextlost', this._onContextLost); this.canvas.removeEventListener('webglcontextrestored', this._onContextRestored); } catch (_) {} }
-          this.gl = null; this._texW = 0; this._texH = 0; this.activeProgramKind = '';
+          this.gl = null; this.activeProgramKind = '';
         }
         shutdown() {
           this.stopIdleWatch();
@@ -2027,9 +2052,9 @@ return clamp(softClip(color,.18),0.,1.);
           if (wasHidden && videoRef) { queueMicrotask(() => { queueMicrotask(() => { videoRef.style.opacity = prevOpacity; videoRef.style.visibility = prevVisibility; }); }); }
         }
       }
-      return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
+return { apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } } pipe.updateParams(vVals); return true; }, clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } } };
     }
-function bindElementDrag(el, onMove, onEnd) {
+    function bindElementDrag(el, onMove, onEnd) {
       const ac = new AbortController();
       const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); };
       const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); };
@@ -2538,16 +2563,11 @@ function bindElementDrag(el, onMove, onEnd) {
           const effectiveMode = (webglAllowed && !contextLimitReached) ? 'webgl' : 'svg';
 
           const prevBackend = st.fxBackend;
-          if (prevBackend && prevBackend !== effectiveMode) {
-            if (prevBackend === 'webgl') { FiltersGL.clear(video); activeContextCount = Math.max(0, activeContextCount - 1); }
-            else if (prevBackend === 'svg') { Filters.clear(video); }
-            st.fxBackend = null;
-          }
-
           if (effectiveMode === 'webgl') {
-              if (!st.fxBackend) activeContextCount++;
+              const wasWebGL = (prevBackend === 'webgl');
+              if (!wasWebGL) activeContextCount++;
               if (!FiltersGL.apply(video, vVals)) {
-                activeContextCount = Math.max(0, activeContextCount - 1);
+                if (!wasWebGL) activeContextCount = Math.max(0, activeContextCount - 1);
                 FiltersGL.clear(video);
                 tracker.attempts++; tracker.lastAttempt = now;
                 if (tracker.attempts >= 3) {
@@ -2566,9 +2586,13 @@ function bindElementDrag(el, onMove, onEnd) {
                 Filters.applyUrl(video, Filters.prepareCached(video, vVals)); st.fxBackend = 'svg'; return;
               }
               if (tracker.attempts > 0) { tracker.attempts = Math.max(0, tracker.attempts - 1); fallbackTracker.set(video, tracker); }
+              if (prevBackend === 'svg') { Filters.clear(video); }
               st.fxBackend = 'webgl';
           } else {
-              Filters.applyUrl(video, Filters.prepareCached(video, vVals)); st.fxBackend = 'svg';
+              if (prevBackend === 'webgl') { safe(() => Filters.invalidateCache(video)); }
+              Filters.applyUrl(video, Filters.prepareCached(video, vVals));
+              if (prevBackend === 'webgl') { FiltersGL.clear(video); activeContextCount = Math.max(0, activeContextCount - 1); }
+              st.fxBackend = 'svg';
           }
         },
         clear(video) {
@@ -2615,7 +2639,7 @@ function bindElementDrag(el, onMove, onEnd) {
         if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; st.rateState._setAttempts = 0; }
         ApplyReq.hard();
       };
-      const combinedSignal = (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') ? AbortSignal.any([st._ac.signal, __globalSig]) : (() => { const ac = new AbortController(); const abort = () => { ac.abort(); st._ac.signal.removeEventListener('abort', abort); __globalSig.removeEventListener('abort', abort); }; st._ac.signal.addEventListener('abort', abort); __globalSig.addEventListener('abort', abort); return ac.signal; })();
+      const combinedSignal = AbortSignal.any([st._ac.signal, __globalSig]);
       const opts = { passive: true, signal: combinedSignal };
       const videoEvents = [['loadstart', softResetTransientFlags], ['loadedmetadata', softResetTransientFlags], ['emptied', softResetTransientFlags], ['seeking', () => ApplyReq.hard()], ['play', () => ApplyReq.hard()], ['ratechange', () => {
           const rSt = getRateState(v); const now = performance.now(); if ((now - (rSt.lastSetAt || 0)) < 180 || now < (rSt.suppressSyncUntil || 0)) return;
@@ -2670,7 +2694,8 @@ function bindElementDrag(el, onMove, onEnd) {
           const sMask = vfUser.shadowBandMask || 0;
           if (sMask > 0) {
             let toeSum = 0; for (const [bit, params] of SHADOW_PARAMS) { if (sMask & bit) { toeSum += params.toe; out.gamma += params.gamma; out.mid += params.mid; } }
-            out.toe = VSC_CLAMP(toeSum * (1 - 0.1 * Math.max(0, toeSum - 3)), 0, 5.0);
+            const combinedAttenuation = 1 - 0.15 * Math.max(0, toeSum - 2.5);
+            out.toe = VSC_CLAMP(toeSum * Math.max(0.5, combinedAttenuation), 0, 3.5);
           }
           out.mid = VSC_CLAMP(out.mid, -0.20, 0); const brStep = vfUser.brightStepLevel || 0;
           if (brStep > 0) { out.bright += brStep * 4.0; out.toe = Math.max(0, out.toe - brStep * 0.5); out.gamma *= (1.0 + brStep * 0.03); }
@@ -2696,12 +2721,12 @@ function bindElementDrag(el, onMove, onEnd) {
           const q = v.getVideoPlaybackQuality(); const dropped = Number(q.droppedVideoFrames || 0), total = Number(q.totalVideoFrames || 0);
           const dDropped = Math.max(0, dropped - (__lastQSample.dropped || 0)), dTotal = Math.max(0, total - (__lastQSample.total || 0));
           __lastQSample = { dropped, total }; const denom = (dTotal > 0) ? dTotal : total, numer = (dTotal > 0) ? dDropped : dropped;
-          const ratio = denom > 0 ? (numer / denom) : 0; const target = ratio > 0.12 ? 0.70 : (ratio > 0.06 ? 0.85 : 1.0);
+          const ratio = denom > 0 ? (numer / denom) : 0; const target = ratio > 0.08 ? 0.65 : (ratio > 0.04 ? 0.80 : 1.0);
           const alpha = target < qualityScale ? 0.35 : 0.25; qualityScale = qualityScale * (1 - alpha) + target * alpha;
 
-          if (ratio > 0.12) {
+          if (ratio > 0.08) {
             const st = getVState(v);
-            if (st && st.fxBackend === 'webgl') { st.webglDisabledUntil = now + 8000; safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard()); }
+            if (st && st.fxBackend === 'webgl') { st.webglDisabledUntil = now + 4000; safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard()); }
           }
         } catch (_) {}
         return qualityScale;
@@ -2760,16 +2785,6 @@ function bindElementDrag(el, onMove, onEnd) {
     const Utils = createUtils(); const Scheduler = createScheduler(32); const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
     const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
     window.__VSC_INTERNAL__.Store = Store; window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
-
-    window.addEventListener('message', (e) => {
-      if (!e.data || !e.data.__vsc_sync || e.data.token !== VSC_SYNC_TOKEN) return;
-      try {
-        const isTop = (window.self === window.top);
-        if (!isTop && e.origin !== location.origin && e.origin !== 'null') return;
-      } catch (_) {}
-      if (e.data.batch) { for (const item of e.data.batch) { if (Object.values(P).includes(item.p) && Store.get(item.p) !== item.val) Store.set(item.p, item.val); } }
-      else if (e.data.p) { if (e.data.p === P.APP_UI) return; if (Object.values(P).includes(e.data.p) && Store.get(e.data.p) !== e.data.val) Store.set(e.data.p, e.data.val); }
-    });
 
     function bindNormalizer(keys, schema) {
       const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); };
