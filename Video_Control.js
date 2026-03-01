@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.82.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.83.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.82.0
+// @version      170.83.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -101,7 +101,68 @@
           } catch (_) {}
         });
       }
-      // 무차별 2500개 TreeWalker 스캔 제거 (지연 탐색으로 대체됨)
+
+      // 지연 탐색: 알려진 플레이어 패턴의 Shadow Root만 선택적으로 탐색
+      function deferredShadowProbe() {
+        const PROBE_SELECTORS = [
+          '[class*=player]', '[class*=Player]', '[class*=video]', '[class*=Video]',
+          '[id*=player]', '[id*=Player]', '[id*=video]', '[id*=Video]',
+          '[data-module]', '.vp_video', '.html5-vpl_w',
+          '[is]'
+        ];
+        const MAX_DEPTH = 5;
+        const visited = new WeakSet();
+        function probeShadowRoots(root, depth) {
+          if (!root || depth > MAX_DEPTH || visited.has(root)) return;
+          visited.add(root);
+          try {
+            const videos = root.querySelectorAll?.('video');
+            if (videos && videos.length > 0) return;
+          } catch (_) {}
+          let candidates;
+          try {
+            candidates = root.querySelectorAll?.(PROBE_SELECTORS.join(','));
+          } catch (_) { return; }
+          if (!candidates) return;
+          for (const el of candidates) {
+            if (visited.has(el)) continue;
+            visited.add(el);
+            const sr = el.shadowRoot;
+            if (!sr) continue;
+            safe(() => document.dispatchEvent(
+              new CustomEvent('vsc-shadow-root', { detail: sr })
+            ));
+            probeShadowRoots(sr, depth + 1);
+          }
+          try {
+            const allEls = root.querySelectorAll?.('*');
+            if (!allEls) return;
+            const limit = Math.min(allEls.length, 200);
+            for (let i = 0; i < limit; i++) {
+              const el = allEls[i];
+              if (visited.has(el)) continue;
+              if (!el.shadowRoot) continue;
+              visited.add(el);
+              safe(() => document.dispatchEvent(
+                new CustomEvent('vsc-shadow-root', { detail: el.shadowRoot })
+              ));
+              probeShadowRoots(el.shadowRoot, depth + 1);
+            }
+          } catch (_) {}
+        }
+        const base = document.body || document.documentElement;
+        if (base) probeShadowRoots(base, 0);
+      }
+
+      const scheduleProbe = () => {
+        setTimeout(deferredShadowProbe, 1500);
+        setTimeout(deferredShadowProbe, 4000);
+      };
+      if (document.readyState === 'complete') {
+        scheduleProbe();
+      } else {
+        window.addEventListener('load', scheduleProbe, { once: true });
+      }
     }
 
     function onPageReady(fn) {
@@ -223,8 +284,7 @@
       }
       return st;
     };
-
-    const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
+const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
     const ShadowMask = Object.freeze({
       has(mask, bit) { return ((Number(mask) | 0) & bit) !== 0; },
       toggle(mask, bit) { return (((Number(mask) | 0) ^ bit) & 7); }
@@ -363,7 +423,8 @@
         }
       };
     }
-function createScheduler(minIntervalMs = 32) {
+
+    function createScheduler(minIntervalMs = 32) {
       let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0;
       function clearPending() {
         if (timer) { clearTimeout(timer); timer = 0; }
@@ -608,8 +669,7 @@ function createScheduler(minIntervalMs = 32) {
       }
       return enterPiP(video);
     }
-
-    function createZoomManager() {
+function createZoomManager() {
       const stateMap = new WeakMap();
       let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
       let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
@@ -787,7 +847,8 @@ function createScheduler(minIntervalMs = 32) {
 
       return { resetZoom, zoomTo, isZoomed };
     }
-function createTargeting() {
+
+    function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
         const now = performance.now();
@@ -1050,6 +1111,13 @@ function createTargeting() {
 
       refreshObservers();
 
+      document.addEventListener('vsc-shadow-root', (e) => {
+        const sr = e.detail;
+        if (sr && (sr instanceof ShadowRoot || sr.nodeType === 11)) {
+          connectObserver(sr);
+        }
+      });
+
       function pruneDisconnected(set, visibleSet, dirtySet, unobserveFn) {
         let removed = 0;
         for (const el of set) {
@@ -1100,8 +1168,7 @@ function createTargeting() {
         }
       };
     }
-
-    let _softClipCurve = null;
+let _softClipCurve = null;
     function getSoftClipCurve() {
       if (_softClipCurve) return _softClipCurve;
       const n = 4096, knee = 0.92, drive = 4.0, tanhD = Math.tanh(drive);
@@ -1430,7 +1497,8 @@ function createTargeting() {
         update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy
       };
     }
-const appAsym = (c, t, au, ad) => {
+
+    const appAsym = (c, t, au, ad) => {
       const d = t - c;
       if (Math.abs(d) < 0.002) return t;
       const alpha = d > 0 ? au : ad;
@@ -1597,8 +1665,7 @@ const appAsym = (c, t, au, ad) => {
       Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running && ctx) { AUTO.running = true; loop(); } });
       return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running && ctx) { AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; } };
     }
-
-    function createFiltersVideoOnly(Utils, config) {
+function createFiltersVideoOnly(Utils, config) {
       const { h, clamp } = Utils;
       function createLRU(max = 64) {
         const m = new Map();
@@ -1760,7 +1827,8 @@ const appAsym = (c, t, au, ad) => {
         }
       };
     }
-function createFiltersWebGL(Utils) {
+
+    function createFiltersWebGL(Utils) {
       const pipelines = new WeakMap();
       const tq = (v, st) => Math.round(v / st) * st;
       function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
@@ -1836,8 +1904,7 @@ return clamp(softClip(color,.18),0.,1.);
         _sharpProfileResult.edgeDampMix = edgeDampMix;
         return _sharpProfileResult;
       }
-
-      class WebGLPipeline {
+class WebGLPipeline {
         constructor() {
           this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this._videoHidden = false; this._prevVideoOpacity = ''; this._prevVideoVisibility = ''; this.disabledUntil = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._initialStyleSynced = false; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._timerId = 0; this._rvfcId = 0; this._rafId = 0; this._lastRawW = 0; this._lastRawH = 0; this._contextLostCount = 0; this._suspended = false; this._lastRenderT = 0; this._styleRafPending = false; this._gpuTierEma = 0; this._paramsDirty = false;
           this._toneLutBuf = new Uint8Array(256 * 4);
@@ -2162,7 +2229,8 @@ return clamp(softClip(color,.18),0.,1.);
         }
       };
     }
-function bindElementDrag(el, onMove, onEnd) {
+
+    function bindElementDrag(el, onMove, onEnd) {
       const ac = new AbortController();
       const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); };
       const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); };
@@ -2323,7 +2391,6 @@ function bindElementDrag(el, onMove, onEnd) {
           ApplyReq.hard();
         };
 
-        // 1. 기본 테마/색상 바인딩 (클릭 시 즉각 반응)
         bindReactive(rmBtn, [P.APP_RENDER_MODE], (el, v) => {
           const labels = { auto: '🎨 Auto', webgl: '🎨 WebGL Force', svg: '🎨 SVG Force' };
           const colors = { auto: '#2ecc71', webgl: '#ffaa00', svg: '#88ccff' };
@@ -2333,9 +2400,8 @@ function bindElementDrag(el, onMove, onEnd) {
           el.style.background = 'var(--btn-bg)';
         }, sm, sub);
 
-        // 2. Auto 모드일 때 실제 작동 중인 백엔드를 실시간 추적하여 텍스트 갱신 (핵심 해결책)
         const startAutoBackendWatcher = () => {
-          if (!rmBtn.isConnected) return; // UI 패널이 닫히면 추적 자동 종료
+          if (!rmBtn.isConnected) return;
           if (sm.get(P.APP_RENDER_MODE) === 'auto') {
             const activeV = window.__VSC_APP__?.getActiveVideo?.();
             if (activeV) {
@@ -2349,7 +2415,7 @@ function bindElementDrag(el, onMove, onEnd) {
               }
             }
           }
-          setTimeout(startAutoBackendWatcher, 500); // 0.5초마다 가볍게 상태 확인
+          setTimeout(startAutoBackendWatcher, 500);
         };
         queueMicrotask(startAutoBackendWatcher);
 
@@ -2760,45 +2826,36 @@ function bindElementDrag(el, onMove, onEnd) {
       const videoParamsMemo = createVideoParamsMemo(Store, P);
       const _autoSceneVVals = {};
       function updateQualityScale(v) {
-  if (!v || typeof v.getVideoPlaybackQuality !== 'function') return qualityScale;
-  const now = performance.now();
-  if (now - lastQCheck < 2000) return qualityScale;  // ← 2초 간격 (1초→2초: 노이즈 감소)
-  lastQCheck = now;
-  try {
-    const q = v.getVideoPlaybackQuality();
-    const dropped = Number(q.droppedVideoFrames || 0);
-    const total = Number(q.totalVideoFrames || 0);
-    const dDropped = Math.max(0, dropped - (__lastQSample.dropped || 0));
-    const dTotal = Math.max(0, total - (__lastQSample.total || 0));
-    __lastQSample = { dropped, total };
+        if (!v || typeof v.getVideoPlaybackQuality !== 'function') return qualityScale;
+        const now = performance.now();
+        if (now - lastQCheck < 2000) return qualityScale;
+        lastQCheck = now;
+        try {
+          const q = v.getVideoPlaybackQuality();
+          const dropped = Number(q.droppedVideoFrames || 0);
+          const total = Number(q.totalVideoFrames || 0);
+          const dDropped = Math.max(0, dropped - (__lastQSample.dropped || 0));
+          const dTotal = Math.max(0, total - (__lastQSample.total || 0));
+          __lastQSample = { dropped, total };
 
-    // ① 최소 30프레임 이상 재생되었을 때만 평가 (2초 간격이므로 ~60fps 기준 절반)
-    if (dTotal < 30) return qualityScale;
+          if (dTotal < 30) return qualityScale;
+          if (total < 300) return qualityScale;
 
-    // ② 초기 워밍업 무시: 총 누적 프레임이 300 미만이면 평가 스킵
-    //    (~5초 @ 60fps, 디코더·버퍼링 안정화 대기)
-    if (total < 300) return qualityScale;
+          const ratio = dDropped / dTotal;
+          const target = ratio > 0.20 ? 0.65 : (ratio > 0.12 ? 0.85 : 1.0);
+          const alpha = target < qualityScale ? 0.15 : 0.12;
+          qualityScale = qualityScale * (1 - alpha) + target * alpha;
 
-    const ratio = dDropped / dTotal;
-
-    // ③ 임계값 완화: 20% 이상이어야 "심각", 12% 이상이면 "경고"
-    const target = ratio > 0.20 ? 0.65 : (ratio > 0.12 ? 0.85 : 1.0);
-
-    // ④ EMA 알파 비대칭: 내려갈 때 더 둔감하게 (0.4→0.15), 올라갈 때 약간 빠르게
-    const alpha = target < qualityScale ? 0.15 : 0.12;
-    qualityScale = qualityScale * (1 - alpha) + target * alpha;
-
-    // ⑤ 대피 임계값 0.75→0.60 (훨씬 심각한 상황에서만 SVG 전환)
-    if (qualityScale < 0.60) {
-      const st = getVState(v);
-      if (st && st.fxBackend === 'webgl') {
-        st.webglDisabledUntil = now + 8000;
-        safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard());
+          if (qualityScale < 0.60) {
+            const st = getVState(v);
+            if (st && st.fxBackend === 'webgl') {
+              st.webglDisabledUntil = now + 8000;
+              safe(() => window.__VSC_INTERNAL__?.ApplyReq?.hard());
+            }
+          }
+        } catch (_) {}
+        return qualityScale;
       }
-    }
-  } catch (_) {}
-  return qualityScale;
-}
       Scheduler.registerApply((force) => {
         try {
           const active = !!Store.getCatRef('app').active; if (!active) { cleanupTouched(TOUCHED); Audio.update(); return; }
@@ -2880,7 +2937,7 @@ function bindElementDrag(el, onMove, onEnd) {
         on(document, 'DOMContentLoaded', runOnce, { once: true });
       })();
       const AutoScene = createAutoSceneManager(Store, P, Scheduler); window.__VSC_INTERNAL__.AutoScene = AutoScene;
-      const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FULL: 3840 * 2160, SVG_MAX_PIX_FAST: 3840 * 2160 });
+      const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
       const FiltersGL = createFiltersWebGL(Utils);
 
       const Adapter = createBackendAdapter(Filters, FiltersGL);
