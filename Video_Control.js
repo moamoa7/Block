@@ -11,6 +11,10 @@
 // @exclude      *://*.stripe.com/*
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
+// @exclude      *://poooo.ml/*
+// @exclude      *://tvwiki*.net/*
+// @exclude      *://tvmon.site/*
+// @exclude      *://tvhot.store/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @allFrames    true
