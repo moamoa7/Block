@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v170.93.0 - Ultimate Cinema EQ & Sharpness)
+// @name         Video_Control (v170.94.0 - Ultimate Cinema EQ & Sharpness)
 // @namespace    https://github.com/
-// @version      170.93.0
+// @version      170.94.0
 // @description  Video Control: High-End PC. True Luma Sharpening, Auto Scene Neutrality, Multiband Dynamics & LUFS.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -465,7 +465,7 @@ function createUtils() {
     clamp: VSC_CLAMP,
     h: (tag, props = {}, ...children) => {
       const isSvg = SVG_TAGS.has(tag) || props.ns === 'svg';
-      const el = isSvg ? document.createElementNS('[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)', tag) : document.createElement(tag);
+      const el = isSvg ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag);
       for (const [k, v] of Object.entries(props)) {
         if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), v); }
         else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); }
@@ -658,8 +658,12 @@ function normalizeBySchema(sm, schema) {
   return changed;
 }
 const PiPState = {
-  window: null, video: null, placeholder: null, origParent: null, origCss: '',
-  reset() { Object.assign(this, { window: null, video: null, placeholder: null, origParent: null, origCss: '' }); }
+  window: null, video: null, placeholder: null, origParent: null, origCss: '', _ac: null, _watcherId: null,
+  reset() {
+    if (this._ac) { this._ac.abort(); this._ac = null; }
+    if (this._watcherId) { clearInterval(this._watcherId); this._watcherId = null; }
+    Object.assign(this, { window: null, video: null, placeholder: null, origParent: null, origCss: '', _ac: null, _watcherId: null });
+  }
 };
 
 function checkAndCleanupClosedPiP() {
@@ -668,50 +672,97 @@ function checkAndCleanupClosedPiP() {
   }
 }
 
+function startPiPWatcher() {
+  if (PiPState._watcherId) return;
+  PiPState._watcherId = setInterval(() => {
+    if (!PiPState.window) {
+      clearInterval(PiPState._watcherId);
+      PiPState._watcherId = null;
+      return;
+    }
+    checkAndCleanupClosedPiP();
+  }, 1000);
+}
+
 function getActivePiPVideo() {
-  if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement;
-  if (PiPState.window && PiPState.video && !PiPState.window.closed) {
+  if (PiPState.video && PiPState.window && !PiPState.window.closed) {
     return PiPState.video;
   }
-  return null;
+  const el = document.pictureInPictureElement;
+  return (el instanceof HTMLVideoElement) ? el : null;
 }
 
 function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
 async function enterDocumentPiP(video) {
+  if (!video || video.readyState < 2) throw new Error('Video not ready');
+
   const wasPlaying = !video.paused;
-  const pipWindow = await window.documentPictureInPicture.requestWindow({
-    width: Math.max(video.videoWidth / 2, 400),
-    height: Math.max(video.videoHeight / 2, 225)
-  });
+
+  const nativeW = video.videoWidth || 0;
+  const nativeH = video.videoHeight || 0;
+  const displayW = video.clientWidth || 0;
+  const displayH = video.clientHeight || 0;
+
+  const targetW = nativeW > 0 ? Math.round(nativeW / 2) : (displayW > 0 ? displayW : 640);
+  const targetH = nativeH > 0 ? Math.round(nativeH / 2) : (displayH > 0 ? displayH : 360);
+
+  const maxW = Math.round(screen.availWidth * 0.5);
+  const maxH = Math.round(screen.availHeight * 0.5);
+  const w = Math.max(320, Math.min(targetW, maxW));
+  const h = Math.max(180, Math.min(targetH, maxH));
+
+  const pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
+
   PiPState.window = pipWindow;
   PiPState.video = video;
   PiPState.origParent = video.parentNode;
   PiPState.origCss = video.style.cssText;
+
   PiPState.placeholder = document.createElement('div');
-  Object.assign(PiPState.placeholder.style, { width: video.clientWidth + 'px', height: video.clientHeight + 'px', background: 'black' });
+  const rect = video.getBoundingClientRect();
+  const pw = rect.width || video.clientWidth || video.offsetWidth || 640;
+  const ph = rect.height || video.clientHeight || video.offsetHeight || 360;
+  Object.assign(PiPState.placeholder.style, {
+    width: `${pw}px`,
+    height: `${ph}px`,
+    background: '#000',
+    display: getComputedStyle(video).display || 'block',
+    boxSizing: 'border-box',
+  });
+
   PiPState.origParent?.insertBefore(PiPState.placeholder, video);
-  Object.assign(pipWindow.document.body.style, { margin: '0', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'black' });
+
   try {
-    for (const sheet of document.styleSheets) {
-      try {
-        const newStyle = pipWindow.document.createElement('style');
-        newStyle.textContent = Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
-        pipWindow.document.head.appendChild(newStyle);
-      } catch (_) {}
-    }
+    const pipStyle = pipWindow.document.createElement('style');
+    pipStyle.textContent = `
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      body { background: #000; display: flex; justify-content: center; align-items: center; width: 100vw; height: 100vh; overflow: hidden; }
+      video { width: 100%; height: 100%; object-fit: contain; }
+    `;
+    pipWindow.document.head.appendChild(pipStyle);
   } catch (_) {}
+
   Object.assign(video.style, { width: '100%', height: '100%', objectFit: 'contain' });
   pipWindow.document.body.append(video);
+
   if (wasPlaying && video.paused) {
     video.play().catch(() => {});
   }
-  const onClick = () => { video.paused ? video.play()?.catch?.(() => {}) : video.pause(); };
-  pipWindow.addEventListener('click', onClick);
+
+  const pipAC = new AbortController();
+  pipWindow.addEventListener('click', () => {
+    video.paused ? video.play()?.catch?.(() => {}) : video.pause();
+  }, { signal: pipAC.signal });
+
   pipWindow.addEventListener('pagehide', () => {
-    pipWindow.removeEventListener('click', onClick);
+    pipAC.abort();
     restoreFromDocumentPiP(video);
-  });
+  }, { once: true });
+
+  PiPState._ac = pipAC;
+  startPiPWatcher();
+
   return true;
 }
 
@@ -720,8 +771,10 @@ function restoreFromDocumentPiP(video) {
   if (PiPState.video !== video) return;
   const wasPlaying = !video.paused;
   let restored = false;
+
   try {
     video.style.cssText = PiPState.origCss || '';
+
     if (PiPState.placeholder?.parentNode?.isConnected) {
       PiPState.placeholder.parentNode.insertBefore(video, PiPState.placeholder);
       PiPState.placeholder.remove();
@@ -730,7 +783,8 @@ function restoreFromDocumentPiP(video) {
       PiPState.origParent.appendChild(video);
       restored = true;
     } else {
-      const containers = document.querySelectorAll('[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]');
+      const selectors = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
+      const containers = document.querySelectorAll(selectors);
       for (const c of containers) {
         if (c.isConnected && !c.querySelector('video')) {
           c.appendChild(video);
@@ -738,12 +792,35 @@ function restoreFromDocumentPiP(video) {
           break;
         }
       }
-      if (!restored) {
-        log.warn('PiP restore: could not find suitable container');
-        (document.body || document.documentElement)?.appendChild(video);
-        restored = true;
-      }
     }
+
+    if (!restored) {
+      log.warn('PiP restore: no suitable container — hiding video');
+      video.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;';
+      (document.body || document.documentElement)?.appendChild(video);
+      restored = true;
+
+      const retryRestore = () => {
+        const selectors = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
+        const containers = document.querySelectorAll(selectors);
+        for (const c of containers) {
+          if (c.isConnected && !c.querySelector('video')) {
+            video.style.cssText = PiPState.origCss || '';
+            c.appendChild(video);
+            clearInterval(retryId);
+            safe(() => __vscNs.ApplyReq?.hard());
+            return;
+          }
+        }
+      };
+
+      let retryCount = 0;
+      const retryId = setInterval(() => {
+        if (++retryCount > 10) { clearInterval(retryId); return; }
+        retryRestore();
+      }, 500);
+    }
+
     if (restored && wasPlaying && video.paused) {
       video.play().catch(() => {});
     }
@@ -756,14 +833,29 @@ function restoreFromDocumentPiP(video) {
 }
 
 async function enterPiP(video) {
-  if (!video || video.readyState < 2) return false;
+  if (!video) return false;
+  if (video.readyState < 2) return false;
+  if (video.error) return false;
+  if (video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE) return false;
+  if (video.disablePictureInPicture) return false;
+
   if (window.documentPictureInPicture?.requestWindow) {
     if (PiPState.window && !PiPState.window.closed) return true;
-    try { return await enterDocumentPiP(video); } catch (e) { log.debug('Document PiP failed', e); }
+    try {
+      return await enterDocumentPiP(video);
+    } catch (e) {
+      log.debug('Document PiP failed:', e.message);
+    }
   }
+
   if (document.pictureInPictureElement === video) return true;
-  if (video.requestPictureInPicture) {
-    try { await video.requestPictureInPicture(); return true; } catch (_) {}
+  if (typeof video.requestPictureInPicture === 'function') {
+    try {
+      await video.requestPictureInPicture();
+      return true;
+    } catch (e) {
+      log.debug('Legacy PiP failed:', e.message);
+    }
   }
   return false;
 }
@@ -771,34 +863,66 @@ async function enterPiP(video) {
 async function exitPiP(preferredVideo = null) {
   if (PiPState.window) {
     const video = PiPState.video;
-    if (!PiPState.window.closed) PiPState.window.close();
-    if (video && PiPState.video === video) restoreFromDocumentPiP(video);
+    const wasOpen = !PiPState.window.closed;
+
+    if (video) {
+      restoreFromDocumentPiP(video);
+    }
+
+    if (wasOpen && PiPState.window && !PiPState.window.closed) {
+      try { PiPState.window.close(); } catch (_) {}
+    }
+
+    if (PiPState.window) PiPState.reset();
     return true;
   }
+
   if (document.pictureInPictureElement && document.exitPictureInPicture) {
     try { await document.exitPictureInPicture(); return true; } catch (_) {}
   }
   return false;
 }
 
+let _pipToggleLock = false;
 async function togglePiPFor(video) {
   if (!video || video.readyState < 2) return false;
-  if ((PiPState.window && !PiPState.window.closed) || document.pictureInPictureElement === video) return exitPiP(video);
-  if (document.pictureInPictureElement && document.exitPictureInPicture) {
-    try { await document.exitPictureInPicture(); } catch (_) {}
+  if (_pipToggleLock) return false;
+  _pipToggleLock = true;
+
+  try {
+    const isInDocPiP = PiPState.window && !PiPState.window.closed && PiPState.video === video;
+    const isInLegacyPiP = document.pictureInPictureElement === video;
+
+    if (isInDocPiP || isInLegacyPiP) {
+      return await exitPiP(video);
+    }
+
+    if (document.pictureInPictureElement && document.exitPictureInPicture) {
+      try { await document.exitPictureInPicture(); } catch (_) {}
+    }
+    if (PiPState.window && !PiPState.window.closed) {
+      const prevVideo = PiPState.video;
+      if (!PiPState.window.closed) PiPState.window.close();
+      if (prevVideo) restoreFromDocumentPiP(prevVideo);
+    }
+
+    return await enterPiP(video);
+  } finally {
+    _pipToggleLock = false;
   }
-  return enterPiP(video);
 }
 
 function createZoomManager() {
   const stateMap = new WeakMap();
   let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
   let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+  let touchListenersAttached = false;
+  const zoomAC = new AbortController();
 
   const getSt = (v) => {
     let st = stateMap.get(v);
     if (!st) {
-      st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '' };
+      st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '', _cachedPosition: null, _lastTransition: null };
       stateMap.set(v, st);
     }
     return st;
@@ -809,31 +933,70 @@ function createZoomManager() {
     rafId = requestAnimationFrame(() => {
       rafId = null;
       const st = getSt(v);
-      v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
+      const panning = isPanning || pinchState.active;
+
       if (st.scale <= 1) {
-        st.scale = 1; st.tx = 0; st.ty = 0;
-        v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
         if (st.zoomed) {
-          v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; st.origComputedPosition = '';
+          v.style.transform = '';
+          v.style.transformOrigin = '';
+          v.style.cursor = '';
+          v.style.zIndex = st.origZIndex;
+          v.style.position = st.origPosition;
+          v.style.transition = '';
+          st.zoomed = false;
+          st.origComputedPosition = '';
         }
+        st.scale = 1; st.tx = 0; st.ty = 0;
       } else {
         if (!st.zoomed) {
-          st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.origComputedPosition = '';
-          try { st.origComputedPosition = window.getComputedStyle(v).position; } catch (_) {}
+          st.origZIndex = v.style.zIndex;
+          st.origPosition = v.style.position;
+          if (!st._cachedPosition) {
+            try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; }
+          }
+          st.origComputedPosition = st._cachedPosition;
           st.zoomed = true;
           if (st.origComputedPosition === 'static') v.style.position = 'relative';
         }
+
+        const wantTransition = panning ? 'none' : 'transform 0.1s ease-out';
+        if (st._lastTransition !== wantTransition) {
+          v.style.transition = wantTransition;
+          st._lastTransition = wantTransition;
+        }
+
         v.style.transformOrigin = '0 0';
         v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
-        v.style.cursor = isPanning ? 'grabbing' : 'grab';
+        v.style.cursor = panning ? 'grabbing' : 'grab';
         v.style.zIndex = '2147483646';
       }
     });
   };
 
+  function clampPan(v, st) {
+    const rect = getRectCached(v, performance.now(), 300);
+    const scaledW = rect.width * st.scale;
+    const scaledH = rect.height * st.scale;
+
+    const minVisibleFraction = 0.25;
+    const minVisW = rect.width * minVisibleFraction;
+    const minVisH = rect.height * minVisibleFraction;
+
+    const maxTx = rect.width - minVisW;
+    const minTx = -(scaledW - minVisW - rect.width);
+    const maxTy = rect.height - minVisH;
+    const minTy = -(scaledH - minVisH - rect.height);
+
+    st.tx = Math.max(Math.min(st.tx, maxTx), minTx);
+    st.ty = Math.max(Math.min(st.ty, maxTy), minTy);
+  }
+
   const zoomTo = (v, newScale, clientX, clientY) => {
     const st = getSt(v);
-    const rect = v.getBoundingClientRect();
+    if (!st.zoomed && !st._cachedPosition) {
+      try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; }
+    }
+    const rect = getRectCached(v, performance.now(), 150);
     const ix = (clientX - rect.left) / st.scale;
     const iy = (clientY - rect.top) / st.scale;
     st.tx = clientX - (rect.left - st.tx) - ix * newScale;
@@ -842,21 +1005,36 @@ function createZoomManager() {
     update(v);
   };
 
-  const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; update(v); } };
+  const resetZoom = (v) => {
+    if (v) {
+      const st = getSt(v);
+      st.scale = 1;
+      st._cachedPosition = null;
+      st._lastTransition = null;
+      update(v);
+    }
+  };
   const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
-  const isZoomEnabled = () => !!__vscNs.Store?.get(P.APP_ZOOM_EN);
   const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
   const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
 
   function getTargetVideo(e) {
-    const path = typeof e.composedPath === 'function' ? e.composedPath() : null;
-    if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } }
-    const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5);
-    const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5);
-    const el = document.elementFromPoint(cx, cy);
-    let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null;
-    if (!v && __vscNs.App) v = __vscNs.App.getActiveVideo();
-    return v;
+    if (typeof e.composedPath === 'function') {
+      const path = e.composedPath();
+      for (let i = 0, len = Math.min(path.length, 10); i < len; i++) {
+        if (path[i]?.tagName === 'VIDEO') return path[i];
+      }
+    }
+
+    const touch = e.touches?.[0];
+    const cx = Number.isFinite(e.clientX) ? e.clientX : (touch && Number.isFinite(touch.clientX) ? touch.clientX : null);
+    const cy = Number.isFinite(e.clientY) ? e.clientY : (touch && Number.isFinite(touch.clientY) ? touch.clientY : null);
+
+    if (cx != null && cy != null) {
+      const el = document.elementFromPoint(cx, cy);
+      if (el?.tagName === 'VIDEO') return el;
+    }
+    return __vscNs.App?.getActiveVideo() || null;
   }
 
   on(window, 'wheel', e => {
@@ -890,6 +1068,7 @@ function createZoomManager() {
     const dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty;
     if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
     st.tx = e.clientX - startX; st.ty = e.clientY - startY;
+    clampPan(activeVideo, st);
     update(activeVideo);
   }, { capture: true });
 
@@ -913,8 +1092,7 @@ function createZoomManager() {
     if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
   }, { capture: true });
 
-  on(window, 'touchstart', e => {
-    if (CONFIG.IS_MOBILE && !isZoomEnabled()) return;
+  const touchstartHandler = (e) => {
     const v = getTargetVideo(e);
     if (!v) return;
     const st = getSt(v);
@@ -929,9 +1107,9 @@ function createZoomManager() {
       activeVideo = v; isPanning = true; st.hasPanned = false;
       startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
     }
-  }, { passive: false, capture: true });
+  };
 
-  on(window, 'touchmove', e => {
+  const touchmoveHandler = (e) => {
     if (!activeVideo) return;
     const st = getSt(activeVideo);
     if (pinchState.active && e.touches.length === 2) {
@@ -940,11 +1118,15 @@ function createZoomManager() {
       let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
       newScale = Math.min(Math.max(1, newScale), 10);
       if (newScale < 1.05) {
-        resetZoom(activeVideo); pinchState.active = false;
+        resetZoom(activeVideo);
+        pinchState.active = false;
+        isPanning = false;
+        activeVideo = null;
       } else {
         zoomTo(activeVideo, newScale, center.x, center.y);
         st.tx += center.x - pinchState.lastCx;
         st.ty += center.y - pinchState.lastCy;
+        clampPan(activeVideo, st);
         update(activeVideo);
       }
       pinchState.lastCx = center.x; pinchState.lastCy = center.y;
@@ -953,22 +1135,63 @@ function createZoomManager() {
       const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty;
       if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
       st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY;
+      clampPan(activeVideo, st);
       update(activeVideo);
     }
-  }, { passive: false, capture: true });
+  };
 
-  on(window, 'touchend', e => {
+  const touchendHandler = (e) => {
     if (!activeVideo) return;
     if (e.touches.length < 2) pinchState.active = false;
     if (e.touches.length === 0) {
       if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) e.preventDefault();
       isPanning = false; update(activeVideo); activeVideo = null;
     }
-  }, { passive: false, capture: true });
+  };
 
-  return { resetZoom, zoomTo, isZoomed, destroy: () => { if (rafId) cancelAnimationFrame(rafId); rafId = null; } };
+  const attachTouchListeners = () => {
+    if (touchListenersAttached) return;
+    touchListenersAttached = true;
+    const sig = combineSignals(zoomAC.signal, __globalSig);
+    on(window, 'touchstart', touchstartHandler, { passive: false, capture: true, signal: sig });
+    on(window, 'touchmove', touchmoveHandler, { passive: false, capture: true, signal: sig });
+    on(window, 'touchend', touchendHandler, { passive: false, capture: true, signal: sig });
+  };
+
+  const setEnabled = (en) => {
+    if (en) attachTouchListeners();
+  };
+
+  if (CONFIG.IS_MOBILE) {
+    if (__vscNs.Store && __vscNs.Store.get(P.APP_ZOOM_EN)) attachTouchListeners();
+  } else {
+    attachTouchListeners();
+  }
+
+  return {
+    resetZoom, zoomTo, isZoomed, setEnabled,
+    destroy: () => {
+      zoomAC.abort();
+      touchListenersAttached = false;
+      if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+      if (activeVideo) {
+        const st = getSt(activeVideo);
+        if (st.zoomed) {
+          activeVideo.style.transform = '';
+          activeVideo.style.transformOrigin = '';
+          activeVideo.style.cursor = '';
+          activeVideo.style.zIndex = st.origZIndex;
+          activeVideo.style.position = st.origPosition;
+          activeVideo.style.transition = '';
+          st.zoomed = false;
+        }
+      }
+      isPanning = false;
+      pinchState.active = false;
+      activeVideo = null;
+    }
+  };
 }
-
 function createTargeting() {
   let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
   function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
@@ -2159,8 +2382,7 @@ function createFiltersVideoOnly(Utils, config) {
     };
     return { fidLite, fidSharp, filters: { lite, sharp }, commonByTier, sharpDetail: { b1: sB1, out: sOut }, st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', commonTier: { lite: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' }, sharp: { toneKey:'', toneTable:'', bcLinKey:'', gammaKey:'', tempKey:'', satKey:'' } }, sharpKey: '', __filterRes: '' } };
   }
-
-  function prepare(video, s) {
+function prepare(video, s) {
     const root = video.ownerDocument || document;
     let dc = urlCache.get(root); if (!dc) { dc = { key:'', url:'' }; urlCache.set(root, dc); }
     const vwKey = video.videoWidth || 0, vhKey = video.videoHeight || 0;
@@ -2316,35 +2538,37 @@ function createFiltersWebGL(Utils) {
 
   const glslHDR = `
 vec3 srgbToLinear(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
-vec3 linearToSrgb(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0/2.4)) - 0.055, step(0.0031308, c)); }
 const mat3 M709to2020 = mat3(0.6274, 0.3293, 0.0433, 0.0691, 0.9195, 0.0114, 0.0164, 0.0880, 0.8956);
-vec3 reinhardToneMap(vec3 c, float wp) { return c * (1.0 + c / (wp * wp)) / (1.0 + c); }
 vec3 linearToPQ(vec3 c) {
-  vec3 Ym = pow(clamp(c / 10000.0, 0.0, 1.0), vec3(0.1593017578125));
-  return pow((0.8359375 + 18.8515625 * Ym) / (1.0 + 18.6875 * Ym), vec3(78.84375));
+  const float m1 = 0.1593017578125; const float m2 = 78.84375;
+  const float c1 = 0.8359375; const float c2 = 18.8515625; const float c3 = 18.6875;
+  vec3 Ym = pow(clamp(c / 10000.0, 0.0, 1.0), vec3(m1));
+  return pow((c1 + c2 * Ym) / (1.0 + c3 * Ym), vec3(m2));
 }
-vec3 applyHDRToneMap(vec3 color, float hdrEn) {
-  if (hdrEn < 0.5) return color;
-  return linearToPQ(reinhardToneMap(M709to2020 * srgbToLinear(color) * 200.0, 400.0));
+vec3 acesFilmicToneMap(vec3 x) {
+  const float a = 2.51; const float b = 0.03; const float c = 2.43; const float d = 0.59; const float e = 0.14;
+  return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }`;
 
   const glslCommon = `
 const vec3 LUMA=vec3(0.2126,0.7152,0.0722);
 float tone1(float y){return TEX(uToneTex,vec2(y*(255./256.)+(.5/256.),.5)).r;}
 vec3 softClip(vec3 c,float knee){vec3 x=max(c-1.,vec3(0.));return c-x*x/(x+vec3(knee)+vec3(1e-6));}
-vec3 applyGrading(vec3 color){
-float y=dot(color,LUMA),y2=tone1(clamp(y,0.,1.)),ratio=y2/max(1e-4,y);color*=ratio;
-color=(color-.5)*uParams.y+.5;
-color=color*uParams.x+(uParams2.x/1000.);
-if(uParams.w!=1.)color=pow(max(color,vec3(0.)),vec3(1./uParams.w));
-float luma=dot(color,LUMA),hiLuma=clamp((luma-.72)/.28,0.,1.),satReduce=hiLuma*hiLuma*(3.-2.*hiLuma),currentSat=uParams.z*(1.-.05*satReduce);
-color=luma+(color-luma)*currentSat;
-color*=uRGBGain;
-return clamp(softClip(color,.18),0.,1.);
+vec3 applyGradingLinear(vec3 color, float hdrEn){
+  float y=dot(color,LUMA),y2=tone1(clamp(y,0.,1.)),ratio=y2/max(1e-4,y);color*=ratio;
+  color=(color-.5)*uParams.y+.5;
+  color=color*uParams.x+(uParams2.x/1000.);
+  if(uParams.w!=1.)color=pow(max(color,vec3(0.)),vec3(1./uParams.w));
+  float luma=dot(color,LUMA),hiLuma=clamp((luma-.72)/.28,0.,1.),satReduce=hiLuma*hiLuma*(3.-2.*hiLuma),currentSat=uParams.z*(1.-.05*satReduce);
+  color=luma+(color-luma)*currentSat;
+  color*=uRGBGain;
+  color=clamp(softClip(color,.18),0.,1.);
+  if(hdrEn>0.5) return srgbToLinear(color);
+  return color;
 }`;
 
-  function buildFsColorOnly({ gl2 }) { return hdr(gl2) + glslHDR + glslCommon + `void main(){vec3 color=TEX(uVideoTex,vTexCoord).rgb;vec3 graded=applyGrading(color);outColor=vec4(applyHDRToneMap(graded,uHDRToneMap),1.);}`; }
-  function buildFsSharpen({ gl2 }) { return hdr(gl2) + `uniform vec2 uResolution;uniform vec3 uSharpParams;\n` + glslHDR + glslCommon + `vec3 satMix(vec3 c,float sat){float l=dot(c,LUMA);return vec3(l)+(c-vec3(l))*sat;}vec3 rcasSharpen(sampler2D tex,vec2 uv,vec2 texel,float sharpAmount){vec3 b=TEX(tex,uv+vec2(0.,-texel.y)).rgb,d=TEX(tex,uv+vec2(-texel.x,0.)).rgb,e=TEX(tex,uv).rgb,f=TEX(tex,uv+vec2(texel.x,0.)).rgb,h=TEX(tex,uv+vec2(0.,texel.y)).rgb;vec3 mn=min(b,min(d,min(e,min(f,h)))),mx=max(b,max(d,max(e,max(f,h))));if(uParams2.z<.5){vec3 a=TEX(tex,uv+vec2(-texel.x,-texel.y)).rgb,c=TEX(tex,uv+vec2(texel.x,-texel.y)).rgb,g=TEX(tex,uv+vec2(-texel.x,texel.y)).rgb,i=TEX(tex,uv+vec2(texel.x,texel.y)).rgb;mn=min(mn,min(a,min(c,min(g,i))));mx=max(mx,max(a,max(c,max(g,i))));}float aAmt=clamp(sharpAmount,0.,1.),peak=-1./mix(9.,3.6,aAmt);vec3 hitMin=mn/(4.*mx+1e-4),hitMax=(peak-mx)/(4.*mn+peak);float lobe=max(-.1875,min(max(max(hitMin.r,hitMax.r),max(max(hitMin.g,hitMax.g),max(hitMin.b,hitMax.b))),0.));float edgeLuma=abs(dot(b-e,LUMA))+abs(dot(d-e,LUMA))+abs(dot(f-e,LUMA))+abs(dot(h-e,LUMA)),edgeDamp=1.-smoothstep(.05,.25,edgeLuma*.25);lobe*=mix(1.,edgeDamp,clamp(uSharpParams.z,0.,1.));return(lobe*(b+d+f+h)+e)/(4.*lobe+1.);}void main(){vec2 texel=1./uResolution;vec3 color=TEX(uVideoTex,vTexCoord).rgb;float sharpAmount=uParams2.y;if(sharpAmount>0.){color=rcasSharpen(uVideoTex,vTexCoord,texel,sharpAmount);vec3 d0=satMix(color,uSharpParams.x);color=mix(color,d0,uSharpParams.y);}vec3 graded=applyGrading(color);outColor=vec4(applyHDRToneMap(graded,uHDRToneMap),1.);}`; }
+  function buildFsColorOnly({ gl2 }) { return hdr(gl2) + glslHDR + glslCommon + `uniform float uSDRPeakNits;uniform float uHDRWhitePoint;void main(){vec3 color=TEX(uVideoTex,vTexCoord).rgb;vec3 graded=applyGradingLinear(color,uHDRToneMap);if(uHDRToneMap>0.5){vec3 bt2020=M709to2020*graded*uSDRPeakNits;vec3 mapped=acesFilmicToneMap(bt2020/uHDRWhitePoint*4.0)*uHDRWhitePoint;outColor=vec4(linearToPQ(mapped),1.);}else{outColor=vec4(graded,1.);}}`; }
+  function buildFsSharpen({ gl2 }) { return hdr(gl2) + `uniform vec2 uResolution;uniform vec3 uSharpParams;uniform float uSDRPeakNits;uniform float uHDRWhitePoint;\n` + glslHDR + glslCommon + `vec3 satMix(vec3 c,float sat){float l=dot(c,LUMA);return vec3(l)+(c-vec3(l))*sat;}vec3 rcasSharpen(sampler2D tex,vec2 uv,vec2 texel,float sharpAmount){vec3 b=TEX(tex,uv+vec2(0.,-texel.y)).rgb,d=TEX(tex,uv+vec2(-texel.x,0.)).rgb,e=TEX(tex,uv).rgb,f=TEX(tex,uv+vec2(texel.x,0.)).rgb,h=TEX(tex,uv+vec2(0.,texel.y)).rgb;vec3 mn=min(b,min(d,min(e,min(f,h)))),mx=max(b,max(d,max(e,max(f,h))));if(uParams2.z<.5){vec3 a=TEX(tex,uv+vec2(-texel.x,-texel.y)).rgb,c=TEX(tex,uv+vec2(texel.x,-texel.y)).rgb,g=TEX(tex,uv+vec2(-texel.x,texel.y)).rgb,i=TEX(tex,uv+vec2(texel.x,texel.y)).rgb;mn=min(mn,min(a,min(c,min(g,i))));mx=max(mx,max(a,max(c,max(g,i))));}float aAmt=clamp(sharpAmount,0.,1.),peak=-1./mix(9.,3.6,aAmt);vec3 hitMin=mn/(4.*mx+1e-4),hitMax=(peak-mx)/(4.*mn+peak);float lobe=max(-.1875,min(max(max(hitMin.r,hitMax.r),max(max(hitMin.g,hitMax.g),max(hitMin.b,hitMax.b))),0.));float edgeLuma=abs(dot(b-e,LUMA))+abs(dot(d-e,LUMA))+abs(dot(f-e,LUMA))+abs(dot(h-e,LUMA)),edgeDamp=1.-smoothstep(.05,.25,edgeLuma*.25);lobe*=mix(1.,edgeDamp,clamp(uSharpParams.z,0.,1.));return(lobe*(b+d+f+h)+e)/(4.*lobe+1.);}void main(){vec2 texel=1./uResolution;vec3 color=TEX(uVideoTex,vTexCoord).rgb;float sharpAmount=uParams2.y;if(sharpAmount>0.){color=rcasSharpen(uVideoTex,vTexCoord,texel,sharpAmount);vec3 d0=satMix(color,uSharpParams.x);color=mix(color,d0,uSharpParams.y);}vec3 graded=applyGradingLinear(color,uHDRToneMap);if(uHDRToneMap>0.5){vec3 bt2020=M709to2020*graded*uSDRPeakNits;vec3 mapped=acesFilmicToneMap(bt2020/uHDRWhitePoint*4.0)*uHDRWhitePoint;outColor=vec4(linearToPQ(mapped),1.);}else{outColor=vec4(graded,1.);}}`; }
 
   const _shaderCache = new Map();
   function buildShaderSources(gl) {
@@ -2456,7 +2680,7 @@ return clamp(softClip(color,.18),0.,1.);
       this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false });
       this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, OPT_P);
     }
-    _bindProgramHandles(program, key) { const gl = this.gl; gl.useProgram(program); const handles = { program, uResolution: gl.getUniformLocation(program, 'uResolution'), uVideoTex: gl.getUniformLocation(program, 'uVideoTex'), uToneTex: gl.getUniformLocation(program, 'uToneTex'), uParams: gl.getUniformLocation(program, 'uParams'), uParams2: gl.getUniformLocation(program, 'uParams2'), uRGBGain: gl.getUniformLocation(program, 'uRGBGain'), uSharpParams: gl.getUniformLocation(program, 'uSharpParams'), uHDRToneMap: gl.getUniformLocation(program, 'uHDRToneMap'), aPosition: gl.getAttribLocation(program, 'aPosition'), aTexCoord: gl.getAttribLocation(program, 'aTexCoord') }; if (handles.uVideoTex) gl.uniform1i(handles.uVideoTex, 0); if (handles.uToneTex) gl.uniform1i(handles.uToneTex, 1); this[`handles_${key}`] = handles; }
+    _bindProgramHandles(program, key) { const gl = this.gl; gl.useProgram(program); const handles = { program, uResolution: gl.getUniformLocation(program, 'uResolution'), uVideoTex: gl.getUniformLocation(program, 'uVideoTex'), uToneTex: gl.getUniformLocation(program, 'uToneTex'), uParams: gl.getUniformLocation(program, 'uParams'), uParams2: gl.getUniformLocation(program, 'uParams2'), uRGBGain: gl.getUniformLocation(program, 'uRGBGain'), uSharpParams: gl.getUniformLocation(program, 'uSharpParams'), uHDRToneMap: gl.getUniformLocation(program, 'uHDRToneMap'), uSDRPeakNits: gl.getUniformLocation(program, 'uSDRPeakNits'), uHDRWhitePoint: gl.getUniformLocation(program, 'uHDRWhitePoint'), aPosition: gl.getAttribLocation(program, 'aPosition'), aTexCoord: gl.getAttribLocation(program, 'aTexCoord') }; if (handles.uVideoTex) gl.uniform1i(handles.uVideoTex, 0); if (handles.uToneTex) gl.uniform1i(handles.uToneTex, 1); this[`handles_${key}`] = handles; }
     initGLResourcesOnExistingCanvas() {
       this.ensureCanvas(); let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: true }); this._isGL2 = !!gl; if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: true }); if (!gl) return false; this.gl = gl;
       try { gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); } catch (_) {}
@@ -2682,6 +2906,8 @@ return clamp(softClip(color,.18),0.,1.);
           gl.uniform1f(H.uHDRToneMap, hdrToneMap);
           uc.hdr = hdrToneMap;
         }
+        if (H.uSDRPeakNits) gl.uniform1f(H.uSDRPeakNits, 203.0);
+        if (H.uHDRWhitePoint) gl.uniform1f(H.uHDRWhitePoint, 1000.0);
       }
 
       const toe = this.vVals.toe || 0, mid = this.vVals.mid || 0, shoulder = this.vVals.shoulder || 0, toneKey = `${tq(toe, 0.2)}|${tq(mid, 0.02)}|${tq(shoulder, 0.2)}|${tq(this.vVals.gain || 1, 0.06)}`;
@@ -2945,7 +3171,6 @@ function bindElementDrag(el, onMove, onEnd) {
   on(el, 'pointercancel', up, { signal: ac.signal });
   return () => { ac.abort(); };
 }
-
 function createUI(sm, registry, ApplyReq, Utils) {
   const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null; let hasUserDraggedUI = false;
   const uiWakeCtrl = new AbortController();
@@ -3191,8 +3416,18 @@ function createUI(sm, registry, ApplyReq, Utils) {
       }
       const nextHdr = !sm.get(P.APP_HDR_TONEMAP);
       sm.set(P.APP_HDR_TONEMAP, nextHdr);
-      if (nextHdr && sm.get(P.APP_RENDER_MODE) === 'svg') {
-        sm.set(P.APP_RENDER_MODE, 'auto');
+      if (nextHdr) {
+        const currentMode = sm.get(P.APP_RENDER_MODE);
+        if (currentMode === 'svg') {
+          const probe = probeWebGLCapability();
+          if (!probe.supported) {
+            hdrBtn.textContent = '⚠️ WebGL 필요';
+            sm.set(P.APP_HDR_TONEMAP, false);
+            setTimeout(() => { hdrBtn.textContent = '🎬 Rec.2020'; }, 2000);
+            return;
+          }
+          sm.set(P.APP_RENDER_MODE, 'auto');
+        }
       }
       ApplyReq.hard();
     };
@@ -3302,53 +3537,53 @@ function createUI(sm, registry, ApplyReq, Utils) {
         return b;
       })),
       h('div', { class: 'prow', style: 'justify-content:center;gap:2px;margin-top:4px;' }, [
-  { text: '◀ 60s', offset: -60 },
-  { text: '◀ 30s', offset: -30 },
-  { text: '◀ 10s', offset: -10 },
-  { text: '10s ▶', offset: 10 },
-  { text: '30s ▶', offset: 30 },
-  { text: '60s ▶', offset: 60 }
-].map(({ text, offset }) => {
-  const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:34px;font-size:11px;' }, text);
-  b.onclick = (e) => {
-    e.stopPropagation();
-    const v = window[Symbol.for('__VSC_170__')]?.App?.getActiveVideo();
-    if (!v) return;
+        { text: '◀ 60s', offset: -60 },
+        { text: '◀ 30s', offset: -30 },
+        { text: '◀ 10s', offset: -10 },
+        { text: '10s ▶', offset: 10 },
+        { text: '30s ▶', offset: 30 },
+        { text: '60s ▶', offset: 60 }
+      ].map(({ text, offset }) => {
+        const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:34px;font-size:11px;' }, text);
+        b.onclick = (e) => {
+          e.stopPropagation();
+          const v = window[Symbol.for('__VSC_170__')]?.App?.getActiveVideo();
+          if (!v) return;
 
-    const isLive = !Number.isFinite(v.duration);
-    let minT = 0, maxT = v.duration;
+          const isLive = !Number.isFinite(v.duration);
+          let minT = 0, maxT = v.duration;
 
-    if (isLive || v.duration === Infinity) {
-      const sr = v.seekable;
-      if (!sr || sr.length === 0) return;
-      minT = sr.start(0);
-      maxT = sr.end(sr.length - 1);
-    }
+          if (isLive || v.duration === Infinity) {
+            const sr = v.seekable;
+            if (!sr || sr.length === 0) return;
+            minT = sr.start(0);
+            maxT = sr.end(sr.length - 1);
+          }
 
-    let target = v.currentTime + offset;
+          let target = v.currentTime + offset;
 
-    if (offset > 0 && target >= maxT) {
-      target = maxT - 0.1;
-    }
+          if (offset > 0 && target >= maxT) {
+            target = maxT - 0.1;
+          }
 
-    target = Math.max(minT, Math.min(maxT, target));
+          target = Math.max(minT, Math.min(maxT, target));
 
-    try { v.currentTime = target; } catch (_) {}
+          try { v.currentTime = target; } catch (_) {}
 
-    const onSeeked = () => {
-      v.removeEventListener('seeked', onSeeked);
-      clearTimeout(fallbackTimer);
-      if (Math.abs(v.currentTime - target) > 5.0) {
-        try { v.currentTime = target; } catch (_) {}
-      }
-    };
-    v.addEventListener('seeked', onSeeked, { once: true });
-    const fallbackTimer = setTimeout(() => {
-      v.removeEventListener('seeked', onSeeked);
-    }, 3000);
-  };
-  return b;
-}))
+          const onSeeked = () => {
+            v.removeEventListener('seeked', onSeeked);
+            clearTimeout(fallbackTimer);
+            if (Math.abs(v.currentTime - target) > 5.0) {
+              try { v.currentTime = target; } catch (_) {}
+            }
+          };
+          v.addEventListener('seeked', onSeeked, { once: true });
+          const fallbackTimer = setTimeout(() => {
+            v.removeEventListener('seeked', onSeeked);
+          }, 3000);
+        };
+        return b;
+      }))
     ]);
 
     const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]);
@@ -3693,7 +3928,7 @@ function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Au
       if (autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
         const mods = autoScene.getMods();
         if (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0 || mods.sharpScale !== 1.0) {
-          Object.assign(autoSceneVVals, vValsEffective); const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
+          Object.assign(autoSceneVVals, vValsEffective); const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2,1.0 - Math.abs(uBr - 1.0) * 3.0);
           autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF); autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF); autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
           const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0);
           const sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5); const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF) * (qs < 0.95 ? Math.sqrt(qs) : 1.0);
