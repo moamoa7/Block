@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v175.0.0 - YCbCr Sharpening Engine)
+// @name         Video_Control (v176.0.0 - PRO YCbCr Sharpening Engine)
 // @namespace    https://github.com/
-// @version      175.0.0
-// @description  Video Control: YCbCr Sharpness, Web Worker Auto Scene, SVG Filtering, Multi-band EQ.
+// @version      176.0.0
+// @description  Video Control: PRO YCbCr Sharpness, Web Worker Auto Scene, SVG Filtering, Multi-band EQ.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -34,7 +34,7 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '175.0.0';
+  __vscNs.__version = '176.0.0';
 
   if (__vscNs && __vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -52,7 +52,7 @@ function VSC_MAIN() {
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
-  // ✅ [Option B 적용] YCbCr 기반 샤프닝 플래그 추가
+  // ✅ PRO 품질 샤프닝 플래그 추가
   const FLAGS = Object.freeze({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
@@ -63,7 +63,9 @@ function VSC_MAIN() {
     FILTER_REAPPLY_NO_FORCED_LAYOUT: false,
     PATCH_ATTACH_SHADOW: true,
     FILTER_SHARP_PRESERVE_CHROMA_YCBCR: true, // 테스트를 위해 ON (YCbCr 색 보존)
-    FILTER_SHARP_SAT_COMP: true,             // 테스트를 위해 ON (고강도 샤프 시 채도 자동 펌핑)
+    FILTER_SHARP_SAT_COMP: true,              // 테스트를 위해 ON (고강도 샤프 시 채도 자동 펌핑)
+    FILTER_SHARP_PRO_QUALITY: false,          // 기본 OFF (사용자 취향에 따라 PRO 분기 전환)
+    FILTER_SHARP_LINEAR_RGB: false,           // 기본 OFF
   });
 
   function isEditableTarget(t) {
@@ -483,6 +485,7 @@ function VSC_MAIN() {
     }
     return changed;
   }
+// --- [PART 1 끝] ---
 // --- [PART 2 시작] ---
 
   // [Logic/Bug #3] PiP 복원 시 interval 안정성 개선
@@ -1517,9 +1520,6 @@ function VSC_MAIN() {
     return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) { AUTO._ac = new AbortController(); const ok = ensureAnalyzer(AUTO.canvasW, AUTO.canvasH); if(ok){AUTO.running = true; loop();} else{Store.set(P.APP_AUTO_SCENE, false);} } }, stop: stopLoop, destroy: destroyAutoScene };
   }
 
-  // ✅ [붙여넣기 가능한 완성본] 옵션 B(YCbCr) + 옵션 A(채도 펌핑) + (수정안 2개 반영)
-// - 수정안 #1: 채도 펌핑은 FLAGS.FILTER_SHARP_SAT_COMP 플래그로 ON/OFF + 데드존 + 캡
-// - 수정안 #2: combinedStrength는 makeKeyBase와 동일한 "양자화(반올림)" 입력으로 계산해서 캐시 조기 return과 충돌 최소화
 function createFiltersVideoOnly(Utils, config) {
   const { h, clamp } = Utils;
   const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -1557,12 +1557,80 @@ function createFiltersVideoOnly(Utils, config) {
     node.setAttribute(attr, strVal);
   }
 
-  const applyLumaSharpening = (blurNode, compositeNode, strength) => {
+  function getDetailShaperTableCached(steps, thr, knee, drive) {
+    const key = `D|${steps}|${thr.toFixed(4)}|${knee.toFixed(4)}|${drive.toFixed(3)}`;
+    const hit = toneCache.get(key);
+    if (hit) return hit;
+
+    const arr = new Array(steps);
+    const tanhD = Math.tanh(drive);
+
+    for (let i = 0; i < steps; i++) {
+      const x = i / (steps - 1);
+      const d = Math.abs(x - 0.5) * 2;
+      let y = 0.5;
+
+      if (d <= thr) {
+        y = 0.5;
+      } else {
+        let u = (d - thr) / Math.max(1e-6, (1 - thr));
+        if (knee > 1e-6) {
+          const kk = Math.min(1, u / knee);
+          const smooth = kk * kk * (3 - 2 * kk);
+          u = (u < knee) ? (u * 0.5 + smooth * 0.5) : u;
+        }
+        const lim = Math.tanh(drive * u) / tanhD;
+        const dd = thr + lim * (1 - thr);
+        y = 0.5 + Math.sign(x - 0.5) * (dd * 0.5);
+      }
+      const v = Math.round(y * 100000) / 100000;
+      arr[i] = v === 1 ? '1' : (v === 0 ? '0' : String(v));
+    }
+    const res = arr.join(' ');
+    toneCache.set(key, res);
+    return res;
+  }
+
+  const applyLumaSharpening = (sharpDetail, strength, qs = 1) => {
     const s = Math.min(1, Math.max(0, strength));
-    const std = s > 0 ? (0.50 + s * 0.25).toFixed(2) : '0';
-    setAttr(blurNode, 'stdDeviation', std);
-    setAttr(compositeNode, 'k2', '1');
-    setAttr(compositeNode, 'k3', (s * 1.2).toFixed(3));
+    const q = Math.sqrt(Math.max(0.35, Math.min(1, qs)));
+    const amount = (s * 1.15) * q;
+
+    if (!sharpDetail || sharpDetail.mode !== 'pro') {
+      const std = s > 0 ? (0.50 + s * 0.25).toFixed(2) : '0';
+      setAttr(sharpDetail.blurF, 'stdDeviation', std);
+      if (sharpDetail.ySharp) {
+        setAttr(sharpDetail.ySharp, 'k2', '1');
+        setAttr(sharpDetail.ySharp, 'k3', amount.toFixed(3));
+        setAttr(sharpDetail.ySharp, 'k4', '0');
+      }
+      return;
+    }
+
+    const stdF = (0.45 + s * 0.22) * (0.85 + 0.15 * q);
+    const stdC = stdF * (2.3 + s * 0.6);
+    setAttr(sharpDetail.blurF, 'stdDeviation', stdF.toFixed(2));
+    setAttr(sharpDetail.blurC, 'stdDeviation', stdC.toFixed(2));
+
+    let wF = Math.min(0.78, 0.62 + s * 0.20);
+    let wC = 1 - wF;
+    wC *= q; wF = 1 - wC;
+    setAttr(sharpDetail.mix, 'k2', wF.toFixed(3));
+    setAttr(sharpDetail.mix, 'k3', wC.toFixed(3));
+
+    const thr  = Math.min(0.12, 0.045 + s * 0.030);
+    const knee = 0.18;
+    const drive = 3.2 + s * 1.2;
+    const steps = 128;
+    const table = getDetailShaperTableCached(steps, thr, knee, drive);
+
+    setAttr(sharpDetail.shaper.r, 'tableValues', table);
+    setAttr(sharpDetail.shaper.g, 'tableValues', table);
+    setAttr(sharpDetail.shaper.b, 'tableValues', table);
+
+    setAttr(sharpDetail.ySharp, 'k2', '1');
+    setAttr(sharpDetail.ySharp, 'k3', amount.toFixed(3));
+    setAttr(sharpDetail.ySharp, 'k4', (-0.5 * amount).toFixed(3));
   };
 
   const makeKeyBase = (s) => [
@@ -1643,8 +1711,6 @@ function createFiltersVideoOnly(Utils, config) {
     return res;
   }
 
-  const SVG_MAX_PIX_FAST = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
-
   function calcFilterRes(vw, vh, maxPix) {
     vw = vw | 0;
     vh = vh | 0;
@@ -1655,9 +1721,6 @@ function createFiltersVideoOnly(Utils, config) {
     return `${Math.max(1, Math.round(vw * s))} ${Math.max(1, Math.round(vh * s))}`;
   }
 
-  // ---------------------------------------------------------
-  // 💡 [옵션 B 역할] SVG 파이프라인 구축: YCbCr 변환 및 합성 트리 생성
-  // ---------------------------------------------------------
   function buildSvg(root) {
     const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
     const defs = h('defs', { ns: 'svg' });
@@ -1711,7 +1774,6 @@ function createFiltersVideoOnly(Utils, config) {
     const sharp = h('filter', {
       ns: 'svg',
       id: fidSharp,
-      'color-interpolation-filters': 'sRGB',
       x: '-10%',
       y: '-10%',
       width: '120%',
@@ -1722,27 +1784,24 @@ function createFiltersVideoOnly(Utils, config) {
     const pS = mkP('s', 's_out');
 
     let sharpDetail = null;
-
     const ns = (__vscNs && typeof __vscNs === 'object') ? __vscNs : window[Symbol.for('__VSC__')];
+    const proQ = !!ns?.FLAGS?.FILTER_SHARP_PRO_QUALITY;
 
-    // ✅ 옵션 B(YCbCr) 분기 로직
+    if (ns?.FLAGS?.FILTER_SHARP_LINEAR_RGB) {
+      sharp.setAttribute('color-interpolation-filters', 'linearRGB');
+    } else {
+      sharp.setAttribute('color-interpolation-filters', 'sRGB');
+    }
+
     if (!ns?.FLAGS?.FILTER_SHARP_PRESERVE_CHROMA_YCBCR) {
       const sLuma = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: LUMA_MATRIX, result: 's_luma' });
       const [sB1, sD1] = mkBlurDiff('s', 's_luma', 's_b1', 's_d1');
       const sOut = h('feComposite', {
-        ns: 'svg',
-        in: 's_g',
-        in2: 's_d1',
-        operator: 'arithmetic',
-        k1: '0',
-        k2: '1',
-        k3: '0.5',
-        k4: '0',
-        result: 's_out'
+        ns: 'svg', in: 's_g', in2: 's_d1',
+        operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_out'
       });
-
       sharp.append(cS.t, cS.b, cS.g, sLuma, sB1, sD1, sOut, pS.tmp.tm, pS.s);
-      sharpDetail = { b1: sB1, out: sOut };
+      sharpDetail = { mode: 'basic', blurF: sB1, ySharp: sOut };
     } else {
       const Y_ONLY_R =
         '1 0 0 0 0 ' +
@@ -1766,54 +1825,39 @@ function createFiltersVideoOnly(Utils, config) {
       const sYR = h('feColorMatrix', { ns: 'svg', in: 's_y', type: 'matrix', values: Y_ONLY_R, result: 's_yR' });
       const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
 
-      const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_yb1' });
+      if (!proQ) {
+        const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_yb1' });
+        const yDiff = h('feComposite', {
+          ns: 'svg', in: 's_yR', in2: 's_yb1',
+          operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 's_yd1'
+        });
+        const ySharp = h('feComposite', {
+          ns: 'svg', in: 's_yR', in2: 's_yd1',
+          operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_ySharpR'
+        });
+        const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
+        const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
+        sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
+        sharpDetail = { mode: 'basic', blurF: yBlur, ySharp: ySharp };
+      } else {
+        const yBlurF = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_ybF' });
+        const yBlurC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_ybC' });
+        const yDiffBF = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_ybF', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0.5', result: 's_ydBF' });
+        const yDiffBC = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_ybC', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0.5', result: 's_ydBC' });
+        const yMix = h('feComposite', { ns: 'svg', in: 's_ydBF', in2: 's_ydBC', operator: 'arithmetic', k1: '0', k2: '0.65', k3: '0.35', k4: '0', result: 's_ydB' });
 
-      const yDiff = h('feComposite', {
-        ns: 'svg',
-        in: 's_yR',
-        in2: 's_yb1',
-        operator: 'arithmetic',
-        k1: '0',
-        k2: '1',
-        k3: '-1',
-        k4: '0',
-        result: 's_yd1'
-      });
+        const dFR = h('feFuncR', { ns: 'svg', type: 'table', tableValues: '0 1' });
+        const dFG = h('feFuncG', { ns: 'svg', type: 'table', tableValues: '0 1' });
+        const dFB = h('feFuncB', { ns: 'svg', type: 'table', tableValues: '0 1' });
+        const dShaper = h('feComponentTransfer', { ns: 'svg', in: 's_ydB', result: 's_ydBS' }, dFR, dFG, dFB);
 
-      const ySharp = h('feComposite', {
-        ns: 'svg',
-        in: 's_yR',
-        in2: 's_yd1',
-        operator: 'arithmetic',
-        k1: '0',
-        k2: '1',
-        k3: '0.5',
-        k4: '0',
-        result: 's_ySharpR'
-      });
+        const ySharp = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_ydBS', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.0', k4: '0.0', result: 's_ySharpR' });
+        const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
+        const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
 
-      const yuv = h('feComposite', {
-        ns: 'svg',
-        in: 's_ySharpR',
-        in2: 's_uvGB',
-        operator: 'arithmetic',
-        k1: '0',
-        k2: '1',
-        k3: '1',
-        k4: '0',
-        result: 's_yuv'
-      });
-
-      const toRgb = h('feColorMatrix', {
-        ns: 'svg',
-        in: 's_yuv',
-        type: 'matrix',
-        values: YCbCr_TO_RGB,
-        result: 's_out'
-      });
-
-      sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
-      sharpDetail = { b1: yBlur, out: ySharp };
+        sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlurF, yBlurC, yDiffBF, yDiffBC, yMix, dShaper, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
+        sharpDetail = { mode: 'pro', blurF: yBlurF, blurC: yBlurC, mix: yMix, shaper: { r: dFR, g: dFG, b: dFB }, ySharp: ySharp };
+      }
     }
 
     defs.append(lite, sharp);
@@ -1825,7 +1869,7 @@ function createFiltersVideoOnly(Utils, config) {
         return true;
       }
       return false;
-    };
+    }
 
     if (!tryAppend()) {
       const mo = new MutationObserver(() => {
@@ -1860,6 +1904,7 @@ function createFiltersVideoOnly(Utils, config) {
       sharpDetail,
       st: {
         lastKey: '',
+        lastQs: 1,
         toneKey: '',
         toneTable: '',
         bcLinKey: '',
@@ -1876,17 +1921,12 @@ function createFiltersVideoOnly(Utils, config) {
     };
   }
 
-  // ---------------------------------------------------------
-  // 💡 [옵션 A 역할] 값 계산 및 주입: 샤프 강도에 따른 채도 펌핑
-  // ---------------------------------------------------------
   function prepare(video, s) {
     const root = video.ownerDocument || document;
     let dc = urlCache.get(root);
     if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
 
-    const vwKey = video.videoWidth || 0, vhKey = video.videoHeight || 0;
-
-    // ✅ (수정안 #2) makeKeyBase와 동일한 양자화(반올림) 입력으로 combinedStrength 계산
+    const vwKeyOrig = video.videoWidth || 0, vhKeyOrig = video.videoHeight || 0;
     const qSharp = Math.round(Number(s.sharp || 0));
     const qSharp2 = Math.round(Number(s.sharp2 || 0));
     const qClarity = Math.round(Number(s.clarity || 0));
@@ -1900,14 +1940,17 @@ function createFiltersVideoOnly(Utils, config) {
       combinedStrength = clamp01(n1 * 0.45 + n2 * 0.30 + n3 * 0.25);
     }
 
-    const key = `${tier}|${vwKey}x${vhKey}|${makeKeyBase(s)}`;
-    if (dc.key === key) return { url: dc.url, changed: false };
+    const qs = Number(s._qs !== undefined ? s._qs : 1);
+    const key = `${tier}|${vwKeyOrig}x${vhKeyOrig}|${makeKeyBase(s)}`;
 
     let nodes = ctxMap.get(root);
     if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
 
-    if (nodes.st.lastKey !== key) {
+    if (dc.key === key && nodes.st.lastQs === qs) return { url: dc.url, changed: false };
+
+    if (nodes.st.lastKey !== key || nodes.st.lastQs !== qs) {
       nodes.st.lastKey = key;
+      nodes.st.lastQs = qs;
 
       const st = nodes.st;
       const steps = 128;
@@ -1930,16 +1973,15 @@ function createFiltersVideoOnly(Utils, config) {
       const bcLinKey = `${conStr}|${interceptStr}`;
       const gk = (1 / clamp(s.gamma || 1, 0.1, 5.0)).toFixed(4);
 
-      // ✅ (수정안 #1) 채도 펌핑: 플래그 ON일 때만 + 데드존 + 캡
       const ns = (__vscNs && typeof __vscNs === 'object') ? __vscNs : window[Symbol.for('__VSC__')];
       const satBase = clamp(s.satF ?? 1, 0, 5.0);
 
       let satAdj = satBase;
       if (ns?.FLAGS?.FILTER_SHARP_SAT_COMP && tier === 'sharp') {
-        const t = Math.max(0, combinedStrength - 0.22) / (1 - 0.22); // deadzone
+        const t = Math.max(0, combinedStrength - 0.22) / (1 - 0.22);
         const userReduce = satBase < 1 ? 0.35 : 1.0;
         const boost = userReduce * (t * 0.18);
-        satAdj = clamp(Math.min(satBase * (1 + boost), satBase + 0.25), 0, 5.0); // cap
+        satAdj = clamp(Math.min(satBase * (1 + boost), satBase + 0.25), 0, 5.0);
       }
       const satVal = satAdj.toFixed(2);
 
@@ -1983,12 +2025,11 @@ function createFiltersVideoOnly(Utils, config) {
         }
       }
 
-      // ✅ 3. 명도 에지 강도 조절 (옵션 B 파이프라인 제어)
       if (tier === 'sharp') {
-        const sharpKeyNext = combinedStrength.toFixed(3);
+        const sharpKeyNext = `${combinedStrength.toFixed(3)}|${qs.toFixed(3)}`;
         if (st.sharpKey !== sharpKeyNext) {
           st.sharpKey = sharpKeyNext;
-          applyLumaSharpening(nodes.sharpDetail.b1, nodes.sharpDetail.out, combinedStrength);
+          applyLumaSharpening(nodes.sharpDetail, combinedStrength, qs);
         }
       }
 
@@ -1997,7 +2038,20 @@ function createFiltersVideoOnly(Utils, config) {
 
       if (inactiveFilterEl.hasAttribute('filterRes')) inactiveFilterEl.removeAttribute('filterRes');
 
-      const fr = calcFilterRes(vwKey, vhKey, SVG_MAX_PIX_FAST);
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      let vwDisp = vwKeyOrig, vhDisp = vhKeyOrig;
+      try {
+        const r = video.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          vwDisp = Math.round(r.width * dpr);
+          vhDisp = Math.round(r.height * dpr);
+        }
+      } catch(_) {}
+
+      const baseMaxPix = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
+      const dynMaxPix = Math.round(baseMaxPix * Math.pow(0.55 + 0.45 * qs, 2));
+      const fr = calcFilterRes(vwDisp, vhDisp, dynMaxPix);
+
       if (fr && st.__filterRes !== fr) {
         st.__filterRes = fr;
         activeFilterEl.setAttribute('filterRes', fr);
@@ -2021,17 +2075,14 @@ function createFiltersVideoOnly(Utils, config) {
         const nodes = ctxMap.get(root);
         if (nodes) {
           nodes.st.lastKey = '';
+          nodes.st.lastQs = 1;
           nodes.st.sharpKey = '';
           nodes.st.__filterRes = '';
           for (const tierKey of ['lite', 'sharp']) {
             const cst = nodes.st.commonTier[tierKey];
             if (cst) {
-              cst.toneKey = '';
-              cst.toneTable = '';
-              cst.bcLinKey = '';
-              cst.gammaKey = '';
-              cst.tempKey = '';
-              cst.satKey = '';
+              cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = '';
+              cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = '';
             }
           }
         }
@@ -2039,12 +2090,10 @@ function createFiltersVideoOnly(Utils, config) {
         if (dc) { dc.key = ''; dc.url = ''; }
       } catch (_) {}
     },
-
     prepareCached: (video, s) => {
       try { return prepare(video, s); }
       catch (e) { log.warn('filter prepare failed:', e); return { url: null, changed: false }; }
     },
-
     applyUrl: (el, urlObj) => {
       if (!el) return;
       const url = typeof urlObj === 'string' ? urlObj : urlObj?.url;
@@ -2091,7 +2140,6 @@ function createFiltersVideoOnly(Utils, config) {
       st.applied = true;
       st.lastFilterUrl = url;
     },
-
     clear: (el) => {
       if (!el) return;
       const st = getVState(el);
@@ -2104,7 +2152,7 @@ function createFiltersVideoOnly(Utils, config) {
   };
 }
 
-  // --- [PART 2 끝] ---
+// --- [PART 2 끝] ---
 // --- [PART 3 시작] ---
 
   function createBackendAdapter(Filters) {
@@ -2258,7 +2306,6 @@ function createFiltersVideoOnly(Utils, config) {
       ]);
       bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none', sm, sub);
 
-      // ===== UI 변경 핵심 영역: 60s 버튼 제거 및 재생/정지 버튼 통합 =====
       const bodyMain = h('div', { id: 'p-main' }, [
         h('div', { class: 'prow' }, [ autoSceneBtn, pipBtn, zoomBtn ]), h('div', { class: 'prow' }, [ boostBtn, dialogueBtn ]),
         h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'), pwrBtn, h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '↺ 리셋') ]),
@@ -2388,7 +2435,7 @@ function createFiltersVideoOnly(Utils, config) {
     return {
       get(vfUser, activeVideo) {
         const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
-        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, __qos: 'full' };
+        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0 };
         const sMask = vfUser.shadowBandMask || 0;
         if (sMask > 0) {
           let toeSum = 0, gammaSum = 0, midSum = 0; for (const [bit, params] of SHADOW_PARAMS) { if (sMask & bit) { toeSum += params.toe; gammaSum += params.gamma; midSum += params.mid; } }
@@ -2441,7 +2488,9 @@ function createFiltersVideoOnly(Utils, config) {
 
         const vf0 = Store.getCatRef('video'); let vValsEffective = videoParamsMemo.get(vf0, __activeTarget);
         const autoScene = window[Symbol.for('__VSC__')]?.AutoScene; const qs = updateQualityScale(__activeTarget);
-        if (qs < 0.95) vValsEffective.__qos = 'fast'; else vValsEffective.__qos = 'full';
+
+        // ✅ [핵심 변경] fast/full 모드 분기 대신 qs 값을 직접 필터 파이프라인으로 넘김
+        vValsEffective._qs = qs;
 
         const autoSceneVVals = {};
         if (autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
@@ -2449,10 +2498,12 @@ function createFiltersVideoOnly(Utils, config) {
           if (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0 || mods.sharpScale !== 1.0) {
             Object.assign(autoSceneVVals, vValsEffective); const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
             autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF); autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF); autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
-            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5), combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF) * (qs < 0.95 ? Math.sqrt(qs) : 1.0);
+            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
+            // ✅ 기존 qs < 0.95 에서의 sharp 스케일링 중복 제거 (필터에서 qs 기반 일괄 처리)
+            const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF);
             autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * combinedSharpScale; autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * combinedSharpScale; autoSceneVVals.clarity = (autoSceneVVals.clarity || 0) * combinedSharpScale; vValsEffective = autoSceneVVals;
           }
-        } else if (qs < 0.95) { Object.assign(autoSceneVVals, vValsEffective); const qSharp = Math.sqrt(qs); autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * qSharp; autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * qSharp; autoSceneVVals.clarity = (autoSceneVVals.clarity || 0) * qSharp; vValsEffective = autoSceneVVals; }
+        }
 
         const videoFxOn = !isNeutralVideoParams(vValsEffective), applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
 
@@ -2553,4 +2604,5 @@ function createFiltersVideoOnly(Utils, config) {
 } // VSC_MAIN 함수의 닫는 중괄호
 VSC_MAIN();
 })();
-  // --- [PART 3 끝] ---
+
+// --- [PART 3 끝] ---
