@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v176.0.0 - PRO YCbCr Sharpening Engine)
+// @name         Video_Control (v177.0.0 - Stable PRO YCbCr)
 // @namespace    https://github.com/
-// @version      176.0.0
+// @version      177.0.0
 // @description  Video Control: PRO YCbCr Sharpness, Web Worker Auto Scene, SVG Filtering, Multi-band EQ.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -34,7 +34,7 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '176.0.0';
+  __vscNs.__version = '177.0.0';
 
   if (__vscNs && __vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -52,7 +52,6 @@ function VSC_MAIN() {
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
-  // ✅ PRO 품질 샤프닝 플래그 추가
   const FLAGS = Object.freeze({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
@@ -62,10 +61,10 @@ function VSC_MAIN() {
     AUTO_SCENE_ADAPTIVE_FPS: false,
     FILTER_REAPPLY_NO_FORCED_LAYOUT: false,
     PATCH_ATTACH_SHADOW: true,
-    FILTER_SHARP_PRESERVE_CHROMA_YCBCR: true, // 테스트를 위해 ON (YCbCr 색 보존)
-    FILTER_SHARP_SAT_COMP: true,              // 테스트를 위해 ON (고강도 샤프 시 채도 자동 펌핑)
-    FILTER_SHARP_PRO_QUALITY: false,          // 기본 OFF (사용자 취향에 따라 PRO 분기 전환)
-    FILTER_SHARP_LINEAR_RGB: false,           // 기본 OFF
+    FILTER_SHARP_PRESERVE_CHROMA_YCBCR: true,
+    FILTER_SHARP_SAT_COMP: true,
+    FILTER_SHARP_PRO_QUALITY: false,
+    FILTER_SHARP_LINEAR_RGB: false,
   });
 
   function isEditableTarget(t) {
@@ -1524,7 +1523,7 @@ function createFiltersVideoOnly(Utils, config) {
   const { h, clamp } = Utils;
   const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
 
-  function createLRU(max = 64) {
+  function createLRU(max = 192) {
     const m = new Map();
     return {
       get(k) { return m.get(k); },
@@ -1539,7 +1538,7 @@ function createFiltersVideoOnly(Utils, config) {
     };
   }
 
-  const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(64);
+  const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(192);
   const LUMA_MATRIX =
     '0.2126 0.7152 0.0722 0 0 ' +
     '0.2126 0.7152 0.0722 0 0 ' +
@@ -1621,12 +1620,10 @@ function createFiltersVideoOnly(Utils, config) {
     const thr  = Math.min(0.12, 0.045 + s * 0.030);
     const knee = 0.18;
     const drive = 3.2 + s * 1.2;
-    const steps = 128;
+    const steps = 129;
     const table = getDetailShaperTableCached(steps, thr, knee, drive);
 
     setAttr(sharpDetail.shaper.r, 'tableValues', table);
-    setAttr(sharpDetail.shaper.g, 'tableValues', table);
-    setAttr(sharpDetail.shaper.b, 'tableValues', table);
 
     setAttr(sharpDetail.ySharp, 'k2', '1');
     setAttr(sharpDetail.ySharp, 'k3', amount.toFixed(3));
@@ -1758,13 +1755,9 @@ function createFiltersVideoOnly(Utils, config) {
     ];
 
     const lite = h('filter', {
-      ns: 'svg',
-      id: fidLite,
+      ns: 'svg', id: fidLite,
       'color-interpolation-filters': 'sRGB',
-      x: '-5%',
-      y: '-5%',
-      width: '110%',
-      height: '110%'
+      x: '-3%', y: '-3%', width: '106%', height: '106%'
     });
 
     const cL = mkC('l');
@@ -1772,12 +1765,8 @@ function createFiltersVideoOnly(Utils, config) {
     lite.append(cL.t, cL.b, cL.g, pL.tmp.tm, pL.s);
 
     const sharp = h('filter', {
-      ns: 'svg',
-      id: fidSharp,
-      x: '-10%',
-      y: '-10%',
-      width: '120%',
-      height: '120%'
+      ns: 'svg', id: fidSharp,
+      x: '-3%', y: '-3%', width: '106%', height: '106%'
     });
 
     const cS = mkC('s');
@@ -1787,11 +1776,15 @@ function createFiltersVideoOnly(Utils, config) {
     const ns = (__vscNs && typeof __vscNs === 'object') ? __vscNs : window[Symbol.for('__VSC__')];
     const proQ = !!ns?.FLAGS?.FILTER_SHARP_PRO_QUALITY;
 
-    if (ns?.FLAGS?.FILTER_SHARP_LINEAR_RGB) {
-      sharp.setAttribute('color-interpolation-filters', 'linearRGB');
-    } else {
-      sharp.setAttribute('color-interpolation-filters', 'sRGB');
-    }
+    // ✅ 필터 전체는 룩 안정성을 위해 sRGB 고정
+    sharp.setAttribute('color-interpolation-filters', 'sRGB');
+    const wantLinearSharpen = !!ns?.FLAGS?.FILTER_SHARP_LINEAR_RGB;
+    const markSharpenLinear = (...nodes) => {
+      if (!wantLinearSharpen) return;
+      for (const n of nodes) {
+        try { n.setAttribute('color-interpolation-filters', 'linearRGB'); } catch (_) {}
+      }
+    };
 
     if (!ns?.FLAGS?.FILTER_SHARP_PRESERVE_CHROMA_YCBCR) {
       const sLuma = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: LUMA_MATRIX, result: 's_luma' });
@@ -1802,6 +1795,8 @@ function createFiltersVideoOnly(Utils, config) {
       });
       sharp.append(cS.t, cS.b, cS.g, sLuma, sB1, sD1, sOut, pS.tmp.tm, pS.s);
       sharpDetail = { mode: 'basic', blurF: sB1, ySharp: sOut };
+
+      markSharpenLinear(sB1, sD1, sOut);
     } else {
       const Y_ONLY_R =
         '1 0 0 0 0 ' +
@@ -1839,6 +1834,8 @@ function createFiltersVideoOnly(Utils, config) {
         const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
         sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
         sharpDetail = { mode: 'basic', blurF: yBlur, ySharp: ySharp };
+
+        markSharpenLinear(yBlur, yDiff, ySharp);
       } else {
         const yBlurF = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_ybF' });
         const yBlurC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_ybC' });
@@ -1847,8 +1844,8 @@ function createFiltersVideoOnly(Utils, config) {
         const yMix = h('feComposite', { ns: 'svg', in: 's_ydBF', in2: 's_ydBC', operator: 'arithmetic', k1: '0', k2: '0.65', k3: '0.35', k4: '0', result: 's_ydB' });
 
         const dFR = h('feFuncR', { ns: 'svg', type: 'table', tableValues: '0 1' });
-        const dFG = h('feFuncG', { ns: 'svg', type: 'table', tableValues: '0 1' });
-        const dFB = h('feFuncB', { ns: 'svg', type: 'table', tableValues: '0 1' });
+        const dFG = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' }); // 고정
+        const dFB = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' }); // 고정
         const dShaper = h('feComponentTransfer', { ns: 'svg', in: 's_ydB', result: 's_ydBS' }, dFR, dFG, dFB);
 
         const ySharp = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_ydBS', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.0', k4: '0.0', result: 's_ySharpR' });
@@ -1857,6 +1854,8 @@ function createFiltersVideoOnly(Utils, config) {
 
         sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlurF, yBlurC, yDiffBF, yDiffBC, yMix, dShaper, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
         sharpDetail = { mode: 'pro', blurF: yBlurF, blurC: yBlurC, mix: yMix, shaper: { r: dFR, g: dFG, b: dFB }, ySharp: ySharp };
+
+        markSharpenLinear(yBlurF, yBlurC, yDiffBF, yDiffBC, yMix, dShaper, ySharp);
       }
     }
 
@@ -1904,7 +1903,6 @@ function createFiltersVideoOnly(Utils, config) {
       sharpDetail,
       st: {
         lastKey: '',
-        lastQs: 1,
         toneKey: '',
         toneTable: '',
         bcLinKey: '',
@@ -1926,7 +1924,6 @@ function createFiltersVideoOnly(Utils, config) {
     let dc = urlCache.get(root);
     if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
 
-    const vwKeyOrig = video.videoWidth || 0, vhKeyOrig = video.videoHeight || 0;
     const qSharp = Math.round(Number(s.sharp || 0));
     const qSharp2 = Math.round(Number(s.sharp2 || 0));
     const qClarity = Math.round(Number(s.clarity || 0));
@@ -1940,17 +1937,16 @@ function createFiltersVideoOnly(Utils, config) {
       combinedStrength = clamp01(n1 * 0.45 + n2 * 0.30 + n3 * 0.25);
     }
 
+    const stableKey = `${tier}|${makeKeyBase(s)}`;
     const qs = Number(s._qs !== undefined ? s._qs : 1);
-    const key = `${tier}|${vwKeyOrig}x${vhKeyOrig}|${makeKeyBase(s)}`;
 
     let nodes = ctxMap.get(root);
     if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
 
-    if (dc.key === key && nodes.st.lastQs === qs) return { url: dc.url, changed: false };
+    const needReapply = (dc.key !== stableKey);
 
-    if (nodes.st.lastKey !== key || nodes.st.lastQs !== qs) {
-      nodes.st.lastKey = key;
-      nodes.st.lastQs = qs;
+    if (nodes.st.lastKey !== stableKey) {
+      nodes.st.lastKey = stableKey;
 
       const st = nodes.st;
       const steps = 128;
@@ -2024,48 +2020,48 @@ function createFiltersVideoOnly(Utils, config) {
           setAttr(common.tmp.b, 'slope', bsStr);
         }
       }
+    }
 
-      if (tier === 'sharp') {
-        const sharpKeyNext = `${combinedStrength.toFixed(3)}|${qs.toFixed(3)}`;
-        if (st.sharpKey !== sharpKeyNext) {
-          st.sharpKey = sharpKeyNext;
-          applyLumaSharpening(nodes.sharpDetail, combinedStrength, qs);
-        }
-      }
-
-      const activeFilterEl = (tier === 'sharp') ? nodes.filters.sharp : nodes.filters.lite;
-      const inactiveFilterEl = (tier === 'sharp') ? nodes.filters.lite : nodes.filters.sharp;
-
-      if (inactiveFilterEl.hasAttribute('filterRes')) inactiveFilterEl.removeAttribute('filterRes');
-
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      let vwDisp = vwKeyOrig, vhDisp = vhKeyOrig;
-      try {
-        const r = video.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          vwDisp = Math.round(r.width * dpr);
-          vhDisp = Math.round(r.height * dpr);
-        }
-      } catch(_) {}
-
-      const baseMaxPix = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
-      const dynMaxPix = Math.round(baseMaxPix * Math.pow(0.55 + 0.45 * qs, 2));
-      const fr = calcFilterRes(vwDisp, vhDisp, dynMaxPix);
-
-      if (fr && st.__filterRes !== fr) {
-        st.__filterRes = fr;
-        activeFilterEl.setAttribute('filterRes', fr);
-      } else if (!fr && st.__filterRes !== '') {
-        st.__filterRes = '';
-        activeFilterEl.removeAttribute('filterRes');
+    if (tier === 'sharp') {
+      const sharpKeyNext = `${combinedStrength.toFixed(3)}|${qs.toFixed(2)}`;
+      if (nodes.st.sharpKey !== sharpKeyNext) {
+        nodes.st.sharpKey = sharpKeyNext;
+        applyLumaSharpening(nodes.sharpDetail, combinedStrength, qs);
       }
     }
 
-    const targetFid = tier === 'lite' ? nodes.fidLite : nodes.fidSharp;
-    const url = `url(#${targetFid})`;
-    dc.key = key;
+    const activeFilterEl = (tier === 'sharp') ? nodes.filters.sharp : nodes.filters.lite;
+    const inactiveFilterEl = (tier === 'sharp') ? nodes.filters.lite : nodes.filters.sharp;
+
+    if (inactiveFilterEl.hasAttribute('filterRes')) inactiveFilterEl.removeAttribute('filterRes');
+
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    let vwDisp = video.videoWidth || 0, vhDisp = video.videoHeight || 0;
+    try {
+      const r = video.getBoundingClientRect();
+      if (r && r.width > 0 && r.height > 0) {
+        vwDisp = Math.round(r.width * dpr);
+        vhDisp = Math.round(r.height * dpr);
+      }
+    } catch(_) {}
+
+    const baseMaxPix = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
+    const dynMaxPix = Math.round(baseMaxPix * Math.pow(0.55 + 0.45 * qs, 2));
+    const fr = calcFilterRes(vwDisp, vhDisp, dynMaxPix);
+
+    if (fr && nodes.st.__filterRes !== fr) {
+      nodes.st.__filterRes = fr;
+      activeFilterEl.setAttribute('filterRes', fr);
+    } else if (!fr && nodes.st.__filterRes !== '') {
+      nodes.st.__filterRes = '';
+      activeFilterEl.removeAttribute('filterRes');
+    }
+
+    const url = `url(#${tier === 'lite' ? nodes.fidLite : nodes.fidSharp})`;
+    dc.key = stableKey;
     dc.url = url;
-    return { url, changed: true };
+
+    return { url, changed: needReapply };
   }
 
   return {
@@ -2075,7 +2071,6 @@ function createFiltersVideoOnly(Utils, config) {
         const nodes = ctxMap.get(root);
         if (nodes) {
           nodes.st.lastKey = '';
-          nodes.st.lastQs = 1;
           nodes.st.sharpKey = '';
           nodes.st.__filterRes = '';
           for (const tierKey of ['lite', 'sharp']) {
@@ -2152,8 +2147,7 @@ function createFiltersVideoOnly(Utils, config) {
   };
 }
 
-// --- [PART 2 끝] ---
-// --- [PART 3 시작] ---
+// --- [PART 2 끝] ---// --- [PART 3 시작] ---
 
   function createBackendAdapter(Filters) {
     const _backendChangeListeners = new Set();
@@ -2489,7 +2483,6 @@ function createFiltersVideoOnly(Utils, config) {
         const vf0 = Store.getCatRef('video'); let vValsEffective = videoParamsMemo.get(vf0, __activeTarget);
         const autoScene = window[Symbol.for('__VSC__')]?.AutoScene; const qs = updateQualityScale(__activeTarget);
 
-        // ✅ [핵심 변경] fast/full 모드 분기 대신 qs 값을 직접 필터 파이프라인으로 넘김
         vValsEffective._qs = qs;
 
         const autoSceneVVals = {};
@@ -2499,7 +2492,6 @@ function createFiltersVideoOnly(Utils, config) {
             Object.assign(autoSceneVVals, vValsEffective); const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
             autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF); autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF); autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
             const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
-            // ✅ 기존 qs < 0.95 에서의 sharp 스케일링 중복 제거 (필터에서 qs 기반 일괄 처리)
             const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF);
             autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * combinedSharpScale; autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * combinedSharpScale; autoSceneVVals.clarity = (autoSceneVVals.clarity || 0) * combinedSharpScale; vValsEffective = autoSceneVVals;
           }
