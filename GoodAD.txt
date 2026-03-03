@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260214
+! Version: 20260304
 !
 !
 !
@@ -864,6 +864,8 @@ mlbpark.donga.com##.bt_menu_wrap
 mlbpark.donga.com##ul.sub_lists_today.lists > li.items:nth-of-type(6)::before
 ! - 본문 한줄 광고?(투표?)
 mlbpark.donga.com##.inner_article
+! - 댓글 하단 광고
+mlbpark.donga.com##.naver_place
 ! - 차단 사이트
 !||ad.aceplanet.co.kr^
 !||contentsfeed.com^
@@ -5779,6 +5781,16 @@ mediafire.com#@#[class^="ad"]
 mediafire.com#@#[class^="ads"]
 mediafire.com#@#[class*="ads"]
 
+
+! https://kio.ac/
+! - - 하단 배너
+!kio.ac##.w-full.min-h-svh.flex.has-data-\[variant\=inset\]\:bg-sidebar.group\/sidebar-wrapper > .group-data-\[collapsible\=offcanvas\]\:after\:start-full
+kio.ac##.svelte-8515pp.idle.applications > .lucide-construction
+
+! https://noonnu.cc/
+! - - - 안내문구 차단
+noonnu.cc##.fc-dialog.fc-ab-dialog
+noonnu.cc##.fc-dialog-container
 
 
 
