@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.5.0 - Clean YCbCr USM)
+// @name         Video_Control (v178.6.0 - Clean YCbCr USM)
 // @namespace    https://github.com/
-// @version      178.5.0
+// @version      178.6.0
 // @description  Video Control: Pure YCbCr Sharpness, Dynamic QS, Web Worker Auto Scene. Lightweight & Fast.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,7 +39,7 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.5.0';
+  __vscNs.__version = '178.6.0'; // ✅ 버전 업데이트
 
   try { (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).__VSC__ = __vscNs; } catch (_) {}
 
@@ -59,7 +59,6 @@ function VSC_MAIN() {
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
-  // 불필요한 FILTER_SHARP_PRO_QUALITY 및 LINEAR_RGB 플래그 완전 삭제
   const FLAGS = Object.freeze({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
@@ -67,7 +66,7 @@ function VSC_MAIN() {
     AUTO_SCENE_ALLOW_MAINTHREAD_FALLBACK: true,
     AUTO_SCENE_RELEASE_ANALYZER_ON_STOP: false,
     AUTO_SCENE_ADAPTIVE_FPS: false,
-    FILTER_REAPPLY_NO_FORCED_LAYOUT: true, // ✅ true로 변경: 필터 변경 시 잔렉(스터터링) 제거
+    FILTER_REAPPLY_NO_FORCED_LAYOUT: true,
     PATCH_ATTACH_SHADOW: true,
     FILTER_SHARP_PRESERVE_CHROMA_YCBCR: true,
     FILTER_SHARP_SAT_COMP: false
@@ -276,7 +275,7 @@ function VSC_MAIN() {
   const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
 
   const PRESETS = Object.freeze({
-    detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 }, S: { sharpAdd: 13, sharp2Add: 18, clarityAdd: 16, sat: 1.00 }, M: { sharpAdd: 26, sharp2Add: 37, clarityAdd: 32, sat: 1.00 }, L: { sharpAdd: 39, sharp2Add: 55, clarityAdd: 48, sat: 1.00 }, XL: { sharpAdd: 52, sharp2Add: 74, clarityAdd: 64, sat: 1.00 } },
+    detail: { off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 }, S: { sharpAdd: 12, sharp2Add: 12, clarityAdd: 24, sat: 1.00 }, M: { sharpAdd: 24, sharp2Add: 24, clarityAdd: 36, sat: 1.00 }, L: { sharpAdd: 36, sharp2Add: 36, clarityAdd: 48, sat: 1.00 }, XL: { sharpAdd: 48, sharp2Add: 48, clarityAdd: 60, sat: 1.00 } },
     grade: { brOFF: { gammaF: 1.00, brightAdd: 0 }, S: { gammaF: 1.03, brightAdd: 2.0 }, M: { gammaF: 1.08, brightAdd: 5.0 }, L: { gammaF: 1.15, brightAdd: 9.0 }, DS: { gammaF: 1.05, brightAdd: 3.5 }, DM: { gammaF: 1.12, brightAdd: 7.5 }, DL: { gammaF: 1.22, brightAdd: 11.0 } }
   });
 
@@ -533,7 +532,6 @@ function VSC_MAIN() {
     return changed;
   }
 
-  // [Logic/Bug #3] PiP 복원 시 interval 안정성 개선
   const PiPState = {
     window: null, video: null, placeholder: null, origParent: null, origCss: '', _ac: null, _watcherId: null,
     reset() {
@@ -923,7 +921,6 @@ function VSC_MAIN() {
       const evalScore = (v) => {
         if (!v || v.readyState < 2) return;
 
-        // [사용자 패치 완벽 적용] decoded 프레임이 존재하면 면적(Area)이 작아도 통과!
         const r = getRectCached(v, now, 800);
         const area = (r?.width || 0) * (r?.height || 0);
         const pip = isPiPActiveVideo(v);
@@ -1128,7 +1125,8 @@ function VSC_MAIN() {
     };
   }
 
-  let _softClipCurve = null;
+  // --- PART 1 END ---
+let _softClipCurve = null;
   function getSoftClipCurve() {
     if (_softClipCurve) return _softClipCurve;
     const n = 1024, knee = 0.88, drive = 3.5, tanhD = Math.tanh(drive); const curve = new Float32Array(n);
@@ -1141,6 +1139,27 @@ function VSC_MAIN() {
   function createAudio(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, hpf, currentNodes = null;
     let makeupDbEma = 0, switchTimer = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
+
+    // ✅ [PATCH 3-A] AudioContext visibility resume hook
+    let _visResumeHooked = false;
+    const _audioAC = new AbortController();
+    const _audioSig = combineSignals(_audioAC.signal, __globalSig);
+
+    function ensureVisibilityResumeHook() {
+      if (_visResumeHooked) return;
+      _visResumeHooked = true;
+
+      on(document, 'visibilitychange', () => {
+        if (document.visibilityState !== 'visible') return;
+        if (!ctx) return;
+
+        const st = ctx.state;
+        if (st === 'suspended' || st === 'interrupted') {
+          ctx.resume().catch(() => {});
+        }
+      }, { passive: true, signal: _audioSig });
+    }
+
     const clamp = VSC_CLAMP;
 
     const stt = (param, val, t, tc = 0.08) => { if(param) { try { param.setTargetAtTime(val, t, tc); } catch (_) { param.value = val; } } };
@@ -1237,6 +1256,7 @@ function VSC_MAIN() {
       const AC = window.AudioContext; if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'balanced', sampleRate: 48000 }); } catch (_) { try { ctx = new AC({ latencyHint: 'balanced' }); } catch (__) { try { ctx = new AC(); } catch (___) { return false; } } }
       currentSrc = null; target = null; ensureGestureResumeHook();
+      ensureVisibilityResumeHook(); // ✅ [PATCH 3-B] Hook 호출부 적용
       const nodes = buildAudioGraph(ctx); inputGain = nodes.inputGain; dryGain = nodes.dryGain; wetGain = nodes.wetGain; masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; limiter = nodes.limiter; hpf = nodes.hpf; currentNodes = nodes; return true;
     };
 
@@ -1319,6 +1339,8 @@ function VSC_MAIN() {
     };
 
     async function destroy() {
+      try { _audioAC.abort(); } catch (_) {} // ✅ [PATCH 3-C] Abort Signal 정리
+      _visResumeHooked = false; // ✅ [PATCH 3-C]
       loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
       if (ctx) { if (target && globalSrcMap.has(target)) { const src = globalSrcMap.get(target); if (src) safe(() => src.disconnect()); globalSrcMap.delete(target); } }
       if (currentSrc) { safe(() => currentSrc.disconnect()); if (target) globalSrcMap.delete(target); currentSrc = null; }
@@ -1355,7 +1377,20 @@ function VSC_MAIN() {
   }
 
   function createAutoSceneManager(Store, P, Scheduler) {
-    const AUTO = { running: false, canvasW: 80, canvasH: 45, cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }, lastSig: null, cutScoreEma: 0.10, cutScoreBaseline: 0.05, motionEma: 0, motionAlpha: 0.30, motionThresh: 0.012, motionFrames: 0, motionMinFrames: 5, statsEma: null, statsAlpha: 0.18, drmBlocked: false, blockUntilMs: 0, _drmSuccessCount: 0, _drmBackoffCount: 0, _permanentlyDisabled: false, _lastVideoRef: null, _lastVideoSrc: '', _firstUpdateDone: false, _playHooked: new WeakMap(), _ac: null, _timer: 0, minFps: 4, maxFps: 12, curFps: 4 };
+    const AUTO = { running: false, canvasW: 80, canvasH: 45, cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }, lastSig: null, cutScoreEma: 0.10, cutScoreBaseline: 0.05, motionEma: 0, motionAlpha: 0.30, motionThresh: 0.012, motionFrames: 0, motionMinFrames: 5, statsEma: null, statsAlpha: 0.18, drmBlocked: false, blockUntilMs: 0, _drmSuccessCount: 0, _drmBackoffCount: 0, _permanentlyDisabled: false, _lastVideoRef: null, _lastVideoSrc: '', _firstUpdateDone: false, _playHooked: new WeakMap(), _ac: null, _timer: 0, minFps: 4, maxFps: 12, curFps: 4,
+      stillFrames: 0, // ✅ [PATCH 2-A]
+      stillUntilMs: 0 // ✅ [PATCH 2-A]
+    };
+
+    // ✅ [PATCH 2-B] Still-frame low duty cycle (power saver)
+    const STILL = Object.freeze({
+      MOTION_THR: 0.0025,   // sigRaw.motion이 이보다 작으면 거의 스틸
+      SCORE_THR:  0.06,     // 밝기/대비 변화 score도 작으면 스틸
+      ENTER_FRAMES: 12,     // 연속 12회(대략 2~3초) 스틸이면 발동
+      HOLD_MS: 2500,        // 발동 후 최소 유지 시간
+      DELAY_MS: 1500        // 스틸이면 분석 주기 1.5초(원하면 2000으로)
+    });
+
     const _lastAnalyzedTime = new WeakMap();
 
     let worker = null;
@@ -1488,6 +1523,13 @@ function VSC_MAIN() {
       const dY = Math.abs(sigRaw.bright - (AUTO.lastSig?.bright||0)), dCt = Math.abs(sigRaw.contrast - (AUTO.lastSig?.contrast||0)), score = (dY * 1.1) + (dCt * 0.9);
       AUTO.cutScoreBaseline = (AUTO.cutScoreBaseline || 0.05) * 0.97 + score * 0.03; const thr = Math.max(0.10, Math.min(0.25, AUTO.cutScoreBaseline * 2.5)), isCut = score > thr; AUTO.lastSig = sigRaw;
 
+      // ✅ [PATCH 2-D] Still detection: "움직임/장면전환 거의 없음"이면 분석 주기 늘리기
+      const stillLike = !isCut && (sigRaw.motion < STILL.MOTION_THR) && (score < STILL.SCORE_THR);
+      AUTO.stillFrames = stillLike ? (AUTO.stillFrames + 1) : 0;
+      if (AUTO.stillFrames >= STILL.ENTER_FRAMES) {
+        AUTO.stillUntilMs = performance.now() + STILL.HOLD_MS;
+      }
+
       if (!AUTO.statsEma) { AUTO.statsEma = { ...sigRaw }; } else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + sigRaw.bright*a; e.contrast = e.contrast*(1-a) + sigRaw.contrast*a; e.edge = e.edge*(1-a) + sigRaw.edge*a; }
       const sig = AUTO.statsEma;
 
@@ -1534,6 +1576,8 @@ function VSC_MAIN() {
 
     function resetAutoSceneState() {
       AUTO.drmBlocked = false; AUTO.blockUntilMs = 0; AUTO._drmBackoffCount = 0; AUTO._drmSuccessCount = 0; AUTO._permanentlyDisabled = false; AUTO._hadFirstFrame = false; AUTO._firstUpdateDone = false; AUTO.statsEma = null;
+      AUTO.stillFrames = 0;  // ✅ [PATCH 2-C]
+      AUTO.stillUntilMs = 0; // ✅ [PATCH 2-C]
     }
 
     function computeNextDelayMs() {
@@ -1580,8 +1624,15 @@ function VSC_MAIN() {
           const stats = runFallbackProcessPixels(outData, fallback.w, fallback.h, fallback);
           handleAnalyzerResult(stats);
         }
-        const delay = (document.hidden || !getFLAGS()?.AUTO_SCENE_ADAPTIVE_FPS) ? 150 : computeNextDelayMs();
+
+        // ✅ [PATCH 2-E] Still-mode: 스틸 구간이면 1~2초로 크게 늘려 전력 절감
+        let delay = (document.hidden || !getFLAGS()?.AUTO_SCENE_ADAPTIVE_FPS) ? 150 : computeNextDelayMs();
+        const n2 = performance.now();
+        if (AUTO.stillUntilMs && n2 < AUTO.stillUntilMs) {
+          delay = Math.max(delay, STILL.DELAY_MS);
+        }
         scheduleNext(v, delay);
+
       }).catch(err => {
         AUTO.drmBlocked = true; AUTO._drmSuccessCount = 0; AUTO._drmBackoffCount = (AUTO._drmBackoffCount || 0) + 1;
         const backoffMs = Math.min(30000, 1000 * Math.pow(2, Math.min(AUTO._drmBackoffCount, 8)));
@@ -1621,6 +1672,7 @@ function VSC_MAIN() {
     return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) { AUTO._ac = new AbortController(); const ok = ensureAnalyzer(AUTO.canvasW, AUTO.canvasH); if(ok){AUTO.running = true; loop();} else{Store.set(P.APP_AUTO_SCENE, false);} } }, stop: stopLoop, destroy: destroyAutoScene };
   }
 
+  // --- PART 2 END ---
 function createFiltersVideoOnly(Utils, config) {
   const { h, clamp } = Utils;
   const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -1643,19 +1695,17 @@ function createFiltersVideoOnly(Utils, config) {
   const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(192);
   const _attrCache = new WeakMap();
 
-  // [피드백 적용 ①] CSS Background 1회 적용 및 복구용 WeakMap
   const __vscBgMemo = new WeakMap();
 
   function ensureOpaqueBg(video) {
     if (!video || __vscBgMemo.has(video)) return;
     try {
       const cs = getComputedStyle(video).backgroundColor;
-      // ✅ [패치 B] 브라우저 호환성: 공백이 없는 'rgba(0,0,0,0)' 케이스 추가
       if (cs === 'transparent' || cs === 'rgba(0, 0, 0, 0)' || cs === 'rgba(0,0,0,0)') {
         __vscBgMemo.set(video, video.style.backgroundColor || '');
         video.style.backgroundColor = '#000';
       } else {
-        __vscBgMemo.set(video, null); // 건드리지 않았다는 표시
+        __vscBgMemo.set(video, null);
       }
     } catch (_) {}
   }
@@ -1681,12 +1731,11 @@ function createFiltersVideoOnly(Utils, config) {
   const applyLumaSharpening = (sharpDetail, strength, qs = 1) => {
     if (!sharpDetail) return;
     const s = Math.min(1, Math.max(0, strength));
-    const q = Math.sqrt(Math.max(0.35, Math.min(1, qs)));
+    const q = Math.sqrt(Math.max(0.50, Math.min(1, qs)));
 
-    const amountRaw = (s * 2.10) * q;
-    // [피드백 적용 ②] USM 오버슈트(색상 튐/클램핑) 방지를 위한 GPU 안전 상한선 적용
+    const amountRaw = (s * 1.90) * q;
     const amount = Math.min(1.7, amountRaw);
-    const std = s > 0 ? (0.55 + s * 0.30).toFixed(2) : '0';
+    const std = s > 0 ? (0.45 + s * 0.35).toFixed(2) : '0';
 
     if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', std);
     if (sharpDetail.ySharp) {
@@ -1865,7 +1914,6 @@ function createFiltersVideoOnly(Utils, config) {
     let dc = urlCache.get(root);
     if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
 
-    // ✅ [피드백 적용 ①] 넷플릭스 보라색 여백 방지를 위한 투명도 CSS 캐싱 및 적용
     ensureOpaqueBg(video);
 
     const qSharp = Math.round(Number(s.sharp || 0));
@@ -1877,7 +1925,7 @@ function createFiltersVideoOnly(Utils, config) {
     let combinedStrength = 0;
     if (tier === 'sharp') {
       const n1 = qSharp / 52, n2 = qSharp2 / 74, n3 = qClarity / 64;
-      combinedStrength = clamp01(n1 * 0.50 + n2 * 0.30 + n3 * 0.20);
+      combinedStrength = clamp01(n1 * 0.40 + n2 * 0.40 + n3 * 0.20);
     }
 
     const stableKey = `${tier}|${makeKeyBase(s)}`;
@@ -2007,7 +2055,6 @@ function createFiltersVideoOnly(Utils, config) {
       const st = getVState(el);
 
       if (!url) {
-        // ✅ [여기에 한 줄 추가!] 필터가 꺼지거나 오류로 멈췄을 때 칠해둔 배경색도 원상 복구!
         restoreOpaqueBg(el);
 
         if (st.applied) {
@@ -2047,7 +2094,6 @@ function createFiltersVideoOnly(Utils, config) {
     clear: (el) => {
       if (!el) return;
       const st = getVState(el);
-      // ✅ [피드백 적용 ①] 필터 해제 시 CSS Background 원상 복구
       restoreOpaqueBg(el);
 
       if (!st.applied) return;
@@ -2059,6 +2105,7 @@ function createFiltersVideoOnly(Utils, config) {
     }
   };
 }
+
   function createBackendAdapter(Filters) {
     const _backendChangeListeners = new Set();
     return {
@@ -2078,7 +2125,6 @@ function createFiltersVideoOnly(Utils, config) {
       },
       clear(video) {
         const st = getVState(video);
-        // ✅ [방탄 안전벨트 적용] 외부 요인으로 상태가 꼬여도 확실하게 찌꺼기 청소
         if (st.applied || st.fxBackend === 'svg') Filters.clear(video);
         st.fxBackend = null;
         this._notifyBackendChange(video, null);
@@ -2308,7 +2354,24 @@ function createFiltersVideoOnly(Utils, config) {
     return { ensure, destroy: () => { uiUnsubs.forEach(u => safe(u)); uiUnsubs.length = 0; safe(() => uiWakeCtrl.abort()); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
   }
 
-  function getRateState(v) { const st = getVState(v); if (!st.rateState) st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, _setAttempts: 0, _firstAttemptT: 0 }; return st.rateState; }
+  // ✅ [PATCH 1-A] Exponential Backoff 지원 필드 확장
+  function getRateState(v) {
+    const st = getVState(v);
+    if (!st.rateState) {
+      st.rateState = {
+        orig: null,
+        lastSetAt: 0,
+        suppressSyncUntil: 0,
+        _setAttempts: 0,
+        _firstAttemptT: 0,
+        // ✅ Exponential Backoff
+        _backoffLv: 0,         // 0..5
+        _lastBackoffAt: 0
+      };
+    }
+    return st.rateState;
+  }
+
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; st.orig = null; markInternalRateChange(el, 220); el.playbackRate = nextRate; } catch (_) {} };
   function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; safe(() => { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); }); }
@@ -2327,7 +2390,20 @@ function createFiltersVideoOnly(Utils, config) {
 
   const bindVideoOnce = (v, ApplyReq) => {
     const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); ensureMobileInlinePlaybackHints(v);
-    const softResetTransientFlags = () => { st.audioFailUntil = 0; st.rect = null; st.rectT = 0; if (st._lastSrc !== v.currentSrc) { st._lastSrc = v.currentSrc; } if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; st.rateState._setAttempts = 0; } ApplyReq.hard(); };
+    const softResetTransientFlags = () => {
+      st.audioFailUntil = 0; st.rect = null; st.rectT = 0; if (st._lastSrc !== v.currentSrc) { st._lastSrc = v.currentSrc; }
+      if (st.rateState) {
+        st.rateState.orig = null;
+        st.rateState.lastSetAt = 0;
+        st.rateState.suppressSyncUntil = 0;
+        st.rateState._setAttempts = 0;
+        st.rateState._firstAttemptT = 0;
+        // ✅ [PATCH 1-B] backoff reset
+        st.rateState._backoffLv = 0;
+        st.rateState._lastBackoffAt = 0;
+      }
+      ApplyReq.hard();
+    };
     const combinedSignal = combineSignals(st._ac.signal, __globalSig); const opts = { passive: true, signal: combinedSignal };
     const videoEvents = [['loadstart', softResetTransientFlags], ['loadedmetadata', softResetTransientFlags], ['emptied', softResetTransientFlags], ['seeking', () => ApplyReq.hard()], ['play', () => ApplyReq.hard()], ['ratechange', () => { const rSt = getRateState(v); const now = performance.now(); if ((now - (rSt.lastSetAt || 0)) < 180 || now < (rSt.suppressSyncUntil || 0)) return; const st = getVState(v); const desired = st.desiredRate; if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.05) return; const store = getNS()?.Store; if (!store) return; const activeVideo = getNS()?.App?.getActiveVideo?.(); if (!activeVideo || v !== activeVideo) return; const cur = v.playbackRate; if (Number.isFinite(cur) && cur > 0) { store.batch('playback', { rate: cur, enabled: true }); } }]];
     for (const [ev, fn] of videoEvents) on(v, ev, fn, opts);
@@ -2336,6 +2412,7 @@ function createFiltersVideoOnly(Utils, config) {
   let __lastApplyTarget = null;
   function clearVideoRuntimeState(el, Adapter, ApplyReq) { const st = getVState(el); Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); if (st._ac) { st._ac.abort(); st._ac = null; } st.bound = false; bindVideoOnce(el, ApplyReq); }
 
+  // ✅ [PATCH 1-C] 지수 백오프 + 2-rAF 중첩 충돌 감지 로직 적용
   function applyPlaybackRate(el, desiredRate) {
     const st = getVState(el), rSt = getRateState(el);
     const now = performance.now();
@@ -2345,30 +2422,80 @@ function createFiltersVideoOnly(Utils, config) {
     if (rSt.orig == null) rSt.orig = el.playbackRate;
 
     const rateMatches = Math.abs(el.playbackRate - desiredRate) < 0.01;
-    if (Object.is(st.desiredRate, desiredRate) && rateMatches) { touchedAdd(TOUCHED.rateVideos, el); return; }
 
+    // ✅ 이미 안정적으로 맞춰져 있으면: touched 유지 + backoff 서서히 완화
+    if (Object.is(st.desiredRate, desiredRate) && rateMatches) {
+      if ((rSt._backoffLv | 0) > 0 && (now - (rSt._lastBackoffAt || 0)) > 1200) {
+        rSt._backoffLv = Math.max(0, (rSt._backoffLv | 0) - 1);
+      }
+      touchedAdd(TOUCHED.rateVideos, el);
+      return;
+    }
+
+    // 충돌 구간 window 리셋
     if (!rSt._firstAttemptT || (now - rSt._firstAttemptT) > 2500) {
       rSt._firstAttemptT = now;
       rSt._setAttempts = 0;
     }
+
     rSt._setAttempts++;
 
+    // ✅ "휴전" → 고정 5초 대신 지수 백오프 (1s→2s→4s→8s→16s… 최대 30s)
     if (rSt._setAttempts > 6) {
-      rSt.suppressSyncUntil = now + 5000;
+      const lv = Math.min(((rSt._backoffLv | 0) + 1), 5);
+      rSt._backoffLv = lv;
+      rSt._lastBackoffAt = now;
+
+      const backoffMs = Math.min(30000, (1000 * (2 ** (lv - 1))) | 0);
+      rSt.suppressSyncUntil = now + backoffMs + ((Math.random() * 220) | 0);
+
       rSt._setAttempts = 0;
       return;
     }
 
-    st.desiredRate = desiredRate; markInternalRateChange(el, 250);
+    st.desiredRate = desiredRate;
+    markInternalRateChange(el, 250);
+
     try { el.playbackRate = desiredRate; } catch (_) {}
 
+    // ✅ 1st check (다음 프레임에서 다시 확인)
     requestAnimationFrame(() => {
       if (!el.isConnected) return;
+
       if (Math.abs(el.playbackRate - desiredRate) > 0.01) {
+        // 한번 더 강제
         markInternalRateChange(el, 250);
         try { el.playbackRate = desiredRate; } catch (_) {}
+
+        // ✅ 2nd check (여기서도 안 맞으면 “진짜 싸우는 중” → backoff 상승)
+        requestAnimationFrame(() => {
+          if (!el.isConnected) return;
+
+          if (Math.abs(el.playbackRate - desiredRate) > 0.01) {
+            const n2 = performance.now();
+            const lv = Math.min(((rSt._backoffLv | 0) + 1), 5);
+            rSt._backoffLv = lv;
+            rSt._lastBackoffAt = n2;
+
+            const backoffMs = Math.min(30000, (1000 * (2 ** (lv - 1))) | 0);
+            const until = n2 + backoffMs + ((Math.random() * 220) | 0);
+
+            // 이미 더 긴 suppress가 걸려있으면 유지
+            rSt.suppressSyncUntil = Math.max(rSt.suppressSyncUntil || 0, until);
+
+            // 충돌 카운터 리셋(다음 시도는 backoff 후)
+            rSt._setAttempts = 0;
+          } else {
+            // 맞춰졌으면 backoff 완화
+            if ((rSt._backoffLv | 0) > 0) rSt._backoffLv = Math.max(0, (rSt._backoffLv | 0) - 1);
+          }
+        });
+      } else {
+        // 맞춰졌으면 backoff 완화
+        if ((rSt._backoffLv | 0) > 0) rSt._backoffLv = Math.max(0, (rSt._backoffLv | 0) - 1);
       }
     });
+
     touchedAdd(TOUCHED.rateVideos, el);
   }
 
@@ -2379,7 +2506,6 @@ function createFiltersVideoOnly(Utils, config) {
       for (const v of set) if (v?.tagName === 'VIDEO') candidates.add(v);
     }
     for (const el of candidates) {
-      // ✅ [패치 C] 비디오가 DOM에서 분리된 경우, 남은 스타일 찌꺼기(필터, 배경색)를 즉시 청소
       if (!el.isConnected) {
         Adapter.clear(el);
         restoreRateOne(el);
@@ -2417,7 +2543,8 @@ function createFiltersVideoOnly(Utils, config) {
     }
   }
 
-  function createVideoParamsMemo(Store, P) {
+  // --- PART 3 END ---
+function createVideoParamsMemo(Store, P) {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
     const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 2.8, gamma: -0.03, mid: 0 }], [SHADOW_BAND.MID, { toe: 1.6, gamma: 0, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0, gamma: -0.02, mid: -0.12 }]]);
     return {
@@ -2479,7 +2606,6 @@ function createFiltersVideoOnly(Utils, config) {
           pick = Targeting.pickFastActiveOnly(Registry.videos, getNS()?.lastUserPt || {x:0,y:0,t:0}, wantAudioNow);
         }
 
-        // [사용자 패치 C] 강제 DOM 스캔 3차 Fallback
         if (!pick?.target) {
           let domV = null;
           try {
@@ -2543,7 +2669,6 @@ function createFiltersVideoOnly(Utils, config) {
     Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick();
 
     return Object.freeze({
-      // [사용자 패치 C] 강제 DOM 스캔 3차 Fallback
       getActiveVideo() {
         if (__activeTarget && __activeTarget.isConnected) return __activeTarget;
         let domV = null;
