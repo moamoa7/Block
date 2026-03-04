@@ -1622,12 +1622,11 @@ function VSC_MAIN() {
         const useDarkBoost = !!getFLAGS()?.AUTO_SCENE_DARK_BOOST;
 
         const DARK = {
-          THR: 0.32,       // 기존 0.25 -> 0.32
-          MAX_BOOST: 0.50, // 기존 0.20 -> 0.35
-          DZ: 0.010,       // 기존 0.03 -> 0.015
-          BR_CAP: 1.50     // 기존 1.20 -> 1.35
+          THR: 0.40,       // [상향] 0.25 -> 0.40 (이제 "조금 어둡네?" 싶으면 바로 작동)
+          MAX_BOOST: 0.45, // [상향] 0.20 -> 0.45 (충분히 시원하게 밝혀줌)
+          DZ: 0.02,        // [안정] 0.003 -> 0.02 (미세 노이즈 무시하여 깜빡임 근본 원인 제거)
+          BR_CAP: 1.45     // [확장] 1.20 -> 1.45 (부스트 상한선 확대)
         };
-
         const darkThr = useDarkBoost ? DARK.THR : 0.25;
 
         // --- 밝기(gainT) 목표값 계산 ---
@@ -1665,8 +1664,8 @@ function VSC_MAIN() {
 
         // --- 비대칭 보간(Smoothing)을 통한 부드러운 전환 적용 ---
         const asym = (c, t, au, ad) => Math.abs(t-c) < 0.002 ? t : c + (t-c) * (t>c?au:ad);
-        AUTO.cur.br = asym(AUTO.cur.br, AUTO.tgt.br, isCut ? 0.40 : 0.12, isCut ? 0.45 : 0.18);
-        AUTO.cur.ct = asym(AUTO.cur.ct, AUTO.tgt.ct, isCut ? 0.38 : 0.12, isCut ? 0.38 : 0.12);
+        AUTO.cur.br = asym(AUTO.cur.br, AUTO.tgt.br, isCut ? 0.45 : 0.05, isCut ? 0.50 : 0.08);
+        AUTO.cur.ct = asym(AUTO.cur.ct, AUTO.tgt.ct, isCut ? 0.38 : 0.06, isCut ? 0.38 : 0.06);
         AUTO.cur.sat = asym(AUTO.cur.sat, AUTO.tgt.sat, isCut ? 0.32 : 0.08, isCut ? 0.40 : 0.14);
         AUTO.cur.sharpScale = asym(AUTO.cur.sharpScale, AUTO.tgt.sharpScale, isCut ? 0.35 : 0.08, isCut ? 0.40 : 0.14);
 
