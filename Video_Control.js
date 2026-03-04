@@ -30,10 +30,7 @@
 'use strict';
 
 function VSC_MAIN() {
-  // ✅ ok.ru 등 빈 iframe(about:blank) 방어 완화 (스크립트 본체 생존)
   if (location.protocol === 'javascript:') return;
-  if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com')) return;
-
   const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.2');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -181,8 +178,7 @@ function tempToRgbGain(temp) {
     video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 },
     audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false },
     playback: { rate: 1.0, enabled: false },
-    // ✅ ok.ru 등 Iframe 깊숙한 영상 대응을 위해 applyAll 기본값 true
-    app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, autoScene: false, autoScenePreset: 'Normal', advanced: false }
+    app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, autoScenePreset: 'Normal', advanced: false }
   };
 
   const P = Object.freeze({
