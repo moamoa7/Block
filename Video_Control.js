@@ -2632,7 +2632,7 @@ function VSC_MAIN() {
 
   function createVideoParamsMemo(Store, P) {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
-    const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 2.8, gamma: -0.03, mid: 0 }], [SHADOW_BAND.MID, { toe: 1.6, gamma: 0, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0, gamma: -0.02, mid: -0.12 }]]);
+    const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.8, gamma: -0.06, mid: -0.02 }], [SHADOW_BAND.MID, { toe: 1.2, gamma: -0.02, mid: -0.08 }], [SHADOW_BAND.OUTER, { toe: 0.4, gamma: -0.02, mid: -0.10 }]]);
     return {
       get(vfUser, activeVideo) {
         const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
