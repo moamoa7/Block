@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.4.0 - Clean YCbCr USM)
+// @name         Video_Control (v178.5.0 - Clean YCbCr USM)
 // @namespace    https://github.com/
-// @version      178.4.0
+// @version      178.5.0
 // @description  Video Control: Pure YCbCr Sharpness, Dynamic QS, Web Worker Auto Scene. Lightweight & Fast.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,7 +39,7 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.4.0';
+  __vscNs.__version = '178.5.0';
 
   try { (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).__VSC__ = __vscNs; } catch (_) {}
 
@@ -59,7 +59,7 @@ function VSC_MAIN() {
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
-  // 불필요한 FILTER_SHARP_PRO_QUALITY 플래그 완전 삭제
+  // 불필요한 FILTER_SHARP_PRO_QUALITY 및 LINEAR_RGB 플래그 완전 삭제
   const FLAGS = Object.freeze({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
@@ -67,11 +67,10 @@ function VSC_MAIN() {
     AUTO_SCENE_ALLOW_MAINTHREAD_FALLBACK: true,
     AUTO_SCENE_RELEASE_ANALYZER_ON_STOP: false,
     AUTO_SCENE_ADAPTIVE_FPS: false,
-    FILTER_REAPPLY_NO_FORCED_LAYOUT: false,
+    FILTER_REAPPLY_NO_FORCED_LAYOUT: true, // ✅ true로 변경: 필터 변경 시 잔렉(스터터링) 제거
     PATCH_ATTACH_SHADOW: true,
     FILTER_SHARP_PRESERVE_CHROMA_YCBCR: true,
-    FILTER_SHARP_SAT_COMP: false,
-    FILTER_SHARP_LINEAR_RGB: false,
+    FILTER_SHARP_SAT_COMP: false
   });
 
   const VSC_SYM = Symbol.for('__VSC__');
@@ -459,7 +458,7 @@ function VSC_MAIN() {
     let rev = 0; const listeners = new Map();
     const storeAC = new AbortController();
     const storeSig = combineSignals(storeAC.signal, __globalSig);
-    const PREF_KEY = 'vsc_user_prefs_v1';
+    const PREF_KEY = 'vsc_prefs_' + location.hostname;
 
     function loadPrefs() {
       try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (v) return v; } } catch (_) {}
@@ -533,8 +532,6 @@ function VSC_MAIN() {
     }
     return changed;
   }
-// --- [PART 1 끝] ---
-// --- [PART 2 시작] ---
 
   // [Logic/Bug #3] PiP 복원 시 interval 안정성 개선
   const PiPState = {
@@ -1139,7 +1136,7 @@ function VSC_MAIN() {
     _softClipCurve = curve; return curve;
   }
   function chain(...nodes) { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); }
-  const globalSrcMap = new Map();
+  const globalSrcMap = new WeakMap();
 
   function createAudio(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, hpf, currentNodes = null;
@@ -1644,12 +1641,32 @@ function createFiltersVideoOnly(Utils, config) {
   }
 
   const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(192);
-  const LUMA_MATRIX =
-    '0.2126 0.7152 0.0722 0 0 ' +
-    '0.2126 0.7152 0.0722 0 0 ' +
-    '0.2126 0.7152 0.0722 0 0 ' +
-    '0 0 0 1 0';
   const _attrCache = new WeakMap();
+
+  // [피드백 적용 ①] CSS Background 1회 적용 및 복구용 WeakMap
+  const __vscBgMemo = new WeakMap();
+
+  function ensureOpaqueBg(video) {
+    if (!video || __vscBgMemo.has(video)) return;
+    try {
+      const cs = getComputedStyle(video).backgroundColor;
+      // ✅ [패치 B] 브라우저 호환성: 공백이 없는 'rgba(0,0,0,0)' 케이스 추가
+      if (cs === 'transparent' || cs === 'rgba(0, 0, 0, 0)' || cs === 'rgba(0,0,0,0)') {
+        __vscBgMemo.set(video, video.style.backgroundColor || '');
+        video.style.backgroundColor = '#000';
+      } else {
+        __vscBgMemo.set(video, null); // 건드리지 않았다는 표시
+      }
+    } catch (_) {}
+  }
+
+  function restoreOpaqueBg(video) {
+    if (!video) return;
+    const prev = __vscBgMemo.get(video);
+    if (prev === undefined) return;
+    __vscBgMemo.delete(video);
+    if (prev !== null) video.style.backgroundColor = prev;
+  }
 
   function setAttr(node, attr, val) {
     if (!node) return;
@@ -1661,18 +1678,15 @@ function createFiltersVideoOnly(Utils, config) {
     node.setAttribute(attr, strVal);
   }
 
-  // [수정점] 불필요한 마스크 테이블 생성 함수(getDetailShaperTableCached, getAbsTableCached, getMaskTableCached) 완전 삭제
-
   const applyLumaSharpening = (sharpDetail, strength, qs = 1) => {
     if (!sharpDetail) return;
-
-    // 강도(strength)에 따라 블러 반경(stdDeviation)과 샤프닝 수치(amount)를 적용
     const s = Math.min(1, Math.max(0, strength));
     const q = Math.sqrt(Math.max(0.35, Math.min(1, qs)));
 
-    // 사용자가 XL에서 확실한 체감을 느낄 수 있도록 최대 배율 상향 (기존 1.6 -> 2.6)
-    const amount = (s * 2.60) * q;
-    const std = s > 0 ? (0.50 + s * 0.25).toFixed(2) : '0';
+    const amountRaw = (s * 2.10) * q;
+    // [피드백 적용 ②] USM 오버슈트(색상 튐/클램핑) 방지를 위한 GPU 안전 상한선 적용
+    const amount = Math.min(1.7, amountRaw);
+    const std = s > 0 ? (0.55 + s * 0.30).toFixed(2) : '0';
 
     if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', std);
     if (sharpDetail.ySharp) {
@@ -1683,18 +1697,10 @@ function createFiltersVideoOnly(Utils, config) {
   };
 
   const makeKeyBase = (s) => [
-    Math.round(s.gain / 0.04),
-    Math.round(s.gamma / 0.01),
-    Math.round(s.contrast / 0.01),
-    Math.round(s.bright / 0.2),
-    Math.round(s.satF / 0.01),
-    Math.round(s.mid / 0.02),
-    Math.round(s.toe / 0.2),
-    Math.round(s.shoulder / 0.2),
-    Math.round(s.temp / 0.2),
-    Math.round(s.sharp),
-    Math.round(s.sharp2),
-    Math.round(s.clarity)
+    Math.round(s.gain / 0.04), Math.round(s.gamma / 0.01), Math.round(s.contrast / 0.01),
+    Math.round(s.bright / 0.2), Math.round(s.satF / 0.01), Math.round(s.mid / 0.02),
+    Math.round(s.toe / 0.2), Math.round(s.shoulder / 0.2), Math.round(s.temp / 0.2),
+    Math.round(s.sharp), Math.round(s.sharp2), Math.round(s.clarity)
   ].join('|');
 
   function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
@@ -1716,25 +1722,20 @@ function createFiltersVideoOnly(Utils, config) {
     const toeEnd = 0.34 + Math.abs(toeN) * 0.06;
     const toeAmt = Math.abs(toeN);
     const toeSign = toeN >= 0 ? 1 : -1;
-
     const shoulderStart = 0.90 - shoulderN * 0.10;
     const shAmt = Math.abs(shoulderN);
-
     let prev = 0;
 
     for (let i = 0; i < steps; i++) {
       const x0 = i / (steps - 1);
       let x = useExp ? (1 - Math.exp(-g * x0)) / denom : x0;
-
       x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
-
       if (toeAmt > 1e-6) {
         const u = Utils.clamp((x - 0) / Math.max(1e-6, (toeEnd - 0)), 0, 1);
         const smooth = u * u * (3 - 2 * u);
         const w = 1 - smooth;
         x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1);
       }
-
       if (shAmt > 1e-6 && x > shoulderStart) {
         const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart));
         const kk = Math.max(0.7, 1.2 + shAmt * 6.5);
@@ -1742,27 +1743,22 @@ function createFiltersVideoOnly(Utils, config) {
         const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt;
         x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1);
       }
-
       if (x <= prev) {
         const eps = Math.min(1e-5, (1.0 - prev) * 0.5);
         x = eps > 0 ? prev + eps : prev;
       }
-
       x = Math.min(x, 1.0);
       prev = x;
-
       const y = Math.round(x * 100000) / 100000;
       arr[i] = y === 1 ? '1' : (y === 0 ? '0' : String(y));
     }
-
     const res = arr.join(' ');
     toneCache.set(key, res);
     return res;
   }
 
   function calcFilterRes(vw, vh, maxPix) {
-    vw = vw | 0;
-    vh = vh | 0;
+    vw = vw | 0; vh = vh | 0;
     if (vw <= 0 || vh <= 0 || maxPix <= 0) return '';
     const px = vw * vh;
     if (px <= maxPix) return `${vw} ${vh}`;
@@ -1801,39 +1797,19 @@ function createFiltersVideoOnly(Utils, config) {
       return { tmp, s };
     };
 
-    const lite = h('filter', {
-      ns: 'svg', id: fidLite,
-      'color-interpolation-filters': 'sRGB',
-      x: '-3%', y: '-3%', width: '106%', height: '106%'
-    });
-
+    const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '-3%', y: '-3%', width: '106%', height: '106%' });
     const cL = mkC('l');
     const pL = mkP('l', 'l_g');
     lite.append(cL.t, cL.b, cL.g, pL.tmp.tm, pL.s);
 
-    const sharp = h('filter', {
-      ns: 'svg', id: fidSharp,
-      x: '-3%', y: '-3%', width: '106%', height: '106%'
-    });
-
+    const sharp = h('filter', { ns: 'svg', id: fidSharp, x: '-3%', y: '-3%', width: '106%', height: '106%' });
     const cS = mkC('s');
     const pS = mkP('s', 's_out');
 
-    let sharpDetail = null;
-    const getFLAGS = () => (window[Symbol.for('__VSC__')] || __vscNs)?.FLAGS;
-
     sharp.setAttribute('color-interpolation-filters', 'sRGB');
-    const wantLinearSharpen = !!getFLAGS()?.FILTER_SHARP_LINEAR_RGB;
-    const markSharpenLinear = (...nodes) => {
-      if (!wantLinearSharpen) return;
-      for (const n of nodes) {
-        try { n.setAttribute('color-interpolation-filters', 'linearRGB'); } catch (_) {}
-      }
-    };
 
-    // [수정점] YCbCr 단일 언샤프 마스크 구조로 통일. 빠르고 강력한 선명도 제공.
-    const Y_ONLY_R =
-      '1 0 0 0 0 ' +
+    const Y_ONLY_LUMA =
+      '0.2126 0.7152 0.0722 0 0 ' +
       '0 0 0 0 0 ' +
       '0 0 0 0 0 ' +
       '0 0 0 1 0';
@@ -1850,99 +1826,51 @@ function createFiltersVideoOnly(Utils, config) {
       '1 1.8556 0 0 -0.9278 ' +
       '0 0 0 1 0';
 
-    const sY = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: LUMA_MATRIX, result: 's_y' });
-    const sYR = h('feColorMatrix', { ns: 'svg', in: 's_y', type: 'matrix', values: Y_ONLY_R, result: 's_yR' });
+    const sYR = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: Y_ONLY_LUMA, result: 's_yR' });
     const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
 
     const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_yb1' });
-    const yDiff = h('feComposite', {
-      ns: 'svg', in: 's_yR', in2: 's_yb1',
-      operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 's_yd1'
-    });
-    const ySharp = h('feComposite', {
-      ns: 'svg', in: 's_yR', in2: 's_yd1',
-      operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_ySharpR'
-    });
+    const yDiff = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_yb1', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 's_yd1' });
+    const ySharp = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_yd1', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_ySharpR' });
     const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
     const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
 
-    sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
-    sharpDetail = { mode: 'basic', blurF: yBlur, ySharp: ySharp };
-
-    markSharpenLinear(yBlur, yDiff, ySharp);
+    sharp.append(cS.t, cS.b, cS.g, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
+    let sharpDetail = { mode: 'basic', blurF: yBlur, ySharp: ySharp };
 
     defs.append(lite, sharp);
 
     const tryAppend = () => {
       const target = root.body || root.documentElement || root;
-      if (target && target.appendChild) {
-        target.appendChild(svg);
-        return true;
-      }
+      if (target && target.appendChild) { target.appendChild(svg); return true; }
       return false;
     }
 
     if (!tryAppend()) {
-      const mo = new MutationObserver(() => {
-        if (tryAppend()) { mo.disconnect(); }
-      });
+      const mo = new MutationObserver(() => { if (tryAppend()) mo.disconnect(); });
       try { mo.observe(root.documentElement || root, { childList: true, subtree: true }); } catch (_) {}
       setTimeout(() => mo.disconnect(), 5000);
     }
 
     const commonByTier = {
-      lite: {
-        toneFuncs: Array.from(cL.t.children),
-        bcLinFuncs: Array.from(cL.b.children),
-        gamFuncs: Array.from(cL.g.children),
-        tmp: pL.tmp,
-        sats: [pL.s]
-      },
-      sharp: {
-        toneFuncs: Array.from(cS.t.children),
-        bcLinFuncs: Array.from(cS.b.children),
-        gamFuncs: Array.from(cS.g.children),
-        tmp: pS.tmp,
-        sats: [pS.s]
-      }
+      lite: { toneFuncs: Array.from(cL.t.children), bcLinFuncs: Array.from(cL.b.children), gamFuncs: Array.from(cL.g.children), tmp: pL.tmp, sats: [pL.s] },
+      sharp: { toneFuncs: Array.from(cS.t.children), bcLinFuncs: Array.from(cS.b.children), gamFuncs: Array.from(cS.g.children), tmp: pS.tmp, sats: [pS.s] }
     };
 
-    return {
-      fidLite,
-      fidSharp,
-      filters: { lite, sharp },
-      commonByTier,
-      sharpDetail,
-      st: {
-        lastKey: '',
-        toneKey: '',
-        toneTable: '',
-        bcLinKey: '',
-        gammaKey: '',
-        tempKey: '',
-        satKey: '',
-        commonTier: {
-          lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' },
-          sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }
-        },
-        sharpKey: '',
-        __filterRes: '',
-        rev: 0
-      }
-    };
+    return { fidLite, fidSharp, filters: { lite, sharp }, commonByTier, sharpDetail, st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, sharpKey: '', __filterRes: '', rev: 0 } };
   }
-// --- [PART 2 끝] ---
-// --- [PART 3 시작] ---
 
   function prepare(video, s) {
     const root = video.ownerDocument || document;
     let dc = urlCache.get(root);
     if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
 
+    // ✅ [피드백 적용 ①] 넷플릭스 보라색 여백 방지를 위한 투명도 CSS 캐싱 및 적용
+    ensureOpaqueBg(video);
+
     const qSharp = Math.round(Number(s.sharp || 0));
     const qSharp2 = Math.round(Number(s.sharp2 || 0));
     const qClarity = Math.round(Number(s.clarity || 0));
-
     const sharpTotal = (qSharp + qSharp2 + qClarity);
     const tier = sharpTotal > 0 ? 'sharp' : 'lite';
 
@@ -1953,7 +1881,8 @@ function createFiltersVideoOnly(Utils, config) {
     }
 
     const stableKey = `${tier}|${makeKeyBase(s)}`;
-    const qs = Number(s._qs !== undefined ? s._qs : 1);
+    const qsRaw = Number(s._qs !== undefined ? s._qs : 1);
+    const qs = Math.round(qsRaw * 20) / 20;
 
     let nodes = ctxMap.get(root);
     if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
@@ -1978,14 +1907,15 @@ function createFiltersVideoOnly(Utils, config) {
       const table = (cst.toneKey !== tk) ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : cst.toneTable;
 
       const con = clamp(s.contrast || 1, 0.1, 5.0);
-      const brightOffset = clamp((s.bright || 0) / 1000, -0.5, 0.5);
+      const brightOffset = clamp((s.bright || 0) / 250, -0.5, 0.5);
       const intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5);
+
       const conStr = con.toFixed(3);
       const interceptStr = intercept.toFixed(4);
       const bcLinKey = `${conStr}|${interceptStr}`;
       const gk = (1 / clamp(s.gamma || 1, 0.1, 5.0)).toFixed(4);
 
-      const getFLAGS = () => (window[Symbol.for('__VSC__')] || __vscNs)?.FLAGS;
+      const getFLAGS = () => (__vscNs)?.FLAGS;
       const satBase = clamp(s.satF ?? 1, 0, 5.0);
 
       let satAdj = satBase;
@@ -2004,45 +1934,21 @@ function createFiltersVideoOnly(Utils, config) {
 
       const common = nodes.commonByTier[tier];
 
-      if (cst.toneKey !== tk) {
-        cst.toneKey = tk;
-        cst.toneTable = table;
-        if (common.toneFuncs) for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table);
-      }
-
-      if (cst.bcLinKey !== bcLinKey) {
-        cst.bcLinKey = bcLinKey;
-        if (common.bcLinFuncs) for (const fn of common.bcLinFuncs) {
-          setAttr(fn, 'slope', conStr);
-          setAttr(fn, 'intercept', interceptStr);
-        }
-      }
-
-      if (cst.gammaKey !== gk) {
-        cst.gammaKey = gk;
-        if (common.gamFuncs) for (const fn of common.gamFuncs) setAttr(fn, 'exponent', gk);
-      }
-
-      if (cst.satKey !== satVal) {
-        cst.satKey = satVal;
-        if (common.sats) for (const satNode of common.sats) setAttr(satNode, 'values', satVal);
-      }
-
-      if (cst.tempKey !== tmk) {
-        cst.tempKey = tmk;
-        if (common.tmp) {
-          setAttr(common.tmp.r, 'slope', rsStr);
-          setAttr(common.tmp.g, 'slope', gsStr);
-          setAttr(common.tmp.b, 'slope', bsStr);
-        }
-      }
+      if (cst.toneKey !== tk) { cst.toneKey = tk; cst.toneTable = table; if (common.toneFuncs) for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
+      if (cst.bcLinKey !== bcLinKey) { cst.bcLinKey = bcLinKey; if (common.bcLinFuncs) for (const fn of common.bcLinFuncs) { setAttr(fn, 'slope', conStr); setAttr(fn, 'intercept', interceptStr); } }
+      if (cst.gammaKey !== gk) { cst.gammaKey = gk; if (common.gamFuncs) for (const fn of common.gamFuncs) setAttr(fn, 'exponent', gk); }
+      if (cst.satKey !== satVal) { cst.satKey = satVal; if (common.sats) for (const satNode of common.sats) setAttr(satNode, 'values', satVal); }
+      if (cst.tempKey !== tmk) { cst.tempKey = tmk; if (common.tmp) { setAttr(common.tmp.r, 'slope', rsStr); setAttr(common.tmp.g, 'slope', gsStr); setAttr(common.tmp.b, 'slope', bsStr); } }
     }
 
     if (tier === 'sharp') {
-      const sharpKeyNext = `${combinedStrength.toFixed(3)}|${qs.toFixed(2)}`;
+      const quantizedStrength = Math.round(combinedStrength * 50) / 50;
+      const sharpKeyNext = `${quantizedStrength.toFixed(3)}|${qs.toFixed(2)}`;
+
       if (nodes.st.sharpKey !== sharpKeyNext) {
         nodes.st.sharpKey = sharpKeyNext;
-        applyLumaSharpening(nodes.sharpDetail, combinedStrength, qs);
+        nodes.st.rev = (nodes.st.rev + 1) | 0;
+        applyLumaSharpening(nodes.sharpDetail, quantizedStrength, qs);
       }
     }
 
@@ -2054,23 +1960,9 @@ function createFiltersVideoOnly(Utils, config) {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     let vwDisp = video.videoWidth || 0, vhDisp = video.videoHeight || 0;
     const vst = getVState(video);
-
     const r0 = vst.rect;
-    if (r0 && r0.width > 0 && r0.height > 0) {
-      vwDisp = Math.round(r0.width * dpr);
-      vhDisp = Math.round(r0.height * dpr);
-    } else {
-      if (vst._filterResRev !== __vscLayoutRev) {
-        vst._filterResRev = __vscLayoutRev;
-        try {
-          const r = video.getBoundingClientRect();
-          if (r && r.width > 0 && r.height > 0) {
-            vwDisp = Math.round(r.width * dpr);
-            vhDisp = Math.round(r.height * dpr);
-          }
-        } catch(_) {}
-      }
-    }
+    if (r0 && r0.width > 0 && r0.height > 0) { vwDisp = Math.round(r0.width * dpr); vhDisp = Math.round(r0.height * dpr); }
+    else { if (vst._filterResRev !== __vscLayoutRev) { vst._filterResRev = __vscLayoutRev; try { const r = video.getBoundingClientRect(); if (r && r.width > 0 && r.height > 0) { vwDisp = Math.round(r.width * dpr); vhDisp = Math.round(r.height * dpr); } } catch(_) {} } }
 
     const baseMaxPix = config.SVG_MAX_PIX_FAST ?? (3840 * 2160);
     const dynMaxPix = Math.round(baseMaxPix * Math.pow(0.55 + 0.45 * qs, 2));
@@ -2079,14 +1971,15 @@ function createFiltersVideoOnly(Utils, config) {
     if (fr && nodes.st.__filterRes !== fr) {
       nodes.st.__filterRes = fr;
       activeFilterEl.setAttribute('filterRes', fr);
+      nodes.st.rev = (nodes.st.rev + 1) | 0;
     } else if (!fr && nodes.st.__filterRes !== '') {
       nodes.st.__filterRes = '';
       activeFilterEl.removeAttribute('filterRes');
+      nodes.st.rev = (nodes.st.rev + 1) | 0;
     }
 
     const url = `url(#${tier === 'lite' ? nodes.fidLite : nodes.fidSharp})`;
-    dc.key = stableKey;
-    dc.url = url;
+    dc.key = stableKey; dc.url = url;
 
     return { url, changed: needReapply, rev: nodes.st.rev };
   }
@@ -2097,17 +1990,8 @@ function createFiltersVideoOnly(Utils, config) {
         const root = video.ownerDocument || document;
         const nodes = ctxMap.get(root);
         if (nodes) {
-          nodes.st.lastKey = '';
-          nodes.st.sharpKey = '';
-          nodes.st.__filterRes = '';
-          nodes.st.rev = (nodes.st.rev + 1) | 0;
-          for (const tierKey of ['lite', 'sharp']) {
-            const cst = nodes.st.commonTier[tierKey];
-            if (cst) {
-              cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = '';
-              cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = '';
-            }
-          }
+          nodes.st.lastKey = ''; nodes.st.sharpKey = ''; nodes.st.__filterRes = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
+          for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; } }
         }
         const dc = urlCache.get(root);
         if (dc) { dc.key = ''; dc.url = ''; }
@@ -2123,27 +2007,22 @@ function createFiltersVideoOnly(Utils, config) {
       const st = getVState(el);
 
       if (!url) {
+        // ✅ [여기에 한 줄 추가!] 필터가 꺼지거나 오류로 멈췄을 때 칠해둔 배경색도 원상 복구!
+        restoreOpaqueBg(el);
+
         if (st.applied) {
           if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
           else el.style.removeProperty('filter');
-
           if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
           else el.style.removeProperty('-webkit-filter');
-
-          st.applied = false;
-          st.lastFilterUrl = null;
-          st.filterRev = -1;
-          st.origFilter = st.origWebkitFilter = null;
-          st.origFilterPrio = st.origWebkitFilterPrio = '';
+          st.applied = false; st.lastFilterUrl = null; st.filterRev = -1; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
         }
         return;
       }
 
       if (!st.applied) {
-        st.origFilter = el.style.getPropertyValue('filter');
-        st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
-        st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter');
-        st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
+        st.origFilter = el.style.getPropertyValue('filter'); st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
+        st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter'); st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
       }
 
       const nextRev = (typeof urlObj === 'object' && typeof urlObj.rev === 'number') ? urlObj.rev : -1;
@@ -2152,55 +2031,34 @@ function createFiltersVideoOnly(Utils, config) {
 
       if (st.lastFilterUrl === url && !forceReapply) return;
 
-      const getFLAGS = () => (window[Symbol.for('__VSC__')] || __vscNs)?.FLAGS;
+      const getFLAGS = () => (__vscNs)?.FLAGS;
       const noLayout = !!getFLAGS()?.FILTER_REAPPLY_NO_FORCED_LAYOUT;
 
       if (st.lastFilterUrl === url && forceReapply) {
         if (!noLayout) {
-          el.style.setProperty('filter', url, 'important');
-          el.style.setProperty('-webkit-filter', url, 'important');
-          void el.offsetWidth;
+          el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); void el.offsetWidth;
         } else {
-          el.style.setProperty('filter', 'none', 'important');
-          el.style.setProperty('-webkit-filter', 'none', 'important');
-          requestAnimationFrame(() => {
-            if (!el.isConnected) return;
-            requestAnimationFrame(() => {
-              if (!el.isConnected) return;
-              el.style.setProperty('filter', url, 'important');
-              el.style.setProperty('-webkit-filter', url, 'important');
-            });
-          });
+          el.style.setProperty('filter', 'none', 'important'); el.style.setProperty('-webkit-filter', 'none', 'important');
+          requestAnimationFrame(() => { if (!el.isConnected) return; requestAnimationFrame(() => { if (!el.isConnected) return; el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); }); });
         }
-      } else {
-        el.style.setProperty('filter', url, 'important');
-        el.style.setProperty('-webkit-filter', url, 'important');
-      }
-
-      st.applied = true;
-      st.lastFilterUrl = url;
-      st.filterRev = nextRev;
+      } else { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); }
+      st.applied = true; st.lastFilterUrl = url; st.filterRev = nextRev;
     },
     clear: (el) => {
       if (!el) return;
       const st = getVState(el);
-      if (!st.applied) return;
+      // ✅ [피드백 적용 ①] 필터 해제 시 CSS Background 원상 복구
+      restoreOpaqueBg(el);
 
+      if (!st.applied) return;
       if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
       else el.style.removeProperty('filter');
-
       if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
       else el.style.removeProperty('-webkit-filter');
-
-      st.applied = false;
-      st.lastFilterUrl = null;
-      st.filterRev = -1;
-      st.origFilter = st.origWebkitFilter = null;
-      st.origFilterPrio = st.origWebkitFilterPrio = '';
+      st.applied = false; st.lastFilterUrl = null; st.filterRev = -1; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
     }
   };
 }
-
   function createBackendAdapter(Filters) {
     const _backendChangeListeners = new Set();
     return {
@@ -2209,15 +2067,19 @@ function createFiltersVideoOnly(Utils, config) {
       apply(video, vVals) {
         const svgResult = Filters.prepareCached(video, vVals);
         Filters.applyUrl(video, svgResult);
+
         const st = getVState(video);
-        if (st.fxBackend !== 'svg') {
-          st.fxBackend = 'svg';
-          this._notifyBackendChange(video, 'svg');
+        const nextBackend = st.applied ? 'svg' : null;
+
+        if (st.fxBackend !== nextBackend) {
+          st.fxBackend = nextBackend;
+          this._notifyBackendChange(video, nextBackend);
         }
       },
       clear(video) {
         const st = getVState(video);
-        if (st.fxBackend === 'svg') Filters.clear(video);
+        // ✅ [방탄 안전벨트 적용] 외부 요인으로 상태가 꼬여도 확실하게 찌꺼기 청소
+        if (st.applied || st.fxBackend === 'svg') Filters.clear(video);
         st.fxBackend = null;
         this._notifyBackendChange(video, null);
       }
@@ -2517,11 +2379,41 @@ function createFiltersVideoOnly(Utils, config) {
       for (const v of set) if (v?.tagName === 'VIDEO') candidates.add(v);
     }
     for (const el of candidates) {
-      if (!el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); continue; }
-      const st = getVState(el); const visible = (st.visible !== false); const shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
-      if (!shouldApply) { if (!st.applied && !st.fxBackend && st.desiredRate === undefined) continue; clearVideoRuntimeState(el, Adapter, ApplyReq); continue; }
-      if (videoFxOn) { Adapter.apply(el, vVals); touchedAdd(TOUCHED.videos, el); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
-      if (pbActive) { applyPlaybackRate(el, desiredRate); } else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); } bindVideoOnce(el, ApplyReq);
+      // ✅ [패치 C] 비디오가 DOM에서 분리된 경우, 남은 스타일 찌꺼기(필터, 배경색)를 즉시 청소
+      if (!el.isConnected) {
+        Adapter.clear(el);
+        restoreRateOne(el);
+        TOUCHED.videos.delete(el);
+        TOUCHED.rateVideos.delete(el);
+        continue;
+      }
+
+      const st = getVState(el);
+      const visible = (st.visible !== false);
+      const shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el));
+
+      if (!shouldApply) {
+        if (!st.applied && !st.fxBackend && st.desiredRate === undefined) continue;
+        clearVideoRuntimeState(el, Adapter, ApplyReq);
+        continue;
+      }
+
+      if (videoFxOn) {
+        Adapter.apply(el, vVals);
+        touchedAdd(TOUCHED.videos, el);
+      } else {
+        Adapter.clear(el);
+        TOUCHED.videos.delete(el);
+      }
+
+      if (pbActive) {
+        applyPlaybackRate(el, desiredRate);
+      } else {
+        st.desiredRate = undefined;
+        restoreRateOne(el);
+        TOUCHED.rateVideos.delete(el);
+      }
+      bindVideoOnce(el, ApplyReq);
     }
   }
 
@@ -2738,5 +2630,3 @@ function createFiltersVideoOnly(Utils, config) {
 } // VSC_MAIN 함수의 닫는 중괄호
 VSC_MAIN();
 })();
-
-// --- [PART 3 끝] ---
