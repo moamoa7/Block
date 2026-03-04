@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.7.0 - Pure Static AutoScene)
+// @name         Video_Control (v178.7.7 - Pure Static AutoScene)
 // @namespace    https://github.com/
-// @version      178.7.0
+// @version      178.7.7
 // @description  Video Control: Pure YCbCr Sharpness, Dynamic QS, Static AutoScene. Lightweight & Fast.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,12 +39,11 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.7.0'; // ✅ Pure 버전 업데이트
+  __vscNs.__version = '178.7.7'; // ✅ 버전 업데이트 (안정성 및 중복제거)
 
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
-  // ✅ 오토씬 분석 관련 무거운 플래그 모두 제거 (Pure 모드)
   const FLAGS = Object.freeze({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
@@ -56,7 +55,6 @@ function VSC_MAIN() {
     FILTER_FORCE_OPAQUE_BG: true
   });
 
-  // ✅ [Fix 13] 플래그에 따른 unsafeWindow API 노출 제어 (접근성 강화)
   try {
     if (FLAGS.EXPOSE_API_TO_PAGE) {
       const target = (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window);
@@ -65,10 +63,12 @@ function VSC_MAIN() {
     }
   } catch (_) {}
 
+  // ✅ [A] 부팅 시 ZoomManager.destroy() 정리 프로세스 추가
   if (__vscNs && __vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
     try { __vscNs.Store?.destroy?.(); } catch (_) {}
     try { __vscNs.AutoScene?.destroy?.(); } catch (_) {}
+    try { __vscNs.ZoomManager?.destroy?.(); } catch (_) {}
   }
   __vscNs.__alive = true;
 
@@ -292,7 +292,6 @@ function VSC_MAIN() {
     grade: { brOFF: { gammaF: 1.00, brightAdd: 0 }, S: { gammaF: 1.03, brightAdd: 2.0 }, M: { gammaF: 1.08, brightAdd: 5.0 }, L: { gammaF: 1.15, brightAdd: 9.0 }, DS: { gammaF: 1.05, brightAdd: 3.5 }, DM: { gammaF: 1.12, brightAdd: 7.5 }, DL: { gammaF: 1.22, brightAdd: 11.0 } }
   });
 
-  // ✅ AutoScene Preset 속성 추가 (Soft/Normal/Strong)
   const DEFAULTS = {
     video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 },
     audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false },
@@ -307,7 +306,6 @@ function VSC_MAIN() {
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   });
 
-  // ✅ APP_SCHEMA에 autoScenePreset 제약조건 추가
   const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV } ];
   const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
   const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
@@ -315,28 +313,33 @@ function VSC_MAIN() {
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
 
   const TOUCHED = { videos: new Set(), rateVideos: new Set() };
-  const TOUCHED_MAX = 140;
+  const TOUCHED_MAX = 300;
 
   function touchedAdd(set, el) {
     if (!el) return;
     if (set.has(el)) set.delete(el);
     set.add(el);
     if (set.size > TOUCHED_MAX) {
-      let checked = 0;
       for (const old of set) {
-        if (checked++ > 20) break;
         if (!old.isConnected) {
           set.delete(old);
           if (set === TOUCHED.videos) __vscNs.Adapter?.clear(old);
-          try { const rSt = getRateState(old); if (rSt && rSt.orig != null) { old.playbackRate = rSt.orig > 0 ? rSt.orig : 1.0; rSt.orig = null; } } catch (_) {}
-          if (set.size <= TOUCHED_MAX) break;
+          try {
+            const st = getVState(old);
+            if (st) st.desiredRate = undefined;
+            if (typeof restoreRateOne === 'function') restoreRateOne(old);
+          } catch (_) {}
         }
       }
       while (set.size > TOUCHED_MAX) {
         const old = set.keys().next().value;
         set.delete(old);
         if (set === TOUCHED.videos) __vscNs.Adapter?.clear(old);
-        try { const rSt = getRateState(old); if (rSt && rSt.orig != null) { old.playbackRate = rSt.orig > 0 ? rSt.orig : 1.0; rSt.orig = null; } } catch (_) {}
+        try {
+          const st = getVState(old);
+          if (st) st.desiredRate = undefined;
+          if (typeof restoreRateOne === 'function') restoreRateOne(old);
+        } catch (_) {}
       }
     }
   }
@@ -745,208 +748,6 @@ function VSC_MAIN() {
       }
       return await enterPiP(video);
     } finally { _pipToggleLock = false; }
-  }
-
-  function createZoomManager() {
-    const stateMap = new WeakMap();
-    let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
-    let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
-    let touchListenersAttached = false;
-    const zoomAC = new AbortController();
-
-    const getSt = (v) => {
-      let st = stateMap.get(v);
-      if (!st) {
-        st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '', _cachedPosition: null, _lastTransition: null };
-        stateMap.set(v, st);
-      }
-      return st;
-    };
-
-    const update = (v) => {
-      if (rafId) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null; const st = getSt(v); const panning = isPanning || pinchState.active;
-        if (st.scale <= 1) {
-          if (st.zoomed) {
-            v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
-            v.style.zIndex = st.origZIndex; v.style.position = st.origPosition;
-            v.style.transition = ''; st.zoomed = false; st.origComputedPosition = '';
-          }
-          st.scale = 1; st.tx = 0; st.ty = 0;
-        } else {
-          if (!st.zoomed) {
-            st.origZIndex = v.style.zIndex; st.origPosition = v.style.position;
-            if (!st._cachedPosition) { try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; } }
-            st.origComputedPosition = st._cachedPosition; st.zoomed = true;
-            if (st.origComputedPosition === 'static') v.style.position = 'relative';
-          }
-          const wantTransition = panning ? 'none' : 'transform 0.1s ease-out';
-          if (st._lastTransition !== wantTransition) { v.style.transition = wantTransition; st._lastTransition = wantTransition; }
-          v.style.transformOrigin = '0 0';
-          v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
-          v.style.cursor = panning ? 'grabbing' : 'grab';
-          v.style.zIndex = '2147483646';
-        }
-      });
-    };
-
-    function clampPan(v, st) {
-      const rect = getRectCached(v, performance.now(), 300);
-      const scaledW = rect.width * st.scale, scaledH = rect.height * st.scale;
-      const minVisibleFraction = 0.25;
-      const minVisW = rect.width * minVisibleFraction, minVisH = rect.height * minVisibleFraction;
-      const maxTx = rect.width - minVisW, minTx = -(scaledW - minVisW - rect.width);
-      const maxTy = rect.height - minVisH, minTy = -(scaledH - minVisH - rect.height);
-      st.tx = Math.max(Math.min(st.tx, maxTx), minTx);
-      st.ty = Math.max(Math.min(st.ty, maxTy), minTy);
-    }
-
-    const zoomTo = (v, newScale, clientX, clientY) => {
-      const st = getSt(v);
-      if (!st.zoomed && !st._cachedPosition) { try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; } }
-      const rect = getRectCached(v, performance.now(), 150);
-      const ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale;
-      st.tx = clientX - (rect.left - st.tx) - ix * newScale;
-      st.ty = clientY - (rect.top - st.ty) - iy * newScale;
-      st.scale = newScale;
-      update(v);
-    };
-
-    const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; st._cachedPosition = null; st._lastTransition = null; update(v); } };
-    const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
-    const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
-
-    function getTargetVideo(e) {
-      if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } }
-      const touch = e.touches?.[0];
-      const cx = Number.isFinite(e.clientX) ? e.clientX : (touch && Number.isFinite(touch.clientX) ? touch.clientX : null);
-      const cy = Number.isFinite(e.clientY) ? e.clientY : (touch && Number.isFinite(touch.clientY) ? touch.clientY : null);
-      if (cx != null && cy != null) { const el = document.elementFromPoint(cx, cy); if (el?.tagName === 'VIDEO') return el; }
-      return __vscNs.App?.getActiveVideo() || null;
-    }
-
-    on(window, 'wheel', e => {
-      const ns = window[Symbol.for('__VSC__')];
-      if (!ns?.Store?.get(P.APP_ZOOM_EN)) return;
-      if (!(e.altKey && e.shiftKey)) return;
-      const v = getTargetVideo(e); if (!v) return;
-
-      if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-      const delta = e.deltaY > 0 ? 0.9 : 1.1; const st = getSt(v);
-      let newScale = Math.min(Math.max(1, st.scale * delta), 10);
-      if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
-    }, { passive: false, capture: true });
-
-    on(window, 'mousedown', e => {
-      if (!e.altKey) return;
-      const v = getTargetVideo(e); if (!v) return;
-      const st = getSt(v);
-      if (st.scale > 1) {
-        e.preventDefault(); e.stopPropagation();
-        activeVideo = v; isPanning = true; st.hasPanned = false;
-        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
-        update(v);
-      }
-    }, { capture: true });
-
-    on(window, 'mousemove', e => {
-      if (!isPanning || !activeVideo) return;
-      e.preventDefault(); e.stopPropagation();
-      const st = getSt(activeVideo);
-      const dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
-      st.tx = e.clientX - startX; st.ty = e.clientY - startY;
-      clampPan(activeVideo, st); update(activeVideo);
-    }, { capture: true });
-
-    on(window, 'mouseup', e => {
-      if (isPanning) {
-        if (activeVideo) {
-          const st = getSt(activeVideo);
-          if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-          update(activeVideo);
-        }
-        isPanning = false; activeVideo = null;
-      }
-    }, { capture: true });
-
-    on(window, 'dblclick', e => {
-      if (!e.altKey) return;
-      const v = getTargetVideo(e); if (!v) return;
-      e.preventDefault(); e.stopPropagation();
-      const st = getSt(v);
-      if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
-    }, { capture: true });
-
-    const touchstartHandler = (e) => {
-      const v = getTargetVideo(e); if (!v) return;
-      const st = getSt(v);
-      if (e.touches.length === 2) {
-        if (e.cancelable) e.preventDefault();
-        activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale;
-        const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y;
-      } else if (e.touches.length === 1 && st.scale > 1) {
-        activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
-      }
-    };
-
-    const touchmoveHandler = (e) => {
-      if (!activeVideo) return;
-      const st = getSt(activeVideo);
-      if (pinchState.active && e.touches.length === 2) {
-        if (e.cancelable) e.preventDefault();
-        const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches);
-        let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10);
-        if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; isPanning = false; activeVideo = null; }
-        else {
-          zoomTo(activeVideo, newScale, center.x, center.y);
-          st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy;
-          clampPan(activeVideo, st); update(activeVideo);
-        }
-        pinchState.lastCx = center.x; pinchState.lastCy = center.y;
-      } else if (isPanning && e.touches.length === 1) {
-        if (e.cancelable) e.preventDefault();
-        const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
-        st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY;
-        clampPan(activeVideo, st); update(activeVideo);
-      }
-    };
-
-    const touchendHandler = (e) => {
-      if (!activeVideo) return;
-      if (e.touches.length < 2) pinchState.active = false;
-      if (e.touches.length === 0) {
-        if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) e.preventDefault();
-        isPanning = false; update(activeVideo); activeVideo = null;
-      }
-    };
-
-    const attachTouchListeners = () => {
-      if (touchListenersAttached) return; touchListenersAttached = true;
-      const sig = combineSignals(zoomAC.signal, __globalSig);
-      on(window, 'touchstart', touchstartHandler, { passive: false, capture: true, signal: sig });
-      on(window, 'touchmove', touchmoveHandler, { passive: false, capture: true, signal: sig });
-      on(window, 'touchend', touchendHandler, { passive: false, capture: true, signal: sig });
-    };
-
-    const setEnabled = (en) => { if (en) attachTouchListeners(); };
-    if (CONFIG.IS_MOBILE) { if (__vscNs.Store && __vscNs.Store.get(P.APP_ZOOM_EN)) attachTouchListeners(); } else { attachTouchListeners(); }
-
-    return {
-      resetZoom, zoomTo, isZoomed, setEnabled,
-      destroy: () => {
-        zoomAC.abort(); touchListenersAttached = false;
-        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-        if (activeVideo) {
-          const st = getSt(activeVideo);
-          if (st.zoomed) { activeVideo.style.transform = ''; activeVideo.style.transformOrigin = ''; activeVideo.style.cursor = ''; activeVideo.style.zIndex = st.origZIndex; activeVideo.style.position = st.origPosition; activeVideo.style.transition = ''; st.zoomed = false; }
-        }
-        isPanning = false; pinchState.active = false; activeVideo = null;
-      }
-    };
   }
 
   function createTargeting() {
@@ -1416,70 +1217,48 @@ let _softClipCurve = null;
     };
   }
 
-  // ✅ [수정됨] B안: "항상 밝게" Pure AutoScene Manager (Worker/분석 제거, 프리셋 기능 추가)
+  // ✅ [개선됨] 완벽한 Event-Driven 및 destroy 최적화 적용
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = {
-      running: false,
-      cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 },
-      _timer: 0
+      cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }
     };
 
-    const PRESETS = Object.freeze({
+    const AUTO_PRESETS = Object.freeze({
       Soft:   { br: 1.08, ct: 1.02, sat: 1.00, sharpScale: 1.00 },
       Normal: { br: 1.12, ct: 1.02, sat: 1.00, sharpScale: 1.00 },
       Strong: { br: 1.18, ct: 1.02, sat: 1.00, sharpScale: 1.00 }
     });
 
-    function clearTimer() {
-      if (AUTO._timer) { clearTimeout(AUTO._timer); AUTO._timer = 0; }
-    }
+    function update() {
+      const act = !!Store.get(P.APP_ACT);
+      const en  = act && !!Store.get(P.APP_AUTO_SCENE);
 
-    function tick() {
-      if (!AUTO.running) return;
-
-      const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
       if (!en) {
         AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 };
-        AUTO.running = false;
-        clearTimer();
-        Scheduler.request(true);
-        return;
+      } else {
+        const k = Store.get(P.APP_AUTO_SCENE_PRESET) || 'Normal';
+        AUTO.cur = { ...(AUTO_PRESETS[k] || AUTO_PRESETS.Normal) };
       }
-
-      const presetKey = Store.get(P.APP_AUTO_SCENE_PRESET) || 'Normal';
-      const fix = PRESETS[presetKey] || PRESETS.Normal;
-
-      AUTO.cur = { ...fix };
-      Scheduler.request(true);
-
-      AUTO._timer = setTimeout(tick, 1200);
+      if (act) Scheduler.request(true);
     }
 
-    function stop() {
-      AUTO.running = false;
-      clearTimer();
-      AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 };
-      Scheduler.request(true);
-    }
-
-    Store.sub(P.APP_AUTO_SCENE, (en) => {
-      if (en && !AUTO.running) {
-        AUTO.running = true;
-        tick();
-      } else if (!en && AUTO.running) {
-        stop();
-      }
-    });
-
-    Store.sub(P.APP_AUTO_SCENE_PRESET, () => {
-      if (AUTO.running) tick(); // 프리셋 변경 시 즉시 틱 실행
-    });
+    const unsubs = [
+      Store.sub(P.APP_AUTO_SCENE, update),
+      Store.sub(P.APP_AUTO_SCENE_PRESET, update),
+      Store.sub(P.APP_ACT, update)
+    ];
 
     return {
       getMods: () => AUTO.cur,
-      start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) { if (!AUTO.running) { AUTO.running = true; tick(); } } },
-      stop,
-      destroy: stop
+      start: update,
+      stop: () => {
+        AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 };
+        Scheduler.request(true);
+      },
+      destroy: () => {
+        unsubs.forEach(u => safe(u));
+        AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 };
+      }
     };
   }
 
@@ -1946,7 +1725,7 @@ function bindElementDrag(el, onMove, onEnd) {
     return () => { ac.abort(); };
   }
 
-  function createUI(sm, registry, ApplyReq, Utils) {
+  function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null; let hasUserDraggedUI = false;
     const uiWakeCtrl = new AbortController(); const uiUnsubs = [];
     const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
@@ -2001,6 +1780,7 @@ function bindElementDrag(el, onMove, onEnd) {
         const b = h('button', { class: 'pbtn', style: 'flex:1', title: it.title || '' }, it.text);
         b.onclick = (e) => {
           e.stopPropagation();
+          if (!sm.get(P.APP_ACT)) return;
           if (isBitmask) {
             sm.set(key, ((Number(sm.get(key)) | 0) ^ it.value) & 7);
           } else {
@@ -2010,11 +1790,29 @@ function bindElementDrag(el, onMove, onEnd) {
           }
           ApplyReq.hard();
         };
-        bindReactive(b, [key], (el, v) => el.classList.toggle('active', isBitmask ? (((Number(v) | 0) & it.value) !== 0) : v === it.value), sm, sub); row.append(b);
+        bindReactive(b, [key, P.APP_ACT], (el, v, act) => {
+          const isActive = isBitmask ? (((Number(v) | 0) & it.value) !== 0) : v === it.value;
+          el.classList.toggle('active', isActive);
+          el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
+          el.style.cursor = act ? 'pointer' : 'not-allowed';
+          el.disabled = !act;
+        }, sm, sub);
+        row.append(b);
       }
       const offBtn = h('button', { class: 'pbtn', style: isBitmask ? 'flex:0.9' : 'flex:1' }, 'OFF');
-      offBtn.onclick = (e) => { e.stopPropagation(); sm.set(key, isBitmask ? 0 : offValue); ApplyReq.hard(); };
-      bindReactive(offBtn, [key], (el, v) => el.classList.toggle('active', isBitmask ? (Number(v)|0) === 0 : v === offValue), sm, sub);
+      offBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        sm.set(key, isBitmask ? 0 : offValue);
+        ApplyReq.hard();
+      };
+      bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => {
+        const isActuallyOff = isBitmask ? (Number(v)|0) === 0 : v === offValue;
+        el.classList.toggle('active', isActuallyOff);
+        el.style.opacity = act ? '1' : (isActuallyOff ? '0.65' : '0.45');
+        el.style.cursor = act ? 'pointer' : 'not-allowed';
+        el.disabled = !act;
+      }, sm, sub);
       if (isBitmask || offValue != null) row.append(offBtn); return row;
     }
 
@@ -2070,13 +1868,13 @@ function bindElementDrag(el, onMove, onEnd) {
 
       const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
-      // ✅ [신규] Pure AutoScene 프리셋 버튼 생성 (Soft/Normal/Strong/OFF)
       const autoSceneRow = h('div', { class: 'prow' }, [
         h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '자동씬'),
         ...['Soft', 'Normal', 'Strong'].map(p => {
           const b = h('button', { class: 'pbtn', style: 'flex:1' }, p);
           b.onclick = (e) => {
             e.stopPropagation();
+            if (!sm.get(P.APP_ACT)) return;
             const curEn = sm.get(P.APP_AUTO_SCENE);
             const curPre = sm.get(P.APP_AUTO_SCENE_PRESET);
             if (curEn && curPre === p) setAndHint(P.APP_AUTO_SCENE, false);
@@ -2085,25 +1883,90 @@ function bindElementDrag(el, onMove, onEnd) {
               setAndHint(P.APP_AUTO_SCENE_PRESET, p);
             }
           };
-          bindReactive(b, [P.APP_AUTO_SCENE, P.APP_AUTO_SCENE_PRESET], (el, en, pre) => el.classList.toggle('active', !!en && pre === p), sm, sub);
+          bindReactive(b, [P.APP_AUTO_SCENE, P.APP_AUTO_SCENE_PRESET, P.APP_ACT], (el, en, pre, act) => {
+            const isActive = !!en && pre === p;
+            el.classList.toggle('active', isActive);
+            el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
+            el.style.cursor = act ? 'pointer' : 'not-allowed';
+            el.disabled = !act;
+          }, sm, sub);
           return b;
         }),
         (() => {
           const offBtn = h('button', { class: 'pbtn', style: 'flex:0.8' }, 'OFF');
-          offBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_SCENE, false); };
-          bindReactive(offBtn, [P.APP_AUTO_SCENE], (el, en) => el.classList.toggle('active', !en), sm, sub);
+          offBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (!sm.get(P.APP_ACT)) return;
+            setAndHint(P.APP_AUTO_SCENE, false);
+          };
+          bindReactive(offBtn, [P.APP_AUTO_SCENE, P.APP_ACT], (el, en, act) => {
+            const isActive = !en;
+            el.classList.toggle('active', isActive);
+            el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
+            el.style.cursor = act ? 'pointer' : 'not-allowed';
+            el.disabled = !act;
+          }, sm, sub);
           return offBtn;
         })()
       ]);
 
-      const pipBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: async (e) => { e.stopPropagation(); const v = getNS()?.App?.getActiveVideo(); if(v) await togglePiPFor(v); } }, '📺 PIP');
-      const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', style: 'flex: 1;' }, '🔍 줌'); zoomBtn.onclick = (e) => { e.stopPropagation(); const zm = getNS()?.ZoomManager; const v = getNS()?.App?.getActiveVideo(); if (!zm || !v) return; if (zm.isZoomed(v)) { zm.resetZoom(v); setAndHint(P.APP_ZOOM_EN, false); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); setAndHint(P.APP_ZOOM_EN, true); } }; bindReactive(zoomBtn, [P.APP_ZOOM_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
-      const pwrBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power'); bindReactive(pwrBtn, [P.APP_ACT], (el, v) => el.style.color = v ? '#2ecc71' : '#e74c3c', sm, sub);
+      const pipBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '📺 PIP');
+      pipBtn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        const v = getNS()?.App?.getActiveVideo(); if(v) await togglePiPFor(v);
+      };
+      bindReactive(pipBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
 
-      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5;' }, '🔊 Brickwall (EQ+Dyn)'); boostBtn.onclick = (e) => { e.stopPropagation(); if (getNS()?.AudioWarmup) getNS().AudioWarmup(); setAndHint(P.A_EN, !sm.get(P.A_EN)); }; bindReactive(boostBtn, [P.A_EN], (el, v) => el.classList.toggle('active', !!v), sm, sub);
-      const dialogueBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '🗣️ 대화 강조'); dialogueBtn.onclick = (e) => { e.stopPropagation(); if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE)); }; bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN], (el, v, aEn) => { el.classList.toggle('active', !!(v && aEn)); el.style.opacity = aEn ? '1' : '0.35'; el.style.cursor = aEn ? 'pointer' : 'not-allowed'; }, sm, sub);
+      const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', style: 'flex: 1;' }, '🔍 줌');
+      zoomBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        const zm = getNS()?.ZoomManager; const v = getNS()?.App?.getActiveVideo(); if (!zm || !v) return;
+        if (zm.isZoomed(v)) { zm.resetZoom(v); setAndHint(P.APP_ZOOM_EN, false); }
+        else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); setAndHint(P.APP_ZOOM_EN, true); }
+      };
+      bindReactive(zoomBtn, [P.APP_ZOOM_EN, P.APP_ACT], (el, v, act) => {
+        el.classList.toggle('active', !!v);
+        el.style.opacity = act ? '1' : (v ? '0.65' : '0.45');
+        el.style.cursor = act ? 'pointer' : 'not-allowed';
+        el.disabled = !act;
+      }, sm, sub);
 
-      const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기'); advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); }; bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
+      const pwrBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
+      bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; el.classList.toggle('active', !!v); }, sm, sub);
+
+      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5;' }, '🔊 Brickwall (EQ+Dyn)');
+      boostBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        if (getNS()?.AudioWarmup) getNS().AudioWarmup();
+        setAndHint(P.A_EN, !sm.get(P.A_EN));
+      };
+      bindReactive(boostBtn, [P.A_EN, P.APP_ACT], (el, aEn, act) => {
+        el.classList.toggle('active', !!aEn);
+        el.style.opacity = act ? '1' : (aEn ? '0.65' : '0.45');
+        el.style.cursor = act ? 'pointer' : 'not-allowed';
+        el.disabled = !act;
+      }, sm, sub);
+
+      const dialogueBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '🗣️ 대화 강조');
+      dialogueBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE));
+      };
+      bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN, P.APP_ACT], (el, dOn, aEn, act) => {
+        el.classList.toggle('active', !!dOn);
+        const usable = !!aEn && !!act;
+        el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35');
+        el.style.cursor = usable ? 'pointer' : 'not-allowed';
+        el.disabled = !usable;
+      }, sm, sub);
+
+      const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
+      advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
+      bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
 
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, isBitmask: true, items: [ { text: '외암', value: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' }, { text: '중암', value: SHADOW_BAND.MID, title: '가운데 암부 진하게 (무게감 증가)' }, { text: '심암', value: SHADOW_BAND.DEEP, title: '가장 진한 블랙 (들뜬 블랙 제거)' } ] }),
@@ -2112,14 +1975,45 @@ function bindElementDrag(el, onMove, onEnd) {
       ]);
       bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none', sm, sub);
 
+      const resetBtn = h('button', { class: 'btn' }, '↺ 리셋');
+      resetBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard();
+      };
+      bindReactive(resetBtn, [P.APP_ACT], (el, act) => {
+        el.style.opacity = act ? '1' : '0.45';
+        el.style.cursor = act ? 'pointer' : 'not-allowed';
+        el.disabled = !act;
+      }, sm, sub);
+
       const bodyMain = h('div', { id: 'p-main' }, [
         autoSceneRow,
         h('div', { class: 'prow' }, [ pipBtn, zoomBtn, pwrBtn ]),
         h('div', { class: 'prow' }, [ boostBtn, dialogueBtn ]),
-        h('div', { class: 'prow' }, [ h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'), h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '↺ 리셋') ]),
+        h('div', { class: 'prow' }, [
+          h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'),
+          resetBtn
+        ]),
         renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: k, value: k })) }),
         advToggleBtn, advContainer, h('hr'),
-        h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = (e) => { e.stopPropagation(); setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; bindReactive(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => { el.classList.toggle('active', !!en && Math.abs(Number(rate || 1) - s) < 0.01); }, sm, sub); return b; })),
+        h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => {
+          const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x');
+          b.onclick = (e) => {
+            e.stopPropagation();
+            if (!sm.get(P.APP_ACT)) return;
+            setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true);
+          };
+          bindReactive(b, [P.PB_RATE, P.PB_EN, P.APP_ACT], (el, rate, en, act) => {
+            const isActive = !!en && Math.abs(Number(rate || 1) - s) < 0.01;
+            el.classList.toggle('active', isActive);
+            el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
+            el.style.cursor = act ? 'pointer' : 'not-allowed';
+            el.disabled = !act;
+          }, sm, sub);
+          return b;
+        })),
+
         h('div', { class: 'prow', style: 'justify-content:center;gap:2px;margin-top:4px;' }, [
           { text: '◀ 30s', action: 'seek', val: -30 },
           { text: '◀ 10s', action: 'seek', val: -10 },
@@ -2130,7 +2024,9 @@ function bindElementDrag(el, onMove, onEnd) {
         ].map(cfg => {
           const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:34px;font-size:11px;padding:0 2px;' }, cfg.text);
           b.onclick = (e) => {
-            e.stopPropagation(); const v = getNS()?.App?.getActiveVideo(); if (!v) return;
+            e.stopPropagation();
+            if (!sm.get(P.APP_ACT)) return;
+            const v = getNS()?.App?.getActiveVideo(); if (!v) return;
             if (cfg.action === 'play') { v.play().catch(() => {}); }
             else if (cfg.action === 'pause') { v.pause(); }
             else if (cfg.action === 'seek') {
@@ -2138,20 +2034,43 @@ function bindElementDrag(el, onMove, onEnd) {
               if (isLive || v.duration === Infinity) { const sr = v.seekable; if (!sr || sr.length === 0) return; minT = sr.start(0); maxT = sr.end(sr.length - 1); }
               let target = v.currentTime + cfg.val; if (cfg.val > 0 && target >= maxT) target = maxT - 0.1;
               target = Math.max(minT, Math.min(maxT, target)); try { v.currentTime = target; } catch (_) {}
-              const onSeeked = () => { v.removeEventListener('seeked', onSeeked); clearTimeout(fallbackTimer); if (Math.abs(v.currentTime - target) > 5.0) { try { v.currentTime = target; } catch (_) {} } };
-              v.addEventListener('seeked', onSeeked, { once: true }); const fallbackTimer = setTimeout(() => { v.removeEventListener('seeked', onSeeked); }, 3000);
+
+              let fallbackTimer = 0;
+              const onSeeked = () => {
+                v.removeEventListener('seeked', onSeeked);
+                clearTimeout(fallbackTimer);
+                if (Math.abs(v.currentTime - target) > 5.0) { try { v.currentTime = target; } catch (_) {} }
+              };
+              v.addEventListener('seeked', onSeeked, { once: true });
+              fallbackTimer = setTimeout(() => { v.removeEventListener('seeked', onSeeked); }, 3000);
             }
           };
+          bindReactive(b, [P.APP_ACT], (el, act) => {
+            el.style.opacity = act ? '1' : '0.45';
+            el.style.cursor = act ? 'pointer' : 'not-allowed';
+            el.disabled = !act;
+          }, sm, sub);
           return b;
         }))
       ]);
 
+      // ✅ [D] 패널 드래그 터치 코드 다이어트 (PointerEvent 단일화)
       const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel);
       let stopDrag = null;
       const startPanelDrag = (e) => {
-        const pt = (e && e.touches && e.touches[0]) ? e.touches[0] : e; if (!pt) return; if (e.target && e.target.tagName === 'BUTTON') return; if (e.cancelable) e.preventDefault(); stopDrag?.(); hasUserDraggedUI = true; let startX = pt.clientX, startY = pt.clientY; const rect = mainPanel.getBoundingClientRect();
-        mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`; try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {}
-        stopDrag = bindElementDrag(dragHandle, (ev) => { const mv = (ev && ev.touches && ev.touches[0]) ? ev.touches[0] : ev; if (!mv) return; const dx = mv.clientX - startX, dy = mv.clientY - startY, panelRect = mainPanel.getBoundingClientRect(); let nextLeft = Math.max(0, Math.min(window.innerWidth - panelRect.width, rect.left + dx)); let nextTop = Math.max(0, Math.min(window.innerHeight - panelRect.height, rect.top + dy)); mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`; }, () => { stopDrag = null; });
+        if (e.target && e.target.tagName === 'BUTTON') return;
+        if (e.cancelable) e.preventDefault();
+        stopDrag?.(); hasUserDraggedUI = true;
+        let startX = e.clientX, startY = e.clientY;
+        const rect = mainPanel.getBoundingClientRect();
+        mainPanel.style.transform = 'none'; mainPanel.style.top = `${rect.top}px`; mainPanel.style.right = 'auto'; mainPanel.style.left = `${rect.left}px`;
+        try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {}
+        stopDrag = bindElementDrag(dragHandle, (ev) => {
+          const dx = ev.clientX - startX, dy = ev.clientY - startY, panelRect = mainPanel.getBoundingClientRect();
+          let nextLeft = Math.max(0, Math.min(window.innerWidth - panelRect.width, rect.left + dx));
+          let nextTop = Math.max(0, Math.min(window.innerHeight - panelRect.height, rect.top + dy));
+          mainPanel.style.left = `${nextLeft}px`; mainPanel.style.top = `${nextTop}px`;
+        }, () => { stopDrag = null; });
       };
       on(dragHandle, 'pointerdown', startPanelDrag); on(dragHandle, 'dblclick', () => { hasUserDraggedUI = false; clampPanelIntoViewport(); });
       container = host; getUiRoot().appendChild(container);
@@ -2166,10 +2085,15 @@ function bindElementDrag(el, onMove, onEnd) {
       let dragThresholdMet = false, stopDrag = null; gearBtn = h('button', { class: 'gear' }, '⚙'); shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
       const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); const inFs = !!document.fullscreenElement; if (inFs || getNS()?.CONFIG?.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) { gearBtn.style.opacity = '0.15'; } }, 2500); };
       wakeGear = wake; on(window, 'mousemove', wake, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) }); on(window, 'touchstart', wake, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) }); bootWakeTimer = setTimeout(wake, 2000);
+
+      // ✅ [D] 기어 드래그 터치 코드 다이어트 (PointerEvent 단일화)
       const handleGearDrag = (e) => {
-        if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY; const rect = gearBtn.getBoundingClientRect(); try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {}
+        if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.();
+        const startY = e.clientY;
+        const rect = gearBtn.getBoundingClientRect();
+        try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {}
         stopDrag = bindElementDrag(gearBtn, (ev) => {
-          const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
+          const currentY = ev.clientY;
           if (Math.abs(currentY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); }
           if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; }
         }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
@@ -2201,20 +2125,259 @@ function bindElementDrag(el, onMove, onEnd) {
   }
 
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
-  const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; st.orig = null; markInternalRateChange(el, 220); el.playbackRate = nextRate; } catch (_) {} };
-  function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; safe(() => { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); }); }
-  const onEvictRateVideo = (v) => { safe(() => restoreRateOne(v)); };
-  const onEvictVideo = (v) => { if (getNS()?.Adapter) getNS().Adapter.clear(v); restoreRateOne(v); };
 
-  const cleanupTouched = (TOUCHED) => {
-    const vids = [...TOUCHED.videos]; const rateVids = [...TOUCHED.rateVideos]; TOUCHED.videos.clear(); TOUCHED.rateVideos.clear();
-    const immediate = vids.filter(v => v.isConnected && getVState(v).visible); const deferred = vids.filter(v => !immediate.includes(v));
-    for (const v of immediate) onEvictVideo(v); for (const v of rateVids) onEvictRateVideo(v);
-    if (deferred.length > 0) {
-      const cleanup = (deadline) => { while (deferred.length > 0) { if (deadline?.timeRemaining && deadline.timeRemaining() < 2) { if (typeof requestIdleCallback !== 'undefined') requestIdleCallback(cleanup, { timeout: 200 }); else setTimeout(cleanup, 16); return; } const v = deferred.pop(); if (!v.isConnected) onEvictVideo(v); } };
-      if (typeof requestIdleCallback !== 'undefined') requestIdleCallback(cleanup, { timeout: 500 }); else setTimeout(() => { for (const v of deferred) onEvictVideo(v); }, 0);
+  function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; st.orig = null; markInternalRateChange(el, 220); el.playbackRate = nextRate; } catch (_) {} }
+
+  function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; safe(() => { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); }); }
+
+  // ✅ [A, B] zsig 추가, NaN 가드 추가, 줌 모드 OFF 연동 완벽 반영
+  function createZoomManager(Store, P) {
+    const stateMap = new WeakMap();
+    let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
+    let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+    let touchListenersAttached = false;
+    const zoomAC = new AbortController();
+    const zsig = combineSignals(zoomAC.signal, __globalSig); // 💡 공용 시그널
+    const zoomedVideos = new Set();
+
+    const getSt = (v) => {
+      let st = stateMap.get(v);
+      if (!st) {
+        st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '', _cachedPosition: null, _lastTransition: null };
+        stateMap.set(v, st);
+      }
+      return st;
+    };
+
+    const update = (v) => {
+      if (rafId) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null; const st = getSt(v); const panning = isPanning || pinchState.active;
+        if (st.scale <= 1) {
+          if (st.zoomed) {
+            v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
+            v.style.zIndex = st.origZIndex; v.style.position = st.origPosition;
+            v.style.transition = ''; st.zoomed = false; st.origComputedPosition = '';
+          }
+          st.scale = 1; st.tx = 0; st.ty = 0;
+          zoomedVideos.delete(v);
+        } else {
+          if (!st.zoomed) {
+            st.origZIndex = v.style.zIndex; st.origPosition = v.style.position;
+            if (!st._cachedPosition) { try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; } }
+            st.origComputedPosition = st._cachedPosition; st.zoomed = true;
+            if (st.origComputedPosition === 'static') v.style.position = 'relative';
+          }
+          const wantTransition = panning ? 'none' : 'transform 0.1s ease-out';
+          if (st._lastTransition !== wantTransition) { v.style.transition = wantTransition; st._lastTransition = wantTransition; }
+          v.style.transformOrigin = '0 0';
+          v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
+          v.style.cursor = panning ? 'grabbing' : 'grab';
+          v.style.zIndex = '2147483646';
+          zoomedVideos.add(v);
+        }
+      });
+    };
+
+    function clampPan(v, st) {
+      const rect = getRectCached(v, performance.now(), 300);
+      if (!rect || rect.width <= 1 || rect.height <= 1) return; // 💡 NaN 연산 가드
+      const scaledW = rect.width * st.scale, scaledH = rect.height * st.scale;
+      const minVisibleFraction = 0.25;
+      const minVisW = rect.width * minVisibleFraction, minVisH = rect.height * minVisibleFraction;
+      const maxTx = rect.width - minVisW, minTx = -(scaledW - minVisW - rect.width);
+      const maxTy = rect.height - minVisH, minTy = -(scaledH - minVisH - rect.height);
+      st.tx = Math.max(Math.min(st.tx, maxTx), minTx);
+      st.ty = Math.max(Math.min(st.ty, maxTy), minTy);
     }
-  };
+
+    const zoomTo = (v, newScale, clientX, clientY) => {
+      const st = getSt(v);
+      if (!st.zoomed && !st._cachedPosition) { try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; } }
+      const rect = getRectCached(v, performance.now(), 150);
+      if (!rect || rect.width <= 1 || rect.height <= 1) return;
+      const ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale;
+      st.tx = clientX - (rect.left - st.tx) - ix * newScale;
+      st.ty = clientY - (rect.top - st.ty) - iy * newScale;
+      st.scale = newScale;
+      update(v);
+    };
+
+    const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; st._cachedPosition = null; st._lastTransition = null; update(v); } };
+    const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
+    const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+
+    let unsubAct = null;
+    let unsubZoomEn = null;
+
+    if (Store?.sub) {
+      unsubAct = Store.sub(P.APP_ACT, (act) => {
+        if (!act) {
+          for (const v of zoomedVideos) {
+            if (!v?.isConnected) { zoomedVideos.delete(v); continue; }
+            resetZoom(v);
+          }
+          isPanning = false; pinchState.active = false; activeVideo = null;
+        }
+      });
+      // 💡 APP_ZOOM_EN이 꺼져도 잔여 줌 초기화 + 모바일 동적 리스너
+      unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => {
+        if (en) {
+          if (CONFIG.IS_MOBILE) attachTouchListeners();
+        } else {
+          for (const v of zoomedVideos) {
+            if (!v?.isConnected) { zoomedVideos.delete(v); continue; }
+            resetZoom(v);
+          }
+          zoomedVideos.clear();
+          isPanning = false; pinchState.active = false; activeVideo = null;
+        }
+      });
+    }
+
+    function getTargetVideo(e) {
+      if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } }
+      const touch = e.touches?.[0];
+      const cx = Number.isFinite(e.clientX) ? e.clientX : (touch && Number.isFinite(touch.clientX) ? touch.clientX : null);
+      const cy = Number.isFinite(e.clientY) ? e.clientY : (touch && Number.isFinite(touch.clientY) ? touch.clientY : null);
+      if (cx != null && cy != null) { const el = document.elementFromPoint(cx, cy); if (el?.tagName === 'VIDEO') return el; }
+      return __vscNs.App?.getActiveVideo() || null;
+    }
+
+    // 💡 window 이벤트에 모두 signal: zsig 적용
+    on(window, 'wheel', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (!(e.altKey && e.shiftKey)) return;
+      const v = getTargetVideo(e); if (!v) return;
+      if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+      const delta = e.deltaY > 0 ? 0.9 : 1.1; const st = getSt(v);
+      let newScale = Math.min(Math.max(1, st.scale * delta), 10);
+      if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
+    }, { passive: false, capture: true, signal: zsig });
+
+    on(window, 'mousedown', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (!e.altKey) return;
+      const v = getTargetVideo(e); if (!v) return;
+      const st = getSt(v);
+      if (st.scale > 1) {
+        e.preventDefault(); e.stopPropagation();
+        activeVideo = v; isPanning = true; st.hasPanned = false;
+        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
+        update(v);
+      }
+    }, { capture: true, signal: zsig });
+
+    on(window, 'mousemove', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (!isPanning || !activeVideo) return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(activeVideo);
+      const dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
+      st.tx = e.clientX - startX; st.ty = e.clientY - startY;
+      clampPan(activeVideo, st); update(activeVideo);
+    }, { capture: true, signal: zsig });
+
+    on(window, 'mouseup', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) { isPanning = false; activeVideo = null; return; }
+      if (isPanning) {
+        if (activeVideo) {
+          const st = getSt(activeVideo);
+          if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+          update(activeVideo);
+        }
+        isPanning = false; activeVideo = null;
+      }
+    }, { capture: true, signal: zsig });
+
+    on(window, 'dblclick', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (!e.altKey) return;
+      const v = getTargetVideo(e); if (!v) return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(v);
+      if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
+    }, { capture: true, signal: zsig });
+
+    const touchstartHandler = (e) => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      const v = getTargetVideo(e); if (!v) return;
+      const st = getSt(v);
+      if (e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale;
+        const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y;
+      } else if (e.touches.length === 1 && st.scale > 1) {
+        activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
+      }
+    };
+
+    const touchmoveHandler = (e) => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (!activeVideo) return;
+      const st = getSt(activeVideo);
+      if (pinchState.active && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
+        const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches);
+        let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10);
+        if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; isPanning = false; activeVideo = null; }
+        else {
+          zoomTo(activeVideo, newScale, center.x, center.y);
+          st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy;
+          clampPan(activeVideo, st); update(activeVideo);
+        }
+        pinchState.lastCx = center.x; pinchState.lastCy = center.y;
+      } else if (isPanning && e.touches.length === 1) {
+        if (e.cancelable) e.preventDefault();
+        const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
+        st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY;
+        clampPan(activeVideo, st); update(activeVideo);
+      }
+    };
+
+    const touchendHandler = (e) => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (!activeVideo) return;
+      if (e.touches.length < 2) pinchState.active = false;
+      if (e.touches.length === 0) {
+        if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) e.preventDefault();
+        isPanning = false; update(activeVideo); activeVideo = null;
+      }
+    };
+
+    const attachTouchListeners = () => {
+      if (touchListenersAttached) return; touchListenersAttached = true;
+      on(window, 'touchstart', touchstartHandler, { passive: false, capture: true, signal: zsig });
+      on(window, 'touchmove', touchmoveHandler, { passive: false, capture: true, signal: zsig });
+      on(window, 'touchend', touchendHandler, { passive: false, capture: true, signal: zsig });
+    };
+
+    if (CONFIG.IS_MOBILE) {
+      if (Store?.get(P.APP_ZOOM_EN)) attachTouchListeners();
+    } else {
+      attachTouchListeners();
+    }
+
+    return {
+      resetZoom, zoomTo, isZoomed, setEnabled: (en) => { if (en) attachTouchListeners(); },
+      destroy: () => {
+        try { unsubAct?.(); } catch(_) {}
+        try { unsubZoomEn?.(); } catch(_) {}
+        zoomAC.abort(); touchListenersAttached = false;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        for (const v of zoomedVideos) {
+          if (!v?.isConnected) continue;
+          const st = getSt(v);
+          if (st && st.zoomed) { v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = ''; v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; v.style.transition = ''; st.zoomed = false; }
+        }
+        zoomedVideos.clear();
+        isPanning = false; pinchState.active = false; activeVideo = null;
+      }
+    };
+  }
 
   const bindVideoOnce = (v, ApplyReq) => {
     const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); ensureMobileInlinePlaybackHints(v);
@@ -2395,7 +2558,18 @@ function bindElementDrag(el, onMove, onEnd) {
 
     Scheduler.registerApply((force) => {
       try {
-        const active = !!Store.getCatRef('app').active; if (!active) { cleanupTouched(TOUCHED); Audio.update(); return; }
+        const active = !!Store.getCatRef('app').active;
+
+        if (!active) {
+          for (const v of TOUCHED.videos) { Adapter.clear(v); getVState(v).desiredRate = undefined; restoreRateOne(v); }
+          for (const v of TOUCHED.rateVideos) { getVState(v).desiredRate = undefined; restoreRateOne(v); }
+          TOUCHED.videos.clear();
+          TOUCHED.rateVideos.clear();
+          Audio.update();
+          __lastAudioTarget = null;
+          return;
+        }
+
         const sRev = Store.rev(), rRev = Registry.rev(), userSigRev = __vscUserSignalRev;
         const wantAudioNow = !!(Store.get(P.A_EN) && active), pbActive = active && !!Store.get(P.PB_EN);
         const { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos;
@@ -2444,7 +2618,6 @@ function bindElementDrag(el, onMove, onEnd) {
         if (maxW > 0 && maxH > 0) { vValsEffective._frW = maxW; vValsEffective._frH = maxH; }
         else { delete vValsEffective._frW; delete vValsEffective._frH; }
 
-        // ✅ Pure 모드의 고정 보정값을 직접 병합합니다.
         const autoSceneVVals = {};
         if (autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
           const mods = autoScene.getMods();
@@ -2503,12 +2676,21 @@ function bindElementDrag(el, onMove, onEnd) {
         safe(() => UI.destroy?.());
         safe(() => { Audio.setTarget(null); Audio.destroy?.(); });
         safe(() => getNS()?.AutoScene?.destroy?.());
+        // ✅ [B] 부팅 및 파괴 사이클에 줌 매니저 연결 완비
+        safe(() => getNS()?.ZoomManager?.destroy?.());
         safe(() => Registry.destroy?.());
         safe(() => __globalHooksAC.abort());
         safe(() => getNS()?._restorePatchedGlobals?.());
         safe(() => getNS()?._restoreHistory?.());
         safe(() => { (getNS()?._timers || []).forEach(clearTimeout); getNS()._timers = []; });
         safe(() => { try { __shadowRootCallbacks.clear(); } catch (_) {} });
+
+        safe(() => {
+          for (const v of TOUCHED.videos) { try { Adapter.clear(v); } catch(_){} }
+          for (const v of TOUCHED.rateVideos) { try { restoreRateOne(v); } catch(_){} }
+          TOUCHED.videos.clear();
+          TOUCHED.rateVideos.clear();
+        });
       }
     });
   }
@@ -2548,8 +2730,9 @@ function bindElementDrag(el, onMove, onEnd) {
     __vscNs.Adapter = Adapter;
 
     const Audio = createAudio(Store); __vscNs.AudioWarmup = Audio.warmup;
-    let ZoomManager = createZoomManager(); __vscNs.ZoomManager = ZoomManager;
-    const UI = createUI(Store, Registry, ApplyReq, Utils);
+    let ZoomManager = createZoomManager(Store, P); __vscNs.ZoomManager = ZoomManager;
+
+    const UI = createUI(Store, Registry, ApplyReq, Utils, P);
 
     let __vscLastUserSignalT = 0; __vscNs.lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
     function updateLastUserPt(x, y, t) { __vscNs.lastUserPt.x = x; __vscNs.lastUserPt.y = y; __vscNs.lastUserPt.t = t; }
@@ -2571,7 +2754,11 @@ function bindElementDrag(el, onMove, onEnd) {
     on(window, 'keydown', async (e) => {
       if (isEditableTarget(e.target)) return;
       if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); safe(() => { const st = getNS()?.Store; if (st) { st.set(P.APP_UI, !st.get(P.APP_UI)); ApplyReq.hard(); } }); return; }
-      if (e.altKey && e.shiftKey && e.code === 'KeyP') { const v = __VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); }
+      if (e.altKey && e.shiftKey && e.code === 'KeyP') {
+        if (!getNS()?.Store?.get(P.APP_ACT)) return;
+        e.preventDefault(); e.stopPropagation();
+        const v = __VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v);
+      }
     }, { capture: true });
 
     on(document, 'visibilitychange', () => { safe(() => checkAndCleanupClosedPiP()); safe(() => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }); }, OPT_P);
