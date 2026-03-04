@@ -1622,10 +1622,10 @@ function VSC_MAIN() {
         const useDarkBoost = !!getFLAGS()?.AUTO_SCENE_DARK_BOOST;
 
         const DARK = {
-          THR: 0.40,       // [상향] 0.25 -> 0.40 (이제 "조금 어둡네?" 싶으면 바로 작동)
-          MAX_BOOST: 0.45, // [상향] 0.20 -> 0.45 (충분히 시원하게 밝혀줌)
+          THR: 1.00,       // [상향] 0.25 -> 0.40 (이제 "조금 어둡네?" 싶으면 바로 작동)
+          MAX_BOOST: 0.50, // [상향] 0.20 -> 0.45 (충분히 시원하게 밝혀줌)
           DZ: 0.02,        // [안정] 0.003 -> 0.02 (미세 노이즈 무시하여 깜빡임 근본 원인 제거)
-          BR_CAP: 1.45     // [확장] 1.20 -> 1.45 (부스트 상한선 확대)
+          BR_CAP: 2.00     // [확장] 1.20 -> 1.45 (부스트 상한선 확대)
         };
         const darkThr = useDarkBoost ? DARK.THR : 0.25;
 
@@ -1657,10 +1657,10 @@ function VSC_MAIN() {
         const dz = useDarkBoost ? DARK.DZ : 0.03;
         const brCap = useDarkBoost ? DARK.BR_CAP : 1.20;
 
-        AUTO.tgt.br = VSC_CLAMP(appDZ(gainT, dz), 0.95, brCap);
-        AUTO.tgt.ct = VSC_CLAMP(appDZ(ctT, 0.02), 0.95, 1.12);
-        AUTO.tgt.sat = VSC_CLAMP(appDZ(satT, 0.03), 0.92, 1.12);
-        AUTO.tgt.sharpScale = VSC_CLAMP(sharpScaleT, 0.75, 1.15);
+        AUTO.tgt.br = VSC_CLAMP(appDZ(gainT, dz), 1.05, brCap);
+        AUTO.tgt.ct = VSC_CLAMP(appDZ(ctT, 0.02), 1.02, 1.12);
+        AUTO.tgt.sat = VSC_CLAMP(appDZ(satT, 0.03), 1.00, 1.15);
+        AUTO.tgt.sharpScale = VSC_CLAMP(sharpScaleT, 1.00, 1.25);
 
         // --- 비대칭 보간(Smoothing)을 통한 부드러운 전환 적용 ---
         const asym = (c, t, au, ad) => Math.abs(t-c) < 0.002 ? t : c + (t-c) * (t>c?au:ad);
