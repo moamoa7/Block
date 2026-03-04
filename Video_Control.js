@@ -1622,9 +1622,9 @@ function VSC_MAIN() {
         const useDarkBoost = !!getFLAGS()?.AUTO_SCENE_DARK_BOOST;
 
         const DARK = {
-          THR: 0.45,       // 기존 0.25 -> 0.32
+          THR: 0.32,       // 기존 0.25 -> 0.32
           MAX_BOOST: 0.50, // 기존 0.20 -> 0.35
-          DZ: 0.05,       // 기존 0.03 -> 0.015
+          DZ: 0.010,       // 기존 0.03 -> 0.015
           BR_CAP: 1.50     // 기존 1.20 -> 1.35
         };
 
