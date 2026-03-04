@@ -2632,7 +2632,7 @@ function VSC_MAIN() {
 
   function createVideoParamsMemo(Store, P) {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
-    const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.8, gamma: -0.06, mid: -0.02 }], [SHADOW_BAND.MID, { toe: 1.2, gamma: -0.02, mid: -0.08 }], [SHADOW_BAND.OUTER, { toe: 0.4, gamma: -0.02, mid: -0.10 }]]);
+    const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.2, gamma: -0.04, mid: -0.01 }], [SHADOW_BAND.MID, { toe: 0.7, gamma: -0.02, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0.3, gamma: -0.01, mid: -0.08 }]]);
     return {
       get(vfUser, activeVideo) {
         const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
@@ -2640,7 +2640,7 @@ function VSC_MAIN() {
         const sMask = vfUser.shadowBandMask || 0;
         if (sMask > 0) {
           let toeSum = 0, gammaSum = 0, midSum = 0; for (const [bit, params] of SHADOW_PARAMS) { if (sMask & bit) { toeSum += params.toe; gammaSum += params.gamma; midSum += params.mid; } }
-          const bandCount = ((sMask & 1) + ((sMask >> 1) & 1) + ((sMask >> 2) & 1)); const combinedAttenuation = bandCount > 1 ? Math.pow(0.82, bandCount - 1) : 1.0;
+          const bandCount = ((sMask & 1) + ((sMask >> 1) & 1) + ((sMask >> 2) & 1)); const combinedAttenuation = bandCount > 1 ? Math.pow(0.75, bandCount - 1) : 1.0;
           out.toe = VSC_CLAMP(toeSum * combinedAttenuation, 0, 3.0); out.gamma += gammaSum * combinedAttenuation; out.mid += midSum * combinedAttenuation;
         }
         out.mid = VSC_CLAMP(out.mid, -0.20, 0); const brStep = vfUser.brightStepLevel || 0;
