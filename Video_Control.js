@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.1.0 - Ultimate Stable PRO YCbCr)
+// @name         Video_Control (v178.4.0 - Clean YCbCr USM)
 // @namespace    https://github.com/
-// @version      178.1.0
-// @description  Video Control: PRO YCbCr Sharpness, Hybrid LinearRGB, Dynamic QS, Web Worker Auto Scene.
+// @version      178.4.0
+// @description  Video Control: Pure YCbCr Sharpness, Dynamic QS, Web Worker Auto Scene. Lightweight & Fast.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -15,6 +15,8 @@
 // @exclude      *://tvwiki*.net/*
 // @exclude      *://tvmon.site/*
 // @exclude      *://tvhot.store/*
+// @exclude      *://claude.ai/*
+// @exclude      *://arena.ai/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_getValue
@@ -37,7 +39,9 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.1.0';
+  __vscNs.__version = '178.4.0';
+
+  try { (typeof unsafeWindow !== 'undefined' ? unsafeWindow : window).__VSC__ = __vscNs; } catch (_) {}
 
   if (__vscNs && __vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -55,6 +59,7 @@ function VSC_MAIN() {
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
+  // 불필요한 FILTER_SHARP_PRO_QUALITY 플래그 완전 삭제
   const FLAGS = Object.freeze({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
@@ -65,8 +70,7 @@ function VSC_MAIN() {
     FILTER_REAPPLY_NO_FORCED_LAYOUT: false,
     PATCH_ATTACH_SHADOW: true,
     FILTER_SHARP_PRESERVE_CHROMA_YCBCR: true,
-    FILTER_SHARP_SAT_COMP: true,
-    FILTER_SHARP_PRO_QUALITY: false,
+    FILTER_SHARP_SAT_COMP: false,
     FILTER_SHARP_LINEAR_RGB: false,
   });
 
@@ -209,7 +213,12 @@ function VSC_MAIN() {
   function onPageReady(fn) {
     let ran = false; const ac = new AbortController();
     const run = () => { if (ran) return; ran = true; ac.abort(); safe(fn); };
-    const check = () => { if (document.visibilityState === 'visible' && (document.readyState === 'interactive' || document.readyState === 'complete') && document.body) { run(); return true; } return false; };
+    const check = () => {
+      if ((document.readyState === 'interactive' || document.readyState === 'complete') && document.body) {
+        run(); return true;
+      }
+      return false;
+    };
     if (check()) return;
     const handler = () => { check(); };
     document.addEventListener('visibilitychange', handler, { passive: true, signal: ac.signal });
@@ -916,15 +925,14 @@ function VSC_MAIN() {
 
       const evalScore = (v) => {
         if (!v || v.readyState < 2) return;
-        try {
-          if (typeof v.checkVisibility === 'function') {
-            const ok = v.checkVisibility({ visibilityProperty: true, opacityProperty: true, contentVisibilityAuto: true });
-            if (!ok) return;
-          }
-        } catch (_) {}
 
-        const r = getRectCached(v, now, 800); const area = r.width * r.height; const pip = isPiPActiveVideo(v);
-        if (area < 160 * 120 && !pip) return;
+        // [사용자 패치 완벽 적용] decoded 프레임이 존재하면 면적(Area)이 작아도 통과!
+        const r = getRectCached(v, now, 800);
+        const area = (r?.width || 0) * (r?.height || 0);
+        const pip = isPiPActiveVideo(v);
+        const hasDecoded = ((v.videoWidth | 0) > 0) && ((v.videoHeight | 0) > 0);
+
+        if (!pip && !hasDecoded && area < 160 * 120) return;
 
         const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5; let s = 0;
         if (!v.paused && !v.ended) s += 6.0; else if (v.currentTime > 5.0 && (v.duration || 0) > 30) s += 3.0;
@@ -1653,140 +1661,24 @@ function createFiltersVideoOnly(Utils, config) {
     node.setAttribute(attr, strVal);
   }
 
-  function getDetailShaperTableCached(steps, thr, knee, drive) {
-    const key = `D|${steps}|${thr.toFixed(4)}|${knee.toFixed(4)}|${drive.toFixed(3)}`;
-    const hit = toneCache.get(key);
-    if (hit) return hit;
-
-    const arr = new Array(steps);
-    const tanhD = Math.tanh(drive);
-
-    for (let i = 0; i < steps; i++) {
-      const x = i / (steps - 1);
-      const d = Math.abs(x - 0.5) * 2;
-      let y = 0.5;
-
-      if (d <= thr) {
-        y = 0.5;
-      } else {
-        let u = (d - thr) / Math.max(1e-6, (1 - thr));
-        if (knee > 1e-6) {
-          const kk = Math.min(1, u / knee);
-          const smooth = kk * kk * (3 - 2 * kk);
-          u = (u < knee) ? (u * 0.5 + smooth * 0.5) : u;
-        }
-        const lim = Math.tanh(drive * u) / tanhD;
-        const dd = thr + lim * (1 - thr);
-        y = 0.5 + Math.sign(x - 0.5) * (dd * 0.5);
-      }
-      const v = Math.round(y * 100000) / 100000;
-      arr[i] = v === 1 ? '1' : (v === 0 ? '0' : String(v));
-    }
-    const res = arr.join(' ');
-    toneCache.set(key, res);
-    return res;
-  }
-
-  function getAbsTableCached(steps) {
-    const key = `ABS|${steps}`;
-    const hit = toneCache.get(key);
-    if (hit) return hit;
-
-    const arr = new Array(steps);
-    for (let i = 0; i < steps; i++) {
-      const x = i / (steps - 1);
-      const a = Math.min(1, Math.abs(x - 0.5) * 2);
-      const v = Math.round(a * 100000) / 100000;
-      arr[i] = v === 1 ? '1' : (v === 0 ? '0' : String(v));
-    }
-    const res = arr.join(' ');
-    toneCache.set(key, res);
-    return res;
-  }
-
-  function getMaskTableCached(steps, thr, knee, drive) {
-    const key = `MSK|${steps}|${thr.toFixed(4)}|${knee.toFixed(4)}|${drive.toFixed(3)}`;
-    const hit = toneCache.get(key);
-    if (hit) return hit;
-
-    const arr = new Array(steps);
-    const tanhD = Math.tanh(drive);
-
-    for (let i = 0; i < steps; i++) {
-      const x = i / (steps - 1);
-      let y = 0;
-      if (x <= thr) {
-        y = 0;
-      } else {
-        let u = (x - thr) / Math.max(1e-6, (1 - thr));
-        if (knee > 1e-6) {
-          const kk = Math.min(1, u / knee);
-          const smooth = kk * kk * (3 - 2 * kk);
-          u = (u < knee) ? (u * 0.5 + smooth * 0.5) : u;
-        }
-        y = Math.tanh(drive * u) / tanhD;
-      }
-      const v = Math.round(y * 100000) / 100000;
-      arr[i] = v === 1 ? '1' : (v === 0 ? '0' : String(v));
-    }
-
-    const res = arr.join(' ');
-    toneCache.set(key, res);
-    return res;
-  }
+  // [수정점] 불필요한 마스크 테이블 생성 함수(getDetailShaperTableCached, getAbsTableCached, getMaskTableCached) 완전 삭제
 
   const applyLumaSharpening = (sharpDetail, strength, qs = 1) => {
     if (!sharpDetail) return;
+
+    // 강도(strength)에 따라 블러 반경(stdDeviation)과 샤프닝 수치(amount)를 적용
     const s = Math.min(1, Math.max(0, strength));
     const q = Math.sqrt(Math.max(0.35, Math.min(1, qs)));
-    const amount = (s * 1.60) * q;
 
-    if (sharpDetail.mode !== 'pro') {
-      const std = s > 0 ? (0.50 + s * 0.25).toFixed(2) : '0';
-      if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', std);
-      if (sharpDetail.ySharp) {
-        setAttr(sharpDetail.ySharp, 'k2', '1');
-        setAttr(sharpDetail.ySharp, 'k3', amount.toFixed(3));
-        setAttr(sharpDetail.ySharp, 'k4', '0');
-      }
-      return;
-    }
+    // 사용자가 XL에서 확실한 체감을 느낄 수 있도록 최대 배율 상향 (기존 1.6 -> 2.6)
+    const amount = (s * 2.60) * q;
+    const std = s > 0 ? (0.50 + s * 0.25).toFixed(2) : '0';
 
-    const stdF = (0.45 + s * 0.22) * (0.85 + 0.15 * q);
-    const stdC = stdF * (2.3 + s * 0.6);
-    setAttr(sharpDetail.blurF, 'stdDeviation', stdF.toFixed(2));
-    setAttr(sharpDetail.blurC, 'stdDeviation', stdC.toFixed(2));
-
-    let wF = Math.min(0.78, 0.62 + s * 0.20);
-    let wC = 1 - wF;
-    wC *= q; wF = 1 - wC;
-    setAttr(sharpDetail.mix, 'k2', wF.toFixed(3));
-    setAttr(sharpDetail.mix, 'k3', wC.toFixed(3));
-
-    const thr  = Math.min(0.12, 0.045 + s * 0.030);
-    const knee = 0.18;
-    const drive = 3.2 + s * 1.2;
-    const steps = 129;
-    const table = getDetailShaperTableCached(steps, thr, knee, drive);
-
-    setAttr(sharpDetail.shaper.r, 'tableValues', table);
-    // G/B channels are left untouched (identity pass-through)
-
-    setAttr(sharpDetail.ySharp, 'k2', '1');
-    setAttr(sharpDetail.ySharp, 'k3', amount.toFixed(3));
-    setAttr(sharpDetail.ySharp, 'k4', (-0.5 * amount).toFixed(3));
-
-    if (sharpDetail.mask?.absR && sharpDetail.mask?.maskR) {
-      const stepsM = 129;
-      const absTable = getAbsTableCached(stepsM);
-      const thrM  = Math.min(0.18, 0.11 + (1 - s) * 0.06);
-      const kneeM = 0.22;
-      const driveM = 3.2 + s * 1.8;
-
-      const maskTable = getMaskTableCached(stepsM, thrM, kneeM, driveM);
-
-      setAttr(sharpDetail.mask.absR, 'tableValues', absTable);
-      setAttr(sharpDetail.mask.maskR, 'tableValues', maskTable);
+    if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', std);
+    if (sharpDetail.ySharp) {
+      setAttr(sharpDetail.ySharp, 'k2', '1');
+      setAttr(sharpDetail.ySharp, 'k3', amount.toFixed(3));
+      setAttr(sharpDetail.ySharp, 'k4', '0');
     }
   };
 
@@ -1909,11 +1801,6 @@ function createFiltersVideoOnly(Utils, config) {
       return { tmp, s };
     };
 
-    const mkBlurDiff = (prefix, inN, blurN, diffN) => [
-      h('feGaussianBlur', { ns: 'svg', in: inN, stdDeviation: '0', result: blurN }),
-      h('feComposite', { ns: 'svg', in: inN, in2: blurN, operator: 'arithmetic', k2: '1', k3: '-1', result: diffN })
-    ];
-
     const lite = h('filter', {
       ns: 'svg', id: fidLite,
       'color-interpolation-filters': 'sRGB',
@@ -1934,7 +1821,6 @@ function createFiltersVideoOnly(Utils, config) {
 
     let sharpDetail = null;
     const getFLAGS = () => (window[Symbol.for('__VSC__')] || __vscNs)?.FLAGS;
-    const proQ = !!getFLAGS()?.FILTER_SHARP_PRO_QUALITY;
 
     sharp.setAttribute('color-interpolation-filters', 'sRGB');
     const wantLinearSharpen = !!getFLAGS()?.FILTER_SHARP_LINEAR_RGB;
@@ -1945,104 +1831,45 @@ function createFiltersVideoOnly(Utils, config) {
       }
     };
 
-    if (!getFLAGS()?.FILTER_SHARP_PRESERVE_CHROMA_YCBCR) {
-      const sLuma = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: LUMA_MATRIX, result: 's_luma' });
-      const [sB1, sD1] = mkBlurDiff('s', 's_luma', 's_b1', 's_d1');
-      const sOut = h('feComposite', {
-        ns: 'svg', in: 's_g', in2: 's_d1',
-        operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_out'
-      });
-      sharp.append(cS.t, cS.b, cS.g, sLuma, sB1, sD1, sOut, pS.tmp.tm, pS.s);
-      sharpDetail = { mode: 'basic', blurF: sB1, ySharp: sOut };
+    // [수정점] YCbCr 단일 언샤프 마스크 구조로 통일. 빠르고 강력한 선명도 제공.
+    const Y_ONLY_R =
+      '1 0 0 0 0 ' +
+      '0 0 0 0 0 ' +
+      '0 0 0 0 0 ' +
+      '0 0 0 1 0';
 
-      markSharpenLinear(sB1, sD1, sOut);
-    } else {
-      const Y_ONLY_R =
-        '1 0 0 0 0 ' +
-        '0 0 0 0 0 ' +
-        '0 0 0 0 0 ' +
-        '0 0 0 1 0';
+    const RGB_TO_CbCr_GB =
+      '0 0 0 0 0 ' +
+      '-0.1146 -0.3854 0.5 0 0.5 ' +
+      '0.5 -0.4542 -0.0458 0 0.5 ' +
+      '0 0 0 1 0';
 
-      const RGB_TO_CbCr_GB =
-        '0 0 0 0 0 ' +
-        '-0.1146 -0.3854 0.5 0 0.5 ' +
-        '0.5 -0.4542 -0.0458 0 0.5 ' +
-        '0 0 0 1 0';
+    const YCbCr_TO_RGB =
+      '1 0 1.5748 0 -0.7874 ' +
+      '1 -0.1873 -0.4681 0 0.3277 ' +
+      '1 1.8556 0 0 -0.9278 ' +
+      '0 0 0 1 0';
 
-      const YCbCr_TO_RGB =
-        '1 0 1.5748 0 -0.7874 ' +
-        '1 -0.1873 -0.4681 0 0.3277 ' +
-        '1 1.8556 0 0 -0.9278 ' +
-        '0 0 0 1 0';
+    const sY = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: LUMA_MATRIX, result: 's_y' });
+    const sYR = h('feColorMatrix', { ns: 'svg', in: 's_y', type: 'matrix', values: Y_ONLY_R, result: 's_yR' });
+    const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
 
-      const sY = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: LUMA_MATRIX, result: 's_y' });
-      const sYR = h('feColorMatrix', { ns: 'svg', in: 's_y', type: 'matrix', values: Y_ONLY_R, result: 's_yR' });
-      const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
+    const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_yb1' });
+    const yDiff = h('feComposite', {
+      ns: 'svg', in: 's_yR', in2: 's_yb1',
+      operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 's_yd1'
+    });
+    const ySharp = h('feComposite', {
+      ns: 'svg', in: 's_yR', in2: 's_yd1',
+      operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_ySharpR'
+    });
+    const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
+    const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
 
-      if (!proQ) {
-        const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_yb1' });
-        const yDiff = h('feComposite', {
-          ns: 'svg', in: 's_yR', in2: 's_yb1',
-          operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0', result: 's_yd1'
-        });
-        const ySharp = h('feComposite', {
-          ns: 'svg', in: 's_yR', in2: 's_yd1',
-          operator: 'arithmetic', k1: '0', k2: '1', k3: '0.5', k4: '0', result: 's_ySharpR'
-        });
-        const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
-        const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
-        sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
-        sharpDetail = { mode: 'basic', blurF: yBlur, ySharp: ySharp };
+    sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlur, yDiff, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
+    sharpDetail = { mode: 'basic', blurF: yBlur, ySharp: ySharp };
 
-        markSharpenLinear(yBlur, yDiff, ySharp);
-      } else {
-        const yBlurF = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_ybF' });
-        const yBlurC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', result: 's_ybC' });
-        const yDiffBF = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_ybF', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0.5', result: 's_ydBF' });
-        const yDiffBC = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_ybC', operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0.5', result: 's_ydBC' });
-        const yMix = h('feComposite', { ns: 'svg', in: 's_ydBF', in2: 's_ydBC', operator: 'arithmetic', k1: '0', k2: '0.65', k3: '0.35', k4: '0', result: 's_ydB' });
-
-        const dFR = h('feFuncR', { ns: 'svg', type: 'table', tableValues: '0 1' });
-        const dFG = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const dFB = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const dShaper = h('feComponentTransfer', { ns: 'svg', in: 's_ydB', result: 's_ydBS' }, dFR, dFG, dFB);
-
-        const absFR = h('feFuncR', { ns:'svg', type:'table', tableValues:'0 1' });
-        const absFG = h('feFuncG', { ns:'svg', type:'linear', slope:'1', intercept:'0' });
-        const absFB = h('feFuncB', { ns:'svg', type:'linear', slope:'1', intercept:'0' });
-        const absCT = h('feComponentTransfer', { ns:'svg', in:'s_ydB', result:'s_abs' }, absFR, absFG, absFB);
-
-        const maskFR = h('feFuncR', { ns:'svg', type:'table', tableValues:'0 1' });
-        const maskFG = h('feFuncG', { ns:'svg', type:'linear', slope:'1', intercept:'0' });
-        const maskFB = h('feFuncB', { ns:'svg', type:'linear', slope:'1', intercept:'0' });
-        const maskCT = h('feComponentTransfer', { ns:'svg', in:'s_abs', result:'s_mask' }, maskFR, maskFG, maskFB);
-
-        const mul = h('feComposite', { ns:'svg', in:'s_ydBS', in2:'s_mask', operator:'arithmetic', k1:'1', k2:'0', k3:'0', k4:'0', result:'s_mul' });
-
-        const mhR = h('feFuncR', { ns:'svg', type:'linear', slope:'-0.5', intercept:'0.5' });
-        const mhG = h('feFuncG', { ns:'svg', type:'linear', slope:'-0.5', intercept:'0.5' });
-        const mhB = h('feFuncB', { ns:'svg', type:'linear', slope:'-0.5', intercept:'0.5' });
-        const maskHalf = h('feComponentTransfer', { ns:'svg', in:'s_mask', result:'s_maskHalf' }, mhR, mhG, mhB);
-
-        const dg = h('feComposite', { ns:'svg', in:'s_mul', in2:'s_maskHalf', operator:'arithmetic', k1:'0', k2:'1', k3:'1', k4:'0', result:'s_dg' });
-
-        const ySharp = h('feComposite', { ns: 'svg', in: 's_yR', in2: 's_dg', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.0', k4: '0.0', result: 's_ySharpR' });
-        const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
-        const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
-
-        sharp.append(cS.t, cS.b, cS.g, sY, sYR, sUV, yBlurF, yBlurC, yDiffBF, yDiffBC, yMix, dShaper, absCT, maskCT, mul, maskHalf, dg, ySharp, yuv, toRgb, pS.tmp.tm, pS.s);
-
-        sharpDetail = {
-          mode: 'pro',
-          blurF: yBlurF, blurC: yBlurC, mix: yMix,
-          shaper: { r: dFR, g: dFG, b: dFB },
-          mask: { absR: absFR, maskR: maskFR },
-          ySharp: ySharp
-        };
-
-        markSharpenLinear(yBlurF, yBlurC, yDiffBF, yDiffBC, yMix, dShaper, absCT, maskCT, mul, maskHalf, dg, ySharp);
-      }
-    }
+    markSharpenLinear(yBlur, yDiff, ySharp);
 
     defs.append(lite, sharp);
 
@@ -2104,6 +1931,8 @@ function createFiltersVideoOnly(Utils, config) {
       }
     };
   }
+// --- [PART 2 끝] ---
+// --- [PART 3 시작] ---
 
   function prepare(video, s) {
     const root = video.ownerDocument || document;
@@ -2372,9 +2201,6 @@ function createFiltersVideoOnly(Utils, config) {
   };
 }
 
-// --- [PART 2 끝] ---
-// --- [PART 3 시작] ---
-
   function createBackendAdapter(Filters) {
     const _backendChangeListeners = new Set();
     return {
@@ -2414,7 +2240,6 @@ function createFiltersVideoOnly(Utils, config) {
     const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
     const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
 
-    // ✅ [3-3] UI `ensure()` DOM 탐색 캐시 적용
     let _allowCache = { v: false, t: 0, lastVideoCount: -1 };
     const ALLOW_TTL = 1200;
 
@@ -2649,12 +2474,11 @@ function createFiltersVideoOnly(Utils, config) {
   let __lastApplyTarget = null;
   function clearVideoRuntimeState(el, Adapter, ApplyReq) { const st = getVState(el); Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); if (st._ac) { st._ac.abort(); st._ac = null; } st.bound = false; bindVideoOnce(el, ApplyReq); }
 
-  // ✅ [3-2] PlaybackRate 강제 적용 시 사이트와의 "레이트 전쟁" 방지 백오프 추가
   function applyPlaybackRate(el, desiredRate) {
     const st = getVState(el), rSt = getRateState(el);
     const now = performance.now();
 
-    if (now < (rSt.suppressSyncUntil || 0)) return; // 5초 휴전 중이면 무시
+    if (now < (rSt.suppressSyncUntil || 0)) return;
 
     if (rSt.orig == null) rSt.orig = el.playbackRate;
 
@@ -2667,7 +2491,6 @@ function createFiltersVideoOnly(Utils, config) {
     }
     rSt._setAttempts++;
 
-    // 충돌 감지: 짧은 시간에 6번 이상 값이 튀면 포기
     if (rSt._setAttempts > 6) {
       rSt.suppressSyncUntil = now + 5000;
       rSt._setAttempts = 0;
@@ -2757,8 +2580,28 @@ function createFiltersVideoOnly(Utils, config) {
         const sRev = Store.rev(), rRev = Registry.rev(), userSigRev = __vscUserSignalRev;
         const wantAudioNow = !!(Store.get(P.A_EN) && active), pbActive = active && !!Store.get(P.PB_EN);
         const { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos;
-        const pick = Targeting.pickFastActiveOnly(visible.videos, getNS()?.lastUserPt || {x:0,y:0,t:0}, wantAudioNow);
-        let nextTarget = pick.target; if (!nextTarget) { if (__activeTarget) nextTarget = __activeTarget; } if (nextTarget !== __activeTarget) __activeTarget = nextTarget;
+
+        let pick = Targeting.pickFastActiveOnly(visible.videos, getNS()?.lastUserPt || {x:0,y:0,t:0}, wantAudioNow);
+
+        if (!pick?.target) {
+          pick = Targeting.pickFastActiveOnly(Registry.videos, getNS()?.lastUserPt || {x:0,y:0,t:0}, wantAudioNow);
+        }
+
+        // [사용자 패치 C] 강제 DOM 스캔 3차 Fallback
+        if (!pick?.target) {
+          let domV = null;
+          try {
+            const list = Array.from(document.querySelectorAll('video'));
+            domV = list.find(v => v && v.readyState >= 2 && !v.paused && !v.ended) ||
+                   list.find(v => v && v.readyState >= 2) ||
+                   null;
+          } catch (_) {}
+          pick = { target: domV };
+        }
+
+        let nextTarget = pick.target;
+
+        if (!nextTarget) { if (__activeTarget) nextTarget = __activeTarget; } if (nextTarget !== __activeTarget) __activeTarget = nextTarget;
         const targetChanged = __activeTarget !== __lastApplyTarget;
         if (!force && vidsDirty.size === 0 && !targetChanged && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
         lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev; __lastApplyTarget = __activeTarget;
@@ -2808,7 +2651,19 @@ function createFiltersVideoOnly(Utils, config) {
     Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick();
 
     return Object.freeze({
-      getActiveVideo() { return __activeTarget || null; },
+      // [사용자 패치 C] 강제 DOM 스캔 3차 Fallback
+      getActiveVideo() {
+        if (__activeTarget && __activeTarget.isConnected) return __activeTarget;
+        let domV = null;
+        try {
+          const list = Array.from(document.querySelectorAll('video'));
+          domV = list.find(v => v && v.readyState >= 2 && !v.paused && !v.ended) ||
+                 list.find(v => v && v.readyState >= 2) ||
+                 null;
+        } catch (_) {}
+        if (domV) { __activeTarget = domV; Scheduler.request(true); }
+        return domV;
+      },
       getQualityScale() { return qualityScale; },
       destroy() {
         stopTick();
