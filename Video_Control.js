@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.6.1 - Clean YCbCr USM)
+// @name         Video_Control (v178.6.2 - Clean YCbCr USM)
 // @namespace    https://github.com/
-// @version      178.6.1
+// @version      178.6.2
 // @description  Video Control: Pure YCbCr Sharpness, Dynamic QS, Web Worker Auto Scene. Lightweight & Fast.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,7 +39,7 @@ function VSC_MAIN() {
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.6.1'; // ✅ 버전 업데이트
+  __vscNs.__version = '178.6.2'; // ✅ 버전 업데이트
 
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
@@ -57,7 +57,8 @@ function VSC_MAIN() {
     FILTER_SHARP_SAT_COMP: false,
     UI_EXPENSIVE_SHADOW_PROBE: false,     // [Fix 7] 무거운 전체 돔 탐색 기본 OFF
     EXPOSE_API_TO_PAGE: true,             // [Fix 13] 외부 페이지 변조 방지용 플래그
-    FILTER_FORCE_OPAQUE_BG: true          // [Fix 14] 투명 배경 강제 덮어쓰기 옵션
+    FILTER_FORCE_OPAQUE_BG: true,          // [Fix 14] 투명 배경 강제 덮어쓰기 옵션
+    AUTO_SCENE_DARK_BOOST: true,          // ✅ 신규: 어두운 장면 적극 부스트 (기본 OFF)
   });
 
   // ✅ [Fix 13] 플래그에 따른 unsafeWindow API 노출 제어
@@ -1585,9 +1586,14 @@ function VSC_MAIN() {
     }
 
     function handleAnalyzerResult(sigRaw) {
-      AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (sigRaw.motion * AUTO.motionAlpha); AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0;
+      AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (sigRaw.motion * AUTO.motionAlpha);
+      AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0;
       const dY = Math.abs(sigRaw.bright - (AUTO.lastSig?.bright||0)), dCt = Math.abs(sigRaw.contrast - (AUTO.lastSig?.contrast||0)), score = (dY * 1.1) + (dCt * 0.9);
-      AUTO.cutScoreBaseline = (AUTO.cutScoreBaseline || 0.05) * 0.97 + score * 0.03; const thr = Math.max(0.10, Math.min(0.25, AUTO.cutScoreBaseline * 2.5)), isCut = score > thr; AUTO.lastSig = sigRaw;
+
+      AUTO.cutScoreBaseline = (AUTO.cutScoreBaseline || 0.05) * 0.97 + score * 0.03;
+      const cutThr = Math.max(0.10, Math.min(0.25, AUTO.cutScoreBaseline * 2.5));
+      const isCut = score > cutThr;
+      AUTO.lastSig = sigRaw;
 
       // ✅ [PATCH 2-D] Still detection: "움직임/장면전환 거의 없음"이면 분석 주기 늘리기
       const stillLike = !isCut && (sigRaw.motion < STILL.MOTION_THR) && (score < STILL.SCORE_THR);
@@ -1596,20 +1602,78 @@ function VSC_MAIN() {
         AUTO.stillUntilMs = performance.now() + STILL.HOLD_MS;
       }
 
-      if (!AUTO.statsEma) { AUTO.statsEma = { ...sigRaw }; } else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + sigRaw.bright*a; e.contrast = e.contrast*(1-a) + sigRaw.contrast*a; e.edge = e.edge*(1-a) + sigRaw.edge*a; }
+      if (!AUTO.statsEma) {
+        AUTO.statsEma = { ...sigRaw };
+      } else {
+        const e = AUTO.statsEma, a = AUTO.statsAlpha;
+        e.bright = e.bright*(1-a) + sigRaw.bright*a;
+        e.contrast = e.contrast*(1-a) + sigRaw.contrast*a;
+        e.edge = e.edge*(1-a) + sigRaw.edge*a;
+      }
       const sig = AUTO.statsEma;
 
       const allowUpdate = isCut || (AUTO.motionFrames >= AUTO.motionMinFrames) || (!AUTO._firstUpdateDone);
       if (allowUpdate) {
-        AUTO._firstUpdateDone = true; let gainT = 1.0, ctT = 1.0, satT = 1.0, sharpScaleT = 1.0;
-        if (sig.bright < 0.25) { const darkIntentionality = 1.0 - VSC_CLAMP(sig.edge / 6, 0, 0.5); gainT = 1.0 + ((0.25 - sig.bright) / 0.25) * 0.20 * darkIntentionality; } else if (sig.bright > 0.75) gainT = 1.0 - ((sig.bright - 0.75) / 0.25) * 0.05;
+        AUTO._firstUpdateDone = true;
+        let gainT = 1.0, ctT = 1.0, satT = 1.0, sharpScaleT = 1.0;
+
+        // ✅ [다크 부스트 패치] 플래그 및 옵션값 정의
+        const getFLAGS = () => (window[Symbol.for('__VSC__')] || __vscNs)?.FLAGS;
+        const useDarkBoost = !!getFLAGS()?.AUTO_SCENE_DARK_BOOST;
+
+        const DARK = {
+          THR: 0.32,       // 기존 0.25 -> 0.32
+          MAX_BOOST: 0.35, // 기존 0.20 -> 0.35
+          DZ: 0.015,       // 기존 0.03 -> 0.015
+          BR_CAP: 1.35     // 기존 1.20 -> 1.35
+        };
+
+        const darkThr = useDarkBoost ? DARK.THR : 0.25;
+
+        // --- 밝기(gainT) 목표값 계산 ---
+        if (sig.bright < darkThr) {
+          // 부스트 사용 시 고화질/의도된 어두움 보호 로직 강화
+          const edgeDiv = useDarkBoost ? 8 : 6;
+          const edgeCap = useDarkBoost ? 0.6 : 0.5;
+          const darkIntentionality = 1.0 - VSC_CLAMP(sig.edge / edgeDiv, 0, edgeCap);
+
+          const maxBoost = useDarkBoost ? DARK.MAX_BOOST : 0.20;
+          gainT = 1.0 + ((darkThr - sig.bright) / darkThr) * maxBoost * darkIntentionality;
+        } else if (sig.bright > 0.75) {
+          gainT = 1.0 - ((sig.bright - 0.75) / 0.25) * 0.05;
+        }
+
+        // --- 대비(ctT) 및 선명도(sharpScaleT) 계산 ---
         if (sig.contrast < 0.12) ctT = 1.0 + ((0.12 - sig.contrast) / 0.12) * 0.10;
-        const edgeVal = Number(sig.edge || 0); if (edgeVal > 12) { sharpScaleT = 1.0 - VSC_CLAMP((edgeVal - 12) / 13, 0, 1) * 0.40; } else if (edgeVal < 4) { sharpScaleT = 1.0 + VSC_CLAMP((4 - edgeVal) / 4, 0, 1) * 0.15; }
+        const edgeVal = Number(sig.edge || 0);
+        if (edgeVal > 12) {
+          sharpScaleT = 1.0 - VSC_CLAMP((edgeVal - 12) / 13, 0, 1) * 0.40;
+        } else if (edgeVal < 4) {
+          sharpScaleT = 1.0 + VSC_CLAMP((4 - edgeVal) / 4, 0, 1) * 0.15;
+        }
+
         const appDZ = (t, dz) => { const d = Math.abs(t - 1.0); return d < dz ? 1.0 : (t > 1.0 ? 1.0 + (d - dz) : 1.0 - (d - dz)); };
-        AUTO.tgt.br = VSC_CLAMP(appDZ(gainT, 0.03), 0.95, 1.20); AUTO.tgt.ct = VSC_CLAMP(appDZ(ctT, 0.02), 0.95, 1.12); AUTO.tgt.sat = VSC_CLAMP(appDZ(satT, 0.03), 0.92, 1.12); AUTO.tgt.sharpScale = VSC_CLAMP(sharpScaleT, 0.75, 1.15);
+
+        // --- 최종 타겟(tgt) 한계선 적용 ---
+        const dz = useDarkBoost ? DARK.DZ : 0.03;
+        const brCap = useDarkBoost ? DARK.BR_CAP : 1.20;
+
+        AUTO.tgt.br = VSC_CLAMP(appDZ(gainT, dz), 0.95, brCap);
+        AUTO.tgt.ct = VSC_CLAMP(appDZ(ctT, 0.02), 0.95, 1.12);
+        AUTO.tgt.sat = VSC_CLAMP(appDZ(satT, 0.03), 0.92, 1.12);
+        AUTO.tgt.sharpScale = VSC_CLAMP(sharpScaleT, 0.75, 1.15);
+
+        // --- 비대칭 보간(Smoothing)을 통한 부드러운 전환 적용 ---
         const asym = (c, t, au, ad) => Math.abs(t-c) < 0.002 ? t : c + (t-c) * (t>c?au:ad);
-        AUTO.cur.br = asym(AUTO.cur.br, AUTO.tgt.br, isCut ? 0.40 : 0.12, isCut ? 0.45 : 0.18); AUTO.cur.ct = asym(AUTO.cur.ct, AUTO.tgt.ct, isCut ? 0.38 : 0.12, isCut ? 0.38 : 0.12); AUTO.cur.sat = asym(AUTO.cur.sat, AUTO.tgt.sat, isCut ? 0.32 : 0.08, isCut ? 0.40 : 0.14); AUTO.cur.sharpScale = asym(AUTO.cur.sharpScale, AUTO.tgt.sharpScale, isCut ? 0.35 : 0.08, isCut ? 0.40 : 0.14);
-        if (Math.abs(AUTO.cur.br - AUTO.tgt.br) > 0.001 || Math.abs(AUTO.cur.ct - AUTO.tgt.ct) > 0.001) Scheduler.request(true);
+        AUTO.cur.br = asym(AUTO.cur.br, AUTO.tgt.br, isCut ? 0.40 : 0.12, isCut ? 0.45 : 0.18);
+        AUTO.cur.ct = asym(AUTO.cur.ct, AUTO.tgt.ct, isCut ? 0.38 : 0.12, isCut ? 0.38 : 0.12);
+        AUTO.cur.sat = asym(AUTO.cur.sat, AUTO.tgt.sat, isCut ? 0.32 : 0.08, isCut ? 0.40 : 0.14);
+        AUTO.cur.sharpScale = asym(AUTO.cur.sharpScale, AUTO.tgt.sharpScale, isCut ? 0.35 : 0.08, isCut ? 0.40 : 0.14);
+
+        // 값이 의미 있게 변했을 때만 렌더링 큐에 추가
+        if (Math.abs(AUTO.cur.br - AUTO.tgt.br) > 0.001 || Math.abs(AUTO.cur.ct - AUTO.tgt.ct) > 0.001) {
+          Scheduler.request(true);
+        }
       }
     }
 
