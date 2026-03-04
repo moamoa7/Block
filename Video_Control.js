@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.7.7 - Pure Static AutoScene)
+// @name         Video_Control (v178.8.0 - Unleashed)
 // @namespace    https://github.com/
-// @version      178.7.7
-// @description  Video Control: Pure YCbCr Sharpness, Dynamic QS, Static AutoScene. Lightweight & Fast.
+// @version      178.8.0
+// @description  Video Control: Optimized Shadow Probe, Unified Pointer UI, GM Menu Ready.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -30,7 +30,11 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'about:' || location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK');
+
+  // ✅ [개선 4-1] Boot-lock & __alive 충돌 정리
+  // 버전을 포함한 Boot Key를 사용하여 동일 버전 중복 실행은 막되,
+  // 코드가 업데이트되어 재주입(Hot-reload)될 때는 기존 인스턴스를 파괴하고 정상 실행되도록 변경.
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.8.0');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
@@ -38,8 +42,19 @@ function VSC_MAIN() {
   const VSC_NS_OLD = Symbol.for('__VSC_171__');
   if (!window[VSC_NS_NEW] && window[VSC_NS_OLD]) window[VSC_NS_NEW] = window[VSC_NS_OLD];
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
+
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.7.7'; // ✅ 버전 업데이트 (안정성 및 중복제거)
+  __vscNs.__version = '178.8.0';
+
+  if (__vscNs.__alive) {
+    try { __vscNs.App?.destroy?.(); } catch (_) {}
+    try { __vscNs.Store?.destroy?.(); } catch (_) {}
+    try { __vscNs.AutoScene?.destroy?.(); } catch (_) {}
+    try { __vscNs.ZoomManager?.destroy?.(); } catch (_) {}
+  }
+  __vscNs.__alive = true;
+
+  let __vscUserSignalRev = 0;
 
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
@@ -50,7 +65,7 @@ function VSC_MAIN() {
     FILTER_REAPPLY_NO_FORCED_LAYOUT: true,
     PATCH_ATTACH_SHADOW: true,
     FILTER_SHARP_SAT_COMP: false,
-    UI_EXPENSIVE_SHADOW_PROBE: false,
+    UI_EXPENSIVE_SHADOW_PROBE: false, // 💡 기본적으로 무거운 탐색은 OFF
     EXPOSE_API_TO_PAGE: true,
     FILTER_FORCE_OPAQUE_BG: true
   });
@@ -62,17 +77,6 @@ function VSC_MAIN() {
       target[Symbol.for('__VSC__')] = __vscNs;
     }
   } catch (_) {}
-
-  // ✅ [A] 부팅 시 ZoomManager.destroy() 정리 프로세스 추가
-  if (__vscNs && __vscNs.__alive) {
-    try { __vscNs.App?.destroy?.(); } catch (_) {}
-    try { __vscNs.Store?.destroy?.(); } catch (_) {}
-    try { __vscNs.AutoScene?.destroy?.(); } catch (_) {}
-    try { __vscNs.ZoomManager?.destroy?.(); } catch (_) {}
-  }
-  __vscNs.__alive = true;
-
-  let __vscUserSignalRev = 0;
 
   const safe = (fn) => { try { fn(); } catch (_) {} };
   const OPT_P = { passive: true };
@@ -200,11 +204,19 @@ function VSC_MAIN() {
       if (base) probeShadowRoots(base, 0);
     }
 
+    // ✅ [개선 2-1] Shadow Probe 조건부 실행 최적화
     const scheduleProbe = () => {
-      setTimeout(deferredShadowProbe, 1500);
-      setTimeout(deferredShadowProbe, 4000);
-      setTimeout(deferredShadowProbe, 10000);
+      if (getFLAGS().UI_EXPENSIVE_SHADOW_PROBE === false) return;
+
+      const checkAndProbe = () => {
+        // 이미 문서 내에 확실한 비디오 관련 요소가 존재하면 무거운 탐색을 건너뜀
+        if (document.querySelector('video, object, embed, iframe, [class*=player]')) return;
+        deferredShadowProbe();
+      };
+      setTimeout(checkAndProbe, 1500);
+      setTimeout(checkAndProbe, 4000);
     };
+
     if (document.readyState === 'complete') scheduleProbe();
     else window.addEventListener('load', scheduleProbe, { once: true });
   }
@@ -1217,7 +1229,6 @@ let _softClipCurve = null;
     };
   }
 
-  // ✅ [개선됨] 완벽한 Event-Driven 및 destroy 최적화 적용
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = {
       cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }
@@ -1480,6 +1491,7 @@ let _softClipCurve = null;
       return { fidLite, fidSharp, filters: { lite, sharp }, commonByTier, sharpDetail, st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, sharpKey: '', __filterRes: '', rev: 0 } };
     }
 
+    // ✅ [개선 4-3] getFLAGS() 지역 재선언 중복 제거 완료
     function prepare(video, s) {
       const root = video.ownerDocument || document;
       let dc = urlCache.get(root);
@@ -1534,10 +1546,10 @@ let _softClipCurve = null;
         const bcLinKey = `${conStr}|${interceptStr}`;
         const gk = (1 / clamp(s.gamma || 1, 0.1, 5.0)).toFixed(4);
 
-        const getFLAGS = () => (__vscNs)?.FLAGS;
         const satBase = clamp(s.satF ?? 1, 0, 5.0);
-
         let satAdj = satBase;
+
+        // 💡 상위 스코프에 있는 getFLAGS()를 호출하도록 지역 선언(const getFLAGS = ...) 제거됨
         if (getFLAGS()?.FILTER_SHARP_SAT_COMP && tier === 'sharp') {
           const t = Math.max(0, combinedStrength - 0.22) / (1 - 0.22);
           const userReduce = satBase < 1 ? 0.35 : 1.0;
@@ -1628,6 +1640,7 @@ let _softClipCurve = null;
         try { return prepare(video, s); }
         catch (e) { log.warn('filter prepare failed:', e); return { url: null, changed: false, rev: -1 }; }
       },
+      // ✅ [개선 4-3] getFLAGS() 지역 재선언 중복 제거 완료
       applyUrl: (el, urlObj) => {
         if (!el) return;
         const url = typeof urlObj === 'string' ? urlObj : urlObj?.url;
@@ -1656,7 +1669,7 @@ let _softClipCurve = null;
 
         if (st.lastFilterUrl === url && !forceReapply) return;
 
-        const getFLAGS = () => (__vscNs)?.FLAGS;
+        // 💡 상위 스코프에 있는 getFLAGS()를 호출하도록 지역 선언 제거됨
         const noLayout = !!getFLAGS()?.FILTER_REAPPLY_NO_FORCED_LAYOUT;
 
         if (st.lastFilterUrl === url && forceReapply) {
@@ -2054,7 +2067,6 @@ function bindElementDrag(el, onMove, onEnd) {
         }))
       ]);
 
-      // ✅ [D] 패널 드래그 터치 코드 다이어트 (PointerEvent 단일화)
       const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel);
       let stopDrag = null;
       const startPanelDrag = (e) => {
@@ -2086,7 +2098,6 @@ function bindElementDrag(el, onMove, onEnd) {
       const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); const inFs = !!document.fullscreenElement; if (inFs || getNS()?.CONFIG?.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) { gearBtn.style.opacity = '0.15'; } }, 2500); };
       wakeGear = wake; on(window, 'mousemove', wake, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) }); on(window, 'touchstart', wake, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) }); bootWakeTimer = setTimeout(wake, 2000);
 
-      // ✅ [D] 기어 드래그 터치 코드 다이어트 (PointerEvent 단일화)
       const handleGearDrag = (e) => {
         if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.();
         const startY = e.clientY;
@@ -2098,10 +2109,22 @@ function bindElementDrag(el, onMove, onEnd) {
           if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; }
         }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
       };
-      on(gearBtn, 'pointerdown', handleGearDrag); let lastToggle = 0, lastTouchAt = 0;
-      const onGearActivate = (e) => { if (dragThresholdMet) { safe(() => { if (e && e.cancelable) e.preventDefault(); }); return; } const now = performance.now(); if (now - lastToggle < 300) { safe(() => { if (e && e.cancelable) e.preventDefault(); }); return; } lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI)); };
-      on(gearBtn, 'touchend', (e) => { lastTouchAt = performance.now(); safe(() => { if (e && e.cancelable) e.preventDefault(); e.stopPropagation?.(); }); onGearActivate(e); }, { passive: false });
-      on(gearBtn, 'click', (e) => { const now = performance.now(); if (now - lastTouchAt < 800) { safe(() => { if (e && e.cancelable) e.preventDefault(); e.stopPropagation?.(); }); return; } onGearActivate(e); }, { passive: false });
+      on(gearBtn, 'pointerdown', handleGearDrag);
+
+      // ✅ [개선 3-1] UI 기어 터치/클릭 이벤트 단일화 (Pointer Event)
+      let lastToggle = 0;
+      const onGearActivate = (e) => {
+        if (dragThresholdMet) { safe(() => { if (e && e.cancelable) e.preventDefault(); }); return; }
+        const now = performance.now();
+        if (now - lastToggle < 300) { safe(() => { if (e && e.cancelable) e.preventDefault(); }); return; }
+        lastToggle = now;
+        setAndHint(P.APP_UI, !sm.get(P.APP_UI));
+      };
+      on(gearBtn, 'pointerup', (e) => {
+        safe(() => { if (e && e.cancelable) e.preventDefault(); e.stopPropagation?.(); });
+        onGearActivate(e);
+      }, { passive: false });
+
       const syncGear = () => { if (!gearBtn) return; gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); wake(); };
       sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
     };
@@ -2130,14 +2153,13 @@ function bindElementDrag(el, onMove, onEnd) {
 
   function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; safe(() => { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); }); }
 
-  // ✅ [A, B] zsig 추가, NaN 가드 추가, 줌 모드 OFF 연동 완벽 반영
   function createZoomManager(Store, P) {
     const stateMap = new WeakMap();
     let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
     let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
     let touchListenersAttached = false;
     const zoomAC = new AbortController();
-    const zsig = combineSignals(zoomAC.signal, __globalSig); // 💡 공용 시그널
+    const zsig = combineSignals(zoomAC.signal, __globalSig);
     const zoomedVideos = new Set();
 
     const getSt = (v) => {
@@ -2181,7 +2203,7 @@ function bindElementDrag(el, onMove, onEnd) {
 
     function clampPan(v, st) {
       const rect = getRectCached(v, performance.now(), 300);
-      if (!rect || rect.width <= 1 || rect.height <= 1) return; // 💡 NaN 연산 가드
+      if (!rect || rect.width <= 1 || rect.height <= 1) return;
       const scaledW = rect.width * st.scale, scaledH = rect.height * st.scale;
       const minVisibleFraction = 0.25;
       const minVisW = rect.width * minVisibleFraction, minVisH = rect.height * minVisibleFraction;
@@ -2221,7 +2243,6 @@ function bindElementDrag(el, onMove, onEnd) {
           isPanning = false; pinchState.active = false; activeVideo = null;
         }
       });
-      // 💡 APP_ZOOM_EN이 꺼져도 잔여 줌 초기화 + 모바일 동적 리스너
       unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => {
         if (en) {
           if (CONFIG.IS_MOBILE) attachTouchListeners();
@@ -2245,7 +2266,6 @@ function bindElementDrag(el, onMove, onEnd) {
       return __vscNs.App?.getActiveVideo() || null;
     }
 
-    // 💡 window 이벤트에 모두 signal: zsig 적용
     on(window, 'wheel', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
       if (!(e.altKey && e.shiftKey)) return;
@@ -2676,7 +2696,6 @@ function bindElementDrag(el, onMove, onEnd) {
         safe(() => UI.destroy?.());
         safe(() => { Audio.setTarget(null); Audio.destroy?.(); });
         safe(() => getNS()?.AutoScene?.destroy?.());
-        // ✅ [B] 부팅 및 파괴 사이클에 줌 매니저 연결 완비
         safe(() => getNS()?.ZoomManager?.destroy?.());
         safe(() => Registry.destroy?.());
         safe(() => __globalHooksAC.abort());
@@ -2701,6 +2720,28 @@ function bindElementDrag(el, onMove, onEnd) {
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
+  // ✅ [개선 3-2] GM_registerMenuCommand 지원 (기본 유지보수 단축메뉴)
+  if (typeof GM_registerMenuCommand === 'function') {
+    GM_registerMenuCommand('🔄 설정 초기화 (Reset All)', () => {
+      if(confirm('모든 VSC 설정을 초기화하시겠습니까? (현재 도메인)')) {
+        const key = 'vsc_prefs_' + location.hostname;
+        if(typeof GM_deleteValue === 'function') GM_deleteValue(key);
+        localStorage.removeItem(key);
+        location.reload();
+      }
+    });
+    GM_registerMenuCommand('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
+    GM_registerMenuCommand('🎬 AutoScene 토글', () => { Store.set(P.APP_AUTO_SCENE, !Store.get(P.APP_AUTO_SCENE)); ApplyReq.hard(); });
+    GM_registerMenuCommand('🔊 Audio 토글', () => { Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); });
+    GM_registerMenuCommand('⚙️ UI 열기/닫기', () => { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); });
+    GM_registerMenuCommand('🛠️ 디버그 모드 토글', () => {
+      const url = new URL(location.href);
+      if(url.searchParams.has('vsc_debug')) url.searchParams.delete('vsc_debug');
+      else url.searchParams.set('vsc_debug', '1');
+      location.href = url.toString();
+    });
+  }
+
   function bindNormalizer(keys, schema) { const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); }; keys.forEach(k => Store.sub(k, run)); run(); }
   bindNormalizer(ALL_KEYS, ALL_SCHEMA);
 
@@ -2712,9 +2753,15 @@ function bindElementDrag(el, onMove, onEnd) {
     installShadowRootEmitterIfNeeded();
 
     __vscNs._timers = __vscNs._timers || [];
-    const lateRescanDelays = [3000, 5000, 10000, 20000];
+    // ✅ [개선 2-2] Rescan 지연 타이머 단축 및 비디오 발견 시 불필요한 스캔 생략 최적화
+    const lateRescanDelays = [3000, 10000];
     for (const delay of lateRescanDelays) {
-      const id = setTimeout(() => { safe(() => { Registry.rescanAll(); Scheduler.request(true); safe(() => getNS()?.UIEnsure?.()); }); }, delay);
+      const id = setTimeout(() => {
+        safe(() => {
+          if (delay > 3000 && Registry.videos.size > 0) return;
+          Registry.rescanAll(); Scheduler.request(true); safe(() => getNS()?.UIEnsure?.());
+        });
+      }, delay);
       __vscNs._timers.push(id);
     }
 
