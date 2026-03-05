@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.13 - Pure & Clean)
+// @name         Video_Control (v178.9.14 - Pure & Clean)
 // @namespace    https://github.com/
-// @version      178.9.13
-// @description  Video Control: Alpha-Bug Fix, Anti-Magenta Edge, Perfect Luma Sharpening.
+// @version      178.9.14
+// @description  Video Control: Pure Algebraic Luma Sharpening & Clarity. No Alpha Bugs.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.13');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.14');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.13';
+  __vscNs.__version = '178.9.14';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -1248,29 +1248,6 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
     };
   }
 
-  function getSoftClipTable01(steps, strength) {
-    const s = Math.max(0, Math.min(1, strength || 0));
-    if (s < 1e-4) return '0 1';
-    const knee = 1 - 0.65 * s;
-    const drive = 2 + 5 * s;
-    const tanhD = Math.tanh(drive);
-    const arr = new Array(steps);
-    for (let i = 0; i < steps; i++) {
-      const x = i / (steps - 1);
-      const d = Math.abs(x - 0.5) * 2;
-      const sign = x >= 0.5 ? 1 : -1;
-      let d2 = d;
-      if (d > knee) {
-        const t = (d - knee) / Math.max(1e-6, (1 - knee));
-        const t2 = Math.tanh(drive * t) / tanhD;
-        d2 = knee + (1 - knee) * t2;
-      }
-      const y = 0.5 + sign * (d2 * 0.5);
-      arr[i] = (Math.round(y * 100000) / 100000).toString();
-    }
-    return arr.join(' ');
-  }
-
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -1327,10 +1304,9 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       const std = s > 0 ? (0.45 + s * 0.35).toFixed(2) : '0';
       if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', std);
       if (sharpDetail.ySharp) {
-        setAttr(sharpDetail.ySharp, 'k2', '1');
-        // ✨ FIX: 0.5 mapped values decode. yDiff01 output is scaled to original sharp magnitude.
-        setAttr(sharpDetail.ySharp, 'k3', (amount * 2).toFixed(4));
-        setAttr(sharpDetail.ySharp, 'k4', (-amount).toFixed(4));
+        setAttr(sharpDetail.ySharp, 'k2', (1 + amount).toFixed(4));
+        setAttr(sharpDetail.ySharp, 'k3', (-amount).toFixed(4));
+        setAttr(sharpDetail.ySharp, 'k4', '0');
       }
     };
 
@@ -1439,39 +1415,23 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       const Y_ONLY_LUMA = '0.2126 0.7152 0.0722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0';
       const RGB_TO_CbCr_GB = '0 0 0 0 0 -0.1146 -0.3854 0.5 0 0.5 0.5 -0.4542 -0.0458 0 0.5 0 0 0 1 0';
-      // ✨ FIX: Last row forces Alpha to 1 to prevent Magenta artifacts from negative luma values
-      const YCbCr_TO_RGB = '1 0 1.5748 0 -0.7874 1 -0.1873 -0.4681 0 0.3277 1 1.8556 0 0 -0.9278 0 0 0 0 1';
+      const YCbCr_TO_RGB = '1 0 1.5748 0 -0.7874 1 -0.1873 -0.4681 0 0.3277 1 1.8556 0 0 -0.9278 0 0 0 1 0'; // Standard Alpha
 
       const sYR = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: Y_ONLY_LUMA, result: 's_yR' });
       const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
 
-      // Local Contrast (Clarity) path
+      // Local Contrast (Clarity) - Pure Unsharp
       const yBlurLC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', edgeMode: 'duplicate', result: 's_ybLC' });
-      const yDiffLC01 = h('feComposite', {
-        ns: 'svg', in: 's_yR', in2: 's_ybLC',
-        operator: 'arithmetic', k1: '0', k2: '0.5', k3: '-0.5', k4: '0.5',
-        result: 's_ydLC01'
-      });
-      const lcClip = h('feComponentTransfer', { ns: 'svg', in: 's_ydLC01', result: 's_ydLCc' },
-        h('feFuncR', { ns: 'svg', type: 'table', tableValues: '0 1' }),
-        h('feFuncG', { ns: 'svg', type: 'table', tableValues: '0 1' }),
-        h('feFuncB', { ns: 'svg', type: 'table', tableValues: '0 1' })
-      );
       const yLC = h('feComposite', {
-        ns: 'svg', in: 's_yR', in2: 's_ydLCc',
+        ns: 'svg', in: 's_yR', in2: 's_ybLC',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
         result: 's_yLC'
       });
 
-      // ✨ FIX: Edge Sharpening now uses 0.5 mapped arithmetic to prevent negative value clamping
+      // Edge Sharpening - Pure Unsharp
       const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yLC', stdDeviation: '0', edgeMode: 'duplicate', result: 's_yb1' });
-      const yDiff01 = h('feComposite', {
-        ns: 'svg', in: 's_yLC', in2: 's_yb1',
-        operator: 'arithmetic', k1: '0', k2: '0.5', k3: '-0.5', k4: '0.5',
-        result: 's_yd1_01'
-      });
       const ySharp = h('feComposite', {
-        ns: 'svg', in: 's_yLC', in2: 's_yd1_01',
+        ns: 'svg', in: 's_yLC', in2: 's_yb1',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
         result: 's_ySharpR'
       });
@@ -1481,14 +1441,14 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       sharp.append(
         cS.t, cS.b, cS.g, sYR, sUV,
-        yBlurLC, yDiffLC01, lcClip, yLC,
-        yBlur, yDiff01, ySharp,
+        yBlurLC, yLC,
+        yBlur, ySharp,
         yuv, toRgb, pS.tmp.tm, pS.s
       );
 
       let sharpDetail = {
         mode: 'basic', blurF: yBlur, ySharp: ySharp,
-        lcBlurF: yBlurLC, lcApply: yLC, lcClipFuncs: Array.from(lcClip.children)
+        lcBlurF: yBlurLC, lcApply: yLC
       };
 
       defs.append(lite, sharp);
@@ -1515,7 +1475,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
         st: {
           lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '',
           commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } },
-          sharpKey: '', lcKey: '', lcClipKey: '', rev: 0
+          sharpKey: '', lcKey: '', rev: 0
         }
       };
     }
@@ -1623,31 +1583,13 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
         if (lcBase < 1e-3) { lcAmount = 0; lcStd = 0; }
 
-        let lcClamp = 0;
-        if (lcAmount > 0.001 && lcStd > 0.001) {
-          lcClamp = Utils.clamp((lcAmount - 0.10) / 0.22, 0, 1);
-          lcClamp = Utils.clamp(lcClamp + (1 - qsEff) * 0.25, 0, 1);
-        }
-
-        const lcSteps = 33;
-        const lcTable = getSoftClipTable01(lcSteps, lcClamp);
-        const clipKey = `${lcSteps}|${lcClamp.toFixed(3)}|${lcTable.length}`;
-
-        if (nodes.st.lcClipKey !== clipKey) {
-          nodes.st.lcClipKey = clipKey;
-          const funcs = nodes.sharpDetail?.lcClipFuncs;
-          if (funcs && funcs.length) {
-            for (const fn of funcs) setAttr(fn, 'tableValues', lcTable);
-          }
-        }
-
         const lcKey = `${lcAmount.toFixed(4)}|${lcStd.toFixed(2)}`;
         if (nodes.st.lcKey !== lcKey) {
           nodes.st.lcKey = lcKey;
           if (nodes.sharpDetail?.lcBlurF) setAttr(nodes.sharpDetail.lcBlurF, 'stdDeviation', lcStd.toFixed(2));
           if (nodes.sharpDetail?.lcApply) {
-            setAttr(nodes.sharpDetail.lcApply, 'k3', (lcAmount * 2).toFixed(4));
-            setAttr(nodes.sharpDetail.lcApply, 'k4', (-lcAmount).toFixed(4));
+            setAttr(nodes.sharpDetail.lcApply, 'k2', (1 + lcAmount).toFixed(4));
+            setAttr(nodes.sharpDetail.lcApply, 'k3', (-lcAmount).toFixed(4));
           }
         }
       }
@@ -1664,7 +1606,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
           const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
           const nodes = ctxMap.get(root);
           if (nodes) {
-            nodes.st.lastKey = ''; nodes.st.sharpKey = ''; nodes.st.lcKey = ''; nodes.st.lcClipKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
+            nodes.st.lastKey = ''; nodes.st.sharpKey = ''; nodes.st.lcKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
             for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; } }
           }
           const dc = urlCache.get(root);
