@@ -1066,9 +1066,17 @@ let _softClipCurve = null;
       if (document.hidden) { audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 500); }
       else if (isPaused) {
         if (target && !target.ended) {
-          const resume = () => { target.removeEventListener('play', resume); target.removeEventListener('seeked', resume); if (tok === loopTok) runAudioLoop(tok); };
-          target.addEventListener('play', resume, { once: true }); target.addEventListener('seeked', resume, { once: true });
-          audioLoopTimerId = setTimeout(() => { target.removeEventListener('play', resume); target.removeEventListener('seeked', resume); if (tok === loopTok) runAudioLoop(tok); }, 30000);
+          const currentTarget = target; // 현재 타겟의 참조를 안전하게 캡처
+          const resume = () => { currentTarget.removeEventListener('play', resume); currentTarget.removeEventListener('seeked', resume); if (tok === loopTok) runAudioLoop(tok); };
+          currentTarget.addEventListener('play', resume, { once: true }); currentTarget.addEventListener('seeked', resume, { once: true });
+
+          audioLoopTimerId = setTimeout(() => {
+            if (currentTarget) {
+              currentTarget.removeEventListener('play', resume);
+              currentTarget.removeEventListener('seeked', resume);
+            }
+            if (tok === loopTok) runAudioLoop(tok);
+          }, 30000);
         }
       } else {
         const needFast = !!sm.get(P.A_LUFS) || !!sm.get(P.A_MULTIBAND) || !!sm.get(P.A_DIALOGUE);
