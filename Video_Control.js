@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.9 - Pure & Clean)
+// @name         Video_Control (v178.10.0 - Pure & Clean)
 // @namespace    https://github.com/
-// @version      178.9.9
+// @version      178.10.0
 // @description  Video Control: TM Menu Cleanup, FS Redirect Patch, SVG Global Mount, Audio Sync Fix (UI Click Bug Fixed).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.8');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.10.0');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.9';
+  __vscNs.__version = '178.10.0';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -96,20 +96,30 @@ function VSC_MAIN() {
   };
   __vscNs.blockInterference = blockInterference;
 
-  // ✨ Video Fullscreen Redirect Patch 반영
+  // ✨ 다중 벤더 전체화면 패치 (webkit, moz, ms 대응)
   (function patchFullscreenForVideo() {
     const proto = HTMLVideoElement?.prototype;
-    if (!proto?.requestFullscreen) return;
-    if (proto.requestFullscreen.__vsc_patched) return;
-    const orig = proto.requestFullscreen;
-    proto.requestFullscreen = function(...args) {
-      if (getFLAGS()?.FS_REDIRECT_TO_PARENT) {
-        const p = this.closest('[class*="player"], [id*="player"], [data-player]') || this.parentElement;
-        if (p && p.requestFullscreen) return p.requestFullscreen(...args);
-      }
-      return orig.apply(this, args);
-    };
-    proto.requestFullscreen.__vsc_patched = true;
+    if (!proto) return;
+
+    const reqFns = ['requestFullscreen', 'webkitRequestFullscreen', 'mozRequestFullScreen', 'msRequestFullscreen'];
+
+    reqFns.forEach(k => {
+      const orig = proto[k];
+      if (typeof orig !== 'function' || orig.__vsc_patched) return;
+
+      proto[k] = function(...args) {
+        // freeze를 풀거나 Store를 쓰면 여기서 실시간 플래그 확인 가능
+        if (getFLAGS()?.FS_REDIRECT_TO_PARENT) {
+          const p = this.closest('[class*="player"], [id*="player"], [data-player]') || this.parentElement;
+          if (p && (p[k] || p.requestFullscreen)) {
+            const fn = p[k] || p.requestFullscreen;
+            return fn.apply(p, args);
+          }
+        }
+        return orig.apply(this, args);
+      };
+      proto[k].__vsc_patched = true;
+    });
   })();
 
   function on(target, type, fn, opts = {}) {
@@ -2541,7 +2551,7 @@ const PiPState = {
         _applySet.clear();
 
         if (applyToAllVisibleVideos) {
-          for (const v of Registry.videos) _applySet.add(v);
+          for (const v of Registry.visible.videos) _applySet.add(v);
         } else if (__activeTarget) {
           _applySet.add(__activeTarget);
         }
@@ -2716,8 +2726,11 @@ const PiPState = {
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
-  // ✨ GM 메뉴 중복 방지 로직 연동
-  if (typeof GM_registerMenuCommand === 'function') {
+  // ✨ 최상위 프레임 여부 확인 가드 추가
+  const isTop = (window.top === window);
+
+  // ✨ GM 메뉴 등록 (isTop 가드로 iframe 내 중복 등록 방지)
+  if (isTop && typeof GM_registerMenuCommand === 'function') {
     const reg = (title, fn) => {
       const id = GM_registerMenuCommand(title, fn);
       if (__vscNs._menuIds) __vscNs._menuIds.push(id);
@@ -2771,7 +2784,7 @@ const PiPState = {
     const AutoScene = createAutoSceneManager(Store, P, Scheduler); __vscNs.AutoScene = AutoScene;
 
     __vscNs.CONFIG = CONFIG;
-    __vscNs.FLAGS = Object.freeze({ ...FLAGS });
+    __vscNs.FLAGS = FLAGS;
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
     const Adapter = createBackendAdapter(Filters);
