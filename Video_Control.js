@@ -211,7 +211,7 @@ function VSC_MAIN() {
     audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false },
     playback: { rate: 1.0, enabled: false },
     // ✨ [신규 로직 반영] timeEn, timePos 속성 추가 (기본값: 시간표시 ON, 우측상단)
-    app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, autoScenePreset: 'Normal', advanced: false, timeEn: true, timePos: 2 }
+    app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, autoScenePreset: 'Normal', advanced: false, timeEn: true, timePos: 1 }
   };
 
   const P = Object.freeze({
@@ -222,7 +222,7 @@ function VSC_MAIN() {
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   });
 
-  const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 2 } ];
+  const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ];
   const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
   const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
@@ -2435,6 +2435,8 @@ function applyPlaybackRate(el, desiredRate) {
     );
   }
 
+  let __vscUserSignalRev = 0;
+
   function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
     UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
     Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
@@ -2582,7 +2584,7 @@ function applyPlaybackRate(el, desiredRate) {
     });
   }
 
-  // ✨ [신규 로직 4] 전체화면 타이머 매니저 (반응형 크기, 노란색, 스마트 여백 적용)
+  // ✨ [최종 로직] 중앙 기본값 + 반응형 크기 + 투명도 0.5 적용
   function createTimerManager(Store, P) {
     let timerEl = null;
     let intervalId = null;
@@ -2592,7 +2594,6 @@ function applyPlaybackRate(el, desiredRate) {
       const timeEn = Store.get(P.APP_TIME_EN);
       const isFs = !!document.fullscreenElement;
 
-      // 작동 조건에 맞지 않으면 시계 숨김
       if (!act || !timeEn || !isFs) {
         if (timerEl) timerEl.style.display = 'none';
         return;
@@ -2607,16 +2608,15 @@ function applyPlaybackRate(el, desiredRate) {
       const parent = activeVideo.parentNode;
       if (!parent) return;
 
-      // 시계 엘리먼트가 없거나 부모가 바뀌었으면 생성
       if (!timerEl || timerEl.parentNode !== parent) {
         if (timerEl) { try { timerEl.remove(); } catch(_) {} }
         timerEl = document.createElement('div');
         timerEl.className = 'vsc-fs-timer';
-        const stroke = getNS()?.getSmoothStroke('#000000'); // 8방향 텍스트 스트로크
+        const stroke = getNS()?.getSmoothStroke('#000000');
         timerEl.style.cssText = `
           position: absolute;
           z-index: 2147483647;
-          color: #FFE600; /* 자막용 노란색으로 가독성 최적화 */
+          color: #FFE600;
           font-family: 'LXGW WenKai Mono TC', ui-monospace, Consolas, monospace;
           font-weight: bold;
           pointer-events: none;
@@ -2625,50 +2625,47 @@ function applyPlaybackRate(el, desiredRate) {
           letter-spacing: 1px;
           ${stroke}
           transition: opacity 0.2s;
-          opacity: 0.9;
+          opacity: 0.5; /* ✨ 투명도를 0.5로 낮춰 배경 조화 강조 */
         `;
         parent.appendChild(timerEl);
       }
 
       timerEl.style.display = 'block';
 
-      // 시간 갱신 (innerText 사용으로 Trusted Types 안전성 확보)
       const now = new Date();
       timerEl.innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      // --- 반응형 위치 및 크기 계산 ---
       const vRect = activeVideo.getBoundingClientRect();
       const pRect = parent.getBoundingClientRect();
       const vWidth = vRect.width;
 
-      // 영상 너비에 따른 글자 크기 동적 조절
+      // 1. 반응형 글자 크기
       let dynamicSize = 24;
-      if (vWidth >= 2500) dynamicSize = 36;      // 4K 이상
-      else if (vWidth >= 1900) dynamicSize = 30; // FHD
-      else if (vWidth >= 1200) dynamicSize = 24; // HD
-      else dynamicSize = 18;                     // 작은 창
-
+      if (vWidth >= 2500) dynamicSize = 36;
+      else if (vWidth >= 1900) dynamicSize = 30;
+      else if (vWidth >= 1200) dynamicSize = 24;
+      else dynamicSize = 18;
       timerEl.style.fontSize = `${dynamicSize}px`;
 
-      // 상단 여백 조절 (작은 화면일수록 더 위로 밀착)
+      // 2. 상단 여백 조절
       const topOffset = vWidth > 1200 ? 16 : 8;
       const top = (vRect.top - pRect.top) + topOffset;
       timerEl.style.top = `${top > topOffset ? top : topOffset}px`;
 
-      const pos = Store.get(P.APP_TIME_POS); // 0: 좌, 1: 중, 2: 우
+      const pos = Store.get(P.APP_TIME_POS); // ✨ 기본값 1(중앙)
       const edgeMargin = vWidth > 1200 ? 20 : 10;
 
-      if (pos === 0) { // 좌측
+      if (pos === 0) { // 좌
         const left = (vRect.left - pRect.left) + edgeMargin;
         timerEl.style.left = `${left > edgeMargin ? left : edgeMargin}px`;
         timerEl.style.right = 'auto';
         timerEl.style.transform = 'none';
-      } else if (pos === 1) { // 중앙
+      } else if (pos === 1) { // 중 (기본값)
         const left = (vRect.left - pRect.left) + (vRect.width / 2);
         timerEl.style.left = `${left}px`;
         timerEl.style.right = 'auto';
         timerEl.style.transform = 'translateX(-50%)';
-      } else { // 우측
+      } else { // 우
         const right = (pRect.right - vRect.right) + edgeMargin;
         timerEl.style.right = `${right > edgeMargin ? right : edgeMargin}px`;
         timerEl.style.left = 'auto';
@@ -2677,12 +2674,8 @@ function applyPlaybackRate(el, desiredRate) {
     }
 
     intervalId = setInterval(updateTimer, 1000);
-
     return {
-      destroy: () => {
-        if (intervalId) clearInterval(intervalId);
-        if (timerEl) { try { timerEl.remove(); } catch (_) {} }
-      }
+      destroy: () => { if (intervalId) clearInterval(intervalId); if (timerEl) { try { timerEl.remove(); } catch (_) {} } }
     };
   }
 
