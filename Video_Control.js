@@ -2565,7 +2565,7 @@ function applyPlaybackRate(el, desiredRate) {
         safe(() => { Audio.setTarget(null); Audio.destroy?.(); });
         safe(() => getNS()?.AutoScene?.destroy?.());
         safe(() => getNS()?.ZoomManager?.destroy?.());
-        safe(() => getNS()?.TimerManager?.destroy?.()); // 타이머 매니저 해제
+        safe(() => getNS()?.TimerManager?.destroy?.());
         safe(() => Registry.destroy?.());
         safe(() => __globalHooksAC.abort());
         safe(() => getNS()?._restoreHistory?.());
@@ -2582,7 +2582,7 @@ function applyPlaybackRate(el, desiredRate) {
     });
   }
 
-  // ✨ [신규 로직 4] 전체화면 타이머 매니저 (Full-Screen Time Overlay)
+  // ✨ [신규 로직 4] 전체화면 타이머 매니저 (반응형 크기, 노란색, 스마트 여백 적용)
   function createTimerManager(Store, P) {
     let timerEl = null;
     let intervalId = null;
@@ -2607,18 +2607,17 @@ function applyPlaybackRate(el, desiredRate) {
       const parent = activeVideo.parentNode;
       if (!parent) return;
 
-      // 시계 엘리먼트가 없거나 부모가 바뀌었으면 재성성 (Trusted Types 우회 적용)
+      // 시계 엘리먼트가 없거나 부모가 바뀌었으면 생성
       if (!timerEl || timerEl.parentNode !== parent) {
         if (timerEl) { try { timerEl.remove(); } catch(_) {} }
         timerEl = document.createElement('div');
         timerEl.className = 'vsc-fs-timer';
-        const stroke = getNS()?.getSmoothStroke('#000000');
+        const stroke = getNS()?.getSmoothStroke('#000000'); // 8방향 텍스트 스트로크
         timerEl.style.cssText = `
           position: absolute;
           z-index: 2147483647;
-          color: #eeeeee;
+          color: #FFE600; /* 자막용 노란색으로 가독성 최적화 */
           font-family: 'LXGW WenKai Mono TC', ui-monospace, Consolas, monospace;
-          font-size: 26px;
           font-weight: bold;
           pointer-events: none;
           user-select: none;
@@ -2626,40 +2625,52 @@ function applyPlaybackRate(el, desiredRate) {
           letter-spacing: 1px;
           ${stroke}
           transition: opacity 0.2s;
-          opacity: 0.85;
+          opacity: 0.9;
         `;
         parent.appendChild(timerEl);
       }
 
       timerEl.style.display = 'block';
 
+      // 시간 갱신 (innerText 사용으로 Trusted Types 안전성 확보)
       const now = new Date();
-      const hh = String(now.getHours()).padStart(2, '0');
-      const mm = String(now.getMinutes()).padStart(2, '0');
-      const ss = String(now.getSeconds()).padStart(2, '0');
-      timerEl.innerText = `${hh}:${mm}:${ss}`;
+      timerEl.innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
-      const pos = Store.get(P.APP_TIME_POS); // 0: 좌, 1: 중, 2: 우
+      // --- 반응형 위치 및 크기 계산 ---
       const vRect = activeVideo.getBoundingClientRect();
       const pRect = parent.getBoundingClientRect();
+      const vWidth = vRect.width;
 
-      // 오프셋 계산 (비디오 화면 내부 기준)
-      const top = (vRect.top - pRect.top) + 24;
-      timerEl.style.top = `${top > 0 ? top : 24}px`;
+      // 영상 너비에 따른 글자 크기 동적 조절
+      let dynamicSize = 24;
+      if (vWidth >= 2500) dynamicSize = 36;      // 4K 이상
+      else if (vWidth >= 1900) dynamicSize = 30; // FHD
+      else if (vWidth >= 1200) dynamicSize = 24; // HD
+      else dynamicSize = 18;                     // 작은 창
 
-      if (pos === 0) { // 좌
-        const left = (vRect.left - pRect.left) + 24;
-        timerEl.style.left = `${left > 0 ? left : 24}px`;
+      timerEl.style.fontSize = `${dynamicSize}px`;
+
+      // 상단 여백 조절 (작은 화면일수록 더 위로 밀착)
+      const topOffset = vWidth > 1200 ? 16 : 8;
+      const top = (vRect.top - pRect.top) + topOffset;
+      timerEl.style.top = `${top > topOffset ? top : topOffset}px`;
+
+      const pos = Store.get(P.APP_TIME_POS); // 0: 좌, 1: 중, 2: 우
+      const edgeMargin = vWidth > 1200 ? 20 : 10;
+
+      if (pos === 0) { // 좌측
+        const left = (vRect.left - pRect.left) + edgeMargin;
+        timerEl.style.left = `${left > edgeMargin ? left : edgeMargin}px`;
         timerEl.style.right = 'auto';
         timerEl.style.transform = 'none';
-      } else if (pos === 1) { // 중
+      } else if (pos === 1) { // 중앙
         const left = (vRect.left - pRect.left) + (vRect.width / 2);
-        timerEl.style.left = `${left > 0 ? left : pRect.width / 2}px`;
+        timerEl.style.left = `${left}px`;
         timerEl.style.right = 'auto';
         timerEl.style.transform = 'translateX(-50%)';
-      } else { // 우
-        const rightOffset = pRect.right - vRect.right + 24;
-        timerEl.style.right = `${rightOffset > 0 ? rightOffset : 24}px`;
+      } else { // 우측
+        const right = (pRect.right - vRect.right) + edgeMargin;
+        timerEl.style.right = `${right > edgeMargin ? right : edgeMargin}px`;
         timerEl.style.left = 'auto';
         timerEl.style.transform = 'none';
       }
