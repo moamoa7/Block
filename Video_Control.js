@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.15 - Pure & Clean)
+// @name         Video_Control (v178.9.16 - Pure & Clean)
 // @namespace    https://github.com/
-// @version      178.9.15
+// @version      178.9.16
 // @description  Video Control: Pure Algebraic Luma Sharpening & Clarity. No Alpha Bugs.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.15');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.16');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.15';
+  __vscNs.__version = '178.9.16';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -1226,9 +1226,9 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.08, ct: 1.02, sat: 1.00, sharpScale: 1.00 },
-      Normal: { br: 1.12, ct: 1.02, sat: 1.00, sharpScale: 1.00 },
-      Strong: { br: 1.18, ct: 1.02, sat: 1.00, sharpScale: 1.00 }
+      Soft:   { br: 1.08, ct: 1.02, sat: 1.00, sharpScale: 1.10 },
+      Normal: { br: 1.18, ct: 1.04, sat: 1.00, sharpScale: 1.20 },
+      Strong: { br: 1.30, ct: 1.06, sat: 1.00, sharpScale: 1.30 }
     });
 
     function update() {
@@ -1391,8 +1391,11 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       const mkFuncRGB = (attrs) => ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', ...attrs }));
 
-      const mkC = (p) => {
-        const t = h('feComponentTransfer', { ns: 'svg', result: `${p}_t` }, mkFuncRGB({ type: 'table', tableValues: '0 1' }));
+      // ✨ 파이프라인 복구 1: 밝기/블랙 조절 노드가 이전 단계의 결과물을 제대로 물려받도록 'inNode' 추가
+      const mkC = (p, inNode) => {
+        const propsT = { ns: 'svg', result: `${p}_t` };
+        if (inNode) propsT.in = inNode; // 이전 파이프라인 연결
+        const t = h('feComponentTransfer', propsT, mkFuncRGB({ type: 'table', tableValues: '0 1' }));
         const b = h('feComponentTransfer', { ns: 'svg', in: `${p}_t`, result: `${p}_b` }, mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' }));
         const g = h('feComponentTransfer', { ns: 'svg', in: `${p}_b`, result: `${p}_g` }, mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' }));
         return { t, b, g };
@@ -1404,32 +1407,33 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
         return { tmp, s };
       };
 
-      // 도화지 설정 0%로 딱 맞춤 (여백 블리딩 차단)
       const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      const cL = mkC('l');
+      const cL = mkC('l', 'SourceGraphic'); // Lite 모드는 원본을 바로 받음
       const pL = mkP('l', 'l_g');
       lite.append(cL.t, cL.b, cL.g, pL.tmp.tm, pL.s);
 
       const sharp = h('filter', { ns: 'svg', id: fidSharp, x: '0%', y: '0%', width: '100%', height: '100%' });
-      const cS = mkC('s');
       const pS = mkP('s', 's_out');
 
       sharp.setAttribute('color-interpolation-filters', 'sRGB');
 
-      // ✨ 알파 보호막 1단계: 연산 전 투명도를 1로 강제 고정하여 색상 붕괴(분홍테두리) 방지
+      // 1. 알파 채널 1로 고정 (분홍색 버그 차단막)
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' },
         h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' })
       );
+
+      // ✨ 파이프라인 복구 2: 블랙/밝기 조절 기능이 's_opaque'를 넘겨받아 's_g'로 출력함
+      const cS = mkC('s', 's_opaque');
 
       const Y_ONLY_LUMA = '0.2126 0.7152 0.0722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0';
       const RGB_TO_CbCr_GB = '0 0 0 0 0 -0.1146 -0.3854 0.5 0 0.5 0.5 -0.4542 -0.0458 0 0.5 0 0 0 1 0';
       const YCbCr_TO_RGB = '1 0 1.5748 0 -0.7874 1 -0.1873 -0.4681 0 0.3277 1 1.8556 0 0 -0.9278 0 0 0 1 0';
 
-      // in 속성을 SourceGraphic이 아닌 s_opaque로 변경
-      const sYR = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: Y_ONLY_LUMA, result: 's_yR' });
-      const sUV = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
+      // ✨ 파이프라인 복구 3: 샤프닝 연산이 's_opaque(날것)'가 아닌 보정이 끝난 's_g(밝기조절완료)'를 받도록 원상복구
+      const sYR = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: Y_ONLY_LUMA, result: 's_yR' });
+      const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
 
-      // ✨ 단일 노드 로컬 콘트라스트 (클래리티)
+      // Local Contrast (단일 노드 순정 공식)
       const yBlurLC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', edgeMode: 'duplicate', result: 's_ybLC' });
       const yLC = h('feComposite', {
         ns: 'svg', in: 's_yR', in2: 's_ybLC',
@@ -1437,7 +1441,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
         result: 's_yLC'
       });
 
-      // ✨ 단일 노드 엣지 샤프닝 (0.5 압축 없이 순정 수학 공식으로 처리)
+      // Edge Sharpening (단일 노드 순정 공식)
       const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yLC', stdDeviation: '0', edgeMode: 'duplicate', result: 's_yb1' });
       const ySharp = h('feComposite', {
         ns: 'svg', in: 's_yLC', in2: 's_yb1',
@@ -1448,19 +1452,19 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
       const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
 
-      // pS.s의 결과를 임시로 저장하도록 수정
+      // 결과물을 s_final_rgb로 임시 저장
       pS.s.setAttribute('result', 's_final_rgb');
 
-      // ✨ 알파 보호막 2단계: 연산이 끝난 후 원본 영상의 투명도(SourceGraphic)를 다시 마스킹
+      // 최종 단계: 원본 투명도 복구 마스킹
       const restoreAlpha = h('feComposite', { ns: 'svg', in: 's_final_rgb', in2: 'SourceGraphic', operator: 'in', result: 's_out_final' });
 
       sharp.append(
-        sOpaque, // 맨 앞에 삽입
+        sOpaque,
         cS.t, cS.b, cS.g, sYR, sUV,
         yBlurLC, yLC,
         yBlur, ySharp,
         yuv, toRgb, pS.tmp.tm, pS.s,
-        restoreAlpha // 맨 마지막에 삽입
+        restoreAlpha
       );
 
       let sharpDetail = {
