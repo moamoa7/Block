@@ -17,6 +17,12 @@
 // @exclude      *://tvhot.store/*
 // @exclude      *://claude.ai/*
 // @exclude      *://arena.ai/*
+// @exclude      *://supjav.com/*
+// @exclude      *://javgg.net/*
+// @exclude      *://sextb.date/*
+// @exclude      *://7tv*.com/*
+// @exclude      *://*.sogirl.so/*
+// @exclude      *://*.4kjav.co/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
