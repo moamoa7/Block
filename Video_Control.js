@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.16 - Pure & Clean)
+// @name         Video_Control (v178.9.17 - Advanced Luma Masking)
 // @namespace    https://github.com/
-// @version      178.9.16
-// @description  Video Control: Pure Algebraic Luma Sharpening & Clarity. No Alpha Bugs.
+// @version      178.9.17
+// @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.16');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.17');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.16';
+  __vscNs.__version = '178.9.17';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -245,10 +245,10 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 },
-      S: { sharpAdd: 12, sharp2Add: 12, clarityAdd: 24, sat: 1.00 },
-      M: { sharpAdd: 24, sharp2Add: 24, clarityAdd: 36, sat: 1.00 },
-      L: { sharpAdd: 36, sharp2Add: 36, clarityAdd: 48, sat: 1.00 },
-      XL: { sharpAdd: 48, sharp2Add: 48, clarityAdd: 60, sat: 1.00 }
+      S: { sharpAdd: 6, sharp2Add: 5, clarityAdd: 24, sat: 1.00 },
+      M: { sharpAdd: 12, sharp2Add: 10, clarityAdd: 36, sat: 1.00 },
+      L: { sharpAdd: 18, sharp2Add: 15, clarityAdd: 48, sat: 1.00 },
+      XL: { sharpAdd: 24, sharp2Add: 20, clarityAdd: 60, sat: 1.00 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -277,7 +277,7 @@ function VSC_MAIN() {
   });
 
   const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ];
-  const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
+  const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 4, round: true, fallback: () => 0 } ];
   const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
@@ -543,7 +543,8 @@ function VSC_MAIN() {
   }
 
 // --- PART 1 END ---
-const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
+// --- PART 2 START ---
+  const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
 
   const PiPState = {
     window: null, video: null, placeholder: null, origParent: null, origCss: '', _ac: null, _watcherId: null,
@@ -1295,19 +1296,16 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       node.setAttribute(attr, strVal);
     }
 
-    // ✨ 단일 노드 순정 공식 적용 (음수 클램핑 문제 원천 해결)
-    const applyLumaSharpening = (sharpDetail, strength, qs = 1) => {
+    // ✨ 개선점: sharp(강도)와 sharp2(반경)의 수학적 분리 적용
+    const applyLumaSharpening = (sharpDetail, amount, std) => {
       if (!sharpDetail) return;
-      const s = Math.min(1, Math.max(0, strength));
-      const q = Math.sqrt(Math.max(0.50, Math.min(1, qs)));
-      const amountRaw = (s * 1.90) * q;
-      const amount = Math.min(1.7, amountRaw);
-      const std = s > 0 ? (0.45 + s * 0.35).toFixed(2) : '0';
+      const safeAmount = Math.min(2.5, Math.max(0, amount));
+      const safeStd = Math.min(3.0, Math.max(0, std));
 
-      if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', std);
+      if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', safeStd.toFixed(2));
       if (sharpDetail.ySharp) {
-        setAttr(sharpDetail.ySharp, 'k2', (1 + amount).toFixed(4));
-        setAttr(sharpDetail.ySharp, 'k3', (-amount).toFixed(4));
+        setAttr(sharpDetail.ySharp, 'k2', (1 + safeAmount).toFixed(4));
+        setAttr(sharpDetail.ySharp, 'k3', (-safeAmount).toFixed(4));
         setAttr(sharpDetail.ySharp, 'k4', '0');
       }
     };
@@ -1391,10 +1389,9 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       const mkFuncRGB = (attrs) => ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', ...attrs }));
 
-      // ✨ 파이프라인 복구 1: 밝기/블랙 조절 노드가 이전 단계의 결과물을 제대로 물려받도록 'inNode' 추가
       const mkC = (p, inNode) => {
         const propsT = { ns: 'svg', result: `${p}_t` };
-        if (inNode) propsT.in = inNode; // 이전 파이프라인 연결
+        if (inNode) propsT.in = inNode;
         const t = h('feComponentTransfer', propsT, mkFuncRGB({ type: 'table', tableValues: '0 1' }));
         const b = h('feComponentTransfer', { ns: 'svg', in: `${p}_t`, result: `${p}_b` }, mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' }));
         const g = h('feComponentTransfer', { ns: 'svg', in: `${p}_b`, result: `${p}_g` }, mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' }));
@@ -1408,7 +1405,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       };
 
       const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      const cL = mkC('l', 'SourceGraphic'); // Lite 모드는 원본을 바로 받음
+      const cL = mkC('l', 'SourceGraphic');
       const pL = mkP('l', 'l_g');
       lite.append(cL.t, cL.b, cL.g, pL.tmp.tm, pL.s);
 
@@ -1417,23 +1414,19 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       sharp.setAttribute('color-interpolation-filters', 'sRGB');
 
-      // 1. 알파 채널 1로 고정 (분홍색 버그 차단막)
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' },
         h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' })
       );
 
-      // ✨ 파이프라인 복구 2: 블랙/밝기 조절 기능이 's_opaque'를 넘겨받아 's_g'로 출력함
       const cS = mkC('s', 's_opaque');
 
       const Y_ONLY_LUMA = '0.2126 0.7152 0.0722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0';
       const RGB_TO_CbCr_GB = '0 0 0 0 0 -0.1146 -0.3854 0.5 0 0.5 0.5 -0.4542 -0.0458 0 0.5 0 0 0 1 0';
       const YCbCr_TO_RGB = '1 0 1.5748 0 -0.7874 1 -0.1873 -0.4681 0 0.3277 1 1.8556 0 0 -0.9278 0 0 0 1 0';
 
-      // ✨ 파이프라인 복구 3: 샤프닝 연산이 's_opaque(날것)'가 아닌 보정이 끝난 's_g(밝기조절완료)'를 받도록 원상복구
       const sYR = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: Y_ONLY_LUMA, result: 's_yR' });
       const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
 
-      // Local Contrast (단일 노드 순정 공식)
       const yBlurLC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', edgeMode: 'duplicate', result: 's_ybLC' });
       const yLC = h('feComposite', {
         ns: 'svg', in: 's_yR', in2: 's_ybLC',
@@ -1441,7 +1434,6 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
         result: 's_yLC'
       });
 
-      // Edge Sharpening (단일 노드 순정 공식)
       const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yLC', stdDeviation: '0', edgeMode: 'duplicate', result: 's_yb1' });
       const ySharp = h('feComposite', {
         ns: 'svg', in: 's_yLC', in2: 's_yb1',
@@ -1452,10 +1444,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
       const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
 
-      // 결과물을 s_final_rgb로 임시 저장
       pS.s.setAttribute('result', 's_final_rgb');
-
-      // 최종 단계: 원본 투명도 복구 마스킹
       const restoreAlpha = h('feComposite', { ns: 'svg', in: 's_final_rgb', in2: 'SourceGraphic', operator: 'in', result: 's_out_final' });
 
       sharp.append(
@@ -1509,21 +1498,13 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       ensureOpaqueBg(video);
 
-      const qSharp = Math.round(Number(s.sharp || 0));
-      const qSharp2 = Math.round(Number(s.sharp2 || 0));
-      const qClarity = Math.round(Number(s.clarity || 0));
+      const qSharp = Math.round(Number(s.sharp || 0));     // Amount(강도)
+      const qSharp2 = Math.round(Number(s.sharp2 || 0));   // Radius(반경)
+      const qClarity = Math.round(Number(s.clarity || 0)); // Local Contrast(클래리티)
       const sharpTotal = (qSharp + qSharp2 + qClarity);
       const tier = sharpTotal > 0 ? 'sharp' : 'lite';
 
-      let combinedStrength = 0;
-      if (tier === 'sharp') {
-        const n1 = qSharp / 52, n2 = qSharp2 / 74, n3 = qClarity / 64;
-        combinedStrength = clamp01(n1 * 0.40 + n2 * 0.40 + n3 * 0.20);
-      }
-
       const stableKey = `${tier}|${makeKeyBase(s)}`;
-      const qsRaw = Number(s._qs !== undefined ? s._qs : 1);
-      const qs = Math.round(qsRaw * 20) / 20;
 
       let nodes = ctxMap.get(root);
       if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
@@ -1560,7 +1541,9 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
         let satAdj = satBase;
         if (getFLAGS()?.FILTER_SHARP_SAT_COMP && tier === 'sharp') {
-          const t = Math.max(0, combinedStrength - 0.22) / (1 - 0.22);
+          // 채도 보상을 clarity와 sharp의 합산 비율로 재조정
+          const totalStrength = clamp01((qSharp / 50) * 0.5 + (qClarity / 60) * 0.5);
+          const t = Math.max(0, totalStrength - 0.22) / (1 - 0.22);
           const userReduce = satBase < 1 ? 0.35 : 1.0;
           const boost = userReduce * (t * 0.18);
           satAdj = clamp(Math.min(satBase * (1 + boost), satBase + 0.25), 0, 5.0);
@@ -1582,24 +1565,23 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       }
 
       if (tier === 'sharp') {
-        const quantizedStrength = Math.round(combinedStrength * 50) / 50;
-        const sharpKeyNext = `${quantizedStrength.toFixed(3)}|${qs.toFixed(2)}`;
+        // ✨ [A+B] 핵심: 강도(qSharp)와 반경(qSharp2)의 수학적 분리
+        const sharpAmount = Math.max(0, qSharp / 35); // XL(48) 기준 약 1.37
+        const sharpRadius = clamp(0.3 + (qSharp2 / 24), 0, 2.5); // XL(48) 기준 최대 반경 2.3px 제한 (성능 고려)
+
+        const sharpKeyNext = `${sharpAmount.toFixed(3)}|${sharpRadius.toFixed(2)}`;
 
         if (nodes.st.sharpKey !== sharpKeyNext) {
           nodes.st.sharpKey = sharpKeyNext;
           nodes.st.rev = (nodes.st.rev + 1) | 0;
-          applyLumaSharpening(nodes.sharpDetail, quantizedStrength, qs);
+          applyLumaSharpening(nodes.sharpDetail, sharpAmount, sharpRadius);
         }
 
+        // ✨ [A] 클래리티 독립 제어
         const lcBase = clamp01(qClarity / 60);
-        const qsEff = Math.sqrt(Math.max(0.50, Math.min(1.0, qsRaw || 1)));
-
-        let lcAmount = Math.min(0.35, lcBase * 0.28);
-        lcAmount *= (0.65 + 0.35 * qsEff);
-
+        let lcAmount = lcBase * 0.25;
         const refW = Math.max(640, Math.min(3840, video.clientWidth || video.videoWidth || 1920));
         let lcStd = (6 + lcBase * 10) * Math.sqrt(refW / 1920);
-        lcStd *= (0.75 + 0.25 * qsEff);
         lcStd = clamp(lcStd, 0, 18);
 
         if (lcBase < 1e-3) { lcAmount = 0; lcStd = 0; }
@@ -2033,10 +2015,10 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
 
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, isBitmask: true, items: [ { text: '외암', value: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' }, { text: '중암', value: SHADOW_BAND.MID, title: '가운데 암부 진하게 (무게감 증가)' }, { text: '심암', value: SHADOW_BAND.DEEP, title: '가장 진한 블랙 (들뜬 블랙 제거)' } ] }),
+        // ✨ [지시사항 반영] 1단 제거 및 4단 추가 (2~4단 재구성)
         renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
         renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'),
-        // ✨ [신규 로직 반영] 전체화면 시계 토글 및 위치 설정
         renderButtonRow({ label: '시계', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '표시 (전체화면)', value: true }] }),
         renderButtonRow({ label: '위치', key: P.APP_TIME_POS, items: [{ text: '좌', value: 0 }, { text: '중', value: 1 }, { text: '우', value: 2 }] }),
         h('hr')
@@ -2249,8 +2231,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
         stateMap.set(v, st);
       }
       return st;
-    };
-
+    }
     const update = (v) => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
@@ -2789,7 +2770,6 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
     });
   }
 
-  // ✨ 사용자님이 올리신 178.9.14의 "상대 좌표 + 부모 삽입" 방식 100% 동일하게 유지
   function createTimerManager(Store, P) {
     let timerEl = null;
     let intervalId = null;
@@ -2830,7 +2810,7 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
           letter-spacing: 1px;
           ${stroke}
           transition: opacity 0.2s;
-          opacity: 0.5; /* ✨ 투명도를 0.5로 낮춰 배경 조화 강조 */
+          opacity: 0.5;
         `;
         parent.appendChild(timerEl);
       }
@@ -2844,7 +2824,6 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       const pRect = parent.getBoundingClientRect();
       const vWidth = vRect.width;
 
-      // 1. 반응형 글자 크기
       let dynamicSize = 24;
       if (vWidth >= 2500) dynamicSize = 36;
       else if (vWidth >= 1900) dynamicSize = 30;
@@ -2852,25 +2831,24 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
       else dynamicSize = 18;
       timerEl.style.fontSize = `${dynamicSize}px`;
 
-      // 2. 상단 여백 조절
       const topOffset = vWidth > 1200 ? 16 : 8;
       const top = (vRect.top - pRect.top) + topOffset;
       timerEl.style.top = `${top > topOffset ? top : topOffset}px`;
 
-      const pos = Store.get(P.APP_TIME_POS); // ✨ 기본값 1(중앙)
+      const pos = Store.get(P.APP_TIME_POS);
       const edgeMargin = vWidth > 1200 ? 20 : 10;
 
-      if (pos === 0) { // 좌
+      if (pos === 0) {
         const left = (vRect.left - pRect.left) + edgeMargin;
         timerEl.style.left = `${left > edgeMargin ? left : edgeMargin}px`;
         timerEl.style.right = 'auto';
         timerEl.style.transform = 'none';
-      } else if (pos === 1) { // 중 (기본값)
+      } else if (pos === 1) {
         const left = (vRect.left - pRect.left) + (vRect.width / 2);
         timerEl.style.left = `${left}px`;
         timerEl.style.right = 'auto';
         timerEl.style.transform = 'translateX(-50%)';
-      } else { // 우
+      } else {
         const right = (pRect.right - vRect.right) + edgeMargin;
         timerEl.style.right = `${right > edgeMargin ? right : edgeMargin}px`;
         timerEl.style.left = 'auto';
@@ -2884,9 +2862,6 @@ const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player]
     };
   }
 
-  // =========================================================================
-  // 코어 모듈 초기화 및 연결
-  // =========================================================================
   const Utils = createUtils();
   const Scheduler = createScheduler(32);
   const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
