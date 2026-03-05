@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.17 - Advanced Luma Masking)
+// @name         Video_Control (v178.9.18 - Advanced Luma Masking)
 // @namespace    https://github.com/
-// @version      178.9.17
+// @version      178.9.18
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.17');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.18');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.17';
+  __vscNs.__version = '178.9.18';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -277,6 +277,7 @@ function VSC_MAIN() {
   });
 
   const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ];
+  // 복구 단수 원본 유지 (max: 4)
   const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 4, round: true, fallback: () => 0 } ];
   const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
@@ -729,7 +730,7 @@ function VSC_MAIN() {
         if (!PiPState.window.closed) PiPState.window.close();
         if (prevVideo) restoreFromDocumentPiP(prevVideo);
       }
-      return await enterPiP(video);
+      return await enterDocumentPiP(video);
     } finally { _pipToggleLock = false; }
   }
 
@@ -1300,7 +1301,7 @@ function VSC_MAIN() {
     const applyLumaSharpening = (sharpDetail, amount, std) => {
       if (!sharpDetail) return;
       const safeAmount = Math.min(2.5, Math.max(0, amount));
-      const safeStd = Math.min(3.0, Math.max(0, std));
+      const safeStd = Math.min(2.3, Math.max(0, std)); // 반경 최대 2.3px 제한
 
       if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', safeStd.toFixed(2));
       if (sharpDetail.ySharp) {
@@ -1566,8 +1567,8 @@ function VSC_MAIN() {
 
       if (tier === 'sharp') {
         // ✨ [A+B] 핵심: 강도(qSharp)와 반경(qSharp2)의 수학적 분리
-        const sharpAmount = Math.max(0, qSharp / 35); // XL(48) 기준 약 1.37
-        const sharpRadius = clamp(0.3 + (qSharp2 / 24), 0, 2.5); // XL(48) 기준 최대 반경 2.3px 제한 (성능 고려)
+        const sharpAmount = Math.max(0, qSharp / 35); // 강도
+        const sharpRadius = clamp(0.3 + (qSharp2 / 24), 0, 2.3); // 반경 제한 (수채화 현상 방지)
 
         const sharpKeyNext = `${sharpAmount.toFixed(3)}|${sharpRadius.toFixed(2)}`;
 
@@ -1663,7 +1664,6 @@ function VSC_MAIN() {
       }
     };
   }
-
 // --- PART 2 END ---
 // --- PART 3 START ---
 
@@ -2015,7 +2015,7 @@ function VSC_MAIN() {
 
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, isBitmask: true, items: [ { text: '외암', value: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' }, { text: '중암', value: SHADOW_BAND.MID, title: '가운데 암부 진하게 (무게감 증가)' }, { text: '심암', value: SHADOW_BAND.DEEP, title: '가장 진한 블랙 (들뜬 블랙 제거)' } ] }),
-        // ✨ [지시사항 반영] 1단 제거 및 4단 추가 (2~4단 재구성)
+        // 원본 유지
         renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
         renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'),
