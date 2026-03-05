@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.10.0 - Pure & Clean)
+// @name         Video_Control (v178.9.11 - Pure & Clean)
 // @namespace    https://github.com/
-// @version      178.10.0
-// @description  Video Control: TM Menu Cleanup, FS Redirect Patch, SVG Global Mount, Audio Sync Fix (UI Click Bug Fixed).
+// @version      178.9.11
+// @description  Video Control: PiP Close Fix, FS Shadow DOM Traverse, Event Signal Cleanup.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.10.0');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.11');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.10.0';
+  __vscNs.__version = '178.9.11';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -69,7 +69,7 @@ function VSC_MAIN() {
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
     FILTER_SHARP_SAT_COMP: false,
     FILTER_FORCE_OPAQUE_BG: true,
-    FS_REDIRECT_TO_PARENT: false // 비디오 전체화면을 부모로 우회 (타이머 UI 표시용 / 레이아웃 깨짐 주의)
+    FS_REDIRECT_TO_PARENT: false
   };
   __vscNs.FLAGS = FLAGS;
 
@@ -82,21 +82,38 @@ function VSC_MAIN() {
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
 
+  function combineSignals(...signals) {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
+    const ac = new AbortController();
+    for (const sig of signals) {
+      if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
+      sig.addEventListener('abort', () => ac.abort(sig.reason), { once: true });
+    }
+    return ac.signal;
+  }
+
+  function on(target, type, fn, opts = {}) {
+    if (!target?.addEventListener) return;
+    const merged = { ...opts };
+    const sig = merged.signal || __globalSig;
+    try { target.addEventListener(type, fn, { ...merged, signal: sig }); }
+    catch (_) { try { target.addEventListener(type, fn, !!merged.capture); } catch (__) {} }
+  }
+
   const getSmoothStroke = (color = '#000') => `text-shadow: 1px 1px 0 ${color}, -1px -1px 0 ${color}, 1px -1px 0 ${color}, -1px 1px 0 ${color}, 0px 1px 0 ${color}, 0px -1px 0 ${color}, 1px 0px 0 ${color}, -1px 0px 0 ${color};`;
   __vscNs.getSmoothStroke = getSmoothStroke;
 
-  // ✨ Strict Capture Blocking 롤백 (버블링 차단으로 복구하여 자체 클릭 이벤트 증발 문제 해결)
+  // ✨ blockInterference를 on 헬퍼(global signal)로 연결하여 GC 효율 극대화
   const blockInterference = (el) => {
     if (!el) return;
     const stop = (e) => { e.stopPropagation(); };
     ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'wheel', 'contextmenu', 'dblclick'].forEach(evt => {
-      // capture: true를 사용하면 자식 버튼이나 톱니바퀴 자체 리스너가 막히므로 passive: false만 유지
-      el.addEventListener(evt, stop, { passive: false });
+      on(el, evt, stop, { passive: false });
     });
   };
   __vscNs.blockInterference = blockInterference;
 
-  // ✨ 다중 벤더 전체화면 패치 (webkit, moz, ms 대응)
+  // ✨ Shadow DOM 경계를 넘나드는 Fullscreen 우회 패치
   (function patchFullscreenForVideo() {
     const proto = HTMLVideoElement?.prototype;
     if (!proto) return;
@@ -108,9 +125,16 @@ function VSC_MAIN() {
       if (typeof orig !== 'function' || orig.__vsc_patched) return;
 
       proto[k] = function(...args) {
-        // freeze를 풀거나 Store를 쓰면 여기서 실시간 플래그 확인 가능
         if (getFLAGS()?.FS_REDIRECT_TO_PARENT) {
-          const p = this.closest('[class*="player"], [id*="player"], [data-player]') || this.parentElement;
+          let p = this.closest('[class*="player"], [id*="player"], [data-player]');
+          if (!p) {
+            const root = this.getRootNode();
+            if (root instanceof window.ShadowRoot && root.host) {
+              p = root.host.closest('[class*="player"], [id*="player"], [data-player]') || root.host;
+            }
+          }
+          p = p || this.parentElement;
+
           if (p && (p[k] || p.requestFullscreen)) {
             const fn = p[k] || p.requestFullscreen;
             return fn.apply(p, args);
@@ -121,24 +145,6 @@ function VSC_MAIN() {
       proto[k].__vsc_patched = true;
     });
   })();
-
-  function on(target, type, fn, opts = {}) {
-    if (!target?.addEventListener) return;
-    const merged = { ...opts };
-    const sig = merged.signal || __globalSig;
-    try { target.addEventListener(type, fn, { ...merged, signal: sig }); }
-    catch (_) { try { target.addEventListener(type, fn, !!merged.capture); } catch (__) {} }
-  }
-
-  function combineSignals(...signals) {
-    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
-    const ac = new AbortController();
-    for (const sig of signals) {
-      if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
-      sig.addEventListener('abort', () => ac.abort(sig.reason), { once: true });
-    }
-    return ac.signal;
-  }
 
   let shadowEmitterInstalled = false;
   const __shadowRootCallbacks = new Set();
@@ -517,7 +523,9 @@ function VSC_MAIN() {
   }
 
 // --- PART 1 END ---
-const PiPState = {
+const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
+
+  const PiPState = {
     window: null, video: null, placeholder: null, origParent: null, origCss: '', _ac: null, _watcherId: null,
     reset() {
       if (this._ac) { this._ac.abort(); this._ac = null; }
@@ -607,8 +615,7 @@ const PiPState = {
         PiPState.origParent.appendChild(video);
         restored = true;
       } else {
-        const selectors = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
-        const containers = document.querySelectorAll(selectors);
+        const containers = document.querySelectorAll(PLAYER_CONTAINER_SELECTORS);
         for (const c of containers) {
           if (c.isConnected && !c.querySelector('video')) { c.appendChild(video); restored = true; break; }
         }
@@ -620,14 +627,13 @@ const PiPState = {
         (document.body || document.documentElement)?.appendChild(video);
         restored = true;
 
-        const selectors = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
         let retryId = 0;
         let retryCount = 0;
         const stopRetry = () => { if (retryId) { clearInterval(retryId); retryId = 0; } };
 
         const retryRestore = () => {
           try {
-            const containers = document.querySelectorAll(selectors);
+            const containers = document.querySelectorAll(PLAYER_CONTAINER_SELECTORS);
             for (const c of containers) {
               if (c.isConnected && !c.querySelector('video')) {
                 video.style.cssText = PiPState.origCss || '';
@@ -651,28 +657,26 @@ const PiPState = {
     }
   }
 
-  async function enterPiP(video) {
-    if (!video || video.readyState < 2 || video.error || video.networkState === HTMLMediaElement.NETWORK_NO_SOURCE || video.disablePictureInPicture) return false;
-    if (window.documentPictureInPicture?.requestWindow) {
-      if (PiPState.window && !PiPState.window.closed) return true;
-      try { return await enterDocumentPiP(video); } catch (e) { log.debug('Document PiP failed:', e.message); }
-    }
-    if (document.pictureInPictureElement === video) return true;
-    if (typeof video.requestPictureInPicture === 'function') {
-      try { await video.requestPictureInPicture(); return true; } catch (e) { log.debug('Legacy PiP failed:', e.message); }
-    }
-    return false;
-  }
-
+  // ✨ PiP 종료 시 창 닫힘 및 복구 흐름 개선
   async function exitPiP(preferredVideo = null) {
     if (PiPState.window) {
-      const video = PiPState.video; const wasOpen = !PiPState.window.closed;
+      const win = PiPState.window;
+      const video = PiPState.video;
+
+      if (win && !win.closed) {
+        try { win.close(); } catch (_) {}
+        setTimeout(() => {
+          if (video && PiPState.video === video) restoreFromDocumentPiP(video);
+        }, 250);
+        return true;
+      }
+
       if (video) restoreFromDocumentPiP(video);
-      if (wasOpen && PiPState.window && !PiPState.window.closed) { try { PiPState.window.close(); } catch (_) {} }
-      if (PiPState.window) PiPState.reset();
       return true;
     }
-    if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); return true; } catch (_) {} }
+    if (document.pictureInPictureElement && document.exitPictureInPicture) {
+      try { await document.exitPictureInPicture(); return true; } catch (_) {}
+    }
     return false;
   }
 
@@ -722,7 +726,7 @@ const PiPState = {
 
         const isLikelyAd = (vid) => { const parent = vid.closest('[class*=ad],[class*=Ad],[id*=ad],[data-ad]'); if (parent) return true; if (r.width <= 400 && r.height <= 300 && vid.duration < 60) return true; return false; };
         if (v.muted || v.volume < 0.01) s -= 1.5; if (v.autoplay && (v.muted || v.volume < 0.01)) s -= 2.0;
-        if (isLikelyAd(v)) s -= 5.0; if (!v.controls && !v.closest('[class*=player]')) s -= 1.0;
+        if (isLikelyAd(v)) s -= 5.0; if (!v.controls && !v.closest(PLAYER_CONTAINER_SELECTORS)) s -= 1.0;
         if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2);
         if (pip) s += 3.0;
 
@@ -1062,6 +1066,7 @@ const PiPState = {
       const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); if (!dynAct) return;
       const actuallyEnabled = dynAct && currentSrc;
 
+      // ✨ LUFS 동기화 수정 (유지)
       if (currentSrc && currentNodes) {
         const mbActive = !!sm.get(P.A_MULTIBAND);
         const needMeter = !!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE);
@@ -1350,7 +1355,7 @@ const PiPState = {
       return res;
     }
 
-    // ✨ Shadow DOM 호환성 롤백 (ok.ru 이슈 픽스)
+    // ✨ Shadow DOM 호환성 유지 (ok.ru 정상 작동)
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' });
@@ -1430,7 +1435,6 @@ const PiPState = {
       return { fidLite, fidSharp, filters: { lite, sharp }, commonByTier, sharpDetail, st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, sharpKey: '', rev: 0 } };
     }
 
-    // ✨ Shadow DOM 호환성 롤백 (ok.ru 이슈 픽스)
     function prepare(video, s) {
       const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
 
@@ -1529,7 +1533,6 @@ const PiPState = {
     }
 
     return {
-      // ✨ Shadow DOM 호환성 롤백
       invalidateCache: (video) => {
         try {
           const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
@@ -1591,7 +1594,7 @@ const PiPState = {
   }
 
 // --- PART 2 END ---
-  function createBackendAdapter(Filters) {
+function createBackendAdapter(Filters) {
     const _backendChangeListeners = new Set();
     return {
       onBackendChange(fn) { _backendChangeListeners.add(fn); return () => _backendChangeListeners.delete(fn); },
@@ -2550,6 +2553,7 @@ const PiPState = {
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
         _applySet.clear();
 
+        // ✨ 자원 최적화를 위해 visible.videos만 순회하도록 변경 적용 유지
         if (applyToAllVisibleVideos) {
           for (const v of Registry.visible.videos) _applySet.add(v);
         } else if (__activeTarget) {
@@ -2726,10 +2730,10 @@ const PiPState = {
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
-  // ✨ 최상위 프레임 여부 확인 가드 추가
+  // ✨ 최상위 프레임 여부 확인 가드
   const isTop = (window.top === window);
 
-  // ✨ GM 메뉴 등록 (isTop 가드로 iframe 내 중복 등록 방지)
+  // ✨ GM 메뉴 등록 (isTop 가드로 iframe 내 중복 등록 방지 및 괄호 오류 완벽 교정)
   if (isTop && typeof GM_registerMenuCommand === 'function') {
     const reg = (title, fn) => {
       const id = GM_registerMenuCommand(title, fn);
@@ -2784,6 +2788,7 @@ const PiPState = {
     const AutoScene = createAutoSceneManager(Store, P, Scheduler); __vscNs.AutoScene = AutoScene;
 
     __vscNs.CONFIG = CONFIG;
+    // ✨ Object.freeze 제거하여 런타임 플래그 수정 지원
     __vscNs.FLAGS = FLAGS;
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
