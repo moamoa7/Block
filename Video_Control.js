@@ -2633,7 +2633,7 @@ function applyPlaybackRate(el, desiredRate) {
           letter-spacing: 1px;
           ${stroke}
           transition: opacity 0.2s;
-          opacity: 0.3; /* ✨ 투명도를 0.5로 낮춰 배경 조화 강조 */
+          opacity: 0.5; /* ✨ 투명도를 0.5로 낮춰 배경 조화 강조 */
         `;
         parent.appendChild(timerEl);
       }
