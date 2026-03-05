@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.18 - Advanced Luma Masking)
+// @name         Video_Control (v178.9.19 - Advanced Luma Masking)
 // @namespace    https://github.com/
-// @version      178.9.18
+// @version      178.9.19
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.18');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.19');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.18';
+  __vscNs.__version = '178.9.19';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -1202,24 +1202,44 @@ function VSC_MAIN() {
       warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
       setTarget: (v) => {
         const intentToken = ++switchTok; const st = v ? getVState(v) : null;
-        if (st && st.audioFailUntil > performance.now()) { if (v !== target) { target = v; } updateMix(); return; }
+        if (st && st.audioFailUntil > performance.now()) {
+          if (v !== target) { target = v; } updateMix(); return;
+        }
         if (!ensureCtx()) return;
         if (v === target) { updateMix(); return; }
 
+        const connectWithFallback = (vid) => {
+          if (!vid) return;
+          let s = globalSrcMap.get(vid), reusable = false;
+          if (s) {
+            try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) {}
+            if (!reusable) { try { s.disconnect(); } catch (_) {} globalSrcMap.delete(vid); s = null; }
+          }
+          if (!s) {
+            try {
+              s = ctx.createMediaElementSource(vid);
+              globalSrcMap.set(vid, s);
+            } catch (e) {
+              log.warn('Audio Source 생성 실패. 원본 직결 모드로 전환합니다.');
+              if (st) st.audioFailUntil = performance.now() + SYS.WFC;
+              try { vid.connect(ctx.destination); } catch(__) {}
+              disconnectAll(); updateMix(); return;
+            }
+          }
+          s.connect(inputGain); currentSrc = s; updateMix();
+        };
+
         if (target !== null && v !== null && target !== v) {
           fadeOutThen(() => {
-            disconnectAll(); if (intentToken !== switchTok) return; target = v; if (!v) { updateMix(); return; }
-            let s = globalSrcMap.get(v), reusable = false;
-            if (s) { try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) { reusable = false; } if (!reusable) { try { s.disconnect(); } catch (_) {} globalSrcMap.delete(v); s = null; } }
-            if (!s) { try { s = ctx.createMediaElementSource(v); globalSrcMap.set(v, s); } catch (e) { log.warn('createMediaElementSource failed:', e.message); if (st) st.audioFailUntil = performance.now() + SYS.WFC; disconnectAll(); updateMix(); return; } }
-            s.connect(inputGain); currentSrc = s; updateMix();
+            disconnectAll(); if (intentToken !== switchTok) return;
+            target = v; if (!v) { updateMix(); return; }
+            connectWithFallback(v);
           });
         } else if (v !== null && !currentSrc) {
-          target = v; let s = globalSrcMap.get(v), reusable = false;
-          if (s) { try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) { reusable = false; } if (!reusable) { try { s.disconnect(); } catch (_) {} globalSrcMap.delete(v); s = null; } }
-          if (!s) { try { s = ctx.createMediaElementSource(v); globalSrcMap.set(v, s); } catch (e) { log.warn('createMediaElementSource failed:', e.message); if (st) st.audioFailUntil = performance.now() + SYS.WFC; disconnectAll(); updateMix(); return; } }
-          s.connect(inputGain); currentSrc = s; updateMix();
-        } else if (v === null) { fadeOutThen(() => { disconnectAll(); updateMix(); }); }
+          target = v; connectWithFallback(v);
+        } else if (v === null) {
+          fadeOutThen(() => { disconnectAll(); updateMix(); });
+        }
       },
       update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy
     };
@@ -1301,7 +1321,7 @@ function VSC_MAIN() {
     const applyLumaSharpening = (sharpDetail, amount, std) => {
       if (!sharpDetail) return;
       const safeAmount = Math.min(2.5, Math.max(0, amount));
-      const safeStd = Math.min(2.3, Math.max(0, std)); // 반경 최대 2.3px 제한
+      const safeStd = Math.min(2.3, Math.max(0, std)); // 반경 제한 적용
 
       if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', safeStd.toFixed(2));
       if (sharpDetail.ySharp) {
