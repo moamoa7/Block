@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.7 - Pure & Clean)
+// @name         Video_Control (v178.9.9 - Pure & Clean)
 // @namespace    https://github.com/
-// @version      178.9.7
-// @description  Video Control: Restored Tone Engine, Smart Targeting (applyAll: false), Full-Screen Timer, and Strict Event Blocking.
+// @version      178.9.9
+// @description  Video Control: TM Menu Cleanup, FS Redirect Patch, SVG Global Mount, Audio Sync Fix (UI Click Bug Fixed).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -37,14 +37,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.7');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.8');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.7';
+  __vscNs.__version = '178.9.9';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -52,8 +52,14 @@ function VSC_MAIN() {
     try { __vscNs.AutoScene?.destroy?.(); } catch (_) {}
     try { __vscNs.ZoomManager?.destroy?.(); } catch (_) {}
     try { __vscNs.TimerManager?.destroy?.(); } catch (_) {}
+    try {
+      if (__vscNs._menuIds) {
+        __vscNs._menuIds.forEach(id => { try { GM_unregisterMenuCommand(id); } catch(_) {} });
+      }
+    } catch (_) {}
   }
   __vscNs.__alive = true;
+  __vscNs._menuIds = [];
 
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
@@ -62,7 +68,8 @@ function VSC_MAIN() {
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
     FILTER_SHARP_SAT_COMP: false,
-    FILTER_FORCE_OPAQUE_BG: true
+    FILTER_FORCE_OPAQUE_BG: true,
+    FS_REDIRECT_TO_PARENT: false // 비디오 전체화면을 부모로 우회 (타이머 UI 표시용 / 레이아웃 깨짐 주의)
   };
   __vscNs.FLAGS = FLAGS;
 
@@ -78,14 +85,32 @@ function VSC_MAIN() {
   const getSmoothStroke = (color = '#000') => `text-shadow: 1px 1px 0 ${color}, -1px -1px 0 ${color}, 1px -1px 0 ${color}, -1px 1px 0 ${color}, 0px 1px 0 ${color}, 0px -1px 0 ${color}, 1px 0px 0 ${color}, -1px 0px 0 ${color};`;
   __vscNs.getSmoothStroke = getSmoothStroke;
 
+  // ✨ Strict Capture Blocking 롤백 (버블링 차단으로 복구하여 자체 클릭 이벤트 증발 문제 해결)
   const blockInterference = (el) => {
     if (!el) return;
     const stop = (e) => { e.stopPropagation(); };
     ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'wheel', 'contextmenu', 'dblclick'].forEach(evt => {
+      // capture: true를 사용하면 자식 버튼이나 톱니바퀴 자체 리스너가 막히므로 passive: false만 유지
       el.addEventListener(evt, stop, { passive: false });
     });
   };
   __vscNs.blockInterference = blockInterference;
+
+  // ✨ Video Fullscreen Redirect Patch 반영
+  (function patchFullscreenForVideo() {
+    const proto = HTMLVideoElement?.prototype;
+    if (!proto?.requestFullscreen) return;
+    if (proto.requestFullscreen.__vsc_patched) return;
+    const orig = proto.requestFullscreen;
+    proto.requestFullscreen = function(...args) {
+      if (getFLAGS()?.FS_REDIRECT_TO_PARENT) {
+        const p = this.closest('[class*="player"], [id*="player"], [data-player]') || this.parentElement;
+        if (p && p.requestFullscreen) return p.requestFullscreen(...args);
+      }
+      return orig.apply(this, args);
+    };
+    proto.requestFullscreen.__vsc_patched = true;
+  })();
 
   function on(target, type, fn, opts = {}) {
     if (!target?.addEventListener) return;
@@ -480,6 +505,8 @@ function VSC_MAIN() {
     }
     return changed;
   }
+
+// --- PART 1 END ---
 const PiPState = {
     window: null, video: null, placeholder: null, origParent: null, origCss: '', _ac: null, _watcherId: null,
     reset() {
@@ -1026,9 +1053,14 @@ const PiPState = {
       const actuallyEnabled = dynAct && currentSrc;
 
       if (currentSrc && currentNodes) {
+        const mbActive = !!sm.get(P.A_MULTIBAND);
+        const needMeter = !!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE);
+        if (needMeter && currentNodes._lufsMeter && actuallyEnabled) {
+          currentNodes._lufsMeter.measure();
+        }
+
         const lufsSt = currentNodes._lufsMeter.getState(_lufsTmp);
         const db = lufsSt.momentaryLUFS > -70 ? lufsSt.momentaryLUFS : -100;
-        const mbActive = !!sm.get(P.A_MULTIBAND);
 
         if (currentNodes._dynamicEQ && currentNodes._multiband) {
           const dialogueOn = !!sm.get(P.A_DIALOGUE); const profile = currentNodes._dialogueProfile.getProfile(dialogueOn); const t = ctx.currentTime;
@@ -1037,7 +1069,9 @@ const PiPState = {
           if (dialogueOn) { stt(mb.mid.gain.gain, 1.15, t, 0.08); stt(mb.low.gain.gain, 0.92, t, 0.08); stt(mb.high.gain.gain, 1.05, t, 0.08); } else { stt(mb.low.gain.gain, 1.0, t, 0.15); stt(mb.mid.gain.gain, 1.0, t, 0.15); stt(mb.high.gain.gain, 1.0, t, 0.15); }
         } else if (currentNodes._dynamicEQ) { currentNodes._dynamicEQ.setProfile(mbActive ? 'cinemaWithMultiband' : 'cinema'); }
 
-        if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS) && actuallyEnabled) { currentNodes._lufsMeter.measure(); currentNodes._loudnessNorm.update(); }
+        if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS) && actuallyEnabled) {
+          currentNodes._loudnessNorm.update();
+        }
 
         if (actuallyEnabled) {
           let redDb = 0;
@@ -1176,7 +1210,6 @@ const PiPState = {
     };
   }
 
-  // ✨ [복구 완료] Tone(Toe/Shoulder/Mid) 테이블 로직 및 캐시 원복
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -1307,6 +1340,7 @@ const PiPState = {
       return res;
     }
 
+    // ✨ Shadow DOM 호환성 롤백 (ok.ru 이슈 픽스)
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' });
@@ -1386,6 +1420,7 @@ const PiPState = {
       return { fidLite, fidSharp, filters: { lite, sharp }, commonByTier, sharpDetail, st: { lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, sharpKey: '', rev: 0 } };
     }
 
+    // ✨ Shadow DOM 호환성 롤백 (ok.ru 이슈 픽스)
     function prepare(video, s) {
       const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
 
@@ -1484,6 +1519,7 @@ const PiPState = {
     }
 
     return {
+      // ✨ Shadow DOM 호환성 롤백
       invalidateCache: (video) => {
         try {
           const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
@@ -1544,6 +1580,7 @@ const PiPState = {
     };
   }
 
+// --- PART 2 END ---
   function createBackendAdapter(Filters) {
     const _backendChangeListeners = new Set();
     return {
@@ -1567,7 +1604,8 @@ const PiPState = {
       }
     };
   }
-function bindElementDrag(el, onMove, onEnd) {
+
+  function bindElementDrag(el, onMove, onEnd) {
     const ac = new AbortController();
     const move = (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); };
     const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); };
@@ -1823,7 +1861,6 @@ function bindElementDrag(el, onMove, onEnd) {
       advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
       bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
 
-      // ✨ [UI 원복 완료] 삭제되었던 블랙(SHADOW_MASK)과 복구(BRIGHT_STEP) 버튼 추가
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, isBitmask: true, items: [ { text: '외암', value: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' }, { text: '중암', value: SHADOW_BAND.MID, title: '가운데 암부 진하게 (무게감 증가)' }, { text: '심암', value: SHADOW_BAND.DEEP, title: '가장 진한 블랙 (들뜬 블랙 제거)' } ] }),
         renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
@@ -2401,7 +2438,6 @@ function bindElementDrag(el, onMove, onEnd) {
     }
   }
 
-  // ✨ [로직 원복 완료] 삭제되었던 Tone 파라미터 변환(SHADOW_PARAMS, toe/mid) 복구
   function createVideoParamsMemo() {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
     const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.2, gamma: -0.04, mid: -0.01 }], [SHADOW_BAND.MID, { toe: 0.7, gamma: -0.02, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0.3, gamma: -0.01, mid: -0.08 }]]);
@@ -2680,8 +2716,14 @@ function bindElementDrag(el, onMove, onEnd) {
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
+  // ✨ GM 메뉴 중복 방지 로직 연동
   if (typeof GM_registerMenuCommand === 'function') {
-    GM_registerMenuCommand('🔄 설정 초기화 (Reset All)', () => {
+    const reg = (title, fn) => {
+      const id = GM_registerMenuCommand(title, fn);
+      if (__vscNs._menuIds) __vscNs._menuIds.push(id);
+    };
+
+    reg('🔄 설정 초기화 (Reset All)', () => {
       if(confirm('모든 VSC 설정을 초기화하시겠습니까? (현재 도메인)')) {
         const key = 'vsc_prefs_' + location.hostname;
         if(typeof GM_deleteValue === 'function') GM_deleteValue(key);
@@ -2690,11 +2732,11 @@ function bindElementDrag(el, onMove, onEnd) {
       }
     });
 
-    GM_registerMenuCommand('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
-    GM_registerMenuCommand('🎬 AutoScene 토글', () => { Store.set(P.APP_AUTO_SCENE, !Store.get(P.APP_AUTO_SCENE)); ApplyReq.hard(); });
-    GM_registerMenuCommand('🔊 Audio 토글', () => { Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); });
-    GM_registerMenuCommand('⚙️ UI 열기/닫기', () => { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); });
-    GM_registerMenuCommand('🛠️ 디버그 모드 토글', () => {
+    reg('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
+    reg('🎬 AutoScene 토글', () => { Store.set(P.APP_AUTO_SCENE, !Store.get(P.APP_AUTO_SCENE)); ApplyReq.hard(); });
+    reg('🔊 Audio 토글', () => { Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); });
+    reg('⚙️ UI 열기/닫기', () => { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); });
+    reg('🛠️ 디버그 모드 토글', () => {
       const url = new URL(location.href);
       if(url.searchParams.has('vsc_debug')) url.searchParams.delete('vsc_debug');
       else url.searchParams.set('vsc_debug', '1');
