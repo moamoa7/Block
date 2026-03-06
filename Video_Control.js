@@ -1350,7 +1350,7 @@ function VSC_MAIN() {
       const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
       const useExp = Math.abs(denom) > 1e-6;
 
-      const toeEnd = 0.34 + Math.abs(toeN) * 0.06;
+      const toeEnd = 0.10 + Math.abs(toeN) * 0.06;
       const toeAmt = Math.abs(toeN);
       const toeSign = toeN >= 0 ? 1 : -1;
       const shoulderStart = 0.90 - shoulderN * 0.10;
@@ -1365,7 +1365,7 @@ function VSC_MAIN() {
           const u = Utils.clamp((x - 0) / Math.max(1e-6, (toeEnd - 0)), 0, 1);
           const smooth = u * u * (3 - 2 * u);
           const w = 1 - smooth;
-          x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1);
+          x = clamp(x + toeSign * toeAmt * 10.0 * ((toeEnd - x) * w * w), 0, 1);
         }
         if (shAmt > 1e-6 && x > shoulderStart) {
           const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart));
@@ -2612,7 +2612,7 @@ function VSC_MAIN() {
     return {
       get(vfUser) {
         const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
-        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0 };
+        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: -15, gain: 1.0, mid: 0, toe: 0, shoulder: 0 };
         const sMask = vfUser.shadowBandMask || 0;
         if (sMask > 0) {
           let toeSum = 0, gammaSum = 0, midSum = 0; for (const [bit, params] of SHADOW_PARAMS) { if (sMask & bit) { toeSum += params.toe; gammaSum += params.gamma; midSum += params.mid; } }
