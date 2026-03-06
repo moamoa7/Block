@@ -360,7 +360,7 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 },
-      Ultra: { sharpAdd: 40, sharp2Add: 50, clarityAdd: 40, sat: 1.0 }
+      Ultra: { sharpAdd: 30, sharp2Add: 40, clarityAdd: 10, sat: 1.0 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -1960,9 +1960,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.06, ct: 1.00, sat: 1.01, sharpScale: 1.10 },
-      Normal: { br: 1.18, ct: 1.04, sat: 1.02, sharpScale: 1.20 },
-      Strong: { br: 1.30, ct: 1.08, sat: 1.04, sharpScale: 1.30 }
+      Soft:   { br: 1.10, ct: 1.00, sat: 1.01, sharpScale: 1.10 },
+      Normal: { br: 1.20, ct: 1.02, sat: 1.02, sharpScale: 1.20 },
+      Strong: { br: 1.40, ct: 1.04, sat: 1.04, sharpScale: 1.30 }
     });
 
     function update() {
