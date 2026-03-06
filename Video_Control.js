@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.28 - Pre-scaling & Resolution-Aware)
+// @name         Video_Control (v178.9.29 - Stereo Widener & Audio Optimizations)
 // @namespace    https://github.com/
-// @version      178.9.28
+// @version      178.9.29
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,14 +39,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.28');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.29');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.28';
+  __vscNs.__version = '178.9.29';
 
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
@@ -364,7 +364,7 @@ function VSC_MAIN() {
 
   const DEFAULTS = {
     video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 },
-    audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false },
+    audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, autoScene: false, autoScenePreset: 'Normal', advanced: false, timeEn: true, timePos: 1 }
   };
@@ -373,13 +373,13 @@ function VSC_MAIN() {
     APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_AUTO_SCENE_PRESET: 'app.autoScenePreset', APP_ADV: 'app.advanced',
     APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
     V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel',
-    A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue',
+    A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', A_STEREO_W: 'audio.stereoWidth',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   });
 
   const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ];
   const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
-  const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
+  const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
 
@@ -1381,6 +1381,110 @@ function VSC_MAIN() {
   function chain(...nodes) { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); }
   const globalSrcMap = new WeakMap();
 
+  function createStereoWidener(actx) {
+    const splitter = actx.createChannelSplitter(2);
+    const merger   = actx.createChannelMerger(2);
+
+    const midL = actx.createGain(); midL.gain.value = 0.5;
+    const midR = actx.createGain(); midR.gain.value = 0.5;
+    const sideL = actx.createGain(); sideL.gain.value = 0.5;
+    const sideR = actx.createGain(); sideR.gain.value = -0.5;
+    const sideAmp = actx.createGain(); sideAmp.gain.value = 1.0;
+
+    splitter.connect(midL, 0);
+    splitter.connect(sideL, 0);
+    splitter.connect(midR, 1);
+    splitter.connect(sideR, 1);
+
+    const sideSummer = actx.createGain(); sideSummer.gain.value = 1.0;
+    sideL.connect(sideSummer);
+    sideR.connect(sideSummer);
+    sideSummer.connect(sideAmp);
+
+    const midSummer = actx.createGain(); midSummer.gain.value = 1.0;
+    midL.connect(midSummer);
+    midR.connect(midSummer);
+
+    const outL = actx.createGain(); outL.gain.value = 1.0;
+    midSummer.connect(outL);
+    sideAmp.connect(outL);
+
+    const outR = actx.createGain(); outR.gain.value = 1.0;
+    const sideInvR = actx.createGain(); sideInvR.gain.value = -1.0;
+    midSummer.connect(outR);
+    sideAmp.connect(sideInvR);
+    sideInvR.connect(outR);
+
+    outL.connect(merger, 0, 0);
+    outR.connect(merger, 0, 1);
+
+    const input  = actx.createGain(); input.gain.value = 1.0;
+    const output = actx.createGain(); output.gain.value = 1.0;
+    input.channelCount = 2;
+    input.channelCountMode = 'explicit';
+    input.channelInterpretation = 'speakers';
+
+    input.connect(splitter);
+    merger.connect(output);
+
+    const monoDetector = actx.createAnalyser();
+    monoDetector.fftSize = 256;
+    monoDetector.smoothingTimeConstant = 0.85;
+    sideSummer.connect(monoDetector);
+    const _monoBuffer = new Float32Array(monoDetector.fftSize);
+
+    let _enabled = false;
+    let _width = 1.35;
+    let _effectiveWidth = 1.0;
+    let _monoSmooth = 0;
+
+    function isMono() {
+      try {
+        monoDetector.getFloatTimeDomainData(_monoBuffer);
+        let sumSq = 0;
+        for (let i = 0; i < _monoBuffer.length; i++) sumSq += _monoBuffer[i] * _monoBuffer[i];
+        return (sumSq / _monoBuffer.length) < 1e-8;
+      } catch (_) { return false; }
+    }
+
+    function setEnabled(en) {
+      _enabled = en;
+      const t = actx.currentTime;
+      if (en) {
+        try { sideAmp.gain.setTargetAtTime(_width, t, 0.06); }
+        catch (_) { sideAmp.gain.value = _width; }
+      } else {
+        try { sideAmp.gain.setTargetAtTime(1.0, t, 0.06); }
+        catch (_) { sideAmp.gain.value = 1.0; }
+      }
+    }
+
+    function setWidth(w) {
+      _width = Math.max(0.5, Math.min(2.5, w));
+      if (_enabled) {
+        try { sideAmp.gain.setTargetAtTime(_width, actx.currentTime, 0.06); }
+        catch (_) { sideAmp.gain.value = _width; }
+      }
+    }
+
+    function update() {
+      if (!_enabled) return;
+      const mono = isMono();
+      const monoTarget = mono ? 1.0 : 0.0;
+      _monoSmooth += (monoTarget - _monoSmooth) * 0.08;
+      _effectiveWidth = _width * (1.0 - _monoSmooth * 0.8) + 1.0 * _monoSmooth * 0.8;
+      try { sideAmp.gain.setTargetAtTime(_effectiveWidth, actx.currentTime, 0.12); }
+      catch (_) { sideAmp.gain.value = _effectiveWidth; }
+    }
+
+    return {
+      input, output, sideAmp,
+      setEnabled, setWidth, update, isMono,
+      getWidth: () => _width,
+      isEnabled: () => _enabled
+    };
+  }
+
   function createAudio(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, hpf, currentNodes = null;
     let makeupDbEma = 0, switchTimer = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
@@ -1432,9 +1536,13 @@ function VSC_MAIN() {
       const createLR4 = (freq, type) => { const f1 = mkBQ(actx, type, freq, Math.SQRT1_2); const f2 = mkBQ(actx, type, freq, Math.SQRT1_2); f1.connect(f2); return { input: f1, output: f2 }; };
       const input = actx.createGain(), lpLow = createLR4(CROSSOVER_LOW, 'lowpass'), hpLow = createLR4(CROSSOVER_LOW, 'highpass'), lpMid = createLR4(CROSSOVER_HIGH, 'lowpass'), hpHigh = createLR4(CROSSOVER_HIGH, 'highpass');
       input.connect(lpLow.input); input.connect(hpLow.input); hpLow.output.connect(lpMid.input); hpLow.output.connect(hpHigh.input);
-      const CROSSOVER_MAKEUP = Math.pow(10, 0.5 / 20);
+      const MAKEUP_LOW  = Math.pow(10, 0.3 / 20);
+      const MAKEUP_MID  = Math.pow(10, 0.7 / 20);
+      const MAKEUP_HIGH = Math.pow(10, 0.3 / 20);
       const compLow  = mkComp(actx, -22, 10, 2.5, 0.030, 0.50), compMid  = mkComp(actx, -18, 10, 2.0, 0.015, 0.18), compHigh = mkComp(actx, -14,  8, 1.8, 0.005, 0.10);
-      const gainLow = actx.createGain();  gainLow.gain.value = CROSSOVER_MAKEUP; const gainMid = actx.createGain();  gainMid.gain.value = CROSSOVER_MAKEUP; const gainHigh = actx.createGain(); gainHigh.gain.value = CROSSOVER_MAKEUP;
+      const gainLow = actx.createGain();  gainLow.gain.value = MAKEUP_LOW;
+      const gainMid = actx.createGain();  gainMid.gain.value = MAKEUP_MID;
+      const gainHigh = actx.createGain(); gainHigh.gain.value = MAKEUP_HIGH;
       chain(lpLow.output, compLow, gainLow); chain(lpMid.output, compMid, gainMid); chain(hpHigh.output, compHigh, gainHigh);
       const output = actx.createGain(); gainLow.connect(output); gainMid.connect(output); gainHigh.connect(output);
       return { input, output, bands: { low: { comp: compLow, gain: gainLow }, mid: { comp: compMid, gain: gainMid }, high: { comp: compHigh, gain: gainHigh } } };
@@ -1447,11 +1555,23 @@ function VSC_MAIN() {
       chain(preFilter, hpf, meterAnalyser);
       const buffer = new Float32Array(meterAnalyser.fftSize);
       const M_N = 20, S_N = 150; const mMean = new Float32Array(M_N), mDt = new Float32Array(M_N); const sMean = new Float32Array(S_N), sDt = new Float32Array(S_N);
-      const state = { mIdx: 0, mFill: 0, mSumW: 0, mSumDt: 0, sIdx: 0, sFill: 0, sSumW: 0, sSumDt: 0, integratedSum: 0, integratedCount: 0, momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 };
+      const state = { mIdx: 0, mFill: 0, mSumW: 0, mSumDt: 0, sIdx: 0, sFill: 0, sSumW: 0, sSumDt: 0, integratedSum: 0, integratedCount: 0, momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70, _pushCount: 0 };
+
+      function recomputeSums() {
+        let mW = 0, mD = 0;
+        const mLen = Math.min(state.mFill, M_N);
+        for (let i = 0; i < mLen; i++) { mW += mMean[i] * mDt[i]; mD += mDt[i]; }
+        state.mSumW = mW; state.mSumDt = mD;
+        let sW = 0, sD = 0;
+        const sLen = Math.min(state.sFill, S_N);
+        for (let i = 0; i < sLen; i++) { sW += sMean[i] * sDt[i]; sD += sDt[i]; }
+        state.sSumW = sW; state.sSumDt = sD;
+      }
 
       function pushRing(meanSq, dt) {
-        { const i = state.mIdx; const oldW = mMean[i] * mDt[i]; state.mSumW -= oldW; state.mSumDt -= mDt[i]; mMean[i] = meanSq; mDt[i] = dt; state.mSumW += meanSq * dt; state.mSumDt += dt; state.mIdx = (i + 1) % M_N; state.mFill = Math.min(M_N, state.mFill + 1); }
-        { const i = state.sIdx; const oldW = sMean[i] * sDt[i]; state.sSumW -= oldW; state.sSumDt -= sDt[i]; sMean[i] = meanSq; sDt[i] = dt; state.sSumW += meanSq * dt; state.sSumDt += dt; state.sIdx = (i + 1) % S_N; state.sFill = Math.min(S_N, state.sFill + 1); }
+        { const i = state.mIdx; state.mSumW -= mMean[i] * mDt[i]; state.mSumDt -= mDt[i]; mMean[i] = meanSq; mDt[i] = dt; state.mSumW += meanSq * dt; state.mSumDt += dt; state.mIdx = (i + 1) % M_N; state.mFill = Math.min(M_N, state.mFill + 1); }
+        { const i = state.sIdx; state.sSumW -= sMean[i] * sDt[i]; state.sSumDt -= sDt[i]; sMean[i] = meanSq; sDt[i] = dt; state.sSumW += meanSq * dt; state.sSumDt += dt; state.sIdx = (i + 1) % S_N; state.sFill = Math.min(S_N, state.sFill + 1); }
+        if (++state._pushCount >= 256) { state._pushCount = 0; recomputeSums(); }
       }
 
       function measure() {
@@ -1465,22 +1585,30 @@ function VSC_MAIN() {
 
       return {
         input: preFilter, measure,
-        reset: () => { mMean.fill(0); mDt.fill(0); sMean.fill(0); sDt.fill(0); Object.assign(state, { mIdx:0, mFill:0, mSumW:0, mSumDt:0, sIdx:0, sFill:0, sSumW:0, sSumDt:0, integratedSum:0, integratedCount:0, momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70 }); },
+        reset: () => { mMean.fill(0); mDt.fill(0); sMean.fill(0); sDt.fill(0); Object.assign(state, { mIdx:0, mFill:0, mSumW:0, mSumDt:0, sIdx:0, sFill:0, sSumW:0, sSumDt:0, integratedSum:0, integratedCount:0, momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70, _pushCount:0 }); },
         getState: (out) => { if (!out) return { momentaryLUFS: state.momentaryLUFS, shortTermLUFS: state.shortTermLUFS, integratedLUFS: state.integratedLUFS }; out.momentaryLUFS = state.momentaryLUFS; out.shortTermLUFS = state.shortTermLUFS; out.integratedLUFS = state.integratedLUFS; return out; }
       };
     }
 
     function createLoudnessNormalizer(actx, lufsMeter) {
       const TARGET_LUFS = -14, MAX_GAIN_DB = 6, MIN_GAIN_DB = -6, SMOOTHING = 0.05, SETTLE_FRAMES = 30;
-      const gainNode = actx.createGain(); gainNode.gain.value = 1.0; let frameCount = 0, currentGainDb = 0; const _tmp = { momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70 };
+      const ATTACK_TC = 0.8, RELEASE_TC = 2.5;
+      const gainNode = actx.createGain(); gainNode.gain.value = 1.0; let frameCount = 0, currentGainDb = 0;
+      let _lastUpdateTime = 0;
+      const _tmp = { momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70 };
       function update() {
         const lufs = lufsMeter.getState(_tmp); frameCount++; if (frameCount < SETTLE_FRAMES) return;
         const measured = lufs.shortTermLUFS; if (measured <= -60) return;
         const targetGainDb = VSC_CLAMP(TARGET_LUFS - measured, MIN_GAIN_DB, MAX_GAIN_DB);
-        const alpha = targetGainDb < currentGainDb ? 0.12 : 0.04; currentGainDb += (targetGainDb - currentGainDb) * alpha;
-        const linearGain = Math.pow(10, currentGainDb / 20); stt(gainNode.gain, linearGain, actx.currentTime, SMOOTHING);
+        const now = actx.currentTime;
+        const dt = Math.max(0.01, Math.min(1.0, now - (_lastUpdateTime || now)));
+        _lastUpdateTime = now;
+        const tc = targetGainDb < currentGainDb ? ATTACK_TC : RELEASE_TC;
+        const alpha = 1.0 - Math.exp(-dt / tc);
+        currentGainDb += (targetGainDb - currentGainDb) * alpha;
+        const linearGain = Math.pow(10, currentGainDb / 20); stt(gainNode.gain, linearGain, now, SMOOTHING);
       }
-      return { node: gainNode, update, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; lufsMeter.reset(); } };
+      return { node: gainNode, update, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; _lastUpdateTime = 0; lufsMeter.reset(); } };
     }
 
     function createDialogueBoostProfile() {
@@ -1491,47 +1619,77 @@ function VSC_MAIN() {
     function buildAudioGraph(audioCtx) {
       const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), hpf: mkBQ(audioCtx, 'highpass', 35, 0.707), limiter: mkComp(audioCtx, -1.0, 0.0, 20.0, 0.001, 0.08), clipper: audioCtx.createWaveShaper() };
       n.clipper.curve = getSoftClipCurve(); try { n.clipper.oversample = '2x'; } catch (_) {}
-      const dynamicEQ = createDynamicCinemaEQ(audioCtx), multiband = buildMultibandDynamics(audioCtx), lufsMeter = createLUFSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, lufsMeter);
+      const dynamicEQ = createDynamicCinemaEQ(audioCtx), multiband = buildMultibandDynamics(audioCtx);
+      const stereoWidener = createStereoWidener(audioCtx);
+      const lufsMeter = createLUFSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, lufsMeter);
       n._dialogueProfile = createDialogueBoostProfile(); n.wetInGain = loudnessNorm.node;
       n.inputGain.connect(n.dryGain); n.dryGain.connect(n.masterOut);
-      chain(n.inputGain, n.hpf, dynamicEQ.input); chain(dynamicEQ.output, multiband.input); multiband.output.connect(lufsMeter.input);
-      chain(multiband.output, n.wetInGain); chain(n.wetInGain, n.clipper, n.limiter); chain(n.limiter, n.wetGain, n.masterOut);
+      chain(n.inputGain, n.hpf, dynamicEQ.input); chain(dynamicEQ.output, multiband.input);
+      multiband.output.connect(lufsMeter.input);
+      chain(multiband.output, stereoWidener.input);
+      chain(stereoWidener.output, n.wetInGain);
+      chain(n.wetInGain, n.clipper, n.limiter); chain(n.limiter, n.wetGain, n.masterOut);
       n.masterOut.connect(audioCtx.destination);
-      n._dynamicEQ = dynamicEQ; n._multiband = multiband; n._lufsMeter = lufsMeter; n._loudnessNorm = loudnessNorm; return n;
+      n._dynamicEQ = dynamicEQ; n._multiband = multiband; n._stereoWidener = stereoWidener; n._lufsMeter = lufsMeter; n._loudnessNorm = loudnessNorm; return n;
     }
 
     const ensureCtx = () => {
-      if (ctx && ctx.state !== 'closed') return true;
-      if (ctx) { ctx = null; currentSrc = null; target = null; }
+      if (ctx) {
+        if (ctx.state !== 'closed') return true;
+        if (currentSrc) {
+          safe(() => currentSrc.disconnect());
+          if (target) globalSrcMap.delete(target);
+        }
+        currentSrc = null; target = null; currentNodes = null;
+        ctx = null;
+      }
 
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
 
-      try {
-        ctx = new AC({ latencyHint: 'balanced', sampleRate: 48000 });
-      } catch (_) {
+      try { ctx = new AC({ latencyHint: 'balanced', sampleRate: 48000 }); }
+      catch (_) {
         try { ctx = new AC({ latencyHint: 'balanced' }); }
         catch (__) { try { ctx = new AC(); } catch (___) { return false; } }
       }
 
       if (!ctx || typeof ctx.createMediaElementSource !== 'function') {
         try { ctx?.close?.(); } catch (_) {}
-        ctx = null;
-        return false;
+        ctx = null; return false;
       }
 
       currentSrc = null; target = null; ensureGestureResumeHook();
       ensureVisibilityResumeHook();
-      const nodes = buildAudioGraph(ctx); inputGain = nodes.inputGain; dryGain = nodes.dryGain; wetGain = nodes.wetGain; masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; limiter = nodes.limiter; hpf = nodes.hpf; currentNodes = nodes; return true;
+      const nodes = buildAudioGraph(ctx);
+      inputGain = nodes.inputGain; dryGain = nodes.dryGain; wetGain = nodes.wetGain;
+      masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; limiter = nodes.limiter;
+      hpf = nodes.hpf; currentNodes = nodes;
+      return true;
     };
 
     const fadeOutThen = (fn) => {
       if (!ctx) { fn(); return; }
-      const tok = ++switchTok; clearTimeout(switchTimer); const t = ctx.currentTime; const fadeMs = 50;
-      try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + fadeMs / 1000); } catch (_) { masterOut.gain.value = 0; }
+      const tok = ++switchTok; clearTimeout(switchTimer);
+      const fadeMs = 50; const fadeSec = fadeMs / 1000;
+      const t = ctx.currentTime;
+      try {
+        masterOut.gain.cancelScheduledValues(t);
+        masterOut.gain.setValueAtTime(masterOut.gain.value, t);
+        masterOut.gain.linearRampToValueAtTime(0.001, t + fadeSec);
+      } catch (_) { masterOut.gain.value = 0; }
+
       switchTimer = setTimeout(() => {
-        if (tok !== switchTok) return; makeupDbEma = 0; safe(fn);
-        if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + fadeMs / 1000); } catch (_) { masterOut.gain.value = 1; } }
+        if (tok !== switchTok) return;
+        makeupDbEma = 0;
+        safe(fn);
+        if (ctx) {
+          const t2 = ctx.currentTime;
+          try {
+            masterOut.gain.cancelScheduledValues(t2);
+            masterOut.gain.setValueAtTime(0.001, t2);
+            masterOut.gain.linearRampToValueAtTime(1, t2 + fadeSec);
+          } catch (_) { masterOut.gain.value = 1; }
+        }
       }, fadeMs + 20);
     };
 
@@ -1563,6 +1721,21 @@ function VSC_MAIN() {
 
         if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS) && actuallyEnabled) {
           currentNodes._loudnessNorm.update();
+        }
+
+        if (currentNodes._stereoWidener) {
+          const swEnabled = !!sm.get(P.A_STEREO_W) && dynAct;
+          if (currentNodes._stereoWidener.isEnabled() !== swEnabled) {
+            currentNodes._stereoWidener.setEnabled(swEnabled);
+          }
+          if (swEnabled) {
+            currentNodes._stereoWidener.update();
+          }
+          if (swEnabled) {
+            stt(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08);
+          } else {
+            stt(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08);
+          }
         }
 
         if (actuallyEnabled) {
@@ -1605,11 +1778,13 @@ function VSC_MAIN() {
           }, 30000);
         }
       } else {
-        const needFast = !!sm.get(P.A_LUFS) || !!sm.get(P.A_MULTIBAND) || !!sm.get(P.A_DIALOGUE);
+        const needFast = !!sm.get(P.A_LUFS) || !!sm.get(P.A_MULTIBAND) || !!sm.get(P.A_DIALOGUE) || !!sm.get(P.A_STEREO_W);
         const targetInterval = needFast ? 0.10 : 0.25;
-        const nextTime = ctx.currentTime + targetInterval;
-        const check = () => { if (tok !== loopTok) return; if (ctx.currentTime >= nextTime) { runAudioLoop(tok); } else { audioLoopTimerId = setTimeout(check, Math.max(16, (nextTime - ctx.currentTime) * 1000 - 10)); } };
-        audioLoopTimerId = setTimeout(check, 80);
+        const delayMs = Math.max(16, (targetInterval * 1000) - 8);
+        audioLoopTimerId = setTimeout(() => {
+          audioLoopTimerId = 0;
+          if (tok === loopTok) runAudioLoop(tok);
+        }, delayMs);
       }
     }
 
@@ -1620,8 +1795,21 @@ function VSC_MAIN() {
       stt(dryGain.gain, dryTarget, ctx.currentTime, 0.005); stt(wetGain.gain, wetTarget, ctx.currentTime, 0.005);
       if (currentNodes) {
         const mbEnabled = dynAct && !!sm.get(P.A_MULTIBAND);
-        if (currentNodes._multiband) { const mb = currentNodes._multiband.bands, t = ctx.currentTime; stt(mb.low.comp.ratio, mbEnabled ? 2.5 : 1.0, t, 0.02); stt(mb.mid.comp.ratio, mbEnabled ? 2.2 : 1.0, t, 0.02); stt(mb.high.comp.ratio, mbEnabled ? 1.8 : 1.0, t, 0.02); }
-        if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !dynAct)) { stt(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05); currentNodes._loudnessNorm.reset(); }
+        if (currentNodes._multiband) {
+          const mb = currentNodes._multiband.bands, t = ctx.currentTime;
+          if (mbEnabled) {
+            stt(mb.low.comp.ratio, 2.5, t, 0.02); stt(mb.mid.comp.ratio, 2.2, t, 0.02); stt(mb.high.comp.ratio, 1.8, t, 0.02);
+          } else {
+            stt(mb.low.comp.ratio, 1.0, t, 0.05); stt(mb.mid.comp.ratio, 1.0, t, 0.05); stt(mb.high.comp.ratio, 1.0, t, 0.05);
+            stt(mb.low.gain.gain, 1.0, t, 0.05); stt(mb.mid.gain.gain, 1.0, t, 0.05); stt(mb.high.gain.gain, 1.0, t, 0.05);
+          }
+        }
+        if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !dynAct)) {
+          stt(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05); currentNodes._loudnessNorm.reset();
+        }
+        if (currentNodes._stereoWidener && !dynAct) {
+          currentNodes._stereoWidener.setEnabled(false);
+        }
       }
       if (dynAct && isHooked) runAudioLoop(tok);
     };
@@ -2707,6 +2895,23 @@ function VSC_MAIN() {
         el.disabled = !usable;
       }, sm, sub);
 
+      const stereoBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '🎧 스테레오');
+      stereoBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+        if (sm.get(P.A_EN)) {
+          if (getNS()?.AudioWarmup) getNS().AudioWarmup();
+          setAndHint(P.A_STEREO_W, !sm.get(P.A_STEREO_W));
+        }
+      };
+      bindReactive(stereoBtn, [P.A_STEREO_W, P.A_EN, P.APP_ACT], (el, swOn, aEn, act) => {
+        el.classList.toggle('active', !!swOn);
+        const usable = !!aEn && !!act;
+        el.style.opacity = usable ? '1' : (swOn ? '0.65' : '0.35');
+        el.style.cursor = usable ? 'pointer' : 'not-allowed';
+        el.disabled = !usable;
+      }, sm, sub);
+
       const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
       advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
       bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
@@ -2737,7 +2942,7 @@ function VSC_MAIN() {
       const bodyMain = h('div', { id: 'p-main' }, [
         autoSceneRow,
         h('div', { class: 'prow' }, [ pipBtn, zoomBtn, pwrBtn ]),
-        h('div', { class: 'prow' }, [ boostBtn, dialogueBtn ]),
+        h('div', { class: 'prow' }, [ boostBtn, dialogueBtn, stereoBtn ]),
         h('div', { class: 'prow' }, [
           h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'),
           resetBtn
