@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.25 - Timer Fix & Engine Stability)
+// @name         Video_Control (v178.9.26 - Advanced SVG & Halo Suppression)
 // @namespace    https://github.com/
-// @version      178.9.25
+// @version      178.9.26
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,14 +39,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.25');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.26');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.25';
+  __vscNs.__version = '178.9.26';
 
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
@@ -816,6 +816,11 @@ function VSC_MAIN() {
   function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
   function supportsDocumentPiP() {
+    try {
+      if (window.top !== window) return false;
+    } catch (_) {
+      return false;
+    }
     return !!(window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function');
   }
 
@@ -878,12 +883,19 @@ function VSC_MAIN() {
 
   async function enterPiP(video) {
     if (!video || video.readyState < 2) throw new Error('Video not ready');
+
     if (supportsDocumentPiP()) {
-      return enterDocumentPiP(video);
+      try {
+        return await enterDocumentPiP(video);
+      } catch (e) {
+        log.warn('Document PiP failed, trying Legacy PiP fallback', e);
+      }
     }
+
     if (PIP_FLAGS.USE_LEGACY_PIP_FALLBACK && supportsLegacyPiP(video)) {
-      return enterLegacyPiP(video);
+      return await enterLegacyPiP(video);
     }
+
     throw new Error('PiP is not supported in this browser/context');
   }
 
@@ -1721,6 +1733,7 @@ function VSC_MAIN() {
     };
   }
 
+  // [수정 반영 #178.9.26] 고급 SVG 필터 엔진 적용 (다중 대역 루마 선명화 + 헤일로 억제)
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -1728,14 +1741,30 @@ function VSC_MAIN() {
     function createLRU(max = 192) {
       const m = new Map();
       return {
-        get(k) { return m.get(k); },
-        set(k, v) { m.delete(k); m.set(k, v); if (m.size > max) { const first = m.keys().next().value; m.delete(first); } }
+        get: (k) => m.get(k),
+        set(k, v) {
+          m.delete(k); m.set(k, v);
+          if (m.size > max) m.delete(m.keys().next().value);
+        }
       };
     }
 
-    const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createLRU(192);
-    const _attrCache = new WeakMap();
+    const urlCache    = new WeakMap();
+    const ctxMap      = new WeakMap();
+    const toneCache   = createLRU(192);
+    const haloCache   = createLRU(64);
+    const _attrCache  = new WeakMap();
     const __vscBgMemo = new WeakMap();
+
+    function setAttr(node, attr, val) {
+      if (!node) return;
+      const strVal = val == null ? '' : String(val);
+      let c = _attrCache.get(node);
+      if (!c) { c = Object.create(null); _attrCache.set(node, c); }
+      if (c[attr] === strVal) return;
+      c[attr] = strVal;
+      node.setAttribute(attr, strVal);
+    }
 
     function ensureOpaqueBg(video) {
       if (!video || __vscBgMemo.has(video) || !getFLAGS()?.FILTER_FORCE_OPAQUE_BG) return;
@@ -1758,34 +1787,33 @@ function VSC_MAIN() {
       if (prev !== null) video.style.backgroundColor = prev;
     }
 
-    function setAttr(node, attr, val) {
-      if (!node) return;
-      const strVal = val == null ? '' : String(val);
-      let cache = _attrCache.get(node);
-      if (!cache) { cache = Object.create(null); _attrCache.set(node, cache); }
-      if (cache[attr] === strVal) return;
-      cache[attr] = strVal;
-      node.setAttribute(attr, strVal);
+    function buildHaloTable(size, strength) {
+      if (strength < 0.005) return '0 1';
+      const qStrength = Math.round(strength * 100) / 100;
+      const cacheKey = `${size}|${qStrength}`;
+      const cached = haloCache.get(cacheKey);
+      if (cached) return cached;
+
+      const arr = new Array(size);
+      for (let i = 0; i < size; i++) {
+        const x = i / (size - 1);
+        const sCurve = 0.5 + 0.5 * Math.sin(Math.PI * (x - 0.5));
+        const y = clamp01((1 - qStrength) * x + qStrength * sCurve);
+        arr[i] = Math.round(y * 100000) / 100000;
+      }
+
+      const result = arr.join(' ');
+      haloCache.set(cacheKey, result);
+      return result;
     }
 
-    const applyLumaSharpening = (sharpDetail, amount, std) => {
-      if (!sharpDetail) return;
-      const safeAmount = Math.min(2.5, Math.max(0, amount));
-      const safeStd = Math.min(2.3, Math.max(0, std));
-
-      if (sharpDetail.blurF) setAttr(sharpDetail.blurF, 'stdDeviation', safeStd.toFixed(2));
-      if (sharpDetail.ySharp) {
-        setAttr(sharpDetail.ySharp, 'k2', (1 + safeAmount).toFixed(4));
-        setAttr(sharpDetail.ySharp, 'k3', (-safeAmount).toFixed(4));
-        setAttr(sharpDetail.ySharp, 'k4', '0');
-      }
-    };
-
     const makeKeyBase = (s) => [
-      Math.round(s.gain / 0.04), Math.round(s.gamma / 0.01), Math.round(s.contrast / 0.01),
-      Math.round(s.bright / 0.2), Math.round(s.satF / 0.01), Math.round(s.mid / 0.02),
-      Math.round(s.toe / 0.2), Math.round(s.shoulder / 0.2), Math.round(s.temp / 0.2),
-      Math.round(s.sharp), Math.round(s.sharp2), Math.round(s.clarity)
+      Math.round(s.gain / 0.04),     Math.round(s.gamma / 0.01),
+      Math.round(s.contrast / 0.01), Math.round(s.bright / 0.2),
+      Math.round(s.satF / 0.01),     Math.round(s.mid / 0.02),
+      Math.round(s.toe / 0.2),       Math.round(s.shoulder / 0.2),
+      Math.round(s.temp / 0.2),      Math.round(s.sharp),
+      Math.round(s.sharp2),          Math.round(s.clarity)
     ].join('|');
 
     function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
@@ -1794,16 +1822,14 @@ function VSC_MAIN() {
       if (hit) return hit;
 
       if (toeN === 0 && shoulderN === 0 && midN === 0 && Math.abs(gain - 1) < 0.01) {
-        const res0 = '0 1';
-        toneCache.set(key, res0);
-        return res0;
+        toneCache.set(key, '0 1');
+        return '0 1';
       }
 
       const arr = new Array(steps);
       const g = Math.log2(Math.max(1e-6, gain)) * 0.90;
       const denom = Math.abs(g) > 1e-6 ? (1 - Math.exp(-g)) : 0;
       const useExp = Math.abs(denom) > 1e-6;
-
       const toeEnd = 0.10 + Math.abs(toeN) * 0.06;
       const toeAmt = Math.abs(toeN);
       const toeSign = toeN >= 0 ? 1 : -1;
@@ -1816,16 +1842,16 @@ function VSC_MAIN() {
         let x = useExp ? (1 - Math.exp(-g * x0)) / denom : x0;
         x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
         if (toeAmt > 1e-6) {
-          const u = Utils.clamp((x - 0) / Math.max(1e-6, (toeEnd - 0)), 0, 1);
+          const u = clamp((x - 0) / Math.max(1e-6, toeEnd - 0), 0, 1);
           const smooth = u * u * (3 - 2 * u);
           const w = 1 - smooth;
           x = clamp(x + toeSign * toeAmt * 10.0 * ((toeEnd - x) * w * w), 0, 1);
         }
         if (shAmt > 1e-6 && x > shoulderStart) {
-          const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart));
+          const tt = (x - shoulderStart) / Math.max(1e-6, 1 - shoulderStart);
           const kk = Math.max(0.7, 1.2 + shAmt * 6.5);
-          const shDen = (1 - Math.exp(-kk));
-          const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt;
+          const shDen = 1 - Math.exp(-kk);
+          const shMap = Math.abs(shDen) > 1e-6 ? (1 - Math.exp(-kk * tt)) / shDen : tt;
           x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1);
         }
         if (x <= prev) {
@@ -1837,108 +1863,144 @@ function VSC_MAIN() {
         const y = Math.round(x * 100000) / 100000;
         arr[i] = y === 1 ? '1' : (y === 0 ? '0' : String(y));
       }
+
       const res = arr.join(' ');
       toneCache.set(key, res);
       return res;
     }
 
     function buildSvg(root) {
-      const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
+      const fidLite  = `vsc-lite-${config.VSC_ID}`;
+      const fidSharp = `vsc-sharp-${config.VSC_ID}`;
+
+      const svg  = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;overflow:hidden;' });
       const defs = h('defs', { ns: 'svg' });
       svg.append(defs);
 
-      const fidLite = `vsc-lite-${config.VSC_ID}`;
-      const fidSharp = `vsc-sharp-${config.VSC_ID}`;
-
-      const mkTempTransfer = (prefix, inN) => {
-        const r = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const g = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const b = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const tm = h('feComponentTransfer', { ns: 'svg', in: inN, result: `${prefix}_tm` }, r, g, b);
-        return { tm, r, g, b };
-      };
+      const MAT_Y = '0.2126 0.7152 0.0722 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0';
+      const MAT_UV = '0 0 0 0 0  -0.1146 -0.3854 0.5 0 0.5  0.5 -0.4542 -0.0458 0 0.5  0 0 0 1 0';
+      const MAT_RGB = '1 0 1.5748 0 -0.7874  1 -0.1873 -0.4681 0 0.3277  1 1.8556 0 0 -0.9278  0 0 0 1 0';
 
       const mkFuncRGB = (attrs) => ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', ...attrs }));
 
-      const mkC = (p, inNode) => {
-        const propsT = { ns: 'svg', result: `${p}_t` };
-        if (inNode) propsT.in = inNode;
-        const t = h('feComponentTransfer', propsT, mkFuncRGB({ type: 'table', tableValues: '0 1' }));
-        const b = h('feComponentTransfer', { ns: 'svg', in: `${p}_t`, result: `${p}_b` }, mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' }));
-        const g = h('feComponentTransfer', { ns: 'svg', in: `${p}_b`, result: `${p}_g` }, mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' }));
-        return { t, b, g };
+      const mkColorChain = (prefix, inN) => {
+        const toneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
+        const toneXfer  = h('feComponentTransfer', { ns: 'svg', in: inN,           result: `${prefix}_t` }, ...toneFuncs);
+        const bcFuncs   = mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' });
+        const bcXfer    = h('feComponentTransfer', { ns: 'svg', in: `${prefix}_t`, result: `${prefix}_b` }, ...bcFuncs);
+        const gamFuncs  = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' });
+        const gamXfer   = h('feComponentTransfer', { ns: 'svg', in: `${prefix}_b`, result: `${prefix}_g` }, ...gamFuncs);
+        return { nodes: [toneXfer, bcXfer, gamXfer], toneFuncs, bcFuncs, gamFuncs };
       };
 
-      const mkP = (p, inN) => {
-        const tmp = mkTempTransfer(p, inN);
-        const s = h('feColorMatrix', { ns: 'svg', in: `${p}_tm`, type: 'saturate', values: '1', result: `${p}_s` });
-        return { tmp, s };
+      const mkTempSat = (prefix, inN) => {
+        const tempR    = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
+        const tempG    = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
+        const tempB    = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
+        const tempXfer = h('feComponentTransfer', { ns: 'svg', in: inN,            result: `${prefix}_tm` }, tempR, tempG, tempB);
+        const satNode  = h('feColorMatrix',        { ns: 'svg', in: `${prefix}_tm`, type: 'saturate', values: '1', result: `${prefix}_s` });
+        return { nodes: [tempXfer, satNode], tempR, tempG, tempB, satNode };
       };
 
-      const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      const cL = mkC('l', 'SourceGraphic');
-      const pL = mkP('l', 'l_g');
-      lite.append(cL.t, cL.b, cL.g, pL.tmp.tm, pL.s);
+      const liteFilter = h('filter', {
+        ns: 'svg', id: fidLite,
+        'color-interpolation-filters': 'sRGB',
+        x: '0%', y: '0%', width: '100%', height: '100%'
+      });
+      const liteCC = mkColorChain('l', 'SourceGraphic');
+      const liteTS = mkTempSat('l', 'l_g');
+      liteFilter.append(...liteCC.nodes, ...liteTS.nodes);
 
-      const sharp = h('filter', { ns: 'svg', id: fidSharp, x: '0%', y: '0%', width: '100%', height: '100%' });
-      const pS = mkP('s', 's_out');
-
-      sharp.setAttribute('color-interpolation-filters', 'sRGB');
+      const sharpFilter = h('filter', {
+        ns: 'svg', id: fidSharp,
+        'color-interpolation-filters': 'sRGB',
+        x: '0%', y: '0%', width: '100%', height: '100%'
+      });
 
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' },
         h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' })
       );
 
-      const cS = mkC('s', 's_opaque');
+      const sharpCC = mkColorChain('s', 's_opaque');
 
-      const Y_ONLY_LUMA = '0.2126 0.7152 0.0722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0';
-      const RGB_TO_CbCr_GB = '0 0 0 0 0 -0.1146 -0.3854 0.5 0 0.5 0.5 -0.4542 -0.0458 0 0.5 0 0 0 1 0';
-      const YCbCr_TO_RGB = '1 0 1.5748 0 -0.7874 1 -0.1873 -0.4681 0 0.3277 1 1.8556 0 0 -0.9278 0 0 0 1 0';
-
-      const sYR = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: Y_ONLY_LUMA, result: 's_yR' });
-      const sUV = h('feColorMatrix', { ns: 'svg', in: 's_g', type: 'matrix', values: RGB_TO_CbCr_GB, result: 's_uvGB' });
-
-      const yBlurLC = h('feGaussianBlur', { ns: 'svg', in: 's_yR', stdDeviation: '0', edgeMode: 'duplicate', result: 's_ybLC' });
-      const yLC = h('feComposite', {
-        ns: 'svg', in: 's_yR', in2: 's_ybLC',
-        operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
-        result: 's_yLC'
+      const sLuma = h('feColorMatrix', {
+        ns: 'svg', in: 's_g', type: 'matrix', values: MAT_Y, result: 's_Y'
       });
 
-      const yBlur = h('feGaussianBlur', { ns: 'svg', in: 's_yLC', stdDeviation: '0', edgeMode: 'duplicate', result: 's_yb1' });
-      const ySharp = h('feComposite', {
-        ns: 'svg', in: 's_yLC', in2: 's_yb1',
-        operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
-        result: 's_ySharpR'
+      const sChroma = h('feColorMatrix', {
+        ns: 'svg', in: 's_g', type: 'matrix', values: MAT_UV, result: 's_CbCr'
       });
 
-      const yuv = h('feComposite', { ns: 'svg', in: 's_ySharpR', in2: 's_uvGB', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_yuv' });
-      const toRgb = h('feColorMatrix', { ns: 'svg', in: 's_yuv', type: 'matrix', values: YCbCr_TO_RGB, result: 's_out' });
+      const sBlurFine = h('feGaussianBlur', {
+        ns: 'svg', in: 's_Y', stdDeviation: '0.6',
+        edgeMode: 'duplicate', result: 's_bFine'
+      });
 
-      pS.s.setAttribute('result', 's_final_rgb');
-      const restoreAlpha = h('feComposite', { ns: 'svg', in: 's_final_rgb', in2: 'SourceGraphic', operator: 'in', result: 's_out_final' });
+      const sBlurClarity = h('feGaussianBlur', {
+        ns: 'svg', in: 's_Y', stdDeviation: '8',
+        edgeMode: 'duplicate', result: 's_bClarity'
+      });
 
-      sharp.append(
+      const sYFineUSM = h('feComposite', {
+        ns: 'svg', in: 's_Y', in2: 's_bFine',
+        operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
+        result: 's_Yfine_raw'
+      });
+
+      const sHaloFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
+      const sHaloSuppress = h('feComponentTransfer', {
+        ns: 'svg', in: 's_Yfine_raw', result: 's_Yfine'
+      }, ...sHaloFuncs);
+
+      const sMidDetail = h('feComposite', {
+        ns: 'svg', in: 's_bFine', in2: 's_bClarity',
+        operator: 'arithmetic', k1: '0', k2: '1', k3: '-1', k4: '0',
+        result: 's_mid'
+      });
+
+      const sClarityAdd = h('feComposite', {
+        ns: 'svg', in: 's_Yfine', in2: 's_mid',
+        operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
+        result: 's_Ysharp'
+      });
+
+      const sRecombine = h('feComposite', {
+        ns: 'svg', in: 's_Ysharp', in2: 's_CbCr',
+        operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0',
+        result: 's_YUV'
+      });
+
+      const sToRGB = h('feColorMatrix', {
+        ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_rgb'
+      });
+
+      const sharpTS = mkTempSat('s', 's_rgb');
+
+      const sRestoreAlpha = h('feComposite', {
+        ns: 'svg', in: 's_s', in2: 'SourceGraphic',
+        operator: 'in', result: 's_final'
+      });
+
+      sharpFilter.append(
         sOpaque,
-        cS.t, cS.b, cS.g, sYR, sUV,
-        yBlurLC, yLC,
-        yBlur, ySharp,
-        yuv, toRgb, pS.tmp.tm, pS.s,
-        restoreAlpha
+        ...sharpCC.nodes,
+        sLuma, sChroma,
+        sBlurFine, sBlurClarity,
+        sYFineUSM,
+        sHaloSuppress,
+        sMidDetail, sClarityAdd,
+        sRecombine, sToRGB,
+        ...sharpTS.nodes,
+        sRestoreAlpha
       );
 
-      let sharpDetail = {
-        mode: 'basic', blurF: yBlur, ySharp: ySharp,
-        lcBlurF: yBlurLC, lcApply: yLC
-      };
-
-      defs.append(lite, sharp);
+      defs.append(liteFilter, sharpFilter);
 
       const tryAppend = () => {
         const target = root.body || root.documentElement || root;
-        if (target && target.appendChild) { target.appendChild(svg); return true; }
+        if (target?.appendChild) { target.appendChild(svg); return true; }
         return false;
-      }
+      };
 
       if (!tryAppend()) {
         let _fallbackMoId = 0;
@@ -1951,40 +2013,119 @@ function VSC_MAIN() {
         try { mo.observe(root.documentElement || root, { childList: true, subtree: true }); } catch (_) {}
 
         _fallbackMoId = setTimeout(() => mo.disconnect(), 5000);
-        if (__vscNs._timers) __vscNs._timers.push(_fallbackMoId);
-        __globalSig.addEventListener('abort', () => {
-          clearTimeout(_fallbackMoId);
-          mo.disconnect();
-        }, { once: true });
+        if (typeof __vscNs !== 'undefined' && __vscNs._timers) __vscNs._timers.push(_fallbackMoId);
+        if (typeof __globalSig !== 'undefined') {
+          __globalSig.addEventListener('abort', () => {
+            clearTimeout(_fallbackMoId);
+            mo.disconnect();
+          }, { once: true });
+        }
       }
 
       const commonByTier = {
-        lite: { toneFuncs: Array.from(cL.t.children), bcLinFuncs: Array.from(cL.b.children), gamFuncs: Array.from(cL.g.children), tmp: pL.tmp, sats: [pL.s] },
-        sharp: { toneFuncs: Array.from(cS.t.children), bcLinFuncs: Array.from(cS.b.children), gamFuncs: Array.from(cS.g.children), tmp: pS.tmp, sats: [pS.s] }
+        lite: {
+          toneFuncs:  liteCC.toneFuncs,
+          bcLinFuncs: liteCC.bcFuncs,
+          gamFuncs:   liteCC.gamFuncs,
+          tmp:        { r: liteTS.tempR, g: liteTS.tempG, b: liteTS.tempB },
+          sats:       [liteTS.satNode]
+        },
+        sharp: {
+          toneFuncs:  sharpCC.toneFuncs,
+          bcLinFuncs: sharpCC.bcFuncs,
+          gamFuncs:   sharpCC.gamFuncs,
+          tmp:        { r: sharpTS.tempR, g: sharpTS.tempG, b: sharpTS.tempB },
+          sats:       [sharpTS.satNode]
+        }
+      };
+
+      const sharpDetail = {
+        blurFine:    sBlurFine,
+        blurClarity: sBlurClarity,
+        fineUSM:     sYFineUSM,
+        haloFuncs:   sHaloFuncs,
+        clarityAdd:  sClarityAdd,
       };
 
       return {
-        fidLite, fidSharp, filters: { lite, sharp }, commonByTier, sharpDetail,
+        fidLite, fidSharp, commonByTier, sharpDetail,
         st: {
-          lastKey: '', toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '',
-          commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } },
-          sharpKey: '', lcKey: '', rev: 0
+          lastKey: '', rev: 0,
+          commonTier: {
+            lite:  { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' },
+            sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }
+          },
+          blurKey:  '',
+          sharpKey: '',
+          haloKey:  '',
+          lcKey:    ''
         }
       };
     }
 
+    function applySharpParams(sharpDetail, st, s, refW) {
+      const qSharp   = Math.round(Number(s.sharp   || 0));
+      const qSharp2  = Math.round(Number(s.sharp2  || 0));
+      const qClarity = Math.round(Number(s.clarity || 0));
+
+      const aFine   = Math.max(0, qSharp / 35);
+      const sigFine = clamp(0.3 + qSharp2 / 24, 0, 2.3);
+
+      const lcBase     = clamp01(qClarity / 60);
+      const aClarity   = lcBase * 0.28;
+      const sigClarity = clamp((6 + lcBase * 12) * Math.sqrt(refW / 1920), 0, 22);
+
+      const haloStrength = clamp(aFine * 0.51, 0, 0.35);
+
+      const blurKeyNext = `${sigFine.toFixed(3)}|${sigClarity.toFixed(1)}`;
+      if (st.blurKey !== blurKeyNext) {
+        st.blurKey = blurKeyNext;
+        if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine.toFixed(3));
+        if (sharpDetail.blurClarity) setAttr(sharpDetail.blurClarity, 'stdDeviation', sigClarity.toFixed(1));
+      }
+
+      const sharpKeyNext = aFine.toFixed(5);
+      if (st.sharpKey !== sharpKeyNext) {
+        st.sharpKey = sharpKeyNext;
+        if (sharpDetail.fineUSM) {
+          setAttr(sharpDetail.fineUSM, 'k2', (1 + aFine).toFixed(5));
+          setAttr(sharpDetail.fineUSM, 'k3', (-aFine).toFixed(5));
+        }
+      }
+
+      const qStrength = Math.round(haloStrength * 100) / 100;
+      const haloKeyNext = `${Math.round(qStrength * 100)}`;
+      if (st.haloKey !== haloKeyNext) {
+        st.haloKey = haloKeyNext;
+        const table = buildHaloTable(128, qStrength);
+        if (sharpDetail.haloFuncs) {
+          for (const fn of sharpDetail.haloFuncs) setAttr(fn, 'tableValues', table);
+        }
+      }
+
+      const lcKeyNext = `${aClarity.toFixed(5)}|${sigClarity.toFixed(1)}`;
+      if (st.lcKey !== lcKeyNext) {
+        st.lcKey = lcKeyNext;
+        if (sharpDetail.clarityAdd) {
+          setAttr(sharpDetail.clarityAdd, 'k3', aClarity.toFixed(5));
+        }
+      }
+    }
+
     function prepare(video, s) {
-      const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
+      const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument)
+        ? video.getRootNode()
+        : (video.ownerDocument || document);
 
       let dc = urlCache.get(root);
       if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
 
       ensureOpaqueBg(video);
 
-      const qSharp = Math.round(Number(s.sharp || 0));
-      const qSharp2 = Math.round(Number(s.sharp2 || 0));
+      const qSharp   = Math.round(Number(s.sharp   || 0));
+      const qSharp2  = Math.round(Number(s.sharp2  || 0));
       const qClarity = Math.round(Number(s.clarity || 0));
-      const sharpTotal = (qSharp + qSharp2 + qClarity);
+      const sharpTotal = qSharp + qSharp2 + qClarity;
       const tier = sharpTotal > 0 ? 'sharp' : 'lite';
 
       const stableKey = `${tier}|${makeKeyBase(s)}`;
@@ -1998,30 +2139,45 @@ function VSC_MAIN() {
         nodes.st.lastKey = stableKey;
         nodes.st.rev = (nodes.st.rev + 1) | 0;
 
-        const st = nodes.st;
-        const steps = 128;
-        const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08;
+        const st     = nodes.st;
+        const cst    = st.commonTier[tier];
+        const common = nodes.commonByTier[tier];
+        const steps  = 128;
 
-        const toeQ = Math.round(clamp((s.toe || 0) / TOE_DIVISOR, -1, 1) / 0.02) * 0.02;
-        const shQ = Math.round(clamp((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02;
-        const midQ = Math.round(clamp(s.mid || 0, -1, 1) / 0.02) * 0.02;
+        const gainQ  = (s.gain || 1) < 1.4 ? 0.06 : 0.08;
+        const toeQ   = Math.round(clamp((s.toe || 0) / TOE_DIVISOR, -1, 1) / 0.02) * 0.02;
+        const shQ    = Math.round(clamp((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02;
+        const midQ   = Math.round(clamp(s.mid || 0, -1, 1) / 0.02) * 0.02;
         const gainQ2 = Math.round((s.gain || 1) / gainQ) * gainQ;
+        const tk     = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`;
+        const table  = cst.toneKey !== tk
+          ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2)
+          : cst.toneTable;
 
-        const tk = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`;
-        const cst = st.commonTier[tier] || st;
-        const table = (cst.toneKey !== tk) ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : cst.toneTable;
+        if (cst.toneKey !== tk) {
+          cst.toneKey = tk; cst.toneTable = table;
+          for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table);
+        }
 
-        const con = clamp(s.contrast || 1, 0.1, 5.0);
+        const con         = clamp(s.contrast || 1, 0.1, 5.0);
         const brightOffset = clamp((s.bright || 0) / 250, -0.5, 0.5);
-        const intercept = clamp(0.5 * (1 - con) + brightOffset, -5, 5);
+        const intercept   = clamp(0.5 * (1 - con) + brightOffset, -5, 5);
+        const bcLinKey    = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
+        if (cst.bcLinKey !== bcLinKey) {
+          cst.bcLinKey = bcLinKey;
+          for (const fn of common.bcLinFuncs) {
+            setAttr(fn, 'slope', con.toFixed(3));
+            setAttr(fn, 'intercept', intercept.toFixed(4));
+          }
+        }
 
-        const conStr = con.toFixed(3);
-        const interceptStr = intercept.toFixed(4);
-        const bcLinKey = `${conStr}|${interceptStr}`;
         const gk = (1 / clamp(s.gamma || 1, 0.1, 5.0)).toFixed(4);
+        if (cst.gammaKey !== gk) {
+          cst.gammaKey = gk;
+          for (const fn of common.gamFuncs) setAttr(fn, 'exponent', gk);
+        }
 
         const satBase = clamp(s.satF ?? 1, 0, 5.0);
-
         let satAdj = satBase;
         if (getFLAGS()?.FILTER_SHARP_SAT_COMP && tier === 'sharp') {
           const totalStrength = clamp01((qSharp / 50) * 0.5 + (qClarity / 60) * 0.5);
@@ -2030,50 +2186,25 @@ function VSC_MAIN() {
           const boost = userReduce * (t * 0.18);
           satAdj = clamp(Math.min(satBase * (1 + boost), satBase + 0.25), 0, 5.0);
         }
-        const satVal = satAdj.toFixed(2);
-
-        const rsStr = s._rs.toFixed(3);
-        const gsStr = s._gs.toFixed(3);
-        const bsStr = s._bs.toFixed(3);
-        const tmk = `${rsStr}|${gsStr}|${bsStr}`;
-
-        const common = nodes.commonByTier[tier];
-
-        if (cst.toneKey !== tk) { cst.toneKey = tk; cst.toneTable = table; if (common.toneFuncs) for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
-        if (cst.bcLinKey !== bcLinKey) { cst.bcLinKey = bcLinKey; if (common.bcLinFuncs) for (const fn of common.bcLinFuncs) { setAttr(fn, 'slope', conStr); setAttr(fn, 'intercept', interceptStr); } }
-        if (cst.gammaKey !== gk) { cst.gammaKey = gk; if (common.gamFuncs) for (const fn of common.gamFuncs) setAttr(fn, 'exponent', gk); }
-        if (cst.satKey !== satVal) { cst.satKey = satVal; if (common.sats) for (const satNode of common.sats) setAttr(satNode, 'values', satVal); }
-        if (cst.tempKey !== tmk) { cst.tempKey = tmk; if (common.tmp) { setAttr(common.tmp.r, 'slope', rsStr); setAttr(common.tmp.g, 'slope', gsStr); setAttr(common.tmp.b, 'slope', bsStr); } }
-      }
-
-      if (tier === 'sharp') {
-        const sharpAmount = Math.max(0, qSharp / 35);
-        const sharpRadius = clamp(0.3 + (qSharp2 / 24), 0, 2.3);
-
-        const sharpKeyNext = `${sharpAmount.toFixed(3)}|${sharpRadius.toFixed(2)}`;
-
-        if (nodes.st.sharpKey !== sharpKeyNext) {
-          nodes.st.sharpKey = sharpKeyNext;
-          nodes.st.rev = (nodes.st.rev + 1) | 0;
-          applyLumaSharpening(nodes.sharpDetail, sharpAmount, sharpRadius);
+        const satVal  = satAdj.toFixed(2);
+        if (cst.satKey !== satVal) {
+          cst.satKey = satVal;
+          for (const satNode of common.sats) setAttr(satNode, 'values', satVal);
         }
 
-        const lcBase = clamp01(qClarity / 60);
-        let lcAmount = lcBase * 0.25;
-        const refW = Math.max(640, Math.min(3840, video.clientWidth || video.videoWidth || 1920));
-        let lcStd = (6 + lcBase * 10) * Math.sqrt(refW / 1920);
-        lcStd = clamp(lcStd, 0, 18);
+        const rsStr = s._rs.toFixed(3), gsStr = s._gs.toFixed(3), bsStr = s._bs.toFixed(3);
+        const tmk   = `${rsStr}|${gsStr}|${bsStr}`;
+        if (cst.tempKey !== tmk) {
+          cst.tempKey = tmk;
+          setAttr(common.tmp.r, 'slope', rsStr);
+          setAttr(common.tmp.g, 'slope', gsStr);
+          setAttr(common.tmp.b, 'slope', bsStr);
+        }
 
-        if (lcBase < 1e-3) { lcAmount = 0; lcStd = 0; }
-
-        const lcKey = `${lcAmount.toFixed(4)}|${lcStd.toFixed(2)}`;
-        if (nodes.st.lcKey !== lcKey) {
-          nodes.st.lcKey = lcKey;
-          if (nodes.sharpDetail?.lcBlurF) setAttr(nodes.sharpDetail.lcBlurF, 'stdDeviation', lcStd.toFixed(2));
-          if (nodes.sharpDetail?.lcApply) {
-            setAttr(nodes.sharpDetail.lcApply, 'k2', (1 + lcAmount).toFixed(4));
-            setAttr(nodes.sharpDetail.lcApply, 'k3', (-lcAmount).toFixed(4));
-          }
+        if (tier === 'sharp') {
+          const fastPix = config.SVG_MAX_PIX_FAST || (3840 * 2160);
+          const refW = Math.max(640, Math.min(Math.sqrt(fastPix), video.clientWidth || video.videoWidth || 1920));
+          applySharpParams(nodes.sharpDetail, st, s, refW);
         }
       }
 
@@ -2086,60 +2217,83 @@ function VSC_MAIN() {
     return {
       invalidateCache: (video) => {
         try {
-          const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
+          const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument)
+            ? video.getRootNode() : (video.ownerDocument || document);
           const nodes = ctxMap.get(root);
           if (nodes) {
-            nodes.st.lastKey = ''; nodes.st.sharpKey = ''; nodes.st.lcKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
-            for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; } }
+            nodes.st.lastKey = ''; nodes.st.blurKey = '';
+            nodes.st.sharpKey = ''; nodes.st.haloKey = ''; nodes.st.lcKey = '';
+            nodes.st.rev = (nodes.st.rev + 1) | 0;
+            for (const tierKey of ['lite', 'sharp']) {
+              const cst = nodes.st.commonTier[tierKey];
+              if (cst) {
+                cst.toneKey = ''; cst.toneTable = '';
+                cst.bcLinKey = ''; cst.gammaKey = '';
+                cst.tempKey = ''; cst.satKey = '';
+              }
+            }
           }
           const dc = urlCache.get(root);
           if (dc) { dc.key = ''; dc.url = ''; }
         } catch (_) {}
       },
+
       prepareCached: (video, s) => {
         try { return prepare(video, s); }
-        catch (e) { log.warn('filter prepare failed:', e); return { url: null, changed: false, rev: -1 }; }
+        catch (e) {
+          if (typeof log !== 'undefined') log.warn('filter prepare failed:', e);
+          return { url: null, changed: false, rev: -1 };
+        }
       },
+
       applyUrl: (el, urlObj) => {
         if (!el) return;
         const url = typeof urlObj === 'string' ? urlObj : urlObj?.url;
         const st = getVState(el);
-
         if (!url) {
           restoreOpaqueBg(el);
           if (st.applied) {
-            if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
+            if (st.origFilter != null && st.origFilter !== '')
+              el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
             else el.style.removeProperty('filter');
-            if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
+            if (st.origWebkitFilter != null && st.origWebkitFilter !== '')
+              el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
             else el.style.removeProperty('-webkit-filter');
-            st.applied = false; st.lastFilterUrl = null; st.filterRev = -1; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
+            st.applied = false; st.lastFilterUrl = null; st.filterRev = -1;
+            st.origFilter = st.origWebkitFilter = null;
+            st.origFilterPrio = st.origWebkitFilterPrio = '';
           }
           return;
         }
-
         if (!st.applied) {
-          st.origFilter = el.style.getPropertyValue('filter'); st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
-          st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter'); st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
+          st.origFilter        = el.style.getPropertyValue('filter');
+          st.origFilterPrio    = el.style.getPropertyPriority('filter') || '';
+          st.origWebkitFilter  = el.style.getPropertyValue('-webkit-filter');
+          st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
         }
-
-        const nextRev = (typeof urlObj === 'object' && typeof urlObj.rev === 'number') ? urlObj.rev : -1;
-
+        const nextRev = (typeof urlObj === 'object' && typeof urlObj.rev === 'number')
+          ? urlObj.rev : -1;
         if (st.lastFilterUrl !== url) {
-            el.style.setProperty('filter', url, 'important');
-            el.style.setProperty('-webkit-filter', url, 'important');
+          el.style.setProperty('filter', url, 'important');
+          el.style.setProperty('-webkit-filter', url, 'important');
         }
         st.applied = true; st.lastFilterUrl = url; st.filterRev = nextRev;
       },
+
       clear: (el) => {
         if (!el) return;
         const st = getVState(el);
         restoreOpaqueBg(el);
         if (!st.applied) return;
-        if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
+        if (st.origFilter != null && st.origFilter !== '')
+          el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
         else el.style.removeProperty('filter');
-        if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
+        if (st.origWebkitFilter != null && st.origWebkitFilter !== '')
+          el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
         else el.style.removeProperty('-webkit-filter');
-        st.applied = false; st.lastFilterUrl = null; st.filterRev = -1; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
+        st.applied = false; st.lastFilterUrl = null; st.filterRev = -1;
+        st.origFilter = st.origWebkitFilter = null;
+        st.origFilterPrio = st.origWebkitFilterPrio = '';
       }
     };
   }
@@ -3078,7 +3232,6 @@ function VSC_MAIN() {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
     const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.2, gamma: -0.04, mid: -0.01 }], [SHADOW_BAND.MID, { toe: 0.7, gamma: -0.02, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0.3, gamma: -0.01, mid: -0.08 }]]);
 
-    // [수정 반영 #10] 고정된 색온도 연산 최적화 (단 1회만 계산)
     const FIXED_TEMP = -7;
     const { rs: FIXED_RS, gs: FIXED_GS, bs: FIXED_BS } = tempToRgbGain(FIXED_TEMP);
 
@@ -3171,7 +3324,6 @@ function VSC_MAIN() {
         const dirtySize = vidsDirty.size;
         if (dirtySize > 40 || (now - lastPrune > 2000)) {
           Registry.prune();
-          // [수정 반영 #5] 줌 매니저 강한 참조 메모리 누수 방지 연동
           getNS()?.ZoomManager?.pruneDisconnected?.();
           lastPrune = now;
         }
@@ -3236,7 +3388,6 @@ function VSC_MAIN() {
           const list = Array.from(document.querySelectorAll('video'));
           domV = list.find(v => v && v.readyState >= 2 && !v.paused && !v.ended) || list.find(v => v && v.readyState >= 2) || null;
         } catch (_) {}
-        // [수정 반영 #9] 부작용(Scheduler.request)을 마이크로태스크로 지연시켜 간접 호출 무한 루프 방지
         if (domV && domV !== __activeTarget) {
           __activeTarget = domV;
           queueMicrotask(() => { if (__activeTarget === domV) Scheduler.request(false); });
@@ -3263,7 +3414,6 @@ function VSC_MAIN() {
     });
   }
 
-  // [수정 반영] 숲(SOOP) 및 치지직 타이머 버그 수정을 위해 완벽한 1Hz 실시간 측정 로직으로 롤백
   function createTimerManager(Store, P) {
     let timerEl = null;
     let intervalId = null;
@@ -3313,11 +3463,8 @@ function VSC_MAIN() {
 
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
-      // [수정 반영 #3] innerText 대신 렌더링 부하가 적은 textContent 사용
       if (timerEl.textContent !== timeStr) timerEl.textContent = timeStr;
 
-      // 애니메이션 레이스 컨디션을 피하기 위해 캐싱 없이 실시간으로 계산
       const vRect = activeVideo.getBoundingClientRect();
       const pRect = parent.getBoundingClientRect();
       const vWidth = vRect.width;
