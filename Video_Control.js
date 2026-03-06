@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.26 - Advanced SVG & Halo Suppression)
+// @name         Video_Control (v178.9.27 - Adaptive Sharpening & Stability)
 // @namespace    https://github.com/
-// @version      178.9.26
+// @version      178.9.27
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,14 +39,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.26');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.27');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.26';
+  __vscNs.__version = '178.9.27';
 
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
@@ -1733,7 +1733,6 @@ function VSC_MAIN() {
     };
   }
 
-  // [수정 반영 #178.9.26] 고급 SVG 필터 엔진 적용 (다중 대역 루마 선명화 + 헤일로 억제)
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -1741,26 +1740,40 @@ function VSC_MAIN() {
     function createLRU(max = 192) {
       const m = new Map();
       return {
-        get: (k) => m.get(k),
+        get: (k) => {
+          const v = m.get(k);
+          if (v !== undefined) {
+            m.delete(k); m.set(k, v);
+          }
+          return v;
+        },
         set(k, v) {
-          m.delete(k); m.set(k, v);
+          if (m.has(k)) m.delete(k);
+          m.set(k, v);
           if (m.size > max) m.delete(m.keys().next().value);
         }
       };
     }
 
-    const urlCache    = new WeakMap();
-    const ctxMap      = new WeakMap();
-    const toneCache   = createLRU(192);
-    const haloCache   = createLRU(64);
-    const _attrCache  = new WeakMap();
-    const __vscBgMemo = new WeakMap();
+    const urlCache      = new WeakMap();
+    const ctxMap        = new WeakMap();
+    const toneCache     = createLRU(192);
+    const haloCache     = createLRU(64);
+    const edgeMaskCache = createLRU(64);
+    const _attrCache    = new WeakMap();
+    const __vscBgMemo   = new WeakMap();
 
     function setAttr(node, attr, val) {
       if (!node) return;
-      const strVal = val == null ? '' : String(val);
       let c = _attrCache.get(node);
       if (!c) { c = Object.create(null); _attrCache.set(node, c); }
+      if (typeof val === 'number') {
+        if (c[attr] === val) return;
+        c[attr] = val;
+        node.setAttribute(attr, val);
+        return;
+      }
+      const strVal = val == null ? '' : String(val);
       if (c[attr] === strVal) return;
       c[attr] = strVal;
       node.setAttribute(attr, strVal);
@@ -1804,6 +1817,29 @@ function VSC_MAIN() {
 
       const result = arr.join(' ');
       haloCache.set(cacheKey, result);
+      return result;
+    }
+
+    function buildEdgeMaskTable(size, sensitivity, threshold) {
+      if (sensitivity < 0.01) return '1 1';
+      const qSens = Math.round(sensitivity * 100) / 100;
+      const qThr  = Math.round(threshold * 1000) / 1000;
+      const cacheKey = `em|${size}|${qSens}|${qThr}`;
+      const cached = edgeMaskCache.get(cacheKey);
+      if (cached) return cached;
+
+      const arr = new Array(size);
+      for (let i = 0; i < size; i++) {
+        const x = i / (size - 1);
+        const dist = Math.abs(x - 0.5) * 2;
+        const t = Math.max(0, dist - qThr) / Math.max(1e-6, 1 - qThr);
+        const scaled = Math.min(1, t * qSens);
+        const y = scaled * scaled * (3 - 2 * scaled);
+        arr[i] = Math.round(y * 100000) / 100000;
+      }
+
+      const result = arr.join(' ');
+      edgeMaskCache.set(cacheKey, result);
       return result;
     }
 
@@ -1855,10 +1891,9 @@ function VSC_MAIN() {
           x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1);
         }
         if (x <= prev) {
-          const eps = Math.min(1e-5, (1.0 - prev) * 0.5);
-          x = eps > 0 ? prev + eps : prev;
+          x = prev + Math.min(1e-5, Math.max(0, (1.0 - prev) * 0.5));
         }
-        x = Math.min(x, 1.0);
+        if (x > 1.0) x = 1.0;
         prev = x;
         const y = Math.round(x * 100000) / 100000;
         arr[i] = y === 1 ? '1' : (y === 0 ? '0' : String(y));
@@ -1905,7 +1940,7 @@ function VSC_MAIN() {
       const liteFilter = h('filter', {
         ns: 'svg', id: fidLite,
         'color-interpolation-filters': 'sRGB',
-        x: '0%', y: '0%', width: '100%', height: '100%'
+        x: '-1%', y: '-1%', width: '102%', height: '102%'
       });
       const liteCC = mkColorChain('l', 'SourceGraphic');
       const liteTS = mkTempSat('l', 'l_g');
@@ -1914,7 +1949,7 @@ function VSC_MAIN() {
       const sharpFilter = h('filter', {
         ns: 'svg', id: fidSharp,
         'color-interpolation-filters': 'sRGB',
-        x: '0%', y: '0%', width: '100%', height: '100%'
+        x: '-4%', y: '-4%', width: '108%', height: '108%'
       });
 
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' },
@@ -1941,8 +1976,25 @@ function VSC_MAIN() {
         edgeMode: 'duplicate', result: 's_bClarity'
       });
 
-      const sYFineUSM = h('feComposite', {
+      const sDetailBiased = h('feComposite', {
         ns: 'svg', in: 's_Y', in2: 's_bFine',
+        operator: 'arithmetic', k1: '0', k2: '0.5', k3: '-0.5', k4: '0.5',
+        result: 's_det'
+      });
+
+      const sEdgeFuncs = mkFuncRGB({ type: 'table', tableValues: '1 1' });
+      const sEdgeMask = h('feComponentTransfer', {
+        ns: 'svg', in: 's_det', result: 's_emask'
+      }, ...sEdgeFuncs);
+
+      const sModDetail = h('feComposite', {
+        ns: 'svg', in: 's_det', in2: 's_emask',
+        operator: 'arithmetic', k1: '1', k2: '0', k3: '-0.5', k4: '0.5',
+        result: 's_mdet'
+      });
+
+      const sYFineUSM = h('feComposite', {
+        ns: 'svg', in: 's_Y', in2: 's_mdet',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
         result: 's_Yfine_raw'
       });
@@ -1986,6 +2038,9 @@ function VSC_MAIN() {
         ...sharpCC.nodes,
         sLuma, sChroma,
         sBlurFine, sBlurClarity,
+        sDetailBiased,
+        sEdgeMask,
+        sModDetail,
         sYFineUSM,
         sHaloSuppress,
         sMidDetail, sClarityAdd,
@@ -2045,6 +2100,7 @@ function VSC_MAIN() {
         fineUSM:     sYFineUSM,
         haloFuncs:   sHaloFuncs,
         clarityAdd:  sClarityAdd,
+        edgeFuncs:   sEdgeFuncs
       };
 
       return {
@@ -2058,7 +2114,8 @@ function VSC_MAIN() {
           blurKey:  '',
           sharpKey: '',
           haloKey:  '',
-          lcKey:    ''
+          lcKey:    '',
+          emKey:    ''
         }
       };
     }
@@ -2077,6 +2134,9 @@ function VSC_MAIN() {
 
       const haloStrength = clamp(aFine * 0.51, 0, 0.35);
 
+      const adaptSens      = clamp(2.5 + aFine * 1.8, 0, 6);
+      const adaptThreshold = clamp(0.06 - aFine * 0.008, 0.02, 0.12);
+
       const blurKeyNext = `${sigFine.toFixed(3)}|${sigClarity.toFixed(1)}`;
       if (st.blurKey !== blurKeyNext) {
         st.blurKey = blurKeyNext;
@@ -2088,8 +2148,18 @@ function VSC_MAIN() {
       if (st.sharpKey !== sharpKeyNext) {
         st.sharpKey = sharpKeyNext;
         if (sharpDetail.fineUSM) {
-          setAttr(sharpDetail.fineUSM, 'k2', (1 + aFine).toFixed(5));
-          setAttr(sharpDetail.fineUSM, 'k3', (-aFine).toFixed(5));
+          setAttr(sharpDetail.fineUSM, 'k2', '1');
+          setAttr(sharpDetail.fineUSM, 'k3', parseFloat((2 * aFine).toFixed(5)));
+          setAttr(sharpDetail.fineUSM, 'k4', parseFloat((-aFine).toFixed(5)));
+        }
+      }
+
+      const emKeyNext = `${Math.round(adaptSens * 100)}|${Math.round(adaptThreshold * 1000)}`;
+      if ((st.emKey || '') !== emKeyNext) {
+        st.emKey = emKeyNext;
+        const table = buildEdgeMaskTable(64, adaptSens, adaptThreshold);
+        if (sharpDetail.edgeFuncs) {
+          for (const fn of sharpDetail.edgeFuncs) setAttr(fn, 'tableValues', table);
         }
       }
 
@@ -2097,7 +2167,7 @@ function VSC_MAIN() {
       const haloKeyNext = `${Math.round(qStrength * 100)}`;
       if (st.haloKey !== haloKeyNext) {
         st.haloKey = haloKeyNext;
-        const table = buildHaloTable(128, qStrength);
+        const table = buildHaloTable(64, qStrength);
         if (sharpDetail.haloFuncs) {
           for (const fn of sharpDetail.haloFuncs) setAttr(fn, 'tableValues', table);
         }
@@ -2107,7 +2177,7 @@ function VSC_MAIN() {
       if (st.lcKey !== lcKeyNext) {
         st.lcKey = lcKeyNext;
         if (sharpDetail.clarityAdd) {
-          setAttr(sharpDetail.clarityAdd, 'k3', aClarity.toFixed(5));
+          setAttr(sharpDetail.clarityAdd, 'k3', parseFloat(aClarity.toFixed(5)));
         }
       }
     }
@@ -2166,15 +2236,15 @@ function VSC_MAIN() {
         if (cst.bcLinKey !== bcLinKey) {
           cst.bcLinKey = bcLinKey;
           for (const fn of common.bcLinFuncs) {
-            setAttr(fn, 'slope', con.toFixed(3));
-            setAttr(fn, 'intercept', intercept.toFixed(4));
+            setAttr(fn, 'slope', parseFloat(con.toFixed(3)));
+            setAttr(fn, 'intercept', parseFloat(intercept.toFixed(4)));
           }
         }
 
         const gk = (1 / clamp(s.gamma || 1, 0.1, 5.0)).toFixed(4);
         if (cst.gammaKey !== gk) {
           cst.gammaKey = gk;
-          for (const fn of common.gamFuncs) setAttr(fn, 'exponent', gk);
+          for (const fn of common.gamFuncs) setAttr(fn, 'exponent', parseFloat(gk));
         }
 
         const satBase = clamp(s.satF ?? 1, 0, 5.0);
@@ -2189,21 +2259,23 @@ function VSC_MAIN() {
         const satVal  = satAdj.toFixed(2);
         if (cst.satKey !== satVal) {
           cst.satKey = satVal;
-          for (const satNode of common.sats) setAttr(satNode, 'values', satVal);
+          for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal));
         }
 
         const rsStr = s._rs.toFixed(3), gsStr = s._gs.toFixed(3), bsStr = s._bs.toFixed(3);
         const tmk   = `${rsStr}|${gsStr}|${bsStr}`;
         if (cst.tempKey !== tmk) {
           cst.tempKey = tmk;
-          setAttr(common.tmp.r, 'slope', rsStr);
-          setAttr(common.tmp.g, 'slope', gsStr);
-          setAttr(common.tmp.b, 'slope', bsStr);
+          setAttr(common.tmp.r, 'slope', parseFloat(rsStr));
+          setAttr(common.tmp.g, 'slope', parseFloat(gsStr));
+          setAttr(common.tmp.b, 'slope', parseFloat(bsStr));
         }
 
         if (tier === 'sharp') {
           const fastPix = config.SVG_MAX_PIX_FAST || (3840 * 2160);
-          const refW = Math.max(640, Math.min(Math.sqrt(fastPix), video.clientWidth || video.videoWidth || 1920));
+          const st_v = getVState(video);
+          const cachedW = st_v.rect?.width || video.clientWidth || video.videoWidth || 1920;
+          const refW = Math.max(640, Math.min(Math.sqrt(fastPix), cachedW));
           applySharpParams(nodes.sharpDetail, st, s, refW);
         }
       }
@@ -2223,6 +2295,7 @@ function VSC_MAIN() {
           if (nodes) {
             nodes.st.lastKey = ''; nodes.st.blurKey = '';
             nodes.st.sharpKey = ''; nodes.st.haloKey = ''; nodes.st.lcKey = '';
+            nodes.st.emKey = '';
             nodes.st.rev = (nodes.st.rev + 1) | 0;
             for (const tierKey of ['lite', 'sharp']) {
               const cst = nodes.st.commonTier[tierKey];
@@ -3186,8 +3259,6 @@ function VSC_MAIN() {
     }
     for (const el of candidates) {
       if (!el.isConnected) {
-        Adapter.clear(el);
-        restoreRateOne(el);
         TOUCHED.videos.delete(el);
         TOUCHED.rateVideos.delete(el);
         continue;
@@ -3228,12 +3299,12 @@ function VSC_MAIN() {
     }
   }
 
+  const FIXED_TEMP = -7;
+  const { rs: FIXED_RS, gs: FIXED_GS, bs: FIXED_BS } = tempToRgbGain(FIXED_TEMP);
+
   function createVideoParamsMemo() {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
     const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.2, gamma: -0.04, mid: -0.01 }], [SHADOW_BAND.MID, { toe: 0.7, gamma: -0.02, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0.3, gamma: -0.01, mid: -0.08 }]]);
-
-    const FIXED_TEMP = -7;
-    const { rs: FIXED_RS, gs: FIXED_GS, bs: FIXED_BS } = tempToRgbGain(FIXED_TEMP);
 
     return {
       get(vfUser) {
@@ -3257,7 +3328,12 @@ function VSC_MAIN() {
     return (
       (p.sharp|0) === 0 && (p.sharp2|0) === 0 && (p.clarity|0) === 0 &&
       near(p.gamma, 1.0) && near(p.bright, 0.0) && near(p.contrast, 1.0) &&
-      near(p.satF, 1.0) && near(p.temp, 0.0) && near(p.gain, 1.0) &&
+      near(p.satF, 1.0) &&
+      near(p.temp, FIXED_TEMP) &&
+      near(p._rs, FIXED_RS) &&
+      near(p._gs, FIXED_GS) &&
+      near(p._bs, FIXED_BS) &&
+      near(p.gain, 1.0) &&
       near(p.mid, 0.0) && near(p.toe, 0.0) && near(p.shoulder, 0.0)
     );
   }
@@ -3502,6 +3578,8 @@ function VSC_MAIN() {
     }
 
     intervalId = setInterval(updateTimer, 1000);
+    if (typeof __vscNs !== 'undefined' && __vscNs._intervals) __vscNs._intervals.push(intervalId);
+
     return {
       destroy: () => { if (intervalId) clearInterval(intervalId); if (timerEl) { try { timerEl.remove(); } catch (_) {} } }
     };
