@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.19 - Advanced Luma Masking)
+// @name         Video_Control (v178.9.20 - Advanced Luma Masking)
 // @namespace    https://github.com/
-// @version      178.9.19
+// @version      178.9.20
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -23,6 +23,8 @@
 // @exclude      *://7tv*.com/*
 // @exclude      *://*.sogirl.so/*
 // @exclude      *://*.4kjav.co/*
+// @exclude      *://www.youtube.com/live_chat*
+// @exclude      *://www.youtube.com/live_chat_replay*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
@@ -37,14 +39,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.19');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.20');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.19';
+  __vscNs.__version = '178.9.20';
 
   if (__vscNs.__alive) {
     try { __vscNs.App?.destroy?.(); } catch (_) {}
@@ -1220,9 +1222,7 @@ function VSC_MAIN() {
               s = ctx.createMediaElementSource(vid);
               globalSrcMap.set(vid, s);
             } catch (e) {
-              log.warn('Audio Source 생성 실패. 원본 직결 모드로 전환합니다.');
-              if (st) st.audioFailUntil = performance.now() + SYS.WFC;
-              try { vid.connect(ctx.destination); } catch(__) {}
+              if (st) st.audioFailUntil = performance.now() + 10000;
               disconnectAll(); updateMix(); return;
             }
           }
@@ -1230,15 +1230,11 @@ function VSC_MAIN() {
         };
 
         if (target !== null && v !== null && target !== v) {
-          fadeOutThen(() => {
-            disconnectAll(); if (intentToken !== switchTok) return;
-            target = v; if (!v) { updateMix(); return; }
-            connectWithFallback(v);
-          });
+          disconnectAll(); target = v; connectWithFallback(v);
         } else if (v !== null && !currentSrc) {
           target = v; connectWithFallback(v);
         } else if (v === null) {
-          fadeOutThen(() => { disconnectAll(); updateMix(); });
+          disconnectAll(); updateMix();
         }
       },
       update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy
@@ -1248,9 +1244,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.08, ct: 1.02, sat: 1.00, sharpScale: 1.10 },
-      Normal: { br: 1.18, ct: 1.04, sat: 1.00, sharpScale: 1.20 },
-      Strong: { br: 1.30, ct: 1.06, sat: 1.00, sharpScale: 1.30 }
+      Soft:   { br: 1.05, ct: 1.02, sat: 1.05, sharpScale: 1.10 },
+      Normal: { br: 1.18, ct: 1.05, sat: 1.10, sharpScale: 1.20 },
+      Strong: { br: 1.30, ct: 1.08, sat: 1.15, sharpScale: 1.30 }
     });
 
     function update() {
@@ -1588,7 +1584,7 @@ function VSC_MAIN() {
       if (tier === 'sharp') {
         // ✨ [A+B] 핵심: 강도(qSharp)와 반경(qSharp2)의 수학적 분리
         const sharpAmount = Math.max(0, qSharp / 35); // 강도
-        const sharpRadius = clamp(0.3 + (qSharp2 / 24), 0, 2.3); // 반경 제한 (수채화 현상 방지)
+        const sharpRadius = clamp(0.3 + (qSharp2 / 60), 0, 2.3); // 반경 제한 (수채화 현상 방지)
 
         const sharpKeyNext = `${sharpAmount.toFixed(3)}|${sharpRadius.toFixed(2)}`;
 
@@ -1934,7 +1930,7 @@ function VSC_MAIN() {
       const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
       const autoSceneRow = h('div', { class: 'prow' }, [
-        h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '자동씬'),
+        h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '톤'),
         ...['Soft', 'Normal', 'Strong'].map(p => {
           const b = h('button', { class: 'pbtn', style: 'flex:1' }, p);
           b.onclick = (e) => {
@@ -2036,8 +2032,8 @@ function VSC_MAIN() {
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, isBitmask: true, items: [ { text: '외암', value: SHADOW_BAND.OUTER, title: '옅은 암부 진하게 (중간톤 대비 향상)' }, { text: '중암', value: SHADOW_BAND.MID, title: '가운데 암부 진하게 (무게감 증가)' }, { text: '심암', value: SHADOW_BAND.DEEP, title: '가장 진한 블랙 (들뜬 블랙 제거)' } ] }),
         // 원본 유지
-        renderButtonRow({ label: '복구', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
-        renderButtonRow({ label: '밝기', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
+        renderButtonRow({ label: '밝기1', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
+        renderButtonRow({ label: '밝기2', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
         h('hr'),
         renderButtonRow({ label: '시계', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '표시 (전체화면)', value: true }] }),
         renderButtonRow({ label: '위치', key: P.APP_TIME_POS, items: [{ text: '좌', value: 0 }, { text: '중', value: 1 }, { text: '우', value: 2 }] }),
@@ -2086,10 +2082,10 @@ function VSC_MAIN() {
 
         h('div', { class: 'prow', style: 'justify-content:center;gap:2px;margin-top:4px;' }, [
           { text: '◀ 30s', action: 'seek', val: -30 },
-          { text: '◀ 10s', action: 'seek', val: -10 },
+          { text: '◀ 15s', action: 'seek', val: -15 },
           { text: '⏸ 정지', action: 'pause' },
           { text: '▶ 재생', action: 'play' },
-          { text: '10s ▶', action: 'seek', val: 10 },
+          { text: '15s ▶', action: 'seek', val: 15 },
           { text: '30s ▶', action: 'seek', val: 30 }
         ].map(cfg => {
           const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:34px;font-size:11px;padding:0 2px;' }, cfg.text);
