@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.23 - Lifecycle & Safari Compat)
+// @name         Video_Control (v178.9.25 - Timer Fix & Engine Stability)
 // @namespace    https://github.com/
-// @version      178.9.23
+// @version      178.9.25
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,14 +39,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.23');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.25');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.23';
+  __vscNs.__version = '178.9.25';
 
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
@@ -58,7 +58,6 @@ function VSC_MAIN() {
     return fn;
   }
 
-  // [수정 반영 #3] 타이머 및 인터벌 회수 보강
   function clearRuntimeTimers(ns) {
     try {
       for (const id of ns._timers || []) { try { clearTimeout(id); } catch (_) {} }
@@ -88,7 +87,6 @@ function VSC_MAIN() {
 
     try { ns._restoreHistory?.(); } catch (_) {}
     try { ns._restoreAttachShadow?.(); } catch (_) {}
-    // [수정 반영 #7] fullscreen 패치 원복 함수 실행
     try { ns._restoreVideoFsPatch?.(); } catch (_) {}
 
     for (const fn of [...DISPOSERS].reverse()) { safe(fn); }
@@ -99,6 +97,8 @@ function VSC_MAIN() {
         __shadowRootCallbacks.delete(ns._shadowRootCb);
       }
     } catch (_) {}
+
+    try { delete window[Symbol.for('__VSC_SPA_PATCHED__')]; } catch (_) {}
 
     try {
       (ns._menuIds || []).forEach(id => {
@@ -126,7 +126,8 @@ function VSC_MAIN() {
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: false,
     FILTER_SHARP_SAT_COMP: false,
     FILTER_FORCE_OPAQUE_BG: true,
-    FS_REDIRECT_TO_PARENT: false
+    FS_REDIRECT_TO_PARENT: false,
+    UI_EXPENSIVE_SHADOW_PROBE: false
   });
   __vscNs.FLAGS = FLAGS;
 
@@ -166,7 +167,6 @@ function VSC_MAIN() {
   };
   __vscNs.blockInterference = blockInterference;
 
-  // [수정 반영 #7] 비디오 fullscreen 패치 복구(원복) 안전화
   (function patchFullscreenForVideo() {
     const proto = HTMLVideoElement?.prototype;
     if (!proto) return;
@@ -259,7 +259,6 @@ function VSC_MAIN() {
     });
   }
 
-  // [수정 반영 #2] onPageReady를 global abort signal에 연결하여 잔존 방지
   function onPageReady(fn) {
     let ran = false;
     const localAC = new AbortController();
@@ -335,7 +334,7 @@ function VSC_MAIN() {
         audioFailUntil: 0, _ac: null, _lastSrc: '',
         origFilter: null, origFilterPrio: '',
         origWebkitFilter: null, origWebkitFilterPrio: '',
-        filterRev: -1, _filterResRev: -1
+        filterRev: -1, _filterResRev: -1, fxBackend: null
       };
       videoStateMap.set(v, st);
     }
@@ -443,7 +442,6 @@ function VSC_MAIN() {
     return debounced;
   }
 
-  // [수정 반영 #8] 타 스크립트의 history patch를 덮어쓰지 않는 안전한 복구 로직
   function initSpaUrlDetector(onChanged) {
     try { __vscNs._spaDetector?.destroy?.(); } catch (_) {}
 
@@ -626,7 +624,7 @@ function VSC_MAIN() {
   const parsePath = (p) => { const dot = p.indexOf('.'); return dot < 0 ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; };
 
   const STORAGE_FLAGS = Object.freeze({
-    ALLOW_LOCALSTORAGE_FALLBACK: true // 기본값: 기존 동작 유지
+    ALLOW_LOCALSTORAGE_FALLBACK: true
   });
 
   function createLocalStore(defaults, scheduler) {
@@ -725,7 +723,6 @@ function VSC_MAIN() {
 
     const savePrefs = createDebounced(() => { _doSave(); }, 1000);
 
-    const USE_PAGE_LIFECYCLE = false;
     const flushNow = () => {
       savePrefs.cancel();
       _doSave();
@@ -736,11 +733,6 @@ function VSC_MAIN() {
     }, { passive: true, signal: storeSig });
 
     on(window, 'beforeunload', flushNow, { once: true, signal: storeSig });
-
-    if (USE_PAGE_LIFECYCLE) {
-      on(window, 'pagehide', flushNow, { passive: true, signal: storeSig });
-      on(document, 'freeze', flushNow, { passive: true, signal: storeSig });
-    }
 
     const emit = (path, val) => {
       const cbs = listeners.get(path); if (cbs) { for (const cb of cbs) safe(() => cb(val)); }
@@ -755,7 +747,6 @@ function VSC_MAIN() {
       batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (state[cat][k] !== v) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; savePrefs(); scheduler.request(false); } },
       sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); },
 
-      // [수정 반영 #6] 파괴 시 즉시 flush하여 설정 유실 방지
       destroy: () => {
         storeAC.abort();
         savePrefs.cancel();
@@ -782,10 +773,9 @@ function VSC_MAIN() {
 // --- PART 2 START ---
   const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
 
-  // [수정 반영 #1] PiP Fallback 플래그 추가
   const PIP_FLAGS = Object.freeze({
-    SAFE_PIP_RESTORE: false,       // 기본값: 기존 동작 유지, 검증 후 true 권장
-    USE_LEGACY_PIP_FALLBACK: true  // Safari 및 Document PiP 미지원 환경 대응
+    SAFE_PIP_RESTORE: false,
+    USE_LEGACY_PIP_FALLBACK: true
   });
 
   const PiPState = {
@@ -825,7 +815,6 @@ function VSC_MAIN() {
 
   function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
-  // [수정 반영 #1] Safari 등 지원 여부 검사 로직 추가
   function supportsDocumentPiP() {
     return !!(window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function');
   }
@@ -836,7 +825,7 @@ function VSC_MAIN() {
 
   async function enterLegacyPiP(video) {
     await video.requestPictureInPicture();
-    PiPState.reset(); // Document PiP 상태와 혼용 방지
+    PiPState.reset();
     return true;
   }
 
@@ -887,7 +876,6 @@ function VSC_MAIN() {
     return true;
   }
 
-  // [수정 반영 #1] 환경에 맞는 PiP 진입 분기 처리
   async function enterPiP(video) {
     if (!video || video.readyState < 2) throw new Error('Video not ready');
     if (supportsDocumentPiP()) {
@@ -1020,7 +1008,6 @@ function VSC_MAIN() {
   }
 
   let _pipToggleLock = false;
-  // [수정 반영 #1] 토글 시 새 enterPiP 환경 감지기 연동
   async function togglePiPFor(video) {
     if (!video || video.readyState < 2 || _pipToggleLock) return false;
     _pipToggleLock = true;
@@ -1205,9 +1192,9 @@ function VSC_MAIN() {
       const schedule = () => {
         if (destroyed || scheduled) return; scheduled = true;
         const token = ++scheduleToken;
-        const postTask = globalThis.scheduler?.postTask;
-        if (typeof postTask === 'function') {
-          postTask(() => runDrain(undefined, token), { priority: 'background' }).catch(() => {
+        const schedulerApi = globalThis.scheduler;
+        if (schedulerApi && typeof schedulerApi.postTask === 'function') {
+          schedulerApi.postTask(() => runDrain(undefined, token), { priority: 'background' }).catch(() => {
             if (destroyed || token !== scheduleToken) return;
             if (window.requestIdleCallback) idleId = requestIdleCallback((dl) => { idleId = 0; runDrain(dl, token); }, { timeout: 120 });
             else rafId = requestAnimationFrame(() => { rafId = 0; runDrain(undefined, token); });
@@ -1393,7 +1380,6 @@ function VSC_MAIN() {
     function ensureVisibilityResumeHook() {
       if (_visResumeHooked) return;
       _visResumeHooked = true;
-      const USE_PAGE_LIFECYCLE = false;
 
       function resumeCtxIfNeeded() {
         if (!ctx) return;
@@ -1408,11 +1394,6 @@ function VSC_MAIN() {
           resumeCtxIfNeeded();
         }
       }, { passive: true, signal: _audioSig });
-
-      if (USE_PAGE_LIFECYCLE) {
-        on(window, 'pageshow', resumeCtxIfNeeded, { passive: true, signal: _audioSig });
-        on(document, 'resume', resumeCtxIfNeeded, { passive: true, signal: _audioSig });
-      }
     }
 
     const clamp = VSC_CLAMP;
@@ -1507,7 +1488,6 @@ function VSC_MAIN() {
       n._dynamicEQ = dynamicEQ; n._multiband = multiband; n._lufsMeter = lufsMeter; n._loudnessNorm = loudnessNorm; return n;
     }
 
-    // [수정 반영 #11] Safari 및 WebView 호환을 위한 AudioContext Fallback 적용
     const ensureCtx = () => {
       if (ctx && ctx.state !== 'closed') return true;
       if (ctx) { ctx = null; currentSrc = null; target = null; }
@@ -1595,14 +1575,20 @@ function VSC_MAIN() {
       else if (isPaused) {
         if (target && !target.ended) {
           const currentTarget = target;
-          const resume = () => { currentTarget.removeEventListener('play', resume); currentTarget.removeEventListener('seeked', resume); if (tok === loopTok) runAudioLoop(tok); };
-          currentTarget.addEventListener('play', resume, { once: true }); currentTarget.addEventListener('seeked', resume, { once: true });
+          const pauseAC = new AbortController();
+          const pauseSig = pauseAC.signal;
+          const resume = () => {
+            pauseAC.abort();
+            clearTimeout(audioLoopTimerId);
+            audioLoopTimerId = 0;
+            if (tok === loopTok) runAudioLoop(tok);
+          };
+          currentTarget.addEventListener('play', resume, { once: true, signal: pauseSig });
+          currentTarget.addEventListener('seeked', resume, { once: true, signal: pauseSig });
 
           audioLoopTimerId = setTimeout(() => {
-            if (currentTarget) {
-              currentTarget.removeEventListener('play', resume);
-              currentTarget.removeEventListener('seeked', resume);
-            }
+            pauseAC.abort();
+            audioLoopTimerId = 0;
             if (tok === loopTok) runAudioLoop(tok);
           }, 30000);
         }
@@ -1642,7 +1628,6 @@ function VSC_MAIN() {
     return {
       warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
 
-      // [수정 반영 #4] 오디오 타겟 변경 실패 시 이전 Source 완전 차단 로직
       setTarget: (v) => {
         ++switchTok;
         const st = v ? getVState(v) : null;
@@ -1906,7 +1891,6 @@ function VSC_MAIN() {
 
       const cS = mkC('s', 's_opaque');
 
-      // [핵심 교정 완료] Y_ONLY_LUMA 매트릭스 20자리 정상 복구 완료 (알파 붕괴/보라색 화면 해결)
       const Y_ONLY_LUMA = '0.2126 0.7152 0.0722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 0';
       const RGB_TO_CbCr_GB = '0 0 0 0 0 -0.1146 -0.3854 0.5 0 0.5 0.5 -0.4542 -0.0458 0 0.5 0 0 0 1 0';
       const YCbCr_TO_RGB = '1 0 1.5748 0 -0.7874 1 -0.1873 -0.4681 0 0.3277 1 1.8556 0 0 -0.9278 0 0 0 1 0';
@@ -1957,9 +1941,21 @@ function VSC_MAIN() {
       }
 
       if (!tryAppend()) {
-        const mo = new MutationObserver(() => { if (tryAppend()) mo.disconnect(); });
+        let _fallbackMoId = 0;
+        const mo = new MutationObserver(() => {
+          if (tryAppend()) {
+            mo.disconnect();
+            clearTimeout(_fallbackMoId);
+          }
+        });
         try { mo.observe(root.documentElement || root, { childList: true, subtree: true }); } catch (_) {}
-        setTimeout(() => mo.disconnect(), 5000);
+
+        _fallbackMoId = setTimeout(() => mo.disconnect(), 5000);
+        if (__vscNs._timers) __vscNs._timers.push(_fallbackMoId);
+        __globalSig.addEventListener('abort', () => {
+          clearTimeout(_fallbackMoId);
+          mo.disconnect();
+        }, { once: true });
       }
 
       const commonByTier = {
@@ -2088,7 +2084,6 @@ function VSC_MAIN() {
     }
 
     return {
-      // [수정 반영 #12] 향후 재사용을 위해 invalidateCache는 삭제하지 않고 유지합니다.
       invalidateCache: (video) => {
         try {
           const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
@@ -2151,7 +2146,6 @@ function VSC_MAIN() {
 // --- PART 2 END ---
 // --- PART 3 START ---
 
-  // [수정 반영 #12] 미사용 이벤트 콜백(onBackendChange) 및 통지 로직 완전 제거
   function createBackendAdapter(Filters) {
     return {
       apply(video, vVals) {
@@ -2695,12 +2689,10 @@ function VSC_MAIN() {
     const stateMap = new WeakMap();
     let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
     let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+    let touchListenersAttached = false;
     const zoomAC = new AbortController();
     const zsig = combineSignals(zoomAC.signal, __globalSig);
     const zoomedVideos = new Set();
-
-    // [수정 반영 #10] 터치 리스너 효율화 로직 추가
-    let touchAC = null;
 
     const getSt = (v) => {
       let st = stateMap.get(v);
@@ -2764,12 +2756,45 @@ function VSC_MAIN() {
       update(v);
     };
 
-    const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; st._cachedPosition = null; st._lastTransition = null; update(v); } };
+    const resetZoom = (v) => {
+      if (!v) return;
+      const st = getSt(v);
+      st.scale = 1; st._cachedPosition = null; st._lastTransition = null;
+      zoomedVideos.delete(v);
+      if (v.isConnected) update(v);
+      else {
+        st.zoomed = false; st.tx = 0; st.ty = 0;
+      }
+    };
     const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
     const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
 
     let unsubAct = null, unsubZoomEn = null;
+
+    if (Store?.sub) {
+      unsubAct = Store.sub(P.APP_ACT, (act) => {
+        if (!act) {
+          for (const v of zoomedVideos) {
+            if (!v?.isConnected) { zoomedVideos.delete(v); continue; }
+            resetZoom(v);
+          }
+          isPanning = false; pinchState.active = false; activeVideo = null;
+        }
+      });
+      unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => {
+        if (en) {
+          if (CONFIG.IS_MOBILE) attachTouchListeners();
+        } else {
+          for (const v of zoomedVideos) {
+            if (!v?.isConnected) { zoomedVideos.delete(v); continue; }
+            resetZoom(v);
+          }
+          zoomedVideos.clear();
+          isPanning = false; pinchState.active = false; activeVideo = null;
+        }
+      });
+    }
 
     function getTargetVideo(e) {
       if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } }
@@ -2882,63 +2907,30 @@ function VSC_MAIN() {
       }
     };
 
-    // [수정 반영 #10] 터치 지원 및 활성화 시에만 리스너를 부착하는 최적화
-    function attachTouchListeners() {
-      if (touchAC) return;
-      touchAC = new AbortController();
-      const tsig = combineSignals(touchAC.signal, zsig);
-      on(window, 'touchstart', touchstartHandler, { passive: false, capture: true, signal: tsig });
-      on(window, 'touchmove', touchmoveHandler, { passive: false, capture: true, signal: tsig });
-      on(window, 'touchend', touchendHandler, { passive: false, capture: true, signal: tsig });
+    const attachTouchListeners = () => {
+      if (touchListenersAttached) return; touchListenersAttached = true;
+      on(window, 'touchstart', touchstartHandler, { passive: false, capture: true, signal: zsig });
+      on(window, 'touchmove', touchmoveHandler, { passive: false, capture: true, signal: zsig });
+      on(window, 'touchend', touchendHandler, { passive: false, capture: true, signal: zsig });
+    };
+
+    if (CONFIG.IS_MOBILE) {
+      if (Store?.get(P.APP_ZOOM_EN)) attachTouchListeners();
+    } else {
+      attachTouchListeners();
     }
-
-    function detachTouchListeners() {
-      try { touchAC?.abort(); } catch (_) {}
-      touchAC = null;
-    }
-
-    function shouldUseTouchZoom() {
-      return (CONFIG.IS_MOBILE || (navigator.maxTouchPoints || 0) > 0) && !!Store?.get(P.APP_ZOOM_EN);
-    }
-
-    if (Store?.sub) {
-      unsubAct = Store.sub(P.APP_ACT, (act) => {
-        if (!act) {
-          for (const v of zoomedVideos) {
-            if (!v?.isConnected) { zoomedVideos.delete(v); continue; }
-            resetZoom(v);
-          }
-          isPanning = false; pinchState.active = false; activeVideo = null;
-        }
-      });
-      unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => {
-        if (shouldUseTouchZoom()) attachTouchListeners();
-        else detachTouchListeners();
-
-        if (!en) {
-          for (const v of zoomedVideos) {
-            if (!v?.isConnected) { zoomedVideos.delete(v); continue; }
-            resetZoom(v);
-          }
-          zoomedVideos.clear();
-          isPanning = false; pinchState.active = false; activeVideo = null;
-        }
-      });
-    }
-
-    if (shouldUseTouchZoom()) attachTouchListeners();
 
     return {
-      resetZoom, zoomTo, isZoomed,
-      setEnabled: (en) => {
-        if (shouldUseTouchZoom()) attachTouchListeners();
-        else detachTouchListeners();
+      resetZoom, zoomTo, isZoomed, setEnabled: (en) => { if (en) attachTouchListeners(); },
+      pruneDisconnected: () => {
+        for (const v of zoomedVideos) {
+          if (!v?.isConnected) resetZoom(v);
+        }
       },
       destroy: () => {
         try { unsubAct?.(); } catch(_) {}
         try { unsubZoomEn?.(); } catch(_) {}
-        zoomAC.abort();
-        detachTouchListeners();
+        zoomAC.abort(); touchListenersAttached = false;
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
         for (const v of zoomedVideos) {
           if (!v?.isConnected) continue;
@@ -3085,10 +3077,15 @@ function VSC_MAIN() {
   function createVideoParamsMemo() {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
     const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.2, gamma: -0.04, mid: -0.01 }], [SHADOW_BAND.MID, { toe: 0.7, gamma: -0.02, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0.3, gamma: -0.01, mid: -0.08 }]]);
+
+    // [수정 반영 #10] 고정된 색온도 연산 최적화 (단 1회만 계산)
+    const FIXED_TEMP = -7;
+    const { rs: FIXED_RS, gs: FIXED_GS, bs: FIXED_BS } = tempToRgbGain(FIXED_TEMP);
+
     return {
       get(vfUser) {
         const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
-        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: -7, gain: 1.0, mid: 0, toe: 0, shoulder: 0 };
+        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: FIXED_TEMP, gain: 1.0, mid: 0, toe: 0, shoulder: 0 };
         const sMask = vfUser.shadowBandMask || 0;
         if (sMask > 0) {
           let toeSum = 0, gammaSum = 0, midSum = 0; for (const [bit, params] of SHADOW_PARAMS) { if (sMask & bit) { toeSum += params.toe; gammaSum += params.gamma; midSum += params.mid; } }
@@ -3097,7 +3094,7 @@ function VSC_MAIN() {
         }
         out.mid = VSC_CLAMP(out.mid, -0.20, 0); const brStep = vfUser.brightStepLevel || 0;
         if (brStep > 0) { out.bright += brStep * 3.5; out.toe = Math.max(0, out.toe * (1.0 - brStep * 0.18)); out.gamma *= (1.0 + brStep * 0.025); }
-        const { rs, gs, bs } = tempToRgbGain(out.temp); out._rs = rs; out._gs = gs; out._bs = bs; out.__detailLevel = getDetailLevel(vfUser.presetS); return out;
+        out._rs = FIXED_RS; out._gs = FIXED_GS; out._bs = FIXED_BS; out.__detailLevel = getDetailLevel(vfUser.presetS); return out;
       }
     };
   }
@@ -3172,15 +3169,15 @@ function VSC_MAIN() {
 
         const now = performance.now();
         const dirtySize = vidsDirty.size;
-        if (dirtySize > 40 || (now - lastPrune > 2000)) { Registry.prune(); lastPrune = now; }
-
-        // [수정 반영 #5] 오디오가 꺼져 있을 때 불필요한 Source 유지 비용 제거
-        const nextAudioTarget = wantAudioNow ? (__activeTarget || null) : null;
-        if (nextAudioTarget !== __lastAudioTarget) {
-          Audio.setTarget(nextAudioTarget);
-          __lastAudioTarget = nextAudioTarget;
+        if (dirtySize > 40 || (now - lastPrune > 2000)) {
+          Registry.prune();
+          // [수정 반영 #5] 줌 매니저 강한 참조 메모리 누수 방지 연동
+          getNS()?.ZoomManager?.pruneDisconnected?.();
+          lastPrune = now;
         }
-        Audio.update();
+
+        const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
+        if (nextAudioTarget !== __lastAudioTarget) { Audio.setTarget(nextAudioTarget); __lastAudioTarget = nextAudioTarget; } Audio.update();
 
         const vf0 = Store.getCatRef('video'); let vValsEffective = videoParamsMemo.get(vf0);
         const autoScene = getNS()?.AutoScene; const qs = updateQualityScale(__activeTarget);
@@ -3239,12 +3236,23 @@ function VSC_MAIN() {
           const list = Array.from(document.querySelectorAll('video'));
           domV = list.find(v => v && v.readyState >= 2 && !v.paused && !v.ended) || list.find(v => v && v.readyState >= 2) || null;
         } catch (_) {}
-        if (domV) { __activeTarget = domV; Scheduler.request(true); }
-        return domV;
+        // [수정 반영 #9] 부작용(Scheduler.request)을 마이크로태스크로 지연시켜 간접 호출 무한 루프 방지
+        if (domV && domV !== __activeTarget) {
+          __activeTarget = domV;
+          queueMicrotask(() => { if (__activeTarget === domV) Scheduler.request(false); });
+        }
+        return domV || __activeTarget || null;
       },
       getQualityScale() { return qualityScale; },
       destroy() {
         stopTick();
+        safe(() => UI.destroy?.());
+        safe(() => { Audio.setTarget(null); Audio.destroy?.(); });
+        safe(() => getNS()?.AutoScene?.destroy?.());
+        safe(() => getNS()?.ZoomManager?.destroy?.());
+        safe(() => getNS()?.TimerManager?.destroy?.());
+        safe(() => Registry.destroy?.());
+
         safe(() => {
           for (const v of TOUCHED.videos) { try { Adapter.clear(v); } catch(_){} }
           for (const v of TOUCHED.rateVideos) { try { restoreRateOne(v); } catch(_){} }
@@ -3255,32 +3263,10 @@ function VSC_MAIN() {
     });
   }
 
-  // [수정 반영 #9] 비디오가 전체화면일 때만 타이머 갱신 최적화
+  // [수정 반영] 숲(SOOP) 및 치지직 타이머 버그 수정을 위해 완벽한 1Hz 실시간 측정 로직으로 롤백
   function createTimerManager(Store, P) {
     let timerEl = null;
-    let intervalId = 0;
-    const tmAC = new AbortController();
-    const sig = combineSignals(tmAC.signal, __globalSig);
-
-    function shouldRun() {
-      return !!(Store.get(P.APP_ACT) && Store.get(P.APP_TIME_EN) && document.fullscreenElement && !document.hidden);
-    }
-
-    function stop() {
-      if (intervalId) { clearInterval(intervalId); intervalId = 0; }
-      if (timerEl) timerEl.style.display = 'none';
-    }
-
-    function ensureStarted() {
-      if (intervalId || !shouldRun()) return;
-      updateTimer();
-      intervalId = setInterval(updateTimer, 1000);
-    }
-
-    function sync() {
-      if (shouldRun()) ensureStarted();
-      else stop();
-    }
+    let intervalId = null;
 
     function updateTimer() {
       const act = Store.get(P.APP_ACT);
@@ -3326,8 +3312,12 @@ function VSC_MAIN() {
       timerEl.style.display = 'block';
 
       const now = new Date();
-      timerEl.innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
 
+      // [수정 반영 #3] innerText 대신 렌더링 부하가 적은 textContent 사용
+      if (timerEl.textContent !== timeStr) timerEl.textContent = timeStr;
+
+      // 애니메이션 레이스 컨디션을 피하기 위해 캐싱 없이 실시간으로 계산
       const vRect = activeVideo.getBoundingClientRect();
       const pRect = parent.getBoundingClientRect();
       const vWidth = vRect.width;
@@ -3364,26 +3354,16 @@ function VSC_MAIN() {
       }
     }
 
-    on(document, 'fullscreenchange', sync, { passive: true, signal: sig });
-    on(document, 'visibilitychange', sync, { passive: true, signal: sig });
-    Store.sub(P.APP_ACT, sync);
-    Store.sub(P.APP_TIME_EN, sync);
-    Store.sub(P.APP_TIME_POS, () => { if (intervalId) updateTimer(); });
-
-    sync();
-
+    intervalId = setInterval(updateTimer, 1000);
     return {
-      destroy: () => {
-        tmAC.abort();
-        stop();
-        if (timerEl) { try { timerEl.remove(); } catch (_) {} }
-      }
+      destroy: () => { if (intervalId) clearInterval(intervalId); if (timerEl) { try { timerEl.remove(); } catch (_) {} } }
     };
   }
 
   const Utils = createUtils();
   const Scheduler = createScheduler(32);
   const Store = createLocalStore(DEFAULTS, Scheduler);
+
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
@@ -3395,13 +3375,13 @@ function VSC_MAIN() {
       if (__vscNs._menuIds) __vscNs._menuIds.push(id);
     };
 
-    // [수정 반영 #13] 스토리지 접근 차단 환경에서도 에러 없이 안전하게 초기화
     reg('🔄 설정 초기화 (Reset All)', () => {
-      if(!confirm('모든 VSC 설정을 초기화하시겠습니까? (현재 도메인)')) return;
-      const key = 'vsc_prefs_' + location.hostname;
-      safe(() => { if(typeof GM_deleteValue === 'function') GM_deleteValue(key); });
-      safe(() => { localStorage.removeItem(key); });
-      location.reload();
+      if(confirm('모든 VSC 설정을 초기화하시겠습니까? (현재 도메인)')) {
+        const key = 'vsc_prefs_' + location.hostname;
+        if(typeof GM_deleteValue === 'function') GM_deleteValue(key);
+        localStorage.removeItem(key);
+        location.reload();
+      }
     });
 
     reg('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
@@ -3427,8 +3407,6 @@ function VSC_MAIN() {
     installShadowRootEmitterIfNeeded();
 
     __vscNs._timers = __vscNs._timers || [];
-    __vscNs._intervals = __vscNs._intervals || [];
-
     const lateRescanDelays = [3000, 10000];
     for (const delay of lateRescanDelays) {
       const id = setTimeout(() => {
@@ -3447,7 +3425,7 @@ function VSC_MAIN() {
     __vscNs.CONFIG = CONFIG;
     __vscNs.FLAGS = Object.freeze({ ...FLAGS });
 
-    const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID });
+    const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
     const Adapter = createBackendAdapter(Filters);
     __vscNs.Adapter = Adapter;
 
@@ -3490,11 +3468,9 @@ function VSC_MAIN() {
     }, { capture: true });
 
     on(document, 'visibilitychange', () => { safe(() => checkAndCleanupClosedPiP()); safe(() => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }); }, OPT_P);
-
-    on(window, 'beforeunload', () => { safe(() => destroyRuntime(__vscNs)); }, { once: true });
+    window.addEventListener('beforeunload', () => { safe(() => __VSC_APP__?.destroy()); }, { once: true });
   });
 
 }
 VSC_MAIN();
 })();
-// --- PART 3 END ---
