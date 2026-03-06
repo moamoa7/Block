@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.29 - Stereo Widener & Audio Optimizations)
+// @name         Video_Control (v178.9.32 - Stereo Widener & Audio Optimizations)
 // @namespace    https://github.com/
-// @version      178.9.29
+// @version      178.9.32
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -346,10 +346,7 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 },
-      S: { sharpAdd: 6, sharp2Add: 5, clarityAdd: 24, sat: 1.00 },
-      M: { sharpAdd: 12, sharp2Add: 10, clarityAdd: 36, sat: 1.00 },
-      L: { sharpAdd: 18, sharp2Add: 15, clarityAdd: 48, sat: 1.00 },
-      XL: { sharpAdd: 24, sharp2Add: 20, clarityAdd: 60, sat: 1.00 }
+      Ultra: { sharpAdd: 24, sharp2Add: 20, clarityAdd: 60, sat: 1.0 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -2841,6 +2838,25 @@ function VSC_MAIN() {
         })()
       ]);
 
+      // ★ Ultra Sharp 와이드 단일 버튼
+      const ultraSharpBtn = h('button', { class: 'btn', style: 'flex: 1; margin-bottom: 2px;' }, '✨ Ultra Sharp (Adaptive)');
+      ultraSharpBtn.onclick = (e) => {
+        e.stopPropagation();
+        if (!sm.get(P.APP_ACT)) return;
+
+        // 현재 상태가 'off'면 'Ultra' 수치를 적용, 아니면 'off'
+        const isOff = sm.get(P.V_PRE_S) === 'off';
+        setAndHint(P.V_PRE_S, isOff ? 'Ultra' : 'off');
+      };
+
+      bindReactive(ultraSharpBtn, [P.V_PRE_S, P.APP_ACT], (el, pre, act) => {
+        const isActive = pre === 'Ultra'; // 명칭 일치 확인
+        el.classList.toggle('active', isActive);
+        el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
+        el.style.cursor = act ? 'pointer' : 'not-allowed';
+        el.disabled = !act;
+      }, sm, sub);
+
       const pipBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '📺 PIP');
       pipBtn.onclick = async (e) => {
         e.stopPropagation();
@@ -2867,12 +2883,15 @@ function VSC_MAIN() {
       const pwrBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
       bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; el.classList.toggle('active', !!v); }, sm, sub);
 
-      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5;' }, '🔊 Brickwall (EQ+Dyn)');
+      // ★ Brickwall 통합 버튼 (EQ+Dyn+Stereo)
+      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5;' }, '🔊 Brickwall (EQ+Dyn+Stereo)');
       boostBtn.onclick = (e) => {
         e.stopPropagation();
         if (!sm.get(P.APP_ACT)) return;
         if (getNS()?.AudioWarmup) getNS().AudioWarmup();
-        setAndHint(P.A_EN, !sm.get(P.A_EN));
+        const nextState = !sm.get(P.A_EN);
+        sm.batch('audio', { enabled: nextState, stereoWidth: nextState });
+        ApplyReq.hard();
       };
       bindReactive(boostBtn, [P.A_EN, P.APP_ACT], (el, aEn, act) => {
         el.classList.toggle('active', !!aEn);
@@ -2891,23 +2910,6 @@ function VSC_MAIN() {
         el.classList.toggle('active', !!dOn);
         const usable = !!aEn && !!act;
         el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35');
-        el.style.cursor = usable ? 'pointer' : 'not-allowed';
-        el.disabled = !usable;
-      }, sm, sub);
-
-      const stereoBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '🎧 스테레오');
-      stereoBtn.onclick = (e) => {
-        e.stopPropagation();
-        if (!sm.get(P.APP_ACT)) return;
-        if (sm.get(P.A_EN)) {
-          if (getNS()?.AudioWarmup) getNS().AudioWarmup();
-          setAndHint(P.A_STEREO_W, !sm.get(P.A_STEREO_W));
-        }
-      };
-      bindReactive(stereoBtn, [P.A_STEREO_W, P.A_EN, P.APP_ACT], (el, swOn, aEn, act) => {
-        el.classList.toggle('active', !!swOn);
-        const usable = !!aEn && !!act;
-        el.style.opacity = usable ? '1' : (swOn ? '0.65' : '0.35');
         el.style.cursor = usable ? 'pointer' : 'not-allowed';
         el.disabled = !usable;
       }, sm, sub);
@@ -2939,15 +2941,16 @@ function VSC_MAIN() {
         el.disabled = !act;
       }, sm, sub);
 
+      // ★ 바디 레이아웃 재구성
       const bodyMain = h('div', { id: 'p-main' }, [
         autoSceneRow,
+        h('div', { class: 'prow' }, [ ultraSharpBtn ]),
         h('div', { class: 'prow' }, [ pipBtn, zoomBtn, pwrBtn ]),
-        h('div', { class: 'prow' }, [ boostBtn, dialogueBtn, stereoBtn ]),
+        h('div', { class: 'prow' }, [ boostBtn, dialogueBtn ]),
         h('div', { class: 'prow' }, [
           h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'),
           resetBtn
         ]),
-        renderButtonRow({ label: '샤프', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: k, value: k })) }),
         advToggleBtn, advContainer, h('hr'),
         h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => {
           const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x');
@@ -2965,7 +2968,6 @@ function VSC_MAIN() {
           }, sm, sub);
           return b;
         })),
-
         h('div', { class: 'prow', style: 'justify-content:center;gap:2px;margin-top:4px;' }, [
           { text: '◀ 30s', action: 'seek', val: -30 },
           { text: '◀ 15s', action: 'seek', val: -15 },
@@ -2986,7 +2988,6 @@ function VSC_MAIN() {
               if (isLive || v.duration === Infinity) { const sr = v.seekable; if (!sr || sr.length === 0) return; minT = sr.start(0); maxT = sr.end(sr.length - 1); }
               let target = v.currentTime + cfg.val; if (cfg.val > 0 && target >= maxT) target = maxT - 0.1;
               target = Math.max(minT, Math.min(maxT, target)); try { v.currentTime = target; } catch (_) {}
-
               let fallbackTimer = 0;
               const onSeeked = () => {
                 v.removeEventListener('seeked', onSeeked);
@@ -3006,7 +3007,8 @@ function VSC_MAIN() {
         }))
       ]);
 
-      const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]); shadow.append(mainPanel);
+      const mainPanel = h('div', { class: 'main' }, [ dragHandle, bodyMain ]);
+      shadow.append(mainPanel);
 
       if (__vscNs.blockInterference) __vscNs.blockInterference(mainPanel);
 
@@ -3940,7 +3942,17 @@ function VSC_MAIN() {
     });
   }
 
-  function bindNormalizer(keys, schema) { const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); }; keys.forEach(k => Store.sub(k, run)); run(); }
+  function bindNormalizer(keys, schema) {
+    const run = () => {
+      let changed = normalizeBySchema(Store, schema);
+      if (Store.get(P.A_EN) !== Store.get(P.A_STEREO_W)) {
+        Store.set(P.A_STEREO_W, Store.get(P.A_EN));
+        changed = true;
+      }
+      if (changed) ApplyReq.hard();
+    };
+    keys.forEach(k => Store.sub(k, run)); run();
+  }
   bindNormalizer(ALL_KEYS, ALL_SCHEMA);
 
   const Registry = createRegistry(Scheduler);
