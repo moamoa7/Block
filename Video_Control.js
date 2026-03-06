@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.33 - Stability & Perf Updates)
+// @name         Video_Control (v178.9.34 - Stability & Perf Updates)
 // @namespace    https://github.com/
-// @version      178.9.33
+// @version      178.9.34
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.33';
+  const SCRIPT_VERSION = '178.9.34';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -360,7 +360,7 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 },
-      Ultra: { sharpAdd: 24, sharp2Add: 20, clarityAdd: 60, sat: 1.0 }
+      Ultra: { sharpAdd: 60, sharp2Add: 60, clarityAdd: 60, sat: 1.0 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -2187,6 +2187,7 @@ function VSC_MAIN() {
         return { nodes: [tempXfer, satNode], tempR, tempG, tempB, satNode };
       };
 
+      // --- 1. LITE FILTER ---
       const liteFilter = h('filter', {
         ns: 'svg', id: fidLite,
         'color-interpolation-filters': 'sRGB',
@@ -2196,6 +2197,7 @@ function VSC_MAIN() {
       const liteTS = mkTempSat('l', 'l_g');
       liteFilter.append(...liteCC.nodes, ...liteTS.nodes);
 
+      // --- 2. SHARP FILTER (Architecture Redesigned) ---
       const sharpFilter = h('filter', {
         ns: 'svg', id: fidSharp,
         'color-interpolation-filters': 'sRGB',
@@ -2206,16 +2208,16 @@ function VSC_MAIN() {
         h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' })
       );
 
-      const sharpCC = mkColorChain('s', 's_opaque');
-
+      // [핵심 변경] 톤/컬러 보정 전, '원본' 이미지에서 Luma/Chroma 추출 선행
       const sLuma = h('feColorMatrix', {
-        ns: 'svg', in: 's_g', type: 'matrix', values: MAT_Y, result: 's_Y'
+        ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_Y, result: 's_Y'
       });
 
       const sChroma = h('feColorMatrix', {
-        ns: 'svg', in: 's_g', type: 'matrix', values: MAT_UV, result: 's_CbCr'
+        ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_UV, result: 's_CbCr'
       });
 
+      // --- 순수 루마(Luma) 기반 샤프닝 파이프라인 ---
       const sBlurFine = h('feGaussianBlur', {
         ns: 'svg', in: 's_Y', stdDeviation: '0.6',
         edgeMode: 'duplicate', result: 's_bFine'
@@ -2266,6 +2268,7 @@ function VSC_MAIN() {
         result: 's_Ysharp'
       });
 
+      // --- 분리했던 Chroma 재결합 후 RGB 변환 ---
       const sRecombine = h('feComposite', {
         ns: 'svg', in: 's_Ysharp', in2: 's_CbCr',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0',
@@ -2273,19 +2276,23 @@ function VSC_MAIN() {
       });
 
       const sToRGB = h('feColorMatrix', {
-        ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_rgb'
+        ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_sharp_rgb'
       });
 
-      const sharpTS = mkTempSat('s', 's_rgb');
+      // [핵심 변경] 선명도 및 질감 처리가 끝난 후(s_sharp_rgb), 후행으로 명암/톤(Tone, Gamma) 처리
+      const sharpCC = mkColorChain('s', 's_sharp_rgb');
+
+      // 색보정/채도 처리 (s_g 결과값 기준)
+      const sharpTS = mkTempSat('s', 's_g');
 
       const sRestoreAlpha = h('feComposite', {
         ns: 'svg', in: 's_s', in2: 'SourceGraphic',
         operator: 'in', result: 's_final'
       });
 
+      // 노드 실행 순서를 재배치된 데이터 흐름에 맞춰 Append
       sharpFilter.append(
         sOpaque,
-        ...sharpCC.nodes,
         sLuma, sChroma,
         sBlurFine, sBlurClarity,
         sDetailBiased,
@@ -2295,6 +2302,7 @@ function VSC_MAIN() {
         sHaloSuppress,
         sMidDetail, sClarityAdd,
         sRecombine, sToRGB,
+        ...sharpCC.nodes,
         ...sharpTS.nodes,
         sRestoreAlpha
       );
