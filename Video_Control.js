@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.27 - Adaptive Sharpening & Stability)
+// @name         Video_Control (v178.9.28 - Pre-scaling & Resolution-Aware)
 // @namespace    https://github.com/
-// @version      178.9.27
+// @version      178.9.28
 // @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -39,14 +39,14 @@
 
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
-  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.27');
+  const VSC_BOOT_KEY = Symbol.for('VSC_BOOT_LOCK_178.9.28');
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
 
   const VSC_NS_NEW = Symbol.for('__VSC__');
   if (!window[VSC_NS_NEW]) window[VSC_NS_NEW] = {};
   const __vscNs = window[VSC_NS_NEW];
-  __vscNs.__version = '178.9.27';
+  __vscNs.__version = '178.9.28';
 
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
@@ -1508,10 +1508,10 @@ function VSC_MAIN() {
       if (!AC) return false;
 
       try {
-        ctx = new AC({ latencyHint: 'balanced' });
+        ctx = new AC({ latencyHint: 'balanced', sampleRate: 48000 });
       } catch (_) {
-        try { ctx = new AC(); }
-        catch (__) { return false; }
+        try { ctx = new AC({ latencyHint: 'balanced' }); }
+        catch (__) { try { ctx = new AC(); } catch (___) { return false; } }
       }
 
       if (!ctx || typeof ctx.createMediaElementSource !== 'function') {
@@ -1757,9 +1757,9 @@ function VSC_MAIN() {
 
     const urlCache      = new WeakMap();
     const ctxMap        = new WeakMap();
-    const toneCache     = createLRU(192);
-    const haloCache     = createLRU(64);
-    const edgeMaskCache = createLRU(64);
+    const toneCache     = createLRU(96);
+    const haloCache     = createLRU(48);
+    const edgeMaskCache = createLRU(48);
     const _attrCache    = new WeakMap();
     const __vscBgMemo   = new WeakMap();
 
@@ -1768,9 +1768,9 @@ function VSC_MAIN() {
       let c = _attrCache.get(node);
       if (!c) { c = Object.create(null); _attrCache.set(node, c); }
       if (typeof val === 'number') {
-        if (c[attr] === val) return;
+        if (typeof c[attr] === 'number' && Math.abs(c[attr] - val) < 1e-7) return;
         c[attr] = val;
-        node.setAttribute(attr, val);
+        node.setAttribute(attr, String(val));
         return;
       }
       const strVal = val == null ? '' : String(val);
@@ -1812,7 +1812,7 @@ function VSC_MAIN() {
         const x = i / (size - 1);
         const sCurve = 0.5 + 0.5 * Math.sin(Math.PI * (x - 0.5));
         const y = clamp01((1 - qStrength) * x + qStrength * sCurve);
-        arr[i] = Math.round(y * 100000) / 100000;
+        arr[i] = Math.round(y * 10000) / 10000;
       }
 
       const result = arr.join(' ');
@@ -1835,7 +1835,7 @@ function VSC_MAIN() {
         const t = Math.max(0, dist - qThr) / Math.max(1e-6, 1 - qThr);
         const scaled = Math.min(1, t * qSens);
         const y = scaled * scaled * (3 - 2 * scaled);
-        arr[i] = Math.round(y * 100000) / 100000;
+        arr[i] = Math.round(y * 10000) / 10000;
       }
 
       const result = arr.join(' ');
@@ -1849,7 +1849,8 @@ function VSC_MAIN() {
       Math.round(s.satF / 0.01),     Math.round(s.mid / 0.02),
       Math.round(s.toe / 0.2),       Math.round(s.shoulder / 0.2),
       Math.round(s.temp / 0.2),      Math.round(s.sharp),
-      Math.round(s.sharp2),          Math.round(s.clarity)
+      Math.round(s.sharp2),          Math.round(s.clarity),
+      Math.round((s._sigmaScale || 1) * 100)
     ].join('|');
 
     function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
@@ -1949,7 +1950,7 @@ function VSC_MAIN() {
       const sharpFilter = h('filter', {
         ns: 'svg', id: fidSharp,
         'color-interpolation-filters': 'sRGB',
-        x: '-4%', y: '-4%', width: '108%', height: '108%'
+        x: '-8%', y: '-8%', width: '116%', height: '116%'
       });
 
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' },
@@ -2120,35 +2121,38 @@ function VSC_MAIN() {
       };
     }
 
-    function applySharpParams(sharpDetail, st, s, refW) {
+    function applySharpParams(sharpDetail, st, s) {
       const qSharp   = Math.round(Number(s.sharp   || 0));
       const qSharp2  = Math.round(Number(s.sharp2  || 0));
       const qClarity = Math.round(Number(s.clarity || 0));
 
+      const sigmaScale = Number(s._sigmaScale) || 1.0;
+
       const aFine   = Math.max(0, qSharp / 35);
-      const sigFine = clamp(0.3 + qSharp2 / 24, 0, 2.3);
+      const sigFine = VSC_CLAMP((0.3 + qSharp2 / 24) * sigmaScale, 0, 3.5);
 
       const lcBase     = clamp01(qClarity / 60);
       const aClarity   = lcBase * 0.28;
-      const sigClarity = clamp((6 + lcBase * 12) * Math.sqrt(refW / 1920), 0, 22);
+      const sigClarity = VSC_CLAMP((6 + lcBase * 12) * sigmaScale, 0, 22);
 
-      const haloStrength = clamp(aFine * 0.51, 0, 0.35);
+      const haloStrength = VSC_CLAMP(aFine * 0.51, 0, 0.35);
 
-      const adaptSens      = clamp(2.5 + aFine * 1.8, 0, 6);
-      const adaptThreshold = clamp(0.06 - aFine * 0.008, 0.02, 0.12);
+      const sensAdj = sigmaScale > 1.2 ? 0.85 : 1.0;
+      const adaptSens      = VSC_CLAMP((2.5 + aFine * 1.8) * sensAdj, 0, 6);
+      const adaptThreshold = VSC_CLAMP(0.06 - aFine * 0.008, 0.02, 0.12);
 
       const blurKeyNext = `${sigFine.toFixed(3)}|${sigClarity.toFixed(1)}`;
       if (st.blurKey !== blurKeyNext) {
         st.blurKey = blurKeyNext;
-        if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine.toFixed(3));
-        if (sharpDetail.blurClarity) setAttr(sharpDetail.blurClarity, 'stdDeviation', sigClarity.toFixed(1));
+        if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine);
+        if (sharpDetail.blurClarity) setAttr(sharpDetail.blurClarity, 'stdDeviation', sigClarity);
       }
 
       const sharpKeyNext = aFine.toFixed(5);
       if (st.sharpKey !== sharpKeyNext) {
         st.sharpKey = sharpKeyNext;
         if (sharpDetail.fineUSM) {
-          setAttr(sharpDetail.fineUSM, 'k2', '1');
+          setAttr(sharpDetail.fineUSM, 'k2', 1);
           setAttr(sharpDetail.fineUSM, 'k3', parseFloat((2 * aFine).toFixed(5)));
           setAttr(sharpDetail.fineUSM, 'k4', parseFloat((-aFine).toFixed(5)));
         }
@@ -2272,11 +2276,7 @@ function VSC_MAIN() {
         }
 
         if (tier === 'sharp') {
-          const fastPix = config.SVG_MAX_PIX_FAST || (3840 * 2160);
-          const st_v = getVState(video);
-          const cachedW = st_v.rect?.width || video.clientWidth || video.videoWidth || 1920;
-          const refW = Math.max(640, Math.min(Math.sqrt(fastPix), cachedW));
-          applySharpParams(nodes.sharpDetail, st, s, refW);
+          applySharpParams(nodes.sharpDetail, st, s);
         }
       }
 
@@ -3254,9 +3254,15 @@ function VSC_MAIN() {
   function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch;
     candidates.clear();
-    for (const set of [dirtyVideos, TOUCHED.videos, TOUCHED.rateVideos, applySet]) {
-      for (const v of set) if (v?.tagName === 'VIDEO') candidates.add(v);
-    }
+
+    const addIfVideo = (v) => { if (v?.tagName === 'VIDEO') candidates.add(v); };
+    for (const v of dirtyVideos) addIfVideo(v);
+    for (const v of TOUCHED.videos) addIfVideo(v);
+    for (const v of TOUCHED.rateVideos) addIfVideo(v);
+    for (const v of applySet) addIfVideo(v);
+
+    const isApplyAll = !!getNS()?.Store?.get('app.applyAll');
+
     for (const el of candidates) {
       if (!el.isConnected) {
         TOUCHED.videos.delete(el);
@@ -3267,9 +3273,7 @@ function VSC_MAIN() {
       bindVideoOnce(el, ApplyReq);
 
       const st = getVState(el);
-      const visible = (st.visible !== false);
-      const isApplyAll = !!getNS()?.Store?.get('app.applyAll');
-      const shouldApply = applySet.has(el) && (isApplyAll || visible || el === activeTarget || isPiPActiveVideo(el));
+      const shouldApply = applySet.has(el) && (isApplyAll || st.visible !== false || el === activeTarget || isPiPActiveVideo(el));
 
       if (!shouldApply) {
         if (!st.applied && !st.fxBackend && st.desiredRate === undefined) continue;
@@ -3292,9 +3296,11 @@ function VSC_MAIN() {
       if (pbActive) {
         applyPlaybackRate(el, desiredRate);
       } else {
-        st.desiredRate = undefined;
-        restoreRateOne(el);
-        TOUCHED.rateVideos.delete(el);
+        if (st.desiredRate !== undefined) {
+          st.desiredRate = undefined;
+          restoreRateOne(el);
+          TOUCHED.rateVideos.delete(el);
+        }
       }
     }
   }
@@ -3306,19 +3312,127 @@ function VSC_MAIN() {
     const getDetailLevel = (presetKey) => { const k = String(presetKey || 'off').toUpperCase().trim(); if (k === 'XL') return 'xl'; if (k === 'L') return 'l'; if (k === 'M') return 'm'; if (k === 'S') return 's'; return 'off'; };
     const SHADOW_PARAMS = new Map([[SHADOW_BAND.DEEP, { toe: 1.2, gamma: -0.04, mid: -0.01 }], [SHADOW_BAND.MID, { toe: 0.7, gamma: -0.02, mid: -0.06 }], [SHADOW_BAND.OUTER, { toe: 0.3, gamma: -0.01, mid: -0.08 }]]);
 
+    function computePreScaling(video) {
+      if (!video) return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+
+      const nativeW = video.videoWidth  || 0;
+      const nativeH = video.videoHeight || 0;
+      const displayW = video.clientWidth  || video.offsetWidth  || 0;
+      const displayH = video.clientHeight || video.offsetHeight || 0;
+
+      if (nativeW < 16 || displayW < 16) {
+        return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      }
+
+      const scaleRatioW = displayW / nativeW;
+      const scaleRatioH = displayH / Math.max(1, nativeH);
+      const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
+
+      let sharpScale, clarityScale;
+      if (scaleRatio >= 1.0) {
+        const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1);
+        sharpScale  = 1.0 + t * 0.4;
+        clarityScale = 1.0 + t * 0.3;
+      } else {
+        const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1);
+        sharpScale  = 1.0 - t * 0.4;
+        clarityScale = 1.0 - t * 0.3;
+      }
+
+      const refW = Math.max(640, Math.min(3840, displayW));
+      const sigmaScale = Math.sqrt(refW / 1920);
+
+      return { sharpScale, clarityScale, sigmaScale, refW };
+    }
+
+    const _preScaleCache = new WeakMap();
+
+    function getPreScaling(video) {
+      if (!video) return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+
+      const cached = _preScaleCache.get(video);
+      const nW = video.videoWidth || 0;
+      const dW = video.clientWidth || 0;
+
+      if (cached && cached._nW === nW && cached._dW === dW) {
+        return cached;
+      }
+
+      const result = computePreScaling(video);
+      result._nW = nW;
+      result._dW = dW;
+      _preScaleCache.set(video, result);
+      return result;
+    }
+
+    let _lastInput = '';
+    let _lastResult = null;
+
     return {
-      get(vfUser) {
-        const detailP = PRESETS.detail[vfUser.presetS || 'off']; const gradeP = PRESETS.grade[vfUser.presetB || 'brOFF'];
-        const out = { sharp: detailP.sharpAdd || 0, sharp2: detailP.sharp2Add || 0, clarity: detailP.clarityAdd || 0, satF: detailP.sat || 1.0, gamma: gradeP.gammaF || 1.0, bright: gradeP.brightAdd || 0, contrast: 1.0, temp: FIXED_TEMP, gain: 1.0, mid: 0, toe: 0, shoulder: 0 };
+      get(vfUser, video) {
+        const nW = video?.videoWidth || 0;
+        const dW = video?.clientWidth || 0;
+        const inputKey = `${vfUser.presetS}|${vfUser.presetB}|${vfUser.shadowBandMask}|${vfUser.brightStepLevel}|${nW}|${dW}`;
+
+        if (inputKey === _lastInput && _lastResult) {
+          return _lastResult;
+        }
+
+        const detailP = PRESETS.detail[vfUser.presetS || 'off'];
+        const gradeP  = PRESETS.grade[vfUser.presetB || 'brOFF'];
+
+        const ps = getPreScaling(video);
+
+        const out = {
+          sharp:    Math.round((detailP.sharpAdd  || 0) * ps.sharpScale),
+          sharp2:   Math.round((detailP.sharp2Add || 0) * ps.sharpScale),
+          clarity:  Math.round((detailP.clarityAdd || 0) * ps.clarityScale),
+          satF:     detailP.sat || 1.0,
+          gamma:    gradeP.gammaF || 1.0,
+          bright:   gradeP.brightAdd || 0,
+          contrast: 1.0,
+          temp:     FIXED_TEMP,
+          gain:     1.0,
+          mid:      0,
+          toe:      0,
+          shoulder: 0,
+          _sigmaScale: ps.sigmaScale,
+          _refW: ps.refW
+        };
+
         const sMask = vfUser.shadowBandMask || 0;
         if (sMask > 0) {
-          let toeSum = 0, gammaSum = 0, midSum = 0; for (const [bit, params] of SHADOW_PARAMS) { if (sMask & bit) { toeSum += params.toe; gammaSum += params.gamma; midSum += params.mid; } }
-          const bandCount = ((sMask & 1) + ((sMask >> 1) & 1) + ((sMask >> 2) & 1)); const combinedAttenuation = bandCount > 1 ? Math.pow(0.75, bandCount - 1) : 1.0;
-          out.toe = VSC_CLAMP(toeSum * combinedAttenuation, 0, 3.0); out.gamma += gammaSum * combinedAttenuation; out.mid += midSum * combinedAttenuation;
+          let toeSum = 0, gammaSum = 0, midSum = 0;
+          for (const [bit, params] of SHADOW_PARAMS) {
+            if (sMask & bit) {
+              toeSum += params.toe;
+              gammaSum += params.gamma;
+              midSum += params.mid;
+            }
+          }
+          const bandCount = ((sMask & 1) + ((sMask >> 1) & 1) + ((sMask >> 2) & 1));
+          const combinedAttenuation = bandCount > 1 ? Math.pow(0.75, bandCount - 1) : 1.0;
+          out.toe = VSC_CLAMP(toeSum * combinedAttenuation, 0, 3.0);
+          out.gamma += gammaSum * combinedAttenuation;
+          out.mid += midSum * combinedAttenuation;
         }
-        out.mid = VSC_CLAMP(out.mid, -0.20, 0); const brStep = vfUser.brightStepLevel || 0;
-        if (brStep > 0) { out.bright += brStep * 3.5; out.toe = Math.max(0, out.toe * (1.0 - brStep * 0.18)); out.gamma *= (1.0 + brStep * 0.025); }
-        out._rs = FIXED_RS; out._gs = FIXED_GS; out._bs = FIXED_BS; out.__detailLevel = getDetailLevel(vfUser.presetS); return out;
+
+        out.mid = VSC_CLAMP(out.mid, -0.20, 0);
+        const brStep = vfUser.brightStepLevel || 0;
+        if (brStep > 0) {
+          out.bright += brStep * 3.5;
+          out.toe = Math.max(0, out.toe * (1.0 - brStep * 0.18));
+          out.gamma *= (1.0 + brStep * 0.025);
+        }
+
+        out._rs = FIXED_RS;
+        out._gs = FIXED_GS;
+        out._bs = FIXED_BS;
+        out.__detailLevel = getDetailLevel(vfUser.presetS);
+
+        _lastInput = inputKey;
+        _lastResult = out;
+        return out;
       }
     };
   }
@@ -3407,7 +3521,7 @@ function VSC_MAIN() {
         const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
         if (nextAudioTarget !== __lastAudioTarget) { Audio.setTarget(nextAudioTarget); __lastAudioTarget = nextAudioTarget; } Audio.update();
 
-        const vf0 = Store.getCatRef('video'); let vValsEffective = videoParamsMemo.get(vf0);
+        const vf0 = Store.getCatRef('video'); let vValsEffective = videoParamsMemo.get(vf0, __activeTarget);
         const autoScene = getNS()?.AutoScene; const qs = updateQualityScale(__activeTarget);
         vValsEffective._qs = qs;
 
