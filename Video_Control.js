@@ -360,7 +360,7 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, sat: 1.0 },
-      Ultra: { sharpAdd: 60, sharp2Add: 60, clarityAdd: 60, sat: 1.0 }
+      Ultra: { sharpAdd: 40, sharp2Add: 50, clarityAdd: 40, sat: 1.0 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
