@@ -1584,7 +1584,7 @@ function VSC_MAIN() {
       if (tier === 'sharp') {
         // ✨ [A+B] 핵심: 강도(qSharp)와 반경(qSharp2)의 수학적 분리
         const sharpAmount = Math.max(0, qSharp / 35); // 강도
-        const sharpRadius = clamp(0.3 + (qSharp2 / 60), 0, 2.3); // 반경 제한 (수채화 현상 방지)
+        const sharpRadius = clamp(0.3 + (qSharp2 / 24), 0, 2.3); // 반경 제한 (수채화 현상 방지)
 
         const sharpKeyNext = `${sharpAmount.toFixed(3)}|${sharpRadius.toFixed(2)}`;
 
