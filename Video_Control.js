@@ -2299,9 +2299,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.10, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
-      Normal: { br: 1.20, ct: 1.04, sat: 1.02, sharpScale: 1.20 },
-      Strong: { br: 1.30, ct: 1.06, sat: 1.03, sharpScale: 1.30 }
+      Soft:   { br: 1.20, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
+      Normal: { br: 1.40, ct: 1.04, sat: 1.02, sharpScale: 1.20 },
+      Strong: { br: 1.60, ct: 1.06, sat: 1.03, sharpScale: 1.30 }
     });
 
     function update() {
