@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.37 - Pointer Coalesced Zoom)
+// @name         Video_Control (v178.9.38 - PiP Shell & Boundary Fix)
 // @namespace    https://github.com/
-// @version      178.9.37
-// @description  Video Control: Tone Safe Mask + Bass-Protected Widener + Smooth Pointer Zoom.
+// @version      178.9.38
+// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Shell & Audio Sync Fix.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.37';
+  const SCRIPT_VERSION = '178.9.38';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -852,19 +852,60 @@ function VSC_MAIN() {
     return true;
   }
 
+  const DOC_PIP_SIZE_KEY = 'vsc_doc_pip_size_v1';
+
+  function loadDocPiPSize() {
+    try {
+      const raw = localStorage.getItem(DOC_PIP_SIZE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Number.isFinite(parsed.w) || !Number.isFinite(parsed.h)) return null;
+      return {
+        w: Math.max(320, Math.round(parsed.w)),
+        h: Math.max(180, Math.round(parsed.h))
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function saveDocPiPSize(win) {
+    try {
+      localStorage.setItem(DOC_PIP_SIZE_KEY, JSON.stringify({
+        w: Math.round(win.innerWidth || 0),
+        h: Math.round(win.innerHeight || 0)
+      }));
+    } catch (_) {}
+  }
+
   async function enterDocumentPiP(video) {
     const wasPlaying = !video.paused;
-    let pipWindow = null;
+    const saved = loadDocPiPSize();
 
     try {
       const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
       const displayW = video.clientWidth || 0, displayH = video.clientHeight || 0;
-      const targetW = nativeW > 0 ? Math.round(nativeW / 2) : (displayW > 0 ? displayW : 640);
-      const targetH = nativeH > 0 ? Math.round(nativeH / 2) : (displayH > 0 ? displayH : 360);
-      const maxW = Math.round(screen.availWidth * 0.5), maxH = Math.round(screen.availHeight * 0.5);
-      const w = Math.max(320, Math.min(targetW, maxW)), h = Math.max(180, Math.min(targetH, maxH));
+      const fallbackW = nativeW > 0 ? Math.round(nativeW / 2) : (displayW > 0 ? displayW : 640);
+      const fallbackH = nativeH > 0 ? Math.round(nativeH / 2) : (displayH > 0 ? displayH : 360);
 
-      pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
+      const maxW = Math.round(screen.availWidth * 0.5), maxH = Math.round(screen.availHeight * 0.5);
+      const w = Math.max(320, Math.min(saved?.w || fallbackW, maxW));
+      const h = Math.max(180, Math.min(saved?.h || fallbackH, maxH));
+
+      const pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
+
+      // [Boundary Fix 1]: 이동 전 영상 일시정지 및 오디오/필터 선제적 파괴
+      if (wasPlaying) video.pause();
+      safe(() => {
+        const ns = getNS();
+        if (ns) {
+          if (typeof ns.AudioDestroy === 'function') ns.AudioDestroy();
+          if (ns.Adapter && typeof ns.Adapter.clear === 'function') ns.Adapter.clear(video);
+        }
+      });
+
+      // 브라우저 내부적으로 MediaElement 연결이 완전히 풀리도록 50ms 대기
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       PiPState.window = pipWindow;
       PiPState.video = video;
@@ -894,25 +935,127 @@ function VSC_MAIN() {
 
       PiPState.origParent?.insertBefore(PiPState.placeholder, video);
 
-      const pipStyle = pipWindow.document.createElement('style');
-      pipStyle.textContent =
-        `*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-         body { background:#000; display:flex; justify-content:center; align-items:center; width:100vw; height:100vh; overflow:hidden; }
-         video { width:100%; height:100%; object-fit:contain; }`;
-      pipWindow.document.head.appendChild(pipStyle);
+      const doc = pipWindow.document;
+      const style = doc.createElement('style');
+      style.textContent = `
+        * { box-sizing: border-box; }
+        html, body {
+          margin: 0; padding: 0; width: 100%; height: 100%;
+          background: #000; color: #fff; overflow: hidden;
+          font-family: system-ui, sans-serif;
+        }
+        .vsc-pip-root {
+          display: grid;
+          grid-template-rows: 1fr auto;
+          width: 100%;
+          height: 100%;
+          background: #000;
+        }
+        .vsc-pip-stage {
+          min-height: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: #000;
+        }
+        .vsc-pip-stage video {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          background: #000;
+        }
+        .vsc-pip-bar {
+          display: flex;
+          gap: 6px;
+          padding: 8px;
+          background: rgba(18,18,18,.92);
+          border-top: 1px solid rgba(255,255,255,.12);
+        }
+        .vsc-pip-btn {
+          flex: 1;
+          min-height: 34px;
+          border: 1px solid rgba(255,255,255,.16);
+          border-radius: 10px;
+          background: #222;
+          color: #fff;
+          font-weight: 700;
+          cursor: pointer;
+        }
+        .vsc-pip-btn:hover { background: #2a2a2a; }
+      `;
+      doc.head.appendChild(style);
 
-      Object.assign(video.style, { width: '100%', height: '100%', objectFit: 'contain' });
-      pipWindow.document.body.append(video);
+      const root = doc.createElement('div');
+      root.className = 'vsc-pip-root';
 
-      if (wasPlaying && video.paused) video.play().catch(() => {});
+      const stage = doc.createElement('div');
+      stage.className = 'vsc-pip-stage';
+
+      const bar = doc.createElement('div');
+      bar.className = 'vsc-pip-bar';
+
+      const mkBtn = (label, onClick) => {
+        const b = doc.createElement('button');
+        b.className = 'vsc-pip-btn';
+        b.textContent = label;
+        b.addEventListener('click', onClick);
+        return b;
+      };
+
+      const playBtn = mkBtn(video.paused ? '▶ 재생' : '⏸ 일시정지', () => {
+        if (video.paused) video.play().catch(() => {});
+        else video.pause();
+      });
+
+      const backBtn = mkBtn('⏪ 10s', () => {
+        try { video.currentTime = Math.max(0, video.currentTime - 10); } catch (_) {}
+      });
+
+      const fwdBtn = mkBtn('10s ⏩', () => {
+        try {
+          const maxT = Number.isFinite(video.duration) ? Math.max(0, video.duration - 0.1) : video.currentTime + 10;
+          video.currentTime = Math.min(maxT, video.currentTime + 10);
+        } catch (_) {}
+      });
+
+      const closeBtn = mkBtn('✕ 닫기', () => {
+        exitPiP(video).catch(() => {});
+      });
+
+      const syncPlayBtn = () => {
+        playBtn.textContent = video.paused ? '▶ 재생' : '⏸ 일시정지';
+      };
+
+      video.addEventListener('play', syncPlayBtn);
+      video.addEventListener('pause', syncPlayBtn);
+
+      Object.assign(video.style, {
+        width: '100%',
+        height: '100%',
+        objectFit: 'contain'
+      });
+
+      // 안전한 상태에서 새 Document로 노드 이동
+      stage.append(video);
+      bar.append(backBtn, playBtn, fwdBtn, closeBtn);
+      root.append(stage, bar);
+      doc.body.append(root);
+
+      // [Boundary Fix 2]: 이동 완료 후 재생 및 스케줄러 재호출
+      if (wasPlaying) {
+        video.play().catch(() => {});
+      }
+      safe(() => getNS()?.ApplyReq?.hard());
 
       const pipAC = new AbortController();
-      pipWindow.addEventListener('click', () => {
-        video.paused ? video.play()?.catch?.(() => {}) : video.pause();
-      }, { signal: pipAC.signal });
+      const saveSizeDebounced = createDebounced(() => saveDocPiPSize(pipWindow), 180);
 
+      pipWindow.addEventListener('resize', saveSizeDebounced, { signal: pipAC.signal });
       pipWindow.addEventListener('pagehide', () => {
         pipAC.abort();
+        saveDocPiPSize(pipWindow);
+        video.removeEventListener('play', syncPlayBtn);
+        video.removeEventListener('pause', syncPlayBtn);
         restoreFromDocumentPiP(video);
       }, { once: true });
 
@@ -995,6 +1138,17 @@ function VSC_MAIN() {
     if (PiPState.video !== video) return;
 
     const wasPlaying = !video.paused;
+
+    // [Boundary Fix 3]: 원본 창 복귀 전에도 오디오/필터 연결 해제 및 정지
+    if (wasPlaying) video.pause();
+    safe(() => {
+      const ns = getNS();
+      if (ns) {
+        if (typeof ns.AudioDestroy === 'function') ns.AudioDestroy();
+        if (ns.Adapter && typeof ns.Adapter.clear === 'function') ns.Adapter.clear(video);
+      }
+    });
+
     let restored = false;
     let requiresAsyncRetry = false;
 
@@ -1043,6 +1197,7 @@ function VSC_MAIN() {
                 stopRetry();
                 PiPState.reset();
                 safe(() => __vscNs.ApplyReq?.hard());
+                if (wasPlaying) setTimeout(() => video.play().catch(() => {}), 50);
                 return true;
               }
             }
@@ -1059,8 +1214,9 @@ function VSC_MAIN() {
           }
           retryRestore();
         }, 500);
-      } else if (wasPlaying && video.paused) {
-        video.play().catch(() => {});
+      } else if (wasPlaying) {
+        // [Boundary Fix 4]: 정상 복원 후 DOM 안정화를 위해 약간 지연 후 재생
+        setTimeout(() => video.play().catch(() => {}), 50);
       }
     } catch (e) {
       log.warn('PiP restore failed:', e);
@@ -3334,7 +3490,6 @@ function VSC_MAIN() {
     });
   }
 
-  // [STEP 3 패치] PointerEvent + Coalesced Events 로직 적용
   function createZoomManager(Store, P) {
     const stateMap = new WeakMap();
     let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -3344,7 +3499,6 @@ function VSC_MAIN() {
     const zsig = combineSignals(zoomAC.signal, __globalSig);
     const zoomedVideos = new Set();
 
-    // 포인터 추적 및 병합 이벤트 계산 헬퍼
     let activePointerId = null;
 
     function getLatestPointerPoint(e) {
@@ -3488,10 +3642,9 @@ function VSC_MAIN() {
       if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
     }, { passive: false, capture: true, signal: zsig });
 
-    // mousedown 대체 -> pointerdown 통합
     on(window, 'pointerdown', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (e.pointerType === 'touch') return; // 터치는 pinch 줌(touch 이벤트)에서 처리
+      if (e.pointerType === 'touch') return;
       if (!e.altKey) return;
 
       const v = getTargetVideo(e);
@@ -3519,7 +3672,6 @@ function VSC_MAIN() {
       update(v);
     }, { capture: true, passive: false, signal: zsig });
 
-    // mousemove 대체 -> pointermove 통합
     on(window, 'pointermove', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
       if (!isPanning || !activeVideo) return;
@@ -3547,7 +3699,6 @@ function VSC_MAIN() {
       update(activeVideo);
     }, { capture: true, passive: false, signal: zsig });
 
-    // mouseup 대체 -> pointerup/cancel 통합 핸들러
     function endPointerPan(e) {
       if (e.pointerType === 'touch') return;
       if (!isPanning || !activeVideo) return;
@@ -4304,6 +4455,9 @@ function VSC_MAIN() {
     __vscNs.Adapter = Adapter;
 
     const Audio = createAudio(Store); __vscNs.AudioWarmup = Audio.warmup;
+    // [Boundary Fix 패치 연동] PiP 모듈에서 오디오를 초기화할 수 있도록 파괴 함수 전역 노출
+    __vscNs.AudioDestroy = Audio.destroy;
+
     let ZoomManager = createZoomManager(Store, P); __vscNs.ZoomManager = ZoomManager;
 
     const UI = createUI(Store, Registry, ApplyReq, Utils, P);
