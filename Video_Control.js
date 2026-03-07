@@ -2799,9 +2799,9 @@ function VSC_MAIN() {
 
       const CRUSH = [
         null,
-        { power: 1.10, pull: 0.003 },
-        { power: 1.20, pull: 0.006 },
-        { power: 1.30, pull: 0.009 },
+        { power: 1.10, pull: 0.002 },
+        { power: 1.15, pull: 0.005 },
+        { power: 1.20, pull: 0.010 },
       ];
       const p = CRUSH[level];
       const RANGE = 0.50, SIZE = 128;
