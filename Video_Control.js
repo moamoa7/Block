@@ -366,9 +366,9 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off:    { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  sat: 1.0 },
-      Soft:   { sharpAdd: 10, sharp2Add: 15, clarityAdd: 4,  sat: 1.0 },
-      Medium: { sharpAdd: 20, sharp2Add: 28, clarityAdd: 7,  sat: 1.0 },
-      Ultra:  { sharpAdd: 30, sharp2Add: 40, clarityAdd: 10, sat: 1.0 }
+      Soft:   { sharpAdd: 15, sharp2Add: 20, clarityAdd: 2,  sat: 0.99 },
+      Medium: { sharpAdd: 35, sharp2Add: 45, clarityAdd: 4,  sat: 0.98 },
+      Ultra:  { sharpAdd: 55, sharp2Add: 65, clarityAdd: 6,  sat: 0.97 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -2299,9 +2299,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.05, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
-      Normal: { br: 1.10, ct: 1.03, sat: 1.02, sharpScale: 1.25 },
-      Strong: { br: 1.15, ct: 1.05, sat: 1.03, sharpScale: 1.40 }
+      Soft:   { br: 1.10, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
+      Normal: { br: 1.20, ct: 1.04, sat: 1.02, sharpScale: 1.20 },
+      Strong: { br: 1.30, ct: 1.06, sat: 1.03, sharpScale: 1.30 }
     });
 
     function update() {
@@ -2799,9 +2799,9 @@ function VSC_MAIN() {
 
       const CRUSH = [
         null,
-        { power: 1.35, pull: 0.008 },
-        { power: 1.80, pull: 0.020 },
-        { power: 2.50, pull: 0.045 },
+        { power: 1.15, pull: 0.003 },
+        { power: 1.30, pull: 0.010 },
+        { power: 1.60, pull: 0.025 },
       ];
       const p = CRUSH[level];
       const RANGE = 0.50, SIZE = 128;
@@ -2825,14 +2825,14 @@ function VSC_MAIN() {
       }
       for (const fn of shadowNodes.toneFuncs) setAttr(fn, 'tableValues', arr.join(' '));
 
-      const slopeByLevel = [1.0, 1.06, 1.14, 1.25];
-      const offsetByLevel = [0, -0.018, -0.042, -0.085];
+      const slopeByLevel = [1.0, 1.02, 1.05, 1.10];
+      const offsetByLevel = [0, -0.005, -0.015, -0.030];
       for (const fn of shadowNodes.bcFuncs) {
         setAttr(fn, 'slope', slopeByLevel[level]);
         setAttr(fn, 'intercept', offsetByLevel[level]);
       }
 
-      const gammaExpByLevel = [1.0, 1.08, 1.22, 1.45];
+      const gammaExpByLevel = [1.0, 1.02, 1.08, 1.15];
       for (const fn of shadowNodes.gamFuncs) setAttr(fn, 'exponent', gammaExpByLevel[level]);
     }
 
