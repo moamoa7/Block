@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.42 - PiP Aspect Ratio Fit)
+// @name         Video_Control (v178.9.43 - Core Logic Sync)
 // @namespace    https://github.com/
-// @version      178.9.42
+// @version      178.9.43
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.42';
+  const SCRIPT_VERSION = '178.9.43';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -880,7 +880,8 @@ function VSC_MAIN() {
     } catch (_) {}
   }
 
-  function waitForDocPiPClose(win, timeout = 1000) {
+  // [수정됨] 브라우저 지연에 대비해 기본 timeout을 2000ms로 연장
+  function waitForDocPiPClose(win, timeout = 2000) {
     return new Promise((resolve) => {
       const started = performance.now();
       const tick = () => {
@@ -1004,7 +1005,7 @@ function VSC_MAIN() {
           min-height: 34px;
           border: 1px solid rgba(255,255,255,.16);
           border-radius: 10px;
-          background: #222;
+          background: #22;
           color: #fff;
           font-weight: 700;
           cursor: pointer;
@@ -1339,7 +1340,8 @@ function VSC_MAIN() {
       if (win && !win.closed) {
         try { win.close(); } catch (_) {}
 
-        waitForDocPiPClose(win, 1000).then((closed) => {
+        // [수정됨] 2000ms로 대기 시간 연장
+        waitForDocPiPClose(win, 2000).then((closed) => {
           if (closed && target && PiPState.video === target && !PiPState._restoring) {
             restoreFromDocumentPiP(target);
           }
@@ -1380,7 +1382,8 @@ function VSC_MAIN() {
         const prevWin = PiPState.window;
         try { prevWin.close(); } catch (_) {}
 
-        const closed = await waitForDocPiPClose(prevWin, 1000);
+        // [수정됨] 2000ms로 대기 시간 연장
+        const closed = await waitForDocPiPClose(prevWin, 2000);
         if (!closed) return false;
       }
 
@@ -2303,9 +2306,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.10, ct: 1.02, sat: 1.01, sharpScale: 1.20 },
-      Normal: { br: 1.20, ct: 1.04, sat: 1.02, sharpScale: 1.40 },
-      Strong: { br: 1.30, ct: 1.06, sat: 1.03, sharpScale: 1.60 }
+      Soft:   { br: 1.05, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
+      Normal: { br: 1.10, ct: 1.03, sat: 1.02, sharpScale: 1.25 },
+      Strong: { br: 1.15, ct: 1.05, sat: 1.03, sharpScale: 1.40 }
     });
 
     function update() {
@@ -4035,7 +4038,8 @@ function VSC_MAIN() {
     touchedAdd(TOUCHED.rateVideos, el);
   }
 
-  function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
+  // [수정됨] 루프 내 개별 파라미터 적용(getParamsForVideo)으로 applyAll 로직 오류 수정
+  function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, isNeutralParams, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch;
     candidates.clear();
 
@@ -4068,6 +4072,9 @@ function VSC_MAIN() {
         TOUCHED.rateVideos.delete(el);
         continue;
       }
+
+      const vVals = getParamsForVideo(el);
+      const videoFxOn = !isNeutralParams(vVals);
 
       if (videoFxOn) {
         Adapter.apply(el, vVals);
@@ -4333,13 +4340,35 @@ function VSC_MAIN() {
         const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
         if (nextAudioTarget !== __lastAudioTarget) { Audio.setTarget(nextAudioTarget); __lastAudioTarget = nextAudioTarget; } Audio.update();
 
-        const vf0 = Store.getCatRef('video'); let vValsEffective = videoParamsMemo.get(vf0, __activeTarget);
+        // [수정됨] 개별 비디오 스케일 보정을 위해 getParamsForVideo 콜백 주입
+        const vf0 = Store.getCatRef('video');
         const autoScene = getNS()?.AutoScene;
+        const isAutoSceneActive = autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT);
+        const mods = isAutoSceneActive ? autoScene.getMods() : null;
 
-        if (PERF_FLAGS.ENABLE_DROPPED_FRAME_SAMPLER) {
-          const qs = updateQualityScale(__activeTarget);
-          vValsEffective._qs = qs;
-        }
+        const getParamsForVideo = (el) => {
+          let vValsEffective = videoParamsMemo.get(vf0, el);
+
+          if (PERF_FLAGS.ENABLE_DROPPED_FRAME_SAMPLER && el === __activeTarget) {
+            const qs = updateQualityScale(__activeTarget);
+            vValsEffective._qs = qs;
+          }
+
+          if (mods && (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0 || mods.sharpScale !== 1.0)) {
+            const autoSceneVVals = { ...vValsEffective };
+            const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
+            autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF);
+            autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF);
+            autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
+            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
+            const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF);
+            autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * combinedSharpScale;
+            autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * combinedSharpScale;
+            autoSceneVVals.clarity = (autoSceneVVals.clarity || 0) * combinedSharpScale;
+            return autoSceneVVals;
+          }
+          return vValsEffective;
+        };
 
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
         _applySet.clear();
@@ -4350,27 +4379,19 @@ function VSC_MAIN() {
           _applySet.add(__activeTarget);
         }
 
-        const autoSceneVVals = {};
-        if (autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
-          const mods = autoScene.getMods();
-          if (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0 || mods.sharpScale !== 1.0) {
-            Object.assign(autoSceneVVals, vValsEffective);
-            const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
-            autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF);
-            autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF);
-            autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
-            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
-            const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF);
-            autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * combinedSharpScale;
-            autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * combinedSharpScale;
-            autoSceneVVals.clarity = (autoSceneVVals.clarity || 0) * combinedSharpScale;
-            vValsEffective = autoSceneVVals;
-          }
-        }
-
-        const videoFxOn = !isNeutralVideoParams(vValsEffective);
         const desiredRate = Store.get(P.PB_RATE);
-        reconcileVideoEffects({ applySet: _applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, ApplyReq, scratch: _scratchCandidates, activeTarget: __activeTarget });
+        reconcileVideoEffects({
+          applySet: _applySet,
+          dirtyVideos: vidsDirty,
+          getParamsForVideo,
+          isNeutralParams: isNeutralVideoParams,
+          desiredRate,
+          pbActive,
+          Adapter,
+          ApplyReq,
+          scratch: _scratchCandidates,
+          activeTarget: __activeTarget
+        });
 
         UI.ensure();
       } catch (e) { log.warn('apply crashed:', e); }
@@ -4551,13 +4572,10 @@ function VSC_MAIN() {
     });
   }
 
+  // [수정됨] A_STEREO_W 종속 옵션 해제. Store.get(P.A_EN) !== Store.get(P.A_STEREO_W) 조건문 제거
   function bindNormalizer(keys, schema) {
     const run = () => {
       let changed = normalizeBySchema(Store, schema);
-      if (Store.get(P.A_EN) !== Store.get(P.A_STEREO_W)) {
-        Store.set(P.A_STEREO_W, Store.get(P.A_EN));
-        changed = true;
-      }
       if (changed) ApplyReq.hard();
     };
     keys.forEach(k => Store.sub(k, run)); run();
