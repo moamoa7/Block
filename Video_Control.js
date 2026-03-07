@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.34 - Stability & Perf Updates)
+// @name         Video_Control (v178.9.35 - SVG Tone-Safe Mask)
 // @namespace    https://github.com/
-// @version      178.9.34
-// @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity.
+// @version      178.9.35
+// @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity + Tone Safe Mask.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.34';
+  const SCRIPT_VERSION = '178.9.35';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -133,6 +133,13 @@ function VSC_MAIN() {
     UI_EXPENSIVE_SHADOW_PROBE: false
   });
   __vscNs.FLAGS = FLAGS;
+
+  // [STEP 1 패치] 톤 안전성 마스크 및 클래리티 미드톤 마스크 활성화 플래그
+  const ADV_VIDEO_FLAGS = Object.freeze({
+    SHARP_TONE_SAFE_MASK: true,
+    CLARITY_MIDTONE_MASK: true
+  });
+  __vscNs.ADV_VIDEO_FLAGS = ADV_VIDEO_FLAGS;
 
   const getNS = () => (window && window[Symbol.for('__VSC__')]) || __vscNs || null;
   const getFLAGS = () => getNS()?.FLAGS || FLAGS;
@@ -2092,6 +2099,47 @@ function VSC_MAIN() {
       return result;
     }
 
+    // [STEP 1 패치] 톤 안전성 및 클래리티 마스크용 헬퍼 함수
+    function smoothstep01(t) {
+      t = t < 0 ? 0 : (t > 1 ? 1 : t);
+      return t * t * (3 - 2 * t);
+    }
+
+    function buildToneProtectTable(size, dark0 = 0.06, dark1 = 0.22, high0 = 0.92, high1 = 0.985) {
+      const arr = new Array(size);
+      for (let i = 0; i < size; i++) {
+        const x = i / (size - 1);
+
+        let wDark = 1;
+        if (x < dark1) {
+          wDark = smoothstep01((x - dark0) / Math.max(1e-6, dark1 - dark0));
+        }
+
+        let wHigh = 1;
+        if (x > high0) {
+          wHigh = smoothstep01((high1 - x) / Math.max(1e-6, high1 - high0));
+        }
+
+        const w = clamp(wDark * wHigh, 0, 1);
+        arr[i] = Math.round(w * 10000) / 10000;
+      }
+      return arr.join(' ');
+    }
+
+    function buildMidtoneMaskTable(size, low0 = 0.08, low1 = 0.24, high0 = 0.82, high1 = 0.96) {
+      const arr = new Array(size);
+      for (let i = 0; i < size; i++) {
+        const x = i / (size - 1);
+
+        const rise = smoothstep01((x - low0) / Math.max(1e-6, low1 - low0));
+        const fall = smoothstep01((high1 - x) / Math.max(1e-6, high1 - high0));
+
+        const w = clamp(rise * fall, 0, 1);
+        arr[i] = Math.round(w * 10000) / 10000;
+      }
+      return arr.join(' ');
+    }
+
     const makeKeyBase = (s) => [
       Math.round(s.gain / 0.04),     Math.round(s.gamma / 0.01),
       Math.round(s.contrast / 0.01), Math.round(s.bright / 0.2),
@@ -2158,6 +2206,11 @@ function VSC_MAIN() {
       const fidLite  = `vsc-lite-${config.VSC_ID}`;
       const fidSharp = `vsc-sharp-${config.VSC_ID}`;
 
+      // [STEP 1 패치] 전역에서 선언된 ADV_VIDEO_FLAGS 획득 (안전 처리)
+      const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS)
+        ? __vscNs.ADV_VIDEO_FLAGS
+        : { SHARP_TONE_SAFE_MASK: true, CLARITY_MIDTONE_MASK: true };
+
       const svg  = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;overflow:hidden;' });
       const defs = h('defs', { ns: 'svg' });
       svg.append(defs);
@@ -2182,7 +2235,7 @@ function VSC_MAIN() {
         const tempR    = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
         const tempG    = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
         const tempB    = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const tempXfer = h('feComponentTransfer', { ns: 'svg', in: inN,             result: `${prefix}_tm` }, tempR, tempG, tempB);
+        const tempXfer = h('feComponentTransfer', { ns: 'svg', in: inN,              result: `${prefix}_tm` }, tempR, tempG, tempB);
         const satNode  = h('feColorMatrix',        { ns: 'svg', in: `${prefix}_tm`, type: 'saturate', values: '1', result: `${prefix}_s` });
         return { nodes: [tempXfer, satNode], tempR, tempG, tempB, satNode };
       };
@@ -2208,7 +2261,6 @@ function VSC_MAIN() {
         h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' })
       );
 
-      // [핵심 변경] 톤/컬러 보정 전, '원본' 이미지에서 Luma/Chroma 추출 선행
       const sLuma = h('feColorMatrix', {
         ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_Y, result: 's_Y'
       });
@@ -2234,13 +2286,36 @@ function VSC_MAIN() {
         result: 's_det'
       });
 
+      // 기존 엣지 마스크
       const sEdgeFuncs = mkFuncRGB({ type: 'table', tableValues: '1 1' });
       const sEdgeMask = h('feComponentTransfer', {
         ns: 'svg', in: 's_det', result: 's_emask'
       }, ...sEdgeFuncs);
 
+      // [STEP 1 패치] Tone Protect Mask 추가
+      const sToneProtectFuncs = mkFuncRGB({
+        type: 'table',
+        tableValues: ADV_VIDEO_FLAGS.SHARP_TONE_SAFE_MASK
+          ? buildToneProtectTable(64)
+          : '1 1'
+      });
+      const sToneProtect = h('feComponentTransfer', {
+        ns: 'svg', in: 's_Y', result: 's_tmask'
+      }, ...sToneProtectFuncs);
+
+      // [STEP 1 패치] Detail Mask = Edge Mask x Tone Protect Mask
+      const sDetailMask = h('feComposite', {
+        ns: 'svg',
+        in: 's_emask',
+        in2: 's_tmask',
+        operator: 'arithmetic',
+        k1: '1', k2: '0', k3: '0', k4: '0',
+        result: 's_dmask'
+      });
+
+      // [STEP 1 패치] s_emask 대신 s_dmask(결합 마스크)를 사용하도록 변경
       const sModDetail = h('feComposite', {
-        ns: 'svg', in: 's_det', in2: 's_emask',
+        ns: 'svg', in: 's_det', in2: 's_dmask',
         operator: 'arithmetic', k1: '1', k2: '0', k3: '-0.5', k4: '0.5',
         result: 's_mdet'
       });
@@ -2262,8 +2337,30 @@ function VSC_MAIN() {
         result: 's_mid'
       });
 
+      // [STEP 1 패치] 클래리티용 미드톤 마스크 추가
+      const sClarityMaskFuncs = mkFuncRGB({
+        type: 'table',
+        tableValues: ADV_VIDEO_FLAGS.CLARITY_MIDTONE_MASK
+          ? buildMidtoneMaskTable(64)
+          : '1 1'
+      });
+      const sClarityMask = h('feComponentTransfer', {
+        ns: 'svg', in: 's_Y', result: 's_cmask'
+      }, ...sClarityMaskFuncs);
+
+      // [STEP 1 패치] 클래리티 마스크 결합
+      const sMidMasked = h('feComposite', {
+        ns: 'svg',
+        in: 's_mid',
+        in2: 's_cmask',
+        operator: 'arithmetic',
+        k1: '1', k2: '0', k3: '0', k4: '0',
+        result: 's_midm'
+      });
+
+      // [STEP 1 패치] s_mid 대신 s_midm(마스킹된 미드톤) 사용
       const sClarityAdd = h('feComposite', {
-        ns: 'svg', in: 's_Yfine', in2: 's_mid',
+        ns: 'svg', in: 's_Yfine', in2: 's_midm',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
         result: 's_Ysharp'
       });
@@ -2279,10 +2376,8 @@ function VSC_MAIN() {
         ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_sharp_rgb'
       });
 
-      // [핵심 변경] 선명도 및 질감 처리가 끝난 후(s_sharp_rgb), 후행으로 명암/톤(Tone, Gamma) 처리
       const sharpCC = mkColorChain('s', 's_sharp_rgb');
 
-      // 색보정/채도 처리 (s_g 결과값 기준)
       const sharpTS = mkTempSat('s', 's_g');
 
       const sRestoreAlpha = h('feComposite', {
@@ -2290,17 +2385,22 @@ function VSC_MAIN() {
         operator: 'in', result: 's_final'
       });
 
-      // 노드 실행 순서를 재배치된 데이터 흐름에 맞춰 Append
+      // [STEP 1 패치] 노드 실행 순서 재배치
       sharpFilter.append(
         sOpaque,
         sLuma, sChroma,
         sBlurFine, sBlurClarity,
         sDetailBiased,
         sEdgeMask,
+        sToneProtect,       // NEW
+        sDetailMask,        // NEW
         sModDetail,
         sYFineUSM,
         sHaloSuppress,
-        sMidDetail, sClarityAdd,
+        sMidDetail,
+        sClarityMask,       // NEW
+        sMidMasked,         // NEW
+        sClarityAdd,
         sRecombine, sToRGB,
         ...sharpCC.nodes,
         ...sharpTS.nodes,
