@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.36 - Bass-Protected Widener)
+// @name         Video_Control (v178.9.37 - Pointer Coalesced Zoom)
 // @namespace    https://github.com/
-// @version      178.9.36
-// @description  Video Control: Luma Sharpening, Tone Safe Mask + Bass-Protected M/S Widener.
+// @version      178.9.37
+// @description  Video Control: Tone Safe Mask + Bass-Protected Widener + Smooth Pointer Zoom.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.36';
+  const SCRIPT_VERSION = '178.9.37';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -1474,7 +1474,6 @@ function VSC_MAIN() {
   function chain(...nodes) { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); }
   const globalSrcMap = new WeakMap();
 
-  // [STEP 2 패치] 저역 보호형 M/S Widener 적용
   function createStereoWidener(actx) {
     const mkBQ = (type, freq, Q = 0.707, gain) => {
       const f = actx.createBiquadFilter();
@@ -1518,11 +1517,9 @@ function VSC_MAIN() {
     sideL.connect(sideBus);
     sideR.connect(sideBus);
 
-    // 저역은 거의 mono 유지 (위상 캔슬링 방지 및 타격감 확보)
     const sideLow1 = mkBQ('lowpass', 160, 0.707);
     const sideLow2 = mkBQ('lowpass', 160, 0.707);
 
-    // sideHigh = sideBus - lowpassed(sideBus)
     const sideHigh = actx.createGain();
     const sideLowInv = actx.createGain();
     sideLowInv.gain.value = -1.0;
@@ -1533,17 +1530,14 @@ function VSC_MAIN() {
     sideLow2.connect(sideLowInv);
     sideLowInv.connect(sideHigh);
 
-    // 중고역만 살짝 화사하게 부스팅
     const sideShelf = mkBQ('highshelf', 3200, 0.707, 1.5);
 
-    // 최종 width gain 조절
     const sideAmp = actx.createGain();
     sideAmp.gain.value = 1.0;
 
     sideHigh.connect(sideShelf);
     sideShelf.connect(sideAmp);
 
-    // 출력 재합성 (L/R 복원)
     const outL = actx.createGain();
     const outR = actx.createGain();
     const sideInvR = actx.createGain();
@@ -1560,7 +1554,6 @@ function VSC_MAIN() {
     outR.connect(merger, 0, 1);
     merger.connect(output);
 
-    // mono detector는 대역 제한된 side(고음역 위주) 기준으로 모니터링
     const monoDetector = actx.createAnalyser();
     monoDetector.fftSize = 256;
     monoDetector.smoothingTimeConstant = 0.85;
@@ -1568,7 +1561,7 @@ function VSC_MAIN() {
     const _monoBuffer = new Float32Array(monoDetector.fftSize);
 
     let _enabled = false;
-    let _width = 1.25; // 초기값을 보수적으로 시작 (이전: 1.35)
+    let _width = 1.25;
     let _effectiveWidth = 1.0;
     let _monoSmooth = 0;
 
@@ -1606,7 +1599,6 @@ function VSC_MAIN() {
       const monoTarget = mono ? 1.0 : 0.0;
       _monoSmooth += (monoTarget - _monoSmooth) * 0.08;
 
-      // 완전히 mono 소스라면 폭을 강제로 넓히지 않고 1.0으로 부드럽게 수렴
       _effectiveWidth = _width * (1.0 - _monoSmooth * 0.9) + 1.0 * (_monoSmooth * 0.9);
 
       try { sideAmp.gain.setTargetAtTime(_effectiveWidth, actx.currentTime, 0.10); }
@@ -1838,14 +1830,13 @@ function VSC_MAIN() {
           currentNodes._loudnessNorm.update();
         }
 
-        // [STEP 2 패치] Widener 폭(width) 미세조정 적용
         if (currentNodes._stereoWidener) {
           const swEnabled = !!sm.get(P.A_STEREO_W) && dynAct;
           if (currentNodes._stereoWidener.isEnabled() !== swEnabled) {
             currentNodes._stereoWidener.setEnabled(swEnabled);
           }
           if (swEnabled) {
-            currentNodes._stereoWidener.setWidth(1.22); // 기존보다 보수적이고 고급스러운 폭
+            currentNodes._stereoWidener.setWidth(1.22);
             currentNodes._stereoWidener.update();
           }
           if (swEnabled) {
@@ -3343,6 +3334,7 @@ function VSC_MAIN() {
     });
   }
 
+  // [STEP 3 패치] PointerEvent + Coalesced Events 로직 적용
   function createZoomManager(Store, P) {
     const stateMap = new WeakMap();
     let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -3351,6 +3343,19 @@ function VSC_MAIN() {
     const zoomAC = new AbortController();
     const zsig = combineSignals(zoomAC.signal, __globalSig);
     const zoomedVideos = new Set();
+
+    // 포인터 추적 및 병합 이벤트 계산 헬퍼
+    let activePointerId = null;
+
+    function getLatestPointerPoint(e) {
+      try {
+        const list = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
+        const last = (list && list.length) ? list[list.length - 1] : e;
+        return { x: last.clientX, y: last.clientY };
+      } catch (_) {
+        return { x: e.clientX, y: e.clientY };
+      }
+    }
 
     const getSt = (v) => {
       let st = stateMap.get(v);
@@ -3448,7 +3453,7 @@ function VSC_MAIN() {
           for (const v of [...zoomedVideos]) {
             resetZoom(v);
           }
-          isPanning = false; pinchState.active = false; activeVideo = null;
+          isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null;
         }
       });
       unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => {
@@ -3459,7 +3464,7 @@ function VSC_MAIN() {
             resetZoom(v);
           }
           zoomedVideos.clear();
-          isPanning = false; pinchState.active = false; activeVideo = null;
+          isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null;
         }
       });
     }
@@ -3483,41 +3488,90 @@ function VSC_MAIN() {
       if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
     }, { passive: false, capture: true, signal: zsig });
 
-    on(window, 'mousedown', e => {
+    // mousedown 대체 -> pointerdown 통합
+    on(window, 'pointerdown', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
+      if (e.pointerType === 'touch') return; // 터치는 pinch 줌(touch 이벤트)에서 처리
       if (!e.altKey) return;
-      const v = getTargetVideo(e); if (!v) return;
-      const st = getSt(v);
-      if (st.scale > 1) {
-        e.preventDefault(); e.stopPropagation();
-        activeVideo = v; isPanning = true; st.hasPanned = false;
-        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
-        update(v);
-      }
-    }, { capture: true, signal: zsig });
 
-    on(window, 'mousemove', e => {
+      const v = getTargetVideo(e);
+      if (!v) return;
+
+      const st = getSt(v);
+      if (st.scale <= 1) return;
+
+      const pt = getLatestPointerPoint(e);
+
+      if (e.cancelable) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      activeVideo = v;
+      activePointerId = e.pointerId;
+      isPanning = true;
+      st.hasPanned = false;
+
+      startX = pt.x - st.tx;
+      startY = pt.y - st.ty;
+
+      try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
+      update(v);
+    }, { capture: true, passive: false, signal: zsig });
+
+    // mousemove 대체 -> pointermove 통합
+    on(window, 'pointermove', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
       if (!isPanning || !activeVideo) return;
-      e.preventDefault(); e.stopPropagation();
-      const st = getSt(activeVideo);
-      const dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
-      st.tx = e.clientX - startX; st.ty = e.clientY - startY;
-      clampPan(activeVideo, st); update(activeVideo);
-    }, { capture: true, signal: zsig });
+      if (e.pointerId !== activePointerId) return;
 
-    on(window, 'mouseup', e => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) { isPanning = false; activeVideo = null; return; }
-      if (isPanning) {
-        if (activeVideo) {
-          const st = getSt(activeVideo);
-          if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-          update(activeVideo);
-        }
-        isPanning = false; activeVideo = null;
+      const pt = getLatestPointerPoint(e);
+      const st = getSt(activeVideo);
+
+      if (e.cancelable) {
+        e.preventDefault();
+        e.stopPropagation();
       }
-    }, { capture: true, signal: zsig });
+
+      const nextTx = pt.x - startX;
+      const nextTy = pt.y - startY;
+
+      if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) {
+        st.hasPanned = true;
+      }
+
+      st.tx = nextTx;
+      st.ty = nextTy;
+
+      clampPan(activeVideo, st);
+      update(activeVideo);
+    }, { capture: true, passive: false, signal: zsig });
+
+    // mouseup 대체 -> pointerup/cancel 통합 핸들러
+    function endPointerPan(e) {
+      if (e.pointerType === 'touch') return;
+      if (!isPanning || !activeVideo) return;
+      if (e.pointerId !== activePointerId) return;
+
+      const v = activeVideo;
+      const st = getSt(v);
+
+      try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
+
+      if (st.hasPanned && e.cancelable) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+
+      activePointerId = null;
+      isPanning = false;
+      activeVideo = null;
+
+      update(v);
+    }
+
+    on(window, 'pointerup', endPointerPan, { capture: true, passive: false, signal: zsig });
+    on(window, 'pointercancel', endPointerPan, { capture: true, passive: false, signal: zsig });
 
     on(window, 'dblclick', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
@@ -3604,7 +3658,7 @@ function VSC_MAIN() {
           clearZoomStyles(v, getSt(v));
         }
         zoomedVideos.clear();
-        isPanning = false; pinchState.active = false; activeVideo = null;
+        isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null;
       }
     };
   }
