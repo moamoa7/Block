@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.45 - Perfect Parallel Shadow)
+// @name         Video_Control (v178.9.46 - Perfect Parallel Shadow)
 // @namespace    https://github.com/
-// @version      178.9.45
+// @version      178.9.46
 // @description  Video Control: Tone Safe, Pure Sharp, Independent Shadow Stage, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.45';
+  const SCRIPT_VERSION = '178.9.46';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2048,7 +2048,7 @@ function VSC_MAIN() {
       const lRestoreAlpha = h('feComposite', { ns: 'svg', in: liteTS.output, in2: 'SourceGraphic', operator: 'in', result: 'l_final' });
       liteFilter.append(...liteCC.nodes, ...liteTS.nodes, lRestoreAlpha);
 
-      // 2. Sharp Filter (순수 샤프) -> 암부 로직 0% 개입
+      // 2. Sharp Filter (순수 샤프) -> 암부 로직 0% 개입, 밝기 중립 유지(k4:0)
       const sharpFilter = h('filter', { id: fidSharp, ...filterAttrs });
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' }, h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' }));
       const sLuma = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_Y, result: 's_Y' });
@@ -2131,8 +2131,8 @@ function VSC_MAIN() {
         st.sharpKey = sharpKeyNext;
         if (sharpDetail.fineUSM) {
           setAttr(sharpDetail.fineUSM, 'k2', 1);
-          setAttr(sharpDetail.fineUSM, 'k3', parseFloat((2 * aFine).toFixed(5)));
-          setAttr(sharpDetail.fineUSM, 'k4', parseFloat((-aFine).toFixed(5)));
+          setAttr(sharpDetail.fineUSM, 'k3', parseFloat((aFine * 1.5).toFixed(5)));
+          setAttr(sharpDetail.fineUSM, 'k4', 0);
         }
       }
 
