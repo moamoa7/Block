@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.38 - PiP Shell & Boundary Fix)
+// @name         Video_Control (v178.9.39 - PiP Audio & Window Fix)
 // @namespace    https://github.com/
-// @version      178.9.38
-// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Shell & Audio Sync Fix.
+// @version      178.9.39
+// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Bug Fixes.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.38';
+  const SCRIPT_VERSION = '178.9.39';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -799,14 +799,14 @@ function VSC_MAIN() {
   const PiPState = {
     window: null, video: null, placeholder: null,
     origParent: null, origNext: null, origContainer: null,
-    origCss: '', _ac: null, _watcherId: null,
+    origCss: '', _ac: null, _watcherId: null, _restoring: false,
     reset() {
       if (this._ac) { this._ac.abort(); this._ac = null; }
       if (this._watcherId) { clearInterval(this._watcherId); this._watcherId = null; }
       Object.assign(this, {
         window: null, video: null, placeholder: null,
         origParent: null, origNext: null, origContainer: null,
-        origCss: '', _ac: null, _watcherId: null
+        origCss: '', _ac: null, _watcherId: null, _restoring: false
       });
     }
   };
@@ -881,6 +881,7 @@ function VSC_MAIN() {
   async function enterDocumentPiP(video) {
     const wasPlaying = !video.paused;
     const saved = loadDocPiPSize();
+    let pipWindow = null;
 
     try {
       const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
@@ -892,20 +893,10 @@ function VSC_MAIN() {
       const w = Math.max(320, Math.min(saved?.w || fallbackW, maxW));
       const h = Math.max(180, Math.min(saved?.h || fallbackH, maxH));
 
-      const pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
+      pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
 
-      // [Boundary Fix 1]: 이동 전 영상 일시정지 및 오디오/필터 선제적 파괴
-      if (wasPlaying) video.pause();
-      safe(() => {
-        const ns = getNS();
-        if (ns) {
-          if (typeof ns.AudioDestroy === 'function') ns.AudioDestroy();
-          if (ns.Adapter && typeof ns.Adapter.clear === 'function') ns.Adapter.clear(video);
-        }
-      });
-
-      // 브라우저 내부적으로 MediaElement 연결이 완전히 풀리도록 50ms 대기
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // 가볍게 오디오 타깃만 분리 (버벅임 방지)
+      safe(() => getNS()?.AudioSetTarget?.(null));
 
       PiPState.window = pipWindow;
       PiPState.video = video;
@@ -1035,14 +1026,15 @@ function VSC_MAIN() {
         objectFit: 'contain'
       });
 
-      // 안전한 상태에서 새 Document로 노드 이동
       stage.append(video);
       bar.append(backBtn, playBtn, fwdBtn, closeBtn);
       root.append(stage, bar);
       doc.body.append(root);
 
-      // [Boundary Fix 2]: 이동 완료 후 재생 및 스케줄러 재호출
-      if (wasPlaying) {
+      // 이동 완료 후 오디오 다시 재타깃
+      safe(() => getNS()?.AudioSetTarget?.(video));
+
+      if (wasPlaying && video.paused) {
         video.play().catch(() => {});
       }
       safe(() => getNS()?.ApplyReq?.hard());
@@ -1136,18 +1128,13 @@ function VSC_MAIN() {
   function restoreFromDocumentPiP(video) {
     if (!video) { PiPState.reset(); return; }
     if (PiPState.video !== video) return;
+    if (PiPState._restoring) return;
 
+    PiPState._restoring = true;
     const wasPlaying = !video.paused;
 
-    // [Boundary Fix 3]: 원본 창 복귀 전에도 오디오/필터 연결 해제 및 정지
-    if (wasPlaying) video.pause();
-    safe(() => {
-      const ns = getNS();
-      if (ns) {
-        if (typeof ns.AudioDestroy === 'function') ns.AudioDestroy();
-        if (ns.Adapter && typeof ns.Adapter.clear === 'function') ns.Adapter.clear(video);
-      }
-    });
+    // 가볍게 오디오 타깃만 분리
+    safe(() => getNS()?.AudioSetTarget?.(null));
 
     let restored = false;
     let requiresAsyncRetry = false;
@@ -1196,8 +1183,11 @@ function VSC_MAIN() {
                 c.appendChild(video);
                 stopRetry();
                 PiPState.reset();
-                safe(() => __vscNs.ApplyReq?.hard());
-                if (wasPlaying) setTimeout(() => video.play().catch(() => {}), 50);
+                safe(() => {
+                  getNS()?.AudioSetTarget?.(video);
+                  __vscNs.ApplyReq?.hard();
+                });
+                if (wasPlaying && video.paused) video.play().catch(() => {});
                 return true;
               }
             }
@@ -1214,9 +1204,12 @@ function VSC_MAIN() {
           }
           retryRestore();
         }, 500);
-      } else if (wasPlaying) {
-        // [Boundary Fix 4]: 정상 복원 후 DOM 안정화를 위해 약간 지연 후 재생
-        setTimeout(() => video.play().catch(() => {}), 50);
+      } else {
+        safe(() => {
+          getNS()?.AudioSetTarget?.(video);
+          __vscNs.ApplyReq?.hard();
+        });
+        if (wasPlaying && video.paused) video.play().catch(() => {});
       }
     } catch (e) {
       log.warn('PiP restore failed:', e);
@@ -1224,7 +1217,6 @@ function VSC_MAIN() {
 
     if (!requiresAsyncRetry) {
       PiPState.reset();
-      safe(() => __vscNs.ApplyReq?.hard());
     }
   }
 
@@ -1233,16 +1225,17 @@ function VSC_MAIN() {
 
     if (PiPState.window) {
       const win = PiPState.window;
+
       if (win && !win.closed) {
-        try { win.close(); } catch (_) {}
-        queueMicrotask(() => {
-          if (target && PiPState.video === target) {
-            restoreFromDocumentPiP(target);
-          }
-        });
-        return true;
+        try {
+          win.close();
+        } catch (_) {}
+        return true; // 복원은 pagehide / watcher 에서만 수행
       }
-      if (target) restoreFromDocumentPiP(target);
+
+      if (target) {
+        restoreFromDocumentPiP(target);
+      }
       return true;
     }
 
@@ -4454,9 +4447,15 @@ function VSC_MAIN() {
     const Adapter = createBackendAdapter(Filters);
     __vscNs.Adapter = Adapter;
 
-    const Audio = createAudio(Store); __vscNs.AudioWarmup = Audio.warmup;
-    // [Boundary Fix 패치 연동] PiP 모듈에서 오디오를 초기화할 수 있도록 파괴 함수 전역 노출
-    __vscNs.AudioDestroy = Audio.destroy;
+    const Audio = createAudio(Store);
+    __vscNs.AudioWarmup = Audio.warmup;
+    // [Boundary Fix 패치 연동] 무거운 파괴(destroy) 대신 오디오 타깃만 가볍게 제어
+    __vscNs.AudioSetTarget = (v) => {
+      try {
+        Audio.setTarget(v || null);
+        Audio.update();
+      } catch (_) {}
+    };
 
     let ZoomManager = createZoomManager(Store, P); __vscNs.ZoomManager = ZoomManager;
 
