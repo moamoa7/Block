@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.35 - SVG Tone-Safe Mask)
+// @name         Video_Control (v178.9.36 - Bass-Protected Widener)
 // @namespace    https://github.com/
-// @version      178.9.35
-// @description  Video Control: Pure Algebraic Luma Sharpening, Separated Radius/Amount & Clarity + Tone Safe Mask.
+// @version      178.9.36
+// @description  Video Control: Luma Sharpening, Tone Safe Mask + Bass-Protected M/S Widener.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.35';
+  const SCRIPT_VERSION = '178.9.36';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -134,7 +134,6 @@ function VSC_MAIN() {
   });
   __vscNs.FLAGS = FLAGS;
 
-  // [STEP 1 패치] 톤 안전성 마스크 및 클래리티 미드톤 마스크 활성화 플래그
   const ADV_VIDEO_FLAGS = Object.freeze({
     SHARP_TONE_SAFE_MASK: true,
     CLARITY_MIDTONE_MASK: true
@@ -1475,60 +1474,101 @@ function VSC_MAIN() {
   function chain(...nodes) { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); }
   const globalSrcMap = new WeakMap();
 
+  // [STEP 2 패치] 저역 보호형 M/S Widener 적용
   function createStereoWidener(actx) {
-    const splitter = actx.createChannelSplitter(2);
-    const merger   = actx.createChannelMerger(2);
+    const mkBQ = (type, freq, Q = 0.707, gain) => {
+      const f = actx.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      if (Q !== undefined) f.Q.value = Q;
+      if (gain !== undefined) f.gain.value = gain;
+      return f;
+    };
 
-    const midL = actx.createGain(); midL.gain.value = 0.5;
-    const midR = actx.createGain(); midR.gain.value = 0.5;
-    const sideL = actx.createGain(); sideL.gain.value = 0.5;
+    const input = actx.createGain();
+    const output = actx.createGain();
+    input.gain.value = 1.0;
+    output.gain.value = 1.0;
+
+    input.channelCount = 2;
+    input.channelCountMode = 'explicit';
+    input.channelInterpretation = 'speakers';
+
+    const splitter = actx.createChannelSplitter(2);
+    const merger = actx.createChannelMerger(2);
+
+    const midL = actx.createGain();  midL.gain.value =  0.5;
+    const midR = actx.createGain();  midR.gain.value =  0.5;
+    const sideL = actx.createGain(); sideL.gain.value =  0.5;
     const sideR = actx.createGain(); sideR.gain.value = -0.5;
-    const sideAmp = actx.createGain(); sideAmp.gain.value = 1.0;
+
+    const midBus = actx.createGain();
+    const sideBus = actx.createGain();
+
+    input.connect(splitter);
 
     splitter.connect(midL, 0);
     splitter.connect(sideL, 0);
     splitter.connect(midR, 1);
     splitter.connect(sideR, 1);
 
-    const sideSummer = actx.createGain(); sideSummer.gain.value = 1.0;
-    sideL.connect(sideSummer);
-    sideR.connect(sideSummer);
-    sideSummer.connect(sideAmp);
+    midL.connect(midBus);
+    midR.connect(midBus);
 
-    const midSummer = actx.createGain(); midSummer.gain.value = 1.0;
-    midL.connect(midSummer);
-    midR.connect(midSummer);
+    sideL.connect(sideBus);
+    sideR.connect(sideBus);
 
-    const outL = actx.createGain(); outL.gain.value = 1.0;
-    midSummer.connect(outL);
+    // 저역은 거의 mono 유지 (위상 캔슬링 방지 및 타격감 확보)
+    const sideLow1 = mkBQ('lowpass', 160, 0.707);
+    const sideLow2 = mkBQ('lowpass', 160, 0.707);
+
+    // sideHigh = sideBus - lowpassed(sideBus)
+    const sideHigh = actx.createGain();
+    const sideLowInv = actx.createGain();
+    sideLowInv.gain.value = -1.0;
+
+    sideBus.connect(sideHigh);
+    sideBus.connect(sideLow1);
+    sideLow1.connect(sideLow2);
+    sideLow2.connect(sideLowInv);
+    sideLowInv.connect(sideHigh);
+
+    // 중고역만 살짝 화사하게 부스팅
+    const sideShelf = mkBQ('highshelf', 3200, 0.707, 1.5);
+
+    // 최종 width gain 조절
+    const sideAmp = actx.createGain();
+    sideAmp.gain.value = 1.0;
+
+    sideHigh.connect(sideShelf);
+    sideShelf.connect(sideAmp);
+
+    // 출력 재합성 (L/R 복원)
+    const outL = actx.createGain();
+    const outR = actx.createGain();
+    const sideInvR = actx.createGain();
+    sideInvR.gain.value = -1.0;
+
+    midBus.connect(outL);
     sideAmp.connect(outL);
 
-    const outR = actx.createGain(); outR.gain.value = 1.0;
-    const sideInvR = actx.createGain(); sideInvR.gain.value = -1.0;
-    midSummer.connect(outR);
+    midBus.connect(outR);
     sideAmp.connect(sideInvR);
     sideInvR.connect(outR);
 
     outL.connect(merger, 0, 0);
     outR.connect(merger, 0, 1);
-
-    const input  = actx.createGain(); input.gain.value = 1.0;
-    const output = actx.createGain(); output.gain.value = 1.0;
-    input.channelCount = 2;
-    input.channelCountMode = 'explicit';
-    input.channelInterpretation = 'speakers';
-
-    input.connect(splitter);
     merger.connect(output);
 
+    // mono detector는 대역 제한된 side(고음역 위주) 기준으로 모니터링
     const monoDetector = actx.createAnalyser();
     monoDetector.fftSize = 256;
     monoDetector.smoothingTimeConstant = 0.85;
-    sideSummer.connect(monoDetector);
+    sideAmp.connect(monoDetector);
     const _monoBuffer = new Float32Array(monoDetector.fftSize);
 
     let _enabled = false;
-    let _width = 1.35;
+    let _width = 1.25; // 초기값을 보수적으로 시작 (이전: 1.35)
     let _effectiveWidth = 1.0;
     let _monoSmooth = 0;
 
@@ -1538,23 +1578,21 @@ function VSC_MAIN() {
         let sumSq = 0;
         for (let i = 0; i < _monoBuffer.length; i++) sumSq += _monoBuffer[i] * _monoBuffer[i];
         return (sumSq / _monoBuffer.length) < 1e-8;
-      } catch (_) { return false; }
+      } catch (_) {
+        return false;
+      }
     }
 
     function setEnabled(en) {
       _enabled = en;
       const t = actx.currentTime;
-      if (en) {
-        try { sideAmp.gain.setTargetAtTime(_width, t, 0.06); }
-        catch (_) { sideAmp.gain.value = _width; }
-      } else {
-        try { sideAmp.gain.setTargetAtTime(1.0, t, 0.06); }
-        catch (_) { sideAmp.gain.value = 1.0; }
-      }
+      const target = en ? _width : 1.0;
+      try { sideAmp.gain.setTargetAtTime(target, t, 0.06); }
+      catch (_) { sideAmp.gain.value = target; }
     }
 
     function setWidth(w) {
-      _width = Math.max(0.5, Math.min(2.5, w));
+      _width = Math.max(0.85, Math.min(1.9, w));
       if (_enabled) {
         try { sideAmp.gain.setTargetAtTime(_width, actx.currentTime, 0.06); }
         catch (_) { sideAmp.gain.value = _width; }
@@ -1563,17 +1601,26 @@ function VSC_MAIN() {
 
     function update() {
       if (!_enabled) return;
+
       const mono = isMono();
       const monoTarget = mono ? 1.0 : 0.0;
       _monoSmooth += (monoTarget - _monoSmooth) * 0.08;
-      _effectiveWidth = _width * (1.0 - _monoSmooth * 0.8) + 1.0 * _monoSmooth * 0.8;
-      try { sideAmp.gain.setTargetAtTime(_effectiveWidth, actx.currentTime, 0.12); }
+
+      // 완전히 mono 소스라면 폭을 강제로 넓히지 않고 1.0으로 부드럽게 수렴
+      _effectiveWidth = _width * (1.0 - _monoSmooth * 0.9) + 1.0 * (_monoSmooth * 0.9);
+
+      try { sideAmp.gain.setTargetAtTime(_effectiveWidth, actx.currentTime, 0.10); }
       catch (_) { sideAmp.gain.value = _effectiveWidth; }
     }
 
     return {
-      input, output, sideAmp,
-      setEnabled, setWidth, update, isMono,
+      input,
+      output,
+      sideAmp,
+      setEnabled,
+      setWidth,
+      update,
+      isMono,
       getWidth: () => _width,
       isEnabled: () => _enabled
     };
@@ -1791,12 +1838,14 @@ function VSC_MAIN() {
           currentNodes._loudnessNorm.update();
         }
 
+        // [STEP 2 패치] Widener 폭(width) 미세조정 적용
         if (currentNodes._stereoWidener) {
           const swEnabled = !!sm.get(P.A_STEREO_W) && dynAct;
           if (currentNodes._stereoWidener.isEnabled() !== swEnabled) {
             currentNodes._stereoWidener.setEnabled(swEnabled);
           }
           if (swEnabled) {
+            currentNodes._stereoWidener.setWidth(1.22); // 기존보다 보수적이고 고급스러운 폭
             currentNodes._stereoWidener.update();
           }
           if (swEnabled) {
@@ -2099,7 +2148,6 @@ function VSC_MAIN() {
       return result;
     }
 
-    // [STEP 1 패치] 톤 안전성 및 클래리티 마스크용 헬퍼 함수
     function smoothstep01(t) {
       t = t < 0 ? 0 : (t > 1 ? 1 : t);
       return t * t * (3 - 2 * t);
@@ -2206,7 +2254,6 @@ function VSC_MAIN() {
       const fidLite  = `vsc-lite-${config.VSC_ID}`;
       const fidSharp = `vsc-sharp-${config.VSC_ID}`;
 
-      // [STEP 1 패치] 전역에서 선언된 ADV_VIDEO_FLAGS 획득 (안전 처리)
       const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS)
         ? __vscNs.ADV_VIDEO_FLAGS
         : { SHARP_TONE_SAFE_MASK: true, CLARITY_MIDTONE_MASK: true };
@@ -2269,7 +2316,6 @@ function VSC_MAIN() {
         ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_UV, result: 's_CbCr'
       });
 
-      // --- 순수 루마(Luma) 기반 샤프닝 파이프라인 ---
       const sBlurFine = h('feGaussianBlur', {
         ns: 'svg', in: 's_Y', stdDeviation: '0.6',
         edgeMode: 'duplicate', result: 's_bFine'
@@ -2286,13 +2332,11 @@ function VSC_MAIN() {
         result: 's_det'
       });
 
-      // 기존 엣지 마스크
       const sEdgeFuncs = mkFuncRGB({ type: 'table', tableValues: '1 1' });
       const sEdgeMask = h('feComponentTransfer', {
         ns: 'svg', in: 's_det', result: 's_emask'
       }, ...sEdgeFuncs);
 
-      // [STEP 1 패치] Tone Protect Mask 추가
       const sToneProtectFuncs = mkFuncRGB({
         type: 'table',
         tableValues: ADV_VIDEO_FLAGS.SHARP_TONE_SAFE_MASK
@@ -2303,7 +2347,6 @@ function VSC_MAIN() {
         ns: 'svg', in: 's_Y', result: 's_tmask'
       }, ...sToneProtectFuncs);
 
-      // [STEP 1 패치] Detail Mask = Edge Mask x Tone Protect Mask
       const sDetailMask = h('feComposite', {
         ns: 'svg',
         in: 's_emask',
@@ -2313,7 +2356,6 @@ function VSC_MAIN() {
         result: 's_dmask'
       });
 
-      // [STEP 1 패치] s_emask 대신 s_dmask(결합 마스크)를 사용하도록 변경
       const sModDetail = h('feComposite', {
         ns: 'svg', in: 's_det', in2: 's_dmask',
         operator: 'arithmetic', k1: '1', k2: '0', k3: '-0.5', k4: '0.5',
@@ -2337,7 +2379,6 @@ function VSC_MAIN() {
         result: 's_mid'
       });
 
-      // [STEP 1 패치] 클래리티용 미드톤 마스크 추가
       const sClarityMaskFuncs = mkFuncRGB({
         type: 'table',
         tableValues: ADV_VIDEO_FLAGS.CLARITY_MIDTONE_MASK
@@ -2348,7 +2389,6 @@ function VSC_MAIN() {
         ns: 'svg', in: 's_Y', result: 's_cmask'
       }, ...sClarityMaskFuncs);
 
-      // [STEP 1 패치] 클래리티 마스크 결합
       const sMidMasked = h('feComposite', {
         ns: 'svg',
         in: 's_mid',
@@ -2358,14 +2398,12 @@ function VSC_MAIN() {
         result: 's_midm'
       });
 
-      // [STEP 1 패치] s_mid 대신 s_midm(마스킹된 미드톤) 사용
       const sClarityAdd = h('feComposite', {
         ns: 'svg', in: 's_Yfine', in2: 's_midm',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0',
         result: 's_Ysharp'
       });
 
-      // --- 분리했던 Chroma 재결합 후 RGB 변환 ---
       const sRecombine = h('feComposite', {
         ns: 'svg', in: 's_Ysharp', in2: 's_CbCr',
         operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0',
@@ -2385,21 +2423,20 @@ function VSC_MAIN() {
         operator: 'in', result: 's_final'
       });
 
-      // [STEP 1 패치] 노드 실행 순서 재배치
       sharpFilter.append(
         sOpaque,
         sLuma, sChroma,
         sBlurFine, sBlurClarity,
         sDetailBiased,
         sEdgeMask,
-        sToneProtect,       // NEW
-        sDetailMask,        // NEW
+        sToneProtect,
+        sDetailMask,
         sModDetail,
         sYFineUSM,
         sHaloSuppress,
         sMidDetail,
-        sClarityMask,       // NEW
-        sMidMasked,         // NEW
+        sClarityMask,
+        sMidMasked,
         sClarityAdd,
         sRecombine, sToRGB,
         ...sharpCC.nodes,
