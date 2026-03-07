@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.39 - PiP Audio & Window Fix)
+// @name         Video_Control (v178.9.40 - PiP & Audio Pipeline Fix)
 // @namespace    https://github.com/
-// @version      178.9.39
-// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Bug Fixes.
+// @version      178.9.40
+// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, Audio Lifecycle & PiP Stabilized.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.39';
+  const SCRIPT_VERSION = '178.9.40';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -799,14 +799,16 @@ function VSC_MAIN() {
   const PiPState = {
     window: null, video: null, placeholder: null,
     origParent: null, origNext: null, origContainer: null,
-    origCss: '', _ac: null, _watcherId: null, _restoring: false,
+    origCss: '', _ac: null, _watcherId: null, _restoring: false, _uiCleanup: null,
     reset() {
+      try { this._uiCleanup?.(); } catch (_) {}
+      this._uiCleanup = null;
       if (this._ac) { this._ac.abort(); this._ac = null; }
       if (this._watcherId) { clearInterval(this._watcherId); this._watcherId = null; }
       Object.assign(this, {
         window: null, video: null, placeholder: null,
         origParent: null, origNext: null, origContainer: null,
-        origCss: '', _ac: null, _watcherId: null, _restoring: false
+        origCss: '', _ac: null, _watcherId: null, _restoring: false, _uiCleanup: null
       });
     }
   };
@@ -878,6 +880,24 @@ function VSC_MAIN() {
     } catch (_) {}
   }
 
+  function waitForDocPiPClose(win, timeout = 1000) {
+    return new Promise((resolve) => {
+      const started = performance.now();
+      const tick = () => {
+        if (!win || win.closed || PiPState.window !== win) {
+          resolve(true);
+          return;
+        }
+        if ((performance.now() - started) >= timeout) {
+          resolve(false);
+          return;
+        }
+        setTimeout(tick, 50);
+      };
+      tick();
+    });
+  }
+
   async function enterDocumentPiP(video) {
     const wasPlaying = !video.paused;
     const saved = loadDocPiPSize();
@@ -895,7 +915,7 @@ function VSC_MAIN() {
 
       pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
 
-      // 가볍게 오디오 타깃만 분리 (버벅임 방지)
+      // 가볍게 오디오 타깃만 분리 (버벅임 및 파괴 방지)
       safe(() => getNS()?.AudioSetTarget?.(null));
 
       PiPState.window = pipWindow;
@@ -1020,6 +1040,11 @@ function VSC_MAIN() {
       video.addEventListener('play', syncPlayBtn);
       video.addEventListener('pause', syncPlayBtn);
 
+      PiPState._uiCleanup = () => {
+        video.removeEventListener('play', syncPlayBtn);
+        video.removeEventListener('pause', syncPlayBtn);
+      };
+
       Object.assign(video.style, {
         width: '100%',
         height: '100%',
@@ -1031,7 +1056,7 @@ function VSC_MAIN() {
       root.append(stage, bar);
       doc.body.append(root);
 
-      // 이동 완료 후 오디오 다시 재타깃
+      await new Promise(resolve => requestAnimationFrame(resolve));
       safe(() => getNS()?.AudioSetTarget?.(video));
 
       if (wasPlaying && video.paused) {
@@ -1046,8 +1071,6 @@ function VSC_MAIN() {
       pipWindow.addEventListener('pagehide', () => {
         pipAC.abort();
         saveDocPiPSize(pipWindow);
-        video.removeEventListener('play', syncPlayBtn);
-        video.removeEventListener('pause', syncPlayBtn);
         restoreFromDocumentPiP(video);
       }, { once: true });
 
@@ -1133,7 +1156,6 @@ function VSC_MAIN() {
     PiPState._restoring = true;
     const wasPlaying = !video.paused;
 
-    // 가볍게 오디오 타깃만 분리
     safe(() => getNS()?.AudioSetTarget?.(null));
 
     let restored = false;
@@ -1227,10 +1249,15 @@ function VSC_MAIN() {
       const win = PiPState.window;
 
       if (win && !win.closed) {
-        try {
-          win.close();
-        } catch (_) {}
-        return true; // 복원은 pagehide / watcher 에서만 수행
+        try { win.close(); } catch (_) {}
+
+        waitForDocPiPClose(win, 1000).then((closed) => {
+          if (closed && target && PiPState.video === target && !PiPState._restoring) {
+            restoreFromDocumentPiP(target);
+          }
+        }).catch(() => {});
+
+        return true;
       }
 
       if (target) {
@@ -1262,9 +1289,11 @@ function VSC_MAIN() {
       }
 
       if (PiPState.window && !PiPState.window.closed) {
-        const prevVideo = PiPState.video;
-        try { PiPState.window.close(); } catch (_) {}
-        if (prevVideo) restoreFromDocumentPiP(prevVideo);
+        const prevWin = PiPState.window;
+        try { prevWin.close(); } catch (_) {}
+
+        const closed = await waitForDocPiPClose(prevWin, 1000);
+        if (!closed) return false;
       }
 
       return await enterPiP(video);
@@ -1949,7 +1978,27 @@ function VSC_MAIN() {
       return true;
     };
 
-    const disconnectAll = () => { if (currentSrc) { safe(() => currentSrc.disconnect()); if (target) globalSrcMap.delete(target); } currentSrc = null; target = null; };
+    // [Boundary Fix 패치] 파괴와 일시 분리를 분리
+    function detachCurrentSource() {
+      if (currentSrc) {
+        safe(() => currentSrc.disconnect());
+      }
+      currentSrc = null;
+      target = null;
+    }
+
+    function disposeSourceForVideo(video) {
+      if (!video) return;
+      const src = globalSrcMap.get(video);
+      if (src) {
+        safe(() => src.disconnect());
+        globalSrcMap.delete(video);
+      }
+      if (target === video) {
+        currentSrc = null;
+        target = null;
+      }
+    }
 
     const _lufsTmp = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 };
 
@@ -2075,9 +2124,14 @@ function VSC_MAIN() {
       try { _audioAC.abort(); } catch (_) {}
       _visResumeHooked = false;
       loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
-      if (ctx) { if (target && globalSrcMap.has(target)) { const src = globalSrcMap.get(target); if (src) safe(() => src.disconnect()); globalSrcMap.delete(target); } }
-      if (currentSrc) { safe(() => currentSrc.disconnect()); if (target) globalSrcMap.delete(target); currentSrc = null; }
-      target = null; safe(() => { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } });
+
+      const prevTarget = target;
+      detachCurrentSource();
+      if (prevTarget) {
+        disposeSourceForVideo(prevTarget);
+      }
+
+      safe(() => { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } });
       try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
       ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; hpf = null; makeupDbEma = 0; switchTok++;
     }
@@ -2085,22 +2139,28 @@ function VSC_MAIN() {
     return {
       warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
 
+      // [Boundary Fix 패치] 파괴 대신 분리(detach) 적용
       setTarget: (v) => {
         ++switchTok;
-        const st = v ? getVState(v) : null;
+
+        if (v == null) {
+          if (!ctx) return;
+          detachCurrentSource();
+          updateMix();
+          return;
+        }
+
+        const st = getVState(v);
 
         if (st && st.audioFailUntil > performance.now()) {
-          if (currentSrc || target) {
-            disconnectAll();
-          }
-          target = null;
+          detachCurrentSource();
           updateMix();
           return;
         }
 
         if (!ensureCtx()) return;
 
-        if (v === target) {
+        if (v === target && currentSrc) {
           updateMix();
           return;
         }
@@ -2112,7 +2172,9 @@ function VSC_MAIN() {
           let reusable = false;
 
           if (s) {
-            try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) {}
+            try {
+              reusable = (s.context === ctx && s.context.state !== 'closed');
+            } catch (_) {}
             if (!reusable) {
               try { s.disconnect(); } catch (_) {}
               globalSrcMap.delete(vid);
@@ -2125,27 +2187,26 @@ function VSC_MAIN() {
               s = ctx.createMediaElementSource(vid);
               globalSrcMap.set(vid, s);
             } catch (e) {
-              if (st) st.audioFailUntil = performance.now() + 10000;
-              disconnectAll();
-              target = null;
+              st.audioFailUntil = performance.now() + 10000;
+              detachCurrentSource();
               updateMix();
               return;
             }
           }
 
+          try { s.disconnect(); } catch (_) {} // 재사용 시 기존 연결 정리
           s.connect(inputGain);
           currentSrc = s;
           target = vid;
           updateMix();
         };
 
-        if (target !== null && v !== null && target !== v) {
-          disconnectAll();
+        if (target !== null && target !== v) {
+          detachCurrentSource();
           connectWithFallback(v);
-        } else if (v !== null && !currentSrc) {
+        } else if (!currentSrc) {
           connectWithFallback(v);
-        } else if (v === null) {
-          disconnectAll();
+        } else {
           updateMix();
         }
       },
@@ -4449,7 +4510,6 @@ function VSC_MAIN() {
 
     const Audio = createAudio(Store);
     __vscNs.AudioWarmup = Audio.warmup;
-    // [Boundary Fix 패치 연동] 무거운 파괴(destroy) 대신 오디오 타깃만 가볍게 제어
     __vscNs.AudioSetTarget = (v) => {
       try {
         Audio.setTarget(v || null);
