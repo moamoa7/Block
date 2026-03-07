@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.40 - PiP & Audio Pipeline Fix)
+// @name         Video_Control (v178.9.42 - PiP Aspect Ratio Fit)
 // @namespace    https://github.com/
-// @version      178.9.40
-// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, Audio Lifecycle & PiP Stabilized.
+// @version      178.9.42
+// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.40';
+  const SCRIPT_VERSION = '178.9.42';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -915,7 +915,7 @@ function VSC_MAIN() {
 
       pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
 
-      // 가볍게 오디오 타깃만 분리 (버벅임 및 파괴 방지)
+      // 가볍게 오디오 타깃만 분리 (버벅임 방지)
       safe(() => getNS()?.AudioSetTarget?.(null));
 
       PiPState.window = pipWindow;
@@ -947,31 +947,48 @@ function VSC_MAIN() {
       PiPState.origParent?.insertBefore(PiPState.placeholder, video);
 
       const doc = pipWindow.document;
+      
+      // [Aspect Ratio 패치] 프레임 기반의 완벽한 CSS 레이아웃
       const style = doc.createElement('style');
       style.textContent = `
         * { box-sizing: border-box; }
         html, body {
-          margin: 0; padding: 0; width: 100%; height: 100%;
-          background: #000; color: #fff; overflow: hidden;
+          margin: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          background: #000;
+          color: #fff;
           font-family: system-ui, sans-serif;
         }
         .vsc-pip-root {
           display: grid;
-          grid-template-rows: 1fr auto;
+          grid-template-rows: minmax(0, 1fr) auto;
           width: 100%;
           height: 100%;
           background: #000;
         }
         .vsc-pip-stage {
+          min-width: 0;
           min-height: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          display: grid;
+          place-items: center;
+          overflow: hidden;
           background: #000;
         }
-        .vsc-pip-stage video {
+        .vsc-pip-frame {
           width: 100%;
           height: 100%;
+          display: grid;
+          place-items: center;
+          background: #000;
+        }
+        .vsc-pip-frame video {
+          max-width: 100%;
+          max-height: 100%;
+          width: auto;
+          height: auto;
+          display: block;
           object-fit: contain;
           background: #000;
         }
@@ -1002,6 +1019,9 @@ function VSC_MAIN() {
       const stage = doc.createElement('div');
       stage.className = 'vsc-pip-stage';
 
+      const frame = doc.createElement('div');
+      frame.className = 'vsc-pip-frame';
+
       const bar = doc.createElement('div');
       bar.className = 'vsc-pip-bar';
 
@@ -1029,6 +1049,48 @@ function VSC_MAIN() {
         } catch (_) {}
       });
 
+      // [Aspect Ratio 패치] 제스처 기반의 완벽한 1:1 창 맞춤 로직
+      function getShellHeight() {
+        return Math.ceil(bar.getBoundingClientRect().height || 50);
+      }
+
+      function resizePiPToAspect(scale = 1.0) {
+        if (!pipWindow || pipWindow.closed) return;
+
+        const vw = video.videoWidth || 0;
+        const vh = video.videoHeight || 0;
+        if (!vw || !vh) return;
+
+        const shellH = getShellHeight();
+        const maxStageW = Math.floor(screen.availWidth * 0.50 * scale);
+        const maxStageH = Math.floor((screen.availHeight * 0.50 - shellH) * scale);
+
+        if (maxStageW < 200 || maxStageH < 100) return;
+
+        const ratio = vw / vh;
+
+        let stageW = maxStageW;
+        let stageH = Math.round(stageW / ratio);
+
+        if (stageH > maxStageH) {
+          stageH = maxStageH;
+          stageW = Math.round(stageH * ratio);
+        }
+
+        const targetInnerW = stageW;
+        const targetInnerH = stageH + shellH;
+
+        try {
+          const chromeW = pipWindow.outerWidth - pipWindow.innerWidth;
+          const chromeH = pipWindow.outerHeight - pipWindow.innerHeight;
+          pipWindow.resizeTo(targetInnerW + chromeW, targetInnerH + chromeH);
+        } catch (_) {}
+      }
+
+      const fitBtn = mkBtn('⤢ 맞춤', () => resizePiPToAspect(1.0));
+      const smallBtn = mkBtn('S', () => resizePiPToAspect(0.85));
+      const largeBtn = mkBtn('L', () => resizePiPToAspect(1.15));
+
       const closeBtn = mkBtn('✕ 닫기', () => {
         exitPiP(video).catch(() => {});
       });
@@ -1046,16 +1108,28 @@ function VSC_MAIN() {
       };
 
       Object.assign(video.style, {
-        width: '100%',
-        height: '100%',
+        maxWidth: '100%',
+        maxHeight: '100%',
+        width: 'auto',
+        height: 'auto',
         objectFit: 'contain'
       });
 
-      stage.append(video);
-      bar.append(backBtn, playBtn, fwdBtn, closeBtn);
+      frame.append(video);
+      stage.append(frame);
+      bar.append(backBtn, playBtn, fwdBtn, fitBtn, smallBtn, largeBtn, closeBtn);
       root.append(stage, bar);
       doc.body.append(root);
 
+      function syncPiPLayout() {
+        if (!pipWindow || pipWindow.closed) return;
+        const vw = video.videoWidth || 0;
+        const vh = video.videoHeight || 0;
+        if (!vw || !vh) return;
+        frame.style.aspectRatio = `${vw} / ${vh}`;
+      }
+
+      // 이동 완료 후 오디오 다시 재타깃
       await new Promise(resolve => requestAnimationFrame(resolve));
       safe(() => getNS()?.AudioSetTarget?.(video));
 
@@ -1067,7 +1141,13 @@ function VSC_MAIN() {
       const pipAC = new AbortController();
       const saveSizeDebounced = createDebounced(() => saveDocPiPSize(pipWindow), 180);
 
-      pipWindow.addEventListener('resize', saveSizeDebounced, { signal: pipAC.signal });
+      video.addEventListener('loadedmetadata', syncPiPLayout, { signal: pipAC.signal });
+
+      pipWindow.addEventListener('resize', () => {
+        syncPiPLayout();
+        saveSizeDebounced();
+      }, { signal: pipAC.signal });
+
       pipWindow.addEventListener('pagehide', () => {
         pipAC.abort();
         saveDocPiPSize(pipWindow);
@@ -1076,6 +1156,13 @@ function VSC_MAIN() {
 
       PiPState._ac = pipAC;
       startPiPWatcher();
+
+      // 최초 열림 시 내부 레이아웃 동기화
+      syncPiPLayout();
+      if (!saved) {
+        setTimeout(() => resizePiPToAspect(1.0), 100);
+      }
+
       return true;
     } catch (e) {
       try {
@@ -1156,6 +1243,7 @@ function VSC_MAIN() {
     PiPState._restoring = true;
     const wasPlaying = !video.paused;
 
+    // 가볍게 오디오 타깃만 분리
     safe(() => getNS()?.AudioSetTarget?.(null));
 
     let restored = false;
@@ -1978,7 +2066,6 @@ function VSC_MAIN() {
       return true;
     };
 
-    // [Boundary Fix 패치] 파괴와 일시 분리를 분리
     function detachCurrentSource() {
       if (currentSrc) {
         safe(() => currentSrc.disconnect());
@@ -2124,7 +2211,7 @@ function VSC_MAIN() {
       try { _audioAC.abort(); } catch (_) {}
       _visResumeHooked = false;
       loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
-
+      
       const prevTarget = target;
       detachCurrentSource();
       if (prevTarget) {
@@ -2139,7 +2226,6 @@ function VSC_MAIN() {
     return {
       warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
 
-      // [Boundary Fix 패치] 파괴 대신 분리(detach) 적용
       setTarget: (v) => {
         ++switchTok;
 
@@ -2194,7 +2280,7 @@ function VSC_MAIN() {
             }
           }
 
-          try { s.disconnect(); } catch (_) {} // 재사용 시 기존 연결 정리
+          try { s.disconnect(); } catch (_) {}
           s.connect(inputGain);
           currentSrc = s;
           target = vid;
@@ -2455,8 +2541,8 @@ function VSC_MAIN() {
       const fidLite  = `vsc-lite-${config.VSC_ID}`;
       const fidSharp = `vsc-sharp-${config.VSC_ID}`;
 
-      const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS)
-        ? __vscNs.ADV_VIDEO_FLAGS
+      const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS) 
+        ? __vscNs.ADV_VIDEO_FLAGS 
         : { SHARP_TONE_SAFE_MASK: true, CLARITY_MIDTONE_MASK: true };
 
       const svg  = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;overflow:hidden;' });
@@ -4508,7 +4594,7 @@ function VSC_MAIN() {
     const Adapter = createBackendAdapter(Filters);
     __vscNs.Adapter = Adapter;
 
-    const Audio = createAudio(Store);
+    const Audio = createAudio(Store); 
     __vscNs.AudioWarmup = Audio.warmup;
     __vscNs.AudioSetTarget = (v) => {
       try {
@@ -4516,7 +4602,7 @@ function VSC_MAIN() {
         Audio.update();
       } catch (_) {}
     };
-
+    
     let ZoomManager = createZoomManager(Store, P); __vscNs.ZoomManager = ZoomManager;
 
     const UI = createUI(Store, Registry, ApplyReq, Utils, P);
