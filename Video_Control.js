@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.44 - Dual SVG Filter Refactoring)
+// @name         Video_Control (v178.9.46 - Dark Area Level System)
 // @namespace    https://github.com/
-// @version      178.9.44
+// @version      178.9.46
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.44';
+  const SCRIPT_VERSION = '178.9.46';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -361,7 +361,7 @@ function VSC_MAIN() {
     return st;
   };
 
-  const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 4 });
+  const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
 
   const PRESETS = Object.freeze({
     detail: {
@@ -397,7 +397,7 @@ function VSC_MAIN() {
   });
 
   const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ];
-  const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
+  const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
   const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
@@ -2388,6 +2388,7 @@ function VSC_MAIN() {
       if (prev !== null) video.style.backgroundColor = prev;
     }
 
+    // [수정 1] S-커브 제거: 암부 톤 변경 없이 경계(0/1)에서만 overshoot 억제
     function buildHaloTable(size, strength) {
       if (strength < 0.005) return '0 1';
       const qStrength = Math.round(strength * 100) / 100;
@@ -2408,7 +2409,7 @@ function VSC_MAIN() {
           const t = (1 - x) / knee;
           y = 1 - knee * t * t;
         }
-        arr[i] = Math.round(clamp01(y) * 10000) / 10000;
+        arr[i] = Math.round(VSC_CLAMP(y, 0, 1) * 10000) / 10000;
       }
 
       const result = arr.join(' ');
@@ -2787,28 +2788,52 @@ function VSC_MAIN() {
       }
     }
 
+    // [수정 4] getToneTableCached 대신 직접 Power-Curve로 암부를 내리는 전용 함수
     function applyShadowParams(shadowNodes, st, shadowParams) {
-      const { toe, gamma, mid, gain } = shadowParams;
+      const level = shadowParams.level || 0;
+      if (level <= 0) return;
 
-      const shadowKey = `${toe.toFixed(3)}|${gamma.toFixed(4)}|${mid.toFixed(4)}|${(gain||1).toFixed(3)}`;
+      const shadowKey = `crush_v2|${level}`;
       if (st.shadowKey === shadowKey) return;
       st.shadowKey = shadowKey;
 
-      const steps = 128;
-      const toeQ = Math.round(VSC_CLAMP(toe / TOE_DIVISOR, -1, 1) / 0.02) * 0.02;
-      const toneTable = getToneTableCached(steps, toeQ, 0, mid, gain || 1);
-      for (const fn of shadowNodes.toneFuncs) setAttr(fn, 'tableValues', toneTable);
+      const CRUSH = [
+        null,
+        { power: 1.35, pull: 0.008 },
+        { power: 1.80, pull: 0.020 },
+        { power: 2.50, pull: 0.045 },
+      ];
+      const p = CRUSH[level];
+      const RANGE = 0.50, SIZE = 128;
+      const arr = new Array(SIZE);
+      let prev = 0;
 
-      const midContrast = 1.0;
-      const midIntercept = 0;
+      for (let i = 0; i < SIZE; i++) {
+        const x = i / (SIZE - 1);
+        if (x <= 1e-6) { arr[i] = '0'; continue; }
+        if (x >= 1.0 - 1e-6) { arr[i] = '1'; continue; }
+        const t = Math.max(0, Math.min(1, 1.0 - x / RANGE));
+        const blend = t * t * (3.0 - 2.0 * t);
+        const crushed = Math.pow(x, p.power);
+        const pulldown = p.pull * (1.0 - x) * (1.0 - x);
+        let y = x * (1.0 - blend) + crushed * blend - pulldown;
+        y = Math.max(0, Math.min(1, y));
+        if (y <= prev) y = prev + 1e-6;
+        if (y > 1.0) y = 1.0;
+        prev = y;
+        arr[i] = String(Math.round(y * 100000) / 100000);
+      }
+      for (const fn of shadowNodes.toneFuncs) setAttr(fn, 'tableValues', arr.join(' '));
+
+      const slopeByLevel = [1.0, 1.06, 1.14, 1.25];
+      const offsetByLevel = [0, -0.018, -0.042, -0.085];
       for (const fn of shadowNodes.bcFuncs) {
-        setAttr(fn, 'slope', parseFloat(midContrast.toFixed(3)));
-        setAttr(fn, 'intercept', parseFloat(midIntercept.toFixed(4)));
+        setAttr(fn, 'slope', slopeByLevel[level]);
+        setAttr(fn, 'intercept', offsetByLevel[level]);
       }
 
-      const gammaVal = VSC_CLAMP(gamma || 1, 0.1, 5.0);
-      const gk = (1 / gammaVal).toFixed(4);
-      for (const fn of shadowNodes.gamFuncs) setAttr(fn, 'exponent', parseFloat(gk));
+      const gammaExpByLevel = [1.0, 1.08, 1.22, 1.45];
+      for (const fn of shadowNodes.gamFuncs) setAttr(fn, 'exponent', gammaExpByLevel[level]);
     }
 
     function prepare(video, s, shadowParams) {
@@ -2829,7 +2854,7 @@ function VSC_MAIN() {
 
       const shadowActive = !!(shadowParams && shadowParams.active);
 
-      const stableKey = `${tier}|${makeKeyBase(s)}|sh:${shadowActive ? shadowParams.toe.toFixed(2) + '/' + shadowParams.gamma.toFixed(3) + '/' + shadowParams.mid.toFixed(3) : 'off'}`;
+      const stableKey = `${tier}|${makeKeyBase(s)}|sh:${shadowActive ? 'lv' + (shadowParams.level || 0) : 'off'}`;
 
       let nodes = ctxMap.get(root);
       if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
@@ -2850,7 +2875,7 @@ function VSC_MAIN() {
         const shQ    = Math.round(VSC_CLAMP((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02;
         const midQ   = Math.round(VSC_CLAMP(s.mid || 0, -1, 1) / 0.02) * 0.02;
 
-        // 수정 2: gainQ2 양자화 보정 (1.0 근처 오차 방지)
+        // [수정 2] gain=1.0일 때 identity가 깨지는 문제 해결
         const rawGain = s.gain || 1;
         const gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
 
@@ -2888,7 +2913,7 @@ function VSC_MAIN() {
           for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal));
         }
 
-        // 수정 3: 샤프 필터만 켰을 때 색온도(TEMP)가 암부를 깎지 않도록 identity 강제 적용
+        // [수정 3] 톤/밝기 설정이 중립일 때 색온도도 중립(1.0)으로 만들어 샤프 활성 시 암부 손실 억제
         const toneNeutral = (
           Math.abs((s.gain || 1) - 1.0) < 0.02 &&
           Math.abs(s.toe || 0) < 0.01 &&
@@ -3389,11 +3414,12 @@ function VSC_MAIN() {
         renderButtonRow({
           label: '암부',
           key: P.V_SHADOW_MASK,
-          isBitmask: true,
+          offValue: 0,
+          toggleActiveToOff: true,
           items: [
-            { text: '1단', value: DARK_BAND.LV1, title: '약한 암부 강화 (블랙 생성)' },
-            { text: '2단', value: DARK_BAND.LV2, title: '중간 암부 강화 (무게감 증가)' },
-            { text: '3단', value: DARK_BAND.LV3, title: '강한 암부 강화 (깊은 블랙)' }
+            { text: '1단', value: DARK_BAND.LV1, title: '약한 암부 강화' },
+            { text: '2단', value: DARK_BAND.LV2, title: '중간 암부 강화' },
+            { text: '3단', value: DARK_BAND.LV3, title: '강한 암부 강화' }
           ]
         }),
         renderButtonRow({ label: '밝기1', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
@@ -4065,12 +4091,6 @@ function VSC_MAIN() {
   const { rs: FIXED_RS, gs: FIXED_GS, bs: FIXED_BS } = tempToRgbGain(FIXED_TEMP);
 
   function createVideoParamsMemo() {
-    const DARK_PARAMS = new Map([
-      [DARK_BAND.LV1, { toe: 0.3,  gamma: -0.01, mid: -0.08 }],
-      [DARK_BAND.LV2, { toe: 0.7,  gamma: -0.02, mid: -0.06 }],
-      [DARK_BAND.LV3, { toe: 1.2,  gamma: -0.04, mid: -0.01 }]
-    ]);
-
     function computePreScaling(video) {
       if (!video) return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
 
@@ -4179,27 +4199,11 @@ function VSC_MAIN() {
           videoOut.gamma *= (1.0 + brStep * 0.025);
         }
 
-        const sMask = vfUser.shadowBandMask || 0;
-        let shadowOut = { toe: 0, gamma: 1.0, mid: 0, active: false };
+        const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0;
+        let shadowOut = { level: 0, active: false };
 
-        if (sMask > 0) {
-          let toeSum = 0, gammaSum = 0, midSum = 0;
-          for (const [bit, params] of DARK_PARAMS) {
-            if (sMask & bit) {
-              toeSum += params.toe;
-              gammaSum += params.gamma;
-              midSum += params.mid;
-            }
-          }
-          const bandCount = ((sMask & 1) + ((sMask >> 1) & 1) + ((sMask >> 2) & 1));
-          const attenuation = bandCount > 1 ? Math.pow(0.75, bandCount - 1) : 1.0;
-
-          shadowOut = {
-            toe:    VSC_CLAMP(toeSum * attenuation, 0, 3.0),
-            gamma:  VSC_CLAMP(1.0 + gammaSum * attenuation, 0.7, 1.3),
-            mid:    VSC_CLAMP(midSum * attenuation, -0.20, 0),
-            active: true
-          };
+        if (sLevel > 0) {
+          shadowOut = { level: sLevel, active: true };
         }
 
         _lastInput = inputKey;
