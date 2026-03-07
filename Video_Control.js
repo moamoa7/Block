@@ -947,7 +947,7 @@ function VSC_MAIN() {
       PiPState.origParent?.insertBefore(PiPState.placeholder, video);
 
       const doc = pipWindow.document;
-      
+
       // [Aspect Ratio 패치] 프레임 기반의 완벽한 CSS 레이아웃
       const style = doc.createElement('style');
       style.textContent = `
@@ -2211,7 +2211,7 @@ function VSC_MAIN() {
       try { _audioAC.abort(); } catch (_) {}
       _visResumeHooked = false;
       loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; }
-      
+
       const prevTarget = target;
       detachCurrentSource();
       if (prevTarget) {
@@ -2303,9 +2303,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.10, ct: 1.00, sat: 1.01, sharpScale: 1.10 },
-      Normal: { br: 1.20, ct: 1.02, sat: 1.02, sharpScale: 1.20 },
-      Strong: { br: 1.40, ct: 1.04, sat: 1.04, sharpScale: 1.30 }
+      Soft:   { br: 1.10, ct: 1.02, sat: 1.01, sharpScale: 1.20 },
+      Normal: { br: 1.20, ct: 1.04, sat: 1.02, sharpScale: 1.40 },
+      Strong: { br: 1.30, ct: 1.06, sat: 1.03, sharpScale: 1.60 }
     });
 
     function update() {
@@ -2541,8 +2541,8 @@ function VSC_MAIN() {
       const fidLite  = `vsc-lite-${config.VSC_ID}`;
       const fidSharp = `vsc-sharp-${config.VSC_ID}`;
 
-      const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS) 
-        ? __vscNs.ADV_VIDEO_FLAGS 
+      const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS)
+        ? __vscNs.ADV_VIDEO_FLAGS
         : { SHARP_TONE_SAFE_MASK: true, CLARITY_MIDTONE_MASK: true };
 
       const svg  = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;overflow:hidden;' });
@@ -4594,7 +4594,7 @@ function VSC_MAIN() {
     const Adapter = createBackendAdapter(Filters);
     __vscNs.Adapter = Adapter;
 
-    const Audio = createAudio(Store); 
+    const Audio = createAudio(Store);
     __vscNs.AudioWarmup = Audio.warmup;
     __vscNs.AudioSetTarget = (v) => {
       try {
@@ -4602,7 +4602,7 @@ function VSC_MAIN() {
         Audio.update();
       } catch (_) {}
     };
-    
+
     let ZoomManager = createZoomManager(Store, P); __vscNs.ZoomManager = ZoomManager;
 
     const UI = createUI(Store, Registry, ApplyReq, Utils, P);
