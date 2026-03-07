@@ -2299,9 +2299,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.20, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
-      Normal: { br: 1.40, ct: 1.04, sat: 1.02, sharpScale: 1.20 },
-      Strong: { br: 1.60, ct: 1.06, sat: 1.03, sharpScale: 1.30 }
+      Soft:   { br: 1.07, ct: 1.02, sat: 1.01, sharpScale: 1.10 },
+      Normal: { br: 1.21, ct: 1.04, sat: 1.02, sharpScale: 1.20 },
+      Strong: { br: 1.35, ct: 1.06, sat: 1.03, sharpScale: 1.30 }
     });
 
     function update() {
@@ -2799,9 +2799,9 @@ function VSC_MAIN() {
 
       const CRUSH = [
         null,
-        { power: 1.15, pull: 0.003 },
-        { power: 1.30, pull: 0.010 },
-        { power: 1.60, pull: 0.025 },
+        { power: 1.10, pull: 0.003 },
+        { power: 1.20, pull: 0.006 },
+        { power: 1.30, pull: 0.009 },
       ];
       const p = CRUSH[level];
       const RANGE = 0.50, SIZE = 128;
