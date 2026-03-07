@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.44 - Pure Sharp & Shadow Separated)
+// @name         Video_Control (v178.9.45 - Perfect Parallel Shadow)
 // @namespace    https://github.com/
-// @version      178.9.44
+// @version      178.9.45
 // @description  Video Control: Tone Safe, Pure Sharp, Independent Shadow Stage, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.44';
+  const SCRIPT_VERSION = '178.9.45';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -364,22 +364,22 @@ function VSC_MAIN() {
   const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
 
   const PRESETS = Object.freeze({
-  detail: {
-    off:    { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0, sat: 1.0 },
-    Normal: { sharpAdd: 15, sharp2Add: 18, clarityAdd: 0, sat: 1.0 },
-    High:   { sharpAdd: 32, sharp2Add: 28, clarityAdd: 0, sat: 1.0 },
-    Ultra:  { sharpAdd: 48, sharp2Add: 42, clarityAdd: 0, sat: 1.0 }
-  },
-  grade: {
-    brOFF: { gammaF: 1.00, brightAdd: 0 },
-    S: { gammaF: 1.03, brightAdd: 2.0 },
-    M: { gammaF: 1.08, brightAdd: 5.0 },
-    L: { gammaF: 1.15, brightAdd: 9.0 },
-    DS: { gammaF: 1.05, brightAdd: 3.5 },
-    DM: { gammaF: 1.12, brightAdd: 7.5 },
-    DL: { gammaF: 1.22, brightAdd: 11.0 }
-  }
-});
+    detail: {
+      off:    { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0, sat: 1.0 },
+      Normal: { sharpAdd: 20, sharp2Add: 20, clarityAdd: 0, sat: 1.0 },
+      High:   { sharpAdd: 40, sharp2Add: 35, clarityAdd: 0, sat: 1.0 },
+      Ultra:  { sharpAdd: 60, sharp2Add: 50, clarityAdd: 0, sat: 1.0 }
+    },
+    grade: {
+      brOFF: { gammaF: 1.00, brightAdd: 0 },
+      S: { gammaF: 1.03, brightAdd: 2.0 },
+      M: { gammaF: 1.08, brightAdd: 5.0 },
+      L: { gammaF: 1.15, brightAdd: 9.0 },
+      DS: { gammaF: 1.05, brightAdd: 3.5 },
+      DM: { gammaF: 1.12, brightAdd: 7.5 },
+      DL: { gammaF: 1.22, brightAdd: 11.0 }
+    }
+  });
 
   const DEFAULTS = {
     video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 },
@@ -541,7 +541,7 @@ function VSC_MAIN() {
   }
 
   function createUtils() {
-    const SVG_TAGS = new Set(['svg','defs','filter','feColorMatrix','feComponentTransfer','feFuncR','feFuncG','feFuncB','feGaussianBlur','feComposite','feBlend']);
+    const SVG_TAGS = new Set(['svg','defs','filter','feColorMatrix','feComponentTransfer','feFuncR','feFuncG','feFuncB','feGaussianBlur','feComposite','feBlend','feMerge','feMergeNode']);
     return {
       clamp: VSC_CLAMP,
       h: (tag, props = {}, ...children) => {
@@ -790,7 +790,6 @@ function VSC_MAIN() {
   }
 
 // --- PART 1 END ---
-
 // --- PART 2 START ---
   const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
 
@@ -1888,11 +1887,7 @@ function VSC_MAIN() {
 
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
-    const AUTO_PRESETS = Object.freeze({
-  Soft:   { br: 1.10, ct: 1.02, sat: 1.01, sharpScale: 1.00 },
-  Normal: { br: 1.20, ct: 1.04, sat: 1.02, sharpScale: 1.00 },
-  Strong: { br: 1.30, ct: 1.06, sat: 1.03, sharpScale: 1.00 }
-});
+    const AUTO_PRESETS = Object.freeze({ Soft: { br: 1.09, ct: 1.03, sat: 1.01, sharpScale: 1.05 }, Normal: { br: 1.15, ct: 1.05, sat: 1.02, sharpScale: 1.10 }, Strong: { br: 1.21, ct: 1.07, sat: 1.03, sharpScale: 1.15 } });
     function update() { const act = !!Store.get(P.APP_ACT); const en = act && !!Store.get(P.APP_AUTO_SCENE); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; } else { const k = Store.get(P.APP_AUTO_SCENE_PRESET) || 'Normal'; AUTO.cur = { ...(AUTO_PRESETS[k] || AUTO_PRESETS.Normal) }; } if (act) Scheduler.request(true); }
     const unsubs = [ Store.sub(P.APP_AUTO_SCENE, update), Store.sub(P.APP_AUTO_SCENE_PRESET, update), Store.sub(P.APP_ACT, update) ];
     return { getMods: () => AUTO.cur, start: update, stop: () => { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; Scheduler.request(true); }, destroy: () => { unsubs.forEach(u => safe(u)); AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; } };
@@ -1943,12 +1938,6 @@ function VSC_MAIN() {
     function buildToneProtectTable(size, dark0 = 0.06, dark1 = 0.22, high0 = 0.92, high1 = 0.985) {
       const arr = new Array(size);
       for (let i = 0; i < size; i++) { const x = i / (size - 1); let wDark = 1; if (x < dark1) { wDark = smoothstep01((x - dark0) / Math.max(1e-6, dark1 - dark0)); } let wHigh = 1; if (x > high0) { wHigh = smoothstep01((high1 - x) / Math.max(1e-6, high1 - high0)); } const w = clamp(wDark * wHigh, 0, 1); arr[i] = Math.round(w * 10000) / 10000; }
-      return arr.join(' ');
-    }
-
-    function buildMidtoneMaskTable(size, low0 = 0.08, low1 = 0.24, high0 = 0.82, high1 = 0.96) {
-      const arr = new Array(size);
-      for (let i = 0; i < size; i++) { const x = i / (size - 1); const rise = smoothstep01((x - low0) / Math.max(1e-6, low1 - low0)); const fall = smoothstep01((high1 - x) / Math.max(1e-6, high1 - high0)); const w = clamp(rise * fall, 0, 1); arr[i] = Math.round(w * 10000) / 10000; }
       return arr.join(' ');
     }
 
@@ -2023,6 +2012,7 @@ function VSC_MAIN() {
     function buildSvg(root) {
       const fidLite  = `vsc-lite-${config.VSC_ID}`;
       const fidSharp = `vsc-sharp-${config.VSC_ID}`;
+      const fidShadow = `vsc-shadow-${config.VSC_ID}`;
 
       const ADV_VIDEO_FLAGS = (typeof __vscNs !== 'undefined' && __vscNs.ADV_VIDEO_FLAGS) ? __vscNs.ADV_VIDEO_FLAGS : { SHARP_TONE_SAFE_MASK: true, CLARITY_MIDTONE_MASK: true };
 
@@ -2039,22 +2029,27 @@ function VSC_MAIN() {
         const toneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' }); const toneXfer  = h('feComponentTransfer', { ns: 'svg', in: inN, result: `${prefix}_t` }, ...toneFuncs);
         const bcFuncs   = mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' }); const bcXfer    = h('feComponentTransfer', { ns: 'svg', in: `${prefix}_t`, result: `${prefix}_b` }, ...bcFuncs);
         const gamFuncs  = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' }); const gamXfer   = h('feComponentTransfer', { ns: 'svg', in: `${prefix}_b`, result: `${prefix}_g` }, ...gamFuncs);
-        return { nodes: [toneXfer, bcXfer, gamXfer], toneFuncs, bcFuncs, gamFuncs };
+        return { nodes: [toneXfer, bcXfer, gamXfer], toneFuncs, bcFuncs, gamFuncs, output: `${prefix}_g` };
       };
 
       const mkTempSat = (prefix, inN) => {
         const tempR = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' }); const tempG = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' }); const tempB = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
         const tempXfer = h('feComponentTransfer', { ns: 'svg', in: inN, result: `${prefix}_tm` }, tempR, tempG, tempB);
         const satNode  = h('feColorMatrix', { ns: 'svg', in: `${prefix}_tm`, type: 'saturate', values: '1', result: `${prefix}_s` });
-        return { nodes: [tempXfer, satNode], tempR, tempG, tempB, satNode };
+        return { nodes: [tempXfer, satNode], tempR, tempG, tempB, satNode, output: `${prefix}_s` };
       };
 
-      const liteFilter = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '-1%', y: '-1%', width: '102%', height: '102%' });
-      const liteCC = mkColorChain('l', 'SourceGraphic'); const liteTS = mkTempSat('l', 'l_g'); const liteShadow = mkShadowStage('l', 'l_s');
-      liteFilter.append(...liteCC.nodes, ...liteTS.nodes, ...liteShadow.nodes);
+      const filterAttrs = { ns: 'svg', 'color-interpolation-filters': 'sRGB', x: '-10%', y: '-10%', width: '120%', height: '120%' };
 
-      const sharpFilter = h('filter', { ns: 'svg', id: fidSharp, 'color-interpolation-filters': 'sRGB', x: '-8%', y: '-8%', width: '116%', height: '116%' });
+      // 1. Lite Filter (순수 톤/색상)
+      const liteFilter = h('filter', { id: fidLite, ...filterAttrs });
+      const liteCC = mkColorChain('l', 'SourceGraphic');
+      const liteTS = mkTempSat('l', liteCC.output);
+      const lRestoreAlpha = h('feComposite', { ns: 'svg', in: liteTS.output, in2: 'SourceGraphic', operator: 'in', result: 'l_final' });
+      liteFilter.append(...liteCC.nodes, ...liteTS.nodes, lRestoreAlpha);
 
+      // 2. Sharp Filter (순수 샤프) -> 암부 로직 0% 개입
+      const sharpFilter = h('filter', { id: fidSharp, ...filterAttrs });
       const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' }, h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' }));
       const sLuma = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_Y, result: 's_Y' });
       const sChroma = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_UV, result: 's_CbCr' });
@@ -2069,12 +2064,18 @@ function VSC_MAIN() {
       const sHaloFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' }); const sHaloSuppress = h('feComponentTransfer', { ns: 'svg', in: 's_Yfine_raw', result: 's_Yfine' }, ...sHaloFuncs);
       const sRecombine = h('feComposite', { ns: 'svg', in: 's_Yfine', in2: 's_CbCr', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_YUV' });
       const sToRGB = h('feColorMatrix', { ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_sharp_rgb' });
-      const sharpCC = mkColorChain('s', 's_sharp_rgb'); const sharpTS = mkTempSat('s', 's_g');
-      const sRestoreAlpha = h('feComposite', { ns: 'svg', in: 's_s', in2: 'SourceGraphic', operator: 'in', result: 's_final' });
-      const sharpShadow = mkShadowStage('s', 's_final');
+      const sharpCC = mkColorChain('s', 's_sharp_rgb');
+      const sharpTS = mkTempSat('s', sharpCC.output);
+      const sRestoreAlpha = h('feComposite', { ns: 'svg', in: sharpTS.output, in2: 'SourceGraphic', operator: 'in', result: 's_final' });
+      sharpFilter.append(sOpaque, sLuma, sChroma, sBlurFine, sDetailBiased, sEdgeMask, sToneProtect, sDetailMask, sModDetail, sYFineUSM, sHaloSuppress, sRecombine, sToRGB, ...sharpCC.nodes, ...sharpTS.nodes, sRestoreAlpha);
 
-      sharpFilter.append(sOpaque, sLuma, sChroma, sBlurFine, sDetailBiased, sEdgeMask, sToneProtect, sDetailMask, sModDetail, sYFineUSM, sHaloSuppress, sRecombine, sToRGB, ...sharpCC.nodes, ...sharpTS.nodes, sRestoreAlpha, ...sharpShadow.nodes);
-      defs.append(liteFilter, sharpFilter);
+      // 3. Shadow Filter (완전 독립된 암부 전용 스테이지)
+      const shadowFilter = h('filter', { id: fidShadow, ...filterAttrs });
+      const shStage = mkShadowStage('sh', 'SourceGraphic');
+      const shRestoreAlpha = h('feComposite', { ns: 'svg', in: shStage.output, in2: 'SourceGraphic', operator: 'in', result: 'sh_final' });
+      shadowFilter.append(...shStage.nodes, shRestoreAlpha);
+
+      defs.append(liteFilter, sharpFilter, shadowFilter);
 
       const tryAppend = () => { const target = root.body || root.documentElement || root; if (target?.appendChild) { target.appendChild(svg); return true; } return false; };
       if (!tryAppend()) {
@@ -2086,18 +2087,20 @@ function VSC_MAIN() {
       }
 
       const commonByTier = {
-        lite: { toneFuncs: liteCC.toneFuncs, bcLinFuncs: liteCC.bcFuncs, gamFuncs: liteCC.gamFuncs, tmp: { r: liteTS.tempR, g: liteTS.tempG, b: liteTS.tempB }, sats: [liteTS.satNode], shadow: liteShadow },
-        sharp: { toneFuncs: sharpCC.toneFuncs, bcLinFuncs: sharpCC.bcFuncs, gamFuncs: sharpCC.gamFuncs, tmp: { r: sharpTS.tempR, g: sharpTS.tempG, b: sharpTS.tempB }, sats: [sharpTS.satNode], shadow: sharpShadow }
+        lite: { toneFuncs: liteCC.toneFuncs, bcLinFuncs: liteCC.bcFuncs, gamFuncs: liteCC.gamFuncs, tmp: { r: liteTS.tempR, g: liteTS.tempG, b: liteTS.tempB }, sats: [liteTS.satNode] },
+        sharp: { toneFuncs: sharpCC.toneFuncs, bcLinFuncs: sharpCC.bcFuncs, gamFuncs: sharpCC.gamFuncs, tmp: { r: sharpTS.tempR, g: sharpTS.tempG, b: sharpTS.tempB }, sats: [sharpTS.satNode] },
+        shadowStage: shStage
       };
       const sharpDetail = { blurFine: sBlurFine, fineUSM: sYFineUSM, haloFuncs: sHaloFuncs, edgeFuncs: sEdgeFuncs };
 
       return {
-        fidLite, fidSharp, commonByTier, sharpDetail,
+        fidLite, fidSharp, fidShadow, commonByTier, sharpDetail,
         st: {
           lastKey: '', rev: 0,
           commonTier: {
-            lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', shadowKey: '' },
-            sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', shadowKey: '' }
+            lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' },
+            sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' },
+            shadow: { shadowKey: '' }
           },
           blurKey: '', sharpKey: '', haloKey: '', lcKey: '', emKey: ''
         }
@@ -2105,55 +2108,53 @@ function VSC_MAIN() {
     }
 
     function applySharpParams(sharpDetail, st, s) {
-  const qSharp = Math.round(Number(s.sharp || 0));
-  const qSharp2 = Math.round(Number(s.sharp2 || 0));
-  const sigmaScale = Number(s._sigmaScale) || 1.0;
+      const qSharp = Math.round(Number(s.sharp || 0));
+      const qSharp2 = Math.round(Number(s.sharp2 || 0));
+      const sigmaScale = Number(s._sigmaScale) || 1.0;
 
-  const aFine = Math.max(0, qSharp / 24);
-  const sigFine = VSC_CLAMP((0.35 + qSharp2 / 28) * sigmaScale, 0, 3.0);
+      const aFine = Math.max(0, qSharp / 24);
+      const sigFine = VSC_CLAMP((0.35 + qSharp2 / 28) * sigmaScale, 0, 3.0);
+      const haloStrength = VSC_CLAMP(aFine * 0.10, 0, 0.10);
 
-  // 헐레이션 억제는 너무 세게 잡지 않음
-  const haloStrength = VSC_CLAMP(aFine * 0.10, 0, 0.10);
+      const sensAdj = sigmaScale > 1.2 ? 0.92 : 1.0;
+      const adaptSens = VSC_CLAMP((2.8 + aFine * 1.8) * sensAdj, 0, 4.5);
+      const adaptThreshold = 0.045;
 
-  const sensAdj = sigmaScale > 1.2 ? 0.92 : 1.0;
-  const adaptSens = VSC_CLAMP((2.8 + aFine * 1.8) * sensAdj, 0, 4.5);
-  const adaptThreshold = 0.045;
+      const blurKeyNext = `${sigFine.toFixed(3)}`;
+      if (st.blurKey !== blurKeyNext) {
+        st.blurKey = blurKeyNext;
+        if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine);
+      }
 
-  const blurKeyNext = `${sigFine.toFixed(3)}`;
-  if (st.blurKey !== blurKeyNext) {
-    st.blurKey = blurKeyNext;
-    if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine);
-  }
+      const sharpKeyNext = aFine.toFixed(5);
+      if (st.sharpKey !== sharpKeyNext) {
+        st.sharpKey = sharpKeyNext;
+        if (sharpDetail.fineUSM) {
+          setAttr(sharpDetail.fineUSM, 'k2', 1);
+          setAttr(sharpDetail.fineUSM, 'k3', parseFloat((2 * aFine).toFixed(5)));
+          setAttr(sharpDetail.fineUSM, 'k4', parseFloat((-aFine).toFixed(5)));
+        }
+      }
 
-  const sharpKeyNext = aFine.toFixed(5);
-  if (st.sharpKey !== sharpKeyNext) {
-    st.sharpKey = sharpKeyNext;
-    if (sharpDetail.fineUSM) {
-      setAttr(sharpDetail.fineUSM, 'k2', 1);
-      setAttr(sharpDetail.fineUSM, 'k3', parseFloat((2 * aFine).toFixed(5)));
-      setAttr(sharpDetail.fineUSM, 'k4', parseFloat((-aFine).toFixed(5)));
+      const emKeyNext = `${Math.round(adaptSens * 100)}|${Math.round(adaptThreshold * 1000)}`;
+      if ((st.emKey || '') !== emKeyNext) {
+        st.emKey = emKeyNext;
+        const table = buildEdgeMaskTable(64, adaptSens, adaptThreshold);
+        if (sharpDetail.edgeFuncs) {
+          for (const fn of sharpDetail.edgeFuncs) setAttr(fn, 'tableValues', table);
+        }
+      }
+
+      const qStrength = Math.round(haloStrength * 100) / 100;
+      const haloKeyNext = `${Math.round(qStrength * 100)}`;
+      if (st.haloKey !== haloKeyNext) {
+        st.haloKey = haloKeyNext;
+        const table = buildHaloTable(64, qStrength);
+        if (sharpDetail.haloFuncs) {
+          for (const fn of sharpDetail.haloFuncs) setAttr(fn, 'tableValues', table);
+        }
+      }
     }
-  }
-
-  const emKeyNext = `${Math.round(adaptSens * 100)}|${Math.round(adaptThreshold * 1000)}`;
-  if ((st.emKey || '') !== emKeyNext) {
-    st.emKey = emKeyNext;
-    const table = buildEdgeMaskTable(64, adaptSens, adaptThreshold);
-    if (sharpDetail.edgeFuncs) {
-      for (const fn of sharpDetail.edgeFuncs) setAttr(fn, 'tableValues', table);
-    }
-  }
-
-  const qStrength = Math.round(haloStrength * 100) / 100;
-  const haloKeyNext = `${Math.round(qStrength * 100)}`;
-  if (st.haloKey !== haloKeyNext) {
-    st.haloKey = haloKeyNext;
-    const table = buildHaloTable(64, qStrength);
-    if (sharpDetail.haloFuncs) {
-      for (const fn of sharpDetail.haloFuncs) setAttr(fn, 'tableValues', table);
-    }
-  }
-}
 
     function prepare(video, s) {
       const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
@@ -2162,7 +2163,9 @@ function VSC_MAIN() {
 
       const qSharp = Math.round(Number(s.sharp || 0)); const qSharp2 = Math.round(Number(s.sharp2 || 0)); const qClarity = Math.round(Number(s.clarity || 0));
       const sharpTotal = qSharp + qSharp2 + qClarity; const tier = sharpTotal > 0 ? 'sharp' : 'lite';
-      const stableKey = `${tier}|${makeKeyBase(s)}`;
+      const shadowActive = (Number(s.shadowStage) | 0) > 0;
+
+      const stableKey = `${tier}|${shadowActive}|${makeKeyBase(s)}`;
 
       let nodes = ctxMap.get(root); if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
       const needReapply = (dc.key !== stableKey);
@@ -2196,12 +2199,17 @@ function VSC_MAIN() {
         const rsStr = s._rs.toFixed(3), gsStr = s._gs.toFixed(3), bsStr = s._bs.toFixed(3); const tmk = `${rsStr}|${gsStr}|${bsStr}`;
         if (cst.tempKey !== tmk) { cst.tempKey = tmk; setAttr(common.tmp.r, 'slope', parseFloat(rsStr)); setAttr(common.tmp.g, 'slope', parseFloat(gsStr)); setAttr(common.tmp.b, 'slope', parseFloat(bsStr)); }
 
-        applyShadowStageParams(common, cst, Number(s.shadowStage) | 0);
+        applyShadowStageParams({ shadow: nodes.commonByTier.shadowStage }, st.commonTier.shadow, Number(s.shadowStage) | 0);
 
         if (tier === 'sharp') { applySharpParams(nodes.sharpDetail, st, s); }
       }
 
-      const url = `url(#${tier === 'lite' ? nodes.fidLite : nodes.fidSharp})`;
+      let url = `url(#${tier === 'lite' ? nodes.fidLite : nodes.fidSharp})`;
+      // 암부 버튼 클릭시에만 독립적인 필터가 CSS 파이프라인에 추가됨 (샤프와 완벽한 분리)
+      if (shadowActive) {
+        url += ` url(#${nodes.fidShadow})`;
+      }
+
       dc.key = stableKey; dc.url = url;
       return { url, changed: needReapply, rev: nodes.st.rev };
     }
@@ -2213,7 +2221,8 @@ function VSC_MAIN() {
           const nodes = ctxMap.get(root);
           if (nodes) {
             nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.haloKey = ''; nodes.st.lcKey = ''; nodes.st.emKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
-            for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; cst.shadowKey = ''; } }
+            for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; } }
+            if (nodes.st.commonTier.shadow) nodes.st.commonTier.shadow.shadowKey = '';
           }
           const dc = urlCache.get(root); if (dc) { dc.key = ''; dc.url = ''; }
         } catch (_) {}
@@ -2245,8 +2254,6 @@ function VSC_MAIN() {
     };
   }
 // --- PART 2 END ---
-
-
 // --- PART 3 START ---
 
   function createBackendAdapter(Filters) {
