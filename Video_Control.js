@@ -366,9 +366,9 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
   detail: {
     off:    { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0, sat: 1.0 },
-    Normal: { sharpAdd: 20, sharp2Add: 20, clarityAdd: 0, sat: 1.0 },
-    High:   { sharpAdd: 40, sharp2Add: 35, clarityAdd: 0, sat: 1.0 },
-    Ultra:  { sharpAdd: 60, sharp2Add: 50, clarityAdd: 0, sat: 1.0 }
+    Normal: { sharpAdd: 15, sharp2Add: 18, clarityAdd: 0, sat: 1.0 },
+    High:   { sharpAdd: 32, sharp2Add: 28, clarityAdd: 0, sat: 1.0 },
+    Ultra:  { sharpAdd: 48, sharp2Add: 42, clarityAdd: 0, sat: 1.0 }
   },
   grade: {
     brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -1889,9 +1889,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-  Soft:   { br: 1.09, ct: 1.03, sat: 1.01, sharpScale: 1.05 },
-  Normal: { br: 1.15, ct: 1.05, sat: 1.02, sharpScale: 1.10 },
-  Strong: { br: 1.21, ct: 1.07, sat: 1.03, sharpScale: 1.15 }
+  Soft:   { br: 1.10, ct: 1.03, sat: 1.01, sharpScale: 1.05 },
+  Normal: { br: 1.20, ct: 1.05, sat: 1.02, sharpScale: 1.10 },
+  Strong: { br: 1.30, ct: 1.07, sat: 1.03, sharpScale: 1.15 }
 });
     function update() { const act = !!Store.get(P.APP_ACT); const en = act && !!Store.get(P.APP_AUTO_SCENE); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; } else { const k = Store.get(P.APP_AUTO_SCENE_PRESET) || 'Normal'; AUTO.cur = { ...(AUTO_PRESETS[k] || AUTO_PRESETS.Normal) }; } if (act) Scheduler.request(true); }
     const unsubs = [ Store.sub(P.APP_AUTO_SCENE, update), Store.sub(P.APP_AUTO_SCENE_PRESET, update), Store.sub(P.APP_ACT, update) ];
