@@ -2799,9 +2799,9 @@ function VSC_MAIN() {
 
       const CRUSH = [
         null,
-        { power: 1.25, pull: 0.005 },
-        { power: 1.45, pull: 0.012 },
-        { power: 1.75, pull: 0.030 },
+        { power: 1.12, pull: 0.002 }, // 1단: 아주 미세한 보정 (Identity에 가까움)
+        { power: 1.22, pull: 0.006 }, // 2단: 적당히 깔끔한 암부
+        { power: 1.38, pull: 0.015 }, // 3단: 과하지 않은 깊이감
       ];
       const p = CRUSH[level];
       const RANGE = 0.50, SIZE = 128;
