@@ -2391,16 +2391,24 @@ function VSC_MAIN() {
     function buildHaloTable(size, strength) {
       if (strength < 0.005) return '0 1';
       const qStrength = Math.round(strength * 100) / 100;
-      const cacheKey = `${size}|${qStrength}`;
+      const cacheKey = `hv3|${size}|${qStrength}`;
       const cached = haloCache.get(cacheKey);
       if (cached) return cached;
 
       const arr = new Array(size);
+      const knee = Math.max(0.005, qStrength * 0.05);
+
       for (let i = 0; i < size; i++) {
         const x = i / (size - 1);
-        const sCurve = 0.5 + 0.5 * Math.sin(Math.PI * (x - 0.5));
-        const y = clamp01((1 - qStrength) * x + qStrength * sCurve);
-        arr[i] = Math.round(y * 10000) / 10000;
+        let y = x;
+        if (x < knee) {
+          const t = x / knee;
+          y = knee * t * t;
+        } else if (x > 1 - knee) {
+          const t = (1 - x) / knee;
+          y = 1 - knee * t * t;
+        }
+        arr[i] = Math.round(clamp01(y) * 10000) / 10000;
       }
 
       const result = arr.join(' ');
@@ -2841,7 +2849,11 @@ function VSC_MAIN() {
         const toeQ   = Math.round(VSC_CLAMP((s.toe || 0) / TOE_DIVISOR, -1, 1) / 0.02) * 0.02;
         const shQ    = Math.round(VSC_CLAMP((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02;
         const midQ   = Math.round(VSC_CLAMP(s.mid || 0, -1, 1) / 0.02) * 0.02;
-        const gainQ2 = Math.round((s.gain || 1) / gainQ) * gainQ;
+
+        // 수정 2: gainQ2 양자화 보정 (1.0 근처 오차 방지)
+        const rawGain = s.gain || 1;
+        const gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
+
         const tk     = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`;
         const table  = cst.toneKey !== tk
           ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2)
@@ -2876,7 +2888,22 @@ function VSC_MAIN() {
           for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal));
         }
 
-        const rsStr = s._rs.toFixed(3), gsStr = s._gs.toFixed(3), bsStr = s._bs.toFixed(3);
+        // 수정 3: 샤프 필터만 켰을 때 색온도(TEMP)가 암부를 깎지 않도록 identity 강제 적용
+        const toneNeutral = (
+          Math.abs((s.gain || 1) - 1.0) < 0.02 &&
+          Math.abs(s.toe || 0) < 0.01 &&
+          Math.abs(s.shoulder || 0) < 0.01 &&
+          Math.abs(s.mid || 0) < 0.01 &&
+          Math.abs((s.gamma || 1) - 1.0) < 0.02 &&
+          Math.abs(s.bright || 0) < 0.5 &&
+          Math.abs((s.contrast || 1) - 1.0) < 0.02 &&
+          Math.abs((s.satF ?? 1) - 1.0) < 0.02
+        );
+        const rsEff = toneNeutral ? 1.0 : (s._rs || 1);
+        const gsEff = toneNeutral ? 1.0 : (s._gs || 1);
+        const bsEff = toneNeutral ? 1.0 : (s._bs || 1);
+
+        const rsStr = rsEff.toFixed(3), gsStr = gsEff.toFixed(3), bsStr = bsEff.toFixed(3);
         const tmk = `${rsStr}|${gsStr}|${bsStr}`;
         if (cst.tempKey !== tmk) {
           cst.tempKey = tmk;
