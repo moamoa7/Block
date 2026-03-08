@@ -2625,7 +2625,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       const sigMicro = VSC_CLAMP(
         (microBase + qSharp * microScale) * Math.min(1.0, sigmaScale),
-        0.10, 0.80
+        0.30, 1.20
       );
       const sigFine = VSC_CLAMP(
         (fineBase + qSharp2 * fineScale) * sigmaScale,
@@ -2633,10 +2633,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       );
 
       const microAmt = Math.max(0,
-        (qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 90
+        (qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45
       );
       const fineAmt = Math.max(0,
-        (qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 48
+        (qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24
       );
 
       const blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`;
@@ -3831,10 +3831,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       let factor = 1.0;
       if (isMobile) {
-        factor = VSC_CLAMP(1.05 / dpr, 0.35, 0.75);
+        factor = VSC_CLAMP(1.05 / dpr, 0.55, 0.85);
       }
       else if (dpr >= 1.25) {
-        factor = VSC_CLAMP(1.5 / dpr, 0.60, 0.90);
+        factor = VSC_CLAMP(1.5 / dpr, 0.75, 1.0);
       }
 
       sharpScale *= factor;
