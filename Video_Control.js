@@ -355,25 +355,30 @@ function VSC_MAIN() {
         microBase: 0.16, microScale: 1/120, fineBase: 0.32, fineScale: 1/24,
         microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
       },
+      // Soft: 반경을 0.24로 올려 픽셀 노이즈를 완전히 덮음
       Soft: {
         sharpAdd: 13, sharp2Add: 15, sat: 1.0,
-        microBase: 0.20, microScale: 1/150, fineBase: 0.40, fineScale: 1/28,
-        microAmt: [0.45, 0.08], fineAmt: [0.15, 0.70]
+        microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28,
+        microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65]
       },
+      // Medium: 가장 범용적인 세팅, 반경 0.22로 눈의 피로도 대폭 감소
       Medium: {
         sharpAdd: 26, sharp2Add: 28, sat: 1.0,
-        microBase: 0.18, microScale: 1/120, fineBase: 0.36, fineScale: 1/24,
-        microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
+        microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24,
+        microAmt: [0.50, 0.10], fineAmt: [0.18, 0.80]
       },
+      // Ultra: 선명하지만 '디지털 느낌'이 나지 않는 한계치 (반경 0.20)
       Ultra: {
-        sharpAdd: 39, sharp2Add: 40, sat: 0.99,
-        microBase: 0.14, microScale: 1/100, fineBase: 0.30, fineScale: 1/20,
-        microAmt: [0.65, 0.12], fineAmt: [0.25, 0.95]
+        sharpAdd: 39, sharp2Add: 38, sat: 0.99,
+        microBase: 0.20, microScale: 1/100, fineBase: 0.36, fineScale: 1/20,
+        microAmt: [0.55, 0.12], fineAmt: [0.20, 0.85]
       },
+      // Master: PC에서 이질감이 들지 않도록 반경을 0.18로 하향 방어 (0.12 포기)
+      // 대신 Micro 강도는 유지하여 디테일은 챙김
       Master: {
-        sharpAdd: 52, sharp2Add: 50, sat: 0.98,
-        microBase: 0.12, microScale: 1/90, fineBase: 0.26, fineScale: 1/18,
-        microAmt: [0.62, 0.14], fineAmt: [0.28, 1.05]
+        sharpAdd: 52, sharp2Add: 48, sat: 0.98,
+        microBase: 0.18, microScale: 1/90, fineBase: 0.32, fineScale: 1/18,
+        microAmt: [0.55, 0.14], fineAmt: [0.22, 0.90]
       }
     },
     bright: {
