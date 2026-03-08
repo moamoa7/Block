@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v180.2.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D + RenderOpt)
+// @name         Video_Control (v180.3.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D + RenderOpt)
 // @namespace    https://github.com/
-// @version      180.2.0
-// @description  Video Control: Render Optimizations (Containment, Hybrid CSS, Content-Visibility), Dual USM, AudioWorklet.
+// @version      180.3.0
+// @description  Video Control: Adaptive Perf, Sigma Curves, Audio Auto-Adapt, Render Optimizations.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.2.0';
+  const SCRIPT_VERSION = '180.3.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -347,13 +347,34 @@ function VSC_MAIN() {
 
   const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
 
+  // ===== PATCH 2: 프리셋별 시그마 커브 미세 조정 적용 =====
   const PRESETS = Object.freeze({
     detail: {
-      off:    { sharpAdd: 0,   sharp2Add: 0,   sat: 1.0 },
-      Soft:   { sharpAdd: 18,  sharp2Add: 22,  sat: 1.0 },
-      Medium: { sharpAdd: 38,  sharp2Add: 42,  sat: 1.0 },
-      Ultra:  { sharpAdd: 65,  sharp2Add: 60,  sat: 0.99 },
-      Master: { sharpAdd: 85,  sharp2Add: 85,  sat: 0.98 } // 여기 추가
+      off: {
+        sharpAdd: 0, sharp2Add: 0, sat: 1.0,
+        microBase: 0.16, microScale: 1/120, fineBase: 0.32, fineScale: 1/24,
+        microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
+      },
+      Soft: {
+        sharpAdd: 18, sharp2Add: 22, sat: 1.0,
+        microBase: 0.20, microScale: 1/150, fineBase: 0.40, fineScale: 1/28,
+        microAmt: [0.45, 0.08], fineAmt: [0.15, 0.70]
+      },
+      Medium: {
+        sharpAdd: 38, sharp2Add: 42, sat: 1.0,
+        microBase: 0.18, microScale: 1/120, fineBase: 0.36, fineScale: 1/24,
+        microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
+      },
+      Ultra: {
+        sharpAdd: 65, sharp2Add: 60, sat: 0.99,
+        microBase: 0.14, microScale: 1/100, fineBase: 0.30, fineScale: 1/20,
+        microAmt: [0.65, 0.12], fineAmt: [0.25, 0.95]
+      },
+      Master: {
+        sharpAdd: 85, sharp2Add: 85, sat: 0.98,
+        microBase: 0.12, microScale: 1/90, fineBase: 0.26, fineScale: 1/18,
+        microAmt: [0.62, 0.14], fineAmt: [0.28, 1.05]
+      }
     },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
@@ -814,6 +835,7 @@ function VSC_MAIN() {
   }
 
 // --- PART 2 ---
+// --- PART 2 ---
   const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
 
   const PIP_FLAGS = Object.freeze({
@@ -1249,7 +1271,6 @@ function VSC_MAIN() {
     let refreshRafId = 0;
     let rescanTimerId = 0;
 
-    // ===== NEW: content-visibility 관리 (렌더링 스킵) =====
     const __cvApplied = new WeakMap();
 
     function applyContentVisibilityAuto(video) {
@@ -1305,7 +1326,6 @@ function VSC_MAIN() {
       if (changed) { rev++; requestRefreshCoalesced(); }
     }, { root: null, threshold: 0.01, rootMargin: ioMargin }) : null;
 
-    // content-visibility용 별도 IO (뷰포트 기준 500px 마진)
     const cvIO = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
       for (const e of entries) {
         const el = e.target;
@@ -1527,8 +1547,6 @@ function VSC_MAIN() {
         if (el?.isConnected) continue;
         videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el);
         safe(() => { io?.unobserve(el); ro?.unobserve(el); cvIO?.unobserve(el); });
-
-        // ===== PATCH: 명시적으로 롤백 =====
         removeContentVisibilityAuto(el);
         removed++;
       }
@@ -1550,10 +1568,6 @@ function VSC_MAIN() {
         }
         const removed = pruneDisconnectedVideos();
         if (removed) rev++;
-
-        // === ERROR FIX: __cvApplied.keys() 반복문 제거 완료 ===
-        // WeakMap 특성상 가비지 컬렉터가 알아서 삭제해주므로
-        // 이 부분에 있던 수동 삭제 로직을 아예 날려버렸습니다.
       },
       consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
       rescanAll: () => {
@@ -1661,22 +1675,34 @@ function VSC_MAIN() {
     return { input, output, sideAmp, setEnabled, update: () => {}, isEnabled: () => _enabled };
   }
 
+  // ===== PATCH 3: AudioWorklet 적응형 파라미터 적용 =====
   const VSC_FINALIZER_WORKLET_SRC = `
 class VSCFinalizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'drive',  defaultValue: 1.15,  minValue: 0.5,  maxValue: 3.0,  automationRate: 'k-rate' },
-      { name: 'ceiling', defaultValue: 0.985, minValue: 0.80,  maxValue: 1.0,  automationRate: 'k-rate' },
-      { name: 'mix',     defaultValue: 1.0,   minValue: 0.0,  maxValue: 1.0,  automationRate: 'k-rate' },
-      { name: 'release', defaultValue: 0.9965,minValue: 0.90,  maxValue: 0.9999,automationRate: 'k-rate' }
+      { name: 'drive',   defaultValue: 1.15,   minValue: 0.5,   maxValue: 3.0,   automationRate: 'k-rate' },
+      { name: 'ceiling', defaultValue: 0.985,  minValue: 0.80,  maxValue: 1.0,   automationRate: 'k-rate' },
+      { name: 'mix',     defaultValue: 1.0,    minValue: 0.0,   maxValue: 1.0,   automationRate: 'k-rate' },
+      { name: 'release', defaultValue: 0.9965, minValue: 0.90,  maxValue: 0.9999,automationRate: 'k-rate' }
     ];
   }
 
   constructor() {
     super();
     this.gain = 1.0;
-    this.rms = 0.0;
+
+    this.rmsAccum = 0;
+    this.rmsCount = 0;
+    this.peakAccum = 0;
+    this.peakCount = 0;
+
+    this.shortRms = 0;
+    this.shortPeak = 0;
+    this.crestFactor = 0;
+    this.spectralBalance = 0;
+
     this.frameCounter = 0;
+    this.reportInterval = 24;
   }
 
   process(inputs, outputs, parameters) {
@@ -1694,28 +1720,32 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
 
     const norm = Math.max(1e-6, Math.tanh(drive));
 
-    let peak = 0;
-    let sumSq = 0;
+    let blockPeak = 0;
+    let blockSumSq = 0;
+    let highEnergy = 0;
 
     for (let ch = 0; ch < channels; ch++) {
       const src = input[ch] || input[0] || new Float32Array(frames);
       const dst = output[ch];
 
+      let prev = 0;
       for (let i = 0; i < frames; i++) {
         const dry = src[i] || 0;
         const wet = Math.tanh(dry * drive) / norm;
         const mixed = dry + (wet - dry) * mix;
-
         dst[i] = mixed;
 
         const a = Math.abs(mixed);
-        if (a > peak) peak = a;
-        sumSq += mixed * mixed;
+        if (a > blockPeak) blockPeak = a;
+        blockSumSq += mixed * mixed;
+
+        const diff = mixed - prev;
+        highEnergy += diff * diff;
+        prev = mixed;
       }
     }
 
-    const targetGain = peak > ceiling ? (ceiling / peak) : 1.0;
-
+    const targetGain = blockPeak > ceiling ? (ceiling / blockPeak) : 1.0;
     if (targetGain < this.gain) {
       this.gain = targetGain;
     } else {
@@ -1730,14 +1760,37 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
       }
     }
 
-    const rms = Math.sqrt(sumSq / Math.max(1, channels * frames));
-    this.rms = this.rms * 0.94 + rms * 0.06;
+    const blockRms = Math.sqrt(blockSumSq / Math.max(1, channels * frames));
+    this.rmsAccum += blockRms;
+    this.rmsCount++;
+    this.peakAccum = Math.max(this.peakAccum, blockPeak);
+    this.peakCount++;
 
-    if ((this.frameCounter++ & 15) === 0) {
+    const totalEnergy = blockSumSq / Math.max(1, channels * frames);
+    const highRatio = totalEnergy > 1e-10 ? (highEnergy / (channels * frames)) / totalEnergy : 0;
+
+    this.frameCounter++;
+
+    if (this.frameCounter >= this.reportInterval) {
+      const avgRms = this.rmsCount > 0 ? this.rmsAccum / this.rmsCount : 1e-6;
+      const peak = Math.max(this.peakAccum, 1e-6);
+
+      const crest = avgRms > 1e-5 ? (peak / avgRms) : 20;
+
       this.port.postMessage({
-        rmsDb: 20 * Math.log10(Math.max(this.rms, 1e-6)),
-        gainReductionDb: 20 * Math.log10(Math.max(this.gain, 1e-6))
+        rmsDb: 20 * Math.log10(Math.max(avgRms, 1e-6)),
+        peakDb: 20 * Math.log10(Math.max(peak, 1e-6)),
+        gainReductionDb: 20 * Math.log10(Math.max(this.gain, 1e-6)),
+        crestFactor: crest,
+        highEnergyRatio: Math.min(1, highRatio),
+        avgRmsLinear: avgRms
       });
+
+      this.rmsAccum = 0;
+      this.rmsCount = 0;
+      this.peakAccum = 0;
+      this.peakCount = 0;
+      this.frameCounter = 0;
     }
 
     return true;
@@ -1747,12 +1800,145 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
 registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 `;
 
+  function createContentClassifier() {
+    const CONTENT = Object.freeze({
+      SILENT:   'silent',
+      DIALOGUE: 'dialogue',
+      MUSIC:    'music',
+      MIXED:    'mixed'
+    });
+
+    let currentType = CONTENT.MIXED;
+    let confidence = 0;
+    let history = [];
+    const HISTORY_SIZE = 8;
+
+    const PROFILES = Object.freeze({
+      [CONTENT.SILENT]: {
+        drive: 1.0,
+        ceiling: 0.99,
+        release: 0.997,
+        mixTarget: 0.0
+      },
+      [CONTENT.DIALOGUE]: {
+        drive: 1.30,
+        ceiling: 0.975,
+        release: 0.9955
+      },
+      [CONTENT.MUSIC]: {
+        drive: 1.08,
+        ceiling: 0.99,
+        release: 0.998
+      },
+      [CONTENT.MIXED]: {
+        drive: 1.15,
+        ceiling: 0.985,
+        release: 0.9965
+      }
+    });
+
+    function classify(stats) {
+      if (!stats) return currentType;
+
+      const rmsDb = stats.rmsDb || -70;
+      const crest = stats.crestFactor || 10;
+      const highRatio = stats.highEnergyRatio || 0;
+      const avgRms = stats.avgRmsLinear || 0;
+
+      if (rmsDb < -50 || avgRms < 0.001) {
+        pushResult(CONTENT.SILENT);
+        return currentType;
+      }
+
+      let dialogueScore = 0;
+      let musicScore = 0;
+
+      if (crest < 4.0) dialogueScore += 2;
+      else if (crest < 6.0) dialogueScore += 1;
+      else if (crest > 10.0) musicScore += 2;
+      else if (crest > 7.0) musicScore += 1;
+
+      if (highRatio > 0.35) dialogueScore += 1;
+      else if (highRatio < 0.15) musicScore += 1;
+
+      if (rmsDb > -30 && rmsDb < -12) dialogueScore += 1;
+      if (rmsDb > -10) musicScore += 1;
+
+      let result;
+      if (dialogueScore >= 3 && dialogueScore > musicScore + 1) {
+        result = CONTENT.DIALOGUE;
+      } else if (musicScore >= 3 && musicScore > dialogueScore + 1) {
+        result = CONTENT.MUSIC;
+      } else {
+        result = CONTENT.MIXED;
+      }
+
+      pushResult(result);
+      return currentType;
+    }
+
+    function pushResult(type) {
+      history.push(type);
+      if (history.length > HISTORY_SIZE) history.shift();
+
+      const counts = {};
+      for (const t of history) counts[t] = (counts[t] || 0) + 1;
+
+      let bestType = CONTENT.MIXED;
+      let bestCount = 0;
+      for (const [t, c] of Object.entries(counts)) {
+        if (c > bestCount) { bestCount = c; bestType = t; }
+      }
+
+      const threshold = Math.ceil(HISTORY_SIZE * 0.6);
+      if (bestCount >= threshold) {
+        currentType = bestType;
+        confidence = bestCount / HISTORY_SIZE;
+      }
+    }
+
+    function getProfile() {
+      return PROFILES[currentType] || PROFILES[CONTENT.MIXED];
+    }
+
+    function getAdaptedParams(userDialogueOn, userStereoW) {
+      const base = getProfile();
+
+      let drive = base.drive;
+      let ceiling = base.ceiling;
+      let release = base.release;
+
+      if (userDialogueOn) {
+        drive = Math.max(drive, 1.25);
+        release = Math.min(release, 0.996);
+      }
+
+      if (userStereoW) {
+        ceiling = Math.min(ceiling, 0.975);
+      }
+
+      const mix = currentType === CONTENT.SILENT ? 0.0 : 1.0;
+
+      return { drive, ceiling, release, mix };
+    }
+
+    return {
+      classify,
+      getProfile,
+      getAdaptedParams,
+      getType: () => currentType,
+      getConfidence: () => confidence,
+      reset: () => { currentType = CONTENT.MIXED; confidence = 0; history.length = 0; }
+    };
+  }
+
   function createAudio(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, currentNodes = null;
     let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
 
     let finalizerNode = null;
     let workletInitPromise = null;
+    const contentClassifier = createContentClassifier();
 
     async function ensureFinalizerWorklet(audioCtx) {
       if (finalizerNode) return finalizerNode;
@@ -1793,7 +1979,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       currentNodes._finalizer = node;
       currentNodes._finalizerAttached = true;
-      node.port.onmessage = (e) => { currentNodes._awStats = e.data; };
+      node.port.onmessage = (e) => {
+        currentNodes._awStats = e.data;
+        contentClassifier.classify(e.data);
+      };
     }
 
     let _activePauseAC = null;
@@ -1949,7 +2138,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (currentSrc && currentNodes) {
         const mbActive = !!sm.get(P.A_MULTIBAND);
 
-        // [PATCH B] 조건부 RMS Meter 측정
         const needMeter = actuallyEnabled && (!!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE));
         if (needMeter && currentNodes._lufsMeter && ctx.state === 'running') {
           try { currentNodes._lufsMeter.measure(); } catch (e) { log.debug('RMS measure failed', e); }
@@ -1976,7 +2164,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           }
         }
 
-        // [PATCH A] makeupDbEma 간소화
         if (actuallyEnabled) {
           if (currentNodes._finalizerAttached && currentNodes._awStats) {
             const awGr = currentNodes._awStats.gainReductionDb || 0;
@@ -2032,9 +2219,21 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           currentTarget.addEventListener('seeked', resume, { once: true, signal: pauseSig });
         }
       } else {
-        // [PATCH C] 오디오 루프 주기 적응적 조절
-        const needFast = !currentNodes._finalizerAttached && (!!sm.get(P.A_LUFS) || !!sm.get(P.A_MULTIBAND) || !!sm.get(P.A_DIALOGUE) || !!sm.get(P.A_STEREO_W));
-        const targetInterval = needFast ? 0.10 : (currentNodes._finalizerAttached ? 0.50 : 0.25);
+        const contentType = contentClassifier.getType();
+        let targetInterval;
+
+        if (!currentNodes._finalizerAttached) {
+          targetInterval = 0.10;
+        } else if (contentType === 'silent') {
+          targetInterval = 1.0;
+        } else if (contentType === 'dialogue') {
+          targetInterval = 0.40;
+        } else if (contentType === 'music') {
+          targetInterval = 0.60;
+        } else {
+          targetInterval = 0.50;
+        }
+
         const delayMs = Math.max(16, (targetInterval * 1000) - 8);
         audioLoopTimerId = setTimeout(() => {
           audioLoopTimerId = 0;
@@ -2071,15 +2270,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         }
 
         if (currentNodes._finalizer) {
-          const drive = sm.get(P.A_DIALOGUE) ? 1.25 : 1.12;
-          const ceiling = sm.get(P.A_STEREO_W) ? 0.97 : 0.985;
-          const mix = dynAct ? 1.0 : 0.0;
+          const adapted = contentClassifier.getAdaptedParams(
+            !!sm.get(P.A_DIALOGUE),
+            !!sm.get(P.A_STEREO_W)
+          );
 
           const p = currentNodes._finalizer.parameters;
-          try { p.get('drive')?.setValueAtTime(drive, ctx.currentTime); } catch (_) {}
-          try { p.get('ceiling')?.setValueAtTime(ceiling, ctx.currentTime); } catch (_) {}
-          try { p.get('mix')?.setValueAtTime(mix, ctx.currentTime); } catch (_) {}
-          try { p.get('release')?.setValueAtTime(0.9965, ctx.currentTime); } catch (_) {}
+          const t = ctx.currentTime;
+          try { p.get('drive')?.setTargetAtTime(dynAct ? adapted.drive : 1.0, t, 0.15); } catch (_) {}
+          try { p.get('ceiling')?.setTargetAtTime(adapted.ceiling, t, 0.08); } catch (_) {}
+          try { p.get('mix')?.setTargetAtTime(dynAct ? adapted.mix : 0.0, t, 0.05); } catch (_) {}
+          try { p.get('release')?.setTargetAtTime(adapted.release, t, 0.08); } catch (_) {}
         }
       }
       if (dynAct && isHooked) runAudioLoop(tok);
@@ -2099,6 +2300,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
       ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; makeupDbEma = 0; switchTok++;
       finalizerNode = null; workletInitPromise = null;
+      contentClassifier.reset();
     }
 
     return {
@@ -2170,7 +2372,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const _attrCache  = new WeakMap();
     const __vscBgMemo = new WeakMap();
 
-    // ===== NEW: 하이브리드 필터 엔진 (CSS 네이티브 분기) =====
     function canUseCssNativeOnly(s, shadowParams) {
       if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
       if (shadowParams && shadowParams.active) return false;
@@ -2280,7 +2481,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       Math.round(s.satF / 0.01),     Math.round(s.mid / 0.02),
       Math.round(s.toe / 0.2),       Math.round(s.shoulder / 0.2),
       Math.round(s.temp / 0.2),      Math.round(s.sharp),
-      Math.round(s.sharp2),          Math.round((s._sigmaScale || 1) * 100)
+      Math.round(s.sharp2),          Math.round((s._sigmaScale || 1) * 100),
+      Math.round((s._microBase || 0.16) * 1000),
+      Math.round((s._fineBase || 0.32) * 1000)
     ].join('|');
 
     function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
@@ -2413,11 +2616,28 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0)));
       const sigmaScale = Number(s._sigmaScale) || 1.0;
 
-      const microAmt = Math.max(0, (qSharp * 0.55 + qSharp2 * 0.10) / 90);
-      const fineAmt = Math.max(0, (qSharp * 0.20 + qSharp2 * 0.85) / 48);
+      const microBase  = Number(s._microBase)  || 0.16;
+      const microScale = Number(s._microScale) || (1/120);
+      const fineBase   = Number(s._fineBase)   || 0.32;
+      const fineScale  = Number(s._fineScale)  || (1/24);
+      const microAmtCoeffs = s._microAmt || [0.55, 0.10];
+      const fineAmtCoeffs  = s._fineAmt  || [0.20, 0.85];
 
-      const sigMicro = VSC_CLAMP((0.16 + qSharp / 120) * Math.min(1.0, sigmaScale), 0.12, 0.75);
-      const sigFine = VSC_CLAMP((0.32 + qSharp2 / 24) * sigmaScale, 0.20, 2.20);
+      const sigMicro = VSC_CLAMP(
+        (microBase + qSharp * microScale) * Math.min(1.0, sigmaScale),
+        0.10, 0.80
+      );
+      const sigFine = VSC_CLAMP(
+        (fineBase + qSharp2 * fineScale) * sigmaScale,
+        0.18, 2.50
+      );
+
+      const microAmt = Math.max(0,
+        (qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 90
+      );
+      const fineAmt = Math.max(0,
+        (qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 48
+      );
 
       const blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`;
       if (st.blurKey !== blurKeyNext) {
@@ -2612,7 +2832,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       applyCssNative
     };
   }
-
 // --- PART 3 ---
 
   // ===== [PATCH 1] CONTAINMENT MODULE (리플로우 격리) =====
@@ -2694,13 +2913,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createBackendAdapter(Filters) {
     return {
       apply(video, vVals, shadowParams) {
-        // 단순 밝기/대비만 사용하면 무거운 SVG 대신 GPU 가속이 빠른 CSS Native 경로 채택
         if (Filters.canUseCssNativeOnly && Filters.canUseCssNativeOnly(vVals, shadowParams)) {
           Filters.applyCssNative(video, vVals);
           return;
         }
 
-        // 샤프닝이나 암부 등 복잡한 연산이 있으면 기존 SVG 렌더링 경로 사용
         const svgResult = Filters.prepareCached(video, vVals, shadowParams);
         Filters.applyUrl(video, svgResult);
       },
@@ -2708,7 +2925,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const st = getVState(video);
         if (st.applied) Filters.clear(video);
 
-        // 줌 기능이 켜져있지 않다면, 필터 해제 시 Containment도 정리하여 부작용 방지
         if (!getNS()?.ZoomManager?.isZoomed(video)) {
           removeContainment(video);
         }
@@ -3465,9 +3681,62 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
   }
 
+  // ===== PATCH 1: PerfGovernor 반응 속도 개선 적용 =====
   function createPerfGovernor() {
     const perVideo = new WeakMap();
+
+    const MODES = ['low', 'mid', 'high'];
+    const MODE_IDX = { low: 0, mid: 1, high: 2 };
+
     let globalMode = 'high';
+    let confirmCount = 0;
+    let pendingMode = null;
+    let lastTransitionT = 0;
+
+    const SAMPLE_INTERVAL = { high: 1500, mid: 800, low: 400 };
+
+    const THRESHOLDS = {
+      downToMid:  0.04,
+      downToLow:  0.10,
+      upToMid:    0.03,
+      upToHigh:   0.015,
+      emergency:  0.15
+    };
+
+    const CONFIRM_DOWN = 2;
+    const CONFIRM_UP = 4;
+
+    const COOLDOWN_DOWN = 500;
+    const COOLDOWN_UP = 3000;
+
+    function transitionTo(newMode) {
+      if (newMode === globalMode) return;
+      globalMode = newMode;
+      lastTransitionT = performance.now();
+      pendingMode = null;
+      confirmCount = 0;
+    }
+
+    function tryTransition(candidateMode, now) {
+      const currentIdx = MODE_IDX[globalMode];
+      const candidateIdx = MODE_IDX[candidateMode];
+      const isUpgrade = candidateIdx > currentIdx;
+      const cooldown = isUpgrade ? COOLDOWN_UP : COOLDOWN_DOWN;
+
+      if ((now - lastTransitionT) < cooldown) return;
+
+      const requiredConfirms = isUpgrade ? CONFIRM_UP : CONFIRM_DOWN;
+
+      if (pendingMode === candidateMode) {
+        confirmCount++;
+        if (confirmCount >= requiredConfirms) {
+          transitionTo(candidateMode);
+        }
+      } else {
+        pendingMode = candidateMode;
+        confirmCount = 1;
+      }
+    }
 
     function sample(video) {
       if (!video?.getVideoPlaybackQuality) return globalMode;
@@ -3485,39 +3754,62 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         return globalMode;
       }
 
+      const interval = SAMPLE_INTERVAL[globalMode] || 1000;
       const dt = now - prev.t;
-      if (dt < 1200) return globalMode;
+      if (dt < interval) return globalMode;
 
       const dTotal = Math.max(0, (q.totalVideoFrames || 0) - prev.total);
-      const dDrop  = Math.max(0, (q.droppedVideoFrames || 0) - prev.dropped);
+      const dDrop = Math.max(0, (q.droppedVideoFrames || 0) - prev.dropped);
 
       prev.t = now;
       prev.total = q.totalVideoFrames || 0;
       prev.dropped = q.droppedVideoFrames || 0;
 
-      if (dTotal < 24) return globalMode;
+      if (dTotal < 12) return globalMode;
 
       const dropRatio = dDrop / dTotal;
 
-      if (dropRatio >= 0.08) globalMode = 'low';
-      else if (dropRatio >= 0.03) globalMode = 'mid';
-      else globalMode = 'high';
+      if (dropRatio >= THRESHOLDS.emergency) {
+        transitionTo('low');
+        return globalMode;
+      }
+
+      let candidateMode = globalMode;
+
+      if (globalMode === 'high') {
+        if (dropRatio >= THRESHOLDS.downToLow) candidateMode = 'low';
+        else if (dropRatio >= THRESHOLDS.downToMid) candidateMode = 'mid';
+      } else if (globalMode === 'mid') {
+        if (dropRatio >= THRESHOLDS.downToLow) candidateMode = 'low';
+        else if (dropRatio < THRESHOLDS.upToHigh) candidateMode = 'high';
+      } else {
+        if (dropRatio < THRESHOLDS.upToHigh) candidateMode = 'high';
+        else if (dropRatio < THRESHOLDS.upToMid) candidateMode = 'mid';
+      }
+
+      if (candidateMode !== globalMode) {
+        tryTransition(candidateMode, now);
+      } else {
+        pendingMode = null;
+        confirmCount = 0;
+      }
 
       return globalMode;
     }
 
     function getBudget(video) {
       const mode = sample(video);
+
       if (mode === 'low') {
-        return { mode, sharpMul: 0.55, shadowCap: 1, sigmaMul: 0.85 };
+        return { mode, sharpMul: 0.50, shadowCap: 1, sigmaMul: 0.80 };
       }
       if (mode === 'mid') {
-        return { mode, sharpMul: 0.80, shadowCap: 2, sigmaMul: 0.93 };
+        return { mode, sharpMul: 0.75, shadowCap: 2, sigmaMul: 0.90 };
       }
       return { mode, sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00 };
     }
 
-    return { getBudget };
+    return { getBudget, getMode: () => globalMode };
   }
 
   function createVideoParamsMemo() {
@@ -3590,6 +3882,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const userTemp = vfUser.temp || 0;
         const { rs, gs, bs } = tempToRgbGain(userTemp);
 
+        // ===== PATCH 2: 프리셋별 시그마 커브 전달 적용 =====
         const videoOut = {
           sharp:    Math.round((detailP.sharpAdd  || 0) * ps.sharpScale * budget.sharpMul),
           sharp2:   Math.round((detailP.sharp2Add || 0) * ps.sharpScale * budget.sharpMul),
@@ -3601,7 +3894,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           gain: 1.0, mid: 0, toe: 0, shoulder: 0,
           _sigmaScale: ps.sigmaScale * budget.sigmaMul,
           _refW: ps.refW,
-          _rs: rs, _gs: gs, _bs: bs
+          _rs: rs, _gs: gs, _bs: bs,
+
+          _microBase:  detailP.microBase  || 0.16,
+          _microScale: detailP.microScale || (1/120),
+          _fineBase:   detailP.fineBase   || 0.32,
+          _fineScale:  detailP.fineScale  || (1/24),
+          _microAmt:   detailP.microAmt   || [0.55, 0.10],
+          _fineAmt:    detailP.fineAmt    || [0.20, 0.85]
         };
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0;
