@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v179.0.1 - Unified Brightness + Color Temp + DPR)
+// @name         Video_Control (v179.0.2 - Unified Brightness + Color Temp + DPR)
 // @namespace    https://github.com/
-// @version      179.0.1
+// @version      179.0.2
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '179.0.1';
+  const SCRIPT_VERSION = '179.0.2';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -1841,8 +1841,6 @@ function VSC_MAIN() {
     };
   }
 
-  // ===== createAutoSceneManager 완전 제거됨 =====
-
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
@@ -2059,9 +2057,10 @@ function VSC_MAIN() {
 
     function applyShadowParams(shadowNodes, st, shadowParams) {
       const level = shadowParams.level || 0;
+      const factor = shadowParams.factor !== undefined ? shadowParams.factor : 1.0;
       if (level <= 0) return;
 
-      const shadowKey = `crush_v4|${level}`;
+      const shadowKey = `crush_v4|${level}|${factor.toFixed(3)}`;
       if (st.shadowKey === shadowKey) return;
       st.shadowKey = shadowKey;
 
@@ -2071,6 +2070,12 @@ function VSC_MAIN() {
         { power: 1.35, pull: 0.012, slope: 1.08, gamma: 1.12, offset: -0.020 }
       ];
       const p = CRUSH_MAP[level];
+      const effPower = 1.0 + (p.power - 1.0) * factor;
+      const effPull = p.pull * factor;
+      const effSlope = 1.0 + (p.slope - 1.0) * factor;
+      const effGamma = 1.0 + (p.gamma - 1.0) * factor;
+      const effOffset = p.offset * factor;
+
       const SIZE = 128;
       const arr = new Array(SIZE);
       let prev = 0;
@@ -2081,11 +2086,11 @@ function VSC_MAIN() {
         if (x >= 1.0 - 1e-6) { arr[i] = '1'; continue; }
         const t = Math.max(0, Math.min(1, 1.0 - x / 0.5));
         const blend = t * t * (3.0 - 2.0 * t);
-        const crushed = Math.pow(x, p.power);
-        const pulldown = p.pull * (1.0 - x) * (1.0 - x);
+        const crushed = Math.pow(x, effPower);
+        const pulldown = effPull * (1.0 - x) * (1.0 - x);
         let y = x * (1.0 - blend) + crushed * blend - pulldown;
-        y = Math.pow(Math.max(0, y), 1 / p.gamma);
-        y = y * p.slope + p.offset;
+        y = Math.pow(Math.max(0, y), 1 / effGamma);
+        y = y * effSlope + effOffset;
         y = Math.max(0, Math.min(1, y));
         if (y <= prev) y = prev + 1e-6;
         if (y > 1.0) y = 1.0;
@@ -2109,7 +2114,8 @@ function VSC_MAIN() {
       const tier = sharpTotal > 0 ? 'sharp' : 'lite';
 
       const shadowActive = !!(shadowParams && shadowParams.active);
-      const stableKey = `${tier}|${makeKeyBase(s)}|sh:${shadowActive ? 'lv' + (shadowParams.level || 0) : 'off'}`;
+      const shadowFactor = shadowActive ? (shadowParams.factor !== undefined ? shadowParams.factor.toFixed(3) : '1.000') : 'off';
+      const stableKey = `${tier}|${makeKeyBase(s)}|sh:${shadowActive ? 'lv' + shadowParams.level + '_' + shadowFactor : 'off'}`;
 
       let nodes = ctxMap.get(root);
       if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
@@ -2442,13 +2448,11 @@ function VSC_MAIN() {
 
       const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
-      // ===== 메인: 선명 =====
       const sharpRow = renderButtonRow({
         label: '선명', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true,
         items: [ { text: 'Soft', value: 'Soft', title: '약한 선명화' }, { text: 'Medium', value: 'Medium', title: '중간 선명화' }, { text: 'Ultra', value: 'Ultra', title: '강한 선명화' } ]
       });
 
-      // ===== 메인: 통합 밝기 (0~5) =====
       const brightRow = renderButtonRow({
         label: '밝기', key: P.V_BRIGHT_LV, offValue: 0, toggleActiveToOff: true,
         items: [
@@ -2490,13 +2494,10 @@ function VSC_MAIN() {
       dialogueBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE)); };
       bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN, P.APP_ACT], (el, dOn, aEn, act) => { el.classList.toggle('active', !!dOn); const usable = !!aEn && !!act; el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35'); el.style.cursor = usable ? 'pointer' : 'not-allowed'; el.disabled = !usable; }, sm, sub);
 
-      // ===== 고급 설정 토글 =====
       const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
       advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
       bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
 
-      // ===== 고급 설정 내용: 암부, 색온도, 시계 =====
-      // [요구사항 반영 완료] 직관적인 색온도 UI (+30, +15, -10, -25)
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '암부', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1단', value: DARK_BAND.LV1, title: '약한 암부 강화' }, { text: '2단', value: DARK_BAND.LV2, title: '중간 암부 강화' }, { text: '3단', value: DARK_BAND.LV3, title: '강한 암부 강화' } ] }),
         renderButtonRow({ label: '색온', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [
@@ -2516,7 +2517,6 @@ function VSC_MAIN() {
       resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); ApplyReq.hard(); };
       bindReactive(resetBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
 
-      // ===== 메인 바디 조립 =====
       const bodyMain = h('div', { id: 'p-main' }, [
         sharpRow, brightRow,
         h('div', { class: 'prow' }, [ pipBtn, zoomBtn, pwrBtn ]),
@@ -2907,10 +2907,10 @@ function VSC_MAIN() {
   // ===== videoParamsMemo: 통합 밝기 + 동적 색온도 + [모바일/HiDPI DPR 보정] =====
   function createVideoParamsMemo() {
     function computePreScaling(video) {
-      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
       const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
       const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
-      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
 
       const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
       const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
@@ -2919,31 +2919,27 @@ function VSC_MAIN() {
       if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
       else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
 
-      // ===== 모바일 DPR 보정 시작 =====
       const isMobile = CONFIG.IS_MOBILE;
       const dpr = Math.max(1, window.devicePixelRatio || 1);
 
+      let factor = 1.0;
       if (isMobile) {
-        // 모바일: DPR이 높을수록 물리 해상도는 충분하므로 샤프닝 대폭 감소
-        // 의도: DPR 2 → ×0.55, DPR 3 → ×0.36
-        const mobileFactor = VSC_CLAMP(1.1 / dpr, 0.30, 0.70);
-        sharpScale *= mobileFactor;
+        factor = VSC_CLAMP(1.1 / dpr, 0.30, 0.70);
       } else if (dpr >= 1.5) {
-        // PC HiDPI (레티나, 윈도우 배율 150% 이상): 약간만 줄임
-        // 의도: DPR 2 → ×0.80, DPR 3 → ×0.65
-        const hidpiFactor = VSC_CLAMP(1.6 / dpr, 0.65, 0.95);
-        sharpScale *= hidpiFactor;
+        factor = VSC_CLAMP(1.6 / dpr, 0.65, 0.95);
       }
-      // ===== 모바일 DPR 보정 끝 =====
 
-      const refW = Math.max(640, Math.min(3840, displayW)); const sigmaScale = Math.sqrt(refW / 1920);
-      return { sharpScale, sigmaScale, refW };
+      sharpScale *= factor;
+
+      const refW = Math.max(640, Math.min(3840, displayW));
+      const sigmaScale = Math.sqrt(refW / 1920);
+      return { sharpScale, sigmaScale, refW, factor };
     }
 
     const _preScaleCache = new WeakMap();
 
     function getPreScaling(video) {
-      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
       const cached = _preScaleCache.get(video);
       const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
       const dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
@@ -2972,6 +2968,7 @@ function VSC_MAIN() {
         const detailP = PRESETS.detail[vfUser.presetS || 'off'];
         const brightP = PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || PRESETS.bright[0];
         const ps = getPreScaling(video);
+        const f = ps.factor;
 
         const userTemp = vfUser.temp || 0;
         const { rs, gs, bs } = tempToRgbGain(userTemp);
@@ -2979,9 +2976,9 @@ function VSC_MAIN() {
         const videoOut = {
           sharp:    Math.round((detailP.sharpAdd  || 0) * ps.sharpScale),
           sharp2:   Math.round((detailP.sharp2Add || 0) * ps.sharpScale),
-          satF:     detailP.sat || 1.0,
-          gamma:    brightP.gammaF || 1.0,
-          bright:   brightP.brightAdd || 0,
+          satF:     1.0 + ((detailP.sat || 1.0) - 1.0) * f,
+          gamma:    1.0 + ((brightP.gammaF || 1.0) - 1.0) * f,
+          bright:   (brightP.brightAdd || 0) * f,
           contrast: 1.0,
           temp:     userTemp,
           gain: 1.0, mid: 0, toe: 0, shoulder: 0,
@@ -2990,8 +2987,7 @@ function VSC_MAIN() {
         };
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0;
-        let shadowOut = { level: 0, active: false };
-        if (sLevel > 0) { shadowOut = { level: sLevel, active: true }; }
+        let shadowOut = { level: sLevel, active: sLevel > 0, factor: f };
 
         const result = { video: videoOut, shadow: shadowOut };
         if (_cache.size >= MAX_MEMO) _cache.delete(_cache.keys().next().value);
@@ -3001,7 +2997,6 @@ function VSC_MAIN() {
     };
   }
 
-  // ===== isNeutral: temp=0이 중립 =====
   function isNeutralVideoParams(p) {
     const near = (a, b, eps = 1e-4) => Math.abs((a || 0) - b) <= eps;
     return (
@@ -3017,7 +3012,6 @@ function VSC_MAIN() {
 
   let __vscUserSignalRev = 0;
 
-  // ===== AppController: AutoScene 완전 제거, 직접 파라미터 전달 =====
   function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
     UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
     Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
@@ -3072,7 +3066,6 @@ function VSC_MAIN() {
 
         const vf0 = Store.getCatRef('video');
 
-        // AutoScene 제거됨 → 직접 파라미터 전달
         const getParamsForVideo = (el) => videoParamsMemo.get(vf0, el);
 
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
@@ -3269,7 +3262,6 @@ function VSC_MAIN() {
 
     (function ensureRegistryAfterBodyReady() { let ran = false; const runOnce = () => { if (ran) return; ran = true; safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); }; if (document.body) { runOnce(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } }); try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} on(document, 'DOMContentLoaded', runOnce, { once: true }); })();
 
-    // AutoScene 완전 제거됨
     __vscNs.CONFIG = CONFIG; __vscNs.FLAGS = Object.freeze({ ...FLAGS });
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
