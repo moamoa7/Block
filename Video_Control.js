@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v180.1.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D)
+// @name         Video_Control (v180.2.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D + RenderOpt)
 // @namespace    https://github.com/
-// @version      180.1.0
-// @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
+// @version      180.2.0
+// @description  Video Control: Render Optimizations (Containment, Hybrid CSS, Content-Visibility), Dual USM, AudioWorklet.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.1.0';
+  const SCRIPT_VERSION = '180.2.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -123,7 +123,6 @@ function VSC_MAIN() {
   const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
   const TOE_DIVISOR = 12;
 
-  // ===== PATCH 1-1: SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO → true =====
   const FLAGS = Object.seal({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: true,
@@ -348,7 +347,6 @@ function VSC_MAIN() {
 
   const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
 
-  // ===== UNIFIED PRESETS =====
   const PRESETS = Object.freeze({
     detail: {
       off:    { sharpAdd: 0,  sharp2Add: 0,  sat: 1.0 },
@@ -366,7 +364,6 @@ function VSC_MAIN() {
     }
   });
 
-  // ===== DEFAULTS =====
   const DEFAULTS = {
     video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 },
     audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
@@ -374,7 +371,6 @@ function VSC_MAIN() {
     app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
   };
 
-  // ===== P =====
   const P = Object.freeze({
     APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced',
     APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
@@ -384,7 +380,6 @@ function VSC_MAIN() {
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   });
 
-  // ===== SCHEMA =====
   const APP_SCHEMA = [
     { type: 'bool', path: P.APP_ACT },
     { type: 'bool', path: P.APP_UI },
@@ -873,7 +868,6 @@ function VSC_MAIN() {
     try { localStorage.setItem(DOC_PIP_SIZE_KEY, JSON.stringify({ w: Math.round(w), h: Math.round(h) })); } catch (_) {}
   }
 
-  // ===== PATCH 4-1: PiP RVFC-synced info badge =====
   function installPiPWindowUX(pipWindow, video, stage, bar) {
     const doc = pipWindow.document;
 
@@ -1071,7 +1065,6 @@ function VSC_MAIN() {
       bar.append(backBtn, playBtn, fwdBtn, fitBtn, smallBtn, largeBtn, closeBtn);
       root.append(stage, bar); doc.body.append(root);
 
-      // ===== PATCH 4-2: Install RVFC-synced PiP UX =====
       installPiPWindowUX(pipWindow, video, stage, bar);
 
       function syncPiPLayout() {
@@ -1255,6 +1248,38 @@ function VSC_MAIN() {
     let refreshRafId = 0;
     let rescanTimerId = 0;
 
+    // ===== NEW: content-visibility 관리 (렌더링 스킵) =====
+    const __cvApplied = new WeakMap();
+
+    function applyContentVisibilityAuto(video) {
+      if (__cvApplied.has(video)) return;
+      if (isPiPActiveVideo(video)) return;
+
+      const origCV = video.style.contentVisibility || '';
+      const origCIS = video.style.containIntrinsicSize || '';
+
+      video.style.contentVisibility = 'auto';
+
+      const w = video.clientWidth || video.offsetWidth || video.videoWidth || 640;
+      const h = video.clientHeight || video.offsetHeight || video.videoHeight || 360;
+      video.style.containIntrinsicSize = `${w}px ${h}px`;
+
+      __cvApplied.set(video, { origCV, origCIS });
+    }
+
+    function removeContentVisibilityAuto(video) {
+      const orig = __cvApplied.get(video);
+      if (!orig) return;
+
+      if (orig.origCV) video.style.contentVisibility = orig.origCV;
+      else video.style.removeProperty('content-visibility');
+
+      if (orig.origCIS) video.style.containIntrinsicSize = orig.origCIS;
+      else video.style.removeProperty('contain-intrinsic-size');
+
+      __cvApplied.delete(video);
+    }
+
     function requestRefreshCoalesced() {
       if (destroyed || __refreshQueued) return;
       __refreshQueued = true;
@@ -1278,6 +1303,26 @@ function VSC_MAIN() {
       }
       if (changed) { rev++; requestRefreshCoalesced(); }
     }, { root: null, threshold: 0.01, rootMargin: ioMargin }) : null;
+
+    // content-visibility용 별도 IO (뷰포트 기준 500px 마진)
+    const cvIO = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        const el = e.target;
+        if (el.tagName !== 'VIDEO') continue;
+
+        if (e.isIntersecting) {
+          removeContentVisibilityAuto(el);
+        } else {
+          const isActive = (el === getNS()?.App?.getActiveVideo());
+          const isPip = isPiPActiveVideo(el);
+          const isPlaying = !el.paused && !el.ended;
+
+          if (!isActive && !isPip && !isPlaying) {
+            applyContentVisibilityAuto(el);
+          }
+        }
+      }
+    }, { root: null, threshold: 0, rootMargin: '500px' }) : null;
 
     const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
 
@@ -1310,7 +1355,8 @@ function VSC_MAIN() {
       dirtyA.videos.delete(v);
       dirtyB.videos.delete(v);
       dirty.videos.add(v);
-      safe(() => { io?.unobserve(v); ro?.unobserve(v); });
+      safe(() => { io?.unobserve(v); ro?.unobserve(v); cvIO?.unobserve(v); });
+      removeContentVisibilityAuto(v);
     }
 
     const observeVideo = (el) => {
@@ -1318,7 +1364,9 @@ function VSC_MAIN() {
       const wasEmpty = (videos.size === 0); videos.add(el);
       if (wasEmpty) { queueMicrotask(() => { safe(() => __vscNs.UIEnsure?.()); }); }
       if (io) io.observe(el); else { const st = getVState(el); st.visible = true; if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } }
-      if (ro) safe(() => ro.observe(el)); lazyScanAncestorShadowRoots(el);
+      if (ro) safe(() => ro.observe(el));
+      if (cvIO) safe(() => cvIO.observe(el));
+      lazyScanAncestorShadowRoots(el);
     };
 
     const WorkQ = (() => {
@@ -1477,7 +1525,10 @@ function VSC_MAIN() {
       for (const el of [...videos]) {
         if (el?.isConnected) continue;
         videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el);
-        safe(() => io?.unobserve(el)); safe(() => ro?.unobserve(el));
+        safe(() => { io?.unobserve(el); ro?.unobserve(el); cvIO?.unobserve(el); });
+
+        // ===== PATCH: 명시적으로 롤백 =====
+        removeContentVisibilityAuto(el);
         removed++;
       }
       return removed;
@@ -1498,6 +1549,10 @@ function VSC_MAIN() {
         }
         const removed = pruneDisconnectedVideos();
         if (removed) rev++;
+
+        // === ERROR FIX: __cvApplied.keys() 반복문 제거 완료 ===
+        // WeakMap 특성상 가비지 컬렉터가 알아서 삭제해주므로
+        // 이 부분에 있던 수동 삭제 로직을 아예 날려버렸습니다.
       },
       consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
       rescanAll: () => {
@@ -1538,6 +1593,8 @@ function VSC_MAIN() {
         for (const mo of shadowObserverMap.values()) { try { mo.disconnect(); } catch (_) {} }
         shadowObserverMap.clear();
         try { io?.disconnect(); } catch (_) {} try { ro?.disconnect(); } catch (_) {}
+        safe(() => cvIO?.disconnect());
+        for (const v of videos) removeContentVisibilityAuto(v);
         videos.clear(); visible.videos.clear(); dirtyA.videos.clear(); dirtyB.videos.clear();
       }
     };
@@ -1603,7 +1660,6 @@ function VSC_MAIN() {
     return { input, output, sideAmp, setEnabled, update: () => {}, isEnabled: () => _enabled };
   }
 
-  // ===== PATCH 3-1: AudioWorklet finalizer source =====
   const VSC_FINALIZER_WORKLET_SRC = `
 class VSCFinalizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -1694,7 +1750,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, currentNodes = null;
     let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
 
-    // ===== PATCH 3-2: Worklet state =====
     let finalizerNode = null;
     let workletInitPromise = null;
 
@@ -1863,7 +1918,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; limiter = nodes.limiter;
       currentNodes = nodes;
 
-      // ===== PATCH 3-3: Attach AudioWorklet finalizer =====
       attachFinalizerWorklet().catch(() => {});
 
       return true;
@@ -2015,7 +2069,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           currentNodes._stereoWidener.setEnabled(false);
         }
 
-        // ===== PATCH 3-4: Update AudioWorklet finalizer params =====
         if (currentNodes._finalizer) {
           const drive = sm.get(P.A_DIALOGUE) ? 1.25 : 1.12;
           const ceiling = sm.get(P.A_STEREO_W) ? 0.97 : 0.985;
@@ -2115,6 +2168,79 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const toneCache   = new Map();
     const _attrCache  = new WeakMap();
     const __vscBgMemo = new WeakMap();
+
+    // ===== NEW: 하이브리드 필터 엔진 (CSS 네이티브 분기) =====
+    function canUseCssNativeOnly(s, shadowParams) {
+      if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
+      if (shadowParams && shadowParams.active) return false;
+      if (Math.abs(s.toe || 0) > 0.01) return false;
+      if (Math.abs(s.shoulder || 0) > 0.01) return false;
+      if (Math.abs(s.mid || 0) > 0.01) return false;
+      if (Math.abs((s.gain || 1) - 1.0) > 0.02) return false;
+      if (Math.abs(s.temp || 0) > 0.5) return false;
+      return true;
+    }
+
+    function buildCssFilterString(s) {
+      const parts = [];
+      const brightAdd = s.bright || 0;
+      if (Math.abs(brightAdd) > 0.5) {
+        const cssBright = 1.0 + brightAdd / 250;
+        parts.push(`brightness(${cssBright.toFixed(4)})`);
+      }
+      const con = s.contrast || 1;
+      if (Math.abs(con - 1.0) > 0.005) {
+        parts.push(`contrast(${con.toFixed(3)})`);
+      }
+      const gamma = s.gamma || 1;
+      if (Math.abs(gamma - 1.0) > 0.01) {
+        const gammaBright = Math.pow(gamma, 0.45);
+        parts.push(`brightness(${gammaBright.toFixed(4)})`);
+      }
+      const sat = s.satF ?? 1;
+      if (Math.abs(sat - 1.0) > 0.005) {
+        parts.push(`saturate(${sat.toFixed(3)})`);
+      }
+      return parts.length > 0 ? parts.join(' ') : '';
+    }
+
+    const _cssFilterCache = new WeakMap();
+
+    function applyCssNative(el, s) {
+      const filterStr = buildCssFilterString(s);
+      const cached = _cssFilterCache.get(el);
+
+      if (cached === filterStr) return;
+      _cssFilterCache.set(el, filterStr);
+
+      const st = getVState(el);
+
+      if (!filterStr) {
+        if (st.applied) {
+          if (st.origFilter != null && st.origFilter !== '') {
+            el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
+          } else {
+            el.style.removeProperty('filter');
+          }
+          el.style.removeProperty('-webkit-filter');
+          st.applied = false;
+          st.lastFilterUrl = null;
+        }
+        return;
+      }
+
+      if (!st.applied) {
+        st.origFilter = el.style.getPropertyValue('filter');
+        st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
+        st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter');
+        st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
+      }
+
+      el.style.setProperty('filter', filterStr, 'important');
+      el.style.setProperty('-webkit-filter', filterStr, 'important');
+      st.applied = true;
+      st.lastFilterUrl = filterStr;
+    }
 
     function setAttr(node, attr, val) {
       if (!node) return;
@@ -2220,41 +2346,32 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         ];
       }
 
-      // ── PATCH 2-1: Dual USM (micro + fine) ──
       const mainFilter = h('filter', { ns: 'svg', id: fidMain, 'color-interpolation-filters': 'sRGB', x: '-8%', y: '-8%', width: '116%', height: '116%' });
 
-      // Step 1a: Micro USM
       const blurMicro = h('feGaussianBlur', { ns: 'svg', in: 'SourceGraphic', stdDeviation: '0.22', result: 'bMicro' });
       const usmMicro  = h('feComposite', { ns: 'svg', in: 'SourceGraphic', in2: 'bMicro', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpMicro' });
 
-      // Step 1b: Fine USM
       const blurFine = h('feGaussianBlur', { ns: 'svg', in: 'sharpMicro', stdDeviation: '0.60', result: 'bFine' });
       const usmNode  = h('feComposite', { ns: 'svg', in: 'sharpMicro', in2: 'bFine', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpOut' });
 
-      // Step 2: Tone (table)
       const toneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
       const toneXfer  = h('feComponentTransfer', { ns: 'svg', in: 'sharpOut', result: 'tone' }, ...toneFuncs);
 
-      // Step 3: Brightness/Contrast (linear)
       const bcFuncs = mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' });
       const bcXfer  = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'bc' }, ...bcFuncs);
 
-      // Step 4: Gamma
       const gamFuncs = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' });
       const gamXfer  = h('feComponentTransfer', { ns: 'svg', in: 'bc', result: 'gam' }, ...gamFuncs);
 
-      // Step 5: Color Temperature
       const tempR    = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
       const tempG    = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
       const tempB    = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
       const tempXfer = h('feComponentTransfer', { ns: 'svg', in: 'gam', result: 'temp' }, tempR, tempG, tempB);
 
-      // Step 6: Saturation
       const satNode = h('feColorMatrix', { ns: 'svg', in: 'temp', type: 'saturate', values: '1', result: 'final' });
 
       mainFilter.append(blurMicro, usmMicro, blurFine, usmNode, toneXfer, bcXfer, gamXfer, tempXfer, satNode);
 
-      // ── Shadow Filter ──
       const shadowFilter = h('filter', { ns: 'svg', id: fidShadow, 'color-interpolation-filters': 'sRGB', x: '-1%', y: '-1%', width: '102%', height: '102%' });
       const shadowToneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
       const shadowToneXfer = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 'sh_tone' }, ...shadowToneFuncs);
@@ -2290,29 +2407,16 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       };
     }
 
-    // ===== PATCH 2-2: Dual USM applySharpParams =====
     function applySharpParams(sharpNodes, st, s) {
       const qSharp  = Math.max(0, Math.round(Number(s.sharp  || 0)));
       const qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0)));
       const sigmaScale = Number(s._sigmaScale) || 1.0;
 
-      // 1차: micro detail
       const microAmt = Math.max(0, (qSharp * 0.55 + qSharp2 * 0.10) / 90);
-
-      // 2차: fine detail
       const fineAmt = Math.max(0, (qSharp * 0.20 + qSharp2 * 0.85) / 48);
 
-      const sigMicro = VSC_CLAMP(
-        (0.16 + qSharp / 120) * Math.min(1.0, sigmaScale),
-        0.12,
-        0.75
-      );
-
-      const sigFine = VSC_CLAMP(
-        (0.32 + qSharp2 / 24) * sigmaScale,
-        0.20,
-        2.20
-      );
+      const sigMicro = VSC_CLAMP((0.16 + qSharp / 120) * Math.min(1.0, sigmaScale), 0.12, 0.75);
+      const sigFine = VSC_CLAMP((0.32 + qSharp2 / 24) * sigmaScale, 0.20, 2.20);
 
       const blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`;
       if (st.blurKey !== blurKeyNext) {
@@ -2324,12 +2428,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const sharpKeyNext = `${microAmt.toFixed(5)}|${fineAmt.toFixed(5)}`;
       if (st.sharpKey !== sharpKeyNext) {
         st.sharpKey = sharpKeyNext;
-
         if (sharpNodes.usmMicro) {
           setAttr(sharpNodes.usmMicro, 'k2', parseFloat((1 + microAmt).toFixed(5)));
           setAttr(sharpNodes.usmMicro, 'k3', parseFloat((-microAmt).toFixed(5)));
         }
-
         if (sharpNodes.usmNode) {
           setAttr(sharpNodes.usmNode, 'k2', parseFloat((1 + fineAmt).toFixed(5)));
           setAttr(sharpNodes.usmNode, 'k3', parseFloat((-fineAmt).toFixed(5)));
@@ -2413,16 +2515,13 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         if (sharpTotal > 0) {
           applySharpParams(nodes.sharp, st, s);
         } else {
-          // ===== PATCH 2-3: Dual USM bypass =====
           const bypassKey = 'bypass';
           if (st.sharpKey !== bypassKey) {
             st.sharpKey = bypassKey;
-
             if (nodes.sharp.usmMicro) {
               setAttr(nodes.sharp.usmMicro, 'k2', '1');
               setAttr(nodes.sharp.usmMicro, 'k3', '0');
             }
-
             setAttr(nodes.sharp.usmNode, 'k2', '1');
             setAttr(nodes.sharp.usmNode, 'k3', '0');
           }
@@ -2502,24 +2601,116 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       },
       clear: (el) => {
         if (!el) return; const st = getVState(el); restoreOpaqueBg(el);
+        _cssFilterCache.delete(el);
         if (!st.applied) return;
         if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else el.style.removeProperty('filter');
         if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || ''); else el.style.removeProperty('-webkit-filter');
         st.applied = false; st.lastFilterUrl = null; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
-      }
+      },
+      canUseCssNativeOnly,
+      applyCssNative
     };
   }
 
 // --- PART 3 ---
+
+  // ===== [PATCH 1] CONTAINMENT MODULE (리플로우 격리) =====
+  const __containmentApplied = new WeakSet();
+  const __containmentOrigStyles = new WeakMap();
+
+  function applyContainment(video) {
+    if (!video || __containmentApplied.has(video)) return;
+
+    const origContain = video.style.contain || '';
+    const origContentVis = video.style.contentVisibility || '';
+
+    const hasExplicitSize = (
+      (video.style.width && video.style.width !== 'auto') ||
+      (video.style.height && video.style.height !== 'auto') ||
+      video.hasAttribute('width') ||
+      video.hasAttribute('height') ||
+      video.closest('[style*="width"]')
+    );
+
+    if (hasExplicitSize) {
+      video.style.contain = 'strict';
+    } else {
+      video.style.contain = 'layout paint';
+    }
+
+    __containmentApplied.add(video);
+    __containmentOrigStyles.set(video, { contain: origContain, contentVisibility: origContentVis });
+
+    let container = video.closest(PLAYER_CONTAINER_SELECTORS);
+    if (!container) {
+      const root = video.getRootNode?.();
+      if (root instanceof ShadowRoot && root.host) {
+        container = root.host.closest(PLAYER_CONTAINER_SELECTORS) || root.host;
+      }
+    }
+
+    if (container && !__containmentApplied.has(container)) {
+      const origParentContain = container.style.contain || '';
+      container.style.contain = 'layout paint';
+      __containmentApplied.add(container);
+      __containmentOrigStyles.set(container, { contain: origParentContain });
+    }
+  }
+
+  function removeContainment(video) {
+    if (!video || !__containmentApplied.has(video)) return;
+
+    const orig = __containmentOrigStyles.get(video);
+    if (orig) {
+      if (orig.contain) video.style.contain = orig.contain;
+      else video.style.removeProperty('contain');
+
+      if (orig.contentVisibility) video.style.contentVisibility = orig.contentVisibility;
+      else video.style.removeProperty('content-visibility');
+    }
+
+    __containmentApplied.delete(video);
+    __containmentOrigStyles.delete(video);
+
+    let container = video.closest(PLAYER_CONTAINER_SELECTORS);
+    if (!container) {
+      const root = video.getRootNode?.();
+      if (root instanceof ShadowRoot && root.host) {
+        container = root.host.closest(PLAYER_CONTAINER_SELECTORS) || root.host;
+      }
+    }
+
+    if (container && __containmentApplied.has(container)) {
+      const origP = __containmentOrigStyles.get(container);
+      if (origP?.contain) container.style.contain = origP.contain;
+      else container.style.removeProperty('contain');
+      __containmentApplied.delete(container);
+      __containmentOrigStyles.delete(container);
+    }
+  }
+
+  // ===== [PATCH 2] BACKEND ADAPTER (Hybrid CSS 분기 처리) =====
   function createBackendAdapter(Filters) {
     return {
       apply(video, vVals, shadowParams) {
+        // 단순 밝기/대비만 사용하면 무거운 SVG 대신 GPU 가속이 빠른 CSS Native 경로 채택
+        if (Filters.canUseCssNativeOnly && Filters.canUseCssNativeOnly(vVals, shadowParams)) {
+          Filters.applyCssNative(video, vVals);
+          return;
+        }
+
+        // 샤프닝이나 암부 등 복잡한 연산이 있으면 기존 SVG 렌더링 경로 사용
         const svgResult = Filters.prepareCached(video, vVals, shadowParams);
         Filters.applyUrl(video, svgResult);
       },
       clear(video) {
         const st = getVState(video);
         if (st.applied) Filters.clear(video);
+
+        // 줌 기능이 켜져있지 않다면, 필터 해제 시 Containment도 정리하여 부작용 방지
+        if (!getNS()?.ZoomManager?.isZoomed(video)) {
+          removeContainment(video);
+        }
       }
     };
   }
@@ -2743,7 +2934,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       `;
       attachShadowStyles(shadow, style);
 
-      const dragHandle = h('div', { class: 'header', title: '\uB354\uBE14\uD074\uB9AD \uC2DC \uD1B1\uB2C8\uBC14\uD034 \uC606\uC73C\uB85C \uBCF5\uADC0' }, 'VSC \uB80C\uB354\uB9C1 \uC81C\uC5B4');
+      const dragHandle = h('div', { class: 'header', title: '\uB354\uBE14\uD074\uB9AD \uC2DC \uD1B1\uB2C8\uBC14\uD034 \uC606\uC73C\uB85C \uBCF5\uADC0' }, 'VSC 렌더링 제어');
 
       const sharpRow = renderButtonRow({
         label: '\uC120\uBA85', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true,
@@ -2945,7 +3136,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  // ===== PATCH 5: Zoom with translate3d + coalesced pointer =====
   function createZoomManager(Store, P) {
     const stateMap = new WeakMap();
     let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -2962,7 +3152,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return st;
     };
 
-    // ===== PATCH 5-1: translate3d + will-change =====
     const update = (v) => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
@@ -3061,7 +3250,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       update(v);
     }, { capture: true, passive: false, signal: zsig });
 
-    // ===== PATCH 5-2: Coalesced pointer events =====
     on(window, 'pointermove', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !isPanning || !activeVideo || e.pointerId !== activePointerId) return;
 
@@ -3155,15 +3343,45 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
+  // ===== [PATCH 3] BIND VIDEO ONCE (Containment 적용 및 Content-Visibility 제어) =====
   const bindVideoOnce = (v, ApplyReq) => {
     const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); ensureMobileInlinePlaybackHints(v);
+
+    // 리플로우 격리
+    applyContainment(v);
+
     const softResetTransientFlags = () => {
       st.audioFailUntil = 0; st.rect = null; st.rectT = 0; if (st._lastSrc !== v.currentSrc) { st._lastSrc = v.currentSrc; }
       if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; st.rateState._setAttempts = 0; st.rateState._firstAttemptT = 0; st.rateState._backoffLv = 0; st.rateState._lastBackoffAt = 0; }
       ApplyReq.hard();
     };
     const combinedSignal = combineSignals(st._ac.signal, __globalSig); const opts = { passive: true, signal: combinedSignal };
-    const videoEvents = [['loadstart', softResetTransientFlags], ['loadedmetadata', softResetTransientFlags], ['emptied', softResetTransientFlags], ['seeking', () => ApplyReq.hard()], ['play', () => ApplyReq.hard()], ['ratechange', () => { const rSt = getRateState(v); const now = performance.now(); if ((now - (rSt.lastSetAt || 0)) < 180 || now < (rSt.suppressSyncUntil || 0)) return; const st = getVState(v); const desired = st.desiredRate; if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.05) return; const store = getNS()?.Store; if (!store) return; const activeVideo = getNS()?.App?.getActiveVideo?.(); if (!activeVideo || v !== activeVideo) return; const cur = v.playbackRate; if (Number.isFinite(cur) && cur > 0) { store.batch('playback', { rate: cur, enabled: true }); } }]];
+
+    const videoEvents = [
+      ['loadstart', softResetTransientFlags],
+      ['loadedmetadata', softResetTransientFlags],
+      ['emptied', softResetTransientFlags],
+      ['seeking', () => ApplyReq.hard()],
+      ['play', () => {
+        // 렌더링 스킵 해제: 재생 중인 비디오는 백그라운드에서도 온전히 디코딩되어야 함
+        safe(() => {
+          v.style.removeProperty('content-visibility');
+          v.style.removeProperty('contain-intrinsic-size');
+        });
+        ApplyReq.hard();
+      }],
+      ['ratechange', () => {
+        const rSt = getRateState(v); const now = performance.now();
+        if ((now - (rSt.lastSetAt || 0)) < 180 || now < (rSt.suppressSyncUntil || 0)) return;
+        const st = getVState(v); const desired = st.desiredRate;
+        if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.05) return;
+        const store = getNS()?.Store; if (!store) return;
+        const activeVideo = getNS()?.App?.getActiveVideo?.();
+        if (!activeVideo || v !== activeVideo) return;
+        const cur = v.playbackRate;
+        if (Number.isFinite(cur) && cur > 0) { store.batch('playback', { rate: cur, enabled: true }); }
+      }]
+    ];
     for (const [ev, fn] of videoEvents) on(v, ev, fn, opts);
   };
 
@@ -3246,7 +3464,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
   }
 
-  // ===== PATCH 1-2: Performance Governor =====
   function createPerfGovernor() {
     const perVideo = new WeakMap();
     let globalMode = 'high';
@@ -3302,7 +3519,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     return { getBudget };
   }
 
-  // ===== PATCH 1-3: VideoParamsMemo with budget =====
   function createVideoParamsMemo() {
     function computePreScaling(video) {
       if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
@@ -3414,7 +3630,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   let __vscUserSignalRev = 0;
 
-  // ===== PATCH 1-4: App controller with PerfGovernor =====
   function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
     UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
     Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
@@ -3470,7 +3685,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
         const vf0 = Store.getCatRef('video');
 
-        // Use PerfGovernor for active target
         const activeBudget = PerfGovernor.getBudget(__activeTarget);
 
         const getParamsForVideo = (el) => {
@@ -3717,7 +3931,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       }
     }, { capture: true });
 
-    on(document, 'visibilitychange', () => { safe(() => checkAndCleanupClosedPiP()); safe(() => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }); }, OPT_P);
+    on(document, 'visibilitychange', () => { safe(() => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }); }, OPT_P);
     window.addEventListener('beforeunload', () => { safe(() => __VSC_APP__?.destroy()); }, { once: true });
   });
 
