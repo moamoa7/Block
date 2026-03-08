@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v179.0.3 - Unified Brightness + Color Temp + DPR)
+// @name         Video_Control (v179.0.4 - Unified Brightness + Color Temp + DPR)
 // @namespace    https://github.com/
-// @version      179.0.3
+// @version      179.0.4
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '179.0.3';
+  const SCRIPT_VERSION = '179.0.4';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2154,7 +2154,7 @@ function VSC_MAIN() {
         const satVal = VSC_CLAMP(s.satF ?? 1, 0, 5.0).toFixed(2);
         if (cst.satKey !== satVal) { cst.satKey = satVal; for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal)); }
 
-        const toneNeutral = (Math.abs((s.gain || 1) - 1.0) < 0.02 && Math.abs(s.toe || 0) < 0.01 && Math.abs(s.shoulder || 0) < 0.01 && Math.abs(s.mid || 0) < 0.01 && Math.abs((s.gamma || 1) - 1.0) < 0.02 && Math.abs(s.bright || 0) < 0.5 && Math.abs((s.contrast || 1) - 1.0) < 0.02 && Math.abs((s.satF ?? 1) - 1.0) < 0.02);
+        const toneNeutral = (Math.abs(s.temp || 0) < 1e-4) && (Math.abs((s.gain || 1) - 1.0) < 0.02 && Math.abs(s.toe || 0) < 0.01 && Math.abs(s.shoulder || 0) < 0.01 && Math.abs(s.mid || 0) < 0.01 && Math.abs((s.gamma || 1) - 1.0) < 0.02 && Math.abs(s.bright || 0) < 0.5 && Math.abs((s.contrast || 1) - 1.0) < 0.02 && Math.abs((s.satF ?? 1) - 1.0) < 0.02);
         const rsEff = toneNeutral ? 1.0 : (s._rs || 1), gsEff = toneNeutral ? 1.0 : (s._gs || 1), bsEff = toneNeutral ? 1.0 : (s._bs || 1);
         const rsStr = rsEff.toFixed(3), gsStr = gsEff.toFixed(3), bsStr = bsEff.toFixed(3);
         const tmk = `${rsStr}|${gsStr}|${bsStr}`;
