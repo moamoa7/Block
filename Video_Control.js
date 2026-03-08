@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v180.0.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D)
+// @name         Video_Control (v180.1.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D)
 // @namespace    https://github.com/
-// @version      180.0.0
+// @version      180.1.0
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.0.0';
+  const SCRIPT_VERSION = '180.1.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -1608,9 +1608,9 @@ function VSC_MAIN() {
 class VSCFinalizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'drive',   defaultValue: 1.15,  minValue: 0.5,   maxValue: 3.0,   automationRate: 'k-rate' },
-      { name: 'ceiling', defaultValue: 0.985, minValue: 0.80,  maxValue: 1.0,   automationRate: 'k-rate' },
-      { name: 'mix',     defaultValue: 1.0,   minValue: 0.0,   maxValue: 1.0,   automationRate: 'k-rate' },
+      { name: 'drive',  defaultValue: 1.15,  minValue: 0.5,  maxValue: 3.0,  automationRate: 'k-rate' },
+      { name: 'ceiling', defaultValue: 0.985, minValue: 0.80,  maxValue: 1.0,  automationRate: 'k-rate' },
+      { name: 'mix',     defaultValue: 1.0,   minValue: 0.0,  maxValue: 1.0,  automationRate: 'k-rate' },
       { name: 'release', defaultValue: 0.9965,minValue: 0.90,  maxValue: 0.9999,automationRate: 'k-rate' }
     ];
   }
@@ -1884,49 +1884,76 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const _lufsTmp = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 };
 
     function runAudioLoop(tok) {
-      audioLoopTimerId = 0; if (tok !== loopTok || !ctx) return;
-      const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); if (!dynAct) return;
+      audioLoopTimerId = 0;
+      if (tok !== loopTok || !ctx) return;
+      const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+      if (!dynAct) return;
+
       const actuallyEnabled = dynAct && currentSrc;
 
       if (currentSrc && currentNodes) {
         const mbActive = !!sm.get(P.A_MULTIBAND);
-        const needMeter = !!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE);
-        if (needMeter && currentNodes._lufsMeter && actuallyEnabled && ctx.state === 'running') {
+
+        // [PATCH B] 조건부 RMS Meter 측정
+        const needMeter = actuallyEnabled && (!!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE));
+        if (needMeter && currentNodes._lufsMeter && ctx.state === 'running') {
           try { currentNodes._lufsMeter.measure(); } catch (e) { log.debug('RMS measure failed', e); }
+          const lufsSt = currentNodes._lufsMeter.getState(_lufsTmp);
+          if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS)) {
+            currentNodes._loudnessNorm.update();
+          }
+        } else {
+          if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !actuallyEnabled)) {
+            stt(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05);
+          }
         }
-
-        const lufsSt = currentNodes._lufsMeter.getState(_lufsTmp);
-        const db = lufsSt.momentaryLUFS > -70 ? lufsSt.momentaryLUFS : -100;
-
-        if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS) && actuallyEnabled) { currentNodes._loudnessNorm.update(); }
 
         if (currentNodes._stereoWidener) {
           const swEnabled = !!sm.get(P.A_STEREO_W) && dynAct;
-          if (currentNodes._stereoWidener.isEnabled() !== swEnabled) { currentNodes._stereoWidener.setEnabled(swEnabled); }
+          if (currentNodes._stereoWidener.isEnabled() !== swEnabled) {
+            currentNodes._stereoWidener.setEnabled(swEnabled);
+          }
           if (swEnabled) { currentNodes._stereoWidener.update(); }
-          if (swEnabled) { stt(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08); } else { stt(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08); }
+          if (swEnabled) {
+            stt(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08);
+          } else {
+            stt(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08);
+          }
         }
 
+        // [PATCH A] makeupDbEma 간소화
         if (actuallyEnabled) {
-          let redDb = 0;
-          if (mbActive && currentNodes._multiband) {
-            const rl = Math.abs(Number(currentNodes._multiband.bands.low.comp.reduction) || 0), rm = Math.abs(Number(currentNodes._multiband.bands.mid.comp.reduction) || 0), rh = Math.abs(Number(currentNodes._multiband.bands.high.comp.reduction) || 0);
-            redDb = -(rl * 0.25 + rm * 0.50 + rh * 0.25);
-          } else if (currentNodes.limiter) { const r = currentNodes.limiter.reduction; redDb = (typeof r === 'number') ? r : (r?.value ?? 0); }
-          if (!Number.isFinite(redDb)) redDb = 0;
-          const redPos = clamp(-redDb, 0, 15);
-          const stLufs = lufsSt.shortTermLUFS, intLufs = lufsSt.integratedLUFS;
-          let gateMult = 1.0; if (intLufs <= -65) gateMult = 0.0; else if (stLufs < -50) gateMult = 0.0; else if (stLufs < -40) gateMult = clamp((stLufs + 50) / 10.0, 0, 1);
-          const makeupDbTarget = clamp(redPos * 0.30, 0, 3.5) * gateMult;
-          const alpha = makeupDbTarget > makeupDbEma ? 0.08 : 0.15; makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha;
-        } else { makeupDbEma += (0 - makeupDbEma) * 0.1; }
+          if (currentNodes._finalizerAttached && currentNodes._awStats) {
+            const awGr = currentNodes._awStats.gainReductionDb || 0;
+            makeupDbEma += (0 - makeupDbEma) * 0.15;
+          } else {
+            let redDb = 0;
+            if (currentNodes.limiter) {
+              const r = currentNodes.limiter.reduction;
+              redDb = (typeof r === 'number') ? r : (r?.value ?? 0);
+            }
+            if (!Number.isFinite(redDb)) redDb = 0;
+            const redPos = clamp(-redDb, 0, 15);
+            const makeupDbTarget = clamp(redPos * 0.25, 0, 2.5);
+            const alpha = makeupDbTarget > makeupDbEma ? 0.10 : 0.18;
+            makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha;
+          }
+        } else {
+          makeupDbEma += (0 - makeupDbEma) * 0.15;
+        }
       }
-      const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
-      if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; stt(wetInGain.gain, finalGain, ctx.currentTime, 0.02); }
+
+      const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20);
+      const makeup = Math.pow(10, makeupDbEma / 20);
+      if (wetInGain) {
+        const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0;
+        stt(wetInGain.gain, finalGain, ctx.currentTime, 0.02);
+      }
 
       const isPaused = target && (target.paused || target.ended);
-      if (document.hidden) { audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 500); }
-      else if (isPaused) {
+      if (document.hidden) {
+        audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 500);
+      } else if (isPaused) {
         if (target && !target.ended) {
           const currentTarget = target;
           const pauseAC = new AbortController();
@@ -1950,8 +1977,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           currentTarget.addEventListener('seeked', resume, { once: true, signal: pauseSig });
         }
       } else {
-        const needFast = !!sm.get(P.A_LUFS) || !!sm.get(P.A_MULTIBAND) || !!sm.get(P.A_DIALOGUE) || !!sm.get(P.A_STEREO_W);
-        const targetInterval = needFast ? 0.10 : 0.25;
+        // [PATCH C] 오디오 루프 주기 적응적 조절
+        const needFast = !currentNodes._finalizerAttached && (!!sm.get(P.A_LUFS) || !!sm.get(P.A_MULTIBAND) || !!sm.get(P.A_DIALOGUE) || !!sm.get(P.A_STEREO_W));
+        const targetInterval = needFast ? 0.10 : (currentNodes._finalizerAttached ? 0.50 : 0.25);
         const delayMs = Math.max(16, (targetInterval * 1000) - 8);
         audioLoopTimerId = setTimeout(() => {
           audioLoopTimerId = 0;
