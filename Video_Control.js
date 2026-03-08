@@ -349,18 +349,18 @@ function VSC_MAIN() {
 
   const PRESETS = Object.freeze({
     detail: {
-      off:    { sharpAdd: 0,  sharp2Add: 0,  sat: 1.0 },
-      Soft:   { sharpAdd: 12, sharp2Add: 15, sat: 1.00 },
-      Medium: { sharpAdd: 30, sharp2Add: 35, sat: 0.99 },
-      Ultra:  { sharpAdd: 50, sharp2Add: 50, sat: 0.98 }
+      off:    { sharpAdd: 0,   sharp2Add: 0,   sat: 1.0 },
+      Soft:   { sharpAdd: 15,  sharp2Add: 18,  sat: 1.0 },   // 미세한 텍스처 강화
+      Medium: { sharpAdd: 35,  sharp2Add: 40,  sat: 1.0 },   // 가장 추천하는 데일리 값
+      Ultra:  { sharpAdd: 65,  sharp2Add: 60,  sat: 0.99 }   // 4K 영상에서 '쨍함'을 주는 마지노선
     },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
-      1: { gammaF: 1.04, brightAdd: 2.5 },
-      2: { gammaF: 1.10, brightAdd: 6.0 },
-      3: { gammaF: 1.18, brightAdd: 10.0 },
-      4: { gammaF: 1.26, brightAdd: 15.0 },
-      5: { gammaF: 1.34, brightAdd: 20.0 }
+      1: { gammaF: 1.04, brightAdd: 2.0 },
+      2: { gammaF: 1.09, brightAdd: 4.5 },
+      3: { gammaF: 1.15, brightAdd: 8.0 },
+      4: { gammaF: 1.22, brightAdd: 12.0 },
+      5: { gammaF: 1.30, brightAdd: 16.0 }
     }
   });
 
