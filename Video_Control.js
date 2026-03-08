@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v179.0.4 - Unified Brightness + Color Temp + DPR)
+// @name         Video_Control (v179.0.5 - Unified Filter & Perf Optimized)
 // @namespace    https://github.com/
-// @version      179.0.4
+// @version      179.0.5
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '179.0.4';
+  const SCRIPT_VERSION = '179.0.5';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -355,7 +355,6 @@ function VSC_MAIN() {
       Medium: { sharpAdd: 30, sharp2Add: 35, sat: 0.99 },
       Ultra:  { sharpAdd: 50, sharp2Add: 50, sat: 0.98 }
     },
-    // 밝기1+밝기2 통합: 5단계 (0=OFF, 1~5)
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
       1: { gammaF: 1.04, brightAdd: 2.5 },
@@ -366,7 +365,7 @@ function VSC_MAIN() {
     }
   });
 
-  // ===== DEFAULTS: autoScene 제거, brightLevel 통합, temp 추가 =====
+  // ===== DEFAULTS =====
   const DEFAULTS = {
     video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 },
     audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
@@ -374,7 +373,7 @@ function VSC_MAIN() {
     app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
   };
 
-  // ===== P: autoScene 제거, 통합 밝기 + 색온도 =====
+  // ===== P =====
   const P = Object.freeze({
     APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced',
     APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
@@ -384,7 +383,7 @@ function VSC_MAIN() {
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   });
 
-  // ===== SCHEMA: autoScene 제거, 통합 =====
+  // ===== SCHEMA =====
   const APP_SCHEMA = [
     { type: 'bool', path: P.APP_ACT },
     { type: 'bool', path: P.APP_UI },
@@ -710,28 +709,22 @@ function VSC_MAIN() {
       }
     }
 
-    // ===== 마이그레이션: 구 설정 → 신 설정 호환 =====
     function migrateOldPrefs(parsed) {
-      // 구버전 presetB + brightStepLevel → 통합 brightLevel
       if (parsed.video && !('brightLevel' in parsed.video)) {
         let level = 0;
         const oldPresetB = parsed.video.presetB;
         const oldBrightStep = parsed.video.brightStepLevel || 0;
-        // presetB 기준 매핑
         if (oldPresetB === 'S') level = 1;
         else if (oldPresetB === 'M') level = 2;
         else if (oldPresetB === 'L') level = 3;
-        // brightStepLevel이 있으면 더 높은 쪽 채택
         if (oldBrightStep >= 3) level = Math.max(level, 4);
         else if (oldBrightStep >= 2) level = Math.max(level, 3);
         else if (oldBrightStep >= 1) level = Math.max(level, 2);
         parsed.video.brightLevel = level;
       }
-      // 구버전 temp가 없으면 0으로
       if (parsed.video && !('temp' in parsed.video)) {
         parsed.video.temp = 0;
       }
-      // 구버전 autoScene 관련 키 무시 (mergeKnown에서 자동으로 걸러짐)
     }
 
     try {
@@ -1850,11 +1843,11 @@ function VSC_MAIN() {
       map.set(key, val);
     }
 
-    const urlCache      = new WeakMap();
-    const ctxMap        = new WeakMap();
-    const toneCache     = new Map();
-    const _attrCache    = new WeakMap();
-    const __vscBgMemo   = new WeakMap();
+    const urlCache    = new WeakMap();
+    const ctxMap      = new WeakMap();
+    const toneCache   = new Map();
+    const _attrCache  = new WeakMap();
+    const __vscBgMemo = new WeakMap();
 
     function setAttr(node, attr, val) {
       if (!node) return;
@@ -1945,8 +1938,7 @@ function VSC_MAIN() {
     }
 
     function buildSvg(root) {
-      const fidLite   = `vsc-lite-${config.VSC_ID}`;
-      const fidSharp  = `vsc-sharp-${config.VSC_ID}`;
+      const fidMain   = `vsc-main-${config.VSC_ID}`;
       const fidShadow = `vsc-shadow-${config.VSC_ID}`;
 
       const svg  = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;overflow:hidden;' });
@@ -1961,52 +1953,43 @@ function VSC_MAIN() {
         ];
       }
 
-      const mkColorChain = (prefix, inN) => {
-        const toneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
-        const toneXfer  = h('feComponentTransfer', { ns: 'svg', in: inN, result: `${prefix}_t` }, ...toneFuncs);
-        const bcFuncs   = mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' });
-        const bcXfer    = h('feComponentTransfer', { ns: 'svg', in: `${prefix}_t`, result: `${prefix}_b` }, ...bcFuncs);
-        const gamFuncs  = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' });
-        const gamXfer   = h('feComponentTransfer', { ns: 'svg', in: `${prefix}_b`, result: `${prefix}_g` }, ...gamFuncs);
-        return { nodes: [toneXfer, bcXfer, gamXfer], toneFuncs, bcFuncs, gamFuncs };
-      };
+      // ── Unified Main Filter: Sharp(Bypassable) -> Tone -> BC -> Gamma -> Temp -> Sat ──
+      const mainFilter = h('filter', { ns: 'svg', id: fidMain, 'color-interpolation-filters': 'sRGB', x: '-8%', y: '-8%', width: '116%', height: '116%' });
 
-      const mkTempSat = (prefix, inN) => {
-        const tempR    = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const tempG    = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const tempB    = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
-        const tempXfer = h('feComponentTransfer', { ns: 'svg', in: inN, result: `${prefix}_tm` }, tempR, tempG, tempB);
-        const satNode  = h('feColorMatrix', { ns: 'svg', in: `${prefix}_tm`, type: 'saturate', values: '1', result: `${prefix}_s` });
-        return { nodes: [tempXfer, satNode], tempR, tempG, tempB, satNode };
-      };
+      // Step 1: USM Sharpening (bypass: k2=1, k3=0 lets SourceGraphic pass through)
+      const blurFine = h('feGaussianBlur', { ns: 'svg', in: 'SourceGraphic', stdDeviation: '0.6', result: 'bFine' });
+      const usmNode  = h('feComposite', { ns: 'svg', in: 'SourceGraphic', in2: 'bFine', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpOut' });
 
-      const liteFilter = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '-1%', y: '-1%', width: '102%', height: '102%' });
-      const liteCC = mkColorChain('l', 'SourceGraphic');
-      const liteTS = mkTempSat('l', 'l_g');
-      liteFilter.append(...liteCC.nodes, ...liteTS.nodes);
+      // Step 2: Tone (table)
+      const toneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
+      const toneXfer  = h('feComponentTransfer', { ns: 'svg', in: 'sharpOut', result: 'tone' }, ...toneFuncs);
 
+      // Step 3: Brightness/Contrast (linear)
+      const bcFuncs = mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' });
+      const bcXfer  = h('feComponentTransfer', { ns: 'svg', in: 'tone', result: 'bc' }, ...bcFuncs);
+
+      // Step 4: Gamma
+      const gamFuncs = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' });
+      const gamXfer  = h('feComponentTransfer', { ns: 'svg', in: 'bc', result: 'gam' }, ...gamFuncs);
+
+      // Step 5: Color Temperature
+      const tempR    = h('feFuncR', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
+      const tempG    = h('feFuncG', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
+      const tempB    = h('feFuncB', { ns: 'svg', type: 'linear', slope: '1', intercept: '0' });
+      const tempXfer = h('feComponentTransfer', { ns: 'svg', in: 'gam', result: 'temp' }, tempR, tempG, tempB);
+
+      // Step 6: Saturation
+      const satNode = h('feColorMatrix', { ns: 'svg', in: 'temp', type: 'saturate', values: '1', result: 'final' });
+
+      mainFilter.append(blurFine, usmNode, toneXfer, bcXfer, gamXfer, tempXfer, satNode);
+
+      // ── Shadow Filter ──
       const shadowFilter = h('filter', { ns: 'svg', id: fidShadow, 'color-interpolation-filters': 'sRGB', x: '-1%', y: '-1%', width: '102%', height: '102%' });
       const shadowToneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
       const shadowToneXfer = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 'sh_tone' }, ...shadowToneFuncs);
       shadowFilter.append(shadowToneXfer);
 
-      const MAT_Y  = '0.2126 0.7152 0.0722 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0';
-      const MAT_UV = '0 0 0 0 0  -0.1146 -0.3854 0.5 0 0.5  0.5 -0.4542 -0.0458 0 0.5  0 0 0 1 0';
-      const MAT_RGB = '1 0 1.5748 0 -0.7874  1 -0.1873 -0.4681 0 0.3277  1 1.8556 0 0 -0.9278  0 0 0 1 0';
-
-      const sharpFilter = h('filter', { ns: 'svg', id: fidSharp, 'color-interpolation-filters': 'sRGB', x: '-8%', y: '-8%', width: '116%', height: '116%' });
-
-      const sLuma = h('feColorMatrix', { ns: 'svg', in: 'SourceGraphic', type: 'matrix', values: MAT_Y, result: 's_Y' });
-      const sChroma = h('feColorMatrix', { ns: 'svg', in: 'SourceGraphic', type: 'matrix', values: MAT_UV, result: 's_CbCr' });
-      const sBlurFine = h('feGaussianBlur', { ns: 'svg', in: 's_Y', stdDeviation: '0.6', edgeMode: 'duplicate', result: 's_bFine' });
-      const sYFineUSM = h('feComposite', { ns: 'svg', in: 's_Y', in2: 's_bFine', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 's_Ysharp' });
-      const sRecombine = h('feComposite', { ns: 'svg', in: 's_Ysharp', in2: 's_CbCr', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_YUV' });
-      const sToRGB = h('feColorMatrix', { ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_sharp_rgb' });
-      const sharpCC = mkColorChain('s', 's_sharp_rgb');
-      const sharpTS = mkTempSat('s', 's_g');
-
-      sharpFilter.append(sLuma, sChroma, sBlurFine, sYFineUSM, sRecombine, sToRGB, ...sharpCC.nodes, ...sharpTS.nodes);
-      defs.append(liteFilter, shadowFilter, sharpFilter);
+      defs.append(mainFilter, shadowFilter);
 
       const tryAppend = () => {
         const target = root.body || root.documentElement || root;
@@ -2023,20 +2006,22 @@ function VSC_MAIN() {
         if (typeof __globalSig !== 'undefined') __globalSig.addEventListener('abort', () => { clearTimeout(_fallbackMoId); mo.disconnect(); }, { once: true });
       }
 
-      const commonByTier = {
-        lite: { toneFuncs: liteCC.toneFuncs, bcLinFuncs: liteCC.bcFuncs, gamFuncs: liteCC.gamFuncs, tmp: { r: liteTS.tempR, g: liteTS.tempG, b: liteTS.tempB }, sats: [liteTS.satNode] },
-        sharp: { toneFuncs: sharpCC.toneFuncs, bcLinFuncs: sharpCC.bcFuncs, gamFuncs: sharpCC.gamFuncs, tmp: { r: sharpTS.tempR, g: sharpTS.tempG, b: sharpTS.tempB }, sats: [sharpTS.satNode] }
-      };
-
       return {
-        fidLite, fidSharp, fidShadow, commonByTier, sharpDetail: { blurFine: sBlurFine, fineUSM: sYFineUSM }, shadowNodes: { toneFuncs: shadowToneFuncs },
-        st: { lastKey: '', rev: 0, commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, blurKey: '', sharpKey: '', shadowKey: '' }
+        fidMain, fidShadow,
+        sharp: { blurFine, usmNode },
+        color: { toneFuncs, bcFuncs, gamFuncs, tmp: { r: tempR, g: tempG, b: tempB }, sats: [satNode] },
+        shadowNodes: { toneFuncs: shadowToneFuncs },
+        st: {
+          lastKey: '', rev: 0,
+          toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '',
+          blurKey: '', sharpKey: '', shadowKey: ''
+        }
       };
     }
 
-    function applySharpParams(sharpDetail, st, s) {
-      const qSharp   = Math.round(Number(s.sharp    || 0));
-      const qSharp2  = Math.round(Number(s.sharp2   || 0));
+    function applySharpParams(sharpNodes, st, s) {
+      const qSharp   = Math.round(Number(s.sharp  || 0));
+      const qSharp2  = Math.round(Number(s.sharp2 || 0));
       const sigmaScale = Number(s._sigmaScale) || 1.0;
 
       const aFine   = Math.max(0, qSharp / 35);
@@ -2045,13 +2030,16 @@ function VSC_MAIN() {
       const blurKeyNext = `${sigFine.toFixed(3)}`;
       if (st.blurKey !== blurKeyNext) {
         st.blurKey = blurKeyNext;
-        if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine);
+        if (sharpNodes.blurFine) setAttr(sharpNodes.blurFine, 'stdDeviation', sigFine);
       }
 
       const sharpKeyNext = aFine.toFixed(5);
       if (st.sharpKey !== sharpKeyNext) {
         st.sharpKey = sharpKeyNext;
-        if (sharpDetail.fineUSM) { setAttr(sharpDetail.fineUSM, 'k2', parseFloat((1 + aFine).toFixed(5))); setAttr(sharpDetail.fineUSM, 'k3', parseFloat((-aFine).toFixed(5))); }
+        if (sharpNodes.usmNode) {
+          setAttr(sharpNodes.usmNode, 'k2', parseFloat((1 + aFine).toFixed(5)));
+          setAttr(sharpNodes.usmNode, 'k3', parseFloat((-aFine).toFixed(5)));
+        }
       }
     }
 
@@ -2108,14 +2096,13 @@ function VSC_MAIN() {
 
       ensureOpaqueBg(video);
 
-      const qSharp   = Math.round(Number(s.sharp    || 0));
-      const qSharp2  = Math.round(Number(s.sharp2   || 0));
+      const qSharp  = Math.round(Number(s.sharp  || 0));
+      const qSharp2 = Math.round(Number(s.sharp2 || 0));
       const sharpTotal = qSharp + qSharp2;
-      const tier = sharpTotal > 0 ? 'sharp' : 'lite';
 
       const shadowActive = !!(shadowParams && shadowParams.active);
       const shadowFactor = shadowActive ? (shadowParams.factor !== undefined ? shadowParams.factor.toFixed(3) : '1.000') : 'off';
-      const stableKey = `${tier}|${makeKeyBase(s)}|sh:${shadowActive ? 'lv' + shadowParams.level + '_' + shadowFactor : 'off'}`;
+      const stableKey = `unified|${makeKeyBase(s)}|sh:${shadowActive ? 'lv' + shadowParams.level + '_' + shadowFactor : 'off'}`;
 
       let nodes = ctxMap.get(root);
       if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
@@ -2126,9 +2113,19 @@ function VSC_MAIN() {
         nodes.st.lastKey = stableKey; nodes.st.rev = (nodes.st.rev + 1) | 0;
 
         const st     = nodes.st;
-        const cst    = st.commonTier[tier];
-        const common = nodes.commonByTier[tier];
+        const common = nodes.color;
         const steps  = 64;
+
+        if (sharpTotal > 0) {
+          applySharpParams(nodes.sharp, st, s);
+        } else {
+          const bypassKey = 'bypass';
+          if (st.sharpKey !== bypassKey) {
+            st.sharpKey = bypassKey;
+            setAttr(nodes.sharp.usmNode, 'k2', '1');
+            setAttr(nodes.sharp.usmNode, 'k3', '0');
+          }
+        }
 
         const gainQ  = (s.gain || 1) < 1.4 ? 0.06 : 0.08;
         const toeQ   = Math.round(VSC_CLAMP((s.toe || 0) / TOE_DIVISOR, -1, 1) / 0.02) * 0.02;
@@ -2137,34 +2134,33 @@ function VSC_MAIN() {
         const rawGain = s.gain || 1;
         const gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
 
-        const tk     = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`;
-        const table  = cst.toneKey !== tk ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : cst.toneTable;
+        const tk    = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`;
+        const table = st.toneKey !== tk ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : st.toneTable;
 
-        if (cst.toneKey !== tk) { cst.toneKey = tk; cst.toneTable = table; for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
+        if (st.toneKey !== tk) { st.toneKey = tk; st.toneTable = table; for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
 
         const con         = VSC_CLAMP(s.contrast || 1, 0.1, 5.0);
         const brightOffset = VSC_CLAMP((s.bright || 0) / 250, -0.5, 0.5);
         const intercept   = VSC_CLAMP(0.5 * (1 - con) + brightOffset, -5, 5);
         const bcLinKey    = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
-        if (cst.bcLinKey !== bcLinKey) { cst.bcLinKey = bcLinKey; for (const fn of common.bcLinFuncs) { setAttr(fn, 'slope', parseFloat(con.toFixed(3))); setAttr(fn, 'intercept', parseFloat(intercept.toFixed(4))); } }
+        if (st.bcLinKey !== bcLinKey) { st.bcLinKey = bcLinKey; for (const fn of common.bcFuncs) { setAttr(fn, 'slope', parseFloat(con.toFixed(3))); setAttr(fn, 'intercept', parseFloat(intercept.toFixed(4))); } }
 
         const gk = (1 / VSC_CLAMP(s.gamma || 1, 0.1, 5.0)).toFixed(4);
-        if (cst.gammaKey !== gk) { cst.gammaKey = gk; for (const fn of common.gamFuncs) setAttr(fn, 'exponent', parseFloat(gk)); }
+        if (st.gammaKey !== gk) { st.gammaKey = gk; for (const fn of common.gamFuncs) setAttr(fn, 'exponent', parseFloat(gk)); }
 
         const satVal = VSC_CLAMP(s.satF ?? 1, 0, 5.0).toFixed(2);
-        if (cst.satKey !== satVal) { cst.satKey = satVal; for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal)); }
+        if (st.satKey !== satVal) { st.satKey = satVal; for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal)); }
 
         const toneNeutral = (Math.abs(s.temp || 0) < 1e-4) && (Math.abs((s.gain || 1) - 1.0) < 0.02 && Math.abs(s.toe || 0) < 0.01 && Math.abs(s.shoulder || 0) < 0.01 && Math.abs(s.mid || 0) < 0.01 && Math.abs((s.gamma || 1) - 1.0) < 0.02 && Math.abs(s.bright || 0) < 0.5 && Math.abs((s.contrast || 1) - 1.0) < 0.02 && Math.abs((s.satF ?? 1) - 1.0) < 0.02);
         const rsEff = toneNeutral ? 1.0 : (s._rs || 1), gsEff = toneNeutral ? 1.0 : (s._gs || 1), bsEff = toneNeutral ? 1.0 : (s._bs || 1);
         const rsStr = rsEff.toFixed(3), gsStr = gsEff.toFixed(3), bsStr = bsEff.toFixed(3);
         const tmk = `${rsStr}|${gsStr}|${bsStr}`;
-        if (cst.tempKey !== tmk) { cst.tempKey = tmk; setAttr(common.tmp.r, 'slope', parseFloat(rsStr)); setAttr(common.tmp.g, 'slope', parseFloat(gsStr)); setAttr(common.tmp.b, 'slope', parseFloat(bsStr)); }
+        if (st.tempKey !== tmk) { st.tempKey = tmk; setAttr(common.tmp.r, 'slope', parseFloat(rsStr)); setAttr(common.tmp.g, 'slope', parseFloat(gsStr)); setAttr(common.tmp.b, 'slope', parseFloat(bsStr)); }
 
-        if (tier === 'sharp') applySharpParams(nodes.sharpDetail, st, s);
         if (shadowActive) applyShadowParams(nodes.shadowNodes, st, shadowParams);
       }
 
-      const mainUrl = tier === 'lite' ? `url(#${nodes.fidLite})` : `url(#${nodes.fidSharp})`;
+      const mainUrl = `url(#${nodes.fidMain})`;
       const shadowUrl = shadowActive ? `url(#${nodes.fidShadow})` : '';
       const combinedUrl = shadowActive ? `${shadowUrl} ${mainUrl}` : mainUrl;
 
@@ -2178,8 +2174,10 @@ function VSC_MAIN() {
           const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
           const nodes = ctxMap.get(root);
           if (nodes) {
-            nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
-            for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; } }
+            nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = '';
+            nodes.st.rev = (nodes.st.rev + 1) | 0;
+            nodes.st.toneKey = ''; nodes.st.toneTable = ''; nodes.st.bcLinKey = '';
+            nodes.st.gammaKey = ''; nodes.st.tempKey = ''; nodes.st.satKey = '';
           }
           const dc = urlCache.get(root); if (dc) { dc.key = ''; dc.url = ''; }
         } catch (_) {}
@@ -2212,7 +2210,6 @@ function VSC_MAIN() {
   }
 // --- PART 2 END ---
 // --- PART 3 START ---
-
   function createBackendAdapter(Filters) {
     return {
       apply(video, vVals, shadowParams) {
@@ -2236,7 +2233,6 @@ function VSC_MAIN() {
     return () => { ac.abort(); };
   }
 
-  // ===== UI: 메인에 선명+밝기, 고급에 암부+색온도+시계 =====
   function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils;
     let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null;
@@ -2904,39 +2900,37 @@ function VSC_MAIN() {
     }
   }
 
-  // ===== videoParamsMemo: 통합 밝기 + 동적 색온도 + [모바일/HiDPI DPR 보정] =====
   function createVideoParamsMemo() {
     function computePreScaling(video) {
-  if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
-  const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
-  const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
-  if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+      const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
+      const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
+      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
 
-  const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
-  const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
+      const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
+      const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
 
-  let sharpScale;
-  if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
-  else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
+      let sharpScale;
+      if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
+      else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
 
-  const isMobile = CONFIG.IS_MOBILE;
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const isMobile = CONFIG.IS_MOBILE;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-  let factor = 1.0;
-  if (isMobile) {
-    factor = VSC_CLAMP(1.1 / dpr, 0.30, 0.70);
-  }
-  // 수정 포인트: 기준을 1.5에서 1.25로 변경
-  else if (dpr >= 1.25) {
-    factor = VSC_CLAMP(1.6 / dpr, 0.65, 0.95);
-  }
+      let factor = 1.0;
+      if (isMobile) {
+        factor = VSC_CLAMP(1.05 / dpr, 0.35, 0.75);
+      }
+      else if (dpr >= 1.25) {
+        factor = VSC_CLAMP(1.5 / dpr, 0.60, 0.90);
+      }
 
-  sharpScale *= factor;
+      sharpScale *= factor;
 
-  const refW = Math.max(640, Math.min(3840, displayW));
-  const sigmaScale = Math.sqrt(refW / 1920);
-  return { sharpScale, sigmaScale, refW, factor };
-}
+      const refW = Math.max(640, Math.min(3840, displayW));
+      const sigmaScale = Math.sqrt(refW / 1920);
+      return { sharpScale, sigmaScale, refW, factor };
+    }
 
     const _preScaleCache = new WeakMap();
 
