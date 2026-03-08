@@ -361,17 +361,17 @@ function VSC_MAIN() {
         microAmt: [0.45, 0.08], fineAmt: [0.15, 0.70]
       },
       Medium: {
-        sharpAdd: 38, sharp2Add: 42, sat: 1.0,
+        sharpAdd: 36, sharp2Add: 40, sat: 1.0,
         microBase: 0.18, microScale: 1/120, fineBase: 0.36, fineScale: 1/24,
         microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
       },
       Ultra: {
-        sharpAdd: 65, sharp2Add: 60, sat: 0.99,
+        sharpAdd: 54, sharp2Add: 54, sat: 0.99,
         microBase: 0.14, microScale: 1/100, fineBase: 0.30, fineScale: 1/20,
         microAmt: [0.65, 0.12], fineAmt: [0.25, 0.95]
       },
       Master: {
-        sharpAdd: 85, sharp2Add: 85, sat: 0.98,
+        sharpAdd: 72, sharp2Add: 68, sat: 0.98,
         microBase: 0.12, microScale: 1/90, fineBase: 0.26, fineScale: 1/18,
         microAmt: [0.62, 0.14], fineAmt: [0.28, 1.05]
       }
