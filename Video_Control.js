@@ -353,7 +353,7 @@ function VSC_MAIN() {
       Soft:   { sharpAdd: 18,  sharp2Add: 22,  sat: 1.0 },
       Medium: { sharpAdd: 38,  sharp2Add: 42,  sat: 1.0 },
       Ultra:  { sharpAdd: 65,  sharp2Add: 60,  sat: 0.99 },
-      Master: { sharpAdd: 95,  sharp2Add: 85,  sat: 0.98 } // 여기 추가
+      Master: { sharpAdd: 85,  sharp2Add: 85,  sat: 0.98 } // 여기 추가
     },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
