@@ -350,9 +350,10 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off:    { sharpAdd: 0,   sharp2Add: 0,   sat: 1.0 },
-      Soft:   { sharpAdd: 15,  sharp2Add: 18,  sat: 1.0 },   // 미세한 텍스처 강화
-      Medium: { sharpAdd: 35,  sharp2Add: 40,  sat: 1.0 },   // 가장 추천하는 데일리 값
-      Ultra:  { sharpAdd: 65,  sharp2Add: 60,  sat: 0.99 }   // 4K 영상에서 '쨍함'을 주는 마지노선
+      Soft:   { sharpAdd: 18,  sharp2Add: 22,  sat: 1.0 },
+      Medium: { sharpAdd: 38,  sharp2Add: 42,  sat: 1.0 },
+      Ultra:  { sharpAdd: 65,  sharp2Add: 60,  sat: 0.99 },
+      Master: { sharpAdd: 95,  sharp2Add: 85,  sat: 0.98 } // 여기 추가
     },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
@@ -2938,7 +2939,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       const sharpRow = renderButtonRow({
         label: '\uC120\uBA85', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true,
-        items: [ { text: 'Soft', value: 'Soft', title: '\uC57D\uD55C \uC120\uBA85\uD654' }, { text: 'Medium', value: 'Medium', title: '\uC911\uAC04 \uC120\uBA85\uD654' }, { text: 'Ultra', value: 'Ultra', title: '\uAC15\uD55C \uC120\uBA85\uD654' } ]
+        items: [ { text: 'Soft', value: 'Soft', title: '\uC57D\uD55C \uC120\uBA85\uD654' }, { text: 'Med', value: 'Medium', title: '\uC911\uAC04 \uC120\uBA85\uD654' }, { text: 'Ultra', value: 'Ultra', title: '\uAC15\uD55C \uC120\uBA85\uD654' }, { text: 'MST', value: 'Master', title: '\uCD5C\uC0C1\uC704 \uD574\uC0C1\uB3C4 \uBCF5\uAD6C \uBC0F \uC120\uBA85\uD654' } ]
       });
 
       const brightRow = renderButtonRow({
