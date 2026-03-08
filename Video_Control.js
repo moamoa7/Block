@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v179.0.2 - Unified Brightness + Color Temp + DPR)
+// @name         Video_Control (v179.0.3 - Unified Brightness + Color Temp + DPR)
 // @namespace    https://github.com/
-// @version      179.0.2
+// @version      179.0.3
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '179.0.2';
+  const SCRIPT_VERSION = '179.0.3';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2907,34 +2907,36 @@ function VSC_MAIN() {
   // ===== videoParamsMemo: 통합 밝기 + 동적 색온도 + [모바일/HiDPI DPR 보정] =====
   function createVideoParamsMemo() {
     function computePreScaling(video) {
-      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
-      const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
-      const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
-      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+  if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+  const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
+  const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
+  if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
 
-      const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
-      const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
+  const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
+  const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
 
-      let sharpScale;
-      if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
-      else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
+  let sharpScale;
+  if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
+  else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
 
-      const isMobile = CONFIG.IS_MOBILE;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const isMobile = CONFIG.IS_MOBILE;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-      let factor = 1.0;
-      if (isMobile) {
-        factor = VSC_CLAMP(1.1 / dpr, 0.30, 0.70);
-      } else if (dpr >= 1.5) {
-        factor = VSC_CLAMP(1.6 / dpr, 0.65, 0.95);
-      }
+  let factor = 1.0;
+  if (isMobile) {
+    factor = VSC_CLAMP(1.1 / dpr, 0.30, 0.70);
+  }
+  // 수정 포인트: 기준을 1.5에서 1.25로 변경
+  else if (dpr >= 1.25) {
+    factor = VSC_CLAMP(1.6 / dpr, 0.65, 0.95);
+  }
 
-      sharpScale *= factor;
+  sharpScale *= factor;
 
-      const refW = Math.max(640, Math.min(3840, displayW));
-      const sigmaScale = Math.sqrt(refW / 1920);
-      return { sharpScale, sigmaScale, refW, factor };
-    }
+  const refW = Math.max(640, Math.min(3840, displayW));
+  const sigmaScale = Math.sqrt(refW / 1920);
+  return { sharpScale, sigmaScale, refW, factor };
+}
 
     const _preScaleCache = new WeakMap();
 
