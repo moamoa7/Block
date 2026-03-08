@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v180.3.0 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D + RenderOpt)
+// @name         Video_Control (v180.3.1 - Perf Governor + Dual USM + AudioWorklet + PiP UX + Zoom3D + RenderOpt)
 // @namespace    https://github.com/
-// @version      180.3.0
+// @version      180.3.1
 // @description  Video Control: Adaptive Perf, Sigma Curves, Audio Auto-Adapt, Render Optimizations.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.3.0';
+  const SCRIPT_VERSION = '180.3.1';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -1102,10 +1102,35 @@ function VSC_MAIN() {
         frame.style.aspectRatio = `${vw} / ${vh}`;
       }
 
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      safe(() => getNS()?.AudioSetTarget?.(video));
+      // === PiP 첫 진입 검은 화면 방지 ===
+      // 1) 새 document에서 rAF 2회 대기 (렌더링 파이프라인 재구성 보장)
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-      if (wasPlaying && video.paused) { video.play().catch(() => {}); }
+      // 2) micro-seek으로 디코더 강제 킥 (핵심 수정)
+      try {
+        const ct = video.currentTime;
+        if (Number.isFinite(ct) && ct > 0) {
+          video.currentTime = ct;
+        }
+      } catch (_) {}
+
+      // 3) 재생 먼저 복구 (오디오 연결보다 선행해야 검은 화면 방지)
+      if (wasPlaying && video.paused) {
+        try { await video.play(); } catch (_) {}
+      }
+
+      // 4) 프레임이 실제로 디코딩될 때까지 대기 (최대 800ms)
+      await new Promise(resolve => {
+        if (video.readyState >= 3) { resolve(); return; }
+        let resolved = false;
+        const done = () => { if (resolved) return; resolved = true; resolve(); };
+        video.addEventListener('canplay', done, { once: true });
+        // readyState가 이미 충분하면 즉시, 아니면 타임아웃
+        setTimeout(done, 800);
+      });
+
+      // 5) 이제 오디오 재연결 (렌더링 확보 후)
+      safe(() => getNS()?.AudioSetTarget?.(video));
       safe(() => getNS()?.ApplyReq?.hard());
 
       const pipAC = new AbortController();
@@ -1149,7 +1174,7 @@ function VSC_MAIN() {
     throw new Error('PiP is not supported in this browser/context');
   }
 
-  function restoreFromDocumentPiP(video) {
+  async function restoreFromDocumentPiP(video) {
     if (!video) { PiPState.reset(); return; }
     if (PiPState.video !== video) return;
     if (PiPState._restoring) return;
@@ -1174,8 +1199,24 @@ function VSC_MAIN() {
       }
       PiPState.placeholder?.remove?.();
 
+      // === 복귀 시 검은 화면 방지 로직 추가 ===
+      // 1) 본래 document의 렌더링 파이프라인 재구성 대기
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      // 2) micro-seek으로 디코더 강제 킥
+      try {
+        const ct = video.currentTime;
+        if (Number.isFinite(ct)) video.currentTime = ct;
+      } catch(_) {}
+
+      // 3) 재생 우선 복구
+      if (wasPlaying && video.paused) {
+        try { await video.play(); } catch(_) {}
+      }
+
+      // 4) 안정화된 후 오디오 재연결
       safe(() => { getNS()?.AudioSetTarget?.(video); __vscNs.ApplyReq?.hard(); });
-      if (wasPlaying && video.paused) video.play().catch(() => {});
+
     } catch (e) { log.warn('PiP restore failed:', e); }
 
     PiPState.reset();
