@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.49 - Extreme Pipeline Optimization)
+// @name         Video_Control (v178.9.50 - Extreme Pipeline Optimization)
 // @namespace    https://github.com/
-// @version      178.9.49
+// @version      178.9.50
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.49';
+  const SCRIPT_VERSION = '178.9.50';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -351,18 +351,15 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off:    { sharpAdd: 0,  sharp2Add: 0,  sat: 1.0 },
-      Soft:   { sharpAdd: 15, sharp2Add: 20, sat: 0.99 },
-      Medium: { sharpAdd: 35, sharp2Add: 45, sat: 0.98 },
-      Ultra:  { sharpAdd: 55, sharp2Add: 65, sat: 0.97 }
+      Soft:   { sharpAdd: 12, sharp2Add: 15, sat: 1.00 },
+      Medium: { sharpAdd: 30, sharp2Add: 35, sat: 0.99 },
+      Ultra:  { sharpAdd: 50, sharp2Add: 50, sat: 0.98 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
-      S: { gammaF: 1.03, brightAdd: 2.0 },
-      M: { gammaF: 1.08, brightAdd: 5.0 },
-      L: { gammaF: 1.15, brightAdd: 9.0 },
-      DS: { gammaF: 1.05, brightAdd: 3.5 },
-      DM: { gammaF: 1.12, brightAdd: 7.5 },
-      DL: { gammaF: 1.22, brightAdd: 11.0 }
+      S: { gammaF: 1.04, brightAdd: 2.5 },
+      M: { gammaF: 1.10, brightAdd: 6.0 },
+      L: { gammaF: 1.18, brightAdd: 10.0 }
     }
   });
 
@@ -777,40 +774,24 @@ function VSC_MAIN() {
   const PLAYER_CONTAINER_SELECTORS = '[class*=player],[class*=Player],[id*=player],[class*=video-container],[data-player]';
 
   const PIP_FLAGS = Object.freeze({
-    SAFE_PIP_RESTORE: false,
     USE_LEGACY_PIP_FALLBACK: true
   });
 
   const PiPState = {
     window: null, video: null, placeholder: null,
     origParent: null, origNext: null, origContainer: null,
-    origCss: '', _ac: null, _watcherId: null, _restoring: false, _uiCleanup: null,
+    origCss: '', _ac: null, _restoring: false, _uiCleanup: null,
     reset() {
       try { this._uiCleanup?.(); } catch (_) {}
       this._uiCleanup = null;
       if (this._ac) { this._ac.abort(); this._ac = null; }
-      if (this._watcherId) { clearInterval(this._watcherId); this._watcherId = null; }
       Object.assign(this, {
         window: null, video: null, placeholder: null,
         origParent: null, origNext: null, origContainer: null,
-        origCss: '', _ac: null, _watcherId: null, _restoring: false, _uiCleanup: null
+        origCss: '', _ac: null, _restoring: false, _uiCleanup: null
       });
     }
   };
-
-  function checkAndCleanupClosedPiP() {
-    if (PiPState.window && PiPState.window.closed && PiPState.video) {
-      restoreFromDocumentPiP(PiPState.video);
-    }
-  }
-
-  function startPiPWatcher() {
-    if (PiPState._watcherId) return;
-    PiPState._watcherId = setInterval(() => {
-      if (!PiPState.window) { clearInterval(PiPState._watcherId); PiPState._watcherId = null; return; }
-      checkAndCleanupClosedPiP();
-    }, 1000);
-  }
 
   function getActivePiPVideo() {
     if (PiPState.video && PiPState.window && !PiPState.window.closed) return PiPState.video;
@@ -838,31 +819,11 @@ function VSC_MAIN() {
   const DOC_PIP_SIZE_KEY = 'vsc_doc_pip_size_v1';
 
   function loadDocPiPSize() {
-    try {
-      const raw = localStorage.getItem(DOC_PIP_SIZE_KEY);
-      if (!raw) return null;
-      const parsed = JSON.parse(raw);
-      if (!parsed || !Number.isFinite(parsed.w) || !Number.isFinite(parsed.h)) return null;
-      return { w: Math.max(320, Math.round(parsed.w)), h: Math.max(180, Math.round(parsed.h)) };
-    } catch (_) { return null; }
+    try { const s = JSON.parse(localStorage.getItem(DOC_PIP_SIZE_KEY)); return s?.w >= 320 && s?.h >= 180 ? s : null; } catch (_) { return null; }
   }
 
-  function saveDocPiPSize(win) {
-    try {
-      localStorage.setItem(DOC_PIP_SIZE_KEY, JSON.stringify({ w: Math.round(win.innerWidth || 0), h: Math.round(win.innerHeight || 0) }));
-    } catch (_) {}
-  }
-
-  function waitForDocPiPClose(win, timeout = 2000) {
-    return new Promise((resolve) => {
-      const started = performance.now();
-      const tick = () => {
-        if (!win || win.closed || PiPState.window !== win) { resolve(true); return; }
-        if ((performance.now() - started) >= timeout) { resolve(false); return; }
-        setTimeout(tick, 50);
-      };
-      tick();
-    });
+  function saveDocPiPSize(w, h) {
+    try { localStorage.setItem(DOC_PIP_SIZE_KEY, JSON.stringify({ w: Math.round(w), h: Math.round(h) })); } catch (_) {}
   }
 
   async function enterDocumentPiP(video) {
@@ -992,19 +953,18 @@ function VSC_MAIN() {
       safe(() => getNS()?.ApplyReq?.hard());
 
       const pipAC = new AbortController();
-      const saveSizeDebounced = createDebounced(() => saveDocPiPSize(pipWindow), 180);
+      const saveSizeDebounced = createDebounced(() => saveDocPiPSize(pipWindow.innerWidth || 0, pipWindow.innerHeight || 0), 180);
 
       video.addEventListener('loadedmetadata', syncPiPLayout, { signal: pipAC.signal });
       pipWindow.addEventListener('resize', () => { syncPiPLayout(); saveSizeDebounced(); }, { signal: pipAC.signal });
 
       pipWindow.addEventListener('pagehide', () => {
         pipAC.abort();
-        saveDocPiPSize(pipWindow);
+        saveDocPiPSize(pipWindow.innerWidth || 0, pipWindow.innerHeight || 0);
         restoreFromDocumentPiP(video);
       }, { once: true });
 
       PiPState._ac = pipAC;
-      startPiPWatcher();
       syncPiPLayout();
       if (!saved) { setTimeout(() => resizePiPToAspect(1.0), 100); }
 
@@ -1033,19 +993,6 @@ function VSC_MAIN() {
     throw new Error('PiP is not supported in this browser/context');
   }
 
-  function getRestoreCandidates() {
-    const out = [];
-    const origRoot = PiPState.origParent?.getRootNode?.() || document;
-    const push = (node) => {
-      if (!node?.isConnected) return;
-      try { const nodeRoot = node.getRootNode?.() || document; if (nodeRoot !== origRoot) return; } catch (_) { return; }
-      out.push(node);
-    };
-    push(PiPState.placeholder?.parentNode); push(PiPState.origParent); push(PiPState.origContainer);
-    if (typeof origRoot.querySelectorAll === 'function') { for (const c of origRoot.querySelectorAll(PLAYER_CONTAINER_SELECTORS)) { push(c); } }
-    return [...new Set(out)];
-  }
-
   function restoreFromDocumentPiP(video) {
     if (!video) { PiPState.reset(); return; }
     if (PiPState.video !== video) return;
@@ -1056,77 +1003,34 @@ function VSC_MAIN() {
 
     safe(() => getNS()?.AudioSetTarget?.(null));
 
-    let restored = false;
-    let requiresAsyncRetry = false;
-
     try {
       video.style.cssText = PiPState.origCss || '';
       if (PiPState.placeholder?.parentNode?.isConnected) {
         PiPState.placeholder.parentNode.insertBefore(video, PiPState.placeholder);
-        PiPState.placeholder.remove();
-        restored = true;
-      } else {
-        for (const c of getRestoreCandidates()) {
-          if (!c?.isConnected) continue;
-          if (c === PiPState.origParent) {
-            if (PiPState.origNext && PiPState.origNext.parentNode === c) c.insertBefore(video, PiPState.origNext);
-            else c.appendChild(video);
-            restored = true; break;
-          }
-          if (!c.querySelector('video')) { c.appendChild(video); restored = true; break; }
+      } else if (PiPState.origParent?.isConnected) {
+        if (PiPState.origNext && PiPState.origNext.parentNode === PiPState.origParent) {
+          PiPState.origParent.insertBefore(video, PiPState.origNext);
+        } else {
+          PiPState.origParent.appendChild(video);
         }
-      }
-
-      if (!restored) {
-        requiresAsyncRetry = true;
-        video.style.cssText = 'position:fixed;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1;';
-        (document.body || document.documentElement)?.appendChild(video);
-
-        let retryId = 0, retryCount = 0;
-        const stopRetry = () => { if (retryId) { clearInterval(retryId); retryId = 0; } };
-
-        const retryRestore = () => {
-          try {
-            for (const c of getRestoreCandidates()) {
-              if (c?.isConnected && !c.querySelector('video')) {
-                video.style.cssText = PiPState.origCss || '';
-                c.appendChild(video);
-                stopRetry(); PiPState.reset();
-                safe(() => { getNS()?.AudioSetTarget?.(video); __vscNs.ApplyReq?.hard(); });
-                if (wasPlaying && video.paused) video.play().catch(() => {});
-                return true;
-              }
-            }
-          } catch (_) {}
-          return false;
-        };
-
-        retryId = setInterval(() => {
-          if (++retryCount > 10 || !video.isConnected) { stopRetry(); PiPState.reset(); safe(() => __vscNs.ApplyReq?.hard()); return; }
-          retryRestore();
-        }, 500);
       } else {
-        safe(() => { getNS()?.AudioSetTarget?.(video); __vscNs.ApplyReq?.hard(); });
-        if (wasPlaying && video.paused) video.play().catch(() => {});
+        (document.body || document.documentElement)?.appendChild(video);
       }
+      PiPState.placeholder?.remove?.();
+
+      safe(() => { getNS()?.AudioSetTarget?.(video); __vscNs.ApplyReq?.hard(); });
+      if (wasPlaying && video.paused) video.play().catch(() => {});
     } catch (e) { log.warn('PiP restore failed:', e); }
 
-    if (!requiresAsyncRetry) { PiPState.reset(); }
+    PiPState.reset();
   }
 
   async function exitPiP(preferredVideo = null) {
     const target = (preferredVideo && preferredVideo === PiPState.video) ? preferredVideo : PiPState.video;
-
     if (PiPState.window) {
       const win = PiPState.window;
-      if (win && !win.closed) {
-        try { win.close(); } catch (_) {}
-        waitForDocPiPClose(win, 2000).then((closed) => {
-          if (closed && target && PiPState.video === target && !PiPState._restoring) { restoreFromDocumentPiP(target); }
-        }).catch(() => {});
-        return true;
-      }
-      if (target) { restoreFromDocumentPiP(target); }
+      if (win && !win.closed) { try { win.close(); } catch (_) {} }
+      if (target && PiPState.video === target && !PiPState._restoring) { restoreFromDocumentPiP(target); }
       return true;
     }
 
@@ -1148,8 +1052,7 @@ function VSC_MAIN() {
       if (PiPState.window && !PiPState.window.closed) {
         const prevWin = PiPState.window;
         try { prevWin.close(); } catch (_) {}
-        const closed = await waitForDocPiPClose(prevWin, 2000);
-        if (!closed) return false;
+        await new Promise(r => setTimeout(r, 100));
       }
       return await enterPiP(video);
     } finally { _pipToggleLock = false; }
@@ -1887,9 +1790,9 @@ function VSC_MAIN() {
   function createAutoSceneManager(Store, P, Scheduler) {
     const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
     const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.15, ct: 1.02, sat: 1.00, sharpScale: 1.05 },
-      Normal: { br: 1.25, ct: 1.04, sat: 1.00, sharpScale: 1.10 },
-      Strong: { br: 1.35, ct: 1.06, sat: 1.00, sharpScale: 1.15 }
+      Soft:   { br: 1.12, ct: 1.03, sat: 1.01, sharpScale: 1.05 },
+      Normal: { br: 1.22, ct: 1.05, sat: 1.02, sharpScale: 1.12 },
+      Strong: { br: 1.35, ct: 1.08, sat: 1.03, sharpScale: 1.20 }
     });
 
     function update() {
@@ -2127,17 +2030,17 @@ function VSC_MAIN() {
       const level = shadowParams.level || 0;
       if (level <= 0) return;
 
-      const shadowKey = `crush_v3|${level}`;
+      const shadowKey = `crush_v4|${level}`;
       if (st.shadowKey === shadowKey) return;
       st.shadowKey = shadowKey;
 
-      const CRUSH = [ null,
-        { power: 1.12, pull: 0.002, slope: 1.02, gamma: 1.02, offset: -0.005 },
-        { power: 1.22, pull: 0.006, slope: 1.05, gamma: 1.08, offset: -0.015 },
-        { power: 1.38, pull: 0.015, slope: 1.10, gamma: 1.15, offset: -0.030 }
+      const CRUSH_MAP = [ null,
+        { power: 1.08, pull: 0.001, slope: 1.01, gamma: 1.01, offset: -0.002 },
+        { power: 1.20, pull: 0.005, slope: 1.04, gamma: 1.06, offset: -0.010 },
+        { power: 1.35, pull: 0.012, slope: 1.08, gamma: 1.12, offset: -0.020 }
       ];
-      const p = CRUSH[level];
-      const RANGE = 0.50, SIZE = 128;
+      const p = CRUSH_MAP[level];
+      const SIZE = 128;
       const arr = new Array(SIZE);
       let prev = 0;
 
@@ -2145,7 +2048,7 @@ function VSC_MAIN() {
         const x = i / (SIZE - 1);
         if (x <= 1e-6) { arr[i] = '0'; continue; }
         if (x >= 1.0 - 1e-6) { arr[i] = '1'; continue; }
-        const t = Math.max(0, Math.min(1, 1.0 - x / RANGE));
+        const t = Math.max(0, Math.min(1, 1.0 - x / 0.5));
         const blend = t * t * (3.0 - 2.0 * t);
         const crushed = Math.pow(x, p.power);
         const pulldown = p.pull * (1.0 - x) * (1.0 - x);
@@ -2731,105 +2634,61 @@ function VSC_MAIN() {
     const stateMap = new WeakMap();
     let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0;
     let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
-    let touchListenersAttached = false;
-    const zoomAC = new AbortController();
-    const zsig = combineSignals(zoomAC.signal, __globalSig);
     const zoomedVideos = new Set();
-
     let activePointerId = null;
 
-    function getLatestPointerPoint(e) {
-      try {
-        const list = typeof e.getCoalescedEvents === 'function' ? e.getCoalescedEvents() : null;
-        const last = (list && list.length) ? list[list.length - 1] : e;
-        return { x: last.clientX, y: last.clientY };
-      } catch (_) { return { x: e.clientX, y: e.clientY }; }
-    }
+    const zoomAC = new AbortController();
+    const zsig = combineSignals(zoomAC.signal, __globalSig);
 
     const getSt = (v) => {
       let st = stateMap.get(v);
-      if (!st) {
-        st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '', origComputedPosition: '', _cachedPosition: null, _lastTransition: null };
-        stateMap.set(v, st);
-      }
+      if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origStyle: '' }; stateMap.set(v, st); }
       return st;
-    }
+    };
 
     const update = (v) => {
       if (rafId) return;
       rafId = requestAnimationFrame(() => {
         rafId = null; const st = getSt(v); const panning = isPanning || pinchState.active;
         if (st.scale <= 1) {
-          if (st.zoomed) {
-            v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
-            v.style.zIndex = st.origZIndex; v.style.position = st.origPosition;
-            v.style.transition = ''; st.zoomed = false; st.origComputedPosition = '';
-          }
-          st.scale = 1; st.tx = 0; st.ty = 0;
-          zoomedVideos.delete(v);
+          if (st.zoomed) { v.style.cssText = st.origStyle; st.zoomed = false; }
+          st.scale = 1; st.tx = 0; st.ty = 0; zoomedVideos.delete(v);
         } else {
-          if (!st.zoomed) {
-            st.origZIndex = v.style.zIndex; st.origPosition = v.style.position;
-            if (!st._cachedPosition) { try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; } }
-            st.origComputedPosition = st._cachedPosition; st.zoomed = true;
-            if (st.origComputedPosition === 'static') v.style.position = 'relative';
-          }
-          const wantTransition = panning ? 'none' : 'transform 0.1s ease-out';
-          if (st._lastTransition !== wantTransition) { v.style.transition = wantTransition; st._lastTransition = wantTransition; }
-          v.style.transformOrigin = '0 0';
-          v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
-          v.style.cursor = panning ? 'grabbing' : 'grab';
-          v.style.zIndex = '2147483646';
+          if (!st.zoomed) { st.origStyle = v.style.cssText; st.zoomed = true; }
+          const trans = panning ? 'none' : 'transform 0.1s ease-out';
+          v.style.cssText = st.origStyle + `; transition: ${trans} !important; transform-origin: 0 0 !important; transform: translate(${st.tx}px, ${st.ty}px) scale(${st.scale}) !important; cursor: ${panning ? 'grabbing' : 'grab'} !important; z-index: 2147483646 !important; position: relative !important;`;
           zoomedVideos.add(v);
         }
       });
     };
 
-    function clampPan(v, st, now) {
-      const rect = getRectCached(v, now || performance.now());
-      if (!rect || rect.width <= 1 || rect.height <= 1) return;
-      const scaledW = rect.width * st.scale, scaledH = rect.height * st.scale;
-      const minVisibleFraction = 0.25;
-      const minVisW = rect.width * minVisibleFraction, minVisH = rect.height * minVisibleFraction;
-      const maxTx = rect.width - minVisW, minTx = -(scaledW - minVisW - rect.width);
-      const maxTy = rect.height - minVisH, minTy = -(scaledH - minVisH - rect.height);
-      st.tx = Math.max(Math.min(st.tx, maxTx), minTx);
-      st.ty = Math.max(Math.min(st.ty, maxTy), minTy);
+    function clampPan(v, st) {
+      const r = v.getBoundingClientRect();
+      if (!r || r.width <= 1 || r.height <= 1) return;
+      const sw = r.width * st.scale, sh = r.height * st.scale;
+      st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75);
+      st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75);
     }
 
-    const zoomTo = (v, newScale, clientX, clientY) => {
+    const zoomTo = (v, newScale, cx, cy) => {
       const st = getSt(v);
-      if (!st.zoomed && !st._cachedPosition) { try { st._cachedPosition = getComputedStyle(v).position; } catch (_) { st._cachedPosition = 'static'; } }
-      const now = performance.now();
-      const rect = getRectCached(v, now);
-      if (!rect || rect.width <= 1 || rect.height <= 1) return;
-      const ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale;
-      st.tx = clientX - (rect.left - st.tx) - ix * newScale;
-      st.ty = clientY - (rect.top - st.ty) - iy * newScale;
-      st.scale = newScale;
-      update(v);
+      const r = v.getBoundingClientRect();
+      if (!r || r.width <= 1) return;
+      const ix = (cx - r.left) / st.scale, iy = (cy - r.top) / st.scale;
+      st.tx = cx - (r.left - st.tx) - ix * newScale;
+      st.ty = cy - (r.top - st.ty) - iy * newScale;
+      st.scale = newScale; update(v);
     };
 
-    function clearZoomStyles(v, st) {
-      try { v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = ''; v.style.zIndex = st?.origZIndex || ''; v.style.position = st?.origPosition || ''; v.style.transition = ''; } catch (_) {}
-      if (st) { st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st._cachedPosition = null; st._lastTransition = null; }
-    }
-
-    const resetZoom = (v) => { if (!v) return; const st = getSt(v); zoomedVideos.delete(v); clearZoomStyles(v, st); };
+    const resetZoom = (v) => { if (!v) return; const st = getSt(v); st.scale = 1; update(v); };
     const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
     const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
 
     let unsubAct = null, unsubZoomEn = null;
-
     if (Store?.sub) {
-      unsubAct = Store.sub(P.APP_ACT, (act) => {
-        if (!act) { for (const v of [...zoomedVideos]) resetZoom(v); isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null; }
-      });
-      unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => {
-        if (en) { if (CONFIG.IS_MOBILE) attachTouchListeners(); }
-        else { for (const v of [...zoomedVideos]) resetZoom(v); zoomedVideos.clear(); isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null; }
-      });
+      unsubAct = Store.sub(P.APP_ACT, (act) => { if (!act) { for (const v of [...zoomedVideos]) resetZoom(v); isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null; } });
+      unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => { if (!en) { for (const v of [...zoomedVideos]) resetZoom(v); zoomedVideos.clear(); isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null; } });
     }
 
     function getTargetVideo(e) {
@@ -2842,8 +2701,7 @@ function VSC_MAIN() {
     }
 
     on(window, 'wheel', e => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (!(e.altKey && e.shiftKey)) return;
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !(e.altKey && e.shiftKey)) return;
       const v = getTargetVideo(e); if (!v) return;
       if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
       const delta = e.deltaY > 0 ? 0.9 : 1.1; const st = getSt(v);
@@ -2852,54 +2710,45 @@ function VSC_MAIN() {
     }, { passive: false, capture: true, signal: zsig });
 
     on(window, 'pointerdown', e => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (e.pointerType === 'touch') return;
-      if (!e.altKey) return;
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || e.pointerType === 'touch' || !e.altKey) return;
       const v = getTargetVideo(e); if (!v) return;
       const st = getSt(v); if (st.scale <= 1) return;
-      const pt = getLatestPointerPoint(e);
       if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
       activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false;
-      startX = pt.x - st.tx; startY = pt.y - st.ty;
+      startX = e.clientX - st.tx; startY = e.clientY - st.ty;
       try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
       update(v);
     }, { capture: true, passive: false, signal: zsig });
 
     on(window, 'pointermove', e => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (!isPanning || !activeVideo) return;
-      if (e.pointerId !== activePointerId) return;
-      const pt = getLatestPointerPoint(e); const st = getSt(activeVideo);
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !isPanning || !activeVideo || e.pointerId !== activePointerId) return;
+      const st = getSt(activeVideo);
       if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-      const nextTx = pt.x - startX, nextTy = pt.y - startY;
+      const nextTx = e.clientX - startX, nextTy = e.clientY - startY;
       if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
       st.tx = nextTx; st.ty = nextTy;
-      clampPan(activeVideo, st, performance.now()); update(activeVideo);
+      clampPan(activeVideo, st); update(activeVideo);
     }, { capture: true, passive: false, signal: zsig });
 
     function endPointerPan(e) {
-      if (e.pointerType === 'touch') return;
-      if (!isPanning || !activeVideo) return;
-      if (e.pointerId !== activePointerId) return;
+      if (e.pointerType === 'touch' || !isPanning || !activeVideo || e.pointerId !== activePointerId) return;
       const v = activeVideo; const st = getSt(v);
       try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
       if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
       activePointerId = null; isPanning = false; activeVideo = null; update(v);
     }
-
     on(window, 'pointerup', endPointerPan, { capture: true, passive: false, signal: zsig });
     on(window, 'pointercancel', endPointerPan, { capture: true, passive: false, signal: zsig });
 
     on(window, 'dblclick', e => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (!e.altKey) return;
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !e.altKey) return;
       const v = getTargetVideo(e); if (!v) return;
       e.preventDefault(); e.stopPropagation();
       const st = getSt(v);
       if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
     }, { capture: true, signal: zsig });
 
-    const touchstartHandler = (e) => {
+    on(window, 'touchstart', e => {
       if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
       const v = getTargetVideo(e); if (!v) return;
       const st = getSt(v);
@@ -2907,63 +2756,40 @@ function VSC_MAIN() {
         if (e.cancelable) e.preventDefault();
         activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale;
         const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y;
-      } else if (e.touches.length === 1 && st.scale > 1) {
-        activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
       }
-    };
+    }, { passive: false, capture: true, signal: zsig });
 
-    const touchmoveHandler = (e) => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (!activeVideo) return;
+    on(window, 'touchmove', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !activeVideo) return;
       const st = getSt(activeVideo);
       if (pinchState.active && e.touches.length === 2) {
         if (e.cancelable) e.preventDefault();
         const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches);
         let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10);
-        if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; isPanning = false; activeVideo = null; }
+        if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; activeVideo = null; }
         else {
           zoomTo(activeVideo, newScale, center.x, center.y);
           st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy;
-          clampPan(activeVideo, st, performance.now()); update(activeVideo);
+          clampPan(activeVideo, st); update(activeVideo);
         }
         pinchState.lastCx = center.x; pinchState.lastCy = center.y;
-      } else if (isPanning && e.touches.length === 1) {
-        if (e.cancelable) e.preventDefault();
-        const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty;
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true;
-        st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY;
-        clampPan(activeVideo, st, performance.now()); update(activeVideo);
       }
-    };
+    }, { passive: false, capture: true, signal: zsig });
 
-    const touchendHandler = (e) => {
-      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN)) return;
-      if (!activeVideo) return;
+    on(window, 'touchend', e => {
+      if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !activeVideo) return;
       if (e.touches.length < 2) pinchState.active = false;
-      if (e.touches.length === 0) {
-        if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) e.preventDefault();
-        isPanning = false; update(activeVideo); activeVideo = null;
-      }
-    };
-
-    const attachTouchListeners = () => {
-      if (touchListenersAttached) return; touchListenersAttached = true;
-      on(window, 'touchstart', touchstartHandler, { passive: false, capture: true, signal: zsig });
-      on(window, 'touchmove', touchmoveHandler, { passive: false, capture: true, signal: zsig });
-      on(window, 'touchend', touchendHandler, { passive: false, capture: true, signal: zsig });
-    };
-
-    if (CONFIG.IS_MOBILE) { if (Store?.get(P.APP_ZOOM_EN)) attachTouchListeners(); }
-    else { attachTouchListeners(); }
+      if (e.touches.length === 0) { update(activeVideo); activeVideo = null; }
+    }, { passive: false, capture: true, signal: zsig });
 
     return {
-      resetZoom, zoomTo, isZoomed, setEnabled: (en) => { if (en) attachTouchListeners(); },
+      resetZoom, zoomTo, isZoomed, setEnabled: () => {},
       pruneDisconnected: () => { for (const v of [...zoomedVideos]) { if (!v?.isConnected) resetZoom(v); } },
       destroy: () => {
         try { unsubAct?.(); } catch(_) {} try { unsubZoomEn?.(); } catch(_) {}
-        zoomAC.abort(); touchListenersAttached = false;
+        zoomAC.abort();
         if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-        for (const v of [...zoomedVideos]) { clearZoomStyles(v, getSt(v)); }
+        for (const v of [...zoomedVideos]) { const st = getSt(v); v.style.cssText = st.origStyle; st.scale = 1; st.zoomed = false; }
         zoomedVideos.clear(); isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null;
       }
     };
@@ -3122,7 +2948,12 @@ function VSC_MAIN() {
         };
 
         const brStep = vfUser.brightStepLevel || 0;
-        if (brStep > 0) { videoOut.bright += brStep * 3.5; videoOut.gamma *= (1.0 + brStep * 0.025); }
+        if (brStep > 0) {
+          const brightMap = [0, 3.0, 7.0, 12.0];
+          const gammaMap  = [0, 0.02, 0.045, 0.07];
+          videoOut.bright += brightMap[brStep];
+          videoOut.gamma *= (1.0 + gammaMap[brStep]);
+        }
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0;
         let shadowOut = { level: 0, active: false };
@@ -3473,3 +3304,4 @@ function VSC_MAIN() {
 }
 VSC_MAIN();
 })();
+// --- PART 3 END ---
