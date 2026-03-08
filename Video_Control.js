@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.48 - Performance & Stability Overhaul)
+// @name         Video_Control (v178.9.49 - Extreme Pipeline Optimization)
 // @namespace    https://github.com/
-// @version      178.9.48
+// @version      178.9.49
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.48';
+  const SCRIPT_VERSION = '178.9.49';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -140,7 +140,6 @@ function VSC_MAIN() {
   const OPT_P = { passive: true };
   const OPT_PC = { passive: true, capture: true };
 
-  // [최적화 1-3] AbortSignal.any 직접 사용 (폴리필 제거)
   const combineSignals = (...signals) => AbortSignal.any(signals);
 
   function on(target, type, fn, opts = {}) {
@@ -332,7 +331,6 @@ function VSC_MAIN() {
 
   const videoStateMap = new WeakMap();
 
-  // [최적화 1-1] 불필요한 필드 삭제로 메모리 절약
   const getVState = (v) => {
     let st = videoStateMap.get(v);
     if (!st) {
@@ -352,10 +350,10 @@ function VSC_MAIN() {
 
   const PRESETS = Object.freeze({
     detail: {
-      off:    { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  sat: 1.0 },
-      Soft:   { sharpAdd: 15, sharp2Add: 20, clarityAdd: 2,  sat: 0.99 },
-      Medium: { sharpAdd: 35, sharp2Add: 45, clarityAdd: 4,  sat: 0.98 },
-      Ultra:  { sharpAdd: 55, sharp2Add: 65, clarityAdd: 6,  sat: 0.97 }
+      off:    { sharpAdd: 0,  sharp2Add: 0,  sat: 1.0 },
+      Soft:   { sharpAdd: 15, sharp2Add: 20, sat: 0.99 },
+      Medium: { sharpAdd: 35, sharp2Add: 45, sat: 0.98 },
+      Ultra:  { sharpAdd: 55, sharp2Add: 65, sat: 0.97 }
     },
     grade: {
       brOFF: { gammaF: 1.00, brightAdd: 0 },
@@ -392,7 +390,6 @@ function VSC_MAIN() {
   const TOUCHED = { videos: new Set(), rateVideos: new Set() };
   const TOUCHED_MAX = 300;
 
-  // [최적화 1-2] 단일 패스 O(1) oldest 처리로 이중 루프 낭비 제거
   function touchedAdd(set, el) {
     if (!el) return;
     if (set.has(el)) { set.delete(el); set.add(el); return; }
@@ -409,7 +406,6 @@ function VSC_MAIN() {
     set.add(el);
   }
 
-  // [최적화 3-4] _rectRev 보장으로 인한 불필요한 시간 분기(maxAgeMs) 제거
   function getRectCached(v, now) {
     const st = getVState(v);
     if (st.rect && st._rectRev === __vscLayoutRev) return st.rect;
@@ -1175,7 +1171,6 @@ function VSC_MAIN() {
 
       const evalScore = (v) => {
         if (!v || v.readyState < 2) return;
-        // [최적화 3-4] getRectCached 이중 조건 분기 단순화 적용
         const r = getRectCached(v, now);
         const area = (r?.width || 0) * (r?.height || 0);
         const pip = isPiPActiveVideo(v);
@@ -1288,7 +1283,6 @@ function VSC_MAIN() {
       if (ro) safe(() => ro.observe(el)); lazyScanAncestorShadowRoots(el);
     };
 
-    // [최적화 2-1] WorkQ scheduler 3단 폴백 단순화 (postTask 제거, Idle/rAF 통일)
     const WorkQ = (() => {
       let active = [], pending = [], scheduled = false;
       let activeSet = new Set(), pendingSet = new Set();
@@ -1423,7 +1417,6 @@ function VSC_MAIN() {
       while (node && depth++ < 30) { const root = node.getRootNode?.(); if (root && root !== document && root.host) { connectObserver(root); node = root.host; } else { break; } }
     }
 
-    // [최적화 3-3] 부분 재연결로 MutationObserver 오버헤드 감소
     const refreshObservers = () => {
       disconnectBaseObserver();
       for (const [sr, mo] of [...shadowObserverMap]) {
@@ -1512,13 +1505,6 @@ function VSC_MAIN() {
     };
   }
 
-  let _softClipCurve = null;
-  function getSoftClipCurve() {
-    if (_softClipCurve) return _softClipCurve;
-    const n = 1024, knee = 0.88, drive = 3.5, tanhD = Math.tanh(drive); const curve = new Float32Array(n);
-    for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1, ax = Math.abs(x); curve[i] = ax <= knee ? x : Math.sign(x) * (knee + (1 - knee) * Math.tanh(drive * (ax - knee) / Math.max(1e-6, 1 - knee)) / tanhD); }
-    _softClipCurve = curve; return curve;
-  }
   function chain(...nodes) { for (let i = 0; i < nodes.length - 1; i++) nodes[i].connect(nodes[i + 1]); }
   const globalSrcMap = new WeakMap();
 
@@ -1569,50 +1555,19 @@ function VSC_MAIN() {
     outL.connect(merger, 0, 0); outR.connect(merger, 0, 1);
     merger.connect(output);
 
-    // [최적화 2-4] 과도한 fftSize 축소 (256 -> 64)
-    const monoDetector = actx.createAnalyser();
-    monoDetector.fftSize = 64;
-    monoDetector.smoothingTimeConstant = 0.85;
-    sideAmp.connect(monoDetector);
-    const _monoBuffer = new Float32Array(monoDetector.fftSize);
-
-    let _enabled = false, _width = 1.25, _effectiveWidth = 1.0, _monoSmooth = 0;
-
-    // [최적화 2-4] stride 기반 샘플링으로 CPU 루프 연산 1/8로 감축
-    function isMono() {
-      try {
-        monoDetector.getFloatTimeDomainData(_monoBuffer);
-        let sumSq = 0;
-        for (let i = 0; i < _monoBuffer.length; i += 8) sumSq += _monoBuffer[i] * _monoBuffer[i];
-        return (sumSq / 8) < 1e-8;
-      } catch (_) { return false; }
-    }
-
-    function setWidth(w) {
-      _width = Math.max(0.85, Math.min(1.9, w));
-      if (_enabled) { try { sideAmp.gain.setTargetAtTime(_width, actx.currentTime, 0.06); } catch (_) { sideAmp.gain.value = _width; } }
-    }
+    let _enabled = false;
 
     function setEnabled(en) {
-      _enabled = en; const t = actx.currentTime; const target = en ? _width : 1.0;
+      _enabled = en; const t = actx.currentTime; const target = en ? 1.22 : 1.0;
       try { sideAmp.gain.setTargetAtTime(target, t, 0.06); } catch (_) { sideAmp.gain.value = target; }
-      if (en && Math.abs(_width - 1.22) > 0.01) setWidth(1.22);
     }
 
-    function update() {
-      if (!_enabled) return;
-      const mono = isMono(); const monoTarget = mono ? 1.0 : 0.0;
-      _monoSmooth += (monoTarget - _monoSmooth) * 0.08;
-      _effectiveWidth = _width * (1.0 - _monoSmooth * 0.9) + 1.0 * (_monoSmooth * 0.9);
-      try { sideAmp.gain.setTargetAtTime(_effectiveWidth, actx.currentTime, 0.10); } catch (_) { sideAmp.gain.value = _effectiveWidth; }
-    }
-
-    return { input, output, sideAmp, setEnabled, setWidth, update, isMono, getWidth: () => _width, isEnabled: () => _enabled };
+    return { input, output, sideAmp, setEnabled, update: () => {}, isEnabled: () => _enabled };
   }
 
   function createAudio(sm) {
-    let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, hpf, currentNodes = null;
-    let makeupDbEma = 0, switchTimer = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
+    let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, currentNodes = null;
+    let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
 
     let _activePauseAC = null;
     let _visResumeHooked = false;
@@ -1634,22 +1589,12 @@ function VSC_MAIN() {
     const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') await ctx.resume(); if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
     const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; on(window, 'pointerdown', onGesture, OPT_PC); on(window, 'keydown', onGesture, OPT_PC); };
 
-    function createDynamicCinemaEQ(actx) {
-      const bands = { sub: mkBQ(actx, 'lowshelf', 80, 0.8, 0), impact: mkBQ(actx, 'peaking', 55, 1.2, 0), cut: mkBQ(actx, 'peaking', 300, 0.8, 0), voice: mkBQ(actx, 'peaking', 3200, 1.2, 0), air: mkBQ(actx, 'highshelf', 10000, 0.7, 0) };
-      const input = actx.createGain(), output = actx.createGain(); chain(input, bands.sub, bands.impact, bands.cut, bands.voice, bands.air, output);
-      const BASE_CINEMA = { sub: 3.0, impact: 2.0, cut: -2.0, voice: 2.0, air: -0.5 };
-      const PROFILES = Object.freeze({ cinema: BASE_CINEMA, cinemaWithMultiband: Object.freeze({ sub: 1.5, impact: 1.0, cut: -2.0, voice: 1.5, air: -0.25 }), neutral: Object.freeze({ sub: 0, impact: 0, cut: 0, voice: 0, air: 0 }) });
-      let activeProfile = 'cinema', staticDialogueOffset = { sub: 0, impact: 0, cut: 0, voice: 0, air: 0 };
-      const applyGains = () => { const profile = PROFILES[activeProfile] || PROFILES.neutral, t = actx.currentTime; for (const name of Object.keys(bands)) { const gain = VSC_CLAMP((profile[name] || 0) + (staticDialogueOffset[name] || 0), -12, 12); stt(bands[name].gain, gain, t, 0.08); } };
-      return { input, output, bands, setProfile: (name) => { activeProfile = name; applyGains(); }, setDialogueOffset: (offset) => { if (staticDialogueOffset.voice === offset.voice) return; staticDialogueOffset = offset; applyGains(); }, setProfileAndDialogue: (profileName, dialogueOffset) => { let changed = activeProfile !== profileName; if (changed) activeProfile = profileName; if (staticDialogueOffset.sub !== dialogueOffset.sub || staticDialogueOffset.impact !== dialogueOffset.impact || staticDialogueOffset.cut !== dialogueOffset.cut || staticDialogueOffset.voice !== dialogueOffset.voice || staticDialogueOffset.air !== dialogueOffset.air) { staticDialogueOffset = dialogueOffset; changed = true; } if (changed) applyGains(); } };
-    }
-
     function buildMultibandDynamics(actx) {
       const CROSSOVER_LOW = 200, CROSSOVER_HIGH = 3200;
       const createLR4 = (freq, type) => { const f1 = mkBQ(actx, type, freq, Math.SQRT1_2); const f2 = mkBQ(actx, type, freq, Math.SQRT1_2); f1.connect(f2); return { input: f1, output: f2 }; };
       const input = actx.createGain(), lpLow = createLR4(CROSSOVER_LOW, 'lowpass'), hpLow = createLR4(CROSSOVER_LOW, 'highpass'), lpMid = createLR4(CROSSOVER_HIGH, 'lowpass'), hpHigh = createLR4(CROSSOVER_HIGH, 'highpass');
       input.connect(lpLow.input); input.connect(hpLow.input); hpLow.output.connect(lpMid.input); hpLow.output.connect(hpHigh.input);
-      const MAKEUP_LOW  = Math.pow(10, 0.3 / 20), MAKEUP_MID  = Math.pow(10, 0.7 / 20), MAKEUP_HIGH = Math.pow(10, 0.3 / 20);
+      const MAKEUP_LOW  = Math.pow(10, 3.0 / 20), MAKEUP_MID  = Math.pow(10, 1.0 / 20), MAKEUP_HIGH = Math.pow(10, 0.5 / 20);
       const compLow  = mkComp(actx, -22, 10, 2.5, 0.030, 0.50), compMid  = mkComp(actx, -18, 10, 2.0, 0.015, 0.18), compHigh = mkComp(actx, -14,  8, 1.8, 0.005, 0.10);
       const gainLow = actx.createGain(); gainLow.gain.value = MAKEUP_LOW;
       const gainMid = actx.createGain(); gainMid.gain.value = MAKEUP_MID;
@@ -1659,59 +1604,33 @@ function VSC_MAIN() {
       return { input, output, bands: { low: { comp: compLow, gain: gainLow }, mid: { comp: compMid, gain: gainMid }, high: { comp: compHigh, gain: gainHigh } } };
     }
 
-    // [최적화 2-3] Ring buffer 재계산 제거를 위한 incremental update 로직 적용
-    function createLUFSMeter(actx) {
-      const preFilter = mkBQ(actx, 'highshelf', 1681, 0.7071, 4.0), hpf = mkBQ(actx, 'highpass', 38, 0.5), meterAnalyser = actx.createAnalyser();
-      meterAnalyser.fftSize = 2048; meterAnalyser.smoothingTimeConstant = 0;
-      chain(preFilter, hpf, meterAnalyser);
-      const buffer = new Float32Array(meterAnalyser.fftSize);
-      const M_N = 20, S_N = 150; const mMean = new Float32Array(M_N), mDt = new Float32Array(M_N); const sMean = new Float32Array(S_N), sDt = new Float32Array(S_N);
-      const state = { mIdx: 0, mFill: 0, mSumW: 0, mSumDt: 0, sIdx: 0, sFill: 0, sSumW: 0, sSumDt: 0, integratedSum: 0, integratedCount: 0, momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70, _pushCount: 0 };
-
-      function pushRing(meanSq, dt) {
-        let idx = state.mIdx;
-        state.mSumW -= mMean[idx] * mDt[idx];
-        state.mSumDt -= mDt[idx];
-        mMean[idx] = meanSq; mDt[idx] = dt;
-        state.mSumW += meanSq * dt;
-        state.mSumDt += dt;
-        state.mIdx = (idx + 1) % M_N;
-        state.mFill = Math.min(M_N, state.mFill + 1);
-
-        idx = state.sIdx;
-        state.sSumW -= sMean[idx] * sDt[idx];
-        state.sSumDt -= sDt[idx];
-        sMean[idx] = meanSq; sDt[idx] = dt;
-        state.sSumW += meanSq * dt;
-        state.sSumDt += dt;
-        state.sIdx = (idx + 1) % S_N;
-        state.sFill = Math.min(S_N, state.sFill + 1);
-      }
-
-      function measure() {
-        const dt = meterAnalyser.fftSize / (actx.sampleRate || 48000); meterAnalyser.getFloatTimeDomainData(buffer);
-        let sumSq = 0; for (let i = 0; i < buffer.length; i++) sumSq += buffer[i] * buffer[i]; const meanSq = sumSq / buffer.length;
-        pushRing(meanSq, dt);
-        const mMeanSq = state.mSumDt > 0 ? state.mSumW / state.mSumDt : 0; const sMeanSq = state.sSumDt > 0 ? state.sSumW / state.sSumDt : 0;
-        state.momentaryLUFS = mMeanSq > 1e-10 ? -0.691 + 10 * Math.log10(mMeanSq) : -70; state.shortTermLUFS = sMeanSq > 1e-10 ? -0.691 + 10 * Math.log10(sMeanSq) : -70;
-        if (state.momentaryLUFS > -70 && state.momentaryLUFS > state.integratedLUFS - 10) { state.integratedSum += meanSq; state.integratedCount++; const intMean = state.integratedSum / state.integratedCount; state.integratedLUFS = intMean > 1e-10 ? -0.691 + 10 * Math.log10(intMean) : -70; }
-      }
-
+    function createSimpleRMSMeter(actx) {
+      const analyser = actx.createAnalyser();
+      analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.8;
+      const buf = new Float32Array(analyser.fftSize);
+      let lastRmsDb = -70;
       return {
-        input: preFilter, measure,
-        reset: () => { mMean.fill(0); mDt.fill(0); sMean.fill(0); sDt.fill(0); Object.assign(state, { mIdx:0, mFill:0, mSumW:0, mSumDt:0, sIdx:0, sFill:0, sSumW:0, sSumDt:0, integratedSum:0, integratedCount:0, momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70, _pushCount:0 }); },
-        getState: (out) => { if (!out) return { momentaryLUFS: state.momentaryLUFS, shortTermLUFS: state.shortTermLUFS, integratedLUFS: state.integratedLUFS }; out.momentaryLUFS = state.momentaryLUFS; out.shortTermLUFS = state.shortTermLUFS; out.integratedLUFS = state.integratedLUFS; return out; }
+        input: analyser,
+        measure: () => {
+          analyser.getFloatTimeDomainData(buf);
+          let sum = 0;
+          for (let i = 0; i < buf.length; i += 4) sum += buf[i] * buf[i];
+          const rms = Math.sqrt(sum / (buf.length / 4));
+          lastRmsDb = rms > 1e-5 ? 20 * Math.log10(rms) : -70;
+        },
+        reset: () => { lastRmsDb = -70; },
+        getState: (out) => { out.shortTermLUFS = lastRmsDb; out.momentaryLUFS = lastRmsDb; out.integratedLUFS = lastRmsDb; return out; }
       };
     }
 
-    function createLoudnessNormalizer(actx, lufsMeter) {
+    function createLoudnessNormalizer(actx, rmsMeter) {
       const TARGET_LUFS = -14, MAX_GAIN_DB = 6, MIN_GAIN_DB = -6, SMOOTHING = 0.05, SETTLE_FRAMES = 30;
       const ATTACK_TC = 0.8, RELEASE_TC = 2.5;
       const gainNode = actx.createGain(); gainNode.gain.value = 1.0; let frameCount = 0, currentGainDb = 0;
       let _lastUpdateTime = 0;
       const _tmp = { momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70 };
       function update() {
-        const lufs = lufsMeter.getState(_tmp); frameCount++; if (frameCount < SETTLE_FRAMES) return;
+        const lufs = rmsMeter.getState(_tmp); frameCount++; if (frameCount < SETTLE_FRAMES) return;
         const measured = lufs.shortTermLUFS; if (measured <= -60) return;
         const targetGainDb = VSC_CLAMP(TARGET_LUFS - measured, MIN_GAIN_DB, MAX_GAIN_DB);
         const now = actx.currentTime;
@@ -1722,29 +1641,23 @@ function VSC_MAIN() {
         currentGainDb += (targetGainDb - currentGainDb) * alpha;
         const linearGain = Math.pow(10, currentGainDb / 20); stt(gainNode.gain, linearGain, now, SMOOTHING);
       }
-      return { node: gainNode, update, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; _lastUpdateTime = 0; lufsMeter.reset(); } };
-    }
-
-    function createDialogueBoostProfile() {
-      const PROFILES = Object.freeze({ off: { sub: 0, impact: 0, cut: 0, voice: 0, air: 0 }, dialogueBoost: { sub: -1.5, impact: -0.5, cut: -2.0, voice: 1.5, air: 0.5 } });
-      return { getProfile(enabled) { return enabled ? PROFILES.dialogueBoost : PROFILES.off; } };
+      return { node: gainNode, update, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; _lastUpdateTime = 0; rmsMeter.reset(); } };
     }
 
     function buildAudioGraph(audioCtx) {
-      const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), hpf: mkBQ(audioCtx, 'highpass', 35, 0.707), limiter: mkComp(audioCtx, -1.0, 0.0, 20.0, 0.001, 0.08), clipper: audioCtx.createWaveShaper() };
-      n.clipper.curve = getSoftClipCurve(); try { n.clipper.oversample = '2x'; } catch (_) {}
-      const dynamicEQ = createDynamicCinemaEQ(audioCtx), multiband = buildMultibandDynamics(audioCtx);
+      const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), limiter: mkComp(audioCtx, -1.0, 0.0, 20.0, 0.001, 0.08) };
+      const multiband = buildMultibandDynamics(audioCtx);
       const stereoWidener = createStereoWidener(audioCtx);
-      const lufsMeter = createLUFSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, lufsMeter);
-      n._dialogueProfile = createDialogueBoostProfile(); n.wetInGain = loudnessNorm.node;
+      const rmsMeter = createSimpleRMSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, rmsMeter);
+      n.wetInGain = loudnessNorm.node;
       n.inputGain.connect(n.dryGain); n.dryGain.connect(n.masterOut);
-      chain(n.inputGain, n.hpf, dynamicEQ.input); chain(dynamicEQ.output, multiband.input);
-      multiband.output.connect(lufsMeter.input);
+      chain(n.inputGain, multiband.input);
+      multiband.output.connect(rmsMeter.input);
       chain(multiband.output, stereoWidener.input);
       chain(stereoWidener.output, n.wetInGain);
-      chain(n.wetInGain, n.clipper, n.limiter); chain(n.limiter, n.wetGain, n.masterOut);
+      chain(n.wetInGain, n.limiter, n.wetGain, n.masterOut);
       n.masterOut.connect(audioCtx.destination);
-      n._dynamicEQ = dynamicEQ; n._multiband = multiband; n._stereoWidener = stereoWidener; n._lufsMeter = lufsMeter; n._loudnessNorm = loudnessNorm; return n;
+      n._multiband = multiband; n._stereoWidener = stereoWidener; n._lufsMeter = rmsMeter; n._loudnessNorm = loudnessNorm; return n;
     }
 
     const ensureCtx = () => {
@@ -1777,7 +1690,7 @@ function VSC_MAIN() {
       const nodes = buildAudioGraph(ctx);
       inputGain = nodes.inputGain; dryGain = nodes.dryGain; wetGain = nodes.wetGain;
       masterOut = nodes.masterOut; wetInGain = nodes.wetInGain; limiter = nodes.limiter;
-      hpf = nodes.hpf; currentNodes = nodes;
+      currentNodes = nodes;
       return true;
     };
 
@@ -1804,18 +1717,11 @@ function VSC_MAIN() {
         const mbActive = !!sm.get(P.A_MULTIBAND);
         const needMeter = !!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE);
         if (needMeter && currentNodes._lufsMeter && actuallyEnabled && ctx.state === 'running') {
-          try { currentNodes._lufsMeter.measure(); } catch (e) { log.debug('LUFS measure failed', e); }
+          try { currentNodes._lufsMeter.measure(); } catch (e) { log.debug('RMS measure failed', e); }
         }
 
         const lufsSt = currentNodes._lufsMeter.getState(_lufsTmp);
         const db = lufsSt.momentaryLUFS > -70 ? lufsSt.momentaryLUFS : -100;
-
-        if (currentNodes._dynamicEQ && currentNodes._multiband) {
-          const dialogueOn = !!sm.get(P.A_DIALOGUE); const profile = currentNodes._dialogueProfile.getProfile(dialogueOn); const t = ctx.currentTime;
-          currentNodes._dynamicEQ.setProfileAndDialogue(mbActive ? 'cinemaWithMultiband' : 'cinema', profile);
-          const mb = currentNodes._multiband.bands;
-          if (dialogueOn) { stt(mb.mid.gain.gain, 1.15, t, 0.08); stt(mb.low.gain.gain, 0.92, t, 0.08); stt(mb.high.gain.gain, 1.05, t, 0.08); } else { stt(mb.low.gain.gain, 1.0, t, 0.15); stt(mb.mid.gain.gain, 1.0, t, 0.15); stt(mb.high.gain.gain, 1.0, t, 0.15); }
-        } else if (currentNodes._dynamicEQ) { currentNodes._dynamicEQ.setProfile(mbActive ? 'cinemaWithMultiband' : 'cinema'); }
 
         if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS) && actuallyEnabled) { currentNodes._loudnessNorm.update(); }
 
@@ -1887,10 +1793,13 @@ function VSC_MAIN() {
       stt(dryGain.gain, dryTarget, ctx.currentTime, 0.005); stt(wetGain.gain, wetTarget, ctx.currentTime, 0.005);
       if (currentNodes) {
         const mbEnabled = dynAct && !!sm.get(P.A_MULTIBAND);
+        const dialogueOn = dynAct && !!sm.get(P.A_DIALOGUE);
         if (currentNodes._multiband) {
           const mb = currentNodes._multiband.bands, t = ctx.currentTime;
           if (mbEnabled) {
             stt(mb.low.comp.ratio, 2.5, t, 0.02); stt(mb.mid.comp.ratio, 2.2, t, 0.02); stt(mb.high.comp.ratio, 1.8, t, 0.02);
+            if (dialogueOn) { stt(mb.mid.gain.gain, 1.30, t, 0.08); stt(mb.low.gain.gain, 1.25, t, 0.08); stt(mb.high.gain.gain, 1.12, t, 0.08); }
+            else { stt(mb.low.gain.gain, 1.41, t, 0.15); stt(mb.mid.gain.gain, 1.12, t, 0.15); stt(mb.high.gain.gain, 1.06, t, 0.15); }
           } else {
             stt(mb.low.comp.ratio, 1.0, t, 0.05); stt(mb.mid.comp.ratio, 1.0, t, 0.05); stt(mb.high.comp.ratio, 1.0, t, 0.05);
             stt(mb.low.gain.gain, 1.0, t, 0.05); stt(mb.mid.gain.gain, 1.0, t, 0.05); stt(mb.high.gain.gain, 1.0, t, 0.05);
@@ -1918,12 +1827,11 @@ function VSC_MAIN() {
 
       safe(() => { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } });
       try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
-      ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; hpf = null; makeupDbEma = 0; switchTok++;
+      ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; makeupDbEma = 0; switchTok++;
     }
 
     return {
       warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
-
       setTarget: (v) => {
         ++switchTok;
         if (v == null) {
@@ -2005,7 +1913,6 @@ function VSC_MAIN() {
     const { h, clamp } = Utils;
     const clamp01 = (x) => (x < 0 ? 0 : (x > 1 ? 1 : x));
 
-    // [최적화 2-2] 단순 Map과 max size만 유지하는 cacheSet 구현
     function cacheSet(map, key, val, max = 24) {
       if (map.size >= max && !map.has(key)) map.delete(map.keys().next().value);
       map.set(key, val);
@@ -2014,12 +1921,9 @@ function VSC_MAIN() {
     const urlCache      = new WeakMap();
     const ctxMap        = new WeakMap();
     const toneCache     = new Map();
-    const haloCache     = new Map();
-    const edgeMaskCache = new Map();
     const _attrCache    = new WeakMap();
     const __vscBgMemo   = new WeakMap();
 
-    // [최적화 3-1] Number 변환 과정을 없애고 String으로 통일
     function setAttr(node, attr, val) {
       if (!node) return;
       let c = _attrCache.get(node);
@@ -2051,65 +1955,15 @@ function VSC_MAIN() {
       if (prev !== null) video.style.backgroundColor = prev;
     }
 
-    const HALO_TABLE_SIZE = 64;
-    function buildHaloTable(strength) {
-      if (strength < 0.005) return '0 1';
-      const qStrength = Math.round(strength * 100) / 100;
-      const cacheKey = `hv3|${qStrength}`;
-      const cached = haloCache.get(cacheKey);
-      if (cached) return cached;
-
-      const arr = new Array(HALO_TABLE_SIZE);
-      const knee = Math.max(0.005, qStrength * 0.05);
-
-      for (let i = 0; i < HALO_TABLE_SIZE; i++) {
-        const x = i / (HALO_TABLE_SIZE - 1);
-        let y = x;
-        if (x < knee) { const t = x / knee; y = knee * t * t; }
-        else if (x > 1 - knee) { const t = (1 - x) / knee; y = 1 - knee * t * t; }
-        arr[i] = Math.round(VSC_CLAMP(y, 0, 1) * 10000) / 10000;
-      }
-
-      const result = arr.join(' ');
-      cacheSet(haloCache, cacheKey, result, 8);
-      return result;
-    }
-
-    const EDGE_MASK_SIZE = 64;
-    function buildEdgeMaskTable(sensitivity, threshold) {
-      if (sensitivity < 0.01) return '1 1';
-      const qSens = Math.round(sensitivity * 100) / 100;
-      const qThr  = Math.round(threshold * 1000) / 1000;
-      const cacheKey = `em|${qSens}|${qThr}`;
-      const cached = edgeMaskCache.get(cacheKey);
-      if (cached) return cached;
-
-      const arr = new Array(EDGE_MASK_SIZE);
-      for (let i = 0; i < EDGE_MASK_SIZE; i++) {
-        const x = i / (EDGE_MASK_SIZE - 1);
-        const dist = Math.abs(x - 0.5) * 2;
-        const t = Math.max(0, dist - qThr) / Math.max(1e-6, 1 - qThr);
-        const scaled = Math.min(1, t * qSens);
-        const y = scaled * scaled * (3 - 2 * scaled);
-        arr[i] = Math.round(y * 10000) / 10000;
-      }
-
-      const result = arr.join(' ');
-      cacheSet(edgeMaskCache, cacheKey, result, 8);
-      return result;
-    }
-
     const makeKeyBase = (s) => [
       Math.round(s.gain / 0.04),     Math.round(s.gamma / 0.01),
       Math.round(s.contrast / 0.01), Math.round(s.bright / 0.2),
       Math.round(s.satF / 0.01),     Math.round(s.mid / 0.02),
       Math.round(s.toe / 0.2),       Math.round(s.shoulder / 0.2),
       Math.round(s.temp / 0.2),      Math.round(s.sharp),
-      Math.round(s.sharp2),          Math.round(s.clarity),
-      Math.round((s._sigmaScale || 1) * 100)
+      Math.round(s.sharp2),          Math.round((s._sigmaScale || 1) * 100)
     ].join('|');
 
-    // [최적화 2-5] steps = 64 적용으로 문자열 합산 및 변환 부하 감소
     function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
       const key = `${steps}|${toeN}|${shoulderN}|${midN}|${gain}`;
       const hit = toneCache.get(key);
@@ -2167,7 +2021,6 @@ function VSC_MAIN() {
       const defs = h('defs', { ns: 'svg' });
       svg.append(defs);
 
-      // [최적화 3-2] map 배열 생성 오버헤드 제거
       function mkFuncRGB(attrs) {
         return [
           h('feFuncR', { ns: 'svg', ...attrs }),
@@ -2203,11 +2056,7 @@ function VSC_MAIN() {
       const shadowFilter = h('filter', { ns: 'svg', id: fidShadow, 'color-interpolation-filters': 'sRGB', x: '-1%', y: '-1%', width: '102%', height: '102%' });
       const shadowToneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
       const shadowToneXfer = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 'sh_tone' }, ...shadowToneFuncs);
-      const shadowBcFuncs = mkFuncRGB({ type: 'linear', slope: '1', intercept: '0' });
-      const shadowBcXfer = h('feComponentTransfer', { ns: 'svg', in: 'sh_tone', result: 'sh_bc' }, ...shadowBcFuncs);
-      const shadowGamFuncs = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' });
-      const shadowGamXfer = h('feComponentTransfer', { ns: 'svg', in: 'sh_bc', result: 'sh_gam' }, ...shadowGamFuncs);
-      shadowFilter.append(shadowToneXfer, shadowBcXfer, shadowGamXfer);
+      shadowFilter.append(shadowToneXfer);
 
       const MAT_Y  = '0.2126 0.7152 0.0722 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0';
       const MAT_UV = '0 0 0 0 0  -0.1146 -0.3854 0.5 0 0.5  0.5 -0.4542 -0.0458 0 0.5  0 0 0 1 0';
@@ -2215,31 +2064,16 @@ function VSC_MAIN() {
 
       const sharpFilter = h('filter', { ns: 'svg', id: fidSharp, 'color-interpolation-filters': 'sRGB', x: '-8%', y: '-8%', width: '116%', height: '116%' });
 
-      const sOpaque = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 's_opaque' }, h('feFuncA', { ns: 'svg', type: 'linear', slope: '0', intercept: '1' }));
-      const sLuma = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_Y, result: 's_Y' });
-      const sChroma = h('feColorMatrix', { ns: 'svg', in: 's_opaque', type: 'matrix', values: MAT_UV, result: 's_CbCr' });
+      const sLuma = h('feColorMatrix', { ns: 'svg', in: 'SourceGraphic', type: 'matrix', values: MAT_Y, result: 's_Y' });
+      const sChroma = h('feColorMatrix', { ns: 'svg', in: 'SourceGraphic', type: 'matrix', values: MAT_UV, result: 's_CbCr' });
       const sBlurFine = h('feGaussianBlur', { ns: 'svg', in: 's_Y', stdDeviation: '0.6', edgeMode: 'duplicate', result: 's_bFine' });
-      const sBlurClarity = h('feGaussianBlur', { ns: 'svg', in: 's_Y', stdDeviation: '8', edgeMode: 'duplicate', result: 's_bClarity' });
-      const sDetailBiased = h('feComposite', { ns: 'svg', in: 's_Y', in2: 's_bFine', operator: 'arithmetic', k1: '0', k2: '0.5', k3: '-0.5', k4: '0.5', result: 's_det' });
-      const sEdgeFuncs = mkFuncRGB({ type: 'table', tableValues: '1 1' });
-      const sEdgeMask = h('feComponentTransfer', { ns: 'svg', in: 's_det', result: 's_emask' }, ...sEdgeFuncs);
-      const sModDetail = h('feComposite', { ns: 'svg', in: 's_det', in2: 's_emask', operator: 'arithmetic', k1: '1', k2: '0', k3: '-0.5', k4: '0.5', result: 's_mdet' });
-      const sYFineUSM = h('feComposite', { ns: 'svg', in: 's_Y', in2: 's_mdet', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 's_Yfine_raw' });
-      const sHaloFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' });
-      const sHaloSuppress = h('feComponentTransfer', { ns: 'svg', in: 's_Yfine_raw', result: 's_Yfine' }, ...sHaloFuncs);
-      const sMidDetail = h('feComposite', { ns: 'svg', in: 's_bFine', in2: 's_bClarity', operator: 'arithmetic', k1: '0', k2: '0.5', k3: '-0.5', k4: '0.5', result: 's_mid' });
-      const sClarityAdd = h('feComposite', { ns: 'svg', in: 's_Yfine', in2: 's_mid', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 's_Ysharp' });
+      const sYFineUSM = h('feComposite', { ns: 'svg', in: 's_Y', in2: 's_bFine', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 's_Ysharp' });
       const sRecombine = h('feComposite', { ns: 'svg', in: 's_Ysharp', in2: 's_CbCr', operator: 'arithmetic', k1: '0', k2: '1', k3: '1', k4: '0', result: 's_YUV' });
       const sToRGB = h('feColorMatrix', { ns: 'svg', in: 's_YUV', type: 'matrix', values: MAT_RGB, result: 's_sharp_rgb' });
       const sharpCC = mkColorChain('s', 's_sharp_rgb');
       const sharpTS = mkTempSat('s', 's_g');
-      const sRestoreAlpha = h('feComposite', { ns: 'svg', in: 's_s', in2: 'SourceGraphic', operator: 'in', result: 's_final' });
 
-      sharpFilter.append(
-        sOpaque, sLuma, sChroma, sBlurFine, sBlurClarity, sDetailBiased, sEdgeMask, sModDetail, sYFineUSM, sHaloSuppress, sMidDetail, sClarityAdd, sRecombine, sToRGB,
-        ...sharpCC.nodes, ...sharpTS.nodes, sRestoreAlpha
-      );
-
+      sharpFilter.append(sLuma, sChroma, sBlurFine, sYFineUSM, sRecombine, sToRGB, ...sharpCC.nodes, ...sharpTS.nodes);
       defs.append(liteFilter, shadowFilter, sharpFilter);
 
       const tryAppend = () => {
@@ -2262,62 +2096,30 @@ function VSC_MAIN() {
         sharp: { toneFuncs: sharpCC.toneFuncs, bcLinFuncs: sharpCC.bcFuncs, gamFuncs: sharpCC.gamFuncs, tmp: { r: sharpTS.tempR, g: sharpTS.tempG, b: sharpTS.tempB }, sats: [sharpTS.satNode] }
       };
 
-      const sharpDetail = { blurFine: sBlurFine, blurClarity: sBlurClarity, fineUSM: sYFineUSM, haloFuncs: sHaloFuncs, clarityAdd: sClarityAdd, edgeFuncs: sEdgeFuncs };
-      const shadowNodes = { toneFuncs: shadowToneFuncs, bcFuncs: shadowBcFuncs, gamFuncs: shadowGamFuncs };
-
       return {
-        fidLite, fidSharp, fidShadow, commonByTier, sharpDetail, shadowNodes,
-        st: { lastKey: '', rev: 0, commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, blurKey: '', sharpKey: '', haloKey: '', lcKey: '', emKey: '', shadowKey: '' }
+        fidLite, fidSharp, fidShadow, commonByTier, sharpDetail: { blurFine: sBlurFine, fineUSM: sYFineUSM }, shadowNodes: { toneFuncs: shadowToneFuncs },
+        st: { lastKey: '', rev: 0, commonTier: { lite: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' }, sharp: { toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '' } }, blurKey: '', sharpKey: '', shadowKey: '' }
       };
     }
 
     function applySharpParams(sharpDetail, st, s) {
       const qSharp   = Math.round(Number(s.sharp    || 0));
       const qSharp2  = Math.round(Number(s.sharp2   || 0));
-      const qClarity = Math.round(Number(s.clarity  || 0));
       const sigmaScale = Number(s._sigmaScale) || 1.0;
 
       const aFine   = Math.max(0, qSharp / 35);
-      const sigFine = VSC_CLAMP((0.3 + qSharp2 / 24) * sigmaScale, 0, 3.5);
-      const lcBase     = clamp01(qClarity / 60);
-      const aClarity   = lcBase * 0.28;
-      const sigClarity = VSC_CLAMP((6 + lcBase * 12) * sigmaScale, 0, 22);
-      const haloStrength = VSC_CLAMP(aFine * 0.51, 0, 0.35);
+      const sigFine = VSC_CLAMP((0.3 + qSharp2 / 20) * sigmaScale, 0, 4.0);
 
-      const sensAdj = sigmaScale > 1.2 ? 0.85 : 1.0;
-      const adaptSens      = VSC_CLAMP((2.5 + aFine * 1.8) * sensAdj, 0, 6);
-      const adaptThreshold = VSC_CLAMP(0.06 - aFine * 0.008, 0.02, 0.12);
-
-      const blurKeyNext = `${sigFine.toFixed(3)}|${sigClarity.toFixed(1)}`;
+      const blurKeyNext = `${sigFine.toFixed(3)}`;
       if (st.blurKey !== blurKeyNext) {
         st.blurKey = blurKeyNext;
         if (sharpDetail.blurFine) setAttr(sharpDetail.blurFine, 'stdDeviation', sigFine);
-        if (sharpDetail.blurClarity) setAttr(sharpDetail.blurClarity, 'stdDeviation', sigClarity);
       }
 
       const sharpKeyNext = aFine.toFixed(5);
       if (st.sharpKey !== sharpKeyNext) {
         st.sharpKey = sharpKeyNext;
-        if (sharpDetail.fineUSM) { setAttr(sharpDetail.fineUSM, 'k2', 1); setAttr(sharpDetail.fineUSM, 'k3', parseFloat((2 * aFine).toFixed(5))); setAttr(sharpDetail.fineUSM, 'k4', parseFloat((-aFine).toFixed(5))); }
-      }
-
-      const emKeyNext = `${Math.round(adaptSens * 100)}|${Math.round(adaptThreshold * 1000)}`;
-      if ((st.emKey || '') !== emKeyNext) {
-        st.emKey = emKeyNext; const table = buildEdgeMaskTable(adaptSens, adaptThreshold);
-        if (sharpDetail.edgeFuncs) { for (const fn of sharpDetail.edgeFuncs) setAttr(fn, 'tableValues', table); }
-      }
-
-      const qStrength = Math.round(haloStrength * 100) / 100;
-      const haloKeyNext = `${Math.round(qStrength * 100)}`;
-      if (st.haloKey !== haloKeyNext) {
-        st.haloKey = haloKeyNext; const table = buildHaloTable(qStrength);
-        if (sharpDetail.haloFuncs) { for (const fn of sharpDetail.haloFuncs) setAttr(fn, 'tableValues', table); }
-      }
-
-      const lcKeyNext = `${aClarity.toFixed(5)}|${sigClarity.toFixed(1)}`;
-      if (st.lcKey !== lcKeyNext) {
-        st.lcKey = lcKeyNext;
-        if (sharpDetail.clarityAdd) { setAttr(sharpDetail.clarityAdd, 'k3', parseFloat((aClarity * 2).toFixed(5))); setAttr(sharpDetail.clarityAdd, 'k4', parseFloat((-aClarity).toFixed(5))); }
+        if (sharpDetail.fineUSM) { setAttr(sharpDetail.fineUSM, 'k2', parseFloat((1 + aFine).toFixed(5))); setAttr(sharpDetail.fineUSM, 'k3', parseFloat((-aFine).toFixed(5))); }
       }
     }
 
@@ -2325,11 +2127,15 @@ function VSC_MAIN() {
       const level = shadowParams.level || 0;
       if (level <= 0) return;
 
-      const shadowKey = `crush_v2|${level}`;
+      const shadowKey = `crush_v3|${level}`;
       if (st.shadowKey === shadowKey) return;
       st.shadowKey = shadowKey;
 
-      const CRUSH = [ null, { power: 1.12, pull: 0.002 }, { power: 1.22, pull: 0.006 }, { power: 1.38, pull: 0.015 } ];
+      const CRUSH = [ null,
+        { power: 1.12, pull: 0.002, slope: 1.02, gamma: 1.02, offset: -0.005 },
+        { power: 1.22, pull: 0.006, slope: 1.05, gamma: 1.08, offset: -0.015 },
+        { power: 1.38, pull: 0.015, slope: 1.10, gamma: 1.15, offset: -0.030 }
+      ];
       const p = CRUSH[level];
       const RANGE = 0.50, SIZE = 128;
       const arr = new Array(SIZE);
@@ -2344,20 +2150,15 @@ function VSC_MAIN() {
         const crushed = Math.pow(x, p.power);
         const pulldown = p.pull * (1.0 - x) * (1.0 - x);
         let y = x * (1.0 - blend) + crushed * blend - pulldown;
+        y = Math.pow(Math.max(0, y), 1 / p.gamma);
+        y = y * p.slope + p.offset;
         y = Math.max(0, Math.min(1, y));
         if (y <= prev) y = prev + 1e-6;
         if (y > 1.0) y = 1.0;
         prev = y;
-        arr[i] = String(Math.round(y * 100000) / 100000);
+        arr[i] = String(Math.round(y * 10000) / 10000);
       }
       for (const fn of shadowNodes.toneFuncs) setAttr(fn, 'tableValues', arr.join(' '));
-
-      const slopeByLevel = [1.0, 1.02, 1.05, 1.10];
-      const offsetByLevel = [0, -0.005, -0.015, -0.030];
-      for (const fn of shadowNodes.bcFuncs) { setAttr(fn, 'slope', slopeByLevel[level]); setAttr(fn, 'intercept', offsetByLevel[level]); }
-
-      const gammaExpByLevel = [1.0, 1.02, 1.08, 1.15];
-      for (const fn of shadowNodes.gamFuncs) setAttr(fn, 'exponent', gammaExpByLevel[level]);
     }
 
     function prepare(video, s, shadowParams) {
@@ -2370,8 +2171,7 @@ function VSC_MAIN() {
 
       const qSharp   = Math.round(Number(s.sharp    || 0));
       const qSharp2  = Math.round(Number(s.sharp2   || 0));
-      const qClarity = Math.round(Number(s.clarity  || 0));
-      const sharpTotal = qSharp + qSharp2 + qClarity;
+      const sharpTotal = qSharp + qSharp2;
       const tier = sharpTotal > 0 ? 'sharp' : 'lite';
 
       const shadowActive = !!(shadowParams && shadowParams.active);
@@ -2388,7 +2188,7 @@ function VSC_MAIN() {
         const st     = nodes.st;
         const cst    = st.commonTier[tier];
         const common = nodes.commonByTier[tier];
-        const steps  = 64; // [최적화 2-5] steps = 64 적용 (128 -> 64)
+        const steps  = 64;
 
         const gainQ  = (s.gain || 1) < 1.4 ? 0.06 : 0.08;
         const toeQ   = Math.round(VSC_CLAMP((s.toe || 0) / TOE_DIVISOR, -1, 1) / 0.02) * 0.02;
@@ -2438,7 +2238,7 @@ function VSC_MAIN() {
           const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
           const nodes = ctxMap.get(root);
           if (nodes) {
-            nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.haloKey = ''; nodes.st.lcKey = ''; nodes.st.emKey = ''; nodes.st.shadowKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
+            nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0;
             for (const tierKey of ['lite', 'sharp']) { const cst = nodes.st.commonTier[tierKey]; if (cst) { cst.toneKey = ''; cst.toneTable = ''; cst.bcLinKey = ''; cst.gammaKey = ''; cst.tempKey = ''; cst.satKey = ''; } }
           }
           const dc = urlCache.get(root); if (dc) { dc.key = ''; dc.url = ''; }
@@ -2473,7 +2273,6 @@ function VSC_MAIN() {
 // --- PART 2 END ---
 // --- PART 3 START ---
 
-  // [최적화 1-1] fxBackend 등 불필요한 필드 삭제에 맞춘 Adapter 단순화
   function createBackendAdapter(Filters) {
     return {
       apply(video, vVals, shadowParams) {
@@ -2764,7 +2563,7 @@ function VSC_MAIN() {
       const pwrBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '⚡ Power');
       bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; el.classList.toggle('active', !!v); }, sm, sub);
 
-      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.5; font-weight: 800;' }, '🔊 Brickwall (EQ+Dyn+Stereo)');
+      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.0; font-weight: 800;' }, '🔊 Audio (Dyn+RMS+Wide)');
       boostBtn.onclick = (e) => {
         e.stopPropagation(); if (!sm.get(P.APP_ACT)) return;
         if (getNS()?.AudioWarmup) getNS().AudioWarmup();
@@ -2986,7 +2785,6 @@ function VSC_MAIN() {
       });
     };
 
-    // [최적화 3-5] 불필요한 performance.now() 중복 호출 방지 (호출부에서 now 전달)
     function clampPan(v, st, now) {
       const rect = getRectCached(v, now || performance.now());
       if (!rect || rect.width <= 1 || rect.height <= 1) return;
@@ -3267,26 +3065,26 @@ function VSC_MAIN() {
 
   function createVideoParamsMemo() {
     function computePreScaling(video) {
-      if (!video) return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
       const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
       const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
-      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
 
       const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
       const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
 
-      let sharpScale, clarityScale;
-      if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; clarityScale = 1.0 + t * 0.3; }
-      else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; clarityScale = 1.0 - t * 0.3; }
+      let sharpScale;
+      if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
+      else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
 
       const refW = Math.max(640, Math.min(3840, displayW)); const sigmaScale = Math.sqrt(refW / 1920);
-      return { sharpScale, clarityScale, sigmaScale, refW };
+      return { sharpScale, sigmaScale, refW };
     }
 
     const _preScaleCache = new WeakMap();
 
     function getPreScaling(video) {
-      if (!video) return { sharpScale: 1.0, clarityScale: 1.0, sigmaScale: 1.0, refW: 1920 };
+      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
       const cached = _preScaleCache.get(video);
       const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
       const dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
@@ -3316,7 +3114,6 @@ function VSC_MAIN() {
         const videoOut = {
           sharp:    Math.round((detailP.sharpAdd  || 0) * ps.sharpScale),
           sharp2:   Math.round((detailP.sharp2Add || 0) * ps.sharpScale),
-          clarity:  Math.round((detailP.clarityAdd || 0) * ps.clarityScale),
           satF:     detailP.sat || 1.0,
           gamma:    gradeP.gammaF || 1.0,
           bright:   gradeP.brightAdd || 0,
@@ -3342,7 +3139,7 @@ function VSC_MAIN() {
   function isNeutralVideoParams(p) {
     const near = (a, b, eps = 1e-4) => Math.abs((a || 0) - b) <= eps;
     return (
-      (p.sharp|0) === 0 && (p.sharp2|0) === 0 && (p.clarity|0) === 0 &&
+      (p.sharp|0) === 0 && (p.sharp2|0) === 0 &&
       near(p.gamma, 1.0) && near(p.bright, 0.0) && near(p.contrast, 1.0) && near(p.satF, 1.0) &&
       near(p.temp, FIXED_TEMP) && near(p._rs, FIXED_RS) && near(p._gs, FIXED_GS) && near(p._bs, FIXED_BS) &&
       near(p.gain, 1.0) && near(p.mid, 0.0) && near(p.toe, 0.0) && near(p.shoulder, 0.0)
@@ -3420,11 +3217,10 @@ function VSC_MAIN() {
             autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF);
             autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF);
             autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
-            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0) + (autoSceneVVals.clarity || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
+            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
             const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF);
             autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * combinedSharpScale;
             autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * combinedSharpScale;
-            autoSceneVVals.clarity = (autoSceneVVals.clarity || 0) * combinedSharpScale;
             videoParams = autoSceneVVals;
           }
           return { video: videoParams, shadow: shadowParams };
