@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v180.5.0 - Adv Scheduler + Visibility + PiP Preserve)
+// @name         Video_Control (v180.5.1 - Adv Scheduler + Visibility + PiP Preserve)
 // @namespace    https://github.com/
-// @version      180.5.0
+// @version      180.5.1
 // @description  Video Control: Adaptive Perf, Sigma Curves, Audio Auto-Adapt, Modern Scheduling.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -11,20 +11,6 @@
 // @exclude      *://*.stripe.com/*
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
-// @exclude      *://poooo.ml/*
-// @exclude      *://tvwiki*.net/*
-// @exclude      *://tvmon.site/*
-// @exclude      *://tvhot.store/*
-// @exclude      *://claude.ai/*
-// @exclude      *://arena.ai/*
-// @exclude      *://supjav.com/*
-// @exclude      *://javgg.net/*
-// @exclude      *://sextb.date/*
-// @exclude      *://7tv*.com/*
-// @exclude      *://*.sogirl.so/*
-// @exclude      *://*.4kjav.co/*
-// @exclude      *://www.youtube.com/live_chat*
-// @exclude      *://www.youtube.com/live_chat_replay*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
@@ -40,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.5.0';
+  const SCRIPT_VERSION = '180.5.1';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2681,80 +2667,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 // ==== [PART 2 END] ====
 // ==== [PART 3 START] ====
 
-  // ===== [PATCH 1] CONTAINMENT MODULE (리플로우 격리) =====
-  const __containmentApplied = new WeakSet();
-  const __containmentOrigStyles = new WeakMap();
-
-  function applyContainment(video) {
-    if (!video || __containmentApplied.has(video)) return;
-
-    const origContain = video.style.contain || '';
-    const origContentVis = video.style.contentVisibility || '';
-
-    const hasExplicitSize = (
-      (video.style.width && video.style.width !== 'auto') ||
-      (video.style.height && video.style.height !== 'auto') ||
-      video.hasAttribute('width') ||
-      video.hasAttribute('height') ||
-      video.closest('[style*="width"]')
-    );
-
-    if (hasExplicitSize) {
-      video.style.contain = 'strict';
-    } else {
-      video.style.contain = 'layout paint';
-    }
-
-    __containmentApplied.add(video);
-    __containmentOrigStyles.set(video, { contain: origContain, contentVisibility: origContentVis });
-
-    let container = video.closest(PLAYER_CONTAINER_SELECTORS);
-    if (!container) {
-      const root = video.getRootNode?.();
-      if (root instanceof ShadowRoot && root.host) {
-        container = root.host.closest(PLAYER_CONTAINER_SELECTORS) || root.host;
-      }
-    }
-
-    if (container && !__containmentApplied.has(container)) {
-      const origParentContain = container.style.contain || '';
-      container.style.contain = 'layout paint';
-      __containmentApplied.add(container);
-      __containmentOrigStyles.set(container, { contain: origParentContain });
-    }
-  }
-
-  function removeContainment(video) {
-    if (!video || !__containmentApplied.has(video)) return;
-
-    const orig = __containmentOrigStyles.get(video);
-    if (orig) {
-      if (orig.contain) video.style.contain = orig.contain;
-      else video.style.removeProperty('contain');
-
-      if (orig.contentVisibility) video.style.contentVisibility = orig.contentVisibility;
-      else video.style.removeProperty('content-visibility');
-    }
-
-    __containmentApplied.delete(video);
-    __containmentOrigStyles.delete(video);
-
-    let container = video.closest(PLAYER_CONTAINER_SELECTORS);
-    if (!container) {
-      const root = video.getRootNode?.();
-      if (root instanceof ShadowRoot && root.host) {
-        container = root.host.closest(PLAYER_CONTAINER_SELECTORS) || root.host;
-      }
-    }
-
-    if (container && __containmentApplied.has(container)) {
-      const origP = __containmentOrigStyles.get(container);
-      if (origP?.contain) container.style.contain = origP.contain;
-      else container.style.removeProperty('contain');
-      __containmentApplied.delete(container);
-      __containmentOrigStyles.delete(container);
-    }
-  }
+  // ===== [PATCH 1] CONTAINMENT MODULE (리플로우 격리 - 비활성화) =====
+  // 사유: 유튜브 등 절대위치 기반 플레이어에서 영상이 0x0으로 붕괴하여 투명해지는 버그 방지
+  function applyContainment(video) { return; }
+  function removeContainment(video) { return; }
 
   // ===== [PATCH 2] BACKEND ADAPTER =====
   function createBackendAdapter(Filters) {
@@ -2764,17 +2680,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           Filters.applyCssNative(video, vVals);
           return;
         }
-
         const svgResult = Filters.prepareCached(video, vVals, shadowParams);
         Filters.applyUrl(video, svgResult);
       },
       clear(video) {
         const st = getVState(video);
         if (st.applied) Filters.applyUrl(video, null);
-
-        if (!getNS()?.ZoomManager?.isZoomed(video)) {
-          removeContainment(video);
-        }
       }
     };
   }
@@ -2802,7 +2713,24 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {}
     };
 
-    const allowUiInThisDoc = () => true;
+    const allowUiInThisDoc = () => {
+      const hn = location.hostname;
+      const pn = location.pathname;
+
+      // 1. 넷플릭스 탐색 페이지 제외
+      if (hn.includes('netflix.com')) {
+        const netflixExcludes = ['/browse', '/title', '/search', '/latest'];
+        if (netflixExcludes.some(path => pn.startsWith(path))) return false;
+      }
+
+      // 2. 쿠팡플레이 탐색 페이지 제외
+      if (hn.includes('coupangplay.com')) {
+        // 플레이어 페이지(/play)가 아닌 모든 탐색 페이지(홈, 영화, 드라마 등) 제외
+        if (!pn.startsWith('/play')) return false;
+      }
+
+      return true;
+    };
 
     safe(() => {
       if (typeof CSS === 'undefined' || !CSS.registerProperty) return;
@@ -3146,7 +3074,48 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
 
     const mount = () => { const root = getUiRoot(); if (!root) return; const gearTarget = document.fullscreenElement || document.body || document.documentElement; try { if (gearHost && gearHost.parentNode !== gearTarget) gearTarget.appendChild(gearHost); } catch (_) { try { (document.body || document.documentElement).appendChild(gearHost); } catch (__) {} } try { if (container && container.parentNode !== gearTarget) gearTarget.appendChild(container); } catch (_) { try { (document.body || document.documentElement).appendChild(container); } catch (__) {} } };
-    const ensure = () => { if (!allowUiInThisDoc()) { detachNodesHard(); return; } ensureGear(); if (sm.get(P.APP_UI)) { build(); const mainPanel = getMainPanel(); if (mainPanel && !mainPanel.classList.contains('visible')) { mainPanel.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); } } else { const mainPanel = getMainPanel(); if (mainPanel) mainPanel.classList.remove('visible'); } mount(); safe(() => wakeGear?.()); };
+
+    const ensure = () => {
+      // 1. 영상 존재 여부 확인
+      const hasVideo = registry.videos.size > 0 || !!document.querySelector('video');
+
+      // 2. 영상이 없고, 현재 설정창도 열려있지 않다면 모든 UI 제거 후 종료
+      if (!hasVideo && !sm.get(P.APP_UI)) {
+        detachNodesHard();
+        return;
+      }
+
+      // 3. 화이트리스트/제외 사이트 체크
+      if (!allowUiInThisDoc()) {
+        detachNodesHard();
+        return;
+      }
+
+      // 4. 기어 아이콘 생성 또는 노출
+      ensureGear();
+
+      // 5. 설정 패널 상태에 따른 노출 로직
+      const mainPanel = getMainPanel();
+      if (sm.get(P.APP_UI)) {
+        build(); // 필요시 생성
+        const mp = getMainPanel(); // 생성 후 다시 참조
+        if (mp && !mp.classList.contains('visible')) {
+          mp.style.display = 'block'; // 확실하게 보이도록 추가
+          mp.classList.add('visible');
+          queueMicrotask(clampPanelIntoViewport);
+        }
+      } else {
+        if (mainPanel) {
+          mainPanel.classList.remove('visible');
+          mainPanel.style.display = 'none'; // 확실하게 숨기도록 추가
+        }
+      }
+
+      // 6. 렌더링 위치 갱신 및 페이드 로직 가동
+      mount();
+      safe(() => wakeGear?.());
+    };
+
     onPageReady(() => { safe(() => { ensure(); ApplyReq.hard(); }); });
 
     sub(P.APP_UI, () => { queueMicrotask(ensure); });
@@ -3365,10 +3334,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       ['emptied', softResetTransientFlags],
       ['seeking', () => ApplyReq.hard()],
       ['play', () => {
-        safe(() => {
-          v.style.removeProperty('content-visibility');
-          v.style.removeProperty('contain-intrinsic-size');
-        });
         ApplyReq.hard();
       }],
       ['ratechange', () => {
