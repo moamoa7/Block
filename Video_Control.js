@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v178.9.50 - Extreme Pipeline Optimization)
+// @name         Video_Control (v179.0.0 - Unified Brightness + Color Temp)
 // @namespace    https://github.com/
-// @version      178.9.50
+// @version      179.0.0
 // @description  Video Control: Tone Safe, Bass Widener, Pointer Zoom, PiP Aspect Ratio UI.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -40,7 +40,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '178.9.50';
+  const SCRIPT_VERSION = '179.0.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -80,7 +80,6 @@ function VSC_MAIN() {
 
     try { ns.App?.destroy?.(); } catch (_) {}
     try { ns.Store?.destroy?.(); } catch (_) {}
-    try { ns.AutoScene?.destroy?.(); } catch (_) {}
     try { ns.ZoomManager?.destroy?.(); } catch (_) {}
     try { ns.TimerManager?.destroy?.(); } catch (_) {}
     try { ns.Registry?.destroy?.(); } catch (_) {}
@@ -348,6 +347,7 @@ function VSC_MAIN() {
 
   const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
 
+  // ===== UNIFIED PRESETS =====
   const PRESETS = Object.freeze({
     detail: {
       off:    { sharpAdd: 0,  sharp2Add: 0,  sat: 1.0 },
@@ -355,32 +355,61 @@ function VSC_MAIN() {
       Medium: { sharpAdd: 30, sharp2Add: 35, sat: 0.99 },
       Ultra:  { sharpAdd: 50, sharp2Add: 50, sat: 0.98 }
     },
-    grade: {
-      brOFF: { gammaF: 1.00, brightAdd: 0 },
-      S: { gammaF: 1.04, brightAdd: 2.5 },
-      M: { gammaF: 1.10, brightAdd: 6.0 },
-      L: { gammaF: 1.18, brightAdd: 10.0 }
+    // 밝기1+밝기2 통합: 5단계 (0=OFF, 1~5)
+    bright: {
+      0: { gammaF: 1.00, brightAdd: 0 },
+      1: { gammaF: 1.04, brightAdd: 2.5 },
+      2: { gammaF: 1.10, brightAdd: 6.0 },
+      3: { gammaF: 1.18, brightAdd: 10.0 },
+      4: { gammaF: 1.26, brightAdd: 15.0 },
+      5: { gammaF: 1.34, brightAdd: 20.0 }
     }
   });
 
+  // ===== DEFAULTS: autoScene 제거, brightLevel 통합, temp 추가 =====
   const DEFAULTS = {
-    video: { presetS: 'off', presetB: 'brOFF', shadowBandMask: 0, brightStepLevel: 0 },
+    video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 },
     audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
     playback: { rate: 1.0, enabled: false },
-    app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, autoScene: false, autoScenePreset: 'Normal', advanced: false, timeEn: true, timePos: 1 }
+    app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
   };
 
+  // ===== P: autoScene 제거, 통합 밝기 + 색온도 =====
   const P = Object.freeze({
-    APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_AUTO_SCENE_PRESET: 'app.autoScenePreset', APP_ADV: 'app.advanced',
+    APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced',
     APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
-    V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel',
+    V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel',
+    V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp',
     A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', A_STEREO_W: 'audio.stereoWidth',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   });
 
-  const APP_SCHEMA = [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'enum', path: P.APP_AUTO_SCENE_PRESET, values: ['Soft', 'Normal', 'Strong'], fallback: () => 'Normal' }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ];
-  const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
-  const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
+  // ===== SCHEMA: autoScene 제거, 통합 =====
+  const APP_SCHEMA = [
+    { type: 'bool', path: P.APP_ACT },
+    { type: 'bool', path: P.APP_UI },
+    { type: 'bool', path: P.APP_APPLY_ALL },
+    { type: 'bool', path: P.APP_ZOOM_EN },
+    { type: 'bool', path: P.APP_ADV },
+    { type: 'bool', path: P.APP_TIME_EN },
+    { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 }
+  ];
+  const VIDEO_SCHEMA = [
+    { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
+    { type: 'num', path: P.V_BRIGHT_LV, min: 0, max: 5, round: true, fallback: () => 0 },
+    { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 },
+    { type: 'num', path: P.V_TEMP, min: -50, max: 50, round: true, fallback: () => 0 }
+  ];
+  const AUDIO_PLAYBACK_SCHEMA = [
+    { type: 'bool', path: P.A_EN },
+    { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 },
+    { type: 'bool', path: P.A_MULTIBAND },
+    { type: 'bool', path: P.A_LUFS },
+    { type: 'bool', path: P.A_DIALOGUE },
+    { type: 'bool', path: P.A_STEREO_W },
+    { type: 'bool', path: P.PB_EN },
+    { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
+  ];
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
 
@@ -681,10 +710,35 @@ function VSC_MAIN() {
       }
     }
 
+    // ===== 마이그레이션: 구 설정 → 신 설정 호환 =====
+    function migrateOldPrefs(parsed) {
+      // 구버전 presetB + brightStepLevel → 통합 brightLevel
+      if (parsed.video && !('brightLevel' in parsed.video)) {
+        let level = 0;
+        const oldPresetB = parsed.video.presetB;
+        const oldBrightStep = parsed.video.brightStepLevel || 0;
+        // presetB 기준 매핑
+        if (oldPresetB === 'S') level = 1;
+        else if (oldPresetB === 'M') level = 2;
+        else if (oldPresetB === 'L') level = 3;
+        // brightStepLevel이 있으면 더 높은 쪽 채택
+        if (oldBrightStep >= 3) level = Math.max(level, 4);
+        else if (oldBrightStep >= 2) level = Math.max(level, 3);
+        else if (oldBrightStep >= 1) level = Math.max(level, 2);
+        parsed.video.brightLevel = level;
+      }
+      // 구버전 temp가 없으면 0으로
+      if (parsed.video && !('temp' in parsed.video)) {
+        parsed.video.temp = 0;
+      }
+      // 구버전 autoScene 관련 키 무시 (mergeKnown에서 자동으로 걸러짐)
+    }
+
     try {
       const saved = loadPrefs();
       if (saved) {
         const parsed = JSON.parse(saved);
+        migrateOldPrefs(parsed);
         mergeKnown(state.video, parsed.video, DEFAULTS.video);
         mergeKnown(state.audio, parsed.audio, DEFAULTS.audio);
         mergeKnown(state.playback, parsed.playback, DEFAULTS.playback);
@@ -1787,30 +1841,7 @@ function VSC_MAIN() {
     };
   }
 
-  function createAutoSceneManager(Store, P, Scheduler) {
-    const AUTO = { cur: { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 } };
-    const AUTO_PRESETS = Object.freeze({
-      Soft:   { br: 1.12, ct: 1.03, sat: 1.01, sharpScale: 1.05 },
-      Normal: { br: 1.22, ct: 1.05, sat: 1.02, sharpScale: 1.12 },
-      Strong: { br: 1.35, ct: 1.08, sat: 1.03, sharpScale: 1.20 }
-    });
-
-    function update() {
-      const act = !!Store.get(P.APP_ACT);
-      const en  = act && !!Store.get(P.APP_AUTO_SCENE);
-      if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; }
-      else { const k = Store.get(P.APP_AUTO_SCENE_PRESET) || 'Normal'; AUTO.cur = { ...(AUTO_PRESETS[k] || AUTO_PRESETS.Normal) }; }
-      if (act) Scheduler.request(true);
-    }
-
-    const unsubs = [ Store.sub(P.APP_AUTO_SCENE, update), Store.sub(P.APP_AUTO_SCENE_PRESET, update), Store.sub(P.APP_ACT, update) ];
-
-    return {
-      getMods: () => AUTO.cur, start: update,
-      stop: () => { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; Scheduler.request(true); },
-      destroy: () => { unsubs.forEach(u => safe(u)); AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, sharpScale: 1.0 }; }
-    };
-  }
+  // ===== createAutoSceneManager 완전 제거됨 =====
 
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
@@ -2199,6 +2230,7 @@ function VSC_MAIN() {
     return () => { ac.abort(); };
   }
 
+  // ===== UI: 메인에 선명+밝기, 고급에 암부+색온도+시계 =====
   function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils;
     let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null;
@@ -2410,44 +2442,22 @@ function VSC_MAIN() {
 
       const dragHandle = h('div', { class: 'header', title: '더블클릭 시 톱니바퀴 옆으로 복귀' }, 'VSC 렌더링 제어');
 
-      const autoSceneRow = h('div', { class: 'prow' }, [
-        h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '톤'),
-        ...['Soft', 'Normal', 'Strong'].map(p => {
-          const b = h('button', { class: 'pbtn', style: 'flex:1' }, p);
-          b.onclick = (e) => {
-            e.stopPropagation();
-            if (!sm.get(P.APP_ACT)) return;
-            const curEn = sm.get(P.APP_AUTO_SCENE);
-            const curPre = sm.get(P.APP_AUTO_SCENE_PRESET);
-            if (curEn && curPre === p) setAndHint(P.APP_AUTO_SCENE, false);
-            else { if (!curEn) setAndHint(P.APP_AUTO_SCENE, true); setAndHint(P.APP_AUTO_SCENE_PRESET, p); }
-          };
-          bindReactive(b, [P.APP_AUTO_SCENE, P.APP_AUTO_SCENE_PRESET, P.APP_ACT], (el, en, pre, act) => {
-            const isActive = !!en && pre === p;
-            el.classList.toggle('active', isActive);
-            el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
-            el.style.cursor = act ? 'pointer' : 'not-allowed';
-            el.disabled = !act;
-          }, sm, sub);
-          return b;
-        }),
-        (() => {
-          const offBtn = h('button', { class: 'pbtn', style: 'flex:0.8' }, 'OFF');
-          offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(P.APP_AUTO_SCENE, false); };
-          bindReactive(offBtn, [P.APP_AUTO_SCENE, P.APP_ACT], (el, en, act) => {
-            const isActive = !en;
-            el.classList.toggle('active', isActive);
-            el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45');
-            el.style.cursor = act ? 'pointer' : 'not-allowed';
-            el.disabled = !act;
-          }, sm, sub);
-          return offBtn;
-        })()
-      ]);
-
+      // ===== 메인: 선명 =====
       const sharpRow = renderButtonRow({
         label: '선명', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true,
-        items: [ { text: 'Soft', value: 'Soft', title: '약한 선명화' }, { text: 'Medium', value: 'Medium', title: '중간 선명화' }, { text: 'Ultra', value: 'Ultra', title: '강한 선명화 (Adaptive)' } ]
+        items: [ { text: 'Soft', value: 'Soft', title: '약한 선명화' }, { text: 'Medium', value: 'Medium', title: '중간 선명화' }, { text: 'Ultra', value: 'Ultra', title: '강한 선명화' } ]
+      });
+
+      // ===== 메인: 통합 밝기 (0~5) =====
+      const brightRow = renderButtonRow({
+        label: '밝기', key: P.V_BRIGHT_LV, offValue: 0, toggleActiveToOff: true,
+        items: [
+          { text: '1', value: 1, title: '약간 밝게' },
+          { text: '2', value: 2, title: '밝게' },
+          { text: '3', value: 3, title: '많이 밝게' },
+          { text: '4', value: 4, title: '강하게 밝게' },
+          { text: '5', value: 5, title: '최대 밝기' }
+        ]
       });
 
       const pipBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '📺 PIP');
@@ -2480,14 +2490,20 @@ function VSC_MAIN() {
       dialogueBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE)); };
       bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN, P.APP_ACT], (el, dOn, aEn, act) => { el.classList.toggle('active', !!dOn); const usable = !!aEn && !!act; el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35'); el.style.cursor = usable ? 'pointer' : 'not-allowed'; el.disabled = !usable; }, sm, sub);
 
+      // ===== 고급 설정 토글 =====
       const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '▼ 고급 설정 열기');
       advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
       bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정 열기'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
 
+      // ===== 고급 설정 내용: 암부, 색온도, 시계 =====
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
         renderButtonRow({ label: '암부', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1단', value: DARK_BAND.LV1, title: '약한 암부 강화' }, { text: '2단', value: DARK_BAND.LV2, title: '중간 암부 강화' }, { text: '3단', value: DARK_BAND.LV3, title: '강한 암부 강화' } ] }),
-        renderButtonRow({ label: '밝기1', key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
-        renderButtonRow({ label: '밝기2', key: P.V_PRE_B, offValue: 'brOFF', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'brOFF').map(k => ({ text: k, value: k })) }),
+        renderButtonRow({ label: '색온', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [
+          { text: '따뜻', value: 15, title: '따뜻한 톤 (+15)' },
+          { text: '약냉', value: -7, title: '약한 냉색 (-7)' },
+          { text: '냉색', value: -20, title: '차가운 톤 (-20)' },
+          { text: '강냉', value: -35, title: '매우 차가운 톤 (-35)' }
+        ] }),
         h('hr'),
         renderButtonRow({ label: '시계', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '표시 (전체화면)', value: true }] }),
         renderButtonRow({ label: '위치', key: P.APP_TIME_POS, items: [{ text: '좌', value: 0 }, { text: '중', value: 1 }, { text: '우', value: 2 }] }),
@@ -2496,11 +2512,12 @@ function VSC_MAIN() {
       bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none', sm, sub);
 
       const resetBtn = h('button', { class: 'btn' }, '↺ 리셋');
-      resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); };
+      resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); ApplyReq.hard(); };
       bindReactive(resetBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
 
+      // ===== 메인 바디 조립 =====
       const bodyMain = h('div', { id: 'p-main' }, [
-        autoSceneRow, sharpRow,
+        sharpRow, brightRow,
         h('div', { class: 'prow' }, [ pipBtn, zoomBtn, pwrBtn ]),
         h('div', { class: 'prow', style: 'margin-top: 4px;' }, [ boostBtn, dialogueBtn ]),
         h('div', { class: 'prow', style: 'margin-top: 8px;' }, [ h('button', { class: 'btn', style: 'background:#333;', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕ 닫기'), resetBtn ]),
@@ -2886,9 +2903,7 @@ function VSC_MAIN() {
     }
   }
 
-  const FIXED_TEMP = -7;
-  const { rs: FIXED_RS, gs: FIXED_GS, bs: FIXED_BS } = tempToRgbGain(FIXED_TEMP);
-
+  // ===== videoParamsMemo: 통합 밝기 + 동적 색온도 =====
   function createVideoParamsMemo() {
     function computePreScaling(video) {
       if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920 };
@@ -2929,31 +2944,32 @@ function VSC_MAIN() {
       get(vfUser, video) {
         const nW = video?.videoWidth || 0, nH = video?.videoHeight || 0;
         const dW = video?.clientWidth || video?.offsetWidth || 0, dH = video?.clientHeight || video?.offsetHeight || 0;
-        const inputKey = [ vfUser.presetS, vfUser.presetB, vfUser.shadowBandMask, vfUser.brightStepLevel, nW, nH, dW, dH ].join('|');
+        const inputKey = [
+          vfUser.presetS, vfUser.brightLevel, vfUser.shadowBandMask, vfUser.temp,
+          nW, nH, dW, dH
+        ].join('|');
 
         const cached = _cache.get(inputKey); if (cached) return cached;
 
         const detailP = PRESETS.detail[vfUser.presetS || 'off'];
-        const gradeP  = PRESETS.grade[vfUser.presetB || 'brOFF'];
+        const brightP = PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || PRESETS.bright[0];
         const ps = getPreScaling(video);
+
+        const userTemp = vfUser.temp || 0;
+        const { rs, gs, bs } = tempToRgbGain(userTemp);
 
         const videoOut = {
           sharp:    Math.round((detailP.sharpAdd  || 0) * ps.sharpScale),
           sharp2:   Math.round((detailP.sharp2Add || 0) * ps.sharpScale),
           satF:     detailP.sat || 1.0,
-          gamma:    gradeP.gammaF || 1.0,
-          bright:   gradeP.brightAdd || 0,
-          contrast: 1.0, temp: FIXED_TEMP, gain: 1.0, mid: 0, toe: 0, shoulder: 0,
-          _sigmaScale: ps.sigmaScale, _refW: ps.refW, _rs: FIXED_RS, _gs: FIXED_GS, _bs: FIXED_BS
+          gamma:    brightP.gammaF || 1.0,
+          bright:   brightP.brightAdd || 0,
+          contrast: 1.0,
+          temp:     userTemp,
+          gain: 1.0, mid: 0, toe: 0, shoulder: 0,
+          _sigmaScale: ps.sigmaScale, _refW: ps.refW,
+          _rs: rs, _gs: gs, _bs: bs
         };
-
-        const brStep = vfUser.brightStepLevel || 0;
-        if (brStep > 0) {
-          const brightMap = [0, 3.0, 7.0, 12.0];
-          const gammaMap  = [0, 0.02, 0.045, 0.07];
-          videoOut.bright += brightMap[brStep];
-          videoOut.gamma *= (1.0 + gammaMap[brStep]);
-        }
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0;
         let shadowOut = { level: 0, active: false };
@@ -2967,12 +2983,14 @@ function VSC_MAIN() {
     };
   }
 
+  // ===== isNeutral: temp=0이 중립 =====
   function isNeutralVideoParams(p) {
     const near = (a, b, eps = 1e-4) => Math.abs((a || 0) - b) <= eps;
     return (
       (p.sharp|0) === 0 && (p.sharp2|0) === 0 &&
       near(p.gamma, 1.0) && near(p.bright, 0.0) && near(p.contrast, 1.0) && near(p.satF, 1.0) &&
-      near(p.temp, FIXED_TEMP) && near(p._rs, FIXED_RS) && near(p._gs, FIXED_GS) && near(p._bs, FIXED_BS) &&
+      near(p.temp, 0) &&
+      near(p._rs, 1.0) && near(p._gs, 1.0) && near(p._bs, 1.0) &&
       near(p.gain, 1.0) && near(p.mid, 0.0) && near(p.toe, 0.0) && near(p.shoulder, 0.0)
     );
   }
@@ -2981,6 +2999,7 @@ function VSC_MAIN() {
 
   let __vscUserSignalRev = 0;
 
+  // ===== AppController: AutoScene 완전 제거, 직접 파라미터 전달 =====
   function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
     UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
     Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
@@ -3034,28 +3053,9 @@ function VSC_MAIN() {
         if (nextAudioTarget !== __lastAudioTarget) { Audio.setTarget(nextAudioTarget); __lastAudioTarget = nextAudioTarget; } Audio.update();
 
         const vf0 = Store.getCatRef('video');
-        const autoScene = getNS()?.AutoScene;
-        const isAutoSceneActive = autoScene && Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT);
-        const mods = isAutoSceneActive ? autoScene.getMods() : null;
 
-        const getParamsForVideo = (el) => {
-          const rawParams = videoParamsMemo.get(vf0, el);
-          let videoParams = rawParams.video, shadowParams = rawParams.shadow;
-
-          if (mods && (mods.br !== 1.0 || mods.ct !== 1.0 || mods.sat !== 1.0 || mods.sharpScale !== 1.0)) {
-            const autoSceneVVals = { ...videoParams };
-            const uBr = autoSceneVVals.gain || 1.0, aSF = Math.max(0.2, 1.0 - Math.abs(uBr - 1.0) * 3.0);
-            autoSceneVVals.gain = uBr * (1.0 + (mods.br - 1.0) * aSF);
-            autoSceneVVals.contrast = (autoSceneVVals.contrast || 1.0) * (1.0 + (mods.ct - 1.0) * aSF);
-            autoSceneVVals.satF = (autoSceneVVals.satF || 1.0) * (1.0 + (mods.sat - 1.0) * aSF);
-            const userSharpTotal = (autoSceneVVals.sharp || 0) + (autoSceneVVals.sharp2 || 0), sharpASF = Math.max(0.3, 1.0 - (userSharpTotal / 80) * 0.5);
-            const combinedSharpScale = (1.0 + (mods.sharpScale - 1.0) * sharpASF);
-            autoSceneVVals.sharp = (autoSceneVVals.sharp || 0) * combinedSharpScale;
-            autoSceneVVals.sharp2 = (autoSceneVVals.sharp2 || 0) * combinedSharpScale;
-            videoParams = autoSceneVVals;
-          }
-          return { video: videoParams, shadow: shadowParams };
-        };
+        // AutoScene 제거됨 → 직접 파라미터 전달
+        const getParamsForVideo = (el) => videoParamsMemo.get(vf0, el);
 
         const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
         _applySet.clear();
@@ -3096,7 +3096,6 @@ function VSC_MAIN() {
         stopTick();
         safe(() => UI.destroy?.());
         safe(() => { Audio.setTarget(null); Audio.destroy?.(); });
-        safe(() => getNS()?.AutoScene?.destroy?.());
         safe(() => getNS()?.ZoomManager?.destroy?.());
         safe(() => getNS()?.TimerManager?.destroy?.());
         safe(() => Registry.destroy?.());
@@ -3222,7 +3221,6 @@ function VSC_MAIN() {
       }
     });
     reg('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
-    reg('🎬 AutoScene 토글', () => { Store.set(P.APP_AUTO_SCENE, !Store.get(P.APP_AUTO_SCENE)); ApplyReq.hard(); });
     reg('🔊 Audio 토글', () => { Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); });
     reg('⚙️ UI 열기/닫기', () => { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); });
     reg('🛠️ 디버그 모드 토글', () => {
@@ -3253,7 +3251,7 @@ function VSC_MAIN() {
 
     (function ensureRegistryAfterBodyReady() { let ran = false; const runOnce = () => { if (ran) return; ran = true; safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); }; if (document.body) { runOnce(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } }); try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} on(document, 'DOMContentLoaded', runOnce, { once: true }); })();
 
-    const AutoScene = createAutoSceneManager(Store, P, Scheduler); __vscNs.AutoScene = AutoScene;
+    // AutoScene 완전 제거됨
     __vscNs.CONFIG = CONFIG; __vscNs.FLAGS = Object.freeze({ ...FLAGS });
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
@@ -3284,7 +3282,7 @@ function VSC_MAIN() {
     }
     Scheduler.setRvfcSource(() => __VSC_APP__.getActiveVideo() || null);
 
-    AutoScene.start(); ApplyReq.hard();
+    ApplyReq.hard();
 
     on(window, 'keydown', async (e) => {
       const isEditableTarget = (el) => { if(!el) return false; const tag = el.tagName; return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable; };
