@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v180.5.1 - Adv Scheduler + Visibility + PiP Preserve)
+// @name         Video_Control (v180.5.2 - Adv Scheduler + Visibility + PiP Preserve)
 // @namespace    https://github.com/
-// @version      180.5.1
+// @version      180.5.2
 // @description  Video Control: Adaptive Perf, Sigma Curves, Audio Auto-Adapt, Modern Scheduling.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.5.1';
+  const SCRIPT_VERSION = '180.5.2';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -3561,7 +3561,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   function getSharpScale(video) {
     const nW = video.videoWidth || 0, dW = video.clientWidth || video.offsetWidth || 0;
-    if (!nW || !dW) return 1.0;
+    if (!nW || !dW) return 0.0;
     const dpr = window.devicePixelRatio || 1;
     const effectiveDisplayW = dW * dpr;
 
@@ -3575,10 +3575,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   function createVideoParamsMemo() {
     function computePreScaling(video) {
-      if (!video) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+      if (!video) return { sharpScale: 0.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
       const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
       const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
-      if (nativeW < 16 || displayW < 16) return { sharpScale: 1.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+      if (nativeW < 16 || displayW < 16) return { sharpScale: 0.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
       const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
       const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
       let sharpScale;
