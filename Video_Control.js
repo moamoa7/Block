@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.3 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.4 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      182.3
+// @version      182.4
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -28,7 +28,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.3';
+  const SCRIPT_VERSION = '182.4';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2327,15 +2327,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const __vscBgMemo = new WeakMap();
 
     function canUseCssNativeOnly(s, shadowParams) {
-      if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
-      if (shadowParams && shadowParams.active) return false;
-      if (Math.abs(s.toe || 0) > 0.01) return false;
-      if (Math.abs(s.shoulder || 0) > 0.01) return false;
-      if (Math.abs(s.mid || 0) > 0.01) return false;
-      if (Math.abs((s.gain || 1) - 1.0) > 0.02) return false;
-      if (Math.abs(s.temp || 0) > 0.5) return false;
-      return true;
-    }
+  // 샤프닝이 조금이라도 들어있으면 무조건 SVG로 가야 함
+  if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
+
+  // 암부 강화(Shadow)가 켜져 있어도 SVG로 가야 함
+  if (shadowParams && shadowParams.active) return false;
+
+  // 나머지는 CSS brightness/contrast 등으로 처리 가능
+  return true;
+}
 
     function buildCssFilterString(s) {
       const parts = [];
@@ -2360,43 +2360,39 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return parts.length > 0 ? parts.join(' ') : '';
     }
 
-    const _cssFilterCache = new WeakMap();
-
     function applyCssNative(el, s) {
-      const filterStr = buildCssFilterString(s);
-      const cached = _cssFilterCache.get(el);
+    const filterStr = buildCssFilterString(s);
+    const st = getVState(el);
 
-      if (cached === filterStr) return;
-      _cssFilterCache.set(el, filterStr);
+    // SVG(샤프)와 CSS(밝기 단독) 간의 캐시 충돌을 막기 위해 통합 상태(lastFilterUrl)로 비교
+    if (st.lastFilterUrl === filterStr) return;
 
-      const st = getVState(el);
-
-      if (!filterStr) {
-        if (st.applied) {
-          if (st.origFilter != null && st.origFilter !== '') {
-            el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
-          } else {
-            el.style.removeProperty('filter');
-          }
-          el.style.removeProperty('-webkit-filter');
-          st.applied = false;
-          st.lastFilterUrl = null;
+    if (!filterStr) {
+      if (st.applied) {
+        if (st.origFilter != null && st.origFilter !== '') {
+          el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
+        } else {
+          el.style.removeProperty('filter');
         }
-        return;
+        el.style.removeProperty('-webkit-filter');
+        st.applied = false;
+        st.lastFilterUrl = null;
       }
-
-      if (!st.applied) {
-        st.origFilter = el.style.getPropertyValue('filter');
-        st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
-        st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter');
-        st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
-      }
-
-      el.style.setProperty('filter', filterStr, 'important');
-      el.style.setProperty('-webkit-filter', filterStr, 'important');
-      st.applied = true;
-      st.lastFilterUrl = filterStr;
+      return;
     }
+
+    if (!st.applied) {
+      st.origFilter = el.style.getPropertyValue('filter');
+      st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
+      st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter');
+      st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
+    }
+
+    el.style.setProperty('filter', filterStr, 'important');
+    el.style.setProperty('-webkit-filter', filterStr, 'important');
+    st.applied = true;
+    st.lastFilterUrl = filterStr;
+  }
 
     function setAttr(node, attr, val) {
       if (!node) return;
@@ -2779,16 +2775,27 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   function createBackendAdapter(Filters) {
-    return {
-      apply(video, vVals, shadowParams, useSvgFilter = true) {
-        if (!useSvgFilter || (Filters.canUseCssNativeOnly && Filters.canUseCssNativeOnly(vVals, shadowParams))) {
-          Filters.applyCssNative(video, vVals);
-          return;
-        }
+  return {
+    apply(video, vVals, shadowParams, useSvgFilter = true) {
+      const st = getVState(video); // 비디오 상태 가져오기
 
-        const svgResult = Filters.prepareCached(video, vVals, shadowParams);
-        Filters.applyUrl(video, svgResult);
-      },
+      // CSS 네이티브만 써도 되는 가벼운 상태인지 확인
+      const canUseCss = !useSvgFilter || (Filters.canUseCssNativeOnly && Filters.canUseCssNativeOnly(vVals, shadowParams));
+
+      if (canUseCss) {
+        // [중요] 만약 이전에 SVG(url(#...))가 걸려 있었다면,
+        // 찌꺼기가 남지 않게 확실히 밀어내고 CSS로 전환해야 함
+        if (st.applied && st.lastFilterUrl && st.lastFilterUrl.includes('url(')) {
+          Filters.applyUrl(video, null);
+        }
+        Filters.applyCssNative(video, vVals);
+        return;
+      }
+
+      // 샤프닝 등이 포함된 SVG 필터 적용
+      const svgResult = Filters.prepareCached(video, vVals, shadowParams);
+      Filters.applyUrl(video, svgResult);
+    },
       clear(video) {
         const st = getVState(video);
         if (st.applied) Filters.applyUrl(video, null);
@@ -4273,8 +4280,25 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         }
 
         const targetChanged = __activeTarget !== __lastApplyTarget;
-        if (!force && vidsDirty.size === 0 && !targetChanged && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
-        lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev; __lastApplyTarget = __activeTarget;
+
+  if (targetChanged) {
+    // 1. 타겟이 바뀌면 이전 타겟의 필터 기록을 초기화 (꼬임 방지 핵심)
+    if (__lastApplyTarget) {
+      try { Adapter.clear(__lastApplyTarget); } catch(_) {}
+    }
+    // 2. 새로운 타겟의 캐시를 한 번 밀어줌 (깨끗한 상태에서 시작)
+    if (__activeTarget) {
+      try { Filters.invalidateCache(__activeTarget); } catch(_) {}
+    }
+  }
+
+  // 변경 사항이 없으면 실행 건너뛰기
+  if (!force && vidsDirty.size === 0 && !targetChanged && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
+
+  lastSRev = sRev;
+  lastRRev = rRev;
+  lastUserSigRev = userSigRev;
+  __lastApplyTarget = __activeTarget;
 
         const now = performance.now();
         if (vidsDirty.size > 40 || (now - lastPrune > 2000)) {
