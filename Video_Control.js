@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v181.0 - EventBus & Feature Architecture)
+// @name         Video_Control (v181.1 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      181.0
+// @version      181.1.1
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -28,7 +28,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '181.0';
+  const SCRIPT_VERSION = '181.1.1';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -123,7 +123,6 @@ function VSC_MAIN() {
   });
   __vscNs.FLAGS = FLAGS;
 
-  // ✅ 누락되었던 플레이어 타겟팅 & PiP 전역 상수 추가
   const PIP_FLAGS = Object.freeze({ USE_LEGACY_PIP_FALLBACK: true });
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [class*="player" i], [id*="player" i], [data-player], article, main';
 
@@ -1842,7 +1841,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (!workletInitPromise) {
         workletInitPromise = (async () => {
           const blobUrl = URL.createObjectURL(
-            new Blob([VSC_FINALIZER_WORKLET_SRC], { type: 'text/javascript' })
+            new Blob([VSC_FINALIZER_WORKLET_SRC], { type: 'application/javascript' })
           );
           try {
             await audioCtx.audioWorklet.addModule(blobUrl);
@@ -1850,6 +1849,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
               numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2]
             });
             return finalizerNode;
+          } catch (e) {
+            // 🔥 에러 로그를 띄우지 않고 180.6.1처럼 조용히 강력한 기본 컴프레서로 폴백
+            return null;
           } finally {
             URL.revokeObjectURL(blobUrl);
           }
@@ -2056,7 +2058,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
 
     function detachCurrentSource() {
-      if (currentSrc) { safe(() => currentSrc.disconnect()); }
+      if (currentSrc) {
+        safe(() => {
+          currentSrc.disconnect();
+          // 🔥 버그 수정: 오디오 컨텍스트를 거치지 않을 때는 목적지로 직결시켜야 원래 소리가 납니다.
+          if (ctx && ctx.state !== 'closed') {
+            currentSrc.connect(ctx.destination);
+          }
+        });
+      }
       currentSrc = null; target = null;
     }
 
@@ -2268,6 +2278,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             globalSrcMap.delete(vid);
             _activeAudioSources.delete(s);
             s = null;
+          } else {
+            // 재사용 시 기존 destination 직결을 끊고 이펙트 체인으로 돌림
+            try { s.disconnect(); } catch (_) {}
           }
         }
 
@@ -2303,14 +2316,29 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           const act = this.getSetting(P.APP_ACT);
           const wantAudioNow = !!(this.getSetting(P.A_EN) && act);
           const nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null;
-          setTarget(nextAudioTarget);
-          updateMix();
+
+          if (target !== nextAudioTarget) setTarget(nextAudioTarget);
+          else updateMix();
         });
+      },
+
+      onUpdate(appCtx) {
+        const act = this.getSetting(P.APP_ACT);
+        const wantAudioNow = !!(this.getSetting(P.A_EN) && act);
+        const video = appCtx?.target || this.getActiveVideo();
+        const nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null;
+
+        // 🔥 버그 해결: 버튼을 켜거나 껐을 때 즉각적으로 오디오 노드를 붙이거나 뗌
+        if (target !== nextAudioTarget) {
+          setTarget(nextAudioTarget);
+        } else {
+          updateMix();
+        }
       },
 
       methods: {
         warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); },
-        updateMix: updateMix, // ✅ 예약어 피하기
+        updateMix: updateMix,
         hasCtx: () => !!ctx,
         isHooked: () => !!currentSrc,
       },
@@ -3644,7 +3672,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const _applySet = new Set();
     const _scratchCandidates = new Set();
 
-    // ✅ 누락된 헬퍼 함수 2개 추가!
     function isNeutralVideoParams(v) {
       if (!v) return true;
       if (v.sharp !== 0 || v.sharp2 !== 0) return false;
@@ -3665,7 +3692,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     return defineFeature({
       name: 'pipeline',
-      phase: PHASE.COMPUTE, // 무조건 제일 먼저 실행 (예산 확정)
+      phase: PHASE.COMPUTE,
       onUpdate(ctx) {
         const { active, target, vidsDirty, pbActive, isApplyAll, desiredRate } = ctx;
 
@@ -3702,14 +3729,13 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  // [v181.1] Timer 모듈 전환
   function createTimerFeature() {
     let _intervalId = null;
     let _timerEl = null;
 
     return defineFeature({
       name: 'timer',
-      phase: PHASE.RENDER, // 제일 마지막에 화면에 그림
+      phase: PHASE.RENDER,
       onInit() {
         this.subscribe('fullscreen:changed', ({ active }) => {
           if (!active && _timerEl) _timerEl.style.display = 'none';
@@ -3721,6 +3747,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           const activeVideo = this.getActiveVideo();
           if (!activeVideo || !activeVideo.isConnected) { if (_timerEl) _timerEl.style.display = 'none'; return; }
           const parent = activeVideo.parentNode; if (!parent) return;
+
+          // ✅ 숲(SOOP) 시계 중앙 정렬 픽스: 부모 컨테이너가 static이면 강제로 relative 부여
+          if (getComputedStyle(parent).position === 'static') {
+            parent.style.position = 'relative';
+          }
 
           if (!_timerEl || _timerEl.parentNode !== parent) {
             if (_timerEl) { try { _timerEl.remove(); } catch(_) {} }
@@ -3756,52 +3787,51 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  // [v181.1] 성능 상태 알림 모듈 (Badge UI)
   function createPerfNotificationFeature(Utils) {
     let _badgeEl = null;
     let _fadeTimer = 0;
     const { h } = Utils;
 
+    function showBadge(text, activeVideo) {
+      if (!activeVideo || !activeVideo.parentNode) return;
+
+      if (!_badgeEl) {
+        _badgeEl = h('div', {
+          style: `position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+                  background: rgba(231, 76, 60, 0.85); color: white; padding: 6px 14px;
+                  border-radius: 20px; font-size: 13px; font-weight: bold; z-index: 2147483647;
+                  pointer-events: none; transition: opacity 0.3s, transform 0.3s; opacity: 0;
+                  backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2);`
+        });
+      }
+
+      if (_badgeEl.parentNode !== activeVideo.parentNode) {
+        activeVideo.parentNode.appendChild(_badgeEl);
+      }
+      if (getComputedStyle(activeVideo.parentNode).position === 'static') {
+        activeVideo.parentNode.style.position = 'relative';
+      }
+
+      _badgeEl.textContent = text;
+      _badgeEl.style.opacity = '1';
+      _badgeEl.style.transform = 'translateX(-50%) translateY(0)';
+
+      clearTimeout(_fadeTimer);
+      _fadeTimer = setTimeout(() => {
+        if (_badgeEl) {
+          _badgeEl.style.opacity = '0';
+          _badgeEl.style.transform = 'translateX(-50%) translateY(-10px)';
+        }
+      }, 3000);
+    }
+
     return defineFeature({
       name: 'perfNotification',
       phase: PHASE.RENDER,
       onInit() {
-        // 파이프라인에서 성능 저하 이벤트(pipeline:degraded)가 발생하면 실행
         this.subscribe('pipeline:degraded', ({ mode }) => {
-          this.showBadge(mode === 'low' ? '성능 부족: 화질 최적화 모드' : '시스템 부하: 필터 조정됨');
+          showBadge(mode === 'low' ? '⚠ 성능 최적화: 시스템 부하 감지' : '⚠ 부하 감지: 시스템 부하 감지', this.getActiveVideo());
         });
-      },
-      methods: {
-        showBadge(text) {
-          const activeVideo = this.getActiveVideo();
-          if (!activeVideo || !activeVideo.parentNode) return;
-
-          if (!_badgeEl) {
-            _badgeEl = h('div', {
-              style: `position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-                      background: rgba(231, 76, 60, 0.85); color: white; padding: 6px 14px;
-                      border-radius: 20px; font-size: 13px; font-weight: bold; z-index: 2147483647;
-                      pointer-events: none; transition: opacity 0.3s, transform 0.3s; opacity: 0;
-                      backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.2);`
-            });
-          }
-
-          if (_badgeEl.parentNode !== activeVideo.parentNode) {
-            activeVideo.parentNode.appendChild(_badgeEl);
-          }
-
-          _badgeEl.textContent = text;
-          _badgeEl.style.opacity = '1';
-          _badgeEl.style.transform = 'translateX(-50%) translateY(0)';
-
-          clearTimeout(_fadeTimer);
-          _fadeTimer = setTimeout(() => {
-            if (_badgeEl) {
-              _badgeEl.style.opacity = '0';
-              _badgeEl.style.transform = 'translateX(-50%) translateY(-10px)';
-            }
-          }, 3000);
-        }
       },
       onDestroy() {
         clearTimeout(_fadeTimer);
@@ -3811,13 +3841,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  // [v181.1] PiP 제어 모듈
   function createPiPFeature(Bus) {
     return defineFeature({
       name: 'pip',
       phase: PHASE.PROCESS,
       onInit() {
-        // 전역 PiP 상태 변화 감지 및 발행
         on(document, 'enterpictureinpicture', (e) => {
           Bus.emit('pip:changed', { video: e.target, active: true });
         }, { capture: true });
@@ -3835,9 +3863,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  let __vscUserSignalRev = 0; // ✅ 누락된 변수 선언 추가!
+  let __vscUserSignalRev = 0;
 
-  // [v181.1] AppController 오케스트레이터
   function createAppController({ Store, Registry, Scheduler, Features, P, Targeting, Bus }) {
     Store.sub(P.APP_UI, () => { Scheduler.request(true); });
     Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
@@ -3877,7 +3904,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); lastPrune = now;
         }
 
-        // [v181.1 핵심] 등록된 모든 모듈을 Phase 순서에 맞게 일괄 실행
         Features.updateAll({
           active, force, vidsDirty, pbActive,
           target: __activeTarget,
@@ -3902,7 +3928,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       getActiveVideo: () => __activeTarget,
       destroy() {
         stopTick();
-        safe(() => Features.destroyAll()); // 파괴 시 모든 모듈 자동 연쇄 파괴
+        safe(() => Features.destroyAll());
         safe(() => Registry.destroy?.());
       }
     });
@@ -3941,7 +3967,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
   bindNormalizer(ALL_KEYS, ALL_SCHEMA);
 
-  // ▼▼▼ 누락되었던 createTargeting 복구 ▼▼▼
   function createTargeting(bus) {
     if (bus) bus.on('pip:changed', ({ video, active }) => { /* 추후 PiP Feature 연동 시 사용 */ });
     let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
@@ -4003,7 +4028,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
     return Object.freeze({ pickFastActiveOnly });
   }
-  // ▲▲▲ 복구 끝 ▲▲▲
 
   const Registry = createRegistry(Scheduler, Bus);
   const Targeting = createTargeting(Bus);
@@ -4022,7 +4046,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     __vscNs.CONFIG = CONFIG; __vscNs.FLAGS = Object.freeze({ ...FLAGS });
 
-    // ▼▼▼ 누락되었던 Performance & Memo 로직 복구 ▼▼▼
     function createPerfGovernor() {
       const perVideo = new WeakMap();
       const MODES = ['low', 'mid', 'high'];
@@ -4063,8 +4086,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return {
         getBudget(video) {
           const mode = sample(video);
+          // low 모드: 샤프니스 50%로 감소, SVG 필터 대신 CSS 필터로 강제 전환 (사양 낮춤)
           if (mode === 'low') return { mode, sharpMul: 0.50, shadowCap: 1, sigmaMul: 0.80, useSvgFilter: false };
+          // mid 모드: 샤프니스 75%로 소폭 감소
           if (mode === 'mid') return { mode, sharpMul: 0.75, shadowCap: 2, sigmaMul: 0.90, useSvgFilter: true };
+          // high 모드: 100% 성능 유지
           return { mode, sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00, useSvgFilter: true };
         }
       };
@@ -4111,49 +4137,32 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         }
       };
     }
-    // ▲▲▲ 복구 끝 ▲▲▲
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
     const Adapter = createBackendAdapter(Filters); __vscNs.Adapter = Adapter;
 
-    // 모듈 인스턴스 준비
     const videoParamsMemo = createVideoParamsMemo();
     const PerfGovernor = createPerfGovernor();
 
-    // ─── [v181.1 Feature 조립] ───
     const Features = createFeatureRegistry(Bus);
 
-    // 1. Pipeline (Phase 0)
     Features.register(createPipelineFeature(Store, Registry, Adapter, ApplyReq, P, Targeting, PerfGovernor, videoParamsMemo));
-
-    // 2. Audio (Phase 1) - 이미 Feature 형태로 정의됨
     const audioFeat = createAudioFeature(Store);
     Features.register(audioFeat);
-
-    // 3. Zoom (Phase 1) - 래퍼 팩토리 사용
     const zoomFeat = createZoomFeature(Store, P);
     Features.register(zoomFeat);
-
-    // 4. UI (Phase 2) - 래퍼 팩토리 사용
     const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, P, Bus);
     Features.register(uiFeat);
-
-    // 5. Timer (Phase 2)
     Features.register(createTimerFeature());
-
-    // 6. PerfNotification (Phase 2) - 신규
     Features.register(createPerfNotificationFeature(Utils));
-
-    // 7. PiP (Phase 1) - 신규
     const pipFeat = createPiPFeature(Bus);
     Features.register(pipFeat);
 
-    // 하위 호환성 맵핑 유지
     __vscNs.Features = Features;
     __vscNs.ZoomManager = zoomFeat;
     __vscNs.AudioWarmup = audioFeat.warmup;
     __vscNs.AudioSetTarget = () => { try { audioFeat.updateMix(); } catch (_) {} };
-    __vscNs.PiPToggle = () => { try { pipFeat.toggle(); } catch (_) {} }; // UI에서 사용 가능
+    __vscNs.PiPToggle = () => { try { pipFeat.toggle(); } catch (_) {} };
 
     let __vscLastUserSignalT = 0; __vscNs.lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
     function updateLastUserPt(x, y, t) { __vscNs.lastUserPt.x = x; __vscNs.lastUserPt.y = y; __vscNs.lastUserPt.t = t; }
