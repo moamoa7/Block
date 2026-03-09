@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.2 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.3 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      182.2
+// @version      182.3
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -28,7 +28,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.2';
+  const SCRIPT_VERSION = '182.3';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -3618,13 +3618,13 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     // 1. 샘플링 간격을 대폭 늘림 (자주 검사 안 함)
     const SAMPLE_INTERVAL = { high: 5000, mid: 3000, low: 2000 };
 
-    // 2. 프레임 드랍 허용치를 대폭 올림 (4% 드랍 -> 25% 드랍될 때만 반응)
+    // 2. 프레임 드랍 변경
     const THRESHOLDS = {
-      downToMid: 0.25,  // 프레임 25%가 사라져야 '중간'으로 강등
-      downToLow: 0.45,  // 프레임 45%가 사라져야 '최저'로 강등
+      downToMid: 0.20,  // 프레임 20%가 사라져야 '중간'으로 강등
+      downToLow: 0.30,  // 프레임 30%가 사라져야 '최저'로 강등
       upToMid: 0.05,
       upToHigh: 0.02,
-      emergency: 0.60   // 거의 화면이 멈춰야 비상 모드
+      emergency: 0.40   // 프레임 40%가 되면 비상 모드
     };
 
     // 3. 확정 횟수를 늘림 (순간적인 렉은 '실수'로 간주하고 무시)
