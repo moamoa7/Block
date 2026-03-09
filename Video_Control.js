@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.8 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.9 - Performance Optimized)
 // @namespace    https://github.com/
-// @version      182.8
+// @version      182.9
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.8';
+  const SCRIPT_VERSION = '182.9';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -444,45 +444,37 @@ function VSC_MAIN() {
 
   const PRESETS = Object.freeze({
     detail: {
-  off: {
-    sharpAdd: 0, sharp2Add: 0, sat: 1.0,
-    microBase: 0.16, microScale: 1/120,
-    fineBase: 0.32,  fineScale: 1/24,
-    microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
-  },
-
-  // ── Grade 1 ─ 미세 질감 복원, 최고 자연스러움 ──────────────────
-  Soft: {
-    sharpAdd: 14, sharp2Add: 13, sat: 1.00,          // 합계 27
-    microBase: 0.24, microScale: 1/150,
-    fineBase:  0.44, fineScale:  1/28,
-    microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65]
-  },
-
-  // ── Grade 2 ─ 균형 선명도, 노이즈 밸런스 최적 ─────────────────
-  Medium: {
-    sharpAdd: 28, sharp2Add: 25, sat: 1.00,          // 합계 53
-    microBase: 0.22, microScale: 1/120,
-    fineBase:  0.40, fineScale:  1/24,
-    microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73]
-  },
-
-  // ── Grade 3 ─ 강력한 해상도 복구, 질감 대비 향상 ──────────────
-  Ultra: {
-    sharpAdd: 42, sharp2Add: 37, sat: 0.99,          // 합계 79
-    microBase: 0.20, microScale: 1/90,
-    fineBase:  0.36, fineScale:  1/20,
-    microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81]
-  },
-
-  // ── Grade 4 ─ 원본 소스급 칼날 디테일, 이질감 없음 ────────────
-  Master: {
-    sharpAdd: 56, sharp2Add: 49, sat: 0.98,          // 합계 105
-    microBase: 0.18, microScale: 1/60,
-    fineBase:  0.32, fineScale:  1/16,
-    microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89]
-  }
-},
+      off: {
+        sharpAdd: 0, sharp2Add: 0, sat: 1.0,
+        microBase: 0.16, microScale: 1/120,
+        fineBase: 0.32,  fineScale: 1/24,
+        microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
+      },
+      Soft: {
+        sharpAdd: 14, sharp2Add: 13, sat: 1.00,
+        microBase: 0.24, microScale: 1/150,
+        fineBase:  0.44, fineScale:  1/28,
+        microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65]
+      },
+      Medium: {
+        sharpAdd: 28, sharp2Add: 25, sat: 1.00,
+        microBase: 0.22, microScale: 1/120,
+        fineBase:  0.40, fineScale:  1/24,
+        microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73]
+      },
+      Ultra: {
+        sharpAdd: 42, sharp2Add: 37, sat: 0.99,
+        microBase: 0.20, microScale: 1/90,
+        fineBase:  0.36, fineScale:  1/20,
+        microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81]
+      },
+      Master: {
+        sharpAdd: 56, sharp2Add: 49, sat: 0.98,
+        microBase: 0.18, microScale: 1/60,
+        fineBase:  0.32, fineScale:  1/16,
+        microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89]
+      }
+    },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
       1: { gammaF: 1.02, brightAdd: 1.0 },
@@ -1604,7 +1596,6 @@ function VSC_MAIN() {
     return { input, output, sideAmp, setEnabled, update: () => {}, isEnabled: () => _enabled };
   }
 
-  // 🔥 [PATCH 3] AudioWorklet postMessage GC 압력 감소 및 델타 리포팅 적용
   const VSC_FINALIZER_WORKLET_SRC = `
 class VSCFinalizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -1623,7 +1614,7 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
     this.peakAccum = 0; this.peakCount = 0;
     this.frameCounter = 0;
 
-    this.reportInterval = 64;       // 활성 오디오 (~186ms)
+    this.reportInterval = 64;        // 활성 오디오 (~186ms)
     this.silentReportInterval = 320; // 무음 시 (~930ms)
     this.isSilent = false;
 
@@ -1822,6 +1813,24 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
+  // ✅ 개선 ②: AudioParam 변화 감지 캐시 (불필요한 setTargetAtTime 방지)
+  function createAudioParamCache() {
+    const _cache = new Map();
+    const EPSILON = 0.005;
+
+    return {
+      sttIfChanged(param, key, newVal, time, tc) {
+        const prev = _cache.get(key);
+        if (prev !== undefined && Math.abs(prev - newVal) < EPSILON) return;
+        _cache.set(key, newVal);
+        try { param.setTargetAtTime(newVal, time, tc); }
+        catch (_) { try { param.value = newVal; } catch (__) {} }
+      },
+      invalidate(key) { _cache.delete(key); },
+      clear() { _cache.clear(); }
+    };
+  }
+
   function createAudioFeature(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, currentNodes = null;
     let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
@@ -1868,6 +1877,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       currentNodes._finalizerAttached = true;
       node.port.onmessage = (e) => {
         currentNodes._awStats = e.data;
+        currentNodes._awStatsT = performance.now(); // ✅ 수신 시각 기록 추가
         contentClassifier.classify(e.data);
       };
     }
@@ -1945,22 +1955,33 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return { input, output, bands: { low: { comp: compLow, gain: gainLow }, mid: { comp: compMid, gain: gainMid }, high: { comp: compHigh, gain: gainHigh } } };
     }
 
+    // ✅ 개선 ①: fftSize 축소 + 스마트 샘플링 병목 제거
     function createSimpleRMSMeter(actx) {
       const analyser = actx.createAnalyser();
-      analyser.fftSize = 1024; analyser.smoothingTimeConstant = 0.8;
-      const buf = new Float32Array(analyser.fftSize);
+      analyser.fftSize = 256; // 1024 -> 256 메모리 4배 절약
+      analyser.smoothingTimeConstant = 0.8;
+      const buf = new Float32Array(256);
+
       let lastRmsDb = -70;
+      let _lastMeasureT = 0;
+      const MIN_MEASURE_INTERVAL = 80;
 
       return {
         input: analyser,
         measure: () => {
+          const now = performance.now();
+          if (now - _lastMeasureT < MIN_MEASURE_INTERVAL) return;
+          _lastMeasureT = now;
+
           analyser.getFloatTimeDomainData(buf);
           let sum = 0;
-          for (let i = 0; i < buf.length; i += 4) sum += buf[i] * buf[i];
-          const rms = Math.sqrt(sum / (buf.length / 4));
+          for (let i = 0; i < 256; i += 8) {
+            sum += buf[i]*buf[i] + buf[i+2]*buf[i+2] + buf[i+4]*buf[i+4] + buf[i+6]*buf[i+6];
+          }
+          const rms = Math.sqrt(sum / 128); // 32 반복 * 4 샘플 = 128
           lastRmsDb = rms > 1e-5 ? 20 * Math.log10(rms) : -70;
         },
-        reset: () => { lastRmsDb = -70; },
+        reset: () => { lastRmsDb = -70; _lastMeasureT = 0; },
         getState: (out) => { out.shortTermLUFS = lastRmsDb; out.momentaryLUFS = lastRmsDb; out.integratedLUFS = lastRmsDb; return out; }
       };
     }
@@ -1976,8 +1997,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         node: gainNode,
         attackTC: 0.8,
         releaseTC: 2.5,
-        update() {
-          const lufs = rmsMeter.getState(_tmp);
+        update(overrideLufs) {
+          const lufs = overrideLufs || rmsMeter.getState(_tmp);
           frameCount++; if (frameCount < SETTLE_FRAMES) return;
 
           const measured = lufs.shortTermLUFS; if (measured <= -60) return;
@@ -2012,6 +2033,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       n.masterOut.connect(audioCtx.destination);
 
       n._multiband = multiband; n._stereoWidener = stereoWidener; n._lufsMeter = rmsMeter; n._loudnessNorm = loudnessNorm;
+      n._paramCache = createAudioParamCache(); // ✅ 캐시 등록
       return n;
     }
 
@@ -2088,11 +2110,16 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (currentSrc && currentNodes) {
         const mbActive = !!sm.get(P.A_MULTIBAND);
 
-        const needMeter = actuallyEnabled && (!!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE));
+        // ✅ 개선 ③: Worklet 활성 시 RMS 측정 완전 생략
+        const hasWorkletStats = !!(
+          currentNodes._finalizerAttached && currentNodes._awStats &&
+          (performance.now() - (currentNodes._awStatsT || 0)) < 2000
+        );
+
+        const needMeter = actuallyEnabled && (!!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE)) && !hasWorkletStats;
+
         if (needMeter && currentNodes._lufsMeter && ctx.state === 'running') {
           try { currentNodes._lufsMeter.measure(); } catch (e) { log.debug('RMS measure failed', e); }
-          const lufsSt = currentNodes._lufsMeter.getState(_lufsTmp);
-
           if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS)) {
             const cType = contentClassifier.getType();
             if (cType === 'dialogue') {
@@ -2106,6 +2133,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
               currentNodes._loudnessNorm.releaseTC = 2.5;
             }
             currentNodes._loudnessNorm.update();
+          }
+        } else if (hasWorkletStats && actuallyEnabled) {
+          if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS)) {
+            const stats = currentNodes._awStats;
+            const _tmpLufs = currentNodes._loudnessNorm._tmpWorkletLufs || (currentNodes._loudnessNorm._tmpWorkletLufs = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 });
+            _tmpLufs.shortTermLUFS = stats.rmsDb || -70;
+            _tmpLufs.momentaryLUFS = stats.rmsDb || -70;
+            currentNodes._loudnessNorm.update(_tmpLufs); // Worklet 데이터로 우회 업데이트
           }
         } else {
           if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !actuallyEnabled)) {
@@ -2149,9 +2184,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20);
       const makeup = Math.pow(10, makeupDbEma / 20);
-      if (wetInGain) {
+      if (wetInGain && currentNodes && currentNodes._paramCache) {
         const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0;
-        stt(wetInGain.gain, finalGain, ctx.currentTime, 0.02);
+        currentNodes._paramCache.sttIfChanged(wetInGain.gain, 'wetInGain', finalGain, ctx.currentTime, 0.02);
       }
 
       const isPaused = target && (target.paused || target.ended);
@@ -2203,24 +2238,41 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; }
       const tok = ++loopTok, dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)), isHooked = !!currentSrc;
       const wetTarget = (dynAct && isHooked) ? 1 : 0, dryTarget = 1 - wetTarget;
-      stt(dryGain.gain, dryTarget, ctx.currentTime, 0.005); stt(wetGain.gain, wetTarget, ctx.currentTime, 0.005);
 
-      if (currentNodes) {
+      if (currentNodes && currentNodes._paramCache) {
+        const pc = currentNodes._paramCache;
+        pc.sttIfChanged(dryGain.gain, 'dryGain', dryTarget, ctx.currentTime, 0.005);
+        pc.sttIfChanged(wetGain.gain, 'wetGain', wetTarget, ctx.currentTime, 0.005);
+
         const mbEnabled = dynAct && !!sm.get(P.A_MULTIBAND);
         const dialogueOn = dynAct && !!sm.get(P.A_DIALOGUE);
         if (currentNodes._multiband) {
           const mb = currentNodes._multiband.bands, t = ctx.currentTime;
           if (mbEnabled) {
-            stt(mb.low.comp.ratio, 2.5, t, 0.02); stt(mb.mid.comp.ratio, 2.2, t, 0.02); stt(mb.high.comp.ratio, 1.8, t, 0.02);
-            if (dialogueOn) { stt(mb.mid.gain.gain, 1.30, t, 0.08); stt(mb.low.gain.gain, 1.25, t, 0.08); stt(mb.high.gain.gain, 1.12, t, 0.08); }
-            else { stt(mb.low.gain.gain, 1.41, t, 0.15); stt(mb.mid.gain.gain, 1.12, t, 0.15); stt(mb.high.gain.gain, 1.06, t, 0.15); }
+            pc.sttIfChanged(mb.low.comp.ratio, 'low.ratio', 2.5, t, 0.02);
+            pc.sttIfChanged(mb.mid.comp.ratio, 'mid.ratio', 2.2, t, 0.02);
+            pc.sttIfChanged(mb.high.comp.ratio, 'high.ratio', 1.8, t, 0.02);
+            if (dialogueOn) {
+              pc.sttIfChanged(mb.mid.gain.gain, 'mid.gain', 1.30, t, 0.08);
+              pc.sttIfChanged(mb.low.gain.gain, 'low.gain', 1.25, t, 0.08);
+              pc.sttIfChanged(mb.high.gain.gain, 'high.gain', 1.12, t, 0.08);
+            } else {
+              pc.sttIfChanged(mb.low.gain.gain, 'low.gain', 1.41, t, 0.15);
+              pc.sttIfChanged(mb.mid.gain.gain, 'mid.gain', 1.12, t, 0.15);
+              pc.sttIfChanged(mb.high.gain.gain, 'high.gain', 1.06, t, 0.15);
+            }
           } else {
-            stt(mb.low.comp.ratio, 1.0, t, 0.05); stt(mb.mid.comp.ratio, 1.0, t, 0.05); stt(mb.high.comp.ratio, 1.0, t, 0.05);
-            stt(mb.low.gain.gain, 1.0, t, 0.05); stt(mb.mid.gain.gain, 1.0, t, 0.05); stt(mb.high.gain.gain, 1.0, t, 0.05);
+            pc.sttIfChanged(mb.low.comp.ratio, 'low.ratio', 1.0, t, 0.05);
+            pc.sttIfChanged(mb.mid.comp.ratio, 'mid.ratio', 1.0, t, 0.05);
+            pc.sttIfChanged(mb.high.comp.ratio, 'high.ratio', 1.0, t, 0.05);
+            pc.sttIfChanged(mb.low.gain.gain, 'low.gain', 1.0, t, 0.05);
+            pc.sttIfChanged(mb.mid.gain.gain, 'mid.gain', 1.0, t, 0.05);
+            pc.sttIfChanged(mb.high.gain.gain, 'high.gain', 1.0, t, 0.05);
           }
         }
         if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !dynAct)) {
-          stt(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05); currentNodes._loudnessNorm.reset();
+          pc.sttIfChanged(currentNodes._loudnessNorm.node.gain, 'ln.gain', 1.0, ctx.currentTime, 0.05);
+          currentNodes._loudnessNorm.reset();
         }
         if (currentNodes._stereoWidener && !dynAct) {
           currentNodes._stereoWidener.setEnabled(false);
@@ -2232,11 +2284,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           );
           const p = currentNodes._finalizer.parameters;
           const t = ctx.currentTime;
-          try { p.get('drive')?.setTargetAtTime(dynAct ? adapted.drive : 1.0, t, 0.15); } catch (_) {}
-          try { p.get('ceiling')?.setTargetAtTime(adapted.ceiling, t, 0.08); } catch (_) {}
-          try { p.get('mix')?.setTargetAtTime(dynAct ? adapted.mix : 0.0, t, 0.05); } catch (_) {}
-          try { p.get('release')?.setTargetAtTime(adapted.release, t, 0.08); } catch (_) {}
+          // Worklet parameter는 try-catch를 동반하는 pc.sttIfChanged로 완벽히 제어
+          pc.sttIfChanged(p.get('drive'), 'fin.drive', dynAct ? adapted.drive : 1.0, t, 0.15);
+          pc.sttIfChanged(p.get('ceiling'), 'fin.ceil', adapted.ceiling, t, 0.08);
+          pc.sttIfChanged(p.get('mix'), 'fin.mix', dynAct ? adapted.mix : 0.0, t, 0.05);
+          pc.sttIfChanged(p.get('release'), 'fin.rel', adapted.release, t, 0.08);
         }
+      } else {
+        stt(dryGain.gain, dryTarget, ctx.currentTime, 0.005); stt(wetGain.gain, wetTarget, ctx.currentTime, 0.005);
       }
       if (dynAct && isHooked) runAudioLoop(tok);
     };
@@ -2357,6 +2412,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
 
+    // ✅ 개선 A: CSS Filter 문자열 캐싱 (브라우저 Style Recalculate 방지)
+    const _cssFilterCache = new WeakMap();
+
     function cacheSet(map, key, val, max = 24) {
       if (map.size >= max && !map.has(key)) map.delete(map.keys().next().value);
       map.set(key, val);
@@ -2401,7 +2459,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const filterStr = buildCssFilterString(s);
       const st = getVState(el);
 
-      if (st.lastFilterUrl === filterStr) return;
+      // ✅ 추가 최적화: 브라우저 DOM 접근 전 메모리 상에서 이전 문자열과 비교
+      const lastApplied = _cssFilterCache.get(el);
+      if (lastApplied === filterStr) return;
 
       if (!filterStr) {
         if (st.applied) {
@@ -2410,10 +2470,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           } else {
             el.style.removeProperty('filter');
           }
-          el.style.removeProperty('-webkit-filter');
+          if (st.origWebkitFilter != null && st.origWebkitFilter !== '') {
+            el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || '');
+          } else {
+            el.style.removeProperty('-webkit-filter');
+          }
           st.applied = false;
           st.lastFilterUrl = null;
         }
+        _cssFilterCache.set(el, '');
         return;
       }
 
@@ -2428,6 +2493,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       el.style.setProperty('-webkit-filter', filterStr, 'important');
       st.applied = true;
       st.lastFilterUrl = filterStr;
+      _cssFilterCache.set(el, filterStr); // ✅ 캐시 업데이트
     }
 
     function setAttr(node, attr, val) {
@@ -2874,7 +2940,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       ]) { try { CSS.registerProperty(prop); } catch (_) {} }
     });
 
-    // 🔥 [PATCH 2] 불필요한 SVG 재계산을 방지하기 위해 경로별 ApplyReq 분기
     const HARD_PREFIXES = new Set(['video.', 'app.active', 'app.applyAll']);
 
     function needsHardApply(path) {
@@ -3677,7 +3742,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
 
     const CONFIRM_DOWN = 5;
-    const CONFIRM_UP = 2; // 상향 확정 횟수 추가
+    const CONFIRM_UP = 2;
     const COOLDOWN_DOWN = 10000;
     const COOLDOWN_UP = 500;
 
@@ -3766,42 +3831,148 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   // ──────────────────────────────────────────────
-  // ③ CONTENT LAYER v2 (PATCH 1 적용)
+  // ③ CONTENT LAYER v2 (✅ 병목 #2 및 가변 샘플링 패치 적용)
   // ──────────────────────────────────────────────
   function createContentAwareSharpTuner() {
-    let canvas = null;
-    let ctx2d = null;
-    let lastAnalysisT = 0;
-    let cachedMultiplier = 1.0;
-    let failCount = 0;
+    const _WORKER_SRC = `
+      let _canvas = null, _ctx = null;
+      self.onmessage = function({ data }) {
+        if (data.type === 'analyze') {
+          const { bitmap, width, height } = data;
+          if (!_canvas) {
+            _canvas = new OffscreenCanvas(width, height);
+            _ctx = _canvas.getContext('2d', { willReadFrequently: true });
+          } else if (_canvas.width !== width || _canvas.height !== height) {
+            _canvas.width = width; _canvas.height = height;
+          }
+          _ctx.drawImage(bitmap, 0, 0, width, height);
+          bitmap.close();
 
-    let _trackedSrc = '';
-    let _lastComplexity = 0.5;
+          const imgData = _ctx.getImageData(0, 0, width, height);
+          const dataArr = imgData.data;
+
+          let edgeSum = 0, colorVariance = 0, pixelCount = 0;
+
+          for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+              const idx = (y * width + x) << 2;
+
+              const lum  = (dataArr[idx]*77   + dataArr[idx+1]*150 + dataArr[idx+2]*29)   >> 8;
+              const lumL = (dataArr[idx-4]*77 + dataArr[idx-3]*150 + dataArr[idx-2]*29)   >> 8;
+              const lumR = (dataArr[idx+4]*77 + dataArr[idx+5]*150 + dataArr[idx+6]*29)   >> 8;
+              const idxU = ((y-1)*width+x) << 2;
+              const idxD = ((y+1)*width+x) << 2;
+              const lumU = (dataArr[idxU]*77  + dataArr[idxU+1]*150 + dataArr[idxU+2]*29) >> 8;
+              const lumD = (dataArr[idxD]*77  + dataArr[idxD+1]*150 + dataArr[idxD+2]*29) >> 8;
+
+              const gx = lumR - lumL;
+              const gy = lumD - lumU;
+              edgeSum += Math.sqrt(gx*gx + gy*gy);
+
+              const cr = dataArr[idx], cg = dataArr[idx+1], cb = dataArr[idx+2];
+              colorVariance +=
+                (Math.abs(cr - dataArr[idx-4]) + Math.abs(cr - dataArr[idx+4]) +
+                 Math.abs(cg - dataArr[idx-3]) + Math.abs(cg - dataArr[idx+5]) +
+                 Math.abs(cb - dataArr[idx-2]) + Math.abs(cb - dataArr[idx+6])) / 6;
+
+              pixelCount++;
+            }
+          }
+
+          const avgEdge     = edgeSum / Math.max(1, pixelCount);
+          const avgColorVar = colorVariance / Math.max(1, pixelCount);
+          const edgeScore  = Math.min(1, Math.max(0, (avgEdge - 3.0) / 10.0));
+          const colorScore = Math.min(1, Math.max(0, (avgColorVar - 4.0) / 16.0));
+          const complexity = edgeScore * 0.7 + colorScore * 0.3;
+
+          self.postMessage({ type: 'result', complexity });
+        }
+      };
+    `;
+
+    let _worker = null;
+    function getWorker() {
+      if (_worker) return _worker;
+      try {
+        const blob = new Blob([_WORKER_SRC], { type: 'application/javascript' });
+        const url  = URL.createObjectURL(blob);
+        _worker = new Worker(url);
+        URL.revokeObjectURL(url);
+        _worker.onmessage = ({ data }) => {
+          if (data.type !== 'result') return;
+          _pendingAnalysis = false;
+          const rawMul = 0.55 + data.complexity * 0.55;
+          cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
+          _lastComplexity  += (data.complexity - _lastComplexity) * EMA_ALPHA;
+          failCount = 0;
+        };
+        _worker.onerror = () => { failCount++; _pendingAnalysis = false; };
+      } catch (_) { _worker = null; }
+      return _worker;
+    }
+
+    let _fallbackCanvas = null, _fallbackCtx = null;
+    function _runSyncAnalysis(video, curW, curH) {
+      if (!video.videoWidth || video.readyState < 2) return;
+      try {
+        if (!_fallbackCanvas) {
+          _fallbackCanvas = document.createElement('canvas');
+          _fallbackCanvas.width = curW; _fallbackCanvas.height = curH;
+          _fallbackCtx = _fallbackCanvas.getContext('2d', { willReadFrequently: true });
+        } else if (_fallbackCanvas.width !== curW || _fallbackCanvas.height !== curH) {
+          _fallbackCanvas.width = curW; _fallbackCanvas.height = curH;
+        }
+        _fallbackCtx.drawImage(video, 0, 0, curW, curH);
+        const imgData = _fallbackCtx.getImageData(0, 0, curW, curH);
+        const dataArr = imgData.data;
+
+        let edgeSum = 0, colorVariance = 0, pixelCount = 0;
+        for (let y = 1; y < curH - 1; y++) {
+          for (let x = 1; x < curW - 1; x++) {
+            const idx = (y * curW + x) << 2;
+            const lum  = (dataArr[idx]*77   + dataArr[idx+1]*150 + dataArr[idx+2]*29)   >> 8;
+            const lumL = (dataArr[idx-4]*77 + dataArr[idx-3]*150 + dataArr[idx-2]*29)   >> 8;
+            const lumR = (dataArr[idx+4]*77 + dataArr[idx+5]*150 + dataArr[idx+6]*29)   >> 8;
+            const idxU = ((y-1)*curW+x) << 2;
+            const idxD = ((y+1)*curW+x) << 2;
+            const lumU = (dataArr[idxU]*77  + dataArr[idxU+1]*150 + dataArr[idxU+2]*29) >> 8;
+            const lumD = (dataArr[idxD]*77  + dataArr[idxD+1]*150 + dataArr[idxD+2]*29) >> 8;
+            const gx = lumR - lumL; const gy = lumD - lumU;
+            edgeSum += Math.sqrt(gx*gx + gy*gy);
+            const cr = dataArr[idx], cg = dataArr[idx+1], cb = dataArr[idx+2];
+            colorVariance += (Math.abs(cr - dataArr[idx-4]) + Math.abs(cr - dataArr[idx+4]) + Math.abs(cg - dataArr[idx-3]) + Math.abs(cg - dataArr[idx+5]) + Math.abs(cb - dataArr[idx-2]) + Math.abs(cb - dataArr[idx+6])) / 6;
+            pixelCount++;
+          }
+        }
+        const avgEdge = edgeSum / Math.max(1, pixelCount), avgColorVar = colorVariance / Math.max(1, pixelCount);
+        const edgeScore = Math.min(1, Math.max(0, (avgEdge - 3.0) / 10.0)), colorScore = Math.min(1, Math.max(0, (avgColorVar - 4.0) / 16.0));
+        const complexity = edgeScore * 0.7 + colorScore * 0.3;
+        const rawMul = 0.55 + complexity * 0.55;
+        cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
+        _lastComplexity += (complexity - _lastComplexity) * EMA_ALPHA;
+        failCount = 0;
+      } catch (_) { failCount++; }
+    }
+
     const EMA_ALPHA = 0.35;
-
-    const SAMPLE_W = CONFIG.IS_MOBILE ? 32 : 64;
-    const SAMPLE_H = CONFIG.IS_MOBILE ? 18 : 36;
-
     const ANALYSIS_INTERVAL_ACTIVE  = CONFIG.IS_MOBILE ? 5000 : 3000;
     const ANALYSIS_INTERVAL_PAUSED  = 15000;
-    const ANALYSIS_INTERVAL_HIDDEN  = Infinity;
-
     const MAX_FAILS = 3;
 
+    let cachedMultiplier = 1.0, _lastComplexity = 0.5;
+    let lastAnalysisT = 0, failCount = 0, _trackedSrc = '';
+    let _pendingAnalysis = false;
+
     function getInterval(video) {
-      if (document.hidden) return ANALYSIS_INTERVAL_HIDDEN;
-      if (video.paused || video.ended) return ANALYSIS_INTERVAL_PAUSED;
-      return ANALYSIS_INTERVAL_ACTIVE;
+      if (document.hidden) return Infinity;
+      return (video.paused || video.ended) ? ANALYSIS_INTERVAL_PAUSED : ANALYSIS_INTERVAL_ACTIVE;
     }
 
     function checkSourceChange(video) {
       const src = video.currentSrc || video.src || '';
       if (src !== _trackedSrc) {
-        _trackedSrc = src;
-        cachedMultiplier = 1.0;
-        _lastComplexity = 0.5;
-        lastAnalysisT = 0;
-        failCount = 0;
+        _trackedSrc = src; cachedMultiplier = 1.0; _lastComplexity = 0.5;
+        lastAnalysisT = 0; failCount = 0; _pendingAnalysis = false;
         return true;
       }
       return false;
@@ -3809,17 +3980,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     function analyzeDetailDensity(video) {
       checkSourceChange(video);
-
       const now = performance.now();
       const interval = getInterval(video);
 
-      if (interval === Infinity || (now - lastAnalysisT) < interval) {
+      if (interval === Infinity || _pendingAnalysis || (now - lastAnalysisT) < interval) {
         return cachedMultiplier;
       }
       if (failCount >= MAX_FAILS) return cachedMultiplier;
 
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
+      const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
       if (!vw || !vh || video.readyState < 2) return cachedMultiplier;
 
       if (video.readyState < 3 && !video.paused) {
@@ -3829,116 +3998,84 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       lastAnalysisT = now;
 
-      if (!canvas) {
-        try {
-          canvas = new OffscreenCanvas(SAMPLE_W, SAMPLE_H);
-          ctx2d = canvas.getContext('2d', { willReadFrequently: true });
-        } catch (_) {
-          canvas = document.createElement('canvas');
-          canvas.width = SAMPLE_W;
-          canvas.height = SAMPLE_H;
-          ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+      const isLowRes = vw < 1280;
+      const curW = isLowRes ? 32 : 64;
+      const curH = isLowRes ? 18 : 36;
+
+      const worker = getWorker();
+      if (worker && typeof createImageBitmap === 'function') {
+        _pendingAnalysis = true;
+        createImageBitmap(video, { resizeWidth: curW, resizeHeight: curH, resizeQuality: 'pixelated' })
+          .then(bitmap => {
+            worker.postMessage({ type: 'analyze', bitmap, width: curW, height: curH }, [bitmap]);
+          })
+          .catch(() => { failCount++; _pendingAnalysis = false; });
+      } else {
+        if (window.requestIdleCallback) {
+          requestIdleCallback((dl) => {
+            if (dl.timeRemaining() < 2) return;
+            _runSyncAnalysis(video, curW, curH);
+          }, { timeout: 500 });
+        } else {
+          _runSyncAnalysis(video, curW, curH);
         }
-      }
-
-      try {
-        ctx2d.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
-        const imgData = ctx2d.getImageData(0, 0, SAMPLE_W, SAMPLE_H);
-        const data = imgData.data;
-
-        let edgeSum = 0;
-        let colorVariance = 0;
-        let pixelCount = 0;
-
-        for (let y = 1; y < SAMPLE_H - 1; y++) {
-          for (let x = 1; x < SAMPLE_W - 1; x++) {
-            const idx = (y * SAMPLE_W + x) * 4;
-
-            const lum  = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
-            const lumL = data[idx-4] * 0.299 + data[idx-3] * 0.587 + data[idx-2] * 0.114;
-            const lumR = data[idx+4] * 0.299 + data[idx+5] * 0.587 + data[idx+6] * 0.114;
-            const lumU = data[((y-1)*SAMPLE_W+x)*4]   * 0.299 + data[((y-1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y-1)*SAMPLE_W+x)*4+2] * 0.114;
-            const lumD = data[((y+1)*SAMPLE_W+x)*4]   * 0.299 + data[((y+1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y+1)*SAMPLE_W+x)*4+2] * 0.114;
-
-            const gx = lumR - lumL;
-            const gy = lumD - lumU;
-            edgeSum += Math.sqrt(gx * gx + gy * gy);
-
-            const cr = data[idx], cg = data[idx+1], cb = data[idx+2];
-            const diffR = Math.abs(cr - data[idx-4]) + Math.abs(cr - data[idx+4]);
-            const diffG = Math.abs(cg - data[idx-3]) + Math.abs(cg - data[idx+5]);
-            const diffB = Math.abs(cb - data[idx-2]) + Math.abs(cb - data[idx+6]);
-            colorVariance += (diffR + diffG + diffB) / 6;
-
-            pixelCount++;
-          }
-        }
-
-        const avgEdge = edgeSum / Math.max(1, pixelCount);
-        const avgColorVar = colorVariance / Math.max(1, pixelCount);
-
-        const edgeScore = VSC_CLAMP((avgEdge - 3.0) / 10.0, 0.0, 1.0);
-        const colorScore = VSC_CLAMP((avgColorVar - 4.0) / 16.0, 0.0, 1.0);
-        const complexity = edgeScore * 0.7 + colorScore * 0.3;
-
-        const rawMul = 0.55 + complexity * 0.55;
-        cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
-        _lastComplexity += (complexity - _lastComplexity) * EMA_ALPHA;
-        failCount = 0;
-
-      } catch (_) {
-        failCount++;
       }
 
       return cachedMultiplier;
     }
 
-    function getSigmaHint() {
-      if (_lastComplexity <= 0.5) {
-        return 0.85 + _lastComplexity * 0.30;
-      } else {
-        return 1.00 + (_lastComplexity - 0.5) * 0.10;
-      }
-    }
-
-    function reset() {
-      cachedMultiplier = 1.0;
-      _lastComplexity = 0.5;
-      lastAnalysisT = 0;
-      failCount = 0;
-      _trackedSrc = '';
-    }
-
     return {
       analyzeDetailDensity,
       getMultiplier: () => cachedMultiplier,
-      getSigmaHint,
+      getSigmaHint: () => _lastComplexity <= 0.5 ? 0.85 + _lastComplexity * 0.30 : 1.00 + (_lastComplexity - 0.5) * 0.10,
       getComplexity: () => _lastComplexity,
-      reset
+      reset: () => { cachedMultiplier = 1.0; _lastComplexity = 0.5; lastAnalysisT = 0; failCount = 0; _trackedSrc = ''; _pendingAnalysis = false; },
+      destroy: () => { _worker?.terminate(); _worker = null; }
     };
   }
 
   // ──────────────────────────────────────────────
-  // 파이프라인 통합
+  // 파이프라인 통합 (✅ 병목 #1: 캐시 키 Fast-Path 패치 적용)
   // ──────────────────────────────────────────────
+  function _updateFastCache(cache, video, vfUser, nW, nH, dW, dH, budget, result) {
+    let fc = cache.get(video);
+    if (!fc) { fc = {}; cache.set(video, fc); }
+    fc.presetS        = vfUser.presetS;
+    fc.brightLevel    = vfUser.brightLevel;
+    fc.shadowBandMask = vfUser.shadowBandMask;
+    fc.temp           = vfUser.temp;
+    fc.nW = nW; fc.nH = nH; fc.dW = dW; fc.dH = dH;
+    fc.budgetMode     = budget.mode;
+    fc.budgetSharpMul = budget.sharpMul;
+    fc.budgetSigmaMul = budget.sigmaMul;
+    fc.result         = result;
+  }
+
   function createVideoParamsMemo() {
     const contentTuner = createContentAwareSharpTuner();
+    const _srcHashCache = new WeakMap();
+    const _videoFastCache = new WeakMap();
+
+    function getSrcHashCached(video) {
+      if (!video) return '0';
+      const curSrc = video.currentSrc || video.src || '';
+      if (!curSrc) return '0';
+      const entry = _srcHashCache.get(video);
+      if (entry && entry.src === curSrc) return entry.hash;
+
+      let h = 5381;
+      for (let i = 0, len = Math.min(curSrc.length, 200); i < len; i++) {
+        h = ((h << 5) + h + curSrc.charCodeAt(i)) | 0;
+      }
+      const hash = String(h >>> 0);
+      _srcHashCache.set(video, { src: curSrc, hash });
+      return hash;
+    }
 
     function computeBaseSigmaScale(video) {
       const dW = video.clientWidth || video.offsetWidth || 0;
       if (dW < 16) return 1.0;
-      const refW = Math.max(640, Math.min(3840, dW));
-      return Math.sqrt(refW / 1920);
-    }
-
-    function srcHash(video) {
-      const s = video?.currentSrc || video?.src || '';
-      if (!s) return '0';
-      let h = 5381;
-      for (let i = 0, len = Math.min(s.length, 200); i < len; i++) {
-        h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-      }
-      return String(h >>> 0);
+      return Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920);
     }
 
     const _cache = new Map();
@@ -3950,24 +4087,47 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const dW = video?.clientWidth || video?.offsetWidth || 0;
         const dH = video?.clientHeight || video?.offsetHeight || 0;
 
-        const sh = video ? srcHash(video) : '0';
+        const fc = video ? _videoFastCache.get(video) : null;
+        if (fc) {
+          const inputUnchanged =
+            fc.presetS        === vfUser.presetS        &&
+            fc.brightLevel    === vfUser.brightLevel    &&
+            fc.shadowBandMask === vfUser.shadowBandMask &&
+            fc.temp           === vfUser.temp           &&
+            fc.nW             === nW                    &&
+            fc.nH             === nH                    &&
+            fc.dW             === dW                    &&
+            fc.dH             === dH                    &&
+            fc.budgetMode     === budget.mode           &&
+            fc.budgetSharpMul === budget.sharpMul       &&
+            fc.budgetSigmaMul === budget.sigmaMul;
 
+          if (inputUnchanged) {
+            const currentContentMul = contentTuner.getMultiplier();
+            if (Math.abs(currentContentMul - (fc.result._lastContentMul || 1.0)) <= 0.05) {
+              return fc.result;
+            }
+          }
+        }
+
+        const sh = getSrcHashCached(video);
         const inputKey = [
           vfUser.presetS, vfUser.brightLevel, vfUser.shadowBandMask, vfUser.temp,
           nW, nH, dW, dH, budget.mode, budget.sharpMul, budget.shadowCap, budget.sigmaMul, sh
         ].join('|');
 
-        const cached = _cache.get(inputKey);
-        if (cached) {
+        const mapCached = _cache.get(inputKey);
+        if (mapCached) {
           if (video && video.readyState >= 2) {
             const freshContentMul = contentTuner.analyzeDetailDensity(video);
-            if (Math.abs(freshContentMul - (cached._lastContentMul || 1.0)) > 0.05) {
-              _cache.delete(inputKey);
-            } else {
-              return cached;
+            if (Math.abs(freshContentMul - (mapCached._lastContentMul || 1.0)) <= 0.05) {
+              _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, mapCached);
+              return mapCached;
             }
+            _cache.delete(inputKey);
           } else {
-            return cached;
+            _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, mapCached);
+            return mapCached;
           }
         }
 
@@ -4026,10 +4186,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
         if (_cache.size >= MAX_MEMO) _cache.delete(_cache.keys().next().value);
         _cache.set(inputKey, result);
+        if (video) _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, result);
+
         return result;
       },
       resetContentAnalysis() {
         contentTuner.reset();
+      },
+      destroy() {
+        contentTuner.destroy?.();
       }
     };
   }
@@ -4431,7 +4596,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
     const Adapter = createBackendAdapter(Filters); __vscNs.Adapter = Adapter;
-    __vscNs.Filters = Filters; // 타겟 체인지 로직을 위해 스코프 개방
+    __vscNs.Filters = Filters;
 
     const videoParamsMemo = createVideoParamsMemo();
     const PerfGovernor = createPerfGovernor();
