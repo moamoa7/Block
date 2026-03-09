@@ -444,19 +444,20 @@ function VSC_MAIN() {
 
   const PRESETS = Object.freeze({
     detail: {
+      // 끄기: 순정 상태
       off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.16, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
 
-      // Soft: 가벼운 윤곽선 강조
-      Soft: { sharpAdd: 15, sharp2Add: 18, sat: 1.0, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
+      // Soft: 일상적인 드라마/예능 시청용 (눈의 피로도 최소화)
+      Soft: { sharpAdd: 15, sharp2Add: 16, sat: 1.0, microBase: 0.26, microScale: 1/150, fineBase: 0.46, fineScale: 1/28, microAmt: [0.42, 0.08], fineAmt: [0.16, 0.65] },
 
-      // Medium: 표준 시청 권장값
-      Medium: { sharpAdd: 30, sharp2Add: 32, sat: 1.0, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.50, 0.10], fineAmt: [0.18, 0.80] },
+      // Medium: 고화질 영화/유튜브 시청용 (가장 균형 잡힌 선명도)
+      Medium: { sharpAdd: 30, sharp2Add: 28, sat: 1.0, microBase: 0.24, microScale: 1/120, fineBase: 0.42, fineScale: 1/24, microAmt: [0.48, 0.10], fineAmt: [0.18, 0.78] },
 
-      // Ultra: 강력한 해상도 복구
-      Ultra: { sharpAdd: 45, sharp2Add: 42, sat: 0.98, microBase: 0.20, microScale: 1/100, fineBase: 0.36, fineScale: 1/20, microAmt: [0.55, 0.12], fineAmt: [0.20, 0.85] },
+      // Ultra: 저해상도 소스(720p 이하) 복구용 (질감 강화)
+      Ultra: { sharpAdd: 45, sharp2Add: 44, sat: 0.98, microBase: 0.22, microScale: 1/100, fineBase: 0.38, fineScale: 1/22, microAmt: [0.52, 0.12], fineAmt: [0.20, 0.82] },
 
-      // Master: 최상위 선명도 (노이즈 억제를 위해 채도 미세 감소)
-      Master: { sharpAdd: 60, sharp2Add: 52, sat: 0.97, microBase: 0.18, microScale: 1/90, fineBase: 0.32, fineScale: 1/18, microAmt: [0.55, 0.14], fineAmt: [0.22, 0.90] }
+      // Master: 4K급 디테일 극대화 (미세 노이즈 차단 및 채도 안정화)
+      Master: { sharpAdd: 60, sharp2Add: 56, sat: 0.97, microBase: 0.20, microScale: 1/90, fineBase: 0.34, fineScale: 1/20, microAmt: [0.55, 0.15], fineAmt: [0.22, 0.88] }
     },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
