@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v180.6.0 - Intelligence & Context Edition)
+// @name         Video_Control (v180.6.1 - Intelligence & Context Edition)
 // @namespace    https://github.com/
-// @version      180.6.0
+// @version      180.6.1
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -282,12 +282,12 @@ function VSC_MAIN() {
       Master: { sharpAdd: 52, sharp2Add: 48, sat: 0.98, microBase: 0.18, microScale: 1/90, fineBase: 0.32, fineScale: 1/18, microAmt: [0.55, 0.14], fineAmt: [0.22, 0.90] }
     },
     bright: {
-      0: { gammaF: 1.00, brightAdd: 0 },
-      1: { gammaF: 1.04, brightAdd: 2.0 },
-      2: { gammaF: 1.09, brightAdd: 4.5 },
-      3: { gammaF: 1.15, brightAdd: 8.0 },
-      4: { gammaF: 1.22, brightAdd: 12.0 },
-      5: { gammaF: 1.30, brightAdd: 16.0 }
+      0: { gammaF: 1.00, brightAdd: 0 },    // OFF
+      1: { gammaF: 1.02, brightAdd: 1.0 },  // [조정] 기존보다 절반 정도만 밝아짐
+      2: { gammaF: 1.05, brightAdd: 2.5 },  // [조정] 기존 1단계와 2단계 사이의 부드러운 밝기
+      3: { gammaF: 1.10, brightAdd: 5.5 },  // [조정] 기존 2단계 수준으로 당김
+      4: { gammaF: 1.18, brightAdd: 9.5 },  // [조정] 중고단계 브릿지
+      5: { gammaF: 1.28, brightAdd: 14.5 }  // [조정] 최대 밝기 소폭 하향
     }
   });
 
