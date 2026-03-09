@@ -444,20 +444,45 @@ function VSC_MAIN() {
 
   const PRESETS = Object.freeze({
     detail: {
-      off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.16, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
+  off: {
+    sharpAdd: 0, sharp2Add: 0, sat: 1.0,
+    microBase: 0.16, microScale: 1/120,
+    fineBase: 0.32,  fineScale: 1/24,
+    microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85]
+  },
 
-      // Soft: 미세하게 질감만 보정 (자연스러움 극대화)
-      Soft: { sharpAdd: 13, sharp2Add: 14, sat: 1.0, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
+  // ── Grade 1 ─ 미세 질감 복원, 최고 자연스러움 ──────────────────
+  Soft: {
+    sharpAdd: 14, sharp2Add: 13, sat: 1.00,          // 합계 27
+    microBase: 0.24, microScale: 1/150,
+    fineBase:  0.44, fineScale:  1/28,
+    microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65]
+  },
 
-      // Medium: 표준 선명도 (노이즈 밸런스 최적화)
-      Medium: { sharpAdd: 26, sharp2Add: 25, sat: 1.0, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.48, 0.10], fineAmt: [0.18, 0.78] },
+  // ── Grade 2 ─ 균형 선명도, 노이즈 밸런스 최적 ─────────────────
+  Medium: {
+    sharpAdd: 28, sharp2Add: 25, sat: 1.00,          // 합계 53
+    microBase: 0.22, microScale: 1/120,
+    fineBase:  0.40, fineScale:  1/24,
+    microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73]
+  },
 
-      // Ultra: 강력한 해상도 복구 (질감 대비 향상)
-      Ultra: { sharpAdd: 39, sharp2Add: 36, sat: 0.99, microBase: 0.20, microScale: 1/100, fineBase: 0.36, fineScale: 1/20, microAmt: [0.52, 0.12], fineAmt: [0.20, 0.82] },
+  // ── Grade 3 ─ 강력한 해상도 복구, 질감 대비 향상 ──────────────
+  Ultra: {
+    sharpAdd: 42, sharp2Add: 37, sat: 0.99,          // 합계 79
+    microBase: 0.20, microScale: 1/90,
+    fineBase:  0.36, fineScale:  1/20,
+    microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81]
+  },
 
-      // Master: 원본 소스급 칼날 디테일 (이질감 없는 날카로움)
-      Master: { sharpAdd: 52, sharp2Add: 46, sat: 0.98, microBase: 0.18, microScale: 1/90, fineBase: 0.32, fineScale: 1/18, microAmt: [0.55, 0.14], fineAmt: [0.22, 0.88] }
-    },
+  // ── Grade 4 ─ 원본 소스급 칼날 디테일, 이질감 없음 ────────────
+  Master: {
+    sharpAdd: 56, sharp2Add: 49, sat: 0.98,          // 합계 105
+    microBase: 0.18, microScale: 1/60,
+    fineBase:  0.32, fineScale:  1/16,
+    microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89]
+  }
+},
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
       1: { gammaF: 1.02, brightAdd: 1.0 },
