@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.0 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.1 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      182.0
+// @version      182.1
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -28,7 +28,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.0';
+  const SCRIPT_VERSION = '182.1';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2819,16 +2819,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {}
     };
 
+    // 🔥 [복구 완료] 실제 영상 시청 페이지 체크
     const allowUiInThisDoc = () => {
       const hn = location.hostname;
       const pn = location.pathname;
-      if (hn.includes('netflix.com')) {
-        const netflixExcludes = ['/browse', '/title', '/search', '/latest'];
-        if (netflixExcludes.some(path => pn.startsWith(path))) return false;
-      }
-      if (hn.includes('coupangplay.com')) {
-        if (!pn.startsWith('/play')) return false;
-      }
+      if (hn.includes('netflix.com')) return pn.startsWith('/watch');
+      if (hn.includes('coupangplay.com')) return pn.startsWith('/play');
       return true;
     };
 
@@ -3175,8 +3171,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const mount = () => { const root = getUiRoot(); if (!root) return; const gearTarget = document.fullscreenElement || document.body || document.documentElement; try { if (gearHost && gearHost.parentNode !== gearTarget) gearTarget.appendChild(gearHost); } catch (_) { try { (document.body || document.documentElement).appendChild(gearHost); } catch (__) {} } try { if (container && container.parentNode !== gearTarget) gearTarget.appendChild(container); } catch (_) { try { (document.body || document.documentElement).appendChild(container); } catch (__) {} } };
 
+    // 🔥 실제 동작 통제 로직
     const ensure = () => {
-      if (!allowUiInThisDoc()) {
+      // 경로가 안 맞거나 비디오가 없으면 기어를 숨김
+      if (!allowUiInThisDoc() || (registry.videos.size === 0 && !sm.get(P.APP_UI))) {
         detachNodesHard();
         return;
       }
@@ -3617,10 +3615,25 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     let pendingMode = null;
     let lastTransitionT = 0;
 
-    const SAMPLE_INTERVAL = { high: 1500, mid: 800, low: 400 };
-    const THRESHOLDS = { downToMid: 0.04, downToLow: 0.10, upToMid: 0.03, upToHigh: 0.015, emergency: 0.15 };
-    const CONFIRM_DOWN = 2; const CONFIRM_UP = 4;
-    const COOLDOWN_DOWN = 500; const COOLDOWN_UP = 3000;
+    // 1. 샘플링 간격을 대폭 늘림 (자주 검사 안 함)
+    const SAMPLE_INTERVAL = { high: 5000, mid: 3000, low: 2000 };
+
+    // 2. 프레임 드랍 허용치를 대폭 올림 (4% 드랍 -> 25% 드랍될 때만 반응)
+    const THRESHOLDS = {
+      downToMid: 0.25,  // 프레임 25%가 사라져야 '중간'으로 강등
+      downToLow: 0.45,  // 프레임 45%가 사라져야 '최저'로 강등
+      upToMid: 0.05,
+      upToHigh: 0.02,
+      emergency: 0.60   // 거의 화면이 멈춰야 비상 모드
+    };
+
+    // 3. 확정 횟수를 늘림 (순간적인 렉은 '실수'로 간주하고 무시)
+    const CONFIRM_DOWN = 5; // 5번 연속으로 프레임이 개판이어야 비로소 하향 조정
+    // 하향 조절 쿨다운을 늘려 일시적 렉에 등급이 훅 떨어지는 걸 막습니다.
+    const COOLDOWN_DOWN = 10000; // 한번 High면 웬만해선 10초간 등급 안 낮춤
+
+    // 상향 복구 쿨다운을 줄여서 성능이 돌아오면 즉시 화질을 복구합니다.
+    const COOLDOWN_UP = 500;     // 0.5초만 사양 여유 생기면 바로 원상복구
 
     function transitionTo(newMode) {
       if (newMode === globalMode) return;
@@ -3704,7 +3717,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     if (isMobile) mul *= VSC_CLAMP(1.05 / dpr, 0.55, 0.85);
     else if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0);
 
-    return VSC_CLAMP(mul, 0.0, 1.6);
+    return VSC_CLAMP(mul, 0.0, 0.5);
   }
 
   // ──────────────────────────────────────────────
