@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v180.5.3 - Diet & Performance Edition)
+// @name         Video_Control (v180.6.0 - Intelligence & Context Edition)
 // @namespace    https://github.com/
-// @version      180.5.3
-// @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat.
+// @version      180.6.0
+// @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -28,7 +28,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '180.5.3';
+  const SCRIPT_VERSION = '180.6.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -147,7 +147,6 @@ function VSC_MAIN() {
     catch (_) { try { target.addEventListener(type, fn, !!merged.capture); } catch (__) {} }
   }
 
-  // [수정: GPU 부하를 크게 유발하던 text-shadow를 -webkit-text-stroke로 변경]
   const getSmoothStroke = (color = '#000') => `-webkit-text-stroke: 1.5px ${color}; paint-order: stroke fill;`;
   __vscNs.getSmoothStroke = getSmoothStroke;
 
@@ -159,8 +158,6 @@ function VSC_MAIN() {
     });
   };
   __vscNs.blockInterference = blockInterference;
-
-  // [삭제: 레거시 initVideoFsPatch 모듈 (불필요한 프록시 훅) 제거됨]
 
   let shadowEmitterInstalled = false;
   const __shadowRootCallbacks = new Set();
@@ -2646,7 +2643,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {}
     };
 
-    // [수정: 넷플릭스, 쿠팡플레이 등의 탐색(Browse) 페이지에서 UI 숨김 처리]
     const allowUiInThisDoc = () => {
       const hn = location.hostname;
       const pn = location.pathname;
@@ -3480,54 +3476,201 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     return { getBudget, getMode: () => globalMode };
   }
 
-  // [수정: 모바일 수채화 버그 핫픽스 (해상도가 0일 때 강도 0.0)]
-  function getSharpScale(video) {
-    const nW = video.videoWidth || 0, dW = video.clientWidth || video.offsetWidth || 0;
-    if (!nW || !dW) return 0.0;
-    const dpr = window.devicePixelRatio || 1;
+  // ──────────────────────────────────────────────
+  // ① RESOLUTION LAYER
+  // ──────────────────────────────────────────────
+  function computeResolutionSharpMul(video) {
+    const nW = video.videoWidth || 0;
+    const nH = video.videoHeight || 0;
+    const dW = video.clientWidth || video.offsetWidth || 0;
+    const dH = video.clientHeight || video.offsetHeight || 0;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    const isMobile = CONFIG.IS_MOBILE;
+
+    if (nW < 16 || dW < 16) return 0.0;
+
     const effectiveDisplayW = dW * dpr;
+    const effectiveDisplayH = dH * dpr;
+    const ratioW = effectiveDisplayW / nW;
+    const ratioH = effectiveDisplayH / Math.max(1, nH);
+    const ratio = Math.max(ratioW, ratioH);
 
-    if (nW <= 640 && (video.videoHeight || 0) <= 480) return 0.5;
+    let mul = 1.0;
+    if (ratio < 0.5) mul = 0.3;
+    else if (ratio < 1.0) mul = 0.3 + (ratio - 0.5) * (0.85 - 0.3) / 0.5;
+    else if (ratio <= 1.5) mul = 1.0;
+    else if (ratio <= 3.0) mul = 1.0 + (ratio - 1.5) * 0.25;
+    else { mul = 1.375 - (ratio - 3.0) * 0.15; mul = Math.max(0.6, mul); }
 
-    const ratio = nW / Math.max(1, effectiveDisplayW);
-    if (ratio > 2.5) return 0.3;
-    if (ratio > 1.3) return VSC_CLAMP(1.0 - (ratio - 1.3) * 0.5, 0.3, 0.85);
-    return 1.0;
+    if (nW <= 640 && nH <= 480) mul *= 0.55;
+    else if (nW <= 960) mul *= 0.75;
+
+    if (isMobile) mul *= VSC_CLAMP(1.05 / dpr, 0.55, 0.85);
+    else if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0);
+
+    return VSC_CLAMP(mul, 0.0, 1.6);
   }
 
-  function createVideoParamsMemo() {
-    function computePreScaling(video) {
-      if (!video) return { sharpScale: 0.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
-      const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
-      const displayW = video.clientWidth || video.offsetWidth || 0, displayH = video.clientHeight || video.offsetHeight || 0;
+  // ──────────────────────────────────────────────
+  // ③ CONTENT LAYER v2
+  // ──────────────────────────────────────────────
+  function createContentAwareSharpTuner() {
+    let canvas = null;
+    let ctx2d = null;
+    let lastAnalysisT = 0;
+    let cachedMultiplier = 1.0;
+    let failCount = 0;
 
-      // [수정: 해상도 정보 미로드 시 수채화 현상 방지]
-      if (nativeW < 16 || displayW < 16) return { sharpScale: 0.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
+    let _trackedSrc = '';
+    let _lastComplexity = 0.5;
+    const EMA_ALPHA = 0.35;
 
-      const scaleRatioW = displayW / nativeW, scaleRatioH = displayH / Math.max(1, nativeH);
-      const scaleRatio = Math.max(scaleRatioW, scaleRatioH);
-      let sharpScale;
-      if (scaleRatio >= 1.0) { const t = VSC_CLAMP((scaleRatio - 1.0) / 2.0, 0, 1); sharpScale = 1.0 + t * 0.4; }
-      else { const t = VSC_CLAMP((1.0 - scaleRatio) / 0.5, 0, 1); sharpScale = 1.0 - t * 0.4; }
-      const isMobile = CONFIG.IS_MOBILE; const dpr = Math.max(1, window.devicePixelRatio || 1);
-      let factor = 1.0;
-      if (isMobile) factor = VSC_CLAMP(1.05 / dpr, 0.55, 0.85); else if (dpr >= 1.25) factor = VSC_CLAMP(1.5 / dpr, 0.75, 1.0);
-      sharpScale *= factor;
-      const refW = Math.max(640, Math.min(3840, displayW)); const sigmaScale = Math.sqrt(refW / 1920);
-      return { sharpScale, sigmaScale, refW, factor };
+    const ANALYSIS_INTERVAL = 3000;
+    const MAX_FAILS = 3;
+    const SAMPLE_W = 64;
+    const SAMPLE_H = 36;
+
+    function checkSourceChange(video) {
+      const src = video.currentSrc || video.src || '';
+      if (src !== _trackedSrc) {
+        _trackedSrc = src;
+        cachedMultiplier = 1.0;
+        _lastComplexity = 0.5;
+        lastAnalysisT = 0;
+        failCount = 0;
+        return true;
+      }
+      return false;
     }
 
-    const _preScaleCache = new WeakMap();
-    function getPreScaling(video) {
-      if (!video) return { sharpScale: 0.0, sigmaScale: 1.0, refW: 1920, factor: 1.0 };
-      const cached = _preScaleCache.get(video);
-      const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
-      const dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
-      if (cached && cached._nW === nW && cached._nH === nH && cached._dW === dW && cached._dH === dH) return cached;
-      const result = computePreScaling(video);
-      result._nW = nW; result._nH = nH; result._dW = dW; result._dH = dH;
-      _preScaleCache.set(video, result);
-      return result;
+    function analyzeDetailDensity(video) {
+      checkSourceChange(video);
+
+      const now = performance.now();
+      if (now - lastAnalysisT < ANALYSIS_INTERVAL) return cachedMultiplier;
+      if (failCount >= MAX_FAILS) return cachedMultiplier;
+      lastAnalysisT = now;
+
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      if (!vw || !vh || video.readyState < 2) return cachedMultiplier;
+
+      if (!canvas) {
+        try {
+          canvas = new OffscreenCanvas(SAMPLE_W, SAMPLE_H);
+          ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+        } catch (_) {
+          canvas = document.createElement('canvas');
+          canvas.width = SAMPLE_W;
+          canvas.height = SAMPLE_H;
+          ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+        }
+      }
+
+      try {
+        ctx2d.drawImage(video, 0, 0, SAMPLE_W, SAMPLE_H);
+        const imgData = ctx2d.getImageData(0, 0, SAMPLE_W, SAMPLE_H);
+        const data = imgData.data;
+
+        let edgeSum = 0;
+        let colorVariance = 0;
+        let pixelCount = 0;
+
+        for (let y = 1; y < SAMPLE_H - 1; y++) {
+          for (let x = 1; x < SAMPLE_W - 1; x++) {
+            const idx = (y * SAMPLE_W + x) * 4;
+
+            const lum  = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
+            const lumL = data[idx-4] * 0.299 + data[idx-3] * 0.587 + data[idx-2] * 0.114;
+            const lumR = data[idx+4] * 0.299 + data[idx+5] * 0.587 + data[idx+6] * 0.114;
+            const lumU = data[((y-1)*SAMPLE_W+x)*4] * 0.299 + data[((y-1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y-1)*SAMPLE_W+x)*4+2] * 0.114;
+            const lumD = data[((y+1)*SAMPLE_W+x)*4] * 0.299 + data[((y+1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y+1)*SAMPLE_W+x)*4+2] * 0.114;
+
+            const gx = lumR - lumL;
+            const gy = lumD - lumU;
+            edgeSum += Math.sqrt(gx * gx + gy * gy);
+
+            const cr = data[idx], cg = data[idx+1], cb = data[idx+2];
+            const diffR = Math.abs(cr - data[idx-4]) + Math.abs(cr - data[idx+4]);
+            const diffG = Math.abs(cg - data[idx-3]) + Math.abs(cg - data[idx+5]);
+            const diffB = Math.abs(cb - data[idx-2]) + Math.abs(cb - data[idx+6]);
+            colorVariance += (diffR + diffG + diffB) / 6;
+
+            pixelCount++;
+          }
+        }
+
+        const avgEdge = edgeSum / Math.max(1, pixelCount);
+        const avgColorVar = colorVariance / Math.max(1, pixelCount);
+
+        const edgeScore = VSC_CLAMP((avgEdge - 3.0) / 10.0, 0.0, 1.0);
+        const colorScore = VSC_CLAMP((avgColorVar - 4.0) / 16.0, 0.0, 1.0);
+        const complexity = edgeScore * 0.7 + colorScore * 0.3;
+
+        const rawMul = 0.55 + complexity * 0.55;
+
+        if (cachedMultiplier === 1.0 && lastAnalysisT === now) {
+          cachedMultiplier = rawMul;
+        } else {
+          cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
+        }
+
+        _lastComplexity += (complexity - _lastComplexity) * EMA_ALPHA;
+        failCount = 0;
+
+      } catch (_) {
+        failCount++;
+      }
+
+      return cachedMultiplier;
+    }
+
+    function getSigmaHint() {
+      if (_lastComplexity <= 0.5) {
+        return 0.85 + _lastComplexity * 0.30;
+      } else {
+        return 1.00 + (_lastComplexity - 0.5) * 0.10;
+      }
+    }
+
+    function reset() {
+      cachedMultiplier = 1.0;
+      _lastComplexity = 0.5;
+      lastAnalysisT = 0;
+      failCount = 0;
+      _trackedSrc = '';
+    }
+
+    return {
+      analyzeDetailDensity,
+      getMultiplier: () => cachedMultiplier,
+      getSigmaHint,
+      getComplexity: () => _lastComplexity,
+      reset
+    };
+  }
+
+  // ──────────────────────────────────────────────
+  // 파이프라인 통합
+  // ──────────────────────────────────────────────
+  function createVideoParamsMemo() {
+    const contentTuner = createContentAwareSharpTuner();
+
+    function computeBaseSigmaScale(video) {
+      const dW = video.clientWidth || video.offsetWidth || 0;
+      if (dW < 16) return 1.0;
+      const refW = Math.max(640, Math.min(3840, dW));
+      return Math.sqrt(refW / 1920);
+    }
+
+    function srcHash(video) {
+      const s = video?.currentSrc || video?.src || '';
+      if (!s) return '0';
+      let h = 5381;
+      for (let i = 0, len = Math.min(s.length, 200); i < len; i++) {
+        h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+      }
+      return String(h >>> 0);
     }
 
     const _cache = new Map();
@@ -3536,42 +3679,94 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     return {
       get(vfUser, video, budget) {
         const nW = video?.videoWidth || 0, nH = video?.videoHeight || 0;
-        const dW = video?.clientWidth || video?.offsetWidth || 0, dH = video?.clientHeight || video?.offsetHeight || 0;
+        const dW = video?.clientWidth || video?.offsetWidth || 0;
+        const dH = video?.clientHeight || video?.offsetHeight || 0;
+
+        const sh = video ? srcHash(video) : '0';
+
         const inputKey = [
           vfUser.presetS, vfUser.brightLevel, vfUser.shadowBandMask, vfUser.temp,
-          nW, nH, dW, dH, budget.mode, budget.sharpMul, budget.shadowCap, budget.sigmaMul
+          nW, nH, dW, dH, budget.mode, budget.sharpMul, budget.shadowCap, budget.sigmaMul, sh
         ].join('|');
 
-        const cached = _cache.get(inputKey); if (cached) return cached;
+        const cached = _cache.get(inputKey);
+        if (cached) {
+          if (video && video.readyState >= 2) {
+            const freshContentMul = contentTuner.analyzeDetailDensity(video);
+            if (Math.abs(freshContentMul - (cached._lastContentMul || 1.0)) > 0.05) {
+              _cache.delete(inputKey);
+            } else {
+              return cached;
+            }
+          } else {
+            return cached;
+          }
+        }
 
         const detailP = PRESETS.detail[vfUser.presetS || 'off'];
         const brightP = PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || PRESETS.bright[0];
-        const ps = getPreScaling(video); const f = ps.factor;
-        const userTemp = vfUser.temp || 0; const { rs, gs, bs } = tempToRgbGain(userTemp);
+        const userTemp = vfUser.temp || 0;
+        const { rs, gs, bs } = tempToRgbGain(userTemp);
 
-        const sharpScaleFactor = video ? getSharpScale(video) : 1.0;
+        const resMul = video ? computeResolutionSharpMul(video) : 0.0;
+        const perfMul = budget.sharpMul;
+        const contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0;
+        const finalSharpMul = resMul * perfMul * contentMul;
+
+        const baseSigma = video ? computeBaseSigmaScale(video) : 1.0;
+        const sigmaHint = contentTuner.getSigmaHint();
+        const finalSigmaScale = baseSigma * sigmaHint;
+
+        const isMobile = CONFIG.IS_MOBILE;
+        const dpr = Math.max(1, window.devicePixelRatio || 1);
+        let colorFactor = 1.0;
+        if (isMobile) colorFactor = VSC_CLAMP(1.05 / dpr, 0.55, 0.85);
+        else if (dpr >= 1.25) colorFactor = VSC_CLAMP(1.5 / dpr, 0.75, 1.0);
 
         const videoOut = {
-          sharp:    Math.round((detailP.sharpAdd  || 0) * ps.sharpScale * budget.sharpMul * sharpScaleFactor),
-          sharp2:   Math.round((detailP.sharp2Add || 0) * ps.sharpScale * budget.sharpMul * sharpScaleFactor),
-          satF:     1.0 + ((detailP.sat || 1.0) - 1.0) * f,
-          gamma:    1.0 + ((brightP.gammaF || 1.0) - 1.0) * f,
-          bright:   (brightP.brightAdd || 0) * f,
-          contrast: 1.0, temp: userTemp, gain: 1.0, mid: 0, toe: 0, shoulder: 0,
-          _sigmaScale: ps.sigmaScale * budget.sigmaMul, _refW: ps.refW, _rs: rs, _gs: gs, _bs: bs,
-          _microBase:  detailP.microBase  || 0.16, _microScale: detailP.microScale || (1/120),
-          _fineBase:   detailP.fineBase   || 0.32, _fineScale:  detailP.fineScale  || (1/24),
-          _microAmt:   detailP.microAmt   || [0.55, 0.10], _fineAmt:    detailP.fineAmt    || [0.20, 0.85]
+          sharp:    Math.round((detailP.sharpAdd  || 0) * finalSharpMul),
+          sharp2:   Math.round((detailP.sharp2Add || 0) * finalSharpMul),
+          satF:     1.0 + ((detailP.sat || 1.0) - 1.0) * colorFactor,
+          gamma:    1.0 + ((brightP.gammaF || 1.0) - 1.0) * colorFactor,
+          bright:   (brightP.brightAdd || 0) * colorFactor,
+          contrast: 1.0,
+          temp:     userTemp,
+          gain:     1.0,
+          mid:      0,
+          toe:      0,
+          shoulder: 0,
+          _sigmaScale: finalSigmaScale * budget.sigmaMul,
+          _refW: Math.max(640, Math.min(3840, dW)),
+          _rs: rs, _gs: gs, _bs: bs,
+          _microBase:  detailP.microBase  || 0.16,
+          _microScale: detailP.microScale || (1/120),
+          _fineBase:   detailP.fineBase   || 0.32,
+          _fineScale:  detailP.fineScale  || (1/24),
+          _microAmt:   detailP.microAmt   || [0.55, 0.10],
+          _fineAmt:    detailP.fineAmt    || [0.20, 0.85]
         };
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0;
         const shadowLevel = Math.min(sLevel, budget.shadowCap);
-        let shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: f };
+        const shadowOut = {
+          level: shadowLevel,
+          active: shadowLevel > 0,
+          factor: colorFactor
+        };
 
-        const result = { video: videoOut, shadow: shadowOut, budget };
+        const result = {
+          video: videoOut,
+          shadow: shadowOut,
+          budget,
+          _lastContentMul: contentMul
+        };
+
         if (_cache.size >= MAX_MEMO) _cache.delete(_cache.keys().next().value);
         _cache.set(inputKey, result);
         return result;
+      },
+      resetContentAnalysis() {
+        contentTuner.reset();
       }
     };
   }
@@ -3715,7 +3910,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const timeEn = Store.get(P.APP_TIME_EN);
       const isFs = !!document.fullscreenElement;
 
-      // 1. 조건에 맞지 않으면 즉시 숨김 처리 (삭제하지 않음)
       if (!act || !timeEn || !isFs) {
         if (timerEl) timerEl.style.display = 'none';
         return;
@@ -3730,7 +3924,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const parent = activeVideo.parentNode;
       if (!parent) return;
 
-      // 2. SPA 사이트의 DOM 갱신으로 시계가 날아갔거나 부모가 바뀌었으면 즉시 재생성
       if (!timerEl || timerEl.parentNode !== parent) {
         if (timerEl) { try { timerEl.remove(); } catch(_) {} }
         timerEl = document.createElement('div');
@@ -3755,12 +3948,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       timerEl.style.display = 'block';
 
-      // 3. 시간 텍스트 업데이트
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
       if (timerEl.textContent !== timeStr) timerEl.textContent = timeStr;
 
-      // 4. 화면 크기에 따른 동적 폰트 사이즈 및 위치 조정
       const vRect = activeVideo.getBoundingClientRect();
       const pRect = parent.getBoundingClientRect();
       const vWidth = vRect.width;
@@ -3797,7 +3988,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       }
     }
 
-    // [핵심 픽스] SPA 방어를 위한 1초 무한 폴링 복구 (스트로크 최적화가 되어있어 부하 없음)
     intervalId = setInterval(updateTimer, 1000);
     if (typeof __vscNs !== 'undefined' && __vscNs._intervals) __vscNs._intervals.push(intervalId);
 
@@ -3893,11 +4083,47 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     on(window, 'keydown', async (e) => {
       const isEditableTarget = (el) => { if(!el) return false; const tag = el.tagName; return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable; };
       if (isEditableTarget(e.target)) return;
+
+      // UI Toggle
       if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); safe(() => { const st = getNS()?.Store; if (st) { st.set(P.APP_UI, !st.get(P.APP_UI)); ApplyReq.hard(); } }); return; }
+
+      // PiP Toggle
       if (e.altKey && e.shiftKey && e.code === 'KeyP') {
         if (!getNS()?.Store?.get(P.APP_ACT)) return;
         e.preventDefault(); e.stopPropagation();
         const v = __VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v);
+        return;
+      }
+
+      // Screenshot Capture
+      if (e.altKey && e.shiftKey && e.code === 'KeyS') {
+        e.preventDefault(); e.stopPropagation();
+        const v = __VSC_APP__?.getActiveVideo();
+        if (!v || v.readyState < 2) return;
+
+        const w = v.videoWidth || v.clientWidth || 1920;
+        const h = v.videoHeight || v.clientHeight || 1080;
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+
+        try {
+          ctx.drawImage(v, 0, 0, w, h);
+          ctx.getImageData(0, 0, 1, 1); // taint check
+
+          canvas.toBlob((blob) => {
+            if (!blob) return;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            a.href = url;
+            a.download = `vsc-capture-${ts}.png`;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+          }, 'image/png');
+        } catch (_) {
+          log.warn('Screenshot blocked by CORS. Try browser native (Ctrl+Shift+S on Chrome).');
+        }
       }
     }, { capture: true });
 
