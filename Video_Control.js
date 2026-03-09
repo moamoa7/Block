@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.6 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.7 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      182.6
+// @version      182.7
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -11,8 +11,6 @@
 // @exclude      *://*.stripe.com/*
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
-// @exclude      *://claude.ai/*
-// @exclude      *://arena.ai/*
 // @run-at       document-start
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
@@ -28,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.6';
+  const SCRIPT_VERSION = '182.7';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -139,7 +137,7 @@ function VSC_MAIN() {
       sig.addEventListener('abort', () => ac.abort(sig.reason), { once: true });
     }
     return ac.signal;
-  };
+  }
 
   function on(target, type, fn, opts = {}) {
     if (!target?.addEventListener) return;
@@ -238,10 +236,6 @@ function VSC_MAIN() {
     info: () => {},
     debug: (...a) => { if (CONFIG.DEBUG) console.debug('[VSC]', ...a); }
   };
-
-  // =========================================================================
-  // 🚀 [VSC v181.1 아키텍처 인프라]
-  // =========================================================================
 
   function createEventBus() {
     const _listeners = new Map();
@@ -915,7 +909,6 @@ function VSC_MAIN() {
       if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
       const wasEmpty = (videos.size === 0); videos.add(el);
       if (bus) bus.emit('video:detected', { video: el, isFirst: wasEmpty });
-      // 🔥 UIEnsure 복원: 비디오 감지 시 UI 렌더링 생명줄
       if (wasEmpty) { queueMicrotask(() => { safe(() => __vscNs.UIEnsure?.()); }); }
       if (io) io.observe(el); else { const st = getVState(el); st.visible = true; if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } }
       if (ro) safe(() => ro.observe(el));
@@ -1299,7 +1292,6 @@ function VSC_MAIN() {
 
       pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
 
-      // PiP 전환 중에는 일시적으로 오디오 타겟을 뗌 (에러 방지)
       safe(() => getNS()?.AudioSetTarget?.(null));
 
       PiPState.window = pipWindow;
@@ -1579,6 +1571,7 @@ function VSC_MAIN() {
     return { input, output, sideAmp, setEnabled, update: () => {}, isEnabled: () => _enabled };
   }
 
+  // 🔥 [PATCH 3] AudioWorklet postMessage GC 압력 감소 및 델타 리포팅 적용
   const VSC_FINALIZER_WORKLET_SRC = `
 class VSCFinalizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -1595,9 +1588,20 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
     this.gain = 1.0;
     this.rmsAccum = 0; this.rmsCount = 0;
     this.peakAccum = 0; this.peakCount = 0;
-    this.shortRms = 0; this.shortPeak = 0;
-    this.crestFactor = 0; this.spectralBalance = 0;
-    this.frameCounter = 0; this.reportInterval = 24;
+    this.frameCounter = 0;
+
+    this.reportInterval = 64;       // 활성 오디오 (~186ms)
+    this.silentReportInterval = 320; // 무음 시 (~930ms)
+    this.isSilent = false;
+
+    this._lastRmsDb = -70.0;
+    this._lastPeakDb = -70.0;
+    this._lastGainDb = 0.0;
+    this._lastHighRatio = 0.0;
+
+    this.RMS_DELTA_THRESHOLD = 0.8;
+    this.GAIN_DELTA_THRESHOLD = 0.15;
+    this.HIGH_RATIO_THRESHOLD = 0.04;
   }
 
   process(inputs, outputs, parameters) {
@@ -1652,29 +1656,38 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
 
     const blockRms = Math.sqrt(blockSumSq / Math.max(1, channels * frames));
     this.rmsAccum += blockRms; this.rmsCount++;
-    this.peakAccum = Math.max(this.peakAccum, blockPeak); this.peakCount++;
-    const totalEnergy = blockSumSq / Math.max(1, channels * frames);
-    const highRatio = totalEnergy > 1e-10 ? (highEnergy / (channels * frames)) / totalEnergy : 0;
+    this.peakAccum = Math.max(this.peakAccum, blockPeak);
+
+    this.isSilent = (blockRms < 0.001);
+    const activeInterval = this.isSilent ? this.silentReportInterval : this.reportInterval;
 
     this.frameCounter++;
-    if (this.frameCounter >= this.reportInterval) {
-      const avgRms = this.rmsCount > 0 ? this.rmsAccum / this.rmsCount : 1e-6;
-      const peak = Math.max(this.peakAccum, 1e-6);
-      const crest = avgRms > 1e-5 ? (peak / avgRms) : 20;
+    if (this.frameCounter < activeInterval) return true;
 
-      this.port.postMessage({
-        rmsDb: 20 * Math.log10(Math.max(avgRms, 1e-6)),
-        peakDb: 20 * Math.log10(Math.max(peak, 1e-6)),
-        gainReductionDb: 20 * Math.log10(Math.max(this.gain, 1e-6)),
-        crestFactor: crest,
-        highEnergyRatio: Math.min(1, highRatio),
-        avgRmsLinear: avgRms
-      });
+    const avgRms = this.rmsCount > 0 ? this.rmsAccum / this.rmsCount : 1e-6;
+    const peak = Math.max(this.peakAccum, 1e-6);
+    const crest = avgRms > 1e-5 ? (peak / avgRms) : 20;
+    const totalFrames = channels * frames;
+    const highRatio = blockSumSq > 1e-10 ? Math.min(1, (highEnergy / totalFrames) / (blockSumSq / totalFrames)) : 0;
 
-      this.rmsAccum = 0; this.rmsCount = 0;
-      this.peakAccum = 0; this.peakCount = 0;
-      this.frameCounter = 0;
+    const rmsDb  = 20 * Math.log10(Math.max(avgRms, 1e-6));
+    const peakDb = 20 * Math.log10(Math.max(peak, 1e-6));
+    const gainDb = 20 * Math.log10(Math.max(this.gain, 1e-6));
+
+    const rmsDelta   = Math.abs(rmsDb  - this._lastRmsDb);
+    const gainDelta  = Math.abs(gainDb - this._lastGainDb);
+    const highDelta  = Math.abs(highRatio - this._lastHighRatio);
+    const hasMeaningfulChange = rmsDelta > this.RMS_DELTA_THRESHOLD || gainDelta > this.GAIN_DELTA_THRESHOLD || highDelta > this.HIGH_RATIO_THRESHOLD || this.isSilent !== (this._lastRmsDb < -50);
+
+    if (hasMeaningfulChange) {
+      this._lastRmsDb    = rmsDb;
+      this._lastPeakDb   = peakDb;
+      this._lastGainDb   = gainDb;
+      this._lastHighRatio = highRatio;
+      this.port.postMessage({ rmsDb, peakDb, gainReductionDb: gainDb, crestFactor: crest, highEnergyRatio: highRatio, avgRmsLinear: avgRms });
     }
+
+    this.rmsAccum = 0; this.rmsCount = 0; this.peakAccum = 0; this.frameCounter = 0;
     return true;
   }
 }
@@ -1800,7 +1813,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             });
             return finalizerNode;
           } catch (e) {
-            // 🔥 에러 로그를 띄우지 않고 조용히 강력한 기본 컴프레서로 폴백
             return null;
           } finally {
             URL.revokeObjectURL(blobUrl);
@@ -2011,7 +2023,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (currentSrc) {
         safe(() => {
           currentSrc.disconnect();
-          // 🔥 버그 수정: 오디오 컨텍스트를 거치지 않을 때는 목적지로 직결시켜야 원래 소리가 납니다.
           if (ctx && ctx.state !== 'closed') {
             currentSrc.connect(ctx.destination);
           }
@@ -2229,7 +2240,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             _activeAudioSources.delete(s);
             s = null;
           } else {
-            // 재사용 시 기존 destination 직결을 끊고 이펙트 체인으로 돌림
             try { s.disconnect(); } catch (_) {}
           }
         }
@@ -2278,7 +2288,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const video = appCtx?.target || this.getActiveVideo();
         const nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null;
 
-        // 🔥 버그 해결: 버튼을 켜거나 껐을 때 즉각적으로 오디오 노드를 붙이거나 뗌
         if (target !== nextAudioTarget) {
           setTarget(nextAudioTarget);
         } else {
@@ -2327,15 +2336,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const __vscBgMemo = new WeakMap();
 
     function canUseCssNativeOnly(s, shadowParams) {
-  // 샤프닝이 조금이라도 들어있으면 무조건 SVG로 가야 함
-  if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
-
-  // 암부 강화(Shadow)가 켜져 있어도 SVG로 가야 함
-  if (shadowParams && shadowParams.active) return false;
-
-  // 나머지는 CSS brightness/contrast 등으로 처리 가능
-  return true;
-}
+      if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
+      if (shadowParams && shadowParams.active) return false;
+      return true;
+    }
 
     function buildCssFilterString(s) {
       const parts = [];
@@ -2361,38 +2365,37 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
 
     function applyCssNative(el, s) {
-    const filterStr = buildCssFilterString(s);
-    const st = getVState(el);
+      const filterStr = buildCssFilterString(s);
+      const st = getVState(el);
 
-    // SVG(샤프)와 CSS(밝기 단독) 간의 캐시 충돌을 막기 위해 통합 상태(lastFilterUrl)로 비교
-    if (st.lastFilterUrl === filterStr) return;
+      if (st.lastFilterUrl === filterStr) return;
 
-    if (!filterStr) {
-      if (st.applied) {
-        if (st.origFilter != null && st.origFilter !== '') {
-          el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
-        } else {
-          el.style.removeProperty('filter');
+      if (!filterStr) {
+        if (st.applied) {
+          if (st.origFilter != null && st.origFilter !== '') {
+            el.style.setProperty('filter', st.origFilter, st.origFilterPrio || '');
+          } else {
+            el.style.removeProperty('filter');
+          }
+          el.style.removeProperty('-webkit-filter');
+          st.applied = false;
+          st.lastFilterUrl = null;
         }
-        el.style.removeProperty('-webkit-filter');
-        st.applied = false;
-        st.lastFilterUrl = null;
+        return;
       }
-      return;
-    }
 
-    if (!st.applied) {
-      st.origFilter = el.style.getPropertyValue('filter');
-      st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
-      st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter');
-      st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
-    }
+      if (!st.applied) {
+        st.origFilter = el.style.getPropertyValue('filter');
+        st.origFilterPrio = el.style.getPropertyPriority('filter') || '';
+        st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter');
+        st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || '';
+      }
 
-    el.style.setProperty('filter', filterStr, 'important');
-    el.style.setProperty('-webkit-filter', filterStr, 'important');
-    st.applied = true;
-    st.lastFilterUrl = filterStr;
-  }
+      el.style.setProperty('filter', filterStr, 'important');
+      el.style.setProperty('-webkit-filter', filterStr, 'important');
+      st.applied = true;
+      st.lastFilterUrl = filterStr;
+    }
 
     function setAttr(node, attr, val) {
       if (!node) return;
@@ -2777,14 +2780,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createBackendAdapter(Filters) {
   return {
     apply(video, vVals, shadowParams, useSvgFilter = true) {
-      const st = getVState(video); // 비디오 상태 가져오기
+      const st = getVState(video);
 
-      // CSS 네이티브만 써도 되는 가벼운 상태인지 확인
       const canUseCss = !useSvgFilter || (Filters.canUseCssNativeOnly && Filters.canUseCssNativeOnly(vVals, shadowParams));
 
       if (canUseCss) {
-        // [중요] 만약 이전에 SVG(url(#...))가 걸려 있었다면,
-        // 찌꺼기가 남지 않게 확실히 밀어내고 CSS로 전환해야 함
         if (st.applied && st.lastFilterUrl && st.lastFilterUrl.includes('url(')) {
           Filters.applyUrl(video, null);
         }
@@ -2792,7 +2792,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         return;
       }
 
-      // 샤프닝 등이 포함된 SVG 필터 적용
       const svgResult = Filters.prepareCached(video, vVals, shadowParams);
       Filters.applyUrl(video, svgResult);
     },
@@ -2826,7 +2825,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {}
     };
 
-    // 🔥 [복구 완료] 실제 영상 시청 페이지 체크
     const allowUiInThisDoc = () => {
       const hn = location.hostname;
       const pn = location.pathname;
@@ -2843,11 +2841,24 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       ]) { try { CSS.registerProperty(prop); } catch (_) {} }
     });
 
+    // 🔥 [PATCH 2] 불필요한 SVG 재계산을 방지하기 위해 경로별 ApplyReq 분기
+    const HARD_PREFIXES = new Set(['video.', 'app.active', 'app.applyAll']);
+
+    function needsHardApply(path) {
+      if (path === P.APP_ACT || path === P.APP_APPLY_ALL) return true;
+      if (path.startsWith('video.')) return true;
+      return false;
+    }
+
     function setAndHint(path, value) {
       const prev = sm.get(path);
       const changed = !Object.is(prev, value);
       if (changed) sm.set(path, value);
-      (changed ? ApplyReq.hard() : ApplyReq.soft());
+      if (changed && needsHardApply(path)) {
+        ApplyReq.hard();
+      } else {
+        ApplyReq.soft();
+      }
     }
 
     const getUiRoot = () => {
@@ -2886,7 +2897,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             if (toggleActiveToOff && offValue !== undefined && cur === it.value && it.value !== offValue) setAndHint(key, offValue);
             else setAndHint(key, it.value);
           }
-          ApplyReq.hard();
+          const isVideoKey = key.startsWith('video.') || key === P.APP_ACT || key === P.APP_APPLY_ALL;
+          if (isVideoKey) ApplyReq.hard(); else ApplyReq.soft();
         };
         bindReactive(b, [key, P.APP_ACT], (el, v, act) => {
           const isActive = isBitmask ? (((Number(v) | 0) & it.value) !== 0) : v === it.value;
@@ -2903,7 +2915,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           e.stopPropagation();
           if (!sm.get(P.APP_ACT)) return;
           sm.set(key, isBitmask ? 0 : offValue);
-          ApplyReq.hard();
+          const isVideoKey = key.startsWith('video.') || key === P.APP_ACT || key === P.APP_APPLY_ALL;
+          if (isVideoKey) ApplyReq.hard(); else ApplyReq.soft();
         };
         bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => {
           const isActuallyOff = isBitmask ? (Number(v)|0) === 0 : v === offValue;
@@ -3049,7 +3062,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         if (getNS()?.AudioWarmup) getNS().AudioWarmup();
         const isCurrentlyOn = sm.get(P.A_EN); const nextState = !isCurrentlyOn;
         sm.batch('audio', { enabled: nextState, stereoWidth: nextState, multiband: true, lufs: true });
-        ApplyReq.hard();
+        ApplyReq.soft();
       };
       bindReactive(boostBtn, [P.A_EN, P.APP_ACT], (el, aEn, act) => { el.classList.toggle('active', !!aEn); el.style.color = aEn ? 'var(--ac)' : '#eee'; el.style.opacity = act ? '1' : '0.45'; el.disabled = !act; }, sm, sub);
 
@@ -3178,9 +3191,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const mount = () => { const root = getUiRoot(); if (!root) return; const gearTarget = document.fullscreenElement || document.body || document.documentElement; try { if (gearHost && gearHost.parentNode !== gearTarget) gearTarget.appendChild(gearHost); } catch (_) { try { (document.body || document.documentElement).appendChild(gearHost); } catch (__) {} } try { if (container && container.parentNode !== gearTarget) gearTarget.appendChild(container); } catch (_) { try { (document.body || document.documentElement).appendChild(container); } catch (__) {} } };
 
-    // 🔥 실제 동작 통제 로직
     const ensure = () => {
-      // 경로가 안 맞거나 비디오가 없으면 기어를 숨김
       if (!allowUiInThisDoc() || (registry.videos.size === 0 && !sm.get(P.APP_UI))) {
         detachNodesHard();
         return;
@@ -3622,25 +3633,20 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     let pendingMode = null;
     let lastTransitionT = 0;
 
-    // 1. 샘플링 간격을 대폭 늘림 (자주 검사 안 함)
     const SAMPLE_INTERVAL = { high: 5000, mid: 3000, low: 2000 };
 
-    // 2. 프레임 드랍 변경
     const THRESHOLDS = {
-      downToMid: 0.20,  // 프레임 20%가 사라져야 '중간'으로 강등
-      downToLow: 0.30,  // 프레임 30%가 사라져야 '최저'로 강등
+      downToMid: 0.20,
+      downToLow: 0.30,
       upToMid: 0.05,
       upToHigh: 0.02,
-      emergency: 0.40   // 프레임 40%가 되면 비상 모드
+      emergency: 0.40
     };
 
-    // 3. 확정 횟수를 늘림 (순간적인 렉은 '실수'로 간주하고 무시)
-    const CONFIRM_DOWN = 5; // 5번 연속으로 프레임이 개판이어야 비로소 하향 조정
-    // 하향 조절 쿨다운을 늘려 일시적 렉에 등급이 훅 떨어지는 걸 막습니다.
-    const COOLDOWN_DOWN = 10000; // 한번 High면 웬만해선 10초간 등급 안 낮춤
-
-    // 상향 복구 쿨다운을 줄여서 성능이 돌아오면 즉시 화질을 복구합니다.
-    const COOLDOWN_UP = 500;     // 0.5초만 사양 여유 생기면 바로 원상복구
+    const CONFIRM_DOWN = 5;
+    const CONFIRM_UP = 2; // 상향 확정 횟수 추가
+    const COOLDOWN_DOWN = 10000;
+    const COOLDOWN_UP = 500;
 
     function transitionTo(newMode) {
       if (newMode === globalMode) return;
@@ -3684,7 +3690,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     function getBudget(video) {
       const mode = sample(video);
-      // 🔥 요청하신 성능 차감(Fallback) 로직 완벽 복원
       if (mode === 'low') return { mode, sharpMul: 0.50, shadowCap: 1, sigmaMul: 0.80, useSvgFilter: false };
       if (mode === 'mid') return { mode, sharpMul: 0.75, shadowCap: 2, sigmaMul: 0.90, useSvgFilter: true };
       return { mode, sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00, useSvgFilter: true };
@@ -3728,7 +3733,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   // ──────────────────────────────────────────────
-  // ③ CONTENT LAYER v2 (180.6.1에서 복원 완료)
+  // ③ CONTENT LAYER v2 (PATCH 1 적용)
   // ──────────────────────────────────────────────
   function createContentAwareSharpTuner() {
     let canvas = null;
@@ -3741,10 +3746,20 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     let _lastComplexity = 0.5;
     const EMA_ALPHA = 0.35;
 
-    const ANALYSIS_INTERVAL = 3000;
+    const SAMPLE_W = CONFIG.IS_MOBILE ? 32 : 64;
+    const SAMPLE_H = CONFIG.IS_MOBILE ? 18 : 36;
+
+    const ANALYSIS_INTERVAL_ACTIVE  = CONFIG.IS_MOBILE ? 5000 : 3000;
+    const ANALYSIS_INTERVAL_PAUSED  = 15000;
+    const ANALYSIS_INTERVAL_HIDDEN  = Infinity;
+
     const MAX_FAILS = 3;
-    const SAMPLE_W = 64;
-    const SAMPLE_H = 36;
+
+    function getInterval(video) {
+      if (document.hidden) return ANALYSIS_INTERVAL_HIDDEN;
+      if (video.paused || video.ended) return ANALYSIS_INTERVAL_PAUSED;
+      return ANALYSIS_INTERVAL_ACTIVE;
+    }
 
     function checkSourceChange(video) {
       const src = video.currentSrc || video.src || '';
@@ -3763,13 +3778,23 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       checkSourceChange(video);
 
       const now = performance.now();
-      if (now - lastAnalysisT < ANALYSIS_INTERVAL) return cachedMultiplier;
+      const interval = getInterval(video);
+
+      if (interval === Infinity || (now - lastAnalysisT) < interval) {
+        return cachedMultiplier;
+      }
       if (failCount >= MAX_FAILS) return cachedMultiplier;
-      lastAnalysisT = now;
 
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       if (!vw || !vh || video.readyState < 2) return cachedMultiplier;
+
+      if (video.readyState < 3 && !video.paused) {
+        lastAnalysisT = now;
+        return cachedMultiplier;
+      }
+
+      lastAnalysisT = now;
 
       if (!canvas) {
         try {
@@ -3799,8 +3824,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             const lum  = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
             const lumL = data[idx-4] * 0.299 + data[idx-3] * 0.587 + data[idx-2] * 0.114;
             const lumR = data[idx+4] * 0.299 + data[idx+5] * 0.587 + data[idx+6] * 0.114;
-            const lumU = data[((y-1)*SAMPLE_W+x)*4] * 0.299 + data[((y-1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y-1)*SAMPLE_W+x)*4+2] * 0.114;
-            const lumD = data[((y+1)*SAMPLE_W+x)*4] * 0.299 + data[((y+1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y+1)*SAMPLE_W+x)*4+2] * 0.114;
+            const lumU = data[((y-1)*SAMPLE_W+x)*4]   * 0.299 + data[((y-1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y-1)*SAMPLE_W+x)*4+2] * 0.114;
+            const lumD = data[((y+1)*SAMPLE_W+x)*4]   * 0.299 + data[((y+1)*SAMPLE_W+x)*4+1] * 0.587 + data[((y+1)*SAMPLE_W+x)*4+2] * 0.114;
 
             const gx = lumR - lumL;
             const gy = lumD - lumU;
@@ -3824,13 +3849,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const complexity = edgeScore * 0.7 + colorScore * 0.3;
 
         const rawMul = 0.55 + complexity * 0.55;
-
-        if (cachedMultiplier === 1.0 && lastAnalysisT === now) {
-          cachedMultiplier = rawMul;
-        } else {
-          cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
-        }
-
+        cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
         _lastComplexity += (complexity - _lastComplexity) * EMA_ALPHA;
         failCount = 0;
 
@@ -3928,25 +3947,23 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const perfMul = budget.sharpMul;
         const contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0;
 
-        // 🔥 불필요한 감쇄 로직 삭제: 순수하게 성능/해상도/콘텐츠 배율만 적용
         const finalSharpMul = resMul * perfMul * contentMul;
 
         const baseSigma = video ? computeBaseSigmaScale(video) : 1.0;
         const sigmaHint = contentTuner.getSigmaHint();
         const finalSigmaScale = baseSigma * sigmaHint;
 
-        // 🔥 colorFactor 로직 자체를 삭제하고 프리셋 설정값(detailP, brightP)을 100% 그대로 사용
         const videoOut = {
           sharp:    Math.round((detailP.sharpAdd  || 0) * finalSharpMul),
           sharp2:   Math.round((detailP.sharp2Add || 0) * finalSharpMul),
-          satF:     detailP.sat || 1.0,           // 억제 없이 프리셋 값 그대로
-          gamma:    brightP.gammaF || 1.0,        // 억제 없이 프리셋 값 그대로
-          bright:   brightP.brightAdd || 0,       // 억제 없이 프리셋 값 그대로
+          satF:     detailP.sat || 1.0,
+          gamma:    brightP.gammaF || 1.0,
+          bright:   brightP.brightAdd || 0,
           contrast: 1.0,
-          temp:      userTemp,
-          gain:      1.0,
-          mid:       0,
-          toe:       0,
+          temp:     userTemp,
+          gain:     1.0,
+          mid:      0,
+          toe:      0,
           shoulder: 0,
           _sigmaScale: finalSigmaScale * budget.sigmaMul,
           _refW: Math.max(640, Math.min(3840, dW)),
@@ -3964,7 +3981,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const shadowOut = {
           level: shadowLevel,
           active: shadowLevel > 0,
-          factor: 1.0 // 항상 최대 효율 유지
+          factor: 1.0
         };
 
         const result = {
@@ -3997,7 +4014,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   function isNeutralShadowParams(sp) { return !sp || !sp.active; }
 
-  // 🔥 PATCH 5: pipeline:degraded 매 사이클 이벤트 스팸 방지
   function createPipelineFeature(Store, Registry, Adapter, ApplyReq, P, Targeting, PerfGovernor, videoParamsMemo) {
     const _applySet = new Set();
     const _scratchCandidates = new Set();
@@ -4019,7 +4035,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const vf0 = Store.getCatRef('video');
         const activeBudget = PerfGovernor.getBudget(target);
 
-        // 이전 성능 상태와 다를 때만 이벤트 발행 (CPU 최적화)
         if (activeBudget.mode !== _prevPerfMode) {
           const isDowngrade = { high: 2, mid: 1, low: 0 }[activeBudget.mode] < { high: 2, mid: 1, low: 0 }[_prevPerfMode];
           if (isDowngrade) {
@@ -4186,9 +4201,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   let __vscUserSignalRev = 0;
 
-  // 🔥 Targeting 호이스팅 에러 해결을 위해 Assembly 섹션에서 위로 이동한 후 사용
   function createTargeting(bus) {
-    if (bus) bus.on('pip:changed', ({ video, active }) => { /* 추후 PiP Feature 연동 시 사용 */ });
+    if (bus) bus.on('pip:changed', ({ video, active }) => { /* 추후 PiP 연동 대비 */ });
     let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
 
     const isInPlayer = (vid) => {
@@ -4281,24 +4295,21 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
         const targetChanged = __activeTarget !== __lastApplyTarget;
 
-  if (targetChanged) {
-    // 1. 타겟이 바뀌면 이전 타겟의 필터 기록을 초기화 (꼬임 방지 핵심)
-    if (__lastApplyTarget) {
-      try { Adapter.clear(__lastApplyTarget); } catch(_) {}
-    }
-    // 2. 새로운 타겟의 캐시를 한 번 밀어줌 (깨끗한 상태에서 시작)
-    if (__activeTarget) {
-      try { Filters.invalidateCache(__activeTarget); } catch(_) {}
-    }
-  }
+        if (targetChanged) {
+          if (__lastApplyTarget) {
+            try { getNS()?.Adapter?.clear(__lastApplyTarget); } catch(_) {}
+          }
+          if (__activeTarget) {
+            try { getNS()?.Filters?.invalidateCache(__activeTarget); } catch(_) {}
+          }
+        }
 
-  // 변경 사항이 없으면 실행 건너뛰기
-  if (!force && vidsDirty.size === 0 && !targetChanged && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
+        if (!force && vidsDirty.size === 0 && !targetChanged && sRev === lastSRev && rRev === lastRRev && userSigRev === lastUserSigRev) return;
 
-  lastSRev = sRev;
-  lastRRev = rRev;
-  lastUserSigRev = userSigRev;
-  __lastApplyTarget = __activeTarget;
+        lastSRev = sRev;
+        lastRRev = rRev;
+        lastUserSigRev = userSigRev;
+        __lastApplyTarget = __activeTarget;
 
         const now = performance.now();
         if (vidsDirty.size > 40 || (now - lastPrune > 2000)) {
@@ -4387,6 +4398,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
     const Adapter = createBackendAdapter(Filters); __vscNs.Adapter = Adapter;
+    __vscNs.Filters = Filters; // 타겟 체인지 로직을 위해 스코프 개방
 
     const videoParamsMemo = createVideoParamsMemo();
     const PerfGovernor = createPerfGovernor();
@@ -4409,7 +4421,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     __vscNs.ZoomManager = zoomFeat;
     __vscNs.AudioWarmup = audioFeat.warmup;
 
-    // 🔥 PATCH 6: PiP 전환 시 AudioSetTarget을 통해 EventBus 트리거 우회
     __vscNs.AudioSetTarget = (v) => { try { Bus.emit('target:changed', { video: v, prev: null }); } catch (_) {} };
     __vscNs.PiPToggle = () => { try { pipFeat.toggle(); } catch (_) {} };
 
