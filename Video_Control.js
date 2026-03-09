@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.1 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.2 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      182.1
+// @version      182.2
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -28,7 +28,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.1';
+  const SCRIPT_VERSION = '182.2';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -3872,8 +3872,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return Math.sqrt(refW / 1920);
     }
 
-    // 🔥 PATCH 8: srcHash를 통한 키 최적화 적용 완료
-    function srcHash(s) {
+    function srcHash(video) {
+      const s = video?.currentSrc || video?.src || '';
       if (!s) return '0';
       let h = 5381;
       for (let i = 0, len = Math.min(s.length, 200); i < len; i++) {
@@ -3891,7 +3891,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const dW = video?.clientWidth || video?.offsetWidth || 0;
         const dH = video?.clientHeight || video?.offsetHeight || 0;
 
-        const sh = video ? srcHash(video.currentSrc || video.src || '') : '0';
+        const sh = video ? srcHash(video) : '0';
 
         const inputKey = [
           vfUser.presetS, vfUser.brightLevel, vfUser.shadowBandMask, vfUser.temp,
@@ -3920,29 +3920,26 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const resMul = video ? computeResolutionSharpMul(video) : 0.0;
         const perfMul = budget.sharpMul;
         const contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0;
+
+        // 🔥 불필요한 감쇄 로직 삭제: 순수하게 성능/해상도/콘텐츠 배율만 적용
         const finalSharpMul = resMul * perfMul * contentMul;
 
         const baseSigma = video ? computeBaseSigmaScale(video) : 1.0;
         const sigmaHint = contentTuner.getSigmaHint();
         const finalSigmaScale = baseSigma * sigmaHint;
 
-        const isMobile = CONFIG.IS_MOBILE;
-        const dpr = Math.max(1, window.devicePixelRatio || 1);
-        let colorFactor = 1.0;
-        if (isMobile) colorFactor = VSC_CLAMP(1.05 / dpr, 0.55, 0.85);
-        else if (dpr >= 1.25) colorFactor = VSC_CLAMP(1.5 / dpr, 0.75, 1.0);
-
+        // 🔥 colorFactor 로직 자체를 삭제하고 프리셋 설정값(detailP, brightP)을 100% 그대로 사용
         const videoOut = {
           sharp:    Math.round((detailP.sharpAdd  || 0) * finalSharpMul),
           sharp2:   Math.round((detailP.sharp2Add || 0) * finalSharpMul),
-          satF:     1.0 + ((detailP.sat || 1.0) - 1.0) * colorFactor,
-          gamma:    1.0 + ((brightP.gammaF || 1.0) - 1.0) * colorFactor,
-          bright:   (brightP.brightAdd || 0) * colorFactor,
+          satF:     detailP.sat || 1.0,           // 억제 없이 프리셋 값 그대로
+          gamma:    brightP.gammaF || 1.0,        // 억제 없이 프리셋 값 그대로
+          bright:   brightP.brightAdd || 0,       // 억제 없이 프리셋 값 그대로
           contrast: 1.0,
-          temp:     userTemp,
-          gain:     1.0,
-          mid:      0,
-          toe:      0,
+          temp:      userTemp,
+          gain:      1.0,
+          mid:       0,
+          toe:       0,
           shoulder: 0,
           _sigmaScale: finalSigmaScale * budget.sigmaMul,
           _refW: Math.max(640, Math.min(3840, dW)),
@@ -3960,7 +3957,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const shadowOut = {
           level: shadowLevel,
           active: shadowLevel > 0,
-          factor: colorFactor
+          factor: 1.0 // 항상 최대 효율 유지
         };
 
         const result = {
