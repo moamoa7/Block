@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v182.7 - EventBus & Feature Architecture)
+// @name         Video_Control (v182.8 - EventBus & Feature Architecture)
 // @namespace    https://github.com/
-// @version      182.7
+// @version      182.8
 // @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.7';
+  const SCRIPT_VERSION = '182.8';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -445,10 +445,18 @@ function VSC_MAIN() {
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.16, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
-      Soft: { sharpAdd: 13, sharp2Add: 15, sat: 1.0, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
-      Medium: { sharpAdd: 26, sharp2Add: 28, sat: 1.0, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.50, 0.10], fineAmt: [0.18, 0.80] },
-      Ultra: { sharpAdd: 39, sharp2Add: 38, sat: 0.99, microBase: 0.20, microScale: 1/100, fineBase: 0.36, fineScale: 1/20, microAmt: [0.55, 0.12], fineAmt: [0.20, 0.85] },
-      Master: { sharpAdd: 52, sharp2Add: 48, sat: 0.98, microBase: 0.18, microScale: 1/90, fineBase: 0.32, fineScale: 1/18, microAmt: [0.55, 0.14], fineAmt: [0.22, 0.90] }
+
+      // Soft: 가벼운 윤곽선 강조
+      Soft: { sharpAdd: 15, sharp2Add: 18, sat: 1.0, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
+
+      // Medium: 표준 시청 권장값
+      Medium: { sharpAdd: 30, sharp2Add: 32, sat: 1.0, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.50, 0.10], fineAmt: [0.18, 0.80] },
+
+      // Ultra: 강력한 해상도 복구
+      Ultra: { sharpAdd: 45, sharp2Add: 42, sat: 0.98, microBase: 0.20, microScale: 1/100, fineBase: 0.36, fineScale: 1/20, microAmt: [0.55, 0.12], fineAmt: [0.20, 0.85] },
+
+      // Master: 최상위 선명도 (노이즈 억제를 위해 채도 미세 감소)
+      Master: { sharpAdd: 60, sharp2Add: 52, sat: 0.97, microBase: 0.18, microScale: 1/90, fineBase: 0.32, fineScale: 1/18, microAmt: [0.55, 0.14], fineAmt: [0.22, 0.90] }
     },
     bright: {
       0: { gammaF: 1.00, brightAdd: 0 },
