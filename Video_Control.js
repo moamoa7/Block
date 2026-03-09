@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v182.9 - Performance Optimized)
+// @name         Video_Control (v183.0 - Memory & Perf Optimized)
 // @namespace    https://github.com/
-// @version      182.9
-// @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus.
+// @version      183.0
+// @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus, Memory Safe.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '182.9';
+  const SCRIPT_VERSION = '183.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -123,6 +123,9 @@ function VSC_MAIN() {
 
   const PIP_FLAGS = Object.freeze({ USE_LEGACY_PIP_FALLBACK: true });
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [class*="player" i], [id*="player" i], [data-player], article, main';
+
+  // [최적화 적용] Fix 5: moveBefore() 지원 여부 캐싱
+  const SUPPORTS_MOVE_BEFORE = (typeof Node !== 'undefined' && typeof Node.prototype.moveBefore === 'function');
 
   const getNS = () => (window && window[Symbol.for('__VSC__')]) || __vscNs || null;
   const getFLAGS = () => getNS()?.FLAGS || FLAGS;
@@ -520,28 +523,97 @@ function VSC_MAIN() {
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
 
+  // [최적화 적용] 누수 #2: Set을 WeakRef 기반으로 완전히 재작성하여 강한 참조 제거
   class BoundedWeakSet {
     constructor(maxSize, onEvict) {
-      this._set = new Set();
       this._max = maxSize;
       this._onEvict = onEvict;
+      this._refs = new Map();
+      this._elToToken = new WeakMap();
+      this._order = [];
+      this._opCount = 0;
     }
     add(el) {
       if (!el) return;
-      if (this._set.has(el)) { this._set.delete(el); this._set.add(el); return; }
-      if (this._set.size >= this._max) {
-        const oldest = this._set.keys().next().value;
-        this._set.delete(oldest);
-        this._onEvict?.(oldest);
+      if (this._elToToken.has(el)) {
+        const token = this._elToToken.get(el);
+        const idx = this._order.indexOf(token);
+        if (idx > -1) { this._order.splice(idx, 1); this._order.push(token); }
+        return;
       }
-      this._set.add(el);
+      if (this._refs.size >= this._max) this._evictOldest();
+      const token = Symbol();
+      this._refs.set(token, new WeakRef(el));
+      this._elToToken.set(el, token);
+      this._order.push(token);
+      if ((++this._opCount & 31) === 0) this._pruneStale();
     }
-    has(el) { return this._set.has(el); }
-    delete(el) { return this._set.delete(el); }
-    clear() { this._set.clear(); }
-    get size() { return this._set.size; }
-    [Symbol.iterator]() { return this._set[Symbol.iterator](); }
-    forEach(fn) { this._set.forEach(fn); }
+    _evictOldest() {
+      while (this._order.length > 0) {
+        const token = this._order.shift();
+        const ref = this._refs.get(token);
+        if (!ref) continue;
+        this._refs.delete(token);
+        const el = ref.deref();
+        if (el) {
+          this._elToToken.delete(el);
+          try { this._onEvict?.(el); } catch (_) {}
+        }
+        return;
+      }
+    }
+    _pruneStale() {
+      const stale = [];
+      for (const [token, ref] of this._refs) {
+        if (!ref.deref()) stale.push(token);
+      }
+      for (const token of stale) {
+        this._refs.delete(token);
+        const idx = this._order.indexOf(token);
+        if (idx > -1) this._order.splice(idx, 1);
+      }
+    }
+    has(el) {
+      if (!el || !this._elToToken.has(el)) return false;
+      const token = this._elToToken.get(el);
+      const ref = this._refs.get(token);
+      if (!ref?.deref()) {
+        this._refs.delete(token);
+        const idx = this._order.indexOf(token);
+        if (idx > -1) this._order.splice(idx, 1);
+        return false;
+      }
+      return true;
+    }
+    delete(el) {
+      if (!el || !this._elToToken.has(el)) return false;
+      const token = this._elToToken.get(el);
+      this._elToToken.delete(el);
+      this._refs.delete(token);
+      const idx = this._order.indexOf(token);
+      if (idx > -1) this._order.splice(idx, 1);
+      return true;
+    }
+    clear() {
+      this._refs.clear();
+      this._order.length = 0;
+      this._opCount = 0;
+    }
+    get size() { return this._refs.size; }
+    [Symbol.iterator]() {
+      const live = [];
+      for (const [, ref] of this._refs) {
+        const el = ref.deref();
+        if (el) live.push(el);
+      }
+      return live[Symbol.iterator]();
+    }
+    forEach(fn) {
+      for (const [, ref] of this._refs) {
+        const el = ref.deref();
+        if (el) fn(el);
+      }
+    }
   }
 
   const TOUCHED = {
@@ -1177,6 +1249,7 @@ function VSC_MAIN() {
       }
     };
   }
+// =================== PART 1 END ===================
 // =================== PART 2 START ===================
 
   class PiPStateManager {
@@ -1198,11 +1271,11 @@ function VSC_MAIN() {
     }
     restoreVideoPosition(video) {
       video.style.cssText = this.origCss || '';
-      const canMoveBefore = typeof Node.prototype.moveBefore === 'function';
 
+      // [최적화 적용] Fix 5: 매번 감지하던 Node.prototype.moveBefore를 상수로 대체
       if (this.placeholder?.parentNode?.isConnected) {
         const parent = this.placeholder.parentNode;
-        if (canMoveBefore) {
+        if (SUPPORTS_MOVE_BEFORE) {
           try { parent.moveBefore(video, this.placeholder); }
           catch (_) { parent.insertBefore(video, this.placeholder); }
         } else {
@@ -1210,7 +1283,7 @@ function VSC_MAIN() {
         }
       } else if (this.origParent?.isConnected) {
         const target = this.origNext?.parentNode === this.origParent ? this.origNext : null;
-        if (canMoveBefore) {
+        if (SUPPORTS_MOVE_BEFORE) {
           try { this.origParent.moveBefore(video, target); }
           catch (_) { target ? this.origParent.insertBefore(video, target) : this.origParent.appendChild(video); }
         } else {
@@ -1528,8 +1601,43 @@ function VSC_MAIN() {
     }
   }
 
+  // [최적화 적용] ★ 최심각 누수 #1: Set() 순환 참조 제거 및 FinalizationRegistry 도입
   const globalSrcMap = new WeakMap();
-  const _activeAudioSources = new Set();
+  const _srcTokenMap = new Map();
+
+  const _srcFinalizer = new FinalizationRegistry((token) => {
+    const src = _srcTokenMap.get(token);
+    if (src) {
+      try { src.disconnect(); } catch (_) {}
+      _srcTokenMap.delete(token);
+    }
+  });
+
+  function _registerAudioSrc(video, src) {
+    _unregisterAudioSrc(video);
+    const token = Object.create(null);
+    _srcTokenMap.set(token, src);
+    _srcFinalizer.register(video, token, token);
+    globalSrcMap.set(video, { src, token });
+  }
+
+  function _unregisterAudioSrc(video) {
+    const entry = globalSrcMap.get(video);
+    if (!entry) return;
+    const { src, token } = entry;
+    _srcFinalizer.unregister(token);
+    _srcTokenMap.delete(token);
+    globalSrcMap.delete(video);
+    try { src.disconnect(); } catch (_) {}
+  }
+
+  function _disconnectAllTrackedSources() {
+    for (const [token, src] of _srcTokenMap) {
+      try { src.disconnect(); } catch (_) {}
+      _srcFinalizer.unregister(token);
+    }
+    _srcTokenMap.clear();
+  }
 
   function createStereoWidener(actx) {
     const mkBQ = (type, freq, Q = 0.707, gain) => {
@@ -1813,7 +1921,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
-  // ✅ 개선 ②: AudioParam 변화 감지 캐시 (불필요한 setTargetAtTime 방지)
+  // [최적화 적용] 오디오 파라미터 캐시 (불필요한 setTargetAtTime 방지)
   function createAudioParamCache() {
     const _cache = new Map();
     const EPSILON = 0.005;
@@ -1843,24 +1951,30 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (finalizerNode) return finalizerNode;
       if (!window.isSecureContext || !audioCtx?.audioWorklet) return null;
 
-      if (!workletInitPromise) {
-        workletInitPromise = (async () => {
-          const blobUrl = URL.createObjectURL(
-            new Blob([VSC_FINALIZER_WORKLET_SRC], { type: 'application/javascript' })
-          );
-          try {
-            await audioCtx.audioWorklet.addModule(blobUrl);
-            finalizerNode = new AudioWorkletNode(audioCtx, 'vsc-finalizer', {
-              numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2]
-            });
-            return finalizerNode;
-          } catch (e) {
-            return null;
-          } finally {
-            URL.revokeObjectURL(blobUrl);
-          }
-        })();
+      // [최적화 적용] Fix 4: 초기화 실패 시 재시도 허용
+      if (workletInitPromise) {
+        const result = await workletInitPromise;
+        if (result) return result;
+        workletInitPromise = null;
       }
+
+      workletInitPromise = (async () => {
+        let blobUrl = null;
+        try {
+          blobUrl = URL.createObjectURL(new Blob([VSC_FINALIZER_WORKLET_SRC], { type: 'application/javascript' }));
+          await audioCtx.audioWorklet.addModule(blobUrl);
+          finalizerNode = new AudioWorkletNode(audioCtx, 'vsc-finalizer', {
+            numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2]
+          });
+          return finalizerNode;
+        } catch (e) {
+          log.warn('[VSC] AudioWorklet 초기화 실패:', e);
+          workletInitPromise = null;
+          return null;
+        } finally {
+          if (blobUrl) URL.revokeObjectURL(blobUrl);
+        }
+      })();
       return workletInitPromise;
     }
 
@@ -1877,7 +1991,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       currentNodes._finalizerAttached = true;
       node.port.onmessage = (e) => {
         currentNodes._awStats = e.data;
-        currentNodes._awStatsT = performance.now(); // ✅ 수신 시각 기록 추가
+        currentNodes._awStatsT = performance.now();
         contentClassifier.classify(e.data);
       };
     }
@@ -1955,10 +2069,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return { input, output, bands: { low: { comp: compLow, gain: gainLow }, mid: { comp: compMid, gain: gainMid }, high: { comp: compHigh, gain: gainHigh } } };
     }
 
-    // ✅ 개선 ①: fftSize 축소 + 스마트 샘플링 병목 제거
+    // [최적화 적용] 오디오 루프 CPU 사용량 절감 (1024 -> 256 버퍼 및 언롤링)
     function createSimpleRMSMeter(actx) {
       const analyser = actx.createAnalyser();
-      analyser.fftSize = 256; // 1024 -> 256 메모리 4배 절약
+      analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.8;
       const buf = new Float32Array(256);
 
@@ -1978,7 +2092,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           for (let i = 0; i < 256; i += 8) {
             sum += buf[i]*buf[i] + buf[i+2]*buf[i+2] + buf[i+4]*buf[i+4] + buf[i+6]*buf[i+6];
           }
-          const rms = Math.sqrt(sum / 128); // 32 반복 * 4 샘플 = 128
+          const rms = Math.sqrt(sum / 128);
           lastRmsDb = rms > 1e-5 ? 20 * Math.log10(rms) : -70;
         },
         reset: () => { lastRmsDb = -70; _lastMeasureT = 0; },
@@ -2033,17 +2147,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       n.masterOut.connect(audioCtx.destination);
 
       n._multiband = multiband; n._stereoWidener = stereoWidener; n._lufsMeter = rmsMeter; n._loudnessNorm = loudnessNorm;
-      n._paramCache = createAudioParamCache(); // ✅ 캐시 등록
+      n._paramCache = createAudioParamCache();
       return n;
     }
 
     const ensureCtx = () => {
       if (ctx) {
         if (ctx.state !== 'closed') return true;
-        for (const src of _activeAudioSources) {
-          try { if (src.context === ctx) src.disconnect(); } catch (_) {}
-        }
-        _activeAudioSources.clear();
+        // [최적화 적용] 컨텍스트 재생성 시 모든 GC 토큰 일괄 연결 해제
+        _disconnectAllTrackedSources();
         currentSrc = null; target = null; currentNodes = null;
         ctx = null;
       }
@@ -2088,12 +2200,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     function disposeSourceForVideo(video) {
       if (!video) return;
-      const src = globalSrcMap.get(video);
-      if (src) {
-        safe(() => src.disconnect());
-        globalSrcMap.delete(video);
-        _activeAudioSources.delete(src);
-      }
+      _unregisterAudioSrc(video);
       if (target === video) { currentSrc = null; target = null; }
     }
 
@@ -2110,7 +2217,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (currentSrc && currentNodes) {
         const mbActive = !!sm.get(P.A_MULTIBAND);
 
-        // ✅ 개선 ③: Worklet 활성 시 RMS 측정 완전 생략
         const hasWorkletStats = !!(
           currentNodes._finalizerAttached && currentNodes._awStats &&
           (performance.now() - (currentNodes._awStatsT || 0)) < 2000
@@ -2119,7 +2225,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const needMeter = actuallyEnabled && (!!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE)) && !hasWorkletStats;
 
         if (needMeter && currentNodes._lufsMeter && ctx.state === 'running') {
-          try { currentNodes._lufsMeter.measure(); } catch (e) { log.debug('RMS measure failed', e); }
+          try { currentNodes._lufsMeter.measure(); } catch (e) {}
           if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS)) {
             const cType = contentClassifier.getType();
             if (cType === 'dialogue') {
@@ -2140,7 +2246,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             const _tmpLufs = currentNodes._loudnessNorm._tmpWorkletLufs || (currentNodes._loudnessNorm._tmpWorkletLufs = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 });
             _tmpLufs.shortTermLUFS = stats.rmsDb || -70;
             _tmpLufs.momentaryLUFS = stats.rmsDb || -70;
-            currentNodes._loudnessNorm.update(_tmpLufs); // Worklet 데이터로 우회 업데이트
+            currentNodes._loudnessNorm.update(_tmpLufs);
           }
         } else {
           if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !actuallyEnabled)) {
@@ -2284,7 +2390,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           );
           const p = currentNodes._finalizer.parameters;
           const t = ctx.currentTime;
-          // Worklet parameter는 try-catch를 동반하는 pc.sttIfChanged로 완벽히 제어
           pc.sttIfChanged(p.get('drive'), 'fin.drive', dynAct ? adapted.drive : 1.0, t, 0.15);
           pc.sttIfChanged(p.get('ceiling'), 'fin.ceil', adapted.ceiling, t, 0.08);
           pc.sttIfChanged(p.get('mix'), 'fin.mix', dynAct ? adapted.mix : 0.0, t, 0.05);
@@ -2317,15 +2422,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       const connectWithFallback = (vid) => {
         if (!vid) return;
-        let s = globalSrcMap.get(vid);
+        const entry = globalSrcMap.get(vid);
+        let s = entry?.src;
         let reusable = false;
 
         if (s) {
           try { reusable = (s.context === ctx && s.context.state !== 'closed'); } catch (_) {}
           if (!reusable) {
-            try { s.disconnect(); } catch (_) {}
-            globalSrcMap.delete(vid);
-            _activeAudioSources.delete(s);
+            _unregisterAudioSrc(vid);
             s = null;
           } else {
             try { s.disconnect(); } catch (_) {}
@@ -2335,11 +2439,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         if (!s) {
           try {
             s = ctx.createMediaElementSource(vid);
-            globalSrcMap.set(vid, s);
-            _activeAudioSources.add(s);
-          }
-          catch (e) {
-            st.audioFailUntil = performance.now() + 10000;
+            _registerAudioSrc(vid, s);
+          } catch (e) {
+            const vst = getVState(vid);
+            vst.audioFailUntil = performance.now() + 10000;
             detachCurrentSource(); updateMix();
             return;
           }
@@ -2412,7 +2515,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
 
-    // ✅ 개선 A: CSS Filter 문자열 캐싱 (브라우저 Style Recalculate 방지)
     const _cssFilterCache = new WeakMap();
 
     function cacheSet(map, key, val, max = 24) {
@@ -2459,7 +2561,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const filterStr = buildCssFilterString(s);
       const st = getVState(el);
 
-      // ✅ 추가 최적화: 브라우저 DOM 접근 전 메모리 상에서 이전 문자열과 비교
       const lastApplied = _cssFilterCache.get(el);
       if (lastApplied === filterStr) return;
 
@@ -2493,7 +2594,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       el.style.setProperty('-webkit-filter', filterStr, 'important');
       st.applied = true;
       st.lastFilterUrl = filterStr;
-      _cssFilterCache.set(el, filterStr); // ✅ 캐시 업데이트
+      _cssFilterCache.set(el, filterStr);
     }
 
     function setAttr(node, attr, val) {
@@ -3831,14 +3932,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   // ──────────────────────────────────────────────
-  // ③ CONTENT LAYER v2 (✅ 병목 #2 및 가변 샘플링 패치 적용)
+  // ③ CONTENT LAYER v2 (✅ Fix 3: Worker 세션 격리 & 캔버스 누수 해결 반영)
   // ──────────────────────────────────────────────
   function createContentAwareSharpTuner() {
     const _WORKER_SRC = `
       let _canvas = null, _ctx = null;
       self.onmessage = function({ data }) {
+        if (data.type === 'reset') return;
         if (data.type === 'analyze') {
-          const { bitmap, width, height } = data;
+          const { bitmap, width, height, token } = data;
           if (!_canvas) {
             _canvas = new OffscreenCanvas(width, height);
             _ctx = _canvas.getContext('2d', { willReadFrequently: true });
@@ -3885,12 +3987,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           const colorScore = Math.min(1, Math.max(0, (avgColorVar - 4.0) / 16.0));
           const complexity = edgeScore * 0.7 + colorScore * 0.3;
 
-          self.postMessage({ type: 'result', complexity });
+          self.postMessage({ type: 'result', complexity, token });
         }
       };
     `;
 
     let _worker = null;
+    let _sessionToken = 0; // 세션 토큰 (in-flight 결과 격리용)
+
     function getWorker() {
       if (_worker) return _worker;
       try {
@@ -3900,6 +4004,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         URL.revokeObjectURL(url);
         _worker.onmessage = ({ data }) => {
           if (data.type !== 'result') return;
+          // 세션이 다르면 이전 비디오의 분석 결과이므로 폐기
+          if (data.token !== _sessionToken) { _pendingAnalysis = false; return; }
           _pendingAnalysis = false;
           const rawMul = 0.55 + data.complexity * 0.55;
           cachedMultiplier += (rawMul - cachedMultiplier) * EMA_ALPHA;
@@ -3971,8 +4077,13 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     function checkSourceChange(video) {
       const src = video.currentSrc || video.src || '';
       if (src !== _trackedSrc) {
-        _trackedSrc = src; cachedMultiplier = 1.0; _lastComplexity = 0.5;
+        _trackedSrc = src;
+        _sessionToken = (_sessionToken + 1) | 0;
+        cachedMultiplier = 1.0; _lastComplexity = 0.5;
         lastAnalysisT = 0; failCount = 0; _pendingAnalysis = false;
+        if (_worker) {
+          try { _worker.postMessage({ type: 'reset' }); } catch (_) {}
+        }
         return true;
       }
       return false;
@@ -4005,9 +4116,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const worker = getWorker();
       if (worker && typeof createImageBitmap === 'function') {
         _pendingAnalysis = true;
+        const capturedToken = _sessionToken;
         createImageBitmap(video, { resizeWidth: curW, resizeHeight: curH, resizeQuality: 'pixelated' })
           .then(bitmap => {
-            worker.postMessage({ type: 'analyze', bitmap, width: curW, height: curH }, [bitmap]);
+            worker.postMessage({ type: 'analyze', bitmap, width: curW, height: curH, token: capturedToken }, [bitmap]);
           })
           .catch(() => { failCount++; _pendingAnalysis = false; });
       } else {
@@ -4029,13 +4141,25 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       getMultiplier: () => cachedMultiplier,
       getSigmaHint: () => _lastComplexity <= 0.5 ? 0.85 + _lastComplexity * 0.30 : 1.00 + (_lastComplexity - 0.5) * 0.10,
       getComplexity: () => _lastComplexity,
-      reset: () => { cachedMultiplier = 1.0; _lastComplexity = 0.5; lastAnalysisT = 0; failCount = 0; _trackedSrc = ''; _pendingAnalysis = false; },
-      destroy: () => { _worker?.terminate(); _worker = null; }
+      reset: () => {
+        cachedMultiplier = 1.0; _lastComplexity = 0.5; lastAnalysisT = 0; failCount = 0;
+        _trackedSrc = ''; _pendingAnalysis = false; _sessionToken = 0;
+      },
+      destroy: () => {
+        _worker?.terminate(); _worker = null;
+        if (_fallbackCanvas) {
+          try {
+            _fallbackCanvas.width = 0; _fallbackCanvas.height = 0; _fallbackCtx = null;
+          } catch (_) {}
+          _fallbackCanvas = null;
+        }
+        _pendingAnalysis = false; _trackedSrc = ''; _sessionToken = 0;
+      }
     };
   }
 
   // ──────────────────────────────────────────────
-  // 파이프라인 통합 (✅ 병목 #1: 캐시 키 Fast-Path 패치 적용)
+  // 파이프라인 통합 (✅ Fix 1: FNV-1a 이중 해시 및 Fast-Path 적용)
   // ──────────────────────────────────────────────
   function _updateFastCache(cache, video, vfUser, nW, nH, dW, dH, budget, result) {
     let fc = cache.get(video);
@@ -4063,11 +4187,21 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const entry = _srcHashCache.get(video);
       if (entry && entry.src === curSrc) return entry.hash;
 
-      let h = 5381;
-      for (let i = 0, len = Math.min(curSrc.length, 200); i < len; i++) {
-        h = ((h << 5) + h + curSrc.charCodeAt(i)) | 0;
+      let h1 = 2166136261 >>> 0;
+      let h2 = 5381;
+      const totalLen = curSrc.length;
+      const scanLen  = Math.min(totalLen, 512);
+
+      for (let i = 0; i < scanLen; i++) {
+        const c = curSrc.charCodeAt(i);
+        h1 = Math.imul(h1 ^ c, 16777619) >>> 0;
+        h2 = ((h2 << 5) + h2 + c) | 0;
       }
-      const hash = String(h >>> 0);
+
+      h1 = Math.imul(h1 ^ totalLen, 16777619) >>> 0;
+      h2 = Math.imul(h2 ^ totalLen, 0x9e3779b9) | 0;
+
+      const hash = (h1 >>> 0).toString(36) + '_' + (h2 >>> 0).toString(36);
       _srcHashCache.set(video, { src: curSrc, hash });
       return hash;
     }
