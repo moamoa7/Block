@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v186.4- Architecture Refined)
+// @name         Video_Control (v186.5 Architecture Refined)
 // @namespace    https://github.com/
-// @version      186.4
+// @version      186.5
 // @description  Zero-leak EventBus, Microtask Race fix, GC Optimized Set pruning, Safe Scheduler state.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.4';
+  const SCRIPT_VERSION = '186.5;
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -1493,7 +1493,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 // =================== PART 2 END ===================
 // =================== PART 3 START ===================
 
-  // 3-8. reconcileVideoEffects의 “가장 큰 Set 찾기” 최적화 제거 → 단순 병합 및 가독성 향상
   function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, isNeutralParams, isNeutralShadow, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch; candidates.clear();
     for (const set of [dirtyVideos, applySet, TOUCHED.videos, TOUCHED.rateVideos]) {
@@ -1521,7 +1520,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createPerfGovernor() {
     const perVideo = new WeakMap(); const MODES = ['low', 'mid', 'high']; const MODE_IDX = { low: 0, mid: 1, high: 2 };
     let globalMode = 'high', confirmCount = 0, pendingMode = null, lastTransitionT = 0;
-    const SAMPLE_INTERVAL = { high: 3000, mid: 2000, low: 1500 }; const THRESHOLDS = { downToLow: 0.25, downToMid: 0.15, upToMid: 0.04, upToHigh: 0.015, emergency: 0.35 };
+    const SAMPLE_INTERVAL = { high: 3000, mid: 2000, low: 1500 };
+    const THRESHOLDS = { downToLow: 0.25, downToMid: 0.15, upToMid: 0.04, upToHigh: 0.015, emergency: 0.35 };
     const CONFIRM_DOWN = 3, CONFIRM_UP = 4, COOLDOWN_DOWN = 8000, COOLDOWN_UP = 3000;
 
     function transitionTo(newMode) { if (newMode === globalMode) return; globalMode = newMode; lastTransitionT = performance.now(); pendingMode = null; confirmCount = 0; }
@@ -1593,7 +1593,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const resMul = video ? computeResolutionSharpMul(video) : 0.0, perfMul = budget.sharpMul, contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0, finalSharpMul = resMul * perfMul * contentMul;
         const baseSigma = video ? computeBaseSigmaScale(video) : 1.0, sigmaHint = contentTuner.getSigmaHint(), finalSigmaScale = baseSigma * sigmaHint;
 
-        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: userTemp, rotation: vfUser.rotation || 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _rs: rs, _gs: gs, _bs: bs, _microBase: detailP.microBase || 0.18, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.32, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.20, 0.85] };
+        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: userTemp, rotation: vfUser.rotation || 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _rs: rs, _gs: gs, _bs: bs, _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.12], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, shadowLevel = Math.min(sLevel, budget.shadowCap), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut, budget, _lastContentMul: contentMul };
         if (_cache.size >= MAX_MEMO) _cache.delete(_cache.keys().next().value); _cache.set(inputKey, result); if (video) _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, result); return result;
@@ -1630,7 +1630,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     function cacheSet(map, key, val, max = 32) { if (map.size >= max && !map.has(key)) map.delete(map.keys().next().value); map.set(key, val); }
     const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = new Map(), _attrCache = new WeakMap(), __vscBgMemo = new WeakMap();
 
-    function canUseCssNativeOnly(s, shadowParams) { if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false; if (shadowParams && shadowParams.active) return false; return true; }
+    function canUseCssNativeOnly(s, shadowParams) {
+      // [정상화 패치] 밝기, 감마, 온도 등이 변경되었으면 무조건 SVG 필터를 켜도록 CSS 폴백을 막음
+      if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
+      if (shadowParams && shadowParams.active) return false;
+      if (Math.abs(s.bright || 0) > 0.5) return false;
+      if (Math.abs((s.gamma || 1) - 1.0) > 0.01) return false;
+      if (Math.abs(s.temp || 0) > 1e-4) return false;
+      if (Math.abs((s.contrast || 1) - 1.0) > 0.01) return false;
+      if (Math.abs((s.satF ?? 1) - 1.0) > 0.01) return false;
+      return true;
+    }
 
     function buildCssFilterString(s) {
       const parts = []; const brightAdd = s.bright || 0; if (Math.abs(brightAdd) > 0.5) { const cssBright = 1.0 + brightAdd / 250; parts.push(`brightness(${cssBright.toFixed(4)})`); }
@@ -2467,7 +2477,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   const Utils = createUtils();
-  const Scheduler = createScheduler(16); // 최적화: 32 -> 16
+  const Scheduler = createScheduler(16);
   const Store = createLocalStore(CONFIG.DEFAULTS, Scheduler, Bus);
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
