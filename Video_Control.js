@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v186.5 Architecture Refined)
+// @name         Video_Control (v186.6 - Architecture Refined)
 // @namespace    https://github.com/
-// @version      186.5
+// @version      186.6
 // @description  Zero-leak EventBus, Microtask Race fix, GC Optimized Set pruning, Safe Scheduler state.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.5;
+  const SCRIPT_VERSION = '186.6';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -1631,7 +1631,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = new Map(), _attrCache = new WeakMap(), __vscBgMemo = new WeakMap();
 
     function canUseCssNativeOnly(s, shadowParams) {
-      // [정상화 패치] 밝기, 감마, 온도 등이 변경되었으면 무조건 SVG 필터를 켜도록 CSS 폴백을 막음
       if ((s.sharp | 0) > 0 || (s.sharp2 | 0) > 0) return false;
       if (shadowParams && shadowParams.active) return false;
       if (Math.abs(s.bright || 0) > 0.5) return false;
