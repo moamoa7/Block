@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v184.0 - Reviewed & Optimized)
+// @name         Video_Control (v185.0 - Patched & Optimized)
 // @namespace    https://github.com/
-// @version      184.0
-// @description  Full Perf, Memory Safe, Global Rotation, Clock Sync, Portrait PiP size fix, Gear/UI rotation sync. Reviewed build.
+// @version      185.0
+// @description  Bug fixes (badge dup, worklet leak, timer guard, interval reg), PiP restore unify, schema split, pruneStale O(n), dead code removal.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '184.0';
+  const SCRIPT_VERSION = '185.0';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -85,8 +85,8 @@ function VSC_MAIN() {
   __vscNs._timers = [];
   __vscNs._intervals = [];
 
-  const SYS = Object.freeze({ WFC: 5000, SRD: 220 });
-  const TOE_DIVISOR = 12;
+  /* [v185.0] SYS.WFC 제거 (미사용) */
+  const SYS = Object.freeze({ SRD: 220 });
 
   const FLAGS = Object.seal({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
@@ -381,25 +381,6 @@ function VSC_MAIN() {
     if (vv) { on(vv, 'scroll', bumpLayoutRev, { passive: true }); on(vv, 'resize', bumpLayoutRev, { passive: true }); }
   } catch (_) {}
 
-  /**
-   * @typedef {Object} VState
-   * @property {boolean} visible
-   * @property {boolean} bound
-   * @property {boolean} applied
-   * @property {number|undefined} desiredRate
-   * @property {number} audioFailUntil
-   * @property {DOMRect|null} rect
-   * @property {number} rectT
-   * @property {number} _rectRev
-   * @property {number} visibilityRatio
-   * @property {string|null} lastFilterUrl
-   * @property {string|undefined} lastTransform
-   * @property {string|undefined} lastScale
-   * @property {number|undefined} lastRot
-   * @property {Object|null} rateState
-   * @property {AbortController|null} _ac
-   * @property {string} _lastSrc
-   */
   const videoStateMap = new WeakMap();
 
   const getVState = (v) => {
@@ -460,9 +441,11 @@ function VSC_MAIN() {
     { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS },
     { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
   ];
-  const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
-  const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
 
+  /* [v185.0] ALL_SCHEMA는 유지 (normalizeBySchema에서 전달용), ALL_KEYS 제거 */
+  const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
+
+  /* [v185.0] BoundedWeakSet._pruneStale O(n) 최적화 */
   class BoundedWeakSet {
     constructor(maxSize, onEvict) {
       this._max = maxSize; this._onEvict = onEvict; this._refs = new Map(); this._elToToken = new WeakMap(); this._order = []; this._opCount = 0;
@@ -490,9 +473,17 @@ function VSC_MAIN() {
       }
     }
     _pruneStale() {
-      const stale = [];
-      for (const [token, ref] of this._refs) { if (!ref.deref()) stale.push(token); }
-      for (const token of stale) { this._refs.delete(token); const idx = this._order.indexOf(token); if (idx > -1) this._order.splice(idx, 1); }
+      let writeIdx = 0;
+      for (let i = 0; i < this._order.length; i++) {
+        const token = this._order[i];
+        const ref = this._refs.get(token);
+        if (ref?.deref()) {
+          this._order[writeIdx++] = token;
+        } else {
+          this._refs.delete(token);
+        }
+      }
+      this._order.length = writeIdx;
     }
     has(el) {
       if (!el || !this._elToToken.has(el)) return false;
@@ -1066,6 +1057,81 @@ function VSC_MAIN() {
     renderBadgeAndProgress();
   }
 
+  /* [v185.0] PiP 복원 공통 함수 — restoreFromDocumentPiP, _restoreFromIframePiP 통합 */
+  async function _restoreVideoCommon(video, { adoptNode: shouldAdopt = false } = {}) {
+    if (!video || PiPState.video !== video || PiPState._restoring) return;
+    PiPState._restoring = true;
+    const savedTime = video.currentTime;
+    const wasPlaying = !video.paused;
+    safe(() => getNS()?.AudioSetTarget?.(null));
+    try {
+      if (shouldAdopt && video.ownerDocument !== document) {
+        try { document.adoptNode(video); }
+        catch (e) { log.warn('[VSC] adoptNode failed:', e); }
+      }
+      PiPState.restoreVideoPosition(video);
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const applyTime = () => {
+        if (Number.isFinite(savedTime)) {
+          video.currentTime = savedTime;
+          video.dispatchEvent(new Event('timeupdate'));
+        }
+      };
+      applyTime(); setTimeout(applyTime, 50); setTimeout(applyTime, 150);
+      if (wasPlaying) {
+        try { await video.play(); }
+        catch (_) { /* adoptNode 후 autoplay 정책에 의해 실패 가능 — 무시 */ }
+      }
+      safe(() => {
+        const store = getNS()?.Store;
+        if (store) store.set('video.rotation', 0);
+        video.style.removeProperty('transform');
+        video.style.removeProperty('scale');
+        const st = getVState(video);
+        if (st) { st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
+        getNS()?.AudioSetTarget?.(video);
+        getNS()?.ApplyReq?.hard();
+      });
+    } catch (e) { log.warn('[VSC PiP] restore failed:', e); }
+    PiPState.reset();
+  }
+
+  /* [v185.0] 통합 함수를 사용하는 래퍼 */
+  async function restoreFromDocumentPiP(video) {
+    return _restoreVideoCommon(video);
+  }
+
+  async function _restoreFromIframePiP(video) {
+    return _restoreVideoCommon(video, { adoptNode: true });
+  }
+
+  /* [v185.0] _attachIframeSourceBadge — badge 이중 append 방지 (1.4) */
+  function _attachIframeSourceBadge(pipDoc, pipWin) {
+    let originLabel = '(알 수 없는 iframe)';
+    try { originLabel = location.hostname || location.origin || originLabel; } catch (_) {}
+
+    const badge = pipDoc.createElement('div');
+    badge.style.cssText = `position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(52, 73, 94, 0.82); color: rgba(255,255,255,0.75); font: 500 10px/1.4 system-ui, sans-serif; padding: 3px 10px; border-radius: 8px; pointer-events: none; z-index: 10; white-space: nowrap; backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1);`;
+    badge.textContent = `📌 iframe: ${originLabel}`;
+
+    let badgeAppended = false;
+    const tryAppendBadge = () => {
+      if (badgeAppended) return true;
+      try { if (pipDoc.body) { pipDoc.body.appendChild(badge); badgeAppended = true; return true; } } catch (_) {}
+      return false;
+    };
+
+    pipWin.addEventListener('load', () => {
+      if (!tryAppendBadge()) return;
+      setTimeout(() => {
+        badge.style.transition = 'opacity 0.6s ease'; badge.style.opacity = '0';
+        setTimeout(() => { try { badge.remove(); } catch (_) {} }, 700);
+      }, 3000);
+    }, { once: true });
+
+    if (pipDoc.readyState === 'complete') tryAppendBadge();
+  }
+
   async function enterDocumentPiP(video) {
     const pipCtx = resolvePiPContext();
     if (!pipCtx) throw new Error('Document PiP context unavailable');
@@ -1233,56 +1299,6 @@ function VSC_MAIN() {
     }
   }
 
-  async function _restoreFromIframePiP(video) {
-    if (!video) { PiPState.reset(); return; }
-    if (PiPState.video !== video) return;
-    if (PiPState._restoring) return;
-    PiPState._restoring = true;
-    const savedTime = video.currentTime, wasPlaying = !video.paused;
-    safe(() => getNS()?.AudioSetTarget?.(null));
-    try {
-      if (video.ownerDocument !== document) { try { document.adoptNode(video); } catch (adoptErr) { log.warn('[VSC] adoptNode 실패:', adoptErr); } }
-      PiPState.restoreVideoPosition(video);
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const applyTime = () => { if (Number.isFinite(savedTime)) { video.currentTime = savedTime; video.dispatchEvent(new Event('timeupdate')); } };
-      applyTime(); setTimeout(applyTime, 50); setTimeout(applyTime, 150);
-      if (wasPlaying) { try { await video.play(); } catch (_) {} }
-      safe(() => {
-        const store = getNS()?.Store; if (store) store.set('video.rotation', 0);
-        video.style.removeProperty('transform'); video.style.removeProperty('scale');
-        const st = getVState(video);
-        if (st) { st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
-        getNS()?.AudioSetTarget?.(video); getNS()?.ApplyReq?.hard();
-      });
-    } catch (e) { log.warn('[VSC PiP iframe] 복원 실패:', e); }
-    PiPState.reset();
-  }
-
-  /* [v184.0 FIX] Iframe 뱃지 로드 시 body null 방어 로직 추가 */
-  function _attachIframeSourceBadge(pipDoc, pipWin) {
-    let originLabel = '(알 수 없는 iframe)';
-    try { originLabel = location.hostname || location.origin || originLabel; } catch (_) {}
-
-    const badge = pipDoc.createElement('div');
-    badge.style.cssText = `position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: rgba(52, 73, 94, 0.82); color: rgba(255,255,255,0.75); font: 500 10px/1.4 system-ui, sans-serif; padding: 3px 10px; border-radius: 8px; pointer-events: none; z-index: 10; white-space: nowrap; backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1);`;
-    badge.textContent = `📌 iframe: ${originLabel}`;
-
-    const tryAppendBadge = () => {
-      try { if (pipDoc.body) { pipDoc.body.appendChild(badge); return true; } } catch (_) {}
-      return false;
-    };
-
-    pipWin.addEventListener('load', () => {
-      if (!tryAppendBadge()) return;
-      setTimeout(() => {
-        badge.style.transition = 'opacity 0.6s ease'; badge.style.opacity = '0';
-        setTimeout(() => { try { badge.remove(); } catch (_) {} }, 700);
-      }, 3000);
-    }, { once: true });
-
-    if (pipDoc.readyState === 'complete') tryAppendBadge();
-  }
-
   async function enterPiP(video) {
     if (!video || video.readyState < 2) throw new Error('Video not ready');
     const cap = detectPiPCapability();
@@ -1292,30 +1308,6 @@ function VSC_MAIN() {
     }
     if (PIP_FLAGS.USE_LEGACY_PIP_FALLBACK && supportsLegacyPiP(video)) { return await enterLegacyPiP(video); }
     throw new Error(cap === 'legacy-only' ? 'PiP: 교차-출처 iframe에서는 Legacy PiP만 지원됩니다' : 'PiP is not supported in this browser/context');
-  }
-
-  async function restoreFromDocumentPiP(video) {
-    if (!video) { PiPState.reset(); return; }
-    if (PiPState.video !== video) return;
-    if (PiPState._restoring) return;
-    PiPState._restoring = true;
-    const savedTime = video.currentTime, wasPlaying = !video.paused;
-    safe(() => getNS()?.AudioSetTarget?.(null));
-    try {
-      PiPState.restoreVideoPosition(video);
-      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
-      const applyTime = () => { if (Number.isFinite(savedTime)) { video.currentTime = savedTime; video.dispatchEvent(new Event('timeupdate')); } };
-      applyTime(); setTimeout(applyTime, 50); setTimeout(applyTime, 150);
-      if (wasPlaying) { try { await video.play(); } catch(_) {} }
-      safe(() => {
-        const store = getNS()?.Store; if (store) store.set('video.rotation', 0);
-        video.style.removeProperty('transform'); video.style.removeProperty('scale');
-        const st = getVState(video);
-        if (st) { st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
-        getNS()?.AudioSetTarget?.(video); getNS()?.ApplyReq?.hard();
-      });
-    } catch (e) { log.warn('PiP restore failed:', e); }
-    PiPState.reset();
   }
 
   async function exitPiP(preferredVideo = null) {
@@ -1368,7 +1360,6 @@ function VSC_MAIN() {
     _srcTokenMap.clear();
   }
 
-  /* [v184.0 FIX] createStereoWidener dead code 제거 */
   function createStereoWidener(actx) {
     const mkBQ = (type, freq, Q = 0.707, gain) => { const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (Q !== undefined) f.Q.value = Q; if (gain !== undefined) f.gain.value = gain; return f; };
     const input = actx.createGain(), output = actx.createGain(); input.gain.value = 1.0; output.gain.value = 1.0; input.channelCount = 2; input.channelCountMode = 'clamped-max'; input.channelInterpretation = 'speakers';
@@ -1444,7 +1435,6 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
 registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 `;
 
-  /* [v184.0 FIX] SILENT 프로필에서 mixTarget 제거 */
   function createContentClassifier() {
     const CONTENT = Object.freeze({ SILENT: 'silent', DIALOGUE: 'dialogue', MUSIC: 'music', MIXED: 'mixed' });
     let currentType = CONTENT.MIXED, confidence = 0;
@@ -1496,7 +1486,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
-  /* [v184.0 FIX] AudioContext 백그라운드 suspend 및 worklet 초기화 대응 */
+  /* [v185.0] createAudioFeature — worklet 누수 방지 (1.5) */
   function createAudioFeature(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, currentNodes = null;
     let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
@@ -1588,6 +1578,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const ensureCtx = () => {
       if (ctx) {
         if (ctx.state !== 'closed') return true;
+        /* [v185.0] worklet 누수 방지: 이전 finalizerNode 정리 */
+        if (finalizerNode) {
+          try { finalizerNode.port.onmessage = null; finalizerNode.disconnect(); } catch (_) {}
+        }
         _disconnectAllTrackedSources(); currentSrc = null; target = null; currentNodes = null;
         finalizerNode = null; workletInitPromise = null; contentClassifier.reset(); ctx = null;
       }
@@ -1681,11 +1675,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       onInit() { this.subscribe('target:changed', ({ video }) => { const act = this.getSetting(P.APP_ACT), wantAudioNow = !!(this.getSetting(P.A_EN) && act), nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null; if (target !== nextAudioTarget) setTarget(nextAudioTarget); else updateMix(); }); },
       onUpdate(appCtx) { const act = this.getSetting(P.APP_ACT), wantAudioNow = !!(this.getSetting(P.A_EN) && act), video = appCtx?.target || this.getActiveVideo(), nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null; if (target !== nextAudioTarget) { setTarget(nextAudioTarget); } else { updateMix(); } },
       methods: { warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); }, updateMix: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc },
-      async onDestroy() { try { _audioAC.abort(); } catch (_) {} _visResumeHooked = false; loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; } const prevTarget = target; detachCurrentSource(); if (prevTarget) { disposeSourceForVideo(prevTarget); } safe(() => { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } }); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; makeupDbEma = 0; switchTok++; finalizerNode = null; workletInitPromise = null; contentClassifier.reset(); }
+      async onDestroy() { try { _audioAC.abort(); } catch (_) {} _visResumeHooked = false; loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; } const prevTarget = target; detachCurrentSource(); if (prevTarget) { disposeSourceForVideo(prevTarget); } safe(() => { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } }); /* [v185.0] worklet 정리 강화 */ if (finalizerNode) { try { finalizerNode.port.onmessage = null; finalizerNode.disconnect(); } catch (_) {} } try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; makeupDbEma = 0; switchTok++; finalizerNode = null; workletInitPromise = null; contentClassifier.reset(); }
     });
   }
 
-  /* [v184.0 FIX] makeKeyHash 도입으로 문자열 생성 병목 최소화 */
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const _cssFilterCache = new WeakMap();
@@ -1725,7 +1718,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (!video) return; const prev = __vscBgMemo.get(video); if (prev === undefined) return; __vscBgMemo.delete(video); if (prev !== null) video.style.backgroundColor = prev;
     }
 
-    /* [v184.0 FIX] 정수 해시 함수 */
     function makeKeyHash(s) {
       let h1 = 0x811c9dc5 >>> 0;
       const mix = (v) => { h1 = Math.imul(h1 ^ (v | 0), 0x01000193) >>> 0; };
@@ -1792,6 +1784,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       for (const fn of shadowNodes.toneFuncs) setAttr(fn, 'tableValues', arr.join(' '));
     }
 
+    /* [v185.0] TOE_DIVISOR 인라인화 (3.6) */
     function prepare(video, s, shadowParams) {
       const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
       let dc = urlCache.get(root); if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
@@ -1807,7 +1800,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         nodes.st.lastKey = stableKey; nodes.st.rev = (nodes.st.rev + 1) | 0;
         const st = nodes.st, common = nodes.color, steps = 64;
         if (sharpTotal > 0) { applySharpParams(nodes.sharp, st, s); } else { const bypassKey = 'bypass'; if (st.sharpKey !== bypassKey) { st.sharpKey = bypassKey; if (nodes.sharp.usmMicro) { setAttr(nodes.sharp.usmMicro, 'k2', 1); setAttr(nodes.sharp.usmMicro, 'k3', 0); } setAttr(nodes.sharp.usmNode, 'k2', 1); setAttr(nodes.sharp.usmNode, 'k3', 0); } }
-        const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08, toeQ = Math.round(VSC_CLAMP((s.toe || 0) / TOE_DIVISOR, -1, 1) / 0.02) * 0.02, shQ = Math.round(VSC_CLAMP((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02, midQ = Math.round(VSC_CLAMP(s.mid || 0, -1, 1) / 0.02) * 0.02, rawGain = s.gain || 1, gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
+        const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08, toeQ = Math.round(VSC_CLAMP((s.toe || 0) / 12, -1, 1) / 0.02) * 0.02, shQ = Math.round(VSC_CLAMP((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02, midQ = Math.round(VSC_CLAMP(s.mid || 0, -1, 1) / 0.02) * 0.02, rawGain = s.gain || 1, gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
         const tk = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`; const table = st.toneKey !== tk ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : st.toneTable;
         if (st.toneKey !== tk) { st.toneKey = tk; st.toneTable = table; for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
         const con = VSC_CLAMP(s.contrast || 1, 0.1, 5.0), brightOffset = VSC_CLAMP((s.bright || 0) / 250, -0.5, 0.5), intercept = VSC_CLAMP(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
@@ -2071,7 +2064,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       `;
       attachShadowStyles(shadow, style);
 
-      const dragHandle = h('div', { class: 'header', title: '\uB354\uBE14\uD074\uB9AD \uC2DC \uD1B1\uB2C8\uBC14\uD034 \uC606\uC73C\uB85C \uBCF5\uADC0' }, 'VSC 렌더링 제어');
+      const dragHandle = h('div', { class: 'header', title: '\uB354\uBE14\uD074\uB9AD \uC2DC \uD1B5\uB2C8\uBC14\uD034 \uC606\uC73C\uB85C \uBCF5\uADC0' }, 'VSC 렌더링 제어');
       const sharpRow = renderButtonRow({ label: '\uC120\uBA85', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: [ { text: 'Soft', value: 'Soft', title: '\uC57D\uD55C \uC120\uBA85\uD654' }, { text: 'Med', value: 'Medium', title: '\uC911\uAC04 \uC120\uBA85\uD654' }, { text: 'Ultra', value: 'Ultra', title: '\uAC15\uD55C \uC120\uBA85\uD654' }, { text: 'MST', value: 'Master', title: '\uCD5C\uC0C1\uC704 \uD574\uC0C1\uB3C4 \uBCF5\uAD6C \uBC0F \uC120\uBA85\uD654' } ] });
       const brightRow = renderButtonRow({ label: '\uBC1D\uAE30', key: P.V_BRIGHT_LV, offValue: 0, toggleActiveToOff: true, items: [ { text: '1', value: 1, title: '\uC57D\uAC04 \uBC1D\uAC8C' }, { text: '2', value: 2, title: '\uBC1D\uAC8C' }, { text: '3', value: 3, title: '\uB9CE\uC774 \uBC1D\uAC8C' }, { text: '4', value: 4, title: '\uAC15\uD558\uAC8C \uBC1D\uAC8C' }, { text: '5', value: 5, title: '\uCD5C\uB300 \uBC1D\uAE30' } ] });
 
@@ -2619,15 +2612,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  /* [v184.0 FIX] requestAnimationFrame을 사용한 타이머 최적화 */
+  /* [v185.0] createTimerFeature — 파괴 후 rAF 실행 방지 (1.6) */
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1;
+    let _destroyed = false;
 
     function tick() {
       _rafId = 0;
+      if (_destroyed) return;
       const ns = getNS();
       const store = ns?.Store;
-      if (!store) return;
+      if (!store) { scheduleNext(); return; }
       const act = store.get('app.active'), timeEn = store.get('app.timeEn'), isFs = !!document.fullscreenElement;
 
       if (!act || !timeEn || !isFs) {
@@ -2643,7 +2638,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       const now = new Date(), curSecond = now.getSeconds();
 
-      /* 초가 변하지 않았다면 DOM 업데이트 생략 (리소스 절약) */
       if (curSecond === _lastSecond && _timerEl && _timerEl.style.display !== 'none') {
         scheduleNext(); return;
       }
@@ -2707,13 +2701,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
 
     function scheduleNext() {
-      if (!_rafId) { _rafId = requestAnimationFrame(tick); }
+      if (!_destroyed && !_rafId) { _rafId = requestAnimationFrame(tick); }
     }
 
     return defineFeature({
       name: 'timer',
       phase: PHASE.RENDER,
       onInit() {
+        _destroyed = false;
         this.subscribe('fullscreen:changed', ({ active }) => {
           if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; }
           if (active) scheduleNext();
@@ -2721,6 +2716,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         scheduleNext();
       },
       onDestroy() {
+        _destroyed = true;
         if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
         if (_timerEl) { try { _timerEl.remove(); } catch (_) {} }
         _timerEl = null; _lastSecond = -1;
@@ -2783,7 +2779,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     return Object.freeze({ pickFastActiveOnly });
   }
 
-  /* [v184.0 FIX] 안정적인 v183.5 조립 아키텍처 롤백 및 유지 */
+  /* [v185.0] createAppController — tickTimer를 _intervals에 등록 (1.7) */
   function createAppController({ Store, Registry, Scheduler, Features, P, Targeting, Bus }) {
     Store.sub(P.APP_UI, () => { Scheduler.request(true); });
     Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
@@ -2831,6 +2827,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       tickVisibilityHandler = () => { if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) { Scheduler.request(false); } };
       document.addEventListener('visibilitychange', tickVisibilityHandler, { passive: true });
       tickTimer = setInterval(() => { if (!Store.get(P.APP_ACT) || document.hidden) return; Scheduler.request(false); }, 30000);
+      if (__vscNs._intervals) __vscNs._intervals.push(tickTimer);
     };
     const stopTick = () => {
       if (!tickTimer) return; clearInterval(tickTimer); tickTimer = 0;
@@ -2847,7 +2844,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   // =========================================================================
-  // ⚙️ VSC 조립 및 초기화 (Assembly)
+  // VSC 조립 및 초기화 (Assembly)
   // =========================================================================
   const Bus = createEventBus();
 
@@ -2869,14 +2866,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     reg('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
     reg('🔊 Audio 토글', () => { Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); });
     reg('⚙️ UI 열기/닫기', () => { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); });
-    reg('🛠️ 디버그 모드 토글', () => { const url = new URL(location.href); if(url.searchParams.has('vsc_debug')) url.searchParams.delete('vsc_debug'); else url.searchParams.set('vsc_debug', '1'); location.href = url.toString(); });
+    reg('🛠️ 디버그 모드 토글', () => { const url = new URL(location.href); if(url.searchParams.has('vsc_debug')) url.searchParams.delete('vsc_debug'); else url.searchParams.set('vsc_debug','1'); history.replaceState(null, '', url.toString()); location.reload(); });
   }
 
+  /* [v185.0 FIX] Schema 검증 분리 (3.3) */
   function bindNormalizer(keys, schema) {
     const run = () => { let changed = normalizeBySchema(Store, schema); if (changed) ApplyReq.hard(); };
     keys.forEach(k => Store.sub(k, run)); run();
   }
-  bindNormalizer(ALL_KEYS, ALL_SCHEMA);
+  bindNormalizer(APP_SCHEMA.map(s => s.path), APP_SCHEMA);
+  bindNormalizer(VIDEO_SCHEMA.map(s => s.path), VIDEO_SCHEMA);
+  bindNormalizer(AUDIO_PLAYBACK_SCHEMA.map(s => s.path), AUDIO_PLAYBACK_SCHEMA);
 
   const Registry = createRegistry(Scheduler, Bus);
   const Targeting = createTargeting(Bus);
@@ -2927,7 +2927,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     let __vscLastUserSignalT = 0; __vscNs.lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
     function updateLastUserPt(x, y, t) { __vscNs.lastUserPt.x = x; __vscNs.lastUserPt.y = y; __vscNs.lastUserPt.t = t; }
-    function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT< 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; safe(() => Scheduler.request(false)); }
+    function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; safe(() => Scheduler.request(false)); }
 
     for (const [evt, getPt] of [['pointerdown', e => [e.clientX, e.clientY]], ['wheel', e => [Number.isFinite(e.clientX) ? e.clientX : innerWidth * 0.5, Number.isFinite(e.clientY) ? e.clientY : innerHeight * 0.5]], ['keydown', () => [innerWidth * 0.5, innerHeight * 0.5]], ['resize', () => [innerWidth * 0.5, innerHeight * 0.5]]]) {
       on(window, evt, (e) => { if (evt === 'resize') { const now = performance.now(); if (!__vscNs.lastUserPt || (now - __vscNs.lastUserPt.t) > 1200) updateLastUserPt(...getPt(e), now); } else { updateLastUserPt(...getPt(e), performance.now()); } signalUserInteractionForRetarget(); }, evt === 'keydown' ? undefined : OPT_P);
@@ -2983,8 +2983,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       console.table(Features._debugOrder());
     }
   });
-}
 
-// 구문 오류 해결 (블록 닫기 및 IIFE 실행)
-VSC_MAIN();
+} // <-- 구문 오류의 원인: VSC_MAIN 함수를 닫는 중괄호
+
+VSC_MAIN(); // <-- 구문 오류의 원인: 실행 트리거
 })();
