@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v183.3 - Portrait PiP Fix)
+// @name         Video_Control (v183.4 - Portrait PiP Fix)
 // @namespace    https://github.com/
-// @version      183.3
+// @version      183.4
 // @description  Full Perf, Memory Safe, Global Rotation, Clock Sync, Portrait PiP size fix for 90°/270° rotation.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '183.3';
+  const SCRIPT_VERSION = '183.4';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -5038,25 +5038,26 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           _timerEl.style.left = 'auto';
           _timerEl.style.right = 'auto';
 
+          // [FIX] transform 순서 연산 버그 수정: translate로 위치를 먼저 잡은 뒤 회전하도록 변경
           if (rot === 0) {
             _timerEl.style.top = `${Math.max(topOffset, (vRect.top - pRect.top) + topOffset)}px`;
             if (pos === 0) { _timerEl.style.left = `${Math.max(edgeMargin, (vRect.left - pRect.left) + edgeMargin)}px`; }
-            else if (pos === 1) { _timerEl.style.left = `${(vRect.left - pRect.left) + (vWidth / 2)}px`; transformStr += ' translateX(-50%)'; }
+            else if (pos === 1) { _timerEl.style.left = `${(vRect.left - pRect.left) + (vWidth / 2)}px`; transformStr = 'translateX(-50%) ' + transformStr; }
             else { _timerEl.style.right = `${Math.max(edgeMargin, (pRect.right - vRect.right) + edgeMargin)}px`; }
           } else if (rot === 180) {
             _timerEl.style.bottom = `${Math.max(topOffset, (pRect.bottom - vRect.bottom) + topOffset)}px`;
             if (pos === 0) { _timerEl.style.right = `${Math.max(edgeMargin, (pRect.right - vRect.right) + edgeMargin)}px`; }
-            else if (pos === 1) { _timerEl.style.left = `${(vRect.left - pRect.left) + (vWidth / 2)}px`; transformStr += ' translateX(-50%)'; }
+            else if (pos === 1) { _timerEl.style.left = `${(vRect.left - pRect.left) + (vWidth / 2)}px`; transformStr = 'translateX(-50%) ' + transformStr; }
             else { _timerEl.style.left = `${Math.max(edgeMargin, (vRect.left - pRect.left) + edgeMargin)}px`; }
           } else if (rot === 90) {
             _timerEl.style.right = `${Math.max(topOffset, (pRect.right - vRect.right) + topOffset)}px`;
             if (pos === 0) { _timerEl.style.top = `${Math.max(edgeMargin, (vRect.top - pRect.top) + edgeMargin)}px`; }
-            else if (pos === 1) { _timerEl.style.top = `${(vRect.top - pRect.top) + (vRect.height / 2)}px`; transformStr += ' translateY(-50%)'; }
+            else if (pos === 1) { _timerEl.style.top = `${(vRect.top - pRect.top) + (vRect.height / 2)}px`; transformStr = 'translateY(-50%) ' + transformStr; }
             else { _timerEl.style.bottom = `${Math.max(edgeMargin, (pRect.bottom - vRect.bottom) + edgeMargin)}px`; }
           } else if (rot === 270) {
             _timerEl.style.left = `${Math.max(topOffset, (vRect.left - pRect.left) + topOffset)}px`;
             if (pos === 0) { _timerEl.style.bottom = `${Math.max(edgeMargin, (pRect.bottom - vRect.bottom) + edgeMargin)}px`; }
-            else if (pos === 1) { _timerEl.style.top = `${(vRect.top - pRect.top) + (vRect.height / 2)}px`; transformStr += ' translateY(-50%)'; }
+            else if (pos === 1) { _timerEl.style.top = `${(vRect.top - pRect.top) + (vRect.height / 2)}px`; transformStr = 'translateY(-50%) ' + transformStr; }
             else { _timerEl.style.top = `${Math.max(edgeMargin, (vRect.top - pRect.top) + edgeMargin)}px`; }
           }
 
