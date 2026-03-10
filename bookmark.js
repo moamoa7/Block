@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v10.0)
-// @version      10.0
-// @description  v9.1 기반 – 검증강화, 메모리누수방지, dialog모달, FAB드래그, 이벤트위임, 자동백업
+// @name         북마크 (Shadow DOM 통합 v11.0)
+// @version      11.0
+// @description  v10.0 기반 – 버그수정, 파비콘캐시, dialog개선, FAB리팩, 중복감지, 메모리누수수정
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -17,6 +17,10 @@
     if (window.self !== window.top) return;
 
     /* ── 유틸리티 ── */
+    const deepClone = typeof structuredClone === 'function'
+        ? structuredClone
+        : (obj) => JSON.parse(JSON.stringify(obj));
+
     function el(tag, attrs = {}, children = []) {
         const e = document.createElement(tag);
         for (const [k, v] of Object.entries(attrs)) {
@@ -26,11 +30,12 @@
             else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
             else e.setAttribute(k, v);
         }
-        for (const c of children) e.append(typeof c === 'string' ? c : c);
+        for (const c of children) e.append(c);
         return e;
     }
 
-    const esc = (s) => s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : '';
+    const btn = (text, cls = '', onclick = null, style = {}) =>
+        el('button', { class: `bm-util-btn ${cls}`.trim(), text, onclick, style });
 
     let ttPolicy = null;
     if (window.trustedTypes?.createPolicy) {
@@ -51,18 +56,30 @@
             if (typeof groups !== 'object') return false;
             for (const items of Object.values(groups)) {
                 if (!Array.isArray(items)) return false;
-                for (const item of items) { if (!item.name || !item.url) return false; }
+                for (const item of items) {
+                    if (typeof item.name !== 'string' || typeof item.url !== 'string') return false;
+                    if (!item.name.trim() || !item.url.trim()) return false;
+                }
             }
         }
         return true;
     }
 
-    /* ── DB 로드 (자동 백업 복구 포함) ── */
+    /* ── URL 중복 체크 ── */
+    function isUrlDuplicate(url) {
+        for (const page of Object.values(db.pages))
+            for (const items of Object.values(page))
+                for (const item of items)
+                    if (item.url === url) return true;
+        return false;
+    }
+
+    /* ── DB 로드 ── */
     let raw = GM_getValue('bm_db_v2', null);
     if (!raw || !validateDB(raw)) {
         const backup = GM_getValue('bm_db_v2_backup', null);
         if (backup && validateDB(backup)) {
-            raw = structuredClone(backup);
+            raw = deepClone(backup);
             console.warn('[북마크] 자동 백업에서 복구됨');
         } else {
             raw = { currentPage: "기본", pages: { "기본": { "북마크": [] } } };
@@ -71,8 +88,10 @@
     }
     let db = raw;
 
-    /* ── 저장 (debounce + 즉시 + 자동 백업) ── */
+    /* ── 저장 ── */
     let _saveTimer = null;
+    const BACKUP_INTERVAL = GM_getValue('bm_backup_interval', 3600000);
+
     const saveData = () => {
         clearTimeout(_saveTimer);
         _saveTimer = setTimeout(() => GM_setValue('bm_db_v2', db), 300);
@@ -80,8 +99,8 @@
     const saveDataNow = () => {
         clearTimeout(_saveTimer);
         const lastBackup = GM_getValue('bm_last_backup_time', 0);
-        if (Date.now() - lastBackup > 3600000) {
-            GM_setValue('bm_db_v2_backup', structuredClone(db));
+        if (Date.now() - lastBackup > BACKUP_INTERVAL) {
+            GM_setValue('bm_db_v2_backup', deepClone(db));
             GM_setValue('bm_last_backup_time', Date.now());
         }
         GM_setValue('bm_db_v2', db);
@@ -92,27 +111,28 @@
     let originalOverflow = '';
     let activeSortable = null;
 
-    /* ── 파비콘 ── */
+    /* ── 파비콘 (캐시 + blob 방식) ── */
     const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDdiZmYiLz48cGF0aCBkPSJNMiAxMmgyME0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=";
+    const _faviconCache = new Map();
 
     function fetchFaviconBase64(url) {
         return new Promise((resolve) => {
             try {
-                const u = new URL(url);
-                const iconUrl = `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=64`;
+                const hostname = new URL(url).hostname;
+                if (_faviconCache.has(hostname)) { resolve(_faviconCache.get(hostname)); return; }
+                const iconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
                 GM_xmlhttpRequest({
-                    method: "GET", url: iconUrl, responseType: "arraybuffer",
+                    method: "GET", url: iconUrl, responseType: "blob",
                     onload: (res) => {
                         if (res.status !== 200 || !res.response) { resolve(fallbackIcon); return; }
-                        try {
-                            const u8 = new Uint8Array(res.response);
-                            let binary = '';
-                            const chunk = 8192;
-                            for (let i = 0; i < u8.length; i += chunk) {
-                                binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
-                            }
-                            resolve(`data:image/png;base64,${window.btoa(binary)}`);
-                        } catch { resolve(fallbackIcon); }
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                            const result = reader.result || fallbackIcon;
+                            _faviconCache.set(hostname, result);
+                            resolve(result);
+                        };
+                        reader.onerror = () => resolve(fallbackIcon);
+                        reader.readAsDataURL(res.response);
                     },
                     onerror: () => resolve(fallbackIcon)
                 });
@@ -122,13 +142,14 @@
 
     let shadow = null;
 
-    /* ── 모달 (dialog 기반) ── */
-    function createModal(id = '') {
+    /* ── 모달 ── */
+    function createModal(id = '', { preventEscape = false } = {}) {
         const dialog = document.createElement('dialog');
         if (id) dialog.id = id;
         dialog.className = 'bm-modal-bg';
-        dialog.addEventListener('click', (e) => { if (e.target === dialog) { dialog.close(); } });
+        dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
         dialog.addEventListener('close', () => dialog.remove());
+        if (preventEscape) dialog.addEventListener('cancel', (e) => e.preventDefault());
         return dialog;
     }
     function showModal(modal) {
@@ -137,13 +158,17 @@
         return modal;
     }
 
-    /* ── 아이콘 전체 복구 (병렬 배치) ── */
+    /* ── 아이콘 전체 복구 ── */
     async function fixAllIcons() {
         if (!confirm("모든 아이콘을 다시 다운로드합니다.\n진행하시겠습니까?")) return;
-        const noti = el('div', { style: { position:'fixed', top:'50%', left:'50%', transform:'translate(-50%,-50%)', background:'rgba(0,0,0,0.85)', color:'white', padding:'24px 32px', zIndex:'2147483647', borderRadius:'12px', fontWeight:'bold', textAlign:'center' } });
-        setHtml(noti, "아이콘 업데이트 중...");
-        shadow.appendChild(noti);
+        const modalBg = createModal('', { preventEscape: true });
+        const content = el('div', { class: 'bm-modal-content', style: { textAlign:'center' } });
+        const statusEl = el('div', { text: '아이콘 업데이트 중...' });
+        content.appendChild(statusEl);
+        modalBg.appendChild(content);
+        showModal(modalBg);
 
+        _faviconCache.clear();
         const allItems = [];
         for (const page of Object.values(db.pages))
             for (const items of Object.values(page))
@@ -152,19 +177,46 @@
         const BATCH = 5;
         for (let i = 0; i < allItems.length; i += BATCH) {
             await Promise.all(allItems.slice(i, i + BATCH).map(async item => { item.icon = await fetchFaviconBase64(item.url); }));
-            setHtml(noti, `아이콘 업데이트 중...<br>${Math.min(i + BATCH, allItems.length)} / ${allItems.length}`);
+            statusEl.textContent = `아이콘 업데이트 중... ${Math.min(i + BATCH, allItems.length)} / ${allItems.length}`;
         }
-        saveDataNow(); noti.remove(); alert("복구 완료!"); renderDashboard();
+        saveDataNow(); modalBg.close(); alert("복구 완료!"); renderDashboard();
     }
 
-    /* ── 그룹 관리 아이템 행 생성 ── */
+    /* ── 백업/복구 ── */
+    function exportData() {
+        saveDataNow();
+        const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        el('a', { href: url, download: 'bookmark_backup.json' }).click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function importData() {
+        const inp = el('input', { type: 'file', accept: '.json' });
+        inp.onchange = e => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const r = new FileReader();
+            r.onload = re => {
+                try {
+                    const parsed = JSON.parse(re.target.result);
+                    if (!validateDB(parsed)) { alert('파일 구조가 올바르지 않습니다.'); return; }
+                    db = deepClone(parsed);
+                    saveDataNow(); renderDashboard(); alert('복구 완료!');
+                } catch { alert('잘못된 파일입니다.'); }
+            };
+            r.readAsText(file);
+        };
+        inp.click();
+    }
+
+    /* ── 아이템 행 ── */
     function createItemRow({ name = '', url = 'https://', isNew = false } = {}) {
         const row = el('div', { class: 'e-r', style: { borderBottom:'1px solid var(--c-border)', padding:'10px 0', display:'flex', gap:'10px', alignItems:'center' } });
         const handle = el('span', { class: 'bm-drag-handle', text: '☰' });
         const body = el('div', { style: { flex: '1' } });
         const delRow = el('div', { style: { display:'flex', justifyContent:'flex-end' } });
-        const delBtn = el('span', { text: '삭제', style: { color:'red', cursor:'pointer', fontSize:'11px' }, onclick: () => row.remove() });
-        delRow.appendChild(delBtn);
+        delRow.appendChild(el('span', { text: '삭제', style: { color:'red', cursor:'pointer', fontSize:'11px' }, onclick: () => row.remove() }));
         const nameInput = el('input', { type:'text', class:'r-n', value: name, placeholder: isNew ? '새 북마크 이름' : '이름', style: { marginBottom:'5px' } });
         const urlInput = el('input', { type:'text', class:'r-u', value: url, placeholder:'URL' });
         body.append(delRow, nameInput, urlInput);
@@ -173,16 +225,17 @@
     }
 
     /* ── 대시보드 렌더링 ── */
+    let _searchTimer = null;
+
     function renderDashboard() {
         const overlay = shadow.querySelector('#bookmark-overlay');
         if (!overlay) return;
         overlay.className = isSortMode ? 'sort-mode-active' : '';
         overlay.replaceChildren();
 
-        // 상단 영역
         const topRow = el('div', { class: 'bm-top-row' });
 
-        // 탭 바 (이벤트 위임)
+        // 탭 바
         const tabBar = el('div', { class: 'bm-tab-bar', onclick: (e) => {
             const tab = e.target.closest('.bm-tab');
             if (!tab) return;
@@ -196,40 +249,40 @@
 
         // 관리 바
         const adminBar = el('div', { class: 'bm-admin-bar' });
-
-        // 검색
         const searchInput = el('input', {
             type: 'text', placeholder: '검색...',
             style: { maxWidth:'150px', padding:'6px 10px', fontSize:'13px', display:'inline-block', margin:'0 auto 0 0', border:'1px solid var(--c-border)', background:'var(--c-surface)', color:'var(--c-text)', borderRadius:'6px' },
-            oninput: (e) => {
-                const q = e.target.value.toLowerCase();
-                shadow.querySelectorAll('.bm-item-wrapper').forEach(w => {
-                    const name = w.querySelector('span')?.textContent.toLowerCase() || '';
-                    const url = (w.getAttribute('href') || '').toLowerCase();
-                    w.style.display = (name.includes(q) || url.includes(q)) ? '' : 'none';
-                });
+            oninput: () => {
+                clearTimeout(_searchTimer);
+                _searchTimer = setTimeout(() => {
+                    const q = searchInput.value.toLowerCase();
+                    shadow.querySelectorAll('.bm-item-wrapper').forEach(w => {
+                        const name = w.querySelector('span')?.textContent.toLowerCase() || '';
+                        const url = (w.getAttribute('href') || '').toLowerCase();
+                        w.style.display = (name.includes(q) || url.includes(q)) ? '' : 'none';
+                    });
+                }, 150);
             }
         });
-        adminBar.appendChild(searchInput);
 
-        const btns = [
-            { id:'btn-sort', text: isSortMode ? '완료' : '정렬', cls:'bm-btn-blue' },
-            { id:'btn-fix-icon', text:'아이콘 복구', cls:'bm-btn-orange' },
-            { id:'btn-tab-mgr', text:'탭관리', cls:'' },
-            { id:'btn-add-g', text:'그룹+', cls:'' },
-            { id:'btn-exp', text:'백업', cls:'' },
-            { id:'btn-imp', text:'복구', cls:'bm-btn-green' },
-        ];
-        btns.forEach(b => adminBar.appendChild(el('button', { id: b.id, class: `bm-util-btn ${b.cls}`, text: b.text })));
+        adminBar.append(
+            searchInput,
+            btn(isSortMode ? '완료' : '정렬', 'bm-btn-blue', () => { isSortMode = !isSortMode; renderDashboard(); }),
+            btn('아이콘 복구', 'bm-btn-orange', fixAllIcons),
+            btn('탭관리', '', showTabManager),
+            btn('그룹+', '', () => { const n = prompt("새 그룹 이름:"); if(n){ getCurPage()[n]=[]; saveData(); renderDashboard(); }}),
+            btn('백업', '', exportData),
+            btn('복구', 'bm-btn-green', importData),
+        );
 
         topRow.append(adminBar, tabBar);
         overlay.appendChild(topRow);
 
-        // 컨테이너 (이벤트 위임)
+        // 컨테이너
         const container = el('div', { class: 'bm-dashboard-container', onclick: (e) => {
-            const btn = e.target.closest('.bm-manage-btn');
-            if (!btn) return;
-            const sec = btn.closest('.bm-bookmark-section');
+            const mbtn = e.target.closest('.bm-manage-btn');
+            if (!mbtn) return;
+            const sec = mbtn.closest('.bm-bookmark-section');
             if (sec) showGroupManager(sec.getAttribute('data-id'));
         }});
 
@@ -244,8 +297,8 @@
             items.forEach(item => {
                 const wrapper = el('a', { class: 'bm-item-wrapper', href: item.url, target: '_blank' });
                 const div = el('div', { class: 'bm-bookmark-item' });
-                const img = el('img', { loading: 'lazy' });
-                img.src = (item.icon?.startsWith('data:')) ? item.icon : fallbackIcon;
+                const img = el('img', { loading: 'lazy', decoding: 'async' });
+                img.src = item.icon?.startsWith('data:') ? item.icon : fallbackIcon;
                 div.append(img, el('span', { text: item.name }));
                 wrapper.appendChild(div);
                 grid.appendChild(wrapper);
@@ -256,47 +309,19 @@
         });
         overlay.appendChild(container);
 
-        // Sortable (메모리 관리)
+        // Sortable
         if (activeSortable) { activeSortable.destroy(); activeSortable = null; }
         if (isSortMode) {
             activeSortable = new Sortable(container, { animation: 150, onEnd: () => {
+                const curPage = getCurPage();
                 const newOrder = {};
                 container.querySelectorAll('.bm-bookmark-section').forEach(sec => {
                     const id = sec.getAttribute('data-id');
-                    newOrder[id] = getCurPage()[id];
+                    if (curPage[id]) newOrder[id] = curPage[id];
                 });
                 db.pages[db.currentPage] = newOrder; saveData();
             }});
         }
-
-        // 버튼 이벤트
-        shadow.querySelector('#btn-sort').onclick = () => { isSortMode = !isSortMode; renderDashboard(); };
-        shadow.querySelector('#btn-fix-icon').onclick = fixAllIcons;
-        shadow.querySelector('#btn-tab-mgr').onclick = showTabManager;
-        shadow.querySelector('#btn-add-g').onclick = () => { const n = prompt("새 그룹 이름:"); if(n){ getCurPage()[n]=[]; saveData(); renderDashboard(); }};
-        shadow.querySelector('#btn-exp').onclick = () => {
-            saveDataNow();
-            const blob = new Blob([JSON.stringify(db, null, 2)], {type:"application/json"});
-            const url = URL.createObjectURL(blob);
-            const a = el('a', { href: url, download: 'bookmark_backup.json' }); a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-        };
-        shadow.querySelector('#btn-imp').onclick = () => {
-            const inp = el('input', { type: 'file' });
-            inp.onchange = e => {
-                const r = new FileReader();
-                r.onload = re => {
-                    try {
-                        const parsed = JSON.parse(re.target.result);
-                        if (!validateDB(parsed)) { alert('파일 구조가 올바르지 않습니다.'); return; }
-                        db = structuredClone(parsed);
-                        saveDataNow(); renderDashboard(); alert('복구 완료!');
-                    } catch { alert('잘못된 파일입니다.'); }
-                };
-                r.readAsText(e.target.files[0]);
-            };
-            inp.click();
-        };
     }
 
     /* ── 그룹 관리 모달 ── */
@@ -307,28 +332,33 @@
 
         content.appendChild(el('h3', { text: '🛠 그룹 관리', style: { marginTop: '0' } }));
         content.appendChild(el('label', { text: '그룹 이름' }));
-        const gNameInput = el('input', { type:'text', id:'e-g-n', value: gTitle });
+        const gNameInput = el('input', { type:'text', value: gTitle });
         content.appendChild(gNameInput);
         content.appendChild(el('div', { text: '☰ 핸들을 잡고 드래그하여 순서를 변경하세요.', style: { fontSize:'12px', marginTop:'10px', color:'#666' } }));
 
-        const listEl = el('div', { id:'i-l', style: { maxHeight:'40vh', overflowY:'auto', border:'1px solid var(--c-border)', borderRadius:'8px', padding:'10px', marginTop:'5px' } });
+        const listEl = el('div', { style: { maxHeight:'40vh', overflowY:'auto', border:'1px solid var(--c-border)', borderRadius:'8px', padding:'10px', marginTop:'5px' } });
         items.forEach(it => listEl.appendChild(createItemRow({ name: it.name, url: it.url })));
         content.appendChild(listEl);
 
-        content.appendChild(el('button', { id:'g-add-new', class:'bm-util-btn bm-btn-blue', text:'+ 북마크 추가', style: { width:'100%', marginTop:'10px', padding:'10px' }, onclick: () => {
-            const newRow = createItemRow({ isNew: true });
-            listEl.appendChild(newRow);
+        content.appendChild(btn('+ 북마크 추가', 'bm-btn-blue', () => {
+            listEl.appendChild(createItemRow({ isNew: true }));
             listEl.scrollTop = listEl.scrollHeight;
-        }}));
+        }, { width:'100%', marginTop:'10px', padding:'10px' }));
+
+        content.appendChild(btn('📌 현재 페이지 추가', 'bm-btn-green', () => {
+            listEl.appendChild(createItemRow({ name: document.title.substring(0, 30), url: window.location.href }));
+            listEl.scrollTop = listEl.scrollHeight;
+        }, { width:'100%', marginTop:'5px', padding:'10px' }));
 
         const btnRow = el('div', { style: { display:'flex', gap:'10px', marginTop:'20px' } });
-        btnRow.appendChild(el('button', { id:'s-v', class:'bm-util-btn bm-btn-green', text:'저장', style: { flex:'2', padding:'12px' }, onclick: async () => {
+        btnRow.appendChild(btn('저장', 'bm-btn-green', async () => {
             const newN = gNameInput.value.trim();
+            if (!newN) { alert('그룹 이름을 입력하세요.'); return; }
             const newL = [];
             listEl.querySelectorAll('.e-r').forEach(r => {
                 const n = r.querySelector('.r-n').value.trim();
                 const u = r.querySelector('.r-u').value.trim();
-                if(n && u) newL.push({ name:n, url:u });
+                if (n && u) newL.push({ name: n, url: u });
             });
             for (const newItem of newL) {
                 const oldItem = items.find(o => o.url === newItem.url);
@@ -346,13 +376,21 @@
                 getCurPage()[gTitle] = newL;
             }
             saveData(); renderDashboard(); modalBg.close();
-        }}));
-        btnRow.appendChild(el('button', { class:'bm-util-btn', text:'닫기', style: { flex:'1', background:'#999', padding:'12px' }, onclick: () => modalBg.close() }));
+        }, { flex:'2', padding:'12px' }));
+        btnRow.appendChild(btn('닫기', '', () => modalBg.close(), { flex:'1', background:'#999', padding:'12px' }));
         content.appendChild(btnRow);
+
+        // 그룹 삭제 버튼
+        content.appendChild(btn('🗑 그룹 삭제', 'bm-btn-red', () => {
+            if (!confirm(`"${gTitle}" 그룹을 삭제하시겠습니까?`)) return;
+            delete getCurPage()[gTitle];
+            saveData(); renderDashboard(); modalBg.close();
+        }, { width:'100%', marginTop:'10px', padding:'10px' }));
 
         modalBg.appendChild(content);
         showModal(modalBg);
-        new Sortable(listEl, { handle: '.bm-drag-handle', animation: 150 });
+        const sortableInstance = new Sortable(listEl, { handle: '.bm-drag-handle', animation: 150 });
+        modalBg.addEventListener('close', () => sortableInstance.destroy());
     }
 
     /* ── 탭 관리 모달 ── */
@@ -361,28 +399,28 @@
         const content = el('div', { class: 'bm-modal-content' });
         content.appendChild(el('h3', { text: '📂 탭 관리', style: { marginTop: '0' } }));
 
-        const listContainer = el('div', { id:'tab-list-container', style: { maxHeight:'50vh', overflowY:'auto', border:'1px solid var(--c-border)', borderRadius:'8px' } });
+        const listContainer = el('div', { style: { maxHeight:'50vh', overflowY:'auto', border:'1px solid var(--c-border)', borderRadius:'8px' } });
         Object.keys(db.pages).forEach(tabName => {
             const row = el('div', { class: 'tab-manage-row' });
             row.appendChild(el('span', { text: tabName }));
-            row.appendChild(el('button', { class:'bm-util-btn bm-btn-red', text:'삭제', style:{ padding:'4px 8px' }, onclick: () => {
+            row.appendChild(btn('삭제', 'bm-btn-red', () => {
                 if (Object.keys(db.pages).length <= 1) { alert("최소 1개 탭 필수"); return; }
                 if (confirm('삭제?')) {
                     delete db.pages[tabName];
                     if (db.currentPage === tabName) db.currentPage = Object.keys(db.pages)[0];
                     saveData(); renderDashboard(); modalBg.close();
                 }
-            }}));
+            }, { padding:'4px 8px' }));
             listContainer.appendChild(row);
         });
         content.appendChild(listContainer);
 
-        content.appendChild(el('button', { id:'add-new-tab', class:'bm-util-btn bm-btn-blue', text:'+ 새 탭 추가', style:{ width:'100%', marginTop:'15px', padding:'12px' }, onclick: () => {
+        content.appendChild(btn('+ 새 탭 추가', 'bm-btn-blue', () => {
             const n = prompt("새 탭 이름:");
             if (n && !db.pages[n]) { db.pages[n] = {}; db.currentPage = n; saveData(); renderDashboard(); modalBg.close(); }
             else if (db.pages[n]) alert("중복 이름");
-        }}));
-        content.appendChild(el('button', { class:'bm-util-btn', text:'닫기', style:{ width:'100%', marginTop:'10px', background:'#999', padding:'10px' }, onclick: () => modalBg.close() }));
+        }, { width:'100%', marginTop:'15px', padding:'12px' }));
+        content.appendChild(btn('닫기', '', () => modalBg.close(), { width:'100%', marginTop:'10px', background:'#999', padding:'10px' }));
 
         modalBg.appendChild(content);
         showModal(modalBg);
@@ -394,36 +432,44 @@
         const modalBg = createModal('bm-quick-modal');
         const content = el('div', { class: 'bm-modal-content' });
         content.appendChild(el('h3', { text: '🔖 북마크 저장', style: { marginTop:'0' } }));
+
+        if (isUrlDuplicate(window.location.href)) {
+            content.appendChild(el('div', {
+                text: '⚠ 이미 저장된 URL입니다',
+                style: { color: 'var(--c-warning)', fontSize: '12px', marginBottom: '8px', fontWeight: 'bold' }
+            }));
+        }
+
         content.appendChild(el('label', { text: '이름' }));
-        const nameInput = el('input', { type:'text', id:'bm-q-n', value: document.title.substring(0,30) });
+        const nameInput = el('input', { type:'text', value: document.title.substring(0, 30) });
         content.appendChild(nameInput);
         content.appendChild(el('label', { text: '주소 (URL)' }));
-        const urlInput = el('input', { type:'text', id:'bm-q-u', value: window.location.href });
+        const urlInput = el('input', { type:'text', value: window.location.href });
         content.appendChild(urlInput);
 
-        const area = el('div', { id: 'q-area' });
+        const area = el('div');
         area.appendChild(el('p', { text: '탭 선택:', style: { fontSize:'12px', fontWeight:'bold', marginTop:'15px' } }));
         const tabBtns = el('div', { style: { display:'flex', flexWrap:'wrap', gap:'5px' } });
         Object.keys(db.pages).forEach(p => {
-            tabBtns.appendChild(el('button', { class:'q-p bm-util-btn', text: p, style:{ background:'#eee', color:'#333' }, onclick: () => showGroupSelect(p) }));
+            tabBtns.appendChild(btn(p, '', () => showGroupSelect(p), { background:'#eee', color:'#333' }));
         });
         area.appendChild(tabBtns);
         content.appendChild(area);
 
-        content.appendChild(el('button', { id:'q-close', text:'취소', style:{ width:'100%', border:'0', background:'none', marginTop:'20px', color:'#999', cursor:'pointer' }, onclick: () => modalBg.close() }));
+        content.appendChild(el('button', { text:'취소', style:{ width:'100%', border:'0', background:'none', marginTop:'20px', color:'#999', cursor:'pointer' }, onclick: () => modalBg.close() }));
 
         function showGroupSelect(selP) {
             area.replaceChildren();
             area.appendChild(el('p', { text: `그룹 선택 (${selP}):`, style: { fontSize:'12px', fontWeight:'bold' } }));
             const col = el('div', { style: { display:'flex', flexDirection:'column', gap:'5px' } });
             Object.keys(db.pages[selP]).forEach(g => {
-                col.appendChild(el('button', { class:'q-g bm-util-btn', text: `📁 ${g}`, 'data-group': g, style:{ background:'var(--c-bg)', color:'var(--c-text)', justifyContent:'flex-start', padding:'12px' }, onclick: async () => {
+                col.appendChild(btn(`📁 ${g}`, '', async () => {
                     const icon = await fetchFaviconBase64(urlInput.value);
                     db.pages[selP][g].push({ name: nameInput.value, url: urlInput.value, icon });
                     saveData(); modalBg.close(); alert('저장됨');
-                }}));
+                }, { background:'var(--c-bg)', color:'var(--c-text)', justifyContent:'flex-start', padding:'12px' }));
             });
-            col.appendChild(el('button', { text:'+ 새 그룹 생성', class:'bm-util-btn', style:{ background:'var(--c-dark)', color:'#fff', padding:'12px' }, onclick: async () => {
+            col.appendChild(btn('+ 새 그룹 생성', '', async () => {
                 const n = prompt("새 그룹 이름:");
                 if (n) {
                     const icon = await fetchFaviconBase64(urlInput.value);
@@ -431,7 +477,7 @@
                     db.pages[selP][n].push({ name: nameInput.value, url: urlInput.value, icon });
                     saveData(); modalBg.close(); alert('저장됨');
                 }
-            }}));
+            }, { background:'var(--c-dark)', color:'#fff', padding:'12px' }));
             area.appendChild(col);
         }
 
@@ -439,17 +485,81 @@
         showModal(modalBg);
     }
 
-    /* ── FAB 현재 URL 표시 ── */
+    /* ── FAB 인디케이터 ── */
     function updateFabIndicator() {
         const fab = shadow?.querySelector('#bookmark-fab');
         if (!fab || shadow.querySelector('#bookmark-overlay')?.style.display === 'block') return;
-        const cur = window.location.href;
-        let found = false;
-        outer: for (const page of Object.values(db.pages))
-            for (const items of Object.values(page))
-                for (const item of items) if (item.url === cur) { found = true; break outer; }
+        const found = isUrlDuplicate(window.location.href);
         fab.style.outline = found ? '3px solid var(--c-success)' : 'none';
         fab.style.outlineOffset = '2px';
+    }
+
+    /* ── FAB 토글 ── */
+    function toggleOverlay(overlay, fab) {
+        const isVisible = overlay.style.display === 'block';
+        if (!isVisible) {
+            renderDashboard();
+            originalOverflow = document.body.style.overflow;
+            document.body.style.overflow = 'hidden';
+            overlay.style.display = 'block';
+            fab.textContent = '✕';
+        } else {
+            document.body.style.overflow = originalOverflow;
+            overlay.style.display = 'none';
+            fab.textContent = '🔖';
+            updateFabIndicator();
+        }
+    }
+
+    /* ── FAB 이벤트 설정 ── */
+    function setupFab(fab, overlay) {
+        const st = { timer: 0, longPress: false, dragging: false, sx: 0, sy: 0, ox: 0, oy: 0 };
+
+        fab.addEventListener('pointerdown', (e) => {
+            fab.setPointerCapture(e.pointerId);
+            st.sx = e.clientX; st.sy = e.clientY;
+            const rect = fab.getBoundingClientRect();
+            st.ox = e.clientX - rect.left; st.oy = e.clientY - rect.top;
+            st.longPress = false; st.dragging = false;
+            st.timer = setTimeout(() => {
+                st.longPress = true;
+                if (e.pointerType === 'touch') navigator.vibrate?.(40);
+                showQuickAddModal();
+            }, 600);
+        });
+
+        fab.addEventListener('pointermove', (e) => {
+            if (Math.hypot(e.clientX - st.sx, e.clientY - st.sy) > 10) {
+                clearTimeout(st.timer);
+                st.dragging = true;
+                fab.style.transition = 'none';
+                fab.style.left = Math.max(0, Math.min(innerWidth - 55, e.clientX - st.ox)) + 'px';
+                fab.style.top = Math.max(0, Math.min(innerHeight - 55, e.clientY - st.oy)) + 'px';
+                fab.style.right = 'auto'; fab.style.bottom = 'auto';
+            }
+        });
+
+        fab.addEventListener('pointerup', (e) => {
+            clearTimeout(st.timer);
+            fab.releasePointerCapture(e.pointerId);
+            if (st.dragging) {
+                fab.style.transition = '';
+                fab.style.bottom = 'auto';
+                const snapRight = fab.getBoundingClientRect().left + 27.5 > innerWidth / 2;
+                fab.style.left = snapRight ? 'auto' : '15px';
+                fab.style.right = snapRight ? '15px' : 'auto';
+                return;
+            }
+            if (!st.longPress) toggleOverlay(overlay, fab);
+        });
+
+        fab.addEventListener('pointercancel', (e) => {
+            clearTimeout(st.timer);
+            fab.releasePointerCapture(e.pointerId);
+            st.longPress = false; st.dragging = false;
+        });
+
+        fab.addEventListener('contextmenu', e => e.preventDefault());
     }
 
     /* ── 초기화 ── */
@@ -481,7 +591,7 @@
                 cursor:pointer; box-shadow:0 4px 15px rgba(0,0,0,0.4);
                 font-size:26px; user-select:none; touch-action:none;
                 -webkit-tap-highlight-color:transparent; border:none;
-                will-change:left,top; transition:left 0.2s ease, right 0.2s ease, top 0.2s ease;
+                will-change:transform; transition:left 0.2s ease, right 0.2s ease, top 0.2s ease;
             }
             #bookmark-overlay { position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(255,255,255,0.98); display:none; overflow-y:auto; padding:15px; backdrop-filter:blur(5px); color:var(--c-text); text-align:left; }
             .bm-modal-content,.bm-dashboard-container { color:var(--c-text); text-align:left; background:var(--c-surface); }
@@ -527,73 +637,12 @@
         const fab = el('div', { id: 'bookmark-fab', text: '🔖' });
 
         shadow.append(style, overlay, fab);
+        setupFab(fab, overlay);
 
-        /* FAB 이벤트: 클릭/드래그/롱프레스 통합 */
-        let pressTimer, isLongPress = false, isDragging = false;
-        let startX, startY, fabOffsetX, fabOffsetY;
-
-        fab.addEventListener('pointerdown', (e) => {
-            fab.setPointerCapture(e.pointerId);
-            startX = e.clientX; startY = e.clientY;
-            const rect = fab.getBoundingClientRect();
-            fabOffsetX = e.clientX - rect.left;
-            fabOffsetY = e.clientY - rect.top;
-            isLongPress = false; isDragging = false;
-            pressTimer = setTimeout(() => {
-                isLongPress = true;
-                if (e.pointerType === 'touch') try { navigator.vibrate?.(40); } catch{}
-                showQuickAddModal();
-            }, 600);
-        });
-        fab.addEventListener('pointermove', (e) => {
-            const dist = Math.hypot(e.clientX - startX, e.clientY - startY);
-            if (dist > 10) {
-                clearTimeout(pressTimer);
-                isDragging = true;
-                fab.style.transition = 'none';
-                fab.style.left = Math.max(0, Math.min(window.innerWidth - 55, e.clientX - fabOffsetX)) + 'px';
-                fab.style.top = Math.max(0, Math.min(window.innerHeight - 55, e.clientY - fabOffsetY)) + 'px';
-                fab.style.right = 'auto'; fab.style.bottom = 'auto';
-            }
-        });
-        fab.addEventListener('pointerup', (e) => {
-            clearTimeout(pressTimer);
-            fab.releasePointerCapture(e.pointerId);
-            if (isDragging) {
-                fab.style.transition = '';
-                const rect = fab.getBoundingClientRect();
-                const snapRight = rect.left + 27.5 > window.innerWidth / 2;
-                fab.style.left = snapRight ? 'auto' : '15px';
-                fab.style.right = snapRight ? '15px' : 'auto';
-                return;
-            }
-            if (!isLongPress) {
-                const isVisible = overlay.style.display === 'block';
-                if (!isVisible) {
-                    renderDashboard();
-                    originalOverflow = document.body.style.overflow;
-                    document.body.style.overflow = 'hidden';
-                    overlay.style.display = 'block';
-                    fab.innerText = '✕';
-                } else {
-                    document.body.style.overflow = originalOverflow;
-                    overlay.style.display = 'none';
-                    fab.innerText = '🔖';
-                    updateFabIndicator();
-                }
-            }
-        });
-        fab.addEventListener('pointercancel', (e) => {
-            clearTimeout(pressTimer);
-            fab.releasePointerCapture(e.pointerId);
-            isLongPress = false; isDragging = false;
-        });
-        fab.addEventListener('contextmenu', e => e.preventDefault());
-
-        // 탭 이탈 시 즉시 저장
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'hidden') saveDataNow();
         });
+        window.addEventListener('pagehide', saveDataNow);
 
         updateFabIndicator();
     }
