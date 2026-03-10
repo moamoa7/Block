@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v183.0 - Memory & Perf Optimized)
+// @name         Video_Control (v183.1 - Iframe PiP & Perf Optimized)
 // @namespace    https://github.com/
-// @version      183.0
-// @description  Video Control: Modern Scheduling, Visibility, PiP Preserve, Zero-Fat, Content-Aware, EventBus, Memory Safe.
+// @version      183.1
+// @description  Video Control: Modern Scheduling, Visibility, PiP Preserve (Iframe Support), Zero-Fat, Content-Aware, EventBus, Memory Safe.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '183.0';
+  const SCRIPT_VERSION = '183.1';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -124,7 +124,6 @@ function VSC_MAIN() {
   const PIP_FLAGS = Object.freeze({ USE_LEGACY_PIP_FALLBACK: true });
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [class*="player" i], [id*="player" i], [data-player], article, main';
 
-  // [최적화 적용] Fix 5: moveBefore() 지원 여부 캐싱
   const SUPPORTS_MOVE_BEFORE = (typeof Node !== 'undefined' && typeof Node.prototype.moveBefore === 'function');
 
   const getNS = () => (window && window[Symbol.for('__VSC__')]) || __vscNs || null;
@@ -523,7 +522,6 @@ function VSC_MAIN() {
   const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
   const ALL_KEYS = ALL_SCHEMA.map(s => s.path);
 
-  // [최적화 적용] 누수 #2: Set을 WeakRef 기반으로 완전히 재작성하여 강한 참조 제거
   class BoundedWeakSet {
     constructor(maxSize, onEvict) {
       this._max = maxSize;
@@ -1272,7 +1270,6 @@ function VSC_MAIN() {
     restoreVideoPosition(video) {
       video.style.cssText = this.origCss || '';
 
-      // [최적화 적용] Fix 5: 매번 감지하던 Node.prototype.moveBefore를 상수로 대체
       if (this.placeholder?.parentNode?.isConnected) {
         const parent = this.placeholder.parentNode;
         if (SUPPORTS_MOVE_BEFORE) {
@@ -1305,10 +1302,47 @@ function VSC_MAIN() {
 
   function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
-  function supportsDocumentPiP() {
-    try { if (window.top !== window) return false; } catch (_) { return false; }
-    return !!(window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function');
+  // ── iframe Document PiP 지원 레이어 추가 ─────────────────────────────────
+  function detectPiPCapability() {
+    const hasDPiP = (win) => !!(win?.documentPictureInPicture && typeof win.documentPictureInPicture.requestWindow === 'function');
+
+    if (window.top === window) {
+      return hasDPiP(window) ? 'top' : 'none';
+    }
+
+    let topWin = null;
+    try {
+      topWin = window.top;
+      void topWin.location.href;
+    } catch (_) {
+      return 'legacy-only';
+    }
+
+    if (hasDPiP(topWin)) return 'delegated';
+    if (hasDPiP(window)) return 'top';
+    return 'legacy-only';
   }
+
+  function resolvePiPContext() {
+    const cap = detectPiPCapability();
+    if (cap === 'top') {
+      return { dpip: window.documentPictureInPicture, screen: window.screen };
+    }
+    if (cap === 'delegated') {
+      try {
+        return { dpip: window.top.documentPictureInPicture, screen: window.top.screen };
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function supportsDocumentPiP() {
+    const cap = detectPiPCapability();
+    return cap === 'top' || cap === 'delegated';
+  }
+  // ───────────────────────────────────────────────────────────────────
 
   function supportsLegacyPiP(video) {
     return !!(video && typeof video.requestPictureInPicture === 'function' && document.pictureInPictureEnabled !== false);
@@ -1374,9 +1408,14 @@ function VSC_MAIN() {
   }
 
   async function enterDocumentPiP(video) {
+    const pipCtx = resolvePiPContext();
+    if (!pipCtx) throw new Error('Document PiP context unavailable');
+    const { dpip, screen: pipScreen } = pipCtx;
+
     const wasPlaying = !video.paused;
     const saved = loadDocPiPSize();
     let pipWindow = null;
+    const isInIframe = (window.top !== window);
 
     try {
       const nativeW = video.videoWidth || 0, nativeH = video.videoHeight || 0;
@@ -1384,11 +1423,14 @@ function VSC_MAIN() {
       const fallbackW = nativeW > 0 ? Math.round(nativeW / 2) : (displayW > 0 ? displayW : 640);
       const fallbackH = nativeH > 0 ? Math.round(nativeH / 2) : (displayH > 0 ? displayH : 360);
 
-      const maxW = Math.round(screen.availWidth * 0.5), maxH = Math.round(screen.availHeight * 0.5);
+      const availW = pipScreen.availWidth || window.screen.availWidth || 1280;
+      const availH = pipScreen.availHeight || window.screen.availHeight || 720;
+      const maxW = Math.round(availW * 0.5), maxH = Math.round(availH * 0.5);
+
       const w = Math.max(320, Math.min(saved?.w || fallbackW, maxW));
       const h = Math.max(180, Math.min(saved?.h || fallbackH, maxH));
 
-      pipWindow = await window.documentPictureInPicture.requestWindow({ width: w, height: h });
+      pipWindow = await dpip.requestWindow({ width: w, height: h });
 
       safe(() => getNS()?.AudioSetTarget?.(null));
 
@@ -1442,8 +1484,8 @@ function VSC_MAIN() {
         const vw = video.videoWidth || 0, vh = video.videoHeight || 0;
         if (!vw || !vh) return;
         const shellH = getShellHeight();
-        const maxStageW = Math.floor(screen.availWidth * 0.50 * scale);
-        const maxStageH = Math.floor((screen.availHeight * 0.50 - shellH) * scale);
+        const maxStageW = Math.floor(availW * 0.50 * scale);
+        const maxStageH = Math.floor((availH * 0.50 - shellH) * scale);
         if (maxStageW < 200 || maxStageH < 100) return;
         const ratio = vw / vh;
         let stageW = maxStageW, stageH = Math.round(stageW / ratio);
@@ -1476,6 +1518,10 @@ function VSC_MAIN() {
       root.append(stage, bar); doc.body.append(root);
 
       installPiPWindowUX(pipWindow, video, stage, bar);
+
+      if (isInIframe) {
+        _attachIframeSourceBadge(doc, pipWindow);
+      }
 
       function syncPiPLayout() {
         if (!pipWindow || pipWindow.closed) return;
@@ -1510,7 +1556,11 @@ function VSC_MAIN() {
       pipWindow.addEventListener('pagehide', () => {
         pipAC.abort();
         saveDocPiPSize(pipWindow.innerWidth || 0, pipWindow.innerHeight || 0);
-        restoreFromDocumentPiP(video);
+        if (isInIframe) {
+          _restoreFromIframePiP(video);
+        } else {
+          restoreFromDocumentPiP(video);
+        }
       }, { once: true });
 
       PiPState._ac = pipAC;
@@ -1527,13 +1577,105 @@ function VSC_MAIN() {
     }
   }
 
+  // ── iframe 전용 복원 및 뱃지 함수 추가 ─────────────────────────────────
+  async function _restoreFromIframePiP(video) {
+    if (!video) { PiPState.reset(); return; }
+    if (PiPState.video !== video) return;
+    if (PiPState._restoring) return;
+
+    PiPState._restoring = true;
+    const wasPlaying = !video.paused;
+
+    safe(() => getNS()?.AudioSetTarget?.(null));
+
+    try {
+      if (video.ownerDocument !== document) {
+        try {
+          document.adoptNode(video);
+        } catch (adoptErr) {
+          log.warn('[VSC PiP iframe] adoptNode 실패:', adoptErr);
+        }
+      }
+
+      PiPState.restoreVideoPosition(video);
+
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+      try {
+        const ct = video.currentTime;
+        if (Number.isFinite(ct)) video.currentTime = ct;
+      } catch (_) {}
+
+      if (wasPlaying && video.paused) {
+        try { await video.play(); } catch (_) {}
+      }
+
+      safe(() => {
+        getNS()?.AudioSetTarget?.(video);
+        getNS()?.ApplyReq?.hard();
+      });
+
+    } catch (e) {
+      log.warn('[VSC PiP iframe] 복원 실패:', e);
+    }
+
+    PiPState.reset();
+  }
+
+  function _attachIframeSourceBadge(pipDoc, pipWin) {
+    let originLabel = '(알 수 없는 iframe)';
+    try {
+      originLabel = location.hostname || location.origin || originLabel;
+    } catch (_) {}
+
+    const badge = pipDoc.createElement('div');
+    badge.style.cssText = `
+      position: fixed; bottom: 60px; left: 50%; transform: translateX(-50%);
+      background: rgba(52, 73, 94, 0.82); color: rgba(255,255,255,0.75);
+      font: 500 10px/1.4 system-ui, sans-serif; padding: 3px 10px;
+      border-radius: 8px; pointer-events: none; z-index: 10; white-space: nowrap;
+      backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,0.1);
+    `;
+    badge.textContent = `📌 iframe: ${originLabel}`;
+
+    pipWin.addEventListener('load', () => {
+      try { pipDoc.body.appendChild(badge); } catch (_) { return; }
+      setTimeout(() => {
+        badge.style.transition = 'opacity 0.6s ease';
+        badge.style.opacity = '0';
+        setTimeout(() => { try { badge.remove(); } catch (_) {} }, 700);
+      }, 3000);
+    }, { once: true });
+
+    if (pipDoc.readyState === 'complete') {
+      try { pipDoc.body.appendChild(badge); } catch (_) {}
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────
+
   async function enterPiP(video) {
     if (!video || video.readyState < 2) throw new Error('Video not ready');
-    if (supportsDocumentPiP()) {
-      try { return await enterDocumentPiP(video); } catch (e) { log.warn('Document PiP failed, trying Legacy PiP fallback', e); }
+
+    const cap = detectPiPCapability();
+
+    if (cap === 'top' || cap === 'delegated') {
+      try {
+        return await enterDocumentPiP(video);
+      } catch (e) {
+        log.warn(`[VSC PiP] Document PiP 실패 (cap=${cap}), Legacy 폴백 시도:`, e);
+        if (e?.name === 'NotAllowedError') throw e;
+      }
     }
-    if (PIP_FLAGS.USE_LEGACY_PIP_FALLBACK && supportsLegacyPiP(video)) { return await enterLegacyPiP(video); }
-    throw new Error('PiP is not supported in this browser/context');
+
+    if (PIP_FLAGS.USE_LEGACY_PIP_FALLBACK && supportsLegacyPiP(video)) {
+      return await enterLegacyPiP(video);
+    }
+
+    throw new Error(
+      cap === 'legacy-only'
+        ? 'PiP: 교차-출처 iframe에서는 Legacy PiP만 지원됩니다'
+        : 'PiP is not supported in this browser/context'
+    );
   }
 
   async function restoreFromDocumentPiP(video) {
@@ -1601,7 +1743,6 @@ function VSC_MAIN() {
     }
   }
 
-  // [최적화 적용] ★ 최심각 누수 #1: Set() 순환 참조 제거 및 FinalizationRegistry 도입
   const globalSrcMap = new WeakMap();
   const _srcTokenMap = new Map();
 
@@ -1921,7 +2062,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
-  // [최적화 적용] 오디오 파라미터 캐시 (불필요한 setTargetAtTime 방지)
   function createAudioParamCache() {
     const _cache = new Map();
     const EPSILON = 0.005;
@@ -1951,7 +2091,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (finalizerNode) return finalizerNode;
       if (!window.isSecureContext || !audioCtx?.audioWorklet) return null;
 
-      // [최적화 적용] Fix 4: 초기화 실패 시 재시도 허용
       if (workletInitPromise) {
         const result = await workletInitPromise;
         if (result) return result;
@@ -2069,7 +2208,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return { input, output, bands: { low: { comp: compLow, gain: gainLow }, mid: { comp: compMid, gain: gainMid }, high: { comp: compHigh, gain: gainHigh } } };
     }
 
-    // [최적화 적용] 오디오 루프 CPU 사용량 절감 (1024 -> 256 버퍼 및 언롤링)
     function createSimpleRMSMeter(actx) {
       const analyser = actx.createAnalyser();
       analyser.fftSize = 256;
@@ -2154,7 +2292,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const ensureCtx = () => {
       if (ctx) {
         if (ctx.state !== 'closed') return true;
-        // [최적화 적용] 컨텍스트 재생성 시 모든 GC 토큰 일괄 연결 해제
         _disconnectAllTrackedSources();
         currentSrc = null; target = null; currentNodes = null;
         ctx = null;
@@ -3932,7 +4069,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   // ──────────────────────────────────────────────
-  // ③ CONTENT LAYER v2 (✅ Fix 3: Worker 세션 격리 & 캔버스 누수 해결 반영)
+  // ③ CONTENT LAYER v2 (Worker 세션 격리 & 가변 샘플링 유지)
   // ──────────────────────────────────────────────
   function createContentAwareSharpTuner() {
     const _WORKER_SRC = `
@@ -3993,7 +4130,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     `;
 
     let _worker = null;
-    let _sessionToken = 0; // 세션 토큰 (in-flight 결과 격리용)
+    let _sessionToken = 0;
 
     function getWorker() {
       if (_worker) return _worker;
@@ -4004,7 +4141,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         URL.revokeObjectURL(url);
         _worker.onmessage = ({ data }) => {
           if (data.type !== 'result') return;
-          // 세션이 다르면 이전 비디오의 분석 결과이므로 폐기
           if (data.token !== _sessionToken) { _pendingAnalysis = false; return; }
           _pendingAnalysis = false;
           const rawMul = 0.55 + data.complexity * 0.55;
@@ -4159,7 +4295,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   // ──────────────────────────────────────────────
-  // 파이프라인 통합 (✅ Fix 1: FNV-1a 이중 해시 및 Fast-Path 적용)
+  // 파이프라인 통합 (FNV-1a 이중 해시 및 Fast-Path 유지)
   // ──────────────────────────────────────────────
   function _updateFastCache(cache, video, vfUser, nW, nH, dW, dH, budget, result) {
     let fc = cache.get(video);
