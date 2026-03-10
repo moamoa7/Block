@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v186.1 - Flawless Architecture)
+// @name         Video_Control (v186.2 - Architecture Refined)
 // @namespace    https://github.com/
-// @version      186.1
+// @version      186.2
 // @description  Zero-leak EventBus, Microtask Race fix, GC Optimized Set pruning, Safe Scheduler state.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -17,7 +17,7 @@
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
-// @allFrames    true
+// @allFrames     true
 // ==/UserScript==
 
 (function () {
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.1';
+  const SCRIPT_VERSION = '186.2';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -52,6 +52,7 @@ function VSC_MAIN() {
     ns._timers = []; ns._intervals = [];
   }
 
+  // 내부 유틸 호출 등에서는 safe 래핑을 제거하고, 불확실한 외부 호출에만 적용 (4-3)
   const safe = (fn) => { try { fn(); } catch (e) { if (/[?&]vsc_debug=1/.test(location.search)) console.warn('[VSC] safe() caught:', e); } };
 
   function destroyRuntime(ns = __vscNs) {
@@ -81,90 +82,81 @@ function VSC_MAIN() {
   __vscNs._timers = [];
   __vscNs._intervals = [];
 
-  const SYS = Object.freeze({ SRD: 220 });
+  // 2-3. Scheduler Feature Detection 전역 1회 캐싱
+  const HAS_SCHEDULER_POST = typeof globalThis.scheduler?.postTask === 'function';
+  const HAS_SCHEDULER_YIELD = typeof globalThis.scheduler?.yield === 'function';
 
-  function detectMobile() {
-    const uad = navigator.userAgentData;
-    if (uad && typeof uad.mobile === 'boolean') return uad.mobile;
-    if (/iPad/.test(navigator.platform) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform))) return true;
-    return /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  }
-  const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
-  const getSmoothStroke = (color = '#000') => `-webkit-text-stroke: 1.5px ${color}; paint-order: stroke fill;`;
-  __vscNs.getSmoothStroke = getSmoothStroke;
+  // 3-6. 상수 및 설정 통합 (Config Module)
+  const CONFIG = (() => {
+    const IS_MOBILE = (function detectMobile() {
+      const uad = navigator.userAgentData;
+      if (uad && typeof uad.mobile === 'boolean') return uad.mobile;
+      if (/iPad/.test(navigator.platform) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform))) return true;
+      return /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    })();
+    const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+    const DEBUG = /[?&]vsc_debug=1/.test(location.search);
+    const FLAGS = Object.seal({ SCHED_ALIGN_TO_VIDEO_FRAMES: false, SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: true, FILTER_SHARP_SAT_COMP: false, FILTER_FORCE_OPAQUE_BG: true });
+    const PIP_FLAGS = Object.freeze({ USE_LEGACY_PIP_FALLBACK: true });
+    const STORAGE_FLAGS = Object.freeze({ ALLOW_LOCALSTORAGE_FALLBACK: true });
+    const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
+    const VALID_ROTATIONS = [0, 90, 180, 270];
+    const SYS = Object.freeze({ SRD: 220 });
 
-  const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)), DEBUG: /[?&]vsc_debug=1/.test(location.search) });
-  const FLAGS = Object.seal({ SCHED_ALIGN_TO_VIDEO_FRAMES: false, SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: true, FILTER_SHARP_SAT_COMP: false, FILTER_FORCE_OPAQUE_BG: true });
-  __vscNs.FLAGS = FLAGS;
+    const PRESETS = Object.freeze({
+      detail: {
+        off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
+        Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
+        Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
+        Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.20, microScale: 1/90, fineBase: 0.36, fineScale: 1/20, microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81] },
+        Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.18, microScale: 1/60, fineBase: 0.32, fineScale: 1/16, microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89] }
+      },
+      bright: { 0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.02, brightAdd: 1.0 }, 2: { gammaF: 1.05, brightAdd: 2.5 }, 3: { gammaF: 1.10, brightAdd: 5.5 }, 4: { gammaF: 1.18, brightAdd: 9.5 }, 5: { gammaF: 1.28, brightAdd: 14.5 } }
+    });
 
-  const PIP_FLAGS = Object.freeze({ USE_LEGACY_PIP_FALLBACK: true });
+    const DEFAULTS = Object.freeze({
+      video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0, rotation: 0 },
+      audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
+      playback: { rate: 1.0, enabled: false },
+      app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
+    });
+
+    const P = Object.freeze({
+      APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
+      V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', V_ROTATION: 'video.rotation',
+      A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', A_STEREO_W: 'audio.stereoWidth',
+      PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
+    });
+
+    const SCHEMAS = Object.freeze({
+      app: [ { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 } ],
+      video: [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'num', path: P.V_BRIGHT_LV, min: 0, max: 5, round: true, fallback: () => 0 }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 }, { type: 'num', path: P.V_TEMP, min: -50, max: 50, round: true, fallback: () => 0 }, { type: 'enum', path: P.V_ROTATION, values: VALID_ROTATIONS, fallback: () => 0 } ],
+      audio: [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS }, { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ]
+    });
+
+    return Object.freeze({ IS_MOBILE, VSC_ID, DEBUG, FLAGS, PIP_FLAGS, STORAGE_FLAGS, DARK_BAND, VALID_ROTATIONS, SYS, PRESETS, DEFAULTS, P, SCHEMAS });
+  })();
+
+  __vscNs.CONFIG = CONFIG;
+  const FLAGS = CONFIG.FLAGS;
+  __vscNs.FLAGS = Object.freeze({ ...FLAGS });
+
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [class*="player" i], [id*="player" i], [data-player], article, main';
   const SUPPORTS_MOVE_BEFORE = (typeof Node !== 'undefined' && typeof Node.prototype.moveBefore === 'function');
-  const STORAGE_FLAGS = Object.freeze({ ALLOW_LOCALSTORAGE_FALLBACK: true });
-  const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
-
-  const VALID_ROTATIONS = [0, 90, 180, 270];
+  const getNextRotation = (current) => { const cur = Number(current) || 0; const idx = CONFIG.VALID_ROTATIONS.indexOf(cur); if (idx < 0) return 90; return CONFIG.VALID_ROTATIONS[(idx + 1) % CONFIG.VALID_ROTATIONS.length]; };
   const ROTATION_LABELS = { 0: '정상', 90: '90도', 180: '180도', 270: '270도' };
-  const getNextRotation = (current) => { const cur = Number(current) || 0; const idx = VALID_ROTATIONS.indexOf(cur); if (idx < 0) return 90; return VALID_ROTATIONS[(idx + 1) % VALID_ROTATIONS.length]; };
-
-  const PRESETS = Object.freeze({
-    detail: {
-      off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
-      Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
-      Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
-      Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.20, microScale: 1/90, fineBase: 0.36, fineScale: 1/20, microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81] },
-      Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.18, microScale: 1/60, fineBase: 0.32, fineScale: 1/16, microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89] }
-    },
-    bright: {
-      0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.02, brightAdd: 1.0 }, 2: { gammaF: 1.05, brightAdd: 2.5 },
-      3: { gammaF: 1.10, brightAdd: 5.5 }, 4: { gammaF: 1.18, brightAdd: 9.5 }, 5: { gammaF: 1.28, brightAdd: 14.5 }
-    }
-  });
-
-  const DEFAULTS = {
-    video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0, rotation: 0 },
-    audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
-    playback: { rate: 1.0, enabled: false },
-    app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
-  };
-
-  const P = Object.freeze({
-    APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
-    V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', V_ROTATION: 'video.rotation',
-    A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', A_STEREO_W: 'audio.stereoWidth',
-    PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
-  });
-
-  const APP_SCHEMA = [
-    { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN },
-    { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 }
-  ];
-  const VIDEO_SCHEMA = [
-    { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
-    { type: 'num', path: P.V_BRIGHT_LV, min: 0, max: 5, round: true, fallback: () => 0 }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 },
-    { type: 'num', path: P.V_TEMP, min: -50, max: 50, round: true, fallback: () => 0 }, { type: 'enum', path: P.V_ROTATION, values: VALID_ROTATIONS, fallback: () => 0 }
-  ];
-  const AUDIO_PLAYBACK_SCHEMA = [
-    { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS },
-    { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
-  ];
 
   const getNS = () => (window && window[Symbol.for('__VSC__')]) || __vscNs || null;
   const getFLAGS = () => getNS()?.FLAGS || FLAGS;
   const OPT_P = { passive: true };
   const OPT_PC = { passive: true, capture: true };
 
-  // [PATCH P1] AbortSignal.any() Polyfill 메모리 누수 방지 (이벤트 리스너 즉시 정리)
-  const combineSignals = (...signals) => {
-    if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
-    const ac = new AbortController();
-    const onAbort = () => { ac.abort(); signals.forEach(sig => sig.removeEventListener('abort', onAbort)); };
-    for (const sig of signals) {
-      if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
-      sig.addEventListener('abort', onAbort, { once: true });
-    }
-    return ac.signal;
-  };
+  const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
+  const getSmoothStroke = (color = '#000') => `-webkit-text-stroke: 1.5px ${color}; paint-order: stroke fill;`;
+  __vscNs.getSmoothStroke = getSmoothStroke;
+
+  // 1-1. 폴리필 제거 및 AbortSignal.any 직접 사용
+  const combineSignals = (...signals) => AbortSignal.any(signals);
 
   function on(target, type, fn, opts = {}) {
     if (!target?.addEventListener) return;
@@ -209,7 +201,7 @@ function VSC_MAIN() {
 
   const log = { error: (...a) => console.error('[VSC]', ...a), warn: (...a) => console.warn('[VSC]', ...a), info: () => {}, debug: (...a) => { if (CONFIG.DEBUG) console.debug('[VSC]', ...a); } };
 
-  // [PATCH P0] EventBus _wrapper 충돌 및 wildcard 플래그 누수 완전 해결 (WeakMap 기반 격리)
+  // 1-2. EventBus off('*') 호출 시 실제 리스너 정리 기능 보완
   function createEventBus() {
     const target = new EventTarget();
     let _wildcardCount = 0, _destroyed = false;
@@ -308,15 +300,22 @@ function VSC_MAIN() {
   on(window, 'resize', bumpLayoutRev, { passive: true });
   try { const vv = window.visualViewport; if (vv) { on(vv, 'scroll', bumpLayoutRev, { passive: true }); on(vv, 'resize', bumpLayoutRev, { passive: true }); } } catch (_) {}
 
-  // [PATCH P2] getVState 초기화 최적화 (불필요한 property Lazy 초기화 유도)
+  // 3-7. getVState 초기 객체에 모든 속성 선언 (hidden class 최적화)
   const videoStateMap = new WeakMap();
   const getVState = (v) => {
     let st = videoStateMap.get(v);
-    if (!st) { st = { visible: false, bound: false, applied: false, rect: null, rectT: 0, _rectRev: 0, _lastSrc: '', audioFailUntil: 0 }; videoStateMap.set(v, st); }
+    if (!st) {
+      st = {
+        visible: false, bound: false, applied: false, rect: null, rectT: 0, _rectRev: 0, _lastSrc: '', audioFailUntil: 0,
+        desiredRate: undefined, origFilter: undefined, origFilterPrio: '', origWebkitFilter: undefined, origWebkitFilterPrio: '',
+        lastFilterUrl: undefined, lastTransform: undefined, lastScale: undefined, lastRot: undefined, rateState: undefined,
+        visibilityRatio: undefined
+      };
+      videoStateMap.set(v, st);
+    }
     return st;
   };
 
-  // [PATCH P1] TOUCHED Set 메모리 누수 해결 위한 prune 로직 추가
   const TOUCHED = {
     videos: new Set(), rateVideos: new Set(),
     prune() {
@@ -383,7 +382,6 @@ function VSC_MAIN() {
     };
   }
 
-  // [PATCH P1] Scheduler의 queued 상태 경합 해결
   function createScheduler(minIntervalMs = 32) {
     let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0;
     let rvfcId = 0, rvfcTok = 0, rvfcVideo = null, getRvfcVideo = null;
@@ -392,9 +390,8 @@ function VSC_MAIN() {
     function run() {
       rafId = 0; const now = performance.now(); const doForce = force; force = false; const dt = now - lastRun;
       if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimeout(timerCb, wait); return; }
-      queued = false;
-      lastRun = now;
-      if (applyFn) { if (typeof scheduler !== 'undefined' && scheduler.postTask && !doForce) { scheduler.postTask(() => { try { applyFn(doForce); } catch (_) {} }, { priority: 'user-visible' }).catch(() => {}); } else { try { applyFn(doForce); } catch (_) {} } }
+      queued = false; lastRun = now;
+      if (applyFn) { if (HAS_SCHEDULER_POST && !doForce) { globalThis.scheduler.postTask(() => { try { applyFn(doForce); } catch (_) {} }, { priority: 'user-visible' }).catch(() => {}); } else { try { applyFn(doForce); } catch (_) {} } }
     }
     function timerCb() { timer = 0; run(); }
     function queueRaf() { if (!rafId) rafId = requestAnimationFrame(run); }
@@ -407,14 +404,15 @@ function VSC_MAIN() {
   const parsePath = (p) => { const dot = p.indexOf('.'); return dot < 0 ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; };
 
   function createLocalStore(defaults, scheduler, bus) {
-    let _stateVal; try { _stateVal = structuredClone(defaults); } catch (_) { _stateVal = JSON.parse(JSON.stringify(defaults)); }
-    const state = _stateVal; let rev = 0; const listeners = new Map();
+    // 2-2. structuredClone 폴백 제거
+    const state = structuredClone(defaults);
+    let rev = 0; const listeners = new Map();
     const storeAC = new AbortController(); const storeSig = combineSignals(storeAC.signal, __globalSig);
     const PREF_KEY = 'vsc_prefs_' + location.hostname;
 
-    function loadPrefs() { try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (typeof v === 'string' && v) return v; } } catch (_) {} if (STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { return localStorage.getItem(PREF_KEY); } catch (_) {} } return null; }
-    function savePrefsRaw(json) { try { if (typeof GM_setValue === 'function') { GM_setValue(PREF_KEY, json); return true; } } catch (_) {} if (STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.setItem(PREF_KEY, json); return true; } catch (_) {} } return false; }
-    function clearPrefsRaw() { let cleared = false; try { if (typeof GM_deleteValue === 'function') { GM_deleteValue(PREF_KEY); cleared = true; } } catch (_) {} if (STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.removeItem(PREF_KEY); cleared = true; } catch (_) {} } return cleared; }
+    function loadPrefs() { try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (typeof v === 'string' && v) return v; } } catch (_) {} if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { return localStorage.getItem(PREF_KEY); } catch (_) {} } return null; }
+    function savePrefsRaw(json) { try { if (typeof GM_setValue === 'function') { GM_setValue(PREF_KEY, json); return true; } } catch (_) {} if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.setItem(PREF_KEY, json); return true; } catch (_) {} } return false; }
+    function clearPrefsRaw() { let cleared = false; try { if (typeof GM_deleteValue === 'function') { GM_deleteValue(PREF_KEY); cleared = true; } } catch (_) {} if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.removeItem(PREF_KEY); cleared = true; } catch (_) {} } return cleared; }
     function mergeKnown(dst, src, defaultsObj) { if (!src || typeof src !== 'object') return; for (const key of Object.keys(defaultsObj)) { if (Object.prototype.hasOwnProperty.call(src, key)) { if (typeof defaultsObj[key] === 'boolean') dst[key] = !!src[key]; else if (typeof defaultsObj[key] === 'number') dst[key] = Number(src[key]) || 0; else if (typeof defaultsObj[key] === 'string') dst[key] = typeof src[key] === 'string' ? src[key] : defaultsObj[key]; else dst[key] = src[key]; } } }
 
     try {
@@ -424,7 +422,7 @@ function VSC_MAIN() {
         if (parsed.video && !('brightLevel' in parsed.video)) { parsed.video.brightLevel = 0; }
         if (parsed.video && !('temp' in parsed.video)) { parsed.video.temp = 0; }
         if (parsed.video && !('rotation' in parsed.video)) { parsed.video.rotation = 0; }
-        mergeKnown(state.video, parsed.video, DEFAULTS.video); mergeKnown(state.audio, parsed.audio, DEFAULTS.audio); mergeKnown(state.playback, parsed.playback, DEFAULTS.playback); mergeKnown(state.app, parsed.app, DEFAULTS.app);
+        mergeKnown(state.video, parsed.video, CONFIG.DEFAULTS.video); mergeKnown(state.audio, parsed.audio, CONFIG.DEFAULTS.audio); mergeKnown(state.playback, parsed.playback, CONFIG.DEFAULTS.playback); mergeKnown(state.app, parsed.app, CONFIG.DEFAULTS.app);
       }
     } catch (e) { log.warn('Invalid prefs detected. Resetting persisted prefs.', e); clearPrefsRaw(); }
 
@@ -442,8 +440,7 @@ function VSC_MAIN() {
     const flushNow = () => { savePrefs.cancel(); _doSave(); };
 
     on(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') flushNow(); }, { passive: true, signal: storeSig });
-    // [PATCH 1-7] bfcache 대응 확실한 백업 저장
-    on(window, 'pagehide', () => { flushNow(); if (STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.setItem(PREF_KEY, JSON.stringify(state)); } catch (_) {} } }, { passive: true, signal: storeSig });
+    on(window, 'pagehide', () => { flushNow(); if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.setItem(PREF_KEY, JSON.stringify(state)); } catch (_) {} } }, { passive: true, signal: storeSig });
 
     const emit = (path, val) => {
       const cbs = listeners.get(path); if (cbs) { for (const cb of cbs) safe(() => cb(val)); }
@@ -454,7 +451,6 @@ function VSC_MAIN() {
     return {
       state, rev: () => rev, getCatRef: (cat) => state[cat], get: (p) => { const [cat, key] = parsePath(p); return key ? state[cat]?.[key] : state[cat]; },
       set: (p, val) => { const [cat, key] = parsePath(p); const target = key ? state[cat] : state; const prop = key || cat; if (Object.is(target[prop], val)) return; target[prop] = val; notifyChange(p, val); },
-      // [PATCH P0] Store.batch 부분 업데이트 관찰 방지
       batch: (cat, obj) => {
         let changed = false; const updates = [];
         for (const [k, v] of Object.entries(obj)) {
@@ -533,16 +529,16 @@ function VSC_MAIN() {
       const wasTracked = videos.has(v);
       if (wasTracked) { videos.delete(v); if (bus) bus.emit('video:lost', { video: v }); }
       visible.videos.delete(v); dirtyA.videos.delete(v); dirtyB.videos.delete(v); dirty.videos.add(v);
-      safe(() => { io?.unobserve(v); ro?.unobserve(v); });
+      io?.unobserve(v); ro?.unobserve(v);
     }
 
     const observeVideo = (el) => {
       if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
       const wasEmpty = (videos.size === 0); videos.add(el);
       if (bus) bus.emit('video:detected', { video: el, isFirst: wasEmpty });
-      if (wasEmpty) { queueMicrotask(() => { safe(() => __vscNs.UIEnsure?.()); }); }
+      if (wasEmpty) { queueMicrotask(() => { __vscNs.UIEnsure?.(); }); }
       if (io) { io.observe(el); } else { const st = getVState(el); st.visible = true; st.visibilityRatio = 1.0; if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } }
-      if (ro) safe(() => ro.observe(el));
+      ro?.observe(el);
       lazyScanAncestorShadowRoots(el);
     };
 
@@ -561,25 +557,27 @@ function VSC_MAIN() {
         if (n.nodeType === 1) { if (n.tagName === 'VIDEO') { observeVideo(n); return; } try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} return; }
         if (n.nodeType === 11) { try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} }
       };
+
+      // 1-3. WorkQ.drain finally 블록 추가 (잔류 노드 비우기 보장)
       const drain = async (dl) => {
         scheduled = false; [active, pending] = [pending, active]; [activeSet, pendingSet] = [pendingSet, activeSet]; pending.length = 0; pendingSet.clear();
-        if (active.length <= 64) { for (let i = 0; i < active.length; i++) { activeSet.delete(active[i]); safe(() => scanNode(active[i])); } active.length = 0; activeSet.clear(); return; }
-
-        // [PATCH P3] 명시적인 globalThis.scheduler 참조
-        const canYield = typeof globalThis.scheduler !== 'undefined' && typeof globalThis.scheduler.yield === 'function';
-        let processed = 0;
-        for (let i = 0; i < active.length; i++) {
-          const n = active[i]; activeSet.delete(n);
-          if ((++processed & 15) === 0) {
-            if (canYield) { try { await globalThis.scheduler.yield(); } catch (_) {} if (destroyed) return; }
-            else if (dl?.timeRemaining && dl.timeRemaining() < 1) {
-              for (let j = i; j < active.length; j++) { const rest = active[j]; if (!pendingSet.has(rest)) { pendingSet.add(rest); pending.push(rest); } }
-              active.length = 0; schedule(); return;
+        try {
+          if (active.length <= 64) { for (let i = 0; i < active.length; i++) { activeSet.delete(active[i]); scanNode(active[i]); } return; }
+          let processed = 0;
+          for (let i = 0; i < active.length; i++) {
+            const n = active[i]; activeSet.delete(n);
+            if ((++processed & 15) === 0) {
+              if (HAS_SCHEDULER_YIELD) { try { await globalThis.scheduler.yield(); } catch (_) {} if (destroyed) return; }
+              else if (dl?.timeRemaining && dl.timeRemaining() < 1) {
+                for (let j = i; j < active.length; j++) { const rest = active[j]; if (!pendingSet.has(rest)) { pendingSet.add(rest); pending.push(rest); } }
+                schedule(); return;
+              }
             }
+            scanNode(n);
           }
-          safe(() => scanNode(n));
+        } finally {
+          active.length = 0; activeSet.clear();
         }
-        active.length = 0; activeSet.clear();
       };
       return Object.freeze({ enqueue, destroy: clearScheduled });
     })();
@@ -637,7 +635,7 @@ function VSC_MAIN() {
     function pruneDisconnectedVideos() {
       let removed = 0;
       for (const el of [...videos]) {
-        if (!el?.isConnected) { videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el); safe(() => { io?.unobserve(el); ro?.unobserve(el); }); removed++; }
+        if (!el?.isConnected) { videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el); io?.unobserve(el); ro?.unobserve(el); removed++; }
       }
       return removed;
     }
@@ -645,7 +643,6 @@ function VSC_MAIN() {
     return {
       videos, visible, rev: () => rev, refreshObservers,
       prune: () => {
-        // [PATCH P1] TOUCHED Set 동기화 호출
         TOUCHED.prune();
         for (const [root, mo] of [...shadowObserverMap]) {
           const host = root.host;
@@ -684,7 +681,24 @@ function VSC_MAIN() {
 // =================== PART 1 END ===================
 // =================== PART 2 START ===================
 
-  // [v186.0 Architecture] PiP 관련 전역 스코프 오염 방지 및 단일 팩토리 캡슐화
+  // 3-4. PiP CSS 문자열을 상수로 분리하여 가독성 향상
+  const PIP_WINDOW_CSS = `
+    * { box-sizing: border-box; }
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: system-ui, sans-serif; }
+    .vsc-pip-root { display: grid; grid-template-rows: minmax(0, 1fr) auto; width: 100%; height: 100%; background: #000; }
+    .vsc-pip-stage { min-width: 0; min-height: 0; display: grid; place-items: center; overflow: hidden; background: #000; }
+    .vsc-pip-frame { width: 100%; height: 100%; display: grid; place-items: center; background: #000; }
+    .vsc-pip-frame video { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; object-fit: contain; background: #000; }
+    .vsc-pip-controls { display: flex; flex-direction: column; background: rgba(18,18,18,.95); border-top: 1px solid rgba(255,255,255,.12); }
+    .vsc-pip-progress-container { width: 100%; padding: 6px 12px 0 12px; }
+    input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; background: #444; border-radius: 3px; outline: none; cursor: pointer; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #3498db; border-radius: 50%; transition: transform 0.1s; }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
+    .vsc-pip-bar { display: flex; gap: 6px; padding: 8px 12px 12px 12px; }
+    .vsc-pip-btn { flex: 1; min-height: 34px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #222; color: #fff; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+    .vsc-pip-btn:hover { background: #333; }
+  `;
+
   function createPiPManager(AppStore, ApplyReq) {
     class PiPStateManager {
       constructor() { this.reset(); }
@@ -816,7 +830,7 @@ function VSC_MAIN() {
       PiPState._restoring = true;
       const savedTime = video.currentTime;
       const wasPlaying = !video.paused;
-      safe(() => __vscNs.AudioSetTarget?.(null));
+      __vscNs.AudioSetTarget?.(null);
       try {
         if (shouldAdopt && video.ownerDocument !== document) { try { document.adoptNode(video); } catch (e) { log.warn('[VSC] adoptNode failed:', e); } }
         PiPState.restoreVideoPosition(video);
@@ -824,15 +838,14 @@ function VSC_MAIN() {
         const applyTime = () => { if (Number.isFinite(savedTime)) { video.currentTime = savedTime; video.dispatchEvent(new Event('timeupdate')); } };
         applyTime(); setTimeout(applyTime, 50); setTimeout(applyTime, 150);
         if (wasPlaying) { try { await video.play(); } catch (_) {} }
-        safe(() => {
-          if (AppStore) AppStore.set('video.rotation', 0);
-          video.style.removeProperty('transform');
-          video.style.removeProperty('scale');
-          const st = getVState(video);
-          if (st) { st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
-          __vscNs.AudioSetTarget?.(video);
-          ApplyReq?.hard();
-        });
+
+        if (AppStore) AppStore.set('video.rotation', 0);
+        video.style.removeProperty('transform');
+        video.style.removeProperty('scale');
+        const st = getVState(video);
+        if (st) { st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
+        __vscNs.AudioSetTarget?.(video);
+        ApplyReq?.hard();
       } catch (e) { log.warn('[VSC PiP] restore failed:', e); } finally { PiPState.reset(); }
     }
 
@@ -871,7 +884,7 @@ function VSC_MAIN() {
         const w = Math.max(320, Math.min(saved?.w || fallbackW, maxW)), h = Math.max(180, Math.min(saved?.h || fallbackH, maxH));
 
         pipWindow = await dpip.requestWindow({ width: w, height: h });
-        safe(() => __vscNs.AudioSetTarget?.(null));
+        __vscNs.AudioSetTarget?.(null);
         PiPState.window = pipWindow; PiPState.video = video; PiPState.saveVideoPosition(video);
 
         PiPState.placeholder = document.createElement('div');
@@ -882,22 +895,7 @@ function VSC_MAIN() {
 
         const doc = pipWindow.document;
         const style = doc.createElement('style');
-        style.textContent = `
-          * { box-sizing: border-box; }
-          html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; color: #fff; font-family: system-ui, sans-serif; }
-          .vsc-pip-root { display: grid; grid-template-rows: minmax(0, 1fr) auto; width: 100%; height: 100%; background: #000; }
-          .vsc-pip-stage { min-width: 0; min-height: 0; display: grid; place-items: center; overflow: hidden; background: #000; }
-          .vsc-pip-frame { width: 100%; height: 100%; display: grid; place-items: center; background: #000; }
-          .vsc-pip-frame video { max-width: 100%; max-height: 100%; width: auto; height: auto; display: block; object-fit: contain; background: #000; }
-          .vsc-pip-controls { display: flex; flex-direction: column; background: rgba(18,18,18,.95); border-top: 1px solid rgba(255,255,255,.12); }
-          .vsc-pip-progress-container { width: 100%; padding: 6px 12px 0 12px; }
-          input[type=range] { -webkit-appearance: none; width: 100%; height: 6px; background: #444; border-radius: 3px; outline: none; cursor: pointer; }
-          input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #3498db; border-radius: 50%; transition: transform 0.1s; }
-          input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.3); }
-          .vsc-pip-bar { display: flex; gap: 6px; padding: 8px 12px 12px 12px; }
-          .vsc-pip-btn { flex: 1; min-height: 34px; border: 1px solid rgba(255,255,255,.16); border-radius: 8px; background: #222; color: #fff; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-          .vsc-pip-btn:hover { background: #333; }
-        `;
+        style.textContent = PIP_WINDOW_CSS;
         doc.head.appendChild(style);
 
         const root = doc.createElement('div'); root.className = 'vsc-pip-root';
@@ -979,14 +977,14 @@ function VSC_MAIN() {
           video.addEventListener('canplay', done, { once: true }); setTimeout(done, 800);
         });
 
-        safe(() => __vscNs.AudioSetTarget?.(video));
-        safe(() => ApplyReq?.hard());
+        __vscNs.AudioSetTarget?.(video);
+        ApplyReq?.hard();
 
         const pipAC = new AbortController();
         const saveSizeDebounced = createDebounced(() => saveDocPiPSize(pipWindow.innerWidth || 0, pipWindow.innerHeight || 0), 180);
 
         video.addEventListener('loadedmetadata', syncPiPLayout, { signal: pipAC.signal });
-        pipWindow.addEventListener('resize', () => { syncPiPLayout(); saveSizeDebounced(); safe(() => ApplyReq?.hard()); }, { signal: pipAC.signal });
+        pipWindow.addEventListener('resize', () => { syncPiPLayout(); saveSizeDebounced(); ApplyReq?.hard(); }, { signal: pipAC.signal });
         pipWindow.addEventListener('pagehide', () => { pipAC.abort(); saveDocPiPSize(pipWindow.innerWidth || 0, pipWindow.innerHeight || 0); if (isInIframe) { _restoreFromIframePiP(video); } else { restoreFromDocumentPiP(video); } }, { once: true });
 
         PiPState._ac = pipAC; syncPiPLayout();
@@ -1005,7 +1003,7 @@ function VSC_MAIN() {
         try { return await enterDocumentPiP(video); }
         catch (e) { log.warn(`[VSC PiP] Document PiP 실패 (cap=${cap}), Legacy 폴백 시도:`, e); if (e?.name === 'NotAllowedError') throw e; }
       }
-      if (PIP_FLAGS.USE_LEGACY_PIP_FALLBACK && supportsLegacyPiP(video)) { return await enterLegacyPiP(video); }
+      if (CONFIG.PIP_FLAGS.USE_LEGACY_PIP_FALLBACK && supportsLegacyPiP(video)) { return await enterLegacyPiP(video); }
       throw new Error(cap === 'legacy-only' ? 'PiP: 교차-출처 iframe에서는 Legacy PiP만 지원됩니다' : 'PiP is not supported in this browser/context');
     }
 
@@ -1053,9 +1051,9 @@ function VSC_MAIN() {
 class VSCFinalizerProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
-      { name: 'drive',    defaultValue: 1.15,   minValue: 0.5,   maxValue: 3.0,   automationRate: 'k-rate' },
+      { name: 'drive',      defaultValue: 1.15,   minValue: 0.5,   maxValue: 3.0,   automationRate: 'k-rate' },
       { name: 'ceiling', defaultValue: 0.985,  minValue: 0.80,  maxValue: 1.0,   automationRate: 'k-rate' },
-      { name: 'mix',      defaultValue: 1.0,    minValue: 0.0,   maxValue: 1.0,   automationRate: 'k-rate' },
+      { name: 'mix',       defaultValue: 1.0,    minValue: 0.0,   maxValue: 1.0,   automationRate: 'k-rate' },
       { name: 'release', defaultValue: 0.9965, minValue: 0.90,  maxValue: 0.9999,automationRate: 'k-rate' }
     ];
   }
@@ -1102,8 +1100,15 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
 registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 `;
 
+  // 4-1. stt -> setParamSmooth로 명명 개선 (가독성 향상)
+  const setParamSmooth = (param, val, t, tc = 0.08) => { if(param) { try { param.setTargetAtTime(val, t, tc); } catch (_) { param.value = val; } } };
+
+  // 4-2. mkBQ, mkComp 팩토리 함수 커링 형태로 통합
+  const mkBQ = (actx) => (type, freq, Q, gain) => { const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if(Q !== undefined) f.Q.value = Q; if(gain !== undefined) f.gain.value = gain; return f; };
+  const mkComp = (actx) => (thr, knee, ratio, atk, rel) => { const c = actx.createDynamicsCompressor(); c.threshold.value = thr; c.knee.value = knee; c.ratio.value = ratio; c.attack.value = atk; c.release.value = rel; return c; };
+
   function createStereoWidener(actx) {
-    const mkBQ = (type, freq, Q = 0.707, gain) => { const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (Q !== undefined) f.Q.value = Q; if (gain !== undefined) f.gain.value = gain; return f; };
+    const bq = mkBQ(actx);
     const input = actx.createGain(), output = actx.createGain(); input.gain.value = 1.0; output.gain.value = 1.0; input.channelCount = 2; input.channelCountMode = 'clamped-max'; input.channelInterpretation = 'speakers';
     const splitter = actx.createChannelSplitter(2), merger = actx.createChannelMerger(2);
     const midL = actx.createGain(); midL.gain.value = 0.5; const midR = actx.createGain(); midR.gain.value = 0.5;
@@ -1111,10 +1116,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const midBus = actx.createGain(), sideBus = actx.createGain();
     input.connect(splitter); splitter.connect(midL, 0); splitter.connect(sideL, 0); splitter.connect(midR, 1); splitter.connect(sideR, 1);
     midL.connect(midBus); midR.connect(midBus); sideL.connect(sideBus); sideR.connect(sideBus);
-    const sideLow1 = mkBQ('lowpass', 160, 0.707), sideLow2 = mkBQ('lowpass', 160, 0.707);
+    const sideLow1 = bq('lowpass', 160, 0.707), sideLow2 = bq('lowpass', 160, 0.707);
     const sideHigh = actx.createGain(), sideLowInv = actx.createGain(); sideLowInv.gain.value = -1.0;
     sideBus.connect(sideHigh); sideBus.connect(sideLow1); sideLow1.connect(sideLow2); sideLow2.connect(sideLowInv); sideLowInv.connect(sideHigh);
-    const sideShelf = mkBQ('highshelf', 3200, 0.707, 1.5); const sideAmp = actx.createGain(); sideAmp.gain.value = 1.0;
+    const sideShelf = bq('highshelf', 3200, 0.707, 1.5); const sideAmp = actx.createGain(); sideAmp.gain.value = 1.0;
     sideHigh.connect(sideShelf); sideShelf.connect(sideAmp);
     const outL = actx.createGain(), outR = actx.createGain(), sideInvR = actx.createGain(); sideInvR.gain.value = -1.0;
     midBus.connect(outL); sideAmp.connect(outL); midBus.connect(outR); sideAmp.connect(sideInvR); sideInvR.connect(outR);
@@ -1170,17 +1175,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
-  const stt = (param, val, t, tc = 0.08) => { if(param) { try { param.setTargetAtTime(val, t, tc); } catch (_) { param.value = val; } } };
-  const mkBQ = (actx, type, freq, Q, gain) => { const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if(Q !== undefined) f.Q.value = Q; if(gain !== undefined) f.gain.value = gain; return f; };
-  const mkComp = (actx, thr, knee, ratio, atk, rel) => { const c = actx.createDynamicsCompressor(); c.threshold.value = thr; c.knee.value = knee; c.ratio.value = ratio; c.attack.value = atk; c.release.value = rel; return c; };
-
   function buildMultibandDynamics(actx) {
+    const bq = mkBQ(actx), comp = mkComp(actx);
     const CROSSOVER_LOW = 200, CROSSOVER_HIGH = 3200;
-    const createLR4 = (freq, type) => { const f1 = mkBQ(actx, type, freq, Math.SQRT1_2); const f2 = mkBQ(actx, type, freq, Math.SQRT1_2); f1.connect(f2); return { input: f1, output: f2 }; };
+    const createLR4 = (freq, type) => { const f1 = bq(type, freq, Math.SQRT1_2); const f2 = bq(type, freq, Math.SQRT1_2); f1.connect(f2); return { input: f1, output: f2 }; };
     const input = actx.createGain(), lpLow = createLR4(CROSSOVER_LOW, 'lowpass'), hpLow = createLR4(CROSSOVER_LOW, 'highpass'), lpMid = createLR4(CROSSOVER_HIGH, 'lowpass'), hpHigh = createLR4(CROSSOVER_HIGH, 'highpass');
     input.connect(lpLow.input); input.connect(hpLow.input); hpLow.output.connect(lpMid.input); hpLow.output.connect(hpHigh.input);
     const MAKEUP_LOW = Math.pow(10, 3.0 / 20), MAKEUP_MID = Math.pow(10, 1.0 / 20), MAKEUP_HIGH = Math.pow(10, 0.5 / 20);
-    const compLow = mkComp(actx, -22, 10, 2.5, 0.030, 0.50), compMid = mkComp(actx, -18, 10, 2.0, 0.015, 0.18), compHigh = mkComp(actx, -14, 8, 1.8, 0.005, 0.10);
+    const compLow = comp(-22, 10, 2.5, 0.030, 0.50), compMid = comp(-18, 10, 2.0, 0.015, 0.18), compHigh = comp(-14, 8, 1.8, 0.005, 0.10);
     const gainLow = actx.createGain(); gainLow.gain.value = MAKEUP_LOW; const gainMid = actx.createGain(); gainMid.gain.value = MAKEUP_MID; const gainHigh = actx.createGain(); gainHigh.gain.value = MAKEUP_HIGH;
     chain(lpLow.output, compLow, gainLow); chain(lpMid.output, compMid, gainMid); chain(hpHigh.output, compHigh, gainHigh);
     const output = actx.createGain(); gainLow.connect(output); gainMid.connect(output); gainHigh.connect(output);
@@ -1195,12 +1197,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   function createLoudnessNormalizer(actx, rmsMeter) {
     const TARGET_LUFS = -14, MAX_GAIN_DB = 6, MIN_GAIN_DB = -6, SMOOTHING = 0.05, SETTLE_FRAMES = 30;
-    const gainNode = actx.createGain(); gainNode.gain.value = 1.0; let frameCount = 0, currentGainDb = 0, _lastUpdateTime = 0; const _tmp = { momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70 };
-    return { node: gainNode, attackTC: 0.8, releaseTC: 2.5, update(overrideLufs) { const lufs = overrideLufs || rmsMeter.getState(_tmp); frameCount++; if (frameCount < SETTLE_FRAMES) return; const measured = lufs.shortTermLUFS; if (measured <= -60) return; const targetGainDb = VSC_CLAMP(TARGET_LUFS - measured, MIN_GAIN_DB, MAX_GAIN_DB); const now = actx.currentTime; const dt = Math.max(0.01, Math.min(1.0, now - (_lastUpdateTime || now))); _lastUpdateTime = now; const tc = targetGainDb < currentGainDb ? this.attackTC : this.releaseTC; const alpha = 1.0 - Math.exp(-dt / tc); currentGainDb += (targetGainDb - currentGainDb) * alpha; const linearGain = Math.pow(10, currentGainDb / 20); stt(gainNode.gain, linearGain, now, SMOOTHING); }, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; _lastUpdateTime = 0; rmsMeter.reset(); } };
+    const gainNode = actx.createGain(); gainNode.gain.value = 1.0; let frameCount = 0, currentGainDb = 0;
+    // 1-6. _lastUpdateTime 초기값을 audioCtx.currentTime으로 설정
+    let _lastUpdateTime = actx.currentTime;
+    const _tmp = { momentaryLUFS:-70, shortTermLUFS:-70, integratedLUFS:-70 };
+    return { node: gainNode, attackTC: 0.8, releaseTC: 2.5, update(overrideLufs) { const lufs = overrideLufs || rmsMeter.getState(_tmp); frameCount++; if (frameCount < SETTLE_FRAMES) return; const measured = lufs.shortTermLUFS; if (measured <= -60) return; const targetGainDb = VSC_CLAMP(TARGET_LUFS - measured, MIN_GAIN_DB, MAX_GAIN_DB); const now = actx.currentTime; const dt = Math.max(0.01, Math.min(1.0, now - _lastUpdateTime)); _lastUpdateTime = now; const tc = targetGainDb < currentGainDb ? this.attackTC : this.releaseTC; const alpha = 1.0 - Math.exp(-dt / tc); currentGainDb += (targetGainDb - currentGainDb) * alpha; const linearGain = Math.pow(10, currentGainDb / 20); setParamSmooth(gainNode.gain, linearGain, now, SMOOTHING); }, reset: () => { frameCount = 0; currentGainDb = 0; gainNode.gain.value = 1.0; _lastUpdateTime = actx.currentTime; rmsMeter.reset(); } };
   }
 
   function buildAudioGraph(audioCtx) {
-    const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), limiter: mkComp(audioCtx, -1.0, 0.0, 20.0, 0.001, 0.08) };
+    const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), limiter: mkComp(audioCtx)(-1.0, 0.0, 20.0, 0.001, 0.08) };
     const multiband = buildMultibandDynamics(audioCtx), stereoWidener = createStereoWidener(audioCtx), rmsMeter = createSimpleRMSMeter(audioCtx), loudnessNorm = createLoudnessNormalizer(audioCtx, rmsMeter);
     n.wetInGain = loudnessNorm.node; n.inputGain.connect(n.dryGain); n.dryGain.connect(n.masterOut); chain(n.inputGain, multiband.input); multiband.output.connect(rmsMeter.input); chain(multiband.output, stereoWidener.input); chain(stereoWidener.output, n.wetInGain); chain(n.wetInGain, n.limiter, n.wetGain, n.masterOut); n.masterOut.connect(audioCtx.destination);
     n._multiband = multiband; n._stereoWidener = stereoWidener; n._lufsMeter = rmsMeter; n._loudnessNorm = loudnessNorm; n._paramCache = createAudioParamCache(); return n;
@@ -1211,7 +1216,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
     let finalizerNode = null, workletInitPromise = null;
     const contentClassifier = createContentClassifier();
-
     const _workletRegistered = new WeakSet();
 
     async function ensureFinalizerWorklet(audioCtx) {
@@ -1255,7 +1259,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       _visResumeHooked = true;
       on(document, 'visibilitychange', () => {
         if (!ctx) return;
-        const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+        const dynAct = !!(sm.get(CONFIG.P.A_EN) && sm.get(CONFIG.P.APP_ACT));
         if (document.visibilityState === 'visible') { if (ctx.state === 'suspended' || ctx.state === 'interrupted') { ctx.resume().catch(() => {}); } }
         else { if (!_PiPManager?.isActive() && !dynAct && ctx.state === 'running') { ctx.suspend().catch(() => {}); } }
       }, { passive: true, signal: _audioSig });
@@ -1280,28 +1284,27 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       attachFinalizerWorklet().catch(() => {}); return true;
     };
 
-    function detachCurrentSource() { if (currentSrc) { safe(() => { currentSrc.disconnect(); if (ctx && ctx.state !== 'closed') { currentSrc.connect(ctx.destination); } }); } currentSrc = null; target = null; }
+    function detachCurrentSource() { if (currentSrc) { try { currentSrc.disconnect(); if (ctx && ctx.state !== 'closed') { currentSrc.connect(ctx.destination); } } catch(_) {} } currentSrc = null; target = null; }
     function disposeSourceForVideo(video) { if (!video) return; _unregisterAudioSrc(video); if (target === video) { currentSrc = null; target = null; } }
 
     function runAudioLoop(tok) {
-      audioLoopTimerId = 0; if (tok !== loopTok || !ctx) return; const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); if (!dynAct) return;
+      audioLoopTimerId = 0; if (tok !== loopTok || !ctx) return; const dynAct = !!(sm.get(CONFIG.P.A_EN) && sm.get(CONFIG.P.APP_ACT)); if (!dynAct) return;
       const actuallyEnabled = dynAct && currentSrc;
       if (currentSrc && currentNodes) {
-        const mbActive = !!sm.get(P.A_MULTIBAND); const hasWorkletStats = !!(currentNodes._finalizerAttached && currentNodes._awStats && (performance.now() - (currentNodes._awStatsT || 0)) < 2000);
-        const needMeter = actuallyEnabled && (!!sm.get(P.A_LUFS) || mbActive || !!sm.get(P.A_DIALOGUE)) && !hasWorkletStats;
+        const mbActive = !!sm.get(CONFIG.P.A_MULTIBAND); const hasWorkletStats = !!(currentNodes._finalizerAttached && currentNodes._awStats && (performance.now() - (currentNodes._awStatsT || 0)) < 2000);
+        const needMeter = actuallyEnabled && (!!sm.get(CONFIG.P.A_LUFS) || mbActive || !!sm.get(CONFIG.P.A_DIALOGUE)) && !hasWorkletStats;
         if (needMeter && currentNodes._lufsMeter && ctx.state === 'running') {
           try { currentNodes._lufsMeter.measure(); } catch (e) {}
-          if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS)) { const cType = contentClassifier.getType(); if (cType === 'dialogue') { currentNodes._loudnessNorm.attackTC = 0.3; currentNodes._loudnessNorm.releaseTC = 1.5; } else if (cType === 'music') { currentNodes._loudnessNorm.attackTC = 1.5; currentNodes._loudnessNorm.releaseTC = 4.0; } else { currentNodes._loudnessNorm.attackTC = 0.8; currentNodes._loudnessNorm.releaseTC = 2.5; } currentNodes._loudnessNorm.update(); }
+          if (currentNodes._loudnessNorm && !!sm.get(CONFIG.P.A_LUFS)) { const cType = contentClassifier.getType(); if (cType === 'dialogue') { currentNodes._loudnessNorm.attackTC = 0.3; currentNodes._loudnessNorm.releaseTC = 1.5; } else if (cType === 'music') { currentNodes._loudnessNorm.attackTC = 1.5; currentNodes._loudnessNorm.releaseTC = 4.0; } else { currentNodes._loudnessNorm.attackTC = 0.8; currentNodes._loudnessNorm.releaseTC = 2.5; } currentNodes._loudnessNorm.update(); }
         } else if (hasWorkletStats && actuallyEnabled) {
-          if (currentNodes._loudnessNorm && !!sm.get(P.A_LUFS)) { const stats = currentNodes._awStats; const _tmpLufs = currentNodes._loudnessNorm._tmpWorkletLufs || (currentNodes._loudnessNorm._tmpWorkletLufs = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 }); _tmpLufs.shortTermLUFS = stats.rmsDb || -70; _tmpLufs.momentaryLUFS = stats.rmsDb || -70; currentNodes._loudnessNorm.update(_tmpLufs); }
-        } else { if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !actuallyEnabled)) { stt(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05); } }
-        if (currentNodes._stereoWidener) { const swEnabled = !!sm.get(P.A_STEREO_W) && dynAct; if (currentNodes._stereoWidener.isEnabled() !== swEnabled) { currentNodes._stereoWidener.setEnabled(swEnabled); } if (swEnabled) { stt(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08); } else { stt(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08); } }
+          if (currentNodes._loudnessNorm && !!sm.get(CONFIG.P.A_LUFS)) { const stats = currentNodes._awStats; const _tmpLufs = currentNodes._loudnessNorm._tmpWorkletLufs || (currentNodes._loudnessNorm._tmpWorkletLufs = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 }); _tmpLufs.shortTermLUFS = stats.rmsDb || -70; _tmpLufs.momentaryLUFS = stats.rmsDb || -70; currentNodes._loudnessNorm.update(_tmpLufs); }
+        } else { if (currentNodes._loudnessNorm && (!sm.get(CONFIG.P.A_LUFS) || !actuallyEnabled)) { setParamSmooth(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05); } }
+        if (currentNodes._stereoWidener) { const swEnabled = !!sm.get(CONFIG.P.A_STEREO_W) && dynAct; if (currentNodes._stereoWidener.isEnabled() !== swEnabled) { currentNodes._stereoWidener.setEnabled(swEnabled); } if (swEnabled) { setParamSmooth(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08); } else { setParamSmooth(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08); } }
         if (actuallyEnabled) {
           if (currentNodes._finalizerAttached && currentNodes._awStats) { makeupDbEma += (0 - makeupDbEma) * 0.15; } else { let redDb = 0; if (currentNodes.limiter) { const r = currentNodes.limiter.reduction; redDb = (typeof r === 'number') ? r : (r?.value ?? 0); } if (!Number.isFinite(redDb)) redDb = 0; const redPos = VSC_CLAMP(-redDb, 0, 15); const makeupDbTarget = VSC_CLAMP(redPos * 0.25, 0, 2.5); const alpha = makeupDbTarget > makeupDbEma ? 0.10 : 0.18; makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha; }
         } else { makeupDbEma += (0 - makeupDbEma) * 0.15; }
       }
-      const clamp = VSC_CLAMP;
-      const userBoost = Math.pow(10, Number(sm.get(P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
+      const userBoost = Math.pow(10, Number(sm.get(CONFIG.P.A_BST) || 0) / 20), makeup = Math.pow(10, makeupDbEma / 20);
       if (wetInGain && currentNodes && currentNodes._paramCache) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; currentNodes._paramCache.sttIfChanged(wetInGain.gain, 'wetInGain', finalGain, ctx.currentTime, 0.02); }
       const isPaused = target && (target.paused || target.ended);
       if (document.hidden) { audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 500); }
@@ -1322,10 +1325,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const updateMix = () => {
       if (!ctx) return; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; }
-      const tok = ++loopTok, dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)), isHooked = !!currentSrc, wetTarget = (dynAct && isHooked) ? 1 : 0, dryTarget = 1 - wetTarget;
+      const tok = ++loopTok, dynAct = !!(sm.get(CONFIG.P.A_EN) && sm.get(CONFIG.P.APP_ACT)), isHooked = !!currentSrc, wetTarget = (dynAct && isHooked) ? 1 : 0, dryTarget = 1 - wetTarget;
       if (currentNodes && currentNodes._paramCache) {
         const pc = currentNodes._paramCache; pc.sttIfChanged(dryGain.gain, 'dryGain', dryTarget, ctx.currentTime, 0.005); pc.sttIfChanged(wetGain.gain, 'wetGain', wetTarget, ctx.currentTime, 0.005);
-        const mbEnabled = dynAct && !!sm.get(P.A_MULTIBAND), dialogueOn = dynAct && !!sm.get(P.A_DIALOGUE);
+        const mbEnabled = dynAct && !!sm.get(CONFIG.P.A_MULTIBAND), dialogueOn = dynAct && !!sm.get(CONFIG.P.A_DIALOGUE);
         if (currentNodes._multiband) {
           const mb = currentNodes._multiband.bands, t = ctx.currentTime;
           if (mbEnabled) {
@@ -1337,10 +1340,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             pc.sttIfChanged(mb.low.gain.gain, 'low.gain', 1.0, t, 0.05); pc.sttIfChanged(mb.mid.gain.gain, 'mid.gain', 1.0, t, 0.05); pc.sttIfChanged(mb.high.gain.gain, 'high.gain', 1.0, t, 0.05);
           }
         }
-        if (currentNodes._loudnessNorm && (!sm.get(P.A_LUFS) || !dynAct)) { pc.sttIfChanged(currentNodes._loudnessNorm.node.gain, 'ln.gain', 1.0, ctx.currentTime, 0.05); currentNodes._loudnessNorm.reset(); }
+        if (currentNodes._loudnessNorm && (!sm.get(CONFIG.P.A_LUFS) || !dynAct)) { pc.sttIfChanged(currentNodes._loudnessNorm.node.gain, 'ln.gain', 1.0, ctx.currentTime, 0.05); currentNodes._loudnessNorm.reset(); }
         if (currentNodes._stereoWidener && !dynAct) { currentNodes._stereoWidener.setEnabled(false); }
-        if (currentNodes._finalizer) { const adapted = contentClassifier.getAdaptedParams(!!sm.get(P.A_DIALOGUE), !!sm.get(P.A_STEREO_W)); const p = currentNodes._finalizer.parameters, t = ctx.currentTime; pc.sttIfChanged(p.get('drive'), 'fin.drive', dynAct ? adapted.drive : 1.0, t, 0.15); pc.sttIfChanged(p.get('ceiling'), 'fin.ceil', adapted.ceiling, t, 0.08); pc.sttIfChanged(p.get('mix'), 'fin.mix', dynAct ? adapted.mix : 0.0, t, 0.05); pc.sttIfChanged(p.get('release'), 'fin.rel', adapted.release, t, 0.08); }
-      } else { stt(dryGain.gain, dryTarget, ctx.currentTime, 0.005); stt(wetGain.gain, wetTarget, ctx.currentTime, 0.005); }
+        if (currentNodes._finalizer) { const adapted = contentClassifier.getAdaptedParams(!!sm.get(CONFIG.P.A_DIALOGUE), !!sm.get(CONFIG.P.A_STEREO_W)); const p = currentNodes._finalizer.parameters, t = ctx.currentTime; pc.sttIfChanged(p.get('drive'), 'fin.drive', dynAct ? adapted.drive : 1.0, t, 0.15); pc.sttIfChanged(p.get('ceiling'), 'fin.ceil', adapted.ceiling, t, 0.08); pc.sttIfChanged(p.get('mix'), 'fin.mix', dynAct ? adapted.mix : 0.0, t, 0.05); pc.sttIfChanged(p.get('release'), 'fin.rel', adapted.release, t, 0.08); }
+      } else { setParamSmooth(dryGain.gain, dryTarget, ctx.currentTime, 0.005); setParamSmooth(wetGain.gain, wetTarget, ctx.currentTime, 0.005); }
       if (dynAct && isHooked) runAudioLoop(tok);
     };
 
@@ -1360,14 +1363,13 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     return defineFeature({
       name: 'audio', phase: PHASE.PROCESS,
-      onInit() { this.subscribe('target:changed', ({ video }) => { const act = this.getSetting(P.APP_ACT), wantAudioNow = !!(this.getSetting(P.A_EN) && act), nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null; if (target !== nextAudioTarget) setTarget(nextAudioTarget); else updateMix(); }); },
-      onUpdate(appCtx) { const act = this.getSetting(P.APP_ACT), wantAudioNow = !!(this.getSetting(P.A_EN) && act), video = appCtx?.target || this.getActiveVideo(), nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null; if (target !== nextAudioTarget) { setTarget(nextAudioTarget); } else { updateMix(); } },
+      onInit() { this.subscribe('target:changed', ({ video }) => { const act = this.getSetting(CONFIG.P.APP_ACT), wantAudioNow = !!(this.getSetting(CONFIG.P.A_EN) && act), nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null; if (target !== nextAudioTarget) setTarget(nextAudioTarget); else updateMix(); }); },
+      onUpdate(appCtx) { const act = this.getSetting(CONFIG.P.APP_ACT), wantAudioNow = !!(this.getSetting(CONFIG.P.A_EN) && act), video = appCtx?.target || this.getActiveVideo(), nextAudioTarget = (wantAudioNow || !!ctx || !!currentSrc) ? (video || null) : null; if (target !== nextAudioTarget) { setTarget(nextAudioTarget); } else { updateMix(); } },
       methods: { warmup: () => { if (!ensureCtx()) return; if (ctx.state === 'suspended') ctx.resume().catch(() => {}); }, updateMix: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc },
-      async onDestroy() { try { _audioAC.abort(); } catch (_) {} _visResumeHooked = false; loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; } const prevTarget = target; detachCurrentSource(); if (prevTarget) { disposeSourceForVideo(prevTarget); } safe(() => { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } }); if (finalizerNode) { try { finalizerNode.port.onmessage = null; finalizerNode.disconnect(); } catch (_) {} } try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; makeupDbEma = 0; switchTok++; finalizerNode = null; workletInitPromise = null; contentClassifier.reset(); }
+      async onDestroy() { try { _audioAC.abort(); } catch (_) {} _visResumeHooked = false; loopTok++; if (audioLoopTimerId) { clearTimeout(audioLoopTimerId); audioLoopTimerId = 0; } if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; } const prevTarget = target; detachCurrentSource(); if (prevTarget) { disposeSourceForVideo(prevTarget); } try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch(_) {} if (finalizerNode) { try { finalizerNode.port.onmessage = null; finalizerNode.disconnect(); } catch (_) {} } try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} ctx = null; currentNodes = null; limiter = null; wetInGain = null; inputGain = null; dryGain = null; wetGain = null; masterOut = null; makeupDbEma = 0; switchTok++; finalizerNode = null; workletInitPromise = null; contentClassifier.reset(); }
     });
   }
 
-  // [PATCH P0] ratechange 이벤트 마이크로태스크 레이스 컨디션 완벽 방어 (이중 타이밍 검증)
   const bindVideoOnce = (v, ApplyReq) => {
     const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); ensureMobileInlinePlaybackHints(v);
     const softResetTransientFlags = () => {
@@ -1390,7 +1392,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const now = performance.now();
         if ((now - (rSt.lastSetAt || 0)) < 300 || now < (rSt.suppressSyncUntil || 0)) return;
 
-        const capturedRate = v.playbackRate; // 시점 캡처
+        const capturedRate = v.playbackRate;
         if (!Number.isFinite(capturedRate) || capturedRate <= 0) return;
 
         queueMicrotask(() => {
@@ -1401,15 +1403,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           const activeVideo = ns.App?.getActiveVideo?.();
           if (!activeVideo || v !== activeVideo) return;
 
-          // 큐 대기 시간 동안 내부 변경이 있었는지 이중 검증
           const rStInner = getRateState(v);
           if (performance.now() < (rStInner.suppressSyncUntil || 0)) return;
           if (Math.abs(v.playbackRate - capturedRate) > 0.01) return;
 
-          const storeRate = store.get(P.PB_RATE);
+          const storeRate = store.get(CONFIG.P.PB_RATE);
           if (Math.abs(capturedRate - storeRate) < 0.01) return;
 
-          markInternalRateChange(v, 350); // 재귀 호출 방지
+          markInternalRateChange(v, 350);
           store.batch('playback', { rate: capturedRate, enabled: true });
         });
       }]
@@ -1432,7 +1433,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function getRateState(v) { const st = getVState(v); if (!st.rateState) { st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, backoff: createRateBackoff(5) }; } return st.rateState; }
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; st.orig = null; markInternalRateChange(el, 220); el.playbackRate = nextRate; } catch (_) {} }
-  function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; safe(() => { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); if (!video.hasAttribute('webkit-playsinline')) video.setAttribute('webkit-playsinline', ''); }); }
+  function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; try { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); if (!video.hasAttribute('webkit-playsinline')) video.setAttribute('webkit-playsinline', ''); } catch(_) {} }
 
   function applyPlaybackRate(el, desiredRate) {
     const st = getVState(el), rSt = getRateState(el); const now = performance.now();
@@ -1443,28 +1444,29 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     rSt.backoff.recordAttempt(now);
     if (rSt.backoff.isOverLimit()) { rSt.suppressSyncUntil = rSt.backoff.escalate(now); return; }
     st.desiredRate = desiredRate; markInternalRateChange(el, 250); try { el.playbackRate = desiredRate; } catch (_) {}
+
+    // 1-5. rAF 콜백 내부에서 DOM 이탈 시 backoff 상태 초기화
     requestAnimationFrame(() => {
-      if (!el.isConnected) return;
+      if (!el.isConnected) { rSt.backoff.reset(); return; }
       if (Math.abs(el.playbackRate - desiredRate) > 0.01) {
         markInternalRateChange(el, 250); try { el.playbackRate = desiredRate; } catch (_) {}
-        requestAnimationFrame(() => { if (!el.isConnected) return; if (Math.abs(el.playbackRate - desiredRate) > 0.01) { rSt.suppressSyncUntil = rSt.backoff.escalate(performance.now()); } else { rSt.backoff.decay(performance.now()); } });
+        requestAnimationFrame(() => {
+          if (!el.isConnected) { rSt.backoff.reset(); return; }
+          if (Math.abs(el.playbackRate - desiredRate) > 0.01) { rSt.suppressSyncUntil = rSt.backoff.escalate(performance.now()); } else { rSt.backoff.decay(performance.now()); }
+        });
       } else { rSt.backoff.decay(performance.now()); }
     });
     TOUCHED.rateVideos.add(el);
   }
+
 // =================== PART 2 END ===================
 // =================== PART 3 START ===================
 
-  // [PATCH P2] 3중 Set 병합 비용 최소화 (가장 큰 Set을 베이스로 복사)
+  // 3-8. reconcileVideoEffects의 “가장 큰 Set 찾기” 최적화 제거 → 단순 병합 및 가독성 향상
   function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, isNeutralParams, isNeutralShadow, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch; candidates.clear();
-    const sets = [dirtyVideos, applySet, TOUCHED.videos, TOUCHED.rateVideos];
-    let largest = sets[0];
-    for (let i = 1; i < sets.length; i++) { if (sets[i].size > largest.size) largest = sets[i]; }
-    for (const v of largest) candidates.add(v);
-    for (let i = 0; i < sets.length; i++) {
-      if (sets[i] === largest) continue;
-      for (const v of sets[i]) candidates.add(v);
+    for (const set of [dirtyVideos, applySet, TOUCHED.videos, TOUCHED.rateVideos]) {
+      for (const v of set) candidates.add(v);
     }
     const isApplyAll = !!getNS()?.Store?.get('app.applyAll');
 
@@ -1474,9 +1476,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const st = getVState(el);
       const isPip = getNS()?.PiPManager?.isPiPActiveVideo(el);
       const shouldApply = applySet.has(el) && (isApplyAll || st.visible !== false || el === activeTarget || isPip);
+
       if (!shouldApply) { if (!st.applied && st.desiredRate === undefined) continue; Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); continue; }
+
       const params = getParamsForVideo(el); const vVals = params.video; const shadowVals = params.shadow; const budget = params.budget;
       const videoFxOn = !isNeutralParams(vVals) || !isNeutralShadow(shadowVals) || (vVals.rotation && vVals.rotation !== 0);
+
       if (videoFxOn) { Adapter.apply(el, vVals, shadowVals, budget.useSvgFilter); TOUCHED.videos.add(el); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
       if (pbActive) { applyPlaybackRate(el, desiredRate); } else { if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); } }
     }
@@ -1485,14 +1490,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createPerfGovernor() {
     const perVideo = new WeakMap(); const MODES = ['low', 'mid', 'high']; const MODE_IDX = { low: 0, mid: 1, high: 2 };
     let globalMode = 'high', confirmCount = 0, pendingMode = null, lastTransitionT = 0;
-    const SAMPLE_INTERVAL = { high: 5000, mid: 3000, low: 2000 }; const THRESHOLDS = { downToMid: 0.20, downToLow: 0.30, upToMid: 0.05, upToHigh: 0.02, emergency: 0.40 };
+    const SAMPLE_INTERVAL = { high: 5000, mid: 3000, low: 2000 }; const THRESHOLDS = { downToLow: 0.30, downToMid: 0.20, upToMid: 0.05, upToHigh: 0.02, emergency: 0.40 };
     const CONFIRM_DOWN = 5, CONFIRM_UP = 2, COOLDOWN_DOWN = 10000, COOLDOWN_UP = 500;
 
     function transitionTo(newMode) { if (newMode === globalMode) return; globalMode = newMode; lastTransitionT = performance.now(); pendingMode = null; confirmCount = 0; }
     function tryTransition(candidateMode, now) {
       const currentIdx = MODE_IDX[globalMode], candidateIdx = MODE_IDX[candidateMode]; const isUpgrade = candidateIdx > currentIdx; const cooldown = isUpgrade ? COOLDOWN_UP : COOLDOWN_DOWN;
       if ((now - lastTransitionT) < cooldown) return; const requiredConfirms = isUpgrade ? CONFIRM_UP : CONFIRM_DOWN;
-      if (pendingMode === candidateMode) { confirmCount++; if (confirmCount >= requiredConfirms) { transitionTo(candidateMode); } } else { pendingMode = candidateMode; confirmCount = 1; }
+      if (pendingMode === candidateMode) { confirmCount++; if (confirmCount >= requiredConfirms) transitionTo(candidateMode); } else { pendingMode = candidateMode; confirmCount = 1; }
     }
     function sample(video) {
       if (!video?.getVideoPlaybackQuality) return globalMode; const q = video.getVideoPlaybackQuality(); const now = performance.now();
@@ -1513,7 +1518,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   function computeResolutionSharpMul(video) {
-    const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0, dpr = Math.max(1, window.devicePixelRatio || 1), isMobile = CONFIG.IS_MOBILE;
+    const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0, dpr = Math.max(1, window.devicePixelRatio || 1), isMobile = getNS()?.CONFIG?.IS_MOBILE;
     if (nW < 16 || dW < 16) return 0.0;
     const effectiveDisplayW = dW * dpr, effectiveDisplayH = dH * dpr, ratioW = effectiveDisplayW / nW, ratioH = effectiveDisplayH / Math.max(1, nH), ratio = Math.max(ratioW, ratioH);
     let mul = 1.0;
@@ -1551,6 +1556,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         if (mapCached) {
           if (video && video.readyState >= 2) { const freshContentMul = contentTuner.analyzeDetailDensity(video); if (Math.abs(freshContentMul - (mapCached._lastContentMul || 1.0)) <= 0.05) { _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, mapCached); return mapCached; } _cache.delete(inputKey); } else { _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, mapCached); return mapCached; }
         }
+
+        // 18로 원복된 프리셋 값 적용 처리
+        const PRESETS = getNS()?.CONFIG?.PRESETS;
         const detailP = PRESETS.detail[vfUser.presetS || 'off'], brightP = PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || PRESETS.bright[0], userTemp = vfUser.temp || 0, { rs, gs, bs } = tempToRgbGain(userTemp);
         const resMul = video ? computeResolutionSharpMul(video) : 0.0, perfMul = budget.sharpMul, contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0, finalSharpMul = resMul * perfMul * contentMul;
         const baseSigma = video ? computeBaseSigmaScale(video) : 1.0, sigmaHint = contentTuner.getSigmaHint(), finalSigmaScale = baseSigma * sigmaHint;
@@ -1564,7 +1572,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
-  function isNeutralVideoParams(p) { const near = (a, b, eps = 1e-4) => Math.abs((a || 0) - b) <= eps; return ( (p.sharp|0) === 0 && (p.sharp2|0) === 0 && near(p.gamma, 1.0) && near(p.bright, 0.0) && near(p.contrast, 1.0) && near(p.satF, 1.0) && near(p.temp, 0) && near(p._rs, 1.0) && near(p._gs, 1.0) && near(p._bs, 1.0) && near(p.gain, 1.0) && near(p.mid, 0.0) && near(p.toe, 0.0) && near(p.shoulder, 0.0) ); }
+  function isNeutralVideoParams(p) { const near = (a, b, eps = 1e-4) => Math.abs((a || 0) - b) <= eps; return ( (p.sharp|0) === 0 && (p.sharp2|0) === 0 && near(p.gamma, 1.0) && near(p.bright, 0.0) && near(p.contrast, 1.0) && near(p.satF, 1.0) && near(p.temp, 0) && near(p._rs, 1.0) && near(p._gs, 1.0) && near(p._bs, 1.0) && near(p.gain, 1.0) && near(p.mid, 0.0) && near(p.toe, 0.0) && near(p.shoulder, 0.0) && !p.rotation ); }
   function isNeutralShadowParams(sp) { return !sp || !sp.active; }
 
   function createPipelineFeature(Store, Registry, Adapter, ApplyReq, P, Targeting, PerfGovernor, videoParamsMemo) {
@@ -1586,6 +1594,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
+  // 3-5. SVG 필터 빌더의 prepare 함수 분리 및 가독성 개선
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const _cssFilterCache = new WeakMap();
@@ -1626,8 +1635,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
 
     function makeKeyHash(s) {
-      let h1 = 0x811c9dc5 >>> 0;
-      const mix = (v) => { h1 = Math.imul(h1 ^ Math.round(v), 0x01000193) >>> 0; };
+      let h1 = 0x811c9dc5 >>> 0; const mix = (v) => { h1 = Math.imul(h1 ^ Math.round(v), 0x01000193) >>> 0; };
       mix((s.gain || 1) / 0.04); mix((s.gamma || 1) / 0.01); mix((s.contrast || 1) / 0.01); mix((s.bright || 0) / 0.2); mix((s.satF ?? 1) / 0.01); mix((s.mid || 0) / 0.02); mix((s.toe || 0) / 0.2); mix((s.shoulder || 0) / 0.2); mix((s.temp || 0) / 0.2); mix(s.sharp || 0); mix(s.sharp2 || 0); mix((s._sigmaScale || 1) * 100); mix((s._microBase || 0.18) * 1000); mix((s._fineBase || 0.32) * 1000);
       return h1;
     }
@@ -1668,8 +1676,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       defs.append(mainFilter, shadowFilter);
 
       const tryAppend = () => { const target = root.body || root.documentElement || root; if (target?.appendChild) { target.appendChild(svg); return true; } return false; };
-
-      // [PATCH P3] buildSvg 실패 시 로깅 보강
       if (!tryAppend()) {
         log.warn('[VSC] SVG inject failed immediately. Waiting for DOM mutation...');
         let _fallbackMoId = 0;
@@ -1682,24 +1688,42 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return { fidMain, fidShadow, sharp: { blurMicro, usmMicro, blurFine, usmNode }, color: { toneFuncs, bcFuncs, gamFuncs, tmp: { r: tempR, g: tempG, b: tempB }, sats: [satNode] }, shadowNodes: { toneFuncs: shadowToneFuncs }, st: { lastKey: '', rev: 0, toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', blurKey: '', sharpKey: '', shadowKey: '' } };
     }
 
-    function applySharpParams(sharpNodes, st, s) {
-      const qSharp = Math.max(0, Math.round(Number(s.sharp || 0))), qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0))), sigmaScale = Number(s._sigmaScale) || 1.0;
-      const microBase = Number(s._microBase) || 0.18, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24);
-      const microAmtCoeffs = s._microAmt || [0.55, 0.10], fineAmtCoeffs = s._fineAmt || [0.20, 0.85];
-      const sigMicro = VSC_CLAMP((microBase + qSharp * microScale) * Math.min(1.0, sigmaScale), 0.30, 1.20), sigFine = VSC_CLAMP((fineBase + qSharp2 * fineScale) * sigmaScale, 0.18, 2.50);
-      const microAmt = Math.max(0, (qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45), fineAmt = Math.max(0, (qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24);
-      const blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`; if (st.blurKey !== blurKeyNext) { st.blurKey = blurKeyNext; if (sharpNodes.blurMicro) setAttr(sharpNodes.blurMicro, 'stdDeviation', sigMicro); if (sharpNodes.blurFine) setAttr(sharpNodes.blurFine, 'stdDeviation', sigFine); }
-      const sharpKeyNext = `${microAmt.toFixed(5)}|${fineAmt.toFixed(5)}`; if (st.sharpKey !== sharpKeyNext) { st.sharpKey = sharpKeyNext; if (sharpNodes.usmMicro) { setAttr(sharpNodes.usmMicro, 'k2', parseFloat((1 + microAmt).toFixed(5))); setAttr(sharpNodes.usmMicro, 'k3', parseFloat((-microAmt).toFixed(5))); } if (sharpNodes.usmNode) { setAttr(sharpNodes.usmNode, 'k2', parseFloat((1 + fineAmt).toFixed(5))); setAttr(sharpNodes.usmNode, 'k3', parseFloat((-fineAmt).toFixed(5))); } }
+    function updateSharpNodes(nodes, st, s, sharpTotal) {
+      if (sharpTotal > 0) {
+        const qSharp = Math.max(0, Math.round(Number(s.sharp || 0))), qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0))), sigmaScale = Number(s._sigmaScale) || 1.0;
+        const microBase = Number(s._microBase) || 0.18, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24);
+        const microAmtCoeffs = s._microAmt || [0.55, 0.10], fineAmtCoeffs = s._fineAmt || [0.20, 0.85];
+        const sigMicro = VSC_CLAMP((microBase + qSharp * microScale) * Math.min(1.0, sigmaScale), 0.30, 1.20), sigFine = VSC_CLAMP((fineBase + qSharp2 * fineScale) * sigmaScale, 0.18, 2.50);
+        const microAmt = Math.max(0, (qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45), fineAmt = Math.max(0, (qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24);
+        const blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`; if (st.blurKey !== blurKeyNext) { st.blurKey = blurKeyNext; if (nodes.sharp.blurMicro) setAttr(nodes.sharp.blurMicro, 'stdDeviation', sigMicro); if (nodes.sharp.blurFine) setAttr(nodes.sharp.blurFine, 'stdDeviation', sigFine); }
+        const sharpKeyNext = `${microAmt.toFixed(5)}|${fineAmt.toFixed(5)}`; if (st.sharpKey !== sharpKeyNext) { st.sharpKey = sharpKeyNext; if (nodes.sharp.usmMicro) { setAttr(nodes.sharp.usmMicro, 'k2', parseFloat((1 + microAmt).toFixed(5))); setAttr(nodes.sharp.usmMicro, 'k3', parseFloat((-microAmt).toFixed(5))); } if (nodes.sharp.usmNode) { setAttr(nodes.sharp.usmNode, 'k2', parseFloat((1 + fineAmt).toFixed(5))); setAttr(nodes.sharp.usmNode, 'k3', parseFloat((-fineAmt).toFixed(5))); } }
+      } else {
+        const bypassKey = 'bypass'; if (st.sharpKey !== bypassKey) { st.sharpKey = bypassKey; if (nodes.sharp.usmMicro) { setAttr(nodes.sharp.usmMicro, 'k2', 1); setAttr(nodes.sharp.usmMicro, 'k3', 0); } setAttr(nodes.sharp.usmNode, 'k2', 1); setAttr(nodes.sharp.usmNode, 'k3', 0); }
+      }
     }
 
-    function applyShadowParams(shadowNodes, st, shadowParams) {
+    function updateColorNodes(nodes, st, s) {
+      const common = nodes.color, steps = 64;
+      const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08, toeQ = Math.round(VSC_CLAMP((s.toe || 0) / 12, -1, 1) / 0.02) * 0.02, shQ = Math.round(VSC_CLAMP((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02, midQ = Math.round(VSC_CLAMP(s.mid || 0, -1, 1) / 0.02) * 0.02, rawGain = s.gain || 1, gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
+      const tk = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`; const table = st.toneKey !== tk ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : st.toneTable;
+      if (st.toneKey !== tk) { st.toneKey = tk; st.toneTable = table; for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
+      const con = VSC_CLAMP(s.contrast || 1, 0.1, 5.0), brightOffset = VSC_CLAMP((s.bright || 0) / 250, -0.5, 0.5), intercept = VSC_CLAMP(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
+      if (st.bcLinKey !== bcLinKey) { st.bcLinKey = bcLinKey; for (const fn of common.bcFuncs) { setAttr(fn, 'slope', parseFloat(con.toFixed(3))); setAttr(fn, 'intercept', parseFloat(intercept.toFixed(4))); } }
+      const gk = (1 / VSC_CLAMP(s.gamma || 1, 0.1, 5.0)).toFixed(4); if (st.gammaKey !== gk) { st.gammaKey = gk; for (const fn of common.gamFuncs) setAttr(fn, 'exponent', parseFloat(gk)); }
+      const satVal = VSC_CLAMP(s.satF ?? 1, 0, 5.0).toFixed(2); if (st.satKey !== satVal) { st.satKey = satVal; for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal)); }
+      const toneNeutral = (Math.abs(s.temp || 0) < 1e-4) && (Math.abs((s.gain || 1) - 1.0) < 0.02 && Math.abs(s.toe || 0) < 0.01 && Math.abs(s.shoulder || 0) < 0.01 && Math.abs(s.mid || 0) < 0.01 && Math.abs((s.gamma || 1) - 1.0) < 0.02 && Math.abs(s.bright || 0) < 0.5 && Math.abs((s.contrast || 1) - 1.0) < 0.02 && Math.abs((s.satF ?? 1) - 1.0) < 0.02);
+      const rsEff = toneNeutral ? 1.0 : (s._rs || 1), gsEff = toneNeutral ? 1.0 : (s._gs || 1), bsEff = toneNeutral ? 1.0 : (s._bs || 1); const rsStr = rsEff.toFixed(3), gsStr = gsEff.toFixed(3), bsStr = bsEff.toFixed(3), tmk = `${rsStr}|${gsStr}|${bsStr}`;
+      if (st.tempKey !== tmk) { st.tempKey = tmk; setAttr(common.tmp.r, 'slope', parseFloat(rsStr)); setAttr(common.tmp.g, 'slope', parseFloat(gsStr)); setAttr(common.tmp.b, 'slope', parseFloat(bsStr)); }
+    }
+
+    function updateShadowNodes(nodes, st, shadowParams) {
       const level = shadowParams.level || 0, factor = shadowParams.factor !== undefined ? shadowParams.factor : 1.0; if (level <= 0) return;
       const shadowKey = `crush_v4|${level}|${factor.toFixed(3)}`; if (st.shadowKey === shadowKey) return; st.shadowKey = shadowKey;
       const CRUSH_MAP = [ null, { power: 1.08, pull: 0.001, slope: 1.01, gamma: 1.01, offset: -0.002 }, { power: 1.20, pull: 0.005, slope: 1.04, gamma: 1.06, offset: -0.010 }, { power: 1.35, pull: 0.012, slope: 1.08, gamma: 1.12, offset: -0.020 } ];
       const p = CRUSH_MAP[level], effPower = 1.0 + (p.power - 1.0) * factor, effPull = p.pull * factor, effSlope = 1.0 + (p.slope - 1.0) * factor, effGamma = 1.0 + (p.gamma - 1.0) * factor, effOffset = p.offset * factor;
       const SIZE = 128, arr = new Array(SIZE); let prev = 0;
       for (let i = 0; i < SIZE; i++) { const x = i / (SIZE - 1); if (x <= 1e-6) { arr[i] = '0'; continue; } if (x >= 1.0 - 1e-6) { arr[i] = '1'; continue; } const t = Math.max(0, Math.min(1, 1.0 - x / 0.5)); const blend = t * t * (3.0 - 2.0 * t); const crushed = Math.pow(x, effPower); const pulldown = effPull * (1.0 - x) * (1.0 - x); let y = x * (1.0 - blend) + crushed * blend - pulldown; y = Math.pow(Math.max(0, y), 1 / effGamma); y = y * effSlope + effOffset; y = Math.max(0, Math.min(1, y)); if (y <= prev) y = prev + 1e-6; if (y > 1.0) y = 1.0; prev = y; arr[i] = String(Math.round(y * 10000) / 10000); }
-      for (const fn of shadowNodes.toneFuncs) setAttr(fn, 'tableValues', arr.join(' '));
+      for (const fn of nodes.shadowNodes.toneFuncs) setAttr(fn, 'tableValues', arr.join(' '));
     }
 
     function prepare(video, s, shadowParams) {
@@ -1715,19 +1739,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       if (nodes.st.lastKey !== stableKey) {
         nodes.st.lastKey = stableKey; nodes.st.rev = (nodes.st.rev + 1) | 0;
-        const st = nodes.st, common = nodes.color, steps = 64;
-        if (sharpTotal > 0) { applySharpParams(nodes.sharp, st, s); } else { const bypassKey = 'bypass'; if (st.sharpKey !== bypassKey) { st.sharpKey = bypassKey; if (nodes.sharp.usmMicro) { setAttr(nodes.sharp.usmMicro, 'k2', 1); setAttr(nodes.sharp.usmMicro, 'k3', 0); } setAttr(nodes.sharp.usmNode, 'k2', 1); setAttr(nodes.sharp.usmNode, 'k3', 0); } }
-        const gainQ = (s.gain || 1) < 1.4 ? 0.06 : 0.08, toeQ = Math.round(VSC_CLAMP((s.toe || 0) / 12, -1, 1) / 0.02) * 0.02, shQ = Math.round(VSC_CLAMP((s.shoulder || 0) / 16, -1, 1) / 0.02) * 0.02, midQ = Math.round(VSC_CLAMP(s.mid || 0, -1, 1) / 0.02) * 0.02, rawGain = s.gain || 1, gainQ2 = Math.abs(rawGain - 1.0) < 0.02 ? 1.0 : Math.round(rawGain / gainQ) * gainQ;
-        const tk = `${steps}|${toeQ}|${shQ}|${midQ}|${gainQ2}`; const table = st.toneKey !== tk ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ2) : st.toneTable;
-        if (st.toneKey !== tk) { st.toneKey = tk; st.toneTable = table; for (const fn of common.toneFuncs) setAttr(fn, 'tableValues', table); }
-        const con = VSC_CLAMP(s.contrast || 1, 0.1, 5.0), brightOffset = VSC_CLAMP((s.bright || 0) / 250, -0.5, 0.5), intercept = VSC_CLAMP(0.5 * (1 - con) + brightOffset, -5, 5), bcLinKey = `${con.toFixed(3)}|${intercept.toFixed(4)}`;
-        if (st.bcLinKey !== bcLinKey) { st.bcLinKey = bcLinKey; for (const fn of common.bcFuncs) { setAttr(fn, 'slope', parseFloat(con.toFixed(3))); setAttr(fn, 'intercept', parseFloat(intercept.toFixed(4))); } }
-        const gk = (1 / VSC_CLAMP(s.gamma || 1, 0.1, 5.0)).toFixed(4); if (st.gammaKey !== gk) { st.gammaKey = gk; for (const fn of common.gamFuncs) setAttr(fn, 'exponent', parseFloat(gk)); }
-        const satVal = VSC_CLAMP(s.satF ?? 1, 0, 5.0).toFixed(2); if (st.satKey !== satVal) { st.satKey = satVal; for (const satNode of common.sats) setAttr(satNode, 'values', parseFloat(satVal)); }
-        const toneNeutral = (Math.abs(s.temp || 0) < 1e-4) && (Math.abs((s.gain || 1) - 1.0) < 0.02 && Math.abs(s.toe || 0) < 0.01 && Math.abs(s.shoulder || 0) < 0.01 && Math.abs(s.mid || 0) < 0.01 && Math.abs((s.gamma || 1) - 1.0) < 0.02 && Math.abs(s.bright || 0) < 0.5 && Math.abs((s.contrast || 1) - 1.0) < 0.02 && Math.abs((s.satF ?? 1) - 1.0) < 0.02);
-        const rsEff = toneNeutral ? 1.0 : (s._rs || 1), gsEff = toneNeutral ? 1.0 : (s._gs || 1), bsEff = toneNeutral ? 1.0 : (s._bs || 1); const rsStr = rsEff.toFixed(3), gsStr = gsEff.toFixed(3), bsStr = bsEff.toFixed(3), tmk = `${rsStr}|${gsStr}|${bsStr}`;
-        if (st.tempKey !== tmk) { st.tempKey = tmk; setAttr(common.tmp.r, 'slope', parseFloat(rsStr)); setAttr(common.tmp.g, 'slope', parseFloat(gsStr)); setAttr(common.tmp.b, 'slope', parseFloat(bsStr)); }
-        if (shadowActive) applyShadowParams(nodes.shadowNodes, st, shadowParams);
+        updateSharpNodes(nodes, nodes.st, s, sharpTotal);
+        updateColorNodes(nodes, nodes.st, s);
+        if (shadowActive) updateShadowNodes(nodes, nodes.st, shadowParams);
       }
       const mainUrl = `url(#${nodes.fidMain})`, shadowUrl = shadowActive ? `url(#${nodes.fidShadow})` : '', combinedUrl = shadowActive ? `${shadowUrl} ${mainUrl}` : mainUrl;
       dc.key = stableKey; dc.url = combinedUrl;
@@ -1792,31 +1806,25 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     return () => { ac.abort(); };
   }
 
+  // 3-2. createUI 함수 크기 분리 구조화
   function createUI(sm, registry, ApplyReq, Utils, P, Bus) {
     const { h } = Utils;
     let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null;
-    let hasUserDraggedUI = false;
-    const uiWakeCtrl = new AbortController();
-    const uiUnsubs = [];
-
-    let _lastUiRotation = 0;
+    let hasUserDraggedUI = false, _lastUiRotation = 0;
+    const uiWakeCtrl = new AbortController(), uiUnsubs = [];
+    const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
 
     function syncUiRotation(rot) {
       const deg = Number(rot) || 0;
       if (deg === _lastUiRotation) return;
       _lastUiRotation = deg;
-
       if (gearBtn) {
         const gearShadow = gearHost?.shadowRoot;
         if (gearShadow) {
           const gearEl = gearShadow.querySelector('.gear');
-          if (gearEl) {
-            if (deg === 0) { gearEl.style.removeProperty('--vsc-ui-rot'); }
-            else { gearEl.style.setProperty('--vsc-ui-rot', `${deg}deg`); }
-          }
+          if (gearEl) { if (deg === 0) { gearEl.style.removeProperty('--vsc-ui-rot'); } else { gearEl.style.setProperty('--vsc-ui-rot', `${deg}deg`); } }
         }
       }
-
       if (container) {
         const cShadow = container.shadowRoot;
         if (cShadow) {
@@ -1834,90 +1842,42 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       }
     }
 
-    const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
+    const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
+    const allowUiInThisDoc = () => { const hn = location.hostname, pn = location.pathname; if (hn.includes('netflix.com')) return pn.startsWith('/watch'); if (hn.includes('coupangplay.com')) return pn.startsWith('/play'); return true; };
+    const getUiRoot = () => { const fs = document.fullscreenElement || null; if (fs) { if (fs.tagName === 'VIDEO') return fs.parentElement || document.documentElement || document.body; return fs; } return document.body || document.documentElement; };
+    const needsHardApply = (path) => path === P.APP_ACT || path === P.APP_APPLY_ALL || path.startsWith('video.');
+    const setAndHint = (path, value) => { const prev = sm.get(path), changed = !Object.is(prev, value); if (changed) { sm.set(path, value); needsHardApply(path) ? ApplyReq.hard() : ApplyReq.soft(); } };
 
-    const detachNodesHard = () => {
-      try { if (container?.isConnected) container.remove(); } catch (_) {}
-      try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {}
-    };
-
-    const allowUiInThisDoc = () => {
-      const hn = location.hostname, pn = location.pathname;
-      if (hn.includes('netflix.com')) return pn.startsWith('/watch');
-      if (hn.includes('coupangplay.com')) return pn.startsWith('/play');
-      return true;
-    };
-
-    // [PATCH P3] CSS 변수명 정규화 적용
-    safe(() => {
-      if (typeof CSS === 'undefined' || !CSS.registerProperty) return;
-      for (const prop of [
-        { name: '--vsc-vv-top', syntax: '<length>', inherits: true, initialValue: '0px' },
-        { name: '--vsc-vv-h', syntax: '<length>', inherits: true, initialValue: '100vh' }
-      ]) { try { CSS.registerProperty(prop); } catch (_) {} }
-    });
-
-    function needsHardApply(path) {
-      if (path === P.APP_ACT || path === P.APP_APPLY_ALL) return true;
-      if (path.startsWith('video.')) return true;
-      return false;
+    function bindReactive(btn, paths, apply) {
+      const pathArr = Array.isArray(paths) ? paths : [paths]; let pending = false;
+      const sync = () => { if (pending) return; pending = true; queueMicrotask(() => { pending = false; if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); }); };
+      pathArr.forEach(p => sub(p, sync)); if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); return sync;
     }
 
-    function setAndHint(path, value) {
-      const prev = sm.get(path), changed = !Object.is(prev, value);
-      if (changed) sm.set(path, value);
-      if (changed && needsHardApply(path)) { ApplyReq.hard(); } else { ApplyReq.soft(); }
-    }
-
-    const getUiRoot = () => {
-      const fs = document.fullscreenElement || null;
-      if (fs) { if (fs.tagName === 'VIDEO') return fs.parentElement || document.documentElement || document.body; return fs; }
-      return document.body || document.documentElement;
-    };
-
-    function bindReactive(btn, paths, apply, sm, sub) {
-      const pathArr = Array.isArray(paths) ? paths : [paths];
-      let pending = false;
-      const sync = () => {
-        if (pending) return; pending = true;
-        queueMicrotask(() => { pending = false; if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); });
-      };
-      pathArr.forEach(p => sub(p, sync));
-      if (btn) apply(btn, ...pathArr.map(p => sm.get(p)));
-      return sync;
-    }
-
+    // 3-3. renderButtonRow 의존성 주입 패턴으로 리팩토링
     function renderButtonRow({ label, items, key, offValue = null, toggleActiveToOff = false, isBitmask = false }) {
       const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
+      const onChange = (val) => {
+        if (!sm.get(P.APP_ACT)) return;
+        if (isBitmask) { sm.set(key, ((Number(sm.get(key)) | 0) ^ val) & 7); }
+        else { const cur = sm.get(key); if (toggleActiveToOff && offValue !== undefined && cur === val && val !== offValue) setAndHint(key, offValue); else setAndHint(key, val); }
+      };
       for (const it of items) {
         const b = h('button', { class: 'pbtn', style: 'flex:1', title: it.title || '' }, it.text);
-        b.onclick = (e) => {
-          e.stopPropagation(); if (!sm.get(P.APP_ACT)) return;
-          if (isBitmask) { sm.set(key, ((Number(sm.get(key)) | 0) ^ it.value) & 7); }
-          else { const cur = sm.get(key); if (toggleActiveToOff && offValue !== undefined && cur === it.value && it.value !== offValue) setAndHint(key, offValue); else setAndHint(key, it.value); }
-          const isVideoKey = key.startsWith('video.') || key === P.APP_ACT || key === P.APP_APPLY_ALL;
-          if (isVideoKey) ApplyReq.hard(); else ApplyReq.soft();
-        };
-        bindReactive(b, [key, P.APP_ACT], (el, v, act) => {
-          const isActive = isBitmask ? (((Number(v) | 0) & it.value) !== 0) : v === it.value;
-          el.classList.toggle('active', isActive); el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act;
-        }, sm, sub);
+        b.onclick = (e) => { e.stopPropagation(); onChange(it.value); };
+        bindReactive(b, [key, P.APP_ACT], (el, v, act) => { const isActive = isBitmask ? (((Number(v) | 0) & it.value) !== 0) : v === it.value; el.classList.toggle('active', isActive); el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
         row.append(b);
       }
       if (offValue != null || isBitmask) {
         const offBtn = h('button', { class: 'pbtn', style: isBitmask ? 'flex:0.9' : 'flex:1' }, 'OFF');
-        offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.set(key, isBitmask ? 0 : offValue); const isVideoKey = key.startsWith('video.') || key === P.APP_ACT || key === P.APP_APPLY_ALL; if (isVideoKey) ApplyReq.hard(); else ApplyReq.soft(); };
-        bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => {
-          const isActuallyOff = isBitmask ? (Number(v) | 0) === 0 : v === offValue;
-          el.classList.toggle('active', isActuallyOff); el.style.opacity = act ? '1' : (isActuallyOff ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act;
-        }, sm, sub);
+        offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.set(key, isBitmask ? 0 : offValue); needsHardApply(key) ? ApplyReq.hard() : ApplyReq.soft(); };
+        bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => { const isActuallyOff = isBitmask ? (Number(v) | 0) === 0 : v === offValue; el.classList.toggle('active', isActuallyOff); el.style.opacity = act ? '1' : (isActuallyOff ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
         row.append(offBtn);
       }
       return row;
     }
 
     const clampVal = (v, a, b) => (v < a ? a : (v > b ? b : v));
-
     const clampPanelIntoViewport = () => {
       try {
         if (!container) return; const mainPanel = container.shadowRoot && container.shadowRoot.querySelector('.main');
@@ -1937,9 +1897,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       } catch (_) {}
     };
 
-    const syncVVVars = () => {
-      try { const root = document.documentElement, vv = window.visualViewport; if (!root) return; if (!vv) { root.style.setProperty('--vsc-vv-top', '0px'); root.style.setProperty('--vsc-vv-h', `${window.innerHeight}px`); return; } root.style.setProperty('--vsc-vv-top', `${Math.round(vv.offsetTop)}px`); root.style.setProperty('--vsc-vv-h', `${Math.round(vv.height)}px`); } catch (_) {}
-    };
+    const syncVVVars = () => { try { const root = document.documentElement, vv = window.visualViewport; if (!root) return; if (!vv) { root.style.setProperty('--vsc-vv-top', '0px'); root.style.setProperty('--vsc-vv-h', `${window.innerHeight}px`); return; } root.style.setProperty('--vsc-vv-top', `${Math.round(vv.offsetTop)}px`); root.style.setProperty('--vsc-vv-h', `${Math.round(vv.height)}px`); } catch (_) {} };
     syncVVVars();
 
     let _clampRafId = 0;
@@ -1951,15 +1909,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     on(document, 'fullscreenchange', () => { setTimeout(() => { mount(); clampPanelIntoViewport(); syncUiRotation(sm.get(P.V_ROTATION) || 0); }, 100); }, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) });
 
     const getMainPanel = () => container && container.shadowRoot && container.shadowRoot.querySelector('.main');
-
     const __vscSheetCache = new Map();
     function attachShadowStyles(shadowRoot, cssText) {
       try {
         if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') {
-          let sheet = __vscSheetCache.get(cssText);
-          if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); __vscSheetCache.set(cssText, sheet); }
-          shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet];
-          return;
+          let sheet = __vscSheetCache.get(cssText); if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); __vscSheetCache.set(cssText, sheet); }
+          shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet]; return;
         }
       } catch (_) {}
       const styleEl = document.createElement('style'); styleEl.textContent = cssText; shadowRoot.appendChild(styleEl);
@@ -1969,7 +1924,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (container) return;
       const host = h('div', { id: `vsc-host-${getNS()?.CONFIG?.VSC_ID || 'core'}`, 'data-vsc-ui': '1', 'data-vsc-id': getNS()?.CONFIG?.VSC_ID });
       const shadow = host.attachShadow({ mode: 'open' });
-      // [PATCH P3] 스타일 템플릿의 CSS 변수명 정규화
+      // 2-4. CSS @property JS 등록 제거, CSS 내에만 유지 (안정화)
       const style = `
         @property --vsc-vv-top { syntax: "<length>"; inherits: true; initial-value: 0px; }
         @property --vsc-vv-h { syntax: "<length>"; inherits: true; initial-value: 100vh; }
@@ -1983,43 +1938,43 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       const pipBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '\uD83D\uDCFA PIP');
       pipBtn.onclick = async (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const v = getNS()?.App?.getActiveVideo(); if(v) await getNS()?.PiPManager?.toggle(v); };
-      bindReactive(pipBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
+      bindReactive(pipBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
 
       const zoomBtn = h('button', { id: 'zoom-btn', class: 'btn', style: 'flex: 1;' }, '\uD83D\uDD0D \uC90C');
       zoomBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const zm = getNS()?.ZoomManager, v = getNS()?.App?.getActiveVideo(); if (!zm || !v) return; if (zm.isZoomed(v)) { zm.resetZoom(v); setAndHint(P.APP_ZOOM_EN, false); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); setAndHint(P.APP_ZOOM_EN, true); } };
-      bindReactive(zoomBtn, [P.APP_ZOOM_EN, P.APP_ACT], (el, v, act) => { el.classList.toggle('active', !!v); el.style.opacity = act ? '1' : (v ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
+      bindReactive(zoomBtn, [P.APP_ZOOM_EN, P.APP_ACT], (el, v, act) => { el.classList.toggle('active', !!v); el.style.opacity = act ? '1' : (v ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
 
       const rotateBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '\uD83D\uDD04 회전');
-      rotateBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const cur = sm.get(P.V_ROTATION), next = getNextRotation(cur); sm.set(P.V_ROTATION, next); rotateBtn.textContent = `\uD83D\uDD04 ${ROTATION_LABELS[next] || '정상'}`; queueMicrotask(() => { try { ApplyReq.hard(); } catch (_) {} }); };
-      bindReactive(rotateBtn, [P.V_ROTATION, P.APP_ACT], (el, rot, act) => { el.textContent = `\uD83D\uDD04 ${ROTATION_LABELS[rot] || '정상'}`; el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
+      rotateBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const cur = sm.get(P.V_ROTATION), next = getNextRotation(cur); sm.set(P.V_ROTATION, next); rotateBtn.textContent = `\uD83D\uDD04 ${ROTATION_LABELS[next] || '정상'}`; queueMicrotask(() => { ApplyReq.hard(); }); };
+      bindReactive(rotateBtn, [P.V_ROTATION, P.APP_ACT], (el, rot, act) => { el.textContent = `\uD83D\uDD04 ${ROTATION_LABELS[rot] || '정상'}`; el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
 
       const pwrBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '\u26A1 Power');
-      bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; el.classList.toggle('active', !!v); }, sm, sub);
+      bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; el.classList.toggle('active', !!v); });
 
       const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.0; font-weight: 800;' }, '\uD83D\uDD0A Audio (Dyn+RMS+Wide)');
-      boostBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; if (getNS()?.AudioWarmup) getNS().AudioWarmup(); const nextState = !sm.get(P.A_EN); sm.batch('audio', { enabled: nextState, stereoWidth: nextState, multiband: true, lufs: true }); ApplyReq.soft(); };
-      bindReactive(boostBtn, [P.A_EN, P.APP_ACT], (el, aEn, act) => { el.classList.toggle('active', !!aEn); el.style.color = aEn ? 'var(--ac)' : '#eee'; el.style.opacity = act ? '1' : '0.45'; el.disabled = !act; }, sm, sub);
+      boostBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; getNS()?.AudioWarmup?.(); const nextState = !sm.get(P.A_EN); sm.batch('audio', { enabled: nextState, stereoWidth: nextState, multiband: true, lufs: true }); ApplyReq.soft(); };
+      bindReactive(boostBtn, [P.A_EN, P.APP_ACT], (el, aEn, act) => { el.classList.toggle('active', !!aEn); el.style.color = aEn ? 'var(--ac)' : '#eee'; el.style.opacity = act ? '1' : '0.45'; el.disabled = !act; });
 
       const dialogueBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '\uD83D\uDDE3\uFE0F \uB300\uD654 \uAC15\uC870');
       dialogueBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE)); };
-      bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN, P.APP_ACT], (el, dOn, aEn, act) => { el.classList.toggle('active', !!dOn); const usable = !!aEn && !!act; el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35'); el.style.cursor = usable ? 'pointer' : 'not-allowed'; el.disabled = !usable; }, sm, sub);
+      bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN, P.APP_ACT], (el, dOn, aEn, act) => { el.classList.toggle('active', !!dOn); const usable = !!aEn && !!act; el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35'); el.style.cursor = usable ? 'pointer' : 'not-allowed'; el.disabled = !usable; });
 
       const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30');
       advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); };
-      bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '\u25B2 \uACE0\uAE09 \uC124\uC815 \uB2EB\uAE30' : '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30'; el.style.background = v ? '#34495e' : '#2c3e50'; }, sm, sub);
+      bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '\u25B2 \uACE0\uAE09 \uC124\uC815 \uB2EB\uAE30' : '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30'; el.style.background = v ? '#34495e' : '#2c3e50'; });
 
       const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [
-        renderButtonRow({ label: '\uC554\uBD80', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1\uB2E8', value: DARK_BAND.LV1, title: '\uC57D\uD55C \uC554\uBD80 \uAC15\uD654' }, { text: '2\uB2E8', value: DARK_BAND.LV2, title: '\uC911\uAC04 \uC554\uBD80 \uAC15\uD654' }, { text: '3\uB2E8', value: DARK_BAND.LV3, title: '\uAC15\uD55C \uC554\uBD80 \uAC15\uD654' } ] }),
+        renderButtonRow({ label: '\uC554\uBD80', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV1, title: '\uC57D\uD55C \uC554\uBD80 \uAC15\uD654' }, { text: '2\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV2, title: '\uC911\uAC04 \uC554\uBD80 \uAC15\uD654' }, { text: '3\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV3, title: '\uAC15\uD55C \uC554\uBD80 \uAC15\uD654' } ] }),
         renderButtonRow({ label: '\uC0C9\uC628', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [ { text: '\uBCF4\uD638', value: 30, title: '\uAC15\uD55C \uB178\uB780\uB07C (\uD655\uC2E4\uD55C \uB208 \uBCF4\uD638)' }, { text: '\uB530\uB73B', value: 15, title: '\uBD80\uB4DC\uB7EC\uC6B4 \uD654\uBA74 (\uC77C\uC0C1\uC6A9)' }, { text: '\uB9D1\uC74C', value: -10, title: '\uAE68\uB057\uD55C \uD654\uC774\uD2B8 (\uC601\uD654 \uCD94\uCC9C)' }, { text: '\uB0C9\uC0C9', value: -25, title: '\uC950\uD55C \uD30C\uB780\uB07C (\uC560\uB2C8 \uCD94\uCC9C)' } ] }),
         h('hr'),
         renderButtonRow({ label: '\uC2DC\uACC4', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '\uD45C\uC2DC (\uC804\uCCB4\uD654\uBA74)', value: true }] }),
         renderButtonRow({ label: '\uC704\uCE58', key: P.APP_TIME_POS, items: [{ text: '\uC88C', value: 0 }, { text: '\uC911', value: 1 }, { text: '\uC6B0', value: 2 }] }), h('hr')
       ]);
-      bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none', sm, sub);
+      bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none');
 
       const resetBtn = h('button', { class: 'btn' }, '\u21BA \uB9AC\uC14B');
-      resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); ApplyReq.hard(); };
-      bindReactive(resetBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub);
+      resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', getNS()?.CONFIG?.DEFAULTS.video); sm.batch('audio', getNS()?.CONFIG?.DEFAULTS.audio); sm.batch('playback', getNS()?.CONFIG?.DEFAULTS.playback); ApplyReq.hard(); };
+      bindReactive(resetBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
 
       const bodyMain = h('div', { id: 'p-main' }, [
         sharpRow, brightRow, h('div', { class: 'prow' }, [ pipBtn, zoomBtn, rotateBtn, pwrBtn ]), h('div', { class: 'prow', style: 'margin-top: 4px;' }, [ boostBtn, dialogueBtn ]),
@@ -2028,7 +1983,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => {
           const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x');
           b.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); };
-          bindReactive(b, [P.PB_RATE, P.PB_EN, P.APP_ACT], (el, rate, en, act) => { const isActive = !!en && Math.abs(Number(rate || 1) - s) < 0.01; el.classList.toggle('active', isActive); el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub); return b;
+          bindReactive(b, [P.PB_RATE, P.PB_EN, P.APP_ACT], (el, rate, en, act) => { const isActive = !!en && Math.abs(Number(rate || 1) - s) < 0.01; el.classList.toggle('active', isActive); el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }); return b;
         })),
         h('div', { class: 'prow', style: 'justify-content:center;gap:2px;margin-top:4px;' }, [ { text: '\u25C0 30s', action: 'seek', val: -30 }, { text: '\u25C0 15s', action: 'seek', val: -15 }, { text: '\u23F8 \uC815\uC9C0', action: 'pause' }, { text: '\u25B6 \uC7AC\uC0DD', action: 'play' }, { text: '15s \u25B6', action: 'seek', val: 15 }, { text: '30s \u25B6', action: 'seek', val: 30 } ].map(cfg => {
           const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:34px;font-size:11px;padding:0 2px;' }, cfg.text);
@@ -2041,7 +1996,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
               v.addEventListener('seeked', onSeeked, { once: true }); fallbackTimer = setTimeout(() => { v.removeEventListener('seeked', onSeeked); }, 3000);
             }
           };
-          bindReactive(b, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }, sm, sub); return b;
+          bindReactive(b, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }); return b;
         }))
       ]);
 
@@ -2102,11 +2057,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       let lastToggle = 0;
       const onGearActivate = (e) => {
-        if (dragThresholdMet) { safe(() => { if (e && e.cancelable) e.preventDefault(); }); return; }
-        const now = performance.now(); if (now - lastToggle < 300) { safe(() => { if (e && e.cancelable) e.preventDefault(); }); return; }
+        if (dragThresholdMet) { if (e && e.cancelable) e.preventDefault(); return; }
+        const now = performance.now(); if (now - lastToggle < 300) { if (e && e.cancelable) e.preventDefault(); return; }
         lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI));
       };
-      on(gearBtn, 'pointerup', (e) => { safe(() => { if (e && e.cancelable) e.preventDefault(); e.stopPropagation?.(); }); onGearActivate(e); }, { passive: false });
+      on(gearBtn, 'pointerup', (e) => { if (e && e.cancelable) e.preventDefault(); e.stopPropagation?.(); onGearActivate(e); }, { passive: false });
 
       const syncGear = () => { if (!gearBtn) return; gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); wake(); };
       sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
@@ -2128,13 +2083,13 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const mainPanel = getMainPanel();
       if (sm.get(P.APP_UI)) { build(); const mp = getMainPanel(); if (mp && !mp.classList.contains('visible')) { mp.style.display = 'block'; mp.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); } }
       else { if (mainPanel) { mainPanel.classList.remove('visible'); mainPanel.style.display = 'none'; } }
-      mount(); safe(() => wakeGear?.()); syncUiRotation(sm.get(P.V_ROTATION) || 0);
+      mount(); wakeGear?.(); syncUiRotation(sm.get(P.V_ROTATION) || 0);
     };
 
-    onPageReady(() => { safe(() => { ensure(); ApplyReq.hard(); }); });
+    onPageReady(() => { ensure(); ApplyReq.hard(); });
 
     return {
-      ensure, destroy: () => { uiUnsubs.forEach(u => safe(u)); uiUnsubs.length = 0; safe(() => uiWakeCtrl.abort()); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); _lastUiRotation = 0; }
+      ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); _lastUiRotation = 0; }
     };
   }
 
@@ -2416,7 +2371,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   function createAppController({ Store, Registry, Scheduler, Features, P, Targeting, Bus }) {
     Store.sub(P.APP_UI, () => { Scheduler.request(true); });
-    Store.sub(P.APP_ACT, (on) => { if (on) safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); });
+    Store.sub(P.APP_ACT, (on) => { if (on) { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } });
 
     let __activeTarget = null, __lastApplyTarget = null;
     let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
@@ -2472,12 +2427,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     return Object.freeze({
       getActiveVideo: () => __activeTarget,
-      destroy() { stopTick(); safe(() => Features.destroyAll()); safe(() => Registry.destroy?.()); }
+      destroy() { stopTick(); try { Features.destroyAll(); } catch(_) {} try { Registry.destroy?.(); } catch(_) {} }
     });
   }
 
   // =========================================================================
-  // VSC 조립 및 초기화 (Assembly)
+  // VSC Assembly (최종 조립)
   // =========================================================================
   const Bus = createEventBus();
 
@@ -2488,7 +2443,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   const Utils = createUtils();
   const Scheduler = createScheduler(32);
-  const Store = createLocalStore(DEFAULTS, Scheduler, Bus);
+  const Store = createLocalStore(CONFIG.DEFAULTS, Scheduler, Bus);
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
@@ -2499,9 +2454,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   if (isTop && typeof GM_registerMenuCommand === 'function') {
     const reg = (title, fn) => { const id = GM_registerMenuCommand(title, fn); if (__vscNs._menuIds) __vscNs._menuIds.push(id); };
     reg('🔄 설정 초기화 (Reset All)', () => { if(confirm('모든 VSC 설정을 초기화하시겠습니까?')) { const key = 'vsc_prefs_' + location.hostname; if(typeof GM_deleteValue === 'function') GM_deleteValue(key); localStorage.removeItem(key); location.reload(); } });
-    reg('⚡ Power 토글', () => { Store.set(P.APP_ACT, !Store.get(P.APP_ACT)); ApplyReq.hard(); });
-    reg('🔊 Audio 토글', () => { Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); });
-    reg('⚙️ UI 열기/닫기', () => { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); });
+    reg('⚡ Power 토글', () => { Store.set(CONFIG.P.APP_ACT, !Store.get(CONFIG.P.APP_ACT)); ApplyReq.hard(); });
+    reg('🔊 Audio 토글', () => { Store.set(CONFIG.P.A_EN, !Store.get(CONFIG.P.A_EN)); ApplyReq.hard(); });
+    reg('⚙️ UI 열기/닫기', () => { Store.set(CONFIG.P.APP_UI, !Store.get(CONFIG.P.APP_UI)); ApplyReq.hard(); });
     reg('🛠️ 디버그 모드 토글', () => { const url = new URL(location.href); if(url.searchParams.has('vsc_debug')) url.searchParams.delete('vsc_debug'); else url.searchParams.set('vsc_debug','1'); history.replaceState(null, '', url.toString()); location.reload(); });
   }
 
@@ -2509,33 +2464,31 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const run = () => { let changed = normalizeBySchema(Store, schema); if (changed) ApplyReq.hard(); };
     keys.forEach(k => Store.sub(k, run)); run();
   }
-  bindNormalizer(APP_SCHEMA.map(s => s.path), APP_SCHEMA);
-  bindNormalizer(VIDEO_SCHEMA.map(s => s.path), VIDEO_SCHEMA);
-  bindNormalizer(AUDIO_PLAYBACK_SCHEMA.map(s => s.path), AUDIO_PLAYBACK_SCHEMA);
+  bindNormalizer(CONFIG.SCHEMAS.app.map(s => s.path), CONFIG.SCHEMAS.app);
+  bindNormalizer(CONFIG.SCHEMAS.video.map(s => s.path), CONFIG.SCHEMAS.video);
+  bindNormalizer(CONFIG.SCHEMAS.audio.map(s => s.path), CONFIG.SCHEMAS.audio);
 
   const Registry = createRegistry(Scheduler, Bus);
   const Targeting = createTargeting(Bus);
-  initSpaUrlDetector(createDebounced(() => { safe(() => { Registry.prune(); Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); }, SYS.SRD));
+  initSpaUrlDetector(createDebounced(() => { Registry.prune(); Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }, CONFIG.SYS.SRD));
 
   onPageReady(() => {
     installShadowRootEmitterIfNeeded();
     __vscNs._timers = __vscNs._timers || [];
     const lateRescanDelays = [3000, 10000];
     for (const delay of lateRescanDelays) {
-      const id = setTimeout(() => { safe(() => { if (delay > 3000 && Registry.videos.size > 0) return; Registry.rescanAll(); Scheduler.request(true); }); }, delay);
+      const id = setTimeout(() => { if (delay > 3000 && Registry.videos.size > 0) return; Registry.rescanAll(); Scheduler.request(true); }, delay);
       __vscNs._timers.push(id);
     }
 
     (function ensureRegistryAfterBodyReady() {
       let ran = false;
-      const runOnce = () => { if (ran) return; ran = true; safe(() => { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }); };
+      const runOnce = () => { if (ran) return; ran = true; Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); };
       if (document.body) { runOnce(); return; }
       const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } });
       try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {}
       on(document, 'DOMContentLoaded', runOnce, { once: true });
     })();
-
-    __vscNs.CONFIG = CONFIG; __vscNs.FLAGS = Object.freeze({ ...FLAGS });
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, SVG_MAX_PIX_FAST: 3840 * 2160 });
     const Adapter = createBackendAdapter(Filters); __vscNs.Adapter = Adapter;
@@ -2545,10 +2498,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const PerfGovernor = createPerfGovernor();
 
     const Features = createFeatureRegistry(Bus);
-    Features.register(createPipelineFeature(Store, Registry, Adapter, ApplyReq, P, Targeting, PerfGovernor, videoParamsMemo));
+    Features.register(createPipelineFeature(Store, Registry, Adapter, ApplyReq, CONFIG.P, Targeting, PerfGovernor, videoParamsMemo));
     const audioFeat = createAudioFeature(Store, PiPManager); Features.register(audioFeat);
-    const zoomFeat = createZoomFeature(Store, P); Features.register(zoomFeat);
-    const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, P, Bus); Features.register(uiFeat);
+    const zoomFeat = createZoomFeature(Store, CONFIG.P); Features.register(zoomFeat);
+    const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, CONFIG.P, Bus); Features.register(uiFeat);
     Features.register(createTimerFeature());
     Features.register(createPerfNotificationFeature(Utils));
     const pipFeat = createPiPFeature(Bus); Features.register(pipFeat);
@@ -2559,16 +2512,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     __vscNs.AudioSetTarget = (v) => { try { Bus.emit('target:changed', { video: v, prev: null }); } catch (_) {} };
     __vscNs.PiPToggle = () => { try { pipFeat.toggle(); } catch (_) {} };
+    __vscNs.UIEnsure = () => { try { uiFeat.update(); } catch (_) {} };
 
     let __vscLastUserSignalT = 0; __vscNs.lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
     function updateLastUserPt(x, y, t) { __vscNs.lastUserPt.x = x; __vscNs.lastUserPt.y = y; __vscNs.lastUserPt.t = t; }
-    function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; safe(() => Scheduler.request(false)); }
+    function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; Scheduler.request(false); }
 
     for (const [evt, getPt] of [['pointerdown', e => [e.clientX, e.clientY]], ['wheel', e => [Number.isFinite(e.clientX) ? e.clientX : innerWidth * 0.5, Number.isFinite(e.clientY) ? e.clientY : innerHeight * 0.5]], ['keydown', () => [innerWidth * 0.5, innerHeight * 0.5]], ['resize', () => [innerWidth * 0.5, innerHeight * 0.5]]]) {
       on(window, evt, (e) => { if (evt === 'resize') { const now = performance.now(); if (!__vscNs.lastUserPt || (now - __vscNs.lastUserPt.t) > 1200) updateLastUserPt(...getPt(e), now); } else { updateLastUserPt(...getPt(e), performance.now()); } signalUserInteractionForRetarget(); }, evt === 'keydown' ? undefined : OPT_P);
     }
 
-    const __VSC_APP__ = createAppController({ Store, Registry, Scheduler, Features, P, Targeting, Bus });
+    const __VSC_APP__ = createAppController({ Store, Registry, Scheduler, Features, P: CONFIG.P, Targeting, Bus });
     __vscNs.App = __VSC_APP__;
 
     Features.initAll({ bus: Bus, store: Store, getActiveVideo: () => __VSC_APP__.getActiveVideo() });
@@ -2585,9 +2539,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const isEditableTarget = (el) => { if(!el) return false; const tag = el.tagName; return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable; };
       if (isEditableTarget(e.target)) return;
 
-      if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); safe(() => { const st = getNS()?.Store; if (st) { st.set(P.APP_UI, !st.get(P.APP_UI)); ApplyReq.hard(); } }); return; }
+      if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); const st = getNS()?.Store; if (st) { st.set(CONFIG.P.APP_UI, !st.get(CONFIG.P.APP_UI)); ApplyReq.hard(); } return; }
       if (e.altKey && e.shiftKey && e.code === 'KeyP') {
-        if (!getNS()?.Store?.get(P.APP_ACT)) return; e.preventDefault(); e.stopPropagation();
+        if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return; e.preventDefault(); e.stopPropagation();
         const v = __VSC_APP__?.getActiveVideo(); if (v) await PiPManager.toggle(v);
         return;
       }
@@ -2610,8 +2564,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }, { capture: true });
 
     on(document, 'fullscreenchange', () => { if (typeof Bus !== 'undefined') Bus.emit('fullscreen:changed', { active: !!document.fullscreenElement }); }, OPT_P);
-    on(document, 'visibilitychange', () => { safe(() => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }); }, OPT_P);
-    window.addEventListener('beforeunload', () => { safe(() => __VSC_APP__?.destroy()); }, { once: true });
+    on(document, 'visibilitychange', () => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }, OPT_P);
+    window.addEventListener('beforeunload', () => { __VSC_APP__?.destroy(); }, { once: true });
 
     if (CONFIG.DEBUG) {
       console.log('%c[VSC] Final Feature Execution Order:', 'color: #e67e22; font-weight: bold;');
