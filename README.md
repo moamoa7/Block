@@ -15,15 +15,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 ```
 <br>
 
-※ Website_Optimizer.js
-- 웹페이지 최적화 (이미지.비디오.네트워크 로딩 최적화) / Privacy Shield (트래커/추적코드 제거. 핑커프린팅)
-
-```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Website_Optimizer.js
-```
-
-<br/>
-
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
