@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v185.3 - Stabilized & Optimized)
+// @name         Video_Control (v185.4 - Refined & Patched)
 // @namespace    https://github.com/
-// @version      185.3
-// @description  Critical bug fixes (PiP permanent lock, Worklet context leak, BoundedWeakSet Re-entrant, EventBus leak) & Perf Boost (WorkQ Fast Path, Timer layout cache).
+// @version      185.4
+// @description  Critical bug fixes (PiP Lock, AudioWorklet Leak, Ratechange Race) & Perf Boost (Modern API, Config Refactor).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '185.3';
+  const SCRIPT_VERSION = '185.4';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -73,7 +73,8 @@ function VSC_MAIN() {
     const snapshot = [...DISPOSERS];
     DISPOSERS.clear();
     for (let i = snapshot.length - 1; i >= 0; i--) { safe(snapshot[i]); }
-    try { if (ns._shadowRootCb && typeof __shadowRootCallbacks !== 'undefined') { __shadowRootCallbacks.delete(ns._shadowRootCb); } } catch (_) {}
+    // [PATCH 1.5] 불필요한 typeof __shadowRootCallbacks 체크 제거
+    try { if (ns._shadowRootCb && __shadowRootCallbacks) { __shadowRootCallbacks.delete(ns._shadowRootCb); } } catch (_) {}
     try { delete window[Symbol.for('__VSC_SPA_PATCHED__')]; } catch (_) {}
     try { (ns._menuIds || []).forEach(id => { try { GM_unregisterMenuCommand(id); } catch (_) {} }); } catch (_) {}
     ns.__alive = false; ns.__destroying = false;
@@ -87,6 +88,21 @@ function VSC_MAIN() {
 
   const SYS = Object.freeze({ SRD: 220 });
 
+  function detectMobile() {
+    const uad = navigator.userAgentData;
+    if (uad && typeof uad.mobile === 'boolean') return uad.mobile;
+    return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  }
+
+  const CONFIG = Object.freeze({
+    IS_MOBILE: detectMobile(),
+    VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
+    DEBUG: /[?&]vsc_debug=1/.test(location.search)
+  });
+
+  // =========================================================================
+  // [Refactor 3.7] CONFIG SECTION: 상수 및 스키마 상단 분리 배치
+  // =========================================================================
   const FLAGS = Object.seal({
     SCHED_ALIGN_TO_VIDEO_FRAMES: false,
     SCHED_ALIGN_TO_VIDEO_FRAMES_AUTO: true,
@@ -98,21 +114,67 @@ function VSC_MAIN() {
   const PIP_FLAGS = Object.freeze({ USE_LEGACY_PIP_FALLBACK: true });
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [class*="player" i], [id*="player" i], [data-player], article, main';
   const SUPPORTS_MOVE_BEFORE = (typeof Node !== 'undefined' && typeof Node.prototype.moveBefore === 'function');
+  const STORAGE_FLAGS = Object.freeze({ ALLOW_LOCALSTORAGE_FALLBACK: true });
+  const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
+
+  const PRESETS = Object.freeze({
+    detail: {
+      off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
+      Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
+      Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
+      Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.20, microScale: 1/90, fineBase: 0.36, fineScale: 1/20, microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81] },
+      Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.18, microScale: 1/60, fineBase: 0.32, fineScale: 1/16, microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89] }
+    },
+    bright: {
+      0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.02, brightAdd: 1.0 }, 2: { gammaF: 1.05, brightAdd: 2.5 },
+      3: { gammaF: 1.10, brightAdd: 5.5 }, 4: { gammaF: 1.18, brightAdd: 9.5 }, 5: { gammaF: 1.28, brightAdd: 14.5 }
+    }
+  });
+
+  const DEFAULTS = {
+    video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0, rotation: 0 },
+    audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
+    playback: { rate: 1.0, enabled: false },
+    app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
+  };
+
+  const P = Object.freeze({
+    APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
+    V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', V_ROTATION: 'video.rotation',
+    A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', A_STEREO_W: 'audio.stereoWidth',
+    PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
+  });
+
+  const APP_SCHEMA = [
+    { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN },
+    { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 }
+  ];
+
+  const VALID_ROTATIONS = [0, 90, 180, 270];
+  const ROTATION_LABELS = { 0: '정상', 90: '90도', 180: '180도', 270: '270도' };
+  const getNextRotation = (current) => { const cur = Number(current) || 0; const idx = VALID_ROTATIONS.indexOf(cur); if (idx < 0) return 90; return VALID_ROTATIONS[(idx + 1) % VALID_ROTATIONS.length]; };
+
+  const VIDEO_SCHEMA = [
+    { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
+    { type: 'num', path: P.V_BRIGHT_LV, min: 0, max: 5, round: true, fallback: () => 0 }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 },
+    { type: 'num', path: P.V_TEMP, min: -50, max: 50, round: true, fallback: () => 0 }, { type: 'enum', path: P.V_ROTATION, values: VALID_ROTATIONS, fallback: () => 0 }
+  ];
+
+  const AUDIO_PLAYBACK_SCHEMA = [
+    { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS },
+    { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
+  ];
+
+  const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
+  // ======================= CONFIG SECTION END ==============================
 
   const getNS = () => (window && window[Symbol.for('__VSC__')]) || __vscNs || null;
   const getFLAGS = () => getNS()?.FLAGS || FLAGS;
   const OPT_P = { passive: true };
   const OPT_PC = { passive: true, capture: true };
 
-  const combineSignals = (...signals) => {
-    if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
-    const ac = new AbortController();
-    for (const sig of signals) {
-      if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
-      sig.addEventListener('abort', () => ac.abort(sig.reason), { once: true });
-    }
-    return ac.signal;
-  };
+  // [PATCH 2.1] AbortSignal.any() 2024+ 표준 API 사용으로 메모리 누수 방어 및 간소화
+  const combineSignals = (...signals) => AbortSignal.any(signals);
 
   function on(target, type, fn, opts = {}) {
     if (!target?.addEventListener) return;
@@ -184,18 +246,6 @@ function VSC_MAIN() {
     return () => localAC.abort();
   }
 
-  function detectMobile() {
-    const uad = navigator.userAgentData;
-    if (uad && typeof uad.mobile === 'boolean') return uad.mobile;
-    return /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-  }
-
-  const CONFIG = Object.freeze({
-    IS_MOBILE: detectMobile(),
-    VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)),
-    DEBUG: /[?&]vsc_debug=1/.test(location.search)
-  });
-
   const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
   const log = {
@@ -205,7 +255,6 @@ function VSC_MAIN() {
     debug: (...a) => { if (CONFIG.DEBUG) console.debug('[VSC]', ...a); }
   };
 
-  /* [1.2 버그 픽스] EventBus의 _hasWildcard 플래그가 off('*') 시 갱신되지 않던 문제 수정 */
   function createEventBus() {
     const _listeners = new Map(), _onceListeners = new Map();
     let _destroyed = false, _hasWildcard = false;
@@ -394,59 +443,6 @@ function VSC_MAIN() {
     return st;
   };
 
-  const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
-
-  const PRESETS = Object.freeze({
-    detail: {
-      off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.16, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
-      Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.40, 0.08], fineAmt: [0.15, 0.65] },
-      Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
-      Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.20, microScale: 1/90, fineBase: 0.36, fineScale: 1/20, microAmt: [0.52, 0.12], fineAmt: [0.21, 0.81] },
-      Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.18, microScale: 1/60, fineBase: 0.32, fineScale: 1/16, microAmt: [0.58, 0.14], fineAmt: [0.24, 0.89] }
-    },
-    bright: {
-      0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.02, brightAdd: 1.0 }, 2: { gammaF: 1.05, brightAdd: 2.5 },
-      3: { gammaF: 1.10, brightAdd: 5.5 }, 4: { gammaF: 1.18, brightAdd: 9.5 }, 5: { gammaF: 1.28, brightAdd: 14.5 }
-    }
-  });
-
-  const DEFAULTS = {
-    video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0, rotation: 0 },
-    audio: { enabled: false, boost: 0, multiband: true, lufs: true, dialogue: false, stereoWidth: false },
-    playback: { rate: 1.0, enabled: false },
-    app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 }
-  };
-
-  const P = Object.freeze({
-    APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos',
-    V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', V_ROTATION: 'video.rotation',
-    A_EN: 'audio.enabled', A_BST: 'audio.boost', A_MULTIBAND: 'audio.multiband', A_LUFS: 'audio.lufs', A_DIALOGUE: 'audio.dialogue', A_STEREO_W: 'audio.stereoWidth',
-    PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
-  });
-
-  const APP_SCHEMA = [
-    { type: 'bool', path: P.APP_ACT }, { type: 'bool', path: P.APP_UI }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN },
-    { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_TIME_EN }, { type: 'num', path: P.APP_TIME_POS, min: 0, max: 2, round: true, fallback: () => 1 }
-  ];
-
-  const VALID_ROTATIONS = [0, 90, 180, 270];
-  const ROTATION_LABELS = { 0: '정상', 90: '90도', 180: '180도', 270: '270도' };
-  const getNextRotation = (current) => { const cur = Number(current) || 0; const idx = VALID_ROTATIONS.indexOf(cur); if (idx < 0) return 90; return VALID_ROTATIONS[(idx + 1) % VALID_ROTATIONS.length]; };
-
-  const VIDEO_SCHEMA = [
-    { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
-    { type: 'num', path: P.V_BRIGHT_LV, min: 0, max: 5, round: true, fallback: () => 0 }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 3, round: true, fallback: () => 0 },
-    { type: 'num', path: P.V_TEMP, min: -50, max: 50, round: true, fallback: () => 0 }, { type: 'enum', path: P.V_ROTATION, values: VALID_ROTATIONS, fallback: () => 0 }
-  ];
-
-  const AUDIO_PLAYBACK_SCHEMA = [
-    { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => 0 }, { type: 'bool', path: P.A_MULTIBAND }, { type: 'bool', path: P.A_LUFS },
-    { type: 'bool', path: P.A_DIALOGUE }, { type: 'bool', path: P.A_STEREO_W }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
-  ];
-
-  const ALL_SCHEMA = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
-
-  /* [1.1 버그 픽스] _elToToken 정리 누락 문제로 인한 재진입 충돌 방어 */
   class BoundedWeakSet {
     constructor(maxSize, onEvict) {
       this._max = maxSize; this._onEvict = onEvict; this._refs = new Map(); this._elToToken = new WeakMap(); this._order = []; this._opCount = 0;
@@ -628,13 +624,10 @@ function VSC_MAIN() {
 
   const parsePath = (p) => { const dot = p.indexOf('.'); return dot < 0 ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; };
 
-  const STORAGE_FLAGS = Object.freeze({ ALLOW_LOCALSTORAGE_FALLBACK: true });
-
-  /* [1.9 버그 픽스] 로컬 스토리지 데이터 타입 오염 방어 (mergeKnown 검증 추가) */
   function createLocalStore(defaults, scheduler, bus) {
-    let _stateVal;
-    try { _stateVal = structuredClone(defaults); } catch (_) { _stateVal = JSON.parse(JSON.stringify(defaults)); }
-    const state = _stateVal; let rev = 0; const listeners = new Map();
+    // [PATCH 2.5] structuredClone 네이티브 지원 100% 활용하여 fallback 제거
+    const state = structuredClone(defaults);
+    let rev = 0; const listeners = new Map();
     const storeAC = new AbortController(); const storeSig = combineSignals(storeAC.signal, __globalSig);
     const PREF_KEY = 'vsc_prefs_' + location.hostname;
 
@@ -791,7 +784,6 @@ function VSC_MAIN() {
       lazyScanAncestorShadowRoots(el);
     };
 
-    /* [3.9 최적화] WorkQ.drain 에 동기식 Fast Path 도입으로 오버헤드 감소 */
     const WorkQ = (() => {
       let active = [], pending = []; let scheduled = false; let activeSet = new Set(), pendingSet = new Set();
       let idleId = 0, rafId = 0, scheduleToken = 0;
@@ -817,11 +809,13 @@ function VSC_MAIN() {
           for (let i = 0; i < active.length; i++) { activeSet.delete(active[i]); safe(() => scanNode(active[i])); }
           active.length = 0; activeSet.clear(); return;
         }
-        const canYield = typeof scheduler !== 'undefined' && typeof scheduler.yield === 'function'; const start = performance.now(); const iip = navigator.scheduling?.isInputPending?.bind(navigator.scheduling); const maxMs = dl?.timeRemaining ? Math.min(dl.timeRemaining(), 10) : 4; let processed = 0;
+        // [PATCH 2.2] 글로벌 스케줄러를 직접 참조하여 ReferenceError 원천 차단
+        const canYield = globalThis.scheduler?.yield != null;
+        const start = performance.now(); const iip = navigator.scheduling?.isInputPending?.bind(navigator.scheduling); const maxMs = dl?.timeRemaining ? Math.min(dl.timeRemaining(), 10) : 4; let processed = 0;
         for (let i = 0; i < active.length; i++) {
           const n = active[i]; activeSet.delete(n);
           if ((++processed & 15) === 0) {
-            if (canYield) { try { await scheduler.yield(); } catch (_) {} if (destroyed) return; }
+            if (canYield) { try { await globalThis.scheduler.yield(); } catch (_) {} if (destroyed) return; }
             else if ((performance.now() - start) > maxMs || iip?.()) { for (let j = i; j < active.length; j++) { const rest = active[j]; if (!pendingSet.has(rest)) { pendingSet.add(rest); pending.push(rest); } } active.length = 0; schedule(); return; }
           }
           safe(() => scanNode(n));
@@ -932,12 +926,17 @@ function VSC_MAIN() {
     constructor() { this.reset(); }
     get isActive() { return !!(this.window && !this.window.closed && this.video); }
     reset() {
+      // [PATCH 1.3] 상태 해제를 최상단으로 이동하여 예외 발생 시 PiP 영구 잠금 방지
+      this._restoring = false;
       try { this._uiCleanup?.(); } catch (_) {}
       this._uiCleanup = null;
-      if (this._ac) { this._ac.abort(); this._ac = null; }
+      if (this._ac) {
+        try { this._ac.abort(); } catch (_) {} // abort 자체 예외 방어
+        this._ac = null;
+      }
       this.window = null; this.video = null; this.placeholder = null;
       this.origParent = null; this.origNext = null; this.origContainer = null;
-      this.origCss = ''; this._restoring = false;
+      this.origCss = '';
     }
     saveVideoPosition(video) {
       this.origParent = video.parentNode;
@@ -1059,7 +1058,6 @@ function VSC_MAIN() {
         rvfcId = video.requestVideoFrameCallback(render);
         if (timerId) { clearInterval(timerId); timerId = 0; }
       } else if (!timerId) {
-        // 일시정지 상태에서도 250ms 간격으로 뱃지 갱신 보장 (탐색 시 즉각 반영용)
         timerId = setInterval(renderBadgeAndProgress, 250);
       }
     };
@@ -1084,7 +1082,6 @@ function VSC_MAIN() {
     renderBadgeAndProgress();
   }
 
-  /* [1.7 버그 픽스] 복원 중 예외 발생 시에도 PiPState.reset()을 보장하여 상태 잠금 방지 */
   async function _restoreVideoCommon(video, { adoptNode: shouldAdopt = false } = {}) {
     if (!video || PiPState.video !== video || PiPState._restoring) return;
     PiPState._restoring = true;
@@ -1514,7 +1511,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
   }
 
-  /* [1.3 버그 픽스] 오디오 워크릿 생성 시 Context Closed 상태 감지 강화로 누수 차단 */
   function createAudioFeature(sm) {
     let ctx, target = null, currentSrc = null, inputGain, dryGain, wetGain, masterOut, wetInGain, limiter, currentNodes = null;
     let makeupDbEma = 0, switchTok = 0, gestureHooked = false, loopTok = 0, audioLoopTimerId = 0;
@@ -1522,10 +1518,19 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const contentClassifier = createContentClassifier();
 
     async function ensureFinalizerWorklet(audioCtx) {
-      if (finalizerNode) return finalizerNode;
+      // [PATCH 1.4] 컨텍스트 일치 여부 엄격 검증 및 Stale Worklet 누수 차단
+      if (finalizerNode && finalizerNode.context === audioCtx) return finalizerNode;
+      if (finalizerNode) {
+        try { finalizerNode.port.onmessage = null; finalizerNode.disconnect(); } catch (_) {}
+        finalizerNode = null;
+      }
       if (!window.isSecureContext || !audioCtx?.audioWorklet) return null;
       if (audioCtx.state === 'closed') return null;
-      if (workletInitPromise) { const result = await workletInitPromise; if (result) return result; workletInitPromise = null; }
+      if (workletInitPromise) {
+        const result = await workletInitPromise;
+        if (result && result.context === audioCtx) return result;
+        workletInitPromise = null;
+      }
       workletInitPromise = (async () => {
         let blobUrl = null;
         try {
@@ -1752,7 +1757,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     function makeKeyHash(s) {
       let h1 = 0x811c9dc5 >>> 0;
       const mix = (v) => { h1 = Math.imul(h1 ^ (v | 0), 0x01000193) >>> 0; };
-      mix(((s.gain || 1) / 0.04) | 0); mix(((s.gamma || 1) / 0.01) | 0); mix(((s.contrast || 1) / 0.01) | 0); mix(((s.bright || 0) / 0.2) | 0); mix(((s.satF ?? 1) / 0.01) | 0); mix(((s.mid || 0) / 0.02) | 0); mix(((s.toe || 0) / 0.2) | 0); mix(((s.shoulder || 0) / 0.2) | 0); mix(((s.temp || 0) / 0.2) | 0); mix(s.sharp || 0); mix(s.sharp2 || 0); mix(((s._sigmaScale || 1) * 100) | 0); mix(((s._microBase || 0.16) * 1000) | 0); mix(((s._fineBase || 0.32) * 1000) | 0);
+      mix(((s.gain || 1) / 0.04) | 0); mix(((s.gamma || 1) / 0.01) | 0); mix(((s.contrast || 1) / 0.01) | 0); mix(((s.bright || 0) / 0.2) | 0); mix(((s.satF ?? 1) / 0.01) | 0); mix(((s.mid || 0) / 0.02) | 0); mix(((s.toe || 0) / 0.2) | 0); mix(((s.shoulder || 0) / 0.2) | 0); mix(((s.temp || 0) / 0.2) | 0); mix(s.sharp || 0); mix(s.sharp2 || 0); mix(((s._sigmaScale || 1) * 100) | 0); mix(((s._microBase || 0.18) * 1000) | 0); mix(((s._fineBase || 0.32) * 1000) | 0);
       return h1;
     }
 
@@ -1797,7 +1802,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     function applySharpParams(sharpNodes, st, s) {
       const qSharp = Math.max(0, Math.round(Number(s.sharp || 0))), qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0))), sigmaScale = Number(s._sigmaScale) || 1.0;
-      const microBase = Number(s._microBase) || 0.16, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24);
+      const microBase = Number(s._microBase) || 0.18, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24);
       const microAmtCoeffs = s._microAmt || [0.55, 0.10], fineAmtCoeffs = s._fineAmt || [0.20, 0.85];
       const sigMicro = VSC_CLAMP((microBase + qSharp * microScale) * Math.min(1.0, sigmaScale), 0.30, 1.20), sigFine = VSC_CLAMP((fineBase + qSharp2 * fineScale) * sigmaScale, 0.18, 2.50);
       const microAmt = Math.max(0, (qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45), fineAmt = Math.max(0, (qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24);
@@ -2078,8 +2083,20 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const getMainPanel = () => container && container.shadowRoot && container.shadowRoot.querySelector('.main');
 
     const __vscSheetCache = new Map();
+    // [PATCH 2.4] CSSStyleSheet 조작 최적화 (배열 복사 대신 push 활용)
     function attachShadowStyles(shadowRoot, cssText) {
-      try { if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') { let sheet = __vscSheetCache.get(cssText); if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); __vscSheetCache.set(cssText, sheet); } shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet]; return; } } catch (_) {}
+      try {
+        if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') {
+          let sheet = __vscSheetCache.get(cssText);
+          if (!sheet) { sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); __vscSheetCache.set(cssText, sheet); }
+          if (shadowRoot.adoptedStyleSheets.push) {
+            shadowRoot.adoptedStyleSheets.push(sheet);
+          } else {
+            shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet];
+          }
+          return;
+        }
+      } catch (_) {}
       const styleEl = document.createElement('style'); styleEl.textContent = cssText; shadowRoot.appendChild(styleEl);
     }
 
@@ -2412,32 +2429,32 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       ['emptied', softResetTransientFlags],
       ['seeking', () => ApplyReq.hard()],
       ['play', () => { ApplyReq.hard(); }],
+      // [PATCH 1.2] 마이크로태스크 갭을 악용한 Ratechange Race Condition 완전 해결
       ['ratechange', () => {
-        /* [v185.1 FIX] 경합 조건 해결: 300ms 딜레이 증가 및 queueMicrotask 도입 */
         const rSt = getRateState(v);
         const now = performance.now();
-
-        // 너무 잦은 업데이트나 내부 설정에 의한 변경은 무시
         if ((now - (rSt.lastSetAt || 0)) < 300 || now < (rSt.suppressSyncUntil || 0)) return;
-
         const desired = st.desiredRate;
-        // 이미 원하는 속도와 일치하면 무시
         if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.05) return;
 
-        // 마이크로태스크 큐를 사용하여 현재 이벤트 루프 완료 후 안전하게 스토어 업데이트
+        const capturedRate = v.playbackRate; // 시점 값 캡처
+        if (!Number.isFinite(capturedRate) || capturedRate <= 0) return;
+
         queueMicrotask(() => {
           const ns = getNS();
           const store = ns?.Store;
           if (!store) return;
 
           const activeVideo = ns.App?.getActiveVideo?.();
-          // 현재 타겟팅된 비디오의 배속만 전역 설정으로 반영
           if (!activeVideo || v !== activeVideo) return;
 
-          const cur = v.playbackRate;
-          if (Number.isFinite(cur) && cur > 0) {
-            store.batch('playback', { rate: cur, enabled: true });
-          }
+          const rSt2 = getRateState(v);
+          if (performance.now() < (rSt2.suppressSyncUntil || 0)) return;
+          // 캡처 이후 다른 변경이 개입했는지 확인
+          if (Math.abs(v.playbackRate - capturedRate) > 0.01) return;
+
+          markInternalRateChange(v, 350); // 재귀 호출 방지
+          store.batch('playback', { rate: capturedRate, enabled: true });
         });
       }]
     ];
@@ -2547,7 +2564,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   function createVideoParamsMemo() {
-    const contentTuner = { getMultiplier: () => 1.0, getSigmaHint: () => 1.0, analyzeDetailDensity: () => 1.0 }; // Tuner logic omitted for brevity in memo
+    const contentTuner = { getMultiplier: () => 1.0, getSigmaHint: () => 1.0, analyzeDetailDensity: () => 1.0 };
     const _srcHashCache = new WeakMap(), _videoFastCache = new WeakMap();
     function getSrcHashCached(video) {
       if (!video) return '0'; const curSrc = video.currentSrc || video.src || ''; if (!curSrc) return '0'; const entry = _srcHashCache.get(video); if (entry && entry.src === curSrc) return entry.hash;
@@ -2572,7 +2589,10 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const detailP = PRESETS.detail[vfUser.presetS || 'off'], brightP = PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || PRESETS.bright[0], userTemp = vfUser.temp || 0, { rs, gs, bs } = tempToRgbGain(userTemp);
         const resMul = video ? computeResolutionSharpMul(video) : 0.0, perfMul = budget.sharpMul, contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0, finalSharpMul = resMul * perfMul * contentMul;
         const baseSigma = video ? computeBaseSigmaScale(video) : 1.0, sigmaHint = contentTuner.getSigmaHint(), finalSigmaScale = baseSigma * sigmaHint;
-        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: userTemp, rotation: vfUser.rotation || 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _rs: rs, _gs: gs, _bs: bs, _microBase: detailP.microBase || 0.16, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.32, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.20, 0.85] };
+
+        // [PATCH USER DATA] User request: '18로 원복' -> _microBase: 0.18 fallback apply
+        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: userTemp, rotation: vfUser.rotation || 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _rs: rs, _gs: gs, _bs: bs, _microBase: detailP.microBase || 0.18, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.32, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.20, 0.85] };
+
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, shadowLevel = Math.min(sLevel, budget.shadowCap), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut, budget, _lastContentMul: contentMul };
         if (_cache.size >= MAX_MEMO) _cache.delete(_cache.keys().next().value); _cache.set(inputKey, result); if (video) _updateFastCache(_videoFastCache, video, vfUser, nW, nH, dW, dH, budget, result); return result;
       },
@@ -2601,7 +2621,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  /* [3.12 최적화] 타이머 DOM 조작 시 이전 좌표 캐싱으로 리플로우 낭비 제거 */
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1;
     let _destroyed = false, _lastLayoutKey = '';
