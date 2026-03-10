@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v185.0 - Patched & Optimized)
+// @name         Video_Control (v185.1 - Patched & Optimized)
 // @namespace    https://github.com/
-// @version      185.0
+// @version      185.1
 // @description  Bug fixes (badge dup, worklet leak, timer guard, interval reg), PiP restore unify, schema split, pruneStale O(n), dead code removal.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '185.0';
+  const SCRIPT_VERSION = '185.1';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -1527,10 +1527,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       _visResumeHooked = true;
       on(document, 'visibilitychange', () => {
         if (!ctx) return;
+        const dynAct = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); // 오디오 기능 활성화 여부 체크
+
         if (document.visibilityState === 'visible') {
           if (ctx.state === 'suspended' || ctx.state === 'interrupted') { ctx.resume().catch(() => {}); }
         } else {
-          if (!PiPState.isActive && ctx.state === 'running') { ctx.suspend().catch(() => {}); }
+          /* [v185.1 FIX] 오디오 부스트가 켜져 있거나 PiP 모드라면 백그라운드에서도 정지(suspend)하지 않음 */
+          if (!PiPState.isActive && !dynAct && ctx.state === 'running') {
+            ctx.suspend().catch(() => {});
+          }
         }
       }, { passive: true, signal: _audioSig });
     }
