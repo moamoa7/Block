@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v183.4 - Portrait PiP Fix)
+// @name         Video_Control (v183.5 - Rotated UI Sync)
 // @namespace    https://github.com/
-// @version      183.4
-// @description  Full Perf, Memory Safe, Global Rotation, Clock Sync, Portrait PiP size fix for 90°/270° rotation.
+// @version      183.5
+// @description  Full Perf, Memory Safe, Global Rotation, Clock Sync, Portrait PiP size fix, Gear/UI rotation sync.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '183.4';
+  const SCRIPT_VERSION = '183.5';
 
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
@@ -2010,8 +2010,8 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
     this.peakAccum = 0; this.peakCount = 0;
     this.frameCounter = 0;
 
-    this.reportInterval = 64;        // 활성 오디오 (~186ms)
-    this.silentReportInterval = 320; // 무음 시 (~930ms)
+    this.reportInterval = 64;
+    this.silentReportInterval = 320;
     this.isSilent = false;
 
     this._lastRmsDb = -70.0;
@@ -3058,14 +3058,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     }
 
     function applySharpParams(sharpNodes, st, s) {
-      const qSharp  = Math.max(0, Math.round(Number(s.sharp  || 0)));
-      const qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0)));
-      const sigmaScale = Number(s._sigmaScale) || 1.0;
+      const qSharp  = Math.max(0, Math.round(Number(s.sharp  || 0)));
+      const qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0)));
+      const sigmaScale = Number(s._sigmaScale) || 1.0;
 
-      const microBase  = Number(s._microBase)  || 0.16;
-      const microScale = Number(s._microScale) || (1/120);
-      const fineBase   = Number(s._fineBase)   || 0.32;
-      const fineScale  = Number(s._fineScale)  || (1/24);
+      const microBase  = Number(s._microBase)  || 0.16;
+      const microScale = Number(s._microScale) || (1/120);
+      const fineBase   = Number(s._fineBase)   || 0.32;
+      const fineScale  = Number(s._fineScale)  || (1/24);
       const microAmtCoeffs = s._microAmt || [0.55, 0.10];
       const fineAmtCoeffs  = s._fineAmt  || [0.20, 0.85];
 
@@ -3374,6 +3374,60 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const uiWakeCtrl = new AbortController();
     const uiUnsubs = [];
 
+    /* ── 회전 동기화용 상태 ── */
+    let _lastUiRotation = 0;
+
+    /**
+     * 기어 아이콘 + UI 패널에 영상과 동일한 회전을 적용한다.
+     * CSS transform rotate 를 사용하므로 포인터 이벤트(클릭)가
+     * 회전된 좌표계에서 정상적으로 동작한다.
+     */
+    function syncUiRotation(rot) {
+      const deg = Number(rot) || 0;
+      if (deg === _lastUiRotation) return;
+      _lastUiRotation = deg;
+
+      /* 기어 버튼 회전 */
+      if (gearBtn) {
+        const gearShadow = gearHost?.shadowRoot;
+        if (gearShadow) {
+          const gearEl = gearShadow.querySelector('.gear');
+          if (gearEl) {
+            if (deg === 0) {
+              gearEl.style.removeProperty('--vsc-ui-rot');
+            } else {
+              gearEl.style.setProperty('--vsc-ui-rot', `${deg}deg`);
+            }
+          }
+        }
+      }
+
+      /* 메인 패널 회전 및 겹침 방지 여백 조정 */
+      if (container) {
+        const cShadow = container.shadowRoot;
+        if (cShadow) {
+          const mainEl = cShadow.querySelector('.main');
+          if (mainEl) {
+            if (deg === 0) {
+              mainEl.style.removeProperty('--vsc-ui-rot');
+              mainEl.style.removeProperty('--vsc-safe-right'); // 여백 원복
+            } else {
+              mainEl.style.setProperty('--vsc-ui-rot', `${deg}deg`);
+
+              // 90도/270도 일 때, 세로로 긴 패널이 누워 우측 기어 아이콘을 덮는 것 방지 (우측 여백 160px 확보)
+              if (deg === 90 || deg === 270) {
+                mainEl.style.setProperty('--vsc-safe-right', 'max(160px, calc(env(safe-area-inset-right,0px) + 160px))');
+              } else {
+                mainEl.style.removeProperty('--vsc-safe-right');
+              }
+            }
+            // 회전으로 인해 화면 밖으로 나가는지 검사
+            queueMicrotask(clampPanelIntoViewport);
+          }
+        }
+      }
+    }
+
     const sub = (k, fn) => {
       const unsub = sm.sub(k, fn);
       uiUnsubs.push(unsub);
@@ -3557,7 +3611,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     on(window, 'resize', onLayoutChange, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) });
     on(window, 'orientationchange', onLayoutChange, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) });
-    on(document, 'fullscreenchange', () => { setTimeout(() => { mount(); clampPanelIntoViewport(); }, 100); }, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) });
+    on(document, 'fullscreenchange', () => { setTimeout(() => { mount(); clampPanelIntoViewport(); syncUiRotation(sm.get(P.V_ROTATION) || 0); }, 100); }, { passive: true, signal: combineSignals(uiWakeCtrl.signal, __globalSig) });
 
     const getMainPanel = () => container && container.shadowRoot && container.shadowRoot.querySelector('.main');
 
@@ -3584,7 +3638,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const style = `
         @property --__vsc171-vv-top { syntax: "<length>"; inherits: true; initial-value: 0px; }
         @property --__vsc171-vv-h { syntax: "<length>"; inherits: true; initial-value: 100vh; }
-        :host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--__vsc171-vv-top,0px) + (var(--__vsc171-vv-h,100vh) / 2));right:max(70px,calc(env(safe-area-inset-right,0px) + 70px));transform:translateY(-50%);width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:50%!important;right:70px!important;left:auto!important;transform:translateY(-50%)!important;width:260px!important;max-height:70vh!important;padding:10px;border-radius:12px;overflow-y:auto}.main::-webkit-scrollbar{width:3px}.main::-webkit-scrollbar-thumb{background:#666;border-radius:10px}.prow{gap:3px;flex-wrap:nowrap;justify-content:center}.btn,.pbtn{min-height:34px;font-size:10.5px;padding:4px 1px;letter-spacing:-0.8px;white-space:nowrap}.header{font-size:12px;padding-bottom:5px}} .header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active,.pbtn.active{background:var(--btn-bg);border-color:var(--ac);color:var(--ac)}.btn.fill-active.active{background:var(--ac);border-color:var(--ac);color:#fff}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.slider{width:100%}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}
+        :host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px;--vsc-ui-rot:0deg;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--__vsc171-vv-top,0px) + (var(--__vsc171-vv-h,100vh) / 2));right:var(--vsc-safe-right);transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg));width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:50%!important;right:var(--vsc-safe-right)!important;left:auto!important;transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg))!important;width:260px!important;max-height:70vh!important;padding:10px;border-radius:12px;overflow-y:auto}.main::-webkit-scrollbar{width:3px}.main::-webkit-scrollbar-thumb{background:#666;border-radius:10px}.prow{gap:3px;flex-wrap:nowrap;justify-content:center}.btn,.pbtn{min-height:34px;font-size:10.5px;padding:4px 1px;letter-spacing:-0.8px;white-space:nowrap}.header{font-size:12px;padding-bottom:5px}} .header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active,.pbtn.active{background:var(--btn-bg);border-color:var(--ac);color:var(--ac)}.btn.fill-active.active{background:var(--ac);border-color:var(--ac);color:#fff}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.slider{width:100%}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}
       `;
       attachShadowStyles(shadow, style);
 
@@ -3832,13 +3886,16 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       container = host;
       getUiRoot().appendChild(container);
+
+      /* 빌드 직후 현재 회전값 반영 */
+      syncUiRotation(sm.get(P.V_ROTATION) || 0);
     };
 
     const ensureGear = () => {
       if (gearHost) return;
       gearHost = h('div', { 'data-vsc-ui': '1', style: 'all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483647;isolation:isolate;' });
       const shadow = gearHost.attachShadow({ mode: 'open' });
-      const style = `.gear{position:fixed;top:50%;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px));transform:translateY(-50%);width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation}@media(hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,.65)}}.gear:active{transform:translateY(-50%) scale(.98)}.gear.open{outline:2px solid rgba(52,152,219,.85);opacity:1!important}.gear.inactive{opacity:.45}.hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,.88);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.82);font:600 11px/1.2 sans-serif;white-space:nowrap;z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none}.gear:hover+.hint{opacity:1;transform:translateY(0)}${getNS()?.CONFIG?.IS_MOBILE ? '.hint{display:none!important}' : ''}`;
+      const style = `.gear{--vsc-ui-rot:0deg;position:fixed;top:50%;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px));transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg));width:46px;height:46px;border-radius:50%;background:rgba(25,25,25,.92);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.18);color:#fff;display:flex;align-items:center;justify-content:center;font:700 22px/1 sans-serif;padding:0;margin:0;cursor:pointer;pointer-events:auto;z-index:2147483647;box-shadow:0 12px 44px rgba(0,0,0,.55);user-select:none;transition:transform .12s ease,opacity .3s ease,box-shadow .12s ease;opacity:1;-webkit-tap-highlight-color:transparent;touch-action:manipulation}@media(hover:hover) and (pointer:fine){.gear:hover{transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg)) scale(1.06);box-shadow:0 16px 52px rgba(0,0,0,.65)}}.gear:active{transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg)) scale(.98)}.gear.open{outline:2px solid rgba(52,152,219,.85);opacity:1!important}.gear.inactive{opacity:.45}.hint{position:fixed;right:74px;bottom:24px;padding:6px 10px;border-radius:10px;background:rgba(25,25,25,.88);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.82);font:600 11px/1.2 sans-serif;white-space:nowrap;z-index:2147483647;opacity:0;transform:translateY(6px);transition:opacity .15s ease,transform .15s ease;pointer-events:none}.gear:hover+.hint{opacity:1;transform:translateY(0)}${getNS()?.CONFIG?.IS_MOBILE ? '.hint{display:none!important}' : ''}`;
       attachShadowStyles(shadow, style);
 
       let dragThresholdMet = false, stopDrag = null;
@@ -3910,7 +3967,15 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       sub(P.APP_ACT, syncGear);
       sub(P.APP_UI, syncGear);
       syncGear();
+
+      /* 기어 생성 직후 현재 회전값 반영 */
+      syncUiRotation(sm.get(P.V_ROTATION) || 0);
     };
+
+    /* ── video.rotation 변경 시 기어+패널 회전 동기화 구독 ── */
+    sub(P.V_ROTATION, (newRot) => {
+      syncUiRotation(newRot);
+    });
 
     const mount = () => {
       const root = getUiRoot();
@@ -3954,6 +4019,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
       mount();
       safe(() => wakeGear?.());
+
+      /* ensure 호출 시 현재 회전값 동기화 */
+      syncUiRotation(sm.get(P.V_ROTATION) || 0);
     };
 
     onPageReady(() => { safe(() => { ensure(); ApplyReq.hard(); }); });
@@ -3967,6 +4035,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         clearTimeout(fadeTimer);
         clearTimeout(bootWakeTimer);
         detachNodesHard();
+        _lastUiRotation = 0;
       }
     };
   }
@@ -5038,7 +5107,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           _timerEl.style.left = 'auto';
           _timerEl.style.right = 'auto';
 
-          // [FIX] transform 순서 연산 버그 수정: translate로 위치를 먼저 잡은 뒤 회전하도록 변경
           if (rot === 0) {
             _timerEl.style.top = `${Math.max(topOffset, (vRect.top - pRect.top) + topOffset)}px`;
             if (pos === 0) { _timerEl.style.left = `${Math.max(edgeMargin, (vRect.left - pRect.left) + edgeMargin)}px`; }
@@ -5202,7 +5270,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       for (const v of videos) evalScore(v);
       const activePip = getActivePiPVideo(); if (activePip && activePip.isConnected && !videos.has(activePip)) evalScore(activePip);
 
-      const hysteresis = Math.min(1.5, 0.5 + videos.size * 0.15);
+            const hysteresis = Math.min(1.5, 0.5 + videos.size * 0.15);
       if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) {
         if (best && stickyTarget !== best && (bestScore < stickyScore + hysteresis)) { return { target: stickyTarget }; }
       }
