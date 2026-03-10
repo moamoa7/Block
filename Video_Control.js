@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v186.0 - Remastered)
+// @name         Video_Control (v186.1 - Flawless Architecture)
 // @namespace    https://github.com/
-// @version      186.0
-// @description  Architecture Overhaul: EventTarget refactoring, WeakSet Worklet cache, Race condition strictly patched, GC optimized.
+// @version      186.1
+// @description  Zero-leak EventBus, Microtask Race fix, GC Optimized Set pruning, Safe Scheduler state.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.0';
+  const SCRIPT_VERSION = '186.1';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -43,7 +43,6 @@ function VSC_MAIN() {
   const DISPOSERS = __vscNs._disposers || (__vscNs._disposers = new Set());
   function addDisposer(fn) { if (typeof fn === 'function') DISPOSERS.add(fn); return fn; }
 
-  // [P0 FIX] TDZ 에러 방지를 위해 __shadowRootCallbacks 선언을 destroyRuntime 위로 호이스팅
   const __shadowRootCallbacks = new Set();
   const notifyShadowRoot = (sr) => { for (const cb of __shadowRootCallbacks) safe(() => cb(sr)); };
 
@@ -84,7 +83,6 @@ function VSC_MAIN() {
 
   const SYS = Object.freeze({ SRD: 220 });
 
-  // [P3 REFACTOR] 유틸리티 병합 (모바일 감지, Clamp, UI Stroke 등)
   function detectMobile() {
     const uad = navigator.userAgentData;
     if (uad && typeof uad.mobile === 'boolean') return uad.mobile;
@@ -105,12 +103,10 @@ function VSC_MAIN() {
   const STORAGE_FLAGS = Object.freeze({ ALLOW_LOCALSTORAGE_FALLBACK: true });
   const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
 
-  // [P3 REFACTOR] UI 로테이션 상수 상단 통합
   const VALID_ROTATIONS = [0, 90, 180, 270];
   const ROTATION_LABELS = { 0: '정상', 90: '90도', 180: '180도', 270: '270도' };
   const getNextRotation = (current) => { const cur = Number(current) || 0; const idx = VALID_ROTATIONS.indexOf(cur); if (idx < 0) return 90; return VALID_ROTATIONS[(idx + 1) % VALID_ROTATIONS.length]; };
 
-  // [USER DATA] Master=0.18, Soft=0.24 등 가변 수치 구조 보존
   const PRESETS = Object.freeze({
     detail: {
       off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
@@ -158,14 +154,18 @@ function VSC_MAIN() {
   const OPT_P = { passive: true };
   const OPT_PC = { passive: true, capture: true };
 
+  // [PATCH P1] AbortSignal.any() Polyfill 메모리 누수 방지 (이벤트 리스너 즉시 정리)
   const combineSignals = (...signals) => {
     if (typeof AbortSignal.any === 'function') return AbortSignal.any(signals);
     const ac = new AbortController();
-    for (const sig of signals) { if (sig.aborted) { ac.abort(sig.reason); return ac.signal; } sig.addEventListener('abort', () => ac.abort(sig.reason), { once: true }); }
+    const onAbort = () => { ac.abort(); signals.forEach(sig => sig.removeEventListener('abort', onAbort)); };
+    for (const sig of signals) {
+      if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
+      sig.addEventListener('abort', onAbort, { once: true });
+    }
     return ac.signal;
   };
 
-  // [P3 REFACTOR] try/catch 폴백 제거
   function on(target, type, fn, opts = {}) {
     if (!target?.addEventListener) return;
     const merged = { ...opts };
@@ -209,16 +209,19 @@ function VSC_MAIN() {
 
   const log = { error: (...a) => console.error('[VSC]', ...a), warn: (...a) => console.warn('[VSC]', ...a), info: () => {}, debug: (...a) => { if (CONFIG.DEBUG) console.debug('[VSC]', ...a); } };
 
-  // [P2 REFACTOR] EventTarget 네이티브 API 적용
+  // [PATCH P0] EventBus _wrapper 충돌 및 wildcard 플래그 누수 완전 해결 (WeakMap 기반 격리)
   function createEventBus() {
     const target = new EventTarget();
-    let _hasWildcard = false, _destroyed = false;
+    let _wildcardCount = 0, _destroyed = false;
+    const _wrapperMap = new WeakMap();
     return Object.freeze({
       on(event, handler, opts) {
         if (_destroyed || typeof handler !== 'function') return () => {};
-        if (event === '*') _hasWildcard = true;
+        if (event === '*') _wildcardCount++;
+        let eventMap = _wrapperMap.get(handler);
+        if (!eventMap) { eventMap = new Map(); _wrapperMap.set(handler, eventMap); }
         const wrapper = (e) => handler(e.detail);
-        handler._wrapper = wrapper;
+        eventMap.set(event, wrapper);
         target.addEventListener(event, wrapper, opts);
         return () => this.off(event, handler);
       },
@@ -226,13 +229,22 @@ function VSC_MAIN() {
       emit(event, data) {
         if (_destroyed) return;
         target.dispatchEvent(new CustomEvent(event, { detail: data }));
-        if (_hasWildcard && event !== '*') target.dispatchEvent(new CustomEvent('*', { detail: { event, data } }));
+        if (_wildcardCount > 0 && event !== '*') target.dispatchEvent(new CustomEvent('*', { detail: { event, data } }));
       },
       off(event, handler) {
-        if (handler && handler._wrapper) target.removeEventListener(event, handler._wrapper);
-        else if (event === '*') _hasWildcard = false;
+        if (handler) {
+          const eventMap = _wrapperMap.get(handler);
+          const wrapper = eventMap?.get(event);
+          if (wrapper) {
+            target.removeEventListener(event, wrapper);
+            eventMap.delete(event);
+            if (event === '*') _wildcardCount = Math.max(0, _wildcardCount - 1);
+          }
+        } else if (event === '*') {
+          _wildcardCount = 0;
+        }
       },
-      destroy() { _destroyed = true; _hasWildcard = false; }
+      destroy() { _destroyed = true; _wildcardCount = 0; }
     });
   }
 
@@ -296,15 +308,22 @@ function VSC_MAIN() {
   on(window, 'resize', bumpLayoutRev, { passive: true });
   try { const vv = window.visualViewport; if (vv) { on(vv, 'scroll', bumpLayoutRev, { passive: true }); on(vv, 'resize', bumpLayoutRev, { passive: true }); } } catch (_) {}
 
+  // [PATCH P2] getVState 초기화 최적화 (불필요한 property Lazy 초기화 유도)
   const videoStateMap = new WeakMap();
   const getVState = (v) => {
     let st = videoStateMap.get(v);
-    if (!st) { st = { visible: false, bound: false, applied: false, desiredRate: undefined, audioFailUntil: 0, _lastSrc: '', _ac: null, visibilityRatio: 0, rect: null, rectT: 0, _rectRev: 0, origFilter: null, origFilterPrio: '', origWebkitFilter: null, origWebkitFilterPrio: '', lastFilterUrl: null, lastTransform: undefined, lastScale: undefined, lastRot: undefined, rateState: null }; videoStateMap.set(v, st); }
+    if (!st) { st = { visible: false, bound: false, applied: false, rect: null, rectT: 0, _rectRev: 0, _lastSrc: '', audioFailUntil: 0 }; videoStateMap.set(v, st); }
     return st;
   };
 
-  // [P2 REFACTOR] 무거운 BoundedWeakSet 대신 네이티브 Set 사용
-  const TOUCHED = { videos: new Set(), rateVideos: new Set() };
+  // [PATCH P1] TOUCHED Set 메모리 누수 해결 위한 prune 로직 추가
+  const TOUCHED = {
+    videos: new Set(), rateVideos: new Set(),
+    prune() {
+      for (const v of this.videos) { if (!v.isConnected) this.videos.delete(v); }
+      for (const v of this.rateVideos) { if (!v.isConnected) this.rateVideos.delete(v); }
+    }
+  };
 
   function getRectCached(v, now) {
     const st = getVState(v);
@@ -364,14 +383,16 @@ function VSC_MAIN() {
     };
   }
 
+  // [PATCH P1] Scheduler의 queued 상태 경합 해결
   function createScheduler(minIntervalMs = 32) {
     let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0;
     let rvfcId = 0, rvfcTok = 0, rvfcVideo = null, getRvfcVideo = null;
     function cancelRvfc() { rvfcTok++; if (rvfcId && rvfcVideo && typeof rvfcVideo.cancelVideoFrameCallback === 'function') { try { rvfcVideo.cancelVideoFrameCallback(rvfcId); } catch (_) {} } rvfcId = 0; rvfcVideo = null; }
     function clearPending() { if (timer) { clearTimeout(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } cancelRvfc(); }
     function run() {
-      rafId = 0; queued = false; const now = performance.now(); const doForce = force; force = false; const dt = now - lastRun;
+      rafId = 0; const now = performance.now(); const doForce = force; force = false; const dt = now - lastRun;
       if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimeout(timerCb, wait); return; }
+      queued = false;
       lastRun = now;
       if (applyFn) { if (typeof scheduler !== 'undefined' && scheduler.postTask && !doForce) { scheduler.postTask(() => { try { applyFn(doForce); } catch (_) {} }, { priority: 'user-visible' }).catch(() => {}); } else { try { applyFn(doForce); } catch (_) {} } }
     }
@@ -420,9 +441,9 @@ function VSC_MAIN() {
     const savePrefs = createDebounced(() => { _doSave(); }, 1000);
     const flushNow = () => { savePrefs.cancel(); _doSave(); };
 
-    // [P2 REFACTOR] beforeunload 제거 (bfcache 호환성 확보)
     on(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') flushNow(); }, { passive: true, signal: storeSig });
-    on(window, 'pagehide', flushNow, { passive: true, signal: storeSig });
+    // [PATCH 1-7] bfcache 대응 확실한 백업 저장
+    on(window, 'pagehide', () => { flushNow(); if (STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.setItem(PREF_KEY, JSON.stringify(state)); } catch (_) {} } }, { passive: true, signal: storeSig });
 
     const emit = (path, val) => {
       const cbs = listeners.get(path); if (cbs) { for (const cb of cbs) safe(() => cb(val)); }
@@ -433,7 +454,14 @@ function VSC_MAIN() {
     return {
       state, rev: () => rev, getCatRef: (cat) => state[cat], get: (p) => { const [cat, key] = parsePath(p); return key ? state[cat]?.[key] : state[cat]; },
       set: (p, val) => { const [cat, key] = parsePath(p); const target = key ? state[cat] : state; const prop = key || cat; if (Object.is(target[prop], val)) return; target[prop] = val; notifyChange(p, val); },
-      batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (state[cat][k] !== v) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); if (bus) bus.emit('settings:changed', { path: `${cat}.${k}`, value: v }); } } if (changed) { rev++; savePrefs(); scheduler.request(false); } },
+      // [PATCH P0] Store.batch 부분 업데이트 관찰 방지
+      batch: (cat, obj) => {
+        let changed = false; const updates = [];
+        for (const [k, v] of Object.entries(obj)) {
+          if (state[cat][k] !== v) { state[cat][k] = v; changed = true; updates.push([`${cat}.${k}`, v]); }
+        }
+        if (changed) { rev++; for (const [path, val] of updates) { emit(path, val); if (bus) bus.emit('settings:changed', { path, value: val }); } savePrefs(); scheduler.request(false); }
+      },
       sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); },
       destroy: () => { storeAC.abort(); savePrefs.cancel(); try { _doSave(); } catch (_) {} listeners.clear(); }
     };
@@ -466,7 +494,6 @@ function VSC_MAIN() {
 
     const IO_MARGIN_PX_DYNAMIC = CONFIG.IS_MOBILE ? 100 : Math.min(300, Math.round(innerHeight * 0.15));
     const ioMargin = `${IO_MARGIN_PX_DYNAMIC}px`;
-    // [P2 REFACTOR] IO threshold 단일화 (콜백 폭탄 제거)
     const IO_THRESHOLDS = [0];
 
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
@@ -519,7 +546,6 @@ function VSC_MAIN() {
       lazyScanAncestorShadowRoots(el);
     };
 
-    // [P3 REFACTOR] WorkQ 스케줄러 로직 간소화 (scheduler.yield 단일 경로)
     const WorkQ = (() => {
       let active = [], pending = []; let scheduled = false; let activeSet = new Set(), pendingSet = new Set();
       let idleId = 0, rafId = 0, scheduleToken = 0;
@@ -539,12 +565,13 @@ function VSC_MAIN() {
         scheduled = false; [active, pending] = [pending, active]; [activeSet, pendingSet] = [pendingSet, activeSet]; pending.length = 0; pendingSet.clear();
         if (active.length <= 64) { for (let i = 0; i < active.length; i++) { activeSet.delete(active[i]); safe(() => scanNode(active[i])); } active.length = 0; activeSet.clear(); return; }
 
-        const canYield = typeof scheduler !== 'undefined' && typeof scheduler.yield === 'function';
+        // [PATCH P3] 명시적인 globalThis.scheduler 참조
+        const canYield = typeof globalThis.scheduler !== 'undefined' && typeof globalThis.scheduler.yield === 'function';
         let processed = 0;
         for (let i = 0; i < active.length; i++) {
           const n = active[i]; activeSet.delete(n);
           if ((++processed & 15) === 0) {
-            if (canYield) { try { await scheduler.yield(); } catch (_) {} if (destroyed) return; }
+            if (canYield) { try { await globalThis.scheduler.yield(); } catch (_) {} if (destroyed) return; }
             else if (dl?.timeRemaining && dl.timeRemaining() < 1) {
               for (let j = i; j < active.length; j++) { const rest = active[j]; if (!pendingSet.has(rest)) { pendingSet.add(rest); pending.push(rest); } }
               active.length = 0; schedule(); return;
@@ -618,6 +645,8 @@ function VSC_MAIN() {
     return {
       videos, visible, rev: () => rev, refreshObservers,
       prune: () => {
+        // [PATCH P1] TOUCHED Set 동기화 호출
+        TOUCHED.prune();
         for (const [root, mo] of [...shadowObserverMap]) {
           const host = root.host;
           if (!host || !host.isConnected) { try { mo.disconnect(); } catch (_) {} shadowObserverMap.delete(root); for (const v of [...videos]) { try { if (v.getRootNode() === root) untrackVideo(v); } catch (_) {} } }
@@ -655,7 +684,7 @@ function VSC_MAIN() {
 // =================== PART 1 END ===================
 // =================== PART 2 START ===================
 
-  // [P3 REFACTOR] 산발적으로 흩어져 있던 PiP 관련 코드 350줄을 단일 팩토리로 캡슐화
+  // [v186.0 Architecture] PiP 관련 전역 스코프 오염 방지 및 단일 팩토리 캡슐화
   function createPiPManager(AppStore, ApplyReq) {
     class PiPStateManager {
       constructor() { this.reset(); }
@@ -1073,7 +1102,6 @@ class VSCFinalizerProcessor extends AudioWorkletProcessor {
 registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 `;
 
-  // [P2 REFACTOR] Audio 팩토리 모듈 스코프로 분리
   function createStereoWidener(actx) {
     const mkBQ = (type, freq, Q = 0.707, gain) => { const f = actx.createBiquadFilter(); f.type = type; f.frequency.value = freq; if (Q !== undefined) f.Q.value = Q; if (gain !== undefined) f.gain.value = gain; return f; };
     const input = actx.createGain(), output = actx.createGain(); input.gain.value = 1.0; output.gain.value = 1.0; input.channelCount = 2; input.channelCountMode = 'clamped-max'; input.channelInterpretation = 'speakers';
@@ -1184,14 +1212,14 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     let finalizerNode = null, workletInitPromise = null;
     const contentClassifier = createContentClassifier();
 
-    // [P1 FIX] 중복 등록 방지를 위한 WeakSet
     const _workletRegistered = new WeakSet();
 
     async function ensureFinalizerWorklet(audioCtx) {
-      if (finalizerNode) return finalizerNode;
+      if (finalizerNode && finalizerNode.context === audioCtx) return finalizerNode;
+      if (finalizerNode) { try { finalizerNode.port.onmessage = null; finalizerNode.disconnect(); } catch (_) {} finalizerNode = null; }
       if (!window.isSecureContext || !audioCtx?.audioWorklet) return null;
       if (audioCtx.state === 'closed') return null;
-      if (workletInitPromise) { const result = await workletInitPromise; if (result) return result; workletInitPromise = null; }
+      if (workletInitPromise) { const result = await workletInitPromise; if (result && result.context === audioCtx) return result; workletInitPromise = null; }
 
       workletInitPromise = (async () => {
         let blobUrl = null;
@@ -1339,7 +1367,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  // [P1 FIX] Ratechange Race Condition 단방향 싱크 보장
+  // [PATCH P0] ratechange 이벤트 마이크로태스크 레이스 컨디션 완벽 방어 (이중 타이밍 검증)
   const bindVideoOnce = (v, ApplyReq) => {
     const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); ensureMobileInlinePlaybackHints(v);
     const softResetTransientFlags = () => {
@@ -1362,6 +1390,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const now = performance.now();
         if ((now - (rSt.lastSetAt || 0)) < 300 || now < (rSt.suppressSyncUntil || 0)) return;
 
+        const capturedRate = v.playbackRate; // 시점 캡처
+        if (!Number.isFinite(capturedRate) || capturedRate <= 0) return;
+
         queueMicrotask(() => {
           const ns = getNS();
           const store = ns?.Store;
@@ -1370,14 +1401,16 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           const activeVideo = ns.App?.getActiveVideo?.();
           if (!activeVideo || v !== activeVideo) return;
 
-          const currentRate = v.playbackRate;
+          // 큐 대기 시간 동안 내부 변경이 있었는지 이중 검증
+          const rStInner = getRateState(v);
+          if (performance.now() < (rStInner.suppressSyncUntil || 0)) return;
+          if (Math.abs(v.playbackRate - capturedRate) > 0.01) return;
+
           const storeRate = store.get(P.PB_RATE);
+          if (Math.abs(capturedRate - storeRate) < 0.01) return;
 
-          if (Math.abs(currentRate - storeRate) < 0.01) return;
-          if (!Number.isFinite(currentRate) || currentRate <= 0) return;
-
-          markInternalRateChange(v, 350);
-          store.batch('playback', { rate: currentRate, enabled: true });
+          markInternalRateChange(v, 350); // 재귀 호출 방지
+          store.batch('playback', { rate: capturedRate, enabled: true });
         });
       }]
     ];
@@ -1422,13 +1455,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 // =================== PART 2 END ===================
 // =================== PART 3 START ===================
 
-  // [P2 REFACTOR] 반복문 순회 통합 및 for...of 대체 (성능 마이크로 최적화)
+  // [PATCH P2] 3중 Set 병합 비용 최소화 (가장 큰 Set을 베이스로 복사)
   function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, isNeutralParams, isNeutralShadow, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch; candidates.clear();
-    for (const v of dirtyVideos) candidates.add(v);
-    for (const v of applySet) candidates.add(v);
-    for (const v of TOUCHED.videos) candidates.add(v);
-    for (const v of TOUCHED.rateVideos) candidates.add(v);
+    const sets = [dirtyVideos, applySet, TOUCHED.videos, TOUCHED.rateVideos];
+    let largest = sets[0];
+    for (let i = 1; i < sets.length; i++) { if (sets[i].size > largest.size) largest = sets[i]; }
+    for (const v of largest) candidates.add(v);
+    for (let i = 0; i < sets.length; i++) {
+      if (sets[i] === largest) continue;
+      for (const v of sets[i]) candidates.add(v);
+    }
     const isApplyAll = !!getNS()?.Store?.get('app.applyAll');
 
     for (const el of candidates) {
@@ -1518,7 +1555,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         const resMul = video ? computeResolutionSharpMul(video) : 0.0, perfMul = budget.sharpMul, contentMul = (video && video.readyState >= 2) ? contentTuner.analyzeDetailDensity(video) : 1.0, finalSharpMul = resMul * perfMul * contentMul;
         const baseSigma = video ? computeBaseSigmaScale(video) : 1.0, sigmaHint = contentTuner.getSigmaHint(), finalSigmaScale = baseSigma * sigmaHint;
 
-        // [USER DATA] microBase 차등 구조 바인딩
         const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: userTemp, rotation: vfUser.rotation || 0, gain: 1.0, mid: 0, toe: 0, shoulder: 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _rs: rs, _gs: gs, _bs: bs, _microBase: detailP.microBase || 0.18, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.32, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.20, 0.85] };
 
         const sLevel = VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, shadowLevel = Math.min(sLevel, budget.shadowCap), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut, budget, _lastContentMul: contentMul };
@@ -1553,7 +1589,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function createFiltersVideoOnly(Utils, config) {
     const { h, clamp } = Utils;
     const _cssFilterCache = new WeakMap();
-    // [P2 REFACTOR] 톤 캐시 무한 증식 억제 (max 32로 상향)
     function cacheSet(map, key, val, max = 32) { if (map.size >= max && !map.has(key)) map.delete(map.keys().next().value); map.set(key, val); }
     const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = new Map(), _attrCache = new WeakMap(), __vscBgMemo = new WeakMap();
 
@@ -1592,8 +1627,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     function makeKeyHash(s) {
       let h1 = 0x811c9dc5 >>> 0;
-      const mix = (v) => { h1 = Math.imul(h1 ^ (v | 0), 0x01000193) >>> 0; };
-      mix(((s.gain || 1) / 0.04) | 0); mix(((s.gamma || 1) / 0.01) | 0); mix(((s.contrast || 1) / 0.01) | 0); mix(((s.bright || 0) / 0.2) | 0); mix(((s.satF ?? 1) / 0.01) | 0); mix(((s.mid || 0) / 0.02) | 0); mix(((s.toe || 0) / 0.2) | 0); mix(((s.shoulder || 0) / 0.2) | 0); mix(((s.temp || 0) / 0.2) | 0); mix(s.sharp || 0); mix(s.sharp2 || 0); mix(((s._sigmaScale || 1) * 100) | 0); mix(((s._microBase || 0.18) * 1000) | 0); mix(((s._fineBase || 0.32) * 1000) | 0);
+      const mix = (v) => { h1 = Math.imul(h1 ^ Math.round(v), 0x01000193) >>> 0; };
+      mix((s.gain || 1) / 0.04); mix((s.gamma || 1) / 0.01); mix((s.contrast || 1) / 0.01); mix((s.bright || 0) / 0.2); mix((s.satF ?? 1) / 0.01); mix((s.mid || 0) / 0.02); mix((s.toe || 0) / 0.2); mix((s.shoulder || 0) / 0.2); mix((s.temp || 0) / 0.2); mix(s.sharp || 0); mix(s.sharp2 || 0); mix((s._sigmaScale || 1) * 100); mix((s._microBase || 0.18) * 1000); mix((s._fineBase || 0.32) * 1000);
       return h1;
     }
 
@@ -1631,8 +1666,19 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const shadowFilter = h('filter', { ns: 'svg', id: fidShadow, 'color-interpolation-filters': 'sRGB', x: '-1%', y: '-1%', width: '102%', height: '102%' });
       const shadowToneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' }); const shadowToneXfer = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 'sh_tone' }, ...shadowToneFuncs); shadowFilter.append(shadowToneXfer);
       defs.append(mainFilter, shadowFilter);
+
       const tryAppend = () => { const target = root.body || root.documentElement || root; if (target?.appendChild) { target.appendChild(svg); return true; } return false; };
-      if (!tryAppend()) { let _fallbackMoId = 0; const mo = new MutationObserver(() => { if (tryAppend()) { mo.disconnect(); clearTimeout(_fallbackMoId); } }); try { mo.observe(root.documentElement || root, { childList: true, subtree: true }); } catch (_) {} _fallbackMoId = setTimeout(() => mo.disconnect(), 5000); if (typeof __vscNs !== 'undefined' && __vscNs._timers) __vscNs._timers.push(_fallbackMoId); if (typeof __globalSig !== 'undefined') { __globalSig.addEventListener('abort', () => { clearTimeout(_fallbackMoId); mo.disconnect(); }, { once: true }); } }
+
+      // [PATCH P3] buildSvg 실패 시 로깅 보강
+      if (!tryAppend()) {
+        log.warn('[VSC] SVG inject failed immediately. Waiting for DOM mutation...');
+        let _fallbackMoId = 0;
+        const mo = new MutationObserver(() => { if (tryAppend()) { mo.disconnect(); clearTimeout(_fallbackMoId); } });
+        try { mo.observe(root.documentElement || root, { childList: true, subtree: true }); } catch (_) {}
+        _fallbackMoId = setTimeout(() => mo.disconnect(), 5000);
+        if (typeof __vscNs !== 'undefined' && __vscNs._timers) __vscNs._timers.push(_fallbackMoId);
+        if (typeof __globalSig !== 'undefined') { __globalSig.addEventListener('abort', () => { clearTimeout(_fallbackMoId); mo.disconnect(); }, { once: true }); }
+      }
       return { fidMain, fidShadow, sharp: { blurMicro, usmMicro, blurFine, usmNode }, color: { toneFuncs, bcFuncs, gamFuncs, tmp: { r: tempR, g: tempG, b: tempB }, sats: [satNode] }, shadowNodes: { toneFuncs: shadowToneFuncs }, st: { lastKey: '', rev: 0, toneKey: '', toneTable: '', bcLinKey: '', gammaKey: '', tempKey: '', satKey: '', blurKey: '', sharpKey: '', shadowKey: '' } };
     }
 
@@ -1802,11 +1848,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       return true;
     };
 
+    // [PATCH P3] CSS 변수명 정규화 적용
     safe(() => {
       if (typeof CSS === 'undefined' || !CSS.registerProperty) return;
       for (const prop of [
-        { name: '--__vsc171-vv-top', syntax: '<length>', inherits: true, initialValue: '0px' },
-        { name: '--__vsc171-vv-h', syntax: '<length>', inherits: true, initialValue: '100vh' }
+        { name: '--vsc-vv-top', syntax: '<length>', inherits: true, initialValue: '0px' },
+        { name: '--vsc-vv-h', syntax: '<length>', inherits: true, initialValue: '100vh' }
       ]) { try { CSS.registerProperty(prop); } catch (_) {} }
     });
 
@@ -1891,7 +1938,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     };
 
     const syncVVVars = () => {
-      try { const root = document.documentElement, vv = window.visualViewport; if (!root) return; if (!vv) { root.style.setProperty('--__vsc171-vv-top', '0px'); root.style.setProperty('--__vsc171-vv-h', `${window.innerHeight}px`); return; } root.style.setProperty('--__vsc171-vv-top', `${Math.round(vv.offsetTop)}px`); root.style.setProperty('--__vsc171-vv-h', `${Math.round(vv.height)}px`); } catch (_) {}
+      try { const root = document.documentElement, vv = window.visualViewport; if (!root) return; if (!vv) { root.style.setProperty('--vsc-vv-top', '0px'); root.style.setProperty('--vsc-vv-h', `${window.innerHeight}px`); return; } root.style.setProperty('--vsc-vv-top', `${Math.round(vv.offsetTop)}px`); root.style.setProperty('--vsc-vv-h', `${Math.round(vv.height)}px`); } catch (_) {}
     };
     syncVVVars();
 
@@ -1905,7 +1952,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const getMainPanel = () => container && container.shadowRoot && container.shadowRoot.querySelector('.main');
 
-    // [P0 FIX] Safari adoptedStyleSheets 호환성 패치
     const __vscSheetCache = new Map();
     function attachShadowStyles(shadowRoot, cssText) {
       try {
@@ -1923,10 +1969,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (container) return;
       const host = h('div', { id: `vsc-host-${getNS()?.CONFIG?.VSC_ID || 'core'}`, 'data-vsc-ui': '1', 'data-vsc-id': getNS()?.CONFIG?.VSC_ID });
       const shadow = host.attachShadow({ mode: 'open' });
+      // [PATCH P3] 스타일 템플릿의 CSS 변수명 정규화
       const style = `
-        @property --__vsc171-vv-top { syntax: "<length>"; inherits: true; initial-value: 0px; }
-        @property --__vsc171-vv-h { syntax: "<length>"; inherits: true; initial-value: 100vh; }
-        :host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px;--vsc-ui-rot:0deg;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--__vsc171-vv-top,0px) + (var(--__vsc171-vv-h,100vh) / 2));right:var(--vsc-safe-right);transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg));width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:50%!important;right:var(--vsc-safe-right)!important;left:auto!important;transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg))!important;width:260px!important;max-height:70vh!important;padding:10px;border-radius:12px;overflow-y:auto}.main::-webkit-scrollbar{width:3px}.main::-webkit-scrollbar-thumb{background:#666;border-radius:10px}.prow{gap:3px;flex-wrap:nowrap;justify-content:center}.btn,.pbtn{min-height:34px;font-size:10.5px;padding:4px 1px;letter-spacing:-0.8px;white-space:nowrap}.header{font-size:12px;padding-bottom:5px}} .header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active,.pbtn.active{background:var(--btn-bg);border-color:var(--ac);color:var(--ac)}.btn.fill-active.active{background:var(--ac);border-color:var(--ac);color:#fff}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.slider{width:100%}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}
+        @property --vsc-vv-top { syntax: "<length>"; inherits: true; initial-value: 0px; }
+        @property --vsc-vv-h { syntax: "<length>"; inherits: true; initial-value: 100vh; }
+        :host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px;--vsc-ui-rot:0deg;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2));right:var(--vsc-safe-right);transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg));width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:50%!important;right:var(--vsc-safe-right)!important;left:auto!important;transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg))!important;width:260px!important;max-height:70vh!important;padding:10px;border-radius:12px;overflow-y:auto}.main::-webkit-scrollbar{width:3px}.main::-webkit-scrollbar-thumb{background:#666;border-radius:10px}.prow{gap:3px;flex-wrap:nowrap;justify-content:center}.btn,.pbtn{min-height:34px;font-size:10.5px;padding:4px 1px;letter-spacing:-0.8px;white-space:nowrap}.header{font-size:12px;padding-bottom:5px}} .header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active,.pbtn.active{background:var(--btn-bg);border-color:var(--ac);color:var(--ac)}.btn.fill-active.active{background:var(--ac);border-color:var(--ac);color:#fff}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.slider{width:100%}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}
       `;
       attachShadowStyles(shadow, style);
 
@@ -2329,12 +2376,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     });
   }
 
-  // [P3 REFACTOR] PiP Manager 의존성 주입
-  function createPiPFeature(Bus, PiPManager) {
+  function createPiPFeature(Bus) {
     return defineFeature({
       name: 'pip', phase: PHASE.PROCESS,
       onInit() { on(document, 'enterpictureinpicture', (e) => { Bus.emit('pip:changed', { video: e.target, active: true }); }, { capture: true }); on(document, 'leavepictureinpicture', (e) => { Bus.emit('pip:changed', { video: e.target, active: false }); }, { capture: true }); },
-      methods: { async toggle() { const v = this.getActiveVideo(); if (v) await PiPManager.toggle(v); } }
+      methods: { async toggle() { const v = this.getActiveVideo(); if (v) { const toggleFn = getNS()?.PiPManager?.toggle; if (toggleFn) await toggleFn(v); } } }
     });
   }
 
@@ -2446,7 +2492,6 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
-  // [P3 REFACTOR] PiP 매니저 조기 초기화 및 주입
   const PiPManager = createPiPManager(Store, ApplyReq);
   __vscNs.PiPManager = PiPManager;
 
@@ -2501,14 +2546,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
     const Features = createFeatureRegistry(Bus);
     Features.register(createPipelineFeature(Store, Registry, Adapter, ApplyReq, P, Targeting, PerfGovernor, videoParamsMemo));
-
-    // [P3 REFACTOR] PiPManager 주입 연결
     const audioFeat = createAudioFeature(Store, PiPManager); Features.register(audioFeat);
     const zoomFeat = createZoomFeature(Store, P); Features.register(zoomFeat);
     const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, P, Bus); Features.register(uiFeat);
     Features.register(createTimerFeature());
     Features.register(createPerfNotificationFeature(Utils));
-    const pipFeat = createPiPFeature(Bus, PiPManager); Features.register(pipFeat);
+    const pipFeat = createPiPFeature(Bus); Features.register(pipFeat);
 
     __vscNs.Features = Features;
     __vscNs.ZoomManager = zoomFeat;
