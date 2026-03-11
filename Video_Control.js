@@ -124,9 +124,9 @@ function VSC_MAIN() {
     });
 
     const QUICK_PRESETS = Object.freeze({
-      everyday: { presetS: 'Medium', brightLevel: 2, shadowBandMask: 0, temp: 0 },
-      movie: { presetS: 'Ultra', brightLevel: 2, shadowBandMask: 1, temp: -15 },
-      anime: { presetS: 'Master', brightLevel: 0, shadowBandMask: 0, temp: -30 }
+      everyday: { presetS: 'Medium', brightLevel: 1, shadowBandMask: 0, temp: 0 },
+      movie: { presetS: 'Ultra', brightLevel: 3, shadowBandMask: 1, temp: -7 },
+      anime: { presetS: 'Master', brightLevel: 2, shadowBandMask: 0, temp: -15 }
     });
 
     const DEFAULTS = Object.freeze({
