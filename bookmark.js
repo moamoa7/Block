@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v13.2)
-// @version      13.2
-// @description  v13.0 기반 – 데드링크 감지 고도화(실제 접속 불가만 판정), Icon Horse 파비콘, FAB 조작 개선
+// @name         북마크 (Shadow DOM 통합 v13.3)
+// @version      13.3
+// @description  v13.0 기반 – 데드링크 감지 고도화, Icon Horse 파비콘, FAB 조작 개선 및 모바일 반응형 크기 최적화
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -233,17 +233,14 @@
                 url,
                 timeout: 8000,
                 onload: () => {
-                    // 응답이 왔다면 HTTP 코드와 상관없이 서버가 살아있는 것으로 간주
                     _deadLinkCache.set(url, false);
                     resolve(false);
                 },
                 onerror: () => {
-                    // DNS 실패, 연결 거부 등 물리적 접속 불가
                     _deadLinkCache.set(url, true);
                     resolve(true);
                 },
                 ontimeout: () => {
-                    // 8초간 무응답 시 접속 불가로 간주
                     _deadLinkCache.set(url, true);
                     resolve(true);
                 }
@@ -723,7 +720,7 @@
             if (st.dragging) {
                 fab.style.transition = '';
                 fab.style.bottom = 'auto';
-                const snapRight = fab.getBoundingClientRect().left + 27.5 > innerWidth / 2;
+                const snapRight = fab.getBoundingClientRect().left + (fab.offsetWidth / 2) > innerWidth / 2;
                 fab.style.left = snapRight ? 'auto' : '15px';
                 fab.style.right = snapRight ? '15px' : 'auto';
                 st.dragging = false;
@@ -781,8 +778,9 @@
 
             st.dragging = true;
             fab.style.transition = 'none';
-            fab.style.left = Math.max(0, Math.min(innerWidth - 55, e.clientX - st.ox)) + 'px';
-            fab.style.top = Math.max(0, Math.min(innerHeight - 55, e.clientY - st.oy)) + 'px';
+            const fabSize = fab.offsetWidth || 46;
+            fab.style.left = Math.max(0, Math.min(innerWidth - fabSize, e.clientX - st.ox)) + 'px';
+            fab.style.top = Math.max(0, Math.min(innerHeight - fabSize, e.clientY - st.oy)) + 'px';
             fab.style.right = 'auto';
             fab.style.bottom = 'auto';
         });
@@ -843,7 +841,7 @@
                 --c-text: #333;
                 --c-border: #ddd;
                 --radius: 8px;
-                --fab-size: 55px;
+                --fab-size: 46px;
                 --fab-offset: 20px;
                 --modal-max-w: 420px;
                 --grid-min: 300px;
@@ -851,6 +849,15 @@
                 --item-min: 85px;
                 --icon-size: 38px;
                 color-scheme: light dark;
+            }
+
+            @media (max-width: 768px) {
+                :host {
+                    --fab-size: 40px;
+                }
+                #bookmark-fab {
+                    font-size: 20px !important;
+                }
             }
 
             @media (prefers-color-scheme: dark) {
@@ -893,7 +900,7 @@
                 justify-content: center;
                 cursor: pointer;
                 box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-                font-size: 26px;
+                font-size: 22px;
                 user-select: none;
                 touch-action: none;
                 -webkit-tap-highlight-color: transparent;
