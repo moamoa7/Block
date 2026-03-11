@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v16.0)
-// @version      16.0
-// @description  v15.0 기반 – FAB 스와이프 빠른추가, 스와이프 힌트, 검색+정렬모드 방어, 그룹생성 유효성, 아이콘복구 취소, setupFab 리팩토링, 대시보드 추가 버튼
+// @name         북마크 (Shadow DOM 통합 v17.0)
+// @version      17.0
+// @description  v16.0 기반 – 버그수정, 토스트, 드래그드롭, 그룹빠른추가, FAB배지, 리팩토링
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -19,9 +19,7 @@
     /* ═══════════════════════════════════
        유틸리티
        ═══════════════════════════════════ */
-    const deepClone = typeof structuredClone === 'function'
-        ? structuredClone
-        : (obj) => JSON.parse(JSON.stringify(obj));
+    const deepClone = structuredClone;
 
     function el(tag, attrs = {}, children = []) {
         const e = document.createElement(tag);
@@ -32,22 +30,19 @@
             else if (k.startsWith('on') && typeof v === 'function') e.addEventListener(k.slice(2), v);
             else e.setAttribute(k, v);
         }
-        const list = Array.isArray(children) ? children : [children];
-        for (const c of list) { if (c != null) e.append(c); }
+        for (const c of [children].flat()) {
+            if (c != null) e.append(c);
+        }
         return e;
     }
 
     const btn = (text, cls = '', onclick = null, style = {}) =>
-        el('button', { class: `bm-util-btn ${cls}`.trim(), text, onclick, style });
-
-    let ttPolicy = null;
-    if (window.trustedTypes?.createPolicy) {
-        try {
-            ttPolicy = window.trustedTypes.createPolicy('bm-safe-html', {
-                createHTML: (s) => s.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '').replace(/\bon\w+\s*=/gi, 'data-blocked=')
-            });
-        } catch (e) { console.warn('TrustedTypes policy failed', e); }
-    }
+        el('button', {
+            class: `bm-util-btn ${cls}`.trim(),
+            text,
+            onclick,
+            ...(Object.keys(style).length ? { style } : {})
+        });
 
     function isValidUrl(str) {
         try { const u = new URL(str); return u.protocol === 'http:' || u.protocol === 'https:'; }
@@ -136,6 +131,7 @@
         saveData();
         const overlay = shadow.querySelector('#bookmark-overlay');
         if (overlay?.style.display === 'block') renderDashboard();
+        showToast('↩ 되돌리기 완료');
         return true;
     }
 
@@ -160,11 +156,6 @@
         }
         GM_setValue('bm_db_v2', db);
     };
-
-    function saveDataInvalidate() {
-        _urlSet = null;
-        saveData();
-    }
 
     const getCurPage = () => db.pages[db.currentPage];
     let isSortMode = false;
@@ -259,8 +250,12 @@
        ═══════════════════════════════════ */
     let _faviconObserver = null;
 
-    function createFaviconObserver(root) {
-        return new IntersectionObserver((entries) => {
+    function getOrCreateFaviconObserver(root) {
+        if (_faviconObserver) {
+            _faviconObserver.disconnect();
+            return _faviconObserver;
+        }
+        _faviconObserver = new IntersectionObserver((entries) => {
             for (const entry of entries) {
                 if (entry.isIntersecting) {
                     const img = entry.target;
@@ -270,12 +265,14 @@
                 }
             }
         }, { root, rootMargin: '200px' });
+        return _faviconObserver;
     }
 
     /* ═══════════════════════════════════
        데드링크 감지
        ═══════════════════════════════════ */
     const _deadLinkCache = new Map();
+    let _deadCheckDone = false;
 
     function checkDeadLink(url) {
         return new Promise(resolve => {
@@ -284,23 +281,28 @@
                 method: 'HEAD',
                 url,
                 timeout: 8000,
-                onload: () => {
-                    _deadLinkCache.set(url, false);
-                    resolve(false);
-                },
-                onerror: () => {
-                    _deadLinkCache.set(url, true);
-                    resolve(true);
-                },
-                ontimeout: () => {
-                    _deadLinkCache.set(url, true);
-                    resolve(true);
-                }
+                onload: () => { _deadLinkCache.set(url, false); resolve(false); },
+                onerror: () => { _deadLinkCache.set(url, true); resolve(true); },
+                ontimeout: () => { _deadLinkCache.set(url, true); resolve(true); }
             });
         });
     }
 
     let shadow = null;
+
+    /* ═══════════════════════════════════
+       토스트 알림
+       ═══════════════════════════════════ */
+    function showToast(msg, duration = 2000) {
+        shadow.querySelector('.bm-toast')?.remove();
+        const toast = el('div', { class: 'bm-toast', text: msg });
+        shadow.appendChild(toast);
+        requestAnimationFrame(() => toast.classList.add('show'));
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, duration);
+    }
 
     /* ═══════════════════════════════════
        모달
@@ -325,24 +327,19 @@
 
     function showModal(modal) {
         shadow.appendChild(modal);
-        if (typeof modal.showModal === 'function') {
-            modal.showModal();
-        } else {
-            modal.setAttribute('open', '');
-            modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999999;background:rgba(0,0,0,0.6);padding:0;border:none;';
-        }
+        modal.showModal();
         return modal;
     }
 
     /* ═══════════════════════════════════
-       아이콘 전체 복구 [2-1 취소 기능]
+       아이콘 전체 복구
        ═══════════════════════════════════ */
     async function fixAllIcons() {
         const allItems = [];
         for (const page of Object.values(db.pages))
             for (const items of Object.values(page))
                 for (const item of items) allItems.push(item);
-        if (allItems.length === 0) { alert('저장된 북마크가 없습니다.'); return; }
+        if (allItems.length === 0) { showToast('저장된 북마크가 없습니다.'); return; }
         if (!confirm(`총 ${allItems.length}개 아이콘을 다시 다운로드합니다.\n진행하시겠습니까?`)) return;
 
         let cancelled = false;
@@ -365,7 +362,7 @@
         }
         saveDataNow();
         modalBg.close();
-        alert(cancelled ? `중단됨 (${allItems.length}개 중 일부 완료)` : "복구 완료!");
+        showToast(cancelled ? '중단됨 (일부 완료)' : '✅ 아이콘 복구 완료');
         renderDashboard();
     }
 
@@ -392,7 +389,7 @@
                     if (!validateDB(parsed)) { alert('파일 구조가 올바르지 않습니다.'); return; }
                     db = deepClone(parsed);
                     _urlSet = null;
-                    saveDataNow(); renderDashboard(); alert('복구 완료!');
+                    saveDataNow(); renderDashboard(); showToast('✅ 복구 완료');
                 } catch { alert('잘못된 파일입니다.'); }
             };
             r.readAsText(file);
@@ -424,6 +421,7 @@
         const urlInput = el('input', { type: 'text', class: 'r-u', value: url, placeholder: 'URL' });
         urlInput.addEventListener('paste', () => {
             setTimeout(() => {
+                if (!isNew) return;
                 const pastedUrl = urlInput.value.trim();
                 if (nameInput.value.trim() || !isValidUrl(pastedUrl)) return;
                 GM_xmlhttpRequest({
@@ -482,14 +480,25 @@
 
         const actions = [
             { text: '✏️ 편집', action: () => { menu.remove(); showGroupManager(groupName); } },
-            { text: '📋 URL 복사', action: () => { navigator.clipboard?.writeText(item.url); menu.remove(); } },
+            {
+                text: '📋 URL 복사', action: () => {
+                    navigator.clipboard?.writeText(item.url);
+                    showToast('📋 URL 복사됨');
+                    menu.remove();
+                }
+            },
             {
                 text: '🗑 삭제', cls: 'ctx-danger', action: () => {
                     if (confirm(`"${item.name}" 삭제?`)) {
                         pushUndo();
                         const items = getCurPage()[groupName];
                         const idx = items.findIndex(i => i.url === item.url && i.name === item.name);
-                        if (idx !== -1) { items.splice(idx, 1); saveDataInvalidate(); renderDashboard(); }
+                        if (idx !== -1) {
+                            items.splice(idx, 1);
+                            _urlSet = null;
+                            saveData();
+                            renderDashboard();
+                        }
                     }
                     menu.remove();
                 }
@@ -519,7 +528,7 @@
     function destroyAllSortables() { _activeSortables.forEach(s => s.destroy()); _activeSortables = []; }
 
     /* ═══════════════════════════════════
-       대시보드 렌더링 [1-3, 1-5, 4-2]
+       대시보드 렌더링
        ═══════════════════════════════════ */
     let _searchTimer = null;
     let _currentContainer = null;
@@ -528,8 +537,7 @@
         const overlay = shadow.querySelector('#bookmark-overlay');
         if (!overlay) return;
 
-        _faviconObserver?.disconnect();
-        _faviconObserver = createFaviconObserver(overlay);
+        _faviconObserver = getOrCreateFaviconObserver(overlay);
 
         overlay.className = isSortMode ? 'sort-mode-active' : '';
         overlay.replaceChildren();
@@ -597,7 +605,12 @@
         adminBar.append(
             searchInput,
             btn('📌 추가', 'bm-btn-green', () => showQuickAddModal()),
-            btn(isSortMode ? '✅ 완료' : '↕ 정렬', 'bm-btn-blue', () => { isSortMode = !isSortMode; renderDashboard(); }),
+            btn(isSortMode ? '✅ 완료' : '↕ 정렬', 'bm-btn-blue', () => {
+                isSortMode = !isSortMode;
+                const si = _currentContainer?.parentElement?.querySelector('.bm-search-input');
+                if (si) si.value = '';
+                renderDashboard();
+            }),
             btn('🔄 아이콘', 'bm-btn-orange', fixAllIcons),
             btn('📂 탭관리', '', showTabManager),
             btn('➕ 그룹', '', () => {
@@ -636,6 +649,44 @@
         });
         _currentContainer = container;
 
+        /* ── 드래그 앤 드롭 URL 추가 ── */
+        container.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            container.style.outline = '2px dashed var(--c-primary)';
+        });
+        container.addEventListener('dragleave', () => { container.style.outline = ''; });
+        container.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            container.style.outline = '';
+            const droppedUrl = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+            if (!droppedUrl || !isValidUrl(droppedUrl.trim())) return;
+            const url = droppedUrl.trim();
+            if (isUrlDuplicate(url)) { showToast('⚠ 이미 저장된 URL'); return; }
+            const targetGrid = e.target.closest('.bm-item-grid');
+            const groupName = targetGrid?.dataset.group || Object.keys(getCurPage())[0];
+            if (!groupName) return;
+            let name = url;
+            try {
+                const res = await new Promise((resolve) => {
+                    GM_xmlhttpRequest({
+                        method: 'GET', url, timeout: 5000,
+                        headers: { 'Accept': 'text/html' },
+                        onload: resolve, onerror: () => resolve(null)
+                    });
+                });
+                const match = res?.responseText?.match(/<title[^>]*>([^<]+)<\/title>/i);
+                if (match?.[1]) name = match[1].trim().substring(0, 30);
+            } catch {}
+            const icon = await fetchFaviconBase64(url);
+            pushUndo();
+            getCurPage()[groupName].push({ name, url, icon });
+            addToUrlSet(url);
+            saveData();
+            renderDashboard();
+            showToast(`✅ "${groupName}"에 추가됨`);
+        });
+
         Object.entries(getCurPage()).forEach(([gTitle, items]) => {
             const section = el('div', { class: 'bm-bookmark-section', 'data-id': gTitle });
             const isCollapsed = _collapsedGroups.has(collapseKey(gTitle));
@@ -653,7 +704,31 @@
                 el('span', { text: `(${items.length})`, class: 'bm-group-count' })
             );
             header.appendChild(titleSpan);
-            if (!isSortMode) header.appendChild(el('button', { class: 'bm-manage-btn', text: '관리' }));
+
+            if (!isSortMode) {
+                /* ── 그룹 헤더 빠른 추가 버튼 ── */
+                const quickAddBtn = el('button', {
+                    class: 'bm-quick-group-add',
+                    text: '+',
+                    title: '현재 페이지를 이 그룹에 추가',
+                    onclick: async (e) => {
+                        e.stopPropagation();
+                        const url = window.location.href;
+                        if (isUrlDuplicate(url)) { showToast('⚠ 이미 저장된 URL'); return; }
+                        const name = document.title.substring(0, 30) || url;
+                        const icon = await fetchFaviconBase64(url);
+                        pushUndo();
+                        getCurPage()[gTitle].push({ name, url, icon });
+                        addToUrlSet(url);
+                        setRecentGroup(db.currentPage, gTitle);
+                        saveData();
+                        renderDashboard();
+                        showToast(`✅ "${gTitle}"에 추가됨`);
+                    }
+                });
+                header.appendChild(quickAddBtn);
+                header.appendChild(el('button', { class: 'bm-manage-btn', text: '관리' }));
+            }
             section.appendChild(header);
 
             const grid = el('div', {
@@ -661,6 +736,14 @@
                 'data-group': gTitle,
                 style: isCollapsed && !isSortMode ? { display: 'none' } : {}
             });
+
+            if (items.length === 0 && !isSortMode) {
+                grid.appendChild(el('div', {
+                    class: 'bm-empty-group',
+                    text: '북마크를 추가하세요'
+                }));
+            }
+
             items.forEach(item => {
                 const wrapper = el('a', { class: 'bm-item-wrapper', href: item.url, target: '_blank' });
                 wrapper.addEventListener('contextmenu', (e) => showItemContextMenu(e, item, gTitle));
@@ -680,6 +763,12 @@
 
         frag.appendChild(container);
         overlay.appendChild(frag);
+
+        /* ── 단축키 힌트 ── */
+        overlay.appendChild(el('div', {
+            class: 'bm-shortcut-hint',
+            text: 'Ctrl+Shift+B: 대시보드 | Ctrl+Shift+D: 빠른추가 | Ctrl+Z: 되돌리기 | ESC: 닫기'
+        }));
 
         destroyAllSortables();
 
@@ -712,24 +801,33 @@
                             });
                         };
                         rebuildGroup(evt.from); if (evt.from !== evt.to) rebuildGroup(evt.to);
-                        saveDataInvalidate();
+                        saveData();
                     }
                 }));
             });
         }
 
-        const runDeadCheck = () => {
-            const wrappers = [...container.querySelectorAll('.bm-item-grid:not([style*="display: none"]) .bm-item-wrapper')];
-            let checked = 0;
-            for (const w of wrappers) {
-                const url = w.getAttribute('href'); if (!url) continue;
-                if (_deadLinkCache.has(url)) { if (_deadLinkCache.get(url)) w.classList.add('bm-dead-link'); continue; }
-                if (checked >= 20) break; checked++;
-                checkDeadLink(url).then(dead => { if (dead && w.isConnected) w.classList.add('bm-dead-link'); });
-            }
-        };
-        if (typeof requestIdleCallback === 'function') requestIdleCallback(runDeadCheck);
-        else setTimeout(runDeadCheck, 500);
+        /* ── 데드링크 체크 (세션 1회) ── */
+        if (!_deadCheckDone) {
+            const runDeadCheck = () => {
+                const wrappers = [...container.querySelectorAll('.bm-item-grid:not([style*="display: none"]) .bm-item-wrapper')];
+                let checked = 0;
+                for (const w of wrappers) {
+                    const url = w.getAttribute('href'); if (!url) continue;
+                    if (_deadLinkCache.has(url)) { if (_deadLinkCache.get(url)) w.classList.add('bm-dead-link'); continue; }
+                    if (checked >= 20) break; checked++;
+                    checkDeadLink(url).then(dead => { if (dead && w.isConnected) w.classList.add('bm-dead-link'); });
+                }
+                _deadCheckDone = true;
+            };
+            if (typeof requestIdleCallback === 'function') requestIdleCallback(runDeadCheck);
+            else setTimeout(runDeadCheck, 500);
+        } else {
+            container.querySelectorAll('.bm-item-wrapper').forEach(w => {
+                const url = w.getAttribute('href');
+                if (url && _deadLinkCache.get(url)) w.classList.add('bm-dead-link');
+            });
+        }
     }
 
     /* ═══════════════════════════════════
@@ -752,6 +850,8 @@
 
         if (hasInvalid && !confirm('유효하지 않은 URL은 제외됩니다. 계속하시겠습니까?')) return;
 
+        pushUndo();
+
         for (const item of newItems) {
             const existing = items.find(o => o.url === item.url);
             item.icon = existing?.icon || await fetchFaviconBase64(item.url);
@@ -769,7 +869,8 @@
             page[gTitle] = newItems;
         }
 
-        saveDataInvalidate();
+        _urlSet = null;
+        saveData();
         renderDashboard();
         modalBg.close();
     }
@@ -784,7 +885,7 @@
         const content = el('div', { class: 'bm-modal-content' });
         content.append(el('h3', { text: '🛠 그룹 관리', style: { marginTop: '0' } }), el('label', { text: '그룹 이름' }));
         const gNameInput = el('input', { type: 'text', value: gTitle });
-        const listEl = el('div', { style: { maxHeight: '40vh', overflowY: 'auto', border: '1px solid var(--c-border)', borderRadius: '8px', padding: '10px', marginTop: '10px' } });
+        const listEl = el('div', { class: 'bm-scroll-list bm-mt-10' });
         if (items.length === 0) {
             listEl.appendChild(el('div', {
                 text: '북마크가 없습니다. 아래 버튼으로 추가하세요.',
@@ -796,7 +897,7 @@
             btn('+ 북마크 추가', 'bm-btn-blue', () => { listEl.appendChild(createItemRow({ isNew: true })); listEl.scrollTop = listEl.scrollHeight; }, { width: '100%', marginTop: '10px', padding: '10px' }),
             btn('📌 현재 페이지 추가', 'bm-btn-green', () => { listEl.appendChild(createItemRow({ name: document.title.substring(0, 30), url: window.location.href })); listEl.scrollTop = listEl.scrollHeight; }, { width: '100%', marginTop: '5px', padding: '10px' })
         );
-        const btnRow = el('div', { style: { display: 'flex', gap: '10px', marginTop: '20px' } });
+        const btnRow = el('div', { class: 'bm-flex-row bm-mt-20' });
         btnRow.append(
             btn('저장', 'bm-btn-green', () => saveGroupEdits(gTitle, gNameInput, listEl, items, modalBg), { flex: '2', padding: '12px' }),
             btn('닫기', '', () => modalBg.close(), { flex: '1', background: '#999', padding: '12px' })
@@ -805,7 +906,8 @@
             if (confirm(`"${gTitle}" 그룹을 삭제하시겠습니까?`)) {
                 pushUndo();
                 delete getCurPage()[gTitle];
-                saveDataInvalidate();
+                _urlSet = null;
+                saveData();
                 renderDashboard();
                 modalBg.close();
             }
@@ -823,9 +925,10 @@
         pushUndo();
         delete db.pages[tn];
         if (db.currentPage === tn) db.currentPage = Object.keys(db.pages)[0];
-        saveDataInvalidate();
-        renderDashboard();
+        _urlSet = null;
+        saveData();
         modalBg.close();
+        renderDashboard();
     }
 
     function renameTab(tn, renderList) {
@@ -846,7 +949,7 @@
         const modalBg = createModal();
         const content = el('div', { class: 'bm-modal-content' });
         content.appendChild(el('h3', { text: '📂 탭 관리', style: { marginTop: '0' } }));
-        const list = el('div', { style: { maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--c-border)', borderRadius: '8px' } });
+        const list = el('div', { class: 'bm-scroll-list' });
         const renderList = () => {
             list.replaceChildren();
             Object.keys(db.pages).forEach(tn => {
@@ -884,19 +987,47 @@
        빠른 추가 공통 저장
        ═══════════════════════════════════ */
     async function saveBookmarkTo(page, group, name, url, modalBg) {
+        if (!name || !name.trim()) { alert('이름을 입력하세요.'); return; }
         if (!isValidUrl(url)) { alert('올바른 URL을 입력하세요.'); return; }
         const icon = await fetchFaviconBase64(url);
         if (!db.pages[page][group]) db.pages[page][group] = [];
-        db.pages[page][group].push({ name, url, icon });
+        db.pages[page][group].push({ name: name.trim(), url: url.trim(), icon });
         addToUrlSet(url);
         setRecentGroup(page, group);
         saveData();
         modalBg.close();
-        alert('저장됨');
+        const overlay = shadow.querySelector('#bookmark-overlay');
+        if (overlay?.style.display === 'block') renderDashboard();
+        updateFabIndicator();
+        showToast('✅ 저장됨');
     }
 
     /* ═══════════════════════════════════
-       빠른 추가 모달 [1-4 trim 체크]
+       그룹 선택 렌더러 (퀵 추가 모달용)
+       ═══════════════════════════════════ */
+    function renderGroupSelector(area, page, nameGetter, urlGetter, modalBg) {
+        area.replaceChildren(
+            el('p', { text: `그룹 선택 (${page}):`, style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } })
+        );
+        const col = el('div', { class: 'bm-flex-col' });
+        Object.keys(db.pages[page]).forEach(g => {
+            col.appendChild(btn(`📁 ${g}`, '',
+                () => saveBookmarkTo(page, g, nameGetter(), urlGetter(), modalBg),
+                { background: 'var(--c-bg)', color: 'var(--c-text)', justifyContent: 'flex-start', padding: '12px' }
+            ));
+        });
+        col.appendChild(btn('+ 새 그룹 생성', '', async () => {
+            const n = prompt("새 그룹 이름:");
+            if (!n || !n.trim()) return;
+            const trimmed = n.trim();
+            if (db.pages[page][trimmed]) { alert('이미 존재하는 그룹입니다.'); return; }
+            await saveBookmarkTo(page, trimmed, nameGetter(), urlGetter(), modalBg);
+        }, { background: 'var(--c-dark)', color: '#fff', padding: '12px' }));
+        area.appendChild(col);
+    }
+
+    /* ═══════════════════════════════════
+       빠른 추가 모달
        ═══════════════════════════════════ */
     function showQuickAddModal() {
         if (shadow.querySelector('#bm-quick-modal')) return;
@@ -914,10 +1045,12 @@
         content.appendChild(ui);
         const area = el('div'); const recent = getRecentGroup();
         if (recent && db.pages[recent.page]?.[recent.group]) {
-            area.append(el('p', { text: `최근 저장: ${recent.page} > ${recent.group}`, style: { fontSize: '11px', color: '#999', marginTop: '10px', marginBottom: '2px' } }),
+            area.append(
+                el('p', { text: `최근 저장: ${recent.page} > ${recent.group}`, style: { fontSize: '11px', color: '#999', marginTop: '10px', marginBottom: '2px' } }),
                 btn(`⚡ ${recent.page} > ${recent.group}에 바로 저장`, 'bm-btn-blue',
                     () => saveBookmarkTo(recent.page, recent.group, ni.value, ui.value, modalBg),
-                    { width: '100%', marginTop: '2px', padding: '10px' }));
+                    { width: '100%', marginTop: '2px', padding: '10px' })
+            );
         }
         ni.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && recent && db.pages[recent.page]?.[recent.group]) {
@@ -929,19 +1062,7 @@
         const tabBtns = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px' } });
         Object.keys(db.pages).forEach(p => {
             tabBtns.appendChild(btn(p, '', () => {
-                area.replaceChildren(); area.appendChild(el('p', { text: `그룹 선택 (${p}):`, style: { fontSize: '12px', fontWeight: 'bold' } }));
-                const col = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '5px' } });
-                Object.keys(db.pages[p]).forEach(g => {
-                    col.appendChild(btn(`📁 ${g}`, '',
-                        () => saveBookmarkTo(p, g, ni.value, ui.value, modalBg),
-                        { background: 'var(--c-bg)', color: 'var(--c-text)', justifyContent: 'flex-start', padding: '12px' }));
-                });
-                col.appendChild(btn('+ 새 그룹 생성', '', async () => {
-                    const n = prompt("새 그룹 이름:");
-                    if (!n || !n.trim()) return;
-                    await saveBookmarkTo(p, n.trim(), ni.value, ui.value, modalBg);
-                }, { background: 'var(--c-dark)', color: '#fff', padding: '12px' }));
-                area.appendChild(col);
+                renderGroupSelector(area, p, () => ni.value, () => ui.value, modalBg);
             }, { background: '#eee', color: '#333' }));
         });
         area.appendChild(tabBtns); content.appendChild(area);
@@ -951,14 +1072,28 @@
     }
 
     /* ═══════════════════════════════════
-       FAB 인디케이터
+       FAB 인디케이터 + 배지
        ═══════════════════════════════════ */
     function updateFabIndicator() {
         const fab = shadow?.querySelector('#bookmark-fab');
         if (!fab || shadow.querySelector('#bookmark-overlay')?.style.display === 'block') return;
 
-        fab.style.outline = isUrlDuplicate(window.location.href) ? '3px solid var(--c-success)' : 'none';
-        fab.style.outlineOffset = '2px';
+        const url = window.location.href;
+        const locs = findUrlLocations(url);
+        const count = locs.length;
+
+        fab.querySelector('.bm-fab-badge')?.remove();
+
+        if (count > 0) {
+            fab.style.outline = '3px solid var(--c-success)';
+            fab.style.outlineOffset = '2px';
+            fab.appendChild(el('span', {
+                class: 'bm-fab-badge',
+                text: count > 9 ? '9+' : String(count)
+            }));
+        } else {
+            fab.style.outline = 'none';
+        }
     }
 
     /* ═══════════════════════════════════
@@ -981,14 +1116,15 @@
     }
 
     /* ═══════════════════════════════════
-       FAB 이벤트 [1-1 스와이프, 3-1 리팩토링, 4-1 힌트]
+       FAB 이벤트
        ═══════════════════════════════════ */
     function setupFab(fab, overlay) {
         const st = {
             timer: 0,
             dragReady: false,
             dragging: false,
-            sx: 0, sy: 0, ox: 0, oy: 0
+            sx: 0, sy: 0, ox: 0, oy: 0,
+            lastX: 0, lastY: 0
         };
         let lastTap = 0;
 
@@ -1012,9 +1148,9 @@
             lastTap = 0;
         }
 
-        function isSwipeUp(e) {
-            const dy = st.sy - e.clientY;
-            const dx = Math.abs(e.clientX - st.sx);
+        function isSwipeUp() {
+            const dy = st.sy - st.lastY;
+            const dx = Math.abs(st.lastX - st.sx);
             return dy > 50 && dx < 40;
         }
 
@@ -1026,7 +1162,7 @@
             if (st.dragging) { endDrag(); return; }
             if (st.dragReady) { resetDragReady(); return; }
 
-            if (isSwipeUp(e)) {
+            if (isSwipeUp()) {
                 lastTap = 0;
                 showQuickAddModal();
                 return;
@@ -1050,6 +1186,7 @@
         fab.addEventListener('pointerdown', (e) => {
             fab.setPointerCapture(e.pointerId);
             st.sx = e.clientX; st.sy = e.clientY;
+            st.lastX = e.clientX; st.lastY = e.clientY;
             const rect = fab.getBoundingClientRect();
             st.ox = e.clientX - rect.left; st.oy = e.clientY - rect.top;
             st.dragReady = false;
@@ -1064,6 +1201,9 @@
         });
 
         fab.addEventListener('pointermove', (e) => {
+            st.lastX = e.clientX;
+            st.lastY = e.clientY;
+
             if (!st.dragReady) {
                 const dist = Math.hypot(e.clientX - st.sx, e.clientY - st.sy);
                 if (dist > 10) clearTimeout(st.timer);
@@ -1126,7 +1266,7 @@
                 const overlay = shadow.querySelector('#bookmark-overlay');
                 if (overlay?.style.display === 'block') {
                     e.preventDefault();
-                    if (!popUndo()) alert('되돌릴 내역이 없습니다.');
+                    if (!popUndo()) showToast('되돌릴 내역이 없습니다.');
                 }
             }
             if (e.key === 'Escape') {
@@ -1143,7 +1283,7 @@
     }
 
     /* ═══════════════════════════════════
-       스타일 [4-1 #bm-swipe-hint]
+       스타일
        ═══════════════════════════════════ */
     function getStyles() {
         return `
@@ -1169,12 +1309,8 @@
             }
 
             @media (max-width: 768px) {
-                :host {
-                    --fab-size: 40px;
-                }
-                #bookmark-fab {
-                    font-size: 20px !important;
-                }
+                :host { --fab-size: 40px; }
+                #bookmark-fab { font-size: 20px !important; }
             }
 
             @media (prefers-color-scheme: dark) {
@@ -1185,15 +1321,8 @@
                     --c-text: #e0e0e0;
                     --c-border: #444;
                 }
-                #bookmark-overlay {
-                    background: rgba(30,30,30,0.98) !important;
-                    color: var(--c-text) !important;
-                }
-                input {
-                    background-color: #333 !important;
-                    color: #eee !important;
-                    border-color: #555 !important;
-                }
+                #bookmark-overlay { background: rgba(30,30,30,0.98) !important; color: var(--c-text) !important; }
+                input { background-color: #333 !important; color: #eee !important; border-color: #555 !important; }
                 .bm-tab { background: #444 !important; color: #ccc !important; }
                 .bm-tab.active { background: var(--c-primary) !important; color: #fff !important; }
                 .bm-context-menu { background: #333; border-color: #555; }
@@ -1202,7 +1331,6 @@
 
             * { box-sizing: border-box; font-family: sans-serif; }
 
-            /* ── FAB ── */
             #bookmark-fab {
                 position: fixed;
                 bottom: var(--fab-offset);
@@ -1227,7 +1355,25 @@
                 overflow: visible;
             }
 
-            /* ── 스와이프 힌트 ── */
+            .bm-fab-badge {
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                background: var(--c-danger);
+                color: white;
+                font-size: 10px;
+                font-weight: bold;
+                min-width: 16px;
+                height: 16px;
+                border-radius: 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 0 4px;
+                line-height: 1;
+                pointer-events: none;
+            }
+
             #bm-swipe-hint {
                 position: fixed;
                 width: 30px;
@@ -1245,7 +1391,6 @@
                 z-index: 2147483647;
             }
 
-            /* ── 오버레이 ── */
             #bookmark-overlay {
                 position: fixed;
                 top: 0; left: 0;
@@ -1278,9 +1423,9 @@
             }
             .bm-util-btn:hover { filter: brightness(1.15); }
             .bm-util-btn:active { filter: brightness(0.9); transform: scale(0.97); }
-            .bm-btn-blue:hover  { background: #2989ff; background: color-mix(in srgb, white 15%, var(--c-primary)); }
-            .bm-btn-green:hover { background: #34c759; background: color-mix(in srgb, white 15%, var(--c-success)); }
-            .bm-btn-red:hover   { background: #e8485c; background: color-mix(in srgb, white 15%, var(--c-danger)); }
+            .bm-btn-blue:hover  { background: color-mix(in srgb, white 15%, var(--c-primary)); }
+            .bm-btn-green:hover { background: color-mix(in srgb, white 15%, var(--c-success)); }
+            .bm-btn-red:hover   { background: color-mix(in srgb, white 15%, var(--c-danger)); }
 
             input {
                 width: 100%;
@@ -1304,7 +1449,6 @@
                 margin-top: 10px;
             }
 
-            /* ── 상단 영역 ── */
             .bm-top-row {
                 max-width: var(--grid-max);
                 margin: 0 auto 10px auto;
@@ -1355,7 +1499,7 @@
                 flex-shrink: 0;
             }
             .bm-tab.active { background: var(--c-dark); color: #fff; }
-            .bm-tab:hover:not(.active) { background: #d0e4f5; background: color-mix(in srgb, var(--c-primary) 20%, var(--c-bg)); }
+            .bm-tab:hover:not(.active) { background: color-mix(in srgb, var(--c-primary) 20%, var(--c-bg)); }
 
             .bm-util-btn {
                 padding: 7px 10px;
@@ -1370,7 +1514,6 @@
             .bm-btn-orange { background: var(--c-warning); }
             .bm-btn-red { background: var(--c-danger); color: white; }
 
-            /* ── 대시보드 ── */
             .bm-dashboard-container {
                 display: grid;
                 grid-template-columns: repeat(auto-fit, minmax(var(--grid-min), 1fr));
@@ -1413,6 +1556,30 @@
                 border-radius: 6px;
                 font-weight: bold;
                 cursor: pointer;
+            }
+
+            .bm-quick-group-add {
+                width: 26px;
+                height: 26px;
+                border-radius: 50%;
+                border: 1px solid var(--c-border);
+                background: var(--c-surface);
+                color: var(--c-primary);
+                font-size: 16px;
+                font-weight: bold;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: auto;
+                margin-right: 8px;
+                transition: background 0.15s;
+                line-height: 1;
+                padding: 0;
+            }
+            .bm-quick-group-add:hover {
+                background: var(--c-primary);
+                color: white;
             }
 
             .bm-item-grid {
@@ -1471,7 +1638,15 @@
                 pointer-events: none;
             }
 
-            /* ── 정렬 모드 ── */
+            .bm-empty-group {
+                grid-column: 1 / -1;
+                text-align: center;
+                color: #bbb;
+                font-size: 12px;
+                padding: 15px;
+                font-style: italic;
+            }
+
             .sort-mode-active .bm-item-grid { display: none; }
             .sort-mode-active .bm-bookmark-section {
                 border: 2px dashed var(--c-primary);
@@ -1481,14 +1656,12 @@
             .sort-mode-active .bm-section-header { cursor: grab; }
             .sort-mode-active .bm-dashboard-container { grid-template-columns: 1fr; }
 
-            /* ── Sortable 고스트 ── */
             .bm-item-grid .sortable-ghost {
                 opacity: 0.4;
                 background: color-mix(in srgb, var(--c-primary) 20%, transparent);
                 border-radius: var(--radius);
             }
 
-            /* ── 데드링크 ── */
             .bm-dead-link { opacity: 0.5; }
             .bm-dead-link::after {
                 content: '⚠';
@@ -1505,7 +1678,6 @@
                 pointer-events: none;
             }
 
-            /* ── 모달 (네이티브 backdrop) ── */
             dialog.bm-modal-bg {
                 background: transparent;
                 border: none;
@@ -1515,9 +1687,7 @@
                 max-height: 100vh;
                 overflow: visible;
             }
-            dialog.bm-modal-bg::backdrop {
-                background: rgba(0,0,0,0.6);
-            }
+            dialog.bm-modal-bg::backdrop { background: rgba(0,0,0,0.6); }
 
             .bm-modal-content {
                 background: var(--c-surface);
@@ -1530,7 +1700,6 @@
                 color: var(--c-text);
             }
 
-            /* ── 컨텍스트 메뉴 ── */
             .bm-context-menu {
                 background: var(--c-surface);
                 border: 1px solid var(--c-border);
@@ -1548,7 +1717,6 @@
             .bm-context-item:hover { background: var(--c-bg); }
             .bm-context-item.ctx-danger { color: var(--c-danger); }
 
-            /* ── 탭 관리 ── */
             .tab-manage-row {
                 display: flex;
                 align-items: center;
@@ -1564,6 +1732,50 @@
                 margin-right: 10px;
                 color: #888;
                 touch-action: none;
+            }
+
+            .bm-toast {
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%) translateY(20px);
+                background: var(--c-dark);
+                color: #fff;
+                padding: 10px 24px;
+                border-radius: 20px;
+                font-size: 13px;
+                opacity: 0;
+                transition: opacity 0.3s, transform 0.3s;
+                pointer-events: none;
+                z-index: 999999;
+                white-space: nowrap;
+            }
+            .bm-toast.show {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            .bm-shortcut-hint {
+                max-width: var(--grid-max);
+                margin: 20px auto 10px;
+                text-align: center;
+                font-size: 11px;
+                color: #999;
+                user-select: none;
+            }
+
+            .bm-flex-row { display: flex; gap: 10px; align-items: center; }
+            .bm-flex-col { display: flex; flex-direction: column; gap: 5px; }
+            .bm-mt-10 { margin-top: 10px; }
+            .bm-mt-15 { margin-top: 15px; }
+            .bm-mt-20 { margin-top: 20px; }
+            .bm-w-full { width: 100%; }
+            .bm-scroll-list {
+                max-height: 40vh;
+                overflow-y: auto;
+                border: 1px solid var(--c-border);
+                border-radius: 8px;
+                padding: 10px;
             }
         `;
     }
