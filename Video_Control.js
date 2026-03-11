@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v186.26 - Patched)
+// @name         Video_Control (v186.18 - Patched)
 // @namespace    https://github.com/
-// @version      186.26
+// @version      186.18
 // @description  Zero-leak EventBus, Layout Thrashing Fix, Advanced CSP, Proto State, UI Enhancements, SVG/Audio DSP Optimized.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.26';
+  const SCRIPT_VERSION = '186.18';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
