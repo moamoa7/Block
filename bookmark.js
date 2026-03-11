@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v14.1)
-// @version      14.1
-// @description  v14.0 기반 – FAB badge 제거, 그룹 헤더에 북마크 개수 표시
+// @name         북마크 (Shadow DOM 통합 v15.0)
+// @version      15.0
+// @description  v14.1 기반 – popUndo 방어, FAB 캡처 예외처리, 접기 탭별 분리, 롱프레스 수정, 검색+접기 연동, Sortable/데드링크 최적화, 탭관리 리팩토링, saveDataInvalidate, 빠른추가 UX, 탭카운트, 전체접기, 그룹카운트 스타일
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -134,15 +134,17 @@
         db = _undoStack.pop();
         _urlSet = null;
         saveData();
-        renderDashboard();
+        const overlay = shadow.querySelector('#bookmark-overlay');
+        if (overlay?.style.display === 'block') renderDashboard();
         return true;
     }
 
     /* ═══════════════════════════════════
-       저장
+       저장 [3-2 saveDataInvalidate 헬퍼]
        ═══════════════════════════════════ */
     let _saveTimer = null;
     const BACKUP_INTERVAL = GM_getValue('bm_backup_interval', 3600000);
+    let _lastBackupTime = GM_getValue('bm_last_backup_time', 0);
 
     const saveData = () => {
         clearTimeout(_saveTimer);
@@ -151,28 +153,41 @@
 
     const saveDataNow = () => {
         clearTimeout(_saveTimer);
-        const lastBackup = GM_getValue('bm_last_backup_time', 0);
-        if (Date.now() - lastBackup > BACKUP_INTERVAL) {
+        if (Date.now() - _lastBackupTime > BACKUP_INTERVAL) {
             GM_setValue('bm_db_v2_backup', deepClone(db));
-            GM_setValue('bm_last_backup_time', Date.now());
+            _lastBackupTime = Date.now();
+            GM_setValue('bm_last_backup_time', _lastBackupTime);
         }
         GM_setValue('bm_db_v2', db);
     };
+
+    function saveDataInvalidate() {
+        _urlSet = null;
+        saveData();
+    }
 
     const getCurPage = () => db.pages[db.currentPage];
     let isSortMode = false;
     let originalOverflow = '';
 
     /* ═══════════════════════════════════
-       그룹 접기/펼치기
+       그룹 접기/펼치기 [1-3 방어 + 1-4 탭별 키]
        ═══════════════════════════════════ */
-    const _collapsedGroups = new Set(
-        JSON.parse(GM_getValue('bm_collapsed', '[]'))
-    );
+    let _parsedCollapsed = [];
+    try {
+        const rawCol = JSON.parse(GM_getValue('bm_collapsed', '[]'));
+        if (Array.isArray(rawCol)) _parsedCollapsed = rawCol;
+    } catch {}
+    const _collapsedGroups = new Set(_parsedCollapsed);
+
+    function collapseKey(groupName) {
+        return `${db.currentPage}::${groupName}`;
+    }
 
     function toggleCollapse(groupName) {
-        if (_collapsedGroups.has(groupName)) _collapsedGroups.delete(groupName);
-        else _collapsedGroups.add(groupName);
+        const key = collapseKey(groupName);
+        if (_collapsedGroups.has(key)) _collapsedGroups.delete(key);
+        else _collapsedGroups.add(key);
         GM_setValue('bm_collapsed', JSON.stringify([..._collapsedGroups]));
     }
 
@@ -426,24 +441,31 @@
     }
 
     /* ═══════════════════════════════════
-       모바일 롱프레스
+       모바일 롱프레스 [1-5 수정]
        ═══════════════════════════════════ */
     function bindLongPress(element, callback) {
         let timer = 0;
         let moved = false;
+        let fired = false;
+
         element.addEventListener('touchstart', (e) => {
             moved = false;
+            fired = false;
             timer = setTimeout(() => {
                 if (!moved) {
-                    e.preventDefault();
+                    fired = true;
                     const touch = e.changedTouches[0];
                     callback({ clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => {} });
                 }
             }, 600);
-        }, { passive: false });
+        }, { passive: true });
+
         element.addEventListener('touchmove', () => { moved = true; clearTimeout(timer); });
-        element.addEventListener('touchend', () => clearTimeout(timer));
-        element.addEventListener('touchcancel', () => clearTimeout(timer));
+        element.addEventListener('touchend', (e) => {
+            clearTimeout(timer);
+            if (fired) e.preventDefault();
+        }, { passive: false });
+        element.addEventListener('touchcancel', () => { clearTimeout(timer); });
     }
 
     /* ═══════════════════════════════════
@@ -464,7 +486,7 @@
                         pushUndo();
                         const items = getCurPage()[groupName];
                         const idx = items.findIndex(i => i.url === item.url && i.name === item.name);
-                        if (idx !== -1) { items.splice(idx, 1); _urlSet = null; saveData(); renderDashboard(); }
+                        if (idx !== -1) { items.splice(idx, 1); saveDataInvalidate(); renderDashboard(); }
                     }
                     menu.remove();
                 }
@@ -522,7 +544,12 @@
             }
         });
         Object.keys(db.pages).forEach(p => {
-            const t = el('div', { class: `bm-tab ${db.currentPage === p ? 'active' : ''}`, text: p });
+            let tabTotal = 0;
+            for (const items of Object.values(db.pages[p])) tabTotal += items.length;
+            const t = el('div', {
+                class: `bm-tab ${db.currentPage === p ? 'active' : ''}`,
+                text: `${p} (${tabTotal})`
+            });
             t.dataset.page = p;
             tabBar.appendChild(t);
         });
@@ -534,10 +561,27 @@
                 clearTimeout(_searchTimer);
                 _searchTimer = setTimeout(() => {
                     const q = searchInput.value.toLowerCase();
-                    (_currentContainer ?? shadow).querySelectorAll('.bm-item-wrapper').forEach(w => {
-                        const name = w.querySelector('span')?.textContent.toLowerCase() || '';
-                        const url = (w.getAttribute('href') || '').toLowerCase();
-                        w.style.display = (name.includes(q) || url.includes(q)) ? '' : 'none';
+                    const container = _currentContainer ?? shadow;
+                    container.querySelectorAll('.bm-bookmark-section').forEach(sec => {
+                        const grid = sec.querySelector('.bm-item-grid');
+                        if (!grid) return;
+                        let hasVisible = false;
+                        grid.querySelectorAll('.bm-item-wrapper').forEach(w => {
+                            const name = w.querySelector('span')?.textContent.toLowerCase() || '';
+                            const url = (w.getAttribute('href') || '').toLowerCase();
+                            const match = !q || name.includes(q) || url.includes(q);
+                            w.style.display = match ? '' : 'none';
+                            if (match) hasVisible = true;
+                        });
+                        if (q) {
+                            grid.style.display = hasVisible ? '' : 'none';
+                            sec.style.display = hasVisible ? '' : 'none';
+                        } else {
+                            const gTitle = sec.getAttribute('data-id');
+                            const collapsed = _collapsedGroups.has(collapseKey(gTitle));
+                            grid.style.display = collapsed ? 'none' : '';
+                            sec.style.display = '';
+                        }
                     });
                 }, 150);
             }
@@ -551,6 +595,18 @@
             btn('➕ 그룹', '', () => {
                 const n = prompt("새 그룹 이름:");
                 if (n) { getCurPage()[n] = []; saveData(); renderDashboard(); }
+            }),
+            btn('🗂 접기/펼치기', '', () => {
+                const page = getCurPage();
+                const allKeys = Object.keys(page).map(g => collapseKey(g));
+                const allCollapsed = allKeys.every(k => _collapsedGroups.has(k));
+                if (allCollapsed) {
+                    allKeys.forEach(k => _collapsedGroups.delete(k));
+                } else {
+                    allKeys.forEach(k => _collapsedGroups.add(k));
+                }
+                GM_setValue('bm_collapsed', JSON.stringify([..._collapsedGroups]));
+                renderDashboard();
             }),
             btn('💾 백업', '', exportData),
             btn('📥 복구', 'bm-btn-green', importData),
@@ -569,10 +625,9 @@
 
         Object.entries(getCurPage()).forEach(([gTitle, items]) => {
             const section = el('div', { class: 'bm-bookmark-section', 'data-id': gTitle });
-            const isCollapsed = _collapsedGroups.has(gTitle);
+            const isCollapsed = _collapsedGroups.has(collapseKey(gTitle));
             const header = el('div', { class: 'bm-section-header' });
             const titleSpan = el('span', {
-                text: `${isSortMode ? '≡' : (isCollapsed ? '▶' : '📁')} ${gTitle} (${items.length})`,
                 style: { fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
                 onclick: () => {
                     if (isSortMode) return;
@@ -580,6 +635,10 @@
                     renderDashboard();
                 }
             });
+            titleSpan.append(
+                document.createTextNode(`${isSortMode ? '≡' : (isCollapsed ? '▶' : '📁')} ${gTitle} `),
+                el('span', { text: `(${items.length})`, class: 'bm-group-count' })
+            );
             header.appendChild(titleSpan);
             if (!isSortMode) header.appendChild(el('button', { class: 'bm-manage-btn', text: '관리' }));
             section.appendChild(header);
@@ -624,6 +683,7 @@
             }));
         } else {
             container.querySelectorAll('.bm-item-grid').forEach(grid => {
+                if (grid.style.display === 'none') return;
                 _activeSortables.push(new Sortable(grid, {
                     group: 'bm-items', animation: 150, delay: 300, delayOnTouchOnly: true,
                     onEnd: (evt) => {
@@ -639,15 +699,14 @@
                             });
                         };
                         rebuildGroup(evt.from); if (evt.from !== evt.to) rebuildGroup(evt.to);
-                        _urlSet = null;
-                        saveData();
+                        saveDataInvalidate();
                     }
                 }));
             });
         }
 
         const runDeadCheck = () => {
-            const wrappers = [...container.querySelectorAll('.bm-item-wrapper')];
+            const wrappers = [...container.querySelectorAll('.bm-item-grid:not([style*="display: none"]) .bm-item-wrapper')];
             let checked = 0;
             for (const w of wrappers) {
                 const url = w.getAttribute('href'); if (!url) continue;
@@ -697,14 +756,13 @@
             page[gTitle] = newItems;
         }
 
-        _urlSet = null;
-        saveData();
+        saveDataInvalidate();
         renderDashboard();
         modalBg.close();
     }
 
     /* ═══════════════════════════════════
-       그룹 관리 모달
+       그룹 관리 모달 [4-2 빈 그룹 안내]
        ═══════════════════════════════════ */
     function showGroupManager(gTitle) {
         const items = getCurPage()[gTitle]; if (!items) return;
@@ -714,6 +772,12 @@
         content.append(el('h3', { text: '🛠 그룹 관리', style: { marginTop: '0' } }), el('label', { text: '그룹 이름' }));
         const gNameInput = el('input', { type: 'text', value: gTitle });
         const listEl = el('div', { style: { maxHeight: '40vh', overflowY: 'auto', border: '1px solid var(--c-border)', borderRadius: '8px', padding: '10px', marginTop: '10px' } });
+        if (items.length === 0) {
+            listEl.appendChild(el('div', {
+                text: '북마크가 없습니다. 아래 버튼으로 추가하세요.',
+                style: { color: '#999', fontSize: '13px', textAlign: 'center', padding: '20px' }
+            }));
+        }
         items.forEach(it => listEl.appendChild(createItemRow({ name: it.name, url: it.url })));
         content.append(gNameInput, listEl,
             btn('+ 북마크 추가', 'bm-btn-blue', () => { listEl.appendChild(createItemRow({ isNew: true })); listEl.scrollTop = listEl.scrollHeight; }, { width: '100%', marginTop: '10px', padding: '10px' }),
@@ -728,8 +792,9 @@
             if (confirm(`"${gTitle}" 그룹을 삭제하시겠습니까?`)) {
                 pushUndo();
                 delete getCurPage()[gTitle];
-                _urlSet = null;
-                saveData(); renderDashboard(); modalBg.close();
+                saveDataInvalidate();
+                renderDashboard();
+                modalBg.close();
             }
         }, { width: '100%', marginTop: '10px', padding: '10px' }));
         modalBg.appendChild(content); showModal(modalBg);
@@ -737,34 +802,69 @@
     }
 
     /* ═══════════════════════════════════
-       탭 관리
+       탭 관리 [3-1 핸들러 분리]
        ═══════════════════════════════════ */
+    function deleteTab(tn, modalBg) {
+        if (Object.keys(db.pages).length <= 1) { alert("최소 1개 탭 필수"); return; }
+        if (!confirm(`"${tn}" 탭을 삭제하시겠습니까?`)) return;
+        pushUndo();
+        delete db.pages[tn];
+        if (db.currentPage === tn) db.currentPage = Object.keys(db.pages)[0];
+        saveDataInvalidate();
+        renderDashboard();
+        modalBg.close();
+    }
+
+    function renameTab(tn, renderList) {
+        const nn = prompt('새 탭 이름:', tn);
+        if (!nn || nn === tn) return;
+        if (nn.trim() === '') { alert('빈 이름은 사용할 수 없습니다.'); return; }
+        if (db.pages[nn]) { alert('이미 존재하는 탭 이름입니다.'); return; }
+        const nps = {};
+        for (const k of Object.keys(db.pages)) nps[k === tn ? nn : k] = db.pages[k];
+        db.pages = nps;
+        if (db.currentPage === tn) db.currentPage = nn;
+        saveData();
+        renderList();
+        renderDashboard();
+    }
+
     function showTabManager() {
-        const modalBg = createModal(); const content = el('div', { class: 'bm-modal-content' });
+        const modalBg = createModal();
+        const content = el('div', { class: 'bm-modal-content' });
         content.appendChild(el('h3', { text: '📂 탭 관리', style: { marginTop: '0' } }));
         const list = el('div', { style: { maxHeight: '50vh', overflowY: 'auto', border: '1px solid var(--c-border)', borderRadius: '8px' } });
         const renderList = () => {
             list.replaceChildren();
             Object.keys(db.pages).forEach(tn => {
                 const row = el('div', { class: 'tab-manage-row' });
-                row.append(el('span', { text: tn, style: { flex: '1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }),
+                row.append(
+                    el('span', { text: tn, style: { flex: '1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }),
                     el('div', { style: { display: 'flex', gap: '4px', flexShrink: '0' } }, [
-                        btn('이름변경', 'bm-btn-blue', () => {
-                            const nn = prompt('새 탭 이름:', tn); if (!nn || nn === tn) return;
-                            if (nn.trim() === '') { alert('빈 이름은 사용할 수 없습니다.'); return; }
-                            if (db.pages[nn]) { alert('이미 존재하는 탭 이름입니다.'); return; }
-                            const nps = {}; for (const k of Object.keys(db.pages)) nps[k === tn ? nn : k] = db.pages[k];
-                            db.pages = nps; if (db.currentPage === tn) db.currentPage = nn; saveData(); renderList(); renderDashboard();
-                        }, { padding: '4px 8px' }),
-                        btn('삭제', 'bm-btn-red', () => { if (Object.keys(db.pages).length <= 1) { alert("최소 1개 탭 필수"); return; } if (confirm(`"${tn}" 탭을 삭제하시겠습니까?`)) { pushUndo(); delete db.pages[tn]; if (db.currentPage === tn) db.currentPage = Object.keys(db.pages)[0]; _urlSet = null; saveData(); renderDashboard(); modalBg.close(); } }, { padding: '4px 8px' })
+                        btn('이름변경', 'bm-btn-blue', () => renameTab(tn, renderList), { padding: '4px 8px' }),
+                        btn('삭제', 'bm-btn-red', () => deleteTab(tn, modalBg), { padding: '4px 8px' })
                     ])
                 );
                 list.appendChild(row);
             });
         };
         renderList();
-        content.append(list, btn('+ 새 탭 추가', 'bm-btn-blue', () => { const n = prompt('새 탭 이름:'); if (!n || !n.trim()) return; if (db.pages[n]) { alert("중복 이름"); return; } db.pages[n] = {}; db.currentPage = n; saveData(); renderDashboard(); modalBg.close(); }, { width: '100%', marginTop: '15px', padding: '12px' }), btn('닫기', '', () => modalBg.close(), { width: '100%', marginTop: '10px', background: '#999', padding: '10px' }));
-        modalBg.appendChild(content); showModal(modalBg);
+        content.append(
+            list,
+            btn('+ 새 탭 추가', 'bm-btn-blue', () => {
+                const n = prompt('새 탭 이름:');
+                if (!n || !n.trim()) return;
+                if (db.pages[n]) { alert("중복 이름"); return; }
+                db.pages[n] = {};
+                db.currentPage = n;
+                saveData();
+                renderDashboard();
+                modalBg.close();
+            }, { width: '100%', marginTop: '15px', padding: '12px' }),
+            btn('닫기', '', () => modalBg.close(), { width: '100%', marginTop: '10px', background: '#999', padding: '10px' })
+        );
+        modalBg.appendChild(content);
+        showModal(modalBg);
     }
 
     /* ═══════════════════════════════════
@@ -783,7 +883,7 @@
     }
 
     /* ═══════════════════════════════════
-       빠른 추가 모달
+       빠른 추가 모달 [4-1 포커스+Enter]
        ═══════════════════════════════════ */
     function showQuickAddModal() {
         if (shadow.querySelector('#bm-quick-modal')) return;
@@ -806,6 +906,12 @@
                     () => saveBookmarkTo(recent.page, recent.group, ni.value, ui.value, modalBg),
                     { width: '100%', marginTop: '2px', padding: '10px' }));
         }
+        ni.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && recent && db.pages[recent.page]?.[recent.group]) {
+                e.preventDefault();
+                saveBookmarkTo(recent.page, recent.group, ni.value, ui.value, modalBg);
+            }
+        });
         area.appendChild(el('p', { text: '탭 선택:', style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } }));
         const tabBtns = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px' } });
         Object.keys(db.pages).forEach(p => {
@@ -828,6 +934,7 @@
         area.appendChild(tabBtns); content.appendChild(area);
         content.appendChild(el('button', { text: '취소', style: { width: '100%', border: '0', background: 'none', marginTop: '20px', color: '#999', cursor: 'pointer' }, onclick: () => modalBg.close() }));
         modalBg.appendChild(content); showModal(modalBg);
+        setTimeout(() => ni.focus(), 50);
     }
 
     /* ═══════════════════════════════════
@@ -861,7 +968,7 @@
     }
 
     /* ═══════════════════════════════════
-       FAB 이벤트
+       FAB 이벤트 [1-2 try-catch]
        ═══════════════════════════════════ */
     function setupFab(fab, overlay) {
         const st = {
@@ -874,7 +981,7 @@
         let lastTap = 0;
         fab.addEventListener('pointerup', (e) => {
             clearTimeout(st.timer);
-            fab.releasePointerCapture(e.pointerId);
+            try { fab.releasePointerCapture(e.pointerId); } catch {}
 
             if (st.dragging) {
                 fab.style.transition = '';
@@ -948,7 +1055,7 @@
 
         fab.addEventListener('pointercancel', (e) => {
             clearTimeout(st.timer);
-            fab.releasePointerCapture(e.pointerId);
+            try { fab.releasePointerCapture(e.pointerId); } catch {}
             st.dragReady = false;
             st.dragging = false;
             fab.style.cursor = 'pointer';
@@ -994,7 +1101,7 @@
     }
 
     /* ═══════════════════════════════════
-       스타일
+       스타일 [5-1 .bm-group-count]
        ═══════════════════════════════════ */
     function getStyles() {
         return `
@@ -1231,6 +1338,12 @@
 
             .bm-section-header span { cursor: pointer; }
             .bm-section-header span:hover { opacity: 0.7; }
+
+            .bm-group-count {
+                font-weight: normal;
+                font-size: 12px;
+                color: #999;
+            }
 
             .bm-manage-btn {
                 border: 1px solid var(--c-border);
