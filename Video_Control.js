@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v186.17 - Patched)
+// @name         Video_Control (v186.26 - Patched)
 // @namespace    https://github.com/
-// @version      186.17
+// @version      186.26
 // @description  Zero-leak EventBus, Layout Thrashing Fix, Advanced CSP, Proto State, UI Enhancements, SVG/Audio DSP Optimized.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.17';
+  const SCRIPT_VERSION = '186.26';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -176,8 +176,12 @@ function VSC_MAIN() {
     if (existing.length === 1) return existing[0];
     if (existing.some(s => s.aborted)) return AbortSignal.abort();
     if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
+
     const ac = new AbortController();
-    const onAbort = () => ac.abort();
+    const onAbort = () => {
+      ac.abort();
+      for (const s of existing) s.removeEventListener('abort', onAbort);
+    };
     for (const s of existing) {
       if (s.aborted) { ac.abort(); return ac.signal; }
       s.addEventListener('abort', onAbort, { once: true });
@@ -593,8 +597,10 @@ function VSC_MAIN() {
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
       let changed = false; const now = performance.now();
       for (const e of entries) {
-        const el = e.target; const isVis = IO_SUPPORTS_V2 ? (e.isVisible ?? e.isIntersecting) : e.isIntersecting; const st = getVState(el);
-        st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; st.visibilityRatio = IO_SUPPORTS_V2 ? (isVis ? 1 : 0) : (e.intersectionRatio ?? 0); st._rectRev = __vscLayoutRev;
+        const el = e.target;
+        if (!videos.has(el)) continue;
+        const isVis = e.isIntersecting; const st = getVState(el);
+        st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; st.visibilityRatio = e.intersectionRatio ?? 0; st._rectRev = __vscLayoutRev;
         if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } }
         else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } }
       }
@@ -643,7 +649,7 @@ function VSC_MAIN() {
       let active = [], pending = []; let scheduled = false; let activeSet = new Set(), pendingSet = new Set();
       let idleId = 0, rafId = 0, scheduleToken = 0;
       const clearScheduled = () => { scheduled = false; scheduleToken++; if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } if (idleId && typeof cancelIdleCallback === 'function') { cancelIdleCallback(idleId); idleId = 0; } };
-      const runDrain = (dl, token) => { if (destroyed || token !== scheduleToken) return; drain(dl); };
+      const runDrain = (dl, token) => { if (destroyed || token !== scheduleToken) return; drain(dl).catch(e => { if (CONFIG.DEBUG) log.warn('[VSC] WorkQ drain promise rejected:', e); }); };
       const schedule = () => {
         if (destroyed || scheduled) return; scheduled = true; const token = ++scheduleToken;
         if (window.requestIdleCallback) { idleId = requestIdleCallback((dl) => { idleId = 0; runDrain(dl, token); }, { timeout: 120 }); } else { rafId = requestAnimationFrame(() => { rafId = 0; runDrain(undefined, token); }); }
@@ -666,12 +672,15 @@ function VSC_MAIN() {
               if (destroyed) return;
               if (HAS_SCHEDULER_YIELD) { try { await globalThis.scheduler.yield(); } catch (_) {} if (destroyed) return; }
               else if (dl?.timeRemaining && dl.timeRemaining() < 1) {
+                // FIX: 탐색 큐 노드 증발 방지
                 for (let j = i; j < active.length; j++) { const rest = active[j]; if (!pendingSet.has(rest)) { pendingSet.add(rest); pending.push(rest); } }
                 schedule(); return;
               }
             }
             scanNode(n);
           }
+        } catch (e) {
+          if (CONFIG.DEBUG) log.warn('[VSC] WorkQ.drain error:', e);
         } finally {
           active.length = 0; activeSet.clear();
         }
@@ -1396,7 +1405,7 @@ function VSC_MAIN() {
     for (const el of candidates) {
       if (!el.isConnected) continue;
       const st = getVState(el);
-      if (st.rect && (st._rectRev === __vscLayoutRev || (now - st.rectT) < 300)) continue;
+      if (st.rect && st._rectRev === __vscLayoutRev) continue;
       st.rect = el.getBoundingClientRect();
       st.rectT = now;
       st._rectRev = __vscLayoutRev;
@@ -1405,11 +1414,15 @@ function VSC_MAIN() {
 
   function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, isNeutralParams, isNeutralShadow, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch; candidates.clear();
-    for (const v of dirtyVideos) candidates.add(v);
-    for (const v of applySet) candidates.add(v);
-    for (const v of TOUCHED.videos) candidates.add(v);
-    for (const v of TOUCHED.rateVideos) candidates.add(v);
-    batchReadRects(candidates, performance.now());
+    const sets = [applySet, TOUCHED.videos, TOUCHED.rateVideos, dirtyVideos];
+    for (let i = 0; i < sets.length; i++) {
+      const s = sets[i];
+      if (s.size === 0) continue;
+      for (const v of s) candidates.add(v);
+    }
+    if (candidates.size > 0) {
+      batchReadRects(candidates, performance.now());
+    }
     const isApplyAll = !!getNS()?.Store?.get('app.applyAll');
 
     for (const el of candidates) {
@@ -1417,15 +1430,22 @@ function VSC_MAIN() {
       bindVideoOnce(el, ApplyReq);
       const st = getVState(el);
       const isPip = getNS()?.PiPManager?.isPiPActiveVideo(el);
-      const shouldApply = applySet.has(el) && (isApplyAll || st.visible !== false || el === activeTarget || isPip);
+      const shouldApply = applySet.has(el) || el === activeTarget || isPip || isApplyAll;
 
-      if (!shouldApply) { if (!st.applied && st.desiredRate === undefined) continue; Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); continue; }
+      if (!shouldApply) {
+        if (!st.applied && st.desiredRate === undefined) continue;
+        Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el);
+        continue;
+      }
 
       const params = getParamsForVideo(el); const vVals = params.video; const shadowVals = params.shadow; const budget = params.budget;
       const videoFxOn = !isNeutralParams(vVals) || !isNeutralShadow(shadowVals) || (vVals.rotation && vVals.rotation !== 0);
 
-      if (videoFxOn) { Adapter.apply(el, vVals, shadowVals, budget.useSvgFilter); TOUCHED.videos.add(el); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
-      if (pbActive) { applyPlaybackRate(el, desiredRate); } else { if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); } }
+      if (videoFxOn) { Adapter.apply(el, vVals, shadowVals, budget.useSvgFilter); TOUCHED.videos.add(el); }
+      else { Adapter.clear(el); TOUCHED.videos.delete(el); }
+
+      if (pbActive) { applyPlaybackRate(el, desiredRate); }
+      else { if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); } }
     }
   }
 
@@ -1526,8 +1546,11 @@ function VSC_MAIN() {
         const vf0 = Store.getCatRef('video'), activeBudget = PerfGovernor.getBudget(target);
         if (activeBudget.mode !== _prevPerfMode) { const isDowngrade = { high: 2, mid: 1, low: 0 }[activeBudget.mode] < { high: 2, mid: 1, low: 0 }[_prevPerfMode]; if (isDowngrade) { this.emit('pipeline:degraded', { mode: activeBudget.mode, prev: _prevPerfMode }); } else { this.emit('pipeline:restored', { mode: activeBudget.mode, prev: _prevPerfMode }); } _prevPerfMode = activeBudget.mode; }
         const getParamsForVideo = (el) => videoParamsMemo.get(vf0, el, (el === target || getNS()?.PiPManager?.isPiPActiveVideo(el)) ? activeBudget : { mode: 'high', sharpMul: 1, shadowCap: 3, sigmaMul: 1, useSvgFilter: true });
-        _applySet.clear(); if (isApplyAll) { for (const v of Registry.visible.videos) _applySet.add(v); } else if (target) { _applySet.add(target); }
+
+        _applySet.clear();
+        if (isApplyAll) { for (const v of Registry.visible.videos) _applySet.add(v); }
         if (target) _applySet.add(target);
+
         const pipVid = getNS()?.PiPManager?.getActiveVideo(); if (pipVid) _applySet.add(pipVid);
         reconcileVideoEffects({ applySet: _applySet, dirtyVideos: vidsDirty, getParamsForVideo, isNeutralParams: isNeutralVideoParams, isNeutralShadow: isNeutralShadowParams, desiredRate, pbActive, Adapter, ApplyReq, scratch: _scratchCandidates, activeTarget: target });
       },
@@ -1569,8 +1592,11 @@ function VSC_MAIN() {
 
     function makeKeyHash(s) {
       let h1 = 0x811c9dc5 >>> 0;
-      const vals = [ (s.gain || 1) / 0.04, (s.gamma || 1) * 100, (s.contrast || 1) * 100, (s.bright || 0) * 2, (s.satF ?? 1) * 100, s.temp || 0, s.sharp | 0, s.sharp2 | 0, (s._sigmaScale || 1) * 50, (s._microBase || 0.18) * 100, (s._fineBase || 0.32) * 100 ];
-      for (let i = 0; i < vals.length; i++) { h1 = Math.imul(h1 ^ (Math.round(vals[i]) | 0), 0x01000193) >>> 0; }
+      const mix = (v) => { h1 = Math.imul(h1 ^ (Math.round(v) | 0), 0x01000193) >>> 0; };
+      mix((s.gain || 1) / 0.04); mix((s.gamma || 1) * 100); mix((s.contrast || 1) * 100);
+      mix((s.bright || 0) * 2); mix((s.satF ?? 1) * 100); mix(s.temp || 0);
+      mix(s.sharp | 0); mix(s.sharp2 | 0); mix((s._sigmaScale || 1) * 50);
+      mix((s._microBase || 0.18) * 100); mix((s._fineBase || 0.32) * 100);
       return h1;
     }
 
@@ -1810,11 +1836,16 @@ function VSC_MAIN() {
       const rotateBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '\uD83D\uDD04 회전'); rotateBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const cur = sm.get(P.V_ROTATION), next = getNextRotation(cur); sm.set(P.V_ROTATION, next); queueMicrotask(() => { ApplyReq.hard(); }); }; bindActGate(rotateBtn, [P.V_ROTATION], (el, rot) => el.textContent = `\uD83D\uDD04 ${ROTATION_LABELS[rot] || '정상'}`);
       const pwrBtn = h('button', { class: 'btn', style: 'flex: 1;', onclick: (e) => { e.stopPropagation(); setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); } }, '\u26A1 Power'); bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.style.color = v ? '#2ecc71' : '#e74c3c'; el.classList.toggle('active', !!v); });
 
-      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 1.0; font-weight: 800;' }, '\uD83D\uDD0A Audio (Auto-Mastering)'); boostBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; getNS()?.AudioWarmup?.(); setAndHint(P.A_EN, !sm.get(P.A_EN)); ApplyReq.soft(); }; bindActGate(boostBtn, [P.A_EN], (el, aEn) => { el.classList.toggle('active', !!aEn); el.style.color = aEn ? 'var(--ac)' : '#eee'; });
+      const boostBtn = h('button', { id: 'boost-btn', class: 'btn', style: 'flex: 3; font-weight: 800;' }, '\uD83D\uDD0A Audio (Mastering)'); boostBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; getNS()?.AudioWarmup?.(); setAndHint(P.A_EN, !sm.get(P.A_EN)); ApplyReq.soft(); }; bindActGate(boostBtn, [P.A_EN], (el, aEn) => { el.classList.toggle('active', !!aEn); el.style.color = aEn ? 'var(--ac)' : '#eee'; });
+
+      // FIX: 스테레오 버튼을 메인 오디오 줄로 이동
+      const stereoBtn = h('button', { class: 'btn', style: 'flex: 1.2; font-size: 11px;' }, 'Wide'); stereoBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(P.A_STEREO_W, !sm.get(P.A_STEREO_W)); }; bindActGate(stereoBtn, [P.A_STEREO_W], (el, en) => el.classList.toggle('active', !!en));
 
       const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30'); advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); }; bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '\u25B2 \uACE0\uAE09 \uC124\uC815 \uB2EB\uAE30' : '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30'; el.style.background = v ? '#34495e' : '#2c3e50'; });
       const shortcutInfo = h('div', { style: 'font-size:10px;opacity:0.5;text-align:center;padding:4px 0;line-height:1.6' }, [ 'Alt+Shift+V: UI 토글 | Alt+Shift+P: PiP 토글', h('br'), 'Alt+Shift+[,]: 속도조절 | Alt+Shift+\\: 속도 리셋', h('br'), 'Alt+Shift+D: 선명순환 | Alt+Shift+B: 밝기순환', h('br'), 'Alt+Shift+R: 회전 | Alt+Shift+S: 스크린샷' ]);
-      const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px; content-visibility: auto; contain-intrinsic-size: 0 300px;' }, [ renderButtonRow({ label: '\uC554\uBD80', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV1, title: '\uC57D\uD55C \uC554\uBD80 \uAC15\uD654' }, { text: '2\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV2, title: '\uC911\uAC04 \uC554\uBD80 \uAC15\uD654' }, { text: '3\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV3, title: '\uAC15\uD55C \uC554\uBD80 \uAC15\uD654' } ] }), renderButtonRow({ label: '\uC0C9\uC628', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [ { text: '\uBCF4\uD638', value: 35, title: '\uAC15\uD55C \uB178\uB780\uBE5B (\uD655\uC2E4\uD55C \uB208 \uBCF4\uD638)' }, { text: '\uB530\uB73B', value: 18, title: '\uBD80\uB4DC\uB7EC\uC6B4 \uD654\uBA74 (\uC77C\uC0C1\uC6A9)' }, { text: '\uB9D1\uC74C', value: -15, title: '\uAE68\uB057\uD55C \uD654\uC774\uD2B8 (\uC601\uD654 \uCD94\uCC9C)' }, { text: '\uB0C9\uC0C9', value: -30, title: '\uC950\uD55C \uD30C\uB780\uBE5B (\uC560\uB2C8 \uCD94\uCC9C)' } ] }), renderButtonRow({ label: '🔊', key: P.A_STEREO_W, offValue: false, toggleActiveToOff: true, items: [{ text: '스테레오 확장', value: true, title: '스테레오 폭 넓히기' }] }), h('hr'), renderButtonRow({ label: '\uC2DC\uACC4', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '\uD45C\uC2DC (\uC804\uCCB4\uD654\uBA74)', value: true }] }), renderButtonRow({ label: '\uC704\uCE58', key: P.APP_TIME_POS, items: [{ text: '\uC88C', value: 0 }, { text: '\uC911', value: 1 }, { text: '\uC6B0', value: 2 }] }), h('hr'), shortcutInfo ]);
+
+      // FIX: 스테레오 확장을 메인으로 올렸으므로 고급 설정에서 제거
+      const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px; content-visibility: auto; contain-intrinsic-size: 0 300px;' }, [ renderButtonRow({ label: '\uC554\uBD80', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV1, title: '\uC57D\uD55C \uC554\uBD80 \uAC15\uD654' }, { text: '2\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV2, title: '\uC911\uAC04 \uC554\uBD80 \uAC15\uD654' }, { text: '3\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV3, title: '\uAC15\uD55C \uC554\uBD80 \uAC15\uD654' } ] }), renderButtonRow({ label: '\uC0C9\uC628', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [ { text: '\uBCF4\uD638', value: 35, title: '\uAC15\uD55C \uB178\uB780\uBE5B (\uD655\uC2E4\uD55C \uB208 \uBCF4\uD638)' }, { text: '\uB530\uB73B', value: 18, title: '\uBD80\uB4DC\uB7EC\uC6B4 \uD654\uBA74 (\uC77C\uC0C1\uC6A9)' }, { text: '\uB9D1\uC74C', value: -15, title: '\uAE68\uB057\uD55C \uD654\uC774\uD2B8 (\uC601\uD654 \uCD94\uCC9C)' }, { text: '\uB0C9\uC0C9', value: -30, title: '\uC950\uD55C \uD30C\uB780\uBE5B (\uC560\uB2C8 \uCD94\uCC9C)' } ] }), h('hr'), renderButtonRow({ label: '\uC2DC\uACC4', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '\uD45C\uC2DC (\uC804\uCCB4\uD654\uBA74)', value: true }] }), renderButtonRow({ label: '\uC704\uCE58', key: P.APP_TIME_POS, items: [{ text: '\uC88C', value: 0 }, { text: '\uC911', value: 1 }, { text: '\uC6B0', value: 2 }] }), h('hr'), shortcutInfo ]);
       bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none');
       const resetBtn = h('button', { class: 'btn' }, '\u21BA \uB9AC\uC14B'); resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', getNS()?.CONFIG?.DEFAULTS.video); sm.batch('audio', getNS()?.CONFIG?.DEFAULTS.audio); sm.batch('playback', getNS()?.CONFIG?.DEFAULTS.playback); ApplyReq.hard(); }; bindActGate(resetBtn, []);
 
@@ -1826,7 +1857,8 @@ function VSC_MAIN() {
       ]);
 
       const bodyMain = h('div', { id: 'p-main' }, [
-        quickPresetRow, sharpRow, brightRow, h('div', { class: 'prow' }, [ pipBtn, zoomBtn, rotateBtn, pwrBtn ]), h('div', { class: 'prow', style: 'margin-top: 4px;' }, [ boostBtn ]),
+        quickPresetRow, sharpRow, brightRow, h('div', { class: 'prow' }, [ pipBtn, zoomBtn, rotateBtn, pwrBtn ]),
+        h('div', { class: 'prow', style: 'margin-top: 4px;' }, [ boostBtn, stereoBtn ]), // FIX: 오디오 한 줄 배치
         h('div', { class: 'prow', style: 'margin-top: 8px;' }, [ h('button', { class: 'btn', style: 'background:#333;', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '\u2715 \uB2EB\uAE30'), resetBtn ]), advToggleBtn, advContainer, h('hr'),
         h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; bindActGate(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => el.classList.toggle('active', !!en && Math.abs(Number(rate || 1) - s) < 0.01)); return b; })),
         rateAdjustRow,
@@ -2098,6 +2130,16 @@ function VSC_MAIN() {
   const Targeting = createTargeting(Bus);
   initSpaUrlDetector(createDebounced(() => { Registry.prune(); Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }, CONFIG.SYS.SRD));
 
+  function showScreenshotFlash(video) {
+    const parent = video.parentElement;
+    if (!parent) return;
+    const flash = document.createElement('div');
+    flash.style.cssText = `position: absolute; inset: 0; z-index: 2147483647; background: rgba(255,255,255,0.6); pointer-events: none; transition: opacity 0.3s ease-out; opacity: 1;`;
+    if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+    parent.appendChild(flash);
+    requestAnimationFrame(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 400); });
+  }
+
   onPageReady(() => {
     installShadowRootEmitterIfNeeded();
     __vscNs._timers = __vscNs._timers || [];
@@ -2155,47 +2197,38 @@ function VSC_MAIN() {
 
     ApplyReq.hard();
 
+    const SHORTCUT_MAP = new Map([
+      ['KeyV', { needsAct: false, handler: () => { Store.set(CONFIG.P.APP_UI, !Store.get(CONFIG.P.APP_UI)); ApplyReq.hard(); } }],
+      ['KeyP', { needsAct: true, handler: async () => { const v = __VSC_APP__?.getActiveVideo(); if (v) await PiPManager.toggle(v); } }],
+      ['KeyD', { needsAct: true, handler: () => { const presets = ['off', 'Soft', 'Medium', 'Ultra', 'Master']; const cur = Store.get(CONFIG.P.V_PRE_S); Store.set(CONFIG.P.V_PRE_S, presets[(presets.indexOf(cur) + 1) % presets.length]); ApplyReq.hard(); } }],
+      ['KeyB', { needsAct: true, handler: () => { const cur = Number(Store.get(CONFIG.P.V_BRIGHT_LV)) || 0; Store.set(CONFIG.P.V_BRIGHT_LV, (cur + 1) % 6); ApplyReq.hard(); } }],
+      ['KeyR', { needsAct: true, handler: () => { Store.set(CONFIG.P.V_ROTATION, getNextRotation(Store.get(CONFIG.P.V_ROTATION))); ApplyReq.hard(); } }],
+      ['BracketRight', { needsAct: true, handler: () => { const cur = Number(Store.get(CONFIG.P.PB_RATE)) || 1.0; Store.set(CONFIG.P.PB_RATE, Math.min(16, Math.round((cur + 0.05) * 100) / 100)); Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); } }],
+      ['BracketLeft', { needsAct: true, handler: () => { const cur = Number(Store.get(CONFIG.P.PB_RATE)) || 1.0; Store.set(CONFIG.P.PB_RATE, Math.max(0.1, Math.round((cur - 0.05) * 100) / 100)); Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); } }],
+      ['Backslash', { needsAct: false, handler: () => { Store.batch('playback', { rate: 1.0, enabled: false }); ApplyReq.hard(); } }],
+      ['KeyS', { needsAct: true, handler: () => {
+        const video = __VSC_APP__?.getActiveVideo();
+        if (!video || video.readyState < 2) return;
+        const canvas = document.createElement('canvas'), vw = video.videoWidth, vh = video.videoHeight;
+        if (!vw || !vh) return;
+        canvas.width = vw; canvas.height = vh; const ctx2d = canvas.getContext('2d'); ctx2d.drawImage(video, 0, 0, vw, vh);
+        canvas.toBlob((blob) => {
+          if (!blob) return; const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
+          const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19), domain = location.hostname.replace(/\./g, '_');
+          a.download = `vsc_${domain}_${ts}.png`; document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 5000); showScreenshotFlash(video);
+        }, 'image/png');
+      } }]
+    ]);
+
     on(window, 'keydown', async (e) => {
-      const isEditableTarget = (el) => { if(!el) return false; const tag = el.tagName; return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable; };
-      if (isEditableTarget(e.target)) return;
-
-      if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); const st = getNS()?.Store; if (st) { st.set(CONFIG.P.APP_UI, !st.get(CONFIG.P.APP_UI)); ApplyReq.hard(); } return; }
-      if (e.altKey && e.shiftKey && e.code === 'KeyP') {
-        if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return; e.preventDefault(); e.stopPropagation();
-        const v = __VSC_APP__?.getActiveVideo(); if (v) await PiPManager.toggle(v);
-        return;
-      }
-      if (e.altKey && e.shiftKey && e.code === 'KeyD') {
-        e.preventDefault(); e.stopPropagation();
-        if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return;
-        const presets = ['off', 'Soft', 'Medium', 'Ultra', 'Master'];
-        const cur = getNS()?.Store.get(CONFIG.P.V_PRE_S);
-        const idx = presets.indexOf(cur);
-        const next = presets[(idx + 1) % presets.length];
-        getNS()?.Store.set(CONFIG.P.V_PRE_S, next);
-        ApplyReq.hard();
-        return;
-      }
-      if (e.altKey && e.shiftKey && e.code === 'KeyB') {
-        e.preventDefault(); e.stopPropagation();
-        if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return;
-        const cur = Number(getNS()?.Store.get(CONFIG.P.V_BRIGHT_LV)) || 0;
-        getNS()?.Store.set(CONFIG.P.V_BRIGHT_LV, (cur + 1) % 6);
-        ApplyReq.hard();
-        return;
-      }
-      if (e.altKey && e.shiftKey && e.code === 'KeyR') {
-        e.preventDefault(); e.stopPropagation();
-        if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return;
-        const cur = getNS()?.Store.get(CONFIG.P.V_ROTATION);
-        getNS()?.Store.set(CONFIG.P.V_ROTATION, getNextRotation(cur));
-        ApplyReq.hard();
-        return;
-      }
-
-      if (e.altKey && e.shiftKey && e.code === 'BracketRight') { e.preventDefault(); e.stopPropagation(); if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return; const cur = Number(getNS()?.Store.get(CONFIG.P.PB_RATE)) || 1.0; const next = Math.min(16, Math.round((cur + 0.05) * 100) / 100); getNS()?.Store.set(CONFIG.P.PB_RATE, next); getNS()?.Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); return; }
-      if (e.altKey && e.shiftKey && e.code === 'BracketLeft') { e.preventDefault(); e.stopPropagation(); if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return; const cur = Number(getNS()?.Store.get(CONFIG.P.PB_RATE)) || 1.0; const next = Math.max(0.1, Math.round((cur - 0.05) * 100) / 100); getNS()?.Store.set(CONFIG.P.PB_RATE, next); getNS()?.Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); return; }
-      if (e.altKey && e.shiftKey && e.code === 'Backslash') { e.preventDefault(); e.stopPropagation(); getNS()?.Store.batch('playback', { rate: 1.0, enabled: false }); ApplyReq.hard(); return; }
+      const isEditableTarget = (el) => { if (!el) return false; const tag = el.tagName; return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable; };
+      if (isEditableTarget(e.target) || !e.altKey || !e.shiftKey) return;
+      const entry = SHORTCUT_MAP.get(e.code);
+      if (!entry) return;
+      e.preventDefault(); e.stopPropagation();
+      if (entry.needsAct && !Store.get(CONFIG.P.APP_ACT)) return;
+      try { await entry.handler(); } catch (_) {}
     }, { capture: true });
 
     on(document, 'visibilitychange', () => { if (document.visibilityState === 'visible') getNS()?.ApplyReq?.hard(); }, OPT_P);
