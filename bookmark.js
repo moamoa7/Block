@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v15.0)
-// @version      15.0
-// @description  v14.1 기반 – popUndo 방어, FAB 캡처 예외처리, 접기 탭별 분리, 롱프레스 수정, 검색+접기 연동, Sortable/데드링크 최적화, 탭관리 리팩토링, saveDataInvalidate, 빠른추가 UX, 탭카운트, 전체접기, 그룹카운트 스타일
+// @name         북마크 (Shadow DOM 통합 v16.0)
+// @version      16.0
+// @description  v15.0 기반 – FAB 스와이프 빠른추가, 스와이프 힌트, 검색+정렬모드 방어, 그룹생성 유효성, 아이콘복구 취소, setupFab 리팩토링, 대시보드 추가 버튼
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -140,7 +140,7 @@
     }
 
     /* ═══════════════════════════════════
-       저장 [3-2 saveDataInvalidate 헬퍼]
+       저장
        ═══════════════════════════════════ */
     let _saveTimer = null;
     const BACKUP_INTERVAL = GM_getValue('bm_backup_interval', 3600000);
@@ -171,7 +171,7 @@
     let originalOverflow = '';
 
     /* ═══════════════════════════════════
-       그룹 접기/펼치기 [1-3 방어 + 1-4 탭별 키]
+       그룹 접기/펼치기
        ═══════════════════════════════════ */
     let _parsedCollapsed = [];
     try {
@@ -335,7 +335,7 @@
     }
 
     /* ═══════════════════════════════════
-       아이콘 전체 복구
+       아이콘 전체 복구 [2-1 취소 기능]
        ═══════════════════════════════════ */
     async function fixAllIcons() {
         const allItems = [];
@@ -345,24 +345,27 @@
         if (allItems.length === 0) { alert('저장된 북마크가 없습니다.'); return; }
         if (!confirm(`총 ${allItems.length}개 아이콘을 다시 다운로드합니다.\n진행하시겠습니까?`)) return;
 
+        let cancelled = false;
         const modalBg = createModal('', { preventEscape: true });
         const content = el('div', { class: 'bm-modal-content', style: { textAlign: 'center' } });
         const statusEl = el('div', { text: '아이콘 업데이트 중...' });
-        content.appendChild(statusEl);
+        const cancelBtn = btn('취소', 'bm-btn-red', () => { cancelled = true; }, { width: '100%', marginTop: '15px', padding: '10px' });
+        content.append(statusEl, cancelBtn);
         modalBg.appendChild(content);
         showModal(modalBg);
 
         _faviconCache.clear();
         const BATCH = 5;
         for (let i = 0; i < allItems.length; i += BATCH) {
+            if (cancelled) break;
             await Promise.all(allItems.slice(i, i + BATCH).map(async item => {
-                item.icon = await fetchFaviconBase64(item.url);
+                if (!cancelled) item.icon = await fetchFaviconBase64(item.url);
             }));
             statusEl.textContent = `아이콘 업데이트 중... ${Math.min(i + BATCH, allItems.length)} / ${allItems.length}`;
         }
         saveDataNow();
         modalBg.close();
-        alert("복구 완료!");
+        alert(cancelled ? `중단됨 (${allItems.length}개 중 일부 완료)` : "복구 완료!");
         renderDashboard();
     }
 
@@ -441,7 +444,7 @@
     }
 
     /* ═══════════════════════════════════
-       모바일 롱프레스 [1-5 수정]
+       모바일 롱프레스
        ═══════════════════════════════════ */
     function bindLongPress(element, callback) {
         let timer = 0;
@@ -516,7 +519,7 @@
     function destroyAllSortables() { _activeSortables.forEach(s => s.destroy()); _activeSortables = []; }
 
     /* ═══════════════════════════════════
-       대시보드 렌더링
+       대시보드 렌더링 [1-3, 1-5, 4-2]
        ═══════════════════════════════════ */
     let _searchTimer = null;
     let _currentContainer = null;
@@ -577,10 +580,14 @@
                             grid.style.display = hasVisible ? '' : 'none';
                             sec.style.display = hasVisible ? '' : 'none';
                         } else {
-                            const gTitle = sec.getAttribute('data-id');
-                            const collapsed = _collapsedGroups.has(collapseKey(gTitle));
-                            grid.style.display = collapsed ? 'none' : '';
                             sec.style.display = '';
+                            if (!isSortMode) {
+                                const gTitle = sec.getAttribute('data-id');
+                                const collapsed = _collapsedGroups.has(collapseKey(gTitle));
+                                grid.style.display = collapsed ? 'none' : '';
+                            } else {
+                                grid.style.display = '';
+                            }
                         }
                     });
                 }, 150);
@@ -589,12 +596,18 @@
 
         adminBar.append(
             searchInput,
+            btn('📌 추가', 'bm-btn-green', () => showQuickAddModal()),
             btn(isSortMode ? '✅ 완료' : '↕ 정렬', 'bm-btn-blue', () => { isSortMode = !isSortMode; renderDashboard(); }),
             btn('🔄 아이콘', 'bm-btn-orange', fixAllIcons),
             btn('📂 탭관리', '', showTabManager),
             btn('➕ 그룹', '', () => {
                 const n = prompt("새 그룹 이름:");
-                if (n) { getCurPage()[n] = []; saveData(); renderDashboard(); }
+                if (!n || !n.trim()) return;
+                const trimmed = n.trim();
+                if (getCurPage()[trimmed]) { alert('이미 존재하는 그룹 이름입니다.'); return; }
+                getCurPage()[trimmed] = [];
+                saveData();
+                renderDashboard();
             }),
             btn('🗂 접기/펼치기', '', () => {
                 const page = getCurPage();
@@ -762,7 +775,7 @@
     }
 
     /* ═══════════════════════════════════
-       그룹 관리 모달 [4-2 빈 그룹 안내]
+       그룹 관리 모달
        ═══════════════════════════════════ */
     function showGroupManager(gTitle) {
         const items = getCurPage()[gTitle]; if (!items) return;
@@ -802,7 +815,7 @@
     }
 
     /* ═══════════════════════════════════
-       탭 관리 [3-1 핸들러 분리]
+       탭 관리
        ═══════════════════════════════════ */
     function deleteTab(tn, modalBg) {
         if (Object.keys(db.pages).length <= 1) { alert("최소 1개 탭 필수"); return; }
@@ -883,7 +896,7 @@
     }
 
     /* ═══════════════════════════════════
-       빠른 추가 모달 [4-1 포커스+Enter]
+       빠른 추가 모달 [1-4 trim 체크]
        ═══════════════════════════════════ */
     function showQuickAddModal() {
         if (shadow.querySelector('#bm-quick-modal')) return;
@@ -925,8 +938,8 @@
                 });
                 col.appendChild(btn('+ 새 그룹 생성', '', async () => {
                     const n = prompt("새 그룹 이름:");
-                    if (!n) return;
-                    await saveBookmarkTo(p, n, ni.value, ui.value, modalBg);
+                    if (!n || !n.trim()) return;
+                    await saveBookmarkTo(p, n.trim(), ni.value, ui.value, modalBg);
                 }, { background: 'var(--c-dark)', color: '#fff', padding: '12px' }));
                 area.appendChild(col);
             }, { background: '#eee', color: '#333' }));
@@ -968,7 +981,7 @@
     }
 
     /* ═══════════════════════════════════
-       FAB 이벤트 [1-2 try-catch]
+       FAB 이벤트 [1-1 스와이프, 3-1 리팩토링, 4-1 힌트]
        ═══════════════════════════════════ */
     function setupFab(fab, overlay) {
         const st = {
@@ -977,31 +990,45 @@
             dragging: false,
             sx: 0, sy: 0, ox: 0, oy: 0
         };
-
         let lastTap = 0;
+
+        function endDrag() {
+            fab.style.transition = '';
+            fab.style.bottom = 'auto';
+            const snapRight = fab.getBoundingClientRect().left + (fab.offsetWidth / 2) > innerWidth / 2;
+            fab.style.left = snapRight ? 'auto' : '15px';
+            fab.style.right = snapRight ? '15px' : 'auto';
+            st.dragging = false;
+            st.dragReady = false;
+            fab.style.cursor = 'pointer';
+            fab.style.boxShadow = '';
+            lastTap = 0;
+        }
+
+        function resetDragReady() {
+            st.dragReady = false;
+            fab.style.cursor = 'pointer';
+            fab.style.boxShadow = '';
+            lastTap = 0;
+        }
+
+        function isSwipeUp(e) {
+            const dy = st.sy - e.clientY;
+            const dx = Math.abs(e.clientX - st.sx);
+            return dy > 50 && dx < 40;
+        }
+
         fab.addEventListener('pointerup', (e) => {
             clearTimeout(st.timer);
             try { fab.releasePointerCapture(e.pointerId); } catch {}
+            shadow.querySelector('#bm-swipe-hint')?.remove();
 
-            if (st.dragging) {
-                fab.style.transition = '';
-                fab.style.bottom = 'auto';
-                const snapRight = fab.getBoundingClientRect().left + (fab.offsetWidth / 2) > innerWidth / 2;
-                fab.style.left = snapRight ? 'auto' : '15px';
-                fab.style.right = snapRight ? '15px' : 'auto';
-                st.dragging = false;
-                st.dragReady = false;
-                fab.style.cursor = 'pointer';
-                fab.style.boxShadow = '';
-                lastTap = 0;
-                return;
-            }
+            if (st.dragging) { endDrag(); return; }
+            if (st.dragReady) { resetDragReady(); return; }
 
-            if (st.dragReady) {
-                st.dragReady = false;
-                fab.style.cursor = 'pointer';
-                fab.style.boxShadow = '';
+            if (isSwipeUp(e)) {
                 lastTap = 0;
+                showQuickAddModal();
                 return;
             }
 
@@ -1038,8 +1065,22 @@
 
         fab.addEventListener('pointermove', (e) => {
             if (!st.dragReady) {
-                if (Math.hypot(e.clientX - st.sx, e.clientY - st.sy) > 10) {
-                    clearTimeout(st.timer);
+                const dist = Math.hypot(e.clientX - st.sx, e.clientY - st.sy);
+                if (dist > 10) clearTimeout(st.timer);
+
+                const dy = st.sy - e.clientY;
+                let hint = shadow.querySelector('#bm-swipe-hint');
+                if (dy > 20 && Math.abs(e.clientX - st.sx) < 40) {
+                    if (!hint) {
+                        hint = el('div', { id: 'bm-swipe-hint', text: '＋' });
+                        shadow.appendChild(hint);
+                    }
+                    const fabRect = fab.getBoundingClientRect();
+                    hint.style.left = (fabRect.left + fabRect.width / 2 - 15) + 'px';
+                    hint.style.top = (fabRect.top - 40) + 'px';
+                    hint.style.opacity = Math.min(1, (dy - 20) / 30);
+                } else {
+                    hint?.remove();
                 }
                 return;
             }
@@ -1056,6 +1097,7 @@
         fab.addEventListener('pointercancel', (e) => {
             clearTimeout(st.timer);
             try { fab.releasePointerCapture(e.pointerId); } catch {}
+            shadow.querySelector('#bm-swipe-hint')?.remove();
             st.dragReady = false;
             st.dragging = false;
             fab.style.cursor = 'pointer';
@@ -1101,7 +1143,7 @@
     }
 
     /* ═══════════════════════════════════
-       스타일 [5-1 .bm-group-count]
+       스타일 [4-1 #bm-swipe-hint]
        ═══════════════════════════════════ */
     function getStyles() {
         return `
@@ -1183,6 +1225,24 @@
                 will-change: transform;
                 transition: left 0.2s ease, right 0.2s ease, top 0.2s ease;
                 overflow: visible;
+            }
+
+            /* ── 스와이프 힌트 ── */
+            #bm-swipe-hint {
+                position: fixed;
+                width: 30px;
+                height: 30px;
+                background: var(--c-primary);
+                color: white;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                font-weight: bold;
+                pointer-events: none;
+                transition: opacity 0.1s;
+                z-index: 2147483647;
             }
 
             /* ── 오버레이 ── */
