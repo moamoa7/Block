@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v14.0)
-// @version      14.0
-// @description  v13.3 기반 – FAB badge 수정, 데드링크 개선, 파비콘 async화, 그룹 접기, Undo, 모바일 롱프레스, Fragment 최적화 등 18개 패치 적용
+// @name         북마크 (Shadow DOM 통합 v14.1)
+// @version      14.1
+// @description  v14.0 기반 – FAB badge 제거, 그룹 헤더에 북마크 개수 표시
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -75,7 +75,7 @@
     }
 
     /* ═══════════════════════════════════
-       URL 중복 체크 (Set 캐시) [2-2 절충안]
+       URL 중복 체크 (Set 캐시)
        ═══════════════════════════════════ */
     let _urlSet = null;
 
@@ -93,7 +93,6 @@
 
     function addToUrlSet(url) { if (_urlSet) _urlSet.add(url); }
 
-    /* [4-2] 중복 위치 탐색 */
     function findUrlLocations(url) {
         const locations = [];
         for (const [pageName, groups] of Object.entries(db.pages))
@@ -120,7 +119,7 @@
     let db = raw;
 
     /* ═══════════════════════════════════
-       Undo 스택 [4-4]
+       Undo 스택
        ═══════════════════════════════════ */
     const _undoStack = [];
     const UNDO_MAX = 10;
@@ -140,7 +139,7 @@
     }
 
     /* ═══════════════════════════════════
-       저장 [2-2 수정: saveData에서 _urlSet=null 제거]
+       저장
        ═══════════════════════════════════ */
     let _saveTimer = null;
     const BACKUP_INTERVAL = GM_getValue('bm_backup_interval', 3600000);
@@ -165,7 +164,7 @@
     let originalOverflow = '';
 
     /* ═══════════════════════════════════
-       그룹 접기/펼치기 [4-1]
+       그룹 접기/펼치기
        ═══════════════════════════════════ */
     const _collapsedGroups = new Set(
         JSON.parse(GM_getValue('bm_collapsed', '[]'))
@@ -191,7 +190,7 @@
     }
 
     /* ═══════════════════════════════════
-       파비콘 [3-2 async화 + 2-1 LRU 캐시]
+       파비콘 (async + LRU 캐시)
        ═══════════════════════════════════ */
     const fallbackIcon = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDdiZmYiLz48cGF0aCBkPSJNMiAxMmgyME0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=";
     const _faviconCache = new Map();
@@ -241,7 +240,7 @@
     }
 
     /* ═══════════════════════════════════
-       파비콘 IntersectionObserver [1-6 root 수정]
+       파비콘 IntersectionObserver (lazy)
        ═══════════════════════════════════ */
     let _faviconObserver = null;
 
@@ -259,7 +258,7 @@
     }
 
     /* ═══════════════════════════════════
-       데드링크 감지 [1-4 개선]
+       데드링크 감지
        ═══════════════════════════════════ */
     const _deadLinkCache = new Map();
 
@@ -289,7 +288,7 @@
     let shadow = null;
 
     /* ═══════════════════════════════════
-       모달 [5-3 dialog 폴백]
+       모달
        ═══════════════════════════════════ */
     function createModal(id = '', { preventEscape = false, onClose = null } = {}) {
         const dialog = document.createElement('dialog');
@@ -384,7 +383,7 @@
     }
 
     /* ═══════════════════════════════════
-       아이템 행 (그룹 관리 모달용) [4-3 paste 자동이름]
+       아이템 행 (그룹 관리 모달용)
        ═══════════════════════════════════ */
     function createItemRow({ name = '', url = 'https://', isNew = false } = {}) {
         const row = el('div', {
@@ -427,7 +426,7 @@
     }
 
     /* ═══════════════════════════════════
-       모바일 롱프레스 [6-2]
+       모바일 롱프레스
        ═══════════════════════════════════ */
     function bindLongPress(element, callback) {
         let timer = 0;
@@ -448,7 +447,7 @@
     }
 
     /* ═══════════════════════════════════
-       컨텍스트 메뉴 [6-1 위치보정]
+       컨텍스트 메뉴
        ═══════════════════════════════════ */
     function showItemContextMenu(e, item, groupName) {
         e.preventDefault();
@@ -495,7 +494,7 @@
     function destroyAllSortables() { _activeSortables.forEach(s => s.destroy()); _activeSortables = []; }
 
     /* ═══════════════════════════════════
-       대시보드 렌더링 [2-3 Fragment, 1-6 observer, 4-1 접기]
+       대시보드 렌더링
        ═══════════════════════════════════ */
     let _searchTimer = null;
     let _currentContainer = null;
@@ -573,7 +572,7 @@
             const isCollapsed = _collapsedGroups.has(gTitle);
             const header = el('div', { class: 'bm-section-header' });
             const titleSpan = el('span', {
-                text: `${isSortMode ? '≡' : (isCollapsed ? '▶' : '📁')} ${gTitle}`,
+                text: `${isSortMode ? '≡' : (isCollapsed ? '▶' : '📁')} ${gTitle} (${items.length})`,
                 style: { fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
                 onclick: () => {
                     if (isSortMode) return;
@@ -662,7 +661,7 @@
     }
 
     /* ═══════════════════════════════════
-       그룹 관리 저장 [3-3 분리]
+       그룹 관리 저장
        ═══════════════════════════════════ */
     async function saveGroupEdits(gTitle, gNameInput, listEl, items, modalBg) {
         const newName = gNameInput.value.trim();
@@ -769,7 +768,7 @@
     }
 
     /* ═══════════════════════════════════
-       빠른 추가 공통 저장 [3-1]
+       빠른 추가 공통 저장
        ═══════════════════════════════════ */
     async function saveBookmarkTo(page, group, name, url, modalBg) {
         if (!isValidUrl(url)) { alert('올바른 URL을 입력하세요.'); return; }
@@ -784,7 +783,7 @@
     }
 
     /* ═══════════════════════════════════
-       빠른 추가 모달 [3-1 공통화, 4-2 중복위치]
+       빠른 추가 모달
        ═══════════════════════════════════ */
     function showQuickAddModal() {
         if (shadow.querySelector('#bm-quick-modal')) return;
@@ -832,7 +831,7 @@
     }
 
     /* ═══════════════════════════════════
-       FAB 인디케이터 + 배지
+       FAB 인디케이터
        ═══════════════════════════════════ */
     function updateFabIndicator() {
         const fab = shadow?.querySelector('#bookmark-fab');
@@ -840,24 +839,10 @@
 
         fab.style.outline = isUrlDuplicate(window.location.href) ? '3px solid var(--c-success)' : 'none';
         fab.style.outlineOffset = '2px';
-
-        let count = 0;
-        for (const items of Object.values(getCurPage())) count += items.length;
-
-        let badge = shadow.querySelector('#bm-fab-badge');
-        if (count > 0) {
-            if (!badge) {
-                badge = el('span', { id: 'bm-fab-badge' });
-                fab.appendChild(badge);
-            }
-            badge.textContent = count > 99 ? '99+' : count;
-        } else {
-            badge?.remove();
-        }
     }
 
     /* ═══════════════════════════════════
-       FAB 토글 [1-1 badge 보존]
+       FAB 토글
        ═══════════════════════════════════ */
     function toggleOverlay(overlay, fab) {
         const isVisible = overlay.style.display === 'block';
@@ -867,8 +852,6 @@
             document.body.style.overflow = 'hidden';
             overlay.style.display = 'block';
             fab.childNodes[0].textContent = '✕';
-            const badge = shadow.querySelector('#bm-fab-badge');
-            if (badge) badge.style.display = 'none';
         } else {
             document.body.style.overflow = originalOverflow;
             overlay.style.display = 'none';
@@ -878,7 +861,7 @@
     }
 
     /* ═══════════════════════════════════
-       FAB 이벤트 [1-5 lastTap 리셋]
+       FAB 이벤트
        ═══════════════════════════════════ */
     function setupFab(fab, overlay) {
         const st = {
@@ -976,7 +959,7 @@
     }
 
     /* ═══════════════════════════════════
-       키보드 단축키 [4-4 Ctrl+Z]
+       키보드 단축키
        ═══════════════════════════════════ */
     function setupKeyboard() {
         document.addEventListener('keydown', (e) => {
@@ -1011,7 +994,7 @@
     }
 
     /* ═══════════════════════════════════
-       스타일 [5-2 color-mix 폴백, 4-1 접기 커서]
+       스타일
        ═══════════════════════════════════ */
     function getStyles() {
         return `
@@ -1093,25 +1076,6 @@
                 will-change: transform;
                 transition: left 0.2s ease, right 0.2s ease, top 0.2s ease;
                 overflow: visible;
-            }
-
-            #bm-fab-badge {
-                position: absolute;
-                top: -4px;
-                right: -4px;
-                background: var(--c-danger);
-                color: white;
-                font-size: 10px;
-                font-weight: bold;
-                min-width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0 4px;
-                line-height: 1;
-                pointer-events: none;
             }
 
             /* ── 오버레이 ── */
@@ -1432,7 +1396,7 @@
     }
 
     /* ═══════════════════════════════════
-       초기화 [1-1 텍스트노드 분리, 1-2 beforeunload]
+       초기화
        ═══════════════════════════════════ */
     function init() {
         const host = el('div', {
