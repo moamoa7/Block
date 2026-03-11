@@ -2084,7 +2084,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         stopDrag = bindElementDrag(gearBtn, (ev) => {
           const currentY = ev.clientY;
           if (Math.abs(currentY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); }
-          if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; }
+          if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - gearBtn.offsetHeight, newTop)); gearBtn.style.top = `${newTop}px`; }
         }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
       };
       on(gearBtn, 'pointerdown', handleGearDrag);
