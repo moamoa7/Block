@@ -109,9 +109,9 @@ function VSC_MAIN() {
       detail: {
         off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
         Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.52, 0.12], fineAmt: [0.18, 0.72] },
-        Medium: { sharpAdd: 36, sharp2Add: 30, sat: 0.98, microBase: 0.26, microScale: 1/120, fineBase: 0.44, fineScale: 1/24, microAmt: [0.58, 0.13], fineAmt: [0.21, 0.80] },
-        Ultra: { sharpAdd: 58, sharp2Add: 48, sat: 0.96, microBase: 0.28, microScale: 1/90, fineBase: 0.45, fineScale: 1/19, microAmt: [0.64, 0.14], fineAmt: [0.25, 0.87] },
-        Master: { sharpAdd: 80, sharp2Add: 65, sat: 0.94, microBase: 0.30, microScale: 1/60, fineBase: 0.45, fineScale: 1/15, microAmt: [0.70, 0.15], fineAmt: [0.28, 0.95] }
+        Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
+        Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.21, microScale: 1/100, fineBase: 0.37, fineScale: 1/22, microAmt: [0.50, 0.11], fineAmt: [0.20, 0.76] },
+        Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.20, microScale: 1/80, fineBase: 0.34, fineScale: 1/18, microAmt: [0.55, 0.12], fineAmt: [0.22, 0.78] }
       },
       bright: {
         0: { gammaF: 1.00, brightAdd: 0 },
@@ -1593,29 +1593,131 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   }
 
   function createPerfGovernor() {
-    const perVideo = new WeakMap(); const MODES = ['low', 'mid', 'high']; const MODE_IDX = { low: 0, mid: 1, high: 2 };
-    let globalMode = 'high', confirmCount = 0, pendingMode = null, lastTransitionT = 0;
-    const SAMPLE_INTERVAL = { high: 3000, mid: 2000, low: 1500 }, THRESHOLDS = { downToLow: 0.25, downToMid: 0.15, upToMid: 0.04, upToHigh: 0.015, emergency: 0.35 };
-    const CONFIRM_DOWN = 3, CONFIRM_UP = 4, COOLDOWN_DOWN = 8000, COOLDOWN_UP = 3000;
+    const perVideo = new WeakMap();
+    const perVideoWarmup = new WeakMap(); // 추가됨
+    const MODES = ['low', 'mid', 'high'];
+    const MODE_IDX = { low: 0, mid: 1, high: 2 };
 
-    function transitionTo(newMode) { if (newMode === globalMode) return; globalMode = newMode; lastTransitionT = performance.now(); pendingMode = null; confirmCount = 0; }
+    let globalMode = 'high', confirmCount = 0, pendingMode = null, lastTransitionT = 0;
+    let emergencyCount = 0; // 추가됨
+
+    // 설정값 최적화
+    const WARMUP_FRAMES = 120;
+    const WARMUP_TIME_MS = 4000;
+    const SAMPLE_INTERVAL = { high: 3000, mid: 2000, low: 1500 };
+    const THRESHOLDS = {
+        downToLow: 0.25,
+        downToMid: 0.15,
+        upToMid: 0.04,
+        upToHigh: 0.015,
+        emergency: 0.40 // 0.35에서 상향
+    };
+
+    const EMERGENCY_CONFIRM = 2; // 즉시 강등 방지
+    const CONFIRM_DOWN = 3, CONFIRM_UP = 4;
+    const COOLDOWN_DOWN = 8000, COOLDOWN_UP = 3000;
+
+    function transitionTo(newMode) {
+      if (newMode === globalMode) return;
+      globalMode = newMode;
+      lastTransitionT = performance.now();
+      pendingMode = null;
+      confirmCount = 0;
+      emergencyCount = 0;
+    }
+
     function tryTransition(candidateMode, now) {
-      const currentIdx = MODE_IDX[globalMode], candidateIdx = MODE_IDX[candidateMode]; const isUpgrade = candidateIdx > currentIdx; const cooldown = isUpgrade ? COOLDOWN_UP : COOLDOWN_DOWN;
-      if ((now - lastTransitionT) < cooldown) return; const requiredConfirms = isUpgrade ? CONFIRM_UP : CONFIRM_DOWN;
-      if (pendingMode === candidateMode) { confirmCount++; if (confirmCount >= requiredConfirms) transitionTo(candidateMode); } else { pendingMode = candidateMode; confirmCount = 1; }
+      const currentIdx = MODE_IDX[globalMode], candidateIdx = MODE_IDX[candidateMode];
+      const isUpgrade = candidateIdx > currentIdx;
+      const cooldown = isUpgrade ? COOLDOWN_UP : COOLDOWN_DOWN;
+      if ((now - lastTransitionT) < cooldown) return;
+      const requiredConfirms = isUpgrade ? CONFIRM_UP : CONFIRM_DOWN;
+
+      if (pendingMode === candidateMode) {
+        confirmCount++;
+        if (confirmCount >= requiredConfirms) transitionTo(candidateMode);
+      } else {
+        pendingMode = candidateMode;
+        confirmCount = 1;
+      }
     }
+
     function sample(video) {
-      if (!video?.getVideoPlaybackQuality) return globalMode; const q = video.getVideoPlaybackQuality(); const now = performance.now();
-      const prev = perVideo.get(video); if (!prev) { perVideo.set(video, { t: now, total: q.totalVideoFrames || 0, dropped: q.droppedVideoFrames || 0 }); return globalMode; }
-      const interval = SAMPLE_INTERVAL[globalMode] || 1000; const dt = now - prev.t; if (dt < interval) return globalMode;
-      const dTotal = Math.max(0, (q.totalVideoFrames || 0) - prev.total), dDrop = Math.max(0, (q.droppedVideoFrames || 0) - prev.dropped);
-      prev.t = now; prev.total = q.totalVideoFrames || 0; prev.dropped = q.droppedVideoFrames || 0; if (dTotal < 12) return globalMode;
-      const dropRatio = dDrop / dTotal; if (dropRatio >= THRESHOLDS.emergency) { transitionTo('low'); return globalMode; }
+      if (!video?.getVideoPlaybackQuality) return globalMode;
+      const q = video.getVideoPlaybackQuality();
+      const now = performance.now();
+
+      let prev = perVideo.get(video);
+      if (!prev) {
+        prev = { t: now, total: q.totalVideoFrames || 0, dropped: q.droppedVideoFrames || 0 };
+        perVideo.set(video, prev);
+        perVideoWarmup.set(video, { startT: now, settled: false });
+        return globalMode;
+      }
+
+      // [핵심] 워밍업 구간 처리
+      const warmup = perVideoWarmup.get(video);
+      if (warmup && !warmup.settled) {
+        const totalSoFar = q.totalVideoFrames || 0;
+        const elapsed = now - warmup.startT;
+        if (totalSoFar < WARMUP_FRAMES && elapsed < WARMUP_TIME_MS) {
+          prev.t = now; prev.total = totalSoFar; prev.dropped = q.droppedVideoFrames || 0;
+          return globalMode;
+        }
+        warmup.settled = true;
+        // 워밍업 종료 시점의 데이터를 새 기준점으로 삼음 (오염된 데이터 절단)
+        prev.t = now; prev.total = totalSoFar; prev.dropped = q.droppedVideoFrames || 0;
+        return globalMode;
+      }
+
+      const interval = SAMPLE_INTERVAL[globalMode] || 1000;
+      const dt = now - prev.t;
+      if (dt < interval) return globalMode;
+
+      const dTotal = Math.max(0, (q.totalVideoFrames || 0) - prev.total);
+      const dDrop = Math.max(0, (q.droppedVideoFrames || 0) - prev.dropped);
+      prev.t = now; prev.total = q.totalVideoFrames || 0; prev.dropped = q.droppedVideoFrames || 0;
+
+      if (dTotal < 30) return globalMode; // 최소 프레임 기준 상향
+
+      const dropRatio = dDrop / dTotal;
+
+      // [핵심] Emergency 연속 확인 로직
+      if (dropRatio >= THRESHOLDS.emergency) {
+        emergencyCount++;
+        if (emergencyCount >= EMERGENCY_CONFIRM) transitionTo('low');
+        return globalMode;
+      } else {
+        emergencyCount = 0;
+      }
+
       let candidateMode = globalMode;
-      if (globalMode === 'high') { if (dropRatio >= THRESHOLDS.downToLow) candidateMode = 'low'; else if (dropRatio >= THRESHOLDS.downToMid) candidateMode = 'mid'; } else if (globalMode === 'mid') { if (dropRatio >= THRESHOLDS.downToLow) candidateMode = 'low'; else if (dropRatio < THRESHOLDS.upToHigh) candidateMode = 'high'; } else { if (dropRatio < THRESHOLDS.upToHigh) candidateMode = 'high'; else if (dropRatio < THRESHOLDS.upToMid) candidateMode = 'mid'; }
-      if (candidateMode !== globalMode) { tryTransition(candidateMode, now); } else { pendingMode = null; confirmCount = 0; } return globalMode;
+      if (globalMode === 'high') {
+        if (dropRatio >= THRESHOLDS.downToLow) candidateMode = 'low';
+        else if (dropRatio >= THRESHOLDS.downToMid) candidateMode = 'mid';
+      } else if (globalMode === 'mid') {
+        if (dropRatio >= THRESHOLDS.downToLow) candidateMode = 'low';
+        else if (dropRatio < THRESHOLDS.upToHigh) candidateMode = 'high';
+      } else {
+        if (dropRatio < THRESHOLDS.upToHigh) candidateMode = 'high';
+        else if (dropRatio < THRESHOLDS.upToMid) candidateMode = 'mid';
+      }
+
+      if (candidateMode !== globalMode) tryTransition(candidateMode, now);
+      else { pendingMode = null; confirmCount = 0; }
+
+      return globalMode;
     }
-    return { getBudget(video) { const mode = sample(video); if (mode === 'low') return { mode, sharpMul: 0.50, shadowCap: 1, sigmaMul: 0.80, useSvgFilter: false }; if (mode === 'mid') return { mode, sharpMul: 0.75, shadowCap: 2, sigmaMul: 0.90, useSvgFilter: true }; return { mode, sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00, useSvgFilter: true }; }, getMode: () => globalMode };
+
+    return {
+      getBudget(video) {
+        const mode = sample(video);
+        if (mode === 'low') return { mode, sharpMul: 0.50, shadowCap: 1, sigmaMul: 0.80, useSvgFilter: false };
+        if (mode === 'mid') return { mode, sharpMul: 0.75, shadowCap: 2, sigmaMul: 0.90, useSvgFilter: true };
+        return { mode, sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00, useSvgFilter: true };
+      },
+      getMode: () => globalMode
+    };
   }
 
   function computeResolutionSharpMul(video) {
