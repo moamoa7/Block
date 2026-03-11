@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v186.10 - Architecture Refined)
+// @name         Video_Control (v186.12 - Architecture Refined)
 // @namespace    https://github.com/
-// @version      186.10
+// @version      186.12
 // @description  Zero-leak EventBus, Layout Thrashing Fix, Advanced CSP, Proto State, UI Enhancements.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.10';
+  const SCRIPT_VERSION = '186.12';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -109,9 +109,9 @@ function VSC_MAIN() {
       detail: {
         off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
         Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.52, 0.12], fineAmt: [0.18, 0.72] },
-        Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
-        Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.21, microScale: 1/100, fineBase: 0.37, fineScale: 1/22, microAmt: [0.50, 0.11], fineAmt: [0.20, 0.76] },
-        Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.20, microScale: 1/80, fineBase: 0.34, fineScale: 1/18, microAmt: [0.55, 0.12], fineAmt: [0.22, 0.78] }
+        Medium: { sharpAdd: 36, sharp2Add: 30, sat: 0.98, microBase: 0.26, microScale: 1/120, fineBase: 0.44, fineScale: 1/24, microAmt: [0.58, 0.13], fineAmt: [0.21, 0.80] },
+        Ultra: { sharpAdd: 58, sharp2Add: 48, sat: 0.96, microBase: 0.28, microScale: 1/90, fineBase: 0.45, fineScale: 1/19, microAmt: [0.64, 0.14], fineAmt: [0.25, 0.87] },
+        Master: { sharpAdd: 80, sharp2Add: 65, sat: 0.94, microBase: 0.30, microScale: 1/60, fineBase: 0.45, fineScale: 1/15, microAmt: [0.70, 0.15], fineAmt: [0.28, 0.95] }
       },
       bright: {
         0: { gammaF: 1.00, brightAdd: 0 },
@@ -174,12 +174,18 @@ function VSC_MAIN() {
     const existing = signals.filter(Boolean);
     if (existing.length === 0) return AbortSignal.abort();
     if (existing.some(s => s.aborted)) return AbortSignal.abort();
-    return existing.length === 1 ? existing[0] : AbortSignal.any(existing);
+    if (existing.length === 1) return existing[0];
+    if (typeof AbortSignal.any === 'function') { return AbortSignal.any(existing); }
+    const ac = new AbortController();
+    const onAbort = () => { ac.abort(); existing.forEach(s => s.removeEventListener('abort', onAbort)); };
+    existing.forEach(s => s.addEventListener('abort', onAbort, { once: true }));
+    return ac.signal;
   };
 
-  function on(target, type, fn, opts = {}) {
+  function on(target, type, fn, opts) {
     if (!target?.addEventListener) return;
-    const merged = { ...opts };
+    if (typeof opts === 'boolean') { opts = { capture: opts }; }
+    const merged = opts ? { ...opts } : {};
     if (!merged.signal) merged.signal = __globalSig;
     target.addEventListener(type, fn, merged);
   }
@@ -249,6 +255,7 @@ function VSC_MAIN() {
           target.removeEventListener(event, wrapper);
           eventMap.delete(event);
           if (event === '*') _wildcardCount = Math.max(0, _wildcardCount - 1);
+          if (eventMap.size === 0) _wrapperMap.delete(handler);
         }
       },
       destroy() { _destroyed = true; _wildcardCount = 0; }
@@ -315,18 +322,16 @@ function VSC_MAIN() {
   on(window, 'resize', bumpLayoutRev, { passive: true });
   try { const vv = window.visualViewport; if (vv) { on(vv, 'scroll', bumpLayoutRev, { passive: true }); on(vv, 'resize', bumpLayoutRev, { passive: true }); } } catch (_) {}
 
-  const _vStateProto = {
-    visible: false, bound: false, applied: false, rect: null, rectT: 0, _rectRev: 0, _lastSrc: '', audioFailUntil: 0,
-    desiredRate: undefined, origFilter: undefined, origFilterPrio: '', origWebkitFilter: undefined, origWebkitFilterPrio: '',
-    lastFilterUrl: undefined, lastTransform: undefined, lastScale: undefined, lastRot: undefined, rateState: undefined,
-    visibilityRatio: undefined
-  };
-
   const videoStateMap = new WeakMap();
   const getVState = (v) => {
     let st = videoStateMap.get(v);
     if (!st) {
-      st = Object.create(_vStateProto);
+      st = {
+        visible: false, bound: false, applied: false, rect: null, rectT: 0, _rectRev: 0, _lastSrc: '', audioFailUntil: 0,
+        desiredRate: undefined, origFilter: undefined, origFilterPrio: '', origWebkitFilter: undefined, origWebkitFilterPrio: '',
+        lastFilterUrl: undefined, lastTransform: undefined, lastScale: undefined, lastRot: undefined, rateState: undefined,
+        visibilityRatio: undefined
+      };
       videoStateMap.set(v, st);
     }
     return st;
@@ -409,7 +414,8 @@ function VSC_MAIN() {
       queued = false; lastRun = now;
       if (applyFn) {
         if (HAS_SCHEDULER_POST && !doForce) {
-          globalThis.scheduler.postTask(() => { try { applyFn(doForce); } catch (_) {} }, { priority: 'user-visible' }).catch(() => {});
+          const priority = (getRvfcVideo && getRvfcVideo() && !getRvfcVideo().paused && !getRvfcVideo().ended) ? 'user-visible' : 'background';
+          globalThis.scheduler.postTask(() => { try { applyFn(doForce); } catch (_) {} }, { priority }).catch(() => {});
         } else {
           try { applyFn(doForce); } catch (_) {}
         }
@@ -431,7 +437,20 @@ function VSC_MAIN() {
     const storeAC = new AbortController(); const storeSig = combineSignals(storeAC.signal, __globalSig);
     const PREF_KEY = 'vsc_prefs_' + location.hostname;
 
-    function loadPrefs() { try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (typeof v === 'string' && v) return v; } } catch (_) {} if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { return localStorage.getItem(PREF_KEY); } catch (_) {} } return null; }
+    function loadPrefs() {
+      try {
+        if (typeof GM_getValue === 'function') {
+          const v = GM_getValue(PREF_KEY, null);
+          if (v == null) return null;
+          if (typeof v === 'object') return JSON.stringify(v);
+          if (typeof v === 'string' && v) return v;
+        }
+      } catch (_) {}
+      if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) {
+        try { return localStorage.getItem(PREF_KEY); } catch (_) {}
+      }
+      return null;
+    }
     function savePrefsRaw(json) { try { if (typeof GM_setValue === 'function') { GM_setValue(PREF_KEY, json); return true; } } catch (_) {} if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.setItem(PREF_KEY, json); return true; } catch (_) {} } return false; }
     function clearPrefsRaw() { let cleared = false; try { if (typeof GM_deleteValue === 'function') { GM_deleteValue(PREF_KEY); cleared = true; } } catch (_) {} if (CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) { try { localStorage.removeItem(PREF_KEY); cleared = true; } catch (_) {} } return cleared; }
     function mergeKnown(dst, src, defaultsObj) {
@@ -463,12 +482,21 @@ function VSC_MAIN() {
     let _saveFailCount = 0; let _lastSavedJson = ''; const MAX_SAVE_RETRIES = 5; let _saveDisabledUntil = 0; let _lastSavedRev = -1;
     function _doSave() {
       if (rev === _lastSavedRev) return;
-      const now = Date.now(); if (_saveFailCount >= MAX_SAVE_RETRIES) { if (now < _saveDisabledUntil) return; _saveFailCount = Math.max(0, MAX_SAVE_RETRIES - 2); }
-      try {
-        const json = JSON.stringify(state); if (json === _lastSavedJson) { _lastSavedRev = rev; return; } if (json.length > 8192) return;
-        if (!savePrefsRaw(json)) { _saveFailCount++; if (_saveFailCount >= MAX_SAVE_RETRIES) _saveDisabledUntil = now + 60000; return; }
-        _lastSavedJson = json; _lastSavedRev = rev; _saveFailCount = 0;
-      } catch (e) { _saveFailCount++; if (_saveFailCount >= MAX_SAVE_RETRIES) _saveDisabledUntil = now + 60000; }
+      const saveInner = () => {
+        const now = Date.now(); if (_saveFailCount >= MAX_SAVE_RETRIES) { if (now < _saveDisabledUntil) return; _saveFailCount = Math.max(0, MAX_SAVE_RETRIES - 2); }
+        try {
+          const json = JSON.stringify(state); if (json === _lastSavedJson) { _lastSavedRev = rev; return; } if (json.length > 8192) return;
+          if (!savePrefsRaw(json)) { _saveFailCount++; if (_saveFailCount >= MAX_SAVE_RETRIES) _saveDisabledUntil = now + 60000; return; }
+          _lastSavedJson = json; _lastSavedRev = rev; _saveFailCount = 0;
+        } catch (e) { _saveFailCount++; if (_saveFailCount >= MAX_SAVE_RETRIES) _saveDisabledUntil = now + 60000; }
+      };
+      if (navigator.locks && CONFIG.STORAGE_FLAGS.ALLOW_LOCALSTORAGE_FALLBACK) {
+        navigator.locks.request(`vsc_save_${location.hostname}`, { mode: 'exclusive', ifAvailable: true }, (lock) => {
+          if (lock) saveInner();
+        }).catch(() => saveInner());
+      } else {
+        saveInner();
+      }
     }
 
     const savePrefs = createDebounced(() => { _doSave(); }, 500);
@@ -538,10 +566,9 @@ function VSC_MAIN() {
       let changed = false; const now = performance.now();
       for (const e of entries) {
         const el = e.target; const isVis = IO_SUPPORTS_V2 ? (e.isVisible ?? e.isIntersecting) : e.isIntersecting; const st = getVState(el);
-        st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; st.visibilityRatio = IO_SUPPORTS_V2 ? (isVis ? 1 : 0) : (e.intersectionRatio ?? 0);
+        st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; st.visibilityRatio = IO_SUPPORTS_V2 ? (isVis ? 1 : 0) : (e.intersectionRatio ?? 0); st._rectRev = __vscLayoutRev;
         if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } }
         else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } }
-        if (bus) bus.emit('video:visibility', { video: el, visible: isVis, ratio: isVis ? 1 : 0 });
       }
       if (changed) { rev++; requestRefreshCoalesced(); }
     }, ioOpts) : null;
@@ -556,7 +583,7 @@ function VSC_MAIN() {
           const s = e.contentBoxSize[0];
           st.rect = { width: s.inlineSize, height: s.blockSize, left: st.rect?.left ?? 0, top: st.rect?.top ?? 0, right: (st.rect?.left ?? 0) + s.inlineSize, bottom: (st.rect?.top ?? 0) + s.blockSize };
         } else { st.rect = e.contentRect ? el.getBoundingClientRect() : null; }
-        st.rectT = now; dirty.videos.add(el); changed = true;
+        st.rectT = now; st._rectRev = __vscLayoutRev; dirty.videos.add(el); changed = true;
       }
       if (changed) { bumpLayoutRev(); requestRefreshCoalesced(); }
     }) : null;
@@ -603,11 +630,12 @@ function VSC_MAIN() {
       const drain = async (dl) => {
         scheduled = false; [active, pending] = [pending, active]; [activeSet, pendingSet] = [pendingSet, activeSet]; pending.length = 0; pendingSet.clear();
         try {
-          if (active.length <= 64) { for (let i = 0; i < active.length; i++) { activeSet.delete(active[i]); scanNode(active[i]); } return; }
+          if (active.length <= 64) { for (let i = 0; i < active.length; i++) { if (destroyed) return; activeSet.delete(active[i]); scanNode(active[i]); } return; }
           let processed = 0;
           for (let i = 0; i < active.length; i++) {
             const n = active[i]; activeSet.delete(n);
             if ((++processed & 15) === 0) {
+              if (destroyed) return;
               if (HAS_SCHEDULER_YIELD) { try { await globalThis.scheduler.yield(); } catch (_) {} if (destroyed) return; }
               else if (dl?.timeRemaining && dl.timeRemaining() < 1) {
                 for (let j = i; j < active.length; j++) { const rest = active[j]; if (!pendingSet.has(rest)) { pendingSet.add(rest); pending.push(rest); } }
@@ -723,6 +751,7 @@ function VSC_MAIN() {
     };
   }
 // =================== PART 2 START ===================
+// =================== PART 2 START ===================
 
   const PIP_WINDOW_CSS = `
     * { box-sizing: border-box; }
@@ -761,7 +790,15 @@ function VSC_MAIN() {
         this.origCss = video.style.cssText;
       }
       restoreVideoPosition(video) {
-        video.style.cssText = this.origCss || '';
+        const pipProps = ['max-width', 'max-height', 'width', 'height', 'object-fit'];
+        for (const prop of pipProps) { video.style.removeProperty(prop); }
+        if (this.origCss) {
+          const tempEl = document.createElement('div'); tempEl.style.cssText = this.origCss;
+          for (let i = 0; i < tempEl.style.length; i++) {
+            const prop = tempEl.style[i];
+            video.style.setProperty(prop, tempEl.style.getPropertyValue(prop), tempEl.style.getPropertyPriority(prop));
+          }
+        }
         if (this.placeholder?.parentNode?.isConnected) {
           const parent = this.placeholder.parentNode;
           if (SUPPORTS_MOVE_BEFORE) { try { parent.moveBefore(video, this.placeholder); } catch (_) { parent.insertBefore(video, this.placeholder); } }
@@ -1164,7 +1201,11 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     midBus.connect(outL); sideAmp.connect(outL); midBus.connect(outR); sideAmp.connect(sideInvR); sideInvR.connect(outR);
     outL.connect(merger, 0, 0); outR.connect(merger, 0, 1); merger.connect(output);
     let _enabled = false;
-    function setEnabled(en) { _enabled = en; const t = actx.currentTime; const target = en ? 1.18 : 1.0; try { sideAmp.gain.setTargetAtTime(target, t, 0.06); } catch (_) { sideAmp.gain.value = target; } }
+    function setEnabled(en, pc, t) {
+      _enabled = en; const time = t || actx.currentTime; const target = en ? 1.18 : 1.0;
+      if (pc) { pc.sttIfChanged(sideAmp.gain, 'sw.sideAmp', target, time, 0.06); }
+      else { try { sideAmp.gain.setTargetAtTime(target, time, 0.06); } catch (_) { sideAmp.gain.value = target; } }
+    }
     return { input, output, sideAmp, setEnabled, isEnabled: () => _enabled };
   }
 
@@ -1172,6 +1213,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const CONTENT = Object.freeze({ SILENT: 'silent', DIALOGUE: 'dialogue', MUSIC: 'music', MIXED: 'mixed' });
     let currentType = CONTENT.MIXED, confidence = 0;
     const HISTORY_SIZE = 6; const history = new Array(HISTORY_SIZE).fill(null); let writeIdx = 0, count = 0;
+    const counts = new Map();
     const PROFILES = Object.freeze({
       [CONTENT.SILENT]: { drive: 1.0, ceiling: 0.99, release: 0.997 },
       [CONTENT.DIALOGUE]: { drive: 1.30, ceiling: 0.975, release: 0.9955 },
@@ -1190,9 +1232,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       pushResult(result); return currentType;
     }
     function pushResult(type) {
-      history[writeIdx] = type; writeIdx = (writeIdx + 1) % HISTORY_SIZE; if (count < HISTORY_SIZE) count++;
-      const counts = {}; for (let i = 0; i < count; i++) { const t = history[i]; counts[t] = (counts[t] || 0) + 1; }
-      let bestType = CONTENT.MIXED, bestCount = 0; for (const [t, c] of Object.entries(counts)) { if (c > bestCount) { bestCount = c; bestType = t; } }
+      const evicted = history[writeIdx];
+      if (evicted !== null) { const prev = counts.get(evicted) || 0; if (prev <= 1) counts.delete(evicted); else counts.set(evicted, prev - 1); }
+      history[writeIdx] = type; counts.set(type, (counts.get(type) || 0) + 1);
+      writeIdx = (writeIdx + 1) % HISTORY_SIZE; if (count < HISTORY_SIZE) count++;
+      let bestType = CONTENT.MIXED, bestCount = 0;
+      for (const [t, c] of counts) { if (c > bestCount) { bestCount = c; bestType = t; } }
       const threshold = Math.ceil(HISTORY_SIZE * 0.55); if (bestCount >= threshold) { currentType = bestType; confidence = bestCount / HISTORY_SIZE; }
     }
     function getProfile() { return PROFILES[currentType] || PROFILES[CONTENT.MIXED]; }
@@ -1203,7 +1248,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const mix = currentType === CONTENT.SILENT ? 0.0 : 1.0;
       return { drive, ceiling, release, mix };
     }
-    return { classify, getProfile, getAdaptedParams, getType: () => currentType, getConfidence: () => confidence, reset: () => { currentType = CONTENT.MIXED; confidence = 0; history.fill(null); writeIdx = 0; count = 0; } };
+    return { classify, getProfile, getAdaptedParams, getType: () => currentType, getConfidence: () => confidence, reset: () => { currentType = CONTENT.MIXED; confidence = 0; history.fill(null); writeIdx = 0; count = 0; counts.clear(); } };
   }
 
   function createAudioParamCache() {
@@ -1346,7 +1391,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         } else if (hasWorkletStats && actuallyEnabled) {
           if (currentNodes._loudnessNorm && !!sm.get(CONFIG.P.A_LUFS)) { const stats = currentNodes._awStats; const _tmpLufs = currentNodes._loudnessNorm._tmpWorkletLufs || (currentNodes._loudnessNorm._tmpWorkletLufs = { momentaryLUFS: -70, shortTermLUFS: -70, integratedLUFS: -70 }); _tmpLufs.shortTermLUFS = stats.rmsDb || -70; _tmpLufs.momentaryLUFS = stats.rmsDb || -70; currentNodes._loudnessNorm.update(_tmpLufs); }
         } else { if (currentNodes._loudnessNorm && (!sm.get(CONFIG.P.A_LUFS) || !actuallyEnabled)) { setParamSmooth(currentNodes._loudnessNorm.node.gain, 1.0, ctx.currentTime, 0.05); } }
-        if (currentNodes._stereoWidener) { const swEnabled = !!sm.get(CONFIG.P.A_STEREO_W) && dynAct; if (currentNodes._stereoWidener.isEnabled() !== swEnabled) { currentNodes._stereoWidener.setEnabled(swEnabled); } if (swEnabled) { setParamSmooth(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08); } else { setParamSmooth(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08); } }
+        if (currentNodes._stereoWidener) { const swEnabled = !!sm.get(CONFIG.P.A_STEREO_W) && dynAct; if (currentNodes._stereoWidener.isEnabled() !== swEnabled) { currentNodes._stereoWidener.setEnabled(swEnabled, currentNodes._paramCache, ctx.currentTime); } if (swEnabled) { setParamSmooth(currentNodes.limiter.threshold, -1.5, ctx.currentTime, 0.08); } else { setParamSmooth(currentNodes.limiter.threshold, -1.0, ctx.currentTime, 0.08); } }
         if (actuallyEnabled) {
           if (currentNodes._finalizerAttached && currentNodes._awStats) { makeupDbEma += (0 - makeupDbEma) * 0.15; } else { let redDb = 0; if (currentNodes.limiter) { const r = currentNodes.limiter.reduction; redDb = (typeof r === 'number') ? r : (r?.value ?? 0); } if (!Number.isFinite(redDb)) redDb = 0; const redPos = VSC_CLAMP(-redDb, 0, 15); const makeupDbTarget = VSC_CLAMP(redPos * 0.25, 0, 2.5); const alpha = makeupDbTarget > makeupDbEma ? 0.10 : 0.18; makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha; }
         } else { makeupDbEma += (0 - makeupDbEma) * 0.15; }
@@ -1388,7 +1433,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
           }
         }
         if (currentNodes._loudnessNorm && (!sm.get(CONFIG.P.A_LUFS) || !dynAct)) { pc.sttIfChanged(currentNodes._loudnessNorm.node.gain, 'ln.gain', 1.0, ctx.currentTime, 0.05); currentNodes._loudnessNorm.reset(); }
-        if (currentNodes._stereoWidener && !dynAct) { currentNodes._stereoWidener.setEnabled(false); }
+        if (currentNodes._stereoWidener && !dynAct) { currentNodes._stereoWidener.setEnabled(false, pc, ctx.currentTime); }
         if (currentNodes._finalizer) { const adapted = contentClassifier.getAdaptedParams(!!sm.get(CONFIG.P.A_DIALOGUE), !!sm.get(CONFIG.P.A_STEREO_W)); const p = currentNodes._finalizer.parameters, t = ctx.currentTime; pc.sttIfChanged(p.get('drive'), 'fin.drive', dynAct ? adapted.drive : 1.0, t, 0.15); pc.sttIfChanged(p.get('ceiling'), 'fin.ceil', adapted.ceiling, t, 0.08); pc.sttIfChanged(p.get('mix'), 'fin.mix', dynAct ? adapted.mix : 0.0, t, 0.05); pc.sttIfChanged(p.get('release'), 'fin.rel', adapted.release, t, 0.08); }
       } else { setParamSmooth(dryGain.gain, dryTarget, ctx.currentTime, 0.005); setParamSmooth(wetGain.gain, wetTarget, ctx.currentTime, 0.005); }
       if (dynAct && isHooked) runAudioLoop(tok);
@@ -1420,7 +1465,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
   function handleExternalRateChange(video) {
     const rSt = getRateState(video);
     const now = performance.now();
-    if ((now - (rSt.lastSetAt || 0)) < 300 || now < (rSt.suppressSyncUntil || 0)) return;
+    if (now < (rSt.suppressSyncUntil || 0)) return;
+    if ((now - (rSt.lastSetAt || 0)) < 500) return;
 
     const capturedRate = video.playbackRate;
     if (!Number.isFinite(capturedRate) || capturedRate <= 0) return;
@@ -1429,7 +1475,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const store = getNS()?.Store;
       if (!store) return;
       if (video !== getNS()?.App?.getActiveVideo?.()) return;
-      if (performance.now() < getRateState(video).suppressSyncUntil) return;
+      const nowInner = performance.now();
+      if (nowInner < getRateState(video).suppressSyncUntil) return;
       if (Math.abs(video.playbackRate - capturedRate) > 0.01) return;
       if (Math.abs(capturedRate - store.get(CONFIG.P.PB_RATE)) < 0.01) return;
 
@@ -1440,24 +1487,25 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   const bindVideoOnce = (v, ApplyReq) => {
     const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); ensureMobileInlinePlaybackHints(v);
+    let _resetPending = false;
     const softResetTransientFlags = () => {
-      st.audioFailUntil = 0; st.rect = null; st.rectT = 0;
-      if (st._lastSrc !== v.currentSrc) {
-        st._lastSrc = v.currentSrc;
-        if (st.lastTransform !== undefined || st.lastScale !== undefined || st.lastRot !== undefined) { v.style.removeProperty('transform'); v.style.removeProperty('scale'); st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
-      }
-      if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; st.rateState.backoff?.reset?.(); } ApplyReq.hard();
+      if (_resetPending) return;
+      _resetPending = true;
+      queueMicrotask(() => {
+        _resetPending = false;
+        st.audioFailUntil = 0; st.rect = null; st.rectT = 0; st._rectRev = 0;
+        if (st._lastSrc !== v.currentSrc) {
+          st._lastSrc = v.currentSrc;
+          if (st.lastTransform !== undefined || st.lastScale !== undefined || st.lastRot !== undefined) { v.style.removeProperty('transform'); v.style.removeProperty('scale'); st.lastTransform = undefined; st.lastScale = undefined; st.lastRot = undefined; }
+        }
+        if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.suppressSyncUntil = 0; st.rateState.backoff?.reset?.(); } ApplyReq.hard();
+      });
     };
     const combinedSignal = combineSignals(st._ac.signal, __globalSig); const opts = { passive: true, signal: combinedSignal };
-    const videoEvents = [
-      ['loadstart', softResetTransientFlags],
-      ['loadedmetadata', softResetTransientFlags],
-      ['emptied', softResetTransientFlags],
-      ['seeking', () => ApplyReq.hard()],
-      ['play', () => { ApplyReq.hard(); }],
-      ['ratechange', () => handleExternalRateChange(v)]
-    ];
-    for (const [ev, fn] of videoEvents) on(v, ev, fn, opts);
+    for (const ev of ['loadstart', 'loadedmetadata', 'emptied']) on(v, ev, softResetTransientFlags, opts);
+    on(v, 'seeking', () => ApplyReq.hard(), opts);
+    on(v, 'play', () => ApplyReq.hard(), opts);
+    on(v, 'ratechange', () => handleExternalRateChange(v), opts);
   };
 
   function createRateBackoff(maxLevel = 4) {
@@ -1480,7 +1528,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
 
   function getRateState(v) { const st = getVState(v); if (!st.rateState) { st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, backoff: createRateBackoff(4) }; } return st.rateState; }
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v); const now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
-  function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; st.orig = null; markInternalRateChange(el, 250); el.playbackRate = nextRate; } catch (_) {} }
+  function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; st.orig = null; markInternalRateChange(el, 500); el.playbackRate = nextRate; } catch (_) {} }
   function ensureMobileInlinePlaybackHints(video) { if (!video || !getNS()?.CONFIG?.IS_MOBILE) return; try { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); if (!video.hasAttribute('webkit-playsinline')) video.setAttribute('webkit-playsinline', ''); } catch(_) {} }
 
   function applyPlaybackRate(el, desiredRate) {
@@ -1513,17 +1561,17 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     for (const el of candidates) {
       if (!el.isConnected) continue;
       const st = getVState(el);
-      if (!st.rect || st._rectRev !== __vscLayoutRev) {
-        st.rect = el.getBoundingClientRect();
-        st.rectT = now;
-        st._rectRev = __vscLayoutRev;
-      }
+      if (st.rect && (st._rectRev === __vscLayoutRev || (now - st.rectT) < 300)) continue;
+      st.rect = el.getBoundingClientRect();
+      st.rectT = now;
+      st._rectRev = __vscLayoutRev;
     }
   }
 
   function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, isNeutralParams, isNeutralShadow, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget }) {
     const candidates = scratch; candidates.clear();
-    for (const set of [dirtyVideos, applySet, TOUCHED.videos, TOUCHED.rateVideos]) { for (const v of set) candidates.add(v); }
+    const addAll = (set) => { for (const v of set) candidates.add(v); };
+    addAll(dirtyVideos); addAll(applySet); addAll(TOUCHED.videos); addAll(TOUCHED.rateVideos);
     batchReadRects(candidates, performance.now());
     const isApplyAll = !!getNS()?.Store?.get('app.applyAll');
 
@@ -1655,8 +1703,16 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     function ensureOpaqueBg(video) { if (!video || __vscBgMemo.has(video) || !getFLAGS()?.FILTER_FORCE_OPAQUE_BG) return; try { const cs = getComputedStyle(video).backgroundColor; if (cs === 'transparent' || cs === 'rgba(0, 0, 0, 0)' || cs === 'rgba(0,0,0,0)') { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {} }
     function restoreOpaqueBg(video) { if (!video) return; const prev = __vscBgMemo.get(video); if (prev === undefined) return; __vscBgMemo.delete(video); if (prev !== null) video.style.backgroundColor = prev; }
 
-    const _q = (v, step) => Math.round(v / step) * step;
-    function makeKeyHash(s) { let h1 = 0x811c9dc5 >>> 0; const mix = (v) => { h1 = Math.imul(h1 ^ (v | 0), 0x01000193) >>> 0; }; mix(_q(s.gain || 1, 0.04) * 25); mix(_q(s.gamma || 1, 0.01) * 100); mix(_q(s.contrast || 1, 0.01) * 100); mix(_q(s.bright || 0, 0.5) * 2); mix(_q(s.satF ?? 1, 0.01) * 100); mix(_q(s.mid || 0, 0.02) * 50); mix(_q(s.toe || 0, 0.5) * 2); mix(_q(s.shoulder || 0, 0.5) * 2); mix(_q(s.temp || 0, 1) * 1); mix(s.sharp | 0); mix(s.sharp2 | 0); mix(_q(s._sigmaScale || 1, 0.02) * 50); mix(_q(s._microBase || 0.18, 0.01) * 100); mix(_q(s._fineBase || 0.32, 0.01) * 100); return h1; }
+    function makeKeyHash(s) {
+      let h1 = 0x811c9dc5 >>> 0;
+      const values = [
+        Math.round((s.gain || 1) / 0.04) | 0, Math.round((s.gamma || 1) * 100) | 0, Math.round((s.contrast || 1) * 100) | 0, Math.round((s.bright || 0) * 2) | 0, Math.round((s.satF ?? 1) * 100) | 0,
+        Math.round((s.mid || 0) * 50) | 0, Math.round((s.toe || 0) * 2) | 0, Math.round((s.shoulder || 0) * 2) | 0, (s.temp || 0) | 0, s.sharp | 0, s.sharp2 | 0,
+        Math.round((s._sigmaScale || 1) * 50) | 0, Math.round((s._microBase || 0.18) * 100) | 0, Math.round((s._fineBase || 0.32) * 100) | 0
+      ];
+      for (let i = 0; i < values.length; i++) { h1 = Math.imul(h1 ^ values[i], 0x01000193) >>> 0; }
+      return h1;
+    }
 
     const _toneBuf = new Float64Array(128);
     function getToneTableCached(steps, toeN, shoulderN, midN, gain) {
@@ -1671,8 +1727,9 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
         if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, 1 - shoulderStart), kk = Math.max(0.7, 1.2 + shAmt * 6.5), shDen = 1 - Math.exp(-kk); x = clamp(shoulderStart + (1 - shoulderStart) * (Math.abs(shDen) > 1e-6 ? (1 - Math.exp(-kk * tt)) / shDen : tt), 0, 1); }
         if (x <= prev) x = prev + Math.min(1e-5, Math.max(0, (1.0 - prev) * 0.5)); if (x > 1.0) x = 1.0; prev = x; _toneBuf[i] = Math.round(x * 100000) / 100000;
       }
-      let res = ''; for (let i = 0; i < steps; i++) { if (i > 0) res += ' '; const v = _toneBuf[i]; res += v === 1 ? '1' : (v === 0 ? '0' : String(v)); }
-      cacheSet(toneCache, key, res); return res;
+      const parts = new Array(steps);
+      for (let i = 0; i < steps; i++) { const v = _toneBuf[i]; parts[i] = v === 1 ? '1' : (v === 0 ? '0' : String(v)); }
+      const res = parts.join(' '); cacheSet(toneCache, key, res); return res;
     }
 
     function buildSvg(root) {
@@ -1827,6 +1884,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
     const getUiRoot = () => { const fs = document.fullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
     const setAndHint = (path, value) => { if (!Object.is(sm.get(path), value)) { sm.set(path, value); (path === P.APP_ACT || path === P.APP_APPLY_ALL || path.startsWith('video.')) ? ApplyReq.hard() : ApplyReq.soft(); } };
     function bindReactive(btn, paths, apply) { const pathArr = Array.isArray(paths) ? paths : [paths]; let pending = false; const sync = () => { if (pending) return; pending = true; queueMicrotask(() => { pending = false; if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); }); }; pathArr.forEach(p => sub(p, sync)); if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); return sync; }
+
     function renderButtonRow({ label, items, key, offValue = null, toggleActiveToOff = false, isBitmask = false }) {
       const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
       const onChange = (val) => { if (!sm.get(P.APP_ACT)) return; if (isBitmask) { sm.set(key, ((Number(sm.get(key)) | 0) ^ val) & 7); } else { const cur = sm.get(key); if (toggleActiveToOff && offValue !== undefined && cur === val && val !== offValue) setAndHint(key, offValue); else setAndHint(key, val); } };
@@ -1834,6 +1892,25 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       if (offValue != null || isBitmask) { const offBtn = h('button', { class: 'pbtn', style: isBitmask ? 'flex:0.9' : 'flex:1' }, 'OFF'); offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.set(key, isBitmask ? 0 : offValue); (key.startsWith('video.')) ? ApplyReq.hard() : ApplyReq.soft(); }; bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => { const isActuallyOff = isBitmask ? (Number(v) | 0) === 0 : v === offValue; el.classList.toggle('active', isActuallyOff); el.style.opacity = act ? '1' : (isActuallyOff ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }); row.append(offBtn); }
       return row;
     }
+
+    function renderQuickPresetRow(presets, defaults) {
+      const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '모드'));
+      const isPresetMatch = (preset) => Object.entries(preset).every(([k, v]) => { const current = sm.get(`video.${k}`); return typeof v === 'number' ? Number(current) === v : current === v; });
+      const labels = { everyday: '일반', movie: '영화', anime: '애니' };
+      for (const [name, preset] of Object.entries(presets)) {
+        const b = h('button', { class: 'pbtn', style: 'flex:1' }, labels[name] || name);
+        b.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', isPresetMatch(preset) ? defaults : preset); ApplyReq.hard(); };
+        const watchPaths = [P.V_PRE_S, P.V_BRIGHT_LV, P.V_SHADOW_MASK, P.V_TEMP, P.APP_ACT];
+        bindReactive(b, watchPaths, (el, ...vals) => { const act = vals[vals.length - 1]; const matches = isPresetMatch(preset); el.classList.toggle('active', matches); el.style.opacity = act ? '1' : (matches ? '0.65' : '0.45'); el.disabled = !act; });
+        row.append(b);
+      }
+      const offBtn = h('button', { class: 'pbtn', style: 'flex:0.9' }, 'OFF');
+      offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', defaults); ApplyReq.hard(); };
+      bindReactive(offBtn, [P.V_PRE_S, P.V_BRIGHT_LV, P.V_SHADOW_MASK, P.V_TEMP, P.APP_ACT], (el, ...vals) => { const act = vals[vals.length - 1]; const isDef = Object.entries(defaults).every(([k, v]) => { const current = sm.get(`video.${k}`); return typeof v === 'number' ? Number(current) === v : current === v; }); el.classList.toggle('active', isDef); el.style.opacity = act ? '1' : (isDef ? '0.65' : '0.45'); el.disabled = !act; });
+      row.append(offBtn);
+      return row;
+    }
+
     const clampPanelIntoViewport = () => {
       try {
         const mainPanel = container && container.shadowRoot && container.shadowRoot.querySelector('.main'); if (!mainPanel || mainPanel.style.display === 'none') return;
@@ -1859,7 +1936,7 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       attachShadowStyles(shadow, style);
       const dragHandle = h('div', { class: 'header', title: '\uB354\uBE14\uD074\uB9AD \uC2DC \uD1B5\uB2C8\uBC14\uD034 \uC606\uC73C\uB85C \uBCF5\uADC0' }, 'VSC 렌더링 제어');
 
-      const quickPresetRow = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, '모드'), ...Object.entries(getNS()?.CONFIG?.QUICK_PRESETS || {}).map(([name, preset]) => { const b = h('button', { class: 'pbtn', style: 'flex:1' }, { everyday:'일반', movie:'영화', anime:'애니' }[name]||name); b.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const isMatch = Object.entries(preset).every(([k, v]) => { const current = sm.get(`video.${k}`); return typeof v === 'number' ? Number(current) === v : current === v; }); const target = isMatch ? { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 } : preset; sm.batch('video', target); ApplyReq.hard(); }; bindReactive(b, [P.V_PRE_S, P.V_BRIGHT_LV, P.V_SHADOW_MASK, P.V_TEMP, P.APP_ACT], (el, preS, bLv, sMask, temp, act) => { const matches = preS === preset.presetS && Number(bLv) === preset.brightLevel && Number(sMask) === preset.shadowBandMask && Number(temp) === preset.temp; el.classList.toggle('active', matches); el.style.opacity = act ? '1' : (matches ? '0.65' : '0.45'); el.disabled = !act; }); return b; }), (() => { const offBtn = h('button', { class: 'pbtn', style: 'flex:0.9' }, 'OFF'); offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 }); ApplyReq.hard(); }; bindReactive(offBtn, [P.V_PRE_S, P.V_BRIGHT_LV, P.V_SHADOW_MASK, P.V_TEMP, P.APP_ACT], (el, preS, bLv, sMask, temp, act) => { const isDef = preS === 'off' && Number(bLv) === 0 && Number(sMask) === 0 && Number(temp) === 0; el.classList.toggle('active', isDef); el.style.opacity = act ? '1' : (isDef ? '0.65' : '0.45'); el.disabled = !act; }); return offBtn; })());
+      const quickPresetRow = renderQuickPresetRow(getNS()?.CONFIG?.QUICK_PRESETS || {}, { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 });
       const sharpRow = renderButtonRow({ label: '\uC120\uBA85', key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: [ { text: 'Soft', value: 'Soft', title: '\uC57D\uD55C \uC120\uBA85\uD654' }, { text: 'Med', value: 'Medium', title: '\uC911\uAC04 \uC120\uBA85\uD654' }, { text: 'Ultra', value: 'Ultra', title: '\uAC15\uD55C \uC120\uBA85\uD654' }, { text: 'MST', value: 'Master', title: '\uCD5C\uC0C1\uC704 \uD574\uC0C1\uB3C4 \uBCF5\uAD6C \uBC0F \uC120\uBA85\uD654' } ] });
       const brightRow = renderButtonRow({ label: '\uBC1D\uAE30', key: P.V_BRIGHT_LV, offValue: 0, toggleActiveToOff: true, items: [ { text: '1', value: 1, title: '\uC57D\uAC04 \uBC1D\uAC8C' }, { text: '2', value: 2, title: '\uBC1D\uAC8C' }, { text: '3', value: 3, title: '\uB9CE\uC774 \uBC1D\uAC8C' }, { text: '4', value: 4, title: '\uAC15\uD558\uAC8C \uBC1D\uAC8C' }, { text: '5', value: 5, title: '\uCD5C\uB300 \uBC1D\uAE30' } ] });
       const pipBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '\uD83D\uDCFA PIP'); pipBtn.onclick = async (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; const v = getNS()?.App?.getActiveVideo(); if(v) await getNS()?.PiPManager?.toggle(v); }; bindReactive(pipBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
@@ -1870,8 +1947,8 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
       const dialogueBtn = h('button', { class: 'btn', style: 'flex: 1;' }, '\uD83D\uDDE3\uFE0F \uB300\uD654 \uAC15\uC870'); dialogueBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; if(sm.get(P.A_EN)) setAndHint(P.A_DIALOGUE, !sm.get(P.A_DIALOGUE)); }; bindReactive(dialogueBtn, [P.A_DIALOGUE, P.A_EN, P.APP_ACT], (el, dOn, aEn, act) => { el.classList.toggle('active', !!dOn); const usable = !!aEn && !!act; el.style.opacity = usable ? '1' : (dOn ? '0.65' : '0.35'); el.style.cursor = usable ? 'pointer' : 'not-allowed'; el.disabled = !usable; });
       const advToggleBtn = h('button', { class: 'btn', style: 'width: 100%; margin-bottom: 6px; background: #2c3e50; border-color: #34495e;' }, '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30'); advToggleBtn.onclick = (e) => { e.stopPropagation(); setAndHint(P.APP_ADV, !sm.get(P.APP_ADV)); }; bindReactive(advToggleBtn, [P.APP_ADV], (el, v) => { el.textContent = v ? '\u25B2 \uACE0\uAE09 \uC124\uC815 \uB2EB\uAE30' : '\u25BC \uACE0\uAE09 \uC124\uC815 \uC5F4\uAE30'; el.style.background = v ? '#34495e' : '#2c3e50'; });
       const boostSliderRow = h('div', { class: 'prow', style: 'align-items:center;gap:6px;' }, [ h('div', { style: 'font-size:11px;width:55px;font-weight:bold;' }, '음량+'), (() => { const slider = h('input', { type: 'range', min: '0', max: '12', step: '1', class: 'slider', style: 'flex:1;' }); slider.oninput = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT) || !sm.get(P.A_EN)) return; setAndHint(P.A_BST, Number(e.target.value)); }; bindReactive(slider, [P.A_BST, P.A_EN, P.APP_ACT], (el, bst, aEn, act) => { el.value = bst || 0; el.disabled = !act || !aEn; el.style.opacity = (act && aEn) ? '1' : '0.35'; }); return slider; })(), (() => { const label = h('div', { style: 'font-size:11px;width:35px;text-align:right;' }, '0dB'); bindReactive(label, [P.A_BST], (el, bst) => { el.textContent = `${bst || 0}dB`; }); return label; })() ]);
-      const shortcutInfo = h('div', { style: 'font-size:10px;opacity:0.5;text-align:center;padding:4px 0;line-height:1.6' }, [ 'Alt+Shift+V: UI 토글', h('br'), 'Alt+Shift+P: PiP 토글', h('br'), 'Alt+Shift+S: 스크린샷' ]);
-      const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px;' }, [ boostSliderRow, renderButtonRow({ label: '\uC554\uBD80', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV1, title: '\uC57D\uD55C \uC554\uBD80 \uAC15\uD654' }, { text: '2\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV2, title: '\uC911\uAC04 \uC554\uBD80 \uAC15\uD654' }, { text: '3\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV3, title: '\uAC15\uD55C \uC554\uBD80 \uAC15\uD654' } ] }), renderButtonRow({ label: '\uC0C9\uC628', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [ { text: '\uBCF4\uD638', value: 35, title: '\uAC15\uD55C \uB178\uB780\uB07C (\uD655\uC2E4\uD55C \uB208 \uBCF4\uD638)' }, { text: '\uB530\uB73B', value: 18, title: '\uBD80\uB4DC\uB7EC\uC6B4 \uD654\uBA74 (\uC77C\uC0C1\uC6A9)' }, { text: '\uB9D1\uC74C', value: -15, title: '\uAE68\uB057\uD55C \uD654\uC774\uD2B8 (\uC601\uD654 \uCD94\uCC9C)' }, { text: '\uB0C9\uC0C9', value: -30, title: '\uC950\uD55C \uD30C\uB780\uB07C (\uC560\uB2C8 \uCD94\uCC9C)' } ] }), h('hr'), renderButtonRow({ label: '\uC2DC\uACC4', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '\uD45C\uC2DC (\uC804\uCCB4\uD654\uBA74)', value: true }] }), renderButtonRow({ label: '\uC704\uCE58', key: P.APP_TIME_POS, items: [{ text: '\uC88C', value: 0 }, { text: '\uC911', value: 1 }, { text: '\uC6B0', value: 2 }] }), h('hr'), shortcutInfo ]);
+      const shortcutInfo = h('div', { style: 'font-size:10px;opacity:0.5;text-align:center;padding:4px 0;line-height:1.6' }, [ 'Alt+Shift+V: UI 토글 | Alt+Shift+P: PiP 토글', h('br'), 'Alt+Shift+[,]: 속도조절 | Alt+Shift+\\: 속도 리셋', h('br'), 'Alt+Shift+S: 스크린샷' ]);
+      const advContainer = h('div', { style: 'display: none; flex-direction: column; gap: 0px; content-visibility: auto; contain-intrinsic-size: 0 300px;' }, [ boostSliderRow, renderButtonRow({ label: '\uC554\uBD80', key: P.V_SHADOW_MASK, offValue: 0, toggleActiveToOff: true, items: [ { text: '1\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV1, title: '\uC57D\uD55C \uC554\uBD80 \uAC15\uD654' }, { text: '2\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV2, title: '\uC911\uAC04 \uC554\uBD80 \uAC15\uD654' }, { text: '3\uB2E8', value: getNS()?.CONFIG?.DARK_BAND.LV3, title: '\uAC15\uD55C \uC554\uBD80 \uAC15\uD654' } ] }), renderButtonRow({ label: '\uC0C9\uC628', key: P.V_TEMP, offValue: 0, toggleActiveToOff: true, items: [ { text: '\uBCF4\uD638', value: 35, title: '\uAC15\uD55C \uB178\uB780\uB07C (\uD655\uC2E4\uD55C \uB208 \uBCF4\uD638)' }, { text: '\uB530\uB73B', value: 18, title: '\uBD80\uB4DC\uB7EC\uC6B4 \uD654\uBA74 (\uC77C\uC0C1\uC6A9)' }, { text: '\uB9D1\uC74C', value: -15, title: '\uAE68\uB057\uD55C \uD654\uC774\uD2B8 (\uC601\uD654 \uCD94\uCC9C)' }, { text: '\uB0C9\uC0C9', value: -30, title: '\uC950\uD55C \uD30C\uB780\uB07C (\uC560\uB2C8 \uCD94\uCC9C)' } ] }), h('hr'), renderButtonRow({ label: '\uC2DC\uACC4', key: P.APP_TIME_EN, offValue: false, toggleActiveToOff: true, items: [{ text: '\uD45C\uC2DC (\uC804\uCCB4\uD654\uBA74)', value: true }] }), renderButtonRow({ label: '\uC704\uCE58', key: P.APP_TIME_POS, items: [{ text: '\uC88C', value: 0 }, { text: '\uC911', value: 1 }, { text: '\uC6B0', value: 2 }] }), h('hr'), shortcutInfo ]);
       bindReactive(advContainer, [P.APP_ADV], (el, v) => el.style.display = v ? 'flex' : 'none');
       const resetBtn = h('button', { class: 'btn' }, '\u21BA \uB9AC\uC14B'); resetBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; sm.batch('video', getNS()?.CONFIG?.DEFAULTS.video); sm.batch('audio', getNS()?.CONFIG?.DEFAULTS.audio); sm.batch('playback', getNS()?.CONFIG?.DEFAULTS.playback); ApplyReq.hard(); }; bindReactive(resetBtn, [P.APP_ACT], (el, act) => { el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; });
 
@@ -2232,7 +2309,12 @@ registerProcessor('vsc-finalizer', VSCFinalizerProcessor);
             a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000);
           }, 'image/png');
         } catch (_) { log.warn('Screenshot blocked by CORS.'); }
+        return;
       }
+
+      if (e.altKey && e.shiftKey && e.code === 'BracketRight') { e.preventDefault(); e.stopPropagation(); if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return; const cur = Number(getNS()?.Store.get(CONFIG.P.PB_RATE)) || 1.0; const next = Math.min(16, Math.round((cur + 0.05) * 100) / 100); getNS()?.Store.set(CONFIG.P.PB_RATE, next); getNS()?.Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); return; }
+      if (e.altKey && e.shiftKey && e.code === 'BracketLeft') { e.preventDefault(); e.stopPropagation(); if (!getNS()?.Store?.get(CONFIG.P.APP_ACT)) return; const cur = Number(getNS()?.Store.get(CONFIG.P.PB_RATE)) || 1.0; const next = Math.max(0.1, Math.round((cur - 0.05) * 100) / 100); getNS()?.Store.set(CONFIG.P.PB_RATE, next); getNS()?.Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); return; }
+      if (e.altKey && e.shiftKey && e.code === 'Backslash') { e.preventDefault(); e.stopPropagation(); getNS()?.Store.batch('playback', { rate: 1.0, enabled: false }); ApplyReq.hard(); return; }
     }, { capture: true });
 
     on(document, 'fullscreenchange', () => { if (typeof Bus !== 'undefined') Bus.emit('fullscreen:changed', { active: !!document.fullscreenElement }); }, OPT_P);
