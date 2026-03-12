@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.5.0
+// @version      4.6.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.5.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.6.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -52,6 +52,7 @@
 
     const STORAGE_KEY = 'delay_meter_config_v3';
     const MAX_TARGET_MS = 8000;
+    const DEFAULT_POS = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
 
     const COLORS = {
         GREEN:  { r: 0x2e, g: 0xcc, b: 0x71 },
@@ -96,6 +97,11 @@
 
     window.addEventListener('beforeunload', () => flushConfigToStorage.flush());
 
+    /* ── seekThreshold 계산 ── */
+    function calcSeekThreshold(target) {
+        return clamp(target * 2.5, 3000, 10000);
+    }
+
     /* ── 상태 ── */
     const saved = loadConfig();
     let video = null;
@@ -109,7 +115,7 @@
     let lastRateStr = '1.000x';
     let lastRenderedMediaTime = 0;
     let targetDelayMs = saved.targetDelayMs ?? DEFAULTS.TARGET_DELAY_MS;
-    let seekThresholdMs = Math.max(targetDelayMs * 2.5, 3000);
+    let seekThresholdMs = calcSeekThreshold(targetDelayMs);
     let isEnabled = saved.isEnabled ?? DEFAULTS.IS_ENABLED;
     let prevAvg = 0;
     let lastSeekTime = 0;
@@ -117,7 +123,6 @@
     let lastPath = location.pathname;
     let tickGeneration = 0;
     let nextTickTime = 0;
-    let lastInterval = TUNING.CHECK_INTERVAL;
     let lastDroppedFrames = 0;
     let lastTotalFrames = 0;
     let hasPlaybackQuality = false;
@@ -132,6 +137,7 @@
     let rateProtectTimer = null;
     let stableTickCount = 0;
     let debugVisible = false;
+    let lastWarningState = false;
     let els = {};
 
     /* ── 웜업 상태 ── */
@@ -169,8 +175,9 @@
 
     /* ── 유틸 ── */
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-    function pct(value, max, lo = 0, hi = 100) {
-        return Math.round(clamp((value / max) * 100, lo, hi)) + '%';
+
+    function pct(value, max) {
+        return Math.min(100, Math.round((value / max) * 100)) + '%';
     }
 
     function lerpRGB(a, b, t) {
@@ -186,21 +193,17 @@
             : lerpRGB(COLORS.YELLOW, COLORS.RED, (ratio - 0.5) * 2);
     }
 
-    function createColorCache(toRatio, tolerance) {
+    const computeColor = (() => {
         let lastInput = NaN, lastResult = '#2ecc71';
-        return (input) => {
-            if (Math.abs(input - lastInput) < tolerance) return lastResult;
-            lastInput = input;
-            const ratio = toRatio(input);
+        return (diff) => {
+            if (Math.abs(diff - lastInput) < 30) return lastResult;
+            lastInput = diff;
+            const ratio = clamp(diff / 2000, 0, 1);
             if (ratio <= 0) return (lastResult = '#2ecc71');
             if (ratio >= 1) return (lastResult = '#e74c3c');
             return (lastResult = gradient3(ratio));
         };
-    }
-
-    const computeColor = createColorCache(
-        diff => clamp(diff / 2000, 0, 1), 30
-    );
+    })();
 
     function getRateBarColor(ratio) {
         if (ratio < 0.5) return '#3498db';
@@ -221,11 +224,15 @@
     }
 
     /* ── buffered 안전 접근 ── */
+    const _edgeResult = { start: 0, end: 0 };
+
     function getBufferEdge(buf) {
         if (!buf || buf.length === 0) return null;
         try {
             const last = buf.length - 1;
-            return { start: buf.start(last), end: buf.end(last) };
+            _edgeResult.start = buf.start(last);
+            _edgeResult.end = buf.end(last);
+            return _edgeResult;
         } catch (e) {
             console.debug('[딜레이미터] buffered 접근 실패:', e.message);
             return null;
@@ -411,8 +418,8 @@
     function resetState() {
         clearTimeout(rateProtectTimer);
         rateProtectTimer = null;
-        if (seekAc) { seekAc.abort(); seekAc = null; }
         if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
+        if (seekAc) { seekAc.abort(); seekAc = null; }
         lastRenderedMediaTime = 0;
         lastCurrentTime = 0;
         stallCount = 0;
@@ -522,14 +529,17 @@
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
         video.currentTime = seekTo;
 
-        seekTimeout = setTimeout(() => { seekTimeout = null; if (!ac.signal.aborted) ac.abort(); }, 5000);
+        seekTimeout = setTimeout(() => {
+            seekTimeout = null;
+            if (!ac.signal.aborted) ac.abort();
+        }, 5000);
 
         ac.signal.addEventListener('abort', () => {
-            if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
+            if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
         });
 
         video.addEventListener('seeked', () => {
-            if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
+            if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
             if (ac.signal.aborted) return;
             setTimeout(() => {
                 if (ac.signal.aborted || !video?.isConnected) return;
@@ -570,15 +580,17 @@
     const dirtyChannels = new Set();
 
     function initDisplayApply() {
-        displayApply.d    = v => { els.delayVal.textContent = v; };
-        displayApply.r    = v => { els.rateVal.textContent = v; };
-        displayApply.c    = v => { els.delayVal.style.color = v; els.barFill.style.background = v; };
-        displayApply.w    = v => { els.barFill.style.width = v; };
-        displayApply.rb   = v => { if (els.rateBar) els.rateBar.style.width = v; };
-        displayApply.rbc  = v => { if (els.rateBar) els.rateBar.style.background = v; };
-        displayApply.ro   = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
-        displayApply.mini = v => { if (els.mini) els.mini.textContent = v; };
-        displayApply.dbg  = v => { if (els.debugVal) els.debugVal.textContent = v; };
+        displayApply.d     = v => { els.delayVal.textContent = v; };
+        displayApply.r     = v => { els.rateVal.textContent = v; };
+        displayApply.c     = v => { els.delayVal.style.color = v; els.barFill.style.background = v; };
+        displayApply.w     = v => { els.barFill.style.width = v; };
+        displayApply.rb    = v => { if (els.rateBar) els.rateBar.style.width = v; };
+        displayApply.rbc   = v => { if (els.rateBar) els.rateBar.style.background = v; };
+        displayApply.ro    = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
+        displayApply.rc    = v => { if (els.rateVal) els.rateVal.style.color = v || ''; };
+        displayApply.mini  = v => { if (els.mini) els.mini.textContent = v; };
+        displayApply.dbg   = v => { if (els.debugVal) els.debugVal.textContent = v; };
+        displayApply.title = v => { if (els.panel) els.panel.title = v; };
     }
 
     function setDisplay(key, val) {
@@ -594,6 +606,7 @@
         if (!els.delayVal || dirtyChannels.size === 0) return;
         if (collapsed) {
             if (dirtyChannels.has('mini')) displayApply.mini(displayState.mini);
+            if (dirtyChannels.has('title')) displayApply.title(displayState.title);
         } else {
             for (const key of dirtyChannels) {
                 const fn = displayApply[key];
@@ -645,9 +658,12 @@
 
         if (els.panel) {
             const overThreshold = avgMs > targetDelayMs * 2 && isEnabled && warmupDone;
-            els.panel.classList.toggle('dm-warning', overThreshold);
-            els.panel.title = `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`;
+            if (overThreshold !== lastWarningState) {
+                lastWarningState = overThreshold;
+                els.panel.classList.toggle('dm-warning', overThreshold);
+            }
         }
+        setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
 
         if (collapsed) {
             if (rafId) return;
@@ -658,7 +674,7 @@
         setDisplay('d', (avgMs / 1000).toFixed(2) + 's' + statusIndicator);
         setDisplay('r', lastRateStr);
         setDisplay('c', computeColor(avgMs - targetDelayMs));
-        setDisplay('w', pct(avgMs, 8000, 2, 100));
+        setDisplay('w', pct(avgMs, 8000));
         setDisplay('ro', isEnabled ? '1' : '0.3');
 
         const rateRatio = clamp(
@@ -666,6 +682,7 @@
         );
         setDisplay('rb', Math.round(rateRatio * 100) + '%');
         setDisplay('rbc', getRateBarColor(rateRatio));
+        setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
 
         if (debugVisible && els.debugVal) {
             if (!video) {
@@ -714,7 +731,7 @@
 
     function applyTargetDelay(sec) {
         targetDelayMs = clamp(Math.round(sec * 1000), 500, MAX_TARGET_MS);
-        seekThresholdMs = Math.max(targetDelayMs * 2.5, 3000);
+        seekThresholdMs = calcSeekThreshold(targetDelayMs);
         delayHistory.clear();
         currentSmoothedRate = 1.0;
         lastSetRate = -1;
@@ -807,11 +824,14 @@
         }
 
         delayHistory.push(delayMs);
-        graphHistory.push(delayMs);
+        if (debugVisible) graphHistory.push(delayMs);
         const avg = isEnabled || currentSmoothedRate !== 1.0 ? getStableAverage() : delayHistory.last;
 
         if (Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) {
-            stableTickCount = Math.min(stableTickCount + 1, 20);
+            if (stableTickCount === 0) {
+                flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 800);
+            }
+            stableTickCount++;
         } else {
             stableTickCount = 0;
         }
@@ -841,10 +861,9 @@
                 updateDisplay(0);
                 return;
             }
-            videoSearchCounter = 0;
 
             if (!isBlobSrc(video) || !isLiveStream(video)) {
-                skipReason = 'VOD/AD';
+                skipReason = isBlobSrc(video) ? 'VOD/AD' : 'NON-BLOB';
                 if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
                 updateDisplay(0);
                 return;
@@ -870,9 +889,8 @@
         }
 
         const interval = getAdaptiveInterval();
-        if (interval !== lastInterval || nextTickTime === 0) {
+        if (nextTickTime === 0) {
             nextTickTime = now + interval;
-            lastInterval = interval;
         } else {
             nextTickTime += interval;
         }
@@ -905,7 +923,7 @@
                 .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
                     border-radius:3px;margin:4px 0 8px;overflow:visible}
                 .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
-                .dm-bar{height:100%;width:0%;border-radius:3px;
+                .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px;
                     transition:width .15s linear,background .2s ease}
                 .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
                     border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
@@ -1092,8 +1110,8 @@
     }
 
     function clampPanelPosition() {
-        const panel = document.getElementById('dm-panel');
-        if (!panel || !panel.style.left) return;
+        if (!els.panel || !els.panel.style.left) return;
+        const panel = els.panel;
         const x = parseInt(panel.style.left, 10);
         const y = parseInt(panel.style.top, 10);
         if (Number.isNaN(x) || Number.isNaN(y)) return;
@@ -1133,19 +1151,16 @@
 
         document.addEventListener('fullscreenchange', () => {
             requestAnimationFrame(() => {
-                const panel = document.getElementById('dm-panel');
-                if (!panel) return;
+                if (!els.panel) return;
                 if (document.fullscreenElement) {
-                    Object.assign(panel.style, { right: '20px', bottom: '20px', left: 'auto', top: 'auto' });
+                    Object.assign(els.panel.style, DEFAULT_POS);
                 } else {
                     const s = loadConfig();
-                    if (s.panelX != null) {
-                        Object.assign(panel.style, {
-                            left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto'
-                        });
-                    } else {
-                        Object.assign(panel.style, { right: '20px', bottom: '20px', left: 'auto', top: 'auto' });
-                    }
+                    Object.assign(els.panel.style,
+                        s.panelX != null
+                            ? { left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto' }
+                            : DEFAULT_POS
+                    );
                     clampPanelPosition();
                 }
             });
@@ -1158,6 +1173,9 @@
                 let seekEdge = null;
                 if (needSeek) {
                     seekEdge = getBufferEdge(video.buffered);
+                    if (seekEdge) {
+                        seekEdge = { start: seekEdge.start, end: seekEdge.end };
+                    }
                 }
 
                 resetState();
