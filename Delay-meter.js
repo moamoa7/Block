@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.4.0
+// @version      4.5.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.4.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.5.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -28,15 +28,14 @@
         SMOOTHING_DOWN: 0.275,
         RATE_FULL_SCALE_MS: 3000,
         RATE_CURVE_EXP: 0.6,
-        SEEK_THRESHOLD_MS: 5000,
         SEEK_COOLDOWN_MS: 3000,
         HOLD_RATE: 1.02,
         AVG_BIAS: 0.7,
         SPIKE_THRESHOLD_MS: 2500,
         SPIKE_COOLDOWN_MS: 1000,
         STALL_THRESHOLD: 3,
-        VIDEO_SEARCH_EVERY: 50,
-        FRAME_CHECK_EVERY: 25,
+        VIDEO_SEARCH_EVERY: 150,
+        FRAME_CHECK_EVERY: 50,
         WARMUP_MS: 1500,
         WARMUP_MIN_BUFFER_SEC: 1.0,
         WARMUP_MIN_READY_STATE: 3,
@@ -52,13 +51,16 @@
     });
 
     const STORAGE_KEY = 'delay_meter_config_v3';
-    const MAX_TARGET_MS = TUNING.SEEK_THRESHOLD_MS - 1000;
+    const MAX_TARGET_MS = 8000;
 
     const COLORS = {
         GREEN:  { r: 0x2e, g: 0xcc, b: 0x71 },
         YELLOW: { r: 0xf1, g: 0xc4, b: 0x0f },
         RED:    { r: 0xe7, g: 0x4c, b: 0x3c },
     };
+
+    const DASH_PATTERN = [3, 3];
+    const DASH_NONE = [];
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -100,13 +102,14 @@
     let lastVideoSrc = '';
     let intervalId = null;
     let isSettingRate = false;
-    let settingRateCountdown = 0;
+    let lastSetRateTime = 0;
     let currentSmoothedRate = 1.0;
     let dynamicMaxRate = TUNING.MAX_RATE;
     let lastSetRate = -1;
     let lastRateStr = '1.000x';
     let lastRenderedMediaTime = 0;
     let targetDelayMs = saved.targetDelayMs ?? DEFAULTS.TARGET_DELAY_MS;
+    let seekThresholdMs = Math.max(targetDelayMs * 2.5, 3000);
     let isEnabled = saved.isEnabled ?? DEFAULTS.IS_ENABLED;
     let prevAvg = 0;
     let lastSeekTime = 0;
@@ -128,6 +131,7 @@
     let miniFlashUntil = 0;
     let rateProtectTimer = null;
     let stableTickCount = 0;
+    let debugVisible = false;
     let els = {};
 
     /* ── 웜업 상태 ── */
@@ -136,6 +140,7 @@
 
     /* ── seek AbortController ── */
     let seekAc = null;
+    let seekTimeout = null;
 
     /* ── 링 버퍼 ── */
     class RingBuffer {
@@ -196,9 +201,12 @@
     const computeColor = createColorCache(
         diff => clamp(diff / 2000, 0, 1), 30
     );
-    const computeRateColor = createColorCache(
-        ratio => Math.round(ratio * 50) / 50, 0.02
-    );
+
+    function getRateBarColor(ratio) {
+        if (ratio < 0.5) return '#3498db';
+        if (ratio < 0.8) return '#f39c12';
+        return '#e74c3c';
+    }
 
     function flashStyle(el, prop, value, duration = 600) {
         if (!el?.isConnected) return;
@@ -226,7 +234,6 @@
 
     /* ── 라이브 판별 ── */
     function isLiveStream(v) {
-        if (!isBlobSrc(v)) return false;
         if (v.duration === Infinity) return true;
         if (Number.isNaN(v.duration) || v.duration === 0) return v.buffered.length > 0;
         if (v.duration >= 1e6) return true;
@@ -273,11 +280,21 @@
         const n = delayHistory.length;
         if (n === 0) return 0;
         if (n === 1) return delayHistory.last;
-        if (n === 2) return (delayHistory.at(0) + delayHistory.at(1)) / 2;
 
         const buf = delayHistory.buf;
         const cap = delayHistory.cap;
         let pos = ((delayHistory.idx - n) % cap + cap) % cap;
+
+        if (n <= 3) {
+            let wSum = 0, wTotal = 0;
+            for (let i = 0; i < n; i++) {
+                const w = 1 << i;
+                wSum += buf[pos] * w;
+                wTotal += w;
+                if (++pos >= cap) pos = 0;
+            }
+            return wSum / wTotal;
+        }
 
         let sum = 0, min = Infinity, max = -Infinity;
         let wSum = 0, wTotal = 0;
@@ -325,7 +342,7 @@
         if (rounded === lastSetRate) return;
         try {
             isSettingRate = true;
-            settingRateCountdown = 2;
+            lastSetRateTime = performance.now();
             video.playbackRate = rounded;
             lastSetRate = rounded;
             lastRateStr = rounded.toFixed(3) + 'x';
@@ -345,7 +362,7 @@
 
     /* ── 외부 배속 변경 감지 ── */
     function onExternalRateChange() {
-        if (isSettingRate || settingRateCountdown > 0) return;
+        if (isSettingRate || performance.now() - lastSetRateTime < 100) return;
         if (!video) return;
         const ext = video.playbackRate;
         if (Math.abs(ext - lastSetRate) < 0.002) return;
@@ -357,7 +374,9 @@
                 lastSetRate = -1;
                 const avg = getStableAverage();
                 if (avg > 0) {
-                    setRate(smoothRate(computeDesiredRate(avg)));
+                    const desired = computeDesiredRate(avg);
+                    currentSmoothedRate = desired;
+                    setRate(desired);
                 }
             }, 200);
         } else {
@@ -392,6 +411,8 @@
     function resetState() {
         clearTimeout(rateProtectTimer);
         rateProtectTimer = null;
+        if (seekAc) { seekAc.abort(); seekAc = null; }
+        if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
         lastRenderedMediaTime = 0;
         lastCurrentTime = 0;
         stallCount = 0;
@@ -420,11 +441,13 @@
         }
         video = v;
         lastVideoSrc = src;
-        warmupStartTime = performance.now();
-        warmupDone = false;
         startFrameCallback(video);
         resetState();
-        hasPlaybackQuality = !!v.getVideoPlaybackQuality;
+        try {
+            hasPlaybackQuality = typeof v.getVideoPlaybackQuality === 'function' && !!v.getVideoPlaybackQuality();
+        } catch {
+            hasPlaybackQuality = false;
+        }
         if (hasPlaybackQuality) {
             const q = v.getVideoPlaybackQuality();
             lastDroppedFrames = q.droppedVideoFrames;
@@ -489,16 +512,24 @@
             seekAc.abort();
             seekAc = null;
         }
+        if (seekTimeout) {
+            clearTimeout(seekTimeout);
+            seekTimeout = null;
+        }
         seekAc = new AbortController();
         const ac = seekAc;
 
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
         video.currentTime = seekTo;
 
-        const timeout = setTimeout(() => ac.abort(), 5000);
+        seekTimeout = setTimeout(() => { seekTimeout = null; if (!ac.signal.aborted) ac.abort(); }, 5000);
+
+        ac.signal.addEventListener('abort', () => {
+            if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
+        });
 
         video.addEventListener('seeked', () => {
-            clearTimeout(timeout);
+            if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
             if (ac.signal.aborted) return;
             setTimeout(() => {
                 if (ac.signal.aborted || !video?.isConnected) return;
@@ -546,8 +577,6 @@
         displayApply.rb   = v => { if (els.rateBar) els.rateBar.style.width = v; };
         displayApply.rbc  = v => { if (els.rateBar) els.rateBar.style.background = v; };
         displayApply.ro   = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
-        displayApply.mx   = v => { if (els.maxMark) els.maxMark.style.left = v; };
-        displayApply.mxo  = v => { if (els.maxMark) els.maxMark.style.opacity = v; };
         displayApply.mini = v => { if (els.mini) els.mini.textContent = v; };
         displayApply.dbg  = v => { if (els.debugVal) els.debugVal.textContent = v; };
     }
@@ -579,7 +608,7 @@
     let graphCtx = null;
 
     function drawGraph() {
-        if (!graphCanvas || !graphCtx) return;
+        if (!graphCanvas || !graphCtx || !debugVisible) return;
         const n = graphHistory.length;
         if (n < 2) return;
 
@@ -588,12 +617,12 @@
 
         const targetY = h - (targetDelayMs / 8000) * h;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
-        graphCtx.setLineDash([3, 3]);
+        graphCtx.setLineDash(DASH_PATTERN);
         graphCtx.beginPath();
         graphCtx.moveTo(0, targetY);
         graphCtx.lineTo(w, targetY);
         graphCtx.stroke();
-        graphCtx.setLineDash([]);
+        graphCtx.setLineDash(DASH_NONE);
 
         graphCtx.strokeStyle = '#2ecc71';
         graphCtx.lineWidth = 1.5;
@@ -614,10 +643,10 @@
 
         const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
 
-        const panel = document.getElementById('dm-panel');
-        if (panel) {
+        if (els.panel) {
             const overThreshold = avgMs > targetDelayMs * 2 && isEnabled && warmupDone;
-            panel.classList.toggle('dm-warning', overThreshold);
+            els.panel.classList.toggle('dm-warning', overThreshold);
+            els.panel.title = `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`;
         }
 
         if (collapsed) {
@@ -636,20 +665,9 @@
             (currentSmoothedRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
         );
         setDisplay('rb', Math.round(rateRatio * 100) + '%');
-        setDisplay('rbc', computeRateColor(rateRatio));
+        setDisplay('rbc', getRateBarColor(rateRatio));
 
-        if (dynamicMaxRate < TUNING.MAX_RATE) {
-            const maxRatio = clamp(
-                (dynamicMaxRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
-            );
-            setDisplay('mx', Math.round(maxRatio * 100) + '%');
-            setDisplay('mxo', '0.6');
-        } else if (displayState.mxo !== '0') {
-            setDisplay('mx', '100%');
-            setDisplay('mxo', '0');
-        }
-
-        if (els.debugVal && els.debugVal.style.display !== 'none') {
+        if (debugVisible && els.debugVal) {
             if (!video) {
                 setDisplay('dbg', 'video 탐색 중...');
             } else {
@@ -696,6 +714,7 @@
 
     function applyTargetDelay(sec) {
         targetDelayMs = clamp(Math.round(sec * 1000), 500, MAX_TARGET_MS);
+        seekThresholdMs = Math.max(targetDelayMs * 2.5, 3000);
         delayHistory.clear();
         currentSmoothedRate = 1.0;
         lastSetRate = -1;
@@ -736,6 +755,8 @@
             return;
         }
 
+        skipReason = '';
+
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
         const edge = getBufferEdge(video.buffered);
@@ -757,7 +778,7 @@
         if (wasPaused && !video.paused) { wasPaused = false; lastSetRate = -1; }
         wasPaused = video.paused;
 
-        if (isEnabled && delayMs > TUNING.SEEK_THRESHOLD_MS && stallCount < TUNING.STALL_THRESHOLD) {
+        if (isEnabled && delayMs > seekThresholdMs && stallCount < TUNING.STALL_THRESHOLD) {
             if (now - lastSeekTime >= TUNING.SEEK_COOLDOWN_MS) {
                 lastSeekTime = now;
                 console.debug(`[딜레이미터] SEEK: ${delayMs.toFixed(0)}ms ct:${ct.toFixed(2)}→${Math.max(bufStart, bufEnd - targetDelayMs / 1000).toFixed(2)}`);
@@ -784,7 +805,6 @@
             updateDisplay(delayMs, bufEnd);
             return;
         }
-        skipReason = '';
 
         delayHistory.push(delayMs);
         graphHistory.push(delayMs);
@@ -823,7 +843,7 @@
             }
             videoSearchCounter = 0;
 
-            if (!isLiveStream(video)) {
+            if (!isBlobSrc(video) || !isLiveStream(video)) {
                 skipReason = 'VOD/AD';
                 if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
                 updateDisplay(0);
@@ -833,8 +853,6 @@
             processLiveVideo();
         } catch (e) {
             console.warn('[딜레이미터]', e);
-        } finally {
-            if (settingRateCountdown > 0) settingRateCountdown--;
         }
     }
 
@@ -889,10 +907,9 @@
                 .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
                 .dm-bar{height:100%;width:0%;border-radius:3px;
                     transition:width .15s linear,background .2s ease}
-                .dm-target-mark,.dm-maxrate-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
-                    border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none}
-                .dm-target-mark{background:#fff;opacity:.6}
-                .dm-maxrate-mark{background:#e74c3c;opacity:0}
+                .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
+                    border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
+                    background:#fff;opacity:.6}
                 .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db;
                     transition:width .15s linear,background .2s ease}
                 .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
@@ -929,7 +946,6 @@
                 <div class="dm-row"><span>배속</span><span data-dm="rate" class="dm-val">1.000x</span></div>
                 <div class="dm-bar-bg">
                     <div class="dm-bar-clip"><div data-dm="ratebar" class="dm-rate-bar"></div></div>
-                    <div data-dm="maxmark" class="dm-maxrate-mark"></div>
                 </div>
                 <div class="dm-row" style="margin-top:10px">
                     <button data-dm="toggle" class="dm-btn">ON</button>
@@ -943,8 +959,9 @@
 
         const q = s => panel.querySelector(`[data-dm="${s}"]`);
         els = {
+            panel: panel,
             delayVal: q('delay'), rateVal: q('rate'), barFill: q('bar'),
-            rateBar: q('ratebar'), targetMark: q('targetmark'), maxMark: q('maxmark'),
+            rateBar: q('ratebar'), targetMark: q('targetmark'),
             toggleBtn: q('toggle'), syncBtn: q('sync'), targetIn: q('target'),
             header: q('header'), debugVal: q('debug'), mini: q('mini'),
         };
@@ -968,8 +985,12 @@
         };
 
         /* ── 디버그 토글 ── */
-        let debugVisible = loadConfig().debugVisible ?? false;
-        const applyDebug = () => { els.debugVal.style.display = debugVisible ? '' : 'none'; };
+        debugVisible = loadConfig().debugVisible ?? false;
+        const applyDebug = () => {
+            const vis = debugVisible ? '' : 'none';
+            els.debugVal.style.display = vis;
+            if (graphCanvas) graphCanvas.style.display = vis;
+        };
         applyDebug();
         els.header.addEventListener('dblclick', () => {
             debugVisible = !debugVisible; applyDebug(); saveConfig({ debugVisible });
@@ -1020,10 +1041,11 @@
         graphCanvas = document.createElement('canvas');
         graphCanvas.width = 180;
         graphCanvas.height = 30;
-        graphCanvas.style.cssText = 'display:block;margin:6px 0 2px;border-radius:4px;background:rgba(255,255,255,.03)';
+        graphCanvas.style.cssText = 'display:none;margin:6px 0 2px;border-radius:4px;background:rgba(255,255,255,.03)';
         const barBgs = panel.querySelectorAll('.dm-bar-bg');
         barBgs[0].after(graphCanvas);
         graphCtx = graphCanvas.getContext('2d');
+        if (debugVisible) graphCanvas.style.display = '';
 
         /* ── 드래그 ── */
         makeDraggable(panel);
@@ -1132,19 +1154,22 @@
         document.addEventListener('visibilitychange', () => {
             nextTickTime = 0;
             if (document.visibilityState === 'visible') {
+                const needSeek = isEnabled && video?.isConnected && video.buffered.length > 0;
+                let seekEdge = null;
+                if (needSeek) {
+                    seekEdge = getBufferEdge(video.buffered);
+                }
+
                 resetState();
                 tickGeneration++;
                 clearTimeout(intervalId);
 
-                if (isEnabled && warmupDone && video?.isConnected && video.buffered.length > 0) {
-                    const edge = getBufferEdge(video.buffered);
-                    if (edge) {
-                        const delay = (edge.end - video.currentTime) * 1000;
-                        if (delay > targetDelayMs * 2) {
-                            console.debug(`[딜레이미터] 탭 복귀 seek: ${delay.toFixed(0)}ms`);
-                            seekToTarget(edge.start, edge.end);
-                            flashSeekIndicator();
-                        }
+                if (seekEdge) {
+                    const delay = (seekEdge.end - video.currentTime) * 1000;
+                    if (delay > targetDelayMs * 2) {
+                        console.debug(`[딜레이미터] 탭 복귀 seek: ${delay.toFixed(0)}ms`);
+                        seekToTarget(seekEdge.start, seekEdge.end);
+                        flashSeekIndicator();
                     }
                 }
 
