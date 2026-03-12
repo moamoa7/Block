@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      5.0.0
+// @version      5.1.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '5.0.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '5.1.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -101,93 +101,15 @@
 
     window.addEventListener('beforeunload', () => flushConfigToStorage.flush());
 
-    /* ── seekThreshold 계산 ── */
+    /* ── 유틸 ── */
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
     function calcSeekThreshold(target) {
         return clamp(target * 2.5, 3000, 10000);
     }
 
-    /* ── 디버그 로거 ── */
-    function dmLog(...args) {
-        if (debugVisible) console.debug('[딜레이미터]', ...args);
-    }
-
-    /* ── 상태 ── */
-    const saved = loadConfig();
-    let video = null;
-    let lastVideoSrc = '';
-    let intervalId = null;
-    let isSettingRate = false;
-    let lastSetRateTime = 0;
-    let currentSmoothedRate = 1.0;
-    let dynamicMaxRate = TUNING.MAX_RATE;
-    let lastSetRate = -1;
-    let lastRateStr = '1.000x';
-    let lastRenderedMediaTime = 0;
-    let targetDelayMs = saved.targetDelayMs ?? DEFAULTS.TARGET_DELAY_MS;
-    let seekThresholdMs = calcSeekThreshold(targetDelayMs);
-    let isEnabled = saved.isEnabled ?? DEFAULTS.IS_ENABLED;
-    let prevAvg = 0;
-    let lastSeekTime = 0;
-    let lastSpikeTime = 0;
-    let lastPath = location.pathname;
-    let tickGeneration = 0;
-    let nextTickTime = 0;
-    let lastDroppedFrames = 0;
-    let lastTotalFrames = 0;
-    let hasPlaybackQuality = false;
-    let frameCheckCounter = 0;
-    let videoSearchCounter = 0;
-    let lastCurrentTime = 0;
-    let stallCount = 0;
-    let wasPaused = false;
-    let collapsed = false;
-    let skipReason = '';
-    let miniFlashUntil = 0;
-    let rateProtectTimer = null;
-    let stableTickCount = 0;
-    let debugVisible = false;
-    let lastWarningState = false;
-    let _cachedDropInfo = '';
-    let els = {};
-
-    /* ── 웜업 상태 ── */
-    let warmupStartTime = 0;
-    let warmupDone = false;
-
-    /* ── seek AbortController ── */
-    let seekAc = null;
-    let seekTimeout = null;
-
-    /* ── 링 버퍼 ── */
-    class RingBuffer {
-        constructor(cap) {
-            this.buf = new Float64Array(cap);
-            this.cap = cap;
-            this.len = 0;
-            this.idx = 0;
-        }
-        push(v) {
-            this.buf[this.idx] = v;
-            this.idx = (this.idx + 1) % this.cap;
-            if (this.len < this.cap) this.len++;
-        }
-        at(i) {
-            if (i < 0 || i >= this.len) return 0;
-            return this.buf[((this.idx - this.len + i) % this.cap + this.cap) % this.cap];
-        }
-        get length() { return this.len; }
-        get last() { return this.len ? this.buf[(this.idx - 1 + this.cap) % this.cap] : 0; }
-        clear() { this.len = 0; this.idx = 0; }
-    }
-
-    let delayHistory = new RingBuffer(TUNING.HISTORY_SIZE);
-    let graphHistory = null;
-
-    /* ── 유틸 ── */
-    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
     function pct(value, max) {
-        return Math.min(100, Math.round((value / max) * 100)) + '%';
+        return clamp(Math.round(value / max * 100), 0, 100) + '%';
     }
 
     function lerpRGB(a, b, t) {
@@ -263,6 +185,83 @@
         if (d - bufEnd < 1) return false;
         return bufEnd > v.currentTime + 1;
     }
+
+    /* ── 상태 ── */
+    const saved = loadConfig();
+    let video = null;
+    let lastVideoSrc = '';
+    let intervalId = null;
+    let isSettingRate = false;
+    let lastSetRateTime = 0;
+    let currentSmoothedRate = 1.0;
+    let dynamicMaxRate = TUNING.MAX_RATE;
+    let lastSetRate = -1;
+    let lastRateStr = '1.000x';
+    let lastRenderedMediaTime = 0;
+    let targetDelayMs = saved.targetDelayMs ?? DEFAULTS.TARGET_DELAY_MS;
+    let seekThresholdMs = calcSeekThreshold(targetDelayMs);
+    let isEnabled = saved.isEnabled ?? DEFAULTS.IS_ENABLED;
+    let prevAvg = 0;
+    let lastSeekTime = 0;
+    let lastSpikeTime = 0;
+    let lastPath = location.pathname;
+    let tickGeneration = 0;
+    let nextTickTime = 0;
+    let lastDroppedFrames = 0;
+    let lastTotalFrames = 0;
+    let hasPlaybackQuality = false;
+    let frameCheckCounter = 0;
+    let videoSearchCounter = 0;
+    let lastCurrentTime = 0;
+    let stallCount = 0;
+    let wasPaused = false;
+    let collapsed = false;
+    let skipReason = '';
+    let miniFlashUntil = 0;
+    let rateProtectTimer = null;
+    let stableTickCount = 0;
+    let debugVisible = false;
+    let lastWarningState = false;
+    let _cachedDropInfo = '';
+    let els = {};
+
+    /* ── 웜업 상태 ── */
+    let warmupStartTime = 0;
+    let warmupDone = false;
+
+    /* ── seek AbortController ── */
+    let seekAc = null;
+    let seekTimeout = null;
+
+    /* ── 디버그 로거 ── */
+    function dmLog(...args) {
+        if (debugVisible) console.debug('[딜레이미터]', ...args);
+    }
+
+    /* ── 링 버퍼 ── */
+    class RingBuffer {
+        constructor(cap) {
+            this.buf = new Float64Array(cap);
+            this.cap = cap;
+            this.len = 0;
+            this.idx = 0;
+        }
+        push(v) {
+            this.buf[this.idx] = v;
+            this.idx = (this.idx + 1) % this.cap;
+            if (this.len < this.cap) this.len++;
+        }
+        at(i) {
+            if (i < 0 || i >= this.len) return 0;
+            return this.buf[((this.idx - this.len + i) % this.cap + this.cap) % this.cap];
+        }
+        get length() { return this.len; }
+        get last() { return this.len ? this.buf[(this.idx - 1 + this.cap) % this.cap] : 0; }
+        clear() { this.len = 0; this.idx = 0; }
+    }
+
+    let delayHistory = new RingBuffer(TUNING.HISTORY_SIZE);
+    let graphHistory = null;
 
     /* ── 웜업 판별 ── */
     function isWarmedUp() {
@@ -599,9 +598,11 @@
         displayApply.w     = v => { els.barFill.style.width = v; };
         displayApply.rb    = v => { if (els.rateBar) els.rateBar.style.width = v; };
         displayApply.rbc   = v => { if (els.rateBar) els.rateBar.style.background = v; };
+        displayApply.rbo   = v => { if (els.rateBar) els.rateBar.style.opacity = v; };
         displayApply.ro    = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
         displayApply.rc    = v => { if (els.rateVal) els.rateVal.style.color = v || ''; };
         displayApply.mini  = v => { if (els.mini) els.mini.textContent = v; };
+        displayApply.mc    = v => { if (els.mini) els.mini.style.color = v || ''; };
         displayApply.dbg   = v => { if (els.debugVal) els.debugVal.textContent = v; };
         displayApply.title = v => { if (els.panel) els.panel.title = v; };
     }
@@ -619,6 +620,7 @@
         if (!els.delayVal || dirtyChannels.size === 0) return;
         if (collapsed) {
             if (dirtyChannels.has('mini')) displayApply.mini(displayState.mini);
+            if (dirtyChannels.has('mc')) displayApply.mc(displayState.mc);
             if (dirtyChannels.has('title')) displayApply.title(displayState.title);
         } else {
             for (const key of dirtyChannels) {
@@ -653,8 +655,9 @@
         graphCtx.strokeStyle = '#2ecc71';
         graphCtx.lineWidth = 1.5;
         graphCtx.beginPath();
+        const xScale = w / (graphHistory.cap - 1);
         for (let i = 0; i < n; i++) {
-            const x = (i / (graphHistory.cap - 1)) * w;
+            const x = i * xScale;
             const y = h - clamp(graphHistory.at(i) / 8000, 0, 1) * h;
             i === 0 ? graphCtx.moveTo(x, y) : graphCtx.lineTo(x, y);
         }
@@ -671,7 +674,7 @@
     }
 
     /* ── UI 갱신 ── */
-    function updateDisplay(avgMs, bufEnd = -1) {
+    function updateDisplay(avgMs, bufEnd = -1, now = performance.now()) {
         if (els.panel) {
             const overThreshold = avgMs > targetDelayMs * 2 && isEnabled && warmupDone;
             if (overThreshold !== lastWarningState) {
@@ -683,11 +686,11 @@
         if (collapsed) {
             const delta = avgMs - prevAvg;
             prevAvg = avgMs;
-            if (performance.now() >= miniFlashUntil) {
+            if (now >= miniFlashUntil) {
                 const miniStatus = warmupDone ? (Math.abs(delta) > 80 ? (delta > 0 ? '↑' : '↓') : '') : '⏳';
                 const miniRate = currentSmoothedRate > 1.005 ? (' ' + lastRateStr) : '';
                 setDisplay('mini', (avgMs / 1000).toFixed(1) + 's' + miniStatus + miniRate);
-                if (els.mini) els.mini.style.color = computeColor(avgMs - targetDelayMs);
+                setDisplay('mc', computeColor(avgMs - targetDelayMs));
             }
             setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
@@ -697,7 +700,7 @@
 
         const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
 
-        if (performance.now() >= miniFlashUntil) {
+        if (now >= miniFlashUntil) {
             setDisplay('mini', '');
         }
 
@@ -714,6 +717,7 @@
         setDisplay('rb', rateDisplay + '%');
         setDisplay('rbc', getRateBarColor(rateRatio));
         setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
+        setDisplay('rbo', stableTickCount > 3 ? '0.6' : '1');
 
         if (debugVisible && els.debugVal) {
             setDisplay('dbg', buildDebugString(bufEnd));
@@ -786,9 +790,9 @@
             if (edge) {
                 const rawDelay = (edge.end - video.currentTime) * 1000;
                 const delayMs = Math.max(0, rawDelay + PLATFORM_OFFSET);
-                updateDisplay(delayMs, edge.end);
+                updateDisplay(delayMs, edge.end, now);
             } else {
-                updateDisplay(0);
+                updateDisplay(0, -1, now);
             }
             skipReason = 'WARMUP';
             return;
@@ -799,15 +803,15 @@
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
         const edge = getBufferEdge(video.buffered);
-        if (!edge) { updateDisplay(0); return; }
-        const { start: bufStart, end: bufEnd } = edge;
+        if (!edge) { updateDisplay(0, -1, now); return; }
+        const bufStart = edge.start, bufEnd = edge.end;
 
         const useMediaTime = lastRenderedMediaTime > 0
             && Math.abs(lastRenderedMediaTime - video.currentTime) < 1.0;
         const ref = useMediaTime ? lastRenderedMediaTime : video.currentTime;
 
         const rawDelay = (bufEnd - ref) * 1000;
-        if (rawDelay < 0) { updateDisplay(0, bufEnd); return; }
+        if (rawDelay < 0) { updateDisplay(0, bufEnd, now); return; }
         const delayMs = rawDelay + PLATFORM_OFFSET;
 
         const ct = video.currentTime;
@@ -826,7 +830,7 @@
                 currentSmoothedRate = 1.0;
                 setRate(1.0);
                 flashSeekIndicator();
-                updateDisplay(targetDelayMs, bufEnd);
+                updateDisplay(targetDelayMs, bufEnd, now);
                 return;
             }
         }
@@ -841,7 +845,7 @@
             currentSmoothedRate = 1.0;
             lastSetRate = -1;
             stableTickCount = 0;
-            updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd);
+            updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
             return;
         }
 
@@ -861,7 +865,7 @@
             stableTickCount = 0;
         }
 
-        updateDisplay(avg, bufEnd);
+        updateDisplay(avg, bufEnd, now);
 
         if (!isEnabled) {
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
@@ -887,8 +891,9 @@
                 return;
             }
 
-            if (!isBlobSrc(video) || !isLiveStream(video)) {
-                skipReason = isBlobSrc(video) ? 'VOD/AD' : 'NON-BLOB';
+            const blobSrc = isBlobSrc(video);
+            if (!blobSrc || !isLiveStream(video)) {
+                skipReason = blobSrc ? 'VOD/AD' : 'NON-BLOB';
                 if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
                 updateDisplay(0);
                 return;
@@ -934,14 +939,17 @@
         if (document.getElementById('dm-panel')) return;
         if (!cssInjected) {
             GM_addStyle(`
-                #dm-panel{position:fixed;bottom:20px;right:20px;z-index:10000;
-                    background:rgba(12,12,16,.92);backdrop-filter:blur(6px);
-                    border:1px solid rgba(255,255,255,.08);border-radius:12px;
+                #dm-panel{--dm-accent:#2ecc71;--dm-warn:#e74c3c;--dm-bg:rgba(12,12,16,.92);
+                    --dm-border:rgba(255,255,255,.08);
+                    position:fixed;bottom:20px;right:20px;z-index:10000;
+                    background:var(--dm-bg);backdrop-filter:blur(6px);
+                    border:1px solid var(--dm-border);border-radius:12px;
                     padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,.6);
                     user-select:none;transition:border-color .3s ease,filter .3s ease}
                 #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
-                    padding-bottom:6px;margin-bottom:8px;cursor:grab}
+                    padding-bottom:6px;margin-bottom:8px;cursor:grab;
+                    display:flex;align-items:center;gap:6px}
                 .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
                 .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px;
                     transition:opacity .2s ease}
@@ -977,8 +985,8 @@
         panel.id = 'dm-panel';
         panel.innerHTML = `
             <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${VERSION}</span>
-                <span data-dm="mini" style="font-size:11px;font-family:monospace;margin-left:6px;font-weight:normal"></span>
-                <span data-dm="collapse" style="float:right;cursor:pointer;font-size:10px">▼</span>
+                <span data-dm="mini" style="font-size:11px;font-family:monospace;font-weight:normal"></span>
+                <span data-dm="collapse" style="margin-left:auto;cursor:pointer;font-size:10px">▼</span>
             </div>
             <div class="dm-body">
                 <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val" style="cursor:pointer" title="클릭하여 동기화">-</span></div>
@@ -1032,7 +1040,7 @@
             e.stopPropagation(); collapsed = !collapsed;
             applyCollapse(); saveConfig({ collapsed });
             if (!collapsed) {
-                if (els.mini) els.mini.style.color = '';
+                setDisplay('mc', '');
                 for (const key in displayState) {
                     if (key[0] !== '_') dirtyChannels.add(key);
                 }
@@ -1054,7 +1062,7 @@
         });
 
         /* ── 헤더 단축키 tooltip ── */
-        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 더블클릭:디버그';
+        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 더블클릭:디버그';
 
         /* ── ON/OFF ── */
         updateToggleBtnUI();
@@ -1095,7 +1103,7 @@
             btn.textContent = sec + 's';
             btn.onclick = () => applyTargetDelay(sec);
             if (RECOMMENDED_PRESETS.includes(sec)) {
-                btn.style.borderBottom = '2px solid #2ecc71';
+                btn.style.borderBottom = '2px solid var(--dm-accent)';
                 btn.title = '이 플랫폼 추천';
             }
             presetBox.appendChild(btn);
@@ -1170,7 +1178,7 @@
         }
     }
 
-    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+R 리셋, Alt+C 접기, Alt+S 싱크 */
+    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화 */
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
@@ -1178,6 +1186,11 @@
         ['KeyR',      () => { resetState(); if (video) setRate(1.0); }],
         ['KeyC',      () => els.collapseBtn?.click()],
         ['KeyS',      () => doManualSync()],
+        ['KeyP',      () => {
+            if (!els.panel) return;
+            Object.assign(els.panel.style, DEFAULT_POS);
+            saveConfig({ panelX: null, panelY: null });
+        }],
     ]);
 
     function init() {
