@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.7.0
+// @version      4.8.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.7.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.8.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -215,10 +215,17 @@
         return '#e74c3c';
     }
 
+    const _flashTimers = new WeakMap();
+
     function flashStyle(el, prop, value, duration = 600) {
         if (!el?.isConnected) return;
+        const prev = _flashTimers.get(el);
+        if (prev) clearTimeout(prev);
         el.style[prop] = value;
-        setTimeout(() => { if (el.isConnected) el.style[prop] = ''; }, duration);
+        _flashTimers.set(el, setTimeout(() => {
+            _flashTimers.delete(el);
+            if (el.isConnected) el.style[prop] = '';
+        }, duration));
     }
 
     /* ── blob URL 판별 ── */
@@ -665,13 +672,6 @@
 
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1) {
-        if (performance.now() >= miniFlashUntil) {
-            setDisplay('mini', collapsed ? (avgMs / 1000).toFixed(1) + 's' : '');
-            if (collapsed && els.mini) {
-                els.mini.style.color = computeColor(avgMs - targetDelayMs);
-            }
-        }
-
         const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
 
         if (els.panel) {
@@ -683,10 +683,19 @@
         }
 
         if (collapsed) {
+            if (performance.now() >= miniFlashUntil) {
+                const miniRate = currentSmoothedRate > 1.005 ? (' ' + lastRateStr) : '';
+                setDisplay('mini', (avgMs / 1000).toFixed(1) + 's' + miniRate);
+                if (els.mini) els.mini.style.color = computeColor(avgMs - targetDelayMs);
+            }
             setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
             return;
+        }
+
+        if (performance.now() >= miniFlashUntil) {
+            setDisplay('mini', '');
         }
 
         setDisplay('d', (avgMs / 1000).toFixed(2) + 's' + statusIndicator);
@@ -698,7 +707,8 @@
         const rateRatio = clamp(
             (currentSmoothedRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
         );
-        setDisplay('rb', Math.round(rateRatio * 100) + '%');
+        const rateDisplay = Math.round(Math.sqrt(rateRatio) * 100);
+        setDisplay('rb', rateDisplay + '%');
         setDisplay('rbc', getRateBarColor(rateRatio));
         setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
 
@@ -721,7 +731,7 @@
         els.toggleBtn.textContent = on ? 'ON' : 'OFF';
         els.toggleBtn.style.background = on ? '#2ecc71' : '#555';
         els.toggleBtn.style.color = on ? '#000' : '#999';
-        if (els.panel) els.panel.style.opacity = on ? '1' : '0.6';
+        if (els.panel) els.panel.style.filter = on ? '' : 'brightness(0.65)';
     }
     function updateTargetMark() {
         if (!els.targetMark) return;
@@ -922,7 +932,7 @@
                     border:1px solid rgba(255,255,255,.08);border-radius:12px;
                     padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,.6);
-                    user-select:none;transition:border-color .3s ease,opacity .3s ease}
+                    user-select:none;transition:border-color .3s ease,filter .3s ease}
                 #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
                     padding-bottom:6px;margin-bottom:8px;cursor:grab}
                 .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
@@ -959,7 +969,7 @@
         const panel = document.createElement('div');
         panel.id = 'dm-panel';
         panel.innerHTML = `
-            <div data-dm="header">딜레이 미터기 <span style="font-weight:normal;font-size:10px;opacity:.5">v${VERSION}</span>
+            <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${VERSION}</span>
                 <span data-dm="mini" style="font-size:11px;font-family:monospace;margin-left:6px;font-weight:normal"></span>
                 <span data-dm="collapse" style="float:right;cursor:pointer;font-size:10px">▼</span>
             </div>
@@ -990,24 +1000,25 @@
             rateBar: q('ratebar'), targetMark: q('targetmark'),
             toggleBtn: q('toggle'), syncBtn: q('sync'), targetIn: q('target'),
             header: q('header'), debugVal: q('debug'), mini: q('mini'),
+            ver: q('ver'), collapseBtn: q('collapse'),
         };
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
 
         initDisplayApply();
 
         /* ── 접기/펼치기 ── */
-        const collapseBtn = q('collapse');
         const body = panel.querySelector('.dm-body');
         collapsed = loadConfig().collapsed ?? false;
         const applyCollapse = () => {
             body.style.display = collapsed ? 'none' : '';
-            collapseBtn.textContent = collapsed ? '▶' : '▼';
+            els.collapseBtn.textContent = collapsed ? '▶' : '▼';
         };
         applyCollapse();
-        collapseBtn.onclick = e => {
+        els.collapseBtn.onclick = e => {
             e.stopPropagation(); collapsed = !collapsed;
             applyCollapse(); saveConfig({ collapsed });
             if (!collapsed) {
+                if (els.mini) els.mini.style.color = '';
                 for (const key in displayState) {
                     if (key[0] !== '_') dirtyChannels.add(key);
                 }
@@ -1020,6 +1031,7 @@
             const vis = debugVisible ? '' : 'none';
             els.debugVal.style.display = vis;
             if (graphCanvas) graphCanvas.style.display = vis;
+            if (els.ver) els.ver.style.display = vis;
             if (debugVisible && !graphHistory) graphHistory = new RingBuffer(60);
         };
         applyDebug();
@@ -1037,7 +1049,13 @@
         };
 
         /* ── SYNC 버튼 ── */
-        els.syncBtn.onclick = () => doManualSync();
+        els.syncBtn.onclick = () => {
+            if (!video || !video.buffered.length) {
+                flashStyle(els.syncBtn, 'background', '#c0392b', 400);
+                return;
+            }
+            doManualSync();
+        };
 
         /* ── 목표 딜레이 입력 ── */
         updateTargetMark();
@@ -1062,7 +1080,10 @@
                 textContent: sec + 's',
                 onclick: () => applyTargetDelay(sec),
             });
-            if (RECOMMENDED_PRESETS.includes(sec)) btn.style.borderBottom = '2px solid #2ecc71';
+            if (RECOMMENDED_PRESETS.includes(sec)) {
+                btn.style.borderBottom = '2px solid #2ecc71';
+                btn.title = '이 플랫폼 추천';
+            }
             presetBox.appendChild(btn);
             return { btn, sec };
         });
@@ -1073,8 +1094,7 @@
         graphCanvas.width = 180;
         graphCanvas.height = 30;
         graphCanvas.style.cssText = 'display:none;margin:6px 0 2px;border-radius:4px;background:rgba(255,255,255,.03)';
-        const barBgs = panel.querySelectorAll('.dm-bar-bg');
-        barBgs[0].after(graphCanvas);
+        els.debugVal.after(graphCanvas);
         graphCtx = graphCanvas.getContext('2d');
         if (debugVisible) graphCanvas.style.display = '';
 
@@ -1136,14 +1156,14 @@
         }
     }
 
-    /* ── 단축키 맵 ── */
+    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+R 리셋, Alt+C 접기, Alt+S 싱크 */
     const SHORTCUTS = new Map([
-        ['KeyD',      { fn: () => els.toggleBtn?.click(),                                           desc: '토글' }],
-        ['ArrowUp',   { fn: () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5)),     desc: '목표 -0.5s' }],
-        ['ArrowDown', { fn: () => applyTargetDelay(targetDelayMs / 1000 + 0.5),                     desc: '목표 +0.5s' }],
-        ['KeyR',      { fn: () => { resetState(); if (video) setRate(1.0); },                       desc: '상태 리셋' }],
-        ['KeyC',      { fn: () => document.querySelector('[data-dm="collapse"]')?.click(),           desc: '접기/펼치기' }],
-        ['KeyS',      { fn: () => doManualSync(),                                                    desc: '수동 SYNC' }],
+        ['KeyD',      () => els.toggleBtn?.click()],
+        ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
+        ['ArrowDown', () => applyTargetDelay(targetDelayMs / 1000 + 0.5)],
+        ['KeyR',      () => { resetState(); if (video) setRate(1.0); }],
+        ['KeyC',      () => els.collapseBtn?.click()],
+        ['KeyS',      () => doManualSync()],
     ]);
 
     function init() {
@@ -1212,8 +1232,8 @@
             if (!e.altKey) return;
             const tag = document.activeElement?.tagName;
             if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
-            const entry = SHORTCUTS.get(e.code);
-            if (entry) { e.preventDefault(); entry.fn(); }
+            const fn = SHORTCUTS.get(e.code);
+            if (fn) { e.preventDefault(); fn(); }
         });
     }
 
