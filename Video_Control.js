@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v189.0 - Extreme Light)
+// @name         Video_Control (v189.1 - Extreme Light)
 // @namespace    https://github.com/
-// @version      189.0
+// @version      189.1
 // @description  Ultimate lightweight build: Hybrid filter, Audio fixed, Timer & Zoom preserved. Legacy fallbacks removed.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -24,7 +24,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.0';
+  const SCRIPT_VERSION = '189.1';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -37,9 +37,6 @@ function VSC_MAIN() {
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
   __vscNs._globalHooksAC = __globalHooksAC;
-
-  const DISPOSERS = __vscNs._disposers || (__vscNs._disposers = new Set());
-  function addDisposer(fn) { if (typeof fn === 'function' && !__vscNs.__destroying) DISPOSERS.add(fn); return fn; }
 
   /* ── Shadow DOM Emitter (Restored for compat) ────────────────── */
   const _origAttach = Element.prototype.attachShadow;
@@ -56,7 +53,6 @@ function VSC_MAIN() {
   const safe = (fn) => { try { fn(); } catch (e) { if (/[?&]vsc_debug=1/.test(location.search)) console.warn('[VSC] safe() caught:', e); } };
   const disconnectSafe = (node) => { try { node?.disconnect(); } catch (_) {} };
   const removeSafe = (el) => { try { el?.remove(); } catch (_) {} };
-  const safeRunAll = (...fns) => { for (const fn of fns) safe(fn); };
 
   function clearRuntimeTimers(ns) {
     for (const id of ns._timers || []) safe(() => clearTimeout(id));
@@ -67,9 +63,13 @@ function VSC_MAIN() {
   function destroyRuntime(ns = __vscNs) {
     if (!ns || ns.__destroying) return;
     ns.__destroying = true;
-    safeRunAll(() => clearRuntimeTimers(ns), () => ns.App?.destroy?.(), () => ns.Features?.destroyAll?.(), () => ns.Store?.destroy?.(), () => ns.Registry?.destroy?.(), () => ns._spaNavAC?.abort?.(), () => ns._globalHooksAC?.abort?.());
-    const snapshot = [...DISPOSERS]; DISPOSERS.clear();
-    for (let i = snapshot.length - 1; i >= 0; i--) safe(snapshot[i]);
+    safe(() => clearRuntimeTimers(ns));
+    safe(() => ns.App?.destroy?.());
+    safe(() => ns.Features?.destroyAll?.());
+    safe(() => ns.Store?.destroy?.());
+    safe(() => ns.Registry?.destroy?.());
+    safe(() => ns._spaNavAC?.abort?.());
+    safe(() => ns._globalHooksAC?.abort?.());
     ns.__alive = false; ns.__destroying = false;
   }
 
@@ -104,11 +104,11 @@ function VSC_MAIN() {
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [data-player], [id*="player" i], [class*="player" i]';
   const OPT_P = { passive: true };
   const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
-  const combineSignals = (...signals) => { const existing = signals.filter(Boolean); if (existing.length === 0) return AbortSignal.abort(); if (existing.length === 1) return existing[0]; if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing); const ac = new AbortController(); const onAbort = () => { ac.abort(); for (const s of existing) s.removeEventListener('abort', onAbort); }; for (const s of existing) s.addEventListener('abort', onAbort, { once: true }); return ac.signal; };
+  const combineSignals = (...signals) => { const existing = signals.filter(Boolean); if (existing.length === 0) return AbortSignal.abort(); if (existing.length === 1) return existing[0]; return AbortSignal.any(existing); };
 
   /* ── Event Binding ───────────────────────────────────────────── */
   function on(target, type, fn, opts) { if (!target?.addEventListener) return; if (typeof opts === 'boolean') opts = { capture: opts }; const merged = opts ? { ...opts } : {}; merged.signal = merged.signal ? combineSignals(merged.signal, __globalSig) : __globalSig; target.addEventListener(type, fn, merged); }
-  const blockInterference = (el) => { if (!el) return; const stop = (e) => { e.stopPropagation(); }; for (const evt of ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'wheel', 'contextmenu', 'dblclick']) { on(el, evt, stop, { passive: false }); } };
+  const blockInterference = (el) => { if (!el) return; const stop = (e) => { e.stopPropagation(); }; for (const evt of ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'wheel']) { on(el, evt, stop, { passive: false }); } };
   __vscNs.blockInterference = blockInterference;
 
   function onPageReady(fn) {
@@ -156,11 +156,16 @@ function VSC_MAIN() {
   const bumpLayoutRevThrottled = () => { if (!_scrollBumpRaf) _scrollBumpRaf = requestAnimationFrame(() => { _scrollBumpRaf = 0; bumpLayoutRev(); }); };
   on(window, 'scroll', bumpLayoutRevThrottled, { passive: true, capture: true }); on(window, 'resize', bumpLayoutRev, { passive: true });
   try { const vv = window.visualViewport; if (vv) { on(vv, 'scroll', bumpLayoutRevThrottled, { passive: true }); on(vv, 'resize', bumpLayoutRev, { passive: true }); } } catch (_) {}
-
-  /* ── Video State Map ─────────────────────────────────────────── */
+/* ── Video State Map ─────────────────────────────────────────── */
   const videoStateMap = new WeakMap();
-  const _vStateProto = { visible: false, bound: false, applied: false, rect: null, _rectRev: 0, audioFailUntil: 0, desiredRate: undefined, origFilter: undefined, origFilterPrio: '', lastFilterUrl: undefined, rateState: undefined };
-  const getVState = (v) => { let st = videoStateMap.get(v); if (!st) { st = Object.create(_vStateProto); st.rect = null; st.rateState = undefined; videoStateMap.set(v, st); } return st; };
+  const getVState = (v) => {
+    let st = videoStateMap.get(v);
+    if (!st) {
+      st = { visible: false, bound: false, applied: false, rect: null, _rectRev: 0, audioFailUntil: 0, desiredRate: undefined, origFilter: undefined, origFilterPrio: '', lastFilterUrl: undefined, rateState: undefined };
+      videoStateMap.set(v, st);
+    }
+    return st;
+  };
   const TOUCHED = { videos: new Set(), rateVideos: new Set() };
 
   /* ── Debounce ────────────────────────────────────────────────── */
@@ -202,7 +207,7 @@ function VSC_MAIN() {
   function createScheduler(minIntervalMs = 16) {
     let queued = false, force = false, applyFn = null, lastRun = 0, rafId = 0, timer = 0;
     function clearPending() { if (timer) { clearTimeout(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
-    function run() { rafId = 0; const now = performance.now(); const doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { if (!timer) timer = setTimeout(() => { timer = 0; run(); }, Math.max(0, minIntervalMs - dt)); return; } queued = false; lastRun = now; if (applyFn) safe(() => applyFn(doForce)); }
+    function run() { rafId = 0; const now = performance.now(); const doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { if (!timer) timer = setTimeout(() => { timer = 0; queued = false; run(); }, Math.max(0, minIntervalMs - dt)); return; } queued = false; lastRun = now; if (applyFn) safe(() => applyFn(doForce)); }
     const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; rafId = requestAnimationFrame(run); return; } if (queued) return; queued = true; clearPending(); rafId = requestAnimationFrame(run); };
     return { registerApply: (fn) => { applyFn = fn; }, request, destroy: () => { clearPending(); applyFn = null; } };
   }
@@ -294,7 +299,7 @@ function VSC_MAIN() {
 
     function pruneDisconnectedVideos() { let removed = 0; for (const el of [...videos]) { if (!el?.isConnected) { videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el); io?.unobserve(el); ro?.unobserve(el); removed++; } } return removed; }
 
-    return { videos, visible, rev: () => rev, refreshObservers, prune: () => { for (const [root, mo] of [...shadowObserverMap]) { const host = root.host; if (!host || !host.isConnected) { disconnectSafe(mo); shadowObserverMap.delete(root); for (const v of [...videos]) { try { if (v.getRootNode() === root) untrackVideo(v); } catch (_) {} } } } const removed = pruneDisconnectedVideos(); if (removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { if (destroyed) return; if (rescanTimerId) clearTimeout(rescanTimerId); rescanTimerId = setTimeout(() => { rescanTimerId = 0; if (destroyed) return; try { const base = document.documentElement || document.body; if (!base) return; function* walkRoots(rootBase) { if (!rootBase) return; const stack = [rootBase]; const seen = new Set(); while (stack.length > 0) { const r = stack.pop(); if (!r || seen.has(r)) continue; seen.add(r); yield r; const walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) stack.push(node.shadowRoot); node = walker.nextNode(); } } } for (const r of walkRoots(base)) WorkQ.enqueue(r); } catch (_) {} }, 0); }, destroy: () => { destroyed = true; if (refreshRafId) { cancelAnimationFrame(refreshRafId); refreshRafId = 0; } if (rescanTimerId) { clearTimeout(rescanTimerId); rescanTimerId = 0; } if (pollTimer) clearInterval(pollTimer); WorkQ.destroy(); disconnectBaseObserver(); for (const mo of shadowObserverMap.values()) disconnectSafe(mo); shadowObserverMap.clear(); disconnectSafe(io); disconnectSafe(ro); videos.clear(); visible.videos.clear(); dirtyA.videos.clear(); dirtyB.videos.clear(); } };
+    return { videos, visible, rev: () => rev, refreshObservers, prune: () => { for (const [root, mo] of [...shadowObserverMap]) { const host = root.host; if (!host || !host.isConnected) { disconnectSafe(mo); shadowObserverMap.delete(root); for (const v of [...videos]) { try { if (v.getRootNode() === root) untrackVideo(v); } catch (_) {} } } } const removed = pruneDisconnectedVideos(); if (removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { if (destroyed) return; if (rescanTimerId) clearTimeout(rescanTimerId); rescanTimerId = setTimeout(() => { rescanTimerId = 0; if (destroyed) return; try { const base = document.documentElement || document.body; if (base) WorkQ.enqueue(base); for (const [sr] of shadowObserverMap) { if (sr.host?.isConnected) WorkQ.enqueue(sr); } } catch (_) {} }, 0); }, destroy: () => { destroyed = true; if (refreshRafId) { cancelAnimationFrame(refreshRafId); refreshRafId = 0; } if (rescanTimerId) { clearTimeout(rescanTimerId); rescanTimerId = 0; } if (pollTimer) clearInterval(pollTimer); WorkQ.destroy(); disconnectBaseObserver(); for (const mo of shadowObserverMap.values()) disconnectSafe(mo); shadowObserverMap.clear(); disconnectSafe(io); disconnectSafe(ro); videos.clear(); visible.videos.clear(); dirtyA.videos.clear(); dirtyB.videos.clear(); } };
   }
 
   /* ── Audio Utilities (Simplified & Safe) ─────────────────────── */
@@ -318,7 +323,7 @@ function VSC_MAIN() {
 
   function createAudioParamCache() {
     const _cache = new Map();
-    return { sttIfChanged(param, key, newVal, time, tc) { const prev = _cache.get(key); if (prev !== undefined && Math.abs(prev - newVal) < 0.005) return; _cache.set(key, newVal); try { param.setTargetAtTime(newVal, time, tc); } catch (_) { param.value = newVal; } }, invalidate: (k) => _cache.delete(k), clear: () => _cache.clear() };
+    return { sttIfChanged(param, key, newVal, time, tc) { const prev = _cache.get(key); if (prev !== undefined && Math.abs(prev - newVal) < 0.005) return; _cache.set(key, newVal); try { param.setTargetAtTime(newVal, time, tc); } catch (_) { try { param.value = newVal; } catch (__) {} } }, invalidate: (k) => _cache.delete(k), clear: () => _cache.clear() };
   }
 
   const mkComp = (actx) => (thr, knee, ratio, atk, rel) => { const c = actx.createDynamicsCompressor(); c.threshold.value = thr; c.knee.value = knee; c.ratio.value = ratio; c.attack.value = atk; c.release.value = rel; return c; };
@@ -326,10 +331,11 @@ function VSC_MAIN() {
   function buildAudioGraph(audioCtx) {
     const n = { inputGain: audioCtx.createGain(), dryGain: audioCtx.createGain(), wetGain: audioCtx.createGain(), masterOut: audioCtx.createGain(), boostGain: audioCtx.createGain() };
     const comp = mkComp(audioCtx)(-18.0, 12.0, 3.0, 0.02, 0.2); const lim = mkComp(audioCtx)(-1.0, 1.0, 20.0, 0.001, 0.1);
+    const makeupGain = audioCtx.createGain(); makeupGain.gain.value = 1.2;
     n.inputGain.connect(n.dryGain); n.dryGain.connect(n.masterOut);
-    n.inputGain.connect(comp); comp.connect(n.boostGain); n.boostGain.connect(lim); lim.connect(n.wetGain); n.wetGain.connect(n.masterOut);
+    n.inputGain.connect(comp); comp.connect(makeupGain); makeupGain.connect(n.boostGain); n.boostGain.connect(lim); lim.connect(n.wetGain); n.wetGain.connect(n.masterOut);
     n.masterOut.connect(audioCtx.destination);
-    Object.assign(n, { _compressor: comp, _limiter: lim, _paramCache: createAudioParamCache() }); return n;
+    Object.assign(n, { _compressor: comp, _limiter: lim, _makeupGain: makeupGain, _paramCache: createAudioParamCache() }); return n;
   }
 
   function createAudioFeature(sm) {
@@ -341,7 +347,9 @@ function VSC_MAIN() {
       if (!dynAct || !isHooked) return;
       const bLv = Number(sm.get(CONFIG.P.A_BST)) || 0;
       pc.sttIfChanged(currentNodes.boostGain.gain, 'boostGain', Math.pow(10, bLv / 20), ctx.currentTime, 0.05);
-      pc.sttIfChanged(currentNodes._compressor.threshold, 'comp.thr', -18.0, ctx.currentTime, 0.05); pc.sttIfChanged(currentNodes._compressor.ratio, 'comp.ratio', 3.0, ctx.currentTime, 0.05);
+      const compThr = bLv <= 3 ? -18.0 : bLv <= 6 ? -20.0 : bLv <= 9 ? -22.0 : -24.0;
+      const compRatio = bLv <= 3 ? 3.0 : bLv <= 6 ? 3.5 : bLv <= 9 ? 4.0 : 4.5;
+      pc.sttIfChanged(currentNodes._compressor.threshold, 'comp.thr', compThr, ctx.currentTime, 0.05); pc.sttIfChanged(currentNodes._compressor.ratio, 'comp.ratio', compRatio, ctx.currentTime, 0.05);
     };
     const setTarget = (v) => {
       if (v == null) { detachCurrentSource(); syncMixAndParams(); return; } if (v === target && currentSrc) { syncMixAndParams(); return; }
@@ -395,7 +403,7 @@ function VSC_MAIN() {
       bindVideoOnce(el, ApplyReq, storeRef); const st = getVState(el), shouldApply = applySet.has(el) || el === activeTarget || isApplyAll;
       if (!shouldApply) { if (!st.applied && st.desiredRate === undefined) continue; Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); continue; }
       const params = getParamsForVideo(el); Adapter.apply(el, params.video, params.shadow); TOUCHED.videos.add(el);
-      if (pbActive) applyPlaybackRate(el, desiredRate); else if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
+      if (pbActive) { applyPlaybackRate(el, desiredRate); } else { if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); } TOUCHED.rateVideos.delete(el); }
     }
   }
 
@@ -407,16 +415,15 @@ function VSC_MAIN() {
     if (CONFIG.IS_MOBILE) mul *= VSC_CLAMP(1.05 / dpr, 0.55, 0.85); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0); return VSC_CLAMP(mul, 0.0, 0.85);
   }
 
-  const StaticBudget = Object.freeze({ mode: 'high', sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00, useSvgFilter: true });
   function createVideoParamsMemo() {
     const _cache = new WeakMap();
     return {
-      get(vfUser, video, budget) {
-        const dW = video?.clientWidth || video?.offsetWidth || 0, cacheKey = `${vfUser.presetS}|${vfUser.brightLevel}|${vfUser.shadowBandMask}|${vfUser.temp}`;
+      get(vfUser, video) {
+        const dW = video?.clientWidth || video?.offsetWidth || 0, dH = video?.clientHeight || video?.offsetHeight || 0, nW = video?.videoWidth || 0, cacheKey = `${vfUser.presetS}|${vfUser.brightLevel}|${vfUser.shadowBandMask}|${vfUser.temp}|${dW}|${dH}|${nW}`;
         if (video) { const prev = _cache.get(video); if (prev && prev.key === cacheKey) return prev.result; }
-        const detailP = CONFIG.PRESETS.detail[vfUser.presetS || 'off'], brightP = CONFIG.PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || CONFIG.PRESETS.bright[0], finalSharpMul = (video ? computeResolutionSharpMul(video) : 0.0) * budget.sharpMul, finalSigmaScale = (video ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920) : 1.0);
-        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
-        const shadowLevel = Math.min(VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, budget.shadowCap), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut, budget };
+        const detailP = CONFIG.PRESETS.detail[vfUser.presetS || 'off'], brightP = CONFIG.PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || CONFIG.PRESETS.bright[0], finalSharpMul = (video ? computeResolutionSharpMul(video) : 0.0), finalSigmaScale = (video ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920) : 1.0);
+        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale, _refW: Math.max(640, Math.min(3840, dW)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
+        const shadowLevel = Math.min(VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, 3), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut };
         if (video) _cache.set(video, { key: cacheKey, result }); return result;
       }
     };
@@ -429,15 +436,14 @@ function VSC_MAIN() {
       onUpdate(ctx) {
         const { active, target, vidsDirty, pbActive, isApplyAll, desiredRate } = ctx;
         if (!active) { TOUCHED.videos.forEach(v => { Adapter.clear(v); getVState(v).desiredRate = undefined; restoreRateOne(v); }); TOUCHED.rateVideos.forEach(v => { getVState(v).desiredRate = undefined; restoreRateOne(v); }); TOUCHED.videos.clear(); TOUCHED.rateVideos.clear(); return; }
-        const vf0 = Store.getCatRef('video'), getParamsForVideo = (el) => videoParamsMemo.get(vf0, el, StaticBudget);
+        const vf0 = Store.getCatRef('video'), getParamsForVideo = (el) => videoParamsMemo.get(vf0, el);
         _applySet.clear(); if (isApplyAll) for (const v of Registry.visible.videos) _applySet.add(v); if (target) _applySet.add(target);
         reconcileVideoEffects({ applySet: _applySet, dirtyVideos: vidsDirty, getParamsForVideo, desiredRate, pbActive, Adapter, ApplyReq, scratch: _scratchCandidates, activeTarget: target, storeRef: Store });
       },
       onDestroy() { TOUCHED.videos.forEach(v => safe(() => Adapter.clear(v))); TOUCHED.rateVideos.forEach(v => safe(() => restoreRateOne(v))); TOUCHED.videos.clear(); TOUCHED.rateVideos.clear(); }
     });
   }
-
-  /* ── Hybrid Filter Engine (Bugfixed: Atomic Composition) ─────── */
+/* ── Hybrid Filter Engine (Bugfixed: Atomic Composition) ─────── */
   function createFiltersVideoOnly(Utils, config) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
 
@@ -445,8 +451,8 @@ function VSC_MAIN() {
       const parts = []; const gamma = s.gamma || 1, brightAdd = s.bright || 0; let bf = 1.0;
       if (Math.abs(brightAdd) > 0.5) bf *= (1.0 + brightAdd / 250); if (Math.abs(gamma - 1.0) > 0.01) bf *= Math.pow(gamma, 0.5); if (Math.abs(bf - 1.0) > 0.001) parts.push(`brightness(${bf.toFixed(4)})`);
       let cf = s.contrast || 1; if (Math.abs(gamma - 1.0) > 0.01) cf *= (1 + (gamma - 1) * 0.15); if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`);
-      const sat = s.satF ?? 1; if (Math.abs(sat - 1.0) > 0.005) parts.push(`saturate(${sat.toFixed(3)})`);
       const temp = s.temp || 0; if (Math.abs(temp) > 1) { const hueShift = temp * -0.3, sepiaAmount = temp > 0 ? Math.min(temp / 100, 0.15) : 0; if (sepiaAmount > 0.01) parts.push(`sepia(${sepiaAmount.toFixed(3)})`); if (Math.abs(hueShift) > 0.5) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); }
+      const sat = s.satF ?? 1; if (Math.abs(sat - 1.0) > 0.005) parts.push(`saturate(${sat.toFixed(3)})`);
       return parts.join(' ');
     }
 
@@ -476,8 +482,9 @@ function VSC_MAIN() {
       } else { const bypassKey = 'bypass'; if (st.sharpKey !== bypassKey) { st.sharpKey = bypassKey; st.blurKey = bypassKey; nodes.sharp.blurMicro.setAttribute('stdDeviation', '0'); nodes.sharp.blurFine.setAttribute('stdDeviation', '0'); nodes.sharp.usmMicro.setAttribute('k2', 1); nodes.sharp.usmMicro.setAttribute('k3', 0); nodes.sharp.usmFine.setAttribute('k2', 1); nodes.sharp.usmFine.setAttribute('k3', 0); nodes.sharp.blend.setAttribute('k2', 1); nodes.sharp.blend.setAttribute('k3', 0); } }
     }
 
+    const SHADOW_TABLES = { 1: '0 0.06 0.18 0.35 0.55 0.78 1', 2: '0 0.10 0.25 0.42 0.62 0.82 1', 3: '0 0.15 0.32 0.50 0.68 0.86 1' };
     function updateColorNodes(nodes, st, shadowParams) {
-      if (shadowParams && shadowParams.active) { const level = shadowParams.level || 0, factor = shadowParams.factor !== undefined ? shadowParams.factor : 1.0, shadowKey = `crush_v4|${level}|${factor.toFixed(3)}`; if (st.shadowKey !== shadowKey) { st.shadowKey = shadowKey; for (const fn of nodes.color.shadowToneFuncs) fn.setAttribute('tableValues', '0 0.05 0.15 0.3 0.5 0.75 1'); } } else { const neutralKey = 'shadow_off'; if (st.shadowKey !== neutralKey) { st.shadowKey = neutralKey; for (const fn of nodes.color.shadowToneFuncs) fn.setAttribute('tableValues', '0 1'); } }
+      if (shadowParams && shadowParams.active) { const level = shadowParams.level || 0, factor = shadowParams.factor !== undefined ? shadowParams.factor : 1.0, shadowKey = `crush_v4|${level}|${factor.toFixed(3)}`; if (st.shadowKey !== shadowKey) { st.shadowKey = shadowKey; const tv = SHADOW_TABLES[level] || SHADOW_TABLES[1]; for (const fn of nodes.color.shadowToneFuncs) fn.setAttribute('tableValues', tv); } } else { const neutralKey = 'shadow_off'; if (st.shadowKey !== neutralKey) { st.shadowKey = neutralKey; for (const fn of nodes.color.shadowToneFuncs) fn.setAttribute('tableValues', '0 1'); } }
     }
 
     function getSvgUrl(video, s, shadowParams) {
@@ -707,6 +714,8 @@ function VSC_MAIN() {
     Store.sub(P.APP_UI, () => Scheduler.request(true)); Store.sub(P.APP_ACT, (on) => { if (on) { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } });
     let __activeTarget = null, __lastApplyTarget = null, lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
+    on(document, 'fullscreenchange', () => { const isFs = !!document.fullscreenElement; Bus.emit('fullscreen:changed', { active: isFs }); if (isFs) Scheduler.request(true); }, { passive: true });
+
     Scheduler.registerApply((force) => {
       try {
         const active = !!Store.getCatRef('app').active, sRev = Store.rev(), rRev = Registry.rev(), userSigRev = __vscNs.__vscUserSignalRev || 0;
@@ -724,14 +733,19 @@ function VSC_MAIN() {
         lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev; __lastApplyTarget = __activeTarget;
 
         const now = performance.now(), pruneInterval = Registry.videos.size > 20 ? 1500 : (Registry.videos.size > 5 ? 3000 : 5000);
-        if (vidsDirty.size > 40 || (now - lastPrune > pruneInterval)) { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); lastPrune = now; }
+        if (vidsDirty.size > 40 || (now - lastPrune > pruneInterval)) {
+          Registry.prune(); Features.get('zoom')?.pruneDisconnected?.();
+          for (const v of TOUCHED.videos) { if (!v.isConnected) TOUCHED.videos.delete(v); }
+          for (const v of TOUCHED.rateVideos) { if (!v.isConnected) TOUCHED.rateVideos.delete(v); }
+          lastPrune = now;
+        }
         Features.updateAll({ active, force, vidsDirty, pbActive, target: __activeTarget, isApplyAll: !!Store.get(P.APP_APPLY_ALL), desiredRate: Store.get(P.PB_RATE) });
       } catch (e) { log.warn('apply crashed:', e); }
     });
 
-    let tickTimer = 0, tickVisHandler = null;
-    const startTick = () => { stopTick(); tickVisHandler = () => { if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) Scheduler.request(false); }; document.addEventListener('visibilitychange', tickVisHandler, { passive: true }); tickTimer = setInterval(() => { if (!Store.get(P.APP_ACT) || document.hidden) return; Scheduler.request(false); }, 30000); if (__vscNs._intervals) __vscNs._intervals.push(tickTimer); };
-    const stopTick = () => { if (!tickTimer) return; clearInterval(tickTimer); tickTimer = 0; if (tickVisHandler) { document.removeEventListener('visibilitychange', tickVisHandler); tickVisHandler = null; } };
+    let tickVisHandler = null;
+    const startTick = () => { stopTick(); tickVisHandler = () => { if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) { Registry.prune(); Scheduler.request(true); } }; document.addEventListener('visibilitychange', tickVisHandler, { passive: true }); };
+    const stopTick = () => { if (tickVisHandler) { document.removeEventListener('visibilitychange', tickVisHandler); tickVisHandler = null; } };
     Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick();
     return Object.freeze({ getActiveVideo: () => __activeTarget, destroy() { stopTick(); safe(() => Features.destroyAll()); safe(() => Registry.destroy?.()); } });
   }
@@ -747,7 +761,8 @@ function VSC_MAIN() {
 
   onPageReady(() => {
     __vscNs._timers = __vscNs._timers || [];
-    for (const delay of [3000, 10000]) { const id = setTimeout(() => { if (delay > 3000 && Registry.videos.size > 0) return; Registry.rescanAll(); Scheduler.request(true); }, delay); __vscNs._timers.push(id); }
+    const id = setTimeout(() => { Registry.rescanAll(); Scheduler.request(true); }, 3000);
+    __vscNs._timers.push(id);
     (function ensureRegistryAfterBodyReady() { let ran = false; const runOnce = () => { if (ran) return; ran = true; Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }; if (document.body) { runOnce(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } }); try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} on(document, 'DOMContentLoaded', runOnce, { once: true }); })();
 
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID }), Adapter = createBackendAdapter(Filters);
