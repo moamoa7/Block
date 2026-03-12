@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v188.3 - Pipeline Locked)
+// @name         Video_Control (v188.4 - Pipeline Locked)
 // @namespace    https://github.com/
-// @version      188.3
+// @version      188.4
 // @description  Deep optimized: Pipeline reordered(color/audio), Dead code removed, Overhead reduced.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '188.3';
+  const SCRIPT_VERSION = '188.4';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
