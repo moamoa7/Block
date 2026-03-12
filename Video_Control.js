@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v189.10 - Bulletproof Timer & Final Stable)
+// @name         Video_Control (v189.12 - Ultimate Master Build)
 // @namespace    https://github.com/
-// @version      189.10
-// @description  Bulletproof SOOP Timer (position: fixed + getUiRoot), Perfect cache, Deep Shadow DOM detection.
+// @version      189.12
+// @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI (getUiRoot strict mode).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.10';
+  const SCRIPT_VERSION = '189.12';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -38,9 +38,6 @@ function VSC_MAIN() {
   const __globalHooksAC = new AbortController();
   const __globalSig = __globalHooksAC.signal;
   __vscNs._globalHooksAC = __globalHooksAC;
-
-  const DISPOSERS = __vscNs._disposers || (__vscNs._disposers = new Set());
-  function addDisposer(fn) { if (typeof fn === 'function' && !__vscNs.__destroying) DISPOSERS.add(fn); return fn; }
 
   /* ── Shadow DOM Emitter ───────────────────────────────────────── */
   const _origAttach = Element.prototype.attachShadow;
@@ -69,8 +66,6 @@ function VSC_MAIN() {
     if (!ns || ns.__destroying) return;
     ns.__destroying = true;
     safeRunAll(() => clearRuntimeTimers(ns), () => ns.App?.destroy?.(), () => ns.Features?.destroyAll?.(), () => ns.Store?.destroy?.(), () => ns.Registry?.destroy?.(), () => ns._spaNavAC?.abort?.(), () => ns._globalHooksAC?.abort?.());
-    const snapshot = [...DISPOSERS]; DISPOSERS.clear();
-    for (let i = snapshot.length - 1; i >= 0; i--) safe(snapshot[i]);
     ns.__alive = false; ns.__destroying = false;
   }
 
@@ -120,7 +115,7 @@ function VSC_MAIN() {
   }
   const log = { error: (...a) => console.error('[VSC]', ...a), warn: (...a) => console.warn('[VSC]', ...a), debug: (...a) => { if (CONFIG.DEBUG) console.debug('[VSC]', ...a); } };
 
-  /* ── EventBus (Light) ────────────────────────────────────────── */
+  /* ── EventBus ────────────────────────────────────────────────── */
   function createEventBus() {
     const target = new EventTarget(); let _destroyed = false; const _wrapperMap = new WeakMap();
     return Object.freeze({
@@ -167,7 +162,7 @@ function VSC_MAIN() {
   /* ── Debounce ────────────────────────────────────────────────── */
   function createDebounced(fn, ms = 250) { let t = null; return (...args) => { if (t !== null) clearTimeout(t); t = setTimeout(() => { t = null; fn(...args); }, ms); }; }
 
-  /* ── SPA URL Detector (History Fallback Included) ────────────── */
+  /* ── SPA URL Detector ────────────────────────────────────────── */
   function initSpaUrlDetector(onChanged) {
     try { __vscNs._spaDetector?.destroy?.(); } catch (_) {}
     const ac = new AbortController(), sig = combineSignals(ac.signal, __globalSig);
@@ -199,7 +194,7 @@ function VSC_MAIN() {
     return { clamp: VSC_CLAMP, h: (tag, props = {}, ...children) => { const isSvg = SVG_TAGS.has(tag) || props.ns === 'svg'; const el = isSvg ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k.startsWith('on')) el.addEventListener(k.slice(2).toLowerCase(), v); else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); } else if (k === 'class') el.className = v; else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v); } children.flat().forEach(c => { if (c != null) el.append(c); }); return el; } };
   }
 
-  /* ── Simplified Scheduler (RAF + Fallback) ───────────────────── */
+  /* ── Simplified Scheduler ────────────────────────────────────── */
   function createScheduler(minIntervalMs = 16) {
     let queued = false, force = false, applyFn = null, lastRun = 0, rafId = 0, timer = 0;
     function clearPending() { if (timer) { clearTimeout(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
@@ -208,7 +203,7 @@ function VSC_MAIN() {
     return { registerApply: (fn) => { applyFn = fn; }, request, destroy: () => { clearPending(); applyFn = null; } };
   }
 
-  /* ── Store (No Runtime Validation) ───────────────────────────── */
+  /* ── Store ───────────────────────────────────────────────────── */
   const parsePath = (p) => { const dot = p.indexOf('.'); return dot < 0 ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; };
   function createLocalStore(defaults, scheduler, bus) {
     const state = structuredClone(defaults); let rev = 0; const listeners = new Map(); const storeAC = new AbortController(); const storeSig = combineSignals(storeAC.signal, __globalSig); const PREF_KEY = 'vsc_prefs_' + location.hostname; let _lastSavedJson = '', _lastSavedRev = rev;
@@ -624,12 +619,12 @@ function VSC_MAIN() {
 
   function bindElementDrag(el, onMove, onEnd) { const ac = new AbortController(); on(el, 'pointermove', (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); }, { passive: false, signal: ac.signal }); const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); }; on(el, 'pointerup', up, { signal: ac.signal }); on(el, 'pointercancel', up, { signal: ac.signal }); return () => ac.abort(); }
 
-  // UI 코드는 안전성이 검증된 v189.8 원본 그대로 유지
+  // 🔥 FIX: webkitFullscreenElement 제거 (기어 아이콘 증발 원흉 완벽 차단)
   function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null, hasUserDraggedUI = false; const uiWakeCtrl = new AbortController(), uiUnsubs = []; const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
     const detachNodesHard = () => { removeSafe(container); removeSafe(gearHost); };
     const allowUiInThisDoc = () => { const hn = location.hostname, pn = location.pathname; if (hn.includes('netflix.com')) return pn.startsWith('/watch'); if (hn.includes('coupangplay.com')) return pn.startsWith('/play'); return true; };
-    const getUiRoot = () => { const fs = document.fullscreenElement || document.webkitFullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
+    const getUiRoot = () => { const fs = document.fullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
     const setAndHint = (path, value) => { if (!Object.is(sm.get(path), value)) { sm.set(path, value); (path === P.APP_ACT || path === P.APP_APPLY_ALL || path.startsWith('video.')) ? ApplyReq.hard() : ApplyReq.soft(); } };
     function bindReactive(btn, paths, apply) { const pathArr = Array.isArray(paths) ? paths : [paths]; let pending = false, destroyed = false; const sync = () => { if (pending || destroyed) return; pending = true; queueMicrotask(() => { pending = false; if (!destroyed && btn?.isConnected !== false) apply(btn, ...pathArr.map(p => sm.get(p))); }); }; pathArr.forEach(p => sub(p, sync)); if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); return sync; }
     function bindActGate(btn, extraPaths, applyFn) { return bindReactive(btn, [...(Array.isArray(extraPaths) ? extraPaths : []), P.APP_ACT], (el, ...vals) => { const act = vals[vals.length - 1]; el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; if (applyFn) applyFn(el, ...vals); }); }
@@ -655,6 +650,7 @@ function VSC_MAIN() {
     const syncVVVars = () => { try { const root = document.documentElement, vv = window.visualViewport; if (!root) return; if (!vv) { root.style.setProperty('--vsc-vv-top', '0px'); root.style.setProperty('--vsc-vv-h', `${window.innerHeight}px`); return; } root.style.setProperty('--vsc-vv-top', `${Math.round(vv.offsetTop)}px`); root.style.setProperty('--vsc-vv-h', `${Math.round(vv.height)}px`); } catch (_) {} };
     syncVVVars(); let _clampRafId = 0; const onLayoutChange = () => { if (_clampRafId) return; _clampRafId = requestAnimationFrame(() => { _clampRafId = 0; clampPanelIntoViewport(); }); }; const uiSig = combineSignals(uiWakeCtrl.signal, __globalSig); try { const vv = window.visualViewport; if (vv) { on(vv, 'resize', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiSig }); on(vv, 'scroll', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiSig }); } } catch (_) {} on(window, 'resize', onLayoutChange, { passive: true, signal: uiSig });
     on(document, 'fullscreenchange', () => { const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement); if (isFs) { if (container) container._prevUiState = sm.get(P.APP_UI); if (sm.get(P.APP_UI)) sm.set(P.APP_UI, false); } else { if (container?._prevUiState) { sm.set(P.APP_UI, true); container._prevUiState = false; } } setTimeout(() => { mount(); clampPanelIntoViewport(); }, 100); }, { passive: true, signal: uiSig });
+    on(document, 'webkitfullscreenchange', () => { const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement); if (isFs) { if (container) container._prevUiState = sm.get(P.APP_UI); if (sm.get(P.APP_UI)) sm.set(P.APP_UI, false); } else { if (container?._prevUiState) { sm.set(P.APP_UI, true); container._prevUiState = false; } } setTimeout(() => { mount(); clampPanelIntoViewport(); }, 100); }, { passive: true, signal: uiSig });
     const getMainPanel = () => container?.shadowRoot?.querySelector('.main');
     function attachShadowStyles(shadowRoot, cssText) { try { if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') { const sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet]; return; } } catch (_) {} const styleEl = document.createElement('style'); styleEl.textContent = cssText; shadowRoot.appendChild(styleEl); }
 
@@ -708,7 +704,7 @@ function VSC_MAIN() {
     const ensureGear = () => {
       if (gearHost) return; gearHost = h('div', { 'data-vsc-ui': '1', style: 'all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483647;isolation:isolate;' }); const shadow = gearHost.attachShadow({ mode: 'open' }); attachShadowStyles(shadow, GEAR_CSS);
       let dragThresholdMet = false, stopDrag = null; gearBtn = h('button', { class: 'gear' }, '\u2699'); shadow.append(gearBtn); if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
-      const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); if (!!document.fullscreenElement || !!document.webkitFullscreenElement || CONFIG.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.35'; }, 2500); };
+      const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); if (!!(document.fullscreenElement || document.webkitFullscreenElement) || CONFIG.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.35'; }, 2500); };
       wakeGear = wake; on(window, 'mousemove', wake, { passive: true, signal: uiSig }); on(window, 'touchstart', wake, { passive: true, signal: uiSig }); bootWakeTimer = setTimeout(wake, 2000);
       const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.clientY, rect = gearBtn.getBoundingClientRect(); try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(gearBtn, (ev) => { if (Math.abs(ev.clientY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) gearBtn.style.top = `${Math.max(0, Math.min(window.innerHeight - gearBtn.offsetHeight, rect.top + (ev.clientY - startY)))}px`; }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); };
       on(gearBtn, 'pointerdown', handleGearDrag); let lastToggle = 0; on(gearBtn, 'pointerup', (e) => { if (e.cancelable) e.preventDefault(); e.stopPropagation?.(); if (dragThresholdMet) return; const now = performance.now(); if (now - lastToggle < 300) return; lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI)); }, { passive: false });
@@ -744,16 +740,105 @@ function VSC_MAIN() {
   }
   function createZoomFeature(Store, P) { let zm = null; return defineFeature({ name: 'zoom', phase: PHASE.PROCESS, onInit() { zm = createZoomManager(Store, P); }, onDestroy() { zm?.destroy(); }, methods: { pruneDisconnected: () => zm?.pruneDisconnected(), isZoomed: (v) => zm?.isZoomed(v), zoomTo: (v, s, x, y) => zm?.zoomTo(v, s, x, y), resetZoom: (v) => zm?.resetZoom(v) } }); }
 
-  /* ── Timer Feature (v189.10 - Bulletproof Fixed Positioning) ─── */
+  /* ── Timer Feature (v189.12 - Ultimate Bulletproof Fix) ──────── */
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1, _destroyed = false, _lastLayoutKey = '';
+    let _pollId = 0;
+
+    function getFullscreenElement() {
+      return document.fullscreenElement || document.webkitFullscreenElement || null;
+    }
+
+    function createTimerEl() {
+      const el = document.createElement('div');
+      el.className = 'vsc-fs-timer';
+      el.setAttribute('data-vsc-ui', '1');
+      el.style.cssText = [
+        'position:fixed !important',
+        'z-index:2147483647 !important',
+        'color:#FFE600 !important',
+        'font-family:monospace !important',
+        'font-weight:bold !important',
+        'pointer-events:none !important',
+        'user-select:none !important',
+        'font-variant-numeric:tabular-nums !important',
+        'letter-spacing:1px !important',
+        '-webkit-text-stroke:1.5px #000 !important',
+        'paint-order:stroke fill !important',
+        'transition:opacity 0.2s !important',
+        'opacity:0.5 !important',
+        'margin:0 !important',
+        'padding:0 !important',
+        'border:none !important',
+        'display:block !important',
+        'background:transparent !important',
+        'box-shadow:none !important',
+        'text-shadow:none !important'
+      ].join(';');
+      return el;
+    }
+
+    function getTimerParent() {
+      const fs = getFullscreenElement();
+      if (!fs) return null;
+      if (fs.tagName === 'VIDEO') return fs.parentElement || document.body;
+      return fs;
+    }
+
+    function ensureTimerAttached() {
+      const parent = getTimerParent();
+      if (!parent) {
+        if (_timerEl) _timerEl.style.display = 'none';
+        return null;
+      }
+      if (_timerEl && _timerEl.parentNode === parent && _timerEl.isConnected) {
+        return parent;
+      }
+      removeSafe(_timerEl);
+      _timerEl = createTimerEl();
+      parent.appendChild(_timerEl);
+      _lastLayoutKey = '';
+      return parent;
+    }
+
+    function verifyAndFixPosition(vRect, pos) {
+      if (!_timerEl) return;
+      const timerRect = _timerEl.getBoundingClientRect();
+      const vWidth = vRect.width;
+      const topOffset = vWidth > 1200 ? 16 : 8;
+      const expectedTop = vRect.top + topOffset;
+
+      if (Math.abs(timerRect.top - expectedTop) > 10) {
+        const parent = _timerEl.parentNode;
+        if (parent) {
+          const pRect = parent.getBoundingClientRect();
+          const correctedTop = vRect.top - pRect.top + topOffset;
+          const edgeMargin = vWidth > 1200 ? 20 : 10;
+
+          _timerEl.style.top = `${correctedTop}px`;
+
+          if (pos === 0) {
+            _timerEl.style.left = `${vRect.left - pRect.left + edgeMargin}px`;
+            _timerEl.style.transform = 'none';
+          } else if (pos === 1) {
+            _timerEl.style.left = `${vRect.left - pRect.left + vWidth / 2}px`;
+            _timerEl.style.transform = 'translateX(-50%)';
+          } else {
+            _timerEl.style.left = `${vRect.right - pRect.left - edgeMargin}px`;
+            _timerEl.style.transform = 'translateX(-100%)';
+          }
+        }
+      }
+    }
 
     function tick() {
-      _rafId = 0; if (_destroyed) return;
-      const store = __vscNs.Store; if (!store) { scheduleNext(); return; }
+      _rafId = 0;
+      if (_destroyed) return;
+      const store = __vscNs.Store;
+      if (!store) { scheduleNext(); return; }
 
       const act = store.get('app.active'), timeEn = store.get('app.timeEn');
-      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      const isFs = !!getFullscreenElement();
 
       if (!act || !timeEn || !isFs) {
         if (_timerEl) _timerEl.style.display = 'none';
@@ -765,72 +850,110 @@ function VSC_MAIN() {
       if (!activeVideo?.isConnected) {
         if (_timerEl) _timerEl.style.display = 'none';
         _lastSecond = -1; _lastLayoutKey = '';
-        return;
+        scheduleNext(); return;
       }
+
+      const parent = ensureTimerAttached();
+      if (!parent) { scheduleNext(); return; }
 
       const now = new Date(), curSecond = now.getSeconds();
-      if (curSecond === _lastSecond && _timerEl && _timerEl.style.display !== 'none') { scheduleNext(); return; }
-      _lastSecond = curSecond;
-
-      // 🔥 UI 기어 아이콘과 동일한 최상위 부착 위치를 찾아 Z-index 덫을 회피
-      const fsNode = document.fullscreenElement || document.webkitFullscreenElement;
-      const parent = fsNode ? (fsNode.tagName === 'VIDEO' ? (fsNode.parentElement || document.documentElement || document.body) : fsNode) : (document.body || document.documentElement);
-
-      if (!_timerEl || _timerEl.parentNode !== parent) {
-        removeSafe(_timerEl);
-        _timerEl = document.createElement('div');
-        _timerEl.className = 'vsc-fs-timer';
-        // 🔥 position: fixed 와 !important 를 통해 숲(SOOP)의 강제 레이아웃을 무조건 관통합니다.
-        _timerEl.style.cssText = 'position:fixed !important; z-index:2147483647 !important; color:#FFE600 !important; font-family:monospace !important; font-weight:bold !important; pointer-events:none !important; user-select:none !important; font-variant-numeric:tabular-nums !important; letter-spacing:1px !important; -webkit-text-stroke:1.5px #000 !important; paint-order:stroke fill !important; transition:opacity 0.2s,transform 0.2s ease-out !important; opacity:0.5 !important; margin:0 !important; padding:0 !important; border:none !important; display:block !important;';
-        parent.appendChild(_timerEl);
-        _lastLayoutKey = '';
-      }
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
 
       _timerEl.style.display = 'block';
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
       if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr;
+      _lastSecond = curSecond;
 
-      // 화면 기준 좌표(getBoundingClientRect)를 그대로 사용하여 fixed position에 적용
-      const vRect = activeVideo.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos');
+      const vRect = activeVideo.getBoundingClientRect();
+      const vWidth = vRect.width;
+      const pos = store.get('app.timePos') ?? 1;
       const layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pos}`;
 
-      if (_lastLayoutKey === layoutKey) { scheduleNext(); return; }
-      _lastLayoutKey = layoutKey;
+      if (_lastLayoutKey !== layoutKey) {
+        _lastLayoutKey = layoutKey;
 
-      _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`;
+        _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`;
+        const topOffset = vWidth > 1200 ? 16 : 8;
+        const edgeMargin = vWidth > 1200 ? 20 : 10;
 
-      const topOffset = vWidth > 1200 ? 16 : 8;
-      const edgeMargin = vWidth > 1200 ? 20 : 10;
+        _timerEl.style.top = `${vRect.top + topOffset}px`;
+        _timerEl.style.bottom = 'auto';
+        _timerEl.style.right = 'auto';
 
-      _timerEl.style.top = `${vRect.top + topOffset}px`;
-      _timerEl.style.bottom = 'auto';
+        if (pos === 0) {
+          _timerEl.style.left = `${vRect.left + edgeMargin}px`;
+          _timerEl.style.transform = 'none';
+        } else if (pos === 1) {
+          _timerEl.style.left = `${vRect.left + vWidth / 2}px`;
+          _timerEl.style.transform = 'translateX(-50%)';
+        } else {
+          _timerEl.style.left = `${vRect.right - edgeMargin}px`;
+          _timerEl.style.transform = 'translateX(-100%)';
+        }
 
-      if (pos === 0) {
-        _timerEl.style.left = `${vRect.left + edgeMargin}px`;
-        _timerEl.style.transform = 'none';
-      } else if (pos === 1) {
-        _timerEl.style.left = `${vRect.left + vWidth / 2}px`;
-        _timerEl.style.transform = 'translateX(-50%)';
-      } else {
-        _timerEl.style.left = `${vRect.right - edgeMargin}px`;
-        _timerEl.style.transform = 'translateX(-100%)';
+        requestAnimationFrame(() => {
+          if (!_destroyed && _timerEl?.isConnected) {
+            verifyAndFixPosition(activeVideo.getBoundingClientRect(), pos);
+          }
+        });
       }
 
       scheduleNext();
     }
 
-    function scheduleNext() { if (!_destroyed && !_rafId) _rafId = requestAnimationFrame(tick); }
+    function scheduleNext() {
+      if (!_destroyed && !_rafId) _rafId = requestAnimationFrame(tick);
+    }
+
+    function startPolling() {
+      stopPolling();
+      _pollId = setInterval(() => {
+        if (_destroyed) { stopPolling(); return; }
+        const store = __vscNs.Store;
+        if (!store) return;
+        const isFs = !!getFullscreenElement();
+        const timeEn = store.get('app.timeEn');
+        const act = store.get('app.active');
+        if (isFs && timeEn && act && !_rafId) scheduleNext();
+      }, 1000);
+      if (__vscNs._intervals) __vscNs._intervals.push(_pollId);
+    }
+
+    function stopPolling() {
+      if (_pollId) { clearInterval(_pollId); _pollId = 0; }
+    }
 
     return defineFeature({
       name: 'timer', phase: PHASE.RENDER,
       onInit() {
         _destroyed = false;
-        this.subscribe('fullscreen:changed', ({ active }) => { if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; } if (active) scheduleNext(); });
-        this.subscribe('settings:changed', ({ path }) => { if ((path === 'app.active' || path === 'app.timeEn' || path === 'app.*') && (document.fullscreenElement || document.webkitFullscreenElement)) { scheduleNext(); } });
-        this.subscribe('target:changed', () => { if (document.fullscreenElement || document.webkitFullscreenElement) scheduleNext(); });
-        if (document.fullscreenElement || document.webkitFullscreenElement) scheduleNext();
+        this.subscribe('fullscreen:changed', ({ active }) => {
+          if (!active) {
+            if (_timerEl) { _timerEl.style.display = 'none'; }
+            _lastSecond = -1; _lastLayoutKey = '';
+          }
+          scheduleNext();
+        });
+        this.subscribe('settings:changed', ({ path }) => {
+          if (path === 'app.active' || path === 'app.timeEn' || path === 'app.timePos' || path === 'app.*') {
+            scheduleNext();
+          }
+        });
+        this.subscribe('target:changed', () => {
+          if (getFullscreenElement()) {
+            _lastLayoutKey = '';
+            scheduleNext();
+          }
+        });
+        startPolling();
+        if (getFullscreenElement()) scheduleNext();
       },
-      onDestroy() { _destroyed = true; if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; } removeSafe(_timerEl); _timerEl = null; _lastSecond = -1; _lastLayoutKey = ''; }
+      onDestroy() {
+        _destroyed = true;
+        stopPolling();
+        if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+        removeSafe(_timerEl); _timerEl = null;
+        _lastSecond = -1; _lastLayoutKey = '';
+      }
     });
   }
 
