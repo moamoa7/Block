@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v188.7 - Final Light)
+// @name         Video_Control (v188.9 - Extreme Light)
 // @namespace    https://github.com/
-// @version      188.7
-// @description  Deep optimized: Hybrid filter, strict shadow polling, history fallback, audio fixed. (Bugfixed)
+// @version      188.9
+// @description  Ultimate lightweight build: Hybrid filter, Audio fixed, Timer & Zoom preserved. All bloated utilities removed.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -12,8 +12,6 @@
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
 // @run-at       document-start
-// @grant        GM_registerMenuCommand
-// @grant        GM_unregisterMenuCommand
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
@@ -26,7 +24,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '188.7';
+  const SCRIPT_VERSION = '188.9';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -72,12 +70,11 @@ function VSC_MAIN() {
     safeRunAll(() => clearRuntimeTimers(ns), () => ns.App?.destroy?.(), () => ns.Features?.destroyAll?.(), () => ns.Store?.destroy?.(), () => ns.Registry?.destroy?.(), () => ns._spaNavAC?.abort?.(), () => ns._globalHooksAC?.abort?.());
     const snapshot = [...DISPOSERS]; DISPOSERS.clear();
     for (let i = snapshot.length - 1; i >= 0; i--) safe(snapshot[i]);
-    safeRunAll(() => { (ns._menuIds || []).forEach(id => { try { GM_unregisterMenuCommand(id); } catch (_) {} }); });
     ns.__alive = false; ns.__destroying = false;
   }
 
   if (__vscNs.__alive) destroyRuntime(__vscNs);
-  __vscNs.__alive = true; __vscNs._menuIds = []; __vscNs._timers = []; __vscNs._intervals = [];
+  __vscNs.__alive = true; __vscNs._timers = []; __vscNs._intervals = [];
 
   /* ── CONFIG ──────────────────────────────────────────────────── */
   const CONFIG = (() => {
@@ -170,41 +167,30 @@ function VSC_MAIN() {
   function createDebounced(fn, ms = 250) { let t = null; return (...args) => { if (t !== null) clearTimeout(t); t = setTimeout(() => { t = null; fn(...args); }, ms); }; }
 
   /* ── SPA URL Detector (History Fallback Included) ────────────── */
-function initSpaUrlDetector(onChanged) {
-  try { __vscNs._spaDetector?.destroy?.(); } catch (_) {}
-  const ac = new AbortController(), sig = combineSignals(ac.signal, __globalSig);
-  let lastHref = location.href, pollId = 0;
-  const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
+  function initSpaUrlDetector(onChanged) {
+    try { __vscNs._spaDetector?.destroy?.(); } catch (_) {}
+    const ac = new AbortController(), sig = combineSignals(ac.signal, __globalSig);
+    let lastHref = location.href, pollId = 0; const origHistory = {};
+    const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
 
-  const origHistory = {}; // 원본 함수 저장을 위한 객체 추가
-
-  if (window.navigation && typeof window.navigation.addEventListener === 'function') {
-    window.navigation.addEventListener('navigatesuccess', emitIfChanged, { signal: sig });
-  } else {
-    for (const method of ['pushState', 'replaceState']) {
-      const orig = history[method];
-      if (typeof orig === 'function' && !orig.__vsc_patched) {
-        origHistory[method] = orig; // 원본 저장
-        history[method] = function(...args) { const res = orig.apply(this, args); queueMicrotask(emitIfChanged); return res; };
-        history[method].__vsc_patched = true;
+    if (window.navigation && typeof window.navigation.addEventListener === 'function') {
+      window.navigation.addEventListener('navigatesuccess', emitIfChanged, { signal: sig });
+    } else {
+      for (const method of ['pushState', 'replaceState']) {
+        const orig = history[method];
+        if (typeof orig === 'function' && !orig.__vsc_patched) {
+          origHistory[method] = orig;
+          history[method] = function(...args) { const res = orig.apply(this, args); queueMicrotask(emitIfChanged); return res; };
+          history[method].__vsc_patched = true;
+        }
       }
+      pollId = setInterval(emitIfChanged, 1000);
+      if (__vscNs._intervals) __vscNs._intervals.push(pollId);
     }
-    pollId = setInterval(emitIfChanged, 1000);
-    if (__vscNs._intervals) __vscNs._intervals.push(pollId);
+    on(window, 'popstate', emitIfChanged, { passive: true, signal: sig });
+    const destroy = () => { ac.abort(); if (pollId) clearInterval(pollId); for (const [method, orig] of Object.entries(origHistory)) { if (history[method]?.__vsc_patched) { history[method] = orig; delete history[method].__vsc_patched; } } };
+    __vscNs._spaDetector = { destroy }; return __vscNs._spaDetector;
   }
-  on(window, 'popstate', emitIfChanged, { passive: true, signal: sig });
-  
-  const destroy = () => { 
-    ac.abort(); if (pollId) clearInterval(pollId); 
-    // 패치된 history 함수 원상 복구 로직 추가
-    for (const [method, orig] of Object.entries(origHistory)) {
-      if (history[method]?.__vsc_patched) {
-        history[method] = orig;
-      }
-    }
-  };
-  __vscNs._spaDetector = { destroy }; return __vscNs._spaDetector;
-}
 
   /* ── DOM Utilities ───────────────────────────────────────────── */
   function createUtils() {
@@ -451,9 +437,10 @@ function initSpaUrlDetector(onChanged) {
     });
   }
 
-  /* ── Hybrid Filter Engine ────────────────────────────────────── */
+  /* ── Hybrid Filter Engine (Bugfixed: Atomic Composition) ─────── */
   function createFiltersVideoOnly(Utils, config) {
-    const { h } = Utils, _cssFilterCache = new WeakMap(), urlCache = new WeakMap(), ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
+    const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
+
     function buildCssFilterString(s) {
       const parts = []; const gamma = s.gamma || 1, brightAdd = s.bright || 0; let bf = 1.0;
       if (Math.abs(brightAdd) > 0.5) bf *= (1.0 + brightAdd / 250); if (Math.abs(gamma - 1.0) > 0.01) bf *= Math.pow(gamma, 0.5); if (Math.abs(bf - 1.0) > 0.001) parts.push(`brightness(${bf.toFixed(4)})`);
@@ -462,26 +449,25 @@ function initSpaUrlDetector(onChanged) {
       const temp = s.temp || 0; if (Math.abs(temp) > 1) { const hueShift = temp * -0.3, sepiaAmount = temp > 0 ? Math.min(temp / 100, 0.15) : 0; if (sepiaAmount > 0.01) parts.push(`sepia(${sepiaAmount.toFixed(3)})`); if (Math.abs(hueShift) > 0.5) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); }
       return parts.join(' ');
     }
+
     function needsSvgFilter(s, shadowParams) { return (s.sharp | 0) > 0 || (s.sharp2 | 0) > 0 || (shadowParams && shadowParams.active); }
-    function applyCssNative(el, s) {
-      const filterStr = buildCssFilterString(s), st = getVState(el); if (_cssFilterCache.get(el) === filterStr) return;
-      if (!filterStr) { if (st.applied) { if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else el.style.removeProperty('filter'); if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || ''); else el.style.removeProperty('-webkit-filter'); st.applied = false; st.lastFilterUrl = null; } _cssFilterCache.set(el, ''); return; }
-      if (!st.applied) { st.origFilter = el.style.getPropertyValue('filter'); st.origFilterPrio = el.style.getPropertyPriority('filter') || ''; st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter'); st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || ''; }
-      el.style.setProperty('filter', filterStr, 'important'); el.style.setProperty('-webkit-filter', filterStr, 'important'); st.applied = true; st.lastFilterUrl = filterStr; _cssFilterCache.set(el, filterStr);
-    }
+
     function ensureOpaqueBg(video) { if (!video || __vscBgMemo.has(video) || !FLAGS.FILTER_FORCE_OPAQUE_BG) return; try { const cs = getComputedStyle(video).backgroundColor, isTransparent = !cs || cs === 'transparent' || cs.endsWith(', 0)') || cs.endsWith(',0)'); if (isTransparent) { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {} }
     function restoreOpaqueBg(video) { if (!video) return; const prev = __vscBgMemo.get(video); if (prev === undefined) return; __vscBgMemo.delete(video); if (prev !== null) video.style.backgroundColor = prev; }
+
     function buildSvg(root) {
       const fidMain = `vsc-main-${config.VSC_ID}`, svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;overflow:hidden;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const mkFuncRGB = (attrs) => [h('feFuncR', { ns: 'svg', ...attrs }), h('feFuncG', { ns: 'svg', ...attrs }), h('feFuncB', { ns: 'svg', ...attrs })], mainFilter = h('filter', { ns: 'svg', id: fidMain, 'color-interpolation-filters': 'sRGB', x: '-8%', y: '-8%', width: '116%', height: '116%' });
-      const bgFuncs = mkFuncRGB({ type: 'gamma', amplitude: '1', exponent: '1', offset: '0' }), bgXfer = h('feComponentTransfer', { ns: 'svg', in: 'SourceGraphic', result: 'bg' }, ...bgFuncs);
-      const blurMicro = h('feGaussianBlur', { ns: 'svg', in: 'bg', stdDeviation: '0.22', result: 'bMicro' }), usmMicro = h('feComposite', { ns: 'svg', in: 'bg', in2: 'bMicro', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpMicro' }), blurFine = h('feGaussianBlur', { ns: 'svg', in: 'bg', stdDeviation: '0.60', result: 'bFine' }), usmFine = h('feComposite', { ns: 'svg', in: 'bg', in2: 'bFine', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpFine' }), blend = h('feComposite', { ns: 'svg', in: 'sharpMicro', in2: 'sharpFine', operator: 'arithmetic', k1: '0', k2: '0.55', k3: '0.45', k4: '0', result: 'sharpOut' });
-      const shadowToneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' }), shadowToneXfer = h('feComponentTransfer', { ns: 'svg', in: 'sharpOut', result: 'shadow' }, ...shadowToneFuncs), satNode = h('feColorMatrix', { ns: 'svg', in: 'shadow', type: 'saturate', values: '1', result: 'final' });
-      mainFilter.append(bgXfer, blurMicro, usmMicro, blurFine, usmFine, blend, shadowToneXfer, satNode); defs.append(mainFilter);
+
+      const blurMicro = h('feGaussianBlur', { ns: 'svg', in: 'SourceGraphic', stdDeviation: '0.22', result: 'bMicro' }), usmMicro = h('feComposite', { ns: 'svg', in: 'SourceGraphic', in2: 'bMicro', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpMicro' }), blurFine = h('feGaussianBlur', { ns: 'svg', in: 'SourceGraphic', stdDeviation: '0.60', result: 'bFine' }), usmFine = h('feComposite', { ns: 'svg', in: 'SourceGraphic', in2: 'bFine', operator: 'arithmetic', k1: '0', k2: '1', k3: '0', k4: '0', result: 'sharpFine' }), blend = h('feComposite', { ns: 'svg', in: 'sharpMicro', in2: 'sharpFine', operator: 'arithmetic', k1: '0', k2: '0.55', k3: '0.45', k4: '0', result: 'sharpOut' });
+      const shadowToneFuncs = mkFuncRGB({ type: 'table', tableValues: '0 1' }), shadowToneXfer = h('feComponentTransfer', { ns: 'svg', in: 'sharpOut', result: 'shadow' }, ...shadowToneFuncs);
+
+      mainFilter.append(blurMicro, usmMicro, blurFine, usmFine, blend, shadowToneXfer); defs.append(mainFilter);
       const tryAppend = () => { const tgt = root.body || root.documentElement || root; if (tgt?.appendChild) { tgt.appendChild(svg); return true; } return false; };
       if (!tryAppend()) { let _fallbackMoId = 0; const mo = new MutationObserver(() => { if (tryAppend()) { mo.disconnect(); clearTimeout(_fallbackMoId); } }); try { mo.observe(root.documentElement || root, { childList: true, subtree: true }); } catch (_) {} _fallbackMoId = setTimeout(() => mo.disconnect(), 5000); if (__vscNs._timers) __vscNs._timers.push(_fallbackMoId); }
-      return { fidMain, sharp: { blurMicro, usmMicro, blurFine, usmFine, blend }, color: { bgFuncs, shadowToneFuncs, sats: [satNode] }, st: { lastKey: '', rev: 0, bgKey: '', satKey: '', blurKey: '', sharpKey: '', shadowKey: '' } };
+      return { fidMain, sharp: { blurMicro, usmMicro, blurFine, usmFine, blend }, color: { shadowToneFuncs }, st: { lastKey: '', blurKey: '', sharpKey: '', shadowKey: '' } };
     }
+
     function updateSharpNodes(nodes, st, s, sharpTotal) {
       if (sharpTotal > 0) {
         const qSharp = Math.max(0, Math.round(Number(s.sharp || 0))), qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0))), sigmaScale = Number(s._sigmaScale) || 1.0, microBase = Number(s._microBase) || 0.18, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24), microAmtCoeffs = s._microAmt || [0.55, 0.10], fineAmtCoeffs = s._fineAmt || [0.20, 0.85], sigMicro = VSC_CLAMP((microBase + qSharp * microScale) * Math.min(1.0, sigmaScale), 0.30, 1.20), sigFine = VSC_CLAMP((fineBase + qSharp2 * fineScale) * sigmaScale, 0.18, 2.50), microAmt = VSC_CLAMP((qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45, 0, 1.5), fineAmt = VSC_CLAMP((qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24, 0, 1.2), totalAmt = microAmt + fineAmt + 1e-6, microWeight = VSC_CLAMP(0.35 + 0.30 * (microAmt / totalAmt), 0.25, 0.70), fineWeight = 1.0 - microWeight, blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`;
@@ -489,27 +475,70 @@ function initSpaUrlDetector(onChanged) {
         const sharpKeyNext = `${microAmt.toFixed(5)}|${fineAmt.toFixed(5)}`; if (st.sharpKey !== sharpKeyNext) { st.sharpKey = sharpKeyNext; nodes.sharp.usmMicro.setAttribute('k2', (1 + microAmt).toFixed(5)); nodes.sharp.usmMicro.setAttribute('k3', (-microAmt).toFixed(5)); nodes.sharp.usmFine.setAttribute('k2', (1 + fineAmt).toFixed(5)); nodes.sharp.usmFine.setAttribute('k3', (-fineAmt).toFixed(5)); nodes.sharp.blend.setAttribute('k2', microWeight.toFixed(4)); nodes.sharp.blend.setAttribute('k3', fineWeight.toFixed(4)); }
       } else { const bypassKey = 'bypass'; if (st.sharpKey !== bypassKey) { st.sharpKey = bypassKey; st.blurKey = bypassKey; nodes.sharp.blurMicro.setAttribute('stdDeviation', '0'); nodes.sharp.blurFine.setAttribute('stdDeviation', '0'); nodes.sharp.usmMicro.setAttribute('k2', 1); nodes.sharp.usmMicro.setAttribute('k3', 0); nodes.sharp.usmFine.setAttribute('k2', 1); nodes.sharp.usmFine.setAttribute('k3', 0); nodes.sharp.blend.setAttribute('k2', 1); nodes.sharp.blend.setAttribute('k3', 0); } }
     }
-    function updateColorNodes(nodes, st, s, shadowParams) {
-      const brightOffset = VSC_CLAMP((s.bright || 0) / 250, -0.5, 0.5), gammaExp = 1 / VSC_CLAMP(s.gamma || 1, 0.1, 5.0), bgKey = `${gammaExp.toFixed(4)}|${brightOffset.toFixed(4)}`; if (st.bgKey !== bgKey) { st.bgKey = bgKey; for (const fn of nodes.color.bgFuncs) { fn.setAttribute('exponent', parseFloat(gammaExp.toFixed(4))); fn.setAttribute('offset', parseFloat(brightOffset.toFixed(4))); } }
+
+    function updateColorNodes(nodes, st, shadowParams) {
       if (shadowParams && shadowParams.active) { const level = shadowParams.level || 0, factor = shadowParams.factor !== undefined ? shadowParams.factor : 1.0, shadowKey = `crush_v4|${level}|${factor.toFixed(3)}`; if (st.shadowKey !== shadowKey) { st.shadowKey = shadowKey; for (const fn of nodes.color.shadowToneFuncs) fn.setAttribute('tableValues', '0 0.05 0.15 0.3 0.5 0.75 1'); } } else { const neutralKey = 'shadow_off'; if (st.shadowKey !== neutralKey) { st.shadowKey = neutralKey; for (const fn of nodes.color.shadowToneFuncs) fn.setAttribute('tableValues', '0 1'); } }
-      const satVal = VSC_CLAMP(s.satF ?? 1, 0, 5.0).toFixed(2); if (st.satKey !== satVal) { st.satKey = satVal; for (const satNode of nodes.color.sats) satNode.setAttribute('values', parseFloat(satVal)); }
     }
-    function prepare(video, s, shadowParams) {
-      const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document); let dc = urlCache.get(root); if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); } ensureOpaqueBg(video);
-      const sharpTotal = Math.round(Number(s.sharp || 0)) + Math.round(Number(s.sharp2 || 0)), shadowActive = !!(shadowParams && shadowParams.active), stableKey = `u|${s.sharp}|${s.sharp2}|${(s.gamma||1).toFixed(3)}|${(s.bright||0).toFixed(1)}|${(s.satF??1).toFixed(2)}|sh:${shadowActive ? 'lv' + shadowParams.level : 'off'}`;
-      let nodes = ctxMap.get(root); if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); } const needReapply = (dc.key !== stableKey);
-      if (nodes.st.lastKey !== stableKey) { nodes.st.lastKey = stableKey; nodes.st.rev = (nodes.st.rev + 1) | 0; updateSharpNodes(nodes, nodes.st, s, sharpTotal); updateColorNodes(nodes, nodes.st, s, shadowParams); }
-      const combinedUrl = `url(#${nodes.fidMain})`; dc.key = stableKey; dc.url = combinedUrl; return { url: combinedUrl, changed: needReapply, rev: nodes.st.rev };
+
+    function getSvgUrl(video, s, shadowParams) {
+      const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document); ensureOpaqueBg(video);
+      const sharpTotal = Math.round(Number(s.sharp || 0)) + Math.round(Number(s.sharp2 || 0)), shadowActive = !!(shadowParams && shadowParams.active), stableKey = `u|${s.sharp}|${s.sharp2}|${(s._sigmaScale||1).toFixed(2)}|sh:${shadowActive ? 'lv' + shadowParams.level : 'off'}`;
+      let nodes = ctxMap.get(root); if (!nodes) { nodes = buildSvg(root); ctxMap.set(root, nodes); }
+      if (nodes.st.lastKey !== stableKey) { nodes.st.lastKey = stableKey; updateSharpNodes(nodes, nodes.st, s, sharpTotal); updateColorNodes(nodes, nodes.st, shadowParams); }
+      return `url(#${nodes.fidMain})`;
     }
+
     return {
-      invalidateCache: (video) => { try { const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document); const nodes = ctxMap.get(root); if (nodes) { nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = ''; nodes.st.rev = (nodes.st.rev + 1) | 0; nodes.st.bgKey = ''; nodes.st.satKey = ''; } const dc = urlCache.get(root); if (dc) { dc.key = ''; dc.url = ''; } } catch (_) {} },
-      prepareCached: (video, s, shadowParams) => { try { return prepare(video, s, shadowParams || null); } catch (e) { return { url: null, changed: false, rev: -1 }; } },
-      applyUrl: (el, urlObj) => { if (!el) return; const url = typeof urlObj === 'string' ? urlObj : urlObj?.url; const st = getVState(el); if (!url) { restoreOpaqueBg(el); if (st.applied) { if (st.origFilter != null && st.origFilter !== '') el.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else el.style.removeProperty('filter'); if (st.origWebkitFilter != null && st.origWebkitFilter !== '') el.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || ''); else el.style.removeProperty('-webkit-filter'); st.applied = false; st.lastFilterUrl = null; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = ''; } return; } if (!st.applied) { st.origFilter = el.style.getPropertyValue('filter'); st.origFilterPrio = el.style.getPropertyPriority('filter') || ''; st.origWebkitFilter = el.style.getPropertyValue('-webkit-filter'); st.origWebkitFilterPrio = el.style.getPropertyPriority('-webkit-filter') || ''; } if (st.lastFilterUrl !== url) { el.style.setProperty('filter', url, 'important'); el.style.setProperty('-webkit-filter', url, 'important'); } st.applied = true; st.lastFilterUrl = url; },
-      needsSvgFilter, applyCssNative
+      invalidateCache: (video) => { try { const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document); const nodes = ctxMap.get(root); if (nodes) { nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = ''; } } catch (_) {} },
+      applyCombined: (video, vVals, shadowParams) => {
+        const st = getVState(video);
+        const cssStr = buildCssFilterString(vVals);
+        let finalFilter = cssStr;
+
+        if (needsSvgFilter(vVals, shadowParams)) {
+           const svgUrl = getSvgUrl(video, vVals, shadowParams);
+           finalFilter = finalFilter ? `${finalFilter} ${svgUrl}` : svgUrl;
+        }
+
+        if (!finalFilter) {
+           restoreOpaqueBg(video);
+           if (st.applied) {
+             if (st.origFilter != null && st.origFilter !== '') video.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else video.style.removeProperty('filter');
+             if (st.origWebkitFilter != null && st.origWebkitFilter !== '') video.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || ''); else video.style.removeProperty('-webkit-filter');
+             st.applied = false; st.lastFilterUrl = null; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
+           }
+           return;
+        }
+
+        if (!st.applied) {
+           st.origFilter = video.style.getPropertyValue('filter'); st.origFilterPrio = video.style.getPropertyPriority('filter') || '';
+           st.origWebkitFilter = video.style.getPropertyValue('-webkit-filter'); st.origWebkitFilterPrio = video.style.getPropertyPriority('-webkit-filter') || '';
+        }
+
+        if (st.lastFilterUrl !== finalFilter) {
+           video.style.setProperty('filter', finalFilter, 'important');
+           video.style.setProperty('-webkit-filter', finalFilter, 'important');
+           st.applied = true; st.lastFilterUrl = finalFilter;
+        }
+      },
+      clear: (video) => {
+        const st = getVState(video);
+        if (st.applied) {
+          restoreOpaqueBg(video);
+          if (st.origFilter != null && st.origFilter !== '') video.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else video.style.removeProperty('filter');
+          if (st.origWebkitFilter != null && st.origWebkitFilter !== '') video.style.setProperty('-webkit-filter', st.origWebkitFilter, st.origWebkitFilterPrio || ''); else video.style.removeProperty('-webkit-filter');
+          st.applied = false; st.lastFilterUrl = null; st.origFilter = st.origWebkitFilter = null; st.origFilterPrio = st.origWebkitFilterPrio = '';
+        }
+      }
     };
   }
 
-  function createBackendAdapter(Filters) { return { apply(video, vVals, shadowParams) { const st = getVState(video); if (Filters.needsSvgFilter(vVals, shadowParams)) { Filters.applyUrl(video, Filters.prepareCached(video, vVals, shadowParams)); } else { if (st.applied && st.lastFilterUrl && st.lastFilterUrl.includes('url(')) Filters.applyUrl(video, null); Filters.applyCssNative(video, vVals); } }, clear(video) { const st = getVState(video); if (st.applied) Filters.applyUrl(video, null); } }; }
+  function createBackendAdapter(Filters) {
+    return {
+      apply(video, vVals, shadowParams) { Filters.applyCombined(video, vVals, shadowParams); },
+      clear(video) { Filters.clear(video); }
+    };
+  }
 
   /* ── Targeting ───────────────────────────────────────────────── */
   function createTargeting() {
@@ -542,13 +571,11 @@ function initSpaUrlDetector(onChanged) {
     return Object.freeze({ pickFastActiveOnly });
   }
 
-  /* ── UI, Zoom, Timer, Loop ───────────────────────────────────── */
+  /* ── UI, Zoom, Timer ─────────────────────────────────────────── */
   function showToast(text) { const v = __vscNs.App?.getActiveVideo(), target = v?.parentNode?.isConnected ? v.parentNode : (document.body || document.documentElement); if (!target) return; let t = target.querySelector('.vsc-toast'); if (!t) { t = document.createElement('div'); t.className = 'vsc-toast'; t.style.cssText = 'position:absolute;bottom:15%;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.82);color:#fff;padding:8px 18px;border-radius:20px;font:600 13.5px/1.3 system-ui,sans-serif;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity 0.2s ease-in-out;backdrop-filter:blur(6px);border:1px solid rgba(255,255,255,0.15);white-space:pre-line;letter-spacing:-0.3px;'; if (target !== document.body && getComputedStyle(target).position === 'static') target.style.position = 'relative'; target.appendChild(t); } t.textContent = text; t.style.opacity = '1'; clearTimeout(t._tid); t._tid = setTimeout(() => { if (t) t.style.opacity = '0'; }, 1500); }
   __vscNs.showToast = showToast;
   function seekVideo(video, offset) { const sr = video.seekable; let minT = 0, maxT = video.duration; const isLive = !Number.isFinite(maxT); if (isLive) { if (!sr || sr.length === 0) return; minT = sr.start(0); maxT = sr.end(sr.length - 1); } const target = VSC_CLAMP(video.currentTime + offset, minT, maxT - (isLive ? 2.0 : 0.1)); try { video.currentTime = target; } catch (_) {} }
   function execVideoAction(action, val) { const v = __vscNs.App?.getActiveVideo(); if (!v) return; if (action === 'play') v.play().catch(() => {}); else if (action === 'pause') v.pause(); else if (action === 'seek') seekVideo(v, val); }
-
-  function createABLoopFeature() { let a = null, b = null; return defineFeature({ name: 'abLoop', phase: PHASE.PROCESS, onUpdate(ctx) { if (a !== null && b !== null && ctx.target) { if (ctx.target.currentTime >= b || ctx.target.currentTime < a - 0.5) ctx.target.currentTime = a; } }, methods: { toggle() { const v = this.getActiveVideo(); if (!v) return; if (a === null) { a = v.currentTime; showToast(`시작점(A): ${a.toFixed(1)}s`); } else if (b === null) { b = v.currentTime; if (b <= a) { const tmp = a; a = b; b = tmp; } showToast(`A-B 구간 반복`); } else { a = b = null; showToast('반복 해제'); } } } }); }
 
   function bindElementDrag(el, onMove, onEnd) { const ac = new AbortController(); on(el, 'pointermove', (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); }, { passive: false, signal: ac.signal }); const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); }; on(el, 'pointerup', up, { signal: ac.signal }); on(el, 'pointercancel', up, { signal: ac.signal }); return () => ac.abort(); }
 
@@ -613,7 +640,10 @@ function initSpaUrlDetector(onChanged) {
 
       const bodyMain = h('div', { id: 'p-main' }, [
         sharpRow, brightRow, h('div', { class: 'prow' }, [zoomBtn, pwrBtn]), h('div', { class: 'prow', style: 'margin-top:4px;' }, [boostBtn]),
-        h('div', { class: 'prow', style: 'margin-top:8px;' }, [h('button', { class: 'btn', style: 'background:#333;', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '\u2715 닫기'), (() => { const r = h('button', { class: 'btn' }, '\u21BA 리셋'); r.onclick = guardedClick(() => { sm.batch('video', CONFIG.DEFAULTS.video); sm.batch('audio', CONFIG.DEFAULTS.audio); sm.batch('playback', CONFIG.DEFAULTS.playback); ApplyReq.hard(); }); bindActGate(r, []); return r; })()]),
+        h('div', { class: 'prow', style: 'margin-top:8px;' }, [
+          h('button', { class: 'btn', style: 'background:#333;', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '\u2715 닫기'),
+          (() => { const r = h('button', { class: 'btn' }, '\u21BA 리셋'); r.onclick = guardedClick(() => { sm.batch('video', CONFIG.DEFAULTS.video); sm.batch('audio', CONFIG.DEFAULTS.audio); sm.batch('playback', CONFIG.DEFAULTS.playback); ApplyReq.hard(); try { const key = 'vsc_prefs_' + location.hostname; if (typeof GM_deleteValue === 'function') GM_deleteValue(key); localStorage.removeItem(key); } catch (_) {} showToast('초기화 완료'); }); bindActGate(r, []); return r; })()
+        ]),
         advToggleBtn, advContainer, h('hr'),
         h('div', { class: 'prow', style: 'justify-content:center;gap:4px;flex-wrap:wrap;' }, [0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:36px;' }, s + 'x'); b.onclick = guardedClick(() => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }); bindActGate(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => el.classList.toggle('active', !!en && Math.abs(Number(rate || 1) - s) < 0.01)); return b; })),
         rateAdjustRow, h('div', { class: 'prow', style: 'justify-content:center;gap:2px;margin-top:4px;' }, [{ text: '\u25C0 30s', action: 'seek', val: -30 }, { text: '\u25C0 15s', action: 'seek', val: -15 }, { text: '\u23F8 정지', action: 'pause' }, { text: '\u25B6 재생', action: 'play' }, { text: '15s \u25B6', action: 'seek', val: 15 }, { text: '30s \u25B6', action: 'seek', val: 30 }].map(cfg => { const b = h('button', { class: 'pbtn', style: 'flex:1;min-height:34px;font-size:11px;padding:0 2px;' }, cfg.text); b.onclick = guardedClick(() => execVideoAction(cfg.action, cfg.val)); bindActGate(b, []); return b; }))
@@ -716,24 +746,8 @@ function initSpaUrlDetector(onChanged) {
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
-  // Bootstrap 영역 하단 GM_registerMenuCommand 부분
-if (window.top === window && typeof GM_registerMenuCommand === 'function') {
-  const reg = (title, fn) => { const id = GM_registerMenuCommand(title, fn); if (__vscNs._menuIds) __vscNs._menuIds.push(id); };
-  reg('\u2328\uFE0F 단축키 안내', () => { alert(['[Alt+Shift 조합]', 'V: UI 열기/닫기', 'D/B: 선명/밝기', 'S: 스크린샷', 'A: 구간반복', '[/]: 배속조절', '\\: 배속 리셋', '</>: 프레임 이동'].join('\n')); });
-  reg('\uD83D\uDD04 설정 초기화 (Reset All)', () => { 
-    if (confirm('모든 설정을 초기화할까요?')) { 
-      const key = 'vsc_prefs_' + location.hostname; 
-      try { if (typeof GM_deleteValue === 'function') GM_deleteValue(key); } catch (_) {}
-      try { localStorage.removeItem(key); } catch (_) {}
-      location.reload(); 
-    } 
-  });
-}
-
   const Registry = createRegistry(Scheduler, Bus), Targeting = createTargeting();
   initSpaUrlDetector(createDebounced(() => { Registry.prune(); Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }, 150));
-
-  function showScreenshotFlash(video) { const parent = video.parentElement; if (!parent) return; const flash = document.createElement('div'); flash.style.cssText = 'position:absolute;inset:0;z-index:2147483647;background:rgba(255,255,255,0.6);pointer-events:none;transition:opacity 0.3s ease-out;opacity:1;'; if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative'; parent.appendChild(flash); requestAnimationFrame(() => { flash.style.opacity = '0'; setTimeout(() => flash.remove(), 400); }); }
 
   onPageReady(() => {
     __vscNs._timers = __vscNs._timers || [];
@@ -747,10 +761,8 @@ if (window.top === window && typeof GM_registerMenuCommand === 'function') {
     Features.register(createPipelineFeature(Store, Registry, Adapter, ApplyReq, Targeting, videoParamsMemo));
     const audioFeat = createAudioFeature(Store); Features.register(audioFeat);
     const zoomFeat = createZoomFeature(Store, CONFIG.P); Features.register(zoomFeat);
-    // Bootstrap 영역 하단 Features 등록 부분
-    const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, CONFIG.P); // 끝에 있던 Bus 인자 제거
-Features.register(uiFeat);
-    Features.register(createTimerFeature()); Features.register(createABLoopFeature());
+    const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, CONFIG.P); Features.register(uiFeat);
+    Features.register(createTimerFeature());
 
     __vscNs.Features = Features; __vscNs.ZoomManager = zoomFeat; __vscNs.AudioWarmup = audioFeat.warmup;
     __vscNs.AudioSetTarget = (v) => safe(() => Bus.emit('target:changed', { video: v, prev: null }));
@@ -767,20 +779,6 @@ Features.register(uiFeat);
     __VSC_APP__ = createAppController({ Store, Registry, Scheduler, Features, P: CONFIG.P, Targeting, Bus });
     __vscNs.App = __VSC_APP__; ApplyReq.hard();
 
-    const SHORTCUT_MAP = new Map([
-      ['KeyV', { needsAct: false, handler: () => { Store.set(CONFIG.P.APP_UI, !Store.get(CONFIG.P.APP_UI)); ApplyReq.hard(); } }],
-      ['KeyD', { needsAct: true, handler: () => { const presets = ['off', 'Soft', 'Medium', 'Ultra', 'Master'], cur = Store.get(CONFIG.P.V_PRE_S), n = presets[(presets.indexOf(cur) + 1) % presets.length]; Store.set(CONFIG.P.V_PRE_S, n); ApplyReq.hard(); showToast(`선명: ${n}`); } }],
-      ['KeyB', { needsAct: true, handler: () => { const cur = Number(Store.get(CONFIG.P.V_BRIGHT_LV)) || 0, n = (cur + 1) % 6; Store.set(CONFIG.P.V_BRIGHT_LV, n); ApplyReq.hard(); showToast(`밝기: ${n === 0 ? 'OFF' : n}`); } }],
-      ['BracketRight', { needsAct: true, handler: () => { const cur = Number(Store.get(CONFIG.P.PB_RATE)) || 1.0, n = Math.min(16, Math.round((cur + 0.05) * 100) / 100); Store.set(CONFIG.P.PB_RATE, n); Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); showToast(`배속: ${n.toFixed(2)}x`); } }],
-      ['BracketLeft', { needsAct: true, handler: () => { const cur = Number(Store.get(CONFIG.P.PB_RATE)) || 1.0, n = Math.max(0.1, Math.round((cur - 0.05) * 100) / 100); Store.set(CONFIG.P.PB_RATE, n); Store.set(CONFIG.P.PB_EN, true); ApplyReq.hard(); showToast(`배속: ${n.toFixed(2)}x`); } }],
-      ['Backslash', { needsAct: false, handler: () => { Store.batch('playback', { rate: 1.0, enabled: false }); ApplyReq.hard(); showToast('배속 리셋 (1.0x)'); } }],
-      ['KeyA', { needsAct: true, handler: () => Features.get('abLoop')?.toggle?.() }],
-      ['Period', { needsAct: true, handler: () => { const v = __VSC_APP__?.getActiveVideo(); if (!v) return; v.pause(); v.currentTime = Math.min(v.duration - 0.01, v.currentTime + 1 / 30); showToast('\u25B6| +1 프레임'); } }],
-      ['Comma', { needsAct: true, handler: () => { const v = __VSC_APP__?.getActiveVideo(); if (!v) return; v.pause(); v.currentTime = Math.max(0, v.currentTime - 1 / 30); showToast('|\u25C0 -1 프레임'); } }],
-      ['KeyS', { needsAct: true, handler: () => { const video = __VSC_APP__?.getActiveVideo(); if (!video || video.readyState < 2) return; const canvas = document.createElement('canvas'), vw = video.videoWidth, vh = video.videoHeight; if (!vw || !vh) return; canvas.width = vw; canvas.height = vh; canvas.getContext('2d').drawImage(video, 0, 0, vw, vh); canvas.toBlob((blob) => { if (!blob) return; const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19), domain = location.hostname.replace(/\./g, '_'); a.download = `vsc_${domain}_${Store.get(CONFIG.P.V_PRE_S) || 'off'}_b${Store.get(CONFIG.P.V_BRIGHT_LV) || 0}_${ts}.png`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 5000); showScreenshotFlash(video); }, 'image/png'); } }]
-    ]);
-
-    on(window, 'keydown', async (e) => { const isEditable = (el) => { if (!el) return false; const tag = el.tagName; return tag === 'INPUT' || tag === 'TEXTAREA' || el.isContentEditable; }; if (isEditable(e.target) || !e.altKey || !e.shiftKey) return; const entry = SHORTCUT_MAP.get(e.code); if (!entry) return; e.preventDefault(); e.stopPropagation(); if (entry.needsAct && !Store.get(CONFIG.P.APP_ACT)) return; try { await entry.handler(); } catch (_) {} }, { capture: true });
     on(document, 'visibilitychange', () => { if (document.visibilityState === 'visible') ApplyReq.hard(); }, OPT_P);
     window.addEventListener('beforeunload', () => __VSC_APP__?.destroy(), { once: true });
   });
