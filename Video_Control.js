@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v188.6 - Final Light)
+// @name         Video_Control (v188.7 - Final Light)
 // @namespace    https://github.com/
-// @version      188.6
+// @version      188.7
 // @description  Deep optimized: Hybrid filter, strict shadow polling, history fallback, audio fixed. (Bugfixed)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '188.6';
+  const SCRIPT_VERSION = '188.7';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -170,29 +170,41 @@ function VSC_MAIN() {
   function createDebounced(fn, ms = 250) { let t = null; return (...args) => { if (t !== null) clearTimeout(t); t = setTimeout(() => { t = null; fn(...args); }, ms); }; }
 
   /* ── SPA URL Detector (History Fallback Included) ────────────── */
-  function initSpaUrlDetector(onChanged) {
-    try { __vscNs._spaDetector?.destroy?.(); } catch (_) {}
-    const ac = new AbortController(), sig = combineSignals(ac.signal, __globalSig);
-    let lastHref = location.href, pollId = 0;
-    const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
+function initSpaUrlDetector(onChanged) {
+  try { __vscNs._spaDetector?.destroy?.(); } catch (_) {}
+  const ac = new AbortController(), sig = combineSignals(ac.signal, __globalSig);
+  let lastHref = location.href, pollId = 0;
+  const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
 
-    if (window.navigation && typeof window.navigation.addEventListener === 'function') {
-      window.navigation.addEventListener('navigatesuccess', emitIfChanged, { signal: sig });
-    } else {
-      for (const method of ['pushState', 'replaceState']) {
-        const orig = history[method];
-        if (typeof orig === 'function' && !orig.__vsc_patched) {
-          history[method] = function(...args) { const res = orig.apply(this, args); queueMicrotask(emitIfChanged); return res; };
-          history[method].__vsc_patched = true;
-        }
+  const origHistory = {}; // 원본 함수 저장을 위한 객체 추가
+
+  if (window.navigation && typeof window.navigation.addEventListener === 'function') {
+    window.navigation.addEventListener('navigatesuccess', emitIfChanged, { signal: sig });
+  } else {
+    for (const method of ['pushState', 'replaceState']) {
+      const orig = history[method];
+      if (typeof orig === 'function' && !orig.__vsc_patched) {
+        origHistory[method] = orig; // 원본 저장
+        history[method] = function(...args) { const res = orig.apply(this, args); queueMicrotask(emitIfChanged); return res; };
+        history[method].__vsc_patched = true;
       }
-      pollId = setInterval(emitIfChanged, 1000);
-      if (__vscNs._intervals) __vscNs._intervals.push(pollId);
     }
-    on(window, 'popstate', emitIfChanged, { passive: true, signal: sig });
-    const destroy = () => { ac.abort(); if (pollId) clearInterval(pollId); };
-    __vscNs._spaDetector = { destroy }; return __vscNs._spaDetector;
+    pollId = setInterval(emitIfChanged, 1000);
+    if (__vscNs._intervals) __vscNs._intervals.push(pollId);
   }
+  on(window, 'popstate', emitIfChanged, { passive: true, signal: sig });
+  
+  const destroy = () => { 
+    ac.abort(); if (pollId) clearInterval(pollId); 
+    // 패치된 history 함수 원상 복구 로직 추가
+    for (const [method, orig] of Object.entries(origHistory)) {
+      if (history[method]?.__vsc_patched) {
+        history[method] = orig;
+      }
+    }
+  };
+  __vscNs._spaDetector = { destroy }; return __vscNs._spaDetector;
+}
 
   /* ── DOM Utilities ───────────────────────────────────────────── */
   function createUtils() {
@@ -704,11 +716,19 @@ function VSC_MAIN() {
   const ApplyReq = Object.freeze({ soft: () => Scheduler.request(false), hard: () => Scheduler.request(true) });
   __vscNs.Store = Store; __vscNs.ApplyReq = ApplyReq;
 
-  if (window.top === window && typeof GM_registerMenuCommand === 'function') {
-    const reg = (title, fn) => { const id = GM_registerMenuCommand(title, fn); if (__vscNs._menuIds) __vscNs._menuIds.push(id); };
-    reg('\u2328\uFE0F 단축키 안내', () => { alert(['[Alt+Shift 조합]', 'V: UI 열기/닫기', 'D/B: 선명/밝기', 'S: 스크린샷', 'A: 구간반복', '[/]: 배속조절', '\\: 배속 리셋', '</>: 프레임 이동'].join('\n')); });
-    reg('\uD83D\uDD04 설정 초기화 (Reset All)', () => { if (confirm('모든 설정을 초기화할까요?')) { const key = 'vsc_prefs_' + location.hostname; if (typeof GM_deleteValue === 'function') GM_deleteValue(key); localStorage.removeItem(key); location.reload(); } });
-  }
+  // Bootstrap 영역 하단 GM_registerMenuCommand 부분
+if (window.top === window && typeof GM_registerMenuCommand === 'function') {
+  const reg = (title, fn) => { const id = GM_registerMenuCommand(title, fn); if (__vscNs._menuIds) __vscNs._menuIds.push(id); };
+  reg('\u2328\uFE0F 단축키 안내', () => { alert(['[Alt+Shift 조합]', 'V: UI 열기/닫기', 'D/B: 선명/밝기', 'S: 스크린샷', 'A: 구간반복', '[/]: 배속조절', '\\: 배속 리셋', '</>: 프레임 이동'].join('\n')); });
+  reg('\uD83D\uDD04 설정 초기화 (Reset All)', () => { 
+    if (confirm('모든 설정을 초기화할까요?')) { 
+      const key = 'vsc_prefs_' + location.hostname; 
+      try { if (typeof GM_deleteValue === 'function') GM_deleteValue(key); } catch (_) {}
+      try { localStorage.removeItem(key); } catch (_) {}
+      location.reload(); 
+    } 
+  });
+}
 
   const Registry = createRegistry(Scheduler, Bus), Targeting = createTargeting();
   initSpaUrlDetector(createDebounced(() => { Registry.prune(); Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }, 150));
@@ -727,7 +747,9 @@ function VSC_MAIN() {
     Features.register(createPipelineFeature(Store, Registry, Adapter, ApplyReq, Targeting, videoParamsMemo));
     const audioFeat = createAudioFeature(Store); Features.register(audioFeat);
     const zoomFeat = createZoomFeature(Store, CONFIG.P); Features.register(zoomFeat);
-    const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, CONFIG.P, Bus); Features.register(uiFeat);
+    // Bootstrap 영역 하단 Features 등록 부분
+    const uiFeat = createUIFeature(Store, Registry, ApplyReq, Utils, CONFIG.P); // 끝에 있던 Bus 인자 제거
+Features.register(uiFeat);
     Features.register(createTimerFeature()); Features.register(createABLoopFeature());
 
     __vscNs.Features = Features; __vscNs.ZoomManager = zoomFeat; __vscNs.AudioWarmup = audioFeat.warmup;
