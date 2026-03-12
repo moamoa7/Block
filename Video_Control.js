@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v186.20 - Final Patched)
+// @name         Video_Control (v186.21 - Final Patched)
 // @namespace    https://github.com/
-// @version      186.20
-// @description  Optimized WorkQ, Zero-leak Signals, Pure Audio Path, Toast/AB-Loop Integrated.
+// @version      186.21
+// @description  Optimized WorkQ, Zero-leak Signals, Pure Audio Path with Post-Limiter Boost, Toast/AB-Loop Integrated.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '186.20';
+  const SCRIPT_VERSION = '186.21';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -1226,10 +1226,11 @@ function VSC_MAIN() {
     const compressor = mkComp(audioCtx)(-18.0, 12.0, 3.0, 0.020, 0.200);
     const limiter = mkComp(audioCtx)(-1.0, 1.0, 20.0, 0.001, 0.100);
     n.makeupGain = audioCtx.createGain(); n.makeupGain.gain.value = 1.0;
+    n.boostGain = audioCtx.createGain(); n.boostGain.gain.value = 1.0;
 
     n.inputGain.connect(n.dryGain); n.dryGain.connect(n.masterOut);
     chain(n.inputGain, stereoWidener.input);
-    chain(stereoWidener.output, compressor, n.makeupGain, limiter, n.wetGain, n.masterOut);
+    chain(stereoWidener.output, compressor, n.makeupGain, limiter, n.boostGain, n.wetGain, n.masterOut);
     n.masterOut.connect(audioCtx.destination);
 
     n._stereoWidener = stereoWidener;
@@ -1297,15 +1298,23 @@ function VSC_MAIN() {
       if (_activePauseAC) { _activePauseAC.abort(); _activePauseAC = null; }
       const dynAct = !!(sm.get(CONFIG.P.A_EN) && sm.get(CONFIG.P.APP_ACT)); if (!dynAct) return;
       const actuallyEnabled = dynAct && currentSrc;
+
       if (currentSrc && currentNodes) {
         const stereoWideningOn = !!sm.get(CONFIG.P.A_STEREO_W);
         if (currentNodes._stereoWidener) { currentNodes._stereoWidener.setEnabled(dynAct && stereoWideningOn, currentNodes._paramCache, ctx.currentTime); }
-        if (makeupGain && currentNodes._paramCache) {
-          const boostLevel = Number(sm.get(CONFIG.P.A_BST)) || 0;
-          const finalGain = actuallyEnabled ? VSC_CLAMP(1.30 + (boostLevel / 12) * 0.60, 1.0, 2.0) : 1.0;
-          currentNodes._paramCache.sttIfChanged(makeupGain.gain, 'makeupGain', finalGain, ctx.currentTime, 0.05);
+
+        if (currentNodes._paramCache) {
+          if (makeupGain) {
+            currentNodes._paramCache.sttIfChanged(makeupGain.gain, 'makeupGain', actuallyEnabled ? 1.30 : 1.0, ctx.currentTime, 0.05);
+          }
+          if (currentNodes.boostGain) {
+            const boostLevel = Number(sm.get(CONFIG.P.A_BST)) || 0;
+            const boostLinear = actuallyEnabled ? Math.pow(10, boostLevel / 20) : 1.0;
+            currentNodes._paramCache.sttIfChanged(currentNodes.boostGain.gain, 'boostGain', boostLinear, ctx.currentTime, 0.05);
+          }
         }
       }
+
       const isPaused = target && (target.paused || target.ended);
       if (document.hidden) { audioLoopTimerId = setTimeout(() => runAudioLoop(tok), 500); }
       else if (isPaused) {
@@ -1943,7 +1952,7 @@ function VSC_MAIN() {
 
     const build = () => {
       if (container) return; const host = h('div', { id: `vsc-host-${getNS()?.CONFIG?.VSC_ID || 'core'}`, 'data-vsc-ui': '1', 'data-vsc-id': getNS()?.CONFIG?.VSC_ID }); const shadow = host.attachShadow({ mode: 'open' });
-      const style = `@property --vsc-vv-top { syntax: "<length>"; inherits: true; initial-value: 0px; } @property --vsc-vv-h { syntax: "<length>"; inherits: true; initial-value: 100vh; } :host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px;--vsc-ui-rot:0deg;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2));right:var(--vsc-safe-right);transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg));width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:85vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:50%!important;right:var(--vsc-safe-right)!important;left:auto!important;transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg))!important;width:260px!important;max-height:70vh!important;padding:10px;border-radius:12px;overflow-y:auto}.main::-webkit-scrollbar{width:3px}.main::-webkit-scrollbar-thumb{background:#666;border-radius:10px}.prow{gap:3px;flex-wrap:nowrap;justify-content:center}.btn,.pbtn{min-height:34px;font-size:10.5px;padding:4px 1px;letter-spacing:-0.8px;white-space:nowrap}.header{font-size:12px;padding-bottom:5px}} .header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active,.pbtn.active{background:var(--btn-bg);border-color:var(--ac);color:var(--ac)}.btn.fill-active.active{background:var(--ac);border-color:var(--ac);color:#fff}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}`;
+      const style = `@property --vsc-vv-top { syntax: "<length>"; inherits: true; initial-value: 0px; } @property --vsc-vv-h { syntax: "<length>"; inherits: true; initial-value: 100vh; } :host{--bg:rgba(25,25,25,.96);--c:#eee;--b:1px solid #666;--btn-bg:#222;--ac:#3498db;--br:12px;--vsc-ui-rot:0deg;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}.main{position:fixed;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2));right:var(--vsc-safe-right);transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg));width:min(320px,calc(100vw - 24px));background:var(--bg);backdrop-filter:blur(12px);color:var(--c);padding:15px;border-radius:16px;z-index:2147483647;border:1px solid #555;font-family:sans-serif;box-shadow:0 12px 48px rgba(0,0,0,.7);overflow-y:auto;max-height:95vh;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;display:none;content-visibility:auto;contain-intrinsic-size:320px 400px}.main.visible{display:block;content-visibility:visible}@supports not ((backdrop-filter:blur(12px)) or (-webkit-backdrop-filter:blur(12px))){.main{background:rgba(25,25,25,.985)}}@media(max-width:520px){.main{top:50%!important;right:var(--vsc-safe-right)!important;left:auto!important;transform:translateY(-50%) rotate(var(--vsc-ui-rot,0deg))!important;width:260px!important;max-height:70vh!important;padding:10px;border-radius:12px;overflow-y:auto}.main::-webkit-scrollbar{width:3px}.main::-webkit-scrollbar-thumb{background:#666;border-radius:10px}.prow{gap:3px;flex-wrap:nowrap;justify-content:center}.btn,.pbtn{min-height:34px;font-size:10.5px;padding:4px 1px;letter-spacing:-0.8px;white-space:nowrap}.header{font-size:12px;padding-bottom:5px}} .header{display:flex;justify-content:center;margin-bottom:12px;cursor:move;border-bottom:2px solid #444;padding-bottom:8px;font-size:14px;font-weight:700}.body{display:flex;flex-direction:column;gap:10px}.row{display:flex;align-items:center;justify-content:space-between;gap:10px}.btn{flex:1;border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 0;border-radius:var(--br);cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center}.btn.warn{background:#8e44ad;border-color:#8e44ad}.prow{display:flex;gap:6px;align-items:center}.pbtn{border:var(--b);background:var(--btn-bg);color:var(--c);padding:10px 6px;border-radius:var(--br);cursor:pointer;font-weight:700}.btn.active,.pbtn.active{background:var(--btn-bg);border-color:var(--ac);color:var(--ac)}.btn.fill-active.active{background:var(--ac);border-color:var(--ac);color:#fff}.lab{font-size:12px;font-weight:700}.val{font-size:12px;opacity:.9}.small{font-size:11px;opacity:.75}hr{border:0;border-top:1px solid rgba(255,255,255,.14);margin:8px 0}`;
       attachShadowStyles(shadow, style);
       const dragHandle = h('div', { class: 'header', title: '\uB354\uBE14\uD074\uB9AD \uC2DC \uD1B5\uB2C8\uBC14\uD034 \uC606\uC73C\uB85C \uBCF5\uADC0' }, 'VSC 렌더링 제어');
 
