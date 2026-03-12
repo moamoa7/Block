@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.1.0
+// @version      4.3.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.1.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.3.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -35,8 +35,11 @@
         SPIKE_THRESHOLD_MS: 2000,
         SPIKE_COOLDOWN_MS: 1000,
         STALL_THRESHOLD: 3,
-        VIDEO_SEARCH_EVERY: 25,
+        VIDEO_SEARCH_EVERY: 50,
         FRAME_CHECK_EVERY: 25,
+        WARMUP_MS: 3000,
+        WARMUP_MIN_BUFFER_SEC: 1.0,
+        WARMUP_MIN_READY_STATE: 3,
     });
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
@@ -140,6 +143,10 @@
     let rateProtectTimer = null;
     let els = {};
 
+    /* ── 웜업 상태 ── */
+    let warmupStartTime = 0;
+    let warmupDone = false;
+
     /* ── rVFC 확장용 상태 ── */
     let lastPresentedFrames = 0;
     let estimatedFps = 30;
@@ -216,6 +223,12 @@
         setTimeout(() => { if (el.isConnected) el.style[prop] = ''; }, duration);
     }
 
+    /* ── blob URL 판별 ── */
+    function isBlobSrc(v) {
+        const src = v.currentSrc || v.src || '';
+        return src.startsWith('blob:');
+    }
+
     /* ── buffered 안전 접근 ── */
     function getBufferEdge(buf) {
         if (!buf || buf.length === 0) return null;
@@ -230,8 +243,12 @@
 
     /* ── 라이브 판별 ── */
     function isLiveStream(v) {
+        /* blob이 아니면 라이브 스트림이 아님 (MSE 기반 플랫폼 전용) */
+        if (!isBlobSrc(v)) return false;
+
         if (v.duration === Infinity) return true;
-        if (Number.isNaN(v.duration) || v.duration === 0) return false;
+        /* blob URL이면 duration이 아직 설정되지 않은 초기 상태도 라이브로 간주 */
+        if (Number.isNaN(v.duration) || v.duration === 0) return true;
         if (v.duration >= 1e6) return true;
         if (v.buffered.length > 0) {
             const bufEnd = v.buffered.end(v.buffered.length - 1);
@@ -239,6 +256,31 @@
             if (bufEnd > v.currentTime + 1) return true;
         }
         return false;
+    }
+
+    /* ── 웜업 판별 ── */
+    function isWarmedUp() {
+        if (warmupDone) return true;
+        const now = performance.now();
+
+        /* 시간 조건: 비디오 발견 후 최소 대기 */
+        if (now - warmupStartTime < TUNING.WARMUP_MS) return false;
+
+        /* readyState 조건: 충분히 데이터가 있는지 */
+        if (!video || video.readyState < TUNING.WARMUP_MIN_READY_STATE) return false;
+
+        /* 버퍼 조건: 최소한의 버퍼가 쌓였는지 */
+        const edge = getBufferEdge(video.buffered);
+        if (!edge) return false;
+        const bufferedAhead = edge.end - video.currentTime;
+        if (bufferedAhead < TUNING.WARMUP_MIN_BUFFER_SEC) return false;
+
+        /* 재생 중인지 (paused 상태면 아직 준비 안 됨) */
+        if (video.paused) return false;
+
+        warmupDone = true;
+        console.debug(`[딜레이미터] 웜업 완료 (${(now - warmupStartTime).toFixed(0)}ms, buf:${bufferedAhead.toFixed(2)}s, readyState:${video.readyState})`);
+        return true;
     }
 
     /* ── 프레임 콜백 (rVFC) ── */
@@ -316,7 +358,6 @@
         return clamp(currentSmoothedRate, TUNING.MIN_RATE, dynamicMaxRate);
     }
 
-    /* ── [수정] setRate — isSettingRate를 마이크로태스크에서 해제 ── */
     function setRate(rate) {
         if (!video || video.paused) return;
         if (rate !== 1.0 && video.readyState < 3) return;
@@ -336,11 +377,12 @@
 
     function getAdaptiveInterval() {
         if (!isEnabled) return 500;
+        if (!warmupDone) return 500;
         if (Math.abs(currentSmoothedRate - 1.0) < 0.005) return 400;
         return TUNING.CHECK_INTERVAL;
     }
 
-    /* ── [수정] 외부 배속 변경 감지 — 실제 복원 로직 추가 ── */
+    /* ── 외부 배속 변경 감지 ── */
     function onExternalRateChange() {
         if (isSettingRate || settingRateCountdown > 0) return;
         if (!video) return;
@@ -399,10 +441,15 @@
         skipReason = INITIAL_STATE.skipReason;
         frameCheckCounter = INITIAL_STATE.frameCheckCounter;
         delayHistory.clear();
+        warmupDone = false;
+        warmupStartTime = performance.now();
     }
 
     /* ── video 관리 ── */
     function onVideoFound(v) {
+        /* blob이 아닌 video는 추적 대상에서 제외 (MSE 라이브 스트림만 대상) */
+        if (!isBlobSrc(v)) return;
+
         const src = v.currentSrc || v.src || '';
         if (video === v && src === lastVideoSrc) return;
 
@@ -411,6 +458,8 @@
         }
         video = v;
         lastVideoSrc = src;
+        warmupStartTime = performance.now();
+        warmupDone = false;
         startFrameCallback(video);
         resetState();
         hasPlaybackQuality = !!v.getVideoPlaybackQuality;
@@ -424,7 +473,7 @@
         }
         v.removeEventListener('ratechange', onExternalRateChange);
         v.addEventListener('ratechange', onExternalRateChange);
-        setRate(1.0);
+        console.debug(`[딜레이미터] video 발견 (blob src: ${src.slice(0, 40)}...)`);
     }
 
     function checkUrlChange() {
@@ -432,7 +481,6 @@
         if (cur === lastPath) return;
         lastPath = cur;
         resetState();
-        if (video) setRate(1.0);
     }
 
     /* ── MutationObserver video 탐색 ── */
@@ -441,7 +489,7 @@
     function setupVideoObserver() {
         if (videoObserver) return;
         videoObserver = new MutationObserver((mutations) => {
-            if (video?.isConnected) return;
+            if (video?.isConnected && isBlobSrc(video)) return;
             for (const mut of mutations) {
                 for (const node of mut.addedNodes) {
                     if (node.nodeName === 'VIDEO') {
@@ -458,7 +506,7 @@
         videoObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    /* ── [수정] seekToTarget — 이전 AbortController 정리 ── */
+    /* ── seekToTarget ── */
     function seekToTarget(bufStart, bufEnd) {
         if (seekAc) {
             seekAc.abort();
@@ -489,6 +537,7 @@
     function getStatusIndicator(avg, rate) {
         const delta = avg - prevAvg;
         prevAvg = avg;
+        if (!warmupDone) return ' ⏳';
         if (!isEnabled) return ' ⏹';
         if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return ' ✓';
         if (Math.abs(delta) < 30) return ' →';
@@ -594,7 +643,7 @@
 
         const panel = document.getElementById('dm-panel');
         if (panel) {
-            const overThreshold = avgMs > targetDelayMs * 2 && isEnabled;
+            const overThreshold = avgMs > targetDelayMs * 2 && isEnabled && warmupDone;
             panel.classList.toggle('dm-warning', overThreshold);
         }
 
@@ -635,7 +684,8 @@
                 const q = hasPlaybackQuality ? video.getVideoPlaybackQuality() : null;
                 const dropInfo = q ? ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}` : '';
                 const skip = skipReason ? ` [${skipReason}]` : '';
-                setDisplay('dbg', `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} fps:${estimatedFps}${dropInfo}${skip}`);
+                const wu = warmupDone ? '' : ' [WARMUP]';
+                setDisplay('dbg', `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} fps:${estimatedFps}${dropInfo}${skip}${wu}`);
             }
         }
 
@@ -676,7 +726,7 @@
         delayHistory.clear();
         currentSmoothedRate = 1.0;
         lastSetRate = -1;
-        setRate(1.0);
+        if (warmupDone) setRate(1.0);
         if (els.targetIn) els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
         saveConfig({ targetDelayMs });
         updateTargetMark();
@@ -698,6 +748,21 @@
     /* ── 핵심 루프 ── */
     function processLiveVideo() {
         const now = performance.now();
+
+        /* ── 웜업 체크: 아직 준비 안 됐으면 관측만 ── */
+        if (!isWarmedUp()) {
+            const edge = getBufferEdge(video.buffered);
+            if (edge) {
+                const rawDelay = (edge.end - video.currentTime) * 1000;
+                const delayMs = Math.max(0, rawDelay + PLATFORM_OFFSET);
+                updateDisplay(delayMs, edge.end);
+            } else {
+                updateDisplay(0);
+            }
+            skipReason = 'WARMUP';
+            return;
+        }
+
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
         const edge = getBufferEdge(video.buffered);
@@ -759,7 +824,6 @@
         setRate(smoothRate(computeDesiredRate(avg)));
     }
 
-    /* ── [수정] tick — settingRateCountdown만 감소, isSettingRate는 setRate에서 관리 ── */
     function tick() {
         try {
             checkUrlChange();
@@ -1099,6 +1163,13 @@
     function init() {
         createPanel();
         setupVideoObserver();
+
+        /* ★ play 이벤트 캡처로 video 즉시 감지 (MutationObserver + 폴링 사이의 빈틈 보완) */
+        document.addEventListener('play', e => {
+            const v = e.target;
+            if (v?.tagName === 'VIDEO') onVideoFound(v);
+        }, true);
+
         const v = document.querySelector('video');
         if (v) onVideoFound(v);
         scheduleTick();
@@ -1110,7 +1181,7 @@
             requestAnimationFrame(clampPanelPosition);
         });
 
-        /* ── 탭 복귀 즉시 seek ── */
+        /* ── 탭 복귀 ── */
         document.addEventListener('visibilitychange', () => {
             nextTickTime = 0;
             if (document.visibilityState === 'visible') {
@@ -1118,7 +1189,8 @@
                 tickGeneration++;
                 clearTimeout(intervalId);
 
-                if (isEnabled && video?.isConnected && video.buffered.length > 0) {
+                /* 탭 복귀 시에도 웜업 완료 후에만 seek */
+                if (isEnabled && warmupDone && video?.isConnected && video.buffered.length > 0) {
                     const edge = getBufferEdge(video.buffered);
                     if (edge) {
                         const delay = (edge.end - video.currentTime) * 1000;
