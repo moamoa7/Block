@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.7.0
+// @version      5.8.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -42,17 +42,13 @@
     const PLATFORM_OFFSET = IS_CHZZK ? 500 : 0;
     const RECOMMENDED_PRESETS = IS_CHZZK ? [2, 3] : [4, 5];
 
-    const DEFAULTS = {
-        TARGET_DELAY_MS: IS_CHZZK ? 2000 : 4000,
-        IS_ENABLED: true,
-    };
-
     const STORAGE_KEY = 'delay_meter_config_v3';
     const MAX_TARGET_MS = 8000;
     const DEFAULT_POS = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
     const COLLAPSED_KEYS = new Set(['mini', 'mc', 'mb', 'mbd', 'title']);
     const DASH_ON = [3, 3];
     const DASH_OFF = [];
+    const SI_WARMUP = ' ⏳', SI_STOP = ' ⏹', SI_OK = ' ✓', SI_FLAT = ' →', SI_UP = ' ↑', SI_DOWN = ' ↓';
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -167,7 +163,6 @@
     const _observed = new WeakSet();
 
     /* ── 상태 ── */
-    const saved = loadConfig();
     let video = null;
     let lastVideoSrc = '';
     let intervalId = null;
@@ -178,9 +173,9 @@
     let lastSetRate = -1;
     let lastRateStr = '1.000x';
     let lastRenderedMediaTime = 0;
-    let targetDelayMs = saved.targetDelayMs ?? DEFAULTS.TARGET_DELAY_MS;
+    let targetDelayMs = loadConfig().targetDelayMs ?? (IS_CHZZK ? 2000 : 4000);
     let seekThresholdMs = calcSeekThreshold(targetDelayMs);
-    let isEnabled = saved.isEnabled ?? DEFAULTS.IS_ENABLED;
+    let isEnabled = loadConfig().isEnabled ?? true;
     let prevAvg = 0;
     let lastSeekTime = 0;
     let lastSpikeTime = 0;
@@ -349,6 +344,7 @@
         delayHistory.clear();
         currentSmoothedRate = 1.0;
         lastSetRate = -1;
+        lastRateStr = '1.000x';
         stableTickCount = 0;
         stableEntryTime = 0;
     }
@@ -528,11 +524,10 @@
             if (!ac.signal.aborted) ac.abort();
         }, 5000);
 
-        const expectedTime = seekTo;
         video.addEventListener('seeked', () => {
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
             if (ac.signal.aborted) return;
-            if (Math.abs(video.currentTime - expectedTime) > 2) return;
+            if (Math.abs(video.currentTime - seekTo) > 2) return;
             const postCheck = setTimeout(() => {
                 if (!video?.isConnected) return;
                 const edge = getBufferEdge(video.buffered);
@@ -550,14 +545,14 @@
     function getStatusIndicator(avg, rate) {
         const delta = avg - prevAvg;
         prevAvg = avg;
-        if (!warmupDone) return ' ⏳';
-        if (!isEnabled) return ' ⏹';
-        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return ' ✓';
-        return Math.abs(delta) < 80 ? ' →' : (delta > 0 ? ' ↑' : ' ↓');
+        if (!warmupDone) return SI_WARMUP;
+        if (!isEnabled) return SI_STOP;
+        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return SI_OK;
+        return Math.abs(delta) < 80 ? SI_FLAT : (delta > 0 ? SI_UP : SI_DOWN);
     }
 
     function flashSeekIndicator() {
-        flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 800);
+        flashStyle(els.delayVal, 'textShadow', '0 0 8px #3498db', 800);
     }
 
     function flashToggleState() {
@@ -621,7 +616,7 @@
     let graphCtx = null;
 
     function drawGraph() {
-        if (!graphCanvas || !graphCtx || !debugVisible || !graphHistory) return;
+        if (!graphCanvas || !graphCtx || !graphHistory) return;
         const n = graphHistory.length;
         if (n < 2) return;
 
@@ -683,7 +678,7 @@
             setDisplay('mini', sec.toFixed(1) + 's' + miniStatus + miniRate);
             setDisplay('mc', color);
             setDisplay('mb', color);
-            setDisplay('mbd', '');
+            setDisplay('mbd', 'block');
             setDisplay('title', `딜레이: ${sec.toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
@@ -717,7 +712,7 @@
         rafId = requestAnimationFrame(() => {
             rafId = null;
             flushDisplay();
-            drawGraph();
+            if (debugVisible) drawGraph();
         });
     }
 
@@ -944,14 +939,14 @@
                 .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
                     font-size:11px;font-weight:bold;transition:.1s}
                 .dm-btn:active{transform:scale(.95)}
-                .dm-controls{display:flex;flex-wrap:wrap;gap:4px}
+                .dm-controls{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
                 .dm-presets{display:flex;gap:3px}
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-presets .dm-btn:hover{background:#444}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
                     border-top:1px solid #2a2a2a;padding-top:5px;overflow-wrap:break-word;word-break:normal}
                 .dm-minibar{position:absolute;bottom:0;left:0;right:0;height:2px;
-                    border-radius:0 0 1px 1px;display:none}
+                    border-radius:0 0 11px 11px;display:none}
             }
         `);
 
@@ -984,14 +979,15 @@
             </div>`;
         document.body.appendChild(panel);
 
-        const q = s => panel.querySelector(`[data-dm="${s}"]`);
+        const map = {};
+        for (const el of panel.querySelectorAll('[data-dm]')) map[el.dataset.dm] = el;
         els = {
             panel: panel,
-            delayVal: q('delay'), rateVal: q('rate'), barFill: q('bar'),
-            rateBar: q('ratebar'), targetMark: q('targetmark'), seekMark: q('seekmark'),
-            toggleBtn: q('toggle'), syncBtn: q('sync'), targetIn: q('target'),
-            header: q('header'), debugVal: q('debug'), mini: q('mini'),
-            ver: q('ver'), collapseBtn: q('collapse'), miniBar: q('minibar'),
+            delayVal: map.delay, rateVal: map.rate, barFill: map.bar,
+            rateBar: map.ratebar, targetMark: map.targetmark, seekMark: map.seekmark,
+            toggleBtn: map.toggle, syncBtn: map.sync, targetIn: map.target,
+            header: map.header, debugVal: map.debug, mini: map.mini,
+            ver: map.ver, collapseBtn: map.collapse, miniBar: map.minibar,
         };
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
 
@@ -1001,6 +997,13 @@
         els.delayVal.onclick = () => {
             if (!doManualSync()) {
                 flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 400);
+            }
+        };
+
+        /* ── collapsed mini 클릭 SYNC ── */
+        els.mini.onclick = () => {
+            if (collapsed && !doManualSync()) {
+                flashStyle(els.mini, 'textShadow', '0 0 8px #e74c3c', 400);
             }
         };
 
@@ -1038,7 +1041,13 @@
         updateToggleBtnUI();
         els.toggleBtn.onclick = () => {
             isEnabled = !isEnabled;
-            if (isEnabled) { currentSmoothedRate = TUNING.HOLD_RATE; lastSetRate = -1; }
+            if (isEnabled) {
+                currentSmoothedRate = TUNING.HOLD_RATE;
+                lastSetRate = -1;
+            } else {
+                currentSmoothedRate = 1.0;
+                setRate(1.0);
+            }
             saveConfig({ isEnabled }); updateToggleBtnUI();
             flashToggleState();
         };
@@ -1066,7 +1075,7 @@
 
         /* ── 프리셋 ── */
         const PRESETS = [1, 2, 3, 4, 5];
-        const presetBox = q('presets');
+        const presetBox = map.presets;
         presetBtns = PRESETS.map(sec => {
             const btn = document.createElement('button');
             btn.className = 'dm-btn';
