@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      5.3.0
+// @version      5.4.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -112,11 +112,11 @@
         const R = { r: 0xe7, g: 0x4c, b: 0x3c };
         let lastInput = -1, lastResult = '#2ecc71';
         return (diff) => {
+            if (diff <= 0) return (lastResult = '#2ecc71');
             const rounded = (diff + 25) | 0;
             if (rounded === lastInput) return lastResult;
             lastInput = rounded;
             const ratio = clamp(diff / 2000, 0, 1);
-            if (ratio <= 0) return (lastResult = '#2ecc71');
             if (ratio >= 1) return (lastResult = '#e74c3c');
             return (lastResult = ratio <= 0.5
                 ? lerpRGB(G, Y, ratio * 2)
@@ -194,7 +194,6 @@
     let wasPaused = false;
     let collapsed = false;
     let skipReason = '';
-    let miniFlashUntil = 0;
     let rateProtectTimer = null;
     let stableTickCount = 0;
     let debugVisible = false;
@@ -329,8 +328,9 @@
             video.playbackRate = rounded;
             lastSetRate = rounded;
             lastRateStr = rounded.toFixed(3) + 'x';
-        } catch { /* */ }
-        finally {
+        } catch {
+            lastSetRate = -1;
+        } finally {
             isSettingRate = false;
         }
     }
@@ -339,6 +339,14 @@
         if (!isEnabled || !warmupDone) return 500;
         if (stableTickCount >= 10) return 600;
         return Math.abs(currentSmoothedRate - 1.0) < 0.005 ? 400 : TUNING.CHECK_INTERVAL;
+    }
+
+    /* ── soft reset ── */
+    function softReset() {
+        delayHistory.clear();
+        currentSmoothedRate = 1.0;
+        lastSetRate = -1;
+        stableTickCount = 0;
     }
 
     /* ── 외부 배속 변경 감지 ── */
@@ -519,7 +527,6 @@
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
             if (ac.signal.aborted) return;
             if (Math.abs(video.currentTime - expectedTime) > 2) return;
-            if (ac.signal.aborted) return;
             const postCheck = setTimeout(() => {
                 if (!video?.isConnected) return;
                 const edge = getBufferEdge(video.buffered);
@@ -549,7 +556,6 @@
 
     function flashToggleState() {
         if (!els.mini) return;
-        miniFlashUntil = performance.now() + 600;
         setDisplay('mini', isEnabled ? 'ON' : 'OFF');
         setDisplay('mc', isEnabled ? '#2ecc71' : '#e74c3c');
     }
@@ -588,11 +594,11 @@
     function flushDisplay() {
         if (!els.delayVal || dirtyChannels.size === 0) return;
         if (collapsed) {
-            if (dirtyChannels.has('mini')) displayApply.mini(displayState.mini);
-            if (dirtyChannels.has('mc')) displayApply.mc(displayState.mc);
-            if (dirtyChannels.has('mb')) displayApply.mb(displayState.mb);
-            if (dirtyChannels.has('mbd')) displayApply.mbd(displayState.mbd);
-            if (dirtyChannels.has('title')) displayApply.title(displayState.title);
+            for (const key of dirtyChannels) {
+                if (key === 'mini' || key === 'mc' || key === 'mb' || key === 'mbd' || key === 'title') {
+                    displayApply[key](displayState[key]);
+                }
+            }
         } else {
             for (const key of dirtyChannels) {
                 const fn = displayApply[key];
@@ -649,13 +655,12 @@
         if (collapsed) {
             const delta = avgMs - prevAvg;
             prevAvg = avgMs;
-            if (now >= miniFlashUntil) {
-                const miniStatus = warmupDone ? (Math.abs(delta) > 80 ? (delta > 0 ? '↑' : '↓') : '') : '⏳';
-                const miniRate = currentSmoothedRate > 1.005 ? (' ' + lastRateStr) : '';
-                setDisplay('mini', (avgMs / 1000).toFixed(1) + 's' + miniStatus + miniRate);
-                setDisplay('mc', computeColor(avgMs - targetDelayMs));
-            }
-            setDisplay('mb', computeColor(avgMs - targetDelayMs));
+            const color = computeColor(avgMs - targetDelayMs);
+            const miniStatus = warmupDone ? (Math.abs(delta) > 80 ? (delta > 0 ? '↑' : '↓') : '') : '⏳';
+            const miniRate = currentSmoothedRate > 1.005 ? (' ' + lastRateStr) : '';
+            setDisplay('mini', (avgMs / 1000).toFixed(1) + 's' + miniStatus + miniRate);
+            setDisplay('mc', color);
+            setDisplay('mb', color);
             setDisplay('mbd', '');
             setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
@@ -665,9 +670,7 @@
 
         const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
 
-        if (now >= miniFlashUntil) {
-            setDisplay('mini', '');
-        }
+        setDisplay('mini', '');
         setDisplay('mbd', 'none');
 
         setDisplay('d', (avgMs / 1000).toFixed(2) + 's' + statusIndicator);
@@ -722,10 +725,7 @@
     function applyTargetDelay(sec) {
         targetDelayMs = clamp(Math.round(sec * 1000), 500, MAX_TARGET_MS);
         seekThresholdMs = calcSeekThreshold(targetDelayMs);
-        delayHistory.clear();
-        currentSmoothedRate = 1.0;
-        lastSetRate = -1;
-        stableTickCount = 0;
+        softReset();
         if (warmupDone) setRate(1.0);
         if (els.targetIn) els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
         saveConfig({ targetDelayMs });
@@ -739,8 +739,7 @@
         const edge = getBufferEdge(video.buffered);
         if (!edge) return false;
         seekToTarget(edge.start, edge.end);
-        delayHistory.clear();
-        currentSmoothedRate = 1.0;
+        softReset();
         setRate(1.0);
         flashSeekIndicator();
         return true;
@@ -751,8 +750,8 @@
         const now = performance.now();
 
         if (!isWarmedUp()) {
-            const edge = (video.buffered.length > 0) ? _edgeResult : null;
-            if (edge && edge.end > 0) {
+            const edge = getBufferEdge(video.buffered);
+            if (edge) {
                 const rawDelay = (edge.end - video.currentTime) * 1000;
                 const delayMs = Math.max(0, rawDelay + PLATFORM_OFFSET);
                 updateDisplay(delayMs, edge.end, now);
@@ -791,8 +790,7 @@
                 lastSeekTime = now;
                 dmLog(`SEEK: ${delayMs.toFixed(0)}ms ct:${ct.toFixed(2)}→${Math.max(bufStart, bufEnd - targetDelayMs / 1000).toFixed(2)}`);
                 seekToTarget(bufStart, bufEnd);
-                delayHistory.clear();
-                currentSmoothedRate = 1.0;
+                softReset();
                 setRate(1.0);
                 flashSeekIndicator();
                 updateDisplay(targetDelayMs, bufEnd, now);
@@ -806,10 +804,7 @@
             && now - lastSpikeTime >= TUNING.SPIKE_COOLDOWN_MS) {
             skipReason = 'SPIKE';
             lastSpikeTime = now;
-            delayHistory.clear();
-            currentSmoothedRate = 1.0;
-            lastSetRate = -1;
-            stableTickCount = 0;
+            softReset();
             updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
             return;
         }
@@ -837,34 +832,30 @@
     }
 
     function tick() {
-        try {
-            checkUrlChange();
-            if (video && !video.isConnected) {
-                video.removeEventListener('ratechange', onExternalRateChange);
-                video = null;
-            }
-
-            if (!video) {
-                if (++videoSearchCounter % TUNING.VIDEO_SEARCH_EVERY === 0) {
-                    const v = document.querySelector('video');
-                    if (v) onVideoFound(v);
-                }
-                updateDisplay(0);
-                return;
-            }
-
-            const blobSrc = isBlobSrc(video);
-            if (!blobSrc || !isLiveStream(video)) {
-                skipReason = blobSrc ? 'VOD/AD' : 'NON-BLOB';
-                if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
-                updateDisplay(0);
-                return;
-            }
-
-            processLiveVideo();
-        } catch (e) {
-            console.warn('[딜레이미터]', e);
+        checkUrlChange();
+        if (video && !video.isConnected) {
+            video.removeEventListener('ratechange', onExternalRateChange);
+            video = null;
         }
+
+        if (!video) {
+            if (++videoSearchCounter % TUNING.VIDEO_SEARCH_EVERY === 0) {
+                const v = document.querySelector('video');
+                if (v) onVideoFound(v);
+            }
+            updateDisplay(0);
+            return;
+        }
+
+        const blobSrc = isBlobSrc(video);
+        if (!blobSrc || !isLiveStream(video)) {
+            skipReason = blobSrc ? 'VOD/AD' : 'NON-BLOB';
+            if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
+            updateDisplay(0);
+            return;
+        }
+
+        processLiveVideo();
     }
 
     /* ── drift 보정 스케줄러 ── */
@@ -905,9 +896,9 @@
                     padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
                     user-select:none;transition:filter .3s ease}
-                #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
-                    padding-bottom:6px;margin-bottom:8px;cursor:grab;
-                    display:flex;align-items:center;gap:6px}
+                #dm-panel [data-dm="header"]{position:relative;font-weight:bold;
+                    border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:8px;
+                    cursor:grab;display:flex;align-items:center;gap:6px}
                 .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
                 .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px}
                 .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
@@ -932,7 +923,8 @@
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
                     border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
-                .dm-minibar{height:2px;border-radius:1px;margin-top:4px;display:none}
+                .dm-minibar{position:absolute;bottom:0;left:0;right:0;height:2px;
+                    border-radius:0 0 1px 1px;display:none}
             }
         `);
 
@@ -942,8 +934,8 @@
             <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${VERSION}</span>
                 <span data-dm="mini" style="font-size:11px;font-family:monospace;font-weight:normal"></span>
                 <span data-dm="collapse" style="margin-left:auto;cursor:pointer;font-size:10px">▼</span>
+                <div data-dm="minibar" class="dm-minibar"></div>
             </div>
-            <div data-dm="minibar" class="dm-minibar"></div>
             <div class="dm-body">
                 <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val" style="cursor:pointer" title="클릭하여 동기화">-</span></div>
                 <div class="dm-bar-bg">
@@ -1060,14 +1052,27 @@
             btn.className = 'dm-btn';
             btn.textContent = sec + 's';
             btn.onclick = () => applyTargetDelay(sec);
+            btn.oncontextmenu = e => {
+                e.preventDefault();
+                applyTargetDelay(sec);
+                doManualSync();
+            };
             if (RECOMMENDED_PRESETS.includes(sec)) {
                 btn.style.borderBottom = '2px solid #2ecc71';
-                btn.title = '이 플랫폼 추천';
+                btn.title = '이 플랫폼 추천 (우클릭: 적용+동기화)';
+            } else {
+                btn.title = '우클릭: 적용+동기화';
             }
             presetBox.appendChild(btn);
             return { btn, sec };
         });
         updatePresetHL();
+
+        /* ── 플랫폼 뱃지 ── */
+        const badge = document.createElement('span');
+        badge.textContent = IS_CHZZK ? 'CHZZK' : 'SOOP';
+        badge.style.cssText = 'font-size:9px;opacity:.4;margin-left:4px';
+        presetBox.appendChild(badge);
 
         /* ── 미니 그래프 캔버스 ── */
         graphCanvas = document.createElement('canvas');
