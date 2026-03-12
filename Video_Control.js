@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v189.8 - Final Stable & Timer Fixed)
+// @name         Video_Control (v189.10 - Bulletproof Timer & Final Stable)
 // @namespace    https://github.com/
-// @version      189.8
-// @description  Perfected cache logic, Deep Shadow DOM detection, Quadratic warmup, Target:changed timer wake-up.
+// @version      189.10
+// @description  Bulletproof SOOP Timer (position: fixed + getUiRoot), Perfect cache, Deep Shadow DOM detection.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.8';
+  const SCRIPT_VERSION = '189.10';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -42,7 +42,7 @@ function VSC_MAIN() {
   const DISPOSERS = __vscNs._disposers || (__vscNs._disposers = new Set());
   function addDisposer(fn) { if (typeof fn === 'function' && !__vscNs.__destroying) DISPOSERS.add(fn); return fn; }
 
-  /* ── Shadow DOM Emitter (Restored for compat) ────────────────── */
+  /* ── Shadow DOM Emitter ───────────────────────────────────────── */
   const _origAttach = Element.prototype.attachShadow;
   if (typeof _origAttach === 'function' && !_origAttach.__vsc_patched) {
     Element.prototype.attachShadow = function(init) {
@@ -300,7 +300,7 @@ function VSC_MAIN() {
     destroy: () => { destroyed = true; if (refreshRafId) { cancelAnimationFrame(refreshRafId); refreshRafId = 0; } if (rescanTimerId) { clearTimeout(rescanTimerId); rescanTimerId = 0; } if (pollTimer) clearInterval(pollTimer); WorkQ.destroy(); disconnectBaseObserver(); for (const mo of shadowObserverMap.values()) disconnectSafe(mo); shadowObserverMap.clear(); disconnectSafe(io); disconnectSafe(ro); videos.clear(); visible.videos.clear(); dirtyA.videos.clear(); dirtyB.videos.clear(); } };
   }
 
-  /* ── Audio Utilities (Simplified & Safe) ─────────────────────── */
+  /* ── Audio Utilities ─────────────────────────────────────────── */
   const audioSourceMap = new WeakMap();
 
   function getOrCreateAudioSource(ctx, video) {
@@ -624,12 +624,12 @@ function VSC_MAIN() {
 
   function bindElementDrag(el, onMove, onEnd) { const ac = new AbortController(); on(el, 'pointermove', (e) => { if (e.cancelable) e.preventDefault(); onMove?.(e); }, { passive: false, signal: ac.signal }); const up = (e) => { ac.abort(); try { el.releasePointerCapture(e.pointerId); } catch (_) {} onEnd?.(e); }; on(el, 'pointerup', up, { signal: ac.signal }); on(el, 'pointercancel', up, { signal: ac.signal }); return () => ac.abort(); }
 
-  // 💥 원본 v189.6의 가장 안정적인 UI 마운트 로직으로 100% 롤백
+  // UI 코드는 안전성이 검증된 v189.8 원본 그대로 유지
   function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null, hasUserDraggedUI = false; const uiWakeCtrl = new AbortController(), uiUnsubs = []; const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
     const detachNodesHard = () => { removeSafe(container); removeSafe(gearHost); };
     const allowUiInThisDoc = () => { const hn = location.hostname, pn = location.pathname; if (hn.includes('netflix.com')) return pn.startsWith('/watch'); if (hn.includes('coupangplay.com')) return pn.startsWith('/play'); return true; };
-    const getUiRoot = () => { const fs = document.fullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
+    const getUiRoot = () => { const fs = document.fullscreenElement || document.webkitFullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
     const setAndHint = (path, value) => { if (!Object.is(sm.get(path), value)) { sm.set(path, value); (path === P.APP_ACT || path === P.APP_APPLY_ALL || path.startsWith('video.')) ? ApplyReq.hard() : ApplyReq.soft(); } };
     function bindReactive(btn, paths, apply) { const pathArr = Array.isArray(paths) ? paths : [paths]; let pending = false, destroyed = false; const sync = () => { if (pending || destroyed) return; pending = true; queueMicrotask(() => { pending = false; if (!destroyed && btn?.isConnected !== false) apply(btn, ...pathArr.map(p => sm.get(p))); }); }; pathArr.forEach(p => sub(p, sync)); if (btn) apply(btn, ...pathArr.map(p => sm.get(p))); return sync; }
     function bindActGate(btn, extraPaths, applyFn) { return bindReactive(btn, [...(Array.isArray(extraPaths) ? extraPaths : []), P.APP_ACT], (el, ...vals) => { const act = vals[vals.length - 1]; el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; if (applyFn) applyFn(el, ...vals); }); }
@@ -653,7 +653,8 @@ function VSC_MAIN() {
     };
 
     const syncVVVars = () => { try { const root = document.documentElement, vv = window.visualViewport; if (!root) return; if (!vv) { root.style.setProperty('--vsc-vv-top', '0px'); root.style.setProperty('--vsc-vv-h', `${window.innerHeight}px`); return; } root.style.setProperty('--vsc-vv-top', `${Math.round(vv.offsetTop)}px`); root.style.setProperty('--vsc-vv-h', `${Math.round(vv.height)}px`); } catch (_) {} };
-    syncVVVars(); let _clampRafId = 0; const onLayoutChange = () => { if (_clampRafId) return; _clampRafId = requestAnimationFrame(() => { _clampRafId = 0; clampPanelIntoViewport(); }); }; const uiSig = combineSignals(uiWakeCtrl.signal, __globalSig); try { const vv = window.visualViewport; if (vv) { on(vv, 'resize', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiSig }); on(vv, 'scroll', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiSig }); } } catch (_) {} on(window, 'resize', onLayoutChange, { passive: true, signal: uiSig }); on(document, 'fullscreenchange', () => { const isFs = !!document.fullscreenElement; if (isFs) { if (container) container._prevUiState = sm.get(P.APP_UI); if (sm.get(P.APP_UI)) sm.set(P.APP_UI, false); } else { if (container?._prevUiState) { sm.set(P.APP_UI, true); container._prevUiState = false; } } setTimeout(() => { mount(); clampPanelIntoViewport(); }, 100); }, { passive: true, signal: uiSig });
+    syncVVVars(); let _clampRafId = 0; const onLayoutChange = () => { if (_clampRafId) return; _clampRafId = requestAnimationFrame(() => { _clampRafId = 0; clampPanelIntoViewport(); }); }; const uiSig = combineSignals(uiWakeCtrl.signal, __globalSig); try { const vv = window.visualViewport; if (vv) { on(vv, 'resize', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiSig }); on(vv, 'scroll', () => { syncVVVars(); onLayoutChange(); }, { passive: true, signal: uiSig }); } } catch (_) {} on(window, 'resize', onLayoutChange, { passive: true, signal: uiSig });
+    on(document, 'fullscreenchange', () => { const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement); if (isFs) { if (container) container._prevUiState = sm.get(P.APP_UI); if (sm.get(P.APP_UI)) sm.set(P.APP_UI, false); } else { if (container?._prevUiState) { sm.set(P.APP_UI, true); container._prevUiState = false; } } setTimeout(() => { mount(); clampPanelIntoViewport(); }, 100); }, { passive: true, signal: uiSig });
     const getMainPanel = () => container?.shadowRoot?.querySelector('.main');
     function attachShadowStyles(shadowRoot, cssText) { try { if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') { const sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet]; return; } } catch (_) {} const styleEl = document.createElement('style'); styleEl.textContent = cssText; shadowRoot.appendChild(styleEl); }
 
@@ -707,7 +708,7 @@ function VSC_MAIN() {
     const ensureGear = () => {
       if (gearHost) return; gearHost = h('div', { 'data-vsc-ui': '1', style: 'all:initial;position:fixed;inset:0;pointer-events:none;z-index:2147483647;isolation:isolate;' }); const shadow = gearHost.attachShadow({ mode: 'open' }); attachShadowStyles(shadow, GEAR_CSS);
       let dragThresholdMet = false, stopDrag = null; gearBtn = h('button', { class: 'gear' }, '\u2699'); shadow.append(gearBtn); if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
-      const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); if (!!document.fullscreenElement || CONFIG.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.35'; }, 2500); };
+      const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); if (!!document.fullscreenElement || !!document.webkitFullscreenElement || CONFIG.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.35'; }, 2500); };
       wakeGear = wake; on(window, 'mousemove', wake, { passive: true, signal: uiSig }); on(window, 'touchstart', wake, { passive: true, signal: uiSig }); bootWakeTimer = setTimeout(wake, 2000);
       const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.clientY, rect = gearBtn.getBoundingClientRect(); try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(gearBtn, (ev) => { if (Math.abs(ev.clientY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) gearBtn.style.top = `${Math.max(0, Math.min(window.innerHeight - gearBtn.offsetHeight, rect.top + (ev.clientY - startY)))}px`; }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); };
       on(gearBtn, 'pointerdown', handleGearDrag); let lastToggle = 0; on(gearBtn, 'pointerup', (e) => { if (e.cancelable) e.preventDefault(); e.stopPropagation?.(); if (dragThresholdMet) return; const now = performance.now(); if (now - lastToggle < 300) return; lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI)); }, { passive: false });
@@ -743,54 +744,108 @@ function VSC_MAIN() {
   }
   function createZoomFeature(Store, P) { let zm = null; return defineFeature({ name: 'zoom', phase: PHASE.PROCESS, onInit() { zm = createZoomManager(Store, P); }, onDestroy() { zm?.destroy(); }, methods: { pruneDisconnected: () => zm?.pruneDisconnected(), isZoomed: (v) => zm?.isZoomed(v), zoomTo: (v, s, x, y) => zm?.zoomTo(v, s, x, y), resetZoom: (v) => zm?.resetZoom(v) } }); }
 
-  /* ── Timer Feature (v189.8 - Target changed wakeup added) ────── */
+  /* ── Timer Feature (v189.10 - Bulletproof Fixed Positioning) ─── */
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1, _destroyed = false, _lastLayoutKey = '';
-    function computeTimerPosition(pos, vRect, pRect, vWidth) { const topOffset = vWidth > 1200 ? 16 : 8, edgeMargin = vWidth > 1200 ? 20 : 10; const style = { top: 'auto', bottom: 'auto', left: 'auto', right: 'auto' }; let transform = ''; style['top'] = `${Math.max(topOffset, vRect.top - pRect.top + topOffset)}px`; if (pos === 0) style['left'] = `${Math.max(edgeMargin, vRect.left - pRect.left + edgeMargin)}px`; else if (pos === 1) { style['left'] = `${(vRect.left - pRect.left) + vWidth / 2}px`; transform = `translateX(-50%)`; } else style['right'] = `${Math.max(edgeMargin, pRect.right - vRect.right + edgeMargin)}px`; return { style, transform: transform || 'none' }; }
+
     function tick() {
-      _rafId = 0; if (_destroyed) return; const store = __vscNs.Store; if (!store) { scheduleNext(); return; }
-      const act = store.get('app.active'), timeEn = store.get('app.timeEn'), isFs = !!document.fullscreenElement;
-      if (!act || !timeEn || !isFs) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; return; }
+      _rafId = 0; if (_destroyed) return;
+      const store = __vscNs.Store; if (!store) { scheduleNext(); return; }
+
+      const act = store.get('app.active'), timeEn = store.get('app.timeEn');
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+
+      if (!act || !timeEn || !isFs) {
+        if (_timerEl) _timerEl.style.display = 'none';
+        _lastSecond = -1; _lastLayoutKey = '';
+        return;
+      }
+
       const activeVideo = __vscNs.App?.getActiveVideo?.();
-      if (!activeVideo?.isConnected) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; return; }
+      if (!activeVideo?.isConnected) {
+        if (_timerEl) _timerEl.style.display = 'none';
+        _lastSecond = -1; _lastLayoutKey = '';
+        return;
+      }
+
       const now = new Date(), curSecond = now.getSeconds();
       if (curSecond === _lastSecond && _timerEl && _timerEl.style.display !== 'none') { scheduleNext(); return; }
-      _lastSecond = curSecond; const parent = activeVideo.parentNode;
-      if (!parent) { scheduleNext(); return; }
-      if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
-      if (!_timerEl || _timerEl.parentNode !== parent) { removeSafe(_timerEl); _timerEl = document.createElement('div'); _timerEl.className = 'vsc-fs-timer'; _timerEl.style.cssText = `position:absolute;z-index:2147483647;color:#FFE600;font-family:monospace;font-weight:bold;pointer-events:none;user-select:none;font-variant-numeric:tabular-nums;letter-spacing:1px;-webkit-text-stroke: 1.5px #000000; paint-order: stroke fill;transition:opacity 0.2s,transform 0.2s ease-out;opacity:0.5;`; parent.appendChild(_timerEl); _lastLayoutKey = ''; }
-      _timerEl.style.display = 'block'; const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
+      _lastSecond = curSecond;
+
+      // 🔥 UI 기어 아이콘과 동일한 최상위 부착 위치를 찾아 Z-index 덫을 회피
+      const fsNode = document.fullscreenElement || document.webkitFullscreenElement;
+      const parent = fsNode ? (fsNode.tagName === 'VIDEO' ? (fsNode.parentElement || document.documentElement || document.body) : fsNode) : (document.body || document.documentElement);
+
+      if (!_timerEl || _timerEl.parentNode !== parent) {
+        removeSafe(_timerEl);
+        _timerEl = document.createElement('div');
+        _timerEl.className = 'vsc-fs-timer';
+        // 🔥 position: fixed 와 !important 를 통해 숲(SOOP)의 강제 레이아웃을 무조건 관통합니다.
+        _timerEl.style.cssText = 'position:fixed !important; z-index:2147483647 !important; color:#FFE600 !important; font-family:monospace !important; font-weight:bold !important; pointer-events:none !important; user-select:none !important; font-variant-numeric:tabular-nums !important; letter-spacing:1px !important; -webkit-text-stroke:1.5px #000 !important; paint-order:stroke fill !important; transition:opacity 0.2s,transform 0.2s ease-out !important; opacity:0.5 !important; margin:0 !important; padding:0 !important; border:none !important; display:block !important;';
+        parent.appendChild(_timerEl);
+        _lastLayoutKey = '';
+      }
+
+      _timerEl.style.display = 'block';
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
       if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr;
-      const vRect = activeVideo.getBoundingClientRect(), pRect = parent.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos');
-      const layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pRect.left | 0},${pRect.top | 0},${pos}`;
+
+      // 화면 기준 좌표(getBoundingClientRect)를 그대로 사용하여 fixed position에 적용
+      const vRect = activeVideo.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos');
+      const layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pos}`;
+
       if (_lastLayoutKey === layoutKey) { scheduleNext(); return; }
-      _lastLayoutKey = layoutKey; _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`;
-      const { style: posStyle, transform: transformStr } = computeTimerPosition(pos, vRect, pRect, vWidth); Object.assign(_timerEl.style, posStyle); _timerEl.style.transform = transformStr;
+      _lastLayoutKey = layoutKey;
+
+      _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`;
+
+      const topOffset = vWidth > 1200 ? 16 : 8;
+      const edgeMargin = vWidth > 1200 ? 20 : 10;
+
+      _timerEl.style.top = `${vRect.top + topOffset}px`;
+      _timerEl.style.bottom = 'auto';
+
+      if (pos === 0) {
+        _timerEl.style.left = `${vRect.left + edgeMargin}px`;
+        _timerEl.style.transform = 'none';
+      } else if (pos === 1) {
+        _timerEl.style.left = `${vRect.left + vWidth / 2}px`;
+        _timerEl.style.transform = 'translateX(-50%)';
+      } else {
+        _timerEl.style.left = `${vRect.right - edgeMargin}px`;
+        _timerEl.style.transform = 'translateX(-100%)';
+      }
+
       scheduleNext();
     }
+
     function scheduleNext() { if (!_destroyed && !_rafId) _rafId = requestAnimationFrame(tick); }
+
     return defineFeature({
       name: 'timer', phase: PHASE.RENDER,
       onInit() {
         _destroyed = false;
         this.subscribe('fullscreen:changed', ({ active }) => { if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; } if (active) scheduleNext(); });
-        this.subscribe('settings:changed', ({ path }) => { if ((path === 'app.active' || path === 'app.timeEn' || path === 'app.*') && document.fullscreenElement) { scheduleNext(); } });
-        // 🔥 오직 이것만 추가했습니다. (전체화면에서 영상이 넘어갈 때 타이머 깨우기)
-        this.subscribe('target:changed', () => { if (document.fullscreenElement) scheduleNext(); });
-
-        if (document.fullscreenElement) scheduleNext();
+        this.subscribe('settings:changed', ({ path }) => { if ((path === 'app.active' || path === 'app.timeEn' || path === 'app.*') && (document.fullscreenElement || document.webkitFullscreenElement)) { scheduleNext(); } });
+        this.subscribe('target:changed', () => { if (document.fullscreenElement || document.webkitFullscreenElement) scheduleNext(); });
+        if (document.fullscreenElement || document.webkitFullscreenElement) scheduleNext();
       },
       onDestroy() { _destroyed = true; if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; } removeSafe(_timerEl); _timerEl = null; _lastSecond = -1; _lastLayoutKey = ''; }
     });
   }
 
-  /* ── App Controller (Restored to v189.6) ─────────────────────── */
+  /* ── App Controller ──────────────────────────────────────────── */
   function createAppController({ Store, Registry, Scheduler, Features, P, Targeting, Bus }) {
     Store.sub(P.APP_UI, () => Scheduler.request(true)); Store.sub(P.APP_ACT, (on) => { if (on) { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } });
     let __activeTarget = null, __lastApplyTarget = null, lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
-    // 🔥 원래 작동하던 189.6 로직 복구
-    on(document, 'fullscreenchange', () => { const isFs = !!document.fullscreenElement; Bus.emit('fullscreen:changed', { active: isFs }); if (isFs) Scheduler.request(true); }, { passive: true });
+    const emitFs = () => {
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        Bus.emit('fullscreen:changed', { active: isFs });
+        if (isFs) Scheduler.request(true);
+    };
+    on(document, 'fullscreenchange', emitFs, { passive: true });
+    on(document, 'webkitfullscreenchange', emitFs, { passive: true });
 
     Scheduler.registerApply((force) => {
       try {
