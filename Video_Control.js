@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v189.1 - Extreme Light)
+// @name         Video_Control (v189.2 - Extreme Light)
 // @namespace    https://github.com/
-// @version      189.1
+// @version      189.2
 // @description  Ultimate lightweight build: Hybrid filter, Audio fixed, Timer & Zoom preserved. Legacy fallbacks removed.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -24,7 +24,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.1';
+  const SCRIPT_VERSION = '189.2';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -674,7 +674,25 @@ function VSC_MAIN() {
     const mount = () => { const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) { try { (document.body || document.documentElement).appendChild(gearHost); } catch (__) {} } try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) { try { (document.body || document.documentElement).appendChild(container); } catch (__) {} } };
     const ensure = () => { if (!allowUiInThisDoc() || (registry.videos.size === 0 && !sm.get(P.APP_UI))) { detachNodesHard(); return; } ensureGear(); const mainPanel = getMainPanel(); if (sm.get(P.APP_UI)) { build(); const mp = getMainPanel(); if (mp && !mp.classList.contains('visible')) { mp.style.display = 'block'; mp.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); } } else { if (mainPanel) { mainPanel.classList.remove('visible'); mainPanel.style.display = 'none'; } } mount(); wakeGear?.(); };
     onPageReady(() => { ensure(); ApplyReq.hard(); });
-    return { ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
+    return {
+  ensure,
+  destroy: () => {
+    uiUnsubs.forEach(u => u());
+    uiUnsubs.length = 0;
+    uiWakeCtrl.abort();
+    clearTimeout(fadeTimer);
+    clearTimeout(bootWakeTimer);
+
+    // [사용자님 제안 반영] UI 파괴 시 진행 중인 레이아웃 보정 RAF 즉시 중단
+    if (_clampRafId) {
+      cancelAnimationFrame(_clampRafId);
+      _clampRafId = 0;
+    }
+
+    // _clampRafId 외에 Scheduler 등에서 사용하는 다른 RAF는 이미 상위에서 관리됨
+    detachNodesHard();
+  }
+};
   }
   function createUIFeature(Store, Registry, ApplyReq, Utils, P) { let uiInst = null; return defineFeature({ name: 'ui', phase: PHASE.RENDER, onInit() { uiInst = createUI(Store, Registry, ApplyReq, Utils, P); this.subscribe('video:detected', () => uiInst?.ensure()); }, onUpdate() { uiInst?.ensure(); }, onDestroy() { uiInst?.destroy(); } }); }
 
@@ -704,9 +722,50 @@ function VSC_MAIN() {
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1, _destroyed = false, _lastLayoutKey = '';
     function computeTimerPosition(pos, vRect, pRect, vWidth) { const topOffset = vWidth > 1200 ? 16 : 8, edgeMargin = vWidth > 1200 ? 20 : 10; const style = { top: 'auto', bottom: 'auto', left: 'auto', right: 'auto' }; let transform = ''; style['top'] = `${Math.max(topOffset, vRect.top - pRect.top + topOffset)}px`; if (pos === 0) style['left'] = `${Math.max(edgeMargin, vRect.left - pRect.left + edgeMargin)}px`; else if (pos === 1) { style['left'] = `${(vRect.left - pRect.left) + vWidth / 2}px`; transform = `translateX(-50%)`; } else style['right'] = `${Math.max(edgeMargin, pRect.right - vRect.right + edgeMargin)}px`; return { style, transform: transform || 'none' }; }
-    function tick() { _rafId = 0; if (_destroyed) return; const store = __vscNs.Store; if (!store) { scheduleNext(); return; } const act = store.get('app.active'), timeEn = store.get('app.timeEn'), isFs = !!document.fullscreenElement; if (!act || !timeEn || !isFs) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; scheduleNext(); return; } const activeVideo = __vscNs.App?.getActiveVideo?.(); if (!activeVideo?.isConnected) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; scheduleNext(); return; } const now = new Date(), curSecond = now.getSeconds(); if (curSecond === _lastSecond && _timerEl && _timerEl.style.display !== 'none') { scheduleNext(); return; } _lastSecond = curSecond; const parent = activeVideo.parentNode; if (!parent) { scheduleNext(); return; } if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative'; if (!_timerEl || _timerEl.parentNode !== parent) { removeSafe(_timerEl); _timerEl = document.createElement('div'); _timerEl.className = 'vsc-fs-timer'; _timerEl.style.cssText = `position:absolute;z-index:2147483647;color:#FFE600;font-family:monospace;font-weight:bold;pointer-events:none;user-select:none;font-variant-numeric:tabular-nums;letter-spacing:1px;-webkit-text-stroke: 1.5px #000000; paint-order: stroke fill;transition:opacity 0.2s,transform 0.2s ease-out;opacity:0.5;`; parent.appendChild(_timerEl); _lastLayoutKey = ''; } _timerEl.style.display = 'block'; const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`; if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr; const vRect = activeVideo.getBoundingClientRect(), pRect = parent.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos'); const layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pRect.left | 0},${pRect.top | 0},${pos}`; if (_lastLayoutKey === layoutKey) { scheduleNext(); return; } _lastLayoutKey = layoutKey; _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`; const { style: posStyle, transform: transformStr } = computeTimerPosition(pos, vRect, pRect, vWidth); Object.assign(_timerEl.style, posStyle); _timerEl.style.transform = transformStr; scheduleNext(); }
+    function tick() {
+      _rafId = 0; if (_destroyed) return; const store = __vscNs.Store; if (!store) return;
+      const act = store.get('app.active'), timeEn = store.get('app.timeEn'), isFs = !!document.fullscreenElement;
+
+      // 전체화면이 아니거나 비활성화 상태면 RAF 루프 중단
+      if (!act || !timeEn || !isFs) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; return; }
+
+      const activeVideo = __vscNs.App?.getActiveVideo?.();
+      // 대상 비디오가 없어도 RAF 루프 중단 (이후 target:changed 에서 재개)
+      if (!activeVideo?.isConnected) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; return; }
+
+      const now = new Date(), curSecond = now.getSeconds();
+      if (curSecond === _lastSecond && _timerEl && _timerEl.style.display !== 'none') { scheduleNext(); return; }
+      _lastSecond = curSecond; const parent = activeVideo.parentNode; if (!parent) { scheduleNext(); return; }
+      if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
+      if (!_timerEl || _timerEl.parentNode !== parent) { removeSafe(_timerEl); _timerEl = document.createElement('div'); _timerEl.className = 'vsc-fs-timer'; _timerEl.style.cssText = `position:absolute;z-index:2147483647;color:#FFE600;font-family:monospace;font-weight:bold;pointer-events:none;user-select:none;font-variant-numeric:tabular-nums;letter-spacing:1px;-webkit-text-stroke: 1.5px #000000; paint-order: stroke fill;transition:opacity 0.2s,transform 0.2s ease-out;opacity:0.5;`; parent.appendChild(_timerEl); _lastLayoutKey = ''; }
+      _timerEl.style.display = 'block'; const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
+      if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr;
+      const vRect = activeVideo.getBoundingClientRect(), pRect = parent.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos');
+      const layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pRect.left | 0},${pRect.top | 0},${pos}`;
+      if (_lastLayoutKey === layoutKey) { scheduleNext(); return; }
+      _lastLayoutKey = layoutKey; _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`;
+      const { style: posStyle, transform: transformStr } = computeTimerPosition(pos, vRect, pRect, vWidth); Object.assign(_timerEl.style, posStyle); _timerEl.style.transform = transformStr;
+      scheduleNext();
+    }
     function scheduleNext() { if (!_destroyed && !_rafId) _rafId = requestAnimationFrame(tick); }
-    return defineFeature({ name: 'timer', phase: PHASE.RENDER, onInit() { _destroyed = false; this.subscribe('fullscreen:changed', ({ active }) => { if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; } if (active) scheduleNext(); }); scheduleNext(); }, onDestroy() { _destroyed = true; if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; } removeSafe(_timerEl); _timerEl = null; _lastSecond = -1; _lastLayoutKey = ''; } });
+    return defineFeature({
+      name: 'timer', phase: PHASE.RENDER,
+      onInit() {
+        _destroyed = false;
+        // 전체화면 진입/이탈 시 RAF 제어
+        this.subscribe('fullscreen:changed', ({ active }) => { if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; } if (active) scheduleNext(); });
+        // 대상 비디오 변경 시 전체화면이면 RAF 재개
+        this.subscribe('target:changed', () => { if (document.fullscreenElement) scheduleNext(); });
+        // [추가 패치] 전체화면 중 UI를 열어 Power나 Clock 설정 토글 시 RAF 재개
+        this.subscribe('settings:changed', ({ path }) => {
+          if ((path === 'app.active' || path === 'app.timeEn') && document.fullscreenElement) {
+            scheduleNext();
+          }
+        });
+        if (document.fullscreenElement) scheduleNext();
+      },
+      onDestroy() { _destroyed = true; if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; } removeSafe(_timerEl); _timerEl = null; _lastSecond = -1; _lastLayoutKey = ''; }
+    });
   }
 
   /* ── App Controller ──────────────────────────────────────────── */
@@ -743,9 +802,14 @@ function VSC_MAIN() {
       } catch (e) { log.warn('apply crashed:', e); }
     });
 
-    let tickVisHandler = null;
-    const startTick = () => { stopTick(); tickVisHandler = () => { if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) { Registry.prune(); Scheduler.request(true); } }; document.addEventListener('visibilitychange', tickVisHandler, { passive: true }); };
-    const stopTick = () => { if (tickVisHandler) { document.removeEventListener('visibilitychange', tickVisHandler); tickVisHandler = null; } };
+    // [패치] AbortController를 활용한 깔끔한 이벤트 구독 및 해제
+    let tickAC = null;
+    const startTick = () => {
+      stopTick(); tickAC = new AbortController(); const sig = combineSignals(tickAC.signal, __globalSig);
+      document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Store.get(P.APP_ACT)) { Registry.prune(); Scheduler.request(true); } }, { passive: true, signal: sig });
+    };
+    const stopTick = () => { tickAC?.abort(); tickAC = null; };
+
     Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick();
     return Object.freeze({ getActiveVideo: () => __activeTarget, destroy() { stopTick(); safe(() => Features.destroyAll()); safe(() => Registry.destroy?.()); } });
   }
