@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v189.5 - Ultimate Light & Warmup)
+// @name         Video_Control (v189.6 - Ultimate Light & Warmup)
 // @namespace    https://github.com/
-// @version      189.5
-// @description  Deep Shadow DOM detection restored (189.0 base) + Quadratic warmup & SVG Reflow optimized (189.4).
+// @version      189.6
+// @description  Perfected cache logic (ok.ru fix), Deep Shadow DOM detection, Quadratic warmup & SVG Reflow optimized.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -24,7 +24,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.5';
+  const SCRIPT_VERSION = '189.6';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -294,9 +294,8 @@ function VSC_MAIN() {
 
     function pruneDisconnectedVideos() { let removed = 0; for (const el of [...videos]) { if (!el?.isConnected) { videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el); io?.unobserve(el); ro?.unobserve(el); removed++; } } return removed; }
 
-    return { videos, visible, rev: () => rev, refreshObservers, prune: () => { for (const [root, mo] of [...shadowObserverMap]) { const host = root.host; if (!host || !host.isConnected) { disconnectSafe(mo); shadowObserverMap.delete(root); for (const v of [...videos]) { try { if (v.getRootNode() === root) untrackVideo(v); } catch (_) {} } } } const removed = pruneDisconnectedVideos(); if (removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
-    // 🔥 v189.5: or.ru 등 딥 섀도우 돔 비디오를 완벽히 찾아내는 v189.0 원본 로직 복구
-    rescanAll: () => { if (destroyed) return; if (rescanTimerId) clearTimeout(rescanTimerId); rescanTimerId = setTimeout(() => { rescanTimerId = 0; if (destroyed) return; try { const base = document.documentElement || document.body; if (!base) return; function* walkRoots(rootBase) { if (!rootBase) return; const stack = [rootBase]; const seen = new Set(); while (stack.length > 0) { const r = stack.pop(); if (!r || seen.has(r)) continue; seen.add(r); yield r; const walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) stack.push(node.shadowRoot); node = walker.nextNode(); } } } for (const r of walkRoots(base)) WorkQ.enqueue(r); } catch (_) {} }, 0); },
+    return { videos, visible, rev: () => rev, refreshObservers, prune: () => { for (const [root, mo] of [...shadowObserverMap]) { const host = root.host; if (!host || !host.isConnected) { disconnectSafe(mo); shadowObserverMap.delete(root); for (const v of [...videos]) { try { if (v.getRootNode() === root) untrackVideo(v); } catch (_) {} } } } const removed = pruneDisconnectedVideos(); if (removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, 
+    rescanAll: () => { if (destroyed) return; if (rescanTimerId) clearTimeout(rescanTimerId); rescanTimerId = setTimeout(() => { rescanTimerId = 0; if (destroyed) return; try { const base = document.documentElement || document.body; if (!base) return; function* walkRoots(rootBase) { if (!rootBase) return; const stack = [rootBase]; const seen = new Set(); while (stack.length > 0) { const r = stack.pop(); if (!r || seen.has(r)) continue; seen.add(r); yield r; const walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) stack.push(node.shadowRoot); node = walker.nextNode(); } } } for (const r of walkRoots(base)) WorkQ.enqueue(r); } catch (_) {} }, 0); }, 
     destroy: () => { destroyed = true; if (refreshRafId) { cancelAnimationFrame(refreshRafId); refreshRafId = 0; } if (rescanTimerId) { clearTimeout(rescanTimerId); rescanTimerId = 0; } if (pollTimer) clearInterval(pollTimer); WorkQ.destroy(); disconnectBaseObserver(); for (const mo of shadowObserverMap.values()) disconnectSafe(mo); shadowObserverMap.clear(); disconnectSafe(io); disconnectSafe(ro); videos.clear(); visible.videos.clear(); dirtyA.videos.clear(); dirtyB.videos.clear(); } };
   }
 
@@ -411,16 +410,64 @@ function VSC_MAIN() {
   }
 
   const StaticBudget = Object.freeze({ mode: 'high', sharpMul: 1.00, shadowCap: 3, sigmaMul: 1.00, useSvgFilter: true });
+  
+  // 🔥 v189.6: 해상도 캐시 버그 완벽 수정 및 폴백 적용
   function createVideoParamsMemo() {
     const _cache = new WeakMap();
     return {
       get(vfUser, video, budget) {
-        const dW = video?.clientWidth || video?.offsetWidth || 0, cacheKey = `${vfUser.presetS}|${vfUser.brightLevel}|${vfUser.shadowBandMask}|${vfUser.temp}`;
-        if (video) { const prev = _cache.get(video); if (prev && prev.key === cacheKey) return prev.result; }
-        const detailP = CONFIG.PRESETS.detail[vfUser.presetS || 'off'], brightP = CONFIG.PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || CONFIG.PRESETS.bright[0], finalSharpMul = (video ? computeResolutionSharpMul(video) : 0.0) * budget.sharpMul, finalSigmaScale = (video ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920) : 1.0);
-        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale * budget.sigmaMul, _refW: Math.max(640, Math.min(3840, dW)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
-        const shadowLevel = Math.min(VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, budget.shadowCap), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut, budget };
-        if (video) _cache.set(video, { key: cacheKey, result }); return result;
+        const dW = video?.clientWidth || video?.offsetWidth || 0;
+        const nW = video?.videoWidth || 0;
+        const hasValid = (nW >= 16 && dW >= 16);
+
+        // 해상도 정보(resKey)를 포함하여 리사이즈나 화질 변경 시 즉각 캐시 무효화
+        const resKey = hasValid ? `|${dW}|${nW}` : '|pending';
+        const cacheKey = `${vfUser.presetS}|${vfUser.brightLevel}|${vfUser.shadowBandMask}|${vfUser.temp}${resKey}`;
+
+        if (video) {
+          const prev = _cache.get(video);
+          if (prev && prev.key === cacheKey) return prev.result;
+        }
+
+        const detailP = CONFIG.PRESETS.detail[vfUser.presetS || 'off'];
+        const brightP = CONFIG.PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || CONFIG.PRESETS.bright[0];
+
+        // ok.ru 같이 메타데이터가 늦게 뜨는 비디오를 위한 폴백(0.50) 로직
+        const rawSharpMul = video ? computeResolutionSharpMul(video) : 0.0;
+        const finalSharpMul = (rawSharpMul === 0.0 && vfUser.presetS !== 'off')
+          ? 0.50 * budget.sharpMul
+          : rawSharpMul * budget.sharpMul;
+
+        const finalSigmaScale = (video && dW >= 16)
+          ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920)
+          : 1.0;
+
+        const videoOut = {
+          sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul),
+          sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul),
+          satF: detailP.sat || 1.0,
+          gamma: brightP.gammaF || 1.0,
+          bright: brightP.brightAdd || 0,
+          contrast: 1.0,
+          temp: vfUser.temp || 0,
+          _sigmaScale: finalSigmaScale * budget.sigmaMul,
+          _refW: Math.max(640, Math.min(3840, dW || 1280)), // dW=0일 때 폴백 1280
+          _microBase: detailP.microBase || 0.20,
+          _microScale: detailP.microScale || (1/120),
+          _fineBase: detailP.fineBase || 0.34,
+          _fineScale: detailP.fineScale || (1/24),
+          _microAmt: detailP.microAmt || [0.55, 0.10],
+          _fineAmt: detailP.fineAmt || [0.22, 0.78]
+        };
+
+        const shadowLevel = Math.min(VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, budget.shadowCap);
+        const shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 };
+        const result = { video: videoOut, shadow: shadowOut, budget };
+
+        // 완전히 준비되지 않은 상태(pending)의 값은 캐시에 영구 저장하지 않음
+        if (video && hasValid) _cache.set(video, { key: cacheKey, result });
+
+        return result;
       }
     };
   }
@@ -440,7 +487,7 @@ function VSC_MAIN() {
     });
   }
 
-  /* ── Hybrid Filter Engine (v189.5 - Smooth Warmup & Reflow Fix) ─────── */
+  /* ── Hybrid Filter Engine (v189.6 - Smooth Warmup & Reflow Fix) ─────── */
   function createFiltersVideoOnly(Utils, config) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = { 1: '0 0.06 0.18 0.35 0.55 0.78 1', 2: '0 0.10 0.25 0.42 0.62 0.82 1', 3: '0 0.15 0.32 0.50 0.68 0.86 1' };
@@ -456,10 +503,9 @@ function VSC_MAIN() {
 
     function needsSvgFilter(s, shadowParams) { return (s.sharp | 0) > 0 || (s.sharp2 | 0) > 0 || (shadowParams && shadowParams.active); }
 
-    function ensureOpaqueBg(video) {
-      // 🔥 config.FLAGS 오류 수정 반영
-      if (!video || __vscBgMemo.has(video) || !config.FLAGS?.FILTER_FORCE_OPAQUE_BG) return;
-      try { const cs = getComputedStyle(video).backgroundColor, isTransparent = !cs || cs === 'transparent' || cs.endsWith(', 0)') || cs.endsWith(',0)'); if (isTransparent) { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {}
+    function ensureOpaqueBg(video) { 
+      if (!video || __vscBgMemo.has(video) || !config.FLAGS?.FILTER_FORCE_OPAQUE_BG) return; 
+      try { const cs = getComputedStyle(video).backgroundColor, isTransparent = !cs || cs === 'transparent' || cs.endsWith(', 0)') || cs.endsWith(',0)'); if (isTransparent) { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {} 
     }
     function restoreOpaqueBg(video) { if (!video) return; const prev = __vscBgMemo.get(video); if (prev === undefined) return; __vscBgMemo.delete(video); if (prev !== null) video.style.backgroundColor = prev; }
 
@@ -496,12 +542,11 @@ function VSC_MAIN() {
       return `url(#${nodes.fidMain})`;
     }
 
-    // 🔥 v189.5: 워밍업 클로저
     function makeRamp(durationMs = 600) {
       const start = performance.now();
       return () => {
         const t = Math.min((performance.now() - start) / durationMs, 1);
-        return t * t;
+        return t * t; 
       };
     }
 
@@ -509,33 +554,29 @@ function VSC_MAIN() {
       invalidateCache: (video) => { try { const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document); const nodes = ctxMap.get(root); if (nodes) { nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = ''; } } catch (_) {} },
       applyCombined: (video, vVals, shadowParams) => {
         const st = getVState(video);
-
-        // 타겟 변경 시 워밍업 타이머 리셋
+        
         const targetKey = `${vVals.sharp}|${vVals.sharp2}|${vVals.bright}|${vVals.satF}|${vVals.gamma}|${shadowParams?.level||0}`;
         if (st._rampTargetKey !== targetKey) {
             st._rampTargetKey = targetKey;
-            st._rampFn = makeRamp(600);
+            st._rampFn = makeRamp(600); 
         }
         if (st._rampRaf) cancelAnimationFrame(st._rampRaf);
 
         const svgNeeded = needsSvgFilter(vVals, shadowParams);
 
-        // 🔥 v189.5: 매 프레임 갱신되는 Step 함수 (DOM Reflow 방지 최적화)
         const step = () => {
             const r = st._rampFn ? st._rampFn() : 1;
-
-            // SVG를 건드리지 않기 위해 CSS 필터값만 보간합니다
+            
             const curVals = (r >= 1) ? vVals : {
                 ...vVals,
                 bright: vVals.bright * r,
-                satF: 1.0 + ((vVals.satF ?? 1) - 1.0) * r,
-                gamma: 1.0 + ((vVals.gamma ?? 1) - 1.0) * r
+                satF: 1.0 + ((vVals.satF ?? 1) - 1.0) * r,     
+                gamma: 1.0 + ((vVals.gamma ?? 1) - 1.0) * r    
             };
 
             let finalFilter = buildCssFilterString(curVals);
 
             if (svgNeeded) {
-               // SVG에는 원본 타겟값(vVals)을 주어 DOM 재계산(Reflow)을 차단
                const svgUrl = getSvgUrl(video, vVals, shadowParams);
                finalFilter = finalFilter ? `${finalFilter} ${svgUrl}` : svgUrl;
             }
@@ -560,7 +601,7 @@ function VSC_MAIN() {
             else st._rampRaf = 0;
         };
 
-        step();
+        step(); 
       },
       clear: (video) => {
         const st = getVState(video);
@@ -714,7 +755,7 @@ function VSC_MAIN() {
     const mount = () => { const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) { try { (document.body || document.documentElement).appendChild(gearHost); } catch (__) {} } try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) { try { (document.body || document.documentElement).appendChild(container); } catch (__) {} } };
     const ensure = () => { if (!allowUiInThisDoc() || (registry.videos.size === 0 && !sm.get(P.APP_UI))) { detachNodesHard(); return; } ensureGear(); const mainPanel = getMainPanel(); if (sm.get(P.APP_UI)) { build(); const mp = getMainPanel(); if (mp && !mp.classList.contains('visible')) { mp.style.display = 'block'; mp.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); } } else { if (mainPanel) { mainPanel.classList.remove('visible'); mainPanel.style.display = 'none'; } } mount(); wakeGear?.(); };
     onPageReady(() => { ensure(); ApplyReq.hard(); });
-    return { ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); detachNodesHard(); } };
+    return { ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); if (_clampRafId) { cancelAnimationFrame(_clampRafId); _clampRafId = 0; } detachNodesHard(); } };
   }
   function createUIFeature(Store, Registry, ApplyReq, Utils, P) { let uiInst = null; return defineFeature({ name: 'ui', phase: PHASE.RENDER, onInit() { uiInst = createUI(Store, Registry, ApplyReq, Utils, P); this.subscribe('video:detected', () => uiInst?.ensure()); }, onUpdate() { uiInst?.ensure(); }, onDestroy() { uiInst?.destroy(); } }); }
 
@@ -740,30 +781,13 @@ function VSC_MAIN() {
   }
   function createZoomFeature(Store, P) { let zm = null; return defineFeature({ name: 'zoom', phase: PHASE.PROCESS, onInit() { zm = createZoomManager(Store, P); }, onDestroy() { zm?.destroy(); }, methods: { pruneDisconnected: () => zm?.pruneDisconnected(), isZoomed: (v) => zm?.isZoomed(v), zoomTo: (v, s, x, y) => zm?.zoomTo(v, s, x, y), resetZoom: (v) => zm?.resetZoom(v) } }); }
 
-  /* ── Timer Feature (v189.5 - Fixed Batch Update) ─────────────── */
+  /* ── Timer Feature ───────────────────────────────────────────── */
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1, _destroyed = false, _lastLayoutKey = '';
     function computeTimerPosition(pos, vRect, pRect, vWidth) { const topOffset = vWidth > 1200 ? 16 : 8, edgeMargin = vWidth > 1200 ? 20 : 10; const style = { top: 'auto', bottom: 'auto', left: 'auto', right: 'auto' }; let transform = ''; style['top'] = `${Math.max(topOffset, vRect.top - pRect.top + topOffset)}px`; if (pos === 0) style['left'] = `${Math.max(edgeMargin, vRect.left - pRect.left + edgeMargin)}px`; else if (pos === 1) { style['left'] = `${(vRect.left - pRect.left) + vWidth / 2}px`; transform = `translateX(-50%)`; } else style['right'] = `${Math.max(edgeMargin, pRect.right - vRect.right + edgeMargin)}px`; return { style, transform: transform || 'none' }; }
     function tick() { _rafId = 0; if (_destroyed) return; const store = __vscNs.Store; if (!store) { scheduleNext(); return; } const act = store.get('app.active'), timeEn = store.get('app.timeEn'), isFs = !!document.fullscreenElement; if (!act || !timeEn || !isFs) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; return; } const activeVideo = __vscNs.App?.getActiveVideo?.(); if (!activeVideo?.isConnected) { if (_timerEl) _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; return; } const now = new Date(), curSecond = now.getSeconds(); if (curSecond === _lastSecond && _timerEl && _timerEl.style.display !== 'none') { scheduleNext(); return; } _lastSecond = curSecond; const parent = activeVideo.parentNode; if (!parent) { scheduleNext(); return; } if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative'; if (!_timerEl || _timerEl.parentNode !== parent) { removeSafe(_timerEl); _timerEl = document.createElement('div'); _timerEl.className = 'vsc-fs-timer'; _timerEl.style.cssText = `position:absolute;z-index:2147483647;color:#FFE600;font-family:monospace;font-weight:bold;pointer-events:none;user-select:none;font-variant-numeric:tabular-nums;letter-spacing:1px;-webkit-text-stroke: 1.5px #000000; paint-order: stroke fill;transition:opacity 0.2s,transform 0.2s ease-out;opacity:0.5;`; parent.appendChild(_timerEl); _lastLayoutKey = ''; } _timerEl.style.display = 'block'; const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`; if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr; const vRect = activeVideo.getBoundingClientRect(), pRect = parent.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos'); const layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pRect.left | 0},${pRect.top | 0},${pos}`; if (_lastLayoutKey === layoutKey) { scheduleNext(); return; } _lastLayoutKey = layoutKey; _timerEl.style.fontSize = `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`; const { style: posStyle, transform: transformStr } = computeTimerPosition(pos, vRect, pRect, vWidth); Object.assign(_timerEl.style, posStyle); _timerEl.style.transform = transformStr; scheduleNext(); }
     function scheduleNext() { if (!_destroyed && !_rafId) _rafId = requestAnimationFrame(tick); }
-    return defineFeature({
-      name: 'timer',
-      phase: PHASE.RENDER,
-      onInit() {
-        _destroyed = false;
-        this.subscribe('fullscreen:changed', ({ active }) => { if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; } if (active) scheduleNext(); });
-
-        // 🔥 v189.5: Batch 업데이트 (app.*) 시에도 타이머 반응
-        this.subscribe('settings:changed', ({ path }) => {
-          if ((path === 'app.active' || path === 'app.timeEn' || path === 'app.*') && document.fullscreenElement) {
-            scheduleNext();
-          }
-        });
-
-        if (document.fullscreenElement) scheduleNext();
-      },
-      onDestroy() { _destroyed = true; if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; } removeSafe(_timerEl); _timerEl = null; _lastSecond = -1; _lastLayoutKey = ''; }
-    });
+    return defineFeature({ name: 'timer', phase: PHASE.RENDER, onInit() { _destroyed = false; this.subscribe('fullscreen:changed', ({ active }) => { if (!active && _timerEl) { _timerEl.style.display = 'none'; _lastSecond = -1; _lastLayoutKey = ''; } if (active) scheduleNext(); }); this.subscribe('settings:changed', ({ path }) => { if ((path === 'app.active' || path === 'app.timeEn' || path === 'app.*') && document.fullscreenElement) { scheduleNext(); } }); if (document.fullscreenElement) scheduleNext(); }, onDestroy() { _destroyed = true; if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; } removeSafe(_timerEl); _timerEl = null; _lastSecond = -1; _lastLayoutKey = ''; } });
   }
 
   /* ── App Controller ──────────────────────────────────────────── */
@@ -814,7 +838,6 @@ function VSC_MAIN() {
     for (const delay of [3000, 10000]) { const id = setTimeout(() => { if (delay > 3000 && Registry.videos.size > 0) return; Registry.rescanAll(); Scheduler.request(true); }, delay); __vscNs._timers.push(id); }
     (function ensureRegistryAfterBodyReady() { let ran = false; const runOnce = () => { if (ran) return; ran = true; Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); }; if (document.body) { runOnce(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); runOnce(); } }); try { mo.observe(document.documentElement, { childList: true, subtree: true }); } catch (_) {} on(document, 'DOMContentLoaded', runOnce, { once: true }); })();
 
-    // 🔥 v189.5: FLAGS 누락 수정 완료
     const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, FLAGS: CONFIG.FLAGS }), Adapter = createBackendAdapter(Filters);
     __vscNs.Adapter = Adapter; __vscNs.Filters = Filters;
 
