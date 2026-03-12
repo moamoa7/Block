@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.6.0
+// @version      4.7.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.6.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.7.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -62,6 +62,10 @@
 
     const DASH_PATTERN = [3, 3];
     const DASH_NONE = [];
+
+    const STATUS = Object.freeze({
+        WARMUP: ' ⏳', DISABLED: ' ⏹', OK: ' ✓', STABLE: ' →', UP: ' ↑', DOWN: ' ↓'
+    });
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -171,7 +175,7 @@
     }
 
     let delayHistory = new RingBuffer(TUNING.HISTORY_SIZE);
-    const graphHistory = new RingBuffer(60);
+    let graphHistory = null;
 
     /* ── 유틸 ── */
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
@@ -557,11 +561,11 @@
     function getStatusIndicator(avg, rate) {
         const delta = avg - prevAvg;
         prevAvg = avg;
-        if (!warmupDone) return ' ⏳';
-        if (!isEnabled) return ' ⏹';
-        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return ' ✓';
-        if (Math.abs(delta) < 80) return ' →';
-        return delta > 0 ? ' ↑' : ' ↓';
+        if (!warmupDone) return STATUS.WARMUP;
+        if (!isEnabled) return STATUS.DISABLED;
+        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return STATUS.OK;
+        if (Math.abs(delta) < 80) return STATUS.STABLE;
+        return delta > 0 ? STATUS.UP : STATUS.DOWN;
     }
 
     function flashSeekIndicator() {
@@ -621,7 +625,7 @@
     let graphCtx = null;
 
     function drawGraph() {
-        if (!graphCanvas || !graphCtx || !debugVisible) return;
+        if (!graphCanvas || !graphCtx || !debugVisible || !graphHistory) return;
         const n = graphHistory.length;
         if (n < 2) return;
 
@@ -648,10 +652,24 @@
         graphCtx.stroke();
     }
 
+    /* ── 디버그 문자열 ── */
+    function buildDebugString(bufEnd) {
+        if (!video) return 'video 탐색 중...';
+        const bEnd = bufEnd >= 0 ? bufEnd.toFixed(2) : '-';
+        const q = hasPlaybackQuality ? video.getVideoPlaybackQuality() : null;
+        const dropInfo = q ? ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}` : '';
+        const skip = skipReason ? ` [${skipReason}]` : '';
+        const wu = warmupDone ? '' : ' [WARMUP]';
+        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} st:${stableTickCount}${dropInfo}${skip}${wu}`;
+    }
+
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1) {
         if (performance.now() >= miniFlashUntil) {
             setDisplay('mini', collapsed ? (avgMs / 1000).toFixed(1) + 's' : '');
+            if (collapsed && els.mini) {
+                els.mini.style.color = computeColor(avgMs - targetDelayMs);
+            }
         }
 
         const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
@@ -663,9 +681,9 @@
                 els.panel.classList.toggle('dm-warning', overThreshold);
             }
         }
-        setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
 
         if (collapsed) {
+            setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
             return;
@@ -685,16 +703,7 @@
         setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
 
         if (debugVisible && els.debugVal) {
-            if (!video) {
-                setDisplay('dbg', 'video 탐색 중...');
-            } else {
-                const bEnd = bufEnd >= 0 ? bufEnd.toFixed(2) : '-';
-                const q = hasPlaybackQuality ? video.getVideoPlaybackQuality() : null;
-                const dropInfo = q ? ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}` : '';
-                const skip = skipReason ? ` [${skipReason}]` : '';
-                const wu = warmupDone ? '' : ' [WARMUP]';
-                setDisplay('dbg', `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} st:${stableTickCount}${dropInfo}${skip}${wu}`);
-            }
+            setDisplay('dbg', buildDebugString(bufEnd));
         }
 
         if (rafId) return;
@@ -710,10 +719,9 @@
         if (!els.toggleBtn) return;
         const on = isEnabled;
         els.toggleBtn.textContent = on ? 'ON' : 'OFF';
-        Object.assign(els.toggleBtn.style, {
-            background: on ? '#2ecc71' : '#555',
-            color: on ? '#000' : '#999',
-        });
+        els.toggleBtn.style.background = on ? '#2ecc71' : '#555';
+        els.toggleBtn.style.color = on ? '#000' : '#999';
+        if (els.panel) els.panel.style.opacity = on ? '1' : '0.6';
     }
     function updateTargetMark() {
         if (!els.targetMark) return;
@@ -722,11 +730,11 @@
 
     let presetBtns = [];
     function updatePresetHL() {
-        presetBtns.forEach(({ btn, sec }) => {
+        for (const { btn, sec } of presetBtns) {
             const on = Math.abs(targetDelayMs - sec * 1000) < 1;
             btn.style.background = on ? '#2ecc71' : '#333';
             btn.style.color = on ? '#000' : '#ccc';
-        });
+        }
     }
 
     function applyTargetDelay(sec) {
@@ -824,7 +832,7 @@
         }
 
         delayHistory.push(delayMs);
-        if (debugVisible) graphHistory.push(delayMs);
+        if (debugVisible && graphHistory) graphHistory.push(delayMs);
         const avg = isEnabled || currentSmoothedRate !== 1.0 ? getStableAverage() : delayHistory.last;
 
         if (Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) {
@@ -914,7 +922,7 @@
                     border:1px solid rgba(255,255,255,.08);border-radius:12px;
                     padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,.6);
-                    user-select:none;transition:border-color .3s ease}
+                    user-select:none;transition:border-color .3s ease,opacity .3s ease}
                 #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
                     padding-bottom:6px;margin-bottom:8px;cursor:grab}
                 .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
@@ -999,7 +1007,11 @@
         collapseBtn.onclick = e => {
             e.stopPropagation(); collapsed = !collapsed;
             applyCollapse(); saveConfig({ collapsed });
-            if (!collapsed) dirtyChannels.clear();
+            if (!collapsed) {
+                for (const key in displayState) {
+                    if (key[0] !== '_') dirtyChannels.add(key);
+                }
+            }
         };
 
         /* ── 디버그 토글 ── */
@@ -1008,6 +1020,7 @@
             const vis = debugVisible ? '' : 'none';
             els.debugVal.style.display = vis;
             if (graphCanvas) graphCanvas.style.display = vis;
+            if (debugVisible && !graphHistory) graphHistory = new RingBuffer(60);
         };
         applyDebug();
         els.header.addEventListener('dblclick', () => {
