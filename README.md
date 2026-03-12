@@ -15,6 +15,15 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 ```
 <br>
 
+※ Delay-meter.js
+- 숲 / 치지직 안정적인 딜레이를 위한 장치
+
+```
+
+https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
+```
+<br>
+
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
