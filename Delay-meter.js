@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      5.1.0
+// @version      5.2.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,9 +16,9 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '5.1.0';
+    const VERSION = GM_info.script.version;
 
-    const TUNING = Object.freeze({
+    const TUNING = {
         CHECK_INTERVAL: 200,
         HISTORY_SIZE: 6,
         MAX_RATE: 1.20,
@@ -39,33 +39,26 @@
         WARMUP_MS: 1500,
         WARMUP_MIN_BUFFER_SEC: 1.0,
         WARMUP_MIN_READY_STATE: 3,
-    });
+    };
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
     const PLATFORM_OFFSET = IS_CHZZK ? 500 : 0;
     const RECOMMENDED_PRESETS = IS_CHZZK ? [2, 3] : [4, 5];
 
-    const DEFAULTS = Object.freeze({
+    const DEFAULTS = {
         TARGET_DELAY_MS: IS_CHZZK ? 2000 : 4000,
         IS_ENABLED: true,
-    });
+    };
 
     const STORAGE_KEY = 'delay_meter_config_v3';
     const MAX_TARGET_MS = 8000;
     const DEFAULT_POS = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
 
-    const COLORS = {
-        GREEN:  { r: 0x2e, g: 0xcc, b: 0x71 },
-        YELLOW: { r: 0xf1, g: 0xc4, b: 0x0f },
-        RED:    { r: 0xe7, g: 0x4c, b: 0x3c },
-    };
-
     const DASH_PATTERN = [3, 3];
-    const DASH_NONE = [];
 
-    const STATUS = Object.freeze({
+    const STATUS = {
         WARMUP: ' ⏳', DISABLED: ' ⏹', OK: ' ✓', STABLE: ' →', UP: ' ↑', DOWN: ' ↓'
-    });
+    };
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -120,16 +113,19 @@
     }
 
     const computeColor = (() => {
+        const G = { r: 0x2e, g: 0xcc, b: 0x71 };
+        const Y = { r: 0xf1, g: 0xc4, b: 0x0f };
+        const R = { r: 0xe7, g: 0x4c, b: 0x3c };
         let lastInput = NaN, lastResult = '#2ecc71';
         return (diff) => {
-            if (Math.abs(diff - lastInput) < 30) return lastResult;
+            if (Math.abs(diff - lastInput) < 50) return lastResult;
             lastInput = diff;
             const ratio = clamp(diff / 2000, 0, 1);
             if (ratio <= 0) return (lastResult = '#2ecc71');
             if (ratio >= 1) return (lastResult = '#e74c3c');
             return (lastResult = ratio <= 0.5
-                ? lerpRGB(COLORS.GREEN, COLORS.YELLOW, ratio * 2)
-                : lerpRGB(COLORS.YELLOW, COLORS.RED, (ratio - 0.5) * 2));
+                ? lerpRGB(G, Y, ratio * 2)
+                : lerpRGB(Y, R, (ratio - 0.5) * 2));
         };
     })();
 
@@ -221,7 +217,6 @@
     let rateProtectTimer = null;
     let stableTickCount = 0;
     let debugVisible = false;
-    let lastWarningState = false;
     let _cachedDropInfo = '';
     let els = {};
 
@@ -297,22 +292,11 @@
     function getStableAverage() {
         const n = delayHistory.length;
         if (n === 0) return 0;
-        if (n === 1) return delayHistory.last;
+        if (n <= 2) return delayHistory.last;
 
         const buf = delayHistory.buf;
         const cap = delayHistory.cap;
         let pos = ((delayHistory.idx - n) % cap + cap) % cap;
-
-        if (n <= 3) {
-            let wSum = 0, wTotal = 0;
-            for (let i = 0; i < n; i++) {
-                const w = 1 << i;
-                wSum += buf[pos] * w;
-                wTotal += w;
-                if (++pos >= cap) pos = 0;
-            }
-            return wSum / wTotal;
-        }
 
         let sum = 0, min = Infinity, max = -Infinity;
         let wSum = 0, wTotal = 0;
@@ -549,9 +533,11 @@
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
         });
 
+        const expectedTime = seekTo;
         video.addEventListener('seeked', () => {
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
             if (ac.signal.aborted) return;
+            if (Math.abs(video.currentTime - expectedTime) > 2) return;
             const postCheck = setTimeout(() => {
                 if (ac.signal.aborted || !video?.isConnected) return;
                 const edge = getBufferEdge(video.buffered);
@@ -579,11 +565,12 @@
     function flashSeekIndicator() {
         flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 800);
     }
+
     function flashToggleState() {
         if (!els.mini) return;
-        els.mini.textContent = isEnabled ? 'ON' : 'OFF';
         miniFlashUntil = performance.now() + 600;
-        flashStyle(els.mini, 'color', isEnabled ? '#2ecc71' : '#e74c3c');
+        setDisplay('mini', isEnabled ? 'ON' : 'OFF');
+        setDisplay('mc', isEnabled ? '#2ecc71' : '#e74c3c');
     }
 
     /* ── dirty 플래그 기반 display ── */
@@ -598,7 +585,6 @@
         displayApply.w     = v => { els.barFill.style.width = v; };
         displayApply.rb    = v => { if (els.rateBar) els.rateBar.style.width = v; };
         displayApply.rbc   = v => { if (els.rateBar) els.rateBar.style.background = v; };
-        displayApply.rbo   = v => { if (els.rateBar) els.rateBar.style.opacity = v; };
         displayApply.ro    = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
         displayApply.rc    = v => { if (els.rateVal) els.rateVal.style.color = v || ''; };
         displayApply.mini  = v => { if (els.mini) els.mini.textContent = v; };
@@ -650,7 +636,7 @@
         graphCtx.moveTo(0, targetY);
         graphCtx.lineTo(w, targetY);
         graphCtx.stroke();
-        graphCtx.setLineDash(DASH_NONE);
+        graphCtx.setLineDash([]);
 
         graphCtx.strokeStyle = '#2ecc71';
         graphCtx.lineWidth = 1.5;
@@ -670,19 +656,11 @@
         const bEnd = bufEnd >= 0 ? bufEnd.toFixed(2) : '-';
         const skip = skipReason ? ` [${skipReason}]` : '';
         const wu = warmupDone ? '' : ' [WARMUP]';
-        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} st:${stableTickCount}${_cachedDropInfo}${skip}${wu}`;
+        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${_cachedDropInfo}${skip}${wu}`;
     }
 
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1, now = performance.now()) {
-        if (els.panel) {
-            const overThreshold = avgMs > targetDelayMs * 2 && isEnabled && warmupDone;
-            if (overThreshold !== lastWarningState) {
-                lastWarningState = overThreshold;
-                els.panel.classList.toggle('dm-warning', overThreshold);
-            }
-        }
-
         if (collapsed) {
             const delta = avgMs - prevAvg;
             prevAvg = avgMs;
@@ -717,7 +695,6 @@
         setDisplay('rb', rateDisplay + '%');
         setDisplay('rbc', getRateBarColor(rateRatio));
         setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
-        setDisplay('rbo', stableTickCount > 3 ? '0.6' : '1');
 
         if (debugVisible && els.debugVal) {
             setDisplay('dbg', buildDebugString(bufEnd));
@@ -748,7 +725,7 @@
     let presetBtns = [];
     function updatePresetHL() {
         for (const { btn, sec } of presetBtns) {
-            const on = Math.abs(targetDelayMs - sec * 1000) < 1;
+            const on = targetDelayMs === sec * 1000;
             btn.style.background = on ? '#2ecc71' : '#333';
             btn.style.color = on ? '#000' : '#ccc';
         }
@@ -857,9 +834,6 @@
             if (stableTickCount === 0) {
                 flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 800);
             }
-            if (stableTickCount === 5 && els.panel) {
-                flashStyle(els.panel, 'borderColor', 'rgba(46,204,113,.5)', 1500);
-            }
             stableTickCount++;
         } else {
             stableTickCount = 0;
@@ -933,53 +907,41 @@
     }
 
     /* ── UI 생성 ── */
-    let cssInjected = false;
-
     function createPanel() {
         if (document.getElementById('dm-panel')) return;
-        if (!cssInjected) {
-            GM_addStyle(`
-                #dm-panel{--dm-accent:#2ecc71;--dm-warn:#e74c3c;--dm-bg:rgba(12,12,16,.92);
-                    --dm-border:rgba(255,255,255,.08);
-                    position:fixed;bottom:20px;right:20px;z-index:10000;
-                    background:var(--dm-bg);backdrop-filter:blur(6px);
-                    border:1px solid var(--dm-border);border-radius:12px;
-                    padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
-                    font-size:12px;min-width:210px;box-shadow:0 8px 32px rgba(0,0,0,.6);
-                    user-select:none;transition:border-color .3s ease,filter .3s ease}
-                #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
-                    padding-bottom:6px;margin-bottom:8px;cursor:grab;
-                    display:flex;align-items:center;gap:6px}
-                .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
-                .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px;
-                    transition:opacity .2s ease}
-                .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
-                    border-radius:3px;margin:4px 0 8px;overflow:visible}
-                .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
-                .dm-bar,.dm-rate-bar{transition:width .15s linear,background .2s ease}
-                .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px}
-                .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
-                    border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
-                    background:#fff;opacity:.6}
-                .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
-                .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
-                    text-align:center;border-radius:4px}
-                .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
-                    font-size:11px;font-weight:bold;transition:.1s}
-                .dm-btn:active{transform:scale(.95)}
-                .dm-controls{flex-wrap:wrap;gap:4px}
-                .dm-presets{display:flex;gap:3px}
-                .dm-presets .dm-btn{background:#333;color:#ccc}
-                .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
-                    border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
-                @keyframes dm-pulse{
-                    0%,100%{border-color:rgba(231,76,60,.3)}
-                    50%{border-color:rgba(231,76,60,.8)}
-                }
-                #dm-panel.dm-warning{animation:dm-pulse 1s ease-in-out infinite}
-            `);
-            cssInjected = true;
-        }
+        GM_addStyle(`
+            #dm-panel{position:fixed;bottom:20px;right:20px;z-index:10000;
+                background:rgba(12,12,16,.92);backdrop-filter:blur(6px);
+                border:1px solid rgba(255,255,255,.08);border-radius:12px;
+                padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
+                font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
+                user-select:none;transition:border-color .3s ease,filter .3s ease}
+            #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
+                padding-bottom:6px;margin-bottom:8px;cursor:grab;
+                display:flex;align-items:center;gap:6px}
+            .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+            .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px;
+                transition:opacity .2s ease}
+            .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
+                border-radius:3px;margin:4px 0 8px;overflow:visible}
+            .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
+            .dm-bar,.dm-rate-bar{transition:width .15s linear,background .2s ease}
+            .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px}
+            .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
+                border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
+                background:#fff;opacity:.6}
+            .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
+            .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
+                text-align:center;border-radius:4px}
+            .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
+                font-size:11px;font-weight:bold;transition:.1s}
+            .dm-btn:active{transform:scale(.95)}
+            .dm-controls{flex-wrap:wrap;gap:4px}
+            .dm-presets{display:flex;gap:3px}
+            .dm-presets .dm-btn{background:#333;color:#ccc}
+            .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
+                border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
+        `);
 
         const panel = document.createElement('div');
         panel.id = 'dm-panel';
@@ -1062,7 +1024,7 @@
         });
 
         /* ── 헤더 단축키 tooltip ── */
-        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 더블클릭:디버그';
+        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 더블클릭:디버그';
 
         /* ── ON/OFF ── */
         updateToggleBtnUI();
@@ -1103,7 +1065,7 @@
             btn.textContent = sec + 's';
             btn.onclick = () => applyTargetDelay(sec);
             if (RECOMMENDED_PRESETS.includes(sec)) {
-                btn.style.borderBottom = '2px solid var(--dm-accent)';
+                btn.style.borderBottom = '2px solid #2ecc71';
                 btn.title = '이 플랫폼 추천';
             }
             presetBox.appendChild(btn);
@@ -1178,11 +1140,12 @@
         }
     }
 
-    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화 */
+    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+T 목표입력, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화 */
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
         ['ArrowDown', () => applyTargetDelay(targetDelayMs / 1000 + 0.5)],
+        ['KeyT',      () => { if (els.targetIn) { els.targetIn.focus(); els.targetIn.select(); } }],
         ['KeyR',      () => { resetState(); if (video) setRate(1.0); }],
         ['KeyC',      () => els.collapseBtn?.click()],
         ['KeyS',      () => doManualSync()],
