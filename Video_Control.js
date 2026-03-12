@@ -2543,26 +2543,23 @@ function VSC_MAIN() {
   const PiPManager = createPiPManager(Store, ApplyReq);
   __vscNs.PiPManager = PiPManager;
 
-  /* ── GM Menu Commands ────────────────────────────────────────── */
-  const isTop = (window.top === window);
+  /* ── GM Menu Commands (Essential Only) ────────────────────────── */
+
+const isTop = (window.top === window);
   if (isTop && typeof GM_registerMenuCommand === 'function') {
     const reg = (title, fn) => { const id = GM_registerMenuCommand(title, fn); if (__vscNs._menuIds) __vscNs._menuIds.push(id); };
-    reg('\u2328\uFE0F 단축키 안내', () => { alert(['Alt+Shift+V: UI 토글', 'Alt+Shift+P: PiP 토글', 'Alt+Shift+D: 선명 순환', 'Alt+Shift+B: 밝기 순환', 'Alt+Shift+R: 회전', 'Alt+Shift+S: 스크린샷', 'Alt+Shift+A: 구간반복', 'Alt+Shift+[,]: 속도조절', 'Alt+Shift+\\: 속도 리셋', 'Alt+Shift+<,>: 프레임 1단위 이동'].join('\n')); });
-    reg('\uD83D\uDD04 설정 초기화 (Reset All)', () => { if (confirm('모든 VSC 설정을 초기화하시겠습니까?')) { const key = 'vsc_prefs_' + location.hostname; if (typeof GM_deleteValue === 'function') GM_deleteValue(key); localStorage.removeItem(key); location.reload(); } });
-    reg('\u26A1 Power 토글', () => { Store.set(CONFIG.P.APP_ACT, !Store.get(CONFIG.P.APP_ACT)); ApplyReq.hard(); });
-    reg('\uD83D\uDD0A Audio 토글', () => { Store.set(CONFIG.P.A_EN, !Store.get(CONFIG.P.A_EN)); ApplyReq.hard(); });
-    reg('\u2699\uFE0F UI 열기/닫기', () => { Store.set(CONFIG.P.APP_UI, !Store.get(CONFIG.P.APP_UI)); ApplyReq.hard(); });
-    reg('\uD83D\uDEE0\uFE0F 디버그 모드 토글', () => { const url = new URL(location.href); if (url.searchParams.has('vsc_debug')) url.searchParams.delete('vsc_debug'); else url.searchParams.set('vsc_debug', '1'); history.replaceState(null, '', url.toString()); location.reload(); });
-    reg('\uD83D\uDCE4 설정 내보내기 (Export)', () => {
-      const key = 'vsc_prefs_' + location.hostname; let data;
-      try { data = typeof GM_getValue === 'function' ? GM_getValue(key, null) : localStorage.getItem(key); } catch (_) {}
-      if (!data) { alert('저장된 설정이 없습니다.'); return; }
-      const json = typeof data === 'string' ? data : JSON.stringify(data);
-      navigator.clipboard.writeText(json).then(() => alert('설정이 클립보드에 복사되었습니다.')).catch(() => prompt('아래 텍스트를 복사하세요:', json));
+    // 1. 단축키 확인용
+    reg('\u2328\uFE0F 단축키 안내', () => {
+      alert(['[Alt+Shift 조합]', 'V: UI 열기/닫기', 'P: PiP 토글', 'D/B/R: 선명/밝기/회전', 'S: 스크린샷', 'A: 구간반복', '[/]: 배속조절', '\\: 배속 리셋', '</>: 프레임 이동'].join('\n'));
     });
-    reg('\uD83D\uDCE5 설정 가져오기 (Import)', () => {
-      const input = prompt('설정 JSON을 붙여넣으세요:'); if (!input) return;
-      try { JSON.parse(input); const key = 'vsc_prefs_' + location.hostname; if (typeof GM_setValue === 'function') GM_setValue(key, input); else localStorage.setItem(key, input); alert('설정을 가져왔습니다. 페이지를 새로고침합니다.'); location.reload(); } catch (e) { alert('잘못된 JSON 형식입니다: ' + e.message); }
+    // 2. 비상 복구용
+    reg('\uD83D\uDD04 설정 초기화 (Reset All)', () => {
+      if (confirm('모든 설정을 초기화하고 페이지를 새로고침할까요?')) {
+        const key = 'vsc_prefs_' + location.hostname;
+        if (typeof GM_deleteValue === 'function') GM_deleteValue(key);
+        localStorage.removeItem(key);
+        location.reload();
+      }
     });
   }
 
