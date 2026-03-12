@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video_Control (v189.14 - Ultimate Master Build)
-// @namespace    https://github.com/
+// @namespace    https://github.com/moamoa7
 // @version      189.14
 // @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI (getUiRoot strict mode).
 // @match        *://*/*
