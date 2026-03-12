@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.3.0
+// @version      4.4.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.3.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.4.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -32,12 +32,12 @@
         SEEK_COOLDOWN_MS: 3000,
         HOLD_RATE: 1.02,
         AVG_BIAS: 0.7,
-        SPIKE_THRESHOLD_MS: 2000,
+        SPIKE_THRESHOLD_MS: 2500,
         SPIKE_COOLDOWN_MS: 1000,
         STALL_THRESHOLD: 3,
         VIDEO_SEARCH_EVERY: 50,
         FRAME_CHECK_EVERY: 25,
-        WARMUP_MS: 3000,
+        WARMUP_MS: 1500,
         WARMUP_MIN_BUFFER_SEC: 1.0,
         WARMUP_MIN_READY_STATE: 3,
     });
@@ -59,20 +59,6 @@
         YELLOW: { r: 0xf1, g: 0xc4, b: 0x0f },
         RED:    { r: 0xe7, g: 0x4c, b: 0x3c },
     };
-
-    const INITIAL_STATE = Object.freeze({
-        lastRenderedMediaTime: 0,
-        lastCurrentTime: 0,
-        stallCount: 0,
-        wasPaused: false,
-        currentSmoothedRate: 1.0,
-        dynamicMaxRate: TUNING.MAX_RATE,
-        lastSetRate: -1,
-        lastRateStr: '1.000x',
-        lastSpikeTime: 0,
-        skipReason: '',
-        frameCheckCounter: 0,
-    });
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -141,15 +127,12 @@
     let skipReason = '';
     let miniFlashUntil = 0;
     let rateProtectTimer = null;
+    let stableTickCount = 0;
     let els = {};
 
     /* ── 웜업 상태 ── */
     let warmupStartTime = 0;
     let warmupDone = false;
-
-    /* ── rVFC 확장용 상태 ── */
-    let lastPresentedFrames = 0;
-    let estimatedFps = 30;
 
     /* ── seek AbortController ── */
     let seekAc = null;
@@ -211,7 +194,7 @@
     }
 
     const computeColor = createColorCache(
-        diff => clamp(diff / 2000, 0, 1), 15
+        diff => clamp(diff / 2000, 0, 1), 30
     );
     const computeRateColor = createColorCache(
         ratio => Math.round(ratio * 50) / 50, 0.02
@@ -243,12 +226,9 @@
 
     /* ── 라이브 판별 ── */
     function isLiveStream(v) {
-        /* blob이 아니면 라이브 스트림이 아님 (MSE 기반 플랫폼 전용) */
         if (!isBlobSrc(v)) return false;
-
         if (v.duration === Infinity) return true;
-        /* blob URL이면 duration이 아직 설정되지 않은 초기 상태도 라이브로 간주 */
-        if (Number.isNaN(v.duration) || v.duration === 0) return true;
+        if (Number.isNaN(v.duration) || v.duration === 0) return v.buffered.length > 0;
         if (v.duration >= 1e6) return true;
         if (v.buffered.length > 0) {
             const bufEnd = v.buffered.end(v.buffered.length - 1);
@@ -262,22 +242,13 @@
     function isWarmedUp() {
         if (warmupDone) return true;
         const now = performance.now();
-
-        /* 시간 조건: 비디오 발견 후 최소 대기 */
         if (now - warmupStartTime < TUNING.WARMUP_MS) return false;
-
-        /* readyState 조건: 충분히 데이터가 있는지 */
         if (!video || video.readyState < TUNING.WARMUP_MIN_READY_STATE) return false;
-
-        /* 버퍼 조건: 최소한의 버퍼가 쌓였는지 */
         const edge = getBufferEdge(video.buffered);
         if (!edge) return false;
         const bufferedAhead = edge.end - video.currentTime;
         if (bufferedAhead < TUNING.WARMUP_MIN_BUFFER_SEC) return false;
-
-        /* 재생 중인지 (paused 상태면 아직 준비 안 됨) */
         if (video.paused) return false;
-
         warmupDone = true;
         console.debug(`[딜레이미터] 웜업 완료 (${(now - warmupStartTime).toFixed(0)}ms, buf:${bufferedAhead.toFixed(2)}s, readyState:${video.readyState})`);
         return true;
@@ -289,20 +260,9 @@
     function startFrameCallback(vid) {
         if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return;
         const gen = ++frameCallbackGen;
-        let prevTime = 0;
-
         const step = (now, md) => {
             if (gen !== frameCallbackGen) return;
             lastRenderedMediaTime = md.mediaTime;
-
-            if (md.presentedFrames > lastPresentedFrames + 1 && prevTime > 0) {
-                const elapsed = (now - prevTime) / 1000;
-                const frames = md.presentedFrames - lastPresentedFrames;
-                if (elapsed > 0) estimatedFps = Math.round(frames / elapsed);
-            }
-            lastPresentedFrames = md.presentedFrames;
-            prevTime = now;
-
             vid.requestVideoFrameCallback(step);
         };
         vid.requestVideoFrameCallback(step);
@@ -378,6 +338,7 @@
     function getAdaptiveInterval() {
         if (!isEnabled) return 500;
         if (!warmupDone) return 500;
+        if (stableTickCount >= 10) return 600;
         if (Math.abs(currentSmoothedRate - 1.0) < 0.005) return 400;
         return TUNING.CHECK_INTERVAL;
     }
@@ -417,10 +378,10 @@
         if (totalDelta < 10) return;
         const dropRate = droppedDelta / totalDelta;
         const prev = dynamicMaxRate;
-        if (dropRate > 0.05 && dynamicMaxRate > 1.05) {
-            dynamicMaxRate = Math.max(1.05, dynamicMaxRate - 0.02);
-        } else if (dropRate < 0.01 && dynamicMaxRate < TUNING.MAX_RATE) {
-            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.01);
+        if (dropRate > 0.05 && dynamicMaxRate > 1.08) {
+            dynamicMaxRate = Math.max(1.08, dynamicMaxRate - 0.02);
+        } else if (dropRate < 0.02 && dynamicMaxRate < TUNING.MAX_RATE) {
+            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.015);
         }
         if (prev !== dynamicMaxRate) {
             console.debug(`[딜레이미터] maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)} (drop: ${(dropRate * 100).toFixed(1)}%)`);
@@ -429,17 +390,20 @@
 
     /* ── 상태 리셋 ── */
     function resetState() {
-        lastRenderedMediaTime = INITIAL_STATE.lastRenderedMediaTime;
-        lastCurrentTime = INITIAL_STATE.lastCurrentTime;
-        stallCount = INITIAL_STATE.stallCount;
-        wasPaused = INITIAL_STATE.wasPaused;
-        currentSmoothedRate = INITIAL_STATE.currentSmoothedRate;
-        dynamicMaxRate = INITIAL_STATE.dynamicMaxRate;
-        lastSetRate = INITIAL_STATE.lastSetRate;
-        lastRateStr = INITIAL_STATE.lastRateStr;
-        lastSpikeTime = INITIAL_STATE.lastSpikeTime;
-        skipReason = INITIAL_STATE.skipReason;
-        frameCheckCounter = INITIAL_STATE.frameCheckCounter;
+        clearTimeout(rateProtectTimer);
+        rateProtectTimer = null;
+        lastRenderedMediaTime = 0;
+        lastCurrentTime = 0;
+        stallCount = 0;
+        wasPaused = false;
+        currentSmoothedRate = 1.0;
+        dynamicMaxRate = TUNING.MAX_RATE;
+        lastSetRate = -1;
+        lastRateStr = '1.000x';
+        lastSpikeTime = 0;
+        skipReason = '';
+        frameCheckCounter = 0;
+        stableTickCount = 0;
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
@@ -447,9 +411,7 @@
 
     /* ── video 관리 ── */
     function onVideoFound(v) {
-        /* blob이 아닌 video는 추적 대상에서 제외 (MSE 라이브 스트림만 대상) */
         if (!isBlobSrc(v)) return;
-
         const src = v.currentSrc || v.src || '';
         if (video === v && src === lastVideoSrc) return;
 
@@ -473,6 +435,21 @@
         }
         v.removeEventListener('ratechange', onExternalRateChange);
         v.addEventListener('ratechange', onExternalRateChange);
+
+        if (!v._dmSrcObserved) {
+            v._dmSrcObserved = true;
+            v.addEventListener('loadstart', () => {
+                if (v === video) {
+                    const newSrc = v.currentSrc || v.src || '';
+                    if (newSrc !== lastVideoSrc && isBlobSrc(v)) {
+                        console.debug(`[딜레이미터] src 변경 감지: ${newSrc.slice(0, 40)}...`);
+                        lastVideoSrc = newSrc;
+                        resetState();
+                        startFrameCallback(v);
+                    }
+                }
+            });
+        }
         console.debug(`[딜레이미터] video 발견 (blob src: ${src.slice(0, 40)}...)`);
     }
 
@@ -523,13 +500,15 @@
         video.addEventListener('seeked', () => {
             clearTimeout(timeout);
             if (ac.signal.aborted) return;
-            const edge = getBufferEdge(video.buffered);
-            if (!edge) return;
-            const postDelay = (edge.end - video.currentTime) * 1000;
-            if (postDelay > targetDelayMs * 1.5) {
-                const retarget = Math.max(edge.start, edge.end - targetDelayMs / 1000);
-                video.currentTime = retarget;
-            }
+            setTimeout(() => {
+                if (ac.signal.aborted || !video?.isConnected) return;
+                const edge = getBufferEdge(video.buffered);
+                if (!edge) return;
+                const postDelay = (edge.end - video.currentTime) * 1000;
+                if (postDelay > targetDelayMs * 1.5) {
+                    video.currentTime = Math.max(edge.start, edge.end - targetDelayMs / 1000);
+                }
+            }, 50);
         }, { once: true, signal: ac.signal });
     }
 
@@ -540,7 +519,7 @@
         if (!warmupDone) return ' ⏳';
         if (!isEnabled) return ' ⏹';
         if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return ' ✓';
-        if (Math.abs(delta) < 30) return ' →';
+        if (Math.abs(delta) < 80) return ' →';
         return delta > 0 ? ' ↑' : ' ↓';
     }
 
@@ -555,25 +534,23 @@
     }
 
     /* ── dirty 플래그 기반 display ── */
-    const displayChannels = [
-        { key: 'd',    apply: v => { els.delayVal.textContent = v; } },
-        { key: 'r',    apply: v => { els.rateVal.textContent = v; } },
-        { key: 'c',    apply: v => { els.delayVal.style.color = v; els.barFill.style.background = v; } },
-        { key: 'w',    apply: v => { els.barFill.style.width = v; } },
-        { key: 'rb',   apply: v => { if (els.rateBar) els.rateBar.style.width = v; } },
-        { key: 'rbc',  apply: v => { if (els.rateBar) els.rateBar.style.background = v; } },
-        { key: 'ro',   apply: v => { if (els.rateVal) els.rateVal.style.opacity = v; } },
-        { key: 'mx',   apply: v => { if (els.maxMark) els.maxMark.style.left = v; } },
-        { key: 'mxo',  apply: v => { if (els.maxMark) els.maxMark.style.opacity = v; } },
-        { key: 'mini', apply: v => { if (els.mini) els.mini.textContent = v; } },
-        { key: 'dbg',  apply: v => { if (els.debugVal) els.debugVal.textContent = v; } },
-    ];
-
-    const channelIndex = Object.create(null);
-    displayChannels.forEach((ch, i) => { channelIndex[ch.key] = i; });
-
+    const displayApply = Object.create(null);
     const displayState = {};
     const dirtyChannels = new Set();
+
+    function initDisplayApply() {
+        displayApply.d    = v => { els.delayVal.textContent = v; };
+        displayApply.r    = v => { els.rateVal.textContent = v; };
+        displayApply.c    = v => { els.delayVal.style.color = v; els.barFill.style.background = v; };
+        displayApply.w    = v => { els.barFill.style.width = v; };
+        displayApply.rb   = v => { if (els.rateBar) els.rateBar.style.width = v; };
+        displayApply.rbc  = v => { if (els.rateBar) els.rateBar.style.background = v; };
+        displayApply.ro   = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
+        displayApply.mx   = v => { if (els.maxMark) els.maxMark.style.left = v; };
+        displayApply.mxo  = v => { if (els.maxMark) els.maxMark.style.opacity = v; };
+        displayApply.mini = v => { if (els.mini) els.mini.textContent = v; };
+        displayApply.dbg  = v => { if (els.debugVal) els.debugVal.textContent = v; };
+    }
 
     function setDisplay(key, val) {
         if (displayState[key] !== val) {
@@ -587,15 +564,11 @@
     function flushDisplay() {
         if (!els.delayVal || dirtyChannels.size === 0) return;
         if (collapsed) {
-            if (dirtyChannels.has('mini')) {
-                displayChannels[channelIndex.mini].apply(displayState.mini);
-            }
+            if (dirtyChannels.has('mini')) displayApply.mini(displayState.mini);
         } else {
             for (const key of dirtyChannels) {
-                const idx = channelIndex[key];
-                if (idx !== undefined) {
-                    displayChannels[idx].apply(displayState[key]);
-                }
+                const fn = displayApply[key];
+                if (fn) fn(displayState[key]);
             }
         }
         dirtyChannels.clear();
@@ -685,7 +658,7 @@
                 const dropInfo = q ? ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}` : '';
                 const skip = skipReason ? ` [${skipReason}]` : '';
                 const wu = warmupDone ? '' : ' [WARMUP]';
-                setDisplay('dbg', `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} fps:${estimatedFps}${dropInfo}${skip}${wu}`);
+                setDisplay('dbg', `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} iv:${getAdaptiveInterval()} st:${stableTickCount}${dropInfo}${skip}${wu}`);
             }
         }
 
@@ -726,6 +699,7 @@
         delayHistory.clear();
         currentSmoothedRate = 1.0;
         lastSetRate = -1;
+        stableTickCount = 0;
         if (warmupDone) setRate(1.0);
         if (els.targetIn) els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
         saveConfig({ targetDelayMs });
@@ -749,7 +723,6 @@
     function processLiveVideo() {
         const now = performance.now();
 
-        /* ── 웜업 체크: 아직 준비 안 됐으면 관측만 ── */
         if (!isWarmedUp()) {
             const edge = getBufferEdge(video.buffered);
             if (edge) {
@@ -807,6 +780,7 @@
             delayHistory.clear();
             currentSmoothedRate = 1.0;
             lastSetRate = -1;
+            stableTickCount = 0;
             updateDisplay(delayMs, bufEnd);
             return;
         }
@@ -815,6 +789,13 @@
         delayHistory.push(delayMs);
         graphHistory.push(delayMs);
         const avg = isEnabled || currentSmoothedRate !== 1.0 ? getStableAverage() : delayHistory.last;
+
+        if (Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) {
+            stableTickCount = Math.min(stableTickCount + 1, 20);
+        } else {
+            stableTickCount = 0;
+        }
+
         updateDisplay(avg, bufEnd);
 
         if (!isEnabled) {
@@ -923,8 +904,6 @@
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
                     border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
-                .dm-help{font-size:9px;color:#555;margin-top:6px;display:none}
-                .dm-config-row{display:flex;gap:4px;justify-content:center;margin-top:4px}
                 @keyframes dm-pulse{
                     0%,100%{border-color:rgba(231,76,60,.3)}
                     50%{border-color:rgba(231,76,60,.8)}
@@ -958,8 +937,6 @@
                     <span>목표 <input type="number" data-dm="target" class="dm-input" step="0.5">초</span>
                 </div>
                 <div class="dm-presets"></div>
-                <div class="dm-config-row"></div>
-                <div class="dm-help" data-dm="help"></div>
                 <div class="dm-debug" data-dm="debug"></div>
             </div>`;
         document.body.appendChild(panel);
@@ -969,9 +946,11 @@
             delayVal: q('delay'), rateVal: q('rate'), barFill: q('bar'),
             rateBar: q('ratebar'), targetMark: q('targetmark'), maxMark: q('maxmark'),
             toggleBtn: q('toggle'), syncBtn: q('sync'), targetIn: q('target'),
-            header: q('header'), debugVal: q('debug'), mini: q('mini'), help: q('help'),
+            header: q('header'), debugVal: q('debug'), mini: q('mini'),
         };
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
+
+        initDisplayApply();
 
         /* ── 접기/펼치기 ── */
         const collapseBtn = q('collapse');
@@ -1036,53 +1015,6 @@
             return { btn, sec };
         });
         updatePresetHL();
-
-        /* ── 설정 내보내기/가져오기 ── */
-        const configRow = panel.querySelector('.dm-config-row');
-
-        const exportBtn = Object.assign(document.createElement('button'), {
-            className: 'dm-btn',
-            textContent: '📋',
-            title: '설정 복사',
-            style: 'background:#333;color:#ccc;font-size:10px',
-            onclick: () => {
-                navigator.clipboard.writeText(JSON.stringify(loadConfig(), null, 2))
-                    .then(() => flashStyle(exportBtn, 'background', '#2ecc71', 400));
-            }
-        });
-
-        const importBtn = Object.assign(document.createElement('button'), {
-            className: 'dm-btn',
-            textContent: '📥',
-            title: '설정 붙여넣기',
-            style: 'background:#333;color:#ccc;font-size:10px',
-            onclick: async () => {
-                try {
-                    const text = await navigator.clipboard.readText();
-                    const cfg = JSON.parse(text);
-                    if (cfg && typeof cfg === 'object') {
-                        saveConfig(cfg);
-                        if (cfg.targetDelayMs) applyTargetDelay(cfg.targetDelayMs / 1000);
-                        if (cfg.isEnabled !== undefined) {
-                            isEnabled = cfg.isEnabled;
-                            updateToggleBtnUI();
-                        }
-                        flashStyle(importBtn, 'background', '#2ecc71', 400);
-                    }
-                } catch {
-                    flashStyle(importBtn, 'background', '#e74c3c', 400);
-                }
-            }
-        });
-
-        configRow.append(exportBtn, importBtn);
-
-        /* ── 단축키 도움말 ── */
-        els.help.innerHTML = 'Alt+D: 토글 · Alt+↑↓: 목표 조절 · Alt+R: 리셋 · Alt+C: 접기';
-        els.header.addEventListener('contextmenu', e => {
-            e.preventDefault();
-            els.help.style.display = els.help.style.display === 'none' ? '' : 'none';
-        });
 
         /* ── 미니 그래프 캔버스 ── */
         graphCanvas = document.createElement('canvas');
@@ -1158,13 +1090,13 @@
         ['ArrowDown', { fn: () => applyTargetDelay(targetDelayMs / 1000 + 0.5),                     desc: '목표 +0.5s' }],
         ['KeyR',      { fn: () => { resetState(); if (video) setRate(1.0); },                       desc: '상태 리셋' }],
         ['KeyC',      { fn: () => document.querySelector('[data-dm="collapse"]')?.click(),           desc: '접기/펼치기' }],
+        ['KeyS',      { fn: () => doManualSync(),                                                    desc: '수동 SYNC' }],
     ]);
 
     function init() {
         createPanel();
         setupVideoObserver();
 
-        /* ★ play 이벤트 캡처로 video 즉시 감지 (MutationObserver + 폴링 사이의 빈틈 보완) */
         document.addEventListener('play', e => {
             const v = e.target;
             if (v?.tagName === 'VIDEO') onVideoFound(v);
@@ -1178,10 +1110,25 @@
         window.addEventListener('resize', clampPanelPosition);
 
         document.addEventListener('fullscreenchange', () => {
-            requestAnimationFrame(clampPanelPosition);
+            requestAnimationFrame(() => {
+                const panel = document.getElementById('dm-panel');
+                if (!panel) return;
+                if (document.fullscreenElement) {
+                    Object.assign(panel.style, { right: '20px', bottom: '20px', left: 'auto', top: 'auto' });
+                } else {
+                    const s = loadConfig();
+                    if (s.panelX != null) {
+                        Object.assign(panel.style, {
+                            left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto'
+                        });
+                    } else {
+                        Object.assign(panel.style, { right: '20px', bottom: '20px', left: 'auto', top: 'auto' });
+                    }
+                    clampPanelPosition();
+                }
+            });
         });
 
-        /* ── 탭 복귀 ── */
         document.addEventListener('visibilitychange', () => {
             nextTickTime = 0;
             if (document.visibilityState === 'visible') {
@@ -1189,7 +1136,6 @@
                 tickGeneration++;
                 clearTimeout(intervalId);
 
-                /* 탭 복귀 시에도 웜업 완료 후에만 seek */
                 if (isEnabled && warmupDone && video?.isConnected && video.buffered.length > 0) {
                     const edge = getBufferEdge(video.buffered);
                     if (edge) {
