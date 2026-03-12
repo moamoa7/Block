@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
-// @namespace    https://github.com/delay-meter
-// @version      5.6.0
+// @namespace    https://github.com/moamoa7
+// @version      5.7.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -50,6 +50,9 @@
     const STORAGE_KEY = 'delay_meter_config_v3';
     const MAX_TARGET_MS = 8000;
     const DEFAULT_POS = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
+    const COLLAPSED_KEYS = new Set(['mini', 'mc', 'mb', 'mbd', 'title']);
+    const DASH_ON = [3, 3];
+    const DASH_OFF = [];
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -128,9 +131,9 @@
     }
 
     function flashStyle(el, prop, value, duration = 600) {
-        if (!el?.isConnected) return;
+        if (!el) return;
         el.style[prop] = value;
-        setTimeout(() => { if (el.isConnected) el.style[prop] = ''; }, duration);
+        setTimeout(() => { el.style[prop] = ''; }, duration);
     }
 
     /* ── blob URL 판별 ── */
@@ -195,6 +198,7 @@
     let skipReason = '';
     let rateProtectTimer = null;
     let stableTickCount = 0;
+    let stableEntryTime = 0;
     let debugVisible = false;
     let _cachedDropInfo = '';
     let els = {};
@@ -214,8 +218,8 @@
 
     /* ── 링 버퍼 ── */
     class RingBuffer {
-        constructor(cap) {
-            this.buf = new Float64Array(cap);
+        constructor(cap, ArrayType = Float64Array) {
+            this.buf = new ArrayType(cap);
             this.cap = cap;
             this.len = 0;
             this.idx = 0;
@@ -249,7 +253,7 @@
         if (bufferedAhead < TUNING.WARMUP_MIN_BUFFER_SEC) return false;
         if (video.paused) return false;
         warmupDone = true;
-        dmLog(`웜업 완료 (${(now - warmupStartTime).toFixed(0)}ms, buf:${bufferedAhead.toFixed(2)}s, readyState:${video.readyState})`);
+        if (debugVisible) dmLog(`웜업 완료 (${(now - warmupStartTime).toFixed(0)}ms, buf:${bufferedAhead.toFixed(2)}s, readyState:${video.readyState})`);
         return true;
     }
 
@@ -346,6 +350,7 @@
         currentSmoothedRate = 1.0;
         lastSetRate = -1;
         stableTickCount = 0;
+        stableEntryTime = 0;
     }
 
     /* ── 외부 배속 변경 감지 ── */
@@ -355,7 +360,7 @@
         const ext = video.playbackRate;
         if (Math.abs(ext - lastSetRate) < 0.002) return;
         if (isEnabled) {
-            dmLog(`외부 배속 변경 감지: ${ext}, 복원 대기`);
+            if (debugVisible) dmLog(`외부 배속 변경 감지: ${ext}, 복원 대기`);
             clearTimeout(rateProtectTimer);
             rateProtectTimer = setTimeout(() => {
                 if (!video || !isEnabled) return;
@@ -382,7 +387,7 @@
         const totalDelta = q.totalVideoFrames - lastTotalFrames;
         lastDroppedFrames = q.droppedVideoFrames;
         lastTotalFrames = q.totalVideoFrames;
-        _cachedDropInfo = ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}`;
+        if (debugVisible) _cachedDropInfo = ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}`;
         if (totalDelta < 10) return;
         const dropRate = droppedDelta / totalDelta;
         const prev = dynamicMaxRate;
@@ -392,7 +397,7 @@
             dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.015);
         }
         if (prev !== dynamicMaxRate) {
-            dmLog(`maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)} (drop: ${(dropRate * 100).toFixed(1)}%)`);
+            if (debugVisible) dmLog(`maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)} (drop: ${(dropRate * 100).toFixed(1)}%)`);
         }
     }
 
@@ -411,10 +416,10 @@
         lastSetRate = -1;
         lastRateStr = '1.000x';
         lastSpikeTime = 0;
-        skipReason = '';
+        if (debugVisible) { skipReason = ''; _cachedDropInfo = ''; }
         frameCheckCounter = 0;
         stableTickCount = 0;
-        _cachedDropInfo = '';
+        stableEntryTime = 0;
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
@@ -427,7 +432,7 @@
         els.debugVal.style.display = vis;
         if (graphCanvas) graphCanvas.style.display = vis;
         if (els.ver) els.ver.style.display = vis;
-        if (debugVisible && !graphHistory) graphHistory = new RingBuffer(60);
+        if (debugVisible && !graphHistory) graphHistory = new RingBuffer(60, Uint16Array);
     }
 
     /* ── video 관리 ── */
@@ -452,6 +457,7 @@
             hasPlaybackQuality = false;
             lastDroppedFrames = lastTotalFrames = 0;
         }
+        v.removeEventListener('ratechange', onExternalRateChange);
         v.addEventListener('ratechange', onExternalRateChange);
 
         if (!_observed.has(v)) {
@@ -460,7 +466,7 @@
                 if (v === video) {
                     const newSrc = v.currentSrc || v.src || '';
                     if (newSrc !== lastVideoSrc && isBlobSrc(v)) {
-                        dmLog(`src 변경 감지: ${newSrc.slice(0, 40)}...`);
+                        if (debugVisible) dmLog(`src 변경 감지: ${newSrc.slice(0, 40)}...`);
                         lastVideoSrc = newSrc;
                         resetState();
                         startFrameCallback(v);
@@ -468,7 +474,7 @@
                 }
             });
         }
-        dmLog(`video 발견 (blob src: ${src.slice(0, 40)}...)`);
+        if (debugVisible) dmLog(`video 발견 (blob src: ${src.slice(0, 40)}...)`);
     }
 
     function checkUrlChange() {
@@ -597,7 +603,7 @@
         if (!els.delayVal || dirtyChannels.size === 0) return;
         if (collapsed) {
             for (const key of dirtyChannels) {
-                if (key === 'mini' || key === 'mc' || key === 'mb' || key === 'mbd' || key === 'title') {
+                if (COLLAPSED_KEYS.has(key)) {
                     displayApply[key](displayState[key]);
                 }
             }
@@ -625,12 +631,12 @@
         const targetY = h - (targetDelayMs / 8000) * h;
         graphCtx.lineWidth = 1;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
-        graphCtx.setLineDash([3, 3]);
+        graphCtx.setLineDash(DASH_ON);
         graphCtx.beginPath();
         graphCtx.moveTo(0, targetY);
         graphCtx.lineTo(w, targetY);
         graphCtx.stroke();
-        graphCtx.setLineDash([]);
+        graphCtx.setLineDash(DASH_OFF);
 
         graphCtx.lineWidth = 1.5;
         graphCtx.strokeStyle = '#2ecc71';
@@ -661,7 +667,8 @@
             }
             range = ` r:${(lo / 1000).toFixed(1)}-${(hi / 1000).toFixed(1)}`;
         }
-        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${range}${_cachedDropInfo}${skip}${wu}`;
+        const stab = stableEntryTime > 0 ? ` stab:${((performance.now() - stableEntryTime) / 1000).toFixed(1)}` : '';
+        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${stab}${range}${_cachedDropInfo}${skip}${wu}`;
     }
 
     /* ── UI 갱신 ── */
@@ -736,6 +743,8 @@
             btn.style.color = on ? '#000' : '#ccc';
             if (RECOMMENDED_PRESETS.includes(sec)) {
                 btn.style.borderBottom = on ? '2px solid #fff' : '2px solid #2ecc71';
+            } else {
+                btn.style.borderBottom = on ? '2px solid #fff' : '';
             }
         }
     }
@@ -780,7 +789,7 @@
             return;
         }
 
-        skipReason = '';
+        if (debugVisible) skipReason = '';
 
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
@@ -806,7 +815,7 @@
         if (isEnabled && delayMs > seekThresholdMs && stallCount < TUNING.STALL_THRESHOLD) {
             if (now - lastSeekTime >= TUNING.SEEK_COOLDOWN_MS) {
                 lastSeekTime = now;
-                dmLog(`SEEK: ${delayMs.toFixed(0)}ms ct:${ct.toFixed(2)}→${Math.max(bufStart, bufEnd - targetDelayMs / 1000).toFixed(2)}`);
+                if (debugVisible) dmLog(`SEEK: ${delayMs.toFixed(0)}ms ct:${ct.toFixed(2)}→${Math.max(bufStart, bufEnd - targetDelayMs / 1000).toFixed(2)}`);
                 seekToTarget(bufStart, bufEnd);
                 softReset();
                 setRate(1.0);
@@ -833,11 +842,13 @@
 
         if (Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) {
             if (stableTickCount === 0) {
+                stableEntryTime = performance.now();
                 flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 800);
             }
             stableTickCount++;
         } else {
             stableTickCount = 0;
+            stableEntryTime = 0;
         }
 
         updateDisplay(avg, bufEnd, now);
@@ -929,10 +940,11 @@
                 .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
                 .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
                     text-align:center;border-radius:4px}
+                .dm-input::-webkit-inner-spin-button{display:none}
                 .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
                     font-size:11px;font-weight:bold;transition:.1s}
                 .dm-btn:active{transform:scale(.95)}
-                .dm-controls{flex-wrap:wrap;gap:4px}
+                .dm-controls{display:flex;flex-wrap:wrap;gap:4px}
                 .dm-presets{display:flex;gap:3px}
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-presets .dm-btn:hover{background:#444}
@@ -1128,7 +1140,7 @@
 
         const s = loadConfig();
         if (s.panelX != null) {
-            const x = parseInt(s.panelX, 10), y = parseInt(s.panelY, 10);
+            const x = parseFloat(s.panelX), y = parseFloat(s.panelY);
             if (x >= 0 && x < innerWidth - 50 && y >= 0 && y < innerHeight - 50) {
                 Object.assign(panel.style, {
                     left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto'
@@ -1140,8 +1152,8 @@
     function clampPanelPosition() {
         if (!els.panel || !els.panel.style.left) return;
         const panel = els.panel;
-        const x = parseInt(panel.style.left, 10);
-        const y = parseInt(panel.style.top, 10);
+        const x = parseFloat(panel.style.left);
+        const y = parseFloat(panel.style.top);
         if (Number.isNaN(x) || Number.isNaN(y)) return;
         const maxX = innerWidth - panel.offsetWidth;
         const maxY = innerHeight - panel.offsetHeight;
@@ -1219,7 +1231,7 @@
                 if (seekEdge) {
                     const delay = (seekEdge.end - video.currentTime) * 1000;
                     if (delay > targetDelayMs * 2) {
-                        dmLog(`탭 복귀 seek: ${delay.toFixed(0)}ms`);
+                        if (debugVisible) dmLog(`탭 복귀 seek: ${delay.toFixed(0)}ms`);
                         seekToTarget(seekEdge.start, seekEdge.end);
                         flashSeekIndicator();
                     }
