@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      4.8.0
+// @version      4.9.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,7 +16,7 @@
 (function () {
     'use strict';
 
-    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.8.0';
+    const VERSION = typeof GM_info !== 'undefined' ? GM_info.script.version : '4.9.0';
 
     const TUNING = Object.freeze({
         CHECK_INTERVAL: 200,
@@ -215,15 +215,16 @@
         return '#e74c3c';
     }
 
-    const _flashTimers = new WeakMap();
+    const _flashTimers = new Map();
 
     function flashStyle(el, prop, value, duration = 600) {
         if (!el?.isConnected) return;
-        const prev = _flashTimers.get(el);
+        const key = (el.dataset.dm || '') + ':' + prop;
+        const prev = _flashTimers.get(key);
         if (prev) clearTimeout(prev);
         el.style[prop] = value;
-        _flashTimers.set(el, setTimeout(() => {
-            _flashTimers.delete(el);
+        _flashTimers.set(key, setTimeout(() => {
+            _flashTimers.delete(key);
             if (el.isConnected) el.style[prop] = '';
         }, duration));
     }
@@ -672,8 +673,6 @@
 
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1) {
-        const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
-
         if (els.panel) {
             const overThreshold = avgMs > targetDelayMs * 2 && isEnabled && warmupDone;
             if (overThreshold !== lastWarningState) {
@@ -693,6 +692,8 @@
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
             return;
         }
+
+        const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
 
         if (performance.now() >= miniFlashUntil) {
             setDisplay('mini', '');
@@ -763,14 +764,15 @@
 
     /* ── 수동 seek ── */
     function doManualSync() {
-        if (!video || !video.buffered.length) return;
+        if (!video || !video.buffered.length) return false;
         const edge = getBufferEdge(video.buffered);
-        if (!edge) return;
+        if (!edge) return false;
         seekToTarget(edge.start, edge.end);
         delayHistory.clear();
         currentSmoothedRate = 1.0;
         setRate(1.0);
         flashSeekIndicator();
+        return true;
     }
 
     /* ── 핵심 루프 ── */
@@ -953,7 +955,8 @@
                 .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
                     font-size:11px;font-weight:bold;transition:.1s}
                 .dm-btn:active{transform:scale(.95)}
-                .dm-presets{display:flex;gap:5px;justify-content:center;margin-top:8px}
+                .dm-controls{flex-wrap:wrap;gap:4px}
+                .dm-presets{display:flex;gap:3px}
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
                     border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
@@ -974,7 +977,7 @@
                 <span data-dm="collapse" style="float:right;cursor:pointer;font-size:10px">▼</span>
             </div>
             <div class="dm-body">
-                <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val">-</span></div>
+                <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val" style="cursor:pointer" title="클릭하여 동기화">-</span></div>
                 <div class="dm-bar-bg">
                     <div class="dm-bar-clip"><div data-dm="bar" class="dm-bar"></div></div>
                     <div data-dm="targetmark" class="dm-target-mark"></div>
@@ -983,12 +986,12 @@
                 <div class="dm-bar-bg">
                     <div class="dm-bar-clip"><div data-dm="ratebar" class="dm-rate-bar"></div></div>
                 </div>
-                <div class="dm-row" style="margin-top:10px">
-                    <button data-dm="toggle" class="dm-btn">ON</button>
-                    <button data-dm="sync" class="dm-btn" style="background:#2980b9;color:#fff;margin-left:6px">⟳ SYNC</button>
+                <div class="dm-row dm-controls" style="margin-top:10px">
+                    <button data-dm="toggle" class="dm-btn" title="배속 조절 ON/OFF (Alt+D)">ON</button>
+                    <button data-dm="sync" class="dm-btn" style="background:#2980b9;color:#fff" title="수동 동기화 (Alt+S)">⟳</button>
                     <span>목표 <input type="number" data-dm="target" class="dm-input" step="0.5">초</span>
+                    <div class="dm-presets" data-dm="presets"></div>
                 </div>
-                <div class="dm-presets"></div>
                 <div class="dm-debug" data-dm="debug"></div>
             </div>`;
         document.body.appendChild(panel);
@@ -1005,6 +1008,13 @@
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
 
         initDisplayApply();
+
+        /* ── 딜레이 값 클릭 SYNC ── */
+        els.delayVal.onclick = () => {
+            if (!doManualSync()) {
+                flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 400);
+            }
+        };
 
         /* ── 접기/펼치기 ── */
         const body = panel.querySelector('.dm-body');
@@ -1050,11 +1060,9 @@
 
         /* ── SYNC 버튼 ── */
         els.syncBtn.onclick = () => {
-            if (!video || !video.buffered.length) {
+            if (!doManualSync()) {
                 flashStyle(els.syncBtn, 'background', '#c0392b', 400);
-                return;
             }
-            doManualSync();
         };
 
         /* ── 목표 딜레이 입력 ── */
@@ -1073,7 +1081,7 @@
 
         /* ── 프리셋 ── */
         const PRESETS = [1, 2, 3, 4, 5];
-        const presetBox = panel.querySelector('.dm-presets');
+        const presetBox = q('presets');
         presetBtns = PRESETS.map(sec => {
             const btn = Object.assign(document.createElement('button'), {
                 className: 'dm-btn',
