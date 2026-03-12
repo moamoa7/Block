@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v189.12 - Ultimate Master Build)
+// @name         Video_Control (v189.13 - Ultimate Master Build)
 // @namespace    https://github.com/
-// @version      189.12
+// @version      189.13
 // @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI (getUiRoot strict mode).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.12';
+  const SCRIPT_VERSION = '189.13';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -287,6 +287,11 @@ function VSC_MAIN() {
       if (__vscNs._intervals) __vscNs._intervals.push(pollId); return pollId;
     }
     const pollTimer = startVideoPolling();
+
+    // 🔥 추가됨: 비디오 재생 시 즉각 캡처 (폴링 딜레이 제거)
+    on(document, 'play', (e) => {
+      if (e.target?.tagName === 'VIDEO') observeVideo(e.target);
+    }, { capture: true, passive: true });
 
     function pruneDisconnectedVideos() { let removed = 0; for (const el of [...videos]) { if (!el?.isConnected) { videos.delete(el); visible.videos.delete(el); dirtyA.videos.delete(el); dirtyB.videos.delete(el); io?.unobserve(el); ro?.unobserve(el); removed++; } } return removed; }
 
@@ -601,6 +606,11 @@ function VSC_MAIN() {
         s += (2.0 * userBias) / (1 + (dx * dx + dy * dy) / 722500); const cdx = cx - vp.cx, cdy = cy - vp.cy; s += 0.7 / (1 + (cdx * cdx + cdy * cdy) / 810000);
         if (v.muted || v.volume < 0.01) s -= 1.5; if (v.autoplay && (v.muted || v.volume < 0.01)) s -= 2.0;
         if (!v.controls && !isInPlayer(v)) s -= 1.0; if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2);
+
+        // 🔥 추가됨: MSE 스트리밍 (메인 콘텐츠) 가중치 부여
+        const vSrc = v.currentSrc || v.src || '';
+        if (vSrc.startsWith('blob:')) s += 1.5;
+
         if (s > bestScore) { bestScore = s; best = v; }
       };
       for (const v of videos) evalScore(v);
