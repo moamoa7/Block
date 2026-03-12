@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      5.2.0
+// @version      5.3.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -20,7 +20,7 @@
 
     const TUNING = {
         CHECK_INTERVAL: 200,
-        HISTORY_SIZE: 6,
+        HISTORY_SIZE: 6, // ≤ 30 필수 (getStableAverage에서 1 << i 사용, 31 이상 시 음수 오버플로)
         MAX_RATE: 1.20,
         MIN_RATE: 1.00,
         DEADZONE_MS: 150,
@@ -53,12 +53,6 @@
     const STORAGE_KEY = 'delay_meter_config_v3';
     const MAX_TARGET_MS = 8000;
     const DEFAULT_POS = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
-
-    const DASH_PATTERN = [3, 3];
-
-    const STATUS = {
-        WARMUP: ' ⏳', DISABLED: ' ⏹', OK: ' ✓', STABLE: ' →', UP: ' ↑', DOWN: ' ↓'
-    };
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -116,10 +110,11 @@
         const G = { r: 0x2e, g: 0xcc, b: 0x71 };
         const Y = { r: 0xf1, g: 0xc4, b: 0x0f };
         const R = { r: 0xe7, g: 0x4c, b: 0x3c };
-        let lastInput = NaN, lastResult = '#2ecc71';
+        let lastInput = -1, lastResult = '#2ecc71';
         return (diff) => {
-            if (Math.abs(diff - lastInput) < 50) return lastResult;
-            lastInput = diff;
+            const rounded = (diff + 25) | 0;
+            if (rounded === lastInput) return lastResult;
+            lastInput = rounded;
             const ratio = clamp(diff / 2000, 0, 1);
             if (ratio <= 0) return (lastResult = '#2ecc71');
             if (ratio >= 1) return (lastResult = '#e74c3c');
@@ -135,18 +130,10 @@
         return '#e74c3c';
     }
 
-    const _flashTimers = new Map();
-
     function flashStyle(el, prop, value, duration = 600) {
         if (!el?.isConnected) return;
-        const key = (el.dataset.dm || '') + ':' + prop;
-        const prev = _flashTimers.get(key);
-        if (prev) clearTimeout(prev);
         el.style[prop] = value;
-        _flashTimers.set(key, setTimeout(() => {
-            _flashTimers.delete(key);
-            if (el.isConnected) el.style[prop] = '';
-        }, duration));
+        setTimeout(() => { if (el.isConnected) el.style[prop] = ''; }, duration);
     }
 
     /* ── blob URL 판별 ── */
@@ -159,27 +146,21 @@
     const _edgeResult = { start: 0, end: 0 };
 
     function getBufferEdge(buf) {
-        if (!buf || buf.length === 0) return null;
-        try {
-            const last = buf.length - 1;
-            _edgeResult.start = buf.start(last);
-            _edgeResult.end = buf.end(last);
-            return _edgeResult;
-        } catch (e) {
-            dmLog('buffered 접근 실패:', e.message);
-            return null;
-        }
+        if (!buf?.length) return null;
+        const last = buf.length - 1;
+        _edgeResult.start = buf.start(last);
+        _edgeResult.end = buf.end(last);
+        return _edgeResult;
     }
 
     /* ── 라이브 판별 ── */
     function isLiveStream(v) {
         const d = v.duration;
         if (d === Infinity || d >= 1e6) return true;
-        if (Number.isNaN(d) || d === 0) return v.buffered.length > 0;
-        if (v.buffered.length === 0) return false;
+        if (!d) return v.buffered.length > 0;
+        if (!v.buffered.length) return false;
         const bufEnd = v.buffered.end(v.buffered.length - 1);
-        if (d - bufEnd < 1) return false;
-        return bufEnd > v.currentTime + 1;
+        return d - bufEnd >= 1 && bufEnd > v.currentTime + 1;
     }
 
     /* ── 상태 ── */
@@ -350,7 +331,7 @@
             lastRateStr = rounded.toFixed(3) + 'x';
         } catch { /* */ }
         finally {
-            queueMicrotask(() => { isSettingRate = false; });
+            isSettingRate = false;
         }
     }
 
@@ -380,9 +361,9 @@
                 }
             }, 200);
         } else {
-            currentSmoothedRate = ext;
-            lastSetRate = ext;
-            lastRateStr = ext.toFixed(3) + 'x';
+            currentSmoothedRate = 1.0;
+            lastSetRate = -1;
+            lastRateStr = '1.000x';
         }
     }
 
@@ -446,19 +427,19 @@
         startFrameCallback(video);
         resetState();
         try {
-            hasPlaybackQuality = typeof v.getVideoPlaybackQuality === 'function' && !!v.getVideoPlaybackQuality();
+            const q = v.getVideoPlaybackQuality?.();
+            if (q) {
+                hasPlaybackQuality = true;
+                lastDroppedFrames = q.droppedVideoFrames;
+                lastTotalFrames = q.totalVideoFrames;
+            } else {
+                hasPlaybackQuality = false;
+                lastDroppedFrames = lastTotalFrames = 0;
+            }
         } catch {
             hasPlaybackQuality = false;
+            lastDroppedFrames = lastTotalFrames = 0;
         }
-        if (hasPlaybackQuality) {
-            const q = v.getVideoPlaybackQuality();
-            lastDroppedFrames = q.droppedVideoFrames;
-            lastTotalFrames = q.totalVideoFrames;
-        } else {
-            lastDroppedFrames = 0;
-            lastTotalFrames = 0;
-        }
-        v.removeEventListener('ratechange', onExternalRateChange);
         v.addEventListener('ratechange', onExternalRateChange);
 
         if (!v._dmSrcObserved) {
@@ -538,8 +519,9 @@
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
             if (ac.signal.aborted) return;
             if (Math.abs(video.currentTime - expectedTime) > 2) return;
+            if (ac.signal.aborted) return;
             const postCheck = setTimeout(() => {
-                if (ac.signal.aborted || !video?.isConnected) return;
+                if (!video?.isConnected) return;
                 const edge = getBufferEdge(video.buffered);
                 if (!edge) return;
                 const postDelay = (edge.end - video.currentTime) * 1000;
@@ -555,11 +537,10 @@
     function getStatusIndicator(avg, rate) {
         const delta = avg - prevAvg;
         prevAvg = avg;
-        if (!warmupDone) return STATUS.WARMUP;
-        if (!isEnabled) return STATUS.DISABLED;
-        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return STATUS.OK;
-        if (Math.abs(delta) < 80) return STATUS.STABLE;
-        return delta > 0 ? STATUS.UP : STATUS.DOWN;
+        if (!warmupDone) return ' ⏳';
+        if (!isEnabled) return ' ⏹';
+        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return ' ✓';
+        return Math.abs(delta) < 80 ? ' →' : (delta > 0 ? ' ↑' : ' ↓');
     }
 
     function flashSeekIndicator() {
@@ -589,6 +570,8 @@
         displayApply.rc    = v => { if (els.rateVal) els.rateVal.style.color = v || ''; };
         displayApply.mini  = v => { if (els.mini) els.mini.textContent = v; };
         displayApply.mc    = v => { if (els.mini) els.mini.style.color = v || ''; };
+        displayApply.mb    = v => { if (els.miniBar) els.miniBar.style.background = v; };
+        displayApply.mbd   = v => { if (els.miniBar) els.miniBar.style.display = v; };
         displayApply.dbg   = v => { if (els.debugVal) els.debugVal.textContent = v; };
         displayApply.title = v => { if (els.panel) els.panel.title = v; };
     }
@@ -607,6 +590,8 @@
         if (collapsed) {
             if (dirtyChannels.has('mini')) displayApply.mini(displayState.mini);
             if (dirtyChannels.has('mc')) displayApply.mc(displayState.mc);
+            if (dirtyChannels.has('mb')) displayApply.mb(displayState.mb);
+            if (dirtyChannels.has('mbd')) displayApply.mbd(displayState.mbd);
             if (dirtyChannels.has('title')) displayApply.title(displayState.title);
         } else {
             for (const key of dirtyChannels) {
@@ -631,7 +616,7 @@
 
         const targetY = h - (targetDelayMs / 8000) * h;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
-        graphCtx.setLineDash(DASH_PATTERN);
+        graphCtx.setLineDash([3, 3]);
         graphCtx.beginPath();
         graphCtx.moveTo(0, targetY);
         graphCtx.lineTo(w, targetY);
@@ -670,6 +655,8 @@
                 setDisplay('mini', (avgMs / 1000).toFixed(1) + 's' + miniStatus + miniRate);
                 setDisplay('mc', computeColor(avgMs - targetDelayMs));
             }
+            setDisplay('mb', computeColor(avgMs - targetDelayMs));
+            setDisplay('mbd', '');
             setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
@@ -681,6 +668,7 @@
         if (now >= miniFlashUntil) {
             setDisplay('mini', '');
         }
+        setDisplay('mbd', 'none');
 
         setDisplay('d', (avgMs / 1000).toFixed(2) + 's' + statusIndicator);
         setDisplay('r', lastRateStr);
@@ -718,8 +706,8 @@
         if (els.panel) els.panel.style.filter = on ? '' : 'brightness(0.65)';
     }
     function updateTargetMark() {
-        if (!els.targetMark) return;
-        els.targetMark.style.left = pct(targetDelayMs, 8000);
+        if (els.targetMark) els.targetMark.style.left = pct(targetDelayMs, 8000);
+        if (els.seekMark) els.seekMark.style.left = pct(seekThresholdMs, 8000);
     }
 
     let presetBtns = [];
@@ -763,8 +751,8 @@
         const now = performance.now();
 
         if (!isWarmedUp()) {
-            const edge = getBufferEdge(video.buffered);
-            if (edge) {
+            const edge = (video.buffered.length > 0) ? _edgeResult : null;
+            if (edge && edge.end > 0) {
                 const rawDelay = (edge.end - video.currentTime) * 1000;
                 const delayMs = Math.max(0, rawDelay + PLATFORM_OFFSET);
                 updateDisplay(delayMs, edge.end, now);
@@ -910,37 +898,42 @@
     function createPanel() {
         if (document.getElementById('dm-panel')) return;
         GM_addStyle(`
-            #dm-panel{position:fixed;bottom:20px;right:20px;z-index:10000;
-                background:rgba(12,12,16,.92);backdrop-filter:blur(6px);
-                border:1px solid rgba(255,255,255,.08);border-radius:12px;
-                padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
-                font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
-                user-select:none;transition:border-color .3s ease,filter .3s ease}
-            #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
-                padding-bottom:6px;margin-bottom:8px;cursor:grab;
-                display:flex;align-items:center;gap:6px}
-            .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
-            .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px;
-                transition:opacity .2s ease}
-            .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
-                border-radius:3px;margin:4px 0 8px;overflow:visible}
-            .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
-            .dm-bar,.dm-rate-bar{transition:width .15s linear,background .2s ease}
-            .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px}
-            .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
-                border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
-                background:#fff;opacity:.6}
-            .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
-            .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
-                text-align:center;border-radius:4px}
-            .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
-                font-size:11px;font-weight:bold;transition:.1s}
-            .dm-btn:active{transform:scale(.95)}
-            .dm-controls{flex-wrap:wrap;gap:4px}
-            .dm-presets{display:flex;gap:3px}
-            .dm-presets .dm-btn{background:#333;color:#ccc}
-            .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
-                border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
+            @layer dm {
+                #dm-panel{position:fixed;bottom:20px;right:20px;z-index:10000;
+                    background:rgba(12,12,16,.92);backdrop-filter:blur(6px);
+                    border:1px solid rgba(255,255,255,.08);border-radius:12px;
+                    padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
+                    font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
+                    user-select:none;transition:filter .3s ease}
+                #dm-panel [data-dm="header"]{font-weight:bold;border-bottom:1px solid #333;
+                    padding-bottom:6px;margin-bottom:8px;cursor:grab;
+                    display:flex;align-items:center;gap:6px}
+                .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
+                .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px}
+                .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
+                    border-radius:3px;margin:4px 0 8px;overflow:visible}
+                .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
+                .dm-bar,.dm-rate-bar{transition:width .15s linear}
+                .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px}
+                .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
+                    border-radius:1px;transition:left .3s ease;pointer-events:none;
+                    background:#fff;opacity:.6}
+                .dm-seek-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
+                    border-radius:1px;transition:left .3s ease;pointer-events:none;
+                    background:#e74c3c;opacity:.4}
+                .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
+                .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
+                    text-align:center;border-radius:4px}
+                .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
+                    font-size:11px;font-weight:bold;transition:.1s}
+                .dm-btn:active{transform:scale(.95)}
+                .dm-controls{flex-wrap:wrap;gap:4px}
+                .dm-presets{display:flex;gap:3px}
+                .dm-presets .dm-btn{background:#333;color:#ccc}
+                .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
+                    border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
+                .dm-minibar{height:2px;border-radius:1px;margin-top:4px;display:none}
+            }
         `);
 
         const panel = document.createElement('div');
@@ -950,11 +943,13 @@
                 <span data-dm="mini" style="font-size:11px;font-family:monospace;font-weight:normal"></span>
                 <span data-dm="collapse" style="margin-left:auto;cursor:pointer;font-size:10px">▼</span>
             </div>
+            <div data-dm="minibar" class="dm-minibar"></div>
             <div class="dm-body">
                 <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val" style="cursor:pointer" title="클릭하여 동기화">-</span></div>
                 <div class="dm-bar-bg">
                     <div class="dm-bar-clip"><div data-dm="bar" class="dm-bar"></div></div>
                     <div data-dm="targetmark" class="dm-target-mark"></div>
+                    <div data-dm="seekmark" class="dm-seek-mark"></div>
                 </div>
                 <div class="dm-row"><span>배속</span><span data-dm="rate" class="dm-val">1.000x</span></div>
                 <div class="dm-bar-bg">
@@ -974,10 +969,10 @@
         els = {
             panel: panel,
             delayVal: q('delay'), rateVal: q('rate'), barFill: q('bar'),
-            rateBar: q('ratebar'), targetMark: q('targetmark'),
+            rateBar: q('ratebar'), targetMark: q('targetmark'), seekMark: q('seekmark'),
             toggleBtn: q('toggle'), syncBtn: q('sync'), targetIn: q('target'),
             header: q('header'), debugVal: q('debug'), mini: q('mini'),
-            ver: q('ver'), collapseBtn: q('collapse'),
+            ver: q('ver'), collapseBtn: q('collapse'), miniBar: q('minibar'),
         };
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
 
@@ -1003,6 +998,7 @@
             applyCollapse(); saveConfig({ collapsed });
             if (!collapsed) {
                 setDisplay('mc', '');
+                setDisplay('mbd', 'none');
                 for (const key in displayState) {
                     if (key[0] !== '_') dirtyChannels.add(key);
                 }
@@ -1197,7 +1193,7 @@
                 if (needSeek) {
                     seekEdge = getBufferEdge(video.buffered);
                     if (seekEdge) {
-                        seekEdge = { start: seekEdge.start, end: seekEdge.end };
+                        seekEdge = { start: seekEdge.start, end: seekEdge.end }; // _edgeResult 재사용 방어
                     }
                 }
 
