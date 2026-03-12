@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      5.4.0
+// @version      5.5.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -421,6 +421,16 @@
         warmupStartTime = performance.now();
     }
 
+    /* ── 디버그 표시 토글 ── */
+    function applyDebug() {
+        if (!els.debugVal) return;
+        const vis = debugVisible ? '' : 'none';
+        els.debugVal.style.display = vis;
+        if (graphCanvas) graphCanvas.style.display = vis;
+        if (els.ver) els.ver.style.display = vis;
+        if (debugVisible && !graphHistory) graphHistory = new RingBuffer(60);
+    }
+
     /* ── video 관리 ── */
     function onVideoFound(v) {
         if (!isBlobSrc(v)) return;
@@ -432,19 +442,14 @@
         }
         video = v;
         lastVideoSrc = src;
-        startFrameCallback(video);
         resetState();
-        try {
-            const q = v.getVideoPlaybackQuality?.();
-            if (q) {
-                hasPlaybackQuality = true;
-                lastDroppedFrames = q.droppedVideoFrames;
-                lastTotalFrames = q.totalVideoFrames;
-            } else {
-                hasPlaybackQuality = false;
-                lastDroppedFrames = lastTotalFrames = 0;
-            }
-        } catch {
+        startFrameCallback(video);
+        const q = v.getVideoPlaybackQuality?.();
+        if (q) {
+            hasPlaybackQuality = true;
+            lastDroppedFrames = q.droppedVideoFrames;
+            lastTotalFrames = q.totalVideoFrames;
+        } else {
             hasPlaybackQuality = false;
             lastDroppedFrames = lastTotalFrames = 0;
         }
@@ -518,10 +523,6 @@
             if (!ac.signal.aborted) ac.abort();
         }, 5000);
 
-        ac.signal.addEventListener('abort', () => {
-            if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
-        });
-
         const expectedTime = seekTo;
         video.addEventListener('seeked', () => {
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
@@ -558,6 +559,9 @@
         if (!els.mini) return;
         setDisplay('mini', isEnabled ? 'ON' : 'OFF');
         setDisplay('mc', isEnabled ? '#2ecc71' : '#e74c3c');
+        if (!rafId) {
+            rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
+        }
     }
 
     /* ── dirty 플래그 기반 display ── */
@@ -572,7 +576,6 @@
         displayApply.w     = v => { els.barFill.style.width = v; };
         displayApply.rb    = v => { if (els.rateBar) els.rateBar.style.width = v; };
         displayApply.rbc   = v => { if (els.rateBar) els.rateBar.style.background = v; };
-        displayApply.ro    = v => { if (els.rateVal) els.rateVal.style.opacity = v; };
         displayApply.rc    = v => { if (els.rateVal) els.rateVal.style.color = v || ''; };
         displayApply.mini  = v => { if (els.mini) els.mini.textContent = v; };
         displayApply.mc    = v => { if (els.mini) els.mini.style.color = v || ''; };
@@ -621,6 +624,7 @@
         graphCtx.clearRect(0, 0, w, h);
 
         const targetY = h - (targetDelayMs / 8000) * h;
+        graphCtx.lineWidth = 1;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
         graphCtx.setLineDash([3, 3]);
         graphCtx.beginPath();
@@ -629,8 +633,8 @@
         graphCtx.stroke();
         graphCtx.setLineDash([]);
 
-        graphCtx.strokeStyle = '#2ecc71';
         graphCtx.lineWidth = 1.5;
+        graphCtx.strokeStyle = '#2ecc71';
         graphCtx.beginPath();
         const xScale = w / (graphHistory.cap - 1);
         for (let i = 0; i < n; i++) {
@@ -647,7 +651,18 @@
         const bEnd = bufEnd >= 0 ? bufEnd.toFixed(2) : '-';
         const skip = skipReason ? ` [${skipReason}]` : '';
         const wu = warmupDone ? '' : ' [WARMUP]';
-        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${_cachedDropInfo}${skip}${wu}`;
+        const n = delayHistory.length;
+        let range = '';
+        if (n >= 2) {
+            let lo = Infinity, hi = -Infinity;
+            for (let i = 0; i < n; i++) {
+                const v = delayHistory.at(i);
+                if (v < lo) lo = v;
+                if (v > hi) hi = v;
+            }
+            range = ` r:${(lo / 1000).toFixed(1)}-${(hi / 1000).toFixed(1)}`;
+        }
+        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${range}${_cachedDropInfo}${skip}${wu}`;
     }
 
     /* ── UI 갱신 ── */
@@ -656,13 +671,14 @@
             const delta = avgMs - prevAvg;
             prevAvg = avgMs;
             const color = computeColor(avgMs - targetDelayMs);
+            const sec = avgMs / 1000;
             const miniStatus = warmupDone ? (Math.abs(delta) > 80 ? (delta > 0 ? '↑' : '↓') : '') : '⏳';
             const miniRate = currentSmoothedRate > 1.005 ? (' ' + lastRateStr) : '';
-            setDisplay('mini', (avgMs / 1000).toFixed(1) + 's' + miniStatus + miniRate);
+            setDisplay('mini', sec.toFixed(1) + 's' + miniStatus + miniRate);
             setDisplay('mc', color);
             setDisplay('mb', color);
             setDisplay('mbd', '');
-            setDisplay('title', `딜레이: ${(avgMs / 1000).toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
+            setDisplay('title', `딜레이: ${sec.toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
             if (rafId) return;
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
             return;
@@ -677,15 +693,15 @@
         setDisplay('r', lastRateStr);
         setDisplay('c', computeColor(avgMs - targetDelayMs));
         setDisplay('w', pct(avgMs, 8000));
-        setDisplay('ro', isEnabled ? '1' : '0.3');
 
         const rateRatio = clamp(
             (currentSmoothedRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
         );
         const rateDisplay = Math.round(Math.sqrt(rateRatio) * 100);
+        const barColor = getRateBarColor(rateRatio);
         setDisplay('rb', rateDisplay + '%');
-        setDisplay('rbc', getRateBarColor(rateRatio));
-        setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
+        setDisplay('rbc', barColor);
+        setDisplay('rc', currentSmoothedRate > 1.005 ? barColor : '');
 
         if (debugVisible && els.debugVal) {
             setDisplay('dbg', buildDebugString(bufEnd));
@@ -719,6 +735,9 @@
             const on = targetDelayMs === sec * 1000;
             btn.style.background = on ? '#2ecc71' : '#333';
             btn.style.color = on ? '#000' : '#ccc';
+            if (RECOMMENDED_PRESETS.includes(sec)) {
+                btn.style.borderBottom = on ? '2px solid #fff' : '2px solid #2ecc71';
+            }
         }
     }
 
@@ -950,7 +969,7 @@
                 <div class="dm-row dm-controls" style="margin-top:10px">
                     <button data-dm="toggle" class="dm-btn" title="배속 조절 ON/OFF (Alt+D)">ON</button>
                     <button data-dm="sync" class="dm-btn" style="background:#2980b9;color:#fff" title="수동 동기화 (Alt+S)">⟳</button>
-                    <span>목표 <input type="number" data-dm="target" class="dm-input" step="0.5">초</span>
+                    <span>목표 <input type="number" data-dm="target" class="dm-input" step="0.5" min="0.5" max="8">초</span>
                     <div class="dm-presets" data-dm="presets"></div>
                 </div>
                 <div class="dm-debug" data-dm="debug"></div>
@@ -999,20 +1018,13 @@
 
         /* ── 디버그 토글 ── */
         debugVisible = loadConfig().debugVisible ?? false;
-        const applyDebug = () => {
-            const vis = debugVisible ? '' : 'none';
-            els.debugVal.style.display = vis;
-            if (graphCanvas) graphCanvas.style.display = vis;
-            if (els.ver) els.ver.style.display = vis;
-            if (debugVisible && !graphHistory) graphHistory = new RingBuffer(60);
-        };
         applyDebug();
         els.header.addEventListener('dblclick', () => {
             debugVisible = !debugVisible; applyDebug(); saveConfig({ debugVisible });
         });
 
         /* ── 헤더 단축키 tooltip ── */
-        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 더블클릭:디버그';
+        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 Alt+G:디버그';
 
         /* ── ON/OFF ── */
         updateToggleBtnUI();
@@ -1141,7 +1153,7 @@
         }
     }
 
-    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+T 목표입력, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화 */
+    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+T 목표입력, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화, Alt+G 디버그 */
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
@@ -1155,6 +1167,7 @@
             Object.assign(els.panel.style, DEFAULT_POS);
             saveConfig({ panelX: null, panelY: null });
         }],
+        ['KeyG',      () => { debugVisible = !debugVisible; applyDebug(); saveConfig({ debugVisible }); }],
     ]);
 
     function init() {
