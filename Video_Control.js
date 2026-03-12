@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v189.2 - Extreme Light)
+// @name         Video_Control (v189.3 - Extreme Light)
 // @namespace    https://github.com/
-// @version      189.2
+// @version      189.3
 // @description  Ultimate lightweight build: Hybrid filter, Audio fixed, Timer & Zoom preserved. Legacy fallbacks removed.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -24,7 +24,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.2';
+  const SCRIPT_VERSION = '189.3';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -78,8 +78,8 @@ function VSC_MAIN() {
 
   /* ── CONFIG ──────────────────────────────────────────────────── */
   const CONFIG = (() => {
-    const IS_MOBILE = (() => { const uad = navigator.userAgentData; if (uad && typeof uad.mobile === 'boolean') return uad.mobile; if (/iPad/.test(navigator.platform) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform))) return true; return /Mobi|Android|iPhone/i.test(navigator.userAgent); })();
-    const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+    const IS_MOBILE = (() => { const uad = navigator.userAgentData; if (uad && typeof uad.mobile === 'boolean') return uad.mobile; if (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform)) return true; return /Mobi|Android|iPhone/i.test(navigator.userAgent); })();
+    const VSC_ID = crypto.randomUUID();
     const DEBUG = /[?&]vsc_debug=1/.test(location.search);
     const FLAGS = Object.seal({ FILTER_FORCE_OPAQUE_BG: true });
     const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
@@ -104,7 +104,7 @@ function VSC_MAIN() {
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [data-player], [id*="player" i], [class*="player" i]';
   const OPT_P = { passive: true };
   const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
-  const combineSignals = (...signals) => { const existing = signals.filter(Boolean); if (existing.length === 0) return AbortSignal.abort(); if (existing.length === 1) return existing[0]; return AbortSignal.any(existing); };
+  const combineSignals = (...signals) => { const existing = signals.filter(Boolean); if (existing.length === 0) return AbortSignal.abort(); if (existing.length === 1) return existing[0]; if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing); const ac = new AbortController(); for (const sig of existing) { if (sig.aborted) { ac.abort(sig.reason); return ac.signal; } sig.addEventListener('abort', () => ac.abort(sig.reason), { once: true }); } return ac.signal; };
 
   /* ── Event Binding ───────────────────────────────────────────── */
   function on(target, type, fn, opts) { if (!target?.addEventListener) return; if (typeof opts === 'boolean') opts = { capture: opts }; const merged = opts ? { ...opts } : {}; merged.signal = merged.signal ? combineSignals(merged.signal, __globalSig) : __globalSig; target.addEventListener(type, fn, merged); }
@@ -156,7 +156,8 @@ function VSC_MAIN() {
   const bumpLayoutRevThrottled = () => { if (!_scrollBumpRaf) _scrollBumpRaf = requestAnimationFrame(() => { _scrollBumpRaf = 0; bumpLayoutRev(); }); };
   on(window, 'scroll', bumpLayoutRevThrottled, { passive: true, capture: true }); on(window, 'resize', bumpLayoutRev, { passive: true });
   try { const vv = window.visualViewport; if (vv) { on(vv, 'scroll', bumpLayoutRevThrottled, { passive: true }); on(vv, 'resize', bumpLayoutRev, { passive: true }); } } catch (_) {}
-/* ── Video State Map ─────────────────────────────────────────── */
+
+  /* ── Video State Map ─────────────────────────────────────────── */
   const videoStateMap = new WeakMap();
   const getVState = (v) => {
     let st = videoStateMap.get(v);
@@ -247,7 +248,7 @@ function VSC_MAIN() {
       const wasEmpty = (videos.size === 0); videos.add(el);
       if (bus) bus.emit('video:detected', { video: el, isFirst: wasEmpty });
       if (wasEmpty) queueMicrotask(() => { __vscNs.UIEnsure?.(); });
-      if (io) { io.observe(el); } else { const st = getVState(el); let vis = true; if (typeof el.checkVisibility === 'function') { try { vis = el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }); } catch (_) {} } st.visible = vis; if (vis && !visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } }
+      if (io) { io.observe(el); } else { const st = getVState(el); let vis = true; if (typeof el.checkVisibility === 'function') { vis = el.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }); } st.visible = vis; if (vis && !visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } }
       ro?.observe(el);
     };
 
@@ -353,7 +354,7 @@ function VSC_MAIN() {
     };
     const setTarget = (v) => {
       if (v == null) { detachCurrentSource(); syncMixAndParams(); return; } if (v === target && currentSrc) { syncMixAndParams(); return; }
-      if (!ctx) { const AC = window.AudioContext || window.webkitAudioContext; try { ctx = new AC({ latencyHint: 'interactive' }); currentNodes = buildAudioGraph(ctx); } catch (_) { return; } }
+      if (!ctx) { const AC = window.AudioContext; try { ctx = new AC({ latencyHint: 'interactive' }); currentNodes = buildAudioGraph(ctx); } catch (_) { return; } }
       const connect = (vid) => {
         let s = audioSourceMap.get(vid); if (s && s.context !== ctx) { detachAudioSource(vid); s = null; }
         if (!s) { try { s = getOrCreateAudioSource(ctx, vid); } catch (e) { getVState(vid).audioFailUntil = performance.now() + 5000; target = vid; currentSrc = null; syncMixAndParams(); return; } }
@@ -554,7 +555,7 @@ function VSC_MAIN() {
       const now = performance.now(), vp = getViewportSnapshot(); let best = null, bestScore = -Infinity;
       const evalScore = (v) => {
         if (!v || v.readyState < 2) return;
-        if (typeof v.checkVisibility === 'function') { try { if (!v.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })) return; } catch (_) {} }
+        if (typeof v.checkVisibility === 'function') { if (!v.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true, contentVisibilityAuto: true })) return; }
         const r = v.getBoundingClientRect(), area = (r?.width || 0) * (r?.height || 0), hasDecoded = ((v.videoWidth | 0) > 0) && ((v.videoHeight | 0) > 0);
         if (!hasDecoded && area < 160 * 120) return;
         const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5; let s = 0;
