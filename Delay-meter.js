@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/delay-meter
-// @version      5.5.0
+// @version      5.6.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,11 +16,9 @@
 (function () {
     'use strict';
 
-    const VERSION = GM_info.script.version;
-
     const TUNING = {
         CHECK_INTERVAL: 200,
-        HISTORY_SIZE: 6, // ≤ 30 필수 (getStableAverage에서 1 << i 사용, 31 이상 시 음수 오버플로)
+        HISTORY_SIZE: 6,
         MAX_RATE: 1.20,
         MIN_RATE: 1.00,
         DEADZONE_MS: 150,
@@ -34,7 +32,6 @@
         SPIKE_THRESHOLD_MS: 2500,
         SPIKE_COOLDOWN_MS: 1000,
         STALL_THRESHOLD: 3,
-        VIDEO_SEARCH_EVERY: 150,
         FRAME_CHECK_EVERY: 50,
         WARMUP_MS: 1500,
         WARMUP_MIN_BUFFER_SEC: 1.0,
@@ -163,6 +160,9 @@
         return d - bufEnd >= 1 && bufEnd > v.currentTime + 1;
     }
 
+    /* ── video src 관찰 WeakSet ── */
+    const _observed = new WeakSet();
+
     /* ── 상태 ── */
     const saved = loadConfig();
     let video = null;
@@ -188,7 +188,6 @@
     let lastTotalFrames = 0;
     let hasPlaybackQuality = false;
     let frameCheckCounter = 0;
-    let videoSearchCounter = 0;
     let lastCurrentTime = 0;
     let stallCount = 0;
     let wasPaused = false;
@@ -455,8 +454,8 @@
         }
         v.addEventListener('ratechange', onExternalRateChange);
 
-        if (!v._dmSrcObserved) {
-            v._dmSrcObserved = true;
+        if (!_observed.has(v)) {
+            _observed.add(v);
             v.addEventListener('loadstart', () => {
                 if (v === video) {
                     const newSrc = v.currentSrc || v.src || '';
@@ -777,7 +776,7 @@
             } else {
                 updateDisplay(0, -1, now);
             }
-            skipReason = 'WARMUP';
+            if (debugVisible) skipReason = 'WARMUP';
             return;
         }
 
@@ -821,7 +820,7 @@
         if (lastDelay > 0
             && Math.abs(delayMs - lastDelay) > TUNING.SPIKE_THRESHOLD_MS
             && now - lastSpikeTime >= TUNING.SPIKE_COOLDOWN_MS) {
-            skipReason = 'SPIKE';
+            if (debugVisible) skipReason = 'SPIKE';
             lastSpikeTime = now;
             softReset();
             updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
@@ -858,17 +857,13 @@
         }
 
         if (!video) {
-            if (++videoSearchCounter % TUNING.VIDEO_SEARCH_EVERY === 0) {
-                const v = document.querySelector('video');
-                if (v) onVideoFound(v);
-            }
             updateDisplay(0);
             return;
         }
 
         const blobSrc = isBlobSrc(video);
         if (!blobSrc || !isLiveStream(video)) {
-            skipReason = blobSrc ? 'VOD/AD' : 'NON-BLOB';
+            if (debugVisible) skipReason = blobSrc ? 'VOD/AD' : 'NON-BLOB';
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
             updateDisplay(0);
             return;
@@ -910,16 +905,16 @@
         GM_addStyle(`
             @layer dm {
                 #dm-panel{position:fixed;bottom:20px;right:20px;z-index:10000;
-                    background:rgba(12,12,16,.92);backdrop-filter:blur(6px);
+                    background:rgba(12,12,16,.92);backdrop-filter:blur(3px);
                     border:1px solid rgba(255,255,255,.08);border-radius:12px;
-                    padding:12px 16px;color:#eee;font-family:'Pretendard',sans-serif;
+                    padding:12px 16px;color:#eee;font-family:system-ui,sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
-                    user-select:none;transition:filter .3s ease}
+                    user-select:none;contain:layout style}
                 #dm-panel [data-dm="header"]{position:relative;font-weight:bold;
                     border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:8px;
                     cursor:grab;display:flex;align-items:center;gap:6px}
                 .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
-                .dm-val{font-weight:bold;font-family:'JetBrains Mono',monospace;font-size:15px}
+                .dm-val{font-weight:bold;font-family:ui-monospace,monospace;font-size:15px}
                 .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
                     border-radius:3px;margin:4px 0 8px;overflow:visible}
                 .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
@@ -940,8 +935,9 @@
                 .dm-controls{flex-wrap:wrap;gap:4px}
                 .dm-presets{display:flex;gap:3px}
                 .dm-presets .dm-btn{background:#333;color:#ccc}
+                .dm-presets .dm-btn:hover{background:#444}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
-                    border-top:1px solid #2a2a2a;padding-top:5px;word-break:break-all}
+                    border-top:1px solid #2a2a2a;padding-top:5px;overflow-wrap:break-word;word-break:normal}
                 .dm-minibar{position:absolute;bottom:0;left:0;right:0;height:2px;
                     border-radius:0 0 1px 1px;display:none}
             }
@@ -950,7 +946,7 @@
         const panel = document.createElement('div');
         panel.id = 'dm-panel';
         panel.innerHTML = `
-            <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${VERSION}</span>
+            <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${GM_info.script.version}</span>
                 <span data-dm="mini" style="font-size:11px;font-family:monospace;font-weight:normal"></span>
                 <span data-dm="collapse" style="margin-left:auto;cursor:pointer;font-size:10px">▼</span>
                 <div data-dm="minibar" class="dm-minibar"></div>
@@ -1121,12 +1117,14 @@
             panel.style.bottom = 'auto';
         });
 
-        h.addEventListener('pointerup', () => {
+        const endDrag = () => {
             if (!dragging) return;
             dragging = false;
             h.style.cursor = 'grab';
             saveConfig({ panelX: panel.style.left, panelY: panel.style.top });
-        });
+        };
+        h.addEventListener('pointerup', endDrag);
+        h.addEventListener('lostpointercapture', endDrag);
 
         const s = loadConfig();
         if (s.panelX != null) {
@@ -1183,8 +1181,7 @@
         if (v) onVideoFound(v);
         scheduleTick();
 
-        window.addEventListener('popstate', () => checkUrlChange());
-        window.addEventListener('resize', clampPanelPosition);
+        window.addEventListener('resize', debounce(clampPanelPosition, 150));
 
         document.addEventListener('fullscreenchange', () => {
             requestAnimationFrame(() => {
@@ -1211,7 +1208,7 @@
                 if (needSeek) {
                     seekEdge = getBufferEdge(video.buffered);
                     if (seekEdge) {
-                        seekEdge = { start: seekEdge.start, end: seekEdge.end }; // _edgeResult 재사용 방어
+                        seekEdge = { start: seekEdge.start, end: seekEdge.end };
                     }
                 }
 
