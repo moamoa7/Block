@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.2
+// @version      5.9.3
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -29,7 +29,7 @@
         SEEK_COOLDOWN_MS: 3000,
         HOLD_RATE: 1.02,
         AVG_BIAS: 0.7,
-        SPIKE_THRESHOLD_MS: 2500,
+        SPIKE_THRESHOLD_MS: 2000,
         SPIKE_COOLDOWN_MS: 1000,
         STALL_THRESHOLD: 3,
         FRAME_CHECK_EVERY: 50,
@@ -40,7 +40,7 @@
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
     const PLATFORM_OFFSET = IS_CHZZK ? 500 : 0;
-    const RECOMMENDED_PRESETS = IS_CHZZK ? [2, 3] : [4, 5];
+    const RECOMMENDED_PRESETS = IS_CHZZK ? [1, 2] : [2, 3];
 
     const STORAGE_KEY = 'delay_meter_config_v3';
     const MAX_TARGET_MS = 8000;
@@ -49,6 +49,11 @@
     const DASH_ON = [3, 3];
     const DASH_OFF = [];
     const SI_WARMUP = ' ⏳', SI_STOP = ' ⏹', SI_OK = ' ✓', SI_FLAT = ' →', SI_UP = ' ↑', SI_DOWN = ' ↓';
+
+    /* ── seek 임계값: 고정 5초 (안정성 확보) ── */
+    function calcSeekThreshold(target) {
+        return Math.max(5000, target * 2.5);
+    }
 
     /* ── debounce ── */
     function debounce(fn, ms) {
@@ -86,10 +91,6 @@
 
     /* ── 유틸 ── */
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
-    function calcSeekThreshold(target) {
-        return clamp(target * 2.5, 3000, 10000);
-    }
 
     function pct(value, max) {
         return (value <= 0 ? 0 : value >= max ? 100 : (value / max * 100 + 0.5) | 0) + '%';
@@ -174,7 +175,7 @@
     let lastSetRate = -1;
     let lastRateStr = '1.000x';
     let lastRenderedMediaTime = 0;
-    let targetDelayMs = loadConfig().targetDelayMs ?? (IS_CHZZK ? 2000 : 4000);
+    let targetDelayMs = loadConfig().targetDelayMs ?? (IS_CHZZK ? 1500 : 2000);
     let seekThresholdMs = calcSeekThreshold(targetDelayMs);
     let isEnabled = loadConfig().isEnabled ?? true;
     let prevAvg = 0;
@@ -199,6 +200,10 @@
     let _cachedDropInfo = '';
     let hiddenAt = 0;
     let els = {};
+
+    /* ── rVFC 확장: FPS 추정 ── */
+    let lastPresentedFrames = 0;
+    let estimatedFps = 30;
 
     /* ── 웜업 상태 ── */
     let warmupStartTime = performance.now();
@@ -265,15 +270,23 @@
         return true;
     }
 
-    /* ── 프레임 콜백 (rVFC) ── */
+    /* ── 프레임 콜백 (rVFC + FPS 추정) ── */
     let frameCallbackGen = 0;
 
     function startFrameCallback(vid) {
         if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return;
         const gen = ++frameCallbackGen;
+        let prevTime = 0;
         const step = (now, md) => {
             if (gen !== frameCallbackGen) return;
             lastRenderedMediaTime = md.mediaTime;
+            if (md.presentedFrames > lastPresentedFrames + 1 && prevTime > 0) {
+                const elapsed = (now - prevTime) / 1000;
+                const frames = md.presentedFrames - lastPresentedFrames;
+                if (elapsed > 0) estimatedFps = Math.round(frames / elapsed);
+            }
+            lastPresentedFrames = md.presentedFrames;
+            prevTime = now;
             vid.requestVideoFrameCallback(step);
         };
         vid.requestVideoFrameCallback(step);
@@ -586,12 +599,15 @@
         displayApply.rb    = v => { els.rateBar.style.width = v; };
         displayApply.rbc   = v => { els.rateBar.style.background = v; };
         displayApply.rc    = v => { els.rateVal.style.color = v || ''; };
+        displayApply.mx    = v => { els.maxMark.style.left = v; };
+        displayApply.mxo   = v => { els.maxMark.style.opacity = v; };
         displayApply.mini  = v => { els.mini.textContent = v; };
         displayApply.mc    = v => { els.mini.style.color = v || ''; };
         displayApply.mb    = v => { els.miniBar.style.background = v; };
         displayApply.mbd   = v => { els.miniBar.style.display = v; };
         displayApply.dbg   = v => { els.debugVal.textContent = v; };
         displayApply.title = v => { els.panel.title = v; };
+        displayApply.warn  = v => { els.panel.classList.toggle('dm-warning', v); };
     }
 
     function setDisplay(key, val) {
@@ -664,7 +680,8 @@
             ' sr:', currentSmoothedRate.toFixed(3),
             ' mx:', dynamicMaxRate.toFixed(2),
             ' sk:', (seekThresholdMs / 1000).toFixed(1),
-            ' st:', stableTickCount
+            ' st:', stableTickCount,
+            ' fps:', estimatedFps
         ];
         if (stableEntryTime > 0) parts.push(' stab:', ((performance.now() - stableEntryTime) / 1000).toFixed(1));
         const n = delayHistory.length;
@@ -688,6 +705,9 @@
 
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1, now = performance.now()) {
+        /* 경고 펄스 */
+        setDisplay('warn', avgMs > targetDelayMs * 2 && isEnabled);
+
         if (collapsed) {
             const delta = avgMs - prevAvg;
             prevAvg = avgMs;
@@ -724,6 +744,18 @@
         setDisplay('rb', rateDisplay + '%');
         setDisplay('rbc', barColor);
         setDisplay('rc', currentSmoothedRate > 1.005 ? barColor : '');
+
+        /* maxRate 마크 */
+        if (dynamicMaxRate < TUNING.MAX_RATE) {
+            const maxRatio = clamp(
+                (dynamicMaxRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
+            );
+            setDisplay('mx', Math.round(maxRatio * 100) + '%');
+            setDisplay('mxo', '0.6');
+        } else if (displayState.mxo !== '0') {
+            setDisplay('mx', '100%');
+            setDisplay('mxo', '0');
+        }
 
         if (debugVisible && els.debugVal) {
             setDisplay('dbg', buildDebugString(bufEnd));
@@ -931,7 +963,7 @@
                     border:1px solid rgba(255,255,255,.08);border-radius:12px;
                     padding:12px 16px;color:#eee;font-family:system-ui,sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
-                    user-select:none;contain:layout style}
+                    user-select:none;contain:layout style;transition:border-color .3s ease}
                 #dm-panel.dm-collapsed{padding:6px 10px;min-width:0;border-radius:8px}
                 #dm-panel.dm-collapsed [data-dm="header"]{border-bottom:none;padding-bottom:0;margin-bottom:0}
                 #dm-panel [data-dm="header"]{position:relative;font-weight:bold;
@@ -950,6 +982,9 @@
                 .dm-seek-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
                     border-radius:1px;transition:left .3s ease;pointer-events:none;
                     background:#e74c3c;opacity:.4}
+                .dm-maxrate-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
+                    border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
+                    background:#e74c3c;opacity:0}
                 .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
                 .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
                     text-align:center;border-radius:4px}
@@ -967,6 +1002,11 @@
                     max-height:60px;overflow-y:auto}
                 .dm-minibar{position:absolute;bottom:0;left:0;right:0;height:2px;
                     border-radius:0 0 11px 11px;display:none}
+                @keyframes dm-pulse{
+                    0%,100%{border-color:rgba(231,76,60,.3)}
+                    50%{border-color:rgba(231,76,60,.8)}
+                }
+                #dm-panel.dm-warning{animation:dm-pulse 1s ease-in-out infinite}
             }
         `);
 
@@ -988,6 +1028,7 @@
                 <div class="dm-row"><span>배속</span><span data-dm="rate" class="dm-val">1.000x</span></div>
                 <div class="dm-bar-bg">
                     <div class="dm-bar-clip"><div data-dm="ratebar" class="dm-rate-bar"></div></div>
+                    <div data-dm="maxmark" class="dm-maxrate-mark"></div>
                 </div>
                 <div class="dm-row dm-controls" style="margin-top:10px">
                     <button data-dm="toggle" class="dm-btn" title="배속 조절 ON/OFF (Alt+D)">ON</button>
@@ -1005,6 +1046,7 @@
             panel: panel,
             delayVal: map.delay, rateVal: map.rate, barFill: map.bar,
             rateBar: map.ratebar, targetMark: map.targetmark, seekMark: map.seekmark,
+            maxMark: map.maxmark,
             toggleBtn: map.toggle, syncBtn: map.sync, targetIn: map.target,
             header: map.header, debugVal: map.debug, mini: map.mini,
             ver: map.ver, collapseBtn: map.collapse, miniBar: map.minibar,
@@ -1193,7 +1235,7 @@
         }
     }
 
-    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+T 목표입력, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화, Alt+G 디버그, Alt+I 스냅샷 */
+    /* 단축키 */
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
@@ -1220,6 +1262,7 @@
                 maxRate: dynamicMaxRate.toFixed(3),
                 stable: stableTickCount,
                 warmup: warmupDone,
+                fps: estimatedFps,
                 buf: edge ? edge.end.toFixed(2) : '-',
                 history: hist.join(','),
                 platform: IS_CHZZK ? 'CHZZK' : 'SOOP',
