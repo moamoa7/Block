@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v17.0)
-// @version      17.0
-// @description  v16.0 기반 – 버그수정, 토스트, 드래그드롭, 그룹빠른추가, FAB배지, 리팩토링
+// @name         북마크 (Shadow DOM 통합 v18.0)
+// @version      18.0
+// @description  v17.0 기반 – 버그수정(7건), 최적화, UI전면개편, 리팩토링, 편의기능
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -14,13 +14,10 @@
 
 (function () {
     'use strict';
-    if (window.self !== window.top) return;
 
     /* ═══════════════════════════════════
        유틸리티
        ═══════════════════════════════════ */
-    const deepClone = structuredClone;
-
     function el(tag, attrs = {}, children = []) {
         const e = document.createElement(tag);
         for (const [k, v] of Object.entries(attrs)) {
@@ -44,8 +41,14 @@
             ...(Object.keys(style).length ? { style } : {})
         });
 
+    const iconBtn = (icon, title, cls, onclick) => {
+        const b = btn(icon, `bm-icon-btn ${cls}`.trim(), onclick);
+        b.title = title;
+        return b;
+    };
+
     function isValidUrl(str) {
-        try { const u = new URL(str); return u.protocol === 'http:' || u.protocol === 'https:'; }
+        try { return ['http:', 'https:'].includes(new URL(str).protocol); }
         catch { return false; }
     }
 
@@ -62,7 +65,6 @@
                 if (!Array.isArray(items)) return false;
                 for (const item of items) {
                     if (typeof item.name !== 'string' || typeof item.url !== 'string') return false;
-                    if (!item.name.trim() || !item.url.trim()) return false;
                 }
             }
         }
@@ -89,6 +91,7 @@
     function addToUrlSet(url) { if (_urlSet) _urlSet.add(url); }
 
     function findUrlLocations(url) {
+        if (!isUrlDuplicate(url)) return [];
         const locations = [];
         for (const [pageName, groups] of Object.entries(db.pages))
             for (const [groupName, items] of Object.entries(groups))
@@ -104,7 +107,7 @@
     if (!raw || !validateDB(raw)) {
         const backup = GM_getValue('bm_db_v2_backup', null);
         if (backup && validateDB(backup)) {
-            raw = deepClone(backup);
+            raw = structuredClone(backup);
             console.warn('[북마크] 자동 백업에서 복구됨');
         } else {
             raw = { currentPage: "기본", pages: { "기본": { "북마크": [] } } };
@@ -120,7 +123,7 @@
     const UNDO_MAX = 10;
 
     function pushUndo() {
-        _undoStack.push(deepClone(db));
+        _undoStack.push(structuredClone(db));
         if (_undoStack.length > UNDO_MAX) _undoStack.shift();
     }
 
@@ -139,22 +142,29 @@
        저장
        ═══════════════════════════════════ */
     let _saveTimer = null;
-    const BACKUP_INTERVAL = GM_getValue('bm_backup_interval', 3600000);
+    const BACKUP_INTERVAL = 3600000;
     let _lastBackupTime = GM_getValue('bm_last_backup_time', 0);
+
+    function doBackupIfNeeded() {
+        if (Date.now() - _lastBackupTime > BACKUP_INTERVAL) {
+            GM_setValue('bm_db_v2_backup', structuredClone(db));
+            _lastBackupTime = Date.now();
+            GM_setValue('bm_last_backup_time', _lastBackupTime);
+        }
+    }
 
     const saveData = () => {
         clearTimeout(_saveTimer);
-        _saveTimer = setTimeout(() => GM_setValue('bm_db_v2', db), 300);
+        _saveTimer = setTimeout(() => {
+            GM_setValue('bm_db_v2', db);
+            doBackupIfNeeded();
+        }, 300);
     };
 
     const saveDataNow = () => {
         clearTimeout(_saveTimer);
-        if (Date.now() - _lastBackupTime > BACKUP_INTERVAL) {
-            GM_setValue('bm_db_v2_backup', deepClone(db));
-            _lastBackupTime = Date.now();
-            GM_setValue('bm_last_backup_time', _lastBackupTime);
-        }
         GM_setValue('bm_db_v2', db);
+        doBackupIfNeeded();
     };
 
     const getCurPage = () => db.pages[db.currentPage];
@@ -251,10 +261,7 @@
     let _faviconObserver = null;
 
     function getOrCreateFaviconObserver(root) {
-        if (_faviconObserver) {
-            _faviconObserver.disconnect();
-            return _faviconObserver;
-        }
+        if (_faviconObserver) return _faviconObserver;
         _faviconObserver = new IntersectionObserver((entries) => {
             for (const entry of entries) {
                 if (entry.isIntersecting) {
@@ -266,26 +273,6 @@
             }
         }, { root, rootMargin: '200px' });
         return _faviconObserver;
-    }
-
-    /* ═══════════════════════════════════
-       데드링크 감지
-       ═══════════════════════════════════ */
-    const _deadLinkCache = new Map();
-    let _deadCheckDone = false;
-
-    function checkDeadLink(url) {
-        return new Promise(resolve => {
-            if (_deadLinkCache.has(url)) { resolve(_deadLinkCache.get(url)); return; }
-            GM_xmlhttpRequest({
-                method: 'HEAD',
-                url,
-                timeout: 8000,
-                onload: () => { _deadLinkCache.set(url, false); resolve(false); },
-                onerror: () => { _deadLinkCache.set(url, true); resolve(true); },
-                ontimeout: () => { _deadLinkCache.set(url, true); resolve(true); }
-            });
-        });
     }
 
     let shadow = null;
@@ -377,6 +364,26 @@
         setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
+    function exportAsHTML() {
+        let html = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n';
+        for (const [pageName, groups] of Object.entries(db.pages)) {
+            html += `  <DT><H3>${pageName}</H3>\n  <DL><p>\n`;
+            for (const [groupName, items] of Object.entries(groups)) {
+                html += `    <DT><H3>${groupName}</H3>\n    <DL><p>\n`;
+                for (const item of items) {
+                    html += `      <DT><A HREF="${item.url}">${item.name}</A>\n`;
+                }
+                html += `    </DL><p>\n`;
+            }
+            html += `  </DL><p>\n`;
+        }
+        html += '</DL><p>';
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        el('a', { href: url, download: 'bookmarks.html' }).click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
     function importData() {
         const inp = el('input', { type: 'file', accept: '.json' });
         inp.onchange = e => {
@@ -387,7 +394,7 @@
                 try {
                     const parsed = JSON.parse(re.target.result);
                     if (!validateDB(parsed)) { alert('파일 구조가 올바르지 않습니다.'); return; }
-                    db = deepClone(parsed);
+                    db = structuredClone(parsed);
                     _urlSet = null;
                     saveDataNow(); renderDashboard(); showToast('✅ 복구 완료');
                 } catch { alert('잘못된 파일입니다.'); }
@@ -517,8 +524,14 @@
         menu.style.left = Math.max(0, x) + 'px';
         menu.style.top = Math.max(0, y) + 'px';
 
-        const dismiss = (ev) => { if (!menu.contains(ev.target)) { menu.remove(); shadow.removeEventListener('pointerdown', dismiss); } };
-        setTimeout(() => shadow.addEventListener('pointerdown', dismiss), 0);
+        const ac = new AbortController();
+        const closeMenu = () => { menu.remove(); ac.abort(); };
+        setTimeout(() => {
+            shadow.addEventListener('pointerdown', (ev) => {
+                if (!menu.contains(ev.target)) closeMenu();
+            }, { signal: ac.signal });
+            document.addEventListener('pointerdown', closeMenu, { signal: ac.signal, capture: true });
+        }, 0);
     }
 
     /* ═══════════════════════════════════
@@ -526,6 +539,33 @@
        ═══════════════════════════════════ */
     let _activeSortables = [];
     function destroyAllSortables() { _activeSortables.forEach(s => s.destroy()); _activeSortables = []; }
+
+    /* ═══════════════════════════════════
+       검색 필터
+       ═══════════════════════════════════ */
+    function filterItems(query, container) {
+        const q = query.toLowerCase();
+        container.querySelectorAll('.bm-bookmark-section').forEach(sec => {
+            const grid = sec.querySelector('.bm-item-grid');
+            if (!grid) return;
+            let hasVisible = false;
+            grid.querySelectorAll('.bm-item-wrapper').forEach(w => {
+                const name = w.querySelector('span')?.textContent.toLowerCase() || '';
+                const url = (w.getAttribute('href') || '').toLowerCase();
+                const match = !q || name.includes(q) || url.includes(q);
+                w.style.display = match ? '' : 'none';
+                if (match) hasVisible = true;
+            });
+            if (q) {
+                grid.style.display = hasVisible ? '' : 'none';
+                sec.style.display = hasVisible ? '' : 'none';
+            } else {
+                sec.style.display = '';
+                const gTitle = sec.getAttribute('data-id');
+                grid.style.display = (!isSortMode && _collapsedGroups.has(collapseKey(gTitle))) ? 'none' : '';
+            }
+        });
+    }
 
     /* ═══════════════════════════════════
        대시보드 렌더링
@@ -544,11 +584,15 @@
 
         const frag = document.createDocumentFragment();
 
+        /* ── 상단 영역 ── */
         const topRow = el('div', { class: 'bm-top-row' });
+
+        /* 탭 바 */
         const tabBar = el('div', {
             class: 'bm-tab-bar', onclick: (e) => {
                 const tab = e.target.closest('.bm-tab');
-                if (!tab) return;
+                if (!tab || tab.dataset.page === db.currentPage) return;
+                saveDataNow();
                 db.currentPage = tab.dataset.page;
                 isSortMode = false;
                 renderDashboard();
@@ -565,55 +609,33 @@
             tabBar.appendChild(t);
         });
 
+        /* 총 북마크 수 */
+        let totalCount = 0;
+        for (const items of Object.values(getCurPage())) totalCount += items.length;
+
+        /* 관리 바 */
         const adminBar = el('div', { class: 'bm-admin-bar' });
         const searchInput = el('input', {
             type: 'text', placeholder: '검색...', class: 'bm-search-input',
             oninput: () => {
                 clearTimeout(_searchTimer);
-                _searchTimer = setTimeout(() => {
-                    const q = searchInput.value.toLowerCase();
-                    const container = _currentContainer ?? shadow;
-                    container.querySelectorAll('.bm-bookmark-section').forEach(sec => {
-                        const grid = sec.querySelector('.bm-item-grid');
-                        if (!grid) return;
-                        let hasVisible = false;
-                        grid.querySelectorAll('.bm-item-wrapper').forEach(w => {
-                            const name = w.querySelector('span')?.textContent.toLowerCase() || '';
-                            const url = (w.getAttribute('href') || '').toLowerCase();
-                            const match = !q || name.includes(q) || url.includes(q);
-                            w.style.display = match ? '' : 'none';
-                            if (match) hasVisible = true;
-                        });
-                        if (q) {
-                            grid.style.display = hasVisible ? '' : 'none';
-                            sec.style.display = hasVisible ? '' : 'none';
-                        } else {
-                            sec.style.display = '';
-                            if (!isSortMode) {
-                                const gTitle = sec.getAttribute('data-id');
-                                const collapsed = _collapsedGroups.has(collapseKey(gTitle));
-                                grid.style.display = collapsed ? 'none' : '';
-                            } else {
-                                grid.style.display = '';
-                            }
-                        }
-                    });
-                }, 150);
+                _searchTimer = setTimeout(() => filterItems(searchInput.value, _currentContainer ?? shadow), 150);
             }
         });
 
         adminBar.append(
             searchInput,
-            btn('📌 추가', 'bm-btn-green', () => showQuickAddModal()),
-            btn(isSortMode ? '✅ 완료' : '↕ 정렬', 'bm-btn-blue', () => {
+            el('span', { text: `${totalCount}개`, style: { fontSize: '12px', color: '#999', marginRight: 'auto' } }),
+            iconBtn('📌', '북마크 추가', 'bm-btn-green', () => showQuickAddModal()),
+            iconBtn(isSortMode ? '✅' : '↕️', isSortMode ? '정렬 완료' : '그룹 정렬', 'bm-btn-blue', () => {
                 isSortMode = !isSortMode;
                 const si = _currentContainer?.parentElement?.querySelector('.bm-search-input');
                 if (si) si.value = '';
                 renderDashboard();
             }),
-            btn('🔄 아이콘', 'bm-btn-orange', fixAllIcons),
-            btn('📂 탭관리', '', showTabManager),
-            btn('➕ 그룹', '', () => {
+            iconBtn('🔄', '아이콘 복구', 'bm-btn-orange', fixAllIcons),
+            iconBtn('📂', '탭 관리', '', showTabManager),
+            iconBtn('➕', '새 그룹', '', () => {
                 const n = prompt("새 그룹 이름:");
                 if (!n || !n.trim()) return;
                 const trimmed = n.trim();
@@ -622,7 +644,7 @@
                 saveData();
                 renderDashboard();
             }),
-            btn('🗂 접기/펼치기', '', () => {
+            iconBtn('🗂', '접기/펼치기', '', () => {
                 const page = getCurPage();
                 const allKeys = Object.keys(page).map(g => collapseKey(g));
                 const allCollapsed = allKeys.every(k => _collapsedGroups.has(k));
@@ -634,13 +656,15 @@
                 GM_setValue('bm_collapsed', JSON.stringify([..._collapsedGroups]));
                 renderDashboard();
             }),
-            btn('💾 백업', '', exportData),
-            btn('📥 복구', 'bm-btn-green', importData),
+            iconBtn('💾', '백업(JSON)', '', exportData),
+            iconBtn('📄', '백업(HTML)', '', exportAsHTML),
+            iconBtn('📥', '복구', 'bm-btn-green', importData),
         );
 
-        topRow.append(adminBar, tabBar);
+        topRow.append(tabBar, adminBar);
         frag.appendChild(topRow);
 
+        /* ── 메인 컨테이너 ── */
         const container = el('div', {
             class: 'bm-dashboard-container', onclick: (e) => {
                 const mbtn = e.target.closest('.bm-manage-btn');
@@ -687,6 +711,7 @@
             showToast(`✅ "${groupName}"에 추가됨`);
         });
 
+        /* ── 그룹 섹션 렌더링 ── */
         Object.entries(getCurPage()).forEach(([gTitle, items]) => {
             const section = el('div', { class: 'bm-bookmark-section', 'data-id': gTitle });
             const isCollapsed = _collapsedGroups.has(collapseKey(gTitle));
@@ -706,7 +731,6 @@
             header.appendChild(titleSpan);
 
             if (!isSortMode) {
-                /* ── 그룹 헤더 빠른 추가 버튼 ── */
                 const quickAddBtn = el('button', {
                     class: 'bm-quick-group-add',
                     text: '+',
@@ -776,11 +800,15 @@
             _activeSortables.push(new Sortable(container, {
                 animation: 150, handle: '.bm-section-header', draggable: '.bm-bookmark-section',
                 onEnd: () => {
-                    const curPage = getCurPage(); const newOrder = {};
+                    pushUndo();
+                    const curPage = getCurPage();
+                    const newOrder = {};
                     container.querySelectorAll('.bm-bookmark-section').forEach(sec => {
-                        const id = sec.getAttribute('data-id'); if (curPage[id]) newOrder[id] = curPage[id];
+                        const id = sec.getAttribute('data-id');
+                        if (curPage[id]) newOrder[id] = curPage[id];
                     });
-                    db.pages[db.currentPage] = newOrder; saveData();
+                    db.pages[db.currentPage] = newOrder;
+                    saveData();
                 }
             }));
         } else {
@@ -789,44 +817,40 @@
                 _activeSortables.push(new Sortable(grid, {
                     group: 'bm-items', animation: 150, delay: 300, delayOnTouchOnly: true,
                     onEnd: (evt) => {
+                        pushUndo();
                         const page = getCurPage();
+                        const iconMap = new Map();
+                        for (const items of Object.values(page))
+                            for (const item of items) iconMap.set(item.url, item.icon);
+
                         const rebuildGroup = (gridEl) => {
                             const groupName = gridEl.dataset.group;
                             page[groupName] = [...gridEl.querySelectorAll('.bm-item-wrapper')].map(w => {
                                 const name = w.querySelector('span')?.textContent || '';
                                 const url = w.getAttribute('href') || '';
-                                const imgEl = w.querySelector('img');
-                                const icon = imgEl?.dataset.src || imgEl?.src || fallbackIcon;
-                                return { name, url, icon };
+                                return { name, url, icon: iconMap.get(url) || fallbackIcon };
                             });
                         };
-                        rebuildGroup(evt.from); if (evt.from !== evt.to) rebuildGroup(evt.to);
+                        rebuildGroup(evt.from);
+                        if (evt.from !== evt.to) rebuildGroup(evt.to);
+                        _urlSet = null;
                         saveData();
                     }
                 }));
             });
         }
 
-        /* ── 데드링크 체크 (세션 1회) ── */
-        if (!_deadCheckDone) {
-            const runDeadCheck = () => {
-                const wrappers = [...container.querySelectorAll('.bm-item-grid:not([style*="display: none"]) .bm-item-wrapper')];
-                let checked = 0;
-                for (const w of wrappers) {
-                    const url = w.getAttribute('href'); if (!url) continue;
-                    if (_deadLinkCache.has(url)) { if (_deadLinkCache.get(url)) w.classList.add('bm-dead-link'); continue; }
-                    if (checked >= 20) break; checked++;
-                    checkDeadLink(url).then(dead => { if (dead && w.isConnected) w.classList.add('bm-dead-link'); });
+        /* ── 현재 URL이 속한 그룹으로 스크롤 ── */
+        const currentUrl = window.location.href;
+        if (isUrlDuplicate(currentUrl)) {
+            const page = getCurPage();
+            for (const [gTitle, items] of Object.entries(page)) {
+                if (items.some(i => i.url === currentUrl)) {
+                    const sec = container.querySelector(`.bm-bookmark-section[data-id="${CSS.escape(gTitle)}"]`);
+                    if (sec) requestAnimationFrame(() => sec.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+                    break;
                 }
-                _deadCheckDone = true;
-            };
-            if (typeof requestIdleCallback === 'function') requestIdleCallback(runDeadCheck);
-            else setTimeout(runDeadCheck, 500);
-        } else {
-            container.querySelectorAll('.bm-item-wrapper').forEach(w => {
-                const url = w.getAttribute('href');
-                if (url && _deadLinkCache.get(url)) w.classList.add('bm-dead-link');
-            });
+            }
         }
     }
 
@@ -860,11 +884,16 @@
         const page = getCurPage();
         if (newName !== gTitle) {
             if (page[newName]) { alert('이미 존재하는 그룹 이름입니다.'); return; }
+            const oldKey = collapseKey(gTitle);
+            const wasCollapsed = _collapsedGroups.has(oldKey);
             const rebuilt = {};
             for (const key of Object.keys(page)) {
                 rebuilt[key === gTitle ? newName : key] = key === gTitle ? newItems : page[key];
             }
             db.pages[db.currentPage] = rebuilt;
+            _collapsedGroups.delete(oldKey);
+            if (wasCollapsed) _collapsedGroups.add(collapseKey(newName));
+            GM_setValue('bm_collapsed', JSON.stringify([..._collapsedGroups]));
         } else {
             page[gTitle] = newItems;
         }
@@ -912,7 +941,16 @@
                 modalBg.close();
             }
         }, { width: '100%', marginTop: '10px', padding: '10px' }));
-        modalBg.appendChild(content); showModal(modalBg);
+        modalBg.appendChild(content);
+        showModal(modalBg);
+
+        modalBg.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
+                saveGroupEdits(gTitle, gNameInput, listEl, items, modalBg);
+            }
+        });
+
         sortableInstance = new Sortable(listEl, { handle: '.bm-drag-handle', animation: 150 });
     }
 
@@ -989,6 +1027,7 @@
     async function saveBookmarkTo(page, group, name, url, modalBg) {
         if (!name || !name.trim()) { alert('이름을 입력하세요.'); return; }
         if (!isValidUrl(url)) { alert('올바른 URL을 입력하세요.'); return; }
+        pushUndo();
         const icon = await fetchFaviconBase64(url);
         if (!db.pages[page][group]) db.pages[page][group] = [];
         db.pages[page][group].push({ name: name.trim(), url: url.trim(), icon });
@@ -1031,7 +1070,8 @@
        ═══════════════════════════════════ */
     function showQuickAddModal() {
         if (shadow.querySelector('#bm-quick-modal')) return;
-        const modalBg = createModal('bm-quick-modal'); const content = el('div', { class: 'bm-modal-content' });
+        const modalBg = createModal('bm-quick-modal');
+        const content = el('div', { class: 'bm-modal-content' });
         content.appendChild(el('h3', { text: '🔖 북마크 저장', style: { marginTop: '0' } }));
         if (isUrlDuplicate(window.location.href)) {
             const locs = findUrlLocations(window.location.href);
@@ -1040,10 +1080,15 @@
                 style: { color: 'var(--c-warning)', fontSize: '12px', marginBottom: '8px', fontWeight: 'bold' }
             }));
         }
-        content.append(el('label', { text: '이름' })); const ni = el('input', { type: 'text', value: document.title.substring(0, 30) });
-        content.append(ni, el('label', { text: '주소 (URL)' })); const ui = el('input', { type: 'text', value: window.location.href });
+        content.append(el('label', { text: '이름' }));
+        const ni = el('input', { type: 'text', value: document.title.substring(0, 30) });
+        content.append(ni, el('label', { text: '주소 (URL)' }));
+        const ui = el('input', { type: 'text', value: window.location.href });
         content.appendChild(ui);
-        const area = el('div'); const recent = getRecentGroup();
+
+        const area = el('div');
+        const recent = getRecentGroup();
+
         if (recent && db.pages[recent.page]?.[recent.group]) {
             area.append(
                 el('p', { text: `최근 저장: ${recent.page} > ${recent.group}`, style: { fontSize: '11px', color: '#999', marginTop: '10px', marginBottom: '2px' } }),
@@ -1052,22 +1097,34 @@
                     { width: '100%', marginTop: '2px', padding: '10px' })
             );
         }
-        ni.addEventListener('keydown', (e) => {
+
+        const handleEnterSave = (e) => {
             if (e.key === 'Enter' && recent && db.pages[recent.page]?.[recent.group]) {
                 e.preventDefault();
                 saveBookmarkTo(recent.page, recent.group, ni.value, ui.value, modalBg);
             }
-        });
-        area.appendChild(el('p', { text: '탭 선택:', style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } }));
-        const tabBtns = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px' } });
-        Object.keys(db.pages).forEach(p => {
-            tabBtns.appendChild(btn(p, '', () => {
-                renderGroupSelector(area, p, () => ni.value, () => ui.value, modalBg);
-            }, { background: '#eee', color: '#333' }));
-        });
-        area.appendChild(tabBtns); content.appendChild(area);
+        };
+        ni.addEventListener('keydown', handleEnterSave);
+        ui.addEventListener('keydown', handleEnterSave);
+
+        const pageKeys = Object.keys(db.pages);
+        if (pageKeys.length === 1) {
+            renderGroupSelector(area, pageKeys[0], () => ni.value, () => ui.value, modalBg);
+        } else {
+            area.appendChild(el('p', { text: '탭 선택:', style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } }));
+            const tabBtns = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px' } });
+            pageKeys.forEach(p => {
+                tabBtns.appendChild(btn(p, '', () => {
+                    renderGroupSelector(area, p, () => ni.value, () => ui.value, modalBg);
+                }, { background: '#eee', color: '#333' }));
+            });
+            area.appendChild(tabBtns);
+        }
+
+        content.appendChild(area);
         content.appendChild(el('button', { text: '취소', style: { width: '100%', border: '0', background: 'none', marginTop: '20px', color: '#999', cursor: 'pointer' }, onclick: () => modalBg.close() }));
-        modalBg.appendChild(content); showModal(modalBg);
+        modalBg.appendChild(content);
+        showModal(modalBg);
         setTimeout(() => ni.focus(), 50);
     }
 
@@ -1111,6 +1168,8 @@
             document.body.style.overflow = originalOverflow;
             overlay.style.display = 'none';
             fab.childNodes[0].textContent = '🔖';
+            destroyAllSortables();
+            _currentContainer = null;
             updateFabIndicator();
         }
     }
@@ -1242,6 +1301,7 @@
             st.dragging = false;
             fab.style.cursor = 'pointer';
             fab.style.boxShadow = '';
+            lastTap = 0;
         });
 
         fab.addEventListener('contextmenu', e => e.preventDefault());
@@ -1300,12 +1360,19 @@
                 --radius: 8px;
                 --fab-size: 46px;
                 --fab-offset: 20px;
-                --modal-max-w: 420px;
+                --modal-max-w: min(420px, calc(100vw - 32px));
                 --grid-min: 300px;
                 --grid-max: 1200px;
-                --item-min: 85px;
-                --icon-size: 38px;
+                --item-min: 80px;
+                --icon-size: 32px;
                 color-scheme: light dark;
+            }
+
+            @media (min-width: 769px) {
+                :host {
+                    --item-min: 90px;
+                    --icon-size: 40px;
+                }
             }
 
             @media (max-width: 768px) {
@@ -1324,7 +1391,7 @@
                 #bookmark-overlay { background: rgba(30,30,30,0.98) !important; color: var(--c-text) !important; }
                 input { background-color: #333 !important; color: #eee !important; border-color: #555 !important; }
                 .bm-tab { background: #444 !important; color: #ccc !important; }
-                .bm-tab.active { background: var(--c-primary) !important; color: #fff !important; }
+                .bm-tab.active { background: var(--c-surface) !important; color: var(--c-primary) !important; border-bottom-color: var(--c-primary) !important; }
                 .bm-context-menu { background: #333; border-color: #555; }
                 .bm-context-item:hover { background: #444; }
             }
@@ -1344,15 +1411,19 @@
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+                box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.15);
                 font-size: 22px;
                 user-select: none;
                 touch-action: none;
                 -webkit-tap-highlight-color: transparent;
                 border: none;
                 will-change: transform;
-                transition: left 0.2s ease, right 0.2s ease, top 0.2s ease;
+                transition: left 0.2s ease, right 0.2s ease, top 0.2s ease, box-shadow 0.2s;
                 overflow: visible;
+            }
+
+            #bookmark-fab:hover {
+                box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 8px 28px rgba(0,0,0,0.2);
             }
 
             .bm-fab-badge {
@@ -1427,6 +1498,17 @@
             .bm-btn-green:hover { background: color-mix(in srgb, white 15%, var(--c-success)); }
             .bm-btn-red:hover   { background: color-mix(in srgb, white 15%, var(--c-danger)); }
 
+            .bm-icon-btn {
+                width: 34px;
+                height: 34px;
+                padding: 0 !important;
+                font-size: 16px !important;
+                border-radius: 8px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+            }
+
             input {
                 width: 100%;
                 padding: 10px;
@@ -1455,6 +1537,11 @@
                 display: flex;
                 flex-direction: column;
                 gap: 8px;
+                position: sticky;
+                top: 0;
+                z-index: 100;
+                background: inherit;
+                padding: 10px 0 5px;
             }
 
             .bm-admin-bar {
@@ -1471,7 +1558,7 @@
                 padding: 6px 10px !important;
                 font-size: 13px !important;
                 display: inline-block;
-                margin: 0 auto 0 0 !important;
+                margin: 0 !important;
                 border: 1px solid var(--c-border) !important;
                 background: var(--c-surface) !important;
                 color: var(--c-text) !important;
@@ -1490,16 +1577,25 @@
             .bm-tab {
                 padding: 8px 14px;
                 background: #eee;
-                border-radius: var(--radius);
+                border-radius: var(--radius) var(--radius) 0 0;
                 cursor: pointer;
                 font-size: 13px;
                 font-weight: bold;
                 color: #666;
                 white-space: nowrap;
                 flex-shrink: 0;
+                border-bottom: 3px solid transparent;
+                transition: border-color 0.2s, background 0.2s;
             }
-            .bm-tab.active { background: var(--c-dark); color: #fff; }
-            .bm-tab:hover:not(.active) { background: color-mix(in srgb, var(--c-primary) 20%, var(--c-bg)); }
+            .bm-tab.active {
+                background: var(--c-surface);
+                color: var(--c-primary);
+                border-bottom-color: var(--c-primary);
+            }
+            .bm-tab:hover:not(.active) {
+                background: color-mix(in srgb, var(--c-primary) 10%, var(--c-bg));
+                border-bottom-color: color-mix(in srgb, var(--c-primary) 30%, transparent);
+            }
 
             .bm-util-btn {
                 padding: 7px 10px;
@@ -1534,9 +1630,10 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 12px;
+                padding: 10px 12px;
                 background: var(--c-bg);
-                border-bottom: 1px solid var(--c-border);
+                border-bottom: 2px solid transparent;
+                border-image: linear-gradient(90deg, var(--c-primary), transparent) 1;
             }
 
             .bm-section-header span { cursor: pointer; }
@@ -1546,6 +1643,14 @@
                 font-weight: normal;
                 font-size: 12px;
                 color: #999;
+            }
+
+            .bm-section-header:has(+ .bm-item-grid[style*="display: none"]) .bm-group-count {
+                background: var(--c-primary);
+                color: white;
+                padding: 1px 6px;
+                border-radius: 10px;
+                font-size: 11px;
             }
 
             .bm-manage-btn {
@@ -1643,8 +1748,11 @@
                 text-align: center;
                 color: #bbb;
                 font-size: 12px;
-                padding: 15px;
+                padding: 25px 15px;
                 font-style: italic;
+                border: 2px dashed var(--c-border);
+                border-radius: var(--radius);
+                margin: 5px;
             }
 
             .sort-mode-active .bm-item-grid { display: none; }
@@ -1660,22 +1768,6 @@
                 opacity: 0.4;
                 background: color-mix(in srgb, var(--c-primary) 20%, transparent);
                 border-radius: var(--radius);
-            }
-
-            .bm-dead-link { opacity: 0.5; }
-            .bm-dead-link::after {
-                content: '⚠';
-                position: absolute;
-                top: 2px; right: 2px;
-                font-size: 10px;
-                background: var(--c-danger);
-                color: white;
-                border-radius: 50%;
-                width: 16px; height: 16px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                pointer-events: none;
             }
 
             dialog.bm-modal-bg {
@@ -1739,7 +1831,7 @@
                 bottom: 80px;
                 left: 50%;
                 transform: translateX(-50%) translateY(20px);
-                background: var(--c-dark);
+                background: rgba(0,0,0,0.85);
                 color: #fff;
                 padding: 10px 24px;
                 border-radius: 20px;
@@ -1749,6 +1841,7 @@
                 pointer-events: none;
                 z-index: 999999;
                 white-space: nowrap;
+                backdrop-filter: blur(8px);
             }
             .bm-toast.show {
                 opacity: 1;
