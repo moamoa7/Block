@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.11.0
+// @version      5.12.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -38,6 +38,7 @@
         WARMUP_MIN_BUFFER_SEC: 1.0,
         WARMUP_MIN_READY_STATE: 3,
         RATE_PROTECT_MS: 300,
+        STABLE_LOCK_TICKS: 30,
     };
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
@@ -107,7 +108,7 @@
         const R = { r: 0xe7, g: 0x4c, b: 0x3c };
         let lastInput = -1, lastResult = '#2ecc71';
         return (diff) => {
-            if (diff <= 0) return (lastResult = '#2ecc71');
+            if (diff <= 0) { lastInput = -1; return (lastResult = '#2ecc71'); }
             const rounded = (diff + 25) | 0;
             if (rounded === lastInput) return lastResult;
             lastInput = rounded;
@@ -159,6 +160,7 @@
 
     let video = null;
     let lastVideoSrc = '';
+    let lastVideoIsBlob = false;
     let intervalId = null;
     let lastSetRateTime = 0;
     let currentSmoothedRate = 1.0;
@@ -200,7 +202,6 @@
     let warmupDone = false;
 
     let seekAc = null;
-    let seekTimeout = null;
 
     function dmLog(...args) {
         if (debugVisible) console.debug('[딜레이미터]', ...args);
@@ -230,6 +231,18 @@
                 if (++pos >= this.cap) pos = 0;
             }
             return n;
+        }
+        minMax() {
+            if (!this.len) return [0, 0];
+            let lo = Infinity, hi = -Infinity;
+            let pos = ((this.idx - this.len) % this.cap + this.cap) % this.cap;
+            for (let i = 0; i < this.len; i++) {
+                const v = this.buf[pos];
+                if (v < lo) lo = v;
+                if (v > hi) hi = v;
+                if (++pos >= this.cap) pos = 0;
+            }
+            return [lo, hi];
         }
         get length() { return this.len; }
         get last() { return this.len ? this.buf[(this.idx - 1 + this.cap) % this.cap] : 0; }
@@ -335,8 +348,8 @@
 
     function getAdaptiveInterval() {
         if (!isEnabled || !warmupDone) return 500;
-        if (stableTickCount >= 10) return 600;
-        return Math.abs(currentSmoothedRate - 1.0) < 0.005 ? 400 : TUNING.CHECK_INTERVAL;
+        if (stableTickCount >= 10) return 400;
+        return Math.abs(currentSmoothedRate - 1.0) < 0.005 ? 300 : TUNING.CHECK_INTERVAL;
     }
 
     function softReset() {
@@ -387,7 +400,6 @@
     }
 
     function resetState() {
-        if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
         if (seekAc) { seekAc.abort(); seekAc = null; }
         lastRenderedMediaTime = 0;
         lastCurrentTime = 0;
@@ -398,7 +410,8 @@
         lastSetRate = -1;
         lastRateStr = '1.000x';
         lastSpikeTime = 0;
-        if (debugVisible) { skipReason = ''; _cachedDropInfo = ''; }
+        skipReason = '';
+        _cachedDropInfo = '';
         frameCheckCounter = 0;
         stableTickCount = 0;
         stableEntryTime = 0;
@@ -424,6 +437,7 @@
         }
         video = v;
         lastVideoSrc = src;
+        lastVideoIsBlob = isBlobSrc(v);
         resetState();
         startFrameCallback(v);
         const q = v.getVideoPlaybackQuality?.();
@@ -477,30 +491,25 @@
 
     function seekToTarget(bufStart, bufEnd) {
         if (seekAc) seekAc.abort();
-        if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
         const ac = seekAc = new AbortController();
-        const sig = ac.signal;
+        const combined = AbortSignal.any([ac.signal, AbortSignal.timeout(5000)]);
         const vid = video;
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
         vid.currentTime = seekTo;
-        seekTimeout = setTimeout(() => { seekTimeout = null; ac.abort(); }, 5000);
-        sig.addEventListener('abort', () => {
-            if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
-        }, { once: true });
         vid.addEventListener('seeked', () => {
-            ac.abort();
-            if (vid !== video || !vid.isConnected) return;
-            if (Math.abs(vid.currentTime - seekTo) > 2) return;
+            if (vid !== video || !vid.isConnected) { ac.abort(); return; }
+            if (Math.abs(vid.currentTime - seekTo) > 2) { ac.abort(); return; }
             const correctionTimer = setTimeout(() => {
-                if (sig.aborted || vid !== video || !vid.isConnected) return;
+                ac.abort();
+                if (vid !== video || !vid.isConnected) return;
                 const edge = getBufferEdge(vid.buffered);
                 if (!edge) return;
                 if ((edge.end - vid.currentTime) * 1000 > targetDelayMs * 1.5) {
                     vid.currentTime = Math.max(edge.start, edge.end - targetDelayMs / 1000);
                 }
             }, 50);
-            sig.addEventListener('abort', () => clearTimeout(correctionTimer), { once: true });
-        }, { once: true, signal: sig });
+            combined.addEventListener('abort', () => clearTimeout(correctionTimer), { once: true });
+        }, { once: true, signal: combined });
     }
 
     function getStatusIndicator(avg, rate) {
@@ -590,14 +599,10 @@
         if (!video) return 'video 탐색 중...';
         let s = `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bufEnd >= 0 ? bufEnd.toFixed(2) : '-'} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount} fps:${estimatedFps}`;
         if (stableEntryTime > 0) s += ` stab:${((performance.now() - stableEntryTime) / 1000).toFixed(1)}`;
+        if (stableTickCount >= TUNING.STABLE_LOCK_TICKS) s += ' LOCK';
         const n = delayHistory.length;
         if (n >= 2) {
-            let lo = Infinity, hi = -Infinity;
-            for (let i = 0; i < n; i++) {
-                const v = delayHistory.at(i);
-                if (v < lo) lo = v;
-                if (v > hi) hi = v;
-            }
+            const [lo, hi] = delayHistory.minMax();
             s += ` r:${(lo / 1000).toFixed(1)}-${(hi / 1000).toFixed(1)}`;
         }
         if (_cachedDropInfo) s += _cachedDropInfo;
@@ -619,11 +624,6 @@
             els.dot.style.boxShadow = isEnabled ? `0 0 6px ${color}` : 'none';
         }
         els.dot.classList.toggle('dm-dot-off', !isEnabled);
-        if (els.dotTip) {
-            els.dotTip.textContent = isEnabled
-                ? `${(avgMs / 1000).toFixed(1)}s → ${(targetDelayMs / 1000).toFixed(1)}s  ${lastRateStr}`
-                : 'OFF';
-        }
     }
 
     /* ── UI 갱신 ── */
@@ -674,9 +674,9 @@
     function updateToggleBtnUI() {
         if (!els.toggleBtn) return;
         els.toggleBtn.textContent = isEnabled ? 'ON' : 'OFF';
-        els.toggleBtn.style.background = isEnabled ? '#2ecc71' : '#555';
-        els.toggleBtn.style.color = isEnabled ? '#000' : '#999';
-        if (els.panel) els.panel.style.filter = isEnabled ? '' : 'brightness(0.65)';
+        els.toggleBtn.classList.toggle('dm-btn-on', isEnabled);
+        els.toggleBtn.classList.toggle('dm-btn-off', !isEnabled);
+        if (els.panel) els.panel.classList.toggle('dm-disabled', !isEnabled);
     }
 
     function updateTargetMark() {
@@ -735,15 +735,13 @@
         if (!panelOpen) return;
         panelOpen = false;
         saveConfig({ panelOpen: false });
+        const panelRect = els.panel.getBoundingClientRect();
         els.panel.style.display = 'none';
         els.dot.style.display = 'block';
-        requestAnimationFrame(() => {
-            const rect = els.dot.getBoundingClientRect();
-            if (rect.left < 0 || rect.top < 0 || rect.right > innerWidth || rect.bottom > innerHeight) {
-                Object.assign(els.dot.style, { left: '8px', top: '50%', right: 'auto', bottom: 'auto' });
-                saveConfig({ dotX: '8px', dotY: '50%' });
-            }
-        });
+        const dotX = clamp(panelRect.right - 20, 0, innerWidth - 14);
+        const dotY = clamp(panelRect.top + 6, 0, innerHeight - 14);
+        Object.assign(els.dot.style, { left: dotX + 'px', top: dotY + 'px', right: 'auto', bottom: 'auto' });
+        saveConfig({ dotX: dotX + 'px', dotY: dotY + 'px' });
         lastDotColor = '';
     }
 
@@ -835,7 +833,7 @@
 
         if (Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) {
             if (stableTickCount === 0) {
-                stableEntryTime = performance.now();
+                stableEntryTime = now;
                 if (panelOpen) flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 800);
             }
             stableTickCount++;
@@ -850,17 +848,22 @@
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
             return;
         }
-        setRate(smoothRate(computeDesiredRate(avg)));
+        if (stableTickCount >= TUNING.STABLE_LOCK_TICKS) {
+            if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
+        } else {
+            setRate(smoothRate(computeDesiredRate(avg)));
+        }
     }
 
     function tick() {
         if (video && !video.isConnected) {
             video.removeEventListener('ratechange', onExternalRateChange);
             video = null;
+            lastVideoIsBlob = false;
         }
         if (!video) { updateDisplay(0); return; }
-        if (!isBlobSrc(video) || !isLiveStream(video)) {
-            if (debugVisible) skipReason = isBlobSrc(video) ? 'VOD/AD' : 'NON-BLOB';
+        if (!lastVideoIsBlob || !isLiveStream(video)) {
+            if (debugVisible) skipReason = lastVideoIsBlob ? 'VOD/AD' : 'NON-BLOB';
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
             updateDisplay(0);
             return;
@@ -937,6 +940,9 @@
                 .dm-btn{cursor:pointer;border:none;border-radius:4px;padding:3px 8px;
                     font-size:11px;font-weight:bold;transition:.1s}
                 .dm-btn:active{transform:scale(.95)}
+                .dm-btn-on{background:#2ecc71!important;color:#000!important}
+                .dm-btn-off{background:#555!important;color:#999!important}
+                #dm-panel.dm-disabled{filter:brightness(0.65)}
                 .dm-controls{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
                 .dm-presets{display:flex;gap:3px}
                 .dm-presets .dm-btn{background:#333;color:#ccc}
@@ -1009,15 +1015,17 @@
 
         initDisplayApply();
 
-        /* dot 클릭 → 패널 열기 (드래그 통합) */
-        // openPanel은 makeDotDraggable 내부에서 호출
-
-        /* dot tooltip */
+        /* dot tooltip 위치 */
         dot.addEventListener('pointerenter', () => {
             if (panelOpen) return;
+            dotTip.textContent = isEnabled
+                ? `${(prevAvg / 1000).toFixed(1)}s → ${(targetDelayMs / 1000).toFixed(1)}s  ${lastRateStr}`
+                : 'OFF';
             const r = dot.getBoundingClientRect();
-            dotTip.style.left = (r.left - dotTip.offsetWidth - 8) + 'px';
-            dotTip.style.top = (r.top + r.height / 2 - dotTip.offsetHeight / 2) + 'px';
+            const tipW = dotTip.offsetWidth;
+            const tipLeft = r.left - tipW - 8;
+            dotTip.style.left = (tipLeft >= 0 ? tipLeft : r.right + 8) + 'px';
+            dotTip.style.top = clamp(r.top + r.height / 2 - dotTip.offsetHeight / 2, 0, innerHeight - dotTip.offsetHeight) + 'px';
             dotTip.style.opacity = '1';
         });
         dot.addEventListener('pointerleave', () => {
@@ -1260,6 +1268,13 @@
                     resetState();
                 }
             });
+        } else {
+            setInterval(() => {
+                if (location.pathname !== lastPath) {
+                    lastPath = location.pathname;
+                    resetState();
+                }
+            }, 1000);
         }
 
         window.addEventListener('resize', debounce(clampPanelPosition, 150));
@@ -1294,6 +1309,7 @@
                     if ((edge.end - video.currentTime) * 1000 > targetDelayMs * 1.5) {
                         seekToTarget(edge.start, edge.end);
                         flashSeekIndicator();
+                        warmupDone = true;
                     }
                 }
             }
