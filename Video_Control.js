@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v197.0 - Stability & Intelligence)
+// @name         Video_Control (v198.0 - Stability & Intelligence)
 // @namespace    https://github.com/moamoa7
-// @version      197.0
+// @version      198.0
 // @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI, CSS Transition Engine, Zero Leak, Audited.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '197.0';
+  const SCRIPT_VERSION = '198.0';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -94,12 +94,10 @@ function VSC_MAIN() {
   function destroyRuntime(ns = __vscNs) {
     if (!ns || ns.__destroying) return;
     ns.__destroying = true;
-    try {
-      ns.App?.destroy?.();
-      ns.Store?.destroy?.();
-      ns._spaNavAC?.abort?.();
-      ns._globalHooksAC?.abort?.();
-    } catch (e) { log.warn('destroyRuntime error:', e); }
+    ns.App?.destroy?.();
+    ns.Store?.destroy?.();
+    ns._spaNavAC?.abort?.();
+    ns._globalHooksAC?.abort?.();
     ns.__alive = false; ns.__destroying = false;
   }
 
@@ -108,7 +106,6 @@ function VSC_MAIN() {
 
   /* ── CONFIG ──────────────────────────────────────────────────── */
   const CONFIG = (() => {
-    const IS_MOBILE = (() => { const uad = navigator.userAgentData; if (uad && typeof uad.mobile === 'boolean') return uad.mobile; if (/iPad/.test(navigator.platform) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform))) return true; return /Mobi|Android|iPhone/i.test(navigator.userAgent); })();
     const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
     const DEBUG = /[?&]vsc_debug=1/.test(location.search);
     const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
@@ -122,9 +119,9 @@ function VSC_MAIN() {
       },
       bright: { 0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.05, brightAdd: 1.0 }, 2: { gammaF: 1.075, brightAdd: 1.5 }, 3: { gammaF: 1.10, brightAdd: 2.0 }, 4: { gammaF: 1.125, brightAdd: 2.5 }, 5: { gammaF: 1.150, brightAdd: 3.0 } }
     });
-    const DEFAULTS = Object.freeze({ video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 }, audio: { enabled: false, boost: 0 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1, kbEnabled: true } });
-    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos', APP_KB_EN: 'app.kbEnabled', V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
-    return Object.freeze({ IS_MOBILE, VSC_ID, DEBUG, DARK_BAND, PRESETS, DEFAULTS, P });
+    const DEFAULTS = Object.freeze({ video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 }, audio: { enabled: false, boost: 0 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1, kbEnabled: true, slots: [null, null, null] } });
+    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos', APP_KB_EN: 'app.kbEnabled', APP_SLOTS: 'app.slots', V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
+    return Object.freeze({ VSC_ID, DEBUG, DARK_BAND, PRESETS, DEFAULTS, P });
   })();
 
   __vscNs.CONFIG = CONFIG;
@@ -138,20 +135,14 @@ function VSC_MAIN() {
     const existing = signals.filter(Boolean);
     if (existing.length === 0) return undefined;
     if (existing.length === 1) return existing[0];
-    if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
-    return existing[0];
+    return AbortSignal.any(existing);
   };
 
   /* ── Event Binding ───────────────────────────────────────────── */
   function on(target, type, fn, opts) {
     if (!target?.addEventListener) return;
     const o = opts ? { ...opts } : {};
-    if (o.once) {
-      if (!o.signal) o.signal = __globalSig;
-      else o.signal = combineSignals(o.signal, __globalSig);
-    } else {
-      o.signal = o.signal ? combineSignals(o.signal, __globalSig) : __globalSig;
-    }
+    o.signal = o.signal ? combineSignals(o.signal, __globalSig) : __globalSig;
     target.addEventListener(type, fn, o);
   }
   const blockInterference = (el) => {
@@ -225,7 +216,7 @@ function VSC_MAIN() {
   const videoStateMap = new WeakMap();
   const getVState = (v) => {
     let st = videoStateMap.get(v);
-    if (!st) { st = { visible: false, bound: false, applied: false, rect: null, _rectRev: 0, audioFailUntil: 0 }; videoStateMap.set(v, st); }
+    if (!st) { st = { visible: false, bound: false, applied: false, rect: null, _rectRev: 0 }; videoStateMap.set(v, st); }
     return st;
   };
   const TOUCHED = { videos: new Set(), rateVideos: new Set() };
@@ -304,7 +295,7 @@ function VSC_MAIN() {
   function createRegistry(scheduler, bus) {
     let destroyed = false; const videos = new Set(), visible = { videos: new Set() }; let dirty = { videos: new Set() }; const consumed = { videos: new Set() }; let rev = 0, __refreshQueued = false, refreshRafId = 0, rescanTimerId = 0;
     function requestRefreshCoalesced() { if (destroyed || __refreshQueued) return; __refreshQueued = true; refreshRafId = requestAnimationFrame(() => { refreshRafId = 0; __refreshQueued = false; if (!destroyed) scheduler.request(false); }); }
-    const IO_MARGIN_PX = CONFIG.IS_MOBILE ? 80 : Math.min(200, Math.round(innerHeight * 0.10)); const ioOpts = { root: null, threshold: [0], rootMargin: `${IO_MARGIN_PX}px` };
+    const IO_MARGIN_PX = Math.min(200, Math.round(innerHeight * 0.10)); const ioOpts = { root: null, threshold: [0], rootMargin: `${IO_MARGIN_PX}px` };
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { let changed = false; for (const e of entries) { const el = e.target; if (!videos.has(el)) continue; const isVis = e.isIntersecting; const st = getVState(el); st.visible = isVis; st.rect = e.boundingClientRect; st._rectRev = __vscLayoutRev; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, ioOpts) : null;
     const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
     const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { let changed = false; for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); if (e.contentBoxSize?.[0]) { const s = e.contentBoxSize[0]; st.rect = { width: s.inlineSize, height: s.blockSize, left: st.rect?.left ?? 0, top: st.rect?.top ?? 0, right: (st.rect?.left ?? 0) + s.inlineSize, bottom: (st.rect?.top ?? 0) + s.blockSize }; } else { st.rect = e.contentRect ? el.getBoundingClientRect() : null; } st._rectRev = __vscLayoutRev; dirty.videos.add(el); changed = true; } if (changed) { bumpLayoutRev(); requestRefreshCoalesced(); } }) : null;
@@ -336,7 +327,7 @@ function VSC_MAIN() {
       let pending = new Set(), scheduled = false, rafId = 0;
       const scanNode = (n) => { if (!n) return; if (n.nodeType === 1 && n.tagName === 'VIDEO') { observeVideo(n); return; } if (n.nodeType === 1 || n.nodeType === 11) { const vs = n.querySelectorAll?.('video'); if (vs?.length) for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } };
       const flush = () => { rafId = 0; scheduled = false; const batch = pending; pending = new Set(); for (const n of batch) { if (destroyed) return; scanNode(n); } };
-      return Object.freeze({ enqueue(n) { if (destroyed || !n) return; pending.add(n); if (!scheduled) { scheduled = true; if (videos.size > 0 && typeof globalThis.scheduler?.postTask === 'function') { globalThis.scheduler.postTask(flush, { priority: 'user-visible' }).catch(() => { if (!destroyed && pending.size > 0) rafId = requestAnimationFrame(flush); }); } else { rafId = requestAnimationFrame(flush); } } }, destroy() { if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } pending.clear(); scheduled = false; } });
+      return Object.freeze({ enqueue(n) { if (destroyed || !n) return; pending.add(n); if (!scheduled) { scheduled = true; rafId = requestAnimationFrame(flush); } }, destroy() { if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } pending.clear(); scheduled = false; } });
     })();
 
     function makeObserver(root, onDisconnect) {
@@ -369,12 +360,17 @@ function VSC_MAIN() {
     refreshObservers();
 
     function startVideoPolling() {
-      return setRecurring(() => {
+      let intervalMs = 3000, id = 0;
+      const poll = () => {
         if (!__vscNs.__alive || destroyed) return;
         if (document.hidden) return;
         const allVideos = document.querySelectorAll('video'); for (let i = 0; i < allVideos.length; i++) observeVideo(allVideos[i]);
         for (const [sr] of shadowObserverMap) { if (!sr.host?.isConnected) continue; const vs = sr.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); }
-      }, 3000);
+        const nextInterval = videos.size === 0 ? 10000 : 3000;
+        if (nextInterval !== intervalMs) { intervalMs = nextInterval; clearRecurring(id); id = setRecurring(poll, intervalMs); }
+      };
+      id = setRecurring(poll, intervalMs);
+      return id;
     }
     const pollTimer = startVideoPolling();
 
@@ -442,7 +438,7 @@ function VSC_MAIN() {
       const bLv = Number(sm.get(CONFIG.P.A_BST)) || 0;
       pc.sttIfChanged(currentNodes.boostGain.gain, 'boostGain', Math.pow(10, bLv / 20), ctx.currentTime, 0.05);
     };
-    const ensureCtx = () => { if (ctx) return true; try { ctx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: 'interactive' }); currentNodes = buildAudioGraph(ctx); return true; } catch (_) { return false; } };
+    const ensureCtx = () => { if (ctx) return true; try { ctx = new AudioContext({ latencyHint: 'interactive' }); currentNodes = buildAudioGraph(ctx); return true; } catch (_) { return false; } };
     const setTarget = (v) => {
       if (v == null) { detachCurrentSource(); syncMixAndParams(); return; } if (v === target && currentSrc) { syncMixAndParams(); return; }
       if (!ensureCtx()) return;
@@ -465,19 +461,17 @@ function VSC_MAIN() {
   }
 
   /* ── Playback Rate Management ────────────────────────────────── */
-  function getRateState(v) { const st = getVState(v); if (!st.rateState) st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0 }; return st.rateState; }
+  function getRateState(v) { const st = getVState(v); if (!st.rateState) st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0, failCount: 0, permanentlyBlocked: false }; return st.rateState; }
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v), now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const rate = Number(st.orig) > 0.01 ? Number(st.orig) : 1.0; st.orig = null; markInternalRateChange(el, 500); el.playbackRate = rate; } catch (_) {} }
   function handleExternalRateChange(video, storeRef) {
     const rSt = getRateState(video), now = performance.now(); if (now < (rSt.suppressSyncUntil || 0) || (now - (rSt.lastSetAt || 0)) < 500) return;
-    const captured = video.playbackRate; if (!Number.isFinite(captured) || captured < 0.07) return;
-    rSt._pendingExternalRate = captured; rSt._pendingExternalT = now;
+    if (!Number.isFinite(video.playbackRate) || video.playbackRate < 0.07) return;
     if (rSt._externalMtQueued) return; rSt._externalMtQueued = true;
     queueMicrotask(() => {
       rSt._externalMtQueued = false;
       if (!storeRef || !__vscNs.__alive) return;
-      const nowMt = performance.now();
-      if (nowMt < (rSt.suppressSyncUntil || 0)) return;
+      if (performance.now() < (rSt.suppressSyncUntil || 0)) return;
       const activeVideo = __vscNs.App?.getActiveVideo?.();
       if (!activeVideo || video !== activeVideo || !storeRef.get(CONFIG.P.PB_EN)) return;
       const actualRate = video.playbackRate, desired = storeRef.get(CONFIG.P.PB_RATE);
@@ -488,10 +482,11 @@ function VSC_MAIN() {
   }
   function applyPlaybackRate(el, desiredRate, st) {
     if (!st) st = getVState(el);
-    const rSt = st.rateState || (st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0 });
+    const rSt = st.rateState || (st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0, failCount: 0, permanentlyBlocked: false });
+    if (rSt.permanentlyBlocked) return;
     const now = performance.now(); if (now < (rSt.suppressSyncUntil || 0)) return; if (rSt.orig == null) rSt.orig = el.playbackRate;
     if (Object.is(st.desiredRate, desiredRate) && Math.abs(el.playbackRate - desiredRate) < 0.01) { rSt.retryCount = 0; TOUCHED.rateVideos.add(el); return; }
-    if (rSt.retryCount > 6) { rSt.suppressSyncUntil = now + Math.min(6000, 800 << Math.min(rSt.retryCount - 6, 3)); rSt.retryCount = 0; st.desiredRate = undefined; return; }
+    if (rSt.retryCount > 6) { rSt.suppressSyncUntil = now + 10000; rSt.failCount = (rSt.failCount || 0) + 1; rSt.retryCount = 0; st.desiredRate = undefined; if (rSt.failCount >= 3) { rSt.permanentlyBlocked = true; log.debug('Rate control permanently blocked for video:', el.currentSrc?.slice(0, 60)); } return; }
     st.desiredRate = desiredRate; markInternalRateChange(el, 250); try { el.playbackRate = desiredRate; } catch (_) {} rSt.retryCount++;
     requestAnimationFrame(() => { if (!el.isConnected) return; if (Math.abs(el.playbackRate - desiredRate) > 0.01) { markInternalRateChange(el, 250); try { el.playbackRate = desiredRate; } catch (_) {} rSt.retryCount++; } else { rSt.retryCount = 0; } }); TOUCHED.rateVideos.add(el);
   }
@@ -499,20 +494,11 @@ function VSC_MAIN() {
   /* ── Video Binding & Pipeline ────────────────────────────────── */
   const bindVideoOnce = (v, ApplyReq, storeRef) => { const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); const opts = { passive: true, signal: combineSignals(st._ac.signal, __globalSig) }; const reset = () => { queueMicrotask(() => { st.audioFailUntil = 0; ApplyReq.hard(); }); }; for (const ev of ['loadstart', 'loadedmetadata', 'emptied']) on(v, ev, reset, opts); on(v, 'ratechange', () => handleExternalRateChange(v, storeRef), opts); on(v, 'resize', () => { __vscNs.Filters?.invalidateCache(v); ApplyReq.hard(); }, opts); };
 
-  function batchReadRects(candidates) {
-    for (const el of candidates) {
-      if (!el.isConnected) continue; const st = getVState(el);
-      if (st.rect && st._rectRev >= __vscLayoutRev - 1) continue;
-      if (!st.rect) { st.rect = el.getBoundingClientRect(); st._rectRev = __vscLayoutRev; }
-    }
-  }
-
   function reconcileVideoEffects({ applySet, dirtyVideos, getParamsForVideo, desiredRate, pbActive, Adapter, ApplyReq, scratch, activeTarget, storeRef }) {
     const candidates = scratch; candidates.clear(); const isApplyAll = !!storeRef?.get(CONFIG.P.APP_APPLY_ALL), addIfConnected = (v) => { if (v?.isConnected && !candidates.has(v)) candidates.add(v); };
     for (const v of applySet) addIfConnected(v); if (activeTarget) addIfConnected(activeTarget); for (const v of dirtyVideos) addIfConnected(v);
     if (TOUCHED.videos.size > 0) for (const v of TOUCHED.videos) { if (!applySet.has(v)) addIfConnected(v); }
     if (TOUCHED.rateVideos.size > 0) for (const v of TOUCHED.rateVideos) { if (!applySet.has(v)) addIfConnected(v); }
-    batchReadRects(candidates);
     for (const el of candidates) {
       if (!el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); const st = getVState(el); if (st) st.desiredRate = undefined; continue; }
       bindVideoOnce(el, ApplyReq, storeRef); const st = getVState(el), shouldApply = applySet.has(el) || el === activeTarget || isApplyAll;
@@ -528,7 +514,7 @@ function VSC_MAIN() {
     let satF = s.satF ?? 1; if (temp > 0) satF *= (1.0 + Math.abs(temp) / 350); else if (temp < 0) satF *= Math.max(0.85, 1.0 - Math.abs(temp) / 500); if (Math.abs(satF - 1.0) > 0.005) parts.push(`saturate(${satF.toFixed(3)})`);
     if (temp > 0) { const sepiaAmount = Math.min(Math.abs(temp) / 200, 0.15); if (sepiaAmount > 0.005) parts.push(`sepia(${sepiaAmount.toFixed(3)})`); }
     let bf = 1.0; if (Math.abs(brightAdd) > 0.5) bf *= (1.0 + brightAdd / 250); if (Math.abs(gamma - 1.0) > 0.01) bf *= Math.pow(gamma, 0.5); if (Math.abs(bf - 1.0) > 0.001) parts.push(`brightness(${bf.toFixed(4)})`);
-    let cf = s.contrast || 1; if (Math.abs(gamma - 1.0) > 0.01) cf *= (1 + (gamma - 1) * 0.15); if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`);
+    if (Math.abs(gamma - 1.0) > 0.01) { const cf = 1 + (gamma - 1) * 0.15; if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`); }
     return parts.join(' ');
   }
 
@@ -537,7 +523,7 @@ function VSC_MAIN() {
     if (nW < 16 || dW < 16) return 0.0; const ratio = Math.max((dW * dpr) / nW, (dH * dpr) / Math.max(1, nH)); let mul = 1.0;
     if (ratio < 0.5) mul = 0.25; else if (ratio < 1.0) mul = 0.25 + (ratio - 0.5) * 1.2; else if (ratio <= 1.5) mul = 1.0; else if (ratio <= 2.5) mul = 1.0 + (ratio - 1.5) * 0.20; else mul = Math.max(0.45, 1.20 - (ratio - 2.5) * 0.20);
     if (nW <= 640 && nH <= 480) mul *= 0.40; else if (nW <= 960) mul *= 0.65;
-    if (CONFIG.IS_MOBILE) mul *= VSC_CLAMP(1.05 / dpr, 0.55, 0.85); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0); return VSC_CLAMP(mul, 0.0, 0.85);
+    if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0); return VSC_CLAMP(mul, 0.0, 0.85);
   }
 
   function createVideoParamsMemo() {
@@ -554,7 +540,7 @@ function VSC_MAIN() {
         const finalSharpMul = (rawSharpMul === 0.0 && vfUser.presetS !== 'off') ? 0.50 : rawSharpMul;
         const finalSigmaScale = (video && dW >= 16) ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920) : 1.0;
 
-        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale, _refW: Math.max(640, Math.min(3840, dW || 1280)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
+        const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale, _refW: Math.max(640, Math.min(3840, dW || 1280)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
 
         const rawShadow = VSC_CLAMP(Number(vfUser.shadowBandMask) || 0, 0, 3);
         const shadowOut = { level: rawShadow, active: rawShadow > 0, factor: 1.0 };
@@ -580,19 +566,18 @@ function VSC_MAIN() {
       onDestroy() { TOUCHED.videos.forEach(v => safe(() => Adapter.clear(v))); TOUCHED.rateVideos.forEach(v => safe(() => restoreRateOne(v))); TOUCHED.videos.clear(); TOUCHED.rateVideos.clear(); }
     });
   }
-
-  /* ── Hybrid Filter Engine ────────────────────────────────────── */
+/* ── Hybrid Filter Engine ────────────────────────────────────── */
   function createFiltersVideoOnly(Utils, vscId) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = {
-      1: '0 0.18 0.38 0.58 0.76 0.89 1',   // 밝게: (기준점)
-      2: '0 0.15 0.32 0.50 0.68 0.85 1',   // 짙게: (-0.03) 회색 제거 메인 수치
-      3: '0 0.12 0.28 0.46 0.66 0.84 1'    // 강하게: (-0.03) 2번보다 딱 한 단계 더 묵직함
+      1: '0 0.18 0.38 0.58 0.76 0.89 1',
+      2: '0 0.15 0.32 0.50 0.68 0.85 1',
+      3: '0 0.12 0.28 0.46 0.66 0.84 1'
     };
 
     function ensureOpaqueBg(video) {
       if (!video || __vscBgMemo.has(video) || !FILTER_FORCE_OPAQUE_BG) return;
-      try { const cs = getComputedStyle(video).backgroundColor, isTransparent = !cs || cs === 'transparent' || /,\s*0(?:\.0+)?\s*\)$/.test(cs) || /\/\s*0(?:\.0+)?\s*\)$/.test(cs); if (isTransparent) { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {}
+      try { const cs = getComputedStyle(video).backgroundColor, isTransparent = !cs || cs === 'transparent' || cs === 'rgba(0, 0, 0, 0)'; if (isTransparent) { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {}
     }
     function restoreOpaqueBg(video) { if (!video) return; const prev = __vscBgMemo.get(video); if (prev === undefined) return; __vscBgMemo.delete(video); if (prev !== null) video.style.backgroundColor = prev; }
 
@@ -713,7 +698,7 @@ function VSC_MAIN() {
     };
 
     function renderButtonRow({ label, items, key, offValue = 0 }) {
-      const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px !important;width:35px !important;line-height:34px !important;font-weight:bold !important;' }, label));
+      const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px !important;width:38px !important;flex-shrink:0 !important;display:flex !important;align-items:center !important;font-weight:600 !important;color:var(--c-dim) !important;' }, label));
       const onChange = (val) => { if (!sm.get(P.APP_ACT)) return; const cur = sm.get(key); if (offValue !== null && cur === val && val !== offValue) setAndHint(key, offValue); else setAndHint(key, val); };
       for (const it of items) { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, it.text); b.onclick = (e) => { e.stopPropagation(); onChange(it.value); }; bindReactive(b, [key, P.APP_ACT], (el, v, act) => applyBtnState(el, v === it.value, act)); row.append(b); }
       if (offValue != null) { const offBtn = h('button', { class: 'pbtn', style: 'flex:0.9 !important;' }, 'OFF'); offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(key, offValue); }; bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => applyBtnState(el, v === offValue, act)); row.append(offBtn); }
@@ -735,10 +720,10 @@ function VSC_MAIN() {
     const getMainPanel = () => container?.shadowRoot?.querySelector('.main');
     function attachShadowStyles(shadowRoot, cssText) { try { if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') { const sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet]; return; } } catch (_) {} const styleEl = document.createElement('style'); styleEl.textContent = cssText; shadowRoot.appendChild(styleEl); }
 
-    const CSS_VARS = `:host{--bg:rgba(18,18,22,.97);--bg-elevated:rgba(35,35,42,.95);--c:#e8e8ec;--c-dim:#888;--b:1px solid rgba(255,255,255,.12);--btn-bg:rgba(255,255,255,.06);--btn-bg-hover:rgba(255,255,255,.12);--ac:#4a9eff;--ac-glow:rgba(74,158,255,.15);--danger:#ff4757;--danger-bg:rgba(255,71,87,.1);--success:#2ed573;--success-bg:rgba(46,213,115,.1);--br:8px;--gap:6px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}`;
-    const PANEL_CSS = `${CSS_VARS}.main{position:fixed!important;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2))!important;right:var(--vsc-safe-right)!important;transform:translateY(-50%)!important;width:min(320px,calc(100vw - 24px))!important;background:var(--bg)!important;backdrop-filter:blur(12px)!important;color:var(--c)!important;padding:15px!important;border-radius:16px!important;z-index:2147483647!important;border:1px solid rgba(255,255,255,.08)!important;font-family:var(--font)!important;box-shadow:0 16px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05)!important;overflow-y:auto!important;max-height:min(95vh,calc(var(--vsc-vv-h,100vh) - 20px))!important;-webkit-overflow-scrolling:touch!important;display:none}.main.visible{display:block!important}@media(max-width:520px){.main{width:100vw!important;max-width:100vw!important;max-height:55vh!important;bottom:0!important;top:auto!important;right:0!important;left:0!important;transform:none!important;border-radius:16px 16px 0 0!important;padding:12px 12px 20px!important;font-size:12px!important}.main::-webkit-scrollbar{width:3px!important}.main::-webkit-scrollbar-thumb{background:#666!important;border-radius:10px!important}.prow{gap:4px!important}.btn,.pbtn{min-height:38px!important;font-size:11px!important}.tab{padding:8px 0!important;font-size:11px!important}}.btn,.pbtn{border:var(--b)!important;background:var(--btn-bg)!important;color:var(--c)!important;border-radius:var(--br)!important;cursor:pointer!important;font-weight:600!important;font-family:var(--font)!important;transition:background .12s,border-color .12s,color .12s!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:10px 0!important;flex:1!important}.pbtn{padding:0 6px!important;height:36px!important;min-height:36px!important}.btn:hover,.pbtn:hover{background:var(--btn-bg-hover)!important}.btn.active,.pbtn.active{background:var(--ac-glow)!important;border-color:var(--ac)!important;color:var(--ac)!important;box-shadow:0 0 8px rgba(74,158,255,.25)!important}.prow{display:flex!important;gap:var(--gap)!important;align-items:center!important}hr{border:0!important;border-top:1px solid rgba(255,255,255,.14)!important;margin:8px 0!important}`;
-    const TAB_CSS = `${PANEL_CSS}.tabs{display:flex!important;border-bottom:2px solid #444!important;margin:0 -15px!important;padding:0 15px!important}.tab{flex:1!important;padding:10px 0!important;text-align:center!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important;color:var(--c-dim)!important;border-bottom:2px solid transparent!important;margin-bottom:-2px!important;transition:color .15s,border-color .15s!important}.tab.active{color:var(--ac)!important;border-bottom-color:var(--ac)!important}.tab-content{display:none!important;flex-direction:column!important;gap:6px!important;padding-top:12px!important}.tab-content.active{display:flex!important}.header{display:flex!important;align-items:center!important;justify-content:space-between!important;cursor:move!important;padding-bottom:10px!important;border-bottom:none!important;margin-bottom:0!important}.header-title{font-size:14px!important;font-weight:700!important}.header-actions{display:flex!important;gap:6px!important}.header-actions .btn{padding:6px 12px!important;font-size:11px!important;min-width:auto!important}`;
-    const GEAR_CSS = `:host{--danger:#ff4757;--success:#2ed573}.gear{--size:46px;position:fixed!important;top:50%!important;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px))!important;transform:translateY(-50%)!important;width:var(--size)!important;height:var(--size)!important;border-radius:50%!important;background:rgba(25,25,25,.92)!important;backdrop-filter:blur(10px)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;font:700 22px/1 sans-serif!important;cursor:pointer!important;pointer-events:auto!important;z-index:2147483647!important;box-shadow:0 12px 44px rgba(0,0,0,.55)!important;user-select:none!important;transition:transform .12s ease,opacity .3s ease!important;opacity:1!important;-webkit-tap-highlight-color:transparent!important}.gear:not(.open){opacity:0.45!important}.gear.inactive::after{content:''!important;position:absolute!important;top:4px!important;right:4px!important;width:8px!important;height:8px!important;border-radius:50%!important;background:var(--danger)!important}.gear.open::after{content:''!important;position:absolute!important;top:4px!important;right:4px!important;width:8px!important;height:8px!important;border-radius:50%!important;background:var(--success)!important}@media(pointer:coarse){.gear{--size:52px}}`;
+    const CSS_VARS = `:host{--bg:rgba(18,18,22,.97);--bg-elevated:rgba(35,35,42,.95);--c:#e8e8ec;--c-dim:#888;--b:1px solid rgba(255,255,255,.12);--btn-bg:rgba(255,255,255,.06);--btn-bg-hover:rgba(255,255,255,.12);--ac:#4a9eff;--ac-video:#a78bfa;--ac-audio:#34d399;--ac-play:#fbbf24;--ac-glow:rgba(74,158,255,.15);--danger:#ff4757;--danger-bg:rgba(255,71,87,.1);--success:#2ed573;--success-bg:rgba(46,213,115,.1);--br:8px;--gap:6px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}`;
+    const PANEL_CSS = `${CSS_VARS}.main{position:fixed!important;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2))!important;right:var(--vsc-safe-right)!important;transform:translateY(-50%)!important;width:min(320px,calc(100vw - 24px))!important;background:var(--bg)!important;backdrop-filter:blur(12px)!important;color:var(--c)!important;padding:15px!important;border-radius:16px!important;z-index:2147483647!important;border:1px solid rgba(255,255,255,.08)!important;font-family:var(--font)!important;box-shadow:0 16px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05)!important;overflow-y:auto!important;max-height:min(95vh,calc(var(--vsc-vv-h,100vh) - 20px))!important;-webkit-overflow-scrolling:touch!important;display:none}.main.visible{display:block!important}.btn,.pbtn{border:var(--b)!important;background:var(--btn-bg)!important;color:var(--c)!important;border-radius:var(--br)!important;cursor:pointer!important;font-weight:600!important;font-family:var(--font)!important;transition:background .12s,border-color .12s,color .12s!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:10px 0!important;flex:1!important}.pbtn{padding:0 6px!important;height:36px!important;min-height:36px!important}.btn:hover,.pbtn:hover{background:var(--btn-bg-hover)!important}.btn.active,.pbtn.active{background:var(--ac-glow)!important;border-color:var(--ac)!important;color:var(--ac)!important;box-shadow:0 0 8px rgba(74,158,255,.25)!important}.prow{display:flex!important;gap:var(--gap)!important;align-items:center!important}hr{border:0!important;border-top:1px solid rgba(255,255,255,.14)!important;margin:8px 0!important}`;
+    const TAB_CSS = `${PANEL_CSS}.tabs{display:flex!important;border-bottom:2px solid #444!important;margin:0 -15px!important;padding:0 15px!important}.tab{flex:1!important;padding:10px 0!important;text-align:center!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important;color:var(--c-dim)!important;border-bottom:2px solid transparent!important;margin-bottom:-2px!important;transition:color .15s,border-color .15s!important}.tab.active{color:var(--ac)!important;border-bottom-color:var(--ac)!important}.tab-content{display:none!important;flex-direction:column!important;gap:6px!important;padding-top:12px!important}.tab-content.active{display:flex!important}.header{display:flex!important;align-items:center!important;justify-content:space-between!important;cursor:move!important;padding:6px 0 10px!important;border-bottom:1px solid rgba(255,255,255,.06)!important;margin-bottom:6px!important}.header-title{font-size:14px!important;font-weight:700!important}.header-actions{display:flex!important;gap:6px!important}.header-actions .btn{padding:6px 12px!important;font-size:11px!important;min-width:auto!important}.tab-content[data-tab="video"] .pbtn.active{background:rgba(167,139,250,.15)!important;border-color:#a78bfa!important;color:#a78bfa!important;box-shadow:0 0 8px rgba(167,139,250,.2)!important}.tab-content[data-tab="audio"] .pbtn.active,.tab-content[data-tab="audio"] .btn.active{background:rgba(52,211,153,.15)!important;border-color:#34d399!important;color:#34d399!important;box-shadow:0 0 8px rgba(52,211,153,.2)!important}.tab-content[data-tab="play"] .pbtn.active{background:rgba(251,191,36,.15)!important;border-color:#fbbf24!important;color:#fbbf24!important;box-shadow:0 0 8px rgba(251,191,36,.2)!important}.btn-icon{border:none!important;background:transparent!important;width:32px!important;height:32px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;border-radius:8px!important;color:var(--c-dim)!important;cursor:pointer!important;font-size:16px!important;transition:background .12s,color .12s!important;flex:none!important}.btn-icon:hover{background:rgba(255,255,255,.1)!important;color:var(--c)!important}`;
+    const GEAR_CSS = `:host{--danger:#ff4757;--success:#2ed573}.gear{--size:46px;position:fixed!important;top:50%!important;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px))!important;transform:translateY(-50%)!important;width:var(--size)!important;height:var(--size)!important;border-radius:50%!important;background:rgba(25,25,25,.92)!important;backdrop-filter:blur(10px)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;font:700 22px/1 sans-serif!important;cursor:pointer!important;pointer-events:auto!important;z-index:2147483647!important;box-shadow:0 12px 44px rgba(0,0,0,.55)!important;user-select:none!important;transition:transform .12s ease,opacity .3s ease!important;opacity:1!important;-webkit-tap-highlight-color:transparent!important}.gear:not(.open){opacity:0.45!important}.gear.inactive::after{content:''!important;position:absolute!important;top:4px!important;right:4px!important;width:8px!important;height:8px!important;border-radius:50%!important;background:var(--danger)!important}.gear.open::after{content:''!important;position:absolute!important;top:4px!important;right:4px!important;width:8px!important;height:8px!important;border-radius:50%!important;background:var(--success)!important}`;
 
     const build = () => {
       if (container) return;
@@ -749,46 +734,50 @@ function VSC_MAIN() {
       pwrBtn.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT));
       bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.textContent = v ? 'ON' : 'OFF'; el.style.setProperty('color', v ? 'var(--success)' : 'var(--danger)', 'important'); el.style.setProperty('border-color', v ? 'var(--success)' : 'var(--danger)', 'important'); el.style.setProperty('background', v ? 'var(--success-bg)' : 'var(--danger-bg)', 'important'); });
 
-      const closeBtn = h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕');
-      const resetBtn = h('button', { class: 'btn' }, '↺');
+      const closeBtn = h('button', { class: 'btn-icon', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕');
+      const resetBtn = h('button', { class: 'btn-icon' }, '↺');
       resetBtn.onclick = guardedClick(() => { sm.batch('video', CONFIG.DEFAULTS.video); sm.batch('audio', CONFIG.DEFAULTS.audio); sm.batch('playback', CONFIG.DEFAULTS.playback); ApplyReq.hard(); showToast('초기화 완료'); });
 
-      const dragGrip = h('div', { style: 'width:20px !important;display:flex !important;flex-direction:column !important;gap:2px !important;align-items:center !important;justify-content:center !important;opacity:0.3 !important;flex-shrink:0 !important;' }, ...[0,1,2].map(() => h('div', { style: 'width:12px !important;height:2px !important;background:currentColor !important;border-radius:1px !important;' })));
-      const dragHandle = h('div', { class: 'header' }, dragGrip, h('div', { class: 'header-title', style: 'flex:1 !important;' }, `VSC ${CONFIG.DEBUG ? 'v' + SCRIPT_VERSION : ''}`.trim()), h('div', { class: 'header-actions' }, pwrBtn, resetBtn, closeBtn));
+      const dragHandle = h('div', { class: 'header' }, h('div', { class: 'header-title', style: 'flex:1 !important;' }, `VSC ${CONFIG.DEBUG ? 'v' + SCRIPT_VERSION : ''}`.trim()), h('div', { class: 'header-actions' }, pwrBtn, resetBtn, closeBtn));
 
-      const tabDefs = [{ text: 'Video' }, { text: 'Audio' }, { text: 'Play' }]; const tabBtns = [], tabContents = []; let activeTabIdx = 0;
+      const tabDefs = [{ text: '🎬 Video', id: 'video' }, { text: '🔊 Audio', id: 'audio' }, { text: '⏩ Play', id: 'play' }]; const tabBtns = [], tabContents = []; let activeTabIdx = 0;
       const switchTab = (idx) => { activeTabIdx = idx; tabBtns.forEach((b, i) => b.classList.toggle('active', i === idx)); tabContents.forEach((c, i) => c.classList.toggle('active', i === idx)); };
       for (let i = 0; i < tabDefs.length; i++) { const btn = h('div', { class: `tab${i === 0 ? ' active' : ''}` }, tabDefs[i].text); btn.onclick = (e) => { e.stopPropagation(); switchTab(i); }; tabBtns.push(btn); }
       const tabBar = h('div', { class: 'tabs' }, ...tabBtns);
 
       const utilRow = h('div', { class: 'prow' }, (() => { const pipBtn = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '📌 PiP'); pipBtn.onclick = guardedClick(async () => { const v = __vscNs.App?.getActiveVideo(); if (!v) return; try { if (document.pictureInPictureElement === v) await document.exitPictureInPicture(); else if (v.disablePictureInPicture) showToast('PiP 차단됨'); else await v.requestPictureInPicture(); } catch (_) { showToast('PiP 미지원'); } }); bindActGate(pipBtn, []); return pipBtn; })(), (() => { const capBtn = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '📸 캡처'); capBtn.onclick = guardedClick(() => { const v = __vscNs.App?.getActiveVideo(); if (!v || v.readyState < 2) { showToast('로드 대기 중'); return; } try { const canvas = new OffscreenCanvas(v.videoWidth, v.videoHeight); canvas.getContext('2d').drawImage(v, 0, 0); canvas.convertToBlob({ type: 'image/png' }).then(blob => { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `vsc-${Date.now()}.png`; a.click(); setTimer(() => URL.revokeObjectURL(url), 5000); showToast('캡처 완료'); }).catch(() => showToast('캡처 실패')); } catch (_) { showToast('보안 제한'); } }); bindActGate(capBtn, []); return capBtn; })());
 
-      const videoTab = h('div', { class: 'tab-content active' },
+      const infoLabel = h('div', { style: 'font-size:10px !important;color:var(--c-dim) !important;padding:4px 0 !important;font-family:monospace !important;text-align:center !important;' }, '—'); let infoTimer = 0;
+      const updateInfo = () => { const v = __vscNs.App?.getActiveVideo(); if (!v) { infoLabel.textContent = '비디오 없음'; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0, dur = v.duration, cur = v.currentTime, dpr = devicePixelRatio.toFixed(1); const ratio = nW && dW ? ((dW * devicePixelRatio) / nW).toFixed(2) : '?'; const parts = [`${nW}×${nH}`, `→ ${dW}×${dH}@${dpr}x`, `scale:${ratio}`]; if (Number.isFinite(dur)) parts.push(`${(cur/60)|0}:${String((cur|0)%60).padStart(2,'0')} / ${(dur/60)|0}:${String((dur|0)%60).padStart(2,'0')}`); infoLabel.textContent = parts.join(' · '); };
+      sub(P.APP_UI, (vis) => { clearRecurring(infoTimer); if (vis) { updateInfo(); infoTimer = setRecurring(updateInfo, 2000); } });
+
+      const videoTab = h('div', { class: 'tab-content active', 'data-tab': 'video' },
         renderButtonRow({ label: '선명', key: P.V_PRE_S, offValue: 'off', items: [{ text: 'Soft', value: 'Soft' }, { text: 'Med', value: 'Medium' }, { text: 'Ultra', value: 'Ultra' }, { text: 'MST', value: 'Master' }] }),
         renderButtonRow({ label: '밝기', key: P.V_BRIGHT_LV, offValue: 0, items: [{ text: '1', value: 1 }, { text: '2', value: 2 }, { text: '3', value: 3 }, { text: '4', value: 4 }, { text: '5', value: 5 }] }),
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, offValue: 0, items: [{ text: '밝게', value: CONFIG.DARK_BAND.LV1 }, { text: '짙게', value: CONFIG.DARK_BAND.LV2 }, { text: '강하게', value: CONFIG.DARK_BAND.LV3 }] }),
         renderButtonRow({ label: '색온', key: P.V_TEMP, offValue: 0, items: [{ text: '야간', value: 35 }, { text: '따뜻', value: 18 }, { text: '맑음', value: -15 }, { text: '냉색', value: -30 }] }),
+        infoLabel,
         (() => { const zoomBtn = h('button', { class: 'btn', style: 'width:100% !important;' }, '🔍 줌 토글'); zoomBtn.onclick = guardedClick(() => { const zm = __vscNs.ZoomManager, v = __vscNs.App?.getActiveVideo(); if (!zm || !v) return; if (zm.isZoomed(v)) { zm.resetZoom(v); setAndHint(P.APP_ZOOM_EN, false); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); setAndHint(P.APP_ZOOM_EN, true); } }); bindActGate(zoomBtn, [P.APP_ZOOM_EN], (el, v) => el.classList.toggle('active', !!v)); return zoomBtn; })(),
         utilRow
       ); tabContents.push(videoTab);
 
       const boostToggle = h('button', { class: 'btn', style: 'width:100% !important;' }, '🔊 Audio Mastering'); boostToggle.onclick = guardedClick(() => { __vscNs.AudioWarmup?.(); setAndHint(P.A_EN, !sm.get(P.A_EN)); }); bindActGate(boostToggle, [P.A_EN], (el, aEn) => { el.classList.toggle('active', !!aEn); el.style.setProperty('color', aEn ? 'var(--ac)' : '#eee', 'important'); });
       const boostRow = renderButtonRow({ label: '음량', key: P.A_BST, offValue: 0, items: [{ text: '+3', value: 3 }, { text: '+6', value: 6 }, { text: '+9', value: 9 }, { text: '+12', value: 12 }] }); bindReactive(boostRow, [P.A_EN, P.APP_ACT], (el, aEn, act) => { const on = act && aEn; el.style.setProperty('opacity', on ? '1' : '0.45', 'important'); el.style.setProperty('pointer-events', on ? 'auto' : 'none', 'important'); });
-      const audioTab = h('div', { class: 'tab-content' }, boostToggle, boostRow); tabContents.push(audioTab);
+      const audioTab = h('div', { class: 'tab-content', 'data-tab': 'audio' }, boostToggle, boostRow); tabContents.push(audioTab);
 
-      const speedBtns = h('div', { class: 'prow', style: 'flex-wrap:wrap !important;gap:4px !important;' }, ...[0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;min-height:36px !important;' }, s + 'x'); b.onclick = guardedClick(() => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }); bindActGate(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => el.classList.toggle('active', !!en && Math.abs(Number(rate || 1) - s) < 0.01)); return b; }));
+      const speedBtns = h('div', { class: 'prow', style: 'flex-wrap:wrap !important;gap:4px !important;' }, ...[0.5, 0.75, 1.0, 1.25, 1.5, 2.0].map(s => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;min-height:36px !important;' }, s + 'x'); b.onclick = guardedClick(() => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }); bindActGate(b, [P.PB_RATE, P.PB_EN], (el, rate, en) => el.classList.toggle('active', !!en && Math.abs(Number(rate || 1) - s) < 0.01)); return b; }));
       const fineRow = h('div', { class: 'prow', style: 'gap:4px !important;' }, (() => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '- 0.05'); b.onclick = guardedClick(() => { const cur = Number(sm.get(P.PB_RATE)) || 1.0; setAndHint(P.PB_RATE, Math.max(0.1, Math.round((cur - 0.05) * 100) / 100)); setAndHint(P.PB_EN, true); }); return b; })(), (() => { const lbl = h('div', { style: 'flex:2 !important;text-align:center !important;font-size:13px !important;font-weight:bold !important;line-height:36px !important;' }, '1.00x'); bindReactive(lbl, [P.PB_RATE, P.PB_EN], (el, rate, en) => { const r = Number(rate) || 1.0; el.textContent = en ? `${r.toFixed(2)}x` : '1.00x'; el.style.setProperty('color', en && Math.abs(r - 1.0) > 0.01 ? 'var(--ac)' : '#eee', 'important'); }); return lbl; })(), (() => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '+ 0.05'); b.onclick = guardedClick(() => { const cur = Number(sm.get(P.PB_RATE)) || 1.0; setAndHint(P.PB_RATE, Math.min(16, Math.round((cur + 0.05) * 100) / 100)); setAndHint(P.PB_EN, true); }); return b; })(), (() => { const b = h('button', { class: 'pbtn', style: 'flex:0.8 !important;' }, 'OFF'); b.onclick = guardedClick(() => { sm.batch('playback', { rate: 1.0, enabled: false }); ApplyReq.hard(); }); return b; })());
       const seekRow = h('div', { class: 'prow', style: 'gap:2px !important;' }, ...[{ text: '◀30', val: -30 }, { text: '◀15', val: -15 }, { text: '⏸', action: 'pause' }, { text: '▶', action: 'play' }, { text: '15▶', val: 15 }, { text: '30▶', val: 30 }].map(cfg => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;min-height:34px !important;font-size:11px !important;' }, cfg.text); b.onclick = guardedClick(() => execVideoAction(cfg.action || 'seek', cfg.val)); bindActGate(b, []); return b; }));
       const frameStepRow = h('div', { class: 'prow', style: 'gap:4px !important;' }, (() => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;font-size:11px !important;' }, '◀ 1f'); b.onclick = guardedClick(() => { const v = __vscNs.App?.getActiveVideo(); if (!v) return; v.pause(); seekVideo(v, -1 / 30); }); bindActGate(b, []); return b; })(), (() => { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;font-size:11px !important;' }, '1f ▶'); b.onclick = guardedClick(() => { const v = __vscNs.App?.getActiveVideo(); if (!v) return; v.pause(); seekVideo(v, 1 / 30); }); bindActGate(b, []); return b; })());
       const timerRow = h('div', { style: 'display:flex !important;gap:6px !important;align-items:center !important;' }, renderButtonRow({ label: '시계', key: P.APP_TIME_EN, offValue: false, items: [{ text: 'ON', value: true }] }));
       const timerPosRow = renderButtonRow({ label: '위치', key: P.APP_TIME_POS, items: [{ text: '좌', value: 0 }, { text: '중', value: 1 }, { text: '우', value: 2 }] });
       const kbRow = renderButtonRow({ label: '단축', key: P.APP_KB_EN, offValue: false, items: [{ text: 'Alt 단축키', value: true }] });
-      const playbackTab = h('div', { class: 'tab-content' }, speedBtns, fineRow, h('hr'), seekRow, frameStepRow, h('hr'), timerRow, timerPosRow, kbRow); tabContents.push(playbackTab);
+      const playbackTab = h('div', { class: 'tab-content', 'data-tab': 'play' }, speedBtns, fineRow, h('hr'), seekRow, frameStepRow, h('hr'), timerRow, timerPosRow, kbRow); tabContents.push(playbackTab);
 
       const mainPanel = h('div', { class: 'main' }, dragHandle, tabBar, ...tabContents); shadow.append(mainPanel); if (__vscNs.blockInterference) __vscNs.blockInterference(mainPanel);
 
       let stopDrag = null;
-      const startPanelDrag = (e) => { if (CONFIG.IS_MOBILE || e.target?.tagName === 'BUTTON') return; if (e.cancelable) e.preventDefault(); stopDrag?.(); hasUserDraggedUI = true; let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('transform', 'none', 'important'); mainPanel.style.setProperty('top', `${rect.top}px`, 'important'); mainPanel.style.setProperty('right', 'auto', 'important'); mainPanel.style.setProperty('left', `${rect.left}px`, 'important'); try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(dragHandle, (ev) => { const dx = ev.clientX - startX, dy = ev.clientY - startY, pr = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('left', `${Math.max(0, Math.min(window.innerWidth - pr.width, rect.left + dx))}px`, 'important'); mainPanel.style.setProperty('top', `${Math.max(0, Math.min(window.innerHeight - pr.height, rect.top + dy))}px`, 'important'); }, () => { stopDrag = null; }); };
+      const startPanelDrag = (e) => { if (e.target?.tagName === 'BUTTON') return; if (e.cancelable) e.preventDefault(); stopDrag?.(); hasUserDraggedUI = true; let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('transform', 'none', 'important'); mainPanel.style.setProperty('top', `${rect.top}px`, 'important'); mainPanel.style.setProperty('right', 'auto', 'important'); mainPanel.style.setProperty('left', `${rect.left}px`, 'important'); try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(dragHandle, (ev) => { const dx = ev.clientX - startX, dy = ev.clientY - startY, pr = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('left', `${Math.max(0, Math.min(window.innerWidth - pr.width, rect.left + dx))}px`, 'important'); mainPanel.style.setProperty('top', `${Math.max(0, Math.min(window.innerHeight - pr.height, rect.top + dy))}px`, 'important'); }, () => { stopDrag = null; }); };
       on(dragHandle, 'pointerdown', startPanelDrag); on(dragHandle, 'dblclick', () => { hasUserDraggedUI = false; clampPanelIntoViewport(); });
       container = host; getUiRoot().appendChild(container);
     };
@@ -797,10 +786,15 @@ function VSC_MAIN() {
       if (gearHost) return; gearHost = h('div', { 'data-vsc-ui': '1', style: 'all:initial !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483647 !important;isolation:isolate !important;' }); const shadow = gearHost.attachShadow({ mode: 'open' }); attachShadowStyles(shadow, GEAR_CSS);
       let dragThresholdMet = false, stopDrag = null;
       gearBtn = h('button', { class: 'gear' }, h('svg', { ns: 'svg', viewBox: '0 0 24 24', width: '22', height: '22', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' }))); shadow.append(gearBtn); if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
-      const wake = () => { if (gearBtn) gearBtn.style.setProperty('opacity', '1', 'important'); clearTimer(fadeTimer); if (!!document.fullscreenElement || CONFIG.IS_MOBILE) return; fadeTimer = setTimer(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.setProperty('opacity', '0.45', 'important'); }, 2500); };
+      const wake = () => { if (gearBtn) gearBtn.style.setProperty('opacity', '1', 'important'); clearTimer(fadeTimer); if (!!document.fullscreenElement) return; fadeTimer = setTimer(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.setProperty('opacity', '0.45', 'important'); }, 2500); };
       wakeGear = wake; on(window, 'mousemove', wake, { passive: true, signal: uiSig }); on(window, 'touchstart', wake, { passive: true, signal: uiSig }); bootWakeTimer = setTimer(wake, 2000);
       const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.clientY, rect = gearBtn.getBoundingClientRect(); try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(gearBtn, (ev) => { if (Math.abs(ev.clientY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.setProperty('transition', 'none', 'important'); gearBtn.style.setProperty('transform', 'none', 'important'); gearBtn.style.setProperty('top', `${rect.top}px`, 'important'); } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) gearBtn.style.setProperty('top', `${Math.max(0, Math.min(window.innerHeight - gearBtn.offsetHeight, rect.top + (ev.clientY - startY)))}px`, 'important'); }, () => { gearBtn.style.transition = ''; setTimer(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); };
-      on(gearBtn, 'pointerdown', handleGearDrag); let lastToggle = 0; on(gearBtn, 'pointerup', (e) => { if (e.cancelable) e.preventDefault(); e.stopPropagation?.(); if (dragThresholdMet) return; const now = performance.now(); if (now - lastToggle < 300) return; lastToggle = now; setAndHint(P.APP_UI, !sm.get(P.APP_UI)); }, { passive: false });
+      on(gearBtn, 'pointerdown', handleGearDrag); let lastToggle = 0;
+      on(gearBtn, 'pointerup', (e) => {
+        if (e.cancelable) e.preventDefault(); e.stopPropagation?.(); if (dragThresholdMet) return; const now = performance.now(); if (now - lastToggle < 300) return; lastToggle = now;
+        if (e.altKey) { const pre = sm.get(P.V_PRE_S), brt = sm.get(P.V_BRIGHT_LV), shd = sm.get(P.V_SHADOW_MASK), tmp = sm.get(P.V_TEMP), aEn = sm.get(P.A_EN), aBst = sm.get(P.A_BST), rate = sm.get(P.PB_RATE), pbEn = sm.get(P.PB_EN); const parts = []; if (pre !== 'off') parts.push(`선명:${pre}`); if (brt > 0) parts.push(`밝기:${brt}`); if (shd > 0) parts.push(`블랙:${shd}`); if (tmp !== 0) parts.push(`색온:${tmp}`); if (aEn) parts.push(`Audio+${aBst}dB`); if (pbEn) parts.push(`${Number(rate).toFixed(2)}x`); showToast(parts.length > 0 ? parts.join(' · ') : '기본 설정'); return; }
+        setAndHint(P.APP_UI, !sm.get(P.APP_UI));
+      }, { passive: false });
       const syncGear = () => { if (!gearBtn) return; gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); wake(); }; sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
     };
 
@@ -809,9 +803,8 @@ function VSC_MAIN() {
     onPageReady(() => { ensure(); ApplyReq.hard(); });
     return { ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimer(fadeTimer); clearTimer(bootWakeTimer); if (_clampRafId) { cancelAnimationFrame(_clampRafId); _clampRafId = 0; } detachNodesHard(); } };
   }
-  function createUIFeature(Store, Registry, ApplyReq, Utils, P) { let uiInst = null; return defineFeature({ name: 'ui', phase: PHASE.RENDER, onInit() { uiInst = createUI(Store, Registry, ApplyReq, Utils, P); this.subscribe('video:detected', () => uiInst?.ensure()); }, onUpdate() { uiInst?.ensure(); }, onDestroy() { uiInst?.destroy(); } }); }
-
-  /* ── Zoom Manager ────────────────────────────────────────────── */
+  function createUIFeature(Store, Registry, ApplyReq, Utils, P) { let uiInst = null; return defineFeature({ name: 'ui', phase: PHASE.RENDER, onInit() { uiInst = createUI(Store, Registry, ApplyReq, Utils, P); this.subscribe('video:detected', () => uiInst?.ensure()); this.subscribe('allVideosRemoved', () => uiInst?.ensure()); }, onUpdate() { uiInst?.ensure(); }, onDestroy() { uiInst?.destroy(); } }); }
+/* ── Zoom Manager ────────────────────────────────────────────── */
   function createZoomManager(Store, P) {
     const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0; let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 }; const zoomedVideos = new Set(); let activePointerId = null; const zoomAC = new AbortController(), zsig = combineSignals(zoomAC.signal, __globalSig);
     const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origStyle: '' }; stateMap.set(v, st); } return st; };
@@ -819,7 +812,7 @@ function VSC_MAIN() {
     function clampPan(v, st) { const r = v.getBoundingClientRect(); if (!r || r.width <= 1 || r.height <= 1) return; const sw = r.width * st.scale, sh = r.height * st.scale; st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75); st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75); }
     const zoomTo = (v, newScale, cx, cy) => { const st = getSt(v), r = v.getBoundingClientRect(); if (!r || r.width <= 1) return; const ix = (cx - r.left) / st.scale, iy = (cy - r.top) / st.scale; st.tx = cx - (r.left - st.tx) - ix * newScale; st.ty = cy - (r.top - st.ty) - iy * newScale; st.scale = newScale; update(v); }, resetZoom = (v) => { if (!v) return; const st = getSt(v); st.scale = 1; update(v); }, isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; }, getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
     let unsubAct = null, unsubZoomEn = null; if (Store?.sub) { const resetAll = () => { for (const v of [...zoomedVideos]) resetZoom(v); isPanning = false; pinchState.active = false; activeVideo = null; activePointerId = null; }; unsubAct = Store.sub(P.APP_ACT, (act) => { if (!act) resetAll(); }); unsubZoomEn = Store.sub(P.APP_ZOOM_EN, (en) => { if (!en) { resetAll(); zoomedVideos.clear(); } }); }
-    function getTargetVideo(e) { if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } } const touch = e.touches?.[0], cx = Number.isFinite(e.clientX) ? e.clientX : (touch?.clientX ?? null), cy = Number.isFinite(e.clientY) ? e.clientY : (touch?.clientY ?? null); if (cx != null && cy != null) { const el = document.elementFromPoint(cx, cy); if (el?.tagName === 'VIDEO') return el; } return __vscNs.App?.getActiveVideo() || null; }
+    function getTargetVideo(e) { if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } } const touch = e.touches?.[0], cx = Number.isFinite(e.clientX) ? e.clientX : (touch?.clientX ?? null), cy = Number.isFinite(e.clientY) ? e.clientY : (touch?.clientY ?? null); if (cx != null && cy != null) { const els = document.elementsFromPoint(cx, cy); for (const el of els) { if (el?.tagName === 'VIDEO') return el; } } return __vscNs.App?.getActiveVideo() || null; }
     on(window, 'wheel', e => { if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !(e.altKey && e.shiftKey)) return; const v = getTargetVideo(e); if (!v) return; if (e.cancelable) { e.preventDefault(); e.stopPropagation(); } const st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true, signal: zsig });
     on(window, 'pointerdown', e => { if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || e.pointerType === 'touch' || !e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale <= 1) return; if (e.cancelable) { e.preventDefault(); e.stopPropagation(); } activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; try { v.setPointerCapture?.(e.pointerId); } catch (_) {} update(v); }, { capture: true, passive: false, signal: zsig });
     on(window, 'pointermove', e => { if (!Store?.get(P.APP_ACT) || !Store?.get(P.APP_ZOOM_EN) || !isPanning || !activeVideo || e.pointerId !== activePointerId) return; const st = getSt(activeVideo); if (e.cancelable) { e.preventDefault(); e.stopPropagation(); } const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e], last = events[events.length - 1] || e; const nextTx = last.clientX - startX, nextTy = last.clientY - startY; if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true; st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo); }, { capture: true, passive: false, signal: zsig });
@@ -837,13 +830,13 @@ function VSC_MAIN() {
   function createTimerFeature() {
     let _rafId = 0, _timerEl = null, _lastSecond = -1, _destroyed = false, _lastLayoutKey = '';
     let _pollId = 0;
-    function getFullscreenElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+    const getFullscreenElement = () => document.fullscreenElement;
     function createTimerEl() {
       const el = document.createElement('div'); el.className = 'vsc-fs-timer'; el.setAttribute('data-vsc-ui', '1');
       el.style.cssText = ['position:absolute !important', 'z-index:2147483647 !important', 'color:#FFE600 !important', 'font-family:monospace !important', 'font-weight:bold !important', 'pointer-events:none !important', 'user-select:none !important', 'font-variant-numeric:tabular-nums !important', 'letter-spacing:1px !important', '-webkit-text-stroke:1.5px #000 !important', 'paint-order:stroke fill !important', 'transition:opacity 0.2s !important', 'opacity:0.5 !important', 'margin:0 !important', 'padding:0 !important', 'border:none !important', 'display:block !important', 'background:transparent !important', 'box-shadow:none !important', 'text-shadow:none !important'].join(';');
       return el;
     }
-    function getTimerParent() { const fs = getFullscreenElement(); if (!fs) return null; if (fs.tagName === 'VIDEO') return fs.parentElement || document.body; return fs; }
+    function getTimerParent() { const fs = getFullscreenElement(); if (!fs) return null; if (fs.tagName === 'VIDEO') { const parent = fs.parentElement; if (parent?.isConnected) return parent; return null; } return fs; }
     function ensureTimerAttached() {
       const parent = getTimerParent();
       if (!parent) { if (_timerEl) _timerEl.style.setProperty('display', 'none', 'important'); return null; }
@@ -894,13 +887,24 @@ function VSC_MAIN() {
           const store = __vscNs.Store; if (!store) return;
           let handled = false;
           switch (e.code) {
-            case 'KeyS': { const order = ['off', 'Soft', 'Medium', 'Ultra', 'Master'], idx = order.indexOf(store.get(CONFIG.P.V_PRE_S)), next = order[(idx + 1) % order.length]; store.set(CONFIG.P.V_PRE_S, next); showToast(`선명: ${next}`); __vscNs.ApplyReq?.hard(); handled = true; break; }
-            case 'KeyB': { const cur = store.get(CONFIG.P.V_BRIGHT_LV) || 0, next = (cur + 1) % 6; store.set(CONFIG.P.V_BRIGHT_LV, next); showToast(`밝기: ${next || 'OFF'}`); __vscNs.ApplyReq?.hard(); handled = true; break; }
-            case 'KeyA': { __vscNs.AudioWarmup?.(); const next = !store.get(CONFIG.P.A_EN); store.set(CONFIG.P.A_EN, next); showToast(`Audio: ${next ? 'ON' : 'OFF'}`); __vscNs.ApplyReq?.soft(); handled = true; break; }
-            case 'KeyD': { const cur = Number(store.get(CONFIG.P.PB_RATE)) || 1.0, next = Math.min(5.0, Math.round((cur + 0.25) * 100) / 100); store.set(CONFIG.P.PB_RATE, next); store.set(CONFIG.P.PB_EN, true); showToast(`${next.toFixed(2)}x`); __vscNs.ApplyReq?.hard(); handled = true; break; }
-            case 'KeyF': { const cur = Number(store.get(CONFIG.P.PB_RATE)) || 1.0, next = Math.max(0.25, Math.round((cur - 0.25) * 100) / 100); store.set(CONFIG.P.PB_RATE, next); store.set(CONFIG.P.PB_EN, true); showToast(`${next.toFixed(2)}x`); __vscNs.ApplyReq?.hard(); handled = true; break; }
-            case 'KeyQ': { const next = !store.get(CONFIG.P.APP_ACT); store.set(CONFIG.P.APP_ACT, next); showToast(`Power: ${next ? 'ON' : 'OFF'}`); handled = true; break; }
+            case 'KeyS': { const order = ['off', 'Soft', 'Medium', 'Ultra', 'Master'], idx = order.indexOf(store.get(CONFIG.P.V_PRE_S)), next = order[(idx + 1) % order.length]; store.set(CONFIG.P.V_PRE_S, next); __vscNs.showToast?.(`선명: ${next}`); __vscNs.ApplyReq?.hard(); handled = true; break; }
+            case 'KeyB': { const cur = store.get(CONFIG.P.V_BRIGHT_LV) || 0, next = (cur + 1) % 6; store.set(CONFIG.P.V_BRIGHT_LV, next); __vscNs.showToast?.(`밝기: ${next || 'OFF'}`); __vscNs.ApplyReq?.hard(); handled = true; break; }
+            case 'KeyA': { __vscNs.AudioWarmup?.(); const next = !store.get(CONFIG.P.A_EN); store.set(CONFIG.P.A_EN, next); __vscNs.showToast?.(`Audio: ${next ? 'ON' : 'OFF'}`); __vscNs.ApplyReq?.soft(); handled = true; break; }
+            case 'KeyD': { const cur = Number(store.get(CONFIG.P.PB_RATE)) || 1.0, next = Math.min(5.0, Math.round((cur + 0.25) * 100) / 100); store.set(CONFIG.P.PB_RATE, next); store.set(CONFIG.P.PB_EN, true); __vscNs.showToast?.(`${next.toFixed(2)}x`); __vscNs.ApplyReq?.hard(); handled = true; break; }
+            case 'KeyF': { const cur = Number(store.get(CONFIG.P.PB_RATE)) || 1.0, next = Math.max(0.25, Math.round((cur - 0.25) * 100) / 100); store.set(CONFIG.P.PB_RATE, next); store.set(CONFIG.P.PB_EN, true); __vscNs.showToast?.(`${next.toFixed(2)}x`); __vscNs.ApplyReq?.hard(); handled = true; break; }
+            case 'KeyQ': { const next = !store.get(CONFIG.P.APP_ACT); store.set(CONFIG.P.APP_ACT, next); __vscNs.showToast?.(`Power: ${next ? 'ON' : 'OFF'}`); handled = true; break; }
             case 'KeyG': { store.set(CONFIG.P.APP_UI, !store.get(CONFIG.P.APP_UI)); handled = true; break; }
+            case 'Digit1': case 'Digit2': case 'Digit3': {
+              const idx = parseInt(e.code.slice(5)) - 1; const slots = store.get(CONFIG.P.APP_SLOTS) || [null, null, null];
+              if (e.shiftKey) {
+                const snapshot = { presetS: store.get(CONFIG.P.V_PRE_S), brightLevel: store.get(CONFIG.P.V_BRIGHT_LV), shadowBandMask: store.get(CONFIG.P.V_SHADOW_MASK), temp: store.get(CONFIG.P.V_TEMP), audioEnabled: store.get(CONFIG.P.A_EN), boost: store.get(CONFIG.P.A_BST), rate: store.get(CONFIG.P.PB_RATE), pbEnabled: store.get(CONFIG.P.PB_EN) };
+                const newSlots = [...slots]; newSlots[idx] = snapshot; store.set(CONFIG.P.APP_SLOTS, newSlots); __vscNs.showToast?.(`슬롯 ${idx + 1} 저장 완료`);
+              } else {
+                const slot = slots[idx]; if (!slot) { __vscNs.showToast?.(`슬롯 ${idx + 1} 비어있음`); handled = true; break; }
+                store.batch('video', { presetS: slot.presetS, brightLevel: slot.brightLevel, shadowBandMask: slot.shadowBandMask, temp: slot.temp }); store.batch('audio', { enabled: slot.audioEnabled, boost: slot.boost }); store.batch('playback', { rate: slot.rate, enabled: slot.pbEnabled }); __vscNs.ApplyReq?.hard(); __vscNs.showToast?.(`슬롯 ${idx + 1} 적용`);
+              }
+              handled = true; break;
+            }
           }
           if (handled) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); }
         }, { capture: true });
@@ -913,8 +917,8 @@ function VSC_MAIN() {
     Store.sub(P.APP_UI, () => Scheduler.request(true)); Store.sub(P.APP_ACT, (onState) => { if (onState) { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } });
     let __activeTarget = null, __lastApplyTarget = null, lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
-    const emitFs = () => { const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement); Bus.emit('fullscreen:changed', { active: isFs }); if (isFs) Scheduler.request(true); };
-    on(document, 'fullscreenchange', emitFs, { passive: true }); on(document, 'webkitfullscreenchange', emitFs, { passive: true });
+    const emitFs = () => { Bus.emit('fullscreen:changed', { active: !!document.fullscreenElement }); if (document.fullscreenElement) Scheduler.request(true); };
+    on(document, 'fullscreenchange', emitFs, { passive: true });
 
     Scheduler.registerApply((force) => {
       try {
@@ -934,8 +938,8 @@ function VSC_MAIN() {
 
         const now = performance.now(), pruneInterval = Registry.videos.size > 20 ? 1500 : (Registry.videos.size > 5 ? 3000 : 5000);
         if (vidsDirty.size > 40 || (now - lastPrune > pruneInterval)) {
-          if (typeof globalThis.scheduler?.postTask === 'function') globalThis.scheduler.postTask(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); }, { priority: 'background' }).catch(() => {});
-          else setTimer(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); }, 0);
+          if (typeof globalThis.scheduler?.postTask === 'function') globalThis.scheduler.postTask(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); if (Registry.videos.size === 0) Bus.emit('allVideosRemoved'); }, { priority: 'background' }).catch(() => {});
+          else setTimer(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); if (Registry.videos.size === 0) Bus.emit('allVideosRemoved'); }, 0);
           lastPrune = now;
         }
         Features.updateAll({ active, force, vidsDirty, pbActive, target: __activeTarget, isApplyAll: !!Store.get(P.APP_APPLY_ALL), desiredRate: Store.get(P.PB_RATE) });
@@ -966,7 +970,7 @@ function VSC_MAIN() {
       if (typeof GM_registerMenuCommand === 'function') {
         GM_registerMenuCommand('VSC 패널 열기/닫기', () => Store.set(CONFIG.P.APP_UI, !Store.get(CONFIG.P.APP_UI)));
         GM_registerMenuCommand('VSC 전원 토글', () => Store.set(CONFIG.P.APP_ACT, !Store.get(CONFIG.P.APP_ACT)));
-        GM_registerMenuCommand('VSC 설정 초기화', () => { Store.batch('video', CONFIG.DEFAULTS.video); Store.batch('audio', CONFIG.DEFAULTS.audio); Store.batch('playback', CONFIG.DEFAULTS.playback); ApplyReq.hard(); showToast('초기화 완료'); });
+        GM_registerMenuCommand('VSC 설정 초기화', () => { Store.batch('video', CONFIG.DEFAULTS.video); Store.batch('audio', CONFIG.DEFAULTS.audio); Store.batch('playback', CONFIG.DEFAULTS.playback); ApplyReq.hard(); __vscNs.showToast?.('초기화 완료'); });
       }
     } catch (_) {}
 
