@@ -87,7 +87,7 @@ function VSC_MAIN() {
         Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.21, microScale: 1/100, fineBase: 0.37, fineScale: 1/22, microAmt: [0.50, 0.11], fineAmt: [0.20, 0.76] },
         Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.20, microScale: 1/80, fineBase: 0.34, fineScale: 1/18, microAmt: [0.55, 0.12], fineAmt: [0.22, 0.78] }
       },
-      bright: { 0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.05, brightAdd: 1.0 }, 2: { gammaF: 1.075, brightAdd: 2.0 }, 3: { gammaF: 1.10, brightAdd: 3.0 }, 4: { gammaF: 1.125, brightAdd: 4.0 }, 5: { gammaF: 1.150, brightAdd: 5.0 } }
+      bright: { 0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.05, brightAdd: 1.0 }, 2: { gammaF: 1.075, brightAdd: 1.5 }, 3: { gammaF: 1.10, brightAdd: 2.0 }, 4: { gammaF: 1.125, brightAdd: 2.5 }, 5: { gammaF: 1.150, brightAdd: 3.0 } }
     });
     const DEFAULTS = Object.freeze({ video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 }, audio: { enabled: false, boost: 0 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1 } });
     const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos', V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
@@ -465,7 +465,24 @@ function VSC_MAIN() {
       if (Math.abs(brightAdd) > 0.5) bf *= (1.0 + brightAdd / 250); if (Math.abs(gamma - 1.0) > 0.01) bf *= Math.pow(gamma, 0.5); if (Math.abs(bf - 1.0) > 0.001) parts.push(`brightness(${bf.toFixed(4)})`);
       let cf = s.contrast || 1; if (Math.abs(gamma - 1.0) > 0.01) cf *= (1 + (gamma - 1) * 0.15); if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`);
       const sat = s.satF ?? 1; if (Math.abs(sat - 1.0) > 0.005) parts.push(`saturate(${sat.toFixed(3)})`);
-      const temp = s.temp || 0; if (Math.abs(temp) > 1) { const hueShift = temp * -0.3, sepiaAmount = temp > 0 ? Math.min(temp / 100, 0.15) : 0; if (sepiaAmount > 0.01) parts.push(`sepia(${sepiaAmount.toFixed(3)})`); if (Math.abs(hueShift) > 0.5) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); }
+      /* ── v189.17 최적화 색온도 엔진 ── */
+    const temp = s.temp || 0;
+    if (temp !== 0) {
+      const absT = Math.abs(temp);
+      if (temp > 0) {
+        // 따뜻한 계열: Sepia 베이스 + 미세 Hue 조정 (눈 보호/웜톤)
+        const sepiaAmount = Math.min(absT / 200, 0.18);
+        const hueShift = temp * -0.25;
+        if (sepiaAmount > 0.005) parts.push(`sepia(${sepiaAmount.toFixed(3)})`);
+        if (Math.abs(hueShift) > 0.1) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`);
+      } else {
+        // 차가운 계열: 채도 보정(Saturate) + Blue 시프트 (청량감/냉색)
+        const satBoost = 1.0 + (absT / 350);
+        const hueShift = absT * 0.35;
+        parts.push(`saturate(${satBoost.toFixed(3)})`);
+        if (hueShift > 0.1) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`);
+      }
+    }
       return parts.join(' ');
     }
 
@@ -647,7 +664,7 @@ function VSC_MAIN() {
     function bindActGate(btn, extraPaths, applyFn) { return bindReactive(btn, [...(Array.isArray(extraPaths) ? extraPaths : []), P.APP_ACT], (el, ...vals) => { const act = vals[vals.length - 1]; el.style.opacity = act ? '1' : '0.45'; el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; if (applyFn) applyFn(el, ...vals); }); }
     const guardedClick = (fn) => (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; fn(e); };
 
-    function renderButtonRow({ label, items, key, offValue = null }) {
+    function renderButtonRow({ label, items, key, offValue = 0 }) {
       const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px;width:35px;line-height:34px;font-weight:bold' }, label));
       const onChange = (val) => { if (!sm.get(P.APP_ACT)) return; const cur = sm.get(key); if (offValue !== null && cur === val && val !== offValue) setAndHint(key, offValue); else setAndHint(key, val); };
       for (const it of items) { const b = h('button', { class: 'pbtn', style: 'flex:1' }, it.text); b.onclick = (e) => { e.stopPropagation(); onChange(it.value); }; bindReactive(b, [key, P.APP_ACT], (el, v, act) => { const isActive = v === it.value; el.classList.toggle('active', isActive); el.style.opacity = act ? '1' : (isActive ? '0.65' : '0.45'); el.style.cursor = act ? 'pointer' : 'not-allowed'; el.disabled = !act; }); row.append(b); }
