@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.6
+// @version      5.9.7
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -54,7 +54,6 @@
         return Math.max(5000, target * 2.5);
     }
 
-    /* ── debounce ── */
     function debounce(fn, ms) {
         let timer = null;
         const wrapper = (...args) => {
@@ -67,7 +66,6 @@
         return wrapper;
     }
 
-    /* ── 설정 ── */
     let _configCache = null;
 
     function loadConfig() {
@@ -88,7 +86,6 @@
 
     window.addEventListener('beforeunload', () => flushConfigToStorage.flush());
 
-    /* ── 유틸 ── */
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
     function pct(value, max) {
@@ -158,7 +155,6 @@
 
     const _observed = new WeakSet();
 
-    /* ── 상태 ── */
     let video = null;
     let lastVideoSrc = '';
     let lastVideoIsBlob = false;
@@ -185,7 +181,7 @@
     let lastCurrentTime = 0;
     let stallCount = 0;
     let wasPaused = false;
-    let minimized = false;
+    let panelOpen = false;
     let skipReason = '';
     let rateProtectTimer = null;
     let stableTickCount = 0;
@@ -210,7 +206,6 @@
         if (debugVisible) console.debug('[딜레이미터]', ...args);
     }
 
-    /* ── 링 버퍼 ── */
     class RingBuffer {
         constructor(cap, ArrayType = Float64Array) {
             this.buf = new ArrayType(cap);
@@ -256,7 +251,7 @@
         if (bufferedAhead < TUNING.WARMUP_MIN_BUFFER_SEC) return false;
         if (video.paused) return false;
         warmupDone = true;
-        if (debugVisible) dmLog(`웜업 완료 (${(now - warmupStartTime).toFixed(0)}ms, buf:${bufferedAhead.toFixed(2)}s)`);
+        if (debugVisible) dmLog(`웜업 완료 (${(now - warmupStartTime).toFixed(0)}ms)`);
         return true;
     }
 
@@ -286,13 +281,9 @@
         if (n === 0) return 0;
         if (n === 1) return delayHistory.last;
         if (n === 2) return (delayHistory.at(0) + delayHistory.at(1)) * 0.5;
-
-        const buf = delayHistory.buf;
-        const cap = delayHistory.cap;
+        const buf = delayHistory.buf, cap = delayHistory.cap;
         let pos = ((delayHistory.idx - n) % cap + cap) % cap;
-
-        let sum = 0, min = Infinity, max = -Infinity;
-        let wSum = 0, wTotal = 0;
+        let sum = 0, min = Infinity, max = -Infinity, wSum = 0, wTotal = 0;
         for (let i = 0; i < n; i++) {
             const v = buf[pos];
             sum += v;
@@ -367,7 +358,7 @@
         const ext = video.playbackRate;
         if (Math.abs(ext - lastSetRate) < 0.002) return;
         if (isEnabled) {
-            if (debugVisible) dmLog(`외부 배속 변경 감지: ${ext}, 복원 대기`);
+            if (debugVisible) dmLog(`외부 배속 변경: ${ext}`);
             clearTimeout(rateProtectTimer);
             const vid = video;
             rateProtectTimer = setTimeout(() => {
@@ -397,8 +388,8 @@
         } else if (dropRate < 0.02 && dynamicMaxRate < TUNING.MAX_RATE) {
             dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.015);
         }
-        if (prev !== dynamicMaxRate) {
-            if (debugVisible) dmLog(`maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)} (drop: ${(dropRate * 100).toFixed(1)}%)`);
+        if (prev !== dynamicMaxRate && debugVisible) {
+            dmLog(`maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)}`);
         }
     }
 
@@ -439,7 +430,6 @@
         if (!isBlobSrc(v)) return;
         const src = v.currentSrc || v.src || '';
         if (video === v && src === lastVideoSrc) return;
-
         if (video && video !== v) {
             video.removeEventListener('ratechange', onExternalRateChange);
         }
@@ -459,14 +449,12 @@
         }
         v.removeEventListener('ratechange', onExternalRateChange);
         v.addEventListener('ratechange', onExternalRateChange);
-
         if (!_observed.has(v)) {
             _observed.add(v);
             v.addEventListener('loadstart', () => {
                 if (v === video) {
                     const newSrc = v.currentSrc || v.src || '';
                     if (newSrc !== lastVideoSrc && isBlobSrc(v)) {
-                        if (debugVisible) dmLog(`src 변경 감지: ${newSrc.slice(0, 40)}...`);
                         lastVideoSrc = newSrc;
                         lastVideoIsBlob = true;
                         resetState();
@@ -475,7 +463,6 @@
                 }
             });
         }
-        if (debugVisible) dmLog(`video 발견 (blob src: ${src.slice(0, 40)}...)`);
     }
 
     function checkUrlChange() {
@@ -493,10 +480,7 @@
             if (video?.isConnected && isBlobSrc(video)) return;
             for (const mut of mutations) {
                 for (const node of mut.addedNodes) {
-                    if (node.nodeName === 'VIDEO') {
-                        onVideoFound(node);
-                        return;
-                    }
+                    if (node.nodeName === 'VIDEO') { onVideoFound(node); return; }
                     if (node.nodeType === 1) {
                         const v = node.querySelector?.('video');
                         if (v) { onVideoFound(v); return; }
@@ -547,12 +531,7 @@
         flashStyle(els.delayVal, 'textShadow', '0 0 8px #3498db', 800);
     }
 
-    function flashToggleState() {
-        if (!els.panel) return;
-        flashStyle(els.panel, 'borderColor', isEnabled ? '#2ecc71' : '#e74c3c', 600);
-    }
-
-    /* ── display 시스템 ── */
+    /* ── display ── */
     const displayApply = Object.create(null);
     const displayState = {};
     const dirtyChannels = new Set();
@@ -589,7 +568,6 @@
         dirtyChannels.clear();
     }
 
-    /* ── 미니 그래프 ── */
     let graphCanvas = null;
     let graphCtx = null;
 
@@ -597,10 +575,8 @@
         if (!graphCanvas || !graphCtx || !graphHistory) return;
         const n = graphHistory.copyTo(_graphBuf);
         if (n < 2) return;
-
         const w = graphCanvas.width, h = graphCanvas.height;
         graphCtx.clearRect(0, 0, w, h);
-
         const targetY = h - (targetDelayMs / 8000) * h;
         graphCtx.lineWidth = 1;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
@@ -610,7 +586,6 @@
         graphCtx.lineTo(w, targetY);
         graphCtx.stroke();
         graphCtx.setLineDash(DASH_OFF);
-
         graphCtx.lineWidth = 1.5;
         graphCtx.strokeStyle = '#2ecc71';
         graphCtx.beginPath();
@@ -655,9 +630,9 @@
         return parts.join('');
     }
 
-    /* ── dot 갱신 ── */
+    /* ── dot ── */
     function updateDot(avgMs) {
-        if (!minimized || !els.dot) return;
+        if (panelOpen || !els.dot) return;
         const color = !isEnabled ? '#555' : computeColor(avgMs - targetDelayMs);
         if (color !== lastDotColor) {
             lastDotColor = color;
@@ -667,18 +642,17 @@
         els.dot.classList.toggle('dm-dot-off', !isEnabled);
         els.dot.title = isEnabled
             ? `${(avgMs / 1000).toFixed(1)}s | ${lastRateStr} | 목표 ${(targetDelayMs / 1000).toFixed(1)}s\n클릭: 패널 열기`
-            : 'OFF\n클릭: 패널 열기';
+            : 'OFF — 클릭: 패널 열기';
     }
 
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1, now = performance.now()) {
-        if (minimized) {
+        if (!panelOpen) {
             updateDot(avgMs);
             return;
         }
 
         setDisplay('warn', avgMs > targetDelayMs * 2 && isEnabled);
-
         const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
 
         setDisplay('d', (avgMs / 1000).toFixed(2) + 's' + statusIndicator);
@@ -689,11 +663,9 @@
         const rateRatio = clamp(
             (currentSmoothedRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
         );
-        const rateDisplay = Math.round(Math.sqrt(rateRatio) * 100);
-        const barColor = getRateBarColor(rateRatio);
-        setDisplay('rb', rateDisplay + '%');
-        setDisplay('rbc', barColor);
-        setDisplay('rc', currentSmoothedRate > 1.005 ? barColor : '');
+        setDisplay('rb', Math.round(Math.sqrt(rateRatio) * 100) + '%');
+        setDisplay('rbc', getRateBarColor(rateRatio));
+        setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
 
         if (dynamicMaxRate < TUNING.MAX_RATE) {
             const maxRatio = clamp(
@@ -718,14 +690,12 @@
         });
     }
 
-    /* ── UI 헬퍼 ── */
     function updateToggleBtnUI() {
         if (!els.toggleBtn) return;
-        const on = isEnabled;
-        els.toggleBtn.textContent = on ? 'ON' : 'OFF';
-        els.toggleBtn.style.background = on ? '#2ecc71' : '#555';
-        els.toggleBtn.style.color = on ? '#000' : '#999';
-        if (els.panel) els.panel.style.filter = on ? '' : 'brightness(0.65)';
+        els.toggleBtn.textContent = isEnabled ? 'ON' : 'OFF';
+        els.toggleBtn.style.background = isEnabled ? '#2ecc71' : '#555';
+        els.toggleBtn.style.color = isEnabled ? '#000' : '#999';
+        if (els.panel) els.panel.style.filter = isEnabled ? '' : 'brightness(0.65)';
     }
 
     function updateTargetMark() {
@@ -762,22 +732,28 @@
         return true;
     }
 
-    /* ── 최소화 토글 ── */
-    function toggleMinimize() {
-        minimized = !minimized;
-        saveConfig({ minimized });
-        applyMinimize();
+    /* ── 패널 열기/닫기 ── */
+    function openPanel() {
+        if (panelOpen) return;
+        panelOpen = true;
+        saveConfig({ panelOpen: true });
+        els.dot.style.display = 'none';
+        els.panel.style.display = '';
+        lastDotColor = '';
+        for (const key in displayState) dirtyChannels.add(key);
     }
 
-    function applyMinimize() {
-        if (!els.panel || !els.dot) return;
-        els.panel.style.display = minimized ? 'none' : '';
-        els.dot.style.display = minimized ? '' : 'none';
-        if (minimized) {
-            lastDotColor = '';
-        } else {
-            for (const key in displayState) dirtyChannels.add(key);
-        }
+    function closePanel() {
+        if (!panelOpen) return;
+        panelOpen = false;
+        saveConfig({ panelOpen: false });
+        els.panel.style.display = 'none';
+        els.dot.style.display = '';
+        lastDotColor = '';
+    }
+
+    function togglePanel() {
+        panelOpen ? closePanel() : openPanel();
     }
 
     /* ── 핵심 루프 ── */
@@ -787,8 +763,7 @@
         if (!isWarmedUp()) {
             const edge = getBufferEdge(video.buffered);
             if (edge) {
-                const rawDelay = (edge.end - video.currentTime) * 1000;
-                const delayMs = Math.max(0, rawDelay + PLATFORM_OFFSET);
+                const delayMs = Math.max(0, (edge.end - video.currentTime) * 1000 + PLATFORM_OFFSET);
                 updateDisplay(delayMs, edge.end, now);
             } else {
                 updateDisplay(0, -1, now);
@@ -798,7 +773,6 @@
         }
 
         if (debugVisible) skipReason = '';
-
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
         const edge = getBufferEdge(video.buffered);
@@ -808,7 +782,6 @@
         const useMediaTime = lastRenderedMediaTime > 0
             && Math.abs(lastRenderedMediaTime - video.currentTime) < 1.0;
         const ref = useMediaTime ? lastRenderedMediaTime : video.currentTime;
-
         const rawDelay = (bufEnd - ref) * 1000;
         if (rawDelay < 0) { updateDisplay(0, bufEnd, now); return; }
         const delayMs = rawDelay + PLATFORM_OFFSET;
@@ -833,7 +806,6 @@
         if (isEnabled && delayMs > seekThresholdMs && stallCount < TUNING.STALL_THRESHOLD) {
             if (now - lastSeekTime >= TUNING.SEEK_COOLDOWN_MS) {
                 lastSeekTime = now;
-                if (debugVisible) dmLog(`SEEK: ${delayMs.toFixed(0)}ms`);
                 seekToTarget(bufStart, bufEnd);
                 softReset();
                 setRate(1.0);
@@ -874,19 +846,13 @@
             video = null;
             lastVideoIsBlob = false;
         }
-
-        if (!video) {
-            updateDisplay(0);
-            return;
-        }
-
+        if (!video) { updateDisplay(0); return; }
         if (!lastVideoIsBlob || !isLiveStream(video)) {
             if (debugVisible) skipReason = lastVideoIsBlob ? 'VOD/AD' : 'NON-BLOB';
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
             updateDisplay(0);
             return;
         }
-
         processLiveVideo();
     }
 
@@ -895,38 +861,40 @@
         const now = performance.now();
         try { tick(); } catch (e) { console.warn('[딜레이미터]', e); }
         if (gen !== tickGeneration) return;
-
         if (document.hidden) {
             nextTickTime = 0;
             intervalId = setTimeout(scheduleTick, 1000);
             return;
         }
-
         const interval = getAdaptiveInterval();
-        if (nextTickTime === 0) {
-            nextTickTime = now + interval;
-        } else {
-            nextTickTime += interval;
-        }
-
+        if (nextTickTime === 0) nextTickTime = now + interval;
+        else nextTickTime += interval;
         const drift = nextTickTime - performance.now();
-        if (drift < -interval * 2) {
-            nextTickTime = performance.now() + interval;
-        }
+        if (drift < -interval * 2) nextTickTime = performance.now() + interval;
         intervalId = setTimeout(scheduleTick, Math.max(1, nextTickTime - performance.now()));
     }
 
     /* ── UI 생성 ── */
     function createPanel() {
-        if (document.getElementById('dm-panel')) return;
+        if (document.getElementById('dm-dot')) return;
         GM_addStyle(`
             @layer dm {
+                #dm-dot{position:fixed;bottom:20px;right:20px;z-index:10000;
+                    width:14px;height:14px;border-radius:50%;cursor:pointer;
+                    background:#555;transition:background .3s,box-shadow .3s}
+                @keyframes dm-dot-pulse{
+                    0%,100%{transform:scale(1);opacity:.85}
+                    50%{transform:scale(1.35);opacity:1}
+                }
+                #dm-dot:not(.dm-dot-off){animation:dm-dot-pulse 2s ease-in-out infinite}
+                #dm-dot.dm-dot-off{opacity:.4}
                 #dm-panel{position:fixed;bottom:20px;right:20px;z-index:10000;
                     background:rgba(12,12,16,.92);backdrop-filter:blur(3px);
                     border:1px solid rgba(255,255,255,.08);border-radius:12px;
                     padding:12px 16px;color:#eee;font-family:system-ui,sans-serif;
                     font-size:12px;width:240px;box-shadow:0 4px 16px rgba(0,0,0,.5);
-                    user-select:none;contain:layout style;transition:border-color .3s ease}
+                    user-select:none;contain:layout style;transition:border-color .3s ease;
+                    display:none}
                 #dm-panel [data-dm="header"]{position:relative;font-weight:bold;
                     border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:8px;
                     cursor:grab;display:flex;align-items:center;gap:6px}
@@ -938,11 +906,9 @@
                 .dm-bar,.dm-rate-bar{transition:width .15s linear}
                 .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px}
                 .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
-                    border-radius:1px;transition:left .3s ease;pointer-events:none;
-                    background:#fff;opacity:.6}
+                    border-radius:1px;transition:left .3s ease;pointer-events:none;background:#fff;opacity:.6}
                 .dm-seek-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
-                    border-radius:1px;transition:left .3s ease;pointer-events:none;
-                    background:#e74c3c;opacity:.4}
+                    border-radius:1px;transition:left .3s ease;pointer-events:none;background:#e74c3c;opacity:.4}
                 .dm-maxrate-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
                     border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
                     background:#e74c3c;opacity:0}
@@ -962,38 +928,31 @@
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
                     border-top:1px solid #2a2a2a;padding-top:5px;
                     white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+                .dm-close{margin-left:auto;cursor:pointer;font-size:14px;opacity:.4;
+                    padding:0 4px;line-height:1;transition:opacity .15s}
+                .dm-close:hover{opacity:.9}
                 @keyframes dm-pulse{
                     0%,100%{border-color:rgba(231,76,60,.3)}
                     50%{border-color:rgba(231,76,60,.8)}
                 }
                 #dm-panel.dm-warning{animation:dm-pulse 1s ease-in-out infinite}
-                #dm-dot{position:fixed;bottom:20px;right:20px;z-index:10000;
-                    width:14px;height:14px;border-radius:50%;cursor:pointer;
-                    background:#555;transition:background .3s,box-shadow .3s;display:none}
-                @keyframes dm-dot-pulse{
-                    0%,100%{transform:scale(1);opacity:.85}
-                    50%{transform:scale(1.35);opacity:1}
-                }
-                #dm-dot:not(.dm-dot-off){animation:dm-dot-pulse 2s ease-in-out infinite}
-                #dm-dot.dm-dot-off{opacity:.4}
             }
         `);
 
-        /* dot */
+        /* dot — 항상 존재, 기본 표시 */
         const dot = document.createElement('div');
         dot.id = 'dm-dot';
         dot.title = '클릭: 패널 열기';
-        dot.onclick = () => toggleMinimize();
         document.body.appendChild(dot);
 
-        /* panel */
+        /* panel — 기본 숨김 */
         const panel = document.createElement('div');
         panel.id = 'dm-panel';
         panel.innerHTML = `
             <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${GM_info.script.version}</span>
-                <span data-dm="minimize" style="margin-left:auto;cursor:pointer;font-size:13px;opacity:.5;padding:0 2px" title="최소화 (Alt+H)">▼</span>
+                <span class="dm-close" data-dm="close" title="닫기 (Alt+H)">✕</span>
             </div>
-            <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val" style="cursor:pointer" title="클릭하여 동기화">-</span></div>
+            <div class="dm-row"><span>버퍼</span><span data-dm="delay" class="dm-val" style="cursor:pointer" title="클릭: 동기화">-</span></div>
             <div class="dm-bar-bg">
                 <div class="dm-bar-clip"><div data-dm="bar" class="dm-bar"></div></div>
                 <div data-dm="targetmark" class="dm-target-mark"></div>
@@ -1005,8 +964,8 @@
                 <div data-dm="maxmark" class="dm-maxrate-mark"></div>
             </div>
             <div class="dm-row dm-controls" style="margin-top:10px">
-                <button data-dm="toggle" class="dm-btn" title="배속 조절 ON/OFF (Alt+D)">ON</button>
-                <button data-dm="sync" class="dm-btn" style="background:#2980b9;color:#fff" title="수동 동기화 (Alt+S)">⟳</button>
+                <button data-dm="toggle" class="dm-btn" title="ON/OFF (Alt+D)">ON</button>
+                <button data-dm="sync" class="dm-btn" style="background:#2980b9;color:#fff" title="동기화 (Alt+S)">⟳</button>
                 <span>목표 <input type="number" data-dm="target" class="dm-input" step="0.5" min="0.5" max="8">초</span>
                 <div class="dm-presets" data-dm="presets"></div>
             </div>
@@ -1021,49 +980,47 @@
             rateBar: map.ratebar, targetMark: map.targetmark, seekMark: map.seekmark,
             maxMark: map.maxmark,
             toggleBtn: map.toggle, syncBtn: map.sync, targetIn: map.target,
-            header: map.header, debugVal: map.debug,
-            ver: map.ver, minimizeBtn: map.minimize,
+            header: map.header, debugVal: map.debug, ver: map.ver,
+            closeBtn: map.close,
         };
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
 
         initDisplayApply();
 
-        /* 최소화 = ▼ */
-        els.minimizeBtn.onclick = e => { e.stopPropagation(); toggleMinimize(); };
+        /* dot 클릭 → 패널 열기 */
+        dot.addEventListener('click', openPanel);
 
-        /* 딜레이 클릭 SYNC */
+        /* ✕ 클릭 → 패널 닫기 */
+        els.closeBtn.addEventListener('click', e => {
+            e.stopPropagation();
+            closePanel();
+        });
+
+        /* 딜레이 클릭 → sync */
         els.delayVal.onclick = () => {
             if (!doManualSync()) flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 400);
         };
 
-        /* 디버그: Alt+G로만 (더블클릭 제거) */
+        /* 디버그: Alt+G만 */
         debugVisible = loadConfig().debugVisible ?? false;
         applyDebug();
 
-        /* 헤더 tooltip */
-        els.header.title = 'Alt+D:토글 Alt+H:최소화 Alt+↑↓:목표 Alt+S:싱크 Alt+G:디버그';
+        els.header.title = 'Alt+D:토글 Alt+H:닫기 Alt+↑↓:목표 Alt+S:싱크 Alt+G:디버그';
 
-        /* ON/OFF */
         updateToggleBtnUI();
         els.toggleBtn.onclick = () => {
             isEnabled = !isEnabled;
-            if (isEnabled) {
-                currentSmoothedRate = TUNING.HOLD_RATE;
-                lastSetRate = -1;
-            } else {
-                currentSmoothedRate = 1.0;
-                setRate(1.0);
-            }
-            saveConfig({ isEnabled }); updateToggleBtnUI();
-            flashToggleState();
+            if (isEnabled) { currentSmoothedRate = TUNING.HOLD_RATE; lastSetRate = -1; }
+            else { currentSmoothedRate = 1.0; setRate(1.0); }
+            saveConfig({ isEnabled });
+            updateToggleBtnUI();
+            flashStyle(els.panel, 'borderColor', isEnabled ? '#2ecc71' : '#e74c3c', 600);
         };
 
-        /* SYNC */
         els.syncBtn.onclick = () => {
             if (!doManualSync()) flashStyle(els.syncBtn, 'background', '#c0392b', 400);
         };
 
-        /* 목표 입력 */
         updateTargetMark();
         els.targetIn.onchange = e => {
             let v = parseFloat(e.target.value);
@@ -1077,7 +1034,6 @@
             applyTargetDelay(Math.max(0.5, cur + (e.deltaY < 0 ? 0.5 : -0.5)));
         }, { passive: false });
 
-        /* 프리셋 */
         const PRESETS = [1, 2, 3, 4, 5];
         const presetBox = map.presets;
         presetBtns = PRESETS.map(sec => {
@@ -1106,7 +1062,6 @@
         badge.style.cssText = 'font-size:9px;opacity:.4;margin-left:4px';
         presetBox.appendChild(badge);
 
-        /* 미니 그래프 */
         graphCanvas = document.createElement('canvas');
         graphCanvas.width = 208;
         graphCanvas.height = 30;
@@ -1114,11 +1069,14 @@
         els.debugVal.after(graphCanvas);
         graphCtx = graphCanvas.getContext('2d');
 
-        /* 최소화 상태 복원 */
-        minimized = loadConfig().minimized ?? false;
-        applyMinimize();
+        /* 초기 상태: 저장값 복원 (기본 = dot 표시) */
+        panelOpen = loadConfig().panelOpen ?? false;
+        if (panelOpen) {
+            els.panel.style.display = '';
+            els.dot.style.display = 'none';
+        }
+        /* dot이 기본 표시이므로 else 불필요 */
 
-        /* 드래그 */
         makeDraggable(panel);
         makeDotDraggable(dot);
     }
@@ -1126,9 +1084,8 @@
     function makeDraggable(panel) {
         const h = els.header;
         let ox = 0, oy = 0, dragging = false;
-
         h.addEventListener('pointerdown', e => {
-            if (e.button !== 0) return;
+            if (e.button !== 0 || e.target === els.closeBtn) return;
             dragging = true;
             h.setPointerCapture(e.pointerId);
             const r = panel.getBoundingClientRect();
@@ -1136,7 +1093,6 @@
             oy = e.clientY - r.top;
             h.style.cursor = 'grabbing';
         });
-
         h.addEventListener('pointermove', e => {
             if (!dragging) return;
             panel.style.left = clamp(e.clientX - ox, 0, innerWidth - panel.offsetWidth) + 'px';
@@ -1144,7 +1100,6 @@
             panel.style.right = 'auto';
             panel.style.bottom = 'auto';
         });
-
         const endDrag = () => {
             if (!dragging) return;
             dragging = false;
@@ -1153,21 +1108,17 @@
         };
         h.addEventListener('pointerup', endDrag);
         h.addEventListener('lostpointercapture', endDrag);
-
         const s = loadConfig();
         if (s.panelX != null) {
             const x = parseFloat(s.panelX), y = parseFloat(s.panelY);
             if (x >= 0 && x < innerWidth - 50 && y >= 0 && y < innerHeight - 50) {
-                Object.assign(panel.style, {
-                    left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto'
-                });
+                Object.assign(panel.style, { left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto' });
             }
         }
     }
 
     function makeDotDraggable(dot) {
         let ox = 0, oy = 0, dragging = false, moved = false;
-
         dot.addEventListener('pointerdown', e => {
             if (e.button !== 0) return;
             dragging = true;
@@ -1177,7 +1128,6 @@
             ox = e.clientX - r.left;
             oy = e.clientY - r.top;
         });
-
         dot.addEventListener('pointermove', e => {
             if (!dragging) return;
             moved = true;
@@ -1186,24 +1136,19 @@
             dot.style.right = 'auto';
             dot.style.bottom = 'auto';
         });
-
         dot.addEventListener('pointerup', () => {
             if (!dragging) return;
             dragging = false;
             if (moved) saveConfig({ dotX: dot.style.left, dotY: dot.style.top });
         });
-
         dot.addEventListener('click', e => {
             if (moved) { e.stopImmediatePropagation(); moved = false; }
         }, true);
-
         const s = loadConfig();
         if (s.dotX != null) {
             const x = parseFloat(s.dotX), y = parseFloat(s.dotY);
             if (x >= 0 && x < innerWidth - 14 && y >= 0 && y < innerHeight - 14) {
-                Object.assign(dot.style, {
-                    left: s.dotX, top: s.dotY, right: 'auto', bottom: 'auto'
-                });
+                Object.assign(dot.style, { left: s.dotX, top: s.dotY, right: 'auto', bottom: 'auto' });
             }
         }
     }
@@ -1211,11 +1156,9 @@
     function clampPanelPosition() {
         if (!els.panel || !els.panel.style.left) return;
         const panel = els.panel;
-        const x = parseFloat(panel.style.left);
-        const y = parseFloat(panel.style.top);
+        const x = parseFloat(panel.style.left), y = parseFloat(panel.style.top);
         if (Number.isNaN(x) || Number.isNaN(y)) return;
-        const maxX = innerWidth - panel.offsetWidth;
-        const maxY = innerHeight - panel.offsetHeight;
+        const maxX = innerWidth - panel.offsetWidth, maxY = innerHeight - panel.offsetHeight;
         if (x > maxX || y > maxY || x < 0 || y < 0) {
             panel.style.left = clamp(x, 0, maxX) + 'px';
             panel.style.top = clamp(y, 0, maxY) + 'px';
@@ -1224,7 +1167,7 @@
 
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
-        ['KeyH',      () => toggleMinimize()],
+        ['KeyH',      () => togglePanel()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
         ['ArrowDown', () => applyTargetDelay(targetDelayMs / 1000 + 0.5)],
         ['KeyT',      () => { if (els.targetIn) { els.targetIn.focus(); els.targetIn.select(); } }],
@@ -1259,12 +1202,10 @@
     function init() {
         createPanel();
         setupVideoObserver();
-
         document.addEventListener('play', e => {
             const v = e.target;
             if (v?.tagName === 'VIDEO') onVideoFound(v);
         }, true);
-
         const v = document.querySelector('video');
         if (v) onVideoFound(v);
         scheduleTick();
@@ -1292,10 +1233,7 @@
             nextTickTime = 0;
             tickGeneration++;
             clearTimeout(intervalId);
-            if (document.hidden) {
-                hiddenAt = performance.now();
-                return;
-            }
+            if (document.hidden) { hiddenAt = performance.now(); return; }
             const away = performance.now() - hiddenAt;
             resetState();
             if (away > 3000 && isEnabled && video?.isConnected && video.buffered.length > 0) {
@@ -1303,7 +1241,6 @@
                 if (edge) {
                     const e = { start: edge.start, end: edge.end };
                     if ((e.end - video.currentTime) * 1000 > targetDelayMs * 1.5) {
-                        if (debugVisible) dmLog(`탭 복귀 seek: ${((e.end - video.currentTime) * 1000).toFixed(0)}ms`);
                         seekToTarget(e.start, e.end);
                         flashSeekIndicator();
                     }
