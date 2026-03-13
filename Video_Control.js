@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v189.15 - Ultimate Master Build)
+// @name         Video_Control (v189.16 - Ultimate Master Build)
 // @namespace    https://github.com/moamoa7
-// @version      189.15
+// @version      189.16
 // @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI (getUiRoot strict mode).
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '189.15';
+  const SCRIPT_VERSION = '189.16';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -451,7 +451,17 @@ function VSC_MAIN() {
   /* ── Hybrid Filter Engine ────────────────────────────────────── */
   function createFiltersVideoOnly(Utils, config) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
-    const SHADOW_TABLES = { 1: '0 0.15 0.30 0.48 0.65 0.82 1', 2: '0 0.10 0.25 0.42 0.62 0.82 1', 3: '0 0.06 0.18 0.35 0.55 0.78 1' };
+    const SHADOW_TABLES = {
+  // 1단 (복원-맑음): 화면의 답답함을 걷어내고 투명하게 만드는 기본 복원
+  1: '0 0.22 0.38 0.55 0.72 0.88 1',
+
+  // 2단 (복원-중간): 1단보다 살짝 더 밝게, 하지만 과하지 않게 디테일 강화
+  // (기존 0.32에서 0.27로 낮추어 1단과의 간격을 좁혔습니다)
+  2: '0 0.27 0.44 0.60 0.76 0.90 1',
+
+  // 3단 (암부-미세): 복원 없이, 들뜬 블랙만 살짝 차분하게 잡아주는 용도
+  3: '0 0.14 0.31 0.49 0.66 0.83 1'
+};
 
     function buildCssFilterString(s) {
       const parts = []; const gamma = s.gamma || 1, brightAdd = s.bright || 0; let bf = 1.0;
