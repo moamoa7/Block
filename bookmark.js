@@ -1,12 +1,11 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v18.0)
-// @version      18.0
-// @description  v17.0 기반 – 버그수정(7건), 최적화, UI전면개편, 리팩토링, 편의기능
+// @name         북마크 (Shadow DOM 통합 v19.0)
+// @version      19.0
+// @description  v18.0 기반 – 버그수정, XSS방어, 섹션분리, 탭드래그, URL프리뷰, 타임스탬프, UI개선
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
 // @require      https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js
 // @noframes
@@ -34,23 +33,18 @@
     }
 
     const btn = (text, cls = '', onclick = null, style = {}) =>
-        el('button', {
-            class: `bm-util-btn ${cls}`.trim(),
-            text,
-            onclick,
-            ...(Object.keys(style).length ? { style } : {})
-        });
+        el('button', { class: `bm-util-btn ${cls}`.trim(), text, onclick, style });
 
-    const iconBtn = (icon, title, cls, onclick) => {
-        const b = btn(icon, `bm-icon-btn ${cls}`.trim(), onclick);
-        b.title = title;
-        return b;
-    };
+    const iconBtn = (icon, title, cls, onclick) =>
+        el('button', { class: `bm-icon-btn ${cls}`.trim(), text: icon, title, onclick });
 
     function isValidUrl(str) {
         try { return ['http:', 'https:'].includes(new URL(str).protocol); }
         catch { return false; }
     }
+
+    const _htmlEscMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+    const escapeHTML = s => s.replace(/[&<>"]/g, c => _htmlEscMap[c]);
 
     /* ═══════════════════════════════════
        DB 무결성 검증
@@ -367,11 +361,11 @@
     function exportAsHTML() {
         let html = '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n';
         for (const [pageName, groups] of Object.entries(db.pages)) {
-            html += `  <DT><H3>${pageName}</H3>\n  <DL><p>\n`;
+            html += `  <DT><H3>${escapeHTML(pageName)}</H3>\n  <DL><p>\n`;
             for (const [groupName, items] of Object.entries(groups)) {
-                html += `    <DT><H3>${groupName}</H3>\n    <DL><p>\n`;
+                html += `    <DT><H3>${escapeHTML(groupName)}</H3>\n    <DL><p>\n`;
                 for (const item of items) {
-                    html += `      <DT><A HREF="${item.url}">${item.name}</A>\n`;
+                    html += `      <DT><A HREF="${escapeHTML(item.url)}">${escapeHTML(item.name)}</A>\n`;
                 }
                 html += `    </DL><p>\n`;
             }
@@ -568,6 +562,88 @@
     }
 
     /* ═══════════════════════════════════
+       그룹 섹션 렌더링
+       ═══════════════════════════════════ */
+    function renderGroupSection(gTitle, items, observer, maxItems) {
+        const section = el('div', { class: 'bm-bookmark-section', 'data-id': gTitle });
+        const isCollapsed = _collapsedGroups.has(collapseKey(gTitle));
+        const header = el('div', { class: 'bm-section-header' });
+        header.style.setProperty('--fill', `${(items.length / maxItems) * 100}%`);
+
+        const titleSpan = el('span', {
+            style: { fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
+            onclick: () => {
+                if (isSortMode) return;
+                toggleCollapse(gTitle);
+                renderDashboard();
+            }
+        });
+        titleSpan.append(
+            document.createTextNode(`${isSortMode ? '≡' : (isCollapsed ? '▶' : '📁')} ${gTitle} `),
+            el('span', { text: `(${items.length})`, class: 'bm-group-count' })
+        );
+        if (items.length >= 50) {
+            titleSpan.appendChild(el('span', { text: '⚠', class: 'bm-group-warning', title: '아이템이 많아 성능에 영향을 줄 수 있습니다' }));
+        }
+        header.appendChild(titleSpan);
+
+        if (!isSortMode) {
+            const quickAddBtn = el('button', {
+                class: 'bm-quick-group-add',
+                text: '+',
+                title: '현재 페이지를 이 그룹에 추가',
+                onclick: async (e) => {
+                    e.stopPropagation();
+                    const url = window.location.href;
+                    if (isUrlDuplicate(url)) { showToast('⚠ 이미 저장된 URL'); return; }
+                    const name = document.title.substring(0, 30) || url;
+                    const icon = await fetchFaviconBase64(url);
+                    pushUndo();
+                    getCurPage()[gTitle].push({ name, url, icon, addedAt: Date.now() });
+                    addToUrlSet(url);
+                    setRecentGroup(db.currentPage, gTitle);
+                    saveData();
+                    renderDashboard();
+                    showToast(`✅ "${gTitle}"에 추가됨`);
+                }
+            });
+            header.appendChild(quickAddBtn);
+            header.appendChild(el('button', { class: 'bm-manage-btn', text: '관리' }));
+        }
+        section.appendChild(header);
+
+        const grid = el('div', {
+            class: 'bm-item-grid',
+            'data-group': gTitle,
+            style: isCollapsed && !isSortMode ? { display: 'none' } : {}
+        });
+
+        if (items.length === 0 && !isSortMode) {
+            grid.appendChild(el('div', { class: 'bm-empty-group', text: '북마크를 추가하세요' }));
+        }
+
+        items.forEach(item => {
+            const wrapper = el('a', { class: 'bm-item-wrapper', href: item.url, target: '_blank' });
+            if (item.addedAt) {
+                wrapper.title = `추가: ${new Date(item.addedAt).toLocaleDateString()}`;
+            }
+            wrapper.addEventListener('contextmenu', (e) => showItemContextMenu(e, item, gTitle));
+            bindLongPress(wrapper, (e) => showItemContextMenu(e, item, gTitle));
+            const div = el('div', { class: 'bm-bookmark-item' });
+            const img = el('img', { decoding: 'async' });
+            const realSrc = item.icon?.startsWith('data:') ? item.icon : fallbackIcon;
+            img.src = fallbackIcon; img.dataset.src = realSrc;
+            observer.observe(img);
+            div.append(img, el('span', { text: item.name }));
+            wrapper.appendChild(div);
+            grid.appendChild(wrapper);
+        });
+
+        section.appendChild(grid);
+        return section;
+    }
+
+    /* ═══════════════════════════════════
        대시보드 렌더링
        ═══════════════════════════════════ */
     let _searchTimer = null;
@@ -583,6 +659,7 @@
         overlay.replaceChildren();
 
         const frag = document.createDocumentFragment();
+        const currentPage = getCurPage();
 
         /* ── 상단 영역 ── */
         const topRow = el('div', { class: 'bm-top-row' });
@@ -611,12 +688,12 @@
 
         /* 총 북마크 수 */
         let totalCount = 0;
-        for (const items of Object.values(getCurPage())) totalCount += items.length;
+        for (const items of Object.values(currentPage)) totalCount += items.length;
 
         /* 관리 바 */
         const adminBar = el('div', { class: 'bm-admin-bar' });
         const searchInput = el('input', {
-            type: 'text', placeholder: '검색...', class: 'bm-search-input',
+            type: 'search', placeholder: '검색...', class: 'bm-search-input',
             oninput: () => {
                 clearTimeout(_searchTimer);
                 _searchTimer = setTimeout(() => filterItems(searchInput.value, _currentContainer ?? shadow), 150);
@@ -639,14 +716,13 @@
                 const n = prompt("새 그룹 이름:");
                 if (!n || !n.trim()) return;
                 const trimmed = n.trim();
-                if (getCurPage()[trimmed]) { alert('이미 존재하는 그룹 이름입니다.'); return; }
-                getCurPage()[trimmed] = [];
+                if (currentPage[trimmed]) { alert('이미 존재하는 그룹 이름입니다.'); return; }
+                currentPage[trimmed] = [];
                 saveData();
                 renderDashboard();
             }),
             iconBtn('🗂', '접기/펼치기', '', () => {
-                const page = getCurPage();
-                const allKeys = Object.keys(page).map(g => collapseKey(g));
+                const allKeys = Object.keys(currentPage).map(g => collapseKey(g));
                 const allCollapsed = allKeys.every(k => _collapsedGroups.has(k));
                 if (allCollapsed) {
                     allKeys.forEach(k => _collapsedGroups.delete(k));
@@ -689,7 +765,7 @@
             if (isUrlDuplicate(url)) { showToast('⚠ 이미 저장된 URL'); return; }
             const targetGrid = e.target.closest('.bm-item-grid');
             const groupName = targetGrid?.dataset.group || Object.keys(getCurPage())[0];
-            if (!groupName) return;
+            if (!groupName) { showToast('⚠ 그룹이 없습니다. 먼저 그룹을 추가하세요.'); return; }
             let name = url;
             try {
                 const res = await new Promise((resolve) => {
@@ -704,7 +780,7 @@
             } catch {}
             const icon = await fetchFaviconBase64(url);
             pushUndo();
-            getCurPage()[groupName].push({ name, url, icon });
+            getCurPage()[groupName].push({ name, url, icon, addedAt: Date.now() });
             addToUrlSet(url);
             saveData();
             renderDashboard();
@@ -712,77 +788,9 @@
         });
 
         /* ── 그룹 섹션 렌더링 ── */
-        Object.entries(getCurPage()).forEach(([gTitle, items]) => {
-            const section = el('div', { class: 'bm-bookmark-section', 'data-id': gTitle });
-            const isCollapsed = _collapsedGroups.has(collapseKey(gTitle));
-            const header = el('div', { class: 'bm-section-header' });
-            const titleSpan = el('span', {
-                style: { fontWeight: 'bold', fontSize: '14px', cursor: 'pointer' },
-                onclick: () => {
-                    if (isSortMode) return;
-                    toggleCollapse(gTitle);
-                    renderDashboard();
-                }
-            });
-            titleSpan.append(
-                document.createTextNode(`${isSortMode ? '≡' : (isCollapsed ? '▶' : '📁')} ${gTitle} `),
-                el('span', { text: `(${items.length})`, class: 'bm-group-count' })
-            );
-            header.appendChild(titleSpan);
-
-            if (!isSortMode) {
-                const quickAddBtn = el('button', {
-                    class: 'bm-quick-group-add',
-                    text: '+',
-                    title: '현재 페이지를 이 그룹에 추가',
-                    onclick: async (e) => {
-                        e.stopPropagation();
-                        const url = window.location.href;
-                        if (isUrlDuplicate(url)) { showToast('⚠ 이미 저장된 URL'); return; }
-                        const name = document.title.substring(0, 30) || url;
-                        const icon = await fetchFaviconBase64(url);
-                        pushUndo();
-                        getCurPage()[gTitle].push({ name, url, icon });
-                        addToUrlSet(url);
-                        setRecentGroup(db.currentPage, gTitle);
-                        saveData();
-                        renderDashboard();
-                        showToast(`✅ "${gTitle}"에 추가됨`);
-                    }
-                });
-                header.appendChild(quickAddBtn);
-                header.appendChild(el('button', { class: 'bm-manage-btn', text: '관리' }));
-            }
-            section.appendChild(header);
-
-            const grid = el('div', {
-                class: 'bm-item-grid',
-                'data-group': gTitle,
-                style: isCollapsed && !isSortMode ? { display: 'none' } : {}
-            });
-
-            if (items.length === 0 && !isSortMode) {
-                grid.appendChild(el('div', {
-                    class: 'bm-empty-group',
-                    text: '북마크를 추가하세요'
-                }));
-            }
-
-            items.forEach(item => {
-                const wrapper = el('a', { class: 'bm-item-wrapper', href: item.url, target: '_blank' });
-                wrapper.addEventListener('contextmenu', (e) => showItemContextMenu(e, item, gTitle));
-                bindLongPress(wrapper, (e) => showItemContextMenu(e, item, gTitle));
-                const div = el('div', { class: 'bm-bookmark-item' });
-                const img = el('img', { decoding: 'async' });
-                const realSrc = item.icon?.startsWith('data:') ? item.icon : fallbackIcon;
-                img.src = fallbackIcon; img.dataset.src = realSrc;
-                _faviconObserver.observe(img);
-                div.append(img, el('span', { text: item.name }));
-                wrapper.appendChild(div);
-                grid.appendChild(wrapper);
-            });
-            section.appendChild(grid);
-            container.appendChild(section);
+        const maxItems = Math.max(...Object.values(currentPage).map(arr => arr.length), 1);
+        Object.entries(currentPage).forEach(([gTitle, items]) => {
+            container.appendChild(renderGroupSection(gTitle, items, _faviconObserver, maxItems));
         });
 
         frag.appendChild(container);
@@ -795,6 +803,22 @@
         }));
 
         destroyAllSortables();
+
+        /* ── 탭 바 드래그 정렬 ── */
+        if (Object.keys(db.pages).length > 1) {
+            _activeSortables.push(new Sortable(tabBar, {
+                animation: 150, direction: 'horizontal', draggable: '.bm-tab',
+                onEnd: () => {
+                    const newOrder = {};
+                    tabBar.querySelectorAll('.bm-tab').forEach(t => {
+                        const p = t.dataset.page;
+                        if (db.pages[p]) newOrder[p] = db.pages[p];
+                    });
+                    db.pages = newOrder;
+                    saveData();
+                }
+            }));
+        }
 
         if (isSortMode) {
             _activeSortables.push(new Sortable(container, {
@@ -843,10 +867,9 @@
         /* ── 현재 URL이 속한 그룹으로 스크롤 ── */
         const currentUrl = window.location.href;
         if (isUrlDuplicate(currentUrl)) {
-            const page = getCurPage();
-            for (const [gTitle, items] of Object.entries(page)) {
+            for (const [gTitle, items] of Object.entries(currentPage)) {
                 if (items.some(i => i.url === currentUrl)) {
-                    const sec = container.querySelector(`.bm-bookmark-section[data-id="${CSS.escape(gTitle)}"]`);
+                    const sec = [...container.querySelectorAll('.bm-bookmark-section')].find(s => s.getAttribute('data-id') === gTitle);
                     if (sec) requestAnimationFrame(() => sec.scrollIntoView({ behavior: 'smooth', block: 'center' }));
                     break;
                 }
@@ -879,6 +902,7 @@
         for (const item of newItems) {
             const existing = items.find(o => o.url === item.url);
             item.icon = existing?.icon || await fetchFaviconBase64(item.url);
+            item.addedAt = existing?.addedAt || Date.now();
         }
 
         const page = getCurPage();
@@ -932,14 +956,13 @@
             btn('닫기', '', () => modalBg.close(), { flex: '1', background: '#999', padding: '12px' })
         );
         content.append(btnRow, btn('🗑 그룹 삭제', 'bm-btn-red', () => {
-            if (confirm(`"${gTitle}" 그룹을 삭제하시겠습니까?`)) {
-                pushUndo();
-                delete getCurPage()[gTitle];
-                _urlSet = null;
-                saveData();
-                renderDashboard();
-                modalBg.close();
-            }
+            if (items.length > 0 && !confirm(`"${gTitle}" 그룹(${items.length}개 북마크 포함)을 삭제하시겠습니까?`)) return;
+            pushUndo();
+            delete getCurPage()[gTitle];
+            _urlSet = null;
+            saveData();
+            renderDashboard();
+            modalBg.close();
         }, { width: '100%', marginTop: '10px', padding: '10px' }));
         modalBg.appendChild(content);
         showModal(modalBg);
@@ -1030,7 +1053,7 @@
         pushUndo();
         const icon = await fetchFaviconBase64(url);
         if (!db.pages[page][group]) db.pages[page][group] = [];
-        db.pages[page][group].push({ name: name.trim(), url: url.trim(), icon });
+        db.pages[page][group].push({ name: name.trim(), url: url.trim(), icon, addedAt: Date.now() });
         addToUrlSet(url);
         setRecentGroup(page, group);
         saveData();
@@ -1044,8 +1067,8 @@
     /* ═══════════════════════════════════
        그룹 선택 렌더러 (퀵 추가 모달용)
        ═══════════════════════════════════ */
-    function renderGroupSelector(area, page, nameGetter, urlGetter, modalBg) {
-        area.replaceChildren(
+    function renderGroupSelector(targetEl, page, nameGetter, urlGetter, modalBg) {
+        targetEl.replaceChildren(
             el('p', { text: `그룹 선택 (${page}):`, style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } })
         );
         const col = el('div', { class: 'bm-flex-col' });
@@ -1062,14 +1085,16 @@
             if (db.pages[page][trimmed]) { alert('이미 존재하는 그룹입니다.'); return; }
             await saveBookmarkTo(page, trimmed, nameGetter(), urlGetter(), modalBg);
         }, { background: 'var(--c-dark)', color: '#fff', padding: '12px' }));
-        area.appendChild(col);
+        targetEl.appendChild(col);
     }
 
     /* ═══════════════════════════════════
        빠른 추가 모달
        ═══════════════════════════════════ */
     function showQuickAddModal() {
-        if (shadow.querySelector('#bm-quick-modal')) return;
+        const existing = shadow.querySelector('#bm-quick-modal');
+        if (existing) existing.remove();
+
         const modalBg = createModal('bm-quick-modal');
         const content = el('div', { class: 'bm-modal-content' });
         content.appendChild(el('h3', { text: '🔖 북마크 저장', style: { marginTop: '0' } }));
@@ -1086,7 +1111,25 @@
         const ui = el('input', { type: 'text', value: window.location.href });
         content.appendChild(ui);
 
+        /* URL 변경 시 자동 제목 가져오기 */
+        ui.addEventListener('change', () => {
+            const newUrl = ui.value.trim();
+            if (!isValidUrl(newUrl) || ni.dataset.manualEdit) return;
+            GM_xmlhttpRequest({
+                method: 'GET', url: newUrl, timeout: 5000,
+                headers: { 'Accept': 'text/html' },
+                onload: (res) => {
+                    const match = res.responseText?.match(/<title[^>]*>([^<]+)<\/title>/i);
+                    if (match?.[1] && ni.value === document.title.substring(0, 30)) {
+                        ni.value = match[1].trim().substring(0, 30);
+                    }
+                }
+            });
+        });
+        ni.addEventListener('input', () => { ni.dataset.manualEdit = '1'; });
+
         const area = el('div');
+        const groupArea = el('div');
         const recent = getRecentGroup();
 
         if (recent && db.pages[recent.page]?.[recent.group]) {
@@ -1109,18 +1152,19 @@
 
         const pageKeys = Object.keys(db.pages);
         if (pageKeys.length === 1) {
-            renderGroupSelector(area, pageKeys[0], () => ni.value, () => ui.value, modalBg);
+            renderGroupSelector(groupArea, pageKeys[0], () => ni.value, () => ui.value, modalBg);
         } else {
             area.appendChild(el('p', { text: '탭 선택:', style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } }));
             const tabBtns = el('div', { style: { display: 'flex', flexWrap: 'wrap', gap: '5px' } });
             pageKeys.forEach(p => {
                 tabBtns.appendChild(btn(p, '', () => {
-                    renderGroupSelector(area, p, () => ni.value, () => ui.value, modalBg);
+                    renderGroupSelector(groupArea, p, () => ni.value, () => ui.value, modalBg);
                 }, { background: '#eee', color: '#333' }));
             });
             area.appendChild(tabBtns);
         }
 
+        area.appendChild(groupArea);
         content.appendChild(area);
         content.appendChild(el('button', { text: '취소', style: { width: '100%', border: '0', background: 'none', marginTop: '20px', color: '#999', cursor: 'pointer' }, onclick: () => modalBg.close() }));
         modalBg.appendChild(content);
@@ -1170,6 +1214,7 @@
             fab.childNodes[0].textContent = '🔖';
             destroyAllSortables();
             _currentContainer = null;
+            if (_faviconObserver) { _faviconObserver.disconnect(); _faviconObserver = null; }
             updateFabIndicator();
         }
     }
@@ -1183,9 +1228,9 @@
             dragReady: false,
             dragging: false,
             sx: 0, sy: 0, ox: 0, oy: 0,
-            lastX: 0, lastY: 0
+            lastX: 0, lastY: 0,
+            lastTap: 0
         };
-        let lastTap = 0;
 
         function endDrag() {
             fab.style.transition = '';
@@ -1197,14 +1242,14 @@
             st.dragReady = false;
             fab.style.cursor = 'pointer';
             fab.style.boxShadow = '';
-            lastTap = 0;
+            st.lastTap = 0;
         }
 
         function resetDragReady() {
             st.dragReady = false;
             fab.style.cursor = 'pointer';
             fab.style.boxShadow = '';
-            lastTap = 0;
+            st.lastTap = 0;
         }
 
         function isSwipeUp() {
@@ -1222,20 +1267,20 @@
             if (st.dragReady) { resetDragReady(); return; }
 
             if (isSwipeUp()) {
-                lastTap = 0;
+                st.lastTap = 0;
                 showQuickAddModal();
                 return;
             }
 
             const now = Date.now();
-            if (now - lastTap < 350) {
-                lastTap = 0;
+            if (now - st.lastTap < 350) {
+                st.lastTap = 0;
                 showQuickAddModal();
             } else {
-                lastTap = now;
+                st.lastTap = now;
                 setTimeout(() => {
-                    if (lastTap !== 0 && Date.now() - lastTap >= 340) {
-                        lastTap = 0;
+                    if (st.lastTap !== 0 && Date.now() - st.lastTap >= 340) {
+                        st.lastTap = 0;
                         toggleOverlay(overlay, fab);
                     }
                 }, 350);
@@ -1301,7 +1346,7 @@
             st.dragging = false;
             fab.style.cursor = 'pointer';
             fab.style.boxShadow = '';
-            lastTap = 0;
+            st.lastTap = 0;
         });
 
         fab.addEventListener('contextmenu', e => e.preventDefault());
@@ -1501,13 +1546,19 @@
             .bm-icon-btn {
                 width: 34px;
                 height: 34px;
-                padding: 0 !important;
-                font-size: 16px !important;
+                padding: 0;
+                font-size: 16px;
                 border-radius: 8px;
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
+                cursor: pointer;
+                color: #fff;
+                background: var(--c-dark);
+                border: none;
             }
+            .bm-icon-btn:hover { filter: brightness(1.15); }
+            .bm-icon-btn:active { filter: brightness(0.9); transform: scale(0.97); }
 
             input {
                 width: 100%;
@@ -1540,8 +1591,9 @@
                 position: sticky;
                 top: 0;
                 z-index: 100;
-                background: inherit;
+                background: var(--c-surface);
                 padding: 10px 0 5px;
+                border-bottom: 1px solid var(--c-border);
             }
 
             .bm-admin-bar {
@@ -1565,6 +1617,11 @@
                 border-radius: 6px !important;
             }
 
+            .bm-search-input::-webkit-search-cancel-button {
+                -webkit-appearance: searchfield-cancel-button;
+                cursor: pointer;
+            }
+
             .bm-tab-bar {
                 display: flex;
                 gap: 5px;
@@ -1572,6 +1629,8 @@
                 -webkit-overflow-scrolling: touch;
                 padding-bottom: 5px;
                 width: 100%;
+                mask-image: linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent);
+                -webkit-mask-image: linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent);
             }
 
             .bm-tab {
@@ -1624,6 +1683,8 @@
                 border-radius: 12px;
                 overflow: hidden;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+                content-visibility: auto;
+                contain-intrinsic-size: auto 200px;
             }
 
             .bm-section-header {
@@ -1632,8 +1693,18 @@
                 align-items: center;
                 padding: 10px 12px;
                 background: var(--c-bg);
-                border-bottom: 2px solid transparent;
-                border-image: linear-gradient(90deg, var(--c-primary), transparent) 1;
+                position: relative;
+            }
+
+            .bm-section-header::after {
+                content: '';
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                height: 2px;
+                background: var(--c-primary);
+                width: var(--fill, 0%);
+                transition: width 0.3s;
             }
 
             .bm-section-header span { cursor: pointer; }
@@ -1651,6 +1722,12 @@
                 padding: 1px 6px;
                 border-radius: 10px;
                 font-size: 11px;
+            }
+
+            .bm-group-warning {
+                font-size: 10px;
+                color: var(--c-warning);
+                margin-left: 4px;
             }
 
             .bm-manage-btn {
@@ -1707,6 +1784,27 @@
                 max-width: 80px;
                 position: relative;
             }
+
+            .bm-item-wrapper::before {
+                content: attr(href);
+                position: fixed;
+                bottom: 8px;
+                left: 8px;
+                background: rgba(0,0,0,0.8);
+                color: #fff;
+                font-size: 11px;
+                padding: 4px 10px;
+                border-radius: 4px;
+                max-width: 60vw;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.15s;
+                z-index: 1000;
+            }
+            .bm-item-wrapper:hover::before { opacity: 1; }
 
             .bm-bookmark-item {
                 display: flex;
@@ -1860,9 +1958,7 @@
             .bm-flex-row { display: flex; gap: 10px; align-items: center; }
             .bm-flex-col { display: flex; flex-direction: column; gap: 5px; }
             .bm-mt-10 { margin-top: 10px; }
-            .bm-mt-15 { margin-top: 15px; }
             .bm-mt-20 { margin-top: 20px; }
-            .bm-w-full { width: 100%; }
             .bm-scroll-list {
                 max-height: 40vh;
                 overflow-y: auto;
