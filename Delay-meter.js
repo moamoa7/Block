@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.0
+// @version      5.9.1
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -199,8 +199,8 @@
     let els = {};
 
     /* ── 웜업 상태 ── */
-    let warmupStartTime = 0;
-    let warmupEnd = 0;
+    let warmupStartTime = performance.now();
+    let warmupEnd = warmupStartTime + TUNING.WARMUP_MS;
     let warmupDone = false;
 
     /* ── seek AbortController ── */
@@ -281,7 +281,8 @@
     function getStableAverage() {
         const n = delayHistory.length;
         if (n === 0) return 0;
-        if (n <= 2) return delayHistory.last;
+        if (n === 1) return delayHistory.last;
+        if (n === 2) return (delayHistory.at(0) + delayHistory.at(1)) * 0.5;
 
         const buf = delayHistory.buf;
         const cap = delayHistory.cap;
@@ -540,7 +541,7 @@
 
         video.addEventListener('seeked', () => {
             if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
-            if (ac.signal.aborted) return;
+            if (ac.signal.aborted || !video) return;
             if (Math.abs(video.currentTime - seekTo) > 2) return;
             const postCheck = setTimeout(() => {
                 if (!video?.isConnected) return;
@@ -677,7 +678,8 @@
             range = ` r:${(lo / 1000).toFixed(1)}-${(hi / 1000).toFixed(1)}`;
         }
         const stab = stableEntryTime > 0 ? ` stab:${((performance.now() - stableEntryTime) / 1000).toFixed(1)}` : '';
-        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${stab}${range}${_cachedDropInfo}${skip}${wu}`;
+        const eta = (currentSmoothedRate > 1.001 && prevAvg > targetDelayMs) ? ` eta:${((prevAvg - targetDelayMs) / ((currentSmoothedRate - 1) * 1000)).toFixed(0)}` : '';
+        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${stab}${range}${_cachedDropInfo}${eta}${skip}${wu}`;
     }
 
     /* ── UI 갱신 ── */
@@ -689,11 +691,12 @@
             const sec = avgMs / 1000;
             const miniStatus = warmupDone ? (Math.abs(delta) > 80 ? (delta > 0 ? '↑' : '↓') : '') : '⏳';
             const miniRate = currentSmoothedRate > 1.005 ? (' ' + lastRateStr) : '';
+            const stabInfo = stableTickCount > 0 ? ` | 안정 ${((performance.now() - stableEntryTime) / 1000).toFixed(0)}s` : '';
             setDisplay('mini', sec.toFixed(1) + 's' + miniStatus + miniRate);
             setDisplay('mc', color);
             setDisplay('mb', color);
             setDisplay('mbd', 'block');
-            setDisplay('title', `딜레이: ${sec.toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s`);
+            setDisplay('title', `딜레이: ${sec.toFixed(2)}s | 배속: ${lastRateStr} | 목표: ${(targetDelayMs / 1000).toFixed(1)}s${stabInfo}`);
             if (rafId) return;
             rafId = requestAnimationFrame(() => { rafId = null; flushDisplay(); });
             return;
@@ -748,8 +751,9 @@
     function updatePresetHL() {
         for (const { btn, sec } of presetBtns) {
             const on = targetDelayMs === sec * 1000;
-            btn.style.background = on ? '#2ecc71' : '#333';
+            btn.style.background = on ? '#1abc9c' : '#333';
             btn.style.color = on ? '#000' : '#ccc';
+            btn.style.fontWeight = on ? 'bold' : '';
             if (RECOMMENDED_PRESETS.includes(sec)) {
                 btn.style.borderBottom = on ? '2px solid #fff' : '2px solid #2ecc71';
             } else {
@@ -958,7 +962,8 @@
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-presets .dm-btn:hover{background:#444}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
-                    border-top:1px solid #2a2a2a;padding-top:5px;overflow-wrap:break-word;word-break:normal}
+                    border-top:1px solid #2a2a2a;padding-top:5px;overflow-wrap:break-word;word-break:normal;
+                    max-height:60px;overflow-y:auto}
                 .dm-minibar{position:absolute;bottom:0;left:0;right:0;height:2px;
                     border-radius:0 0 11px 11px;display:none}
             }
@@ -968,7 +973,7 @@
         panel.id = 'dm-panel';
         panel.innerHTML = `
             <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${GM_info.script.version}</span>
-                <span data-dm="mini" style="font-size:11px;font-family:monospace;font-weight:normal"></span>
+                <span data-dm="mini" style="font-size:12px;font-family:ui-monospace,monospace;font-weight:normal"></span>
                 <span data-dm="collapse" style="margin-left:auto;cursor:pointer;font-size:10px">▼</span>
                 <div data-dm="minibar" class="dm-minibar"></div>
             </div>
@@ -1098,7 +1103,7 @@
             btn.oncontextmenu = e => {
                 e.preventDefault();
                 applyTargetDelay(sec);
-                doManualSync();
+                if (!doManualSync()) flashStyle(btn, 'background', '#c0392b', 400);
             };
             if (RECOMMENDED_PRESETS.includes(sec)) {
                 btn.style.borderBottom = '2px solid #2ecc71';
@@ -1192,7 +1197,7 @@
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
         ['ArrowDown', () => applyTargetDelay(targetDelayMs / 1000 + 0.5)],
         ['KeyT',      () => { if (els.targetIn) { els.targetIn.focus(); els.targetIn.select(); } }],
-        ['KeyR',      () => { resetState(); if (video) setRate(1.0); }],
+        ['KeyR',      () => { resetState(); if (video) setRate(1.0); flashStyle(els.delayVal, 'textShadow', '0 0 8px #f39c12', 600); }],
         ['KeyC',      () => els.collapseBtn?.click()],
         ['KeyS',      () => doManualSync()],
         ['KeyP',      () => {
@@ -1204,6 +1209,8 @@
         ['KeyI',      () => {
             if (!video) return;
             const edge = getBufferEdge(video.buffered);
+            const hist = [];
+            for (let i = 0; i < delayHistory.length; i++) hist.push(delayHistory.at(i).toFixed(0));
             console.table({
                 delay: getStableAverage().toFixed(0) + 'ms',
                 rate: currentSmoothedRate.toFixed(3),
@@ -1212,6 +1219,8 @@
                 stable: stableTickCount,
                 warmup: warmupDone,
                 buf: edge ? edge.end.toFixed(2) : '-',
+                history: hist.join(','),
+                platform: IS_CHZZK ? 'CHZZK' : 'SOOP',
             });
         }],
     ]);
