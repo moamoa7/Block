@@ -584,9 +584,9 @@ function VSC_MAIN() {
   function createFiltersVideoOnly(Utils, vscId) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = {
-      1: '0 0.17 0.35 0.55 0.74 0.88 1',
-      2: '0 0.15 0.32 0.50 0.68 0.85 1',
-      3: '0 0.10 0.26 0.45 0.66 0.84 1'
+      1: '0 0.17 0.35 0.52 0.69 0.86 1',
+      2: '0 0.15 0.32 0.50 0.67 0.84 1',
+      3: '0 0.13 0.29 0.48 0.65 0.82 1',
     };
 
     function ensureOpaqueBg(video) {
@@ -696,10 +696,10 @@ function VSC_MAIN() {
 
   function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null, hasUserDraggedUI = false; const uiWakeCtrl = new AbortController(), uiUnsubs = []; const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
-    
+
     let infoTimer = 0;
     const detachNodesHard = () => { removeSafe(container); removeSafe(gearHost); clearRecurring(infoTimer); infoTimer = 0; if (_clampRafId) { cancelAnimationFrame(_clampRafId); _clampRafId = 0; } };
-    
+
     const allowUiInThisDoc = () => { const hn = location.hostname, pn = location.pathname; if (hn.includes('netflix.com')) return pn.startsWith('/watch'); if (hn.includes('coupangplay.com')) return pn.startsWith('/play'); return true; };
     const getUiRoot = () => { const fs = document.fullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
     const setAndHint = (path, value) => { if (!Object.is(sm.get(path), value)) { sm.set(path, value); (path === P.APP_ACT || path === P.APP_APPLY_ALL || path.startsWith('video.')) ? ApplyReq.hard() : ApplyReq.soft(); } };
