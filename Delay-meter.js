@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.7
+// @version      5.9.8
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -183,7 +183,6 @@
     let wasPaused = false;
     let panelOpen = false;
     let skipReason = '';
-    let rateProtectTimer = null;
     let stableTickCount = 0;
     let stableEntryTime = 0;
     let debugVisible = false;
@@ -348,8 +347,6 @@
         lastRateStr = '1.000x';
         stableTickCount = 0;
         stableEntryTime = 0;
-        clearTimeout(rateProtectTimer);
-        rateProtectTimer = null;
     }
 
     function onExternalRateChange() {
@@ -359,12 +356,9 @@
         if (Math.abs(ext - lastSetRate) < 0.002) return;
         if (isEnabled) {
             if (debugVisible) dmLog(`외부 배속 변경: ${ext}`);
-            clearTimeout(rateProtectTimer);
-            const vid = video;
-            rateProtectTimer = setTimeout(() => {
-                if (video !== vid || !isEnabled) return;
-                lastSetRate = -1;
-            }, 200);
+            currentSmoothedRate = ext;
+            lastSetRate = ext;
+            lastRateStr = ext.toFixed(3) + 'x';
         } else {
             currentSmoothedRate = 1.0;
             lastSetRate = -1;
@@ -394,8 +388,6 @@
     }
 
     function resetState() {
-        clearTimeout(rateProtectTimer);
-        rateProtectTimer = null;
         if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
         if (seekAc) { seekAc.abort(); seekAc = null; }
         lastRenderedMediaTime = 0;
@@ -734,23 +726,37 @@
 
     /* ── 패널 열기/닫기 ── */
     function openPanel() {
-        if (panelOpen) return;
-        panelOpen = true;
-        saveConfig({ panelOpen: true });
-        els.dot.style.display = 'none';
-        els.panel.style.display = '';
-        lastDotColor = '';
-        for (const key in displayState) dirtyChannels.add(key);
-    }
+    if (panelOpen) return;
+    panelOpen = true;
+    saveConfig({ panelOpen: true });
+    els.dot.style.display = 'none';
+    els.panel.style.display = 'block';
+    requestAnimationFrame(() => {
+        const rect = els.panel.getBoundingClientRect();
+        if (rect.left < 0) els.panel.style.left = '8px';
+        if (rect.top < 0) els.panel.style.top = '8px';
+        if (rect.right > innerWidth) els.panel.style.left = Math.max(0, innerWidth - rect.width - 8) + 'px';
+        if (rect.bottom > innerHeight) els.panel.style.top = Math.max(0, innerHeight - rect.height - 8) + 'px';
+    });
+    lastDotColor = '';
+    for (const key in displayState) dirtyChannels.add(key);
+}
 
     function closePanel() {
-        if (!panelOpen) return;
-        panelOpen = false;
-        saveConfig({ panelOpen: false });
-        els.panel.style.display = 'none';
-        els.dot.style.display = '';
-        lastDotColor = '';
-    }
+    if (!panelOpen) return;
+    panelOpen = false;
+    saveConfig({ panelOpen: false });
+    els.panel.style.display = 'none';
+    els.dot.style.display = 'block';
+    requestAnimationFrame(() => {
+        const rect = els.dot.getBoundingClientRect();
+        if (rect.left < 0 || rect.top < 0 || rect.right > innerWidth || rect.bottom > innerHeight) {
+            Object.assign(els.dot.style, { left: '8px', top: '50%', right: 'auto', bottom: 'auto' });
+            saveConfig({ dotX: '8px', dotY: '50%' });
+        }
+    });
+    lastDotColor = '';
+}
 
     function togglePanel() {
         panelOpen ? closePanel() : openPanel();
@@ -800,6 +806,8 @@
             if (debugVisible) skipReason = 'SPIKE';
             lastSpikeTime = now;
             updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
+            if (!isEnabled) return;
+            setRate(smoothRate(computeDesiredRate(prevAvg > 0 ? prevAvg : targetDelayMs)));
             return;
         }
 
@@ -1071,10 +1079,13 @@
 
         /* 초기 상태: 저장값 복원 (기본 = dot 표시) */
         panelOpen = loadConfig().panelOpen ?? false;
-        if (panelOpen) {
-            els.panel.style.display = '';
-            els.dot.style.display = 'none';
-        }
+if (panelOpen) {
+    els.panel.style.display = 'block';
+    els.dot.style.display = 'none';
+} else {
+    els.panel.style.display = 'none';
+    els.dot.style.display = 'block';
+}
         /* dot이 기본 표시이므로 else 불필요 */
 
         makeDraggable(panel);
