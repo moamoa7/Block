@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v192.0 - Stability & Intelligence)
+// @name         Video_Control (v193.0 - Stability & Intelligence)
 // @namespace    https://github.com/moamoa7
-// @version      192.0
+// @version      193.0
 // @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI, CSS Transition Engine, Zero Leak, Audited.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '192.0';
+  const SCRIPT_VERSION = '193.0';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -53,27 +53,36 @@ function VSC_MAIN() {
   /* ── Utility Helpers ─────────────────────────────────────────── */
   const safe = (fn) => { try { fn(); } catch (e) { if (/[?&]vsc_debug=1/.test(location.search)) console.warn('[VSC] safe() caught:', e); } };
   const disconnectSafe = (node) => node?.disconnect?.();
-  const removeSafe = (el) => { try { el?.remove(); } catch (_) {} };
+  const removeSafe = (el) => el?.remove();
+
+  const _activeTimers = new Set();
+  const _activeIntervals = new Set();
+  if (!__globalSig.aborted) {
+    __globalSig.addEventListener('abort', () => {
+      for (const id of _activeTimers) clearTimeout(id);
+      _activeTimers.clear();
+      for (const id of _activeIntervals) clearInterval(id);
+      _activeIntervals.clear();
+    }, { once: true });
+  }
 
   const setTimer = (fn, ms) => {
-    const id = setTimeout(fn, ms);
-    if (!__globalSig.aborted) {
-      __globalSig.addEventListener('abort', () => clearTimeout(id), { once: true });
-    }
+    const id = setTimeout(() => { _activeTimers.delete(id); fn(); }, ms);
+    _activeTimers.add(id);
     return id;
   };
 
   const setRecurring = (fn, ms) => {
     const id = setInterval(() => {
-      if (__globalSig.aborted) { clearInterval(id); return; }
+      if (__globalSig.aborted) { clearInterval(id); _activeIntervals.delete(id); return; }
       fn();
     }, ms);
-    __globalSig.addEventListener('abort', () => clearInterval(id), { once: true });
+    _activeIntervals.add(id);
     return id;
   };
 
   const postIdleTask = (typeof globalThis.scheduler?.postTask === 'function')
-    ? (fn) => scheduler.postTask(fn, { priority: 'background' })
+    ? (fn) => scheduler.postTask(fn, { priority: 'background' }).catch(() => {})
     : (fn) => setTimeout(fn, 0);
 
   function destroyRuntime(ns = __vscNs) {
@@ -98,7 +107,6 @@ function VSC_MAIN() {
     const IS_MOBILE = (() => { const uad = navigator.userAgentData; if (uad && typeof uad.mobile === 'boolean') return uad.mobile; if (/iPad/.test(navigator.platform) || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform))) return true; return /Mobi|Android|iPhone/i.test(navigator.userAgent); })();
     const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
     const DEBUG = /[?&]vsc_debug=1/.test(location.search);
-    const FLAGS = Object.seal({ FILTER_FORCE_OPAQUE_BG: true });
     const DARK_BAND = Object.freeze({ LV1: 1, LV2: 2, LV3: 3 });
     const PRESETS = Object.freeze({
       detail: {
@@ -112,10 +120,11 @@ function VSC_MAIN() {
     });
     const DEFAULTS = Object.freeze({ video: { presetS: 'off', brightLevel: 0, shadowBandMask: 0, temp: 0 }, audio: { enabled: false, boost: 0 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: true, zoomEn: false, advanced: false, timeEn: true, timePos: 1, kbEnabled: true } });
     const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_ADV: 'app.advanced', APP_TIME_EN: 'app.timeEn', APP_TIME_POS: 'app.timePos', APP_KB_EN: 'app.kbEnabled', V_PRE_S: 'video.presetS', V_BRIGHT_LV: 'video.brightLevel', V_SHADOW_MASK: 'video.shadowBandMask', V_TEMP: 'video.temp', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
-    return Object.freeze({ IS_MOBILE, VSC_ID, DEBUG, FLAGS, DARK_BAND, PRESETS, DEFAULTS, P });
+    return Object.freeze({ IS_MOBILE, VSC_ID, DEBUG, DARK_BAND, PRESETS, DEFAULTS, P });
   })();
 
-  __vscNs.CONFIG = CONFIG; const FLAGS = CONFIG.FLAGS; __vscNs.FLAGS = Object.freeze({ ...FLAGS });
+  __vscNs.CONFIG = CONFIG;
+  const FILTER_FORCE_OPAQUE_BG = true;
 
   /* ── Constants & Small Utilities ─────────────────────────────── */
   const PLAYER_CONTAINER_SELECTORS = '.html5-video-player, #movie_player, .shaka-video-container, .dplayer-video-wrap, .vjs-container, .video-js, [data-player]';
@@ -125,20 +134,23 @@ function VSC_MAIN() {
     const existing = signals.filter(Boolean);
     if (existing.length === 0) return undefined;
     if (existing.length === 1) return existing[0];
-    return AbortSignal.any(existing);
+    if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
+    return existing[0];
   };
 
   /* ── Event Binding ───────────────────────────────────────────── */
   function on(target, type, fn, opts) {
     if (!target?.addEventListener) return;
     const o = opts ? { ...opts } : {};
-    o.signal = o.signal ? combineSignals(o.signal, __globalSig) : __globalSig;
+    if (!o.once) {
+      o.signal = o.signal ? combineSignals(o.signal, __globalSig) : __globalSig;
+    }
     target.addEventListener(type, fn, o);
   }
   const blockInterference = (el) => {
     if (!el) return;
     const stop = (e) => { e.stopPropagation(); };
-    for (const evt of ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'contextmenu', 'dblclick']) {
+    for (const evt of ['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu']) {
       on(el, evt, stop, { passive: true });
     }
     on(el, 'wheel', stop, { passive: false });
@@ -183,8 +195,12 @@ function VSC_MAIN() {
     const resort = () => { _sorted = [..._modules.values()].sort((a, b) => (a.getPhase?.() ?? 1) - (b.getPhase?.() ?? 1)); };
     return Object.freeze({
       register(module) { const name = module.getName(); if (_modules.has(name)) safe(() => _modules.get(name).destroy()); _modules.set(name, module); resort(); },
-      initAll(deps) { if (_initialized) return; _initialized = true; for (const mod of _sorted) safe(() => mod.init(deps)); bus.emit('features:initialized'); },
-      updateAll(ctx) { for (const mod of _sorted) safe(() => mod.update(ctx)); },
+      initAll(deps) {
+        if (_initialized) return; _initialized = true;
+        for (const mod of _sorted) { try { mod.init(deps); } catch (e) { log.warn(`Feature "${mod.getName()}" init failed:`, e); } }
+        bus.emit('features:initialized');
+      },
+      updateAll(ctx) { for (const mod of _sorted) { try { mod.update(ctx); } catch (e) { log.warn(`Feature "${mod.getName()}" update failed:`, e); } } },
       destroyAll() { for (let i = _sorted.length - 1; i >= 0; i--) safe(() => _sorted[i].destroy()); _modules.clear(); _sorted = []; _initialized = false; },
       get(name) { return _modules.get(name) || null; }
     });
@@ -263,7 +279,7 @@ function VSC_MAIN() {
     const state = {}; for (const [cat, obj] of Object.entries(defaults)) { state[cat] = { ...obj }; }
     let rev = 0; const listeners = new Map(); const storeAC = new AbortController(); const storeSig = combineSignals(storeAC.signal, __globalSig); const PREF_KEY = 'vsc_prefs_' + location.hostname; let _lastSavedJson = '', _lastSavedRev = rev;
     const VALID_PRESETS = new Set(Object.keys(CONFIG.PRESETS.detail));
-    function loadPrefs() { try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (v != null) return typeof v === 'object' ? v : JSON.parse(v); } } catch (_) {} try { const s = localStorage.getItem(PREF_KEY); return s ? JSON.parse(s) : null; } catch (_) {} return null; }
+    function loadPrefs() { try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (v == null) return null; return typeof v === 'string' ? JSON.parse(v) : v; } } catch (_) {} try { const s = localStorage.getItem(PREF_KEY); return s ? JSON.parse(s) : null; } catch (_) {} return null; }
     function savePrefsRaw(json) { try { if (typeof GM_setValue === 'function') { GM_setValue(PREF_KEY, json); return true; } } catch (_) {} try { localStorage.setItem(PREF_KEY, json); return true; } catch (_) {} return false; }
     function mergeKnown(dst, src, defaultsObj, validators) { if (!src || typeof src !== 'object') return; for (const key of Object.keys(defaultsObj)) { if (!Object.prototype.hasOwnProperty.call(src, key)) continue; const v = src[key], def = defaultsObj[key]; if (typeof def === 'boolean') dst[key] = !!v; else if (typeof def === 'number') { const n = Number(v); dst[key] = Number.isFinite(n) ? n : def; } else if (typeof def === 'string') { const validator = validators?.[key]; if (validator) dst[key] = validator(v) ? v : def; else dst[key] = typeof v === 'string' ? v : def; } else dst[key] = v; } }
     try { const parsed = loadPrefs(); if (parsed && typeof parsed === 'object') { mergeKnown(state.video, parsed.video, CONFIG.DEFAULTS.video, { presetS: (v) => typeof v === 'string' && VALID_PRESETS.has(v) }); mergeKnown(state.audio, parsed.audio, CONFIG.DEFAULTS.audio); mergeKnown(state.playback, parsed.playback, CONFIG.DEFAULTS.playback); mergeKnown(state.app, parsed.app, CONFIG.DEFAULTS.app); } } catch (e) { log.warn('Invalid prefs detected. Resetting.'); }
@@ -271,7 +287,7 @@ function VSC_MAIN() {
     function _doSave() { if (rev === _lastSavedRev) return; const json = JSON.stringify(state); if (json === _lastSavedJson || json.length > 16384) return; _lastSavedRev = rev; if (savePrefsRaw(json)) _lastSavedJson = json; }
     const savePrefs = createDebounced(() => _doSave(), 500); const flushNow = () => _doSave();
     on(document, 'visibilitychange', () => { if (document.visibilityState === 'hidden') flushNow(); }, { passive: true, signal: storeSig }); on(window, 'pagehide', () => flushNow(), { passive: true, signal: storeSig });
-    const emit = (path, val) => { const cbs = listeners.get(path); if (cbs) for (const cb of cbs) safe(() => cb(val)); const dot = path.indexOf('.'); if (dot > 0) { const catStar = path.slice(0, dot) + '.*'; const cbsStar = listeners.get(catStar); if (cbsStar) for (const cb of cbsStar) safe(() => cb(val)); } };
+    const emit = (path, val) => { const cbs = listeners.get(path); if (cbs) for (const cb of cbs) safe(() => cb(val)); const [cat] = parsePath(path); if (cat !== path) { const cbsStar = listeners.get(cat + '.*'); if (cbsStar) for (const cb of cbsStar) safe(() => cb(val)); } };
     const notifyChange = (path, val) => { rev++; emit(path, val); if (bus) bus.emit('settings:changed', { path, value: val }); savePrefs(); scheduler.request(false); };
     return { state, rev: () => rev, getCatRef: (cat) => state[cat], get: (p) => { const [cat, key] = parsePath(p); return key ? state[cat]?.[key] : state[cat]; }, set: (p, val) => { const [cat, key] = parsePath(p); const target = key ? state[cat] : state; const prop = key || cat; if (Object.is(target[prop], val)) return; target[prop] = val; notifyChange(p, val); }, batch: (cat, obj) => { let changed = false; const updates = []; for (const [k, v] of Object.entries(obj)) { if (state[cat][k] !== v) { state[cat][k] = v; changed = true; updates.push([`${cat}.${k}`, v]); } } if (changed) { rev++; for (const [path, val] of updates) emit(path, val); if (bus) bus.emit('settings:changed', { path: `${cat}.*`, value: obj, batch: true }); savePrefs(); scheduler.request(false); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); }, destroy: () => { storeAC.abort(); try { _doSave(); } catch (_) {} listeners.clear(); savePrefs.cancel?.(); } };
   }
@@ -288,14 +304,14 @@ function VSC_MAIN() {
     const MAX_SHADOW_OBS = 5; let baseRoot = null, baseObserver = null; const shadowObserverMap = new Map();
     function disconnectBaseObserver() { if (!baseObserver) return; disconnectSafe(baseObserver); baseObserver = null; }
     function untrackVideo(v) {
-  if (!v || v.tagName !== 'VIDEO') return;
-  const wasTracked = videos.has(v);
-  if (wasTracked) { videos.delete(v); if (bus) bus.emit('video:lost', { video: v }); }
-  visible.videos.delete(v);
-  dirty.videos.add(v);
-  consumed.videos.delete(v); // ✅ Issue B: consumed 셋에서도 제거
-  io?.unobserve(v); ro?.unobserve(v);
-}
+      if (!v || v.tagName !== 'VIDEO') return;
+      const wasTracked = videos.has(v);
+      if (wasTracked) { videos.delete(v); if (bus) bus.emit('video:lost', { video: v }); }
+      visible.videos.delete(v);
+      dirty.videos.add(v);
+      consumed.videos.delete(v);
+      io?.unobserve(v); ro?.unobserve(v);
+    }
 
     const observeVideo = (el) => {
       if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
@@ -359,19 +375,20 @@ function VSC_MAIN() {
     function pruneDisconnectedVideos() { let removed = 0; for (const el of [...videos]) { if (!el?.isConnected) { videos.delete(el); visible.videos.delete(el); dirty.videos.delete(el); io?.unobserve(el); ro?.unobserve(el); removed++; } } for (const v of [...TOUCHED.videos]) { if (!v?.isConnected) TOUCHED.videos.delete(v); } for (const v of [...TOUCHED.rateVideos]) { if (!v?.isConnected) TOUCHED.rateVideos.delete(v); } return removed; }
 
     return { videos, visible, rev: () => rev, refreshObservers, prune: () => { for (const [root, mo] of [...shadowObserverMap]) { const host = root.host; if (!host || !host.isConnected) { disconnectSafe(mo); shadowObserverMap.delete(root); for (const v of [...videos]) { try { if (v.getRootNode() === root) untrackVideo(v); } catch (_) {} } } } const removed = pruneDisconnectedVideos(); if (removed) rev++; }, consumeDirty: () => { const tmp = consumed.videos; consumed.videos = dirty.videos; dirty.videos = tmp; dirty.videos.clear(); return consumed; },
-    rescanAll: () => { if (destroyed) return; if (rescanTimerId) clearTimeout(rescanTimerId); rescanTimerId = setTimer(() => { rescanTimerId = 0; if (destroyed) return; try { const base = document.documentElement || document.body; if (!base) return; function* walkRoots(rootBase) { if (!rootBase) return; const stack = [rootBase]; const seen = new Set(); while (stack.length > 0) { const r = stack.pop(); if (!r || seen.has(r)) continue; seen.add(r); yield r; const walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot && !seen.has(node.shadowRoot)) stack.push(node.shadowRoot); node = walker.nextNode(); } } } for (const r of walkRoots(base)) WorkQ.enqueue(r); } catch (_) {} }, 0); },
+    rescanAll: () => { if (destroyed) return; if (rescanTimerId) clearTimeout(rescanTimerId); rescanTimerId = setTimer(() => { rescanTimerId = 0; if (destroyed) return; try { const base = document.documentElement || document.body; if (!base) return; function* walkRoots(rootBase) { if (!rootBase) return; const stack = [rootBase]; const seen = new Set(); while (stack.length > 0) { const r = stack.pop(); if (!r || seen.has(r)) continue; seen.add(r); yield r; try { const walker = document.createTreeWalker(r, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot && !seen.has(node.shadowRoot)) stack.push(node.shadowRoot); node = walker.nextNode(); } } catch (_) {} } seen.clear(); } for (const r of walkRoots(base)) WorkQ.enqueue(r); } catch (_) {} }, 0); },
     destroy: () => {
-  destroyed = true;
-  if (refreshRafId) { cancelAnimationFrame(refreshRafId); refreshRafId = 0; }
-  if (rescanTimerId) { clearTimeout(rescanTimerId); rescanTimerId = 0; }
-  WorkQ.destroy(); disconnectBaseObserver();
-  for (const mo of shadowObserverMap.values()) disconnectSafe(mo);
-  shadowObserverMap.clear(); disconnectSafe(io); disconnectSafe(ro);
-  videos.clear(); visible.videos.clear(); dirty.videos.clear();
-  consumed.videos.clear(); // ✅ Issue A: 파괴 시 메모리 누수 방지
-} };
+      destroyed = true;
+      if (refreshRafId) { cancelAnimationFrame(refreshRafId); refreshRafId = 0; }
+      if (rescanTimerId) { clearTimeout(rescanTimerId); rescanTimerId = 0; }
+      WorkQ.destroy(); disconnectBaseObserver();
+      for (const mo of shadowObserverMap.values()) disconnectSafe(mo);
+      shadowObserverMap.clear(); disconnectSafe(io); disconnectSafe(ro);
+      videos.clear(); visible.videos.clear(); dirty.videos.clear();
+      consumed.videos.clear();
+    } };
   }
-/* ── Audio Utilities ─────────────────────────────────────────── */
+
+  /* ── Audio Utilities ─────────────────────────────────────────── */
   const audioSourceMap = new WeakMap();
 
   function getOrCreateAudioSource(ctx, video) {
@@ -420,25 +437,24 @@ function VSC_MAIN() {
     const setTarget = (v) => {
       if (v == null) { detachCurrentSource(); syncMixAndParams(); return; } if (v === target && currentSrc) { syncMixAndParams(); return; }
       if (!ensureCtx()) return;
-      if (target && target !== v) detachCurrentSource();
+      if (currentSrc) detachCurrentSource();
       let s = audioSourceMap.get(v); if (s && s.context !== ctx) { detachAudioSource(v); s = null; }
       if (!s) { try { s = getOrCreateAudioSource(ctx, v); } catch (e) { getVState(v).audioFailUntil = performance.now() + 5000; target = v; currentSrc = null; syncMixAndParams(); return; } }
       disconnectSafe(s); s.connect(currentNodes.inputGain); currentSrc = s; target = v; syncMixAndParams();
     };
     const detachCurrentSource = () => {
-      if (currentSrc && ctx) { disconnectSafe(currentSrc); try { currentSrc.connect(ctx.destination); } catch (_) {} }
+      if (currentSrc && ctx) { try { currentSrc.disconnect(); } catch (_) {} try { currentSrc.connect(ctx.destination); } catch (_) {} }
       currentSrc = null; target = null;
     };
     return defineFeature({
       name: 'audio', phase: PHASE.PROCESS,
-      onInit() { this.subscribe('target:changed', ({ video }) => { const want = !!(this.getSetting(CONFIG.P.A_EN) && this.getSetting(CONFIG.P.APP_ACT)); setTarget((want || currentSrc) ? video : null); }); },
+      onInit() { this.subscribe('target:changed', ({ video }) => { const want = !!(this.getSetting(CONFIG.P.A_EN) && this.getSetting(CONFIG.P.APP_ACT)); setTarget((want || currentSrc) ? video : null); }); const autoResume = () => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); }; on(document, 'click', autoResume, { once: true, passive: true }); on(document, 'keydown', autoResume, { once: true, passive: true }); },
       onUpdate(updateCtx) { const want = !!(this.getSetting(CONFIG.P.A_EN) && this.getSetting(CONFIG.P.APP_ACT)), vid = (want || currentSrc) ? (updateCtx.target || this.getActiveVideo()) : null; if (vid && vid !== target) { const st = getVState(vid); if (performance.now() < (st.audioFailUntil || 0)) return; } setTarget(vid); },
       methods: { warmup: () => { if (ctx?.state === 'suspended') ctx.resume(); }, syncMixAndParams, hasCtx: () => !!ctx },
       async onDestroy() { _audioAC.abort(); detachCurrentSource(); if (ctx) await ctx.close(); ctx = null; currentNodes = null; }
     });
   }
-
-  /* ── Playback Rate Management ────────────────────────────────── */
+/* ── Playback Rate Management ────────────────────────────────── */
   function getRateState(v) { const st = getVState(v); if (!st.rateState) st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0 }; return st.rateState; }
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v), now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const rate = Number(st.orig) > 0.01 ? Number(st.orig) : 1.0; st.orig = null; markInternalRateChange(el, 500); el.playbackRate = rate; } catch (_) {} }
@@ -450,6 +466,8 @@ function VSC_MAIN() {
     queueMicrotask(() => {
       rSt._externalMtQueued = false;
       if (!storeRef || !__vscNs.__alive) return;
+      const nowMt = performance.now();
+      if (nowMt < (rSt.suppressSyncUntil || 0)) return;
       const activeVideo = __vscNs.App?.getActiveVideo?.();
       if (!activeVideo || video !== activeVideo || !storeRef.get(CONFIG.P.PB_EN)) return;
       const actualRate = video.playbackRate, desired = storeRef.get(CONFIG.P.PB_RATE);
@@ -458,8 +476,10 @@ function VSC_MAIN() {
       try { video.playbackRate = desired; } catch (_) {}
     });
   }
-  function applyPlaybackRate(el, desiredRate) {
-    const st = getVState(el), rSt = getRateState(el), now = performance.now(); if (now < (rSt.suppressSyncUntil || 0)) return; if (rSt.orig == null) rSt.orig = el.playbackRate;
+  function applyPlaybackRate(el, desiredRate, st) {
+    if (!st) st = getVState(el);
+    const rSt = st.rateState || (st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0 });
+    const now = performance.now(); if (now < (rSt.suppressSyncUntil || 0)) return; if (rSt.orig == null) rSt.orig = el.playbackRate;
     if (Object.is(st.desiredRate, desiredRate) && Math.abs(el.playbackRate - desiredRate) < 0.01) { rSt.retryCount = 0; TOUCHED.rateVideos.add(el); return; }
     if (rSt.retryCount > 6) { rSt.suppressSyncUntil = now + Math.min(6000, 800 << Math.min(rSt.retryCount - 6, 3)); rSt.retryCount = 0; return; }
     st.desiredRate = desiredRate; markInternalRateChange(el, 250); try { el.playbackRate = desiredRate; } catch (_) {} rSt.retryCount++;
@@ -468,10 +488,11 @@ function VSC_MAIN() {
 
   /* ── Video Binding & Pipeline ────────────────────────────────── */
   const bindVideoOnce = (v, ApplyReq, storeRef) => { const st = getVState(v); if (st.bound) return; st.bound = true; st._ac = new AbortController(); const opts = { passive: true, signal: combineSignals(st._ac.signal, __globalSig) }; const reset = () => { queueMicrotask(() => { st.audioFailUntil = 0; ApplyReq.hard(); }); }; for (const ev of ['loadstart', 'loadedmetadata', 'emptied']) on(v, ev, reset, opts); on(v, 'ratechange', () => handleExternalRateChange(v, storeRef), opts); on(v, 'resize', () => { __vscNs.Filters?.invalidateCache(v); ApplyReq.hard(); }, opts); };
+
   function batchReadRects(candidates) {
     for (const el of candidates) {
       if (!el.isConnected) continue; const st = getVState(el);
-      if (st.rect && st._rectRev === __vscLayoutRev) continue;
+      if (st.rect && st._rectRev >= __vscLayoutRev - 1) continue;
       if (!st.rect) { st.rect = el.getBoundingClientRect(); st._rectRev = __vscLayoutRev; }
     }
   }
@@ -486,15 +507,25 @@ function VSC_MAIN() {
       if (!el.isConnected) { TOUCHED.videos.delete(el); TOUCHED.rateVideos.delete(el); const st = getVState(el); if (st) st.desiredRate = undefined; continue; }
       bindVideoOnce(el, ApplyReq, storeRef); const st = getVState(el), shouldApply = applySet.has(el) || el === activeTarget || isApplyAll;
       if (!shouldApply) { if (!st.applied && st.desiredRate === undefined) continue; Adapter.clear(el); TOUCHED.videos.delete(el); st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); continue; }
-      const params = getParamsForVideo(el); Adapter.apply(el, params.video, params.shadow); TOUCHED.videos.add(el);
-      if (pbActive) applyPlaybackRate(el, desiredRate); else if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
+      const params = getParamsForVideo(el); Adapter.apply(el, params.video, params.shadow, params._cssFilter); TOUCHED.videos.add(el);
+      if (pbActive) applyPlaybackRate(el, desiredRate, st); else if (st.desiredRate !== undefined) { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
     }
+  }
+
+  function buildCssFilterString(s) {
+    const parts = []; const gamma = s.gamma || 1, brightAdd = s.bright || 0, temp = s.temp || 0;
+    if (temp !== 0) { if (temp > 0) { const hueShift = temp * -0.2; if (Math.abs(hueShift) > 0.1) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); } else { const hueShift = Math.abs(temp) * 0.3; if (hueShift > 0.1) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); } }
+    let satF = s.satF ?? 1; if (temp > 0) satF *= (1.0 + Math.abs(temp) / 350); else if (temp < 0) satF *= Math.max(0.85, 1.0 - Math.abs(temp) / 500); if (Math.abs(satF - 1.0) > 0.005) parts.push(`saturate(${satF.toFixed(3)})`);
+    if (temp > 0) { const sepiaAmount = Math.min(Math.abs(temp) / 200, 0.15); if (sepiaAmount > 0.005) parts.push(`sepia(${sepiaAmount.toFixed(3)})`); }
+    let bf = 1.0; if (Math.abs(brightAdd) > 0.5) bf *= (1.0 + brightAdd / 250); if (Math.abs(gamma - 1.0) > 0.01) bf *= Math.pow(gamma, 0.5); if (Math.abs(bf - 1.0) > 0.001) parts.push(`brightness(${bf.toFixed(4)})`);
+    let cf = s.contrast || 1; if (Math.abs(gamma - 1.0) > 0.01) cf *= (1 + (gamma - 1) * 0.15); if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`);
+    return parts.join(' ');
   }
 
   function computeResolutionSharpMul(video) {
     const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0, dpr = Math.max(1, window.devicePixelRatio || 1);
     if (nW < 16 || dW < 16) return 0.0; const ratio = Math.max((dW * dpr) / nW, (dH * dpr) / Math.max(1, nH)); let mul = 1.0;
-    if (ratio < 0.5) mul = 0.25; else if (ratio < 1.0) mul = 0.25 + (ratio - 0.5) * (0.85 - 0.25) / 0.5; else if (ratio <= 1.5) mul = 1.0; else if (ratio <= 2.5) mul = 1.0 + (ratio - 1.5) * 0.20; else mul = Math.max(0.45, 1.20 - (ratio - 2.5) * 0.20);
+    if (ratio < 0.5) mul = 0.25; else if (ratio < 1.0) mul = 0.25 + (ratio - 0.5) * 1.2; else if (ratio <= 1.5) mul = 1.0; else if (ratio <= 2.5) mul = 1.0 + (ratio - 1.5) * 0.20; else mul = Math.max(0.45, 1.20 - (ratio - 2.5) * 0.20);
     if (nW <= 640 && nH <= 480) mul *= 0.40; else if (nW <= 960) mul *= 0.65;
     if (CONFIG.IS_MOBILE) mul *= VSC_CLAMP(1.05 / dpr, 0.55, 0.85); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0); return VSC_CLAMP(mul, 0.0, 0.85);
   }
@@ -514,7 +545,7 @@ function VSC_MAIN() {
         const finalSigmaScale = (video && dW >= 16) ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920) : 1.0;
 
         const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, contrast: 1.0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale, _refW: Math.max(640, Math.min(3840, dW || 1280)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
-        const shadowLevel = Math.min(VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, 3), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, result = { video: videoOut, shadow: shadowOut };
+        const shadowLevel = Math.min(VSC_CLAMP(vfUser.shadowBandMask || 0, 0, 3) | 0, 3), shadowOut = { level: shadowLevel, active: shadowLevel > 0, factor: 1.0 }, _cssFilter = buildCssFilterString(videoOut), result = { video: videoOut, shadow: shadowOut, _cssFilter };
         if (video && hasValid) _cache.set(video, { key: cacheKey, result }); return result;
       }
     };
@@ -538,24 +569,10 @@ function VSC_MAIN() {
   /* ── Hybrid Filter Engine ────────────────────────────────────── */
   function createFiltersVideoOnly(Utils, config) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
-    const SHADOW_TABLES = {
-      1: '0 0.22 0.40 0.56 0.72 0.87 1',
-      2: '0 0.12 0.28 0.48 0.68 0.85 1',
-      3: '0 0.06 0.18 0.40 0.65 0.84 1'
-    };
-
-    function buildCssFilterString(s) {
-      const parts = []; const gamma = s.gamma || 1, brightAdd = s.bright || 0;
-      const temp = s.temp || 0;
-      if (temp !== 0) { const absT = Math.abs(temp); if (temp > 0) { const sepiaAmount = Math.min(absT / 200, 0.15), hueShift = temp * -0.2; if (sepiaAmount > 0.005) parts.push(`sepia(${sepiaAmount.toFixed(3)})`); if (Math.abs(hueShift) > 0.1) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); } else { const hueShift = absT * 0.3; if (hueShift > 0.1) parts.push(`hue-rotate(${hueShift.toFixed(1)}deg)`); } }
-      let satF = s.satF ?? 1; if (temp > 0) satF *= (1.0 + Math.abs(temp) / 350); else if (temp < 0) satF *= Math.max(0.85, 1.0 - Math.abs(temp) / 500); if (Math.abs(satF - 1.0) > 0.005) parts.push(`saturate(${satF.toFixed(3)})`);
-      let bf = 1.0; if (Math.abs(brightAdd) > 0.5) bf *= (1.0 + brightAdd / 250); if (Math.abs(gamma - 1.0) > 0.01) bf *= Math.pow(gamma, 0.5); if (Math.abs(bf - 1.0) > 0.001) parts.push(`brightness(${bf.toFixed(4)})`);
-      let cf = s.contrast || 1; if (Math.abs(gamma - 1.0) > 0.01) cf *= (1 + (gamma - 1) * 0.15); if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`);
-      return parts.join(' ');
-    }
+    const SHADOW_TABLES = { 1: '0 0.22 0.40 0.56 0.72 0.87 1', 2: '0 0.12 0.28 0.48 0.68 0.85 1', 3: '0 0.06 0.18 0.40 0.65 0.84 1' };
 
     function ensureOpaqueBg(video) {
-      if (!video || __vscBgMemo.has(video) || !config.FLAGS?.FILTER_FORCE_OPAQUE_BG) return;
+      if (!video || __vscBgMemo.has(video) || !FILTER_FORCE_OPAQUE_BG) return;
       try { const cs = getComputedStyle(video).backgroundColor, isTransparent = !cs || cs === 'transparent' || cs.endsWith(', 0)') || cs.endsWith(',0)'); if (isTransparent) { __vscBgMemo.set(video, video.style.backgroundColor || ''); video.style.backgroundColor = '#000'; } else { __vscBgMemo.set(video, null); } } catch (_) {}
     }
     function restoreOpaqueBg(video) { if (!video) return; const prev = __vscBgMemo.get(video); if (prev === undefined) return; __vscBgMemo.delete(video); if (prev !== null) video.style.backgroundColor = prev; }
@@ -595,9 +612,9 @@ function VSC_MAIN() {
 
     return {
       invalidateCache: (video) => { try { const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document); const nodes = ctxMap.get(root); if (nodes) { nodes.st.lastKey = ''; nodes.st.blurKey = ''; nodes.st.sharpKey = ''; nodes.st.shadowKey = ''; } } catch (_) {} },
-      applyCombined: (video, vVals, shadowParams) => {
+      applyCombined: (video, vVals, shadowParams, precomputedCssFilter) => {
         const st = getVState(video); ensureOpaqueBg(video);
-        let finalFilter = buildCssFilterString(vVals);
+        let finalFilter = precomputedCssFilter ?? buildCssFilterString(vVals);
         const svgUrl = getSvgUrl(video, vVals, shadowParams);
         if (svgUrl) { finalFilter = finalFilter ? `${finalFilter} ${svgUrl}` : svgUrl; }
 
@@ -616,7 +633,7 @@ function VSC_MAIN() {
     };
   }
 
-  function createBackendAdapter(Filters) { return { apply(video, vVals, shadowParams) { Filters.applyCombined(video, vVals, shadowParams); }, clear(video) { Filters.clear(video); } }; }
+  function createBackendAdapter(Filters) { return { apply(video, vVals, shadowParams, cssFilter) { Filters.applyCombined(video, vVals, shadowParams, cssFilter); }, clear(video) { Filters.clear(video); } }; }
 
   /* ── Targeting ───────────────────────────────────────────────── */
   function createTargeting() {
@@ -669,11 +686,18 @@ function VSC_MAIN() {
     function bindActGate(btn, extraPaths, applyFn) { return bindReactive(btn, [...(Array.isArray(extraPaths) ? extraPaths : []), P.APP_ACT], (el, ...vals) => { const act = vals[vals.length - 1]; el.style.setProperty('opacity', act ? '1' : '0.45', 'important'); el.style.setProperty('cursor', act ? 'pointer' : 'not-allowed', 'important'); el.disabled = !act; if (applyFn) applyFn(el, ...vals); }); }
     const guardedClick = (fn) => (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; fn(e); };
 
+    const applyBtnState = (el, isActive, isEnabled) => {
+      el.classList.toggle('active', isActive);
+      el.style.setProperty('opacity', isEnabled ? '1' : (isActive ? '0.65' : '0.45'), 'important');
+      el.style.setProperty('cursor', isEnabled ? 'pointer' : 'not-allowed', 'important');
+      el.disabled = !isEnabled;
+    };
+
     function renderButtonRow({ label, items, key, offValue = 0 }) {
       const row = h('div', { class: 'prow' }, h('div', { style: 'font-size:11px !important;width:35px !important;line-height:34px !important;font-weight:bold !important;' }, label));
       const onChange = (val) => { if (!sm.get(P.APP_ACT)) return; const cur = sm.get(key); if (offValue !== null && cur === val && val !== offValue) setAndHint(key, offValue); else setAndHint(key, val); };
-      for (const it of items) { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, it.text); b.onclick = (e) => { e.stopPropagation(); onChange(it.value); }; bindReactive(b, [key, P.APP_ACT], (el, v, act) => { const isActive = v === it.value; el.classList.toggle('active', isActive); el.style.setProperty('opacity', act ? '1' : (isActive ? '0.65' : '0.45'), 'important'); el.style.setProperty('cursor', act ? 'pointer' : 'not-allowed', 'important'); el.disabled = !act; }); row.append(b); }
-      if (offValue != null) { const offBtn = h('button', { class: 'pbtn', style: 'flex:0.9 !important;' }, 'OFF'); offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(key, offValue); }; bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => { const isOff = v === offValue; el.classList.toggle('active', isOff); el.style.setProperty('opacity', act ? '1' : (isOff ? '0.65' : '0.45'), 'important'); el.style.setProperty('cursor', act ? 'pointer' : 'not-allowed', 'important'); el.disabled = !act; }); row.append(offBtn); }
+      for (const it of items) { const b = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, it.text); b.onclick = (e) => { e.stopPropagation(); onChange(it.value); }; bindReactive(b, [key, P.APP_ACT], (el, v, act) => applyBtnState(el, v === it.value, act)); row.append(b); }
+      if (offValue != null) { const offBtn = h('button', { class: 'pbtn', style: 'flex:0.9 !important;' }, 'OFF'); offBtn.onclick = (e) => { e.stopPropagation(); if (!sm.get(P.APP_ACT)) return; setAndHint(key, offValue); }; bindReactive(offBtn, [key, P.APP_ACT], (el, v, act) => applyBtnState(el, v === offValue, act)); row.append(offBtn); }
       return row;
     }
 
@@ -692,10 +716,10 @@ function VSC_MAIN() {
     const getMainPanel = () => container?.shadowRoot?.querySelector('.main');
     function attachShadowStyles(shadowRoot, cssText) { try { if ('adoptedStyleSheets' in shadowRoot && typeof CSSStyleSheet !== 'undefined') { const sheet = new CSSStyleSheet(); sheet.replaceSync(cssText); shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet]; return; } } catch (_) {} const styleEl = document.createElement('style'); styleEl.textContent = cssText; shadowRoot.appendChild(styleEl); }
 
-    const CSS_VARS = `:host{--bg:rgba(18,18,22,.97);--bg-elevated:rgba(35,35,42,.95);--c:#e8e8ec;--c-dim:#888;--b:1px solid rgba(255,255,255,.12);--btn-bg:rgba(255,255,255,.06);--btn-bg-hover:rgba(255,255,255,.12);--ac:#4a9eff;--ac-glow:rgba(74,158,255,.15);--danger:#ff4757;--success:#2ed573;--br:8px;--gap:6px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}`;
-    const PANEL_CSS = `${CSS_VARS}.main{position:fixed!important;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2))!important;right:var(--vsc-safe-right)!important;transform:translateY(-50%)!important;width:min(320px,calc(100vw - 24px))!important;background:var(--bg)!important;backdrop-filter:blur(12px)!important;color:var(--c)!important;padding:15px!important;border-radius:16px!important;z-index:2147483647!important;border:1px solid rgba(255,255,255,.08)!important;font-family:var(--font)!important;box-shadow:0 16px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05)!important;overflow-y:auto!important;max-height:min(95vh,calc(var(--vsc-vv-h,100vh) - 20px))!important;-webkit-overflow-scrolling:touch!important;display:none}.main.visible{display:block!important}@media(max-width:520px){.main{width:calc(100vw - 24px)!important;max-width:300px!important;max-height:min(65vh,calc(var(--vsc-vv-h,100vh) - 20px))!important;padding:10px!important;font-size:12px!important}.main::-webkit-scrollbar{width:3px!important}.main::-webkit-scrollbar-thumb{background:#666!important;border-radius:10px!important}.prow{gap:4px!important}.btn,.pbtn{min-height:38px!important;font-size:11px!important}.tab{padding:8px 0!important;font-size:11px!important}}.btn,.pbtn{border:var(--b)!important;background:var(--btn-bg)!important;color:var(--c)!important;border-radius:var(--br)!important;cursor:pointer!important;font-weight:600!important;font-family:var(--font)!important;transition:background .12s,border-color .12s,color .12s!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:10px 0!important;flex:1!important}.pbtn{padding:10px 6px!important}.btn:hover,.pbtn:hover{background:var(--btn-bg-hover)!important}.btn.active,.pbtn.active{background:var(--ac-glow)!important;border-color:var(--ac)!important;color:var(--ac)!important;box-shadow:0 0 8px rgba(74,158,255,.25)!important}.prow{display:flex!important;gap:var(--gap)!important;align-items:center!important}hr{border:0!important;border-top:1px solid rgba(255,255,255,.14)!important;margin:8px 0!important}`;
+    const CSS_VARS = `:host{--bg:rgba(18,18,22,.97);--bg-elevated:rgba(35,35,42,.95);--c:#e8e8ec;--c-dim:#888;--b:1px solid rgba(255,255,255,.12);--btn-bg:rgba(255,255,255,.06);--btn-bg-hover:rgba(255,255,255,.12);--ac:#4a9eff;--ac-glow:rgba(74,158,255,.15);--danger:#ff4757;--danger-bg:rgba(255,71,87,.1);--success:#2ed573;--success-bg:rgba(46,213,115,.1);--br:8px;--gap:6px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;--vsc-safe-right:max(70px,calc(env(safe-area-inset-right,0px) + 70px))}*,*::before,*::after{box-sizing:border-box}`;
+    const PANEL_CSS = `${CSS_VARS}.main{position:fixed!important;top:calc(var(--vsc-vv-top,0px) + (var(--vsc-vv-h,100vh) / 2))!important;right:var(--vsc-safe-right)!important;transform:translateY(-50%)!important;width:min(320px,calc(100vw - 24px))!important;background:var(--bg)!important;backdrop-filter:blur(12px)!important;color:var(--c)!important;padding:15px!important;border-radius:16px!important;z-index:2147483647!important;border:1px solid rgba(255,255,255,.08)!important;font-family:var(--font)!important;box-shadow:0 16px 64px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.05)!important;overflow-y:auto!important;max-height:min(95vh,calc(var(--vsc-vv-h,100vh) - 20px))!important;-webkit-overflow-scrolling:touch!important;display:none}.main.visible{display:block!important}@media(max-width:520px){.main{width:100vw!important;max-width:100vw!important;max-height:55vh!important;bottom:0!important;top:auto!important;right:0!important;left:0!important;transform:none!important;border-radius:16px 16px 0 0!important;padding:12px 12px 20px!important;font-size:12px!important}.main::-webkit-scrollbar{width:3px!important}.main::-webkit-scrollbar-thumb{background:#666!important;border-radius:10px!important}.prow{gap:4px!important}.btn,.pbtn{min-height:38px!important;font-size:11px!important}.tab{padding:8px 0!important;font-size:11px!important}}.btn,.pbtn{border:var(--b)!important;background:var(--btn-bg)!important;color:var(--c)!important;border-radius:var(--br)!important;cursor:pointer!important;font-weight:600!important;font-family:var(--font)!important;transition:background .12s,border-color .12s,color .12s!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:10px 0!important;flex:1!important}.pbtn{padding:0 6px!important;height:36px!important;min-height:36px!important}.btn:hover,.pbtn:hover{background:var(--btn-bg-hover)!important}.btn.active,.pbtn.active{background:var(--ac-glow)!important;border-color:var(--ac)!important;color:var(--ac)!important;box-shadow:0 0 8px rgba(74,158,255,.25)!important}.prow{display:flex!important;gap:var(--gap)!important;align-items:center!important}hr{border:0!important;border-top:1px solid rgba(255,255,255,.14)!important;margin:8px 0!important}`;
     const TAB_CSS = `${PANEL_CSS}.tabs{display:flex!important;border-bottom:2px solid #444!important;margin:0 -15px!important;padding:0 15px!important}.tab{flex:1!important;padding:10px 0!important;text-align:center!important;font-size:12px!important;font-weight:700!important;cursor:pointer!important;color:var(--c-dim)!important;border-bottom:2px solid transparent!important;margin-bottom:-2px!important;transition:color .15s,border-color .15s!important}.tab.active{color:var(--ac)!important;border-bottom-color:var(--ac)!important}.tab-content{display:none!important;flex-direction:column!important;gap:6px!important;padding-top:12px!important}.tab-content.active{display:flex!important}.header{display:flex!important;align-items:center!important;justify-content:space-between!important;cursor:move!important;padding-bottom:10px!important;border-bottom:none!important;margin-bottom:0!important}.header-title{font-size:14px!important;font-weight:700!important}.header-actions{display:flex!important;gap:6px!important}.header-actions .btn{padding:6px 12px!important;font-size:11px!important;min-width:auto!important}`;
-    const GEAR_CSS = `.gear{--size:46px;position:fixed!important;top:50%!important;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px))!important;transform:translateY(-50%)!important;width:var(--size)!important;height:var(--size)!important;border-radius:50%!important;background:rgba(25,25,25,.92)!important;backdrop-filter:blur(10px)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;font:700 22px/1 sans-serif!important;cursor:pointer!important;pointer-events:auto!important;z-index:2147483647!important;box-shadow:0 12px 44px rgba(0,0,0,.55)!important;user-select:none!important;transition:transform .12s ease,opacity .3s ease!important;opacity:1!important;-webkit-tap-highlight-color:transparent!important}.gear:not(.open){opacity:0.45!important}.gear.open{outline:2px solid rgba(52,152,219,.85)!important;opacity:1!important}.gear.inactive{opacity:.45!important}`;
+    const GEAR_CSS = `.gear{--size:46px;position:fixed!important;top:50%!important;right:max(10px,calc(env(safe-area-inset-right,0px) + 10px))!important;transform:translateY(-50%)!important;width:var(--size)!important;height:var(--size)!important;border-radius:50%!important;background:rgba(25,25,25,.92)!important;backdrop-filter:blur(10px)!important;border:1px solid rgba(255,255,255,.18)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;font:700 22px/1 sans-serif!important;cursor:pointer!important;pointer-events:auto!important;z-index:2147483647!important;box-shadow:0 12px 44px rgba(0,0,0,.55)!important;user-select:none!important;transition:transform .12s ease,opacity .3s ease!important;opacity:1!important;-webkit-tap-highlight-color:transparent!important}.gear:not(.open){opacity:0.45!important}.gear.inactive::after{content:''!important;position:absolute!important;top:4px!important;right:4px!important;width:8px!important;height:8px!important;border-radius:50%!important;background:var(--danger)!important}.gear.open::after{content:''!important;position:absolute!important;top:4px!important;right:4px!important;width:8px!important;height:8px!important;border-radius:50%!important;background:var(--success)!important}@media(pointer:coarse){.gear{--size:52px}}`;
 
     const build = () => {
       if (container) return;
@@ -704,66 +728,29 @@ function VSC_MAIN() {
 
       const pwrBtn = h('button', { class: 'btn' }, 'ON');
       pwrBtn.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT));
-      bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.textContent = v ? 'ON' : 'OFF'; el.style.setProperty('color', v ? 'var(--success)' : 'var(--danger)', 'important'); el.style.setProperty('border-color', v ? 'var(--success)' : 'var(--danger)', 'important'); el.style.setProperty('background', v ? 'rgba(46,213,115,.1)' : 'rgba(255,71,87,.1)', 'important'); });
+      bindReactive(pwrBtn, [P.APP_ACT], (el, v) => { el.textContent = v ? 'ON' : 'OFF'; el.style.setProperty('color', v ? 'var(--success)' : 'var(--danger)', 'important'); el.style.setProperty('border-color', v ? 'var(--success)' : 'var(--danger)', 'important'); el.style.setProperty('background', v ? 'var(--success-bg)' : 'var(--danger-bg)', 'important'); });
 
       const closeBtn = h('button', { class: 'btn', onclick: (e) => { e.stopPropagation(); sm.set(P.APP_UI, false); } }, '✕');
       const resetBtn = h('button', { class: 'btn' }, '↺');
       resetBtn.onclick = guardedClick(() => { sm.batch('video', CONFIG.DEFAULTS.video); sm.batch('audio', CONFIG.DEFAULTS.audio); sm.batch('playback', CONFIG.DEFAULTS.playback); ApplyReq.hard(); showToast('초기화 완료'); });
 
-      const dragHandle = h('div', { class: 'header' }, h('div', { class: 'header-title' }, `VSC ${CONFIG.DEBUG ? 'v' + SCRIPT_VERSION : ''}`.trim()), h('div', { class: 'header-actions' }, pwrBtn, resetBtn, closeBtn));
+      const dragGrip = h('div', { style: 'width:20px !important;display:flex !important;flex-direction:column !important;gap:2px !important;align-items:center !important;justify-content:center !important;opacity:0.3 !important;flex-shrink:0 !important;' }, ...[0,1,2].map(() => h('div', { style: 'width:12px !important;height:2px !important;background:currentColor !important;border-radius:1px !important;' })));
+      const dragHandle = h('div', { class: 'header' }, dragGrip, h('div', { class: 'header-title', style: 'flex:1 !important;' }, `VSC ${CONFIG.DEBUG ? 'v' + SCRIPT_VERSION : ''}`.trim()), h('div', { class: 'header-actions' }, pwrBtn, resetBtn, closeBtn));
 
-      const tabDefs = [{ icon: '🎬', text: '영상' }, { icon: '🔊', text: '소리' }, { icon: '⏩', text: '재생' }]; const tabBtns = [], tabContents = []; let activeTabIdx = 0;
+      const tabDefs = [{ text: 'Video' }, { text: 'Audio' }, { text: 'Play' }]; const tabBtns = [], tabContents = []; let activeTabIdx = 0;
       const switchTab = (idx) => { activeTabIdx = idx; tabBtns.forEach((b, i) => b.classList.toggle('active', i === idx)); tabContents.forEach((c, i) => c.classList.toggle('active', i === idx)); };
-      for (let i = 0; i < tabDefs.length; i++) { const btn = h('div', { class: `tab${i === 0 ? ' active' : ''}` }, `${tabDefs[i].icon} ${tabDefs[i].text}`); btn.onclick = (e) => { e.stopPropagation(); switchTab(i); }; tabBtns.push(btn); }
+      for (let i = 0; i < tabDefs.length; i++) { const btn = h('div', { class: `tab${i === 0 ? ' active' : ''}` }, tabDefs[i].text); btn.onclick = (e) => { e.stopPropagation(); switchTab(i); }; tabBtns.push(btn); }
       const tabBar = h('div', { class: 'tabs' }, ...tabBtns);
+
+      const utilRow = h('div', { class: 'prow' }, (() => { const pipBtn = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '📌 PiP'); pipBtn.onclick = guardedClick(async () => { const v = __vscNs.App?.getActiveVideo(); if (!v) return; try { if (document.pictureInPictureElement === v) await document.exitPictureInPicture(); else if (v.disablePictureInPicture) showToast('PiP 차단됨'); else await v.requestPictureInPicture(); } catch (_) { showToast('PiP 미지원'); } }); bindActGate(pipBtn, []); return pipBtn; })(), (() => { const capBtn = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '📸 캡처'); capBtn.onclick = guardedClick(() => { const v = __vscNs.App?.getActiveVideo(); if (!v || v.readyState < 2) { showToast('로드 대기 중'); return; } try { const canvas = new OffscreenCanvas(v.videoWidth, v.videoHeight); canvas.getContext('2d').drawImage(v, 0, 0); canvas.convertToBlob({ type: 'image/png' }).then(blob => { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `vsc-${Date.now()}.png`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 5000); showToast('캡처 완료'); }).catch(() => showToast('캡처 실패')); } catch (_) { showToast('보안 제한'); } }); bindActGate(capBtn, []); return capBtn; })());
 
       const videoTab = h('div', { class: 'tab-content active' },
         renderButtonRow({ label: '선명', key: P.V_PRE_S, offValue: 'off', items: [{ text: 'Soft', value: 'Soft' }, { text: 'Med', value: 'Medium' }, { text: 'Ultra', value: 'Ultra' }, { text: 'MST', value: 'Master' }] }),
         renderButtonRow({ label: '밝기', key: P.V_BRIGHT_LV, offValue: 0, items: [{ text: '1', value: 1 }, { text: '2', value: 2 }, { text: '3', value: 3 }, { text: '4', value: 4 }, { text: '5', value: 5 }] }),
         renderButtonRow({ label: '블랙', key: P.V_SHADOW_MASK, offValue: 0, items: [{ text: '밝게', value: CONFIG.DARK_BAND.LV1 }, { text: '짙게', value: CONFIG.DARK_BAND.LV2 }, { text: '강하게', value: CONFIG.DARK_BAND.LV3 }] }),
-        renderButtonRow({ label: '색온', key: P.V_TEMP, offValue: 0, items: [{ text: '🛡️ 야간', value: 35 }, { text: '☀️ 따뜻', value: 18 }, { text: '💎 맑음', value: -15 }, { text: '❄️ 냉색', value: -30 }] }),
+        renderButtonRow({ label: '색온', key: P.V_TEMP, offValue: 0, items: [{ text: '야간', value: 35 }, { text: '따뜻', value: 18 }, { text: '맑음', value: -15 }, { text: '냉색', value: -30 }] }),
         (() => { const zoomBtn = h('button', { class: 'btn', style: 'width:100% !important;' }, '🔍 줌 토글'); zoomBtn.onclick = guardedClick(() => { const zm = __vscNs.ZoomManager, v = __vscNs.App?.getActiveVideo(); if (!zm || !v) return; if (zm.isZoomed(v)) { zm.resetZoom(v); setAndHint(P.APP_ZOOM_EN, false); } else { const rect = v.getBoundingClientRect(); zm.zoomTo(v, 1.5, rect.left + rect.width / 2, rect.top + rect.height / 2); setAndHint(P.APP_ZOOM_EN, true); } }); bindActGate(zoomBtn, [P.APP_ZOOM_EN], (el, v) => el.classList.toggle('active', !!v)); return zoomBtn; })(),
-        (() => {
-  const pipBtn = h('button', { class: 'btn', style: 'width:100% !important;' }, '📌 화면 속 화면 (PiP)');
-  pipBtn.onclick = guardedClick(async () => {
-    const v = __vscNs.App?.getActiveVideo();
-    if (!v) return;
-    try {
-      if (document.pictureInPictureElement === v) {
-        await document.exitPictureInPicture();
-      } else if (v.disablePictureInPicture) { // ✅ Issue D: PiP 차단 여부 사전 검사
-        showToast('이 영상은 PiP를 허용하지 않음');
-      } else {
-        await v.requestPictureInPicture();
-      }
-    } catch (e) {
-      showToast('PiP 지원되지 않음');
-    }
-  });
-  bindActGate(pipBtn, []);
-  return pipBtn;
-})(),
-        (() => {
-  const capBtn = h('button', { class: 'btn', style: 'width:100% !important;' }, '📸 스크린샷');
-  capBtn.onclick = guardedClick(() => {
-    const v = __vscNs.App?.getActiveVideo();
-    if (!v || v.readyState < 2) { showToast('영상 로드 대기 중'); return; }
-    try { // ✅ Issue C: try-catch로 SecurityError 방어
-      const canvas = new OffscreenCanvas(v.videoWidth, v.videoHeight);
-      canvas.getContext('2d').drawImage(v, 0, 0);
-      canvas.convertToBlob({ type: 'image/png' }).then(blob => {
-        const url = URL.createObjectURL(blob), a = document.createElement('a');
-        a.href = url; a.download = `vsc-capture-${Date.now()}.png`; a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
-        showToast('캡처 완료');
-      }).catch(() => showToast('캡처 실패')); // ✅ Blob 변환 실패 방어
-    } catch (_) {
-      showToast('캡처 불가 (보안 제한)');
-    }
-  });
-  bindActGate(capBtn, []);
-  return capBtn;
-})()
+        utilRow
       ); tabContents.push(videoTab);
 
       const boostToggle = h('button', { class: 'btn', style: 'width:100% !important;' }, '🔊 Audio Mastering'); boostToggle.onclick = guardedClick(() => { __vscNs.AudioWarmup?.(); setAndHint(P.A_EN, !sm.get(P.A_EN)); }); bindActGate(boostToggle, [P.A_EN], (el, aEn) => { el.classList.toggle('active', !!aEn); el.style.setProperty('color', aEn ? 'var(--ac)' : '#eee', 'important'); });
@@ -782,7 +769,7 @@ function VSC_MAIN() {
       const mainPanel = h('div', { class: 'main' }, dragHandle, tabBar, ...tabContents); shadow.append(mainPanel); if (__vscNs.blockInterference) __vscNs.blockInterference(mainPanel);
 
       let stopDrag = null;
-      const startPanelDrag = (e) => { if (e.target?.tagName === 'BUTTON') return; if (e.cancelable) e.preventDefault(); stopDrag?.(); hasUserDraggedUI = true; let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('transform', 'none', 'important'); mainPanel.style.setProperty('top', `${rect.top}px`, 'important'); mainPanel.style.setProperty('right', 'auto', 'important'); mainPanel.style.setProperty('left', `${rect.left}px`, 'important'); try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(dragHandle, (ev) => { const dx = ev.clientX - startX, dy = ev.clientY - startY, pr = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('left', `${Math.max(0, Math.min(window.innerWidth - pr.width, rect.left + dx))}px`, 'important'); mainPanel.style.setProperty('top', `${Math.max(0, Math.min(window.innerHeight - pr.height, rect.top + dy))}px`, 'important'); }, () => { stopDrag = null; }); };
+      const startPanelDrag = (e) => { if (CONFIG.IS_MOBILE || e.target?.tagName === 'BUTTON') return; if (e.cancelable) e.preventDefault(); stopDrag?.(); hasUserDraggedUI = true; let startX = e.clientX, startY = e.clientY; const rect = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('transform', 'none', 'important'); mainPanel.style.setProperty('top', `${rect.top}px`, 'important'); mainPanel.style.setProperty('right', 'auto', 'important'); mainPanel.style.setProperty('left', `${rect.left}px`, 'important'); try { dragHandle.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(dragHandle, (ev) => { const dx = ev.clientX - startX, dy = ev.clientY - startY, pr = mainPanel.getBoundingClientRect(); mainPanel.style.setProperty('left', `${Math.max(0, Math.min(window.innerWidth - pr.width, rect.left + dx))}px`, 'important'); mainPanel.style.setProperty('top', `${Math.max(0, Math.min(window.innerHeight - pr.height, rect.top + dy))}px`, 'important'); }, () => { stopDrag = null; }); };
       on(dragHandle, 'pointerdown', startPanelDrag); on(dragHandle, 'dblclick', () => { hasUserDraggedUI = false; clampPanelIntoViewport(); });
       container = host; getUiRoot().appendChild(container);
     };
@@ -790,15 +777,7 @@ function VSC_MAIN() {
     const ensureGear = () => {
       if (gearHost) return; gearHost = h('div', { 'data-vsc-ui': '1', style: 'all:initial !important;position:fixed !important;inset:0 !important;pointer-events:none !important;z-index:2147483647 !important;isolation:isolate !important;' }); const shadow = gearHost.attachShadow({ mode: 'open' }); attachShadowStyles(shadow, GEAR_CSS);
       let dragThresholdMet = false, stopDrag = null;
-// ✅ Issue E: innerHTML 대신 h() 헬퍼를 사용한 안전한 SVG 렌더링
-gearBtn = h('button', { class: 'gear' },
-  h('svg', { ns: 'svg', viewBox: '0 0 24 24', width: '22', height: '22', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
-    h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }),
-    h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })
-  )
-);
-shadow.append(gearBtn);
-if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
+      gearBtn = h('button', { class: 'gear' }, h('svg', { ns: 'svg', viewBox: '0 0 24 24', width: '22', height: '22', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' }))); shadow.append(gearBtn); if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
       const wake = () => { if (gearBtn) gearBtn.style.setProperty('opacity', '1', 'important'); clearTimeout(fadeTimer); if (!!document.fullscreenElement || CONFIG.IS_MOBILE) return; fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.setProperty('opacity', '0.45', 'important'); }, 2500); };
       wakeGear = wake; on(window, 'mousemove', wake, { passive: true, signal: uiSig }); on(window, 'touchstart', wake, { passive: true, signal: uiSig }); bootWakeTimer = setTimeout(wake, 2000);
       const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.clientY, rect = gearBtn.getBoundingClientRect(); try { gearBtn.setPointerCapture(e.pointerId); } catch (_) {} stopDrag = bindElementDrag(gearBtn, (ev) => { if (Math.abs(ev.clientY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.setProperty('transition', 'none', 'important'); gearBtn.style.setProperty('transform', 'none', 'important'); gearBtn.style.setProperty('top', `${rect.top}px`, 'important'); } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) gearBtn.style.setProperty('top', `${Math.max(0, Math.min(window.innerHeight - gearBtn.offsetHeight, rect.top + (ev.clientY - startY)))}px`, 'important'); }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); };
@@ -852,20 +831,6 @@ if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
       if (_timerEl && _timerEl.parentNode === parent && _timerEl.isConnected) return parent;
       removeSafe(_timerEl); _timerEl = createTimerEl(); parent.appendChild(_timerEl); _lastLayoutKey = ''; return parent;
     }
-    function verifyAndFixPosition(vRect, pos) {
-      if (!_timerEl) return;
-      const timerRect = _timerEl.getBoundingClientRect(), vWidth = vRect.width, topOffset = vWidth > 1200 ? 16 : 8, expectedTop = vRect.top + topOffset;
-      if (Math.abs(timerRect.top - expectedTop) > 10) {
-        const parent = _timerEl.parentNode;
-        if (parent) {
-          const pRect = parent.getBoundingClientRect(), correctedTop = vRect.top - pRect.top + topOffset, edgeMargin = vWidth > 1200 ? 20 : 10;
-          _timerEl.style.setProperty('top', `${correctedTop}px`, 'important');
-          if (pos === 0) { _timerEl.style.setProperty('left', `${vRect.left - pRect.left + edgeMargin}px`, 'important'); _timerEl.style.setProperty('transform', 'none', 'important'); }
-          else if (pos === 1) { _timerEl.style.setProperty('left', `${vRect.left - pRect.left + vWidth / 2}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-50%)', 'important'); }
-          else { _timerEl.style.setProperty('left', `${vRect.right - pRect.left - edgeMargin}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-100%)', 'important'); }
-        }
-      }
-    }
     function tick() {
       _rafId = 0; if (_destroyed) return;
       const store = __vscNs.Store; if (!store) { scheduleNext(); return; }
@@ -876,15 +841,13 @@ if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
       const parent = ensureTimerAttached(); if (!parent) { scheduleNext(); return; }
       const now = new Date(), curSecond = now.getSeconds(), timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
       _timerEl.style.setProperty('display', 'block', 'important'); if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr; _lastSecond = curSecond;
-      const vRect = activeVideo.getBoundingClientRect(), vWidth = vRect.width, pos = store.get('app.timePos') ?? 1, layoutKey = `${vRect.left | 0},${vRect.top | 0},${vRect.width | 0},${pos}`;
+      const vRect = activeVideo.getBoundingClientRect(), pRect = parent.getBoundingClientRect(), relTop = vRect.top - pRect.top, relLeft = vRect.left - pRect.left, relRight = vRect.right - pRect.left, vWidth = vRect.width, pos = store.get('app.timePos') ?? 1, layoutKey = `${relLeft | 0},${relTop | 0},${vWidth | 0},${pos}`;
       if (_lastLayoutKey !== layoutKey) {
-        _lastLayoutKey = layoutKey; _timerEl.style.setProperty('font-size', `${vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18}px`, 'important');
-        const topOffset = vWidth > 1200 ? 16 : 8, edgeMargin = vWidth > 1200 ? 20 : 10;
-        _timerEl.style.setProperty('top', `${vRect.top + topOffset}px`, 'important'); _timerEl.style.setProperty('bottom', 'auto', 'important'); _timerEl.style.setProperty('right', 'auto', 'important');
-        if (pos === 0) { _timerEl.style.setProperty('left', `${vRect.left + edgeMargin}px`, 'important'); _timerEl.style.setProperty('transform', 'none', 'important'); }
-        else if (pos === 1) { _timerEl.style.setProperty('left', `${vRect.left + vWidth / 2}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-50%)', 'important'); }
-        else { _timerEl.style.setProperty('left', `${vRect.right - edgeMargin}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-100%)', 'important'); }
-        requestAnimationFrame(() => { if (!_destroyed && _timerEl?.isConnected) verifyAndFixPosition(activeVideo.getBoundingClientRect(), pos); });
+        _lastLayoutKey = layoutKey; const fontSize = vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18, topOffset = vWidth > 1200 ? 16 : 8, edgeMargin = vWidth > 1200 ? 20 : 10;
+        _timerEl.style.setProperty('font-size', `${fontSize}px`, 'important'); _timerEl.style.setProperty('top', `${relTop + topOffset}px`, 'important'); _timerEl.style.setProperty('bottom', 'auto', 'important'); _timerEl.style.setProperty('right', 'auto', 'important');
+        if (pos === 0) { _timerEl.style.setProperty('left', `${relLeft + edgeMargin}px`, 'important'); _timerEl.style.setProperty('transform', 'none', 'important'); }
+        else if (pos === 1) { _timerEl.style.setProperty('left', `${relLeft + vWidth / 2}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-50%)', 'important'); }
+        else { _timerEl.style.setProperty('left', `${relRight - edgeMargin}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-100%)', 'important'); }
       }
       scheduleNext();
     }
@@ -950,8 +913,8 @@ if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
 
         const now = performance.now(), pruneInterval = Registry.videos.size > 20 ? 1500 : (Registry.videos.size > 5 ? 3000 : 5000);
         if (vidsDirty.size > 40 || (now - lastPrune > pruneInterval)) {
-          if (typeof postIdleTask === 'function') postIdleTask(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); });
-          else { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); }
+          if (typeof globalThis.scheduler?.postTask === 'function') globalThis.scheduler.postTask(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); }, { priority: 'background' }).catch(() => {});
+          else setTimeout(() => { Registry.prune(); Features.get('zoom')?.pruneDisconnected?.(); }, 0);
           lastPrune = now;
         }
         Features.updateAll({ active, force, vidsDirty, pbActive, target: __activeTarget, isApplyAll: !!Store.get(P.APP_APPLY_ALL), desiredRate: Store.get(P.PB_RATE) });
@@ -986,7 +949,7 @@ if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
       }
     } catch (_) {}
 
-    const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, FLAGS: CONFIG.FLAGS }), Adapter = createBackendAdapter(Filters);
+    const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID }); const Adapter = createBackendAdapter(Filters);
     __vscNs.Adapter = Adapter; __vscNs.Filters = Filters;
 
     const videoParamsMemo = createVideoParamsMemo(), Features = createFeatureRegistry(Bus);
@@ -1019,7 +982,3 @@ if (__vscNs.blockInterference) __vscNs.blockInterference(gearBtn);
 
 VSC_MAIN();
 })();
-
-=======
-
-최종 점검
