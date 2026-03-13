@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.8
+// @version      5.10.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -32,6 +32,7 @@
         SPIKE_THRESHOLD_MS: 2000,
         SPIKE_COOLDOWN_MS: 1000,
         STALL_THRESHOLD: 3,
+        STALL_RECOVER_COUNT: 15,
         FRAME_CHECK_EVERY: 50,
         WARMUP_MS: 1500,
         WARMUP_MIN_BUFFER_SEC: 1.0,
@@ -793,8 +794,20 @@
         const delayMs = rawDelay + PLATFORM_OFFSET;
 
         const ct = video.currentTime;
-        if (Math.abs(ct - lastCurrentTime) < 0.001 && !video.paused) stallCount++;
-        else stallCount = 0;
+        if (Math.abs(ct - lastCurrentTime) < 0.001 && !video.paused) {
+            stallCount++;
+            if (stallCount >= TUNING.STALL_RECOVER_COUNT && isEnabled) {
+    const stallEdge = getBufferEdge(video.buffered);
+    if (stallEdge) {
+        video.currentTime = Math.max(stallEdge.start, stallEdge.end - targetDelayMs / 1000);
+        if (debugVisible) dmLog(`스톨 복구: ${stallCount}틱 정체 → bufEnd - target`);
+        flashSeekIndicator();
+    }
+    stallCount = 0;
+}
+        } else {
+            stallCount = 0;
+        }
         lastCurrentTime = ct;
         if (wasPaused && !video.paused) { wasPaused = false; lastSetRate = -1; }
         wasPaused = video.paused;
