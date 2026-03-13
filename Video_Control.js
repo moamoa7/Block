@@ -452,14 +452,14 @@ function VSC_MAIN() {
   function createFiltersVideoOnly(Utils, config) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = {
-  // 1단: 미세 암부 — 살짝 단단하게
-  1: '0 0.17 0.32 0.51 0.69 0.85 1',
+  // 1: 블랙 -2 (강한 복원 - 숫자가 가장 큼)
+  1: '0 0.23 0.38 0.55 0.72 0.88 1',
 
-  // 2단: 중간 암부 — 회색기 제거
-  2: '0 0.11 0.26 0.46 0.65 0.83 1',
+  // 2: 블랙 -1 (약한 복원 - 중간 숫자)
+  2: '0 0.20 0.35 0.53 0.70 0.86 1',
 
-  // 3단: 강한 암부 — 블랙을 확실히 잡음
-  3: '0 0.06 0.20 0.41 0.61 0.81 1'
+  // 3: 블랙 +1 (표준 블랙 - 사용자님 추천 '회색기 제거' 수치)
+  3: '0 0.17 0.32 0.51 0.69 0.85 1'
 };
 
     function buildCssFilterString(s) {
