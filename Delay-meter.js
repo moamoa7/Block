@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.4
+// @version      5.9.5
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -192,6 +192,7 @@
     let stallCount = 0;
     let wasPaused = false;
     let collapsed = false;
+    let minimized = false;
     let skipReason = '';
     let rateProtectTimer = null;
     let stableTickCount = 0;
@@ -199,6 +200,7 @@
     let debugVisible = false;
     let _cachedDropInfo = '';
     let hiddenAt = 0;
+    let lastDotColor = '#555';
     let els = {};
 
     /* ── rVFC 확장: FPS 추정 ── */
@@ -695,8 +697,26 @@
         return parts.join('');
     }
 
+    /* ── 최소화 dot 갱신 ── */
+    function updateDot(avgMs) {
+        if (!minimized || !els.dot) return;
+        const color = !isEnabled ? '#555' : computeColor(avgMs - targetDelayMs);
+        if (color !== lastDotColor) {
+            lastDotColor = color;
+            els.dot.style.background = color;
+            els.dot.style.boxShadow = isEnabled ? `0 0 6px ${color}` : 'none';
+        }
+        els.dot.classList.toggle('dm-dot-off', !isEnabled);
+    }
+
     /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1, now = performance.now()) {
+        /* 최소화 모드 → dot만 갱신 */
+        if (minimized) {
+            updateDot(avgMs);
+            return;
+        }
+
         /* 경고 펄스 */
         setDisplay('warn', avgMs > targetDelayMs * 2 && isEnabled);
 
@@ -803,6 +823,28 @@
         setRate(1.0);
         flashSeekIndicator();
         return true;
+    }
+
+    /* ── 최소화 토글 ── */
+    function toggleMinimize() {
+        minimized = !minimized;
+        saveConfig({ minimized });
+        applyMinimize();
+    }
+
+    function applyMinimize() {
+        if (!els.panel || !els.dot) return;
+        if (minimized) {
+            els.panel.style.display = 'none';
+            els.dot.style.display = '';
+            lastDotColor = '';
+        } else {
+            els.panel.style.display = '';
+            els.dot.style.display = 'none';
+            for (const key in displayState) {
+                if (key[0] !== '_') dirtyChannels.add(key);
+            }
+        }
     }
 
     /* ── 핵심 루프 ── */
@@ -998,15 +1040,34 @@
                     50%{border-color:rgba(231,76,60,.8)}
                 }
                 #dm-panel.dm-warning{animation:dm-pulse 1s ease-in-out infinite}
+                #dm-dot{position:fixed;bottom:20px;right:20px;z-index:10000;
+                    width:14px;height:14px;border-radius:50%;cursor:pointer;
+                    background:#555;transition:background .3s,box-shadow .3s;
+                    display:none}
+                @keyframes dm-dot-pulse{
+                    0%,100%{transform:scale(1);opacity:.9}
+                    50%{transform:scale(1.3);opacity:1}
+                }
+                #dm-dot:not(.dm-dot-off){animation:dm-dot-pulse 2s ease-in-out infinite}
+                #dm-dot.dm-dot-off{opacity:.5}
             }
         `);
 
+        /* ── dot (최소화 상태) ── */
+        const dot = document.createElement('div');
+        dot.id = 'dm-dot';
+        dot.title = '클릭: 패널 열기 | Alt+H: 토글';
+        dot.onclick = () => toggleMinimize();
+        document.body.appendChild(dot);
+
+        /* ── panel ── */
         const panel = document.createElement('div');
         panel.id = 'dm-panel';
         panel.innerHTML = `
             <div data-dm="header">딜레이 미터기 <span data-dm="ver" style="font-weight:normal;font-size:10px;opacity:.5;display:none">v${GM_info.script.version}</span>
                 <span data-dm="mini" style="font-size:12px;font-family:ui-monospace,monospace;font-weight:normal"></span>
-                <span data-dm="collapse" style="margin-left:auto;cursor:pointer;font-size:10px">▼</span>
+                <span data-dm="minimize" style="margin-left:auto;cursor:pointer;font-size:10px;opacity:.5" title="최소화 (Alt+H)">─</span>
+                <span data-dm="collapse" style="cursor:pointer;font-size:10px" title="접기/펼치기 (Alt+C)">▼</span>
                 <div data-dm="minibar" class="dm-minibar"></div>
             </div>
             <div class="dm-body">
@@ -1035,16 +1096,20 @@
         for (const el of panel.querySelectorAll('[data-dm]')) map[el.dataset.dm] = el;
         els = {
             panel: panel,
+            dot: dot,
             delayVal: map.delay, rateVal: map.rate, barFill: map.bar,
             rateBar: map.ratebar, targetMark: map.targetmark, seekMark: map.seekmark,
             maxMark: map.maxmark,
             toggleBtn: map.toggle, syncBtn: map.sync, targetIn: map.target,
             header: map.header, debugVal: map.debug, mini: map.mini,
-            ver: map.ver, collapseBtn: map.collapse, miniBar: map.minibar,
+            ver: map.ver, minimizeBtn: map.minimize, collapseBtn: map.collapse, miniBar: map.minibar,
         };
         els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
 
         initDisplayApply();
+
+        /* ── 최소화 버튼 ── */
+        els.minimizeBtn.onclick = e => { e.stopPropagation(); toggleMinimize(); };
 
         /* ── 딜레이 값 클릭 SYNC ── */
         els.delayVal.onclick = () => {
@@ -1089,7 +1154,7 @@
         });
 
         /* ── 헤더 단축키 tooltip ── */
-        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 Alt+G:디버그 Alt+I:스냅샷';
+        els.header.title = 'Alt+D:토글 Alt+H:최소화 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 Alt+G:디버그 Alt+I:스냅샷';
 
         /* ── ON/OFF ── */
         updateToggleBtnUI();
@@ -1166,8 +1231,13 @@
         graphCtx = graphCanvas.getContext('2d');
         if (debugVisible) graphCanvas.style.display = '';
 
+        /* ── 최소화 상태 복원 ── */
+        minimized = loadConfig().minimized ?? false;
+        applyMinimize();
+
         /* ── 드래그 ── */
         makeDraggable(panel);
+        makeDotDraggable(dot);
     }
 
     function makeDraggable(panel) {
@@ -1212,6 +1282,51 @@
         }
     }
 
+    function makeDotDraggable(dot) {
+        let ox = 0, oy = 0, dragging = false, moved = false;
+
+        dot.addEventListener('pointerdown', e => {
+            if (e.button !== 0) return;
+            dragging = true;
+            moved = false;
+            dot.setPointerCapture(e.pointerId);
+            const r = dot.getBoundingClientRect();
+            ox = e.clientX - r.left;
+            oy = e.clientY - r.top;
+        });
+
+        dot.addEventListener('pointermove', e => {
+            if (!dragging) return;
+            moved = true;
+            dot.style.left = clamp(e.clientX - ox, 0, innerWidth - 14) + 'px';
+            dot.style.top = clamp(e.clientY - oy, 0, innerHeight - 14) + 'px';
+            dot.style.right = 'auto';
+            dot.style.bottom = 'auto';
+        });
+
+        dot.addEventListener('pointerup', () => {
+            if (!dragging) return;
+            dragging = false;
+            if (moved) {
+                saveConfig({ dotX: dot.style.left, dotY: dot.style.top });
+            }
+        });
+
+        dot.addEventListener('click', e => {
+            if (moved) { e.stopImmediatePropagation(); moved = false; }
+        }, true);
+
+        const s = loadConfig();
+        if (s.dotX != null) {
+            const x = parseFloat(s.dotX), y = parseFloat(s.dotY);
+            if (x >= 0 && x < innerWidth - 14 && y >= 0 && y < innerHeight - 14) {
+                Object.assign(dot.style, {
+                    left: s.dotX, top: s.dotY, right: 'auto', bottom: 'auto'
+                });
+            }
+        }
+    }
+
     function clampPanelPosition() {
         if (!els.panel || !els.panel.style.left) return;
         const panel = els.panel;
@@ -1229,6 +1344,7 @@
     /* 단축키 */
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
+        ['KeyH',      () => toggleMinimize()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
         ['ArrowDown', () => applyTargetDelay(targetDelayMs / 1000 + 0.5)],
         ['KeyT',      () => { if (els.targetIn) { els.targetIn.focus(); els.targetIn.select(); } }],
