@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.8.0
+// @version      5.9.0
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -200,6 +200,7 @@
 
     /* ── 웜업 상태 ── */
     let warmupStartTime = 0;
+    let warmupEnd = 0;
     let warmupDone = false;
 
     /* ── seek AbortController ── */
@@ -228,6 +229,15 @@
             if (i < 0 || i >= this.len) return 0;
             return this.buf[((this.idx - this.len + i) % this.cap + this.cap) % this.cap];
         }
+        copyTo(out) {
+            const n = this.len;
+            let pos = ((this.idx - n) % this.cap + this.cap) % this.cap;
+            for (let i = 0; i < n; i++) {
+                out[i] = this.buf[pos];
+                if (++pos >= this.cap) pos = 0;
+            }
+            return n;
+        }
         get length() { return this.len; }
         get last() { return this.len ? this.buf[(this.idx - 1 + this.cap) % this.cap] : 0; }
         clear() { this.len = 0; this.idx = 0; }
@@ -235,12 +245,13 @@
 
     let delayHistory = new RingBuffer(TUNING.HISTORY_SIZE);
     let graphHistory = null;
+    const _graphBuf = new Uint16Array(60);
 
     /* ── 웜업 판별 ── */
     function isWarmedUp() {
         if (warmupDone) return true;
         const now = performance.now();
-        if (now - warmupStartTime < TUNING.WARMUP_MS) return false;
+        if (now < warmupEnd) return false;
         if (!video || video.readyState < TUNING.WARMUP_MIN_READY_STATE) return false;
         const edge = getBufferEdge(video.buffered);
         if (!edge) return false;
@@ -347,6 +358,8 @@
         lastRateStr = '1.000x';
         stableTickCount = 0;
         stableEntryTime = 0;
+        clearTimeout(rateProtectTimer);
+        rateProtectTimer = null;
     }
 
     /* ── 외부 배속 변경 감지 ── */
@@ -377,7 +390,7 @@
 
     /* ── 프레임 드롭 ── */
     function checkFrameDrops() {
-        if (!hasPlaybackQuality) return;
+        if (!hasPlaybackQuality || !video) return;
         const q = video.getVideoPlaybackQuality();
         const droppedDelta = q.droppedVideoFrames - lastDroppedFrames;
         const totalDelta = q.totalVideoFrames - lastTotalFrames;
@@ -419,6 +432,7 @@
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
+        warmupEnd = warmupStartTime + TUNING.WARMUP_MS;
     }
 
     /* ── 디버그 표시 토글 ── */
@@ -617,7 +631,7 @@
 
     function drawGraph() {
         if (!graphCanvas || !graphCtx || !graphHistory) return;
-        const n = graphHistory.length;
+        const n = graphHistory.copyTo(_graphBuf);
         if (n < 2) return;
 
         const w = graphCanvas.width, h = graphCanvas.height;
@@ -639,7 +653,7 @@
         const xScale = w / (graphHistory.cap - 1);
         for (let i = 0; i < n; i++) {
             const x = i * xScale;
-            const y = h - clamp(graphHistory.at(i) / 8000, 0, 1) * h;
+            const y = h - clamp(_graphBuf[i] / 8000, 0, 1) * h;
             i === 0 ? graphCtx.moveTo(x, y) : graphCtx.lineTo(x, y);
         }
         graphCtx.stroke();
@@ -920,7 +934,7 @@
                     border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:8px;
                     cursor:grab;display:flex;align-items:center;gap:6px}
                 .dm-row{display:flex;justify-content:space-between;align-items:center;margin:6px 0}
-                .dm-val{font-weight:bold;font-family:ui-monospace,monospace;font-size:15px}
+                .dm-val{font-weight:bold;font-family:ui-monospace,monospace;font-size:15px;font-variant-numeric:tabular-nums}
                 .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
                     border-radius:3px;margin:4px 0 8px;overflow:visible}
                 .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
@@ -1035,7 +1049,7 @@
         });
 
         /* ── 헤더 단축키 tooltip ── */
-        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 Alt+G:디버그';
+        els.header.title = 'Alt+D:토글 Alt+↑↓:목표 Alt+T:목표입력 Alt+R:리셋 Alt+C:접기 Alt+S:싱크 Alt+P:위치초기화 Alt+G:디버그 Alt+I:스냅샷';
 
         /* ── ON/OFF ── */
         updateToggleBtnUI();
@@ -1172,7 +1186,7 @@
         }
     }
 
-    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+T 목표입력, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화, Alt+G 디버그 */
+    /* Alt+D 토글, Alt+↑↓ 목표 조절, Alt+T 목표입력, Alt+R 리셋, Alt+C 접기, Alt+S 싱크, Alt+P 위치초기화, Alt+G 디버그, Alt+I 스냅샷 */
     const SHORTCUTS = new Map([
         ['KeyD',      () => els.toggleBtn?.click()],
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
@@ -1187,6 +1201,19 @@
             saveConfig({ panelX: null, panelY: null });
         }],
         ['KeyG',      () => { debugVisible = !debugVisible; applyDebug(); saveConfig({ debugVisible }); }],
+        ['KeyI',      () => {
+            if (!video) return;
+            const edge = getBufferEdge(video.buffered);
+            console.table({
+                delay: getStableAverage().toFixed(0) + 'ms',
+                rate: currentSmoothedRate.toFixed(3),
+                target: targetDelayMs,
+                maxRate: dynamicMaxRate.toFixed(3),
+                stable: stableTickCount,
+                warmup: warmupDone,
+                buf: edge ? edge.end.toFixed(2) : '-',
+            });
+        }],
     ]);
 
     function init() {
@@ -1223,6 +1250,8 @@
 
         document.addEventListener('visibilitychange', () => {
             nextTickTime = 0;
+            tickGeneration++;
+            clearTimeout(intervalId);
             if (document.visibilityState === 'visible') {
                 const needSeek = isEnabled && video?.isConnected && video.buffered.length > 0;
                 let seekEdge = null;
@@ -1234,8 +1263,6 @@
                 }
 
                 resetState();
-                tickGeneration++;
-                clearTimeout(intervalId);
 
                 if (seekEdge) {
                     const delay = (seekEdge.end - video.currentTime) * 1000;
