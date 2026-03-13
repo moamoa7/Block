@@ -452,7 +452,6 @@ function VSC_MAIN() {
   function createFiltersVideoOnly(Utils, config) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = {
-
   // 1: 블랙 -2 (강한 복원 - 숫자가 가장 큼)
   1: '0 0.19 0.34 0.51 0.68 0.85 1',
   // 2: 블랙 -1 (약한 복원 - 중간 숫자)
