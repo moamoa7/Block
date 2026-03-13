@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.3
+// @version      5.9.4
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -36,6 +36,7 @@
         WARMUP_MS: 1500,
         WARMUP_MIN_BUFFER_SEC: 1.0,
         WARMUP_MIN_READY_STATE: 3,
+        RATE_PROTECT_MS: 300,
     };
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
@@ -50,7 +51,7 @@
     const DASH_OFF = [];
     const SI_WARMUP = ' ⏳', SI_STOP = ' ⏹', SI_OK = ' ✓', SI_FLAT = ' →', SI_UP = ' ↑', SI_DOWN = ' ↓';
 
-    /* ── seek 임계값: 고정 5초 (안정성 확보) ── */
+    /* ── seek 임계값: 최소 5초 보장 ── */
     function calcSeekThreshold(target) {
         return Math.max(5000, target * 2.5);
     }
@@ -168,7 +169,6 @@
     let lastVideoSrc = '';
     let lastVideoIsBlob = false;
     let intervalId = null;
-    let isSettingRate = false;
     let lastSetRateTime = 0;
     let currentSmoothedRate = 1.0;
     let dynamicMaxRate = TUNING.MAX_RATE;
@@ -348,15 +348,12 @@
         const rounded = Math.round(rate * 1000) / 1000;
         if (rounded === lastSetRate) return;
         try {
-            isSettingRate = true;
             lastSetRateTime = performance.now();
             video.playbackRate = rounded;
             lastSetRate = rounded;
             lastRateStr = rounded.toFixed(3) + 'x';
         } catch {
             lastSetRate = -1;
-        } finally {
-            isSettingRate = false;
         }
     }
 
@@ -380,7 +377,7 @@
 
     /* ── 외부 배속 변경 감지 ── */
     function onExternalRateChange() {
-        if (isSettingRate || performance.now() - lastSetRateTime < 100) return;
+        if (performance.now() - lastSetRateTime < TUNING.RATE_PROTECT_MS) return;
         if (!video) return;
         const ext = video.playbackRate;
         if (Math.abs(ext - lastSetRate) < 0.002) return;
@@ -391,11 +388,6 @@
             rateProtectTimer = setTimeout(() => {
                 if (video !== vid || !isEnabled) return;
                 lastSetRate = -1;
-                const avg = getStableAverage();
-                if (avg > 0) {
-                    currentSmoothedRate = computeDesiredRate(avg);
-                    setRate(currentSmoothedRate);
-                }
             }, 200);
         } else {
             currentSmoothedRate = 1.0;
@@ -860,7 +852,6 @@
             && now - lastSpikeTime >= TUNING.SPIKE_COOLDOWN_MS) {
             if (debugVisible) skipReason = 'SPIKE';
             lastSpikeTime = now;
-            softReset();
             updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
             return;
         }
