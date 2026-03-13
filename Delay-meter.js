@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (공격적 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.9.1
+// @version      5.9.2
 // @description  최소 딜레이를 유지하기 위해 공격적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -92,7 +92,7 @@
     }
 
     function pct(value, max) {
-        return clamp(Math.round(value / max * 100), 0, 100) + '%';
+        return (value <= 0 ? 0 : value >= max ? 100 : (value / max * 100 + 0.5) | 0) + '%';
     }
 
     function lerpRGB(a, b, t) {
@@ -113,10 +113,10 @@
             if (rounded === lastInput) return lastResult;
             lastInput = rounded;
             const ratio = clamp(diff / 2000, 0, 1);
-            if (ratio >= 1) return (lastResult = '#e74c3c');
-            return (lastResult = ratio <= 0.5
+            lastResult = ratio <= 0.5
                 ? lerpRGB(G, Y, ratio * 2)
-                : lerpRGB(Y, R, (ratio - 0.5) * 2));
+                : lerpRGB(Y, R, (ratio - 0.5) * 2);
+            return lastResult;
         };
     })();
 
@@ -153,7 +153,7 @@
     function isLiveStream(v) {
         const d = v.duration;
         if (d === Infinity || d >= 1e6) return true;
-        if (!d) return v.buffered.length > 0;
+        if (!Number.isFinite(d) || d === 0) return v.buffered.length > 0;
         if (!v.buffered.length) return false;
         const bufEnd = v.buffered.end(v.buffered.length - 1);
         return d - bufEnd >= 1 && bufEnd > v.currentTime + 1;
@@ -165,6 +165,7 @@
     /* ── 상태 ── */
     let video = null;
     let lastVideoSrc = '';
+    let lastVideoIsBlob = false;
     let intervalId = null;
     let isSettingRate = false;
     let lastSetRateTime = 0;
@@ -196,6 +197,7 @@
     let stableEntryTime = 0;
     let debugVisible = false;
     let _cachedDropInfo = '';
+    let hiddenAt = 0;
     let els = {};
 
     /* ── 웜업 상태 ── */
@@ -372,14 +374,14 @@
         if (isEnabled) {
             if (debugVisible) dmLog(`외부 배속 변경 감지: ${ext}, 복원 대기`);
             clearTimeout(rateProtectTimer);
+            const vid = video;
             rateProtectTimer = setTimeout(() => {
-                if (!video || !isEnabled) return;
+                if (video !== vid || !isEnabled) return;
                 lastSetRate = -1;
                 const avg = getStableAverage();
                 if (avg > 0) {
-                    const desired = computeDesiredRate(avg);
-                    currentSmoothedRate = desired;
-                    setRate(desired);
+                    currentSmoothedRate = computeDesiredRate(avg);
+                    setRate(currentSmoothedRate);
                 }
             }, 200);
         } else {
@@ -457,6 +459,7 @@
         }
         video = v;
         lastVideoSrc = src;
+        lastVideoIsBlob = true;
         resetState();
         startFrameCallback(video);
         const q = v.getVideoPlaybackQuality?.();
@@ -479,6 +482,7 @@
                     if (newSrc !== lastVideoSrc && isBlobSrc(v)) {
                         if (debugVisible) dmLog(`src 변경 감지: ${newSrc.slice(0, 40)}...`);
                         lastVideoSrc = newSrc;
+                        lastVideoIsBlob = true;
                         resetState();
                         startFrameCallback(v);
                     }
@@ -520,40 +524,30 @@
 
     /* ── seekToTarget ── */
     function seekToTarget(bufStart, bufEnd) {
-        if (seekAc) {
-            seekAc.abort();
-            seekAc = null;
-        }
-        if (seekTimeout) {
-            clearTimeout(seekTimeout);
-            seekTimeout = null;
-        }
-        seekAc = new AbortController();
-        const ac = seekAc;
-
+        if (seekAc) seekAc.abort();
+        if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
+        const ac = seekAc = new AbortController();
+        const sig = ac.signal;
+        const vid = video;
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
-        video.currentTime = seekTo;
-
-        seekTimeout = setTimeout(() => {
-            seekTimeout = null;
-            if (!ac.signal.aborted) ac.abort();
-        }, 5000);
-
-        video.addEventListener('seeked', () => {
-            if (seekTimeout !== null) { clearTimeout(seekTimeout); seekTimeout = null; }
-            if (ac.signal.aborted || !video) return;
-            if (Math.abs(video.currentTime - seekTo) > 2) return;
-            const postCheck = setTimeout(() => {
-                if (!video?.isConnected) return;
-                const edge = getBufferEdge(video.buffered);
+        vid.currentTime = seekTo;
+        seekTimeout = setTimeout(() => { seekTimeout = null; ac.abort(); }, 5000);
+        sig.addEventListener('abort', () => {
+            if (seekTimeout) { clearTimeout(seekTimeout); seekTimeout = null; }
+        }, { once: true });
+        vid.addEventListener('seeked', () => {
+            ac.abort();
+            if (vid !== video || !vid.isConnected) return;
+            if (Math.abs(vid.currentTime - seekTo) > 2) return;
+            setTimeout(() => {
+                if (vid !== video || !vid.isConnected) return;
+                const edge = getBufferEdge(vid.buffered);
                 if (!edge) return;
-                const postDelay = (edge.end - video.currentTime) * 1000;
-                if (postDelay > targetDelayMs * 1.5) {
-                    video.currentTime = Math.max(edge.start, edge.end - targetDelayMs / 1000);
+                if ((edge.end - vid.currentTime) * 1000 > targetDelayMs * 1.5) {
+                    vid.currentTime = Math.max(edge.start, edge.end - targetDelayMs / 1000);
                 }
             }, 50);
-            ac.signal.addEventListener('abort', () => clearTimeout(postCheck), { once: true });
-        }, { once: true, signal: ac.signal });
+        }, { once: true, signal: sig });
     }
 
     /* ── 상태 표시 ── */
@@ -589,15 +583,15 @@
         displayApply.r     = v => { els.rateVal.textContent = v; };
         displayApply.c     = v => { els.delayVal.style.color = v; els.barFill.style.background = v; };
         displayApply.w     = v => { els.barFill.style.width = v; };
-        displayApply.rb    = v => { if (els.rateBar) els.rateBar.style.width = v; };
-        displayApply.rbc   = v => { if (els.rateBar) els.rateBar.style.background = v; };
-        displayApply.rc    = v => { if (els.rateVal) els.rateVal.style.color = v || ''; };
-        displayApply.mini  = v => { if (els.mini) els.mini.textContent = v; };
-        displayApply.mc    = v => { if (els.mini) els.mini.style.color = v || ''; };
-        displayApply.mb    = v => { if (els.miniBar) els.miniBar.style.background = v; };
-        displayApply.mbd   = v => { if (els.miniBar) els.miniBar.style.display = v; };
-        displayApply.dbg   = v => { if (els.debugVal) els.debugVal.textContent = v; };
-        displayApply.title = v => { if (els.panel) els.panel.title = v; };
+        displayApply.rb    = v => { els.rateBar.style.width = v; };
+        displayApply.rbc   = v => { els.rateBar.style.background = v; };
+        displayApply.rc    = v => { els.rateVal.style.color = v || ''; };
+        displayApply.mini  = v => { els.mini.textContent = v; };
+        displayApply.mc    = v => { els.mini.style.color = v || ''; };
+        displayApply.mb    = v => { els.miniBar.style.background = v; };
+        displayApply.mbd   = v => { els.miniBar.style.display = v; };
+        displayApply.dbg   = v => { els.debugVal.textContent = v; };
+        displayApply.title = v => { els.panel.title = v; };
     }
 
     function setDisplay(key, val) {
@@ -663,23 +657,33 @@
     /* ── 디버그 문자열 ── */
     function buildDebugString(bufEnd) {
         if (!video) return 'video 탐색 중...';
-        const bEnd = bufEnd >= 0 ? bufEnd.toFixed(2) : '-';
-        const skip = skipReason ? ` [${skipReason}]` : '';
-        const wu = warmupDone ? '' : ' [WARMUP]';
+        const parts = [
+            video.paused ? '⏸' : '▶',
+            ' ct:', video.currentTime.toFixed(2),
+            ' buf:', bufEnd >= 0 ? bufEnd.toFixed(2) : '-',
+            ' sr:', currentSmoothedRate.toFixed(3),
+            ' mx:', dynamicMaxRate.toFixed(2),
+            ' sk:', (seekThresholdMs / 1000).toFixed(1),
+            ' st:', stableTickCount
+        ];
+        if (stableEntryTime > 0) parts.push(' stab:', ((performance.now() - stableEntryTime) / 1000).toFixed(1));
         const n = delayHistory.length;
-        let range = '';
         if (n >= 2) {
-            let lo = Infinity, hi = -Infinity;
+            const buf = delayHistory.buf, cap = delayHistory.cap;
+            let pos = ((delayHistory.idx - n) % cap + cap) % cap, lo = Infinity, hi = -Infinity;
             for (let i = 0; i < n; i++) {
-                const v = delayHistory.at(i);
-                if (v < lo) lo = v;
-                if (v > hi) hi = v;
+                const v = buf[pos]; if (v < lo) lo = v; if (v > hi) hi = v;
+                if (++pos >= cap) pos = 0;
             }
-            range = ` r:${(lo / 1000).toFixed(1)}-${(hi / 1000).toFixed(1)}`;
+            parts.push(' r:', (lo / 1000).toFixed(1), '-', (hi / 1000).toFixed(1));
         }
-        const stab = stableEntryTime > 0 ? ` stab:${((performance.now() - stableEntryTime) / 1000).toFixed(1)}` : '';
-        const eta = (currentSmoothedRate > 1.001 && prevAvg > targetDelayMs) ? ` eta:${((prevAvg - targetDelayMs) / ((currentSmoothedRate - 1) * 1000)).toFixed(0)}` : '';
-        return `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bEnd} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount}${stab}${range}${_cachedDropInfo}${eta}${skip}${wu}`;
+        if (_cachedDropInfo) parts.push(_cachedDropInfo);
+        if (currentSmoothedRate > 1.001 && prevAvg > targetDelayMs) {
+            parts.push(' eta:', ((prevAvg - targetDelayMs) / ((currentSmoothedRate - 1) * 1000)).toFixed(0));
+        }
+        if (skipReason) parts.push(' [', skipReason, ']');
+        if (!warmupDone) parts.push(' [WARMUP]');
+        return parts.join('');
     }
 
     /* ── UI 갱신 ── */
@@ -750,15 +754,7 @@
     let presetBtns = [];
     function updatePresetHL() {
         for (const { btn, sec } of presetBtns) {
-            const on = targetDelayMs === sec * 1000;
-            btn.style.background = on ? '#1abc9c' : '#333';
-            btn.style.color = on ? '#000' : '#ccc';
-            btn.style.fontWeight = on ? 'bold' : '';
-            if (RECOMMENDED_PRESETS.includes(sec)) {
-                btn.style.borderBottom = on ? '2px solid #fff' : '2px solid #2ecc71';
-            } else {
-                btn.style.borderBottom = on ? '2px solid #fff' : '';
-            }
+            btn.classList.toggle('dm-active', targetDelayMs === sec * 1000);
         }
     }
 
@@ -825,6 +821,19 @@
         if (wasPaused && !video.paused) { wasPaused = false; lastSetRate = -1; }
         wasPaused = video.paused;
 
+        /* spike 필터 (seek 판정보다 선행) */
+        const lastDelay = delayHistory.last;
+        if (lastDelay > 0
+            && Math.abs(delayMs - lastDelay) > TUNING.SPIKE_THRESHOLD_MS
+            && now - lastSpikeTime >= TUNING.SPIKE_COOLDOWN_MS) {
+            if (debugVisible) skipReason = 'SPIKE';
+            lastSpikeTime = now;
+            softReset();
+            updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
+            return;
+        }
+
+        /* seek 판정 */
         if (isEnabled && delayMs > seekThresholdMs && stallCount < TUNING.STALL_THRESHOLD) {
             if (now - lastSeekTime >= TUNING.SEEK_COOLDOWN_MS) {
                 lastSeekTime = now;
@@ -836,17 +845,6 @@
                 updateDisplay(targetDelayMs, bufEnd, now);
                 return;
             }
-        }
-
-        const lastDelay = delayHistory.last;
-        if (lastDelay > 0
-            && Math.abs(delayMs - lastDelay) > TUNING.SPIKE_THRESHOLD_MS
-            && now - lastSpikeTime >= TUNING.SPIKE_COOLDOWN_MS) {
-            if (debugVisible) skipReason = 'SPIKE';
-            lastSpikeTime = now;
-            softReset();
-            updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
-            return;
         }
 
         delayHistory.push(delayMs);
@@ -878,6 +876,7 @@
         if (video && !video.isConnected) {
             video.removeEventListener('ratechange', onExternalRateChange);
             video = null;
+            lastVideoIsBlob = false;
         }
 
         if (!video) {
@@ -885,9 +884,8 @@
             return;
         }
 
-        const blobSrc = isBlobSrc(video);
-        if (!blobSrc || !isLiveStream(video)) {
-            if (debugVisible) skipReason = blobSrc ? 'VOD/AD' : 'NON-BLOB';
+        if (!lastVideoIsBlob || !isLiveStream(video)) {
+            if (debugVisible) skipReason = lastVideoIsBlob ? 'VOD/AD' : 'NON-BLOB';
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
             updateDisplay(0);
             return;
@@ -934,6 +932,8 @@
                     padding:12px 16px;color:#eee;font-family:system-ui,sans-serif;
                     font-size:12px;min-width:210px;box-shadow:0 4px 16px rgba(0,0,0,.5);
                     user-select:none;contain:layout style}
+                #dm-panel.dm-collapsed{padding:6px 10px;min-width:0;border-radius:8px}
+                #dm-panel.dm-collapsed [data-dm="header"]{border-bottom:none;padding-bottom:0;margin-bottom:0}
                 #dm-panel [data-dm="header"]{position:relative;font-weight:bold;
                     border-bottom:1px solid #333;padding-bottom:6px;margin-bottom:8px;
                     cursor:grab;display:flex;align-items:center;gap:6px}
@@ -961,6 +961,7 @@
                 .dm-presets{display:flex;gap:3px}
                 .dm-presets .dm-btn{background:#333;color:#ccc}
                 .dm-presets .dm-btn:hover{background:#444}
+                .dm-presets .dm-btn.dm-active{background:#1abc9c!important;color:#000!important;font-weight:bold;border-bottom-color:#fff!important}
                 .dm-debug{font-size:9px;color:#666;font-family:monospace;margin-top:8px;
                     border-top:1px solid #2a2a2a;padding-top:5px;overflow-wrap:break-word;word-break:normal;
                     max-height:60px;overflow-y:auto}
@@ -1032,6 +1033,7 @@
         const applyCollapse = () => {
             body.style.display = collapsed ? 'none' : '';
             els.collapseBtn.textContent = collapsed ? '▶' : '▼';
+            panel.classList.toggle('dm-collapsed', collapsed);
         };
         applyCollapse();
         els.collapseBtn.onclick = e => {
@@ -1261,29 +1263,24 @@
             nextTickTime = 0;
             tickGeneration++;
             clearTimeout(intervalId);
-            if (document.visibilityState === 'visible') {
-                const needSeek = isEnabled && video?.isConnected && video.buffered.length > 0;
-                let seekEdge = null;
-                if (needSeek) {
-                    seekEdge = getBufferEdge(video.buffered);
-                    if (seekEdge) {
-                        seekEdge = { start: seekEdge.start, end: seekEdge.end };
-                    }
-                }
-
-                resetState();
-
-                if (seekEdge) {
-                    const delay = (seekEdge.end - video.currentTime) * 1000;
-                    if (delay > targetDelayMs * 2) {
-                        if (debugVisible) dmLog(`탭 복귀 seek: ${delay.toFixed(0)}ms`);
-                        seekToTarget(seekEdge.start, seekEdge.end);
+            if (document.hidden) {
+                hiddenAt = performance.now();
+                return;
+            }
+            const away = performance.now() - hiddenAt;
+            resetState();
+            if (away > 3000 && isEnabled && video?.isConnected && video.buffered.length > 0) {
+                const edge = getBufferEdge(video.buffered);
+                if (edge) {
+                    const e = { start: edge.start, end: edge.end };
+                    if ((e.end - video.currentTime) * 1000 > targetDelayMs * 1.5) {
+                        if (debugVisible) dmLog(`탭 복귀 seek: ${((e.end - video.currentTime) * 1000).toFixed(0)}ms (away: ${(away / 1000).toFixed(1)}s)`);
+                        seekToTarget(e.start, e.end);
                         flashSeekIndicator();
                     }
                 }
-
-                scheduleTick();
             }
+            scheduleTick();
         });
 
         document.addEventListener('keydown', e => {
