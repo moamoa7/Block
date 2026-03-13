@@ -1,7 +1,14 @@
+🚫 반영 제외 항목 및 사유
+[제외] rescanAll TreeWalker 로직 제거: 엄격 준수 규칙 #4에 따라 기존 섀도우 돔 극한 환경에서 검증된 walkRoots 탐색 로직을 임의로 생략하지 않고 그대로 유지했습니다.
+
+[제외] 타이머 position: absolute를 fixed로 변경: 엄격 준수 규칙 #1의 Containing Block 이슈 대응 보정 로직(verifyAndFixPosition 개념)은 이미 부모 요소(parentElement)를 찾아 position: absolute와 getBoundingClientRect를 통해 매 프레임 상대 좌표를 재계산하는 현재의 tick() 로직에 완벽히 구현되어 있습니다. 따라서 억지로 fixed로 변경하여 브라우저 렌더링 버그를 유발하지 않고 검증된 현재 구조를 유지합니다.
+
+============
+
 // ==UserScript==
-// @name         Video_Control (v198.0 - Stability & Intelligence)
+// @name         Video_Control (v198.1 - Stability & Intelligence)
 // @namespace    https://github.com/moamoa7
-// @version      198.0
+// @version      198.1
 // @description  Perfected cache (ok.ru), Bulletproof Timer (Polling+Fix), Stable UI, CSS Transition Engine, Zero Leak, Audited.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -25,7 +32,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '198.0';
+  const SCRIPT_VERSION = '198.1';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -280,8 +287,8 @@ function VSC_MAIN() {
     const VALID_PRESETS = new Set(Object.keys(CONFIG.PRESETS.detail));
     function loadPrefs() { try { if (typeof GM_getValue === 'function') { const v = GM_getValue(PREF_KEY, null); if (v == null) return null; return typeof v === 'string' ? JSON.parse(v) : v; } } catch (_) {} try { const s = localStorage.getItem(PREF_KEY); return s ? JSON.parse(s) : null; } catch (_) {} return null; }
     function savePrefsRaw(json) { try { if (typeof GM_setValue === 'function') { GM_setValue(PREF_KEY, json); return true; } } catch (_) {} try { localStorage.setItem(PREF_KEY, json); return true; } catch (_) {} return false; }
-    function mergeKnown(dst, src, defaultsObj, validators) { if (!src || typeof src !== 'object') return; for (const key of Object.keys(defaultsObj)) { if (!Object.prototype.hasOwnProperty.call(src, key)) continue; const v = src[key], def = defaultsObj[key]; if (typeof def === 'boolean') dst[key] = !!v; else if (typeof def === 'number') { const n = Number(v); dst[key] = Number.isFinite(n) ? n : def; } else if (typeof def === 'string') { const validator = validators?.[key]; if (validator) dst[key] = validator(v) ? v : def; else dst[key] = typeof v === 'string' ? v : def; } else dst[key] = v; } }
-    try { const parsed = loadPrefs(); if (parsed && typeof parsed === 'object') { mergeKnown(state.video, parsed.video, CONFIG.DEFAULTS.video, { presetS: (v) => typeof v === 'string' && VALID_PRESETS.has(v) }); mergeKnown(state.audio, parsed.audio, CONFIG.DEFAULTS.audio); mergeKnown(state.playback, parsed.playback, CONFIG.DEFAULTS.playback); mergeKnown(state.app, parsed.app, CONFIG.DEFAULTS.app); } } catch (e) { log.warn('Invalid prefs detected. Resetting.'); }
+    function mergeKnown(dst, src, defaultsObj, validators) { if (!src || typeof src !== 'object') return; for (const key of Object.keys(defaultsObj)) { if (!Object.prototype.hasOwnProperty.call(src, key)) continue; const v = src[key], def = defaultsObj[key]; if (typeof def === 'boolean') dst[key] = !!v; else if (typeof def === 'number') { const n = Number(v); dst[key] = Number.isFinite(n) ? n : def; } else if (typeof def === 'string') { const validator = validators?.[key]; if (validator) dst[key] = validator(v) ? v : def; else dst[key] = typeof v === 'string' ? v : def; } else { const validator = validators?.[key]; if (validator && !validator(v)) dst[key] = def; else dst[key] = Array.isArray(v) ? v.map(item => item && typeof item === 'object' ? { ...item } : item) : v; } } }
+    try { const parsed = loadPrefs(); if (parsed && typeof parsed === 'object') { mergeKnown(state.video, parsed.video, CONFIG.DEFAULTS.video, { presetS: (v) => typeof v === 'string' && VALID_PRESETS.has(v) }); mergeKnown(state.audio, parsed.audio, CONFIG.DEFAULTS.audio); mergeKnown(state.playback, parsed.playback, CONFIG.DEFAULTS.playback); mergeKnown(state.app, parsed.app, CONFIG.DEFAULTS.app, { slots: (v) => Array.isArray(v) && v.length === 3 }); } } catch (e) { log.warn('Invalid prefs detected. Resetting.'); }
     _lastSavedJson = JSON.stringify(state);
     function _doSave() { if (rev === _lastSavedRev) return; const json = JSON.stringify(state); if (json === _lastSavedJson || json.length > 16384) return; _lastSavedRev = rev; if (savePrefsRaw(json)) _lastSavedJson = json; }
     const savePrefs = createDebounced(() => _doSave(), 500); const flushNow = () => _doSave();
@@ -307,7 +314,11 @@ function VSC_MAIN() {
       const wasTracked = videos.has(v);
       const st = videoStateMap.get(v);
       if (st?._ac) { st._ac.abort(); st._ac = null; st.bound = false; }
-      if (wasTracked) { videos.delete(v); if (bus) bus.emit('video:lost', { video: v }); }
+      if (wasTracked) {
+        videos.delete(v);
+        if (bus) bus.emit('video:lost', { video: v });
+        if (videos.size === 0 && bus) queueMicrotask(() => { if (videos.size === 0) bus.emit('allVideosRemoved'); });
+      }
       visible.videos.delete(v);
       dirty.videos.add(v);
       consumed.videos.delete(v);
@@ -566,13 +577,14 @@ function VSC_MAIN() {
       onDestroy() { TOUCHED.videos.forEach(v => safe(() => Adapter.clear(v))); TOUCHED.rateVideos.forEach(v => safe(() => restoreRateOne(v))); TOUCHED.videos.clear(); TOUCHED.rateVideos.clear(); }
     });
   }
-/* ── Hybrid Filter Engine ────────────────────────────────────── */
+
+  /* ── Hybrid Filter Engine ────────────────────────────────────── */
   function createFiltersVideoOnly(Utils, vscId) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = {
-      1: '0 0.18 0.38 0.58 0.76 0.89 1',
+      1: '0 0.17 0.35 0.55 0.74 0.88 1',
       2: '0 0.15 0.32 0.50 0.68 0.85 1',
-      3: '0 0.12 0.28 0.46 0.66 0.84 1'
+      3: '0 0.10 0.26 0.45 0.66 0.84 1'
     };
 
     function ensureOpaqueBg(video) {
@@ -638,8 +650,7 @@ function VSC_MAIN() {
   }
 
   function createBackendAdapter(Filters) { return { apply(video, vVals, shadowParams, cssFilter) { Filters.applyCombined(video, vVals, shadowParams, cssFilter); }, clear(video) { Filters.clear(video); } }; }
-
-  /* ── Targeting ───────────────────────────────────────────────── */
+/* ── Targeting ───────────────────────────────────────────────── */
   function createTargeting() {
     let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
     const isInPlayer = (vid) => { if (vid.closest(PLAYER_CONTAINER_SELECTORS)) return true; const root = vid.getRootNode(); if (root instanceof ShadowRoot && root.host) return !!root.host.closest(PLAYER_CONTAINER_SELECTORS); return false; };
@@ -682,7 +693,10 @@ function VSC_MAIN() {
 
   function createUI(sm, registry, ApplyReq, Utils, P) {
     const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0, wakeGear = null, hasUserDraggedUI = false; const uiWakeCtrl = new AbortController(), uiUnsubs = []; const sub = (k, fn) => { const unsub = sm.sub(k, fn); uiUnsubs.push(unsub); return fn; };
-    const detachNodesHard = () => { removeSafe(container); removeSafe(gearHost); };
+
+    let infoTimer = 0; // Hoisted to createUI scope to prevent leak
+    const detachNodesHard = () => { removeSafe(container); removeSafe(gearHost); clearRecurring(infoTimer); infoTimer = 0; };
+
     const allowUiInThisDoc = () => { const hn = location.hostname, pn = location.pathname; if (hn.includes('netflix.com')) return pn.startsWith('/watch'); if (hn.includes('coupangplay.com')) return pn.startsWith('/play'); return true; };
     const getUiRoot = () => { const fs = document.fullscreenElement; return fs ? (fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement || document.body) : fs) : (document.body || document.documentElement); };
     const setAndHint = (path, value) => { if (!Object.is(sm.get(path), value)) { sm.set(path, value); (path === P.APP_ACT || path === P.APP_APPLY_ALL || path.startsWith('video.')) ? ApplyReq.hard() : ApplyReq.soft(); } };
@@ -740,14 +754,14 @@ function VSC_MAIN() {
 
       const dragHandle = h('div', { class: 'header' }, h('div', { class: 'header-title', style: 'flex:1 !important;' }, `VSC ${CONFIG.DEBUG ? 'v' + SCRIPT_VERSION : ''}`.trim()), h('div', { class: 'header-actions' }, pwrBtn, resetBtn, closeBtn));
 
-      const tabDefs = [{ text: '🎬 Video', id: 'video' }, { text: '🔊 Audio', id: 'audio' }, { text: '⏩ Play', id: 'play' }]; const tabBtns = [], tabContents = []; let activeTabIdx = 0;
+      const tabDefs = [{ text: '🎬 Video' }, { text: '🔊 Audio' }, { text: '⏩ Play' }]; const tabBtns = [], tabContents = []; let activeTabIdx = 0;
       const switchTab = (idx) => { activeTabIdx = idx; tabBtns.forEach((b, i) => b.classList.toggle('active', i === idx)); tabContents.forEach((c, i) => c.classList.toggle('active', i === idx)); };
       for (let i = 0; i < tabDefs.length; i++) { const btn = h('div', { class: `tab${i === 0 ? ' active' : ''}` }, tabDefs[i].text); btn.onclick = (e) => { e.stopPropagation(); switchTab(i); }; tabBtns.push(btn); }
       const tabBar = h('div', { class: 'tabs' }, ...tabBtns);
 
       const utilRow = h('div', { class: 'prow' }, (() => { const pipBtn = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '📌 PiP'); pipBtn.onclick = guardedClick(async () => { const v = __vscNs.App?.getActiveVideo(); if (!v) return; try { if (document.pictureInPictureElement === v) await document.exitPictureInPicture(); else if (v.disablePictureInPicture) showToast('PiP 차단됨'); else await v.requestPictureInPicture(); } catch (_) { showToast('PiP 미지원'); } }); bindActGate(pipBtn, []); return pipBtn; })(), (() => { const capBtn = h('button', { class: 'pbtn', style: 'flex:1 !important;' }, '📸 캡처'); capBtn.onclick = guardedClick(() => { const v = __vscNs.App?.getActiveVideo(); if (!v || v.readyState < 2) { showToast('로드 대기 중'); return; } try { const canvas = new OffscreenCanvas(v.videoWidth, v.videoHeight); canvas.getContext('2d').drawImage(v, 0, 0); canvas.convertToBlob({ type: 'image/png' }).then(blob => { const url = URL.createObjectURL(blob), a = document.createElement('a'); a.href = url; a.download = `vsc-${Date.now()}.png`; a.click(); setTimer(() => URL.revokeObjectURL(url), 5000); showToast('캡처 완료'); }).catch(() => showToast('캡처 실패')); } catch (_) { showToast('보안 제한'); } }); bindActGate(capBtn, []); return capBtn; })());
 
-      const infoLabel = h('div', { style: 'font-size:10px !important;color:var(--c-dim) !important;padding:4px 0 !important;font-family:monospace !important;text-align:center !important;' }, '—'); let infoTimer = 0;
+      const infoLabel = h('div', { style: 'font-size:10px !important;color:var(--c-dim) !important;padding:4px 0 !important;font-family:monospace !important;text-align:center !important;' }, '—');
       const updateInfo = () => { const v = __vscNs.App?.getActiveVideo(); if (!v) { infoLabel.textContent = '비디오 없음'; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0, dur = v.duration, cur = v.currentTime, dpr = devicePixelRatio.toFixed(1); const ratio = nW && dW ? ((dW * devicePixelRatio) / nW).toFixed(2) : '?'; const parts = [`${nW}×${nH}`, `→ ${dW}×${dH}@${dpr}x`, `scale:${ratio}`]; if (Number.isFinite(dur)) parts.push(`${(cur/60)|0}:${String((cur|0)%60).padStart(2,'0')} / ${(dur/60)|0}:${String((dur|0)%60).padStart(2,'0')}`); infoLabel.textContent = parts.join(' · '); };
       sub(P.APP_UI, (vis) => { clearRecurring(infoTimer); if (vis) { updateInfo(); infoTimer = setRecurring(updateInfo, 2000); } });
 
@@ -761,7 +775,7 @@ function VSC_MAIN() {
         utilRow
       ); tabContents.push(videoTab);
 
-      const boostToggle = h('button', { class: 'btn', style: 'width:100% !important;' }, '🔊 Audio Mastering'); boostToggle.onclick = guardedClick(() => { __vscNs.AudioWarmup?.(); setAndHint(P.A_EN, !sm.get(P.A_EN)); }); bindActGate(boostToggle, [P.A_EN], (el, aEn) => { el.classList.toggle('active', !!aEn); el.style.setProperty('color', aEn ? 'var(--ac)' : '#eee', 'important'); });
+      const boostToggle = h('button', { class: 'btn', style: 'width:100% !important;' }, '🔊 Audio Mastering'); boostToggle.onclick = guardedClick(() => { __vscNs.AudioWarmup?.(); setAndHint(P.A_EN, !sm.get(P.A_EN)); }); bindActGate(boostToggle, [P.A_EN], (el, aEn) => { el.classList.toggle('active', !!aEn); });
       const boostRow = renderButtonRow({ label: '음량', key: P.A_BST, offValue: 0, items: [{ text: '+3', value: 3 }, { text: '+6', value: 6 }, { text: '+9', value: 9 }, { text: '+12', value: 12 }] }); bindReactive(boostRow, [P.A_EN, P.APP_ACT], (el, aEn, act) => { const on = act && aEn; el.style.setProperty('opacity', on ? '1' : '0.45', 'important'); el.style.setProperty('pointer-events', on ? 'auto' : 'none', 'important'); });
       const audioTab = h('div', { class: 'tab-content', 'data-tab': 'audio' }, boostToggle, boostRow); tabContents.push(audioTab);
 
@@ -801,10 +815,11 @@ function VSC_MAIN() {
     const mount = () => { const root = getUiRoot(); if (!root) return; try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) { try { (document.body || document.documentElement).appendChild(gearHost); } catch (__) {} } try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) { try { (document.body || document.documentElement).appendChild(container); } catch (__) {} } };
     const ensure = () => { if (!allowUiInThisDoc() || (registry.videos.size === 0 && !sm.get(P.APP_UI))) { detachNodesHard(); return; } ensureGear(); const mainPanel = getMainPanel(); if (sm.get(P.APP_UI)) { build(); const mp = getMainPanel(); if (mp && !mp.classList.contains('visible')) { mp.style.setProperty('display', 'block', 'important'); mp.classList.add('visible'); queueMicrotask(clampPanelIntoViewport); } } else { if (mainPanel) { mainPanel.classList.remove('visible'); mainPanel.style.setProperty('display', 'none', 'important'); } } mount(); wakeGear?.(); };
     onPageReady(() => { ensure(); ApplyReq.hard(); });
-    return { ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimer(fadeTimer); clearTimer(bootWakeTimer); if (_clampRafId) { cancelAnimationFrame(_clampRafId); _clampRafId = 0; } detachNodesHard(); } };
+    return { ensure, destroy: () => { uiUnsubs.forEach(u => u()); uiUnsubs.length = 0; uiWakeCtrl.abort(); clearTimer(fadeTimer); clearTimer(bootWakeTimer); clearRecurring(infoTimer); infoTimer = 0; if (_clampRafId) { cancelAnimationFrame(_clampRafId); _clampRafId = 0; } detachNodesHard(); } };
   }
   function createUIFeature(Store, Registry, ApplyReq, Utils, P) { let uiInst = null; return defineFeature({ name: 'ui', phase: PHASE.RENDER, onInit() { uiInst = createUI(Store, Registry, ApplyReq, Utils, P); this.subscribe('video:detected', () => uiInst?.ensure()); this.subscribe('allVideosRemoved', () => uiInst?.ensure()); }, onUpdate() { uiInst?.ensure(); }, onDestroy() { uiInst?.destroy(); } }); }
-/* ── Zoom Manager ────────────────────────────────────────────── */
+
+  /* ── Zoom Manager ────────────────────────────────────────────── */
   function createZoomManager(Store, P) {
     const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0; let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 }; const zoomedVideos = new Set(); let activePointerId = null; const zoomAC = new AbortController(), zsig = combineSignals(zoomAC.signal, __globalSig);
     const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origStyle: '' }; stateMap.set(v, st); } return st; };
@@ -1007,3 +1022,7 @@ function VSC_MAIN() {
 
 VSC_MAIN();
 })();
+
+-==========
+
+패치 점검
