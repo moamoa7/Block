@@ -585,9 +585,9 @@ function VSC_MAIN() {
   function createFiltersVideoOnly(Utils, vscId) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
     const SHADOW_TABLES = {
-      1: '0 0.22 0.42 0.60 0.76 0.89 1',   // 밝게: 기존보다 암부를 더 눌러서 들뜨지 않게 함
-      2: '0 0.15 0.32 0.50 0.68 0.85 1',   // 짙게 (추천): 회색 제거 + 깔끔한 블랙 (사용자님 Pick)
-      3: '0 0.08 0.24 0.44 0.66 0.84 1'    // 강하게: 영화 모드, 아주 깊은 섀도우
+      1: '0 0.18 0.38 0.58 0.76 0.89 1',   // 밝게: (기준점)
+      2: '0 0.15 0.32 0.50 0.68 0.85 1',   // 짙게: (-0.03) 회색 제거 메인 수치
+      3: '0 0.12 0.28 0.46 0.66 0.84 1'    // 강하게: (-0.03) 2번보다 딱 한 단계 더 묵직함
     };
 
     function ensureOpaqueBg(video) {
