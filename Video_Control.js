@@ -245,7 +245,7 @@
         const ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g);
         const out = new Array(steps); let prev = 0;
         const intercept = 0.5 * (1 - contrast) + brightOffset;
-        const gammaExp = 1.0 / Math.max(0.1, gamma);
+        const gammaExp = Number(gamma);
         for (let i = 0; i < steps; i++) {
           const x0 = i / (steps - 1);
           let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
