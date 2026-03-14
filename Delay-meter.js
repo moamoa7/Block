@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (안정 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.13.0
+// @version      5.14.0
 // @description  최소 딜레이를 유지하면서 끊김 없이 안정적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -17,29 +17,29 @@
     'use strict';
 
     const TUNING = {
-        CHECK_INTERVAL: 250,
+        CHECK_INTERVAL: 400,          // 250 → 400
         HISTORY_SIZE: 8,
-        MAX_RATE: 1.12,
+        MAX_RATE: 1.08,               // 1.12 → 1.08
         MIN_RATE: 1.00,
-        DEADZONE_MS: 400,
-        SMOOTHING_UP: 0.30,
-        SMOOTHING_DOWN: 0.20,
+        DEADZONE_MS: 600,             // 400 → 600
+        SMOOTHING_UP: 0.15,           // 0.30 → 0.15
+        SMOOTHING_DOWN: 0.10,         // 0.20 → 0.10
         RATE_FULL_SCALE_MS: 4000,
         RATE_CURVE_EXP: 0.75,
-        SEEK_COOLDOWN_MS: 5000,
-        HOLD_RATE: 1.01,
+        SEEK_COOLDOWN_MS: 8000,       // 5000 → 8000
+        HOLD_RATE: 1.005,             // 1.01 → 1.005
         AVG_BIAS: 0.7,
         SPIKE_THRESHOLD_MS: 2000,
         SPIKE_COOLDOWN_MS: 1500,
         STALL_THRESHOLD: 6,
-        STALL_RECOVER_COUNT: 20,
-        FRAME_CHECK_EVERY: 20,
-        WARMUP_MS: 2500,
-        WARMUP_MIN_BUFFER_SEC: 1.5,
+        STALL_RECOVER_COUNT: 40,      // 20 → 40
+        FRAME_CHECK_EVERY: 10,        // 20 → 10
+        WARMUP_MS: 4000,              // 2500 → 4000
+        WARMUP_MIN_BUFFER_SEC: 2.5,   // 1.5 → 2.5
         WARMUP_MIN_READY_STATE: 3,
         RATE_PROTECT_MS: 300,
-        STABLE_LOCK_TICKS: 20,
-        MAX_RATE_DELTA: 0.008,
+        STABLE_LOCK_TICKS: 12,        // 20 → 12
+        MAX_RATE_DELTA: 0.004,        // 0.008 → 0.004
     };
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
@@ -54,7 +54,7 @@
     const SI_WARMUP = ' ⏳', SI_STOP = ' ⏹', SI_OK = ' ✓', SI_FLAT = ' →', SI_UP = ' ↑', SI_DOWN = ' ↓';
 
     function calcSeekThreshold(target) {
-        return Math.max(5000, target * 2.5);
+        return Math.max(8000, target * 3.0);   // max(5000, t*2.5) → max(8000, t*3.0)
     }
 
     function debounce(fn, ms) {
@@ -328,7 +328,6 @@
         let alpha = desired > currentSmoothedRate ? TUNING.SMOOTHING_UP : TUNING.SMOOTHING_DOWN;
         let next = currentSmoothedRate + (desired - currentSmoothedRate) * alpha;
 
-        // 한 틱당 최대 변화량 제한
         const maxDelta = TUNING.MAX_RATE_DELTA;
         next = clamp(next, currentSmoothedRate - maxDelta, currentSmoothedRate + maxDelta);
 
@@ -341,7 +340,10 @@
         if (!video || video.paused) return;
         if (rate !== 1.0 && video.readyState < 3) return;
         const rounded = Math.round(rate * 1000) / 1000;
-        if (rounded === lastSetRate) return;
+
+        // 0.003 미만 차이는 무시 (1.0 복귀는 예외)
+        if (rounded !== 1.0 && Math.abs(rounded - lastSetRate) < 0.003) return;
+
         lastSetRateTime = performance.now();
         video.playbackRate = rounded;
         lastSetRate = rounded;
@@ -349,9 +351,9 @@
     }
 
     function getAdaptiveInterval() {
-        if (!isEnabled || !warmupDone) return 500;
-        if (stableTickCount >= 10) return 400;
-        return Math.abs(currentSmoothedRate - 1.0) < 0.005 ? 350 : TUNING.CHECK_INTERVAL;
+        if (!isEnabled || !warmupDone) return 600;    // 500 → 600
+        if (stableTickCount >= 10) return 500;         // 400 → 500
+        return Math.abs(currentSmoothedRate - 1.0) < 0.005 ? 450 : TUNING.CHECK_INTERVAL;  // 350 → 450
     }
 
     function softReset() {
@@ -391,18 +393,16 @@
         if (totalDelta < 10) return;
         const dropRate = droppedDelta / totalDelta;
         const prev = dynamicMaxRate;
-        if (dropRate > 0.03 && dynamicMaxRate > 1.05) {
-            // 드롭 감지 시 큰 폭으로 낮춤
-            dynamicMaxRate = Math.max(1.05, dynamicMaxRate - 0.04);
-            // 현재 배속도 즉시 제한
-            if (currentSmoothedRate > dynamicMaxRate) {
-                currentSmoothedRate = dynamicMaxRate;
-                setRate(currentSmoothedRate);
-            }
-        } else if (dropRate < 0.01 && dynamicMaxRate < TUNING.MAX_RATE) {
-            // 안정적일 때 천천히 복구
-            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.01);
+
+        if (dropRate > 0.02) {                                          // 3% → 2%
+            dynamicMaxRate = Math.max(1.03, dynamicMaxRate - 0.03);
+            currentSmoothedRate = 1.0;                                  // 즉시 1배속
+            setRate(1.0);
+            softReset();                                                // 히스토리 초기화
+        } else if (dropRate < 0.005 && dynamicMaxRate < TUNING.MAX_RATE) {
+            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.005);  // 복구 느리게
         }
+
         if (prev !== dynamicMaxRate && debugVisible) {
             dmLog(`maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)} (drop:${(dropRate * 100).toFixed(1)}%)`);
         }
@@ -1269,7 +1269,6 @@
         if (v) onVideoFound(v);
         scheduleTick();
 
-        /* Navigation API로 SPA URL 변경 감지 */
         if ('navigation' in window) {
             navigation.addEventListener('navigatesuccess', () => {
                 if (location.pathname !== lastPath) {
