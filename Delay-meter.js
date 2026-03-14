@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (안정 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.17.0
+// @version      5.18.0
 // @description  최소 딜레이를 유지하면서 끊김 없이 안정적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -20,17 +20,17 @@
         CHECK_INTERVAL: 500,
 
         // ── Burst 모델 ──
-        BOOST_RATE: 1.03,             // 1.05 → 1.03 (디코더 부담 최소화)
-        TRIGGER_MARGIN_MS: 1000,      // 500 → 1000 (target+1초 넘어야 boost)
-        SETTLE_MARGIN_MS: 200,        // 100 → 200
-        BOOST_MAX_DURATION: 20000,    // 15s → 20s (느린 배속 보상)
-        BOOST_COOLDOWN: 5000,         // 3s → 5s
-        BOOST_MIN_DURATION: 4000,     // 2s → 4s
-        CONFIRM_TICKS: 5,             // 3 → 5 (5틱 연속 초과 확인)
+        BOOST_RATE: 1.03,
+        TRIGGER_MARGIN_MS: 1000,
+        SETTLE_MARGIN_MS: 200,
+        BOOST_MAX_DURATION: 20000,
+        BOOST_COOLDOWN: 5000,
+        BOOST_MIN_DURATION: 4000,
+        CONFIRM_TICKS: 5,
 
         // ── 기존 ──
         HISTORY_SIZE: 10,
-        SEEK_COOLDOWN_MS: 10000,
+        SEEK_COOLDOWN_MS: 15000,       // 10s → 15s
         SPIKE_THRESHOLD_MS: 2000,
         SPIKE_COOLDOWN_MS: 2000,
         STALL_THRESHOLD: 6,
@@ -57,7 +57,7 @@
     const SI_BOOST = ' ⚡';
 
     function calcSeekThreshold(target) {
-        return Math.max(8000, target * 3.0);   // 10000/3.5 → 8000/3.0 (seek 좀 더 적극적)
+        return Math.max(15000, target * 4.0);   // 훨씬 보수적: 15초 또는 target×4
     }
 
     function debounce(fn, ms) {
@@ -182,12 +182,16 @@
     let lastDotColor = '';
     let els = {};
 
-    // ── Burst 상태 ──
+    // ── Burst ──
     let boostActive = false;
     let boostStartTime = 0;
     let boostEndTime = 0;
     let effectiveRate = 1.0;
-    let triggerConfirmCount = 0;      // 연속 초과 틱 카운터
+    let triggerConfirmCount = 0;
+
+    // ── seek 추적 (디버그용) ──
+    let seekCount = 0;
+    let lastSeekReason = '';
 
     let lastPresentedFrames = 0;
     let estimatedFps = 30;
@@ -305,7 +309,6 @@
             : weighted * TUNING.AVG_BIAS + trimmed * (1 - TUNING.AVG_BIAS);
     }
 
-    /* ── 배속 제어 ── */
     function applyRate(rate) {
         if (!video || video.paused) return;
         if (rate !== 1.0 && video.readyState < 3) return;
@@ -335,11 +338,6 @@
         applyRate(1.0);
         if (debugVisible) dmLog(`BOOST OFF (${((now - boostStartTime) / 1000).toFixed(1)}s)`);
         if (panelOpen) flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 600);
-    }
-
-    function getAdaptiveInterval() {
-        if (!isEnabled || !warmupDone) return 700;
-        return TUNING.CHECK_INTERVAL;
     }
 
     function softReset() {
@@ -375,7 +373,7 @@
         const dropRate = droppedDelta / totalDelta;
         if (dropRate > TUNING.DROP_RATE_THRESHOLD && boostActive) {
             stopBoost(performance.now());
-            boostEndTime = performance.now() + 8000;   // 드롭 시 8초 추가 쿨다운
+            boostEndTime = performance.now() + 8000;
             if (debugVisible) dmLog(`프레임 드롭 BOOST 중단 (${(dropRate * 100).toFixed(1)}%)`);
         }
     }
@@ -397,6 +395,8 @@
         boostStartTime = 0;
         boostEndTime = 0;
         triggerConfirmCount = 0;
+        seekCount = 0;
+        lastSeekReason = '';
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
@@ -448,17 +448,25 @@
         }
     }
 
+    // ── MutationObserver: 비디오 찾기 전용, 찾으면 disconnect ──
     let videoObserver = null;
     function setupVideoObserver() {
         if (videoObserver) return;
         videoObserver = new MutationObserver((mutations) => {
-            if (video?.isConnected && isBlobSrc(video)) return;
             for (const mut of mutations) {
                 for (const node of mut.addedNodes) {
-                    if (node.nodeName === 'VIDEO') { onVideoFound(node); return; }
+                    if (node.nodeName === 'VIDEO') {
+                        onVideoFound(node);
+                        if (video) { videoObserver.disconnect(); videoObserver = null; }
+                        return;
+                    }
                     if (node.nodeType === 1) {
                         const v = node.querySelector?.('video');
-                        if (v) { onVideoFound(v); return; }
+                        if (v) {
+                            onVideoFound(v);
+                            if (video) { videoObserver.disconnect(); videoObserver = null; }
+                            return;
+                        }
                     }
                 }
             }
@@ -466,13 +474,25 @@
         videoObserver.observe(document.body, { childList: true, subtree: true });
     }
 
-    function seekToTarget(bufStart, bufEnd) {
+    // video를 잃었을 때 다시 옵저버 시작
+    function ensureVideoObserver() {
+        if (!video && !videoObserver) setupVideoObserver();
+    }
+
+    function doSeek(bufStart, bufEnd, reason) {
         if (seekAc) seekAc.abort();
         const ac = seekAc = new AbortController();
         const combined = AbortSignal.any([ac.signal, AbortSignal.timeout(5000)]);
         const vid = video;
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
+
+        seekCount++;
+        lastSeekReason = reason;
+        lastSeekTime = performance.now();
+        if (debugVisible) dmLog(`SEEK [${reason}] → ${seekTo.toFixed(2)} (#${seekCount})`);
+
         vid.currentTime = seekTo;
+
         vid.addEventListener('seeked', () => {
             if (vid !== video || !vid.isConnected) { ac.abort(); return; }
             if (Math.abs(vid.currentTime - seekTo) > 2) { ac.abort(); return; }
@@ -483,6 +503,7 @@
                 if (!edge) return;
                 if ((edge.end - vid.currentTime) * 1000 > targetDelayMs * 1.5) {
                     vid.currentTime = Math.max(edge.start, edge.end - targetDelayMs / 1000);
+                    if (debugVisible) dmLog('SEEK 보정');
                 }
             }, 50);
             combined.addEventListener('abort', () => clearTimeout(correctionTimer), { once: true });
@@ -591,7 +612,9 @@
             if (cd > 0) s += ` cd:${(cd / 1000).toFixed(1)}`;
         }
         s += ` conf:${triggerConfirmCount}/${TUNING.CONFIRM_TICKS}`;
-        s += ` trig:${((targetDelayMs + TUNING.TRIGGER_MARGIN_MS) / 1000).toFixed(1)} fps:${estimatedFps}`;
+        s += ` seek:${seekCount}`;
+        if (lastSeekReason) s += `(${lastSeekReason})`;
+        s += ` stall:${stallCount} fps:${estimatedFps}`;
         const n = delayHistory.length;
         if (n >= 2) {
             const [lo, hi] = delayHistory.minMax();
@@ -681,7 +704,7 @@
         if (!video || !video.buffered.length) return false;
         const edge = getBufferEdge(video.buffered);
         if (!edge) return false;
-        seekToTarget(edge.start, edge.end);
+        doSeek(edge.start, edge.end, 'manual');
         softReset();
         applyRate(1.0);
         flashSeekIndicator();
@@ -752,17 +775,17 @@
         if (rawDelay < 0) { updateDisplay(0, bufEnd, now); return; }
         const delayMs = rawDelay + PLATFORM_OFFSET;
 
-        /* 스톨 감지 */
+        /* 스톨 감지 — seek 대신 로그만 남기고 자연 복구 대기 */
         const ct = video.currentTime;
         if (Math.abs(ct - lastCurrentTime) < 0.001 && !video.paused) {
             stallCount++;
-            if (stallCount >= TUNING.STALL_RECOVER_COUNT && isEnabled) {
+            // 스톨이 매우 심각할 때만 seek (100틱 = 50초)
+            if (stallCount >= 100 && isEnabled) {
                 const stallEdge = getBufferEdge(video.buffered);
                 if (stallEdge) {
-                    video.currentTime = Math.max(stallEdge.start, stallEdge.end - targetDelayMs / 1000);
+                    doSeek(stallEdge.start, stallEdge.end, 'stall');
                     softReset();
                     applyRate(1.0);
-                    if (debugVisible) dmLog('스톨 복구');
                     flashSeekIndicator();
                 }
                 stallCount = 0;
@@ -774,11 +797,10 @@
         if (wasPaused && !video.paused) { wasPaused = false; lastSetRate = -1; }
         wasPaused = video.paused;
 
-        /* seek 판정 */
+        /* 자동 seek — 매우 보수적 */
         if (isEnabled && delayMs > seekThresholdMs && stallCount < TUNING.STALL_THRESHOLD) {
             if (now - lastSeekTime >= TUNING.SEEK_COOLDOWN_MS) {
-                lastSeekTime = now;
-                seekToTarget(bufStart, bufEnd);
+                doSeek(bufStart, bufEnd, 'threshold');
                 softReset();
                 applyRate(1.0);
                 flashSeekIndicator();
@@ -816,34 +838,26 @@
 
         if (boostActive) {
             const boostDuration = now - boostStartTime;
-
-            // 목표 도달 (최소 지속 시간 경과 후)
             if (avg <= settleMs && boostDuration >= TUNING.BOOST_MIN_DURATION) {
                 stopBoost(now);
                 return;
             }
-            // 목표 이하로 과도하게 내려감
             if (avg < targetDelayMs - 300) {
                 stopBoost(now);
                 return;
             }
-            // 최대 지속 시간
             if (boostDuration >= TUNING.BOOST_MAX_DURATION) {
                 stopBoost(now);
                 if (debugVisible) dmLog('BOOST 최대 시간 초과');
                 return;
             }
-            // 유지
         } else {
-            // BOOST 시작 조건
             const cooldownOk = (now - boostEndTime) >= TUNING.BOOST_COOLDOWN;
-
             if (avg > triggerMs && cooldownOk) {
                 triggerConfirmCount++;
             } else {
                 triggerConfirmCount = 0;
             }
-
             if (triggerConfirmCount >= TUNING.CONFIRM_TICKS) {
                 triggerConfirmCount = 0;
                 startBoost(now);
@@ -856,8 +870,15 @@
             video.removeEventListener('ratechange', onExternalRateChange);
             video = null;
             lastVideoIsBlob = false;
+            ensureVideoObserver();
         }
-        if (!video) { updateDisplay(0); return; }
+        if (!video) {
+            // video 없으면 다시 찾기 시도
+            const v = document.querySelector('video');
+            if (v) onVideoFound(v);
+            updateDisplay(0);
+            return;
+        }
         if (!lastVideoIsBlob || !isLiveStream(video)) {
             if (debugVisible) skipReason = lastVideoIsBlob ? 'VOD/AD' : 'NON-BLOB';
             if (boostActive) stopBoost(performance.now());
@@ -878,7 +899,7 @@
             intervalId = setTimeout(scheduleTick, 1000);
             return;
         }
-        const interval = getAdaptiveInterval();
+        const interval = !isEnabled || !warmupDone ? 700 : TUNING.CHECK_INTERVAL;
         if (nextTickTime === 0) nextTickTime = now + interval;
         else nextTickTime += interval;
         const drift = nextTickTime - performance.now();
@@ -1206,6 +1227,7 @@
                 target: targetDelayMs,
                 boost: boostActive,
                 confirmTicks: triggerConfirmCount,
+                seekCount, lastSeekReason, stallCount,
                 warmup: warmupDone,
                 fps: estimatedFps,
                 buf: edge ? edge.end.toFixed(2) : '-',
@@ -1233,11 +1255,11 @@
 
         if ('navigation' in window) {
             navigation.addEventListener('navigatesuccess', () => {
-                if (location.pathname !== lastPath) { lastPath = location.pathname; resetState(); }
+                if (location.pathname !== lastPath) { lastPath = location.pathname; resetState(); ensureVideoObserver(); }
             });
         } else {
             setInterval(() => {
-                if (location.pathname !== lastPath) { lastPath = location.pathname; resetState(); }
+                if (location.pathname !== lastPath) { lastPath = location.pathname; resetState(); ensureVideoObserver(); }
             }, 1000);
         }
 
@@ -1267,11 +1289,12 @@
             if (document.hidden) { hiddenAt = performance.now(); return; }
             const away = performance.now() - hiddenAt;
             resetState();
-            if (away > 3000 && isEnabled && video?.isConnected && video.buffered.length > 0) {
+            // 탭 복귀 시: 아주 오래 자리 비웠을 때만 seek
+            if (away > 30000 && isEnabled && video?.isConnected && video.buffered.length > 0) {
                 const edge = getBufferEdge(video.buffered);
                 if (edge) {
-                    if ((edge.end - video.currentTime) * 1000 > targetDelayMs * 1.5) {
-                        seekToTarget(edge.start, edge.end);
+                    if ((edge.end - video.currentTime) * 1000 > seekThresholdMs) {
+                        doSeek(edge.start, edge.end, 'tab-return');
                         flashSeekIndicator();
                         warmupDone = true;
                     }
