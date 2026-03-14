@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (안정 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.15.0
+// @version      5.16.0
 // @description  최소 딜레이를 유지하면서 끊김 없이 안정적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,38 +16,44 @@
 (function () {
     'use strict';
 
-    const TUNING = {
-        CHECK_INTERVAL: 500,          // 400 → 500  (틱 간격 넓힘)
-        HISTORY_SIZE: 10,             // 8 → 10  (더 많은 샘플로 평균 안정화)
-        MAX_RATE: 1.05,               // 1.08 → 1.05  (최대 배속 대폭 낮춤)
-        MIN_RATE: 1.00,
-        DEADZONE_MS: 800,             // 600 → 800  (더 넓은 데드존)
-        SMOOTHING_UP: 0.08,           // 0.15 → 0.08  (배속 올리기 훨씬 느리게)
-        SMOOTHING_DOWN: 0.06,         // 0.10 → 0.06  (배속 내리기도 느리게)
-        RATE_FULL_SCALE_MS: 5000,     // 4000 → 5000
-        RATE_CURVE_EXP: 0.6,         // 0.75 → 0.6  (더 완만한 커브)
-        SEEK_COOLDOWN_MS: 10000,      // 8000 → 10000
-        HOLD_RATE: 1.003,             // 1.005 → 1.003  (데드존 내 홀드 배속 낮춤)
-        AVG_BIAS: 0.7,
-        SPIKE_THRESHOLD_MS: 2000,
-        SPIKE_COOLDOWN_MS: 2000,      // 1500 → 2000
-        STALL_THRESHOLD: 6,
-        STALL_RECOVER_COUNT: 50,      // 40 → 50
-        FRAME_CHECK_EVERY: 8,         // 10 → 8  (프레임 드롭 좀 더 자주 확인)
-        WARMUP_MS: 5000,              // 4000 → 5000
-        WARMUP_MIN_BUFFER_SEC: 3.0,   // 2.5 → 3.0
-        WARMUP_MIN_READY_STATE: 3,
-        RATE_PROTECT_MS: 400,         // 300 → 400
-        STABLE_LOCK_TICKS: 8,         // 12 → 8  (안정 상태 빨리 잠금)
-        MAX_RATE_DELTA: 0.002,        // 0.004 → 0.002  (틱당 최대 변화량 반감)
+    /*
+     *  v5.16 — "Burst" 모델
+     *  ─────────────────────
+     *  핵심 원칙: playbackRate는 정확히 1.0 또는 고정 BOOST값 둘 중 하나만 사용.
+     *  미세 배속(1.003, 1.01 등)은 절대 쓰지 않는다.
+     *
+     *  1) 평소에는 항상 1.0x (네이티브 디코딩, 끊김 없음)
+     *  2) 딜레이가 TRIGGER 이상이면 → BOOST 배속 ON
+     *  3) 딜레이가 TARGET 이하로 내려오면 → 즉시 1.0x 복귀
+     *  4) BOOST 최대 지속 시간 제한 → 너무 오래 배속하지 않음
+     *  5) BOOST 후 쿨다운 → 연속 배속 전환 방지
+     */
 
-        // ── 새로 추가 ──
-        RATE_CHANGE_MIN_INTERVAL: 1500,  // 배속 실제 적용 최소 간격 (ms)
-        RATE_CHANGE_MIN_DIFF: 0.005,     // 이 이상 차이 나야 실제 적용
-        POST_SEEK_GRACE_MS: 3000,        // seek 후 배속 조절 금지 시간
-        DROP_RATE_THRESHOLD: 0.03,       // 2% → 3%  (프레임 드롭 임계치 완화)
-        DROP_RATE_RECOVERY: 0.003,       // 0.005 → 0.003  (maxRate 복구 더 느리게)
-        DROP_MAX_RATE_PENALTY: 0.02,     // 0.03 → 0.02  (드롭 시 패널티 축소)
+    const TUNING = {
+        CHECK_INTERVAL: 500,
+
+        // ── Burst 모델 핵심 ──
+        BOOST_RATE: 1.05,             // 배속 시 사용할 고정 값 (이것만 사용)
+        TRIGGER_MARGIN_MS: 500,       // target + 이 값 이상이면 BOOST 시작
+        SETTLE_MARGIN_MS: 100,        // target + 이 값 이하면 BOOST 종료
+        BOOST_MAX_DURATION: 15000,    // 한 번에 최대 15초까지만 배속
+        BOOST_COOLDOWN: 3000,         // BOOST 종료 후 최소 3초 대기
+        BOOST_MIN_DURATION: 2000,     // 최소 2초는 유지 (잦은 on/off 방지)
+
+        // ── 기존 유지 ──
+        HISTORY_SIZE: 10,
+        SEEK_COOLDOWN_MS: 10000,
+        SPIKE_THRESHOLD_MS: 2000,
+        SPIKE_COOLDOWN_MS: 2000,
+        STALL_THRESHOLD: 6,
+        STALL_RECOVER_COUNT: 50,
+        FRAME_CHECK_EVERY: 8,
+        WARMUP_MS: 5000,
+        WARMUP_MIN_BUFFER_SEC: 3.0,
+        WARMUP_MIN_READY_STATE: 3,
+        RATE_PROTECT_MS: 400,
+        AVG_BIAS: 0.7,
+        DROP_RATE_THRESHOLD: 0.03,
     };
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
@@ -60,9 +66,10 @@
     const DASH_ON = [3, 3];
     const DASH_OFF = [];
     const SI_WARMUP = ' ⏳', SI_STOP = ' ⏹', SI_OK = ' ✓', SI_FLAT = ' →', SI_UP = ' ↑', SI_DOWN = ' ↓';
+    const SI_BOOST = ' ⚡';
 
     function calcSeekThreshold(target) {
-        return Math.max(10000, target * 3.5);   // max(8000, t*3.0) → max(10000, t*3.5) seek 더 보수적
+        return Math.max(10000, target * 3.5);
     }
 
     function debounce(fn, ms) {
@@ -129,12 +136,6 @@
         };
     })();
 
-    function getRateBarColor(ratio) {
-        if (ratio < 0.5) return '#3498db';
-        if (ratio < 0.8) return '#f39c12';
-        return '#e74c3c';
-    }
-
     function flashStyle(el, prop, value, duration = 600) {
         if (!el) return;
         el.style[prop] = value;
@@ -172,8 +173,6 @@
     let lastVideoIsBlob = false;
     let intervalId = null;
     let lastSetRateTime = 0;
-    let currentSmoothedRate = 1.0;
-    let dynamicMaxRate = TUNING.MAX_RATE;
     let lastSetRate = -1;
     let lastRateStr = '1.000x';
     let lastRenderedMediaTime = 0;
@@ -195,18 +194,17 @@
     let wasPaused = false;
     let panelOpen = false;
     let skipReason = '';
-    let stableTickCount = 0;
-    let stableEntryTime = 0;
     let debugVisible = false;
     let _cachedDropInfo = '';
     let hiddenAt = 0;
     let lastDotColor = '';
     let els = {};
 
-    // ── 새로 추가: 배속 적용 시간 추적 ──
-    let lastRateApplyTime = 0;       // 마지막으로 실제 playbackRate를 변경한 시간
-    let pendingRate = 1.0;           // 적용 대기 중인 배속
-    let postSeekGraceEnd = 0;        // seek 후 grace period 종료 시각
+    // ── Burst 상태 ──
+    let boostActive = false;          // 현재 배속 중인가
+    let boostStartTime = 0;          // 배속 시작 시각
+    let boostEndTime = 0;            // 마지막 배속 종료 시각 (쿨다운 계산용)
+    let effectiveRate = 1.0;         // 현재 실제 적용 중인 배속
 
     let lastPresentedFrames = 0;
     let estimatedFps = 30;
@@ -325,86 +323,48 @@
             : weighted * TUNING.AVG_BIAS + trimmed * (1 - TUNING.AVG_BIAS);
     }
 
-    function computeDesiredRate(avgDelayMs) {
-        const error = avgDelayMs - targetDelayMs;
-        if (error <= 0) return TUNING.MIN_RATE;
-        if (error <= TUNING.DEADZONE_MS) {
-            return TUNING.MIN_RATE + (TUNING.HOLD_RATE - TUNING.MIN_RATE) * (error / TUNING.DEADZONE_MS);
-        }
-        const accelError = error - TUNING.DEADZONE_MS;
-        const accelRange = TUNING.RATE_FULL_SCALE_MS - TUNING.DEADZONE_MS;
-        const ratio = clamp(accelError / accelRange, 0, 1);
-        return TUNING.HOLD_RATE + (TUNING.MAX_RATE - TUNING.HOLD_RATE) * (ratio ** TUNING.RATE_CURVE_EXP);
-    }
-
-    function smoothRate(desired) {
-        let alpha = desired > currentSmoothedRate ? TUNING.SMOOTHING_UP : TUNING.SMOOTHING_DOWN;
-        let next = currentSmoothedRate + (desired - currentSmoothedRate) * alpha;
-
-        const maxDelta = TUNING.MAX_RATE_DELTA;
-        next = clamp(next, currentSmoothedRate - maxDelta, currentSmoothedRate + maxDelta);
-
-        if (next < 1.003) next = 1.0;    // 1.005 → 1.003 (HOLD_RATE에 맞춤)
-        currentSmoothedRate = clamp(next, TUNING.MIN_RATE, dynamicMaxRate);
-        return currentSmoothedRate;
-    }
-
-    function setRate(rate) {
+    /* ── Burst 배속 제어 ── */
+    function applyRate(rate) {
         if (!video || video.paused) return;
         if (rate !== 1.0 && video.readyState < 3) return;
         const rounded = Math.round(rate * 1000) / 1000;
-        const now = performance.now();
+        if (rounded === lastSetRate) return;
 
-        // ── 핵심 변경: 배속 변경 빈도 제한 ──
-        // 1배속 복귀는 항상 즉시 허용, 그 외는 최소 간격 강제
-        if (rounded !== 1.0) {
-            // 최소 간격 미달이면 pending에 저장만 하고 적용하지 않음
-            if (now - lastRateApplyTime < TUNING.RATE_CHANGE_MIN_INTERVAL) {
-                pendingRate = rounded;
-                return;
-            }
-            // 차이가 너무 작으면 무시
-            if (Math.abs(rounded - lastSetRate) < TUNING.RATE_CHANGE_MIN_DIFF) return;
-        }
-
-        lastSetRateTime = now;
-        lastRateApplyTime = now;
+        lastSetRateTime = performance.now();
         video.playbackRate = rounded;
         lastSetRate = rounded;
-        pendingRate = rounded;
-        lastRateStr = rounded.toFixed(3) + 'x';
+        effectiveRate = rounded;
+        lastRateStr = rounded === 1.0 ? '1.000x' : rounded.toFixed(3) + 'x';
     }
 
-    // pending 배속을 주기적으로 flush
-    function flushPendingRate() {
-        if (!video || video.paused) return;
-        const now = performance.now();
-        if (now - lastRateApplyTime < TUNING.RATE_CHANGE_MIN_INTERVAL) return;
-        if (Math.abs(pendingRate - lastSetRate) < TUNING.RATE_CHANGE_MIN_DIFF) return;
-        if (pendingRate !== 1.0 && video.readyState < 3) return;
+    function startBoost(now) {
+        if (boostActive) return;
+        boostActive = true;
+        boostStartTime = now;
+        applyRate(TUNING.BOOST_RATE);
+        if (debugVisible) dmLog('BOOST ON');
+        if (panelOpen) flashStyle(els.delayVal, 'textShadow', '0 0 8px #f39c12', 600);
+    }
 
-        const rounded = Math.round(pendingRate * 1000) / 1000;
-        lastSetRateTime = now;
-        lastRateApplyTime = now;
-        video.playbackRate = rounded;
-        lastSetRate = rounded;
-        lastRateStr = rounded.toFixed(3) + 'x';
+    function stopBoost(now) {
+        if (!boostActive) return;
+        boostActive = false;
+        boostEndTime = now;
+        applyRate(1.0);
+        if (debugVisible) dmLog(`BOOST OFF (${((now - boostStartTime) / 1000).toFixed(1)}s)`);
+        if (panelOpen) flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 600);
     }
 
     function getAdaptiveInterval() {
-        if (!isEnabled || !warmupDone) return 700;    // 600 → 700
-        if (stableTickCount >= 10) return 600;         // 500 → 600
+        if (!isEnabled || !warmupDone) return 700;
         return TUNING.CHECK_INTERVAL;
     }
 
     function softReset() {
         delayHistory.clear();
-        currentSmoothedRate = 1.0;
-        pendingRate = 1.0;
+        stopBoost(performance.now());
         lastSetRate = -1;
         lastRateStr = '1.000x';
-        stableTickCount = 0;
-        stableEntryTime = 0;
     }
 
     function onExternalRateChange() {
@@ -412,18 +372,15 @@
         if (!video) return;
         const ext = video.playbackRate;
         if (Math.abs(ext - lastSetRate) < 0.002) return;
-        if (isEnabled) {
-            if (debugVisible) dmLog(`외부 배속 변경: ${ext}`);
-            currentSmoothedRate = ext;
-            pendingRate = ext;
-            lastSetRate = ext;
-            lastRateStr = ext.toFixed(3) + 'x';
-        } else {
-            currentSmoothedRate = 1.0;
-            pendingRate = 1.0;
-            lastSetRate = -1;
-            lastRateStr = '1.000x';
+        if (debugVisible) dmLog(`외부 배속 변경: ${ext}`);
+        // 외부에서 바꿨으면 burst 상태 리셋
+        if (boostActive) {
+            boostActive = false;
+            boostEndTime = performance.now();
         }
+        effectiveRate = ext;
+        lastSetRate = ext;
+        lastRateStr = ext.toFixed(3) + 'x';
     }
 
     function checkFrameDrops() {
@@ -436,22 +393,13 @@
         if (debugVisible) _cachedDropInfo = ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}`;
         if (totalDelta < 10) return;
         const dropRate = droppedDelta / totalDelta;
-        const prev = dynamicMaxRate;
 
-        if (dropRate > TUNING.DROP_RATE_THRESHOLD) {
-            // 패널티를 줄이고, 점진적으로 배속 낮춤 (즉시 1배속 X)
-            dynamicMaxRate = Math.max(1.02, dynamicMaxRate - TUNING.DROP_MAX_RATE_PENALTY);
-            // 현재 배속이 새 maxRate를 넘으면 점진적으로 내려감 (smoothRate가 처리)
-            if (currentSmoothedRate > dynamicMaxRate) {
-                currentSmoothedRate = dynamicMaxRate;
-                pendingRate = dynamicMaxRate;
-            }
-        } else if (dropRate < 0.005 && dynamicMaxRate < TUNING.MAX_RATE) {
-            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + TUNING.DROP_RATE_RECOVERY);
-        }
-
-        if (prev !== dynamicMaxRate && debugVisible) {
-            dmLog(`maxRate: ${prev.toFixed(3)} → ${dynamicMaxRate.toFixed(3)} (drop:${(dropRate * 100).toFixed(1)}%)`);
+        // 프레임 드롭이 심하면 boost 즉시 중단
+        if (dropRate > TUNING.DROP_RATE_THRESHOLD && boostActive) {
+            stopBoost(performance.now());
+            // 쿨다운을 길게 줘서 당분간 boost 안 함
+            boostEndTime = performance.now() + 5000;
+            if (debugVisible) dmLog(`프레임 드롭으로 BOOST 중단 (${(dropRate * 100).toFixed(1)}%)`);
         }
     }
 
@@ -461,19 +409,16 @@
         lastCurrentTime = 0;
         stallCount = 0;
         wasPaused = false;
-        currentSmoothedRate = 1.0;
-        pendingRate = 1.0;
-        dynamicMaxRate = TUNING.MAX_RATE;
+        effectiveRate = 1.0;
         lastSetRate = -1;
         lastRateStr = '1.000x';
         lastSpikeTime = 0;
         skipReason = '';
         _cachedDropInfo = '';
         frameCheckCounter = 0;
-        stableTickCount = 0;
-        stableEntryTime = 0;
-        lastRateApplyTime = 0;
-        postSeekGraceEnd = 0;
+        boostActive = false;
+        boostStartTime = 0;
+        boostEndTime = 0;
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
@@ -556,9 +501,6 @@
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
         vid.currentTime = seekTo;
 
-        // ── seek 후 grace period 설정 ──
-        postSeekGraceEnd = performance.now() + TUNING.POST_SEEK_GRACE_MS;
-
         vid.addEventListener('seeked', () => {
             if (vid !== video || !vid.isConnected) { ac.abort(); return; }
             if (Math.abs(vid.currentTime - seekTo) > 2) { ac.abort(); return; }
@@ -575,12 +517,13 @@
         }, { once: true, signal: combined });
     }
 
-    function getStatusIndicator(avg, rate) {
+    function getStatusIndicator(avg) {
         const delta = avg - prevAvg;
         prevAvg = avg;
         if (!warmupDone) return SI_WARMUP;
         if (!isEnabled) return SI_STOP;
-        if (Math.abs(rate - 1.0) < 0.005 && Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) return SI_OK;
+        if (boostActive) return SI_BOOST;
+        if (Math.abs(avg - targetDelayMs) < TUNING.TRIGGER_MARGIN_MS) return SI_OK;
         return Math.abs(delta) < 80 ? SI_FLAT : (delta > 0 ? SI_UP : SI_DOWN);
     }
 
@@ -601,8 +544,6 @@
         displayApply.rb    = v => { els.rateBar.style.width = v; };
         displayApply.rbc   = v => { els.rateBar.style.background = v; };
         displayApply.rc    = v => { els.rateVal.style.color = v || ''; };
-        displayApply.mx    = v => { els.maxMark.style.left = v; };
-        displayApply.mxo   = v => { els.maxMark.style.opacity = v; };
         displayApply.dbg   = v => { els.debugVal.textContent = v; };
         displayApply.warn  = v => { els.panel.classList.toggle('dm-warning', v); };
     }
@@ -634,6 +575,8 @@
         if (n < 2) return;
         const w = graphCanvas.width, h = graphCanvas.height;
         graphCtx.clearRect(0, 0, w, h);
+
+        // target line
         const targetY = h - (targetDelayMs / 8000) * h;
         graphCtx.lineWidth = 1;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
@@ -642,10 +585,20 @@
         graphCtx.moveTo(0, targetY);
         graphCtx.lineTo(w, targetY);
         graphCtx.stroke();
+
+        // trigger line
+        const triggerY = h - ((targetDelayMs + TUNING.TRIGGER_MARGIN_MS) / 8000) * h;
+        graphCtx.strokeStyle = 'rgba(241,196,15,.2)';
+        graphCtx.beginPath();
+        graphCtx.moveTo(0, triggerY);
+        graphCtx.lineTo(w, triggerY);
+        graphCtx.stroke();
+
         graphCtx.setLineDash(DASH_OFF);
         graphCtx.fillStyle = 'rgba(255,255,255,.3)';
         graphCtx.font = '8px system-ui';
         graphCtx.fillText((targetDelayMs / 1000).toFixed(1) + 's', 2, targetY - 2);
+
         graphCtx.lineWidth = 1.5;
         graphCtx.strokeStyle = '#2ecc71';
         graphCtx.beginPath();
@@ -660,19 +613,21 @@
 
     function buildDebugString(bufEnd) {
         if (!video) return 'video 탐색 중...';
-        let s = `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bufEnd >= 0 ? bufEnd.toFixed(2) : '-'} sr:${currentSmoothedRate.toFixed(3)} pnd:${pendingRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount} fps:${estimatedFps}`;
-        if (stableEntryTime > 0) s += ` stab:${((performance.now() - stableEntryTime) / 1000).toFixed(1)}`;
-        if (stableTickCount >= TUNING.STABLE_LOCK_TICKS) s += ' LOCK';
-        if (performance.now() < postSeekGraceEnd) s += ' GRACE';
+        const now = performance.now();
+        let s = `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bufEnd >= 0 ? bufEnd.toFixed(2) : '-'} rate:${effectiveRate.toFixed(3)}`;
+        s += ` boost:${boostActive ? 'ON' : 'OFF'}`;
+        if (boostActive) s += `(${((now - boostStartTime) / 1000).toFixed(1)}s)`;
+        if (!boostActive && boostEndTime > 0) {
+            const cd = Math.max(0, TUNING.BOOST_COOLDOWN - (now - boostEndTime));
+            if (cd > 0) s += ` cd:${(cd / 1000).toFixed(1)}`;
+        }
+        s += ` trig:${((targetDelayMs + TUNING.TRIGGER_MARGIN_MS) / 1000).toFixed(1)} fps:${estimatedFps}`;
         const n = delayHistory.length;
         if (n >= 2) {
             const [lo, hi] = delayHistory.minMax();
             s += ` r:${(lo / 1000).toFixed(1)}-${(hi / 1000).toFixed(1)}`;
         }
         if (_cachedDropInfo) s += _cachedDropInfo;
-        if (currentSmoothedRate > 1.001 && prevAvg > targetDelayMs) {
-            s += ` eta:${((prevAvg - targetDelayMs) / ((currentSmoothedRate - 1) * 1000)).toFixed(0)}`;
-        }
         if (skipReason) s += ` [${skipReason}]`;
         if (!warmupDone) s += ' [WARMUP]';
         return s;
@@ -698,29 +653,22 @@
         }
 
         setDisplay('warn', avgMs > targetDelayMs * 2 && isEnabled);
-        const statusIndicator = getStatusIndicator(avgMs, currentSmoothedRate);
+        const statusIndicator = getStatusIndicator(avgMs);
 
         setDisplay('d', (avgMs / 1000).toFixed(2) + 's' + statusIndicator);
         setDisplay('r', lastRateStr);
         setDisplay('c', computeColor(avgMs - targetDelayMs));
         setDisplay('w', pct(avgMs, 8000));
 
-        const rateRatio = clamp(
-            (currentSmoothedRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
-        );
-        setDisplay('rb', Math.round(Math.sqrt(rateRatio) * 100) + '%');
-        setDisplay('rbc', getRateBarColor(rateRatio));
-        setDisplay('rc', currentSmoothedRate > 1.005 ? getRateBarColor(rateRatio) : '');
-
-        if (dynamicMaxRate < TUNING.MAX_RATE) {
-            const maxRatio = clamp(
-                (dynamicMaxRate - TUNING.MIN_RATE) / (TUNING.MAX_RATE - TUNING.MIN_RATE), 0, 1
-            );
-            setDisplay('mx', Math.round(maxRatio * 100) + '%');
-            setDisplay('mxo', '0.6');
-        } else if (displayState.mxo !== '0') {
-            setDisplay('mx', '100%');
-            setDisplay('mxo', '0');
+        // 배속 바: boost면 100%, 아니면 0%
+        if (boostActive) {
+            setDisplay('rb', '100%');
+            setDisplay('rbc', '#f39c12');
+            setDisplay('rc', '#f39c12');
+        } else {
+            setDisplay('rb', '0%');
+            setDisplay('rbc', '#3498db');
+            setDisplay('rc', '');
         }
 
         if (debugVisible && els.debugVal) {
@@ -746,6 +694,7 @@
     function updateTargetMark() {
         if (els.targetMark) els.targetMark.style.left = pct(targetDelayMs, 8000);
         if (els.seekMark) els.seekMark.style.left = pct(seekThresholdMs, 8000);
+        if (els.triggerMark) els.triggerMark.style.left = pct(targetDelayMs + TUNING.TRIGGER_MARGIN_MS, 8000);
     }
 
     let presetBtns = [];
@@ -759,7 +708,7 @@
         targetDelayMs = clamp(Math.round(sec * 1000), 500, MAX_TARGET_MS);
         seekThresholdMs = calcSeekThreshold(targetDelayMs);
         softReset();
-        if (warmupDone) setRate(1.0);
+        applyRate(1.0);
         if (els.targetIn) els.targetIn.value = (targetDelayMs / 1000).toFixed(1);
         saveConfig({ targetDelayMs });
         updateTargetMark();
@@ -772,7 +721,7 @@
         if (!edge) return false;
         seekToTarget(edge.start, edge.end);
         softReset();
-        setRate(1.0);
+        applyRate(1.0);
         flashSeekIndicator();
         return true;
     }
@@ -832,9 +781,6 @@
         if (debugVisible) skipReason = '';
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
-        // ── pending 배속 flush ──
-        flushPendingRate();
-
         const edge = getBufferEdge(video.buffered);
         if (!edge) { updateDisplay(0, -1, now); return; }
         const bufStart = edge.start, bufEnd = edge.end;
@@ -847,6 +793,7 @@
         if (rawDelay < 0) { updateDisplay(0, bufEnd, now); return; }
         const delayMs = rawDelay + PLATFORM_OFFSET;
 
+        /* 스톨 감지 */
         const ct = video.currentTime;
         if (Math.abs(ct - lastCurrentTime) < 0.001 && !video.paused) {
             stallCount++;
@@ -855,9 +802,8 @@
                 if (stallEdge) {
                     video.currentTime = Math.max(stallEdge.start, stallEdge.end - targetDelayMs / 1000);
                     softReset();
-                    setRate(1.0);
-                    postSeekGraceEnd = now + TUNING.POST_SEEK_GRACE_MS;
-                    if (debugVisible) dmLog(`스톨 복구: ${stallCount}틱 정체 → bufEnd - target`);
+                    applyRate(1.0);
+                    if (debugVisible) dmLog(`스톨 복구`);
                     flashSeekIndicator();
                 }
                 stallCount = 0;
@@ -875,7 +821,7 @@
                 lastSeekTime = now;
                 seekToTarget(bufStart, bufEnd);
                 softReset();
-                setRate(1.0);
+                applyRate(1.0);
                 flashSeekIndicator();
                 updateDisplay(targetDelayMs, bufEnd, now);
                 return;
@@ -890,46 +836,66 @@
             if (debugVisible) skipReason = 'SPIKE';
             lastSpikeTime = now;
             updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
-            if (!isEnabled) return;
-            // 스파이크 시에도 smoothRate만 사용 (급격한 변경 X)
-            smoothRate(computeDesiredRate(prevAvg > 0 ? prevAvg : targetDelayMs));
             return;
         }
 
         delayHistory.push(delayMs);
         if (debugVisible && graphHistory) graphHistory.push(delayMs);
-        const avg = isEnabled || currentSmoothedRate !== 1.0 ? getStableAverage() : delayHistory.last;
-
-        if (Math.abs(avg - targetDelayMs) < TUNING.DEADZONE_MS) {
-            if (stableTickCount === 0) {
-                stableEntryTime = now;
-                if (panelOpen) flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 800);
-            }
-            stableTickCount++;
-        } else {
-            stableTickCount = 0;
-            stableEntryTime = 0;
-        }
+        const avg = getStableAverage();
 
         updateDisplay(avg, bufEnd, now);
 
+        /* ── 비활성화 상태 ── */
         if (!isEnabled) {
-            if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
+            if (boostActive) stopBoost(now);
+            if (effectiveRate !== 1.0) applyRate(1.0);
             return;
         }
 
-        // ── seek 후 grace period: 배속 조절 금지 ──
-        if (now < postSeekGraceEnd) {
-            if (debugVisible) skipReason = 'GRACE';
-            return;
-        }
+        /* ── Burst 배속 로직 ── */
+        const triggerMs = targetDelayMs + TUNING.TRIGGER_MARGIN_MS;
+        const settleMs = targetDelayMs + TUNING.SETTLE_MARGIN_MS;
 
-        if (stableTickCount >= TUNING.STABLE_LOCK_TICKS) {
-            if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
+        if (boostActive) {
+            // BOOST 중: 종료 조건 체크
+            const boostDuration = now - boostStartTime;
+
+            // 1) 목표 근처까지 내려왔으면 종료 (최소 지속 시간 확보)
+            if (avg <= settleMs && boostDuration >= TUNING.BOOST_MIN_DURATION) {
+                stopBoost(now);
+                return;
+            }
+
+            // 2) 최대 지속 시간 초과
+            if (boostDuration >= TUNING.BOOST_MAX_DURATION) {
+                stopBoost(now);
+                if (debugVisible) dmLog('BOOST 최대 시간 초과로 종료');
+                return;
+            }
+
+            // 3) 딜레이가 오히려 목표 이하로 너무 내려갔으면 즉시 종료
+            if (avg < targetDelayMs - 200) {
+                stopBoost(now);
+                return;
+            }
+
+            // 그 외: boost 유지
         } else {
-            const desired = computeDesiredRate(avg);
-            const smoothed = smoothRate(desired);
-            setRate(smoothed);
+            // BOOST 아닌 상태: 시작 조건 체크
+            const cooldownOk = (now - boostEndTime) >= TUNING.BOOST_COOLDOWN;
+            const historyEnough = delayHistory.length >= 3;
+
+            if (avg > triggerMs && cooldownOk && historyEnough) {
+                // 추가 안전장치: 히스토리의 최근 3개가 모두 trigger 이상일 때만
+                const recent3Ok = delayHistory.length >= 3
+                    && delayHistory.at(delayHistory.length - 1) > triggerMs
+                    && delayHistory.at(delayHistory.length - 2) > triggerMs
+                    && delayHistory.at(delayHistory.length - 3) > triggerMs;
+
+                if (recent3Ok) {
+                    startBoost(now);
+                }
+            }
         }
     }
 
@@ -942,7 +908,8 @@
         if (!video) { updateDisplay(0); return; }
         if (!lastVideoIsBlob || !isLiveStream(video)) {
             if (debugVisible) skipReason = lastVideoIsBlob ? 'VOD/AD' : 'NON-BLOB';
-            if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
+            if (boostActive) stopBoost(performance.now());
+            if (effectiveRate !== 1.0) applyRate(1.0);
             updateDisplay(0);
             return;
         }
@@ -1002,16 +969,16 @@
                 .dm-bar-bg{position:relative;background:rgba(255,255,255,.08);height:5px;
                     border-radius:3px;margin:4px 0 8px;overflow:visible}
                 .dm-bar-clip{overflow:hidden;height:100%;border-radius:3px}
-                .dm-bar,.dm-rate-bar{transition:width .15s linear}
+                .dm-bar,.dm-rate-bar{transition:width .3s ease}
                 .dm-bar{height:100%;width:0%;min-width:2%;border-radius:3px}
                 .dm-target-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
                     border-radius:1px;transition:left .3s ease;pointer-events:none;background:#fff;opacity:.6}
+                .dm-trigger-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
+                    border-radius:1px;transition:left .3s ease;pointer-events:none;background:#f1c40f;opacity:.3}
                 .dm-seek-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
                     border-radius:1px;transition:left .3s ease;pointer-events:none;background:#e74c3c;opacity:.4}
-                .dm-maxrate-mark{position:absolute;top:-2px;bottom:-2px;width:2px;
-                    border-radius:1px;transition:left .3s ease,opacity .3s ease;pointer-events:none;
-                    background:#e74c3c;opacity:0}
-                .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db}
+                .dm-rate-bar{height:100%;width:0%;border-radius:3px;background:#3498db;
+                    transition:width .3s ease,background .3s ease}
                 .dm-input{width:45px;background:#1a1a1a;border:1px solid #444;color:#fff;
                     text-align:center;border-radius:4px}
                 .dm-input::-webkit-inner-spin-button{display:none}
@@ -1041,17 +1008,14 @@
             }
         `);
 
-        /* dot */
         const dot = document.createElement('div');
         dot.id = 'dm-dot';
         document.body.appendChild(dot);
 
-        /* dot tooltip */
         const dotTip = document.createElement('div');
         dotTip.id = 'dm-dot-tip';
         document.body.appendChild(dotTip);
 
-        /* panel */
         const panel = document.createElement('div');
         panel.id = 'dm-panel';
         panel.innerHTML = `
@@ -1062,12 +1026,12 @@
             <div class="dm-bar-bg">
                 <div class="dm-bar-clip"><div data-dm="bar" class="dm-bar"></div></div>
                 <div data-dm="targetmark" class="dm-target-mark"></div>
+                <div data-dm="triggermark" class="dm-trigger-mark"></div>
                 <div data-dm="seekmark" class="dm-seek-mark"></div>
             </div>
             <div class="dm-row"><span>배속</span><span data-dm="rate" class="dm-val">1.000x</span></div>
             <div class="dm-bar-bg">
                 <div class="dm-bar-clip"><div data-dm="ratebar" class="dm-rate-bar"></div></div>
-                <div data-dm="maxmark" class="dm-maxrate-mark"></div>
             </div>
             <div class="dm-row dm-controls" style="margin-top:10px">
                 <button data-dm="toggle" class="dm-btn" title="ON/OFF (Alt+D)">ON</button>
@@ -1083,8 +1047,8 @@
         els = {
             panel, dot, dotTip,
             delayVal: map.delay, rateVal: map.rate, barFill: map.bar,
-            rateBar: map.ratebar, targetMark: map.targetmark, seekMark: map.seekmark,
-            maxMark: map.maxmark,
+            rateBar: map.ratebar, targetMark: map.targetmark,
+            triggerMark: map.triggermark, seekMark: map.seekmark,
             toggleBtn: map.toggle, syncBtn: map.sync, targetIn: map.target,
             header: map.header, debugVal: map.debug, ver: map.ver,
             closeBtn: map.close,
@@ -1093,11 +1057,10 @@
 
         initDisplayApply();
 
-        /* dot tooltip 위치 */
         dot.addEventListener('pointerenter', () => {
             if (panelOpen) return;
             dotTip.textContent = isEnabled
-                ? `${(prevAvg / 1000).toFixed(1)}s → ${(targetDelayMs / 1000).toFixed(1)}s  ${lastRateStr}`
+                ? `${(prevAvg / 1000).toFixed(1)}s → ${(targetDelayMs / 1000).toFixed(1)}s  ${lastRateStr}${boostActive ? ' ⚡' : ''}`
                 : 'OFF';
             const r = dot.getBoundingClientRect();
             const tipW = dotTip.offsetWidth;
@@ -1110,18 +1073,15 @@
             dotTip.style.opacity = '0';
         });
 
-        /* ✕ 클릭 → 패널 닫기 */
         els.closeBtn.addEventListener('click', e => {
             e.stopPropagation();
             closePanel();
         });
 
-        /* 딜레이 클릭 → sync */
         els.delayVal.onclick = () => {
             if (!doManualSync()) flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 400);
         };
 
-        /* 디버그 */
         debugVisible = loadConfig().debugVisible ?? false;
         applyDebug();
 
@@ -1130,8 +1090,7 @@
         updateToggleBtnUI();
         els.toggleBtn.onclick = () => {
             isEnabled = !isEnabled;
-            if (isEnabled) { currentSmoothedRate = TUNING.HOLD_RATE; lastSetRate = -1; }
-            else { currentSmoothedRate = 1.0; setRate(1.0); }
+            if (!isEnabled) { stopBoost(performance.now()); applyRate(1.0); }
             saveConfig({ isEnabled });
             updateToggleBtnUI();
             flashStyle(els.panel, 'borderColor', isEnabled ? '#2ecc71' : '#e74c3c', 600);
@@ -1189,7 +1148,6 @@
         els.debugVal.after(graphCanvas);
         graphCtx = graphCanvas.getContext('2d');
 
-        /* 초기 상태: 저장값 복원 */
         panelOpen = loadConfig().panelOpen ?? false;
         if (panelOpen) {
             els.panel.style.display = 'block';
@@ -1294,7 +1252,7 @@
         ['ArrowUp',   () => applyTargetDelay(Math.max(0.5, targetDelayMs / 1000 - 0.5))],
         ['ArrowDown', () => applyTargetDelay(targetDelayMs / 1000 + 0.5)],
         ['KeyT',      () => { if (els.targetIn) { els.targetIn.focus(); els.targetIn.select(); } }],
-        ['KeyR',      () => { resetState(); if (video) setRate(1.0); flashStyle(els.delayVal, 'textShadow', '0 0 8px #f39c12', 600); }],
+        ['KeyR',      () => { resetState(); if (video) applyRate(1.0); flashStyle(els.delayVal, 'textShadow', '0 0 8px #f39c12', 600); }],
         ['KeyS',      () => doManualSync()],
         ['KeyP',      () => {
             if (!els.panel) return;
@@ -1309,10 +1267,9 @@
             for (let i = 0; i < delayHistory.length; i++) hist.push(delayHistory.at(i).toFixed(0));
             console.table({
                 delay: getStableAverage().toFixed(0) + 'ms',
-                rate: currentSmoothedRate.toFixed(3),
+                rate: effectiveRate.toFixed(3),
                 target: targetDelayMs,
-                maxRate: dynamicMaxRate.toFixed(3),
-                stable: stableTickCount,
+                boost: boostActive,
                 warmup: warmupDone,
                 fps: estimatedFps,
                 buf: edge ? edge.end.toFixed(2) : '-',
