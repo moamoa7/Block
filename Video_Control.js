@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기
 // @namespace    https://github.com/moamoa7
-// @version      8.1.0
+// @version      8.2.0
 // @description  라이브 방송의 딜레이를 자동으로 최적화합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -19,10 +19,11 @@
 
     const SKEY = 'dm_v6';
     const SL_MIN = 2, SL_MAX = 8, SL_DEF = 4;
-    const KEEP_BUF = 3;          // seek 시 3초 남기고 땡김
-    const SEEK_MARGIN = 3;       // 목표 + 3초 이상 밀리면 seek
+    const KEEP_BUF = 3;
+    const SEEK_MARGIN = 3;
     const SEEK_CD = 10000;
-    const CHECK_MS = 1000;
+    const CHECK_MS = 2000;
+    const CHECK_IDLE = 5000;
     const WARMUP = 5000;
 
     let _c = null;
@@ -39,8 +40,6 @@
     })();
 
     const isBlobSrc = v => (v.currentSrc || v.src || '').startsWith('blob:');
-    const isLive = v => { const d = v.duration; if (d === Infinity || d >= 1e6) return true; if (!Number.isFinite(d) || !d) return v.buffered.length > 0; if (!v.buffered.length) return false; const e = v.buffered.end(v.buffered.length - 1); return d - e >= 1 && e > v.currentTime + 1; };
-    const getBuf = v => v.buffered.length ? v.buffered.end(v.buffered.length - 1) - v.currentTime : -1;
 
     let vid = null, vidSrc = '';
     let target = cfg().target ?? SL_DEF;
@@ -48,6 +47,7 @@
     let lastSeek = 0, startTime = performance.now();
     let panelOpen = false, lastDot = '', els = {};
     let debug = cfg().debug ?? false;
+    let cachedBuf = -1;
 
     const loaded = new WeakSet();
     const attach = v => { vid = v; vidSrc = v.currentSrc || v.src || ''; lastSeek = 0; startTime = performance.now(); };
@@ -56,7 +56,15 @@
         const s = v.currentSrc || v.src || '';
         if (vid === v && s === vidSrc) return;
         attach(v);
-        if (!loaded.has(v)) { loaded.add(v); v.addEventListener('loadstart', () => { if (v === vid && isBlobSrc(v)) { const ns = v.currentSrc || v.src || ''; if (ns !== vidSrc) attach(v); } }); }
+        if (!loaded.has(v)) {
+            loaded.add(v);
+            v.addEventListener('loadstart', () => {
+                if (v === vid && isBlobSrc(v)) {
+                    const ns = v.currentSrc || v.src || '';
+                    if (ns !== vidSrc) attach(v);
+                }
+            });
+        }
     };
 
     let obs = null;
@@ -71,11 +79,25 @@
         obs.observe(document.body, { childList: true, subtree: true });
     };
 
+    /* ── 버퍼 읽기: 한 틱에 딱 한 번 ── */
+    const readBuf = () => {
+        if (!vid || !vid.buffered.length) return -1;
+        const e = vid.buffered.end(vid.buffered.length - 1);
+        return e - vid.currentTime;
+    };
+
+    const isLive = () => {
+        if (!vid) return false;
+        const d = vid.duration;
+        if (d === Infinity || d >= 1e6) return true;
+        if (!Number.isFinite(d) || !d) return cachedBuf > 0;
+        return false;
+    };
+
     const doSeek = () => {
         if (!vid?.buffered.length) return;
         const e = vid.buffered.end(vid.buffered.length - 1);
         const s = vid.buffered.start(vid.buffered.length - 1);
-        // 버퍼 끝에서 KEEP_BUF초 남기고 점프
         vid.currentTime = Math.max(s, e - KEEP_BUF);
         lastSeek = performance.now();
         if (debug) console.debug(`[DM] seek → buf=${(e - vid.currentTime).toFixed(1)}s 남김`);
@@ -84,18 +106,22 @@
     const tick = () => {
         if (vid && !vid.isConnected) { vid = null; if (!obs) startObs(); }
         if (!vid) { const v = document.querySelector('video'); if (v) found(v); }
-        if (!vid || !isBlobSrc(vid) || !isLive(vid) || vid.paused) { ui(-1); return; }
+        if (!vid || !isBlobSrc(vid) || vid.paused) { cachedBuf = -1; ui(-1); return; }
+
+        /* buffered 접근은 여기서 딱 1회 */
+        cachedBuf = readBuf();
+
+        if (!isLive()) { cachedBuf = -1; ui(-1); return; }
+
+        ui(cachedBuf);
+
+        if (!enabled) return;
 
         const now = performance.now();
-        const buf = getBuf(vid);
-        if (buf < 0) { ui(-1); return; }
+        if (now - startTime < WARMUP) return;
 
-        ui(buf);
-
-        if (!enabled || now - startTime < WARMUP) return;
-
-        if (buf > target + SEEK_MARGIN && now - lastSeek > SEEK_CD) {
-            if (debug) console.debug(`[DM] 버퍼 ${buf.toFixed(1)}s > 목표 ${target}s + 여유 ${SEEK_MARGIN}s → seek`);
+        if (cachedBuf > target + SEEK_MARGIN && now - lastSeek > SEEK_CD) {
+            if (debug) console.debug(`[DM] 버퍼 ${cachedBuf.toFixed(1)}s > ${target}+${SEEK_MARGIN}s → seek`);
             doSeek();
         }
     };
@@ -188,17 +214,14 @@
     const openP = () => { if (panelOpen) return; panelOpen = true; save({ open: true }); els.dot.style.display = 'none'; els.p.style.display = 'block'; lastDot = ''; };
     const closeP = () => { if (!panelOpen) return; panelOpen = false; save({ open: false }); const r = els.p.getBoundingClientRect(); els.p.style.display = 'none'; els.dot.style.display = 'block'; Object.assign(els.dot.style, { left: clamp(r.right - 20, 0, innerWidth - 14) + 'px', top: clamp(r.top + 6, 0, innerHeight - 14) + 'px', right: 'auto', bottom: 'auto' }); save({ dx: els.dot.style.left, dy: els.dot.style.top }); lastDot = ''; };
 
-    // ── 스크립트 메뉴 ──
-    GM_registerMenuCommand('🔧 디버그 모드 토글', () => {
-        debug = !debug;
-        save({ debug });
+    GM_registerMenuCommand('디버그 모드 토글', () => {
+        debug = !debug; save({ debug });
         console.log(`[DM] 디버그 ${debug ? 'ON' : 'OFF'}`);
     });
 
-    GM_registerMenuCommand('📊 현재 상태', () => {
-        const buf = vid ? getBuf(vid) : -1;
+    GM_registerMenuCommand('현재 상태', () => {
         console.table({
-            버퍼: buf < 0 ? '-' : buf.toFixed(1) + '초',
+            버퍼: cachedBuf < 0 ? '-' : cachedBuf.toFixed(1) + '초',
             목표: target + '초',
             활성: enabled,
             seek임계: (target + SEEK_MARGIN) + '초',
@@ -206,15 +229,21 @@
         });
     });
 
-    // ── init ──
+    /* ── init ── */
     build(); startObs();
     document.addEventListener('play', e => { if (e.target?.tagName === 'VIDEO') found(e.target); }, true);
     const v = document.querySelector('video'); if (v) found(v);
-    setInterval(tick, CHECK_MS);
+
+    /* adaptive setTimeout 루프 */
+    const schedule = () => {
+        tick();
+        setTimeout(schedule, panelOpen ? CHECK_MS : CHECK_IDLE);
+    };
+    schedule();
 
     let lastPath = location.pathname;
     if ('navigation' in window) navigation.addEventListener('navigatesuccess', () => { if (location.pathname !== lastPath) { lastPath = location.pathname; startTime = performance.now(); lastSeek = 0; if (!obs) startObs(); } });
-    else setInterval(() => { if (location.pathname !== lastPath) { lastPath = location.pathname; startTime = performance.now(); lastSeek = 0; if (!obs) startObs(); } }, 1000);
+    else setInterval(() => { if (location.pathname !== lastPath) { lastPath = location.pathname; startTime = performance.now(); lastSeek = 0; if (!obs) startObs(); } }, 2000);
 
     document.addEventListener('visibilitychange', () => { if (!document.hidden) { startTime = performance.now(); lastSeek = 0; } });
     document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
