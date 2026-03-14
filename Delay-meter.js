@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (안정 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.16.0
+// @version      5.17.0
 // @description  최소 딜레이를 유지하면서 끊김 없이 안정적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -16,31 +16,19 @@
 (function () {
     'use strict';
 
-    /*
-     *  v5.16 — "Burst" 모델
-     *  ─────────────────────
-     *  핵심 원칙: playbackRate는 정확히 1.0 또는 고정 BOOST값 둘 중 하나만 사용.
-     *  미세 배속(1.003, 1.01 등)은 절대 쓰지 않는다.
-     *
-     *  1) 평소에는 항상 1.0x (네이티브 디코딩, 끊김 없음)
-     *  2) 딜레이가 TRIGGER 이상이면 → BOOST 배속 ON
-     *  3) 딜레이가 TARGET 이하로 내려오면 → 즉시 1.0x 복귀
-     *  4) BOOST 최대 지속 시간 제한 → 너무 오래 배속하지 않음
-     *  5) BOOST 후 쿨다운 → 연속 배속 전환 방지
-     */
-
     const TUNING = {
         CHECK_INTERVAL: 500,
 
-        // ── Burst 모델 핵심 ──
-        BOOST_RATE: 1.05,             // 배속 시 사용할 고정 값 (이것만 사용)
-        TRIGGER_MARGIN_MS: 500,       // target + 이 값 이상이면 BOOST 시작
-        SETTLE_MARGIN_MS: 100,        // target + 이 값 이하면 BOOST 종료
-        BOOST_MAX_DURATION: 15000,    // 한 번에 최대 15초까지만 배속
-        BOOST_COOLDOWN: 3000,         // BOOST 종료 후 최소 3초 대기
-        BOOST_MIN_DURATION: 2000,     // 최소 2초는 유지 (잦은 on/off 방지)
+        // ── Burst 모델 ──
+        BOOST_RATE: 1.03,             // 1.05 → 1.03 (디코더 부담 최소화)
+        TRIGGER_MARGIN_MS: 1000,      // 500 → 1000 (target+1초 넘어야 boost)
+        SETTLE_MARGIN_MS: 200,        // 100 → 200
+        BOOST_MAX_DURATION: 20000,    // 15s → 20s (느린 배속 보상)
+        BOOST_COOLDOWN: 5000,         // 3s → 5s
+        BOOST_MIN_DURATION: 4000,     // 2s → 4s
+        CONFIRM_TICKS: 5,             // 3 → 5 (5틱 연속 초과 확인)
 
-        // ── 기존 유지 ──
+        // ── 기존 ──
         HISTORY_SIZE: 10,
         SEEK_COOLDOWN_MS: 10000,
         SPIKE_THRESHOLD_MS: 2000,
@@ -69,7 +57,7 @@
     const SI_BOOST = ' ⚡';
 
     function calcSeekThreshold(target) {
-        return Math.max(10000, target * 3.5);
+        return Math.max(8000, target * 3.0);   // 10000/3.5 → 8000/3.0 (seek 좀 더 적극적)
     }
 
     function debounce(fn, ms) {
@@ -85,27 +73,22 @@
     }
 
     let _configCache = null;
-
     function loadConfig() {
         if (_configCache) return _configCache;
         try { _configCache = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
         catch { _configCache = {}; }
         return _configCache;
     }
-
     const flushConfigToStorage = debounce(() => {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(_configCache));
     }, 300);
-
     function saveConfig(patch) {
         _configCache = { ...loadConfig(), ...patch };
         flushConfigToStorage();
     }
-
     window.addEventListener('beforeunload', () => flushConfigToStorage.flush());
 
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-
     function pct(value, max) {
         return (value <= 0 ? 0 : value >= max ? 100 : (value / max * 100 + 0.5) | 0) + '%';
     }
@@ -148,7 +131,6 @@
     }
 
     const _edgeResult = { start: 0, end: 0 };
-
     function getBufferEdge(buf) {
         if (!buf?.length) return null;
         const last = buf.length - 1;
@@ -201,10 +183,11 @@
     let els = {};
 
     // ── Burst 상태 ──
-    let boostActive = false;          // 현재 배속 중인가
-    let boostStartTime = 0;          // 배속 시작 시각
-    let boostEndTime = 0;            // 마지막 배속 종료 시각 (쿨다운 계산용)
-    let effectiveRate = 1.0;         // 현재 실제 적용 중인 배속
+    let boostActive = false;
+    let boostStartTime = 0;
+    let boostEndTime = 0;
+    let effectiveRate = 1.0;
+    let triggerConfirmCount = 0;      // 연속 초과 틱 카운터
 
     let lastPresentedFrames = 0;
     let estimatedFps = 30;
@@ -282,7 +265,6 @@
     }
 
     let frameCallbackGen = 0;
-
     function startFrameCallback(vid) {
         if (!('requestVideoFrameCallback' in HTMLVideoElement.prototype)) return;
         const gen = ++frameCallbackGen;
@@ -323,13 +305,12 @@
             : weighted * TUNING.AVG_BIAS + trimmed * (1 - TUNING.AVG_BIAS);
     }
 
-    /* ── Burst 배속 제어 ── */
+    /* ── 배속 제어 ── */
     function applyRate(rate) {
         if (!video || video.paused) return;
         if (rate !== 1.0 && video.readyState < 3) return;
         const rounded = Math.round(rate * 1000) / 1000;
         if (rounded === lastSetRate) return;
-
         lastSetRateTime = performance.now();
         video.playbackRate = rounded;
         lastSetRate = rounded;
@@ -350,6 +331,7 @@
         if (!boostActive) return;
         boostActive = false;
         boostEndTime = now;
+        triggerConfirmCount = 0;
         applyRate(1.0);
         if (debugVisible) dmLog(`BOOST OFF (${((now - boostStartTime) / 1000).toFixed(1)}s)`);
         if (panelOpen) flashStyle(els.delayVal, 'textShadow', '0 0 8px #2ecc71', 600);
@@ -363,6 +345,7 @@
     function softReset() {
         delayHistory.clear();
         stopBoost(performance.now());
+        triggerConfirmCount = 0;
         lastSetRate = -1;
         lastRateStr = '1.000x';
     }
@@ -373,11 +356,8 @@
         const ext = video.playbackRate;
         if (Math.abs(ext - lastSetRate) < 0.002) return;
         if (debugVisible) dmLog(`외부 배속 변경: ${ext}`);
-        // 외부에서 바꿨으면 burst 상태 리셋
-        if (boostActive) {
-            boostActive = false;
-            boostEndTime = performance.now();
-        }
+        if (boostActive) { boostActive = false; boostEndTime = performance.now(); }
+        triggerConfirmCount = 0;
         effectiveRate = ext;
         lastSetRate = ext;
         lastRateStr = ext.toFixed(3) + 'x';
@@ -393,13 +373,10 @@
         if (debugVisible) _cachedDropInfo = ` d:${q.droppedVideoFrames}/${q.totalVideoFrames}`;
         if (totalDelta < 10) return;
         const dropRate = droppedDelta / totalDelta;
-
-        // 프레임 드롭이 심하면 boost 즉시 중단
         if (dropRate > TUNING.DROP_RATE_THRESHOLD && boostActive) {
             stopBoost(performance.now());
-            // 쿨다운을 길게 줘서 당분간 boost 안 함
-            boostEndTime = performance.now() + 5000;
-            if (debugVisible) dmLog(`프레임 드롭으로 BOOST 중단 (${(dropRate * 100).toFixed(1)}%)`);
+            boostEndTime = performance.now() + 8000;   // 드롭 시 8초 추가 쿨다운
+            if (debugVisible) dmLog(`프레임 드롭 BOOST 중단 (${(dropRate * 100).toFixed(1)}%)`);
         }
     }
 
@@ -419,6 +396,7 @@
         boostActive = false;
         boostStartTime = 0;
         boostEndTime = 0;
+        triggerConfirmCount = 0;
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
@@ -436,9 +414,7 @@
 
     function attachVideo(v) {
         const src = v.currentSrc || v.src || '';
-        if (video && video !== v) {
-            video.removeEventListener('ratechange', onExternalRateChange);
-        }
+        if (video && video !== v) video.removeEventListener('ratechange', onExternalRateChange);
         video = v;
         lastVideoSrc = src;
         lastVideoIsBlob = isBlobSrc(v);
@@ -467,15 +443,12 @@
             v.addEventListener('loadstart', () => {
                 if (v !== video) return;
                 const newSrc = v.currentSrc || v.src || '';
-                if (newSrc !== lastVideoSrc && isBlobSrc(v)) {
-                    attachVideo(v);
-                }
+                if (newSrc !== lastVideoSrc && isBlobSrc(v)) attachVideo(v);
             });
         }
     }
 
     let videoObserver = null;
-
     function setupVideoObserver() {
         if (videoObserver) return;
         videoObserver = new MutationObserver((mutations) => {
@@ -500,7 +473,6 @@
         const vid = video;
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
         vid.currentTime = seekTo;
-
         vid.addEventListener('seeked', () => {
             if (vid !== video || !vid.isConnected) { ac.abort(); return; }
             if (Math.abs(vid.currentTime - seekTo) > 2) { ac.abort(); return; }
@@ -556,7 +528,6 @@
     }
 
     let rafId = null;
-
     function flushDisplay() {
         if (!els.delayVal || dirtyChannels.size === 0) return;
         for (const key of dirtyChannels) {
@@ -576,7 +547,6 @@
         const w = graphCanvas.width, h = graphCanvas.height;
         graphCtx.clearRect(0, 0, w, h);
 
-        // target line
         const targetY = h - (targetDelayMs / 8000) * h;
         graphCtx.lineWidth = 1;
         graphCtx.strokeStyle = 'rgba(255,255,255,.15)';
@@ -586,7 +556,6 @@
         graphCtx.lineTo(w, targetY);
         graphCtx.stroke();
 
-        // trigger line
         const triggerY = h - ((targetDelayMs + TUNING.TRIGGER_MARGIN_MS) / 8000) * h;
         graphCtx.strokeStyle = 'rgba(241,196,15,.2)';
         graphCtx.beginPath();
@@ -621,6 +590,7 @@
             const cd = Math.max(0, TUNING.BOOST_COOLDOWN - (now - boostEndTime));
             if (cd > 0) s += ` cd:${(cd / 1000).toFixed(1)}`;
         }
+        s += ` conf:${triggerConfirmCount}/${TUNING.CONFIRM_TICKS}`;
         s += ` trig:${((targetDelayMs + TUNING.TRIGGER_MARGIN_MS) / 1000).toFixed(1)} fps:${estimatedFps}`;
         const n = delayHistory.length;
         if (n >= 2) {
@@ -633,7 +603,6 @@
         return s;
     }
 
-    /* ── dot ── */
     function updateDot(avgMs) {
         if (panelOpen || !els.dot) return;
         const color = !isEnabled ? '#555' : computeColor(avgMs - targetDelayMs);
@@ -645,12 +614,8 @@
         els.dot.classList.toggle('dm-dot-off', !isEnabled);
     }
 
-    /* ── UI 갱신 ── */
     function updateDisplay(avgMs, bufEnd = -1, now = performance.now()) {
-        if (!panelOpen) {
-            updateDot(avgMs);
-            return;
-        }
+        if (!panelOpen) { updateDot(avgMs); return; }
 
         setDisplay('warn', avgMs > targetDelayMs * 2 && isEnabled);
         const statusIndicator = getStatusIndicator(avgMs);
@@ -660,7 +625,6 @@
         setDisplay('c', computeColor(avgMs - targetDelayMs));
         setDisplay('w', pct(avgMs, 8000));
 
-        // 배속 바: boost면 100%, 아니면 0%
         if (boostActive) {
             setDisplay('rb', '100%');
             setDisplay('rbc', '#f39c12');
@@ -671,9 +635,7 @@
             setDisplay('rc', '');
         }
 
-        if (debugVisible && els.debugVal) {
-            setDisplay('dbg', buildDebugString(bufEnd));
-        }
+        if (debugVisible && els.debugVal) setDisplay('dbg', buildDebugString(bufEnd));
 
         if (rafId) return;
         rafId = requestAnimationFrame(() => {
@@ -726,7 +688,6 @@
         return true;
     }
 
-    /* ── 패널 열기/닫기 ── */
     function openPanel() {
         if (panelOpen) return;
         panelOpen = true;
@@ -758,9 +719,7 @@
         lastDotColor = '';
     }
 
-    function togglePanel() {
-        panelOpen ? closePanel() : openPanel();
-    }
+    function togglePanel() { panelOpen ? closePanel() : openPanel(); }
 
     /* ── 핵심 루프 ── */
     function processLiveVideo() {
@@ -803,7 +762,7 @@
                     video.currentTime = Math.max(stallEdge.start, stallEdge.end - targetDelayMs / 1000);
                     softReset();
                     applyRate(1.0);
-                    if (debugVisible) dmLog(`스톨 복구`);
+                    if (debugVisible) dmLog('스톨 복구');
                     flashSeekIndicator();
                 }
                 stallCount = 0;
@@ -828,7 +787,7 @@
             }
         }
 
-        /* 스파이크 감지 */
+        /* 스파이크 */
         const lastDelay = delayHistory.last;
         if (lastDelay > 0
             && Math.abs(delayMs - lastDelay) > TUNING.SPIKE_THRESHOLD_MS
@@ -845,56 +804,49 @@
 
         updateDisplay(avg, bufEnd, now);
 
-        /* ── 비활성화 상태 ── */
         if (!isEnabled) {
             if (boostActive) stopBoost(now);
             if (effectiveRate !== 1.0) applyRate(1.0);
             return;
         }
 
-        /* ── Burst 배속 로직 ── */
+        /* ── Burst 로직 ── */
         const triggerMs = targetDelayMs + TUNING.TRIGGER_MARGIN_MS;
         const settleMs = targetDelayMs + TUNING.SETTLE_MARGIN_MS;
 
         if (boostActive) {
-            // BOOST 중: 종료 조건 체크
             const boostDuration = now - boostStartTime;
 
-            // 1) 목표 근처까지 내려왔으면 종료 (최소 지속 시간 확보)
+            // 목표 도달 (최소 지속 시간 경과 후)
             if (avg <= settleMs && boostDuration >= TUNING.BOOST_MIN_DURATION) {
                 stopBoost(now);
                 return;
             }
-
-            // 2) 최대 지속 시간 초과
+            // 목표 이하로 과도하게 내려감
+            if (avg < targetDelayMs - 300) {
+                stopBoost(now);
+                return;
+            }
+            // 최대 지속 시간
             if (boostDuration >= TUNING.BOOST_MAX_DURATION) {
                 stopBoost(now);
-                if (debugVisible) dmLog('BOOST 최대 시간 초과로 종료');
+                if (debugVisible) dmLog('BOOST 최대 시간 초과');
                 return;
             }
-
-            // 3) 딜레이가 오히려 목표 이하로 너무 내려갔으면 즉시 종료
-            if (avg < targetDelayMs - 200) {
-                stopBoost(now);
-                return;
-            }
-
-            // 그 외: boost 유지
+            // 유지
         } else {
-            // BOOST 아닌 상태: 시작 조건 체크
+            // BOOST 시작 조건
             const cooldownOk = (now - boostEndTime) >= TUNING.BOOST_COOLDOWN;
-            const historyEnough = delayHistory.length >= 3;
 
-            if (avg > triggerMs && cooldownOk && historyEnough) {
-                // 추가 안전장치: 히스토리의 최근 3개가 모두 trigger 이상일 때만
-                const recent3Ok = delayHistory.length >= 3
-                    && delayHistory.at(delayHistory.length - 1) > triggerMs
-                    && delayHistory.at(delayHistory.length - 2) > triggerMs
-                    && delayHistory.at(delayHistory.length - 3) > triggerMs;
+            if (avg > triggerMs && cooldownOk) {
+                triggerConfirmCount++;
+            } else {
+                triggerConfirmCount = 0;
+            }
 
-                if (recent3Ok) {
-                    startBoost(now);
-                }
+            if (triggerConfirmCount >= TUNING.CONFIRM_TICKS) {
+                triggerConfirmCount = 0;
+                startBoost(now);
             }
         }
     }
@@ -934,7 +886,7 @@
         intervalId = setTimeout(scheduleTick, Math.max(1, nextTickTime - performance.now()));
     }
 
-    /* ── UI 생성 ── */
+    /* ── UI ── */
     function createPanel() {
         if (document.getElementById('dm-dot')) return;
         GM_addStyle(`
@@ -1069,14 +1021,9 @@
             dotTip.style.top = clamp(r.top + r.height / 2 - dotTip.offsetHeight / 2, 0, innerHeight - dotTip.offsetHeight) + 'px';
             dotTip.style.opacity = '1';
         });
-        dot.addEventListener('pointerleave', () => {
-            dotTip.style.opacity = '0';
-        });
+        dot.addEventListener('pointerleave', () => { dotTip.style.opacity = '0'; });
 
-        els.closeBtn.addEventListener('click', e => {
-            e.stopPropagation();
-            closePanel();
-        });
+        els.closeBtn.addEventListener('click', e => { e.stopPropagation(); closePanel(); });
 
         els.delayVal.onclick = () => {
             if (!doManualSync()) flashStyle(els.delayVal, 'textShadow', '0 0 8px #e74c3c', 400);
@@ -1149,13 +1096,8 @@
         graphCtx = graphCanvas.getContext('2d');
 
         panelOpen = loadConfig().panelOpen ?? false;
-        if (panelOpen) {
-            els.panel.style.display = 'block';
-            els.dot.style.display = 'none';
-        } else {
-            els.panel.style.display = 'none';
-            els.dot.style.display = 'block';
-        }
+        if (panelOpen) { els.panel.style.display = 'block'; els.dot.style.display = 'none'; }
+        else { els.panel.style.display = 'none'; els.dot.style.display = 'block'; }
 
         makeDraggable(panel);
         makeDotDraggable(dot);
@@ -1169,16 +1111,14 @@
             dragging = true;
             h.setPointerCapture(e.pointerId);
             const r = panel.getBoundingClientRect();
-            ox = e.clientX - r.left;
-            oy = e.clientY - r.top;
+            ox = e.clientX - r.left; oy = e.clientY - r.top;
             h.style.cursor = 'grabbing';
         });
         h.addEventListener('pointermove', e => {
             if (!dragging) return;
             panel.style.left = clamp(e.clientX - ox, 0, innerWidth - panel.offsetWidth) + 'px';
             panel.style.top = clamp(e.clientY - oy, 0, innerHeight - panel.offsetHeight) + 'px';
-            panel.style.right = 'auto';
-            panel.style.bottom = 'auto';
+            panel.style.right = 'auto'; panel.style.bottom = 'auto';
         });
         const endDrag = () => {
             if (!dragging) return;
@@ -1191,9 +1131,8 @@
         const s = loadConfig();
         if (s.panelX != null) {
             const x = parseFloat(s.panelX), y = parseFloat(s.panelY);
-            if (x >= 0 && x < innerWidth - 50 && y >= 0 && y < innerHeight - 50) {
+            if (x >= 0 && x < innerWidth - 50 && y >= 0 && y < innerHeight - 50)
                 Object.assign(panel.style, { left: s.panelX, top: s.panelY, right: 'auto', bottom: 'auto' });
-            }
         }
     }
 
@@ -1201,20 +1140,17 @@
         let ox = 0, oy = 0, dragging = false, moved = false;
         dot.addEventListener('pointerdown', e => {
             if (e.button !== 0) return;
-            dragging = true;
-            moved = false;
+            dragging = true; moved = false;
             dot.setPointerCapture(e.pointerId);
             const r = dot.getBoundingClientRect();
-            ox = e.clientX - r.left;
-            oy = e.clientY - r.top;
+            ox = e.clientX - r.left; oy = e.clientY - r.top;
         });
         dot.addEventListener('pointermove', e => {
             if (!dragging) return;
             moved = true;
             dot.style.left = clamp(e.clientX - ox, 0, innerWidth - 14) + 'px';
             dot.style.top = clamp(e.clientY - oy, 0, innerHeight - 14) + 'px';
-            dot.style.right = 'auto';
-            dot.style.bottom = 'auto';
+            dot.style.right = 'auto'; dot.style.bottom = 'auto';
         });
         dot.addEventListener('pointerup', () => {
             if (!dragging) return;
@@ -1228,9 +1164,8 @@
         const s = loadConfig();
         if (s.dotX != null) {
             const x = parseFloat(s.dotX), y = parseFloat(s.dotY);
-            if (x >= 0 && x < innerWidth - 14 && y >= 0 && y < innerHeight - 14) {
+            if (x >= 0 && x < innerWidth - 14 && y >= 0 && y < innerHeight - 14)
                 Object.assign(dot.style, { left: s.dotX, top: s.dotY, right: 'auto', bottom: 'auto' });
-            }
         }
     }
 
@@ -1270,6 +1205,7 @@
                 rate: effectiveRate.toFixed(3),
                 target: targetDelayMs,
                 boost: boostActive,
+                confirmTicks: triggerConfirmCount,
                 warmup: warmupDone,
                 fps: estimatedFps,
                 buf: edge ? edge.end.toFixed(2) : '-',
@@ -1297,17 +1233,11 @@
 
         if ('navigation' in window) {
             navigation.addEventListener('navigatesuccess', () => {
-                if (location.pathname !== lastPath) {
-                    lastPath = location.pathname;
-                    resetState();
-                }
+                if (location.pathname !== lastPath) { lastPath = location.pathname; resetState(); }
             });
         } else {
             setInterval(() => {
-                if (location.pathname !== lastPath) {
-                    lastPath = location.pathname;
-                    resetState();
-                }
+                if (location.pathname !== lastPath) { lastPath = location.pathname; resetState(); }
             }, 1000);
         }
 
