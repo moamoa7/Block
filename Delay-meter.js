@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (안정 튜닝)
 // @namespace    https://github.com/moamoa7
-// @version      5.14.0
+// @version      5.15.0
 // @description  최소 딜레이를 유지하면서 끊김 없이 안정적으로 배속을 조절합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -17,29 +17,37 @@
     'use strict';
 
     const TUNING = {
-        CHECK_INTERVAL: 400,          // 250 → 400
-        HISTORY_SIZE: 8,
-        MAX_RATE: 1.08,               // 1.12 → 1.08
+        CHECK_INTERVAL: 500,          // 400 → 500  (틱 간격 넓힘)
+        HISTORY_SIZE: 10,             // 8 → 10  (더 많은 샘플로 평균 안정화)
+        MAX_RATE: 1.05,               // 1.08 → 1.05  (최대 배속 대폭 낮춤)
         MIN_RATE: 1.00,
-        DEADZONE_MS: 600,             // 400 → 600
-        SMOOTHING_UP: 0.15,           // 0.30 → 0.15
-        SMOOTHING_DOWN: 0.10,         // 0.20 → 0.10
-        RATE_FULL_SCALE_MS: 4000,
-        RATE_CURVE_EXP: 0.75,
-        SEEK_COOLDOWN_MS: 8000,       // 5000 → 8000
-        HOLD_RATE: 1.005,             // 1.01 → 1.005
+        DEADZONE_MS: 800,             // 600 → 800  (더 넓은 데드존)
+        SMOOTHING_UP: 0.08,           // 0.15 → 0.08  (배속 올리기 훨씬 느리게)
+        SMOOTHING_DOWN: 0.06,         // 0.10 → 0.06  (배속 내리기도 느리게)
+        RATE_FULL_SCALE_MS: 5000,     // 4000 → 5000
+        RATE_CURVE_EXP: 0.6,         // 0.75 → 0.6  (더 완만한 커브)
+        SEEK_COOLDOWN_MS: 10000,      // 8000 → 10000
+        HOLD_RATE: 1.003,             // 1.005 → 1.003  (데드존 내 홀드 배속 낮춤)
         AVG_BIAS: 0.7,
         SPIKE_THRESHOLD_MS: 2000,
-        SPIKE_COOLDOWN_MS: 1500,
+        SPIKE_COOLDOWN_MS: 2000,      // 1500 → 2000
         STALL_THRESHOLD: 6,
-        STALL_RECOVER_COUNT: 40,      // 20 → 40
-        FRAME_CHECK_EVERY: 10,        // 20 → 10
-        WARMUP_MS: 4000,              // 2500 → 4000
-        WARMUP_MIN_BUFFER_SEC: 2.5,   // 1.5 → 2.5
+        STALL_RECOVER_COUNT: 50,      // 40 → 50
+        FRAME_CHECK_EVERY: 8,         // 10 → 8  (프레임 드롭 좀 더 자주 확인)
+        WARMUP_MS: 5000,              // 4000 → 5000
+        WARMUP_MIN_BUFFER_SEC: 3.0,   // 2.5 → 3.0
         WARMUP_MIN_READY_STATE: 3,
-        RATE_PROTECT_MS: 300,
-        STABLE_LOCK_TICKS: 12,        // 20 → 12
-        MAX_RATE_DELTA: 0.004,        // 0.008 → 0.004
+        RATE_PROTECT_MS: 400,         // 300 → 400
+        STABLE_LOCK_TICKS: 8,         // 12 → 8  (안정 상태 빨리 잠금)
+        MAX_RATE_DELTA: 0.002,        // 0.004 → 0.002  (틱당 최대 변화량 반감)
+
+        // ── 새로 추가 ──
+        RATE_CHANGE_MIN_INTERVAL: 1500,  // 배속 실제 적용 최소 간격 (ms)
+        RATE_CHANGE_MIN_DIFF: 0.005,     // 이 이상 차이 나야 실제 적용
+        POST_SEEK_GRACE_MS: 3000,        // seek 후 배속 조절 금지 시간
+        DROP_RATE_THRESHOLD: 0.03,       // 2% → 3%  (프레임 드롭 임계치 완화)
+        DROP_RATE_RECOVERY: 0.003,       // 0.005 → 0.003  (maxRate 복구 더 느리게)
+        DROP_MAX_RATE_PENALTY: 0.02,     // 0.03 → 0.02  (드롭 시 패널티 축소)
     };
 
     const IS_CHZZK = location.hostname.includes('chzzk.naver.com');
@@ -54,7 +62,7 @@
     const SI_WARMUP = ' ⏳', SI_STOP = ' ⏹', SI_OK = ' ✓', SI_FLAT = ' →', SI_UP = ' ↑', SI_DOWN = ' ↓';
 
     function calcSeekThreshold(target) {
-        return Math.max(8000, target * 3.0);   // max(5000, t*2.5) → max(8000, t*3.0)
+        return Math.max(10000, target * 3.5);   // max(8000, t*3.0) → max(10000, t*3.5) seek 더 보수적
     }
 
     function debounce(fn, ms) {
@@ -195,6 +203,11 @@
     let lastDotColor = '';
     let els = {};
 
+    // ── 새로 추가: 배속 적용 시간 추적 ──
+    let lastRateApplyTime = 0;       // 마지막으로 실제 playbackRate를 변경한 시간
+    let pendingRate = 1.0;           // 적용 대기 중인 배속
+    let postSeekGraceEnd = 0;        // seek 후 grace period 종료 시각
+
     let lastPresentedFrames = 0;
     let estimatedFps = 30;
 
@@ -331,7 +344,7 @@
         const maxDelta = TUNING.MAX_RATE_DELTA;
         next = clamp(next, currentSmoothedRate - maxDelta, currentSmoothedRate + maxDelta);
 
-        if (next < 1.005) next = 1.0;
+        if (next < 1.003) next = 1.0;    // 1.005 → 1.003 (HOLD_RATE에 맞춤)
         currentSmoothedRate = clamp(next, TUNING.MIN_RATE, dynamicMaxRate);
         return currentSmoothedRate;
     }
@@ -340,25 +353,54 @@
         if (!video || video.paused) return;
         if (rate !== 1.0 && video.readyState < 3) return;
         const rounded = Math.round(rate * 1000) / 1000;
+        const now = performance.now();
 
-        // 0.003 미만 차이는 무시 (1.0 복귀는 예외)
-        if (rounded !== 1.0 && Math.abs(rounded - lastSetRate) < 0.003) return;
+        // ── 핵심 변경: 배속 변경 빈도 제한 ──
+        // 1배속 복귀는 항상 즉시 허용, 그 외는 최소 간격 강제
+        if (rounded !== 1.0) {
+            // 최소 간격 미달이면 pending에 저장만 하고 적용하지 않음
+            if (now - lastRateApplyTime < TUNING.RATE_CHANGE_MIN_INTERVAL) {
+                pendingRate = rounded;
+                return;
+            }
+            // 차이가 너무 작으면 무시
+            if (Math.abs(rounded - lastSetRate) < TUNING.RATE_CHANGE_MIN_DIFF) return;
+        }
 
-        lastSetRateTime = performance.now();
+        lastSetRateTime = now;
+        lastRateApplyTime = now;
+        video.playbackRate = rounded;
+        lastSetRate = rounded;
+        pendingRate = rounded;
+        lastRateStr = rounded.toFixed(3) + 'x';
+    }
+
+    // pending 배속을 주기적으로 flush
+    function flushPendingRate() {
+        if (!video || video.paused) return;
+        const now = performance.now();
+        if (now - lastRateApplyTime < TUNING.RATE_CHANGE_MIN_INTERVAL) return;
+        if (Math.abs(pendingRate - lastSetRate) < TUNING.RATE_CHANGE_MIN_DIFF) return;
+        if (pendingRate !== 1.0 && video.readyState < 3) return;
+
+        const rounded = Math.round(pendingRate * 1000) / 1000;
+        lastSetRateTime = now;
+        lastRateApplyTime = now;
         video.playbackRate = rounded;
         lastSetRate = rounded;
         lastRateStr = rounded.toFixed(3) + 'x';
     }
 
     function getAdaptiveInterval() {
-        if (!isEnabled || !warmupDone) return 600;    // 500 → 600
-        if (stableTickCount >= 10) return 500;         // 400 → 500
-        return Math.abs(currentSmoothedRate - 1.0) < 0.005 ? 450 : TUNING.CHECK_INTERVAL;  // 350 → 450
+        if (!isEnabled || !warmupDone) return 700;    // 600 → 700
+        if (stableTickCount >= 10) return 600;         // 500 → 600
+        return TUNING.CHECK_INTERVAL;
     }
 
     function softReset() {
         delayHistory.clear();
         currentSmoothedRate = 1.0;
+        pendingRate = 1.0;
         lastSetRate = -1;
         lastRateStr = '1.000x';
         stableTickCount = 0;
@@ -373,10 +415,12 @@
         if (isEnabled) {
             if (debugVisible) dmLog(`외부 배속 변경: ${ext}`);
             currentSmoothedRate = ext;
+            pendingRate = ext;
             lastSetRate = ext;
             lastRateStr = ext.toFixed(3) + 'x';
         } else {
             currentSmoothedRate = 1.0;
+            pendingRate = 1.0;
             lastSetRate = -1;
             lastRateStr = '1.000x';
         }
@@ -394,13 +438,16 @@
         const dropRate = droppedDelta / totalDelta;
         const prev = dynamicMaxRate;
 
-        if (dropRate > 0.02) {                                          // 3% → 2%
-            dynamicMaxRate = Math.max(1.03, dynamicMaxRate - 0.03);
-            currentSmoothedRate = 1.0;                                  // 즉시 1배속
-            setRate(1.0);
-            softReset();                                                // 히스토리 초기화
+        if (dropRate > TUNING.DROP_RATE_THRESHOLD) {
+            // 패널티를 줄이고, 점진적으로 배속 낮춤 (즉시 1배속 X)
+            dynamicMaxRate = Math.max(1.02, dynamicMaxRate - TUNING.DROP_MAX_RATE_PENALTY);
+            // 현재 배속이 새 maxRate를 넘으면 점진적으로 내려감 (smoothRate가 처리)
+            if (currentSmoothedRate > dynamicMaxRate) {
+                currentSmoothedRate = dynamicMaxRate;
+                pendingRate = dynamicMaxRate;
+            }
         } else if (dropRate < 0.005 && dynamicMaxRate < TUNING.MAX_RATE) {
-            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + 0.005);  // 복구 느리게
+            dynamicMaxRate = Math.min(TUNING.MAX_RATE, dynamicMaxRate + TUNING.DROP_RATE_RECOVERY);
         }
 
         if (prev !== dynamicMaxRate && debugVisible) {
@@ -415,6 +462,7 @@
         stallCount = 0;
         wasPaused = false;
         currentSmoothedRate = 1.0;
+        pendingRate = 1.0;
         dynamicMaxRate = TUNING.MAX_RATE;
         lastSetRate = -1;
         lastRateStr = '1.000x';
@@ -424,6 +472,8 @@
         frameCheckCounter = 0;
         stableTickCount = 0;
         stableEntryTime = 0;
+        lastRateApplyTime = 0;
+        postSeekGraceEnd = 0;
         delayHistory.clear();
         warmupDone = false;
         warmupStartTime = performance.now();
@@ -505,6 +555,10 @@
         const vid = video;
         const seekTo = Math.max(bufStart, bufEnd - targetDelayMs / 1000);
         vid.currentTime = seekTo;
+
+        // ── seek 후 grace period 설정 ──
+        postSeekGraceEnd = performance.now() + TUNING.POST_SEEK_GRACE_MS;
+
         vid.addEventListener('seeked', () => {
             if (vid !== video || !vid.isConnected) { ac.abort(); return; }
             if (Math.abs(vid.currentTime - seekTo) > 2) { ac.abort(); return; }
@@ -606,9 +660,10 @@
 
     function buildDebugString(bufEnd) {
         if (!video) return 'video 탐색 중...';
-        let s = `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bufEnd >= 0 ? bufEnd.toFixed(2) : '-'} sr:${currentSmoothedRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount} fps:${estimatedFps}`;
+        let s = `${video.paused ? '⏸' : '▶'} ct:${video.currentTime.toFixed(2)} buf:${bufEnd >= 0 ? bufEnd.toFixed(2) : '-'} sr:${currentSmoothedRate.toFixed(3)} pnd:${pendingRate.toFixed(3)} mx:${dynamicMaxRate.toFixed(2)} sk:${(seekThresholdMs / 1000).toFixed(1)} st:${stableTickCount} fps:${estimatedFps}`;
         if (stableEntryTime > 0) s += ` stab:${((performance.now() - stableEntryTime) / 1000).toFixed(1)}`;
         if (stableTickCount >= TUNING.STABLE_LOCK_TICKS) s += ' LOCK';
+        if (performance.now() < postSeekGraceEnd) s += ' GRACE';
         const n = delayHistory.length;
         if (n >= 2) {
             const [lo, hi] = delayHistory.minMax();
@@ -777,6 +832,9 @@
         if (debugVisible) skipReason = '';
         if (++frameCheckCounter % TUNING.FRAME_CHECK_EVERY === 0) checkFrameDrops();
 
+        // ── pending 배속 flush ──
+        flushPendingRate();
+
         const edge = getBufferEdge(video.buffered);
         if (!edge) { updateDisplay(0, -1, now); return; }
         const bufStart = edge.start, bufEnd = edge.end;
@@ -798,6 +856,7 @@
                     video.currentTime = Math.max(stallEdge.start, stallEdge.end - targetDelayMs / 1000);
                     softReset();
                     setRate(1.0);
+                    postSeekGraceEnd = now + TUNING.POST_SEEK_GRACE_MS;
                     if (debugVisible) dmLog(`스톨 복구: ${stallCount}틱 정체 → bufEnd - target`);
                     flashSeekIndicator();
                 }
@@ -832,7 +891,8 @@
             lastSpikeTime = now;
             updateDisplay(prevAvg > 0 ? prevAvg : targetDelayMs, bufEnd, now);
             if (!isEnabled) return;
-            setRate(smoothRate(computeDesiredRate(prevAvg > 0 ? prevAvg : targetDelayMs)));
+            // 스파이크 시에도 smoothRate만 사용 (급격한 변경 X)
+            smoothRate(computeDesiredRate(prevAvg > 0 ? prevAvg : targetDelayMs));
             return;
         }
 
@@ -857,10 +917,19 @@
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
             return;
         }
+
+        // ── seek 후 grace period: 배속 조절 금지 ──
+        if (now < postSeekGraceEnd) {
+            if (debugVisible) skipReason = 'GRACE';
+            return;
+        }
+
         if (stableTickCount >= TUNING.STABLE_LOCK_TICKS) {
             if (currentSmoothedRate !== 1.0) { currentSmoothedRate = 1.0; setRate(1.0); }
         } else {
-            setRate(smoothRate(computeDesiredRate(avg)));
+            const desired = computeDesiredRate(avg);
+            const smoothed = smoothRate(desired);
+            setRate(smoothed);
         }
     }
 
