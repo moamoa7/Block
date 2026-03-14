@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v199.7 - Ultimate Final Master)
+// @name         Video_Control (v199.8 - Ultimate Final Master)
 // @namespace    https://github.com/moamoa7
-// @version      199.7
-// @description  Full Audit Passed. Perfected cache, Bulletproof Timer, Stable UI, CSS Transition Engine, Zero Leak. (DPR Decoupled, Halo Suppressed, Mobile Tuned, Master fineScale Optimized)
+// @version      199.8
+// @description  Full Audit Passed. Perfected cache, Bulletproof Timer, Stable UI, CSS Transition Engine Removed, Zero Leak. (DPR Decoupled, Halo Suppressed, Mobile Tuned, Master fineScale Optimized)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '199.7';
+  const SCRIPT_VERSION = '199.8';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -484,7 +484,7 @@ function VSC_MAIN() {
     });
   }
 
-  /* ── Playback Rate Management ────────────────────────────────── */
+  /* ── Playback Rate Management (v199.7 Original Retained) ─────── */
   function getRateState(v) { const st = getVState(v); if (!st.rateState) st.rateState = { orig: null, lastSetAt: 0, suppressSyncUntil: 0, retryCount: 0, failCount: 0, permanentlyBlocked: false }; return st.rateState; }
   function markInternalRateChange(v, ms = 300) { const st = getRateState(v), now = performance.now(); st.lastSetAt = now; st.suppressSyncUntil = Math.max(st.suppressSyncUntil || 0, now + ms); }
   function restoreRateOne(el) { try { const st = getRateState(el); if (!st || st.orig == null) return; const rate = Number(st.orig) > 0.01 ? Number(st.orig) : 1.0; st.orig = null; markInternalRateChange(el, 500); el.playbackRate = rate; } catch (_) {} }
@@ -587,7 +587,10 @@ function VSC_MAIN() {
 
         const rawShadow = VSC_CLAMP(Number(vfUser.shadowBandMask) || 0, 0, 3);
         const shadowOut = { level: rawShadow, active: rawShadow > 0, factor: 1.0 };
-        const _cssFilter = buildCssFilterString(videoOut);
+
+        // ★ 패치 2: Filter 문자열 양자화 적용 (소수점 2자리)
+        const _cssFilterRaw = buildCssFilterString(videoOut);
+        const _cssFilter = _cssFilterRaw.replace(/(\d+\.\d{2})\d+/g, '$1');
         const result = { video: videoOut, shadow: shadowOut, _cssFilter };
 
         if (video && hasValid) _cache.set(video, { key: cacheKey, result }); return result;
@@ -609,6 +612,7 @@ function VSC_MAIN() {
       onDestroy() { TOUCHED.videos.forEach(v => safe(() => Adapter.clear(v))); TOUCHED.rateVideos.forEach(v => safe(() => restoreRateOne(v))); TOUCHED.videos.clear(); TOUCHED.rateVideos.clear(); }
     });
   }
+
 /* ── Hybrid Filter Engine ────────────────────────────────────── */
   function createFiltersVideoOnly(Utils, vscId) {
     const { h } = Utils, ctxMap = new WeakMap(), __vscBgMemo = new WeakMap();
@@ -673,23 +677,35 @@ function VSC_MAIN() {
 
         if (!finalFilter) {
            restoreOpaqueBg(video);
-           if (st.applied) { video.style.removeProperty('transition'); if (st.origFilter != null && st.origFilter !== '') video.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else video.style.removeProperty('filter'); st.applied = false; st.lastFilterUrl = null; st.origFilter = null; st.origFilterPrio = ''; st._lastUsedSvg = undefined; }
+           if (st.applied) {
+             video.style.removeProperty('transition'); // ★ 패치 1: 잔여 transition 강제 제거
+             if (st.origFilter != null && st.origFilter !== '') video.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else video.style.removeProperty('filter');
+             st.applied = false; st.lastFilterUrl = null; st.origFilter = null; st.origFilterPrio = '';
+           }
            return;
         }
         if (!st.applied) { st.origFilter = video.style.getPropertyValue('filter'); st.origFilterPrio = video.style.getPropertyPriority('filter') || ''; }
         if (st.lastFilterUrl !== finalFilter) {
-           const needsSvg = !!svgUrl;
-           if (st._lastUsedSvg !== needsSvg) { st._lastUsedSvg = needsSvg; video.style.setProperty('transition', needsSvg ? 'none' : 'filter 0.3s ease', 'important'); }
-           video.style.setProperty('filter', finalFilter, 'important'); st.applied = true; st.lastFilterUrl = finalFilter;
+           // ★ 패치 1: transition 설정 로직 완전 제거 (v170.3.0 방식 유지)
+           video.style.removeProperty('transition');
+           video.style.setProperty('filter', finalFilter, 'important');
+           st.applied = true; st.lastFilterUrl = finalFilter;
         }
       },
-      clear: (video) => { const st = getVState(video); if (st.applied) { restoreOpaqueBg(video); video.style.removeProperty('transition'); if (st.origFilter != null && st.origFilter !== '') video.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else video.style.removeProperty('filter'); st.applied = false; st.lastFilterUrl = null; st.origFilter = null; st.origFilterPrio = ''; st._lastUsedSvg = undefined; } }
+      clear: (video) => {
+        const st = getVState(video);
+        if (st.applied) {
+          restoreOpaqueBg(video);
+          video.style.removeProperty('transition'); // ★ 패치 1: 초기화 시 transition 강제 제거
+          if (st.origFilter != null && st.origFilter !== '') video.style.setProperty('filter', st.origFilter, st.origFilterPrio || ''); else video.style.removeProperty('filter');
+          st.applied = false; st.lastFilterUrl = null; st.origFilter = null; st.origFilterPrio = '';
+        }
+      }
     };
   }
 
   function createBackendAdapter(Filters) { return { apply(video, vVals, shadowParams, cssFilter) { Filters.applyCombined(video, vVals, shadowParams, cssFilter); }, clear(video) { Filters.clear(video); } }; }
-
-  /* ── Targeting ───────────────────────────────────────────────── */
+/* ── Targeting ───────────────────────────────────────────────── */
   function createTargeting() {
     let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
     const isInPlayer = (vid) => { if (vid.closest(PLAYER_CONTAINER_SELECTORS)) return true; const root = vid.getRootNode(); if (root instanceof ShadowRoot && root.host) return !!root.host.closest(PLAYER_CONTAINER_SELECTORS); return false; };
