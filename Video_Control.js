@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v199.0 - Ultimate Final Master)
+// @name         Video_Control (v199.5 - Ultimate Final Master)
 // @namespace    https://github.com/moamoa7
-// @version      199.0
-// @description  Full Audit Passed. Perfected cache, Bulletproof Timer, Stable UI, CSS Transition Engine, Zero Leak.
+// @version      199.5
+// @description  Full Audit Passed. Perfected cache, Bulletproof Timer, Stable UI, CSS Transition Engine, Zero Leak. (DPR Decoupled, Halo Suppressed, Mobile Tuned, Master fineScale Optimized)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -25,7 +25,7 @@
 function VSC_MAIN() {
   if (location.protocol === 'javascript:') return;
 
-  const SCRIPT_VERSION = '199.0';
+  const SCRIPT_VERSION = '199.5';
   const VSC_BOOT_KEY = Symbol.for(`VSC_BOOT_LOCK_${SCRIPT_VERSION}`);
   if (window[VSC_BOOT_KEY]) return;
   window[VSC_BOOT_KEY] = true;
@@ -115,8 +115,8 @@ function VSC_MAIN() {
         off: { sharpAdd: 0, sharp2Add: 0, sat: 1.0, microBase: 0.18, microScale: 1/120, fineBase: 0.32, fineScale: 1/24, microAmt: [0.55, 0.10], fineAmt: [0.20, 0.85] },
         Soft: { sharpAdd: 14, sharp2Add: 13, sat: 1.00, microBase: 0.24, microScale: 1/150, fineBase: 0.44, fineScale: 1/28, microAmt: [0.52, 0.12], fineAmt: [0.18, 0.72] },
         Medium: { sharpAdd: 28, sharp2Add: 25, sat: 1.00, microBase: 0.22, microScale: 1/120, fineBase: 0.40, fineScale: 1/24, microAmt: [0.46, 0.10], fineAmt: [0.18, 0.73] },
-        Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.21, microScale: 1/100, fineBase: 0.37, fineScale: 1/22, microAmt: [0.50, 0.11], fineAmt: [0.20, 0.76] },
-        Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.20, microScale: 1/80, fineBase: 0.34, fineScale: 1/18, microAmt: [0.55, 0.12], fineAmt: [0.22, 0.78] }
+        Ultra: { sharpAdd: 42, sharp2Add: 37, sat: 0.99, microBase: 0.21, microScale: 1/100, fineBase: 0.37, fineScale: 1/26, microAmt: [0.50, 0.11], fineAmt: [0.20, 0.76] },
+        Master: { sharpAdd: 56, sharp2Add: 49, sat: 0.98, microBase: 0.20, microScale: 1/80, fineBase: 0.34, fineScale: 1/30, microAmt: [0.55, 0.12], fineAmt: [0.22, 0.78] }
       },
       bright: { 0: { gammaF: 1.00, brightAdd: 0 }, 1: { gammaF: 1.05, brightAdd: 1.0 }, 2: { gammaF: 1.075, brightAdd: 1.5 }, 3: { gammaF: 1.10, brightAdd: 2.0 }, 4: { gammaF: 1.125, brightAdd: 2.5 }, 5: { gammaF: 1.150, brightAdd: 3.0 } }
     });
@@ -278,8 +278,7 @@ function VSC_MAIN() {
     const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; rafId = requestAnimationFrame(run); return; } if (queued) return; queued = true; clearPending(); rafId = requestAnimationFrame(run); };
     return { registerApply: (fn) => { applyFn = fn; }, request, destroy: () => { clearPending(); applyFn = null; } };
   }
-
-  /* ── Store ───────────────────────────────────────────────────── */
+/* ── Store ───────────────────────────────────────────────────── */
   const parsePath = (p) => { const dot = p.indexOf('.'); return dot < 0 ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; };
   function createLocalStore(defaults, scheduler, bus) {
     const state = {}; for (const [cat, obj] of Object.entries(defaults)) { state[cat] = { ...obj }; }
@@ -530,13 +529,15 @@ function VSC_MAIN() {
     if (Math.abs(gamma - 1.0) > 0.01) { const cf = 1 + (gamma - 1) * 0.15; if (Math.abs(cf - 1.0) > 0.005) parts.push(`contrast(${cf.toFixed(4)})`); }
     return parts.join(' ');
   }
-
-  function computeResolutionSharpMul(video) {
+function computeResolutionSharpMul(video) {
     const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0, dpr = Math.max(1, window.devicePixelRatio || 1);
-    if (nW < 16 || dW < 16) return 0.0; const ratio = Math.max((dW * dpr) / nW, (dH * dpr) / Math.max(1, nH)); let mul = 1.0;
-    if (ratio < 0.5) mul = 0.25; else if (ratio < 1.0) mul = 0.25 + (ratio - 0.5) * 1.2; else if (ratio <= 1.5) mul = 1.0; else if (ratio <= 2.5) mul = 1.0 + (ratio - 1.5) * 0.20; else mul = Math.max(0.45, 1.20 - (ratio - 2.5) * 0.20);
-    if (nW <= 640 && nH <= 480) mul *= 0.40; else if (nW <= 960) mul *= 0.65;
-    if (CONFIG.IS_MOBILE) mul *= VSC_CLAMP(1.05 / dpr, 0.55, 0.85); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.5 / dpr, 0.75, 1.0); return VSC_CLAMP(mul, 0.0, 0.85);
+    if (nW < 16 || dW < 16) return 0.0;
+    const ratio = Math.max(dW / nW, dH / Math.max(1, nH)); let mul = 1.0;
+    if (ratio < 0.15) mul = 0.30; else if (ratio < 0.5) mul = 0.30 + (ratio - 0.15) * 2.0; else if (ratio <= 1.5) mul = 1.0; else if (ratio <= 3.0) mul = 1.0 + (ratio - 1.5) * 0.10; else mul = Math.max(0.50, 1.15 - (ratio - 3.0) * 0.15);
+    if (nW <= 640 && nH <= 480) mul *= 0.55; else if (nW <= 960) mul *= 0.70;
+    if (dpr >= 2.0) mul *= VSC_CLAMP(1.6 / dpr, 0.70, 0.90); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.4 / dpr, 0.80, 1.0);
+    if (CONFIG.IS_MOBILE && mul < 0.35) mul = 0.35;
+    return VSC_CLAMP(mul, 0.0, 1.0);
   }
 
   function createVideoParamsMemo() {
@@ -551,7 +552,7 @@ function VSC_MAIN() {
         const detailP = CONFIG.PRESETS.detail[vfUser.presetS || 'off'], brightP = CONFIG.PRESETS.bright[VSC_CLAMP(vfUser.brightLevel || 0, 0, 5)] || CONFIG.PRESETS.bright[0];
         const rawSharpMul = video ? computeResolutionSharpMul(video) : 0.0;
         const finalSharpMul = (rawSharpMul === 0.0 && vfUser.presetS !== 'off') ? 0.50 : rawSharpMul;
-        const finalSigmaScale = (video && dW >= 16) ? Math.sqrt(Math.max(640, Math.min(3840, dW)) / 1920) : 1.0;
+        const finalSigmaScale = (video && dW >= 16) ? Math.pow(Math.max(640, Math.min(3840, dW)) / 1920, 0.6) : 1.0;
 
         const videoOut = { sharp: Math.round((detailP.sharpAdd || 0) * finalSharpMul), sharp2: Math.round((detailP.sharp2Add || 0) * finalSharpMul), satF: detailP.sat || 1.0, gamma: brightP.gammaF || 1.0, bright: brightP.brightAdd || 0, temp: vfUser.temp || 0, _sigmaScale: finalSigmaScale, _refW: Math.max(640, Math.min(3840, dW || 1280)), _microBase: detailP.microBase || 0.20, _microScale: detailP.microScale || (1/120), _fineBase: detailP.fineBase || 0.34, _fineScale: detailP.fineScale || (1/24), _microAmt: detailP.microAmt || [0.55, 0.10], _fineAmt: detailP.fineAmt || [0.22, 0.78] };
 
@@ -608,7 +609,7 @@ function VSC_MAIN() {
 
     function updateSharpNodes(nodes, st, s, sharpTotal) {
       if (sharpTotal > 0) {
-        const qSharp = Math.max(0, Math.round(Number(s.sharp || 0))), qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0))), sigmaScale = Number(s._sigmaScale) || 1.0, microBase = Number(s._microBase) || 0.18, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24), microAmtCoeffs = s._microAmt || [0.55, 0.10], fineAmtCoeffs = s._fineAmt || [0.20, 0.85], sigMicro = VSC_CLAMP((microBase + qSharp * microScale) * Math.min(1.0, sigmaScale), 0.30, 1.20), sigFine = VSC_CLAMP((fineBase + qSharp2 * fineScale) * sigmaScale, 0.18, 2.50), microAmt = VSC_CLAMP((qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45, 0, 1.5), fineAmt = VSC_CLAMP((qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24, 0, 1.2), totalAmt = microAmt + fineAmt + 1e-6, microWeight = VSC_CLAMP(0.35 + 0.30 * (microAmt / totalAmt), 0.25, 0.70), fineWeight = 1.0 - microWeight, blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`;
+        const qSharp = Math.max(0, Math.round(Number(s.sharp || 0))), qSharp2 = Math.max(0, Math.round(Number(s.sharp2 || 0))), sigmaScale = Number(s._sigmaScale) || 1.0, microBase = Number(s._microBase) || 0.18, microScale = Number(s._microScale) || (1/120), fineBase = Number(s._fineBase) || 0.32, fineScale = Number(s._fineScale) || (1/24), microAmtCoeffs = s._microAmt || [0.55, 0.10], fineAmtCoeffs = s._fineAmt || [0.20, 0.85], sigMicro = VSC_CLAMP((microBase + qSharp * microScale) * sigmaScale, 0.25, 1.40), sigFine = VSC_CLAMP((fineBase + qSharp2 * fineScale) * sigmaScale, 0.18, 2.00), microAmt = VSC_CLAMP((qSharp * microAmtCoeffs[0] + qSharp2 * microAmtCoeffs[1]) / 45, 0, 1.5), fineAmt = VSC_CLAMP((qSharp * fineAmtCoeffs[0] + qSharp2 * fineAmtCoeffs[1]) / 24, 0, 1.2), totalAmt = microAmt + fineAmt + 1e-6, microWeight = VSC_CLAMP(0.35 + 0.30 * (microAmt / totalAmt), 0.25, 0.70), fineWeight = 1.0 - microWeight, blurKeyNext = `${sigMicro.toFixed(3)}|${sigFine.toFixed(3)}`;
         if (st.blurKey !== blurKeyNext) { st.blurKey = blurKeyNext; nodes.sharp.blurMicro.setAttribute('stdDeviation', sigMicro.toFixed(3)); nodes.sharp.blurFine.setAttribute('stdDeviation', sigFine.toFixed(3)); }
         const sharpKeyNext = `${microAmt.toFixed(5)}|${fineAmt.toFixed(5)}`; if (st.sharpKey !== sharpKeyNext) { st.sharpKey = sharpKeyNext; const mk2 = (1 + microAmt).toFixed(5), mk3 = (-microAmt).toFixed(5), fk2 = (1 + fineAmt).toFixed(5), fk3 = (-fineAmt).toFixed(5), bk2 = microWeight.toFixed(4), bk3 = fineWeight.toFixed(4); nodes.sharp.usmMicro.setAttribute('k2', mk2); nodes.sharp.usmMicro.setAttribute('k3', mk3); nodes.sharp.usmFine.setAttribute('k2', fk2); nodes.sharp.usmFine.setAttribute('k3', fk3); nodes.sharp.blend.setAttribute('k2', bk2); nodes.sharp.blend.setAttribute('k3', bk3); }
       } else { const bypassKey = 'bypass'; if (st.sharpKey !== bypassKey) { st.sharpKey = bypassKey; st.blurKey = bypassKey; nodes.sharp.blurMicro.setAttribute('stdDeviation', '0'); nodes.sharp.blurFine.setAttribute('stdDeviation', '0'); nodes.sharp.usmMicro.setAttribute('k2', 1); nodes.sharp.usmMicro.setAttribute('k3', 0); nodes.sharp.usmFine.setAttribute('k2', 1); nodes.sharp.usmFine.setAttribute('k3', 0); nodes.sharp.blend.setAttribute('k2', 1); nodes.sharp.blend.setAttribute('k3', 0); } }
@@ -685,8 +686,7 @@ function VSC_MAIN() {
     }
     return Object.freeze({ pickFastActiveOnly });
   }
-
-  /* ── UI, Zoom ────────────────────────────────────────────────── */
+/* ── UI, Zoom ────────────────────────────────────────────────── */
   function showToast(text) { const v = __vscNs.App?.getActiveVideo(), target = v?.parentNode?.isConnected ? v.parentNode : (document.body || document.documentElement); if (!target) return; let t = target.querySelector('.vsc-toast'); if (!t) { t = document.createElement('div'); t.className = 'vsc-toast'; t.style.cssText = 'position:absolute !important;bottom:15% !important;left:50% !important;transform:translateX(-50%) !important;background:rgba(0,0,0,0.82) !important;color:#fff !important;padding:8px 18px !important;border-radius:20px !important;font:600 13.5px/1.3 system-ui,sans-serif !important;z-index:2147483647 !important;pointer-events:none !important;opacity:0 !important;transition:opacity 0.2s ease-in-out !important;backdrop-filter:blur(6px) !important;border:1px solid rgba(255,255,255,0.15) !important;white-space:pre-line !important;letter-spacing:-0.3px !important;'; if (target !== document.body && getComputedStyle(target).position === 'static') target.style.position = 'relative'; target.appendChild(t); } t.textContent = text; t.style.setProperty('opacity', '1', 'important'); clearTimer(t._tid); t._tid = setTimer(() => { if (t) t.style.setProperty('opacity', '0', 'important'); }, 1500); }
   __vscNs.showToast = showToast;
   function seekVideo(video, offset) { const sr = video.seekable; let minT = 0, maxT = video.duration; const isLive = !Number.isFinite(maxT); if (isLive) { if (!sr || sr.length === 0) return; minT = sr.start(0); maxT = sr.end(sr.length - 1); } const target = VSC_CLAMP(video.currentTime + offset, minT, maxT - (isLive ? 2.0 : 0.1)); try { video.currentTime = target; } catch (_) {} }
