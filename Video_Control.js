@@ -333,24 +333,25 @@
       const update = (v) => {
         if (rafId) return;
         rafId = requestAnimationFrame(() => {
-          rafId = null; const st = getSt(v);
-          const transformStr = st.scale <= 1 ? '' : `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
-          v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
-          if (st.scale <= 1) {
-  st.scale = 1; st.tx = 0; st.ty = 0;
-  v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
-  if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
-  /* P1-ZOOM-RESET-FIX: 캔버스 transform 즉시 초기화 */
-  try {
-    const sibling = v.nextElementSibling;
-    if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
-      sibling.style.transform = '';
-      sibling.style.transformOrigin = '';
-      sibling.style.zIndex = '';
-      sibling.style.transition = '';
-    }
-  } catch (_) {}
-          } else {
+  rafId = null; const st = getSt(v);
+  const transformStr = st.scale <= 1 ? '' : `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
+  v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
+  if (st.scale <= 1) {
+    st.scale = 1; st.tx = 0; st.ty = 0;
+    v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
+    v.style.transition = ''; // ← 즉시 리셋: transition 제거
+    if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
+    /* P1-ZOOM-RESET-FIX */
+    try {
+      const sibling = v.nextElementSibling;
+      if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
+        sibling.style.transform = '';
+        sibling.style.transformOrigin = '';
+        sibling.style.zIndex = '';
+        sibling.style.transition = '';
+      }
+    } catch (_) {}
+  } else {
             if (!st.zoomed) { st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.zoomed = true; }
             v.style.transformOrigin = '0 0'; v.style.transform = transformStr;
             v.style.cursor = isPanning ? 'grabbing' : 'grab';
@@ -374,7 +375,7 @@
   if (!v) return;
   const st = getSt(v);
   st.scale = 1; st.tx = 0; st.ty = 0;
-  /* P1-ZOOM-RESET-FIX: RAF 대기 없이 즉시 스타일 초기화 */
+  // 즉시 스타일 초기화 (현재 코드 그대로)
   v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
   v.style.transition = '';
   if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
@@ -387,9 +388,10 @@
       sibling.style.transition = '';
     }
   } catch (_) {}
-  /* 다음 RAF에서 update도 호출하여 상태 일관성 보장 */
+  /* 기존 RAF 예약을 취소하고 clean 상태로 재예약 */
+  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
   update(v);
-      };
+};
       const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
       const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
       const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
