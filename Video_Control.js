@@ -133,7 +133,7 @@
 
     const COLOR_CAST_CORRECTION = 0.20;
 
-    const MOBILE_COLOR_BIAS = { r: 0.94, g: 1.00, b: 1.08 };
+    const MOBILE_COLOR_BIAS = { r: 0.98, g: 1.00, b: 1.02 };
 
     const STORAGE_KEY = 'vsc_v2_' + location.hostname;
 
