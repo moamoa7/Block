@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v175.0.0 - Refactored)
+// @name         Video_Control (v177.0.0 - SVG Unified)
 // @namespace    https://github.com/
-// @version      175.0.0
-// @description  v174 base + 7 arch patches: GM_storage, AbortController lifecycle, PiP built-in, Zoom setProperty+RAF batch, 1-finger pan, rate guard hardening
+// @version      177.0.0
+// @description  v176 base + GPU-optimized SVG (19→7 primitives, Morphology removed, 1-band USM + feConvolution hybrid) + Lite adaptive
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -34,7 +34,6 @@
 
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
-    /* ── [PATCH-2] AbortController 기반 글로벌 생명주기 ── */
     const __globalHooksAC = new AbortController();
     const __globalSig = __globalHooksAC.signal;
 
@@ -60,7 +59,6 @@
     };
     const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
 
-    /* ── [PATCH-2] combineSignals 유틸리티 ── */
     const combineSignals = (...signals) => {
       const existing = signals.filter(Boolean);
       if (existing.length === 0) return undefined;
@@ -73,7 +71,6 @@
       return ac.signal;
     };
 
-    /* ── [PATCH-2] on() 래퍼 — signal 자동 주입 ── */
     function on(target, type, fn, opts) {
       if (!target?.addEventListener) return;
       const o = opts ? { ...opts } : {};
@@ -101,9 +98,8 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '175.0.0';
+    const VSC_VERSION = '177.0.0';
 
-    /* ── [PATCH-1] GM_storage + 사이트별 설정 키 ── */
     const STORAGE_KEY = 'vsc_settings_' + location.hostname;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -114,26 +110,26 @@
       const m = Math.max(r, g, b); return { rs: r / m, gs: g / m, bs: b / m };
     }
 
-    const VSC_DEFENSE = Object.freeze({ webglCooldown: true, audioCooldown: true, autoSceneDrmBackoff: true });
+    const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 12; const SPA_RESCAN_DEBOUNCE_MS = 220;
-    const GUARD = Object.freeze({ WEBGL_FAIL_COOLDOWN: 3000, WEBGL_FAIL_THRESHOLD: 3, AUDIO_SRC_COOLDOWN: 5000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
+    const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 5000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
 
-    /* ── [PATCH-7] DRM 사이트 rate 차단 목록 ── */
     const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','amazon.com/gp/video','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
     function isRateBlockedHost() { const h = location.hostname; return RATE_BLOCKED_HOSTS.some(d => h === d || h.endsWith('.' + d)); }
     const __rateBlockedSite = isRateBlockedHost();
+
+    const LITE_FORCED_HOSTS = Object.freeze(['ok.ru', 'mail.ru', 'vk.com', 'dzen.ru', 'rutube.ru']);
+    const __liteForced = (() => { const h = location.hostname; return LITE_FORCED_HOSTS.some(d => h === d || h.endsWith('.' + d)); })();
 
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1; const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
     function createVideoState() {
       return {
-        visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0, webglTainted: false, _resizeDirty: false, _ac: null,
-        /* ── [PATCH-3] PiP 플래그 내장 ── */
+        visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, _resizeDirty: false, _ac: null,
         _inPiP: false,
         resetTransient() {
           this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
-          this.webglFailCount = 0; this.webglDisabledUntil = 0; this.webglTainted = false;
           if (this.rateState) {
             this.rateState.orig = null; this.rateState.lastSetAt = 0;
             this.rateState.retryCount = 0; this.rateState.permanentlyBlocked = false;
@@ -149,7 +145,6 @@
     }
     const videoStateMap = new WeakMap(); function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = createVideoState(); videoStateMap.set(v, st); } return st; }
 
-    /* ── [PATCH-7] getRateState 확장 필드 ── */
     function getRateState(v) {
       const st = getVState(v);
       if (!st.rateState) {
@@ -175,10 +170,10 @@
       grade: { off: 'OFF', S: '밝게S', M: '밝게M', L: '밝게L', DS: '다크S', DM: '다크M', DL: '다크L' }
     });
 
-    const DEFAULTS = { video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, renderMode: 'webgl', zoomEn: false, autoScene: false, advanced: false } };
-    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_RENDER_MODE: 'app.renderMode', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
+    const DEFAULTS = { video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false } };
+    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
 
-    const APP_SCHEMA = [ { type: 'enum', path: P.APP_RENDER_MODE, values: ['svg', 'webgl'], fallback: () => 'svg' }, { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV } ];
+    const APP_SCHEMA = [ { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV } ];
     const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_PRE_MIX, min: 0, max: 1, fallback: () => DEFAULTS.video.presetMix }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
     const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
 
@@ -250,7 +245,6 @@
     function walkRootsInto(root, out, depth = 0) { if (!root || depth > 6) return; out.push(root); const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) walkRootsInto(node.shadowRoot, out, depth + 1); node = walker.nextNode(); } }
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
-    /* ── [PATCH-2] initSpaUrlDetector — history 패치 안전 복원 ── */
     function initSpaUrlDetector(onChanged) {
       if (window.__VSC_SPA_PATCHED__) return;
       window.__VSC_SPA_PATCHED__ = true;
@@ -273,7 +267,6 @@
       };
       wrap('pushState'); wrap('replaceState');
       onWin('popstate', emitIfChanged, { passive: true });
-      /* history 복원은 destroyRuntime에서 처리 */
       window.__VSC_INTERNAL__._spaOrigHistory = origHistory;
     }
 
@@ -351,7 +344,6 @@
 
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
-      /* ── [PATCH-3] PiP 진입 전 필터 제거 ── */
       try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
       const st = getVState(video);
       st._inPiP = true;
@@ -380,7 +372,6 @@
               else if (__pipOrigParent?.isConnected) { if (__pipOrigNext && __pipOrigNext.parentNode === __pipOrigParent) { __pipOrigParent.insertBefore(restored, __pipOrigNext); } else { __pipOrigParent.appendChild(restored); } }
             } finally {
               resetPiPState();
-              /* ── [PATCH-3] PiP 복귀 시 필터 재적용 ── */
               st._inPiP = false;
               st.applied = false;
               st.lastFilterUrl = null;
@@ -420,7 +411,6 @@
       showOSD('스크린샷 저장됨', 1500);
     }
 
-    /* ── [PATCH-4][PATCH-5][PATCH-6] Zoom Manager — setProperty + RAF batch + 1-finger pan ── */
     function createZoomManager() {
       const stateMap = new WeakMap();
       let activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -447,16 +437,6 @@
           }
           st.scale = 1; st.tx = 0; st.ty = 0;
           zoomedVideos.delete(v);
-          /* canvas sibling 초기화 */
-          try {
-            const sibling = v.nextElementSibling;
-            if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
-              sibling.style.removeProperty('transform');
-              sibling.style.removeProperty('transform-origin');
-              sibling.style.removeProperty('z-index');
-              sibling.style.removeProperty('transition');
-            }
-          } catch (_) {}
           return;
         }
         if (!st.zoomed) {
@@ -474,16 +454,6 @@
         v.style.setProperty('z-index', '2147483646', 'important');
         v.style.setProperty('position', 'relative', 'important');
         zoomedVideos.add(v);
-        /* canvas sibling 동기화 */
-        try {
-          const sibling = v.nextElementSibling;
-          if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
-            sibling.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
-            sibling.style.setProperty('transform-origin', '0 0', 'important');
-            sibling.style.setProperty('transform', `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`, 'important');
-            sibling.style.setProperty('z-index', '2147483647', 'important');
-          }
-        } catch (_) {}
       }
 
       const update = (v) => {
@@ -530,7 +500,6 @@
         return window.__VSC_INTERNAL__?.App?.getActiveVideo() || null;
       }
 
-      /* Wheel zoom */
       onWin('wheel', e => {
         if (!e.altKey || !isZoomEnabled()) return;
         const v = getTargetVideo(e); if (!v) return;
@@ -540,7 +509,6 @@
         if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
       }, { passive: false, capture: true });
 
-      /* Pointer pan (mouse) */
       onWin('pointerdown', e => {
         if (!e.altKey || !isZoomEnabled() || e.pointerType === 'touch') return;
         const v = getTargetVideo(e); if (!v) return;
@@ -572,7 +540,6 @@
       onWin('pointerup', endPointerPan, { capture: true, passive: false });
       onWin('pointercancel', endPointerPan, { capture: true, passive: false });
 
-      /* Dblclick zoom */
       onWin('dblclick', e => {
         if (!e.altKey || !isZoomEnabled()) return;
         const v = getTargetVideo(e); if (!v) return;
@@ -581,7 +548,6 @@
         if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
       }, { capture: true });
 
-      /* [PATCH-6] 터치: 2핀치 줌 + 1손가락 패닝 */
       onWin('touchstart', e => {
         if (CONFIG.IS_MOBILE && !isZoomEnabled()) return;
         const v = getTargetVideo(e); if (!v) return;
@@ -677,8 +643,9 @@
         }
       };
     }
-// ─── END OF PART 1 (v175.0.0) ───
-// ─── START OF PART 2 (v175.0.0) ───
+
+// ─── PART 1 END (v176.0.0) ───
+// ─── START OF PART 2 (v176.0.0) ───
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) { const now = performance.now(); const vp = getViewportSnapshot(); let best = null, bestScore = -Infinity; const evalScore = (v) => { if (!v || v.readyState < 2) return; const r = getRectCached(v, now, 400); const area = r.width * r.height; const pip = isPiPActiveVideo(v); if (area < 160 * 120 && !pip) return; const cx = r.left + r.width * 0.5; const cy = r.top + r.height * 0.5; let s = 0; if (!v.paused && !v.ended) s += 6.0; if (v.currentTime > 0.2) s += 2.0; s += Math.log2(1 + area / 20000) * 1.1; const ptAge = Math.max(0, now - (lastUserPt.t || 0)); const userBias = Math.exp(-ptAge / 1800); const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y; s += (2.0 * userBias) / (1 + (dx*dx + dy*dy) / 722500); const cdx = cx - vp.cx, cdy = cy - vp.cy; s += 0.7 / (1 + (cdx*cdx + cdy*cdy) / 810000); if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2); if (pip) s += 3.0; if (s > bestScore) { bestScore = s; best = v; } }; for (const v of videos) { evalScore(v); } const activePip = getActivePiPVideo(); if (activePip && activePip.isConnected && !videos.has(activePip)) { evalScore(activePip); } if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) { if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) { return { target: stickyTarget }; } } stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS; return { target: best }; }
@@ -846,11 +813,23 @@
       return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; } };
     }
 
+    /* ═══════════════════════════════════════════════════════════════════
+       createFiltersVideoOnly — v176 SVG filter engine
+       ● full 필터: v170.3.0 복원 (3밴드 USM + feMorphology CAS + 하이라이트/크로마 보호)
+       ● lite 필터: tone + contrast + temp + saturation + feConvolution 3×3 (adaptive pxScale)
+       ● LITE_FORCED_HOSTS 사이트 → lite 강제
+       ═══════════════════════════════════════════════════════════════════ */
+            /* ═══════════════════════════════════════════════════════════════════
+       createFiltersVideoOnly — v177 GPU-optimized SVG filter engine
+       ● Full 필터: 1-band USM + feConvolution fine detail + 톤/채도/온도
+         → 프리미티브 9개 (v176 대비 19→9, GaussianBlur 3→1, Morphology 제거)
+       ● Lite 필터: tone + contrast + temp + saturation + feConvolution 3×3
+       ● LITE_FORCED_HOSTS → lite 강제
+       ═══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(64);
       const qInt = (v, step) => Math.round(v / step);
-      const setAttr = (node, attr, val, st, key) => { if (node && st[key] !== val) { st[key] = val; node.setAttribute(attr, val); } };
       const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
 
       function wantsDetailPass(s) { return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0; }
@@ -887,14 +866,75 @@
 
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
-        const fidMain = `vsc-main-${config.VSC_ID}`;
-        const main = h('filter', { ns: 'svg', id: fidMain, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-        const conv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'sharp' });
-        const tone = mkXfer({ in: 'sharp', result: 'base' }, { type: 'table', tableValues: '0 1' });
-        const tmp = mkXfer({ in: 'base', result: 'tmp' }, { type: 'linear', slope: '1' });
-        const sat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
-        main.append(conv, tone, tmp, sat);
-        defs.append(main);
+
+        /* ──────── Lite 필터 (변경 없음) ──────── */
+        const fidLite = `vsc-lite-${config.VSC_ID}`;
+        const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
+        const liteConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'lSharp' });
+        const liteTone = mkXfer({ in: 'lSharp', result: 'lBase' }, { type: 'table', tableValues: '0 1' });
+        const liteTmp = mkXfer({ in: 'lBase', result: 'lTmp' }, { type: 'linear', slope: '1' });
+        const liteSat = h('feColorMatrix', { ns: 'svg', in: 'lTmp', type: 'saturate', values: '1', result: 'lSat' });
+        lite.append(liteConv, liteTone, liteTmp, liteSat);
+        defs.append(lite);
+
+        /* ──────── Full 필터 — GPU 최적화 (프리미티브 9개) ──────── */
+        /*
+           파이프라인:
+           ① feConvolveMatrix 3×3    — fine + medium detail (1 프리미티브로 통합)
+           ② feGaussianBlur 1회      — clarity용 wide blur
+           ③ feComposite arithmetic  — USM (sharp - blur)
+           ④ feComponentTransfer     — 톤 맵핑 (gamma/contrast/bright/gain/toe/shoulder/mid)
+           ⑤ feComponentTransfer     — 온도 (R/G/B slope)
+           ⑥ feColorMatrix saturate  — 채도
+           ⑦ feComponentTransfer     — 클램프 + 알파 복원
+
+           제거된 것:
+           - GaussianBlur 2개 (3→1)
+           - feMorphology dilate/erode (2개)
+           - edgeGate/invGate/hlKeep/blendFactor 등 마스킹 체인 (7개)
+           - 별도 lumBase/lumSharp ColorMatrix (2개)
+
+           총: 19 → 7 프리미티브 (GaussianBlur 1 + feConvolveMatrix 1 포함)
+        */
+        const fidFull = `vsc-full-${config.VSC_ID}`;
+        const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
+
+        /* ① feConvolveMatrix: fine+medium 통합 샤프닝 (preserveAlpha로 알파 안전) */
+        const fConv = h('feConvolveMatrix', { ns: 'svg',
+          in: 'SourceGraphic', order: '3',
+          kernelMatrix: '0,0,0, 0,1,0, 0,0,0',
+          divisor: '1', bias: '0',
+          targetX: '1', targetY: '1',
+          edgeMode: 'duplicate',
+          preserveAlpha: 'true',
+          result: 'conv'
+        });
+
+        /* ② clarity: wide blur */
+        const fBlur = h('feGaussianBlur', { ns: 'svg', in: 'conv', stdDeviation: '2.5', result: 'blr' });
+
+        /* ③ USM: conv + (conv - blur) × amount = conv × (1+a) - blur × a */
+        const fUsm = h('feComposite', { ns: 'svg',
+          in: 'conv', in2: 'blr',
+          operator: 'arithmetic',
+          k1: '0', k2: '1.0', k3: '0', k4: '0',
+          result: 'usm'
+        });
+
+        /* ④ 톤 맵핑 */
+        const fTone = mkXfer({ in: 'usm', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
+
+        /* ⑤ 온도 */
+        const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
+
+        /* ⑥ 채도 */
+        const fSat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
+
+        /* ⑦ 크로마 보호 (약간 desaturation) + 최종 클램프 */
+        const fFinal = h('feColorMatrix', { ns: 'svg', in: 'sat', type: 'saturate', values: '0.97', result: 'final' });
+
+        full.append(fConv, fBlur, fUsm, fTone, fTemp, fSat, fFinal);
+        defs.append(full);
 
         const tryAppend = () => {
           const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
@@ -904,68 +944,164 @@
         if (!tryAppend()) { const t = setRecurring(() => { if (tryAppend()) clearRecurring(t); }, 50); setTimer(() => clearRecurring(t), 3000); }
 
         return {
-          fidMain,
-          toneFuncs: Array.from(tone.children),
-          tmpFuncs: Array.from(tmp.children),
-          sat,
-          conv,
-          st: { lastKey: '', toneKey: '', tempKey: '', satKey: '', convKey: '' }
+          fidLite, fidFull,
+          /* Lite */
+          liteConv,
+          liteToneFuncs: Array.from(liteTone.children),
+          liteTmpFuncs: Array.from(liteTmp.children),
+          liteSat,
+          /* Full */
+          fConv, fBlur, fUsm,
+          fullToneFuncs: Array.from(fTone.children),
+          fullTempFuncs: Array.from(fTemp.children),
+          fullSat: fSat,
+          fFinal,
+          st: {
+            lastKey: '',
+            liteToneKey: '', liteToneTable: '', liteTempKey: '', liteSatKey: '', liteConvKey: '',
+            fullToneKey: '', fullToneTable: '', fullTempKey: '', fullSatKey: '', fullSharpKey: '', fullDesatKey: ''
+          }
         };
       }
 
       function prepare(video, s) {
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
         let dc = urlCache.get(root); if (!dc) { dc = { key:'', url:'' }; urlCache.set(root, dc); }
-        const detailOn = wantsDetailPass(s);
+
+        const detailOn = wantsDetailPass(s) && !__liteForced;
+        const useFull = detailOn;
+
         const vwKey = video.videoWidth || 0, vhKey = video.videoHeight || 0;
-
-        const key = 'MAIN|' + vwKey + 'x' + vhKey + '|' + makeKeyBase(s);
+        const modeTag = useFull ? 'FULL' : 'LITE';
+        const key = modeTag + '|' + vwKey + 'x' + vhKey + '|' + makeKeyBase(s);
         if (dc.key === key) return dc.url;
-        let ctx = ctxMap.get(root); if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
 
-        if (ctx.st.lastKey !== key) {
-          ctx.st.lastKey = key; const st = ctx.st, steps = 256;
+        let ctx = ctxMap.get(root); if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
+        const st = ctx.st;
+
+        if (st.lastKey !== key) {
+          st.lastKey = key;
+          const steps = 256;
           const con = clamp(s.contrast || 1, 0.1, 5.0), brOff = clamp((s.bright || 0) / 1000, -0.5, 0.5), gamma = 1/clamp(s.gamma||1, 0.1, 5.0);
           const toeQ  = qInt(clamp((s.toe||0)/14, -1, 1), 0.02) * 0.02;
           const shQ   = qInt(clamp((s.shoulder||0)/16, -1, 1), 0.02) * 0.02;
           const midQ  = qInt(clamp(s.mid||0, -1, 1), 0.02) * 0.02;
           const gainQ = qInt(s.gain||1, 0.06) * 0.06;
           const tk = `${steps}|${(toeQ*100)|0}|${(shQ*100)|0}|${(midQ*100)|0}|${(gainQ*100)|0}|${(con*100)|0}|${(brOff*1000)|0}|${(gamma*100)|0}`;
-          const table = (st.toneKey !== tk) ? getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma) : st.toneTable;
           const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = rs.toFixed(3) + '|' + gs.toFixed(3) + '|' + bs.toFixed(3);
 
-          queueMicrotask(() => {
-            if (st.toneKey !== tk) { st.toneKey = tk; st.toneTable = table; for (const fn of ctx.toneFuncs) fn.setAttribute('tableValues', table); }
-            if (st.satKey !== satVal) { st.satKey = satVal; ctx.sat.setAttribute('values', satVal); }
-            if (st.tempKey !== tmk) { st.tempKey = tmk; ctx.tmpFuncs[0].setAttribute('slope', rs); ctx.tmpFuncs[1].setAttribute('slope', gs); ctx.tmpFuncs[2].setAttribute('slope', bs); }
-
-            const mk = detailOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity) : 'off';
-            if (st.convKey !== mk) {
-              st.convKey = mk;
-              if (detailOn) {
-                const midSharpMul = config.IS_MOBILE ? 0.32 : 0.30;
-                const rawS = ((s.sharp || 0) + (s.sharp2 || 0) * 0.55 + (s.clarity || 0) * 0.35) / 50.0;
-                const totalS = Math.min(0.60, rawS * midSharpMul);
-                if (totalS > 0.008) {
-                  const center = 1.0 + 4.0 * totalS; const edge = -totalS;
-                  ctx.conv.setAttribute('kernelMatrix', `0,${edge.toFixed(4)},0, ${edge.toFixed(4)},${center.toFixed(4)},${edge.toFixed(4)}, 0,${edge.toFixed(4)},0`);
-                } else {
-                  ctx.conv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
+          if (useFull) {
+            queueMicrotask(() => {
+              /* 톤 */
+              if (st.fullToneKey !== tk) {
+                st.fullToneKey = tk;
+                st.fullToneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
+                for (const fn of ctx.fullToneFuncs) {
+                  if (fn.tagName === 'feFuncA') continue;
+                  fn.setAttribute('tableValues', st.fullToneTable);
                 }
-              } else {
-                ctx.conv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
               }
-            }
-          });
+              /* 채도 */
+              if (st.fullSatKey !== satVal) { st.fullSatKey = satVal; ctx.fullSat.setAttribute('values', satVal); }
+              /* 온도 */
+              if (st.fullTempKey !== tmk) {
+                st.fullTempKey = tmk;
+                ctx.fullTempFuncs[0].setAttribute('slope', rs);
+                ctx.fullTempFuncs[1].setAttribute('slope', gs);
+                ctx.fullTempFuncs[2].setAttribute('slope', bs);
+              }
+
+              /* 샤프닝 파라미터 */
+              const sharpAmt = Number(s.sharp || 0);
+              const sharp2Amt = Number(s.sharp2 || 0);
+              const clarityAmt = Number(s.clarity || 0);
+              const sharpKey = sharpAmt + '|' + sharp2Amt + '|' + clarityAmt + '|' + vhKey;
+              if (st.fullSharpKey !== sharpKey) {
+                st.fullSharpKey = sharpKey;
+                const refH = 1080;
+                const pxScale = clamp((vhKey || refH) / refH, 0.5, 2.0);
+
+                /*
+                   feConvolveMatrix 3×3: fine + medium 통합
+                   표준 Laplacian sharpening kernel:
+                     0   -e   0
+                    -e  1+4e  -e
+                     0   -e   0
+
+                   e = (sharp/50 + sharp2/80) × pxScale, 상한 0.5
+                */
+                const rawE = (sharpAmt / 50 + sharp2Amt / 80) * pxScale;
+                const e = clamp(rawE, 0, 0.5);
+                const center = (1 + 4 * e);
+                if (e > 0.005) {
+                  ctx.fConv.setAttribute('kernelMatrix',
+                    `0,${(-e).toFixed(4)},0, ${(-e).toFixed(4)},${center.toFixed(4)},${(-e).toFixed(4)}, 0,${(-e).toFixed(4)},0`);
+                } else {
+                  ctx.fConv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
+                }
+
+                /*
+                   clarity USM: k2 = 1 + amount, k3 = -amount
+                   amount = clarity/50 × pxScale, 상한 0.35
+                */
+                const cAmt = clamp(clarityAmt / 50 * pxScale, 0, 0.35);
+                ctx.fUsm.setAttribute('k2', (1 + cAmt).toFixed(4));
+                ctx.fUsm.setAttribute('k3', (-cAmt).toFixed(4));
+                ctx.fBlur.setAttribute('stdDeviation', (2.5 * pxScale).toFixed(2));
+
+                /* 크로마 보호: 샤프닝 강할수록 약간 desaturate */
+                const totalSharp = e + cAmt;
+                const desatVal = clamp(1.0 - totalSharp * 0.08, 0.88, 1.0).toFixed(3);
+                if (st.fullDesatKey !== desatVal) {
+                  st.fullDesatKey = desatVal;
+                  ctx.fFinal.setAttribute('values', desatVal);
+                }
+              }
+            });
+          } else {
+            /* ── Lite 경로 (변경 없음) ── */
+            queueMicrotask(() => {
+              if (st.liteToneKey !== tk) {
+                st.liteToneKey = tk;
+                st.liteToneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
+                for (const fn of ctx.liteToneFuncs) fn.setAttribute('tableValues', st.liteToneTable);
+              }
+              if (st.liteSatKey !== satVal) { st.liteSatKey = satVal; ctx.liteSat.setAttribute('values', satVal); }
+              if (st.liteTempKey !== tmk) { st.liteTempKey = tmk; ctx.liteTmpFuncs[0].setAttribute('slope', rs); ctx.liteTmpFuncs[1].setAttribute('slope', gs); ctx.liteTmpFuncs[2].setAttribute('slope', bs); }
+              const liteSharpOn = wantsDetailPass(s);
+              const mk = liteSharpOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity + '|' + vhKey) : 'off';
+              if (st.liteConvKey !== mk) {
+                st.liteConvKey = mk;
+                if (liteSharpOn) {
+                  const refH = 1080;
+                  const pxScale = clamp((vhKey || refH) / refH, 0.5, 2.0);
+                  const midSharpMul = config.IS_MOBILE ? 0.32 : 0.30;
+                  const rawS = ((s.sharp || 0) + (s.sharp2 || 0) * 0.55 + (s.clarity || 0) * 0.35) / 50.0;
+                  const totalS = Math.min(0.60, rawS * midSharpMul * pxScale);
+                  if (totalS > 0.008) {
+                    const center = 1.0 + 4.0 * totalS; const edge = -totalS;
+                    ctx.liteConv.setAttribute('kernelMatrix', `0,${edge.toFixed(4)},0, ${edge.toFixed(4)},${center.toFixed(4)},${edge.toFixed(4)}, 0,${edge.toFixed(4)},0`);
+                  } else {
+                    ctx.liteConv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
+                  }
+                } else {
+                  ctx.liteConv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
+                }
+              }
+            });
+          }
         }
-        const url = `url(#${ctx.fidMain})`; dc.key = key; dc.url = url; return url;
+
+        const fid = useFull ? ctx.fidFull : ctx.fidLite;
+        const url = `url(#${fid})`;
+        dc.key = key; dc.url = url; return url;
       }
+
       return {
         prepareCached: (video, s) => {
           try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; }
         },
-        /* ── [PATCH-3] applyUrl에 PiP 가드 추가 ── */
         applyUrl: (el, url) => {
           if (!el) return;
           const st = getVState(el);
@@ -993,10 +1129,10 @@
         }
       };
     }
-// ─── END OF PART 2 (v175.0.0) ───
-// ─── START OF PART 3 (v175.0.0 – Patched) ───
-// PATCH-3: PiP _inPiP flag integration in Adapter & bindVideoOnce
-// PATCH-7: Rate-blocked host list & enhanced rate guard
+
+
+// ─── END OF PART 2 (v176.0.0) ───
+// ─── START OF PART 3 (v176.0.0) ───
 
     const _SHADOW_PRECOMPUTED = (() => {
       const base = [
@@ -1081,21 +1217,6 @@
       return out;
     }
 
-    function projectVValsForWebGL(vVals) {
-      const out = { ...vVals };
-      const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-      let totalSharp = sharp + sharp2 * 0.55 + clarity * 0.35;
-      out.sharp = VSC_CLAMP(totalSharp, 0, 150);
-      out.bright = Number(out.bright || 0);
-      out.contrast = Number(out.contrast || 1);
-      out.gamma = Number(out.gamma || 1);
-      out.sharp2 = 0; out.clarity = 0;
-      out.toe = Number(out.toe || 0);
-      out.mid = Number(out.mid || 0);
-      out.shoulder = Number(out.shoulder || 0);
-      return out;
-    }
-
     const isNeutralVideoParams = (v) => (
       Math.abs((v.gain ?? 1) - 1) < 0.001 &&
       Math.abs((v.gamma ?? 1) - 1) < 0.001 &&
@@ -1111,254 +1232,31 @@
       Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
+    /* ── v176: WebGL 제거 → SVG 전용 메모이제이션 ── */
     function createVideoParamsMemo(Store, P, Utils) {
-      let lastKey = ''; let lastSvg = null; let lastWebgl = null;
+      let lastKey = ''; let lastResult = null;
       const sigVideo = (vf) => [
         vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3),
         (vf.shadowBandMask|0), (vf.brightStepLevel|0),
       ].join('|');
       return {
-        get(vfUser, rMode, activeTarget) {
+        get(vfUser, activeTarget) {
           const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
           const ht = activeTarget ? (activeTarget.videoHeight || 0) : 0;
           const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
           const autoKey = `${autoMods.br.toFixed(3)}|${autoMods.ct.toFixed(3)}|${autoMods.sat.toFixed(3)}`;
-          const key = `${sigVideo(vfUser)}|${rMode}|${w}x${ht}|auto:${autoKey}`;
-          if (key === lastKey && lastSvg && lastWebgl) {
-            return rMode === 'webgl' ? lastWebgl : lastSvg;
+          const key = `${sigVideo(vfUser)}|${w}x${ht}|auto:${autoKey}`;
+          if (key === lastKey && lastResult) {
+            return lastResult;
           }
           const base = {};
           composeVideoParamsInto(base, vfUser, autoMods);
           const svgBase = { ...base };
           svgBase.sharp = Math.min(Number(svgBase.sharp || 0), 36);
-          lastSvg = svgBase;
-          lastWebgl = projectVValsForWebGL(base);
+          lastResult = svgBase;
           lastKey = key;
-          return rMode === 'webgl' ? lastWebgl : lastSvg;
+          return lastResult;
         }
-      };
-    }
-
-    function createFiltersWebGL(Utils) {
-      const pipelines = new WeakMap();
-      function compileShaderChecked(gl, type, source) { const shader = gl.createShader(type); if (!shader) throw new Error('gl.createShader failed'); gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const info = gl.getShaderInfoLog(shader) || 'unknown error'; gl.deleteShader(shader); throw new Error(`Shader compile failed (${type}): ${info}`); } return shader; }
-      function linkProgramChecked(gl, vs, fs) { const program = gl.createProgram(); if (!program) throw new Error('gl.createProgram failed'); gl.attachShader(program, vs); gl.attachShader(program, fs); gl.linkProgram(program); if (!gl.getProgramParameter(program, gl.LINK_STATUS)) { const info = gl.getProgramInfoLog(program) || 'unknown error'; gl.deleteProgram(program); throw new Error(`Program link failed: ${info}`); } return program; }
-      function buildToneLUT256(toe, mid, shoulder, gain = 1.0) {
-        const steps = 256; const out = new Uint8Array(steps * 4);
-        const t = VSC_CLAMP(toe / 14, -1, 1); const s = VSC_CLAMP(shoulder / 16, -1, 1); const m = VSC_CLAMP(mid, -1, 1);
-        const ev = Math.log2(Math.max(1e-6, gain)); const g = ev * 0.90; const denom = 1 - Math.exp(-g);
-        let prev = 0;
-        for (let i = 0; i < steps; i++) {
-          let x = i / 255;
-          x = (Math.abs(denom) > 1e-6) ? (1 - Math.exp(-g * x)) / denom : x;
-          x = VSC_CLAMP(x + m * 0.06 * (4 * x * (1 - x)), 0, 1);
-          if (t !== 0) { const nx = VSC_CLAMP((x - 0) / (0.35 - 0), 0, 1); const w = nx * nx * (3 - 2 * nx); x = VSC_CLAMP(x + t * 0.08 * (1 - w), 0, 1); }
-          if (s !== 0) { const nx = VSC_CLAMP((x - 0.85) / (1.0 - 0.85), 0, 1); const w = nx * nx * (3 - 2 * nx); x = VSC_CLAMP(x - s * 0.08 * w, 0, 1); }
-          if (x < prev) x = prev; prev = x;
-          const v = (x * 255 + 0.5) | 0; const o = i * 4; out[o] = out[o+1] = out[o+2] = v; out[o+3] = 255;
-        }
-        return out;
-      }
-      function buildFsColorOnly({ gl2 }) {
-        const head = gl2 ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n` : `precision highp float;\nvarying vec2 vTexCoord;\n#define outColor gl_FragColor\n#define TEX texture2D\n`;
-        return head + `
-uniform sampler2D uVideoTex; uniform sampler2D uToneTex; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain;
-const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
-float tone1(float y){ float tx = y * (255.0/256.0) + (0.5/256.0); return TEX(uToneTex, vec2(tx, 0.5)).r; }
-void main() {
-  vec3 color = TEX(uVideoTex, vTexCoord).rgb; color *= uRGBGain;
-  color = (color - 0.5) * uParams.y + 0.5; color += (uParams2.x / 1000.0);
-  float y = dot(color, LUMA); float y2 = tone1(clamp(y, 0.0, 1.0)); float ratio = y2 / max(1e-4, y); color *= ratio;
-  float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat;
-  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));
-  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
-}`;
-      }
-      function buildFsSharpen({ gl2 }) {
-        const head = gl2 ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n` : `precision highp float;\nvarying vec2 vTexCoord;\n#define outColor gl_FragColor\n#define TEX texture2D\n`;
-        return head + `
-uniform sampler2D uVideoTex; uniform sampler2D uToneTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain;
-const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
-float tone1(float y){ float tx = y * (255.0/256.0) + (0.5/256.0); return TEX(uToneTex, vec2(tx, 0.5)).r; }
-vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) {
-  vec3 c = TEX(tex, uv).rgb; vec3 n = TEX(tex, uv + vec2(0.0, -texel.y)).rgb; vec3 s = TEX(tex, uv + vec2(0.0,  texel.y)).rgb; vec3 w = TEX(tex, uv + vec2(-texel.x, 0.0)).rgb; vec3 e = TEX(tex, uv + vec2( texel.x, 0.0)).rgb;
-  float lc = dot(c, LUMA); float ln = dot(n, LUMA); float ls = dot(s, LUMA); float lw = dot(w, LUMA); float le = dot(e, LUMA);
-  float gX = abs(le - lw); float gY = abs(ls - ln); float wX = gX * gX; float wY = gY * gY; vec3 avg;
-  if (uParams2.z > 0.5) { float sumW = wX + wY + 1e-6; avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e))) / sumW;
-  } else {
-    vec3 nw = TEX(tex, uv + vec2(-texel.x, -texel.y)).rgb; vec3 ne = TEX(tex, uv + vec2( texel.x, -texel.y)).rgb; vec3 sw = TEX(tex, uv + vec2(-texel.x,  texel.y)).rgb; vec3 se = TEX(tex, uv + vec2( texel.x,  texel.y)).rgb;
-    float lnw = dot(nw, LUMA); float lne = dot(ne, LUMA); float lsw = dot(sw, LUMA); float lse = dot(se, LUMA);
-    float gD1 = abs(lne - lsw); float gD2 = abs(lnw - lse); float wD1 = gD1 * gD1; float wD2 = gD2 * gD2; float sumW = wX + wY + wD1 + wD2 + 1e-6;
-    avg = (wX * (0.5 * (n + s)) + wY * (0.5 * (w + e)) + wD1 * (0.5 * (ne + sw)) + wD2 * (0.5 * (nw + se))) / sumW;
-  }
-  vec3 sharpened = c + (c - avg) * strength;
-  vec3 mn = min(c, min(min(n,s), min(w,e))); vec3 mx = max(c, max(max(n,s), max(w,e))); vec3 span = mx - mn;
-  sharpened = clamp(sharpened, mn - span * 0.25, mx + span * 0.25);
-  return sharpened;
-}
-void main() {
-  vec2 texel = 1.0 / uResolution; vec3 color = TEX(uVideoTex, vTexCoord).rgb; float strength = uParams2.y;
-  if (strength > 0.0) { color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength); }
-  color *= uRGBGain;
-  color = (color - 0.5) * uParams.y + 0.5; color += (uParams2.x / 1000.0);
-  float y = dot(color, LUMA); float y2 = tone1(clamp(y, 0.0, 1.0)); float ratio = y2 / max(1e-4, y); color *= ratio;
-  float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat;
-  if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));
-  outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
-}`;
-      }
-      function buildShaderSources(gl) { const isGL2 = (typeof WebGL2RenderingContext !== 'undefined') && (gl instanceof WebGL2RenderingContext); const vs = isGL2 ? `#version 300 es\nin vec2 aPosition;\nin vec2 aTexCoord;\nout vec2 vTexCoord;\nvoid main() {\n  gl_Position = vec4(aPosition, 0.0, 1.0);\n  vTexCoord = aTexCoord;\n}` : `attribute vec2 aPosition; attribute vec2 aTexCoord; varying vec2 vTexCoord; void main() { gl_Position = vec4(aPosition, 0.0, 1.0); vTexCoord = aTexCoord; }`; return { vs, fsColorOnly: buildFsColorOnly({ gl2: isGL2 }), fsSharpen: buildFsSharpen({ gl2: isGL2 }) }; }
-
-      class WebGLPipeline {
-        constructor() { this.canvas = null; this.gl = null; this.activeProgramKind = ''; this.videoTexture = null; this.video = null; this.active = false; this.vVals = null; this.originalParent = null; this.restoreVideoStyle = null; this._rafId = 0; this._timerId = 0; this._rvfcId = 0; this.disabledUntil = 0; this._texW = 0; this._texH = 0; this._loopToken = 0; this._loopRunning = false; this._isGL2 = false; this._styleDirty = true; this._styleObs = null; this._lastStyleSyncT = 0; this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; this.toneTexture = null; this._toneKey = ''; this._outputReady = false; this._cachedTempKey = ''; this._cachedTempRGB = { rs: 1, gs: 1, bs: 1 }; this._onContextLost = (e) => { e.preventDefault(); const now = performance.now(); this.disabledUntil = now + 3000; this.active = false; this._loopToken++; this._loopRunning = false; try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null; try { if (this.canvas) this.canvas.style.opacity = '0'; } catch (_) {} try { const st = this.video ? getVState(this.video) : null; if (st && VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + 5000; } catch (_) {} try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }; this._onContextRestored = () => { try { this.disposeGLResources({ keepCanvasListeners: true }); if (this.initGLResourcesOnExistingCanvas()) { if (this.video) { this.active = true; this.startRenderLoop(); } } else { this.disabledUntil = performance.now() + 5000; } } catch (_) { this.disabledUntil = performance.now() + 5000; } }; this._lastRenderedTime = -1; this._paramsDirty = true; }
-        _clearDriver() { if (this._rafId) { cancelAnimationFrame(this._rafId); this._rafId = 0; } if (this._timerId) { clearTimeout(this._timerId); this._timerId = 0; } if (this.video && this._rvfcId && typeof this.video.cancelVideoFrameCallback === 'function') { try { this.video.cancelVideoFrameCallback(this._rvfcId); } catch (_) {} } this._rvfcId = 0; }
-        _scheduleVideoFrame(cb) { this._clearDriver(); const v = this.video; if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') { try { this._rvfcId = v.requestVideoFrameCallback((now, meta) => { this._rvfcId = 0; cb(now, meta); }); return; } catch (_) {} } this._rafId = requestAnimationFrame((t) => { this._rafId = 0; cb(t, null); }); }
-        ensureCanvas() { if (this.canvas) return; this.canvas = document.createElement('canvas'); this.canvas.style.cssText = `position: absolute !important; top: 0 !important; left: 0 !important; width: 100% !important; height: 100% !important; object-fit: contain !important; display: block !important; pointer-events: none !important; margin: 0 !important; padding: 0 !important; contain: strict !important; will-change: transform, opacity !important; opacity: 0 !important;`; this.canvas.addEventListener('webglcontextlost', this._onContextLost, { passive: false }); this.canvas.addEventListener('webglcontextrestored', this._onContextRestored, { passive: true }); }
-        _bindProgramHandles(program, key) { const gl = this.gl; gl.useProgram(program); const handles = { program, uResolution: gl.getUniformLocation(program, 'uResolution'), uVideoTex: gl.getUniformLocation(program, 'uVideoTex'), uToneTex: gl.getUniformLocation(program, 'uToneTex'), uParams: gl.getUniformLocation(program, 'uParams'), uParams2: gl.getUniformLocation(program, 'uParams2'), uRGBGain: gl.getUniformLocation(program, 'uRGBGain'), aPosition: gl.getAttribLocation(program, 'aPosition'), aTexCoord: gl.getAttribLocation(program, 'aTexCoord') }; if (handles.uVideoTex) gl.uniform1i(handles.uVideoTex, 0); if (handles.uToneTex) gl.uniform1i(handles.uToneTex, 1); this[`handles_${key}`] = handles; }
-        initGLResourcesOnExistingCanvas() { this.ensureCanvas(); let gl = this.canvas.getContext('webgl2', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: true }); this._isGL2 = !!gl; if (!gl) gl = this.canvas.getContext('webgl', { alpha: false, antialias: false, preserveDrawingBuffer: false, powerPreference: 'high-performance', desynchronized: true }); if (!gl) return false; this.gl = gl; try { gl.pixelStorei(gl.UNPACK_COLORSPACE_CONVERSION_WEBGL, gl.NONE); gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false); } catch (_) {} const src = buildShaderSources(gl); try { const vs = compileShaderChecked(gl, gl.VERTEX_SHADER, src.vs), fsColor = compileShaderChecked(gl, gl.FRAGMENT_SHADER, src.fsColorOnly), fsSharp = compileShaderChecked(gl, gl.FRAGMENT_SHADER, src.fsSharpen); const programColor = linkProgramChecked(gl, vs, fsColor), programSharp = linkProgramChecked(gl, vs, fsSharp); gl.deleteShader(vs); gl.deleteShader(fsColor); gl.deleteShader(fsSharp); this._bindProgramHandles(programColor, 'color'); this._bindProgramHandles(programSharp, 'sharp'); this.activeProgramKind = ''; const vertices = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true); const tCoords = new Float32Array([0,0, 1,0, 0,1, 1,1]); this.vBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW); this.tBuf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.bufferData(gl.ARRAY_BUFFER, tCoords, gl.STATIC_DRAW); this.videoTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); this.toneTexture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); const id = new Uint8Array(256 * 4); for (let i=0;i<256;i++){ const o=i*4; id[o]=id[o+1]=id[o+2]=i; id[o+3]=255; } const toneInternalFormat = this._isGL2 ? gl.RGBA8 : gl.RGBA; gl.texImage2D(gl.TEXTURE_2D, 0, toneInternalFormat, 256, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, id); return true; } catch (err) { log.warn('WebGL Init Error:', err.message); this.disposeGLResources(); return false; } }
-        init() { return this.initGLResourcesOnExistingCanvas(); }
-        attachToVideo(video) {
-          if (!this.active && !this.init()) return false; this.video = video; this.originalParent = video.parentNode; this.restoreVideoStyle = null; this._outputReady = false; this.canvas.style.opacity = '0';
-          if (this.originalParent) {
-            const cs = window.getComputedStyle(this.originalParent);
-            if (cs.position === 'static') {
-              this._parentPrevPosition = this.originalParent.style.position || '';
-              this.originalParent.style.position = 'relative';
-              this._parentStylePatched = true;
-              this._patchedParent = this.originalParent;
-            }
-            const wrap = fsWraps.get(video);
-            const insertTarget = wrap || video.parentNode;
-            if (video.nextSibling && video.nextSibling !== this.canvas) insertTarget.insertBefore(this.canvas, video.nextSibling);
-            else if (!this.canvas.parentNode || this.canvas.parentNode !== insertTarget) insertTarget.appendChild(this.canvas);
-          }
-          if (this._styleObs) this._styleObs.disconnect(); this._styleObs = new MutationObserver(() => { this._styleDirty = true; }); try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
-          this._styleDirty = true; this.active = true; patchFullscreenRequest(video);
-          this._playListener = () => { if (this.active && !this._loopRunning) this.startRenderLoop(); };
-          this._seekedListener = () => { this._lastRenderedTime = -1; if (this.active && !this._loopRunning) this.startRenderLoop(); };
-          video.addEventListener('play', this._playListener, { passive: true });
-          video.addEventListener('seeked', this._seekedListener, { passive: true });
-          this.startRenderLoop(); return true;
-        }
-        updateParams(vVals) { if (this.vVals !== vVals) { this._paramsDirty = true; } this.vVals = vVals; if (this.active && !this._loopRunning && this._paramsDirty && this.video?.paused) { requestAnimationFrame(() => this.render()); } }
-        syncCanvasPresentationFromVideo(video, now) {
-          if (!this._styleDirty && (now - this._lastStyleSyncT) < 2000) return;
-          this._styleDirty = false; this._lastStyleSyncT = now;
-          const vs = window.getComputedStyle(video), cs = this.canvas.style;
-          cs.objectFit = vs.objectFit || 'contain';
-          cs.objectPosition = vs.objectPosition;
-          const zoomMgr = window.__VSC_INTERNAL__?.ZoomManager;
-          const zoomed = zoomMgr?.isZoomed?.(video);
-          if (!zoomed) {
-            const tr = vs.transform;
-            cs.transform = (tr && tr !== 'none') ? tr : '';
-            cs.transformOrigin = (tr && tr !== 'none') ? vs.transformOrigin : '';
-          }
-          cs.borderRadius = vs.borderRadius || '';
-          const vz = vs.zIndex;
-          const n = parseInt(vz, 10);
-          cs.zIndex = Number.isFinite(n) ? String(n + 1) : '1';
-        }
-        render() {
-          if (!this.active || !this.gl || !this.video || !this.vVals) return;
-          const gl = this.gl, video = this.video;
-          const now = performance.now();
-          if (now < this.disabledUntil) return;
-          const st = getVState(video);
-          if (st.webglDisabledUntil && now < st.webglDisabledUntil) return;
-          /* PATCH-3: PiP 중 WebGL 렌더 스킵 */
-          if (st._inPiP) return;
-          if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
-          const ct = video.currentTime;
-          if (this._lastRenderedTime === ct && !this._paramsDirty) return;
-          this._lastRenderedTime = ct; this._paramsDirty = false;
-          const effectiveParent = video.parentNode;
-          if (this.canvas.parentNode !== effectiveParent && effectiveParent) {
-            this.originalParent = effectiveParent;
-            try {
-              if (video.nextSibling && video.nextSibling !== this.canvas) { effectiveParent.insertBefore(this.canvas, video.nextSibling); }
-              else if (!this.canvas.parentNode || this.canvas.parentNode !== effectiveParent) { effectiveParent.appendChild(this.canvas); }
-            } catch (_) {}
-          }
-          this.syncCanvasPresentationFromVideo(video, now);
-          const w = video.videoWidth, h = video.videoHeight;
-          const sharpNorm = (this.vVals.sharp || 0) / 28.0;
-          const useSharpen = sharpNorm > 0;
-          const kind = useSharpen ? 'sharp' : 'color';
-          const H = useSharpen ? this.handles_sharp : this.handles_color;
-          let programChanged = false;
-          if (this.activeProgramKind !== kind) {
-            this.activeProgramKind = kind; programChanged = true;
-            gl.useProgram(H.program);
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.vBuf); gl.enableVertexAttribArray(H.aPosition); gl.vertexAttribPointer(H.aPosition, 2, gl.FLOAT, false, 0, 0);
-            gl.bindBuffer(gl.ARRAY_BUFFER, this.tBuf); gl.enableVertexAttribArray(H.aTexCoord); gl.vertexAttribPointer(H.aTexCoord, 2, gl.FLOAT, false, 0, 0);
-          }
-          const resized = (this.canvas.width !== w || this.canvas.height !== h);
-          if (resized) { this.canvas.width = w; this.canvas.height = h; gl.viewport(0, 0, w, h); }
-          if ((resized || programChanged) && H.uResolution) gl.uniform2f(H.uResolution, w, h);
-          const tempVal = this.vVals.temp || 0;
-          const tempKey = String(tempVal);
-          if (this._cachedTempKey !== tempKey) { this._cachedTempKey = tempKey; this._cachedTempRGB = tempToRgbGain(tempVal); }
-          const { rs, gs, bs } = this._cachedTempRGB;
-          if (H.uParams) gl.uniform4f(H.uParams, 1.0, this.vVals.contrast || 1.0, this.vVals.satF || 1.0, this.vVals.gamma || 1.0);
-          if (H.uParams2) gl.uniform4f(H.uParams2, this.vVals.bright || 0.0, useSharpen ? sharpNorm : 0.0, 0.0, 0.88);
-          if (H.uRGBGain) gl.uniform3f(H.uRGBGain, rs, gs, bs);
-          const toe = this.vVals.toe || 0; const mid = this.vVals.mid || 0; const shoulder = this.vVals.shoulder || 0; const gainVal = this.vVals.gain || 1.0;
-          const tq = (n, q) => (Math.round(n / q) * q).toFixed(3);
-          const toneKey = tq(toe,0.2) + '|' + tq(mid,0.02) + '|' + tq(shoulder,0.2) + '|' + tq(gainVal,0.06);
-          if (this._toneKey !== toneKey && this.toneTexture) {
-            this._toneKey = toneKey;
-            const lut = buildToneLUT256(toe, mid, shoulder, gainVal);
-            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture);
-            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, 256, 1, gl.RGBA, gl.UNSIGNED_BYTE, lut);
-          } else {
-            gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, this.toneTexture);
-          }
-          try {
-            gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
-            if (this._texW !== w || this._texH !== h) {
-              this._texW = w; this._texH = h;
-              const internalFormat = this._isGL2 ? gl.RGBA8 : gl.RGBA;
-              gl.texImage2D(gl.TEXTURE_2D, 0, internalFormat, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
-            }
-            gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
-            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-            st.webglFailCount = 0;
-            if (!this._outputReady) {
-              this._outputReady = true; this.canvas.style.opacity = '1';
-              if (!this.restoreVideoStyle) this.restoreVideoStyle = patchInlineStyleImportant(video, { opacity: '0.001' });
-            }
-          } catch (err) {
-            st.webglFailCount = (st.webglFailCount || 0) + 1;
-            if (CONFIG.DEBUG) log.warn('WebGL render failure:', err);
-            const msg = String(err?.message || err || '');
-            const looksTaint = /SecurityError|cross.origin|cross-origin|taint|insecure|Tainted|origin/i.test(msg);
-            if (st.webglFailCount >= GUARD.WEBGL_FAIL_THRESHOLD) {
-              st.webglFailCount = 0;
-              if (looksTaint) { st.webglTainted = true; log.warn('WebGL tainted/CORS-like failure → fallback to SVG'); }
-              else { if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = now + GUARD.WEBGL_FAIL_COOLDOWN; log.warn('WebGL transient failure → cooldown then retry'); }
-              try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
-            }
-          }
-        }
-        startRenderLoop() { if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken; const loopFn = (now, meta) => { if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; } this.render(); if (document.hidden) { this._loopRunning = false; return; } if (this.video?.paused) { this._loopRunning = false; if (this._paramsDirty) requestAnimationFrame(() => this.render()); return; } this._scheduleVideoFrame(loopFn); }; this._scheduleVideoFrame(loopFn); }
-        disposeGLResources(opts = {}) { const { keepCanvasListeners = false } = opts; const gl = this.gl; if (gl) { try { if (this.videoTexture) { gl.deleteTexture(this.videoTexture); this.videoTexture = null; } if (this.toneTexture) { gl.deleteTexture(this.toneTexture); this.toneTexture = null; } if (this.vBuf) { gl.deleteBuffer(this.vBuf); this.vBuf = null; } if (this.tBuf) { gl.deleteBuffer(this.tBuf); this.tBuf = null; } if (this.handles_color?.program) gl.deleteProgram(this.handles_color.program); if (this.handles_sharp?.program) gl.deleteProgram(this.handles_sharp.program); } catch (_) {} } if (!keepCanvasListeners && this.canvas) { try { this.canvas.removeEventListener('webglcontextlost', this._onContextLost); this.canvas.removeEventListener('webglcontextrestored', this._onContextRestored); } catch (_) {} } this.gl = null; this._texW = 0; this._texH = 0; this.activeProgramKind = ''; }
-        shutdown() {
-          const token = ++this._loopToken;
-          this.active = false; this._loopRunning = false;
-          this._clearDriver();
-          if (this._styleObs) { this._styleObs.disconnect(); this._styleObs = null; }
-          if (this.video) { if (this._playListener) this.video.removeEventListener('play', this._playListener); if (this._seekedListener) this.video.removeEventListener('seeked', this._seekedListener); }
-          try { if (this.canvas && this.canvas.parentNode) { this.canvas.remove(); } } catch (_) {}
-          try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null;
-          if (this._parentStylePatched && this._patchedParent) { try { this._patchedParent.style.position = this._parentPrevPosition; } catch (_) {} this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; }
-          this.disposeGLResources();
-          this.video = null;
-        }
-      }
-      return {
-        apply: (el, vVals) => { let pipe = pipelines.get(el); if (!pipe) { pipe = new WebGLPipeline(); pipelines.set(el, pipe); } if (!pipe.active || pipe.video !== el || !pipe.gl) { if (!pipe.attachToVideo(el)) { pipelines.delete(el); return false; } } pipe.updateParams(vVals); if (!pipe._loopRunning && !el.paused && !document.hidden) { pipe.startRenderLoop(); } return true; },
-        clear: (el) => { const pipe = pipelines.get(el); if (pipe) { pipe.shutdown(); pipelines.delete(el); } }
       };
     }
 
@@ -1378,8 +1276,7 @@ void main() {
       zoom: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
       camera: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
       sparkles: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/></svg>`,
-      palette: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
-      gpu: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>`
+      palette: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`
     });
 
     function svgIcon(name) {
@@ -1435,9 +1332,8 @@ void main() {
           const v = window.__VSC_APP__?.getActiveVideo();
           if (!v || !container?.isConnected) { videoInfo.textContent = ''; return; }
           const w = v.videoWidth, ht = v.videoHeight;
-          const st = getVState(v);
-          const backend = st.fxBackend?.toUpperCase() || '—';
-          videoInfo.textContent = `${w}\u00D7${ht} \u00B7 ${backend}`;
+          const mode = __liteForced ? 'LITE' : 'FULL';
+          videoInfo.textContent = `${w}\u00D7${ht} \u00B7 SVG/${mode}`;
         }
         sub(P.APP_UI, (visible) => { clearInterval(infoTimer); if (visible) { updateVideoInfo(); infoTimer = setInterval(updateVideoInfo, 2000); } });
 
@@ -1492,12 +1388,12 @@ void main() {
         );
         bindStyle(advContainer, P.APP_ADV, (el, v) => { el.style.display = v ? 'block' : 'none'; });
 
+        /* ── v176: 비디오 섹션 — renderMode 토글 제거, Auto 버튼만 유지 ── */
         const videoSection = h('div', {},
           h('div', { class: 'section' },
             h('div', { class: 'section-label' }, '비디오 효과'),
             renderPresetRow({ key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: k, value: k })) }),
             h('div', { class: 'row', style: 'margin-top:6px' },
-              (() => { const rmBtn = h('button', { class: 'btn' }); bindStyle(rmBtn, P.APP_RENDER_MODE, (el, v) => { el.innerHTML = ''; el.append(svgIcon('gpu'), document.createTextNode(v === 'webgl' ? ' WebGL' : ' SVG')); el.classList.toggle('active', v === 'webgl'); }); rmBtn.onclick = () => setAndHint(P.APP_RENDER_MODE, sm.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl'); return rmBtn; })(),
               (() => { const autoBtn = h('button', { class: 'btn' }); autoBtn.append(svgIcon('sparkles'), document.createTextNode(' Auto')); autoBtn.onclick = () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); bindClassToggle(autoBtn, P.APP_AUTO_SCENE, v => !!v); return autoBtn; })()
             )
           ),
@@ -1632,57 +1528,20 @@ void main() {
     function markInternalRateChange(v) { const st = getRateState(v); st.lastSetAt = performance.now(); }
     const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el); el.playbackRate = nextRate; st.orig = null; st.retryCount = 0; st.permanentlyBlocked = false; st.suppressSyncUntil = 0; } catch (_) {} };
 
-    function patchInlineStyleImportant(el, props) {
-      const saved = {};
-      for (const [k, v] of Object.entries(props)) {
-        saved[k] = el.style.getPropertyValue(k);
-        el.style.setProperty(k, v, 'important');
-      }
-      return () => {
-        for (const [k] of Object.entries(props)) {
-          const prev = saved[k];
-          if (prev) el.style.setProperty(k, prev);
-          else el.style.removeProperty(k);
-        }
-      };
-    }
-
-    function createBackendAdapter(Filters, FiltersGL) {
-      let __userRequestedMode = 'svg';
+    /* ── v176: SVG-only 백엔드 어댑터 (WebGL 제거) ── */
+    function createBackendAdapter(Filters) {
       return {
-        setUserMode(mode) { __userRequestedMode = mode; },
-        apply(video, mode, vVals) {
-          const st = getVState(video); const now = performance.now();
-          /* PATCH-3: PiP 중이면 필터 적용 건너뜀 */
+        apply(video, vVals) {
+          const st = getVState(video);
           if (st._inPiP) return;
-          __userRequestedMode = mode;
-          const autoDowngrade = (video.videoWidth * video.videoHeight) < (640 * 360);
-          const webglAllowed = (mode === 'webgl' && !st.webglTainted && !(st.webglDisabledUntil && now < st.webglDisabledUntil) && !autoDowngrade);
-          const effectiveMode = webglAllowed ? 'webgl' : 'svg';
-          if (st.fxBackend && st.fxBackend !== effectiveMode) {
-            const isAutoFallback = (mode === 'webgl' && effectiveMode === 'svg');
-            if (isAutoFallback) {
-              const reason = st.webglTainted ? 'CORS 보안' : autoDowngrade ? '저해상도' : 'GPU 오류';
-              showOSD(`WebGL \u2192 SVG (${reason})`, 2500);
-            }
-          }
-          if (st.webglTainted && st.fxBackend === 'webgl') { FiltersGL.clear(video); st.fxBackend = null; }
-          if (effectiveMode === 'webgl') {
-            if (st.fxBackend === 'svg') Filters.clear(video);
-            const ok = FiltersGL.apply(video, vVals);
-            if (!ok) {
-              if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = performance.now() + GUARD.WEBGL_FAIL_COOLDOWN;
-              FiltersGL.clear(video); const url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg'; return;
-            }
-            st.fxBackend = 'webgl';
-          } else {
-            if (st.fxBackend === 'webgl') FiltersGL.clear(video);
-            /* PATCH-3: PiP 중이면 SVG 필터도 건너뜀 */
-            let url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg';
-          }
+          const url = Filters.prepareCached(video, vVals);
+          Filters.applyUrl(video, url);
+          st.fxBackend = 'svg';
         },
         clear(video) {
-          const st = getVState(video); if (st.fxBackend === 'svg') Filters.clear(video); else if (st.fxBackend === 'webgl') FiltersGL.clear(video); st.fxBackend = null;
+          const st = getVState(video);
+          Filters.clear(video);
+          st.fxBackend = null;
         }
       };
     }
@@ -1702,7 +1561,6 @@ void main() {
       ['loadstart', 'loadedmetadata', 'emptied'].forEach(ev => v.addEventListener(ev, softResetTransientFlags, { passive: true, signal: sig }));
       ['seeking', 'play'].forEach(ev => v.addEventListener(ev, () => { ApplyReq.hard(); }, { passive: true, signal: sig }));
 
-      /* PATCH-3: PiP enter/leave 이벤트로 _inPiP 플래그 관리 및 필터 제거/복원 */
       v.addEventListener('enterpictureinpicture', () => {
         st._inPiP = true;
         try { window.__VSC_INTERNAL__?.Adapter?.clear(v); } catch (_) {}
@@ -1718,7 +1576,6 @@ void main() {
         if ((now - (rSt.lastSetAt || 0)) < 150) return;
         if (rSt.permanentlyBlocked) return;
         if (now < rSt.suppressSyncUntil) return;
-        /* PATCH-7: rate-blocked 사이트면 즉시 차단 */
         if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
         const desired = st.desiredRate;
         if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.02) return;
@@ -1752,10 +1609,10 @@ void main() {
     };
 
     const __reconcileCandidates = new Set();
-    let __lastSigTarget = null, __lastSigRMode = '', __lastSigPb = false, __lastSigRate = 1, __lastSigFx = false;
-    function lightSigChanged(activeTarget, rMode, pbActive, desiredRate, videoFxOn) {
-      if (activeTarget !== __lastSigTarget || rMode !== __lastSigRMode || pbActive !== __lastSigPb || desiredRate !== __lastSigRate || videoFxOn !== __lastSigFx) {
-        __lastSigTarget = activeTarget; __lastSigRMode = rMode; __lastSigPb = pbActive; __lastSigRate = desiredRate; __lastSigFx = videoFxOn; return true;
+    let __lastSigTarget = null, __lastSigPb = false, __lastSigRate = 1, __lastSigFx = false;
+    function lightSigChanged(activeTarget, pbActive, desiredRate, videoFxOn) {
+      if (activeTarget !== __lastSigTarget || pbActive !== __lastSigPb || desiredRate !== __lastSigRate || videoFxOn !== __lastSigFx) {
+        __lastSigTarget = activeTarget; __lastSigPb = pbActive; __lastSigRate = desiredRate; __lastSigFx = videoFxOn; return true;
       }
       return false;
     }
@@ -1771,7 +1628,6 @@ void main() {
     function applyPlaybackRate(el, desiredRate) {
       const st = getVState(el); const rSt = getRateState(el);
       if (rSt.permanentlyBlocked) return;
-      /* PATCH-7: rate-blocked 사이트면 속도 변경 차단 */
       if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
       if (rSt.orig == null) rSt.orig = el.playbackRate;
       const lastDesired = st.desiredRate;
@@ -1779,7 +1635,8 @@ void main() {
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
     }
 
-    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq, mainTarget }) {
+    /* ── v176: reconcileVideoEffects — rMode 인자 제거, Adapter.apply 시그니처 변경 ── */
+    function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, ApplyReq, mainTarget }) {
       const candidates = __reconcileCandidates; candidates.clear();
       for (const v of dirtyVideos) if (v) candidates.add(v);
       for (const v of TOUCHED.videos) if (v) candidates.add(v);
@@ -1791,7 +1648,7 @@ void main() {
         const isMainTarget = (el === mainTarget);
         const shouldApply = applySet.has(el) && (visible || isPiPActiveVideo(el) || isMainTarget);
         if (!shouldApply) { clearVideoRuntimeState(el, Adapter, ApplyReq); continue; }
-        if (videoFxOn) { Adapter.apply(el, rMode, vVals); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
+        if (videoFxOn) { Adapter.apply(el, vVals); touchedAddLimited(TOUCHED.videos, el, onEvictVideo); } else { Adapter.clear(el); TOUCHED.videos.delete(el); }
         if (pbActive) applyPlaybackRate(el, desiredRate); else { st.desiredRate = undefined; restoreRateOne(el); TOUCHED.rateVideos.delete(el); }
         bindVideoOnce(el, ApplyReq);
       }
@@ -1800,6 +1657,7 @@ void main() {
 
     function createThrottled(fn, ms = 120) { let last = 0, timer = 0; return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } }; }
 
+    /* ── v176: createAppController — renderMode 참조 제거 ── */
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
       UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) { try { Registry.refreshObservers?.(); Registry.rescanAll?.(); Scheduler.request(true); } catch (_) {} } });
@@ -1817,7 +1675,7 @@ void main() {
           lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev;
           const now = performance.now(); if (now - lastPrune > 2000) { Registry.prune(); pruneTouchedDisconnected(); lastPrune = now; }
           const { visible } = Registry, dirty = Registry.consumeDirty(), vidsDirty = dirty.videos;
-          const wantAudioNow = !!(Store.get(P.A_EN) && active); const rMode = Store.get(P.APP_RENDER_MODE) || 'svg';
+          const wantAudioNow = !!(Store.get(P.A_EN) && active);
           const pick = Targeting.pickFastActiveOnly(visible.videos, window.__lastUserPt, wantAudioNow);
           let nextTarget = pick.target; if (!nextTarget) { if (__activeTarget) nextTarget = __activeTarget; }
           if (nextTarget !== __activeTarget) { __activeTarget = nextTarget; }
@@ -1825,14 +1683,13 @@ void main() {
           if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
           const vCat = Store.state.video;
           const vfUser = { presetS: vCat.presetS, presetB: vCat.presetB, presetMix: vCat.presetMix, shadowBandMask: vCat.shadowBandMask, brightStepLevel: vCat.brightStepLevel };
-          const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
-          const vValsEffective = videoParamsMemo.get(vfUser, rMode, __activeTarget);
-          if (CONFIG.DEBUG) { const w = __activeTarget?.videoWidth || 0, ht = __activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, mode: rMode, size: `${w}x${ht}`, contrast: vValsEffective.contrast, satF: vValsEffective.satF, bright: vValsEffective.bright, gamma: vValsEffective.gamma, sharp: vValsEffective.sharp, temp: vValsEffective.temp }); }
+          const vValsEffective = videoParamsMemo.get(vfUser, __activeTarget);
+          if (CONFIG.DEBUG) { const w = __activeTarget?.videoWidth || 0, ht = __activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, size: `${w}x${ht}`, contrast: vValsEffective.contrast, satF: vValsEffective.satF, bright: vValsEffective.bright, gamma: vValsEffective.gamma, sharp: vValsEffective.sharp, temp: vValsEffective.temp }); }
           const videoFxOn = !isNeutralVideoParams(vValsEffective); const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
           __applySet.clear(); if (applyToAllVisibleVideos) { for (const v of visible.videos) __applySet.add(v); } else if (__activeTarget) { __applySet.add(__activeTarget); }
           const desiredRate = Store.get(P.PB_RATE), pbActive = active && !!Store.get(P.PB_EN);
-          if (!force && vidsDirty.size === 0 && !lightSigChanged(__activeTarget, rMode, pbActive, desiredRate, videoFxOn)) return;
-          reconcileVideoEffects({ applySet: __applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, rMode, ApplyReq, mainTarget: __activeTarget });
+          if (!force && vidsDirty.size === 0 && !lightSigChanged(__activeTarget, pbActive, desiredRate, videoFxOn)) return;
+          reconcileVideoEffects({ applySet: __applySet, dirtyVideos: vidsDirty, vVals: vValsEffective, videoFxOn, desiredRate, pbActive, Adapter, ApplyReq, mainTarget: __activeTarget });
           if (force || vidsDirty.size) UI.ensure();
         } catch (e) { log.warn('apply crashed:', e); }
       });
@@ -1841,19 +1698,12 @@ void main() {
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick(); Scheduler.request(true);
       return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, async destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); await Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
     }
-// ─── END OF PART 3 (v175.0.0 – Patched) ───
-// ─── START OF PART 4 (v175.0.0 – Patched) ───
-// PATCH-1: GM_storage per-site with localStorage fallback
-// PATCH-2: setTimer/clearTimer wrappers (AbortController-safe timers)
-// P4-01 ~ P4-06: signal null-safety, key-level graceful load, postTask save, lifecycle hooks, throttle tuning
 
     const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
     const ApplyReq = createApplyRequester(Bus, Scheduler); window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store; window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
 
-    /* ── P4-01: payload null-safety ── */
     Bus.on('signal', (s) => { if (s && s.forceApply) Scheduler.request(true); });
 
-    /* ── PATCH-1: GM_storage per-site key ── */
     const SITE_STORAGE_KEY = 'vsc_prefs_' + location.hostname;
     const __hasGM = (typeof GM_getValue === 'function' && typeof GM_setValue === 'function');
     const __hasGMDelete = (typeof GM_deleteValue === 'function');
@@ -1871,12 +1721,13 @@ void main() {
       }
     }
 
+    /* ── v176: buildSaveData/applyDataToStore — renderMode 필드 제거 ── */
     function buildSaveData(Store, P) {
       return {
         active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
         presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B),
         presetMix: Store.get(P.V_PRE_MIX), shadowBandMask: Store.get(P.V_SHADOW_MASK),
-        brightStepLevel: Store.get(P.V_BRIGHT_STEP), renderMode: Store.get(P.APP_RENDER_MODE),
+        brightStepLevel: Store.get(P.V_BRIGHT_STEP),
         audioEnabled: Store.get(P.A_EN), audioBoost: Store.get(P.A_BST),
         autoScene: Store.get(P.APP_AUTO_SCENE), zoomEn: Store.get(P.APP_ZOOM_EN),
         playbackRate: Store.get(P.PB_RATE), playbackEnabled: Store.get(P.PB_EN)
@@ -1893,7 +1744,6 @@ void main() {
       safeSet(P.V_PRE_MIX, data.presetMix);
       safeSet(P.V_SHADOW_MASK, data.shadowBandMask);
       safeSet(P.V_BRIGHT_STEP, data.brightStepLevel);
-      safeSet(P.APP_RENDER_MODE, data.renderMode);
       safeSet(P.A_EN, data.audioEnabled);
       safeSet(P.A_BST, data.audioBoost);
       safeSet(P.APP_AUTO_SCENE, data.autoScene);
@@ -1902,24 +1752,19 @@ void main() {
       safeSet(P.PB_EN, data.playbackEnabled);
     }
 
-    /* ── PATCH-1: saveSettings – GM_setValue (site key) + localStorage fallback ── */
     function saveSettings(Store, P) {
       try {
         const data = buildSaveData(Store, P);
         const json = JSON.stringify(data);
-        /* GM storage: site-specific key */
         if (__hasGM) {
           try { GM_setValue(SITE_STORAGE_KEY, json); } catch (_) {}
         }
-        /* localStorage fallback (global key for backward compat) */
         try { localStorage.setItem(STORAGE_KEY, json); } catch (_) {}
       } catch (_) {}
     }
 
-    /* ── PATCH-1 + P4-02: loadSettings – GM_getValue (site key) → localStorage fallback, key-level graceful skip ── */
     function loadSettings(Store, P) {
       let data = null;
-      /* 1) GM storage: site-specific */
       if (__hasGM) {
         try {
           const raw = GM_getValue(SITE_STORAGE_KEY, null);
@@ -1928,7 +1773,6 @@ void main() {
           }
         } catch (_) {}
       }
-      /* 2) localStorage fallback */
       if (!data) {
         try {
           const raw = localStorage.getItem(STORAGE_KEY);
@@ -1949,11 +1793,10 @@ void main() {
     normalizeBySchema(Store, VIDEO_SCHEMA);
     normalizeBySchema(Store, AUDIO_PLAYBACK_SCHEMA);
 
-    bindNormalizer([P.APP_RENDER_MODE, P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV], APP_SCHEMA);
+    bindNormalizer([P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV], APP_SCHEMA);
     bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA);
     bindNormalizer([P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
 
-    /* ── P4-03: saveDebounced – postTask background 우선순위 (가용 시) ── */
     const __saveImpl = () => saveSettings(Store, P);
     const __postTaskBgSave = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
       ? () => { globalThis.scheduler.postTask(__saveImpl, { priority: 'background' }).catch(__saveImpl); }
@@ -1963,7 +1806,6 @@ void main() {
 
     Store.sub(P.V_PRE_S, (v) => showOSD('샤프닝: ' + (PRESET_LABELS.detail[v] || v)));
     Store.sub(P.V_PRE_B, (v) => showOSD('밝기등급: ' + (PRESET_LABELS.grade[v] || v)));
-    Store.sub(P.APP_RENDER_MODE, (v) => showOSD('렌더: ' + v.toUpperCase()));
     Store.sub(P.A_EN, (v) => showOSD('오디오 부스트: ' + (v ? 'ON' : 'OFF')));
     Store.sub(P.PB_RATE, (v) => { if (Store.get(P.PB_EN)) showOSD('재생속도: ' + Number(v).toFixed(1) + 'x'); });
     Store.sub(P.PB_EN, (v) => { if (!v) showOSD('재생속도: 기본'); });
@@ -1983,9 +1825,9 @@ void main() {
 
       const AutoScene = createAutoSceneManager(Store, P, Scheduler); window.__VSC_INTERNAL__.AutoScene = AutoScene;
 
+      /* ── v176: SVG-only — createFiltersWebGL 제거, Adapter에 Filters만 전달 ── */
       const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_MOBILE: CONFIG.IS_MOBILE });
-      const FiltersGL = createFiltersWebGL(Utils);
-      const Adapter = createBackendAdapter(Filters, FiltersGL); window.__VSC_INTERNAL__.Adapter = Adapter;
+      const Adapter = createBackendAdapter(Filters); window.__VSC_INTERNAL__.Adapter = Adapter;
 
       const Audio = createAudio(Store);
       let ZoomManager = null; if (FEATURE_FLAGS.zoomFeature) { ZoomManager = createZoomManager(); window.__VSC_INTERNAL__.ZoomManager = ZoomManager; }
@@ -1997,7 +1839,6 @@ void main() {
       window.__lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
       function updateLastUserPt(x, y, t) { window.__lastUserPt.x = x; window.__lastUserPt.y = y; window.__lastUserPt.t = t; }
 
-      /* ── P4-06: 쓰로틀 간격 24→50ms ── */
       function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 50) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; try { Scheduler.request(false); } catch (_) {} } let __vscLastUserSignalT = 0;
 
       onWin('pointerdown', (e) => { const now = performance.now(); updateLastUserPt(e.clientX, e.clientY, now); signalUserInteractionForRetarget(); }, { passive: true });
@@ -2020,20 +1861,19 @@ void main() {
         } catch (_) {}
       });
 
+      /* ── v176: 키바인드 — Alt+Shift+R (렌더 토글) 제거 ── */
       onWin('keydown', async (e) => {
         if (isEditableTarget(e.target)) return;
         if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); try { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); } catch (_) {} return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyP') { const v = __VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); const keys = Object.keys(PRESETS.detail); const cur = Store.get(P.V_PRE_S); const idx = keys.indexOf(cur); Store.set(P.V_PRE_S, keys[(idx + 1) % keys.length]); ApplyReq.hard(); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyA') { e.preventDefault(); Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); return; }
-        if (e.altKey && e.shiftKey && e.code === 'KeyR') { e.preventDefault(); Store.set(P.APP_RENDER_MODE, Store.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl'); ApplyReq.hard(); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyC') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (v) captureVideoFrame(v); return; }
-        if (e.altKey && e.shiftKey && e.code === 'Slash') { e.preventDefault(); showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | R: 렌더 | P: PiP | C: 캡처 | I: 정보', 3500); return; }
-        if (e.altKey && e.shiftKey && e.code === 'KeyI') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (!v) { showOSD('활성 비디오 없음'); return; } const w = v.videoWidth, ht = v.videoHeight; const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?'; const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?'; const st = getVState(v); const backend = st.fxBackend || 'none'; showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | ${backend.toUpperCase()}`, 3000); return; }
+        if (e.altKey && e.shiftKey && e.code === 'Slash') { e.preventDefault(); showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | P: PiP | C: 캡처 | I: 정보', 3500); return; }
+        if (e.altKey && e.shiftKey && e.code === 'KeyI') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (!v) { showOSD('활성 비디오 없음'); return; } const w = v.videoWidth, ht = v.videoHeight; const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?'; const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?'; const mode = __liteForced ? 'LITE' : 'FULL'; showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | SVG/${mode}`, 3000); return; }
         if (e.altKey && e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) { e.preventDefault(); const delta = e.code === 'ArrowUp' ? 0.1 : -0.1; const cur = Number(Store.get(P.PB_RATE) || 1); const next = Math.round(VSC_CLAMP(cur + delta, 0.1, 16) * 10) / 10; Store.set(P.PB_RATE, next); Store.set(P.PB_EN, true); ApplyReq.hard(); showOSD(`속도: ${next.toFixed(1)}x`); return; }
       }, { capture: true });
 
-      /* ── P4-05: 라이프사이클 훅에 Registry rescan 보강 ── */
       (function addPageLifecycleHooks() {
         onWin('freeze', () => { try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
         onWin('pageshow', () => {
