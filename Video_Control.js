@@ -125,6 +125,9 @@
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
     const VSC_VERSION = '180.0.0';
 
+    // ── [사용자 설정] 여기서 보정 강도를 조절하세요 ──
+    const COLOR_CAST_CORRECTION = 0.20; // 0.0(보정 없음) ~ 1.0(최대 보정)
+
     const STORAGE_KEY = 'vsc_v2_' + location.hostname;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -1026,55 +1029,692 @@ function createTargeting() {
       return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v && ctx?.state === 'suspended' && !v.paused) { ctx.resume().catch(() => {}); } if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element, marking cooldown'); if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; } disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } if (s.context !== ctx) { srcMap.delete(v); if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; } disconnectAll(); updateMix(); return; } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (e) { log.warn('Audio source connection failed:', e); if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
-    function createAutoSceneManager(Store, P, Scheduler) {
-      const clamp = VSC_CLAMP; const approach = (cur, tgt, a, dead=0.002) => { const d = tgt - cur; return Math.abs(d) < dead ? tgt : cur + d * a; };
-      const AUTO = { running: false, canvasW: 48, canvasH: 27, cur: { br: 1.0, ct: 1.0, sat: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0 }, lastSig: null, cutHist: [], motionEma: 0, motionAlpha: 0.30, motionThresh: 0.0075, motionFrames: 0, motionMinFrames: 5, statsEma: null, statsAlpha: 0.12, drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 800, minBoostEarlyMs: 700, fpsHist: [], minFps: 1, maxFps: 6, curFps: 1, _lastMean: 0 };
-      let drmRetryCount = 0;
-      const MAX_DRM_RETRIES = 5;
-      const c = document.createElement('canvas'); c.width = AUTO.canvasW; c.height = AUTO.canvasH; let ctx = null; try { ctx = c.getContext('2d', { willReadFrequently: true, desynchronized: true, alpha: false, colorSpace: 'srgb' }); } catch (_) { try { ctx = c.getContext('2d', { willReadFrequently: true }); } catch (__) {} }
+    // === AUTO SCENE V2 패치 ===
+// createAutoSceneManager 함수를 아래로 교체
 
-      function computeStatsAndMotion(AUTO, img, sw, sh) {
-        const data = img.data; const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0;
-        for (let y = 0; y < sh; y += step) { let idx = (y * sw) * 4; for (let x = 0; x < sw; x += step) { const r = data[idx], g = data[idx + 1], b = data[idx + 2]; const l = (r * 0.2126 + g * 0.7152 + b * 0.0722) | 0; const max = r > g ? (r > b ? r : b) : (g > b ? g : b); const min = r < g ? (r < b ? r : b) : (g < b ? g : b); sumChroma += (max - min); sum += l; sum2 += l * l; count++; if (x + step < sw && idx + 10 < data.length) { const l2 = (data[idx + 8] * 0.2126 + data[idx + 9] * 0.7152 + data[idx + 10] * 0.0722) | 0; sumEdge += Math.abs(l2 - l); } idx += step * 4; } }
-        const samples = Math.max(1, count); const mean = sum / samples; const std = Math.sqrt(Math.max(0, (sum2 / samples) - mean * mean)); const motion = Math.abs(mean - (AUTO._lastMean || mean)) / 255; AUTO._lastMean = mean;
-        return { bright: mean / 255, contrast: std / 64, chroma: (sumChroma / samples) / 255, edge: sumEdge / samples, motion };
+// ══════════════════════════════════════════════════════════════
+// Auto Scene V3 — 히스토그램 직접 톤 매핑 + 채널별 보정
+// ══════════════════════════════════════════════════════════════
+
+function createAutoSceneManager(Store, P, Scheduler) {
+  const clamp = VSC_CLAMP;
+  const approach = (cur, tgt, a, dead = 0.001) => {
+    const d = tgt - cur;
+    return Math.abs(d) < dead ? tgt : cur + d * a;
+  };
+
+  // ── 상수 ──
+  const HIST_BINS = 256;
+  const TONE_STEPS = 256;    // feComponentTransfer table 길이
+  const CANVAS_W = 64, CANVAS_H = 36;
+  const ZONE_COLS = 3, ZONE_ROWS = 3, ZONE_COUNT = 9;
+
+  // ── 장면 유형 ──
+  const ST = Object.freeze({
+    NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3,
+    LOW_SAT: 4, SKIN: 5, BACKLIT: 6
+  });
+  const ST_NAMES = ['NORMAL','LOW_KEY','HIGH_KEY','HI_CONT','LOW_SAT','SKIN','BACKLIT'];
+
+  // ── 피부톤 간이 판별 ──
+  function isSkinTone(r, g, b) {
+    if (r < 80 || g < 30 || b < 15) return false;
+    if (r <= g || r <= b) return false;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+    if ((mx - mn) < 15) return false;
+    return (r > 95 && g > 40 && b > 20 && (mx - mn) > 15 &&
+            Math.abs(r - g) > 15 && r > g && r > b);
+  }
+
+  // ══════════════════════════════════════════════
+  //  핵심 1: 히스토그램에서 직접 톤 커브 생성
+  // ══════════════════════════════════════════════
+
+  // Contrast-Limited Adaptive Histogram Equalization의
+  // 글로벌 버전 — CLAHE의 단일-타일 변형
+  function buildAdaptiveToneCurve(hist, totalSamples, params) {
+    const {
+      clipLimit = 2.5,     // 히스토그램 클리핑 (과도한 이퀄라이제이션 방지)
+      shadowProtect = 0.4, // 0~1, 높을수록 섀도 영역 보정 억제
+      highlightProtect = 0.3,
+      midtoneBoost = 0.0,  // 중간조 강조 (-0.3 ~ 0.3)
+      targetMean = 0.45,   // 목표 평균 밝기
+      strength = 0.35,     // 전체 보정 강도 (0=원본, 1=완전 이퀄라이즈)
+    } = params;
+
+    const n = Math.max(1, totalSamples);
+    const bins = HIST_BINS;
+
+    // Step 1: 클리핑된 히스토그램 (CLAHE 방식)
+    const clipped = new Float64Array(bins);
+    const limit = (n / bins) * clipLimit;
+    let excess = 0;
+    for (let i = 0; i < bins; i++) {
+      if (hist[i] > limit) {
+        excess += hist[i] - limit;
+        clipped[i] = limit;
+      } else {
+        clipped[i] = hist[i];
       }
-      function detectCut(stats) { if (!AUTO.lastSig) return false; const score = (Math.abs(stats.bright - AUTO.lastSig.bright) * 1.1) + (Math.abs(stats.contrast - AUTO.lastSig.contrast) * 0.9); AUTO.cutHist.push(score); if (AUTO.cutHist.length > 20) AUTO.cutHist.shift(); const sorted = AUTO.cutHist.slice().sort((a,b)=>a-b); const q80 = sorted[Math.floor(sorted.length * 0.80)] || 0.14; const thr = Math.max(0.10, Math.min(0.22, q80 * 1.05)); return score > thr; }
-      function calculateAdaptiveFps(changeScore) { AUTO.fpsHist.push(changeScore); if (AUTO.fpsHist.length > 5) AUTO.fpsHist.shift(); const avgChange = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length; const targetFps = (avgChange < 0.1 ? 2 + (avgChange/0.1)*2 : 0) + (avgChange >= 0.1 && avgChange < 0.3 ? 4 + ((avgChange-0.1)/0.2)*3 : 0) + (avgChange >= 0.3 ? 7 + (Math.min(avgChange-0.3,0.7)/0.7)*3 : 0); const clamped = clamp(targetFps, AUTO.minFps, AUTO.maxFps); const rounded = Math.round(clamped * 2) / 2; AUTO.curFps += clamp(rounded - AUTO.curFps, -1, 1); return AUTO.curFps; }
-      let __asRvfcId = 0; function scheduleNext(v, delayMs) { if (!AUTO.running) return; if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') { const target = performance.now() + Math.max(0, delayMs|0); try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = v.requestVideoFrameCallback(() => { __asRvfcId = 0; const remain = target - performance.now(); if (remain > 6) { scheduleNext(v, remain); return; } loop(); }); return; } setTimer(loop, Math.max(16, delayMs|0)); }
-      function loop() { if (!AUTO.running) return; const now = performance.now(); const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT); const v = window.__VSC_APP__?.getActiveVideo?.(); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; scheduleNext(v, 500); return; } if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; } if (document.hidden) { scheduleNext(v, 2000); return; } if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; } const useW = 48, useH = 27; try { if (c.width !== useW || c.height !== useH) { c.width = useW; c.height = useH; AUTO.canvasW = useW; AUTO.canvasH = useH; } ctx.drawImage(v, 0, 0, useW, useH); const img = ctx.getImageData(0, 0, useW, useH); AUTO.drmBlocked = false; drmRetryCount = 0; const stats = computeStatsAndMotion(AUTO, img, useW, useH); AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (stats.motion * AUTO.motionAlpha); AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0; const isCut = detectCut(stats); AUTO.lastSig = stats; if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + stats.bright*a; e.contrast = e.contrast*(1-a) + stats.contrast*a; e.edge = e.edge*(1-a) + stats.edge*a; e.chroma = (e.chroma ?? stats.chroma)*(1-a) + stats.chroma*a; } const sig = AUTO.statsEma; if (isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; } const allowUpdate = isCut || (AUTO.motionFrames >= AUTO.motionMinFrames); let fps = AUTO.curFps; if (allowUpdate) { fps = calculateAdaptiveFps(clamp(stats.motion||0,0,1)); fps = Math.min(fps, 6); if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 6 : 4); const errY = clamp(0.50 - sig.bright, -0.22, 0.22); const errSd = clamp(0.23 - sig.contrast, -0.18, 0.18); AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35); AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30); const curCh = Number(sig.chroma || 0); const errCh = clamp(0.18 - curCh, -0.18, 0.18); AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50); const smoothA = isCut ? 0.16 : 0.05; const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat; AUTO.cur.br = approach(AUTO.cur.br, AUTO.tgt.br, smoothA); AUTO.cur.ct = approach(AUTO.cur.ct, AUTO.tgt.ct, smoothA); AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, smoothA); if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) { Scheduler.request(true); } } scheduleNext(v, Math.max(150, Math.round(1000 / Math.max(1, fps)))); } catch (e) {
-        const isDrmLike = (e.name === 'SecurityError' || e.message?.includes('tainted'));
-        if (VSC_DEFENSE.autoSceneDrmBackoff && isDrmLike) {
-          drmRetryCount++;
-          AUTO.drmBlocked = true;
-          if (drmRetryCount >= MAX_DRM_RETRIES) {
-            AUTO.running = false;
-            AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 };
-            Store.set(P.APP_AUTO_SCENE, false);
-            showOSD('Auto Scene: 보안 제한으로 비활성화됨', 3000);
-            Scheduler.request(true);
-            return;
-          }
-          const backoffMs = Math.min(30000, 5000 * Math.pow(1.5, drmRetryCount - 1));
-          AUTO.blockUntilMs = performance.now() + backoffMs;
-          scheduleNext(v, backoffMs);
-        } else {
-          log.debug('AutoScene error (non-DRM):', e);
-          scheduleNext(v, 1000);
-        }
-      } }
-      Store.sub(P.APP_AUTO_SCENE, (en) => { if (en && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } else if (!en) { AUTO.running = false; AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; Scheduler.request(true); } });
-      Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
-      return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; } };
     }
-function createFiltersVideoOnly(Utils, config) {
+    // 초과분 균등 재배분
+    const perBin = excess / bins;
+    for (let i = 0; i < bins; i++) clipped[i] += perBin;
+
+    // Step 2: CDF 계산
+    const cdf = new Float64Array(bins);
+    cdf[0] = clipped[0];
+    for (let i = 1; i < bins; i++) cdf[i] = cdf[i - 1] + clipped[i];
+    const cdfMin = cdf[0];
+    const cdfRange = Math.max(1, cdf[bins - 1] - cdfMin);
+
+    // Step 3: 이퀄라이즈된 매핑
+    const equalized = new Float64Array(bins);
+    for (let i = 0; i < bins; i++) {
+      equalized[i] = (cdf[i] - cdfMin) / cdfRange;
+    }
+
+    // Step 4: 영역별 보호 가중치
+    // 섀도/하이라이트는 과보정하면 부자연스러우므로 원본에 가깝게 유지
+    const identity = new Float64Array(bins);
+    for (let i = 0; i < bins; i++) identity[i] = i / (bins - 1);
+
+    const curve = new Float64Array(TONE_STEPS);
+    for (let i = 0; i < TONE_STEPS; i++) {
+      const x = i / (TONE_STEPS - 1);  // 원본 밝기 0~1
+      const bin = Math.min(bins - 1, (x * (bins - 1)) | 0);
+      const eq = equalized[bin];
+      const id = identity[bin];
+
+      // 영역별 가중치: 섀도/하이라이트에서는 원본을 더 유지
+      let regionWeight = 1.0;
+      if (x < 0.15) {
+        // 섀도 영역
+        const t = x / 0.15;  // 0→1
+        regionWeight = 1.0 - shadowProtect * (1 - t * t);
+      } else if (x > 0.85) {
+        // 하이라이트 영역
+        const t = (x - 0.85) / 0.15;
+        regionWeight = 1.0 - highlightProtect * (t * t);
+      }
+
+      // 중간조 부스트 (S-커브 형태)
+      let midBoost = 0;
+      if (Math.abs(midtoneBoost) > 0.001) {
+        // 중간조 가중치: 0.3~0.7 영역에서 최대
+        const midW = Math.exp(-((x - 0.5) * (x - 0.5)) / (2 * 0.12 * 0.12));
+        midBoost = midtoneBoost * midW * 0.15;
+      }
+
+      // 최종 블렌딩: 원본 ↔ 이퀄라이즈 사이를 strength로 보간
+      const effectiveStrength = strength * regionWeight;
+      let y = id * (1 - effectiveStrength) + eq * effectiveStrength + midBoost;
+
+      curve[i] = clamp(y, 0, 1);
+    }
+
+    // Step 5: 단조 증가 보장
+    for (let i = 1; i < TONE_STEPS; i++) {
+      if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1];
+    }
+
+    return curve;
+  }
+
+  // ══════════════════════════════════════════════
+  //  핵심 2: 채널별 색온도/색 균형 커브
+  // ══════════════════════════════════════════════
+
+  // R/G/B 히스토그램으로부터 채널별 게인을 계산하여
+  // 색 캐스트(푸른빛/노란빛 편향)를 자동 보정
+  function computeChannelBalance(rHist, gHist, bHist, totalSamples) {
+    const n = Math.max(1, totalSamples);
+    let rMean = 0, gMean = 0, bMean = 0;
+    for (let i = 0; i < HIST_BINS; i++) {
+      const v = i / (HIST_BINS - 1);
+      rMean += v * rHist[i];
+      gMean += v * gHist[i];
+      bMean += v * bHist[i];
+    }
+    rMean /= n; gMean /= n; bMean /= n;
+
+    // 그레이 월드 가정: R, G, B 평균이 같아야 함
+    const avgMean = (rMean + gMean + bMean) / 3;
+    if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
+
+    // 보정 게인 (보수적으로 50%만 적용)
+    const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.35;
+
+    const rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * correctionStrength;
+    const gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * correctionStrength;
+    const bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength;
+
+    return {
+      rGain: clamp(rGain, 0.85, 1.15),
+      gGain: clamp(gGain, 0.92, 1.08),  // G는 더 보수적
+      bGain: clamp(bGain, 0.85, 1.15)
+    };
+  }
+
+  // ══════════════════════════════════════════════
+  //  핵심 3: 장면 분류 (역광 감지 추가)
+  // ══════════════════════════════════════════════
+
+  function classifyScene(stats, zoneStats) {
+    // 역광 감지: 중앙이 어둡고 주변이 밝으면
+    if (zoneStats) {
+      const centerBr = zoneStats.centerBright;
+      const edgeBr = zoneStats.edgeAvgBright;
+      if (edgeBr > 0.55 && centerBr < 0.35 && (edgeBr - centerBr) > 0.18) {
+        return ST.BACKLIT;
+      }
+    }
+    if (stats.skinRatio > 0.12) return ST.SKIN;
+    if (stats.bright < 0.22 && stats.contrast < 0.14) return ST.LOW_KEY;
+    if (stats.bright > 0.72) return ST.HIGH_KEY;
+    if (stats.contrast > 0.38) return ST.HIGH_CONTRAST;
+    if (stats.chroma < 0.07) return ST.LOW_SAT;
+    return ST.NORMAL;
+  }
+
+  // 장면 유형별 톤 매핑 파라미터
+  const SCENE_TONE_PARAMS = Object.freeze({
+    [ST.NORMAL]:        { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.05, strength: 0.30, satTarget: 1.06 },
+    [ST.LOW_KEY]:       { clipLimit: 3.0, shadowProtect: 0.55, highlightProtect: 0.20, midtoneBoost: 0.10, strength: 0.25, satTarget: 1.02 },
+    [ST.HIGH_KEY]:      { clipLimit: 2.0, shadowProtect: 0.25, highlightProtect: 0.55, midtoneBoost: -0.05, strength: 0.20, satTarget: 1.04 },
+    [ST.HIGH_CONTRAST]: { clipLimit: 1.8, shadowProtect: 0.40, highlightProtect: 0.40, midtoneBoost: 0.0, strength: 0.18, satTarget: 1.02 },
+    [ST.LOW_SAT]:       { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.28, satTarget: 1.15 },
+    [ST.SKIN]:          { clipLimit: 2.0, shadowProtect: 0.40, highlightProtect: 0.35, midtoneBoost: 0.02, strength: 0.18, satTarget: 1.03 },
+    [ST.BACKLIT]:       { clipLimit: 3.5, shadowProtect: 0.20, highlightProtect: 0.50, midtoneBoost: 0.15, strength: 0.40, satTarget: 1.05 },
+  });
+
+  // ══════════════════════════════════════════════
+  //  핵심 4: 시간적 커브 보간 (플리커 방지)
+  // ══════════════════════════════════════════════
+
+  // 이전 프레임의 톤 커브를 기억하여 부드럽게 전환
+  let prevToneCurve = null;       // Float64Array(256)
+  let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 };
+  let prevSatMul = 1.0;
+
+  function interpolateCurves(prev, next, alpha) {
+    if (!prev) return next;
+    const out = new Float64Array(TONE_STEPS);
+    for (let i = 0; i < TONE_STEPS; i++) {
+      out[i] = prev[i] + (next[i] - prev[i]) * alpha;
+    }
+    return out;
+  }
+
+  function interpolateGains(prev, next, alpha) {
+    return {
+      rGain: prev.rGain + (next.rGain - prev.rGain) * alpha,
+      gGain: prev.gGain + (next.gGain - prev.gGain) * alpha,
+      bGain: prev.bGain + (next.bGain - prev.bGain) * alpha,
+    };
+  }
+
+  // ══════════════════════════════════════════════
+  //  핵심 5: 멀티스케일 컷 감지
+  // ══════════════════════════════════════════════
+
+  const CUT_HIST_LEN = 30;
+  const cutScores = [];
+  const gradualScores = [];
+
+  function detectTransition(stats, prev) {
+    if (!prev) return { isCut: false, isFade: false };
+    const score =
+      Math.abs(stats.bright - prev.bright) * 1.3 +
+      Math.abs(stats.contrast - prev.contrast) * 0.7 +
+      Math.abs(stats.chroma - prev.chroma) * 0.5 +
+      Math.abs(stats.edge - prev.edge) * 0.3;
+
+    cutScores.push(score);
+    if (cutScores.length > CUT_HIST_LEN) cutScores.shift();
+
+    const sorted = cutScores.slice().sort((a, b) => a - b);
+    const q90 = sorted[Math.floor(sorted.length * 0.90)] || 0.15;
+    const cutThr = Math.max(0.08, Math.min(0.28, q90 * 1.15));
+    const isCut = score > cutThr;
+
+    gradualScores.push(score);
+    if (gradualScores.length > 10) gradualScores.shift();
+    const gradualSum = gradualScores.reduce((a, b) => a + b, 0);
+    const isFade = !isCut && gradualSum > cutThr * 4.0 && gradualScores.length >= 6;
+
+    return { isCut, isFade, score };
+  }
+
+  // ══════════════════════════════════════════════
+  //  플리커 감쇠
+  // ══════════════════════════════════════════════
+
+  let flickerCount = 0, lastCurveDir = 0;
+  function getTemporalAlpha(isCut, isFade) {
+    const base = isCut ? 0.30 : (isFade ? 0.10 : 0.04);
+    const dampen = 1 / (1 + flickerCount * 0.4);
+    return base * dampen;
+  }
+
+  // ══════════════════════════════════════════════
+  //  메인 분석 함수
+  // ══════════════════════════════════════════════
+
+  function computeFullAnalysis(data, sw, sh) {
+    const step = 2;
+    let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
+
+    const lumHist = new Uint32Array(HIST_BINS);
+    const rHist = new Uint32Array(HIST_BINS);
+    const gHist = new Uint32Array(HIST_BINS);
+    const bHist = new Uint32Array(HIST_BINS);
+
+    const zoneW = Math.floor(sw / ZONE_COLS);
+    const zoneH = Math.floor(sh / ZONE_ROWS);
+    const zones = new Array(ZONE_COUNT);
+    for (let z = 0; z < ZONE_COUNT; z++) zones[z] = { sum: 0, count: 0 };
+
+    for (let y = 0; y < sh; y += step) {
+      const row = y * sw;
+      for (let x = 0; x < sw; x += step) {
+        const idx = (row + x) * 4;
+        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+        const l = (r * 0.2126 + g * 0.7152 + b * 0.0722) | 0;
+        const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+        const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+
+        sumChroma += (mx - mn);
+        sum += l; sum2 += l * l; count++;
+
+        const lBin = Math.min(255, l);
+        lumHist[lBin]++;
+        rHist[Math.min(255, r)]++;
+        gHist[Math.min(255, g)]++;
+        bHist[Math.min(255, b)]++;
+
+        if (x + step < sw) {
+          const ni = idx + step * 4;
+          if (ni + 2 < data.length) {
+            const l2 = (data[ni] * 0.2126 + data[ni + 1] * 0.7152 + data[ni + 2] * 0.0722) | 0;
+            sumEdge += Math.abs(l2 - l);
+          }
+        }
+
+        if (isSkinTone(r, g, b)) skinCount++;
+
+        const zx = Math.min(ZONE_COLS - 1, (x / zoneW) | 0);
+        const zy = Math.min(ZONE_ROWS - 1, (y / zoneH) | 0);
+        const zi = zy * ZONE_COLS + zx;
+        zones[zi].sum += l; zones[zi].count++;
+      }
+    }
+
+    const n = Math.max(1, count);
+    const mean = sum / n;
+    const std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
+
+    const centerZone = zones[4];
+    const centerBright = centerZone.count > 0 ? centerZone.sum / centerZone.count / 255 : mean / 255;
+
+    // 가장자리 존들의 평균
+    let edgeSum = 0, edgeCount = 0;
+    for (let z = 0; z < ZONE_COUNT; z++) {
+      if (z === 4) continue; // 중앙 제외
+      if (zones[z].count > 0) {
+        edgeSum += zones[z].sum / zones[z].count;
+        edgeCount++;
+      }
+    }
+    const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
+
+    return {
+      bright: mean / 255,
+      contrast: std / 64,
+      chroma: sumChroma / n / 255,
+      edge: sumEdge / n,
+      motion: 0, // 아래에서 별도 계산
+      skinRatio: skinCount / n,
+      centerBright,
+      edgeAvgBright,
+      lumHist, rHist, gHist, bHist,
+      totalSamples: count,
+      zoneStats: { zones, centerBright, edgeAvgBright }
+    };
+  }
+
+  // ══════════════════════════════════════════════
+  //  출력 모델: 기존 3축이 아닌 커브 + 채널 게인
+  // ══════════════════════════════════════════════
+
+  // 기존 시스템은 { br, ct, sat } 3개의 숫자를 리턴했지만,
+  // 새 시스템은 이것을 역산하여 호환성 유지
+  //
+  // 기존 파이프라인:
+  //   composeVideoParamsInto() → gain, gamma, contrast, bright, satF
+  //   → getToneTableCached() → feComponentTransfer tableValues
+  //
+  // 새 접근: autoScene이 직접 toneCurve를 계산하고,
+  //          이를 기존 파라미터로 근사하여 내보냄
+  //
+  // 완전한 구현이라면 toneCurve를 직접 feComponentTransfer에
+  // 주입하겠지만, 기존 인프라와의 호환성을 위해
+  // 커브에서 역으로 gamma/contrast/brightness를 추정
+
+  function curveToApproxParams(curve, satMul, channelGains) {
+    // 커브의 중간점에서 gamma 추정
+    // identity: f(x)=x에서 curve(0.5)를 보고 gamma 역산
+    const mid = curve[128]; // x=0.5에서의 출력
+    // x^gamma = mid → gamma = log(mid) / log(0.5)
+    let gamma = 1.0;
+    if (mid > 0.01 && mid < 0.99) {
+      gamma = Math.log(mid) / Math.log(0.5);
+      gamma = clamp(gamma, 0.5, 2.0);
+    }
+
+    // 콘트라스트: 커브 기울기의 중간점
+    const slope = (curve[160] - curve[96]) / ((160 - 96) / 255);
+    const contrast = clamp(slope, 0.7, 1.5);
+
+    // 밝기 오프셋: identity 대비 평균 차이
+    let brightDiff = 0;
+    for (let i = 0; i < 256; i++) {
+      brightDiff += curve[i] - (i / 255);
+    }
+    brightDiff /= 256;
+    const bright = clamp(brightDiff * 50, -15, 15); // 기존 bright 스케일에 맞춤
+
+    // 채널 게인을 temp(색온도)로 근사
+    // temp > 0이면 따뜻(R↑B↓), temp < 0이면 차가움(R↓B↑)
+    const tempEstimate = (channelGains.rGain - channelGains.bGain) * 50;
+    const temp = clamp(tempEstimate, -30, 30);
+
+    return {
+      br: clamp(1.0 + bright * 0.008, 0.88, 1.40),
+      ct: clamp(contrast, 0.78, 1.35),
+      sat: clamp(satMul, 0.80, 1.60),
+      // 확장 필드 (기존 getMods 호환 + 추가 정보)
+      _gamma: gamma,
+      _bright: bright,
+      _temp: temp,
+      _channelGains: channelGains,
+      _toneCurve: curve
+    };
+  }
+
+  // ══════════════════════════════════════════════
+  //  확장 출력: 톤 커브를 직접 SVG에 주입
+  // ══════════════════════════════════════════════
+
+  // getMods()가 리턴하는 객체에 _toneCurve가 있으면
+  // composeVideoParamsInto()에서 이를 감지하여
+  // getToneTableCached()를 우회하고 직접 테이블을 주입
+  //
+  // 이를 위해 composeVideoParamsInto도 패치 필요 (아래 별도 제공)
+
+  // ══════════════════════════════════════════════
+  //  메인 루프
+  // ══════════════════════════════════════════════
+
+  const AUTO = {
+    running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
+    cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
+    lastStats: null, statsEma: null, statsAlpha: 0.10,
+    motionEma: 0, motionAlpha: 0.25, motionThresh: 0.005, motionFrames: 0,
+    drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0,
+    boostMs: 900, fpsHist: [], minFps: 1.5, maxFps: 8, curFps: 2,
+    _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL,
+    _lastMean: 0,
+  };
+
+  let drmRetryCount = 0;
+  const MAX_DRM_RETRIES = 5;
+
+  const cv = document.createElement('canvas');
+  cv.width = CANVAS_W; cv.height = CANVAS_H;
+  let ctx = null;
+  try { ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false }); }
+  catch (_) { try { ctx = cv.getContext('2d', { willReadFrequently: true }); } catch (__) {} }
+
+  let __asRvfcId = 0;
+  function scheduleNext(v, delayMs) {
+    if (!AUTO.running) return;
+    if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') {
+      const target = performance.now() + Math.max(0, delayMs | 0);
+      try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
+      __asRvfcId = v.requestVideoFrameCallback(() => {
+        __asRvfcId = 0;
+        const remain = target - performance.now();
+        if (remain > 6) { scheduleNext(v, remain); return; }
+        loop();
+      });
+      return;
+    }
+    setTimer(loop, Math.max(16, delayMs | 0));
+  }
+
+  function adaptiveFps(changeScore, isCut, isFade) {
+    AUTO.fpsHist.push(changeScore);
+    if (AUTO.fpsHist.length > 6) AUTO.fpsHist.shift();
+    const avg = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length;
+    let target = avg < 0.05 ? 2 : (avg < 0.15 ? 3 + avg / 0.15 * 2 : 5 + Math.min((avg - 0.15) / 0.3, 1) * 3);
+    if (isCut) target = AUTO.maxFps;
+    else if (isFade) target = Math.max(target, 5);
+    AUTO.curFps += clamp(target - AUTO.curFps, -1.5, 1.5);
+    return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
+  }
+
+  function loop() {
+    if (!AUTO.running) return;
+    const now = performance.now();
+    const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
+    const v = window.__VSC_APP__?.getActiveVideo?.();
+
+    if (!en) {
+      AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
+      prevToneCurve = null;
+      scheduleNext(v, 500);
+      return;
+    }
+    if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; }
+    if (document.hidden) { scheduleNext(v, 2000); return; }
+    if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) {
+      try { Scheduler.request(true); } catch (_) {}
+      scheduleNext(v, 300);
+      return;
+    }
+
+    try {
+      if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
+      ctx.drawImage(v, 0, 0, CANVAS_W, CANVAS_H);
+      const img = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+      AUTO.drmBlocked = false;
+      drmRetryCount = 0;
+
+      // ── 분석 ──
+      const stats = computeFullAnalysis(img.data, CANVAS_W, CANVAS_H);
+      stats.motion = Math.abs(stats.bright - (AUTO._lastMean || stats.bright));
+      AUTO._lastMean = stats.bright;
+
+      AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motion * AUTO.motionAlpha;
+      AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0;
+
+      // 컷 감지
+      const transition = detectTransition(stats, AUTO.lastStats);
+      AUTO.lastStats = stats;
+
+      // EMA
+      if (!AUTO.statsEma) AUTO.statsEma = { ...stats };
+      else {
+        const a = transition.isCut ? 0.40 : AUTO.statsAlpha;
+        const e = AUTO.statsEma;
+        for (const k of ['bright','contrast','chroma','edge','skinRatio','centerBright','edgeAvgBright']) {
+          e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a;
+        }
+      }
+
+      // 장면 분류
+      const newScene = classifyScene(AUTO.statsEma, stats.zoneStats);
+      if (newScene === AUTO._sceneType) AUTO._sceneStable++;
+      else AUTO._sceneStable = 0;
+      AUTO._sceneType = newScene;
+      if (AUTO._sceneStable >= 3) AUTO._sceneTypeEma = newScene;
+
+      // 부스트
+      if (transition.isCut) {
+        AUTO.tBoostStart = now;
+        AUTO.tBoostUntil = now + AUTO.boostMs;
+        flickerCount = Math.max(0, flickerCount - 2);
+      }
+
+      const allowUpdate = transition.isCut || transition.isFade || AUTO.motionFrames >= 4;
+
+      let fps = AUTO.curFps;
+      if (allowUpdate) {
+        fps = adaptiveFps(stats.motion, transition.isCut, transition.isFade);
+        if (now < AUTO.tBoostUntil) fps = Math.max(fps, transition.isCut ? AUTO.maxFps : 5);
+
+        const sceneType = AUTO._sceneTypeEma;
+        const toneParams = { ...SCENE_TONE_PARAMS[sceneType] };
+
+        // ── 핵심: 히스토그램에서 직접 톤 커브 생성 ──
+        const rawCurve = buildAdaptiveToneCurve(
+          stats.lumHist, stats.totalSamples, toneParams
+        );
+
+        // ── 채널 밸런스 ──
+        const rawGains = computeChannelBalance(
+          stats.rHist, stats.gHist, stats.bHist, stats.totalSamples
+        );
+
+        const rawSat = toneParams.satTarget;
+
+        // ── 시간적 보간 (플리커 방지) ──
+        const alpha = getTemporalAlpha(transition.isCut, transition.isFade);
+
+        // 커브의 변화 방향 추적
+        const newMid = rawCurve[128];
+        const oldMid = prevToneCurve ? prevToneCurve[128] : 0.5;
+        const dir = newMid > oldMid ? 1 : (newMid < oldMid ? -1 : 0);
+        if (dir !== 0 && dir !== lastCurveDir && lastCurveDir !== 0) {
+          flickerCount = Math.min(flickerCount + 1, 8);
+        } else if (dir !== 0) {
+          flickerCount = Math.max(0, flickerCount - 0.3);
+        }
+        lastCurveDir = dir || lastCurveDir;
+
+        const smoothedCurve = interpolateCurves(prevToneCurve, rawCurve, alpha);
+        const smoothedGains = interpolateGains(prevChannelGains, rawGains, alpha);
+        const smoothedSat = prevSatMul + (rawSat - prevSatMul) * alpha;
+
+        prevToneCurve = smoothedCurve;
+        prevChannelGains = smoothedGains;
+        prevSatMul = smoothedSat;
+
+        // ── 기존 인터페이스 호환 출력 ──
+        const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
+
+        const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
+        AUTO.cur.br = result.br;
+        AUTO.cur.ct = result.ct;
+        AUTO.cur.sat = result.sat;
+        AUTO.cur._toneCurve = smoothedCurve;
+        AUTO.cur._channelGains = smoothedGains;
+        AUTO.cur._gamma = result._gamma;
+        AUTO.cur._bright = result._bright;
+        AUTO.cur._temp = result._temp;
+
+        if (Math.abs(prevBr - AUTO.cur.br) > 0.001 ||
+            Math.abs(prevCt - AUTO.cur.ct) > 0.001 ||
+            Math.abs(prevSat - AUTO.cur.sat) > 0.001) {
+          Scheduler.request(true);
+        }
+      }
+
+      scheduleNext(v, Math.max(100, Math.round(1000 / Math.max(1, fps))));
+
+    } catch (e) {
+      const isDrm = (e.name === 'SecurityError' || e.message?.includes('tainted'));
+      if (VSC_DEFENSE.autoSceneDrmBackoff && isDrm) {
+        drmRetryCount++;
+        AUTO.drmBlocked = true;
+        if (drmRetryCount >= MAX_DRM_RETRIES) {
+          AUTO.running = false;
+          AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
+          Store.set(P.APP_AUTO_SCENE, false);
+          showOSD('Auto Scene: DRM 제한으로 비활성화됨', 3000);
+          Scheduler.request(true);
+          return;
+        }
+        scheduleNext(v, Math.min(30000, 5000 * Math.pow(1.5, drmRetryCount - 1)));
+      } else {
+        scheduleNext(v, 1000);
+      }
+    }
+  }
+
+  Store.sub(P.APP_AUTO_SCENE, (en) => {
+    if (en && !AUTO.running) {
+      drmRetryCount = 0; AUTO.running = true;
+      AUTO.statsEma = null; AUTO.lastStats = null;
+      prevToneCurve = null; prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; prevSatMul = 1.0;
+      cutScores.length = 0; gradualScores.length = 0;
+      flickerCount = 0; lastCurveDir = 0;
+      loop();
+    } else if (!en) {
+      AUTO.running = false;
+      AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
+      prevToneCurve = null;
+      Scheduler.request(true);
+    }
+  });
+
+  Store.sub(P.APP_ACT, (en) => {
+    if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) {
+      drmRetryCount = 0; AUTO.running = true; loop();
+    }
+  });
+
+  return {
+    getMods: () => AUTO.cur,
+    getSceneType: () => AUTO._sceneType,
+    getSceneTypeName: () => ST_NAMES[AUTO._sceneType] || 'UNKNOWN',
+    hasToneCurve: () => !!AUTO.cur._toneCurve,
+    start: () => {
+      if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) {
+        drmRetryCount = 0; AUTO.running = true; loop();
+      }
+    },
+    stop: () => { AUTO.running = false; }
+  };
+}
+
+    function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(64);
       const qInt = (v, step) => Math.round(v / step);
       const smoothstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / Math.max(1e-6, (b - a)))); return t * t * (3 - 2 * t); };
 
       function wantsDetailPass(s) { return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0; }
-      const makeKeyBase = (s) => qInt(s.gain,0.04) + '|' + qInt(s.gamma,0.01) + '|' + qInt(s.contrast,0.01) + '|' + qInt(s.bright,0.2) + '|' + qInt(s.satF,0.01) + '|' + qInt(s.mid,0.02) + '|' + qInt(s.toe,0.2) + '|' + qInt(s.shoulder,0.2) + '|' + qInt(s.temp,0.2) + '|' + qInt(s.sharp,0.2) + '|' + qInt(s.sharp2,0.2) + '|' + qInt(s.clarity,0.2);
+
+      const makeKeyBase = (s) => {
+        let autoKey = '0';
+        if (s._autoToneCurve && s._autoToneCurve.length === 256) {
+          const c = s._autoToneCurve;
+          autoKey = [c[16], c[48], c[80], c[112], c[144], c[176], c[208], c[240]]
+            .map(v => Math.round(v * 10000)).join(',');
+        }
+        let chGainKey = '0';
+        if (s._autoChannelGains) {
+          const g = s._autoChannelGains;
+          chGainKey = Math.round(g.rGain * 1000) + '|' + Math.round(g.gGain * 1000) + '|' + Math.round(g.bGain * 1000);
+        }
+        return qInt(s.gain, 0.04) + '|' + qInt(s.gamma, 0.01) + '|' + qInt(s.contrast, 0.01) + '|'
+          + qInt(s.bright, 0.2) + '|' + qInt(s.satF, 0.01) + '|' + qInt(s.mid, 0.02) + '|'
+          + qInt(s.toe, 0.2) + '|' + qInt(s.shoulder, 0.2) + '|' + qInt(s.temp, 0.2) + '|'
+          + qInt(s.sharp, 0.2) + '|' + qInt(s.sharp2, 0.2) + '|' + qInt(s.clarity, 0.2) + '|'
+          + 'ac:' + autoKey + '|cg:' + chGainKey;
+      };
 
       function getToneTableCached(steps, toeN, shoulderN, midN, gain, contrast, brightOffset, gamma) {
         const key = `${steps}|${Math.round(toeN*1000)}|${Math.round(shoulderN*1000)}|${Math.round(midN*1000)}|${Math.round(gain*1000)}|${Math.round(contrast*1000)}|${Math.round(brightOffset*10000)}|${Math.round(gamma*1000)}`;
@@ -1100,6 +1740,27 @@ function createFiltersVideoOnly(Utils, config) {
         const res = out.join(' '); toneCache.set(key, res); return res;
       }
 
+      function buildToneTableFromAutoCurve(autoCurve, userGammaRaw, userContrastRaw, userBrightRaw) {
+        const gExp = 1 / clamp(userGammaRaw || 1, 0.1, 5.0);
+        const con = clamp(userContrastRaw || 1, 0.1, 5.0);
+        const brOff = clamp((userBrightRaw || 0) / 1000, -0.5, 0.5);
+        const applyGamma = Math.abs(gExp - 1.0) > 0.001;
+        const applyCon = Math.abs(con - 1.0) > 0.001 || Math.abs(brOff) > 0.0001;
+        const parts = new Array(256);
+        let prev = 0;
+        for (let i = 0; i < 256; i++) {
+          let y = autoCurve[i];
+          if (applyGamma) y = Math.pow(clamp(y, 0, 1), gExp);
+          if (applyCon) y = y * con + 0.5 * (1 - con) + brOff;
+          y = clamp(y, 0, 1);
+          if (y < prev) y = prev;
+          prev = y;
+          const yy = Math.round(y * 10000) / 10000;
+          parts[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy));
+        }
+        return parts.join(' ');
+      }
+
       const mkXfer = (attrs, childAttrs, forceOpaqueAlpha = false) => {
         const children = ['R', 'G', 'B'].map(c => h(`feFunc${c}`, { ns: 'svg', ...childAttrs }));
         if (forceOpaqueAlpha) { children.push(h('feFuncA', { ns: 'svg', type: 'table', tableValues: '1 1' })); }
@@ -1120,34 +1781,13 @@ function createFiltersVideoOnly(Utils, config) {
 
         const fidFull = `vsc-full-${config.VSC_ID}`;
         const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-
-        const fConv = h('feConvolveMatrix', { ns: 'svg',
-          in: 'SourceGraphic', order: '3',
-          kernelMatrix: '0,0,0, 0,1,0, 0,0,0',
-          divisor: '1', bias: '0',
-          targetX: '1', targetY: '1',
-          edgeMode: 'duplicate',
-          preserveAlpha: 'true',
-          result: 'conv'
-        });
-
+        const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
         const fBlur = h('feGaussianBlur', { ns: 'svg', in: 'conv', stdDeviation: '2.5', result: 'blr' });
-
-        const fUsm = h('feComposite', { ns: 'svg',
-          in: 'conv', in2: 'blr',
-          operator: 'arithmetic',
-          k1: '0', k2: '1.0', k3: '0', k4: '0',
-          result: 'usm'
-        });
-
+        const fUsm = h('feComposite', { ns: 'svg', in: 'conv', in2: 'blr', operator: 'arithmetic', k1: '0', k2: '1.0', k3: '0', k4: '0', result: 'usm' });
         const fTone = mkXfer({ in: 'usm', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
-
         const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
-
         const fSat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
-
         const fFinal = h('feColorMatrix', { ns: 'svg', in: 'sat', type: 'saturate', values: '0.97', result: 'final' });
-
         full.append(fConv, fBlur, fUsm, fTone, fTemp, fSat, fFinal);
         defs.append(full);
 
@@ -1157,10 +1797,7 @@ function createFiltersVideoOnly(Utils, config) {
           try {
             const escapedFull = fidFull.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const existing = target.querySelector(`filter[id="${escapedFull}"]`);
-            if (existing) {
-              const oldSvg = existing.closest('svg');
-              if (oldSvg && oldSvg !== svg) oldSvg.remove();
-            }
+            if (existing) { const oldSvg = existing.closest('svg'); if (oldSvg && oldSvg !== svg) oldSvg.remove(); }
           } catch (_) {}
           target.appendChild(svg);
           return true;
@@ -1168,16 +1805,13 @@ function createFiltersVideoOnly(Utils, config) {
         if (!tryAppend()) { const t = setRecurring(() => { if (tryAppend()) clearRecurring(t); }, 50); setTimer(() => clearRecurring(t), 3000); }
 
         return {
-          fidLite, fidFull,
-          liteConv,
+          fidLite, fidFull, liteConv,
           liteToneFuncs: Array.from(liteTone.children),
           liteTmpFuncs: Array.from(liteTmp.children),
-          liteSat,
-          fConv, fBlur, fUsm,
+          liteSat, fConv, fBlur, fUsm,
           fullToneFuncs: Array.from(fTone.children),
           fullTempFuncs: Array.from(fTemp.children),
-          fullSat: fSat,
-          fFinal,
+          fullSat: fSat, fFinal,
           st: {
             lastKey: '',
             liteToneKey: '', liteToneTable: '', liteTempKey: '', liteSatKey: '', liteConvKey: '',
@@ -1188,11 +1822,10 @@ function createFiltersVideoOnly(Utils, config) {
 
       function prepare(video, s) {
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
-        let dc = urlCache.get(root); if (!dc) { dc = { key:'', url:'' }; urlCache.set(root, dc); }
+        let dc = urlCache.get(root); if (!dc) { dc = { key: '', url: '' }; urlCache.set(root, dc); }
 
         const detailOn = wantsDetailPass(s) && !__liteForced;
         const useFull = detailOn;
-
         const vwKey = video.videoWidth || 0, vhKey = video.videoHeight || 0;
         const modeTag = useFull ? 'FULL' : 'LITE';
         const key = modeTag + '|' + vwKey + 'x' + vhKey + '|' + makeKeyBase(s);
@@ -1204,30 +1837,59 @@ function createFiltersVideoOnly(Utils, config) {
         if (st.lastKey !== key) {
           st.lastKey = key;
           const steps = 256;
-          const con = clamp(s.contrast || 1, 0.1, 5.0), brOff = clamp((s.bright || 0) / 1000, -0.5, 0.5), gamma = 1/clamp(s.gamma||1, 0.1, 5.0);
-          const toeQ  = qInt(clamp((s.toe||0)/14, -1, 1), 0.02) * 0.02;
-          const shQ   = qInt(clamp((s.shoulder||0)/16, -1, 1), 0.02) * 0.02;
-          const midQ  = qInt(clamp(s.mid||0, -1, 1), 0.02) * 0.02;
-          const gainQ = qInt(s.gain||1, 0.06) * 0.06;
-          const tk = `${steps}|${Math.round(toeQ*1000)}|${Math.round(shQ*1000)}|${Math.round(midQ*1000)}|${Math.round(gainQ*1000)}|${Math.round(con*1000)}|${Math.round(brOff*10000)}|${Math.round(gamma*1000)}`;
-          const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
-          const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = rs.toFixed(3) + '|' + gs.toFixed(3) + '|' + bs.toFixed(3);
 
+          // ── 1) 기본 파라미터 계산 (항상 필요) ──
+          const con = clamp(s.contrast || 1, 0.1, 5.0);
+          const brOff = clamp((s.bright || 0) / 1000, -0.5, 0.5);
+          const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
+          const toeQ = qInt(clamp((s.toe || 0) / 14, -1, 1), 0.02) * 0.02;
+          const shQ = qInt(clamp((s.shoulder || 0) / 16, -1, 1), 0.02) * 0.02;
+          const midQ = qInt(clamp(s.mid || 0, -1, 1), 0.02) * 0.02;
+          const gainQ = qInt(s.gain || 1, 0.06) * 0.06;
+
+          // ── 2) 톤 테이블: auto 커브 vs 기존 파라미터 ──
+          const hasAutoCurve = !!(s._autoToneCurve && s._autoToneCurve.length === 256);
+          let toneTable;
+          if (hasAutoCurve) {
+            toneTable = buildToneTableFromAutoCurve(s._autoToneCurve, s.gamma || 1, con, s.bright || 0);
+          } else {
+            toneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
+          }
+
+          // ── 3) 색온도 + 자동 채널 밸런스 합성 ──
+          const userTemp = tempToRgbGain(s.temp);
+          let finalRs = userTemp.rs, finalGs = userTemp.gs, finalBs = userTemp.bs;
+          if (s._autoChannelGains) {
+            const ag = s._autoChannelGains;
+            finalRs = userTemp.rs * clamp(ag.rGain, 0.80, 1.20);
+            finalGs = userTemp.gs * clamp(ag.gGain, 0.90, 1.10);
+            finalBs = userTemp.bs * clamp(ag.bGain, 0.80, 1.20);
+            const maxG = Math.max(finalRs, finalGs, finalBs, 1);
+            finalRs /= maxG; finalGs /= maxG; finalBs /= maxG;
+          }
+
+          // ── 4) 캐시 키 ──
+          const tkPrefix = hasAutoCurve ? 'AC|' : '';
+          const tk = tkPrefix + `${steps}|${Math.round(toeQ*1000)}|${Math.round(shQ*1000)}|${Math.round(midQ*1000)}|${Math.round(gainQ*1000)}|${Math.round(con*1000)}|${Math.round(brOff*10000)}|${Math.round(gamma*1000)}`;
+          const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
+          const tmk = finalRs.toFixed(3) + '|' + finalGs.toFixed(3) + '|' + finalBs.toFixed(3);
+
+          // ── 5) SVG 적용 ──
           if (useFull) {
-            if (st.fullToneKey !== tk) {
+            if (st.fullToneKey !== tk || (hasAutoCurve && st.fullToneTable !== toneTable)) {
               st.fullToneKey = tk;
-              st.fullToneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
+              st.fullToneTable = toneTable;
               for (const fn of ctx.fullToneFuncs) {
                 if (fn.tagName === 'feFuncA') continue;
-                fn.setAttribute('tableValues', st.fullToneTable);
+                fn.setAttribute('tableValues', toneTable);
               }
             }
             if (st.fullSatKey !== satVal) { st.fullSatKey = satVal; ctx.fullSat.setAttribute('values', satVal); }
             if (st.fullTempKey !== tmk) {
               st.fullTempKey = tmk;
-              ctx.fullTempFuncs[0].setAttribute('slope', rs);
-              ctx.fullTempFuncs[1].setAttribute('slope', gs);
-              ctx.fullTempFuncs[2].setAttribute('slope', bs);
+              ctx.fullTempFuncs[0].setAttribute('slope', finalRs);
+              ctx.fullTempFuncs[1].setAttribute('slope', finalGs);
+              ctx.fullTempFuncs[2].setAttribute('slope', finalBs);
             }
 
             const sharpAmt = Number(s.sharp || 0);
@@ -1238,22 +1900,18 @@ function createFiltersVideoOnly(Utils, config) {
               st.fullSharpKey = sharpKey;
               const refH = 1080;
               const pxScale = clamp((vhKey || refH) / refH, 0.5, 2.0);
-
               const rawE = (sharpAmt / 50 + sharp2Amt / 80) * pxScale;
               const e = clamp(rawE, 0, 0.5);
               const center = (1 + 4 * e);
               if (e > 0.005) {
-                ctx.fConv.setAttribute('kernelMatrix',
-                  `0,${(-e).toFixed(4)},0, ${(-e).toFixed(4)},${center.toFixed(4)},${(-e).toFixed(4)}, 0,${(-e).toFixed(4)},0`);
+                ctx.fConv.setAttribute('kernelMatrix', `0,${(-e).toFixed(4)},0, ${(-e).toFixed(4)},${center.toFixed(4)},${(-e).toFixed(4)}, 0,${(-e).toFixed(4)},0`);
               } else {
                 ctx.fConv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
               }
-
               const cAmt = clamp(clarityAmt / 50 * pxScale, 0, 0.35);
               ctx.fUsm.setAttribute('k2', (1 + cAmt).toFixed(4));
               ctx.fUsm.setAttribute('k3', (-cAmt).toFixed(4));
               ctx.fBlur.setAttribute('stdDeviation', (2.5 * pxScale).toFixed(2));
-
               const totalSharp = e + cAmt;
               const desatVal = clamp(1.0 - totalSharp * 0.08, 0.88, 1.0).toFixed(3);
               if (st.fullDesatKey !== desatVal) {
@@ -1262,17 +1920,17 @@ function createFiltersVideoOnly(Utils, config) {
               }
             }
           } else {
-            if (st.liteToneKey !== tk) {
+            if (st.liteToneKey !== tk || (hasAutoCurve && st.liteToneTable !== toneTable)) {
               st.liteToneKey = tk;
-              st.liteToneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
-              for (const fn of ctx.liteToneFuncs) fn.setAttribute('tableValues', st.liteToneTable);
+              st.liteToneTable = toneTable;
+              for (const fn of ctx.liteToneFuncs) fn.setAttribute('tableValues', toneTable);
             }
             if (st.liteSatKey !== satVal) { st.liteSatKey = satVal; ctx.liteSat.setAttribute('values', satVal); }
             if (st.liteTempKey !== tmk) {
               st.liteTempKey = tmk;
-              ctx.liteTmpFuncs[0].setAttribute('slope', rs);
-              ctx.liteTmpFuncs[1].setAttribute('slope', gs);
-              ctx.liteTmpFuncs[2].setAttribute('slope', bs);
+              ctx.liteTmpFuncs[0].setAttribute('slope', finalRs);
+              ctx.liteTmpFuncs[1].setAttribute('slope', finalGs);
+              ctx.liteTmpFuncs[2].setAttribute('slope', finalBs);
             }
             const liteSharpOn = wantsDetailPass(s);
             const mk = liteSharpOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity + '|' + vhKey) : 'off';
@@ -1407,15 +2065,29 @@ function createFiltersVideoOnly(Utils, config) {
       return out;
     }
 
-    function composeVideoParamsInto(out, vUser, autoMods) {
-      composeBaseVideoParams(out, vUser);
-      applyShadowBandStack(out, vUser.shadowBandMask);
-      applyBrightStepStack(out, vUser.brightStepLevel);
-      out.gain = (out.gain || 1.0) * autoMods.br;
-      out.contrast = (out.contrast || 1.0) * autoMods.ct;
-      out.satF = (out.satF || 1.0) * autoMods.sat;
-      return out;
-    }
+    // composeVideoParamsInto 패치 — autoMods에 _toneCurve가 있으면 사용
+function composeVideoParamsInto(out, vUser, autoMods) {
+  composeBaseVideoParams(out, vUser);
+  applyShadowBandStack(out, vUser.shadowBandMask);
+  applyBrightStepStack(out, vUser.brightStepLevel);
+
+  // 기존 스칼라 보정 (하위 호환)
+  out.gain = (out.gain || 1.0) * autoMods.br;
+  out.contrast = (out.contrast || 1.0) * autoMods.ct;
+  out.satF = (out.satF || 1.0) * autoMods.sat;
+
+  // ── 새 필드: 톤 커브 직접 주입 ──
+  if (autoMods._toneCurve) {
+    out._autoToneCurve = autoMods._toneCurve;
+    // 톤 커브가 있으면 gamma/gain/contrast/bright는
+    // 커브에 이미 반영되어 있으므로 auto 부분만 중립화
+    // (사용자 프리셋의 gamma/gain은 유지)
+    out._autoChannelGains = autoMods._channelGains || null;
+  }
+
+  return out;
+}
+
 
     const isNeutralVideoParams = (v) => (
       Math.abs((v.gain ?? 1) - 1) < 0.001 &&
@@ -1918,7 +2590,7 @@ function createFiltersVideoOnly(Utils, config) {
 
     const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
     const ApplyReq = createApplyRequester(Bus, Scheduler); window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store; window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
-    
+
     Bus.on('signal', (s) => { if (s && s.forceApply) Scheduler.request(true); });
 
     const __hasGM = (typeof GM_getValue === 'function' && typeof GM_setValue === 'function');
