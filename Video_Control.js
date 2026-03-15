@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v182.0.0)
+// @name         Video_Control (v183.0.0)
 // @namespace    https://github.com/
-// @version      182.0.0
-// @description  v181.0.0 + CSS/SVG filter separation patch (brightness/contrast/saturate → CSS GPU path)
+// @version      183.0.0
+// @description  v182 + memory/perf patches: Observer cleanup on abort, rVFC scheduling optimization, tone table early-out, filterStr pre-build, Document PiP SVG cleanup
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -128,7 +128,8 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '182.0.0';
+    /* [v183] 버전 업데이트 */
+    const VSC_VERSION = '183.0.0';
 
     const COLOR_CAST_CORRECTION = 0.20;
 
@@ -178,8 +179,9 @@
       return {
         visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, _resizeDirty: false, _ac: null,
         _inPiP: false,
-        /* [v182] CSS 분리용 필드 추가 */
         lastCssFilterStr: null,
+        /* [v183] transition 제거 추적 — 불필요한 removeProperty 호출 방지 */
+        _transitionCleared: false,
         resetTransient() {
           this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
           if (this.rateState) Object.assign(this.rateState, RATE_TRANSIENT_DEFAULTS);
@@ -210,8 +212,8 @@
     });
 
     const PRESET_LABELS = Object.freeze({
-      detail: { off: 'OFF', S: '소프트', M: '미디엄', L: '라지', XL: '엑스트라' },
-      grade: { off: 'OFF', S: '밝게S', M: '밝게M', L: '밝게L', DS: '다크S', DM: '다크M', DL: '다크L' }
+      detail: { off: 'OFF', S: '1080p', M: '720p', L: '480p', XL: '360p' },
+      grade: { off: 'OFF', S: '밝게S', M: '밝게M', L: '밝게L', DS: '암부S', DM: '암부M', DL: '암부L' }
     });
 
     const DEFAULTS = { video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, autoPreset: false } };
@@ -498,6 +500,19 @@
     function getActivePiPVideo() { if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
+    /* [v183] cleanupPipDocumentSvg — Document PiP 닫힐 때 SVG 정리 (메모리 누수 방지) */
+    function cleanupPipDocumentSvg(pipDoc) {
+      try {
+        if (!pipDoc) return;
+        const svgs = pipDoc.querySelectorAll('svg');
+        for (const svg of svgs) {
+          if (svg.querySelector('[id^="vsc-"]')) {
+            try { svg.remove(); } catch (_) {}
+          }
+        }
+      } catch (_) {}
+    }
+
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
       try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
@@ -532,6 +547,8 @@
           pipWindow.document.body.append(adopted);
           pipWindow.addEventListener('click', () => { if (video.paused) { const p = video.play(); if (p && typeof p.catch === 'function') { p.catch(() => { video.muted = true; video.play().catch(() => {}); }); } } else { video.pause(); } });
           pipWindow.addEventListener('pagehide', () => {
+            /* [v183] Document PiP 닫힐 때 SVG 정리 */
+            cleanupPipDocumentSvg(pipWindow.document);
             try {
               video.style.cssText = __pipOrigCss;
               const restored = document.adoptNode(video);
@@ -559,11 +576,15 @@
               });
             }
           });
+          /* [v183] Document PiP 후 필터 재적용 트리거 */
+          setTimer(() => {
+            try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
+          }, 100);
           return true;
         } catch (e) { log.debug('Document PiP failed, fallback to video PiP', e); }
       }
       if (document.pictureInPictureElement === video) return true;
-      if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') { try { st._inPiP = true; await video.requestPictureInPicture(); return true; } catch (e) { return false; } }
+      if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') { try { st._inPiP = true; await video.requestPictureInPicture(); return true; } catch (e) { st._inPiP = false; return false; } }
       return false;
     }
 
@@ -839,7 +860,7 @@
         }
       };
     }
-// ▼▼▼ PART 2에서 이어짐 (createTargeting ~ createAudio) ▼▼▼
+// ▼▼▼ PART 2에서 이어짐 (createTargeting ~ createAutoSceneManager) ▼▼▼
 // ▲▲▲ PART 1에서 이어짐 ▲▲▲
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
@@ -934,6 +955,11 @@
 
     function normalizeBySchema(sm, schema) { let changed = false; const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } }; for (const rule of schema) { const type = rule.type; const path = rule.path; if (type === 'bool') { setIfDiff(path, !!sm.get(path)); continue; } if (type === 'enum') { const cur = sm.get(path); if (!rule.values.includes(cur)) { setIfDiff(path, rule.fallback()); } continue; } if (type === 'num') { let n = Number(sm.get(path)); if (!Number.isFinite(n)) n = rule.fallback(); if (rule.round) n = Math.round(n); n = Math.max(rule.min, Math.min(rule.max, n)); setIfDiff(path, n); continue; } } return changed; }
 
+    /* ═══════════════════════════════════════════════════════════
+       [v183 패치] createRegistry
+       - MutationObserver / IntersectionObserver / ResizeObserver를
+         __globalSig abort 시 disconnect 하도록 정리 (항목 1-5, 1-6)
+       ═══════════════════════════════════════════════════════════ */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0; const shadowRootsLRU = []; const observedShadowHosts = new WeakSet(); let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
       const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' }) : null;
@@ -994,6 +1020,15 @@
       }
 
       refreshObservers();
+
+      /* [v183 패치] __globalSig abort 시 모든 Observer 해제 (1-5, 1-6) */
+      __globalSig.addEventListener('abort', () => {
+        for (const o of observers) { try { o.disconnect(); } catch (_) {} }
+        observers.clear();
+        if (io) { try { io.disconnect(); } catch (_) {} }
+        if (ro) { try { ro.disconnect(); } catch (_) {} }
+      }, { once: true });
+
       function pruneBatch(set, visibleSet, dirtySet, limit = 200) {
         let removed = 0, scanned = 0;
         for (const el of set) {
@@ -1023,6 +1058,10 @@
       };
     }
 
+    /* ═══════════════════════════════════════════════════════════
+       [v183 패치] createAudio
+       - AudioContext 재생성 시 기존 srcMap의 source를 disconnect (항목 1-4)
+       ═══════════════════════════════════════════════════════════ */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; let __audioLoopTimer = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
@@ -1078,8 +1117,21 @@
       }
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
+
+      /* [v183 패치] disconnectAllKnownSources — srcMap 교체 전 기존 source disconnect (1-4) */
+      const disconnectAllKnownSources = () => {
+        for (const v of TOUCHED.videos) {
+          try {
+            const s = srcMap.get(v);
+            if (s) { s.disconnect(); }
+          } catch (_) {}
+        }
+      };
+
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
+          /* [v183 패치] 기존 source 정리 후 srcMap 재생성 */
+          disconnectAllKnownSources();
           srcMap = new WeakMap();
           if (target) { const tst = getVState(target); tst.audioFailUntil = 0; }
           for (const v of TOUCHED.videos) {
@@ -1089,6 +1141,8 @@
           resetCtx();
         }
         if (ctx) return true;
+        /* [v183 패치] 기존 source 정리 후 srcMap 재생성 */
+        disconnectAllKnownSources();
         srcMap = new WeakMap();
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return false;
@@ -1115,6 +1169,8 @@
         clearTimer(switchTimer);
         switchTok++;
         disconnectAll();
+        /* [v183 패치] destroy 시에도 기존 source 정리 */
+        disconnectAllKnownSources();
         srcMap = new WeakMap();
         try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {}
         resetCtx();
@@ -1124,6 +1180,12 @@
     }
 
     // === AUTO SCENE V3 ===
+    /* ═══════════════════════════════════════════════════════════
+       [v183 패치] createAutoSceneManager
+       - isSkinTone: early-return 재배치로 분기예측 개선 (항목 2-1)
+       - buildToneTableFromAutoCurve: 대표값 비교 early-out (항목 2-4)
+       - scheduleNext: 장시간 대기 시 setTimeout 사용, RVFC는 타겟 근처에서만 (항목 2-3)
+       ═══════════════════════════════════════════════════════════ */
 
 function createAutoSceneManager(Store, P, Scheduler) {
   const clamp = VSC_CLAMP;
@@ -1143,12 +1205,15 @@ function createAutoSceneManager(Store, P, Scheduler) {
   });
   const ST_NAMES = ['NORMAL','LOW_KEY','HIGH_KEY','HI_CONT','LOW_SAT','SKIN','BACKLIT'];
 
+  /* [v183 패치] isSkinTone — early-return 재배치 (2-1)
+     가장 빈번하게 걸리는 조건(r<=g, r<=b)을 최상단에 배치하여
+     불필요한 비교를 줄이고 분기예측 성능 개선 */
   function isSkinTone(r, g, b) {
-    if (r < 80 || g < 30 || b < 15) return false;
     if (r <= g || r <= b) return false;
+    if (r < 80 || g < 30 || b < 15) return false;
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
     if ((mx - mn) < 15) return false;
-    return (r > 95 && g > 40 && b > 20 && (mx - mn) > 15 &&
+    return (r > 95 && g > 40 && b > 20 &&
             Math.abs(r - g) > 15 && r > g && r > b);
   }
 
@@ -1488,11 +1553,40 @@ function createAutoSceneManager(Store, P, Scheduler) {
   catch (_) { try { ctx = cv.getContext('2d', { willReadFrequently: true }); } catch (__) {} }
 
   let __asRvfcId = 0;
+  let __asTimeoutId = 0;
+
+  /* [v183 패치] scheduleNext — 장시간 대기 시 setTimeout 사용, RVFC는 타겟 근처에서만 (2-3)
+     delayMs > 200이면 setTimeout으로 대기 후 마지막 구간만 RVFC로 정밀 동기화 */
   function scheduleNext(v, delayMs) {
     if (!AUTO.running) return;
-    if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') {
+    /* 이전 예약 정리 */
+    if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; }
+    if (__asRvfcId && v && typeof v.cancelVideoFrameCallback === 'function') {
+      try { v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
+      __asRvfcId = 0;
+    }
+    const useRvfc = v && !v.paused && typeof v.requestVideoFrameCallback === 'function';
+    const RVFC_THRESHOLD = 200;
+    if (delayMs > RVFC_THRESHOLD) {
+      /* 장시간 대기: setTimeout으로 대부분 소비 후 잔여 시간만 RVFC */
+      const waitMs = delayMs - (useRvfc ? 80 : 0);
+      __asTimeoutId = setTimer(() => {
+        __asTimeoutId = 0;
+        if (!AUTO.running) return;
+        if (useRvfc) {
+          __asRvfcId = v.requestVideoFrameCallback(() => {
+            __asRvfcId = 0;
+            loop();
+          });
+        } else {
+          loop();
+        }
+      }, Math.max(16, waitMs));
+      return;
+    }
+    /* 짧은 대기: RVFC 직접 사용 */
+    if (useRvfc) {
       const target = performance.now() + Math.max(0, delayMs | 0);
-      try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
       __asRvfcId = v.requestVideoFrameCallback(() => {
         __asRvfcId = 0;
         const remain = target - performance.now();
@@ -1501,7 +1595,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       });
       return;
     }
-    setTimer(loop, Math.max(16, delayMs | 0));
+    __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
   }
 
   function adaptiveFps(changeScore, isCut, isFade) {
@@ -1713,11 +1807,16 @@ function createAutoSceneManager(Store, P, Scheduler) {
 // ▲▲▲ PART 2에서 이어짐 ▲▲▲
 
     /* ═══════════════════════════════════════════════════════════
-       [v182 핵심 패치] createFiltersVideoOnly
+       [v182 핵심 패치 + v183 추가 패치] createFiltersVideoOnly
        - brightness / contrast / saturate → CSS filter 분리
        - SVG에는 톤 커브 + 채널 게인(temp) + 샤프닝만 잔류
        - feColorMatrix(saturate) 2개 중 fullSat/liteSat 제거
        - fFinal(desat)은 샤프닝 채도 보정이므로 SVG 내부 유지
+       [v183 추가]
+       - buildToneTableFromAutoCurve: 대표값 early-out (2-4)
+       - prepare: filterStr 사전 캐싱 (2-5)
+       - applyFilter: _transitionCleared 트래킹 (3-1)
+       - prepare: 이중 clamp 제거 (3-2)
        ═══════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -1740,8 +1839,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
           const g = s._autoChannelGains;
           chGainKey = Math.round(g.rGain * 1000) + '|' + Math.round(g.gGain * 1000) + '|' + Math.round(g.bGain * 1000);
         }
-        /* [v182] gain, gamma, mid, toe, shoulder, temp, sharp 계열만 SVG 키에 포함
-           contrast, bright, satF는 CSS 처리이므로 SVG 키에서 제외 */
         return qInt(s.gain, 0.04) + '|' + qInt(s.gamma, 0.01) + '|'
           + qInt(s.mid, 0.02) + '|'
           + qInt(s.toe, 0.2) + '|' + qInt(s.shoulder, 0.2) + '|' + qInt(s.temp, 0.2) + '|'
@@ -1749,7 +1846,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
           + 'ac:' + autoKey + '|cg:' + chGainKey;
       };
 
-      /* [v182] getToneTableCached — 동일 구조 유지, 호출 시 contrast=1/brightOffset=0 */
       function getToneTableCached(steps, toeN, shoulderN, midN, gain, contrast, brightOffset, gamma) {
         const key = `${steps}|${Math.round(toeN*1000)}|${Math.round(shoulderN*1000)}|${Math.round(midN*1000)}|${Math.round(gain*1000)}|${Math.round(contrast*1000)}|${Math.round(brightOffset*10000)}|${Math.round(gamma*1000)}`;
         const hit = toneCache.get(key); if (hit) return hit;
@@ -1774,9 +1870,20 @@ function createAutoSceneManager(Store, P, Scheduler) {
         const res = out.join(' '); toneCache.set(key, res); return res;
       }
 
-      /* [v182] buildToneTableFromAutoCurve — gamma만 적용, contrast/bright는 CSS로 */
+      /* [v183 패치] buildToneTableFromAutoCurve — 대표값 비교 early-out (2-4)
+         이전 결과를 캐싱하여 커브가 실질적으로 변하지 않으면 재생성 건너뜀 */
+      let __lastAutoCurveFingerprint = '';
+      let __lastAutoCurveGamma = 0;
+      let __lastAutoCurveResult = '';
       function buildToneTableFromAutoCurve(autoCurve, userGammaRaw) {
         const gExp = 1 / clamp(userGammaRaw || 1, 0.1, 5.0);
+        /* [v183] 대표값 8개 + gamma로 fingerprint 생성, 변화 없으면 이전 결과 반환 */
+        const fp0 = autoCurve[0], fp32 = autoCurve[32], fp64 = autoCurve[64], fp96 = autoCurve[96];
+        const fp128 = autoCurve[128], fp160 = autoCurve[160], fp192 = autoCurve[192], fp224 = autoCurve[224];
+        const fingerprint = `${(fp0*10000)|0},${(fp32*10000)|0},${(fp64*10000)|0},${(fp96*10000)|0},${(fp128*10000)|0},${(fp160*10000)|0},${(fp192*10000)|0},${(fp224*10000)|0}|${(gExp*10000)|0}`;
+        if (fingerprint === __lastAutoCurveFingerprint && __lastAutoCurveResult) {
+          return __lastAutoCurveResult;
+        }
         const applyGamma = Math.abs(gExp - 1.0) > 0.001;
         const parts = new Array(256);
         let prev = 0;
@@ -1789,7 +1896,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
           const yy = Math.round(y * 10000) / 10000;
           parts[i] = (yy === 1 ? '1' : yy === 0 ? '0' : String(yy));
         }
-        return parts.join(' ');
+        const result = parts.join(' ');
+        __lastAutoCurveFingerprint = fingerprint;
+        __lastAutoCurveGamma = gExp;
+        __lastAutoCurveResult = result;
+        return result;
       }
 
       const mkXfer = (attrs, childAttrs, forceOpaqueAlpha = false) => {
@@ -1798,21 +1909,17 @@ function createAutoSceneManager(Store, P, Scheduler) {
         return h('feComponentTransfer', { ns: 'svg', ...attrs }, ...children);
       };
 
-      /* [v182] buildSvg — feColorMatrix(saturate) 제거, SVG에는 톤+temp+샤프만 */
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
 
-        /* LITE 필터: conv → tone → temp (saturate 제거) */
         const fidLite = `vsc-lite-${config.VSC_ID}`;
         const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
         const liteConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'lSharp' });
         const liteTone = mkXfer({ in: 'lSharp', result: 'lBase' }, { type: 'table', tableValues: '0 1' });
         const liteTmp = mkXfer({ in: 'lBase', result: 'lOut' }, { type: 'linear', slope: '1' });
-        /* [v182] liteSat 제거 — saturate는 CSS로 */
         lite.append(liteConv, liteTone, liteTmp);
         defs.append(lite);
 
-        /* FULL 필터: conv → blur+usm → tone → temp → desat(샤프닝 보정만) */
         const fidFull = `vsc-full-${config.VSC_ID}`;
         const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
         const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
@@ -1820,8 +1927,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
         const fUsm = h('feComposite', { ns: 'svg', in: 'conv', in2: 'blr', operator: 'arithmetic', k1: '0', k2: '1.0', k3: '0', k4: '0', result: 'usm' });
         const fTone = mkXfer({ in: 'usm', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
         const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
-        /* [v182] fullSat 제거 — saturate는 CSS로 */
-        /* fFinal(desat)은 샤프닝 인한 채도 과포화 보정이므로 SVG 내부 유지 */
         const fFinal = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '0.97', result: 'final' });
         full.append(fConv, fBlur, fUsm, fTone, fTemp, fFinal);
         defs.append(full);
@@ -1843,11 +1948,9 @@ function createAutoSceneManager(Store, P, Scheduler) {
           fidLite, fidFull, liteConv,
           liteToneFuncs: Array.from(liteTone.children),
           liteTmpFuncs: Array.from(liteTmp.children),
-          /* [v182] liteSat 참조 제거 */
           fConv, fBlur, fUsm,
           fullToneFuncs: Array.from(fTone.children),
           fullTempFuncs: Array.from(fTemp.children),
-          /* [v182] fullSat 참조 제거 */
           fFinal,
           st: {
             lastKey: '',
@@ -1857,25 +1960,39 @@ function createAutoSceneManager(Store, P, Scheduler) {
         };
       }
 
-      /* [v182] prepare — SVG URL + CSS 분리 값 반환 */
+      /* [v182] round4 — CSS 값 포맷팅 */
+      const round4 = (n) => Math.round(n * 10000) / 10000;
+
+      /* [v183 패치] assembleCssFilterStr — prepare 단계에서 filter string 사전 조립 (2-5)
+         applyFilter에서 매번 조립하지 않고 prepare 결과에 포함 */
+      function assembleCssFilterStr(svgUrl, cssBr, cssCt, cssSat) {
+        const parts = [];
+        if (svgUrl) parts.push(svgUrl);
+        if (Math.abs(cssBr - 1) > 0.001) parts.push(`brightness(${round4(cssBr)})`);
+        if (Math.abs(cssCt - 1) > 0.001) parts.push(`contrast(${round4(cssCt)})`);
+        if (Math.abs(cssSat - 1) > 0.001) parts.push(`saturate(${round4(cssSat)})`);
+        return parts.length ? parts.join(' ') : 'none';
+      }
+
+      /* [v182+v183] prepare — SVG URL + CSS 분리 값 + 사전 조립된 filterStr 반환 */
       function prepare(video, s) {
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
-        let dc = urlCache.get(root); if (!dc) { dc = { key: '', url: '', cssBr: 1, cssCt: 1, cssSat: 1 }; urlCache.set(root, dc); }
+        let dc = urlCache.get(root); if (!dc) { dc = { key: '', url: '', cssBr: 1, cssCt: 1, cssSat: 1, filterStr: 'none' }; urlCache.set(root, dc); }
 
         const detailOn = wantsDetailPass(s) && !__liteForced;
         const useFull = detailOn;
         const vwKey = video.videoWidth || 0, vhKey = video.videoHeight || 0;
         const modeTag = useFull ? 'FULL' : 'LITE';
 
-        /* [v182] CSS 값은 SVG 캐시 키에 포함하지 않음 */
         const svgKey = modeTag + '|' + vwKey + 'x' + vhKey + '|' + makeKeyBase(s);
-        const cssBr = clamp(s._cssBr ?? 1, 0.5, 2.0);
-        const cssCt = clamp(s._cssCt ?? 1, 0.5, 2.0);
-        const cssSat = clamp(s._cssSat ?? 1, 0, 3.0);
+        /* [v183 패치] 이중 clamp 제거 (3-2): _cssBr/_cssCt/_cssSat는
+           composeVideoParamsInto에서 이미 clamp됨 — 여기서는 재clamp 하지 않음 */
+        const cssBr = s._cssBr ?? 1;
+        const cssCt = s._cssCt ?? 1;
+        const cssSat = s._cssSat ?? 1;
 
-        /* CSS 값이 변해도 SVG 재생성 불필요 — 캐시 키 분리 */
         const fullKey = svgKey + '|css:' + cssBr.toFixed(3) + '|' + cssCt.toFixed(3) + '|' + cssSat.toFixed(3);
-        if (dc.key === fullKey) return { svgUrl: dc.url, cssBr: dc.cssBr, cssCt: dc.cssCt, cssSat: dc.cssSat };
+        if (dc.key === fullKey) return { svgUrl: dc.url, cssBr: dc.cssBr, cssCt: dc.cssCt, cssSat: dc.cssSat, filterStr: dc.filterStr };
 
         let ctx = ctxMap.get(root); if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
         const st = ctx.st;
@@ -1884,7 +2001,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
           st.lastKey = svgKey;
           const steps = 256;
 
-          /* [v182] contrast=1, brightOffset=0 고정 → SVG 톤 커브에서 분리 */
           const con = 1.0;
           const brOff = 0;
           const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
@@ -1896,10 +2012,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
           const hasAutoCurve = !!(s._autoToneCurve && s._autoToneCurve.length === 256);
           let toneTable;
           if (hasAutoCurve) {
-            /* [v182] autoCurve에 gamma만 적용 */
             toneTable = buildToneTableFromAutoCurve(s._autoToneCurve, s.gamma || 1);
           } else {
-            /* [v182] contrast=1, brightOffset=0으로 호출 */
             toneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
           }
 
@@ -1927,7 +2041,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
                 fn.setAttribute('tableValues', toneTable);
               }
             }
-            /* [v182] fullSat 업데이트 제거 — CSS로 이전 */
             if (st.fullTempKey !== tmk) {
               st.fullTempKey = tmk;
               ctx.fullTempFuncs[0].setAttribute('slope', finalRs);
@@ -1968,7 +2081,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
               st.liteToneTable = toneTable;
               for (const fn of ctx.liteToneFuncs) fn.setAttribute('tableValues', toneTable);
             }
-            /* [v182] liteSat 업데이트 제거 — CSS로 이전 */
             if (st.liteTempKey !== tmk) {
               st.liteTempKey = tmk;
               ctx.liteTmpFuncs[0].setAttribute('slope', finalRs);
@@ -2000,40 +2112,39 @@ function createAutoSceneManager(Store, P, Scheduler) {
 
         const fid = useFull ? ctx.fidFull : ctx.fidLite;
         const url = `url(#${fid})`;
-        dc.key = fullKey; dc.url = url; dc.cssBr = cssBr; dc.cssCt = cssCt; dc.cssSat = cssSat;
-        return { svgUrl: url, cssBr, cssCt, cssSat };
+        /* [v183 패치] filterStr 사전 조립 (2-5) */
+        const filterStr = assembleCssFilterStr(url, cssBr, cssCt, cssSat);
+        dc.key = fullKey; dc.url = url; dc.cssBr = cssBr; dc.cssCt = cssCt; dc.cssSat = cssSat; dc.filterStr = filterStr;
+        return { svgUrl: url, cssBr, cssCt, cssSat, filterStr };
       }
 
-      /* [v182] round4 — CSS 값 포맷팅 */
-      const round4 = (n) => Math.round(n * 10000) / 10000;
-
       return {
-        /* [v182] prepareCached — 반환 타입 변경: { svgUrl, cssBr, cssCt, cssSat } */
         prepareCached: (video, s) => {
           try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; }
         },
-        /* [v182] applyFilter — CSS 체인 조립 + SVG URL 결합 */
+        /* [v182+v183] applyFilter — 사전 조립된 filterStr 사용 + _transitionCleared 트래킹 (3-1) */
         applyFilter: (el, filterResult) => {
           if (!el) return;
           const st = getVState(el);
           if (st._inPiP) return;
           if (!filterResult) {
             if (st.applied) {
-              el.style.removeProperty('transition'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
+              if (!st._transitionCleared) el.style.removeProperty('transition');
+              el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
               st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null;
+              st._transitionCleared = false;
             }
             return;
           }
-          /* [v182] CSS 체인 조립: url(#svg) brightness(b) contrast(c) saturate(s) */
-          const parts = [];
-          if (filterResult.svgUrl) parts.push(filterResult.svgUrl);
-          if (Math.abs(filterResult.cssBr - 1) > 0.001) parts.push(`brightness(${round4(filterResult.cssBr)})`);
-          if (Math.abs(filterResult.cssCt - 1) > 0.001) parts.push(`contrast(${round4(filterResult.cssCt)})`);
-          if (Math.abs(filterResult.cssSat - 1) > 0.001) parts.push(`saturate(${round4(filterResult.cssSat)})`);
-          const filterStr = parts.length ? parts.join(' ') : 'none';
+          /* [v183 패치] filterStr는 prepare에서 사전 조립됨 (2-5) */
+          const filterStr = filterResult.filterStr;
 
           if (st.lastCssFilterStr === filterStr && st.applied) return;
-          el.style.removeProperty('transition');
+          /* [v183 패치] _transitionCleared 트래킹 — 불필요한 removeProperty 호출 방지 (3-1) */
+          if (!st._transitionCleared) {
+            el.style.removeProperty('transition');
+            st._transitionCleared = true;
+          }
           el.style.setProperty('background-color', '#000', 'important');
           el.style.setProperty('filter', filterStr, 'important');
           el.style.setProperty('-webkit-filter', filterStr, 'important');
@@ -2047,6 +2158,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
           if (!st.applied) return;
           el.style.removeProperty('transition'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
           st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null;
+          st._transitionCleared = false;
         }
       };
     }
@@ -2124,15 +2236,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
       return out;
     }
 
-    /* [v182] composeVideoParamsInto — CSS 분리 필드 (_cssBr, _cssCt, _cssSat) 추가 */
+    /* [v182+v183] composeVideoParamsInto — CSS 분리 필드, clamp는 여기서 1회만 (3-2) */
     function composeVideoParamsInto(out, vUser, autoMods) {
       composeBaseVideoParams(out, vUser);
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
-
-      /* [v182] contrast/bright/satF를 SVG용과 CSS용으로 분리
-         - SVG 톤 커브: gain, gamma, toe, shoulder, mid만 사용
-         - CSS: brightness(합산 bright), contrast(합산 contrast), saturate(합산 satF) */
 
       if (autoMods._toneCurve) {
         out.satF = (out.satF || 1.0) * autoMods.sat;
@@ -2144,9 +2252,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
         out.satF = (out.satF || 1.0) * autoMods.sat;
       }
 
-      /* [v182] CSS 분리: bright → CSS brightness, contrast → CSS contrast, satF → CSS saturate
-         bright는 offset 값(0~10 범위)이므로 CSS brightness 승수로 변환
-         contrast는 이미 승수(~1.0 근처)이므로 그대로 CSS contrast로 전달 */
+      /* [v182] CSS 분리 + [v183] 최종 clamp 1회만 (3-2) */
       const brightVal = Number(out.bright || 0);
       out._cssBr = VSC_CLAMP(1.0 + brightVal * 0.008, 0.5, 2.0);
       out._cssCt = VSC_CLAMP(out.contrast || 1, 0.5, 2.0);
@@ -2155,12 +2261,14 @@ function createAutoSceneManager(Store, P, Scheduler) {
       return out;
     }
 
-    /* [v182] isNeutralVideoParams — CSS 분리 필드도 체크 */
+    /* [v182+v183] isNeutralVideoParams — CSS 분리 필드 + 원본 contrast/bright도 체크 (3-3) */
     const isNeutralVideoParams = (v) => (
       !v._autoToneCurve &&
       !v._autoChannelGains &&
       Math.abs((v.gain ?? 1) - 1) < 0.001 &&
       Math.abs((v.gamma ?? 1) - 1) < 0.001 &&
+      Math.abs((v.contrast ?? 1) - 1) < 0.001 &&
+      Math.abs((v.bright ?? 0)) < 0.01 &&
       Math.abs((v.mid ?? 0)) < 0.001 &&
       Math.abs((v.sharp ?? 0)) < 0.01 &&
       Math.abs((v.sharp2 ?? 0)) < 0.01 &&
