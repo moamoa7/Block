@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v180.0.0 - Patched with v200 logic)
+// @name         Video_Control (v180.1.0 - Patched with v200 logic)
 // @namespace    https://github.com/
-// @version      180.0.0-patched
+// @version      180.1.0-patched
 // @description  v179 base + review patch + v200 rate guard, shadow dom, combineSignals, mobile zoom
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -123,10 +123,17 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '180.0.0';
+    const VSC_VERSION = '180.1.0';
 
     // ── [사용자 설정] 여기서 보정 강도를 조절하세요 ──
     const COLOR_CAST_CORRECTION = 0.20; // 0.0(보정 없음) ~ 1.0(최대 보정)
+
+    // ── [신규] 모바일 기기 전용 색감 보정 (PC와 색감을 맞추기 위함) ──
+    const MOBILE_COLOR_BIAS = {
+      r: 0.94,  // 빨간끼 제거 (0.9 ~ 1.0 권장)
+      g: 1.00,  // 초록 유지
+      b: 1.08   // 노란끼 제거 및 하얀색 강조 (1.0 ~ 1.1 권장)
+    };
 
     const STORAGE_KEY = 'vsc_v2_' + location.hostname;
 
@@ -268,7 +275,7 @@
         }
       }
     }
-let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() { if (__vscRectEpochQueued) return; __vscRectEpochQueued = true; requestAnimationFrame(() => { __vscRectEpochQueued = false; __vscRectEpoch++; }); }
+    let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() { if (__vscRectEpochQueued) return; __vscRectEpochQueued = true; requestAnimationFrame(() => { __vscRectEpochQueued = false; __vscRectEpoch++; }); }
     onWin('scroll', bumpRectEpoch, { passive: true, capture: true }); onWin('resize', bumpRectEpoch, { passive: true }); onWin('orientationchange', bumpRectEpoch, { passive: true });
     try { const vv = window.visualViewport; if (vv) { on(vv, 'resize', bumpRectEpoch, { passive: true }); on(vv, 'scroll', bumpRectEpoch, { passive: true }); } } catch (_) {}
 
@@ -283,6 +290,7 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
 
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
+    /* [패치 2-7] SPA 이중 패치 방지 — orig.__vsc_patched 체크 추가 */
     function initSpaUrlDetector(onChanged) {
       if (window.__VSC_SPA_PATCHED__) return;
       window.__VSC_SPA_PATCHED__ = true;
@@ -292,6 +300,7 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
       const wrap = (name) => {
         const orig = history[name];
         if (typeof orig !== 'function') return;
+        if (orig.__vsc_patched) return; // [패치 2-7] 이중 래핑 방지
         origHistory[name] = orig;
         window.__VSC_INTERNAL__[`_orig_${name}`] = orig;
         const patched = function (...args) {
@@ -373,6 +382,7 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
       return wrap;
     }
 
+    /* [패치 1-2] restoreFromFsWrapper — srcObject / <source> 체크 추가 */
     function restoreFromFsWrapper(video) {
       const wrap = fsWraps.get(video);
       if (!wrap) return;
@@ -385,7 +395,7 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
         try { wrap.parentNode.insertBefore(video, wrap); restored = true; } catch (_) {}
       }
       if (!restored && !video.isConnected) {
-        if (video.readyState > 0 && video.src) {
+        if (video.readyState > 0 && (video.src || video.srcObject || video.querySelector?.('source'))) {
           try {
             const target = document.body || document.documentElement;
             if (target) {
@@ -430,13 +440,14 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
       });
     }
 
+    /* [패치 1-1] onFsChange — UI.ensure를 requestAnimationFrame으로 래핑 */
     function onFsChange() {
       const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
       if (!fsEl) {
         for (const v of TOUCHED.videos) { if (fsWraps.has(v)) restoreFromFsWrapper(v); }
         try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
       }
-      if (window.__VSC_UI_Ensure) window.__VSC_UI_Ensure();
+      if (window.__VSC_UI_Ensure) requestAnimationFrame(() => { try { window.__VSC_UI_Ensure(); } catch (_) {} });
     }
     onDoc('fullscreenchange', onFsChange); onDoc('webkitfullscreenchange', onFsChange);
 
@@ -733,8 +744,15 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
         }
       }, { passive: false, capture: true });
 
+      /* [패치 1-8] zoom touchend — isConnected 가드 추가 */
       onWin('touchend', e => {
         if (!activeVideo) return;
+        if (!activeVideo.isConnected) {
+          isPanning = false;
+          pinchState.active = false;
+          activeVideo = null;
+          return;
+        }
         if (e.touches.length < 2) pinchState.active = false;
         if (e.touches.length === 1 && getSt(activeVideo).scale > 1) {
           isPanning = true;
@@ -770,7 +788,9 @@ let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() {
         }
       };
     }
-function createTargeting() {
+// ▼▼▼ PART 2에서 이어짐 (createTargeting) ▼▼▼
+// ▲▲▲ PART 1에서 이어짐 ▲▲▲
+    function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       const SCORE = Object.freeze({
         PLAYING: 6.0, HAS_PROGRESS: 2.0, AREA_SCALE: 1.1, AREA_DIVISOR: 20000,
@@ -952,7 +972,8 @@ function createTargeting() {
         }
       };
     }
-
+// ▼▼▼ PART 3에서 이어짐 (createAudio) ▼▼▼
+// ▲▲▲ PART 2에서 이어짐 ▲▲▲
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; let __audioLoopTimer = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
@@ -988,10 +1009,16 @@ function createTargeting() {
       }
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
+      /* [패치 2-3] AudioContext closed — 전체 비디오 cooldown 리셋 */
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
           srcMap = new WeakMap();
+          // 현재 target뿐 아니라 모든 touched 비디오의 cooldown도 리셋
           if (target) { const tst = getVState(target); tst.audioFailUntil = 0; }
+          for (const v of TOUCHED.videos) {
+            const vst = videoStateMap.get(v);
+            if (vst) vst.audioFailUntil = 0;
+          }
           resetCtx();
         }
         if (ctx) return true;
@@ -1070,16 +1097,14 @@ function createAutoSceneManager(Store, P, Scheduler) {
   //  핵심 1: 히스토그램에서 직접 톤 커브 생성
   // ══════════════════════════════════════════════
 
-  // Contrast-Limited Adaptive Histogram Equalization의
-  // 글로벌 버전 — CLAHE의 단일-타일 변형
   function buildAdaptiveToneCurve(hist, totalSamples, params) {
     const {
-      clipLimit = 2.5,     // 히스토그램 클리핑 (과도한 이퀄라이제이션 방지)
-      shadowProtect = 0.4, // 0~1, 높을수록 섀도 영역 보정 억제
+      clipLimit = 2.5,
+      shadowProtect = 0.4,
       highlightProtect = 0.3,
-      midtoneBoost = 0.0,  // 중간조 강조 (-0.3 ~ 0.3)
-      targetMean = 0.45,   // 목표 평균 밝기
-      strength = 0.35,     // 전체 보정 강도 (0=원본, 1=완전 이퀄라이즈)
+      midtoneBoost = 0.0,
+      targetMean = 0.45,
+      strength = 0.35,
     } = params;
 
     const n = Math.max(1, totalSamples);
@@ -1097,7 +1122,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
         clipped[i] = hist[i];
       }
     }
-    // 초과분 균등 재배분
     const perBin = excess / bins;
     for (let i = 0; i < bins; i++) clipped[i] += perBin;
 
@@ -1115,38 +1139,31 @@ function createAutoSceneManager(Store, P, Scheduler) {
     }
 
     // Step 4: 영역별 보호 가중치
-    // 섀도/하이라이트는 과보정하면 부자연스러우므로 원본에 가깝게 유지
     const identity = new Float64Array(bins);
     for (let i = 0; i < bins; i++) identity[i] = i / (bins - 1);
 
     const curve = new Float64Array(TONE_STEPS);
     for (let i = 0; i < TONE_STEPS; i++) {
-      const x = i / (TONE_STEPS - 1);  // 원본 밝기 0~1
+      const x = i / (TONE_STEPS - 1);
       const bin = Math.min(bins - 1, (x * (bins - 1)) | 0);
       const eq = equalized[bin];
       const id = identity[bin];
 
-      // 영역별 가중치: 섀도/하이라이트에서는 원본을 더 유지
       let regionWeight = 1.0;
       if (x < 0.15) {
-        // 섀도 영역
-        const t = x / 0.15;  // 0→1
+        const t = x / 0.15;
         regionWeight = 1.0 - shadowProtect * (1 - t * t);
       } else if (x > 0.85) {
-        // 하이라이트 영역
         const t = (x - 0.85) / 0.15;
         regionWeight = 1.0 - highlightProtect * (t * t);
       }
 
-      // 중간조 부스트 (S-커브 형태)
       let midBoost = 0;
       if (Math.abs(midtoneBoost) > 0.001) {
-        // 중간조 가중치: 0.3~0.7 영역에서 최대
         const midW = Math.exp(-((x - 0.5) * (x - 0.5)) / (2 * 0.12 * 0.12));
         midBoost = midtoneBoost * midW * 0.15;
       }
 
-      // 최종 블렌딩: 원본 ↔ 이퀄라이즈 사이를 strength로 보간
       const effectiveStrength = strength * regionWeight;
       let y = id * (1 - effectiveStrength) + eq * effectiveStrength + midBoost;
 
@@ -1165,46 +1182,58 @@ function createAutoSceneManager(Store, P, Scheduler) {
   //  핵심 2: 채널별 색온도/색 균형 커브
   // ══════════════════════════════════════════════
 
-  // R/G/B 히스토그램으로부터 채널별 게인을 계산하여
-  // 색 캐스트(푸른빛/노란빛 편향)를 자동 보정
-  // ── 핵심 2: 채널별 색온도/색 균형 커브 (피부톤 보호 연동 버전) ──
-function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
-  const n = Math.max(1, totalSamples);
-  let rMean = 0, gMean = 0, bMean = 0;
-  for (let i = 0; i < HIST_BINS; i++) {
-    const v = i / (HIST_BINS - 1);
-    rMean += v * rHist[i];
-    gMean += v * gHist[i];
-    bMean += v * bHist[i];
+  function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
+    const n = Math.max(1, totalSamples);
+    let rMean = 0, gMean = 0, bMean = 0;
+    for (let i = 0; i < HIST_BINS; i++) {
+      const v = i / (HIST_BINS - 1);
+      rMean += v * rHist[i];
+      gMean += v * gHist[i];
+      bMean += v * bHist[i];
+    }
+    rMean /= n; gMean /= n; bMean /= n;
+
+    const avgMean = (rMean + gMean + bMean) / 3;
+    if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
+
+    const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.35;
+
+    const skinDampen = VSC_CLAMP(skinRatio || 0, 0, 0.4) / 0.4;
+    const rMul = 0.40 * (1 - skinDampen * 0.6);
+
+    const rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul);
+    const gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.80);
+    const bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength;
+
+    // 1. 기본 채널 게인 계산 및 1차 클램프
+  let finalRG = VSC_CLAMP(rGain, 0.92, 1.08);
+  let finalGG = VSC_CLAMP(gGain, 0.94, 1.06);
+  let finalBG = VSC_CLAMP(bGain, 0.85, 1.15);
+
+  // 2. [추가] 모바일 기기일 경우에만 오프셋 적용
+  if (CONFIG.IS_MOBILE && typeof MOBILE_COLOR_BIAS !== 'undefined') {
+    finalRG *= MOBILE_COLOR_BIAS.r;
+    finalGG *= MOBILE_COLOR_BIAS.g;
+    finalBG *= MOBILE_COLOR_BIAS.b;
+
+    // 보정 후 다시 한번 안전하게 클램프 (과도한 변색 방지)
+    finalRG = VSC_CLAMP(finalRG, 0.85, 1.15);
+    finalBG = VSC_CLAMP(finalBG, 0.85, 1.20);
   }
-  rMean /= n; gMean /= n; bMean /= n;
 
-  const avgMean = (rMean + gMean + bMean) / 3;
-  if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
-
-  const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.35;
-
-  // [개선] 피부톤 비율에 따라 R 보정 강도를 추가 감쇠 (자막/피부 왜곡 방지)
-  const skinDampen = VSC_CLAMP(skinRatio || 0, 0, 0.4) / 0.4;
-  const rMul = 0.40 * (1 - skinDampen * 0.6);
-
-  const rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul);
-  const gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.80);
-  const bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength; // bMean 버그 수정 완료
-
+  // 3. 최종 결과 반환
   return {
-    rGain: VSC_CLAMP(rGain, 0.92, 1.08), // 범위를 좁혀서 자막의 붉은끼 방지
-    gGain: VSC_CLAMP(gGain, 0.94, 1.06),
-    bGain: VSC_CLAMP(bGain, 0.85, 1.15)  // 푸른끼 제거는 적극적으로 허용
+    rGain: finalRG,
+    gGain: finalGG,
+    bGain: finalBG
   };
-}
+      }
 
   // ══════════════════════════════════════════════
   //  핵심 3: 장면 분류 (역광 감지 추가)
   // ══════════════════════════════════════════════
 
   function classifyScene(stats, zoneStats) {
-    // 역광 감지: 중앙이 어둡고 주변이 밝으면
     if (zoneStats) {
       const centerBr = zoneStats.centerBright;
       const edgeBr = zoneStats.edgeAvgBright;
@@ -1220,7 +1249,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
     return ST.NORMAL;
   }
 
-  // 장면 유형별 톤 매핑 파라미터
   const SCENE_TONE_PARAMS = Object.freeze({
     [ST.NORMAL]:        { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.05, strength: 0.30, satTarget: 1.06 },
     [ST.LOW_KEY]:       { clipLimit: 3.0, shadowProtect: 0.55, highlightProtect: 0.20, midtoneBoost: 0.10, strength: 0.25, satTarget: 1.02 },
@@ -1235,8 +1263,7 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
   //  핵심 4: 시간적 커브 보간 (플리커 방지)
   // ══════════════════════════════════════════════
 
-  // 이전 프레임의 톤 커브를 기억하여 부드럽게 전환
-  let prevToneCurve = null;       // Float64Array(256)
+  let prevToneCurve = null;
   let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 };
   let prevSatMul = 1.0;
 
@@ -1360,10 +1387,9 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
     const centerZone = zones[4];
     const centerBright = centerZone.count > 0 ? centerZone.sum / centerZone.count / 255 : mean / 255;
 
-    // 가장자리 존들의 평균
     let edgeSum = 0, edgeCount = 0;
     for (let z = 0; z < ZONE_COUNT; z++) {
-      if (z === 4) continue; // 중앙 제외
+      if (z === 4) continue;
       if (zones[z].count > 0) {
         edgeSum += zones[z].sum / zones[z].count;
         edgeCount++;
@@ -1376,7 +1402,7 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
       contrast: std / 64,
       chroma: sumChroma / n / 255,
       edge: sumEdge / n,
-      motion: 0, // 아래에서 별도 계산
+      motion: 0,
       skinRatio: skinCount / n,
       centerBright,
       edgeAvgBright,
@@ -1387,48 +1413,27 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
   }
 
   // ══════════════════════════════════════════════
-  //  출력 모델: 기존 3축이 아닌 커브 + 채널 게인
+  //  출력 모델
   // ══════════════════════════════════════════════
 
-  // 기존 시스템은 { br, ct, sat } 3개의 숫자를 리턴했지만,
-  // 새 시스템은 이것을 역산하여 호환성 유지
-  //
-  // 기존 파이프라인:
-  //   composeVideoParamsInto() → gain, gamma, contrast, bright, satF
-  //   → getToneTableCached() → feComponentTransfer tableValues
-  //
-  // 새 접근: autoScene이 직접 toneCurve를 계산하고,
-  //          이를 기존 파라미터로 근사하여 내보냄
-  //
-  // 완전한 구현이라면 toneCurve를 직접 feComponentTransfer에
-  // 주입하겠지만, 기존 인프라와의 호환성을 위해
-  // 커브에서 역으로 gamma/contrast/brightness를 추정
-
   function curveToApproxParams(curve, satMul, channelGains) {
-    // 커브의 중간점에서 gamma 추정
-    // identity: f(x)=x에서 curve(0.5)를 보고 gamma 역산
-    const mid = curve[128]; // x=0.5에서의 출력
-    // x^gamma = mid → gamma = log(mid) / log(0.5)
+    const mid = curve[128];
     let gamma = 1.0;
     if (mid > 0.01 && mid < 0.99) {
       gamma = Math.log(mid) / Math.log(0.5);
       gamma = clamp(gamma, 0.5, 2.0);
     }
 
-    // 콘트라스트: 커브 기울기의 중간점
     const slope = (curve[160] - curve[96]) / ((160 - 96) / 255);
     const contrast = clamp(slope, 0.7, 1.5);
 
-    // 밝기 오프셋: identity 대비 평균 차이
     let brightDiff = 0;
     for (let i = 0; i < 256; i++) {
       brightDiff += curve[i] - (i / 255);
     }
     brightDiff /= 256;
-    const bright = clamp(brightDiff * 50, -15, 15); // 기존 bright 스케일에 맞춤
+    const bright = clamp(brightDiff * 50, -15, 15);
 
-    // 채널 게인을 temp(색온도)로 근사
-    // temp > 0이면 따뜻(R↑B↓), temp < 0이면 차가움(R↓B↑)
     const tempEstimate = (channelGains.rGain - channelGains.bGain) * 50;
     const temp = clamp(tempEstimate, -30, 30);
 
@@ -1436,7 +1441,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
       br: clamp(1.0 + bright * 0.008, 0.88, 1.40),
       ct: clamp(contrast, 0.78, 1.35),
       sat: clamp(satMul, 0.80, 1.60),
-      // 확장 필드 (기존 getMods 호환 + 추가 정보)
       _gamma: gamma,
       _bright: bright,
       _temp: temp,
@@ -1444,16 +1448,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
       _toneCurve: curve
     };
   }
-
-  // ══════════════════════════════════════════════
-  //  확장 출력: 톤 커브를 직접 SVG에 주입
-  // ══════════════════════════════════════════════
-
-  // getMods()가 리턴하는 객체에 _toneCurve가 있으면
-  // composeVideoParamsInto()에서 이를 감지하여
-  // getToneTableCached()를 우회하고 직접 테이블을 주입
-  //
-  // 이를 위해 composeVideoParamsInto도 패치 필요 (아래 별도 제공)
 
   // ══════════════════════════════════════════════
   //  메인 루프
@@ -1534,7 +1528,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
       AUTO.drmBlocked = false;
       drmRetryCount = 0;
 
-      // ── 분석 ──
       const stats = computeFullAnalysis(img.data, CANVAS_W, CANVAS_H);
       stats.motion = Math.abs(stats.bright - (AUTO._lastMean || stats.bright));
       AUTO._lastMean = stats.bright;
@@ -1542,11 +1535,9 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
       AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motion * AUTO.motionAlpha;
       AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0;
 
-      // 컷 감지
       const transition = detectTransition(stats, AUTO.lastStats);
       AUTO.lastStats = stats;
 
-      // EMA
       if (!AUTO.statsEma) AUTO.statsEma = { ...stats };
       else {
         const a = transition.isCut ? 0.40 : AUTO.statsAlpha;
@@ -1556,14 +1547,12 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
         }
       }
 
-      // 장면 분류
       const newScene = classifyScene(AUTO.statsEma, stats.zoneStats);
       if (newScene === AUTO._sceneType) AUTO._sceneStable++;
       else AUTO._sceneStable = 0;
       AUTO._sceneType = newScene;
       if (AUTO._sceneStable >= 3) AUTO._sceneTypeEma = newScene;
 
-      // 부스트
       if (transition.isCut) {
         AUTO.tBoostStart = now;
         AUTO.tBoostUntil = now + AUTO.boostMs;
@@ -1580,23 +1569,18 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
         const sceneType = AUTO._sceneTypeEma;
         const toneParams = { ...SCENE_TONE_PARAMS[sceneType] };
 
-        // ── 핵심: 히스토그램에서 직접 톤 커브 생성 ──
         const rawCurve = buildAdaptiveToneCurve(
           stats.lumHist, stats.totalSamples, toneParams
         );
 
-        // ── 채널 밸런스 ──
-        // ── 채널 밸런스 (맨 끝에 stats.skinRatio 추가) ──
-      const rawGains = computeChannelBalance(
-        stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio
-      );
+        const rawGains = computeChannelBalance(
+          stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio
+        );
 
         const rawSat = toneParams.satTarget;
 
-        // ── 시간적 보간 (플리커 방지) ──
         const alpha = getTemporalAlpha(transition.isCut, transition.isFade);
 
-        // 커브의 변화 방향 추적
         const newMid = rawCurve[128];
         const oldMid = prevToneCurve ? prevToneCurve[128] : 0.5;
         const dir = newMid > oldMid ? 1 : (newMid < oldMid ? -1 : 0);
@@ -1615,7 +1599,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
         prevChannelGains = smoothedGains;
         prevSatMul = smoothedSat;
 
-        // ── 기존 인터페이스 호환 출력 ──
         const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
 
         const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
@@ -1657,18 +1640,36 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
     }
   }
 
+  /* [패치 1-7] 전체 모듈 상태 리셋 헬퍼 */
+  function resetAllModuleState() {
+    AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
+    AUTO.statsEma = null;
+    AUTO.lastStats = null;
+    AUTO._lastMean = 0;
+    AUTO._sceneStable = 0;
+    AUTO._sceneTypeEma = ST.NORMAL;
+    AUTO._sceneType = ST.NORMAL;
+    AUTO.motionEma = 0;
+    AUTO.motionFrames = 0;
+    AUTO.fpsHist.length = 0;
+    AUTO.curFps = 2;
+    prevToneCurve = null;
+    prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 };
+    prevSatMul = 1.0;
+    cutScores.length = 0;
+    gradualScores.length = 0;
+    flickerCount = 0;
+    lastCurveDir = 0;
+  }
+
   Store.sub(P.APP_AUTO_SCENE, (en) => {
     if (en && !AUTO.running) {
       drmRetryCount = 0; AUTO.running = true;
-      AUTO.statsEma = null; AUTO.lastStats = null;
-      prevToneCurve = null; prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; prevSatMul = 1.0;
-      cutScores.length = 0; gradualScores.length = 0;
-      flickerCount = 0; lastCurveDir = 0;
+      resetAllModuleState(); // [패치 1-7]
       loop();
     } else if (!en) {
       AUTO.running = false;
-      AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
-      prevToneCurve = null;
+      resetAllModuleState(); // [패치 1-7]
       Scheduler.request(true);
     }
   });
@@ -1689,10 +1690,15 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
         drmRetryCount = 0; AUTO.running = true; loop();
       }
     },
-    stop: () => { AUTO.running = false; }
+    /* [패치 1-7] stop()에서 전체 상태 리셋 */
+    stop: () => {
+      AUTO.running = false;
+      resetAllModuleState();
+    }
   };
 }
-
+// ▼▼▼ PART 4에서 이어짐 (createFiltersVideoOnly) ▼▼▼
+// ▲▲▲ PART 3에서 이어짐 ▲▲▲
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(64);
@@ -1842,7 +1848,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
           st.lastKey = key;
           const steps = 256;
 
-          // ── 1) 기본 파라미터 계산 (항상 필요) ──
           const con = clamp(s.contrast || 1, 0.1, 5.0);
           const brOff = clamp((s.bright || 0) / 1000, -0.5, 0.5);
           const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
@@ -1851,7 +1856,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
           const midQ = qInt(clamp(s.mid || 0, -1, 1), 0.02) * 0.02;
           const gainQ = qInt(s.gain || 1, 0.06) * 0.06;
 
-          // ── 2) 톤 테이블: auto 커브 vs 기존 파라미터 ──
           const hasAutoCurve = !!(s._autoToneCurve && s._autoToneCurve.length === 256);
           let toneTable;
           if (hasAutoCurve) {
@@ -1860,7 +1864,6 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
             toneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
           }
 
-          // ── 3) 색온도 + 자동 채널 밸런스 합성 ──
           const userTemp = tempToRgbGain(s.temp);
           let finalRs = userTemp.rs, finalGs = userTemp.gs, finalBs = userTemp.bs;
           if (s._autoChannelGains) {
@@ -1872,13 +1875,11 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
             finalRs /= maxG; finalGs /= maxG; finalBs /= maxG;
           }
 
-          // ── 4) 캐시 키 ──
           const tkPrefix = hasAutoCurve ? 'AC|' : '';
           const tk = tkPrefix + `${steps}|${Math.round(toeQ*1000)}|${Math.round(shQ*1000)}|${Math.round(midQ*1000)}|${Math.round(gainQ*1000)}|${Math.round(con*1000)}|${Math.round(brOff*10000)}|${Math.round(gamma*1000)}`;
           const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const tmk = finalRs.toFixed(3) + '|' + finalGs.toFixed(3) + '|' + finalBs.toFixed(3);
 
-          // ── 5) SVG 적용 ──
           if (useFull) {
             if (st.fullToneKey !== tk || (hasAutoCurve && st.fullToneTable !== toneTable)) {
               st.fullToneKey = tk;
@@ -2069,31 +2070,32 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
       return out;
     }
 
-    // composeVideoParamsInto 패치 — autoMods에 _toneCurve가 있으면 사용
-function composeVideoParamsInto(out, vUser, autoMods) {
-  composeBaseVideoParams(out, vUser);
-  applyShadowBandStack(out, vUser.shadowBandMask);
-  applyBrightStepStack(out, vUser.brightStepLevel);
+    /* [패치 1-6] composeVideoParamsInto — toneCurve 존재 시 scalar 보정 skip */
+    function composeVideoParamsInto(out, vUser, autoMods) {
+      composeBaseVideoParams(out, vUser);
+      applyShadowBandStack(out, vUser.shadowBandMask);
+      applyBrightStepStack(out, vUser.brightStepLevel);
 
-  // 기존 스칼라 보정 (하위 호환)
-  out.gain = (out.gain || 1.0) * autoMods.br;
-  out.contrast = (out.contrast || 1.0) * autoMods.ct;
-  out.satF = (out.satF || 1.0) * autoMods.sat;
+      if (autoMods._toneCurve) {
+        // 톤 커브가 직접 주입되므로 scalar br/ct 보정은 skip
+        // (커브에 이미 gamma/contrast/brightness가 반영되어 있음)
+        out.satF = (out.satF || 1.0) * autoMods.sat;
+        out._autoToneCurve = autoMods._toneCurve;
+        out._autoChannelGains = autoMods._channelGains || null;
+      } else {
+        // fallback: 톤 커브 없을 때만 scalar 보정 적용
+        out.gain = (out.gain || 1.0) * autoMods.br;
+        out.contrast = (out.contrast || 1.0) * autoMods.ct;
+        out.satF = (out.satF || 1.0) * autoMods.sat;
+      }
 
-  // ── 새 필드: 톤 커브 직접 주입 ──
-  if (autoMods._toneCurve) {
-    out._autoToneCurve = autoMods._toneCurve;
-    // 톤 커브가 있으면 gamma/gain/contrast/bright는
-    // 커브에 이미 반영되어 있으므로 auto 부분만 중립화
-    // (사용자 프리셋의 gamma/gain은 유지)
-    out._autoChannelGains = autoMods._channelGains || null;
-  }
+      return out;
+    }
 
-  return out;
-}
-
-
+    /* [패치 2-2] isNeutralVideoParams — _autoToneCurve/_autoChannelGains 검사 추가 */
     const isNeutralVideoParams = (v) => (
+      !v._autoToneCurve &&
+      !v._autoChannelGains &&
       Math.abs((v.gain ?? 1) - 1) < 0.001 &&
       Math.abs((v.gamma ?? 1) - 1) < 0.001 &&
       Math.abs((v.contrast ?? 1) - 1) < 0.001 &&
@@ -2108,6 +2110,7 @@ function composeVideoParamsInto(out, vUser, autoMods) {
       Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
+    /* [패치 2-1] videoParamsMemo — 키에 toneCurve/channelGains 시그니처 포함 */
     function createVideoParamsMemo(Store, P, Utils) {
       let lastKey = ''; let lastResult = null;
       const sigVideo = (vf) => [
@@ -2119,7 +2122,18 @@ function composeVideoParamsInto(out, vUser, autoMods) {
           const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
           const ht = activeTarget ? (activeTarget.videoHeight || 0) : 0;
           const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
-          const autoKey = `${autoMods.br.toFixed(3)}|${autoMods.ct.toFixed(3)}|${autoMods.sat.toFixed(3)}`;
+          let curveKey = '0';
+          if (autoMods._toneCurve) {
+            const c = autoMods._toneCurve;
+            curveKey = [c[32], c[64], c[96], c[128], c[160], c[192], c[224]]
+              .map(v => (v * 10000) | 0).join(',');
+          }
+          let chKey = '0';
+          if (autoMods._channelGains) {
+            const g = autoMods._channelGains;
+            chKey = `${(g.rGain*1000)|0}|${(g.gGain*1000)|0}|${(g.bGain*1000)|0}`;
+          }
+          const autoKey = `${autoMods.br.toFixed(3)}|${autoMods.ct.toFixed(3)}|${autoMods.sat.toFixed(3)}|tc:${curveKey}|cg:${chKey}`;
           const key = `${sigVideo(vfUser)}|${w}x${ht}|auto:${autoKey}`;
           if (key === lastKey && lastResult) {
             return lastResult;
@@ -2550,6 +2564,7 @@ function composeVideoParamsInto(out, vUser, autoMods) {
 
     function createThrottled(fn, ms = 120) { let last = 0, timer = 0; return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } }; }
 
+    /* [패치 4-3] tick timer — visibilitychange로 정지/재개 */
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
       UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) { try { Registry.refreshObservers?.(); Registry.rescanAll?.(); Scheduler.request(true); } catch (_) {} } });
@@ -2586,9 +2601,17 @@ function composeVideoParamsInto(out, vUser, autoMods) {
           if (force || vidsDirty.size) UI.ensure();
         } catch (e) { log.warn('apply crashed:', e); }
       });
-      let tickTimer = 0; const startTick = () => { if (tickTimer) return; tickTimer = setInterval(() => { if (!Store.get(P.APP_ACT)) return; if (document.hidden) return; Scheduler.request(false); }, 12000); };
+      let tickTimer = 0;
+      const startTick = () => { if (tickTimer) return; tickTimer = setInterval(() => { if (!Store.get(P.APP_ACT)) return; if (document.hidden) return; Scheduler.request(false); }, 12000); };
       const stopTick = () => { if (!tickTimer) return; clearInterval(tickTimer); tickTimer = 0; };
-      Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick(); Scheduler.request(true);
+      Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); });
+      if (Store.get(P.APP_ACT)) startTick();
+      // [패치 4-3] hidden 탭에서 tick timer 정지, visible 복귀 시 재개
+      onDoc('visibilitychange', () => {
+        if (document.hidden) { stopTick(); }
+        else if (Store.get(P.APP_ACT)) { startTick(); }
+      }, { passive: true });
+      Scheduler.request(true);
       return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, async destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); await Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
     }
 
