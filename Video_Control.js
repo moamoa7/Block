@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v180.1.0 - Patched with v200 logic)
+// @name         Video_Control (v181.0.0)
 // @namespace    https://github.com/
-// @version      180.1.0-patched
-// @description  v179 base + review patch + v200 rate guard, shadow dom, combineSignals, mobile zoom
+// @version      181.0.0
+// @description  v180.1.0 + 22-patch bundle (bugs, guards, edge-cases, UX overhaul, auto-preset)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -55,18 +55,24 @@
     };
     const clearTimer = (id) => { if (!id) return; clearTimeout(id); _activeTimers.delete(id); };
 
+    /* [patch 7-6] setRecurring — 연속 에러 50회 시 자동 중단 */
     const setRecurring = (fn, ms) => {
       if (__globalSig.aborted) return 0;
+      let consecutiveErrors = 0;
+      const MAX_CONSECUTIVE_ERRORS = 50;
       const id = setInterval(() => {
         if (__globalSig.aborted) { clearInterval(id); _activeIntervals.delete(id); return; }
-        try { fn(); } catch (_) {}
+        try { fn(); consecutiveErrors = 0; } catch (_) {
+          if (++consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            clearInterval(id); _activeIntervals.delete(id);
+          }
+        }
       }, ms);
       _activeIntervals.add(id);
       return id;
     };
     const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
 
-    /* [이식 1] combineSignals 개선 (v200 로직) */
     const combineSignals = (...signals) => {
       const existing = signals.filter(Boolean);
       if (existing.length === 0) return undefined;
@@ -123,17 +129,11 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '180.1.0';
+    const VSC_VERSION = '181.0.0';
 
-    // ── [사용자 설정] 여기서 보정 강도를 조절하세요 ──
-    const COLOR_CAST_CORRECTION = 0.20; // 0.0(보정 없음) ~ 1.0(최대 보정)
+    const COLOR_CAST_CORRECTION = 0.20;
 
-    // ── [신규] 모바일 기기 전용 색감 보정 (PC와 색감을 맞추기 위함) ──
-    const MOBILE_COLOR_BIAS = {
-      r: 0.94,  // 빨간끼 제거 (0.9 ~ 1.0 권장)
-      g: 1.00,  // 초록 유지
-      b: 1.08   // 노란끼 제거 및 하얀색 강조 (1.0 ~ 1.1 권장)
-    };
+    const MOBILE_COLOR_BIAS = { r: 0.94, g: 1.00, b: 1.08 };
 
     const STORAGE_KEY = 'vsc_v2_' + location.hostname;
 
@@ -148,10 +148,22 @@
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 12; const SPA_RESCAN_DEBOUNCE_MS = 220;
-    const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 5000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
+    /* [patch 8-3] DRM 차등 쿨다운 */
+    const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 3000, AUDIO_SRC_COOLDOWN_DRM: 8000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
 
-    const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','amazon.com/gp/video','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
-    function isRateBlockedHost() { const h = location.hostname; return RATE_BLOCKED_HOSTS.some(d => h === d || h.endsWith('.' + d)); }
+    /* [patch 6-1] hostname + path 분리 체크 */
+    const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
+    const RATE_BLOCKED_PATHS = Object.freeze([
+      { host: 'amazon.com', pathPrefix: '/gp/video' }
+    ]);
+    function isRateBlockedHost() {
+      const h = location.hostname;
+      if (RATE_BLOCKED_HOSTS.some(d => h === d || h.endsWith('.' + d))) return true;
+      for (const rule of RATE_BLOCKED_PATHS) {
+        if ((h === rule.host || h.endsWith('.' + rule.host)) && location.pathname.startsWith(rule.pathPrefix)) return true;
+      }
+      return false;
+    }
     const __rateBlockedSite = isRateBlockedHost();
 
     const LITE_FORCED_HOSTS = Object.freeze(['ok.ru', 'mail.ru', 'vk.com', 'dzen.ru', 'rutube.ru']);
@@ -159,20 +171,21 @@
 
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1; const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
+    /* [patch 5-1] RATE_TRANSIENT_DEFAULTS */
+    const RATE_TRANSIENT_DEFAULTS = Object.freeze({
+      orig: null, lastSetAt: 0, retryCount: 0,
+      permanentlyBlocked: false, suppressSyncUntil: 0,
+      _externalMtQueued: false, _rateRetryWindow: 0, _rateRetryCount: 0
+    });
+
     function createVideoState() {
       return {
         visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, _resizeDirty: false, _ac: null,
         _inPiP: false,
+        /* [patch 5-1] Object.assign 사용 */
         resetTransient() {
           this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
-          if (this.rateState) {
-            this.rateState.orig = null; this.rateState.lastSetAt = 0;
-            this.rateState.retryCount = 0; this.rateState.permanentlyBlocked = false;
-            this.rateState.suppressSyncUntil = 0;
-            this.rateState._externalMtQueued = false;
-            this.rateState._rateRetryWindow = 0;
-            this.rateState._rateRetryCount = 0;
-          }
+          if (this.rateState) Object.assign(this.rateState, RATE_TRANSIENT_DEFAULTS);
           this.desiredRate = undefined;
         }
       };
@@ -204,14 +217,14 @@
       grade: { off: 'OFF', S: '밝게S', M: '밝게M', L: '밝게L', DS: '다크S', DM: '다크M', DL: '다크L' }
     });
 
-    const DEFAULTS = { video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false } };
-    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
+    const DEFAULTS = { video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 }, audio: { enabled: false, boost: 6 }, playback: { rate: 1.0, enabled: false }, app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, autoPreset: false } };
+    const P = Object.freeze({ APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll', APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', APP_AUTO_PRESET: 'app.autoPreset', V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix', V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel', A_EN: 'audio.enabled', A_BST: 'audio.boost', PB_RATE: 'playback.rate', PB_EN: 'playback.enabled' });
 
-    const APP_SCHEMA = [ { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV } ];
+    const APP_SCHEMA = [ { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_AUTO_PRESET } ];
     const VIDEO_SCHEMA = [ { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS }, { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB }, { type: 'num', path: P.V_PRE_MIX, min: 0, max: 1, fallback: () => DEFAULTS.video.presetMix }, { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 }, { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 } ];
     const AUDIO_PLAYBACK_SCHEMA = [ { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost }, { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate } ];
 
-    /* [이식 2] Shadow DOM 최적화 (v200 로직 - 발신부) */
+    /* [patch 7-1] attachShadow 패치 — abort 시 원복 추가 */
     if (FEATURE_FLAGS.trackShadowRoots) {
       window.__VSC_INTERNAL__._onShadow = null;
       (function patchAttachShadowOnce() {
@@ -246,6 +259,14 @@
           } catch (_) {}
           if (desc && desc.configurable === false && desc.writable === false) return;
           Object.defineProperty(proto, 'attachShadow', { ...desc, value: wrappedAttachShadow });
+          /* [patch 7-1] abort 시 원복 */
+          __globalSig.addEventListener('abort', () => {
+            try {
+              if (orig && proto.attachShadow === wrappedAttachShadow) {
+                Object.defineProperty(proto, 'attachShadow', { ...desc, value: orig });
+              }
+            } catch (_) {}
+          }, { once: true });
         } catch (e) { log.warn('attachShadow patch failed:', e); }
       })();
     }
@@ -290,7 +311,7 @@
 
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
-    /* [패치 2-7] SPA 이중 패치 방지 — orig.__vsc_patched 체크 추가 */
+    /* [patch 7-2] SPA history 래핑 — abort 시 원복 추가 */
     function initSpaUrlDetector(onChanged) {
       if (window.__VSC_SPA_PATCHED__) return;
       window.__VSC_SPA_PATCHED__ = true;
@@ -300,7 +321,7 @@
       const wrap = (name) => {
         const orig = history[name];
         if (typeof orig !== 'function') return;
-        if (orig.__vsc_patched) return; // [패치 2-7] 이중 래핑 방지
+        if (orig.__vsc_patched) return;
         origHistory[name] = orig;
         window.__VSC_INTERNAL__[`_orig_${name}`] = orig;
         const patched = function (...args) {
@@ -315,9 +336,20 @@
       wrap('pushState'); wrap('replaceState');
       onWin('popstate', emitIfChanged, { passive: true });
       window.__VSC_INTERNAL__._spaOrigHistory = origHistory;
+      /* [patch 7-2] abort 시 원복 */
+      __globalSig.addEventListener('abort', () => {
+        for (const name of Object.keys(origHistory)) {
+          try {
+            if (history[name]?.__vsc_patched && origHistory[name]) {
+              history[name] = origHistory[name];
+            }
+          } catch (_) {}
+        }
+      }, { once: true });
     }
 
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
+    /* [patch 7-4] watchIframes — load 리스너에 __globalSig 전달 */
     function watchIframes() {
       const canAccess = (ifr) => { try { const w = ifr.contentWindow; if (!w) return false; void w.location.href; return true; } catch (_) { return false; } };
       const inject = (ifr) => {
@@ -331,7 +363,7 @@
             if (failCount >= 3) return;
             if (canAccess(ifr)) { tryInject(); failCount = 0; }
             else { failCount++; }
-          }, { passive: true });
+          }, { passive: true, signal: __globalSig });
         }
       };
       document.querySelectorAll("iframe").forEach(inject);
@@ -353,10 +385,15 @@
     }
 
     const fsWraps = new WeakMap();
+    /* [patch Bug 1-2] ensureFsWrapper — DocumentFragment 가드 */
     function ensureFsWrapper(video) {
       if (fsWraps.has(video)) return fsWraps.get(video);
       if (!video || !video.parentNode) return null;
       const parent = video.parentNode;
+      if (!parent.isConnected || parent.nodeType === Node.DOCUMENT_FRAGMENT_NODE) {
+        log.debug('Cannot wrap video: parent is fragment or disconnected');
+        return null;
+      }
       try {
         const rootNode = video.getRootNode();
         if (rootNode instanceof ShadowRoot && video.assignedSlot) {
@@ -382,7 +419,6 @@
       return wrap;
     }
 
-    /* [패치 1-2] restoreFromFsWrapper — srcObject / <source> 체크 추가 */
     function restoreFromFsWrapper(video) {
       const wrap = fsWraps.get(video);
       if (!wrap) return;
@@ -426,26 +462,43 @@
       try { obj[name] = wrappedFn; return true; } catch (_) { return false; }
     }
 
+    /* [patch 7-5] patchFullscreenRequest — origStd/origWebkit 분리 */
     function patchFullscreenRequest(video) {
       const st = getVState(video); if (!video || st.fsPatched) return; st.fsPatched = true;
-      const origReq = video.requestFullscreen || video.webkitRequestFullscreen; if (!origReq) return;
-      const runWrappedFs = function (...args) { const wrap = ensureFsWrapper(video); const cleanupIfNotFullscreen = () => { const fsEl = document.fullscreenElement || document.webkitFullscreenElement; if (!fsEl && fsWraps.has(video)) restoreFromFsWrapper(video); }; if (wrap) { const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen; if (typeof req === 'function') { try { const ret = req.apply(wrap, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; } } } try { const ret = origReq.apply(video, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; } };
-      if (video.requestFullscreen) patchMethodSafe(video, 'requestFullscreen', function (...args) {
-        if (this !== video) return origReq.apply(this, args);
-        return runWrappedFs.call(this, ...args);
+      const origStd = video.requestFullscreen;
+      const origWebkit = video.webkitRequestFullscreen;
+      if (!origStd && !origWebkit) return;
+      const runWrappedFs = function (origFn, ...args) {
+        const wrap = ensureFsWrapper(video);
+        const cleanupIfNotFullscreen = () => { const fsEl = document.fullscreenElement || document.webkitFullscreenElement; if (!fsEl && fsWraps.has(video)) restoreFromFsWrapper(video); };
+        if (wrap) {
+          const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen;
+          if (typeof req === 'function') {
+            try { const ret = req.apply(wrap, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; }
+          }
+        }
+        try { const ret = origFn.apply(video, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; }
+      };
+      if (origStd) patchMethodSafe(video, 'requestFullscreen', function (...args) {
+        if (this !== video) return origStd.apply(this, args);
+        return runWrappedFs.call(this, origStd, ...args);
       });
-      if (video.webkitRequestFullscreen) patchMethodSafe(video, 'webkitRequestFullscreen', function (...args) {
-        if (this !== video) return origReq.apply(this, args);
-        return runWrappedFs.call(this, ...args);
+      if (origWebkit) patchMethodSafe(video, 'webkitRequestFullscreen', function (...args) {
+        if (this !== video) return origWebkit.apply(this, args);
+        return runWrappedFs.call(this, origWebkit, ...args);
       });
     }
 
-    /* [패치 1-1] onFsChange — UI.ensure를 requestAnimationFrame으로 래핑 */
+    /* [patch Bug 1-1] onFsChange — rAF 래핑 + isConnected 가드 */
     function onFsChange() {
       const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
       if (!fsEl) {
-        for (const v of TOUCHED.videos) { if (fsWraps.has(v)) restoreFromFsWrapper(v); }
-        try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
+        requestAnimationFrame(() => {
+          for (const v of TOUCHED.videos) {
+            if (fsWraps.has(v) && v.isConnected) restoreFromFsWrapper(v);
+          }
+          try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
+        });
       }
       if (window.__VSC_UI_Ensure) requestAnimationFrame(() => { try { window.__VSC_UI_Ensure(); } catch (_) {} });
     }
@@ -456,6 +509,7 @@
     function getActivePiPVideo() { if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
+    /* [patch Bug 1-7] enterPiP — 다른 비디오 PiP 전환 시 기존 종료 */
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
       try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
@@ -465,8 +519,14 @@
       st.lastFilterUrl = null;
       if ('documentPictureInPicture' in window && window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') {
         if (__activeDocumentPiPWindow) {
-          if (__activeDocumentPiPWindow.closed) { resetPiPState(); }
-          else { return true; }
+          if (__activeDocumentPiPWindow.closed) {
+            resetPiPState();
+          } else if (__activeDocumentPiPVideo === video) {
+            return true;
+          } else {
+            try { __activeDocumentPiPWindow.close(); } catch (_) {}
+            resetPiPState();
+          }
         }
         try {
           const pipWindow = await window.documentPictureInPicture.requestWindow({ width: Math.max(video.videoWidth / 2, 400), height: Math.max(video.videoHeight / 2, 225) });
@@ -545,13 +605,14 @@
       showOSD('스크린샷 저장됨', 1500);
     }
 
-    /* [이식 4] 줌(Zoom) 기능 - v200 모바일 1손가락 패닝 및 CSS setProperty 개선 로직 적용 */
+    /* [patch 7-7] createZoomManager — destroyed 플래그 추가 */
     function createZoomManager() {
       const stateMap = new WeakMap();
       let activeVideo = null, isPanning = false, startX = 0, startY = 0;
       let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
       const zoomedVideos = new Set();
       let activePointerId = null;
+      let destroyed = false;
 
       const ZOOM_PROPS = ['will-change', 'contain', 'backface-visibility', 'transition', 'transform-origin', 'transform', 'cursor', 'z-index', 'position'];
 
@@ -592,10 +653,12 @@
       }
 
       const update = (v) => {
+        if (destroyed) return;
         pendingUpdates.add(v);
         if (rafId != null) return;
         rafId = requestAnimationFrame(() => {
           rafId = null;
+          if (destroyed) return;
           const batch = [...pendingUpdates];
           pendingUpdates.clear();
           for (const video of batch) {
@@ -744,7 +807,7 @@
         }
       }, { passive: false, capture: true });
 
-      /* [패치 1-8] zoom touchend — isConnected 가드 추가 */
+      /* [patch Bug 1-6] zoom touchend — isConnected 가드 강화 */
       onWin('touchend', e => {
         if (!activeVideo) return;
         if (!activeVideo.isConnected) {
@@ -754,7 +817,8 @@
           return;
         }
         if (e.touches.length < 2) pinchState.active = false;
-        if (e.touches.length === 1 && getSt(activeVideo).scale > 1) {
+        /* [patch Bug 1-6] 1손가락 전환 시 isConnected 체크 */
+        if (e.touches.length === 1 && activeVideo?.isConnected && getSt(activeVideo).scale > 1) {
           isPanning = true;
           const st = getSt(activeVideo);
           st.hasPanned = false;
@@ -771,6 +835,7 @@
         resetZoom, zoomTo, isZoomed,
         pruneDisconnected: () => { for (const v of [...zoomedVideos]) { if (!v?.isConnected) resetZoom(v); } },
         destroy: () => {
+          destroyed = true;
           if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
           pendingUpdates.clear();
           for (const v of [...zoomedVideos]) {
@@ -788,7 +853,7 @@
         }
       };
     }
-// ▼▼▼ PART 2에서 이어짐 (createTargeting) ▼▼▼
+// ▼▼▼ PART 2에서 이어짐 (createTargeting ~ createAudio) ▼▼▼
 // ▲▲▲ PART 1에서 이어짐 ▲▲▲
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
@@ -926,7 +991,6 @@
       };
       const refreshObservers = () => { for (const o of observers) o.disconnect(); observers.clear(); if (!FEATURE_FLAGS.trackShadowRoots) { const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } return; } for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); } const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } };
 
-      /* [이식 2] Shadow DOM 최적화 (v200 로직 - 수신부 직접 할당) */
       if (FEATURE_FLAGS.trackShadowRoots) {
         window.__VSC_INTERNAL__._onShadow = (host, sr) => {
           try {
@@ -972,12 +1036,29 @@
         }
       };
     }
-// ▼▼▼ PART 3에서 이어짐 (createAudio) ▼▼▼
-// ▲▲▲ PART 2에서 이어짐 ▲▲▲
+
+    /* [patch 7-3] createAudio — AudioContext suspended 시 루프 중단 + [patch 8-3] DRM 차등 쿨다운 */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; let __audioLoopTimer = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
-      const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); window.removeEventListener('touchstart', onGesture, true); window.removeEventListener('click', onGesture, true); gestureHooked = false; } } catch (_) {} };
+      const onGesture = async () => {
+        try {
+          if (ctx && ctx.state === 'suspended') {
+            await ctx.resume();
+            /* [patch 7-3] resume 성공 시 루프 재시작 트리거 */
+            if (ctx && ctx.state === 'running') {
+              updateMix();
+            }
+          }
+          if (ctx && ctx.state === 'running' && gestureHooked) {
+            window.removeEventListener('pointerdown', onGesture, true);
+            window.removeEventListener('keydown', onGesture, true);
+            window.removeEventListener('touchstart', onGesture, true);
+            window.removeEventListener('click', onGesture, true);
+            gestureHooked = false;
+          }
+        } catch (_) {}
+      };
       const ensureGestureResumeHook = () => {
         if (gestureHooked) return;
         gestureHooked = true;
@@ -987,8 +1068,14 @@
         }
       };
       const clamp = VSC_CLAMP; const VSC_AUDIO_AUTO_MAKEUP = true;
+      /* [patch 7-3] runAudioLoop — suspended 시 루프 중단 */
       function runAudioLoop(tok) {
         if (tok !== loopTok || !ctx) return;
+        /* [patch 7-3] suspended 상태면 루프 중단, gesture hook이 resume 후 updateMix로 재시작 */
+        if (ctx.state === 'suspended') {
+          makeupDbEma = 0;
+          return;
+        }
         const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         const actuallyEnabled = en && currentSrc;
         if (!actuallyEnabled) {
@@ -1009,11 +1096,9 @@
       }
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
-      /* [패치 2-3] AudioContext closed — 전체 비디오 cooldown 리셋 */
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
           srcMap = new WeakMap();
-          // 현재 target뿐 아니라 모든 touched 비디오의 cooldown도 리셋
           if (target) { const tst = getVState(target); tst.audioFailUntil = 0; }
           for (const v of TOUCHED.videos) {
             const vst = videoStateMap.get(v);
@@ -1053,15 +1138,11 @@
         resetCtx();
         makeupDbEma = 0;
       }
-      return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v && ctx?.state === 'suspended' && !v.paused) { ctx.resume().catch(() => {}); } if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element, marking cooldown'); if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; } disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } if (s.context !== ctx) { srcMap.delete(v); if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; } disconnectAll(); updateMix(); return; } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (e) { log.warn('Audio source connection failed:', e); if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
+      /* [patch 8-3] setTarget 내 DRM 차등 쿨다운 적용 */
+      return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v && ctx?.state === 'suspended' && !v.paused) { ctx.resume().catch(() => {}); } if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element, marking cooldown'); const cooldown = __rateBlockedSite ? GUARD.AUDIO_SRC_COOLDOWN_DRM : GUARD.AUDIO_SRC_COOLDOWN; if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + cooldown; } disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } if (s.context !== ctx) { srcMap.delete(v); const cooldown = __rateBlockedSite ? GUARD.AUDIO_SRC_COOLDOWN_DRM : GUARD.AUDIO_SRC_COOLDOWN; if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + cooldown; } disconnectAll(); updateMix(); return; } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (e) { log.warn('Audio source connection failed:', e); const cooldown = __rateBlockedSite ? GUARD.AUDIO_SRC_COOLDOWN_DRM : GUARD.AUDIO_SRC_COOLDOWN; if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + cooldown; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
-    // === AUTO SCENE V2 패치 ===
-// createAutoSceneManager 함수를 아래로 교체
-
-// ══════════════════════════════════════════════════════════════
-// Auto Scene V3 — 히스토그램 직접 톤 매핑 + 채널별 보정
-// ══════════════════════════════════════════════════════════════
+    // === AUTO SCENE V3 ===
 
 function createAutoSceneManager(Store, P, Scheduler) {
   const clamp = VSC_CLAMP;
@@ -1070,20 +1151,17 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return Math.abs(d) < dead ? tgt : cur + d * a;
   };
 
-  // ── 상수 ──
   const HIST_BINS = 256;
-  const TONE_STEPS = 256;    // feComponentTransfer table 길이
+  const TONE_STEPS = 256;
   const CANVAS_W = 64, CANVAS_H = 36;
   const ZONE_COLS = 3, ZONE_ROWS = 3, ZONE_COUNT = 9;
 
-  // ── 장면 유형 ──
   const ST = Object.freeze({
     NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3,
     LOW_SAT: 4, SKIN: 5, BACKLIT: 6
   });
   const ST_NAMES = ['NORMAL','LOW_KEY','HIGH_KEY','HI_CONT','LOW_SAT','SKIN','BACKLIT'];
 
-  // ── 피부톤 간이 판별 ──
   function isSkinTone(r, g, b) {
     if (r < 80 || g < 30 || b < 15) return false;
     if (r <= g || r <= b) return false;
@@ -1092,10 +1170,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return (r > 95 && g > 40 && b > 20 && (mx - mn) > 15 &&
             Math.abs(r - g) > 15 && r > g && r > b);
   }
-
-  // ══════════════════════════════════════════════
-  //  핵심 1: 히스토그램에서 직접 톤 커브 생성
-  // ══════════════════════════════════════════════
 
   function buildAdaptiveToneCurve(hist, totalSamples, params) {
     const {
@@ -1110,7 +1184,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
     const n = Math.max(1, totalSamples);
     const bins = HIST_BINS;
 
-    // Step 1: 클리핑된 히스토그램 (CLAHE 방식)
     const clipped = new Float64Array(bins);
     const limit = (n / bins) * clipLimit;
     let excess = 0;
@@ -1125,20 +1198,17 @@ function createAutoSceneManager(Store, P, Scheduler) {
     const perBin = excess / bins;
     for (let i = 0; i < bins; i++) clipped[i] += perBin;
 
-    // Step 2: CDF 계산
     const cdf = new Float64Array(bins);
     cdf[0] = clipped[0];
     for (let i = 1; i < bins; i++) cdf[i] = cdf[i - 1] + clipped[i];
     const cdfMin = cdf[0];
     const cdfRange = Math.max(1, cdf[bins - 1] - cdfMin);
 
-    // Step 3: 이퀄라이즈된 매핑
     const equalized = new Float64Array(bins);
     for (let i = 0; i < bins; i++) {
       equalized[i] = (cdf[i] - cdfMin) / cdfRange;
     }
 
-    // Step 4: 영역별 보호 가중치
     const identity = new Float64Array(bins);
     for (let i = 0; i < bins; i++) identity[i] = i / (bins - 1);
 
@@ -1170,17 +1240,12 @@ function createAutoSceneManager(Store, P, Scheduler) {
       curve[i] = clamp(y, 0, 1);
     }
 
-    // Step 5: 단조 증가 보장
     for (let i = 1; i < TONE_STEPS; i++) {
       if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1];
     }
 
     return curve;
   }
-
-  // ══════════════════════════════════════════════
-  //  핵심 2: 채널별 색온도/색 균형 커브
-  // ══════════════════════════════════════════════
 
   function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
     const n = Math.max(1, totalSamples);
@@ -1205,33 +1270,25 @@ function createAutoSceneManager(Store, P, Scheduler) {
     const gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.80);
     const bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength;
 
-    // 1. 기본 채널 게인 계산 및 1차 클램프
-  let finalRG = VSC_CLAMP(rGain, 0.92, 1.08);
-  let finalGG = VSC_CLAMP(gGain, 0.94, 1.06);
-  let finalBG = VSC_CLAMP(bGain, 0.85, 1.15);
+    let finalRG = VSC_CLAMP(rGain, 0.92, 1.08);
+    let finalGG = VSC_CLAMP(gGain, 0.94, 1.06);
+    let finalBG = VSC_CLAMP(bGain, 0.85, 1.15);
 
-  // 2. [추가] 모바일 기기일 경우에만 오프셋 적용
-  if (CONFIG.IS_MOBILE && typeof MOBILE_COLOR_BIAS !== 'undefined') {
-    finalRG *= MOBILE_COLOR_BIAS.r;
-    finalGG *= MOBILE_COLOR_BIAS.g;
-    finalBG *= MOBILE_COLOR_BIAS.b;
+    if (CONFIG.IS_MOBILE && typeof MOBILE_COLOR_BIAS !== 'undefined') {
+      finalRG *= MOBILE_COLOR_BIAS.r;
+      finalGG *= MOBILE_COLOR_BIAS.g;
+      finalBG *= MOBILE_COLOR_BIAS.b;
 
-    // 보정 후 다시 한번 안전하게 클램프 (과도한 변색 방지)
-    finalRG = VSC_CLAMP(finalRG, 0.85, 1.15);
-    finalBG = VSC_CLAMP(finalBG, 0.85, 1.20);
+      finalRG = VSC_CLAMP(finalRG, 0.85, 1.15);
+      finalBG = VSC_CLAMP(finalBG, 0.85, 1.20);
+    }
+
+    return {
+      rGain: finalRG,
+      gGain: finalGG,
+      bGain: finalBG
+    };
   }
-
-  // 3. 최종 결과 반환
-  return {
-    rGain: finalRG,
-    gGain: finalGG,
-    bGain: finalBG
-  };
-      }
-
-  // ══════════════════════════════════════════════
-  //  핵심 3: 장면 분류 (역광 감지 추가)
-  // ══════════════════════════════════════════════
 
   function classifyScene(stats, zoneStats) {
     if (zoneStats) {
@@ -1249,6 +1306,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return ST.NORMAL;
   }
 
+  /* [patch 8-1] BACKLIT midtoneBoost 0.15→0.12 */
   const SCENE_TONE_PARAMS = Object.freeze({
     [ST.NORMAL]:        { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.05, strength: 0.30, satTarget: 1.06 },
     [ST.LOW_KEY]:       { clipLimit: 3.0, shadowProtect: 0.55, highlightProtect: 0.20, midtoneBoost: 0.10, strength: 0.25, satTarget: 1.02 },
@@ -1256,12 +1314,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
     [ST.HIGH_CONTRAST]: { clipLimit: 1.8, shadowProtect: 0.40, highlightProtect: 0.40, midtoneBoost: 0.0, strength: 0.18, satTarget: 1.02 },
     [ST.LOW_SAT]:       { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.28, satTarget: 1.15 },
     [ST.SKIN]:          { clipLimit: 2.0, shadowProtect: 0.40, highlightProtect: 0.35, midtoneBoost: 0.02, strength: 0.18, satTarget: 1.03 },
-    [ST.BACKLIT]:       { clipLimit: 3.5, shadowProtect: 0.20, highlightProtect: 0.50, midtoneBoost: 0.15, strength: 0.40, satTarget: 1.05 },
+    [ST.BACKLIT]:       { clipLimit: 3.5, shadowProtect: 0.20, highlightProtect: 0.50, midtoneBoost: 0.12, strength: 0.40, satTarget: 1.05 },
   });
-
-  // ══════════════════════════════════════════════
-  //  핵심 4: 시간적 커브 보간 (플리커 방지)
-  // ══════════════════════════════════════════════
 
   let prevToneCurve = null;
   let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 };
@@ -1283,10 +1337,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
       bGain: prev.bGain + (next.bGain - prev.bGain) * alpha,
     };
   }
-
-  // ══════════════════════════════════════════════
-  //  핵심 5: 멀티스케일 컷 감지
-  // ══════════════════════════════════════════════
 
   const CUT_HIST_LEN = 30;
   const cutScores = [];
@@ -1316,20 +1366,12 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return { isCut, isFade, score };
   }
 
-  // ══════════════════════════════════════════════
-  //  플리커 감쇠
-  // ══════════════════════════════════════════════
-
   let flickerCount = 0, lastCurveDir = 0;
   function getTemporalAlpha(isCut, isFade) {
     const base = isCut ? 0.30 : (isFade ? 0.10 : 0.04);
     const dampen = 1 / (1 + flickerCount * 0.4);
     return base * dampen;
   }
-
-  // ══════════════════════════════════════════════
-  //  메인 분석 함수
-  // ══════════════════════════════════════════════
 
   function computeFullAnalysis(data, sw, sh) {
     const step = 2;
@@ -1412,10 +1454,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
     };
   }
 
-  // ══════════════════════════════════════════════
-  //  출력 모델
-  // ══════════════════════════════════════════════
-
   function curveToApproxParams(curve, satMul, channelGains) {
     const mid = curve[128];
     let gamma = 1.0;
@@ -1448,10 +1486,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
       _toneCurve: curve
     };
   }
-
-  // ══════════════════════════════════════════════
-  //  메인 루프
-  // ══════════════════════════════════════════════
 
   const AUTO = {
     running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
@@ -1640,7 +1674,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
     }
   }
 
-  /* [패치 1-7] 전체 모듈 상태 리셋 헬퍼 */
   function resetAllModuleState() {
     AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
     AUTO.statsEma = null;
@@ -1665,11 +1698,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
   Store.sub(P.APP_AUTO_SCENE, (en) => {
     if (en && !AUTO.running) {
       drmRetryCount = 0; AUTO.running = true;
-      resetAllModuleState(); // [패치 1-7]
+      resetAllModuleState();
       loop();
     } else if (!en) {
       AUTO.running = false;
-      resetAllModuleState(); // [패치 1-7]
+      resetAllModuleState();
       Scheduler.request(true);
     }
   });
@@ -1690,15 +1723,14 @@ function createAutoSceneManager(Store, P, Scheduler) {
         drmRetryCount = 0; AUTO.running = true; loop();
       }
     },
-    /* [패치 1-7] stop()에서 전체 상태 리셋 */
     stop: () => {
       AUTO.running = false;
       resetAllModuleState();
     }
   };
 }
-// ▼▼▼ PART 4에서 이어짐 (createFiltersVideoOnly) ▼▼▼
-// ▲▲▲ PART 3에서 이어짐 ▲▲▲
+// ▼▼▼ PART 3에서 이어짐 (createFiltersVideoOnly ~ createUI) ▼▼▼
+// ▲▲▲ PART 2에서 이어짐 ▲▲▲
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(64);
@@ -2070,20 +2102,16 @@ function createAutoSceneManager(Store, P, Scheduler) {
       return out;
     }
 
-    /* [패치 1-6] composeVideoParamsInto — toneCurve 존재 시 scalar 보정 skip */
     function composeVideoParamsInto(out, vUser, autoMods) {
       composeBaseVideoParams(out, vUser);
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
 
       if (autoMods._toneCurve) {
-        // 톤 커브가 직접 주입되므로 scalar br/ct 보정은 skip
-        // (커브에 이미 gamma/contrast/brightness가 반영되어 있음)
         out.satF = (out.satF || 1.0) * autoMods.sat;
         out._autoToneCurve = autoMods._toneCurve;
         out._autoChannelGains = autoMods._channelGains || null;
       } else {
-        // fallback: 톤 커브 없을 때만 scalar 보정 적용
         out.gain = (out.gain || 1.0) * autoMods.br;
         out.contrast = (out.contrast || 1.0) * autoMods.ct;
         out.satF = (out.satF || 1.0) * autoMods.sat;
@@ -2092,7 +2120,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
       return out;
     }
 
-    /* [패치 2-2] isNeutralVideoParams — _autoToneCurve/_autoChannelGains 검사 추가 */
     const isNeutralVideoParams = (v) => (
       !v._autoToneCurve &&
       !v._autoChannelGains &&
@@ -2110,7 +2137,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
       Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
-    /* [패치 2-1] videoParamsMemo — 키에 toneCurve/channelGains 시그니처 포함 */
     function createVideoParamsMemo(Store, P, Utils) {
       let lastKey = ''; let lastResult = null;
       const sigVideo = (vf) => [
@@ -2165,7 +2191,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
       zoom: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
       camera: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`,
       sparkles: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/></svg>`,
-      palette: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`
+      palette: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="0.5" fill="currentColor"/><circle cx="17.5" cy="10.5" r="0.5" fill="currentColor"/><circle cx="8.5" cy="7.5" r="0.5" fill="currentColor"/><circle cx="6.5" cy="12.5" r="0.5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 011.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>`,
+      wand: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8L19 13M17.8 6.2L19 5M12.2 11.8L11 13M12.2 6.2L11 5"/><line x1="15" y1="9" x2="3" y2="21"/></svg>`
     });
 
     function svgIcon(name) {
@@ -2179,6 +2206,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true });
     onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
 
+    /* [patch Bug 1-8] showOSD — 이전 타이머 정리 */
     let __osdEl = null;
     function showOSD(text, durationMs = 1200) {
       if (!__osdReady || !document.body) return;
@@ -2186,7 +2214,10 @@ function createAutoSceneManager(Store, P, Scheduler) {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         const root = fsEl || document.body || document.documentElement;
         if (!__osdEl || !__osdEl.isConnected || __osdEl.parentNode !== root) {
-          if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} }
+          if (__osdEl) {
+            clearTimeout(__osdEl._timer);
+            if (__osdEl.isConnected) { try { __osdEl.remove(); } catch (_) {} }
+          }
           __osdEl = document.createElement('div'); __osdEl.id = 'vsc-osd';
           __osdEl.style.cssText = `position: fixed; top: 48px; left: 50%; transform: translateX(-50%); background: rgba(18,18,22,0.90); backdrop-filter: blur(20px) saturate(180%); color: rgba(255,255,255,0.92); padding: 10px 24px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); font: 600 13px/1.4 -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.18s ease; box-shadow: 0 8px 32px rgba(0,0,0,0.35); letter-spacing: 0.3px; white-space: pre-line;`;
           try { root.appendChild(__osdEl); } catch (_) { return; }
@@ -2197,6 +2228,16 @@ function createAutoSceneManager(Store, P, Scheduler) {
       } catch (_) {}
     }
 
+    /* [patch 10-1] 해상도별 자동 프리셋 함수 */
+    function getAutoPresetForResolution(videoHeight) {
+      const h = videoHeight || 0;
+      if (h <= 480) return 'L';
+      if (h <= 720) return 'M';
+      if (h <= 1080) return 'S';
+      return 'off';
+    }
+
+    /* [patch 11-전면] createUI — UI 전면 재구성 */
     function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils; let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0; const uiWakeCtrl = new AbortController(), bag = createDisposerBag(), sub = (k, fn) => bag.add(sm.sub(k, fn)); const detachNodesHard = () => { try { if (container?.isConnected) container.remove(); } catch (_) {} try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {} };
       const allowUiInThisDoc = () => { if (registry.videos.size > 0) return true; const hasVideoElements = !!document.querySelector('video, object, embed'); if (hasVideoElements) return true; return false; };
@@ -2206,13 +2247,16 @@ function createAutoSceneManager(Store, P, Scheduler) {
       function bindClassToggle(btn, path, isActive) { const sync = () => { if (btn) btn.classList.toggle('active', isActive(sm.get(path))); }; sub(path, sync); sync(); return sync; }
       function bindStyle(btn, path, apply) { const sync = () => { if (btn) apply(btn, sm.get(path)); }; sub(path, sync); sync(); return sync; }
       function bindRateButtonActive(b, speed, sm, sub, P) { const sync = () => { const isEn = !!sm.get(P.PB_EN); const v = Number(sm.get(P.PB_RATE) || 1); b.classList.toggle('active', isEn && Math.abs(v - speed) < 0.01); }; sub(P.PB_RATE, sync); sub(P.PB_EN, sync); sync(); }
+      /* [patch 11-3] renderPresetRow — PRESET_LABELS 활용 */
       function renderPresetRow({ items, key, offValue = null, toggleActiveToOff = false }) { const row = h('div', { class: 'row' }); const addBtn = (text, value) => { const b = h('button', { class: 'preset-btn' }, text); b.onclick = () => { const cur = sm.get(key); if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) { setAndHint(key, offValue); } else { setAndHint(key, value); } }; bindClassToggle(b, key, v => v === value); row.append(b); }; for (const it of items) addBtn(it.text, it.value); if (offValue !== undefined && offValue !== null && !items.some(it => it.value === offValue)) { const off = h('button', { class: 'preset-btn', style: 'flex:0.7' }, 'OFF'); off.onclick = () => setAndHint(key, offValue); bindClassToggle(off, key, v => v === offValue); row.append(off); } return row; }
       function renderShadowBandMaskRow({ key = P.V_SHADOW_MASK }) { const row = h('div', { class: 'row' }); const items = [ { text: '외암', bit: SHADOW_BAND.OUTER, title: '옅은 암부 진하게' }, { text: '중암', bit: SHADOW_BAND.MID, title: '가운데 암부 진하게' }, { text: '심암', bit: SHADOW_BAND.DEEP, title: '가장 진한 블랙' } ]; for (const it of items) { const b = h('button', { class: 'preset-btn', title: it.title }, it.text); b.onclick = () => { sm.set(key, ShadowMask.toggle(sm.get(key), it.bit)); ApplyReq.hard(); }; bindClassToggle(b, key, v => ShadowMask.has(v, it.bit)); row.append(b); } const off = h('button', { class: 'preset-btn', style: 'flex:0.7' }, 'OFF'); off.onclick = () => { sm.set(key, 0); ApplyReq.hard(); }; bindClassToggle(off, key, v => (Number(v) | 0) === 0); row.append(off); return row; }
 
       const build = () => {
         if (container) return;
         const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' }); const shadow = host.attachShadow({ mode: 'open' });
-        const style = `:host{all:initial}*{box-sizing:border-box}.panel{position:fixed;top:50%;right:70px;transform:translateY(-50%);width:300px;background:rgba(18,18,22,0.97);backdrop-filter:blur(16px) saturate(180%);color:#e8e8ec;padding:0;border-radius:14px;z-index:2147483647;border:1px solid rgba(255,255,255,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05) inset;overflow:hidden;max-height:90vh;display:flex;flex-direction:column}.header{padding:14px 16px 12px;cursor:move;user-select:none;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;gap:8px}.header-title{font-size:13px;font-weight:700;letter-spacing:0.5px;color:rgba(255,255,255,0.9)}.header-info{font-size:10px;color:rgba(255,255,255,0.3);font-weight:500;font-variant-numeric:tabular-nums;flex:1;text-align:center}.header-ver{font-size:10px;color:rgba(255,255,255,0.3);font-weight:500}.tab-bar{display:flex;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 8px}.tab{flex:1;padding:10px 4px 8px;text-align:center;cursor:pointer;border-bottom:2px solid transparent;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);transition:all 0.15s;user-select:none}.tab:hover{color:rgba(255,255,255,0.6)}.tab.active{color:#60a5fa;border-bottom-color:#3b82f6}.tab-icon{display:block;font-size:16px;margin-bottom:2px}.tab-icon svg{display:inline-block;vertical-align:middle}.tab-content{display:none;padding:10px 12px;overflow-y:auto;flex:1}.tab-content.active{display:block}.drag-indicator{display:none;width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:8px auto 4px}.section{margin-bottom:10px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.04)}.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);margin-bottom:8px}.row{display:flex;gap:4px;margin-bottom:4px;align-items:center}.row:last-child{margin-bottom:0}.btn{flex:1;height:36px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.82);cursor:pointer;font-size:12px;font-weight:600;transition:all 0.12s ease;display:flex;align-items:center;justify-content:center;gap:4px}.btn:hover{background:rgba(255,255,255,0.12)}.btn:active{transform:scale(0.97)}.btn.active{background:rgba(59,130,246,0.25);border-color:rgba(59,130,246,0.5);color:#60a5fa}.btn.danger{color:#f87171;border-color:rgba(248,113,113,0.3)}.btn.danger:hover{background:rgba(248,113,113,0.15)}.btn.success{color:#4ade80;border-color:rgba(74,222,128,0.3)}.btn-sm{height:30px;font-size:11px}.preset-btn{flex:1;height:32px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;font-weight:700;transition:all 0.12s ease}.preset-btn:hover{background:rgba(255,255,255,0.10)}.preset-btn.active{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.5);color:#fbbf24}.speed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.divider{height:1px;background:rgba(255,255,255,0.04);margin:6px 0}.footer{padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:4px}.icon{font-size:14px;line-height:1;display:inline-flex;align-items:center}.icon svg{display:block}input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none;cursor:pointer}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid rgba(255,255,255,0.2)}input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid rgba(255,255,255,0.2)}.speed-display{flex:1;text-align:center;font-size:14px;font-weight:700;color:#e8e8ec;line-height:30px;font-variant-numeric:tabular-nums}@media(max-width:480px){.panel{position:fixed!important;top:auto!important;bottom:0!important;left:0!important;right:auto!important;width:100%!important;max-height:70vh!important;border-radius:14px 14px 0 0!important;transform:none!important;transition:transform 0.3s cubic-bezier(0.32,0.72,0,1)!important}.drag-indicator{display:block}}`;
+
+        /* [patch 11-전면] CSS 전면 재구성 — 반응형 폭, 섹션 색코딩, 탭 아이콘 정렬, 바텀시트 개선 */
+        const style = `:host{all:initial}*{box-sizing:border-box}.panel{position:fixed;top:50%;right:70px;transform:translateY(-50%);width:min(320px, calc(100vw - 40px));background:rgba(18,18,22,0.97);backdrop-filter:blur(16px) saturate(180%);color:#e8e8ec;padding:0;border-radius:14px;z-index:2147483647;border:1px solid rgba(255,255,255,0.08);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05) inset;overflow:hidden;max-height:90vh;display:flex;flex-direction:column}@media(min-width:1200px){.panel{width:340px}}.header{padding:14px 16px 12px;cursor:move;user-select:none;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;gap:8px}.header-title{font-size:13px;font-weight:700;letter-spacing:0.5px;color:rgba(255,255,255,0.9)}.header-info{font-size:10px;color:rgba(255,255,255,0.3);font-weight:500;font-variant-numeric:tabular-nums;flex:1;text-align:center}.header-ver{font-size:10px;color:rgba(255,255,255,0.3);font-weight:500}.tab-bar{display:flex;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 8px}.tab{flex:1;padding:10px 4px 8px;text-align:center;cursor:pointer;border-bottom:2px solid transparent;font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);transition:all 0.15s;user-select:none}.tab:hover{color:rgba(255,255,255,0.6)}.tab.active{color:#60a5fa;border-bottom-color:#3b82f6}.tab-icon{display:flex;align-items:center;justify-content:center;width:18px;height:18px;margin:0 auto 3px}.tab-icon svg{width:16px;height:16px;display:block}.tab-content{display:none;padding:10px 12px;overflow-y:auto;flex:1}.tab-content.active{display:block}.tab-content[data-tab="video"] .section{border-left:2px solid rgba(96,165,250,0.3)}.tab-content[data-tab="audio"] .section{border-left:2px solid rgba(251,191,36,0.3)}.tab-content[data-tab="speed"] .section{border-left:2px solid rgba(74,222,128,0.3)}.tab-content[data-tab="tools"] .section{border-left:2px solid rgba(167,139,250,0.3)}.drag-indicator{display:none;width:36px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;margin:8px auto 4px}.section{margin-bottom:10px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.04)}.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);margin-bottom:8px}.row{display:flex;gap:4px;margin-bottom:4px;align-items:center}.row:last-child{margin-bottom:0}.btn{flex:1;height:36px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.82);cursor:pointer;font-size:12px;font-weight:600;transition:all 0.12s ease;display:flex;align-items:center;justify-content:center;gap:4px}.btn:hover{background:rgba(255,255,255,0.12)}.btn:active{transform:scale(0.97)}.btn.active{background:rgba(59,130,246,0.25);border-color:rgba(59,130,246,0.5);color:#60a5fa}.btn.danger{color:#f87171;border-color:rgba(248,113,113,0.3)}.btn.danger:hover{background:rgba(248,113,113,0.15)}.btn.success{color:#4ade80;border-color:rgba(74,222,128,0.3)}.btn-sm{height:30px;font-size:11px}.preset-btn{flex:1;height:32px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;font-weight:700;transition:all 0.12s ease}.preset-btn:hover{background:rgba(255,255,255,0.10)}.preset-btn.active{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.5);color:#fbbf24}.speed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.divider{height:1px;background:rgba(255,255,255,0.04);margin:6px 0}.footer{padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:4px}.icon{font-size:14px;line-height:1;display:inline-flex;align-items:center}.icon svg{display:block}input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none;cursor:pointer}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid rgba(255,255,255,0.2)}input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid rgba(255,255,255,0.2)}.speed-display{flex:1;text-align:center;font-size:14px;font-weight:700;color:#e8e8ec;line-height:30px;font-variant-numeric:tabular-nums}.custom-speed-input{flex:1;height:28px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#e8e8ec;padding:0 8px;font-size:12px;font-weight:600;text-align:center;outline:none;font-variant-numeric:tabular-nums;-moz-appearance:textfield}.custom-speed-input::-webkit-inner-spin-button,.custom-speed-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}@media(max-width:480px){.panel{position:fixed!important;top:auto!important;bottom:0!important;left:0!important;right:auto!important;width:100%!important;max-height:70vh!important;border-radius:14px 14px 0 0!important;transform:none!important;transition:transform 0.3s cubic-bezier(0.32,0.72,0,1)!important}.drag-indicator{display:block}}`;
         applyShadowStyle(shadow, style, h);
 
         const videoInfo = h('span', { class: 'header-info' });
@@ -2272,17 +2316,21 @@ function createAutoSceneManager(Store, P, Scheduler) {
             renderPresetRow({ key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
             h('div', { class: 'divider' }),
             h('div', { class: 'section-label' }, '밝기 등급'),
-            renderPresetRow({ key: P.V_PRE_B, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'off').map(k => ({ text: k, value: k })) })
+            /* [patch 11-3] grade 프리셋도 한국어 라벨 적용 */
+            renderPresetRow({ key: P.V_PRE_B, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'off').map(k => ({ text: PRESET_LABELS.grade[k] || k, value: k })) })
           )
         );
         bindStyle(advContainer, P.APP_ADV, (el, v) => { el.style.display = v ? 'block' : 'none'; });
 
+        /* [patch 11-3 + 10-1] 비디오 섹션 — 한국어 라벨 + 자동 프리셋 버튼 */
         const videoSection = h('div', {},
           h('div', { class: 'section' },
             h('div', { class: 'section-label' }, '비디오 효과'),
-            renderPresetRow({ key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: k, value: k })) }),
+            renderPresetRow({ key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: PRESET_LABELS.detail[k] || k, value: k })) }),
             h('div', { class: 'row', style: 'margin-top:6px' },
-              (() => { const autoBtn = h('button', { class: 'btn' }); autoBtn.append(svgIcon('sparkles'), document.createTextNode(' Auto')); autoBtn.onclick = () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); bindClassToggle(autoBtn, P.APP_AUTO_SCENE, v => !!v); return autoBtn; })()
+              (() => { const autoBtn = h('button', { class: 'btn' }); autoBtn.append(svgIcon('sparkles'), document.createTextNode(' Auto Scene')); autoBtn.onclick = () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); bindClassToggle(autoBtn, P.APP_AUTO_SCENE, v => !!v); return autoBtn; })(),
+              /* [patch 10-1] 자동 프리셋 버튼 */
+              (() => { const apBtn = h('button', { class: 'btn' }); apBtn.append(svgIcon('wand'), document.createTextNode(' 자동')); apBtn.onclick = () => setAndHint(P.APP_AUTO_PRESET, !sm.get(P.APP_AUTO_PRESET)); bindClassToggle(apBtn, P.APP_AUTO_PRESET, v => !!v); return apBtn; })()
             )
           ),
           advToggleBtn,
@@ -2309,6 +2357,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
           )
         );
 
+        /* [patch 11-5 추가] 속도 섹션 — 커스텀 속도 입력 필드 추가 */
         const speedSection = h('div', {},
           h('div', { class: 'section' },
             h('div', { class: 'section-label' }, '재생 속도'),
@@ -2320,6 +2369,23 @@ function createAutoSceneManager(Store, P, Scheduler) {
               (() => { const display = h('span', { class: 'speed-display' }); const sync = () => { const rate = sm.get(P.PB_EN) ? Number(sm.get(P.PB_RATE) || 1) : 1; display.textContent = rate.toFixed(1) + 'x'; }; sub(P.PB_RATE, sync); sub(P.PB_EN, sync); sync(); return display; })(),
               (() => { const plusBtn = h('button', { class: 'btn btn-sm', style: 'flex:0.8' }, '+0.1'); plusBtn.onclick = () => { const cur = Number(sm.get(P.PB_RATE) || 1); const next = Math.round(VSC_CLAMP(cur + 0.1, 0.1, 16) * 10) / 10; setAndHint(P.PB_RATE, next); setAndHint(P.PB_EN, true); }; return plusBtn; })(),
               (() => { const resetBtn = h('button', { class: 'btn btn-sm', style: 'flex:0.7' }, '1x'); resetBtn.onclick = () => { setAndHint(P.PB_RATE, 1.0); setAndHint(P.PB_EN, false); }; return resetBtn; })()
+            ),
+            /* [patch 11-5] 커스텀 속도 입력 */
+            h('div', { class: 'row', style: 'margin-top:6px;align-items:center;gap:6px' },
+              h('span', { style: 'font-size:10px;color:rgba(255,255,255,0.4)' }, '직접입력:'),
+              (() => {
+                const input = h('input', { type: 'number', min: '0.1', max: '16', step: '0.05', class: 'custom-speed-input' });
+                input.value = sm.get(P.PB_RATE) || 1;
+                input.addEventListener('change', () => {
+                  const val = VSC_CLAMP(parseFloat(input.value) || 1, 0.1, 16);
+                  input.value = val;
+                  setAndHint(P.PB_RATE, val);
+                  setAndHint(P.PB_EN, true);
+                });
+                input.addEventListener('keydown', (e) => e.stopPropagation());
+                sm.sub(P.PB_RATE, (v) => { input.value = Number(v).toFixed(2); });
+                return input;
+              })()
             )
           )
         );
@@ -2359,10 +2425,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
           )
         );
 
-        tabContents.video = h('div', { class: `tab-content${activeTabId === 'video' ? ' active' : ''}` }, videoSection);
-        tabContents.audio = h('div', { class: `tab-content${activeTabId === 'audio' ? ' active' : ''}` }, audioSection);
-        tabContents.speed = h('div', { class: `tab-content${activeTabId === 'speed' ? ' active' : ''}` }, speedSection);
-        tabContents.tools = h('div', { class: `tab-content${activeTabId === 'tools' ? ' active' : ''}` }, toolsSection);
+        /* [patch 11-7] 탭 콘텐츠에 data-tab 속성 추가 (섹션 색코딩 CSS 연결) */
+        tabContents.video = h('div', { class: `tab-content${activeTabId === 'video' ? ' active' : ''}`, 'data-tab': 'video' }, videoSection);
+        tabContents.audio = h('div', { class: `tab-content${activeTabId === 'audio' ? ' active' : ''}`, 'data-tab': 'audio' }, audioSection);
+        tabContents.speed = h('div', { class: `tab-content${activeTabId === 'speed' ? ' active' : ''}`, 'data-tab': 'speed' }, speedSection);
+        tabContents.tools = h('div', { class: `tab-content${activeTabId === 'tools' ? ' active' : ''}`, 'data-tab': 'tools' }, toolsSection);
 
         const contentArea = h('div', { style: 'flex:1;overflow-y:auto;' });
         for (const [id, el] of Object.entries(tabContents)) contentArea.append(el);
@@ -2370,17 +2437,44 @@ function createAutoSceneManager(Store, P, Scheduler) {
         const footer = h('div', { class: 'footer' },
           h('button', { class: 'btn btn-sm', onclick: () => sm.set(P.APP_UI, false) }, '\u2715 닫기'),
           (() => { const pwrBtn = h('button', { class: 'btn btn-sm' }); pwrBtn.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); bindStyle(pwrBtn, P.APP_ACT, (el, v) => { el.className = 'btn btn-sm ' + (v ? 'success' : 'danger'); el.innerHTML = ''; el.append(svgIcon('zap'), document.createTextNode(v ? ' ON' : ' OFF')); }); return pwrBtn; })(),
-          h('button', { class: 'btn btn-sm', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); ApplyReq.hard(); } }, '\u21BA 리셋')
+          h('button', { class: 'btn btn-sm', onclick: () => { sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); sm.set(P.APP_AUTO_PRESET, false); ApplyReq.hard(); } }, '\u21BA 리셋')
         );
 
         const mainPanel = h('div', { class: 'panel' }, dragIndicator, dragHandle, tabBar, contentArea, footer);
         blockInterference(mainPanel);
 
+        /* [patch 11-6] 모바일 바텀시트 — 속도 기반 dismiss */
         if (CONFIG.IS_MOBILE) {
-          let sheetStartY = 0, sheetDragging = false;
-          dragIndicator.addEventListener('touchstart', (e) => { sheetStartY = e.touches[0].clientY; sheetDragging = true; mainPanel.style.transition = 'none'; }, { passive: true });
-          window.addEventListener('touchmove', (e) => { if (!sheetDragging) return; const dy = e.touches[0].clientY - sheetStartY; if (dy > 0) mainPanel.style.transform = `translateY(${dy}px)`; }, { passive: true, signal: __globalSig });
-          window.addEventListener('touchend', () => { if (!sheetDragging) return; sheetDragging = false; mainPanel.style.transition = ''; const current = parseFloat(mainPanel.style.transform.replace(/[^0-9.\-]/g, '')) || 0; if (current > 100) sm.set(P.APP_UI, false); mainPanel.style.transform = ''; }, { passive: true, signal: __globalSig });
+          let sheetStartY = 0, sheetDragging = false, lastTouchY = 0, velocity = 0, lastTouchTime = 0;
+          dragIndicator.addEventListener('touchstart', (e) => { sheetStartY = e.touches[0].clientY; lastTouchY = sheetStartY; lastTouchTime = performance.now(); velocity = 0; sheetDragging = true; mainPanel.style.transition = 'none'; }, { passive: true });
+          window.addEventListener('touchmove', (e) => {
+            if (!sheetDragging) return;
+            const currentY = e.touches[0].clientY;
+            const dy = currentY - sheetStartY;
+            const now = performance.now();
+            if (lastTouchTime > 0) {
+              const dt = Math.max(1, now - lastTouchTime);
+              velocity = (currentY - lastTouchY) / dt;
+            }
+            lastTouchY = currentY;
+            lastTouchTime = now;
+            if (dy > 0) mainPanel.style.transform = `translateY(${dy}px)`;
+          }, { passive: true, signal: __globalSig });
+          window.addEventListener('touchend', () => {
+            if (!sheetDragging) return;
+            sheetDragging = false;
+            mainPanel.style.transition = 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)';
+            const current = parseFloat(mainPanel.style.transform.replace(/[^0-9.\-]/g, '')) || 0;
+            const panelHeight = mainPanel.getBoundingClientRect().height;
+            const dismissed = current > panelHeight * 0.35 || velocity > 0.5;
+            if (dismissed) {
+              mainPanel.style.transform = `translateY(${panelHeight}px)`;
+              setTimeout(() => { sm.set(P.APP_UI, false); mainPanel.style.transform = ''; }, 300);
+            } else {
+              mainPanel.style.transform = 'translateY(0)';
+            }
+            velocity = 0; lastTouchTime = 0;
+          }, { passive: true, signal: __globalSig });
         }
 
         shadow.append(mainPanel);
@@ -2389,6 +2483,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
         container = host; getUiRoot().appendChild(container);
       };
 
+      /* [patch 11-4] ensureGear — 동적 title 표시 */
       const ensureGear = () => {
         if (!allowUiInThisDoc()) return; if (gearHost) return;
         gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' }); const shadow = gearHost.attachShadow({ mode: 'open' });
@@ -2403,6 +2498,22 @@ function createAutoSceneManager(Store, P, Scheduler) {
         window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); bootWakeTimer = setTimeout(wake, 2000);
         const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY; const rect = gearBtn.getBoundingClientRect(); stopDrag = bindWindowDrag((ev) => { const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY; if (Math.abs(currentY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; } }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); };
         gearBtn.addEventListener('mousedown', handleGearDrag); gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
+        /* [patch 11-4] 기어 버튼 동적 title 업데이트 */
+        const syncGearTitle = () => {
+          if (!gearBtn) return;
+          const parts = [];
+          if (sm.get(P.APP_ACT)) {
+            const ps = sm.get(P.V_PRE_S);
+            if (ps !== 'off') parts.push('샤프: ' + (PRESET_LABELS.detail[ps] || ps));
+            if (sm.get(P.A_EN)) parts.push('오디오 부스트');
+            if (sm.get(P.PB_EN)) parts.push(Number(sm.get(P.PB_RATE)).toFixed(1) + 'x');
+            if (sm.get(P.APP_AUTO_SCENE)) parts.push('Auto');
+            if (sm.get(P.APP_AUTO_PRESET)) parts.push('자동프리셋');
+          }
+          gearBtn.title = parts.length ? parts.join(' \u00B7 ') : (sm.get(P.APP_ACT) ? '설정 없음' : 'OFF');
+        };
+        sub(P.APP_ACT, syncGearTitle); sub(P.V_PRE_S, syncGearTitle); sub(P.A_EN, syncGearTitle); sub(P.PB_EN, syncGearTitle); sub(P.PB_RATE, syncGearTitle); sub(P.APP_AUTO_SCENE, syncGearTitle); sub(P.APP_AUTO_PRESET, syncGearTitle);
+        syncGearTitle();
         const syncGear = () => { if (!gearBtn) return; const showHere = allowUiInThisDoc(); gearBtn.classList.toggle('open', !!sm.get(P.APP_UI)); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT)); gearBtn.style.display = showHere ? 'block' : 'none'; if (!showHere) detachNodesHard(); else wake(); };
         sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
       };
@@ -2412,7 +2523,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
       if (CONFIG.DEBUG) window.__VSC_UI_Ensure = ensure;
       return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); } };
     }
-
+// ▼▼▼ PART 4에서 이어짐 (bindVideoOnce ~ VSC_MAIN 호출) ▼▼▼
+// ▲▲▲ PART 3에서 이어짐 ▲▲▲
     function markInternalRateChange(v) { const st = getRateState(v); st.lastSetAt = performance.now(); }
     const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el); el.playbackRate = nextRate; st.orig = null; st.retryCount = 0; st.permanentlyBlocked = false; st.suppressSyncUntil = 0; } catch (_) {} };
 
@@ -2439,7 +2551,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     const cleanupTouched = (TOUCHED) => { for (const v of TOUCHED.videos) onEvictVideo(v); TOUCHED.videos.clear(); for (const v of TOUCHED.rateVideos) onEvictRateVideo(v); TOUCHED.rateVideos.clear(); };
     function pruneTouchedDisconnected() { let count = 0; for (const v of TOUCHED.videos) { if (++count > 20) break; if (!v || !v.isConnected) TOUCHED.videos.delete(v); } count = 0; for (const v of TOUCHED.rateVideos) { if (++count > 20) break; if (!v || !v.isConnected) TOUCHED.rateVideos.delete(v); } }
 
-    /* [이식 1] 재생 속도 가드 (Rate Guard) - v200 로직 (재귀 방지 강화) */
+    /* [patch Bug 1-3] ratechange — desired undefined 방어 강화 */
     const bindVideoOnce = (v, ApplyReq) => {
       const st = getVState(v); if (st.bound) return; st.bound = true;
       if (CONFIG.IS_MOBILE) ensureMobileInlinePlaybackHints(v);
@@ -2472,9 +2584,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
         const store = refs?.Store;
         if (!store || !store.get(P.PB_EN)) return;
 
-        const desired = st.desiredRate || store.get(P.PB_RATE);
+        /* [patch Bug 1-3] desired를 Number()로 변환 + 유효성 체크 */
+        const desired = Number(st.desiredRate ?? store.get(P.PB_RATE));
         if (!Number.isFinite(v.playbackRate) || v.playbackRate < 0.07) return;
-        if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.01) return;
+        if (!Number.isFinite(desired) || desired < 0.07) return;
+        if (Math.abs(v.playbackRate - desired) < 0.01) return;
 
         if (rSt._externalMtQueued) return;
 
@@ -2533,11 +2647,15 @@ function createAutoSceneManager(Store, P, Scheduler) {
       bindVideoOnce(el, ApplyReq);
     }
 
+    /* [patch 2-2] applyPlaybackRate — orig 저장 방어 강화 */
     function applyPlaybackRate(el, desiredRate) {
       const st = getVState(el); const rSt = getRateState(el);
       if (rSt.permanentlyBlocked) return;
       if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
-      if (rSt.orig == null) rSt.orig = el.playbackRate;
+      if (rSt.orig == null) {
+        const current = el.playbackRate;
+        rSt.orig = (current > 0.05 && current <= 16) ? current : 1.0;
+      }
       const lastDesired = st.desiredRate;
       if (!Object.is(lastDesired, desiredRate) || Math.abs(el.playbackRate - desiredRate) > 0.01) { st.desiredRate = desiredRate; markInternalRateChange(el); try { el.playbackRate = desiredRate; } catch (_) {} }
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
@@ -2564,7 +2682,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
 
     function createThrottled(fn, ms = 120) { let last = 0, timer = 0; return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } }; }
 
-    /* [패치 4-3] tick timer — visibilitychange로 정지/재개 */
+    /* [patch 10-1] 자동 프리셋 로직이 createAppController 내부에서 동작 */
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
       UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) { try { Registry.refreshObservers?.(); Registry.rescanAll?.(); Scheduler.request(true); } catch (_) {} } });
@@ -2573,6 +2691,10 @@ function createAutoSceneManager(Store, P, Scheduler) {
       let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
       const videoParamsMemo = createVideoParamsMemo(Store, P, Utils); const audioUpdateThrottled = createThrottled(() => Audio.update(), 120);
       const lightSigChanged = createLightSigTracker();
+
+      /* [patch 10-1] 자동 프리셋 — 마지막 적용 해상도 추적 */
+      let __lastAutoPresetHeight = 0;
+
       Scheduler.registerApply((force) => {
         try {
           if (document.hidden && !force) return;
@@ -2587,6 +2709,21 @@ function createAutoSceneManager(Store, P, Scheduler) {
           const pick = Targeting.pickFastActiveOnly(visible.videos, window.__lastUserPt, wantAudioNow);
           let nextTarget = pick.target; if (!nextTarget) { if (__activeTarget) nextTarget = __activeTarget; }
           if (nextTarget !== __activeTarget) { __activeTarget = nextTarget; }
+
+          /* [patch 10-1] 자동 프리셋 — 활성 비디오 해상도 변경 시 프리셋 자동 전환 */
+          if (Store.get(P.APP_AUTO_PRESET) && __activeTarget) {
+            const vh = __activeTarget.videoHeight || 0;
+            if (vh > 0 && vh !== __lastAutoPresetHeight) {
+              __lastAutoPresetHeight = vh;
+              const suggested = getAutoPresetForResolution(vh);
+              const current = Store.get(P.V_PRE_S);
+              if (current !== suggested) {
+                Store.set(P.V_PRE_S, suggested);
+                showOSD(`자동 프리셋: ${PRESET_LABELS.detail[suggested] || suggested} (${vh}p)`, 1500);
+              }
+            }
+          }
+
           const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
           if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
           const vCat = Store.state.video;
@@ -2606,7 +2743,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
       const stopTick = () => { if (!tickTimer) return; clearInterval(tickTimer); tickTimer = 0; };
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); });
       if (Store.get(P.APP_ACT)) startTick();
-      // [패치 4-3] hidden 탭에서 tick timer 정지, visible 복귀 시 재개
       onDoc('visibilitychange', () => {
         if (document.hidden) { stopTick(); }
         else if (Store.get(P.APP_ACT)) { startTick(); }
@@ -2636,6 +2772,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       }
     }
 
+    /* [patch 10-1] buildSaveData / applyDataToStore — autoPreset 필드 추가 */
     function buildSaveData(Store, P) {
       return {
         active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
@@ -2645,6 +2782,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
         brightStepLevel: Store.get(P.V_BRIGHT_STEP),
         audioEnabled: Store.get(P.A_EN), audioBoost: Store.get(P.A_BST),
         autoScene: Store.get(P.APP_AUTO_SCENE), zoomEn: Store.get(P.APP_ZOOM_EN),
+        autoPreset: Store.get(P.APP_AUTO_PRESET),
         playbackRate: Store.get(P.PB_RATE), playbackEnabled: Store.get(P.PB_EN)
       };
     }
@@ -2664,6 +2802,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       safeSet(P.A_BST, data.audioBoost);
       safeSet(P.APP_AUTO_SCENE, data.autoScene);
       safeSet(P.APP_ZOOM_EN, data.zoomEn);
+      safeSet(P.APP_AUTO_PRESET, data.autoPreset);
       safeSet(P.PB_RATE, data.playbackRate);
       safeSet(P.PB_EN, data.playbackEnabled);
     }
@@ -2709,7 +2848,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     normalizeBySchema(Store, VIDEO_SCHEMA);
     normalizeBySchema(Store, AUDIO_PLAYBACK_SCHEMA);
 
-    bindNormalizer([P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV], APP_SCHEMA);
+    bindNormalizer([P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV, P.APP_AUTO_PRESET], APP_SCHEMA);
     bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA);
     bindNormalizer([P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
 
@@ -2725,6 +2864,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     Store.sub(P.A_EN, (v) => showOSD('오디오 부스트: ' + (v ? 'ON' : 'OFF')));
     Store.sub(P.PB_RATE, (v) => { if (Store.get(P.PB_EN)) showOSD('재생속도: ' + Number(v).toFixed(1) + 'x'); });
     Store.sub(P.PB_EN, (v) => { if (!v) showOSD('재생속도: 기본'); });
+    Store.sub(P.APP_AUTO_PRESET, (v) => showOSD('자동 프리셋: ' + (v ? 'ON' : 'OFF')));
 
     const Registry = createRegistry(Scheduler), Targeting = createTargeting();
     const rescanDebounced = createDebounced(() => {
@@ -2789,7 +2929,6 @@ function createAutoSceneManager(Store, P, Scheduler) {
         if (e.altKey && e.shiftKey && e.code === 'KeyA') { e.preventDefault(); Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyC') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (v) captureVideoFrame(v); return; }
 
-        /* [보너스] 1프레임 이동 단축키 추가 */
         if (e.altKey && e.shiftKey && e.code === 'Comma') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if(v){ v.pause(); v.currentTime = Math.max(0, v.currentTime - 1/30); showOSD('◀ 1프레임'); } return; }
         if (e.altKey && e.shiftKey && e.code === 'Period') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if(v){ v.pause(); v.currentTime = Math.min(v.duration||0, v.currentTime + 1/30); showOSD('1프레임 ▶'); } return; }
 
