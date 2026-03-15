@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v174.0.0 - Patched)
+// @name         Video_Control (v175.0.0 - Refactored)
 // @namespace    https://github.com/
-// @version      174.0.0
-// @description  Video Control: Patched Framework + GPU Opt (v173 review applied)
+// @version      175.0.0
+// @description  v174 base + 7 arch patches: GM_storage, AbortController lifecycle, PiP built-in, Zoom setProperty+RAF batch, 1-finger pan, rate guard hardening
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -13,6 +13,9 @@
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
 // @run-at       document-start
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 // ==/UserScript==
@@ -31,11 +34,51 @@
 
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
+    /* ── [PATCH-2] AbortController 기반 글로벌 생명주기 ── */
     const __globalHooksAC = new AbortController();
     const __globalSig = __globalHooksAC.signal;
 
-    function on(target, type, fn, opts = {}) {
-      target.addEventListener(type, fn, { ...opts, signal: __globalSig });
+    const _activeTimers = new Set();
+    const _activeIntervals = new Set();
+    __globalSig.addEventListener('abort', () => {
+      for (const id of _activeTimers) clearTimeout(id);
+      _activeTimers.clear();
+      for (const id of _activeIntervals) clearInterval(id);
+      _activeIntervals.clear();
+    }, { once: true });
+
+    const setTimer = (fn, ms) => {
+      const id = setTimeout(() => { _activeTimers.delete(id); fn(); }, ms);
+      _activeTimers.add(id);
+      return id;
+    };
+    const clearTimer = (id) => { if (!id) return; clearTimeout(id); _activeTimers.delete(id); };
+    const setRecurring = (fn, ms) => {
+      const id = setInterval(() => { if (__globalSig.aborted) { clearRecurring(id); return; } fn(); }, ms);
+      _activeIntervals.add(id);
+      return id;
+    };
+    const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
+
+    /* ── [PATCH-2] combineSignals 유틸리티 ── */
+    const combineSignals = (...signals) => {
+      const existing = signals.filter(Boolean);
+      if (existing.length === 0) return undefined;
+      if (existing.length === 1) return existing[0];
+      if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
+      const ac = new AbortController();
+      for (const sig of existing) { if (sig.aborted) { ac.abort(sig.reason); return ac.signal; } }
+      const onAbort = (reason) => { if (!ac.signal.aborted) ac.abort(reason); };
+      for (const sig of existing) { sig.addEventListener('abort', () => onAbort(sig.reason), { once: true, signal: ac.signal }); }
+      return ac.signal;
+    };
+
+    /* ── [PATCH-2] on() 래퍼 — signal 자동 주입 ── */
+    function on(target, type, fn, opts) {
+      if (!target?.addEventListener) return;
+      const o = opts ? { ...opts } : {};
+      o.signal = o.signal ? combineSignals(o.signal, __globalSig) : __globalSig;
+      target.addEventListener(type, fn, o);
     }
     const onWin = (type, fn, opts) => on(window, type, fn, opts);
     const onDoc = (type, fn, opts) => on(document, type, fn, opts);
@@ -45,21 +88,23 @@
       el.__vscBlocked = true;
       const stop = (e) => e.stopPropagation();
       for (const evt of ['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu']) {
-        el.addEventListener(evt, stop, { passive: true, signal: __globalSig });
+        on(el, evt, stop, { passive: true });
       }
-      el.addEventListener('wheel', stop, { passive: false, signal: __globalSig });
+      on(el, 'wheel', stop, { passive: false });
     }
 
     function waitForVisibility() {
       if (document.visibilityState === 'visible') return Promise.resolve();
-      return new Promise(resolve => { const onVisibility = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', onVisibility); resolve(); } }; document.addEventListener('visibilitychange', onVisibility); });
+      return new Promise(resolve => { const onVis = () => { if (document.visibilityState === 'visible') { document.removeEventListener('visibilitychange', onVis); resolve(); } }; document.addEventListener('visibilitychange', onVis); });
     }
 
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '174.0.0';
-    const STORAGE_KEY = 'vsc_settings_v170';
+    const VSC_VERSION = '175.0.0';
+
+    /* ── [PATCH-1] GM_storage + 사이트별 설정 키 ── */
+    const STORAGE_KEY = 'vsc_settings_' + location.hostname;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -70,16 +115,22 @@
     }
 
     const VSC_DEFENSE = Object.freeze({ webglCooldown: true, audioCooldown: true, autoSceneDrmBackoff: true });
-
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 12; const SPA_RESCAN_DEBOUNCE_MS = 220;
     const GUARD = Object.freeze({ WEBGL_FAIL_COOLDOWN: 3000, WEBGL_FAIL_THRESHOLD: 3, AUDIO_SRC_COOLDOWN: 5000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
+
+    /* ── [PATCH-7] DRM 사이트 rate 차단 목록 ── */
+    const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','amazon.com/gp/video','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
+    function isRateBlockedHost() { const h = location.hostname; return RATE_BLOCKED_HOSTS.some(d => h === d || h.endsWith('.' + d)); }
+    const __rateBlockedSite = isRateBlockedHost();
 
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1; const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
     function createVideoState() {
       return {
         visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0, webglTainted: false, _resizeDirty: false, _ac: null,
+        /* ── [PATCH-3] PiP 플래그 내장 ── */
+        _inPiP: false,
         resetTransient() {
           this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
           this.webglFailCount = 0; this.webglDisabledUntil = 0; this.webglTainted = false;
@@ -87,12 +138,29 @@
             this.rateState.orig = null; this.rateState.lastSetAt = 0;
             this.rateState.retryCount = 0; this.rateState.permanentlyBlocked = false;
             this.rateState.suppressSyncUntil = 0;
+            this.rateState._externalMtQueued = false;
+            this.rateState._rateRetryWindow = 0;
+            this.rateState._rateRetryCount = 0;
           }
           this.desiredRate = undefined;
+          this._inPiP = false;
         }
       };
     }
     const videoStateMap = new WeakMap(); function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = createVideoState(); videoStateMap.set(v, st); } return st; }
+
+    /* ── [PATCH-7] getRateState 확장 필드 ── */
+    function getRateState(v) {
+      const st = getVState(v);
+      if (!st.rateState) {
+        st.rateState = {
+          orig: null, lastSetAt: 0, retryCount: 0, failCount: 0,
+          permanentlyBlocked: false, suppressSyncUntil: 0,
+          _externalMtQueued: false, _rateRetryWindow: 0, _rateRetryCount: 0
+        };
+      }
+      return st.rateState;
+    }
 
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
     const ShadowMask = Object.freeze({ has(mask, bit) { return ((Number(mask) | 0) & bit) !== 0; }, toggle(mask, bit) { return (((Number(mask) | 0) ^ bit) & 7); } });
@@ -168,7 +236,7 @@
 
     let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() { if (__vscRectEpochQueued) return; __vscRectEpochQueued = true; requestAnimationFrame(() => { __vscRectEpochQueued = false; __vscRectEpoch++; }); }
     onWin('scroll', bumpRectEpoch, { passive: true, capture: true }); onWin('resize', bumpRectEpoch, { passive: true }); onWin('orientationchange', bumpRectEpoch, { passive: true });
-    try { const vv = window.visualViewport; if (vv) { vv.addEventListener('resize', bumpRectEpoch, { passive: true, signal: __globalSig }); vv.addEventListener('scroll', bumpRectEpoch, { passive: true, signal: __globalSig }); } } catch (_) {}
+    try { const vv = window.visualViewport; if (vv) { on(vv, 'resize', bumpRectEpoch, { passive: true }); on(vv, 'scroll', bumpRectEpoch, { passive: true }); } } catch (_) {}
 
     function getRectCached(v, now, maxAgeMs = 400) { const st = getVState(v); if (!st.rect || (now - (st.rectT || 0)) > maxAgeMs || (st.rectEpoch || 0) !== __vscRectEpoch || st._resizeDirty) { st.rect = v.getBoundingClientRect(); st.rectT = now; st.rectEpoch = __vscRectEpoch; st._resizeDirty = false; } return st.rect; }
     const __vpSnap = { w: 0, h: 0, cx: 0, cy: 0 };
@@ -180,21 +248,33 @@
     }
 
     function walkRootsInto(root, out, depth = 0) { if (!root || depth > 6) return; out.push(root); const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) walkRootsInto(node.shadowRoot, out, depth + 1); node = walker.nextNode(); } }
-    function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
+    function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
+    /* ── [PATCH-2] initSpaUrlDetector — history 패치 안전 복원 ── */
     function initSpaUrlDetector(onChanged) {
       if (window.__VSC_SPA_PATCHED__) return;
       window.__VSC_SPA_PATCHED__ = true;
       let lastHref = location.href;
+      const origHistory = {};
       const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
       const wrap = (name) => {
         const orig = history[name];
         if (typeof orig !== 'function') return;
+        origHistory[name] = orig;
         window.__VSC_INTERNAL__[`_orig_${name}`] = orig;
-        history[name] = function (...args) { const ret = Reflect.apply(orig, this, args); queueMicrotask(emitIfChanged); return ret; };
+        const patched = function (...args) {
+          const ret = Reflect.apply(orig, this, args);
+          if (!__globalSig.aborted) queueMicrotask(emitIfChanged);
+          return ret;
+        };
+        patched.__vsc_patched = true;
+        patched.__vsc_original = orig;
+        history[name] = patched;
       };
       wrap('pushState'); wrap('replaceState');
       onWin('popstate', emitIfChanged, { passive: true });
+      /* history 복원은 destroyRuntime에서 처리 */
+      window.__VSC_INTERNAL__._spaOrigHistory = origHistory;
     }
 
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
@@ -271,6 +351,12 @@
 
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
+      /* ── [PATCH-3] PiP 진입 전 필터 제거 ── */
+      try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
+      const st = getVState(video);
+      st._inPiP = true;
+      st.applied = false;
+      st.lastFilterUrl = null;
       if ('documentPictureInPicture' in window && window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') {
         if (__activeDocumentPiPWindow) {
           if (__activeDocumentPiPWindow.closed) { resetPiPState(); }
@@ -292,7 +378,14 @@
               const restored = document.adoptNode(video);
               if (__pipPlaceholder?.parentNode?.isConnected) { __pipPlaceholder.parentNode.insertBefore(restored, __pipPlaceholder); __pipPlaceholder.remove(); }
               else if (__pipOrigParent?.isConnected) { if (__pipOrigNext && __pipOrigNext.parentNode === __pipOrigParent) { __pipOrigParent.insertBefore(restored, __pipOrigNext); } else { __pipOrigParent.appendChild(restored); } }
-            } finally { resetPiPState(); }
+            } finally {
+              resetPiPState();
+              /* ── [PATCH-3] PiP 복귀 시 필터 재적용 ── */
+              st._inPiP = false;
+              st.applied = false;
+              st.lastFilterUrl = null;
+              setTimer(() => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, 200);
+            }
           });
           return true;
         } catch (e) { log.debug('Document PiP failed, fallback to video PiP', e); }
@@ -322,108 +415,277 @@
         if (!blob) return;
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `capture_${Date.now()}.png`; a.click();
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        setTimer(() => URL.revokeObjectURL(url), 5000);
       }, 'image/png');
       showOSD('스크린샷 저장됨', 1500);
     }
 
+    /* ── [PATCH-4][PATCH-5][PATCH-6] Zoom Manager — setProperty + RAF batch + 1-finger pan ── */
     function createZoomManager() {
-      const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0; let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
-      const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '' }; stateMap.set(v, st); } return st; };
-      const update = (v) => {
-        if (rafId) return;
-        rafId = requestAnimationFrame(() => {
-  rafId = null; const st = getSt(v);
-  const transformStr = st.scale <= 1 ? '' : `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
-  v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
-  if (st.scale <= 1) {
-    st.scale = 1; st.tx = 0; st.ty = 0;
-    v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
-    v.style.transition = ''; // ← 즉시 리셋: transition 제거
-    if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
-    /* P1-ZOOM-RESET-FIX */
-    try {
-      const sibling = v.nextElementSibling;
-      if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
-        sibling.style.transform = '';
-        sibling.style.transformOrigin = '';
-        sibling.style.zIndex = '';
-        sibling.style.transition = '';
-      }
-    } catch (_) {}
-  } else {
-            if (!st.zoomed) { st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.zoomed = true; }
-            v.style.transformOrigin = '0 0'; v.style.transform = transformStr;
-            v.style.cursor = isPanning ? 'grabbing' : 'grab';
-            v.style.zIndex = '2147483646';
-            if (window.getComputedStyle(v).position === 'static') { v.style.position = 'relative'; }
+      const stateMap = new WeakMap();
+      let activeVideo = null, isPanning = false, startX = 0, startY = 0;
+      let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+      const zoomedVideos = new Set();
+      let activePointerId = null;
+
+      const ZOOM_PROPS = ['will-change', 'contain', 'backface-visibility', 'transition', 'transform-origin', 'transform', 'cursor', 'z-index', 'position'];
+
+      const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, _savedPosition: '', _savedZIndex: '' }; stateMap.set(v, st); } return st; };
+
+      const pendingUpdates = new Set();
+      let rafId = null;
+
+      function applyZoomStyle(v) {
+        const st = getSt(v);
+        const panning = isPanning || pinchState.active;
+        if (st.scale <= 1) {
+          if (st.zoomed) {
+            for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+            if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+            if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+            st.zoomed = false;
           }
+          st.scale = 1; st.tx = 0; st.ty = 0;
+          zoomedVideos.delete(v);
+          /* canvas sibling 초기화 */
           try {
             const sibling = v.nextElementSibling;
             if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
-              sibling.style.transition = v.style.transition;
-              sibling.style.transformOrigin = v.style.transformOrigin;
-              sibling.style.transform = transformStr;
-              if (st.zoomed) sibling.style.zIndex = '2147483647';
-              else sibling.style.zIndex = '';
+              sibling.style.removeProperty('transform');
+              sibling.style.removeProperty('transform-origin');
+              sibling.style.removeProperty('z-index');
+              sibling.style.removeProperty('transition');
             }
           } catch (_) {}
+          return;
+        }
+        if (!st.zoomed) {
+          st._savedPosition = v.style.getPropertyValue('position');
+          st._savedZIndex = v.style.getPropertyValue('z-index');
+          st.zoomed = true;
+        }
+        v.style.setProperty('will-change', 'transform', 'important');
+        v.style.setProperty('contain', 'paint', 'important');
+        v.style.setProperty('backface-visibility', 'hidden', 'important');
+        v.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
+        v.style.setProperty('transform-origin', '0 0', 'important');
+        v.style.setProperty('transform', `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`, 'important');
+        v.style.setProperty('cursor', panning ? 'grabbing' : 'grab', 'important');
+        v.style.setProperty('z-index', '2147483646', 'important');
+        v.style.setProperty('position', 'relative', 'important');
+        zoomedVideos.add(v);
+        /* canvas sibling 동기화 */
+        try {
+          const sibling = v.nextElementSibling;
+          if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
+            sibling.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
+            sibling.style.setProperty('transform-origin', '0 0', 'important');
+            sibling.style.setProperty('transform', `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`, 'important');
+            sibling.style.setProperty('z-index', '2147483647', 'important');
+          }
+        } catch (_) {}
+      }
+
+      const update = (v) => {
+        pendingUpdates.add(v);
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          const batch = [...pendingUpdates];
+          pendingUpdates.clear();
+          for (const video of batch) {
+            if (!video.isConnected) continue;
+            applyZoomStyle(video);
+          }
         });
       };
-      const zoomTo = (v, newScale, clientX, clientY) => { const st = getSt(v), rect = v.getBoundingClientRect(), ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale; st.tx = clientX - (rect.left - st.tx) - ix * newScale; st.ty = clientY - (rect.top - st.ty) - iy * newScale; st.scale = newScale; update(v); };
+
+      function clampPan(v, st) { const r = v.getBoundingClientRect(); if (!r || r.width <= 1 || r.height <= 1) return; const sw = r.width * st.scale, sh = r.height * st.scale; st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75); st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75); }
+
+      const zoomTo = (v, newScale, clientX, clientY) => {
+        const st = getSt(v), rect = v.getBoundingClientRect();
+        if (!rect || rect.width <= 1) return;
+        const ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale;
+        st.tx = clientX - (rect.left - st.tx) - ix * newScale;
+        st.ty = clientY - (rect.top - st.ty) - iy * newScale;
+        st.scale = newScale;
+        update(v);
+      };
       const resetZoom = (v) => {
-  if (!v) return;
-  const st = getSt(v);
-  st.scale = 1; st.tx = 0; st.ty = 0;
-  // 즉시 스타일 초기화 (현재 코드 그대로)
-  v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
-  v.style.transition = '';
-  if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
-  try {
-    const sibling = v.nextElementSibling;
-    if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
-      sibling.style.transform = '';
-      sibling.style.transformOrigin = '';
-      sibling.style.zIndex = '';
-      sibling.style.transition = '';
-    }
-  } catch (_) {}
-  /* 기존 RAF 예약을 취소하고 clean 상태로 재예약 */
-  if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-  update(v);
-};
+        if (!v) return;
+        const st = getSt(v);
+        st.scale = 1;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        pendingUpdates.delete(v);
+        update(v);
+      };
       const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
       const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
       const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
       const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
-      function getTargetVideo(e) { const path = typeof e.composedPath === 'function' ? e.composedPath() : null; if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5); const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5); const el = document.elementFromPoint(cx, cy); let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } return v; }
+      function getTargetVideo(e) {
+        if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } }
+        const touch = e.touches?.[0], cx = Number.isFinite(e.clientX) ? e.clientX : (touch?.clientX ?? null), cy = Number.isFinite(e.clientY) ? e.clientY : (touch?.clientY ?? null);
+        if (cx != null && cy != null) { const els = document.elementsFromPoint(cx, cy); for (const el of els) { if (el?.tagName === 'VIDEO') return el; } }
+        return window.__VSC_INTERNAL__?.App?.getActiveVideo() || null;
+      }
 
-      /* P1-ZOOM-FIX: 데스크톱 wheel에 isZoomEnabled() 가드 추가 */
-      onWin('wheel', e => { if (!e.altKey || !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
+      /* Wheel zoom */
+      onWin('wheel', e => {
+        if (!e.altKey || !isZoomEnabled()) return;
+        const v = getTargetVideo(e); if (!v) return;
+        e.preventDefault(); e.stopPropagation();
+        const st = getSt(v);
+        let newScale = Math.min(Math.max(1, st.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 10);
+        if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
+      }, { passive: false, capture: true });
 
-      /* P1-ZOOM-FIX: 데스크톱 mousedown에 isZoomEnabled() 가드 추가 */
-      onWin('mousedown', e => { if (!e.altKey || !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
+      /* Pointer pan (mouse) */
+      onWin('pointerdown', e => {
+        if (!e.altKey || !isZoomEnabled() || e.pointerType === 'touch') return;
+        const v = getTargetVideo(e); if (!v) return;
+        const st = getSt(v); if (st.scale <= 1) return;
+        e.preventDefault(); e.stopPropagation();
+        activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false;
+        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
+        try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
+        update(v);
+      }, { capture: true, passive: false });
 
-      onWin('mousemove', e => { if (!isPanning || !activeVideo) return; e.preventDefault(); e.stopPropagation(); const st = getSt(activeVideo), dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.clientX - startX; st.ty = e.clientY - startY; update(activeVideo); }, { capture: true });
-      onWin('mouseup', e => { if (isPanning) { if (activeVideo) { const st = getSt(activeVideo); if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); } update(activeVideo); } isPanning = false; activeVideo = null; } }, { capture: true });
+      onWin('pointermove', e => {
+        if (!isPanning || !activeVideo || e.pointerId !== activePointerId) return;
+        const st = getSt(activeVideo);
+        if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+        const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e], last = events[events.length - 1] || e;
+        const nextTx = last.clientX - startX, nextTy = last.clientY - startY;
+        if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
+        st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo);
+      }, { capture: true, passive: false });
 
-      /* P1-ZOOM-FIX: 데스크톱 dblclick에 isZoomEnabled() 가드 추가 */
-      onWin('dblclick', e => { if (!e.altKey || !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true });
+      function endPointerPan(e) {
+        if (e.pointerType === 'touch' || !isPanning || !activeVideo || e.pointerId !== activePointerId) return;
+        const v = activeVideo, st = getSt(v);
+        try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
+        if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+        activePointerId = null; isPanning = false; activeVideo = null; update(v);
+      }
+      onWin('pointerup', endPointerPan, { capture: true, passive: false });
+      onWin('pointercancel', endPointerPan, { capture: true, passive: false });
 
-      onWin('touchstart', e => { if (CONFIG.IS_MOBILE && !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (e.touches.length === 2) { if (e.cancelable) e.preventDefault(); activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale; const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y; } else if (e.touches.length === 1 && st.scale > 1) { activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty; } }, { passive: false, capture: true });
-      onWin('touchmove', e => { if (!activeVideo) return; const st = getSt(activeVideo); if (pinchState.active && e.touches.length === 2) { if (e.cancelable) e.preventDefault(); const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches); let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10); if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; } else { zoomTo(activeVideo, newScale, center.x, center.y); st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy; update(activeVideo); } pinchState.lastCx = center.x; pinchState.lastCy = center.y; } else if (isPanning && e.touches.length === 1) { if (e.cancelable) e.preventDefault(); const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY; update(activeVideo); } }, { passive: false, capture: true });
-      onWin('touchend', e => { if (!activeVideo) return; if (e.touches.length < 2) pinchState.active = false; if (e.touches.length === 0) { if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) { e.preventDefault(); } isPanning = false; update(activeVideo); activeVideo = null; } }, { passive: false, capture: true });
-      return { resetZoom, zoomTo, isZoomed };
+      /* Dblclick zoom */
+      onWin('dblclick', e => {
+        if (!e.altKey || !isZoomEnabled()) return;
+        const v = getTargetVideo(e); if (!v) return;
+        e.preventDefault(); e.stopPropagation();
+        const st = getSt(v);
+        if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
+      }, { capture: true });
+
+      /* [PATCH-6] 터치: 2핀치 줌 + 1손가락 패닝 */
+      onWin('touchstart', e => {
+        if (CONFIG.IS_MOBILE && !isZoomEnabled()) return;
+        const v = getTargetVideo(e); if (!v) return;
+        if (e.touches.length === 2) {
+          isPanning = false;
+          if (e.cancelable) e.preventDefault();
+          const st = getSt(v);
+          activeVideo = v;
+          pinchState.active = true;
+          pinchState.initialDist = getTouchDist(e.touches);
+          pinchState.initialScale = st.scale;
+          const c = getTouchCenter(e.touches);
+          pinchState.lastCx = c.x; pinchState.lastCy = c.y;
+        } else if (e.touches.length === 1) {
+          const st = getSt(v);
+          if (st.scale > 1) {
+            if (e.cancelable) e.preventDefault();
+            activeVideo = v;
+            isPanning = true;
+            st.hasPanned = false;
+            startX = e.touches[0].clientX - st.tx;
+            startY = e.touches[0].clientY - st.ty;
+          }
+        }
+      }, { passive: false, capture: true });
+
+      onWin('touchmove', e => {
+        if (!activeVideo) return;
+        const st = getSt(activeVideo);
+        if (pinchState.active && e.touches.length === 2) {
+          if (e.cancelable) e.preventDefault();
+          const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches);
+          let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
+          newScale = Math.min(Math.max(1, newScale), 10);
+          if (newScale < 1.05) {
+            resetZoom(activeVideo);
+            pinchState.active = false;
+            isPanning = false;
+            activeVideo = null;
+          } else {
+            zoomTo(activeVideo, newScale, center.x, center.y);
+            st.tx += center.x - pinchState.lastCx;
+            st.ty += center.y - pinchState.lastCy;
+            clampPan(activeVideo, st);
+            update(activeVideo);
+          }
+          pinchState.lastCx = center.x; pinchState.lastCy = center.y;
+        } else if (isPanning && e.touches.length === 1 && st.scale > 1) {
+          if (e.cancelable) e.preventDefault();
+          const t = e.touches[0];
+          const nextTx = t.clientX - startX, nextTy = t.clientY - startY;
+          if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
+          st.tx = nextTx; st.ty = nextTy;
+          clampPan(activeVideo, st);
+          update(activeVideo);
+        }
+      }, { passive: false, capture: true });
+
+      onWin('touchend', e => {
+        if (!activeVideo) return;
+        if (e.touches.length < 2) pinchState.active = false;
+        if (e.touches.length === 1 && getSt(activeVideo).scale > 1) {
+          isPanning = true;
+          const st = getSt(activeVideo);
+          st.hasPanned = false;
+          startX = e.touches[0].clientX - st.tx;
+          startY = e.touches[0].clientY - st.ty;
+        } else if (e.touches.length === 0) {
+          isPanning = false;
+          update(activeVideo);
+          activeVideo = null;
+        }
+      }, { passive: false, capture: true });
+
+      return {
+        resetZoom, zoomTo, isZoomed,
+        pruneDisconnected: () => { for (const v of [...zoomedVideos]) { if (!v?.isConnected) resetZoom(v); } },
+        destroy: () => {
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          pendingUpdates.clear();
+          for (const v of [...zoomedVideos]) {
+            const st = getSt(v);
+            if (st.zoomed) {
+              for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+              if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+              if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+            }
+            st.scale = 1; st.zoomed = false;
+          }
+          zoomedVideos.clear();
+          isPanning = false; pinchState.active = false;
+          activeVideo = null; activePointerId = null;
+        }
+      };
     }
-// ─── END OF PART 1 (v174.0.0) ───
-// ─── START OF PART 2 (v174.0.0) ───
+// ─── END OF PART 1 (v175.0.0) ───
+// ─── START OF PART 2 (v175.0.0) ───
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) { const now = performance.now(); const vp = getViewportSnapshot(); let best = null, bestScore = -Infinity; const evalScore = (v) => { if (!v || v.readyState < 2) return; const r = getRectCached(v, now, 400); const area = r.width * r.height; const pip = isPiPActiveVideo(v); if (area < 160 * 120 && !pip) return; const cx = r.left + r.width * 0.5; const cy = r.top + r.height * 0.5; let s = 0; if (!v.paused && !v.ended) s += 6.0; if (v.currentTime > 0.2) s += 2.0; s += Math.log2(1 + area / 20000) * 1.1; const ptAge = Math.max(0, now - (lastUserPt.t || 0)); const userBias = Math.exp(-ptAge / 1800); const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y; s += (2.0 * userBias) / (1 + (dx*dx + dy*dy) / 722500); const cdx = cx - vp.cx, cdy = cy - vp.cy; s += 0.7 / (1 + (cdx*cdx + cdy*cdy) / 810000); if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2); if (pip) s += 3.0; if (s > bestScore) { bestScore = s; best = v; } }; for (const v of videos) { evalScore(v); } const activePip = getActivePiPVideo(); if (activePip && activePip.isConnected && !videos.has(activePip)) { evalScore(activePip); } if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) { if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) { return { target: stickyTarget }; } } stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS; return { target: best }; }
       return Object.freeze({ pickFastActiveOnly });
     }
 
-    function createEventBus() { const subs = new Map(); const on = (name, fn) => { let s = subs.get(name); if (!s) { s = new Set(); subs.set(name, s); } s.add(fn); return () => s.delete(fn); }; const emit = (name, payload) => { const s = subs.get(name); if (!s) return; for (const fn of s) { try { fn(payload); } catch (_) {} } }; let queued = false, flushTimer = 0, forceApplyAgg = false; function flush() { queued = false; if (flushTimer) { clearTimeout(flushTimer); flushTimer = 0; } const payload = { forceApply: forceApplyAgg }; emit('signal', payload); forceApplyAgg = false; } const signal = (p) => { if (p) { if (p.forceApply) forceApplyAgg = true; } if (!queued) { queued = true; if (document.visibilityState === 'hidden') { flushTimer = setTimeout(flush, 0); } else { requestAnimationFrame(flush); } } }; return Object.freeze({ on, signal }); }
+    function createEventBus() { const subs = new Map(); const on = (name, fn) => { let s = subs.get(name); if (!s) { s = new Set(); subs.set(name, s); } s.add(fn); return () => s.delete(fn); }; const emit = (name, payload) => { const s = subs.get(name); if (!s) return; for (const fn of s) { try { fn(payload); } catch (_) {} } }; let queued = false, flushTimer = 0, forceApplyAgg = false; function flush() { queued = false; if (flushTimer) { clearTimer(flushTimer); flushTimer = 0; } const payload = { forceApply: forceApplyAgg }; emit('signal', payload); forceApplyAgg = false; } const signal = (p) => { if (p) { if (p.forceApply) forceApplyAgg = true; } if (!queued) { queued = true; if (document.visibilityState === 'hidden') { flushTimer = setTimer(flush, 0); } else { requestAnimationFrame(flush); } } }; return Object.freeze({ on, signal }); }
     function createApplyRequester(Bus, Scheduler) { return Object.freeze({ soft() { try { Bus.signal(); } catch (_) { try { Scheduler.request(false); } catch (_) {} } }, hard() { try { Bus.signal({ forceApply: true }); } catch (_) { try { Scheduler.request(true); } catch (_) {} } } }); }
     function createUtils() {
       return {
@@ -440,7 +702,7 @@
       };
     }
 
-    function createScheduler(minIntervalMs = 16) { let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0; function clearPending() { if (timer) { clearTimeout(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } } function queueRaf() { if (rafId) return; rafId = requestAnimationFrame(run); } function timerCb() { timer = 0; queueRaf(); } function run() { rafId = 0; queued = false; const now = performance.now(), doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimeout(timerCb, wait); return; } lastRun = now; if (applyFn) { try { applyFn(doForce); } catch (_) {} } } const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; queueRaf(); return; } if (queued) return; queued = true; clearPending(); queueRaf(); }; return { registerApply: (fn) => { applyFn = fn; }, request }; }
+    function createScheduler(minIntervalMs = 16) { let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0; function clearPending() { if (timer) { clearTimer(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } } function queueRaf() { if (rafId) return; rafId = requestAnimationFrame(run); } function timerCb() { timer = 0; queueRaf(); } function run() { rafId = 0; queued = false; const now = performance.now(), doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimer(timerCb, wait); return; } lastRun = now; if (applyFn) { try { applyFn(doForce); } catch (_) {} } } const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; queueRaf(); return; } if (queued) return; queued = true; clearPending(); queueRaf(); }; return { registerApply: (fn) => { applyFn = fn; }, request }; }
 
     function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; rev++; for (const [key, val] of batchEmits) { emit(key, val); } batchEmits.clear(); batchChanged = false; scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) { for (const [subK, subV] of Object.entries(val)) proxyState[c][subK] = subV; } else { proxyState[c] = val; } return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
 
@@ -543,7 +805,7 @@
         const makeup = Math.pow(10, makeupDbEma / 20);
         if (wetInGain) { const finalGain = userBoost * makeup; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
         const delay = document.hidden ? 500 : 70;
-        setTimeout(() => runAudioLoop(tok), delay);
+        setTimer(() => runAudioLoop(tok), delay);
       }
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
@@ -557,10 +819,10 @@
         ensureGestureResumeHook(); buildAudioGraph(); return true;
       };
       const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => { if (!ctx) return; const t = ctx.currentTime; try { dryOut.gain.cancelScheduledValues(t); wetOut.gain.cancelScheduledValues(t); dryOut.gain.setTargetAtTime(dryTarget, t, tc); wetOut.gain.setTargetAtTime(wetTarget, t, tc); } catch (_) { dryOut.gain.value = dryTarget; wetOut.gain.value = wetTarget; } };
-      const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimeout(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimeout(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); };
+      const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimer(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimer(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); };
       const disconnectAll = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} } currentSrc = null; target = null; };
       const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const isHooked = !!currentSrc; const actuallyEnabled = en && isHooked; const dryTarget = actuallyEnabled ? 0 : 1; const wetTarget = actuallyEnabled ? 1 : 0; rampGainsSafe(dryTarget, wetTarget, 0.015); loopTok++; if (actuallyEnabled) { runAudioLoop(loopTok); } };
-      async function destroy() { loopTok++; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimeout(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
+      async function destroy() { loopTok++; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimer(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
       return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element'); disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (_) { if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
@@ -577,7 +839,7 @@
       }
       function detectCut(stats) { if (!AUTO.lastSig) return false; const score = (Math.abs(stats.bright - AUTO.lastSig.bright) * 1.1) + (Math.abs(stats.contrast - AUTO.lastSig.contrast) * 0.9); AUTO.cutHist.push(score); if (AUTO.cutHist.length > 20) AUTO.cutHist.shift(); const sorted = AUTO.cutHist.slice().sort((a,b)=>a-b); const q80 = sorted[Math.floor(sorted.length * 0.80)] || 0.14; const thr = Math.max(0.10, Math.min(0.22, q80 * 1.05)); return score > thr; }
       function calculateAdaptiveFps(changeScore) { AUTO.fpsHist.push(changeScore); if (AUTO.fpsHist.length > 5) AUTO.fpsHist.shift(); const avgChange = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length; const targetFps = (avgChange < 0.1 ? 2 + (avgChange/0.1)*2 : 0) + (avgChange >= 0.1 && avgChange < 0.3 ? 4 + ((avgChange-0.1)/0.2)*3 : 0) + (avgChange >= 0.3 ? 7 + (Math.min(avgChange-0.3,0.7)/0.7)*3 : 0); const clamped = clamp(targetFps, AUTO.minFps, AUTO.maxFps); const rounded = Math.round(clamped * 2) / 2; AUTO.curFps += clamp(rounded - AUTO.curFps, -1, 1); return AUTO.curFps; }
-      let __asRvfcId = 0; function scheduleNext(v, delayMs) { if (!AUTO.running) return; if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') { const target = performance.now() + Math.max(0, delayMs|0); try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = v.requestVideoFrameCallback(() => { __asRvfcId = 0; const remain = target - performance.now(); if (remain > 6) { scheduleNext(v, remain); return; } loop(); }); return; } setTimeout(loop, Math.max(16, delayMs|0)); }
+      let __asRvfcId = 0; function scheduleNext(v, delayMs) { if (!AUTO.running) return; if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') { const target = performance.now() + Math.max(0, delayMs|0); try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = v.requestVideoFrameCallback(() => { __asRvfcId = 0; const remain = target - performance.now(); if (remain > 6) { scheduleNext(v, remain); return; } loop(); }); return; } setTimer(loop, Math.max(16, delayMs|0)); }
       function loop() { if (!AUTO.running) return; const now = performance.now(); const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT); const v = window.__VSC_APP__?.getActiveVideo?.(); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; scheduleNext(v, 500); return; } if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; } if (document.hidden) { scheduleNext(v, 2000); return; } if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; } const useW = 48, useH = 27; try { if (c.width !== useW || c.height !== useH) { c.width = useW; c.height = useH; AUTO.canvasW = useW; AUTO.canvasH = useH; } ctx.drawImage(v, 0, 0, useW, useH); const img = ctx.getImageData(0, 0, useW, useH); AUTO.drmBlocked = false; const stats = computeStatsAndMotion(AUTO, img, useW, useH); AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (stats.motion * AUTO.motionAlpha); AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0; const isCut = detectCut(stats); AUTO.lastSig = stats; if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + stats.bright*a; e.contrast = e.contrast*(1-a) + stats.contrast*a; e.edge = e.edge*(1-a) + stats.edge*a; e.chroma = (e.chroma ?? stats.chroma)*(1-a) + stats.chroma*a; } const sig = AUTO.statsEma; if (isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; } const allowUpdate = isCut || (AUTO.motionFrames >= AUTO.motionMinFrames); let fps = AUTO.curFps; if (allowUpdate) { fps = calculateAdaptiveFps(clamp(stats.motion||0,0,1)); fps = Math.min(fps, 6); if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 6 : 4); const errY = clamp(0.50 - sig.bright, -0.22, 0.22); const errSd = clamp(0.23 - sig.contrast, -0.18, 0.18); AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35); AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30); const curCh = Number(sig.chroma || 0); const errCh = clamp(0.18 - curCh, -0.18, 0.18); AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50); const smoothA = isCut ? 0.16 : 0.05; const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat; AUTO.cur.br = approach(AUTO.cur.br, AUTO.tgt.br, smoothA); AUTO.cur.ct = approach(AUTO.cur.ct, AUTO.tgt.ct, smoothA); AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, smoothA); if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) { Scheduler.request(true); } } scheduleNext(v, Math.max(150, Math.round(1000 / Math.max(1, fps)))); } catch (e) { if (VSC_DEFENSE.autoSceneDrmBackoff) { AUTO.drmBlocked = true; AUTO.blockUntilMs = performance.now() + 5000; scheduleNext(v, 1000); } else { scheduleNext(v, 500); } } }
       Store.sub(P.APP_AUTO_SCENE, (en) => { if (en && !AUTO.running) { AUTO.running = true; loop(); } else if (!en) { AUTO.running = false; AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; Scheduler.request(true); } });
       Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { AUTO.running = true; loop(); } });
@@ -639,7 +901,7 @@
           if (target && target.appendChild) { target.appendChild(svg); return true; }
           return false;
         };
-        if (!tryAppend()) { const t = setInterval(() => { if (tryAppend()) clearInterval(t); }, 50); setTimeout(() => clearInterval(t), 3000); }
+        if (!tryAppend()) { const t = setRecurring(() => { if (tryAppend()) clearRecurring(t); }, 50); setTimer(() => clearRecurring(t), 3000); }
 
         return {
           fidMain,
@@ -703,9 +965,11 @@
         prepareCached: (video, s) => {
           try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; }
         },
+        /* ── [PATCH-3] applyUrl에 PiP 가드 추가 ── */
         applyUrl: (el, url) => {
           if (!el) return;
           const st = getVState(el);
+          if (st._inPiP) return;
           if (!url) {
             if (st.applied) {
               el.style.removeProperty('transition'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
@@ -729,8 +993,11 @@
         }
       };
     }
-// ─── END OF PART 2 (v174.0.0) ───
-// ─── START OF PART 3 (v174.0.0) ───
+// ─── END OF PART 2 (v175.0.0) ───
+// ─── START OF PART 3 (v175.0.0 – Patched) ───
+// PATCH-3: PiP _inPiP flag integration in Adapter & bindVideoOnce
+// PATCH-7: Rate-blocked host list & enhanced rate guard
+
     const _SHADOW_PRECOMPUTED = (() => {
       const base = [
         { bit: SHADOW_BAND.OUTER, toe: -1.0, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 },
@@ -981,14 +1248,12 @@ void main() {
           cs.objectFit = vs.objectFit || 'contain';
           cs.objectPosition = vs.objectPosition;
           const zoomMgr = window.__VSC_INTERNAL__?.ZoomManager;
-const zoomed = zoomMgr?.isZoomed?.(video);
-if (!zoomed) {
-  /* P3-ZOOM-RESET-FIX: 줌 해제 직후에는 비디오 transform이 아직 ''이므로
-     캔버스도 명시적으로 초기화 */
-  const tr = vs.transform;
-  cs.transform = (tr && tr !== 'none') ? tr : '';
-  cs.transformOrigin = (tr && tr !== 'none') ? vs.transformOrigin : '';
-}
+          const zoomed = zoomMgr?.isZoomed?.(video);
+          if (!zoomed) {
+            const tr = vs.transform;
+            cs.transform = (tr && tr !== 'none') ? tr : '';
+            cs.transformOrigin = (tr && tr !== 'none') ? vs.transformOrigin : '';
+          }
           cs.borderRadius = vs.borderRadius || '';
           const vz = vs.zIndex;
           const n = parseInt(vz, 10);
@@ -1001,6 +1266,8 @@ if (!zoomed) {
           if (now < this.disabledUntil) return;
           const st = getVState(video);
           if (st.webglDisabledUntil && now < st.webglDisabledUntil) return;
+          /* PATCH-3: PiP 중 WebGL 렌더 스킵 */
+          if (st._inPiP) return;
           if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return;
           const ct = video.currentTime;
           if (this._lastRenderedTime === ct && !this._paramsDirty) return;
@@ -1278,7 +1545,6 @@ if (!zoomed) {
             h('div', { class: 'section-label' }, '도구'),
             h('div', { class: 'row' },
               h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); } }, svgIcon('pip'), ' PiP'),
-              /* P3-ZOOM-FIX: 줌 버튼 클릭 시 즉시 줌 토글 */
               (() => {
                 const zoomBtn = h('button', { class: 'btn' });
                 zoomBtn.append(svgIcon('zoom'), document.createTextNode(' 줌'));
@@ -1363,7 +1629,6 @@ if (!zoomed) {
       return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); } };
     }
 
-    function getRateState(v) { const st = getVState(v); if (!st.rateState) { st.rateState = { orig: null, lastSetAt: 0, retryCount: 0, permanentlyBlocked: false, suppressSyncUntil: 0 }; } return st.rateState; }
     function markInternalRateChange(v) { const st = getRateState(v); st.lastSetAt = performance.now(); }
     const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el); el.playbackRate = nextRate; st.orig = null; st.retryCount = 0; st.permanentlyBlocked = false; st.suppressSyncUntil = 0; } catch (_) {} };
 
@@ -1388,6 +1653,8 @@ if (!zoomed) {
         setUserMode(mode) { __userRequestedMode = mode; },
         apply(video, mode, vVals) {
           const st = getVState(video); const now = performance.now();
+          /* PATCH-3: PiP 중이면 필터 적용 건너뜀 */
+          if (st._inPiP) return;
           __userRequestedMode = mode;
           const autoDowngrade = (video.videoWidth * video.videoHeight) < (640 * 360);
           const webglAllowed = (mode === 'webgl' && !st.webglTainted && !(st.webglDisabledUntil && now < st.webglDisabledUntil) && !autoDowngrade);
@@ -1410,6 +1677,7 @@ if (!zoomed) {
             st.fxBackend = 'webgl';
           } else {
             if (st.fxBackend === 'webgl') FiltersGL.clear(video);
+            /* PATCH-3: PiP 중이면 SVG 필터도 건너뜀 */
             let url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg';
           }
         },
@@ -1433,12 +1701,25 @@ if (!zoomed) {
       const softResetTransientFlags = () => { st.resetTransient(); ApplyReq.hard(); };
       ['loadstart', 'loadedmetadata', 'emptied'].forEach(ev => v.addEventListener(ev, softResetTransientFlags, { passive: true, signal: sig }));
       ['seeking', 'play'].forEach(ev => v.addEventListener(ev, () => { ApplyReq.hard(); }, { passive: true, signal: sig }));
+
+      /* PATCH-3: PiP enter/leave 이벤트로 _inPiP 플래그 관리 및 필터 제거/복원 */
+      v.addEventListener('enterpictureinpicture', () => {
+        st._inPiP = true;
+        try { window.__VSC_INTERNAL__?.Adapter?.clear(v); } catch (_) {}
+      }, { passive: true, signal: sig });
+      v.addEventListener('leavepictureinpicture', () => {
+        st._inPiP = false;
+        setTimeout(() => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, 200);
+      }, { passive: true, signal: sig });
+
       v.addEventListener('ratechange', () => {
         const rSt = getRateState(v);
         const now = performance.now();
         if ((now - (rSt.lastSetAt || 0)) < 150) return;
         if (rSt.permanentlyBlocked) return;
         if (now < rSt.suppressSyncUntil) return;
+        /* PATCH-7: rate-blocked 사이트면 즉시 차단 */
+        if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
         const desired = st.desiredRate;
         if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.02) return;
         const refs = window.__VSC_INTERNAL__;
@@ -1490,6 +1771,8 @@ if (!zoomed) {
     function applyPlaybackRate(el, desiredRate) {
       const st = getVState(el); const rSt = getRateState(el);
       if (rSt.permanentlyBlocked) return;
+      /* PATCH-7: rate-blocked 사이트면 속도 변경 차단 */
+      if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
       if (rSt.orig == null) rSt.orig = el.playbackRate;
       const lastDesired = st.desiredRate;
       if (!Object.is(lastDesired, desiredRate) || Math.abs(el.playbackRate - desiredRate) > 0.01) { st.desiredRate = desiredRate; markInternalRateChange(el); try { el.playbackRate = desiredRate; } catch (_) {} }
@@ -1558,53 +1841,105 @@ if (!zoomed) {
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick(); Scheduler.request(true);
       return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, async destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); await Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
     }
-// ─── END OF PART 3 (v174.0.0) ───
-// ─── START OF PART 4 (v174.0.0 – Patched) ───
+// ─── END OF PART 3 (v175.0.0 – Patched) ───
+// ─── START OF PART 4 (v175.0.0 – Patched) ───
+// PATCH-1: GM_storage per-site with localStorage fallback
+// PATCH-2: setTimer/clearTimer wrappers (AbortController-safe timers)
+// P4-01 ~ P4-06: signal null-safety, key-level graceful load, postTask save, lifecycle hooks, throttle tuning
+
     const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
     const ApplyReq = createApplyRequester(Bus, Scheduler); window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store; window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
 
     /* ── P4-01: payload null-safety ── */
     Bus.on('signal', (s) => { if (s && s.forceApply) Scheduler.request(true); });
 
-    /* ── P4-02: loadSettings – 키 단위 graceful skip ── */
+    /* ── PATCH-1: GM_storage per-site key ── */
+    const SITE_STORAGE_KEY = 'vsc_prefs_' + location.hostname;
+    const __hasGM = (typeof GM_getValue === 'function' && typeof GM_setValue === 'function');
+    const __hasGMDelete = (typeof GM_deleteValue === 'function');
+
+    function mergeKnown(target, source) {
+      if (!source || typeof source !== 'object') return;
+      for (const k of Object.keys(target)) {
+        if (k in source && source[k] != null) {
+          if (typeof target[k] === 'object' && typeof source[k] === 'object' && !Array.isArray(target[k])) {
+            mergeKnown(target[k], source[k]);
+          } else {
+            target[k] = source[k];
+          }
+        }
+      }
+    }
+
+    function buildSaveData(Store, P) {
+      return {
+        active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
+        presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B),
+        presetMix: Store.get(P.V_PRE_MIX), shadowBandMask: Store.get(P.V_SHADOW_MASK),
+        brightStepLevel: Store.get(P.V_BRIGHT_STEP), renderMode: Store.get(P.APP_RENDER_MODE),
+        audioEnabled: Store.get(P.A_EN), audioBoost: Store.get(P.A_BST),
+        autoScene: Store.get(P.APP_AUTO_SCENE), zoomEn: Store.get(P.APP_ZOOM_EN),
+        playbackRate: Store.get(P.PB_RATE), playbackEnabled: Store.get(P.PB_EN)
+      };
+    }
+
+    function applyDataToStore(data, Store, P) {
+      if (!data || typeof data !== 'object') return;
+      const safeSet = (path, val) => { try { if (val != null) Store.set(path, val); } catch (_) {} };
+      safeSet(P.APP_ACT, data.active);
+      safeSet(P.APP_APPLY_ALL, data.applyAll);
+      safeSet(P.V_PRE_S, data.presetS);
+      safeSet(P.V_PRE_B, data.presetB);
+      safeSet(P.V_PRE_MIX, data.presetMix);
+      safeSet(P.V_SHADOW_MASK, data.shadowBandMask);
+      safeSet(P.V_BRIGHT_STEP, data.brightStepLevel);
+      safeSet(P.APP_RENDER_MODE, data.renderMode);
+      safeSet(P.A_EN, data.audioEnabled);
+      safeSet(P.A_BST, data.audioBoost);
+      safeSet(P.APP_AUTO_SCENE, data.autoScene);
+      safeSet(P.APP_ZOOM_EN, data.zoomEn);
+      safeSet(P.PB_RATE, data.playbackRate);
+      safeSet(P.PB_EN, data.playbackEnabled);
+    }
+
+    /* ── PATCH-1: saveSettings – GM_setValue (site key) + localStorage fallback ── */
     function saveSettings(Store, P) {
       try {
-        const data = {
-          active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
-          presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B),
-          presetMix: Store.get(P.V_PRE_MIX), shadowBandMask: Store.get(P.V_SHADOW_MASK),
-          brightStepLevel: Store.get(P.V_BRIGHT_STEP), renderMode: Store.get(P.APP_RENDER_MODE),
-          audioEnabled: Store.get(P.A_EN), audioBoost: Store.get(P.A_BST),
-          autoScene: Store.get(P.APP_AUTO_SCENE), zoomEn: Store.get(P.APP_ZOOM_EN),
-          playbackRate: Store.get(P.PB_RATE), playbackEnabled: Store.get(P.PB_EN)
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        const data = buildSaveData(Store, P);
+        const json = JSON.stringify(data);
+        /* GM storage: site-specific key */
+        if (__hasGM) {
+          try { GM_setValue(SITE_STORAGE_KEY, json); } catch (_) {}
+        }
+        /* localStorage fallback (global key for backward compat) */
+        try { localStorage.setItem(STORAGE_KEY, json); } catch (_) {}
       } catch (_) {}
     }
+
+    /* ── PATCH-1 + P4-02: loadSettings – GM_getValue (site key) → localStorage fallback, key-level graceful skip ── */
     function loadSettings(Store, P) {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return;
-        let data;
-        try { data = JSON.parse(raw); } catch (_) { return; }
-        if (!data || typeof data !== 'object') return;
-        /* ── P4-02: 개별 키 try-catch 로 하나가 깨져도 나머지 로드 ── */
-        const safeSet = (path, val) => { try { if (val != null) Store.set(path, val); } catch (_) {} };
-        safeSet(P.APP_ACT, data.active);
-        safeSet(P.APP_APPLY_ALL, data.applyAll);
-        safeSet(P.V_PRE_S, data.presetS);
-        safeSet(P.V_PRE_B, data.presetB);
-        safeSet(P.V_PRE_MIX, data.presetMix);
-        safeSet(P.V_SHADOW_MASK, data.shadowBandMask);
-        safeSet(P.V_BRIGHT_STEP, data.brightStepLevel);
-        safeSet(P.APP_RENDER_MODE, data.renderMode);
-        safeSet(P.A_EN, data.audioEnabled);
-        safeSet(P.A_BST, data.audioBoost);
-        safeSet(P.APP_AUTO_SCENE, data.autoScene);
-        safeSet(P.APP_ZOOM_EN, data.zoomEn);
-        safeSet(P.PB_RATE, data.playbackRate);
-        safeSet(P.PB_EN, data.playbackEnabled);
-      } catch (_) {}
+      let data = null;
+      /* 1) GM storage: site-specific */
+      if (__hasGM) {
+        try {
+          const raw = GM_getValue(SITE_STORAGE_KEY, null);
+          if (raw) {
+            try { data = (typeof raw === 'string') ? JSON.parse(raw) : raw; } catch (_) {}
+          }
+        } catch (_) {}
+      }
+      /* 2) localStorage fallback */
+      if (!data) {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            try { data = JSON.parse(raw); } catch (_) {}
+          }
+        } catch (_) {}
+      }
+      if (data && typeof data === 'object') {
+        applyDataToStore(data, Store, P);
+      }
     }
 
     function bindNormalizer(keys, schema) { const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); }; keys.forEach(k => Store.sub(k, run)); run(); }
