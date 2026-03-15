@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v177.0.0 - SVG Unified)
+// @name         Video_Control (v178.0.0 - SVG Unified)
 // @namespace    https://github.com/
-// @version      177.0.0
-// @description  v176 base + GPU-optimized SVG (19→7 primitives, Morphology removed, 1-band USM + feConvolution hybrid) + Lite adaptive
+// @version      178.0.0
+// @description  v177 base + bugfix: timer leak, SVG ID collision, PiP rebind, FS fallback, DRM backoff, batch reentry, MO filter guard, zoom rafId safety, tone cache key fix, iframe retry cap, combineSignals cleanup, lightSig encapsulation, blockInterference WeakSet, dead code removal
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -59,6 +59,7 @@
     };
     const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
 
+    /* [PATCH 1.1] combineSignals — explicit cleanup instead of relying on ac.signal */
     const combineSignals = (...signals) => {
       const existing = signals.filter(Boolean);
       if (existing.length === 0) return undefined;
@@ -66,8 +67,17 @@
       if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
       const ac = new AbortController();
       for (const sig of existing) { if (sig.aborted) { ac.abort(sig.reason); return ac.signal; } }
-      const onAbort = (reason) => { if (!ac.signal.aborted) ac.abort(reason); };
-      for (const sig of existing) { sig.addEventListener('abort', () => onAbort(sig.reason), { once: true, signal: ac.signal }); }
+      const cleanups = [];
+      const onAbort = (reason) => {
+        if (!ac.signal.aborted) ac.abort(reason);
+        for (const fn of cleanups) fn();
+        cleanups.length = 0;
+      };
+      for (const sig of existing) {
+        const handler = () => onAbort(sig.reason);
+        sig.addEventListener('abort', handler, { once: true });
+        cleanups.push(() => sig.removeEventListener('abort', handler));
+      }
       return ac.signal;
     };
 
@@ -80,11 +90,14 @@
     const onWin = (type, fn, opts) => on(window, type, fn, opts);
     const onDoc = (type, fn, opts) => on(document, type, fn, opts);
 
+    /* [PATCH 6.3] blockInterference — WeakSet instead of expando property */
+    const __blockedElements = new WeakSet();
+    const BLOCK_EVENTS_PASSIVE = Object.freeze(['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu']);
     function blockInterference(el) {
-      if (!el || el.__vscBlocked) return;
-      el.__vscBlocked = true;
+      if (!el || __blockedElements.has(el)) return;
+      __blockedElements.add(el);
       const stop = (e) => e.stopPropagation();
-      for (const evt of ['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu']) {
+      for (const evt of BLOCK_EVENTS_PASSIVE) {
         on(el, evt, stop, { passive: true });
       }
       on(el, 'wheel', stop, { passive: false });
@@ -98,7 +111,7 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '177.0.0';
+    const VSC_VERSION = '178.0.0';
 
     const STORAGE_KEY = 'vsc_settings_' + location.hostname;
 
@@ -242,7 +255,7 @@
       return __vpSnap;
     }
 
-    function walkRootsInto(root, out, depth = 0) { if (!root || depth > 6) return; out.push(root); const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) walkRootsInto(node.shadowRoot, out, depth + 1); node = walker.nextNode(); } }
+    /* [PATCH 5.3] walkRootsInto removed — dead code, rescanAll uses WorkQ directly */
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
     function initSpaUrlDetector(onChanged) {
@@ -271,9 +284,23 @@
     }
 
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
+    /* [PATCH 7.3] watchIframes — cross-origin retry cap */
     function watchIframes() {
       const canAccess = (ifr) => { try { const w = ifr.contentWindow; if (!w) return false; void w.location.href; return true; } catch (_) { return false; } };
-      const inject = (ifr) => { if (!ifr || !canAccess(ifr)) return; const tryInject = () => { try { const win = ifr.contentWindow; const doc = ifr.contentDocument || win?.document; if (!win || !doc) return; if (win.__VSC_BOOT_LOCK__) return; const host = doc.head || doc.documentElement; if (!host) return; const s = doc.createElement('script'); s.textContent = __VSC_INJECT_SOURCE; host.appendChild(s); s.remove?.(); } catch (_) {} }; tryInject(); if (!ifr.__vscLoadHooked) { ifr.__vscLoadHooked = true; ifr.addEventListener('load', () => { if (canAccess(ifr)) tryInject(); }, { passive: true }); } };
+      const inject = (ifr) => {
+        if (!ifr || !canAccess(ifr)) return;
+        const tryInject = () => { try { const win = ifr.contentWindow; const doc = ifr.contentDocument || win?.document; if (!win || !doc) return; if (win.__VSC_BOOT_LOCK__) return; const host = doc.head || doc.documentElement; if (!host) return; const s = doc.createElement('script'); s.textContent = __VSC_INJECT_SOURCE; host.appendChild(s); s.remove?.(); } catch (_) {} };
+        tryInject();
+        if (!ifr.__vscLoadHooked) {
+          ifr.__vscLoadHooked = true;
+          let failCount = 0;
+          ifr.addEventListener('load', () => {
+            if (failCount >= 3) return;
+            if (canAccess(ifr)) { tryInject(); failCount = 0; }
+            else { failCount++; }
+          }, { passive: true });
+        }
+      };
       document.querySelectorAll("iframe").forEach(inject);
       const mo = new MutationObserver((muts) => { for (const m of muts) { if (m.addedNodes) { m.addedNodes.forEach(n => { if (n.tagName === 'IFRAME') inject(n); else if (n.querySelectorAll) n.querySelectorAll('iframe').forEach(inject); }); } } }); mo.observe(document.documentElement, { childList: true, subtree: true });
     }
@@ -300,17 +327,26 @@
       fsWraps.set(video, wrap);
       return wrap;
     }
+    /* [PATCH 7.2] restoreFromFsWrapper — 3-stage fallback to prevent video DOM detachment */
     function restoreFromFsWrapper(video) {
       const wrap = fsWraps.get(video);
       if (!wrap) return;
       const ph = wrap.__vscPlaceholder;
-      if (ph && ph.parentNode) {
-        ph.parentNode.insertBefore(video, ph);
-        ph.remove();
-      } else if (wrap.parentNode) {
-        wrap.parentNode.insertBefore(video, wrap);
+      let restored = false;
+      if (ph?.parentNode?.isConnected) {
+        try { ph.parentNode.insertBefore(video, ph); ph.remove(); restored = true; } catch (_) {}
       }
-      if (wrap.parentNode) wrap.remove();
+      if (!restored && wrap.parentNode?.isConnected) {
+        try { wrap.parentNode.insertBefore(video, wrap); restored = true; } catch (_) {}
+      }
+      if (!restored && !video.isConnected) {
+        try {
+          const target = document.body || document.documentElement;
+          if (target) { target.appendChild(video); log.warn('Video restored to body as fallback'); }
+        } catch (_) {}
+      }
+      try { if (ph?.parentNode) ph.remove(); } catch (_) {}
+      try { if (wrap.parentNode) wrap.remove(); } catch (_) {}
       fsWraps.delete(video);
       const st = getVState(video);
       st.fsPatched = false;
@@ -319,12 +355,19 @@
       try { obj[name] = wrappedFn; return true; } catch (_) { return false; }
     }
 
+    /* [PATCH 1.6] patchFullscreenRequest — this-binding guard */
     function patchFullscreenRequest(video) {
       const st = getVState(video); if (!video || st.fsPatched) return; st.fsPatched = true;
       const origReq = video.requestFullscreen || video.webkitRequestFullscreen; if (!origReq) return;
       const runWrappedFs = function (...args) { const wrap = ensureFsWrapper(video); const cleanupIfNotFullscreen = () => { const fsEl = document.fullscreenElement || document.webkitFullscreenElement; if (!fsEl && fsWraps.has(video)) restoreFromFsWrapper(video); }; if (wrap) { const req = wrap.requestFullscreen || wrap.webkitRequestFullscreen; if (typeof req === 'function') { try { const ret = req.apply(wrap, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; } } } try { const ret = origReq.apply(video, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; } };
-      if (video.requestFullscreen) patchMethodSafe(video, 'requestFullscreen', function (...args) { return runWrappedFs.call(this, ...args); });
-      if (video.webkitRequestFullscreen) patchMethodSafe(video, 'webkitRequestFullscreen', function (...args) { return runWrappedFs.call(this, ...args); });
+      if (video.requestFullscreen) patchMethodSafe(video, 'requestFullscreen', function (...args) {
+        if (this !== video) return origReq.apply(this, args);
+        return runWrappedFs.call(this, ...args);
+      });
+      if (video.webkitRequestFullscreen) patchMethodSafe(video, 'webkitRequestFullscreen', function (...args) {
+        if (this !== video) return origReq.apply(this, args);
+        return runWrappedFs.call(this, ...args);
+      });
     }
 
     function onFsChange() {
@@ -342,6 +385,7 @@
     function getActivePiPVideo() { if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
+    /* [PATCH 1.7] enterPiP — rebind after adoptNode in pagehide handler */
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
       try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
@@ -375,7 +419,18 @@
               st._inPiP = false;
               st.applied = false;
               st.lastFilterUrl = null;
-              setTimer(() => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, 200);
+              /* [PATCH 1.7] rebind after adoptNode — listeners may be lost */
+              if (st._ac) { try { st._ac.abort(); } catch (_) {} st._ac = null; }
+              st.bound = false;
+              setTimer(() => {
+                try {
+                  const ApplyReq = window.__VSC_INTERNAL__?.ApplyReq;
+                  if (ApplyReq) {
+                    if (typeof bindVideoOnce === 'function') bindVideoOnce(video, ApplyReq);
+                    ApplyReq.hard();
+                  }
+                } catch (_) {}
+              }, 250);
             }
           });
           return true;
@@ -411,6 +466,7 @@
       showOSD('스크린샷 저장됨', 1500);
     }
 
+    /* [PATCH 1.5] createZoomManager — rafId nullability safety */
     function createZoomManager() {
       const stateMap = new WeakMap();
       let activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -458,7 +514,7 @@
 
       const update = (v) => {
         pendingUpdates.add(v);
-        if (rafId) return;
+        if (rafId != null) return;
         rafId = requestAnimationFrame(() => {
           rafId = null;
           const batch = [...pendingUpdates];
@@ -485,7 +541,7 @@
         if (!v) return;
         const st = getSt(v);
         st.scale = 1;
-        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
         pendingUpdates.delete(v);
         update(v);
       };
@@ -626,7 +682,7 @@
         resetZoom, zoomTo, isZoomed,
         pruneDisconnected: () => { for (const v of [...zoomedVideos]) { if (!v?.isConnected) resetZoom(v); } },
         destroy: () => {
-          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
           pendingUpdates.clear();
           for (const v of [...zoomedVideos]) {
             const st = getSt(v);
@@ -644,8 +700,8 @@
       };
     }
 
-// ─── PART 1 END (v176.0.0) ───
-// ─── START OF PART 2 (v176.0.0) ───
+// ─── PART 1 END (v178.0.0) ───
+// ─── START OF PART 2 (v178.0.0) ───
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) { const now = performance.now(); const vp = getViewportSnapshot(); let best = null, bestScore = -Infinity; const evalScore = (v) => { if (!v || v.readyState < 2) return; const r = getRectCached(v, now, 400); const area = r.width * r.height; const pip = isPiPActiveVideo(v); if (area < 160 * 120 && !pip) return; const cx = r.left + r.width * 0.5; const cy = r.top + r.height * 0.5; let s = 0; if (!v.paused && !v.ended) s += 6.0; if (v.currentTime > 0.2) s += 2.0; s += Math.log2(1 + area / 20000) * 1.1; const ptAge = Math.max(0, now - (lastUserPt.t || 0)); const userBias = Math.exp(-ptAge / 1800); const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y; s += (2.0 * userBias) / (1 + (dx*dx + dy*dy) / 722500); const cdx = cx - vp.cx, cdy = cy - vp.cy; s += 0.7 / (1 + (cdx*cdx + cdy*cdy) / 810000); if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2); if (pip) s += 3.0; if (s > bestScore) { bestScore = s; best = v; } }; for (const v of videos) { evalScore(v); } const activePip = getActivePiPVideo(); if (activePip && activePip.isConnected && !videos.has(activePip)) { evalScore(activePip); } if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) { if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) { return { target: stickyTarget }; } } stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS; return { target: best }; }
@@ -671,10 +727,12 @@
 
     function createScheduler(minIntervalMs = 16) { let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0; function clearPending() { if (timer) { clearTimer(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } } function queueRaf() { if (rafId) return; rafId = requestAnimationFrame(run); } function timerCb() { timer = 0; queueRaf(); } function run() { rafId = 0; queued = false; const now = performance.now(), doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimer(timerCb, wait); return; } lastRun = now; if (applyFn) { try { applyFn(doForce); } catch (_) {} } } const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; queueRaf(); return; } if (queued) return; queued = true; clearPending(); queueRaf(); }; return { registerApply: (fn) => { applyFn = fn; }, request }; }
 
-    function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; rev++; for (const [key, val] of batchEmits) { emit(key, val); } batchEmits.clear(); batchChanged = false; scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) { for (const [subK, subV] of Object.entries(val)) proxyState[c][subK] = subV; } else { proxyState[c] = val; } return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
+    /* [PATCH 7.5] createLocalStore — batch reentry defense via microtask flush */
+    function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; const emitsSnapshot = new Map(batchEmits); batchEmits.clear(); batchChanged = false; rev++; for (const [key, val] of emitsSnapshot) { emit(key, val); } scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) { for (const [subK, subV] of Object.entries(val)) proxyState[c][subK] = subV; } else { proxyState[c] = val; } return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
 
     function normalizeBySchema(sm, schema) { let changed = false; const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } }; for (const rule of schema) { const type = rule.type; const path = rule.path; if (type === 'bool') { setIfDiff(path, !!sm.get(path)); continue; } if (type === 'enum') { const cur = sm.get(path); if (!rule.values.includes(cur)) { setIfDiff(path, rule.fallback()); } continue; } if (type === 'num') { let n = Number(sm.get(path)); if (!Number.isFinite(n)) n = rule.fallback(); if (rule.round) n = Math.round(n); n = Math.max(rule.min, Math.min(rule.max, n)); setIfDiff(path, n); continue; } } return changed; }
 
+    /* [PATCH 7.6] isVscOwnNode — also exclude SVG filter nodes injected by VSC */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0; const shadowRootsLRU = []; const observedShadowHosts = new WeakSet(); let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
       const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' }) : null;
@@ -686,7 +744,11 @@
       const observers = new Set();
       const isVscOwnNode = (n) => {
         if (!n || n.nodeType !== 1) return false;
-        return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd');
+        if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd') return true;
+        /* [PATCH 7.6] exclude VSC-injected SVG filter containers */
+        const tag = n.tagName;
+        if ((tag === 'svg' || tag === 'SVG') && n.querySelector?.('[id^="vsc-"]')) return true;
+        return false;
       };
       const connectObserver = (root) => {
         if (!root) return;
@@ -713,6 +775,7 @@
         });
         mo.observe(root, { childList: true, subtree: true }); observers.add(mo); WorkQ.enqueue(root);
       };
+      /* [PATCH 5.3] refreshObservers/rescanAll — no longer uses walkRootsInto */
       const refreshObservers = () => { for (const o of observers) o.disconnect(); observers.clear(); if (!FEATURE_FLAGS.trackShadowRoots) { const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } return; } for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); } const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } };
       if (FEATURE_FLAGS.trackShadowRoots) {
         document.addEventListener('vsc-shadow-root', (e) => {
@@ -746,11 +809,24 @@
         }
         return removed;
       }
-      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, 220); if (removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { const roots = []; walkRootsInto(document.body || document.documentElement, roots); for (const r of roots) WorkQ.enqueue(r); } };
+      return {
+        videos, visible, rev: () => rev, refreshObservers,
+        prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, 220); if (removed) rev++; },
+        consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
+        /* [PATCH 5.3] rescanAll — direct WorkQ enqueue, no walkRootsInto */
+        rescanAll: () => {
+          const body = document.body || document.documentElement;
+          if (body) WorkQ.enqueue(body);
+          for (const it of shadowRootsLRU) {
+            if (it.host?.isConnected) WorkQ.enqueue(it.root);
+          }
+        }
+      };
     }
 
+    /* [PATCH 1.2] createAudio — __audioLoopTimer to prevent overlapping recursive timers */
     function createAudio(sm) {
-      let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
+      let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; let __audioLoopTimer = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
       const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
       const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
@@ -772,12 +848,19 @@
         const makeup = Math.pow(10, makeupDbEma / 20);
         if (wetInGain) { const finalGain = userBoost * makeup; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
         const delay = document.hidden ? 500 : 70;
-        setTimer(() => runAudioLoop(tok), delay);
+        /* [PATCH 1.2] cancel previous timer before scheduling next to prevent overlap */
+        clearTimer(__audioLoopTimer);
+        __audioLoopTimer = setTimer(() => { __audioLoopTimer = 0; runAudioLoop(tok); }, delay);
       }
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
+      /* [PATCH 7.1] ensureCtx — reset audioFailUntil on context recreation */
       const ensureCtx = () => {
-        if (ctx && ctx.state === 'closed') { srcMap = new WeakMap(); resetCtx(); }
+        if (ctx && ctx.state === 'closed') {
+          srcMap = new WeakMap();
+          if (target) { const tst = getVState(target); tst.audioFailUntil = 0; }
+          resetCtx();
+        }
         if (ctx) return true;
         srcMap = new WeakMap();
         const AC = window.AudioContext || window.webkitAudioContext;
@@ -788,14 +871,17 @@
       const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => { if (!ctx) return; const t = ctx.currentTime; try { dryOut.gain.cancelScheduledValues(t); wetOut.gain.cancelScheduledValues(t); dryOut.gain.setTargetAtTime(dryTarget, t, tc); wetOut.gain.setTargetAtTime(wetTarget, t, tc); } catch (_) { dryOut.gain.value = dryTarget; wetOut.gain.value = wetTarget; } };
       const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimer(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimer(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); };
       const disconnectAll = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} } currentSrc = null; target = null; };
-      const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const isHooked = !!currentSrc; const actuallyEnabled = en && isHooked; const dryTarget = actuallyEnabled ? 0 : 1; const wetTarget = actuallyEnabled ? 1 : 0; rampGainsSafe(dryTarget, wetTarget, 0.015); loopTok++; if (actuallyEnabled) { runAudioLoop(loopTok); } };
-      async function destroy() { loopTok++; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimer(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
+      const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const isHooked = !!currentSrc; const actuallyEnabled = en && isHooked; const dryTarget = actuallyEnabled ? 0 : 1; const wetTarget = actuallyEnabled ? 1 : 0; rampGainsSafe(dryTarget, wetTarget, 0.015); loopTok++; clearTimer(__audioLoopTimer); __audioLoopTimer = 0; if (actuallyEnabled) { runAudioLoop(loopTok); } };
+      async function destroy() { loopTok++; clearTimer(__audioLoopTimer); __audioLoopTimer = 0; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimer(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
       return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element'); disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (_) { if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
+    /* [PATCH 7.4] createAutoSceneManager — exponential DRM backoff + max retries */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP; const approach = (cur, tgt, a, dead=0.002) => { const d = tgt - cur; return Math.abs(d) < dead ? tgt : cur + d * a; };
       const AUTO = { running: false, canvasW: 48, canvasH: 27, cur: { br: 1.0, ct: 1.0, sat: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0 }, lastSig: null, cutHist: [], motionEma: 0, motionAlpha: 0.30, motionThresh: 0.0075, motionFrames: 0, motionMinFrames: 5, statsEma: null, statsAlpha: 0.12, drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 800, minBoostEarlyMs: 700, fpsHist: [], minFps: 1, maxFps: 6, curFps: 1, _lastMean: 0 };
+      let drmRetryCount = 0;
+      const MAX_DRM_RETRIES = 5;
       const c = document.createElement('canvas'); c.width = AUTO.canvasW; c.height = AUTO.canvasH; let ctx = null; try { ctx = c.getContext('2d', { willReadFrequently: true, desynchronized: true, alpha: false, colorSpace: 'srgb' }); } catch (_) { try { ctx = c.getContext('2d', { willReadFrequently: true }); } catch (__) {} }
 
       function computeStatsAndMotion(AUTO, img, sw, sh) {
@@ -807,25 +893,29 @@
       function detectCut(stats) { if (!AUTO.lastSig) return false; const score = (Math.abs(stats.bright - AUTO.lastSig.bright) * 1.1) + (Math.abs(stats.contrast - AUTO.lastSig.contrast) * 0.9); AUTO.cutHist.push(score); if (AUTO.cutHist.length > 20) AUTO.cutHist.shift(); const sorted = AUTO.cutHist.slice().sort((a,b)=>a-b); const q80 = sorted[Math.floor(sorted.length * 0.80)] || 0.14; const thr = Math.max(0.10, Math.min(0.22, q80 * 1.05)); return score > thr; }
       function calculateAdaptiveFps(changeScore) { AUTO.fpsHist.push(changeScore); if (AUTO.fpsHist.length > 5) AUTO.fpsHist.shift(); const avgChange = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length; const targetFps = (avgChange < 0.1 ? 2 + (avgChange/0.1)*2 : 0) + (avgChange >= 0.1 && avgChange < 0.3 ? 4 + ((avgChange-0.1)/0.2)*3 : 0) + (avgChange >= 0.3 ? 7 + (Math.min(avgChange-0.3,0.7)/0.7)*3 : 0); const clamped = clamp(targetFps, AUTO.minFps, AUTO.maxFps); const rounded = Math.round(clamped * 2) / 2; AUTO.curFps += clamp(rounded - AUTO.curFps, -1, 1); return AUTO.curFps; }
       let __asRvfcId = 0; function scheduleNext(v, delayMs) { if (!AUTO.running) return; if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') { const target = performance.now() + Math.max(0, delayMs|0); try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = v.requestVideoFrameCallback(() => { __asRvfcId = 0; const remain = target - performance.now(); if (remain > 6) { scheduleNext(v, remain); return; } loop(); }); return; } setTimer(loop, Math.max(16, delayMs|0)); }
-      function loop() { if (!AUTO.running) return; const now = performance.now(); const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT); const v = window.__VSC_APP__?.getActiveVideo?.(); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; scheduleNext(v, 500); return; } if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; } if (document.hidden) { scheduleNext(v, 2000); return; } if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; } const useW = 48, useH = 27; try { if (c.width !== useW || c.height !== useH) { c.width = useW; c.height = useH; AUTO.canvasW = useW; AUTO.canvasH = useH; } ctx.drawImage(v, 0, 0, useW, useH); const img = ctx.getImageData(0, 0, useW, useH); AUTO.drmBlocked = false; const stats = computeStatsAndMotion(AUTO, img, useW, useH); AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (stats.motion * AUTO.motionAlpha); AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0; const isCut = detectCut(stats); AUTO.lastSig = stats; if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + stats.bright*a; e.contrast = e.contrast*(1-a) + stats.contrast*a; e.edge = e.edge*(1-a) + stats.edge*a; e.chroma = (e.chroma ?? stats.chroma)*(1-a) + stats.chroma*a; } const sig = AUTO.statsEma; if (isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; } const allowUpdate = isCut || (AUTO.motionFrames >= AUTO.motionMinFrames); let fps = AUTO.curFps; if (allowUpdate) { fps = calculateAdaptiveFps(clamp(stats.motion||0,0,1)); fps = Math.min(fps, 6); if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 6 : 4); const errY = clamp(0.50 - sig.bright, -0.22, 0.22); const errSd = clamp(0.23 - sig.contrast, -0.18, 0.18); AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35); AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30); const curCh = Number(sig.chroma || 0); const errCh = clamp(0.18 - curCh, -0.18, 0.18); AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50); const smoothA = isCut ? 0.16 : 0.05; const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat; AUTO.cur.br = approach(AUTO.cur.br, AUTO.tgt.br, smoothA); AUTO.cur.ct = approach(AUTO.cur.ct, AUTO.tgt.ct, smoothA); AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, smoothA); if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) { Scheduler.request(true); } } scheduleNext(v, Math.max(150, Math.round(1000 / Math.max(1, fps)))); } catch (e) { if (VSC_DEFENSE.autoSceneDrmBackoff) { AUTO.drmBlocked = true; AUTO.blockUntilMs = performance.now() + 5000; scheduleNext(v, 1000); } else { scheduleNext(v, 500); } } }
-      Store.sub(P.APP_AUTO_SCENE, (en) => { if (en && !AUTO.running) { AUTO.running = true; loop(); } else if (!en) { AUTO.running = false; AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; Scheduler.request(true); } });
-      Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { AUTO.running = true; loop(); } });
-      return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; } };
+      function loop() { if (!AUTO.running) return; const now = performance.now(); const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT); const v = window.__VSC_APP__?.getActiveVideo?.(); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; scheduleNext(v, 500); return; } if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; } if (document.hidden) { scheduleNext(v, 2000); return; } if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; } const useW = 48, useH = 27; try { if (c.width !== useW || c.height !== useH) { c.width = useW; c.height = useH; AUTO.canvasW = useW; AUTO.canvasH = useH; } ctx.drawImage(v, 0, 0, useW, useH); const img = ctx.getImageData(0, 0, useW, useH); AUTO.drmBlocked = false; drmRetryCount = 0; const stats = computeStatsAndMotion(AUTO, img, useW, useH); AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (stats.motion * AUTO.motionAlpha); AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0; const isCut = detectCut(stats); AUTO.lastSig = stats; if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + stats.bright*a; e.contrast = e.contrast*(1-a) + stats.contrast*a; e.edge = e.edge*(1-a) + stats.edge*a; e.chroma = (e.chroma ?? stats.chroma)*(1-a) + stats.chroma*a; } const sig = AUTO.statsEma; if (isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; } const allowUpdate = isCut || (AUTO.motionFrames >= AUTO.motionMinFrames); let fps = AUTO.curFps; if (allowUpdate) { fps = calculateAdaptiveFps(clamp(stats.motion||0,0,1)); fps = Math.min(fps, 6); if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 6 : 4); const errY = clamp(0.50 - sig.bright, -0.22, 0.22); const errSd = clamp(0.23 - sig.contrast, -0.18, 0.18); AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35); AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30); const curCh = Number(sig.chroma || 0); const errCh = clamp(0.18 - curCh, -0.18, 0.18); AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50); const smoothA = isCut ? 0.16 : 0.05; const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat; AUTO.cur.br = approach(AUTO.cur.br, AUTO.tgt.br, smoothA); AUTO.cur.ct = approach(AUTO.cur.ct, AUTO.tgt.ct, smoothA); AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, smoothA); if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) { Scheduler.request(true); } } scheduleNext(v, Math.max(150, Math.round(1000 / Math.max(1, fps)))); } catch (e) {
+        /* [PATCH 7.4] exponential DRM backoff with max retries */
+        if (VSC_DEFENSE.autoSceneDrmBackoff) {
+          drmRetryCount++;
+          AUTO.drmBlocked = true;
+          if (drmRetryCount >= MAX_DRM_RETRIES) {
+            AUTO.running = false;
+            AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 };
+            Store.set(P.APP_AUTO_SCENE, false);
+            showOSD('Auto Scene: DRM으로 비활성화됨', 3000);
+            Scheduler.request(true);
+            return;
+          }
+          const backoffMs = Math.min(30000, 5000 * Math.pow(1.5, drmRetryCount - 1));
+          AUTO.blockUntilMs = performance.now() + backoffMs;
+          scheduleNext(v, backoffMs);
+        } else { scheduleNext(v, 500); }
+      } }
+      Store.sub(P.APP_AUTO_SCENE, (en) => { if (en && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } else if (!en) { AUTO.running = false; AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; Scheduler.request(true); } });
+      Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
+      return { getMods: () => AUTO.cur, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; } };
     }
 
-    /* ═══════════════════════════════════════════════════════════════════
-       createFiltersVideoOnly — v176 SVG filter engine
-       ● full 필터: v170.3.0 복원 (3밴드 USM + feMorphology CAS + 하이라이트/크로마 보호)
-       ● lite 필터: tone + contrast + temp + saturation + feConvolution 3×3 (adaptive pxScale)
-       ● LITE_FORCED_HOSTS 사이트 → lite 강제
-       ═══════════════════════════════════════════════════════════════════ */
-            /* ═══════════════════════════════════════════════════════════════════
-       createFiltersVideoOnly — v177 GPU-optimized SVG filter engine
-       ● Full 필터: 1-band USM + feConvolution fine detail + 톤/채도/온도
-         → 프리미티브 9개 (v176 대비 19→9, GaussianBlur 3→1, Morphology 제거)
-       ● Lite 필터: tone + contrast + temp + saturation + feConvolution 3×3
-       ● LITE_FORCED_HOSTS → lite 강제
-       ═══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(64);
@@ -835,12 +925,14 @@
       function wantsDetailPass(s) { return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0; }
       const makeKeyBase = (s) => qInt(s.gain,0.04) + '|' + qInt(s.gamma,0.01) + '|' + qInt(s.contrast,0.01) + '|' + qInt(s.bright,0.2) + '|' + qInt(s.satF,0.01) + '|' + qInt(s.mid,0.02) + '|' + qInt(s.toe,0.2) + '|' + qInt(s.shoulder,0.2) + '|' + qInt(s.temp,0.2) + '|' + qInt(s.sharp,0.2) + '|' + qInt(s.sharp2,0.2) + '|' + qInt(s.clarity,0.2);
 
+      /* [PATCH 1.8] getToneTableCached — fixed-point key generation to avoid float collision */
       function getToneTableCached(steps, toeN, shoulderN, midN, gain, contrast, brightOffset, gamma) {
-        const key = `${steps}|${(toeN*100)|0}|${(shoulderN*100)|0}|${(midN*100)|0}|${(gain*100)|0}|${(contrast*100)|0}|${(brightOffset*1000)|0}|${(gamma*100)|0}`;
+        const key = `${steps}|${Math.round(toeN*1000)}|${Math.round(shoulderN*1000)}|${Math.round(midN*1000)}|${Math.round(gain*1000)}|${Math.round(contrast*1000)}|${Math.round(brightOffset*10000)}|${Math.round(gamma*1000)}`;
         const hit = toneCache.get(key); if (hit) return hit;
         const toeEnd = 0.34 + Math.abs(toeN) * 0.06, toeAmt = Math.abs(toeN), toeSign = toeN >= 0 ? 1 : -1;
         const shoulderStart = 0.90 - shoulderN * 0.10, shAmt = Math.abs(shoulderN);
         const ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g);
+        const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk));
         const out = new Array(steps); let prev = 0;
         const intercept = 0.5 * (1 - contrast) + brightOffset;
         const gammaExp = Number(gamma);
@@ -849,7 +941,7 @@
           let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
           x = clamp(x + midN * 0.06 * (4 * x * (1 - x)), 0, 1);
           if (toeAmt > 1e-6) { const w = 1 - smoothstep(0, toeEnd, x); x = clamp(x + toeSign * toeAmt * 0.55 * ((toeEnd - x) * w * w), 0, 1); }
-          if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const kk = Math.max(0.7, 1.2 + shAmt * 6.5); const shDen = (1 - Math.exp(-kk)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); }
+          if (shAmt > 1e-6 && x > shoulderStart) { const tt = (x - shoulderStart) / Math.max(1e-6, (1 - shoulderStart)); const shMap = (Math.abs(shDen) > 1e-6) ? ((1 - Math.exp(-kk * tt)) / shDen) : tt; x = clamp(shoulderStart + (1 - shoulderStart) * shMap, 0, 1); }
           x = x * contrast + intercept; x = clamp(x, 0, 1);
           if (Math.abs(gammaExp - 1.0) > 0.001) x = Math.pow(x, gammaExp);
           if (x < prev) x = prev; prev = x;
@@ -864,10 +956,10 @@
         return h('feComponentTransfer', { ns: 'svg', ...attrs }, ...children);
       };
 
+      /* [PATCH 1.4] buildSvg — remove existing VSC SVG before appending to prevent ID collision */
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
 
-        /* ──────── Lite 필터 (변경 없음) ──────── */
         const fidLite = `vsc-lite-${config.VSC_ID}`;
         const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
         const liteConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'lSharp' });
@@ -877,29 +969,9 @@
         lite.append(liteConv, liteTone, liteTmp, liteSat);
         defs.append(lite);
 
-        /* ──────── Full 필터 — GPU 최적화 (프리미티브 9개) ──────── */
-        /*
-           파이프라인:
-           ① feConvolveMatrix 3×3    — fine + medium detail (1 프리미티브로 통합)
-           ② feGaussianBlur 1회      — clarity용 wide blur
-           ③ feComposite arithmetic  — USM (sharp - blur)
-           ④ feComponentTransfer     — 톤 맵핑 (gamma/contrast/bright/gain/toe/shoulder/mid)
-           ⑤ feComponentTransfer     — 온도 (R/G/B slope)
-           ⑥ feColorMatrix saturate  — 채도
-           ⑦ feComponentTransfer     — 클램프 + 알파 복원
-
-           제거된 것:
-           - GaussianBlur 2개 (3→1)
-           - feMorphology dilate/erode (2개)
-           - edgeGate/invGate/hlKeep/blendFactor 등 마스킹 체인 (7개)
-           - 별도 lumBase/lumSharp ColorMatrix (2개)
-
-           총: 19 → 7 프리미티브 (GaussianBlur 1 + feConvolveMatrix 1 포함)
-        */
         const fidFull = `vsc-full-${config.VSC_ID}`;
         const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
 
-        /* ① feConvolveMatrix: fine+medium 통합 샤프닝 (preserveAlpha로 알파 안전) */
         const fConv = h('feConvolveMatrix', { ns: 'svg',
           in: 'SourceGraphic', order: '3',
           kernelMatrix: '0,0,0, 0,1,0, 0,0,0',
@@ -910,10 +982,8 @@
           result: 'conv'
         });
 
-        /* ② clarity: wide blur */
         const fBlur = h('feGaussianBlur', { ns: 'svg', in: 'conv', stdDeviation: '2.5', result: 'blr' });
 
-        /* ③ USM: conv + (conv - blur) × amount = conv × (1+a) - blur × a */
         const fUsm = h('feComposite', { ns: 'svg',
           in: 'conv', in2: 'blr',
           operator: 'arithmetic',
@@ -921,16 +991,12 @@
           result: 'usm'
         });
 
-        /* ④ 톤 맵핑 */
         const fTone = mkXfer({ in: 'usm', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
 
-        /* ⑤ 온도 */
         const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
 
-        /* ⑥ 채도 */
         const fSat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1', result: 'sat' });
 
-        /* ⑦ 크로마 보호 (약간 desaturation) + 최종 클램프 */
         const fFinal = h('feColorMatrix', { ns: 'svg', in: 'sat', type: 'saturate', values: '0.97', result: 'final' });
 
         full.append(fConv, fBlur, fUsm, fTone, fTemp, fSat, fFinal);
@@ -938,19 +1004,27 @@
 
         const tryAppend = () => {
           const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
-          if (target && target.appendChild) { target.appendChild(svg); return true; }
-          return false;
+          if (!target?.appendChild) return false;
+          /* [PATCH 1.4] remove stale VSC SVG with same filter IDs before inserting */
+          try {
+            const escapedFull = fidFull.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const existing = target.querySelector(`filter[id="${escapedFull}"]`);
+            if (existing) {
+              const oldSvg = existing.closest('svg');
+              if (oldSvg && oldSvg !== svg) oldSvg.remove();
+            }
+          } catch (_) {}
+          target.appendChild(svg);
+          return true;
         };
         if (!tryAppend()) { const t = setRecurring(() => { if (tryAppend()) clearRecurring(t); }, 50); setTimer(() => clearRecurring(t), 3000); }
 
         return {
           fidLite, fidFull,
-          /* Lite */
           liteConv,
           liteToneFuncs: Array.from(liteTone.children),
           liteTmpFuncs: Array.from(liteTmp.children),
           liteSat,
-          /* Full */
           fConv, fBlur, fUsm,
           fullToneFuncs: Array.from(fTone.children),
           fullTempFuncs: Array.from(fTemp.children),
@@ -987,13 +1061,12 @@
           const shQ   = qInt(clamp((s.shoulder||0)/16, -1, 1), 0.02) * 0.02;
           const midQ  = qInt(clamp(s.mid||0, -1, 1), 0.02) * 0.02;
           const gainQ = qInt(s.gain||1, 0.06) * 0.06;
-          const tk = `${steps}|${(toeQ*100)|0}|${(shQ*100)|0}|${(midQ*100)|0}|${(gainQ*100)|0}|${(con*100)|0}|${(brOff*1000)|0}|${(gamma*100)|0}`;
+          const tk = `${steps}|${Math.round(toeQ*1000)}|${Math.round(shQ*1000)}|${Math.round(midQ*1000)}|${Math.round(gainQ*1000)}|${Math.round(con*1000)}|${Math.round(brOff*10000)}|${Math.round(gamma*1000)}`;
           const satVal = clamp(s.satF ?? 1, 0, 5.0).toFixed(2);
           const { rs, gs, bs } = tempToRgbGain(s.temp); const tmk = rs.toFixed(3) + '|' + gs.toFixed(3) + '|' + bs.toFixed(3);
 
           if (useFull) {
             queueMicrotask(() => {
-              /* 톤 */
               if (st.fullToneKey !== tk) {
                 st.fullToneKey = tk;
                 st.fullToneTable = getToneTableCached(steps, toeQ, shQ, midQ, gainQ, con, brOff, gamma);
@@ -1002,9 +1075,7 @@
                   fn.setAttribute('tableValues', st.fullToneTable);
                 }
               }
-              /* 채도 */
               if (st.fullSatKey !== satVal) { st.fullSatKey = satVal; ctx.fullSat.setAttribute('values', satVal); }
-              /* 온도 */
               if (st.fullTempKey !== tmk) {
                 st.fullTempKey = tmk;
                 ctx.fullTempFuncs[0].setAttribute('slope', rs);
@@ -1012,7 +1083,6 @@
                 ctx.fullTempFuncs[2].setAttribute('slope', bs);
               }
 
-              /* 샤프닝 파라미터 */
               const sharpAmt = Number(s.sharp || 0);
               const sharp2Amt = Number(s.sharp2 || 0);
               const clarityAmt = Number(s.clarity || 0);
@@ -1022,15 +1092,6 @@
                 const refH = 1080;
                 const pxScale = clamp((vhKey || refH) / refH, 0.5, 2.0);
 
-                /*
-                   feConvolveMatrix 3×3: fine + medium 통합
-                   표준 Laplacian sharpening kernel:
-                     0   -e   0
-                    -e  1+4e  -e
-                     0   -e   0
-
-                   e = (sharp/50 + sharp2/80) × pxScale, 상한 0.5
-                */
                 const rawE = (sharpAmt / 50 + sharp2Amt / 80) * pxScale;
                 const e = clamp(rawE, 0, 0.5);
                 const center = (1 + 4 * e);
@@ -1041,16 +1102,11 @@
                   ctx.fConv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
                 }
 
-                /*
-                   clarity USM: k2 = 1 + amount, k3 = -amount
-                   amount = clarity/50 × pxScale, 상한 0.35
-                */
                 const cAmt = clamp(clarityAmt / 50 * pxScale, 0, 0.35);
                 ctx.fUsm.setAttribute('k2', (1 + cAmt).toFixed(4));
                 ctx.fUsm.setAttribute('k3', (-cAmt).toFixed(4));
                 ctx.fBlur.setAttribute('stdDeviation', (2.5 * pxScale).toFixed(2));
 
-                /* 크로마 보호: 샤프닝 강할수록 약간 desaturate */
                 const totalSharp = e + cAmt;
                 const desatVal = clamp(1.0 - totalSharp * 0.08, 0.88, 1.0).toFixed(3);
                 if (st.fullDesatKey !== desatVal) {
@@ -1060,7 +1116,6 @@
               }
             });
           } else {
-            /* ── Lite 경로 (변경 없음) ── */
             queueMicrotask(() => {
               if (st.liteToneKey !== tk) {
                 st.liteToneKey = tk;
@@ -1131,8 +1186,8 @@
     }
 
 
-// ─── END OF PART 2 (v176.0.0) ───
-// ─── START OF PART 3 (v176.0.0) ───
+// ─── END OF PART 2 (v178.0.0) ───
+// ─── START OF PART 3 (v178.0.0) ───
 
     const _SHADOW_PRECOMPUTED = (() => {
       const base = [
@@ -1232,7 +1287,6 @@
       Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
-    /* ── v176: WebGL 제거 → SVG 전용 메모이제이션 ── */
     function createVideoParamsMemo(Store, P, Utils) {
       let lastKey = ''; let lastResult = null;
       const sigVideo = (vf) => [
@@ -1333,7 +1387,7 @@
           if (!v || !container?.isConnected) { videoInfo.textContent = ''; return; }
           const w = v.videoWidth, ht = v.videoHeight;
           const mode = __liteForced ? 'LITE' : 'FULL';
-          videoInfo.textContent = `${w}\u00D7${ht} \u00B7 SVG/${mode}`;
+          videoInfo.textContent = `${w}\u00D7${ht} \u00B7 ${mode}`;
         }
         sub(P.APP_UI, (visible) => { clearInterval(infoTimer); if (visible) { updateVideoInfo(); infoTimer = setInterval(updateVideoInfo, 2000); } });
 
@@ -1388,7 +1442,6 @@
         );
         bindStyle(advContainer, P.APP_ADV, (el, v) => { el.style.display = v ? 'block' : 'none'; });
 
-        /* ── v176: 비디오 섹션 — renderMode 토글 제거, Auto 버튼만 유지 ── */
         const videoSection = h('div', {},
           h('div', { class: 'section' },
             h('div', { class: 'section-label' }, '비디오 효과'),
@@ -1528,7 +1581,6 @@
     function markInternalRateChange(v) { const st = getRateState(v); st.lastSetAt = performance.now(); }
     const restoreRateOne = (el) => { try { const st = getRateState(el); if (!st || st.orig == null) return; const nextRate = Number.isFinite(st.orig) && st.orig > 0 ? st.orig : 1.0; markInternalRateChange(el); el.playbackRate = nextRate; st.orig = null; st.retryCount = 0; st.permanentlyBlocked = false; st.suppressSyncUntil = 0; } catch (_) {} };
 
-    /* ── v176: SVG-only 백엔드 어댑터 (WebGL 제거) ── */
     function createBackendAdapter(Filters) {
       return {
         apply(video, vVals) {
@@ -1608,15 +1660,19 @@
       }, { passive: true, signal: sig });
     };
 
-    const __reconcileCandidates = new Set();
-    let __lastSigTarget = null, __lastSigPb = false, __lastSigRate = 1, __lastSigFx = false;
-    function lightSigChanged(activeTarget, pbActive, desiredRate, videoFxOn) {
-      if (activeTarget !== __lastSigTarget || pbActive !== __lastSigPb || desiredRate !== __lastSigRate || videoFxOn !== __lastSigFx) {
-        __lastSigTarget = activeTarget; __lastSigPb = pbActive; __lastSigRate = desiredRate; __lastSigFx = videoFxOn; return true;
-      }
-      return false;
+    /* [PATCH 5.4] lightSigChanged — closure-encapsulated instead of global mutable lets */
+    function createLightSigTracker() {
+      let lastTarget = null, lastPb = false, lastRate = 1, lastFx = false;
+      return (activeTarget, pbActive, desiredRate, videoFxOn) => {
+        if (activeTarget !== lastTarget || pbActive !== lastPb || desiredRate !== lastRate || videoFxOn !== lastFx) {
+          lastTarget = activeTarget; lastPb = pbActive; lastRate = desiredRate; lastFx = videoFxOn;
+          return true;
+        }
+        return false;
+      };
     }
 
+    const __reconcileCandidates = new Set();
     function clearVideoRuntimeState(el, Adapter, ApplyReq) {
       const st = getVState(el);
       if (st._ac) { try { st._ac.abort(); } catch (_) {} st._ac = null; }
@@ -1635,7 +1691,6 @@
       touchedAddLimited(TOUCHED.rateVideos, el, onEvictRateVideo);
     }
 
-    /* ── v176: reconcileVideoEffects — rMode 인자 제거, Adapter.apply 시그니처 변경 ── */
     function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn, desiredRate, pbActive, Adapter, ApplyReq, mainTarget }) {
       const candidates = __reconcileCandidates; candidates.clear();
       for (const v of dirtyVideos) if (v) candidates.add(v);
@@ -1657,7 +1712,7 @@
 
     function createThrottled(fn, ms = 120) { let last = 0, timer = 0; return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } }; }
 
-    /* ── v176: createAppController — renderMode 참조 제거 ── */
+    /* [PATCH 5.4] createAppController — uses createLightSigTracker() closure */
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
       UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) { try { Registry.refreshObservers?.(); Registry.rescanAll?.(); Scheduler.request(true); } catch (_) {} } });
@@ -1665,6 +1720,7 @@
       const __applySet = new Set();
       let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
       const videoParamsMemo = createVideoParamsMemo(Store, P, Utils); const audioUpdateThrottled = createThrottled(() => Audio.update(), 120);
+      const lightSigChanged = createLightSigTracker();
       Scheduler.registerApply((force) => {
         try {
           if (document.hidden && !force) return;
@@ -1721,7 +1777,6 @@
       }
     }
 
-    /* ── v176: buildSaveData/applyDataToStore — renderMode 필드 제거 ── */
     function buildSaveData(Store, P) {
       return {
         active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
@@ -1825,7 +1880,6 @@
 
       const AutoScene = createAutoSceneManager(Store, P, Scheduler); window.__VSC_INTERNAL__.AutoScene = AutoScene;
 
-      /* ── v176: SVG-only — createFiltersWebGL 제거, Adapter에 Filters만 전달 ── */
       const Filters = createFiltersVideoOnly(Utils, { VSC_ID: CONFIG.VSC_ID, IS_MOBILE: CONFIG.IS_MOBILE });
       const Adapter = createBackendAdapter(Filters); window.__VSC_INTERNAL__.Adapter = Adapter;
 
@@ -1861,7 +1915,6 @@
         } catch (_) {}
       });
 
-      /* ── v176: 키바인드 — Alt+Shift+R (렌더 토글) 제거 ── */
       onWin('keydown', async (e) => {
         if (isEditableTarget(e.target)) return;
         if (e.altKey && e.shiftKey && e.code === 'KeyV') { e.preventDefault(); e.stopPropagation(); try { Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); } catch (_) {} return; }
@@ -1870,7 +1923,7 @@
         if (e.altKey && e.shiftKey && e.code === 'KeyA') { e.preventDefault(); Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyC') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (v) captureVideoFrame(v); return; }
         if (e.altKey && e.shiftKey && e.code === 'Slash') { e.preventDefault(); showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | P: PiP | C: 캡처 | I: 정보', 3500); return; }
-        if (e.altKey && e.shiftKey && e.code === 'KeyI') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (!v) { showOSD('활성 비디오 없음'); return; } const w = v.videoWidth, ht = v.videoHeight; const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?'; const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?'; const mode = __liteForced ? 'LITE' : 'FULL'; showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | SVG/${mode}`, 3000); return; }
+        if (e.altKey && e.shiftKey && e.code === 'KeyI') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (!v) { showOSD('활성 비디오 없음'); return; } const w = v.videoWidth, ht = v.videoHeight; const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?'; const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?'; const mode = __liteForced ? 'LITE' : 'FULL'; showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | ${mode}`, 3000); return; }
         if (e.altKey && e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) { e.preventDefault(); const delta = e.code === 'ArrowUp' ? 0.1 : -0.1; const cur = Number(Store.get(P.PB_RATE) || 1); const next = Math.round(VSC_CLAMP(cur + delta, 0.1, 16) * 10) / 10; Store.set(P.PB_RATE, next); Store.set(P.PB_EN, true); ApplyReq.hard(); showOSD(`속도: ${next.toFixed(1)}x`); return; }
       }, { capture: true });
 
