@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v178.0.0 - SVG Unified)
+// @name         Video_Control (v179.0.0 - SVG Unified)
 // @namespace    https://github.com/
-// @version      178.0.0
-// @description  v177 base + bugfix: timer leak, SVG ID collision, PiP rebind, FS fallback, DRM backoff, batch reentry, MO filter guard, zoom rafId safety, tone cache key fix, iframe retry cap, combineSignals cleanup, lightSig encapsulation, blockInterference WeakSet, dead code removal
+// @version      179.0.0
+// @description  v178 base + patch: combineSignals bidirectional cleanup, on() abort guard, AudioContext source context mismatch, ratechange App guard, PiP pagehide race fix, watchIframes MO cleanup, advanced persist, batch error safety, storage key unify, mobile-only inline hints, onAll util, audio resume events, fsWraps body fallback, SPA zoom prune, touched PiP protect, AutoScene DRM vs SecurityError, blockInterference wheel passive
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -59,38 +59,56 @@
     };
     const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
 
-    /* [PATCH 1.1] combineSignals — explicit cleanup instead of relying on ac.signal */
+    /* §1.1 combineSignals — bidirectional cleanup with AbortSignal.abort() fast path */
     const combineSignals = (...signals) => {
       const existing = signals.filter(Boolean);
       if (existing.length === 0) return undefined;
       if (existing.length === 1) return existing[0];
+      for (const sig of existing) {
+        if (sig.aborted) return AbortSignal.abort(sig.reason);
+      }
       if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
       const ac = new AbortController();
-      for (const sig of existing) { if (sig.aborted) { ac.abort(sig.reason); return ac.signal; } }
-      const cleanups = [];
+      const handlers = new Map();
+      const cleanup = () => {
+        for (const [sig, handler] of handlers) {
+          sig.removeEventListener('abort', handler);
+        }
+        handlers.clear();
+      };
       const onAbort = (reason) => {
+        cleanup();
         if (!ac.signal.aborted) ac.abort(reason);
-        for (const fn of cleanups) fn();
-        cleanups.length = 0;
       };
       for (const sig of existing) {
         const handler = () => onAbort(sig.reason);
+        handlers.set(sig, handler);
         sig.addEventListener('abort', handler, { once: true });
-        cleanups.push(() => sig.removeEventListener('abort', handler));
       }
+      ac.signal.addEventListener('abort', cleanup, { once: true });
       return ac.signal;
     };
 
+    /* §1.2 on() — aborted signal debug guard */
     function on(target, type, fn, opts) {
       if (!target?.addEventListener) return;
       const o = opts ? { ...opts } : {};
       o.signal = o.signal ? combineSignals(o.signal, __globalSig) : __globalSig;
+      if (o.signal?.aborted) {
+        if (CONFIG.DEBUG) log.debug(`on() skipped: signal already aborted for "${type}"`);
+        return;
+      }
       target.addEventListener(type, fn, o);
     }
     const onWin = (type, fn, opts) => on(window, type, fn, opts);
     const onDoc = (type, fn, opts) => on(document, type, fn, opts);
 
-    /* [PATCH 6.3] blockInterference — WeakSet instead of expando property */
+    /* §5.3 onAll — multi-event bind utility */
+    const onAll = (el, events, fn, opts) => {
+      for (const ev of events) el.addEventListener(ev, fn, opts);
+    };
+
+    /* §6.7 blockInterference — wheel changed to passive:true (no preventDefault needed) */
     const __blockedElements = new WeakSet();
     const BLOCK_EVENTS_PASSIVE = Object.freeze(['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu']);
     function blockInterference(el) {
@@ -100,7 +118,7 @@
       for (const evt of BLOCK_EVENTS_PASSIVE) {
         on(el, evt, stop, { passive: true });
       }
-      on(el, 'wheel', stop, { passive: false });
+      on(el, 'wheel', stop, { passive: true });
     }
 
     function waitForVisibility() {
@@ -111,9 +129,10 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '178.0.0';
+    const VSC_VERSION = '179.0.0';
 
-    const STORAGE_KEY = 'vsc_settings_' + location.hostname;
+    /* §4.1 STORAGE_KEY unified — single prefix for both GM and localStorage */
+    const STORAGE_KEY = 'vsc_v2_' + location.hostname;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -217,6 +236,7 @@
     }
 
     const TOUCHED = { videos: new Set(), rateVideos: new Set() };
+    /* §6.5 touchedAddLimited — PiP video protection during eviction */
     function touchedAddLimited(set, el, onEvict) {
       if (!el) return;
       if (set.has(el)) { set.delete(el); set.add(el); return; }
@@ -227,7 +247,7 @@
       for (const v of set) {
         if (dropped >= dropN) break;
         if (v === el) continue;
-        if (v.isConnected && !v.paused && !v.ended) continue;
+        if (v.isConnected && (!v.paused || isPiPActiveVideo(v)) && !v.ended) continue;
         set.delete(v);
         try { onEvict?.(v); } catch (_) {}
         dropped++;
@@ -255,7 +275,6 @@
       return __vpSnap;
     }
 
-    /* [PATCH 5.3] walkRootsInto removed — dead code, rescanAll uses WorkQ directly */
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
     function initSpaUrlDetector(onChanged) {
@@ -284,7 +303,7 @@
     }
 
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
-    /* [PATCH 7.3] watchIframes — cross-origin retry cap */
+    /* §1.7 watchIframes — MO cleanup on globalSig abort */
     function watchIframes() {
       const canAccess = (ifr) => { try { const w = ifr.contentWindow; if (!w) return false; void w.location.href; return true; } catch (_) { return false; } };
       const inject = (ifr) => {
@@ -302,7 +321,12 @@
         }
       };
       document.querySelectorAll("iframe").forEach(inject);
-      const mo = new MutationObserver((muts) => { for (const m of muts) { if (m.addedNodes) { m.addedNodes.forEach(n => { if (n.tagName === 'IFRAME') inject(n); else if (n.querySelectorAll) n.querySelectorAll('iframe').forEach(inject); }); } } }); mo.observe(document.documentElement, { childList: true, subtree: true });
+      const mo = new MutationObserver((muts) => {
+        if (__globalSig.aborted) { mo.disconnect(); return; }
+        for (const m of muts) { if (m.addedNodes) { m.addedNodes.forEach(n => { if (n.tagName === 'IFRAME') inject(n); else if (n.querySelectorAll) n.querySelectorAll('iframe').forEach(inject); }); } }
+      });
+      mo.observe(document.documentElement, { childList: true, subtree: true });
+      __globalSig.addEventListener('abort', () => mo.disconnect(), { once: true });
     }
 
     const fsWraps = new WeakMap();
@@ -327,7 +351,7 @@
       fsWraps.set(video, wrap);
       return wrap;
     }
-    /* [PATCH 7.2] restoreFromFsWrapper — 3-stage fallback to prevent video DOM detachment */
+    /* §6.2 restoreFromFsWrapper — strengthened body fallback guard */
     function restoreFromFsWrapper(video) {
       const wrap = fsWraps.get(video);
       if (!wrap) return;
@@ -340,10 +364,14 @@
         try { wrap.parentNode.insertBefore(video, wrap); restored = true; } catch (_) {}
       }
       if (!restored && !video.isConnected) {
-        try {
-          const target = document.body || document.documentElement;
-          if (target) { target.appendChild(video); log.warn('Video restored to body as fallback'); }
-        } catch (_) {}
+        if (video.readyState > 0 && video.src) {
+          try {
+            const target = document.body || document.documentElement;
+            if (target) { target.appendChild(video); log.warn('Video restored to body as fallback'); }
+          } catch (_) {}
+        } else {
+          log.debug('Skipping body restore for inactive video');
+        }
       }
       try { if (ph?.parentNode) ph.remove(); } catch (_) {}
       try { if (wrap.parentNode) wrap.remove(); } catch (_) {}
@@ -355,7 +383,6 @@
       try { obj[name] = wrappedFn; return true; } catch (_) { return false; }
     }
 
-    /* [PATCH 1.6] patchFullscreenRequest — this-binding guard */
     function patchFullscreenRequest(video) {
       const st = getVState(video); if (!video || st.fsPatched) return; st.fsPatched = true;
       const origReq = video.requestFullscreen || video.webkitRequestFullscreen; if (!origReq) return;
@@ -385,7 +412,7 @@
     function getActivePiPVideo() { if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
-    /* [PATCH 1.7] enterPiP — rebind after adoptNode in pagehide handler */
+    /* §1.5 enterPiP — pagehide race fix: queueMicrotask instead of setTimer */
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
       try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
@@ -419,18 +446,20 @@
               st._inPiP = false;
               st.applied = false;
               st.lastFilterUrl = null;
-              /* [PATCH 1.7] rebind after adoptNode — listeners may be lost */
-              if (st._ac) { try { st._ac.abort(); } catch (_) {} st._ac = null; }
+              const oldAc = st._ac;
+              st._ac = null;
               st.bound = false;
-              setTimer(() => {
+              if (oldAc) { try { oldAc.abort(); } catch (_) {} }
+              queueMicrotask(() => {
                 try {
                   const ApplyReq = window.__VSC_INTERNAL__?.ApplyReq;
-                  if (ApplyReq) {
+                  if (!ApplyReq) return;
+                  if (video.isConnected && !st.bound) {
                     if (typeof bindVideoOnce === 'function') bindVideoOnce(video, ApplyReq);
-                    ApplyReq.hard();
                   }
+                  ApplyReq.hard();
                 } catch (_) {}
-              }, 250);
+              });
             }
           });
           return true;
@@ -466,7 +495,6 @@
       showOSD('스크린샷 저장됨', 1500);
     }
 
-    /* [PATCH 1.5] createZoomManager — rafId nullability safety */
     function createZoomManager() {
       const stateMap = new WeakMap();
       let activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -700,8 +728,8 @@
       };
     }
 
-// ─── PART 1 END (v178.0.0) ───
-// ─── START OF PART 2 (v178.0.0) ───
+// ─── PART 1 END (v179.0.0) ───
+// ─── START OF PART 2 (v179.0.0) ───
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) { const now = performance.now(); const vp = getViewportSnapshot(); let best = null, bestScore = -Infinity; const evalScore = (v) => { if (!v || v.readyState < 2) return; const r = getRectCached(v, now, 400); const area = r.width * r.height; const pip = isPiPActiveVideo(v); if (area < 160 * 120 && !pip) return; const cx = r.left + r.width * 0.5; const cy = r.top + r.height * 0.5; let s = 0; if (!v.paused && !v.ended) s += 6.0; if (v.currentTime > 0.2) s += 2.0; s += Math.log2(1 + area / 20000) * 1.1; const ptAge = Math.max(0, now - (lastUserPt.t || 0)); const userBias = Math.exp(-ptAge / 1800); const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y; s += (2.0 * userBias) / (1 + (dx*dx + dy*dy) / 722500); const cdx = cx - vp.cx, cdy = cy - vp.cy; s += 0.7 / (1 + (cdx*cdx + cdy*cdy) / 810000); if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2); if (pip) s += 3.0; if (s > bestScore) { bestScore = s; best = v; } }; for (const v of videos) { evalScore(v); } const activePip = getActivePiPVideo(); if (activePip && activePip.isConnected && !videos.has(activePip)) { evalScore(activePip); } if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) { if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) { return { target: stickyTarget }; } } stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS; return { target: best }; }
@@ -727,12 +755,11 @@
 
     function createScheduler(minIntervalMs = 16) { let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0; function clearPending() { if (timer) { clearTimer(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } } function queueRaf() { if (rafId) return; rafId = requestAnimationFrame(run); } function timerCb() { timer = 0; queueRaf(); } function run() { rafId = 0; queued = false; const now = performance.now(), doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimer(timerCb, wait); return; } lastRun = now; if (applyFn) { try { applyFn(doForce); } catch (_) {} } } const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; queueRaf(); return; } if (queued) return; queued = true; clearPending(); queueRaf(); }; return { registerApply: (fn) => { applyFn = fn; }, request }; }
 
-    /* [PATCH 7.5] createLocalStore — batch reentry defense via microtask flush */
-    function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; const emitsSnapshot = new Map(batchEmits); batchEmits.clear(); batchChanged = false; rev++; for (const [key, val] of emitsSnapshot) { emit(key, val); } scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) { for (const [subK, subV] of Object.entries(val)) proxyState[c][subK] = subV; } else { proxyState[c] = val; } return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
+    /* §1.9 createLocalStore — batch error safety: discard partial emits on exception */
+    function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; const emitsSnapshot = new Map(batchEmits); batchEmits.clear(); batchChanged = false; rev++; for (const [key, val] of emitsSnapshot) { emit(key, val); } scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) { for (const [subK, subV] of Object.entries(val)) proxyState[c][subK] = subV; } else { proxyState[c] = val; } return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; let hadError = false; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } catch (e) { hadError = true; throw e; } finally { batchDepth--; if (batchDepth === 0) { if (hadError) { batchEmits.clear(); batchChanged = false; rev++; scheduler.request(true); } else { flushBatch(); } } } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
 
     function normalizeBySchema(sm, schema) { let changed = false; const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } }; for (const rule of schema) { const type = rule.type; const path = rule.path; if (type === 'bool') { setIfDiff(path, !!sm.get(path)); continue; } if (type === 'enum') { const cur = sm.get(path); if (!rule.values.includes(cur)) { setIfDiff(path, rule.fallback()); } continue; } if (type === 'num') { let n = Number(sm.get(path)); if (!Number.isFinite(n)) n = rule.fallback(); if (rule.round) n = Math.round(n); n = Math.max(rule.min, Math.min(rule.max, n)); setIfDiff(path, n); continue; } } return changed; }
 
-    /* [PATCH 7.6] isVscOwnNode — also exclude SVG filter nodes injected by VSC */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0; const shadowRootsLRU = []; const observedShadowHosts = new WeakSet(); let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
       const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' }) : null;
@@ -745,7 +772,6 @@
       const isVscOwnNode = (n) => {
         if (!n || n.nodeType !== 1) return false;
         if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd') return true;
-        /* [PATCH 7.6] exclude VSC-injected SVG filter containers */
         const tag = n.tagName;
         if ((tag === 'svg' || tag === 'SVG') && n.querySelector?.('[id^="vsc-"]')) return true;
         return false;
@@ -775,7 +801,6 @@
         });
         mo.observe(root, { childList: true, subtree: true }); observers.add(mo); WorkQ.enqueue(root);
       };
-      /* [PATCH 5.3] refreshObservers/rescanAll — no longer uses walkRootsInto */
       const refreshObservers = () => { for (const o of observers) o.disconnect(); observers.clear(); if (!FEATURE_FLAGS.trackShadowRoots) { const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } return; } for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); } const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } };
       if (FEATURE_FLAGS.trackShadowRoots) {
         document.addEventListener('vsc-shadow-root', (e) => {
@@ -813,7 +838,6 @@
         videos, visible, rev: () => rev, refreshObservers,
         prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, 220); if (removed) rev++; },
         consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
-        /* [PATCH 5.3] rescanAll — direct WorkQ enqueue, no walkRootsInto */
         rescanAll: () => {
           const body = document.body || document.documentElement;
           if (body) WorkQ.enqueue(body);
@@ -824,12 +848,20 @@
       };
     }
 
-    /* [PATCH 1.2] createAudio — __audioLoopTimer to prevent overlapping recursive timers */
+    /* §1.3 createAudio — source context mismatch defense + §6.1 expanded resume events */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; let __audioLoopTimer = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
-      const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
-      const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
+      const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); window.removeEventListener('touchstart', onGesture, true); window.removeEventListener('click', onGesture, true); gestureHooked = false; } } catch (_) {} };
+      /* §6.1 ensureGestureResumeHook — expanded with touchstart and click */
+      const ensureGestureResumeHook = () => {
+        if (gestureHooked) return;
+        gestureHooked = true;
+        const resumeEvents = ['pointerdown', 'keydown', 'touchstart', 'click'];
+        for (const evt of resumeEvents) {
+          onWin(evt, onGesture, { passive: true, capture: true });
+        }
+      };
       const clamp = VSC_CLAMP; const VSC_AUDIO_AUTO_MAKEUP = true;
       function runAudioLoop(tok) {
         if (tok !== loopTok || !ctx) return;
@@ -848,13 +880,11 @@
         const makeup = Math.pow(10, makeupDbEma / 20);
         if (wetInGain) { const finalGain = userBoost * makeup; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
         const delay = document.hidden ? 500 : 70;
-        /* [PATCH 1.2] cancel previous timer before scheduling next to prevent overlap */
         clearTimer(__audioLoopTimer);
         __audioLoopTimer = setTimer(() => { __audioLoopTimer = 0; runAudioLoop(tok); }, delay);
       }
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
-      /* [PATCH 7.1] ensureCtx — reset audioFailUntil on context recreation */
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
           srcMap = new WeakMap();
@@ -872,11 +902,12 @@
       const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimer(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimer(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); };
       const disconnectAll = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} } currentSrc = null; target = null; };
       const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const isHooked = !!currentSrc; const actuallyEnabled = en && isHooked; const dryTarget = actuallyEnabled ? 0 : 1; const wetTarget = actuallyEnabled ? 1 : 0; rampGainsSafe(dryTarget, wetTarget, 0.015); loopTok++; clearTimer(__audioLoopTimer); __audioLoopTimer = 0; if (actuallyEnabled) { runAudioLoop(loopTok); } };
-      async function destroy() { loopTok++; clearTimer(__audioLoopTimer); __audioLoopTimer = 0; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimer(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
-      return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element'); disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (_) { if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
+      async function destroy() { loopTok++; clearTimer(__audioLoopTimer); __audioLoopTimer = 0; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); window.removeEventListener('touchstart', onGesture, true); window.removeEventListener('click', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimer(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
+      /* §1.3 setTarget — source context mismatch defense + §6.1 resume on playing video */
+      return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v && ctx?.state === 'suspended' && !v.paused) { ctx.resume().catch(() => {}); } if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element, marking cooldown'); if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; } disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } if (s.context !== ctx) { srcMap.delete(v); if (st && VSC_DEFENSE.audioCooldown) { st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; } disconnectAll(); updateMix(); return; } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (e) { log.warn('Audio source connection failed:', e); if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
-    /* [PATCH 7.4] createAutoSceneManager — exponential DRM backoff + max retries */
+    /* §6.6 createAutoSceneManager — DRM vs SecurityError classification */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP; const approach = (cur, tgt, a, dead=0.002) => { const d = tgt - cur; return Math.abs(d) < dead ? tgt : cur + d * a; };
       const AUTO = { running: false, canvasW: 48, canvasH: 27, cur: { br: 1.0, ct: 1.0, sat: 1.0 }, tgt: { br: 1.0, ct: 1.0, sat: 1.0 }, lastSig: null, cutHist: [], motionEma: 0, motionAlpha: 0.30, motionThresh: 0.0075, motionFrames: 0, motionMinFrames: 5, statsEma: null, statsAlpha: 0.12, drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 800, minBoostEarlyMs: 700, fpsHist: [], minFps: 1, maxFps: 6, curFps: 1, _lastMean: 0 };
@@ -894,22 +925,26 @@
       function calculateAdaptiveFps(changeScore) { AUTO.fpsHist.push(changeScore); if (AUTO.fpsHist.length > 5) AUTO.fpsHist.shift(); const avgChange = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length; const targetFps = (avgChange < 0.1 ? 2 + (avgChange/0.1)*2 : 0) + (avgChange >= 0.1 && avgChange < 0.3 ? 4 + ((avgChange-0.1)/0.2)*3 : 0) + (avgChange >= 0.3 ? 7 + (Math.min(avgChange-0.3,0.7)/0.7)*3 : 0); const clamped = clamp(targetFps, AUTO.minFps, AUTO.maxFps); const rounded = Math.round(clamped * 2) / 2; AUTO.curFps += clamp(rounded - AUTO.curFps, -1, 1); return AUTO.curFps; }
       let __asRvfcId = 0; function scheduleNext(v, delayMs) { if (!AUTO.running) return; if (v && !v.paused && typeof v.requestVideoFrameCallback === 'function') { const target = performance.now() + Math.max(0, delayMs|0); try { if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = v.requestVideoFrameCallback(() => { __asRvfcId = 0; const remain = target - performance.now(); if (remain > 6) { scheduleNext(v, remain); return; } loop(); }); return; } setTimer(loop, Math.max(16, delayMs|0)); }
       function loop() { if (!AUTO.running) return; const now = performance.now(); const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT); const v = window.__VSC_APP__?.getActiveVideo?.(); if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; scheduleNext(v, 500); return; } if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; } if (document.hidden) { scheduleNext(v, 2000); return; } if (!v || !ctx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; } const useW = 48, useH = 27; try { if (c.width !== useW || c.height !== useH) { c.width = useW; c.height = useH; AUTO.canvasW = useW; AUTO.canvasH = useH; } ctx.drawImage(v, 0, 0, useW, useH); const img = ctx.getImageData(0, 0, useW, useH); AUTO.drmBlocked = false; drmRetryCount = 0; const stats = computeStatsAndMotion(AUTO, img, useW, useH); AUTO.motionEma = (AUTO.motionEma * (1 - AUTO.motionAlpha)) + (stats.motion * AUTO.motionAlpha); AUTO.motionFrames = (AUTO.motionEma >= AUTO.motionThresh) ? (AUTO.motionFrames + 1) : 0; const isCut = detectCut(stats); AUTO.lastSig = stats; if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const e = AUTO.statsEma, a = AUTO.statsAlpha; e.bright = e.bright*(1-a) + stats.bright*a; e.contrast = e.contrast*(1-a) + stats.contrast*a; e.edge = e.edge*(1-a) + stats.edge*a; e.chroma = (e.chroma ?? stats.chroma)*(1-a) + stats.chroma*a; } const sig = AUTO.statsEma; if (isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; } const allowUpdate = isCut || (AUTO.motionFrames >= AUTO.motionMinFrames); let fps = AUTO.curFps; if (allowUpdate) { fps = calculateAdaptiveFps(clamp(stats.motion||0,0,1)); fps = Math.min(fps, 6); if (now < AUTO.tBoostUntil) fps = Math.max(fps, (now - AUTO.tBoostStart < AUTO.minBoostEarlyMs) ? 6 : 4); const errY = clamp(0.50 - sig.bright, -0.22, 0.22); const errSd = clamp(0.23 - sig.contrast, -0.18, 0.18); AUTO.tgt.br = clamp(1.12 + errY * 0.98, 0.92, 1.35); AUTO.tgt.ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30); const curCh = Number(sig.chroma || 0); const errCh = clamp(0.18 - curCh, -0.18, 0.18); AUTO.tgt.sat = clamp(1.08 + errCh * 1.10, 0.85, 1.50); const smoothA = isCut ? 0.16 : 0.05; const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat; AUTO.cur.br = approach(AUTO.cur.br, AUTO.tgt.br, smoothA); AUTO.cur.ct = approach(AUTO.cur.ct, AUTO.tgt.ct, smoothA); AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, smoothA); if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) { Scheduler.request(true); } } scheduleNext(v, Math.max(150, Math.round(1000 / Math.max(1, fps)))); } catch (e) {
-        /* [PATCH 7.4] exponential DRM backoff with max retries */
-        if (VSC_DEFENSE.autoSceneDrmBackoff) {
+        /* §6.6 DRM vs SecurityError classification */
+        const isDrmLike = (e.name === 'SecurityError' || e.message?.includes('tainted'));
+        if (VSC_DEFENSE.autoSceneDrmBackoff && isDrmLike) {
           drmRetryCount++;
           AUTO.drmBlocked = true;
           if (drmRetryCount >= MAX_DRM_RETRIES) {
             AUTO.running = false;
             AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 };
             Store.set(P.APP_AUTO_SCENE, false);
-            showOSD('Auto Scene: DRM으로 비활성화됨', 3000);
+            showOSD('Auto Scene: 보안 제한으로 비활성화됨', 3000);
             Scheduler.request(true);
             return;
           }
           const backoffMs = Math.min(30000, 5000 * Math.pow(1.5, drmRetryCount - 1));
           AUTO.blockUntilMs = performance.now() + backoffMs;
           scheduleNext(v, backoffMs);
-        } else { scheduleNext(v, 500); }
+        } else {
+          log.debug('AutoScene error (non-DRM):', e);
+          scheduleNext(v, 1000);
+        }
       } }
       Store.sub(P.APP_AUTO_SCENE, (en) => { if (en && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } else if (!en) { AUTO.running = false; AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0 }; Scheduler.request(true); } });
       Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
@@ -925,7 +960,6 @@
       function wantsDetailPass(s) { return (Number(s.sharp || 0) + Number(s.sharp2 || 0) + Number(s.clarity || 0)) > 0; }
       const makeKeyBase = (s) => qInt(s.gain,0.04) + '|' + qInt(s.gamma,0.01) + '|' + qInt(s.contrast,0.01) + '|' + qInt(s.bright,0.2) + '|' + qInt(s.satF,0.01) + '|' + qInt(s.mid,0.02) + '|' + qInt(s.toe,0.2) + '|' + qInt(s.shoulder,0.2) + '|' + qInt(s.temp,0.2) + '|' + qInt(s.sharp,0.2) + '|' + qInt(s.sharp2,0.2) + '|' + qInt(s.clarity,0.2);
 
-      /* [PATCH 1.8] getToneTableCached — fixed-point key generation to avoid float collision */
       function getToneTableCached(steps, toeN, shoulderN, midN, gain, contrast, brightOffset, gamma) {
         const key = `${steps}|${Math.round(toeN*1000)}|${Math.round(shoulderN*1000)}|${Math.round(midN*1000)}|${Math.round(gain*1000)}|${Math.round(contrast*1000)}|${Math.round(brightOffset*10000)}|${Math.round(gamma*1000)}`;
         const hit = toneCache.get(key); if (hit) return hit;
@@ -956,7 +990,6 @@
         return h('feComponentTransfer', { ns: 'svg', ...attrs }, ...children);
       };
 
-      /* [PATCH 1.4] buildSvg — remove existing VSC SVG before appending to prevent ID collision */
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' }), defs = h('defs', { ns: 'svg' }); svg.append(defs);
 
@@ -1005,7 +1038,6 @@
         const tryAppend = () => {
           const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
           if (!target?.appendChild) return false;
-          /* [PATCH 1.4] remove stale VSC SVG with same filter IDs before inserting */
           try {
             const escapedFull = fidFull.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             const existing = target.querySelector(`filter[id="${escapedFull}"]`);
@@ -1186,8 +1218,8 @@
     }
 
 
-// ─── END OF PART 2 (v178.0.0) ───
-// ─── START OF PART 3 (v178.0.0) ───
+// ─── END OF PART 2 (v179.0.0) ───
+// ─── START OF PART 3 (v179.0.0) ───
 
     const _SHADOW_PRECOMPUTED = (() => {
       const base = [
@@ -1598,20 +1630,23 @@
       };
     }
 
+    /* §4.5 ensureMobileInlinePlaybackHints — mobile only */
     function ensureMobileInlinePlaybackHints(video) { if (!video) return; try { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); if (!video.hasAttribute('webkit-playsinline')) video.setAttribute('webkit-playsinline', ''); } catch (_) {} }
     const onEvictRateVideo = (v) => { try { restoreRateOne(v); } catch (_) {} };
     const onEvictVideo = (v) => { try { window.__VSC_INTERNAL__?.Adapter?.clear(v); } catch (_) {} restoreRateOne(v); TOUCHED.rateVideos.delete(v); };
     const cleanupTouched = (TOUCHED) => { for (const v of TOUCHED.videos) onEvictVideo(v); TOUCHED.videos.clear(); for (const v of TOUCHED.rateVideos) onEvictRateVideo(v); TOUCHED.rateVideos.clear(); };
     function pruneTouchedDisconnected() { let count = 0; for (const v of TOUCHED.videos) { if (++count > 20) break; if (!v || !v.isConnected) TOUCHED.videos.delete(v); } count = 0; for (const v of TOUCHED.rateVideos) { if (++count > 20) break; if (!v || !v.isConnected) TOUCHED.rateVideos.delete(v); } }
 
+    /* §5.3 bindVideoOnce — uses onAll utility; §4.5 mobile-only inline hints; §1.4 ratechange App guard */
     const bindVideoOnce = (v, ApplyReq) => {
-      const st = getVState(v); if (st.bound) return; st.bound = true; ensureMobileInlinePlaybackHints(v);
+      const st = getVState(v); if (st.bound) return; st.bound = true;
+      if (CONFIG.IS_MOBILE) ensureMobileInlinePlaybackHints(v);
       const ac = new AbortController();
       st._ac = ac;
       const sig = ac.signal;
       const softResetTransientFlags = () => { st.resetTransient(); ApplyReq.hard(); };
-      ['loadstart', 'loadedmetadata', 'emptied'].forEach(ev => v.addEventListener(ev, softResetTransientFlags, { passive: true, signal: sig }));
-      ['seeking', 'play'].forEach(ev => v.addEventListener(ev, () => { ApplyReq.hard(); }, { passive: true, signal: sig }));
+      onAll(v, ['loadstart', 'loadedmetadata', 'emptied'], softResetTransientFlags, { passive: true, signal: sig });
+      onAll(v, ['seeking', 'play'], () => { ApplyReq.hard(); }, { passive: true, signal: sig });
 
       v.addEventListener('enterpictureinpicture', () => {
         st._inPiP = true;
@@ -1632,9 +1667,10 @@
         const desired = st.desiredRate;
         if (Number.isFinite(desired) && Math.abs(v.playbackRate - desired) < 0.02) return;
         const refs = window.__VSC_INTERNAL__;
-        const app = refs?.App;
         const store = refs?.Store;
         if (!store) return;
+        const app = refs?.App;
+        if (!app) return;
         const pbEn = !!store.get?.(P.PB_EN);
         if (pbEn && Number.isFinite(desired) && Math.abs(v.playbackRate - desired) > 0.02) {
           rSt.retryCount = (rSt.retryCount || 0) + 1;
@@ -1660,7 +1696,6 @@
       }, { passive: true, signal: sig });
     };
 
-    /* [PATCH 5.4] lightSigChanged — closure-encapsulated instead of global mutable lets */
     function createLightSigTracker() {
       let lastTarget = null, lastPb = false, lastRate = 1, lastFx = false;
       return (activeTarget, pbActive, desiredRate, videoFxOn) => {
@@ -1712,7 +1747,6 @@
 
     function createThrottled(fn, ms = 120) { let last = 0, timer = 0; return (...args) => { const now = performance.now(); if (now - last >= ms) { last = now; fn(...args); return; } if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); fn(...args); }, ms); } }; }
 
-    /* [PATCH 5.4] createAppController — uses createLightSigTracker() closure */
     function createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting }) {
       UI.ensure(); Store.sub(P.APP_UI, () => { UI.ensure(); Scheduler.request(true); });
       Store.sub(P.APP_ACT, (on) => { if (on) { try { Registry.refreshObservers?.(); Registry.rescanAll?.(); Scheduler.request(true); } catch (_) {} } });
@@ -1760,7 +1794,6 @@
 
     Bus.on('signal', (s) => { if (s && s.forceApply) Scheduler.request(true); });
 
-    const SITE_STORAGE_KEY = 'vsc_prefs_' + location.hostname;
     const __hasGM = (typeof GM_getValue === 'function' && typeof GM_setValue === 'function');
     const __hasGMDelete = (typeof GM_deleteValue === 'function');
 
@@ -1777,9 +1810,11 @@
       }
     }
 
+    /* §1.8 buildSaveData — includes advanced setting */
     function buildSaveData(Store, P) {
       return {
         active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
+        advanced: Store.get(P.APP_ADV),
         presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B),
         presetMix: Store.get(P.V_PRE_MIX), shadowBandMask: Store.get(P.V_SHADOW_MASK),
         brightStepLevel: Store.get(P.V_BRIGHT_STEP),
@@ -1789,11 +1824,13 @@
       };
     }
 
+    /* §1.8 applyDataToStore — restores advanced setting */
     function applyDataToStore(data, Store, P) {
       if (!data || typeof data !== 'object') return;
       const safeSet = (path, val) => { try { if (val != null) Store.set(path, val); } catch (_) {} };
       safeSet(P.APP_ACT, data.active);
       safeSet(P.APP_APPLY_ALL, data.applyAll);
+      safeSet(P.APP_ADV, data.advanced);
       safeSet(P.V_PRE_S, data.presetS);
       safeSet(P.V_PRE_B, data.presetB);
       safeSet(P.V_PRE_MIX, data.presetMix);
@@ -1807,12 +1844,13 @@
       safeSet(P.PB_EN, data.playbackEnabled);
     }
 
+    /* §4.1 saveSettings / loadSettings — unified STORAGE_KEY */
     function saveSettings(Store, P) {
       try {
         const data = buildSaveData(Store, P);
         const json = JSON.stringify(data);
         if (__hasGM) {
-          try { GM_setValue(SITE_STORAGE_KEY, json); } catch (_) {}
+          try { GM_setValue(STORAGE_KEY, json); } catch (_) {}
         }
         try { localStorage.setItem(STORAGE_KEY, json); } catch (_) {}
       } catch (_) {}
@@ -1822,7 +1860,7 @@
       let data = null;
       if (__hasGM) {
         try {
-          const raw = GM_getValue(SITE_STORAGE_KEY, null);
+          const raw = GM_getValue(STORAGE_KEY, null);
           if (raw) {
             try { data = (typeof raw === 'string') ? JSON.parse(raw) : raw; } catch (_) {}
           }
@@ -1866,7 +1904,13 @@
     Store.sub(P.PB_EN, (v) => { if (!v) showOSD('재생속도: 기본'); });
 
     const Registry = createRegistry(Scheduler), Targeting = createTargeting();
-    const rescanDebounced = createDebounced(() => { try { Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true); } catch (_) {} }, SPA_RESCAN_DEBOUNCE_MS);
+    /* §6.4 SPA routing — zoom prune on URL change */
+    const rescanDebounced = createDebounced(() => {
+      try {
+        Registry.refreshObservers(); Registry.rescanAll(); Scheduler.request(true);
+        try { window.__VSC_INTERNAL__?.ZoomManager?.pruneDisconnected(); } catch (_) {}
+      } catch (_) {}
+    }, SPA_RESCAN_DEBOUNCE_MS);
     initSpaUrlDetector(rescanDebounced);
 
     waitForVisibility().then(() => {
