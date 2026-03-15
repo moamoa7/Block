@@ -337,9 +337,19 @@
           const transformStr = st.scale <= 1 ? '' : `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
           v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
           if (st.scale <= 1) {
-            st.scale = 1; st.tx = 0; st.ty = 0;
-            v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
-            if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
+  st.scale = 1; st.tx = 0; st.ty = 0;
+  v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
+  if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
+  /* P1-ZOOM-RESET-FIX: 캔버스 transform 즉시 초기화 */
+  try {
+    const sibling = v.nextElementSibling;
+    if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
+      sibling.style.transform = '';
+      sibling.style.transformOrigin = '';
+      sibling.style.zIndex = '';
+      sibling.style.transition = '';
+    }
+  } catch (_) {}
           } else {
             if (!st.zoomed) { st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.zoomed = true; }
             v.style.transformOrigin = '0 0'; v.style.transform = transformStr;
@@ -360,17 +370,44 @@
         });
       };
       const zoomTo = (v, newScale, clientX, clientY) => { const st = getSt(v), rect = v.getBoundingClientRect(), ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale; st.tx = clientX - (rect.left - st.tx) - ix * newScale; st.ty = clientY - (rect.top - st.ty) - iy * newScale; st.scale = newScale; update(v); };
-      const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; update(v); } };
+      const resetZoom = (v) => {
+  if (!v) return;
+  const st = getSt(v);
+  st.scale = 1; st.tx = 0; st.ty = 0;
+  /* P1-ZOOM-RESET-FIX: RAF 대기 없이 즉시 스타일 초기화 */
+  v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
+  v.style.transition = '';
+  if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
+  try {
+    const sibling = v.nextElementSibling;
+    if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
+      sibling.style.transform = '';
+      sibling.style.transformOrigin = '';
+      sibling.style.zIndex = '';
+      sibling.style.transition = '';
+    }
+  } catch (_) {}
+  /* 다음 RAF에서 update도 호출하여 상태 일관성 보장 */
+  update(v);
+      };
       const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
       const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
       const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
       const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
       function getTargetVideo(e) { const path = typeof e.composedPath === 'function' ? e.composedPath() : null; if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5); const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5); const el = document.elementFromPoint(cx, cy); let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } return v; }
-      onWin('wheel', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
-      onWin('mousedown', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
+
+      /* P1-ZOOM-FIX: 데스크톱 wheel에 isZoomEnabled() 가드 추가 */
+      onWin('wheel', e => { if (!e.altKey || !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
+
+      /* P1-ZOOM-FIX: 데스크톱 mousedown에 isZoomEnabled() 가드 추가 */
+      onWin('mousedown', e => { if (!e.altKey || !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
+
       onWin('mousemove', e => { if (!isPanning || !activeVideo) return; e.preventDefault(); e.stopPropagation(); const st = getSt(activeVideo), dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.clientX - startX; st.ty = e.clientY - startY; update(activeVideo); }, { capture: true });
       onWin('mouseup', e => { if (isPanning) { if (activeVideo) { const st = getSt(activeVideo); if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); } update(activeVideo); } isPanning = false; activeVideo = null; } }, { capture: true });
-      onWin('dblclick', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true });
+
+      /* P1-ZOOM-FIX: 데스크톱 dblclick에 isZoomEnabled() 가드 추가 */
+      onWin('dblclick', e => { if (!e.altKey || !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true });
+
       onWin('touchstart', e => { if (CONFIG.IS_MOBILE && !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (e.touches.length === 2) { if (e.cancelable) e.preventDefault(); activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale; const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y; } else if (e.touches.length === 1 && st.scale > 1) { activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty; } }, { passive: false, capture: true });
       onWin('touchmove', e => { if (!activeVideo) return; const st = getSt(activeVideo); if (pinchState.active && e.touches.length === 2) { if (e.cancelable) e.preventDefault(); const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches); let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10); if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; } else { zoomTo(activeVideo, newScale, center.x, center.y); st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy; update(activeVideo); } pinchState.lastCx = center.x; pinchState.lastCy = center.y; } else if (isPanning && e.touches.length === 1) { if (e.cancelable) e.preventDefault(); const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY; update(activeVideo); } }, { passive: false, capture: true });
       onWin('touchend', e => { if (!activeVideo) return; if (e.touches.length < 2) pinchState.active = false; if (e.touches.length === 0) { if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) { e.preventDefault(); } isPanning = false; update(activeVideo); activeVideo = null; } }, { passive: false, capture: true });
@@ -942,12 +979,14 @@ void main() {
           cs.objectFit = vs.objectFit || 'contain';
           cs.objectPosition = vs.objectPosition;
           const zoomMgr = window.__VSC_INTERNAL__?.ZoomManager;
-          const zoomed = zoomMgr?.isZoomed?.(video);
-          if (!zoomed) {
-            const tr = vs.transform;
-            cs.transform = (tr && tr !== 'none') ? tr : '';
-            cs.transformOrigin = vs.transformOrigin;
-          }
+const zoomed = zoomMgr?.isZoomed?.(video);
+if (!zoomed) {
+  /* P3-ZOOM-RESET-FIX: 줌 해제 직후에는 비디오 transform이 아직 ''이므로
+     캔버스도 명시적으로 초기화 */
+  const tr = vs.transform;
+  cs.transform = (tr && tr !== 'none') ? tr : '';
+  cs.transformOrigin = (tr && tr !== 'none') ? vs.transformOrigin : '';
+}
           cs.borderRadius = vs.borderRadius || '';
           const vz = vs.zIndex;
           const n = parseInt(vz, 10);
@@ -1237,7 +1276,30 @@ void main() {
             h('div', { class: 'section-label' }, '도구'),
             h('div', { class: 'row' },
               h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); } }, svgIcon('pip'), ' PiP'),
-              (() => { const zoomBtn = h('button', { class: 'btn' }); zoomBtn.append(svgIcon('zoom'), document.createTextNode(' 줌')); zoomBtn.onclick = () => { setAndHint(P.APP_ZOOM_EN, !sm.get(P.APP_ZOOM_EN)); }; bindClassToggle(zoomBtn, P.APP_ZOOM_EN, v => !!v); return zoomBtn; })()
+              /* P3-ZOOM-FIX: 줌 버튼 클릭 시 즉시 줌 토글 */
+              (() => {
+                const zoomBtn = h('button', { class: 'btn' });
+                zoomBtn.append(svgIcon('zoom'), document.createTextNode(' 줌'));
+                zoomBtn.onclick = () => {
+                  const zm = window.__VSC_INTERNAL__?.ZoomManager;
+                  const v = window.__VSC_APP__?.getActiveVideo();
+                  if (zm && v) {
+                    if (zm.isZoomed(v)) {
+                      zm.resetZoom(v);
+                      sm.set(P.APP_ZOOM_EN, false);
+                    } else {
+                      const rect = v.getBoundingClientRect();
+                      zm.zoomTo(v, 2.5, rect.left + rect.width * 0.5, rect.top + rect.height * 0.5);
+                      sm.set(P.APP_ZOOM_EN, true);
+                    }
+                    ApplyReq.soft();
+                  } else {
+                    setAndHint(P.APP_ZOOM_EN, !sm.get(P.APP_ZOOM_EN));
+                  }
+                };
+                bindClassToggle(zoomBtn, P.APP_ZOOM_EN, v => !!v);
+                return zoomBtn;
+              })()
             ),
             h('div', { class: 'row', style: 'margin-top:4px' },
               h('button', { class: 'btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if (v) captureVideoFrame(v); } }, svgIcon('camera'), ' 캡처')
