@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v19.0)
-// @version      19.0
-// @description  v18.0 기반 – 버그수정, XSS방어, 섹션분리, 탭드래그, URL프리뷰, 타임스탬프, UI개선
+// @name         북마크 (Shadow DOM 통합 v19.2)
+// @version      19.2
+// @description  v19.1 기반 – 모바일 탭 클릭 수정
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -664,17 +664,8 @@
         /* ── 상단 영역 ── */
         const topRow = el('div', { class: 'bm-top-row' });
 
-        /* 탭 바 */
-        const tabBar = el('div', {
-            class: 'bm-tab-bar', onclick: (e) => {
-                const tab = e.target.closest('.bm-tab');
-                if (!tab || tab.dataset.page === db.currentPage) return;
-                saveDataNow();
-                db.currentPage = tab.dataset.page;
-                isSortMode = false;
-                renderDashboard();
-            }
-        });
+        /* ★ CHANGED: 탭 바 – 각 탭에 개별 이벤트 바인딩 (모바일 호환성 향상) */
+        const tabBar = el('div', { class: 'bm-tab-bar' });
         Object.keys(db.pages).forEach(p => {
             let tabTotal = 0;
             for (const items of Object.values(db.pages[p])) tabTotal += items.length;
@@ -683,6 +674,45 @@
                 text: `${p} (${tabTotal})`
             });
             t.dataset.page = p;
+
+            // ★ NEW: 개별 탭에 터치/클릭 이벤트 직접 바인딩
+            let _tabTouchStartX = 0;
+            let _tabTouchStartY = 0;
+            let _tabTouchMoved = false;
+
+            t.addEventListener('touchstart', (e) => {
+                const touch = e.touches[0];
+                _tabTouchStartX = touch.clientX;
+                _tabTouchStartY = touch.clientY;
+                _tabTouchMoved = false;
+            }, { passive: true });
+
+            t.addEventListener('touchmove', (e) => {
+                const touch = e.touches[0];
+                const dx = Math.abs(touch.clientX - _tabTouchStartX);
+                const dy = Math.abs(touch.clientY - _tabTouchStartY);
+                if (dx > 8 || dy > 8) _tabTouchMoved = true;
+            }, { passive: true });
+
+            t.addEventListener('touchend', (e) => {
+                if (_tabTouchMoved) return; // 스크롤 중이면 무시
+                if (p === db.currentPage) return; // 이미 활성 탭이면 무시
+                e.preventDefault(); // ★ 고스트 클릭 방지
+                saveDataNow();
+                db.currentPage = p;
+                isSortMode = false;
+                renderDashboard();
+            }, { passive: false }); // ★ passive: false로 preventDefault 허용
+
+            t.addEventListener('click', (e) => {
+                // 데스크톱 클릭 지원 (터치 이벤트가 없는 환경)
+                if (p === db.currentPage) return;
+                saveDataNow();
+                db.currentPage = p;
+                isSortMode = false;
+                renderDashboard();
+            });
+
             tabBar.appendChild(t);
         });
 
@@ -808,6 +838,8 @@
         if (Object.keys(db.pages).length > 1) {
             _activeSortables.push(new Sortable(tabBar, {
                 animation: 150, direction: 'horizontal', draggable: '.bm-tab',
+                delay: 300,           // ★ NEW: 모바일에서 탭 클릭과 드래그 구분
+                delayOnTouchOnly: true, // ★ NEW: 터치에서만 딜레이 적용
                 onEnd: () => {
                     const newOrder = {};
                     tabBar.querySelectorAll('.bm-tab').forEach(t => {
@@ -862,18 +894,6 @@
                     }
                 }));
             });
-        }
-
-        /* ── 현재 URL이 속한 그룹으로 스크롤 ── */
-        const currentUrl = window.location.href;
-        if (isUrlDuplicate(currentUrl)) {
-            for (const [gTitle, items] of Object.entries(currentPage)) {
-                if (items.some(i => i.url === currentUrl)) {
-                    const sec = [...container.querySelectorAll('.bm-bookmark-section')].find(s => s.getAttribute('data-id') === gTitle);
-                    if (sec) requestAnimationFrame(() => sec.scrollIntoView({ behavior: 'smooth', block: 'center' }));
-                    break;
-                }
-            }
         }
     }
 
@@ -1111,7 +1131,6 @@
         const ui = el('input', { type: 'text', value: window.location.href });
         content.appendChild(ui);
 
-        /* URL 변경 시 자동 제목 가져오기 */
         ui.addEventListener('change', () => {
             const newUrl = ui.value.trim();
             if (!isValidUrl(newUrl) || ni.dataset.manualEdit) return;
@@ -1645,6 +1664,9 @@
                 flex-shrink: 0;
                 border-bottom: 3px solid transparent;
                 transition: border-color 0.2s, background 0.2s;
+                -webkit-tap-highlight-color: transparent;
+                touch-action: manipulation;
+                user-select: none;
             }
             .bm-tab.active {
                 background: var(--c-surface);
