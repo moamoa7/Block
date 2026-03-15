@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Shadow DOM 통합 v19.3)
-// @version      19.3
-// @description  v19.2 기반 – 종합 패치 (버그·최적화·UI·편의기능)
+// @name         북마크 (Shadow DOM 통합 v19.4)
+// @version      19.4
+// @description  v19.3 기반 – 더보기/컨텍스트 메뉴 클릭 수정
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -90,6 +90,15 @@
                 setTimeout(resolve, 0);
             }
         });
+    }
+
+    /* ── composedPath 내 요소 포함 확인 ── */
+    function composedPathContains(event, element) {
+        try {
+            return event.composedPath().includes(element);
+        } catch {
+            return false;
+        }
     }
 
     /* ═══════════════════════════════════
@@ -578,6 +587,20 @@
     }
 
     /* ═══════════════════════════════════
+       팝업 메뉴 닫기 헬퍼
+       ═══════════════════════════════════ */
+    function setupPopupDismiss(menuEl, ac) {
+        setTimeout(() => {
+            shadow.addEventListener('pointerdown', (ev) => {
+                if (!menuEl.contains(ev.target)) { menuEl.remove(); ac.abort(); }
+            }, { signal: ac.signal });
+            document.addEventListener('pointerdown', (ev) => {
+                if (!composedPathContains(ev, menuEl)) { menuEl.remove(); ac.abort(); }
+            }, { signal: ac.signal, capture: true });
+        }, 0);
+    }
+
+    /* ═══════════════════════════════════
        컨텍스트 메뉴
        ═══════════════════════════════════ */
     let _ctxMenuAbort = null;
@@ -633,12 +656,7 @@
         menu.style.left = Math.max(0, x) + 'px';
         menu.style.top = Math.max(0, y) + 'px';
 
-        setTimeout(() => {
-            shadow.addEventListener('pointerdown', (ev) => {
-                if (!menu.contains(ev.target)) { menu.remove(); ac.abort(); }
-            }, { signal: ac.signal });
-            document.addEventListener('pointerdown', () => { menu.remove(); ac.abort(); }, { signal: ac.signal, capture: true });
-        }, 0);
+        setupPopupDismiss(menu, ac);
     }
 
     /* ═══════════════════════════════════
@@ -815,8 +833,15 @@
     /* ═══════════════════════════════════
        관리 바 더보기 메뉴
        ═══════════════════════════════════ */
+    let _adminMenuAbort = null;
+
     function showAdminMenu(anchor, currentPage) {
+        _adminMenuAbort?.abort();
         shadow.querySelector('.bm-admin-menu')?.remove();
+
+        _adminMenuAbort = new AbortController();
+        const ac = _adminMenuAbort;
+
         const menu = el('div', { class: 'bm-admin-menu' });
         const actions = [
             { icon: '🔄', text: '아이콘 복구', action: fixAllIcons },
@@ -836,7 +861,7 @@
             menu.appendChild(el('div', {
                 class: 'bm-admin-menu-item',
                 text: `${a.icon} ${a.text}`,
-                onclick: () => { menu.remove(); a.action(); }
+                onclick: () => { menu.remove(); ac.abort(); a.action(); }
             }));
         });
         shadow.appendChild(menu);
@@ -847,13 +872,7 @@
         menu.style.right = (innerWidth - rect.right) + 'px';
         menu.style.zIndex = '999999';
 
-        const ac = new AbortController();
-        setTimeout(() => {
-            shadow.addEventListener('pointerdown', (ev) => {
-                if (!menu.contains(ev.target) && ev.target !== anchor) { menu.remove(); ac.abort(); }
-            }, { signal: ac.signal });
-            document.addEventListener('pointerdown', () => { menu.remove(); ac.abort(); }, { signal: ac.signal, capture: true });
-        }, 0);
+        setupPopupDismiss(menu, ac);
     }
 
     /* ═══════════════════════════════════
@@ -879,6 +898,8 @@
 
         _ctxMenuAbort?.abort();
         _ctxMenuAbort = null;
+        _adminMenuAbort?.abort();
+        _adminMenuAbort = null;
 
         _faviconObserver = getOrCreateFaviconObserver(overlay);
 
