@@ -414,13 +414,13 @@
             if (st.satKey !== satVal) { st.satKey = satVal; ctx.sat.setAttribute('values', satVal); }
             if (st.tempKey !== tmk) { st.tempKey = tmk; ctx.tmpFuncs[0].setAttribute('slope', rs); ctx.tmpFuncs[1].setAttribute('slope', gs); ctx.tmpFuncs[2].setAttribute('slope', bs); }
 
-            const mk = detailOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity) : 'off';
+                        const mk = detailOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity) : 'off';
             if (st.convKey !== mk) {
               st.convKey = mk;
               if (detailOn) {
-                const midSharpMul = config.IS_MOBILE ? 0.22 : 0.30;
-                const rawS = ((s.sharp || 0) + (s.sharp2 || 0) * 0.40 + (s.clarity || 0) * 0.18) / 50.0;
-                const totalS = Math.min(0.50, rawS * midSharpMul);
+                const midSharpMul = config.IS_MOBILE ? 0.32 : 0.30;
+                const rawS = ((s.sharp || 0) + (s.sharp2 || 0) * 0.55 + (s.clarity || 0) * 0.35) / 50.0;
+                const totalS = Math.min(0.60, rawS * midSharpMul);
                 if (totalS > 0.008) {
                   const center = 1.0 + 4.0 * totalS; const edge = -totalS;
                   ctx.conv.setAttribute('kernelMatrix', `0,${edge.toFixed(4)},0, ${edge.toFixed(4)},${center.toFixed(4)},${edge.toFixed(4)}, 0,${edge.toFixed(4)},0`);
@@ -431,6 +431,7 @@
                 ctx.conv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
               }
             }
+
           });
         }
         const url = `url(#${ctx.fidMain})`; dc.key = key; dc.url = url; return url;
