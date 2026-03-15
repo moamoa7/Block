@@ -561,10 +561,11 @@
       return out;
     }
 
-    function projectVValsForWebGL(vVals) {
+       function projectVValsForWebGL(vVals) {
       const out = { ...vVals };
       const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-      let totalSharp = sharp + sharp2 * 0.40 + clarity * 0.18;
+      // ★ 합산 가중치 상향 + 스케일 변경
+      let totalSharp = sharp + sharp2 * 0.55 + clarity * 0.35;
       out.sharp = VSC_CLAMP(totalSharp, 0, 150);
       out.bright = Number(out.bright || 0);
       out.contrast = Number(out.contrast || 1);
@@ -575,6 +576,7 @@
       out.shoulder = Number(out.shoulder || 0);
       return out;
     }
+
 
     const isNeutralVideoParams = (v) => (
       Math.abs((v.gain ?? 1) - 1) < 0.001 &&
@@ -591,7 +593,7 @@
       Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
-    function createVideoParamsMemo(Store, P, Utils) {
+        function createVideoParamsMemo(Store, P, Utils) {
       let lastKey = ''; let lastSvg = null; let lastWebgl = null;
       const sigVideo = (vf) => [
         vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3),
@@ -609,13 +611,21 @@
           }
           const base = {};
           composeVideoParamsInto(base, vfUser, autoMods);
-          base.sharp = Math.min(Number(base.sharp || 0), 36);
-          const webgl = projectVValsForWebGL(base);
-          lastSvg = base; lastWebgl = webgl; lastKey = key;
+
+          // ★ SVG용: sharp 제한
+          const svgBase = { ...base };
+          svgBase.sharp = Math.min(Number(svgBase.sharp || 0), 36);
+          lastSvg = svgBase;
+
+          // ★ WebGL용: 원본 sharp 값으로 projection
+          lastWebgl = projectVValsForWebGL(base);
+
+          lastKey = key;
           return rMode === 'webgl' ? lastWebgl : lastSvg;
         }
       };
     }
+
 
     function createFiltersWebGL(Utils) {
       const pipelines = new WeakMap();
@@ -659,7 +669,7 @@ void main() {
   outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }`;
       }
-      function buildFsSharpen({ gl2 }) {
+            function buildFsSharpen({ gl2 }) {
         const head = gl2 ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n` : `precision highp float;\nvarying vec2 vTexCoord;\n#define outColor gl_FragColor\n#define TEX texture2D\n`;
         return head + `
 uniform sampler2D uVideoTex; uniform sampler2D uToneTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain;
@@ -678,7 +688,8 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
   }
   vec3 sharpened = c + (c - avg) * strength;
   vec3 mn = min(c, min(min(n,s), min(w,e))); vec3 mx = max(c, max(max(n,s), max(w,e))); vec3 span = mx - mn;
-  sharpened = clamp(sharpened, mn - span * 0.05, mx + span * 0.05); return sharpened;
+  sharpened = clamp(sharpened, mn - span * 0.25, mx + span * 0.25);
+  return sharpened;
 }
 void main() {
   vec2 texel = 1.0 / uResolution; vec3 color = TEX(uVideoTex, vTexCoord).rgb; float strength = uParams2.y;
@@ -757,7 +768,7 @@ void main() {
           }
           this.syncCanvasPresentationFromVideo(video, now);
           const w = video.videoWidth, h = video.videoHeight;
-          const sharpNorm = (this.vVals.sharp || 0) / 50.0;
+          const sharpNorm = (this.vVals.sharp || 0) / 28.0;
           const useSharpen = sharpNorm > 0;
           const kind = useSharpen ? 'sharp' : 'color';
           const H = useSharpen ? this.handles_sharp : this.handles_color;
@@ -1099,19 +1110,29 @@ void main() {
       };
     }
 
-    function createBackendAdapter(Filters, FiltersGL) {
+        function createBackendAdapter(Filters, FiltersGL) {
+      let __userRequestedMode = 'svg';  // ★ 사용자 요청 모드 추적
+
       return {
+        setUserMode(mode) { __userRequestedMode = mode; },
+
         apply(video, mode, vVals) {
           const st = getVState(video); const now = performance.now();
+          __userRequestedMode = mode;  // ★ 현재 요청 모드 기록
+
           const autoDowngrade = (video.videoWidth * video.videoHeight) < (640 * 360);
           const webglAllowed = (mode === 'webgl' && !st.webglTainted && !(st.webglDisabledUntil && now < st.webglDisabledUntil) && !autoDowngrade);
           const effectiveMode = webglAllowed ? 'webgl' : 'svg';
+
+          // ★ 자동 폴백일 때만 OSD 표시 (사용자 수동 전환은 제외)
           if (st.fxBackend && st.fxBackend !== effectiveMode) {
-            if (st.fxBackend === 'webgl' && effectiveMode === 'svg') {
+            const isAutoFallback = (mode === 'webgl' && effectiveMode === 'svg');
+            if (isAutoFallback) {
               const reason = st.webglTainted ? 'CORS 보안' : autoDowngrade ? '저해상도' : 'GPU 오류';
               showOSD(`WebGL \u2192 SVG (${reason})`, 2500);
             }
           }
+
           if (st.webglTainted && st.fxBackend === 'webgl') { FiltersGL.clear(video); st.fxBackend = null; }
           if (effectiveMode === 'webgl') {
               if (st.fxBackend === 'svg') Filters.clear(video);
@@ -1131,6 +1152,7 @@ void main() {
         }
       };
     }
+
 
     function ensureMobileInlinePlaybackHints(video) { if (!video) return; try { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); if (!video.hasAttribute('webkit-playsinline')) video.setAttribute('webkit-playsinline', ''); } catch (_) {} }
     const onEvictRateVideo = (v) => { try { restoreRateOne(v); } catch (_) {} };
