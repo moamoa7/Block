@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v173.0.0 - Unified Single-Pass SVG & Zero-Idle WebGL)
+// @name         Video_Control (v174.0.0 - Patched)
 // @namespace    https://github.com/
-// @version      173.0.0
-// @description  Video Control: Patched Framework + GPU Opt (v172 full review applied)
+// @version      174.0.0
+// @description  Video Control: Patched Framework + GPU Opt (v173 review applied)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -58,7 +58,7 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    const VSC_VERSION = '173.0.0';
+    const VSC_VERSION = '174.0.0';
     const STORAGE_KEY = 'vsc_settings_v170';
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
@@ -73,11 +73,25 @@
 
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 12; const SPA_RESCAN_DEBOUNCE_MS = 220;
-    const GUARD = Object.freeze({ WEBGL_FAIL_COOLDOWN: 5000, WEBGL_FAIL_THRESHOLD: 3, AUDIO_SRC_COOLDOWN: 5000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
+    const GUARD = Object.freeze({ WEBGL_FAIL_COOLDOWN: 3000, WEBGL_FAIL_THRESHOLD: 3, AUDIO_SRC_COOLDOWN: 5000, TARGET_HYSTERESIS_MS: 400, TARGET_HYSTERESIS_MARGIN: 0.5 });
 
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1; const log = { error: (...args) => LOG_LEVEL >= 1 && console.error('[VSC]', ...args), warn: (...args) => LOG_LEVEL >= 2 && console.warn('[VSC]', ...args), info: (...args) => LOG_LEVEL >= 3 && console.info('[VSC]', ...args), debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args) };
 
-    function createVideoState() { return { visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0, webglTainted: false, _resizeDirty: false, _ac: null }; }
+    function createVideoState() {
+      return {
+        visible: false, rect: null, bound: false, rateState: null, audioFailUntil: 0, applied: false, fxBackend: null, desiredRate: undefined, lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false, webglFailCount: 0, webglDisabledUntil: 0, webglTainted: false, _resizeDirty: false, _ac: null,
+        resetTransient() {
+          this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
+          this.webglFailCount = 0; this.webglDisabledUntil = 0; this.webglTainted = false;
+          if (this.rateState) {
+            this.rateState.orig = null; this.rateState.lastSetAt = 0;
+            this.rateState.retryCount = 0; this.rateState.permanentlyBlocked = false;
+            this.rateState.suppressSyncUntil = 0;
+          }
+          this.desiredRate = undefined;
+        }
+      };
+    }
     const videoStateMap = new WeakMap(); function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = createVideoState(); videoStateMap.set(v, st); } return st; }
 
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
@@ -102,7 +116,27 @@
 
     if (FEATURE_FLAGS.trackShadowRoots) {
       (function patchAttachShadowOnce() {
-        try { const proto = Element.prototype; if (!proto.attachShadow) return; const VSC_PATCH = Symbol.for('vsc.patch.attachShadow'); if (proto[VSC_PATCH]) return; const desc = Object.getOwnPropertyDescriptor(proto, 'attachShadow'), orig = desc && desc.value; if (typeof orig !== 'function') return; try { Object.defineProperty(proto, VSC_PATCH, { value: true }); } catch (_) { proto[VSC_PATCH] = true; } function wrappedAttachShadow(init) { const shadow = orig.call(this, init); try { if (shadow && init && init.mode === 'open') { document.dispatchEvent(new CustomEvent('vsc-shadow-root', { detail: shadow })); } } catch (_) {} return shadow; } try { Object.defineProperty(wrappedAttachShadow, 'toString', { value: Function.prototype.toString.bind(orig), configurable: true }); } catch (_) {} if (desc && desc.configurable === false && desc.writable === false) return; Object.defineProperty(proto, 'attachShadow', { ...desc, value: wrappedAttachShadow }); } catch (e) { log.warn('attachShadow patch failed:', e); }
+        try {
+          const proto = Element.prototype;
+          if (!proto.attachShadow) return;
+          const VSC_PATCH = Symbol.for('vsc.patch.attachShadow');
+          if (proto[VSC_PATCH]) return;
+          const desc = Object.getOwnPropertyDescriptor(proto, 'attachShadow'), orig = desc && desc.value;
+          if (typeof orig !== 'function') return;
+          try { Object.defineProperty(proto, VSC_PATCH, { value: true }); } catch (_) { proto[VSC_PATCH] = true; }
+          function wrappedAttachShadow(init) {
+            const shadow = orig.call(this, init);
+            try { if (shadow && init && init.mode === 'open') { document.dispatchEvent(new CustomEvent('vsc-shadow-root', { detail: shadow })); } } catch (_) {}
+            return shadow;
+          }
+          try {
+            Object.defineProperty(wrappedAttachShadow, 'toString', { value: Function.prototype.toString.bind(orig), configurable: true });
+            Object.defineProperty(wrappedAttachShadow, 'name', { value: orig.name || 'attachShadow', configurable: true });
+            Object.defineProperty(wrappedAttachShadow, 'length', { value: orig.length, configurable: true });
+          } catch (_) {}
+          if (desc && desc.configurable === false && desc.writable === false) return;
+          Object.defineProperty(proto, 'attachShadow', { ...desc, value: wrappedAttachShadow });
+        } catch (e) { log.warn('attachShadow patch failed:', e); }
       })();
     }
 
@@ -122,6 +156,14 @@
         try { onEvict?.(v); } catch (_) {}
         dropped++;
       }
+      if (dropped === 0 && set.size > CONFIG.TOUCHED_MAX) {
+        for (const v of set) {
+          if (v === el) continue;
+          set.delete(v);
+          try { onEvict?.(v); } catch (_) {}
+          break;
+        }
+      }
     }
 
     let __vscRectEpoch = 0, __vscRectEpochQueued = false; function bumpRectEpoch() { if (__vscRectEpochQueued) return; __vscRectEpochQueued = true; requestAnimationFrame(() => { __vscRectEpochQueued = false; __vscRectEpoch++; }); }
@@ -129,12 +171,31 @@
     try { const vv = window.visualViewport; if (vv) { vv.addEventListener('resize', bumpRectEpoch, { passive: true, signal: __globalSig }); vv.addEventListener('scroll', bumpRectEpoch, { passive: true, signal: __globalSig }); } } catch (_) {}
 
     function getRectCached(v, now, maxAgeMs = 400) { const st = getVState(v); if (!st.rect || (now - (st.rectT || 0)) > maxAgeMs || (st.rectEpoch || 0) !== __vscRectEpoch || st._resizeDirty) { st.rect = v.getBoundingClientRect(); st.rectT = now; st.rectEpoch = __vscRectEpoch; st._resizeDirty = false; } return st.rect; }
-    function getViewportSnapshot() { const vv = window.visualViewport; if (vv) { return { w: vv.width, h: vv.height, cx: vv.offsetLeft + vv.width * 0.5, cy: vv.offsetTop + vv.height * 0.5 }; } return { w: innerWidth, h: innerHeight, cx: innerWidth * 0.5, cy: innerHeight * 0.5 }; }
+    const __vpSnap = { w: 0, h: 0, cx: 0, cy: 0 };
+    function getViewportSnapshot() {
+      const vv = window.visualViewport;
+      if (vv) { __vpSnap.w = vv.width; __vpSnap.h = vv.height; __vpSnap.cx = vv.offsetLeft + vv.width * 0.5; __vpSnap.cy = vv.offsetTop + vv.height * 0.5; }
+      else { __vpSnap.w = innerWidth; __vpSnap.h = innerHeight; __vpSnap.cx = innerWidth * 0.5; __vpSnap.cy = innerHeight * 0.5; }
+      return __vpSnap;
+    }
 
     function walkRootsInto(root, out, depth = 0) { if (!root || depth > 6) return; out.push(root); const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT); let node = walker.nextNode(); while (node) { if (node.shadowRoot) walkRootsInto(node.shadowRoot, out, depth + 1); node = walker.nextNode(); } }
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); }; }
 
-    function initSpaUrlDetector(onChanged) { if (window.__VSC_SPA_PATCHED__) return; window.__VSC_SPA_PATCHED__ = true; let lastHref = location.href; const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); }; const wrap = (name) => { const orig = history[name]; if (typeof orig !== 'function') return; history[name] = function (...args) { const ret = Reflect.apply(orig, this, args); queueMicrotask(emitIfChanged); return ret; }; }; wrap('pushState'); wrap('replaceState'); onWin('popstate', emitIfChanged, { passive: true }); }
+    function initSpaUrlDetector(onChanged) {
+      if (window.__VSC_SPA_PATCHED__) return;
+      window.__VSC_SPA_PATCHED__ = true;
+      let lastHref = location.href;
+      const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
+      const wrap = (name) => {
+        const orig = history[name];
+        if (typeof orig !== 'function') return;
+        window.__VSC_INTERNAL__[`_orig_${name}`] = orig;
+        history[name] = function (...args) { const ret = Reflect.apply(orig, this, args); queueMicrotask(emitIfChanged); return ret; };
+      };
+      wrap('pushState'); wrap('replaceState');
+      onWin('popstate', emitIfChanged, { passive: true });
+    }
 
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
     function watchIframes() {
@@ -178,6 +239,8 @@
       }
       if (wrap.parentNode) wrap.remove();
       fsWraps.delete(video);
+      const st = getVState(video);
+      st.fsPatched = false;
     }
     function patchMethodSafe(obj, name, wrappedFn) {
       try { obj[name] = wrappedFn; return true; } catch (_) { return false; }
@@ -203,45 +266,118 @@
 
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
     function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
-    function getActivePiPVideo() { if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
+    function getActivePiPVideo() { if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement; if (__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo; return null; }
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
 
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
-      if ('documentPictureInPicture' in window && window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') { if (__activeDocumentPiPWindow) return true; try { const pipWindow = await window.documentPictureInPicture.requestWindow({ width: Math.max(video.videoWidth / 2, 400), height: Math.max(video.videoHeight / 2, 225) }); __activeDocumentPiPWindow = pipWindow; __activeDocumentPiPVideo = video; __pipOrigParent = video.parentNode; __pipOrigNext = video.nextSibling; __pipOrigCss = video.style.cssText; __pipPlaceholder = document.createElement('div'); __pipPlaceholder.style.width = video.clientWidth + 'px'; __pipPlaceholder.style.height = video.clientHeight + 'px'; __pipPlaceholder.style.background = 'black'; if (__pipOrigParent) __pipOrigParent.insertBefore(__pipPlaceholder, video); pipWindow.document.body.style.margin = '0'; pipWindow.document.body.style.display = 'flex'; pipWindow.document.body.style.justifyContent = 'center'; pipWindow.document.body.style.alignItems = 'center'; pipWindow.document.body.style.background = 'black'; video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain'; pipWindow.document.body.append(video); pipWindow.addEventListener('click', () => { if (video.paused) { const p = video.play(); if (p && typeof p.catch === 'function') { p.catch(() => { video.muted = true; video.play().catch(() => {}); }); } } else { video.pause(); } }); pipWindow.addEventListener('pagehide', () => { try { video.style.cssText = __pipOrigCss; if (__pipPlaceholder?.parentNode?.isConnected) { __pipPlaceholder.parentNode.insertBefore(video, __pipPlaceholder); __pipPlaceholder.remove(); } else if (__pipOrigParent?.isConnected) { if (__pipOrigNext && __pipOrigNext.parentNode === __pipOrigParent) { __pipOrigParent.insertBefore(video, __pipOrigNext); } else { __pipOrigParent.appendChild(video); } } } finally { resetPiPState(); } }); return true; } catch (e) { log.debug('Document PiP failed, fallback to video PiP', e); } }
-      if (document.pictureInPictureElement === video) return true; if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') { try { await video.requestPictureInPicture(); return true; } catch (e) { return false; } } return false;
+      if ('documentPictureInPicture' in window && window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') {
+        if (__activeDocumentPiPWindow) {
+          if (__activeDocumentPiPWindow.closed) { resetPiPState(); }
+          else { return true; }
+        }
+        try {
+          const pipWindow = await window.documentPictureInPicture.requestWindow({ width: Math.max(video.videoWidth / 2, 400), height: Math.max(video.videoHeight / 2, 225) });
+          __activeDocumentPiPWindow = pipWindow; __activeDocumentPiPVideo = video; __pipOrigParent = video.parentNode; __pipOrigNext = video.nextSibling; __pipOrigCss = video.style.cssText;
+          __pipPlaceholder = document.createElement('div'); __pipPlaceholder.style.width = video.clientWidth + 'px'; __pipPlaceholder.style.height = video.clientHeight + 'px'; __pipPlaceholder.style.background = 'black';
+          if (__pipOrigParent) __pipOrigParent.insertBefore(__pipPlaceholder, video);
+          pipWindow.document.body.style.margin = '0'; pipWindow.document.body.style.display = 'flex'; pipWindow.document.body.style.justifyContent = 'center'; pipWindow.document.body.style.alignItems = 'center'; pipWindow.document.body.style.background = 'black';
+          video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'contain';
+          const adopted = pipWindow.document.adoptNode(video);
+          pipWindow.document.body.append(adopted);
+          pipWindow.addEventListener('click', () => { if (video.paused) { const p = video.play(); if (p && typeof p.catch === 'function') { p.catch(() => { video.muted = true; video.play().catch(() => {}); }); } } else { video.pause(); } });
+          pipWindow.addEventListener('pagehide', () => {
+            try {
+              video.style.cssText = __pipOrigCss;
+              const restored = document.adoptNode(video);
+              if (__pipPlaceholder?.parentNode?.isConnected) { __pipPlaceholder.parentNode.insertBefore(restored, __pipPlaceholder); __pipPlaceholder.remove(); }
+              else if (__pipOrigParent?.isConnected) { if (__pipOrigNext && __pipOrigNext.parentNode === __pipOrigParent) { __pipOrigParent.insertBefore(restored, __pipOrigNext); } else { __pipOrigParent.appendChild(restored); } }
+            } finally { resetPiPState(); }
+          });
+          return true;
+        } catch (e) { log.debug('Document PiP failed, fallback to video PiP', e); }
+      }
+      if (document.pictureInPictureElement === video) return true;
+      if (document.pictureInPictureEnabled && typeof video.requestPictureInPicture === 'function') { try { await video.requestPictureInPicture(); return true; } catch (e) { return false; } }
+      return false;
     }
-    async function exitPiP(preferredVideo = null) { if (__activeDocumentPiPWindow) { __activeDocumentPiPWindow.close(); return true; } if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); return true; } catch (_) {} } return false; }
-    async function togglePiPFor(video) { if (!video || video.readyState < 2) return false; if (__activeDocumentPiPWindow || document.pictureInPictureElement === video) return exitPiP(video); if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); } catch (_) {} } return enterPiP(video); }
+    async function exitPiP(preferredVideo = null) {
+      if (__activeDocumentPiPWindow) {
+        if (!__activeDocumentPiPWindow.closed) __activeDocumentPiPWindow.close();
+        else resetPiPState();
+        return true;
+      }
+      if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); return true; } catch (_) {} }
+      return false;
+    }
+    async function togglePiPFor(video) { if (!video || video.readyState < 2) return false; if ((__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed) || document.pictureInPictureElement === video) return exitPiP(video); if (document.pictureInPictureElement && document.exitPictureInPicture) { try { await document.exitPictureInPicture(); } catch (_) {} } return enterPiP(video); }
 
     function captureVideoFrame(video) {
       if (!video || video.readyState < 2) return;
       const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(video, 0, 0);
       canvas.toBlob((blob) => {
         if (!blob) return;
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `capture_${Date.now()}.png`;
-        a.click();
+        const a = document.createElement('a'); a.href = url; a.download = `capture_${Date.now()}.png`; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 5000);
       }, 'image/png');
       showOSD('스크린샷 저장됨', 1500);
     }
 
     function createZoomManager() {
-      const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0; let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 }; const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '' }; stateMap.set(v, st); } return st; };
-      const update = (v) => { if (rafId) return; rafId = requestAnimationFrame(() => { rafId = null; const st = getSt(v); v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out'; if (st.scale <= 1) { st.scale = 1; st.tx = 0; st.ty = 0; v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = ''; if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; } } else { if (!st.zoomed) { st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.zoomed = true; } v.style.transformOrigin = '0 0'; v.style.transform = `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`; v.style.cursor = isPanning ? 'grabbing' : 'grab'; v.style.zIndex = '2147483646'; if (window.getComputedStyle(v).position === 'static') { v.style.position = 'relative'; } } }); };
-      const zoomTo = (v, newScale, clientX, clientY) => { const st = getSt(v), rect = v.getBoundingClientRect(), ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale; st.tx = clientX - (rect.left - st.tx) - ix * newScale; st.ty = clientY - (rect.top - st.ty) - iy * newScale; st.scale = newScale; update(v); }; const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; update(v); } }; const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; }; const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN); const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY); const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
+      const stateMap = new WeakMap(); let rafId = null, activeVideo = null, isPanning = false, startX = 0, startY = 0; let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+      const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, origZIndex: '', origPosition: '' }; stateMap.set(v, st); } return st; };
+      const update = (v) => {
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null; const st = getSt(v);
+          const transformStr = st.scale <= 1 ? '' : `translate(${st.tx}px, ${st.ty}px) scale(${st.scale})`;
+          v.style.transition = isPanning || pinchState.active ? 'none' : 'transform 0.1s ease-out';
+          if (st.scale <= 1) {
+            st.scale = 1; st.tx = 0; st.ty = 0;
+            v.style.transform = ''; v.style.transformOrigin = ''; v.style.cursor = '';
+            if (st.zoomed) { v.style.zIndex = st.origZIndex; v.style.position = st.origPosition; st.zoomed = false; }
+          } else {
+            if (!st.zoomed) { st.origZIndex = v.style.zIndex; st.origPosition = v.style.position; st.zoomed = true; }
+            v.style.transformOrigin = '0 0'; v.style.transform = transformStr;
+            v.style.cursor = isPanning ? 'grabbing' : 'grab';
+            v.style.zIndex = '2147483646';
+            if (window.getComputedStyle(v).position === 'static') { v.style.position = 'relative'; }
+          }
+          try {
+            const sibling = v.nextElementSibling;
+            if (sibling && sibling.tagName === 'CANVAS' && sibling.style.cssText?.includes('pointer-events')) {
+              sibling.style.transition = v.style.transition;
+              sibling.style.transformOrigin = v.style.transformOrigin;
+              sibling.style.transform = transformStr;
+              if (st.zoomed) sibling.style.zIndex = '2147483647';
+              else sibling.style.zIndex = '';
+            }
+          } catch (_) {}
+        });
+      };
+      const zoomTo = (v, newScale, clientX, clientY) => { const st = getSt(v), rect = v.getBoundingClientRect(), ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale; st.tx = clientX - (rect.left - st.tx) - ix * newScale; st.ty = clientY - (rect.top - st.ty) - iy * newScale; st.scale = newScale; update(v); };
+      const resetZoom = (v) => { if (v) { const st = getSt(v); st.scale = 1; update(v); } };
+      const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
+      const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
+      const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+      const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
       function getTargetVideo(e) { const path = typeof e.composedPath === 'function' ? e.composedPath() : null; if (path) { for (const n of path) { if (n && n.tagName === 'VIDEO') return n; } } const cx = Number.isFinite(e.clientX) ? e.clientX : (e.touches && Number.isFinite(e.touches[0]?.clientX) ? e.touches[0].clientX : innerWidth * 0.5); const cy = Number.isFinite(e.clientY) ? e.clientY : (e.touches && Number.isFinite(e.touches[0]?.clientY) ? e.touches[0].clientY : innerHeight * 0.5); const el = document.elementFromPoint(cx, cy); let v = el?.tagName === 'VIDEO' ? el : el?.closest?.('video') || null; if (!v && window.__VSC_INTERNAL__?.App) { v = window.__VSC_INTERNAL__.App.getActiveVideo(); } return v; }
-      onWin('wheel', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true }); onWin('mousedown', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true }); onWin('mousemove', e => { if (!isPanning || !activeVideo) return; e.preventDefault(); e.stopPropagation(); const st = getSt(activeVideo), dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.clientX - startX; st.ty = e.clientY - startY; update(activeVideo); }, { capture: true }); onWin('mouseup', e => { if (isPanning) { if (activeVideo) { const st = getSt(activeVideo); if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); } update(activeVideo); } isPanning = false; activeVideo = null; } }, { capture: true }); onWin('dblclick', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true }); onWin('touchstart', e => { if (CONFIG.IS_MOBILE && !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (e.touches.length === 2) { if (e.cancelable) e.preventDefault(); activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale; const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y; } else if (e.touches.length === 1 && st.scale > 1) { activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty; } }, { passive: false, capture: true }); onWin('touchmove', e => { if (!activeVideo) return; const st = getSt(activeVideo); if (pinchState.active && e.touches.length === 2) { if (e.cancelable) e.preventDefault(); const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches); let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10); if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; } else { zoomTo(activeVideo, newScale, center.x, center.y); st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy; update(activeVideo); } pinchState.lastCx = center.x; pinchState.lastCy = center.y; } else if (isPanning && e.touches.length === 1) { if (e.cancelable) e.preventDefault(); const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY; update(activeVideo); } }, { passive: false, capture: true }); onWin('touchend', e => { if (!activeVideo) return; if (e.touches.length < 2) pinchState.active = false; if (e.touches.length === 0) { if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) { e.preventDefault(); } isPanning = false; update(activeVideo); activeVideo = null; } }, { passive: false, capture: true }); return { resetZoom, zoomTo, isZoomed };
+      onWin('wheel', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const delta = e.deltaY > 0 ? 0.9 : 1.1, st = getSt(v); let newScale = Math.min(Math.max(1, st.scale * delta), 10); if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY); }, { passive: false, capture: true });
+      onWin('mousedown', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (st.scale > 1) { e.preventDefault(); e.stopPropagation(); activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.clientX - st.tx; startY = e.clientY - st.ty; update(v); } }, { capture: true });
+      onWin('mousemove', e => { if (!isPanning || !activeVideo) return; e.preventDefault(); e.stopPropagation(); const st = getSt(activeVideo), dx = e.clientX - startX - st.tx, dy = e.clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.clientX - startX; st.ty = e.clientY - startY; update(activeVideo); }, { capture: true });
+      onWin('mouseup', e => { if (isPanning) { if (activeVideo) { const st = getSt(activeVideo); if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); } update(activeVideo); } isPanning = false; activeVideo = null; } }, { capture: true });
+      onWin('dblclick', e => { if (!e.altKey) return; const v = getTargetVideo(e); if (!v) return; e.preventDefault(); e.stopPropagation(); const st = getSt(v); if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v); }, { capture: true });
+      onWin('touchstart', e => { if (CONFIG.IS_MOBILE && !isZoomEnabled()) return; const v = getTargetVideo(e); if (!v) return; const st = getSt(v); if (e.touches.length === 2) { if (e.cancelable) e.preventDefault(); activeVideo = v; pinchState.active = true; pinchState.initialDist = getTouchDist(e.touches); pinchState.initialScale = st.scale; const c = getTouchCenter(e.touches); pinchState.lastCx = c.x; pinchState.lastCy = c.y; } else if (e.touches.length === 1 && st.scale > 1) { activeVideo = v; isPanning = true; st.hasPanned = false; startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty; } }, { passive: false, capture: true });
+      onWin('touchmove', e => { if (!activeVideo) return; const st = getSt(activeVideo); if (pinchState.active && e.touches.length === 2) { if (e.cancelable) e.preventDefault(); const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches); let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist)); newScale = Math.min(Math.max(1, newScale), 10); if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; } else { zoomTo(activeVideo, newScale, center.x, center.y); st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy; update(activeVideo); } pinchState.lastCx = center.x; pinchState.lastCy = center.y; } else if (isPanning && e.touches.length === 1) { if (e.cancelable) e.preventDefault(); const dx = e.touches[0].clientX - startX - st.tx, dy = e.touches[0].clientY - startY - st.ty; if (Math.abs(dx) > 3 || Math.abs(dy) > 3) st.hasPanned = true; st.tx = e.touches[0].clientX - startX; st.ty = e.touches[0].clientY - startY; update(activeVideo); } }, { passive: false, capture: true });
+      onWin('touchend', e => { if (!activeVideo) return; if (e.touches.length < 2) pinchState.active = false; if (e.touches.length === 0) { if (isPanning && getSt(activeVideo).hasPanned && e.cancelable) { e.preventDefault(); } isPanning = false; update(activeVideo); activeVideo = null; } }, { passive: false, capture: true });
+      return { resetZoom, zoomTo, isZoomed };
     }
-// ─── END OF PART 1 (v173.0.0) ───
-// ─── START OF PART 2 (v173.0.0) ───
+// ─── END OF PART 1 (v174.0.0) ───
+// ─── START OF PART 2 (v174.0.0) ───
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) { const now = performance.now(); const vp = getViewportSnapshot(); let best = null, bestScore = -Infinity; const evalScore = (v) => { if (!v || v.readyState < 2) return; const r = getRectCached(v, now, 400); const area = r.width * r.height; const pip = isPiPActiveVideo(v); if (area < 160 * 120 && !pip) return; const cx = r.left + r.width * 0.5; const cy = r.top + r.height * 0.5; let s = 0; if (!v.paused && !v.ended) s += 6.0; if (v.currentTime > 0.2) s += 2.0; s += Math.log2(1 + area / 20000) * 1.1; const ptAge = Math.max(0, now - (lastUserPt.t || 0)); const userBias = Math.exp(-ptAge / 1800); const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y; s += (2.0 * userBias) / (1 + (dx*dx + dy*dy) / 722500); const cdx = cx - vp.cx, cdy = cy - vp.cy; s += 0.7 / (1 + (cdx*cdx + cdy*cdy) / 810000); if (!v.muted && v.volume > 0.01) s += (audioBoostOn ? 2.2 : 1.2); if (pip) s += 3.0; if (s > bestScore) { bestScore = s; best = v; } }; for (const v of videos) { evalScore(v); } const activePip = getActivePiPVideo(); if (activePip && activePip.isConnected && !videos.has(activePip)) { evalScore(activePip); } if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) { if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) { return { target: stickyTarget }; } } stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS; return { target: best }; }
@@ -250,32 +386,142 @@
 
     function createEventBus() { const subs = new Map(); const on = (name, fn) => { let s = subs.get(name); if (!s) { s = new Set(); subs.set(name, s); } s.add(fn); return () => s.delete(fn); }; const emit = (name, payload) => { const s = subs.get(name); if (!s) return; for (const fn of s) { try { fn(payload); } catch (_) {} } }; let queued = false, flushTimer = 0, forceApplyAgg = false; function flush() { queued = false; if (flushTimer) { clearTimeout(flushTimer); flushTimer = 0; } const payload = { forceApply: forceApplyAgg }; emit('signal', payload); forceApplyAgg = false; } const signal = (p) => { if (p) { if (p.forceApply) forceApplyAgg = true; } if (!queued) { queued = true; if (document.visibilityState === 'hidden') { flushTimer = setTimeout(flush, 0); } else { requestAnimationFrame(flush); } } }; return Object.freeze({ on, signal }); }
     function createApplyRequester(Bus, Scheduler) { return Object.freeze({ soft() { try { Bus.signal(); } catch (_) { try { Scheduler.request(false); } catch (_) {} } }, hard() { try { Bus.signal({ forceApply: true }); } catch (_) { try { Scheduler.request(true); } catch (_) {} } } }); }
-    function createUtils() { return { clamp: VSC_CLAMP, h: (tag, props = {}, ...children) => { const el = (tag === 'svg' || props.ns === 'svg') ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), (e) => { if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation(); v(e); }); } else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); } else if (k === 'class') el.className = v; else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v); } children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); }); return el; }, deepClone: (x) => (window.structuredClone ? structuredClone(x) : JSON.parse(JSON.stringify(x))), createCappedMap: (max = 64) => { const m = new Map(); return { get: (k) => m.get(k), set(k, v) { m.set(k, v); if (m.size > max) m.delete(m.keys().next().value); } }; } }; }
+    function createUtils() {
+      return {
+        clamp: VSC_CLAMP,
+        h: (tag, props = {}, ...children) => { const el = (tag === 'svg' || props.ns === 'svg') ? document.createElementNS('http://www.w3.org/2000/svg', tag) : document.createElement(tag); for (const [k, v] of Object.entries(props)) { if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), (e) => { if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation(); v(e); }); } else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); } else if (k === 'class') el.className = v; else if (v !== false && v != null && k !== 'ns') el.setAttribute(k, v); } children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); }); return el; },
+        deepClone: (x) => (window.structuredClone ? structuredClone(x) : JSON.parse(JSON.stringify(x))),
+        createCappedMap: (max = 64) => {
+          const m = new Map();
+          return {
+            get(k) { if (!m.has(k)) return undefined; const v = m.get(k); m.delete(k); m.set(k, v); return v; },
+            set(k, v) { if (m.has(k)) m.delete(k); m.set(k, v); if (m.size > max) m.delete(m.keys().next().value); }
+          };
+        }
+      };
+    }
 
     function createScheduler(minIntervalMs = 16) { let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0; function clearPending() { if (timer) { clearTimeout(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } } function queueRaf() { if (rafId) return; rafId = requestAnimationFrame(run); } function timerCb() { timer = 0; queueRaf(); } function run() { rafId = 0; queued = false; const now = performance.now(), doForce = force; force = false; const dt = now - lastRun; if (!doForce && dt < minIntervalMs) { const wait = Math.max(0, minIntervalMs - dt); if (!timer) timer = setTimeout(timerCb, wait); return; } lastRun = now; if (applyFn) { try { applyFn(doForce); } catch (_) {} } } const request = (immediate = false) => { if (immediate) { force = true; clearPending(); queued = true; queueRaf(); return; } if (queued) return; queued = true; clearPending(); queueRaf(); }; return { registerApply: (fn) => { applyFn = fn; }, request }; }
 
-   function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; rev++; for (const [key, val] of batchEmits) { emit(key, val); } batchEmits.clear(); batchChanged = false; scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { proxyState[c] = val; return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
-
+    function createLocalStore(defaults, scheduler, Utils) { let rev = 0; const listeners = new Map(); const emit = (key, val) => { const a = listeners.get(key); if (a) for (const cb of a) { try { cb(val); } catch (_) {} } const dot = key.indexOf('.'); if (dot > 0) { const catStar = key.slice(0, dot) + '.*'; const b = listeners.get(catStar); if (b) for (const cb of b) { try { cb(val); } catch (_) {} } } }; const state = Utils.deepClone(defaults); const proxyCache = Object.create(null); const pathCache = Utils.createCappedMap(256); let batchDepth = 0, batchChanged = false; const batchEmits = new Map(); const parsePath = (p) => { let hit = pathCache.get(p); if (hit) return hit; const dot = p.indexOf('.'); hit = (dot < 0) ? [p, null] : [p.slice(0, dot), p.slice(dot + 1)]; pathCache.set(p, hit); return hit; }; function invalidateProxyBranch(path) { if (!path) return; delete proxyCache[path]; const prefix = path + '.'; for (const k in proxyCache) { if (k.startsWith(prefix)) delete proxyCache[k]; } } function flushBatch() { if (!batchChanged) return; rev++; for (const [key, val] of batchEmits) { emit(key, val); } batchEmits.clear(); batchChanged = false; scheduler.request(false); } function notifyChange(fullPath, val) { if (batchDepth > 0) { batchChanged = true; batchEmits.set(fullPath, val); return; } rev++; emit(fullPath, val); scheduler.request(false); } function createProxyDeep(obj, pathPrefix) { return new Proxy(obj, { get(target, prop) { const value = target[prop]; if (typeof value === 'object' && value !== null) { const cacheKey = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if (!proxyCache[cacheKey]) proxyCache[cacheKey] = createProxyDeep(value, cacheKey); return proxyCache[cacheKey]; } return value; }, set(target, prop, val) { if (Object.is(target[prop], val)) return true; const fullPath = pathPrefix ? `${pathPrefix}.${String(prop)}` : String(prop); if ((typeof target[prop] === 'object' && target[prop] !== null) || (typeof val === 'object' && val !== null)) { invalidateProxyBranch(fullPath); } target[prop] = val; notifyChange(fullPath, val); return true; } }); } const proxyState = createProxyDeep(state, ''); return { state: proxyState, rev: () => rev, getCatRef: (cat) => proxyState[cat], get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; }, set: (p, val) => { const [c, k] = parsePath(p); if (k == null) { if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) { for (const [subK, subV] of Object.entries(val)) proxyState[c][subK] = subV; } else { proxyState[c] = val; } return; } proxyState[c][k] = val; }, batch: (cat, obj) => { batchDepth++; try { for (const [k, v] of Object.entries(obj)) proxyState[cat][k] = v; } finally { batchDepth--; if (batchDepth === 0) flushBatch(); } }, sub: (k, f) => { let s = listeners.get(k); if (!s) { s = new Set(); listeners.set(k, s); } s.add(f); return () => listeners.get(k)?.delete(f); } }; }
 
     function normalizeBySchema(sm, schema) { let changed = false; const setIfDiff = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } }; for (const rule of schema) { const type = rule.type; const path = rule.path; if (type === 'bool') { setIfDiff(path, !!sm.get(path)); continue; } if (type === 'enum') { const cur = sm.get(path); if (!rule.values.includes(cur)) { setIfDiff(path, rule.fallback()); } continue; } if (type === 'num') { let n = Number(sm.get(path)); if (!Number.isFinite(n)) n = rule.fallback(); if (rule.round) n = Math.round(n); n = Math.max(rule.min, Math.min(rule.max, n)); setIfDiff(path, n); continue; } } return changed; }
 
     function createRegistry(scheduler) {
-      const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0; const shadowRootsLRU = []; const observedShadowHosts = new WeakSet(); let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); } const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' }) : null; const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]'))); const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); st.rect = e.contentRect ? el.getBoundingClientRect() : null; st.rectT = now; st.rectEpoch = -1; st._resizeDirty = true; dirty.videos.add(el); changed = true; } if (changed) requestRefreshCoalesced(); }) : null; const observeVideo = (el) => { if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return; patchFullscreenRequest(el); videos.add(el); if (io) { io.observe(el); } else { const st = getVState(el); st.visible = true; if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } } if (ro) ro.observe(el); };
+      const videos = new Set(), visible = { videos: new Set() }; let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0; const shadowRootsLRU = []; const observedShadowHosts = new WeakSet(); let __refreshQueued = false; function requestRefreshCoalesced() { if (__refreshQueued) return; __refreshQueued = true; requestAnimationFrame(() => { __refreshQueued = false; scheduler.request(false); }); }
+      const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; const isVis = e.isIntersecting || e.intersectionRatio > 0; const st = getVState(el); st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now; if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } } else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } } } if (changed) { rev++; requestRefreshCoalesced(); } }, { root: null, threshold: 0.01, rootMargin: '300px' }) : null;
+      const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
+      const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { let changed = false; const now = performance.now(); for (const e of entries) { const el = e.target; if (!el || el.tagName !== 'VIDEO') continue; const st = getVState(el); st.rect = e.contentRect ? el.getBoundingClientRect() : null; st.rectT = now; st.rectEpoch = -1; st._resizeDirty = true; dirty.videos.add(el); changed = true; } if (changed) requestRefreshCoalesced(); }) : null;
+      const observeVideo = (el) => { if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return; patchFullscreenRequest(el); videos.add(el); if (io) { io.observe(el); } else { const st = getVState(el); st.visible = true; if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); requestRefreshCoalesced(); } } if (ro) ro.observe(el); };
       const WorkQ = (() => { const q = [], bigQ = []; let head = 0, bigHead = 0, scheduled = false, epoch = 1; const mark = new WeakMap(); function drainRunnerIdle(dl) { drain(dl); } function drainRunnerRaf() { drain(); } const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function') ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null; const schedule = () => { if (scheduled) return; scheduled = true; if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; } if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }; const enqueue = (n) => { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch); (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n); schedule(); }; const scanNode = (n) => { if (!n) return; if (n.nodeType === 1) { if (n.tagName === 'VIDEO') { observeVideo(n); return; } try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} return; } if (n.nodeType === 11) { try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} } }; const drain = (dl) => { scheduled = false; const start = performance.now(); const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6; let bigProcessed = 0; while (bigHead < bigQ.length && budget()) { scanNode(bigQ[bigHead++]); if (++bigProcessed >= 2) break; } while (head < q.length && budget()) { scanNode(q[head++]); } if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; } schedule(); }; return Object.freeze({ enqueue }); })();
-      function nodeMayContainVideo(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false; if (n.nodeType === 1) { if (n.tagName === 'VIDEO') return true; if ((n.childElementCount || 0) === 0) return false; try { const list = n.getElementsByTagName ? n.getElementsByTagName('video') : null; return !!(list && list.length); } catch (_) { try { return !!(n.querySelector && n.querySelector('video')); } catch (_) { return false; } } } try { const list = n.querySelectorAll ? n.querySelectorAll('video') : null; return !!(list && list.length); } catch (_) { return false; } } const observers = new Set(); const connectObserver = (root) => { if (!root) return; const mo = new MutationObserver((muts) => { let touchedVideoTree = false; for (const m of muts) { if (m.addedNodes && m.addedNodes.length) { for (const n of m.addedNodes) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) continue; WorkQ.enqueue(n); if (!touchedVideoTree && nodeMayContainVideo(n)) touchedVideoTree = true; } } if (!touchedVideoTree && m.removedNodes && m.removedNodes.length) { for (const n of m.removedNodes) { if (!n || n.nodeType !== 1) continue; if (n.tagName === 'VIDEO') { touchedVideoTree = true; break; } if ((n.childElementCount || 0) > 0) { try { const list = n.getElementsByTagName?.('video'); if (list && list.length) { touchedVideoTree = true; break; } } catch (_) {} } } } } if (touchedVideoTree) requestRefreshCoalesced(); }); mo.observe(root, { childList: true, subtree: true }); observers.add(mo); WorkQ.enqueue(root); }; const refreshObservers = () => { for (const o of observers) o.disconnect(); observers.clear(); if (!FEATURE_FLAGS.trackShadowRoots) { const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } return; } for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); } const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } }; if (FEATURE_FLAGS.trackShadowRoots) { document.addEventListener('vsc-shadow-root', (e) => { try { const sr = e.detail; const host = sr?.host; if (!sr || !host || observedShadowHosts.has(host)) return; observedShadowHosts.add(host); shadowRootsLRU.push({ host, root: sr }); if (shadowRootsLRU.length > SHADOW_ROOT_LRU_MAX) shadowRootsLRU.shift(); connectObserver(sr); } catch (_) {} }); } refreshObservers();
-      function pruneBatch(set, visibleSet, dirtySet, unobserveFn, limit = 200) { let removed = 0, scanned = 0; for (const el of set) { if (++scanned > limit) break; if (!el || !el.isConnected) { set.delete(el); visibleSet.delete(el); dirtySet.delete(el); const vst = videoStateMap.get(el); if (vst?._ac) { vst._ac.abort(); vst._ac = null; vst.bound = false; } try { unobserveFn(el); } catch (_) {} if (ro) { try { ro.unobserve(el); } catch (_) {} } removed++; } } return removed; }
-      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, (el) => { if (io) io.unobserve(el); }, 220); if(removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { const roots = []; walkRootsInto(document.body || document.documentElement, roots); for (const r of roots) WorkQ.enqueue(r); } };
+      function nodeMayContainVideo(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false; if (n.nodeType === 1) { if (n.tagName === 'VIDEO') return true; if ((n.childElementCount || 0) === 0) return false; try { const list = n.getElementsByTagName ? n.getElementsByTagName('video') : null; return !!(list && list.length); } catch (_) { try { return !!(n.querySelector && n.querySelector('video')); } catch (_) { return false; } } } try { const list = n.querySelectorAll ? n.querySelectorAll('video') : null; return !!(list && list.length); } catch (_) { return false; } }
+      const observers = new Set();
+      const isVscOwnNode = (n) => {
+        if (!n || n.nodeType !== 1) return false;
+        return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd');
+      };
+      const connectObserver = (root) => {
+        if (!root) return;
+        const mo = new MutationObserver((muts) => {
+          let touchedVideoTree = false;
+          for (const m of muts) {
+            if (m.addedNodes && m.addedNodes.length) {
+              for (const n of m.addedNodes) {
+                if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) continue;
+                if (n.nodeType === 1 && isVscOwnNode(n)) continue;
+                WorkQ.enqueue(n);
+                if (!touchedVideoTree && nodeMayContainVideo(n)) touchedVideoTree = true;
+              }
+            }
+            if (!touchedVideoTree && m.removedNodes && m.removedNodes.length) {
+              for (const n of m.removedNodes) {
+                if (!n || n.nodeType !== 1) continue;
+                if (n.tagName === 'VIDEO') { touchedVideoTree = true; break; }
+                if ((n.childElementCount || 0) > 0) { try { const list = n.getElementsByTagName?.('video'); if (list && list.length) { touchedVideoTree = true; break; } } catch (_) {} }
+              }
+            }
+          }
+          if (touchedVideoTree) requestRefreshCoalesced();
+        });
+        mo.observe(root, { childList: true, subtree: true }); observers.add(mo); WorkQ.enqueue(root);
+      };
+      const refreshObservers = () => { for (const o of observers) o.disconnect(); observers.clear(); if (!FEATURE_FLAGS.trackShadowRoots) { const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } return; } for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); } const root = document.body || document.documentElement; if (root) { WorkQ.enqueue(root); connectObserver(root); } };
+      if (FEATURE_FLAGS.trackShadowRoots) {
+        document.addEventListener('vsc-shadow-root', (e) => {
+          try {
+            const sr = e.detail; const host = sr?.host;
+            if (!sr || !host || observedShadowHosts.has(host)) return;
+            observedShadowHosts.add(host);
+            if (shadowRootsLRU.length >= SHADOW_ROOT_LRU_MAX) {
+              const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected);
+              if (idx >= 0) shadowRootsLRU.splice(idx, 1);
+              else shadowRootsLRU.shift();
+            }
+            shadowRootsLRU.push({ host, root: sr });
+            connectObserver(sr);
+          } catch (_) {}
+        });
+      }
+      refreshObservers();
+      function pruneBatch(set, visibleSet, dirtySet, limit = 200) {
+        let removed = 0, scanned = 0;
+        for (const el of set) {
+          if (++scanned > limit) break;
+          if (!el || !el.isConnected) {
+            set.delete(el); visibleSet.delete(el); dirtySet.delete(el);
+            const vst = videoStateMap.get(el);
+            if (vst?._ac) { vst._ac.abort(); vst._ac = null; vst.bound = false; }
+            if (io) { try { io.unobserve(el); } catch (_) {} }
+            if (ro) { try { ro.unobserve(el); } catch (_) {} }
+            removed++;
+          }
+        }
+        return removed;
+      }
+      return { videos, visible, rev: () => rev, refreshObservers, prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, 220); if (removed) rev++; }, consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; }, rescanAll: () => { const roots = []; walkRootsInto(document.body || document.documentElement, roots); for (const r of roots) WorkQ.enqueue(r); } };
     }
 
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; const VSC_AUD_HPF_HZ = 45; const VSC_AUD_HPF_Q = 0.707; const VSC_AUD_CLIP_KNEE = 0.985; const VSC_AUD_CLIP_DRIVE = 6.0; let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
-      const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} }; const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); }; const clamp = VSC_CLAMP; const VSC_AUDIO_AUTO_MAKEUP = true;
-      function runAudioLoop(tok) { if (tok !== loopTok || !ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const actuallyEnabled = en && currentSrc; if (VSC_AUDIO_AUTO_MAKEUP && actuallyEnabled && analyser) { analyser.getFloatTimeDomainData(dataArray); let sumSquare = 0; for(let i = 0; i < dataArray.length; i++) { sumSquare += dataArray[i] * dataArray[i]; } const rms = Math.sqrt(sumSquare / dataArray.length); const db = rms > 1e-6 ? 20 * Math.log10(rms) : -100; let redDb = 0; try { const r = compressor?.reduction; redDb = (typeof r === 'number') ? r : (r && typeof r.value === 'number') ? r.value : 0; } catch (_) {} if (!Number.isFinite(redDb)) redDb = 0; const redPos = clamp(-redDb, 0, 18); let gateMult = 1.0; if (db < -45) { gateMult = 0.0; } else if (db < -40) { gateMult = (db - (-45)) / 5.0; } const makeupDbTarget = clamp(Math.max(0, redPos - 1.5) * 0.40, 0, 4.5) * gateMult; const isAttack = makeupDbTarget < makeupDbEma; const alpha = isAttack ? 0.35 : 0.015; makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha; } else { makeupDbEma += (0 - makeupDbEma) * 0.1; } const boostDb = Number(sm.get(P.A_BST) || 0); const userBoost = Math.pow(10, boostDb / 20); const makeup = Math.pow(10, makeupDbEma / 20); if (wetInGain) { const finalGain = actuallyEnabled ? (userBoost * makeup) : 1.0; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } } const delay = document.hidden ? 500 : 70; setTimeout(() => runAudioLoop(tok), delay); }
-      const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; srcMap = new WeakMap(); };
+      const onGesture = async () => { try { if (ctx && ctx.state === 'suspended') { await ctx.resume(); } if (ctx && ctx.state === 'running' && gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} };
+      const ensureGestureResumeHook = () => { if (gestureHooked) return; gestureHooked = true; onWin('pointerdown', onGesture, { passive: true, capture: true }); onWin('keydown', onGesture, { passive: true, capture: true }); };
+      const clamp = VSC_CLAMP; const VSC_AUDIO_AUTO_MAKEUP = true;
+      function runAudioLoop(tok) {
+        if (tok !== loopTok || !ctx) return;
+        const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+        const actuallyEnabled = en && currentSrc;
+        if (!actuallyEnabled) {
+          makeupDbEma += (0 - makeupDbEma) * 0.1;
+          if (wetInGain) { try { wetInGain.gain.setTargetAtTime(1.0, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = 1.0; } }
+          return;
+        }
+        if (VSC_AUDIO_AUTO_MAKEUP && analyser) {
+          analyser.getFloatTimeDomainData(dataArray); let sumSquare = 0; for (let i = 0; i < dataArray.length; i++) { sumSquare += dataArray[i] * dataArray[i]; } const rms = Math.sqrt(sumSquare / dataArray.length); const db = rms > 1e-6 ? 20 * Math.log10(rms) : -100; let redDb = 0; try { const r = compressor?.reduction; redDb = (typeof r === 'number') ? r : (r && typeof r.value === 'number') ? r.value : 0; } catch (_) {} if (!Number.isFinite(redDb)) redDb = 0; const redPos = clamp(-redDb, 0, 18); let gateMult = 1.0; if (db < -45) { gateMult = 0.0; } else if (db < -40) { gateMult = (db - (-45)) / 5.0; } const makeupDbTarget = clamp(Math.max(0, redPos - 1.5) * 0.40, 0, 4.5) * gateMult; const isAttack = makeupDbTarget < makeupDbEma; const alpha = isAttack ? 0.35 : 0.015; makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha;
+        } else { makeupDbEma += (0 - makeupDbEma) * 0.1; }
+        const boostDb = Number(sm.get(P.A_BST) || 0);
+        const userBoost = Math.pow(10, boostDb / 20);
+        const makeup = Math.pow(10, makeupDbEma / 20);
+        if (wetInGain) { const finalGain = userBoost * makeup; try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; } }
+        const delay = document.hidden ? 500 : 70;
+        setTimeout(() => runAudioLoop(tok), delay);
+      }
+      const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => { compressor = ctx.createDynamicsCompressor(); compressor.threshold.value = -18; compressor.knee.value = 12; compressor.ratio.value = 3.0; compressor.attack.value = 0.008; compressor.release.value = 0.15; limiter = ctx.createDynamicsCompressor(); limiter.threshold.value = -1.5; limiter.knee.value = 1.0; limiter.ratio.value = 20.0; limiter.attack.value = 0.0015; limiter.release.value = 0.09; hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q; clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {} analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize); dryOut = ctx.createGain(); wetOut = ctx.createGain(); wetInGain = ctx.createGain(); masterOut = ctx.createGain(); dryOut.connect(masterOut); wetOut.connect(masterOut); hpf.connect(compressor); hpf.connect(analyser); compressor.connect(wetInGain); wetInGain.connect(limiter); limiter.connect(clipper); clipper.connect(wetOut); masterOut.connect(ctx.destination); };
-      const ensureCtx = () => { if (ctx && ctx.state === 'closed') resetCtx(); if (ctx) return true; const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return false; try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); } ensureGestureResumeHook(); buildAudioGraph(); return true; };
-      const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => { if (!ctx) return; const t = ctx.currentTime; try { dryOut.gain.cancelScheduledValues(t); wetOut.gain.cancelScheduledValues(t); dryOut.gain.setTargetAtTime(dryTarget, t, tc); wetOut.gain.setTargetAtTime(wetTarget, t, tc); } catch (_) { dryOut.gain.value = dryTarget; wetOut.gain.value = wetTarget; } }; const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimeout(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimeout(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); }; const disconnectAll = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} } currentSrc = null; target = null; }; const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const isHooked = !!currentSrc; const actuallyEnabled = en && isHooked; const dryTarget = actuallyEnabled ? 0 : 1; const wetTarget = actuallyEnabled ? 1 : 0; rampGainsSafe(dryTarget, wetTarget, 0.015); loopTok++; if (actuallyEnabled) { runAudioLoop(loopTok); } }; async function destroy() { loopTok++; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimeout(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
+      const ensureCtx = () => {
+        if (ctx && ctx.state === 'closed') { srcMap = new WeakMap(); resetCtx(); }
+        if (ctx) return true;
+        srcMap = new WeakMap();
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return false;
+        try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { ctx = new AC(); }
+        ensureGestureResumeHook(); buildAudioGraph(); return true;
+      };
+      const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => { if (!ctx) return; const t = ctx.currentTime; try { dryOut.gain.cancelScheduledValues(t); wetOut.gain.cancelScheduledValues(t); dryOut.gain.setTargetAtTime(dryTarget, t, tc); wetOut.gain.setTargetAtTime(wetTarget, t, tc); } catch (_) { dryOut.gain.value = dryTarget; wetOut.gain.value = wetTarget; } };
+      const fadeOutThen = (fn) => { if (!ctx) { fn(); return; } const tok = ++switchTok; clearTimeout(switchTimer); const t = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { masterOut.gain.value = 0; } switchTimer = setTimeout(() => { if (tok !== switchTok) return; makeupDbEma = 0; try { fn(); } catch (_) {} if (ctx) { const t2 = ctx.currentTime; try { masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { masterOut.gain.value = 1; } } }, 60); };
+      const disconnectAll = () => { if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} } currentSrc = null; target = null; };
+      const updateMix = () => { if (!ctx) return; const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const isHooked = !!currentSrc; const actuallyEnabled = en && isHooked; const dryTarget = actuallyEnabled ? 0 : 1; const wetTarget = actuallyEnabled ? 1 : 0; rampGainsSafe(dryTarget, wetTarget, 0.015); loopTok++; if (actuallyEnabled) { runAudioLoop(loopTok); } };
+      async function destroy() { loopTok++; try { if (gestureHooked) { window.removeEventListener('pointerdown', onGesture, true); window.removeEventListener('keydown', onGesture, true); gestureHooked = false; } } catch (_) {} clearTimeout(switchTimer); switchTok++; disconnectAll(); try { if (ctx && ctx.state !== 'closed') await ctx.close(); } catch (_) {} resetCtx(); makeupDbEma = 0; }
       return { setTarget: (v) => { const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT)); const st = v ? getVState(v) : null; if (st && st.audioFailUntil > performance.now()) { if (v !== target) { fadeOutThen(() => { disconnectAll(); target = v; }); } updateMix(); return; } if (!ensureCtx()) return; if (v === target) { updateMix(); return; } fadeOutThen(() => { disconnectAll(); target = v; if (!v) { updateMix(); return; } try { let s = srcMap.get(v); if (!s) { try { s = ctx.createMediaElementSource(v); } catch (e) { if (e.name === 'InvalidStateError') { log.debug('MediaElementSource already exists for this element'); disconnectAll(); updateMix(); return; } throw e; } srcMap.set(v, s); } s.connect(dryOut); s.connect(hpf || compressor); currentSrc = s; } catch (_) { if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + GUARD.AUDIO_SRC_COOLDOWN; disconnectAll(); } updateMix(); }); }, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
@@ -285,30 +531,9 @@
       const c = document.createElement('canvas'); c.width = AUTO.canvasW; c.height = AUTO.canvasH; let ctx = null; try { ctx = c.getContext('2d', { willReadFrequently: true, desynchronized: true, alpha: false, colorSpace: 'srgb' }); } catch (_) { try { ctx = c.getContext('2d', { willReadFrequently: true }); } catch (__) {} }
 
       function computeStatsAndMotion(AUTO, img, sw, sh) {
-        const data = img.data;
-        const step = 2;
-        let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0;
-        for (let y = 0; y < sh; y += step) {
-          let idx = (y * sw) * 4;
-          for (let x = 0; x < sw; x += step) {
-            const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-            const l = (r * 0.2126 + g * 0.7152 + b * 0.0722) | 0;
-            const max = r > g ? (r > b ? r : b) : (g > b ? g : b);
-            const min = r < g ? (r < b ? r : b) : (g < b ? g : b);
-            sumChroma += (max - min);
-            sum += l; sum2 += l * l; count++;
-            if (x + step < sw && idx + 10 < data.length) {
-              const l2 = (data[idx + 8] * 0.2126 + data[idx + 9] * 0.7152 + data[idx + 10] * 0.0722) | 0;
-              sumEdge += Math.abs(l2 - l);
-            }
-            idx += step * 4;
-          }
-        }
-        const samples = Math.max(1, count);
-        const mean = sum / samples;
-        const std = Math.sqrt(Math.max(0, (sum2 / samples) - mean * mean));
-        const motion = Math.abs(mean - (AUTO._lastMean || mean)) / 255;
-        AUTO._lastMean = mean;
+        const data = img.data; const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0;
+        for (let y = 0; y < sh; y += step) { let idx = (y * sw) * 4; for (let x = 0; x < sw; x += step) { const r = data[idx], g = data[idx + 1], b = data[idx + 2]; const l = (r * 0.2126 + g * 0.7152 + b * 0.0722) | 0; const max = r > g ? (r > b ? r : b) : (g > b ? g : b); const min = r < g ? (r < b ? r : b) : (g < b ? g : b); sumChroma += (max - min); sum += l; sum2 += l * l; count++; if (x + step < sw && idx + 10 < data.length) { const l2 = (data[idx + 8] * 0.2126 + data[idx + 9] * 0.7152 + data[idx + 10] * 0.0722) | 0; sumEdge += Math.abs(l2 - l); } idx += step * 4; } }
+        const samples = Math.max(1, count); const mean = sum / samples; const std = Math.sqrt(Math.max(0, (sum2 / samples) - mean * mean)); const motion = Math.abs(mean - (AUTO._lastMean || mean)) / 255; AUTO._lastMean = mean;
         return { bright: mean / 255, contrast: std / 64, chroma: (sumChroma / samples) / 255, edge: sumEdge / samples, motion };
       }
       function detectCut(stats) { if (!AUTO.lastSig) return false; const score = (Math.abs(stats.bright - AUTO.lastSig.bright) * 1.1) + (Math.abs(stats.contrast - AUTO.lastSig.contrast) * 0.9); AUTO.cutHist.push(score); if (AUTO.cutHist.length > 20) AUTO.cutHist.shift(); const sorted = AUTO.cutHist.slice().sort((a,b)=>a-b); const q80 = sorted[Math.floor(sorted.length * 0.80)] || 0.14; const thr = Math.max(0.10, Math.min(0.22, q80 * 1.05)); return score > thr; }
@@ -414,7 +639,7 @@
             if (st.satKey !== satVal) { st.satKey = satVal; ctx.sat.setAttribute('values', satVal); }
             if (st.tempKey !== tmk) { st.tempKey = tmk; ctx.tmpFuncs[0].setAttribute('slope', rs); ctx.tmpFuncs[1].setAttribute('slope', gs); ctx.tmpFuncs[2].setAttribute('slope', bs); }
 
-                        const mk = detailOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity) : 'off';
+            const mk = detailOn ? (s.sharp + '|' + s.sharp2 + '|' + s.clarity) : 'off';
             if (st.convKey !== mk) {
               st.convKey = mk;
               if (detailOn) {
@@ -431,7 +656,6 @@
                 ctx.conv.setAttribute('kernelMatrix', '0,0,0, 0,1,0, 0,0,0');
               }
             }
-
           });
         }
         const url = `url(#${ctx.fidMain})`; dc.key = key; dc.url = url; return url;
@@ -445,12 +669,8 @@
           const st = getVState(el);
           if (!url) {
             if (st.applied) {
-              el.style.removeProperty('transition');
-              el.style.removeProperty('filter');
-              el.style.removeProperty('-webkit-filter');
-              el.style.removeProperty('background-color');
-              st.applied = false;
-              st.lastFilterUrl = null;
+              el.style.removeProperty('transition'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
+              st.applied = false; st.lastFilterUrl = null;
             }
             return;
           }
@@ -459,24 +679,19 @@
           el.style.setProperty('background-color', '#000', 'important');
           el.style.setProperty('filter', url, 'important');
           el.style.setProperty('-webkit-filter', url, 'important');
-          st.applied = true;
-          st.lastFilterUrl = url;
+          st.applied = true; st.lastFilterUrl = url;
         },
         clear: (el) => {
           if (!el) return;
           const st = getVState(el);
           if (!st.applied) return;
-          el.style.removeProperty('transition');
-          el.style.removeProperty('filter');
-          el.style.removeProperty('-webkit-filter');
-          el.style.removeProperty('background-color');
-          st.applied = false;
-          st.lastFilterUrl = null;
+          el.style.removeProperty('transition'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
+          st.applied = false; st.lastFilterUrl = null;
         }
       };
     }
-// ─── END OF PART 2 (v173.0.0) ───
-// ─── START OF PART 3 (v173.0.0) ───
+// ─── END OF PART 2 (v174.0.0) ───
+// ─── START OF PART 3 (v174.0.0) ───
     const _SHADOW_PRECOMPUTED = (() => {
       const base = [
         { bit: SHADOW_BAND.OUTER, toe: -1.0, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 },
@@ -516,7 +731,7 @@
       return out;
     }
 
-        function applyBrightStepStack(out, brightStepLevel) {
+    function applyBrightStepStack(out, brightStepLevel) {
       const lvl = Math.max(0, Math.min(3, Math.round(Number(brightStepLevel) || 0)));
       if (!lvl) return out;
       const s = _BRIGHT_STEP[lvl];
@@ -530,13 +745,11 @@
       const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
       const gPreset = PRESETS.grade[vUser.presetB] || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
-
       const sharpAdd   = (dPreset.sharpAdd  || 0) * mix;
       const sharp2Add  = (dPreset.sharp2Add || 0) * mix;
       const clarityAdd = (dPreset.clarityAdd || 0) * mix;
       const gammaF     = 1 + ((gPreset.gammaF || 1) - 1) * mix;
       const brightAdd  = (gPreset.brightAdd || 0) * mix;
-
       out.gain     = 1.0;
       out.gamma    = gammaF;
       out.contrast = 1.0;
@@ -562,10 +775,9 @@
       return out;
     }
 
-       function projectVValsForWebGL(vVals) {
+    function projectVValsForWebGL(vVals) {
       const out = { ...vVals };
       const sharp = Number(out.sharp || 0), sharp2 = Number(out.sharp2 || 0), clarity = Number(out.clarity || 0);
-      // ★ 합산 가중치 상향 + 스케일 변경
       let totalSharp = sharp + sharp2 * 0.55 + clarity * 0.35;
       out.sharp = VSC_CLAMP(totalSharp, 0, 150);
       out.bright = Number(out.bright || 0);
@@ -577,7 +789,6 @@
       out.shoulder = Number(out.shoulder || 0);
       return out;
     }
-
 
     const isNeutralVideoParams = (v) => (
       Math.abs((v.gain ?? 1) - 1) < 0.001 &&
@@ -594,7 +805,7 @@
       Math.abs((v.shoulder ?? 0)) < 0.01
     );
 
-        function createVideoParamsMemo(Store, P, Utils) {
+    function createVideoParamsMemo(Store, P, Utils) {
       let lastKey = ''; let lastSvg = null; let lastWebgl = null;
       const sigVideo = (vf) => [
         vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3),
@@ -603,30 +814,24 @@
       return {
         get(vfUser, rMode, activeTarget) {
           const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
-          const h = activeTarget ? (activeTarget.videoHeight || 0) : 0;
+          const ht = activeTarget ? (activeTarget.videoHeight || 0) : 0;
           const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
           const autoKey = `${autoMods.br.toFixed(3)}|${autoMods.ct.toFixed(3)}|${autoMods.sat.toFixed(3)}`;
-          const key = `${sigVideo(vfUser)}|${rMode}|${w}x${h}|auto:${autoKey}`;
+          const key = `${sigVideo(vfUser)}|${rMode}|${w}x${ht}|auto:${autoKey}`;
           if (key === lastKey && lastSvg && lastWebgl) {
             return rMode === 'webgl' ? lastWebgl : lastSvg;
           }
           const base = {};
           composeVideoParamsInto(base, vfUser, autoMods);
-
-          // ★ SVG용: sharp 제한
           const svgBase = { ...base };
           svgBase.sharp = Math.min(Number(svgBase.sharp || 0), 36);
           lastSvg = svgBase;
-
-          // ★ WebGL용: 원본 sharp 값으로 projection
           lastWebgl = projectVValsForWebGL(base);
-
           lastKey = key;
           return rMode === 'webgl' ? lastWebgl : lastSvg;
         }
       };
     }
-
 
     function createFiltersWebGL(Utils) {
       const pipelines = new WeakMap();
@@ -641,16 +846,8 @@
           let x = i / 255;
           x = (Math.abs(denom) > 1e-6) ? (1 - Math.exp(-g * x)) / denom : x;
           x = VSC_CLAMP(x + m * 0.06 * (4 * x * (1 - x)), 0, 1);
-          if (t !== 0) {
-            const nx = VSC_CLAMP((x - 0) / (0.35 - 0), 0, 1);
-            const w = nx * nx * (3 - 2 * nx);
-            x = VSC_CLAMP(x + t * 0.08 * (1 - w), 0, 1);
-          }
-          if (s !== 0) {
-            const nx = VSC_CLAMP((x - 0.85) / (1.0 - 0.85), 0, 1);
-            const w = nx * nx * (3 - 2 * nx);
-            x = VSC_CLAMP(x - s * 0.08 * w, 0, 1);
-          }
+          if (t !== 0) { const nx = VSC_CLAMP((x - 0) / (0.35 - 0), 0, 1); const w = nx * nx * (3 - 2 * nx); x = VSC_CLAMP(x + t * 0.08 * (1 - w), 0, 1); }
+          if (s !== 0) { const nx = VSC_CLAMP((x - 0.85) / (1.0 - 0.85), 0, 1); const w = nx * nx * (3 - 2 * nx); x = VSC_CLAMP(x - s * 0.08 * w, 0, 1); }
           if (x < prev) x = prev; prev = x;
           const v = (x * 255 + 0.5) | 0; const o = i * 4; out[o] = out[o+1] = out[o+2] = v; out[o+3] = 255;
         }
@@ -663,14 +860,15 @@ uniform sampler2D uVideoTex; uniform sampler2D uToneTex; uniform vec4 uParams; u
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 float tone1(float y){ float tx = y * (255.0/256.0) + (0.5/256.0); return TEX(uToneTex, vec2(tx, 0.5)).r; }
 void main() {
-  vec3 color = TEX(uVideoTex, vTexCoord).rgb; color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5;
+  vec3 color = TEX(uVideoTex, vTexCoord).rgb; color *= uRGBGain;
+  color = (color - 0.5) * uParams.y + 0.5; color += (uParams2.x / 1000.0);
   float y = dot(color, LUMA); float y2 = tone1(clamp(y, 0.0, 1.0)); float ratio = y2 / max(1e-4, y); color *= ratio;
   float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat;
   if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));
   outColor = vec4(clamp(color, 0.0, 1.0), 1.0);
 }`;
       }
-            function buildFsSharpen({ gl2 }) {
+      function buildFsSharpen({ gl2 }) {
         const head = gl2 ? `#version 300 es\nprecision highp float;\nin vec2 vTexCoord;\nout vec4 outColor;\n#define TEX texture\n` : `precision highp float;\nvarying vec2 vTexCoord;\n#define outColor gl_FragColor\n#define TEX texture2D\n`;
         return head + `
 uniform sampler2D uVideoTex; uniform sampler2D uToneTex; uniform vec2 uResolution; uniform vec4 uParams; uniform vec4 uParams2; uniform vec3 uRGBGain;
@@ -695,7 +893,8 @@ vec3 rcasDirectionalSharpen(sampler2D tex, vec2 uv, vec2 texel, float strength) 
 void main() {
   vec2 texel = 1.0 / uResolution; vec3 color = TEX(uVideoTex, vTexCoord).rgb; float strength = uParams2.y;
   if (strength > 0.0) { color = rcasDirectionalSharpen(uVideoTex, vTexCoord, texel, strength); }
-  color *= uRGBGain; color += (uParams2.x / 1000.0); color = (color - 0.5) * uParams.y + 0.5;
+  color *= uRGBGain;
+  color = (color - 0.5) * uParams.y + 0.5; color += (uParams2.x / 1000.0);
   float y = dot(color, LUMA); float y2 = tone1(clamp(y, 0.0, 1.0)); float ratio = y2 / max(1e-4, y); color *= ratio;
   float luma = dot(color, LUMA); float hiLuma = clamp((luma - 0.72) / 0.28, 0.0, 1.0); float satReduce = hiLuma * hiLuma * (3.0 - 2.0 * hiLuma); float currentSat = uParams.z * (1.0 - 0.05 * satReduce); color = luma + (color - luma) * currentSat;
   if (uParams.w != 1.0) color = pow(max(color, vec3(0.0)), vec3(1.0 / uParams.w));
@@ -722,10 +921,10 @@ void main() {
               this._parentStylePatched = true;
               this._patchedParent = this.originalParent;
             }
-            const insertTarget = this.originalParent.classList?.contains('vsc-fs-wrap')
-              ? this.originalParent : video.parentNode;
-            if (video.nextSibling) insertTarget.insertBefore(this.canvas, video.nextSibling);
-            else insertTarget.appendChild(this.canvas);
+            const wrap = fsWraps.get(video);
+            const insertTarget = wrap || video.parentNode;
+            if (video.nextSibling && video.nextSibling !== this.canvas) insertTarget.insertBefore(this.canvas, video.nextSibling);
+            else if (!this.canvas.parentNode || this.canvas.parentNode !== insertTarget) insertTarget.appendChild(this.canvas);
           }
           if (this._styleObs) this._styleObs.disconnect(); this._styleObs = new MutationObserver(() => { this._styleDirty = true; }); try { this._styleObs.observe(video, { attributes: true, attributeFilter: ['style', 'class'] }); } catch (_) {}
           this._styleDirty = true; this.active = true; patchFullscreenRequest(video);
@@ -742,9 +941,13 @@ void main() {
           const vs = window.getComputedStyle(video), cs = this.canvas.style;
           cs.objectFit = vs.objectFit || 'contain';
           cs.objectPosition = vs.objectPosition;
-          const tr = vs.transform;
-          cs.transform = (tr && tr !== 'none') ? tr : '';
-          cs.transformOrigin = vs.transformOrigin;
+          const zoomMgr = window.__VSC_INTERNAL__?.ZoomManager;
+          const zoomed = zoomMgr?.isZoomed?.(video);
+          if (!zoomed) {
+            const tr = vs.transform;
+            cs.transform = (tr && tr !== 'none') ? tr : '';
+            cs.transformOrigin = vs.transformOrigin;
+          }
           cs.borderRadius = vs.borderRadius || '';
           const vz = vs.zIndex;
           const n = parseInt(vz, 10);
@@ -761,11 +964,13 @@ void main() {
           const ct = video.currentTime;
           if (this._lastRenderedTime === ct && !this._paramsDirty) return;
           this._lastRenderedTime = ct; this._paramsDirty = false;
-          if (this.canvas.parentNode !== video.parentNode && video.parentNode) {
-            this.originalParent = video.parentNode;
-            const p = video.parentNode;
-            if (video.nextSibling) p.insertBefore(this.canvas, video.nextSibling);
-            else p.appendChild(this.canvas);
+          const effectiveParent = video.parentNode;
+          if (this.canvas.parentNode !== effectiveParent && effectiveParent) {
+            this.originalParent = effectiveParent;
+            try {
+              if (video.nextSibling && video.nextSibling !== this.canvas) { effectiveParent.insertBefore(this.canvas, video.nextSibling); }
+              else if (!this.canvas.parentNode || this.canvas.parentNode !== effectiveParent) { effectiveParent.appendChild(this.canvas); }
+            } catch (_) {}
           }
           this.syncCanvasPresentationFromVideo(video, now);
           const w = video.videoWidth, h = video.videoHeight;
@@ -831,13 +1036,16 @@ void main() {
         startRenderLoop() { if (this._loopRunning) return; this._loopRunning = true; const token = ++this._loopToken; const loopFn = (now, meta) => { if (token !== this._loopToken || !this.active || !this.video) { this._loopRunning = false; return; } this.render(); if (document.hidden) { this._loopRunning = false; return; } if (this.video?.paused) { this._loopRunning = false; if (this._paramsDirty) requestAnimationFrame(() => this.render()); return; } this._scheduleVideoFrame(loopFn); }; this._scheduleVideoFrame(loopFn); }
         disposeGLResources(opts = {}) { const { keepCanvasListeners = false } = opts; const gl = this.gl; if (gl) { try { if (this.videoTexture) { gl.deleteTexture(this.videoTexture); this.videoTexture = null; } if (this.toneTexture) { gl.deleteTexture(this.toneTexture); this.toneTexture = null; } if (this.vBuf) { gl.deleteBuffer(this.vBuf); this.vBuf = null; } if (this.tBuf) { gl.deleteBuffer(this.tBuf); this.tBuf = null; } if (this.handles_color?.program) gl.deleteProgram(this.handles_color.program); if (this.handles_sharp?.program) gl.deleteProgram(this.handles_sharp.program); } catch (_) {} } if (!keepCanvasListeners && this.canvas) { try { this.canvas.removeEventListener('webglcontextlost', this._onContextLost); this.canvas.removeEventListener('webglcontextrestored', this._onContextRestored); } catch (_) {} } this.gl = null; this._texW = 0; this._texH = 0; this.activeProgramKind = ''; }
         shutdown() {
-          this.active = false; this._loopToken++; this._loopRunning = false; this._clearDriver();
+          const token = ++this._loopToken;
+          this.active = false; this._loopRunning = false;
+          this._clearDriver();
           if (this._styleObs) { this._styleObs.disconnect(); this._styleObs = null; }
           if (this.video) { if (this._playListener) this.video.removeEventListener('play', this._playListener); if (this._seekedListener) this.video.removeEventListener('seeked', this._seekedListener); }
-          try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null;
           try { if (this.canvas && this.canvas.parentNode) { this.canvas.remove(); } } catch (_) {}
+          try { this.restoreVideoStyle?.(); } catch (_) {} this.restoreVideoStyle = null;
           if (this._parentStylePatched && this._patchedParent) { try { this._patchedParent.style.position = this._parentPrevPosition; } catch (_) {} this._parentStylePatched = false; this._parentPrevPosition = ''; this._patchedParent = null; }
           this.disposeGLResources();
+          this.video = null;
         }
       }
       return {
@@ -852,7 +1060,6 @@ void main() {
     function createDisposerBag() { const fns = []; return { add(fn) { if (typeof fn === 'function') fns.push(fn); return fn; }, flush() { for (const fn of fns) { try { fn(); } catch (_) {} } fns.length = 0; } }; }
 
     function bindWindowDrag(onMove, onEnd) { const ac = new AbortController(); const sig = ac.signal; window.addEventListener('mousemove', onMove, { passive: false, signal: sig }); window.addEventListener('mouseup', end, { signal: sig }); window.addEventListener('touchmove', onMove, { passive: false, signal: sig }); window.addEventListener('touchend', end, { signal: sig }); window.addEventListener('blur', end, { signal: sig }); function end(ev) { try { onEnd?.(ev); } finally { try { ac.abort(); } catch (_) {} } } return () => { try { ac.abort(); } catch (_) {} }; }
-
 
     const VSC_ICONS = Object.freeze({
       gear: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`,
@@ -1078,7 +1285,7 @@ void main() {
         gearBtn.append(h('div', { class: 'status-dot' }));
         blockInterference(gearBtn);
         shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
-        const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.15'; }, 2500); };
+        const wake = () => { if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer); fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.4'; }, 3500); };
         window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); bootWakeTimer = setTimeout(wake, 2000);
         const handleGearDrag = (e) => { if (e.target !== gearBtn) return; dragThresholdMet = false; stopDrag?.(); const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY; const rect = gearBtn.getBoundingClientRect(); stopDrag = bindWindowDrag((ev) => { const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY; if (Math.abs(currentY - startY) > 10) { if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; } if (ev.cancelable) ev.preventDefault(); } if (dragThresholdMet) { let newTop = rect.top + (currentY - startY); newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop)); gearBtn.style.top = `${newTop}px`; } }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); }); };
         gearBtn.addEventListener('mousedown', handleGearDrag); gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
@@ -1111,21 +1318,16 @@ void main() {
       };
     }
 
-        function createBackendAdapter(Filters, FiltersGL) {
-      let __userRequestedMode = 'svg';  // ★ 사용자 요청 모드 추적
-
+    function createBackendAdapter(Filters, FiltersGL) {
+      let __userRequestedMode = 'svg';
       return {
         setUserMode(mode) { __userRequestedMode = mode; },
-
         apply(video, mode, vVals) {
           const st = getVState(video); const now = performance.now();
-          __userRequestedMode = mode;  // ★ 현재 요청 모드 기록
-
+          __userRequestedMode = mode;
           const autoDowngrade = (video.videoWidth * video.videoHeight) < (640 * 360);
           const webglAllowed = (mode === 'webgl' && !st.webglTainted && !(st.webglDisabledUntil && now < st.webglDisabledUntil) && !autoDowngrade);
           const effectiveMode = webglAllowed ? 'webgl' : 'svg';
-
-          // ★ 자동 폴백일 때만 OSD 표시 (사용자 수동 전환은 제외)
           if (st.fxBackend && st.fxBackend !== effectiveMode) {
             const isAutoFallback = (mode === 'webgl' && effectiveMode === 'svg');
             if (isAutoFallback) {
@@ -1133,19 +1335,18 @@ void main() {
               showOSD(`WebGL \u2192 SVG (${reason})`, 2500);
             }
           }
-
           if (st.webglTainted && st.fxBackend === 'webgl') { FiltersGL.clear(video); st.fxBackend = null; }
           if (effectiveMode === 'webgl') {
-              if (st.fxBackend === 'svg') Filters.clear(video);
-              const ok = FiltersGL.apply(video, vVals);
-              if (!ok) {
-                  if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = performance.now() + GUARD.WEBGL_FAIL_COOLDOWN;
-                  FiltersGL.clear(video); const url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg'; return;
-              }
-              st.fxBackend = 'webgl';
+            if (st.fxBackend === 'svg') Filters.clear(video);
+            const ok = FiltersGL.apply(video, vVals);
+            if (!ok) {
+              if (VSC_DEFENSE.webglCooldown) st.webglDisabledUntil = performance.now() + GUARD.WEBGL_FAIL_COOLDOWN;
+              FiltersGL.clear(video); const url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg'; return;
+            }
+            st.fxBackend = 'webgl';
           } else {
-              if (st.fxBackend === 'webgl') FiltersGL.clear(video);
-              let url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg';
+            if (st.fxBackend === 'webgl') FiltersGL.clear(video);
+            let url = Filters.prepareCached(video, vVals); Filters.applyUrl(video, url); st.fxBackend = 'svg';
           }
         },
         clear(video) {
@@ -1153,7 +1354,6 @@ void main() {
         }
       };
     }
-
 
     function ensureMobileInlinePlaybackHints(video) { if (!video) return; try { if (!video.hasAttribute('playsinline')) video.setAttribute('playsinline', ''); if (!video.hasAttribute('webkit-playsinline')) video.setAttribute('webkit-playsinline', ''); } catch (_) {} }
     const onEvictRateVideo = (v) => { try { restoreRateOne(v); } catch (_) {} };
@@ -1166,7 +1366,7 @@ void main() {
       const ac = new AbortController();
       st._ac = ac;
       const sig = ac.signal;
-      const softResetTransientFlags = () => { st.audioFailUntil = 0; st.rect = null; st.rectT = 0; st.rectEpoch = -1; st.webglFailCount = 0; st.webglDisabledUntil = 0; st.webglTainted = false; if (st.rateState) { st.rateState.orig = null; st.rateState.lastSetAt = 0; st.rateState.retryCount = 0; st.rateState.permanentlyBlocked = false; st.rateState.suppressSyncUntil = 0; } st.desiredRate = undefined; ApplyReq.hard(); };
+      const softResetTransientFlags = () => { st.resetTransient(); ApplyReq.hard(); };
       ['loadstart', 'loadedmetadata', 'emptied'].forEach(ev => v.addEventListener(ev, softResetTransientFlags, { passive: true, signal: sig }));
       ['seeking', 'play'].forEach(ev => v.addEventListener(ev, () => { ApplyReq.hard(); }, { passive: true, signal: sig }));
       v.addEventListener('ratechange', () => {
@@ -1184,12 +1384,13 @@ void main() {
         const pbEn = !!store.get?.(P.PB_EN);
         if (pbEn && Number.isFinite(desired) && Math.abs(v.playbackRate - desired) > 0.02) {
           rSt.retryCount = (rSt.retryCount || 0) + 1;
-          if (rSt.retryCount >= 5) {
+          if (rSt.retryCount >= 3) {
             rSt.permanentlyBlocked = true;
-            log.warn('Rate sync permanently blocked for video (external override detected)');
+            showOSD('속도 조절이 이 사이트에서 차단됨', 2000);
             return;
           }
-          rSt.suppressSyncUntil = now + 800;
+          const backoff = 200 * Math.pow(3, rSt.retryCount - 1);
+          rSt.suppressSyncUntil = now + backoff;
           markInternalRateChange(v);
           try { v.playbackRate = desired; } catch (_) {}
           return;
@@ -1275,14 +1476,12 @@ void main() {
           if (nextTarget !== __activeTarget) { __activeTarget = nextTarget; }
           const nextAudioTarget = (wantAudioNow || Audio.hasCtx?.() || Audio.isHooked?.()) ? (__activeTarget || null) : null;
           if (nextAudioTarget !== __lastAudioTarget || wantAudioNow !== __lastAudioWant) { Audio.setTarget(nextAudioTarget); Audio.update(); __lastAudioTarget = nextAudioTarget; __lastAudioWant = wantAudioNow; } else { audioUpdateThrottled(); }
-
           const vCat = Store.state.video;
           const vfUser = { presetS: vCat.presetS, presetB: vCat.presetB, presetMix: vCat.presetMix, shadowBandMask: vCat.shadowBandMask, brightStepLevel: vCat.brightStepLevel };
           const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
           const vValsEffective = videoParamsMemo.get(vfUser, rMode, __activeTarget);
           if (CONFIG.DEBUG) { const w = __activeTarget?.videoWidth || 0, ht = __activeTarget?.videoHeight || 0; console.debug('[VSC][ToneCheck]', { shadowBandMask: vfUser.shadowBandMask, brightStepLevel: vfUser.brightStepLevel, mode: rMode, size: `${w}x${ht}`, contrast: vValsEffective.contrast, satF: vValsEffective.satF, bright: vValsEffective.bright, gamma: vValsEffective.gamma, sharp: vValsEffective.sharp, temp: vValsEffective.temp }); }
           const videoFxOn = !isNeutralVideoParams(vValsEffective); const applyToAllVisibleVideos = !!Store.get(P.APP_APPLY_ALL);
-
           __applySet.clear(); if (applyToAllVisibleVideos) { for (const v of visible.videos) __applySet.add(v); } else if (__activeTarget) { __applySet.add(__activeTarget); }
           const desiredRate = Store.get(P.PB_RATE), pbActive = active && !!Store.get(P.PB_EN);
           if (!force && vidsDirty.size === 0 && !lightSigChanged(__activeTarget, rMode, pbActive, desiredRate, videoFxOn)) return;
@@ -1295,14 +1494,54 @@ void main() {
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); }); if (Store.get(P.APP_ACT)) startTick(); Scheduler.request(true);
       return Object.freeze({ getActiveVideo() { return __activeTarget || null; }, async destroy() { stopTick(); try { UI.destroy?.(); } catch (_) {} try { Audio.setTarget(null); await Audio.destroy?.(); } catch (_) {} try { __globalHooksAC.abort(); } catch (_) {} } });
     }
-// ─── END OF PART 3 (v173.0.0) ───
-// ─── START OF PART 4 (v173.0.0) ───
+// ─── END OF PART 3 (v174.0.0) ───
+// ─── START OF PART 4 (v174.0.0 – Patched) ───
     const Utils = createUtils(), Scheduler = createScheduler(16), Store = createLocalStore(DEFAULTS, Scheduler, Utils), Bus = createEventBus();
     const ApplyReq = createApplyRequester(Bus, Scheduler); window.__VSC_INTERNAL__.Bus = Bus; window.__VSC_INTERNAL__.Store = Store; window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
-    Bus.on('signal', (s) => { if (s.forceApply) Scheduler.request(true); });
 
-    function saveSettings(Store, P) { try { const data = { active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL), presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B), presetMix: Store.get(P.V_PRE_MIX), shadowBandMask: Store.get(P.V_SHADOW_MASK), brightStepLevel: Store.get(P.V_BRIGHT_STEP), renderMode: Store.get(P.APP_RENDER_MODE), audioEnabled: Store.get(P.A_EN), audioBoost: Store.get(P.A_BST), autoScene: Store.get(P.APP_AUTO_SCENE), zoomEn: Store.get(P.APP_ZOOM_EN), playbackRate: Store.get(P.PB_RATE), playbackEnabled: Store.get(P.PB_EN) }; localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (_) {} }
-    function loadSettings(Store, P) { try { const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return; const data = JSON.parse(raw); if (data.active != null) Store.set(P.APP_ACT, data.active); if (data.applyAll != null) Store.set(P.APP_APPLY_ALL, data.applyAll); if (data.presetS) Store.set(P.V_PRE_S, data.presetS); if (data.presetB) Store.set(P.V_PRE_B, data.presetB); if (data.presetMix != null) Store.set(P.V_PRE_MIX, data.presetMix); if (data.shadowBandMask != null) Store.set(P.V_SHADOW_MASK, data.shadowBandMask); if (data.brightStepLevel != null) Store.set(P.V_BRIGHT_STEP, data.brightStepLevel); if (data.renderMode) Store.set(P.APP_RENDER_MODE, data.renderMode); if (data.audioEnabled != null) Store.set(P.A_EN, data.audioEnabled); if (data.audioBoost != null) Store.set(P.A_BST, data.audioBoost); if (data.autoScene != null) Store.set(P.APP_AUTO_SCENE, data.autoScene); if (data.zoomEn != null) Store.set(P.APP_ZOOM_EN, data.zoomEn); if (data.playbackRate != null) Store.set(P.PB_RATE, data.playbackRate); if (data.playbackEnabled != null) Store.set(P.PB_EN, data.playbackEnabled); } catch (_) {} }
+    /* ── P4-01: payload null-safety ── */
+    Bus.on('signal', (s) => { if (s && s.forceApply) Scheduler.request(true); });
+
+    /* ── P4-02: loadSettings – 키 단위 graceful skip ── */
+    function saveSettings(Store, P) {
+      try {
+        const data = {
+          active: Store.get(P.APP_ACT), applyAll: Store.get(P.APP_APPLY_ALL),
+          presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B),
+          presetMix: Store.get(P.V_PRE_MIX), shadowBandMask: Store.get(P.V_SHADOW_MASK),
+          brightStepLevel: Store.get(P.V_BRIGHT_STEP), renderMode: Store.get(P.APP_RENDER_MODE),
+          audioEnabled: Store.get(P.A_EN), audioBoost: Store.get(P.A_BST),
+          autoScene: Store.get(P.APP_AUTO_SCENE), zoomEn: Store.get(P.APP_ZOOM_EN),
+          playbackRate: Store.get(P.PB_RATE), playbackEnabled: Store.get(P.PB_EN)
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (_) {}
+    }
+    function loadSettings(Store, P) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return;
+        let data;
+        try { data = JSON.parse(raw); } catch (_) { return; }
+        if (!data || typeof data !== 'object') return;
+        /* ── P4-02: 개별 키 try-catch 로 하나가 깨져도 나머지 로드 ── */
+        const safeSet = (path, val) => { try { if (val != null) Store.set(path, val); } catch (_) {} };
+        safeSet(P.APP_ACT, data.active);
+        safeSet(P.APP_APPLY_ALL, data.applyAll);
+        safeSet(P.V_PRE_S, data.presetS);
+        safeSet(P.V_PRE_B, data.presetB);
+        safeSet(P.V_PRE_MIX, data.presetMix);
+        safeSet(P.V_SHADOW_MASK, data.shadowBandMask);
+        safeSet(P.V_BRIGHT_STEP, data.brightStepLevel);
+        safeSet(P.APP_RENDER_MODE, data.renderMode);
+        safeSet(P.A_EN, data.audioEnabled);
+        safeSet(P.A_BST, data.audioBoost);
+        safeSet(P.APP_AUTO_SCENE, data.autoScene);
+        safeSet(P.APP_ZOOM_EN, data.zoomEn);
+        safeSet(P.PB_RATE, data.playbackRate);
+        safeSet(P.PB_EN, data.playbackEnabled);
+      } catch (_) {}
+    }
 
     function bindNormalizer(keys, schema) { const run = () => { if (normalizeBySchema(Store, schema)) ApplyReq.hard(); }; keys.forEach(k => Store.sub(k, run)); run(); }
 
@@ -1315,7 +1554,12 @@ void main() {
     bindNormalizer([P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP], VIDEO_SCHEMA);
     bindNormalizer([P.A_EN, P.A_BST, P.PB_EN, P.PB_RATE], AUDIO_PLAYBACK_SCHEMA);
 
-    const saveDebounced = createDebounced(() => saveSettings(Store, P), 500);
+    /* ── P4-03: saveDebounced – postTask background 우선순위 (가용 시) ── */
+    const __saveImpl = () => saveSettings(Store, P);
+    const __postTaskBgSave = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
+      ? () => { globalThis.scheduler.postTask(__saveImpl, { priority: 'background' }).catch(__saveImpl); }
+      : __saveImpl;
+    const saveDebounced = createDebounced(__postTaskBgSave, 500);
     Store.sub('video.*', saveDebounced); Store.sub('app.*', saveDebounced); Store.sub('audio.*', saveDebounced); Store.sub('playback.*', saveDebounced);
 
     Store.sub(P.V_PRE_S, (v) => showOSD('샤프닝: ' + (PRESET_LABELS.detail[v] || v)));
@@ -1353,8 +1597,14 @@ void main() {
 
       window.__lastUserPt = { x: innerWidth * 0.5, y: innerHeight * 0.5, t: performance.now() };
       function updateLastUserPt(x, y, t) { window.__lastUserPt.x = x; window.__lastUserPt.y = y; window.__lastUserPt.t = t; }
-      function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 24) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; try { Scheduler.request(false); } catch (_) {} } let __vscLastUserSignalT = 0;
-      onWin('pointerdown', (e) => { const now = performance.now(); updateLastUserPt(e.clientX, e.clientY, now); signalUserInteractionForRetarget(); }, { passive: true }); onWin('wheel', (e) => { const x = Number.isFinite(e.clientX) ? e.clientX : innerWidth * 0.5; const y = Number.isFinite(e.clientY) ? e.clientY : innerHeight * 0.5; updateLastUserPt(x, y, performance.now()); signalUserInteractionForRetarget(); }, { passive: true }); onWin('keydown', () => { updateLastUserPt(innerWidth * 0.5, innerHeight * 0.5, performance.now()); signalUserInteractionForRetarget(); }); onWin('resize', () => { const now = performance.now(); if (!window.__lastUserPt || (now - window.__lastUserPt.t) > 1200) updateLastUserPt(innerWidth * 0.5, innerHeight * 0.5, now); signalUserInteractionForRetarget(); }, { passive: true });
+
+      /* ── P4-06: 쓰로틀 간격 24→50ms ── */
+      function signalUserInteractionForRetarget() { const now = performance.now(); if (now - __vscLastUserSignalT < 50) return; __vscLastUserSignalT = now; __vscUserSignalRev = (__vscUserSignalRev + 1) | 0; try { Scheduler.request(false); } catch (_) {} } let __vscLastUserSignalT = 0;
+
+      onWin('pointerdown', (e) => { const now = performance.now(); updateLastUserPt(e.clientX, e.clientY, now); signalUserInteractionForRetarget(); }, { passive: true });
+      onWin('wheel', (e) => { const x = Number.isFinite(e.clientX) ? e.clientX : innerWidth * 0.5; const y = Number.isFinite(e.clientY) ? e.clientY : innerHeight * 0.5; updateLastUserPt(x, y, performance.now()); signalUserInteractionForRetarget(); }, { passive: true });
+      onWin('keydown', () => { updateLastUserPt(innerWidth * 0.5, innerHeight * 0.5, performance.now()); signalUserInteractionForRetarget(); });
+      onWin('resize', () => { const now = performance.now(); if (!window.__lastUserPt || (now - window.__lastUserPt.t) > 1200) updateLastUserPt(innerWidth * 0.5, innerHeight * 0.5, now); signalUserInteractionForRetarget(); }, { passive: true });
 
       const __VSC_APP__ = createAppController({ Store, Registry, Scheduler, ApplyReq, Adapter, Audio, UI, Utils, P, Targeting });
       window.__VSC_APP__ = __VSC_APP__; window.__VSC_INTERNAL__.App = __VSC_APP__; AutoScene.start();
@@ -1378,18 +1628,39 @@ void main() {
         if (e.altKey && e.shiftKey && e.code === 'KeyS') { e.preventDefault(); const keys = Object.keys(PRESETS.detail); const cur = Store.get(P.V_PRE_S); const idx = keys.indexOf(cur); Store.set(P.V_PRE_S, keys[(idx + 1) % keys.length]); ApplyReq.hard(); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyA') { e.preventDefault(); Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); return; }
         if (e.altKey && e.shiftKey && e.code === 'KeyR') { e.preventDefault(); Store.set(P.APP_RENDER_MODE, Store.get(P.APP_RENDER_MODE) === 'webgl' ? 'svg' : 'webgl'); ApplyReq.hard(); return; }
-        if (e.altKey && e.shiftKey && e.code === 'KeyC') {
-          e.preventDefault();
-          const v = __VSC_APP__?.getActiveVideo();
-          if (v) captureVideoFrame(v);
-          return;
-        }
+        if (e.altKey && e.shiftKey && e.code === 'KeyC') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (v) captureVideoFrame(v); return; }
         if (e.altKey && e.shiftKey && e.code === 'Slash') { e.preventDefault(); showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | R: 렌더 | P: PiP | C: 캡처 | I: 정보', 3500); return; }
-        if (e.altKey && e.shiftKey && e.code === 'KeyI') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (!v) { showOSD('활성 비디오 없음'); return; } const w = v.videoWidth, h = v.videoHeight; const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?'; const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?'; const st = getVState(v); const backend = st.fxBackend || 'none'; showOSD(`${w}\u00D7${h} | ~${fps}fps | drop:${dropped} | ${backend.toUpperCase()}`, 3000); return; }
+        if (e.altKey && e.shiftKey && e.code === 'KeyI') { e.preventDefault(); const v = __VSC_APP__?.getActiveVideo(); if (!v) { showOSD('활성 비디오 없음'); return; } const w = v.videoWidth, ht = v.videoHeight; const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?'; const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?'; const st = getVState(v); const backend = st.fxBackend || 'none'; showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | ${backend.toUpperCase()}`, 3000); return; }
         if (e.altKey && e.shiftKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown')) { e.preventDefault(); const delta = e.code === 'ArrowUp' ? 0.1 : -0.1; const cur = Number(Store.get(P.PB_RATE) || 1); const next = Math.round(VSC_CLAMP(cur + delta, 0.1, 16) * 10) / 10; Store.set(P.PB_RATE, next); Store.set(P.PB_EN, true); ApplyReq.hard(); showOSD(`속도: ${next.toFixed(1)}x`); return; }
       }, { capture: true });
 
-      (function addPageLifecycleHooks() { onWin('freeze', () => { try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true }); onWin('pageshow', () => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true }); onDoc('visibilitychange', () => { try { if (document.visibilityState === 'visible') window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { passive: true }); onWin('resume', () => { try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true }); })();
+      /* ── P4-05: 라이프사이클 훅에 Registry rescan 보강 ── */
+      (function addPageLifecycleHooks() {
+        onWin('freeze', () => { try { window.__VSC_INTERNAL__?.App?.getActiveVideo() && window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {} }, { capture: true });
+        onWin('pageshow', () => {
+          try {
+            Registry.refreshObservers();
+            Registry.rescanAll();
+            window.__VSC_INTERNAL__?.ApplyReq?.hard();
+          } catch (_) {}
+        }, { capture: true });
+        onDoc('visibilitychange', () => {
+          try {
+            if (document.visibilityState === 'visible') {
+              Registry.rescanAll();
+              window.__VSC_INTERNAL__?.ApplyReq?.hard();
+            }
+          } catch (_) {}
+        }, { passive: true });
+        onWin('resume', () => {
+          try {
+            Registry.refreshObservers();
+            Registry.rescanAll();
+            window.__VSC_INTERNAL__?.ApplyReq?.hard();
+          } catch (_) {}
+        }, { capture: true });
+      })();
+
       if (FEATURE_FLAGS.iframeInjection) { watchIframes(); }
     });
   }
