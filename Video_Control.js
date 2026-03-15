@@ -1167,34 +1167,37 @@ function createAutoSceneManager(Store, P, Scheduler) {
 
   // R/G/B 히스토그램으로부터 채널별 게인을 계산하여
   // 색 캐스트(푸른빛/노란빛 편향)를 자동 보정
-  function computeChannelBalance(rHist, gHist, bHist, totalSamples) {
-    const n = Math.max(1, totalSamples);
-    let rMean = 0, gMean = 0, bMean = 0;
-    for (let i = 0; i < HIST_BINS; i++) {
-      const v = i / (HIST_BINS - 1);
-      rMean += v * rHist[i];
-      gMean += v * gHist[i];
-      bMean += v * bHist[i];
-    }
-    rMean /= n; gMean /= n; bMean /= n;
-
-    // 그레이 월드 가정: R, G, B 평균이 같아야 함
-    const avgMean = (rMean + gMean + bMean) / 3;
-    if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
-
-    // 보정 게인 (보수적으로 50%만 적용)
-    const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.35;
-
-    const rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * correctionStrength;
-    const gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * correctionStrength;
-    const bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength;
-
-    return {
-      rGain: clamp(rGain, 0.85, 1.15),
-      gGain: clamp(gGain, 0.92, 1.08),  // G는 더 보수적
-      bGain: clamp(bGain, 0.85, 1.15)
-    };
+  // ── 핵심 2: 채널별 색온도/색 균형 커브 (피부톤 보호 연동 버전) ──
+function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio) {
+  const n = Math.max(1, totalSamples);
+  let rMean = 0, gMean = 0, bMean = 0;
+  for (let i = 0; i < HIST_BINS; i++) {
+    const v = i / (HIST_BINS - 1);
+    rMean += v * rHist[i];
+    gMean += v * gHist[i];
+    bMean += v * bHist[i];
   }
+  rMean /= n; gMean /= n; bMean /= n;
+
+  const avgMean = (rMean + gMean + bMean) / 3;
+  if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
+
+  const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.35;
+
+  // [개선] 피부톤 비율에 따라 R 보정 강도를 추가 감쇠 (자막/피부 왜곡 방지)
+  const skinDampen = VSC_CLAMP(skinRatio || 0, 0, 0.4) / 0.4;
+  const rMul = 0.40 * (1 - skinDampen * 0.6);
+
+  const rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul);
+  const gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.80);
+  const bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength; // bMean 버그 수정 완료
+
+  return {
+    rGain: VSC_CLAMP(rGain, 0.92, 1.08), // 범위를 좁혀서 자막의 붉은끼 방지
+    gGain: VSC_CLAMP(gGain, 0.94, 1.06),
+    bGain: VSC_CLAMP(bGain, 0.85, 1.15)  // 푸른끼 제거는 적극적으로 허용
+  };
+}
 
   // ══════════════════════════════════════════════
   //  핵심 3: 장면 분류 (역광 감지 추가)
@@ -1583,9 +1586,10 @@ function createAutoSceneManager(Store, P, Scheduler) {
         );
 
         // ── 채널 밸런스 ──
-        const rawGains = computeChannelBalance(
-          stats.rHist, stats.gHist, stats.bHist, stats.totalSamples
-        );
+        // ── 채널 밸런스 (맨 끝에 stats.skinRatio 추가) ──
+      const rawGains = computeChannelBalance(
+        stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio
+      );
 
         const rawSat = toneParams.satTarget;
 
