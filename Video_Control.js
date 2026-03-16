@@ -2353,7 +2353,16 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiL
           const refH = 1080;
           const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
           const rawS = (Number(s.sharp||0) + Number(s.sharp2||0)*0.6 + Number(s.clarity||0)*0.4) / 100.0;
-          const totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
+          let totalS;
+          if (__liteForced) {
+            // --- [모바일 전용 설정] ---
+            // 더 공격적인 배율(0.50)과 높은 한계치(0.45) 적용
+            totalS = clamp(rawS * 0.50 * pxScale, 0, 0.45); 
+          } else {
+            // --- [PC 전용 설정] ---
+            // 기존의 안정적인 배율(0.35)과 한계치(0.30) 유지
+            totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
+          }
           const center = 1.0 + 4.0 * totalS; const edge = -totalS;
 
           const userTemp = tempToRgbGain(s.temp);
