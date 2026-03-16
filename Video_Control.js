@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v193.1.0)
+// @name         Video_Control (v193.2.0)
 // @namespace    https://github.com/
-// @version      193.1.0
+// @version      193.2.0
 // @description  v193: blockInterference composedPath fix, SVG tagName safety, audio param tuning, ratechange backoff hardening, SPA patch-restore guard, AudioContext cleanup, dead-code removal.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -148,7 +148,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '193.1.0';
+    const VSC_VERSION = '193.2.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
     const MOBILE_COLOR_BIAS = { r: 1.00, g: 1.00, b: 0.97 };
@@ -3073,7 +3073,14 @@ function computeFullAnalysis(data, sw, sh) {
 
         const mkQBtn = (icon, label, path) => {
           const b = h('button', { class: 'qbtn' }, h('span', {}, svgIcon(icon)), h('span', { class: 'qlabel' }, label));
-          b.onclick = () => setAndHint(path, !sm.get(path));
+          b.onclick = () => {
+            const nextVal = !sm.get(path);
+            setAndHint(path, nextVal);
+            // 추가: Zoom 버튼 클릭 시 안내 메시지 출력
+            if (path === P.APP_ZOOM_EN) {
+              showOSD(nextVal ? "Zoom 모드 ON (Alt + 휠/더블클릭)" : "Zoom 모드 OFF", 1500);
+            }
+          };
           bindClassToggle(b, path, v => !!v);
           return b;
         };
