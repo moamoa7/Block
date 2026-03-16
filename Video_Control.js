@@ -194,7 +194,7 @@
     });
 
     const PRESET_LABELS = Object.freeze({
-      detail: { off: 'OFF', S: '1080p', M: '720p', L: '480p', XL: '360p' },
+      detail: { off: 'OFF', S: '1단', M: '2단', L: '3단', XL: '4단' },
       grade: { off: 'OFF', S: '밝게S', M: '밝게M', L: '밝게L', DS: '암부S', DM: '암부M', DL: '암부L' }
     });
 
@@ -2357,11 +2357,11 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiL
           if (__liteForced) {
             // --- [모바일 전용 설정] ---
             // 더 공격적인 배율(0.50)과 높은 한계치(0.45) 적용
-            totalS = clamp(rawS * 1.20 * pxScale, 0, 0.60);
+            totalS = clamp(rawS * 1.50 * pxScale, 0, 0.75);
           } else {
             // --- [PC 전용 설정] ---
             // 기존의 안정적인 배율(0.35)과 한계치(0.30) 유지
-            totalS = clamp(rawS * 0.55 * pxScale, 0, 0.45);
+            totalS = clamp(rawS * 0.50 * pxScale, 0, 0.50);
           }
           const center = 1.0 + 4.0 * totalS; const edge = -totalS;
 
