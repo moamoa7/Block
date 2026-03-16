@@ -3037,7 +3037,7 @@ b.onclick = () => {
           const mode = 'SVG';
           videoInfo.textContent = `${w}\u00D7${ht} \u00B7 ${mode}`;
         }
-        sub(P.APP_UI, (visible) => {
+                sub(P.APP_UI, (visible) => {
           if (infoTimer) { clearInterval(infoTimer); infoTimer = 0; }
           if (visible) {
             updateVideoInfo();
@@ -3047,6 +3047,15 @@ b.onclick = () => {
             }, 2000);
           }
         });
+        // ★ 즉시 실행: build() 시점에 이미 APP_UI=true이면 sub 콜백이 안 돌므로
+        if (sm.get(P.APP_UI)) {
+          updateVideoInfo();
+          infoTimer = setInterval(() => {
+            if (!sm.get(P.APP_UI)) { clearInterval(infoTimer); infoTimer = 0; return; }
+            updateVideoInfo();
+          }, 2000);
+        }
+
 
         const dragIndicator = h('div', { class: 'drag-indicator' });
         const dragHandle = h('div', { class: 'header' },
