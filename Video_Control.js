@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v193.4.0)
+// @name         Video_Control (v193.5.0)
 // @namespace    https://github.com/
-// @version      193.4.0
+// @version      193.5.0
 // @description  v193: blockInterference composedPath fix, SVG tagName safety, audio param tuning, ratechange backoff hardening, SPA patch-restore guard, AudioContext cleanup, dead-code removal.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -148,7 +148,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '193.4.0';
+    const VSC_VERSION = '193.5.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
     const MOBILE_COLOR_BIAS = { r: 1.00, g: 1.00, b: 0.97 };
@@ -806,555 +806,568 @@
     }
 
         /* ── Zoom Manager ── */
-    function createZoomManager() {
-      const stateMap = new WeakMap();
-      let activeVideo = null, isPanning = false, startX = 0, startY = 0;
-      let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
-      const zoomedVideos = new Set();
-      let activePointerId = null, destroyed = false;
+function createZoomManager() {
+  const stateMap = new WeakMap();
+  let activeVideo = null, isPanning = false, startX = 0, startY = 0;
+  let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+  const zoomedVideos = new Set();
+  let activePointerId = null, destroyed = false;
 
-      const ZOOM_PROPS = ['will-change', 'contain', 'backface-visibility', 'transition', 'transform-origin', 'transform', 'cursor', 'z-index', 'position', 'touch-action'];
-      const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, _savedPosition: '', _savedZIndex: '' }; stateMap.set(v, st); } return st; };
-      const pendingUpdates = new Set();
-      let rafId = null;
+  const ZOOM_PROPS = ['will-change','contain','backface-visibility','transition',
+    'transform-origin','transform','cursor','z-index','position','touch-action'];
 
-      function applyZoomStyle(v) {
-        const st = getSt(v);
-        const panning = isPanning || pinchState.active;
-        if (st.scale <= 1) {
-          if (st.zoomed) {
-            for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-            if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-            if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
-            st.zoomed = false;
+  const getSt = (v) => {
+    let st = stateMap.get(v);
+    if (!st) {
+      st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false,
+             _savedPosition: '', _savedZIndex: '' };
+      stateMap.set(v, st);
+    }
+    return st;
+  };
+
+  const pendingUpdates = new Set();
+  let rafId = null;
+
+  function applyZoomStyle(v) {
+    const st = getSt(v);
+    const panning = isPanning || pinchState.active;
+    if (st.scale <= 1) {
+      if (st.zoomed) {
+        for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+        if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+        if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+        st.zoomed = false;
+      }
+      st.scale = 1; st.tx = 0; st.ty = 0;
+      zoomedVideos.delete(v);
+      return;
+    }
+    if (!st.zoomed) {
+      st._savedPosition = v.style.getPropertyValue('position');
+      st._savedZIndex = v.style.getPropertyValue('z-index');
+      st.zoomed = true;
+    }
+    v.style.setProperty('will-change', 'transform', 'important');
+    v.style.setProperty('contain', 'layout paint', 'important');
+    v.style.setProperty('backface-visibility', 'hidden', 'important');
+    v.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
+    v.style.setProperty('transform-origin', '0 0', 'important');
+    v.style.setProperty('transform',
+      `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`,
+      'important');
+    v.style.setProperty('cursor', panning ? 'grabbing' : 'grab', 'important');
+    v.style.setProperty('z-index', '2147483646', 'important');
+    v.style.setProperty('position', 'relative', 'important');
+    v.style.setProperty('touch-action', 'none', 'important');
+    zoomedVideos.add(v);
+  }
+
+  const update = (v) => {
+    if (destroyed) return;
+    pendingUpdates.add(v);
+    if (rafId != null) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null; if (destroyed) return;
+      const batch = [...pendingUpdates]; pendingUpdates.clear();
+      for (const video of batch) { if (video.isConnected) applyZoomStyle(video); }
+    });
+  };
+
+  function clampPan(v, st) {
+    const r = v.getBoundingClientRect();
+    if (!r || r.width <= 1 || r.height <= 1) return;
+    const sw = r.width * st.scale, sh = r.height * st.scale;
+    st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75);
+    st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75);
+  }
+
+  const zoomTo = (v, newScale, clientX, clientY) => {
+    const st = getSt(v), rect = v.getBoundingClientRect();
+    if (!rect || rect.width <= 1) return;
+    const ix = (clientX - rect.left) / st.scale;
+    const iy = (clientY - rect.top) / st.scale;
+    st.tx = clientX - (rect.left - st.tx) - ix * newScale;
+    st.ty = clientY - (rect.top - st.ty) - iy * newScale;
+    st.scale = newScale;
+    clampPan(v, st);
+    update(v);
+  };
+
+  const resetZoom = (v) => {
+    if (!v) return;
+    const st = getSt(v); st.scale = 1;
+    if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+    pendingUpdates.delete(v);
+    update(v);
+  };
+
+  const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
+  const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
+  const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+  const getTouchCenter = (t) => ({
+    x: (t[0].clientX + t[1].clientX) / 2,
+    y: (t[0].clientY + t[1].clientY) / 2
+  });
+
+  function isVscUiEvent(e) {
+    try {
+      if (typeof e.composedPath === 'function') {
+        const path = e.composedPath();
+        for (let i = 0, len = Math.min(path.length, 20); i < len; i++) {
+          const n = path[i];
+          if (!n || !n.nodeType) continue;
+          if (n.nodeType === 1) {
+            if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' ||
+                n.id === 'vsc-gear-host') return true;
           }
-          st.scale = 1; st.tx = 0; st.ty = 0;
-          zoomedVideos.delete(v); return;
+          if (n.nodeType === 11 && n.host) {
+            if (n.host.hasAttribute?.('data-vsc-ui') || n.host.id === 'vsc-host' ||
+                n.host.id === 'vsc-gear-host') return true;
+          }
         }
-        if (!st.zoomed) {
-          st._savedPosition = v.style.getPropertyValue('position');
-          st._savedZIndex = v.style.getPropertyValue('z-index');
-          st.zoomed = true;
-        }
-        v.style.setProperty('will-change', 'transform', 'important');
-        v.style.setProperty('contain', 'layout paint', 'important');
-        v.style.setProperty('backface-visibility', 'hidden', 'important');
-        v.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
-        v.style.setProperty('transform-origin', '0 0', 'important');
-        v.style.setProperty('transform', `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`, 'important');
-        v.style.setProperty('cursor', panning ? 'grabbing' : 'grab', 'important');
-        v.style.setProperty('z-index', '2147483646', 'important');
-        v.style.setProperty('position', 'relative', 'important');
-        v.style.setProperty('touch-action', 'none', 'important');
-        zoomedVideos.add(v);
       }
+    } catch (_) {}
+    return false;
+  }
 
-      const update = (v) => {
-        if (destroyed) return;
-        pendingUpdates.add(v);
-        if (rafId != null) return;
-        rafId = requestAnimationFrame(() => {
-          rafId = null; if (destroyed) return;
-          const batch = [...pendingUpdates]; pendingUpdates.clear();
-          for (const video of batch) { if (video.isConnected) applyZoomStyle(video); }
-        });
-      };
-
-      function clampPan(v, st) {
-        const r = v.getBoundingClientRect();
-        if (!r || r.width <= 1 || r.height <= 1) return;
-        const sw = r.width * st.scale, sh = r.height * st.scale;
-        st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75);
-        st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75);
+  // ================================================================
+  //  FIX #1: 완전 재작성된 getTargetVideo
+  //  핵심 변경: TOUCHED.videos 우선, 형제 탐색, 면적 기반 fallback
+  // ================================================================
+  function getTargetVideo(e) {
+    const points = [];
+    if (e.touches) {
+      for (let i = 0; i < e.touches.length; i++) {
+        const t = e.touches[i];
+        if (Number.isFinite(t.clientX) && Number.isFinite(t.clientY))
+          points.push({ x: t.clientX, y: t.clientY });
       }
+    }
+    if (points.length === 0 && Number.isFinite(e.clientX) && Number.isFinite(e.clientY))
+      points.push({ x: e.clientX, y: e.clientY });
+    if (points.length === 2)
+      points.push({ x: (points[0].x + points[1].x) / 2,
+                     y: (points[0].y + points[1].y) / 2 });
 
-      const zoomTo = (v, newScale, clientX, clientY) => {
-        const st = getSt(v), rect = v.getBoundingClientRect();
-        if (!rect || rect.width <= 1) return;
-        const ix = (clientX - rect.left) / st.scale, iy = (clientY - rect.top) / st.scale;
-        st.tx = clientX - (rect.left - st.tx) - ix * newScale;
-        st.ty = clientY - (rect.top - st.ty) - iy * newScale;
-        st.scale = newScale; update(v);
-      };
+    // ── 전략 0: composedPath에서 직접 VIDEO 찾기 ──
+    if (typeof e.composedPath === 'function') {
+      const path = e.composedPath();
+      for (let i = 0, len = Math.min(path.length, 15); i < len; i++) {
+        if (path[i]?.tagName === 'VIDEO') return path[i];
+      }
+    }
 
-      const resetZoom = (v) => {
-        if (!v) return;
-        const st = getSt(v); st.scale = 1;
-        if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-        pendingUpdates.delete(v); update(v);
-      };
-
-      const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
-      const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
-      const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-      const getTouchCenter = (t) => ({ x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2 });
-
-      function isVscUiEvent(e) {
+    // ── 전략 1 (최우선): TOUCHED.videos에서 좌표 히트테스트 ──
+    if (points.length > 0) {
+      const px = points[0].x, py = points[0].y;
+      let bestVideo = null, bestArea = 0;
+      for (const v of TOUCHED.videos) {
+        if (!v || !v.isConnected) continue;
         try {
-          if (typeof e.composedPath === 'function') {
-            const path = e.composedPath();
-            for (let i = 0, len = Math.min(path.length, 20); i < len; i++) {
-              const n = path[i];
-              if (!n || !n.nodeType) continue;
-              if (n.nodeType === 1) { if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host') return true; }
-              if (n.nodeType === 11 && n.host) { if (n.host.hasAttribute?.('data-vsc-ui') || n.host.id === 'vsc-host' || n.host.id === 'vsc-gear-host') return true; }
-            }
-          }
-        } catch (_) {}
-        return false;
-      }
-
-      // ========================================================
-      //  FIX: 강화된 getTargetVideo — 모바일 오버레이 + Shadow DOM 관통
-      // ========================================================
-      function getTargetVideo(e) {
-        // 1) composedPath에서 직접 VIDEO 찾기
-        if (typeof e.composedPath === 'function') {
-          const path = e.composedPath();
-          for (let i = 0, len = Math.min(path.length, 15); i < len; i++) {
-            if (path[i]?.tagName === 'VIDEO') return path[i];
-          }
-        }
-
-        // 2) 모든 터치 포인트 수집
-        const points = [];
-        if (e.touches) {
-          for (let i = 0; i < e.touches.length; i++) {
-            const t = e.touches[i];
-            if (Number.isFinite(t.clientX) && Number.isFinite(t.clientY)) {
-              points.push({ x: t.clientX, y: t.clientY });
-            }
-          }
-        }
-        // 마우스 이벤트 fallback
-        if (points.length === 0 && Number.isFinite(e.clientX) && Number.isFinite(e.clientY)) {
-          points.push({ x: e.clientX, y: e.clientY });
-        }
-        // 핀치 줌의 경우 중심점도 추가
-        if (points.length === 2) {
-          points.push({ x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 });
-        }
-
-        // 3) 각 포인트에서 elementsFromPoint 탐색 (오버레이 관통)
-        for (const pt of points) {
-          try {
-            const els = document.elementsFromPoint(pt.x, pt.y);
-            // 3a) 직접 VIDEO 찾기
-            for (const el of els) {
-              if (el?.tagName === 'VIDEO') return el;
-            }
-            // 3b) 오버레이 아래 탐색: 자식, Shadow DOM, 플레이어 컨테이너
-            for (const el of els) {
-              if (!el || el.nodeType !== 1) continue;
-
-              // 자식에서 직접 찾기
-              const vid = el.querySelector?.('video');
-              if (vid) return vid;
-
-              // Shadow DOM 내부 탐색
-              if (el.shadowRoot) {
-                const svid = el.shadowRoot.querySelector('video');
-                if (svid) return svid;
-              }
-
-              // 플레이어 컨테이너 상위 탐색
-              const parent = el.closest?.(
-                '[class*="player"], [class*="Player"], [class*="video"], [class*="Video"], ' +
-                '[id*="player"], [id*="Player"], [id*="video"], [id*="Video"], ' +
-                '[data-player], [data-testid*="player"], [data-testid*="video"]'
-              );
-              if (parent) {
-                const vid2 = parent.querySelector('video');
-                if (vid2) return vid2;
-                // 플레이어 컨테이너의 Shadow DOM도 확인
-                if (parent.shadowRoot) {
-                  const svid2 = parent.shadowRoot.querySelector('video');
-                  if (svid2) return svid2;
-                }
-              }
-            }
-          } catch (_) {}
-        }
-
-        // 4) TOUCHED.videos에서 visible한 비디오 중 터치 영역과 겹치는 것 찾기
-        if (points.length > 0) {
-          const px = points[0].x, py = points[0].y;
-          for (const v of TOUCHED.videos) {
-            if (!v || !v.isConnected) continue;
-            try {
-              const r = v.getBoundingClientRect();
-              if (r.width > 10 && r.height > 10 &&
-                  px >= r.left && px <= r.right &&
-                  py >= r.top && py <= r.bottom) {
-                return v;
-              }
-            } catch (_) {}
-          }
-        }
-
-        // 5) Registry의 visible videos에서 영역 겹침 확인
-        if (points.length > 0) {
-          try {
-            const reg = window.__VSC_INTERNAL__?.App?.getStore?.()
-              ? null  // Store에서 직접 접근 불가, registry.visible 사용
-              : null;
-            // TOUCHED.videos로 이미 커버했으므로 skip
-          } catch (_) {}
-        }
-
-        // 6) 최종 fallback: 활성 비디오 또는 페이지 내 유일한 비디오
-        const active = window.__VSC_INTERNAL__?.App?.getActiveVideo?.();
-        if (active?.isConnected) return active;
-
-        // 페이지에 비디오가 하나뿐이면 그것을 반환
-        try {
-          const allVideos = document.querySelectorAll('video');
-          if (allVideos.length === 1 && allVideos[0].isConnected) return allVideos[0];
-        } catch (_) {}
-
-        return null;
-      }
-
-      // ========================================================
-      //  FIX: touch-action을 video + 오버레이 부모 컨테이너에 모두 설정
-      // ========================================================
-      function setTouchActionBlocking(v, enable) {
-        if (!v) return;
-        const value = enable ? 'none' : '';
-        const priority = enable ? 'important' : '';
-
-        // video 자체
-        if (enable) {
-          v.style.setProperty('touch-action', value, priority);
-        } else {
-          v.style.removeProperty('touch-action');
-        }
-
-        // 부모 컨테이너에도 설정 (오버레이가 터치를 가로채는 것 방지)
-        try {
-          let parent = v.parentElement;
-          for (let depth = 0; parent && depth < 5; depth++) {
-            if (parent === document.body || parent === document.documentElement) break;
-            if (enable) {
-              parent.style.setProperty('touch-action', value, priority);
-              // 정리용 마커
-              parent.dataset.vscTouchBlocked = '1';
-            } else if (parent.dataset.vscTouchBlocked) {
-              parent.style.removeProperty('touch-action');
-              delete parent.dataset.vscTouchBlocked;
-            }
-            parent = parent.parentElement;
+          const r = v.getBoundingClientRect();
+          if (r.width < 10 || r.height < 10) continue;
+          if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+            const area = r.width * r.height;
+            if (area > bestArea) { bestArea = area; bestVideo = v; }
           }
         } catch (_) {}
       }
+      if (bestVideo) return bestVideo;
+    }
 
-      // ========================================================
-      //  FIX: viewport meta 제어 — 브라우저 레벨 핀치 줌 차단
-      // ========================================================
-      let __origViewportContent = null;
-      let __viewportBlocked = false;
+    // ── 전략 2: Registry visible videos에서 좌표 히트테스트 ──
+    if (points.length > 0) {
+      const px = points[0].x, py = points[0].y;
+      try {
+        const allVids = document.querySelectorAll('video');
+        let bestVideo = null, bestArea = 0;
+        for (const v of allVids) {
+          if (!v.isConnected) continue;
+          const r = v.getBoundingClientRect();
+          if (r.width < 10 || r.height < 10) continue;
+          if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+            const area = r.width * r.height;
+            if (area > bestArea) { bestArea = area; bestVideo = v; }
+          }
+        }
+        if (bestVideo) return bestVideo;
+      } catch (_) {}
+    }
 
-      function blockBrowserPinchZoom() {
-        if (__viewportBlocked) return;
-        __viewportBlocked = true;
-        try {
-          let meta = document.querySelector('meta[name="viewport"]');
-          if (meta) {
-            __origViewportContent = meta.getAttribute('content');
-            // 기존 content에 user-scalable=no 추가
-            let content = __origViewportContent || '';
-            if (!content.includes('user-scalable=no')) {
-              content = content.replace(/user-scalable\s*=\s*\w+/gi, '').replace(/,\s*$/, '');
-              content += (content ? ', ' : '') + 'user-scalable=no, maximum-scale=1.0';
-              meta.setAttribute('content', content);
+    // ── 전략 3: elementsFromPoint + 형제/부모 탐색 ──
+    for (const pt of points) {
+      try {
+        const els = document.elementsFromPoint(pt.x, pt.y);
+        for (const el of els) {
+          if (el?.tagName === 'VIDEO') return el;
+        }
+        for (const el of els) {
+          if (!el || el.nodeType !== 1) continue;
+
+          const vid = el.querySelector?.('video');
+          if (vid) return vid;
+
+          if (el.shadowRoot) {
+            const svid = el.shadowRoot.querySelector('video');
+            if (svid) return svid;
+          }
+
+          const parent = el.parentElement;
+          if (parent) {
+            const siblingVid = parent.querySelector?.('video');
+            if (siblingVid) return siblingVid;
+          }
+
+          const container = el.closest?.(
+            '[class*="player"],[class*="Player"],[class*="video"],[class*="Video"],' +
+            '[id*="player"],[id*="Player"],[id*="video"],[id*="Video"],' +
+            '[data-player],[data-testid*="player"],[data-testid*="video"]'
+          );
+          if (container) {
+            const vid2 = container.querySelector('video');
+            if (vid2) return vid2;
+            if (container.shadowRoot) {
+              const svid2 = container.shadowRoot.querySelector('video');
+              if (svid2) return svid2;
             }
-          } else {
-            meta = document.createElement('meta');
-            meta.name = 'viewport';
-            meta.content = 'width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0';
-            document.head?.appendChild(meta);
-            __origViewportContent = null; // 새로 생성한 것이므로 복원 시 제거
           }
-        } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
+    // ── 전략 4: 활성 비디오 fallback ──
+    const active = window.__VSC_INTERNAL__?._activeVideo;
+    if (active?.isConnected) return active;
+
+    // ── 전략 5: 유일 비디오 ──
+    try {
+      const allVideos = document.querySelectorAll('video');
+      if (allVideos.length === 1 && allVideos[0].isConnected) return allVideos[0];
+    } catch (_) {}
+
+    return null;
+  }
+
+  // ================================================================
+  //  FIX #2: touch-action 사전 적용 시스템
+  // ================================================================
+  const __touchBlocked = new WeakSet();
+
+  function setTouchActionBlocking(v, enable) {
+    if (!v) return;
+    if (enable) {
+      v.style.setProperty('touch-action', 'none', 'important');
+      __touchBlocked.add(v);
+      const p = v.parentElement;
+      if (p && p !== document.body && p !== document.documentElement) {
+        p.style.setProperty('touch-action', 'none', 'important');
+        p.dataset.vscTouchBlocked = '1';
       }
-
-      function unblockBrowserPinchZoom() {
-        if (!__viewportBlocked) return;
-        __viewportBlocked = false;
-        try {
-          const meta = document.querySelector('meta[name="viewport"]');
-          if (!meta) return;
-          if (__origViewportContent === null) {
-            // 우리가 생성한 meta이므로 제거
-            meta.remove();
-          } else {
-            meta.setAttribute('content', __origViewportContent);
-          }
-        } catch (_) {}
+    } else {
+      v.style.removeProperty('touch-action');
+      __touchBlocked.delete(v);
+      const p = v.parentElement;
+      if (p?.dataset?.vscTouchBlocked) {
+        p.style.removeProperty('touch-action');
+        delete p.dataset.vscTouchBlocked;
       }
+    }
+  }
 
-      // --- 데스크톱/마우스 제스처 (기존과 동일) ---
-      onWin('wheel', e => {
-        if (!e.altKey || !isZoomEnabled()) return;
-        if (isVscUiEvent(e)) return;
-        const v = getTargetVideo(e); if (!v) return;
-        e.preventDefault(); e.stopPropagation();
-        const st = getSt(v);
-        let newScale = Math.min(Math.max(1, st.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 10);
-        if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
-      }, { passive: false, capture: true });
-
-      onWin('pointerdown', e => {
-        if (!e.altKey || !isZoomEnabled() || e.pointerType === 'touch') return;
-        if (isVscUiEvent(e)) return;
-        const v = getTargetVideo(e); if (!v) return;
-        const st = getSt(v); if (st.scale <= 1) return;
-        e.preventDefault(); e.stopPropagation();
-        activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false;
-        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
-        try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
-        update(v);
-      }, { capture: true, passive: false });
-
-      onWin('pointermove', e => {
-        if (!isPanning || !activeVideo || e.pointerId !== activePointerId) return;
-        if (!activeVideo.isConnected) { isPanning = false; try { activeVideo.releasePointerCapture?.(e.pointerId); } catch (_) {} activePointerId = null; activeVideo = null; return; }
-        const st = getSt(activeVideo);
-        if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-        const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e], last = events[events.length - 1] || e;
-        const nextTx = last.clientX - startX, nextTy = last.clientY - startY;
-        if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
-        st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo);
-      }, { capture: true, passive: false });
-
-      function endPointerPan(e) {
-        if (e.pointerType === 'touch' || !isPanning || !activeVideo || e.pointerId !== activePointerId) return;
-        const v = activeVideo, st = getSt(v);
-        try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
-        if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-        activePointerId = null; isPanning = false; activeVideo = null; update(v);
-      }
-      onWin('pointerup', endPointerPan, { capture: true, passive: false });
-      onWin('pointercancel', endPointerPan, { capture: true, passive: false });
-
-      onWin('dblclick', e => {
-        if (!e.altKey || !isZoomEnabled()) return;
-        if (isVscUiEvent(e)) return;
-        const v = getTargetVideo(e); if (!v) return;
-        e.preventDefault(); e.stopPropagation();
-        const st = getSt(v);
-        if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
-      }, { capture: true });
-
-      // ========================================================
-      //  FIX: 터치/모바일 제스처 — 완전 재작성
-      // ========================================================
-
-      // 핀치 감지를 위한 지연 탐색 타이머
-      let __touchSearchTimer = 0;
-      let __pendingTouchVideo = null;
-
-      onWin('touchstart', e => {
-        if (!isZoomEnabled()) return;
-        if (isVscUiEvent(e)) return;
-
-        const v = getTargetVideo(e);
-
-        if (e.touches.length === 2) {
-          // 비디오를 찾지 못해도 일단 preventDefault로 브라우저 줌 차단
-          if (e.cancelable) e.preventDefault();
-
-          if (!v) {
-            // 비디오를 아직 못 찾았지만, 곧 찾을 수 있으므로 pending 상태 유지
-            // touchmove에서 재탐색 시도
-            __pendingTouchVideo = true;
-            isPanning = false;
-            pinchState.active = false;
-            activeVideo = null;
-            return;
-          }
-
-          // 비디오 찾음 — 핀치 시작
-          __pendingTouchVideo = null;
-          setTouchActionBlocking(v, true);
-          blockBrowserPinchZoom();
-
-          isPanning = false;
-          const st = getSt(v);
-          activeVideo = v;
-          pinchState.active = true;
-          pinchState.initialDist = getTouchDist(e.touches);
-          pinchState.initialScale = st.scale;
-          const c = getTouchCenter(e.touches);
-          pinchState.lastCx = c.x;
-          pinchState.lastCy = c.y;
-
-        } else if (e.touches.length === 1 && v) {
-          const st = getSt(v);
-          if (st.scale > 1) {
-            if (e.cancelable) e.preventDefault();
-            activeVideo = v;
-            isPanning = true;
-            st.hasPanned = false;
-            startX = e.touches[0].clientX - st.tx;
-            startY = e.touches[0].clientY - st.ty;
-          }
+  // ================================================================
+  //  FIX #4: 줌 모드 토글 시 사전 touch-action 적용
+  // ================================================================
+  let __zoomModeWatcherUnsub = null;
+  function watchZoomModeToggle() {
+    const store = window.__VSC_INTERNAL__?.Store;
+    if (!store || __zoomModeWatcherUnsub) return;
+    __zoomModeWatcherUnsub = store.sub(P.APP_ZOOM_EN, (enabled) => {
+      if (enabled) {
+        for (const v of TOUCHED.videos) {
+          if (v?.isConnected) setTouchActionBlocking(v, true);
         }
-      }, { passive: false, capture: true });
-
-      onWin('touchmove', e => {
-        // pending 상태: 아직 비디오를 못 찾은 두 손가락 터치
-        if (__pendingTouchVideo && e.touches.length === 2) {
-          if (e.cancelable) e.preventDefault(); // 브라우저 줌 계속 차단
-
-          const v = getTargetVideo(e);
-          if (v) {
-            // 이제 비디오 찾음 — 핀치 시작으로 전환
-            __pendingTouchVideo = null;
-            setTouchActionBlocking(v, true);
-            blockBrowserPinchZoom();
-
-            const st = getSt(v);
-            activeVideo = v;
-            pinchState.active = true;
-            pinchState.initialDist = getTouchDist(e.touches);
-            pinchState.initialScale = st.scale;
-            const c = getTouchCenter(e.touches);
-            pinchState.lastCx = c.x;
-            pinchState.lastCy = c.y;
-          }
-          return;
-        }
-
-        if (!activeVideo) return;
-        if (!activeVideo.isConnected) {
-          isPanning = false; pinchState.active = false; activeVideo = null;
-          __pendingTouchVideo = null;
-          return;
-        }
-        const st = getSt(activeVideo);
-
-        if (pinchState.active && e.touches.length === 2) {
-          if (e.cancelable) e.preventDefault();
-          const dist = getTouchDist(e.touches);
-          const center = getTouchCenter(e.touches);
-          let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
-          newScale = Math.min(Math.max(1, newScale), 10);
-
-          if (newScale < 1.05) {
-            resetZoom(activeVideo);
-            setTouchActionBlocking(activeVideo, false);
-            unblockBrowserPinchZoom();
-            pinchState.active = false;
-            isPanning = false;
-            activeVideo = null;
-          } else {
-            zoomTo(activeVideo, newScale, center.x, center.y);
-            st.tx += center.x - pinchState.lastCx;
-            st.ty += center.y - pinchState.lastCy;
-            clampPan(activeVideo, st);
-            update(activeVideo);
-          }
-          pinchState.lastCx = center.x;
-          pinchState.lastCy = center.y;
-
-        } else if (isPanning && e.touches.length === 1 && st.scale > 1) {
-          if (e.cancelable) e.preventDefault();
-          const t = e.touches[0];
-          const nextTx = t.clientX - startX;
-          const nextTy = t.clientY - startY;
-          if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
-          st.tx = nextTx;
-          st.ty = nextTy;
-          clampPan(activeVideo, st);
-          update(activeVideo);
-        }
-      }, { passive: false, capture: true });
-
-      onWin('touchend', e => {
-        __pendingTouchVideo = null;
-
-        if (!activeVideo) return;
-        if (!activeVideo.isConnected) {
-          isPanning = false; pinchState.active = false; activeVideo = null; return;
-        }
-
-        if (e.touches.length < 2) pinchState.active = false;
-
-        if (e.touches.length === 1 && activeVideo?.isConnected && getSt(activeVideo).scale > 1) {
-          isPanning = true;
-          const st = getSt(activeVideo);
-          st.hasPanned = false;
-          startX = e.touches[0].clientX - st.tx;
-          startY = e.touches[0].clientY - st.ty;
-        } else if (e.touches.length === 0) {
-          const v = activeVideo;
-          isPanning = false;
-          update(v);
-
-          // 줌이 해제된 상태면 touch-action 복원
-          const st = getSt(v);
-          if (st.scale <= 1) {
-            setTouchActionBlocking(v, false);
-            unblockBrowserPinchZoom();
-          }
-
-          activeVideo = null;
-        }
-      }, { passive: false, capture: true });
-
-      // touchcancel 처리 추가 (브라우저가 제스처를 가로챌 때)
-      onWin('touchcancel', e => {
-        __pendingTouchVideo = null;
-        if (!activeVideo) return;
-
-        const v = activeVideo;
-        isPanning = false;
-        pinchState.active = false;
-        activeVideo = null;
-
-        // 현재 상태 유지 (줌 해제하지 않음) — 다음 터치에서 이어서 조작 가능
-        update(v);
-      }, { passive: true, capture: true });
-
-      return {
-        resetZoom: (v) => {
+      } else {
+        for (const v of [...zoomedVideos]) {
           resetZoom(v);
           setTouchActionBlocking(v, false);
-          unblockBrowserPinchZoom();
-        },
-        zoomTo,
-        isZoomed,
-        pruneDisconnected: () => {
-          for (const v of [...zoomedVideos]) {
-            if (!v?.isConnected) {
-              resetZoom(v);
-              setTouchActionBlocking(v, false);
-            }
-          }
-          // 줌된 비디오가 없으면 viewport 복원
-          if (zoomedVideos.size === 0) unblockBrowserPinchZoom();
-        },
-        destroy: () => {
-          destroyed = true;
-          if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-          pendingUpdates.clear();
-          for (const v of [...zoomedVideos]) {
-            const st = getSt(v);
-            if (st.zoomed) {
-              for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-              if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-              if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
-            }
-            st.scale = 1; st.zoomed = false;
-            setTouchActionBlocking(v, false);
-          }
-          zoomedVideos.clear(); isPanning = false; pinchState.active = false;
-          activeVideo = null; activePointerId = null; __pendingTouchVideo = null;
-          unblockBrowserPinchZoom();
         }
-      };
+        for (const v of TOUCHED.videos) {
+          if (__touchBlocked.has(v)) setTouchActionBlocking(v, false);
+        }
+      }
+    });
+  }
+
+  const __tryWatchInterval = setRecurring(() => {
+    if (window.__VSC_INTERNAL__?.Store) {
+      watchZoomModeToggle();
+      clearRecurring(__tryWatchInterval);
     }
+  }, 200);
+
+  // ================================================================
+  //  FIX #5: 새 비디오 발견 시 줌 모드가 켜져 있으면 touch-action 적용
+  // ================================================================
+  function onNewVideoForZoom(v) {
+    if (!v || !isZoomEnabled()) return;
+    if (!__touchBlocked.has(v)) setTouchActionBlocking(v, true);
+  }
+
+  // ── 데스크톱/마우스 제스처 ──
+  onWin('wheel', e => {
+    if (!e.altKey || !isZoomEnabled()) return;
+    if (isVscUiEvent(e)) return;
+    const v = getTargetVideo(e); if (!v) return;
+    e.preventDefault(); e.stopPropagation();
+    const st = getSt(v);
+    let newScale = Math.min(Math.max(1, st.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 10);
+    if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
+  }, { passive: false, capture: true });
+
+  onWin('pointerdown', e => {
+    if (!e.altKey || !isZoomEnabled() || e.pointerType === 'touch') return;
+    if (isVscUiEvent(e)) return;
+    const v = getTargetVideo(e); if (!v) return;
+    const st = getSt(v); if (st.scale <= 1) return;
+    e.preventDefault(); e.stopPropagation();
+    activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false;
+    startX = e.clientX - st.tx; startY = e.clientY - st.ty;
+    try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
+    update(v);
+  }, { capture: true, passive: false });
+
+  onWin('pointermove', e => {
+    if (!isPanning || !activeVideo || e.pointerId !== activePointerId) return;
+    if (!activeVideo.isConnected) {
+      isPanning = false;
+      try { activeVideo.releasePointerCapture?.(e.pointerId); } catch (_) {}
+      activePointerId = null; activeVideo = null;
+      return;
+    }
+    const st = getSt(activeVideo);
+    if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+    const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
+    const last = events[events.length - 1] || e;
+    const nextTx = last.clientX - startX, nextTy = last.clientY - startY;
+    if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
+    st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo);
+  }, { capture: true, passive: false });
+
+  function endPointerPan(e) {
+    if (e.pointerType === 'touch' || !isPanning || !activeVideo ||
+        e.pointerId !== activePointerId) return;
+    const v = activeVideo, st = getSt(v);
+    try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
+    if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+    activePointerId = null; isPanning = false; activeVideo = null; update(v);
+  }
+  onWin('pointerup', endPointerPan, { capture: true, passive: false });
+  onWin('pointercancel', endPointerPan, { capture: true, passive: false });
+
+  onWin('dblclick', e => {
+    if (!e.altKey || !isZoomEnabled()) return;
+    if (isVscUiEvent(e)) return;
+    const v = getTargetVideo(e); if (!v) return;
+    e.preventDefault(); e.stopPropagation();
+    const st = getSt(v);
+    if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
+  }, { capture: true });
+
+  // ================================================================
+  //  FIX #6: 터치 제스처 — 완전 재작성
+  // ================================================================
+  let __lastFoundVideo = null;
+  let __lastFoundVideoT = 0;
+  const VIDEO_CACHE_TTL = 3000;
+
+  function getCachedOrFindVideo(e) {
+    const now = performance.now();
+    if (__lastFoundVideo?.isConnected && (now - __lastFoundVideoT) < VIDEO_CACHE_TTL) {
+      return __lastFoundVideo;
+    }
+    const v = getTargetVideo(e);
+    if (v) {
+      __lastFoundVideo = v;
+      __lastFoundVideoT = now;
+    }
+    return v;
+  }
+
+  onWin('touchstart', e => {
+    if (!isZoomEnabled()) return;
+    if (isVscUiEvent(e)) return;
+
+    if (e.touches.length === 2) {
+      const v = getCachedOrFindVideo(e);
+
+      if (e.cancelable) e.preventDefault();
+
+      if (!v) {
+        pinchState.active = false;
+        isPanning = false;
+        activeVideo = null;
+        return;
+      }
+
+      setTouchActionBlocking(v, true);
+      isPanning = false;
+      const st = getSt(v);
+      activeVideo = v;
+      pinchState.active = true;
+      pinchState.initialDist = getTouchDist(e.touches);
+      pinchState.initialScale = st.scale;
+      const c = getTouchCenter(e.touches);
+      pinchState.lastCx = c.x;
+      pinchState.lastCy = c.y;
+
+    } else if (e.touches.length === 1) {
+      const v = getCachedOrFindVideo(e);
+      if (!v) return;
+      const st = getSt(v);
+      if (st.scale > 1) {
+        if (e.cancelable) e.preventDefault();
+        activeVideo = v;
+        isPanning = true;
+        st.hasPanned = false;
+        startX = e.touches[0].clientX - st.tx;
+        startY = e.touches[0].clientY - st.ty;
+      }
+    }
+  }, { passive: false, capture: true });
+
+  onWin('touchmove', e => {
+    if (!activeVideo && pinchState.active === false &&
+        e.touches.length === 2 && isZoomEnabled()) {
+      if (e.cancelable) e.preventDefault();
+      const v = getCachedOrFindVideo(e);
+      if (v) {
+        setTouchActionBlocking(v, true);
+        const st = getSt(v);
+        activeVideo = v;
+        pinchState.active = true;
+        pinchState.initialDist = getTouchDist(e.touches);
+        pinchState.initialScale = st.scale;
+        const c = getTouchCenter(e.touches);
+        pinchState.lastCx = c.x;
+        pinchState.lastCy = c.y;
+      }
+      return;
+    }
+
+    if (!activeVideo) return;
+    if (!activeVideo.isConnected) {
+      isPanning = false; pinchState.active = false; activeVideo = null;
+      return;
+    }
+    const st = getSt(activeVideo);
+
+    if (pinchState.active && e.touches.length === 2) {
+      if (e.cancelable) e.preventDefault();
+      const dist = getTouchDist(e.touches);
+      const center = getTouchCenter(e.touches);
+      let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
+      newScale = Math.min(Math.max(1, newScale), 10);
+
+      if (newScale < 1.05) {
+        resetZoom(activeVideo);
+        pinchState.active = false;
+        isPanning = false;
+        activeVideo = null;
+      } else {
+        zoomTo(activeVideo, newScale, center.x, center.y);
+        st.tx += center.x - pinchState.lastCx;
+        st.ty += center.y - pinchState.lastCy;
+        clampPan(activeVideo, st);
+        update(activeVideo);
+      }
+      pinchState.lastCx = center.x;
+      pinchState.lastCy = center.y;
+
+    } else if (isPanning && e.touches.length === 1 && st.scale > 1) {
+      if (e.cancelable) e.preventDefault();
+      const t = e.touches[0];
+      const nextTx = t.clientX - startX;
+      const nextTy = t.clientY - startY;
+      if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
+      st.tx = nextTx;
+      st.ty = nextTy;
+      clampPan(activeVideo, st);
+      update(activeVideo);
+    }
+  }, { passive: false, capture: true });
+
+  onWin('touchend', e => {
+    if (!activeVideo) return;
+    if (!activeVideo.isConnected) {
+      isPanning = false; pinchState.active = false; activeVideo = null;
+      return;
+    }
+
+    if (e.touches.length < 2) pinchState.active = false;
+
+    if (e.touches.length === 1 && activeVideo?.isConnected &&
+        getSt(activeVideo).scale > 1) {
+      isPanning = true;
+      const st = getSt(activeVideo);
+      st.hasPanned = false;
+      startX = e.touches[0].clientX - st.tx;
+      startY = e.touches[0].clientY - st.ty;
+    } else if (e.touches.length === 0) {
+      const v = activeVideo;
+      isPanning = false;
+      update(v);
+      activeVideo = null;
+    }
+  }, { passive: false, capture: true });
+
+  onWin('touchcancel', e => {
+    if (!activeVideo) return;
+    const v = activeVideo;
+    isPanning = false;
+    pinchState.active = false;
+    activeVideo = null;
+    update(v);
+  }, { passive: true, capture: true });
+
+  return {
+    resetZoom: (v) => {
+      resetZoom(v);
+      if (!isZoomEnabled()) setTouchActionBlocking(v, false);
+    },
+    zoomTo,
+    isZoomed,
+    onNewVideoForZoom,
+    pruneDisconnected: () => {
+      for (const v of [...zoomedVideos]) {
+        if (!v?.isConnected) {
+          resetZoom(v);
+          setTouchActionBlocking(v, false);
+        }
+      }
+    },
+    destroy: () => {
+      destroyed = true;
+      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+      pendingUpdates.clear();
+      for (const v of [...zoomedVideos]) {
+        const st = getSt(v);
+        if (st.zoomed) {
+          for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+          if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+          if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+        }
+        st.scale = 1; st.zoomed = false;
+        setTouchActionBlocking(v, false);
+      }
+      zoomedVideos.clear(); isPanning = false; pinchState.active = false;
+      activeVideo = null; activePointerId = null;
+      __lastFoundVideo = null;
+      if (__zoomModeWatcherUnsub) { __zoomModeWatcherUnsub(); __zoomModeWatcherUnsub = null; }
+      try { clearRecurring(__tryWatchInterval); } catch (_) {}
+    }
+  };
+}
 
     /* ── Targeting ── */
     function createTargeting() {
@@ -3836,116 +3849,121 @@ function computeFullAnalysis(data, sw, sh) {
     }
 
     function bindVideoOnce(v, ApplyReq) {
-      const st = getVState(v);
-      if (st.bound) return;
-      st.bound = true;
+  const st = getVState(v);
+  if (st.bound) return;
+  st.bound = true;
 
-      if (CONFIG.IS_MOBILE) ensureMobileInlinePlaybackHints(v);
+  if (CONFIG.IS_MOBILE) ensureMobileInlinePlaybackHints(v);
 
-      const ac = new AbortController();
-      st._ac = ac;
-      const sig = ac.signal;
+  const ac = new AbortController();
+  st._ac = ac;
+  const sig = ac.signal;
 
-      const softResetTransientFlags = () => {
-        st.resetTransient();
-        ApplyReq.hard();
-      };
+  const softResetTransientFlags = () => {
+    st.resetTransient();
+    ApplyReq.hard();
+  };
 
-      onAll(v, ['loadstart', 'loadedmetadata', 'emptied'], softResetTransientFlags,
-        { passive: true, signal: sig });
-      onAll(v, ['seeking', 'play'], () => { ApplyReq.hard(); },
-        { passive: true, signal: sig });
+  onAll(v, ['loadstart', 'loadedmetadata', 'emptied'], softResetTransientFlags,
+    { passive: true, signal: sig });
+  onAll(v, ['seeking', 'play'], () => { ApplyReq.hard(); },
+    { passive: true, signal: sig });
 
-      on(v, 'enterpictureinpicture', () => {
-        st._inPiP = true;
-        try { window.__VSC_INTERNAL__?.Adapter?.clear(v); } catch (_) {}
-      }, { passive: true, signal: sig });
+  on(v, 'enterpictureinpicture', () => {
+    st._inPiP = true;
+    try { window.__VSC_INTERNAL__?.Adapter?.clear(v); } catch (_) {}
+  }, { passive: true, signal: sig });
 
-      on(v, 'leavepictureinpicture', () => {
-        st._inPiP = false;
-        st.applied = false;
-        st.lastFilterUrl = null;
-        st.lastCssFilterStr = null;
-        st._transitionCleared = false;
-        setTimer(() => { try { ApplyReq.hard(); } catch (_) {} }, 200);
-      }, { passive: true, signal: sig });
+  on(v, 'leavepictureinpicture', () => {
+    st._inPiP = false;
+    st.applied = false;
+    st.lastFilterUrl = null;
+    st.lastCssFilterStr = null;
+    st._transitionCleared = false;
+    setTimer(() => { try { ApplyReq.hard(); } catch (_) {} }, 200);
+  }, { passive: true, signal: sig });
 
-      on(v, 'resize', () => {
-        st._resizeDirty = true;
-        bumpRectEpoch();
-        const Store = window.__VSC_INTERNAL__?.Store;
-        if (!Store) return;
-        if (Store.get(P.APP_AUTO_PRESET) && Store.get(P.APP_ACT)) {
-          const ht = v.videoHeight || 0;
-          const auto = getAutoPresetForResolution(ht);
-          const cur = Store.get(P.V_PRE_S);
-          if (auto !== cur) {
-            Store.set(P.V_PRE_S, auto);
-            showOSD(`자동 프리셋: ${PRESET_LABELS.detail[auto] || auto} (${ht}p)`, 1500);
-          }
-        }
-        ApplyReq.hard();
-      }, { passive: true, signal: sig });
-
-      /* ── 패치 #13: ratechange — 재시도 3회, 지수 백오프 ── */
-      on(v, 'ratechange', () => {
-        const rSt = getRateState(v);
-        const now = performance.now();
-
-        const cooldownEnd = Math.max(rSt.suppressSyncUntil || 0, (rSt.lastSetAt || 0) + 500);
-        if (now < cooldownEnd) return;
-
-        if (rSt.permanentlyBlocked) return;
-        if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
-
-        const refs = window.__VSC_INTERNAL__;
-        const store = refs?.Store;
-        if (!store || !store.get(P.PB_EN)) return;
-
-        const desired = Number(st.desiredRate ?? store.get(P.PB_RATE));
-        if (!Number.isFinite(v.playbackRate) || v.playbackRate < 0.07) return;
-        if (!Number.isFinite(desired) || desired < 0.07) return;
-        if (Math.abs(v.playbackRate - desired) < 0.01) return;
-
-        if (rSt._externalMtQueued) return;
-
-        if (!rSt._rateRetryWindow) rSt._rateRetryWindow = 0;
-        if (!rSt._rateRetryCount) rSt._rateRetryCount = 0;
-
-        if (now - rSt._rateRetryWindow > 2000) {
-          rSt._rateRetryWindow = now;
-          rSt._rateRetryCount = 0;
-        }
-        rSt._rateRetryCount++;
-
-        /* v193 패치: 재시도 횟수 5→3, 지수 백오프 적용 */
-        const RATE_MAX_RETRY = 3;
-        if (rSt._rateRetryCount > RATE_MAX_RETRY) {
-          rSt.permanentlyBlocked = true;
-          showOSD('속도 조절이 차단됨 (충돌 방지)', 2000);
-          return;
-        }
-
-        rSt._externalMtQueued = true;
-
-        /* v193 패치: 지수 백오프 — 16ms * 2^(retryCount-1) */
-        const backoffMs = 16 * Math.pow(2, rSt._rateRetryCount - 1);
-        setTimer(() => {
-          rSt._externalMtQueued = false;
-          if (performance.now() < (rSt.suppressSyncUntil || 0)) return;
-
-          const activeVideo = refs?.App?.getActiveVideo?.();
-          if (!activeVideo || v !== activeVideo || !store.get(P.PB_EN)) return;
-          if (Math.abs(v.playbackRate - desired) < 0.01) return;
-
-          st.desiredRate = desired;
-          rSt.lastSetAt = performance.now();
-          rSt.suppressSyncUntil = performance.now() + 800;
-
-          try { v.playbackRate = desired; } catch (_) {}
-        }, backoffMs);
-      }, { passive: true, signal: sig });
+  on(v, 'resize', () => {
+    st._resizeDirty = true;
+    bumpRectEpoch();
+    const Store = window.__VSC_INTERNAL__?.Store;
+    if (!Store) return;
+    if (Store.get(P.APP_AUTO_PRESET) && Store.get(P.APP_ACT)) {
+      const ht = v.videoHeight || 0;
+      const auto = getAutoPresetForResolution(ht);
+      const cur = Store.get(P.V_PRE_S);
+      if (auto !== cur) {
+        Store.set(P.V_PRE_S, auto);
+        showOSD(`자동 프리셋: ${PRESET_LABELS.detail[auto] || auto} (${ht}p)`, 1500);
+      }
     }
+    ApplyReq.hard();
+  }, { passive: true, signal: sig });
+
+  /* ── 패치 #13: ratechange — 재시도 3회, 지수 백오프 ── */
+  on(v, 'ratechange', () => {
+    const rSt = getRateState(v);
+    const now = performance.now();
+
+    const cooldownEnd = Math.max(rSt.suppressSyncUntil || 0, (rSt.lastSetAt || 0) + 500);
+    if (now < cooldownEnd) return;
+
+    if (rSt.permanentlyBlocked) return;
+    if (__rateBlockedSite) { rSt.permanentlyBlocked = true; return; }
+
+    const refs = window.__VSC_INTERNAL__;
+    const store = refs?.Store;
+    if (!store || !store.get(P.PB_EN)) return;
+
+    const desired = Number(st.desiredRate ?? store.get(P.PB_RATE));
+    if (!Number.isFinite(v.playbackRate) || v.playbackRate < 0.07) return;
+    if (!Number.isFinite(desired) || desired < 0.07) return;
+    if (Math.abs(v.playbackRate - desired) < 0.01) return;
+
+    if (rSt._externalMtQueued) return;
+
+    if (!rSt._rateRetryWindow) rSt._rateRetryWindow = 0;
+    if (!rSt._rateRetryCount) rSt._rateRetryCount = 0;
+
+    if (now - rSt._rateRetryWindow > 2000) {
+      rSt._rateRetryWindow = now;
+      rSt._rateRetryCount = 0;
+    }
+    rSt._rateRetryCount++;
+
+    /* v193 패치: 재시도 횟수 5→3, 지수 백오프 적용 */
+    const RATE_MAX_RETRY = 3;
+    if (rSt._rateRetryCount > RATE_MAX_RETRY) {
+      rSt.permanentlyBlocked = true;
+      showOSD('속도 조절이 차단됨 (충돌 방지)', 2000);
+      return;
+    }
+
+    rSt._externalMtQueued = true;
+
+    /* v193 패치: 지수 백오프 — 16ms * 2^(retryCount-1) */
+    const backoffMs = 16 * Math.pow(2, rSt._rateRetryCount - 1);
+    setTimer(() => {
+      rSt._externalMtQueued = false;
+      if (performance.now() < (rSt.suppressSyncUntil || 0)) return;
+
+      const activeVideo = refs?.App?.getActiveVideo?.();
+      if (!activeVideo || v !== activeVideo || !store.get(P.PB_EN)) return;
+      if (Math.abs(v.playbackRate - desired) < 0.01) return;
+
+      st.desiredRate = desired;
+      rSt.lastSetAt = performance.now();
+      rSt.suppressSyncUntil = performance.now() + 800;
+
+      try { v.playbackRate = desired; } catch (_) {}
+    }, backoffMs);
+  }, { passive: true, signal: sig });
+
+  // ★ 추가: 줌 모드가 켜져 있으면 새 비디오에 touch-action 사전 적용
+  try {
+    window.__VSC_INTERNAL__?.ZoomManager?.onNewVideoForZoom?.(v);
+  } catch (_) {}
+}
 
     function createApplyLoop(Store, Registry, Targeting, Adapter, Audio, AutoScene, ZoomMgr, ApplyReq, UI) {
       const paramsMemo = createVideoParamsMemo(Store, P, createUtils());
