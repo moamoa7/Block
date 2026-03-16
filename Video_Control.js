@@ -1339,54 +1339,70 @@
       };
 
       /* ── WorkQ ── */
-      const WorkQ = (() => {
-        const q = [], bigQ = [];
-        let head = 0, bigHead = 0, scheduled = false, epoch = 1;
-        const mark = new WeakMap();
-        function drainRunnerIdle(dl) { drain(dl); }
-        function drainRunnerRaf() { drain(); }
-        const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
-          ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null;
-        const schedule = () => {
-          if (scheduled) return; scheduled = true;
-          if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; }
-          if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 });
-          else requestAnimationFrame(drainRunnerRaf);
-        };
-        const enqueue = (n) => {
-          if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
-          const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch);
-          (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n);
-          schedule();
-        };
-        const scanNode = (n) => {
-          if (!n) return;
-          if (n.nodeType === 1) {
-            if (n.tagName === 'VIDEO') { observeVideo(n); return; }
-            try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
-            return;
-          }
-          if (n.nodeType === 11) {
-            try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
-          }
-        };
-        const drain = (dl) => {
-          scheduled = false;
-          const start = performance.now();
-          const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
-          let bigProcessed = 0;
-          while (budget()) {
-            if (bigHead < bigQ.length && bigProcessed < 1) { scanNode(bigQ[bigHead++]); bigProcessed++; continue; }
-            bigProcessed = 0;
-            if (head < q.length) { scanNode(q[head++]); if ((head & 3) === 0 && bigHead < bigQ.length) continue; }
-            else if (bigHead < bigQ.length) { scanNode(bigQ[bigHead++]); }
-            else break;
-          }
-          if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
-          schedule();
-        };
-        return Object.freeze({ enqueue });
-      })();
+      /* ── createRegistry 내부 WorkQ ── */
+const WorkQ = (() => {
+  const MAX_QUEUE_SIZE = 500;  // OOM 방지 및 큐 폭주 억제
+  const q = [], bigQ = [];
+  let head = 0, bigHead = 0, scheduled = false, epoch = 1;
+  const mark = new WeakMap();
+
+  function drainRunnerIdle(dl) { drain(dl); }
+  function drainRunnerRaf() { drain(); }
+
+  const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
+    ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null;
+
+  const schedule = () => {
+    if (scheduled) return; scheduled = true;
+    if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; }
+    if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 });
+    else requestAnimationFrame(drainRunnerRaf);
+  };
+
+  const enqueue = (n) => {
+    if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
+
+    // 큐가 가득 찼을 경우: 배열에 담지 않고 즉시 스캔 후 버림 (메모리 누수/렉 방지)
+    if ((q.length - head) + (bigQ.length - bigHead) >= MAX_QUEUE_SIZE) {
+      scanNode(n);
+      return;
+    }
+
+    const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch);
+    (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n);
+    schedule();
+  };
+
+  const scanNode = (n) => {
+    if (!n) return;
+    if (n.nodeType === 1) {
+      if (n.tagName === 'VIDEO') { observeVideo(n); return; }
+      try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
+      return;
+    }
+    if (n.nodeType === 11) {
+      try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
+    }
+  };
+
+  const drain = (dl) => {
+    scheduled = false;
+    const start = performance.now();
+    const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
+    let bigProcessed = 0;
+    while (budget()) {
+      if (bigHead < bigQ.length && bigProcessed < 1) { scanNode(bigQ[bigHead++]); bigProcessed++; continue; }
+      bigProcessed = 0;
+      if (head < q.length) { scanNode(q[head++]); if ((head & 3) === 0 && bigHead < bigQ.length) continue; }
+      else if (bigHead < bigQ.length) { scanNode(bigQ[bigHead++]); }
+      else break;
+    }
+    if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
+    schedule();
+  };
+
+  return Object.freeze({ enqueue });
+})();
 
       function nodeMayContainVideo(n) {
         if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false;
@@ -2078,94 +2094,115 @@
 
       let __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
 
-      function computeFullAnalysis(data, sw, sh) {
-        const step = 2;
-        let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
-        const lumHist = new Uint32Array(HIST_BINS);
-        const rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
-        const zoneW = Math.floor(sw / ZONE_COLS), zoneH = Math.floor(sh / ZONE_ROWS);
-        const zoneHists = new Array(ZONE_COUNT), zoneCounts = new Uint32Array(ZONE_COUNT);
-        for (let z = 0; z < ZONE_COUNT; z++) zoneHists[z] = new Uint32Array(HIST_BINS);
-        const zoneBrightSum = new Float32Array(ZONE_COUNT), zoneBrightCount = new Uint32Array(ZONE_COUNT);
-        const pixelCount = sw * sh;
-        if (!__curLumBuf || __curLumBufSize !== pixelCount) { __curLumBuf = new Uint8Array(pixelCount); __curLumBufSize = pixelCount; }
-        const curLum = __curLumBuf;
-        let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0;
-        const HI_LUMA_THR = 180;
+      /* ── Auto Scene Manager 내부 computeFullAnalysis 함수 ── */
+function computeFullAnalysis(data, sw, sh) {
+  const step = 2;
+  let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
+  const lumHist = new Uint32Array(HIST_BINS);
+  const rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
+  const zoneW = Math.floor(sw / ZONE_COLS), zoneH = Math.floor(sh / ZONE_ROWS);
+  const zoneHists = new Array(ZONE_COUNT), zoneCounts = new Uint32Array(ZONE_COUNT);
+  for (let z = 0; z < ZONE_COUNT; z++) zoneHists[z] = new Uint32Array(HIST_BINS);
+  const zoneBrightSum = new Float32Array(ZONE_COUNT), zoneBrightCount = new Uint32Array(ZONE_COUNT);
+  const pixelCount = sw * sh;
+  if (!__curLumBuf || __curLumBufSize !== pixelCount) { __curLumBuf = new Uint8Array(pixelCount); __curLumBufSize = pixelCount; }
+  const curLum = __curLumBuf;
+  let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0;
+  const HI_LUMA_THR = 180;
 
-        const zxLut = new Uint8Array(sw);
-        const maxZx = ZONE_COLS - 1, maxZy = ZONE_ROWS - 1;
-        const invZoneW = 1 / Math.max(1, zoneW), invZoneH = 1 / Math.max(1, zoneH);
-        for (let x = 0; x < sw; x++) zxLut[x] = Math.min(maxZx, (x * invZoneW) | 0);
-        const zyLut = new Uint8Array(sh);
-        for (let y = 0; y < sh; y++) zyLut[y] = Math.min(maxZy, (y * invZoneH) | 0);
+  const zxLut = new Uint8Array(sw);
+  const maxZx = ZONE_COLS - 1, maxZy = ZONE_ROWS - 1;
+  const invZoneW = 1 / Math.max(1, zoneW), invZoneH = 1 / Math.max(1, zoneH);
+  for (let x = 0; x < sw; x++) zxLut[x] = Math.min(maxZx, (x * invZoneW) | 0);
+  const zyLut = new Uint8Array(sh);
+  for (let y = 0; y < sh; y++) zyLut[y] = Math.min(maxZy, (y * invZoneH) | 0);
 
-        for (let y = 0; y < sh; y += step) {
-          const row = y * sw;
-          const zy = zyLut[y];
-          const zyBase = zy * ZONE_COLS;
-          for (let x = 0; x < sw; x += step) {
-            const idx = (row + x) << 2;
-            const r = data[idx], g = data[idx | 1], b = data[idx | 2];
-            const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
-            const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
-            const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
-            curLum[row + x] = l;
-            sumChroma += mx - mn;
-            sum += l; sum2 += l * l; count++;
-            lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
-            const ni = idx + 8;
-            if (x + step < sw) {
-              const l2 = (data[ni] * 54 + data[ni | 1] * 183 + data[ni | 2] * 18 + 128) >> 8;
-              const diff = l2 - l;
-              sumEdge += (diff ^ (diff >> 31)) - (diff >> 31);
-            }
-            if (r > g && r > b && r >= 80 && g >= 35 && b >= 20 && (r - g) > 12) skinCount++;
-            const zi = zyBase + zxLut[x];
-            zoneHists[zi][l]++; zoneCounts[zi]++;
-            zoneBrightSum[zi] += l; zoneBrightCount[zi]++;
-            if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
-          }
-        }
+  // 최적화된 핫루프 구역
+  for (let y = 0; y < sh; y += step) {
+    const rowOffset = (y * sw) << 2;
+    const zyBase = zyLut[y] * ZONE_COLS;
+    for (let x = 0; x < sw; x += step) {
+      const idx = rowOffset + (x << 2);
+      const r = data[idx];
+      const g = data[idx + 1];
+      const b = data[idx + 2];
+      const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
 
-        let motionSAD = 0;
-        if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
-          let sadSum = 0, sadCount = 0;
-          const bw = 8, bh = 8;
-          for (let by = 0; by + bh <= sh; by += bh) {
-            for (let bx = 0; bx + bw <= sw; bx += bw) {
-              let blockSad = 0;
-              for (let dy = 0; dy < bh; dy += step) { for (let dx = 0; dx < bw; dx += step) { const pi = (by + dy) * sw + (bx + dx); blockSad += Math.abs(curLum[pi] - __prevLumBuf[pi]); } }
-              sadSum += blockSad; sadCount++;
-            }
-          }
-          motionSAD = sadCount > 0 ? (sadSum / sadCount) / 255 : 0;
-        }
-        if (!__prevLumBuf || __prevLumBuf.length !== pixelCount) __prevLumBuf = new Uint8Array(pixelCount);
-        __prevLumBuf.set(curLum);
-
-        const n = Math.max(1, count);
-        const mean = sum / n, std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
-        const centerIndices = [5, 6, 9, 10];
-        let centerSum = 0, centerCnt = 0;
-        for (const ci of centerIndices) { if (zoneBrightCount[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneBrightCount[ci]; centerCnt++; } }
-        const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
-        let edgeSum = 0, edgeCount = 0;
-        for (let z = 0; z < ZONE_COUNT; z++) {
-          if (centerIndices.includes(z)) continue;
-          if (zoneBrightCount[z] > 0) { edgeSum += zoneBrightSum[z] / zoneBrightCount[z]; edgeCount++; }
-        }
-        const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
-        const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
-
-        return {
-          bright: mean / 255, contrast: std / 64, chroma: sumChroma / n / 255,
-          edge: sumEdge / n, motionSAD, skinRatio: skinCount / n,
-          centerBright, edgeAvgBright, hiLumaRBratio,
-          lumHist, rHist, gHist, bHist, totalSamples: count,
-          zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }
-        };
+      // min, max 연산을 단일 분기 체인으로 최적화 (성능 향상)
+      let mx, mn;
+      if (r >= g) {
+        mx = r >= b ? r : b;
+        mn = g <= b ? g : b;
+      } else {
+        mx = g >= b ? g : b;
+        mn = r <= b ? r : b;
       }
+
+      curLum[y * sw + x] = l;
+      sumChroma += mx - mn;
+      sum += l; sum2 += l * l; count++;
+      lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
+
+      if (x + step < sw) {
+        const ni = idx + (step << 2);
+        const l2 = (data[ni] * 54 + data[ni + 1] * 183 + data[ni + 2] * 18 + 128) >> 8;
+        const diff = l2 - l;
+        sumEdge += diff < 0 ? -diff : diff;
+      }
+
+      if ((r - g) > 12 && r >= 80 && g >= 35 && b >= 20 && r > g && r > b) skinCount++;
+
+      const zi = zyBase + zxLut[x];
+      zoneHists[zi][l]++; zoneCounts[zi]++;
+      zoneBrightSum[zi] += l; zoneBrightCount[zi]++;
+
+      if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
+    }
+  }
+
+  let motionSAD = 0;
+  if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
+    let sadSum = 0, sadCount = 0;
+    const bw = 8, bh = 8;
+    for (let by = 0; by + bh <= sh; by += bh) {
+      for (let bx = 0; bx + bw <= sw; bx += bw) {
+        let blockSad = 0;
+        for (let dy = 0; dy < bh; dy += step) {
+          for (let dx = 0; dx < bw; dx += step) {
+            const pi = (by + dy) * sw + (bx + dx);
+            blockSad += Math.abs(curLum[pi] - __prevLumBuf[pi]);
+          }
+        }
+        sadSum += blockSad; sadCount++;
+      }
+    }
+    motionSAD = sadCount > 0 ? (sadSum / sadCount) / 255 : 0;
+  }
+  if (!__prevLumBuf || __prevLumBuf.length !== pixelCount) __prevLumBuf = new Uint8Array(pixelCount);
+  __prevLumBuf.set(curLum);
+
+  const n = Math.max(1, count);
+  const mean = sum / n, std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
+  const centerIndices = [5, 6, 9, 10];
+  let centerSum = 0, centerCnt = 0;
+  for (const ci of centerIndices) { if (zoneBrightCount[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneBrightCount[ci]; centerCnt++; } }
+  const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
+  let edgeSum = 0, edgeCount = 0;
+  for (let z = 0; z < ZONE_COUNT; z++) {
+    if (centerIndices.includes(z)) continue;
+    if (zoneBrightCount[z] > 0) { edgeSum += zoneBrightSum[z] / zoneBrightCount[z]; edgeCount++; }
+  }
+  const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
+  const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
+
+  return {
+    bright: mean / 255, contrast: std / 64, chroma: sumChroma / n / 255,
+    edge: sumEdge / n, motionSAD, skinRatio: skinCount / n,
+    centerBright, edgeAvgBright, hiLumaRBratio,
+    lumHist, rHist, gHist, bHist, totalSamples: count,
+    zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }
+  };
+}
 
       const AUTO = {
         running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
@@ -2559,7 +2596,7 @@
           const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
           const rawS = (Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.6
                         + Number(s.clarity || 0) * 0.4) / 100.0;
-          const totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
+          const totalS = clamp(rawS * 0.50 / Math.max(0.5, pxScale), 0, 0.35);
 
           let kernelStr;
           if (totalS < 0.005) {
@@ -2618,33 +2655,45 @@
       return {
         prepareCached: (video, s) => { try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; } },
         applyFilter: (el, filterResult) => {
-          if (!el) return;
-          const st = getVState(el);
-          if (st._inPiP) return;
-          if (!filterResult) {
-            if (st.applied) {
-              if (!st._transitionCleared) el.style.removeProperty('transition');
-              el.style.removeProperty('will-change'); el.style.removeProperty('filter');
-              el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
-              st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
-            }
-            return;
-          }
-          const filterStr = filterResult.filterStr;
-          if (st.lastCssFilterStr === filterStr && st.applied) return;
-          if (!st._transitionCleared) { el.style.removeProperty('transition'); st._transitionCleared = true; }
-          if (st.lastCssFilterStr !== filterStr) {
-            el.style.setProperty('filter', filterStr, 'important');
-            el.style.setProperty('-webkit-filter', filterStr, 'important');
-          }
-          if (!st.applied) {
-            const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
-            el.style.setProperty('will-change', willChangeVal, 'important');
-            el.style.setProperty('contain', 'layout paint style', 'important');
-            el.style.setProperty('background-color', '#000', 'important');
-          }
-          st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
-        },
+  if (!el) return;
+  const st = getVState(el);
+  if (st._inPiP) return;
+
+  if (!filterResult) {
+    if (st.applied) {
+      if (!st._transitionCleared) el.style.removeProperty('transition');
+      el.style.removeProperty('will-change');
+      el.style.removeProperty('filter');
+      el.style.removeProperty('-webkit-filter');
+      el.style.removeProperty('background-color');
+      el.style.removeProperty('transform'); // GPU 가속 속성 제거
+      st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
+    }
+    return;
+  }
+
+  const filterStr = filterResult.filterStr;
+  if (st.lastCssFilterStr === filterStr && st.applied) return;
+  if (!st._transitionCleared) { el.style.removeProperty('transition'); st._transitionCleared = true; }
+
+  if (st.lastCssFilterStr !== filterStr) {
+    el.style.setProperty('filter', filterStr, 'important');
+    el.style.setProperty('-webkit-filter', filterStr, 'important');
+  }
+
+  if (!st.applied) {
+    const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
+    el.style.setProperty('will-change', willChangeVal, 'important');
+    el.style.setProperty('contain', 'layout paint style', 'important');
+    el.style.setProperty('background-color', '#000', 'important');
+
+    // 강제로 GPU 가속 레이어로 승격 (기존에 지정된 transform이 없는 경우에만 적용하여 줌 기능과 충돌 방지)
+    if (!el.style.getPropertyValue('transform') || el.style.getPropertyValue('transform') === 'none') {
+      el.style.setProperty('transform', 'translateZ(0)', 'important');
+    }
+  }
+  st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
+},
         clear: (el) => {
           if (!el) return;
           const st = getVState(el);
