@@ -2950,7 +2950,7 @@
         sub(P.PB_RATE, sync); sub(P.PB_EN, sync); sync();
       }
       function renderPresetRow({ items, key, offValue = null, toggleActiveToOff = false }) {
-        const row = h('div', { class: 'row' });ㅍ
+        const row = h('div', { class: 'row' });
         const addBtn = (text, value) => {
           const b = h('button', { class: 'preset-btn' }, text);
           // renderPresetRow의 preset-btn onclick 내부 (비디오 탭의 V_PRE_S 버튼들)
