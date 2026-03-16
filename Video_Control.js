@@ -101,15 +101,35 @@
     const onDoc = (type, fn, opts) => on(document, type, fn, opts);
     const onAll = (el, events, fn, opts) => { for (const ev of events) on(el, ev, fn, opts); };
 
+        // v191: blockInterference — Shadow DOM 내부 버튼 클릭을 보호
     const __blockedElements = new WeakSet();
-    const BLOCK_EVENTS_PASSIVE = Object.freeze(['pointerdown', 'pointerup', 'click', 'dblclick', 'contextmenu']);
+    const BLOCK_EVENTS_PASSIVE = Object.freeze(['pointerdown', 'pointerup', 'dblclick', 'contextmenu']);
     function blockInterference(el) {
       if (!el || __blockedElements.has(el)) return;
       __blockedElements.add(el);
-      const stop = (e) => e.stopPropagation();
-      for (const evt of BLOCK_EVENTS_PASSIVE) on(el, evt, stop, { passive: true });
-      on(el, 'wheel', (e) => { if (e.altKey) return; e.stopPropagation(); }, { passive: true });
+      const stop = (e) => {
+        // v191: 버튼/인풋 클릭은 차단하지 않음
+        const t = e.target;
+        if (t && (t.tagName === 'BUTTON' || t.tagName === 'INPUT' || t.tagName === 'SELECT' ||
+                  t.closest?.('button') || t.closest?.('input'))) return;
+        e.stopPropagation();
+      };
+      for (const evt of BLOCK_EVENTS_PASSIVE) {
+        on(el, evt, stop, { passive: true });
+      }
+      // v191: click은 별도 처리 — 버튼 계열은 통과시킴
+      on(el, 'click', (e) => {
+        const t = e.target;
+        if (t && (t.tagName === 'BUTTON' || t.tagName === 'INPUT' || t.tagName === 'SELECT' ||
+                  t.closest?.('button') || t.closest?.('input'))) return;
+        e.stopPropagation();
+      }, { passive: true });
+      on(el, 'wheel', (e) => {
+        if (e.altKey) return;
+        e.stopPropagation();
+      }, { passive: true });
     }
+
 
     function detectMobile() {
       try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {}
@@ -2898,8 +2918,14 @@
     }, { once: true });
 
     function getAutoPresetForResolution(videoHeight) {
-      if (CONFIG.IS_MOBILE) return 'off';
       const h = videoHeight || 0;
+      if (CONFIG.IS_MOBILE) {
+        // 모바일: CSS pseudo-sharp이므로 더 낮은 해상도 기준 적용
+        if (h <= 360) return 'L';
+        if (h <= 480) return 'M';
+        if (h <= 720) return 'S';
+        return 'off';
+      }
       if (h <= 480) return 'L';
       if (h <= 720) return 'M';
       if (h <= 1080) return 'S';
@@ -3106,7 +3132,7 @@
             renderPresetRow({ key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: PRESET_LABELS.detail[k] || k, value: k })) }),
             h('div', { class: 'row', style: 'margin-top:6px' },
               (() => { const autoBtn = h('button', { class: 'btn' }); autoBtn.append(svgIcon('sparkles'), document.createTextNode(' Auto Scene')); autoBtn.onclick = () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); bindClassToggle(autoBtn, P.APP_AUTO_SCENE, v => !!v); return autoBtn; })(),
-              (() => { const apBtn = h('button', { class: 'btn' }); apBtn.append(svgIcon('wand'), document.createTextNode(' 자동')); apBtn.onclick = () => setAndHint(P.APP_AUTO_PRESET, !sm.get(P.APP_AUTO_PRESET)); bindClassToggle(apBtn, P.APP_AUTO_PRESET, v => !!v); return apBtn; })()
+              (() => { const apBtn = h('button', { class: 'btn' }); apBtn.append(svgIcon('wand'), document.createTextNode(' 자동')); apBtn.addEventListener('click', (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_PRESET, !sm.get(P.APP_AUTO_PRESET)); }); bindClassToggle(apBtn, P.APP_AUTO_PRESET, v => !!v); return apBtn; })()
             )
           ),
           advToggleBtn,
