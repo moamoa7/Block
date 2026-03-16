@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v193.2.0)
+// @name         Video_Control (v193.3.0)
 // @namespace    https://github.com/
-// @version      193.2.0
+// @version      193.3.0
 // @description  v193: blockInterference composedPath fix, SVG tagName safety, audio param tuning, ratechange backoff hardening, SPA patch-restore guard, AudioContext cleanup, dead-code removal.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -148,7 +148,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '193.2.0';
+    const VSC_VERSION = '193.3.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
     const MOBILE_COLOR_BIAS = { r: 1.00, g: 1.00, b: 0.97 };
@@ -812,7 +812,9 @@
       let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
       const zoomedVideos = new Set();
       let activePointerId = null, destroyed = false;
-      const ZOOM_PROPS = ['will-change', 'contain', 'backface-visibility', 'transition', 'transform-origin', 'transform', 'cursor', 'z-index', 'position'];
+
+      // ZOOM_PROPS에 'touch-action' 추가
+      const ZOOM_PROPS = ['will-change', 'contain', 'backface-visibility', 'transition', 'transform-origin', 'transform', 'cursor', 'z-index', 'position', 'touch-action'];
       const getSt = (v) => { let st = stateMap.get(v); if (!st) { st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false, _savedPosition: '', _savedZIndex: '' }; stateMap.set(v, st); } return st; };
       const pendingUpdates = new Set();
       let rafId = null;
@@ -823,6 +825,7 @@
         if (st.scale <= 1) {
           if (st.zoomed) {
             for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+            v.style.removeProperty('touch-action');
             if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
             if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
             st.zoomed = false;
@@ -844,6 +847,7 @@
         v.style.setProperty('cursor', panning ? 'grabbing' : 'grab', 'important');
         v.style.setProperty('z-index', '2147483646', 'important');
         v.style.setProperty('position', 'relative', 'important');
+        v.style.setProperty('touch-action', 'none', 'important'); // 브라우저 제스처 차단
         zoomedVideos.add(v);
       }
 
@@ -903,12 +907,57 @@
       }
 
       function getTargetVideo(e) {
-        if (typeof e.composedPath === 'function') { const path = e.composedPath(); for (let i = 0, len = Math.min(path.length, 10); i < len; i++) { if (path[i]?.tagName === 'VIDEO') return path[i]; } }
-        const touch = e.touches?.[0], cx = Number.isFinite(e.clientX) ? e.clientX : (touch?.clientX ?? null), cy = Number.isFinite(e.clientY) ? e.clientY : (touch?.clientY ?? null);
-        if (cx != null && cy != null) { const els = document.elementsFromPoint(cx, cy); for (const el of els) { if (el?.tagName === 'VIDEO') return el; } }
+        // 1) composedPath에서 직접 VIDEO 찾기
+        if (typeof e.composedPath === 'function') {
+          const path = e.composedPath();
+          for (let i = 0, len = Math.min(path.length, 10); i < len; i++) {
+            if (path[i]?.tagName === 'VIDEO') return path[i];
+          }
+        }
+
+        // 2) 터치/마우스 좌표로 elementsFromPoint
+        const touch = e.touches?.[0];
+        const cx = Number.isFinite(e.clientX) ? e.clientX : (touch?.clientX ?? null);
+        const cy = Number.isFinite(e.clientY) ? e.clientY : (touch?.clientY ?? null);
+        if (cx != null && cy != null) {
+          try {
+            const els = document.elementsFromPoint(cx, cy);
+            for (const el of els) {
+              if (el?.tagName === 'VIDEO') return el;
+            }
+            // 모바일: 오버레이 아래 VIDEO를 못 찾는 경우 (부모 컨테이너 탐색 추가)
+            for (const el of els) {
+              if (!el || el.nodeType !== 1) continue;
+              const vid = el.querySelector?.('video');
+              if (vid) return vid;
+              const parent = el.closest?.('[class*="player"], [class*="video"], [id*="player"], [id*="video"]');
+              if (parent) {
+                const vid2 = parent.querySelector('video');
+                if (vid2) return vid2;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 3) 두 번째 터치 포인트로도 시도 (핀치 줌 시)
+        const touch2 = e.touches?.[1];
+        if (touch2) {
+          const cx2 = touch2.clientX, cy2 = touch2.clientY;
+          if (Number.isFinite(cx2) && Number.isFinite(cy2)) {
+            try {
+              const els2 = document.elementsFromPoint(cx2, cy2);
+              for (const el of els2) {
+                if (el?.tagName === 'VIDEO') return el;
+              }
+            } catch (_) {}
+          }
+        }
+
+        // 4) 최종 fallback
         return window.__VSC_INTERNAL__?.App?.getActiveVideo() || null;
       }
 
+      // --- 데스크톱/마우스 제스처 ---
       onWin('wheel', e => {
         if (!e.altKey || !isZoomEnabled()) return;
         if (isVscUiEvent(e)) return;
@@ -961,62 +1010,102 @@
         if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
       }, { capture: true });
 
+      // --- 터치/모바일 제스처 ---
       onWin('touchstart', e => {
-        if (CONFIG.IS_MOBILE && !isZoomEnabled()) return;
+        if (!isZoomEnabled()) return;
         if (isVscUiEvent(e)) return;
-        const v = getTargetVideo(e); if (!v) return;
+
+        const v = getTargetVideo(e);
+        if (!v) return;
+
         if (e.touches.length === 2) {
-          isPanning = false; if (e.cancelable) e.preventDefault();
+          // 즉시 touch-action 비활성화하여 브라우저 핀치 줌 차단
+          v.style.setProperty('touch-action', 'none', 'important');
+
+          isPanning = false;
+          if (e.cancelable) e.preventDefault();
+
           const st = getSt(v);
-          activeVideo = v; pinchState.active = true;
+          activeVideo = v;
+          pinchState.active = true;
           pinchState.initialDist = getTouchDist(e.touches);
           pinchState.initialScale = st.scale;
           const c = getTouchCenter(e.touches);
-          pinchState.lastCx = c.x; pinchState.lastCy = c.y;
+          pinchState.lastCx = c.x;
+          pinchState.lastCy = c.y;
         } else if (e.touches.length === 1) {
           const st = getSt(v);
           if (st.scale > 1) {
             if (e.cancelable) e.preventDefault();
-            activeVideo = v; isPanning = true; st.hasPanned = false;
-            startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
+            activeVideo = v;
+            isPanning = true;
+            st.hasPanned = false;
+            startX = e.touches[0].clientX - st.tx;
+            startY = e.touches[0].clientY - st.ty;
           }
         }
       }, { passive: false, capture: true });
 
       onWin('touchmove', e => {
         if (!activeVideo) return;
-        if (!activeVideo.isConnected) { isPanning = false; pinchState.active = false; activeVideo = null; return; }
+        if (!activeVideo.isConnected) {
+          isPanning = false; pinchState.active = false; activeVideo = null; return;
+        }
         const st = getSt(activeVideo);
+
         if (pinchState.active && e.touches.length === 2) {
           if (e.cancelable) e.preventDefault();
-          const dist = getTouchDist(e.touches), center = getTouchCenter(e.touches);
+          const dist = getTouchDist(e.touches);
+          const center = getTouchCenter(e.touches);
           let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
           newScale = Math.min(Math.max(1, newScale), 10);
-          if (newScale < 1.05) { resetZoom(activeVideo); pinchState.active = false; isPanning = false; activeVideo = null; }
-          else {
+
+          if (newScale < 1.05) {
+            resetZoom(activeVideo);
+            pinchState.active = false;
+            isPanning = false;
+            activeVideo = null;
+          } else {
             zoomTo(activeVideo, newScale, center.x, center.y);
-            st.tx += center.x - pinchState.lastCx; st.ty += center.y - pinchState.lastCy;
-            clampPan(activeVideo, st); update(activeVideo);
+            st.tx += center.x - pinchState.lastCx;
+            st.ty += center.y - pinchState.lastCy;
+            clampPan(activeVideo, st);
+            update(activeVideo);
           }
-          pinchState.lastCx = center.x; pinchState.lastCy = center.y;
+          pinchState.lastCx = center.x;
+          pinchState.lastCy = center.y;
         } else if (isPanning && e.touches.length === 1 && st.scale > 1) {
           if (e.cancelable) e.preventDefault();
           const t = e.touches[0];
-          const nextTx = t.clientX - startX, nextTy = t.clientY - startY;
+          const nextTx = t.clientX - startX;
+          const nextTy = t.clientY - startY;
           if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
-          st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo);
+          st.tx = nextTx;
+          st.ty = nextTy;
+          clampPan(activeVideo, st);
+          update(activeVideo);
         }
       }, { passive: false, capture: true });
 
       onWin('touchend', e => {
         if (!activeVideo) return;
-        if (!activeVideo.isConnected) { isPanning = false; pinchState.active = false; activeVideo = null; return; }
+        if (!activeVideo.isConnected) {
+          isPanning = false; pinchState.active = false; activeVideo = null; return;
+        }
+
         if (e.touches.length < 2) pinchState.active = false;
+
         if (e.touches.length === 1 && activeVideo?.isConnected && getSt(activeVideo).scale > 1) {
           isPanning = true;
-          const st = getSt(activeVideo); st.hasPanned = false;
-          startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
-        } else if (e.touches.length === 0) { isPanning = false; update(activeVideo); activeVideo = null; }
+          const st = getSt(activeVideo);
+          st.hasPanned = false;
+          startX = e.touches[0].clientX - st.tx;
+          startY = e.touches[0].clientY - st.ty;
+        } else if (e.touches.length === 0) {
+          isPanning = false;
+          update(activeVideo);
+          activeVideo = null;
+        }
       }, { passive: false, capture: true });
 
       return {
