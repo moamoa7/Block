@@ -2950,17 +2950,24 @@
         sub(P.PB_RATE, sync); sub(P.PB_EN, sync); sync();
       }
       function renderPresetRow({ items, key, offValue = null, toggleActiveToOff = false }) {
-        const row = h('div', { class: 'row' });
+        const row = h('div', { class: 'row' });ㅍ
         const addBtn = (text, value) => {
           const b = h('button', { class: 'preset-btn' }, text);
-          b.onclick = () => {
-            const cur = sm.get(key);
-            if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) {
-              setAndHint(key, offValue);
-            } else {
-              setAndHint(key, value);
-            }
-          };
+          // renderPresetRow의 preset-btn onclick 내부 (비디오 탭의 V_PRE_S 버튼들)
+b.onclick = () => {
+    const cur = sm.get(key);
+    if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) {
+        setAndHint(key, offValue);
+    } else {
+        setAndHint(key, value);
+    }
+    // ★ 수동 선택 시 자동 프리셋 비활성화
+    if (key === P.V_PRE_S && sm.get(P.APP_AUTO_PRESET)) {
+        sm.set(P.APP_AUTO_PRESET, false);
+        showOSD('자동 프리셋 해제됨 (수동 선택)', 1200);
+    }
+};
+
           bindClassToggle(b, key, v => v === value);
           row.append(b);
         };
