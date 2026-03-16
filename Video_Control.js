@@ -2467,157 +2467,142 @@
       }, { once: true });
 
       function buildSvg(root) {
-        const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
-        const defs = h('defs', { ns: 'svg' });
-        svg.append(defs);
-        __createdSvgs.add(svg);
+  const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
+  const defs = h('defs', { ns: 'svg' });
+  svg.append(defs);
+  __createdSvgs.add(svg);
 
-        const fidLite = `vsc-lite-${config.VSC_ID}`;
-        const lite = h('filter', { ns: 'svg', id: fidLite, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-        const liteConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'lSharp' });
-        const liteTone = mkXfer({ in: 'lSharp', result: 'lBase' }, { type: 'table', tableValues: '0 1' });
-        const liteTmp = mkXfer({ in: 'lBase', result: 'lOut' }, { type: 'linear', slope: '1' });
-        lite.append(liteConv, liteTone, liteTmp);
+  const fid = `vsc-f-${config.VSC_ID}`;
+  const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB',
+    x: '0%', y: '0%', width: '100%', height: '100%' });
 
-        const fidFull = `vsc-full-${config.VSC_ID}`;
-        const full = h('filter', { ns: 'svg', id: fidFull, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-        const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
-        const fTone = mkXfer({ in: 'conv', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
-        const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
-        const fFinal = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1.0', result: 'final' });
-        full.append(fConv, fTone, fTemp, fFinal);
+  const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3',
+    kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0',
+    targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
 
-        defs.append(lite, full);
+  const fTone = mkXfer({ in: 'conv', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
+  const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
+  const fSat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1.0', result: 'final' });
 
-        const tryAppend = () => {
-          const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
-          if (!target?.appendChild) return false;
-          try {
-            const escapedFull = fidFull.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const existing = target.querySelector(`filter[id="${escapedFull}"]`);
-            if (existing) { const oldSvg = existing.closest('svg'); if (oldSvg && oldSvg !== svg) oldSvg.remove(); }
-          } catch (_) {}
-          target.appendChild(svg); return true;
-        };
-        if (!tryAppend()) {
-          let retryCount = 0;
-          const t = setRecurring(() => { if (++retryCount > 40 || tryAppend()) clearRecurring(t); }, 50);
-          setTimer(() => clearRecurring(t), 3000);
-        }
+  filter.append(fConv, fTone, fTemp, fSat);
+  defs.append(filter);
 
-        const fullToneFuncsAll = Array.from(fTone.children);
-        const liteToneFuncsAll = Array.from(liteTone.children);
+  const tryAppend = () => {
+    const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
+    if (!target?.appendChild) return false;
+    try {
+      const escapedFid = fid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existing = target.querySelector(`filter[id="${escapedFid}"]`);
+      if (existing) { const oldSvg = existing.closest('svg'); if (oldSvg && oldSvg !== svg) oldSvg.remove(); }
+    } catch (_) {}
+    target.appendChild(svg); return true;
+  };
+  if (!tryAppend()) {
+    let retryCount = 0;
+    const t = setRecurring(() => { if (++retryCount > 40 || tryAppend()) clearRecurring(t); }, 50);
+    setTimer(() => clearRecurring(t), 3000);
+  }
 
-        return {
-          fidLite, fidFull, liteConv,
-          liteToneFuncs: liteToneFuncsAll,
-          liteToneFuncsRGB: liteToneFuncsAll.filter(fn => fn.tagName !== 'feFuncA'),
-          liteTmpFuncs: Array.from(liteTmp.children),
-          fConv,
-          fullToneFuncs: fullToneFuncsAll,
-          fullToneFuncsRGB: fullToneFuncsAll.filter(fn => fn.tagName !== 'feFuncA'),
-          fullTempFuncs: Array.from(fTemp.children),
-          fFinal,
-          st: { lastKey: '', liteToneKey: '', liteToneTable: '', liteConvKey: '', liteTempKey: '', fullToneKey: '', fullToneTable: '', fullSharpKey: '', fullDesatKey: '', fullTempKey: '' }
-        };
-      }
+  const toneFuncsAll = Array.from(fTone.children);
 
-      function prepare(video, s) {
-        const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
-        let dc = urlCache.get(root);
-        if (!dc) { dc = { key: '', url: '', filterStr: 'none' }; urlCache.set(root, dc); }
-
-        const useFull = !__liteForced;
-        const svgKey = (useFull ? 'F' : 'L') + '|' + (video.videoWidth || 0) + '|' + makeKeyBase(s);
-        const fullKey = svgKey + '|css:' + s._cssBr.toFixed(3) + '|' + s._cssCt.toFixed(3) + '|' + s._cssSat.toFixed(3);
-        if (dc.key === fullKey) return { svgUrl: dc.url, filterStr: dc.filterStr };
-
-        let ctx = ctxMap.get(root);
-        if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
-        const st = ctx.st;
-
-        if (st.lastKey !== svgKey) {
-          st.lastKey = svgKey;
-          const steps = 256;
-          const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
-          const toneTable = s._autoToneCurve ? s._autoToneCurve.join(' ') : getToneTableCached(steps, 0, 0, 0, s.gain || 1, 1.0, 0, gamma);
-
-          /* ── Sharpening kernel computation ── */
-let totalS, kernelStr;
-// v191 수정: 모바일/PC 동일하게 등방성 커널 사용, 모바일은 pxScale로 자연 감쇠
-const refH = CONFIG.IS_MOBILE ? 720 : 1080;
-const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
-const rawS = (Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.6
-              + Number(s.clarity || 0) * 0.4) / 100.0;
-totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
-
-if (totalS < 0.005) {
-  kernelStr = '0,0,0, 0,1,0, 0,0,0';
-} else {
-  const diag = -totalS * 0.5;
-  const edge = -totalS;
-  const center = 1.0 - 4 * edge - 4 * diag;
-  kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
+  return {
+    fid, fConv,
+    toneFuncs: toneFuncsAll,
+    toneFuncsRGB: toneFuncsAll.filter(fn => fn.tagName !== 'feFuncA'),
+    tempFuncs: Array.from(fTemp.children),
+    fSat,
+    st: { lastKey: '', toneKey: '', toneTable: '', sharpKey: '', desatKey: '', tempKey: '' }
+  };
 }
 
 
-          const userTemp = tempToRgbGain(s.temp);
-          let finalRs = userTemp.rs, finalGs = userTemp.gs, finalBs = userTemp.bs;
-          if (s._autoChannelGains) {
-            const ag = s._autoChannelGains;
-            finalRs = userTemp.rs * clamp(ag.rGain, 0.80, 1.20);
-            finalGs = userTemp.gs * clamp(ag.gGain, 0.90, 1.10);
-            finalBs = userTemp.bs * clamp(ag.bGain, 0.80, 1.20);
-            const maxG = Math.max(finalRs, finalGs, finalBs, 1);
-            finalRs /= maxG; finalGs /= maxG; finalBs /= maxG;
-          }
+      function prepare(video, s) {
+  const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument)
+    ? video.getRootNode() : (video.ownerDocument || document);
+  let dc = urlCache.get(root);
+  if (!dc) { dc = { key: '', url: '', filterStr: 'none' }; urlCache.set(root, dc); }
 
-          if (useFull) {
-            if (st.fullToneKey !== toneTable) {
-              st.fullToneKey = toneTable;
-              for (const fn of ctx.fullToneFuncsRGB) fn.setAttribute('tableValues', toneTable);
-            }
-            const tmk = finalRs.toFixed(3) + '|' + finalGs.toFixed(3) + '|' + finalBs.toFixed(3);
-            if (st.fullTempKey !== tmk) {
-              st.fullTempKey = tmk;
-              ctx.fullTempFuncs[0].setAttribute('slope', finalRs);
-              ctx.fullTempFuncs[1].setAttribute('slope', finalGs);
-              ctx.fullTempFuncs[2].setAttribute('slope', finalBs);
-            }
-            const sharpKey = kernelStr;
-            if (st.fullSharpKey !== sharpKey) {
-              st.fullSharpKey = sharpKey;
-              ctx.fConv.setAttribute('kernelMatrix', kernelStr);
-              const desatVal = totalS > 0.008 ? clamp(1.0 - totalS * 0.1, 0.90, 1.0).toFixed(3) : '1.000';
-              if (st.fullDesatKey !== desatVal) { st.fullDesatKey = desatVal; ctx.fFinal.setAttribute('values', desatVal); }
-            }
-          } else {
-            if (st.liteToneKey !== toneTable) {
-              st.liteToneKey = toneTable;
-              for (const fn of ctx.liteToneFuncsRGB) fn.setAttribute('tableValues', toneTable);
-            }
-            const tmk = finalRs.toFixed(3) + '|' + finalGs.toFixed(3) + '|' + finalBs.toFixed(3);
-            if (st.liteTempKey !== tmk) {
-              st.liteTempKey = tmk;
-              ctx.liteTmpFuncs[0].setAttribute('slope', finalRs);
-              ctx.liteTmpFuncs[1].setAttribute('slope', finalGs);
-              ctx.liteTmpFuncs[2].setAttribute('slope', finalBs);
-            }
-            const mk = kernelStr;
-            if (st.liteConvKey !== mk) { st.liteConvKey = mk; ctx.liteConv.setAttribute('kernelMatrix', kernelStr); }
-          }
-        }
+  const svgKey = (video.videoWidth || 0) + '|' + makeKeyBase(s);
+  const fullKey = svgKey + '|css:' + s._cssBr.toFixed(3) + '|' + s._cssCt.toFixed(3) + '|' + s._cssSat.toFixed(3);
+  if (dc.key === fullKey) return { svgUrl: dc.url, filterStr: dc.filterStr };
 
-        const fid = useFull ? ctx.fidFull : ctx.fidLite;
-        const url = `url(#${fid})`;
-        let filterStr = url;
-        if (Math.abs(s._cssBr - 1) > 0.001) filterStr += ` brightness(${s._cssBr.toFixed(4)})`;
-        if (Math.abs(s._cssCt - 1) > 0.001) filterStr += ` contrast(${s._cssCt.toFixed(4)})`;
-        if (Math.abs(s._cssSat - 1) > 0.001) filterStr += ` saturate(${s._cssSat.toFixed(4)})`;
+  let ctx = ctxMap.get(root);
+  if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
+  const st = ctx.st;
 
-        dc.key = fullKey; dc.url = url; dc.filterStr = filterStr;
-        return { svgUrl: url, filterStr };
+  if (st.lastKey !== svgKey) {
+    st.lastKey = svgKey;
+    const steps = 256;
+    const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
+    const toneTable = s._autoToneCurve
+      ? s._autoToneCurve.join(' ')
+      : getToneTableCached(steps, 0, 0, 0, s.gain || 1, 1.0, 0, gamma);
+
+    // 커널 계산 (모바일/PC 통합)
+    const refH = CONFIG.IS_MOBILE ? 720 : 1080;
+    const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
+    const rawS = (Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.6
+                  + Number(s.clarity || 0) * 0.4) / 100.0;
+    const totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
+
+    let kernelStr;
+    if (totalS < 0.005) {
+      kernelStr = '0,0,0, 0,1,0, 0,0,0';
+    } else {
+      const diag = -totalS * 0.5;
+      const edge = -totalS;
+      const center = 1.0 - 4 * edge - 4 * diag;
+      kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
+    }
+
+    // 색온도
+    const userTemp = tempToRgbGain(s.temp);
+    let finalRs = userTemp.rs, finalGs = userTemp.gs, finalBs = userTemp.bs;
+    if (s._autoChannelGains) {
+      const ag = s._autoChannelGains;
+      finalRs = userTemp.rs * clamp(ag.rGain, 0.80, 1.20);
+      finalGs = userTemp.gs * clamp(ag.gGain, 0.90, 1.10);
+      finalBs = userTemp.bs * clamp(ag.bGain, 0.80, 1.20);
+      const maxG = Math.max(finalRs, finalGs, finalBs, 1);
+      finalRs /= maxG; finalGs /= maxG; finalBs /= maxG;
+    }
+
+    // tone
+    if (st.toneKey !== toneTable) {
+      st.toneKey = toneTable;
+      for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
+    }
+    // temp
+    const tmk = finalRs.toFixed(3) + '|' + finalGs.toFixed(3) + '|' + finalBs.toFixed(3);
+    if (st.tempKey !== tmk) {
+      st.tempKey = tmk;
+      ctx.tempFuncs[0].setAttribute('slope', finalRs);
+      ctx.tempFuncs[1].setAttribute('slope', finalGs);
+      ctx.tempFuncs[2].setAttribute('slope', finalBs);
+    }
+    // sharp
+    if (st.sharpKey !== kernelStr) {
+      st.sharpKey = kernelStr;
+      ctx.fConv.setAttribute('kernelMatrix', kernelStr);
+      const desatVal = totalS > 0.008
+        ? clamp(1.0 - totalS * 0.1, 0.90, 1.0).toFixed(3) : '1.000';
+      if (st.desatKey !== desatVal) {
+        st.desatKey = desatVal;
+        ctx.fSat.setAttribute('values', desatVal);
       }
+    }
+  }
+
+  const url = `url(#${ctx.fid})`;
+  let filterStr = url;
+  if (Math.abs(s._cssBr - 1) > 0.001) filterStr += ` brightness(${s._cssBr.toFixed(4)})`;
+  if (Math.abs(s._cssCt - 1) > 0.001) filterStr += ` contrast(${s._cssCt.toFixed(4)})`;
+  if (Math.abs(s._cssSat - 1) > 0.001) filterStr += ` saturate(${s._cssSat.toFixed(4)})`;
+
+  dc.key = fullKey; dc.url = url; dc.filterStr = filterStr;
+  return { svgUrl: url, filterStr };
+}
+
 
       return {
         prepareCached: (video, s) => { try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; } },
@@ -2737,7 +2722,7 @@ if (totalS < 0.005) {
 
   if (autoMods._toneCurve) {
     out.satF = (out.satF || 1.0) * autoMods.sat;
-    out._autoToneCurve = autoMods._toneCurve;
+    out._autoToneCurve = autoMods._toneCurve.slice();
     out._autoChannelGains = autoMods._channelGains || null;
   } else {
     out.gain = (out.gain || 1.0) * autoMods.br;
@@ -2753,10 +2738,6 @@ if (totalS < 0.005) {
 
   return out;
 }
-
-
-      return out;
-    }
 
     const isNeutralVideoParams = (v) => (
       !v._autoToneCurve && !v._autoChannelGains &&
@@ -3046,7 +3027,7 @@ if (totalS < 0.005) {
           const v = window.__VSC_APP__?.getActiveVideo();
           if (!v || !container?.isConnected) { videoInfo.textContent = ''; return; }
           const w = v.videoWidth, ht = v.videoHeight;
-          const mode = __liteForced ? 'LITE' : 'FULL';
+          const mode = 'SVG';
           videoInfo.textContent = `${w}\u00D7${ht} \u00B7 ${mode}`;
         }
         sub(P.APP_UI, (visible) => {
@@ -4066,7 +4047,7 @@ if (totalS < 0.005) {
                 ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime))
                 : '?';
               const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?';
-              const mode = __liteForced ? 'LITE' : 'FULL';
+              const mode = 'SVG';
               const sceneInfo = window.__VSC_INTERNAL__?.AutoScene?.getSceneTypeName?.() || '-';
               showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | ${mode} | scene:${sceneInfo}`, 3000);
               break;
