@@ -2543,26 +2543,23 @@
           const toneTable = s._autoToneCurve ? s._autoToneCurve.join(' ') : getToneTableCached(steps, 0, 0, 0, s.gain || 1, 1.0, 0, gamma);
 
           /* ── Sharpening kernel computation ── */
-          let totalS, kernelStr;
-          if (CONFIG.IS_MOBILE) {
-            // 모바일: SVG 컨볼루션 비활성 — CSS pseudo-sharp가 composeVideoParamsInto에서 처리
-            totalS = 0;
-          } else {
-            // PC: 등방성(isotropic) 8방향 커널
-            const refH = 1080;
-            const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
-            const rawS = (Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.6 + Number(s.clarity || 0) * 0.4) / 100.0;
-            totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
-          }
+let totalS, kernelStr;
+// v191 수정: 모바일/PC 동일하게 등방성 커널 사용, 모바일은 pxScale로 자연 감쇠
+const refH = CONFIG.IS_MOBILE ? 720 : 1080;
+const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
+const rawS = (Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.6
+              + Number(s.clarity || 0) * 0.4) / 100.0;
+totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
 
-          if (totalS < 0.005) {
-            kernelStr = '0,0,0, 0,1,0, 0,0,0';
-          } else {
-            const diag = -totalS * 0.5;
-            const edge = -totalS;
-            const center = 1.0 - 4 * edge - 4 * diag;
-            kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
-          }
+if (totalS < 0.005) {
+  kernelStr = '0,0,0, 0,1,0, 0,0,0';
+} else {
+  const diag = -totalS * 0.5;
+  const edge = -totalS;
+  const center = 1.0 - 4 * edge - 4 * diag;
+  kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
+}
+
 
           const userTemp = tempToRgbGain(s.temp);
           let finalRs = userTemp.rs, finalGs = userTemp.gs, finalBs = userTemp.bs;
@@ -2710,65 +2707,53 @@
 
     /* ── Compose Video Params (with mobile CSS pseudo-sharp) ── */
     function composeVideoParamsInto(out, vUser, autoMods) {
-      const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
-      const gPreset = PRESETS.grade[vUser.presetB] || PRESETS.grade.off;
-      const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
+  const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
+  const gPreset = PRESETS.grade[vUser.presetB] || PRESETS.grade.off;
+  const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
 
-      out.gain = 1.0;
-      out.gamma = 1 + ((gPreset.gammaF || 1) - 1) * mix;
-      out.contrast = 1.0;
-      out.bright = (gPreset.brightAdd || 0) * mix;
-      out.satF = 1.0;
-      out.mid = 0; out.toe = 0; out.shoulder = 0; out.temp = 0;
+  out.gain = 1.0;
+  out.gamma = 1 + ((gPreset.gammaF || 1) - 1) * mix;
+  out.contrast = 1.0;
+  out.bright = (gPreset.brightAdd || 0) * mix;
+  out.satF = 1.0;
+  out.mid = 0; out.toe = 0; out.shoulder = 0; out.temp = 0;
 
-      if (CONFIG.IS_MOBILE) {
-        // 모바일: SVG 컨볼루션 비활성 — CSS contrast/brightness로 의사 샤프닝
-        out.sharp = 0; out.sharp2 = 0; out.clarity = 0;
-        const sharpIntent = ((dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6
-                            + (dPreset.clarityAdd || 0) * 0.4) / 100.0 * mix;
-        out._mobileSharpIntent = sharpIntent;
-      } else {
-        // PC: SVG 등방성 커널 사용
-        out.sharp = (dPreset.sharpAdd || 0) * mix;
-        out.sharp2 = (dPreset.sharp2Add || 0) * mix;
-        out.clarity = (dPreset.clarityAdd || 0) * mix;
-        out._mobileSharpIntent = 0;
-      }
+  // v191 수정: 모바일도 SVG 샤프닝 사용 (강도만 축소)
+  const mobileDampen = CONFIG.IS_MOBILE ? 0.7 : 1.0;
+  out.sharp = (dPreset.sharpAdd || 0) * mix * mobileDampen;
+  out.sharp2 = (dPreset.sharp2Add || 0) * mix * mobileDampen;
+  out.clarity = (dPreset.clarityAdd || 0) * mix * mobileDampen;
+  out._mobileSharpIntent = 0; // CSS pseudo-sharp 제거
 
-      applyShadowBandStack(out, vUser.shadowBandMask);
-      applyBrightStepStack(out, vUser.brightStepLevel);
+  applyShadowBandStack(out, vUser.shadowBandMask);
+  applyBrightStepStack(out, vUser.brightStepLevel);
 
-      const autoSceneHasCurve = !!(autoMods._toneCurve);
-      if (autoSceneHasCurve && vUser.presetB && vUser.presetB !== 'off') {
-        const ATTENUATION = 0.45;
-        out.bright = (out.bright || 0) * ATTENUATION;
-        out.gamma = 1.0 + ((out.gamma || 1.0) - 1.0) * ATTENUATION;
-      }
+  const autoSceneHasCurve = !!(autoMods._toneCurve);
+  if (autoSceneHasCurve && vUser.presetB && vUser.presetB !== 'off') {
+    const ATTENUATION = 0.45;
+    out.bright = (out.bright || 0) * ATTENUATION;
+    out.gamma = 1.0 + ((out.gamma || 1.0) - 1.0) * ATTENUATION;
+  }
 
-      if (autoMods._toneCurve) {
-        out.satF = (out.satF || 1.0) * autoMods.sat;
-        out._autoToneCurve = autoMods._toneCurve;
-        out._autoChannelGains = autoMods._channelGains || null;
-      } else {
-        out.gain = (out.gain || 1.0) * autoMods.br;
-        out.contrast = (out.contrast || 1.0) * autoMods.ct;
-        out.satF = (out.satF || 1.0) * autoMods.sat;
-      }
+  if (autoMods._toneCurve) {
+    out.satF = (out.satF || 1.0) * autoMods.sat;
+    out._autoToneCurve = autoMods._toneCurve;
+    out._autoChannelGains = autoMods._channelGains || null;
+  } else {
+    out.gain = (out.gain || 1.0) * autoMods.br;
+    out.contrast = (out.contrast || 1.0) * autoMods.ct;
+    out.satF = (out.satF || 1.0) * autoMods.sat;
+  }
 
-      out._cssBr = VSC_CLAMP(1.0 + (out.bright || 0) * 0.008, 0.5, 2.0);
-      out._cssCt = VSC_CLAMP(out.contrast || 1, 0.5, 2.0);
-      out._cssSat = VSC_CLAMP(out.satF || 1, 0, 3.0);
+  out._cssBr = VSC_CLAMP(1.0 + (out.bright || 0) * 0.008, 0.5, 2.0);
+  out._cssCt = VSC_CLAMP(out.contrast || 1, 0.5, 2.0);
+  out._cssSat = VSC_CLAMP(out.satF || 1, 0, 3.0);
 
-      // 모바일 CSS 의사 샤프닝 적용
-      const si = out._mobileSharpIntent || 0;
-      if (si > 0.01) {
-        const ctBoost = 1.0 + VSC_CLAMP(si * 0.24, 0, 0.12);
-        const brComp = 1.0 - VSC_CLAMP(si * 0.03, 0, 0.015);
-        const satComp = 1.0 - VSC_CLAMP(si * 0.04, 0, 0.02);
-        out._cssCt = VSC_CLAMP(out._cssCt * ctBoost, 0.5, 2.0);
-        out._cssBr = VSC_CLAMP(out._cssBr * brComp, 0.5, 2.0);
-        out._cssSat = VSC_CLAMP(out._cssSat * satComp, 0, 3.0);
-      }
+  // CSS pseudo-sharp 로직 완전 제거 — SVG 커널이 모바일에서도 동작
+
+  return out;
+}
+
 
       return out;
     }
@@ -2918,19 +2903,19 @@
     }, { once: true });
 
     function getAutoPresetForResolution(videoHeight) {
-      const h = videoHeight || 0;
-      if (CONFIG.IS_MOBILE) {
-        // 모바일: CSS pseudo-sharp이므로 더 낮은 해상도 기준 적용
-        if (h <= 480) return 'L';
-        if (h <= 720) return 'M';
-        if (h <= 1080) return 'S';
-        return 'off';
-      }
-      if (h <= 480) return 'L';
-      if (h <= 720) return 'M';
-      if (h <= 1080) return 'S';
-      return 'off';
-    }
+  const h = videoHeight || 0;
+  if (CONFIG.IS_MOBILE) {
+    if (h <= 360) return 'L';
+    if (h <= 480) return 'M';
+    if (h <= 720) return 'S';
+    return 'off';
+  }
+  if (h <= 480) return 'L';
+  if (h <= 720) return 'M';
+  if (h <= 1080) return 'S';
+  return 'off';
+}
+
 
     /* ── UI ── */
         function createUI(sm, registry, ApplyReq, Utils) {
