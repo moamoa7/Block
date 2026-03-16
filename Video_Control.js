@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v193.0.0)
+// @name         Video_Control (v193.1.0)
 // @namespace    https://github.com/
-// @version      193.0.0
+// @version      193.1.0
 // @description  v193: blockInterference composedPath fix, SVG tagName safety, audio param tuning, ratechange backoff hardening, SPA patch-restore guard, AudioContext cleanup, dead-code removal.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -148,7 +148,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '193.0.0';
+    const VSC_VERSION = '193.1.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
     const MOBILE_COLOR_BIAS = { r: 1.00, g: 1.00, b: 0.97 };
@@ -2954,517 +2954,366 @@ function computeFullAnalysis(data, sw, sh) {
       return 'off';
     }
 
-    /* ── UI ── */
-    function createUI(sm, registry, ApplyReq, Utils) {
+    /* ── UI 패치 버전 (통합형 UI - 안정성/가독성 완전판) ── */
+        function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils;
       let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0;
       const uiWakeCtrl = new AbortController();
       const bag = createDisposerBag();
       const sub = (k, fn) => bag.add(sm.sub(k, fn));
+
       const detachNodesHard = () => {
         try { if (container?.isConnected) container.remove(); } catch (_) {}
         try { if (gearHost?.isConnected) gearHost.remove(); } catch (_) {}
       };
+
       const allowUiInThisDoc = () => {
         if (registry.videos.size > 0) return true;
-        const hasVideoElements = !!document.querySelector('video, object, embed');
-        if (hasVideoElements) return true;
-        return false;
+        return !!document.querySelector('video, object, embed');
       };
+
       function setAndHint(path, value) {
         const prev = sm.get(path);
         const changed = !Object.is(prev, value);
         if (changed) sm.set(path, value);
         (changed ? ApplyReq.hard() : ApplyReq.soft());
       }
-      function getFullscreenElementSafe() {
-        return document.fullscreenElement || document.webkitFullscreenElement || null;
-      }
+
       const getUiRoot = () => {
-        const fs = getFullscreenElementSafe();
-        if (fs) {
-          if (fs.classList && fs.classList.contains('vsc-fs-wrap')) return fs;
-          if (fs.tagName === 'VIDEO') return fs.parentElement || fs.getRootNode?.().host || document.body || document.documentElement;
-          return fs;
-        }
+        const fs = document.fullscreenElement || document.webkitFullscreenElement || null;
+        if (fs) return fs.tagName === 'VIDEO' ? (fs.parentElement || document.body) : fs;
         return document.body || document.documentElement;
       };
+
       function bindClassToggle(btn, path, isActive) {
         const sync = () => { if (btn) btn.classList.toggle('active', isActive(sm.get(path))); };
         sub(path, sync); sync(); return sync;
       }
-      function bindStyle(btn, path, apply) {
-        const sync = () => { if (btn) apply(btn, sm.get(path)); };
-        sub(path, sync); sync(); return sync;
+
+      /* FIX: bindStyle 함수 추가 — bindClassToggle과 동일 패턴이지만
+         className/textContent 등 임의 스타일 동기화에 사용 */
+      function bindStyle(el, path, applyFn) {
+        const sync = () => { try { applyFn(el, sm.get(path)); } catch (_) {} };
+        sub(path, sync);
+        sync();
       }
-      function bindRateButtonActive(b, speed, sm, sub, P) {
-        const sync = () => {
-          const isEn = !!sm.get(P.PB_EN);
-          const v = Number(sm.get(P.PB_RATE) || 1);
-          b.classList.toggle('active', isEn && Math.abs(v - speed) < 0.01);
-        };
-        sub(P.PB_RATE, sync); sub(P.PB_EN, sync); sync();
-      }
-      function renderPresetRow({ items, key, offValue = null, toggleActiveToOff = false }) {
-        const row = h('div', { class: 'row' });
-        const addBtn = (text, value) => {
-          const b = h('button', { class: 'preset-btn' }, text);
-          b.onclick = () => {
-            const cur = sm.get(key);
-            if (toggleActiveToOff && offValue !== undefined && cur === value && value !== offValue) {
-              setAndHint(key, offValue);
-            } else {
-              setAndHint(key, value);
-            }
-            if (key === P.V_PRE_S && sm.get(P.APP_AUTO_PRESET)) {
-              sm.set(P.APP_AUTO_PRESET, false);
-              showOSD('자동 프리셋 해제됨 (수동 선택)', 1200);
-            }
-          };
-          bindClassToggle(b, key, v => v === value);
-          row.append(b);
-        };
-        for (const it of items) addBtn(it.text, it.value);
-        if (offValue !== undefined && offValue !== null && !items.some(it => it.value === offValue)) {
-          const off = h('button', { class: 'preset-btn', style: 'flex:0.7' }, 'OFF');
-          off.onclick = () => setAndHint(key, offValue);
-          bindClassToggle(off, key, v => v === offValue);
-          row.append(off);
-        }
-        return row;
-      }
-      function renderShadowBandMaskRow({ key = P.V_SHADOW_MASK }) {
-        const row = h('div', { class: 'row' });
-        const items = [
-          { text: '외암', bit: SHADOW_BAND.OUTER, title: '옅은 암부 진하게' },
-          { text: '중암', bit: SHADOW_BAND.MID, title: '가운데 암부 진하게' },
-          { text: '심암', bit: SHADOW_BAND.DEEP, title: '가장 진한 블랙' }
-        ];
+
+      function renderToggleRow({ items, key, offValue, offLabel = 'OFF', isBitmask = false }) {
+        const row = h('div', { class: 'preset-grid' });
         for (const it of items) {
-          const b = h('button', { class: 'preset-btn', title: it.title }, it.text);
-          b.onclick = () => { sm.set(key, ShadowMask.toggle(sm.get(key), it.bit)); ApplyReq.hard(); };
-          bindClassToggle(b, key, v => ShadowMask.has(v, it.bit));
-          row.append(b);
+          const b = h('button', { class: 'pbtn', title: it.title || '' }, it.text);
+          b.onclick = () => {
+            if (isBitmask) {
+              sm.set(key, ShadowMask.toggle(sm.get(key), it.value));
+            } else {
+              const cur = sm.get(key);
+              if (cur === it.value && it.value !== offValue) setAndHint(key, offValue);
+              else setAndHint(key, it.value);
+            }
+            ApplyReq.hard();
+          };
+          if (isBitmask) bindClassToggle(b, key, v => ShadowMask.has(v, it.value));
+          else bindClassToggle(b, key, v => v === it.value);
+          row.appendChild(b);
         }
-        const off = h('button', { class: 'preset-btn', style: 'flex:0.7' }, 'OFF');
-        off.onclick = () => { sm.set(key, 0); ApplyReq.hard(); };
-        bindClassToggle(off, key, v => (Number(v) | 0) === 0);
-        row.append(off);
+
+        const off = h('button', { class: 'pbtn', style: 'opacity:0.7' }, offLabel);
+        off.onclick = () => { sm.set(key, isBitmask ? 0 : offValue); ApplyReq.hard(); };
+        if (isBitmask) bindClassToggle(off, key, v => (Number(v)|0) === 0);
+        else bindClassToggle(off, key, v => v === offValue);
+        row.appendChild(off);
+
         return row;
       }
-
-      function sectionLabel(iconName, text) {
-        const label = h('div', { class: 'section-label' });
-        if (iconName) {
-          const icon = svgIcon(iconName);
-          icon.style.cssText = 'display:inline-flex;vertical-align:middle;margin-right:4px;opacity:0.6;';
-          icon.querySelector('svg')?.setAttribute('width', '12');
-          icon.querySelector('svg')?.setAttribute('height', '12');
-          label.append(icon);
-        }
-        label.append(document.createTextNode(text));
-        return label;
-      }
-
-      const GEAR_WIDTH = 44;
-      const GEAR_RIGHT = 12;
-      const PANEL_GAP = 12;
-      const PANEL_RIGHT = GEAR_RIGHT + GEAR_WIDTH + PANEL_GAP;
 
       const build = () => {
         if (container) return;
         const host = h('div', { id: 'vsc-host', 'data-vsc-ui': '1' });
         const shadow = host.attachShadow({ mode: 'open' });
 
-        const style = `:host{all:initial}*{box-sizing:border-box}.panel{position:fixed!important;top:50%!important;right:64px!important;transform:translateY(-50%)!important;width:min(320px, calc(100vw - 76px))!important;background:rgba(18,18,22,0.97)!important;backdrop-filter:blur(16px) saturate(180%)!important;color:#e8e8ec!important;padding:0!important;border-radius:14px!important;z-index:2147483647!important;border:1px solid rgba(255,255,255,0.08)!important;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif!important;box-shadow:0 24px 80px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.05) inset!important;overflow:hidden!important;max-height:min(90vh, 500px)!important;display:flex!important;flex-direction:column!important}.header{padding:14px 16px 12px;cursor:move;user-select:none;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;gap:8px;background:linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)}.header-title{font-size:13px;font-weight:700;letter-spacing:0.5px;color:rgba(255,255,255,0.9)}.header-info{font-size:10px;color:rgba(255,255,255,0.3);font-weight:500;font-variant-numeric:tabular-nums;flex:1;text-align:center}.header-ver{font-size:10px;color:rgba(255,255,255,0.3);font-weight:500}.tab-bar{display:flex;border-bottom:1px solid rgba(255,255,255,0.06);padding:0 8px}.tab{flex:1;padding:8px 4px 6px;text-align:center;cursor:pointer;border-bottom:2px solid transparent;font-size:10px;font-weight:600;color:rgba(255,255,255,0.4);transition:all 0.15s;user-select:none;display:flex;flex-direction:column;align-items:center;gap:2px}.tab:hover{color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.03);border-radius:6px 6px 0 0}.tab.active{color:#60a5fa;border-bottom-color:#3b82f6;background:rgba(59,130,246,0.06);border-radius:6px 6px 0 0}.tab-icon{display:flex;align-items:center;justify-content:center;width:20px;height:20px}.tab-icon svg{width:18px;height:18px;display:block}.tab-content{display:none;padding:10px 12px;overflow-y:auto;flex:1}.tab-content.active{display:block}.tab-content[data-tab="video"] .section{border-left:2px solid rgba(96,165,250,0.3)}.tab-content[data-tab="audio"] .section{border-left:2px solid rgba(251,191,36,0.3)}.tab-content[data-tab="speed"] .section{border-left:2px solid rgba(74,222,128,0.3)}.tab-content[data-tab="tools"] .section{border-left:2px solid rgba(167,139,250,0.3)}.drag-indicator{display:none}.section{margin-bottom:10px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid rgba(255,255,255,0.04)}.section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);margin-bottom:8px}.row{display:flex;gap:4px;margin-bottom:4px;align-items:center}.row:last-child{margin-bottom:0}.btn{flex:1;height:36px;border:1px solid rgba(255,255,255,0.10);border-radius:8px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.82);cursor:pointer;font-size:12px;font-weight:600;transition:all 0.12s ease;display:flex;align-items:center;justify-content:center;gap:4px}.btn:hover{background:rgba(255,255,255,0.12)}.btn:active{transform:scale(0.97)}.btn.active{background:rgba(59,130,246,0.25);border-color:rgba(59,130,246,0.5);color:#60a5fa}.btn.danger{color:#f87171;border-color:rgba(248,113,113,0.3)}.btn.danger:hover{background:rgba(248,113,113,0.15)}.btn.success{color:#4ade80;border-color:rgba(74,222,128,0.3)}.btn-sm{height:30px;font-size:11px}.preset-btn{flex:1;height:32px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;background:rgba(255,255,255,0.04);color:rgba(255,255,255,0.65);cursor:pointer;font-size:11px;font-weight:700;transition:all 0.12s ease}.preset-btn:hover{background:rgba(255,255,255,0.10)}.preset-btn.active{background:rgba(245,158,11,0.20);border-color:rgba(245,158,11,0.5);color:#fbbf24;position:relative}.preset-btn.active::after{content:'✓';position:absolute;top:2px;right:4px;font-size:8px;opacity:0.7}.speed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.divider{height:1px;background:rgba(255,255,255,0.04);margin:6px 0}.footer{padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06);display:flex;gap:4px}.icon{font-size:14px;line-height:1;display:inline-flex;align-items:center}.icon svg{display:block}input[type=range]{-webkit-appearance:none;width:100%;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;outline:none;cursor:pointer}input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid rgba(255,255,255,0.2)}input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid rgba(255,255,255,0.2)}.speed-display{flex:1;text-align:center;font-size:16px;font-weight:800;color:#e8e8ec;line-height:30px;font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.04);border-radius:8px;padding:2px 0;transition:color 0.15s}.speed-display.modified{color:#4ade80}.custom-speed-input{flex:1;height:28px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#e8e8ec;padding:0 8px;font-size:12px;font-weight:600;text-align:center;outline:none;font-variant-numeric:tabular-nums;-moz-appearance:textfield}.custom-speed-input::-webkit-inner-spin-button,.custom-speed-input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}@media(max-width:520px){.panel{width:min(280px, calc(100vw - 72px))!important;max-height:min(85vh, 450px)!important}}`;
+        const style = `
+          :host { all: initial; } * { box-sizing: border-box; }
+          .panel { position: fixed!important; top: 50%!important; right: 64px!important; transform: translateY(-50%)!important; width: min(300px, calc(100vw - 76px))!important; background: rgba(15, 15, 20, 0.95)!important; backdrop-filter: blur(20px) saturate(180%)!important; color: #e8e8ec!important; border-radius: 16px!important; z-index: 2147483647!important; border: 1px solid rgba(255,255,255,0.08)!important; font-family: system-ui, -apple-system, sans-serif!important; box-shadow: 0 32px 80px rgba(0,0,0,0.6)!important; display: flex!important; flex-direction: column!important; overflow: hidden!important; max-height: min(90vh, 520px)!important; }
+          .hdr { padding: 12px 14px; cursor: move; border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: space-between; background: linear-gradient(180deg, rgba(255,255,255,0.03), transparent); }
+          .hdr-title { font-size: 13px; font-weight: 800; color: #60a5fa; letter-spacing: 0.5px; }
+          .quickbar { display: flex; gap: 4px; padding: 8px 12px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.04); }
+          .qbtn { flex: 1; height: 38px; border: 1px solid rgba(255,255,255,0.06); border-radius: 10px; background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.45); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: all 0.15s; }
+          .qbtn:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.7); }
+          .qbtn.active { background: rgba(59,130,246,0.18); border-color: rgba(59,130,246,0.35); color: #60a5fa; }
+          .qlabel { font-size: 8px; font-weight: 700; margin-top: 2px; }
+          .content { flex: 1; overflow-y: auto; padding: 10px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent; }
+          .content::-webkit-scrollbar { width: 4px; } .content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+          .sec { margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.03); }
+          .sec-t { font-size: 9px; font-weight: 800; text-transform: uppercase; color: rgba(255,255,255,0.3); margin-bottom: 8px; display: flex; align-items: center; gap: 4px; }
+          .preset-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(48px, 1fr)); gap: 4px; }
+          .pbtn { height: 30px; border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.6); cursor: pointer; font-size: 10px; font-weight: 700; transition: all 0.1s; display: flex; align-items: center; justify-content: center; }
+          .pbtn:hover { background: rgba(255,255,255,0.08); }
+          .pbtn.active { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.4); color: #fbbf24; }
+          .speed-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+          .speed-val { flex: 1; text-align: center; font-size: 20px; font-weight: 900; font-variant-numeric: tabular-nums; transition: color 0.15s; }
+          .speed-val.mod { color: #4ade80; }
+          .sbtn { width: 36px; height: 32px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; cursor: pointer; font-weight: bold; }
+          .sbtn:active { transform: scale(0.95); }
+          .custom-speed { flex: 1; height: 26px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; text-align: center; font-size: 11px; font-weight: bold; outline: none; }
+          .footer { padding: 8px 12px; border-top: 1px solid rgba(255,255,255,0.05); display: flex; gap: 4px; }
+          .btn { flex: 1; height: 32px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; cursor: pointer; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 4px; transition: background 0.15s; }
+          .btn:hover { background: rgba(255,255,255,0.1); }
+          .btn.success { background: rgba(74,222,128,0.1); border-color: rgba(74,222,128,0.3); color: #4ade80; }
+          .btn.danger { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.3); color: #f87171; }
+          input[type=range] { -webkit-appearance: none; flex: 1; height: 3px; background: rgba(255,255,255,0.1); border-radius: 2px; outline: none; }
+          input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: #60a5fa; cursor: pointer; border: 2px solid rgba(0,0,0,0.3); }
+        `;
         applyShadowStyle(shadow, style, h);
 
-        const videoInfo = h('span', { class: 'header-info' });
-        let infoTimer = 0;
-        function updateVideoInfo() {
-          const v = window.__VSC_APP__?.getActiveVideo();
-          if (!v || !container?.isConnected) { videoInfo.textContent = ''; return; }
-          const w = v.videoWidth, ht = v.videoHeight;
-          const mode = 'SVG';
-          videoInfo.textContent = `${w}\u00D7${ht} \u00B7 ${mode}`;
-        }
-        sub(P.APP_UI, (visible) => {
-          if (infoTimer) { clearInterval(infoTimer); infoTimer = 0; }
-          if (visible) {
-            updateVideoInfo();
-            infoTimer = setInterval(() => {
-              if (!sm.get(P.APP_UI)) { clearInterval(infoTimer); infoTimer = 0; return; }
-              updateVideoInfo();
-            }, 2000);
+        const videoInfo = h('span', { style: 'font-size:9px;opacity:0.4;font-variant-numeric:tabular-nums' });
+        const updateVideoInfo = () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) videoInfo.textContent = `${v.videoWidth}x${v.videoHeight}`; };
+        setInterval(updateVideoInfo, 2000); updateVideoInfo();
+
+        const hdr = h('div', { class: 'hdr' }, h('span', { class: 'hdr-title' }, 'VIDEO CONTROL'), videoInfo);
+
+        const mkQBtn = (icon, label, path) => {
+          const b = h('button', { class: 'qbtn' }, h('span', {}, svgIcon(icon)), h('span', { class: 'qlabel' }, label));
+          b.onclick = () => setAndHint(path, !sm.get(path));
+          bindClassToggle(b, path, v => !!v);
+          return b;
+        };
+        const quickbar = h('div', { class: 'quickbar' },
+          mkQBtn('sparkles', 'AUTO', P.APP_AUTO_SCENE),
+          mkQBtn('wand', 'PRESET', P.APP_AUTO_PRESET),
+          mkQBtn('speaker', 'AUDIO', P.A_EN),
+          mkQBtn('zoom', 'ZOOM', P.APP_ZOOM_EN)
+        );
+
+        const sharpItems = Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k=>({text: PRESET_LABELS.detail[k], value: k}));
+        const sharpRow = renderToggleRow({ key: P.V_PRE_S, items: sharpItems, offValue: 'off' });
+        const sharpSec = h('div', { class: 'sec' }, h('div', { class: 'sec-t' }, svgIcon('palette'), ' SHARPENING'), sharpRow);
+
+        const audioSlider = h('input', { type: 'range', min: '0', max: '12', step: '0.5' });
+        audioSlider.value = sm.get(P.A_BST) || 6;
+        const audioLbl = h('span', { style: 'font-size:11px;font-weight:bold;min-width:32px;text-align:right' }, audioSlider.value+'dB');
+        audioSlider.oninput = () => { sm.set(P.A_BST, parseFloat(audioSlider.value)); audioLbl.textContent = audioSlider.value+'dB'; ApplyReq.soft(); };
+        sm.sub(P.A_BST, (v) => { audioSlider.value = v; audioLbl.textContent = Number(v).toFixed(1)+'dB'; });
+        const audioSec = h('div', { class: 'sec' }, h('div', { class: 'sec-t' }, svgIcon('speaker'), ' AUDIO BOOST'), h('div', { style: 'display:flex;align-items:center;gap:10px' }, audioSlider, audioLbl));
+
+        const speedVal = h('span', { class: 'speed-val' });
+        const syncSpeed = () => { const r = sm.get(P.PB_EN) ? Number(sm.get(P.PB_RATE)) : 1; speedVal.textContent = r.toFixed(1)+'x'; speedVal.classList.toggle('mod', Math.abs(r-1)>0.01); };
+        sub(P.PB_RATE, syncSpeed); sub(P.PB_EN, syncSpeed); syncSpeed();
+
+        const speedMinus = h('button', { class: 'sbtn', onclick: () => { setAndHint(P.PB_RATE, Math.round(VSC_CLAMP(Number(sm.get(P.PB_RATE))-0.1, 0.1, 16)*10)/10); setAndHint(P.PB_EN, true); } }, '-');
+        const speedPlus = h('button', { class: 'sbtn', onclick: () => { setAndHint(P.PB_RATE, Math.round(VSC_CLAMP(Number(sm.get(P.PB_RATE))+0.1, 0.1, 16)*10)/10); setAndHint(P.PB_EN, true); } }, '+');
+        const speedRow1 = h('div', { class: 'speed-row' }, speedMinus, speedVal, speedPlus);
+
+        const speedPresetRow = h('div', { class: 'preset-grid' });
+        [0.5, 1.0, 1.5, 2.0, 3.0].forEach(r => {
+          const b = h('button', { class: 'pbtn' }, r+'x');
+          b.onclick = () => { sm.set(P.PB_RATE, r); sm.set(P.PB_EN, true); ApplyReq.hard(); };
+          bindClassToggle(b, P.PB_RATE, v => sm.get(P.PB_EN) && Math.abs(v-r)<0.01);
+          speedPresetRow.appendChild(b);
+        });
+
+        const speedInput = h('input', { type: 'number', min: '0.1', max: '16', step: '0.05', class: 'custom-speed' });
+        speedInput.onchange = () => { const val = VSC_CLAMP(parseFloat(speedInput.value)||1, 0.1, 16); speedInput.value = val; setAndHint(P.PB_RATE, val); setAndHint(P.PB_EN, true); };
+        speedInput.onkeydown = (e) => e.stopPropagation();
+        sm.sub(P.PB_RATE, (v) => speedInput.value = Number(v).toFixed(2));
+        speedInput.value = sm.get(P.PB_RATE) || 1;
+        const speedCustom = h('div', { style: 'display:flex;align-items:center;gap:6px;margin-top:6px' }, h('span', { style: 'font-size:9px;color:rgba(255,255,255,0.4)' }, 'CUSTOM:'), speedInput);
+
+        const speedSec = h('div', { class: 'sec' }, h('div', { class: 'sec-t' }, svgIcon('zap'), ' SPEED'), speedRow1, speedPresetRow, speedCustom);
+
+        const toolsBtn1 = h('button', { class: 'btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) togglePiPFor(v); } }, svgIcon('pip'), ' PiP');
+        const toolsBtn2 = h('button', { class: 'btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) captureVideoFrame(v); } }, svgIcon('camera'), ' Capture');
+
+        const btnExport = h('button', { class: 'btn', style: 'background:none', onclick: () => {
+          try {
+            const data = window.__VSC_INTERNAL__?._buildSaveData?.();
+            if (!data) return;
+            data._version = VSC_VERSION; data._hostname = location.hostname;
+            const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'}));
+            const a = document.createElement('a'); a.href = url; a.download = `vsc-settings-${Date.now()}.json`; a.click();
+            setTimer(() => URL.revokeObjectURL(url), 5000);
+          } catch (_) {}
+        } }, svgIcon('download'), ' Export');
+
+        const btnImport = h('button', { class: 'btn', style: 'background:none', onclick: () => {
+          const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+          input.onchange = () => {
+            const file = input.files?.[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => { try { window.__VSC_INTERNAL__?._applyDataToStore?.(JSON.parse(reader.result)); ApplyReq.hard(); } catch (_) {} };
+            reader.readAsText(file);
+          };
+          input.click();
+        } }, svgIcon('upload'), ' Import');
+
+        const toolsSec = h('div', { class: 'sec' },
+          h('div', { class: 'sec-t' }, svgIcon('monitor'), ' TOOLS'),
+          h('div', { style: 'display:flex;gap:4px;margin-bottom:4px' }, toolsBtn1, toolsBtn2),
+          h('div', { style: 'display:flex;gap:4px' }, btnExport, btnImport)
+        );
+
+        const advBtn = h('button', { class: 'btn', style: 'width:100%;background:none;border:none;color:rgba(255,255,255,0.3);font-size:9px' });
+        const advBox = h('div', { style: 'display:none;margin-top:10px' },
+          h('div', { class: 'sec' }, h('div', { class: 'sec-t' }, 'SHADOW BAND'), renderToggleRow({ key: P.V_SHADOW_MASK, isBitmask: true, items: [{text:'OUTER', value:1},{text:'MID', value:2},{text:'DEEP', value:4}] })),
+          h('div', { class: 'sec' }, h('div', { class: 'sec-t' }, 'BRIGHTNESS GRADE'), renderToggleRow({ key: P.V_PRE_B, items: Object.keys(PRESETS.grade).filter(k=>k!=='off').map(k=>({text: PRESET_LABELS.grade[k], value: k})), offValue: 'off' }))
+        );
+        const syncAdv = () => {
+          const show = sm.get(P.APP_ADV);
+          advBox.style.display = show ? 'block' : 'none';
+          advBtn.textContent = show ? '▲ CLOSE ADVANCED' : '▼ ADVANCED SETTINGS';
+        };
+        advBtn.onclick = () => setAndHint(P.APP_ADV, !sm.get(P.APP_ADV));
+        sub(P.APP_ADV, syncAdv); syncAdv();
+
+        const content = h('div', { class: 'content' }, sharpSec, audioSec, speedSec, toolsSec, advBtn, advBox);
+
+        let confirmState = false, confirmTimer = null;
+        const resetBtn = h('button', { class: 'btn' }, '↺ RESET');
+        resetBtn.onclick = () => {
+          if (!confirmState) {
+            confirmState = true; resetBtn.textContent = '⚠ SURE?'; resetBtn.classList.add('danger');
+            confirmTimer = setTimeout(() => { confirmState = false; resetBtn.textContent = '↺ RESET'; resetBtn.classList.remove('danger'); }, 2000);
+          } else {
+            clearTimeout(confirmTimer); confirmState = false; resetBtn.textContent = '↺ RESET'; resetBtn.classList.remove('danger');
+            sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback);
+            sm.set(P.APP_AUTO_SCENE, false); sm.set(P.APP_AUTO_PRESET, false); ApplyReq.hard();
           }
+        };
+
+        const closeBtn = h('button', { class: 'btn', onclick: () => sm.set(P.APP_UI, false) }, '✕ CLOSE');
+        const pwrBtn = h('button', { class: 'btn' });
+        pwrBtn.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT));
+
+        /* FIX: bindStyle 호출 — 이제 위에서 정의했으므로 정상 동작 */
+        bindStyle(pwrBtn, P.APP_ACT, (el, v) => {
+          el.className = v ? 'btn success' : 'btn danger';
+          el.textContent = v ? '⚡ ON' : '⏻ OFF';
         });
-        if (sm.get(P.APP_UI)) {
-          updateVideoInfo();
-          infoTimer = setInterval(() => {
-            if (!sm.get(P.APP_UI)) { clearInterval(infoTimer); infoTimer = 0; return; }
-            updateVideoInfo();
-          }, 2000);
-        }
 
-        const dragIndicator = h('div', { class: 'drag-indicator' });
-        const dragHandle = h('div', { class: 'header' },
-          h('span', { class: 'header-title' }, 'Video Control'),
-          videoInfo,
-          h('span', { class: 'header-ver' }, 'v' + VSC_VERSION));
+        const footer = h('div', { class: 'footer' }, resetBtn, closeBtn, pwrBtn);
 
-        const TABS = [
-          { id: 'video', icon: 'palette', label: '비디오' },
-          { id: 'audio', icon: 'speaker', label: '오디오' },
-          { id: 'speed', icon: 'zap', label: '속도' },
-          { id: 'tools', icon: 'monitor', label: '도구' },
-        ];
-        const tabBar = h('div', { class: 'tab-bar' });
-        let activeTabId = 'video';
-        const tabBtns = {};
-        const tabContents = {};
-
-        for (const tab of TABS) {
-          const iconEl = svgIcon(tab.icon);
-          iconEl.classList.add('tab-icon');
-          const btn = h('div', { class: `tab${tab.id === activeTabId ? ' active' : ''}` }, iconEl, tab.label);
-          btn.addEventListener('click', () => {
-            if (activeTabId === tab.id) return;
-            tabBtns[activeTabId]?.classList.remove('active');
-            tabContents[activeTabId]?.classList.remove('active');
-            activeTabId = tab.id;
-            btn.classList.add('active');
-            tabContents[tab.id]?.classList.add('active');
-          });
-          tabBtns[tab.id] = btn;
-          tabBar.append(btn);
-        }
-
-        const advToggleBtn = h('button', { class: 'btn btn-sm', style: 'width:100%;margin-top:6px;color:rgba(255,255,255,0.5);' });
-        advToggleBtn.onclick = () => setAndHint(P.APP_ADV, !sm.get(P.APP_ADV));
-        bindStyle(advToggleBtn, P.APP_ADV, (el, v) => { el.textContent = v ? '▲ 고급 설정 닫기' : '▼ 고급 설정'; });
-
-        const advContainer = h('div', { style: 'display:none;' },
-          h('div', { class: 'section', style: 'margin-top:8px' },
-            sectionLabel(null, '블랙 밴드'),
-            renderShadowBandMaskRow({ key: P.V_SHADOW_MASK }),
-            h('div', { class: 'divider' }),
-            sectionLabel(null, '밝기 복구'),
-            renderPresetRow({ key: P.V_BRIGHT_STEP, offValue: 0, toggleActiveToOff: true, items: [{ text: '1단', value: 1 }, { text: '2단', value: 2 }, { text: '3단', value: 3 }] }),
-            h('div', { class: 'divider' }),
-            sectionLabel(null, '밝기 등급'),
-            renderPresetRow({ key: P.V_PRE_B, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.grade).filter(k => k !== 'off').map(k => ({ text: PRESET_LABELS.grade[k] || k, value: k })) })
-          )
-        );
-        bindStyle(advContainer, P.APP_ADV, (el, v) => { el.style.display = v ? 'block' : 'none'; });
-
-        const videoSection = h('div', {},
-          h('div', { class: 'section' },
-            sectionLabel('palette', '비디오 효과'),
-            renderPresetRow({ key: P.V_PRE_S, offValue: 'off', toggleActiveToOff: true, items: Object.keys(PRESETS.detail).filter(k => k !== 'off').map(k => ({ text: PRESET_LABELS.detail[k] || k, value: k })) }),
-            h('div', { class: 'row', style: 'margin-top:6px' },
-              (() => { const autoBtn = h('button', { class: 'btn' }); autoBtn.append(svgIcon('sparkles'), document.createTextNode(' Auto Scene')); autoBtn.onclick = () => setAndHint(P.APP_AUTO_SCENE, !sm.get(P.APP_AUTO_SCENE)); bindClassToggle(autoBtn, P.APP_AUTO_SCENE, v => !!v); return autoBtn; })(),
-              (() => { const apBtn = h('button', { class: 'btn' }); apBtn.append(svgIcon('wand'), document.createTextNode(' 자동')); apBtn.addEventListener('click', (e) => { e.stopPropagation(); setAndHint(P.APP_AUTO_PRESET, !sm.get(P.APP_AUTO_PRESET)); }); bindClassToggle(apBtn, P.APP_AUTO_PRESET, v => !!v); return apBtn; })()
-            )
-          ),
-          advToggleBtn,
-          advContainer
-        );
-
-        const audioSection = h('div', {},
-          h('div', { class: 'section' },
-            sectionLabel('speaker', '오디오'),
-            h('div', { class: 'row' },
-              (() => { const boostBtn = h('button', { class: 'btn' }); boostBtn.append(svgIcon('speaker'), document.createTextNode(' Brickwall')); boostBtn.onclick = () => setAndHint(P.A_EN, !sm.get(P.A_EN)); bindClassToggle(boostBtn, P.A_EN, v => !!v); return boostBtn; })()
-            ),
-            h('div', { class: 'row', style: 'gap:8px;margin-top:6px' },
-              h('span', { style: 'font-size:10px;color:rgba(255,255,255,0.4);min-width:24px' }, '0dB'),
-              (() => {
-                const slider = h('input', { type: 'range', min: '0', max: '12', step: '0.5', style: 'flex:1' });
-                slider.value = sm.get(P.A_BST) || 6;
-                const label = h('span', { style: 'font-size:11px;font-weight:700;color:rgba(255,255,255,0.7);min-width:36px;text-align:right;font-variant-numeric:tabular-nums' }, `${Number(slider.value).toFixed(1)}dB`);
-                slider.addEventListener('input', () => { const val = parseFloat(slider.value); sm.set(P.A_BST, val); label.textContent = `${val.toFixed(1)}dB`; ApplyReq.soft(); });
-                sm.sub(P.A_BST, (v) => { slider.value = v; label.textContent = `${Number(v).toFixed(1)}dB`; });
-                return [slider, label];
-              })().flat()
-            )
-          )
-        );
-
-        const speedSection = h('div', {},
-          h('div', { class: 'section' },
-            sectionLabel('zap', '재생 속도'),
-            h('div', { class: 'speed-grid' },
-              ...[0.5, 1.0, 1.5, 2.0, 3.0, 5.0].map(s => { const b = h('button', { class: 'preset-btn' }, s + 'x'); b.onclick = () => { setAndHint(P.PB_RATE, s); setAndHint(P.PB_EN, true); }; bindRateButtonActive(b, s, sm, sub, P); return b; })
-            ),
-            h('div', { class: 'row', style: 'margin-top:6px' },
-              (() => { const minusBtn = h('button', { class: 'btn btn-sm', style: 'flex:0.8' }, '\u22120.1'); minusBtn.onclick = () => { const cur = Number(sm.get(P.PB_RATE) || 1); const next = Math.round(VSC_CLAMP(cur - 0.1, 0.1, 16) * 10) / 10; setAndHint(P.PB_RATE, next); setAndHint(P.PB_EN, true); }; return minusBtn; })(),
-              (() => {
-                const display = h('span', { class: 'speed-display' });
-                const sync = () => {
-                  const rate = sm.get(P.PB_EN) ? Number(sm.get(P.PB_RATE) || 1) : 1;
-                  display.textContent = rate.toFixed(1) + 'x';
-                  display.classList.toggle('modified', Math.abs(rate - 1.0) > 0.01);
-                };
-                sub(P.PB_RATE, sync); sub(P.PB_EN, sync); sync(); return display;
-              })(),
-              (() => { const plusBtn = h('button', { class: 'btn btn-sm', style: 'flex:0.8' }, '+0.1'); plusBtn.onclick = () => { const cur = Number(sm.get(P.PB_RATE) || 1); const next = Math.round(VSC_CLAMP(cur + 0.1, 0.1, 16) * 10) / 10; setAndHint(P.PB_RATE, next); setAndHint(P.PB_EN, true); }; return plusBtn; })(),
-              (() => { const resetBtn = h('button', { class: 'btn btn-sm', style: 'flex:0.7' }, '1x'); resetBtn.onclick = () => { setAndHint(P.PB_RATE, 1.0); setAndHint(P.PB_EN, false); }; return resetBtn; })()
-            ),
-            h('div', { class: 'row', style: 'margin-top:6px;align-items:center;gap:6px' },
-              h('span', { style: 'font-size:10px;color:rgba(255,255,255,0.4)' }, '직접입력:'),
-              (() => {
-                const input = h('input', { type: 'number', min: '0.1', max: '16', step: '0.05', class: 'custom-speed-input' });
-                input.value = sm.get(P.PB_RATE) || 1;
-                input.addEventListener('change', () => {
-                  const val = VSC_CLAMP(parseFloat(input.value) || 1, 0.1, 16);
-                  input.value = val;
-                  setAndHint(P.PB_RATE, val);
-                  setAndHint(P.PB_EN, true);
-                });
-                input.addEventListener('keydown', (e) => e.stopPropagation());
-                sm.sub(P.PB_RATE, (v) => { input.value = Number(v).toFixed(2); });
-                return input;
-              })()
-            )
-          )
-        );
-
-        const toolsSection = h('div', {},
-          h('div', { class: 'section' },
-            sectionLabel('monitor', '도구'),
-            h('div', { class: 'row' },
-              h('button', { class: 'btn', onclick: async () => { const v = window.__VSC_APP__?.getActiveVideo(); if (v) await togglePiPFor(v); } }, svgIcon('pip'), ' PiP'),
-              (() => {
-                const zoomBtn = h('button', { class: 'btn' });
-                zoomBtn.append(svgIcon('zoom'), document.createTextNode(' 줌'));
-                zoomBtn.onclick = () => {
-                  const zm = window.__VSC_INTERNAL__?.ZoomManager;
-                  const v = window.__VSC_APP__?.getActiveVideo?.();
-                  if (zm && v) {
-                    if (zm.isZoomed(v)) {
-                      zm.resetZoom(v);
-                      sm.set(P.APP_ZOOM_EN, false);
-                    } else {
-                      const rect = v.getBoundingClientRect();
-                      zm.zoomTo(v, 2.5, rect.left + rect.width * 0.5, rect.top + rect.height * 0.5);
-                      sm.set(P.APP_ZOOM_EN, true);
-                    }
-                    ApplyReq.soft();
-                  } else {
-                    setAndHint(P.APP_ZOOM_EN, !sm.get(P.APP_ZOOM_EN));
-                  }
-                };
-                bindClassToggle(zoomBtn, P.APP_ZOOM_EN, v => !!v);
-                return zoomBtn;
-              })()
-            ),
-            h('div', { class: 'row', style: 'margin-top:4px' },
-              h('button', { class: 'btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if (v) captureVideoFrame(v); } }, svgIcon('camera'), ' 캡처')
-            ),
-            h('div', { class: 'divider' }),
-            sectionLabel(null, '설정 관리'),
-            h('div', { class: 'row' },
-              h('button', { class: 'btn btn-sm', onclick: () => {
-                try {
-                  const data = window.__VSC_INTERNAL__?._buildSaveData?.();
-                  if (!data) { showOSD('내보내기 실패', 1500); return; }
-                  data._version = VSC_VERSION;
-                  data._exportedAt = new Date().toISOString();
-                  data._hostname = location.hostname;
-                  const json = JSON.stringify(data, null, 2);
-                  const blob = new Blob([json], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a'); a.href = url; a.download = `vsc-settings-${location.hostname}-${Date.now()}.json`; a.click();
-                  setTimer(() => URL.revokeObjectURL(url), 5000);
-                  showOSD('설정 내보내기 완료', 1500);
-                } catch (_) { showOSD('내보내기 실패', 1500); }
-              } }, svgIcon('download'), ' 내보내기'),
-              h('button', { class: 'btn btn-sm', onclick: () => {
-                try {
-                  const input = document.createElement('input');
-                  input.type = 'file'; input.accept = '.json';
-                  input.onchange = () => {
-                    const file = input.files?.[0];
-                    if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = () => {
-                      try {
-                        const data = JSON.parse(reader.result);
-                        if (!data || typeof data !== 'object') { showOSD('잘못된 설정 파일', 2000); return; }
-                        window.__VSC_INTERNAL__?._applyDataToStore?.(data);
-                        ApplyReq.hard();
-                        showOSD('설정 가져오기 완료', 1500);
-                      } catch (_) { showOSD('설정 파일 파싱 실패', 2000); }
-                    };
-                    reader.readAsText(file);
-                  };
-                  input.click();
-                } catch (_) { showOSD('가져오기 실패', 1500); }
-              } }, svgIcon('upload'), ' 가져오기')
-            )
-          )
-        );
-
-        tabContents.video = h('div', { class: `tab-content${activeTabId === 'video' ? ' active' : ''}`, 'data-tab': 'video' }, videoSection);
-        tabContents.audio = h('div', { class: `tab-content${activeTabId === 'audio' ? ' active' : ''}`, 'data-tab': 'audio' }, audioSection);
-        tabContents.speed = h('div', { class: `tab-content${activeTabId === 'speed' ? ' active' : ''}`, 'data-tab': 'speed' }, speedSection);
-        tabContents.tools = h('div', { class: `tab-content${activeTabId === 'tools' ? ' active' : ''}`, 'data-tab': 'tools' }, toolsSection);
-
-        const contentArea = h('div', { style: 'flex:1;overflow-y:auto;' });
-        for (const [id, el] of Object.entries(tabContents)) contentArea.append(el);
-
-        const footer = h('div', { class: 'footer' },
-          h('button', { class: 'btn btn-sm', onclick: () => sm.set(P.APP_UI, false) }, '\u2715 닫기'),
-          (() => { const pwrBtn = h('button', { class: 'btn btn-sm' }); pwrBtn.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT)); bindStyle(pwrBtn, P.APP_ACT, (el, v) => { el.className = 'btn btn-sm ' + (v ? 'success' : 'danger'); el.innerHTML = ''; el.append(svgIcon('zap'), document.createTextNode(v ? ' ON' : ' OFF')); }); return pwrBtn; })(),
-          (() => {
-            let confirmState = false; let confirmTimer = null;
-            const resetBtn = h('button', { class: 'btn btn-sm' }, '\u21BA 리셋');
-            resetBtn.onclick = () => {
-              if (!confirmState) {
-                confirmState = true; resetBtn.textContent = '⚠ 확인?'; resetBtn.classList.add('danger');
-                confirmTimer = setTimeout(() => { confirmState = false; resetBtn.textContent = '\u21BA 리셋'; resetBtn.classList.remove('danger'); }, 2000);
-              } else {
-                clearTimeout(confirmTimer); confirmState = false; resetBtn.textContent = '\u21BA 리셋'; resetBtn.classList.remove('danger');
-                sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback); sm.set(P.APP_AUTO_SCENE, false); sm.set(P.APP_AUTO_PRESET, false); ApplyReq.hard(); showOSD('설정 초기화됨', 1200);
-              }
-            };
-            return resetBtn;
-          })()
-        );
-
-        const mainPanel = h('div', { class: 'panel' }, dragIndicator, dragHandle, tabBar, contentArea, footer);
-        blockInterference(mainPanel);
-
-        shadow.append(mainPanel);
-        let stopDrag = null;
-        dragHandle.addEventListener('mousedown', (e) => {
-          e.preventDefault(); stopDrag?.();
-          let startX = e.clientX, startY = e.clientY;
-          const rect = mainPanel.getBoundingClientRect();
-          mainPanel.style.transform = 'none';
-          mainPanel.style.top = `${rect.top}px`;
-          mainPanel.style.right = 'auto';
-          mainPanel.style.left = `${rect.left}px`;
-          stopDrag = bindWindowDrag((ev) => {
-            const panelRect = mainPanel.getBoundingClientRect();
-            let nextLeft = Math.max(0, Math.min(window.innerWidth - panelRect.width, rect.left + (ev.clientX - startX)));
-            let nextTop = Math.max(0, Math.min(window.innerHeight - panelRect.height, rect.top + (ev.clientY - startY)));
-            mainPanel.style.left = `${nextLeft}px`;
-            mainPanel.style.top = `${nextTop}px`;
-          }, () => { stopDrag = null; });
-        });
+        const panel = h('div', { class: 'panel' }, hdr, quickbar, content, footer);
+        shadow.appendChild(panel);
         container = host;
         getUiRoot().appendChild(container);
+
+        let stopDrag = null;
+        hdr.onmousedown = (e) => {
+          e.preventDefault(); const p = shadow.querySelector('.panel'); const r = p.getBoundingClientRect();
+          let sx = e.clientX, sy = e.clientY;
+          p.style.right = 'auto'; p.style.transform = 'none'; p.style.top = r.top+'px'; p.style.left = r.left+'px';
+          stopDrag = bindWindowDrag((ev) => {
+            p.style.left = Math.max(0, Math.min(window.innerWidth-r.width, r.left+(ev.clientX-sx))) + 'px';
+            p.style.top = Math.max(0, Math.min(window.innerHeight-r.height, r.top+(ev.clientY-sy))) + 'px';
+          }, () => stopDrag = null);
+        };
       };
 
       const ensureGear = () => {
-        if (!allowUiInThisDoc()) return;
-        if (gearHost) return;
-        gearHost = h('div', { id: 'vsc-gear-host', 'data-vsc-ui': '1', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;' });
+        if (!allowUiInThisDoc() || gearHost) return;
+        gearHost = h('div', { id: 'vsc-gear-host', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647' });
         const shadow = gearHost.attachShadow({ mode: 'open' });
-        const style = `.gear{--size:44px;position:fixed!important;top:50%!important;right:12px!important;transform:translateY(-50%)!important;width:var(--size)!important;height:var(--size)!important;border-radius:50%!important;background:rgba(25,25,30,0.95)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,0.15)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;pointer-events:auto!important;z-index:2147483647!important;box-shadow:0 4px 20px rgba(0,0,0,0.4)!important;user-select:none!important;-webkit-tap-highlight-color:transparent!important;transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s!important;opacity:1!important}.gear:active{transform:translateY(-50%) scale(0.9)!important}.gear.open{border-color:#2ed573!important;box-shadow:0 4px 20px rgba(0,0,0,0.4), 0 0 0 3px rgba(46,213,115,0.2)!important}.gear.inactive{border-color:#ff4757!important;opacity:0.7!important}.gear:not(.open):not(.inactive){opacity:0.55!important}.gear.panel-open{opacity:0!important;pointer-events:none!important;transform:translateY(-50%) scale(0.8)!important}.status-badge{position:absolute;top:0;right:0;min-width:14px;height:14px;border-radius:7px;background:#3b82f6;color:#fff;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center}.hint{display:none}`;
-        applyShadowStyle(shadow, style, h);
-        let dragThresholdMet = false, stopDrag = null;
-        gearBtn = h('button', { class: 'gear', onclick: (e) => {
-          if (dragThresholdMet) { e.preventDefault(); e.stopPropagation(); return; }
-          setAndHint(P.APP_UI, !sm.get(P.APP_UI));
-        } });
+        applyShadowStyle(shadow, `
+          .gear{position:fixed!important;top:50%!important;right:12px!important;transform:translateY(-50%)!important;width:42px!important;height:42px!important;border-radius:12px!important;background:rgba(15,15,20,0.9)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,0.1)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;pointer-events:auto!important;transition:all 0.2s ease;opacity:0.5}
+          .gear:hover{opacity:1;border-color:rgba(255,255,255,0.25)}
+          .gear:active{transform:translateY(-50%) scale(0.92)}
+          .gear.open{opacity:1;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.2)}
+          .gear.inactive{opacity:0.3;border-color:#f87171}
+          .gear.panel-open{opacity:0;pointer-events:none;transform:translateY(-50%) scale(0.7)}
+          .badge{position:absolute;top:-4px;right:-4px;background:#3b82f6;color:#fff;font-size:10px;font-weight:900;min-width:16px;height:16px;border-radius:8px;border:1.5px solid rgba(12,12,16,0.95);display:flex;align-items:center;justify-content:center}
+        `, h);
+
+        gearBtn = h('button', { class: 'gear' });
         gearBtn.innerHTML = VSC_ICONS.gear;
-        const statusBadge = h('div', { class: 'status-badge' });
-        gearBtn.append(statusBadge);
-        blockInterference(gearBtn);
-        shadow.append(gearBtn, h('div', { class: 'hint' }, 'Alt+Shift+V'));
-        const wake = () => {
-          if (gearBtn) gearBtn.style.opacity = '1';
-          clearTimeout(fadeTimer);
-          fadeTimer = setTimeout(() => {
-            if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = '0.4';
-          }, 3500);
+        const badge = h('div', { class: 'badge', style: 'display:none' });
+        gearBtn.appendChild(badge);
+        shadow.appendChild(gearBtn);
+
+        gearBtn.onclick = (e) => {
+          if (gearBtn.__vscDrag) { e.preventDefault(); e.stopPropagation(); return; }
+          setAndHint(P.APP_UI, !sm.get(P.APP_UI));
         };
-        window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal });
-        window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal });
-        bootWakeTimer = setTimeout(wake, 2000);
+
+        let stopDrag = null;
         const handleGearDrag = (e) => {
-          if (e.target !== gearBtn) return;
-          dragThresholdMet = false; stopDrag?.();
+          if (!e.target.closest('.gear')) return;
+          gearBtn.__vscDrag = false; stopDrag?.();
           const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
           const rect = gearBtn.getBoundingClientRect();
+
           stopDrag = bindWindowDrag((ev) => {
             const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
-            if (Math.abs(currentY - startY) > 10) {
-              if (!dragThresholdMet) { dragThresholdMet = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = `${rect.top}px`; }
+            if (Math.abs(currentY - startY) > 8) {
+              if (!gearBtn.__vscDrag) { gearBtn.__vscDrag = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = rect.top+'px'; }
               if (ev.cancelable) ev.preventDefault();
             }
-            if (dragThresholdMet) {
-              let newTop = rect.top + (currentY - startY);
-              newTop = Math.max(0, Math.min(window.innerHeight - rect.height, newTop));
-              gearBtn.style.top = `${newTop}px`;
+            if (gearBtn.__vscDrag) {
+              gearBtn.style.top = Math.max(0, Math.min(window.innerHeight - rect.height, rect.top + (currentY - startY))) + 'px';
             }
-          }, () => { gearBtn.style.transition = ''; setTimeout(() => { dragThresholdMet = false; stopDrag = null; }, 100); });
+          }, () => { gearBtn.style.transition = ''; setTimeout(() => { gearBtn.__vscDrag = false; stopDrag = null; }, 100); });
         };
-        gearBtn.addEventListener('mousedown', handleGearDrag);
-        gearBtn.addEventListener('touchstart', handleGearDrag, { passive: false });
-        const syncGearTitle = () => {
+        gearBtn.onmousedown = handleGearDrag; gearBtn.ontouchstart = handleGearDrag;
+        blockInterference(gearBtn);
+
+        const sync = () => {
           if (!gearBtn) return;
-          let count = 0;
-          const parts = [];
-          if (sm.get(P.APP_ACT)) {
-            const ps = sm.get(P.V_PRE_S);
-            if (ps !== 'off') { parts.push('샤프: ' + (PRESET_LABELS.detail[ps] || ps)); count++; }
-            if (sm.get(P.A_EN)) { parts.push('오디오 부스트'); count++; }
-            if (sm.get(P.PB_EN)) {
-              parts.push(Number(sm.get(P.PB_RATE)).toFixed(1) + 'x');
-              if (Number(sm.get(P.PB_RATE)) !== 1) count++;
-            }
-            if (sm.get(P.APP_AUTO_SCENE)) { parts.push('Auto'); count++; }
-            if (sm.get(P.APP_AUTO_PRESET)) { parts.push('자동프리셋'); }
-            if ((Number(sm.get(P.V_SHADOW_MASK)) | 0) > 0) count++;
-            if ((Number(sm.get(P.V_BRIGHT_STEP)) | 0) > 0) count++;
-            if (sm.get(P.V_PRE_B) !== 'off') count++;
-          }
-          statusBadge.textContent = count > 0 ? String(count) : '';
-          gearBtn.title = parts.length ? parts.join(' \u00B7 ') : (sm.get(P.APP_ACT) ? '설정 없음' : 'OFF');
-        };
-        sub(P.APP_ACT, syncGearTitle); sub(P.V_PRE_S, syncGearTitle); sub(P.V_PRE_B, syncGearTitle); sub(P.A_EN, syncGearTitle); sub(P.PB_EN, syncGearTitle); sub(P.PB_RATE, syncGearTitle); sub(P.APP_AUTO_SCENE, syncGearTitle); sub(P.APP_AUTO_PRESET, syncGearTitle); sub(P.V_SHADOW_MASK, syncGearTitle); sub(P.V_BRIGHT_STEP, syncGearTitle);
-        syncGearTitle();
-        const syncGear = () => {
-          if (!gearBtn) return;
-          const showHere = allowUiInThisDoc();
           const uiOpen = !!sm.get(P.APP_UI);
           gearBtn.classList.toggle('open', uiOpen);
           gearBtn.classList.toggle('panel-open', uiOpen);
           gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT));
-          gearBtn.style.display = showHere ? 'flex' : 'none';
-          if (!showHere) detachNodesHard();
-          else if (!uiOpen) wake();
+
+          let count = 0;
+          if(sm.get(P.APP_ACT)){
+            if(sm.get(P.V_PRE_S)!=='off') count++;
+            if(sm.get(P.A_EN)) count++;
+            if(sm.get(P.PB_EN)&&Number(sm.get(P.PB_RATE))!==1) count++;
+            if(sm.get(P.APP_AUTO_SCENE)) count++;
+          }
+          badge.textContent = count;
+          badge.style.display = count > 0 ? 'flex' : 'none';
+          gearBtn.style.display = allowUiInThisDoc() ? 'flex' : 'none';
         };
-        sub(P.APP_ACT, syncGear); sub(P.APP_UI, syncGear); syncGear();
+        [P.APP_UI, P.APP_ACT, P.V_PRE_S, P.A_EN, P.PB_EN, P.PB_RATE, P.APP_AUTO_SCENE].forEach(p => sub(p, sync));
+        sync();
+
+        const wake = () => {
+          if (gearBtn) gearBtn.style.opacity = '1';
+          clearTimeout(fadeTimer);
+          fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = ''; }, 3000);
+        };
+        window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal });
+        bootWakeTimer = setTimeout(wake, 2000);
       };
-      const mount = () => {
-        if (!allowUiInThisDoc()) { detachNodesHard(); return; }
-        const root = getUiRoot();
-        if (!root) return;
-        try { if (gearHost && gearHost.parentNode !== root) root.appendChild(gearHost); } catch (_) {}
-        try { if (container && container.parentNode !== root) root.appendChild(container); } catch (_) {}
-      };
+
+      /* FIX: ensure() 내부에서 APP_UI 상태에 따라 build/show/hide 처리 */
       const ensure = () => {
         if (!allowUiInThisDoc()) { detachNodesHard(); return; }
         ensureGear();
-        if (sm.get(P.APP_UI)) { build(); if (container) container.style.display = 'block'; }
-        else { if (container) container.style.display = 'none'; }
-        mount();
+        if (sm.get(P.APP_UI)) {
+          build();
+          if (container) {
+            container.style.display = 'block';
+            /* FIX: container가 DOM에 붙어 있지 않으면 다시 붙임 */
+            const root = getUiRoot();
+            if (root && container.parentNode !== root) root.appendChild(container);
+          }
+        } else {
+          if (container) container.style.display = 'none';
+        }
+
+        const root = getUiRoot();
+        if (root && gearHost && gearHost.parentNode !== root) root.appendChild(gearHost);
       };
 
-      if (!document.body) {
-        document.addEventListener('DOMContentLoaded', () => { try { ensure(); ApplyReq.hard(); } catch (_) {} }, { once: true, signal: __globalSig });
-      }
-      if (CONFIG.DEBUG) window.__VSC_UI_Ensure = ensure;
+      /* FIX: APP_UI 변경 시 ensure() 즉시 호출하여 패널 표시/숨김 반영 */
+      sub(P.APP_UI, () => ensure());
 
+      ensure();
       return {
         ensure,
-        destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); }
+        destroy: () => { uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); }
       };
     }
+
 
     // ─── END OF PART 4 ───
 // ═══════════════════════════════════════════════════════════
