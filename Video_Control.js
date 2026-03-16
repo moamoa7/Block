@@ -3458,6 +3458,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
           let nextTarget = pick.target;
           if (!nextTarget && __activeTarget) nextTarget = __activeTarget;
           if (nextTarget !== __activeTarget) __activeTarget = nextTarget;
+          window.__VSC_ACTIVE_VIDEO = __activeTarget;
 
           if (Store.get(P.APP_AUTO_PRESET) && __activeTarget) {
             const vh = __activeTarget.videoHeight || 0;
@@ -4122,7 +4123,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       }, 200);
 
       window.__VSC_APP__ = Object.freeze({
-        getActiveVideo: () => null,
+        getActiveVideo: () => window.__VSC_ACTIVE_VIDEO || null,
         getStore: () => Store,
         version: VSC_VERSION
       });
