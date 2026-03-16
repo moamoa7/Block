@@ -2921,9 +2921,9 @@
       const h = videoHeight || 0;
       if (CONFIG.IS_MOBILE) {
         // 모바일: CSS pseudo-sharp이므로 더 낮은 해상도 기준 적용
-        if (h <= 360) return 'L';
-        if (h <= 480) return 'M';
-        if (h <= 720) return 'S';
+        if (h <= 480) return 'L';
+        if (h <= 720) return 'M';
+        if (h <= 1080) return 'S';
         return 'off';
       }
       if (h <= 480) return 'L';
