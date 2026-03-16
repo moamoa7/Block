@@ -2357,11 +2357,11 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiL
           if (__liteForced) {
             // --- [모바일 전용 설정] ---
             // 더 공격적인 배율(0.50)과 높은 한계치(0.45) 적용
-            totalS = clamp(rawS * 0.70 * pxScale, 0, 0.60); 
+            totalS = clamp(rawS * 1.20 * pxScale, 0, 0.60);
           } else {
             // --- [PC 전용 설정] ---
             // 기존의 안정적인 배율(0.35)과 한계치(0.30) 유지
-            totalS = clamp(rawS * 0.35 * pxScale, 0, 0.30);
+            totalS = clamp(rawS * 0.55 * pxScale, 0, 0.45);
           }
           const center = 1.0 + 4.0 * totalS; const edge = -totalS;
 
