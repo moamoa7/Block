@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v186.0.0)
+// @name         Video_Control (v187.0.0)
 // @namespace    https://github.com/
-// @version      186.0.0
-// @description  v185.1 + auto-scene v4: zonal CLAHE w/ bilinear interp, block-SAD motion estimation, fuzzy scene classification, high-luma color-temp estimation, least-squares curve fitting, preset attenuation under auto-scene
+// @version      187.0.0
+// @description  v186 + optimized values: refined audio chain, GPU-aligned canvas, tighter limiter, improved targeting hysteresis, rebalanced shadow bands, smoother scheduler
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -128,10 +128,11 @@
     function detectMobile() { try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {} return /Mobi|Android|iPhone/i.test(navigator.userAgent); }
 
     const CONFIG = Object.freeze({ IS_MOBILE: detectMobile(), TOUCHED_MAX: 140, VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""), DEBUG: false });
-    /* [v186] 버전 업데이트 */
-    const VSC_VERSION = '186.0.0';
+    /* [v187] 버전 업데이트 */
+    const VSC_VERSION = '187.0.0';
 
-    const COLOR_CAST_CORRECTION = 0.25;
+    /* [v187] 색보정 강도 미세 조정: 0.25 → 0.22 (과보정 방지) */
+    const COLOR_CAST_CORRECTION = 0.22;
     const MOBILE_COLOR_BIAS = { r: 1.00, g: 1.00, b: 0.97 };
 
     const STORAGE_KEY = 'vsc_v2_' + location.hostname;
@@ -147,8 +148,15 @@
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 12;
-    const SPA_RESCAN_DEBOUNCE_MS = 280;
-    const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 3000, AUDIO_SRC_COOLDOWN_DRM: 8000, TARGET_HYSTERESIS_MS: 500, TARGET_HYSTERESIS_MARGIN: 0.5 });
+    /* [v187] SPA 재스캔 디바운스: 280 → 250ms (더 빠른 반응) */
+    const SPA_RESCAN_DEBOUNCE_MS = 250;
+    const GUARD = Object.freeze({
+      AUDIO_SRC_COOLDOWN: 3000,
+      AUDIO_SRC_COOLDOWN_DRM: 8000,
+      /* [v187] 타겟 히스테리시스: 500 → 600ms (타겟 전환 안정성 향상) */
+      TARGET_HYSTERESIS_MS: 600,
+      TARGET_HYSTERESIS_MARGIN: 0.5
+    });
 
     const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
     const RATE_BLOCKED_PATHS = Object.freeze([
@@ -296,7 +304,8 @@
     onWin('scroll', bumpRectEpoch, { passive: true, capture: true }); onWin('resize', bumpRectEpoch, { passive: true }); onWin('orientationchange', bumpRectEpoch, { passive: true });
     try { const vv = window.visualViewport; if (vv) { on(vv, 'resize', bumpRectEpoch, { passive: true }); on(vv, 'scroll', bumpRectEpoch, { passive: true }); } } catch (_) {}
 
-    function getRectCached(v, now, maxAgeMs = 400) { const st = getVState(v); if (!st.rect || (now - (st.rectT || 0)) > maxAgeMs || (st.rectEpoch || 0) !== __vscRectEpoch || st._resizeDirty) { st.rect = v.getBoundingClientRect(); st.rectT = now; st.rectEpoch = __vscRectEpoch; st._resizeDirty = false; } return st.rect; }
+    /* [v187] Rect 캐시 maxAge: 400 → 350ms (더 정확한 위치 추적) */
+    function getRectCached(v, now, maxAgeMs = 350) { const st = getVState(v); if (!st.rect || (now - (st.rectT || 0)) > maxAgeMs || (st.rectEpoch || 0) !== __vscRectEpoch || st._resizeDirty) { st.rect = v.getBoundingClientRect(); st.rectT = now; st.rectEpoch = __vscRectEpoch; st._resizeDirty = false; } return st.rect; }
     const __vpSnap = { w: 0, h: 0, cx: 0, cy: 0 };
     function getViewportSnapshot() {
       const vv = window.visualViewport;
@@ -896,10 +905,14 @@
     function createTargeting() {
       let stickyTarget = null; let stickyScore = -Infinity; let stickyUntil = 0;
       const SCORE = Object.freeze({
-        PLAYING: 6.0, HAS_PROGRESS: 2.0, AREA_SCALE: 1.1,
-        AREA_DIVISOR: 15000,
+        PLAYING: 6.0, HAS_PROGRESS: 2.0,
+        /* [v187] AREA_SCALE: 1.1 → 1.15 (넓은 비디오 우선 강화) */
+        AREA_SCALE: 1.15,
+        /* [v187] AREA_DIVISOR: 15000 → 12000 (대형 비디오 점수 증폭) */
+        AREA_DIVISOR: 12000,
+        /* [v187] USER_PROX_DECAY: 2500 → 2000ms (포커스 전환 더 빠르게) */
         USER_PROX_MAX: 2.0,
-        USER_PROX_DECAY: 2500,
+        USER_PROX_DECAY: 2000,
         USER_PROX_RAD_SQ: 722500,
         CENTER_BIAS: 0.7, CENTER_RAD_SQ: 810000,
         AUDIO_BASE: 1.2, AUDIO_BOOST_EXTRA: 1.0,
@@ -910,7 +923,7 @@
         const now = performance.now(); const vp = getViewportSnapshot(); let best = null, bestScore = -Infinity;
         const evalScore = (v) => {
           if (!v || v.readyState < 2) return;
-          const r = getRectCached(v, now, 400); const area = r.width * r.height;
+          const r = getRectCached(v, now, 350); const area = r.width * r.height;
           const pip = isPiPActiveVideo(v);
           if (area < SCORE.MIN_AREA && !pip) return;
           const cx = r.left + r.width * 0.5; const cy = r.top + r.height * 0.5;
@@ -958,7 +971,8 @@
       };
     }
 
-    function createScheduler(minIntervalMs = 16) {
+    /* [v187] 스케줄러 최소 간격: 16 → 14ms (120Hz 디스플레이 지원) */
+    function createScheduler(minIntervalMs = 14) {
       let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0;
       function clearPending() { if (timer) { clearTimer(timer); timer = 0; } if (rafId) { cancelAnimationFrame(rafId); rafId = 0; } }
       function queueRaf() { if (rafId) return; rafId = requestAnimationFrame(run); }
@@ -1089,10 +1103,13 @@
 
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray, target = null, currentSrc = null; let srcMap = new WeakMap(); let makeupDbEma = 0; let switchTimer = 0, switchTok = 0; let gestureHooked = false; let loopTok = 0; let __audioLoopTimer = 0;
-      const VSC_AUD_HPF_HZ = 45;
+      /* [v187] HPF 주파수: 45 → 55Hz (럼블/DC 오프셋 더 효과적 제거) */
+      const VSC_AUD_HPF_HZ = 55;
       const VSC_AUD_HPF_Q = 0.707;
-      const VSC_AUD_CLIP_KNEE = 0.92;
-      const VSC_AUD_CLIP_DRIVE = 3.5;
+      /* [v187] 소프트 클리핑 니: 0.92 → 0.94 (왜곡 임계치 상향, 더 클린한 소리) */
+      const VSC_AUD_CLIP_KNEE = 0.94;
+      /* [v187] 소프트 클리핑 드라이브: 3.5 → 3.0 (과도한 새추레이션 방지) */
+      const VSC_AUD_CLIP_DRIVE = 3.0;
       let __vscClipCurve = null;
       function getSoftClipCurve() { if (__vscClipCurve) return __vscClipCurve; const n = 2048; const knee = VSC_AUD_CLIP_KNEE; const drive = VSC_AUD_CLIP_DRIVE; const curve = new Float32Array(n); const tanhD = Math.tanh(drive); for (let i = 0; i < n; i++) { const x = (i / (n - 1)) * 2 - 1; const ax = Math.abs(x); let y; if (ax <= knee) { y = x; } else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); } curve[i] = y; } __vscClipCurve = curve; return curve; }
       const onGesture = async () => {
@@ -1169,17 +1186,24 @@
       const resetCtx = () => { ctx = null; compressor = null; limiter = null; wetInGain = null; dryOut = null; wetOut = null; masterOut = null; hpf = null; clipper = null; analyser = null; dataArray = null; currentSrc = null; target = null; };
       const buildAudioGraph = () => {
         compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = -24;
-        compressor.knee.value = 8;
+        /* [v187] 컴프레서 threshold: -24 → -22dB (덜 공격적, 자연스러운 다이나믹스) */
+        compressor.threshold.value = -22;
+        /* [v187] 컴프레서 knee: 8 → 10dB (더 부드러운 전환) */
+        compressor.knee.value = 10;
         compressor.ratio.value = 4.0;
-        compressor.attack.value = 0.012;
+        /* [v187] 컴프레서 attack: 0.012 → 0.008s (트랜지언트 더 빠르게 캡처) */
+        compressor.attack.value = 0.008;
         compressor.release.value = 0.20;
         limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -2.0;
-        limiter.knee.value = 1.0;
+        /* [v187] 리미터 threshold: -2.0 → -1.5dB (더 타이트한 시링 보호) */
+        limiter.threshold.value = -1.5;
+        /* [v187] 리미터 knee: 1.0 → 0.5dB (브릭월에 가깝게) */
+        limiter.knee.value = 0.5;
         limiter.ratio.value = 20.0;
-        limiter.attack.value = 0.0015;
-        limiter.release.value = 0.12;
+        /* [v187] 리미터 attack: 0.0015 → 0.001s (초고속 피크 제한) */
+        limiter.attack.value = 0.001;
+        /* [v187] 리미터 release: 0.12 → 0.10s (펌핑 감소) */
+        limiter.release.value = 0.10;
         hpf = ctx.createBiquadFilter(); hpf.type = 'highpass'; hpf.frequency.value = VSC_AUD_HPF_HZ; hpf.Q.value = VSC_AUD_HPF_Q;
         clipper = ctx.createWaveShaper(); clipper.curve = getSoftClipCurve(); try { clipper.oversample = '2x'; } catch (_) {}
         analyser = ctx.createAnalyser(); analyser.fftSize = 2048; dataArray = new Float32Array(analyser.fftSize);
@@ -1257,8 +1281,8 @@
 
     // === AUTO SCENE V4 ===
     /* ═══════════════════════════════════════════════════════════
-       [v186] createAutoSceneManager — 전면 교체
-       (1) 캔버스 120×68 확대
+       [v187] createAutoSceneManager — 최적화된 상수값 적용
+       (1) 캔버스 128×72 (2의 거듭제곱 정렬, GPU 친화적)
        (2) 이전 프레임 루미넌스 + 블록 SAD 모션 추정
        (3) 구역별 히스토그램 + 구역 CLAHE + 바이리니어 보간
        (4) 퍼지 장면 분류 (가중 점수 + 시간축 EMA)
@@ -1275,8 +1299,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
 
   const HIST_BINS = 256;
   const TONE_STEPS = 256;
-  /* [v186] 캔버스 해상도 확대 (80×45 → 120×68) */
-  const CANVAS_W = 120, CANVAS_H = 68;
+  /* [v187] 캔버스 해상도: 120×68 → 128×72 (2의 거듭제곱 정렬, GPU 텍스처 최적화) */
+  const CANVAS_W = 128, CANVAS_H = 72;
   const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
 
   const ST = Object.freeze({
@@ -1294,7 +1318,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return (r - g) > 12;
   }
 
-  /* ─── [v186] 구역별 CLAHE + 바이리니어 보간 ─── */
+  /* ─── [v187] 구역별 CLAHE + 바이리니어 보간 ─── */
   function buildZonalCLAHE(zoneHists, zoneCounts, clipLimit, ZONE_COLS, ZONE_ROWS) {
     const bins = HIST_BINS;
     const zoneCDFs = new Array(ZONE_COLS * ZONE_ROWS);
@@ -1368,7 +1392,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return curve;
   }
 
-  /* ─── [v186] buildAdaptiveToneCurve — 구역 CLAHE 기반 ─── */
+  /* ─── [v187] buildAdaptiveToneCurve — 구역 CLAHE 기반 ─── */
   function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
     const {
       clipLimit = 2.5,
@@ -1450,7 +1474,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return curve;
   }
 
-  /* ─── [v186] computeChannelBalance — 고휘도 R/B 색온도 추정 추가 ─── */
+  /* ─── [v187] computeChannelBalance — 고휘도 R/B 색온도 추정 ─── */
   function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiLumaRBratio) {
     const n = Math.max(1, totalSamples);
     let rMean = 0, gMean = 0, bMean = 0;
@@ -1465,7 +1489,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
     const avgMean = (rMean + gMean + bMean) / 3;
     if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
 
-    const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.25;
+    /* [v187] COLOR_CAST_CORRECTION은 전역 상수 0.22 사용 */
+    const correctionStrength = typeof COLOR_CAST_CORRECTION !== 'undefined' ? COLOR_CAST_CORRECTION : 0.22;
 
     const skinDampen = VSC_CLAMP(skinRatio || 0, 0, 0.4) / 0.4;
     const rMul = 0.45 * (1 - skinDampen * 0.6);
@@ -1474,12 +1499,12 @@ function createAutoSceneManager(Store, P, Scheduler) {
     let gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.80);
     let bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength;
 
-    /* [v186] 고휘도 R/B 비율로 색온도 보정 */
+    /* [v187] 고휘도 R/B 비율로 색온도 보정 — 보정 강도 미세 조정 */
     if (Number.isFinite(hiLumaRBratio) && hiLumaRBratio > 0) {
       const neutral = 1.0;
       const deviation = clamp(hiLumaRBratio - neutral, -0.4, 0.4);
-      /* 양수 deviation = 따뜻한 광원 → 블루 보강, 음수 = 차가운 광원 → 레드 보강 */
-      const tempCorr = deviation * 0.12;
+      /* [v187] 색온도 보정 강도: 0.12 → 0.10 (과보정 방지) */
+      const tempCorr = deviation * 0.10;
       rGain -= tempCorr * 0.5;
       bGain += tempCorr * 0.5;
     }
@@ -1500,7 +1525,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return { rGain: finalRG, gGain: finalGG, bGain: finalBG };
   }
 
-  /* ─── [v186] 퍼지 장면 분류 ─── */
+  /* ─── [v187] 퍼지 장면 분류 ─── */
   const __fuzzyScores = new Float64Array(ST_COUNT);
   const __fuzzyEma = new Float64Array(ST_COUNT);
   let __fuzzyInited = false;
@@ -1544,8 +1569,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
       }
     }
 
-    /* EMA 적용 */
-    const emaAlpha = 0.15;
+    /* [v187] EMA alpha: 0.15 → 0.12 (더 안정적인 시간축 평활화) */
+    const emaAlpha = 0.12;
     if (!__fuzzyInited) {
       for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] = scores[i];
       __fuzzyInited = true;
@@ -1563,14 +1588,18 @@ function createAutoSceneManager(Store, P, Scheduler) {
     return bestIdx;
   }
 
+  /* [v187] 장면별 톤 파라미터 — 미세 조정 */
   const SCENE_TONE_PARAMS = Object.freeze({
     [ST.NORMAL]:        { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.22, satTarget: 1.04 },
-    [ST.LOW_KEY]:       { clipLimit: 3.0, shadowProtect: 0.45, highlightProtect: 0.20, midtoneBoost: 0.08, strength: 0.32, satTarget: 1.03 },
+    /* [v187] LOW_KEY strength: 0.32 → 0.30 (어두운 장면 과도한 보정 방지) */
+    [ST.LOW_KEY]:       { clipLimit: 3.0, shadowProtect: 0.45, highlightProtect: 0.20, midtoneBoost: 0.08, strength: 0.30, satTarget: 1.03 },
     [ST.HIGH_KEY]:      { clipLimit: 2.0, shadowProtect: 0.25, highlightProtect: 0.60, midtoneBoost: -0.03, strength: 0.20, satTarget: 1.04 },
     [ST.HIGH_CONTRAST]: { clipLimit: 1.8, shadowProtect: 0.45, highlightProtect: 0.45, midtoneBoost: 0.0, strength: 0.18, satTarget: 1.02 },
-    [ST.LOW_SAT]:       { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.28, satTarget: 1.12 },
+    /* [v187] LOW_SAT strength: 0.28 → 0.25, satTarget: 1.12 → 1.10 (자연스러운 채도 복원) */
+    [ST.LOW_SAT]:       { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.25, satTarget: 1.10 },
     [ST.SKIN]:          { clipLimit: 2.0, shadowProtect: 0.45, highlightProtect: 0.40, midtoneBoost: 0.01, strength: 0.14, satTarget: 1.02 },
-    [ST.BACKLIT]:       { clipLimit: 3.5, shadowProtect: 0.15, highlightProtect: 0.55, midtoneBoost: 0.10, strength: 0.35, satTarget: 1.05 },
+    /* [v187] BACKLIT strength: 0.35 → 0.33 (역광 보정 안정성) */
+    [ST.BACKLIT]:       { clipLimit: 3.5, shadowProtect: 0.15, highlightProtect: 0.55, midtoneBoost: 0.10, strength: 0.33, satTarget: 1.05 },
   });
 
   let prevToneCurve = null;
@@ -1605,8 +1634,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
       Math.abs(stats.contrast - prev.contrast) * 0.7 +
       Math.abs(stats.chroma - prev.chroma) * 0.5 +
       Math.abs(stats.edge - prev.edge) * 0.3 +
-      /* [v186] 모션 스코어도 전환 감지에 반영 */
-      Math.abs(stats.motionSAD || 0) * 0.4;
+      /* [v187] 모션 SAD 가중치: 0.4 → 0.35 (밝기 변화 대비 모션 비중 조절) */
+      Math.abs(stats.motionSAD || 0) * 0.35;
 
     cutScores.push(score);
     if (cutScores.length > CUT_HIST_LEN) cutScores.shift();
@@ -1627,11 +1656,12 @@ function createAutoSceneManager(Store, P, Scheduler) {
   let flickerCount = 0, lastCurveDir = 0;
   function getTemporalAlpha(isCut, isFade) {
     const base = isCut ? 0.40 : (isFade ? 0.10 : 0.05);
-    const dampen = 1 / (1 + flickerCount * 0.4);
+    /* [v187] 플리커 감쇠 강도: 0.4 → 0.5 (플리커 더 효과적 억제) */
+    const dampen = 1 / (1 + flickerCount * 0.5);
     return base * dampen;
   }
 
-  /* ─── [v186] computeFullAnalysis — 블록 SAD 모션 + 구역별 히스토그램 + 고휘도 R/B ─── */
+  /* ─── [v187] computeFullAnalysis — 블록 SAD 모션 + 구역별 히스토그램 + 고휘도 R/B ─── */
   let __prevLumBuf = null;
 
   function computeFullAnalysis(data, sw, sh) {
@@ -1652,11 +1682,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
     const zoneBrightSum = new Float64Array(ZONE_COUNT);
     const zoneBrightCount = new Uint32Array(ZONE_COUNT);
 
-    /* [v186] 현재 프레임 루미넌스 버퍼 (모션 추정용) */
+    /* [v187] 현재 프레임 루미넌스 버퍼 (모션 추정용) */
     const pixelCount = sw * sh;
     const curLum = new Uint8Array(pixelCount);
 
-    /* [v186] 고휘도 R/B 비율 누적 */
+    /* [v187] 고휘도 R/B 비율 누적 */
     let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0;
     const HI_LUMA_THR = 180;
 
@@ -1699,7 +1729,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
         zoneBrightSum[zi] += l;
         zoneBrightCount[zi]++;
 
-        /* [v186] 고휘도 영역 R/B 누적 */
+        /* [v187] 고휘도 영역 R/B 누적 */
         if (l >= HI_LUMA_THR && b > 10) {
           hiLumaRSum += r;
           hiLumaBSum += b;
@@ -1708,7 +1738,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       }
     }
 
-    /* [v186] 블록 SAD 모션 추정 */
+    /* [v187] 블록 SAD 모션 추정 */
     let motionSAD = 0;
     if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
       let sadSum = 0, sadCount = 0;
@@ -1758,7 +1788,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     }
     const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
 
-    /* [v186] 고휘도 R/B 비율 */
+    /* [v187] 고휘도 R/B 비율 */
     const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
 
     return {
@@ -1778,14 +1808,12 @@ function createAutoSceneManager(Store, P, Scheduler) {
     };
   }
 
-  /* [v186] curveToApproxParams — PART 3에서 최소제곱법 피팅으로 교체됨. 여기는 호출만 */
-  /* 주의: 실제 curveToApproxParams 함수는 PART 3의 createFiltersVideoOnly 앞에 정의됨 */
-
   const AUTO = {
     running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
     cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
     lastStats: null, statsEma: null, statsAlpha: 0.08,
-    motionEma: 0, motionAlpha: 0.25, motionThresh: 0.005, motionFrames: 0,
+    /* [v187] motionAlpha: 0.25 → 0.20 (모션 EMA 더 안정적) */
+    motionEma: 0, motionAlpha: 0.20, motionThresh: 0.005, motionFrames: 0,
     drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0,
     boostMs: 700, fpsHist: [], minFps: 1.0, maxFps: 6, curFps: 2,
     _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL,
@@ -1856,7 +1884,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
   }
 
-  /* [v186] adaptiveFps — 모션 SAD 반영 */
+  /* [v187] adaptiveFps — 모션 SAD 반영 */
   function adaptiveFps(motionSAD, isCut, isFade) {
     AUTO.fpsHist.push(motionSAD);
     if (AUTO.fpsHist.length > 6) AUTO.fpsHist.shift();
@@ -1912,7 +1940,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
         }
       }
 
-      /* [v186] 퍼지 장면 분류 */
+      /* [v187] 퍼지 장면 분류 */
       const newScene = classifySceneFuzzy(AUTO.statsEma, stats.zoneStats);
       if (newScene === AUTO._sceneType) AUTO._sceneStable++;
       else AUTO._sceneStable = 0;
@@ -1935,13 +1963,13 @@ function createAutoSceneManager(Store, P, Scheduler) {
         const sceneType = AUTO._sceneTypeEma;
         const toneParams = { ...SCENE_TONE_PARAMS[sceneType] };
 
-        /* [v186] 구역별 CLAHE 사용 */
+        /* [v187] 구역별 CLAHE 사용 */
         const rawCurve = buildAdaptiveToneCurve(
           stats.lumHist, stats.totalSamples, toneParams,
           stats.zoneHists, stats.zoneCounts
         );
 
-        /* [v186] 고휘도 R/B 색온도 전달 */
+        /* [v187] 고휘도 R/B 색온도 전달 */
         const rawGains = computeChannelBalance(
           stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio,
           stats.hiLumaRBratio
@@ -2090,7 +2118,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
 // ▲▲▲ PART 2에서 이어짐 ▲▲▲
 
     /* ═══════════════════════════════════════════════════════════
-       [v186] curveToApproxParams — 최소제곱법 3차 다항식 피팅
+       [v187] curveToApproxParams — 최소제곱법 3차 다항식 피팅
        톤 커브 256개 빈에서 gamma/contrast/brightness를 정밀 추출
        PART 2의 createAutoSceneManager 내부 loop()에서 호출됨
        ═══════════════════════════════════════════════════════════ */
@@ -2175,7 +2203,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
     }
 
     /* ═══════════════════════════════════════════════════════════
-       createFiltersVideoOnly — v185 동일
+       createFiltersVideoOnly — v187 최적화 적용
        ═══════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -2546,11 +2574,15 @@ function createAutoSceneManager(Store, P, Scheduler) {
       };
     }
 
+    /* [v187] 쉐도우 밴드 프리컴퓨트 — toe 값 재조정 */
     const _SHADOW_PRECOMPUTED = (() => {
       const base = [
-        { bit: SHADOW_BAND.OUTER, toe: -1.0, mid: -0.010, bright: -0.5, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 },
-        { bit: SHADOW_BAND.MID,   toe: -1.5, mid: -0.012, bright: -0.8, gammaMul: 0.982, contrastMul: 1.020, satMul: 1.008 },
-        { bit: SHADOW_BAND.DEEP,  toe: -2.5, mid: -0.005, bright: -0.5, gammaMul: 0.985, contrastMul: 1.020, satMul: 1.000 }
+        /* [v187] OUTER toe: -1.0 → -0.8, bright: -0.5 → -0.4 (외곽 암부 과도한 깊이 방지) */
+        { bit: SHADOW_BAND.OUTER, toe: -0.8, mid: -0.010, bright: -0.4, gammaMul: 0.990, contrastMul: 1.015, satMul: 1.005 },
+        /* [v187] MID toe: -1.5 → -1.3, contrastMul: 1.020 → 1.018 */
+        { bit: SHADOW_BAND.MID,   toe: -1.3, mid: -0.012, bright: -0.8, gammaMul: 0.982, contrastMul: 1.018, satMul: 1.008 },
+        /* [v187] DEEP toe: -2.5 → -2.2, gammaMul: 0.985 → 0.987 (블랙 크러싱 완화) */
+        { bit: SHADOW_BAND.DEEP,  toe: -2.2, mid: -0.005, bright: -0.5, gammaMul: 0.987, contrastMul: 1.020, satMul: 1.000 }
       ];
       const table = new Array(8);
       for (let mask = 0; mask < 8; mask++) {
@@ -2565,11 +2597,15 @@ function createAutoSceneManager(Store, P, Scheduler) {
       return table;
     })();
 
+    /* [v187] 밝기 복구 단계 — gammaMul 미세 조정 */
     const _BRIGHT_STEP = [
       null,
-      { brightAdd: 1.5, gammaMul: 1.02, contrastMul: 0.995 },
-      { brightAdd: 3.2, gammaMul: 1.04, contrastMul: 0.990 },
-      { brightAdd: 5.0, gammaMul: 1.07, contrastMul: 0.985 }
+      /* [v187] step1 gammaMul: 1.02 → 1.018 (밝기 복구 시 감마 왜곡 최소화) */
+      { brightAdd: 1.5, gammaMul: 1.018, contrastMul: 0.995 },
+      /* [v187] step2 gammaMul: 1.04 → 1.035 */
+      { brightAdd: 3.2, gammaMul: 1.035, contrastMul: 0.990 },
+      /* [v187] step3 gammaMul: 1.07 → 1.06 */
+      { brightAdd: 5.0, gammaMul: 1.06, contrastMul: 0.985 }
     ];
 
     function applyShadowBandStack(out, shadowBandMask) {
@@ -2620,19 +2656,20 @@ function createAutoSceneManager(Store, P, Scheduler) {
     }
 
     /* ═══════════════════════════════════════════════════════════
-       [v186] composeVideoParamsInto — Auto Scene 활성 시 프리셋 감쇠
+       [v187] composeVideoParamsInto — Auto Scene 활성 시 프리셋 감쇠
        Auto Scene이 밝기/콘트라스트를 이미 조정하므로
-       밝기 등급(presetB)의 효과를 자동으로 50% 감쇠
+       밝기 등급(presetB)의 효과를 자동으로 감쇠
+       [v187] 감쇠율: 0.50 → 0.45 (프리셋 효과 약간 더 보존)
        ═══════════════════════════════════════════════════════════ */
     function composeVideoParamsInto(out, vUser, autoMods) {
       composeBaseVideoParams(out, vUser);
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
 
-      /* [v186] Auto Scene 톤 커브 활성 시 밝기 등급 감쇠 */
+      /* [v187] Auto Scene 톤 커브 활성 시 밝기 등급 감쇠: 0.50 → 0.45 */
       const autoSceneHasCurve = !!(autoMods._toneCurve);
       if (autoSceneHasCurve && vUser.presetB && vUser.presetB !== 'off') {
-        const ATTENUATION = 0.50;
+        const ATTENUATION = 0.45;
         out.bright = (out.bright || 0) * ATTENUATION;
         out.gamma = 1.0 + ((out.gamma || 1.0) - 1.0) * ATTENUATION;
       }
@@ -2931,7 +2968,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
                 zoomBtn.append(svgIcon('zoom'), document.createTextNode(' 줌'));
                 zoomBtn.onclick = () => {
                   const zm = window.__VSC_INTERNAL__?.ZoomManager;
-                  const v = window.__VSC_APP__?.getActiveVideo();
+                  const v = window.__VSC_APP__?.getActiveVideo?.();
                   if (zm && v) {
                     if (zm.isZoomed(v)) {
                       zm.resetZoom(v);
@@ -3092,11 +3129,11 @@ function createAutoSceneManager(Store, P, Scheduler) {
       if (CONFIG.DEBUG) window.__VSC_UI_Ensure = ensure;
       return { ensure, destroy: () => { try { uiWakeCtrl.abort(); } catch {} clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); } };
     }
-// ▲▲▲ PART 3 끝 — PART 4에서 이어짐 ▲▲▲
+// ▼▼▼ PART 4에서 이어짐 (bindVideoOnce · applyToAllVideos · bootstrap) ▼▼▼
 // ▲▲▲ PART 3에서 이어짐 ▲▲▲
 // ═══════════════════════════════════════════════════════════
-//  PART 4 — v186.0.0: bindVideoOnce · applyToAllVideos · bootstrap
-//  v185.1 Bootstrap 구조 유지 + auto-scene v4 연동
+//  PART 4 — v187.0.0: bindVideoOnce · applyToAllVideos · bootstrap
+//  v186 Bootstrap 구조 유지 + 최적화된 상수값 적용
 // ═══════════════════════════════════════════════════════════
 
     /* ─────────────────────────────────────────────────────
@@ -3432,7 +3469,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
           lastSRev = sRev; lastRRev = rRev; lastUserSigRev = userSigRev;
 
           const now = performance.now();
-          if (now - lastPrune > 2000) {
+          /* [v187] 정리 주기: 2000 → 2500ms (CPU 오버헤드 감소) */
+          if (now - lastPrune > 2500) {
             Registry.prune();
             pruneTouchedDisconnected();
             lastPrune = now;
@@ -3458,7 +3496,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
           let nextTarget = pick.target;
           if (!nextTarget && __activeTarget) nextTarget = __activeTarget;
           if (nextTarget !== __activeTarget) __activeTarget = nextTarget;
-          window.__VSC_ACTIVE_VIDEO = __activeTarget;
+          window.__VSC_INTERNAL__._activeVideo = __activeTarget;
 
           if (Store.get(P.APP_AUTO_PRESET) && __activeTarget) {
             const vh = __activeTarget.videoHeight || 0;
@@ -3987,7 +4025,8 @@ function createAutoSceneManager(Store, P, Scheduler) {
       log.info(`Video_Control v${VSC_VERSION} bootstrap start`);
 
       const Utils = createUtils();
-      const Scheduler = createScheduler(16);
+      /* [v187] 스케줄러 14ms 인터벌 (createScheduler 기본값으로 적용됨) */
+      const Scheduler = createScheduler(14);
       const Bus = createEventBus();
       const ApplyReq = createApplyRequester(Bus, Scheduler);
       const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
@@ -4123,7 +4162,7 @@ function createAutoSceneManager(Store, P, Scheduler) {
       }, 200);
 
       window.__VSC_APP__ = Object.freeze({
-        getActiveVideo: () => window.__VSC_ACTIVE_VIDEO || null,
+        getActiveVideo: () => window.__VSC_INTERNAL__._activeVideo || null,
         getStore: () => Store,
         version: VSC_VERSION
       });
