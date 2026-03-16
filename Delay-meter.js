@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         딜레이 미터기
+// @name         딜레이 미터기 (S-Class 다단변속 + 플랫폼 분리)
 // @namespace    https://github.com/moamoa7
-// @version      8.2.0
-// @description  라이브 방송의 딜레이를 자동으로 최적화합니다.
+// @version      9.1.0
+// @description  플랫폼을 자동 인식하여 치지직(2초)과 숲(4초)에 최적화된 배속과 설정을 독립적으로 적용합니다.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
 // @match        https://chzzk.naver.com/*
@@ -17,14 +17,29 @@
 (function () {
     'use strict';
 
-    const SKEY = 'dm_v6';
-    const SL_MIN = 2, SL_MAX = 8, SL_DEF = 4;
-    const KEEP_BUF = 3;
-    const SEEK_MARGIN = 3;
+    /* ── 🌐 플랫폼 자동 감지 ── */
+    const isSoop = location.hostname.includes('sooplive');
+
+    /* ── ⚙️ 코어 설정 상수 (플랫폼 분리) ── */
+    // 숲과 치지직의 설정을 따로따로 저장하기 위해 SKEY를 분리합니다.
+    const SKEY = isSoop ? 'dm_v9_soop' : 'dm_v9_chzzk';
+
+    // 치지직은 1초~8초(기본2초), 숲은 3초~10초(기본4초)로 범위를 다르게 줍니다.
+    const SL_MIN = isSoop ? 3 : 1;
+    const SL_MAX = isSoop ? 10 : 8;
+    const SL_DEF = isSoop ? 4.0 : 2.0;
+
+    const KEEP_BUF = 10;
+    const PANIC_TIME = 13;
     const SEEK_CD = 10000;
-    const CHECK_MS = 2000;
+    const CHECK_MS = 1000;
     const CHECK_IDLE = 5000;
-    const WARMUP = 5000;
+    const WARMUP = 7000;
+
+    /* ── 🏎️ 다단 변속 기어 설정 ── */
+    const RATE_NORMAL = 1.0;
+    const RATE_SOFT = 1.05;
+    const RATE_HIGH = 1.10;
 
     let _c = null;
     const cfg = () => _c || (_c = (() => { try { return JSON.parse(localStorage.getItem(SKEY)) || {}; } catch { return {}; } })());
@@ -46,7 +61,6 @@
     let enabled = cfg().enabled ?? true;
     let lastSeek = 0, startTime = performance.now();
     let panelOpen = false, lastDot = '', els = {};
-    let debug = cfg().debug ?? false;
     let cachedBuf = -1;
 
     const loaded = new WeakSet();
@@ -79,19 +93,15 @@
         obs.observe(document.body, { childList: true, subtree: true });
     };
 
-    /* ── 버퍼 읽기: 한 틱에 딱 한 번 ── */
     const readBuf = () => {
         if (!vid || !vid.buffered.length) return -1;
-        const e = vid.buffered.end(vid.buffered.length - 1);
-        return e - vid.currentTime;
+        return vid.buffered.end(vid.buffered.length - 1) - vid.currentTime;
     };
 
     const isLive = () => {
         if (!vid) return false;
         const d = vid.duration;
-        if (d === Infinity || d >= 1e6) return true;
-        if (!Number.isFinite(d) || !d) return cachedBuf > 0;
-        return false;
+        return (d === Infinity || d >= 1e6) || cachedBuf > 0;
     };
 
     const doSeek = () => {
@@ -100,30 +110,54 @@
         const s = vid.buffered.start(vid.buffered.length - 1);
         vid.currentTime = Math.max(s, e - KEEP_BUF);
         lastSeek = performance.now();
-        if (debug) console.debug(`[DM] seek → buf=${(e - vid.currentTime).toFixed(1)}s 남김`);
+    };
+
+    const setSpeed = (rate) => {
+        if (vid && vid.playbackRate !== rate) {
+            vid.playbackRate = rate;
+            if (typeof vid.preservesPitch !== 'undefined') vid.preservesPitch = true;
+            else if (typeof vid.mozPreservesPitch !== 'undefined') vid.mozPreservesPitch = true;
+        }
     };
 
     const tick = () => {
         if (vid && !vid.isConnected) { vid = null; if (!obs) startObs(); }
         if (!vid) { const v = document.querySelector('video'); if (v) found(v); }
-        if (!vid || !isBlobSrc(vid) || vid.paused) { cachedBuf = -1; ui(-1); return; }
 
-        /* buffered 접근은 여기서 딱 1회 */
+        if (!vid || !isBlobSrc(vid) || vid.paused || vid.readyState < 3) {
+            setSpeed(RATE_NORMAL);
+            cachedBuf = -1; ui(-1); return;
+        }
+
         cachedBuf = readBuf();
-
         if (!isLive()) { cachedBuf = -1; ui(-1); return; }
 
         ui(cachedBuf);
 
-        if (!enabled) return;
-
+        if (!enabled) { setSpeed(RATE_NORMAL); return; }
         const now = performance.now();
         if (now - startTime < WARMUP) return;
 
-        if (cachedBuf > target + SEEK_MARGIN && now - lastSeek > SEEK_CD) {
-            if (debug) console.debug(`[DM] 버퍼 ${cachedBuf.toFixed(1)}s > ${target}+${SEEK_MARGIN}s → seek`);
+        /* ── 비상 탈출 ── */
+        if (cachedBuf > PANIC_TIME && now - lastSeek > SEEK_CD) {
             doSeek();
+            return;
         }
+
+        /* ── 스마트 다단 변속 ── */
+        let nextRate = RATE_NORMAL;
+
+        if (cachedBuf > 7.0) {
+            nextRate = RATE_HIGH;
+        } else if (cachedBuf > target) {
+            nextRate = RATE_SOFT;
+        } else if (cachedBuf <= target - 0.5) {
+            nextRate = RATE_NORMAL;
+        } else {
+            nextRate = vid.playbackRate;
+        }
+
+        setSpeed(nextRate);
     };
 
     const ui = buf => {
@@ -132,16 +166,25 @@
 
         if (!panelOpen) {
             if (!els.dot) return;
-            const c = !enabled ? '#555' : color(diff);
-            if (c !== lastDot) { lastDot = c; els.dot.style.background = c; els.dot.style.boxShadow = enabled ? `0 0 6px ${c}` : 'none'; }
+            const isSpeeding = vid && vid.playbackRate > 1.0;
+            const c = !enabled ? '#555' : isSpeeding ? '#3498db' : color(diff);
+
+            if (c !== lastDot) {
+                lastDot = c; els.dot.style.background = c;
+                els.dot.style.boxShadow = enabled ? `0 0 ${isSpeeding ? '10px' : '6px'} ${c}` : 'none';
+            }
             els.dot.classList.toggle('dm-off', !enabled);
             return;
         }
 
-        const si = !enabled ? '⏹' : buf < 0 ? '…' : Math.abs(diff) < SEEK_MARGIN ? '✓' : '→';
-        els.delay.textContent = buf < 0 ? '-' : sec.toFixed(1) + '초 ' + si;
+        const isTargetRange = sec <= target && sec >= Math.max(0, target - 0.5);
+        const si = !enabled ? '⏹' : buf < 0 ? '…' : isTargetRange ? '✓' : '→';
+
+        const speedIndicator = (vid && vid.playbackRate > 1.0) ? ` (⚡${vid.playbackRate}x)` : '';
+        els.delay.textContent = buf < 0 ? '-' : sec.toFixed(1) + '초 ' + si + speedIndicator;
+
         els.delay.style.color = color(diff);
-        els.bar.style.width = clamp(sec / 15 * 100, 0, 100) + '%';
+        els.bar.style.width = clamp(sec / (isSoop ? 15 : 10) * 100, 0, 100) + '%';
         els.bar.style.background = els.delay.style.color;
     };
 
@@ -159,7 +202,8 @@
 .df{height:100%;min-width:2%;border-radius:3px;transition:width .3s}
 .sr{margin:10px 0 2px;display:flex;align-items:center;gap:6px;font-size:11px}
 .sr input[type=range]{flex:1;height:4px;-webkit-appearance:none;background:rgba(255,255,255,.12);border-radius:2px;outline:none}
-.sr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#2ecc71;cursor:pointer}
+.sr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#2ecc71;cursor:pointer;transition:background .2s}
+.sr input[type=range]::-webkit-slider-thumb:hover{background:#3498db}
 .sl{text-align:center;font:bold 12px ui-monospace,monospace;margin-bottom:4px}
 .bt{cursor:pointer;border:none;border-radius:4px;padding:4px 10px;font:bold 11px system-ui;transition:.1s}
 .bt:active{transform:scale(.95)}.bon{background:#2ecc71;color:#000}.boff{background:#555;color:#999}
@@ -170,11 +214,15 @@
         const dot = document.createElement('div'); dot.id = 'dm-dot'; document.body.appendChild(dot);
         const p = document.createElement('div'); p.id = 'dm-p';
         const sv = Math.round((target - SL_MIN) / (SL_MAX - SL_MIN) * 100);
-        p.innerHTML = `<div class="dh" data-h>딜레이 미터기<span class="x" data-x>✕</span></div>
+
+        // UI에 현재 접속중인 플랫폼 표시 (ex: 딜레이 미터기 [SOOP])
+        const pfName = isSoop ? 'SOOP' : '치지직';
+
+        p.innerHTML = `<div class="dh" data-h>미터기 [${pfName}]<span class="x" data-x>✕</span></div>
 <div class="dr"><span>버퍼</span><span class="dv" data-d>-</span></div><div class="db"><div class="df" data-b></div></div>
 <div class="sr"><span style="opacity:.5">저지연</span><input type=range data-sl min=0 max=100 value=${sv}><span style="opacity:.5">안정</span></div>
 <div class="sl" data-sv>${target.toFixed(1)}초</div>
-<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><button class="bt" data-t>ON</button><span class="pt">v${GM_info.script.version}</span></div>`;
+<div style="display:flex;align-items:center;gap:6px;margin-top:6px"><button class="bt" data-t>ON</button><span class="pt">v9.1.0 Auto</span></div>`;
         document.body.appendChild(p);
 
         const $ = s => p.querySelector(`[data-${s}]`);
@@ -214,18 +262,13 @@
     const openP = () => { if (panelOpen) return; panelOpen = true; save({ open: true }); els.dot.style.display = 'none'; els.p.style.display = 'block'; lastDot = ''; };
     const closeP = () => { if (!panelOpen) return; panelOpen = false; save({ open: false }); const r = els.p.getBoundingClientRect(); els.p.style.display = 'none'; els.dot.style.display = 'block'; Object.assign(els.dot.style, { left: clamp(r.right - 20, 0, innerWidth - 14) + 'px', top: clamp(r.top + 6, 0, innerHeight - 14) + 'px', right: 'auto', bottom: 'auto' }); save({ dx: els.dot.style.left, dy: els.dot.style.top }); lastDot = ''; };
 
-    GM_registerMenuCommand('디버그 모드 토글', () => {
-        debug = !debug; save({ debug });
-        console.log(`[DM] 디버그 ${debug ? 'ON' : 'OFF'}`);
-    });
-
-    GM_registerMenuCommand('현재 상태', () => {
+    GM_registerMenuCommand('현재 상태 확인', () => {
         console.table({
-            버퍼: cachedBuf < 0 ? '-' : cachedBuf.toFixed(1) + '초',
-            목표: target + '초',
-            활성: enabled,
-            seek임계: (target + SEEK_MARGIN) + '초',
-            seek후남김: KEEP_BUF + '초',
+            '플랫폼': isSoop ? 'SOOP' : '치지직',
+            '현재 버퍼': cachedBuf < 0 ? '-' : cachedBuf.toFixed(1) + '초',
+            '설정된 목표': target + '초',
+            '현재 배속': vid ? vid.playbackRate + 'x' : '-',
+            '스크립트 활성': enabled
         });
     });
 
@@ -234,7 +277,6 @@
     document.addEventListener('play', e => { if (e.target?.tagName === 'VIDEO') found(e.target); }, true);
     const v = document.querySelector('video'); if (v) found(v);
 
-    /* adaptive setTimeout 루프 */
     const schedule = () => {
         tick();
         setTimeout(schedule, panelOpen ? CHECK_MS : CHECK_IDLE);
