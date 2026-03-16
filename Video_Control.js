@@ -2886,9 +2886,9 @@
     function getAutoPresetForResolution(videoHeight) {
   const h = videoHeight || 0;
   if (CONFIG.IS_MOBILE) {
-    if (h <= 360) return 'L';
-    if (h <= 480) return 'M';
-    if (h <= 720) return 'S';
+    if (h <= 480) return 'L';
+    if (h <= 720) return 'M';
+    if (h <= 1080) return 'S';
     return 'off';
   }
   if (h <= 480) return 'L';
@@ -3739,6 +3739,7 @@
       let __lastAudioTarget = null;
       let __lastAudioWant = null;
       let __lastAutoPresetHeight = 0;
+      Store.sub(P.APP_AUTO_PRESET, () => { __lastAutoPresetHeight = 0; });
       let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
       const audioUpdateThrottled = (() => {
@@ -4291,19 +4292,30 @@
     // ═══════════════════════════════════════════════════════════
 
     function setupAutoPresetWatcher(Store, ApplyReq) {
-      Store.sub(P.APP_AUTO_PRESET, (en) => {
-        if (!en) return;
-        const v = window.__VSC_APP__?.getActiveVideo?.();
-        if (!v) return;
-        const ht = v.videoHeight || 0;
-        if (ht > 0) {
-          const auto = getAutoPresetForResolution(ht);
-          Store.set(P.V_PRE_S, auto);
-          showOSD(`자동 프리셋: ${PRESET_LABELS.detail[auto] || auto} (${ht}p)`, 1500);
-          ApplyReq.hard();
-        }
-      });
+  Store.sub(P.APP_AUTO_PRESET, (en) => {
+    if (!en) return;
+    let v = window.__VSC_APP__?.getActiveVideo?.();
+    if (!v || !v.isConnected || v.readyState < 1) {
+      const all = document.querySelectorAll('video');
+      let best = null, bestArea = 0;
+      for (const vid of all) {
+        if (!vid.isConnected || vid.readyState < 1) continue;
+        const area = (vid.videoWidth || 0) * (vid.videoHeight || 0);
+        if (area > bestArea) { bestArea = area; best = vid; }
+      }
+      if (best) v = best;
     }
+    if (!v) return;
+    const ht = v.videoHeight || 0;
+    if (ht > 0) {
+      const auto = getAutoPresetForResolution(ht);
+      Store.set(P.V_PRE_S, auto);
+      showOSD(`자동 프리셋: ${PRESET_LABELS.detail[auto] || auto} (${ht}p)`, 1500);
+      ApplyReq.hard();
+    }
+  });
+}
+
 
     // ═══════════════════════════════════════════════════════════
     //  Bootstrap — 모든 모듈 조립 및 시작
