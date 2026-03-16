@@ -2357,7 +2357,7 @@ function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiL
           if (__liteForced) {
             // --- [모바일 전용 설정] ---
             // 더 공격적인 배율(0.50)과 높은 한계치(0.45) 적용
-            totalS = clamp(rawS * 0.50 * pxScale, 0, 0.45); 
+            totalS = clamp(rawS * 0.70 * pxScale, 0, 0.60); 
           } else {
             // --- [PC 전용 설정] ---
             // 기존의 안정적인 배율(0.35)과 한계치(0.30) 유지
