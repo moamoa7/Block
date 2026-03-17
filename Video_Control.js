@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v198.8.0-Hybrid)
+// @name         Video_Control (v198.9.0-Hybrid)
 // @namespace    https://github.com/
-// @version      198.8.0-Hybrid
+// @version      198.9.0-Hybrid
 // @description  v198: Auto Scene Manager + Stability (Rate Guard, AudioCtx limits, Touch Pan, SharpMul, PiP Fix, UI Bright Step, Advanced Toggle)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '198.8.0-Hybrid';
+    const VSC_VERSION = '198.9.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -3027,20 +3027,18 @@ function createVideoParamsMemo(Store, P, Utils) {
       }
 
       function resetZoom(v) {
-  const st = getSt(v);
-  // ★ 줌 관련 CSS 완전 제거
-  for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-  // 추가: 필터 엔진이 줌 상태에서 설정한 will-change도 정리
-  v.style.removeProperty('will-change');
-  v.style.removeProperty('contain');
-  if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-  else v.style.removeProperty('position');
-  if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
-  else v.style.removeProperty('z-index');
-  st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
-  st._savedPosition = ''; st._savedZIndex = '';
-  zoomedVideos.delete(v);
-}
+        const st = getSt(v);
+        for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+        v.style.removeProperty('will-change');
+        v.style.removeProperty('contain');
+        if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+        else v.style.removeProperty('position');
+        if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+        else v.style.removeProperty('z-index');
+        st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
+        st._savedPosition = ''; st._savedZIndex = '';
+        zoomedVideos.delete(v);
+      }
 
       function isZoomed(v) { return !!(zoomStates.get(v)?.zoomed); }
 
@@ -3155,25 +3153,22 @@ function createVideoParamsMemo(Store, P, Utils) {
         const store = window.__VSC_INTERNAL__?.Store;
         if (!store || __zoomModeWatcherUnsub) return;
         __zoomModeWatcherUnsub = store.sub(P.APP_ZOOM_EN, (enabled) => {
-  if (enabled) {
-    for (const v of TOUCHED.videos) { if (v?.isConnected) setTouchActionBlocking(v, true); }
-  } else {
-    // ★ 줌 해제: 모든 줌 상태 + touch-action + CSS 잔여물 정리
-    for (const v of [...zoomedVideos]) { resetZoom(v); setTouchActionBlocking(v, false); }
-    for (const v of TOUCHED.videos) {
-      if (__touchBlocked.has(v)) setTouchActionBlocking(v, false);
-      // ★ 줌 관련 CSS 잔여물도 강제 정리
-      v.style.removeProperty('will-change');
-      v.style.removeProperty('contain');
-      v.style.removeProperty('transform');
-      v.style.removeProperty('transform-origin');
-    }
-    cleanupAllTouchBlocking();
-    // ★ 상태 초기화
-    activeVideo = null; isPanning = false; pinchState.active = false;
-    activePointerId = null; __lastFoundVideo = null;
-  }
-});
+          if (enabled) {
+            for (const v of TOUCHED.videos) { if (v?.isConnected) setTouchActionBlocking(v, true); }
+          } else {
+            for (const v of [...zoomedVideos]) { resetZoom(v); setTouchActionBlocking(v, false); }
+            for (const v of TOUCHED.videos) {
+              if (__touchBlocked.has(v)) setTouchActionBlocking(v, false);
+              v.style.removeProperty('will-change');
+              v.style.removeProperty('contain');
+              v.style.removeProperty('transform');
+              v.style.removeProperty('transform-origin');
+            }
+            cleanupAllTouchBlocking();
+            activeVideo = null; isPanning = false; pinchState.active = false;
+            activePointerId = null; __lastFoundVideo = null;
+          }
+        });
       }
 
       const __tryWatchInterval = setRecurring(() => {
@@ -3326,7 +3321,7 @@ function createVideoParamsMemo(Store, P, Utils) {
     }
 
     /* ================================================================
-       createUI  ★ PATCHED: chip 통일 레이아웃 + 암부 복원 명칭
+       createUI
        ================================================================ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr,
                       Targeting, Maximizer, FiltersVO, Registry,
@@ -3374,8 +3369,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .chip.on{background:rgba(110,168,254,.25);border-color:rgba(110,168,254,.35)}
 .stgl{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;font-size:10px;border-radius:5px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);transition:background .15s,border-color .15s;user-select:none}
 .stgl.on{background:rgba(110,168,254,.25);border-color:rgba(110,168,254,.35)}
-.stgl .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.25);transition:background .15s}
-.stgl.on .dot{background:#6ea8fe}
 .badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(110,168,254,.15);color:#8ec5fc;margin-left:6px}
 .adv-hd{display:flex;align-items:center;gap:4px;padding:4px 0;cursor:pointer;font-size:11px;opacity:.55;transition:opacity .15s}
 .adv-hd:hover{opacity:.85}
@@ -3386,7 +3379,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .info-bar{font-size:10px;opacity:.5;padding:4px 0 6px;line-height:1.5;font-variant-numeric:tabular-nums}
 .qbar{pointer-events:auto;position:fixed;top:50%;right:${isMobile ? '6px' : '10px'};transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;opacity:.3;transition:opacity .25s}
 .qbar:hover{opacity:.95}
-.qb{width:${isMobile?'42px':'32px'};height:${isMobile?'42px':'32px'};border-radius:50%;background:rgba(28,28,32,.85);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background .15s,transform .1s;backdrop-filter:blur(8px)}
+.qb{width:${isMobile?'42px':'32px'};height:${isMobile?'42px':'32px'};border-radius:50%;background:rgba(28,28,32,.85);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background .15s,transform .1s,border-color .15s;backdrop-filter:blur(8px)}
 .qb:hover{background:rgba(50,50,60,.95);transform:scale(1.12)}
 .qb svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
 @media(max-width:600px){.panel{width:calc(100vw - 70px);right:56px;max-height:75vh;border-radius:12px}}`;
@@ -3417,7 +3410,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         return el;
       }
 
-      // ★ PATCHED: chip 행 빌더 (단일 선택 — 디테일, 밝기, 암부 복원 공통)
       function mkChipRow(label, path, chips, onSelect) {
         const wrap = h('div', {},
           h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, label));
@@ -3439,22 +3431,27 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         return wrap;
       }
 
-      // ★ 섀도우 밴드 누적 토글 빌더
+      /* ★ 섀도우 밴드 — OFF 버튼 추가, dot 특수문자 제거 (텍스트만) */
       function mkShadowBandToggles() {
         const wrap = h('div', {},
           h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '섀도우 밴드'));
-        const row = h('div', { style: 'display:flex;gap:6px;padding:3px 0' });
+        const row = h('div', { style: 'display:flex;gap:4px;padding:3px 0;flex-wrap:wrap' });
         const bands = [
+          { bit: 0,                label: 'OFF' },
           { bit: SHADOW_BAND.OUTER, label: '외곽' },
           { bit: SHADOW_BAND.MID,   label: '중간' },
           { bit: SHADOW_BAND.DEEP,  label: '심부' }
         ];
         const buttons = [];
         for (const band of bands) {
-          const btn = h('span', { class: 'stgl' }, h('span', { class: 'dot' }), band.label);
+          const btn = h('span', { class: 'stgl' }, band.label);
           btn.addEventListener('click', () => {
-            const cur = Number(Store.get(P.V_SHADOW_MASK)) || 0;
-            Store.set(P.V_SHADOW_MASK, ShadowMask.toggle(cur, band.bit));
+            if (band.bit === 0) {
+              Store.set(P.V_SHADOW_MASK, 0);
+            } else {
+              const cur = Number(Store.get(P.V_SHADOW_MASK)) || 0;
+              Store.set(P.V_SHADOW_MASK, ShadowMask.toggle(cur, band.bit));
+            }
             syncBands(); ApplyReq.soft();
           }, { signal: sig });
           buttons.push({ el: btn, bit: band.bit });
@@ -3462,18 +3459,24 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         }
         function syncBands() {
           const cur = Number(Store.get(P.V_SHADOW_MASK)) || 0;
-          for (const b of buttons) b.el.classList.toggle('on', ShadowMask.has(cur, b.bit));
+          for (const b of buttons) {
+            if (b.bit === 0) {
+              b.el.classList.toggle('on', cur === 0);
+            } else {
+              b.el.classList.toggle('on', ShadowMask.has(cur, b.bit));
+            }
+          }
         }
         syncFns.push(syncBands); syncBands();
         wrap.appendChild(row);
         return wrap;
       }
 
-      /* ── ★ PATCHED: buildVideoTab — chip 통일 + 암부 복원 명칭 ── */
+      /* ── buildVideoTab ── */
       function buildVideoTab() {
         const w = h('div', {});
 
-        /* ── 해상도 정보 바 ── */
+        /* 해상도 정보 바 */
         const infoBar = h('div', { class: 'info-bar' });
         function updateInfo() {
           const active = window.__VSC_INTERNAL__._activeVideo;
@@ -3494,7 +3497,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
         w.append(infoBar, mkSep());
 
-        /* ── ★ 디테일 프리셋 (chip) + 강도 슬라이더 ── */
+        /* 디테일 프리셋 + 강도 */
         w.append(
           mkChipRow('디테일', P.V_PRE_S,
             Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })),
@@ -3503,17 +3506,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           mkSep()
         );
 
-        /* ── ★ 섀도우 밴드 (누적 토글 3개) ── */
+        /* ★ 섀도우 밴드 (OFF + 외곽/중간/심부, dot 제거) */
         w.append(mkShadowBandToggles(), mkSep());
 
-        /* ── ★ 밝기 단계 (chip) ── */
+        /* ★ 밝기 단계 ('끔' → 'OFF') */
         w.append(
           mkChipRow('밝기 단계', P.V_BRIGHT_STEP,
-            [{ v:0, l:'끔' }, { v:1, l:'1단계' }, { v:2, l:'2단계' }, { v:3, l:'3단계' }]),
+            [{ v:0, l:'OFF' }, { v:1, l:'1단계' }, { v:2, l:'2단계' }, { v:3, l:'3단계' }]),
           mkSep()
         );
 
-        /* ── ★ 암부 복원 (chip — 기존 그레이드 프리셋) ── */
+        /* 암부 복원 */
         w.append(
           mkChipRow('암부 복원', P.V_PRE_B,
             Object.keys(PRESETS.grade).map(k => ({ v: k, l: getPresetLabel('grade', k) })),
@@ -3521,7 +3524,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           mkSep()
         );
 
-        /* ── ★ 자동 보정 (badge 토글 OFF 시 숨김) ── */
+        /* 자동 보정 */
         const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
         function updateSceneBadge() {
           const isOn = !!Store.get(P.APP_AUTO_SCENE);
@@ -3535,7 +3538,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         );
         Bus.on('signal', updateSceneBadge); syncFns.push(updateSceneBadge); updateSceneBadge();
 
-        /* ── 고급 설정 ── */
+        /* 고급 설정 */
         w.append(mkSep());
         const arrSpan = h('span', { class: 'arr' }, '▶');
         const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
@@ -3564,11 +3567,11 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         return w;
       }
 
+      /* ★ buildAppTab — "줌 활성화" 행 삭제됨 */
       function buildAppTab() {
         const w = h('div', {});
         w.append(
-          mkRow('모든 영상 적용', mkToggle(P.APP_APPLY_ALL, () => ApplyReq.hard())),
-          mkRow('줌 활성화', mkToggle(P.APP_ZOOM_EN, () => ApplyReq.soft()))
+          mkRow('모든 영상 적용', mkToggle(P.APP_APPLY_ALL, () => ApplyReq.hard()))
         );
         w.append(mkSep(), h('label', { style: 'font-size:12px;opacity:.8;display:block;padding:4px 0' }, '프리셋 슬롯'));
         const slotsRow = h('div', { style: 'display:flex;gap:6px;padding:4px 0' });
@@ -3665,6 +3668,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         blockInterference(panelHost);
       }
 
+      /* ★ buildQuickBar — 줌 버튼: 클릭 토글 ON/OFF (최대화 버튼과 동일 방식) */
       function buildQuickBar() {
         if (quickBarHost) return;
         quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: 'all:initial; position:fixed; top:0; left:0; width:0; height:0; z-index:2147483647 !important; pointer-events:none; display:none;' });
@@ -3673,15 +3677,61 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         _qbarShadow = sh;
         sh.appendChild(h('style', {}, PANEL_CSS));
         const bar = h('div', { class: 'qbar' });
-        const makeIcon = (name) => { const div = document.createElement('div'); div.innerHTML = (VSC_ICONS[name] || '').trim(); const svg = div.querySelector('svg'); if (svg) { svg.setAttribute('width','18'); svg.setAttribute('height','18'); svg.style.display='block'; svg.style.pointerEvents='none'; } return svg || h('span',{style:'color:white;font-size:16px'},'⚙'); };
-        const qb = (iconName, title, fn) => { const b = h('div',{class:'qb',title}); b.appendChild(makeIcon(iconName)); b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); fn(); }, {signal:sig}); return b; };
+
+        const makeIcon = (name) => {
+          const div = document.createElement('div');
+          div.innerHTML = (VSC_ICONS[name] || '').trim();
+          const svg = div.querySelector('svg');
+          if (svg) { svg.setAttribute('width','18'); svg.setAttribute('height','18'); svg.style.display='block'; svg.style.pointerEvents='none'; }
+          return svg || h('span',{style:'color:white;font-size:16px'},'⚙');
+        };
+
+        const qb = (iconName, title, fn) => {
+          const b = h('div',{class:'qb',title});
+          b.appendChild(makeIcon(iconName));
+          b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); fn(); }, {signal:sig});
+          return b;
+        };
+
+        /* ── 줌 토글 버튼 ── */
+        let zoomBtnEl = null;
+        if (ZoomMgr) {
+          zoomBtnEl = h('div', { class: 'qb', title: '줌 ON/OFF (Alt+Z)' });
+          zoomBtnEl.appendChild(makeIcon('zoom'));
+
+          const syncZoomStyle = () => {
+            const en = !!Store.get(P.APP_ZOOM_EN);
+            zoomBtnEl.style.background  = en ? 'rgba(110,168,254,.35)' : '';
+            zoomBtnEl.style.borderColor = en ? 'rgba(110,168,254,.5)'  : '';
+          };
+
+          zoomBtnEl.addEventListener('click', e => {
+            e.preventDefault(); e.stopPropagation();
+            const wasOn = !!Store.get(P.APP_ZOOM_EN);
+            if (wasOn) {
+              Store.set(P.APP_ZOOM_EN, false);
+              const v = window.__VSC_INTERNAL__._activeVideo;
+              if (v) ZoomMgr.resetZoom(v);
+              showOSD('줌 OFF', 900);
+            } else {
+              Store.set(P.APP_ZOOM_EN, true);
+              showOSD('줌 ON (Alt+Wheel 확대, Alt+드래그 이동)', 1500);
+            }
+            syncZoomStyle(); ApplyReq.soft(); persistNow();
+          }, { signal: sig });
+
+          Store.sub(P.APP_ZOOM_EN, syncZoomStyle);
+          syncZoomStyle();
+        }
+
         bar.append(
           qb('gear','설정',() => togglePanel()),
           qb('pip','PiP 전환',() => { const v=window.__VSC_INTERNAL__._activeVideo; if(v) togglePiPFor(v); }),
           qb('maximize','최대화',() => Maximizer.toggle()),
-          qb('zoom','줌 초기화',() => { const v=window.__VSC_INTERNAL__._activeVideo; if(v&&ZoomMgr) ZoomMgr.resetZoom(v); }),
+          ...(zoomBtnEl ? [zoomBtnEl] : []),
           qb('camera','프레임 캡처',() => { const v=window.__VSC_INTERNAL__._activeVideo; if(v) captureVideoFrame(v); })
         );
+
         sh.appendChild(bar);
         const mount = () => (document.body || document.documentElement).appendChild(quickBarHost);
         if (document.body) mount(); else window.addEventListener('DOMContentLoaded', mount, { once: true });
@@ -3872,7 +3922,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     }
 
     /* ================================================================
-       createKeyboard
+       createKeyboard — ★ Alt+Z 줌 토글 추가
        ================================================================ */
     function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
       const STEP_RATE = 0.1;
@@ -3892,6 +3942,22 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         }
         if (alt && k === 's') { const v = window.__VSC_INTERNAL__._activeVideo; if (v) captureVideoFrame(v); e.preventDefault(); return; }
         if (alt && k === '0') { const v = window.__VSC_INTERNAL__._activeVideo; if (v && ZoomMgr) ZoomMgr.resetZoom(v); e.preventDefault(); return; }
+        /* ★ Alt+Z: 줌 ON/OFF 토글 */
+        if (alt && (k === 'z' || k === 'Z')) {
+          if (!ZoomMgr) return;
+          const wasOn = !!Store.get(P.APP_ZOOM_EN);
+          if (wasOn) {
+            Store.set(P.APP_ZOOM_EN, false);
+            const v = window.__VSC_INTERNAL__._activeVideo;
+            if (v) ZoomMgr.resetZoom(v);
+            showOSD('줌 OFF', 900);
+          } else {
+            Store.set(P.APP_ZOOM_EN, true);
+            showOSD('줌 ON', 900);
+          }
+          ApplyReq.soft(); persistNow(); UI?.syncAll();
+          e.preventDefault(); return;
+        }
         if (alt && k === 'r') { resetDefaults(); ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD('초기화 완료', 1000); e.preventDefault(); return; }
         if (alt && k >= '1' && k <= '3') { const idx = parseInt(k) - 1; if (shift) saveSlot(idx); else loadSlot(idx); UI?.syncAll(); e.preventDefault(); return; }
         if (k === '[' || k === ']') { const cur = Number(Store.get(P.PB_RATE)) || 1; const nv = VSC_CLAMP(cur + (k === ']' ? STEP_RATE : -STEP_RATE), 0.07, 16); Store.set(P.PB_RATE, nv); ApplyReq.soft(); persistNow(); UI?.syncAll(); showOSD(`속도: ${nv.toFixed(2)}`, 900); e.preventDefault(); return; }
