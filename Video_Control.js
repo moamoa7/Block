@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v197.0.0)
+// @name         Video_Control (v197.0.0-Hybrid)
 // @namespace    https://github.com/
-// @version      197.0.0
-// @description  v197: Video Maximizer integration, bottom-tab UI, Uint32 alignment, pooled histograms, long-press speed, AudioCtx permanent block, CircularBuffer, VideoFrame capture
+// @version      197.0.0-Hybrid
+// @description  v197 + v200 Hybrid: Auto Scene Manager + v200 Stability (Rate Guard, AudioCtx limits, Touch Pan, SharpMul, PiP Fix)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '197.0.0';
+    const VSC_VERSION = '197.0.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -194,41 +194,33 @@
       debug: (...args) => LOG_LEVEL >= 4 && console.debug('[VSC]', ...args)
     };
 
-    /* ── Video State ── */
+    /* ── Video State (v200 Enhanced Rate Guard) ── */
     function createVideoState() {
       return {
-        visible: false, rect: null, bound: false, rateState: null,
+        visible: false, rect: null, bound: false,
         audioFailUntil: 0, applied: false, desiredRate: undefined,
         lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false,
         _resizeDirty: false, _ac: null, _inPiP: false,
         lastCssFilterStr: null, _transitionCleared: false,
+        rateState: {
+          orig: null, lastSetAt: 0, suppressSyncUntil: 0,
+          retryCount: 0, failCount: 0, permanentlyBlocked: false,
+          _externalMtQueued: false, _rateRetryWindow: 0, _rateRetryCount: 0
+        },
         resetTransient() {
           this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
-          if (this.rateState) {
-            this.rateState.orig = null; this.rateState.lastSetAt = 0;
-            this.rateState.retryCount = 0; this.rateState.failCount = 0;
-            this.rateState.permanentlyBlocked = false; this.rateState.suppressSyncUntil = 0;
-            this.rateState._externalMtQueued = false;
-            this.rateState._rateRetryWindow = 0; this.rateState._rateRetryCount = 0;
-          }
+          this.rateState.orig = null; this.rateState.lastSetAt = 0;
+          this.rateState.retryCount = 0; this.rateState.failCount = 0;
+          this.rateState.permanentlyBlocked = false; this.rateState.suppressSyncUntil = 0;
+          this.rateState._externalMtQueued = false;
+          this.rateState._rateRetryWindow = 0; this.rateState._rateRetryCount = 0;
           this.desiredRate = undefined;
         }
       };
     }
     const videoStateMap = new WeakMap();
     function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = createVideoState(); videoStateMap.set(v, st); } return st; }
-
-    function getRateState(v) {
-      const st = getVState(v);
-      if (!st.rateState) {
-        st.rateState = {
-          orig: null, lastSetAt: 0, retryCount: 0, failCount: 0,
-          permanentlyBlocked: false, suppressSyncUntil: 0,
-          _externalMtQueued: false, _rateRetryWindow: 0, _rateRetryCount: 0
-        };
-      }
-      return st.rateState;
-    }
+    function getRateState(v) { return getVState(v).rateState; }
 
     /* ── Shadow Band ── */
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
@@ -259,7 +251,7 @@
       grade: Object.fromEntries(Object.entries(PRESETS.grade).map(([k, v]) => [k, v.label]))
     };
 
-    /* ── Defaults & Paths (v197: maximize 추가) ── */
+    /* ── Defaults & Paths ── */
     const DEFAULTS = {
       video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 },
       audio: { enabled: false, boost: 6 },
@@ -276,7 +268,7 @@
       PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
     });
 
-    /* ── Schemas (v197: APP_MAXIMIZE 추가) ── */
+    /* ── Schemas ── */
     const APP_SCHEMA = [
       { type: 'bool', path: P.APP_APPLY_ALL },
       { type: 'bool', path: P.APP_ZOOM_EN },
@@ -299,42 +291,22 @@
       { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
     ];
 
-    /* ── attachShadow patch ── */
+    /* ── attachShadow patch (v200 refined) ── */
     if (FEATURE_FLAGS.trackShadowRoots) {
       window.__VSC_INTERNAL__._onShadow = null;
-      (function patchAttachShadowOnce() {
-        try {
-          const proto = Element.prototype;
-          if (!proto.attachShadow) return;
-          const VSC_PATCH = Symbol.for('vsc.patch.attachShadow');
-          if (proto[VSC_PATCH]) return;
-          const desc = Object.getOwnPropertyDescriptor(proto, 'attachShadow'), orig = desc && desc.value;
-          if (typeof orig !== 'function') return;
-          try { Object.defineProperty(proto, VSC_PATCH, { value: true }); } catch (_) { proto[VSC_PATCH] = true; }
-          function wrappedAttachShadow(init) {
-            const shadow = orig.call(this, init);
-            if (__globalSig.aborted) return shadow;
-            try {
-              if (shadow && typeof init === 'object' && init !== null) {
-                let mode;
-                try { mode = init.mode; } catch (_) { return shadow; }
-                if (mode === 'open') {
-                  const onShadow = window.__VSC_INTERNAL__?._onShadow;
-                  if (onShadow) queueMicrotask(() => onShadow(this, shadow));
-                }
-              }
-            } catch (_) {}
-            return shadow;
+      const _origAttach = Element.prototype.attachShadow;
+      if (typeof _origAttach === 'function' && !_origAttach.__vsc_patched) {
+        const patchedAttach = function(init) {
+          const sr = _origAttach.call(this, init);
+          if (window.__VSC_INTERNAL__?._onShadow && !__globalSig.aborted) {
+            if (init && init.mode === 'open') queueMicrotask(() => window.__VSC_INTERNAL__._onShadow(this, sr));
           }
-          try {
-            Object.defineProperty(wrappedAttachShadow, 'toString', { value: Function.prototype.toString.bind(orig), configurable: true });
-            Object.defineProperty(wrappedAttachShadow, 'name', { value: orig.name || 'attachShadow', configurable: true });
-            Object.defineProperty(wrappedAttachShadow, 'length', { value: orig.length, configurable: true });
-          } catch (_) {}
-          if (desc && desc.configurable === false && desc.writable === false) return;
-          Object.defineProperty(proto, 'attachShadow', { ...desc, value: wrappedAttachShadow });
-        } catch (e) { log.warn('attachShadow patch failed:', e); }
-      })();
+          return sr;
+        };
+        patchedAttach.__vsc_patched = true;
+        patchedAttach.__vsc_original = _origAttach;
+        Element.prototype.attachShadow = patchedAttach;
+      }
     }
 
     /* ── TOUCHED sets & rect caching ── */
@@ -656,9 +628,6 @@
       }
     }, 2000);
 
-    // ─── END OF PART 1 (v197.0.0) ───
-    // ─── PART 2 START (v197.0.0) ───
-
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
       try { window.__VSC_INTERNAL__?.Adapter?.clear(video); } catch (_) {}
@@ -806,8 +775,7 @@
       }, 'image/png');
       showOSD('스크린샷 저장됨', 1500);
     }
-
-    /* ── Zoom Manager ── */
+/* ── Zoom Manager (v200 1-Finger Touch Pan Ported) ── */
     function createZoomManager() {
       const stateMap = new WeakMap();
       let activeVideo = null, isPanning = false, startX = 0, startY = 0;
@@ -1099,15 +1067,16 @@
         return v;
       }
 
+      /* v200 Touch Pan Logic Integration */
       onWin('touchstart', e => {
         if (!isZoomEnabled()) return;
         if (isVscUiEvent(e)) return;
         if (e.touches.length === 2) {
           const v = getCachedOrFindVideo(e);
-          if (e.cancelable) e.preventDefault();
-          if (!v) { pinchState.active = false; isPanning = false; activeVideo = null; return; }
-          setTouchActionBlocking(v, true);
           isPanning = false;
+          if (e.cancelable) e.preventDefault();
+          if (!v) { pinchState.active = false; activeVideo = null; return; }
+          setTouchActionBlocking(v, true);
           const st = getSt(v);
           activeVideo = v;
           pinchState.active = true;
@@ -1449,7 +1418,7 @@
       return changed;
     }
 
-    /* ── Registry ── */
+    /* ── Registry (v200 Observer Cleanup Integrated) ── */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -1688,16 +1657,10 @@
       };
     }
 
-    // ─── END OF PART 2 (v197.0.0) ───
-    // ─── PART 3 START (v197.0.0) ───
-    // createAudio, createAutoSceneManager, curveToApproxParams,
-    // Endian detection, pooled histograms, zone LUT cache, VideoFrame capture,
-    // createVideoMaximizer (v197 NEW)
-
     /* ── v196: Endian detection for Uint32Array pixel loop ── */
     const IS_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([0x0A0B0C0D]).buffer)[0] === 0x0D;
 
-    /* ── Audio Engine (v196: permanent block, tuned compressor) ── */
+    /* ── Audio Engine (v200 Tuned Node Logic Ported) ── */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray;
       let target = null, currentSrc = null;
@@ -1837,18 +1800,18 @@
 
       const buildAudioGraph = () => {
         compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = -20;
-        compressor.knee.value = 12;
-        compressor.ratio.value = 3.5;
-        compressor.attack.value = 0.008;
-        compressor.release.value = 0.18;
+        compressor.threshold.value = -24.0;
+        compressor.knee.value = 15.0;
+        compressor.ratio.value = 2.5;
+        compressor.attack.value = 0.015;
+        compressor.release.value = 0.25;
 
         limiter = ctx.createDynamicsCompressor();
         limiter.threshold.value = -1.0;
-        limiter.knee.value = 0;
+        limiter.knee.value = 0.5;
         limiter.ratio.value = 20.0;
-        limiter.attack.value = 0.0003;
-        limiter.release.value = 0.08;
+        limiter.attack.value = 0.001;
+        limiter.release.value = 0.15;
 
         hpf = ctx.createBiquadFilter();
         hpf.type = 'highpass';
@@ -2067,7 +2030,7 @@
       return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
-    /* ── Auto Scene Manager (v196: pooled arrays, zone LUT cache, VideoFrame, scheduler.yield, CircularBuffer) ── */
+    /* ── Auto Scene Manager ── */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
 
@@ -2278,7 +2241,6 @@
 
       let __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
 
-      /* ── v196: Zone LUT cache ── */
       let __cachedZxLut = null, __cachedZyLut = null, __cachedLutW = 0, __cachedLutH = 0;
       function getZoneLuts(sw, sh) {
         if (__cachedLutW === sw && __cachedLutH === sh && __cachedZxLut && __cachedZyLut) return { zxLut: __cachedZxLut, zyLut: __cachedZyLut };
@@ -2293,7 +2255,6 @@
         return { zxLut, zyLut };
       }
 
-      /* ── v196: Pooled histogram arrays ── */
       const _pool_lumHist = new Uint32Array(HIST_BINS);
       const _pool_rHist = new Uint32Array(HIST_BINS);
       const _pool_gHist = new Uint32Array(HIST_BINS);
@@ -2303,7 +2264,6 @@
       const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
       const _pool_zoneBrightCount = new Uint32Array(ZONE_COUNT);
 
-      /* ── computeFullAnalysis (v196: Uint32 aligned, pooled, branchless skin, cached LUTs) ── */
       function computeFullAnalysis(data, sw, sh) {
         const step = 2;
         let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
@@ -2326,7 +2286,6 @@
 
         const { zxLut, zyLut } = getZoneLuts(sw, sh);
 
-        /* v196: Uint32Array view with alignment guard */
         let u32;
         if ((data.byteOffset & 3) === 0) {
           u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
@@ -2505,10 +2464,8 @@
         return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
       }
 
-      /* ── v196: async capture with VideoFrame tier-1 ── */
       async function captureSceneFrame(v) {
         if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
-        /* Tier 1: VideoFrame API (Chrome 94+, zero-copy) */
         if (typeof VideoFrame === 'function' && typeof createImageBitmap === 'function') {
           try {
             const frame = new VideoFrame(v, { timestamp: 0 });
@@ -2517,9 +2474,8 @@
             cvCtx.drawImage(bmp, 0, 0);
             bmp.close();
             return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
-          } catch (_) { /* fall through */ }
+          } catch (_) { }
         }
-        /* Tier 2: createImageBitmap */
         try {
           if (typeof createImageBitmap === 'function') {
             const bmp = await createImageBitmap(v, { resizeWidth: CANVAS_W, resizeHeight: CANVAS_H });
@@ -2527,17 +2483,13 @@
             bmp.close();
             return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
           }
-        } catch (_) { /* fall through */ }
-        /* Tier 3: direct drawImage */
+        } catch (_) { }
         try { cvCtx.drawImage(v, 0, 0, CANVAS_W, CANVAS_H); return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H); }
         catch (_) { return null; }
       }
 
-      /* ── v196: async loop with race guard + scheduler.yield ── */
       async function loop() {
         if (!AUTO.running || __globalSig.aborted) return;
-
-        /* Yield to higher-priority tasks before heavy computation */
         if (globalThis.scheduler?.yield) {
           try { await globalThis.scheduler.yield(); } catch (_) {}
           if (!AUTO.running || __globalSig.aborted) return;
@@ -2553,7 +2505,6 @@
 
         try {
           const img = await captureSceneFrame(v);
-          /* v196: race guard after await */
           if (!AUTO.running || __globalSig.aborted) return;
           if (!v.isConnected || v.paused || v.readyState < 2) { scheduleNext(v, 300); return; }
           if (!img) { scheduleNext(v, 500); return; }
@@ -2656,8 +2607,7 @@
         stop: () => { AUTO.running = false; cleanupScheduler(); resetAllModuleState(); }
       };
     }
-
-    /* ── curveToApproxParams (v196: 32-point quadratic fit + NaN guard) ── */
+/* ── curveToApproxParams (v196: 32-point quadratic fit + NaN guard) ── */
     function curveToApproxParams(curve, satMul, channelGains) {
       const clamp = VSC_CLAMP;
       const N = 32;
@@ -2713,20 +2663,7 @@
       };
     }
 
-    /* ══════════════════════════════════════════════════════════
-       v197 NEW — createVideoMaximizer
-       ──────────────────────────────────────────────────────────
-       비디오를 100vw×100vh로 확대하고 형제 요소를 숨긴 뒤,
-       ESC / 동일 단축키로 원래 상태를 복원합니다.
-       Store(P.APP_MAXIMIZE) 연동, MutationObserver로 클래스 보호.
-       ══════════════════════════════════════════════════════════ */
-        /* ══════════════════════════════════════════════════════════
-       v197.1 — createVideoMaximizer (iframe 전체화면 지원)
-       ──────────────────────────────────────────────────────────
-       iframe 내부 비디오: top 프레임의 VideoMax에 위임하여
-       iframe 요소 자체를 100vw×100vh로 확대합니다.
-       일반 비디오: 기존과 동일하게 비디오 직접 확대.
-       ══════════════════════════════════════════════════════════ */
+    /* ── Video Maximizer (v197 Iframe Supported) ── */
     function createVideoMaximizer(Store, ApplyReq) {
       const MAX_CLASS = 'vsc-vmax-max';
       const HIDE_CLASS = 'vsc-vmax-hide';
@@ -2742,19 +2679,11 @@
       let classMO = null;
       let isIframeMode = false;
 
-      /*
-       * iframe child 전용 상태:
-       * delegatedToTop = true → 이 child가 top에 최대화를 요청한 상태
-       * 이 상태에서 toggle/ESC → top에 해제 요청
-       */
       let delegatedToTop = false;
       let innerMaxActive = false;
       let innerSavedStyles = [];
 
-      /* ── 유틸 ── */
-      function isInIframe() {
-        try { return window !== window.top; } catch (_) { return true; }
-      }
+      function isInIframe() { try { return window !== window.top; } catch (_) { return true; } }
 
       function pickBestVideo() {
         const explicit = window.__VSC_INTERNAL__?._activeVideo;
@@ -2778,18 +2707,14 @@
       function findIframeForWindow(childWin) {
         try {
           const iframes = document.querySelectorAll('iframe');
-          for (const ifr of iframes) {
-            try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {}
-          }
+          for (const ifr of iframes) { try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {} }
         } catch (_) {}
         return null;
       }
 
       function backupAndApplyStyle(el, css) {
         savedStyles.push({ el, cssText: el.style.cssText });
-        for (const [prop, val] of Object.entries(css)) {
-          el.style.setProperty(prop, val, 'important');
-        }
+        for (const [prop, val] of Object.entries(css)) el.style.setProperty(prop, val, 'important');
       }
 
       function hideSiblings(el) {
@@ -2839,18 +2764,13 @@
         }
       }
 
-      function stopClassGuard() {
-        if (classMO) { classMO.disconnect(); classMO = null; }
-      }
+      function stopClassGuard() { if (classMO) { classMO.disconnect(); classMO = null; } }
 
       function clearAncestorChain(startEl) {
         let ancestor = startEl.parentElement;
         while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
           ancestor.dataset.vscMaxAncestor = '1';
-          backupAndApplyStyle(ancestor, {
-            overflow: 'visible', position: 'static', transform: 'none',
-            clip: 'auto', 'clip-path': 'none', contain: 'none'
-          });
+          backupAndApplyStyle(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' });
           ancestor.classList.add(ANCESTOR_CLASS);
           hideSiblings(ancestor);
           ancestor = ancestor.parentElement;
@@ -2862,200 +2782,105 @@
         if (document.documentElement) backupAndApplyStyle(document.documentElement, { overflow: 'hidden' });
       }
 
-      /* ═══════════════════════════════════════
-         모드 A: 일반 비디오 (직접 최대화)
-         ═══════════════════════════════════════ */
       function doMaximizeDirect(video) {
-        injectStyle();
-        targetVideo = video;
-        isIframeMode = false;
-        savedScrollX = window.scrollX;
-        savedScrollY = window.scrollY;
-        clearAncestorChain(video);
-        lockBody();
+        injectStyle(); targetVideo = video; isIframeMode = false;
+        savedScrollX = window.scrollX; savedScrollY = window.scrollY;
+        clearAncestorChain(video); lockBody();
         savedStyles.push({ el: video, cssText: video.style.cssText });
-        video.classList.add(MAX_CLASS);
-        hideSiblings(video);
-        window.scrollTo(0, 0);
-        startClassGuard(video);
-        active = true;
-        Store.set(P.APP_MAXIMIZE, true);
-        ApplyReq.hard();
+        video.classList.add(MAX_CLASS); hideSiblings(video); window.scrollTo(0, 0);
+        startClassGuard(video); active = true; Store.set(P.APP_MAXIMIZE, true); ApplyReq.hard();
         showOSD('최대화 ON (ESC 또는 Alt+Shift+M 해제)', 1800);
       }
 
-      /* ═══════════════════════════════════════
-         모드 B: iframe 확대 (top에서 실행)
-         ═══════════════════════════════════════ */
       function doMaximizeIframe(iframeEl) {
-        injectStyle();
-        targetIframe = iframeEl;
-        isIframeMode = true;
-        savedScrollX = window.scrollX;
-        savedScrollY = window.scrollY;
-        clearAncestorChain(iframeEl);
-        lockBody();
+        injectStyle(); targetIframe = iframeEl; isIframeMode = true;
+        savedScrollX = window.scrollX; savedScrollY = window.scrollY;
+        clearAncestorChain(iframeEl); lockBody();
         savedStyles.push({ el: iframeEl, cssText: iframeEl.style.cssText });
-        iframeEl.classList.add(IFRAME_MAX_CLASS);
-        hideSiblings(iframeEl);
-        window.scrollTo(0, 0);
-        startClassGuard(iframeEl);
-        active = true;
-        Store.set(P.APP_MAXIMIZE, true);
-        ApplyReq.hard();
+        iframeEl.classList.add(IFRAME_MAX_CLASS); hideSiblings(iframeEl); window.scrollTo(0, 0);
+        startClassGuard(iframeEl); active = true; Store.set(P.APP_MAXIMIZE, true); ApplyReq.hard();
         showOSD('최대화 ON — iframe (ESC 또는 Alt+Shift+M 해제)', 1800);
         try { iframeEl.contentWindow.postMessage({ __vsc_max: 'apply_inner' }, '*'); } catch (_) {}
       }
 
-      /* ── iframe 내부: 비디오 채움 ── */
       function applyInnerMaximize() {
         if (innerMaxActive) return;
-        const video = pickBestVideo();
-        if (!video) return;
-        innerMaxActive = true;
-        innerSavedStyles.push({ el: video, cssText: video.style.cssText });
-        const props = {
-          width: '100vw', height: '100vh', 'object-fit': 'contain',
-          position: 'fixed', top: '0', left: '0',
-          'z-index': '2147483646', background: '#000',
-          margin: '0', padding: '0', border: 'none'
-        };
+        const video = pickBestVideo(); if (!video) return;
+        innerMaxActive = true; innerSavedStyles.push({ el: video, cssText: video.style.cssText });
+        const props = { width: '100vw', height: '100vh', 'object-fit': 'contain', position: 'fixed', top: '0', left: '0', 'z-index': '2147483646', background: '#000', margin: '0', padding: '0', border: 'none' };
         for (const [k, v] of Object.entries(props)) video.style.setProperty(k, v, 'important');
         let ancestor = video.parentElement;
         while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
           innerSavedStyles.push({ el: ancestor, cssText: ancestor.style.cssText });
-          ancestor.style.setProperty('overflow', 'visible', 'important');
-          ancestor.style.setProperty('position', 'static', 'important');
-          ancestor.style.setProperty('transform', 'none', 'important');
-          ancestor.style.setProperty('contain', 'none', 'important');
+          ancestor.style.setProperty('overflow', 'visible', 'important'); ancestor.style.setProperty('position', 'static', 'important'); ancestor.style.setProperty('transform', 'none', 'important'); ancestor.style.setProperty('contain', 'none', 'important');
           ancestor = ancestor.parentElement;
         }
         if (document.body) {
           innerSavedStyles.push({ el: document.body, cssText: document.body.style.cssText });
-          document.body.style.setProperty('overflow', 'hidden', 'important');
-          document.body.style.setProperty('margin', '0', 'important');
+          document.body.style.setProperty('overflow', 'hidden', 'important'); document.body.style.setProperty('margin', '0', 'important');
         }
       }
 
       function undoInnerMaximize() {
         if (!innerMaxActive) return;
-        for (let i = innerSavedStyles.length - 1; i >= 0; i--) {
-          try { innerSavedStyles[i].el.style.cssText = innerSavedStyles[i].cssText; } catch (_) {}
-        }
-        innerSavedStyles = [];
-        innerMaxActive = false;
+        for (let i = innerSavedStyles.length - 1; i >= 0; i--) { try { innerSavedStyles[i].el.style.cssText = innerSavedStyles[i].cssText; } catch (_) {} }
+        innerSavedStyles = []; innerMaxActive = false;
       }
 
-      /* ── 복원 (top 측) ── */
       function undoMaximize() {
         if (!active) return;
         stopClassGuard();
-
-        /* iframe child에 내부 복원 + 상태 알림 */
         if (isIframeMode && targetIframe) {
           try { targetIframe.contentWindow.postMessage({ __vsc_max: 'undo_inner' }, '*'); } catch (_) {}
           try { targetIframe.contentWindow.postMessage({ __vsc_max: 'state_off' }, '*'); } catch (_) {}
         }
-
-        for (const { el, prev } of hiddenSiblings) {
-          try { el.classList.remove(HIDE_CLASS); el.style.cssText = prev; } catch (_) {}
-        }
+        for (const { el, prev } of hiddenSiblings) { try { el.classList.remove(HIDE_CLASS); el.style.cssText = prev; } catch (_) {} }
         hiddenSiblings = [];
-
         for (let i = savedStyles.length - 1; i >= 0; i--) {
           const { el, cssText } = savedStyles[i];
-          try {
-            el.style.cssText = cssText;
-            el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS);
-            delete el.dataset.vscMaxAncestor;
-          } catch (_) {}
+          try { el.style.cssText = cssText; el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS); delete el.dataset.vscMaxAncestor; } catch (_) {}
         }
         savedStyles = [];
-
         window.scrollTo(savedScrollX, savedScrollY);
-        active = false;
-        targetVideo = null;
-        targetIframe = null;
-        isIframeMode = false;
-        Store.set(P.APP_MAXIMIZE, false);
-        ApplyReq.hard();
-        showOSD('최대화 OFF', 1200);
+        active = false; targetVideo = null; targetIframe = null; isIframeMode = false;
+        Store.set(P.APP_MAXIMIZE, false); ApplyReq.hard(); showOSD('최대화 OFF', 1200);
       }
 
-      /* ── 토글 ── */
       function toggle() {
-        /* === iframe child에서 호출 === */
         if (isInIframe()) {
-          if (delegatedToTop) {
-            /* 이미 최대화 중 → top에 해제 요청 */
-            try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {}
-            delegatedToTop = false;
-            return;
-          }
-          /* 최대화 요청 → top에 위임 */
-          try {
-            window.top.postMessage({ __vsc_max: 'request' }, '*');
-            delegatedToTop = true;
-          } catch (_) {
-            /* cross-origin 실패: iframe 내부에서만 최대화 */
-            const video = pickBestVideo();
-            if (video) doMaximizeDirect(video);
-            else showOSD('최대화할 비디오를 찾을 수 없음', 1500);
+          if (delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; }
+          try { window.top.postMessage({ __vsc_max: 'request' }, '*'); delegatedToTop = true; } catch (_) {
+            const video = pickBestVideo(); if (video) doMaximizeDirect(video); else showOSD('최대화할 비디오를 찾을 수 없음', 1500);
           }
           return;
         }
-
-        /* === top 프레임에서 호출 === */
         if (active) { undoMaximize(); return; }
-
-        /* 직접 비디오 */
-        const video = pickBestVideo();
-        if (video) { doMaximizeDirect(video); return; }
-
-        /* iframe 내 비디오 탐색 */
+        const video = pickBestVideo(); if (video) { doMaximizeDirect(video); return; }
         const iframes = document.querySelectorAll('iframe');
         let bestIframe = null, bestArea = 0;
         for (const ifr of iframes) {
           if (!ifr.isConnected) continue;
-          const r = ifr.getBoundingClientRect();
-          const area = r.width * r.height;
+          const r = ifr.getBoundingClientRect(); const area = r.width * r.height;
           if (area < 10000) continue;
-          try {
-            const doc = ifr.contentDocument || ifr.contentWindow?.document;
-            if (doc?.querySelector('video')) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } }
-          } catch (_) {
-            if (area > bestArea) { bestArea = area; bestIframe = ifr; }
-          }
+          try { const doc = ifr.contentDocument || ifr.contentWindow?.document; if (doc?.querySelector('video')) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } } }
+          catch (_) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } }
         }
         if (bestIframe) { doMaximizeIframe(bestIframe); return; }
         showOSD('최대화할 비디오를 찾을 수 없음', 1500);
       }
 
-      /* ── postMessage 핸들러 ── */
       function onMessage(e) {
         if (!e.data || typeof e.data !== 'object' || !e.data.__vsc_max) return;
         const cmd = e.data.__vsc_max;
-
-        /* ─── top이 수신 ─── */
         if (!isInIframe()) {
           if (cmd === 'request') {
             const iframeEl = findIframeForWindow(e.source);
-            if (iframeEl) {
-              if (active) undoMaximize();
-              doMaximizeIframe(iframeEl);
-              /* child에 "네가 요청자다" 확인 */
-              try { e.source.postMessage({ __vsc_max: 'state_on' }, '*'); } catch (_) {}
-            }
+            if (iframeEl) { if (active) undoMaximize(); doMaximizeIframe(iframeEl); try { e.source.postMessage({ __vsc_max: 'state_on' }, '*'); } catch (_) {} }
             return;
           }
-          if (cmd === 'undo') {
-            if (active) undoMaximize();
-            return;
-          }
+          if (cmd === 'undo') { if (active) undoMaximize(); return; }
           return;
         }
-
-        /* ─── iframe child가 수신 ─── */
         if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
         if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
         if (cmd === 'state_on') { delegatedToTop = true; return; }
@@ -3063,47 +2888,13 @@
       }
 
       on(window, 'message', onMessage, { passive: true });
+      Store.sub(P.APP_MAXIMIZE, (val) => { if (!isInIframe()) { if (!val && active) undoMaximize(); else if (val && !active) toggle(); } });
+      __globalSig.addEventListener('abort', () => { if (active) { try { undoMaximize(); } catch (_) {} } if (innerMaxActive) { try { undoInnerMaximize(); } catch (_) {} } delegatedToTop = false; }, { once: true });
 
-      /* ── Store 연동 ── */
-      Store.sub(P.APP_MAXIMIZE, (val) => {
-        if (!isInIframe()) {
-          if (!val && active) undoMaximize();
-          else if (val && !active) toggle();
-        }
-      });
-
-      /* ── abort 시 자동 복원 ── */
-      __globalSig.addEventListener('abort', () => {
-        if (active) { try { undoMaximize(); } catch (_) {} }
-        if (innerMaxActive) { try { undoInnerMaximize(); } catch (_) {} }
-        delegatedToTop = false;
-      }, { once: true });
-
-      return Object.freeze({
-        toggle,
-        isActive: () => active || delegatedToTop,
-        getTarget: () => targetVideo || targetIframe,
-        doMaximize: toggle,
-        undoMaximize() {
-          if (isInIframe() && delegatedToTop) {
-            try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {}
-            delegatedToTop = false;
-            return;
-          }
-          undoMaximize();
-        }
-      });
+      return Object.freeze({ toggle, isActive: () => active || delegatedToTop, getTarget: () => targetVideo || targetIframe, doMaximize: toggle, undoMaximize() { if (isInIframe() && delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; } undoMaximize(); } });
     }
 
-
-    // ─── END OF PART 3 (v197.0.0) ───
-    // ─── PART 4 START (v197.0.0) ───
-    // createFiltersVideoOnly, shadow/bright precomputed, composeVideoParamsInto,
-    // isNeutralVideoParams, createVideoParamsMemo, applyShadowStyle, createDisposerBag,
-    // bindWindowDrag, VSC_ICONS, svgIcon, showOSD, getAutoPresetForResolution, createUI
-    // v197: Maximize 버튼 추가 (Tools 탭)
-
-    /* ── SVG Filter Engine (v196: explicit R/G/B tempFunc refs, toneStr Map cache) ── */
+    /* ── SVG Filter Engine (v196 Tone Cache) ── */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(32);
@@ -3122,7 +2913,6 @@
         return xfer;
       }
 
-      /* v196: Map-based toneStr cache — lazy, ~256 entries vs 10001 */
       const _toneStrCache = new Map();
       function toneStr(idx) {
         let s = _toneStrCache.get(idx);
@@ -3168,16 +2958,9 @@
       }
 
       const __createdSvgs = new Set();
-      /* v196: periodic cleanup of detached SVGs */
-      setRecurring(() => {
-        for (const svg of __createdSvgs) { if (!svg.isConnected) __createdSvgs.delete(svg); }
-      }, 30000);
-      __globalSig.addEventListener('abort', () => {
-        for (const svg of __createdSvgs) { try { if (svg.parentNode) svg.remove(); } catch (_) {} }
-        __createdSvgs.clear();
-      }, { once: true });
+      setRecurring(() => { for (const svg of __createdSvgs) { if (!svg.isConnected) __createdSvgs.delete(svg); } }, 30000);
+      __globalSig.addEventListener('abort', () => { for (const svg of __createdSvgs) { try { if (svg.parentNode) svg.remove(); } catch (_) {} } __createdSvgs.clear(); }, { once: true });
 
-      /* v196: explicit R/G/B func references */
       function buildSvg(root) {
         const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
         const defs = h('defs', { ns: 'svg' });
@@ -3185,13 +2968,9 @@
         __createdSvgs.add(svg);
 
         const fid = `vsc-f-${config.VSC_ID}`;
-        const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB',
-          x: '0%', y: '0%', width: '100%', height: '100%' });
+        const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
 
-        const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3',
-          kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0',
-          targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
-
+        const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
         const fTone = mkXfer({ in: 'conv', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
         const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
         const fSat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1.0', result: 'final' });
@@ -3216,30 +2995,17 @@
         }
 
         const toneFuncsAll = Array.from(fTone.children);
-        const toneFuncsRGB = toneFuncsAll.filter(fn => {
-          const tag = fn.tagName?.toLowerCase?.() || fn.tagName;
-          return tag !== 'fefunca';
-        });
-
-        /* v196: explicit temp func refs by tagName */
+        const toneFuncsRGB = toneFuncsAll.filter(fn => { const tag = fn.tagName?.toLowerCase?.() || fn.tagName; return tag !== 'fefunca'; });
         const tempChildren = Array.from(fTemp.children);
         const tempFuncR = tempChildren.find(f => (f.tagName?.toLowerCase?.() || f.tagName) === 'fefuncr');
         const tempFuncG = tempChildren.find(f => (f.tagName?.toLowerCase?.() || f.tagName) === 'fefuncg');
         const tempFuncB = tempChildren.find(f => (f.tagName?.toLowerCase?.() || f.tagName) === 'fefuncb');
 
-        return {
-          fid, fConv,
-          toneFuncs: toneFuncsAll,
-          toneFuncsRGB,
-          tempFuncR, tempFuncG, tempFuncB,
-          fSat,
-          st: { lastKey: '', toneKey: '', toneTable: '', sharpKey: '', desatKey: '', tempKey: '' }
-        };
+        return { fid, fConv, toneFuncs: toneFuncsAll, toneFuncsRGB, tempFuncR, tempFuncG, tempFuncB, fSat, st: { lastKey: '', toneKey: '', toneTable: '', sharpKey: '', desatKey: '', tempKey: '' } };
       }
 
       function prepare(video, s) {
-        const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument)
-          ? video.getRootNode() : (video.ownerDocument || document);
+        const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
         let dc = urlCache.get(root);
         if (!dc) { dc = { key: '', url: '', filterStr: 'none' }; urlCache.set(root, dc); }
 
@@ -3255,23 +3021,15 @@
           st.lastKey = svgKey;
           const steps = 256;
           const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
-          const toneTable = s._autoToneCurve
-            ? s._autoToneCurve.join(' ')
-            : getToneTableCached(steps, 0, 0, 0, s.gain || 1, 1.0, 0, gamma);
+          const toneTable = s._autoToneCurve ? s._autoToneCurve.join(' ') : getToneTableCached(steps, 0, 0, 0, s.gain || 1, 1.0, 0, gamma);
 
-          const refH = CONFIG.IS_MOBILE ? 720 : 1080;
-          const pxScale = clamp((video.videoHeight || refH) / refH, 0.5, 2.0);
-          const rawS = (Number(s.sharp || 0) + Number(s.sharp2 || 0) * 0.6
-                        + Number(s.clarity || 0) * 0.4) / 100.0;
-          const totalS = clamp(rawS * 0.50 / Math.max(0.5, pxScale), 0, 0.35);
+          /* Using modified dynamic sharp multiplier from composeVideoParamsInto */
+          const totalS = clamp(Number(s.sharp || 0), 0, 0.35);
 
           let kernelStr;
-          if (totalS < 0.005) {
-            kernelStr = '0,0,0, 0,1,0, 0,0,0';
-          } else {
-            const diag = -totalS * 0.5;
-            const edge = -totalS;
-            const center = 1.0 - 4 * edge - 4 * diag;
+          if (totalS < 0.005) { kernelStr = '0,0,0, 0,1,0, 0,0,0'; }
+          else {
+            const diag = -totalS * 0.5; const edge = -totalS; const center = 1.0 - 4 * edge - 4 * diag;
             kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
           }
 
@@ -3286,26 +3044,13 @@
             finalRs /= maxG; finalGs /= maxG; finalBs /= maxG;
           }
 
-          if (st.toneKey !== toneTable) {
-            st.toneKey = toneTable;
-            for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
-          }
+          if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
           const tmk = finalRs.toFixed(3) + '|' + finalGs.toFixed(3) + '|' + finalBs.toFixed(3);
-          if (st.tempKey !== tmk) {
-            st.tempKey = tmk;
-            ctx.tempFuncR.setAttribute('slope', finalRs);
-            ctx.tempFuncG.setAttribute('slope', finalGs);
-            ctx.tempFuncB.setAttribute('slope', finalBs);
-          }
+          if (st.tempKey !== tmk) { st.tempKey = tmk; ctx.tempFuncR.setAttribute('slope', finalRs); ctx.tempFuncG.setAttribute('slope', finalGs); ctx.tempFuncB.setAttribute('slope', finalBs); }
           if (st.sharpKey !== kernelStr) {
-            st.sharpKey = kernelStr;
-            ctx.fConv.setAttribute('kernelMatrix', kernelStr);
-            const desatVal = totalS > 0.008
-              ? clamp(1.0 - totalS * 0.1, 0.90, 1.0).toFixed(3) : '1.000';
-            if (st.desatKey !== desatVal) {
-              st.desatKey = desatVal;
-              ctx.fSat.setAttribute('values', desatVal);
-            }
+            st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr);
+            const desatVal = totalS > 0.008 ? clamp(1.0 - totalS * 0.1, 0.90, 1.0).toFixed(3) : '1.000';
+            if (st.desatKey !== desatVal) { st.desatKey = desatVal; ctx.fSat.setAttribute('values', desatVal); }
           }
         }
 
@@ -3328,11 +3073,7 @@
           if (!filterResult) {
             if (st.applied) {
               if (!st._transitionCleared) el.style.removeProperty('transition');
-              el.style.removeProperty('will-change');
-              el.style.removeProperty('filter');
-              el.style.removeProperty('-webkit-filter');
-              el.style.removeProperty('background-color');
-              el.style.removeProperty('contain');
+              el.style.removeProperty('will-change'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color'); el.style.removeProperty('contain');
               st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
             }
             return;
@@ -3340,15 +3081,10 @@
           const filterStr = filterResult.filterStr;
           if (st.lastCssFilterStr === filterStr && st.applied) return;
           if (!st._transitionCleared) { el.style.removeProperty('transition'); st._transitionCleared = true; }
-          if (st.lastCssFilterStr !== filterStr) {
-            el.style.setProperty('filter', filterStr, 'important');
-            el.style.setProperty('-webkit-filter', filterStr, 'important');
-          }
+          if (st.lastCssFilterStr !== filterStr) { el.style.setProperty('filter', filterStr, 'important'); el.style.setProperty('-webkit-filter', filterStr, 'important'); }
           if (!st.applied) {
             const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
-            el.style.setProperty('will-change', willChangeVal, 'important');
-            el.style.setProperty('contain', 'layout paint style', 'important');
-            el.style.setProperty('background-color', '#000', 'important');
+            el.style.setProperty('will-change', willChangeVal, 'important'); el.style.setProperty('contain', 'layout paint style', 'important'); el.style.setProperty('background-color', '#000', 'important');
           }
           st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
         },
@@ -3356,16 +3092,12 @@
           if (!el) return;
           const st = getVState(el);
           if (!st.applied) return;
-          el.style.removeProperty('transition'); el.style.removeProperty('will-change');
-          el.style.removeProperty('contain');
-          el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter');
-          el.style.removeProperty('background-color');
+          el.style.removeProperty('transition'); el.style.removeProperty('will-change'); el.style.removeProperty('contain'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
           st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
         }
       };
     }
 
-    /* ── Shadow Band Precomputed ── */
     const _SHADOW_BANDS = Object.freeze([
       { toe: -0.8, mid: -0.010, bright: -0.4, gamma: 0.990, contrast: 1.015, sat: 1.005 },
       { toe: -1.3, mid: -0.012, bright: -0.8, gamma: 0.982, contrast: 1.018, sat: 1.008 },
@@ -3408,24 +3140,42 @@
       return out;
     }
 
-    /* ── Compose Video Params (v196: sharp cap 28) ── */
-    function composeVideoParamsInto(out, vUser, autoMods) {
+    /* ── v200 Ported: Dynamic Sharpness Multiplier ── */
+    function computeResolutionSharpMul(video) {
+      const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
+      const dW = video.clientWidth || video.offsetWidth || 0;
+      const dH = video.clientHeight || video.offsetHeight || 0;
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      if (nW < 16 || dW < 16) return 0.0;
+      const ratio = Math.max(dW / nW, dH / Math.max(1, nH));
+      let mul = 1.0;
+      if (ratio < 0.15) mul = 0.30;
+      else if (ratio < 0.5) mul = 0.30 + (ratio - 0.15) * 2.0;
+      else if (ratio <= 1.5) mul = 1.0;
+      else if (ratio <= 3.0) mul = 1.0 + (ratio - 1.5) * 0.10;
+      else mul = Math.max(0.50, 1.15 - (ratio - 3.0) * 0.15);
+      if (nW <= 640 && nH <= 480) mul *= 0.55;
+      else if (nW <= 960) mul *= 0.70;
+      if (dpr >= 2.0) mul *= VSC_CLAMP(1.6 / dpr, 0.70, 0.90);
+      else if (dpr >= 1.25) mul *= VSC_CLAMP(1.4 / dpr, 0.80, 1.0);
+      if (CONFIG.IS_MOBILE && mul < 0.35) mul = 0.35;
+      return VSC_CLAMP(mul, 0.0, 1.0);
+    }
+
+    /* ── Compose Video Params (v200 Dynamic Sharp Integrated) ── */
+    function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0) {
       const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
       const gPreset = PRESETS.grade[vUser.presetB] || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
 
-      out.gain = 1.0;
-      out.gamma = 1 + ((gPreset.gammaF || 1) - 1) * mix;
-      out.contrast = 1.0;
-      out.bright = (gPreset.brightAdd || 0) * mix;
-      out.satF = 1.0;
+      out.gain = 1.0; out.gamma = 1 + ((gPreset.gammaF || 1) - 1) * mix; out.contrast = 1.0;
+      out.bright = (gPreset.brightAdd || 0) * mix; out.satF = 1.0;
       out.mid = 0; out.toe = 0; out.shoulder = 0; out.temp = 0;
 
-      const mobileDampen = CONFIG.IS_MOBILE ? 0.7 : 1.0;
-      out.sharp = (dPreset.sharpAdd || 0) * mix * mobileDampen;
-      out.sharp2 = (dPreset.sharp2Add || 0) * mix * mobileDampen;
-      out.clarity = (dPreset.clarityAdd || 0) * mix * mobileDampen;
-      out._mobileSharpIntent = 0;
+      /* v200: applying dynamic sharp multiplier */
+      const baseS = (dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4;
+      out.sharp = (baseS / 100.0) * mix * sharpMul;
+      out.sharp2 = 0; out.clarity = 0;
 
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
@@ -3468,10 +3218,7 @@
 
     function createVideoParamsMemo(Store, P, Utils) {
       let lastKey = '', lastResult = null;
-      const sigVideo = (vf) => [
-        vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3),
-        (vf.shadowBandMask | 0), (vf.brightStepLevel | 0)
-      ].join('|');
+      const sigVideo = (vf) => [ vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3), (vf.shadowBandMask | 0), (vf.brightStepLevel | 0) ].join('|');
       return {
         get(vfUser, activeTarget) {
           const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
@@ -3487,11 +3234,14 @@
             const g = autoMods._channelGains;
             chKey = `${(g.rGain*1000)|0}|${(g.gGain*1000)|0}|${(g.bGain*1000)|0}`;
           }
+          const rawSharpMul = activeTarget ? computeResolutionSharpMul(activeTarget) : 0.0;
+          const finalSharpMul = (rawSharpMul === 0.0 && vfUser.presetS !== 'off') ? 0.50 : rawSharpMul;
+
           const autoKey = `${autoMods.br.toFixed(3)}|${autoMods.ct.toFixed(3)}|${autoMods.sat.toFixed(3)}|tc:${curveKey}|cg:${chKey}`;
-          const key = `${sigVideo(vfUser)}|${w}x${ht}|auto:${autoKey}|mob:${CONFIG.IS_MOBILE?1:0}`;
+          const key = `${sigVideo(vfUser)}|${w}x${ht}|auto:${autoKey}|mob:${CONFIG.IS_MOBILE?1:0}|smul:${finalSharpMul.toFixed(3)}`;
           if (key === lastKey && lastResult) return lastResult;
           const base = {};
-          composeVideoParamsInto(base, vfUser, autoMods);
+          composeVideoParamsInto(base, vfUser, autoMods, finalSharpMul);
           const svgBase = { ...base };
           svgBase.sharp = Math.min(Number(svgBase.sharp || 0), 28);
           lastResult = svgBase; lastKey = key;
@@ -3500,10 +3250,8 @@
       };
     }
 
-    /* ── applyShadowStyle (v196: stale sheet cleanup) ── */
     const __styleCacheMaxSize = 16;
     const __styleCache = new Map();
-
     const __styleCacheSpaCleanup = () => { if (__styleCache.size > 0) __styleCache.clear(); };
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
 
@@ -3513,16 +3261,12 @@
           const cur = shadow.adoptedStyleSheets || [];
           let sheet = __styleCache.get(cssText);
           if (!sheet) {
-            sheet = new CSSStyleSheet();
-            sheet.replaceSync(cssText);
+            sheet = new CSSStyleSheet(); sheet.replaceSync(cssText);
             __styleCache.set(cssText, sheet);
             if (__styleCache.size > __styleCacheMaxSize) __styleCache.delete(__styleCache.keys().next().value);
           }
           if (!cur.includes(sheet)) {
-            const filtered = cur.filter(s => {
-              try { const r = s.cssRules; if (r.length > 0 && r[0].cssText?.includes('.panel')) return false; } catch (_) {}
-              return true;
-            });
+            const filtered = cur.filter(s => { try { const r = s.cssRules; if (r.length > 0 && r[0].cssText?.includes('.panel')) return false; } catch (_) {} return true; });
             shadow.adoptedStyleSheets = [...filtered, sheet];
           }
           return;
@@ -3534,33 +3278,23 @@
       else if (stEl.textContent !== cssText) stEl.textContent = cssText;
     }
 
-    /* ── Disposer Bag ── */
     const createDisposerBag = () => {
       const fns = [];
-      return {
-        add: (fn) => (typeof fn === 'function' && fns.push(fn), fn),
-        flush: () => { fns.forEach(fn => { try { fn(); } catch (_) {} }); fns.length = 0; }
-      };
+      return { add: (fn) => (typeof fn === 'function' && fns.push(fn), fn), flush: () => { fns.forEach(fn => { try { fn(); } catch (_) {} }); fns.length = 0; } };
     };
 
-    /* ── Window Drag ── */
     function bindWindowDrag(onMove, onEnd) {
-      const ac = new AbortController();
-      const sig = ac.signal;
+      const ac = new AbortController(); const sig = ac.signal;
       window.addEventListener('mousemove', onMove, { passive: false, signal: sig });
       window.addEventListener('mouseup', end, { signal: sig });
       window.addEventListener('touchmove', onMove, { passive: false, signal: sig });
       window.addEventListener('touchend', end, { signal: sig });
       window.addEventListener('blur', end, { signal: sig });
       let ended = false;
-      function end(ev) {
-        if (ended) return; ended = true;
-        try { onEnd?.(ev); } finally { try { ac.abort(); } catch (_) {} }
-      }
+      function end(ev) { if (ended) return; ended = true; try { onEnd?.(ev); } finally { try { ac.abort(); } catch (_) {} } }
       return () => { if (!ended) { ended = true; try { ac.abort(); } catch (_) {} } };
     }
 
-    /* ── Icons (v196: added equalizer) ── */
     const VSC_ICONS = Object.freeze({
       gear: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
       equalizer: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><circle cx="4" cy="12" r="2" fill="currentColor"/><line x1="12" y1="21" x2="12" y2="8"/><line x1="12" y1="4" x2="12" y2="3"/><circle cx="12" cy="6" r="2" fill="currentColor"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><circle cx="20" cy="14" r="2" fill="currentColor"/></svg>`,
@@ -3579,18 +3313,12 @@
       sliders: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>`
     });
 
-    function svgIcon(name) {
-      const span = document.createElement('span');
-      span.className = 'icon';
-      span.innerHTML = VSC_ICONS[name] || '';
-      return span;
-    }
+    function svgIcon(name) { const span = document.createElement('span'); span.className = 'icon'; span.innerHTML = VSC_ICONS[name] || ''; return span; }
 
     /* ── OSD ── */
     let __osdReady = false;
     onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true });
     onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
-
     let __osdEl = null;
     function showOSD(text, durationMs = 1200) {
       if (!__osdReady || !document.body) return;
@@ -3608,27 +3336,9 @@
         __osdEl._timer = setTimeout(() => { if (__osdEl) __osdEl.style.opacity = '0'; }, durationMs);
       } catch (_) {}
     }
-    __globalSig.addEventListener('abort', () => {
-      if (__osdEl) { clearTimeout(__osdEl._timer); try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; }
-    }, { once: true });
+    __globalSig.addEventListener('abort', () => { if (__osdEl) { clearTimeout(__osdEl._timer); try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; } }, { once: true });
 
-    function getAutoPresetForResolution(videoHeight) {
-      const h = videoHeight || 0;
-      if (CONFIG.IS_MOBILE) {
-        if (h <= 480) return 'L';
-        if (h <= 720) return 'M';
-        if (h <= 1080) return 'S';
-        return 'off';
-      }
-      if (h <= 480) return 'L';
-      if (h <= 720) return 'M';
-      if (h <= 1080) return 'S';
-      return 'off';
-    }
-
-    /* ══════════════════════════════════════════════════════════
-       createUI — v197 Bottom-Tab UI (+ Maximize 버튼)
-       ══════════════════════════════════════════════════════════ */
+    /* ── UI (v197 UI with Auto-Preset removed from quickbar) ── */
     function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils;
       let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0;
@@ -3665,13 +3375,11 @@
         const sync = () => { if (btn) btn.classList.toggle('active', isActive(sm.get(path))); };
         sub(path, sync); sync(); return sync;
       }
-
       function bindStyle(el, path, applyFn) {
         const sync = () => { try { applyFn(el, sm.get(path)); } catch (_) {} };
         sub(path, sync); sync();
       }
 
-      /* v196: unified toggle row builder */
       function renderToggleRow({ items, key, offValue, offLabel = 'OFF', isBitmask = false }) {
         const row = h('div', { class: 'chip-grid' });
         for (const it of items) {
@@ -3693,7 +3401,6 @@
         return row;
       }
 
-      /* v196: unified value row builder */
       function renderValueRow({ values, key, format, onClick, isActive }) {
         const row = h('div', { class: 'chip-grid' });
         for (const val of values) {
@@ -3705,12 +3412,10 @@
         return row;
       }
 
-      /* ── Tab definitions ── */
       const TAB_ID = Object.freeze({ VIDEO: 0, AUDIO: 1, SPEED: 2, TOOLS: 3 });
       const TAB_LABELS = ['Video', 'Audio', 'Speed', 'Tools'];
       const TAB_ICONS = ['palette', 'speaker', 'zap', 'monitor'];
 
-      /* ── v196: Bottom-tab CSS ── */
       const PANEL_STYLE = `
         :host { all: initial; } * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         .panel { position: fixed!important; top: 50%!important; right: 72px!important; transform: translateY(-50%)!important; width: min(380px, calc(100vw - 32px))!important; max-height: min(85vh, 560px)!important; background: rgba(12,12,18,0.96)!important; backdrop-filter: blur(24px) saturate(200%)!important; color: #e8eaed!important; border-radius: 20px!important; z-index: 2147483647!important; border: 1px solid rgba(255,255,255,0.06)!important; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif!important; box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset!important; display: flex!important; flex-direction: column!important; overflow: hidden!important; animation: vsc-slide-in 0.2s ease-out!important; }
@@ -3771,11 +3476,9 @@
         const shadow = host.attachShadow({ mode: 'open' });
         applyShadowStyle(shadow, PANEL_STYLE, h);
 
-        /* ── Header ── */
         const videoInfo = h('span', { class: 'hdr-ver' });
         const updateVideoInfo = () => { const v = window.__VSC_APP__?.getActiveVideo(); if (v) videoInfo.textContent = `${v.videoWidth}\u00D7${v.videoHeight}`; };
-        __videoInfoIntervalId = setRecurring(updateVideoInfo, 2000);
-        updateVideoInfo();
+        __videoInfoIntervalId = setRecurring(updateVideoInfo, 2000); updateVideoInfo();
 
         const pwrPill = h('button', { class: 'pwr-pill' });
         pwrPill.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT));
@@ -3784,71 +3487,45 @@
         const hdrLeft = h('div', { class: 'hdr-left' }, h('span', { class: 'hdr-title' }, 'VSC'), videoInfo);
         const hdr = h('div', { class: 'hdr' }, hdrLeft, pwrPill);
 
-        /* ── Quickbar ── */
         const mkQBtn = (icon, label, path) => {
           const b = h('button', { class: 'qbtn' }, h('span', {}, svgIcon(icon)), h('span', { class: 'qlabel' }, label));
-          b.onclick = () => {
-            const nextVal = !sm.get(path);
-            setAndHint(path, nextVal);
-            if (path === P.APP_ZOOM_EN) showOSD(nextVal ? "Zoom ON (Alt+휠)" : "Zoom OFF", 1500);
-          };
-          bindClassToggle(b, path, v => !!v);
-          return b;
+          b.onclick = () => { const nextVal = !sm.get(path); setAndHint(path, nextVal); if (path === P.APP_ZOOM_EN) showOSD(nextVal ? "Zoom ON (Alt+휠)" : "Zoom OFF", 1500); };
+          bindClassToggle(b, path, v => !!v); return b;
         };
         const quickbar = h('div', { class: 'quickbar' },
           mkQBtn('sparkles', 'AUTO', P.APP_AUTO_SCENE),
-          mkQBtn('wand', 'PRESET', P.APP_AUTO_PRESET),
           mkQBtn('speaker', 'AUDIO', P.A_EN),
           mkQBtn('zoom', 'ZOOM', P.APP_ZOOM_EN)
         );
 
-        /* ── Tab bodies ── */
         let currentTab = TAB_ID.VIDEO;
-        const tabBtns = [];
-        const tabBodies = [];
+        const tabBtns = [], tabBodies = [];
 
-        /* TAB 0: Video */
         const sharpItems = Object.keys(PRESETS.detail).filter(k=>k!=='off').map(k=>({ text: getPresetLabel('detail', k), value: k }));
         const sharpRow = renderToggleRow({ key: P.V_PRE_S, items: sharpItems, offValue: 'off' });
         const sharpSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, svgIcon('palette'), ' SHARPENING'), sharpRow);
 
-        const shadowSec = h('div', { class: 'card' },
-          h('div', { class: 'card-title' }, 'SHADOW BAND'),
-          renderToggleRow({ key: P.V_SHADOW_MASK, isBitmask: true, items: [{text:'OUTER',value:1},{text:'MID',value:2},{text:'DEEP',value:4}] })
-        );
+        const shadowSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'SHADOW BAND'), renderToggleRow({ key: P.V_SHADOW_MASK, isBitmask: true, items: [{text:'OUTER',value:1},{text:'MID',value:2},{text:'DEEP',value:4}] }));
 
         const gradeItems = Object.keys(PRESETS.grade).filter(k=>k!=='off').map(k=>({ text: getPresetLabel('grade', k), value: k }));
-        const gradeSec = h('div', { class: 'card' },
-          h('div', { class: 'card-title' }, 'SHADOW RESTORE'),
-          renderToggleRow({ key: P.V_PRE_B, items: gradeItems, offValue: 'off' })
-        );
+        const gradeSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, 'SHADOW RESTORE'), renderToggleRow({ key: P.V_PRE_B, items: gradeItems, offValue: 'off' }));
 
-        /* v196: presetMix slider exposed */
         const mixSlider = h('input', { type: 'range', min: '0', max: '1', step: '0.05' });
         mixSlider.value = sm.get(P.V_PRE_MIX) || 1;
         const mixLbl = h('span', { class: 'slider-value' }, Math.round(mixSlider.value * 100) + '%');
         mixSlider.oninput = () => { sm.set(P.V_PRE_MIX, parseFloat(mixSlider.value)); mixLbl.textContent = Math.round(mixSlider.value * 100) + '%'; ApplyReq.hard(); };
         sm.sub(P.V_PRE_MIX, (v) => { mixSlider.value = v; mixLbl.textContent = Math.round(v * 100) + '%'; });
-        const mixSec = h('div', { class: 'card' },
-          h('div', { class: 'card-title' }, svgIcon('sliders'), ' EFFECT MIX'),
-          h('div', { class: 'slider-row' }, h('span', { class: 'slider-label' }, 'Mix'), mixSlider, mixLbl)
-        );
-
+        const mixSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, svgIcon('sliders'), ' EFFECT MIX'), h('div', { class: 'slider-row' }, h('span', { class: 'slider-label' }, 'Mix'), mixSlider, mixLbl));
         const videoTab = h('div', { class: 'tab-content visible' }, sharpSec, shadowSec, gradeSec, mixSec);
 
-        /* TAB 1: Audio */
         const audioSlider = h('input', { type: 'range', min: '0', max: '12', step: '0.5' });
         audioSlider.value = sm.get(P.A_BST) || 6;
         const audioLbl = h('span', { class: 'slider-value' }, Number(audioSlider.value).toFixed(1) + 'dB');
         audioSlider.oninput = () => { sm.set(P.A_BST, parseFloat(audioSlider.value)); audioLbl.textContent = Number(audioSlider.value).toFixed(1) + 'dB'; ApplyReq.soft(); };
         sm.sub(P.A_BST, (v) => { audioSlider.value = v; audioLbl.textContent = Number(v).toFixed(1) + 'dB'; });
-        const audioBoostSec = h('div', { class: 'card' },
-          h('div', { class: 'card-title' }, svgIcon('speaker'), ' AUDIO BOOST'),
-          h('div', { class: 'slider-row' }, h('span', { class: 'slider-label' }, 'Gain'), audioSlider, audioLbl)
-        );
+        const audioBoostSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, svgIcon('speaker'), ' AUDIO BOOST'), h('div', { class: 'slider-row' }, h('span', { class: 'slider-label' }, 'Gain'), audioSlider, audioLbl));
         const audioTab = h('div', { class: 'tab-content' }, audioBoostSec);
 
-        /* TAB 2: Speed */
         const speedVal = h('span', { class: 'speed-display' });
         const syncSpeed = () => { const r = sm.get(P.PB_EN) ? Number(sm.get(P.PB_RATE)) : 1; speedVal.textContent = r.toFixed(1)+'x'; speedVal.classList.toggle('modified', Math.abs(r-1)>0.01); };
         sub(P.PB_RATE, syncSpeed); sub(P.PB_EN, syncSpeed); syncSpeed();
@@ -3857,13 +3534,7 @@
         const speedPlus = h('button', { class: 'step-btn', onclick: () => { setAndHint(P.PB_RATE, Math.round(VSC_CLAMP(Number(sm.get(P.PB_RATE))+0.1,0.1,16)*10)/10); setAndHint(P.PB_EN, true); } }, '+');
         const speedRow1 = h('div', { class: 'speed-stepper' }, speedMinus, speedVal, speedPlus);
 
-        const speedPresetRow = renderValueRow({
-          values: [0.5, 1.0, 1.5, 2.0, 3.0],
-          key: P.PB_RATE,
-          format: r => r + 'x',
-          onClick: r => { sm.set(P.PB_RATE, r); sm.set(P.PB_EN, true); ApplyReq.hard(); },
-          isActive: (v, r) => sm.get(P.PB_EN) && Math.abs(v - r) < 0.01
-        });
+        const speedPresetRow = renderValueRow({ values: [0.5, 1.0, 1.5, 2.0, 3.0], key: P.PB_RATE, format: r => r + 'x', onClick: r => { sm.set(P.PB_RATE, r); sm.set(P.PB_EN, true); ApplyReq.hard(); }, isActive: (v, r) => sm.get(P.PB_EN) && Math.abs(v - r) < 0.01 });
 
         const speedInput = h('input', { type: 'number', min: '0.1', max: '16', step: '0.05', class: 'custom-speed' });
         speedInput.onchange = () => { const val = VSC_CLAMP(parseFloat(speedInput.value)||1, 0.1, 16); speedInput.value = val; setAndHint(P.PB_RATE, val); setAndHint(P.PB_EN, true); };
@@ -3871,68 +3542,30 @@
         sm.sub(P.PB_RATE, (v) => speedInput.value = Number(v).toFixed(2));
         speedInput.value = sm.get(P.PB_RATE) || 1;
         const speedCustom = h('div', { style: 'display:flex;align-items:center;gap:6px;margin-top:8px' }, h('span', { class: 'slider-label' }, 'CUSTOM'), speedInput);
-
         const speedSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, svgIcon('zap'), ' SPEED'), speedRow1, speedPresetRow, speedCustom);
         const speedTab = h('div', { class: 'tab-content' }, speedSec);
 
-        /* TAB 3: Tools — v197: Maximize 버튼 추가 */
         const toolsBtn1 = h('button', { class: 'act-btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) togglePiPFor(v); } }, svgIcon('pip'), ' PiP');
         const toolsBtn2 = h('button', { class: 'act-btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) captureVideoFrame(v); } }, svgIcon('camera'), ' Capture');
         const toolsBtnMax = h('button', { class: 'act-btn', onclick: () => { window.__VSC_INTERNAL__?.VideoMax?.toggle(); } }, svgIcon('maximize'), ' Maximize');
-
-        const btnExport = h('button', { class: 'act-btn', onclick: () => {
-          try {
-            const data = window.__VSC_INTERNAL__?._buildSaveData?.();
-            if (!data) return;
-            data._version = VSC_VERSION; data._hostname = location.hostname;
-            const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}));
-            const a = document.createElement('a'); a.href = url; a.download = `vsc-settings-${Date.now()}.json`; a.click();
-            setTimer(() => URL.revokeObjectURL(url), 5000);
-          } catch (_) {}
-        } }, svgIcon('download'), ' Export');
-
-        const btnImport = h('button', { class: 'act-btn', onclick: () => {
-          const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
-          input.onchange = () => {
-            const file = input.files?.[0]; if (!file) return;
-            const reader = new FileReader();
-            reader.onload = () => { try { window.__VSC_INTERNAL__?._applyDataToStore?.(JSON.parse(reader.result)); ApplyReq.hard(); } catch (_) {} };
-            reader.readAsText(file);
-          };
-          input.click();
-        } }, svgIcon('upload'), ' Import');
-
-        const toolsSec = h('div', { class: 'card' },
-          h('div', { class: 'card-title' }, svgIcon('monitor'), ' TOOLS'),
-          h('div', { class: 'actions', style: 'margin-bottom:6px' }, toolsBtn1, toolsBtn2, toolsBtnMax),
-          h('div', { class: 'actions' }, btnExport, btnImport)
-        );
+        const btnExport = h('button', { class: 'act-btn', onclick: () => { try { const data = window.__VSC_INTERNAL__?._buildSaveData?.(); if (!data) return; data._version = VSC_VERSION; data._hostname = location.hostname; const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {type:'application/json'})); const a = document.createElement('a'); a.href = url; a.download = `vsc-settings-${Date.now()}.json`; a.click(); setTimer(() => URL.revokeObjectURL(url), 5000); } catch (_) {} } }, svgIcon('download'), ' Export');
+        const btnImport = h('button', { class: 'act-btn', onclick: () => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.onchange = () => { const file = input.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { window.__VSC_INTERNAL__?._applyDataToStore?.(JSON.parse(reader.result)); ApplyReq.hard(); } catch (_) {} }; reader.readAsText(file); }; input.click(); } }, svgIcon('upload'), ' Import');
+        const toolsSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, svgIcon('monitor'), ' TOOLS'), h('div', { class: 'actions', style: 'margin-bottom:6px' }, toolsBtn1, toolsBtn2, toolsBtnMax), h('div', { class: 'actions' }, btnExport, btnImport));
         const toolsTab = h('div', { class: 'tab-content' }, toolsSec);
 
-        /* Store tabs */
         tabBodies.push(videoTab, audioTab, speedTab, toolsTab);
 
-        /* ── Tab bar (bottom, iOS-style) ── */
         const tabBar = h('div', { class: 'tab-bar' });
         function switchTab(idx) {
           if (idx === currentTab) return;
-          tabBtns[currentTab].classList.remove('active');
-          tabBodies[currentTab].classList.remove('visible');
-          currentTab = idx;
-          tabBtns[currentTab].classList.add('active');
-          tabBodies[currentTab].classList.add('visible');
+          tabBtns[currentTab].classList.remove('active'); tabBodies[currentTab].classList.remove('visible');
+          currentTab = idx; tabBtns[currentTab].classList.add('active'); tabBodies[currentTab].classList.add('visible');
         }
         for (let i = 0; i < TAB_LABELS.length; i++) {
           const dot = h('div', { class: 'dot' });
-          const btn = h('button', { class: 'tab-item' + (i === currentTab ? ' active' : '') },
-            svgIcon(TAB_ICONS[i]), h('span', {}, TAB_LABELS[i]), dot);
-          const tabIdx = i;
-          btn.onclick = () => switchTab(tabIdx);
-          btn.__dot = dot;
-          tabBtns.push(btn);
-          tabBar.appendChild(btn);
+          const btn = h('button', { class: 'tab-item' + (i === currentTab ? ' active' : '') }, svgIcon(TAB_ICONS[i]), h('span', {}, TAB_LABELS[i]), dot);
+          const tabIdx = i; btn.onclick = () => switchTab(tabIdx); btn.__dot = dot; tabBtns.push(btn); tabBar.appendChild(btn);
         }
-        /* Dot sync */
         const syncDots = () => {
           const act = sm.get(P.APP_ACT);
           tabBtns[TAB_ID.VIDEO].__dot.classList.toggle('visible', act && sm.get(P.V_PRE_S) !== 'off');
@@ -3940,10 +3573,8 @@
           tabBtns[TAB_ID.SPEED].__dot.classList.toggle('visible', act && !!sm.get(P.PB_EN) && Math.abs(Number(sm.get(P.PB_RATE)) - 1) > 0.01);
           tabBtns[TAB_ID.TOOLS].__dot.classList.toggle('visible', act && !!sm.get(P.APP_AUTO_SCENE));
         };
-        [P.APP_ACT, P.V_PRE_S, P.A_EN, P.PB_EN, P.PB_RATE, P.APP_AUTO_SCENE].forEach(p => sub(p, syncDots));
-        syncDots();
+        [P.APP_ACT, P.V_PRE_S, P.A_EN, P.PB_EN, P.PB_RATE, P.APP_AUTO_SCENE].forEach(p => sub(p, syncDots)); syncDots();
 
-        /* ── Footer ── */
         let confirmState = false, confirmTimer = 0;
         const resetBtn = h('button', { class: 'footer-btn' }, '\u21BA Reset');
         resetBtn.onclick = () => {
@@ -3959,111 +3590,55 @@
         const closeBtn = h('button', { class: 'footer-btn', onclick: () => sm.set(P.APP_UI, false) }, '\u2715 Close');
         const footerRow = h('div', { class: 'footer-row' }, resetBtn, closeBtn);
 
-        /* ── Assemble panel ── */
-        const panel = h('div', { class: 'panel' },
-          hdr, quickbar,
-          ...tabBodies,
-          footerRow,
-          tabBar
-        );
-        shadow.appendChild(panel);
-        container = host;
-        getUiRoot().appendChild(container);
+        const panel = h('div', { class: 'panel' }, hdr, quickbar, ...tabBodies, footerRow, tabBar);
+        shadow.appendChild(panel); container = host; getUiRoot().appendChild(container);
 
-        /* ── Panel drag ── */
         let stopDrag = null;
         hdr.onmousedown = (e) => {
           e.preventDefault(); const p = shadow.querySelector('.panel'); const r = p.getBoundingClientRect();
           let sx = e.clientX, sy = e.clientY;
-          p.style.right = 'auto'; p.style.bottom = 'auto'; p.style.transform = 'none';
-          p.style.top = r.top + 'px'; p.style.left = r.left + 'px';
-          stopDrag = bindWindowDrag((ev) => {
-            p.style.left = Math.max(0, Math.min(window.innerWidth - r.width, r.left + (ev.clientX - sx))) + 'px';
-            p.style.top = Math.max(0, Math.min(window.innerHeight - r.height, r.top + (ev.clientY - sy))) + 'px';
-          }, () => stopDrag = null);
+          p.style.right = 'auto'; p.style.bottom = 'auto'; p.style.transform = 'none'; p.style.top = r.top + 'px'; p.style.left = r.left + 'px';
+          stopDrag = bindWindowDrag((ev) => { p.style.left = Math.max(0, Math.min(window.innerWidth - r.width, r.left + (ev.clientX - sx))) + 'px'; p.style.top = Math.max(0, Math.min(window.innerHeight - r.height, r.top + (ev.clientY - sy))) + 'px'; }, () => stopDrag = null);
         };
       };
 
-      /* ── Gear button (v196: equalizer icon) ── */
       const ensureGear = () => {
         if (!allowUiInThisDoc()) return;
         if (gearHost && !gearHost.isConnected) { gearHost = null; gearBtn = null; }
         if (gearHost) return;
-
         gearHost = h('div', { id: 'vsc-gear-host', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647' });
         const shadow = gearHost.attachShadow({ mode: 'open' });
-        applyShadowStyle(shadow, `
-          .gear{position:fixed!important;top:50%!important;right:12px!important;transform:translateY(-50%)!important;width:42px!important;height:42px!important;border-radius:12px!important;background:rgba(15,15,20,0.9)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,0.1)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;pointer-events:auto!important;transition:all 0.2s ease;opacity:0.15}
-          .gear:hover{opacity:1;border-color:rgba(255,255,255,0.25)}
-          .gear:active{transform:translateY(-50%) scale(0.92)}
-          .gear.open{opacity:1;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.2)}
-          .gear.inactive{opacity:0.3;border-color:#f87171}
-          .gear.panel-open{opacity:0;pointer-events:none;transform:translateY(-50%) scale(0.7)}
-          .badge{position:absolute;top:-4px;right:-4px;background:#3b82f6;color:#fff;font-size:10px;font-weight:900;min-width:16px;height:16px;border-radius:8px;border:1.5px solid rgba(12,12,16,0.95);display:flex;align-items:center;justify-content:center}
-        `, h);
-
-        gearBtn = h('button', { class: 'gear' });
-        gearBtn.innerHTML = VSC_ICONS.equalizer;
-        const badge = h('div', { class: 'badge', style: 'display:none' });
-        gearBtn.appendChild(badge);
-        shadow.appendChild(gearBtn);
-
-        gearBtn.onclick = (e) => {
-          if (gearBtn.__vscDrag) { e.preventDefault(); e.stopPropagation(); return; }
-          setAndHint(P.APP_UI, !sm.get(P.APP_UI));
-        };
+        applyShadowStyle(shadow, `.gear{position:fixed!important;top:50%!important;right:12px!important;transform:translateY(-50%)!important;width:42px!important;height:42px!important;border-radius:12px!important;background:rgba(15,15,20,0.9)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,0.1)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;pointer-events:auto!important;transition:all 0.2s ease;opacity:0.15}.gear:hover{opacity:1;border-color:rgba(255,255,255,0.25)}.gear:active{transform:translateY(-50%) scale(0.92)}.gear.open{opacity:1;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.2)}.gear.inactive{opacity:0.3;border-color:#f87171}.gear.panel-open{opacity:0;pointer-events:none;transform:translateY(-50%) scale(0.7)}.badge{position:absolute;top:-4px;right:-4px;background:#3b82f6;color:#fff;font-size:10px;font-weight:900;min-width:16px;height:16px;border-radius:8px;border:1.5px solid rgba(12,12,16,0.95);display:flex;align-items:center;justify-content:center}`, h);
+        gearBtn = h('button', { class: 'gear' }); gearBtn.innerHTML = VSC_ICONS.equalizer;
+        const badge = h('div', { class: 'badge', style: 'display:none' }); gearBtn.appendChild(badge); shadow.appendChild(gearBtn);
+        gearBtn.onclick = (e) => { if (gearBtn.__vscDrag) { e.preventDefault(); e.stopPropagation(); return; } setAndHint(P.APP_UI, !sm.get(P.APP_UI)); };
 
         let stopDrag = null;
         const handleGearDrag = (e) => {
           if (!e.target.closest('.gear')) return;
           gearBtn.__vscDrag = false; stopDrag?.();
-          const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
-          const rect = gearBtn.getBoundingClientRect();
+          const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY; const rect = gearBtn.getBoundingClientRect();
           stopDrag = bindWindowDrag((ev) => {
             const currentY = ev.type.includes('touch') ? ev.touches[0].clientY : ev.clientY;
-            if (Math.abs(currentY - startY) > 8) {
-              if (!gearBtn.__vscDrag) { gearBtn.__vscDrag = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = rect.top + 'px'; }
-              if (ev.cancelable) ev.preventDefault();
-            }
+            if (Math.abs(currentY - startY) > 8) { if (!gearBtn.__vscDrag) { gearBtn.__vscDrag = true; gearBtn.style.transition = 'none'; gearBtn.style.transform = 'none'; gearBtn.style.top = rect.top + 'px'; } if (ev.cancelable) ev.preventDefault(); }
             if (gearBtn.__vscDrag) gearBtn.style.top = Math.max(0, Math.min(window.innerHeight - rect.height, rect.top + (currentY - startY))) + 'px';
           }, () => { gearBtn.style.transition = ''; setTimeout(() => { gearBtn.__vscDrag = false; stopDrag = null; }, 100); });
         };
-        gearBtn.onmousedown = handleGearDrag; gearBtn.ontouchstart = handleGearDrag;
-        blockInterference(gearBtn);
+        gearBtn.onmousedown = handleGearDrag; gearBtn.ontouchstart = handleGearDrag; blockInterference(gearBtn);
 
         const sync = () => {
           if (!gearBtn) return;
-          const uiOpen = !!sm.get(P.APP_UI);
-          gearBtn.classList.toggle('open', uiOpen);
-          gearBtn.classList.toggle('panel-open', uiOpen);
-          gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT));
+          const uiOpen = !!sm.get(P.APP_UI); gearBtn.classList.toggle('open', uiOpen); gearBtn.classList.toggle('panel-open', uiOpen); gearBtn.classList.toggle('inactive', !sm.get(P.APP_ACT));
           let count = 0;
-          if (sm.get(P.APP_ACT)) {
-            if (sm.get(P.V_PRE_S) !== 'off') count++;
-            if (sm.get(P.A_EN)) count++;
-            if (sm.get(P.PB_EN) && Number(sm.get(P.PB_RATE)) !== 1) count++;
-            if (sm.get(P.APP_AUTO_SCENE)) count++;
-          }
-          badge.textContent = count;
-          badge.style.display = count > 0 ? 'flex' : 'none';
+          if (sm.get(P.APP_ACT)) { if (sm.get(P.V_PRE_S) !== 'off') count++; if (sm.get(P.A_EN)) count++; if (sm.get(P.PB_EN) && Number(sm.get(P.PB_RATE)) !== 1) count++; if (sm.get(P.APP_AUTO_SCENE)) count++; }
+          badge.textContent = count; badge.style.display = count > 0 ? 'flex' : 'none';
         };
-        [P.APP_UI, P.APP_ACT, P.V_PRE_S, P.A_EN, P.PB_EN, P.PB_RATE, P.APP_AUTO_SCENE].forEach(p => sub(p, sync));
-        sync();
-
+        [P.APP_UI, P.APP_ACT, P.V_PRE_S, P.A_EN, P.PB_EN, P.PB_RATE, P.APP_AUTO_SCENE].forEach(p => sub(p, sync)); sync();
         const wake = () => {
-          if (gearBtn) gearBtn.style.opacity = '1';
-          clearTimeout(fadeTimer);
-          fadeTimer = setTimeout(() => {
-            const isHovered = !CONFIG.IS_MOBILE && gearBtn.matches(':hover');
-            if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !isHovered) {
-              gearBtn.style.opacity = '0.15';
-            }
-          }, 2500);
+          if (gearBtn) gearBtn.style.opacity = '1'; clearTimeout(fadeTimer);
+          fadeTimer = setTimeout(() => { const isHovered = !CONFIG.IS_MOBILE && gearBtn.matches(':hover'); if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !isHovered) { gearBtn.style.opacity = '0.15'; } }, 2500);
         };
-
-        window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal });
-        window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal });
-        window.addEventListener('touchmove', wake, { passive: true, signal: uiWakeCtrl.signal });
+        window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal }); window.addEventListener('touchmove', wake, { passive: true, signal: uiWakeCtrl.signal });
       };
 
       const ensure = () => {
@@ -4071,48 +3646,18 @@
         if (!allowUiInThisDoc()) { detachNodesHard(); return; }
         if (gearHost && !gearHost.isConnected) { gearHost = null; gearBtn = null; }
         ensureGear();
-        if (gearHost) {
-          const root = getUiRoot();
-          if (root && root !== gearHost.parentNode) { try { root.appendChild(gearHost); } catch (_) {} }
-        }
-        if (sm.get(P.APP_UI)) {
-          build();
-          if (container) {
-            container.style.display = 'block';
-            const root = getUiRoot();
-            if (root && container.parentNode !== root) { try { root.appendChild(container); } catch (_) {} }
-          }
-        } else {
-          if (container) container.style.display = 'none';
-        }
+        if (gearHost) { const root = getUiRoot(); if (root && root !== gearHost.parentNode) { try { root.appendChild(gearHost); } catch (_) {} } }
+        if (sm.get(P.APP_UI)) { build(); if (container) { container.style.display = 'block'; const root = getUiRoot(); if (root && container.parentNode !== root) { try { root.appendChild(container); } catch (_) {} } } }
+        else { if (container) container.style.display = 'none'; }
       };
 
-      sub(P.APP_UI, () => ensure());
-      ensure();
-
-      return {
-        ensure,
-        destroy: () => {
-          uiWakeCtrl.abort();
-          clearTimeout(fadeTimer);
-          clearTimeout(bootWakeTimer);
-          clearRecurring(__videoInfoIntervalId);
-          __videoInfoIntervalId = 0;
-          bag.flush();
-          detachNodesHard();
-        }
-      };
+      sub(P.APP_UI, () => ensure()); ensure();
+      return { ensure, destroy: () => { uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); clearRecurring(__videoInfoIntervalId); __videoInfoIntervalId = 0; bag.flush(); detachNodesHard(); } };
     }
 
-    // ─── END OF PART 4 (v197.0.0) ───
-    // ─── PART 5 START (v197.0.0) ───
-    // markInternalRateChange, restoreRateOne, ensureMobileInlinePlaybackHints,
-    // cleanupTouched, pruneTouchedDisconnected, createBackendAdapter,
-    // clearVideoRuntimeState, applyPlaybackRate, reconcileVideoEffects,
-    // bindVideoOnce, createApplyLoop, persistence, keyboard, OSD,
-    // MediaSession, GM menus, user tracking, maintenance, SPA watcher,
-    // auto-preset watcher, mobile long-press speed, bootstrap
-    // v197: VideoMax 통합, Alt+Shift+M, ESC 최대화 해제, 저장/로드
+    // ═══════════════════════════════════════════════════════════
+    //  누락된 PART 5 복구: 비디오 상태 관리, 핵심 루프, 어댑터, 저장소
+    // ═══════════════════════════════════════════════════════════
 
     function markInternalRateChange(v) {
       const st = getRateState(v);
@@ -4251,9 +3796,6 @@
 
     const __reconcileCandidates = new Set();
 
-    /* ══════════════════════════════════════════════════════════
-       [PATCH v196 3-1] reconcileVideoEffects — bindVideoOnce 순서 변경
-       ══════════════════════════════════════════════════════════ */
     function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn,
                                      desiredRate, pbActive, Adapter, ApplyReq, mainTarget }) {
       const candidates = __reconcileCandidates;
@@ -4280,7 +3822,6 @@
           continue;
         }
 
-        /* v196 3-1: bind FIRST so resize listener is aware of filter state */
         bindVideoOnce(el, ApplyReq);
 
         if (videoFxOn) {
@@ -4415,9 +3956,6 @@
       } catch (_) {}
     }
 
-    /* ══════════════════════════════════════════════════════════
-       [PATCH v196 3-2] audioUpdateThrottled — abort 시 타이머 정리
-       ══════════════════════════════════════════════════════════ */
     function createApplyLoop(Store, Registry, Targeting, Adapter, Audio, AutoScene, ZoomMgr, ApplyReq, UI) {
       const paramsMemo = createVideoParamsMemo(Store, P, createUtils());
       const lightSigChanged = createLightSigTracker();
@@ -4432,7 +3970,6 @@
 
       const audioUpdateThrottled = (() => {
         let last = 0, timer = 0;
-        /* v196 3-2: abort 시 throttle timer 정리 */
         __globalSig.addEventListener('abort', () => {
           if (timer) { clearTimer(timer); timer = 0; }
         }, { once: true });
@@ -4556,7 +4093,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Persistence — save / load / migrate (v197: maximize 포함)
+    //  Persistence — 데이터 저장/로드 로직 복구
     // ═══════════════════════════════════════════════════════════
 
     const __hasGM = (typeof GM_getValue === 'function' && typeof GM_setValue === 'function');
@@ -4678,8 +4215,71 @@
       run();
     }
 
+
+/* ── v200 Timer Feature (Ported) ── */
+    function createTimerFeature() {
+      let _rafId = 0, _timerEl = null, _lastSecond = -1, _destroyed = false, _lastLayoutKey = '', _lastParent = null;
+      let _pollId = 0;
+      const getFullscreenElement = () => document.fullscreenElement || document.webkitFullscreenElement;
+      function createTimerEl() {
+        const el = document.createElement('div'); el.className = 'vsc-fs-timer'; el.setAttribute('data-vsc-ui', '1');
+        el.style.cssText = ['position:absolute !important', 'z-index:2147483647 !important', 'color:#FFE600 !important', 'font-family:monospace !important', 'font-weight:bold !important', 'pointer-events:none !important', 'user-select:none !important', 'font-variant-numeric:tabular-nums !important', 'letter-spacing:1px !important', '-webkit-text-stroke:1.5px #000 !important', 'paint-order:stroke fill !important', 'transition:opacity 0.2s !important', 'opacity:0.5 !important', 'margin:0 !important', 'padding:0 !important', 'border:none !important', 'display:block !important', 'background:transparent !important', 'box-shadow:none !important', 'text-shadow:none !important'].join(';');
+        return el;
+      }
+      function getTimerParent() { const fs = getFullscreenElement(); if (!fs) return null; if (fs.tagName === 'VIDEO') { const parent = fs.parentElement; if (parent?.isConnected) return parent; return null; } return fs; }
+      function restoreParentPos() { if (_lastParent && _lastParent.__vscOrigPos !== undefined) { _lastParent.style.position = _lastParent.__vscOrigPos; delete _lastParent.__vscOrigPos; } _lastParent = null; }
+      function ensureTimerAttached() {
+        const parent = getTimerParent();
+        if (!parent) { if (_timerEl) _timerEl.style.setProperty('display', 'none', 'important'); restoreParentPos(); return null; }
+        if (_timerEl && _timerEl.parentNode === parent && _timerEl.isConnected) return parent;
+        if (_timerEl) { try { _timerEl.remove(); } catch (_) {} }
+        _timerEl = createTimerEl();
+        restoreParentPos();
+        try { const pos = getComputedStyle(parent).position; if (pos === 'static' || pos === '') { parent.__vscOrigPos = parent.style.position; parent.style.setProperty('position', 'relative', 'important'); } } catch (_) {}
+        parent.appendChild(_timerEl); _lastParent = parent; _lastLayoutKey = ''; return parent;
+      }
+      function tick() {
+        _rafId = 0; if (_destroyed) return;
+        const store = window.__VSC_INTERNAL__?.Store; if (!store) { scheduleNext(); return; }
+        const act = store.get(P.APP_ACT), isFs = !!getFullscreenElement();
+        if (!act || !isFs) { if (_timerEl) _timerEl.style.setProperty('display', 'none', 'important'); restoreParentPos(); _lastSecond = -1; _lastLayoutKey = ''; return; }
+        const activeVideo = window.__VSC_APP__?.getActiveVideo?.();
+        if (!activeVideo?.isConnected) { if (_timerEl) _timerEl.style.setProperty('display', 'none', 'important'); restoreParentPos(); _lastSecond = -1; _lastLayoutKey = ''; scheduleNext(); return; }
+        const parent = ensureTimerAttached(); if (!parent) { scheduleNext(); return; }
+        const now = new Date(), curSecond = now.getSeconds(), timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(curSecond).padStart(2, '0')}`;
+        _timerEl.style.setProperty('display', 'block', 'important'); if (_timerEl.textContent !== timeStr) _timerEl.textContent = timeStr; _lastSecond = curSecond;
+        const vRect = activeVideo.getBoundingClientRect(), pRect = parent.getBoundingClientRect(), relTop = vRect.top - pRect.top, relLeft = vRect.left - pRect.left, vWidth = vRect.width;
+        const layoutKey = `${relLeft | 0},${relTop | 0},${vWidth | 0}`;
+        if (_lastLayoutKey !== layoutKey) {
+          _lastLayoutKey = layoutKey; const fontSize = vWidth >= 2500 ? 36 : vWidth >= 1900 ? 30 : vWidth >= 1200 ? 24 : 18, topOffset = vWidth > 1200 ? 16 : 8;
+          _timerEl.style.setProperty('font-size', `${fontSize}px`, 'important'); _timerEl.style.setProperty('top', `${relTop + topOffset}px`, 'important'); _timerEl.style.setProperty('bottom', 'auto', 'important'); _timerEl.style.setProperty('right', 'auto', 'important');
+          _timerEl.style.setProperty('left', `${relLeft + vWidth / 2}px`, 'important'); _timerEl.style.setProperty('transform', 'translateX(-50%)', 'important');
+        }
+        scheduleNext();
+      }
+      function scheduleNext() { if (!_destroyed && !_rafId) _rafId = requestAnimationFrame(tick); }
+      function startPolling() { stopPolling(); _pollId = setInterval(() => { if (_destroyed) { stopPolling(); return; } const store = window.__VSC_INTERNAL__?.Store; if (!store) return; const isFs = !!getFullscreenElement(), act = store.get('app.active'); if (isFs && act && !_rafId) scheduleNext(); }, 1000); }
+      function stopPolling() { if (_pollId) { clearInterval(_pollId); _pollId = 0; } }
+
+      let unsubs = [];
+      return {
+        start() {
+          _destroyed = false;
+          const bus = window.__VSC_INTERNAL__?.Bus;
+          if (bus) unsubs.push(bus.on('signal', () => scheduleNext()));
+          document.addEventListener('fullscreenchange', () => { if (!getFullscreenElement()) { if (_timerEl) _timerEl.style.setProperty('display', 'none', 'important'); restoreParentPos(); _lastSecond = -1; _lastLayoutKey = ''; } scheduleNext(); });
+          startPolling(); if (getFullscreenElement()) scheduleNext();
+        },
+        destroy() {
+          _destroyed = true; stopPolling(); if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
+          try { _timerEl?.remove(); } catch (_) {} _timerEl = null; restoreParentPos();
+          unsubs.forEach(u => u()); unsubs = [];
+        }
+      };
+    }
+
     // ═══════════════════════════════════════════════════════════
-    //  Keyboard shortcuts (v197: Alt+Shift+M 최대화, ESC 최대화 해제)
+    //  Keyboard shortcuts (v200 Slots + Alt+Shift+M + ESC Max Undo)
     // ═══════════════════════════════════════════════════════════
 
     function setupKeyboard(Store, ApplyReq, ZoomMgr) {
@@ -4688,111 +4288,75 @@
         const alt = e.altKey, shift = e.shiftKey;
         let handled = false;
 
-        if (alt && shift) {
+        if (alt && shift && !(e.ctrlKey || e.metaKey)) {
           handled = true;
           switch (e.code) {
-            case 'KeyV':
-              Store.set(P.APP_UI, !Store.get(P.APP_UI));
-              ApplyReq.hard();
-              break;
-            case 'KeyA':
-              Store.set(P.A_EN, !Store.get(P.A_EN));
-              ApplyReq.hard();
-              break;
-            case 'KeyS': {
-              const keys = Object.keys(PRESETS.detail);
-              const cur = Store.get(P.V_PRE_S);
-              const idx = keys.indexOf(cur);
-              Store.set(P.V_PRE_S, keys[(idx + 1) % keys.length]);
-              ApplyReq.hard();
-              break;
-            }
-            case 'KeyM':
-              window.__VSC_INTERNAL__?.VideoMax?.toggle();
-              break;
-            case 'KeyP': {
-              const v = window.__VSC_APP__?.getActiveVideo?.();
-              if (v) await togglePiPFor(v);
-              break;
-            }
-            case 'KeyC': {
-              const v = window.__VSC_APP__?.getActiveVideo?.();
-              if (v) captureVideoFrame(v);
-              break;
-            }
-            case 'Comma': {
-              const v = window.__VSC_APP__?.getActiveVideo?.();
-              if (v) {
-                v.pause();
-                v.currentTime = Math.max(0, v.currentTime - 1 / 30);
-                showOSD('◀ 1프레임');
-              }
-              break;
-            }
-            case 'Period': {
-              const v = window.__VSC_APP__?.getActiveVideo?.();
-              if (v) {
-                v.pause();
-                v.currentTime = Math.min(v.duration || 0, v.currentTime + 1 / 30);
-                showOSD('1프레임 ▶');
-              }
-              break;
-            }
+            case 'KeyV': Store.set(P.APP_UI, !Store.get(P.APP_UI)); ApplyReq.hard(); break;
+            case 'KeyA': Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); break;
+            case 'KeyS': { const keys = Object.keys(PRESETS.detail); const cur = Store.get(P.V_PRE_S); const idx = keys.indexOf(cur); Store.set(P.V_PRE_S, keys[(idx + 1) % keys.length]); ApplyReq.hard(); break; }
+            case 'KeyM': window.__VSC_INTERNAL__?.VideoMax?.toggle(); break;
+            case 'KeyP': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) await togglePiPFor(v); break; }
+            case 'KeyC': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) captureVideoFrame(v); break; }
+            case 'Comma': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) { v.pause(); v.currentTime = Math.max(0, v.currentTime - 1 / 30); showOSD('◀ 1프레임'); } break; }
+            case 'Period': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) { v.pause(); v.currentTime = Math.min(v.duration || 0, v.currentTime + 1 / 30); showOSD('1프레임 ▶'); } break; }
             case 'KeyI': {
-              const v = window.__VSC_APP__?.getActiveVideo?.();
-              if (!v) { showOSD('활성 비디오 없음'); break; }
+              const v = window.__VSC_APP__?.getActiveVideo?.(); if (!v) { showOSD('활성 비디오 없음'); break; }
               const w = v.videoWidth, ht = v.videoHeight;
-              const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames
-                ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime))
-                : '?';
+              const fps = v.getVideoPlaybackQuality?.()?.totalVideoFrames ? Math.round(v.getVideoPlaybackQuality().totalVideoFrames / Math.max(0.1, v.currentTime)) : '?';
               const dropped = v.getVideoPlaybackQuality?.()?.droppedVideoFrames ?? '?';
-              const mode = 'SVG';
               const sceneInfo = window.__VSC_INTERNAL__?.AutoScene?.getSceneTypeName?.() || '-';
-              showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | ${mode} | scene:${sceneInfo}`, 3000);
+              showOSD(`${w}\u00D7${ht} | ~${fps}fps | drop:${dropped} | scene:${sceneInfo}`, 3000);
               break;
             }
-            case 'Slash':
-              showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | M: 최대화 | P: PiP | C: 캡처 | I: 정보 | < >: 1프레임', 3500);
-              break;
+            case 'Slash': showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | M: 최대화 | P: PiP | C: 캡처 | I: 정보 | < >: 1프레임', 3500); break;
             case 'ArrowUp':
             case 'ArrowDown': {
               const delta = e.code === 'ArrowUp' ? 0.1 : -0.1;
               const cur = Number(Store.get(P.PB_RATE) || 1);
               const next = Math.round(VSC_CLAMP(cur + delta, 0.1, 16) * 10) / 10;
-              Store.set(P.PB_RATE, next);
-              Store.set(P.PB_EN, true);
-              ApplyReq.hard();
-              showOSD(`속도: ${next.toFixed(1)}x`);
+              Store.set(P.PB_RATE, next); Store.set(P.PB_EN, true); ApplyReq.hard(); showOSD(`속도: ${next.toFixed(1)}x`);
               break;
             }
-            case 'NumpadAdd':
-              Store.set(P.PB_EN, true);
-              Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) + 0.25, 0.1, 16) * 100) / 100);
-              ApplyReq.hard();
-              showOSD(`속도: ${Number(Store.get(P.PB_RATE)).toFixed(1)}x`);
+            case 'NumpadAdd': Store.set(P.PB_EN, true); Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) + 0.25, 0.1, 16) * 100) / 100); ApplyReq.hard(); showOSD(`속도: ${Number(Store.get(P.PB_RATE)).toFixed(1)}x`); break;
+            case 'NumpadSubtract': Store.set(P.PB_EN, true); Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) - 0.25, 0.1, 16) * 100) / 100); ApplyReq.hard(); showOSD(`속도: ${Number(Store.get(P.PB_RATE)).toFixed(1)}x`); break;
+            case 'Digit1': case 'Digit2': case 'Digit3': {
+              const idx = parseInt(e.code.slice(5)) - 1;
+              const snapshot = Object.freeze({
+                presetS: Store.get(P.V_PRE_S), presetB: Store.get(P.V_PRE_B), presetMix: Store.get(P.V_PRE_MIX),
+                shadowBandMask: Store.get(P.V_SHADOW_MASK), brightStepLevel: Store.get(P.V_BRIGHT_STEP),
+                audioEnabled: Store.get(P.A_EN), boost: Store.get(P.A_BST),
+                rate: Store.get(P.PB_RATE), pbEnabled: Store.get(P.PB_EN)
+              });
+              const slots = Store.get('app.slots') || [null, null, null];
+              const newSlots = slots.slice(); newSlots[idx] = snapshot;
+              Store.set('app.slots', newSlots);
+              showOSD(`슬롯 ${idx + 1} 저장 완료`);
               break;
-            case 'NumpadSubtract':
-              Store.set(P.PB_EN, true);
-              Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) - 0.25, 0.1, 16) * 100) / 100);
-              ApplyReq.hard();
-              showOSD(`속도: ${Number(Store.get(P.PB_RATE)).toFixed(1)}x`);
-              break;
+            }
             default: handled = false;
           }
         }
 
         if (!handled && alt && !shift && !(e.ctrlKey || e.metaKey)) {
           handled = true;
-          switch (e.key) {
-            case '1': Store.set(P.V_PRE_S, Store.get(P.V_PRE_S) === 'S' ? 'off' : 'S'); ApplyReq.hard(); break;
-            case '2': Store.set(P.V_PRE_S, Store.get(P.V_PRE_S) === 'M' ? 'off' : 'M'); ApplyReq.hard(); break;
-            case '3': Store.set(P.V_PRE_S, Store.get(P.V_PRE_S) === 'L' ? 'off' : 'L'); ApplyReq.hard(); break;
-            case '4': Store.set(P.V_PRE_S, Store.get(P.V_PRE_S) === 'XL' ? 'off' : 'XL'); ApplyReq.hard(); break;
-            case '0': Store.batch('video', DEFAULTS.video); ApplyReq.hard(); break;
-            case 'a': Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); break;
-            case 'q': Store.set(P.APP_AUTO_SCENE, !Store.get(P.APP_AUTO_SCENE)); ApplyReq.hard();
-              showOSD(Store.get(P.APP_AUTO_SCENE) ? 'Auto Scene ON' : 'Auto Scene OFF', 1200); break;
-            case 'x': {
+          switch (e.code) {
+            case 'Digit1': case 'Digit2': case 'Digit3': {
+              const idx = parseInt(e.code.slice(5)) - 1;
+              const slots = Store.get('app.slots') || [null, null, null];
+              const slot = slots[idx];
+              if (!slot) { showOSD(`슬롯 ${idx + 1} 비어있음`); }
+              else {
+                Store.batch('video', { presetS: slot.presetS, presetB: slot.presetB, presetMix: slot.presetMix, shadowBandMask: slot.shadowBandMask, brightStepLevel: slot.brightStepLevel });
+                Store.batch('audio', { enabled: slot.audioEnabled, boost: slot.boost });
+                Store.batch('playback', { rate: slot.rate, enabled: slot.pbEnabled });
+                ApplyReq.hard(); showOSD(`슬롯 ${idx + 1} 적용됨`);
+              }
+              break;
+            }
+            case 'Digit0': Store.batch('video', DEFAULTS.video); ApplyReq.hard(); break;
+            case 'KeyA': Store.set(P.A_EN, !Store.get(P.A_EN)); ApplyReq.hard(); break;
+            case 'KeyQ': Store.set(P.APP_AUTO_SCENE, !Store.get(P.APP_AUTO_SCENE)); ApplyReq.hard(); showOSD(Store.get(P.APP_AUTO_SCENE) ? 'Auto Scene ON' : 'Auto Scene OFF', 1200); break;
+            case 'KeyX': {
               const v = window.__VSC_APP__?.getActiveVideo?.();
               if (ZoomMgr && v) {
                 if (ZoomMgr.isZoomed(v)) { ZoomMgr.resetZoom(v); Store.set(P.APP_ZOOM_EN, false); }
@@ -4800,37 +4364,23 @@
               } else { Store.set(P.APP_ZOOM_EN, !Store.get(P.APP_ZOOM_EN)); }
               ApplyReq.soft(); break;
             }
-            case 'p': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) togglePiPFor(v); break; }
-            case 'c': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) captureVideoFrame(v); break; }
+            case 'KeyP': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) togglePiPFor(v); break; }
+            case 'KeyC': { const v = window.__VSC_APP__?.getActiveVideo?.(); if (v) captureVideoFrame(v); break; }
             default: handled = false;
           }
         }
 
         if (!handled && !alt && !(e.ctrlKey || e.metaKey) && !shift) {
           handled = true;
-          switch (e.key) {
-            case 'd': case 'D':
-              Store.set(P.PB_EN, true);
-              Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) + 0.1, 0.1, 16) * 100) / 100);
-              ApplyReq.hard(); break;
-            case 's': case 'S':
-              Store.set(P.PB_EN, true);
-              Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) - 0.1, 0.1, 16) * 100) / 100);
-              ApplyReq.hard(); break;
-            case 'r': case 'R':
-              Store.set(P.PB_RATE, 1.0); Store.set(P.PB_EN, false); ApplyReq.hard(); break;
+          switch (e.code) {
+            case 'KeyD': Store.set(P.PB_EN, true); Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) + 0.1, 0.1, 16) * 100) / 100); ApplyReq.hard(); break;
+            case 'KeyS': Store.set(P.PB_EN, true); Store.set(P.PB_RATE, Math.round(VSC_CLAMP(Number(Store.get(P.PB_RATE) || 1) - 0.1, 0.1, 16) * 100) / 100); ApplyReq.hard(); break;
+            case 'KeyR': Store.set(P.PB_RATE, 1.0); Store.set(P.PB_EN, false); ApplyReq.hard(); break;
             case 'Escape': {
-              /* v197: 최대화 활성 시 먼저 해제 */
               const VideoMax = window.__VSC_INTERNAL__?.VideoMax;
-              if (VideoMax?.isActive()) {
-                VideoMax.undoMaximize();
-                Store.set(P.APP_MAXIMIZE, false);
-                break;
-              }
+              if (VideoMax?.isActive()) { VideoMax.undoMaximize(); Store.set(P.APP_MAXIMIZE, false); break; }
               const v = window.__VSC_APP__?.getActiveVideo?.();
-              if (ZoomMgr && v && ZoomMgr.isZoomed(v)) {
-                ZoomMgr.resetZoom(v); Store.set(P.APP_ZOOM_EN, false); ApplyReq.soft();
-              }
+              if (ZoomMgr && v && ZoomMgr.isZoomed(v)) { ZoomMgr.resetZoom(v); Store.set(P.APP_ZOOM_EN, false); ApplyReq.soft(); }
               break;
             }
             default: handled = false;
@@ -4838,7 +4388,7 @@
         }
 
         if (handled) { e.preventDefault(); e.stopPropagation(); }
-      }, { capture: true });
+      }, { capture: true, signal: __globalSig });
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -5024,7 +4574,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  [PATCH v196 12-2] Mobile long-press 2x speed
+    //  Mobile long-press 2x speed
     // ═══════════════════════════════════════════════════════════
 
     function setupMobileLongPressSpeed(Store, ApplyReq) {
@@ -5109,7 +4659,7 @@
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Bootstrap — 모든 모듈 조립 및 시작 (v197: VideoMax 통합)
+    //  Bootstrap — 모든 모듈 조립 및 시작
     // ═══════════════════════════════════════════════════════════
 
     function bootstrap() {
@@ -5155,16 +4705,22 @@
       const Adapter = createBackendAdapter(Filters);
       const ZoomMgr = FEATURE_FLAGS.zoomFeature ? createZoomManager() : null;
       const AutoScene = createAutoSceneManager(Store, P, Scheduler);
+      const TimerFeature = createTimerFeature();
 
       window.__VSC_INTERNAL__.Adapter = Adapter;
       window.__VSC_INTERNAL__.AutoScene = AutoScene;
       window.__VSC_INTERNAL__.ZoomManager = ZoomMgr;
       window.__VSC_INTERNAL__.Audio = Audio;
 
-      window.__VSC_INTERNAL__._buildSaveData = () => buildSaveData(Store);
+      window.__VSC_INTERNAL__._buildSaveData = () => {
+        const data = buildSaveData(Store);
+        data.slots = Store.get('app.slots') || [null, null, null];
+        return data;
+      };
       window.__VSC_INTERNAL__._applyDataToStore = (data) => {
         const migrated = migrateV185Format(data);
         applyDataToStore(Store, migrated);
+        try { if (data.slots) Store.set('app.slots', data.slots); } catch (_) {}
         normalizeBySchema(Store, APP_SCHEMA);
         normalizeBySchema(Store, VIDEO_SCHEMA);
         normalizeBySchema(Store, AUDIO_PLAYBACK_SCHEMA);
@@ -5175,7 +4731,6 @@
 
       setupUserTracking(Scheduler);
 
-      /* v197: Video Maximizer 모듈 생성 */
       setupMobileLongPressSpeed(Store, ApplyReq);
       const VideoMax = createVideoMaximizer(Store, ApplyReq);
       window.__VSC_INTERNAL__.VideoMax = VideoMax;
@@ -5214,6 +4769,7 @@
       setupAutoPresetWatcher(Store, ApplyReq);
       setupSpaWatcher(Registry, Scheduler, ApplyReq, ZoomMgr);
       setupMaintenance(Store, Registry, ApplyReq, Scheduler, ZoomMgr);
+      TimerFeature.start();
 
       Store.sub(P.APP_ACT, (on) => {
         if (on) {
@@ -5235,6 +4791,7 @@
         try { if (ZoomMgr) ZoomMgr.destroy(); } catch (_) {}
         try { if (VideoMax?.isActive()) VideoMax.undoMaximize(); } catch (_) {}
         try { UI.destroy(); } catch (_) {}
+        try { TimerFeature.destroy(); } catch (_) {}
         clearTimer(__saveTimer);
         saveToDisk(Store);
         cleanupTouched();
@@ -5244,7 +4801,6 @@
         AutoScene.start();
       }
 
-      /* v197: 로드 시 maximize 상태는 항상 false로 리셋 (페이지 새로고침 시 정리) */
       Store.set(P.APP_MAXIMIZE, false);
 
       const doInitial = () => {
