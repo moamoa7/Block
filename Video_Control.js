@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v193.5.0)
+// @name         Video_Control (v194.0.0)
 // @namespace    https://github.com/
-// @version      193.5.0
-// @description  v193: blockInterference composedPath fix, SVG tagName safety, audio param tuning, ratechange backoff hardening, SPA patch-restore guard, AudioContext cleanup, dead-code removal.
+// @version      194.0.0
+// @description  v194: compressor/limiter/HPF tuning, setRecurring abort guard, raw timer fixes, Navigation API SPA, CLAHE canvas shrink, zoom duplicate-update fix, InvalidStateError permanent block, AudioContext statechange watch, translateZ removal, combineSignals polyfill removal, MOBILE_COLOR_BIAS removal, clipCurve IIFE, dead-path cleanup.
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -55,6 +55,7 @@
     };
     const clearTimer = (id) => { if (!id) return; clearTimeout(id); _activeTimers.delete(id); };
 
+    /* [PATCH 1-1] setRecurring — abort 직후 재확인 가드 추가 */
     const setRecurring = (fn, ms, opts = {}) => {
       if (__globalSig.aborted) return 0;
       let consecutiveErrors = 0;
@@ -71,24 +72,17 @@
         }
       }, ms);
       _activeIntervals.add(id);
+      if (__globalSig.aborted) { clearInterval(id); _activeIntervals.delete(id); return 0; }
       return id;
     };
     const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
 
+    /* [PATCH 6-1] combineSignals — polyfill 제거, AbortSignal.any 직접 사용 */
     const combineSignals = (...signals) => {
       const existing = signals.filter(Boolean);
       if (existing.length === 0) return undefined;
       if (existing.length === 1) return existing[0];
-      if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
-      const ac = new AbortController();
-      for (const sig of existing) {
-        if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
-      }
-      const onAbort = (reason) => { if (!ac.signal.aborted) ac.abort(reason); };
-      for (const sig of existing) {
-        sig.addEventListener('abort', () => onAbort(sig.reason), { once: true, signal: ac.signal });
-      }
-      return ac.signal;
+      return AbortSignal.any(existing);
     };
 
     function on(target, type, fn, opts) {
@@ -148,13 +142,13 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '193.5.0';
+    const VSC_VERSION = '194.0.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
-    const MOBILE_COLOR_BIAS = { r: 1.00, g: 1.00, b: 0.97 };
 
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
-    const PATH_SPECIFIC_HOSTS = Object.freeze({ 'youtube.com': ['/shorts', '/watch', '/live'] });
+    /* [PATCH 6-4] PATH_SPECIFIC_HOSTS — /live 제거 */
+    const PATH_SPECIFIC_HOSTS = Object.freeze({ 'youtube.com': ['/shorts', '/watch'] });
     function getStorageKey() {
       const h = location.hostname;
       for (const [host, paths] of Object.entries(PATH_SPECIFIC_HOSTS)) {
@@ -183,11 +177,12 @@
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 6;
     const SPA_RESCAN_DEBOUNCE_MS = 250;
+    /* [PATCH 2-6] GUARD — hysteresis 값 조정 */
     const GUARD = Object.freeze({
       AUDIO_SRC_COOLDOWN: 3000,
       AUDIO_SRC_COOLDOWN_DRM: 8000,
-      TARGET_HYSTERESIS_MS: 450,
-      TARGET_HYSTERESIS_MARGIN: 0.8
+      TARGET_HYSTERESIS_MS: 300,
+      TARGET_HYSTERESIS_MARGIN: 0.6
     });
 
     const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
@@ -405,12 +400,23 @@
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
     /* ── SPA URL detector ── */
+    /* [PATCH 5-5] Navigation API 우선 사용, fallback으로 pushState/replaceState 패치 */
     function initSpaUrlDetector(onChanged) {
       if (window.__VSC_SPA_PATCHED__) return;
       window.__VSC_SPA_PATCHED__ = true;
       let lastHref = location.href;
-      const origHistory = {};
       const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
+
+      if (typeof navigation !== 'undefined' && navigation.addEventListener) {
+        try {
+          navigation.addEventListener('navigatesuccess', emitIfChanged, { signal: __globalSig });
+          navigation.addEventListener('navigateerror', emitIfChanged, { signal: __globalSig });
+          onWin('popstate', emitIfChanged, { passive: true });
+          return;
+        } catch (_) {}
+      }
+
+      const origHistory = {};
       const wrap = (name) => {
         const orig = history[name];
         if (typeof orig !== 'function') return;
@@ -805,569 +811,543 @@
       showOSD('스크린샷 저장됨', 1500);
     }
 
-        /* ── Zoom Manager ── */
-function createZoomManager() {
-  const stateMap = new WeakMap();
-  let activeVideo = null, isPanning = false, startX = 0, startY = 0;
-  let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
-  const zoomedVideos = new Set();
-  let activePointerId = null, destroyed = false;
+    /* ── Zoom Manager ── */
+    function createZoomManager() {
+      const stateMap = new WeakMap();
+      let activeVideo = null, isPanning = false, startX = 0, startY = 0;
+      let pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
+      const zoomedVideos = new Set();
+      let activePointerId = null, destroyed = false;
 
-  const ZOOM_PROPS = ['will-change','contain','backface-visibility','transition',
-    'transform-origin','transform','cursor','z-index','position','touch-action'];
+      const ZOOM_PROPS = ['will-change','contain','backface-visibility','transition',
+        'transform-origin','transform','cursor','z-index','position','touch-action'];
 
-  const getSt = (v) => {
-    let st = stateMap.get(v);
-    if (!st) {
-      st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false,
-             _savedPosition: '', _savedZIndex: '' };
-      stateMap.set(v, st);
-    }
-    return st;
-  };
-
-  const pendingUpdates = new Set();
-  let rafId = null;
-
-  function applyZoomStyle(v) {
-    const st = getSt(v);
-    const panning = isPanning || pinchState.active;
-    if (st.scale <= 1) {
-      if (st.zoomed) {
-        for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-        if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-        if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
-        st.zoomed = false;
-      }
-      st.scale = 1; st.tx = 0; st.ty = 0;
-      zoomedVideos.delete(v);
-      return;
-    }
-    if (!st.zoomed) {
-      st._savedPosition = v.style.getPropertyValue('position');
-      st._savedZIndex = v.style.getPropertyValue('z-index');
-      st.zoomed = true;
-    }
-    v.style.setProperty('will-change', 'transform', 'important');
-    v.style.setProperty('contain', 'layout paint', 'important');
-    v.style.setProperty('backface-visibility', 'hidden', 'important');
-    v.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
-    v.style.setProperty('transform-origin', '0 0', 'important');
-    v.style.setProperty('transform',
-      `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`,
-      'important');
-    v.style.setProperty('cursor', panning ? 'grabbing' : 'grab', 'important');
-    v.style.setProperty('z-index', '2147483646', 'important');
-    v.style.setProperty('position', 'relative', 'important');
-    v.style.setProperty('touch-action', 'none', 'important');
-    zoomedVideos.add(v);
-  }
-
-  const update = (v) => {
-    if (destroyed) return;
-    pendingUpdates.add(v);
-    if (rafId != null) return;
-    rafId = requestAnimationFrame(() => {
-      rafId = null; if (destroyed) return;
-      const batch = [...pendingUpdates]; pendingUpdates.clear();
-      for (const video of batch) { if (video.isConnected) applyZoomStyle(video); }
-    });
-  };
-
-  function clampPan(v, st) {
-    const r = v.getBoundingClientRect();
-    if (!r || r.width <= 1 || r.height <= 1) return;
-    const sw = r.width * st.scale, sh = r.height * st.scale;
-    st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75);
-    st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75);
-  }
-
-  const zoomTo = (v, newScale, clientX, clientY) => {
-    const st = getSt(v), rect = v.getBoundingClientRect();
-    if (!rect || rect.width <= 1) return;
-    const ix = (clientX - rect.left) / st.scale;
-    const iy = (clientY - rect.top) / st.scale;
-    st.tx = clientX - (rect.left - st.tx) - ix * newScale;
-    st.ty = clientY - (rect.top - st.ty) - iy * newScale;
-    st.scale = newScale;
-    clampPan(v, st);
-    update(v);
-  };
-
-  const resetZoom = (v) => {
-    if (!v) return;
-    const st = getSt(v); st.scale = 1;
-    if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-    pendingUpdates.delete(v);
-    update(v);
-  };
-
-  const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
-  const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
-  const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-  const getTouchCenter = (t) => ({
-    x: (t[0].clientX + t[1].clientX) / 2,
-    y: (t[0].clientY + t[1].clientY) / 2
-  });
-
-  function isVscUiEvent(e) {
-    try {
-      if (typeof e.composedPath === 'function') {
-        const path = e.composedPath();
-        for (let i = 0, len = Math.min(path.length, 20); i < len; i++) {
-          const n = path[i];
-          if (!n || !n.nodeType) continue;
-          if (n.nodeType === 1) {
-            if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' ||
-                n.id === 'vsc-gear-host') return true;
-          }
-          if (n.nodeType === 11 && n.host) {
-            if (n.host.hasAttribute?.('data-vsc-ui') || n.host.id === 'vsc-host' ||
-                n.host.id === 'vsc-gear-host') return true;
-          }
+      const getSt = (v) => {
+        let st = stateMap.get(v);
+        if (!st) {
+          st = { scale: 1, tx: 0, ty: 0, hasPanned: false, zoomed: false,
+                 _savedPosition: '', _savedZIndex: '' };
+          stateMap.set(v, st);
         }
-      }
-    } catch (_) {}
-    return false;
-  }
+        return st;
+      };
 
-  // ================================================================
-  //  FIX #1: 완전 재작성된 getTargetVideo
-  //  핵심 변경: TOUCHED.videos 우선, 형제 탐색, 면적 기반 fallback
-  // ================================================================
-  function getTargetVideo(e) {
-    const points = [];
-    if (e.touches) {
-      for (let i = 0; i < e.touches.length; i++) {
-        const t = e.touches[i];
-        if (Number.isFinite(t.clientX) && Number.isFinite(t.clientY))
-          points.push({ x: t.clientX, y: t.clientY });
-      }
-    }
-    if (points.length === 0 && Number.isFinite(e.clientX) && Number.isFinite(e.clientY))
-      points.push({ x: e.clientX, y: e.clientY });
-    if (points.length === 2)
-      points.push({ x: (points[0].x + points[1].x) / 2,
-                     y: (points[0].y + points[1].y) / 2 });
+      const pendingUpdates = new Set();
+      let rafId = null;
 
-    // ── 전략 0: composedPath에서 직접 VIDEO 찾기 ──
-    if (typeof e.composedPath === 'function') {
-      const path = e.composedPath();
-      for (let i = 0, len = Math.min(path.length, 15); i < len; i++) {
-        if (path[i]?.tagName === 'VIDEO') return path[i];
+      function applyZoomStyle(v) {
+        const st = getSt(v);
+        const panning = isPanning || pinchState.active;
+        if (st.scale <= 1) {
+          if (st.zoomed) {
+            for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+            if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+            if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+            st.zoomed = false;
+          }
+          st.scale = 1; st.tx = 0; st.ty = 0;
+          zoomedVideos.delete(v);
+          return;
+        }
+        if (!st.zoomed) {
+          st._savedPosition = v.style.getPropertyValue('position');
+          st._savedZIndex = v.style.getPropertyValue('z-index');
+          st.zoomed = true;
+        }
+        v.style.setProperty('will-change', 'transform', 'important');
+        v.style.setProperty('contain', 'layout paint', 'important');
+        v.style.setProperty('backface-visibility', 'hidden', 'important');
+        v.style.setProperty('transition', panning ? 'none' : 'transform 80ms ease-out', 'important');
+        v.style.setProperty('transform-origin', '0 0', 'important');
+        v.style.setProperty('transform',
+          `translate3d(${st.tx.toFixed(2)}px, ${st.ty.toFixed(2)}px, 0) scale(${st.scale.toFixed(4)})`,
+          'important');
+        v.style.setProperty('cursor', panning ? 'grabbing' : 'grab', 'important');
+        v.style.setProperty('z-index', '2147483646', 'important');
+        v.style.setProperty('position', 'relative', 'important');
+        v.style.setProperty('touch-action', 'none', 'important');
+        zoomedVideos.add(v);
       }
-    }
 
-    // ── 전략 1 (최우선): TOUCHED.videos에서 좌표 히트테스트 ──
-    if (points.length > 0) {
-      const px = points[0].x, py = points[0].y;
-      let bestVideo = null, bestArea = 0;
-      for (const v of TOUCHED.videos) {
-        if (!v || !v.isConnected) continue;
+      const update = (v) => {
+        if (destroyed) return;
+        pendingUpdates.add(v);
+        if (rafId != null) return;
+        rafId = requestAnimationFrame(() => {
+          rafId = null; if (destroyed) return;
+          const batch = [...pendingUpdates]; pendingUpdates.clear();
+          for (const video of batch) { if (video.isConnected) applyZoomStyle(video); }
+        });
+      };
+
+      function clampPan(v, st) {
+        const r = v.getBoundingClientRect();
+        if (!r || r.width <= 1 || r.height <= 1) return;
+        const sw = r.width * st.scale, sh = r.height * st.scale;
+        st.tx = VSC_CLAMP(st.tx, -(sw - r.width * 0.25), r.width * 0.75);
+        st.ty = VSC_CLAMP(st.ty, -(sh - r.height * 0.25), r.height * 0.75);
+      }
+
+      const zoomTo = (v, newScale, clientX, clientY) => {
+        const st = getSt(v), rect = v.getBoundingClientRect();
+        if (!rect || rect.width <= 1) return;
+        const ix = (clientX - rect.left) / st.scale;
+        const iy = (clientY - rect.top) / st.scale;
+        st.tx = clientX - (rect.left - st.tx) - ix * newScale;
+        st.ty = clientY - (rect.top - st.ty) - iy * newScale;
+        st.scale = newScale;
+        clampPan(v, st);
+        update(v);
+      };
+
+      const resetZoom = (v) => {
+        if (!v) return;
+        const st = getSt(v); st.scale = 1;
+        if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+        pendingUpdates.delete(v);
+        update(v);
+      };
+
+      const isZoomed = (v) => { const st = stateMap.get(v); return st ? st.scale > 1 : false; };
+      const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
+      const getTouchDist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+      const getTouchCenter = (t) => ({
+        x: (t[0].clientX + t[1].clientX) / 2,
+        y: (t[0].clientY + t[1].clientY) / 2
+      });
+
+      function isVscUiEvent(e) {
         try {
-          const r = v.getBoundingClientRect();
-          if (r.width < 10 || r.height < 10) continue;
-          if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
-            const area = r.width * r.height;
-            if (area > bestArea) { bestArea = area; bestVideo = v; }
-          }
-        } catch (_) {}
-      }
-      if (bestVideo) return bestVideo;
-    }
-
-    // ── 전략 2: Registry visible videos에서 좌표 히트테스트 ──
-    if (points.length > 0) {
-      const px = points[0].x, py = points[0].y;
-      try {
-        const allVids = document.querySelectorAll('video');
-        let bestVideo = null, bestArea = 0;
-        for (const v of allVids) {
-          if (!v.isConnected) continue;
-          const r = v.getBoundingClientRect();
-          if (r.width < 10 || r.height < 10) continue;
-          if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
-            const area = r.width * r.height;
-            if (area > bestArea) { bestArea = area; bestVideo = v; }
-          }
-        }
-        if (bestVideo) return bestVideo;
-      } catch (_) {}
-    }
-
-    // ── 전략 3: elementsFromPoint + 형제/부모 탐색 ──
-    for (const pt of points) {
-      try {
-        const els = document.elementsFromPoint(pt.x, pt.y);
-        for (const el of els) {
-          if (el?.tagName === 'VIDEO') return el;
-        }
-        for (const el of els) {
-          if (!el || el.nodeType !== 1) continue;
-
-          const vid = el.querySelector?.('video');
-          if (vid) return vid;
-
-          if (el.shadowRoot) {
-            const svid = el.shadowRoot.querySelector('video');
-            if (svid) return svid;
-          }
-
-          const parent = el.parentElement;
-          if (parent) {
-            const siblingVid = parent.querySelector?.('video');
-            if (siblingVid) return siblingVid;
-          }
-
-          const container = el.closest?.(
-            '[class*="player"],[class*="Player"],[class*="video"],[class*="Video"],' +
-            '[id*="player"],[id*="Player"],[id*="video"],[id*="Video"],' +
-            '[data-player],[data-testid*="player"],[data-testid*="video"]'
-          );
-          if (container) {
-            const vid2 = container.querySelector('video');
-            if (vid2) return vid2;
-            if (container.shadowRoot) {
-              const svid2 = container.shadowRoot.querySelector('video');
-              if (svid2) return svid2;
+          if (typeof e.composedPath === 'function') {
+            const path = e.composedPath();
+            for (let i = 0, len = Math.min(path.length, 20); i < len; i++) {
+              const n = path[i];
+              if (!n || !n.nodeType) continue;
+              if (n.nodeType === 1) {
+                if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' ||
+                    n.id === 'vsc-gear-host') return true;
+              }
+              if (n.nodeType === 11 && n.host) {
+                if (n.host.hasAttribute?.('data-vsc-ui') || n.host.id === 'vsc-host' ||
+                    n.host.id === 'vsc-gear-host') return true;
+              }
             }
           }
+        } catch (_) {}
+        return false;
+      }
+
+      function getTargetVideo(e) {
+        const points = [];
+        if (e.touches) {
+          for (let i = 0; i < e.touches.length; i++) {
+            const t = e.touches[i];
+            if (Number.isFinite(t.clientX) && Number.isFinite(t.clientY))
+              points.push({ x: t.clientX, y: t.clientY });
+          }
         }
-      } catch (_) {}
-    }
+        if (points.length === 0 && Number.isFinite(e.clientX) && Number.isFinite(e.clientY))
+          points.push({ x: e.clientX, y: e.clientY });
+        if (points.length === 2)
+          points.push({ x: (points[0].x + points[1].x) / 2,
+                         y: (points[0].y + points[1].y) / 2 });
 
-    // ── 전략 4: 활성 비디오 fallback ──
-    const active = window.__VSC_INTERNAL__?._activeVideo;
-    if (active?.isConnected) return active;
-
-    // ── 전략 5: 유일 비디오 ──
-    try {
-      const allVideos = document.querySelectorAll('video');
-      if (allVideos.length === 1 && allVideos[0].isConnected) return allVideos[0];
-    } catch (_) {}
-
-    return null;
-  }
-
-  // ================================================================
-  //  FIX #2: touch-action 사전 적용 시스템
-  // ================================================================
-  const __touchBlocked = new WeakSet();
-
-  function setTouchActionBlocking(v, enable) {
-    if (!v) return;
-    if (enable) {
-      v.style.setProperty('touch-action', 'none', 'important');
-      __touchBlocked.add(v);
-      const p = v.parentElement;
-      if (p && p !== document.body && p !== document.documentElement) {
-        p.style.setProperty('touch-action', 'none', 'important');
-        p.dataset.vscTouchBlocked = '1';
-      }
-    } else {
-      v.style.removeProperty('touch-action');
-      __touchBlocked.delete(v);
-      const p = v.parentElement;
-      if (p?.dataset?.vscTouchBlocked) {
-        p.style.removeProperty('touch-action');
-        delete p.dataset.vscTouchBlocked;
-      }
-    }
-  }
-
-  // ================================================================
-  //  FIX #4: 줌 모드 토글 시 사전 touch-action 적용
-  // ================================================================
-  let __zoomModeWatcherUnsub = null;
-  function watchZoomModeToggle() {
-    const store = window.__VSC_INTERNAL__?.Store;
-    if (!store || __zoomModeWatcherUnsub) return;
-    __zoomModeWatcherUnsub = store.sub(P.APP_ZOOM_EN, (enabled) => {
-      if (enabled) {
-        for (const v of TOUCHED.videos) {
-          if (v?.isConnected) setTouchActionBlocking(v, true);
+        if (typeof e.composedPath === 'function') {
+          const path = e.composedPath();
+          for (let i = 0, len = Math.min(path.length, 15); i < len; i++) {
+            if (path[i]?.tagName === 'VIDEO') return path[i];
+          }
         }
-      } else {
-        for (const v of [...zoomedVideos]) {
-          resetZoom(v);
-          setTouchActionBlocking(v, false);
+
+        if (points.length > 0) {
+          const px = points[0].x, py = points[0].y;
+          let bestVideo = null, bestArea = 0;
+          for (const v of TOUCHED.videos) {
+            if (!v || !v.isConnected) continue;
+            try {
+              const r = v.getBoundingClientRect();
+              if (r.width < 10 || r.height < 10) continue;
+              if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+                const area = r.width * r.height;
+                if (area > bestArea) { bestArea = area; bestVideo = v; }
+              }
+            } catch (_) {}
+          }
+          if (bestVideo) return bestVideo;
         }
-        for (const v of TOUCHED.videos) {
-          if (__touchBlocked.has(v)) setTouchActionBlocking(v, false);
+
+        if (points.length > 0) {
+          const px = points[0].x, py = points[0].y;
+          try {
+            const allVids = document.querySelectorAll('video');
+            let bestVideo = null, bestArea = 0;
+            for (const v of allVids) {
+              if (!v.isConnected) continue;
+              const r = v.getBoundingClientRect();
+              if (r.width < 10 || r.height < 10) continue;
+              if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+                const area = r.width * r.height;
+                if (area > bestArea) { bestArea = area; bestVideo = v; }
+              }
+            }
+            if (bestVideo) return bestVideo;
+          } catch (_) {}
+        }
+
+        for (const pt of points) {
+          try {
+            const els = document.elementsFromPoint(pt.x, pt.y);
+            for (const el of els) {
+              if (el?.tagName === 'VIDEO') return el;
+            }
+            for (const el of els) {
+              if (!el || el.nodeType !== 1) continue;
+              const vid = el.querySelector?.('video');
+              if (vid) return vid;
+              if (el.shadowRoot) {
+                const svid = el.shadowRoot.querySelector('video');
+                if (svid) return svid;
+              }
+              const parent = el.parentElement;
+              if (parent) {
+                const siblingVid = parent.querySelector?.('video');
+                if (siblingVid) return siblingVid;
+              }
+              const container = el.closest?.(
+                '[class*="player"],[class*="Player"],[class*="video"],[class*="Video"],' +
+                '[id*="player"],[id*="Player"],[id*="video"],[id*="Video"],' +
+                '[data-player],[data-testid*="player"],[data-testid*="video"]'
+              );
+              if (container) {
+                const vid2 = container.querySelector('video');
+                if (vid2) return vid2;
+                if (container.shadowRoot) {
+                  const svid2 = container.shadowRoot.querySelector('video');
+                  if (svid2) return svid2;
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        const active = window.__VSC_INTERNAL__?._activeVideo;
+        if (active?.isConnected) return active;
+
+        try {
+          const allVideos = document.querySelectorAll('video');
+          if (allVideos.length === 1 && allVideos[0].isConnected) return allVideos[0];
+        } catch (_) {}
+
+        return null;
+      }
+
+      const __touchBlocked = new WeakSet();
+
+      function setTouchActionBlocking(v, enable) {
+        if (!v) return;
+        if (enable) {
+          v.style.setProperty('touch-action', 'none', 'important');
+          __touchBlocked.add(v);
+          const p = v.parentElement;
+          if (p && p !== document.body && p !== document.documentElement) {
+            p.style.setProperty('touch-action', 'none', 'important');
+            p.dataset.vscTouchBlocked = '1';
+          }
+        } else {
+          v.style.removeProperty('touch-action');
+          __touchBlocked.delete(v);
+          const p = v.parentElement;
+          if (p?.dataset?.vscTouchBlocked) {
+            p.style.removeProperty('touch-action');
+            delete p.dataset.vscTouchBlocked;
+          }
         }
       }
-    });
-  }
 
-  const __tryWatchInterval = setRecurring(() => {
-    if (window.__VSC_INTERNAL__?.Store) {
-      watchZoomModeToggle();
-      clearRecurring(__tryWatchInterval);
-    }
-  }, 200);
-
-  // ================================================================
-  //  FIX #5: 새 비디오 발견 시 줌 모드가 켜져 있으면 touch-action 적용
-  // ================================================================
-  function onNewVideoForZoom(v) {
-    if (!v || !isZoomEnabled()) return;
-    if (!__touchBlocked.has(v)) setTouchActionBlocking(v, true);
-  }
-
-  // ── 데스크톱/마우스 제스처 ──
-  onWin('wheel', e => {
-    if (!e.altKey || !isZoomEnabled()) return;
-    if (isVscUiEvent(e)) return;
-    const v = getTargetVideo(e); if (!v) return;
-    e.preventDefault(); e.stopPropagation();
-    const st = getSt(v);
-    let newScale = Math.min(Math.max(1, st.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 10);
-    if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
-  }, { passive: false, capture: true });
-
-  onWin('pointerdown', e => {
-    if (!e.altKey || !isZoomEnabled() || e.pointerType === 'touch') return;
-    if (isVscUiEvent(e)) return;
-    const v = getTargetVideo(e); if (!v) return;
-    const st = getSt(v); if (st.scale <= 1) return;
-    e.preventDefault(); e.stopPropagation();
-    activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false;
-    startX = e.clientX - st.tx; startY = e.clientY - st.ty;
-    try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
-    update(v);
-  }, { capture: true, passive: false });
-
-  onWin('pointermove', e => {
-    if (!isPanning || !activeVideo || e.pointerId !== activePointerId) return;
-    if (!activeVideo.isConnected) {
-      isPanning = false;
-      try { activeVideo.releasePointerCapture?.(e.pointerId); } catch (_) {}
-      activePointerId = null; activeVideo = null;
-      return;
-    }
-    const st = getSt(activeVideo);
-    if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-    const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
-    const last = events[events.length - 1] || e;
-    const nextTx = last.clientX - startX, nextTy = last.clientY - startY;
-    if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
-    st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo);
-  }, { capture: true, passive: false });
-
-  function endPointerPan(e) {
-    if (e.pointerType === 'touch' || !isPanning || !activeVideo ||
-        e.pointerId !== activePointerId) return;
-    const v = activeVideo, st = getSt(v);
-    try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
-    if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
-    activePointerId = null; isPanning = false; activeVideo = null; update(v);
-  }
-  onWin('pointerup', endPointerPan, { capture: true, passive: false });
-  onWin('pointercancel', endPointerPan, { capture: true, passive: false });
-
-  onWin('dblclick', e => {
-    if (!e.altKey || !isZoomEnabled()) return;
-    if (isVscUiEvent(e)) return;
-    const v = getTargetVideo(e); if (!v) return;
-    e.preventDefault(); e.stopPropagation();
-    const st = getSt(v);
-    if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
-  }, { capture: true });
-
-  // ================================================================
-  //  FIX #6: 터치 제스처 — 완전 재작성
-  // ================================================================
-  let __lastFoundVideo = null;
-  let __lastFoundVideoT = 0;
-  const VIDEO_CACHE_TTL = 3000;
-
-  function getCachedOrFindVideo(e) {
-    const now = performance.now();
-    if (__lastFoundVideo?.isConnected && (now - __lastFoundVideoT) < VIDEO_CACHE_TTL) {
-      return __lastFoundVideo;
-    }
-    const v = getTargetVideo(e);
-    if (v) {
-      __lastFoundVideo = v;
-      __lastFoundVideoT = now;
-    }
-    return v;
-  }
-
-  onWin('touchstart', e => {
-    if (!isZoomEnabled()) return;
-    if (isVscUiEvent(e)) return;
-
-    if (e.touches.length === 2) {
-      const v = getCachedOrFindVideo(e);
-
-      if (e.cancelable) e.preventDefault();
-
-      if (!v) {
-        pinchState.active = false;
-        isPanning = false;
-        activeVideo = null;
-        return;
+      let __zoomModeWatcherUnsub = null;
+      function watchZoomModeToggle() {
+        const store = window.__VSC_INTERNAL__?.Store;
+        if (!store || __zoomModeWatcherUnsub) return;
+        __zoomModeWatcherUnsub = store.sub(P.APP_ZOOM_EN, (enabled) => {
+          if (enabled) {
+            for (const v of TOUCHED.videos) {
+              if (v?.isConnected) setTouchActionBlocking(v, true);
+            }
+          } else {
+            for (const v of [...zoomedVideos]) {
+              resetZoom(v);
+              setTouchActionBlocking(v, false);
+            }
+            for (const v of TOUCHED.videos) {
+              if (__touchBlocked.has(v)) setTouchActionBlocking(v, false);
+            }
+          }
+        });
       }
 
-      setTouchActionBlocking(v, true);
-      isPanning = false;
-      const st = getSt(v);
-      activeVideo = v;
-      pinchState.active = true;
-      pinchState.initialDist = getTouchDist(e.touches);
-      pinchState.initialScale = st.scale;
-      const c = getTouchCenter(e.touches);
-      pinchState.lastCx = c.x;
-      pinchState.lastCy = c.y;
+      const __tryWatchInterval = setRecurring(() => {
+        if (window.__VSC_INTERNAL__?.Store) {
+          watchZoomModeToggle();
+          clearRecurring(__tryWatchInterval);
+        }
+      }, 200);
 
-    } else if (e.touches.length === 1) {
-      const v = getCachedOrFindVideo(e);
-      if (!v) return;
-      const st = getSt(v);
-      if (st.scale > 1) {
-        if (e.cancelable) e.preventDefault();
-        activeVideo = v;
-        isPanning = true;
-        st.hasPanned = false;
-        startX = e.touches[0].clientX - st.tx;
-        startY = e.touches[0].clientY - st.ty;
+      function onNewVideoForZoom(v) {
+        if (!v || !isZoomEnabled()) return;
+        if (!__touchBlocked.has(v)) setTouchActionBlocking(v, true);
       }
-    }
-  }, { passive: false, capture: true });
 
-  onWin('touchmove', e => {
-    if (!activeVideo && pinchState.active === false &&
-        e.touches.length === 2 && isZoomEnabled()) {
-      if (e.cancelable) e.preventDefault();
-      const v = getCachedOrFindVideo(e);
-      if (v) {
-        setTouchActionBlocking(v, true);
+      /* ── 데스크톱/마우스 제스처 ── */
+      onWin('wheel', e => {
+        if (!e.altKey || !isZoomEnabled()) return;
+        if (isVscUiEvent(e)) return;
+        const v = getTargetVideo(e); if (!v) return;
+        e.preventDefault(); e.stopPropagation();
         const st = getSt(v);
-        activeVideo = v;
-        pinchState.active = true;
-        pinchState.initialDist = getTouchDist(e.touches);
-        pinchState.initialScale = st.scale;
-        const c = getTouchCenter(e.touches);
-        pinchState.lastCx = c.x;
-        pinchState.lastCy = c.y;
-      }
-      return;
-    }
+        let newScale = Math.min(Math.max(1, st.scale * (e.deltaY > 0 ? 0.9 : 1.1)), 10);
+        if (newScale < 1.05) resetZoom(v); else zoomTo(v, newScale, e.clientX, e.clientY);
+      }, { passive: false, capture: true });
 
-    if (!activeVideo) return;
-    if (!activeVideo.isConnected) {
-      isPanning = false; pinchState.active = false; activeVideo = null;
-      return;
-    }
-    const st = getSt(activeVideo);
+      onWin('pointerdown', e => {
+        if (!e.altKey || !isZoomEnabled() || e.pointerType === 'touch') return;
+        if (isVscUiEvent(e)) return;
+        const v = getTargetVideo(e); if (!v) return;
+        const st = getSt(v); if (st.scale <= 1) return;
+        e.preventDefault(); e.stopPropagation();
+        activeVideo = v; activePointerId = e.pointerId; isPanning = true; st.hasPanned = false;
+        startX = e.clientX - st.tx; startY = e.clientY - st.ty;
+        try { v.setPointerCapture?.(e.pointerId); } catch (_) {}
+        update(v);
+      }, { capture: true, passive: false });
 
-    if (pinchState.active && e.touches.length === 2) {
-      if (e.cancelable) e.preventDefault();
-      const dist = getTouchDist(e.touches);
-      const center = getTouchCenter(e.touches);
-      let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
-      newScale = Math.min(Math.max(1, newScale), 10);
-
-      if (newScale < 1.05) {
-        resetZoom(activeVideo);
-        pinchState.active = false;
-        isPanning = false;
-        activeVideo = null;
-      } else {
-        zoomTo(activeVideo, newScale, center.x, center.y);
-        st.tx += center.x - pinchState.lastCx;
-        st.ty += center.y - pinchState.lastCy;
-        clampPan(activeVideo, st);
-        update(activeVideo);
-      }
-      pinchState.lastCx = center.x;
-      pinchState.lastCy = center.y;
-
-    } else if (isPanning && e.touches.length === 1 && st.scale > 1) {
-      if (e.cancelable) e.preventDefault();
-      const t = e.touches[0];
-      const nextTx = t.clientX - startX;
-      const nextTy = t.clientY - startY;
-      if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
-      st.tx = nextTx;
-      st.ty = nextTy;
-      clampPan(activeVideo, st);
-      update(activeVideo);
-    }
-  }, { passive: false, capture: true });
-
-  onWin('touchend', e => {
-    if (!activeVideo) return;
-    if (!activeVideo.isConnected) {
-      isPanning = false; pinchState.active = false; activeVideo = null;
-      return;
-    }
-
-    if (e.touches.length < 2) pinchState.active = false;
-
-    if (e.touches.length === 1 && activeVideo?.isConnected &&
-        getSt(activeVideo).scale > 1) {
-      isPanning = true;
-      const st = getSt(activeVideo);
-      st.hasPanned = false;
-      startX = e.touches[0].clientX - st.tx;
-      startY = e.touches[0].clientY - st.ty;
-    } else if (e.touches.length === 0) {
-      const v = activeVideo;
-      isPanning = false;
-      update(v);
-      activeVideo = null;
-    }
-  }, { passive: false, capture: true });
-
-  onWin('touchcancel', e => {
-    if (!activeVideo) return;
-    const v = activeVideo;
-    isPanning = false;
-    pinchState.active = false;
-    activeVideo = null;
-    update(v);
-  }, { passive: true, capture: true });
-
-  return {
-    resetZoom: (v) => {
-      resetZoom(v);
-      if (!isZoomEnabled()) setTouchActionBlocking(v, false);
-    },
-    zoomTo,
-    isZoomed,
-    onNewVideoForZoom,
-    pruneDisconnected: () => {
-      for (const v of [...zoomedVideos]) {
-        if (!v?.isConnected) {
-          resetZoom(v);
-          setTouchActionBlocking(v, false);
+      onWin('pointermove', e => {
+        if (!isPanning || !activeVideo || e.pointerId !== activePointerId) return;
+        if (!activeVideo.isConnected) {
+          isPanning = false;
+          try { activeVideo.releasePointerCapture?.(e.pointerId); } catch (_) {}
+          activePointerId = null; activeVideo = null;
+          return;
         }
+        const st = getSt(activeVideo);
+        if (e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+        const events = (typeof e.getCoalescedEvents === 'function') ? e.getCoalescedEvents() : [e];
+        const last = events[events.length - 1] || e;
+        const nextTx = last.clientX - startX, nextTy = last.clientY - startY;
+        if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
+        st.tx = nextTx; st.ty = nextTy; clampPan(activeVideo, st); update(activeVideo);
+      }, { capture: true, passive: false });
+
+      function endPointerPan(e) {
+        if (e.pointerType === 'touch' || !isPanning || !activeVideo ||
+            e.pointerId !== activePointerId) return;
+        const v = activeVideo, st = getSt(v);
+        try { v.releasePointerCapture?.(e.pointerId); } catch (_) {}
+        if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
+        activePointerId = null; isPanning = false; activeVideo = null; update(v);
       }
-    },
-    destroy: () => {
-      destroyed = true;
-      if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
-      pendingUpdates.clear();
-      for (const v of [...zoomedVideos]) {
+      onWin('pointerup', endPointerPan, { capture: true, passive: false });
+      onWin('pointercancel', endPointerPan, { capture: true, passive: false });
+
+      onWin('dblclick', e => {
+        if (!e.altKey || !isZoomEnabled()) return;
+        if (isVscUiEvent(e)) return;
+        const v = getTargetVideo(e); if (!v) return;
+        e.preventDefault(); e.stopPropagation();
         const st = getSt(v);
-        if (st.zoomed) {
-          for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-          if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-          if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+        if (st.scale === 1) zoomTo(v, 2.5, e.clientX, e.clientY); else resetZoom(v);
+      }, { capture: true });
+
+      /* ── 터치 제스처 ── */
+      let __lastFoundVideo = null;
+      let __lastFoundVideoT = 0;
+      const VIDEO_CACHE_TTL = 3000;
+
+      function getCachedOrFindVideo(e) {
+        const now = performance.now();
+        if (__lastFoundVideo?.isConnected && (now - __lastFoundVideoT) < VIDEO_CACHE_TTL) {
+          return __lastFoundVideo;
         }
-        st.scale = 1; st.zoomed = false;
-        setTouchActionBlocking(v, false);
+        const v = getTargetVideo(e);
+        if (v) {
+          __lastFoundVideo = v;
+          __lastFoundVideoT = now;
+        }
+        return v;
       }
-      zoomedVideos.clear(); isPanning = false; pinchState.active = false;
-      activeVideo = null; activePointerId = null;
-      __lastFoundVideo = null;
-      if (__zoomModeWatcherUnsub) { __zoomModeWatcherUnsub(); __zoomModeWatcherUnsub = null; }
-      try { clearRecurring(__tryWatchInterval); } catch (_) {}
+
+      onWin('touchstart', e => {
+        if (!isZoomEnabled()) return;
+        if (isVscUiEvent(e)) return;
+
+        if (e.touches.length === 2) {
+          const v = getCachedOrFindVideo(e);
+          if (e.cancelable) e.preventDefault();
+          if (!v) {
+            pinchState.active = false;
+            isPanning = false;
+            activeVideo = null;
+            return;
+          }
+          setTouchActionBlocking(v, true);
+          isPanning = false;
+          const st = getSt(v);
+          activeVideo = v;
+          pinchState.active = true;
+          pinchState.initialDist = getTouchDist(e.touches);
+          pinchState.initialScale = st.scale;
+          const c = getTouchCenter(e.touches);
+          pinchState.lastCx = c.x;
+          pinchState.lastCy = c.y;
+
+        } else if (e.touches.length === 1) {
+          const v = getCachedOrFindVideo(e);
+          if (!v) return;
+          const st = getSt(v);
+          if (st.scale > 1) {
+            if (e.cancelable) e.preventDefault();
+            activeVideo = v;
+            isPanning = true;
+            st.hasPanned = false;
+            startX = e.touches[0].clientX - st.tx;
+            startY = e.touches[0].clientY - st.ty;
+          }
+        }
+      }, { passive: false, capture: true });
+
+      onWin('touchmove', e => {
+        if (!activeVideo && pinchState.active === false &&
+            e.touches.length === 2 && isZoomEnabled()) {
+          if (e.cancelable) e.preventDefault();
+          const v = getCachedOrFindVideo(e);
+          if (v) {
+            setTouchActionBlocking(v, true);
+            const st = getSt(v);
+            activeVideo = v;
+            pinchState.active = true;
+            pinchState.initialDist = getTouchDist(e.touches);
+            pinchState.initialScale = st.scale;
+            const c = getTouchCenter(e.touches);
+            pinchState.lastCx = c.x;
+            pinchState.lastCy = c.y;
+          }
+          return;
+        }
+
+        if (!activeVideo) return;
+        if (!activeVideo.isConnected) {
+          isPanning = false; pinchState.active = false; activeVideo = null;
+          return;
+        }
+        const st = getSt(activeVideo);
+
+        /* [PATCH 8-5] pinch 중 zoomTo 후 pan 보정 시 중복 update 방지 */
+        if (pinchState.active && e.touches.length === 2) {
+          if (e.cancelable) e.preventDefault();
+          const dist = getTouchDist(e.touches);
+          const center = getTouchCenter(e.touches);
+          let newScale = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
+          newScale = Math.min(Math.max(1, newScale), 10);
+
+          if (newScale < 1.05) {
+            resetZoom(activeVideo);
+            pinchState.active = false;
+            isPanning = false;
+            activeVideo = null;
+          } else {
+            zoomTo(activeVideo, newScale, center.x, center.y);
+            const prevTx = st.tx, prevTy = st.ty;
+            st.tx += center.x - pinchState.lastCx;
+            st.ty += center.y - pinchState.lastCy;
+            clampPan(activeVideo, st);
+            if (st.tx !== prevTx || st.ty !== prevTy) update(activeVideo);
+          }
+          pinchState.lastCx = center.x;
+          pinchState.lastCy = center.y;
+
+        } else if (isPanning && e.touches.length === 1 && st.scale > 1) {
+          if (e.cancelable) e.preventDefault();
+          const t = e.touches[0];
+          const nextTx = t.clientX - startX;
+          const nextTy = t.clientY - startY;
+          if (Math.abs(nextTx - st.tx) > 3 || Math.abs(nextTy - st.ty) > 3) st.hasPanned = true;
+          st.tx = nextTx;
+          st.ty = nextTy;
+          clampPan(activeVideo, st);
+          update(activeVideo);
+        }
+      }, { passive: false, capture: true });
+
+      onWin('touchend', e => {
+        if (!activeVideo) return;
+        if (!activeVideo.isConnected) {
+          isPanning = false; pinchState.active = false; activeVideo = null;
+          return;
+        }
+
+        if (e.touches.length < 2) pinchState.active = false;
+
+        if (e.touches.length === 1 && activeVideo?.isConnected &&
+            getSt(activeVideo).scale > 1) {
+          isPanning = true;
+          const st = getSt(activeVideo);
+          st.hasPanned = false;
+          startX = e.touches[0].clientX - st.tx;
+          startY = e.touches[0].clientY - st.ty;
+        } else if (e.touches.length === 0) {
+          const v = activeVideo;
+          isPanning = false;
+          update(v);
+          activeVideo = null;
+        }
+      }, { passive: false, capture: true });
+
+      onWin('touchcancel', e => {
+        if (!activeVideo) return;
+        const v = activeVideo;
+        isPanning = false;
+        pinchState.active = false;
+        activeVideo = null;
+        update(v);
+      }, { passive: true, capture: true });
+
+      return {
+        resetZoom: (v) => {
+          resetZoom(v);
+          if (!isZoomEnabled()) setTouchActionBlocking(v, false);
+        },
+        zoomTo,
+        isZoomed,
+        onNewVideoForZoom,
+        pruneDisconnected: () => {
+          for (const v of [...zoomedVideos]) {
+            if (!v?.isConnected) {
+              resetZoom(v);
+              setTouchActionBlocking(v, false);
+            }
+          }
+        },
+        destroy: () => {
+          destroyed = true;
+          if (rafId != null) { cancelAnimationFrame(rafId); rafId = null; }
+          pendingUpdates.clear();
+          for (const v of [...zoomedVideos]) {
+            const st = getSt(v);
+            if (st.zoomed) {
+              for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+              if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+              if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+            }
+            st.scale = 1; st.zoomed = false;
+            setTouchActionBlocking(v, false);
+          }
+          zoomedVideos.clear(); isPanning = false; pinchState.active = false;
+          activeVideo = null; activePointerId = null;
+          __lastFoundVideo = null;
+          if (__zoomModeWatcherUnsub) { __zoomModeWatcherUnsub(); __zoomModeWatcherUnsub = null; }
+          try { clearRecurring(__tryWatchInterval); } catch (_) {}
+        }
+      };
     }
-  };
-}
 
     /* ── Targeting ── */
     function createTargeting() {
@@ -1667,70 +1647,68 @@ function createZoomManager() {
       };
 
       /* ── WorkQ ── */
-      /* ── createRegistry 내부 WorkQ ── */
-const WorkQ = (() => {
-  const MAX_QUEUE_SIZE = 500;  // OOM 방지 및 큐 폭주 억제
-  const q = [], bigQ = [];
-  let head = 0, bigHead = 0, scheduled = false, epoch = 1;
-  const mark = new WeakMap();
+      const WorkQ = (() => {
+        const MAX_QUEUE_SIZE = 500;
+        const q = [], bigQ = [];
+        let head = 0, bigHead = 0, scheduled = false, epoch = 1;
+        const mark = new WeakMap();
 
-  function drainRunnerIdle(dl) { drain(dl); }
-  function drainRunnerRaf() { drain(); }
+        function drainRunnerIdle(dl) { drain(dl); }
+        function drainRunnerRaf() { drain(); }
 
-  const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
-    ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null;
+        const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
+          ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null;
 
-  const schedule = () => {
-    if (scheduled) return; scheduled = true;
-    if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; }
-    if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 });
-    else requestAnimationFrame(drainRunnerRaf);
-  };
+        const schedule = () => {
+          if (scheduled) return; scheduled = true;
+          if (postTaskBg) { postTaskBg(drainRunnerRaf).catch(() => { if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 }); else requestAnimationFrame(drainRunnerRaf); }); return; }
+          if (window.requestIdleCallback) requestIdleCallback(drainRunnerIdle, { timeout: 120 });
+          else requestAnimationFrame(drainRunnerRaf);
+        };
 
-  const enqueue = (n) => {
-    if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
+        const enqueue = (n) => {
+          if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
+          if ((q.length - head) + (bigQ.length - bigHead) >= MAX_QUEUE_SIZE) {
+            scanNode(n);
+            return;
+          }
+          const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch);
+          (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n);
+          schedule();
+        };
 
-    // 큐가 가득 찼을 경우: 배열에 담지 않고 즉시 스캔 후 버림 (메모리 누수/렉 방지)
-    if ((q.length - head) + (bigQ.length - bigHead) >= MAX_QUEUE_SIZE) {
-      scanNode(n);
-      return;
-    }
+        const scanNode = (n) => {
+          if (!n) return;
+          if (n.nodeType === 1) {
+            if (n.tagName === 'VIDEO') { observeVideo(n); return; }
+            try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
+            return;
+          }
+          if (n.nodeType === 11) {
+            try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
+          }
+        };
 
-    const m = mark.get(n); if (m === epoch) return; mark.set(n, epoch);
-    (n.nodeType === 1 && (n.childElementCount || 0) > 1600 ? bigQ : q).push(n);
-    schedule();
-  };
+        /* [PATCH 1-5] drain — bigProcessed 리셋을 소형 큐 4개 처리 후로 이동 */
+        const drain = (dl) => {
+          scheduled = false;
+          const start = performance.now();
+          const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
+          let bigProcessed = 0;
+          while (budget()) {
+            if (bigHead < bigQ.length && bigProcessed < 1) { scanNode(bigQ[bigHead++]); bigProcessed++; continue; }
+            if (head < q.length) {
+              scanNode(q[head++]);
+              if ((head & 3) === 0) { bigProcessed = 0; }
+            } else if (bigHead < bigQ.length) { scanNode(bigQ[bigHead++]); }
+            else break;
+          }
+          if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
+          schedule();
+        };
 
-  const scanNode = (n) => {
-    if (!n) return;
-    if (n.nodeType === 1) {
-      if (n.tagName === 'VIDEO') { observeVideo(n); return; }
-      try { const vs = n.getElementsByTagName ? n.getElementsByTagName('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
-      return;
-    }
-    if (n.nodeType === 11) {
-      try { const vs = n.querySelectorAll ? n.querySelectorAll('video') : null; if (!vs || vs.length === 0) return; for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
-    }
-  };
-
-  const drain = (dl) => {
-    scheduled = false;
-    const start = performance.now();
-    const budget = dl?.timeRemaining ? () => dl.timeRemaining() > 2 : () => (performance.now() - start) < 6;
-    let bigProcessed = 0;
-    while (budget()) {
-      if (bigHead < bigQ.length && bigProcessed < 1) { scanNode(bigQ[bigHead++]); bigProcessed++; continue; }
-      bigProcessed = 0;
-      if (head < q.length) { scanNode(q[head++]); if ((head & 3) === 0 && bigHead < bigQ.length) continue; }
-      else if (bigHead < bigQ.length) { scanNode(bigQ[bigHead++]); }
-      else break;
-    }
-    if (head >= q.length && bigHead >= bigQ.length) { q.length = 0; bigQ.length = 0; head = 0; bigHead = 0; epoch++; return; }
-    schedule();
-  };
-
-  return Object.freeze({ enqueue });
-})();
+        return Object.freeze({ enqueue });
+      })();
 
       function nodeMayContainVideo(n) {
         if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false;
@@ -1868,14 +1846,15 @@ const WorkQ = (() => {
       const MAX_CTX_RECREATES = 5;
       let __ctxBlockUntil = 0;
 
-      const VSC_AUD_HPF_HZ = 35;
+      /* [PATCH 2-3] HPF 주파수 35→60Hz */
+      const VSC_AUD_HPF_HZ = 60;
       const VSC_AUD_HPF_Q = 0.707;
-      const VSC_AUD_CLIP_KNEE = 0.78;
-      const VSC_AUD_CLIP_DRIVE = 2.8;
+      /* [PATCH 2-4] Soft clip 파라미터 조정 */
+      const VSC_AUD_CLIP_KNEE = 0.82;
+      const VSC_AUD_CLIP_DRIVE = 2.2;
 
-      let __vscClipCurve = null;
-      function getSoftClipCurve() {
-        if (__vscClipCurve) return __vscClipCurve;
+      /* [PATCH 6-3] clipCurve IIFE — lazy init 대신 즉시 생성 */
+      const __vscClipCurve = (() => {
         const n = 2048, knee = VSC_AUD_CLIP_KNEE, drive = VSC_AUD_CLIP_DRIVE;
         const curve = new Float32Array(n);
         const tanhD = Math.tanh(drive);
@@ -1887,8 +1866,8 @@ const WorkQ = (() => {
           else { const t = (ax - knee) / Math.max(1e-6, (1 - knee)); const s = Math.tanh(drive * t) / tanhD; y = Math.sign(x) * (knee + (1 - knee) * s); }
           curve[i] = y;
         }
-        __vscClipCurve = curve; return curve;
-      }
+        return curve;
+      })();
 
       const onGesture = async () => {
         try {
@@ -1993,19 +1972,21 @@ const WorkQ = (() => {
       };
 
       const buildAudioGraph = () => {
+        /* [PATCH 2-1] Compressor 파라미터 튜닝 */
         compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = -20;
-        compressor.knee.value = 12;
-        compressor.ratio.value = 3.5;
-        compressor.attack.value = 0.008;
-        compressor.release.value = 0.20;
+        compressor.threshold.value = -24;
+        compressor.knee.value = 8;
+        compressor.ratio.value = 4.0;
+        compressor.attack.value = 0.005;
+        compressor.release.value = 0.15;
 
+        /* [PATCH 2-2] Limiter 파라미터 튜닝 */
         limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -0.5;
+        limiter.threshold.value = -1.0;
         limiter.knee.value = 0;
         limiter.ratio.value = 20.0;
-        limiter.attack.value = 0.0005;
-        limiter.release.value = 0.10;
+        limiter.attack.value = 0.0003;
+        limiter.release.value = 0.08;
 
         hpf = ctx.createBiquadFilter();
         hpf.type = 'highpass';
@@ -2013,7 +1994,7 @@ const WorkQ = (() => {
         hpf.Q.value = VSC_AUD_HPF_Q;
 
         clipper = ctx.createWaveShaper();
-        clipper.curve = getSoftClipCurve();
+        clipper.curve = __vscClipCurve;
         try { clipper.oversample = '2x'; } catch (_) {}
 
         analyser = ctx.createAnalyser();
@@ -2069,6 +2050,19 @@ const WorkQ = (() => {
         __ctxCreateCount++;
         ensureGestureResumeHook();
         buildAudioGraph();
+
+        /* [PATCH 8-4] AudioContext statechange 감시 — 절전 모드 suspend 복원 */
+        if (ctx && !ctx.__vscStateWatched) {
+          ctx.__vscStateWatched = true;
+          ctx.addEventListener('statechange', () => {
+            if (ctx.state === 'suspended' && !document.hidden) {
+              ctx.resume().catch(() => {});
+              ensureGestureResumeHook();
+            }
+            if (ctx.state === 'running') updateMix();
+          });
+        }
+
         return true;
       };
 
@@ -2127,6 +2121,7 @@ const WorkQ = (() => {
         }
       }, { passive: true });
 
+      /* [PATCH 8-2] connectSource — InvalidStateError 시 영구 블로킹 */
       function connectSource(v) {
         const st = v ? getVState(v) : null;
         try {
@@ -2135,9 +2130,8 @@ const WorkQ = (() => {
             try { s = ctx.createMediaElementSource(v); }
             catch (e) {
               if (e.name === 'InvalidStateError') {
-                log.debug('MediaElementSource already exists, marking cooldown');
-                const cooldown = __rateBlockedSite ? GUARD.AUDIO_SRC_COOLDOWN_DRM : GUARD.AUDIO_SRC_COOLDOWN;
-                if (st && VSC_DEFENSE.audioCooldown) st.audioFailUntil = performance.now() + cooldown;
+                log.debug('MediaElementSource already exists for this element, permanently skipping');
+                if (st) st.audioFailUntil = Infinity;
                 return false;
               }
               throw e;
@@ -2211,8 +2205,9 @@ const WorkQ = (() => {
 
       const HIST_BINS = 256;
       const TONE_STEPS = 256;
-      const CANVAS_W = CONFIG.IS_MOBILE ? 96 : 128;
-      const CANVAS_H = CONFIG.IS_MOBILE ? 54 : 72;
+      /* [PATCH 10-4] AutoScene canvas 해상도 축소 */
+      const CANVAS_W = CONFIG.IS_MOBILE ? 64 : 96;
+      const CANVAS_H = CONFIG.IS_MOBILE ? 36 : 54;
       const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
 
       const ST = Object.freeze({ NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3, LOW_SAT: 4, SKIN: 5, BACKLIT: 6 });
@@ -2313,6 +2308,7 @@ const WorkQ = (() => {
         return curve;
       }
 
+      /* [PATCH 6-2] MOBILE_COLOR_BIAS 적용 코드 제거됨 — computeChannelBalance */
       function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiLumaRBratio) {
         const n = Math.max(1, totalSamples);
         let rMean = 0, gMean = 0, bMean = 0;
@@ -2337,10 +2333,6 @@ const WorkQ = (() => {
         let finalRG = VSC_CLAMP(rGain, 0.90, 1.10);
         let finalGG = VSC_CLAMP(gGain, 0.94, 1.06);
         let finalBG = VSC_CLAMP(bGain, 0.85, 1.15);
-        if (CONFIG.IS_MOBILE && typeof MOBILE_COLOR_BIAS !== 'undefined') {
-          finalRG *= MOBILE_COLOR_BIAS.r; finalGG *= MOBILE_COLOR_BIAS.g; finalBG *= MOBILE_COLOR_BIAS.b;
-          finalRG = VSC_CLAMP(finalRG, 0.85, 1.15); finalBG = VSC_CLAMP(finalBG, 0.85, 1.20);
-        }
         return { rGain: finalRG, gGain: finalGG, bGain: finalBG };
       }
 
@@ -2373,6 +2365,7 @@ const WorkQ = (() => {
         return bestIdx;
       }
 
+      /* [PATCH 2-5] BACKLIT 씬 파라미터 조정 */
       const SCENE_TONE_PARAMS = Object.freeze({
         [ST.NORMAL]:        { clipLimit: 2.0, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.20, satTarget: 1.04 },
         [ST.LOW_KEY]:       { clipLimit: 2.5, shadowProtect: 0.50, highlightProtect: 0.20, midtoneBoost: 0.06, strength: 0.28, satTarget: 1.03 },
@@ -2380,7 +2373,7 @@ const WorkQ = (() => {
         [ST.HIGH_CONTRAST]: { clipLimit: 1.5, shadowProtect: 0.50, highlightProtect: 0.50, midtoneBoost: 0.0, strength: 0.15, satTarget: 1.02 },
         [ST.LOW_SAT]:       { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.25, satTarget: 1.12 },
         [ST.SKIN]:          { clipLimit: 1.8, shadowProtect: 0.50, highlightProtect: 0.45, midtoneBoost: 0.01, strength: 0.12, satTarget: 1.01 },
-        [ST.BACKLIT]:       { clipLimit: 3.0, shadowProtect: 0.20, highlightProtect: 0.60, midtoneBoost: 0.10, strength: 0.35, satTarget: 1.04 }
+        [ST.BACKLIT]:       { clipLimit: 2.5, shadowProtect: 0.25, highlightProtect: 0.55, midtoneBoost: 0.08, strength: 0.28, satTarget: 1.03 }
       });
 
       let prevToneCurve = null;
@@ -2422,115 +2415,112 @@ const WorkQ = (() => {
 
       let __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
 
-      /* ── Auto Scene Manager 내부 computeFullAnalysis 함수 ── */
-function computeFullAnalysis(data, sw, sh) {
-  const step = 2;
-  let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
-  const lumHist = new Uint32Array(HIST_BINS);
-  const rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
-  const zoneW = Math.floor(sw / ZONE_COLS), zoneH = Math.floor(sh / ZONE_ROWS);
-  const zoneHists = new Array(ZONE_COUNT), zoneCounts = new Uint32Array(ZONE_COUNT);
-  for (let z = 0; z < ZONE_COUNT; z++) zoneHists[z] = new Uint32Array(HIST_BINS);
-  const zoneBrightSum = new Float32Array(ZONE_COUNT), zoneBrightCount = new Uint32Array(ZONE_COUNT);
-  const pixelCount = sw * sh;
-  if (!__curLumBuf || __curLumBufSize !== pixelCount) { __curLumBuf = new Uint8Array(pixelCount); __curLumBufSize = pixelCount; }
-  const curLum = __curLumBuf;
-  let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0;
-  const HI_LUMA_THR = 180;
+      function computeFullAnalysis(data, sw, sh) {
+        const step = 2;
+        let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
+        const lumHist = new Uint32Array(HIST_BINS);
+        const rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
+        const zoneW = Math.floor(sw / ZONE_COLS), zoneH = Math.floor(sh / ZONE_ROWS);
+        const zoneHists = new Array(ZONE_COUNT), zoneCounts = new Uint32Array(ZONE_COUNT);
+        for (let z = 0; z < ZONE_COUNT; z++) zoneHists[z] = new Uint32Array(HIST_BINS);
+        const zoneBrightSum = new Float32Array(ZONE_COUNT), zoneBrightCount = new Uint32Array(ZONE_COUNT);
+        const pixelCount = sw * sh;
+        if (!__curLumBuf || __curLumBufSize !== pixelCount) { __curLumBuf = new Uint8Array(pixelCount); __curLumBufSize = pixelCount; }
+        const curLum = __curLumBuf;
+        let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0;
+        const HI_LUMA_THR = 180;
 
-  const zxLut = new Uint8Array(sw);
-  const maxZx = ZONE_COLS - 1, maxZy = ZONE_ROWS - 1;
-  const invZoneW = 1 / Math.max(1, zoneW), invZoneH = 1 / Math.max(1, zoneH);
-  for (let x = 0; x < sw; x++) zxLut[x] = Math.min(maxZx, (x * invZoneW) | 0);
-  const zyLut = new Uint8Array(sh);
-  for (let y = 0; y < sh; y++) zyLut[y] = Math.min(maxZy, (y * invZoneH) | 0);
+        const zxLut = new Uint8Array(sw);
+        const maxZx = ZONE_COLS - 1, maxZy = ZONE_ROWS - 1;
+        const invZoneW = 1 / Math.max(1, zoneW), invZoneH = 1 / Math.max(1, zoneH);
+        for (let x = 0; x < sw; x++) zxLut[x] = Math.min(maxZx, (x * invZoneW) | 0);
+        const zyLut = new Uint8Array(sh);
+        for (let y = 0; y < sh; y++) zyLut[y] = Math.min(maxZy, (y * invZoneH) | 0);
 
-  // 최적화된 핫루프 구역
-  for (let y = 0; y < sh; y += step) {
-    const rowOffset = (y * sw) << 2;
-    const zyBase = zyLut[y] * ZONE_COLS;
-    for (let x = 0; x < sw; x += step) {
-      const idx = rowOffset + (x << 2);
-      const r = data[idx];
-      const g = data[idx + 1];
-      const b = data[idx + 2];
-      const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
+        for (let y = 0; y < sh; y += step) {
+          const rowOffset = (y * sw) << 2;
+          const zyBase = zyLut[y] * ZONE_COLS;
+          for (let x = 0; x < sw; x += step) {
+            const idx = rowOffset + (x << 2);
+            const r = data[idx];
+            const g = data[idx + 1];
+            const b = data[idx + 2];
+            const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
 
-      // min, max 연산을 단일 분기 체인으로 최적화 (성능 향상)
-      let mx, mn;
-      if (r >= g) {
-        mx = r >= b ? r : b;
-        mn = g <= b ? g : b;
-      } else {
-        mx = g >= b ? g : b;
-        mn = r <= b ? r : b;
-      }
+            let mx, mn;
+            if (r >= g) {
+              mx = r >= b ? r : b;
+              mn = g <= b ? g : b;
+            } else {
+              mx = g >= b ? g : b;
+              mn = r <= b ? r : b;
+            }
 
-      curLum[y * sw + x] = l;
-      sumChroma += mx - mn;
-      sum += l; sum2 += l * l; count++;
-      lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
+            curLum[y * sw + x] = l;
+            sumChroma += mx - mn;
+            sum += l; sum2 += l * l; count++;
+            lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
 
-      if (x + step < sw) {
-        const ni = idx + (step << 2);
-        const l2 = (data[ni] * 54 + data[ni + 1] * 183 + data[ni + 2] * 18 + 128) >> 8;
-        const diff = l2 - l;
-        sumEdge += diff < 0 ? -diff : diff;
-      }
+            if (x + step < sw) {
+              const ni = idx + (step << 2);
+              const l2 = (data[ni] * 54 + data[ni + 1] * 183 + data[ni + 2] * 18 + 128) >> 8;
+              const diff = l2 - l;
+              sumEdge += diff < 0 ? -diff : diff;
+            }
 
-      if ((r - g) > 12 && r >= 80 && g >= 35 && b >= 20 && r > g && r > b) skinCount++;
+            if ((r - g) > 12 && r >= 80 && g >= 35 && b >= 20 && r > g && r > b) skinCount++;
 
-      const zi = zyBase + zxLut[x];
-      zoneHists[zi][l]++; zoneCounts[zi]++;
-      zoneBrightSum[zi] += l; zoneBrightCount[zi]++;
+            const zi = zyBase + zxLut[x];
+            zoneHists[zi][l]++; zoneCounts[zi]++;
+            zoneBrightSum[zi] += l; zoneBrightCount[zi]++;
 
-      if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
-    }
-  }
-
-  let motionSAD = 0;
-  if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
-    let sadSum = 0, sadCount = 0;
-    const bw = 8, bh = 8;
-    for (let by = 0; by + bh <= sh; by += bh) {
-      for (let bx = 0; bx + bw <= sw; bx += bw) {
-        let blockSad = 0;
-        for (let dy = 0; dy < bh; dy += step) {
-          for (let dx = 0; dx < bw; dx += step) {
-            const pi = (by + dy) * sw + (bx + dx);
-            blockSad += Math.abs(curLum[pi] - __prevLumBuf[pi]);
+            if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
           }
         }
-        sadSum += blockSad; sadCount++;
+
+        let motionSAD = 0;
+        if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
+          let sadSum = 0, sadCount = 0;
+          const bw = 8, bh = 8;
+          for (let by = 0; by + bh <= sh; by += bh) {
+            for (let bx = 0; bx + bw <= sw; bx += bw) {
+              let blockSad = 0;
+              for (let dy = 0; dy < bh; dy += step) {
+                for (let dx = 0; dx < bw; dx += step) {
+                  const pi = (by + dy) * sw + (bx + dx);
+                  blockSad += Math.abs(curLum[pi] - __prevLumBuf[pi]);
+                }
+              }
+              sadSum += blockSad; sadCount++;
+            }
+          }
+          motionSAD = sadCount > 0 ? (sadSum / sadCount) / 255 : 0;
+        }
+        if (!__prevLumBuf || __prevLumBuf.length !== pixelCount) __prevLumBuf = new Uint8Array(pixelCount);
+        __prevLumBuf.set(curLum);
+
+        const n = Math.max(1, count);
+        const mean = sum / n, std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
+        const centerIndices = [5, 6, 9, 10];
+        let centerSum = 0, centerCnt = 0;
+        for (const ci of centerIndices) { if (zoneBrightCount[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneBrightCount[ci]; centerCnt++; } }
+        const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
+        let edgeSum = 0, edgeCount = 0;
+        for (let z = 0; z < ZONE_COUNT; z++) {
+          if (centerIndices.includes(z)) continue;
+          if (zoneBrightCount[z] > 0) { edgeSum += zoneBrightSum[z] / zoneBrightCount[z]; edgeCount++; }
+        }
+        const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
+        const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
+
+        return {
+          bright: mean / 255, contrast: std / 64, chroma: sumChroma / n / 255,
+          edge: sumEdge / n, motionSAD, skinRatio: skinCount / n,
+          centerBright, edgeAvgBright, hiLumaRBratio,
+          lumHist, rHist, gHist, bHist, totalSamples: count,
+          zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }
+        };
       }
-    }
-    motionSAD = sadCount > 0 ? (sadSum / sadCount) / 255 : 0;
-  }
-  if (!__prevLumBuf || __prevLumBuf.length !== pixelCount) __prevLumBuf = new Uint8Array(pixelCount);
-  __prevLumBuf.set(curLum);
-
-  const n = Math.max(1, count);
-  const mean = sum / n, std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
-  const centerIndices = [5, 6, 9, 10];
-  let centerSum = 0, centerCnt = 0;
-  for (const ci of centerIndices) { if (zoneBrightCount[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneBrightCount[ci]; centerCnt++; } }
-  const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
-  let edgeSum = 0, edgeCount = 0;
-  for (let z = 0; z < ZONE_COUNT; z++) {
-    if (centerIndices.includes(z)) continue;
-    if (zoneBrightCount[z] > 0) { edgeSum += zoneBrightSum[z] / zoneBrightCount[z]; edgeCount++; }
-  }
-  const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
-  const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
-
-  return {
-    bright: mean / 255, contrast: std / 64, chroma: sumChroma / n / 255,
-    edge: sumEdge / n, motionSAD, skinRatio: skinCount / n,
-    centerBright, edgeAvgBright, hiLumaRBratio,
-    lumHist, rHist, gHist, bHist, totalSamples: count,
-    zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }
-  };
-}
 
       const AUTO = {
         running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
@@ -2772,7 +2762,7 @@ function computeFullAnalysis(data, sw, sh) {
     }
 
     // ─── END OF PART 3 ───
-    // ─── PART 4 START ───
+    // ─── PART 4 START (v194.0.0) ───
     // createFiltersVideoOnly, shadow/bright precomputed, composeVideoParamsInto,
     // isNeutralVideoParams, createVideoParamsMemo, applyShadowStyle, createDisposerBag,
     // bindWindowDrag, VSC_ICONS, svgIcon, showOSD, getAutoPresetForResolution, createUI
@@ -2982,46 +2972,44 @@ function computeFullAnalysis(data, sw, sh) {
 
       return {
         prepareCached: (video, s) => { try { return prepare(video, s); } catch (e) { log.warn('filter prepare failed:', e); return null; } },
+        /* ── 패치 3-7 적용: translateZ(0) 제거, will-change 최적화 ── */
         applyFilter: (el, filterResult) => {
-  if (!el) return;
-  const st = getVState(el);
-  if (st._inPiP) return;
+          if (!el) return;
+          const st = getVState(el);
+          if (st._inPiP) return;
 
-  if (!filterResult) {
-    if (st.applied) {
-      if (!st._transitionCleared) el.style.removeProperty('transition');
-      el.style.removeProperty('will-change');
-      el.style.removeProperty('filter');
-      el.style.removeProperty('-webkit-filter');
-      el.style.removeProperty('background-color');
-      el.style.removeProperty('transform'); // GPU 가속 속성 제거
-      st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
-    }
-    return;
-  }
+          if (!filterResult) {
+            if (st.applied) {
+              if (!st._transitionCleared) el.style.removeProperty('transition');
+              el.style.removeProperty('will-change');
+              el.style.removeProperty('filter');
+              el.style.removeProperty('-webkit-filter');
+              el.style.removeProperty('background-color');
+              el.style.removeProperty('contain');
+              st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
+            }
+            return;
+          }
 
-  const filterStr = filterResult.filterStr;
-  if (st.lastCssFilterStr === filterStr && st.applied) return;
-  if (!st._transitionCleared) { el.style.removeProperty('transition'); st._transitionCleared = true; }
+          const filterStr = filterResult.filterStr;
+          if (st.lastCssFilterStr === filterStr && st.applied) return;
+          if (!st._transitionCleared) { el.style.removeProperty('transition'); st._transitionCleared = true; }
 
-  if (st.lastCssFilterStr !== filterStr) {
-    el.style.setProperty('filter', filterStr, 'important');
-    el.style.setProperty('-webkit-filter', filterStr, 'important');
-  }
+          if (st.lastCssFilterStr !== filterStr) {
+            el.style.setProperty('filter', filterStr, 'important');
+            el.style.setProperty('-webkit-filter', filterStr, 'important');
+          }
 
-  if (!st.applied) {
-    const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
-    el.style.setProperty('will-change', willChangeVal, 'important');
-    el.style.setProperty('contain', 'layout paint style', 'important');
-    el.style.setProperty('background-color', '#000', 'important');
-
-    // 강제로 GPU 가속 레이어로 승격 (기존에 지정된 transform이 없는 경우에만 적용하여 줌 기능과 충돌 방지)
-    if (!el.style.getPropertyValue('transform') || el.style.getPropertyValue('transform') === 'none') {
-      el.style.setProperty('transform', 'translateZ(0)', 'important');
-    }
-  }
-  st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
-},
+          if (!st.applied) {
+            const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
+            el.style.setProperty('will-change', willChangeVal, 'important');
+            el.style.setProperty('contain', 'layout paint style', 'important');
+            el.style.setProperty('background-color', '#000', 'important');
+            /* 패치 3-7: translateZ(0) 제거 — 불필요한 GPU 레이어 승격 방지,
+               줌 기능의 transform과 충돌 위험 해소 */
+          }
+          st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
+        },
         clear: (el) => {
           if (!el) return;
           const st = getVState(el);
@@ -3282,10 +3270,12 @@ function computeFullAnalysis(data, sw, sh) {
       return 'off';
     }
 
-    /* ── UI 패치 버전 (통합형 UI - 안정성/가독성 완전판) ── */
-        function createUI(sm, registry, ApplyReq, Utils) {
+    /* ── UI (패치 1-3, 1-6 적용) ── */
+    function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils;
       let container, gearHost, gearBtn, fadeTimer = 0, bootWakeTimer = 0;
+      /* 패치 1-3: videoInfo interval ID를 추적하여 destroy 시 정리 */
+      let __videoInfoIntervalId = 0;
       const uiWakeCtrl = new AbortController();
       const bag = createDisposerBag();
       const sub = (k, fn) => bag.add(sm.sub(k, fn));
@@ -3318,8 +3308,6 @@ function computeFullAnalysis(data, sw, sh) {
         sub(path, sync); sync(); return sync;
       }
 
-      /* FIX: bindStyle 함수 추가 — bindClassToggle과 동일 패턴이지만
-         className/textContent 등 임의 스타일 동기화에 사용 */
       function bindStyle(el, path, applyFn) {
         const sync = () => { try { applyFn(el, sm.get(path)); } catch (_) {} };
         sub(path, sync);
@@ -3395,7 +3383,9 @@ function computeFullAnalysis(data, sw, sh) {
 
         const videoInfo = h('span', { style: 'font-size:9px;opacity:0.4;font-variant-numeric:tabular-nums' });
         const updateVideoInfo = () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) videoInfo.textContent = `${v.videoWidth}x${v.videoHeight}`; };
-        setInterval(updateVideoInfo, 2000); updateVideoInfo();
+        /* 패치 1-3: setInterval → setRecurring 으로 교체하여 abort 시 자동 정리 */
+        __videoInfoIntervalId = setRecurring(updateVideoInfo, 2000);
+        updateVideoInfo();
 
         const hdr = h('div', { class: 'hdr' }, h('span', { class: 'hdr-title' }, 'VIDEO CONTROL'), videoInfo);
 
@@ -3404,7 +3394,6 @@ function computeFullAnalysis(data, sw, sh) {
           b.onclick = () => {
             const nextVal = !sm.get(path);
             setAndHint(path, nextVal);
-            // 추가: Zoom 버튼 클릭 시 안내 메시지 출력
             if (path === P.APP_ZOOM_EN) {
               showOSD(nextVal ? "Zoom 모드 ON (Alt + 휠/더블클릭)" : "Zoom 모드 OFF", 1500);
             }
@@ -3501,14 +3490,15 @@ function computeFullAnalysis(data, sw, sh) {
 
         const content = h('div', { class: 'content' }, sharpSec, audioSec, speedSec, toolsSec, advBtn, advBox);
 
-        let confirmState = false, confirmTimer = null;
+        /* 패치 1-6: confirmTimer — raw setTimeout/clearTimeout → setTimer/clearTimer */
+        let confirmState = false, confirmTimer = 0;
         const resetBtn = h('button', { class: 'btn' }, '↺ RESET');
         resetBtn.onclick = () => {
           if (!confirmState) {
             confirmState = true; resetBtn.textContent = '⚠ SURE?'; resetBtn.classList.add('danger');
-            confirmTimer = setTimeout(() => { confirmState = false; resetBtn.textContent = '↺ RESET'; resetBtn.classList.remove('danger'); }, 2000);
+            confirmTimer = setTimer(() => { confirmState = false; resetBtn.textContent = '↺ RESET'; resetBtn.classList.remove('danger'); }, 2000);
           } else {
-            clearTimeout(confirmTimer); confirmState = false; resetBtn.textContent = '↺ RESET'; resetBtn.classList.remove('danger');
+            clearTimer(confirmTimer); confirmState = false; resetBtn.textContent = '↺ RESET'; resetBtn.classList.remove('danger');
             sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback);
             sm.set(P.APP_AUTO_SCENE, false); sm.set(P.APP_AUTO_PRESET, false); ApplyReq.hard();
           }
@@ -3518,7 +3508,6 @@ function computeFullAnalysis(data, sw, sh) {
         const pwrBtn = h('button', { class: 'btn' });
         pwrBtn.onclick = () => setAndHint(P.APP_ACT, !sm.get(P.APP_ACT));
 
-        /* FIX: bindStyle 호출 — 이제 위에서 정의했으므로 정상 동작 */
         bindStyle(pwrBtn, P.APP_ACT, (el, v) => {
           el.className = v ? 'btn success' : 'btn danger';
           el.textContent = v ? '⚡ ON' : '⏻ OFF';
@@ -3572,6 +3561,7 @@ function computeFullAnalysis(data, sw, sh) {
         const handleGearDrag = (e) => {
           if (!e.target.closest('.gear')) return;
           gearBtn.__vscDrag = false; stopDrag?.();
+
           const startY = e.type.includes('touch') ? e.touches[0].clientY : e.clientY;
           const rect = gearBtn.getBoundingClientRect();
 
@@ -3619,7 +3609,6 @@ function computeFullAnalysis(data, sw, sh) {
         bootWakeTimer = setTimeout(wake, 2000);
       };
 
-      /* FIX: ensure() 내부에서 APP_UI 상태에 따라 build/show/hide 처리 */
       const ensure = () => {
         if (!allowUiInThisDoc()) { detachNodesHard(); return; }
         ensureGear();
@@ -3627,7 +3616,6 @@ function computeFullAnalysis(data, sw, sh) {
           build();
           if (container) {
             container.style.display = 'block';
-            /* FIX: container가 DOM에 붙어 있지 않으면 다시 붙임 */
             const root = getUiRoot();
             if (root && container.parentNode !== root) root.appendChild(container);
           }
@@ -3639,23 +3627,27 @@ function computeFullAnalysis(data, sw, sh) {
         if (root && gearHost && gearHost.parentNode !== root) root.appendChild(gearHost);
       };
 
-      /* FIX: APP_UI 변경 시 ensure() 즉시 호출하여 패널 표시/숨김 반영 */
       sub(P.APP_UI, () => ensure());
 
       ensure();
       return {
         ensure,
-        destroy: () => { uiWakeCtrl.abort(); clearTimeout(fadeTimer); clearTimeout(bootWakeTimer); bag.flush(); detachNodesHard(); }
+        destroy: () => {
+          uiWakeCtrl.abort();
+          clearTimeout(fadeTimer);
+          clearTimeout(bootWakeTimer);
+          /* 패치 1-3: videoInfo interval 정리 */
+          clearRecurring(__videoInfoIntervalId);
+          __videoInfoIntervalId = 0;
+          bag.flush();
+          detachNodesHard();
+        }
       };
     }
 
-
     // ─── END OF PART 4 ───
-// ═══════════════════════════════════════════════════════════
-//  PART 5 — v193.0.0
-//  markInternalRateChange → bootstrap → VSC_MAIN 종료
-//  이전 PART 4의 createUI return { ensure, destroy } 직후부터 이어짐
-// ═══════════════════════════════════════════════════════════
+    // ─── PART 5 START (v194.0.0) ───
+    // markInternalRateChange → bootstrap → VSC_MAIN 종료
 
     function markInternalRateChange(v) {
       const st = getRateState(v);
@@ -3698,12 +3690,10 @@ function computeFullAnalysis(data, sw, sh) {
       TOUCHED.rateVideos.clear();
     }
 
-    /* ── 패치 #TOUCHED-EVICT: 2-pass 정리 (disconnected 우선 → paused/ended) ── */
     function pruneTouchedDisconnected() {
       const toDeleteVideos = [];
       const toDeleteRate = [];
 
-      // Pass 1: disconnected 요소 수집
       for (const v of TOUCHED.videos) {
         if (!v || !v.isConnected) toDeleteVideos.push(v);
       }
@@ -3711,7 +3701,6 @@ function computeFullAnalysis(data, sw, sh) {
         if (!v || !v.isConnected) toDeleteRate.push(v);
       }
 
-      // Pass 2: TOUCHED_MAX 초과 시 paused/ended 요소도 수집
       if (toDeleteVideos.length < Math.ceil(CONFIG.TOUCHED_MAX * 0.15) && TOUCHED.videos.size > CONFIG.TOUCHED_MAX * 0.9) {
         for (const v of TOUCHED.videos) {
           if (!v || toDeleteVideos.includes(v)) continue;
@@ -3753,7 +3742,6 @@ function computeFullAnalysis(data, sw, sh) {
       };
     }
 
-    // v191: queueMicrotask 제거 — double-bind race 방지
     function clearVideoRuntimeState(el, Adapter, ApplyReq) {
       const st = getVState(el);
       if (st._ac) { try { st._ac.abort(); } catch (_) {} st._ac = null; }
@@ -3763,9 +3751,6 @@ function computeFullAnalysis(data, sw, sh) {
       restoreRateOne(el);
       TOUCHED.rateVideos.delete(el);
       st.bound = false;
-      // v191: 제거 — queueMicrotask 내에서 bindVideoOnce 를 호출하면
-      //       다음 applyLoop 사이클에서 이미 rebind 처리되므로 불필요하며
-      //       race condition (double-bind) 유발 가능
     }
 
     function applyPlaybackRate(el, desiredRate) {
@@ -3900,7 +3885,6 @@ function computeFullAnalysis(data, sw, sh) {
     ApplyReq.hard();
   }, { passive: true, signal: sig });
 
-  /* ── 패치 #13: ratechange — 재시도 3회, 지수 백오프 ── */
   on(v, 'ratechange', () => {
     const rSt = getRateState(v);
     const now = performance.now();
@@ -3931,7 +3915,6 @@ function computeFullAnalysis(data, sw, sh) {
     }
     rSt._rateRetryCount++;
 
-    /* v193 패치: 재시도 횟수 5→3, 지수 백오프 적용 */
     const RATE_MAX_RETRY = 3;
     if (rSt._rateRetryCount > RATE_MAX_RETRY) {
       rSt.permanentlyBlocked = true;
@@ -3941,7 +3924,6 @@ function computeFullAnalysis(data, sw, sh) {
 
     rSt._externalMtQueued = true;
 
-    /* v193 패치: 지수 백오프 — 16ms * 2^(retryCount-1) */
     const backoffMs = 16 * Math.pow(2, rSt._rateRetryCount - 1);
     setTimer(() => {
       rSt._externalMtQueued = false;
@@ -3959,7 +3941,6 @@ function computeFullAnalysis(data, sw, sh) {
     }, backoffMs);
   }, { passive: true, signal: sig });
 
-  // ★ 추가: 줌 모드가 켜져 있으면 새 비디오에 touch-action 사전 적용
   try {
     window.__VSC_INTERNAL__?.ZoomManager?.onNewVideoForZoom?.(v);
   } catch (_) {}
@@ -3977,12 +3958,13 @@ function computeFullAnalysis(data, sw, sh) {
       Store.sub(P.APP_AUTO_PRESET, () => { __lastAutoPresetHeight = 0; });
       let lastSRev = -1, lastRRev = -1, lastUserSigRev = -1, lastPrune = 0;
 
+      /* 패치 1-2: audioUpdateThrottled — raw setTimeout → setTimer 으로 교체 */
       const audioUpdateThrottled = (() => {
         let last = 0, timer = 0;
         return () => {
           const now = performance.now();
           if (now - last >= 120) { last = now; Audio.update(); return; }
-          if (!timer) { timer = setTimeout(() => { timer = 0; last = performance.now(); Audio.update(); }, 120); }
+          if (!timer) { timer = setTimer(() => { timer = 0; last = performance.now(); Audio.update(); }, 120); }
         };
       })();
 
@@ -4088,7 +4070,6 @@ function computeFullAnalysis(data, sw, sh) {
             mainTarget: __activeTarget
           });
 
-          // v191: early-return 전 cleanup 보장
           if (forceApply || dirty.videos.size) UI.ensure();
 
         } catch (e) { log.warn('apply crashed:', e); }
@@ -4184,9 +4165,6 @@ function computeFullAnalysis(data, sw, sh) {
       }, SAVE_DEBOUNCE_MS);
     }
 
-    // v191: store load → normalize 순서 보정
-    //       loadFromDisk 이후 normalizeBySchema 가 bootstrap 에서 호출되므로
-    //       여기서는 raw apply 만 수행
     function loadFromDisk(Store) {
       let data = null;
       if (__hasGM) {
@@ -4467,11 +4445,13 @@ function computeFullAnalysis(data, sw, sh) {
     //  Maintenance — periodic refresh, page lifecycle
     // ═══════════════════════════════════════════════════════════
 
+    /* 패치 1-1b: setupMaintenance 내부 raw setInterval/clearInterval
+       → setRecurring/clearRecurring 으로 교체하여 abort 시 자동 정리 */
     function setupMaintenance(Store, Registry, ApplyReq, Scheduler, ZoomMgr) {
       let tickTimer = 0;
       const startTick = () => {
         if (tickTimer) return;
-        tickTimer = setInterval(() => {
+        tickTimer = setRecurring(() => {
           if (!Store.get(P.APP_ACT)) return;
           if (document.hidden) return;
           Scheduler.request(false);
@@ -4479,7 +4459,7 @@ function computeFullAnalysis(data, sw, sh) {
       };
       const stopTick = () => {
         if (!tickTimer) return;
-        clearInterval(tickTimer);
+        clearRecurring(tickTimer);
         tickTimer = 0;
       };
       Store.sub(P.APP_ACT, () => { Store.get(P.APP_ACT) ? startTick() : stopTick(); });
@@ -4551,13 +4531,11 @@ function computeFullAnalysis(data, sw, sh) {
   });
 }
 
-
     // ═══════════════════════════════════════════════════════════
     //  Bootstrap — 모든 모듈 조립 및 시작
     // ═══════════════════════════════════════════════════════════
 
     function bootstrap() {
-      /* v193 패치: 버전 문자열 갱신 */
       log.info(`Video_Control v${VSC_VERSION} bootstrap start`);
 
       const Utils = createUtils();
@@ -4566,13 +4544,8 @@ function computeFullAnalysis(data, sw, sh) {
       const ApplyReq = createApplyRequester(Bus, Scheduler);
       const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
 
-      // v191: load → normalize 순서 보정
-      //       loadFromDisk 로 raw 값 적용 후 bindNormalizer 에서 정규화
       loadFromDisk(Store);
 
-      /* v193 패치 #순서: normalizer 바인딩 전 Scheduler 일시 정지
-         — 부트 중 normalizer 가 ApplyReq.hard() 를 반복 호출하여
-           불필요한 Scheduler.request(true) 가 누적되는 것을 방지 */
       const __origRegApply = Scheduler.registerApply;
       let __schedulerMuted = true;
       const __pendingRequests = [];
@@ -4630,7 +4603,6 @@ function computeFullAnalysis(data, sw, sh) {
       );
       Scheduler.registerApply(applyFn);
 
-      /* v193 패치 #순서: Scheduler 뮤트 해제 — 부트 중 누적된 요청 flush */
       Scheduler.request = origRequest;
       __schedulerMuted = false;
       const hadForce = __pendingRequests.some(v => v === true);
@@ -4644,7 +4616,6 @@ function computeFullAnalysis(data, sw, sh) {
       Store.sub('audio.*', () => UI.ensure());
       Store.sub('playback.*', () => UI.ensure());
 
-      // v191: scheduler.postTask for background storage writes
       const __postTaskBgSave = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
         ? () => { globalThis.scheduler.postTask(() => saveToDisk(Store), { priority: 'background' }).catch(() => saveToDisk(Store)); }
         : () => saveToDisk(Store);
