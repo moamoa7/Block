@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v199.1.0-Hybrid)
+// @name         Video_Control (v199.2.0-Hybrid)
 // @namespace    https://github.com/
-// @version      199.1.0-Hybrid
+// @version      199.2.0-Hybrid
 // @description  v199: Shadow Band toe fix, Zoom cleanup, Rate guard, AutoScene VideoFrame, Audio tuning, UI master toggle
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '199.1.0-Hybrid';
+    const VSC_VERSION = '199.2.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -3139,38 +3139,49 @@
         clampPan(v, st); update(v);
       }
 
-      /* ── v199: resetZoom 완전 정리 — 강제 reflow + RAF + 부모 체인 ── */
-      function resetZoom(v) {
-        const st = getSt(v);
-        for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-        v.style.removeProperty('will-change');
-        v.style.removeProperty('contain');
-        v.style.removeProperty('touch-action');
-        v.style.removeProperty('isolation');
-        if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-        else v.style.removeProperty('position');
-        if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
-        else v.style.removeProperty('z-index');
-        st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
-        st._savedPosition = ''; st._savedZIndex = '';
-        zoomedVideos.delete(v);
-        __touchBlocked.delete(v);
-        /* 강제 reflow 후 RAF로 잔여 touch-action 정리 */
-        void v.offsetHeight;
+      /* ── v199 fix: resetZoom — 줌 해제 시 모바일 터치 잔류 완전 제거 ── */
+function resetZoom(v) {
+  const st = getSt(v);
+  for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+  v.style.removeProperty('will-change');
+  v.style.removeProperty('contain');
+  v.style.removeProperty('isolation');
+  v.style.removeProperty('-webkit-tap-highlight-color');
+
+  if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+  else v.style.removeProperty('position');
+  if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+  else v.style.removeProperty('z-index');
+
+  st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
+  st._savedPosition = ''; st._savedZIndex = '';
+  zoomedVideos.delete(v);
+  __touchBlocked.delete(v);
+
+  // ★ 터치 복원: auto 명시 → reflow → 다음 프레임에서 완전 제거
+  v.style.setProperty('touch-action', 'auto', 'important');
+  void v.offsetHeight;
+
+  requestAnimationFrame(() => {
+    v.style.removeProperty('touch-action');
+    v.style.removeProperty('-webkit-tap-highlight-color');
+    // 부모 체인 정리
+    let p = v.parentElement;
+    while (p && p !== document.body && p !== document.documentElement) {
+      if (p.dataset?.vscTouchBlocked) {
+        p.style.setProperty('touch-action', 'auto', 'important');
+        delete p.dataset.vscTouchBlocked;
+        // 두 번째 RAF에서 완전 제거
+        const parent = p;
         requestAnimationFrame(() => {
-          v.style.removeProperty('touch-action');
-          v.style.removeProperty('isolation');
-          /* 부모 체인까지 정리 */
-          let p = v.parentElement;
-          while (p && p !== document.body && p !== document.documentElement) {
-            if (p.dataset?.vscTouchBlocked) {
-              p.style.removeProperty('touch-action');
-              delete p.dataset.vscTouchBlocked;
-            }
-            p = p.parentElement;
-          }
+          parent.style.removeProperty('touch-action');
+          parent.style.removeProperty('-webkit-tap-highlight-color');
         });
       }
+      p = p.parentElement;
+    }
+  });
+}
 
       function isZoomed(v) { return !!(zoomStates.get(v)?.zoomed); }
 
@@ -3252,63 +3263,98 @@
 
       const __touchBlocked = new WeakSet();
 
-      /* ── v199: setTouchActionBlocking 확장 — 해제 시 will-change/contain/transform/isolation 까지 정리 ── */
-      function setTouchActionBlocking(v, enable) {
-        if (!v) return;
-        if (enable) {
-          v.style.setProperty('touch-action', 'none', 'important');
-          __touchBlocked.add(v);
-          let p = v.parentElement;
-          while (p && p !== document.body && p !== document.documentElement) {
-            p.style.setProperty('touch-action', 'none', 'important');
-            p.dataset.vscTouchBlocked = '1';
-            p = p.parentElement;
+      /* ── v199 fix: setTouchActionBlocking — 모바일 고스트터치 완전 해소 ── */
+function setTouchActionBlocking(v, enable) {
+  if (!v) return;
+  if (enable) {
+    v.style.setProperty('touch-action', 'none', 'important');
+    v.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+    __touchBlocked.add(v);
+    let p = v.parentElement;
+    while (p && p !== document.body && p !== document.documentElement) {
+      p.style.setProperty('touch-action', 'none', 'important');
+      p.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+      p.dataset.vscTouchBlocked = '1';
+      p = p.parentElement;
+    }
+  } else {
+    // ★ 핵심: removeProperty가 아니라 'auto'를 명시적으로 설정해야
+    // 모바일 크로미움이 터치 차단을 즉시 해제함
+    v.style.setProperty('touch-action', 'auto', 'important');
+    v.style.removeProperty('-webkit-tap-highlight-color');
+    v.style.removeProperty('will-change');
+    v.style.removeProperty('contain');
+    v.style.removeProperty('transform');
+    v.style.removeProperty('transform-origin');
+    v.style.removeProperty('isolation');
+    __touchBlocked.delete(v);
+
+    // 부모 체인 해제
+    let p = v.parentElement;
+    while (p && p !== document.body && p !== document.documentElement) {
+      if (p.dataset?.vscTouchBlocked) {
+        p.style.setProperty('touch-action', 'auto', 'important');
+        p.style.removeProperty('-webkit-tap-highlight-color');
+        delete p.dataset.vscTouchBlocked;
+      }
+      p = p.parentElement;
+    }
+
+    // ★ 강제 reflow 후 다음 프레임에서 touch-action 자체를 완전 제거
+    // → 사이트 원래 CSS가 다시 적용되게 함
+    void v.offsetHeight;
+    requestAnimationFrame(() => {
+      if (!__touchBlocked.has(v)) {
+        v.style.removeProperty('touch-action');
+        // 부모도 완전 제거
+        let p2 = v.parentElement;
+        while (p2 && p2 !== document.body && p2 !== document.documentElement) {
+          if (!p2.dataset?.vscTouchBlocked) {
+            p2.style.removeProperty('touch-action');
           }
-        } else {
-          v.style.removeProperty('touch-action');
-          v.style.removeProperty('will-change');
-          v.style.removeProperty('contain');
-          v.style.removeProperty('transform');
-          v.style.removeProperty('transform-origin');
-          v.style.removeProperty('position');
-          v.style.removeProperty('z-index');
-          v.style.removeProperty('isolation');
-          __touchBlocked.delete(v);
-          /* 강제 reflow 후 RAF로 잔여 정리 */
-          void v.offsetHeight;
-          requestAnimationFrame(() => {
-            v.style.removeProperty('touch-action');
-            v.style.removeProperty('isolation');
-          });
-          let p = v.parentElement;
-          while (p && p !== document.body && p !== document.documentElement) {
-            if (p.dataset?.vscTouchBlocked) { p.style.removeProperty('touch-action'); delete p.dataset.vscTouchBlocked; }
-            p = p.parentElement;
-          }
+          p2 = p2.parentElement;
         }
       }
+    });
+  }
+}
 
-      /* ── v199: cleanupAllTouchBlocking 확장 — __touchBlocked + TOUCHED 비디오까지 ── */
-      function cleanupAllTouchBlocking() {
-        try {
-          for (const v of document.querySelectorAll('video')) {
-            v.style.removeProperty('touch-action');
-            v.style.removeProperty('isolation');
-            __touchBlocked.delete(v);
-          }
-          for (const v of TOUCHED.videos) {
-            if (v?.isConnected) {
-              v.style.removeProperty('touch-action');
-              v.style.removeProperty('isolation');
-              __touchBlocked.delete(v);
-            }
-          }
-          for (const el of document.querySelectorAll('[data-vsc-touch-blocked]')) {
-            el.style.removeProperty('touch-action');
-            delete el.dataset.vscTouchBlocked;
-          }
-        } catch (_) {}
+      /* ── v199 fix: cleanupAllTouchBlocking — 전역 일괄 정리 ── */
+function cleanupAllTouchBlocking() {
+  try {
+    // 모든 마킹된 요소 정리
+    for (const el of document.querySelectorAll('[data-vsc-touch-blocked]')) {
+      el.style.setProperty('touch-action', 'auto', 'important');
+      el.style.removeProperty('-webkit-tap-highlight-color');
+      delete el.dataset.vscTouchBlocked;
+    }
+    // 모든 비디오 정리
+    const allVideos = new Set([
+      ...document.querySelectorAll('video'),
+      ...TOUCHED.videos
+    ]);
+    for (const v of allVideos) {
+      if (!v?.isConnected) continue;
+      v.style.setProperty('touch-action', 'auto', 'important');
+      v.style.removeProperty('-webkit-tap-highlight-color');
+      v.style.removeProperty('isolation');
+      __touchBlocked.delete(v);
+    }
+    // 다음 프레임에서 touch-action 완전 제거 → 사이트 원래 CSS 복원
+    requestAnimationFrame(() => {
+      for (const el of document.querySelectorAll('[style*="touch-action"]')) {
+        if (!__touchBlocked.has(el)) {
+          el.style.removeProperty('touch-action');
+        }
       }
+      for (const v of allVideos) {
+        if (v?.isConnected && !__touchBlocked.has(v)) {
+          v.style.removeProperty('touch-action');
+        }
+      }
+    });
+  } catch (_) {}
+}
 
       let __zoomModeWatcherUnsub = null;
       function watchZoomModeToggle() {
