@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v196.1.0)
+// @name         Video_Control (v196.2.0)
 // @namespace    https://github.com/
-// @version      196.1.0
+// @version      196.2.0
 // @description  v196: Bottom-tab UI, Uint32 alignment, pooled histograms, long-press speed, AudioCtx permanent block, CircularBuffer, VideoFrame capture
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '196.1.0';
+    const VSC_VERSION = '196.2.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -3384,7 +3384,7 @@ function applyShadowStyle(shadow, cssText, h) {
         .footer-btn.danger { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.3); color:#f87171; }
 
         /* 4. 프레임(iframe) 대응: 좁은 화면에서도 하단을 다 차지하지 않고 중앙 유지 */
-        @media (max-width:480px) { .panel { width: calc(100% - 32px)!important; right: 16px!important; left: 16px!important; top: 50%!important; transform: translateY(-50%)!important; border-radius: 20px!important; max-height: 80vh!important; bottom: auto!important; } .tab-bar { padding-bottom: 8px; } }
+        @media (max-width:480px) { .panel { width: 75%!important; max-width: 260px!important; right: 55px!important; left: auto!important; top: 50%!important; transform: translateY(-50%)!important; border-radius: 16px!important; max-height: 90vh!important; bottom: auto!important; zoom: 0.85; } .chip { height: 30px!important; min-width: 48px!important; font-size: 11px!important; } .tab-bar { padding-bottom: 4px; } }
       `;
 
       const build = () => {
