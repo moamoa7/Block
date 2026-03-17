@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v196.0.0)
+// @name         Video_Control (v196.1.0)
 // @namespace    https://github.com/
-// @version      196.0.0
+// @version      196.1.0
 // @description  v196: Bottom-tab UI, Uint32 alignment, pooled histograms, long-press speed, AudioCtx permanent block, CircularBuffer, VideoFrame capture
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '196.0.0';
+    const VSC_VERSION = '196.1.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -3034,7 +3034,7 @@
       out.satF = 1.0;
       out.mid = 0; out.toe = 0; out.shoulder = 0; out.temp = 0;
 
-      const mobileDampen = CONFIG.IS_MOBILE ? 1.5 : 1.0;
+      const mobileDampen = CONFIG.IS_MOBILE ? 0.7 : 1.0;
       out.sharp = (dPreset.sharpAdd || 0) * mix * mobileDampen;
       out.sharp2 = (dPreset.sharp2Add || 0) * mix * mobileDampen;
       out.clarity = (dPreset.clarityAdd || 0) * mix * mobileDampen;
@@ -3120,14 +3120,15 @@
     const __styleCacheSpaCleanup = () => { if (__styleCache.size > 0) __styleCache.clear(); };
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
 
-    function applyShadowStyle(shadow, cssText, h) {
+    /* 수정 후 (cssText로 통일) */
+function applyShadowStyle(shadow, cssText, h) {
       try {
         if ('adoptedStyleSheets' in shadow && 'replaceSync' in CSSStyleSheet.prototype) {
-          /* v196: remove stale VSC sheets before adding */
           const cur = shadow.adoptedStyleSheets || [];
           let sheet = __styleCache.get(cssText);
           if (!sheet) {
-            sheet = new CSSStyleSheet(); sheet.replaceSync(cssText);
+            sheet = new CSSStyleSheet();
+            sheet.replaceSync(cssText);
             __styleCache.set(cssText, sheet);
             if (__styleCache.size > __styleCacheMaxSize) __styleCache.delete(__styleCache.keys().next().value);
           }
@@ -3383,10 +3384,7 @@
         .footer-btn.danger { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.3); color:#f87171; }
 
         /* 4. 프레임(iframe) 대응: 좁은 화면에서도 하단을 다 차지하지 않고 중앙 유지 */
-        @media (max-width:480px) {
-          .panel { width: calc(100% - 32px)!important; right: 16px!important; left: 16px!important; top: 50%!important; transform: translateY(-50%)!important; border-radius: 20px!important; max-height: 80vh!important; bottom: auto!important; }
-          .tab-bar { padding-bottom: 8px; }
-        }
+        @media (max-width:480px) { .panel { width: calc(100% - 32px)!important; right: 16px!important; left: 16px!important; top: 50%!important; transform: translateY(-50%)!important; border-radius: 20px!important; max-height: 80vh!important; bottom: auto!important; } .tab-bar { padding-bottom: 8px; } }
       `;
 
       const build = () => {
@@ -3616,7 +3614,7 @@
         gearHost = h('div', { id: 'vsc-gear-host', style: 'position:fixed;inset:0;pointer-events:none;z-index:2147483647' });
         const shadow = gearHost.attachShadow({ mode: 'open' });
         applyShadowStyle(shadow, `
-          .gear{position:fixed!important;top:50%!important;right:12px!important;transform:translateY(-50%)!important;width:42px!important;height:42px!important;border-radius:12px!important;background:rgba(15,15,20,0.9)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,0.1)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;pointer-events:auto!important;transition:all 0.2s ease;opacity:0.5}
+          .gear{position:fixed!important;top:50%!important;right:12px!important;transform:translateY(-50%)!important;width:42px!important;height:42px!important;border-radius:12px!important;background:rgba(15,15,20,0.9)!important;backdrop-filter:blur(12px)!important;border:1.5px solid rgba(255,255,255,0.1)!important;color:#fff!important;display:flex!important;align-items:center!important;justify-content:center!important;cursor:pointer!important;pointer-events:auto!important;transition:all 0.2s ease;opacity:0.15}
           .gear:hover{opacity:1;border-color:rgba(255,255,255,0.25)}
           .gear:active{transform:translateY(-50%) scale(0.92)}
           .gear.open{opacity:1;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.2)}
@@ -3674,12 +3672,20 @@
         sync();
 
         const wake = () => {
-          if (gearBtn) gearBtn.style.opacity = '1';
+          if (gearBtn) gearBtn.style.opacity = '1'; // 활성화 시 100% 밝기
           clearTimeout(fadeTimer);
-          fadeTimer = setTimeout(() => { if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !gearBtn.matches(':hover')) gearBtn.style.opacity = ''; }, 3000);
+          fadeTimer = setTimeout(() => {
+            // 모바일이면 hover 체크 무시, PC면 마우스가 위에 없을 때만 흐리게
+            const isHovered = !CONFIG.IS_MOBILE && gearBtn.matches(':hover');
+            if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !isHovered) {
+              gearBtn.style.opacity = '0.15'; // 2.5초 후 15% 투명도로 복귀
+            }
+          }, 2500);
         };
+
         window.addEventListener('mousemove', wake, { passive: true, signal: uiWakeCtrl.signal });
-        bootWakeTimer = setTimeout(wake, 2000);
+        window.addEventListener('touchstart', wake, { passive: true, signal: uiWakeCtrl.signal });
+        window.addEventListener('touchmove', wake, { passive: true, signal: uiWakeCtrl.signal });
       };
 
       const ensure = () => {
