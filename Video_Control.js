@@ -3034,7 +3034,7 @@
       out.satF = 1.0;
       out.mid = 0; out.toe = 0; out.shoulder = 0; out.temp = 0;
 
-      const mobileDampen = CONFIG.IS_MOBILE ? 0.7 : 1.0;
+      const mobileDampen = CONFIG.IS_MOBILE ? 1.5 : 1.0;
       out.sharp = (dPreset.sharpAdd || 0) * mix * mobileDampen;
       out.sharp2 = (dPreset.sharp2Add || 0) * mix * mobileDampen;
       out.clarity = (dPreset.clarityAdd || 0) * mix * mobileDampen;
