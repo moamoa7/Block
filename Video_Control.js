@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v196.2.0)
+// @name         Video_Control (v197.0.0)
 // @namespace    https://github.com/
-// @version      196.2.0
-// @description  v196: Bottom-tab UI, Uint32 alignment, pooled histograms, long-press speed, AudioCtx permanent block, CircularBuffer, VideoFrame capture
+// @version      197.0.0
+// @description  v197: Video Maximizer integration, bottom-tab UI, Uint32 alignment, pooled histograms, long-press speed, AudioCtx permanent block, CircularBuffer, VideoFrame capture
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '196.2.0';
+    const VSC_VERSION = '197.0.0';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -237,7 +237,7 @@
       toggle(mask, bit) { return (((Number(mask) | 0) ^ bit) & 7); }
     });
 
-    /* ── Presets (v196: labels integrated) ── */
+    /* ── Presets ── */
     const PRESETS = Object.freeze({
       detail: {
         off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
@@ -254,31 +254,36 @@
       }
     });
     const getPresetLabel = (group, key) => PRESETS[group]?.[key]?.label || key;
+    const PRESET_LABELS = {
+      detail: Object.fromEntries(Object.entries(PRESETS.detail).map(([k, v]) => [k, v.label])),
+      grade: Object.fromEntries(Object.entries(PRESETS.grade).map(([k, v]) => [k, v.label]))
+    };
 
-    /* ── Defaults & Paths ── */
+    /* ── Defaults & Paths (v197: maximize 추가) ── */
     const DEFAULTS = {
       video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 },
       audio: { enabled: false, boost: 6 },
       playback: { rate: 1.0, enabled: false },
-      app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, autoPreset: false }
+      app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, autoPreset: false, maximize: false }
     };
     const P = Object.freeze({
       APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll',
       APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced',
-      APP_AUTO_PRESET: 'app.autoPreset',
+      APP_AUTO_PRESET: 'app.autoPreset', APP_MAXIMIZE: 'app.maximize',
       V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix',
       V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel',
       A_EN: 'audio.enabled', A_BST: 'audio.boost',
       PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
     });
 
-    /* ── Schemas ── */
+    /* ── Schemas (v197: APP_MAXIMIZE 추가) ── */
     const APP_SCHEMA = [
       { type: 'bool', path: P.APP_APPLY_ALL },
       { type: 'bool', path: P.APP_ZOOM_EN },
       { type: 'bool', path: P.APP_AUTO_SCENE },
       { type: 'bool', path: P.APP_ADV },
-      { type: 'bool', path: P.APP_AUTO_PRESET }
+      { type: 'bool', path: P.APP_AUTO_PRESET },
+      { type: 'bool', path: P.APP_MAXIMIZE }
     ];
     const VIDEO_SCHEMA = [
       { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
@@ -384,7 +389,7 @@
 
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
-    /* ── CircularBuffer (v196) ── */
+    /* ── CircularBuffer ── */
     class CircularBuffer {
       constructor(maxLen) { this._buf = new Float64Array(maxLen); this._head = 0; this._size = 0; this._max = maxLen; }
       push(val) { this._buf[this._head] = val; this._head = (this._head + 1) % this._max; if (this._size < this._max) this._size++; }
@@ -461,7 +466,7 @@
       }, { once: true });
     }
 
-    /* ── Iframe injection (v196: canAccess pre-check) ── */
+    /* ── Iframe injection ── */
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
     const __injectedIframes = new WeakSet();
     const __iframeLoadHooked = new WeakSet();
@@ -511,7 +516,7 @@
       __globalSig.addEventListener('abort', () => mo.disconnect(), { once: true });
     }
 
-    /* ── Fullscreen wrapper (v196: DOM capability test) ── */
+    /* ── Fullscreen wrapper ── */
     const fsWraps = new WeakMap();
     function ensureFsWrapper(video) {
       if (fsWraps.has(video)) return fsWraps.get(video);
@@ -651,11 +656,8 @@
       }
     }, 2000);
 
-    // ─── END OF PART 1 (v196.0.0) ───
-    // ─── PART 2 START (v196.0.0) ───
-    // enterPiP, exitPiP, togglePiPFor, captureVideoFrame,
-    // createZoomManager, createTargeting, createEventBus, createApplyRequester,
-    // createUtils, createScheduler, createLocalStore, normalizeBySchema, createRegistry
+    // ─── END OF PART 1 (v197.0.0) ───
+    // ─── PART 2 START (v197.0.0) ───
 
     async function enterPiP(video) {
       if (!video || video.readyState < 2) return false;
@@ -1284,7 +1286,7 @@
       });
     }
 
-    /* ── Utils (v196: structuredClone) ── */
+    /* ── Utils ── */
     function createUtils() {
       return {
         clamp: VSC_CLAMP,
@@ -1447,7 +1449,7 @@
       return changed;
     }
 
-    /* ── Registry (v196: multi-threshold IO) ── */
+    /* ── Registry ── */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -1686,10 +1688,11 @@
       };
     }
 
-    // ─── END OF PART 2 (v196.0.0) ───
-    // ─── PART 3 START (v196.0.0) ───
+    // ─── END OF PART 2 (v197.0.0) ───
+    // ─── PART 3 START (v197.0.0) ───
     // createAudio, createAutoSceneManager, curveToApproxParams,
-    // Endian detection, pooled histograms, zone LUT cache, VideoFrame capture
+    // Endian detection, pooled histograms, zone LUT cache, VideoFrame capture,
+    // createVideoMaximizer (v197 NEW)
 
     /* ── v196: Endian detection for Uint32Array pixel loop ── */
     const IS_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([0x0A0B0C0D]).buffer)[0] === 0x0D;
@@ -2710,11 +2713,395 @@
       };
     }
 
-    // ─── END OF PART 3 (v196.0.0) ───
-    // ─── PART 4 START (v196.0.0) ───
+    /* ══════════════════════════════════════════════════════════
+       v197 NEW — createVideoMaximizer
+       ──────────────────────────────────────────────────────────
+       비디오를 100vw×100vh로 확대하고 형제 요소를 숨긴 뒤,
+       ESC / 동일 단축키로 원래 상태를 복원합니다.
+       Store(P.APP_MAXIMIZE) 연동, MutationObserver로 클래스 보호.
+       ══════════════════════════════════════════════════════════ */
+        /* ══════════════════════════════════════════════════════════
+       v197.1 — createVideoMaximizer (iframe 전체화면 지원)
+       ──────────────────────────────────────────────────────────
+       iframe 내부 비디오: top 프레임의 VideoMax에 위임하여
+       iframe 요소 자체를 100vw×100vh로 확대합니다.
+       일반 비디오: 기존과 동일하게 비디오 직접 확대.
+       ══════════════════════════════════════════════════════════ */
+    function createVideoMaximizer(Store, ApplyReq) {
+      const MAX_CLASS = 'vsc-vmax-max';
+      const HIDE_CLASS = 'vsc-vmax-hide';
+      const ANCESTOR_CLASS = 'vsc-vmax-ancestor';
+      const IFRAME_MAX_CLASS = 'vsc-vmax-iframe';
+
+      let active = false;
+      let targetVideo = null;
+      let targetIframe = null;
+      let savedStyles = [];
+      let hiddenSiblings = [];
+      let savedScrollX = 0, savedScrollY = 0;
+      let classMO = null;
+      let isIframeMode = false;
+
+      /*
+       * iframe child 전용 상태:
+       * delegatedToTop = true → 이 child가 top에 최대화를 요청한 상태
+       * 이 상태에서 toggle/ESC → top에 해제 요청
+       */
+      let delegatedToTop = false;
+      let innerMaxActive = false;
+      let innerSavedStyles = [];
+
+      /* ── 유틸 ── */
+      function isInIframe() {
+        try { return window !== window.top; } catch (_) { return true; }
+      }
+
+      function pickBestVideo() {
+        const explicit = window.__VSC_INTERNAL__?._activeVideo;
+        if (explicit?.isConnected && explicit.readyState >= 2 && !explicit.ended) return explicit;
+        let best = null, bestScore = -1;
+        const allVideos = document.querySelectorAll('video');
+        for (const v of allVideos) {
+          if (!v.isConnected || v.readyState < 1) continue;
+          let s = 0;
+          const r = v.getBoundingClientRect();
+          const area = r.width * r.height;
+          if (!v.paused && !v.ended) s += 10;
+          if (!v.muted && v.volume > 0.01) s += 3;
+          s += Math.log2(1 + area / 10000);
+          if (v.currentTime > 0.5) s += 2;
+          if (s > bestScore) { bestScore = s; best = v; }
+        }
+        return best;
+      }
+
+      function findIframeForWindow(childWin) {
+        try {
+          const iframes = document.querySelectorAll('iframe');
+          for (const ifr of iframes) {
+            try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {}
+          }
+        } catch (_) {}
+        return null;
+      }
+
+      function backupAndApplyStyle(el, css) {
+        savedStyles.push({ el, cssText: el.style.cssText });
+        for (const [prop, val] of Object.entries(css)) {
+          el.style.setProperty(prop, val, 'important');
+        }
+      }
+
+      function hideSiblings(el) {
+        if (!el.parentNode) return;
+        for (const sib of el.parentNode.children) {
+          if (sib === el || sib.nodeType !== 1) continue;
+          if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
+          if (sib.hasAttribute?.('data-vsc-ui') || sib.id === 'vsc-host' || sib.id === 'vsc-gear-host' || sib.id === 'vsc-osd') continue;
+          const prev = sib.style.cssText;
+          sib.classList.add(HIDE_CLASS);
+          sib.style.setProperty('display', 'none', 'important');
+          hiddenSiblings.push({ el: sib, prev });
+        }
+      }
+
+      let styleInjected = false;
+      function injectStyle() {
+        if (styleInjected) return;
+        styleInjected = true;
+        const s = document.createElement('style');
+        s.dataset.vscMaximizer = '1';
+        s.textContent = [
+          `.${MAX_CLASS}{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;transform:none!important;}`,
+          `.${HIDE_CLASS}{display:none!important;}`,
+          `.${ANCESTOR_CLASS}{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}`,
+          `.${IFRAME_MAX_CLASS}{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}`
+        ].join('\n');
+        (document.head || document.documentElement).appendChild(s);
+      }
+
+      function startClassGuard(primaryEl) {
+        if (classMO) { classMO.disconnect(); classMO = null; }
+        const guardClass = isIframeMode ? IFRAME_MAX_CLASS : MAX_CLASS;
+        classMO = new MutationObserver((muts) => {
+          for (const m of muts) {
+            if (m.type !== 'attributes' || m.attributeName !== 'class' || !active) continue;
+            const el = m.target;
+            if (el === primaryEl && !el.classList.contains(guardClass)) el.classList.add(guardClass);
+            if (el.dataset?.vscMaxAncestor === '1' && !el.classList.contains(ANCESTOR_CLASS)) el.classList.add(ANCESTOR_CLASS);
+          }
+        });
+        classMO.observe(primaryEl, { attributes: true, attributeFilter: ['class'] });
+        let cur = primaryEl.parentElement;
+        while (cur && cur !== document.body && cur !== document.documentElement) {
+          classMO.observe(cur, { attributes: true, attributeFilter: ['class'] });
+          cur = cur.parentElement;
+        }
+      }
+
+      function stopClassGuard() {
+        if (classMO) { classMO.disconnect(); classMO = null; }
+      }
+
+      function clearAncestorChain(startEl) {
+        let ancestor = startEl.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          ancestor.dataset.vscMaxAncestor = '1';
+          backupAndApplyStyle(ancestor, {
+            overflow: 'visible', position: 'static', transform: 'none',
+            clip: 'auto', 'clip-path': 'none', contain: 'none'
+          });
+          ancestor.classList.add(ANCESTOR_CLASS);
+          hideSiblings(ancestor);
+          ancestor = ancestor.parentElement;
+        }
+      }
+
+      function lockBody() {
+        backupAndApplyStyle(document.body, { overflow: 'hidden', margin: '0', padding: '0' });
+        if (document.documentElement) backupAndApplyStyle(document.documentElement, { overflow: 'hidden' });
+      }
+
+      /* ═══════════════════════════════════════
+         모드 A: 일반 비디오 (직접 최대화)
+         ═══════════════════════════════════════ */
+      function doMaximizeDirect(video) {
+        injectStyle();
+        targetVideo = video;
+        isIframeMode = false;
+        savedScrollX = window.scrollX;
+        savedScrollY = window.scrollY;
+        clearAncestorChain(video);
+        lockBody();
+        savedStyles.push({ el: video, cssText: video.style.cssText });
+        video.classList.add(MAX_CLASS);
+        hideSiblings(video);
+        window.scrollTo(0, 0);
+        startClassGuard(video);
+        active = true;
+        Store.set(P.APP_MAXIMIZE, true);
+        ApplyReq.hard();
+        showOSD('최대화 ON (ESC 또는 Alt+Shift+M 해제)', 1800);
+      }
+
+      /* ═══════════════════════════════════════
+         모드 B: iframe 확대 (top에서 실행)
+         ═══════════════════════════════════════ */
+      function doMaximizeIframe(iframeEl) {
+        injectStyle();
+        targetIframe = iframeEl;
+        isIframeMode = true;
+        savedScrollX = window.scrollX;
+        savedScrollY = window.scrollY;
+        clearAncestorChain(iframeEl);
+        lockBody();
+        savedStyles.push({ el: iframeEl, cssText: iframeEl.style.cssText });
+        iframeEl.classList.add(IFRAME_MAX_CLASS);
+        hideSiblings(iframeEl);
+        window.scrollTo(0, 0);
+        startClassGuard(iframeEl);
+        active = true;
+        Store.set(P.APP_MAXIMIZE, true);
+        ApplyReq.hard();
+        showOSD('최대화 ON — iframe (ESC 또는 Alt+Shift+M 해제)', 1800);
+        try { iframeEl.contentWindow.postMessage({ __vsc_max: 'apply_inner' }, '*'); } catch (_) {}
+      }
+
+      /* ── iframe 내부: 비디오 채움 ── */
+      function applyInnerMaximize() {
+        if (innerMaxActive) return;
+        const video = pickBestVideo();
+        if (!video) return;
+        innerMaxActive = true;
+        innerSavedStyles.push({ el: video, cssText: video.style.cssText });
+        const props = {
+          width: '100vw', height: '100vh', 'object-fit': 'contain',
+          position: 'fixed', top: '0', left: '0',
+          'z-index': '2147483646', background: '#000',
+          margin: '0', padding: '0', border: 'none'
+        };
+        for (const [k, v] of Object.entries(props)) video.style.setProperty(k, v, 'important');
+        let ancestor = video.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          innerSavedStyles.push({ el: ancestor, cssText: ancestor.style.cssText });
+          ancestor.style.setProperty('overflow', 'visible', 'important');
+          ancestor.style.setProperty('position', 'static', 'important');
+          ancestor.style.setProperty('transform', 'none', 'important');
+          ancestor.style.setProperty('contain', 'none', 'important');
+          ancestor = ancestor.parentElement;
+        }
+        if (document.body) {
+          innerSavedStyles.push({ el: document.body, cssText: document.body.style.cssText });
+          document.body.style.setProperty('overflow', 'hidden', 'important');
+          document.body.style.setProperty('margin', '0', 'important');
+        }
+      }
+
+      function undoInnerMaximize() {
+        if (!innerMaxActive) return;
+        for (let i = innerSavedStyles.length - 1; i >= 0; i--) {
+          try { innerSavedStyles[i].el.style.cssText = innerSavedStyles[i].cssText; } catch (_) {}
+        }
+        innerSavedStyles = [];
+        innerMaxActive = false;
+      }
+
+      /* ── 복원 (top 측) ── */
+      function undoMaximize() {
+        if (!active) return;
+        stopClassGuard();
+
+        /* iframe child에 내부 복원 + 상태 알림 */
+        if (isIframeMode && targetIframe) {
+          try { targetIframe.contentWindow.postMessage({ __vsc_max: 'undo_inner' }, '*'); } catch (_) {}
+          try { targetIframe.contentWindow.postMessage({ __vsc_max: 'state_off' }, '*'); } catch (_) {}
+        }
+
+        for (const { el, prev } of hiddenSiblings) {
+          try { el.classList.remove(HIDE_CLASS); el.style.cssText = prev; } catch (_) {}
+        }
+        hiddenSiblings = [];
+
+        for (let i = savedStyles.length - 1; i >= 0; i--) {
+          const { el, cssText } = savedStyles[i];
+          try {
+            el.style.cssText = cssText;
+            el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS);
+            delete el.dataset.vscMaxAncestor;
+          } catch (_) {}
+        }
+        savedStyles = [];
+
+        window.scrollTo(savedScrollX, savedScrollY);
+        active = false;
+        targetVideo = null;
+        targetIframe = null;
+        isIframeMode = false;
+        Store.set(P.APP_MAXIMIZE, false);
+        ApplyReq.hard();
+        showOSD('최대화 OFF', 1200);
+      }
+
+      /* ── 토글 ── */
+      function toggle() {
+        /* === iframe child에서 호출 === */
+        if (isInIframe()) {
+          if (delegatedToTop) {
+            /* 이미 최대화 중 → top에 해제 요청 */
+            try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {}
+            delegatedToTop = false;
+            return;
+          }
+          /* 최대화 요청 → top에 위임 */
+          try {
+            window.top.postMessage({ __vsc_max: 'request' }, '*');
+            delegatedToTop = true;
+          } catch (_) {
+            /* cross-origin 실패: iframe 내부에서만 최대화 */
+            const video = pickBestVideo();
+            if (video) doMaximizeDirect(video);
+            else showOSD('최대화할 비디오를 찾을 수 없음', 1500);
+          }
+          return;
+        }
+
+        /* === top 프레임에서 호출 === */
+        if (active) { undoMaximize(); return; }
+
+        /* 직접 비디오 */
+        const video = pickBestVideo();
+        if (video) { doMaximizeDirect(video); return; }
+
+        /* iframe 내 비디오 탐색 */
+        const iframes = document.querySelectorAll('iframe');
+        let bestIframe = null, bestArea = 0;
+        for (const ifr of iframes) {
+          if (!ifr.isConnected) continue;
+          const r = ifr.getBoundingClientRect();
+          const area = r.width * r.height;
+          if (area < 10000) continue;
+          try {
+            const doc = ifr.contentDocument || ifr.contentWindow?.document;
+            if (doc?.querySelector('video')) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } }
+          } catch (_) {
+            if (area > bestArea) { bestArea = area; bestIframe = ifr; }
+          }
+        }
+        if (bestIframe) { doMaximizeIframe(bestIframe); return; }
+        showOSD('최대화할 비디오를 찾을 수 없음', 1500);
+      }
+
+      /* ── postMessage 핸들러 ── */
+      function onMessage(e) {
+        if (!e.data || typeof e.data !== 'object' || !e.data.__vsc_max) return;
+        const cmd = e.data.__vsc_max;
+
+        /* ─── top이 수신 ─── */
+        if (!isInIframe()) {
+          if (cmd === 'request') {
+            const iframeEl = findIframeForWindow(e.source);
+            if (iframeEl) {
+              if (active) undoMaximize();
+              doMaximizeIframe(iframeEl);
+              /* child에 "네가 요청자다" 확인 */
+              try { e.source.postMessage({ __vsc_max: 'state_on' }, '*'); } catch (_) {}
+            }
+            return;
+          }
+          if (cmd === 'undo') {
+            if (active) undoMaximize();
+            return;
+          }
+          return;
+        }
+
+        /* ─── iframe child가 수신 ─── */
+        if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
+        if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
+        if (cmd === 'state_on') { delegatedToTop = true; return; }
+        if (cmd === 'state_off') { delegatedToTop = false; return; }
+      }
+
+      on(window, 'message', onMessage, { passive: true });
+
+      /* ── Store 연동 ── */
+      Store.sub(P.APP_MAXIMIZE, (val) => {
+        if (!isInIframe()) {
+          if (!val && active) undoMaximize();
+          else if (val && !active) toggle();
+        }
+      });
+
+      /* ── abort 시 자동 복원 ── */
+      __globalSig.addEventListener('abort', () => {
+        if (active) { try { undoMaximize(); } catch (_) {} }
+        if (innerMaxActive) { try { undoInnerMaximize(); } catch (_) {} }
+        delegatedToTop = false;
+      }, { once: true });
+
+      return Object.freeze({
+        toggle,
+        isActive: () => active || delegatedToTop,
+        getTarget: () => targetVideo || targetIframe,
+        doMaximize: toggle,
+        undoMaximize() {
+          if (isInIframe() && delegatedToTop) {
+            try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {}
+            delegatedToTop = false;
+            return;
+          }
+          undoMaximize();
+        }
+      });
+    }
+
+
+    // ─── END OF PART 3 (v197.0.0) ───
+    // ─── PART 4 START (v197.0.0) ───
     // createFiltersVideoOnly, shadow/bright precomputed, composeVideoParamsInto,
     // isNeutralVideoParams, createVideoParamsMemo, applyShadowStyle, createDisposerBag,
     // bindWindowDrag, VSC_ICONS, svgIcon, showOSD, getAutoPresetForResolution, createUI
+    // v197: Maximize 버튼 추가 (Tools 탭)
 
     /* ── SVG Filter Engine (v196: explicit R/G/B tempFunc refs, toneStr Map cache) ── */
     function createFiltersVideoOnly(Utils, config) {
@@ -3120,8 +3507,7 @@
     const __styleCacheSpaCleanup = () => { if (__styleCache.size > 0) __styleCache.clear(); };
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
 
-    /* 수정 후 (cssText로 통일) */
-function applyShadowStyle(shadow, cssText, h) {
+    function applyShadowStyle(shadow, cssText, h) {
       try {
         if ('adoptedStyleSheets' in shadow && 'replaceSync' in CSSStyleSheet.prototype) {
           const cur = shadow.adoptedStyleSheets || [];
@@ -3180,6 +3566,7 @@ function applyShadowStyle(shadow, cssText, h) {
       equalizer: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><circle cx="4" cy="12" r="2" fill="currentColor"/><line x1="12" y1="21" x2="12" y2="8"/><line x1="12" y1="4" x2="12" y2="3"/><circle cx="12" cy="6" r="2" fill="currentColor"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><circle cx="20" cy="14" r="2" fill="currentColor"/></svg>`,
       speaker: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"/></svg>`,
       monitor: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>`,
+      maximize: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`,
       zap: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`,
       pip: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>`,
       zoom: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
@@ -3240,7 +3627,7 @@ function applyShadowStyle(shadow, cssText, h) {
     }
 
     /* ══════════════════════════════════════════════════════════
-       createUI — v196 Bottom-Tab UI redesign
+       createUI — v197 Bottom-Tab UI (+ Maximize 버튼)
        ══════════════════════════════════════════════════════════ */
     function createUI(sm, registry, ApplyReq, Utils) {
       const { h } = Utils;
@@ -3326,12 +3713,8 @@ function applyShadowStyle(shadow, cssText, h) {
       /* ── v196: Bottom-tab CSS ── */
       const PANEL_STYLE = `
         :host { all: initial; } * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        /* 1. 패널 중앙 정렬 및 너비 확보 (380px) */
         .panel { position: fixed!important; top: 50%!important; right: 72px!important; transform: translateY(-50%)!important; width: min(380px, calc(100vw - 32px))!important; max-height: min(85vh, 560px)!important; background: rgba(12,12,18,0.96)!important; backdrop-filter: blur(24px) saturate(200%)!important; color: #e8eaed!important; border-radius: 20px!important; z-index: 2147483647!important; border: 1px solid rgba(255,255,255,0.06)!important; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif!important; box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset!important; display: flex!important; flex-direction: column!important; overflow: hidden!important; animation: vsc-slide-in 0.2s ease-out!important; }
-
-        /* 2. 애니메이션을 중앙 기준(-50%)으로 보정 */
         @keyframes vsc-slide-in { from { opacity:0; transform:translateY(calc(-50% + 12px)) scale(0.97); } to { opacity:1; transform:translateY(-50%) scale(1); } }
-
         .hdr { padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between; cursor:move; }
         .hdr-left { display:flex; align-items:center; gap:8px; }
         .hdr-title { font-size:14px; font-weight:800; background:linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
@@ -3356,13 +3739,10 @@ function applyShadowStyle(shadow, cssText, h) {
         .card { margin-bottom:10px; padding:12px; background:rgba(255,255,255,0.025); border-radius:14px; border:1px solid rgba(255,255,255,0.04); }
         .card-title { font-size:10px; font-weight:700; text-transform:uppercase; color:rgba(255,255,255,0.35); margin-bottom:10px; display:flex; align-items:center; gap:6px; letter-spacing:0.8px; }
         .chip-grid { display:flex; flex-wrap:wrap; gap:6px; }
-
-        /* 3. 버튼(Chip) 크기 최적화 - 5개 한 줄 정렬용 */
         .chip { height:34px; min-width:58px; padding:0 6px; border:1.5px solid rgba(255,255,255,0.08); border-radius:10px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7); cursor:pointer; font-size:12px; font-weight:700; transition:all 0.12s ease; display:flex; align-items:center; justify-content:center; user-select:none; }
         .chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); }
         .chip.active { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.4); color:#93bbfc; box-shadow:0 0 0 1px rgba(59,130,246,0.1); }
         .chip.warn.active { background:rgba(245,158,11,0.15); border-color:rgba(245,158,11,0.4); color:#fbbf24; }
-
         .speed-display { text-align:center; font-size:28px; font-weight:900; font-variant-numeric:tabular-nums; padding:8px 0; color:rgba(255,255,255,0.8); transition:color 0.15s; }
         .speed-display.modified { color:#4ade80; }
         .speed-stepper { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
@@ -3382,8 +3762,6 @@ function applyShadowStyle(shadow, cssText, h) {
         .footer-btn { flex:1; height:30px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); cursor:pointer; font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:3px; transition:background 0.15s; }
         .footer-btn:hover { background:rgba(255,255,255,0.08); }
         .footer-btn.danger { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.3); color:#f87171; }
-
-        /* 4. 프레임(iframe) 대응: 좁은 화면에서도 하단을 다 차지하지 않고 중앙 유지 */
         @media (max-width:480px) { .panel { width: 75%!important; max-width: 260px!important; right: 55px!important; left: auto!important; top: 50%!important; transform: translateY(-50%)!important; border-radius: 16px!important; max-height: 90vh!important; bottom: auto!important; zoom: 0.85; } .chip { height: 30px!important; min-width: 48px!important; font-size: 11px!important; } .tab-bar { padding-bottom: 4px; } }
       `;
 
@@ -3497,9 +3875,10 @@ function applyShadowStyle(shadow, cssText, h) {
         const speedSec = h('div', { class: 'card' }, h('div', { class: 'card-title' }, svgIcon('zap'), ' SPEED'), speedRow1, speedPresetRow, speedCustom);
         const speedTab = h('div', { class: 'tab-content' }, speedSec);
 
-        /* TAB 3: Tools */
+        /* TAB 3: Tools — v197: Maximize 버튼 추가 */
         const toolsBtn1 = h('button', { class: 'act-btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) togglePiPFor(v); } }, svgIcon('pip'), ' PiP');
         const toolsBtn2 = h('button', { class: 'act-btn', onclick: () => { const v = window.__VSC_APP__?.getActiveVideo(); if(v) captureVideoFrame(v); } }, svgIcon('camera'), ' Capture');
+        const toolsBtnMax = h('button', { class: 'act-btn', onclick: () => { window.__VSC_INTERNAL__?.VideoMax?.toggle(); } }, svgIcon('maximize'), ' Maximize');
 
         const btnExport = h('button', { class: 'act-btn', onclick: () => {
           try {
@@ -3525,7 +3904,7 @@ function applyShadowStyle(shadow, cssText, h) {
 
         const toolsSec = h('div', { class: 'card' },
           h('div', { class: 'card-title' }, svgIcon('monitor'), ' TOOLS'),
-          h('div', { class: 'actions', style: 'margin-bottom:6px' }, toolsBtn1, toolsBtn2),
+          h('div', { class: 'actions', style: 'margin-bottom:6px' }, toolsBtn1, toolsBtn2, toolsBtnMax),
           h('div', { class: 'actions' }, btnExport, btnImport)
         );
         const toolsTab = h('div', { class: 'tab-content' }, toolsSec);
@@ -3574,7 +3953,7 @@ function applyShadowStyle(shadow, cssText, h) {
           } else {
             clearTimer(confirmTimer); confirmState = false; resetBtn.textContent = '\u21BA Reset'; resetBtn.classList.remove('danger');
             sm.batch('video', DEFAULTS.video); sm.batch('audio', DEFAULTS.audio); sm.batch('playback', DEFAULTS.playback);
-            sm.set(P.APP_AUTO_SCENE, false); sm.set(P.APP_AUTO_PRESET, false); ApplyReq.hard();
+            sm.set(P.APP_AUTO_SCENE, false); sm.set(P.APP_AUTO_PRESET, false); sm.set(P.APP_MAXIMIZE, false); ApplyReq.hard();
           }
         };
         const closeBtn = h('button', { class: 'footer-btn', onclick: () => sm.set(P.APP_UI, false) }, '\u2715 Close');
@@ -3672,13 +4051,12 @@ function applyShadowStyle(shadow, cssText, h) {
         sync();
 
         const wake = () => {
-          if (gearBtn) gearBtn.style.opacity = '1'; // 활성화 시 100% 밝기
+          if (gearBtn) gearBtn.style.opacity = '1';
           clearTimeout(fadeTimer);
           fadeTimer = setTimeout(() => {
-            // 모바일이면 hover 체크 무시, PC면 마우스가 위에 없을 때만 흐리게
             const isHovered = !CONFIG.IS_MOBILE && gearBtn.matches(':hover');
             if (gearBtn && !gearBtn.classList.contains('open') && !gearBtn.classList.contains('panel-open') && !isHovered) {
-              gearBtn.style.opacity = '0.15'; // 2.5초 후 15% 투명도로 복귀
+              gearBtn.style.opacity = '0.15';
             }
           }, 2500);
         };
@@ -3726,14 +4104,15 @@ function applyShadowStyle(shadow, cssText, h) {
       };
     }
 
-    // ─── END OF PART 4 (v196.0.0) ───
-    // ─── PART 5 START (v196.0.0) ───
+    // ─── END OF PART 4 (v197.0.0) ───
+    // ─── PART 5 START (v197.0.0) ───
     // markInternalRateChange, restoreRateOne, ensureMobileInlinePlaybackHints,
     // cleanupTouched, pruneTouchedDisconnected, createBackendAdapter,
     // clearVideoRuntimeState, applyPlaybackRate, reconcileVideoEffects,
     // bindVideoOnce, createApplyLoop, persistence, keyboard, OSD,
     // MediaSession, GM menus, user tracking, maintenance, SPA watcher,
     // auto-preset watcher, mobile long-press speed, bootstrap
+    // v197: VideoMax 통합, Alt+Shift+M, ESC 최대화 해제, 저장/로드
 
     function markInternalRateChange(v) {
       const st = getRateState(v);
@@ -3874,10 +4253,6 @@ function applyShadowStyle(shadow, cssText, h) {
 
     /* ══════════════════════════════════════════════════════════
        [PATCH v196 3-1] reconcileVideoEffects — bindVideoOnce 순서 변경
-       ──────────────────────────────────────────────────────────
-       기존: Adapter.apply → bindVideoOnce (resize 리스너가 필터 상태 미인지)
-       변경: bindVideoOnce → Adapter.apply (resize 리스너가 필터 상태를 인지)
-       효과: 해상도 변경 시 필터 재적용이 즉시 올바르게 동작
        ══════════════════════════════════════════════════════════ */
     function reconcileVideoEffects({ applySet, dirtyVideos, vVals, videoFxOn,
                                      desiredRate, pbActive, Adapter, ApplyReq, mainTarget }) {
@@ -3973,7 +4348,7 @@ function applyShadowStyle(shadow, cssText, h) {
           const cur = Store.get(P.V_PRE_S);
           if (auto !== cur) {
             Store.set(P.V_PRE_S, auto);
-            showOSD(`자동 프리셋: ${PRESET_LABELS.detail[auto] || auto} (${ht}p)`, 1500);
+            showOSD(`자동 프리셋: ${getPresetLabel('detail', auto)} (${ht}p)`, 1500);
           }
         }
         ApplyReq.hard();
@@ -4042,9 +4417,6 @@ function applyShadowStyle(shadow, cssText, h) {
 
     /* ══════════════════════════════════════════════════════════
        [PATCH v196 3-2] audioUpdateThrottled — abort 시 타이머 정리
-       ──────────────────────────────────────────────────────────
-       기존: __globalSig abort 시 내부 throttle timer 미정리 → 리소스 누수
-       변경: abort 이벤트에 timer clear 등록
        ══════════════════════════════════════════════════════════ */
     function createApplyLoop(Store, Registry, Targeting, Adapter, Audio, AutoScene, ZoomMgr, ApplyReq, UI) {
       const paramsMemo = createVideoParamsMemo(Store, P, createUtils());
@@ -4127,7 +4499,7 @@ function applyShadowStyle(shadow, cssText, h) {
               const current = Store.get(P.V_PRE_S);
               if (current !== suggested) {
                 Store.set(P.V_PRE_S, suggested);
-                showOSD(`자동 프리셋: ${PRESET_LABELS.detail[suggested] || suggested} (${vh}p)`, 1500);
+                showOSD(`자동 프리셋: ${getPresetLabel('detail', suggested)} (${vh}p)`, 1500);
               }
             }
           }
@@ -4184,7 +4556,7 @@ function applyShadowStyle(shadow, cssText, h) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Persistence — save / load / migrate
+    //  Persistence — save / load / migrate (v197: maximize 포함)
     // ═══════════════════════════════════════════════════════════
 
     const __hasGM = (typeof GM_getValue === 'function' && typeof GM_setValue === 'function');
@@ -4206,6 +4578,7 @@ function applyShadowStyle(shadow, cssText, h) {
         autoScene: Store.get(P.APP_AUTO_SCENE),
         zoomEn: Store.get(P.APP_ZOOM_EN),
         autoPreset: Store.get(P.APP_AUTO_PRESET),
+        maximize: Store.get(P.APP_MAXIMIZE),
         playbackRate: Store.get(P.PB_RATE),
         playbackEnabled: Store.get(P.PB_EN)
       };
@@ -4229,6 +4602,7 @@ function applyShadowStyle(shadow, cssText, h) {
       safeSet(P.APP_AUTO_SCENE, data.autoScene);
       safeSet(P.APP_ZOOM_EN, data.zoomEn);
       safeSet(P.APP_AUTO_PRESET, data.autoPreset);
+      safeSet(P.APP_MAXIMIZE, data.maximize);
       safeSet(P.PB_RATE, data.playbackRate);
       safeSet(P.PB_EN, data.playbackEnabled);
     }
@@ -4250,6 +4624,7 @@ function applyShadowStyle(shadow, cssText, h) {
           autoScene: data['app.autoScene'],
           zoomEn: data['app.zoomEn'],
           autoPreset: data['app.autoPreset'],
+          maximize: data['app.maximize'],
           playbackRate: data['playback.rate'],
           playbackEnabled: data['playback.enabled']
         };
@@ -4304,7 +4679,7 @@ function applyShadowStyle(shadow, cssText, h) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Keyboard shortcuts
+    //  Keyboard shortcuts (v197: Alt+Shift+M 최대화, ESC 최대화 해제)
     // ═══════════════════════════════════════════════════════════
 
     function setupKeyboard(Store, ApplyReq, ZoomMgr) {
@@ -4332,6 +4707,9 @@ function applyShadowStyle(shadow, cssText, h) {
               ApplyReq.hard();
               break;
             }
+            case 'KeyM':
+              window.__VSC_INTERNAL__?.VideoMax?.toggle();
+              break;
             case 'KeyP': {
               const v = window.__VSC_APP__?.getActiveVideo?.();
               if (v) await togglePiPFor(v);
@@ -4374,7 +4752,7 @@ function applyShadowStyle(shadow, cssText, h) {
               break;
             }
             case 'Slash':
-              showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | P: PiP | C: 캡처 | I: 정보 | < >: 1프레임', 3500);
+              showOSD('Alt+Shift+V: UI | S: 샤프 | A: 오디오 | M: 최대화 | P: PiP | C: 캡처 | I: 정보 | < >: 1프레임', 3500);
               break;
             case 'ArrowUp':
             case 'ArrowDown': {
@@ -4442,6 +4820,13 @@ function applyShadowStyle(shadow, cssText, h) {
             case 'r': case 'R':
               Store.set(P.PB_RATE, 1.0); Store.set(P.PB_EN, false); ApplyReq.hard(); break;
             case 'Escape': {
+              /* v197: 최대화 활성 시 먼저 해제 */
+              const VideoMax = window.__VSC_INTERNAL__?.VideoMax;
+              if (VideoMax?.isActive()) {
+                VideoMax.undoMaximize();
+                Store.set(P.APP_MAXIMIZE, false);
+                break;
+              }
               const v = window.__VSC_APP__?.getActiveVideo?.();
               if (ZoomMgr && v && ZoomMgr.isZoomed(v)) {
                 ZoomMgr.resetZoom(v); Store.set(P.APP_ZOOM_EN, false); ApplyReq.soft();
@@ -4461,8 +4846,8 @@ function applyShadowStyle(shadow, cssText, h) {
     // ═══════════════════════════════════════════════════════════
 
     function setupOsdNotifications(Store) {
-      Store.sub(P.V_PRE_S, (v) => showOSD('샤프닝: ' + (PRESET_LABELS.detail[v] || v)));
-      Store.sub(P.V_PRE_B, (v) => showOSD('밝기등급: ' + (PRESET_LABELS.grade[v] || v)));
+      Store.sub(P.V_PRE_S, (v) => showOSD('샤프닝: ' + getPresetLabel('detail', v)));
+      Store.sub(P.V_PRE_B, (v) => showOSD('밝기등급: ' + getPresetLabel('grade', v)));
       Store.sub(P.A_EN, (v) => showOSD('오디오 부스트: ' + (v ? 'ON' : 'OFF')));
       Store.sub(P.PB_RATE, (v) => { if (Store.get(P.PB_EN)) showOSD('재생속도: ' + Number(v).toFixed(1) + 'x'); });
       Store.sub(P.PB_EN, (v) => { if (!v) showOSD('재생속도: 기본'); });
@@ -4632,7 +5017,7 @@ function applyShadowStyle(shadow, cssText, h) {
         if (ht > 0) {
           const auto = getAutoPresetForResolution(ht);
           Store.set(P.V_PRE_S, auto);
-          showOSD(`자동 프리셋: ${PRESET_LABELS.detail[auto] || auto} (${ht}p)`, 1500);
+          showOSD(`자동 프리셋: ${getPresetLabel('detail', auto)} (${ht}p)`, 1500);
           ApplyReq.hard();
         }
       });
@@ -4640,9 +5025,6 @@ function applyShadowStyle(shadow, cssText, h) {
 
     // ═══════════════════════════════════════════════════════════
     //  [PATCH v196 12-2] Mobile long-press 2x speed
-    //  ─────────────────────────────────────────────────────────
-    //  모바일: 비디오 위에서 길게 누르면 2x 재생, 손을 떼면 복귀
-    //  체감 큰 UX 개선, 별도 오버헤드 없음
     // ═══════════════════════════════════════════════════════════
 
     function setupMobileLongPressSpeed(Store, ApplyReq) {
@@ -4727,7 +5109,7 @@ function applyShadowStyle(shadow, cssText, h) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    //  Bootstrap — 모든 모듈 조립 및 시작
+    //  Bootstrap — 모든 모듈 조립 및 시작 (v197: VideoMax 통합)
     // ═══════════════════════════════════════════════════════════
 
     function bootstrap() {
@@ -4751,7 +5133,7 @@ function applyShadowStyle(shadow, cssText, h) {
       };
 
       bindNormalizer(Store,
-        [P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV, P.APP_AUTO_PRESET],
+        [P.APP_APPLY_ALL, P.APP_ZOOM_EN, P.APP_AUTO_SCENE, P.APP_ADV, P.APP_AUTO_PRESET, P.APP_MAXIMIZE],
         APP_SCHEMA, ApplyReq);
       bindNormalizer(Store,
         [P.V_PRE_S, P.V_PRE_B, P.V_PRE_MIX, P.V_SHADOW_MASK, P.V_BRIGHT_STEP],
@@ -4793,6 +5175,11 @@ function applyShadowStyle(shadow, cssText, h) {
 
       setupUserTracking(Scheduler);
 
+      /* v197: Video Maximizer 모듈 생성 */
+      setupMobileLongPressSpeed(Store, ApplyReq);
+      const VideoMax = createVideoMaximizer(Store, ApplyReq);
+      window.__VSC_INTERNAL__.VideoMax = VideoMax;
+
       const applyFn = createApplyLoop(
         Store, Registry, Targeting, Adapter, Audio, AutoScene, ZoomMgr, ApplyReq, UI
       );
@@ -4827,8 +5214,6 @@ function applyShadowStyle(shadow, cssText, h) {
       setupAutoPresetWatcher(Store, ApplyReq);
       setupSpaWatcher(Registry, Scheduler, ApplyReq, ZoomMgr);
       setupMaintenance(Store, Registry, ApplyReq, Scheduler, ZoomMgr);
-      /* v196 12-2: 모바일 롱프레스 2x 재생 */
-      setupMobileLongPressSpeed(Store, ApplyReq);
 
       Store.sub(P.APP_ACT, (on) => {
         if (on) {
@@ -4848,6 +5233,7 @@ function applyShadowStyle(shadow, cssText, h) {
         log.info('VSC global abort — cleaning up');
         try { Audio.destroy(); } catch (_) {}
         try { if (ZoomMgr) ZoomMgr.destroy(); } catch (_) {}
+        try { if (VideoMax?.isActive()) VideoMax.undoMaximize(); } catch (_) {}
         try { UI.destroy(); } catch (_) {}
         clearTimer(__saveTimer);
         saveToDisk(Store);
@@ -4857,6 +5243,9 @@ function applyShadowStyle(shadow, cssText, h) {
       if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
         AutoScene.start();
       }
+
+      /* v197: 로드 시 maximize 상태는 항상 false로 리셋 (페이지 새로고침 시 정리) */
+      Store.set(P.APP_MAXIMIZE, false);
 
       const doInitial = () => {
         Registry.refreshObservers();
