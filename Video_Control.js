@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v198.0.0-Hybrid)
+// @name         Video_Control (v198.3.0-Hybrid)
 // @namespace    https://github.com/
-// @version      198.0.0-Hybrid
+// @version      198.3.0-Hybrid
 // @description  v198: Auto Scene Manager + Stability (Rate Guard, AudioCtx limits, Touch Pan, SharpMul, PiP Fix, UI Bright Step, Advanced Toggle)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '198.0.0-Hybrid';
+    const VSC_VERSION = '198.3.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -2837,12 +2837,9 @@ function createVideoParamsMemo(Store, P, Utils) {
     __globalSig.addEventListener('abort', () => { if (__osdEl) { clearTimeout(__osdEl._timer); try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; } }, { once: true });
 
     // ═══ END OF PART 4 ═══
-    // PART 5 continues with: RATE constants, PiP helpers, captureVideoFrame, createZoomManager,
-    //   createUI (Quick Bar 우측 중앙 + 패널 동적 위치 + 한글화), Save/Restore/Persist,
-    //   bindVideoOnce, createApplyLoop, createKeyboard, bootstrap, entry point
-    // ═══ PART 5 START — continues directly after PART 4's showOSD / OSD cleanup ═══
+    // ═══ PART 5 START ═══
 
-    /* ── Missing constants (referenced but never declared) ── */
+    /* ── Missing constants ── */
     const RATE_MAX_RETRY    = 5;
     const RATE_BACKOFF_BASE = 16;
     const RATE_BACKOFF_MAX  = 256;
@@ -2961,7 +2958,7 @@ function createVideoParamsMemo(Store, P, Utils) {
     }
 
     /* ================================================================
-       createZoomManager  (complete, self-contained)
+       createZoomManager
        ================================================================ */
     function createZoomManager() {
       const zoomStates  = new WeakMap();
@@ -3373,7 +3370,8 @@ function createVideoParamsMemo(Store, P, Utils) {
     }
 
     /* ================================================================
-       createUI  (v198 — Quick Bar 우측 중앙 세로, 패널 동적 위치, 한글화)
+       createUI  (v198 — Quick Bar 비디오 있을 때만 표시,
+                  전체화면 시 재배치, 해상도 정보 바, 한글화)
        ================================================================ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr,
                       Targeting, Maximizer, FiltersVO, Registry,
@@ -3388,6 +3386,7 @@ function createVideoParamsMemo(Store, P, Utils) {
       const syncFns = [];
       let _shadow = null;
       let _qbarShadow = null;
+      let qbarVisible = false;
 
       /* ── CSS ── */
       const PANEL_CSS = `
@@ -3425,6 +3424,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .adv-hd .arr.open{transform:rotate(90deg)}
 .adv-bd{overflow:hidden;max-height:0;transition:max-height .25s ease}
 .adv-bd.open{max-height:600px}
+.info-bar{font-size:10px;opacity:.5;padding:4px 0 6px;line-height:1.5;font-variant-numeric:tabular-nums}
 .qbar{pointer-events:auto;position:fixed;top:50%;right:${isMobile ? '6px' : '10px'};transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;opacity:.3;transition:opacity .25s}
 .qbar:hover{opacity:.95}
 .qb{width:${isMobile?'42px':'32px'};height:${isMobile?'42px':'32px'};border-radius:50%;background:rgba(28,28,32,.85);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background .15s,transform .1s;backdrop-filter:blur(8px)}
@@ -3504,41 +3504,64 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         return wrap;
       }
 
-      /* ── Tab builders (한글화) ── */
+      /* ── Tab builders ── */
       function buildVideoTab() {
         const w = h('div', {});
 
-        // ── 해상도 + 샤프닝 정보 바 ──
-  const infoBar = h('div', {
-    style: 'font-size:10px;opacity:.55;padding:4px 0 6px;line-height:1.5;font-variant-numeric:tabular-nums'
-  });
+        /* ── ★ PATCHED: 해상도 + 샤프닝 정보 바 (독립 타이머 + 비디오 미준비 시에도 표시) ── */
+        const infoBar = h('div', { class: 'info-bar' });
 
-  function updateInfo() {
-    const v = window.__VSC_INTERNAL__._activeVideo;
-    if (!v || !v.isConnected || v.readyState < 1) {
-      infoBar.textContent = '영상 없음';
-      return;
-    }
-    const nW = v.videoWidth || 0, nH = v.videoHeight || 0;
-    const dW = v.clientWidth || v.offsetWidth || 0;
-    const dH = v.clientHeight || v.offsetHeight || 0;
-    const { mul, autoBase } = (nW > 0 && dW > 0)
-      ? computeResolutionSharpMul(v)
-      : { mul: 0, autoBase: 0 };
-    const presetS = Store.get(P.V_PRE_S);
-    const sharpLabel = presetS === 'off'
-      ? `자동 ${autoBase.toFixed(3)}`
-      : `프리셋 ×${mul.toFixed(2)}`;
+        function updateInfo() {
+          // 활성 비디오가 없으면 페이지의 아무 비디오라도 탐색
+          const active = window.__VSC_INTERNAL__._activeVideo;
+          const video = (active && active.isConnected) ? active : (() => {
+            try { return document.querySelector('video'); } catch (_) { return null; }
+          })();
 
-    infoBar.textContent =
-      `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
-  }
+          if (!video || !video.isConnected) {
+            infoBar.textContent = '영상 없음';
+            return;
+          }
 
-  Bus.on('signal', updateInfo);
-  syncFns.push(updateInfo);
-  updateInfo();
+          const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
+          const dW = video.clientWidth || video.offsetWidth || 0;
+          const dH = video.clientHeight || video.offsetHeight || 0;
 
-  w.append(infoBar, mkSep());
+          // 메타데이터 미로드 시에도 출력 크기는 표시
+          if (nW === 0 || nH === 0) {
+            infoBar.textContent = dW > 0
+              ? `출력 ${dW}×${dH}  │  원본 해상도 로딩 중…`
+              : '영상 로딩 중…';
+            return;
+          }
+
+          const { mul, autoBase } = (nW > 0 && dW > 0)
+            ? computeResolutionSharpMul(video)
+            : { mul: 0, autoBase: 0 };
+          const presetS = Store.get(P.V_PRE_S);
+          let sharpLabel;
+          if (presetS === 'off') {
+            sharpLabel = autoBase > 0.001
+              ? `자동 ${autoBase.toFixed(3)} (mul ${mul.toFixed(2)})`
+              : '자동 대기';
+          } else {
+            sharpLabel = `프리셋 ${presetS} ×${mul.toFixed(2)}`;
+          }
+          infoBar.textContent =
+            `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
+        }
+
+        Bus.on('signal', updateInfo);
+        syncFns.push(updateInfo);
+        updateInfo();
+
+        // ★ PATCHED: 2.5초 주기로 독립 갱신 (패널이 열려 있는 동안)
+        const infoTimerId = setRecurring(() => {
+          try { updateInfo(); } catch (_) {}
+        }, 2500);
+        sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
+
+        w.append(infoBar, mkSep());
 
         const detailOpts = Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) }));
         const gradeOpts  = Object.keys(PRESETS.grade).map(k  => ({ v: k, l: getPresetLabel('grade',  k) }));
@@ -3668,7 +3691,41 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         renderTab();
       }
 
-      /* ── 패널 위치 계산 (Quick Bar 세로 중앙 기준) ── */
+      /* ── Quick Bar 가시성 (비디오 있을 때만) ── */
+      function hasAnyVideo() {
+        if (Registry.videos.size > 0) return true;
+        try { return document.querySelector('video') !== null; } catch (_) { return false; }
+      }
+
+      function updateQuickBarVisibility() {
+        if (!quickBarHost) return;
+        const has = hasAnyVideo();
+        if (has && !qbarVisible) {
+          quickBarHost.style.display = '';
+          qbarVisible = true;
+        } else if (!has && qbarVisible) {
+          quickBarHost.style.display = 'none';
+          qbarVisible = false;
+          if (panelOpen) togglePanel(false);
+        }
+      }
+
+      /* ── 전체화면 시 Quick Bar / Panel 재배치 ── */
+      function reparentForFullscreen() {
+        if (!quickBarHost) return;
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        const targetParent = fsEl || document.body || document.documentElement;
+        if (!targetParent) return;
+
+        if (quickBarHost.parentNode !== targetParent) {
+          try { targetParent.appendChild(quickBarHost); } catch (_) {}
+        }
+        if (panelHost && panelHost.parentNode !== targetParent) {
+          try { targetParent.appendChild(panelHost); } catch (_) {}
+        }
+      }
+
+      /* ── 패널 위치 계산 ── */
       function positionPanel() {
         if (!panelEl) return;
 
@@ -3722,19 +3779,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         _shadow.appendChild(panelEl);
 
         renderTab();
-        (document.documentElement || document.body).appendChild(panelHost);
+
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        const mountTarget = fsEl || document.documentElement || document.body;
+        mountTarget.appendChild(panelHost);
         blockInterference(panelHost);
       }
 
-      /* ── quick bar (우측 중앙 세로 배치) ── */
+      /* ── quick bar ── */
       function buildQuickBar() {
         if (quickBarHost) return;
 
         quickBarHost = h('div', {
           'data-vsc-ui': '1',
           id: 'vsc-gear-host',
-          style: 'all:initial; position:fixed; top:0; left:0; width:0; height:0; z-index:2147483647 !important; pointer-events:none;'
+          style: 'all:initial; position:fixed; top:0; left:0; width:0; height:0; z-index:2147483647 !important; pointer-events:none; display:none;'
         });
+        qbarVisible = false;
 
         const sh = quickBarHost.attachShadow({ mode: 'closed' });
         _qbarShadow = sh;
@@ -3785,6 +3846,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         const show = (force !== undefined) ? force : !panelOpen;
         if (show) {
           buildPanel();
+          reparentForFullscreen();
           requestAnimationFrame(() => {
             positionPanel();
             requestAnimationFrame(() => {
@@ -3806,6 +3868,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         Store.sub('audio.*',    syncAll);
         Store.sub('playback.*', syncAll);
         Store.sub('app.*',      syncAll);
+
+        setRecurring(updateQuickBarVisibility, 1500);
+        Bus.on('signal', updateQuickBarVisibility);
+
+        onDoc('fullscreenchange', reparentForFullscreen);
+        onDoc('webkitfullscreenchange', reparentForFullscreen);
       }
 
       function destroy() {
@@ -3813,6 +3881,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         panelHost?.remove(); quickBarHost?.remove();
         panelHost = null; panelEl = null; quickBarHost = null;
         _shadow = null; _qbarShadow = null; syncFns.length = 0;
+        qbarVisible = false;
       }
 
       return Object.freeze({ init, destroy, togglePanel, syncAll, switchTab });
@@ -3908,7 +3977,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     }
 
     /* ================================================================
-       Persistence  (GM_getValue / GM_setValue, 600 ms debounce)
+       Persistence
        ================================================================ */
     let __persistTimer = 0;
 
@@ -3936,7 +4005,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     }
 
     /* ================================================================
-       bindVideoOnce (autoPreset 제거됨)
+       bindVideoOnce  ★ PATCHED: loadedmetadata/loadeddata 트리거 추가
        ================================================================ */
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video);
@@ -3949,6 +4018,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       });
 
       on(video, 'resize', () => { st._resizeDirty = true; }, { signal: __globalSig });
+
+      /* ── ★ PATCHED: 비디오 메타데이터 로드 시 샤프닝 재계산 + 필터 적용 트리거 ── */
+      const onVideoReady = () => {
+        st._resizeDirty = true;
+        ApplyReq.hard();
+      };
+      on(video, 'loadedmetadata', onVideoReady, { signal: __globalSig });
+      on(video, 'loadeddata',     onVideoReady, { signal: __globalSig });
+      // 이미 메타데이터가 로드된 상태라면 즉시 트리거
+      if (video.readyState >= 1) {
+        setTimer(() => ApplyReq.hard(), 80);
+      }
 
       /* ── Rate Guard (v198) ── */
       on(video, 'ratechange', () => {
@@ -4058,7 +4139,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     }
 
     /* ================================================================
-       createKeyboard (한글 OSD)
+       createKeyboard
        ================================================================ */
     function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
       const STEP_RATE = 0.1;
@@ -4253,3 +4334,5 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 
   VSC_MAIN();
 })();
+
+    // ═══ END OF PART 5 ═══
