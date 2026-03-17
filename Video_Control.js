@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v199.0.0-Hybrid)
+// @name         Video_Control (v199.1.0-Hybrid)
 // @namespace    https://github.com/
-// @version      199.0.0-Hybrid
+// @version      199.1.0-Hybrid
 // @description  v199: Shadow Band toe fix, Zoom cleanup, Rate guard, AutoScene VideoFrame, Audio tuning, UI master toggle
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '199.0.0-Hybrid';
+    const VSC_VERSION = '199.1.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -232,11 +232,12 @@
     /* ── Presets ── */
     const PRESETS = Object.freeze({
       detail: {
-        off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
-        S:   { sharpAdd: 12, sharp2Add: 2, clarityAdd: 3, label: '1080p' },
-        M:   { sharpAdd: 15, sharp2Add: 8, clarityAdd: 8, label: '720p' },
-        L:   { sharpAdd: 16, sharp2Add: 18, clarityAdd: 14, label: '480p' },
-        XL:  { sharpAdd: 20, sharp2Add: 14, clarityAdd: 18, label: '360p' }
+        none: { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'OFF' },
+        off:  { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'AUTO' },
+        S:    { sharpAdd: 12, sharp2Add: 2,  clarityAdd: 3,  label: '1단' },
+        M:    { sharpAdd: 15, sharp2Add: 8,  clarityAdd: 8,  label: '2단' },
+        L:    { sharpAdd: 16, sharp2Add: 18, clarityAdd: 14, label: '3단' },
+        XL:   { sharpAdd: 20, sharp2Add: 14, clarityAdd: 18, label: '4단' }
       },
       grade: {
         off: { gammaF: 1.00, brightAdd: 0, label: 'OFF' },
@@ -2716,10 +2717,13 @@
       const dW = video.clientWidth || video.offsetWidth || 0;
       const dH = video.clientHeight || video.offsetHeight || 0;
       const dpr = Math.max(1, window.devicePixelRatio || 1);
+
       if (nW < 16 || dW < 16) return { mul: 0.0, autoBase: 0.0 };
 
       const ratio = Math.max(dW / nW, dH / Math.max(1, nH));
       let mul = 1.0;
+
+      // 출력 비율에 따른 보정치 계산 (기존 로직 유지)
       if (ratio < 0.15) mul = 0.30;
       else if (ratio < 0.5) mul = 0.30 + (ratio - 0.15) * 2.0;
       else if (ratio <= 1.5) mul = 1.0;
@@ -2728,20 +2732,23 @@
 
       if (nW <= 640 && nH <= 480) mul *= 0.65;
       else if (nW <= 960) mul *= 0.75;
+
       if (dpr >= 2.0) mul *= VSC_CLAMP(1.6 / dpr, 0.70, 0.90);
       else if (dpr >= 1.25) mul *= VSC_CLAMP(1.4 / dpr, 0.80, 1.0);
       if (CONFIG.IS_MOBILE && mul < 0.35) mul = 0.35;
       mul = VSC_CLAMP(mul, 0.0, 1.0);
 
+      // ★ 수정 포인트: ratio > 0.8 조건을 제거하여 상시 계산되게 함
       let autoBase = 0.0;
-      if (ratio > 0.8) {
-        if (nW <= 640) autoBase = 0.14;
-        else if (nW <= 960) autoBase = 0.11;
-        else if (nW <= 1280) autoBase = 0.08;
-        else if (nW <= 1920) autoBase = 0.04;
-        else autoBase = 0.02;
-        autoBase *= mul;
-      }
+      if (nW <= 640) autoBase = 0.14;        // 360p, 480p 등
+      else if (nW <= 960) autoBase = 0.11;   // 720p
+      else if (nW <= 1280) autoBase = 0.08;  // 1080p
+      else if (nW <= 1920) autoBase = 0.04;  // 2K
+      else autoBase = 0.02;                  // 4K 이상
+
+      // 비율 보정(mul)을 곱해 최종 강도 결정
+      autoBase *= mul;
+
       autoBase = VSC_CLAMP(autoBase, 0.0, 0.18);
 
       return { mul, autoBase };
@@ -2749,7 +2756,6 @@
 
     /* ── Compose Video Params (v199: toe/mid/shoulder preserved) ── */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0) {
-      const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
       const gPreset = PRESETS.grade[vUser.presetB]  || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
 
@@ -2761,23 +2767,32 @@
       out.toe = 0; out.mid = 0; out.shoulder = 0;
       out.temp = 0;
 
-      if (vUser.presetS === 'off') {
-        out.sharp = autoSharpBase;
-      } else {
+      // [1] 샤프닝 분기 처리
+      if (vUser.presetS === 'none') {
+        out.sharp = 0; // 완전 OFF
+      }
+      else if (vUser.presetS === 'off') {
+        out.sharp = autoSharpBase; // 해상도 기반 AUTO
+      }
+      else {
+        const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
         const baseS = (dPreset.sharpAdd || 0)
                     + (dPreset.sharp2Add || 0) * 0.6
                     + (dPreset.clarityAdd || 0) * 0.4;
-        out.sharp = (baseS / 100.0) * mix * sharpMul;
+        out.sharp = (baseS / 100.0) * mix * sharpMul; // 수동 프리셋
       }
 
+      // [2] ★ 복구된 로직: 섀도우 밴드와 밝기 단계는 샤프닝과 별개로 항상 적용 ★
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
 
+      // [3] AutoScene 및 최종 변환 (기존 유지)
       if (autoMods._toneCurve && vUser.presetB && vUser.presetB !== 'off') {
         const ATTENUATION = 0.45;
         out.bright *= ATTENUATION;
         out.gamma = 1.0 + (out.gamma - 1.0) * ATTENUATION;
       }
+      // ... 이하 동일
 
       if (autoMods._toneCurve) {
         out.satF *= autoMods.sat;
@@ -3630,15 +3645,29 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         function updateInfo() {
           const active = window.__VSC_INTERNAL__._activeVideo;
           const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
+
           if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
+
           const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
           const dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
-          if (nW === 0 || nH === 0) { infoBar.textContent = dW > 0 ? `출력 ${dW}×${dH}  │  원본 해상도 로딩 중…` : '영상 로딩 중…'; return; }
-          const { mul, autoBase } = (nW > 0 && dW > 0) ? computeResolutionSharpMul(video) : { mul: 0, autoBase: 0 };
+
+          if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
+
+          const { mul, autoBase } = computeResolutionSharpMul(video);
           const presetS = Store.get(P.V_PRE_S);
           let sharpLabel;
-          if (presetS === 'off') { sharpLabel = autoBase > 0.001 ? `자동 ${autoBase.toFixed(3)} (mul ${mul.toFixed(2)})` : '자동 대기'; }
-          else { sharpLabel = `프리셋 ${presetS} ×${mul.toFixed(2)}`; }
+
+          // 분기 처리로 사용자에게 현재 모드를 정확히 알림
+          if (presetS === 'none') {
+            sharpLabel = '꺼짐(OFF)';
+          }
+          else if (presetS === 'off') {
+            sharpLabel = `자동(${autoBase.toFixed(3)})`;
+          }
+          else {
+            sharpLabel = `${getPresetLabel('detail', presetS)} (수동)`;
+          }
+
           infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
         }
         Bus.on('signal', updateInfo); syncFns.push(updateInfo); updateInfo();
