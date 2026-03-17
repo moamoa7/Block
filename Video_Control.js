@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v198.7.0-Hybrid)
+// @name         Video_Control (v198.8.0-Hybrid)
 // @namespace    https://github.com/
-// @version      198.7.0-Hybrid
+// @version      198.8.0-Hybrid
 // @description  v198: Auto Scene Manager + Stability (Rate Guard, AudioCtx limits, Touch Pan, SharpMul, PiP Fix, UI Bright Step, Advanced Toggle)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '198.7.0-Hybrid';
+    const VSC_VERSION = '198.8.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -3027,13 +3027,20 @@ function createVideoParamsMemo(Store, P, Utils) {
       }
 
       function resetZoom(v) {
-        const st = getSt(v);
-        for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-        if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-        if (st._savedZIndex)   v.style.setProperty('z-index',  st._savedZIndex);
-        st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
-        zoomedVideos.delete(v);
-      }
+  const st = getSt(v);
+  // ★ 줌 관련 CSS 완전 제거
+  for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+  // 추가: 필터 엔진이 줌 상태에서 설정한 will-change도 정리
+  v.style.removeProperty('will-change');
+  v.style.removeProperty('contain');
+  if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+  else v.style.removeProperty('position');
+  if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+  else v.style.removeProperty('z-index');
+  st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
+  st._savedPosition = ''; st._savedZIndex = '';
+  zoomedVideos.delete(v);
+}
 
       function isZoomed(v) { return !!(zoomStates.get(v)?.zoomed); }
 
@@ -3148,14 +3155,25 @@ function createVideoParamsMemo(Store, P, Utils) {
         const store = window.__VSC_INTERNAL__?.Store;
         if (!store || __zoomModeWatcherUnsub) return;
         __zoomModeWatcherUnsub = store.sub(P.APP_ZOOM_EN, (enabled) => {
-          if (enabled) {
-            for (const v of TOUCHED.videos) { if (v?.isConnected) setTouchActionBlocking(v, true); }
-          } else {
-            for (const v of [...zoomedVideos]) { resetZoom(v); setTouchActionBlocking(v, false); }
-            for (const v of TOUCHED.videos)   { if (__touchBlocked.has(v)) setTouchActionBlocking(v, false); }
-            cleanupAllTouchBlocking();
-          }
-        });
+  if (enabled) {
+    for (const v of TOUCHED.videos) { if (v?.isConnected) setTouchActionBlocking(v, true); }
+  } else {
+    // ★ 줌 해제: 모든 줌 상태 + touch-action + CSS 잔여물 정리
+    for (const v of [...zoomedVideos]) { resetZoom(v); setTouchActionBlocking(v, false); }
+    for (const v of TOUCHED.videos) {
+      if (__touchBlocked.has(v)) setTouchActionBlocking(v, false);
+      // ★ 줌 관련 CSS 잔여물도 강제 정리
+      v.style.removeProperty('will-change');
+      v.style.removeProperty('contain');
+      v.style.removeProperty('transform');
+      v.style.removeProperty('transform-origin');
+    }
+    cleanupAllTouchBlocking();
+    // ★ 상태 초기화
+    activeVideo = null; isPanning = false; pinchState.active = false;
+    activePointerId = null; __lastFoundVideo = null;
+  }
+});
       }
 
       const __tryWatchInterval = setRecurring(() => {
