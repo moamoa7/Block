@@ -3325,8 +3325,12 @@
       /* ── v196: Bottom-tab CSS ── */
       const PANEL_STYLE = `
         :host { all: initial; } * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* 1. 패널 중앙 정렬 및 너비 확보 (380px) */
         .panel { position: fixed!important; top: 50%!important; right: 72px!important; transform: translateY(-50%)!important; width: min(380px, calc(100vw - 32px))!important; max-height: min(85vh, 560px)!important; background: rgba(12,12,18,0.96)!important; backdrop-filter: blur(24px) saturate(200%)!important; color: #e8eaed!important; border-radius: 20px!important; z-index: 2147483647!important; border: 1px solid rgba(255,255,255,0.06)!important; font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif!important; box-shadow: 0 24px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.03) inset!important; display: flex!important; flex-direction: column!important; overflow: hidden!important; animation: vsc-slide-in 0.2s ease-out!important; }
+
+        /* 2. 애니메이션을 중앙 기준(-50%)으로 보정 */
         @keyframes vsc-slide-in { from { opacity:0; transform:translateY(calc(-50% + 12px)) scale(0.97); } to { opacity:1; transform:translateY(-50%) scale(1); } }
+
         .hdr { padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between; cursor:move; }
         .hdr-left { display:flex; align-items:center; gap:8px; }
         .hdr-title { font-size:14px; font-weight:800; background:linear-gradient(135deg,#60a5fa,#a78bfa); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:0.5px; }
@@ -3351,10 +3355,13 @@
         .card { margin-bottom:10px; padding:12px; background:rgba(255,255,255,0.025); border-radius:14px; border:1px solid rgba(255,255,255,0.04); }
         .card-title { font-size:10px; font-weight:700; text-transform:uppercase; color:rgba(255,255,255,0.35); margin-bottom:10px; display:flex; align-items:center; gap:6px; letter-spacing:0.8px; }
         .chip-grid { display:flex; flex-wrap:wrap; gap:6px; }
-        .chip { height: 34px; min-width: 58px; padding: 0 6px; border: 1.5px solid rgba(255,255,255,0.08); border-radius: 10px; background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.12s ease; display: flex; align-items: center; justify-content: center; user-select: none; }
+
+        /* 3. 버튼(Chip) 크기 최적화 - 5개 한 줄 정렬용 */
+        .chip { height:34px; min-width:58px; padding:0 6px; border:1.5px solid rgba(255,255,255,0.08); border-radius:10px; background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.7); cursor:pointer; font-size:12px; font-weight:700; transition:all 0.12s ease; display:flex; align-items:center; justify-content:center; user-select:none; }
         .chip:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.15); }
         .chip.active { background:rgba(59,130,246,0.15); border-color:rgba(59,130,246,0.4); color:#93bbfc; box-shadow:0 0 0 1px rgba(59,130,246,0.1); }
         .chip.warn.active { background:rgba(245,158,11,0.15); border-color:rgba(245,158,11,0.4); color:#fbbf24; }
+
         .speed-display { text-align:center; font-size:28px; font-weight:900; font-variant-numeric:tabular-nums; padding:8px 0; color:rgba(255,255,255,0.8); transition:color 0.15s; }
         .speed-display.modified { color:#4ade80; }
         .speed-stepper { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
@@ -3374,9 +3381,11 @@
         .footer-btn { flex:1; height:30px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); background:rgba(255,255,255,0.04); color:rgba(255,255,255,0.6); cursor:pointer; font-size:10px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:3px; transition:background 0.15s; }
         .footer-btn:hover { background:rgba(255,255,255,0.08); }
         .footer-btn.danger { background:rgba(248,113,113,0.1); border-color:rgba(248,113,113,0.3); color:#f87171; }
+
+        /* 4. 프레임(iframe) 대응: 좁은 화면에서도 하단을 다 차지하지 않고 중앙 유지 */
         @media (max-width:480px) {
-          .panel { bottom:0!important; right:0!important; left:0!important; width:100%!important; border-radius:20px 20px 0 0!important; max-height:70vh!important; }
-          .tab-bar { padding-bottom:max(8px, env(safe-area-inset-bottom)); }
+          .panel { width: calc(100% - 32px)!important; right: 16px!important; left: 16px!important; top: 50%!important; transform: translateY(-50%)!important; border-radius: 20px!important; max-height: 80vh!important; bottom: auto!important; }
+          .tab-bar { padding-bottom: 8px; }
         }
       `;
 
