@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v199.2.0-Hybrid)
+// @name         Video_Control (v199.3.0-Hybrid)
 // @namespace    https://github.com/
-// @version      199.2.0-Hybrid
+// @version      199.3.0-Hybrid
 // @description  v199: Shadow Band toe fix, Zoom cleanup, Rate guard, AutoScene VideoFrame, Audio tuning, UI master toggle
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -136,7 +136,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '199.2.0-Hybrid';
+    const VSC_VERSION = '199.3.0-Hybrid';
 
     const COLOR_CAST_CORRECTION = 0.14;
 
@@ -3550,8 +3550,8 @@ function cleanupAllTouchBlocking() {
       const PANEL_CSS = `
 :host{all:initial;position:fixed;z-index:2147483647;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#e0e0e0;pointer-events:none}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-.panel{pointer-events:auto;position:fixed;right:${isMobile ? '56px' : '52px'};width:330px;max-height:82vh;background:rgba(18,18,22,.94);border:1px solid rgba(255,255,255,.08);border-radius:14px;backdrop-filter:blur(18px);box-shadow:0 8px 32px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateX(8px) scale(.97);transition:opacity .18s ease,transform .18s ease;user-select:none}
-.panel.open{opacity:1;transform:translateX(0) scale(1)}
+.panel{pointer-events:none;position:fixed;right:${isMobile ? '56px' : '52px'};width:330px;max-height:82vh;background:rgba(18,18,22,.94);border:1px solid rgba(255,255,255,.08);border-radius:14px;backdrop-filter:blur(18px);box-shadow:0 8px 32px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateX(8px) scale(.97);transition:opacity .18s ease,transform .18s ease;user-select:none}
+.panel.open{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
 .hdr .tl{font-weight:700;font-size:14px;letter-spacing:.3px}
 .hdr .ver{font-size:10px;opacity:.45;margin-left:6px}
@@ -3994,21 +3994,39 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       }
 
       function togglePanel(force) {
-        const show = (force !== undefined) ? force : !panelOpen;
-        if (show) {
-          buildPanel(); reparentForFullscreen();
-          requestAnimationFrame(() => { positionPanel(); requestAnimationFrame(() => { panelEl?.classList.add('open'); requestAnimationFrame(() => positionPanel()); }); });
-        } else { panelEl?.classList.remove('open'); }
-        panelOpen = show; Store.set(P.APP_UI, show);
-      }
+  const show = (force !== undefined) ? force : !panelOpen;
+  if (show) {
+    buildPanel(); reparentForFullscreen();
+    if (panelHost) panelHost.style.pointerEvents = '';
+    requestAnimationFrame(() => { positionPanel(); requestAnimationFrame(() => { panelEl?.classList.add('open'); requestAnimationFrame(() => positionPanel()); }); });
+  } else {
+    panelEl?.classList.remove('open');
+    // ★ 트랜지션 완료 후 panelHost 자체도 이벤트 차단
+    if (panelHost) {
+      setTimeout(() => {
+        if (!panelOpen && panelHost) {
+          panelHost.style.pointerEvents = 'none';
+        }
+      }, 250); // transition duration(0.18s)보다 약간 긴 시간
+    }
+  }
+  panelOpen = show; Store.set(P.APP_UI, show);
+}
+
 
       function init() {
         buildQuickBar();
-        Store.sub('video.*', syncAll); Store.sub('audio.*', syncAll); Store.sub('playback.*', syncAll); Store.sub('app.*', syncAll);
+        Store.sub('video.*', syncAll);
+        Store.sub('audio.*', syncAll);
+        Store.sub('playback.*', syncAll);
+        Store.sub('app.*', syncAll);
         setRecurring(updateQuickBarVisibility, 1500);
         Bus.on('signal', updateQuickBarVisibility);
         onDoc('fullscreenchange', reparentForFullscreen);
         onDoc('webkitfullscreenchange', reparentForFullscreen);
+
+        // 최초 1회 즉시 실행 (초기 지연 렌더링 방지)
+        updateQuickBarVisibility();
       }
 
       function destroy() {
