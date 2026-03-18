@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v199.5.0-Hybrid)
+// @name         Video_Control (v200.0.0-Hybrid)
 // @namespace    https://github.com/
-// @version      199.5.0-Hybrid
-// @description  v199.5: autosence patch
+// @version      200.0.0-Hybrid
+// @description  v200.0: FeatureRegistry, Symbol isolation, EME DRM guard, CSS vars, SVG DOM icons, per-video AC, memory-leak hardening
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,18 +26,48 @@
 
   function VSC_MAIN() {
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com') || location.protocol === 'about:' || location.href === 'about:blank') return;
-    const VSC_BOOT_KEY = '__VSC_BOOT_LOCK__';
-    if (window[VSC_BOOT_KEY]) return;
-    try { Object.defineProperty(window, VSC_BOOT_KEY, { value: true, writable: false }); } catch (e) { window[VSC_BOOT_KEY] = true; }
 
-    window.__VSC_INTERNAL__ ||= {};
+    /* ── Symbol-based boot lock & namespace (v200: collision-proof) ── */
+    const VSC_SYM = Symbol.for('__VSC__');
+    const VSC_BOOT_SYM = Symbol.for('__VSC_BOOT_LOCK__');
+    const VSC_SPA_SYM = Symbol.for('__VSC_SPA_PATCHED__');
+    const VSC_APP_SYM = Symbol.for('__VSC_APP__');
+    const VSC_INTERNAL_SYM = Symbol.for('__VSC_INTERNAL__');
+
+    if (window[VSC_BOOT_SYM]) return;
+    try {
+      Object.defineProperty(window, VSC_BOOT_SYM, { value: true, writable: false, configurable: false, enumerable: false });
+    } catch (e) {
+      window[VSC_BOOT_SYM] = true;
+    }
+
+    if (!window[VSC_INTERNAL_SYM]) {
+      try {
+        Object.defineProperty(window, VSC_INTERNAL_SYM, { value: {}, writable: false, configurable: false, enumerable: false });
+      } catch (e) {
+        window[VSC_INTERNAL_SYM] = {};
+      }
+    }
+    const __internal = window[VSC_INTERNAL_SYM];
+
+    /* backward-compat shim (will be removed in future) */
+    if (!window.__VSC_INTERNAL__) {
+      try {
+        Object.defineProperty(window, '__VSC_INTERNAL__', { get() { return window[VSC_INTERNAL_SYM]; }, configurable: true, enumerable: false });
+      } catch (_) {
+        window.__VSC_INTERNAL__ = __internal;
+      }
+    }
+
     let __vscUserSignalRev = 0;
 
     function isEditableTarget(t) { return !!(t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)); }
 
+    /* ── Global AbortController ── */
     const __globalHooksAC = new AbortController();
     const __globalSig = __globalHooksAC.signal;
 
+    /* ── Timer management ── */
     const _activeTimers = new Set();
     const _activeIntervals = new Set();
     __globalSig.addEventListener('abort', () => {
@@ -75,6 +105,7 @@
     };
     const clearRecurring = (id) => { if (!id) return; clearInterval(id); _activeIntervals.delete(id); };
 
+    /* ── Signal combinators ── */
     const combineSignals = (...signals) => {
       const existing = signals.filter(Boolean);
       if (existing.length === 0) return undefined;
@@ -89,6 +120,7 @@
       return ac.signal;
     };
 
+    /* ── Event binding with auto-cleanup ── */
     function on(target, type, fn, opts) {
       if (!target?.addEventListener) return;
       const o = opts ? { ...opts } : {};
@@ -100,6 +132,7 @@
     const onDoc = (type, fn, opts) => on(document, type, fn, opts);
     const onAll = (el, events, fn, opts) => { for (const ev of events) on(el, ev, fn, opts); };
 
+    /* ── Interference blocker ── */
     const __blockedElements = new WeakSet();
     const BLOCK_EVENTS = Object.freeze(['pointerdown', 'pointerup', 'dblclick', 'contextmenu', 'click']);
     function blockInterference(el) {
@@ -122,19 +155,22 @@
       on(el, 'wheel', (e) => { if (e.altKey) return; e.stopPropagation(); }, { passive: true });
     }
 
+    /* ── Mobile detection ── */
     function detectMobile() {
       try { if (navigator.userAgentData && typeof navigator.userAgentData.mobile === 'boolean') return navigator.userAgentData.mobile; } catch (_) {}
       return /Mobi|Android|iPhone/i.test(navigator.userAgent);
     }
 
+    /* ── Core config ── */
     const CONFIG = Object.freeze({
       IS_MOBILE: detectMobile(),
       TOUCHED_MAX: 140,
-      VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
+      VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '199.5.0-Hybrid';
+    const VSC_VERSION = '200.0.0-Hybrid';
 
+    /* ── Storage keys (path-specific for YouTube etc.) ── */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
     const PATH_SPECIFIC_HOSTS = Object.freeze({ 'youtube.com': ['/shorts', '/watch'] });
     function getStorageKey() {
@@ -150,6 +186,7 @@
     }
     const STORAGE_KEY = getStorageKey();
 
+    /* ── Clamp & color temperature ── */
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
     function tempToRgbGain(temp) {
@@ -162,6 +199,7 @@
       return { rs: r / m, gs: g / m, bs: b / m };
     }
 
+    /* ── Defense & feature flags ── */
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
     const SHADOW_ROOT_LRU_MAX = 10;
@@ -173,23 +211,51 @@
       TARGET_HYSTERESIS_MARGIN: 1.2
     });
 
-    const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
-    const RATE_BLOCKED_PATHS = Object.freeze([{ host: 'amazon.com', pathPrefix: '/gp/video' }]);
+    /* ── DRM rate-control constants (v200: expanded host list, EME detection) ── */
+    const RATE_BLOCKED_HOSTS = Object.freeze([
+      'netflix.com', 'disneyplus.com', 'primevideo.com', 'hulu.com',
+      'max.com', 'peacocktv.com', 'paramountplus.com', 'crunchyroll.com',
+      'apple.com', 'discoveryplus.com', 'funimation.com', 'britbox.com',
+      'showtime.com', 'starz.com', 'epix.com',
+      'stan.com.au', 'binge.com.au', 'skygo.co.nz',
+      'now.com', 'hotstar.com',
+      'wavve.com', 'tving.com', 'coupangplay.com', 'watcha.com',
+      'serieson.naver.com',
+      'abema.tv', 'unext.jp', 'fod.fujitv.co.jp', 'paravi.jp', 'dmm.com',
+      'dazn.com', 'espnplus.com', 'fubo.tv'
+    ]);
+    const RATE_BLOCKED_PATHS = Object.freeze([
+      { host: 'amazon.com', pathPrefix: '/gp/video' },
+      { host: 'amazon.com', pathPrefix: '/Amazon-Video' },
+      { host: 'amazon.co.jp', pathPrefix: '/gp/video' },
+      { host: 'amazon.co.uk', pathPrefix: '/gp/video' },
+      { host: 'youtube.com', pathPrefix: '/paid' },
+      { host: 'naver.com', pathPrefix: '/serieson' },
+      { host: 'apple.com', pathPrefix: '/tv' }
+    ]);
 
-    /* ── Rate control constants (v199.4 fix) ── */
-    const RATE_MAX_RETRY      = 5;
-    const RATE_BACKOFF_BASE   = 16;
-    const RATE_BACKOFF_MAX    = 256;
-    const RATE_SESSION_MAX    = 30;
-    const RATE_SUPPRESS_MS    = 800;   // 300 → 800ms로 확장
+    const RATE_MAX_RETRY = 5;
+    const RATE_BACKOFF_BASE = 16;
+    const RATE_BACKOFF_MAX = 256;
+    const RATE_SESSION_MAX = 30;
+    const RATE_SUPPRESS_MS = 800;
 
     function isRateBlockedContext() {
       const h = location.hostname;
       if (RATE_BLOCKED_HOSTS.some(d => h === d || h.endsWith('.' + d))) return true;
       return RATE_BLOCKED_PATHS.some(rule => (h === rule.host || h.endsWith('.' + rule.host)) && location.pathname.startsWith(rule.pathPrefix));
     }
-    const __rateBlockedSite = isRateBlockedContext();
+    let __rateBlockedSite = isRateBlockedContext();
 
+    /* ── EME encrypted video tracking (v200) ── */
+    const __encryptedVideos = new WeakSet();
+    function isVideoEncrypted(video) {
+      try { if (video.mediaKeys) return true; } catch (_) {}
+      if (__encryptedVideos.has(video)) return true;
+      return false;
+    }
+
+    /* ── Logging ── */
     const LOG_LEVEL = CONFIG.DEBUG ? 4 : 1;
     const log = {
       error: (...args) => console.error('[VSC]', ...args),
@@ -198,7 +264,7 @@
       debug: LOG_LEVEL >= 4 ? ((...args) => console.debug('[VSC]', ...args)) : (() => {})
     };
 
-    /* ── Video State (v199.4 cleaned rateState) ── */
+    /* ── Video State (v200: per-video AC, EME hooks) ── */
     function createRateState() {
       return {
         orig: null, suppressSyncUntil: 0,
@@ -226,7 +292,7 @@
     function getVState(v) { let st = videoStateMap.get(v); if (!st) { st = createVideoState(); videoStateMap.set(v, st); } return st; }
     function getRateState(v) { return getVState(v).rateState; }
 
-    /* ── Shadow Band ── */
+    /* ── Shadow Band bitmask ── */
     const SHADOW_BAND = Object.freeze({ OUTER: 1, MID: 2, DEEP: 4 });
     const ShadowMask = Object.freeze({
       has(mask, bit) { return ((Number(mask) | 0) & bit) !== 0; },
@@ -236,18 +302,18 @@
     /* ── Presets ── */
     const PRESETS = Object.freeze({
       detail: {
-        none: { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'OFF' },
-        off:  { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'AUTO' },
-        S:    { sharpAdd: 12, sharp2Add: 2,  clarityAdd: 3,  label: '1단' },
-        M:    { sharpAdd: 15, sharp2Add: 8,  clarityAdd: 8,  label: '2단' },
-        L:    { sharpAdd: 16, sharp2Add: 18, clarityAdd: 14, label: '3단' },
-        XL:   { sharpAdd: 20, sharp2Add: 14, clarityAdd: 18, label: '4단' }
+        none: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
+        off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'AUTO' },
+        S: { sharpAdd: 12, sharp2Add: 2, clarityAdd: 3, label: '1단' },
+        M: { sharpAdd: 15, sharp2Add: 8, clarityAdd: 8, label: '2단' },
+        L: { sharpAdd: 16, sharp2Add: 18, clarityAdd: 14, label: '3단' },
+        XL: { sharpAdd: 20, sharp2Add: 14, clarityAdd: 18, label: '4단' }
       },
       grade: {
         off: { gammaF: 1.00, brightAdd: 0, label: 'OFF' },
-        DS:  { gammaF: 1.04, brightAdd: 3.0, label: '복원1' },
-        DM:  { gammaF: 1.08, brightAdd: 6.0, label: '복원2' },
-        DL:  { gammaF: 1.16, brightAdd: 9.5, label: '복원3' }
+        DS: { gammaF: 1.04, brightAdd: 3.0, label: '복원1' },
+        DM: { gammaF: 1.08, brightAdd: 6.0, label: '복원2' },
+        DL: { gammaF: 1.16, brightAdd: 9.5, label: '복원3' }
       }
     });
     const getPresetLabel = (group, key) => PRESETS[group]?.[key]?.label || key;
@@ -290,19 +356,20 @@
     ];
     const ALL_SCHEMAS = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
 
-    /* ── attachShadow patch ── */
+    /* ── attachShadow patch (v200: Symbol-based marking) ── */
     if (FEATURE_FLAGS.trackShadowRoots) {
-      window.__VSC_INTERNAL__._onShadow = null;
+      __internal._onShadow = null;
       const _origAttach = Element.prototype.attachShadow;
-      if (typeof _origAttach === 'function' && !_origAttach.__vsc_patched) {
-        const patchedAttach = function(init) {
+      if (typeof _origAttach === 'function' && !_origAttach[VSC_SYM]) {
+        const patchedAttach = function (init) {
           const sr = _origAttach.call(this, init);
-          if (window.__VSC_INTERNAL__?._onShadow && !__globalSig.aborted) {
-            if (init && init.mode === 'open') queueMicrotask(() => window.__VSC_INTERNAL__._onShadow(this, sr));
+          const internalRef = window[VSC_INTERNAL_SYM];
+          if (internalRef?._onShadow && !__globalSig.aborted) {
+            if (init && init.mode === 'open') queueMicrotask(() => internalRef._onShadow(this, sr));
           }
           return sr;
         };
-        patchedAttach.__vsc_patched = true;
+        patchedAttach[VSC_SYM] = true;
         patchedAttach.__vsc_original = _origAttach;
         Element.prototype.attachShadow = patchedAttach;
         __globalSig.addEventListener('abort', () => {
@@ -311,7 +378,7 @@
       }
     }
 
-    /* ── TOUCHED sets & rect caching ── */
+    /* ── TOUCHED sets & eviction ── */
     const TOUCHED = { videos: new Set(), rateVideos: new Set() };
     function touchedAddLimited(set, el, onEvict) {
       if (!el) return;
@@ -330,6 +397,7 @@
       for (const v of toDrop) { set.delete(v); try { onEvict?.(v); } catch (_) {} }
     }
 
+    /* ── Rect caching & viewport ── */
     let __vscRectEpoch = 0, __vscRectEpochQueued = false;
     function bumpRectEpoch() {
       if (__vscRectEpochQueued) return;
@@ -391,13 +459,19 @@
       clear() { this._head = 0; this._size = 0; }
     }
 
-    /* ── SPA URL detector ── */
+    /* ── SPA URL detector (v200: Symbol-based guard) ── */
     function initSpaUrlDetector(onChanged) {
-      if (window.__VSC_SPA_PATCHED__) return;
-      window.__VSC_SPA_PATCHED__ = true;
+      if (window[VSC_SPA_SYM]) return;
+      window[VSC_SPA_SYM] = true;
       let lastHref = location.href;
       const origHistory = {};
-      const emitIfChanged = () => { const next = location.href; if (next === lastHref) return; lastHref = next; onChanged(); };
+      const emitIfChanged = () => {
+        const next = location.href;
+        if (next === lastHref) return;
+        lastHref = next;
+        __rateBlockedSite = isRateBlockedContext();
+        onChanged();
+      };
       if (typeof navigation !== 'undefined' && navigation.addEventListener) {
         try {
           navigation.addEventListener('navigatesuccess', emitIfChanged, { signal: __globalSig });
@@ -409,9 +483,9 @@
       const wrap = (name) => {
         const orig = history[name];
         if (typeof orig !== 'function') return;
-        if (orig.__vsc_patched) return;
+        if (orig[VSC_SYM]) return;
         origHistory[name] = orig;
-        window.__VSC_INTERNAL__[`_orig_${name}`] = orig;
+        __internal[`_orig_${name}`] = orig;
         let patched;
         try {
           patched = new Proxy(orig, {
@@ -421,7 +495,7 @@
               return ret;
             }
           });
-          patched.__vsc_patched = true;
+          patched[VSC_SYM] = true;
           patched.__vsc_original = orig;
         } catch (_) {
           patched = function (...args) {
@@ -429,22 +503,22 @@
             if (!__globalSig.aborted) queueMicrotask(emitIfChanged);
             return ret;
           };
-          patched.__vsc_patched = true;
+          patched[VSC_SYM] = true;
           patched.__vsc_original = orig;
         }
         history[name] = patched;
       };
       wrap('pushState'); wrap('replaceState');
       onWin('popstate', emitIfChanged, { passive: true });
-      window.__VSC_INTERNAL__._spaOrigHistory = origHistory;
+      __internal._spaOrigHistory = origHistory;
       __globalSig.addEventListener('abort', () => {
         for (const name of Object.keys(origHistory)) {
-          try { const current = history[name]; if (current?.__vsc_patched && current.__vsc_original === origHistory[name]) history[name] = origHistory[name]; } catch (_) {}
+          try { const current = history[name]; if (current?.[VSC_SYM] && current.__vsc_original === origHistory[name]) history[name] = origHistory[name]; } catch (_) {}
         }
       }, { once: true });
     }
 
-    /* ── Iframe injection ── */
+    /* ── Iframe injection (v200: Symbol-based boot lock check) ── */
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
     const __injectedIframes = new WeakSet();
     const __iframeLoadHooked = new WeakSet();
@@ -462,7 +536,7 @@
             const win = ifr.contentWindow;
             const doc = ifr.contentDocument || win?.document;
             if (!win || !doc) return;
-            if (win.__VSC_BOOT_LOCK__) { __injectedIframes.add(ifr); return; }
+            if (win[Symbol.for('__VSC_BOOT_LOCK__')]) { __injectedIframes.add(ifr); return; }
             const host = doc.head || doc.documentElement;
             if (!host) return;
             const s = doc.createElement('script');
@@ -484,7 +558,7 @@
           }, { passive: true, signal: __globalSig });
         }
       };
-      document.querySelectorAll("iframe").forEach(inject);
+      document.querySelectorAll('iframe').forEach(inject);
       const mo = new MutationObserver((muts) => {
         if (__globalSig.aborted) { mo.disconnect(); return; }
         for (const m of muts) {
@@ -621,17 +695,17 @@
             if (wrap && currentFs === wrap) continue;
             restoreFromFsWrapper(v);
           }
-          try { window.__VSC_INTERNAL__?.ApplyReq?.hard(); } catch (_) {}
+          try { __internal.ApplyReq?.hard(); } catch (_) {}
         });
       }
-      if (window.__VSC_UI_Ensure) requestAnimationFrame(() => { try { window.__VSC_UI_Ensure(); } catch (_) {} });
+      if (__internal._uiEnsure) requestAnimationFrame(() => { try { __internal._uiEnsure(); } catch (_) {} });
     }
     onDoc('fullscreenchange', onFsChange);
     onDoc('webkitfullscreenchange', onFsChange);
 
     /* ── PiP state ── */
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
-    function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
+    function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ''; }
     function getActivePiPVideo() {
       if (document.pictureInPictureElement instanceof HTMLVideoElement) return document.pictureInPictureElement;
       if (__activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed && __activeDocumentPiPVideo?.isConnected) return __activeDocumentPiPVideo;
@@ -660,11 +734,92 @@
       }
     }, 2000);
 
-    // ═══ END OF PART 1 ═══
-    // PART 2 continues with: createTargeting, createEventBus, createUtils, createScheduler, createLocalStore, normalizeBySchema
-    // ═══ PART 2 START — continues directly from PART 1's PiP zombie guard ═══
+    /* ── FeatureRegistry (v200: modular feature system) ── */
+    function createFeatureRegistry(globalSig) {
+      const features = new Map();
+      const initOrder = [];
+      const STATUS = Object.freeze({ PENDING: 0, ACTIVE: 1, DESTROYED: 2, ERROR: 3 });
 
-    /* ── Targeting (v199.4: MIN_AREA 제한 완화) ── */
+      function register(name, factory, deps = []) {
+        if (features.has(name)) {
+          log.warn(`[FeatureRegistry] duplicate registration ignored: ${name}`);
+          return;
+        }
+        features.set(name, { factory, deps, instance: null, ac: null, status: STATUS.PENDING });
+      }
+
+      function resolve(name) {
+        const entry = features.get(name);
+        if (!entry) throw new Error(`[FeatureRegistry] unknown feature: ${name}`);
+        if (entry.status === STATUS.ACTIVE) return entry.instance;
+        if (entry.status === STATUS.DESTROYED) throw new Error(`[FeatureRegistry] already destroyed: ${name}`);
+        const resolvedDeps = {};
+        for (const dep of entry.deps) {
+          if (dep === name) throw new Error(`[FeatureRegistry] self-dependency: ${name}`);
+          resolvedDeps[dep] = resolve(dep);
+        }
+        const ac = new AbortController();
+        const moduleSignal = combineSignals(globalSig, ac.signal);
+        try {
+          entry.instance = entry.factory(resolvedDeps, moduleSignal);
+          entry.ac = ac;
+          entry.status = STATUS.ACTIVE;
+          initOrder.push(name);
+          log.debug(`[FeatureRegistry] activated: ${name}`);
+          return entry.instance;
+        } catch (e) {
+          entry.status = STATUS.ERROR;
+          ac.abort();
+          log.error(`[FeatureRegistry] init failed: ${name}`, e);
+          throw e;
+        }
+      }
+
+      function destroy(name) {
+        const entry = features.get(name);
+        if (!entry || entry.status !== STATUS.ACTIVE) return;
+        entry.status = STATUS.DESTROYED;
+        if (entry.ac) { entry.ac.abort(); entry.ac = null; }
+        if (typeof entry.instance?.destroy === 'function') {
+          try { entry.instance.destroy(); } catch (e) { log.warn(`[FeatureRegistry] destroy error: ${name}`, e); }
+        }
+        entry.instance = null;
+        log.debug(`[FeatureRegistry] destroyed: ${name}`);
+      }
+
+      function destroyAll() {
+        for (let i = initOrder.length - 1; i >= 0; i--) {
+          destroy(initOrder[i]);
+        }
+        initOrder.length = 0;
+      }
+
+      function get(name) {
+        return features.get(name)?.instance ?? null;
+      }
+
+      function getStatus(name) {
+        return features.get(name)?.status ?? null;
+      }
+
+      function listActive() {
+        const result = [];
+        for (const [name, entry] of features) {
+          if (entry.status === STATUS.ACTIVE) result.push(name);
+        }
+        return result;
+      }
+
+      globalSig.addEventListener('abort', destroyAll, { once: true });
+
+      return Object.freeze({ register, resolve, destroy, destroyAll, get, getStatus, listActive, STATUS });
+    }
+
+    // ═══ END OF PART 1 (v200.0.0-Hybrid) ═══
+    // PART 2 continues with: createTargeting, createEventBus, createUtils, createScheduler, createLocalStore, normalizeBySchema, createRegistry
+    // ═══ PART 2 START (v200.0.0-Hybrid) — continues directly from PART 1's createFeatureRegistry ═══
+
+    /* ── Targeting (v200: MIN_AREA 완화, unchanged logic) ── */
     function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       const SCORE = Object.freeze({
@@ -680,7 +835,6 @@
           if (!v || v.readyState < 2) return;
           const r = getRectCached(v, now, 350); const area = r.width * r.height;
           const pip = isPiPActiveVideo(v);
-          // [수정점] 크기 제한을 없애서 어떤 작은 비디오라도 타겟팅 가능하게 함
           if (area < 100 && !pip) return;
           const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           let s = 0;
@@ -740,16 +894,17 @@
       });
     }
 
-    /* ── Utils (v199.4: deepClone simplified, SVG_TAGS minimized) ── */
+    /* ── Utils (v200: SVG_TAGS unchanged, deepClone simplified) ── */
     function createUtils() {
       return {
         clamp: VSC_CLAMP,
         h: (tag, props = {}, ...children) => {
           const SVG_NS = 'http://www.w3.org/2000/svg';
           const SVG_TAGS = new Set([
-            'svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA',
-            'feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode',
-            'feComposite','feBlend','g','path','circle','rect','line','text'
+            'svg', 'defs', 'filter', 'feComponentTransfer', 'feFuncR', 'feFuncG', 'feFuncB', 'feFuncA',
+            'feConvolveMatrix', 'feColorMatrix', 'feGaussianBlur', 'feMerge', 'feMergeNode',
+            'feComposite', 'feBlend', 'g', 'path', 'circle', 'rect', 'line', 'text',
+            'polyline'
           ]);
           const isSvgEl = props.ns === 'svg' || SVG_TAGS.has(tag);
           const el = isSvgEl ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
@@ -906,10 +1061,7 @@
       return changed;
     }
 
-    // ═══ END OF PART 2 ═══
-    // ═══ PART 3 START (v199.5.0-Hybrid) — continues directly from PART 2's normalizeBySchema ═══
-
-    /* ── Registry (v199.5: patchFullscreenRequest 단일 지점, WorkQ background priority) ── */
+    /* ── Registry (v200: ShadowRoot disconnect detection, WorkQ background priority) ── */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -1048,9 +1200,19 @@
         return false;
       };
 
+      /* v200: ShadowRoot disconnect detection via periodic check */
       const connectObserver = (root) => {
         if (!root) return;
         const mo = new MutationObserver((muts) => {
+          if (__globalSig.aborted) { mo.disconnect(); observers.delete(mo); return; }
+          if (root !== document && root !== document.body && root !== document.documentElement) {
+            const host = root.host || root;
+            if (host && typeof host.isConnected === 'boolean' && !host.isConnected) {
+              mo.disconnect();
+              observers.delete(mo);
+              return;
+            }
+          }
           let touchedVideoTree = false;
           for (const m of muts) {
             if (m.addedNodes && m.addedNodes.length) {
@@ -1075,6 +1237,19 @@
         });
         mo.observe(root, { childList: true, subtree: true });
         observers.add(mo);
+
+        /* v200: periodic disconnect check for ShadowRoot hosts */
+        if (root instanceof ShadowRoot && root.host) {
+          const hostEl = root.host;
+          const checkDisconnect = setRecurring(() => {
+            if (!hostEl.isConnected) {
+              mo.disconnect();
+              observers.delete(mo);
+              clearRecurring(checkDisconnect);
+            }
+          }, 5000, { maxErrors: 10 });
+        }
+
         WorkQ.enqueue(root);
       };
 
@@ -1090,7 +1265,7 @@
       };
 
       if (FEATURE_FLAGS.trackShadowRoots) {
-        window.__VSC_INTERNAL__._onShadow = (host, sr) => {
+        __internal._onShadow = (host, sr) => {
           try {
             if (!sr || !host || observedShadowHosts.has(host)) return;
             observedShadowHosts.add(host);
@@ -1125,6 +1300,7 @@
               try { if (wrap?.parentNode && !wrap.querySelector('video')) wrap.remove(); } catch (_) {}
               fsWraps.delete(el);
             }
+            /* v200: _ac abort now actually disconnects per-video listeners */
             const vst = videoStateMap.get(el);
             if (vst?._ac) { vst._ac.abort(); vst._ac = null; vst.bound = false; }
             if (io) { try { io.unobserve(el); } catch (_) {} }
@@ -1147,7 +1323,7 @@
       };
     }
 
-    /* ── Audio Engine (v199.5: unchanged from v199.4) ── */
+    /* ── Audio Engine (v200: unchanged from v199.5 except Symbol refs) ── */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray;
       let target = null, currentSrc = null;
@@ -1524,20 +1700,27 @@
       return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
+    // ═══ END OF PART 2 (v200.0.0-Hybrid) ═══
+    // PART 3 continues with: createAutoSceneManager (full), curveToApproxParams
+    // ═══ PART 3 START (v200.0.0-Hybrid) — continues directly from PART 2's createAudio return ═══
+
     /* ══════════════════════════════════════════════════════════════════
-       Auto Scene Manager (v199.5.0-Hybrid)
+       Auto Scene Manager (v200.0.0-Hybrid)
        ──────────────────────────────────────────────────────────────
-       Patches applied:
+       Patches carried from v199.5:
          #1  captureSceneFrame — VideoFrame timestamp fix
          #3  loop() — static scene fallback (framesSinceUpdate counter)
          #4  detectTransition — motionSAD delta comparison
          #5  interpolateCurves — double-buffer (no per-frame alloc)
-         #6  flickerCount decay 0.3→0.5, max 8→5
-         #7  classifySceneFuzzy — LOW_KEY boundary 0.35→0.30
+         #6  flickerCount decay 0.5, max 5
+         #7  classifySceneFuzzy — LOW_KEY boundary 0.30
          #8  buildAdaptiveToneCurve — dead-code non-zonal path removed
          #10 computeFullAnalysis — skinCount && short-circuit
          #11 adaptiveFps — fpsHist → CircularBuffer
-         #13 AUTO.motionThresh 0.005→0.012
+         #13 AUTO.motionThresh 0.012
+       v200 additions:
+         - Symbol-based internal refs
+         - showOSD via managed timer
        ══════════════════════════════════════════════════════════════════ */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
@@ -1549,10 +1732,10 @@
       const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
 
       const ST = Object.freeze({ NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3, LOW_SAT: 4, SKIN: 5, BACKLIT: 6 });
-      const ST_NAMES = ['NORMAL','LOW_KEY','HIGH_KEY','HI_CONT','LOW_SAT','SKIN','BACKLIT'];
+      const ST_NAMES = ['NORMAL', 'LOW_KEY', 'HIGH_KEY', 'HI_CONT', 'LOW_SAT', 'SKIN', 'BACKLIT'];
       const ST_COUNT = ST_NAMES.length;
 
-      /* ── CLAHE shared buffers (safe: sequential single-thread access) ── */
+      /* ── CLAHE shared buffers ── */
       const _claheClipped = new Float32Array(HIST_BINS);
       const _claheCdf = new Float32Array(HIST_BINS);
       const _claheZoneCDFPool = new Array(ZONE_COUNT);
@@ -1606,7 +1789,6 @@
         return curve.slice();
       }
 
-      /* v199.5: dead-code non-zonal path removed (#8) — zoneHists/zoneCounts always provided */
       function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
         const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35 } = params;
         const equalized = buildZonalCLAHE(zoneHists, zoneCounts, clipLimit);
@@ -1659,7 +1841,6 @@
       const __fuzzyEma = new Float64Array(ST_COUNT);
       let __fuzzyInited = false;
 
-      /* v199.5: classifySceneFuzzy — LOW_KEY boundary 0.35→0.30 (#7) */
       function classifySceneFuzzy(stats, zoneStats) {
         const scores = __fuzzyScores; scores.fill(0);
         const br = stats.bright, ct = stats.contrast, ch = stats.chroma, sk = stats.skinRatio;
@@ -1699,10 +1880,9 @@
       let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 };
       let prevSatMul = 1.0;
 
-      /* v199.5: interpolateCurves — double buffer, zero per-frame allocation (#5) */
       const _interpBufA = new Float32Array(TONE_STEPS);
       const _interpBufB = new Float32Array(TONE_STEPS);
-      let _interpActive = 0; // 0 = A, 1 = B
+      let _interpActive = 0;
 
       function interpolateCurves(prev, next, alpha) {
         if (!prev) {
@@ -1725,7 +1905,6 @@
       const cutScores = new CircularBuffer(CUT_HIST_LEN);
       const gradualScores = new CircularBuffer(10);
 
-      /* v199.5: detectTransition — use motionSAD delta (#4) */
       function detectTransition(stats, prev) {
         if (!prev) return { isCut: false, isFade: false, score: 0 };
         const motionDelta = Math.abs((stats.motionSAD || 0) - (prev.motionSAD || 0));
@@ -1745,7 +1924,6 @@
         return { isCut, isFade, score };
       }
 
-      /* v199.5: flickerCount max 8→5, decay 0.3→0.5 (#6) */
       let flickerCount = 0, lastCurveDir = 0;
       const FLICKER_MAX = 5;
       const FLICKER_DECAY = 0.5;
@@ -1780,7 +1958,6 @@
       const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
       const _pool_zoneBrightCount = new Uint32Array(ZONE_COUNT);
 
-      /* v199.5: computeFullAnalysis — skinCount && short-circuit (#10) */
       function computeFullAnalysis(data, sw, sh) {
         const step = 2;
         let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
@@ -1832,7 +2009,6 @@
               sumEdge += diff < 0 ? -diff : diff;
             }
 
-            /* v199.5: skinCount — && short-circuit for readability and early exit (#10) */
             if ((r - g) > 12 && r >= 80 && g >= 35 && b >= 20 && r > g && r > b) skinCount++;
 
             const zi = zyBase + zxLut[x];
@@ -1891,16 +2067,15 @@
         running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
         cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
         lastStats: null, statsEma: null, statsAlpha: 0.08,
-        motionEma: 0, motionAlpha: 0.20, motionThresh: 0.012, /* v199.5: 0.005→0.012 (#13) */
+        motionEma: 0, motionAlpha: 0.20, motionThresh: 0.012,
         motionFrames: 0,
         drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0,
         boostMs: 700,
         minFps: 0.5, maxFps: CONFIG.IS_MOBILE ? 4 : 8, curFps: 2,
         _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL, _lastMean: 0,
-        _framesSinceUpdate: 0 /* v199.5: static scene fallback counter (#3) */
+        _framesSinceUpdate: 0
       };
 
-      /* v199.5: adaptiveFps — fpsHist CircularBuffer (#11) */
       const _fpsHistBuf = new CircularBuffer(6);
 
       let drmRetryCount = 0;
@@ -1964,7 +2139,6 @@
         __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
       }
 
-      /* v199.5: adaptiveFps — uses CircularBuffer (#11) */
       function adaptiveFps(motionSAD, isCut, isFade) {
         _fpsHistBuf.push(motionSAD);
         const avg = _fpsHistBuf.length > 0 ? _fpsHistBuf.reduce((a, b) => a + b, 0) / _fpsHistBuf.length : 0;
@@ -1974,7 +2148,6 @@
         return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
       }
 
-      /* v199.5: captureSceneFrame — VideoFrame timestamp fix (#1) */
       async function captureSceneFrame(v) {
         if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
         if (typeof createImageBitmap === 'function') {
@@ -1997,7 +2170,6 @@
         catch (_) { return null; }
       }
 
-      /* v199.5: main loop — static scene fallback via _framesSinceUpdate (#3) */
       const STATIC_SCENE_FORCE_INTERVAL = 30;
 
       async function loop() {
@@ -2009,7 +2181,7 @@
 
         const now = performance.now();
         const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
-        const v = window.__VSC_APP__?.getActiveVideo?.();
+        const v = window[VSC_APP_SYM]?.getActiveVideo?.();
         if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null }; prevToneCurve = null; scheduleNext(v, 500); return; }
         if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; }
         if (document.hidden) { scheduleNext(v, 2000); return; }
@@ -2032,7 +2204,7 @@
           else {
             const a = transition.isCut ? 0.40 : AUTO.statsAlpha;
             const e = AUTO.statsEma;
-            for (const k of ['bright','contrast','chroma','edge','skinRatio','centerBright','edgeAvgBright']) e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a;
+            for (const k of ['bright', 'contrast', 'chroma', 'edge', 'skinRatio', 'centerBright', 'edgeAvgBright']) e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a;
           }
 
           const newScene = classifySceneFuzzy(AUTO.statsEma, stats.zoneStats);
@@ -2041,7 +2213,6 @@
           if (AUTO._sceneStable >= 4) AUTO._sceneTypeEma = newScene;
           if (transition.isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; flickerCount = Math.max(0, flickerCount - 2); }
 
-          /* v199.5: allowUpdate — add static scene fallback (#3) */
           AUTO._framesSinceUpdate++;
           const staticForceTrigger = AUTO._framesSinceUpdate >= STATIC_SCENE_FORCE_INTERVAL;
           const allowUpdate = transition.isCut || transition.isFade || AUTO.motionFrames >= 4 || staticForceTrigger;
@@ -2058,19 +2229,16 @@
             const rawSat = toneParams.satTarget;
             const alpha = getTemporalAlpha(transition.isCut, transition.isFade);
 
-            /* v199.5: flickerCount — decay 0.5, max 5 (#6) */
             const newMid = rawCurve[128], oldMid = prevToneCurve ? prevToneCurve[128] : 0.5;
             const dir = newMid > oldMid ? 1 : (newMid < oldMid ? -1 : 0);
             if (dir !== 0 && dir !== lastCurveDir && lastCurveDir !== 0) flickerCount = Math.min(flickerCount + 1, FLICKER_MAX);
             else if (dir !== 0) flickerCount = Math.max(0, flickerCount - FLICKER_DECAY);
             lastCurveDir = dir || lastCurveDir;
 
-            /* v199.5: interpolateCurves uses double buffer (#5) */
             const smoothedCurve = interpolateCurves(prevToneCurve, rawCurve, alpha);
             const smoothedGains = interpolateGains(prevChannelGains, rawGains, alpha);
             const smoothedSat = prevSatMul + (rawSat - prevSatMul) * alpha;
 
-            /* prevToneCurve must own its data (smoothedCurve is a shared buffer) */
             if (!prevToneCurve) prevToneCurve = new Float32Array(TONE_STEPS);
             prevToneCurve.set(smoothedCurve);
             prevChannelGains = smoothedGains;
@@ -2138,14 +2306,7 @@
       };
     }
 
-    // ═══ END OF PART 3 (v199.5.0-Hybrid) ═══
-    // PART 4 continues with: curveToApproxParams, createVideoMaximizer, createFiltersVideoOnly, etc.
-    // ═══ PART 4 START (v199.5.0-Hybrid) — continues directly from PART 3's createAutoSceneManager return ═══
-    // Patches applied:
-    //   #2  composeVideoParamsInto — fix double correction when autoToneCurve + shadow/bright active
-    //   #9  curveToApproxParams — retained (needed for CSS-only path), NaN guard kept
-
-    /* ── curveToApproxParams (v199.5: NaN guard, unchanged logic) ── */
+    /* ── curveToApproxParams (v200: NaN guard, unchanged logic) ── */
     function curveToApproxParams(curve, satMul, channelGains) {
       const clamp = VSC_CLAMP;
       const N = 32;
@@ -2201,7 +2362,16 @@
       };
     }
 
-    /* ── Video Maximizer ── */
+    // ═══ END OF PART 3 (v200.0.0-Hybrid) ═══
+    // PART 4 continues with: createVideoMaximizer, createFiltersVideoOnly, Shadow Band table,
+    //   Bright Step table, computeResolutionSharpMul, composeVideoParamsInto, createVideoParamsMemo,
+    //   applyShadowStyle, createDisposerBag, bindWindowDrag, SVG Icon Builders (DOM API),
+    //   CSS_VARS, OSD (accessible), PiP helpers, captureVideoFrame
+    // ═══ PART 4 START (v200.0.0-Hybrid) — continues directly from PART 3's curveToApproxParams ═══
+
+    /* ══════════════════════════════════════════════════════════════════
+       createVideoMaximizer
+       ══════════════════════════════════════════════════════════════════ */
     function createVideoMaximizer(Store, ApplyReq) {
       const MAX_CLASS = 'vsc-vmax-max';
       const HIDE_CLASS = 'vsc-vmax-hide';
@@ -2224,7 +2394,7 @@
       function isInIframe() { try { return window !== window.top; } catch (_) { return true; } }
 
       function pickBestVideo() {
-        const explicit = window.__VSC_INTERNAL__?._activeVideo;
+        const explicit = window[VSC_INTERNAL_SYM]?._activeVideo;
         if (explicit?.isConnected && explicit.readyState >= 2 && !explicit.ended) return explicit;
         let best = null, bestScore = -1;
         const allVideos = document.querySelectorAll('video');
@@ -2432,9 +2602,7 @@
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       SVG Filter Engine (v199.5.0-Hybrid)
-       ──────────────────────────────────────────────────────────────
-       Unchanged from v199.4 except version annotation.
+       SVG Filter Engine (v200: Symbol refs only, logic unchanged)
        ══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -2456,8 +2624,8 @@
       function applyToeToAutoCurve(autoCurve, toe, mid, shoulder) {
         const len = autoCurve.length;
         const out = new Float32Array(len);
-        const toeF    = clamp(toe / 100, -0.15, 0.15);
-        const midF    = clamp(mid, -0.10, 0.10);
+        const toeF = clamp(toe / 100, -0.15, 0.15);
+        const midF = clamp(mid, -0.10, 0.10);
         const shouldF = clamp(shoulder / 100, -0.15, 0.15);
         let prev = 0;
         for (let i = 0; i < len; i++) {
@@ -2524,8 +2692,8 @@
         const intercept = 0.5 * (1 - contrast) + brightOffset;
         const gammaExp = Number(gamma);
 
-        const toeF    = clamp(toe / 100, -0.15, 0.15);
-        const midF    = clamp(mid, -0.10, 0.10);
+        const toeF = clamp(toe / 100, -0.15, 0.15);
+        const midF = clamp(mid, -0.10, 0.10);
         const shouldF = clamp(shoulder / 100, -0.15, 0.15);
 
         for (let i = 0; i < steps; i++) {
@@ -2722,7 +2890,7 @@
           if (!st._transitionCleared) { el.style.removeProperty('transition'); st._transitionCleared = true; }
           if (st.lastCssFilterStr !== filterStr) { el.style.setProperty('filter', filterStr, 'important'); el.style.setProperty('-webkit-filter', filterStr, 'important'); }
           if (!st.applied) {
-            const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
+            const willChangeVal = window[VSC_INTERNAL_SYM]?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
             el.style.setProperty('will-change', willChangeVal, 'important');
             el.style.setProperty('contain', 'content', 'important');
             el.style.setProperty('background-color', '#000', 'important');
@@ -2740,7 +2908,7 @@
       };
     }
 
-    /* ── Shadow Band table (v199.5: unchanged) ── */
+    /* ── Shadow Band table ── */
     const _SHADOW_BANDS = Object.freeze([
       { toe: -3.0, mid: -0.010, shoulder: 1.5, bright: -0.4, gamma: 0.990, contrast: 1.015, sat: 1.005 },
       { toe: -6.0, mid: -0.015, shoulder: 2.5, bright: -0.6, gamma: 0.982, contrast: 1.020, sat: 1.008 },
@@ -2766,7 +2934,7 @@
       return out;
     }
 
-    /* ── Bright Step table (v199.5: unchanged) ── */
+    /* ── Bright Step table ── */
     const _BRIGHT_STEP = [
       null,
       { brightAdd: 1.5, gammaMul: 1.018, contrastMul: 0.995 },
@@ -2784,7 +2952,7 @@
       return out;
     }
 
-    /* ── Dynamic Sharpness Multiplier (v199.5: unchanged) ── */
+    /* ── Dynamic Sharpness Multiplier ── */
     function computeResolutionSharpMul(video) {
       const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
       const dW = video.clientWidth || video.offsetWidth || 0;
@@ -2824,15 +2992,10 @@
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       composeVideoParamsInto (v199.5.0-Hybrid)
-       ──────────────────────────────────────────────────────────────
-       Patch #2: When _autoToneCurve is active, shadow band / bright step
-       brightness and contrast are folded into the tone curve via
-       toe/mid/shoulder instead of being applied as separate CSS values.
-       This prevents the SVG toneCurve + CSS brightness double-correction.
+       composeVideoParamsInto (v200: fix double correction)
        ══════════════════════════════════════════════════════════════════ */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0) {
-      const gPreset = PRESETS.grade[vUser.presetB]  || PRESETS.grade.off;
+      const gPreset = PRESETS.grade[vUser.presetB] || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
 
       out.gain = 1.0;
@@ -2856,22 +3019,15 @@
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
 
-      /* v199.5 patch #2: when autoToneCurve is active, attenuate manual grade
-         AND neutralize bright/contrast from CSS to prevent double-correction */
       if (autoMods._toneCurve) {
         if (vUser.presetB && vUser.presetB !== 'off') {
           const ATTENUATION = 0.45;
           out.bright *= ATTENUATION;
           out.gamma = 1.0 + (out.gamma - 1.0) * ATTENUATION;
         }
-
         out.satF *= autoMods.sat;
         out._autoToneCurve = autoMods._toneCurve.slice();
         out._autoChannelGains = autoMods._channelGains || null;
-
-        /* CSS brightness/contrast are neutralized (=1.0) when SVG toneCurve handles them.
-           The shadow band / bright step effects remain as toe/mid/shoulder/gamma
-           which are applied inside the SVG feComponentTransfer via applyToeToAutoCurve. */
         out._cssBr = 1.0;
         out._cssCt = 1.0;
         out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
@@ -2879,7 +3035,6 @@
         out.gain *= autoMods.br;
         out.contrast *= autoMods.ct;
         out.satF *= autoMods.sat;
-
         out._cssBr = VSC_CLAMP(1.0 + out.bright * 0.008, 0.5, 2.0);
         out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0);
         out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
@@ -2904,17 +3059,17 @@
       Math.abs((v._cssSat ?? 1) - 1) < 0.001
     );
 
-    /* ── Video Params Memoization (v199.5: unchanged) ── */
+    /* ── Video Params Memoization ── */
     function createVideoParamsMemo(Store, P, Utils) {
       const cache = new Map();
       const MAX_CACHE_SIZE = 16;
-      const sigVideo = (vf) => [ vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3), (vf.shadowBandMask | 0), (vf.brightStepLevel | 0) ].join('|');
+      const sigVideo = (vf) => [vf.presetS, vf.presetB, Number(vf.presetMix).toFixed(3), (vf.shadowBandMask | 0), (vf.brightStepLevel | 0)].join('|');
 
       return {
         get(vfUser, activeTarget) {
           const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
           const ht = activeTarget ? (activeTarget.videoHeight || 0) : 0;
-          const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
+          const autoMods = window[VSC_INTERNAL_SYM]?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
           const { mul, autoBase } = activeTarget ? computeResolutionSharpMul(activeTarget) : { mul: 0.0, autoBase: 0.0 };
           const finalMul = (mul === 0.0 && vfUser.presetS !== 'off') ? 0.50 : mul;
           const key = `${sigVideo(vfUser)}|${w}x${ht}|auto:${autoMods.br.toFixed(3)}|smul:${finalMul.toFixed(3)}|ab:${autoBase.toFixed(3)}`;
@@ -2942,7 +3097,7 @@
       };
     }
 
-    /* ── Shadow style helpers (v199.5: unchanged) ── */
+    /* ── Shadow style helpers ── */
     const __styleCacheMaxSize = 16;
     const __styleCache = new Map();
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
@@ -2987,68 +3142,183 @@
       return () => { if (!ended) { ended = true; try { ac.abort(); } catch (_) {} } };
     }
 
-    /* ── Icons (v199.5: unchanged) ── */
-    const VSC_ICONS = Object.freeze({
-      gear: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
-      pip: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>`,
-      maximize: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>`,
-      zoom: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>`,
-      camera: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>`
+    /* ══════════════════════════════════════════════════════════════════
+       SVG Icon Builders (v200: DOM API — no innerHTML)
+       ══════════════════════════════════════════════════════════════════ */
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+
+    function createSvgElement(tag, attrs = {}, ...children) {
+      const el = document.createElementNS(SVG_NS, tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (v != null && v !== false) el.setAttribute(k, String(v));
+      }
+      for (const child of children.flat()) {
+        if (child != null) el.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+      }
+      return el;
+    }
+
+    const _s = createSvgElement;
+
+    const VSC_ICON_BUILDERS = Object.freeze({
+      gear(size = 20) {
+        return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+          _s('circle', { cx: '12', cy: '12', r: '3' }),
+          _s('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })
+        );
+      },
+      pip(size = 14) {
+        return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' },
+          _s('rect', { x: '2', y: '3', width: '20', height: '14', rx: '2' }),
+          _s('rect', { x: '12', y: '9', width: '8', height: '6', rx: '1' })
+        );
+      },
+      maximize(size = 14) {
+        return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' },
+          _s('polyline', { points: '15 3 21 3 21 9' }),
+          _s('polyline', { points: '9 21 3 21 3 15' }),
+          _s('line', { x1: '21', y1: '3', x2: '14', y2: '10' }),
+          _s('line', { x1: '3', y1: '21', x2: '10', y2: '14' })
+        );
+      },
+      zoom(size = 14) {
+        return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' },
+          _s('circle', { cx: '11', cy: '11', r: '8' }),
+          _s('line', { x1: '21', y1: '21', x2: '16.65', y2: '16.65' }),
+          _s('line', { x1: '11', y1: '8', x2: '11', y2: '14' }),
+          _s('line', { x1: '8', y1: '11', x2: '14', y2: '11' })
+        );
+      },
+      camera(size = 14) {
+        return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' },
+          _s('path', { d: 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z' }),
+          _s('circle', { cx: '12', cy: '13', r: '4' })
+        );
+      }
     });
 
-    function svgIcon(name) { const span = document.createElement('span'); span.className = 'icon'; span.innerHTML = VSC_ICONS[name] || ''; return span; }
+    function svgIcon(name, size) {
+      const builder = VSC_ICON_BUILDERS[name];
+      if (!builder) return document.createTextNode('');
+      return builder(size);
+    }
 
-    /* ── OSD (v199.5: unchanged) ── */
+    /* ══════════════════════════════════════════════════════════════════
+       CSS_VARS (v200: CSS custom properties, WCAG touch targets,
+       safe-area, reduced-motion, high-contrast)
+       ══════════════════════════════════════════════════════════════════ */
+    const CSS_VARS = `
+:host {
+  --vsc-bg: rgba(18, 18, 22, 0.94);
+  --vsc-bg-hover: rgba(50, 50, 60, 0.95);
+  --vsc-border: rgba(255, 255, 255, 0.08);
+  --vsc-border-active: rgba(110, 168, 254, 0.35);
+  --vsc-text: rgba(255, 255, 255, 0.92);
+  --vsc-text-dim: rgba(255, 255, 255, 0.55);
+  --vsc-text-muted: rgba(255, 255, 255, 0.35);
+  --vsc-accent: #6ea8fe;
+  --vsc-accent-bg: rgba(110, 168, 254, 0.20);
+  --vsc-accent-border: rgba(110, 168, 254, 0.35);
+  --vsc-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+  --vsc-blur: blur(18px) saturate(180%);
+  --vsc-space-xs: 4px;
+  --vsc-space-sm: 6px;
+  --vsc-space-md: 10px;
+  --vsc-space-lg: 14px;
+  --vsc-space-xl: 20px;
+  --vsc-radius-sm: 5px;
+  --vsc-radius-md: 7px;
+  --vsc-radius-lg: 10px;
+  --vsc-radius-xl: 14px;
+  --vsc-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --vsc-font-xs: 10px;
+  --vsc-font-sm: 11px;
+  --vsc-font-md: 13px;
+  --vsc-font-lg: 14px;
+  --vsc-font-xl: 24px;
+  --vsc-touch-min: ${CONFIG.IS_MOBILE ? '44px' : '32px'};
+  --vsc-touch-slider: ${CONFIG.IS_MOBILE ? '24px' : '14px'};
+  --vsc-panel-width: 330px;
+  --vsc-panel-right: ${CONFIG.IS_MOBILE ? '56px' : '52px'};
+  --vsc-panel-max-h: 82vh;
+  --vsc-qbar-right: ${CONFIG.IS_MOBILE ? '6px' : '10px'};
+  --vsc-qbar-btn-size: var(--vsc-touch-min);
+  --vsc-transition-fast: 0.12s ease;
+  --vsc-transition-normal: 0.18s ease;
+  --vsc-transition-slow: 0.25s ease;
+}`;
+
+    /* ── OSD (v200: accessible, managed timer, enhanced shadow) ── */
     let __osdReady = false;
     onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true });
     onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
     let __osdEl = null;
+    let __osdTimerId = 0;
     function showOSD(text, durationMs = 1200) {
       if (!__osdReady || !document.body) return;
       try {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         const root = fsEl || document.body || document.documentElement;
         if (__osdEl && __osdEl.isConnected && __osdEl.parentNode !== root) {
-          clearTimeout(__osdEl._timer);
+          clearTimer(__osdTimerId); __osdTimerId = 0;
           __osdEl.remove();
           __osdEl = null;
         }
         if (!__osdEl || !__osdEl.isConnected) {
-          if (__osdEl) { clearTimeout(__osdEl._timer); __osdEl = null; }
+          if (__osdEl) { clearTimer(__osdTimerId); __osdTimerId = 0; __osdEl = null; }
           __osdEl = document.createElement('div'); __osdEl.id = 'vsc-osd';
-          __osdEl.style.cssText = 'position:fixed;top:48px;left:50%;transform:translateX(-50%);background:rgba(18,18,22,0.90);backdrop-filter:blur(20px) saturate(180%);color:rgba(255,255,255,0.92);padding:10px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);font:600 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity 0.18s ease;box-shadow:0 8px 32px rgba(0,0,0,0.35);letter-spacing:0.3px;white-space:pre-line;';
+          __osdEl.setAttribute('role', 'status');
+          __osdEl.setAttribute('aria-live', 'polite');
+          __osdEl.setAttribute('aria-atomic', 'true');
+          __osdEl.style.cssText = [
+            'position:fixed',
+            'top:48px',
+            'left:50%',
+            'transform:translateX(-50%)',
+            'background:rgba(18,18,22,0.94)',
+            'backdrop-filter:blur(20px) saturate(180%)',
+            'color:rgba(255,255,255,0.95)',
+            'padding:10px 24px',
+            'border-radius:10px',
+            'border:1px solid rgba(255,255,255,0.12)',
+            'font:600 13px/1.4 system-ui,-apple-system,sans-serif',
+            'z-index:2147483647',
+            'pointer-events:none',
+            'opacity:0',
+            'transition:opacity 0.18s ease',
+            'box-shadow:0 8px 32px rgba(0,0,0,0.45),0 0 0 1px rgba(0,0,0,0.15)',
+            'letter-spacing:0.3px',
+            'white-space:pre-line',
+            'max-width:90vw',
+            'text-align:center',
+            'word-break:keep-all'
+          ].join(';');
           try { root.appendChild(__osdEl); } catch (_) { __osdEl = null; return; }
         }
         __osdEl.textContent = text; __osdEl.style.opacity = '1';
-        clearTimeout(__osdEl._timer);
-        __osdEl._timer = setTimeout(() => { if (__osdEl) __osdEl.style.opacity = '0'; }, durationMs);
+        clearTimer(__osdTimerId);
+        __osdTimerId = setTimer(() => { __osdTimerId = 0; if (__osdEl) __osdEl.style.opacity = '0'; }, durationMs);
       } catch (_) {}
     }
-    __globalSig.addEventListener('abort', () => { if (__osdEl) { clearTimeout(__osdEl._timer); try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; } }, { once: true });
+    __globalSig.addEventListener('abort', () => { clearTimer(__osdTimerId); __osdTimerId = 0; if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} } __osdEl = null; }, { once: true });
 
-    // ═══ END OF PART 4 (v199.5.0-Hybrid) ═══
-    // PART 5 continues with: PiP helpers, captureVideoFrame, createZoomManager, createUI, etc.
-
-    // ═══ PART 5 START (v199.4.0-Hybrid) ═══
-
-    /* ================================================================
-       PiP helpers
-       ================================================================ */
+    /* ══════════════════════════════════════════════════════════════════
+       PiP helpers (v200: Symbol refs)
+       ══════════════════════════════════════════════════════════════════ */
     async function enterPiP(video) {
       if (!video || !video.isConnected) return false;
       const st = getVState(video);
       if (st._inPiP) return true;
 
-      if (window.documentPictureInPicture &&
-          typeof window.documentPictureInPicture.requestWindow === 'function') {
+      if (window.documentPictureInPicture && typeof window.documentPictureInPicture.requestWindow === 'function') {
         try {
           const pipWin = await window.documentPictureInPicture.requestWindow({
-            width:  video.clientWidth  || 640,
+            width: video.clientWidth || 640,
             height: video.clientHeight || 360
           });
           __pipOrigParent = video.parentNode;
-          __pipOrigNext   = video.nextSibling;
-          __pipOrigCss    = video.style.cssText;
+          __pipOrigNext = video.nextSibling;
+          __pipOrigCss = video.style.cssText;
 
           const ph = document.createElement('div');
           ph.style.cssText = `width:${video.clientWidth}px;height:${video.clientHeight}px;background:#000;`;
@@ -3056,13 +3326,12 @@
           __pipPlaceholder = ph;
           video.parentNode.insertBefore(ph, video);
 
-          pipWin.document.body.style.cssText =
-            'margin:0;padding:0;background:#000;overflow:hidden;';
+          pipWin.document.body.style.cssText = 'margin:0;padding:0;background:#000;overflow:hidden;';
           pipWin.document.body.appendChild(video);
           video.style.cssText = 'width:100%;height:100%;object-fit:contain;';
 
           __activeDocumentPiPWindow = pipWin;
-          __activeDocumentPiPVideo  = video;
+          __activeDocumentPiPVideo = video;
           st._inPiP = true;
 
           pipWin.addEventListener('pagehide', () => exitPiP(video), { once: true });
@@ -3115,15 +3384,12 @@
       const st = getVState(video);
       const isActive = st._inPiP ||
         document.pictureInPictureElement === video ||
-        (__activeDocumentPiPVideo === video &&
-         __activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed);
+        (__activeDocumentPiPVideo === video && __activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed);
       if (isActive) await exitPiP(video);
-      else           await enterPiP(video);
+      else await enterPiP(video);
     }
 
-    /* ================================================================
-       captureVideoFrame
-       ================================================================ */
+    /* ── captureVideoFrame ── */
     function captureVideoFrame(video) {
       if (!video || video.readyState < 2) { showOSD('비디오 준비 안됨', 1000); return; }
       try {
@@ -3142,26 +3408,31 @@
       } catch (_) { showOSD('캡처 실패 (DRM?)', 1500); }
     }
 
-    /* ================================================================
-       createZoomManager (v199.4: 줌 해제 후 터치 잔여 완전 제거)
-       ================================================================ */
+    // ═══ END OF PART 4 (v200.0.0-Hybrid) ═══
+    // PART 5 continues with: createZoomManager, createUI (CSS_VARS integrated),
+    //   bindVideoOnce (per-video AC + EME hooks), createApplyLoop, createKeyboard,
+    //   save/restore/persistence, bootstrap (FeatureRegistry wiring), entry point
+    // ═══ PART 5 START (v200.0.0-Hybrid) — continues directly from PART 4's captureVideoFrame ═══
+
+    /* ══════════════════════════════════════════════════════════════════
+       createZoomManager (v200: cleanup touch residuals on zoom off)
+       ══════════════════════════════════════════════════════════════════ */
     function createZoomManager() {
-      const zoomStates  = new WeakMap();
+      const zoomStates = new WeakMap();
       const zoomedVideos = new Set();
       let activeVideo = null, activePointerId = null, isPanning = false;
       let startX = 0, startY = 0;
       const pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0 };
       let rafId = null, destroyed = false;
       const pendingUpdates = new Set();
-      const ZOOM_PROPS = ['transform','transform-origin','will-change','z-index','position','contain','isolation'];
+      const ZOOM_PROPS = ['transform', 'transform-origin', 'will-change', 'z-index', 'position', 'contain', 'isolation'];
 
-      const isZoomEnabled = () => !!window.__VSC_INTERNAL__?.Store?.get(P.APP_ZOOM_EN);
+      const isZoomEnabled = () => !!window[VSC_INTERNAL_SYM]?.Store?.get(P.APP_ZOOM_EN);
 
       function getSt(v) {
         let s = zoomStates.get(v);
         if (!s) {
-          s = { scale:1, tx:0, ty:0, zoomed:false, hasPanned:false,
-                _savedPosition:'', _savedZIndex:'' };
+          s = { scale: 1, tx: 0, ty: 0, zoomed: false, hasPanned: false, _savedPosition: '', _savedZIndex: '' };
           zoomStates.set(v, s);
         }
         return s;
@@ -3170,7 +3441,7 @@
       function clampPan(v, st) {
         try {
           const r = v.getBoundingClientRect();
-          const maxTx = Math.max(0, (r.width  * st.scale - r.width)  / 2 / st.scale);
+          const maxTx = Math.max(0, (r.width * st.scale - r.width) / 2 / st.scale);
           const maxTy = Math.max(0, (r.height * st.scale - r.height) / 2 / st.scale);
           st.tx = VSC_CLAMP(st.tx, -maxTx, maxTx);
           st.ty = VSC_CLAMP(st.ty, -maxTy, maxTy);
@@ -3188,14 +3459,13 @@
             const st = getSt(vid);
             if (st.scale <= 1 && st.zoomed) { resetZoom(vid); continue; }
             if (st.scale > 1) {
-              vid.style.setProperty('transform',
-                `scale(${st.scale}) translate(${st.tx}px,${st.ty}px)`, 'important');
+              vid.style.setProperty('transform', `scale(${st.scale}) translate(${st.tx}px,${st.ty}px)`, 'important');
               vid.style.setProperty('transform-origin', 'center center', 'important');
               if (!st.zoomed) {
                 st._savedPosition = vid.style.getPropertyValue('position');
-                st._savedZIndex   = vid.style.getPropertyValue('z-index');
+                st._savedZIndex = vid.style.getPropertyValue('z-index');
                 vid.style.setProperty('position', 'relative', 'important');
-                vid.style.setProperty('z-index',  '999999',  'important');
+                vid.style.setProperty('z-index', '999999', 'important');
                 st.zoomed = true; zoomedVideos.add(vid);
               }
               const wc = getVState(vid).applied ? 'filter, transform' : 'transform';
@@ -3267,8 +3537,7 @@
       function getTargetVideo(e) {
         const points = [];
         if (e.touches && e.touches.length > 0) {
-          for (let i = 0; i < e.touches.length; i++)
-            points.push({ x: e.touches[i].clientX, y: e.touches[i].clientY });
+          for (let i = 0; i < e.touches.length; i++) points.push({ x: e.touches[i].clientX, y: e.touches[i].clientY });
         } else if (typeof e.clientX === 'number') {
           points.push({ x: e.clientX, y: e.clientY });
         }
@@ -3320,7 +3589,7 @@
             }
           } catch (_) {}
         }
-        const active = window.__VSC_INTERNAL__?._activeVideo;
+        const active = window[VSC_INTERNAL_SYM]?._activeVideo;
         if (active?.isConnected) return active;
         try { const all = document.querySelectorAll('video'); if (all.length === 1 && all[0].isConnected) return all[0]; } catch (_) {}
         return null;
@@ -3353,7 +3622,6 @@
           v.style.removeProperty('transform-origin');
           v.style.removeProperty('isolation');
           __touchBlocked.delete(v);
-
           let p = v.parentElement;
           while (p && p !== document.body && p !== document.documentElement) {
             if (p.dataset?.vscTouchBlocked) {
@@ -3363,16 +3631,13 @@
             }
             p = p.parentElement;
           }
-
           void v.offsetHeight;
           requestAnimationFrame(() => {
             if (!__touchBlocked.has(v)) {
               v.style.removeProperty('touch-action');
               let p2 = v.parentElement;
               while (p2 && p2 !== document.body && p2 !== document.documentElement) {
-                if (!p2.dataset?.vscTouchBlocked) {
-                  p2.style.removeProperty('touch-action');
-                }
+                if (!p2.dataset?.vscTouchBlocked) { p2.style.removeProperty('touch-action'); }
                 p2 = p2.parentElement;
               }
             }
@@ -3387,10 +3652,7 @@
             el.style.removeProperty('-webkit-tap-highlight-color');
             delete el.dataset.vscTouchBlocked;
           }
-          const allVideos = new Set([
-            ...document.querySelectorAll('video'),
-            ...TOUCHED.videos
-          ]);
+          const allVideos = new Set([...document.querySelectorAll('video'), ...TOUCHED.videos]);
           for (const v of allVideos) {
             if (!v?.isConnected) continue;
             v.style.setProperty('touch-action', 'auto', 'important');
@@ -3400,14 +3662,10 @@
           }
           requestAnimationFrame(() => {
             for (const el of document.querySelectorAll('[style*="touch-action"]')) {
-              if (!__touchBlocked.has(el)) {
-                el.style.removeProperty('touch-action');
-              }
+              if (!__touchBlocked.has(el)) { el.style.removeProperty('touch-action'); }
             }
             for (const v of allVideos) {
-              if (v?.isConnected && !__touchBlocked.has(v)) {
-                v.style.removeProperty('touch-action');
-              }
+              if (v?.isConnected && !__touchBlocked.has(v)) { v.style.removeProperty('touch-action'); }
             }
           });
         } catch (_) {}
@@ -3415,7 +3673,7 @@
 
       let __zoomModeWatcherUnsub = null;
       function watchZoomModeToggle() {
-        const store = window.__VSC_INTERNAL__?.Store;
+        const store = window[VSC_INTERNAL_SYM]?.Store;
         if (!store || __zoomModeWatcherUnsub) return;
         __zoomModeWatcherUnsub = store.sub(P.APP_ZOOM_EN, (enabled) => {
           if (enabled) {
@@ -3438,7 +3696,7 @@
       }
 
       const __tryWatchInterval = setRecurring(() => {
-        if (window.__VSC_INTERNAL__?.Store) { watchZoomModeToggle(); clearRecurring(__tryWatchInterval); }
+        if (window[VSC_INTERNAL_SYM]?.Store) { watchZoomModeToggle(); clearRecurring(__tryWatchInterval); }
       }, 200, { maxErrors: 50 });
 
       function onNewVideoForZoom(v) {
@@ -3498,7 +3756,7 @@
         if (st.hasPanned && e.cancelable) { e.preventDefault(); e.stopPropagation(); }
         activePointerId = null; isPanning = false; activeVideo = null; update(v);
       }
-      onWin('pointerup',     endPointerPan, { capture: true, passive: false });
+      onWin('pointerup', endPointerPan, { capture: true, passive: false });
       onWin('pointercancel', endPointerPan, { capture: true, passive: false });
 
       onWin('dblclick', e => {
@@ -3586,15 +3844,16 @@
       });
     }
 
-    /* ================================================================
-       createUI (v199.4: 재생 탭 프리셋 칩 + 미세 조절, 패널 닫기 pointer-events 개선)
-       ================================================================ */
+    /* ══════════════════════════════════════════════════════════════════
+       createUI (v200: CSS_VARS integrated, SVG DOM icons, WCAG touch,
+       safe-area, reduced-motion, high-contrast, Symbol refs)
+       ══════════════════════════════════════════════════════════════════ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr,
                       Targeting, Maximizer, FiltersVO, Registry,
                       Scheduler, ApplyReq) {
       const { h, clamp } = Utils;
       const uiAC = new AbortController();
-      const sig  = combineSignals(__globalSig, uiAC.signal);
+      const sig = combineSignals(__globalSig, uiAC.signal);
       const isMobile = CONFIG.IS_MOBILE;
 
       let panelHost = null, panelEl = null, quickBarHost = null;
@@ -3605,63 +3864,70 @@
       let qbarVisible = false;
 
       const PANEL_CSS = `
-:host{all:initial;position:fixed;z-index:2147483647;font-family:system-ui,-apple-system,sans-serif;font-size:13px;color:#e0e0e0;pointer-events:none}
+${CSS_VARS}
+:host{all:initial;position:fixed;z-index:2147483647;font-family:var(--vsc-font-family);font-size:var(--vsc-font-md);color:var(--vsc-text);pointer-events:none}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-.panel{pointer-events:none;position:fixed;right:${isMobile ? '56px' : '52px'};width:330px;max-height:82vh;background:rgba(18,18,22,.94);border:1px solid rgba(255,255,255,.08);border-radius:14px;backdrop-filter:blur(18px);box-shadow:0 8px 32px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateX(8px) scale(.97);transition:opacity .18s ease,transform .18s ease;user-select:none}
+.panel{pointer-events:none;position:fixed;right:var(--vsc-panel-right);width:var(--vsc-panel-width);max-height:var(--vsc-panel-max-h);background:var(--vsc-bg);border:1px solid var(--vsc-border);border-radius:var(--vsc-radius-xl);backdrop-filter:var(--vsc-blur);box-shadow:var(--vsc-shadow);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateX(8px) scale(.97);transition:opacity var(--vsc-transition-normal),transform var(--vsc-transition-normal);user-select:none}
 .panel.open{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
-.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.06)}
-.hdr .tl{font-weight:700;font-size:14px;letter-spacing:.3px}
-.hdr .ver{font-size:10px;opacity:.45;margin-left:6px}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:var(--vsc-space-md) var(--vsc-space-lg);border-bottom:1px solid rgba(255,255,255,.06)}
+.hdr .tl{font-weight:700;font-size:var(--vsc-font-lg);letter-spacing:.3px}
+.hdr .ver{font-size:var(--vsc-font-xs);opacity:.45;margin-left:var(--vsc-space-sm)}
 .tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06)}
-.tab{flex:1;padding:8px 0;text-align:center;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;opacity:.45;border-bottom:2px solid transparent;transition:opacity .15s,border-color .15s}
-.tab:hover{opacity:.7}.tab.on{opacity:1;border-bottom-color:#6ea8fe}
-.body{overflow-y:auto;flex:1;padding:10px 14px 14px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
-.row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;min-height:32px}
+.tab{flex:1;padding:8px 0;text-align:center;font-size:var(--vsc-font-sm);font-weight:600;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;opacity:.45;border-bottom:2px solid transparent;transition:opacity .15s,border-color .15s}
+.tab:hover{opacity:.7}.tab.on{opacity:1;border-bottom-color:var(--vsc-accent)}
+.body{overflow-y:auto;flex:1;padding:var(--vsc-space-md) var(--vsc-space-lg) var(--vsc-space-lg);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+.row{display:flex;align-items:center;justify-content:space-between;padding:var(--vsc-space-xs) 0;min-height:var(--vsc-touch-min)}
 .row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
-.row .ctrl{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
+.row .ctrl{display:flex;align-items:center;gap:var(--vsc-space-sm);flex:1;justify-content:flex-end}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;cursor:pointer}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile?'22px':'14px'};height:${isMobile?'22px':'14px'};border-radius:50%;background:#6ea8fe;cursor:pointer;border:none}
-.val{font-size:11px;min-width:38px;text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
-.btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#e0e0e0;padding:5px 10px;font-size:11px;cursor:pointer;transition:background .12s}
-.btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:rgba(110,168,254,.2);border-color:rgba(110,168,254,.3)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none}
+input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none}
+.val{font-size:var(--vsc-font-sm);min-width:38px;text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
+.btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:var(--vsc-radius-md);color:var(--vsc-text);padding:var(--vsc-space-xs) var(--vsc-space-md);font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);min-height:var(--vsc-touch-min);min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+.btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
 .tgl{position:relative;width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s}
 .tgl.on{background:rgba(110,168,254,.5)}
 .tgl::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s}
 .tgl.on::after{transform:translateX(16px)}
-.sep{height:1px;background:rgba(255,255,255,.06);margin:6px 0}
-.chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:4px}
-.chip{display:inline-block;padding:${isMobile?'6px 12px':'3px 9px'};font-size:${isMobile?'12px':'10px'};border-radius:5px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);transition:background .12s,border-color .12s;min-width:${isMobile?'40px':'auto'};text-align:center}
+.sep{height:1px;background:rgba(255,255,255,.06);margin:var(--vsc-space-sm) 0}
+.chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:var(--vsc-space-xs)}
+.chip{display:inline-flex;align-items:center;justify-content:center;padding:var(--vsc-space-xs) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;font-size:var(--vsc-font-sm);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background var(--vsc-transition-fast),border-color var(--vsc-transition-fast);text-align:center;-webkit-tap-highlight-color:transparent}
 .chip:hover{background:rgba(255,255,255,.10)}
-.chip.on{background:rgba(110,168,254,.25);border-color:rgba(110,168,254,.35)}
-.stgl{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;font-size:10px;border-radius:5px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);transition:background .15s,border-color .15s;user-select:none}
-.stgl.on{background:rgba(110,168,254,.25);border-color:rgba(110,168,254,.35)}
-.badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(110,168,254,.15);color:#8ec5fc;margin-left:6px}
-.adv-hd{display:flex;align-items:center;gap:4px;padding:4px 0;cursor:pointer;font-size:11px;opacity:.55;transition:opacity .15s}
+.chip.on{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
+.stgl{display:inline-flex;align-items:center;gap:var(--vsc-space-xs);padding:3px var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;font-size:var(--vsc-font-xs);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background .15s,border-color .15s;user-select:none;-webkit-tap-highlight-color:transparent}
+.stgl.on{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
+.badge{display:inline-block;font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(110,168,254,.15);color:#8ec5fc;margin-left:var(--vsc-space-sm)}
+.adv-hd{display:flex;align-items:center;gap:var(--vsc-space-xs);padding:var(--vsc-space-xs) 0;cursor:pointer;font-size:var(--vsc-font-sm);opacity:.55;transition:opacity .15s}
 .adv-hd:hover{opacity:.85}
 .adv-hd .arr{transition:transform .2s;font-size:9px}
 .adv-hd .arr.open{transform:rotate(90deg)}
-.adv-bd{overflow:hidden;max-height:0;transition:max-height .25s ease}
+.adv-bd{overflow:hidden;max-height:0;transition:max-height var(--vsc-transition-slow)}
 .adv-bd.open{max-height:600px}
-.info-bar{font-size:10px;opacity:.5;padding:4px 0 6px;line-height:1.5;font-variant-numeric:tabular-nums}
-.shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:10px;line-height:1.6;padding:4px 0}
+.info-bar{font-size:var(--vsc-font-xs);opacity:.5;padding:var(--vsc-space-xs) 0 var(--vsc-space-sm);line-height:1.5;font-variant-numeric:tabular-nums}
+.shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:var(--vsc-font-xs);line-height:1.6;padding:var(--vsc-space-xs) 0}
 .shortcut-grid .sk{font-weight:700;color:#8ec5fc;white-space:nowrap}
 .shortcut-grid .sd{opacity:.7}
-.rate-display{font-size:24px;font-weight:700;text-align:center;color:#fff;padding:6px 0;font-variant-numeric:tabular-nums}
-.fine-row{display:flex;gap:4px;justify-content:center;padding:4px 0}
-.fine-btn{padding:${isMobile?'8px 14px':'4px 10px'};border-radius:6px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#aaa;font-size:11px;cursor:pointer;transition:background .15s;font-variant-numeric:tabular-nums}
+.rate-display{font-size:var(--vsc-font-xl);font-weight:700;text-align:center;color:#fff;padding:var(--vsc-space-sm) 0;font-variant-numeric:tabular-nums}
+.fine-row{display:flex;gap:var(--vsc-space-xs);justify-content:center;padding:var(--vsc-space-xs) 0}
+.fine-btn{padding:var(--vsc-space-sm) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;border-radius:var(--vsc-radius-sm);border:1px solid var(--vsc-border);background:rgba(255,255,255,.04);color:#aaa;font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
 .fine-btn:hover{background:rgba(255,255,255,.1)}
-.qbar{pointer-events:auto;position:fixed;top:50%;right:${isMobile ? '6px' : '10px'};transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;opacity:.3;transition:opacity .25s}
+.qbar{pointer-events:auto;position:fixed;top:50%;right:var(--vsc-qbar-right);transform:translateY(-50%);display:flex;flex-direction:column;gap:var(--vsc-space-sm);align-items:center;opacity:.3;transition:opacity var(--vsc-transition-slow)}
 .qbar:hover{opacity:.95}
-.qb{width:${isMobile?'42px':'32px'};height:${isMobile?'42px':'32px'};border-radius:50%;background:rgba(28,28,32,.85);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background .15s,transform .1s,border-color .15s;backdrop-filter:blur(8px)}
-.qb:hover{background:rgba(50,50,60,.95);transform:scale(1.12)}
+.qb{width:var(--vsc-qbar-btn-size);height:var(--vsc-qbar-btn-size);min-width:44px;min-height:44px;border-radius:50%;background:var(--vsc-bg);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background var(--vsc-transition-fast),transform .1s,border-color var(--vsc-transition-fast);backdrop-filter:blur(8px);-webkit-tap-highlight-color:transparent}
+.qb:hover{background:var(--vsc-bg-hover);transform:scale(1.12)}
+.qb:active{transform:scale(0.95)}
 .qb svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
-@media(max-width:600px){.panel{width:calc(100vw - 70px);right:56px;max-height:75vh;border-radius:12px}}`;
+.qb:focus-visible,.chip:focus-visible,.btn:focus-visible,.fine-btn:focus-visible{outline:2px solid var(--vsc-accent);outline-offset:2px}
+@media(max-width:600px){:host{--vsc-panel-width:calc(100vw - 70px);--vsc-panel-right:56px;--vsc-panel-max-h:75vh;--vsc-radius-xl:12px;--vsc-font-md:14px}}
+@media(max-width:400px){:host{--vsc-panel-width:calc(100vw - 52px);--vsc-panel-right:48px;--vsc-font-md:15px}.chips{gap:6px}.fine-row{gap:6px}}
+@media(orientation:landscape) and (max-height:500px){:host{--vsc-panel-max-h:90vh}.panel{max-height:90vh}.body{max-height:calc(90vh - 90px)}}
+@supports(padding:env(safe-area-inset-right)){.qbar{right:calc(var(--vsc-qbar-right) + env(safe-area-inset-right))}.panel{right:calc(var(--vsc-panel-right) + env(safe-area-inset-right))}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}}
+@media(prefers-contrast:high){:host{--vsc-bg:rgba(0,0,0,0.98);--vsc-border:rgba(255,255,255,0.3);--vsc-text:#fff}}`;
 
       /* ── helpers ── */
       function mkRow(label, ...ctrls) {
-        return h('div', { class: 'row' },
-          h('label', {}, label),
-          h('div', { class: 'ctrl' }, ...ctrls));
+        return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls));
       }
       function mkSep() { return h('div', { class: 'sep' }); }
 
@@ -3684,8 +3950,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       }
 
       function mkChipRow(label, path, chips, onSelect) {
-        const wrap = h('div', {},
-          h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, label));
+        const wrap = h('div', {}, h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, label));
         const row = h('div', { class: 'chips' });
         function sync() {
           const cur = String(Store.get(path));
@@ -3693,10 +3958,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         }
         for (const ch of chips) {
           const el = h('span', { class: 'chip', 'data-v': String(ch.v) }, ch.l);
-          el.addEventListener('click', () => {
-            Store.set(path, ch.v); sync();
-            if (onSelect) onSelect(ch.v); else ApplyReq.soft();
-          }, { signal: sig });
+          el.addEventListener('click', () => { Store.set(path, ch.v); sync(); if (onSelect) onSelect(ch.v); else ApplyReq.soft(); }, { signal: sig });
           row.appendChild(el);
         }
         wrap.appendChild(row);
@@ -3705,25 +3967,20 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       }
 
       function mkShadowBandToggles() {
-        const wrap = h('div', {},
-          h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '섀도우 밴드'));
+        const wrap = h('div', {}, h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '섀도우 밴드'));
         const row = h('div', { style: 'display:flex;gap:4px;padding:3px 0;flex-wrap:wrap' });
         const bands = [
-          { bit: 0,                label: 'OFF' },
+          { bit: 0, label: 'OFF' },
           { bit: SHADOW_BAND.OUTER, label: '외곽' },
-          { bit: SHADOW_BAND.MID,   label: '중간' },
-          { bit: SHADOW_BAND.DEEP,  label: '심부' }
+          { bit: SHADOW_BAND.MID, label: '중간' },
+          { bit: SHADOW_BAND.DEEP, label: '심부' }
         ];
         const buttons = [];
         for (const band of bands) {
           const btn = h('span', { class: 'stgl' }, band.label);
           btn.addEventListener('click', () => {
-            if (band.bit === 0) {
-              Store.set(P.V_SHADOW_MASK, 0);
-            } else {
-              const cur = Number(Store.get(P.V_SHADOW_MASK)) || 0;
-              Store.set(P.V_SHADOW_MASK, ShadowMask.toggle(cur, band.bit));
-            }
+            if (band.bit === 0) { Store.set(P.V_SHADOW_MASK, 0); }
+            else { const cur = Number(Store.get(P.V_SHADOW_MASK)) || 0; Store.set(P.V_SHADOW_MASK, ShadowMask.toggle(cur, band.bit)); }
             syncBands(); ApplyReq.soft();
           }, { signal: sig });
           buttons.push({ el: btn, bit: band.bit });
@@ -3732,11 +3989,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         function syncBands() {
           const cur = Number(Store.get(P.V_SHADOW_MASK)) || 0;
           for (const b of buttons) {
-            if (b.bit === 0) {
-              b.el.classList.toggle('on', cur === 0);
-            } else {
-              b.el.classList.toggle('on', ShadowMask.has(cur, b.bit));
-            }
+            if (b.bit === 0) b.el.classList.toggle('on', cur === 0);
+            else b.el.classList.toggle('on', ShadowMask.has(cur, b.bit));
           }
         }
         syncFns.push(syncBands); syncBands();
@@ -3747,63 +4001,40 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       /* ── buildVideoTab ── */
       function buildVideoTab() {
         const w = h('div', {});
-
         const infoBar = h('div', { class: 'info-bar' });
         function updateInfo() {
-          const active = window.__VSC_INTERNAL__._activeVideo;
+          const active = window[VSC_INTERNAL_SYM]._activeVideo;
           const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
-
           if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
-
           const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
           const dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
-
           if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
-
           const { mul, autoBase } = computeResolutionSharpMul(video);
           const presetS = Store.get(P.V_PRE_S);
           let sharpLabel;
-
-          if (presetS === 'none') {
-            sharpLabel = '꺼짐(OFF)';
-          }
-          else if (presetS === 'off') {
-            sharpLabel = `자동(${autoBase.toFixed(3)})`;
-          }
-          else {
-            sharpLabel = `${getPresetLabel('detail', presetS)} (수동)`;
-          }
-
+          if (presetS === 'none') sharpLabel = '꺼짐(OFF)';
+          else if (presetS === 'off') sharpLabel = `자동(${autoBase.toFixed(3)})`;
+          else sharpLabel = `${getPresetLabel('detail', presetS)} (수동)`;
           infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
         }
         Bus.on('signal', updateInfo); syncFns.push(updateInfo); updateInfo();
         const infoTimerId = setRecurring(() => { try { updateInfo(); } catch (_) {} }, 2500, { maxErrors: 50 });
         sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
         w.append(infoBar, mkSep());
-
         w.append(
-          mkChipRow('디테일', P.V_PRE_S,
-            Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })),
-            () => ApplyReq.hard()),
+          mkChipRow('디테일', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
           mkRow('강도', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)),
           mkSep()
         );
-
         w.append(mkShadowBandToggles(), mkSep());
-
         w.append(
-          mkChipRow('밝기 단계', P.V_BRIGHT_STEP,
-            [{ v:0, l:'OFF' }, { v:1, l:'1단계' }, { v:2, l:'2단계' }, { v:3, l:'3단계' }]),
+          mkChipRow('밝기 단계', P.V_BRIGHT_STEP, [{ v: 0, l: 'OFF' }, { v: 1, l: '1단계' }, { v: 2, l: '2단계' }, { v: 3, l: '3단계' }]),
           mkSep()
         );
-
         w.append(
-          mkChipRow('암부 복원', P.V_PRE_B,
-            Object.keys(PRESETS.grade).map(k => ({ v: k, l: getPresetLabel('grade', k) })),
-            () => ApplyReq.hard()),
+          mkChipRow('암부 복원', P.V_PRE_B, Object.keys(PRESETS.grade).map(k => ({ v: k, l: getPresetLabel('grade', k) })), () => ApplyReq.hard()),
           mkSep()
         );
-
         const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
         function updateSceneBadge() {
           const isOn = !!Store.get(P.APP_AUTO_SCENE);
@@ -3816,7 +4047,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
             mkToggle(P.APP_AUTO_SCENE, v => { if (v) AutoScene.start(); else AutoScene.stop(); updateSceneBadge(); ApplyReq.hard(); }))
         );
         Bus.on('signal', updateSceneBadge); syncFns.push(updateSceneBadge); updateSceneBadge();
-
         w.append(mkSep());
         const arrSpan = h('span', { class: 'arr' }, '▶');
         const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
@@ -3835,43 +4065,26 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         return w;
       }
 
-      /* ── v199.4: buildPlaybackTab — 프리셋 칩 + 미세 조절 버튼 추가 ── */
       function buildPlaybackTab() {
         const w = h('div', {});
         w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => ApplyReq.hard())));
-
-        // 현재 속도 대형 디스플레이
         const rateDisplay = h('div', { class: 'rate-display' });
-        function syncRateDisplay() {
-          const r = Number(Store.get(P.PB_RATE)) || 1;
-          rateDisplay.textContent = `${r.toFixed(2)}×`;
-        }
+        function syncRateDisplay() { const r = Number(Store.get(P.PB_RATE)) || 1; rateDisplay.textContent = `${r.toFixed(2)}×`; }
         syncFns.push(syncRateDisplay); syncRateDisplay();
         w.append(rateDisplay);
-
-        // 프리셋 칩
         const presets = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0];
         const chipRow = h('div', { class: 'chips' });
         function syncChips() {
           const cur = Number(Store.get(P.PB_RATE)) || 1;
-          for (const c of chipRow.children) {
-            const cv = parseFloat(c.dataset.v);
-            c.classList.toggle('on', Math.abs(cur - cv) < 0.01);
-          }
+          for (const c of chipRow.children) { const cv = parseFloat(c.dataset.v); c.classList.toggle('on', Math.abs(cur - cv) < 0.01); }
         }
         for (const p of presets) {
           const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
-          el.addEventListener('click', () => {
-            Store.set(P.PB_RATE, p);
-            if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true);
-            ApplyReq.hard(); syncRateDisplay(); syncChips();
-          }, { signal: sig });
+          el.addEventListener('click', () => { Store.set(P.PB_RATE, p); if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true); ApplyReq.hard(); syncRateDisplay(); syncChips(); }, { signal: sig });
           chipRow.appendChild(el);
         }
         syncFns.push(syncChips); syncChips();
         w.append(chipRow);
-
-        // 미세 조절 버튼
         const fineRow = h('div', { class: 'fine-row' });
         const adjustRate = (delta) => {
           const cur = Number(Store.get(P.PB_RATE)) || 1;
@@ -3880,43 +4093,27 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
           if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true);
           ApplyReq.hard(); syncRateDisplay(); syncChips();
         };
-        const fineSteps = [
-          { label: '−0.25', delta: -0.25 },
-          { label: '−0.05', delta: -0.05 },
-          { label: '+0.05', delta: +0.05 },
-          { label: '+0.25', delta: +0.25 }
-        ];
+        const fineSteps = [{ label: '−0.25', delta: -0.25 }, { label: '−0.05', delta: -0.05 }, { label: '+0.05', delta: +0.05 }, { label: '+0.25', delta: +0.25 }];
         for (const fs of fineSteps) {
           const btn = h('button', { class: 'fine-btn' }, fs.label);
           btn.addEventListener('click', () => adjustRate(fs.delta), { signal: sig });
           fineRow.appendChild(btn);
         }
         w.append(fineRow);
-
-        // 보조 슬라이더
         w.append(mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 4, 0.01)));
-
-        // 상태 라인
-        w.append(h('div', { style: 'font-size:10px;opacity:.4;text-align:center;padding:4px 0' },
-          '단축키: [ ] 속도 ±0.1'));
-
-        // 슬라이더 변경 시 디스플레이+칩 동기화
+        w.append(h('div', { style: 'font-size:10px;opacity:.4;text-align:center;padding:4px 0' }, '단축키: [ ] 속도 ±0.1'));
         Store.sub(P.PB_RATE, () => { syncRateDisplay(); syncChips(); });
-
         return w;
       }
 
-      /* ── buildAppTab ── */
       function buildAppTab() {
         const w = h('div', {});
-        w.append(
-          mkRow('모든 영상 적용', mkToggle(P.APP_APPLY_ALL, () => ApplyReq.hard()))
-        );
+        w.append(mkRow('모든 영상 적용', mkToggle(P.APP_APPLY_ALL, () => ApplyReq.hard())));
         w.append(mkSep(), h('label', { style: 'font-size:12px;opacity:.8;display:block;padding:4px 0' }, '프리셋 슬롯'));
         const slotsRow = h('div', { style: 'display:flex;gap:6px;padding:4px 0' });
         for (let i = 0; i < 3; i++) {
-          const saveBtn = h('button', { class: 'btn', style: 'font-size:10px;padding:3px 8px' }, `저장 ${i+1}`);
-          const loadBtn = h('button', { class: 'btn pr', style: 'font-size:10px;padding:3px 8px' }, `불러오기 ${i+1}`);
+          const saveBtn = h('button', { class: 'btn', style: 'font-size:10px;padding:3px 8px' }, `저장 ${i + 1}`);
+          const loadBtn = h('button', { class: 'btn pr', style: 'font-size:10px;padding:3px 8px' }, `불러오기 ${i + 1}`);
           saveBtn.addEventListener('click', () => saveSlot(i), { signal: sig });
           loadBtn.addEventListener('click', () => { loadSlot(i); syncAll(); }, { signal: sig });
           slotsRow.append(h('div', { style: 'display:flex;flex-direction:column;gap:3px' }, saveBtn, loadBtn));
@@ -3929,61 +4126,38 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         impBtn.addEventListener('click', doImport, { signal: sig });
         rstBtn.addEventListener('click', () => { resetDefaults(); syncAll(); ApplyReq.hard(); persistNow(); showOSD('설정이 초기화되었습니다', 1500); }, { signal: sig });
         w.append(h('div', { style: 'display:flex;gap:6px;padding:4px 0' }, expBtn, impBtn, rstBtn));
-
-        /* 단축키 안내 패널 */
         w.append(mkSep());
         const shortcutArrSpan = h('span', { class: 'arr' }, '▶');
         const shortcutHd = h('div', { class: 'adv-hd' }, shortcutArrSpan, ' 단축키 안내');
         const shortcutBd = h('div', { class: 'adv-bd' });
         let shortcutOpen = false;
-        shortcutHd.addEventListener('click', () => {
-          shortcutOpen = !shortcutOpen;
-          shortcutArrSpan.classList.toggle('open', shortcutOpen);
-          shortcutBd.classList.toggle('open', shortcutOpen);
-        }, { signal: sig });
-
+        shortcutHd.addEventListener('click', () => { shortcutOpen = !shortcutOpen; shortcutArrSpan.classList.toggle('open', shortcutOpen); shortcutBd.classList.toggle('open', shortcutOpen); }, { signal: sig });
         const shortcuts = [
-          ['Alt + V', '설정 패널 열기/닫기'],
-          ['Alt + P', 'PiP 전환'],
-          ['Alt + M', '최대화 토글'],
-          ['Alt + Z', '줌 ON/OFF 토글'],
-          ['Alt + A', '자동 보정 ON/OFF'],
-          ['Alt + S', '프레임 캡처'],
-          ['Alt + 0', '줌 리셋'],
-          ['Alt + 1~3', '프리셋 슬롯 불러오기'],
-          ['Shift + Alt + 1~3', '프리셋 슬롯 저장'],
-          ['Alt + R', '전체 초기화'],
-          ['[ / ]', '재생 속도 ±0.1'],
-          ['Esc', '패널 닫기 / 최대화 해제'],
-          ['Alt + Wheel', '줌 확대/축소 (줌 ON 시)'],
-          ['Alt + 드래그', '줌 팬 이동 (줌 ON 시)'],
+          ['Alt + V', '설정 패널 열기/닫기'], ['Alt + P', 'PiP 전환'], ['Alt + M', '최대화 토글'],
+          ['Alt + Z', '줌 ON/OFF 토글'], ['Alt + A', '자동 보정 ON/OFF'], ['Alt + S', '프레임 캡처'],
+          ['Alt + 0', '줌 리셋'], ['Alt + 1~3', '프리셋 슬롯 불러오기'], ['Shift + Alt + 1~3', '프리셋 슬롯 저장'],
+          ['Alt + R', '전체 초기화'], ['[ / ]', '재생 속도 ±0.1'], ['Esc', '패널 닫기 / 최대화 해제'],
+          ['Alt + Wheel', '줌 확대/축소 (줌 ON 시)'], ['Alt + 드래그', '줌 팬 이동 (줌 ON 시)'],
           ['Alt + 더블클릭', '줌 2.5× / 리셋 토글']
         ];
         const grid = h('div', { class: 'shortcut-grid' });
-        for (const [key, desc] of shortcuts) {
-          grid.append(
-            h('span', { class: 'sk' }, key),
-            h('span', { class: 'sd' }, desc)
-          );
-        }
+        for (const [key, desc] of shortcuts) { grid.append(h('span', { class: 'sk' }, key), h('span', { class: 'sd' }, desc)); }
         shortcutBd.appendChild(grid);
         w.append(shortcutHd, shortcutBd);
-
         w.append(mkSep(), h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0' }, `Video_Control v${VSC_VERSION}`));
         return w;
       }
 
-      /* ── render & switch ── */
       function syncAll() { for (const fn of syncFns) { try { fn(); } catch (_) {} } }
 
       function renderTab() {
         const body = _shadow?.querySelector('.body'); if (!body) return;
         body.innerHTML = ''; syncFns.length = 0;
         switch (activeTab) {
-          case 'video':    body.appendChild(buildVideoTab());    break;
-          case 'audio':    body.appendChild(buildAudioTab());    break;
+          case 'video': body.appendChild(buildVideoTab()); break;
+          case 'audio': body.appendChild(buildAudioTab()); break;
           case 'playback': body.appendChild(buildPlaybackTab()); break;
-          case 'app':      body.appendChild(buildAppTab());      break;
+          case 'app': body.appendChild(buildAppTab()); break;
         }
       }
 
@@ -4033,8 +4207,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         closeBtn.addEventListener('click', () => togglePanel(false), { signal: sig });
         panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), h('span', { class: 'ver' }, `v${VSC_VERSION}`), closeBtn));
         const tabBar = h('div', { class: 'tabs' });
-        for (const t of ['video','audio','playback','app']) {
-          const tab = h('div', { class: `tab${t===activeTab?' on':''}`, 'data-t': t }, TAB_LABELS[t]);
+        for (const t of ['video', 'audio', 'playback', 'app']) {
+          const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }, TAB_LABELS[t]);
           tab.addEventListener('click', () => switchTab(t), { signal: sig });
           tabBar.appendChild(tab);
         }
@@ -4047,6 +4221,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         blockInterference(panelHost);
       }
 
+      /* v200: QuickBar uses SVG DOM icon builders — no innerHTML */
       function buildQuickBar() {
         if (quickBarHost) return;
         quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: 'all:initial; position:fixed; top:0; left:0; width:0; height:0; z-index:2147483647 !important; pointer-events:none; display:none;' });
@@ -4057,17 +4232,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         const bar = h('div', { class: 'qbar' });
 
         const makeIcon = (name) => {
-          const div = document.createElement('div');
-          div.innerHTML = (VSC_ICONS[name] || '').trim();
-          const svg = div.querySelector('svg');
-          if (svg) { svg.setAttribute('width','18'); svg.setAttribute('height','18'); svg.style.display='block'; svg.style.pointerEvents='none'; }
-          return svg || h('span',{style:'color:white;font-size:16px'},'⚙');
+          const builder = VSC_ICON_BUILDERS[name];
+          if (!builder) return document.createTextNode('');
+          const svg = builder(18);
+          svg.style.display = 'block';
+          svg.style.pointerEvents = 'none';
+          return svg;
         };
 
         const qb = (iconName, title, fn) => {
-          const b = h('div',{class:'qb',title});
+          const b = h('div', { class: 'qb', title });
           b.appendChild(makeIcon(iconName));
-          b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); fn(); }, {signal:sig});
+          b.addEventListener('click', e => { e.preventDefault(); e.stopPropagation(); fn(); }, { signal: sig });
           return b;
         };
 
@@ -4075,19 +4251,17 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         if (ZoomMgr) {
           zoomBtnEl = h('div', { class: 'qb', title: '줌 ON/OFF (Alt+Z)' });
           zoomBtnEl.appendChild(makeIcon('zoom'));
-
           const syncZoomStyle = () => {
             const en = !!Store.get(P.APP_ZOOM_EN);
-            zoomBtnEl.style.background  = en ? 'rgba(110,168,254,.35)' : '';
-            zoomBtnEl.style.borderColor = en ? 'rgba(110,168,254,.5)'  : '';
+            zoomBtnEl.style.background = en ? 'rgba(110,168,254,.35)' : '';
+            zoomBtnEl.style.borderColor = en ? 'rgba(110,168,254,.5)' : '';
           };
-
           zoomBtnEl.addEventListener('click', e => {
             e.preventDefault(); e.stopPropagation();
             const wasOn = !!Store.get(P.APP_ZOOM_EN);
             if (wasOn) {
               Store.set(P.APP_ZOOM_EN, false);
-              const v = window.__VSC_INTERNAL__._activeVideo;
+              const v = window[VSC_INTERNAL_SYM]._activeVideo;
               if (v) ZoomMgr.resetZoom(v);
               showOSD('줌 OFF', 900);
             } else {
@@ -4096,17 +4270,16 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
             }
             syncZoomStyle(); ApplyReq.soft(); persistNow();
           }, { signal: sig });
-
           Store.sub(P.APP_ZOOM_EN, syncZoomStyle);
           syncZoomStyle();
         }
 
         bar.append(
-          qb('gear','설정',() => togglePanel()),
-          qb('pip','PiP 전환',() => { const v=window.__VSC_INTERNAL__._activeVideo; if(v) togglePiPFor(v); }),
-          qb('maximize','최대화',() => Maximizer.toggle()),
+          qb('gear', '설정', () => togglePanel()),
+          qb('pip', 'PiP 전환', () => { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) togglePiPFor(v); }),
+          qb('maximize', '최대화', () => Maximizer.toggle()),
           ...(zoomBtnEl ? [zoomBtnEl] : []),
-          qb('camera','프레임 캡처',() => { const v=window.__VSC_INTERNAL__._activeVideo; if(v) captureVideoFrame(v); })
+          qb('camera', '프레임 캡처', () => { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) captureVideoFrame(v); })
         );
 
         sh.appendChild(bar);
@@ -4114,7 +4287,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         if (document.body) mount(); else window.addEventListener('DOMContentLoaded', mount, { once: true });
       }
 
-      /* v199.4: 패널 닫기 시 pointer-events 즉시 차단 + 트랜지션 완료 후 호스트도 차단 */
       function togglePanel(force) {
         const show = (force !== undefined) ? force : !panelOpen;
         if (show) {
@@ -4124,11 +4296,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         } else {
           panelEl?.classList.remove('open');
           if (panelHost) {
-            setTimer(() => {
-              if (!panelOpen && panelHost) {
-                panelHost.style.pointerEvents = 'none';
-              }
-            }, 250);
+            setTimer(() => { if (!panelOpen && panelHost) { panelHost.style.pointerEvents = 'none'; } }, 250);
           }
         }
         panelOpen = show; Store.set(P.APP_UI, show);
@@ -4157,9 +4325,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       return Object.freeze({ init, destroy, togglePanel, syncAll, switchTab });
     }
 
-    /* ================================================================
+    /* ══════════════════════════════════════════════════════════════════
        Save / Restore / Reset / Import / Export
-       ================================================================ */
+       ══════════════════════════════════════════════════════════════════ */
     function buildSaveDataFrom(sm) {
       return { version: VSC_VERSION, video: { ...sm.getCatRef('video') }, audio: { ...sm.getCatRef('audio') }, playback: { ...sm.getCatRef('playback') }, app: { ...sm.getCatRef('app') } };
     }
@@ -4184,18 +4352,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
     function saveSlot(idx) {
       if (!__Store) return;
       const data = buildSaveDataFrom(__Store);
-      const slots = [...(__Store.getCatRef('app').slots || [null,null,null])];
+      const slots = [...(__Store.getCatRef('app').slots || [null, null, null])];
       slots[idx] = data; __Store.set('app.slots', slots);
-      persistNow(); showOSD(`슬롯 ${idx+1} 저장됨`, 1200);
+      persistNow(); showOSD(`슬롯 ${idx + 1} 저장됨`, 1200);
     }
 
     function loadSlot(idx) {
       if (!__Store) return;
-      const slots = __Store.getCatRef('app').slots || [null,null,null];
+      const slots = __Store.getCatRef('app').slots || [null, null, null];
       const data = slots[idx];
-      if (!data) { showOSD(`슬롯 ${idx+1} 비어있음`, 1000); return; }
+      if (!data) { showOSD(`슬롯 ${idx + 1} 비어있음`, 1000); return; }
       restoreData(__Store, data); __ApplyReq?.hard(); persistNow();
-      showOSD(`슬롯 ${idx+1} 불러옴`, 1200);
+      showOSD(`슬롯 ${idx + 1} 불러옴`, 1200);
     }
 
     function doExport() {
@@ -4221,9 +4389,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       document.body.appendChild(inp); inp.click(); inp.remove();
     }
 
-    /* ================================================================
-       Persistence
-       ================================================================ */
+    /* ── Persistence ── */
     let __persistTimer = 0;
 
     function persistNow() {
@@ -4237,53 +4403,111 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       catch (e) { log.warn('[Persist] load error', e); }
     }
 
-    /* ================================================================
-       bindVideoOnce (v199.4: suppressSyncUntil 체크 추가)
-       ================================================================ */
+    /* ══════════════════════════════════════════════════════════════════
+       bindVideoOnce (v200: per-video AbortController + EME hooks)
+       ══════════════════════════════════════════════════════════════════ */
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video);
       if (st.bound) return;
       st.bound = true;
 
-      touchedAddLimited(TOUCHED.videos, video, (evicted) => { const es = getVState(evicted); if (es._ac) { es._ac.abort(); es._ac = null; es.bound = false; } });
-      on(video, 'resize', () => { st._resizeDirty = true; }, { signal: __globalSig });
+      const videoAC = new AbortController();
+      const videoSig = combineSignals(__globalSig, videoAC.signal);
+      st._ac = videoAC;
+
+      touchedAddLimited(TOUCHED.videos, video, (evicted) => {
+        const es = getVState(evicted);
+        if (es._ac) { es._ac.abort(); es._ac = null; es.bound = false; }
+      });
+
+      on(video, 'resize', () => { st._resizeDirty = true; }, { signal: videoSig });
 
       const onVideoReady = () => { st._resizeDirty = true; ApplyReq.hard(); };
-      on(video, 'loadedmetadata', onVideoReady, { signal: __globalSig });
-      on(video, 'loadeddata', onVideoReady, { signal: __globalSig });
-      if (video.readyState >= 1) setTimer(() => ApplyReq.hard(), 80);
+      on(video, 'loadedmetadata', onVideoReady, { signal: videoSig });
+      on(video, 'loadeddata', onVideoReady, { signal: videoSig });
+      if (video.readyState >= 1) setTimer(() => { if (!videoSig.aborted) ApplyReq.hard(); }, 80);
 
+      /* v200: EME encrypted event detection */
+      on(video, 'encrypted', () => {
+        __encryptedVideos.add(video);
+        const rs = getRateState(video);
+        if (rs.orig != null) {
+          rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+          try { video.playbackRate = rs.orig; } catch (_) {}
+        }
+        rs.permanentlyBlocked = true;
+        log.info('[DRM] encrypted event detected, rate control blocked for this video');
+      }, { signal: videoSig, once: true });
+
+      on(video, 'waitingforkey', () => {
+        __encryptedVideos.add(video);
+        const rs = getRateState(video);
+        if (!rs.permanentlyBlocked) {
+          rs.permanentlyBlocked = true;
+          if (rs.orig != null) {
+            rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+            try { video.playbackRate = rs.orig; } catch (_) {}
+          }
+          log.info('[DRM] waitingforkey detected, rate control blocked');
+        }
+      }, { signal: videoSig });
+
+      /* v200: ratechange with EME-aware DRM guard */
       on(video, 'ratechange', () => {
-  if (!Store.get(P.PB_EN)) return;
-  const expected = Number(Store.get(P.PB_RATE));
-  if (!Number.isFinite(expected)) return;
-  if (Math.abs(video.playbackRate - expected) < 0.002) { st.rateState._rateRetryCount = 0; return; }
-  const now = performance.now();
-  if (now < st.rateState.suppressSyncUntil) return;
-  if (__rateBlockedSite) { st.rateState.permanentlyBlocked = true; return; }
-  st.rateState._totalRetries++;
-  if (st.rateState._totalRetries > RATE_SESSION_MAX) { st.rateState.permanentlyBlocked = true; log.warn('[RateGuard] session max'); return; }
-  st.rateState._rateRetryCount++;
-  if (st.rateState._rateRetryCount > RATE_MAX_RETRY) { st.rateState.permanentlyBlocked = true; log.warn('[RateGuard] retry max'); return; }
-  const delay = Math.min(RATE_BACKOFF_BASE * (1 << (st.rateState._rateRetryCount - 1)), RATE_BACKOFF_MAX);
-  setTimer(() => {
-    if (!video.isConnected || st.rateState.permanentlyBlocked) return;
-    st.rateState.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;  // ← ✅ 상수 사용
-    video.playbackRate = expected;
-  }, delay);
-}, { signal: __globalSig });
+        if (!Store.get(P.PB_EN)) return;
+        const expected = Number(Store.get(P.PB_RATE));
+        if (!Number.isFinite(expected)) return;
+        if (Math.abs(video.playbackRate - expected) < 0.002) { st.rateState._rateRetryCount = 0; return; }
+        const now = performance.now();
+        if (now < st.rateState.suppressSyncUntil) return;
+        if (__rateBlockedSite || isVideoEncrypted(video)) {
+          st.rateState.permanentlyBlocked = true;
+          if (st.rateState.orig != null) {
+            st.rateState.suppressSyncUntil = now + RATE_SUPPRESS_MS;
+            try { video.playbackRate = st.rateState.orig; } catch (_) {}
+          }
+          log.info('[DRM] rate change blocked (host/EME)');
+          return;
+        }
+        st.rateState._totalRetries++;
+        if (st.rateState._totalRetries > RATE_SESSION_MAX) {
+          st.rateState.permanentlyBlocked = true;
+          log.warn('[RateGuard] session max — possible DRM or site interference');
+          showOSD('속도 제어: 이 사이트에서 차단됨', 2000);
+          return;
+        }
+        st.rateState._rateRetryCount++;
+        if (st.rateState._rateRetryCount > RATE_MAX_RETRY) {
+          st.rateState.permanentlyBlocked = true;
+          log.warn('[RateGuard] retry max');
+          return;
+        }
+        const delay = Math.min(RATE_BACKOFF_BASE * (1 << (st.rateState._rateRetryCount - 1)), RATE_BACKOFF_MAX);
+        setTimer(() => {
+          if (!video.isConnected || st.rateState.permanentlyBlocked || videoSig.aborted) return;
+          if (isVideoEncrypted(video)) { st.rateState.permanentlyBlocked = true; return; }
+          st.rateState.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+          try { video.playbackRate = expected; } catch (_) {}
+        }, delay);
+      }, { signal: videoSig });
 
-
-      on(video, 'play', () => ApplyReq.soft(), { signal: __globalSig });
-      on(video, 'pause', () => ApplyReq.soft(), { signal: __globalSig });
+      on(video, 'play', () => ApplyReq.soft(), { signal: videoSig });
+      on(video, 'pause', () => ApplyReq.soft(), { signal: videoSig });
       if (ZoomMgr) ZoomMgr.onNewVideoForZoom(video);
       patchFullscreenRequest(video);
+
+      videoSig.addEventListener('abort', () => {
+        st.bound = false;
+        st.resetTransient();
+        log.debug('[bindVideo] unbound', video.src?.slice(0, 40) || '(blob)');
+      }, { once: true });
+
       log.debug('[bindVideo]', video.src?.slice(0, 60) || '(blob)');
     }
 
-    /* ================================================================
-       createApplyLoop (v199.4: 속도 제어 완벽 대응)
-       ================================================================ */
+    /* ══════════════════════════════════════════════════════════════════
+       createApplyLoop (v200: EME-aware rate control)
+       ══════════════════════════════════════════════════════════════════ */
     function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
       const __lastUserPt = { x: 0, y: 0, t: 0 };
       onWin('pointermove', e => { __lastUserPt.x = e.clientX; __lastUserPt.y = e.clientY; __lastUserPt.t = performance.now(); }, { passive: true });
@@ -4293,28 +4517,23 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       setRecurring(() => {
         Registry.prune();
         for (const key of ['videos', 'rateVideos']) {
-          for (const v of TOUCHED[key]) {
-            if (!v.isConnected) TOUCHED[key].delete(v);
-          }
+          for (const v of TOUCHED[key]) { if (!v.isConnected) TOUCHED[key].delete(v); }
         }
       }, 4000, { maxErrors: 50 });
 
       function restoreRate(video) {
-  const rs = getRateState(video);
-  if (rs.orig != null && Math.abs(video.playbackRate - (rs.orig || 1)) > 0.002) {
-    rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;  // 300 → RATE_SUPPRESS_MS
-    try { video.playbackRate = rs.orig || 1; } catch (_) {}
-  }
-  rs.orig = null; rs._rateRetryCount = 0; rs._totalRetries = 0; rs.permanentlyBlocked = false;
-}
-
+        const rs = getRateState(video);
+        if (rs.orig != null && Math.abs(video.playbackRate - (rs.orig || 1)) > 0.002) {
+          rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+          try { video.playbackRate = rs.orig || 1; } catch (_) {}
+        }
+        rs.orig = null; rs._rateRetryCount = 0; rs._totalRetries = 0; rs.permanentlyBlocked = false;
+      }
 
       function apply(forceApply) {
         if (__globalSig.aborted) return;
-
         const applyAll = !!Store.get(P.APP_APPLY_ALL);
 
-        // 1. 앱 자체가 비활성화되었을 때 원래 속도로 복원
         if (!Store.get(P.APP_ACT)) {
           if (prevTarget) { FiltersVO.clear(prevTarget); prevTarget = null; }
           for (const v of TOUCHED.rateVideos) { if (v.isConnected) restoreRate(v); }
@@ -4324,14 +4543,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         const audioBoostOn = !!Store.get(P.A_EN);
         const { target } = TargetingMod.pickFastActiveOnly(Registry.visible.videos, __lastUserPt, audioBoostOn);
 
-        // 아무 영상도 없으면 종료
         if (!target && !applyAll) return;
 
-        // 2. 포커스(오디오 등) 타겟 업데이트
         if (target !== prevTarget || forceApply) {
           if (prevTarget && prevTarget !== target) FiltersVO.clear(prevTarget);
           prevTarget = target;
-          window.__VSC_INTERNAL__._activeVideo = target;
+          window[VSC_INTERNAL_SYM]._activeVideo = target;
           Audio.setTarget(target);
         }
 
@@ -4339,52 +4556,41 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         const pbEn = !!Store.get(P.PB_EN);
         const pbRate = Number(Store.get(P.PB_RATE));
 
-        // 3. 제어할 비디오 목록 묶기 (applyAll이 켜져있으면 화면 내 모든 비디오)
         const targets = new Set();
         if (target) targets.add(target);
         if (applyAll) {
-          for (const v of Registry.visible.videos) {
-            if (v.isConnected) targets.add(v);
-          }
+          for (const v of Registry.visible.videos) { if (v.isConnected) targets.add(v); }
         }
 
-        // 4. 모든 대상 비디오에 대해 속도 및 필터 일괄 적용
         for (const v of targets) {
-          // --- [속도 적용 로직] ---
           if (pbEn && Number.isFinite(pbRate) && pbRate > 0) {
             const rs = getRateState(v);
             if (!rs.permanentlyBlocked) {
               if (rs.orig == null) rs.orig = v.playbackRate;
               if (Math.abs(v.playbackRate - pbRate) > 0.002) {
-  if (rs._totalRetries >= RATE_SESSION_MAX) {
-    rs.permanentlyBlocked = true;
-  } else {
-    rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
-    try {
-      v.playbackRate = pbRate;
-      rs._rateRetryCount = 0;
-    } catch (_) {
-      rs._rateRetryCount++;
-      rs._totalRetries++;
-      rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;  // ← ✅ 실패 시에도 억제
-    }
-  }
-  touchedAddLimited(TOUCHED.rateVideos, v);
-}
+                if (rs._totalRetries >= RATE_SESSION_MAX) {
+                  rs.permanentlyBlocked = true;
+                } else if (isVideoEncrypted(v)) {
+                  rs.permanentlyBlocked = true;
+                  if (rs.orig != null) {
+                    rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+                    try { v.playbackRate = rs.orig; } catch (_) {}
+                  }
+                } else {
+                  rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+                  try { v.playbackRate = pbRate; rs._rateRetryCount = 0; }
+                  catch (_) { rs._rateRetryCount++; rs._totalRetries++; rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; }
+                }
+                touchedAddLimited(TOUCHED.rateVideos, v);
+              }
             }
           } else {
             restoreRate(v);
           }
 
-          // --- [필터 적용 로직] ---
           const params = ParamsMemo.get(vfUser, v);
-          if (!params || isNeutralVideoParams(params)) {
-            FiltersVO.clear(v);
-          } else {
-            const filterResult = FiltersVO.prepareCached(v, params);
-            FiltersVO.applyFilter(v, filterResult);
-          }
-
+          if (!params || isNeutralVideoParams(params)) { FiltersVO.clear(v); }
+          else { const filterResult = FiltersVO.prepareCached(v, params); FiltersVO.applyFilter(v, filterResult); }
           touchedAddLimited(TOUCHED.videos, v);
         }
       }
@@ -4393,9 +4599,9 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       return { apply };
     }
 
-    /* ================================================================
+    /* ══════════════════════════════════════════════════════════════════
        createKeyboard
-       ================================================================ */
+       ══════════════════════════════════════════════════════════════════ */
     function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
       const STEP_RATE = 0.1;
       onDoc('keydown', e => {
@@ -4403,7 +4609,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         const k = e.key, shift = e.shiftKey, alt = e.altKey;
         if (k === 'Escape') { UI?.togglePanel(false); Maximizer?.isActive() && Maximizer.undoMaximize(); e.preventDefault(); return; }
         if (alt && k === 'v') { UI?.togglePanel(); e.preventDefault(); return; }
-        if (alt && k === 'p') { const v = window.__VSC_INTERNAL__._activeVideo; if (v) togglePiPFor(v); e.preventDefault(); return; }
+        if (alt && k === 'p') { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) togglePiPFor(v); e.preventDefault(); return; }
         if (alt && (k === 'm' || k === 'M')) { Maximizer?.toggle(); e.preventDefault(); return; }
         if (alt && k === 'a') {
           const nv = !Store.get(P.APP_AUTO_SCENE); Store.set(P.APP_AUTO_SCENE, nv);
@@ -4412,14 +4618,14 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
           showOSD(`자동 보정: ${nv ? '켜짐' : '꺼짐'}`, 1000);
           e.preventDefault(); return;
         }
-        if (alt && k === 's') { const v = window.__VSC_INTERNAL__._activeVideo; if (v) captureVideoFrame(v); e.preventDefault(); return; }
-        if (alt && k === '0') { const v = window.__VSC_INTERNAL__._activeVideo; if (v && ZoomMgr) ZoomMgr.resetZoom(v); e.preventDefault(); return; }
+        if (alt && k === 's') { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) captureVideoFrame(v); e.preventDefault(); return; }
+        if (alt && k === '0') { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v && ZoomMgr) ZoomMgr.resetZoom(v); e.preventDefault(); return; }
         if (alt && (k === 'z' || k === 'Z')) {
           if (!ZoomMgr) return;
           const wasOn = !!Store.get(P.APP_ZOOM_EN);
           if (wasOn) {
             Store.set(P.APP_ZOOM_EN, false);
-            const v = window.__VSC_INTERNAL__._activeVideo;
+            const v = window[VSC_INTERNAL_SYM]._activeVideo;
             if (v) ZoomMgr.resetZoom(v);
             showOSD('줌 OFF', 900);
           } else {
@@ -4443,57 +4649,72 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       }, { signal: __globalSig, capture: true });
     }
 
-    /* ================================================================
-       BOOTSTRAP
-       ================================================================ */
+    /* ══════════════════════════════════════════════════════════════════
+       BOOTSTRAP (v200: FeatureRegistry wiring)
+       ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
       log.info(`[VSC] v${VSC_VERSION} booting on ${location.hostname}`);
-      const Utils = createUtils();
-      const Scheduler = createScheduler();
-      const Store = createLocalStore(DEFAULTS, Scheduler, Utils);
-      const Bus = createEventBus();
-      const ApplyReq = createApplyRequester(Bus, Scheduler);
-      const Registry = createRegistry(Scheduler);
-      const Targeting = createTargeting();
-      const Audio = createAudio(Store);
-      const AutoScene = createAutoSceneManager(Store, P, Scheduler);
-      const ParamsMemo = createVideoParamsMemo(Store, P, Utils);
-      const FiltersVO = createFiltersVideoOnly(Utils, CONFIG);
-      const Maximizer = createVideoMaximizer(Store, ApplyReq);
-      const ZoomMgr = FEATURE_FLAGS.zoomFeature ? createZoomManager() : null;
 
-      window.__VSC_INTERNAL__.Store = Store;
-      window.__VSC_INTERNAL__.ApplyReq = ApplyReq;
-      window.__VSC_INTERNAL__.AutoScene = AutoScene;
-      window.__VSC_INTERNAL__.ZoomManager = ZoomMgr;
+      const FeatReg = createFeatureRegistry(__globalSig);
+
+      FeatReg.register('Utils', () => createUtils());
+      FeatReg.register('Scheduler', () => createScheduler());
+      FeatReg.register('Store', (deps) => {
+        const store = createLocalStore(DEFAULTS, deps.Scheduler, deps.Utils);
+        loadPersisted(store);
+        return store;
+      }, ['Utils', 'Scheduler']);
+      FeatReg.register('Bus', () => createEventBus());
+      FeatReg.register('ApplyReq', (deps) => createApplyRequester(deps.Bus, deps.Scheduler), ['Bus', 'Scheduler']);
+      FeatReg.register('Registry', (deps) => createRegistry(deps.Scheduler), ['Scheduler']);
+      FeatReg.register('Targeting', () => createTargeting());
+      FeatReg.register('Audio', (deps) => createAudio(deps.Store), ['Store']);
+      FeatReg.register('AutoScene', (deps) => createAutoSceneManager(deps.Store, P, deps.Scheduler), ['Store', 'Scheduler']);
+      FeatReg.register('ParamsMemo', (deps) => createVideoParamsMemo(deps.Store, P, deps.Utils), ['Store', 'Utils']);
+      FeatReg.register('FiltersVO', (deps) => createFiltersVideoOnly(deps.Utils, CONFIG), ['Utils']);
+      FeatReg.register('Maximizer', (deps) => createVideoMaximizer(deps.Store, deps.ApplyReq), ['Store', 'ApplyReq']);
+      FeatReg.register('ZoomMgr', () => FEATURE_FLAGS.zoomFeature ? createZoomManager() : null);
+
+      const moduleNames = ['Utils', 'Scheduler', 'Store', 'Bus', 'ApplyReq', 'Registry', 'Targeting', 'Audio', 'AutoScene', 'ParamsMemo', 'FiltersVO', 'Maximizer', 'ZoomMgr'];
+      for (const name of moduleNames) FeatReg.resolve(name);
+
+      const Store = FeatReg.get('Store');
+      const Scheduler = FeatReg.get('Scheduler');
+      const Bus = FeatReg.get('Bus');
+      const ApplyReq = FeatReg.get('ApplyReq');
+      const Registry = FeatReg.get('Registry');
+      const Targeting = FeatReg.get('Targeting');
+      const Audio = FeatReg.get('Audio');
+      const AutoScene = FeatReg.get('AutoScene');
+      const ParamsMemo = FeatReg.get('ParamsMemo');
+      const FiltersVO = FeatReg.get('FiltersVO');
+      const Maximizer = FeatReg.get('Maximizer');
+      const ZoomMgr = FeatReg.get('ZoomMgr');
+
+      window[VSC_INTERNAL_SYM].Store = Store;
+      window[VSC_INTERNAL_SYM].ApplyReq = ApplyReq;
+      window[VSC_INTERNAL_SYM].AutoScene = AutoScene;
+      window[VSC_INTERNAL_SYM].ZoomManager = ZoomMgr;
       __Store = Store; __ApplyReq = ApplyReq;
 
-      loadPersisted(Store);
-
-      // 👇 [여기가 빠졌습니다! 반드시 추가해주세요] 👇
-      // UI에서 신호(ApplyReq.hard/soft)가 오면 즉시 엔진(Scheduler)을 깨워 영상에 적용합니다.
       Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
-      // 👆 ------------------------------------------------👆
 
-      /* v199.4: 전역 구독 하나로 통합 — 개별 persistNow 호출은 즉시 저장이 필요한 곳에만 유지 */
       const __persistSubCategories = ['video.*', 'audio.*', 'playback.*', 'app.*'];
-      for (const cat of __persistSubCategories) {
-        Store.sub(cat, () => persistNow());
-      }
+      for (const cat of __persistSubCategories) { Store.sub(cat, () => persistNow()); }
 
       createApplyLoop(Store, Scheduler, Registry, Targeting, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq);
 
-      // 사용자가 UI에서 속도(PB_RATE)를 변경하면 차단 상태를 리셋
       Store.sub(P.PB_RATE, () => {
         for (const v of TOUCHED.rateVideos) {
           const rs = getRateState(v);
-          rs.permanentlyBlocked = false;
-          rs._rateRetryCount = 0;
-          rs._totalRetries = 0;
+          if (!isVideoEncrypted(v)) {
+            rs.permanentlyBlocked = false;
+            rs._rateRetryCount = 0;
+            rs._totalRetries = 0;
+          }
         }
       });
 
-      // 속도 제어 버튼(PB_EN)을 끄면 원래 속도로 복원하고 차단 리셋
       Store.sub(P.PB_EN, (enabled) => {
         if (!enabled) {
           for (const v of TOUCHED.rateVideos) {
@@ -4512,7 +4733,19 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
 
       const processVideo = (v) => bindVideoOnce(v, Store, Registry, AutoScene, ApplyReq, ZoomMgr);
       const scanAll = () => { for (const v of document.querySelectorAll('video')) processVideo(v); };
-      const rescanDebounced = createDebounced(() => { scanAll(); Registry.rescanAll(); ApplyReq.hard(); }, SPA_RESCAN_DEBOUNCE_MS);
+      const rescanDebounced = createDebounced(() => {
+        scanAll(); Registry.rescanAll(); ApplyReq.hard();
+        const wasBlocked = __rateBlockedSite;
+        __rateBlockedSite = isRateBlockedContext();
+        if (wasBlocked && !__rateBlockedSite) {
+          for (const v of TOUCHED.rateVideos) {
+            const rs = getRateState(v);
+            if (rs.permanentlyBlocked && !isVideoEncrypted(v)) {
+              rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0;
+            }
+          }
+        }
+      }, SPA_RESCAN_DEBOUNCE_MS);
       initSpaUrlDetector(rescanDebounced);
       setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
 
@@ -4520,13 +4753,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
         document.addEventListener('DOMContentLoaded', () => { scanAll(); Scheduler.request(true); }, { once: true, signal: __globalSig });
       } else { scanAll(); Scheduler.request(true); }
 
-      /* v199.4: AutoScene 300ms 지연 시작 (scanAll 이후) */
       setTimer(() => {
         if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) AutoScene.start();
       }, 300);
 
-      const UI = createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq);
-      window.__VSC_UI_Ensure = () => {};
+      const UI = createUI(Store, Bus, createUtils(), Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq);
+      window[VSC_INTERNAL_SYM]._uiEnsure = () => {};
 
       const waitForBody = () => {
         if (document.body) { UI.init(); return; }
@@ -4538,34 +4770,26 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile
       createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr);
       if (FEATURE_FLAGS.iframeInjection) watchIframes();
 
-      window.__VSC_APP__ = { getActiveVideo: () => window.__VSC_INTERNAL__._activeVideo };
+      window[VSC_APP_SYM] = { getActiveVideo: () => window[VSC_INTERNAL_SYM]._activeVideo };
       if (ZoomMgr) setRecurring(() => ZoomMgr.pruneDisconnected(), 5000, { maxErrors: 50 });
 
-      /* v199.4: visibility change – 숨김 시 스케줄러 요청 억제 */
-      onDoc('visibilitychange', () => {
-        if (!document.hidden) {
-          ApplyReq.soft();
-        }
-      }, { passive: true });
+      onDoc('visibilitychange', () => { if (!document.hidden) { ApplyReq.soft(); } }, { passive: true });
 
-      /* v199.4: fullscreen change – OSD 정리 */
       onDoc('fullscreenchange', () => {
         if (!document.fullscreenElement && __osdEl) {
-          if (!__osdEl.isConnected) { clearTimeout(__osdEl._timer); __osdEl = null; }
+          if (!__osdEl.isConnected) { clearTimer(__osdTimerId); __osdTimerId = 0; __osdEl = null; }
         }
-        ApplyReq.soft();
-        UI.syncAll();
+        ApplyReq.soft(); UI.syncAll();
       });
 
       __globalSig.addEventListener('abort', () => {
-        Audio.destroy(); AutoScene.stop();
-        if (ZoomMgr) ZoomMgr.destroy();
-        UI.destroy();
+        FeatReg.destroyAll();
         for (const v of TOUCHED.videos) FiltersVO.clear(v);
         for (const v of TOUCHED.rateVideos) {
           const rs = getRateState(v);
           if (rs.orig != null && v.isConnected) { try { v.playbackRate = rs.orig; } catch (_) {} }
         }
+        clearTimer(__osdTimerId); __osdTimerId = 0;
         if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} }
         __osdEl = null;
         log.info('[VSC] destroyed');
