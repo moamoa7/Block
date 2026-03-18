@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v202.0.0-Hybrid)
+// @name         Video_Control (v203.0.0-Modular)
 // @namespace    https://github.com/
-// @version      202.0.0-Hybrid
-// @description  v202: WebGPU compute-shader scene analysis offload, AudioWorklet DSP pipeline, defineFeature module system, touch state-machine, PiP black-screen fix, setProperty style preservation, per-video AC, EME DRM guard
+// @version      203.0.0-Modular
+// @description  v203: Modular AutoSense control (Shadow/Recovery/Brightness), WebGPU compute-shader scene analysis, AudioWorklet DSP pipeline
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -27,7 +27,7 @@
   function VSC_MAIN() {
     if (location.href.includes('/cdn-cgi/') || location.host.includes('challenges.cloudflare.com') || location.protocol === 'about:' || location.href === 'about:blank') return;
 
-    /* ══ Symbol-based boot lock & namespace (v202) ══ */
+    /* ══ Symbol-based boot lock & namespace (v203) ══ */
     const VSC_SYM = Symbol.for('__VSC__');
     const VSC_BOOT_SYM = Symbol.for('__VSC_BOOT_LOCK__');
     const VSC_SPA_SYM = Symbol.for('__VSC_SPA_PATCHED__');
@@ -157,7 +157,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '202.0.0-Hybrid';
+    const VSC_VERSION = '203.0.0-Modular';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -186,7 +186,7 @@
       return { rs: r / m, gs: g / m, bs: b / m };
     }
 
-    /* ══ Defense & feature flags (v202: gpuAnalysis + audioWorklet flags) ══ */
+    /* ══ Defense & feature flags ══ */
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({
       trackShadowRoots: true,
@@ -204,7 +204,7 @@
       TARGET_HYSTERESIS_MARGIN: 1.2
     });
 
-    /* ══ DRM rate-control constants (v202) ══ */
+    /* ══ DRM rate-control constants ══ */
     const RATE_BLOCKED_HOSTS = Object.freeze([
       'netflix.com', 'disneyplus.com', 'primevideo.com', 'hulu.com',
       'max.com', 'peacocktv.com', 'paramountplus.com', 'crunchyroll.com',
@@ -240,7 +240,7 @@
     }
     let __rateBlockedSite = isRateBlockedContext();
 
-    /* ══ EME encrypted video tracking (v202) ══ */
+    /* ══ EME encrypted video tracking ══ */
     const __encryptedVideos = new WeakSet();
     function isVideoEncrypted(video) {
       try { if (video.mediaKeys) return true; } catch (_) {}
@@ -257,7 +257,7 @@
       debug: LOG_LEVEL >= 4 ? ((...args) => console.debug('[VSC]', ...args)) : (() => {})
     };
 
-    /* ══ StyleGuard (v202: setProperty-based style preservation) ══ */
+    /* ══ StyleGuard (setProperty-based style preservation) ══ */
     function vscSetStyle(el, prop, value, priority = 'important') {
       if (!el?.style) return;
       let managed = el[VSC_MANAGED_PROPS];
@@ -297,7 +297,7 @@
       return !!(managed && managed.size > 0);
     }
 
-    /* ══ Video State (v202: per-video AC, EME hooks) ══ */
+    /* ══ Video State ══ */
     function createRateState() {
       return { orig: null, suppressSyncUntil: 0, permanentlyBlocked: false, _rateRetryCount: 0, _totalRetries: 0 };
     }
@@ -348,9 +348,13 @@
     });
     const getPresetLabel = (group, key) => PRESETS[group]?.[key]?.label || key;
 
-    /* ══ Defaults & Paths ══ */
+    /* ══ Defaults & Paths (v203: AutoSense Modules Added) ══ */
     const DEFAULTS = {
-      video: { presetS: 'off', presetB: 'off', presetMix: 1.0, shadowBandMask: 0, brightStepLevel: 0 },
+      video: {
+        presetS: 'off', presetB: 'off', presetMix: 1.0,
+        shadowBandMask: 0, brightStepLevel: 0,
+        autoShadow: 0, autoRecovery: 0, autoBright: 0
+      },
       audio: { enabled: false, boost: 6 },
       playback: { rate: 1.0, enabled: false },
       app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, slots: [null, null, null] }
@@ -360,6 +364,7 @@
       APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced',
       V_PRE_S: 'video.presetS', V_PRE_B: 'video.presetB', V_PRE_MIX: 'video.presetMix',
       V_SHADOW_MASK: 'video.shadowBandMask', V_BRIGHT_STEP: 'video.brightStepLevel',
+      V_AS_SHAD: 'video.autoShadow', V_AS_REC: 'video.autoRecovery', V_AS_BRT: 'video.autoBright',
       A_EN: 'audio.enabled', A_BST: 'audio.boost',
       PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
     });
@@ -376,7 +381,10 @@
       { type: 'enum', path: P.V_PRE_B, values: Object.keys(PRESETS.grade), fallback: () => DEFAULTS.video.presetB },
       { type: 'num', path: P.V_PRE_MIX, min: 0, max: 1, fallback: () => DEFAULTS.video.presetMix },
       { type: 'num', path: P.V_SHADOW_MASK, min: 0, max: 7, round: true, fallback: () => 0 },
-      { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 }
+      { type: 'num', path: P.V_BRIGHT_STEP, min: 0, max: 3, round: true, fallback: () => 0 },
+      { type: 'num', path: P.V_AS_SHAD, min: 0, max: 3, round: true, fallback: () => 0 },
+      { type: 'num', path: P.V_AS_REC, min: 0, max: 3, round: true, fallback: () => 0 },
+      { type: 'num', path: P.V_AS_BRT, min: 0, max: 3, round: true, fallback: () => 0 }
     ];
     const AUDIO_PLAYBACK_SCHEMA = [
       { type: 'bool', path: P.A_EN },
@@ -386,7 +394,7 @@
     ];
     const ALL_SCHEMAS = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
 
-    /* ══ attachShadow patch (v202: Symbol-based marking) ══ */
+    /* ══ attachShadow patch ══ */
     if (FEATURE_FLAGS.trackShadowRoots) {
       __internal._onShadow = null;
       const _origAttach = Element.prototype.attachShadow;
@@ -488,7 +496,7 @@
       clear() { this._head = 0; this._size = 0; }
     }
 
-    /* ══ SPA URL detector (v202: Symbol-based guard) ══ */
+    /* ══ SPA URL detector ══ */
     function initSpaUrlDetector(onChanged) {
       if (window[VSC_SPA_SYM]) return;
       window[VSC_SPA_SYM] = true;
@@ -547,7 +555,7 @@
       }, { once: true });
     }
 
-    /* ══ Iframe injection (v202: Symbol-based boot lock check) ══ */
+    /* ══ Iframe injection ══ */
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
     const __injectedIframes = new WeakSet();
     const __iframeLoadHooked = new WeakSet();
@@ -758,14 +766,8 @@
     }, 2000);
 
     /* ══════════════════════════════════════════════════════════════════
-       WebGPU Scene Analysis Compute Shader (v202 NEW)
-       ══════════════════════════════════════════════════════════════════
-       GPU-offloaded histogram, zone stats, motion SAD, skin detection.
-       Falls back to CPU path (computeFullAnalysis) if WebGPU unavailable
-       or on DRM/tainted canvas errors.
+       WebGPU Scene Analysis Compute Shader
        ══════════════════════════════════════════════════════════════════ */
-
-    /* ── WGSL Compute Shader Source ── */
     const VSC_GPU_WGSL = /* wgsl */ `
 struct Params {
   width  : u32,
@@ -1326,11 +1328,7 @@ fn motionPass(@builtin(global_invocation_id) gid : vec3<u32>) {
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       AudioWorklet DSP Processor Source (v202 NEW)
-       ══════════════════════════════════════════════════════════════════
-       Off-main-thread audio processing: HPF, compressor, limiter,
-       soft-clipper, auto-makeup gain. Communicates with main thread
-       via AudioWorkletNode.port (MessagePort).
+       AudioWorklet DSP Processor Source
        ══════════════════════════════════════════════════════════════════ */
     const VSC_AUDIO_WORKLET_SOURCE = `
 class VSCDSPProcessor extends AudioWorkletProcessor {
@@ -1578,7 +1576,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       __workletRegistered = false;
     }, { once: true });
 
-    /* ══ defineFeature — Declarative Module System (v202) ══ */
+    /* ══ defineFeature — Declarative Module System ══ */
     function createModuleSystem(globalSig) {
       const STATUS = Object.freeze({ PENDING: 0, INITIALIZING: 1, ACTIVE: 2, SUSPENDED: 3, DESTROYED: 4, ERROR: 5 });
       const modules = new Map();
@@ -1681,13 +1679,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return Object.freeze({ defineFeature, resolve, resolveAll, runUpdates, suspend, resume, destroyOne, destroyAll, get, getStatus, listActive, getStats, STATUS });
     }
 
-    // ═══ END OF PART 1 (v202.0.0-Hybrid) ═══
+    // ═══ END OF PART 1 (v203.0.0-Modular) ═══
     // PART 2 continues with: createTargeting, createEventBus, createUtils,
     //   createScheduler, createLocalStore, normalizeBySchema, createRegistry,
-    //   createAudio (v202: AudioWorklet integration with fallback)
-    // ═══ PART 2 START (v202.0.0-Hybrid) — continues directly from PART 1's createModuleSystem ═══
+    //   createAudio
+// ═══ PART 2 START (v203.0.0-Modular) — continues directly from PART 1's createModuleSystem ═══
 
-    /* ══ Targeting (v202: unchanged logic from v201, MIN_AREA relaxed) ══ */
+    /* ══ Targeting ══ */
     function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       const SCORE = Object.freeze({
@@ -1762,7 +1760,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       });
     }
 
-    /* ══ Utils (v202: SVG_TAGS, deepClone — unchanged from v201) ══ */
+    /* ══ Utils ══ */
     function createUtils() {
       return {
         clamp: VSC_CLAMP,
@@ -1928,7 +1926,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return changed;
     }
 
-    /* ══ Registry (v202: unchanged from v201 — ShadowRoot disconnect detection, WorkQ background priority) ══ */
+    /* ══ Registry ══ */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -2182,18 +2180,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══════════════════════════════════════════════════════════════════
-       Audio Engine (v202: AudioWorklet DSP pipeline with legacy fallback)
-       ══════════════════════════════════════════════════════════════════
-       Architecture:
-         1. On init, attempt to register AudioWorklet processor
-         2. If successful → use AudioWorkletNode as the wet path
-            (HPF + compressor + makeup + limiter + soft-clip all inside worklet)
-         3. If failed → fall back to legacy Web Audio node graph
-            (identical to v201: DynamicsCompressor → WaveShaper → etc.)
-         4. runAudioLoop sends params to worklet via port.postMessage
-            and reads metrics for OSD / UI display
-       ══════════════════════════════════════════════════════════════════ */
+    /* ══ Audio Engine ══ */
     function createAudio(sm) {
       let ctx;
       let target = null, currentSrc = null;
@@ -2322,7 +2309,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
       }
 
-      /* ══ Legacy path: build graph (identical to v201) ══ */
+      /* ══ Legacy path: build graph ══ */
       function buildLegacyGraph() {
         compressor = ctx.createDynamicsCompressor();
         compressor.threshold.value = -18.0;
@@ -2369,7 +2356,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         log.info('[Audio] Using legacy Web Audio node graph (fallback)');
       }
 
-      /* ══ runAudioLoop — worklet path: just send params, read metrics ══ */
+      /* ══ runAudioLoop — worklet path ══ */
       function runAudioLoopWorklet(tok) {
         if (tok !== loopTok || !ctx || __globalSig.aborted) return;
         if (ctx.state === 'suspended') return;
@@ -2399,7 +2386,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }, delay);
       }
 
-      /* ══ runAudioLoop — legacy path (identical to v201) ══ */
+      /* ══ runAudioLoop — legacy path ══ */
       function runAudioLoopLegacy(tok) {
         if (tok !== loopTok || !ctx || __globalSig.aborted) return;
         if (ctx.state === 'suspended') { makeupDbEma = 0; return; }
@@ -2503,7 +2490,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         for (const v of TOUCHED.rateVideos) { const vst = videoStateMap.get(v); if (vst) vst.audioFailUntil = 0; }
       };
 
-      /* ══ ensureCtx — v202: attempts AudioWorklet first, then legacy fallback ══ */
+      /* ══ ensureCtx ══ */
       const ensureCtx = async () => {
         if (ctx && ctx.state === 'closed') {
           disconnectAllKnownSources(); srcMap = new WeakMap(); resetAllAudioFailUntil(); resetCtx(); __ctxCreateCount++;
@@ -2533,7 +2520,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         __ctxCreateCount++;
         ensureGestureResumeHook();
 
-        /* v202: try AudioWorklet first, fall back to legacy */
         if (FEATURE_FLAGS.audioWorklet) {
           const workletOk = await buildWorkletGraph();
           if (!workletOk) {
@@ -2554,7 +2540,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         return true;
       };
 
-      /* ══ Mix control — unified for both paths ══ */
+      /* ══ Mix control ══ */
       const rampGainsSafe = (dryTarget, wetTarget, tc = 0.015) => {
         if (!ctx) return;
         const t = ctx.currentTime;
@@ -2609,7 +2595,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         const wetTarget = actuallyEnabled ? 1 : 0;
         rampGainsSafe(dryTarget, wetTarget, 0.015);
 
-        /* v202: send enable state to worklet immediately */
         if (__useWorklet && __workletNode) {
           const boostDb = Number(sm.get(P.A_BST) || 0);
           __workletNode.port.postMessage({ type: 'params', enabled: actuallyEnabled, boostDb });
@@ -2626,7 +2611,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
       }, { passive: true });
 
-      /* ══ connectSource — unified for both paths ══ */
+      /* ══ connectSource ══ */
       function connectSource(v) {
         const st = v ? getVState(v) : null;
         try {
@@ -2667,7 +2652,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
       }
 
-      /* ══ setTarget — v202: ensureCtx is now async (for worklet registration) ══ */
+      /* ══ setTarget ══ */
       async function setTarget(v) {
         const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         const st = v ? getVState(v) : null;
@@ -2721,30 +2706,18 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    // ═══ END OF PART 2 (v202.0.0-Hybrid) ═══
-    // PART 3 continues with: createAutoSceneManager (v202: WebGPU integration),
-    //   curveToApproxParams
-    // ═══ PART 3 START (v202.0.0-Hybrid) — continues directly from PART 2's createAudio ═══
+    // ═══ END OF PART 2 (v203.0.0-Modular) ═══
+    // PART 3 continues with: createAutoSceneManager
+// ═══ PART 3 START (v203.0.0-Modular) — continues directly from PART 2's createAudio ═══
 
     /* ══════════════════════════════════════════════════════════════════
-       Auto Scene Manager (v202.0.0-Hybrid)
+       Auto Scene Manager (v203.0.0-Modular)
        ──────────────────────────────────────────────────────────────
-       v201 patches preserved:
-         #1  captureSceneFrame — VideoFrame timestamp fix
-         #3  loop() — static scene fallback (framesSinceUpdate counter)
-         #4  detectTransition — motionSAD delta comparison
-         #5  interpolateCurves — double-buffer (no per-frame alloc)
-         #6  flickerCount decay 0.5, max 5
-         #7  classifySceneFuzzy — LOW_KEY boundary 0.30
-         #8  buildAdaptiveToneCurve — dead-code non-zonal path removed
-         #10 computeFullAnalysis — skinCount && short-circuit
-         #11 adaptiveFps — fpsHist → CircularBuffer
-         #13 AUTO.motionThresh 0.012
-       v202 additions:
-         - WebGPU compute shader offload via createWebGPUAnalyzer
-         - GPU init on first autoScene enable, lazy
-         - analyzeFrame GPU → fallback CPU path
-         - _gpuPath marker in stats for debugging
+       v203 additions:
+         - Modular AutoSense overrides (Shadow, Recovery, Brightness)
+         - Shadow: Modifies shadowProtect and adds low-end curve lift
+         - Recovery: Boosts CLAHE clipLimit and scales edge metric
+         - Brightness: Adaptive final gain based on inverse mean luma
        ══════════════════════════════════════════════════════════════════ */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
@@ -2759,7 +2732,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const ST_NAMES = ['NORMAL', 'LOW_KEY', 'HIGH_KEY', 'HI_CONT', 'LOW_SAT', 'SKIN', 'BACKLIT'];
       const ST_COUNT = ST_NAMES.length;
 
-      /* ── v202: WebGPU analyzer instance (lazy init) ── */
       let gpuAnalyzer = null;
       let gpuInitAttempted = false;
 
@@ -2836,23 +2808,49 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         return curve.slice();
       }
 
+      /* v203: Modular overrides incorporated into Adaptive Tone Curve */
       function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
-        const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35 } = params;
-        const equalized = buildZonalCLAHE(zoneHists, zoneCounts, clipLimit);
+        const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35, userMods = {} } = params;
+
+        const recMod = userMods.recovery || 0;
+        const shadMod = userMods.shadow || 0;
+
+        // Recovery boosts the local contrast limit (CLAHE clipLimit)
+        const finalClipLimit = clipLimit + (recMod * 0.5);
+        const equalized = buildZonalCLAHE(zoneHists, zoneCounts, finalClipLimit);
+
         const identity = new Float32Array(TONE_STEPS);
         for (let i = 0; i < TONE_STEPS; i++) identity[i] = i / (TONE_STEPS - 1);
         const raw = new Float32Array(TONE_STEPS);
+
+        // Shadow level reduces shadow protection and explicitly lifts the low-end
+        const finalShadowProtect = Math.max(0, shadowProtect - (shadMod * 0.12));
+        const shadowLift = shadMod * 0.035;
+
         for (let i = 0; i < TONE_STEPS; i++) {
           const x = i / (TONE_STEPS - 1);
           const eq = equalized[i], id = identity[i];
           let regionWeight = 1.0;
-          if (x < 0.18) { const t = x / 0.18; regionWeight = 1.0 - shadowProtect * (1 - t * t); }
-          else if (x > 0.82) { const t = (x - 0.82) / 0.18; regionWeight = 1.0 - highlightProtect * (t * t); }
+          if (x < 0.18) {
+            const t = x / 0.18;
+            regionWeight = 1.0 - finalShadowProtect * (1 - t * t);
+          }
+          else if (x > 0.82) {
+            const t = (x - 0.82) / 0.18;
+            regionWeight = 1.0 - highlightProtect * (t * t);
+          }
           let midBoost = 0;
-          if (Math.abs(midtoneBoost) > 0.001) { const midW = Math.exp(-((x - 0.5) * (x - 0.5)) / (2 * 0.14 * 0.14)); midBoost = midtoneBoost * midW * 0.15; }
+          if (Math.abs(midtoneBoost) > 0.001) {
+            const midW = Math.exp(-((x - 0.5) * (x - 0.5)) / (2 * 0.14 * 0.14));
+            midBoost = midtoneBoost * midW * 0.15;
+          }
+
           const effectiveStrength = strength * regionWeight;
-          raw[i] = clamp(id * (1 - effectiveStrength) + eq * effectiveStrength + midBoost, 0, 1);
+          const lowEndLift = (x < 0.3) ? shadowLift * (1 - x / 0.3) : 0;
+
+          raw[i] = clamp(id * (1 - effectiveStrength) + eq * effectiveStrength + midBoost + lowEndLift, 0, 1);
         }
+
         const curve = new Float32Array(TONE_STEPS);
         curve[0] = raw[0]; curve[TONE_STEPS - 1] = raw[TONE_STEPS - 1];
         for (let i = 1; i < TONE_STEPS - 1; i++) curve[i] = raw[i] * 0.6 + (raw[i - 1] + raw[i + 1]) * 0.2;
@@ -2980,7 +2978,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         return base / (1 + flickerCount * 0.5);
       }
 
-      /* ── CPU analysis buffers (used only when GPU unavailable) ── */
+      /* ── CPU analysis buffers ── */
       let __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
 
       let __cachedZxLut = null, __cachedZyLut = null, __cachedLutW = 0, __cachedLutH = 0;
@@ -3222,7 +3220,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
       const STATIC_SCENE_FORCE_INTERVAL = 30;
 
-      /* ══ v202: unified analysis — GPU path first, CPU fallback ══ */
       async function analyzeImageData(imgData, sw, sh) {
         if (AUTO._gpuActive && gpuAnalyzer && gpuAnalyzer.isReady()) {
           try {
@@ -3244,13 +3241,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
         const now = performance.now();
         const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
-        const v = window[VSC_APP_SYM]?.getActiveVideo?.();
+        const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.();
         if (!en) { AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null }; prevToneCurve = null; scheduleNext(v, 500); return; }
         if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; }
         if (document.hidden) { scheduleNext(v, 2000); return; }
         if (!v || !cvCtx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; }
 
-        /* v202: lazy GPU init on first analysis loop */
         if (!gpuInitAttempted && FEATURE_FLAGS.gpuAnalysis) {
           const gpuOk = await ensureGPUAnalyzer();
           AUTO._gpuActive = gpuOk;
@@ -3264,8 +3260,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (!img) { scheduleNext(v, 500); return; }
           AUTO.drmBlocked = false; drmRetryCount = 0;
 
-          /* v202: unified GPU/CPU analysis */
           const stats = await analyzeImageData(img, CANVAS_W, CANVAS_H);
+
+          // v203: Recovery module scales edge metric
+          const recLvl = Number(Store.get(P.V_AS_REC)) || 0;
+          stats.edge *= (1.0 + recLvl * 0.25);
 
           AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motionSAD * AUTO.motionAlpha;
           AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0;
@@ -3294,8 +3293,15 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             AUTO._framesSinceUpdate = 0;
             fps = adaptiveFps(stats.motionSAD, transition.isCut, transition.isFade);
             if (now < AUTO.tBoostUntil) fps = Math.max(fps, transition.isCut ? AUTO.maxFps : 5);
+
             const sceneType = AUTO._sceneTypeEma;
-            const toneParams = { ...SCENE_TONE_PARAMS[sceneType] };
+            const shadLvl = Number(Store.get(P.V_AS_SHAD)) || 0;
+
+            const toneParams = {
+              ...SCENE_TONE_PARAMS[sceneType],
+              userMods: { shadow: shadLvl, recovery: recLvl }
+            };
+
             const rawCurve = buildAdaptiveToneCurve(stats.lumHist, stats.totalSamples, toneParams, stats.zoneHists, stats.zoneCounts);
             const rawGains = computeChannelBalance(stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio, stats.hiLumaRBratio);
             const rawSat = toneParams.satTarget;
@@ -3317,6 +3323,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             prevSatMul = smoothedSat;
 
             const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
+
+            // v203: Brightness module adds adaptive final gain based on inverse mean luma
+            const brtLvl = Number(Store.get(P.V_AS_BRT)) || 0;
+            const lumaInv = Math.max(0, 1.0 - stats.bright);
+            result.br += brtLvl * lumaInv * 0.06;
+
             const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
             AUTO.cur.br = result.br; AUTO.cur.ct = result.ct; AUTO.cur.sat = result.sat;
             AUTO.cur._toneCurve = smoothedCurve; AUTO.cur._channelGains = smoothedGains;
@@ -3329,7 +3341,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (VSC_DEFENSE.autoSceneDrmBackoff && isDrm) {
             drmRetryCount++; AUTO.drmBlocked = true;
 
-            /* v202: on DRM taint, disable GPU path too (canvas taint = GPU pixel read fails too) */
             if (AUTO._gpuActive) {
               AUTO._gpuActive = false;
               log.info('[AutoScene] GPU path disabled due to DRM taint');
@@ -3390,7 +3401,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ curveToApproxParams (v202: NaN guard — unchanged from v201) ══ */
+    /* ══ curveToApproxParams ══ */
     function curveToApproxParams(curve, satMul, channelGains) {
       const clamp = VSC_CLAMP;
       const N = 32;
@@ -3445,16 +3456,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    // ═══ END OF PART 3 (v202.0.0-Hybrid) ═══
-    // PART 4 continues with: createVideoMaximizer, createFiltersVideoOnly (StyleGuard integrated),
-    //   Shadow Band table, Bright Step table, computeResolutionSharpMul,
-    //   composeVideoParamsInto, createVideoParamsMemo, applyShadowStyle,
-    //   createDisposerBag, bindWindowDrag, SVG Icon Builders (DOM API),
-    //   CSS_VARS, OSD (accessible), PiP helpers (v202 black-screen fix), captureVideoFrame
-    // ═══ PART 4 START (v202.0.0-Hybrid) — continues directly from PART 3's curveToApproxParams ═══
+    // ═══ END OF PART 3 (v203.0.0-Modular) ═══
+    // PART 4 continues with: createVideoMaximizer, createFiltersVideoOnly
+// ═══ PART 4 START (v203.0.0-Modular) — continues directly from PART 3's curveToApproxParams ═══
 
     /* ══════════════════════════════════════════════════════════════════
-       createVideoMaximizer (v202: setProperty style preservation)
+       createVideoMaximizer (setProperty style preservation)
        ══════════════════════════════════════════════════════════════════ */
     function createVideoMaximizer(Store, ApplyReq) {
       const MAX_CLASS = 'vsc-vmax-max';
@@ -3731,7 +3738,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       SVG Filter Engine (v202: StyleGuard integrated)
+       SVG Filter Engine (StyleGuard integrated)
        ══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -4083,7 +4090,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return { mul, autoBase };
     }
 
-    /* ══ composeVideoParamsInto (v202) ══ */
+    /* ══ composeVideoParamsInto ══ */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0) {
       const gPreset = PRESETS.grade[vUser.presetB] || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
@@ -4219,7 +4226,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       SVG Icon Builders (v202: DOM API — no innerHTML)
+       SVG Icon Builders (DOM API)
        ══════════════════════════════════════════════════════════════════ */
     const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -4280,7 +4287,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       CSS_VARS (v202)
+       CSS_VARS
        ══════════════════════════════════════════════════════════════════ */
     const CSS_VARS = `
 :host {
@@ -4323,7 +4330,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
   --vsc-transition-slow: 0.25s ease;
 }`;
 
-    /* ══ OSD (v202: accessible, managed timer) ══ */
+    /* ══ OSD (accessible, managed timer) ══ */
     let __osdReady = false;
     onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true });
     onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
@@ -4365,8 +4372,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     __globalSig.addEventListener('abort', () => { clearTimer(__osdTimerId); __osdTimerId = 0; if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} } __osdEl = null; }, { once: true });
 
     /* ══════════════════════════════════════════════════════════════════
-       PiP helpers (v202: black-screen fix — move before close,
-       micro-seek decoder refresh, computed style recovery)
+       PiP helpers (black-screen fix)
        ══════════════════════════════════════════════════════════════════ */
     async function enterPiP(video) {
       if (!video || !video.isConnected) return false;
@@ -4575,13 +4581,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       } catch (_) { showOSD('캡처 실패 (DRM?)', 1500); }
     }
 
-    // ═══ END OF PART 4 (v202.0.0-Hybrid) ═══
-    // ═══ PART 5 START (v202.0.0-Hybrid) — continues directly from PART 4's captureVideoFrame ═══
+    // ═══ END OF PART 4 (v203.0.0-Modular) ═══
+    // PART 5 continues with: createZoomManager, createUI, and BOOTSTRAP
+// ═══ PART 5 START (v203.0.0-Modular) — continues directly from PART 4's captureVideoFrame ═══
 
     /* ══════════════════════════════════════════════════════════════════
-       createZoomManager (v201 → v202: unchanged)
-       Touch state-machine, settle timer, pan threshold,
-       WeakMap-based touch-action backup, StyleGuard
+       createZoomManager
        ══════════════════════════════════════════════════════════════════ */
     function createZoomManager() {
       const zoomStates = new WeakMap();
@@ -4956,21 +4961,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           try { clearRecurring(__tryWatchInterval); } catch (_) {}
         }
       });
-    } // ─ end createZoomManager ─
+    }
 
 
     /* ══════════════════════════════════════════════════════════════════
-       createUI  (v202.0.0-Hybrid)
-       ─────────────────────────────────────────────────────────────
-       v201 UI 100 % 보존.  v202 추가 사항만 기재:
-         ① 헤더에 GPU ✓/✗ · DSP ✓/✗ · DRM 뱃지
-         ② 영상 탭 — 자동 보정 행 아래에 "GPU 장면분석" 토글
-         ③ 오디오 탭 — DSP 모드(Worklet / Legacy) 라벨
-         ④ 패널 하단 메트릭 푸터(해상도·속도·GPU·DSP)
+       createUI (v203.0.0-Modular: Added AutoSense Controls)
        ══════════════════════════════════════════════════════════════════ */
-    function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr,
-                      Targeting, Maximizer, FiltersVO, Registry,
-                      Scheduler, ApplyReq) {
+    function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
       const { h, clamp } = Utils;
       const uiAC = new AbortController();
       const sig = combineSignals(__globalSig, uiAC.signal);
@@ -4982,7 +4979,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       let _shadow = null, _qbarShadow = null;
       let qbarVisible = false;
 
-      /* ── v202 상태 헬퍼 ── */
       function getGpuStatus() {
         const g = window[VSC_INTERNAL_SYM]?._gpuSceneActive;
         return g === true ? 'active' : (g === 'fallback' ? 'fallback' : 'off');
@@ -5004,7 +5000,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!val;
       }
 
-      /* ── CSS (v201 원본 + v202 뱃지 추가) ── */
       const PANEL_CSS = `
 ${CSS_VARS}
 :host{all:initial;position:fixed;z-index:2147483647;font-family:var(--vsc-font-family);font-size:var(--vsc-font-md);color:var(--vsc-text);pointer-events:none}
@@ -5050,7 +5045,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .adv-hd .arr{transition:transform .2s;font-size:9px}
 .adv-hd .arr.open{transform:rotate(90deg)}
 .adv-bd{overflow:hidden;max-height:0;transition:max-height var(--vsc-transition-slow)}
-.adv-bd.open{max-height:600px}
+.adv-bd.open{max-height:800px}
 .info-bar{font-size:var(--vsc-font-xs);opacity:.5;padding:var(--vsc-space-xs) 0 var(--vsc-space-sm);line-height:1.5;font-variant-numeric:tabular-nums}
 .metrics-footer{font-size:9px;opacity:.4;padding:var(--vsc-space-xs) var(--vsc-space-lg);border-top:1px solid rgba(255,255,255,.04);line-height:1.6;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:6px 12px}
 .metrics-footer span{white-space:nowrap}
@@ -5075,7 +5070,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}}
 @media(prefers-contrast:high){:host{--vsc-bg:rgba(0,0,0,0.98);--vsc-border:rgba(255,255,255,0.3);--vsc-text:#fff}}`;
 
-      /* ── 공용 빌더 ── */
       function mkRow(label, ...ctrls) {
         return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls));
       }
@@ -5099,7 +5093,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         return el;
       }
 
-      /* v202: 로컬 상태 토글 (Store 경로 없이 getter/setter 기반) */
       function mkLocalToggle(getter, setter, onChange) {
         const el = h('div', { class: 'tgl' });
         function sync() { el.classList.toggle('on', !!getter()); }
@@ -5125,7 +5118,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       }
 
       function mkShadowBandToggles() {
-        const wrap = h('div', {}, h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '섀도우 밴드'));
+        const wrap = h('div', {}, h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '섀도우 밴드 (고정)'));
         const row = h('div', { style: 'display:flex;gap:4px;padding:3px 0;flex-wrap:wrap' });
         const bands = [
           { bit: 0, label: 'OFF' },
@@ -5155,7 +5148,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       function buildVideoTab() {
         const w = h('div', {});
 
-        /* 정보 바 (v201 원본) */
         const infoBar = h('div', { class: 'info-bar' });
         function updateInfo() {
           const active = window[VSC_INTERNAL_SYM]._activeVideo;
@@ -5177,43 +5169,47 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
         w.append(infoBar, mkSep());
 
-        /* 디테일 프리셋 (v201 원본) */
         w.append(
-          mkChipRow('디테일', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
-          mkRow('강도', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)),
+          mkChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
+          mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)),
           mkSep()
         );
 
-        /* 섀도우 밴드 (v201 원본) */
         w.append(mkShadowBandToggles(), mkSep());
 
-        /* 밝기 단계 (v201 원본) */
         w.append(
-          mkChipRow('밝기 단계', P.V_BRIGHT_STEP, [{ v: 0, l: 'OFF' }, { v: 1, l: '1단계' }, { v: 2, l: '2단계' }, { v: 3, l: '3단계' }]),
+          mkChipRow('밝기 단계 (고정)', P.V_BRIGHT_STEP, [{ v: 0, l: 'OFF' }, { v: 1, l: '1단계' }, { v: 2, l: '2단계' }, { v: 3, l: '3단계' }]),
           mkSep()
         );
 
-        /* 암부 복원 (v201 원본) */
         w.append(
-          mkChipRow('암부 복원', P.V_PRE_B, Object.keys(PRESETS.grade).map(k => ({ v: k, l: getPresetLabel('grade', k) })), () => ApplyReq.hard()),
+          mkChipRow('암부 복원 (고정)', P.V_PRE_B, Object.keys(PRESETS.grade).map(k => ({ v: k, l: getPresetLabel('grade', k) })), () => ApplyReq.hard()),
           mkSep()
         );
 
-        /* 자동 보정 + 장면 뱃지 (v201 원본) */
         const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
         function updateSceneBadge() {
           const isOn = !!Store.get(P.APP_AUTO_SCENE);
           if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
           else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
         }
+
         w.append(
           h('div', { class: 'row' },
-            h('label', {}, '자동 보정 ', sceneBadge),
+            h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
             mkToggle(P.APP_AUTO_SCENE, v => { if (v) AutoScene.start(); else AutoScene.stop(); updateSceneBadge(); ApplyReq.hard(); }))
         );
         Bus.on('signal', updateSceneBadge); syncFns.push(updateSceneBadge); updateSceneBadge();
 
-        /* ── v202 NEW: GPU 장면분석 토글 ── */
+        /* v203: Modular AutoSense UI Controls */
+        const autoModsWrap = h('div', { style: 'padding-left: 8px; border-left: 2px solid var(--vsc-accent-border); margin-bottom: 12px;' });
+        autoModsWrap.append(
+          mkChipRow('↳ 동적 암부 부스트', P.V_AS_SHAD, [{v:0,l:'OFF'},{v:1,l:'1단'},{v:2,l:'2단'},{v:3,l:'3단'}]),
+          mkChipRow('↳ 동적 디테일 복원', P.V_AS_REC, [{v:0,l:'OFF'},{v:1,l:'1단'},{v:2,l:'2단'},{v:3,l:'3단'}]),
+          mkChipRow('↳ 동적 밝기 상한선', P.V_AS_BRT, [{v:0,l:'OFF'},{v:1,l:'1단'},{v:2,l:'2단'},{v:3,l:'3단'}])
+        );
+        w.append(autoModsWrap);
+
         const gpuLabel = h('label', {}, 'GPU 장면분석 ');
         const gpuStatusBadge = h('span', { class: 'badge badge-gpu off' }, 'GPU ✗');
         gpuLabel.appendChild(gpuStatusBadge);
@@ -5242,7 +5238,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
         w.append(mkSep());
 
-        /* 고급 설정 접기/펼치기 (v201 원본) */
         const arrSpan = h('span', { class: 'arr' }, '▶');
         const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
         const advBd = h('div', { class: 'adv-bd' });
@@ -5259,10 +5254,8 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
           mkRow('부스트 (dB)', ...mkSlider(P.A_BST, 0, 12, 0.5))
         );
 
-        /* v201 원본: 오디오 상태 */
         const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0' }, '오디오: 대기');
 
-        /* v202 NEW: DSP 모드 뱃지 */
         const dspBadge = h('span', { class: 'badge badge-dsp off' }, 'DSP ✗');
         function updateDspBadge() {
           const mode = getDspStatus();
@@ -5284,7 +5277,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         return w;
       }
 
-      /* ────────────────── 재생 탭 (v201 원본 그대로) ────────────────── */
+      /* ────────────────── 재생 탭 ────────────────── */
       function buildPlaybackTab() {
         const w = h('div', {});
         w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => ApplyReq.hard())));
@@ -5323,7 +5316,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         return w;
       }
 
-      /* ────────────────── 설정 탭 (v201 원본 그대로) ────────────────── */
+      /* ────────────────── 설정 탭 ────────────────── */
       function buildAppTab() {
         const w = h('div', {});
         w.append(mkRow('모든 영상 적용', mkToggle(P.APP_APPLY_ALL, () => ApplyReq.hard())));
@@ -5348,7 +5341,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         w.append(h('div', { style: 'display:flex;gap:6px;padding:4px 0' }, expBtn, impBtn, rstBtn));
         w.append(mkSep());
 
-        /* 단축키 안내 (v201 원본) */
         const shortcutArrSpan = h('span', { class: 'arr' }, '▶');
         const shortcutHd = h('div', { class: 'adv-hd' }, shortcutArrSpan, ' 단축키 안내');
         const shortcutBd = h('div', { class: 'adv-bd' });
@@ -5357,7 +5349,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         const shortcuts = [
           ['Alt + V', '설정 패널 열기/닫기'], ['Alt + P', 'PiP 전환'], ['Alt + M', '최대화 토글'],
           ['Alt + Z', '줌 ON/OFF 토글'], ['Alt + A', '자동 보정 ON/OFF'], ['Alt + S', '프레임 캡처'],
-          ['Alt + G', 'GPU 장면분석 토글'],  /* ← v202 NEW */
+          ['Alt + G', 'GPU 장면분석 토글'],
           ['Alt + 0', '줌 리셋'], ['Alt + 1~3', '프리셋 슬롯 불러오기'], ['Shift + Alt + 1~3', '프리셋 슬롯 저장'],
           ['Alt + R', '전체 초기화'], ['[ / ]', '재생 속도 ±0.1'], ['Esc', '패널 닫기 / 최대화 해제'],
           ['Alt + Wheel', '줌 확대/축소 (줌 ON 시)'], ['Alt + 드래그', '줌 팬 이동 (줌 ON 시)'],
@@ -5371,7 +5363,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         return w;
       }
 
-      /* ── 동기화 ── */
       function syncAll() { for (const fn of syncFns) { try { fn(); } catch (_) {} } }
 
       function renderTab() {
@@ -5421,7 +5412,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         panelEl.style.top = `${Math.round(top)}px`;
       }
 
-      /* ── v202: 메트릭 푸터 빌더 ── */
       function buildMetricsFooter() {
         const footer = h('div', { class: 'metrics-footer' });
         const elRes = h('span', {}, '—');
@@ -5454,7 +5444,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         return footer;
       }
 
-      /* ── 패널 빌드 ── */
       function buildPanel() {
         if (panelHost) return;
         panelHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-host' });
@@ -5462,7 +5451,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         _shadow.appendChild(h('style', {}, PANEL_CSS));
         panelEl = h('div', { class: 'panel' });
 
-        /* ── 헤더: v202에서 GPU·DSP·DRM 뱃지 추가 ── */
         const closeBtn = h('button', { class: 'btn', style: 'padding:2px 8px;font-size:12px' }, '✕');
         closeBtn.addEventListener('click', () => togglePanel(false), { signal: sig });
 
@@ -5495,7 +5483,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
           )
         );
 
-        /* 탭 바 */
         const tabBar = h('div', { class: 'tabs' });
         for (const t of ['video', 'audio', 'playback', 'app']) {
           const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }, TAB_LABELS[t]);
@@ -5504,8 +5491,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
         panelEl.appendChild(tabBar);
         panelEl.appendChild(h('div', { class: 'body' }));
-
-        /* v202: 메트릭 푸터 */
         panelEl.appendChild(buildMetricsFooter());
 
         _shadow.appendChild(panelEl);
@@ -5515,7 +5500,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         blockInterference(panelHost);
       }
 
-      /* ── QuickBar (v201 원본 — SVG DOM 아이콘) ── */
       function buildQuickBar() {
         if (quickBarHost) return;
         quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: 'all:initial; position:fixed; top:0; left:0; width:0; height:0; z-index:2147483647 !important; pointer-events:none; display:none;' });
@@ -5585,11 +5569,11 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       }
 
       return Object.freeze({ init, destroy, togglePanel, syncAll, switchTab });
-    } // ─ end createUI ─
+    }
 
 
     /* ══════════════════════════════════════════════════════════════════
-       Save / Restore / Reset / Import / Export  (v201 원본 그대로)
+       Save / Restore / Reset / Import / Export
        ══════════════════════════════════════════════════════════════════ */
     function buildSaveDataFrom(sm) {
       return { version: VSC_VERSION, video: { ...sm.getCatRef('video') }, audio: { ...sm.getCatRef('audio') }, playback: { ...sm.getCatRef('playback') }, app: { ...sm.getCatRef('app') } };
@@ -5652,7 +5636,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       document.body.appendChild(inp); inp.click(); inp.remove();
     }
 
-    /* ── Persistence (v201 원본) ── */
+    /* ── Persistence ── */
     let __persistTimer = 0;
     function persistNow() {
       if (!__Store) return;
@@ -5666,7 +5650,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
 
     /* ══════════════════════════════════════════════════════════════════
-       bindVideoOnce (v201 원본 — per-video AC + EME hooks, StyleGuard)
+       bindVideoOnce
        ══════════════════════════════════════════════════════════════════ */
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video);
@@ -5744,7 +5728,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
 
     /* ══════════════════════════════════════════════════════════════════
-       createApplyLoop (v201 원본 — EME-aware rate control)
+       createApplyLoop
        ══════════════════════════════════════════════════════════════════ */
     function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
       const __lastUserPt = { x: 0, y: 0, t: 0 };
@@ -5808,7 +5792,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
 
     /* ══════════════════════════════════════════════════════════════════
-       createKeyboard  (v202: Alt+G for GPU scene toggle added)
+       createKeyboard
        ══════════════════════════════════════════════════════════════════ */
     function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
       const STEP_RATE = 0.1;
@@ -5825,7 +5809,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
           ApplyReq.hard(); persistNow(); showOSD(`자동 보정: ${nv ? '켜짐' : '꺼짐'}`, 1000);
           e.preventDefault(); return;
         }
-        /* v202 NEW: Alt+G → GPU 장면분석 토글 */
         if (alt && (k === 'g' || k === 'G')) {
           const wasOn = !!window[VSC_INTERNAL_SYM]?._gpuSceneEnabled;
           window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !wasOn;
@@ -5862,19 +5845,17 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
 
     /* ══════════════════════════════════════════════════════════════════
-       BOOTSTRAP  (v202.0.0-Hybrid)
-       v201 모듈 시스템 그대로 + GPU/DSP 상태 초기화
+       BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_202 = '202.0.0-Hybrid';
-      log.info(`[VSC] v${VSC_VERSION_202} booting on ${location.hostname}`);
+      const VSC_VERSION_203 = '203.0.0-Modular';
+      log.info(`[VSC] v${VSC_VERSION_203} booting on ${location.hostname}`);
 
-      /* v202: GPU / DSP 상태 초기값 설정 */
-      window[VSC_INTERNAL_SYM]._gpuSceneActive = false;   // 'active' | 'fallback' | false
+      window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
       window[VSC_INTERNAL_SYM]._gpuSceneEnabled = false;
-      window[VSC_INTERNAL_SYM]._gpuSceneInit = null;      // Part 2 에서 등록
-      window[VSC_INTERNAL_SYM]._gpuSceneDestroy = null;   // Part 2 에서 등록
-      window[VSC_INTERNAL_SYM]._dspMode = 'off';          // 'worklet' | 'legacy' | 'off'
+      window[VSC_INTERNAL_SYM]._gpuSceneInit = null;
+      window[VSC_INTERNAL_SYM]._gpuSceneDestroy = null;
+      window[VSC_INTERNAL_SYM]._dspMode = 'off';
 
       const MS = createModuleSystem(__globalSig);
 
@@ -5975,10 +5956,9 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
       window[VSC_APP_SYM] = Object.freeze({
         getActiveVideo: () => window[VSC_INTERNAL_SYM]._activeVideo,
-        /* v202: 외부 접근용 GPU/DSP 상태 */
         getGpuStatus: () => window[VSC_INTERNAL_SYM]._gpuSceneActive,
         getDspMode: () => window[VSC_INTERNAL_SYM]._dspMode,
-        version: VSC_VERSION_202
+        version: VSC_VERSION_203
       });
 
       if (ZoomMgr) setRecurring(() => ZoomMgr.pruneDisconnected(), 5000, { maxErrors: 50 });
@@ -6004,10 +5984,9 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         GM_registerMenuCommand('VSC 설정 초기화', () => { resetDefaults(); ApplyReq.hard(); persistNow(); UI.syncAll(); showOSD('초기화 완료', 1000); });
       } catch (_) {}
 
-      /* v202: 부팅 로그에 GPU/Worklet 상태 포함 */
       const gpuAvail = typeof navigator.gpu !== 'undefined' ? 'WebGPU available' : 'WebGPU N/A';
       const workletAvail = typeof AudioWorkletNode !== 'undefined' ? 'AudioWorklet available' : 'AudioWorklet N/A';
-      log.info(`[VSC] v${VSC_VERSION_202} ready — ${Registry.videos.size} video(s) | ${gpuAvail} | ${workletAvail}`);
+      log.info(`[VSC] v${VSC_VERSION_203} ready — ${Registry.videos.size} video(s) | ${gpuAvail} | ${workletAvail}`);
     }
 
     /* ════════════════════════════════════════════════
@@ -6019,4 +5998,3 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
   VSC_MAIN();
 })();
-// ═══ END OF PART 5 (v202.0.0-Hybrid) ═══
