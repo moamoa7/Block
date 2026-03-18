@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v203.0.5-Hybrid)
+// @name         Video_Control (v203.0.6-Hybrid)
 // @namespace    https://github.com/
-// @version      203.0.5-Hybrid
-// @description  v203.0.4: GPU/CPU analysis optimization, DRM limits tuned, UI/UX polish, Motion/OLED adaptive tech added
+// @version      203.0.6-Hybrid
+// @description  v203.0.6: AutoScene & Audio DSP parameter tuning applied (Compact)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -150,7 +150,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '203.0.5-Hybrid';
+    const VSC_VERSION = '203.0.6-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -176,7 +176,7 @@
 
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true, gpuAnalysis: true, audioWorklet: true });
-    const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 3000, AUDIO_SRC_COOLDOWN_DRM: 8000, TARGET_HYSTERESIS_MS: 350, TARGET_HYSTERESIS_MARGIN: 1.5 });
+    const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 2000, AUDIO_SRC_COOLDOWN_DRM: 6000, TARGET_HYSTERESIS_MS: 350, TARGET_HYSTERESIS_MARGIN: 1.5 });
     const SHADOW_ROOT_LRU_MAX = 16;
     const SPA_RESCAN_DEBOUNCE_MS = 500;
 
@@ -253,11 +253,11 @@
     const PRESETS = Object.freeze({
       detail: {
         none: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
-        off: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'AUTO' },
-        S: { sharpAdd: 12, sharp2Add: 2, clarityAdd: 3, label: '1단' },
-        M: { sharpAdd: 15, sharp2Add: 8, clarityAdd: 8, label: '2단' },
-        L: { sharpAdd: 16, sharp2Add: 18, clarityAdd: 14, label: '3단' },
-        XL: { sharpAdd: 20, sharp2Add: 14, clarityAdd: 18, label: '4단' }
+        off:  { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'AUTO' },
+        S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
+        M:    { sharpAdd: 22, sharp2Add: 12, clarityAdd: 12, label: '2단' },
+        L:    { sharpAdd: 26, sharp2Add: 24, clarityAdd: 20, label: '3단' },
+        XL:   { sharpAdd: 32, sharp2Add: 22, clarityAdd: 26, label: '4단' }
       }
     });
     const getPresetLabel = (group, key) => PRESETS[group]?.[key]?.label || key;
@@ -265,7 +265,7 @@
     /* ══ Defaults & Paths ══ */
     const DEFAULTS = {
       video: { presetS: 'off', presetMix: 1.0, autoShadow: 0, autoRecovery: 0, autoBright: 0 },
-      audio: { enabled: false, boost: 6 },
+      audio: { enabled: false, boost: 9 },
       playback: { rate: 1.0, enabled: false },
       app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, slots: [null, null, null], gpuEn: false }
     };
@@ -290,7 +290,7 @@
       { type: 'num', path: P.V_AS_BRT, min: 0, max: 3, round: true, fallback: () => 0 }
     ];
     const AUDIO_PLAYBACK_SCHEMA = [
-      { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 12, fallback: () => DEFAULTS.audio.boost },
+      { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 18, fallback: () => DEFAULTS.audio.boost },
       { type: 'bool', path: P.PB_EN }, { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
     ];
     const ALL_SCHEMAS = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
@@ -853,11 +853,11 @@ class VSCDSPProcessor extends AudioWorkletProcessor {
   constructor(options) {
     super(); const pd = (options && options.processorOptions) || {};
     this.sampleRate = pd.sampleRate || 48000; this.enabled = false; this.boostLinear = 1.0; this.wetMix = 0.0; this.dryMix = 1.0;
-    this._hpfState = [{ x1: 0, x2: 0, y1: 0, y2: 0 }, { x1: 0, x2: 0, y1: 0, y2: 0 }]; this._computeHPFCoeffs(80, 0.707);
-    this._compEnvDb = -100; this._compThreshDb = -22; this._compRatio = 3.5; this._compKneeDb = 6; this._compAttack = 0.003; this._compRelease = 0.15;
-    this._limEnvDb = -100; this._limThreshDb = -0.5; this._limRatio = 20; this._limAttack = 0.0003; this._limRelease = 0.08;
-    this._clipKnee = 0.78; this._clipDrive = 2.2; this._clipTanhD = Math.tanh(this._clipDrive);
-    this._makeupDbEma = 0; this._rmsDb = -100; this._compReductionDb = 0; this._targetWet = 0; this._targetDry = 1; this._rampRate = 0.002;
+    this._hpfState = [{ x1: 0, x2: 0, y1: 0, y2: 0 }, { x1: 0, x2: 0, y1: 0, y2: 0 }]; this._computeHPFCoeffs(65, 0.707);
+    this._compEnvDb = -100; this._compThreshDb = -30; this._compRatio = 4.5; this._compKneeDb = 4; this._compAttack = 0.0015; this._compRelease = 0.10;
+    this._limEnvDb = -100; this._limThreshDb = -1.5; this._limRatio = 20; this._limAttack = 0.0003; this._limRelease = 0.06;
+    this._clipKnee = 0.65; this._clipDrive = 3.0; this._clipTanhD = Math.tanh(this._clipDrive);
+    this._makeupDbEma = 0; this._rmsDb = -100; this._compReductionDb = 0; this._targetWet = 0; this._targetDry = 1; this._rampRate = 0.004;
     this.port.onmessage = (e) => {
       const d = e.data; if (!d) return;
       if (d.type === 'params') { if (typeof d.enabled === 'boolean') this.enabled = d.enabled; if (typeof d.boostDb === 'number') this.boostLinear = Math.pow(10, d.boostDb / 20); this._updateMixTargets(); }
@@ -885,9 +885,9 @@ class VSCDSPProcessor extends AudioWorkletProcessor {
       const compOutDb = this._compressDb(this._compEnvDb, this._compThreshDb, this._compRatio, this._compKneeDb);
       const compGainDb = compOutDb - this._compEnvDb; const compReduction = -compGainDb; if (compReduction > peakCompReduction) peakCompReduction = compReduction;
       const compGainLinear = Math.pow(10, compGainDb / 20);
-      let gateMult = 1.0; if (this._compEnvDb < -48) gateMult = 0.0; else if (this._compEnvDb < -40) gateMult = (this._compEnvDb + 48) / 8.0;
-      const makeupDbTarget = Math.min(5, Math.max(0, compReduction - 3) * 0.25) * gateMult;
-      const isAttack = makeupDbTarget < this._makeupDbEma; const alpha = isAttack ? 0.25 : 0.015; this._makeupDbEma += (makeupDbTarget - this._makeupDbEma) * alpha;
+      let gateMult = 1.0; if (this._compEnvDb < -52) gateMult = 0.0; else if (this._compEnvDb < -42) gateMult = (this._compEnvDb + 52) / 10.0;
+      const makeupDbTarget = Math.min(8, Math.max(0, compReduction - 2) * 0.40) * gateMult;
+      const isAttack = makeupDbTarget < this._makeupDbEma; const alpha = isAttack ? 0.20 : 0.025; this._makeupDbEma += (makeupDbTarget - this._makeupDbEma) * alpha;
       const makeupLinear = Math.pow(10, this._makeupDbEma / 20); const totalGain = compGainLinear * this.boostLinear * makeupLinear;
       for (let ch = 0; ch < numChannels; ch++) {
         let wet = this._applyHPF(input[ch][i], this._hpfState[ch]) * totalGain;
@@ -977,8 +977,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       globalSig.addEventListener('abort', destroyAll, { once: true });
       return Object.freeze({ defineFeature, resolve, resolveAll, runUpdates, suspend, resume, destroyOne, destroyAll, get, getStatus, listActive, getStats, STATUS });
     }
-// ═══ END OF PART 1 (v203.0.4-Hybrid) ═══
-// ═══ PART 2 START (v203.0.4-Hybrid) — Foundation & Audio Engine ═══
+// ═══ END OF PART 1 (v203.0.6-Hybrid) ═══
+// ═══ PART 2 START (v203.0.6-Hybrid) — Foundation & Audio Engine ═══
 
     /* ══ Targeting ══ */
     function createTargeting() {
@@ -1595,7 +1595,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       /* ══ Legacy path: build graph ══ */
       function buildLegacyGraph() {
         const __vscClipCurve = (() => {
-          const n = 2048, knee = 0.78, drive = 2.2;
+          const n = 2048, knee = 0.65, drive = 3.0;
           const curve = new Float32Array(n);
           const tanhD = Math.tanh(drive);
           for (let i = 0; i < n; i++) {
@@ -1610,22 +1610,22 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         })();
 
         compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = -20.0;
-        compressor.knee.value = 8.0;
-        compressor.ratio.value = 3.0;
-        compressor.attack.value = 0.005;
-        compressor.release.value = 0.12;
+        compressor.threshold.value = -28.0;
+        compressor.knee.value = 5.0;
+        compressor.ratio.value = 4.0;
+        compressor.attack.value = 0.002;
+        compressor.release.value = 0.08;
 
         limiter = ctx.createDynamicsCompressor();
-        limiter.threshold.value = -1.0;
+        limiter.threshold.value = -2.0;
         limiter.knee.value = 0.0;
         limiter.ratio.value = 20.0;
         limiter.attack.value = 0.0005;
-        limiter.release.value = 0.10;
+        limiter.release.value = 0.06;
 
         hpf = ctx.createBiquadFilter();
         hpf.type = 'highpass';
-        hpf.frequency.value = 80;
+        hpf.frequency.value = 65;
         hpf.Q.value = 0.707;
 
         clipper = ctx.createWaveShaper();
@@ -1656,7 +1656,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
       /* ══ Unified runAudioLoop dispatcher ══ */
       function scheduleAudioLoop(tok) {
-        const delay = document.hidden ? 800 : 120;
+        const delay = document.hidden ? 600 : 80;
         if (__audioLoopTimer) clearTimer(__audioLoopTimer);
         const currentTok = tok;
         __audioLoopTimer = setTimer(() => {
@@ -1696,11 +1696,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
               if (!Number.isFinite(redDb)) redDb = 0;
               const redPos = clamp(-redDb, 0, 18);
               let gateMult = 1.0;
-              if (db < -48) gateMult = 0.0;
-              else if (db < -40) gateMult = (db + 48) / 8.0;
-              const makeupDbTarget = clamp(Math.max(0, redPos - 3.0) * 0.25, 0, 5.0) * gateMult;
+              if (db < -52) gateMult = 0.0;
+              else if (db < -42) gateMult = (db + 52) / 10.0;
+              const makeupDbTarget = clamp(Math.max(0, redPos - 2.0) * 0.40, 0, 8.0) * gateMult;
               const isAttack = makeupDbTarget < makeupDbEma;
-              const alpha = isAttack ? 0.25 : 0.015;
+              const alpha = isAttack ? 0.20 : 0.025;
               makeupDbEma += (makeupDbTarget - makeupDbEma) * alpha;
             } else { makeupDbEma += (0 - makeupDbEma) * 0.1; }
 
@@ -1977,11 +1977,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-// ═══ END OF PART 2 (v203.0.4-Hybrid) ═══
-// ═══ PART 3 START (v203.0.4-Hybrid) — continues directly from PART 2 ═══
+// ═══ END OF PART 2 (v203.0.6-Hybrid) ═══
+// ═══ PART 3 START (v203.0.6-Hybrid) — continues directly from PART 2 ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           Auto Scene Manager (v203.0.4-Hybrid)
+           Auto Scene Manager (v203.0.6-Hybrid)
            ══════════════════════════════════════════════════════════════════ */
         function createAutoSceneManager(Store, P, Scheduler) {
           const clamp = VSC_CLAMP;
@@ -2032,9 +2032,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
             const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35, userMods = {} } = params;
             const recMod = userMods.recovery || 0; const shadMod = userMods.shadow || 0; const brtMod = userMods.brightness || 0;
-            const finalClipLimit = clipLimit + (recMod * 0.5); const equalized = buildZonalCLAHE(zoneHists, zoneCounts, finalClipLimit);
+            const finalClipLimit = clipLimit + (recMod * 0.8); const equalized = buildZonalCLAHE(zoneHists, zoneCounts, finalClipLimit);
             const identity = new Float32Array(TONE_STEPS); for (let i = 0; i < TONE_STEPS; i++) identity[i] = i / (TONE_STEPS - 1); const raw = new Float32Array(TONE_STEPS);
-            const finalShadowProtect = Math.max(0, shadowProtect - (shadMod * 0.12)); const finalHighlightProtect = Math.max(0, highlightProtect - (brtMod * 0.08)); const shadowLift = shadMod * 0.035;
+            const finalShadowProtect = Math.max(0, shadowProtect - (shadMod * 0.18)); const finalHighlightProtect = Math.max(0, highlightProtect - (brtMod * 0.14)); const shadowLift = shadMod * 0.055;
             for (let i = 0; i < TONE_STEPS; i++) {
               const x = i / (TONE_STEPS - 1); const eq = equalized[i], id = identity[i]; let regionWeight = 1.0;
               if (x < 0.18) { const t = x / 0.18; regionWeight = 1.0 - finalShadowProtect * (1 - t * t); }
@@ -2047,15 +2047,15 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             for (let i = 1; i < TONE_STEPS - 1; i++) curve[i] = raw[i] * 0.6 + (raw[i - 1] + raw[i + 1]) * 0.2;
             for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
 
-            // ── OLED 트루 블랙 보존 로직 (v203.0.4) ──
+            // ── OLED 트루 블랙 보존 로직 (v203.0.6) ──
             const n = Math.max(1, totalSamples);
             let pureBlackCount = 0;
             for (let i = 0; i <= 5; i++) pureBlackCount += lumHist[i];
             const pureBlackRatio = pureBlackCount / n;
 
-            if (pureBlackRatio > 0.02) {
-              const guardRange = 12;
-              const guardStrength = clamp(pureBlackRatio * 8, 0.3, 0.95);
+            if (pureBlackRatio > 0.03) {
+              const guardRange = 10;
+              const guardStrength = clamp(pureBlackRatio * 6, 0.25, 0.90);
               for (let i = 0; i < guardRange; i++) {
                 const x = i / (TONE_STEPS - 1);
                 const t = i / guardRange;
@@ -2069,40 +2069,40 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiLumaRBratio) {
-            const correctionStrength = 0.14; const n = Math.max(1, totalSamples); let rMean = 0, gMean = 0, bMean = 0;
+            const correctionStrength = 0.22; const n = Math.max(1, totalSamples); let rMean = 0, gMean = 0, bMean = 0;
             for (let i = 0; i < HIST_BINS; i++) { const v = i / (HIST_BINS - 1); rMean += v * rHist[i]; gMean += v * gHist[i]; bMean += v * bHist[i]; }
             rMean /= n; gMean /= n; bMean /= n; const avgMean = (rMean + gMean + bMean) / 3; if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
-            const skinDampen = clamp(skinRatio || 0, 0, 0.4) / 0.4; const rMul = 0.45 * (1 - skinDampen * 0.6);
+            const skinDampen = clamp(skinRatio || 0, 0, 0.4) / 0.4; const rMul = 0.50 * (1 - skinDampen * 0.65);
             let rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul); let gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.80); let bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * correctionStrength;
             if (Number.isFinite(hiLumaRBratio) && hiLumaRBratio > 0) { const deviation = clamp(hiLumaRBratio - 1.0, -0.4, 0.4); const tempCorr = deviation * 0.10; rGain -= tempCorr * 0.5; bGain += tempCorr * 0.5; }
-            return { rGain: clamp(rGain, 0.90, 1.10), gGain: clamp(gGain, 0.94, 1.06), bGain: clamp(bGain, 0.85, 1.15) };
+            return { rGain: clamp(rGain, 0.86, 1.14), gGain: clamp(gGain, 0.92, 1.08), bGain: clamp(bGain, 0.82, 1.18) };
           }
 
           const __fuzzyScores = new Float64Array(ST_COUNT); const __fuzzyEma = new Float64Array(ST_COUNT); let __fuzzyInited = false;
-          // 임계값 완화로 과도한 보정 방지 (v203.0.4)
+          // 임계값 완화로 과도한 보정 방지 (v203.0.6)
           function classifySceneFuzzy(stats, zoneStats) {
             const scores = __fuzzyScores; scores.fill(0); const br = stats.bright, ct = stats.contrast, ch = stats.chroma, sk = stats.skinRatio;
             scores[ST.NORMAL] = 1.0;
-            if (br < 0.30) scores[ST.LOW_KEY] += (0.30 - br) / 0.30 * 3.2;
-            if (ct < 0.18) scores[ST.LOW_KEY] += (0.18 - ct) / 0.18 * 1.5;
-            if (br > 0.65) scores[ST.HIGH_KEY] += (br - 0.65) / 0.35 * 3.0;
-            if (ct > 0.28) scores[ST.HIGH_CONTRAST] += (ct - 0.28) / 0.22 * 2.5;
-            if (ch < 0.10) scores[ST.LOW_SAT] += (0.10 - ch) / 0.10 * 2.0;
-            if (sk > 0.04) scores[ST.SKIN] += sk / 0.15 * 2.5;
-            if (zoneStats) { const centerBr = zoneStats.centerBright, edgeBr = zoneStats.edgeAvgBright; if (edgeBr > 0.42 && centerBr < 0.42) { const gap = edgeBr - centerBr; if (gap > 0.08) scores[ST.BACKLIT] += gap / 0.20 * 3.5; } }
-            const emaAlpha = 0.08;
+            if (br < 0.35) scores[ST.LOW_KEY] += (0.35 - br) / 0.35 * 3.5;
+            if (ct < 0.20) scores[ST.LOW_KEY] += (0.20 - ct) / 0.20 * 1.8;
+            if (br > 0.60) scores[ST.HIGH_KEY] += (br - 0.60) / 0.40 * 3.2;
+            if (ct > 0.25) scores[ST.HIGH_CONTRAST] += (ct - 0.25) / 0.25 * 2.8;
+            if (ch < 0.12) scores[ST.LOW_SAT] += (0.12 - ch) / 0.12 * 2.4;
+            if (sk > 0.03) scores[ST.SKIN] += sk / 0.12 * 2.8;
+            if (zoneStats) { const centerBr = zoneStats.centerBright, edgeBr = zoneStats.edgeAvgBright; if (edgeBr > 0.38 && centerBr < 0.38) { const gap = edgeBr - centerBr; if (gap > 0.06) scores[ST.BACKLIT] += gap / 0.18 * 3.8; } }
+            const emaAlpha = 0.14;
             if (!__fuzzyInited) { for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] = scores[i]; __fuzzyInited = true; } else { for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] += (scores[i] - __fuzzyEma[i]) * emaAlpha; }
             let bestIdx = 0, bestVal = __fuzzyEma[0]; for (let i = 1; i < ST_COUNT; i++) { if (__fuzzyEma[i] > bestVal) { bestVal = __fuzzyEma[i]; bestIdx = i; } } return bestIdx;
           }
 
           const SCENE_TONE_PARAMS = Object.freeze({
-            [ST.NORMAL]:        { clipLimit: 2.0, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.20, satTarget: 1.04 },
-            [ST.LOW_KEY]:       { clipLimit: 2.0, shadowProtect: 0.55, highlightProtect: 0.20, midtoneBoost: 0.05, strength: 0.22, satTarget: 1.03 },
-            [ST.HIGH_KEY]:      { clipLimit: 1.8, shadowProtect: 0.25, highlightProtect: 0.65, midtoneBoost: -0.03, strength: 0.18, satTarget: 1.04 },
-            [ST.HIGH_CONTRAST]: { clipLimit: 1.5, shadowProtect: 0.50, highlightProtect: 0.50, midtoneBoost: 0.0, strength: 0.15, satTarget: 1.02 },
-            [ST.LOW_SAT]:       { clipLimit: 2.2, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.25, satTarget: 1.12 },
-            [ST.SKIN]:          { clipLimit: 2.0, shadowProtect: 0.45, highlightProtect: 0.40, midtoneBoost: 0.02, strength: 0.16, satTarget: 1.02 },
-            [ST.BACKLIT]:       { clipLimit: 2.2, shadowProtect: 0.25, highlightProtect: 0.55, midtoneBoost: 0.08, strength: 0.26, satTarget: 1.03 }
+            [ST.NORMAL]:        { clipLimit: 3.0, shadowProtect: 0.22, highlightProtect: 0.20, midtoneBoost: 0.08, strength: 0.34, satTarget: 1.10 },
+            [ST.LOW_KEY]:       { clipLimit: 3.2, shadowProtect: 0.35, highlightProtect: 0.14, midtoneBoost: 0.10, strength: 0.38, satTarget: 1.08 },
+            [ST.HIGH_KEY]:      { clipLimit: 2.6, shadowProtect: 0.18, highlightProtect: 0.40, midtoneBoost: -0.06, strength: 0.28, satTarget: 1.10 },
+            [ST.HIGH_CONTRAST]: { clipLimit: 2.4, shadowProtect: 0.32, highlightProtect: 0.32, midtoneBoost: 0.0,  strength: 0.24, satTarget: 1.08 },
+            [ST.LOW_SAT]:       { clipLimit: 3.4, shadowProtect: 0.22, highlightProtect: 0.20, midtoneBoost: 0.08, strength: 0.40, satTarget: 1.22 },
+            [ST.SKIN]:          { clipLimit: 2.8, shadowProtect: 0.30, highlightProtect: 0.26, midtoneBoost: 0.05, strength: 0.26, satTarget: 1.06 },
+            [ST.BACKLIT]:       { clipLimit: 3.5, shadowProtect: 0.12, highlightProtect: 0.35, midtoneBoost: 0.14, strength: 0.42, satTarget: 1.12 }
           });
 
           let prevToneCurve = null; let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; let prevSatMul = 1.0;
@@ -2117,14 +2117,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             const score = Math.abs(stats.bright - prev.bright) * 1.3 + Math.abs(stats.contrast - prev.contrast) * 0.7 + Math.abs(stats.chroma - prev.chroma) * 0.5 + Math.abs(stats.edge - prev.edge) * 0.3 + motionDelta * 0.35;
             cutScores.push(score);
             const sorted = cutScores.getSorted();
-            const q90 = sorted[Math.floor(sorted.length * 0.90)] || 0.15; const cutThr = Math.max(0.10, Math.min(0.28, q90 * 1.25)); const isCut = score > cutThr;
-            gradualScores.push(score); const gradualSum = gradualScores.reduce((a, b) => a + b, 0); const isFade = !isCut && gradualSum > cutThr * 3.5 && gradualScores.length >= 6;
+            const q90 = sorted[Math.floor(sorted.length * 0.90)] || 0.15; const cutThr = Math.max(0.08, Math.min(0.24, q90 * 1.20)); const isCut = score > cutThr;
+            gradualScores.push(score); const gradualSum = gradualScores.reduce((a, b) => a + b, 0); const isFade = !isCut && gradualSum > cutThr * 3.0 && gradualScores.length >= 5;
             return { isCut, isFade, score };
           }
 
           let flickerCount = 0, lastCurveDir = 0;
-          const FLICKER_MAX = 5; const FLICKER_DECAY = 0.6; // 완만화(v203.0.4)
-          function getTemporalAlpha(isCut, isFade) { const base = isCut ? 0.40 : (isFade ? 0.10 : 0.05); return base / (1 + flickerCount * 0.5); }
+          const FLICKER_MAX = 8; const FLICKER_DECAY = 0.9;
+          function getTemporalAlpha(isCut, isFade) { const base = isCut ? 0.58 : (isFade ? 0.22 : 0.12); return base / (1 + flickerCount * 0.7); }
 
           let __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
           let __cachedZxLut = null, __cachedZyLut = null, __cachedLutW = 0, __cachedLutH = 0;
@@ -2140,7 +2140,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const _pool_zoneCounts = new Uint32Array(ZONE_COUNT); const _pool_zoneHists = Array.from({ length: ZONE_COUNT }, () => new Uint32Array(HIST_BINS));
           const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT); const _pool_zoneBrightCount = new Uint32Array(ZONE_COUNT);
 
-          // TypedArray 뷰 재사용으로 GC 압력 감소 (v203.0.4)
+          // TypedArray 뷰 재사용으로 GC 압력 감소 (v203.0.6)
           let __reusableU32View = null; let __reusableU32Buffer = null;
           function computeFullAnalysis(data, sw, sh) {
             const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
@@ -2215,10 +2215,10 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           function generateManualMods() {
             const shadLvl = Number(Store.get(P.V_AS_SHAD)) || 0; const recLvl = Number(Store.get(P.V_AS_REC)) || 0; const brtLvl = Number(Store.get(P.V_AS_BRT)) || 0;
             if (shadLvl === 0 && recLvl === 0 && brtLvl === 0) return { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
-            const curve = new Float32Array(TONE_STEPS); const contrastBoost = recLvl * 0.06; const shadowLift = shadLvl * 0.04;
+            const curve = new Float32Array(TONE_STEPS); const contrastBoost = recLvl * 0.10; const shadowLift = shadLvl * 0.07;
             for (let i = 0; i < TONE_STEPS; i++) { let x = i / (TONE_STEPS - 1); if (contrastBoost > 0) x = x + (x - 0.5) * contrastBoost * Math.sin(x * Math.PI); if (shadowLift > 0 && x < 0.4) x += shadowLift * (1 - x / 0.4); curve[i] = clamp(x, 0, 1); }
             for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
-            const cg = { rGain: 1, gGain: 1, bGain: 1 }; const approx = curveToApproxParams(curve, 1.0, cg); const br = clamp(1.0 + brtLvl * 0.12, 0.90, 1.40);
+            const cg = { rGain: 1, gGain: 1, bGain: 1 }; const approx = curveToApproxParams(curve, 1.0, cg); const br = clamp(1.0 + brtLvl * 0.18, 0.88, 1.45);
             return { br: br, ct: approx.ct, sat: approx.sat, _gamma: approx._gamma, _bright: approx._bright, _temp: approx._temp, _toneCurve: curve, _channelGains: cg };
           }
 
@@ -2227,7 +2227,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const AUTO = {
             running: false, canvasW: CANVAS_W, canvasH: CANVAS_H, cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
             lastStats: null, statsEma: null, statsAlpha: 0.08, motionEma: 0, motionAlpha: 0.20, motionThresh: 0.012, motionFrames: 0,
-            drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 700, minFps: 0.5, maxFps: CONFIG.IS_MOBILE ? 4 : 8, curFps: 2,
+            drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 700, minFps: 1.0, maxFps: CONFIG.IS_MOBILE ? 6 : 12, curFps: 2,
             _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL, _lastMean: 0, _framesSinceUpdate: 0, _gpuActive: false
           };
 
@@ -2259,13 +2259,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
           }
 
-          // EMA 최적화를 통한 성능 이점 확보 (v203.0.4)
+          // EMA 최적화를 통한 성능 이점 확보 (v203.0.6)
           let _fpsMotionAvg = 0;
           function adaptiveFps(motionSAD, isCut, isFade) {
             _fpsHistBuf.push(motionSAD);
             const alpha = 1 / Math.min(_fpsHistBuf.length, 6);
             _fpsMotionAvg = _fpsMotionAvg * (1 - alpha) + motionSAD * alpha;
-            let target = _fpsMotionAvg < 0.02 ? 2 : (_fpsMotionAvg < 0.08 ? 3 + _fpsMotionAvg / 0.08 * 2 : 5 + Math.min((_fpsMotionAvg - 0.08) / 0.2, 1) * 3);
+            let target = _fpsMotionAvg < 0.02 ? 3 : (_fpsMotionAvg < 0.08 ? 4 + _fpsMotionAvg / 0.08 * 2 : 6 + Math.min((_fpsMotionAvg - 0.08) / 0.2, 1) * 4);
             if (isCut) target = AUTO.maxFps; else if (isFade) target = Math.max(target, 5); AUTO.curFps += clamp(target - AUTO.curFps, -1.5, 1.5); return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
           }
 
@@ -2278,7 +2278,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
           let __gpuConsecutiveFailures = 0;
           const GPU_MAX_CONSECUTIVE_FAILURES = 5;
-          const STATIC_SCENE_FORCE_INTERVAL = 30;
+          const STATIC_SCENE_FORCE_INTERVAL = 20;
 
           async function analyzeImageData(imgData, sw, sh) {
             if (AUTO._gpuActive && gpuAnalyzer && gpuAnalyzer.isReady() && __gpuConsecutiveFailures < GPU_MAX_CONSECUTIVE_FAILURES) {
@@ -2357,7 +2357,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
             const now = performance.now();
             const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
-            const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.(); // 이슈 #2: bootstrap 패치 필요
+            const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.();
 
             // 3. 이슈 #1 해결: 기능이 꺼진 경우 루프를 종료하지 않고 1초 뒤에 다시 체크 (루프 생존)
             if (!en) {
@@ -2396,7 +2396,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
               AUTO.drmBlocked = false; drmRetryCount = 0; const stats = await analyzeImageData(img, CANVAS_W, CANVAS_H);
               AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motionSAD * AUTO.motionAlpha; AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0;
               const transition = detectTransition(stats, AUTO.lastStats); AUTO.lastStats = stats;
-              if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const a = transition.isCut ? 0.40 : AUTO.statsAlpha; const e = AUTO.statsEma; for (const k of ['bright', 'contrast', 'chroma', 'edge', 'skinRatio', 'centerBright', 'edgeAvgBright']) e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a; }
+              if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const a = transition.isCut ? 0.55 : 0.14; const e = AUTO.statsEma; for (const k of ['bright', 'contrast', 'chroma', 'edge', 'skinRatio', 'centerBright', 'edgeAvgBright']) e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a; }
 
               const newScene = classifySceneFuzzy(AUTO.statsEma, stats.zoneStats); if (newScene !== AUTO._sceneType) AUTO._sceneStable = 0; else AUTO._sceneStable++;
               AUTO._sceneType = newScene; if (AUTO._sceneStable >= 4) AUTO._sceneTypeEma = newScene;
@@ -2419,7 +2419,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
                 if (!prevToneCurve) prevToneCurve = new Float32Array(TONE_STEPS); prevToneCurve.set(smoothedCurve); prevChannelGains = smoothedGains; prevSatMul = smoothedSat;
 
                 const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
-                const lumaInv = Math.max(0, 1.0 - stats.bright); const brtBoost = brtLvl * lumaInv * 0.10; result.br = clamp(result.br + brtBoost, 0.90, 1.40);
+                const lumaInv = Math.max(0, 1.0 - stats.bright); const brtBoost = brtLvl * lumaInv * 0.16; result.br = clamp(result.br + brtBoost, 0.88, 1.45);
 
                 const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
                 AUTO.cur.br = result.br; AUTO.cur.ct = result.ct; AUTO.cur.sat = result.sat; AUTO.cur._toneCurve = smoothedCurve; AUTO.cur._channelGains = smoothedGains; AUTO.cur._gamma = result._gamma; AUTO.cur._bright = result._bright; AUTO.cur._temp = result._temp;
@@ -2453,19 +2453,16 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           Store.sub(P.V_AS_REC, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
           Store.sub(P.V_AS_BRT, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
           Store.sub(P.APP_AUTO_SCENE, (en) => {
-  if (en && !AUTO.running) {
-    // 꺼져 있던 루프를 처음 켤 때만 진입
-    drmRetryCount = 0;
-    AUTO.running = true;
-    resetAllModuleState();
-    loop();
-  } else if (!en) {
-    // 🔴 수정: AUTO.running = false와 cleanupScheduler()를 제거
-    // 루프는 loop() 내부의 if (!en) 가드에 의해 1초 주기 대기 모드로 자동 전환됨
-    resetAllModuleState();
-    updateManual();
-  }
-});
+            if (en && !AUTO.running) {
+              drmRetryCount = 0;
+              AUTO.running = true;
+              resetAllModuleState();
+              loop();
+            } else if (!en) {
+              resetAllModuleState();
+              updateManual();
+            }
+          });
           Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
 
           return { getMods: () => AUTO.cur, getSceneType: () => AUTO._sceneType, getSceneTypeName: () => ST_NAMES[AUTO._sceneType] || 'UNKNOWN', hasToneCurve: () => !!AUTO.cur._toneCurve, isGpuActive: () => AUTO._gpuActive, getLastMotionSAD: () => AUTO.motionEma, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; cleanupScheduler(); resetAllModuleState(); updateManual(); } };
@@ -2481,14 +2478,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (!Number.isFinite(a2)) a2 = 0; if (!Number.isFinite(a1)) a1 = 1; if (!Number.isFinite(a0)) a0 = 0;
           const mid = clamp(a2 * 0.25 + a1 * 0.5 + a0, 0.01, 0.99); let gamma = 1.0; if (mid > 0.01 && mid < 0.99) { gamma = Math.log(mid) / Math.log(0.5); gamma = clamp(gamma, 0.65, 1.6); }
           const slopeAtMid = 2 * a2 * 0.5 + a1; const contrast = clamp(slopeAtMid, 0.75, 1.35); const curveIntegral = a2 / 3 + a1 / 2 + a0; const brightDiff = curveIntegral - 0.5; const bright = clamp(brightDiff * 45, -12, 12); const tempEstimate = (channelGains.rGain - channelGains.bGain) * 50; const temp = clamp(tempEstimate, -30, 30);
-          return { br: clamp(1.0 + bright * 0.008, 0.90, 1.40), ct: clamp(contrast, 0.80, 1.30), sat: clamp(satMul, 0.85, 1.45), _gamma: gamma, _bright: bright, _temp: temp, _channelGains: channelGains, _toneCurve: curve };
+          return { br: clamp(1.0 + bright * 0.010, 0.88, 1.45), ct: clamp(contrast, 0.78, 1.35), sat: clamp(satMul, 0.82, 1.50), _gamma: gamma, _bright: bright, _temp: temp, _channelGains: channelGains, _toneCurve: curve };
         }
 
-// ═══ END OF PART 3 (v203.0.4-Hybrid) ═══
-// ═══ PART 4 START (v203.0.4-Hybrid) — continues directly from PART 3 ═══
+// ═══ END OF PART 3 (v203.0.6-Hybrid) ═══
+// ═══ PART 4 START (v203.0.6-Hybrid) — continues directly from PART 3 ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           createVideoMaximizer (v203.0.4-Hybrid: StyleGuard optimizations)
+           createVideoMaximizer (v203.0.6-Hybrid: StyleGuard optimizations)
            ══════════════════════════════════════════════════════════════════ */
         function createVideoMaximizer(Store, ApplyReq) {
           const MAX_CLASS = 'vsc-vmax-max'; const HIDE_CLASS = 'vsc-vmax-hide'; const ANCESTOR_CLASS = 'vsc-vmax-ancestor'; const IFRAME_MAX_CLASS = 'vsc-vmax-iframe';
@@ -2652,7 +2649,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           SVG Filter Engine (v203.0.4: WeakRef & Fast Hash Optimizations)
+           SVG Filter Engine (v203.0.6: WeakRef & Fast Hash Optimizations)
            ══════════════════════════════════════════════════════════════════ */
         function createFiltersVideoOnly(Utils, config) {
           const { h, clamp, createCappedMap } = Utils;
@@ -2765,7 +2762,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
               st.lastKey = svgKey; const steps = 256; const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
               let toneTable;
 
-              // Fast hashing for SVG table values (v203.0.4)
+              // Fast hashing for SVG table values
               if (s._autoToneCurve) {
                 const c = s._autoToneCurve;
                 const fastHash = ((c[0]*65536)|0) ^ ((c[64]*65536)|0) ^ ((c[128]*65536)|0) ^ ((c[192]*65536)|0) ^ ((c[255]*65536)|0);
@@ -2851,18 +2848,27 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (nW <= 640 && nH <= 480) mul *= 0.65; else if (nW <= 960) mul *= 0.75;
           if (dpr >= 2.0) mul *= VSC_CLAMP(1.6 / dpr, 0.70, 0.90); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.4 / dpr, 0.80, 1.0);
           if (CONFIG.IS_MOBILE && mul < 0.35) mul = 0.35; mul = VSC_CLAMP(mul, 0.0, 1.0);
-          let autoBase = 0.0; if (nW <= 640) autoBase = 0.14; else if (nW <= 960) autoBase = 0.11; else if (nW <= 1280) autoBase = 0.08; else if (nW <= 1920) autoBase = 0.04; else autoBase = 0.02;
+
+          // 해상도별 autoBase 상향 조정 (v203.0.6)
+          let autoBase = 0.0;
+          if (nW <= 640) autoBase = 0.20;
+          else if (nW <= 960) autoBase = 0.16;
+          else if (nW <= 1280) autoBase = 0.12;
+          else if (nW <= 1920) autoBase = 0.07;
+          else autoBase = 0.03;
+
           autoBase *= mul; autoBase = VSC_CLAMP(autoBase, 0.0, 0.18); return { mul, autoBase };
         }
 
-        /* ══ composeVideoParamsInto (v203.0.4: Motion Adaptive Sharpening) ══ */
+        /* ══ composeVideoParamsInto (v203.0.6: Motion Adaptive Sharpening Adjusted) ══ */
         function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
           const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
           out.gain = 1.0; out.gamma = 1.0; out.contrast = 1.0; out.bright = 0; out.satF = 1.0; out.toe = 0; out.mid = 0; out.shoulder = 0; out.temp = 0;
           if (vUser.presetS === 'none') { out.sharp = 0; } else if (vUser.presetS === 'off') { out.sharp = autoSharpBase; } else { const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off; const baseS = (dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4; out.sharp = (baseS / 100.0) * mix * sharpMul; }
 
-          if (motionSAD > 0.02 && out.sharp > 0.005) {
-            const motionDampen = 1.0 - VSC_CLAMP((motionSAD - 0.02) / 0.20, 0, 0.50);
+          // 모션 적응 샤프닝 댐핑 수정 (v203.0.6)
+          if (motionSAD > 0.04 && out.sharp > 0.005) {
+            const motionDampen = 1.0 - VSC_CLAMP((motionSAD - 0.04) / 0.25, 0, 0.40);
             out.sharp *= motionDampen;
           }
 
@@ -2945,7 +2951,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         function svgIcon(name, size) { const builder = VSC_ICON_BUILDERS[name]; if (!builder) return document.createTextNode(''); return builder(size); }
 
         /* ══════════════════════════════════════════════════════════════════
-           CSS_VARS (v203.0.4: Extended Touch Targets & Styled Components)
+           CSS_VARS
            ══════════════════════════════════════════════════════════════════ */
         const CSS_VARS = `
         :host {
@@ -3056,7 +3062,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (isActive) await exitPiP(video); else await enterPiP(video);
         }
 
-        /* ══ captureVideoFrame (v203.0.4: VideoFrame copyTo API Fallback) ══ */
+        /* ══ captureVideoFrame (v203.0.6: VideoFrame copyTo API Fallback) ══ */
         let __captureBuffer = null; let __captureBufferSize = 0;
         function captureVideoFrame(video) {
           if (!video || video.readyState < 2) { showOSD('비디오 준비 안됨', 1000); return; }
@@ -3446,11 +3452,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           });
         }
 
-// ═══ END OF PART 4 (v203.0.4-Hybrid) ═══
-// ═══ PART 5 START (v203.0.4-Hybrid) — Final UI & Permanent Persistence ═══
+// ═══ END OF PART 4 (v203.0.6-Hybrid) ═══
+// ═══ PART 5 START (v203.0.6-Hybrid) — Final UI & Permanent Persistence ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           createUI (v203.0.4-Hybrid: UI/UX Polish, Permanent SyncFns)
+           createUI (v203.0.6-Hybrid: UI/UX Polish, Permanent SyncFns)
            ══════════════════════════════════════════════════════════════════ */
         function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
           const { h, clamp } = Utils;
@@ -3459,7 +3465,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           let panelHost = null, panelEl = null, quickBarHost = null;
           let activeTab = 'video', advancedOpen = false, panelOpen = false;
 
-          // 메모리 누수 방지 및 콜백 안정성을 위한 분리 (v203.0.4)
+          // 메모리 누수 방지 및 콜백 안정성을 위한 분리 (v203.0.6)
           const permanentSyncFns = [];
           const tabSyncFns = [];
           const syncFns = [];
@@ -3480,7 +3486,7 @@ ${CSS_VARS}
 .hdr .tl{font-weight:700;font-size:var(--vsc-font-lg);letter-spacing:.3px}
 .hdr .ver{font-size:var(--vsc-font-xs);opacity:.45;margin-left:auto}
 
-/* Status Dots 툴팁 표시 개선 (v203.0.4) */
+/* Status Dots 툴팁 표시 개선 */
 .hdr-status{display:flex;gap:6px;align-items:center}
 .hdr-dot{width:8px;height:8px;border-radius:50%;display:inline-block;position:relative}
 .hdr-dot.green{background:#4caf50;box-shadow:0 0 4px rgba(76,175,80,.5)}
@@ -3501,7 +3507,7 @@ ${CSS_VARS}
 .row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
 .row .ctrl{display:flex;align-items:center;gap:var(--vsc-space-sm);flex:1;justify-content:flex-end}
 
-/* 슬라이더 터치 영역 확대 (v203.0.4) */
+/* 슬라이더 터치 영역 확대 */
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--vsc-accent) 0%,var(--vsc-accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));padding:12px 0;margin:-12px 0;background-clip:content-box}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none;box-shadow:0 0 0 4px rgba(110,168,254,.15);transition:box-shadow .15s}
 input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(110,168,254,.25)}
@@ -3511,7 +3517,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:var(--vsc-radius-md);color:var(--vsc-text);padding:var(--vsc-space-xs) var(--vsc-space-md);font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);min-height:var(--vsc-touch-min);min-width:44px;display:inline-flex;align-items:center;justify-content:center}
 .btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
 
-/* 토글 ON/OFF 텍스트 추가 (v203.0.4) */
+/* 토글 ON/OFF 텍스트 추가 */
 .tgl{position:relative;width:44px;height:22px;border-radius:11px;background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s;overflow:hidden}
 .tgl.on{background:rgba(110,168,254,.5)}
 .tgl::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;z-index:1}
@@ -3637,7 +3643,8 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
           function buildAudioTab() {
             const w = h('div', {});
-            w.append(mkRow('오디오 부스트', mkToggle(P.A_EN, () => ApplyReq.soft())), mkRow('부스트 (dB)', ...mkSlider(P.A_BST, 0, 12, 0.5)));
+            // 오디오 부스트 상한선 18dB 변경 적용 (v203.0.6)
+            w.append(mkRow('오디오 부스트', mkToggle(P.A_EN, () => ApplyReq.soft())), mkRow('부스트 (dB)', ...mkSlider(P.A_BST, 0, 18, 0.5)));
             const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0' }, '오디오: 대기');
             Bus.on('signal', () => { const ctxReady = Audio.hasCtx(), hooked = Audio.isHooked(); status.textContent = `상태: ${ctxReady ? (hooked ? '활성' : '준비') : '대기'}`; });
             w.append(mkSep(), status); return w;
@@ -3673,6 +3680,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
             const shortcutArrSpan = h('span', { class: 'arr' }, '▶'), shortcutHd = h('div', { class: 'adv-hd' }, shortcutArrSpan, ' 단축키 안내'), shortcutBd = h('div', { class: 'adv-bd' });
             let shortcutOpen = false; shortcutHd.addEventListener('click', () => { shortcutOpen = !shortcutOpen; shortcutArrSpan.classList.toggle('open', shortcutOpen); shortcutBd.classList.toggle('open', shortcutOpen); }, { signal: sig });
+            // 단축키 안내에 A/B 원본 비교 토글 단축키 추가 (v203.0.6)
             const shortcuts = [['Alt + V', '설정 패널 열기/닫기'], ['Alt + P', 'PiP 전환'], ['Alt + M', '최대화 토글'], ['Alt + Z', '줌 ON/OFF 토글'], ['Alt + A', '자동 보정 ON/OFF'], ['Alt + S', '프레임 캡처'], ['Alt + G', 'GPU 장면분석 토글'], ['Alt + B', 'A/B 원본 비교 토글'], ['Alt + 0', '줌 리셋'], ['Alt + 1~3', '프리셋 슬롯 불러오기'], ['Shift + Alt + 1~3', '프리셋 슬롯 저장'], ['Alt + R', '전체 초기화'], ['[ / ]', '재생 속도 ±0.1'], ['Esc', '패널 닫기 / 최대화 해제'], ['Alt + Wheel', '줌 확대/축소'], ['Alt + 드래그', '줌 팬 이동'], ['Alt + 더블클릭', '줌 2.5× / 리셋']];
             const grid = h('div', { class: 'shortcut-grid' }); for (const [key, desc] of shortcuts) { grid.append(h('span', { class: 'sk' }, key), h('span', { class: 'sd' }, desc)); }
             shortcutBd.appendChild(grid); w.append(shortcutHd, shortcutBd, mkSep(), h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0' }, `Video_Control v${VSC_VERSION}`));
@@ -3687,7 +3695,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             tabSyncFns.length = 0;
             switch (activeTab) { case 'video': body.appendChild(buildVideoTab()); break; case 'audio': body.appendChild(buildAudioTab()); break; case 'playback': body.appendChild(buildPlaybackTab()); break; case 'app': body.appendChild(buildAppTab()); break; }
 
-            // Rebuild syncFns to include permanent ones and the newly created tab ones (v203.0.4)
             syncFns.length = 0;
             syncFns.push(...permanentSyncFns, ...tabSyncFns);
           }
@@ -3870,7 +3877,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           createApplyLoop (v203.0.4-Hybrid: A/B Mode & Deactivation Fixes)
+           createApplyLoop (v203.0.6-Hybrid: A/B Mode & Deactivation Fixes)
            ══════════════════════════════════════════════════════════════════ */
         function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
           const __lastUserPt = { x: 0, y: 0, t: 0 };
@@ -3886,7 +3893,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             if (__globalSig.aborted) return;
             const applyAll = !!Store.get(P.APP_APPLY_ALL);
 
-            // 앱 비활성화 처리 완벽하게 (v203.0.4)
+            // 앱 비활성화 처리 완벽하게 (v203.0.6)
             if (!Store.get(P.APP_ACT)) {
               if (prevTarget) { FiltersVO.clear(prevTarget); prevTarget = null; }
               window[VSC_INTERNAL_SYM]._activeVideo = null;
@@ -3907,7 +3914,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               const vst = getVState(v); if (vst.applied) FiltersVO.clear(v);
             }
 
-            // 비활성 비디오 속도 복원 보장 (v203.0.4)
+            // 비활성 비디오 속도 복원 보장 (v203.0.6)
             if (pbEn) {
               for (const v of TOUCHED.rateVideos) {
                 if (!v.isConnected || targets.has(v)) continue;
@@ -3929,7 +3936,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
                 }
               } else restoreRate(v);
 
-              // A/B 비교 모드 체크 (v203.0.4)
+              // A/B 비교 모드 체크 (v203.0.6)
               const vst = getVState(v);
               if (vst.__abCompare) { FiltersVO.clear(v); continue; }
 
@@ -3942,7 +3949,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           createKeyboard (v203.0.4-Hybrid: A/B Toggle)
+           createKeyboard (v203.0.6-Hybrid: A/B Toggle)
            ══════════════════════════════════════════════════════════════════ */
         function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
           const STEP_RATE = 0.1;
@@ -3961,6 +3968,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               ApplyReq.soft(); UI?.syncAll(); persistNow(); e.preventDefault(); return;
             }
             if (alt && (k === 's' || k === 'S')) { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) captureVideoFrame(v); e.preventDefault(); return; }
+            // A/B 원본 비교 단축키 적용 (v203.0.6)
             if (alt && (k === 'b' || k === 'B')) {
               const v = window[VSC_INTERNAL_SYM]._activeVideo;
               if (v) {
@@ -3980,10 +3988,10 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-       BOOTSTRAP (v203.0.4-Hybrid: Namespace Getter Fixed)
-       ══════════════════════════════════════════════════════════════════ */
+        BOOTSTRAP (v203.0.6-Hybrid: Namespace Getter Fixed)
+        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '203.0.4-Hybrid';
+      const VSC_VERSION_ID = '203.0.6-Hybrid';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       // 내부 상태 초기화
@@ -4022,7 +4030,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       __Store = Store;
       __ApplyReq = ApplyReq;
 
-      // 🔴 이슈 #2 해결: AutoScene loop에서 활용할 비디오 참조용 게터 함수 등록
+      // 이슈 #2 해결: AutoScene loop에서 활용할 비디오 참조용 게터 함수 등록 (v203.0.6)
       window[VSC_INTERNAL_SYM].getActiveVideo = () => window[VSC_INTERNAL_SYM]._activeVideo;
 
       // GPU 활성화 상태 동기화
