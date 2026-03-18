@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         Video_Control (v203.0.4-Hybrid)
+// @name         Video_Control (v203.0.5-Hybrid)
 // @namespace    https://github.com/
-// @version      203.0.4-Hybrid
+// @version      203.0.5-Hybrid
 // @description  v203.0.4: GPU/CPU analysis optimization, DRM limits tuned, UI/UX polish, Motion/OLED adaptive tech added
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -150,7 +150,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '203.0.4-Hybrid';
+    const VSC_VERSION = '203.0.5-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -2346,11 +2346,50 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           async function loop() {
-            if (!AUTO.running || __globalSig.aborted) return; if (globalThis.scheduler?.yield) { try { await globalThis.scheduler.yield(); } catch (_) {} if (!AUTO.running || __globalSig.aborted) return; }
-            const now = performance.now(); const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT); const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.();
-            if (!en) return; if (AUTO.drmBlocked && now < AUTO.blockUntilMs) { scheduleNext(v, 500); return; } if (document.hidden) { scheduleNext(v, 2000); return; }
-            if (!v || !cvCtx || v.paused || v.seeking || v.readyState < 2) { try { Scheduler.request(true); } catch (_) {} scheduleNext(v, 300); return; }
-            if (!gpuInitAttempted && FEATURE_FLAGS.gpuAnalysis) { const gpuOk = await ensureGPUAnalyzer(); AUTO._gpuActive = gpuOk; if (gpuOk) log.info('[AutoScene] GPU analysis path activated'); }
+            // 1. 시스템 가드: 모듈이 완전히 정지되었거나 중단 신호가 오면 즉시 종료
+            if (!AUTO.running || __globalSig.aborted) return;
+
+            // 2. 비동기 양보: 브라우저 메인 스레드 점유율 최적화 (지원 시)
+            if (globalThis.scheduler?.yield) {
+              try { await globalThis.scheduler.yield(); } catch (_) {}
+              if (!AUTO.running || __globalSig.aborted) return;
+            }
+
+            const now = performance.now();
+            const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
+            const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.(); // 이슈 #2: bootstrap 패치 필요
+
+            // 3. 이슈 #1 해결: 기능이 꺼진 경우 루프를 종료하지 않고 1초 뒤에 다시 체크 (루프 생존)
+            if (!en) {
+              scheduleNext(v, 1000);
+              return;
+            }
+
+            // 4. DRM 보호 모드: 차단 시간 동안 0.5초 간격으로 대기
+            if (AUTO.drmBlocked && now < AUTO.blockUntilMs) {
+              scheduleNext(v, 500);
+              return;
+            }
+
+            // 5. 탭 비활성화: 탭이 백그라운드에 있을 때 분석 주기를 2초로 늘려 리소스 절약
+            if (document.hidden) {
+              scheduleNext(v, 2000);
+              return;
+            }
+
+            // 6. 비디오 상태 체크: 비디오가 없거나, 일시정지, 탐색 중, 로딩 중일 때 0.3초 대기
+            if (!v || !cvCtx || v.paused || v.seeking || v.readyState < 2) {
+              try { Scheduler.request(true); } catch (_) {}
+              scheduleNext(v, 300);
+              return;
+            }
+
+            // 7. GPU 분석기 지연 초기화
+            if (!gpuInitAttempted && FEATURE_FLAGS.gpuAnalysis) {
+              const gpuOk = await ensureGPUAnalyzer();
+              AUTO._gpuActive = gpuOk;
+              if (gpuOk) log.info('[AutoScene] GPU analysis path activated');
+            }
 
             try {
               const img = await captureSceneFrame(v); if (!AUTO.running || __globalSig.aborted) return; if (!v.isConnected || v.paused || v.readyState < 2) { scheduleNext(v, 300); return; } if (!img) { scheduleNext(v, 500); return; }
@@ -2413,7 +2452,20 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           Store.sub(P.V_AS_SHAD, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
           Store.sub(P.V_AS_REC, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
           Store.sub(P.V_AS_BRT, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
-          Store.sub(P.APP_AUTO_SCENE, (en) => { if (en && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; resetAllModuleState(); loop(); } else if (!en) { AUTO.running = false; cleanupScheduler(); resetAllModuleState(); updateManual(); } });
+          Store.sub(P.APP_AUTO_SCENE, (en) => {
+  if (en && !AUTO.running) {
+    // 꺼져 있던 루프를 처음 켤 때만 진입
+    drmRetryCount = 0;
+    AUTO.running = true;
+    resetAllModuleState();
+    loop();
+  } else if (!en) {
+    // 🔴 수정: AUTO.running = false와 cleanupScheduler()를 제거
+    // 루프는 loop() 내부의 if (!en) 가드에 의해 1초 주기 대기 모드로 자동 전환됨
+    resetAllModuleState();
+    updateManual();
+  }
+});
           Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
 
           return { getMods: () => AUTO.cur, getSceneType: () => AUTO._sceneType, getSceneTypeName: () => ST_NAMES[AUTO._sceneType] || 'UNKNOWN', hasToneCurve: () => !!AUTO.cur._toneCurve, isGpuActive: () => AUTO._gpuActive, getLastMotionSAD: () => AUTO.motionEma, start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } }, stop: () => { AUTO.running = false; cleanupScheduler(); resetAllModuleState(); updateManual(); } };
@@ -3927,90 +3979,122 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
           }, { signal: __globalSig, capture: true });
         }
 
-
         /* ══════════════════════════════════════════════════════════════════
-           BOOTSTRAP
-           ══════════════════════════════════════════════════════════════════ */
-        function bootstrap() {
-          const VSC_VERSION_ID = '203.0.4-Hybrid';
-          log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
+       BOOTSTRAP (v203.0.4-Hybrid: Namespace Getter Fixed)
+       ══════════════════════════════════════════════════════════════════ */
+    function bootstrap() {
+      const VSC_VERSION_ID = '203.0.4-Hybrid';
+      log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
-          window[VSC_INTERNAL_SYM]._gpuSceneActive = false; window[VSC_INTERNAL_SYM]._gpuSceneEnabled = false; window[VSC_INTERNAL_SYM]._gpuSceneInit = null; window[VSC_INTERNAL_SYM]._gpuSceneDestroy = null; window[VSC_INTERNAL_SYM]._dspMode = 'off';
+      // 내부 상태 초기화
+      window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
+      window[VSC_INTERNAL_SYM]._gpuSceneEnabled = false;
+      window[VSC_INTERNAL_SYM]._gpuSceneInit = null;
+      window[VSC_INTERNAL_SYM]._gpuSceneDestroy = null;
+      window[VSC_INTERNAL_SYM]._dspMode = 'off';
 
-          const MS = createModuleSystem(__globalSig);
-          MS.defineFeature('Utils', { init: () => createUtils() });
-          MS.defineFeature('Scheduler', { init: () => createScheduler() });
-          MS.defineFeature('Store', { deps: ['Utils', 'Scheduler'], init: ({ Utils, Scheduler }) => { const store = createLocalStore(DEFAULTS, Scheduler, Utils); loadPersisted(store); return store; } });
-          MS.defineFeature('Bus', { init: () => createEventBus() });
-          MS.defineFeature('ApplyReq', { deps: ['Bus', 'Scheduler'], init: ({ Bus, Scheduler }) => createApplyRequester(Bus, Scheduler) });
-          MS.defineFeature('Registry', { deps: ['Scheduler'], priority: 10, init: ({ Scheduler }) => createRegistry(Scheduler), update: (inst) => { inst.prune(); } });
-          MS.defineFeature('Targeting', { init: () => createTargeting() });
-          MS.defineFeature('Audio', { deps: ['Store'], init: ({ Store }) => createAudio(Store), destroy: (inst) => { inst.destroy(); } });
-          MS.defineFeature('AutoScene', { deps: ['Store', 'Scheduler'], init: ({ Store, Scheduler }) => createAutoSceneManager(Store, P, Scheduler), destroy: (inst) => { inst.stop(); } });
-          MS.defineFeature('ParamsMemo', { deps: ['Store', 'Utils'], init: ({ Store, Utils }) => createVideoParamsMemo(Store, P, Utils) });
-          MS.defineFeature('FiltersVO', { deps: ['Utils'], init: ({ Utils }) => createFiltersVideoOnly(Utils, CONFIG) });
-          MS.defineFeature('Maximizer', { deps: ['Store', 'ApplyReq'], init: ({ Store, ApplyReq }) => createVideoMaximizer(Store, ApplyReq) });
-          MS.defineFeature('ZoomMgr', { init: () => FEATURE_FLAGS.zoomFeature ? createZoomManager() : null, destroy: (inst) => { if (inst) inst.destroy(); } });
+      // 모듈 시스템 구축
+      const MS = createModuleSystem(__globalSig);
+      MS.defineFeature('Utils', { init: () => createUtils() });
+      MS.defineFeature('Scheduler', { init: () => createScheduler() });
+      MS.defineFeature('Store', { deps: ['Utils', 'Scheduler'], init: ({ Utils, Scheduler }) => { const store = createLocalStore(DEFAULTS, Scheduler, Utils); loadPersisted(store); return store; } });
+      MS.defineFeature('Bus', { init: () => createEventBus() });
+      MS.defineFeature('ApplyReq', { deps: ['Bus', 'Scheduler'], init: ({ Bus, Scheduler }) => createApplyRequester(Bus, Scheduler) });
+      MS.defineFeature('Registry', { deps: ['Scheduler'], priority: 10, init: ({ Scheduler }) => createRegistry(Scheduler), update: (inst) => { inst.prune(); } });
+      MS.defineFeature('Targeting', { init: () => createTargeting() });
+      MS.defineFeature('Audio', { deps: ['Store'], init: ({ Store }) => createAudio(Store), destroy: (inst) => { inst.destroy(); } });
+      MS.defineFeature('AutoScene', { deps: ['Store', 'Scheduler'], init: ({ Store, Scheduler }) => createAutoSceneManager(Store, P, Scheduler), destroy: (inst) => { inst.stop(); } });
+      MS.defineFeature('ParamsMemo', { deps: ['Store', 'Utils'], init: ({ Store, Utils }) => createVideoParamsMemo(Store, P, Utils) });
+      MS.defineFeature('FiltersVO', { deps: ['Utils'], init: ({ Utils }) => createFiltersVideoOnly(Utils, CONFIG) });
+      MS.defineFeature('Maximizer', { deps: ['Store', 'ApplyReq'], init: ({ Store, ApplyReq }) => createVideoMaximizer(Store, ApplyReq) });
+      MS.defineFeature('ZoomMgr', { init: () => FEATURE_FLAGS.zoomFeature ? createZoomManager() : null, destroy: (inst) => { if (inst) inst.destroy(); } });
 
-          const moduleNames = ['Utils', 'Scheduler', 'Store', 'Bus', 'ApplyReq', 'Registry', 'Targeting', 'Audio', 'AutoScene', 'ParamsMemo', 'FiltersVO', 'Maximizer', 'ZoomMgr'];
-          MS.resolveAll(moduleNames);
+      const moduleNames = ['Utils', 'Scheduler', 'Store', 'Bus', 'ApplyReq', 'Registry', 'Targeting', 'Audio', 'AutoScene', 'ParamsMemo', 'FiltersVO', 'Maximizer', 'ZoomMgr'];
+      MS.resolveAll(moduleNames);
 
-          const Store = MS.get('Store'), Scheduler = MS.get('Scheduler'), Bus = MS.get('Bus'), ApplyReq = MS.get('ApplyReq'), Registry = MS.get('Registry'), Targeting = MS.get('Targeting'), Audio = MS.get('Audio'), AutoScene = MS.get('AutoScene'), ParamsMemo = MS.get('ParamsMemo'), FiltersVO = MS.get('FiltersVO'), Maximizer = MS.get('Maximizer'), ZoomMgr = MS.get('ZoomMgr');
+      const Store = MS.get('Store'), Scheduler = MS.get('Scheduler'), Bus = MS.get('Bus'), ApplyReq = MS.get('ApplyReq'), Registry = MS.get('Registry'), Targeting = MS.get('Targeting'), Audio = MS.get('Audio'), AutoScene = MS.get('AutoScene'), ParamsMemo = MS.get('ParamsMemo'), FiltersVO = MS.get('FiltersVO'), Maximizer = MS.get('Maximizer'), ZoomMgr = MS.get('ZoomMgr');
 
-          window[VSC_INTERNAL_SYM].Store = Store; window[VSC_INTERNAL_SYM].ApplyReq = ApplyReq; window[VSC_INTERNAL_SYM].AutoScene = AutoScene; window[VSC_INTERNAL_SYM].ZoomManager = ZoomMgr;
-          __Store = Store; __ApplyReq = ApplyReq;
+      // 전역 참조 등록
+      window[VSC_INTERNAL_SYM].Store = Store;
+      window[VSC_INTERNAL_SYM].ApplyReq = ApplyReq;
+      window[VSC_INTERNAL_SYM].AutoScene = AutoScene;
+      window[VSC_INTERNAL_SYM].ZoomManager = ZoomMgr;
+      __Store = Store;
+      __ApplyReq = ApplyReq;
 
-          window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!Store.get(P.APP_GPU_EN);
+      // 🔴 이슈 #2 해결: AutoScene loop에서 활용할 비디오 참조용 게터 함수 등록
+      window[VSC_INTERNAL_SYM].getActiveVideo = () => window[VSC_INTERNAL_SYM]._activeVideo;
 
-          Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
-          for (const cat of ['video.*', 'audio.*', 'playback.*', 'app.*']) Store.sub(cat, () => persistNow());
+      // GPU 활성화 상태 동기화
+      window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!Store.get(P.APP_GPU_EN);
 
-          createApplyLoop(Store, Scheduler, Registry, Targeting, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq);
+      Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
+      for (const cat of ['video.*', 'audio.*', 'playback.*', 'app.*']) Store.sub(cat, () => persistNow());
 
-          Store.sub(P.PB_RATE, () => { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (!isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
-          Store.sub(P.PB_EN, (enabled) => { if (!enabled) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = rs.orig; } catch (_) {} } rs.orig = null; rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
+      createApplyLoop(Store, Scheduler, Registry, Targeting, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq);
 
-          const processVideo = (v) => bindVideoOnce(v, Store, Registry, AutoScene, ApplyReq, ZoomMgr);
-          const scanAll = () => { for (const v of document.querySelectorAll('video')) processVideo(v); };
-          const rescanDebounced = createDebounced(() => {
-            scanAll(); Registry.rescanAll(); ApplyReq.hard();
-            const wasBlocked = __rateBlockedSite; __rateBlockedSite = isRateBlockedContext();
-            if (wasBlocked && !__rateBlockedSite) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.permanentlyBlocked && !isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } }
-          }, SPA_RESCAN_DEBOUNCE_MS);
-          initSpaUrlDetector(rescanDebounced);
-          setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
+      // 재생 속도 관련 구독
+      Store.sub(P.PB_RATE, () => { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (!isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
+      Store.sub(P.PB_EN, (enabled) => { if (!enabled) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = rs.orig; } catch (_) {} } rs.orig = null; rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
 
-          if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', () => { scanAll(); Scheduler.request(true); }, { once: true, signal: __globalSig }); } else { scanAll(); Scheduler.request(true); }
+      const processVideo = (v) => bindVideoOnce(v, Store, Registry, AutoScene, ApplyReq, ZoomMgr);
+      const scanAll = () => { for (const v of document.querySelectorAll('video')) processVideo(v); };
+      const rescanDebounced = createDebounced(() => {
+        scanAll(); Registry.rescanAll(); ApplyReq.hard();
+        const wasBlocked = __rateBlockedSite; __rateBlockedSite = isRateBlockedContext();
+        if (wasBlocked && !__rateBlockedSite) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.permanentlyBlocked && !isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } }
+      }, SPA_RESCAN_DEBOUNCE_MS);
 
-          setTimer(() => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) AutoScene.start(); }, 300);
+      initSpaUrlDetector(rescanDebounced);
+      setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
 
-          const UI = createUI(Store, Bus, createUtils(), Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq);
-          window[VSC_INTERNAL_SYM]._uiEnsure = () => {};
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => { scanAll(); Scheduler.request(true); }, { once: true, signal: __globalSig });
+      } else {
+        scanAll(); Scheduler.request(true);
+      }
 
-          const waitForBody = () => { if (document.body) { UI.init(); return; } const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); UI.init(); } }); mo.observe(document.documentElement || document, { childList: true }); };
-          waitForBody();
+      setTimer(() => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) AutoScene.start(); }, 300);
 
-          createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr);
-          if (FEATURE_FLAGS.iframeInjection) watchIframes();
+      const UI = createUI(Store, Bus, createUtils(), Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq);
+      window[VSC_INTERNAL_SYM]._uiEnsure = () => {};
 
-          window[VSC_APP_SYM] = Object.freeze({ getActiveVideo: () => window[VSC_INTERNAL_SYM]._activeVideo, getGpuStatus: () => window[VSC_INTERNAL_SYM]._gpuSceneActive, getDspMode: () => window[VSC_INTERNAL_SYM]._dspMode, version: VSC_VERSION_ID });
+      const waitForBody = () => {
+        if (document.body) { UI.init(); return; }
+        const mo = new MutationObserver(() => { if (document.body) { mo.disconnect(); UI.init(); } });
+        mo.observe(document.documentElement || document, { childList: true });
+      };
+      waitForBody();
 
-          if (ZoomMgr) setRecurring(() => ZoomMgr.pruneDisconnected(), 5000, { maxErrors: 50 });
-          onDoc('visibilitychange', () => { if (!document.hidden) ApplyReq.soft(); }, { passive: true });
-          onDoc('fullscreenchange', () => { if (!document.fullscreenElement && __osdEl) { if (!__osdEl.isConnected) { clearTimer(__osdTimerId); __osdTimerId = 0; __osdEl = null; } } ApplyReq.soft(); UI.syncAll(); });
+      createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr);
+      if (FEATURE_FLAGS.iframeInjection) watchIframes();
 
-          __globalSig.addEventListener('abort', () => {
-            MS.destroyAll(); for (const v of TOUCHED.videos) { FiltersVO.clear(v); vscClearAllStyles(v); }
-            for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { try { v.playbackRate = rs.orig; } catch (_) {} } }
-            clearTimer(__osdTimerId); __osdTimerId = 0; if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} } __osdEl = null; log.info('[VSC] destroyed');
-          }, { once: true });
+      window[VSC_APP_SYM] = Object.freeze({
+        getActiveVideo: () => window[VSC_INTERNAL_SYM]._activeVideo,
+        getGpuStatus: () => window[VSC_INTERNAL_SYM]._gpuSceneActive,
+        getDspMode: () => window[VSC_INTERNAL_SYM]._dspMode,
+        version: VSC_VERSION_ID
+      });
 
-          try { GM_registerMenuCommand('VSC 패널 열기/닫기', () => UI.togglePanel()); GM_registerMenuCommand('VSC 설정 초기화', () => { resetDefaults(); ApplyReq.hard(); persistNow(); UI.syncAll(); showOSD('초기화 완료', 1000); }); } catch (_) {}
+      if (ZoomMgr) setRecurring(() => ZoomMgr.pruneDisconnected(), 5000, { maxErrors: 50 });
+      onDoc('visibilitychange', () => { if (!document.hidden) ApplyReq.soft(); }, { passive: true });
+      onDoc('fullscreenchange', () => { if (!document.fullscreenElement && __osdEl) { if (!__osdEl.isConnected) { clearTimer(__osdTimerId); __osdTimerId = 0; __osdEl = null; } } ApplyReq.soft(); UI.syncAll(); });
 
-          const gpuAvail = typeof navigator.gpu !== 'undefined' ? 'WebGPU available' : 'WebGPU N/A';
-          const workletAvail = typeof AudioWorkletNode !== 'undefined' ? 'AudioWorklet available' : 'AudioWorklet N/A';
-          log.info(`[VSC] v${VSC_VERSION_ID} ready — ${Registry.videos.size} video(s) | ${gpuAvail} | ${workletAvail}`);
-        }
+      __globalSig.addEventListener('abort', () => {
+        MS.destroyAll(); for (const v of TOUCHED.videos) { FiltersVO.clear(v); vscClearAllStyles(v); }
+        for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { try { v.playbackRate = rs.orig; } catch (_) {} } }
+        clearTimer(__osdTimerId); __osdTimerId = 0; if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} } __osdEl = null; log.info('[VSC] destroyed');
+      }, { once: true });
+
+      try {
+        GM_registerMenuCommand('VSC 패널 열기/닫기', () => UI.togglePanel());
+        GM_registerMenuCommand('VSC 설정 초기화', () => { resetDefaults(); ApplyReq.hard(); persistNow(); UI.syncAll(); showOSD('초기화 완료', 1000); });
+      } catch (_) {}
+
+      const gpuAvail = typeof navigator.gpu !== 'undefined' ? 'WebGPU available' : 'WebGPU N/A';
+      const workletAvail = typeof AudioWorkletNode !== 'undefined' ? 'AudioWorklet available' : 'AudioWorklet N/A';
+      log.info(`[VSC] v${VSC_VERSION_ID} ready — ${Registry.videos.size} video(s) | ${gpuAvail} | ${workletAvail}`);
+    }
 
         /* ════════════════════════════════════════════════
            ENTRY POINT
