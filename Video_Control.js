@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v199.4.0-Hybrid)
+// @name         Video_Control (v199.5.0-Hybrid)
 // @namespace    https://github.com/
-// @version      199.4.0-Hybrid
-// @description  v199.4: Rate restore, Shadow Band shoulder, Audio tuning, PlaybackTab redesign, A/B compare, UI polish
+// @version      199.5.0-Hybrid
+// @description  v199.5: autosence patch
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -133,7 +133,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '199.4.0-Hybrid';
+    const VSC_VERSION = '199.5.0-Hybrid';
 
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
     const PATH_SPECIFIC_HOSTS = Object.freeze({ 'youtube.com': ['/shorts', '/watch'] });
@@ -907,9 +907,9 @@
     }
 
     // ═══ END OF PART 2 ═══
-    // ═══ PART 3 START — continues directly from PART 2's normalizeBySchema ═══
+    // ═══ PART 3 START (v199.5.0-Hybrid) — continues directly from PART 2's normalizeBySchema ═══
 
-    /* ── Registry (v199.4: patchFullscreenRequest 단일 지점, WorkQ background priority) ── */
+    /* ── Registry (v199.5: patchFullscreenRequest 단일 지점, WorkQ background priority) ── */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -970,7 +970,7 @@
         if (ro) ro.observe(el);
       };
 
-      /* ── WorkQ (v199.4: background priority) ── */
+      /* ── WorkQ ── */
       const WorkQ = (() => {
         const MAX_QUEUE_SIZE = 500;
         const q = [], bigQ = [];
@@ -1147,7 +1147,7 @@
       };
     }
 
-    /* ── Audio Engine (v199.4: threshold -18, knee 8, ratio 2.5, HPF 55Hz, loop 120ms) ── */
+    /* ── Audio Engine (v199.5: unchanged from v199.4) ── */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray;
       let target = null, currentSrc = null;
@@ -1524,7 +1524,21 @@
       return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
-    /* ── Auto Scene Manager (v199.4: canvas 80×45/112×63, CLAHE tuned, captureSceneFrame reordered) ── */
+    /* ══════════════════════════════════════════════════════════════════
+       Auto Scene Manager (v199.5.0-Hybrid)
+       ──────────────────────────────────────────────────────────────
+       Patches applied:
+         #1  captureSceneFrame — VideoFrame timestamp fix
+         #3  loop() — static scene fallback (framesSinceUpdate counter)
+         #4  detectTransition — motionSAD delta comparison
+         #5  interpolateCurves — double-buffer (no per-frame alloc)
+         #6  flickerCount decay 0.3→0.5, max 8→5
+         #7  classifySceneFuzzy — LOW_KEY boundary 0.35→0.30
+         #8  buildAdaptiveToneCurve — dead-code non-zonal path removed
+         #10 computeFullAnalysis — skinCount && short-circuit
+         #11 adaptiveFps — fpsHist → CircularBuffer
+         #13 AUTO.motionThresh 0.005→0.012
+       ══════════════════════════════════════════════════════════════════ */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
 
@@ -1538,6 +1552,7 @@
       const ST_NAMES = ['NORMAL','LOW_KEY','HIGH_KEY','HI_CONT','LOW_SAT','SKIN','BACKLIT'];
       const ST_COUNT = ST_NAMES.length;
 
+      /* ── CLAHE shared buffers (safe: sequential single-thread access) ── */
       const _claheClipped = new Float32Array(HIST_BINS);
       const _claheCdf = new Float32Array(HIST_BINS);
       const _claheZoneCDFPool = new Array(ZONE_COUNT);
@@ -1591,26 +1606,10 @@
         return curve.slice();
       }
 
+      /* v199.5: dead-code non-zonal path removed (#8) — zoneHists/zoneCounts always provided */
       function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
         const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35 } = params;
-        let equalized;
-        if (zoneHists && zoneCounts) {
-          equalized = buildZonalCLAHE(zoneHists, zoneCounts, clipLimit);
-        } else {
-          const n = Math.max(1, totalSamples), bins = HIST_BINS;
-          const limit = (n / bins) * clipLimit;
-          const clipped = new Float32Array(bins);
-          let excess = 0;
-          for (let i = 0; i < bins; i++) { if (lumHist[i] > limit) { excess += lumHist[i] - limit; clipped[i] = limit; } else clipped[i] = lumHist[i]; }
-          const perBin = excess / bins;
-          for (let i = 0; i < bins; i++) clipped[i] += perBin;
-          const cdf = new Float32Array(bins);
-          cdf[0] = clipped[0];
-          for (let i = 1; i < bins; i++) cdf[i] = cdf[i - 1] + clipped[i];
-          const cdfMin = cdf[0], cdfRange = Math.max(1, cdf[bins - 1] - cdfMin);
-          equalized = new Float32Array(TONE_STEPS);
-          for (let i = 0; i < TONE_STEPS; i++) { const x = i / (TONE_STEPS - 1); const bin = Math.min(bins - 1, (x * (bins - 1)) | 0); equalized[i] = (cdf[bin] - cdfMin) / cdfRange; }
-        }
+        const equalized = buildZonalCLAHE(zoneHists, zoneCounts, clipLimit);
         const identity = new Float32Array(TONE_STEPS);
         for (let i = 0; i < TONE_STEPS; i++) identity[i] = i / (TONE_STEPS - 1);
         const raw = new Float32Array(TONE_STEPS);
@@ -1660,11 +1659,12 @@
       const __fuzzyEma = new Float64Array(ST_COUNT);
       let __fuzzyInited = false;
 
+      /* v199.5: classifySceneFuzzy — LOW_KEY boundary 0.35→0.30 (#7) */
       function classifySceneFuzzy(stats, zoneStats) {
         const scores = __fuzzyScores; scores.fill(0);
         const br = stats.bright, ct = stats.contrast, ch = stats.chroma, sk = stats.skinRatio;
         scores[ST.NORMAL] = 1.0;
-        if (br < 0.35) scores[ST.LOW_KEY] += (0.35 - br) / 0.35 * 3.0;
+        if (br < 0.30) scores[ST.LOW_KEY] += (0.30 - br) / 0.30 * 3.0;
         if (ct < 0.22) scores[ST.LOW_KEY] += (0.22 - ct) / 0.22 * 1.5;
         if (br > 0.55) scores[ST.HIGH_KEY] += (br - 0.55) / 0.45 * 3.0;
         if (ct > 0.25) scores[ST.HIGH_CONTRAST] += (ct - 0.25) / 0.25 * 2.5;
@@ -1699,12 +1699,24 @@
       let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 };
       let prevSatMul = 1.0;
 
+      /* v199.5: interpolateCurves — double buffer, zero per-frame allocation (#5) */
+      const _interpBufA = new Float32Array(TONE_STEPS);
+      const _interpBufB = new Float32Array(TONE_STEPS);
+      let _interpActive = 0; // 0 = A, 1 = B
+
       function interpolateCurves(prev, next, alpha) {
-        if (!prev) return next;
-        const out = new Float32Array(TONE_STEPS);
+        if (!prev) {
+          const out = _interpActive === 0 ? _interpBufA : _interpBufB;
+          out.set(next);
+          _interpActive ^= 1;
+          return out;
+        }
+        const out = _interpActive === 0 ? _interpBufA : _interpBufB;
         for (let i = 0; i < TONE_STEPS; i++) out[i] = prev[i] + (next[i] - prev[i]) * alpha;
+        _interpActive ^= 1;
         return out;
       }
+
       function interpolateGains(prev, next, alpha) {
         return { rGain: prev.rGain + (next.rGain - prev.rGain) * alpha, gGain: prev.gGain + (next.gGain - prev.gGain) * alpha, bGain: prev.bGain + (next.bGain - prev.bGain) * alpha };
       }
@@ -1713,9 +1725,15 @@
       const cutScores = new CircularBuffer(CUT_HIST_LEN);
       const gradualScores = new CircularBuffer(10);
 
+      /* v199.5: detectTransition — use motionSAD delta (#4) */
       function detectTransition(stats, prev) {
-        if (!prev) return { isCut: false, isFade: false };
-        const score = Math.abs(stats.bright - prev.bright) * 1.3 + Math.abs(stats.contrast - prev.contrast) * 0.7 + Math.abs(stats.chroma - prev.chroma) * 0.5 + Math.abs(stats.edge - prev.edge) * 0.3 + Math.abs(stats.motionSAD || 0) * 0.35;
+        if (!prev) return { isCut: false, isFade: false, score: 0 };
+        const motionDelta = Math.abs((stats.motionSAD || 0) - (prev.motionSAD || 0));
+        const score = Math.abs(stats.bright - prev.bright) * 1.3
+          + Math.abs(stats.contrast - prev.contrast) * 0.7
+          + Math.abs(stats.chroma - prev.chroma) * 0.5
+          + Math.abs(stats.edge - prev.edge) * 0.3
+          + motionDelta * 0.35;
         cutScores.push(score);
         const sorted = cutScores.toSorted();
         const q90 = sorted[Math.floor(sorted.length * 0.90)] || 0.15;
@@ -1727,7 +1745,11 @@
         return { isCut, isFade, score };
       }
 
+      /* v199.5: flickerCount max 8→5, decay 0.3→0.5 (#6) */
       let flickerCount = 0, lastCurveDir = 0;
+      const FLICKER_MAX = 5;
+      const FLICKER_DECAY = 0.5;
+
       function getTemporalAlpha(isCut, isFade) {
         const base = isCut ? 0.40 : (isFade ? 0.10 : 0.05);
         return base / (1 + flickerCount * 0.5);
@@ -1758,6 +1780,7 @@
       const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
       const _pool_zoneBrightCount = new Uint32Array(ZONE_COUNT);
 
+      /* v199.5: computeFullAnalysis — skinCount && short-circuit (#10) */
       function computeFullAnalysis(data, sw, sh) {
         const step = 2;
         let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0;
@@ -1779,7 +1802,6 @@
         const HI_LUMA_THR = 180;
 
         const { zxLut, zyLut } = getZoneLuts(sw, sh);
-
         const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
 
         for (let y = 0; y < sh; y += step) {
@@ -1790,7 +1812,6 @@
             const px = u32[pi];
 
             const r = px & 0xFF, g = (px >>> 8) & 0xFF, b = (px >>> 16) & 0xFF;
-
             const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
 
             let mx, mn;
@@ -1811,7 +1832,8 @@
               sumEdge += diff < 0 ? -diff : diff;
             }
 
-            skinCount += ((r - g) > 12 & r >= 80 & g >= 35 & b >= 20 & r > g & r > b) | 0;
+            /* v199.5: skinCount — && short-circuit for readability and early exit (#10) */
+            if ((r - g) > 12 && r >= 80 && g >= 35 && b >= 20 && r > g && r > b) skinCount++;
 
             const zi = zyBase + zxLut[x];
             zoneHists[zi][l]++; zoneCounts[zi]++;
@@ -1869,12 +1891,17 @@
         running: false, canvasW: CANVAS_W, canvasH: CANVAS_H,
         cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
         lastStats: null, statsEma: null, statsAlpha: 0.08,
-        motionEma: 0, motionAlpha: 0.20, motionThresh: 0.005, motionFrames: 0,
+        motionEma: 0, motionAlpha: 0.20, motionThresh: 0.012, /* v199.5: 0.005→0.012 (#13) */
+        motionFrames: 0,
         drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0,
-        boostMs: 700, fpsHist: [],
+        boostMs: 700,
         minFps: 0.5, maxFps: CONFIG.IS_MOBILE ? 4 : 8, curFps: 2,
-        _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL, _lastMean: 0
+        _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL, _lastMean: 0,
+        _framesSinceUpdate: 0 /* v199.5: static scene fallback counter (#3) */
       };
+
+      /* v199.5: adaptiveFps — fpsHist CircularBuffer (#11) */
+      const _fpsHistBuf = new CircularBuffer(6);
 
       let drmRetryCount = 0;
       const MAX_DRM_RETRIES = 3;
@@ -1937,16 +1964,17 @@
         __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
       }
 
+      /* v199.5: adaptiveFps — uses CircularBuffer (#11) */
       function adaptiveFps(motionSAD, isCut, isFade) {
-        AUTO.fpsHist.push(motionSAD); if (AUTO.fpsHist.length > 6) AUTO.fpsHist.shift();
-        const avg = AUTO.fpsHist.reduce((a, b) => a + b, 0) / AUTO.fpsHist.length;
+        _fpsHistBuf.push(motionSAD);
+        const avg = _fpsHistBuf.length > 0 ? _fpsHistBuf.reduce((a, b) => a + b, 0) / _fpsHistBuf.length : 0;
         let target = avg < 0.02 ? 2 : (avg < 0.08 ? 3 + avg / 0.08 * 2 : 5 + Math.min((avg - 0.08) / 0.2, 1) * 3);
         if (isCut) target = AUTO.maxFps; else if (isFade) target = Math.max(target, 5);
         AUTO.curFps += clamp(target - AUTO.curFps, -1.5, 1.5);
         return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
       }
 
-      /* v199.4: captureSceneFrame — createImageBitmap first, then VideoFrame, then drawImage */
+      /* v199.5: captureSceneFrame — VideoFrame timestamp fix (#1) */
       async function captureSceneFrame(v) {
         if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
         if (typeof createImageBitmap === 'function') {
@@ -1959,7 +1987,7 @@
         }
         if (typeof VideoFrame === 'function') {
           try {
-            const frame = new VideoFrame(v, { timestamp: 0 });
+            const frame = new VideoFrame(v, { timestamp: (v.currentTime * 1e6) | 0 });
             cvCtx.drawImage(frame, 0, 0, CANVAS_W, CANVAS_H);
             frame.close();
             return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
@@ -1968,6 +1996,9 @@
         try { cvCtx.drawImage(v, 0, 0, CANVAS_W, CANVAS_H); return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H); }
         catch (_) { return null; }
       }
+
+      /* v199.5: main loop — static scene fallback via _framesSinceUpdate (#3) */
+      const STATIC_SCENE_FORCE_INTERVAL = 30;
 
       async function loop() {
         if (!AUTO.running || __globalSig.aborted) return;
@@ -2010,9 +2041,14 @@
           if (AUTO._sceneStable >= 4) AUTO._sceneTypeEma = newScene;
           if (transition.isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; flickerCount = Math.max(0, flickerCount - 2); }
 
-          const allowUpdate = transition.isCut || transition.isFade || AUTO.motionFrames >= 4;
+          /* v199.5: allowUpdate — add static scene fallback (#3) */
+          AUTO._framesSinceUpdate++;
+          const staticForceTrigger = AUTO._framesSinceUpdate >= STATIC_SCENE_FORCE_INTERVAL;
+          const allowUpdate = transition.isCut || transition.isFade || AUTO.motionFrames >= 4 || staticForceTrigger;
+
           let fps = AUTO.curFps;
           if (allowUpdate) {
+            AUTO._framesSinceUpdate = 0;
             fps = adaptiveFps(stats.motionSAD, transition.isCut, transition.isFade);
             if (now < AUTO.tBoostUntil) fps = Math.max(fps, transition.isCut ? AUTO.maxFps : 5);
             const sceneType = AUTO._sceneTypeEma;
@@ -2021,15 +2057,25 @@
             const rawGains = computeChannelBalance(stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio, stats.hiLumaRBratio);
             const rawSat = toneParams.satTarget;
             const alpha = getTemporalAlpha(transition.isCut, transition.isFade);
+
+            /* v199.5: flickerCount — decay 0.5, max 5 (#6) */
             const newMid = rawCurve[128], oldMid = prevToneCurve ? prevToneCurve[128] : 0.5;
             const dir = newMid > oldMid ? 1 : (newMid < oldMid ? -1 : 0);
-            if (dir !== 0 && dir !== lastCurveDir && lastCurveDir !== 0) flickerCount = Math.min(flickerCount + 1, 8);
-            else if (dir !== 0) flickerCount = Math.max(0, flickerCount - 0.3);
+            if (dir !== 0 && dir !== lastCurveDir && lastCurveDir !== 0) flickerCount = Math.min(flickerCount + 1, FLICKER_MAX);
+            else if (dir !== 0) flickerCount = Math.max(0, flickerCount - FLICKER_DECAY);
             lastCurveDir = dir || lastCurveDir;
+
+            /* v199.5: interpolateCurves uses double buffer (#5) */
             const smoothedCurve = interpolateCurves(prevToneCurve, rawCurve, alpha);
             const smoothedGains = interpolateGains(prevChannelGains, rawGains, alpha);
             const smoothedSat = prevSatMul + (rawSat - prevSatMul) * alpha;
-            prevToneCurve = smoothedCurve; prevChannelGains = smoothedGains; prevSatMul = smoothedSat;
+
+            /* prevToneCurve must own its data (smoothedCurve is a shared buffer) */
+            if (!prevToneCurve) prevToneCurve = new Float32Array(TONE_STEPS);
+            prevToneCurve.set(smoothedCurve);
+            prevChannelGains = smoothedGains;
+            prevSatMul = smoothedSat;
+
             const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
             const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
             AUTO.cur.br = result.br; AUTO.cur.ct = result.ct; AUTO.cur.sat = result.sat;
@@ -2056,11 +2102,14 @@
         AUTO.cur = { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
         AUTO.statsEma = null; AUTO.lastStats = null; AUTO._lastMean = 0; AUTO._sceneStable = 0;
         AUTO._sceneTypeEma = ST.NORMAL; AUTO._sceneType = ST.NORMAL;
-        AUTO.motionEma = 0; AUTO.motionFrames = 0; AUTO.fpsHist.length = 0; AUTO.curFps = 2;
+        AUTO.motionEma = 0; AUTO.motionFrames = 0; AUTO.curFps = 2;
+        AUTO._framesSinceUpdate = 0;
+        _fpsHistBuf.clear();
         prevToneCurve = null; prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; prevSatMul = 1.0;
         cutScores.clear(); gradualScores.clear(); flickerCount = 0; lastCurveDir = 0;
         __prevLumBuf = null; __curLumBuf = null; __curLumBufSize = 0;
         __fuzzyInited = false; __fuzzyEma.fill(0);
+        _interpActive = 0;
       }
 
       function cleanupScheduler() {
@@ -2089,12 +2138,14 @@
       };
     }
 
-    // ═══ END OF PART 3 ═══
-    // PART 4 continues with: curveToApproxParams, createVideoMaximizer, createFiltersVideoOnly, SVG filter engine,
-    //   shadow bands, bright step, compose params, filter memo, UI icons, OSD
-    // ═══ PART 4 START — continues directly from PART 3's createAutoSceneManager return ═══
+    // ═══ END OF PART 3 (v199.5.0-Hybrid) ═══
+    // PART 4 continues with: curveToApproxParams, createVideoMaximizer, createFiltersVideoOnly, etc.
+    // ═══ PART 4 START (v199.5.0-Hybrid) — continues directly from PART 3's createAutoSceneManager return ═══
+    // Patches applied:
+    //   #2  composeVideoParamsInto — fix double correction when autoToneCurve + shadow/bright active
+    //   #9  curveToApproxParams — retained (needed for CSS-only path), NaN guard kept
 
-    /* ── curveToApproxParams (v199.4: NaN guard) ── */
+    /* ── curveToApproxParams (v199.5: NaN guard, unchanged logic) ── */
     function curveToApproxParams(curve, satMul, channelGains) {
       const clamp = VSC_CLAMP;
       const N = 32;
@@ -2380,7 +2431,11 @@
       return Object.freeze({ toggle, isActive: () => active || delegatedToTop, getTarget: () => targetVideo || targetIframe, doMaximize: toggle, undoMaximize() { if (isInIframe() && delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; } undoMaximize(); } });
     }
 
-    /* ── SVG Filter Engine (v199.4: CSS-only fast path, toneCache quantization, backface-visibility GPU) ── */
+    /* ══════════════════════════════════════════════════════════════════
+       SVG Filter Engine (v199.5.0-Hybrid)
+       ──────────────────────────────────────────────────────────────
+       Unchanged from v199.4 except version annotation.
+       ══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(32);
@@ -2460,7 +2515,6 @@
           + 'ac:' + autoKey + '|cg:' + chGainKey;
       };
 
-      /* v199.4: toneCache key quantization improved */
       function getToneTableCached(steps, toe, shoulder, mid, gain, contrast, brightOffset, gamma) {
         const key = `${steps}|${(toe*20+.5)|0}|${(shoulder*20+.5)|0}|${(mid*200+.5)|0}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(gamma*100+.5)|0}`;
         const hit = toneCache.get(key); if (hit) return hit;
@@ -2553,7 +2607,6 @@
         return { fid, fConv, toneFuncs: toneFuncsAll, toneFuncsRGB, tempFuncR, tempFuncG, tempFuncB, fSat, st: { lastKey: '', toneKey: '', toneTable: '', sharpKey: '', desatKey: '', tempKey: '' } };
       }
 
-      /* v199.4: needsSvgFilter check for CSS-only fast path */
       function needsSvgFilter(s) {
         return (
           Math.abs(s.sharp || 0) > 0.005 ||
@@ -2577,7 +2630,6 @@
         const fullKey = svgKey + '|css:' + s._cssBr.toFixed(3) + '|' + s._cssCt.toFixed(3) + '|' + s._cssSat.toFixed(3);
         if (dc.key === fullKey) return { svgUrl: dc.url, filterStr: dc.filterStr, cssOnly: dc.cssOnly };
 
-        /* v199.4: CSS-only fast path — GPU accelerated */
         if (!needsSvgFilter(s)) {
           let filterStr = '';
           if (Math.abs(s._cssBr - 1) > 0.001) filterStr += `brightness(${s._cssBr.toFixed(4)}) `;
@@ -2688,7 +2740,7 @@
       };
     }
 
-    /* ── Shadow Band table (v199.4: shoulder field added) ── */
+    /* ── Shadow Band table (v199.5: unchanged) ── */
     const _SHADOW_BANDS = Object.freeze([
       { toe: -3.0, mid: -0.010, shoulder: 1.5, bright: -0.4, gamma: 0.990, contrast: 1.015, sat: 1.005 },
       { toe: -6.0, mid: -0.015, shoulder: 2.5, bright: -0.6, gamma: 0.982, contrast: 1.020, sat: 1.008 },
@@ -2714,7 +2766,7 @@
       return out;
     }
 
-    /* ── Bright Step table ── */
+    /* ── Bright Step table (v199.5: unchanged) ── */
     const _BRIGHT_STEP = [
       null,
       { brightAdd: 1.5, gammaMul: 1.018, contrastMul: 0.995 },
@@ -2732,7 +2784,7 @@
       return out;
     }
 
-    /* ── Dynamic Sharpness Multiplier ── */
+    /* ── Dynamic Sharpness Multiplier (v199.5: unchanged) ── */
     function computeResolutionSharpMul(video) {
       const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
       const dW = video.clientWidth || video.offsetWidth || 0;
@@ -2771,7 +2823,14 @@
       return { mul, autoBase };
     }
 
-    /* ── Compose Video Params (v199.4: shoulder propagated) ── */
+    /* ══════════════════════════════════════════════════════════════════
+       composeVideoParamsInto (v199.5.0-Hybrid)
+       ──────────────────────────────────────────────────────────────
+       Patch #2: When _autoToneCurve is active, shadow band / bright step
+       brightness and contrast are folded into the tone curve via
+       toe/mid/shoulder instead of being applied as separate CSS values.
+       This prevents the SVG toneCurve + CSS brightness double-correction.
+       ══════════════════════════════════════════════════════════════════ */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0) {
       const gPreset = PRESETS.grade[vUser.presetB]  || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
@@ -2797,23 +2856,34 @@
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
 
-      if (autoMods._toneCurve && vUser.presetB && vUser.presetB !== 'off') {
-        const ATTENUATION = 0.45;
-        out.bright *= ATTENUATION;
-        out.gamma = 1.0 + (out.gamma - 1.0) * ATTENUATION;
-      }
-
+      /* v199.5 patch #2: when autoToneCurve is active, attenuate manual grade
+         AND neutralize bright/contrast from CSS to prevent double-correction */
       if (autoMods._toneCurve) {
+        if (vUser.presetB && vUser.presetB !== 'off') {
+          const ATTENUATION = 0.45;
+          out.bright *= ATTENUATION;
+          out.gamma = 1.0 + (out.gamma - 1.0) * ATTENUATION;
+        }
+
         out.satF *= autoMods.sat;
         out._autoToneCurve = autoMods._toneCurve.slice();
         out._autoChannelGains = autoMods._channelGains || null;
-      } else {
-        out.gain *= autoMods.br; out.contrast *= autoMods.ct; out.satF *= autoMods.sat;
-      }
 
-      out._cssBr = VSC_CLAMP(1.0 + out.bright * 0.008, 0.5, 2.0);
-      out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0);
-      out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+        /* CSS brightness/contrast are neutralized (=1.0) when SVG toneCurve handles them.
+           The shadow band / bright step effects remain as toe/mid/shoulder/gamma
+           which are applied inside the SVG feComponentTransfer via applyToeToAutoCurve. */
+        out._cssBr = 1.0;
+        out._cssCt = 1.0;
+        out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+      } else {
+        out.gain *= autoMods.br;
+        out.contrast *= autoMods.ct;
+        out.satF *= autoMods.sat;
+
+        out._cssBr = VSC_CLAMP(1.0 + out.bright * 0.008, 0.5, 2.0);
+        out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0);
+        out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+      }
 
       return out;
     }
@@ -2834,7 +2904,7 @@
       Math.abs((v._cssSat ?? 1) - 1) < 0.001
     );
 
-    /* ── Video Params Memoization ── */
+    /* ── Video Params Memoization (v199.5: unchanged) ── */
     function createVideoParamsMemo(Store, P, Utils) {
       const cache = new Map();
       const MAX_CACHE_SIZE = 16;
@@ -2872,7 +2942,7 @@
       };
     }
 
-    /* ── Shadow style helpers ── */
+    /* ── Shadow style helpers (v199.5: unchanged) ── */
     const __styleCacheMaxSize = 16;
     const __styleCache = new Map();
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
@@ -2917,7 +2987,7 @@
       return () => { if (!ended) { ended = true; try { ac.abort(); } catch (_) {} } };
     }
 
-    /* ── Icons ── */
+    /* ── Icons (v199.5: unchanged) ── */
     const VSC_ICONS = Object.freeze({
       gear: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
       pip: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>`,
@@ -2928,7 +2998,7 @@
 
     function svgIcon(name) { const span = document.createElement('span'); span.className = 'icon'; span.innerHTML = VSC_ICONS[name] || ''; return span; }
 
-    /* ── OSD (v199.4: parentNode mismatch cleanup) ── */
+    /* ── OSD (v199.5: unchanged) ── */
     let __osdReady = false;
     onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true });
     onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
@@ -2956,7 +3026,9 @@
     }
     __globalSig.addEventListener('abort', () => { if (__osdEl) { clearTimeout(__osdEl._timer); try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; } }, { once: true });
 
-    // ═══ END OF PART 4 ═══
+    // ═══ END OF PART 4 (v199.5.0-Hybrid) ═══
+    // PART 5 continues with: PiP helpers, captureVideoFrame, createZoomManager, createUI, etc.
+
     // ═══ PART 5 START (v199.4.0-Hybrid) ═══
 
     /* ================================================================
