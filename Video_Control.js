@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v199.3.0-Hybrid)
+// @name         Video_Control (v199.4.0-Hybrid)
 // @namespace    https://github.com/
-// @version      199.3.0-Hybrid
-// @description  v199: Shadow Band toe fix, Zoom cleanup, Rate guard, AutoScene VideoFrame, Audio tuning, UI master toggle
+// @version      199.4.0-Hybrid
+// @description  v199.4: Rate restore, Shadow Band shoulder, Audio tuning, PlaybackTab redesign, A/B compare, UI polish
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -58,7 +58,7 @@
     const setRecurring = (fn, ms, opts = {}) => {
       if (__globalSig.aborted) return 0;
       let consecutiveErrors = 0;
-      const maxErrors = opts.maxErrors ?? 200;
+      const maxErrors = opts.maxErrors ?? 50;
       const onKill = opts.onKill ?? null;
       const id = setInterval(() => {
         if (__globalSig.aborted) { clearInterval(id); _activeIntervals.delete(id); return; }
@@ -80,13 +80,11 @@
       if (existing.length === 0) return undefined;
       if (existing.length === 1) return existing[0];
       if (typeof AbortSignal.any === 'function') return AbortSignal.any(existing);
+      for (const sig of existing) { if (sig.aborted) return sig; }
       const ac = new AbortController();
+      const onAbort = () => { if (!ac.signal.aborted) ac.abort(); };
       for (const sig of existing) {
-        if (sig.aborted) { ac.abort(sig.reason); return ac.signal; }
-      }
-      const onAbort = (reason) => { if (!ac.signal.aborted) ac.abort(reason); };
-      for (const sig of existing) {
-        sig.addEventListener('abort', () => onAbort(sig.reason), { once: true, signal: ac.signal });
+        sig.addEventListener('abort', onAbort, { once: true, signal: ac.signal });
       }
       return ac.signal;
     };
@@ -103,7 +101,7 @@
     const onAll = (el, events, fn, opts) => { for (const ev of events) on(el, ev, fn, opts); };
 
     const __blockedElements = new WeakSet();
-    const BLOCK_EVENTS_PASSIVE = Object.freeze(['pointerdown', 'pointerup', 'dblclick', 'contextmenu']);
+    const BLOCK_EVENTS = Object.freeze(['pointerdown', 'pointerup', 'dblclick', 'contextmenu', 'click']);
     function blockInterference(el) {
       if (!el || __blockedElements.has(el)) return;
       __blockedElements.add(el);
@@ -120,8 +118,7 @@
         return false;
       };
       const stop = (e) => { if (isInteractiveInPath(e)) return; e.stopPropagation(); };
-      for (const evt of BLOCK_EVENTS_PASSIVE) on(el, evt, stop, { passive: true });
-      on(el, 'click', (e) => { if (isInteractiveInPath(e)) return; e.stopPropagation(); }, { passive: true });
+      for (const evt of BLOCK_EVENTS) on(el, evt, stop, { passive: true });
       on(el, 'wheel', (e) => { if (e.altKey) return; e.stopPropagation(); }, { passive: true });
     }
 
@@ -136,9 +133,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ""),
       DEBUG: false
     });
-    const VSC_VERSION = '199.3.0-Hybrid';
-
-    const COLOR_CAST_CORRECTION = 0.14;
+    const VSC_VERSION = '199.4.0-Hybrid';
 
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
     const PATH_SPECIFIC_HOSTS = Object.freeze({ 'youtube.com': ['/shorts', '/watch'] });
@@ -159,17 +154,18 @@
 
     function tempToRgbGain(temp) {
       const t = VSC_CLAMP((Number(temp) || 0) / 50, -1, 1);
+      if (Math.abs(t) < 0.001) return { rs: 1, gs: 1, bs: 1 };
       const r = 1 + 0.14 * t;
       const g = 1 - 0.02 * Math.abs(t);
       const b = 1 - 0.14 * t;
-      const m = Math.max(r, g, b);
+      const m = t > 0 ? r : b;
       return { rs: r / m, gs: g / m, bs: b / m };
     }
 
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
     const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true });
-    const SHADOW_ROOT_LRU_MAX = 6;
-    const SPA_RESCAN_DEBOUNCE_MS = 350;
+    const SHADOW_ROOT_LRU_MAX = 10;
+    const SPA_RESCAN_DEBOUNCE_MS = 500;
     const GUARD = Object.freeze({
       AUDIO_SRC_COOLDOWN: 3000,
       AUDIO_SRC_COOLDOWN_DRM: 8000,
@@ -179,6 +175,14 @@
 
     const RATE_BLOCKED_HOSTS = Object.freeze(['netflix.com','disneyplus.com','primevideo.com','hulu.com','max.com','peacocktv.com','paramountplus.com','crunchyroll.com']);
     const RATE_BLOCKED_PATHS = Object.freeze([{ host: 'amazon.com', pathPrefix: '/gp/video' }]);
+
+    /* ── Rate control constants (v199.4 fix) ── */
+    const RATE_MAX_RETRY      = 5;
+    const RATE_BACKOFF_BASE   = 16;
+    const RATE_BACKOFF_MAX    = 256;
+    const RATE_SESSION_MAX    = 30;
+    const RATE_SUPPRESS_MS    = 800;   // 300 → 800ms로 확장
+
     function isRateBlockedContext() {
       const h = location.hostname;
       if (RATE_BLOCKED_HOSTS.some(d => h === d || h.endsWith('.' + d))) return true;
@@ -194,13 +198,12 @@
       debug: LOG_LEVEL >= 4 ? ((...args) => console.debug('[VSC]', ...args)) : (() => {})
     };
 
-    /* ── Video State (v199 Rate Guard + suppressSyncUntil) ── */
+    /* ── Video State (v199.4 cleaned rateState) ── */
     function createRateState() {
       return {
-        orig: null, lastSetAt: 0, suppressSyncUntil: 0,
-        retryCount: 0, failCount: 0, permanentlyBlocked: false,
-        _externalMtQueued: false, _rateRetryWindow: 0, _rateRetryCount: 0,
-        _totalRetries: 0
+        orig: null, suppressSyncUntil: 0,
+        permanentlyBlocked: false,
+        _rateRetryCount: 0, _totalRetries: 0
       };
     }
     function createVideoState() {
@@ -210,6 +213,7 @@
         lastFilterUrl: null, rectT: 0, rectEpoch: -1, fsPatched: false,
         _resizeDirty: false, _ac: null, _inPiP: false,
         lastCssFilterStr: null, _transitionCleared: false,
+        __abCompare: false,
         rateState: createRateState(),
         resetTransient() {
           this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
@@ -284,8 +288,9 @@
       { type: 'bool', path: P.PB_EN },
       { type: 'num', path: P.PB_RATE, min: 0.07, max: 16, fallback: () => DEFAULTS.playback.rate }
     ];
+    const ALL_SCHEMAS = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
 
-    /* ── attachShadow patch (v199: abort 시 복원) ── */
+    /* ── attachShadow patch ── */
     if (FEATURE_FLAGS.trackShadowRoots) {
       window.__VSC_INTERNAL__._onShadow = null;
       const _origAttach = Element.prototype.attachShadow;
@@ -301,11 +306,7 @@
         patchedAttach.__vsc_original = _origAttach;
         Element.prototype.attachShadow = patchedAttach;
         __globalSig.addEventListener('abort', () => {
-          try {
-            if (Element.prototype.attachShadow === patchedAttach) {
-              Element.prototype.attachShadow = _origAttach;
-            }
-          } catch (_) {}
+          try { if (Element.prototype.attachShadow === patchedAttach) Element.prototype.attachShadow = _origAttach; } catch (_) {}
         }, { once: true });
       }
     }
@@ -362,7 +363,7 @@
 
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
-    /* ── CircularBuffer (v199: optimized toSorted) ── */
+    /* ── CircularBuffer ── */
     class CircularBuffer {
       constructor(maxLen) { this._buf = new Float64Array(maxLen); this._head = 0; this._size = 0; this._max = maxLen; }
       push(val) { this._buf[this._head] = val; this._head = (this._head + 1) % this._max; if (this._size < this._max) this._size++; }
@@ -384,7 +385,7 @@
           arr.set(this._buf.subarray(start, this._max));
           arr.set(this._buf.subarray(0, this._size - firstPart), firstPart);
         }
-        arr.sort();
+        arr.sort((a, b) => a - b);
         return arr;
       }
       clear() { this._head = 0; this._size = 0; }
@@ -438,10 +439,7 @@
       window.__VSC_INTERNAL__._spaOrigHistory = origHistory;
       __globalSig.addEventListener('abort', () => {
         for (const name of Object.keys(origHistory)) {
-          try {
-            const current = history[name];
-            if (current?.__vsc_patched && current.__vsc_original === origHistory[name]) history[name] = origHistory[name];
-          } catch (_) {}
+          try { const current = history[name]; if (current?.__vsc_patched && current.__vsc_original === origHistory[name]) history[name] = origHistory[name]; } catch (_) {}
         }
       }, { once: true });
     }
@@ -450,10 +448,15 @@
     const __VSC_INJECT_SOURCE = `;(${VSC_MAIN.toString()})();`;
     const __injectedIframes = new WeakSet();
     const __iframeLoadHooked = new WeakSet();
+    const __iframeFailed = new WeakSet();
     function watchIframes() {
       const canAccess = (ifr) => { try { const w = ifr.contentWindow; if (!w) return false; void w.location.href; return true; } catch (_) { return false; } };
       const inject = (ifr) => {
-        if (!ifr || !canAccess(ifr) || __injectedIframes.has(ifr)) return;
+        if (!ifr || __injectedIframes.has(ifr) || __iframeFailed.has(ifr)) return;
+        if (!canAccess(ifr)) {
+          if (ifr.contentWindow) __iframeFailed.add(ifr);
+          return;
+        }
         const tryInject = () => {
           try {
             const win = ifr.contentWindow;
@@ -467,12 +470,18 @@
             host.appendChild(s);
             s.remove?.();
             __injectedIframes.add(ifr);
-          } catch (_) {}
+          } catch (_) {
+            __iframeFailed.add(ifr);
+          }
         };
         tryInject();
         if (!__iframeLoadHooked.has(ifr)) {
           __iframeLoadHooked.add(ifr);
-          ifr.addEventListener('load', () => { if (canAccess(ifr)) tryInject(); }, { passive: true, signal: __globalSig });
+          ifr.addEventListener('load', () => {
+            __iframeFailed.delete(ifr);
+            if (canAccess(ifr)) tryInject();
+            else __iframeFailed.add(ifr);
+          }, { passive: true, signal: __globalSig });
         }
       };
       document.querySelectorAll("iframe").forEach(inject);
@@ -482,10 +491,10 @@
           if (!m.addedNodes || !m.addedNodes.length) continue;
           for (const n of m.addedNodes) {
             if (!n || n.nodeType !== 1) continue;
-            if (n.tagName === 'IFRAME') { if (canAccess(n)) inject(n); }
+            if (n.tagName === 'IFRAME') { inject(n); }
             else if (n.getElementsByTagName) {
               const iframes = n.getElementsByTagName('iframe');
-              for (let i = 0; i < iframes.length; i++) { if (canAccess(iframes[i])) inject(iframes[i]); }
+              for (let i = 0; i < iframes.length; i++) inject(iframes[i]);
             }
           }
         }
@@ -496,7 +505,7 @@
       __globalSig.addEventListener('abort', () => mo.disconnect(), { once: true });
     }
 
-    /* ── Fullscreen wrapper (v199: improved restore) ── */
+    /* ── Fullscreen wrapper ── */
     const fsWraps = new WeakMap();
     function ensureFsWrapper(video) {
       if (fsWraps.has(video)) {
@@ -585,7 +594,6 @@
             try { const ret = req.apply(wrap, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; }
           }
         }
-        log.debug('[FS] Wrapper unavailable, using direct fullscreen on video');
         try { const ret = origFn.apply(video, args); if (ret && typeof ret.then === 'function') return ret.catch(err => { cleanupIfNotFullscreen(); throw err; }); return ret; } catch (err) { cleanupIfNotFullscreen(); throw err; }
       };
       if (origStd) patchMethodSafe(video, 'requestFullscreen', function (...args) { return runWrappedFs.call(this, origStd, ...args); });
@@ -621,7 +629,7 @@
     onDoc('fullscreenchange', onFsChange);
     onDoc('webkitfullscreenchange', onFsChange);
 
-    /* ── PiP state (v199: zombie guard) ── */
+    /* ── PiP state ── */
     let __activeDocumentPiPWindow = null, __activeDocumentPiPVideo = null, __pipPlaceholder = null, __pipOrigParent = null, __pipOrigNext = null, __pipOrigCss = '';
     function resetPiPState() { __activeDocumentPiPWindow = null; __activeDocumentPiPVideo = null; __pipPlaceholder = null; __pipOrigParent = null; __pipOrigNext = null; __pipOrigCss = ""; }
     function getActivePiPVideo() {
@@ -656,14 +664,14 @@
     // PART 2 continues with: createTargeting, createEventBus, createUtils, createScheduler, createLocalStore, normalizeBySchema
     // ═══ PART 2 START — continues directly from PART 1's PiP zombie guard ═══
 
-    /* ── Targeting (v199: MIN_AREA tuned) ── */
+    /* ── Targeting (v199.4: MIN_AREA 제한 완화) ── */
     function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       const SCORE = Object.freeze({
         PLAYING: 5.0, HAS_PROGRESS: 1.5, AREA_SCALE: 1.5, AREA_DIVISOR: 12000,
         USER_PROX_MAX: 2.5, USER_PROX_DECAY: 1500, USER_PROX_RAD_SQ: 722500,
         CENTER_BIAS: 0.5, CENTER_RAD_SQ: 810000, AUDIO_BASE: 1.5,
-        AUDIO_BOOST_EXTRA: 0.8, PIP_BONUS: 6.0, MIN_AREA: CONFIG.IS_MOBILE ? 12000 : 20000
+        AUDIO_BOOST_EXTRA: 0.8, PIP_BONUS: 6.0
       });
       function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
         const now = performance.now(); const vp = getViewportSnapshot();
@@ -672,7 +680,8 @@
           if (!v || v.readyState < 2) return;
           const r = getRectCached(v, now, 350); const area = r.width * r.height;
           const pip = isPiPActiveVideo(v);
-          if (area < SCORE.MIN_AREA && !pip) return;
+          // [수정점] 크기 제한을 없애서 어떤 작은 비디오라도 타겟팅 가능하게 함
+          if (area < 100 && !pip) return;
           const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           let s = 0;
           if (!v.paused && !v.ended) s += SCORE.PLAYING;
@@ -731,13 +740,17 @@
       });
     }
 
-    /* ── Utils ── */
+    /* ── Utils (v199.4: deepClone simplified, SVG_TAGS minimized) ── */
     function createUtils() {
       return {
         clamp: VSC_CLAMP,
         h: (tag, props = {}, ...children) => {
           const SVG_NS = 'http://www.w3.org/2000/svg';
-          const SVG_TAGS = new Set(['svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA','feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode','feComposite','feBlend','feFlood','feOffset','feTurbulence','feDisplacementMap','feImage','feMorphology','feSpecularLighting','feDiffuseLighting','fePointLight','feSpotLight','feDistantLight','g','path','circle','rect','line','polyline','polygon','text','use','clipPath','mask','pattern','linearGradient','radialGradient','stop','symbol','marker','image','foreignObject','animate','animateTransform','set','desc','title','metadata']);
+          const SVG_TAGS = new Set([
+            'svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA',
+            'feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode',
+            'feComposite','feBlend','g','path','circle','rect','line','text'
+          ]);
           const isSvgEl = props.ns === 'svg' || SVG_TAGS.has(tag);
           const el = isSvgEl ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
           for (const [k, v] of Object.entries(props)) {
@@ -751,14 +764,13 @@
           return el;
         },
         deepClone: (defaults) => {
-          try { return structuredClone(defaults); }
-          catch (_) {
-            const state = {};
-            for (const [cat, obj] of Object.entries(defaults)) {
-              state[cat] = typeof obj === 'object' && obj !== null ? { ...obj } : obj;
-            }
-            return state;
+          const state = {};
+          for (const [cat, obj] of Object.entries(defaults)) {
+            if (Array.isArray(obj)) state[cat] = obj.map(v => v && typeof v === 'object' ? { ...v } : v);
+            else if (typeof obj === 'object' && obj !== null) state[cat] = { ...obj };
+            else state[cat] = obj;
           }
+          return state;
         },
         createCappedMap: (max = 64) => {
           const m = new Map();
@@ -895,10 +907,9 @@
     }
 
     // ═══ END OF PART 2 ═══
-    // PART 3 continues with: createRegistry, IS_LITTLE_ENDIAN, createAudio, createAutoSceneManager
     // ═══ PART 3 START — continues directly from PART 2's normalizeBySchema ═══
 
-    /* ── Registry (v199 Observer Cleanup) ── */
+    /* ── Registry (v199.4: patchFullscreenRequest 단일 지점, WorkQ background priority) ── */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -942,7 +953,6 @@
 
       const observeVideo = (el) => {
         if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
-        patchFullscreenRequest(el);
         videos.add(el);
         if (io) {
           io.observe(el);
@@ -960,7 +970,7 @@
         if (ro) ro.observe(el);
       };
 
-      /* ── WorkQ ── */
+      /* ── WorkQ (v199.4: background priority) ── */
       const WorkQ = (() => {
         const MAX_QUEUE_SIZE = 500;
         const q = [], bigQ = [];
@@ -971,7 +981,7 @@
         function drainRunnerRaf() { drain(); }
 
         const postTaskBg = (globalThis.scheduler && typeof globalThis.scheduler.postTask === 'function')
-          ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'user-visible' }) : null;
+          ? (fn) => globalThis.scheduler.postTask(fn, { priority: 'background' }) : null;
 
         const schedule = () => {
           if (scheduled) return; scheduled = true;
@@ -1137,10 +1147,7 @@
       };
     }
 
-    /* ── Endian detection for Uint32Array pixel loop ── */
-    const IS_LITTLE_ENDIAN = new Uint8Array(new Uint32Array([0x0A0B0C0D]).buffer)[0] === 0x0D;
-
-    /* ── Audio Engine (v199: knee 6, HPF 80Hz) ── */
+    /* ── Audio Engine (v199.4: threshold -18, knee 8, ratio 2.5, HPF 55Hz, loop 120ms) ── */
     function createAudio(sm) {
       let ctx, compressor, limiter, wetInGain, dryOut, wetOut, masterOut, hpf, clipper, analyser, dataArray;
       let target = null, currentSrc = null;
@@ -1156,7 +1163,7 @@
       let __ctxCooldownCount = 0;
       const MAX_COOLDOWNS = 3;
 
-      const VSC_AUD_HPF_HZ = 80;
+      const VSC_AUD_HPF_HZ = 55;
       const VSC_AUD_HPF_Q = 0.707;
       const VSC_AUD_CLIP_KNEE = 0.82;
       const VSC_AUD_CLIP_DRIVE = 2.2;
@@ -1222,7 +1229,7 @@
         if (!actuallyEnabled) {
           makeupDbEma += (0 - makeupDbEma) * 0.1;
           if (wetInGain) { try { wetInGain.gain.setTargetAtTime(1.0, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = 1.0; } }
-          const delay = document.hidden ? 500 : 80;
+          const delay = document.hidden ? 800 : 120;
           if (__audioLoopTimer) clearTimer(__audioLoopTimer);
           const currentTok = tok;
           __audioLoopTimer = setTimer(() => { __audioLoopTimer = 0; if (currentTok !== loopTok || __globalSig.aborted) return; runAudioLoop(currentTok); }, delay);
@@ -1256,7 +1263,7 @@
           try { wetInGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetInGain.gain.value = finalGain; }
         }
 
-        const delay = document.hidden ? 500 : 80;
+        const delay = document.hidden ? 800 : 120;
         if (__audioLoopTimer) clearTimer(__audioLoopTimer);
         const currentTok = tok;
         __audioLoopTimer = setTimer(() => { __audioLoopTimer = 0; if (currentTok !== loopTok || __globalSig.aborted) return; runAudioLoop(currentTok); }, delay);
@@ -1280,11 +1287,11 @@
 
       const buildAudioGraph = () => {
         compressor = ctx.createDynamicsCompressor();
-        compressor.threshold.value = -22.0;
-        compressor.knee.value = 6.0;
-        compressor.ratio.value = 3.0;
-        compressor.attack.value = 0.012;
-        compressor.release.value = 0.20;
+        compressor.threshold.value = -18.0;
+        compressor.knee.value = 8.0;
+        compressor.ratio.value = 2.5;
+        compressor.attack.value = 0.008;
+        compressor.release.value = 0.15;
 
         limiter = ctx.createDynamicsCompressor();
         limiter.threshold.value = -0.5;
@@ -1327,12 +1334,16 @@
         for (const v of TOUCHED.rateVideos) { try { const s = srcMap.get(v); if (s) { s.disconnect(); srcMap.delete(v); } } catch (_) {} }
       };
 
+      const resetAllAudioFailUntil = () => {
+        for (const v of TOUCHED.videos) { const vst = videoStateMap.get(v); if (vst) vst.audioFailUntil = 0; }
+        for (const v of TOUCHED.rateVideos) { const vst = videoStateMap.get(v); if (vst) vst.audioFailUntil = 0; }
+      };
+
       const ensureCtx = () => {
         if (ctx && ctx.state === 'closed') {
           disconnectAllKnownSources();
           srcMap = new WeakMap();
-          for (const v of TOUCHED.videos) { const vst = videoStateMap.get(v); if (vst) vst.audioFailUntil = 0; }
-          for (const v of TOUCHED.rateVideos) { const vst = videoStateMap.get(v); if (vst) vst.audioFailUntil = 0; }
+          resetAllAudioFailUntil();
           resetCtx();
           __ctxCreateCount++;
         }
@@ -1358,7 +1369,7 @@
         }
         disconnectAllKnownSources();
         srcMap = new WeakMap();
-        for (const v of TOUCHED.videos) { const vst = videoStateMap.get(v); if (vst) vst.audioFailUntil = 0; }
+        resetAllAudioFailUntil();
         const AC = window.AudioContext || window.webkitAudioContext;
         if (!AC) return false;
         try { ctx = new AC({ latencyHint: 'playback' }); }
@@ -1513,14 +1524,14 @@
       return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, destroy };
     }
 
-    /* ── Auto Scene Manager (v199: VideoFrame direct drawImage, LOW_KEY tuned) ── */
+    /* ── Auto Scene Manager (v199.4: canvas 80×45/112×63, CLAHE tuned, captureSceneFrame reordered) ── */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
 
       const HIST_BINS = 256;
       const TONE_STEPS = 256;
-      const CANVAS_W = CONFIG.IS_MOBILE ? 64 : 96;
-      const CANVAS_H = CONFIG.IS_MOBILE ? 36 : 54;
+      const CANVAS_W = CONFIG.IS_MOBILE ? 80 : 112;
+      const CANVAS_H = CONFIG.IS_MOBILE ? 45 : 63;
       const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
 
       const ST = Object.freeze({ NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3, LOW_SAT: 4, SKIN: 5, BACKLIT: 6 });
@@ -1622,6 +1633,7 @@
       }
 
       function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiLumaRBratio) {
+        const correctionStrength = 0.14;
         const n = Math.max(1, totalSamples);
         let rMean = 0, gMean = 0, bMean = 0;
         for (let i = 0; i < HIST_BINS; i++) {
@@ -1631,7 +1643,6 @@
         rMean /= n; gMean /= n; bMean /= n;
         const avgMean = (rMean + gMean + bMean) / 3;
         if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
-        const correctionStrength = COLOR_CAST_CORRECTION;
         const skinDampen = VSC_CLAMP(skinRatio || 0, 0, 0.4) / 0.4;
         const rMul = 0.45 * (1 - skinDampen * 0.6);
         let rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul);
@@ -1676,12 +1687,12 @@
 
       const SCENE_TONE_PARAMS = Object.freeze({
         [ST.NORMAL]:        { clipLimit: 2.0, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.20, satTarget: 1.04 },
-        [ST.LOW_KEY]:       { clipLimit: 2.5, shadowProtect: 0.55, highlightProtect: 0.20, midtoneBoost: 0.05, strength: 0.24, satTarget: 1.03 },
+        [ST.LOW_KEY]:       { clipLimit: 2.0, shadowProtect: 0.55, highlightProtect: 0.20, midtoneBoost: 0.05, strength: 0.22, satTarget: 1.03 },
         [ST.HIGH_KEY]:      { clipLimit: 1.8, shadowProtect: 0.25, highlightProtect: 0.65, midtoneBoost: -0.03, strength: 0.18, satTarget: 1.04 },
         [ST.HIGH_CONTRAST]: { clipLimit: 1.5, shadowProtect: 0.50, highlightProtect: 0.50, midtoneBoost: 0.0, strength: 0.15, satTarget: 1.02 },
-        [ST.LOW_SAT]:       { clipLimit: 2.5, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.25, satTarget: 1.12 },
+        [ST.LOW_SAT]:       { clipLimit: 2.2, shadowProtect: 0.35, highlightProtect: 0.30, midtoneBoost: 0.03, strength: 0.25, satTarget: 1.12 },
         [ST.SKIN]:          { clipLimit: 2.0, shadowProtect: 0.45, highlightProtect: 0.40, midtoneBoost: 0.02, strength: 0.16, satTarget: 1.02 },
-        [ST.BACKLIT]:       { clipLimit: 2.5, shadowProtect: 0.25, highlightProtect: 0.55, midtoneBoost: 0.08, strength: 0.28, satTarget: 1.03 }
+        [ST.BACKLIT]:       { clipLimit: 2.2, shadowProtect: 0.25, highlightProtect: 0.55, midtoneBoost: 0.08, strength: 0.26, satTarget: 1.03 }
       });
 
       let prevToneCurve = null;
@@ -1770,7 +1781,6 @@
         const { zxLut, zyLut } = getZoneLuts(sw, sh);
 
         const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
-        const isLE = IS_LITTLE_ENDIAN;
 
         for (let y = 0; y < sh; y += step) {
           const rowPixelOffset = y * sw;
@@ -1779,9 +1789,7 @@
             const pi = rowPixelOffset + x;
             const px = u32[pi];
 
-            let r, g, b;
-            if (isLE) { r = px & 0xFF; g = (px >>> 8) & 0xFF; b = (px >>> 16) & 0xFF; }
-            else { r = (px >>> 24) & 0xFF; g = (px >>> 16) & 0xFF; b = (px >>> 8) & 0xFF; }
+            const r = px & 0xFF, g = (px >>> 8) & 0xFF, b = (px >>> 16) & 0xFF;
 
             const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
 
@@ -1797,9 +1805,7 @@
             if (x + step < sw) {
               const ni = pi + step;
               const npx = u32[ni];
-              let nr, ng, nb;
-              if (isLE) { nr = npx & 0xFF; ng = (npx >>> 8) & 0xFF; nb = (npx >>> 16) & 0xFF; }
-              else { nr = (npx >>> 24) & 0xFF; ng = (npx >>> 16) & 0xFF; nb = (npx >>> 8) & 0xFF; }
+              const nr = npx & 0xFF, ng = (npx >>> 8) & 0xFF, nb = (npx >>> 16) & 0xFF;
               const l2 = (nr * 54 + ng * 183 + nb * 18 + 128) >> 8;
               const diff = l2 - l;
               sumEdge += diff < 0 ? -diff : diff;
@@ -1940,22 +1946,22 @@
         return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
       }
 
-      /* v199: VideoFrame direct drawImage path */
+      /* v199.4: captureSceneFrame — createImageBitmap first, then VideoFrame, then drawImage */
       async function captureSceneFrame(v) {
         if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
-        if (typeof VideoFrame === 'function') {
-          try {
-            const frame = new VideoFrame(v, { timestamp: 0 });
-            cvCtx.drawImage(frame, 0, 0, CANVAS_W, CANVAS_H);
-            frame.close();
-            return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
-          } catch (_) {}
-        }
         if (typeof createImageBitmap === 'function') {
           try {
             const bmp = await createImageBitmap(v, { resizeWidth: CANVAS_W, resizeHeight: CANVAS_H, resizeQuality: 'low' });
             cvCtx.drawImage(bmp, 0, 0);
             bmp.close();
+            return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+          } catch (_) {}
+        }
+        if (typeof VideoFrame === 'function') {
+          try {
+            const frame = new VideoFrame(v, { timestamp: 0 });
+            cvCtx.drawImage(frame, 0, 0, CANVAS_W, CANVAS_H);
+            frame.close();
             return cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H);
           } catch (_) {}
         }
@@ -2088,7 +2094,7 @@
     //   shadow bands, bright step, compose params, filter memo, UI icons, OSD
     // ═══ PART 4 START — continues directly from PART 3's createAutoSceneManager return ═══
 
-    /* ── curveToApproxParams (v199: 32-point quadratic fit + NaN guard) ── */
+    /* ── curveToApproxParams (v199.4: NaN guard) ── */
     function curveToApproxParams(curve, satMul, channelGains) {
       const clamp = VSC_CLAMP;
       const N = 32;
@@ -2144,7 +2150,7 @@
       };
     }
 
-    /* ── Video Maximizer (v199 Iframe Supported) ── */
+    /* ── Video Maximizer ── */
     function createVideoMaximizer(Store, ApplyReq) {
       const MAX_CLASS = 'vsc-vmax-max';
       const HIDE_CLASS = 'vsc-vmax-hide';
@@ -2374,11 +2380,10 @@
       return Object.freeze({ toggle, isActive: () => active || delegatedToTop, getTarget: () => targetVideo || targetIframe, doMaximize: toggle, undoMaximize() { if (isInIframe() && delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; } undoMaximize(); } });
     }
 
-    /* ── SVG Filter Engine (v199: toe/mid/shoulder in tone curve + applyToeToAutoCurve) ── */
+    /* ── SVG Filter Engine (v199.4: CSS-only fast path, toneCache quantization, backface-visibility GPU) ── */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
       const urlCache = new WeakMap(), ctxMap = new WeakMap(), toneCache = createCappedMap(32);
-      const qInt = (v, step) => Math.round(v / step);
 
       const _toneStrLut = new Array(10001);
       for (let i = 0; i <= 10000; i++) _toneStrLut[i] = (i / 10000).toFixed(4);
@@ -2393,7 +2398,6 @@
         return parts.join(' ');
       }
 
-      /* v199: Auto Scene 커브에 Shadow Band toe/mid/shoulder 병합 */
       function applyToeToAutoCurve(autoCurve, toe, mid, shoulder) {
         const len = autoCurve.length;
         const out = new Float32Array(len);
@@ -2437,7 +2441,8 @@
         return xfer;
       }
 
-      /* v199: makeKeyBase includes toe/mid/shoulder */
+      const qInt = (v, step) => Math.round(v / step);
+
       const makeKeyBase = (s) => {
         let autoKey = '0';
         if (s._autoToneCurve && s._autoToneCurve.length === 256) {
@@ -2455,9 +2460,9 @@
           + 'ac:' + autoKey + '|cg:' + chGainKey;
       };
 
-      /* v199: getToneTableCached — toe/mid/shoulder actually applied to curve */
+      /* v199.4: toneCache key quantization improved */
       function getToneTableCached(steps, toe, shoulder, mid, gain, contrast, brightOffset, gamma) {
-        const key = `${steps}|${Math.round(toe*1000)}|${Math.round(shoulder*1000)}|${Math.round(mid*10000)}|${Math.round(gain*1000)}|${Math.round(contrast*1000)}|${Math.round(gamma*1000)}`;
+        const key = `${steps}|${(toe*20+.5)|0}|${(shoulder*20+.5)|0}|${(mid*200+.5)|0}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(gamma*100+.5)|0}`;
         const hit = toneCache.get(key); if (hit) return hit;
 
         const ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g);
@@ -2471,7 +2476,6 @@
 
         for (let i = 0; i < steps; i++) {
           const x0 = i / (steps - 1);
-
           let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
           x = x * contrast + intercept;
 
@@ -2479,12 +2483,10 @@
             const toeWeight = x0 < 0.25 ? (1.0 - x0 / 0.25) : 0;
             x += toeF * toeWeight * toeWeight;
           }
-
           if (Math.abs(midF) > 0.0005) {
             const midWeight = Math.exp(-((x0 - 0.5) * (x0 - 0.5)) / (2 * 0.18 * 0.18));
             x += midF * midWeight;
           }
-
           if (Math.abs(shouldF) > 0.0005) {
             const shouldWeight = x0 > 0.75 ? ((x0 - 0.75) / 0.25) : 0;
             x -= shouldF * shouldWeight * shouldWeight;
@@ -2551,15 +2553,40 @@
         return { fid, fConv, toneFuncs: toneFuncsAll, toneFuncsRGB, tempFuncR, tempFuncG, tempFuncB, fSat, st: { lastKey: '', toneKey: '', toneTable: '', sharpKey: '', desatKey: '', tempKey: '' } };
       }
 
-      /* v199: prepare — toe/mid/shoulder passed to getToneTableCached & applyToeToAutoCurve */
+      /* v199.4: needsSvgFilter check for CSS-only fast path */
+      function needsSvgFilter(s) {
+        return (
+          Math.abs(s.sharp || 0) > 0.005 ||
+          Math.abs(s.toe || 0) > 0.01 ||
+          Math.abs(s.mid || 0) > 0.001 ||
+          Math.abs(s.shoulder || 0) > 0.01 ||
+          !!s._autoToneCurve ||
+          !!s._autoChannelGains ||
+          Math.abs((s.gain || 1) - 1) > 0.005 ||
+          Math.abs((s.gamma || 1) - 1) > 0.005 ||
+          Math.abs(s.temp || 0) > 0.5
+        );
+      }
+
       function prepare(video, s) {
         const root = (video.getRootNode && video.getRootNode() !== video.ownerDocument) ? video.getRootNode() : (video.ownerDocument || document);
         let dc = urlCache.get(root);
-        if (!dc) { dc = { key: '', url: '', filterStr: 'none' }; urlCache.set(root, dc); }
+        if (!dc) { dc = { key: '', url: '', filterStr: 'none', cssOnly: false }; urlCache.set(root, dc); }
 
         const svgKey = (video.videoWidth || 0) + '|' + makeKeyBase(s);
         const fullKey = svgKey + '|css:' + s._cssBr.toFixed(3) + '|' + s._cssCt.toFixed(3) + '|' + s._cssSat.toFixed(3);
-        if (dc.key === fullKey) return { svgUrl: dc.url, filterStr: dc.filterStr };
+        if (dc.key === fullKey) return { svgUrl: dc.url, filterStr: dc.filterStr, cssOnly: dc.cssOnly };
+
+        /* v199.4: CSS-only fast path — GPU accelerated */
+        if (!needsSvgFilter(s)) {
+          let filterStr = '';
+          if (Math.abs(s._cssBr - 1) > 0.001) filterStr += `brightness(${s._cssBr.toFixed(4)}) `;
+          if (Math.abs(s._cssCt - 1) > 0.001) filterStr += `contrast(${s._cssCt.toFixed(4)}) `;
+          if (Math.abs(s._cssSat - 1) > 0.001) filterStr += `saturate(${s._cssSat.toFixed(4)})`;
+          filterStr = filterStr.trim() || 'none';
+          dc.key = fullKey; dc.url = ''; dc.filterStr = filterStr; dc.cssOnly = true;
+          return { svgUrl: '', filterStr, cssOnly: true };
+        }
 
         let ctx = ctxMap.get(root);
         if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
@@ -2581,16 +2608,7 @@
               toneTable = float32ArrayToSvgTable(s._autoToneCurve);
             }
           } else {
-            toneTable = getToneTableCached(
-              steps,
-              s.toe || 0,
-              s.shoulder || 0,
-              s.mid || 0,
-              s.gain || 1,
-              s.contrast || 1,
-              s.bright * 0.004 || 0,
-              gamma
-            );
+            toneTable = getToneTableCached(steps, s.toe || 0, s.shoulder || 0, s.mid || 0, s.gain || 1, s.contrast || 1, s.bright * 0.004 || 0, gamma);
           }
 
           const totalS = clamp(Number(s.sharp || 0), 0, 0.35);
@@ -2629,8 +2647,8 @@
         if (Math.abs(s._cssCt - 1) > 0.001) filterStr += ` contrast(${s._cssCt.toFixed(4)})`;
         if (Math.abs(s._cssSat - 1) > 0.001) filterStr += ` saturate(${s._cssSat.toFixed(4)})`;
 
-        dc.key = fullKey; dc.url = url; dc.filterStr = filterStr;
-        return { svgUrl: url, filterStr };
+        dc.key = fullKey; dc.url = url; dc.filterStr = filterStr; dc.cssOnly = false;
+        return { svgUrl: url, filterStr, cssOnly: false };
       }
 
       return {
@@ -2642,7 +2660,7 @@
           if (!filterResult) {
             if (st.applied) {
               if (!st._transitionCleared) el.style.removeProperty('transition');
-              el.style.removeProperty('will-change'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color'); el.style.removeProperty('contain');
+              el.style.removeProperty('will-change'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color'); el.style.removeProperty('contain'); el.style.removeProperty('backface-visibility');
               st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
             }
             return;
@@ -2653,7 +2671,10 @@
           if (st.lastCssFilterStr !== filterStr) { el.style.setProperty('filter', filterStr, 'important'); el.style.setProperty('-webkit-filter', filterStr, 'important'); }
           if (!st.applied) {
             const willChangeVal = window.__VSC_INTERNAL__?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter';
-            el.style.setProperty('will-change', willChangeVal, 'important'); el.style.setProperty('contain', 'layout paint style', 'important'); el.style.setProperty('background-color', '#000', 'important');
+            el.style.setProperty('will-change', willChangeVal, 'important');
+            el.style.setProperty('contain', 'content', 'important');
+            el.style.setProperty('background-color', '#000', 'important');
+            el.style.setProperty('backface-visibility', 'hidden', 'important');
           }
           st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
         },
@@ -2661,24 +2682,24 @@
           if (!el) return;
           const st = getVState(el);
           if (!st.applied) return;
-          el.style.removeProperty('transition'); el.style.removeProperty('will-change'); el.style.removeProperty('contain'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color');
+          el.style.removeProperty('transition'); el.style.removeProperty('will-change'); el.style.removeProperty('contain'); el.style.removeProperty('filter'); el.style.removeProperty('-webkit-filter'); el.style.removeProperty('background-color'); el.style.removeProperty('backface-visibility');
           st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false;
         }
       };
     }
 
-    /* ── Shadow Band table (v199: toe values scaled for real effect) ── */
+    /* ── Shadow Band table (v199.4: shoulder field added) ── */
     const _SHADOW_BANDS = Object.freeze([
-      { toe: -3.0, mid: -0.010, bright: -0.4, gamma: 0.990, contrast: 1.015, sat: 1.005 },
-      { toe: -6.0, mid: -0.015, bright: -0.6, gamma: 0.982, contrast: 1.020, sat: 1.008 },
-      { toe: -9.0, mid: -0.008, bright: -0.3, gamma: 0.985, contrast: 1.022, sat: 1.000 }
+      { toe: -3.0, mid: -0.010, shoulder: 1.5, bright: -0.4, gamma: 0.990, contrast: 1.015, sat: 1.005 },
+      { toe: -6.0, mid: -0.015, shoulder: 2.5, bright: -0.6, gamma: 0.982, contrast: 1.020, sat: 1.008 },
+      { toe: -9.0, mid: -0.008, shoulder: 3.0, bright: -0.3, gamma: 0.985, contrast: 1.022, sat: 1.000 }
     ]);
     const _SHADOW_TABLE = Array.from({ length: 8 }, (_, mask) => {
-      const r = { toe: 0, mid: 0, bright: 0, gamma: 1, contrast: 1, sat: 1 };
+      const r = { toe: 0, mid: 0, shoulder: 0, bright: 0, gamma: 1, contrast: 1, sat: 1 };
       for (let i = 0; i < 3; i++) {
         if (!(mask & (1 << i))) continue;
         const b = _SHADOW_BANDS[i];
-        r.toe += b.toe; r.mid += b.mid; r.bright += b.bright;
+        r.toe += b.toe; r.mid += b.mid; r.shoulder += b.shoulder; r.bright += b.bright;
         r.gamma *= b.gamma; r.contrast *= b.contrast; r.sat *= b.sat;
       }
       return Object.freeze(r);
@@ -2688,8 +2709,8 @@
       const m = (Number(mask) | 0) & 7;
       if (!m) return out;
       const p = _SHADOW_TABLE[m];
-      out.toe += p.toe; out.mid += p.mid; out.bright += p.bright;
-      out.gamma *= p.gamma; out.contrast *= p.contrast; out.satF *= p.sat;
+      out.toe += p.toe; out.mid += p.mid; out.shoulder += p.shoulder;
+      out.bright += p.bright; out.gamma *= p.gamma; out.contrast *= p.contrast; out.satF *= p.sat;
       return out;
     }
 
@@ -2711,7 +2732,7 @@
       return out;
     }
 
-    /* ── Dynamic Sharpness Multiplier (v199: 0.55→0.65, 0.70→0.75) ── */
+    /* ── Dynamic Sharpness Multiplier ── */
     function computeResolutionSharpMul(video) {
       const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
       const dW = video.clientWidth || video.offsetWidth || 0;
@@ -2723,7 +2744,6 @@
       const ratio = Math.max(dW / nW, dH / Math.max(1, nH));
       let mul = 1.0;
 
-      // 출력 비율에 따른 보정치 계산 (기존 로직 유지)
       if (ratio < 0.15) mul = 0.30;
       else if (ratio < 0.5) mul = 0.30 + (ratio - 0.15) * 2.0;
       else if (ratio <= 1.5) mul = 1.0;
@@ -2738,23 +2758,20 @@
       if (CONFIG.IS_MOBILE && mul < 0.35) mul = 0.35;
       mul = VSC_CLAMP(mul, 0.0, 1.0);
 
-      // ★ 수정 포인트: ratio > 0.8 조건을 제거하여 상시 계산되게 함
       let autoBase = 0.0;
-      if (nW <= 640) autoBase = 0.14;        // 360p, 480p 등
-      else if (nW <= 960) autoBase = 0.11;   // 720p
-      else if (nW <= 1280) autoBase = 0.08;  // 1080p
-      else if (nW <= 1920) autoBase = 0.04;  // 2K
-      else autoBase = 0.02;                  // 4K 이상
+      if (nW <= 640) autoBase = 0.14;
+      else if (nW <= 960) autoBase = 0.11;
+      else if (nW <= 1280) autoBase = 0.08;
+      else if (nW <= 1920) autoBase = 0.04;
+      else autoBase = 0.02;
 
-      // 비율 보정(mul)을 곱해 최종 강도 결정
       autoBase *= mul;
-
       autoBase = VSC_CLAMP(autoBase, 0.0, 0.18);
 
       return { mul, autoBase };
     }
 
-    /* ── Compose Video Params (v199: toe/mid/shoulder preserved) ── */
+    /* ── Compose Video Params (v199.4: shoulder propagated) ── */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0) {
       const gPreset = PRESETS.grade[vUser.presetB]  || PRESETS.grade.off;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
@@ -2767,32 +2784,24 @@
       out.toe = 0; out.mid = 0; out.shoulder = 0;
       out.temp = 0;
 
-      // [1] 샤프닝 분기 처리
       if (vUser.presetS === 'none') {
-        out.sharp = 0; // 완전 OFF
-      }
-      else if (vUser.presetS === 'off') {
-        out.sharp = autoSharpBase; // 해상도 기반 AUTO
-      }
-      else {
+        out.sharp = 0;
+      } else if (vUser.presetS === 'off') {
+        out.sharp = autoSharpBase;
+      } else {
         const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
-        const baseS = (dPreset.sharpAdd || 0)
-                    + (dPreset.sharp2Add || 0) * 0.6
-                    + (dPreset.clarityAdd || 0) * 0.4;
-        out.sharp = (baseS / 100.0) * mix * sharpMul; // 수동 프리셋
+        const baseS = (dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4;
+        out.sharp = (baseS / 100.0) * mix * sharpMul;
       }
 
-      // [2] ★ 복구된 로직: 섀도우 밴드와 밝기 단계는 샤프닝과 별개로 항상 적용 ★
       applyShadowBandStack(out, vUser.shadowBandMask);
       applyBrightStepStack(out, vUser.brightStepLevel);
 
-      // [3] AutoScene 및 최종 변환 (기존 유지)
       if (autoMods._toneCurve && vUser.presetB && vUser.presetB !== 'off') {
         const ATTENUATION = 0.45;
         out.bright *= ATTENUATION;
         out.gamma = 1.0 + (out.gamma - 1.0) * ATTENUATION;
       }
-      // ... 이하 동일
 
       if (autoMods._toneCurve) {
         out.satF *= autoMods.sat;
@@ -2825,7 +2834,7 @@
       Math.abs((v._cssSat ?? 1) - 1) < 0.001
     );
 
-    /* ── Video Params Memoization (v199: per-video cache) ── */
+    /* ── Video Params Memoization ── */
     function createVideoParamsMemo(Store, P, Utils) {
       const cache = new Map();
       const MAX_CACHE_SIZE = 16;
@@ -2836,9 +2845,7 @@
           const w = activeTarget ? (activeTarget.videoWidth || 0) : 0;
           const ht = activeTarget ? (activeTarget.videoHeight || 0) : 0;
           const autoMods = window.__VSC_INTERNAL__?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
-          const { mul, autoBase } = activeTarget
-            ? computeResolutionSharpMul(activeTarget)
-            : { mul: 0.0, autoBase: 0.0 };
+          const { mul, autoBase } = activeTarget ? computeResolutionSharpMul(activeTarget) : { mul: 0.0, autoBase: 0.0 };
           const finalMul = (mul === 0.0 && vfUser.presetS !== 'off') ? 0.50 : mul;
           const key = `${sigVideo(vfUser)}|${w}x${ht}|auto:${autoMods.br.toFixed(3)}|smul:${finalMul.toFixed(3)}|ab:${autoBase.toFixed(3)}`;
 
@@ -2868,7 +2875,6 @@
     /* ── Shadow style helpers ── */
     const __styleCacheMaxSize = 16;
     const __styleCache = new Map();
-    const __styleCacheSpaCleanup = () => { if (__styleCache.size > 0) __styleCache.clear(); };
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
 
     function applyShadowStyle(shadow, cssText, h) {
@@ -2911,7 +2917,7 @@
       return () => { if (!ended) { ended = true; try { ac.abort(); } catch (_) {} } };
     }
 
-    /* ── Icons (v199: trimmed to actually used set) ── */
+    /* ── Icons ── */
     const VSC_ICONS = Object.freeze({
       gear: `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
       pip: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>`,
@@ -2922,7 +2928,7 @@
 
     function svgIcon(name) { const span = document.createElement('span'); span.className = 'icon'; span.innerHTML = VSC_ICONS[name] || ''; return span; }
 
-    /* ── OSD ── */
+    /* ── OSD (v199.4: parentNode mismatch cleanup) ── */
     let __osdReady = false;
     onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true });
     onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
@@ -2932,11 +2938,16 @@
       try {
         const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
         const root = fsEl || document.body || document.documentElement;
-        if (!__osdEl || !__osdEl.isConnected || __osdEl.parentNode !== root) {
-          if (__osdEl) { clearTimeout(__osdEl._timer); __osdEl._timer = 0; try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; }
+        if (__osdEl && __osdEl.isConnected && __osdEl.parentNode !== root) {
+          clearTimeout(__osdEl._timer);
+          __osdEl.remove();
+          __osdEl = null;
+        }
+        if (!__osdEl || !__osdEl.isConnected) {
+          if (__osdEl) { clearTimeout(__osdEl._timer); __osdEl = null; }
           __osdEl = document.createElement('div'); __osdEl.id = 'vsc-osd';
           __osdEl.style.cssText = 'position:fixed;top:48px;left:50%;transform:translateX(-50%);background:rgba(18,18,22,0.90);backdrop-filter:blur(20px) saturate(180%);color:rgba(255,255,255,0.92);padding:10px 24px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);font:600 13px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;z-index:2147483647;pointer-events:none;opacity:0;transition:opacity 0.18s ease;box-shadow:0 8px 32px rgba(0,0,0,0.35);letter-spacing:0.3px;white-space:pre-line;';
-          try { root.appendChild(__osdEl); } catch (_) { return; }
+          try { root.appendChild(__osdEl); } catch (_) { __osdEl = null; return; }
         }
         __osdEl.textContent = text; __osdEl.style.opacity = '1';
         clearTimeout(__osdEl._timer);
@@ -2946,18 +2957,7 @@
     __globalSig.addEventListener('abort', () => { if (__osdEl) { clearTimeout(__osdEl._timer); try { if (__osdEl.isConnected) __osdEl.remove(); } catch (_) {} __osdEl = null; } }, { once: true });
 
     // ═══ END OF PART 4 ═══
-    // PART 5 continues with: RATE constants, PiP helpers, captureVideoFrame, createZoomManager,
-    //   createUI, Save/Restore/Reset/Import/Export, Persistence, bindVideoOnce,
-    //   createApplyLoop, createKeyboard, bootstrap
-    // ═══ PART 5 START (v199.0.0-Hybrid) ═══
-    // 이 파트는 PART 4의 showOSD / __globalSig abort 직후에 이어집니다.
-
-    /* ── Missing constants ── */
-    const RATE_MAX_RETRY    = 5;
-    const RATE_BACKOFF_BASE = 16;
-    const RATE_BACKOFF_MAX  = 256;
-    const RATE_SESSION_MAX  = 30;
-    const ALL_SCHEMAS       = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
+    // ═══ PART 5 START (v199.4.0-Hybrid) ═══
 
     /* ================================================================
        PiP helpers
@@ -3064,14 +3064,14 @@
           const a = document.createElement('a');
           a.href = url; a.download = `vsc-capture-${Date.now()}.png`;
           document.body.appendChild(a); a.click(); a.remove();
-          URL.revokeObjectURL(url);
+          setTimer(() => URL.revokeObjectURL(url), 3000);
           showOSD('프레임 저장됨', 1200);
         }, 'image/png');
       } catch (_) { showOSD('캡처 실패 (DRM?)', 1500); }
     }
 
     /* ================================================================
-       createZoomManager (v199: 줌 해제 후 터치 잔여 완전 제거)
+       createZoomManager (v199.4: 줌 해제 후 터치 잔여 완전 제거)
        ================================================================ */
     function createZoomManager() {
       const zoomStates  = new WeakMap();
@@ -3139,49 +3139,45 @@
         clampPan(v, st); update(v);
       }
 
-      /* ── v199 fix: resetZoom — 줌 해제 시 모바일 터치 잔류 완전 제거 ── */
-function resetZoom(v) {
-  const st = getSt(v);
-  for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
-  v.style.removeProperty('will-change');
-  v.style.removeProperty('contain');
-  v.style.removeProperty('isolation');
-  v.style.removeProperty('-webkit-tap-highlight-color');
+      function resetZoom(v) {
+        const st = getSt(v);
+        for (const prop of ZOOM_PROPS) v.style.removeProperty(prop);
+        v.style.removeProperty('will-change');
+        v.style.removeProperty('contain');
+        v.style.removeProperty('isolation');
+        v.style.removeProperty('-webkit-tap-highlight-color');
 
-  if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
-  else v.style.removeProperty('position');
-  if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
-  else v.style.removeProperty('z-index');
+        if (st._savedPosition) v.style.setProperty('position', st._savedPosition);
+        else v.style.removeProperty('position');
+        if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex);
+        else v.style.removeProperty('z-index');
 
-  st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
-  st._savedPosition = ''; st._savedZIndex = '';
-  zoomedVideos.delete(v);
-  __touchBlocked.delete(v);
+        st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false;
+        st._savedPosition = ''; st._savedZIndex = '';
+        zoomedVideos.delete(v);
+        __touchBlocked.delete(v);
 
-  // ★ 터치 복원: auto 명시 → reflow → 다음 프레임에서 완전 제거
-  v.style.setProperty('touch-action', 'auto', 'important');
-  void v.offsetHeight;
+        v.style.setProperty('touch-action', 'auto', 'important');
+        void v.offsetHeight;
 
-  requestAnimationFrame(() => {
-    v.style.removeProperty('touch-action');
-    v.style.removeProperty('-webkit-tap-highlight-color');
-    // 부모 체인 정리
-    let p = v.parentElement;
-    while (p && p !== document.body && p !== document.documentElement) {
-      if (p.dataset?.vscTouchBlocked) {
-        p.style.setProperty('touch-action', 'auto', 'important');
-        delete p.dataset.vscTouchBlocked;
-        // 두 번째 RAF에서 완전 제거
-        const parent = p;
         requestAnimationFrame(() => {
-          parent.style.removeProperty('touch-action');
-          parent.style.removeProperty('-webkit-tap-highlight-color');
+          v.style.removeProperty('touch-action');
+          v.style.removeProperty('-webkit-tap-highlight-color');
+          let p = v.parentElement;
+          while (p && p !== document.body && p !== document.documentElement) {
+            if (p.dataset?.vscTouchBlocked) {
+              p.style.setProperty('touch-action', 'auto', 'important');
+              delete p.dataset.vscTouchBlocked;
+              const parent = p;
+              requestAnimationFrame(() => {
+                parent.style.removeProperty('touch-action');
+                parent.style.removeProperty('-webkit-tap-highlight-color');
+              });
+            }
+            p = p.parentElement;
+          }
         });
       }
-      p = p.parentElement;
-    }
-  });
-}
 
       function isZoomed(v) { return !!(zoomStates.get(v)?.zoomed); }
 
@@ -3263,98 +3259,87 @@ function resetZoom(v) {
 
       const __touchBlocked = new WeakSet();
 
-      /* ── v199 fix: setTouchActionBlocking — 모바일 고스트터치 완전 해소 ── */
-function setTouchActionBlocking(v, enable) {
-  if (!v) return;
-  if (enable) {
-    v.style.setProperty('touch-action', 'none', 'important');
-    v.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
-    __touchBlocked.add(v);
-    let p = v.parentElement;
-    while (p && p !== document.body && p !== document.documentElement) {
-      p.style.setProperty('touch-action', 'none', 'important');
-      p.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
-      p.dataset.vscTouchBlocked = '1';
-      p = p.parentElement;
-    }
-  } else {
-    // ★ 핵심: removeProperty가 아니라 'auto'를 명시적으로 설정해야
-    // 모바일 크로미움이 터치 차단을 즉시 해제함
-    v.style.setProperty('touch-action', 'auto', 'important');
-    v.style.removeProperty('-webkit-tap-highlight-color');
-    v.style.removeProperty('will-change');
-    v.style.removeProperty('contain');
-    v.style.removeProperty('transform');
-    v.style.removeProperty('transform-origin');
-    v.style.removeProperty('isolation');
-    __touchBlocked.delete(v);
-
-    // 부모 체인 해제
-    let p = v.parentElement;
-    while (p && p !== document.body && p !== document.documentElement) {
-      if (p.dataset?.vscTouchBlocked) {
-        p.style.setProperty('touch-action', 'auto', 'important');
-        p.style.removeProperty('-webkit-tap-highlight-color');
-        delete p.dataset.vscTouchBlocked;
-      }
-      p = p.parentElement;
-    }
-
-    // ★ 강제 reflow 후 다음 프레임에서 touch-action 자체를 완전 제거
-    // → 사이트 원래 CSS가 다시 적용되게 함
-    void v.offsetHeight;
-    requestAnimationFrame(() => {
-      if (!__touchBlocked.has(v)) {
-        v.style.removeProperty('touch-action');
-        // 부모도 완전 제거
-        let p2 = v.parentElement;
-        while (p2 && p2 !== document.body && p2 !== document.documentElement) {
-          if (!p2.dataset?.vscTouchBlocked) {
-            p2.style.removeProperty('touch-action');
+      function setTouchActionBlocking(v, enable) {
+        if (!v) return;
+        if (enable) {
+          v.style.setProperty('touch-action', 'none', 'important');
+          v.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+          __touchBlocked.add(v);
+          let p = v.parentElement;
+          while (p && p !== document.body && p !== document.documentElement) {
+            p.style.setProperty('touch-action', 'none', 'important');
+            p.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+            p.dataset.vscTouchBlocked = '1';
+            p = p.parentElement;
           }
-          p2 = p2.parentElement;
-        }
-      }
-    });
-  }
-}
+        } else {
+          v.style.setProperty('touch-action', 'auto', 'important');
+          v.style.removeProperty('-webkit-tap-highlight-color');
+          v.style.removeProperty('will-change');
+          v.style.removeProperty('contain');
+          v.style.removeProperty('transform');
+          v.style.removeProperty('transform-origin');
+          v.style.removeProperty('isolation');
+          __touchBlocked.delete(v);
 
-      /* ── v199 fix: cleanupAllTouchBlocking — 전역 일괄 정리 ── */
-function cleanupAllTouchBlocking() {
-  try {
-    // 모든 마킹된 요소 정리
-    for (const el of document.querySelectorAll('[data-vsc-touch-blocked]')) {
-      el.style.setProperty('touch-action', 'auto', 'important');
-      el.style.removeProperty('-webkit-tap-highlight-color');
-      delete el.dataset.vscTouchBlocked;
-    }
-    // 모든 비디오 정리
-    const allVideos = new Set([
-      ...document.querySelectorAll('video'),
-      ...TOUCHED.videos
-    ]);
-    for (const v of allVideos) {
-      if (!v?.isConnected) continue;
-      v.style.setProperty('touch-action', 'auto', 'important');
-      v.style.removeProperty('-webkit-tap-highlight-color');
-      v.style.removeProperty('isolation');
-      __touchBlocked.delete(v);
-    }
-    // 다음 프레임에서 touch-action 완전 제거 → 사이트 원래 CSS 복원
-    requestAnimationFrame(() => {
-      for (const el of document.querySelectorAll('[style*="touch-action"]')) {
-        if (!__touchBlocked.has(el)) {
-          el.style.removeProperty('touch-action');
+          let p = v.parentElement;
+          while (p && p !== document.body && p !== document.documentElement) {
+            if (p.dataset?.vscTouchBlocked) {
+              p.style.setProperty('touch-action', 'auto', 'important');
+              p.style.removeProperty('-webkit-tap-highlight-color');
+              delete p.dataset.vscTouchBlocked;
+            }
+            p = p.parentElement;
+          }
+
+          void v.offsetHeight;
+          requestAnimationFrame(() => {
+            if (!__touchBlocked.has(v)) {
+              v.style.removeProperty('touch-action');
+              let p2 = v.parentElement;
+              while (p2 && p2 !== document.body && p2 !== document.documentElement) {
+                if (!p2.dataset?.vscTouchBlocked) {
+                  p2.style.removeProperty('touch-action');
+                }
+                p2 = p2.parentElement;
+              }
+            }
+          });
         }
       }
-      for (const v of allVideos) {
-        if (v?.isConnected && !__touchBlocked.has(v)) {
-          v.style.removeProperty('touch-action');
-        }
+
+      function cleanupAllTouchBlocking() {
+        try {
+          for (const el of document.querySelectorAll('[data-vsc-touch-blocked]')) {
+            el.style.setProperty('touch-action', 'auto', 'important');
+            el.style.removeProperty('-webkit-tap-highlight-color');
+            delete el.dataset.vscTouchBlocked;
+          }
+          const allVideos = new Set([
+            ...document.querySelectorAll('video'),
+            ...TOUCHED.videos
+          ]);
+          for (const v of allVideos) {
+            if (!v?.isConnected) continue;
+            v.style.setProperty('touch-action', 'auto', 'important');
+            v.style.removeProperty('-webkit-tap-highlight-color');
+            v.style.removeProperty('isolation');
+            __touchBlocked.delete(v);
+          }
+          requestAnimationFrame(() => {
+            for (const el of document.querySelectorAll('[style*="touch-action"]')) {
+              if (!__touchBlocked.has(el)) {
+                el.style.removeProperty('touch-action');
+              }
+            }
+            for (const v of allVideos) {
+              if (v?.isConnected && !__touchBlocked.has(v)) {
+                v.style.removeProperty('touch-action');
+              }
+            }
+          });
+        } catch (_) {}
       }
-    });
-  } catch (_) {}
-}
 
       let __zoomModeWatcherUnsub = null;
       function watchZoomModeToggle() {
@@ -3382,7 +3367,7 @@ function cleanupAllTouchBlocking() {
 
       const __tryWatchInterval = setRecurring(() => {
         if (window.__VSC_INTERNAL__?.Store) { watchZoomModeToggle(); clearRecurring(__tryWatchInterval); }
-      }, 200);
+      }, 200, { maxErrors: 50 });
 
       function onNewVideoForZoom(v) {
         if (!v || !isZoomEnabled()) return;
@@ -3530,7 +3515,7 @@ function cleanupAllTouchBlocking() {
     }
 
     /* ================================================================
-       createUI (v199: 단축키 안내 패널 추가)
+       createUI (v199.4: 재생 탭 프리셋 칩 + 미세 조절, 패널 닫기 pointer-events 개선)
        ================================================================ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr,
                       Targeting, Maximizer, FiltersVO, Registry,
@@ -3563,7 +3548,7 @@ function cleanupAllTouchBlocking() {
 .row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
 .row .ctrl{display:flex;align-items:center;gap:6px;flex:1;justify-content:flex-end}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);outline:none;cursor:pointer}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#6ea8fe;cursor:pointer;border:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:${isMobile?'22px':'14px'};height:${isMobile?'22px':'14px'};border-radius:50%;background:#6ea8fe;cursor:pointer;border:none}
 .val{font-size:11px;min-width:38px;text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
 .btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:7px;color:#e0e0e0;padding:5px 10px;font-size:11px;cursor:pointer;transition:background .12s}
 .btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:rgba(110,168,254,.2);border-color:rgba(110,168,254,.3)}
@@ -3573,7 +3558,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .tgl.on::after{transform:translateX(16px)}
 .sep{height:1px;background:rgba(255,255,255,.06);margin:6px 0}
 .chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:4px}
-.chip{display:inline-block;padding:3px 9px;font-size:10px;border-radius:5px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);transition:background .12s,border-color .12s}
+.chip{display:inline-block;padding:${isMobile?'6px 12px':'3px 9px'};font-size:${isMobile?'12px':'10px'};border-radius:5px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);transition:background .12s,border-color .12s;min-width:${isMobile?'40px':'auto'};text-align:center}
 .chip:hover{background:rgba(255,255,255,.10)}
 .chip.on{background:rgba(110,168,254,.25);border-color:rgba(110,168,254,.35)}
 .stgl{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;font-size:10px;border-radius:5px;cursor:pointer;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);transition:background .15s,border-color .15s;user-select:none}
@@ -3589,6 +3574,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
 .shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:10px;line-height:1.6;padding:4px 0}
 .shortcut-grid .sk{font-weight:700;color:#8ec5fc;white-space:nowrap}
 .shortcut-grid .sd{opacity:.7}
+.rate-display{font-size:24px;font-weight:700;text-align:center;color:#fff;padding:6px 0;font-variant-numeric:tabular-nums}
+.fine-row{display:flex;gap:4px;justify-content:center;padding:4px 0}
+.fine-btn{padding:${isMobile?'8px 14px':'4px 10px'};border-radius:6px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:#aaa;font-size:11px;cursor:pointer;transition:background .15s;font-variant-numeric:tabular-nums}
+.fine-btn:hover{background:rgba(255,255,255,.1)}
 .qbar{pointer-events:auto;position:fixed;top:50%;right:${isMobile ? '6px' : '10px'};transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;align-items:center;opacity:.3;transition:opacity .25s}
 .qbar:hover{opacity:.95}
 .qb{width:${isMobile?'42px':'32px'};height:${isMobile?'42px':'32px'};border-radius:50%;background:rgba(28,28,32,.85);border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background .15s,transform .1s,border-color .15s;backdrop-filter:blur(8px)}
@@ -3703,7 +3692,6 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           const presetS = Store.get(P.V_PRE_S);
           let sharpLabel;
 
-          // 분기 처리로 사용자에게 현재 모드를 정확히 알림
           if (presetS === 'none') {
             sharpLabel = '꺼짐(OFF)';
           }
@@ -3717,7 +3705,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
           infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
         }
         Bus.on('signal', updateInfo); syncFns.push(updateInfo); updateInfo();
-        const infoTimerId = setRecurring(() => { try { updateInfo(); } catch (_) {} }, 2500);
+        const infoTimerId = setRecurring(() => { try { updateInfo(); } catch (_) {} }, 2500, { maxErrors: 50 });
         sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
         w.append(infoBar, mkSep());
 
@@ -3775,17 +3763,78 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         return w;
       }
 
+      /* ── v199.4: buildPlaybackTab — 프리셋 칩 + 미세 조절 버튼 추가 ── */
       function buildPlaybackTab() {
         const w = h('div', {});
-        w.append(
-          mkRow('속도 제어', mkToggle(P.PB_EN, () => ApplyReq.soft())),
-          mkRow('재생 속도', ...mkSlider(P.PB_RATE, 0.07, 16, 0.05)),
-          mkRow('미세 조정',  ...mkSlider(P.PB_RATE, 0.07, 4, 0.01))
-        );
+        w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => ApplyReq.hard())));
+
+        // 현재 속도 대형 디스플레이
+        const rateDisplay = h('div', { class: 'rate-display' });
+        function syncRateDisplay() {
+          const r = Number(Store.get(P.PB_RATE)) || 1;
+          rateDisplay.textContent = `${r.toFixed(2)}×`;
+        }
+        syncFns.push(syncRateDisplay); syncRateDisplay();
+        w.append(rateDisplay);
+
+        // 프리셋 칩
+        const presets = [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0];
+        const chipRow = h('div', { class: 'chips' });
+        function syncChips() {
+          const cur = Number(Store.get(P.PB_RATE)) || 1;
+          for (const c of chipRow.children) {
+            const cv = parseFloat(c.dataset.v);
+            c.classList.toggle('on', Math.abs(cur - cv) < 0.01);
+          }
+        }
+        for (const p of presets) {
+          const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
+          el.addEventListener('click', () => {
+            Store.set(P.PB_RATE, p);
+            if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true);
+            ApplyReq.hard(); syncRateDisplay(); syncChips();
+          }, { signal: sig });
+          chipRow.appendChild(el);
+        }
+        syncFns.push(syncChips); syncChips();
+        w.append(chipRow);
+
+        // 미세 조절 버튼
+        const fineRow = h('div', { class: 'fine-row' });
+        const adjustRate = (delta) => {
+          const cur = Number(Store.get(P.PB_RATE)) || 1;
+          const nv = VSC_CLAMP(cur + delta, 0.07, 16);
+          Store.set(P.PB_RATE, nv);
+          if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true);
+          ApplyReq.hard(); syncRateDisplay(); syncChips();
+        };
+        const fineSteps = [
+          { label: '−0.25', delta: -0.25 },
+          { label: '−0.05', delta: -0.05 },
+          { label: '+0.05', delta: +0.05 },
+          { label: '+0.25', delta: +0.25 }
+        ];
+        for (const fs of fineSteps) {
+          const btn = h('button', { class: 'fine-btn' }, fs.label);
+          btn.addEventListener('click', () => adjustRate(fs.delta), { signal: sig });
+          fineRow.appendChild(btn);
+        }
+        w.append(fineRow);
+
+        // 보조 슬라이더
+        w.append(mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 4, 0.01)));
+
+        // 상태 라인
+        w.append(h('div', { style: 'font-size:10px;opacity:.4;text-align:center;padding:4px 0' },
+          '단축키: [ ] 속도 ±0.1'));
+
+        // 슬라이더 변경 시 디스플레이+칩 동기화
+        Store.sub(P.PB_RATE, () => { syncRateDisplay(); syncChips(); });
+
         return w;
       }
 
-      /* ── v199: buildAppTab — 단축키 안내 패널 추가 ── */
+      /* ── buildAppTab ── */
       function buildAppTab() {
         const w = h('div', {});
         w.append(
@@ -3809,7 +3858,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         rstBtn.addEventListener('click', () => { resetDefaults(); syncAll(); ApplyReq.hard(); persistNow(); showOSD('설정이 초기화되었습니다', 1500); }, { signal: sig });
         w.append(h('div', { style: 'display:flex;gap:6px;padding:4px 0' }, expBtn, impBtn, rstBtn));
 
-        /* ★ v199: 단축키 안내 패널 ★ */
+        /* 단축키 안내 패널 */
         w.append(mkSep());
         const shortcutArrSpan = h('span', { class: 'arr' }, '▶');
         const shortcutHd = h('div', { class: 'adv-hd' }, shortcutArrSpan, ' 단축키 안내');
@@ -3993,26 +4042,25 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         if (document.body) mount(); else window.addEventListener('DOMContentLoaded', mount, { once: true });
       }
 
+      /* v199.4: 패널 닫기 시 pointer-events 즉시 차단 + 트랜지션 완료 후 호스트도 차단 */
       function togglePanel(force) {
-  const show = (force !== undefined) ? force : !panelOpen;
-  if (show) {
-    buildPanel(); reparentForFullscreen();
-    if (panelHost) panelHost.style.pointerEvents = '';
-    requestAnimationFrame(() => { positionPanel(); requestAnimationFrame(() => { panelEl?.classList.add('open'); requestAnimationFrame(() => positionPanel()); }); });
-  } else {
-    panelEl?.classList.remove('open');
-    // ★ 트랜지션 완료 후 panelHost 자체도 이벤트 차단
-    if (panelHost) {
-      setTimeout(() => {
-        if (!panelOpen && panelHost) {
-          panelHost.style.pointerEvents = 'none';
+        const show = (force !== undefined) ? force : !panelOpen;
+        if (show) {
+          buildPanel(); reparentForFullscreen();
+          if (panelHost) panelHost.style.pointerEvents = '';
+          requestAnimationFrame(() => { positionPanel(); requestAnimationFrame(() => { panelEl?.classList.add('open'); requestAnimationFrame(() => positionPanel()); }); });
+        } else {
+          panelEl?.classList.remove('open');
+          if (panelHost) {
+            setTimer(() => {
+              if (!panelOpen && panelHost) {
+                panelHost.style.pointerEvents = 'none';
+              }
+            }, 250);
+          }
         }
-      }, 250); // transition duration(0.18s)보다 약간 긴 시간
-    }
-  }
-  panelOpen = show; Store.set(P.APP_UI, show);
-}
-
+        panelOpen = show; Store.set(P.APP_UI, show);
+      }
 
       function init() {
         buildQuickBar();
@@ -4020,12 +4068,10 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         Store.sub('audio.*', syncAll);
         Store.sub('playback.*', syncAll);
         Store.sub('app.*', syncAll);
-        setRecurring(updateQuickBarVisibility, 1500);
+        setRecurring(updateQuickBarVisibility, 1500, { maxErrors: 50 });
         Bus.on('signal', updateQuickBarVisibility);
         onDoc('fullscreenchange', reparentForFullscreen);
         onDoc('webkitfullscreenchange', reparentForFullscreen);
-
-        // 최초 1회 즉시 실행 (초기 지연 렌더링 방지)
         updateQuickBarVisibility();
       }
 
@@ -4052,6 +4098,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       if (data.audio) sm.batch('audio', data.audio);
       if (data.playback) sm.batch('playback', data.playback);
       if (data.app) { const { slots, ...rest } = data.app; sm.batch('app', rest); if (Array.isArray(slots)) sm.set('app.slots', slots); }
+      normalizeBySchema(sm, ALL_SCHEMAS);
     }
 
     let __Store = null, __ApplyReq = null;
@@ -4085,7 +4132,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `vsc-settings-${Date.now()}.json`;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimer(() => URL.revokeObjectURL(url), 3000);
       showOSD('설정 내보내기 완료', 1200);
     }
 
@@ -4113,12 +4161,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     }
 
     function loadPersisted(sm) {
-      try { const raw = GM_getValue(STORAGE_KEY, null); if (!raw) return; const data = (typeof raw === 'string') ? JSON.parse(raw) : raw; restoreData(sm, data); normalizeBySchema(sm, ALL_SCHEMAS); log.info('[Persist] loaded', STORAGE_KEY); }
+      try { const raw = GM_getValue(STORAGE_KEY, null); if (!raw) return; const data = (typeof raw === 'string') ? JSON.parse(raw) : raw; restoreData(sm, data); log.info('[Persist] loaded', STORAGE_KEY); }
       catch (e) { log.warn('[Persist] load error', e); }
     }
 
     /* ================================================================
-       bindVideoOnce (v199: suppressSyncUntil 체크 추가)
+       bindVideoOnce (v199.4: suppressSyncUntil 체크 추가)
        ================================================================ */
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video);
@@ -4133,23 +4181,26 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       on(video, 'loadeddata', onVideoReady, { signal: __globalSig });
       if (video.readyState >= 1) setTimer(() => ApplyReq.hard(), 80);
 
-      /* ★ v199: ratechange 핸들러 — suppressSyncUntil 체크 추가 ★ */
       on(video, 'ratechange', () => {
-        if (!Store.get(P.PB_EN)) return;
-        const expected = Number(Store.get(P.PB_RATE));
-        if (!Number.isFinite(expected)) return;
-        if (Math.abs(video.playbackRate - expected) < 0.002) { st.rateState._rateRetryCount = 0; return; }
-        /* v199: VSC가 방금 설정한 속도 변화는 무시 */
-        const now = performance.now();
-        if (now < st.rateState.suppressSyncUntil) return;
-        if (__rateBlockedSite) { st.rateState.permanentlyBlocked = true; return; }
-        st.rateState._totalRetries++;
-        if (st.rateState._totalRetries > RATE_SESSION_MAX) { st.rateState.permanentlyBlocked = true; log.warn('[RateGuard] session max'); return; }
-        st.rateState._rateRetryCount++;
-        if (st.rateState._rateRetryCount > RATE_MAX_RETRY) { st.rateState.permanentlyBlocked = true; log.warn('[RateGuard] retry max'); return; }
-        const delay = Math.min(RATE_BACKOFF_BASE * (1 << (st.rateState._rateRetryCount - 1)), RATE_BACKOFF_MAX);
-        setTimer(() => { if (!video.isConnected || st.rateState.permanentlyBlocked) return; st.rateState.suppressSyncUntil = performance.now() + 300; video.playbackRate = expected; }, delay);
-      }, { signal: __globalSig });
+  if (!Store.get(P.PB_EN)) return;
+  const expected = Number(Store.get(P.PB_RATE));
+  if (!Number.isFinite(expected)) return;
+  if (Math.abs(video.playbackRate - expected) < 0.002) { st.rateState._rateRetryCount = 0; return; }
+  const now = performance.now();
+  if (now < st.rateState.suppressSyncUntil) return;
+  if (__rateBlockedSite) { st.rateState.permanentlyBlocked = true; return; }
+  st.rateState._totalRetries++;
+  if (st.rateState._totalRetries > RATE_SESSION_MAX) { st.rateState.permanentlyBlocked = true; log.warn('[RateGuard] session max'); return; }
+  st.rateState._rateRetryCount++;
+  if (st.rateState._rateRetryCount > RATE_MAX_RETRY) { st.rateState.permanentlyBlocked = true; log.warn('[RateGuard] retry max'); return; }
+  const delay = Math.min(RATE_BACKOFF_BASE * (1 << (st.rateState._rateRetryCount - 1)), RATE_BACKOFF_MAX);
+  setTimer(() => {
+    if (!video.isConnected || st.rateState.permanentlyBlocked) return;
+    st.rateState.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;  // ← ✅ 상수 사용
+    video.playbackRate = expected;
+  }, delay);
+}, { signal: __globalSig });
+
 
       on(video, 'play', () => ApplyReq.soft(), { signal: __globalSig });
       on(video, 'pause', () => ApplyReq.soft(), { signal: __globalSig });
@@ -4159,7 +4210,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
     }
 
     /* ================================================================
-       createApplyLoop
+       createApplyLoop (v199.4: 속도 제어 완벽 대응)
        ================================================================ */
     function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
       const __lastUserPt = { x: 0, y: 0, t: 0 };
@@ -4167,35 +4218,105 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       onWin('touchstart', e => { if (e.touches.length > 0) { __lastUserPt.x = e.touches[0].clientX; __lastUserPt.y = e.touches[0].clientY; __lastUserPt.t = performance.now(); } }, { passive: true });
 
       let prevTarget = null;
-      setRecurring(() => { Registry.prune(); }, 4000);
+      setRecurring(() => {
+        Registry.prune();
+        for (const key of ['videos', 'rateVideos']) {
+          for (const v of TOUCHED[key]) {
+            if (!v.isConnected) TOUCHED[key].delete(v);
+          }
+        }
+      }, 4000, { maxErrors: 50 });
+
+      function restoreRate(video) {
+  const rs = getRateState(video);
+  if (rs.orig != null && Math.abs(video.playbackRate - (rs.orig || 1)) > 0.002) {
+    rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;  // 300 → RATE_SUPPRESS_MS
+    try { video.playbackRate = rs.orig || 1; } catch (_) {}
+  }
+  rs.orig = null; rs._rateRetryCount = 0; rs._totalRetries = 0; rs.permanentlyBlocked = false;
+}
+
 
       function apply(forceApply) {
         if (__globalSig.aborted) return;
-        if (!Store.get(P.APP_ACT)) { if (prevTarget) { FiltersVO.clear(prevTarget); prevTarget = null; } return; }
+
+        const applyAll = !!Store.get(P.APP_APPLY_ALL);
+
+        // 1. 앱 자체가 비활성화되었을 때 원래 속도로 복원
+        if (!Store.get(P.APP_ACT)) {
+          if (prevTarget) { FiltersVO.clear(prevTarget); prevTarget = null; }
+          for (const v of TOUCHED.rateVideos) { if (v.isConnected) restoreRate(v); }
+          return;
+        }
+
         const audioBoostOn = !!Store.get(P.A_EN);
         const { target } = TargetingMod.pickFastActiveOnly(Registry.visible.videos, __lastUserPt, audioBoostOn);
-        if (target !== prevTarget || forceApply) { if (prevTarget && prevTarget !== target) FiltersVO.clear(prevTarget); prevTarget = target; window.__VSC_INTERNAL__._activeVideo = target; Audio.setTarget(target); }
-        if (!target) return;
-        touchedAddLimited(TOUCHED.videos, target);
-        /* ★ v199: 속도 설정 시 suppressSyncUntil 기록 ★ */
-        if (Store.get(P.PB_EN)) {
-          const rs = getRateState(target); const rate = Number(Store.get(P.PB_RATE));
-          if (!rs.permanentlyBlocked && Number.isFinite(rate) && Math.abs(target.playbackRate - rate) > 0.002) { rs.suppressSyncUntil = performance.now() + 300; target.playbackRate = rate; touchedAddLimited(TOUCHED.rateVideos, target); }
+
+        // 아무 영상도 없으면 종료
+        if (!target && !applyAll) return;
+
+        // 2. 포커스(오디오 등) 타겟 업데이트
+        if (target !== prevTarget || forceApply) {
+          if (prevTarget && prevTarget !== target) FiltersVO.clear(prevTarget);
+          prevTarget = target;
+          window.__VSC_INTERNAL__._activeVideo = target;
+          Audio.setTarget(target);
         }
+
         const vfUser = Store.getCatRef('video');
-        const params = ParamsMemo.get(vfUser, target);
-        if (!params || isNeutralVideoParams(params)) { FiltersVO.clear(target); return; }
-        const filterResult = FiltersVO.prepareCached(target, params);
-        FiltersVO.applyFilter(target, filterResult);
-        if (Store.get(P.APP_APPLY_ALL)) {
+        const pbEn = !!Store.get(P.PB_EN);
+        const pbRate = Number(Store.get(P.PB_RATE));
+
+        // 3. 제어할 비디오 목록 묶기 (applyAll이 켜져있으면 화면 내 모든 비디오)
+        const targets = new Set();
+        if (target) targets.add(target);
+        if (applyAll) {
           for (const v of Registry.visible.videos) {
-            if (v === target || !v.isConnected) continue;
-            const p2 = ParamsMemo.get(vfUser, v);
-            if (!p2 || isNeutralVideoParams(p2)) { FiltersVO.clear(v); continue; }
-            FiltersVO.applyFilter(v, FiltersVO.prepareCached(v, p2));
+            if (v.isConnected) targets.add(v);
           }
         }
+
+        // 4. 모든 대상 비디오에 대해 속도 및 필터 일괄 적용
+        for (const v of targets) {
+          // --- [속도 적용 로직] ---
+          if (pbEn && Number.isFinite(pbRate) && pbRate > 0) {
+            const rs = getRateState(v);
+            if (!rs.permanentlyBlocked) {
+              if (rs.orig == null) rs.orig = v.playbackRate;
+              if (Math.abs(v.playbackRate - pbRate) > 0.002) {
+  if (rs._totalRetries >= RATE_SESSION_MAX) {
+    rs.permanentlyBlocked = true;
+  } else {
+    rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+    try {
+      v.playbackRate = pbRate;
+      rs._rateRetryCount = 0;
+    } catch (_) {
+      rs._rateRetryCount++;
+      rs._totalRetries++;
+      rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;  // ← ✅ 실패 시에도 억제
+    }
+  }
+  touchedAddLimited(TOUCHED.rateVideos, v);
+}
+            }
+          } else {
+            restoreRate(v);
+          }
+
+          // --- [필터 적용 로직] ---
+          const params = ParamsMemo.get(vfUser, v);
+          if (!params || isNeutralVideoParams(params)) {
+            FiltersVO.clear(v);
+          } else {
+            const filterResult = FiltersVO.prepareCached(v, params);
+            FiltersVO.applyFilter(v, filterResult);
+          }
+
+          touchedAddLimited(TOUCHED.videos, v);
+        }
       }
+
       Scheduler.registerApply(apply);
       return { apply };
     }
@@ -4238,7 +4359,15 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
         }
         if (alt && k === 'r') { resetDefaults(); ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD('초기화 완료', 1000); e.preventDefault(); return; }
         if (alt && k >= '1' && k <= '3') { const idx = parseInt(k) - 1; if (shift) saveSlot(idx); else loadSlot(idx); UI?.syncAll(); e.preventDefault(); return; }
-        if (k === '[' || k === ']') { const cur = Number(Store.get(P.PB_RATE)) || 1; const nv = VSC_CLAMP(cur + (k === ']' ? STEP_RATE : -STEP_RATE), 0.07, 16); Store.set(P.PB_RATE, nv); ApplyReq.soft(); persistNow(); UI?.syncAll(); showOSD(`속도: ${nv.toFixed(2)}`, 900); e.preventDefault(); return; }
+        if (k === '[' || k === ']') {
+          const cur = Number(Store.get(P.PB_RATE)) || 1;
+          const nv = VSC_CLAMP(cur + (k === ']' ? STEP_RATE : -STEP_RATE), 0.07, 16);
+          Store.set(P.PB_RATE, nv);
+          if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true);
+          ApplyReq.hard(); persistNow(); UI?.syncAll();
+          showOSD(`속도: ${nv.toFixed(2)}×`, 900);
+          e.preventDefault(); return;
+        }
       }, { signal: __globalSig, capture: true });
     }
 
@@ -4268,22 +4397,61 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       __Store = Store; __ApplyReq = ApplyReq;
 
       loadPersisted(Store);
-      Store.sub('video.*', () => persistNow());
-      Store.sub('audio.*', () => persistNow());
-      Store.sub('playback.*', () => persistNow());
-      Store.sub('app.*', () => persistNow());
+
+      // 👇 [여기가 빠졌습니다! 반드시 추가해주세요] 👇
+      // UI에서 신호(ApplyReq.hard/soft)가 오면 즉시 엔진(Scheduler)을 깨워 영상에 적용합니다.
+      Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
+      // 👆 ------------------------------------------------👆
+
+      /* v199.4: 전역 구독 하나로 통합 — 개별 persistNow 호출은 즉시 저장이 필요한 곳에만 유지 */
+      const __persistSubCategories = ['video.*', 'audio.*', 'playback.*', 'app.*'];
+      for (const cat of __persistSubCategories) {
+        Store.sub(cat, () => persistNow());
+      }
 
       createApplyLoop(Store, Scheduler, Registry, Targeting, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq);
+
+      // 사용자가 UI에서 속도(PB_RATE)를 변경하면 차단 상태를 리셋
+      Store.sub(P.PB_RATE, () => {
+        for (const v of TOUCHED.rateVideos) {
+          const rs = getRateState(v);
+          rs.permanentlyBlocked = false;
+          rs._rateRetryCount = 0;
+          rs._totalRetries = 0;
+        }
+      });
+
+      // 속도 제어 버튼(PB_EN)을 끄면 원래 속도로 복원하고 차단 리셋
+      Store.sub(P.PB_EN, (enabled) => {
+        if (!enabled) {
+          for (const v of TOUCHED.rateVideos) {
+            const rs = getRateState(v);
+            if (rs.orig != null && v.isConnected) {
+              rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
+              try { v.playbackRate = rs.orig; } catch (_) {}
+            }
+            rs.orig = null;
+            rs.permanentlyBlocked = false;
+            rs._rateRetryCount = 0;
+            rs._totalRetries = 0;
+          }
+        }
+      });
 
       const processVideo = (v) => bindVideoOnce(v, Store, Registry, AutoScene, ApplyReq, ZoomMgr);
       const scanAll = () => { for (const v of document.querySelectorAll('video')) processVideo(v); };
       const rescanDebounced = createDebounced(() => { scanAll(); Registry.rescanAll(); ApplyReq.hard(); }, SPA_RESCAN_DEBOUNCE_MS);
       initSpaUrlDetector(rescanDebounced);
-      setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800);
+      setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
 
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => { scanAll(); Scheduler.request(true); }, { once: true, signal: __globalSig });
       } else { scanAll(); Scheduler.request(true); }
+
+      /* v199.4: AutoScene 300ms 지연 시작 (scanAll 이후) */
+      setTimer(() => {
+        if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) AutoScene.start();
+      }, 300);
 
       const UI = createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq);
       window.__VSC_UI_Ensure = () => {};
@@ -4296,18 +4464,38 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;heigh
       waitForBody();
 
       createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr);
-      if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) AutoScene.start();
       if (FEATURE_FLAGS.iframeInjection) watchIframes();
 
       window.__VSC_APP__ = { getActiveVideo: () => window.__VSC_INTERNAL__._activeVideo };
-      if (ZoomMgr) setRecurring(() => ZoomMgr.pruneDisconnected(), 5000);
+      if (ZoomMgr) setRecurring(() => ZoomMgr.pruneDisconnected(), 5000, { maxErrors: 50 });
+
+      /* v199.4: visibility change – 숨김 시 스케줄러 요청 억제 */
+      onDoc('visibilitychange', () => {
+        if (!document.hidden) {
+          ApplyReq.soft();
+        }
+      }, { passive: true });
+
+      /* v199.4: fullscreen change – OSD 정리 */
+      onDoc('fullscreenchange', () => {
+        if (!document.fullscreenElement && __osdEl) {
+          if (!__osdEl.isConnected) { clearTimeout(__osdEl._timer); __osdEl = null; }
+        }
+        ApplyReq.soft();
+        UI.syncAll();
+      });
 
       __globalSig.addEventListener('abort', () => {
         Audio.destroy(); AutoScene.stop();
         if (ZoomMgr) ZoomMgr.destroy();
         UI.destroy();
         for (const v of TOUCHED.videos) FiltersVO.clear(v);
-        for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { try { v.playbackRate = rs.orig; } catch (_) {} } }
+        for (const v of TOUCHED.rateVideos) {
+          const rs = getRateState(v);
+          if (rs.orig != null && v.isConnected) { try { v.playbackRate = rs.orig; } catch (_) {} }
+        }
+        if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} }
+        __osdEl = null;
         log.info('[VSC] destroyed');
       }, { once: true });
 
