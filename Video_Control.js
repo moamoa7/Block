@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v203.1.0-Hybrid)
+// @name         Video_Control (v203.1.1-Hybrid)
 // @namespace    https://github.com/
-// @version      203.1.0-Hybrid
-// @description  v203.1.0: Bug fixes (CircularBuffer, composeParams, SPA stale, iterator safety), structural refactors (Map-based StyleGuard, class VideoState, Set-based host lookup, batch simplification)
+// @version      203.1.1-Hybrid
+// @description  v203.1.1: Bug fixes (CircularBuffer, composeParams, SPA stale, iterator safety), structural refactors (Map-based StyleGuard, class VideoState, Set-based host lookup, batch simplification)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -142,7 +142,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '203.1.0-Hybrid';
+    const VSC_VERSION = '203.1.1-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -3901,10 +3901,12 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
               h('div', { style: 'display:flex;gap:4px' },
                 ...[
-                  { n: '일반', v: [25, 25, 25] },
+                  { n: 'OFF',  v: [0, 0, 0] },
+                  { n: '표준', v: [20, 20, 15] },
                   { n: '영화', v: [50, 20, 10] },
-                  { n: '애니', v: [15, 20, 0] },
-                  { n: '다큐', v: [10, 45, 30] }
+                  { n: '복원', v: [10, 50, 15] },
+                  { n: '심야', v: [40, 15, 5] },
+                  { n: '아트', v: [0, 40, 30] },
                 ].map(p => {
                   const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
                   btn.onclick = () => {
