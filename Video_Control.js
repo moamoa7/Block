@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v203.0.7-Hybrid)
+// @name         Video_Control (v203.0.8-Hybrid)
 // @namespace    https://github.com/
-// @version      203.0.7-Hybrid
-// @description  v203.0.7: Manual Shadow/Recovery/Bright sliders (Toe/Mid/Shoulder curve integration) applied
+// @version      203.0.8-Hybrid
+// @description  v203.0.8: Manual Shadow/Recovery/Bright sliders (Toe/Mid/Shoulder curve integration) applied
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -150,7 +150,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '203.0.7-Hybrid';
+    const VSC_VERSION = '203.0.8-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -3574,10 +3574,10 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
 // ═══ END OF PART 4 (v203.0.8-Hybrid) ═══
-// ═══ PART 5 START (v203.0.8-Hybrid) — Final UI & Permanent Persistence ═══
+// ═══ PART 5 START (v203.0.9-Hybrid) — Robust UI, Presets & Final Assembly ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           createUI (v203.0.8-Hybrid: UI/UX Polish, Permanent SyncFns)
+           createUI (v203.0.9: Fault-tolerant Tab Rendering & Quick Presets)
            ══════════════════════════════════════════════════════════════════ */
         function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
           const { h, clamp } = Utils;
@@ -3596,52 +3596,47 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           function getDspStatus() { const d = window[VSC_INTERNAL_SYM]?._dspMode; if (d === 'worklet') return 'worklet'; if (d === 'legacy') return 'legacy'; return 'off'; }
           function isDrmDetected() { const v = window[VSC_INTERNAL_SYM]?._activeVideo; return v ? isVideoEncrypted(v) : false; }
 
+          // ── CSS: Added !important to ensure visibility against aggressive host styles ──
           const PANEL_CSS = `
 ${CSS_VARS}
 :host{all:initial;position:fixed;z-index:2147483647;font-family:var(--vsc-font-family);font-size:var(--vsc-font-md);color:var(--vsc-text);pointer-events:none}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-.panel{pointer-events:none;position:fixed;right:calc(var(--vsc-panel-right) + 10px);top:50%;width:var(--vsc-panel-width);max-height:var(--vsc-panel-max-h);background:var(--vsc-bg);border:1px solid var(--vsc-border);border-radius:var(--vsc-radius-xl);backdrop-filter:var(--vsc-blur);box-shadow:var(--vsc-shadow);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translate(12px,-50%) scale(.96);transition:opacity var(--vsc-transition-normal),transform var(--vsc-transition-normal);user-select:none}
+.panel{pointer-events:none;position:fixed;right:calc(var(--vsc-panel-right) + 10px);top:50%;width:var(--vsc-panel-width);max-height:var(--vsc-panel-max-h);background:var(--vsc-bg);border:1px solid var(--vsc-border);border-radius:var(--vsc-radius-xl);backdrop-filter:var(--vsc-blur);box-shadow:var(--vsc-shadow);display:flex!important;flex-direction:column!important;overflow:hidden;opacity:0;transform:translate(12px,-50%) scale(.96);transition:opacity var(--vsc-transition-normal),transform var(--vsc-transition-normal);user-select:none}
 .panel.open{opacity:1;transform:translate(0,-50%) scale(1);pointer-events:auto}
-.hdr{display:flex;align-items:center;padding:var(--vsc-space-md) var(--vsc-space-lg);border-bottom:1px solid rgba(255,255,255,.06);gap:8px}
+.hdr{display:flex!important;align-items:center;padding:var(--vsc-space-md) var(--vsc-space-lg);border-bottom:1px solid rgba(255,255,255,.06);gap:8px}
 .hdr .tl{font-weight:700;font-size:var(--vsc-font-lg);letter-spacing:.3px}
 .hdr .ver{font-size:var(--vsc-font-xs);opacity:.45;margin-left:auto}
-
-.hdr-status{display:flex;gap:6px;align-items:center}
-.hdr-dot{width:8px;height:8px;border-radius:50%;display:inline-block;position:relative}
+.hdr-status{display:flex!important;gap:6px;align-items:center}
+.hdr-dot{width:8px;height:8px;border-radius:50%;display:inline-block!important;position:relative}
 .hdr-dot.green{background:#4caf50;box-shadow:0 0 4px rgba(76,175,80,.5)}
 .hdr-dot.amber{background:#ff9800;box-shadow:0 0 4px rgba(255,152,0,.5)}
 .hdr-dot.red{background:#f44336;box-shadow:0 0 4px rgba(244,67,54,.5)}
 .hdr-dot.gray{background:rgba(255,255,255,.2)}
 .hdr-dot::after{content:attr(data-label);position:absolute;top:calc(100% + 4px);left:50%;transform:translateX(-50%);font-size:8px;white-space:nowrap;opacity:0;transition:opacity .15s;pointer-events:none;color:var(--vsc-text-dim);background:var(--vsc-bg);padding:2px 4px;border-radius:3px;border:1px solid var(--vsc-border)}
 .hdr-status:hover .hdr-dot::after{opacity:1}
-
-.tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06)}
-.tab{flex:1;padding:8px 0;text-align:center;font-size:var(--vsc-font-sm);font-weight:600;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;opacity:.45;border-bottom:2px solid transparent;transition:opacity .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:3px}
-.tab svg{opacity:.7;flex-shrink:0;width:14px;height:14px}
+.tabs{display:flex!important;border-bottom:1px solid rgba(255,255,255,.06);width:100%}
+.tab{flex:1;padding:8px 0!important;text-align:center;font-size:var(--vsc-font-sm);font-weight:600;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;opacity:.45;border-bottom:2px solid transparent;transition:opacity .15s,border-color .15s;display:flex!important;align-items:center;justify-content:center;gap:3px;min-height:40px!important;visibility:visible!important}
+.tab svg{opacity:.7;flex-shrink:0;width:14px;height:14px;display:block!important}
+.tab span{display:inline!important}
 .tab.on svg{opacity:1}
 .tab:hover{opacity:.7}.tab.on{opacity:1;border-bottom-color:var(--vsc-accent)}
-
 .body{overflow-y:auto;flex:1;padding:var(--vsc-space-md) var(--vsc-space-lg) var(--vsc-space-lg);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
 .row{display:flex;align-items:center;justify-content:space-between;padding:var(--vsc-space-xs) 0;min-height:var(--vsc-touch-min)}
 .row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
 .row .ctrl{display:flex;align-items:center;gap:var(--vsc-space-sm);flex:1;justify-content:flex-end}
-
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--vsc-accent) 0%,var(--vsc-accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));padding:12px 0;margin:-12px 0;background-clip:content-box}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none;box-shadow:0 0 0 4px rgba(110,168,254,.15);transition:box-shadow .15s}
 input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(110,168,254,.25)}
 input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none}
-
 .val{font-size:var(--vsc-font-sm);min-width:38px;text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
 .btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:var(--vsc-radius-md);color:var(--vsc-text);padding:var(--vsc-space-xs) var(--vsc-space-md);font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);min-height:var(--vsc-touch-min);min-width:44px;display:inline-flex;align-items:center;justify-content:center}
 .btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
-
 .tgl{position:relative;width:44px;height:22px;border-radius:11px;background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s;overflow:hidden}
 .tgl.on{background:rgba(110,168,254,.5)}
 .tgl::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;z-index:1}
 .tgl.on::after{transform:translateX(22px)}
 .tgl::before{content:'OFF';position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:700;opacity:.4;letter-spacing:.5px;z-index:0}
 .tgl.on::before{content:'ON';left:6px;right:auto;opacity:.7;color:#fff}
-
 .sep{height:1px;background:rgba(255,255,255,.06);margin:var(--vsc-space-sm) 0}
 .chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:var(--vsc-space-xs)}
 .chip{display:inline-flex;align-items:center;justify-content:center;padding:var(--vsc-space-xs) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;font-size:var(--vsc-font-sm);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background var(--vsc-transition-fast),border-color var(--vsc-transition-fast);text-align:center;-webkit-tap-highlight-color:transparent}
@@ -3651,13 +3646,12 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .shortcut-grid .sk{font-weight:700;color:#8ec5fc;white-space:nowrap}.shortcut-grid .sd{opacity:.7}
 .rate-display{font-size:var(--vsc-font-xl);font-weight:700;text-align:center;color:#fff;padding:var(--vsc-space-sm) 0;font-variant-numeric:tabular-nums}
 .fine-row{display:flex;gap:var(--vsc-space-xs);justify-content:center;padding:var(--vsc-space-xs) 0}
-.fine-btn{padding:var(--vsc-space-sm) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;border-radius:var(--vsc-radius-sm);border:1px solid var(--vsc-border);background:rgba(255,255,255,.04);color:#aaa;font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
+.fine-btn{padding:var(--vsc-space-sm) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:32px;border-radius:var(--vsc-radius-sm);border:1px solid var(--vsc-border);background:rgba(255,255,255,.04);color:#aaa;font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
 .fine-btn:hover{background:rgba(255,255,255,.1)}
 .adv-hd{display:flex;align-items:center;gap:var(--vsc-space-xs);padding:var(--vsc-space-xs) 0;cursor:pointer;font-size:var(--vsc-font-sm);opacity:.55;transition:opacity .15s}.adv-hd:hover{opacity:.85}
 .adv-hd .arr{transition:transform .2s;font-size:9px}.adv-hd .arr.open{transform:rotate(90deg)}
 .adv-bd{overflow:hidden;max-height:0;transition:max-height var(--vsc-transition-slow)}.adv-bd.open{max-height:800px}
 .info-bar{font-size:var(--vsc-font-xs);opacity:.5;padding:var(--vsc-space-xs) 0 var(--vsc-space-sm);line-height:1.5;font-variant-numeric:tabular-nums}
-
 .qbar{pointer-events:auto;position:fixed;top:50%;right:var(--vsc-qbar-right);transform:translateY(-50%);display:flex;flex-direction:row-reverse;align-items:center;gap:8px}
 .qbar .qb-main{width:44px;height:44px;border-radius:50%;background:var(--vsc-bg);border:1px solid rgba(255,255,255,.15);z-index:2;opacity:.4;transition:opacity .3s,transform .2s,background .2s;box-shadow:0 4px 12px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-right:env(safe-area-inset-right, 0px);}
 .qbar:hover .qb-main,.qbar.expanded .qb-main{opacity:1;transform:scale(1.08);background:var(--vsc-bg-hover);border-color:rgba(255,255,255,.3)}
@@ -3668,11 +3662,9 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .qbar svg{width:22px;height:22px;fill:none;stroke:#fff;stroke-width:2;filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))}
 .qbar .qb-sub svg{width:18px;height:18px}
 .qb:focus-visible,.chip:focus-visible,.btn:focus-visible,.fine-btn:focus-visible{outline:2px solid var(--vsc-accent);outline-offset:2px}
-
 @media (pointer: coarse) { .qbar .qb-main{width:48px;height:48px} .qbar .qb-sub{width:42px;height:42px} }
 :host-context(:fullscreen) .qbar{opacity:0;transition:opacity .3s}
 :host-context(:fullscreen) .qbar:hover{opacity:1}
-
 @media(max-width:600px){:host{--vsc-panel-width:calc(100vw - 80px);--vsc-panel-right:60px}}
 @media(max-width:400px){:host{--vsc-panel-width:calc(100vw - 64px);--vsc-panel-right:52px;--vsc-font-md:15px}.chips{gap:6px}.fine-row{gap:6px}}
 @media(max-width:350px){.tab span{display:none}.tab svg{width:18px;height:18px;opacity:1}}
@@ -3693,10 +3685,10 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
           function mkSep() { return h('div', { class: 'sep' }); }
 
           function mkSlider(path, min, max, step) {
-            const inp = h('input', { type: 'range', min, max, step: step || ((max - min) / 100) }); const valEl = h('span', { class: 'val' }); const digits = (step && step >= 1) ? 0 : 2;
+            const inp = h('input', { type: 'range', min, max, step: step || 1 }); const valEl = h('span', { class: 'val' });
             function updateFill() { const v = Number(inp.value); const pct = ((v - min) / (max - min)) * 100; inp.style.setProperty('--fill', `${pct}%`); }
-            function sync() { const v = Number(Store.get(path)) || min; inp.value = String(v); valEl.textContent = v.toFixed(digits); updateFill(); }
-            inp.addEventListener('input', () => { const nv = parseFloat(inp.value); Store.set(path, nv); valEl.textContent = nv.toFixed(digits); updateFill(); ApplyReq.soft(); }, { signal: sig });
+            function sync() { const v = Number(Store.get(path)) || 0; inp.value = String(v); valEl.textContent = String(Math.round(v)); updateFill(); }
+            inp.addEventListener('input', () => { const nv = parseFloat(inp.value); Store.set(path, nv); valEl.textContent = String(Math.round(nv)); updateFill(); ApplyReq.soft(); }, { signal: sig });
             tabSyncFns.push(sync); sync(); return [inp, valEl];
           }
 
@@ -3735,18 +3727,15 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
             w.append(infoBar, mkSep());
 
-            // ── 디테일 프리셋 ──
             w.append(
               mkChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
               mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)),
               mkSep()
             );
 
-            // ── 수동 보정 헤더 및 추천 버튼 ──
             const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
               h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
               h('div', { style: 'display:flex;gap:4px' },
-                // 추천 프리셋 버튼 생성 함수
                 ...[
                   { n: '일반', v: [25, 25, 25] },
                   { n: '영화', v: [50, 20, 10] },
@@ -3754,11 +3743,11 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
                   { n: '다큐', v: [10, 45, 30] }
                 ].map(p => {
                   const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
-                  btn.onclick = () => {
+                  btn.addEventListener('click', () => {
                     Store.batch('video', { manualShadow: p.v[0], manualRecovery: p.v[1], manualBright: p.v[2] });
                     ApplyReq.hard(); persistNow(); syncAll();
                     showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
-                  };
+                  }, { signal: sig });
                   return btn;
                 })
               )
@@ -3767,48 +3756,25 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
             function mkSliderWithFine(label, path, min, max, step, fineStep) {
               const [slider, valEl] = mkSlider(path, min, max, step);
-
               const syncSliderUI = () => {
                 const v = Number(Store.get(path)) || 0;
-                slider.value = String(v);
-                valEl.textContent = String(Math.round(v));
-                const pct = ((v - min) / (max - min)) * 100;
-                slider.style.setProperty('--fill', `${pct}%`);
+                slider.value = String(v); valEl.textContent = String(Math.round(v));
+                const pct = ((v - min) / (max - min)) * 100; slider.style.setProperty('--fill', `${pct}%`);
               };
-
               const mkFine = (delta, text) => {
                 const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:32px;min-height:28px;font-size:11px' }, text);
                 btn.addEventListener('click', () => {
                   const cur = Number(Store.get(path)) || 0;
                   const nv = VSC_CLAMP(Math.round(cur + delta), min, max);
-                  Store.set(path, nv);
-                  ApplyReq.hard();
-                  persistNow();
-                  syncSliderUI();
+                  Store.set(path, nv); ApplyReq.hard(); persistNow(); syncSliderUI();
                 }, { signal: sig });
                 return btn;
               };
-
               const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:24px;min-height:28px;font-size:10px;opacity:.6' }, '0');
-              resetBtn.addEventListener('click', () => {
-                Store.set(path, 0);
-                ApplyReq.hard();
-                persistNow();
-                syncSliderUI();
-              }, { signal: sig });
-
-              const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' },
-                mkFine(-fineStep, `−${fineStep}`),
-                mkFine(+fineStep, `+${fineStep}`),
-                resetBtn
-              );
-
+              resetBtn.addEventListener('click', () => { Store.set(path, 0); ApplyReq.hard(); persistNow(); syncSliderUI(); }, { signal: sig });
+              const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn);
               tabSyncFns.push(syncSliderUI);
-
-              return h('div', { class: 'row' },
-                h('label', {}, label),
-                h('div', { class: 'ctrl' }, slider, valEl, fineRow)
-              );
+              return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, fineRow));
             }
 
             w.append(
@@ -3818,23 +3784,15 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               mkSep()
             );
 
-            // ── AutoScene ──
             const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
             function updateSceneBadge() {
               const isOn = !!Store.get(P.APP_AUTO_SCENE);
               if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
               else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
             }
-            w.append(h('div', { class: 'row' },
-              h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
-              mkToggle(P.APP_AUTO_SCENE, v => {
-                if (v) AutoScene.start(); else AutoScene.stop();
-                updateSceneBadge(); ApplyReq.hard();
-              })
-            ));
+            w.append(h('div', { class: 'row' }, h('label', {}, '자동 보정 (AutoScene) ', sceneBadge), mkToggle(P.APP_AUTO_SCENE, v => { if (v) AutoScene.start(); else AutoScene.stop(); updateSceneBadge(); ApplyReq.hard(); }) ));
             Bus.on('signal', updateSceneBadge); tabSyncFns.push(updateSceneBadge); updateSceneBadge();
 
-            // ── GPU 하드웨어 가속 ──
             const gpuToggle = mkToggle(P.APP_GPU_EN, (nv) => {
               window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!nv;
               if (nv) { showOSD('GPU 장면분석 활성화 시도…', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} }
@@ -3843,15 +3801,8 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             });
             w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
 
-            // ── 고급 설정 ──
-            const arrSpan = h('span', { class: 'arr' }, '▶');
-            const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
-            const advBd = h('div', { class: 'adv-bd' });
-            advHd.addEventListener('click', () => {
-              advancedOpen = !advancedOpen;
-              arrSpan.classList.toggle('open', advancedOpen);
-              advBd.classList.toggle('open', advancedOpen);
-            }, { signal: sig });
+            const arrSpan = h('span', { class: 'arr' }, '▶'); const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정'); const advBd = h('div', { class: 'adv-bd' });
+            advHd.addEventListener('click', () => { advancedOpen = !advancedOpen; arrSpan.classList.toggle('open', advancedOpen); advBd.classList.toggle('open', advancedOpen); }, { signal: sig });
             w.append(advHd, advBd);
 
             return w;
@@ -3901,19 +3852,44 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             return w;
           }
 
+          // ── Robust Tab Switching & Rendering ──
           function syncAll() { for (const fn of syncFns) { try { fn(); } catch (_) {} } }
 
           function renderTab() {
-            const body = _shadow?.querySelector('.body'); if (!body) return;
-            body.innerHTML = '';
-            tabSyncFns.length = 0;
-            switch (activeTab) { case 'video': body.appendChild(buildVideoTab()); break; case 'audio': body.appendChild(buildAudioTab()); break; case 'playback': body.appendChild(buildPlaybackTab()); break; case 'app': body.appendChild(buildAppTab()); break; }
+            const body = _shadow?.querySelector('.body'); if (!body) { log.warn('[UI] Panel body not found'); return; }
+            body.innerHTML = ''; tabSyncFns.length = 0;
 
-            syncFns.length = 0;
-            syncFns.push(...permanentSyncFns, ...tabSyncFns);
+            let content = null;
+            try {
+              switch (activeTab) {
+                case 'video': content = buildVideoTab(); break;
+                case 'audio': content = buildAudioTab(); break;
+                case 'playback': content = buildPlaybackTab(); break;
+                case 'app': content = buildAppTab(); break;
+                default: content = buildVideoTab();
+              }
+            } catch (e) {
+              log.error(`[UI] Tab content build failed for ${activeTab}:`, e);
+              content = h('div', { style: 'padding:15px;color:#ff6b6b;font-size:12px;text-align:center' }, `오류: ${TAB_LABELS[activeTab]} 탭 렌더링 실패`);
+            }
+
+            if (content) {
+              try { body.appendChild(content); } catch (e) { log.error('[UI] Failed to append tab content', e); }
+            }
+
+            syncFns.length = 0; syncFns.push(...permanentSyncFns, ...tabSyncFns);
           }
 
-          function switchTab(t) { activeTab = t; if (_shadow) _shadow.querySelectorAll('.tab').forEach(el => el.classList.toggle('on', el.dataset.t === t)); renderTab(); }
+          function switchTab(t) {
+            activeTab = t;
+            if (_shadow) {
+              try {
+                _shadow.querySelectorAll('.tab').forEach(el => el.classList.toggle('on', el.dataset.t === t));
+              } catch (e) { log.warn('[UI] Tab switch class toggle failed', e); }
+            }
+            renderTab();
+          }
+
           function hasAnyVideo() { if (Registry.videos.size > 0) return true; try { return document.querySelector('video') !== null; } catch (_) { return false; } }
           function updateQuickBarVisibility() { if (!quickBarHost) return; const has = hasAnyVideo(); if (has && !qbarVisible) { quickBarHost.style.display = ''; qbarVisible = true; } else if (!has && qbarVisible) { quickBarHost.style.display = 'none'; qbarVisible = false; if (panelOpen) togglePanel(false); } }
           function reparentForFullscreen() { if (!quickBarHost) return; const fsEl = document.fullscreenElement || document.webkitFullscreenElement; const targetParent = fsEl || document.body || document.documentElement; if (!targetParent) return; if (quickBarHost.parentNode !== targetParent) { try { targetParent.appendChild(quickBarHost); } catch (_) {} } if (panelHost && panelHost.parentNode !== targetParent) { try { targetParent.appendChild(panelHost); } catch (_) {} } }
@@ -3945,15 +3921,23 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
             panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), statusDots, h('span', { class: 'ver' }, `v${VSC_VERSION}`), closeBtn));
             const tabBar = h('div', { class: 'tabs' });
-            for (const t of ['video', 'audio', 'playback', 'app']) {
-              const iconEl = TAB_ICONS[t]?.();
-              const labelSpan = h('span', {}, TAB_LABELS[t]);
-              const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t });
-              if (iconEl) tab.appendChild(iconEl);
-              tab.appendChild(labelSpan);
-              tab.addEventListener('click', () => switchTab(t), { signal: sig });
-              tabBar.appendChild(tab);
+
+            // ── Fault-Tolerant Tab Creation ──
+            const allTabs = ['video', 'audio', 'playback', 'app'];
+            for (const t of allTabs) {
+              try {
+                const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t });
+                try {
+                  const iconEl = TAB_ICONS[t]?.();
+                  if (iconEl) tab.appendChild(iconEl);
+                } catch (e) { log.warn(`[UI] Icon creation failed for ${t}`, e); }
+                const labelSpan = h('span', {}, TAB_LABELS[t]);
+                tab.appendChild(labelSpan);
+                tab.addEventListener('click', () => { try { switchTab(t); } catch (e) { log.error(`[UI] Switch tab failed: ${t}`, e); } }, { signal: sig });
+                tabBar.appendChild(tab);
+              } catch (e) { log.error(`[UI] Failed to create tab container: ${t}`, e); }
             }
+
             panelEl.appendChild(tabBar); panelEl.appendChild(h('div', { class: 'body' })); panelEl.appendChild(buildMetricsFooter());
             _shadow.appendChild(panelEl); renderTab(); const fsEl = document.fullscreenElement || document.webkitFullscreenElement; (fsEl || document.documentElement || document.body).appendChild(panelHost); blockInterference(panelHost);
           }
@@ -4091,7 +4075,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           createApplyLoop (v203.0.8-Hybrid: A/B Mode & Deactivation Fixes)
+           createApplyLoop (v203.0.9-Hybrid: A/B Mode & Deactivation Fixes)
            ══════════════════════════════════════════════════════════════════ */
         function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
           const __lastUserPt = { x: 0, y: 0, t: 0 };
@@ -4160,7 +4144,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           createKeyboard (v203.0.8-Hybrid: A/B Toggle)
+           createKeyboard (v203.0.9-Hybrid: A/B Toggle)
            ══════════════════════════════════════════════════════════════════ */
         function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
           const STEP_RATE = 0.1;
@@ -4198,11 +4182,15 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           BOOTSTRAP (v203.0.8-Hybrid: Namespace Getter Fixed)
+           BOOTSTRAP (v203.0.9-Hybrid: Compatibility & Init)
            ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
       const VSC_VERSION_ID = '203.0.8-Hybrid';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
+
+      function detectJWPlayer() {
+        try { return !!window.jwplayer || !!document.querySelector('.jwplayer') || !!document.querySelector('[data-jwplayer]'); } catch (_) { return false; }
+      }
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
       window[VSC_INTERNAL_SYM]._gpuSceneEnabled = false;
@@ -4250,7 +4238,107 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       Store.sub(P.PB_EN, (enabled) => { if (!enabled) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = rs.orig; } catch (_) {} } rs.orig = null; rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
 
       const processVideo = (v) => bindVideoOnce(v, Store, Registry, AutoScene, ApplyReq, ZoomMgr);
-      const scanAll = () => { for (const v of document.querySelectorAll('video')) processVideo(v); };
+
+      // ✅ WeakSet을 이용한 안전한 iframe 감시 (중복 실행 및 메모리 누수 방지)
+      const setupDynamicIframeMonitoring = () => {
+        const processedIframes = new WeakSet();
+
+        const checkIframes = () => {
+          const iframes = document.querySelectorAll('iframe');
+          for (const ifr of iframes) {
+            if (processedIframes.has(ifr)) continue;
+            processedIframes.add(ifr);
+
+            // iframe 로드 완료 후 스캔
+            ifr.addEventListener('load', () => {
+              console.log('[VSC] iframe loaded, scanning for videos...');
+              setTimer(() => scanAll(), 500);
+            }, { signal: __globalSig });
+
+            // 이미 로드된 iframe 체크
+            try {
+              const doc = ifr.contentDocument || ifr.contentWindow?.document;
+              if (doc?.readyState === 'complete') {
+                console.log('[VSC] iframe already loaded, scanning...');
+                setTimer(() => scanAll(), 100);
+              }
+            } catch (e) {
+              console.debug('[VSC] Cannot access iframe (CORS):', e.message);
+            }
+          }
+        };
+
+        checkIframes();
+
+        // DOM 변경 감시 (새 iframe 추가될 때)
+        const mo = new MutationObserver(() => {
+          if (__globalSig.aborted) return;
+          checkIframes();
+        });
+
+        const root = document.body || document.documentElement;
+        if (root) mo.observe(root, { childList: true, subtree: true });
+
+        return mo;
+      };
+
+      // ✅ data-vsc-processed 속성을 활용해 중복 처리를 방지하는 scanAll
+      const scanAll = () => {
+        console.log('[VSC] Full video scan starting...');
+        let foundCount = 0;
+
+        // 1. 메인 페이지 비디오
+        try {
+          document.querySelectorAll('video:not([data-vsc-processed])').forEach(v => {
+            try {
+              v.dataset.vscProcessed = '1';
+              processVideo(v);
+              foundCount++;
+              console.debug('[VSC] Main video processed:', v.src?.slice(0, 30));
+            } catch (e) {
+              console.warn('[VSC] Main video error:', e);
+            }
+          });
+        } catch (e) {
+          console.warn('[VSC] Main page scan error:', e);
+        }
+
+        // 2. iframe 내부 비디오 (CORS 안전하게 처리)
+        try {
+          document.querySelectorAll('iframe').forEach((ifr, i) => {
+            try {
+              const doc = ifr.contentDocument || ifr.contentWindow?.document;
+              if (!doc) {
+                console.debug(`[VSC] iframe[${i}] not accessible (CORS?)`);
+                return;
+              }
+
+              const ifrVideos = doc.querySelectorAll('video:not([data-vsc-processed])');
+              if (ifrVideos.length > 0) {
+                console.log(`[VSC] iframe[${i}] found ${ifrVideos.length} video(s)`);
+                ifrVideos.forEach(v => {
+                  try {
+                    v.dataset.vscProcessed = '1';
+                    processVideo(v);
+                    foundCount++;
+                    console.debug(`[VSC] iframe[${i}] video processed`);
+                  } catch (e) {
+                    console.warn(`[VSC] iframe[${i}] video error:`, e);
+                  }
+                });
+              }
+            } catch (e) {
+              console.debug(`[VSC] iframe[${i}] access error: ${e.message}`);
+            }
+          });
+        } catch (e) {
+          console.warn('[VSC] iframe scan error:', e);
+        }
+
+        console.log(`[VSC] Scan complete: found ${foundCount} video(s) total`);
+        return foundCount;
+      };
+
       const rescanDebounced = createDebounced(() => {
         scanAll(); Registry.rescanAll(); ApplyReq.hard();
         const wasBlocked = __rateBlockedSite; __rateBlockedSite = isRateBlockedContext();
@@ -4266,6 +4354,9 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         scanAll(); Scheduler.request(true);
       }
 
+      // ✅ 강화된 동적 iframe 모니터링 적용
+      setupDynamicIframeMonitoring();
+
       setTimer(() => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) AutoScene.start(); }, 300);
 
       const UI = createUI(Store, Bus, createUtils(), Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq);
@@ -4277,6 +4368,46 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         mo.observe(document.documentElement || document, { childList: true });
       };
       waitForBody();
+
+      if (detectJWPlayer()) {
+        console.log('[VSC] JW Player detected');
+        const retryFindVideos = (retryCount = 0) => {
+          let totalVideos = 0;
+          document.querySelectorAll('iframe').forEach((ifr) => {
+            try {
+              const doc = ifr.contentDocument || ifr.contentWindow?.document;
+              if (doc) {
+                const videos = doc.querySelectorAll('video:not([data-vsc-processed])');
+                console.log(`Found ${videos.length} videos in iframe`);
+                totalVideos += videos.length;
+                videos.forEach(v => { v.dataset.vscProcessed = '1'; processVideo(v); });
+              }
+            } catch (e) {
+              console.warn('Cannot access iframe:', e.message);
+            }
+          });
+          return totalVideos;
+        };
+
+        setTimer(() => {
+          let videoCount = retryFindVideos();
+          console.log('First scan - Total videos found:', videoCount);
+          if (videoCount === 0) {
+            console.log('[VSC] Retrying iframe video search...');
+            setTimer(() => {
+              videoCount = retryFindVideos();
+              console.log('Second scan - Total videos found:', videoCount);
+              scanAll();
+              UI?.syncAll();
+              Scheduler?.request(true);
+            }, 1000);
+          } else {
+            scanAll();
+            UI?.syncAll();
+            Scheduler?.request(true);
+          }
+        }, 1500);
+      }
 
       createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr);
       if (FEATURE_FLAGS.iframeInjection) watchIframes();
