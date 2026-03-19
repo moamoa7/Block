@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v203.0.6-Hybrid)
+// @name         Video_Control (v203.0.7-Hybrid)
 // @namespace    https://github.com/
-// @version      203.0.6-Hybrid
-// @description  v203.0.6: AutoScene & Audio DSP parameter tuning applied (Compact)
+// @version      203.0.7-Hybrid
+// @description  v203.0.7: Manual Shadow/Recovery/Bright sliders (Toe/Mid/Shoulder curve integration) applied
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -150,7 +150,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '203.0.6-Hybrid';
+    const VSC_VERSION = '203.0.7-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -264,7 +264,7 @@
 
     /* ══ Defaults & Paths ══ */
     const DEFAULTS = {
-      video: { presetS: 'off', presetMix: 1.0, autoShadow: 0, autoRecovery: 0, autoBright: 0 },
+      video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0 },
       audio: { enabled: false, boost: 9 },
       playback: { rate: 1.0, enabled: false },
       app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, slots: [null, null, null], gpuEn: false }
@@ -273,7 +273,7 @@
       APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll',
       APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', APP_GPU_EN: 'app.gpuEn',
       V_PRE_S: 'video.presetS', V_PRE_MIX: 'video.presetMix',
-      V_AS_SHAD: 'video.autoShadow', V_AS_REC: 'video.autoRecovery', V_AS_BRT: 'video.autoBright',
+      V_MAN_SHAD: 'video.manualShadow', V_MAN_REC: 'video.manualRecovery', V_MAN_BRT: 'video.manualBright',
       A_EN: 'audio.enabled', A_BST: 'audio.boost',
       PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
     });
@@ -285,9 +285,9 @@
     const VIDEO_SCHEMA = [
       { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
       { type: 'num', path: P.V_PRE_MIX, min: 0, max: 1, fallback: () => DEFAULTS.video.presetMix },
-      { type: 'num', path: P.V_AS_SHAD, min: 0, max: 3, round: true, fallback: () => 0 },
-      { type: 'num', path: P.V_AS_REC, min: 0, max: 3, round: true, fallback: () => 0 },
-      { type: 'num', path: P.V_AS_BRT, min: 0, max: 3, round: true, fallback: () => 0 }
+      { type: 'num', path: P.V_MAN_SHAD, min: 0, max: 100, round: true, fallback: () => 0 },
+      { type: 'num', path: P.V_MAN_REC, min: 0, max: 100, round: true, fallback: () => 0 },
+      { type: 'num', path: P.V_MAN_BRT, min: 0, max: 100, round: true, fallback: () => 0 }
     ];
     const AUDIO_PLAYBACK_SCHEMA = [
       { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 18, fallback: () => DEFAULTS.audio.boost },
@@ -977,8 +977,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       globalSig.addEventListener('abort', destroyAll, { once: true });
       return Object.freeze({ defineFeature, resolve, resolveAll, runUpdates, suspend, resume, destroyOne, destroyAll, get, getStatus, listActive, getStats, STATUS });
     }
-// ═══ END OF PART 1 (v203.0.6-Hybrid) ═══
-// ═══ PART 2 START (v203.0.6-Hybrid) — Foundation & Audio Engine ═══
+// ═══ END OF PART 1 (v203.0.7-Hybrid) ═══
+// ═══ PART 2 START (v203.0.7-Hybrid) — Foundation & Audio Engine ═══
 
     /* ══ Targeting ══ */
     function createTargeting() {
@@ -1977,11 +1977,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-// ═══ END OF PART 2 (v203.0.6-Hybrid) ═══
-// ═══ PART 3 START (v203.0.6-Hybrid) — continues directly from PART 2 ═══
+// ═══ END OF PART 2 (v203.0.7-Hybrid) ═══
+// ═══ PART 3 START (v203.0.7-Hybrid) — continues directly from PART 2 ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           Auto Scene Manager (v203.0.6-Hybrid)
+           Auto Scene Manager (v203.0.7-Hybrid)
            ══════════════════════════════════════════════════════════════════ */
         function createAutoSceneManager(Store, P, Scheduler) {
           const clamp = VSC_CLAMP;
@@ -2047,7 +2047,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             for (let i = 1; i < TONE_STEPS - 1; i++) curve[i] = raw[i] * 0.6 + (raw[i - 1] + raw[i + 1]) * 0.2;
             for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
 
-            // ── OLED 트루 블랙 보존 로직 (v203.0.6) ──
             const n = Math.max(1, totalSamples);
             let pureBlackCount = 0;
             for (let i = 0; i <= 5; i++) pureBlackCount += lumHist[i];
@@ -2079,7 +2078,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           const __fuzzyScores = new Float64Array(ST_COUNT); const __fuzzyEma = new Float64Array(ST_COUNT); let __fuzzyInited = false;
-          // 임계값 완화로 과도한 보정 방지 (v203.0.6)
           function classifySceneFuzzy(stats, zoneStats) {
             const scores = __fuzzyScores; scores.fill(0); const br = stats.bright, ct = stats.contrast, ch = stats.chroma, sk = stats.skinRatio;
             scores[ST.NORMAL] = 1.0;
@@ -2140,7 +2138,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const _pool_zoneCounts = new Uint32Array(ZONE_COUNT); const _pool_zoneHists = Array.from({ length: ZONE_COUNT }, () => new Uint32Array(HIST_BINS));
           const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT); const _pool_zoneBrightCount = new Uint32Array(ZONE_COUNT);
 
-          // TypedArray 뷰 재사용으로 GC 압력 감소 (v203.0.6)
           let __reusableU32View = null; let __reusableU32Buffer = null;
           function computeFullAnalysis(data, sw, sh) {
             const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
@@ -2213,16 +2210,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           function generateManualMods() {
-            const shadLvl = Number(Store.get(P.V_AS_SHAD)) || 0; const recLvl = Number(Store.get(P.V_AS_REC)) || 0; const brtLvl = Number(Store.get(P.V_AS_BRT)) || 0;
-            if (shadLvl === 0 && recLvl === 0 && brtLvl === 0) return { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
-            const curve = new Float32Array(TONE_STEPS); const contrastBoost = recLvl * 0.10; const shadowLift = shadLvl * 0.07;
-            for (let i = 0; i < TONE_STEPS; i++) { let x = i / (TONE_STEPS - 1); if (contrastBoost > 0) x = x + (x - 0.5) * contrastBoost * Math.sin(x * Math.PI); if (shadowLift > 0 && x < 0.4) x += shadowLift * (1 - x / 0.4); curve[i] = clamp(x, 0, 1); }
-            for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
-            const cg = { rGain: 1, gGain: 1, bGain: 1 }; const approx = curveToApproxParams(curve, 1.0, cg); const br = clamp(1.0 + brtLvl * 0.18, 0.88, 1.45);
-            return { br: br, ct: approx.ct, sat: approx.sat, _gamma: approx._gamma, _bright: approx._bright, _temp: approx._temp, _toneCurve: curve, _channelGains: cg };
+            return { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
           }
 
-          function updateManual() { const mods = generateManualMods(); AUTO.cur = mods; Scheduler.request(true); }
+          function updateManual() {
+            AUTO.cur = generateManualMods();
+            Scheduler.request(true);
+          }
 
           const AUTO = {
             running: false, canvasW: CANVAS_W, canvasH: CANVAS_H, cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
@@ -2259,7 +2253,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
           }
 
-          // EMA 최적화를 통한 성능 이점 확보 (v203.0.6)
           let _fpsMotionAvg = 0;
           function adaptiveFps(motionSAD, isCut, isFade) {
             _fpsHistBuf.push(motionSAD);
@@ -2346,10 +2339,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           async function loop() {
-            // 1. 시스템 가드: 모듈이 완전히 정지되었거나 중단 신호가 오면 즉시 종료
             if (!AUTO.running || __globalSig.aborted) return;
 
-            // 2. 비동기 양보: 브라우저 메인 스레드 점유율 최적화 (지원 시)
             if (globalThis.scheduler?.yield) {
               try { await globalThis.scheduler.yield(); } catch (_) {}
               if (!AUTO.running || __globalSig.aborted) return;
@@ -2359,32 +2350,27 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
             const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.();
 
-            // 3. 이슈 #1 해결: 기능이 꺼진 경우 루프를 종료하지 않고 1초 뒤에 다시 체크 (루프 생존)
             if (!en) {
               scheduleNext(v, 1000);
               return;
             }
 
-            // 4. DRM 보호 모드: 차단 시간 동안 0.5초 간격으로 대기
             if (AUTO.drmBlocked && now < AUTO.blockUntilMs) {
               scheduleNext(v, 500);
               return;
             }
 
-            // 5. 탭 비활성화: 탭이 백그라운드에 있을 때 분석 주기를 2초로 늘려 리소스 절약
             if (document.hidden) {
               scheduleNext(v, 2000);
               return;
             }
 
-            // 6. 비디오 상태 체크: 비디오가 없거나, 일시정지, 탐색 중, 로딩 중일 때 0.3초 대기
             if (!v || !cvCtx || v.paused || v.seeking || v.readyState < 2) {
               try { Scheduler.request(true); } catch (_) {}
               scheduleNext(v, 300);
               return;
             }
 
-            // 7. GPU 분석기 지연 초기화
             if (!gpuInitAttempted && FEATURE_FLAGS.gpuAnalysis) {
               const gpuOk = await ensureGPUAnalyzer();
               AUTO._gpuActive = gpuOk;
@@ -2406,8 +2392,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
               let fps = AUTO.curFps;
               if (allowUpdate) {
                 AUTO._framesSinceUpdate = 0; fps = adaptiveFps(stats.motionSAD, transition.isCut, transition.isFade); if (now < AUTO.tBoostUntil) fps = Math.max(fps, transition.isCut ? AUTO.maxFps : 5);
-                const sceneType = AUTO._sceneTypeEma; const shadLvl = Number(Store.get(P.V_AS_SHAD)) || 0; const recLvl = Number(Store.get(P.V_AS_REC)) || 0; const brtLvl = Number(Store.get(P.V_AS_BRT)) || 0;
-                const toneParams = { ...SCENE_TONE_PARAMS[sceneType], userMods: { shadow: shadLvl, recovery: recLvl, brightness: brtLvl } };
+                const sceneType = AUTO._sceneTypeEma;
+                const toneParams = { ...SCENE_TONE_PARAMS[sceneType], userMods: {} };
                 const rawCurve = buildAdaptiveToneCurve(stats.lumHist, stats.totalSamples, toneParams, stats.zoneHists, stats.zoneCounts);
                 const rawGains = computeChannelBalance(stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio, stats.hiLumaRBratio);
                 const rawSat = toneParams.satTarget; const alpha = getTemporalAlpha(transition.isCut, transition.isFade);
@@ -2419,7 +2405,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
                 if (!prevToneCurve) prevToneCurve = new Float32Array(TONE_STEPS); prevToneCurve.set(smoothedCurve); prevChannelGains = smoothedGains; prevSatMul = smoothedSat;
 
                 const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
-                const lumaInv = Math.max(0, 1.0 - stats.bright); const brtBoost = brtLvl * lumaInv * 0.16; result.br = clamp(result.br + brtBoost, 0.88, 1.45);
+                const lumaInv = Math.max(0, 1.0 - stats.bright);
+                result.br = clamp(result.br, 0.88, 1.45);
 
                 const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
                 AUTO.cur.br = result.br; AUTO.cur.ct = result.ct; AUTO.cur.sat = result.sat; AUTO.cur._toneCurve = smoothedCurve; AUTO.cur._channelGains = smoothedGains; AUTO.cur._gamma = result._gamma; AUTO.cur._bright = result._bright; AUTO.cur._temp = result._temp;
@@ -2449,9 +2436,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           function cleanupScheduler() { if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; } if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') { try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = 0; __asRvfcVideo = null; } }
           __globalSig.addEventListener('abort', () => { AUTO.running = false; cleanupScheduler(); if (gpuAnalyzer) { gpuAnalyzer.destroy(); gpuAnalyzer = null; } }, { once: true });
 
-          Store.sub(P.V_AS_SHAD, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
-          Store.sub(P.V_AS_REC, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
-          Store.sub(P.V_AS_BRT, () => { if (!Store.get(P.APP_AUTO_SCENE)) updateManual(); });
           Store.sub(P.APP_AUTO_SCENE, (en) => {
             if (en && !AUTO.running) {
               drmRetryCount = 0;
@@ -2481,11 +2465,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           return { br: clamp(1.0 + bright * 0.010, 0.88, 1.45), ct: clamp(contrast, 0.78, 1.35), sat: clamp(satMul, 0.82, 1.50), _gamma: gamma, _bright: bright, _temp: temp, _channelGains: channelGains, _toneCurve: curve };
         }
 
-// ═══ END OF PART 3 (v203.0.6-Hybrid) ═══
-// ═══ PART 4 START (v203.0.6-Hybrid) — continues directly from PART 3 ═══
+// ═══ END OF PART 3 (v203.0.7-Hybrid) ═══
+// ═══ PART 4 START (v203.0.8-Hybrid) — continues directly from PART 3 ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           createVideoMaximizer (v203.0.6-Hybrid: StyleGuard optimizations)
+           createVideoMaximizer
            ══════════════════════════════════════════════════════════════════ */
         function createVideoMaximizer(Store, ApplyReq) {
           const MAX_CLASS = 'vsc-vmax-max'; const HIDE_CLASS = 'vsc-vmax-hide'; const ANCESTOR_CLASS = 'vsc-vmax-ancestor'; const IFRAME_MAX_CLASS = 'vsc-vmax-iframe';
@@ -2649,7 +2633,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           SVG Filter Engine (v203.0.6: WeakRef & Fast Hash Optimizations)
+           SVG Filter Engine (v203.0.8: Black-preserving Toe & Mid/Shoulder)
            ══════════════════════════════════════════════════════════════════ */
         function createFiltersVideoOnly(Utils, config) {
           const { h, clamp, createCappedMap } = Utils;
@@ -2679,23 +2663,68 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const qInt = (v, step) => Math.round(v / step);
           function makeKeyBase(s) {
             let autoKey = '0';
-            if (s._autoToneCurve && s._autoToneCurve.length === 256) { const c = s._autoToneCurve; autoKey = ((c[16] * 65536 + 0.5) | 0) + ',' + ((c[112] * 65536 + 0.5) | 0) + ',' + ((c[240] * 65536 + 0.5) | 0); }
-            let chGainKey = '0'; if (s._autoChannelGains) { const g = s._autoChannelGains; chGainKey = ((g.rGain * 1000 + 0.5) | 0) + '|' + ((g.bGain * 1000 + 0.5) | 0); }
-            return qInt(s.gain, 0.04) + '|' + qInt(s.gamma, 0.01) + '|' + qInt(s.temp, 0.2) + '|' + qInt(s.sharp, 0.2) + '|ac:' + autoKey + '|cg:' + chGainKey;
+            if (s._autoToneCurve && s._autoToneCurve.length === 256) {
+              const c = s._autoToneCurve;
+              autoKey = ((c[16] * 65536 + 0.5) | 0) + ',' + ((c[112] * 65536 + 0.5) | 0) + ',' + ((c[240] * 65536 + 0.5) | 0);
+            }
+            let chGainKey = '0';
+            if (s._autoChannelGains) {
+              const g = s._autoChannelGains;
+              chGainKey = ((g.rGain * 1000 + 0.5) | 0) + '|' + ((g.bGain * 1000 + 0.5) | 0);
+            }
+            return qInt(s.gain, 0.04) + '|' + qInt(s.gamma, 0.01) + '|' + qInt(s.temp, 0.2) + '|' + qInt(s.sharp, 0.2)
+              + '|toe:' + qInt(s.toe, 0.01) + '|mid:' + qInt(s.mid, 0.01) + '|sh:' + qInt(s.shoulder, 0.01)
+              + '|ac:' + autoKey + '|cg:' + chGainKey;
           }
 
-          function getToneTableCached(steps, gain, contrast, brightOffset, gamma) {
-            const key = `${steps}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(gamma*100+.5)|0}`;
+          function getToneTableCached(steps, gain, contrast, brightOffset, gamma, toe, mid, shoulder) {
+            const key = `${steps}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(gamma*100+.5)|0}|t${(toe*1000+.5)|0}|m${(mid*1000+.5)|0}|s${(shoulder*1000+.5)|0}`;
             const hit = toneCache.get(key); if (hit) return hit;
             const ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g);
-            const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast) + brightOffset; const gammaExp = Number(gamma);
+            const out = new Array(steps); let prev = 0;
+            const intercept = 0.5 * (1 - contrast) + brightOffset;
+            const gammaExp = Number(gamma);
+            const toeFactor = Number(toe) || 0;
+            const midFactor = Number(mid) || 0;
+            const shoulderFactor = Number(shoulder) || 0;
             ensureToneStrLut();
+
             for (let i = 0; i < steps; i++) {
-              const x0 = i / (steps - 1); let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
-              x = x * contrast + intercept; x = clamp(x, 0, 1);
+              const x0 = i / (steps - 1);
+              let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
+              x = x * contrast + intercept;
+              x = clamp(x, 0, 1);
+
+              // ── Toe: 검정 보존 암부 리프트 ──
+              if (toeFactor > 0.001 && x0 < 0.40) {
+                const t = x0 / 0.40;
+                const preserve = t * t;
+                const liftAmount = toeFactor * (1.0 - t);
+                x = x + liftAmount * preserve * (1.0 - x);
+              }
+
+              // ── Mid: S-커브 가우시안 대비 강화 ──
+              if (midFactor > 0.001) {
+                const midCenter = 0.45, sigma = 0.18;
+                const midWeight = Math.exp(-((x0 - midCenter) * (x0 - midCenter)) / (2 * sigma * sigma));
+                const contrastPush = midFactor * midWeight * 1.5;
+                const sCurve = (x0 - midCenter) * contrastPush;
+                x = clamp(x + sCurve, 0, 1);
+              }
+
+              // ── Shoulder: 전체 리프트 + 하이라이트 확장 ──
+              if (shoulderFactor > 0.001) {
+                const globalLift = shoulderFactor * 0.6 * x0;
+                const hiWeight = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0;
+                const hiBump = shoulderFactor * hiWeight * hiWeight * 0.5;
+                x = clamp(x + globalLift + hiBump * (1.0 - x), 0, 1);
+              }
+
               if (Math.abs(gammaExp - 1.0) > 0.001) x = Math.pow(x, gammaExp);
               if (x < prev) x = prev; prev = x;
-              const idx = Math.min(10000, Math.max(0, Math.round(x * 10000))); out[i] = _toneStrLut[idx];
+
+              const idx = Math.min(10000, Math.max(0, Math.round(x * 10000)));
+              out[i] = _toneStrLut[idx];
             }
             const res = out.join(' '); toneCache.set(key, res); return res;
           }
@@ -2735,7 +2764,18 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             return { fid, fConv, toneFuncs: toneFuncsAll, toneFuncsRGB, tempFuncR, tempFuncG, tempFuncB, fSat, st: { lastKey: '', toneKey: '', toneHash: 0, sharpKey: '', desatKey: '', tempKey: '' } };
           }
 
-          function needsSvgFilter(s) { return (Math.abs(s.sharp || 0) > 0.005 || !!s._autoToneCurve || !!s._autoChannelGains || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.temp || 0) > 0.5); }
+          function needsSvgFilter(s) {
+            return (
+              Math.abs(s.sharp || 0) > 0.005 ||
+              Math.abs(s.toe || 0) > 0.005 ||
+              Math.abs(s.mid || 0) > 0.005 ||
+              Math.abs(s.shoulder || 0) > 0.005 ||
+              !!s._autoToneCurve || !!s._autoChannelGains ||
+              Math.abs((s.gain || 1) - 1) > 0.005 ||
+              Math.abs((s.gamma || 1) - 1) > 0.005 ||
+              Math.abs(s.temp || 0) > 0.5
+            );
+          }
           function quickHash(str) { let hash = 5381; for (let i = 0, len = str.length; i < len; i++) { hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0; } return hash; }
 
           function prepare(video, s) {
@@ -2762,17 +2802,58 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
               st.lastKey = svgKey; const steps = 256; const gamma = 1 / clamp(s.gamma || 1, 0.1, 5.0);
               let toneTable;
 
-              // Fast hashing for SVG table values
               if (s._autoToneCurve) {
                 const c = s._autoToneCurve;
                 const fastHash = ((c[0]*65536)|0) ^ ((c[64]*65536)|0) ^ ((c[128]*65536)|0) ^ ((c[192]*65536)|0) ^ ((c[255]*65536)|0);
-                if (st.toneHash !== fastHash) {
-                  toneTable = float32ArrayToSvgTable(c);
-                  st.toneHash = fastHash; st.toneKey = toneTable;
+                const toeVal = Number(s.toe) || 0;
+                const midVal = Number(s.mid) || 0;
+                const shoulderVal = Number(s.shoulder) || 0;
+                const combinedHash = fastHash ^ ((toeVal * 10000) | 0) ^ ((midVal * 10000) | 0) ^ ((shoulderVal * 10000) | 0);
+
+                if (st.toneHash !== combinedHash) {
+                  let finalCurve;
+                  if (toeVal > 0.001 || midVal > 0.001 || shoulderVal > 0.001) {
+                    finalCurve = new Float32Array(c.length);
+                    for (let i = 0; i < c.length; i++) {
+                      const x0 = i / (c.length - 1);
+                      let val = c[i];
+
+                      // Toe: 검정 보존 + 암부 리프트
+                      if (toeVal > 0.001 && x0 < 0.40) {
+                        const t = x0 / 0.40;
+                        const preserve = t * t;
+                        const liftAmount = toeVal * (1.0 - t);
+                        val = val + liftAmount * preserve * (1.0 - val);
+                      }
+
+                      // Mid: S-커브 대비 강화
+                      if (midVal > 0.001) {
+                        const midCenter = 0.45, sigma = 0.18;
+                        const midWeight = Math.exp(-((x0 - midCenter) * (x0 - midCenter)) / (2 * sigma * sigma));
+                        const contrastPush = midVal * midWeight * 1.5;
+                        const sCurve = (x0 - midCenter) * contrastPush;
+                        val = clamp(val + sCurve, 0, 1);
+                      }
+
+                      // Shoulder: 밝기 상승 + 하이라이트 확장
+                      if (shoulderVal > 0.001) {
+                        const globalLift = shoulderVal * 0.6 * x0;
+                        const hiWeight = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0;
+                        const hiBump = shoulderVal * hiWeight * hiWeight * 0.5;
+                        val = clamp(val + globalLift + hiBump * (1.0 - val), 0, 1);
+                      }
+
+                      finalCurve[i] = Math.max(i > 0 ? finalCurve[i - 1] : 0, val);
+                    }
+                    toneTable = float32ArrayToSvgTable(finalCurve);
+                  } else {
+                    toneTable = float32ArrayToSvgTable(c);
+                  }
+                  st.toneHash = combinedHash; st.toneKey = toneTable;
                   for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
                 } else { toneTable = st.toneKey; }
               } else {
-                toneTable = getToneTableCached(steps, s.gain || 1, s.contrast || 1, s.bright * 0.004 || 0, gamma);
+                toneTable = getToneTableCached(steps, s.gain || 1, s.contrast || 1, s.bright * 0.004 || 0, gamma, s.toe || 0, s.mid || 0, s.shoulder || 0);
                 const toneHash = quickHash(toneTable);
                 if (st.toneHash !== toneHash) {
                   st.toneHash = toneHash; st.toneKey = toneTable;
@@ -2849,7 +2930,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (dpr >= 2.0) mul *= VSC_CLAMP(1.6 / dpr, 0.70, 0.90); else if (dpr >= 1.25) mul *= VSC_CLAMP(1.4 / dpr, 0.80, 1.0);
           if (CONFIG.IS_MOBILE && mul < 0.35) mul = 0.35; mul = VSC_CLAMP(mul, 0.0, 1.0);
 
-          // 해상도별 autoBase 상향 조정 (v203.0.6)
           let autoBase = 0.0;
           if (nW <= 640) autoBase = 0.20;
           else if (nW <= 960) autoBase = 0.16;
@@ -2860,31 +2940,72 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           autoBase *= mul; autoBase = VSC_CLAMP(autoBase, 0.0, 0.18); return { mul, autoBase };
         }
 
-        /* ══ composeVideoParamsInto (v203.0.6: Motion Adaptive Sharpening Adjusted) ══ */
+        /* ══ composeVideoParamsInto (v203.0.8: Toe/Mid/Shoulder Implementation) ══ */
         function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
           const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
-          out.gain = 1.0; out.gamma = 1.0; out.contrast = 1.0; out.bright = 0; out.satF = 1.0; out.toe = 0; out.mid = 0; out.shoulder = 0; out.temp = 0;
-          if (vUser.presetS === 'none') { out.sharp = 0; } else if (vUser.presetS === 'off') { out.sharp = autoSharpBase; } else { const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off; const baseS = (dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4; out.sharp = (baseS / 100.0) * mix * sharpMul; }
+          out.gain = 1.0; out.gamma = 1.0; out.contrast = 1.0; out.bright = 0; out.satF = 1.0;
+          out.toe = 0; out.mid = 0; out.shoulder = 0; out.temp = 0;
 
-          // 모션 적응 샤프닝 댐핑 수정 (v203.0.6)
+          if (vUser.presetS === 'none') { out.sharp = 0; }
+          else if (vUser.presetS === 'off') { out.sharp = autoSharpBase; }
+          else {
+            const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
+            const baseS = (dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4;
+            out.sharp = (baseS / 100.0) * mix * sharpMul;
+          }
+
           if (motionSAD > 0.04 && out.sharp > 0.005) {
             const motionDampen = 1.0 - VSC_CLAMP((motionSAD - 0.04) / 0.25, 0, 0.40);
             out.sharp *= motionDampen;
           }
 
-          if (autoMods._toneCurve) { out.satF *= autoMods.sat; out._autoToneCurve = autoMods._toneCurve.slice(); out._autoChannelGains = autoMods._channelGains || null; out._cssBr = 1.0; out._cssCt = 1.0; out._cssSat = VSC_CLAMP(out.satF, 0, 3.0); }
-          else { out.gain *= autoMods.br; out.contrast *= autoMods.ct; out.satF *= autoMods.sat; out._cssBr = VSC_CLAMP(1.0 + out.bright * 0.008, 0.5, 2.0); out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0); out._cssSat = VSC_CLAMP(out.satF, 0, 3.0); }
+          const manShadow = VSC_CLAMP(Number(vUser.manualShadow) || 0, 0, 100);
+          const manRecovery = VSC_CLAMP(Number(vUser.manualRecovery) || 0, 0, 100);
+          const manBright = VSC_CLAMP(Number(vUser.manualBright) || 0, 0, 100);
+
+          out.toe = manShadow / 100.0 * 0.35;
+          out.mid = manRecovery / 100.0 * 0.30;
+          out.shoulder = manBright / 100.0 * 0.40;
+
+          if (autoMods._toneCurve) {
+            out.satF *= autoMods.sat;
+            out._autoToneCurve = autoMods._toneCurve.slice();
+            out._autoChannelGains = autoMods._channelGains || null;
+            out._cssBr = 1.0;
+            out._cssCt = 1.0;
+            out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+          } else {
+            out.gain *= autoMods.br;
+            out.contrast *= autoMods.ct;
+            out.satF *= autoMods.sat;
+            out._cssBr = 1.0;
+            out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0);
+            out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+          }
+
           return out;
         }
 
         const isNeutralVideoParams = (v) => (
-          !v._autoToneCurve && !v._autoChannelGains && Math.abs((v.gain ?? 1) - 1) < 0.001 && Math.abs((v.gamma ?? 1) - 1) < 0.001 && Math.abs((v.contrast ?? 1) - 1) < 0.001 && Math.abs((v.bright ?? 0)) < 0.01 && Math.abs((v.toe ?? 0)) < 0.01 && Math.abs((v.mid ?? 0)) < 0.001 && Math.abs((v.shoulder ?? 0)) < 0.01 && Math.abs((v.sharp ?? 0)) < 0.01 && Math.abs((v.temp ?? 0)) < 0.01 && Math.abs((v._cssBr ?? 1) - 1) < 0.001 && Math.abs((v._cssCt ?? 1) - 1) < 0.001 && Math.abs((v._cssSat ?? 1) - 1) < 0.001
+          !v._autoToneCurve && !v._autoChannelGains &&
+          Math.abs((v.gain ?? 1) - 1) < 0.001 &&
+          Math.abs((v.gamma ?? 1) - 1) < 0.001 &&
+          Math.abs((v.contrast ?? 1) - 1) < 0.001 &&
+          Math.abs((v.bright ?? 0)) < 0.01 &&
+          Math.abs((v.toe ?? 0)) < 0.005 &&
+          Math.abs((v.mid ?? 0)) < 0.005 &&
+          Math.abs((v.shoulder ?? 0)) < 0.005 &&
+          Math.abs((v.sharp ?? 0)) < 0.01 &&
+          Math.abs((v.temp ?? 0)) < 0.01 &&
+          Math.abs((v._cssBr ?? 1) - 1) < 0.001 &&
+          Math.abs((v._cssCt ?? 1) - 1) < 0.001 &&
+          Math.abs((v._cssSat ?? 1) - 1) < 0.001
         );
 
         /* ══ Video Params Memoization ══ */
         function createVideoParamsMemo(Store, P, Utils) {
           const cache = new Map(); const MAX_CACHE_SIZE = 16;
-          const sigVideo = (vf) => [vf.presetS, Number(vf.presetMix).toFixed(3)].join('|');
+          const sigVideo = (vf) => [vf.presetS, Number(vf.presetMix).toFixed(3), (vf.manualShadow || 0), (vf.manualRecovery || 0), (vf.manualBright || 0)].join('|');
           return {
             get(vfUser, activeTarget) {
               const w = activeTarget ? (activeTarget.videoWidth || 0) : 0, ht = activeTarget ? (activeTarget.videoHeight || 0) : 0;
@@ -3062,7 +3183,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (isActive) await exitPiP(video); else await enterPiP(video);
         }
 
-        /* ══ captureVideoFrame (v203.0.6: VideoFrame copyTo API Fallback) ══ */
+        /* ══ captureVideoFrame (v203.0.8: VideoFrame copyTo API Fallback) ══ */
         let __captureBuffer = null; let __captureBufferSize = 0;
         function captureVideoFrame(video) {
           if (!video || video.readyState < 2) { showOSD('비디오 준비 안됨', 1000); return; }
@@ -3452,11 +3573,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           });
         }
 
-// ═══ END OF PART 4 (v203.0.6-Hybrid) ═══
-// ═══ PART 5 START (v203.0.6-Hybrid) — Final UI & Permanent Persistence ═══
+// ═══ END OF PART 4 (v203.0.8-Hybrid) ═══
+// ═══ PART 5 START (v203.0.8-Hybrid) — Final UI & Permanent Persistence ═══
 
         /* ══════════════════════════════════════════════════════════════════
-           createUI (v203.0.6-Hybrid: UI/UX Polish, Permanent SyncFns)
+           createUI (v203.0.8-Hybrid: UI/UX Polish, Permanent SyncFns)
            ══════════════════════════════════════════════════════════════════ */
         function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
           const { h, clamp } = Utils;
@@ -3465,7 +3586,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           let panelHost = null, panelEl = null, quickBarHost = null;
           let activeTab = 'video', advancedOpen = false, panelOpen = false;
 
-          // 메모리 누수 방지 및 콜백 안정성을 위한 분리 (v203.0.6)
           const permanentSyncFns = [];
           const tabSyncFns = [];
           const syncFns = [];
@@ -3486,7 +3606,6 @@ ${CSS_VARS}
 .hdr .tl{font-weight:700;font-size:var(--vsc-font-lg);letter-spacing:.3px}
 .hdr .ver{font-size:var(--vsc-font-xs);opacity:.45;margin-left:auto}
 
-/* Status Dots 툴팁 표시 개선 */
 .hdr-status{display:flex;gap:6px;align-items:center}
 .hdr-dot{width:8px;height:8px;border-radius:50%;display:inline-block;position:relative}
 .hdr-dot.green{background:#4caf50;box-shadow:0 0 4px rgba(76,175,80,.5)}
@@ -3507,7 +3626,6 @@ ${CSS_VARS}
 .row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
 .row .ctrl{display:flex;align-items:center;gap:var(--vsc-space-sm);flex:1;justify-content:flex-end}
 
-/* 슬라이더 터치 영역 확대 */
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--vsc-accent) 0%,var(--vsc-accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));padding:12px 0;margin:-12px 0;background-clip:content-box}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none;box-shadow:0 0 0 4px rgba(110,168,254,.15);transition:box-shadow .15s}
 input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(110,168,254,.25)}
@@ -3517,7 +3635,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:var(--vsc-radius-md);color:var(--vsc-text);padding:var(--vsc-space-xs) var(--vsc-space-md);font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);min-height:var(--vsc-touch-min);min-width:44px;display:inline-flex;align-items:center;justify-content:center}
 .btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
 
-/* 토글 ON/OFF 텍스트 추가 */
 .tgl{position:relative;width:44px;height:22px;border-radius:11px;background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s;overflow:hidden}
 .tgl.on{background:rgba(110,168,254,.5)}
 .tgl::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;z-index:1}
@@ -3541,7 +3658,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .adv-bd{overflow:hidden;max-height:0;transition:max-height var(--vsc-transition-slow)}.adv-bd.open{max-height:800px}
 .info-bar{font-size:var(--vsc-font-xs);opacity:.5;padding:var(--vsc-space-xs) 0 var(--vsc-space-sm);line-height:1.5;font-variant-numeric:tabular-nums}
 
-/* ── UI Position: Right-Middle Fixed & Left Expansion ── */
 .qbar{pointer-events:auto;position:fixed;top:50%;right:var(--vsc-qbar-right);transform:translateY(-50%);display:flex;flex-direction:row-reverse;align-items:center;gap:8px}
 .qbar .qb-main{width:44px;height:44px;border-radius:50%;background:var(--vsc-bg);border:1px solid rgba(255,255,255,.15);z-index:2;opacity:.4;transition:opacity .3s,transform .2s,background .2s;box-shadow:0 4px 12px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-right:env(safe-area-inset-right, 0px);}
 .qbar:hover .qb-main,.qbar.expanded .qb-main{opacity:1;transform:scale(1.08);background:var(--vsc-bg-hover);border-color:rgba(255,255,255,.3)}
@@ -3605,7 +3721,8 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
           function buildVideoTab() {
             const w = h('div', {}); const infoBar = h('div', { class: 'info-bar' });
             function updateInfo() {
-              const active = window[VSC_INTERNAL_SYM]._activeVideo; const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
+              const active = window[VSC_INTERNAL_SYM]._activeVideo;
+              const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
               if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
               const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
               if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
@@ -3614,20 +3731,110 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
             }
             Bus.on('signal', updateInfo); tabSyncFns.push(updateInfo); updateInfo();
-            const infoTimerId = setRecurring(() => { try { updateInfo(); } catch (_) {} }, 2500, { maxErrors: 50 }); sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
+            const infoTimerId = setRecurring(() => { try { updateInfo(); } catch (_) {} }, 2500, { maxErrors: 50 });
+            sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
             w.append(infoBar, mkSep());
 
-            w.append(mkChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
+            // ── 디테일 프리셋 ──
+            w.append(
+              mkChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
+              mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)),
+              mkSep()
+            );
 
+            // ── 수동 보정 헤더 및 추천 버튼 ──
+            const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+              h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
+              h('div', { style: 'display:flex;gap:4px' },
+                // 추천 프리셋 버튼 생성 함수
+                ...[
+                  { n: '일반', v: [25, 25, 25] },
+                  { n: '영화', v: [50, 20, 10] },
+                  { n: '애니', v: [15, 20, 0] },
+                  { n: '다큐', v: [10, 45, 30] }
+                ].map(p => {
+                  const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
+                  btn.onclick = () => {
+                    Store.batch('video', { manualShadow: p.v[0], manualRecovery: p.v[1], manualBright: p.v[2] });
+                    ApplyReq.hard(); persistNow(); syncAll();
+                    showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
+                  };
+                  return btn;
+                })
+              )
+            );
+            w.append(manualHeader);
+
+            function mkSliderWithFine(label, path, min, max, step, fineStep) {
+              const [slider, valEl] = mkSlider(path, min, max, step);
+
+              const syncSliderUI = () => {
+                const v = Number(Store.get(path)) || 0;
+                slider.value = String(v);
+                valEl.textContent = String(Math.round(v));
+                const pct = ((v - min) / (max - min)) * 100;
+                slider.style.setProperty('--fill', `${pct}%`);
+              };
+
+              const mkFine = (delta, text) => {
+                const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:32px;min-height:28px;font-size:11px' }, text);
+                btn.addEventListener('click', () => {
+                  const cur = Number(Store.get(path)) || 0;
+                  const nv = VSC_CLAMP(Math.round(cur + delta), min, max);
+                  Store.set(path, nv);
+                  ApplyReq.hard();
+                  persistNow();
+                  syncSliderUI();
+                }, { signal: sig });
+                return btn;
+              };
+
+              const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:24px;min-height:28px;font-size:10px;opacity:.6' }, '0');
+              resetBtn.addEventListener('click', () => {
+                Store.set(path, 0);
+                ApplyReq.hard();
+                persistNow();
+                syncSliderUI();
+              }, { signal: sig });
+
+              const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' },
+                mkFine(-fineStep, `−${fineStep}`),
+                mkFine(+fineStep, `+${fineStep}`),
+                resetBtn
+              );
+
+              tabSyncFns.push(syncSliderUI);
+
+              return h('div', { class: 'row' },
+                h('label', {}, label),
+                h('div', { class: 'ctrl' }, slider, valEl, fineRow)
+              );
+            }
+
+            w.append(
+              mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
+              mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
+              mkSliderWithFine('밝기', P.V_MAN_BRT, 0, 100, 1, 5),
+              mkSep()
+            );
+
+            // ── AutoScene ──
             const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
-            function updateSceneBadge() { const isOn = !!Store.get(P.APP_AUTO_SCENE); if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; } else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; } }
-            w.append(h('div', { class: 'row' }, h('label', {}, '자동 보정 (AutoScene) ', sceneBadge), mkToggle(P.APP_AUTO_SCENE, v => { if (v) AutoScene.start(); else AutoScene.stop(); updateSceneBadge(); ApplyReq.hard(); })));
+            function updateSceneBadge() {
+              const isOn = !!Store.get(P.APP_AUTO_SCENE);
+              if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
+              else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
+            }
+            w.append(h('div', { class: 'row' },
+              h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
+              mkToggle(P.APP_AUTO_SCENE, v => {
+                if (v) AutoScene.start(); else AutoScene.stop();
+                updateSceneBadge(); ApplyReq.hard();
+              })
+            ));
             Bus.on('signal', updateSceneBadge); tabSyncFns.push(updateSceneBadge); updateSceneBadge();
 
-            const autoModsWrap = h('div', { style: 'padding-left: 8px; border-left: 2px solid var(--vsc-accent-border); margin-bottom: 12px; margin-top: 6px;' });
-            autoModsWrap.append(mkChipRow('↳ 동적 암부 부스트', P.V_AS_SHAD, [{v:0,l:'OFF'},{v:1,l:'1단'},{v:2,l:'2단'},{v:3,l:'3단'}]), mkChipRow('↳ 동적 디테일 복원', P.V_AS_REC, [{v:0,l:'OFF'},{v:1,l:'1단'},{v:2,l:'2단'},{v:3,l:'3단'}]), mkChipRow('↳ 동적 밝기 상한선', P.V_AS_BRT, [{v:0,l:'OFF'},{v:1,l:'1단'},{v:2,l:'2단'},{v:3,l:'3단'}]));
-            w.append(autoModsWrap);
-
+            // ── GPU 하드웨어 가속 ──
             const gpuToggle = mkToggle(P.APP_GPU_EN, (nv) => {
               window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!nv;
               if (nv) { showOSD('GPU 장면분석 활성화 시도…', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} }
@@ -3636,14 +3843,22 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             });
             w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
 
-            const arrSpan = h('span', { class: 'arr' }, '▶'), advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정'), advBd = h('div', { class: 'adv-bd' });
-            advHd.addEventListener('click', () => { advancedOpen = !advancedOpen; arrSpan.classList.toggle('open', advancedOpen); advBd.classList.toggle('open', advancedOpen); }, { signal: sig });
-            w.append(advHd, advBd); return w;
+            // ── 고급 설정 ──
+            const arrSpan = h('span', { class: 'arr' }, '▶');
+            const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
+            const advBd = h('div', { class: 'adv-bd' });
+            advHd.addEventListener('click', () => {
+              advancedOpen = !advancedOpen;
+              arrSpan.classList.toggle('open', advancedOpen);
+              advBd.classList.toggle('open', advancedOpen);
+            }, { signal: sig });
+            w.append(advHd, advBd);
+
+            return w;
           }
 
           function buildAudioTab() {
             const w = h('div', {});
-            // 오디오 부스트 상한선 18dB 변경 적용 (v203.0.6)
             w.append(mkRow('오디오 부스트', mkToggle(P.A_EN, () => ApplyReq.soft())), mkRow('부스트 (dB)', ...mkSlider(P.A_BST, 0, 18, 0.5)));
             const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0' }, '오디오: 대기');
             Bus.on('signal', () => { const ctxReady = Audio.hasCtx(), hooked = Audio.isHooked(); status.textContent = `상태: ${ctxReady ? (hooked ? '활성' : '준비') : '대기'}`; });
@@ -3680,7 +3895,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
             const shortcutArrSpan = h('span', { class: 'arr' }, '▶'), shortcutHd = h('div', { class: 'adv-hd' }, shortcutArrSpan, ' 단축키 안내'), shortcutBd = h('div', { class: 'adv-bd' });
             let shortcutOpen = false; shortcutHd.addEventListener('click', () => { shortcutOpen = !shortcutOpen; shortcutArrSpan.classList.toggle('open', shortcutOpen); shortcutBd.classList.toggle('open', shortcutOpen); }, { signal: sig });
-            // 단축키 안내에 A/B 원본 비교 토글 단축키 추가 (v203.0.6)
             const shortcuts = [['Alt + V', '설정 패널 열기/닫기'], ['Alt + P', 'PiP 전환'], ['Alt + M', '최대화 토글'], ['Alt + Z', '줌 ON/OFF 토글'], ['Alt + A', '자동 보정 ON/OFF'], ['Alt + S', '프레임 캡처'], ['Alt + G', 'GPU 장면분석 토글'], ['Alt + B', 'A/B 원본 비교 토글'], ['Alt + 0', '줌 리셋'], ['Alt + 1~3', '프리셋 슬롯 불러오기'], ['Shift + Alt + 1~3', '프리셋 슬롯 저장'], ['Alt + R', '전체 초기화'], ['[ / ]', '재생 속도 ±0.1'], ['Esc', '패널 닫기 / 최대화 해제'], ['Alt + Wheel', '줌 확대/축소'], ['Alt + 드래그', '줌 팬 이동'], ['Alt + 더블클릭', '줌 2.5× / 리셋']];
             const grid = h('div', { class: 'shortcut-grid' }); for (const [key, desc] of shortcuts) { grid.append(h('span', { class: 'sk' }, key), h('span', { class: 'sd' }, desc)); }
             shortcutBd.appendChild(grid); w.append(shortcutHd, shortcutBd, mkSep(), h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0' }, `Video_Control v${VSC_VERSION}`));
@@ -3877,7 +4091,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           createApplyLoop (v203.0.6-Hybrid: A/B Mode & Deactivation Fixes)
+           createApplyLoop (v203.0.8-Hybrid: A/B Mode & Deactivation Fixes)
            ══════════════════════════════════════════════════════════════════ */
         function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
           const __lastUserPt = { x: 0, y: 0, t: 0 };
@@ -3893,7 +4107,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             if (__globalSig.aborted) return;
             const applyAll = !!Store.get(P.APP_APPLY_ALL);
 
-            // 앱 비활성화 처리 완벽하게 (v203.0.6)
             if (!Store.get(P.APP_ACT)) {
               if (prevTarget) { FiltersVO.clear(prevTarget); prevTarget = null; }
               window[VSC_INTERNAL_SYM]._activeVideo = null;
@@ -3914,7 +4127,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               const vst = getVState(v); if (vst.applied) FiltersVO.clear(v);
             }
 
-            // 비활성 비디오 속도 복원 보장 (v203.0.6)
             if (pbEn) {
               for (const v of TOUCHED.rateVideos) {
                 if (!v.isConnected || targets.has(v)) continue;
@@ -3936,7 +4148,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
                 }
               } else restoreRate(v);
 
-              // A/B 비교 모드 체크 (v203.0.6)
               const vst = getVState(v);
               if (vst.__abCompare) { FiltersVO.clear(v); continue; }
 
@@ -3949,7 +4160,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-           createKeyboard (v203.0.6-Hybrid: A/B Toggle)
+           createKeyboard (v203.0.8-Hybrid: A/B Toggle)
            ══════════════════════════════════════════════════════════════════ */
         function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr) {
           const STEP_RATE = 0.1;
@@ -3968,7 +4179,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               ApplyReq.soft(); UI?.syncAll(); persistNow(); e.preventDefault(); return;
             }
             if (alt && (k === 's' || k === 'S')) { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) captureVideoFrame(v); e.preventDefault(); return; }
-            // A/B 원본 비교 단축키 적용 (v203.0.6)
             if (alt && (k === 'b' || k === 'B')) {
               const v = window[VSC_INTERNAL_SYM]._activeVideo;
               if (v) {
@@ -3988,20 +4198,18 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         }
 
         /* ══════════════════════════════════════════════════════════════════
-        BOOTSTRAP (v203.0.6-Hybrid: Namespace Getter Fixed)
-        ══════════════════════════════════════════════════════════════════ */
+           BOOTSTRAP (v203.0.8-Hybrid: Namespace Getter Fixed)
+           ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '203.0.6-Hybrid';
+      const VSC_VERSION_ID = '203.0.8-Hybrid';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
-      // 내부 상태 초기화
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
       window[VSC_INTERNAL_SYM]._gpuSceneEnabled = false;
       window[VSC_INTERNAL_SYM]._gpuSceneInit = null;
       window[VSC_INTERNAL_SYM]._gpuSceneDestroy = null;
       window[VSC_INTERNAL_SYM]._dspMode = 'off';
 
-      // 모듈 시스템 구축
       const MS = createModuleSystem(__globalSig);
       MS.defineFeature('Utils', { init: () => createUtils() });
       MS.defineFeature('Scheduler', { init: () => createScheduler() });
@@ -4022,7 +4230,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
       const Store = MS.get('Store'), Scheduler = MS.get('Scheduler'), Bus = MS.get('Bus'), ApplyReq = MS.get('ApplyReq'), Registry = MS.get('Registry'), Targeting = MS.get('Targeting'), Audio = MS.get('Audio'), AutoScene = MS.get('AutoScene'), ParamsMemo = MS.get('ParamsMemo'), FiltersVO = MS.get('FiltersVO'), Maximizer = MS.get('Maximizer'), ZoomMgr = MS.get('ZoomMgr');
 
-      // 전역 참조 등록
       window[VSC_INTERNAL_SYM].Store = Store;
       window[VSC_INTERNAL_SYM].ApplyReq = ApplyReq;
       window[VSC_INTERNAL_SYM].AutoScene = AutoScene;
@@ -4030,10 +4237,8 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       __Store = Store;
       __ApplyReq = ApplyReq;
 
-      // 이슈 #2 해결: AutoScene loop에서 활용할 비디오 참조용 게터 함수 등록 (v203.0.6)
       window[VSC_INTERNAL_SYM].getActiveVideo = () => window[VSC_INTERNAL_SYM]._activeVideo;
 
-      // GPU 활성화 상태 동기화
       window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!Store.get(P.APP_GPU_EN);
 
       Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
@@ -4041,7 +4246,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 
       createApplyLoop(Store, Scheduler, Registry, Targeting, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq);
 
-      // 재생 속도 관련 구독
       Store.sub(P.PB_RATE, () => { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (!isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
       Store.sub(P.PB_EN, (enabled) => { if (!enabled) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.orig != null && v.isConnected) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = rs.orig; } catch (_) {} } rs.orig = null; rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } });
 
