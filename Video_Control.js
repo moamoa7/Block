@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v204.0.1-Hybrid)
+// @name         Video_Control (v204.0.2Hybrid)
 // @namespace    https://github.com/
-// @version      204.0.1-Hybrid
-// @description  v204.0.1: Scene-Aware Audio (Voice/Bass dynamic EQ), Independent Temporal Alphas for AutoScene, VideoFrame API high-perf capture, UI Status Indicators
+// @version      204.0.2Hybrid
+// @description  v204.0.2 Scene-Aware Audio (Voice/Bass dynamic EQ), Independent Temporal Alphas for AutoScene, VideoFrame API high-perf capture, UI Status Indicators
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -133,16 +133,19 @@
       on(el, 'wheel', (e) => { if (!e.altKey) e.stopPropagation(); }, { passive: true });
     }
 
-    /* ══ Mobile detection ══ */
+    /* ══ Mobile & Browser detection ══ */
     const detectMobile = () => navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
+    // [추가] 파이어폭스 감지 로직
+    const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
     const CONFIG = Object.freeze({
       IS_MOBILE: detectMobile(),
+      IS_FIREFOX: IS_FIREFOX, // [반드시 추가해야 함]
       TOUCHED_MAX: 140,
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '204.0.1-Hybrid';
+    const VSC_VERSION = '204.0.2Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -2883,7 +2886,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             return { fid, fConv, toneFuncs: toneFuncsAll, toneFuncsRGB, tempFuncR, tempFuncG, tempFuncB, fSat, st: { lastKey: '', toneKey: '', toneHash: 0, sharpKey: '', desatKey: '', tempKey: '' } };
           }
 
+          // [수정] 파이어폭스에서 검은 화면이 나오는 것을 방지하기 위한 방어 로직
           function needsSvgFilter(s) {
+          // 파이어폭스라면 무조건 false를 반환하여 SVG 필터 경로(샤프닝 등)를 차단합니다.
+          // 이렇게 하면 CSS 필터(Brightness, Contrast)만 적용되어 화면이 정상 출력됩니다.
+          if (config.IS_FIREFOX) return false;
             return (
               Math.abs(s.sharp || 0) > 0.005 ||
               Math.abs(s.toe || 0) > 0.005 ||
