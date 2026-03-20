@@ -5484,6 +5484,16 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         @keyframes vsc-arrow-l { 0%  { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(-4px); opacity: 0; } }
         .vsc-longpress-badge { position: fixed; top: 8%; left: 50%; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0,0,0,0.55); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 6px 16px; font: 700 13px/1.4 system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         .vsc-longpress-badge.show { opacity: 1; }
+        /* 🔥 [중요] 유튜브 및 일반 플레이어의 로딩 원(스피너) 강제 숨김 */
+        .ytp-spinner,
+        .vjs-loading-spinner,
+        .loading-indicator,
+        .mvp-spinner,
+        video::-webkit-media-controls-loading-indicator {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+        }
         .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
         @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
         @media (prefers-reduced-motion: reduce) { .vsc-seek-pop, .vsc-arrow-slide-r, .vsc-arrow-slide-l, .vsc-longpress-badge .vsc-lp-icon { animation: none !important; } }
@@ -5494,7 +5504,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
 
     function createTouchGestureManager(Store, P, ApplyReq) {
       const SWIPE_THRESHOLD = 12; const LONG_PRESS_MS = 450; const DOUBLE_TAP_MS = 300; const SEEK_STEP = 10; const SEEK_SESSION_MS = 800; const LONG_PRESS_RATE = 2.0; const SENSITIVITY_VOL = 1.2; const SENSITIVITY_BRI = 1.2;
-      const SEEK_SENSITIVITY = 0.12; // px → seconds 변환 계수
+      const SEEK_SENSITIVITY = 0.02; // px → seconds 변환 계수
       const GS = Object.freeze({ IDLE: 0, WAIT: 1, SWIPE_VOL: 2, SWIPE_BRI: 3, LONG_PRESS: 4, BLOCKED: 5, SWIPE_SEEK: 6 });
       let gesture = GS.IDLE; let startX = 0, startY = 0; let initVol = 1, initBri = 1; let savedRate = 1; let touchVideo = null; let lpTimerId = 0; let destroyed = false;
       let lastTapTime = 0, lastTapX = 0, seekSide = null, seekAccum = 0, seekTimerId = 0;
