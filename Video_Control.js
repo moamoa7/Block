@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v209.1.0)
+// @name         Video_Control (v209.2.0)
 // @namespace    https://github.com/
-// @version      209.1.0
-// @description  v209.1.0: Extreme optimization, Bugfixes & Screen Brightness Overlay
+// @version      209.2.0
+// @description  v209.2.0: Extreme optimization, Bugfixes, Screen Brightness Overlay & Video Transform
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -146,7 +146,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '209.1.0';
+    const VSC_VERSION = '209.2.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -296,12 +296,12 @@
       video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0 },
       audio: { enabled: false, boost: 9 },
       playback: { rate: 1.0, enabled: false },
-      app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, slots: [null, null, null], gpuEn: false, screenBright: 0 }
+      app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, slots: [null, null, null], gpuEn: false, screenBright: 0, videoRotation: 0, videoFit: 'contain' }
     };
     const P = Object.freeze({
       APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_APPLY_ALL: 'app.applyAll',
       APP_ZOOM_EN: 'app.zoomEn', APP_AUTO_SCENE: 'app.autoScene', APP_ADV: 'app.advanced', APP_GPU_EN: 'app.gpuEn',
-      APP_SCREEN_BRT: 'app.screenBright',
+      APP_SCREEN_BRT: 'app.screenBright', APP_VID_ROT: 'app.videoRotation', APP_VID_FIT: 'app.videoFit',
       V_PRE_S: 'video.presetS', V_PRE_MIX: 'video.presetMix',
       V_MAN_SHAD: 'video.manualShadow', V_MAN_REC: 'video.manualRecovery', V_MAN_BRT: 'video.manualBright',
       A_EN: 'audio.enabled', A_BST: 'audio.boost',
@@ -310,7 +310,9 @@
 
     /* ══ Schemas ══ */
     const APP_SCHEMA = [
-      { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_GPU_EN }
+      { type: 'bool', path: P.APP_APPLY_ALL }, { type: 'bool', path: P.APP_ZOOM_EN }, { type: 'bool', path: P.APP_AUTO_SCENE }, { type: 'bool', path: P.APP_ADV }, { type: 'bool', path: P.APP_GPU_EN },
+      { type: 'num', path: P.APP_VID_ROT, min: 0, max: 270, round: true, fallback: () => 0 },
+      { type: 'enum', path: P.APP_VID_FIT, values: ['contain', 'cover', 'fill'], fallback: () => 'contain' }
     ];
     const VIDEO_SCHEMA = [
       { type: 'enum', path: P.V_PRE_S, values: Object.keys(PRESETS.detail), fallback: () => DEFAULTS.video.presetS },
@@ -874,6 +876,84 @@
       if (!video) return; const st = getVState(video);
       const isActive = st._inPiP || document.pictureInPictureElement === video || (__activeDocumentPiPVideo === video && __activeDocumentPiPWindow && !__activeDocumentPiPWindow.closed);
       if (isActive) await exitPiP(video); else await enterPiP(video);
+    }
+
+    /* ══ Video Transform (Rotation / Aspect Ratio) ══ */
+    const VID_FIT_MODES = ['contain', 'cover', 'fill'];
+    const VID_FIT_LABELS = { contain: 'Fit (기본)', cover: 'Fill (채움)', fill: 'Stretch (늘림)' };
+
+    function applyVideoTransform(video, store) {
+      if (!video?.isConnected) return;
+      const rotation = Number(store.get(P.APP_VID_ROT)) || 0;
+      const fitMode = store.get(P.APP_VID_FIT) || 'contain';
+      const zoomSt = window[VSC_INTERNAL_SYM]?.ZoomManager;
+      const isZoomed = zoomSt?.isZoomed(video);
+
+      if (fitMode !== 'contain') {
+        vscSetStyle(video, 'object-fit', fitMode, 'important');
+      } else {
+        vscRemoveStyle(video, 'object-fit');
+      }
+
+      if (rotation !== 0) {
+        const existing = video.style.getPropertyValue('transform');
+        const base = (isZoomed && existing) ? existing : '';
+        const rotStr = `rotate(${rotation}deg)`;
+        if (base && !base.includes('rotate')) {
+          vscSetStyle(video, 'transform', `${base} ${rotStr}`, 'important');
+        } else if (rotation !== 0) {
+          const cleaned = base.replace(/rotate\([^)]*\)/g, '').trim();
+          vscSetStyle(video, 'transform', `${cleaned} ${rotStr}`.trim(), 'important');
+        }
+      } else {
+        const existing = video.style.getPropertyValue('transform') || '';
+        if (existing.includes('rotate')) {
+          const cleaned = existing.replace(/rotate\([^)]*\)/g, '').trim();
+          if (cleaned) vscSetStyle(video, 'transform', cleaned, 'important');
+          else vscRemoveStyle(video, 'transform');
+        }
+      }
+    }
+
+    function clearVideoTransform(video) {
+      if (!video) return;
+      vscRemoveStyle(video, 'object-fit');
+      const existing = video.style.getPropertyValue('transform') || '';
+      if (existing.includes('rotate')) {
+        const cleaned = existing.replace(/rotate\([^)]*\)/g, '').trim();
+        if (cleaned) vscSetStyle(video, 'transform', cleaned, 'important');
+        else vscRemoveStyle(video, 'transform');
+      }
+    }
+
+    function cycleVideoFit(store) {
+      const cur = store.get(P.APP_VID_FIT) || 'contain';
+      const idx = VID_FIT_MODES.indexOf(cur);
+      const next = VID_FIT_MODES[(idx + 1) % VID_FIT_MODES.length];
+      store.set(P.APP_VID_FIT, next);
+      const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+      if (v) applyVideoTransform(v, store);
+      showOSD(`화면 비율: ${VID_FIT_LABELS[next]}`, 1000);
+      persistNow();
+    }
+
+    function rotateVideo90(store) {
+      const cur = Number(store.get(P.APP_VID_ROT)) || 0;
+      const next = (cur + 90) % 360;
+      store.set(P.APP_VID_ROT, next);
+      const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+      if (v) applyVideoTransform(v, store);
+      showOSD(`회전: ${next}°`, 1000);
+      persistNow();
+    }
+
+    function resetVideoTransform(store) {
+      store.set(P.APP_VID_ROT, 0);
+      store.set(P.APP_VID_FIT, 'contain');
+      const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+      if (v) clearVideoTransform(v);
+      showOSD('비디오 변환 초기화', 1000);
+      persistNow();
     }
 
     /* ══ captureVideoFrame ══ */
@@ -2090,7 +2170,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         const tag = n.tagName;
         if ((tag === 'svg' || tag === 'SVG') && n.querySelector?.('[id^="vsc-"]')) return true;
         return false;
-      };
+      }
 
       const connectObserver = (root) => {
         if (!root) return;
@@ -4050,6 +4130,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
           const params = ParamsMemo.get(vfUser, v);
           if (!params || isNeutralVideoParams(params)) FiltersVO.clear(v); else { const filterResult = FiltersVO.prepareCached(v, params); FiltersVO.applyFilter(v, filterResult); }
+
+          // ── Video Transform (회전 / 비율) 적용 ──
+          const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
+          const fit = Store.get(P.APP_VID_FIT) || 'contain';
+          if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
+
           touchedAddLimited(TOUCHED.videos, v);
         });
       }
@@ -4057,7 +4143,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
 // ═══ END OF PART 3 (v209.0.0) ═══
-// ═══ PART 4 START (v209.1.0) — Filters, UI, Gestures & Bootstrap ═══
+// ═══ PART 4 START (v209.2.0) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
     const SCR_BRT_LEVELS = [0, 0.10, 0.20, 0.30, 0.40, 0.50];
@@ -4762,6 +4848,69 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
         }
 
+        /* ── 비디오 변환 섹션 ── */
+        const transformSep = mkSep();
+        const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+          h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '비디오 변환'),
+          (() => {
+            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 8px;min-width:40px;font-size:10px;color:#ff8888;border-color:rgba(255,136,136,0.3)' }, '리셋');
+            resetBtn.onclick = () => { resetVideoTransform(Store); syncTransformUI(); };
+            return resetBtn;
+          })()
+        );
+
+        // Aspect Ratio 칩
+        const fitChips = h('div', { class: 'chips' });
+        VID_FIT_MODES.forEach(mode => {
+          const chip = h('span', { class: 'chip', 'data-v': mode }, VID_FIT_LABELS[mode]);
+          chip.addEventListener('click', () => {
+            Store.set(P.APP_VID_FIT, mode);
+            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+            if (v) applyVideoTransform(v, Store);
+            syncTransformUI();
+            persistNow();
+            showOSD(`화면 비율: ${VID_FIT_LABELS[mode]}`, 1000);
+          }, { signal: sig });
+          fitChips.appendChild(chip);
+        });
+
+        // 회전 버튼
+        const rotRow = h('div', { style: 'display:flex;gap:4px;padding:4px 0;align-items:center' });
+        const rotLabel = h('span', { style: 'font-size:11px;opacity:.7;flex:1' }, '회전');
+        const rotValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-accent);min-width:30px;text-align:center' }, '0°');
+        const rotBtns = [0, 90, 180, 270].map(deg => {
+          const btn = h('button', { class: 'fine-btn', style: 'padding:3px 8px;min-width:36px;font-size:11px', 'data-v': String(deg) }, `${deg}°`);
+          btn.addEventListener('click', () => {
+            Store.set(P.APP_VID_ROT, deg);
+            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+            if (v) applyVideoTransform(v, Store);
+            syncTransformUI();
+            persistNow();
+            showOSD(`회전: ${deg}°`, 1000);
+          }, { signal: sig });
+          return btn;
+        });
+        rotRow.append(rotLabel, ...rotBtns, rotValLabel);
+
+        function syncTransformUI() {
+          const curFit = Store.get(P.APP_VID_FIT) || 'contain';
+          for (const c of fitChips.children) c.classList.toggle('on', c.dataset.v === curFit);
+          const curRot = Number(Store.get(P.APP_VID_ROT)) || 0;
+          rotValLabel.textContent = `${curRot}°`;
+          for (const btn of rotBtns) btn.classList.toggle('on', btn.dataset.v === String(curRot));
+        }
+        tabSyncFns.push(syncTransformUI);
+        syncTransformUI();
+
+        w.append(transformSep, transformLabel,
+          h('div', { style: 'padding:2px 0' },
+            h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '화면 비율'),
+            fitChips
+          ),
+          rotRow,
+          h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0;line-height:1.4' }, '단축키: Alt+F (비율 순환) │ Alt+T (90° 회전)')
+        );
+
         const arrSpan = h('span', { class: 'arr' }, '▶');
         const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
         const advBd = h('div', { class: 'adv-bd' });
@@ -4879,6 +5028,8 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         let shortcutOpen = false; shortcutHd.addEventListener('click', () => { shortcutOpen = !shortcutOpen; shortcutArrSpan.classList.toggle('open', shortcutOpen); shortcutBd.classList.toggle('open', shortcutOpen); }, { signal: sig });
         const shortcuts = [
           ['Alt + V', '설정 패널 열기/닫기'],
+          ['Alt + F', '화면 비율 (Fit/Fill) 순환'],
+          ['Alt + T', '화면 90° 회전'],
           ['Alt + L', '화면 밝기 단계 순환'],
           ['Alt + P', 'PiP 전환'],
           ['Alt + M', '최대화 토글'],
@@ -5008,6 +5159,15 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           return btn;
         });
 
+        // ── 비디오 변환 퀵 버튼 ──
+        const fitBtn = h('div', { class: 'qb qb-sub', title: '화면 비율 전환 (Alt+F)' });
+        fitBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><rect x="6" y="6" width="12" height="12" rx="1" opacity="0.4"/></svg>';
+        fitBtn.addEventListener('click', e => {
+          e.preventDefault(); e.stopPropagation();
+          cycleVideoFit(Store); resetExpandTimer();
+        }, { signal: sig });
+        subBtns.push(fitBtn);
+
         if (ZoomMgr) {
           const zoomBtn = h('div', { class: 'qb qb-sub', title: '줌 ON/OFF (Alt+Z)' }); zoomBtn.appendChild(makeIcon('zoom'));
           const syncZoomStyle = () => { const en = !!Store.get(P.APP_ZOOM_EN); zoomBtn.style.background = en ? 'rgba(110,168,254,.35)' : ''; zoomBtn.style.borderColor = en ? 'rgba(110,168,254,.5)' : ''; };
@@ -5090,6 +5250,9 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       if (!__Store) return;
       const d = typeof structuredClone === 'function' ? structuredClone(DEFAULTS) : JSON.parse(JSON.stringify(DEFAULTS));
       for (const [cat, vals] of Object.entries(d)) __Store.batch(cat, vals);
+      // Transform 초기화
+      const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+      if (v) clearVideoTransform(v);
       try {
         const ov = document.getElementById('vsc-scr-brt');
         if (ov) { ov.style.opacity = '0'; setTimer(() => { if (ov && ov.style.opacity === '0') ov.style.display = 'none'; }, 350); }
@@ -5242,6 +5405,8 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           showOSD(`줌 ${nv ? 'ON' : 'OFF'}`, 900); ApplyReq.soft(); persistNow(); UI?.syncAll();
         },
         r: () => { resetDefaults(); ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD('초기화 완료', 1000); },
+        f: () => { cycleVideoFit(Store); UI?.syncAll(); },
+        t: () => { rotateVideo90(Store); UI?.syncAll(); },
         l: () => {
           const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
           const next = (cur + 1) % SCR_BRT_LEVELS.length;
@@ -5288,7 +5453,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       createTouchGestureManager (v209.1.0)
+       createTouchGestureManager (v209.2.0)
        ══════════════════════════════════════════════════════════════════ */
     function injectTouchGestureCSS() {
       if (document.getElementById('vsc-touch-gesture-css')) return;
@@ -5322,34 +5487,99 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
         @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
         @media (prefers-reduced-motion: reduce) { .vsc-seek-pop, .vsc-arrow-slide-r, .vsc-arrow-slide-l, .vsc-longpress-badge .vsc-lp-icon { animation: none !important; } }
+        .vsc-seek-overlay { font-variant-numeric: tabular-nums; }
       `;
       (document.head || document.documentElement).appendChild(style);
     }
 
     function createTouchGestureManager(Store, P, ApplyReq) {
       const SWIPE_THRESHOLD = 12; const LONG_PRESS_MS = 450; const DOUBLE_TAP_MS = 300; const SEEK_STEP = 10; const SEEK_SESSION_MS = 800; const LONG_PRESS_RATE = 2.0; const SENSITIVITY_VOL = 1.2; const SENSITIVITY_BRI = 1.2;
-      const GS = Object.freeze({ IDLE: 0, WAIT: 1, SWIPE_VOL: 2, SWIPE_BRI: 3, LONG_PRESS: 4, BLOCKED: 5 });
+      const SEEK_SENSITIVITY = 0.12; // px → seconds 변환 계수
+      const GS = Object.freeze({ IDLE: 0, WAIT: 1, SWIPE_VOL: 2, SWIPE_BRI: 3, LONG_PRESS: 4, BLOCKED: 5, SWIPE_SEEK: 6 });
       let gesture = GS.IDLE; let startX = 0, startY = 0; let initVol = 1, initBri = 1; let savedRate = 1; let touchVideo = null; let lpTimerId = 0; let destroyed = false;
       let lastTapTime = 0, lastTapX = 0, seekSide = null, seekAccum = 0, seekTimerId = 0;
       let elSwipeLeft = null, elSwipeRight = null, elSeekLeft = null, elSeekRight = null, elLpBadge = null;
       let __touchBriOverlay = null;
 
+      // ── Seek 관련 상태 ──
+      let seekInitialTime = 0;
+      let elSeekOverlay = null;
+
+      // ── 시간 포맷 헬퍼 ──
+      function formatTime(seconds) {
+        if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+        const abs = Math.floor(seconds);
+        const h = Math.floor(abs / 3600);
+        const m = Math.floor((abs % 3600) / 60);
+        const s = abs % 60;
+        const pad = v => (v < 10 ? '0' : '') + v;
+        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+      }
+      function formatDelta(seconds) {
+        const sign = seconds < 0 ? '−' : '+';
+        const abs = Math.floor(Math.abs(seconds));
+        const h = Math.floor(abs / 3600);
+        const m = Math.floor((abs % 3600) / 60);
+        const s = abs % 60;
+        const pad = v => (v < 10 ? '0' : '') + v;
+        return h > 0 ? `${sign}${pad(h)}:${pad(m)}:${pad(s)}` : `${sign}${pad(m)}:${pad(s)}`;
+      }
+
       function shouldHandle() { if (destroyed) return false; if (!CONFIG.IS_MOBILE) return false; if (Store.get(P.APP_ZOOM_EN)) return false; if (!Store.get(P.APP_ACT)) return false; return true; }
       function isVscUi(e) { try { const path = typeof e.composedPath === 'function' ? e.composedPath() : []; for (let i = 0, len = Math.min(path.length, 8); i < len; i++) { const n = path[i]; if (n?.hasAttribute?.('data-vsc-ui') || n?.id === 'vsc-host' || n?.id === 'vsc-gear-host') return true; } } catch (_) {} return false; }
 
-      function findVideoAtPoint(x, y) {
-        let best = null, bestArea = 0;
-        for (const v of TOUCHED.videos) {
-          if (!v?.isConnected) continue;
-          try { const r = v.getBoundingClientRect(); if (r.width < 40 || r.height < 40) continue; if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) { const area = r.width * r.height; if (area > bestArea) { bestArea = area; best = v; } } } catch (_) {}
+      // ── 비디오 영역 체크 (activeVideo rect 우선) ──
+      function findVideoInRect(tx, ty) {
+        const active = window[VSC_INTERNAL_SYM]?._activeVideo;
+        if (active?.isConnected) {
+          try {
+            const r = active.getBoundingClientRect();
+            if (r.width >= 40 && r.height >= 40 && tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) return active;
+          } catch (_) {}
         }
-        if (best) return best;
-        try { const els = document.elementsFromPoint(x, y); for (const el of els) { if (el?.tagName === 'VIDEO') return el; } } catch (_) {}
-        const active = window[VSC_INTERNAL_SYM]?._activeVideo; if (active?.isConnected) return active;
+        // activeVideo 밖이면 무시 (다른 비디오 순회하지 않음)
         return null;
       }
 
       function getOverlayParent() { return document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement; }
+
+      // ── Seek 오버레이 ──
+      function ensureSeekOverlay() {
+        const parent = getOverlayParent();
+        if (elSeekOverlay?.isConnected && elSeekOverlay.parentNode === parent) return elSeekOverlay;
+        elSeekOverlay?.remove();
+        elSeekOverlay = document.createElement('div');
+        elSeekOverlay.className = 'vsc-seek-overlay';
+        elSeekOverlay.setAttribute('data-vsc-ui', '1');
+        elSeekOverlay.style.cssText = [
+          'position:fixed', 'top:50%', 'left:50%', 'transform:translate(-50%,-50%)',
+          'background:rgba(18,18,22,0.80)', 'backdrop-filter:blur(20px) saturate(180%)',
+          'color:rgba(255,255,255,0.95)', 'padding:14px 28px', 'border-radius:14px',
+          'border:1px solid rgba(255,255,255,0.12)', 'z-index:2147483647',
+          'pointer-events:none', 'opacity:0', 'transition:opacity 0.15s ease',
+          'font-family:system-ui,-apple-system,sans-serif', 'text-align:center',
+          'box-shadow:0 10px 30px rgba(0,0,0,0.45)', 'display:none',
+          'line-height:1.5', 'white-space:nowrap'
+        ].join(';');
+        parent.appendChild(elSeekOverlay);
+        return elSeekOverlay;
+      }
+
+      function showSeekOverlay(currentTime, deltaSeconds) {
+        const ov = ensureSeekOverlay();
+        const timeStr = formatTime(currentTime);
+        const deltaStr = formatDelta(deltaSeconds);
+        const deltaColor = deltaSeconds < 0 ? 'rgba(255,120,120,0.9)' : 'rgba(120,255,180,0.9)';
+        ov.innerHTML = `<div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">${timeStr}</div><div style="font-size:13px;font-weight:600;color:${deltaColor};margin-top:2px">${deltaStr}</div>`;
+        ov.style.display = '';
+        ov.style.opacity = '1';
+      }
+
+      function hideSeekOverlaySmooth() {
+        if (!elSeekOverlay) return;
+        elSeekOverlay.style.opacity = '0';
+        setTimer(() => { if (elSeekOverlay) elSeekOverlay.style.display = 'none'; }, 200);
+      }
 
       function ensureSwipeIndicators() {
         const parent = getOverlayParent();
@@ -5433,26 +5663,65 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         if (e.touches.length !== 1) { cancelGesture(); return; }
         if (isVscUi(e) || isEditableTarget(e.target)) return;
         const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-        const video = findVideoAtPoint(tx, ty); if (!video) return;
-        try { const r = video.getBoundingClientRect(); if (tx < r.left || tx > r.right || ty < r.top || ty > r.bottom) return; } catch (_) { return; }
-        touchVideo = video; startX = tx; startY = ty; initVol = video.volume; initBri = 1.0; gesture = GS.WAIT;
+
+        // ── 비디오 영역 외 터치 무시 (activeVideo rect 우선 체크) ──
+        const video = findVideoInRect(tx, ty);
+        if (!video) return;
+
+        touchVideo = video; startX = tx; startY = ty; initVol = video.volume; initBri = 1.0;
+        seekInitialTime = video.currentTime;
+        gesture = GS.WAIT;
         clearTimer(lpTimerId); lpTimerId = setTimer(() => { lpTimerId = 0; if (gesture === GS.WAIT && touchVideo) { startLongPress(touchVideo); } }, LONG_PRESS_MS);
       }
 
       function onTouchMove(e) {
         if (gesture === GS.IDLE || gesture === GS.BLOCKED || !touchVideo) return;
         const tx = e.touches[0]?.clientX ?? startX, ty = e.touches[0]?.clientY ?? startY, dx = tx - startX, dy = startY - ty;
-        if (gesture === GS.LONG_PRESS) { if (e.cancelable) e.preventDefault(); return; }
+
+        if (gesture === GS.LONG_PRESS) {
+          // ── 롱프레스 중 이동 감지 → 스와이프 전환 시 롱프레스 취소 ──
+          if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
+            endLongPress(touchVideo);
+            gesture = GS.BLOCKED;
+          }
+          if (e.cancelable) e.preventDefault(); return;
+        }
+
         if (gesture === GS.WAIT) {
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < SWIPE_THRESHOLD) return;
           clearTimer(lpTimerId);
-          if (Math.abs(dy) > Math.abs(dx)) {
+
+          // ── 수평 vs 수직 분기 ──
+          if (Math.abs(dx) > Math.abs(dy)) {
+            // 수평 스와이프 → Seek 모드
+            gesture = GS.SWIPE_SEEK;
+            seekInitialTime = touchVideo.currentTime;
+            if (e.cancelable) e.preventDefault();
+            return;
+          } else {
+            // 수직 스와이프 → 볼륨/밝기
             const vRect = touchVideo.getBoundingClientRect(), midX = vRect.left + vRect.width / 2;
             if (startX < midX) gesture = GS.SWIPE_BRI; else gesture = GS.SWIPE_VOL;
-          } else { gesture = GS.BLOCKED; return; }
+          }
         }
+
         if (e.cancelable) e.preventDefault();
+
+        // ── 스와이프 Seek 처리 ──
+        if (gesture === GS.SWIPE_SEEK) {
+          const duration = touchVideo.duration;
+          if (!Number.isFinite(duration) || duration <= 0) return;
+          const vRect = touchVideo.getBoundingClientRect();
+          const normalizedDx = (tx - startX) / Math.max(1, vRect.width);
+          const timeChange = normalizedDx * duration * SEEK_SENSITIVITY;
+          const newTime = VSC_CLAMP(seekInitialTime + timeChange, 0, duration);
+          touchVideo.currentTime = newTime;
+          showSeekOverlay(newTime, newTime - seekInitialTime);
+          return;
+        }
+
+        // ── 볼륨/밝기 처리 ──
         const vRect = touchVideo.getBoundingClientRect(), normalizedDy = dy / Math.max(1, vRect.height);
         if (gesture === GS.SWIPE_VOL) { const newVol = VSC_CLAMP(initVol + normalizedDy * SENSITIVITY_VOL, 0, 1); touchVideo.volume = newVol; try { touchVideo.muted = false; } catch (_) {} updateSwipeUI('vol', newVol); }
         if (gesture === GS.SWIPE_BRI) { const newBri = VSC_CLAMP(initBri + normalizedDy * SENSITIVITY_BRI, 0.05, 1.0); applyTouchBrightness(touchVideo, newBri); updateSwipeUI('bri', newBri); }
@@ -5461,8 +5730,18 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       function onTouchEnd(e) {
         if (gesture === GS.IDLE || !touchVideo) { cancelGesture(); return; }
         const video = touchVideo;
+
         if (gesture === GS.LONG_PRESS) { endLongPress(video); cancelGesture(); return; }
         if (gesture === GS.SWIPE_VOL || gesture === GS.SWIPE_BRI) { hideSwipeUI(); cancelGesture(); return; }
+
+        // ── Seek 완료 ──
+        if (gesture === GS.SWIPE_SEEK) {
+          hideSeekOverlaySmooth();
+          const delta = video.currentTime - seekInitialTime;
+          if (Math.abs(delta) > 0.5) showOSD(`${formatDelta(delta)}  →  ${formatTime(video.currentTime)}`, 1200);
+          cancelGesture(); return;
+        }
+
         if (gesture === GS.WAIT) {
           clearTimer(lpTimerId); const now = performance.now(), tapX = e.changedTouches?.[0]?.clientX ?? startX, vRect = video.getBoundingClientRect(), relX = (tapX - vRect.left) / Math.max(1, vRect.width);
           if (now - lastTapTime < DOUBLE_TAP_MS) {
@@ -5480,7 +5759,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         cancelGesture();
       }
 
-      function onTouchCancel() { if (gesture === GS.LONG_PRESS && touchVideo) { endLongPress(touchVideo); } hideSwipeUI(); cancelGesture(); }
+      function onTouchCancel() { if (gesture === GS.LONG_PRESS && touchVideo) { endLongPress(touchVideo); } hideSwipeUI(); hideSeekOverlaySmooth(); cancelGesture(); }
       function cancelGesture() { clearTimer(lpTimerId); lpTimerId = 0; gesture = GS.IDLE; touchVideo = null; }
 
       function init() {
@@ -5491,12 +5770,12 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         on(window, 'touchend', onTouchEnd, { capture: true, passive: true });
         on(window, 'touchcancel', onTouchCancel, { capture: true, passive: true });
         on(document, 'fullscreenchange', () => { if (elLpBadge?.classList.contains('show')) ensureLpBadge(); });
-        log.info('[TouchGesture] Mobile touch gesture module initialized');
+        log.info('[TouchGesture] Mobile touch gesture module initialized (with seek/rect-check)');
       }
 
       function destroy() {
-        destroyed = true; cancelGesture(); hideSwipeUI(); hideAllSeekRipples(); elLpBadge?.classList.remove('show'); removeTouchBrightness();
-        elSwipeLeft?.remove(); elSwipeRight?.remove(); elSeekLeft?.remove(); elSeekRight?.remove(); elLpBadge?.remove();
+        destroyed = true; cancelGesture(); hideSwipeUI(); hideAllSeekRipples(); hideSeekOverlaySmooth(); elLpBadge?.classList.remove('show'); removeTouchBrightness();
+        elSwipeLeft?.remove(); elSwipeRight?.remove(); elSeekLeft?.remove(); elSeekRight?.remove(); elLpBadge?.remove(); elSeekOverlay?.remove();
         const css = document.getElementById('vsc-touch-gesture-css'); css?.remove();
       }
 
@@ -5507,7 +5786,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '209.1.0';
+      const VSC_VERSION_ID = '209.2.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -5563,6 +5842,10 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
 
       Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
       for (const cat of ['video.*', 'audio.*', 'playback.*', 'app.*']) Store.sub(cat, () => persistNow());
+
+      // Transform 변경 감지 → 즉시 적용
+      Store.sub(P.APP_VID_ROT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
+      Store.sub(P.APP_VID_FIT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
 
       createApplyLoop(Store, Scheduler, Registry, Targeting, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq);
 
