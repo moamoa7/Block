@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video_Control (v204.0.0-Hybrid)
 // @namespace    https://github.com/
-// @version      204.0.0-Hybrid
-// @description  v204.0.0: Scene-Aware Audio (Voice/Bass dynamic EQ), Independent Temporal Alphas for AutoScene, VideoFrame API high-perf capture, UI Status Indicators
+// @version      204.0.1-Hybrid
+// @description  v204.0.1: Scene-Aware Audio (Voice/Bass dynamic EQ), Independent Temporal Alphas for AutoScene, VideoFrame API high-perf capture, UI Status Indicators
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -142,7 +142,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '204.0.0-Hybrid';
+    const VSC_VERSION = '204.0.1-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -3962,7 +3962,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
               h('div', { style: 'display:flex;gap:4px' },
                 ...[
                   { n: 'OFF',  v: [0, 0, 0] },
-                  { n: '표준', v: [20, 20, 15] },
+                  { n: '선명', v: [20, 10, 20] },
                   { n: '영화', v: [50, 20, 10] },
                   { n: '복원', v: [10, 50, 15] },
                   { n: '심야', v: [40, 15, 5] },
