@@ -4146,7 +4146,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 // ═══ PART 4 START (v209.2.0) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
-    const SCR_BRT_LEVELS = [0, 0.08, 0.16, 0.24, 0.30, 0.36];
+    const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
     const SCR_BRT_LABELS = ['리셋(OFF)', '1단', '2단', '3단', '4단', '5단'];
 
     /* ══════════════════════════════════════════════════════════════════
