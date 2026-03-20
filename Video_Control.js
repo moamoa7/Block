@@ -293,7 +293,7 @@
 
     /* ══ Defaults & Paths ══ */
     const DEFAULTS = {
-      video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0 },
+      video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0 }, // manualTemp 추가
       audio: { enabled: false, boost: 9 },
       playback: { rate: 1.0, enabled: false },
       app: { active: true, uiVisible: false, applyAll: false, zoomEn: false, autoScene: false, advanced: false, slots: [null, null, null], gpuEn: false, screenBright: 0, videoRotation: 0, videoFit: 'contain' }
@@ -304,6 +304,7 @@
       APP_SCREEN_BRT: 'app.screenBright', APP_VID_ROT: 'app.videoRotation', APP_VID_FIT: 'app.videoFit',
       V_PRE_S: 'video.presetS', V_PRE_MIX: 'video.presetMix',
       V_MAN_SHAD: 'video.manualShadow', V_MAN_REC: 'video.manualRecovery', V_MAN_BRT: 'video.manualBright',
+      V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
       A_EN: 'audio.enabled', A_BST: 'audio.boost',
       PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
     });
@@ -319,7 +320,8 @@
       { type: 'num', path: P.V_PRE_MIX, min: 0, max: 1, fallback: () => DEFAULTS.video.presetMix },
       { type: 'num', path: P.V_MAN_SHAD, min: 0, max: 100, round: true, fallback: () => 0 },
       { type: 'num', path: P.V_MAN_REC, min: 0, max: 100, round: true, fallback: () => 0 },
-      { type: 'num', path: P.V_MAN_BRT, min: 0, max: 100, round: true, fallback: () => 0 }
+      { type: 'num', path: P.V_MAN_BRT, min: 0, max: 100, round: true, fallback: () => 0 },
+      { type: 'num', path: P.V_MAN_TEMP, min: -50, max: 50, round: true, fallback: () => 0 }
     ];
     const AUDIO_PLAYBACK_SCHEMA = [
       { type: 'bool', path: P.A_EN }, { type: 'num', path: P.A_BST, min: 0, max: 18, fallback: () => DEFAULTS.audio.boost },
@@ -4386,17 +4388,36 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
     /* ── composeVideoParamsInto ── */
+    /* ── composeVideoParamsInto ── */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
       out.gain = 1; out.gamma = 1; out.contrast = 1; out.bright = 0; out.satF = 1; out.toe = 0; out.mid = 0; out.shoulder = 0; out.temp = 0; out.sharp = 0; out._autoToneCurve = null; out._autoChannelGains = null; out._cssBr = 1; out._cssCt = 1; out._cssSat = 1; out._gamma = undefined; out._bright = undefined; out._temp = undefined;
       const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
-      if (vUser.presetS === 'none') { /* out.sharp already 0 */ }
+
+      if (vUser.presetS === 'none') { /* skip */ }
       else if (vUser.presetS === 'off') out.sharp = autoSharpBase;
-      else { const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off; out.sharp = ((dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4) / 100.0 * mix * sharpMul; }
+      else {
+        const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
+        out.sharp = ((dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4) / 100.0 * mix * sharpMul;
+      }
+
       if (motionSAD > 0.04 && out.sharp > 0.005) { out.sharp *= 1.0 - VSC_CLAMP((motionSAD - 0.04) / 0.25, 0, 0.40); }
-      const manShadow = VSC_CLAMP(Number(vUser.manualShadow) || 0, 0, 100); const manRecovery = VSC_CLAMP(Number(vUser.manualRecovery) || 0, 0, 100); const manBright = VSC_CLAMP(Number(vUser.manualBright) || 0, 0, 100);
-      out.toe = manShadow * 0.0035; out.mid = manRecovery * 0.0030; out.shoulder = manBright * 0.0040;
-      if (autoMods._toneCurve) { out.satF *= autoMods.sat; out._autoToneCurve = autoMods._toneCurve.slice(); out._autoChannelGains = autoMods._channelGains || null; out._cssSat = VSC_CLAMP(out.satF, 0, 3.0); }
-      else { out.gain *= autoMods.br; out.contrast *= autoMods.ct; out.satF *= autoMods.sat; out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0); out._cssSat = VSC_CLAMP(out.satF, 0, 3.0); }
+
+      const manShadow = VSC_CLAMP(Number(vUser.manualShadow) || 0, 0, 100);
+      const manRecovery = VSC_CLAMP(Number(vUser.manualRecovery) || 0, 0, 100);
+      const manBright = VSC_CLAMP(Number(vUser.manualBright) || 0, 0, 100);
+      const manTemp = VSC_CLAMP(Number(vUser.manualTemp) || 0, -50, 50); // 색온도 값 가져오기
+
+      out.toe = manShadow * 0.0035;
+      out.mid = manRecovery * 0.0030;
+      out.shoulder = manBright * 0.0040;
+      out.temp = manTemp; // 최종 파라미터에 할당
+
+      if (autoMods._toneCurve) {
+        out.satF *= autoMods.sat; out._autoToneCurve = autoMods._toneCurve.slice(); out._autoChannelGains = autoMods._channelGains || null; out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+      }
+      else {
+        out.gain *= autoMods.br; out.contrast *= autoMods.ct; out.satF *= autoMods.sat; out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0); out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
+      }
       return out;
     }
 
@@ -4777,16 +4798,21 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
             h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
             h('div', { style: 'display:flex;gap:4px' },
               ...[
-                { n: 'OFF',  v: [0, 0, 0] },
-                { n: '선명', v: [20, 10, 20] },
-                { n: '영화', v: [50, 20, 10] },
-                { n: '복원', v: [10, 50, 15] },
-                { n: '심야', v: [40, 15, 5] },
-                { n: '아트', v: [0, 40, 30] },
+                { n: 'OFF',  v: [0, 0, 0, 0] },
+                { n: '선명', v: [20, 10, 20, 0] },
+                { n: '영화', v: [50, 20, 10, 10] },
+                { n: '복원', v: [10, 50, 15, 0] },
+                { n: '심야', v: [40, 15, 5, 20] },
+                { n: '아트', v: [0, 40, 30, -10] },
               ].map(p => {
                 const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
                 btn.onclick = () => {
-                  Store.batch('video', { manualShadow: p.v[0], manualRecovery: p.v[1], manualBright: p.v[2] });
+                  Store.batch('video', {
+                    manualShadow: p.v[0],
+                    manualRecovery: p.v[1],
+                    manualBright: p.v[2],
+                    manualTemp: p.v[3] // 추천 프리셋 4번째 값 반영
+                  });
                   ApplyReq.hard(); persistNow(); syncAll();
                   showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
                 };
@@ -4821,6 +4847,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
             mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
             mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
             mkSliderWithFine('밝기', P.V_MAN_BRT, 0, 100, 1, 5),
+            mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5), // 색온도 슬라이더 추가
             mkSep()
           );
 
