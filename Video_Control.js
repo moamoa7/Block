@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v204.0.4-Hybrid)
+// @name         Video_Control (v204.0.5-Hybrid)
 // @namespace    https://github.com/
-// @version      204.0.4-Hybrid
-// @description  v204.0.4: ReferenceError Fix (ZoomMgr/PiP Restored), Firefox UI/Crash Fix, EventBus Sync, Engine Slimming
+// @version      204.0.5-Hybrid
+// @description  v204.0.5: Refactoring patches applied (Compact & Efficient, Unified Touch/Schema logic)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -144,7 +144,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '204.0.4-Hybrid';
+    const VSC_VERSION = '204.0.5-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -312,16 +312,21 @@
     ];
     const ALL_SCHEMAS = [...APP_SCHEMA, ...VIDEO_SCHEMA, ...AUDIO_PLAYBACK_SCHEMA];
 
-    const _schemaHandlers = {
-      bool: (sm, rule, set) => set(rule.path, !!sm.get(rule.path)),
-      enum: (sm, rule, set) => { if (!rule.values.includes(sm.get(rule.path))) set(rule.path, rule.fallback()); },
-      num: (sm, rule, set) => {
-        let n = Number(sm.get(rule.path));
-        if (!Number.isFinite(n)) n = rule.fallback();
-        if (rule.round) n = Math.round(n);
-        set(rule.path, Math.max(rule.min, Math.min(rule.max, n)));
+    /* ══ Schema Normalizer (Patch 2 Applied) ══ */
+    function normalizeBySchema(sm, schema) {
+      let changed = false;
+      const set = (p, v) => { if (!Object.is(sm.get(p), v)) { sm.set(p, v); changed = true; } };
+      for (const r of schema) {
+        const cur = sm.get(r.path);
+        if (r.type === 'bool') set(r.path, !!cur);
+        else if (r.type === 'enum') { if (!r.values.includes(cur)) set(r.path, r.fallback()); }
+        else if (r.type === 'num') {
+          let n = Number(cur); if (!Number.isFinite(n)) n = r.fallback();
+          set(r.path, VSC_CLAMP(r.round ? Math.round(n) : n, r.min, r.max));
+        }
       }
-    };
+      return changed;
+    }
 
     /* ══ attachShadow patch ══ */
     if (FEATURE_FLAGS.trackShadowRoots) {
@@ -761,7 +766,7 @@
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       createZoomManager (Restored)
+       createZoomManager (Restored & Optimized TouchAction logic)
        ══════════════════════════════════════════════════════════════════ */
     function createZoomManager() {
       const zoomStates = new WeakMap();
@@ -787,25 +792,31 @@
 
       const _savedTouchActions = new WeakMap();
 
+      function walkParents(el, maxDepth, fn) {
+        let p = el.parentElement, d = 0;
+        while (p && p !== document.body && p !== document.documentElement && d < maxDepth) {
+          fn(p, d); p = p.parentElement; d++;
+        }
+      }
+
       function setTouchActionBlocking(v, enable) {
         if (!v) return;
         if (enable) {
           if (!_savedTouchActions.has(v)) _savedTouchActions.set(v, v.style.getPropertyValue('touch-action'));
-          vscSetStyle(v, 'touch-action', 'none', 'important'); vscSetStyle(v, '-webkit-tap-highlight-color', 'transparent', 'important');
+          vscSetStyle(v, 'touch-action', 'none', 'important');
+          vscSetStyle(v, '-webkit-tap-highlight-color', 'transparent', 'important');
           __touchBlocked.add(v);
-          let p = v.parentElement, depth = 0;
-          while (p && p !== document.body && p !== document.documentElement && depth < 3) {
+          walkParents(v, 3, p => {
             if (!_savedTouchActions.has(p)) _savedTouchActions.set(p, p.style.getPropertyValue('touch-action'));
-            vscSetStyle(p, 'touch-action', 'none', 'important'); vscSetStyle(p, '-webkit-tap-highlight-color', 'transparent', 'important');
-            p.dataset.vscTouchBlocked = '1'; p = p.parentElement; depth++;
-          }
+            vscSetStyle(p, 'touch-action', 'none', 'important');
+            vscSetStyle(p, '-webkit-tap-highlight-color', 'transparent', 'important');
+            p.dataset.vscTouchBlocked = '1';
+          });
         } else {
           restoreTouchAction(v); __touchBlocked.delete(v);
-          let p = v.parentElement, depth = 0;
-          while (p && p !== document.body && p !== document.documentElement && depth < 3) {
+          walkParents(v, 3, p => {
             if (p.dataset?.vscTouchBlocked) { restoreTouchAction(p); delete p.dataset.vscTouchBlocked; }
-            p = p.parentElement; depth++;
-          }
+          });
         }
       }
 
@@ -877,13 +888,9 @@
         if (st._savedZIndex) v.style.setProperty('z-index', st._savedZIndex); else vscRemoveStyle(v, 'z-index');
         st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false; st.hasPanned = false; st._savedPosition = ''; st._savedZIndex = '';
         zoomedVideos.delete(v); __touchBlocked.delete(v); restoreTouchAction(v); void v.offsetHeight;
-        requestAnimationFrame(() => {
-          let p = v.parentElement, depth = 0;
-          while (p && p !== document.body && p !== document.documentElement && depth < 3) {
-            if (p.dataset?.vscTouchBlocked) { restoreTouchAction(p); delete p.dataset.vscTouchBlocked; }
-            p = p.parentElement; depth++;
-          }
-        });
+        requestAnimationFrame(() => walkParents(v, 3, p => {
+          if (p.dataset?.vscTouchBlocked) { restoreTouchAction(p); delete p.dataset.vscTouchBlocked; }
+        }));
         if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); activeVideo = null; }
       }
 
@@ -1118,7 +1125,8 @@
         }
       });
     }
-// ═══ PART 2 START (v204.0.3-Hybrid) — GPU Analyzer, Audio Engine, Foundation Modules ═══
+// ═══ PART 2 START (v204.0.5-Hybrid) — GPU Analyzer, Audio Engine, Foundation Modules ═══
+// ═══ PART 2 START (v204.0.5-Hybrid) — GPU Analyzer, Audio Engine, Foundation Modules ═══
 
     /* ══════════════════════════════════════════════════════════════════
        WebGPU Scene Analysis Compute Shader
@@ -1343,7 +1351,7 @@ fn motionPass(@builtin(global_invocation_id) gid : vec3<u32>) {
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       AudioWorklet DSP Processor Source (v204.0.3-Hybrid: Improved Ramp & Soft Attack)
+       AudioWorklet DSP Processor Source (v204.0.5-Hybrid: Improved Ramp & Soft Attack)
        ══════════════════════════════════════════════════════════════════ */
     const VSC_AUDIO_WORKLET_SOURCE = `
 class Biquad {
@@ -1658,7 +1666,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return { registerApply: (fn) => { applyFn = fn; }, request };
     }
 
-    /* ══ Local Store (Patch 1 Applied: EventBus onSignal emit) ══ */
+    /* ══ Local Store (Patch 1 Applied: EventBus onSignal emit & Patch 6 Applied: Fast-path optimization) ══ */
     function createLocalStore(defaults, scheduler, Utils, onSignal) {
       let rev = 0;
       const listeners = new Map();
@@ -1694,16 +1702,20 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; },
         set: (p, val) => {
           const [c, k] = parsePath(p);
-          if (k == null) {
-            if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) {
-              for (const [subK, subV] of Object.entries(val)) {
-                if (!Object.is(state[c][subK], subV)) { state[c][subK] = subV; notifyChange(`${c}.${subK}`, subV); }
-              }
-            } else { if (Object.is(state[c], val)) return; state[c] = val; notifyChange(c, val); }
+          if (k != null) {
+            if (Object.is(state[c]?.[k], val)) return;
+            state[c][k] = val; rev++; emit(p, val);
+            const catStar = c + '.*';
+            const b = listeners.get(catStar);
+            if (b) for (const cb of b) { try { cb(val); } catch (_) {} }
+            scheduler.request(false); onSignal?.();
             return;
           }
-          if (Object.is(state[c]?.[k], val)) return;
-          state[c][k] = val; notifyChange(p, val);
+          if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) {
+            for (const [subK, subV] of Object.entries(val)) {
+              if (!Object.is(state[c][subK], subV)) { state[c][subK] = subV; notifyChange(`${c}.${subK}`, subV); }
+            }
+          } else { if (Object.is(state[c], val)) return; state[c] = val; notifyChange(c, val); }
         },
         batch: (cat, obj) => {
           let changed = false;
@@ -1718,14 +1730,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           s.add(f); return () => listeners.get(k)?.delete(f);
         }
       };
-    }
-
-    /* ══ normalizeBySchema ══ */
-    function normalizeBySchema(sm, schema) {
-      let changed = false;
-      const set = (path, val) => { if (!Object.is(sm.get(path), val)) { sm.set(path, val); changed = true; } };
-      for (const rule of schema) _schemaHandlers[rule.type]?.(sm, rule, set);
-      return changed;
     }
 
     /* ══ Registry ══ */
@@ -1967,7 +1971,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Audio Engine (v204.0.3-Hybrid: Improved Volume Scaling) ══ */
+    /* ══ Audio Engine (v204.0.5-Hybrid: Improved Volume Scaling) ══ */
     function createAudio(sm) {
       let ctx;
       let target = null, currentSrc = null;
@@ -2273,8 +2277,10 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         exitBypass();
       };
 
-// ═══ END OF PART 2 (v204.0.3-Hybrid) ═══
-const disconnectAllKnownSources = () => {
+// ═══ END OF PART 2 (v204.0.5-Hybrid) ═══
+// ═══ PART 3 START (v204.0.5-Hybrid) — Audio Context (Cont.), AutoScene, Filters, Params ═══
+
+      const disconnectAllKnownSources = () => {
         for (const v of TOUCHED.videos) { try { const s = srcMap.get(v); if (s) { s.disconnect(); } } catch (_) {} }
         for (const v of TOUCHED.rateVideos) { try { const s = srcMap.get(v); if (s) { s.disconnect(); } } catch (_) {} }
       };
@@ -2548,7 +2554,7 @@ const disconnectAllKnownSources = () => {
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       Auto Scene Manager (v204.0.3-Hybrid: Independent Temporal Alphas)
+       Auto Scene Manager (v204.0.5-Hybrid: Independent Temporal Alphas)
        ══════════════════════════════════════════════════════════════════ */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
@@ -2709,6 +2715,7 @@ const disconnectAllKnownSources = () => {
       const _pool_zoneCounts = new Uint32Array(ZONE_COUNT); const _pool_zoneHists = Array.from({ length: ZONE_COUNT }, () => new Uint32Array(HIST_BINS));
       const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
 
+      /* ── computeFullAnalysis (Patch 9 Applied: Optimized Loop) ── */
       function computeFullAnalysis(data, sw, sh) {
         const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
         const lumHist = _pool_lumHist; lumHist.fill(0); const rHist = _pool_rHist; rHist.fill(0); const gHist = _pool_gHist; gHist.fill(0); const bHist = _pool_bHist; bHist.fill(0);
@@ -2719,25 +2726,30 @@ const disconnectAllKnownSources = () => {
         const { zxLut, zyLut } = getZoneLuts(sw, sh);
 
         const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
-
         const maxX = sw - step;
+
         for (let y = 0; y < sh; y += step) {
           const rowPixelOffset = y * sw; const zyBase = zyLut[y] << 2;
           for (let x = 0; x <= maxX; x += step) {
             const pi = rowPixelOffset + x; const px = u32[pi];
             const r = px & 0xFF, g = (px >>> 8) & 0xFF, b = (px >>> 16) & 0xFF;
             const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
-            const rg = r - g; const mx = (rg > 0 ? r : g); const mn = (rg > 0 ? g : r);
-            const finalMx = mx > b ? mx : b; const finalMn = mn < b ? mn : b;
-            curLum[pi] = l; sumChroma += finalMx - finalMn; sum += l; sum2 += l * l; count++;
+
+            const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
+            const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+
+            curLum[pi] = l; sumChroma += mx - mn; sum += l; sum2 += l * l; count++;
             lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
+
             const nx = x + step;
             if (nx < sw) {
               const npx = u32[rowPixelOffset + nx];
               const nl = ((npx & 0xFF) * 54 + ((npx >>> 8) & 0xFF) * 183 + ((npx >>> 16) & 0xFF) * 18 + 128) >> 8;
               const diff = l - nl; sumEdge += diff < 0 ? -diff : diff; edgePairCount++;
             }
-            if (rg > 12 && r >= 80 && g >= 35 && b >= 20 && r > b) skinCount++;
+
+            if (r - g > 12 && r >= 80 && g >= 35 && b >= 20 && r > b) skinCount++;
+
             const zi = zyBase + zxLut[x];
             zoneHists[zi][l]++; zoneCounts[zi]++; zoneBrightSum[zi] += l;
             if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
@@ -3504,53 +3516,47 @@ const disconnectAllKnownSources = () => {
       autoBase *= mul; autoBase = VSC_CLAMP(autoBase, 0.0, 0.18); return { mul, autoBase };
     }
 
-    /* ══ composeVideoParamsInto ══ */
-    function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
-      const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
-      out.gain = 1.0; out.gamma = 1.0; out.contrast = 1.0; out.bright = 0; out.satF = 1.0;
-      out.toe = 0; out.mid = 0; out.shoulder = 0; out.temp = 0;
-      out._autoToneCurve = null;
-      out._autoChannelGains = null;
-      out._cssBr = 1.0;
-      out._cssCt = 1.0;
-      out._cssSat = 1.0;
-      out._gamma = undefined;
-      out._bright = undefined;
-      out._temp = undefined;
+    /* ── composeVideoParamsInto (Patch 3 Applied: Object.assign optimization) ── */
+    const _NEUTRAL_PARAMS = Object.freeze({
+      gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1,
+      toe: 0, mid: 0, shoulder: 0, temp: 0, sharp: 0,
+      _autoToneCurve: null, _autoChannelGains: null,
+      _cssBr: 1, _cssCt: 1, _cssSat: 1,
+      _gamma: undefined, _bright: undefined, _temp: undefined
+    });
 
-      if (vUser.presetS === 'none') { out.sharp = 0; }
-      else if (vUser.presetS === 'off') { out.sharp = autoSharpBase; }
+    function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
+      for (const k in _NEUTRAL_PARAMS) out[k] = _NEUTRAL_PARAMS[k];
+      const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
+
+      if (vUser.presetS === 'none') { /* out.sharp already 0 */ }
+      else if (vUser.presetS === 'off') out.sharp = autoSharpBase;
       else {
         const dPreset = PRESETS.detail[vUser.presetS] || PRESETS.detail.off;
-        const baseS = (dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4;
-        out.sharp = (baseS / 100.0) * mix * sharpMul;
+        out.sharp = ((dPreset.sharpAdd || 0) + (dPreset.sharp2Add || 0) * 0.6 + (dPreset.clarityAdd || 0) * 0.4) / 100.0 * mix * sharpMul;
       }
 
       if (motionSAD > 0.04 && out.sharp > 0.005) {
-        const motionDampen = 1.0 - VSC_CLAMP((motionSAD - 0.04) / 0.25, 0, 0.40);
-        out.sharp *= motionDampen;
+        out.sharp *= 1.0 - VSC_CLAMP((motionSAD - 0.04) / 0.25, 0, 0.40);
       }
 
       const manShadow = VSC_CLAMP(Number(vUser.manualShadow) || 0, 0, 100);
       const manRecovery = VSC_CLAMP(Number(vUser.manualRecovery) || 0, 0, 100);
       const manBright = VSC_CLAMP(Number(vUser.manualBright) || 0, 0, 100);
 
-      out.toe = manShadow / 100.0 * 0.35;
-      out.mid = manRecovery / 100.0 * 0.30;
-      out.shoulder = manBright / 100.0 * 0.40;
+      out.toe = manShadow * 0.0035;
+      out.mid = manRecovery * 0.0030;
+      out.shoulder = manBright * 0.0040;
 
       if (autoMods._toneCurve) {
         out.satF *= autoMods.sat;
         out._autoToneCurve = autoMods._toneCurve.slice();
         out._autoChannelGains = autoMods._channelGains || null;
-        out._cssBr = 1.0;
-        out._cssCt = 1.0;
         out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
       } else {
         out.gain *= autoMods.br;
         out.contrast *= autoMods.ct;
         out.satF *= autoMods.sat;
-        out._cssBr = 1.0;
         out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0);
         out._cssSat = VSC_CLAMP(out.satF, 0, 3.0);
       }
@@ -3558,16 +3564,12 @@ const disconnectAllKnownSources = () => {
       return out;
     }
 
-    /* ══ isNeutralVideoParams (Patch 4 Applied: helper extracted) ══ */
-    const _near = (v, target, eps = 0.001) => Math.abs((v ?? target) - target) < eps;
-    const isNeutralVideoParams = (v) => (
-      !v._autoToneCurve && !v._autoChannelGains &&
-      _near(v.gain, 1) && _near(v.gamma, 1) && _near(v.contrast, 1) &&
-      _near(v.bright, 0, 0.01) && _near(v.toe, 0, 0.005) &&
-      _near(v.mid, 0, 0.005) && _near(v.shoulder, 0, 0.005) &&
-      _near(v.sharp, 0, 0.01) && _near(v.temp, 0, 0.01) &&
-      _near(v._cssBr, 1) && _near(v._cssCt, 1) && _near(v._cssSat, 1)
-    );
+    const isNeutralVideoParams = (v) => {
+      if (v._autoToneCurve || v._autoChannelGains) return false;
+      for (const k of ['gain', 'gamma', 'contrast', '_cssBr', '_cssCt', '_cssSat']) if (Math.abs((v[k] ?? 1) - 1) >= 0.001) return false;
+      for (const k of ['bright', 'toe', 'mid', 'shoulder', 'sharp', 'temp']) if (Math.abs(v[k] ?? 0) >= 0.005) return false;
+      return true;
+    };
 
     /* ══ Video Params Memoization ══ */
     function createVideoParamsMemo(Store, P, Utils) {
@@ -3618,8 +3620,11 @@ const disconnectAllKnownSources = () => {
       return () => { if (!ended) { ended = true; try { ac.abort(); } catch (_) {} } };
     }
 
+// ═══ END OF PART 3 (v204.0.5-Hybrid) ═══
+// ═══ PART 4 START (v204.0.5-Hybrid) — UI, Shortcuts, Storage, Bootstrap & Final ═══
+
     /* ══════════════════════════════════════════════════════════════════
-       SVG Icon Builders
+       SVG Icon Builders (Patch 1 Applied: Data-driven compression)
        ══════════════════════════════════════════════════════════════════ */
     const SVG_NS = 'http://www.w3.org/2000/svg';
     function createSvgElement(tag, attrs = {}, ...children) {
@@ -3629,17 +3634,24 @@ const disconnectAllKnownSources = () => {
       return el;
     }
     const _s = createSvgElement;
-    const VSC_ICON_BUILDERS = Object.freeze({
-      gear(size = 20) { return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, _s('circle', { cx: '12', cy: '12', r: '3' }), _s('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })); },
-      pip(size = 14) { return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, _s('rect', { x: '2', y: '3', width: '20', height: '14', rx: '2' }), _s('rect', { x: '12', y: '9', width: '8', height: '6', rx: '1' })); },
-      maximize(size = 14) { return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, _s('polyline', { points: '15 3 21 3 21 9' }), _s('polyline', { points: '9 21 3 21 3 15' }), _s('line', { x1: '21', y1: '3', x2: '14', y2: '10' }), _s('line', { x1: '3', y1: '21', x2: '10', y2: '14' })); },
-      zoom(size = 14) { return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, _s('circle', { cx: '11', cy: '11', r: '8' }), _s('line', { x1: '21', y1: '21', x2: '16.65', y2: '16.65' }), _s('line', { x1: '11', y1: '8', x2: '11', y2: '14' }), _s('line', { x1: '8', y1: '11', x2: '14', y2: '11' })); },
-      camera(size = 14) { return _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, _s('path', { d: 'M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z' }), _s('circle', { cx: '12', cy: '13', r: '4' })); }
-    });
-    function svgIcon(name, size) { const builder = VSC_ICON_BUILDERS[name]; if (!builder) return document.createTextNode(''); return builder(size); }
+    const _ICON_DATA = {
+      gear:     [20, 'M12,9a3,3,0,1,0,3,3A3,3,0,0,0,12,9Z', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1.08-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1.08 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'],
+      pip:      [14, 'M2,5a2,2,0,0,1,2-2H20a2,2,0,0,1,2,2V17a2,2,0,0,1-2,2H4a2,2,0,0,1-2-2Z', 'M12,10a1,1,0,0,1,1-1h6a1,1,0,0,1,1,1v4a1,1,0,0,1-1,1H13a1,1,0,0,1-1-1Z'],
+      maximize: [14, 'M15,3L21,3L21,9 M9,21L3,21L3,15 M21,3L14,10 M3,21L10,14'],
+      zoom:     [14, 'M11,3a8,8,0,1,0,8,8A8,8,0,0,0,11,3Z M21,21L16.65,16.65 M11,8V14 M8,11H14'],
+      camera:   [14, 'M23,19a2,2,0,0,1-2,2H3a2,2,0,0,1-2-2V8A2,2,0,0,1,3,6H7L9,3h6l2,3h4a2,2,0,0,1,2,2Z', 'M12,9a4,4,0,1,0,4,4A4,4,0,0,0,12,9Z']
+    };
+    function svgIcon(name, sizeOverride) {
+      const d = _ICON_DATA[name]; if (!d) return document.createTextNode('');
+      const size = sizeOverride || d[0];
+      const svg = _s('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+      for (let i = 1; i < d.length; i++) svg.appendChild(_s('path', { d: d[i] }));
+      return svg;
+    }
+    const VSC_ICON_BUILDERS = new Proxy({}, { get: (_, name) => (size) => svgIcon(name, size) });
 
     /* ══════════════════════════════════════════════════════════════════
-       CSS_VARS
+       CSS_VARS (Patch 7 Applied: Loop for transition delays)
        ══════════════════════════════════════════════════════════════════ */
     const CSS_VARS = `
     :host {
@@ -3657,6 +3669,84 @@ const disconnectAllKnownSources = () => {
       --vsc-qbar-right: ${CONFIG.IS_MOBILE ? '6px' : '10px'}; --vsc-qbar-btn-size: var(--vsc-touch-min);
       --vsc-transition-fast: 0.12s ease; --vsc-transition-normal: 0.18s ease; --vsc-transition-slow: 0.25s ease;
     }`;
+
+    // Syntax 에러 원인 수정: 템플릿 리터럴 보간 내부에서는 안전하게 일반 문자열 연결 사용
+    const PANEL_CSS = `
+${CSS_VARS}
+:host{all:initial;position:fixed;z-index:2147483647;font-family:var(--vsc-font-family);font-size:var(--vsc-font-md);color:var(--vsc-text);pointer-events:none}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+.panel{pointer-events:none;position:fixed;right:calc(var(--vsc-panel-right) + 10px);top:50%;width:var(--vsc-panel-width);max-height:var(--vsc-panel-max-h);background:var(--vsc-bg);border:1px solid var(--vsc-border);border-radius:var(--vsc-radius-xl);backdrop-filter:var(--vsc-blur);box-shadow:var(--vsc-shadow);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translate(12px,-50%) scale(.96);transition:opacity var(--vsc-transition-normal),transform var(--vsc-transition-normal);user-select:none}
+.panel.open{opacity:1;transform:translate(0,-50%) scale(1);pointer-events:auto}
+.hdr{display:flex;align-items:center;padding:var(--vsc-space-md) var(--vsc-space-lg);border-bottom:1px solid rgba(255,255,255,.06);gap:8px}
+.hdr .tl{font-weight:700;font-size:var(--vsc-font-lg);letter-spacing:.3px}
+.hdr .ver{font-size:var(--vsc-font-xs);opacity:.45;margin-left:auto}
+.hdr-status{display:flex;gap:8px;align-items:center;margin-left:4px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;display:inline-block;position:relative;cursor:help}
+.hdr-dot.green{background:#4caf50;box-shadow:0 0 5px rgba(76,175,80,.6)}
+.hdr-dot.amber{background:#ff9800;box-shadow:0 0 5px rgba(255,152,0,.6)}
+.hdr-dot.red{background:#f44336;box-shadow:0 0 5px rgba(244,67,54,.6)}
+.hdr-dot.gray{background:rgba(255,255,255,.2)}
+.hdr-dot::after{content:attr(data-label);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;opacity:0;transition:opacity .15s;pointer-events:none;color:#fff;background:#222;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);z-index:10}
+.hdr-dot:hover::after{opacity:1}
+.tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06)}
+.tab{flex:1;padding:8px 0;text-align:center;font-size:var(--vsc-font-sm);font-weight:600;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;opacity:.45;border-bottom:2px solid transparent;transition:opacity .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:3px}
+.tab svg{opacity:.7;flex-shrink:0;width:14px;height:14px}
+.tab.on svg{opacity:1}
+.tab:hover{opacity:.7}.tab.on{opacity:1;border-bottom-color:var(--vsc-accent)}
+.body{overflow-y:auto;flex:1;padding:var(--vsc-space-md) var(--vsc-space-lg) var(--vsc-space-lg);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
+.row{display:flex;align-items:center;justify-content:space-between;padding:var(--vsc-space-xs) 0;min-height:var(--vsc-touch-min)}
+.row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
+.row .ctrl{display:flex;align-items:center;gap:var(--vsc-space-sm);flex:1;justify-content:flex-end}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--vsc-accent) 0%,var(--vsc-accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));padding:12px 0;margin:-12px 0;background-clip:content-box}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none;box-shadow:0 0 0 4px rgba(110,168,254,.15);transition:box-shadow .15s}
+input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(110,168,254,.25)}
+input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none}
+.val{font-size:var(--vsc-font-sm);min-width:38px;text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
+.btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:var(--vsc-radius-md);color:var(--vsc-text);padding:var(--vsc-space-xs) var(--vsc-space-md);font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);min-height:var(--vsc-touch-min);min-width:44px;display:inline-flex;align-items:center;justify-content:center}
+.btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
+.tgl{position:relative;width:44px;height:22px;border-radius:11px;background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s;overflow:hidden}
+.tgl.on{background:rgba(110,168,254,.5)}
+.tgl::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;z-index:1}
+.tgl.on::after{transform:translateX(22px)}
+.tgl::before{content:'OFF';position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:700;opacity:.4;letter-spacing:.5px;z-index:0}
+.tgl.on::before{content:'ON';left:6px;right:auto;opacity:.7;color:#fff}
+.sep{height:1px;background:rgba(255,255,255,.06);margin:var(--vsc-space-sm) 0}
+.chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:var(--vsc-space-xs)}
+.chip{display:inline-flex;align-items:center;justify-content:center;padding:var(--vsc-space-xs) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;font-size:var(--vsc-font-sm);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background var(--vsc-transition-fast),border-color var(--vsc-transition-fast);text-align:center;-webkit-tap-highlight-color:transparent}
+.chip:hover{background:rgba(255,255,255,.10)}.chip.on{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
+.metrics-footer{font-size:9px;opacity:.4;padding:var(--vsc-space-xs) var(--vsc-space-lg);border-top:1px solid rgba(255,255,255,.04);line-height:1.6;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:6px 12px}
+.shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:var(--vsc-font-xs);line-height:1.6;padding:var(--vsc-space-xs) 0}
+.shortcut-grid .sk{font-weight:700;color:#8ec5fc;white-space:nowrap}.shortcut-grid .sd{opacity:.7}
+.rate-display{font-size:var(--vsc-font-xl);font-weight:700;text-align:center;color:#fff;padding:var(--vsc-space-sm) 0;font-variant-numeric:tabular-nums}
+.fine-row{display:flex;gap:var(--vsc-space-xs);justify-content:center;padding:var(--vsc-space-xs) 0}
+.fine-btn{padding:var(--vsc-space-sm) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;border-radius:var(--vsc-radius-sm);border:1px solid var(--vsc-border);background:rgba(255,255,255,.04);color:#aaa;font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
+.fine-btn:hover{background:rgba(255,255,255,.1)}
+.adv-hd{display:flex;align-items:center;gap:var(--vsc-space-xs);padding:var(--vsc-space-xs) 0;cursor:pointer;font-size:var(--vsc-font-sm);opacity:.55;transition:opacity .15s}.adv-hd:hover{opacity:.85}
+.adv-hd .arr{transition:transform .2s;font-size:9px}.adv-hd .arr.open{transform:rotate(90deg)}
+.adv-bd{overflow:hidden;max-height:0;transition:max-height var(--vsc-transition-slow)}.adv-bd.open{max-height:800px}
+.info-bar{font-size:var(--vsc-font-xs);opacity:.5;padding:var(--vsc-space-xs) 0 var(--vsc-space-sm);line-height:1.5;font-variant-numeric:tabular-nums}
+.qbar { pointer-events: none; position: fixed; top: 50%; right: var(--vsc-qbar-right); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: center; gap: 8px; }
+.qbar .qb-main { pointer-events: auto; width: 44px; height: 44px; border-radius: 50%; background: var(--vsc-bg); border: 1px solid rgba(255, 255, 255, .15); z-index: 2; opacity: .25; transition: opacity .3s, transform .2s, background .2s; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; margin-right: env(safe-area-inset-right, 0px); }
+.qbar:hover .qb-main, .qbar.expanded .qb-main { opacity: 1; transform: scale(1.08); background: var(--vsc-bg-hover); border-color: rgba(255, 255, 255, .3); }
+.qbar .qb-sub { width: 38px; height: 38px; border-radius: 50%; background: var(--vsc-bg); border: 1px solid rgba(255, 255, 255, .12); opacity: 0; transform: scale(0.3) translateX(20px); transition: opacity .2s, transform .2s, visibility 0s .2s; pointer-events: none; visibility: hidden; z-index: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .3); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.qbar.expanded .qb-sub { opacity: 1; transform: scale(1) translateX(0); pointer-events: auto; visibility: visible; transition: opacity .2s, transform .2s, visibility 0s 0s; }
+${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + "){transition-delay:" + (i*0.03).toFixed(2) + "s}").join('')}
+.qbar .qb-sub:hover { background: var(--vsc-bg-hover); transform: scale(1.1); }
+.qbar svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+.qbar .qb-sub svg { width: 18px; height: 18px; }
+.qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-accent); outline-offset: 2px; }
+@media (pointer: coarse) { .qbar .qb-main{width:48px;height:48px} .qbar .qb-sub{width:42px;height:42px} }
+:host-context(:fullscreen) .qbar{opacity:0;transition:opacity .3s;pointer-events:none}
+:host-context(:fullscreen) .qbar:hover,:host-context(:fullscreen) .qbar:active{opacity:1;pointer-events:auto}
+:host-context(:fullscreen) .qbar .qb-main{pointer-events:auto}
+@media(max-width:600px){:host{--vsc-panel-width:calc(100vw - 80px);--vsc-panel-right:60px}}
+@media(max-width:400px){:host{--vsc-panel-width:calc(100vw - 64px);--vsc-panel-right:52px;--vsc-font-md:15px}.chips{gap:6px}.fine-row{gap:6px}}
+@media(max-width:350px){.tab span{display:none}.tab svg{width:18px;height:18px;opacity:1}}
+@media(orientation:landscape) and (max-height:500px){.panel{max-height:85vh}.body{max-height:calc(85vh - 80px)}}
+@supports(padding:env(safe-area-inset-right)){.qbar{right:calc(var(--vsc-qbar-right) + env(safe-area-inset-right))}.panel{right:calc(var(--vsc-panel-right) + 10px + env(safe-area-inset-right))}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}}
+@media(prefers-contrast:high){:host{--vsc-bg:rgba(0,0,0,0.98);--vsc-border:rgba(255,255,255,0.3);--vsc-text:#fff}}
+`;
 
     /* ══ OSD ══ */
     let __osdReady = false; onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true }); onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
@@ -3679,7 +3769,7 @@ const disconnectAllKnownSources = () => {
     __globalSig.addEventListener('abort', () => { clearTimer(__osdTimerId); __osdTimerId = 0; if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} } __osdEl = null; }, { once: true });
 
     /* ══════════════════════════════════════════════════════════════════
-       createUI (v204.0.3-Hybrid: UI/UX Polish, Firefox UI hiding)
+       createUI (v204.0.5-Hybrid: UI/UX Polish, Patch 5 Applied)
        ══════════════════════════════════════════════════════════════════ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
       const { h, clamp } = Utils;
@@ -3707,101 +3797,6 @@ const disconnectAllKnownSources = () => {
         return v ? isVideoEncrypted(v) : false;
       }
 
-      const PANEL_CSS = `
-${CSS_VARS}
-:host{all:initial;position:fixed;z-index:2147483647;font-family:var(--vsc-font-family);font-size:var(--vsc-font-md);color:var(--vsc-text);pointer-events:none}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-.panel{pointer-events:none;position:fixed;right:calc(var(--vsc-panel-right) + 10px);top:50%;width:var(--vsc-panel-width);max-height:var(--vsc-panel-max-h);background:var(--vsc-bg);border:1px solid var(--vsc-border);border-radius:var(--vsc-radius-xl);backdrop-filter:var(--vsc-blur);box-shadow:var(--vsc-shadow);display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translate(12px,-50%) scale(.96);transition:opacity var(--vsc-transition-normal),transform var(--vsc-transition-normal);user-select:none}
-.panel.open{opacity:1;transform:translate(0,-50%) scale(1);pointer-events:auto}
-.hdr{display:flex;align-items:center;padding:var(--vsc-space-md) var(--vsc-space-lg);border-bottom:1px solid rgba(255,255,255,.06);gap:8px}
-.hdr .tl{font-weight:700;font-size:var(--vsc-font-lg);letter-spacing:.3px}
-.hdr .ver{font-size:var(--vsc-font-xs);opacity:.45;margin-left:auto}
-
-.hdr-status{display:flex;gap:8px;align-items:center;margin-left:4px}
-.hdr-dot{width:8px;height:8px;border-radius:50%;display:inline-block;position:relative;cursor:help}
-.hdr-dot.green{background:#4caf50;box-shadow:0 0 5px rgba(76,175,80,.6)}
-.hdr-dot.amber{background:#ff9800;box-shadow:0 0 5px rgba(255,152,0,.6)}
-.hdr-dot.red{background:#f44336;box-shadow:0 0 5px rgba(244,67,54,.6)}
-.hdr-dot.gray{background:rgba(255,255,255,.2)}
-.hdr-dot::after{content:attr(data-label);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap;opacity:0;transition:opacity .15s;pointer-events:none;color:#fff;background:#222;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);z-index:10}
-.hdr-dot:hover::after{opacity:1}
-.tabs{display:flex;border-bottom:1px solid rgba(255,255,255,.06)}
-.tab{flex:1;padding:8px 0;text-align:center;font-size:var(--vsc-font-sm);font-weight:600;text-transform:uppercase;letter-spacing:.5px;cursor:pointer;opacity:.45;border-bottom:2px solid transparent;transition:opacity .15s,border-color .15s;display:flex;align-items:center;justify-content:center;gap:3px}
-.tab svg{opacity:.7;flex-shrink:0;width:14px;height:14px}
-.tab.on svg{opacity:1}
-.tab:hover{opacity:.7}.tab.on{opacity:1;border-bottom-color:var(--vsc-accent)}
-
-.body{overflow-y:auto;flex:1;padding:var(--vsc-space-md) var(--vsc-space-lg) var(--vsc-space-lg);scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.12) transparent}
-.row{display:flex;align-items:center;justify-content:space-between;padding:var(--vsc-space-xs) 0;min-height:var(--vsc-touch-min)}
-.row label{font-size:12px;opacity:.8;flex:0 0 auto;max-width:48%}
-.row .ctrl{display:flex;align-items:center;gap:var(--vsc-space-sm);flex:1;justify-content:flex-end}
-
-input[type=range]{-webkit-appearance:none;appearance:none;width:100%;max-width:140px;height:4px;border-radius:2px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--vsc-accent) 0%,var(--vsc-accent) var(--fill,50%),rgba(255,255,255,.12) var(--fill,50%));padding:12px 0;margin:-12px 0;background-clip:content-box}
-input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none;box-shadow:0 0 0 4px rgba(110,168,254,.15);transition:box-shadow .15s}
-input[type=range]:active::-webkit-slider-thumb{box-shadow:0 0 0 8px rgba(110,168,254,.25)}
-input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--vsc-touch-slider);border-radius:50%;background:var(--vsc-accent);cursor:pointer;border:none}
-
-.val{font-size:var(--vsc-font-sm);min-width:38px;text-align:right;font-variant-numeric:tabular-nums;opacity:.9}
-.btn{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:var(--vsc-radius-md);color:var(--vsc-text);padding:var(--vsc-space-xs) var(--vsc-space-md);font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);min-height:var(--vsc-touch-min);min-width:44px;display:inline-flex;align-items:center;justify-content:center}
-.btn:hover{background:rgba(255,255,255,.15)}.btn.pr{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
-
-.tgl{position:relative;width:44px;height:22px;border-radius:11px;background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s;overflow:hidden}
-.tgl.on{background:rgba(110,168,254,.5)}
-.tgl::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;z-index:1}
-.tgl.on::after{transform:translateX(22px)}
-.tgl::before{content:'OFF';position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:700;opacity:.4;letter-spacing:.5px;z-index:0}
-.tgl.on::before{content:'ON';left:6px;right:auto;opacity:.7;color:#fff}
-
-.sep{height:1px;background:rgba(255,255,255,.06);margin:var(--vsc-space-sm) 0}
-.chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:var(--vsc-space-xs)}
-.chip{display:inline-flex;align-items:center;justify-content:center;padding:var(--vsc-space-xs) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;font-size:var(--vsc-font-sm);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background var(--vsc-transition-fast),border-color var(--vsc-transition-fast);text-align:center;-webkit-tap-highlight-color:transparent}
-.chip:hover{background:rgba(255,255,255,.10)}.chip.on{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
-.metrics-footer{font-size:9px;opacity:.4;padding:var(--vsc-space-xs) var(--vsc-space-lg);border-top:1px solid rgba(255,255,255,.04);line-height:1.6;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:6px 12px}
-.shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:var(--vsc-font-xs);line-height:1.6;padding:var(--vsc-space-xs) 0}
-.shortcut-grid .sk{font-weight:700;color:#8ec5fc;white-space:nowrap}.shortcut-grid .sd{opacity:.7}
-.rate-display{font-size:var(--vsc-font-xl);font-weight:700;text-align:center;color:#fff;padding:var(--vsc-space-sm) 0;font-variant-numeric:tabular-nums}
-.fine-row{display:flex;gap:var(--vsc-space-xs);justify-content:center;padding:var(--vsc-space-xs) 0}
-.fine-btn{padding:var(--vsc-space-sm) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;border-radius:var(--vsc-radius-sm);border:1px solid var(--vsc-border);background:rgba(255,255,255,.04);color:#aaa;font-size:var(--vsc-font-sm);cursor:pointer;transition:background var(--vsc-transition-fast);font-variant-numeric:tabular-nums;-webkit-tap-highlight-color:transparent}
-.fine-btn:hover{background:rgba(255,255,255,.1)}
-.adv-hd{display:flex;align-items:center;gap:var(--vsc-space-xs);padding:var(--vsc-space-xs) 0;cursor:pointer;font-size:var(--vsc-font-sm);opacity:.55;transition:opacity .15s}.adv-hd:hover{opacity:.85}
-.adv-hd .arr{transition:transform .2s;font-size:9px}.adv-hd .arr.open{transform:rotate(90deg)}
-.adv-bd{overflow:hidden;max-height:0;transition:max-height var(--vsc-transition-slow)}.adv-bd.open{max-height:800px}
-.info-bar{font-size:var(--vsc-font-xs);opacity:.5;padding:var(--vsc-space-xs) 0 var(--vsc-space-sm);line-height:1.5;font-variant-numeric:tabular-nums}
-
-/* 1. 기본 컨테이너 */
-.qbar { pointer-events: none; position: fixed; top: 50%; right: var(--vsc-qbar-right); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: center; gap: 8px; }
-/* 2. 메인 버튼 (기본 + 활성 상태) */
-.qbar .qb-main { pointer-events: auto; width: 44px; height: 44px; border-radius: 50%; background: var(--vsc-bg); border: 1px solid rgba(255, 255, 255, .15); z-index: 2; opacity: .25; transition: opacity .3s, transform .2s, background .2s; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; margin-right: env(safe-area-inset-right, 0px); }
-/* 메인 버튼 호버 및 확장 시 상태 (중복 제거됨) */
-.qbar:hover .qb-main, .qbar.expanded .qb-main { opacity: 1; transform: scale(1.08); background: var(--vsc-bg-hover); border-color: rgba(255, 255, 255, .3); }
-/* 3. 서브 버튼 (기본 상태) */
-.qbar .qb-sub { width: 38px; height: 38px; border-radius: 50%; background: var(--vsc-bg); border: 1px solid rgba(255, 255, 255, .12); opacity: 0; transform: scale(0.3) translateX(20px); transition: opacity .2s, transform .2s, visibility 0s .2s; pointer-events: none; visibility: hidden; z-index: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .3); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-/* 서브 버튼 확장 시 상태 (한 번만 선언) */
-.qbar.expanded .qb-sub { opacity: 1; transform: scale(1) translateX(0); pointer-events: auto; visibility: visible; transition: opacity .2s, transform .2s, visibility 0s 0s; }
-/* 4. 기타 요소 및 애니메이션 지연 */
-.qbar.expanded .qb-sub:nth-child(2){transition-delay:.03s}
-.qbar.expanded .qb-sub:nth-child(3){transition-delay:.06s}
-.qbar.expanded .qb-sub:nth-child(4){transition-delay:.09s}
-.qbar.expanded .qb-sub:nth-child(5){transition-delay:.12s}
-.qbar.expanded .qb-sub:nth-child(6){transition-delay:.15s}
-.qbar .qb-sub:hover { background: var(--vsc-bg-hover); transform: scale(1.1); }
-.qbar svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
-.qbar .qb-sub svg { width: 18px; height: 18px; }
-.qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-accent); outline-offset: 2px; }
-
-@media (pointer: coarse) { .qbar .qb-main{width:48px;height:48px} .qbar .qb-sub{width:42px;height:42px} }
-:host-context(:fullscreen) .qbar{opacity:0;transition:opacity .3s;pointer-events:none}
-:host-context(:fullscreen) .qbar:hover,:host-context(:fullscreen) .qbar:active{opacity:1;pointer-events:auto}
-:host-context(:fullscreen) .qbar .qb-main{pointer-events:auto}
-
-@media(max-width:600px){:host{--vsc-panel-width:calc(100vw - 80px);--vsc-panel-right:60px}}
-@media(max-width:400px){:host{--vsc-panel-width:calc(100vw - 64px);--vsc-panel-right:52px;--vsc-font-md:15px}.chips{gap:6px}.fine-row{gap:6px}}
-@media(max-width:350px){.tab span{display:none}.tab svg{width:18px;height:18px;opacity:1}}
-@media(orientation:landscape) and (max-height:500px){.panel{max-height:85vh}.body{max-height:calc(85vh - 80px)}}
-@supports(padding:env(safe-area-inset-right)){.qbar{right:calc(var(--vsc-qbar-right) + env(safe-area-inset-right))}.panel{right:calc(var(--vsc-panel-right) + 10px + env(safe-area-inset-right))}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}}
-@media(prefers-contrast:high){:host{--vsc-bg:rgba(0,0,0,0.98);--vsc-border:rgba(255,255,255,0.3);--vsc-text:#fff}}`;
-
       const TAB_ICONS = {
         video: () => _s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, _s('rect', { x: 2, y: 4, width: 16, height: 16, rx: 2 }), _s('path', { d: 'M22 7l-6 4 6 4z' })),
         audio: () => _s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, _s('path', { d: 'M11 5L6 9H2v6h4l5 4V5z' }), _s('path', { d: 'M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07' })),
@@ -3813,12 +3808,16 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
       function mkSep() { return h('div', { class: 'sep' }); }
 
+      /* ── mkSlider (Patch 5 Applied) ── */
       function mkSlider(path, min, max, step) {
-        const inp = h('input', { type: 'range', min, max, step: step || ((max - min) / 100) }); const valEl = h('span', { class: 'val' }); const digits = (step && step >= 1) ? 0 : 2;
-        function updateFill() { const v = Number(inp.value); const pct = ((v - min) / (max - min)) * 100; inp.style.setProperty('--fill', `${pct}%`); }
-        function sync() { const v = Number(Store.get(path)) || min; inp.value = String(v); valEl.textContent = v.toFixed(digits); updateFill(); }
-        inp.addEventListener('input', () => { const nv = parseFloat(inp.value); Store.set(path, nv); valEl.textContent = nv.toFixed(digits); updateFill(); ApplyReq.soft(); }, { signal: sig });
-        tabSyncFns.push(sync); sync(); return [inp, valEl];
+        const s = step || ((max - min) / 100), digits = (s >= 1) ? 0 : 2, range = max - min;
+        const inp = h('input', { type: 'range', min, max, step: s });
+        const valEl = h('span', { class: 'val' });
+        const syncUI = v => { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / range) * 100}%`); };
+        const sync = () => syncUI(Number(Store.get(path)) || min);
+        inp.addEventListener('input', () => { const nv = parseFloat(inp.value); Store.set(path, nv); syncUI(nv); ApplyReq.soft(); }, { signal: sig });
+        tabSyncFns.push(sync); sync();
+        return [inp, valEl];
       }
 
       function mkToggle(path, onChange) {
@@ -3856,7 +3855,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         sig.addEventListener('abort', () => clearRecurring(infoTimerId), { once: true });
         w.append(infoBar, mkSep());
 
-        // [Patch] 파이어폭스용 UI 숨김 처리 및 대체 렌더링
         if (CONFIG.IS_FIREFOX) {
           w.append(
             h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
@@ -3923,7 +3921,6 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
             mkSep()
           );
 
-          // AutoScene 뱃지 및 토글 (Firefox에서는 이 영역이 렌더링되지 않음)
           const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
           function updateSceneBadge() {
             const isOn = !!Store.get(P.APP_AUTO_SCENE);
@@ -4068,7 +4065,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
         qbarVisible = false; const sh = quickBarHost.attachShadow({ mode: 'closed' }); _qbarShadow = sh; sh.appendChild(h('style', {}, PANEL_CSS));
 
         const bar = h('div', { class: 'qbar' }); let expanded = false; let expandTimer = 0;
-        const makeIcon = (name) => { const builder = VSC_ICON_BUILDERS[name]; if (!builder) return document.createTextNode(''); const svg = builder(18); svg.style.display = 'block'; svg.style.pointerEvents = 'none'; return svg; };
+        const makeIcon = (name) => { const svg = svgIcon(name, 18); svg.style.display = 'block'; svg.style.pointerEvents = 'none'; return svg; };
 
         function resetExpandTimer() {
           if (expandTimer) clearTimer(expandTimer);
@@ -4141,7 +4138,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       Save / Restore / Reset / Import / Export (Patch 3 Applied)
+       Save / Restore / Reset / Import / Export (Patch 3+4 Applied)
        ══════════════════════════════════════════════════════════════════ */
     const _SAVE_CATS = ['video', 'audio', 'playback', 'app'];
 
@@ -4154,19 +4151,32 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
       if (!data) return;
       for (const c of _SAVE_CATS) {
         if (!data[c]) continue;
-        if (c === 'app') {
-          const {slots, ...rest} = data[c];
-          sm.batch(c, rest);
-          if (Array.isArray(slots)) sm.set('app.slots', slots);
-        } else sm.batch(c, data[c]);
+        if (c === 'app') { const {slots, ...rest} = data[c]; sm.batch(c, rest); if (Array.isArray(slots)) sm.set('app.slots', slots); }
+        else sm.batch(c, data[c]);
       }
       normalizeBySchema(sm, ALL_SCHEMAS);
     };
 
     let __Store = null, __ApplyReq = null;
     function resetDefaults() { if (!__Store) return; const d = typeof structuredClone === 'function' ? structuredClone(DEFAULTS) : JSON.parse(JSON.stringify(DEFAULTS)); for (const [cat, vals] of Object.entries(d)) __Store.batch(cat, vals); }
-    function saveSlot(idx) { if (!__Store) return; const data = buildSaveDataFrom(__Store); const slots = [...(__Store.getCatRef('app').slots || [null, null, null])]; slots[idx] = data; __Store.set('app.slots', slots); persistNow(); showOSD(`슬롯 ${idx + 1} 저장됨`, 1200); }
-    function loadSlot(idx) { if (!__Store) return; const slots = __Store.getCatRef('app').slots || [null, null, null]; const data = slots[idx]; if (!data) { showOSD(`슬롯 ${idx + 1} 비어있음`, 1000); return; } restoreData(__Store, data); __ApplyReq?.hard(); persistNow(); showOSD(`슬롯 ${idx + 1} 불러옴`, 1200); }
+
+    function slotAction(idx, save) {
+      if (!__Store) return;
+      if (save) {
+        const slots = [...(__Store.getCatRef('app').slots || [null, null, null])];
+        slots[idx] = buildSaveDataFrom(__Store);
+        __Store.set('app.slots', slots); persistNow();
+        showOSD(`슬롯 ${idx + 1} 저장됨`, 1200);
+      } else {
+        const data = (__Store.getCatRef('app').slots || [])[idx];
+        if (!data) { showOSD(`슬롯 ${idx + 1} 비어있음`, 1000); return; }
+        restoreData(__Store, data); __ApplyReq?.hard(); persistNow();
+        showOSD(`슬롯 ${idx + 1} 불러옴`, 1200);
+      }
+    }
+    const saveSlot = i => slotAction(i, true);
+    const loadSlot = i => slotAction(i, false);
+
     function doExport() { if (!__Store) return; const json = JSON.stringify(buildSaveDataFrom(__Store), null, 2); const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `vsc-settings-${Date.now()}.json`; document.body.appendChild(a); a.click(); a.remove(); setTimer(() => URL.revokeObjectURL(url), 3000); showOSD('설정 내보내기 완료', 1200); }
     function doImport() {
       if (!__Store) return;
@@ -4306,40 +4316,62 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       createKeyboard
+       createKeyboard (Patch 10 Applied: Table-driven logic)
        ══════════════════════════════════════════════════════════════════ */
     function createKeyboard(Store, ApplyReq, UI, Maximizer, AutoScene, ZoomMgr, FiltersVO) {
-      const STEP_RATE = 0.1;
+      const _KB_ALT = {
+        v: () => UI?.togglePanel(),
+        p: () => { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) togglePiPFor(v); },
+        m: () => Maximizer?.toggle(),
+        a: () => {
+          const nv = !Store.get(P.APP_AUTO_SCENE); Store.set(P.APP_AUTO_SCENE, nv);
+          nv ? AutoScene.start() : AutoScene.stop();
+          ApplyReq.hard(); persistNow(); showOSD(`자동 보정: ${nv ? '켜짐' : '꺼짐'}`, 1000);
+        },
+        g: () => {
+          const nv = !Store.get(P.APP_GPU_EN); Store.set(P.APP_GPU_EN, nv);
+          window[VSC_INTERNAL_SYM]._gpuSceneEnabled = nv;
+          showOSD(`GPU 장면분석 ${nv ? 'ON' : 'OFF → CPU fallback'}`, 1200);
+          try { nv ? window[VSC_INTERNAL_SYM]._gpuSceneInit?.() : window[VSC_INTERNAL_SYM]._gpuSceneDestroy?.(); } catch(_) {}
+          ApplyReq.soft(); UI?.syncAll(); persistNow();
+        },
+        s: () => { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) captureVideoFrame(v); },
+        b: () => {
+          const v = window[VSC_INTERNAL_SYM]._activeVideo; if (!v) return;
+          const st = getVState(v); st.__abCompare = !st.__abCompare;
+          st.__abCompare ? (FiltersVO.clear(v), showOSD('원본 비교 중… (Alt+B 해제)', 1500)) : (ApplyReq.hard(), showOSD('필터 적용됨', 800));
+        },
+        '0': () => { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v && ZoomMgr) ZoomMgr.resetZoom(v); },
+        z: () => {
+          if (!ZoomMgr) return;
+          const nv = !Store.get(P.APP_ZOOM_EN); Store.set(P.APP_ZOOM_EN, nv);
+          if (!nv) { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) ZoomMgr.resetZoom(v); }
+          showOSD(`줌 ${nv ? 'ON' : 'OFF'}`, 900); ApplyReq.soft(); persistNow(); UI?.syncAll();
+        },
+        r: () => { resetDefaults(); ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD('초기화 완료', 1000); },
+      };
+
       onDoc('keydown', e => {
         if (isEditableTarget(e.target)) return;
-        const k = e.key, shift = e.shiftKey, alt = e.altKey;
+        const k = e.key, alt = e.altKey, shift = e.shiftKey;
+
         if (k === 'Escape') { UI?.togglePanel(false); Maximizer?.isActive() && Maximizer.undoMaximize(); return; }
-        if (alt && k === 'v') { UI?.togglePanel(); e.preventDefault(); return; }
-        if (alt && k === 'p') { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) togglePiPFor(v); e.preventDefault(); return; }
-        if (alt && (k === 'm' || k === 'M')) { Maximizer?.toggle(); e.preventDefault(); return; }
-        if (alt && (k === 'a' || k === 'A')) { const nv = !Store.get(P.APP_AUTO_SCENE); Store.set(P.APP_AUTO_SCENE, nv); if (nv) AutoScene.start(); else AutoScene.stop(); ApplyReq.hard(); persistNow(); showOSD(`자동 보정: ${nv ? '켜짐' : '꺼짐'}`, 1000); e.preventDefault(); return; }
-        if (alt && (k === 'g' || k === 'G')) {
-          const wasOn = !!window[VSC_INTERNAL_SYM]?._gpuSceneEnabled; window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !wasOn;
-          Store.set(P.APP_GPU_EN, !wasOn);
-          if (!wasOn) { showOSD('GPU 장면분석 ON', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} } else { showOSD('GPU 장면분석 OFF → CPU fallback', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneDestroy?.(); } catch (_) {} }
-          ApplyReq.soft(); UI?.syncAll(); persistNow(); e.preventDefault(); return;
+
+        if (alt) {
+          const lk = k.toLowerCase();
+          if (k >= '1' && k <= '3') { const idx = parseInt(k) - 1; shift ? saveSlot(idx) : loadSlot(idx); UI?.syncAll(); e.preventDefault(); return; }
+          const handler = _KB_ALT[lk] || _KB_ALT[k];
+          if (handler) { handler(); e.preventDefault(); return; }
         }
-        if (alt && (k === 's' || k === 'S')) { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) captureVideoFrame(v); e.preventDefault(); return; }
-        if (alt && (k === 'b' || k === 'B')) {
-          const v = window[VSC_INTERNAL_SYM]._activeVideo;
-          if (v) {
-            const st = getVState(v);
-            st.__abCompare = !st.__abCompare;
-            if (st.__abCompare) { FiltersVO.clear(v); showOSD('원본 비교 중… (Alt+B 해제)', 1500); }
-            else { ApplyReq.hard(); showOSD('필터 적용됨', 800); }
-          }
-          e.preventDefault(); return;
+
+        if (k === '[' || k === ']') {
+          const cur = Number(Store.get(P.PB_RATE)) || 1;
+          const nv = VSC_CLAMP(cur + (k === ']' ? 0.1 : -0.1), 0.07, 16);
+          Store.set(P.PB_RATE, nv);
+          if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true);
+          ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD(`속도: ${nv.toFixed(2)}×`, 900);
+          e.preventDefault();
         }
-        if (alt && k === '0') { const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v && ZoomMgr) ZoomMgr.resetZoom(v); e.preventDefault(); return; }
-        if (alt && (k === 'z' || k === 'Z')) { if (!ZoomMgr) return; const wasOn = !!Store.get(P.APP_ZOOM_EN); if (wasOn) { Store.set(P.APP_ZOOM_EN, false); const v = window[VSC_INTERNAL_SYM]._activeVideo; if (v) ZoomMgr.resetZoom(v); showOSD('줌 OFF', 900); } else { Store.set(P.APP_ZOOM_EN, true); showOSD('줌 ON', 900); } ApplyReq.soft(); persistNow(); UI?.syncAll(); e.preventDefault(); return; }
-        if (alt && (k === 'r' || k === 'R')) { resetDefaults(); ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD('초기화 완료', 1000); e.preventDefault(); return; }
-        if (alt && k >= '1' && k <= '3') { const idx = parseInt(k) - 1; if (shift) saveSlot(idx); else loadSlot(idx); UI?.syncAll(); e.preventDefault(); return; }
-        if (k === '[' || k === ']') { const cur = Number(Store.get(P.PB_RATE)) || 1; const nv = VSC_CLAMP(cur + (k === ']' ? STEP_RATE : -STEP_RATE), 0.07, 16); Store.set(P.PB_RATE, nv); if (!Store.get(P.PB_EN)) Store.set(P.PB_EN, true); ApplyReq.hard(); persistNow(); UI?.syncAll(); showOSD(`속도: ${nv.toFixed(2)}×`, 900); e.preventDefault(); return; }
       }, { signal: __globalSig, capture: true });
     }
 
@@ -4347,7 +4379,7 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
        BOOTSTRAP (Patch 1 Applied: Store initialized with Bus)
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '204.0.4-Hybrid';
+      const VSC_VERSION_ID = '204.0.5-Hybrid';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
