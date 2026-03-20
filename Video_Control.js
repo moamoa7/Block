@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Video_Control (v204.0.0-Hybrid)
+// @name         Video_Control (v204.0.1-Hybrid)
 // @namespace    https://github.com/
 // @version      204.0.1-Hybrid
 // @description  v204.0.1: Scene-Aware Audio (Voice/Bass dynamic EQ), Independent Temporal Alphas for AutoScene, VideoFrame API high-perf capture, UI Status Indicators
