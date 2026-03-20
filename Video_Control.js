@@ -4143,7 +4143,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
 // ═══ END OF PART 3 (v209.0.0) ═══
-// ═══ PART 4 START (v209.2.0) — Filters, UI, Gestures & Bootstrap ═══
+// ═══ PART 4 START (v209.2.1) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
     const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
@@ -4480,7 +4480,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     const VSC_ICON_BUILDERS = new Proxy({}, { get: (_, name) => (size) => svgIcon(name, size) });
 
     /* ══════════════════════════════════════════════════════════════════
-       CSS_VARS & PANEL_CSS
+       CSS_VARS & PANEL_CSS (Width 360px & Chips Grid applied)
        ══════════════════════════════════════════════════════════════════ */
     const CSS_VARS = `
     :host {
@@ -4494,7 +4494,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       --vsc-font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       --vsc-font-xs: 10px; --vsc-font-sm: 11px; --vsc-font-md: 13px; --vsc-font-lg: 14px; --vsc-font-xl: 24px;
       --vsc-touch-min: ${CONFIG.IS_MOBILE ? '44px' : '32px'}; --vsc-touch-slider: ${CONFIG.IS_MOBILE ? '24px' : '14px'};
-      --vsc-panel-width: 330px; --vsc-panel-right: ${CONFIG.IS_MOBILE ? '56px' : '52px'}; --vsc-panel-max-h: 82vh;
+      --vsc-panel-width: 360px; --vsc-panel-right: ${CONFIG.IS_MOBILE ? '56px' : '52px'}; --vsc-panel-max-h: 82vh;
       --vsc-qbar-right: ${CONFIG.IS_MOBILE ? '6px' : '10px'}; --vsc-qbar-btn-size: var(--vsc-touch-min);
       --vsc-transition-fast: 0.12s ease; --vsc-transition-normal: 0.18s ease; --vsc-transition-slow: 0.25s ease;
     }`;
@@ -4539,8 +4539,8 @@ input[type=range]::-moz-range-thumb{width:var(--vsc-touch-slider);height:var(--v
 .tgl::before{content:'OFF';position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:8px;font-weight:700;opacity:.4;letter-spacing:.5px;z-index:0}
 .tgl.on::before{content:'ON';left:6px;right:auto;opacity:.7;color:#fff}
 .sep{height:1px;background:rgba(255,255,255,.06);margin:var(--vsc-space-sm) 0}
-.chips{padding:3px 0;display:flex;flex-wrap:wrap;gap:var(--vsc-space-xs)}
-.chip{display:inline-flex;align-items:center;justify-content:center;padding:var(--vsc-space-xs) var(--vsc-space-md);min-height:var(--vsc-touch-min);min-width:44px;font-size:var(--vsc-font-sm);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background var(--vsc-transition-fast),border-color var(--vsc-transition-fast);text-align:center;-webkit-tap-highlight-color:transparent}
+.chips{padding:3px 0;display:flex;gap:var(--vsc-space-xs);justify-content:space-between}
+.chip{display:inline-flex;align-items:center;justify-content:center;padding:var(--vsc-space-xs) 4px;min-height:var(--vsc-touch-min);min-width:38px;flex:1;font-size:var(--vsc-font-sm);border-radius:var(--vsc-radius-sm);cursor:pointer;background:rgba(255,255,255,.06);border:1px solid var(--vsc-border);transition:background var(--vsc-transition-fast),border-color var(--vsc-transition-fast);text-align:center;-webkit-tap-highlight-color:transparent}
 .chip:hover{background:rgba(255,255,255,.10)}.chip.on{background:var(--vsc-accent-bg);border-color:var(--vsc-accent-border)}
 .metrics-footer{font-size:9px;opacity:.4;padding:var(--vsc-space-xs) var(--vsc-space-lg);border-top:1px solid rgba(255,255,255,.04);line-height:1.6;font-variant-numeric:tabular-nums;display:flex;flex-wrap:wrap;gap:6px 12px}
 .shortcut-grid{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:var(--vsc-font-xs);line-height:1.6;padding:var(--vsc-space-xs) 0}
@@ -4948,8 +4948,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
 
         const brtResetBtn = h('button', {
           class: 'chip',
-          style: 'margin-left:auto; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'
-        }, '리셋(OFF)');
+          style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
 
         brtResetBtn.addEventListener('click', () => {
           Store.set(P.APP_SCREEN_BRT, 0);
@@ -5453,7 +5452,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       createTouchGestureManager (v209.2.0)
+       createTouchGestureManager (v209.2.1)
        ══════════════════════════════════════════════════════════════════ */
     function injectTouchGestureCSS() {
       if (document.getElementById('vsc-touch-gesture-css')) return;
@@ -5492,14 +5491,14 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
         @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
 
-        /* 4. 🔥 신규: 스와이프 시간 탐색 오버레이 */
+        /* 4. 🔥 스와이프 시간 탐색 오버레이 */
         .vsc-seek-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(15px); color: white; padding: 16px 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); font-family: system-ui, sans-serif; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
         .vsc-seek-overlay.show { display: block; opacity: 1; }
         .vsc-seek-direction { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
         .vsc-seek-main { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
         .vsc-seek-delta { font-size: 15px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
-        /* 5. 🔥 [중요] 유튜브 및 일반 플레이어의 로딩 스피너 강제 숨김 */
+        /* 5. 🔥 유튜브 및 일반 플레이어의 로딩 스피너 강제 숨김 */
         .ytp-spinner,
         .vjs-loading-spinner,
         .loading-indicator,
@@ -5776,7 +5775,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       function init() {
         if (!CONFIG.IS_MOBILE) return;
         injectTouchGestureCSS();
-        // Add listeners using pure DOM to ensure proper options handling and teardown
         window.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
         window.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
         window.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
@@ -5802,7 +5800,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '209.2.0';
+      const VSC_VERSION_ID = '209.2.1';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
