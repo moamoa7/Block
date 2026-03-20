@@ -5460,6 +5460,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       const style = document.createElement('style');
       style.id = 'vsc-touch-gesture-css';
       style.textContent = `
+        /* 1. 밝기/볼륨 스와이프 인디케이터 */
         .vsc-swipe-indicator { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
         .vsc-swipe-indicator.left  { left: 12%; }
         .vsc-swipe-indicator.right { right: 12%; }
@@ -5469,6 +5470,8 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         .vsc-swipe-track { width: 4px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; position: relative; }
         .vsc-swipe-fill { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(110,168,254,0.85); border-radius: 2px; transition: height 0.08s linear; box-shadow: 0 0 6px rgba(110,168,254,0.5); }
         .vsc-swipe-label { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
+
+        /* 2. 더블 탭 시크(Seek) 리플 애니메이션 */
         .vsc-seek-ripple { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease-out; display: flex; flex-direction: row; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5); white-space: nowrap; }
         .vsc-seek-ripple.left  { left: 15%; }
         .vsc-seek-ripple.right { right: 15%; }
@@ -5482,9 +5485,21 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         @keyframes vsc-arrow-r { 0%  { transform: translateX(-4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(4px); opacity: 0; } }
         .vsc-arrow-slide-l { animation: vsc-arrow-l 0.6s infinite; }
         @keyframes vsc-arrow-l { 0%  { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(-4px); opacity: 0; } }
+
+        /* 3. 롱프레스 배지 애니메이션 */
         .vsc-longpress-badge { position: fixed; top: 8%; left: 50%; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0,0,0,0.55); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 6px 16px; font: 700 13px/1.4 system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         .vsc-longpress-badge.show { opacity: 1; }
-        /* 🔥 [중요] 유튜브 및 일반 플레이어의 로딩 원(스피너) 강제 숨김 */
+        .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
+        @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
+
+        /* 4. 🔥 신규: 스와이프 시간 탐색 오버레이 */
+        .vsc-seek-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(15px); color: white; padding: 16px 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); font-family: system-ui, sans-serif; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
+        .vsc-seek-overlay.show { display: block; opacity: 1; }
+        .vsc-seek-direction { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
+        .vsc-seek-main { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+        .vsc-seek-delta { font-size: 15px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+        /* 5. 🔥 [중요] 유튜브 및 일반 플레이어의 로딩 스피너 강제 숨김 */
         .ytp-spinner,
         .vjs-loading-spinner,
         .loading-indicator,
@@ -5494,51 +5509,51 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           visibility: hidden !important;
           opacity: 0 !important;
         }
-        .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
-        @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
+
+        /* 6. 접근성 (애니메이션 최소화 옵션) */
         @media (prefers-reduced-motion: reduce) { .vsc-seek-pop, .vsc-arrow-slide-r, .vsc-arrow-slide-l, .vsc-longpress-badge .vsc-lp-icon { animation: none !important; } }
-        .vsc-seek-overlay { font-variant-numeric: tabular-nums; }
       `;
       (document.head || document.documentElement).appendChild(style);
     }
 
     function createTouchGestureManager(Store, P, ApplyReq) {
-      const SWIPE_THRESHOLD = 12; const LONG_PRESS_MS = 450; const DOUBLE_TAP_MS = 300; const SEEK_STEP = 10; const SEEK_SESSION_MS = 800; const LONG_PRESS_RATE = 2.0; const SENSITIVITY_VOL = 1.2; const SENSITIVITY_BRI = 1.2;
-      const SEEK_SENSITIVITY = 0.02; // px → seconds 변환 계수
+      const SWIPE_THRESHOLD = 12;
+      const LONG_PRESS_MS = 450;
+      const DOUBLE_TAP_MS = 300;
+      const SEEK_STEP = 5;
+      const SEEK_SESSION_MS = 800;
+      const LONG_PRESS_RATE = 2.0;
+      const SENSITIVITY_VOL = 1.2;
+      const SENSITIVITY_BRI = 1.2;
+      const SEEK_SENSITIVITY = 0.05; // 정밀한 탐색 감도
+
       const GS = Object.freeze({ IDLE: 0, WAIT: 1, SWIPE_VOL: 2, SWIPE_BRI: 3, LONG_PRESS: 4, BLOCKED: 5, SWIPE_SEEK: 6 });
-      let gesture = GS.IDLE; let startX = 0, startY = 0; let initVol = 1, initBri = 1; let savedRate = 1; let touchVideo = null; let lpTimerId = 0; let destroyed = false;
+      let gesture = GS.IDLE;
+      let startX = 0, startY = 0, seekInitialTime = 0;
+      let initVol = 1, initBri = 1, savedRate = 1;
+      let touchVideo = null, lpTimerId = 0, destroyed = false;
       let lastTapTime = 0, lastTapX = 0, seekSide = null, seekAccum = 0, seekTimerId = 0;
-      let elSwipeLeft = null, elSwipeRight = null, elSeekLeft = null, elSeekRight = null, elLpBadge = null;
+      let elSwipeLeft = null, elSwipeRight = null, elSeekLeft = null, elSeekRight = null, elLpBadge = null, elSeekOverlay = null;
       let __touchBriOverlay = null;
 
-      // ── Seek 관련 상태 ──
-      let seekInitialTime = 0;
-      let elSeekOverlay = null;
-
-      // ── 시간 포맷 헬퍼 ──
-      function formatTime(seconds) {
-        if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
-        const abs = Math.floor(seconds);
-        const h = Math.floor(abs / 3600);
-        const m = Math.floor((abs % 3600) / 60);
-        const s = abs % 60;
-        const pad = v => (v < 10 ? '0' : '') + v;
-        return h > 0 ? `${pad(h)}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+      function formatTime(sec) {
+        if (!Number.isFinite(sec) || sec < 0) sec = 0;
+        const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+        const p = v => String(v).padStart(2, '0');
+        return h > 0 ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
       }
-      function formatDelta(seconds) {
-        const sign = seconds < 0 ? '−' : '+';
-        const abs = Math.floor(Math.abs(seconds));
-        const h = Math.floor(abs / 3600);
-        const m = Math.floor((abs % 3600) / 60);
-        const s = abs % 60;
-        const pad = v => (v < 10 ? '0' : '') + v;
-        return h > 0 ? `${sign}${pad(h)}:${pad(m)}:${pad(s)}` : `${sign}${pad(m)}:${pad(s)}`;
+
+      function formatDelta(sec) {
+        const sign = sec < 0 ? '−' : '+';
+        const abs = Math.floor(Math.abs(sec));
+        const h = Math.floor(abs / 3600), m = Math.floor((abs % 3600) / 60), s = abs % 60;
+        const p = v => String(v).padStart(2, '0');
+        return h > 0 ? `${sign}${p(h)}:${p(m)}:${p(s)}` : `${sign}${p(m)}:${p(s)}`;
       }
 
       function shouldHandle() { if (destroyed) return false; if (!CONFIG.IS_MOBILE) return false; if (Store.get(P.APP_ZOOM_EN)) return false; if (!Store.get(P.APP_ACT)) return false; return true; }
       function isVscUi(e) { try { const path = typeof e.composedPath === 'function' ? e.composedPath() : []; for (let i = 0, len = Math.min(path.length, 8); i < len; i++) { const n = path[i]; if (n?.hasAttribute?.('data-vsc-ui') || n?.id === 'vsc-host' || n?.id === 'vsc-gear-host') return true; } } catch (_) {} return false; }
 
-      // ── 비디오 영역 체크 (activeVideo rect 우선) ──
       function findVideoInRect(tx, ty) {
         const active = window[VSC_INTERNAL_SYM]?._activeVideo;
         if (active?.isConnected) {
@@ -5547,13 +5562,11 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
             if (r.width >= 40 && r.height >= 40 && tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) return active;
           } catch (_) {}
         }
-        // activeVideo 밖이면 무시 (다른 비디오 순회하지 않음)
         return null;
       }
 
       function getOverlayParent() { return document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement; }
 
-      // ── Seek 오버레이 ──
       function ensureSeekOverlay() {
         const parent = getOverlayParent();
         if (elSeekOverlay?.isConnected && elSeekOverlay.parentNode === parent) return elSeekOverlay;
@@ -5561,34 +5574,28 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         elSeekOverlay = document.createElement('div');
         elSeekOverlay.className = 'vsc-seek-overlay';
         elSeekOverlay.setAttribute('data-vsc-ui', '1');
-        elSeekOverlay.style.cssText = [
-          'position:fixed', 'top:50%', 'left:50%', 'transform:translate(-50%,-50%)',
-          'background:rgba(18,18,22,0.80)', 'backdrop-filter:blur(20px) saturate(180%)',
-          'color:rgba(255,255,255,0.95)', 'padding:14px 28px', 'border-radius:14px',
-          'border:1px solid rgba(255,255,255,0.12)', 'z-index:2147483647',
-          'pointer-events:none', 'opacity:0', 'transition:opacity 0.15s ease',
-          'font-family:system-ui,-apple-system,sans-serif', 'text-align:center',
-          'box-shadow:0 10px 30px rgba(0,0,0,0.45)', 'display:none',
-          'line-height:1.5', 'white-space:nowrap'
-        ].join(';');
         parent.appendChild(elSeekOverlay);
         return elSeekOverlay;
       }
 
-      function showSeekOverlay(currentTime, deltaSeconds) {
+      function updateSeekUI(currentTime, delta) {
         const ov = ensureSeekOverlay();
-        const timeStr = formatTime(currentTime);
-        const deltaStr = formatDelta(deltaSeconds);
-        const deltaColor = deltaSeconds < 0 ? 'rgba(255,120,120,0.9)' : 'rgba(120,255,180,0.9)';
-        ov.innerHTML = `<div style="font-size:22px;font-weight:700;font-variant-numeric:tabular-nums">${timeStr}</div><div style="font-size:13px;font-weight:600;color:${deltaColor};margin-top:2px">${deltaStr}</div>`;
+        const directionText = delta >= 0 ? "오른쪽 스와이프 중" : "왼쪽 스와이프 중";
+        const deltaText = formatDelta(delta);
+        const deltaColor = delta >= 0 ? "#8effa9" : "#ff8e8e";
+        ov.innerHTML = `
+          <div class="vsc-seek-direction">${directionText}</div>
+          <div class="vsc-seek-main">(${formatTime(currentTime)})</div>
+          <div class="vsc-seek-delta" style="color: ${deltaColor}">(${deltaText})</div>
+        `;
         ov.style.display = '';
-        ov.style.opacity = '1';
+        ov.classList.add('show');
       }
 
       function hideSeekOverlaySmooth() {
         if (!elSeekOverlay) return;
-        elSeekOverlay.style.opacity = '0';
-        setTimer(() => { if (elSeekOverlay) elSeekOverlay.style.display = 'none'; }, 200);
+        elSeekOverlay.classList.remove('show');
+        setTimer(() => { if (elSeekOverlay && !elSeekOverlay.classList.contains('show')) elSeekOverlay.style.display = 'none'; }, 200);
       }
 
       function ensureSwipeIndicators() {
@@ -5674,12 +5681,11 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         if (isVscUi(e) || isEditableTarget(e.target)) return;
         const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
 
-        // ── 비디오 영역 외 터치 무시 (activeVideo rect 우선 체크) ──
         const video = findVideoInRect(tx, ty);
         if (!video) return;
 
         touchVideo = video; startX = tx; startY = ty; initVol = video.volume; initBri = 1.0;
-        seekInitialTime = video.currentTime;
+        seekInitialTime = touchVideo.currentTime;
         gesture = GS.WAIT;
         clearTimer(lpTimerId); lpTimerId = setTimer(() => { lpTimerId = 0; if (gesture === GS.WAIT && touchVideo) { startLongPress(touchVideo); } }, LONG_PRESS_MS);
       }
@@ -5689,7 +5695,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         const tx = e.touches[0]?.clientX ?? startX, ty = e.touches[0]?.clientY ?? startY, dx = tx - startX, dy = startY - ty;
 
         if (gesture === GS.LONG_PRESS) {
-          // ── 롱프레스 중 이동 감지 → 스와이프 전환 시 롱프레스 취소 ──
           if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(dy) > SWIPE_THRESHOLD) {
             endLongPress(touchVideo);
             gesture = GS.BLOCKED;
@@ -5702,15 +5707,12 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           if (dist < SWIPE_THRESHOLD) return;
           clearTimer(lpTimerId);
 
-          // ── 수평 vs 수직 분기 ──
           if (Math.abs(dx) > Math.abs(dy)) {
-            // 수평 스와이프 → Seek 모드
             gesture = GS.SWIPE_SEEK;
             seekInitialTime = touchVideo.currentTime;
             if (e.cancelable) e.preventDefault();
             return;
           } else {
-            // 수직 스와이프 → 볼륨/밝기
             const vRect = touchVideo.getBoundingClientRect(), midX = vRect.left + vRect.width / 2;
             if (startX < midX) gesture = GS.SWIPE_BRI; else gesture = GS.SWIPE_VOL;
           }
@@ -5718,7 +5720,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
 
         if (e.cancelable) e.preventDefault();
 
-        // ── 스와이프 Seek 처리 ──
         if (gesture === GS.SWIPE_SEEK) {
           const duration = touchVideo.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
@@ -5727,11 +5728,10 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           const timeChange = normalizedDx * duration * SEEK_SENSITIVITY;
           const newTime = VSC_CLAMP(seekInitialTime + timeChange, 0, duration);
           touchVideo.currentTime = newTime;
-          showSeekOverlay(newTime, newTime - seekInitialTime);
+          updateSeekUI(newTime, newTime - seekInitialTime);
           return;
         }
 
-        // ── 볼륨/밝기 처리 ──
         const vRect = touchVideo.getBoundingClientRect(), normalizedDy = dy / Math.max(1, vRect.height);
         if (gesture === GS.SWIPE_VOL) { const newVol = VSC_CLAMP(initVol + normalizedDy * SENSITIVITY_VOL, 0, 1); touchVideo.volume = newVol; try { touchVideo.muted = false; } catch (_) {} updateSwipeUI('vol', newVol); }
         if (gesture === GS.SWIPE_BRI) { const newBri = VSC_CLAMP(initBri + normalizedDy * SENSITIVITY_BRI, 0.05, 1.0); applyTouchBrightness(touchVideo, newBri); updateSwipeUI('bri', newBri); }
@@ -5744,11 +5744,12 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         if (gesture === GS.LONG_PRESS) { endLongPress(video); cancelGesture(); return; }
         if (gesture === GS.SWIPE_VOL || gesture === GS.SWIPE_BRI) { hideSwipeUI(); cancelGesture(); return; }
 
-        // ── Seek 완료 ──
         if (gesture === GS.SWIPE_SEEK) {
           hideSeekOverlaySmooth();
           const delta = video.currentTime - seekInitialTime;
-          if (Math.abs(delta) > 0.5) showOSD(`${formatDelta(delta)}  →  ${formatTime(video.currentTime)}`, 1200);
+          if (Math.abs(delta) > 0.5 && typeof showOSD === 'function') {
+            showOSD(`${formatDelta(delta)}  →  ${formatTime(video.currentTime)}`, 1200);
+          }
           cancelGesture(); return;
         }
 
@@ -5775,11 +5776,12 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       function init() {
         if (!CONFIG.IS_MOBILE) return;
         injectTouchGestureCSS();
-        on(window, 'touchstart', onTouchStart, { capture: true, passive: true });
-        on(window, 'touchmove', onTouchMove, { capture: true, passive: false });
-        on(window, 'touchend', onTouchEnd, { capture: true, passive: true });
-        on(window, 'touchcancel', onTouchCancel, { capture: true, passive: true });
-        on(document, 'fullscreenchange', () => { if (elLpBadge?.classList.contains('show')) ensureLpBadge(); });
+        // Add listeners using pure DOM to ensure proper options handling and teardown
+        window.addEventListener('touchstart', onTouchStart, { capture: true, passive: false });
+        window.addEventListener('touchmove', onTouchMove, { capture: true, passive: false });
+        window.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
+        window.addEventListener('touchcancel', onTouchCancel, { capture: true, passive: true });
+        document.addEventListener('fullscreenchange', () => { if (elLpBadge?.classList.contains('show')) ensureLpBadge(); });
         log.info('[TouchGesture] Mobile touch gesture module initialized (with seek/rect-check)');
       }
 
@@ -5787,6 +5789,10 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         destroyed = true; cancelGesture(); hideSwipeUI(); hideAllSeekRipples(); hideSeekOverlaySmooth(); elLpBadge?.classList.remove('show'); removeTouchBrightness();
         elSwipeLeft?.remove(); elSwipeRight?.remove(); elSeekLeft?.remove(); elSeekRight?.remove(); elLpBadge?.remove(); elSeekOverlay?.remove();
         const css = document.getElementById('vsc-touch-gesture-css'); css?.remove();
+        window.removeEventListener('touchstart', onTouchStart, { capture: true });
+        window.removeEventListener('touchmove', onTouchMove, { capture: true });
+        window.removeEventListener('touchend', onTouchEnd, { capture: true });
+        window.removeEventListener('touchcancel', onTouchCancel, { capture: true });
       }
 
       return Object.freeze({ init, destroy });
