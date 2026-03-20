@@ -4800,10 +4800,10 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
               ...[
                 { n: 'OFF',  v: [0, 0, 0, 0] },
                 { n: '선명', v: [20, 10, 20, 0] },
-                { n: '영화', v: [50, 20, 10, 10] },
+                { n: '영화', v: [50, 20, 10, -5] },
                 { n: '복원', v: [10, 50, 15, 0] },
-                { n: '심야', v: [40, 15, 5, 20] },
-                { n: '아트', v: [0, 40, 30, -10] },
+                { n: '심야', v: [40, 15, 5, 15] },
+                { n: '아트', v: [0, 40, 30, -15] },
               ].map(p => {
                 const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
                 btn.onclick = () => {
