@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v204.0.0-Hybrid)
+// @name         Video_Control (v204.1.0-Hybrid)
 // @namespace    https://github.com/
-// @version      204.0.0-Hybrid
-// @description  v204.0.0: 7 Intelligent AutoSense features (2D Adaptive Sharpening, Color Clipping Guard, Skin-Tone Protection, Auto Letterbox Zoom, Zonal Contrast Enhancement, Independent Parameter Interpolation, HDR Tone Mapping)
+// @version      204.1.0-Hybrid
+// @description  v204.1.0: 7 Intelligent AutoSense features (2D Adaptive Sharpening, Color Clipping Guard, Skin-Tone Protection, Auto Letterbox Zoom, Zonal Contrast Enhancement, Independent Parameter Interpolation, HDR Tone Mapping)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -142,7 +142,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '204.0.0-Hybrid';
+    const VSC_VERSION = '204.1.0-Hybrid';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -3258,7 +3258,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     let toneCurve = null, channelGains = null;
 
     if (autoSceneOn && autoMods) {
-      /* ═══ 모드 A & C: AutoScene 결과 기준 ═══ */
+      /* ═══ AutoScene 결과 기준 ═══ */
       brightness   = autoMods.br;
       contrast     = autoMods.ct;
       saturate     = autoMods.sat;
@@ -3267,28 +3267,37 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       toneCurve    = autoMods._toneCurve    || null;
       channelGains = autoMods._channelGains || null;
 
-      /* ═══ [FIX] 수동 보정은 톤커브에서만 반영 — CSS brightness/contrast 중복 적용 제거 ═══
-       *  수동 슬라이더 값은 이미 AutoScene loop → buildAdaptiveToneCurve의
-       *  userMods를 통해 톤커브에 반영되었으므로, 여기서 brightness/contrast를
-       *  추가로 올리면 이중 적용이 됩니다.
-       *
-       *  toneCurve가 없는 경우(드물지만)에만 CSS 파라미터로 fallback합니다.
+      /* ═══ [FIX v204.1] 수동 보정 — v203 소프트 컴프레션 방식 ═══
+       * 톤커브는 순수 장면 분석 결과이므로 건드리지 않음.
+       * 수동값은 CSS brightness/contrast로만 적용하되,
+       * v203의 (1.0 - x) 감쇄를 모방하여 하이라이트 폭주 방지.
        */
-      if (hasManual && !toneCurve) {
-        /* 톤커브 없을 때만 CSS fallback (매우 드문 경우) */
-        const BR_MAX = 1.35;
-        const brHeadroomUp = BR_MAX - brightness;
-        const manualBrRequest = (manualShadow * 0.002 + manualBright * 0.003);
-        brightness += Math.min(manualBrRequest, Math.max(0, brHeadroomUp * 0.5));
+      if (hasManual) {
+        // 현재 AutoScene이 산출한 brightness/contrast 기준으로 "남은 여유" 계산
+        const currentBr = brightness;
+        const currentCt = contrast;
 
-        const CT_MAX = 1.25;
-        const ctHeadroom = CT_MAX - contrast;
-        contrast += Math.min(manualRecovery * 0.0015, Math.max(0, ctHeadroom * 0.5));
+        // ── 암부 부스트: 어두운 장면일수록 효과적, 밝은 장면에선 감쇄 ──
+        const shadowRoom = Math.max(0, 1.35 - currentBr);
+        const shadowEffect = (manualShadow / 100) * 0.08 * shadowRoom;
+
+        // ── 밝기: 전체 리프트, 하이라이트 보호 감쇄 ──
+        const brightRoom = Math.max(0, 1.30 - currentBr);
+        const brightEffect = (manualBright / 100) * 0.06 * brightRoom;
+
+        // ── 합산 (상한선 명확히) ──
+        brightness += Math.min(shadowEffect + brightEffect, 0.12);
+
+        // ── 디테일 복원 → contrast 미세 증가 및 gamma 조절 ──
+        const contrastRoom = Math.max(0, 1.25 - currentCt);
+        const recoveryEffect = (manualRecovery / 100) * 0.08 * contrastRoom;
+
+        contrast += Math.min(recoveryEffect, 0.08);
+        gamma -= (manualRecovery / 100) * 0.03; // 펀치감을 위해 감마를 살짝 내림
       }
-      /* toneCurve가 있으면 수동값은 이미 커브 안에 있으므로 CSS 추가 없음 */
 
     } else {
-      /* ═══ 모드 B: AutoScene OFF — 수동 보정 단독 ═══ */
+      /* ═══ AutoScene OFF — 수동 보정 단독 ═══ */
       brightness = 1.0;
       contrast   = 1.0;
       saturate   = 1.0;
