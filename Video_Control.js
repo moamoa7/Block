@@ -897,7 +897,7 @@ class VSCDSPProcessor extends AudioWorkletProcessor {
    this._compEnvDb = -100; this._compThreshDb = -30; this._compRatio = 4.5; this._compKneeDb = 4; this._compAttack = 0.0015; this._compRelease = 0.10;
    this._limEnvDb = -100; this._limThreshDb = -1.5; this._limRatio = 20; this._limAttack = 0.0003; this._limRelease = 0.06;
    this._clipKnee = 0.65; this._clipDrive = 3.0; this._clipTanhD = Math.tanh(this._clipDrive);
-   this._makeupDbEma = 0; this._rmsDb = -100; this._compReductionDb = 0; this._targetWet = 0; this._targetDry = 1; this._rampRate = 0.004;
+   this._makeupDbEma = 0; this._rmsDb = -100; this._compReductionDb = 0; this._targetWet = 0; this._targetDry = 1; this._rampRate = 0.001;
    this.port.onmessage = (e) => {
      const d = e.data; if (!d) return;
      if (d.type === 'params') {
@@ -936,7 +936,7 @@ class VSCDSPProcessor extends AudioWorkletProcessor {
      const compGainLinear = Math.pow(10, compGainDb / 20);
      let gateMult = 1.0; if (this._compEnvDb < -52) gateMult = 0.0; else if (this._compEnvDb < -42) gateMult = (this._compEnvDb + 52) / 10.0;
      const makeupDbTarget = Math.min(8, Math.max(0, compReduction - 2) * 0.40) * gateMult;
-     const isAttack = makeupDbTarget < this._makeupDbEma; const alpha = isAttack ? 0.20 : 0.025; this._makeupDbEma += (makeupDbTarget - this._makeupDbEma) * alpha;
+     const isAttack = makeupDbTarget < this._makeupDbEma; const alpha = isAttack ? 0.20 : 0.005; this._makeupDbEma += (makeupDbTarget - this._makeupDbEma) * alpha;
      const makeupLinear = Math.pow(10, this._makeupDbEma / 20); const totalGain = compGainLinear * this.boostLinear * makeupLinear;
      for (let ch = 0; ch < numChannels; ch++) {
        let wet = this._applyHPF(input[ch][i], this._hpfState[ch]);
