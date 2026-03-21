@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (S-Class Lite)
 // @namespace    https://github.com/moamoa7
-// @version      10.0.0
+// @version      10.1.0
 // @description  치지직(2초)/숲(4초) 최적화 라이브 딜레이 제어. 경량 리팩터.
 // @author       DelayMeter
 // @match        https://play.sooplive.co.kr/*
@@ -33,13 +33,22 @@
   const saveLazy = () => { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); };
 
   /* ── State ── */
-  let vid = null, enabled = cfg.enabled ?? true, target = cfg.target ?? P.def;
+  // [Patch 4] WeakRef로 비디오 참조 — GC 친화적
+  let _vidRef = null;
+  const getVid = () => _vidRef?.deref() ?? null;
+  const setVid = v => { _vidRef = v ? new WeakRef(v) : null; };
+
+  let enabled = cfg.enabled ?? true, target = cfg.target ?? P.def;
   let lastSeek = 0, warmupEnd = performance.now() + 4000, gear = 1.0;
   let panelOpen = cfg.open ?? false, els = {};
+
   const HIST = 60;
   const hist = new Float32Array(HIST);
   let histHead = 0, histLen = 0;
   const histPush = v => { hist[histHead] = v; histHead = (histHead + 1) % HIST; if (histLen < HIST) histLen++; };
+
+  // [Patch 2] Sparkline 사전 할당 버퍼
+  const _ptsBuf = [];
 
   /* ── Constants ── */
   const PANIC = 13, SEEK_CD = 10000, HYST = 0.3;
@@ -59,35 +68,61 @@
     return d => lut[clamp(Math.round(clamp(d / 5, 0, 1) * 20), 0, 20)];
   })();
 
-  const getBuf = () => {
+  const getBuf = vid => {
     try { const b = vid.buffered; return b.length ? b.end(b.length - 1) - vid.currentTime : -1; }
     catch { return -1; }
   };
 
-  const isLive = () => vid && (vid.duration === Infinity || vid.duration >= 1e6);
+  const isLive = vid => vid && (vid.duration === Infinity || vid.duration >= 1e6);
   const isBlob = v => (v.currentSrc || v.src || '').startsWith('blob:');
 
   /* ── Video tracking ── */
   const seen = new WeakSet();
+
   const attach = v => {
-    if (!isBlob(v) || vid === v) return;
-    vid = v; lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
-    if (!seen.has(v)) { seen.add(v); v.addEventListener('emptied', () => { if (vid === v) attach(v); }); }
+    if (!isBlob(v) || getVid() === v) return;
+    setVid(v);
+    lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
+    if (!seen.has(v)) {
+      seen.add(v);
+      v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
+    }
   };
 
-  document.addEventListener('play', e => { if (e.target?.tagName === 'VIDEO') attach(e.target); }, { capture: true });
+  document.addEventListener('play', e => {
+    if (e.target?.tagName === 'VIDEO') attach(e.target);
+  }, { capture: true });
 
-  // 초기 + 주기적 스캔 (MutationObserver 대체)
+  // [Patch 1] MutationObserver로 비디오 엘리먼트 감지 (polling 제거)
   const scan = () => { const v = document.querySelector('video'); if (v) attach(v); };
 
+  let mo = null;
+  const startObserver = () => {
+    if (mo) return;
+    mo = new MutationObserver(mutations => {
+      for (const m of mutations) {
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.tagName === 'VIDEO') { attach(n); return; }
+          // subtree 내부 video 탐색 — addedNodes가 컨테이너일 때
+          if (n.getElementsByTagName) {
+            const v = n.getElementsByTagName('video')[0];
+            if (v) { attach(v); return; }
+          }
+        }
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+  };
+
   /* ── Engine ── */
-  const setRate = r => {
+  const setRate = (vid, r) => {
     if (!vid || vid.playbackRate === r) return;
     vid.playbackRate = r;
     try { vid.preservesPitch = true; } catch {}
   };
 
-  const doSeek = () => {
+  const doSeek = vid => {
     try {
       const b = vid.buffered, i = b.length - 1;
       vid.currentTime = Math.max(b.start(i), b.end(i) - 5);
@@ -95,32 +130,50 @@
     } catch {}
   };
 
+  // [Patch 3] 로직(tick)과 렌더 분리 — rAF 기반 렌더링
+  let pendingRender = false;
+  let lastBuf = -1;
+
+  const scheduleRender = () => {
+    if (pendingRender) return;
+    pendingRender = true;
+    requestAnimationFrame(() => {
+      pendingRender = false;
+      render(lastBuf, getVid());
+    });
+  };
+
   const tick = () => {
-    if (vid && !vid.isConnected) vid = null;
-    if (!vid) { scan(); render(-1); return; }
-    if (!isBlob(vid) || vid.readyState < 3 || !isLive()) { render(-1); return; }
+    const vid = getVid();
 
-    const buf = getBuf();
-    if (vid.paused) { render(buf); return; }
-    if (buf >= 0) histPush(buf);
-    render(buf);
+    if (vid && !vid.isConnected) { setVid(null); lastBuf = -1; scheduleRender(); return; }
+    if (!vid) { lastBuf = -1; scheduleRender(); return; }
+    if (!isBlob(vid) || vid.readyState < 3 || !isLive(vid)) { lastBuf = -1; scheduleRender(); return; }
 
-    if (!enabled) { setRate(R_NORM); gear = R_NORM; return; }
-    if (performance.now() < warmupEnd) return;
+    const buf = getBuf(vid);
+    lastBuf = buf;
+    if (!vid.paused && buf >= 0) histPush(buf);
+    scheduleRender();
+
+    if (vid.paused) return;
+    if (!enabled) { setRate(vid, R_NORM); gear = R_NORM; return; }
+
+    const now = performance.now();
+    if (now < warmupEnd) return;
 
     // 비상 seek
-    if (buf > PANIC && performance.now() - lastSeek > SEEK_CD) { doSeek(); return; }
+    if (buf > PANIC && now - lastSeek > SEEK_CD) { doSeek(vid); return; }
 
     // 다단 변속
     const ex = buf - target;
     gear = ex > 5 ? R_HIGH : ex > HYST ? R_SOFT : ex < -HYST ? R_NORM : gear;
-    setRate(gear);
+    setRate(vid, gear);
   };
 
   /* ── UI Render ── */
   let prevDot = '', prevTxt = '', prevClr = '', prevW = '';
 
-  const render = buf => {
+  const render = (buf, vid) => {
     const sec = buf < 0 ? 0 : buf;
     const diff = sec - target;
     const c = colorOf(diff);
@@ -138,7 +191,7 @@
       return;
     }
 
-    // Panel update
+    // Panel update — 변경 시에만 DOM 접근
     const txt = buf < 0 ? '-' : sec.toFixed(1);
     const w = clamp(sec / P.barMax * 100, 0, 100).toFixed(1) + '%';
 
@@ -154,21 +207,28 @@
     else if (inRange) { els.badge.textContent = '✓ 안정'; els.badge.className = 'dm-b'; }
     else { els.badge.textContent = '→ 추적'; els.badge.className = 'dm-b dm-b-acc'; }
 
-    // Sparkline — DOM 재사용
+    // [Patch 2] Sparkline — 사전 할당 배열 + join
     if (histLen > 1 && els.line && els.tline) {
       const gw = 208, gh = 28;
       let mx = target + 2;
-      for (let i = 0; i < histLen; i++) { const v = hist[(histHead - histLen + i + HIST) % HIST]; if (v > mx) mx = v; }
-      let pts = '';
       for (let i = 0; i < histLen; i++) {
         const v = hist[(histHead - histLen + i + HIST) % HIST];
-        if (i > 0) pts += ' ';
-        pts += ((i / (HIST - 1)) * gw).toFixed(1) + ',' + (gh - (v / mx) * (gh - 4)).toFixed(1);
+        if (v > mx) mx = v;
       }
-      els.line.setAttribute('points', pts);
-      els.line.setAttribute('stroke', c);
-      els.tline.setAttribute('y1', gh - (target / mx) * (gh - 4));
-      els.tline.setAttribute('y2', gh - (target / mx) * (gh - 4));
+
+      _ptsBuf.length = histLen;
+      const invMx = 1 / mx;                     // 나눗셈 → 곱셈 변환
+      const xScale = gw / (HIST - 1);
+      const yRange = gh - 4;
+      for (let i = 0; i < histLen; i++) {
+        const v = hist[(histHead - histLen + i + HIST) % HIST];
+        _ptsBuf[i] = `${(i * xScale).toFixed(1)},${(gh - v * invMx * yRange).toFixed(1)}`;
+      }
+      els.line.setAttribute('points', _ptsBuf.join(' '));
+
+      const tY = gh - target * invMx * yRange;
+      els.tline.setAttribute('y1', tY);
+      els.tline.setAttribute('y2', tY);
     }
   };
 
@@ -182,7 +242,7 @@
 .dm-i{width:10px;height:10px;border-radius:50%;background:var(--g);transition:background .3s}
 @keyframes dm-p{0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,.4)}50%{box-shadow:0 0 0 8px rgba(46,204,113,0)}}
 #dm-f{animation:dm-p 2s ease-in-out infinite}
-#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:rgba(18,18,24,.95);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px 16px 12px;color:#e0e0e0;font:12px/1.5 system-ui,sans-serif;width:240px;box-shadow:0 8px 32px rgba(0,0,0,.6);user-select:none;display:none}
+#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:rgba(18,18,24,.95);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px 16px 12px;color:#e0e0e0;font:12px/1.5 system-ui,sans-serif;width:240px;box-shadow:0 8px 32px rgba(0,0,0,.6);user-select:none;display:none;contain:layout style}
 .dm-h{display:flex;align-items:center;gap:8px;padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06);cursor:grab;font-weight:600;font-size:13px}
 .dm-x{margin-left:auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;opacity:.4;transition:opacity .15s}
 .dm-x:hover{opacity:.9;background:rgba(255,255,255,.08)}
@@ -222,7 +282,7 @@
 </svg>
 <div style="display:flex;justify-content:space-between;font-size:10px;opacity:.35;margin-bottom:4px"><span>저지연</span><span>안정</span></div>
 <div class="dm-sl"><input type="range" min="0" max="100" value="${sv}"><span class="dm-sv">${target.toFixed(1)}초</span></div>
-<div class="dm-ft"><div class="dm-t${enabled ? ' on' : ''}"></div><span style="font-size:10px;opacity:.3">v10</span><span style="margin-left:auto;font-size:10px;opacity:.25">Alt+D</span></div>
+<div class="dm-ft"><div class="dm-t${enabled ? ' on' : ''}"></div><span style="font-size:10px;opacity:.3">v10.1</span><span style="margin-left:auto;font-size:10px;opacity:.25">Alt+D</span></div>
 </div>`;
 
     document.body.appendChild(d);
@@ -267,22 +327,20 @@
       };
     };
     drag(fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
-    drag(els.hdr, () => { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); });
+
     // 헤더 드래그 → 패널 이동
-    const origMove = els.hdr.onpointermove;
+    els.hdr.onpointerdown = e => {
+      if (e.button || e.target === els.x || els.x.contains(e.target)) return;
+      els.hdr.setPointerCapture(e.pointerId);
+      const r = pn.getBoundingClientRect();
+      els.hdr._ox = e.clientX - r.left; els.hdr._oy = e.clientY - r.top; els.hdr._m = false;
+    };
     els.hdr.onpointermove = e => {
       if (!els.hdr.hasPointerCapture(e.pointerId)) return;
       els.hdr._m = true;
       pn.style.left = clamp(e.clientX - (els.hdr._ox ?? 0), 0, innerWidth - pn.offsetWidth) + 'px';
       pn.style.top = clamp(e.clientY - (els.hdr._oy ?? 0), 0, innerHeight - pn.offsetHeight) + 'px';
       pn.style.right = pn.style.bottom = 'auto';
-    };
-    const origDown = els.hdr.onpointerdown;
-    els.hdr.onpointerdown = e => {
-      if (e.button || e.target === els.x || els.x.contains(e.target)) return;
-      els.hdr.setPointerCapture(e.pointerId);
-      const r = pn.getBoundingClientRect();
-      els.hdr._ox = e.clientX - r.left; els.hdr._oy = e.clientY - r.top; els.hdr._m = false;
     };
     els.hdr.onpointerup = e => {
       if (!els.hdr.hasPointerCapture(e.pointerId)) return;
@@ -315,16 +373,18 @@
   };
 
   /* ── Scheduling ── */
-  let timerId = 0;
   const loop = () => {
     tick();
-    timerId = setTimeout(loop, panelOpen ? 1000 : 5000);
+    setTimeout(loop, panelOpen ? 1000 : 5000);
   };
 
   /* ── Init ── */
   const init = () => {
     if (!document.body) { document.addEventListener('DOMContentLoaded', init, { once: true }); return; }
-    build(); scan(); loop();
+    build();
+    scan();               // 초기 1회 스캔
+    startObserver();      // [Patch 1] 이후 Observer가 감지
+    loop();
   };
 
   /* ── SPA navigation ── */
@@ -363,7 +423,8 @@
   window.addEventListener('beforeunload', save);
 
   GM_registerMenuCommand('현재 상태', () => {
-    const buf = vid ? getBuf() : -1;
+    const vid = getVid();
+    const buf = vid ? getBuf(vid) : -1;
     const txt = `버퍼 ${buf < 0 ? '-' : buf.toFixed(1) + '초'} | ${gear > 1.05 ? 'HIGH' : gear > 1 ? 'SOFT' : 'NORM'} | ${enabled ? 'ON' : 'OFF'}`;
     const t = document.createElement('div');
     t.textContent = txt;
