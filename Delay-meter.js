@@ -1,12 +1,10 @@
 // ==UserScript==
-// @name         딜레이 미터기 (S-Class Lite)
+// @name         딜레이 미터기 (Universal)
 // @namespace    https://github.com/moamoa7
-// @version      10.1.0
-// @description  치지직(2초)/숲(4초) 최적화 라이브 딜레이 제어. 경량 리팩터.
+// @version      11.0.0
+// @description  플랫폼 무관 — 모든 라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
-// @match        https://play.sooplive.co.kr/*
-// @match        https://chzzk.naver.com/*
-// @match        https://*.chzzk.naver.com/*
+// @match        *://*/*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @license      MIT
@@ -16,43 +14,74 @@
 (function () {
   'use strict';
 
-  /* ── Platform ── */
-  const SOOP = location.hostname.includes('sooplive');
-  const P = {
-    name: SOOP ? 'SOOP' : '치지직',
-    min: SOOP ? 3 : 1, max: SOOP ? 10 : 8,
-    def: SOOP ? 4.0 : 2.0, barMax: SOOP ? 15 : 10,
-    key: SOOP ? 'dm_v10_soop' : 'dm_v10_chzzk'
-  };
+  /* ================================================================
+   *  § 0. 설계 원칙
+   *  ────────────────────────────────────────────────────────────────
+   *  - 플랫폼 분기 제거: <video> + blob:/MediaSource + Infinity 조합
+   *    으로 라이브 여부를 판정한다.
+   *  - 유튜브는 blob: 없이 MediaSource 를 사용하므로 src 체크 대신
+   *    buffered + duration 기반으로 판정한다.
+   *  - 설정은 도메인별로 분리 저장(dm_u11_{host}) → 사이트마다 독립.
+   *  ================================================================ */
 
-  /* ── Config ── */
+  /* ── 도메인별 Config ── */
+  const HOST = location.hostname.replace(/^www\./, '');
+  const STORE_KEY = 'dm_u11_' + HOST;
+
   let cfg;
-  try { cfg = JSON.parse(localStorage.getItem(P.key)) || {}; } catch { cfg = {}; }
-  const save = () => { try { localStorage.setItem(P.key, JSON.stringify(cfg)); } catch {} };
+  try { cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { cfg = {}; }
+  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
   let saveTimer = 0;
   const saveLazy = () => { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); };
 
+  /* ── 기본 상수 ── */
+  const DEF_TARGET  = 2.0;   // 기본 목표 딜레이(초)
+  const MIN_TARGET  = 0.5;
+  const MAX_TARGET  = 12;
+  const BAR_MAX     = 15;
+  const PANIC       = 15;    // 이 이상이면 비상 seek
+  const SEEK_CD     = 10000; // seek 쿨다운(ms)
+  const HYST        = 0.3;   // 히스테리시스(초)
+  const STALL_WINDOW   = 30000;
+  const STALL_COOLDOWN = 8000;
+
+  const R_NORM = 1.00;
+  const R_SOFT = 1.05;
+  const R_HIGH = 1.10;
+
   /* ── State ── */
-  // [Patch 4] WeakRef로 비디오 참조 — GC 친화적
   let _vidRef = null;
   const getVid = () => _vidRef?.deref() ?? null;
   const setVid = v => { _vidRef = v ? new WeakRef(v) : null; };
 
-  let enabled = cfg.enabled ?? true, target = cfg.target ?? P.def;
-  let lastSeek = 0, warmupEnd = performance.now() + 4000, gear = 1.0;
-  let panelOpen = cfg.open ?? false, els = {};
+  let enabled   = cfg.enabled ?? true;
+  let target    = cfg.target  ?? DEF_TARGET;
+  let lastSeek  = 0;
+  let warmupEnd = performance.now() + 4000;
+  let gear      = R_NORM;
+  let panelOpen = cfg.open ?? false;
+  let els       = {};
 
+  /* 히스토리 (sparkline) */
   const HIST = 60;
   const hist = new Float32Array(HIST);
   let histHead = 0, histLen = 0;
   const histPush = v => { hist[histHead] = v; histHead = (histHead + 1) % HIST; if (histLen < HIST) histLen++; };
-
-  // [Patch 2] Sparkline 사전 할당 버퍼
   const _ptsBuf = [];
 
-  /* ── Constants ── */
-  const PANIC = 13, SEEK_CD = 10000, HYST = 0.3;
-  const R_NORM = 1.0, R_SOFT = 1.05, R_HIGH = 1.10;
+  /* Stall 감지 */
+  let stallCount = 0, lastStallTime = 0;
+
+  /* Network Info */
+  let netQuality = 'good';
+  const updateNetQuality = () => {
+    const c = navigator.connection;
+    if (!c) return;
+    if (c.effectiveType === 'slow-2g' || c.effectiveType === '2g' || c.downlink < 1) netQuality = 'poor';
+    else if (c.effectiveType === '3g' || c.downlink < 3) netQuality = 'fair';
+    else netQuality = 'good';
+  };
+  if (navigator.connection) navigator.connection.addEventListener('change', updateNetQuality);
 
   /* ── Utils ── */
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
@@ -68,47 +97,113 @@
     return d => lut[clamp(Math.round(clamp(d / 5, 0, 1) * 20), 0, 20)];
   })();
 
+  /** 버퍼 잔량(초). 라이브가 아니거나 계산 불가 시 -1 */
   const getBuf = vid => {
-    try { const b = vid.buffered; return b.length ? b.end(b.length - 1) - vid.currentTime : -1; }
-    catch { return -1; }
+    try {
+      const b = vid.buffered;
+      if (!b.length) return -1;
+      return b.end(b.length - 1) - vid.currentTime;
+    } catch { return -1; }
   };
 
-  const isLive = vid => vid && (vid.duration === Infinity || vid.duration >= 1e6);
-  const isBlob = v => (v.currentSrc || v.src || '').startsWith('blob:');
+  /**
+   * 라이브 판정 — 플랫폼 무관
+   *  1) duration === Infinity  (대부분의 HLS/DASH 라이브)
+   *  2) duration 매우 큼 (일부 구현체)
+   *  3) YouTube 등: MediaSource 연결 + seekable 범위 존재 + 끝점이 계속 증가
+   */
+  const isLive = vid => {
+    if (!vid) return false;
+    if (vid.duration === Infinity || vid.duration >= 1e6) return true;
+    // YouTube 라이브: duration 유한하지만 seekable.end 가 지속 증가
+    try {
+      const s = vid.seekable;
+      if (s.length && s.end(s.length - 1) - s.start(0) > 30 && vid.duration > 600) {
+        // 버퍼 끝이 seekable 끝에 가까우면 라이브로 간주
+        const b = vid.buffered;
+        if (b.length && Math.abs(b.end(b.length - 1) - s.end(s.length - 1)) < 60) return true;
+      }
+    } catch {}
+    return false;
+  };
 
-  /* ── Video tracking ── */
+  /**
+   * 유효한 라이브 비디오인지 확인
+   *  - blob: src → HLS.js / DASH.js 기반 (치지직, 숲, 트위치 등)
+   *  - MediaSource 연결 → YouTube, 일부 DASH
+   *  - 최소 readyState 3 (HAVE_FUTURE_DATA)
+   */
+  const isCandidate = v => {
+    if (!v || v.readyState < 2) return false;
+    const src = v.currentSrc || v.src || '';
+    // blob: 또는 빈 src(MediaSource attach) 모두 허용
+    if (src.startsWith('blob:') || src === '') return true;
+    // 일부 플랫폼은 직접 URL 을 넣되 MSE 로 전환
+    // → buffered 가 있고 라이브이면 허용
+    try { if (v.buffered.length && isLive(v)) return true; } catch {}
+    return false;
+  };
+
+  /* 버퍼 트렌드 (선형 회귀 기울기) */
+  const getBufferTrend = () => {
+    const n = Math.min(histLen, 10);
+    if (n < 3) return 0;
+    let sX = 0, sY = 0, sXY = 0, sX2 = 0;
+    for (let i = 0; i < n; i++) {
+      const y = hist[(histHead - n + i + HIST) % HIST];
+      sX += i; sY += y; sXY += i * y; sX2 += i * i;
+    }
+    return (n * sXY - sX * sY) / (n * sX2 - sX * sX);
+  };
+
+  /* ── Video Tracking ── */
   const seen = new WeakSet();
 
   const attach = v => {
-    if (!isBlob(v) || getVid() === v) return;
+    if (getVid() === v) return;
+    if (!isCandidate(v)) return;
     setVid(v);
     lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
+    stallCount = 0; histLen = 0; histHead = 0;
+
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
+
+      const onStall = () => {
+        const now = performance.now();
+        if (now - lastStallTime > STALL_WINDOW) stallCount = 0;
+        stallCount++;
+        lastStallTime = now;
+        if (getVid() === v) { gear = R_NORM; safeRate(v, R_NORM); }
+      };
+      v.addEventListener('waiting', onStall);
+      v.addEventListener('stalled', onStall);
     }
   };
 
+  /* play 이벤트 캡처 — 가장 보편적 */
   document.addEventListener('play', e => {
     if (e.target?.tagName === 'VIDEO') attach(e.target);
   }, { capture: true });
 
-  // [Patch 1] MutationObserver로 비디오 엘리먼트 감지 (polling 제거)
-  const scan = () => { const v = document.querySelector('video'); if (v) attach(v); };
+  /* MutationObserver */
+  const scan = () => {
+    for (const v of document.querySelectorAll('video')) {
+      if (isCandidate(v)) { attach(v); break; }
+    }
+  };
 
   let mo = null;
   const startObserver = () => {
     if (mo) return;
-    mo = new MutationObserver(mutations => {
-      for (const m of mutations) {
-        for (const n of m.addedNodes) {
-          if (n.nodeType !== 1) continue;
-          if (n.tagName === 'VIDEO') { attach(n); return; }
-          // subtree 내부 video 탐색 — addedNodes가 컨테이너일 때
-          if (n.getElementsByTagName) {
-            const v = n.getElementsByTagName('video')[0];
-            if (v) { attach(v); return; }
-          }
+    mo = new MutationObserver(muts => {
+      for (const m of muts) for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.tagName === 'VIDEO') { attach(n); return; }
+        if (n.getElementsByTagName) {
+          const v = n.getElementsByTagName('video')[0];
+          if (v) { attach(v); return; }
         }
       }
     });
@@ -116,7 +211,7 @@
   };
 
   /* ── Engine ── */
-  const setRate = (vid, r) => {
+  const safeRate = (vid, r) => {
     if (!vid || vid.playbackRate === r) return;
     vid.playbackRate = r;
     try { vid.preservesPitch = true; } catch {}
@@ -124,31 +219,39 @@
 
   const doSeek = vid => {
     try {
-      const b = vid.buffered, i = b.length - 1;
-      vid.currentTime = Math.max(b.start(i), b.end(i) - 5);
+      // seekable 기반 seek (YouTube 호환)
+      const s = vid.seekable;
+      if (s.length) {
+        vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
+      } else {
+        const b = vid.buffered, i = b.length - 1;
+        vid.currentTime = Math.max(b.start(i), b.end(i) - target - 1);
+      }
       lastSeek = performance.now();
     } catch {}
   };
 
-  // [Patch 3] 로직(tick)과 렌더 분리 — rAF 기반 렌더링
-  let pendingRender = false;
-  let lastBuf = -1;
-
+  /* rAF 렌더링 */
+  let pendingRender = false, lastBuf = -1;
   const scheduleRender = () => {
     if (pendingRender) return;
     pendingRender = true;
-    requestAnimationFrame(() => {
-      pendingRender = false;
-      render(lastBuf, getVid());
-    });
+    requestAnimationFrame(() => { pendingRender = false; render(lastBuf, getVid()); });
   };
 
   const tick = () => {
     const vid = getVid();
 
+    /* 비디오 없거나 분리됨 */
     if (vid && !vid.isConnected) { setVid(null); lastBuf = -1; scheduleRender(); return; }
-    if (!vid) { lastBuf = -1; scheduleRender(); return; }
-    if (!isBlob(vid) || vid.readyState < 3 || !isLive(vid)) { lastBuf = -1; scheduleRender(); return; }
+    if (!vid) {
+      // 주기적 재스캔 — SPA 전환 등 대응
+      scan();
+      lastBuf = -1; scheduleRender(); return;
+    }
+    if (!isCandidate(vid) || vid.readyState < 3 || !isLive(vid)) {
+      lastBuf = -1; scheduleRender(); return;
+    }
 
     const buf = getBuf(vid);
     lastBuf = buf;
@@ -156,18 +259,36 @@
     scheduleRender();
 
     if (vid.paused) return;
-    if (!enabled) { setRate(vid, R_NORM); gear = R_NORM; return; }
+    if (!enabled) { safeRate(vid, R_NORM); gear = R_NORM; return; }
 
     const now = performance.now();
     if (now < warmupEnd) return;
 
-    // 비상 seek
+    /* 비상 seek */
     if (buf > PANIC && now - lastSeek > SEEK_CD) { doSeek(vid); return; }
 
-    // 다단 변속
+    updateNetQuality();
+
+    /* stall 쿨다운 */
+    if (now - lastStallTime < STALL_COOLDOWN) {
+      gear = R_NORM; safeRate(vid, R_NORM); return;
+    }
+
+    /* 적응형 변속 */
+    const trend = getBufferTrend();
     const ex = buf - target;
-    gear = ex > 5 ? R_HIGH : ex > HYST ? R_SOFT : ex < -HYST ? R_NORM : gear;
-    setRate(vid, gear);
+
+    if (ex > 5) {
+      gear = R_HIGH;
+    } else if (ex > HYST) {
+      if (netQuality === 'poor' || trend < -0.15) gear = R_NORM;
+      else if (netQuality === 'fair' || trend < -0.05 || stallCount >= 2) gear = R_SOFT;
+      else gear = R_SOFT;
+    } else if (ex < -HYST) {
+      gear = R_NORM;
+    }
+
+    safeRate(vid, gear);
   };
 
   /* ── UI Render ── */
@@ -191,23 +312,23 @@
       return;
     }
 
-    // Panel update — 변경 시에만 DOM 접근
     const txt = buf < 0 ? '-' : sec.toFixed(1);
-    const w = clamp(sec / P.barMax * 100, 0, 100).toFixed(1) + '%';
+    const w = clamp(sec / BAR_MAX * 100, 0, 100).toFixed(1) + '%';
 
     if (txt !== prevTxt) { els.val.textContent = txt; prevTxt = txt; }
-    if (c !== prevClr) { els.val.style.color = c; els.bar.style.background = c; prevClr = c; }
-    if (w !== prevW) { els.bar.style.width = w; prevW = w; }
+    if (c !== prevClr)   { els.val.style.color = c; els.bar.style.background = c; prevClr = c; }
+    if (w !== prevW)     { els.bar.style.width = w; prevW = w; }
 
-    // Badge
+    /* Badge */
     const inRange = sec <= target && sec >= Math.max(0, target - 0.5);
     if (!enabled) { els.badge.textContent = 'OFF'; els.badge.className = 'dm-b dm-b-off'; }
     else if (buf < 0) { els.badge.textContent = '…'; els.badge.className = 'dm-b dm-b-off'; }
-    else if (speeding) { els.badge.textContent = '⚡' + vid.playbackRate + 'x'; els.badge.className = 'dm-b dm-b-acc'; }
+    else if (performance.now() - lastStallTime < STALL_COOLDOWN) { els.badge.textContent = '⏸ 대기'; els.badge.className = 'dm-b dm-b-off'; }
+    else if (speeding) { els.badge.textContent = '⚡' + vid.playbackRate.toFixed(2) + 'x'; els.badge.className = 'dm-b dm-b-acc'; }
     else if (inRange) { els.badge.textContent = '✓ 안정'; els.badge.className = 'dm-b'; }
     else { els.badge.textContent = '→ 추적'; els.badge.className = 'dm-b dm-b-acc'; }
 
-    // [Patch 2] Sparkline — 사전 할당 배열 + join
+    /* Sparkline */
     if (histLen > 1 && els.line && els.tline) {
       const gw = 208, gh = 28;
       let mx = target + 2;
@@ -215,20 +336,28 @@
         const v = hist[(histHead - histLen + i + HIST) % HIST];
         if (v > mx) mx = v;
       }
-
       _ptsBuf.length = histLen;
-      const invMx = 1 / mx;                     // 나눗셈 → 곱셈 변환
-      const xScale = gw / (HIST - 1);
-      const yRange = gh - 4;
+      const invMx = 1 / mx, xScale = gw / (HIST - 1), yRange = gh - 4;
       for (let i = 0; i < histLen; i++) {
         const v = hist[(histHead - histLen + i + HIST) % HIST];
         _ptsBuf[i] = `${(i * xScale).toFixed(1)},${(gh - v * invMx * yRange).toFixed(1)}`;
       }
       els.line.setAttribute('points', _ptsBuf.join(' '));
-
+      els.line.setAttribute('stroke', c);
       const tY = gh - target * invMx * yRange;
       els.tline.setAttribute('y1', tY);
       els.tline.setAttribute('y2', tY);
+    }
+
+    /* 네트워크 인디케이터 */
+    if (els.netInd) {
+      const nt = netQuality === 'poor' ? '불안정' : netQuality === 'fair' ? '보통' : '양호';
+      if (els.netInd._last !== netQuality) {
+        els.netInd._last = netQuality;
+        const nc = netQuality === 'poor' ? '#e74c3c' : netQuality === 'fair' ? '#f1c40f' : '#2ecc71';
+        els.netInd.style.color = nc;
+        els.netInd.textContent = '📶 ' + nt;
+      }
     }
   };
 
@@ -263,16 +392,19 @@
 .dm-t{position:relative;width:44px;height:24px;border-radius:12px;background:#333;cursor:pointer;transition:background .2s;flex-shrink:0}
 .dm-t.on{background:var(--g)}
 .dm-t::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
-.dm-t.on::after{transform:translateX(20px)}`);
+.dm-t.on::after{transform:translateX(20px)}
+.dm-ni{font-size:10px;opacity:.6;transition:color .3s}
+.dm-host{font-size:9px;opacity:.25;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`);
 
     const d = document.createElement('div'); d.id = 'dm-r';
-    const sv = Math.round((target - P.min) / (P.max - P.min) * 100);
+    const sv = Math.round((target - MIN_TARGET) / (MAX_TARGET - MIN_TARGET) * 100);
+    const hostLabel = HOST.replace(/\.(com|co\.kr|naver|tv)$/g, '').slice(0, 12);
 
     d.innerHTML =
 `<div id="dm-f"><div class="dm-i"></div></div>
 <div id="dm-pn">
 <div class="dm-h"><div style="width:18px;height:18px;border-radius:4px;background:var(--g);display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;font-weight:bold">D</div>
-<span>딜레이 미터기</span><span style="font-size:10px;opacity:.4;font-weight:400">${P.name}</span>
+<span>딜레이 미터기</span><span class="dm-host" title="${HOST}">${hostLabel}</span>
 <div class="dm-x"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div></div>
 <div class="dm-s"><span class="dm-v">-</span><span class="dm-u">초</span><span class="dm-b dm-b-off">OFF</span></div>
 <div class="dm-bw"><div class="dm-bf"></div></div>
@@ -282,7 +414,7 @@
 </svg>
 <div style="display:flex;justify-content:space-between;font-size:10px;opacity:.35;margin-bottom:4px"><span>저지연</span><span>안정</span></div>
 <div class="dm-sl"><input type="range" min="0" max="100" value="${sv}"><span class="dm-sv">${target.toFixed(1)}초</span></div>
-<div class="dm-ft"><div class="dm-t${enabled ? ' on' : ''}"></div><span style="font-size:10px;opacity:.3">v10.1</span><span style="margin-left:auto;font-size:10px;opacity:.25">Alt+D</span></div>
+<div class="dm-ft"><div class="dm-t${enabled ? ' on' : ''}"></div><span class="dm-ni">📶 양호</span><span style="font-size:10px;opacity:.3">v11.0</span><span style="margin-left:auto;font-size:10px;opacity:.25">Alt+D</span></div>
 </div>`;
 
     document.body.appendChild(d);
@@ -293,21 +425,22 @@
       badge: pn.querySelector('.dm-b'), line: pn.querySelector('.dm-ln'),
       tline: pn.querySelector('.dm-tl'), tog: pn.querySelector('.dm-t'),
       sl: pn.querySelector('input'), sv: pn.querySelector('.dm-sv'),
-      hdr: pn.querySelector('.dm-h'), x: pn.querySelector('.dm-x')
+      hdr: pn.querySelector('.dm-h'), x: pn.querySelector('.dm-x'),
+      netInd: pn.querySelector('.dm-ni')
     };
 
-    // Events
+    /* Events */
     fab.onclick = () => { if (!fab._m) openP(); };
     els.x.onclick = e => { e.stopPropagation(); closeP(); };
     els.tog.onclick = () => { enabled = !enabled; cfg.enabled = enabled; saveLazy(); els.tog.classList.toggle('on', enabled); };
     els.sl.oninput = () => {
-      target = P.min + (P.max - P.min) * els.sl.value / 100;
+      target = MIN_TARGET + (MAX_TARGET - MIN_TARGET) * els.sl.value / 100;
       target = Math.round(target * 2) / 2;
       els.sv.textContent = target.toFixed(1) + '초';
       cfg.target = target; saveLazy();
     };
 
-    // Drag — 공용 헬퍼
+    /* Drag — FAB */
     const drag = (el, onEnd) => {
       let ox, oy, moved = false;
       el.onpointerdown = e => {
@@ -328,7 +461,7 @@
     };
     drag(fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
 
-    // 헤더 드래그 → 패널 이동
+    /* Drag — Panel header */
     els.hdr.onpointerdown = e => {
       if (e.button || e.target === els.x || els.x.contains(e.target)) return;
       els.hdr.setPointerCapture(e.pointerId);
@@ -347,7 +480,7 @@
       if (els.hdr._m) { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); }
     };
 
-    // 저장된 위치 복원
+    /* 위치 복원 */
     if (cfg.px) { const x = parseFloat(cfg.px); if (x >= 0 && x < innerWidth - 50) Object.assign(pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); }
     if (cfg.dx) { const x = parseFloat(cfg.dx); if (x >= 0 && x < innerWidth - 36) Object.assign(fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }); }
 
@@ -373,29 +506,30 @@
   };
 
   /* ── Scheduling ── */
-  const loop = () => {
-    tick();
-    setTimeout(loop, panelOpen ? 1000 : 5000);
-  };
+  const loop = () => { tick(); setTimeout(loop, panelOpen ? 1000 : 5000); };
 
   /* ── Init ── */
   const init = () => {
     if (!document.body) { document.addEventListener('DOMContentLoaded', init, { once: true }); return; }
-    build();
-    scan();               // 초기 1회 스캔
-    startObserver();      // [Patch 1] 이후 Observer가 감지
-    loop();
+    build(); scan(); startObserver(); loop();
   };
 
   /* ── SPA navigation ── */
-  let lastPath = location.pathname;
+  let lastPath = location.pathname + location.search;
   const onNav = () => {
-    if (location.pathname === lastPath) return;
-    lastPath = location.pathname; warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM;
+    const cur = location.pathname + location.search;
+    if (cur === lastPath) return;
+    lastPath = cur;
+    warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM; stallCount = 0;
+    // SPA 전환 시 비디오 재탐색
+    setTimeout(scan, 500);
   };
   if ('navigation' in window) navigation.addEventListener('navigatesuccess', onNav);
   else {
-    for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
+    for (const m of ['pushState', 'replaceState']) {
+      const o = history[m];
+      history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; };
+    }
     window.addEventListener('popstate', onNav);
   }
 
@@ -409,7 +543,9 @@
   });
 
   /* ── Visibility & Fullscreen ── */
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { warmupEnd = performance.now() + 4000; lastSeek = 0; } });
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { warmupEnd = performance.now() + 4000; lastSeek = 0; }
+  });
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
     const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
@@ -422,15 +558,18 @@
 
   window.addEventListener('beforeunload', save);
 
+  /* ── GM Menu ── */
   GM_registerMenuCommand('현재 상태', () => {
     const vid = getVid();
     const buf = vid ? getBuf(vid) : -1;
-    const txt = `버퍼 ${buf < 0 ? '-' : buf.toFixed(1) + '초'} | ${gear > 1.05 ? 'HIGH' : gear > 1 ? 'SOFT' : 'NORM'} | ${enabled ? 'ON' : 'OFF'}`;
+    const gearLabel = gear > 1.05 ? 'HIGH' : gear > 1 ? 'SOFT' : 'NORM';
+    const live = vid ? isLive(vid) : false;
+    const txt = `[${HOST}] 버퍼 ${buf < 0 ? '-' : buf.toFixed(1) + '초'} | ${gearLabel} | ${enabled ? 'ON' : 'OFF'} | Net: ${netQuality} | stall: ${stallCount} | live: ${live}`;
     const t = document.createElement('div');
     t.textContent = txt;
     Object.assign(t.style, { position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(0,0,0,.85)', color: '#fff', padding: '8px 20px', borderRadius: '8px', fontSize: '13px', fontFamily: 'system-ui', transition: 'opacity .3s' });
     document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2000);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
   });
 
   init();
