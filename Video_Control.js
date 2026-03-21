@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.0.0)
+// @name         Video_Control (v211.1.0)
 // @namespace    https://github.com/
-// @version      211.0.1
-// @description  v211.0.1: CF Turnstile fix + perf optimizations
+// @version      211.1.0
+// @description  v211.1.0: CF Turnstile fix + comprehensive perf optimizations
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -118,7 +118,7 @@
     };
     const clearRecurring = id => { if (!id) return; clearInterval(id); _timers.delete(id); };
 
-    /* ══ Signal combinators & Event binding ══ */
+    /* ══ Signal combinators & Event binding (Patch H / #14 Applied) ══ */
     const _combinedSignalCache = new WeakMap();
     const _hasSignalAny = typeof AbortSignal.any === 'function';
 
@@ -138,16 +138,26 @@
       }))
     );
 
+    const _signalOptsCache = new WeakMap();
+
     function on(target, type, fn, opts) {
       if (!target?.addEventListener || __globalSig.aborted) return;
       if (!opts) { target.addEventListener(type, fn, _GLOBAL_OPTS[0]); return; }
       const sig = getCombinedSignal(opts.signal);
       if (sig.aborted) return;
       const idx = (opts.passive ? 4 : 0) | (opts.capture ? 2 : 0) | (opts.once ? 1 : 0);
+
       if (sig === __globalSig) {
         target.addEventListener(type, fn, _GLOBAL_OPTS[idx]);
       } else {
-        target.addEventListener(type, fn, { passive: !!opts.passive, capture: !!opts.capture, once: !!opts.once, signal: sig });
+        let sigCache = _signalOptsCache.get(sig);
+        if (!sigCache) { sigCache = new Array(8); _signalOptsCache.set(sig, sigCache); }
+        let cached = sigCache[idx];
+        if (!cached) {
+          cached = Object.freeze({ passive: !!(idx & 4), capture: !!(idx & 2), once: !!(idx & 1), signal: sig });
+          sigCache[idx] = cached;
+        }
+        target.addEventListener(type, fn, cached);
       }
     }
     const mkOn = tgt => (type, fn, opts) => on(tgt, type, fn, opts);
@@ -181,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.0.1';
+    const VSC_VERSION = '211.1.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -273,7 +283,7 @@
       debug: (...args) => CONFIG.DEBUG && console.debug('[VSC]', ...args)
     };
 
-    /* ══ StyleGuard ══ */
+    /* ══ StyleGuard (Patch #4 Applied) ══ */
     function vscSetStyle(el, prop, value, priority = 'important') {
       if (!el?.style) return;
       let managed = el[VSC_MANAGED_PROPS];
@@ -286,24 +296,36 @@
       if (!el?.style) return;
       let managed = el[VSC_MANAGED_PROPS];
       if (!managed) { managed = Object.create(null); el[VSC_MANAGED_PROPS] = managed; }
-      const wc = isZoomed ? 'filter, transform' : 'filter';
+
+      const props = ['filter', '-webkit-filter', 'will-change', 'contain', 'background-color', 'backface-visibility', 'transition'];
       const style = el.style;
+      for (const p of props) {
+        if (!(p in managed)) managed[p] = style.getPropertyValue(p) || '';
+      }
 
-      if (!('filter' in managed)) managed['filter'] = style.getPropertyValue('filter') || '';
-      if (!('-webkit-filter' in managed)) managed['-webkit-filter'] = style.getPropertyValue('-webkit-filter') || '';
-      if (!('will-change' in managed)) managed['will-change'] = style.getPropertyValue('will-change') || '';
-      if (!('contain' in managed)) managed['contain'] = style.getPropertyValue('contain') || '';
-      if (!('background-color' in managed)) managed['background-color'] = style.getPropertyValue('background-color') || '';
-      if (!('backface-visibility' in managed)) managed['backface-visibility'] = style.getPropertyValue('backface-visibility') || '';
-      if (!('transition' in managed)) managed['transition'] = style.getPropertyValue('transition') || '';
+      const wc = isZoomed ? 'filter, transform' : 'filter';
 
+      if (el.attributeStyleMap && typeof CSSStyleValue !== 'undefined') {
+        try {
+          const map = el.attributeStyleMap;
+          map.set('contain', 'content');
+          map.set('will-change', wc);
+          map.set('filter', filterStr);
+          map.set('-webkit-filter', filterStr);
+          map.set('background-color', '#000');
+          map.set('backface-visibility', 'hidden');
+          map.set('transition', 'none');
+          return;
+        } catch (_) {}
+      }
+
+      style.setProperty('transition', 'none', 'important');
       style.setProperty('contain', 'content', 'important');
       style.setProperty('will-change', wc, 'important');
       style.setProperty('filter', filterStr, 'important');
       style.setProperty('-webkit-filter', filterStr, 'important');
       style.setProperty('background-color', '#000', 'important');
       style.setProperty('backface-visibility', 'hidden', 'important');
-      style.setProperty('transition', 'none', 'important');
     }
 
     function vscRemoveStyle(el, prop) {
@@ -364,7 +386,7 @@
     const getVState = v => videoStateMap.get(v) ?? (videoStateMap.set(v, mkVideoState()), videoStateMap.get(v));
     const getRateState = v => getVState(v).rateState;
 
-    /* ══ Presets ══ */
+    /* ══ Presets (Patch I / #13 Applied via _PRESET_SHARP_LUT in compose) ══ */
     const PRESETS = Object.freeze({
       detail: {
         none: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
@@ -376,6 +398,14 @@
       }
     });
     const getPresetLabel = (group, key) => PRESETS[group]?.[key]?.label || key;
+
+    const _PRESET_SHARP_LUT = (() => {
+      const lut = {};
+      for (const [key, d] of Object.entries(PRESETS.detail)) {
+        lut[key] = (d.sharpAdd + d.sharp2Add * 0.6 + d.clarityAdd * 0.4) * 0.01;
+      }
+      return lut;
+    })();
 
     /* ══ Defaults & Paths ══ */
     const DEFAULTS = {
@@ -488,36 +518,34 @@
       }
     }
 
-    /* ══ TOUCHED sets & eviction (Patch 1 Applied: O(1) weakset lookup) ══ */
+    /* ══ TOUCHED sets & eviction (Patch A / #1 Applied: FinalizationRegistry) ══ */
     function createTrackedSet(maxSize, onEvict) {
-      const refs = [];
       const fastLookup = new WeakSet();
-      let sweepTimerId = 0;
+      const refs = [];
+      let _compactNeeded = false;
 
-      function sweep() {
-        for (let i = refs.length - 1; i >= 0; i--) {
-          if (!refs[i].deref()) refs.splice(i, 1);
+      const registry = new FinalizationRegistry((heldRef) => {
+        fastLookup.delete(heldRef);
+        _compactNeeded = true;
+      });
+
+      function compactIfNeeded() {
+        if (!_compactNeeded) return;
+        _compactNeeded = false;
+        let write = 0;
+        for (let i = 0; i < refs.length; i++) {
+          const v = refs[i].deref();
+          if (v) { refs[write++] = refs[i]; }
         }
-        if (refs.length === 0 && sweepTimerId) {
-          clearRecurring(sweepTimerId);
-          sweepTimerId = 0;
-        }
+        refs.length = write;
       }
-
-      function ensureSweep() {
-        if (sweepTimerId || __globalSig.aborted) return;
-        sweepTimerId = setRecurring(sweep, 4000, { maxErrors: 10 });
-      }
-
-      __globalSig.addEventListener('abort', () => {
-        if (sweepTimerId) { clearRecurring(sweepTimerId); sweepTimerId = 0; }
-      }, { once: true });
 
       return {
         add(el) {
           if (!el || fastLookup.has(el)) return;
+
           if (refs.length >= maxSize) {
-            sweep();
+            compactIfNeeded();
             if (refs.length >= maxSize) {
               let evictIdx = -1;
               for (let i = 0; i < refs.length; i++) {
@@ -532,36 +560,34 @@
                 refs.splice(evictIdx, 1);
                 if (evicted) {
                   fastLookup.delete(evicted);
+                  registry.unregister(evicted);
                   if (onEvict) queueMicrotask(() => { try { onEvict(evicted); } catch(_) {} });
                 }
               }
             }
           }
+
           fastLookup.add(el);
-          refs.push(new WeakRef(el));
-          ensureSweep();
+          const wr = new WeakRef(el);
+          refs.push(wr);
+          registry.register(el, wr, el);
         },
         has(el) { return fastLookup.has(el); },
         delete(el) {
           if (!fastLookup.has(el)) return false;
           fastLookup.delete(el);
+          registry.unregister(el);
+          _compactNeeded = true;
           return true;
         },
         *[Symbol.iterator]() {
+          compactIfNeeded();
           for (let i = refs.length - 1; i >= 0; i--) {
             const v = refs[i].deref();
             if (v) yield v;
-            else refs.splice(i, 1);
           }
         },
-        get size() {
-          let count = 0;
-          for (let i = refs.length - 1; i >= 0; i--) {
-            if (refs[i].deref()) count++;
-            else refs.splice(i, 1);
-          }
-          return count;
-        }
+        get size() { compactIfNeeded(); return refs.length; }
       };
     }
 
@@ -574,8 +600,7 @@
       rateVideos: createTrackedSet(CONFIG.TOUCHED_MAX)
     };
     function touchedAddLimited(set, el) { set.add(el); }
-
-    /* ══ Rect caching & viewport (Bug 1 & Patch 7 Applied) ══ */
+/* ══ Rect caching & viewport ══ */
     let __vscRectEpoch = 0, __vscRectEpochQueued = false;
     const __vpSnap = { w: 0, h: 0, cx: 0, cy: 0, _dirty: true };
     const __cachedVV = window.visualViewport || null;
@@ -594,7 +619,7 @@
     const _frameNowUpdate = (ts) => { __frameNow = ts; requestAnimationFrame(_frameNowUpdate); };
     requestAnimationFrame(_frameNowUpdate);
 
-    let __adaptiveRectTTL = 350; // 적응형: 100~800ms
+    let __adaptiveRectTTL = 350;
     function getRectCached(v, maxAgeMs) {
       const ttl = maxAgeMs ?? __adaptiveRectTTL;
       const st = getVState(v);
@@ -607,7 +632,6 @@
       st._resizeDirty = false;
       return st.rect;
     }
-    // AutoScene motionSAD에 의해 주기적으로 조정됨
     function updateAdaptiveRectTTL(motionSAD) {
       __adaptiveRectTTL = motionSAD > 0.06 ? 150 : (motionSAD > 0.02 ? 350 : 700);
     }
@@ -617,7 +641,7 @@
 
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
-    /* ══ CircularBuffer ══ */
+    /* ══ CircularBuffer (Patch G / #8 Applied) ══ */
     class CircularBuffer {
       constructor(maxLen) {
         this._buf = new Float64Array(maxLen);
@@ -646,13 +670,20 @@
         const start = (this._head - n + this._max) % this._max;
         for (let i = 0; i < n; i++) out[i] = this._buf[(start + i) % this._max];
 
-        if (n > 12) {
-          out.subarray(0, n).sort();
-        } else {
-          for (let i = 1; i < n; i++) {
-            const key = out[i]; let j = i - 1;
-            while (j >= 0 && out[j] > key) { out[j + 1] = out[j]; j--; }
-            out[j + 1] = key;
+        let sorted = true;
+        for (let i = 1; i < n; i++) {
+          if (out[i] < out[i - 1]) { sorted = false; break; }
+        }
+
+        if (!sorted) {
+          if (n > 24) {
+            out.subarray(0, n).sort();
+          } else {
+            for (let i = 1; i < n; i++) {
+              const key = out[i]; let j = i - 1;
+              while (j >= 0 && out[j] > key) { out[j + 1] = out[j]; j--; }
+              out[j + 1] = key;
+            }
           }
         }
         this._sortDirty = false;
@@ -660,7 +691,8 @@
       }
       clear() { this._head = 0; this._size = 0; this._sortDirty = true; }
     }
-/* ══ SPA URL detector ══ */
+
+    /* ══ SPA URL detector ══ */
     function initSpaUrlDetector(onChanged) {
       if (window[VSC_SPA_SYM]) return;
       window[VSC_SPA_SYM] = true;
@@ -936,9 +968,6 @@
     function isPiPActiveVideo(el) { return !!el && (el === getActivePiPVideo()); }
     function cleanupPipDocumentSvg(pipDoc) { try { if (!pipDoc || pipDoc === document) return; const svgs = pipDoc.querySelectorAll('svg'); for (const svg of svgs) { if (svg.querySelector('[id^="vsc-"]')) { try { svg.remove(); } catch (_) {} } } } catch (_) {} }
 
-    /* ══════════════════════════════════════════════════════════════════
-       PiP helpers (Bug 1 Applied: Promise Lock / Try-Finally guarantees)
-       ══════════════════════════════════════════════════════════════════ */
     async function enterPiP(video) {
       if (!video || !video.isConnected) return false;
       const st = getVState(video); if (st._inPiP) return true;
@@ -1096,7 +1125,7 @@
       if (isActive) await exitPiP(video); else await enterPiP(video);
     }
 
-    /* ══ Video Transform (Bug 3 Applied & Perf 5 Applied) ══ */
+    /* ══ Video Transform ══ */
     const VID_FIT_MODES = ['contain', 'cover', 'fill'];
     const VID_FIT_LABELS = { contain: 'Fit (기본)', cover: 'Fill (채움)', fill: 'Stretch (늘림)' };
 
@@ -1650,7 +1679,7 @@
       return{isPaused:()=>_paused,runOrDefer(fn){if(_paused)_pendingCallbacks.push(fn);else fn();}};
     }
 
-// ═══ PART 2 START (v211.0.0) — GPU Analyzer, Audio Engine, Foundation Modules ═══
+// ═══ PART 2 START (v211.1.0) — GPU Analyzer, Audio Engine, Foundation Modules ═══
 
     /* ══════════════════════════════════════════════════════════════════
        WebGPU Scene Analysis Compute Shader
@@ -2107,7 +2136,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return Object.freeze({ pickFastActiveOnly });
     }
 
-    /* ══ Event Bus ══ */
+    /* ══ Event Bus (Patch F / #11 Applied) ══ */
     function createEventBus() {
       const subs = new Map();
       let _signalSubs = null;
@@ -2136,12 +2165,25 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
 
       let queued = false, forceAgg = false;
-      const flush = () => { queued = false; const f = forceAgg; forceAgg = false; emit('signal', { forceApply: f }); };
+      const _resolved = Promise.resolve();
+
+      const flush = () => {
+        queued = false;
+        const f = forceAgg;
+        forceAgg = false;
+        if (_signalSubs) {
+          const d = { forceApply: f };
+          for (let i = 0; i < _signalLen; i++) {
+            try { _signalSubs[i](d); } catch (_) {}
+          }
+        }
+      };
+
       const signal = p => {
         if (p?.forceApply) forceAgg = true;
         if (queued) return;
         queued = true;
-        queueMicrotask(flush);
+        _resolved.then(flush);
       };
 
       return Object.freeze({ on, emit, signal });
@@ -2196,12 +2238,23 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Scheduler (Bug 1 Patch Applied) ══ */
+    /* ══ Scheduler (Patch D / #7 Applied) ══ */
     function createScheduler(minIntervalMs = 14) {
       let queued = false, force = false, applyFn = null, lastRun = 0;
       let epoch = 0;
 
-      const hasPostTask = typeof globalThis.scheduler?.postTask === 'function';
+      const _schedHi = typeof globalThis.scheduler?.postTask === 'function'
+        ? fn => globalThis.scheduler.postTask(fn, { priority: 'user-blocking' }).catch(() => requestAnimationFrame(fn))
+        : fn => requestAnimationFrame(fn);
+
+      const _schedLo = typeof globalThis.scheduler?.postTask === 'function'
+        ? fn => globalThis.scheduler.postTask(fn, { priority: 'background' }).catch(() =>
+            typeof requestIdleCallback === 'function'
+              ? requestIdleCallback(fn, { timeout: 200 })
+              : requestAnimationFrame(fn))
+        : typeof requestIdleCallback === 'function'
+          ? fn => requestIdleCallback(fn, { timeout: 200 })
+          : fn => requestAnimationFrame(fn);
 
       function execute() {
         queued = false;
@@ -2212,8 +2265,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const throttleEpoch = ++epoch;
           setTimeout(() => {
             if (throttleEpoch !== epoch) return;
-            queued = false;
-            force = false;
+            queued = false; force = false;
             lastRun = performance.now();
             if (applyFn) try { applyFn(false); } catch (_) {}
           }, delay);
@@ -2228,39 +2280,20 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         if (queued && !immediate) return;
         queued = true;
         const myEpoch = ++epoch;
-        const run = () => { if (myEpoch === epoch) execute(); };
-
-        if (immediate) {
-          if (hasPostTask) {
-            globalThis.scheduler.postTask(run, { priority: 'user-blocking' }).catch(() => {});
-          } else {
-            requestAnimationFrame(run);
-          }
-        } else {
-          if (hasPostTask) {
-            globalThis.scheduler.postTask(run, { priority: 'background' }).catch(() => {});
-          } else if (typeof requestIdleCallback === 'function') {
-            requestIdleCallback(run, { timeout: 200 });
-          } else {
-            requestAnimationFrame(run);
-          }
-        }
+        (immediate ? _schedHi : _schedLo)(() => { if (myEpoch === epoch) execute(); });
       }
 
-      return {
-        registerApply: fn => { applyFn = fn; },
-        request
-      };
+      return { registerApply: fn => { applyFn = fn; }, request };
     }
 
-    /* ══ Local Store (Patch 2 & Bug 6 Patch Applied) ══ */
+    /* ══ Local Store (Patch #2 Applied: Inline optimization) ══ */
     function createLocalStore(defaults, scheduler, Utils, onSignal) {
       let rev = 0;
       const listeners = new Map();
       const state = Utils.deepClone(defaults);
       const pathCache = Object.create(null);
       let _emitting = false;
-      let _batchEmitting = false;  // batch 중 개별 emit → signal 중복 방지
+      let _batchEmitting = false;
       const _pendingRemovals = [];
 
       const DIRTY_BITS = Object.freeze({ VIDEO: 0b0001, AUDIO: 0b0010, PLAYBACK: 0b0100, APP: 0b1000 });
@@ -2283,34 +2316,43 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       }
 
       const parsePath = p => pathCache[p] ??= (i => i < 0 ? [p, null] : [p.slice(0, i), p.slice(i + 1)])(p.indexOf('.'));
-      const _catStarMap = Object.create(null);
+
+      const _catStarMap = new Map();
+      function ensureCatStar(key) {
+        if (_catStarMap.has(key)) return _catStarMap.get(key);
+        const dot = key.indexOf('.');
+        const c = dot > 0 ? key.slice(0, dot) + '.*' : '';
+        _catStarMap.set(key, c);
+        return c;
+      }
 
       const emit = (key, val) => {
         const a = listeners.get(key);
-        if (a) {
-          _emitting = true;
-          for (let i = 0, len = a.length; i < len; i++) {
-            try { a[i](val); } catch (_) {}
-          }
-          _emitting = false;
-          if (_pendingRemovals.length > 0) _processPendingRemovals();
-        }
-        let catStar = _catStarMap[key];
-        if (catStar === undefined) {
-          const dot = key.indexOf('.');
-          catStar = _catStarMap[key] = dot > 0 ? key.slice(0, dot) + '.*' : '';
-        }
-        if (catStar) {
-          const b = listeners.get(catStar);
-          if (b) {
-            _emitting = true;
-            for (let i = 0, len = b.length; i < len; i++) {
-              try { b[i](val); } catch (_) {}
-            }
-            _emitting = false;
-            if (_pendingRemovals.length > 0) _processPendingRemovals();
+        const aLen = a ? a.length : 0;
+
+        const catStar = ensureCatStar(key);
+        const b = catStar ? listeners.get(catStar) : undefined;
+        const bLen = b ? b.length : 0;
+
+        if (aLen === 0 && bLen === 0) return;
+
+        _emitting = true;
+
+        let i = 0;
+        try {
+          for (; i < aLen; i++) a[i](val);
+          for (i = 0; i < bLen; i++) b[i](val);
+        } catch (_) {
+          if (i < aLen) {
+            for (let j = i + 1; j < aLen; j++) { try { a[j](val); } catch (_) {} }
+            for (i = 0; i < bLen; i++) { try { b[i](val); } catch (_) {} }
+          } else {
+            for (let j = i + 1; j < bLen; j++) { try { b[j](val); } catch (_) {} }
           }
         }
+
+        _emitting = false;
+        if (_pendingRemovals.length > 0) _processPendingRemovals();
       };
 
       function notifyChange(fullPath, val) {
@@ -2473,7 +2515,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         if (ro) ro.observe(el);
       };
 
-      /* ── WorkQ ── */
+      /* ── WorkQ (Patch #12 Applied: Adaptive drain) ── */
       const WorkQ = (() => {
         const MAX = 500, q = []; let head = 0, epoch = 1, scheduled = false;
         const mark = new WeakMap();
@@ -2509,11 +2551,17 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
         };
 
-        const BATCH_SIZE = 12;
+        let BATCH_SIZE = 12;
         const drain = () => {
           scheduled = false;
+          const t0 = performance.now();
           let count = 0;
           while (count < BATCH_SIZE && head < q.length) { scanNode(q[head++]); count++; }
+          const elapsed = performance.now() - t0;
+
+          if (elapsed < 1 && BATCH_SIZE < 48) BATCH_SIZE = Math.min(48, BATCH_SIZE + 4);
+          else if (elapsed > 4 && BATCH_SIZE > 4) BATCH_SIZE = Math.max(4, BATCH_SIZE - 4);
+
           if (head >= q.length) { q.length = 0; head = 0; epoch++; }
           else { scheduled = true; schedIdle(drain); }
         };
@@ -2673,7 +2721,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Audio Engine (Bug 3 Patch Applied) ══ */
+    /* ══ Audio Engine ══ */
     function createAudio(sm) {
       let ctx;
       let target = null, currentSrc = null;
@@ -3423,16 +3471,16 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-// ═══ END OF PART 2 (v211.0.0) ═══
-// ═══ PART 3 START (v211.0.0) — Auto Scene Manager, Apply Loop ═══
+// ═══ END OF PART 2 (v211.1.0) ═══
+// ═══ PART 3 START (v211.1.0) — Auto Scene Manager, Apply Loop ═══
 
     /* ══════════════════════════════════════════════════════════════════
-       Auto Scene Manager
+       Auto Scene Manager (Patch C, Patch #10 Applied)
        ══════════════════════════════════════════════════════════════════ */
     function createAutoSceneManager(Store, P, Scheduler) {
       const clamp = VSC_CLAMP;
       const HIST_BINS = 256; const TONE_STEPS = 256;
-      const CANVAS_W = CONFIG.IS_MOBILE ? 80 : 112; const CANVAS_H = CONFIG.IS_MOBILE ? 45 : 63;
+      const CANVAS_W = CONFIG.IS_MOBILE ? 80 : 112; const CANVAS_H = CONFIG.IS_MOBILE ? 63 : 63;
       const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
       const CENTER_ZONE_MASK = (1 << 5) | (1 << 6) | (1 << 9) | (1 << 10);
 
@@ -3472,7 +3520,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const ST_NAMES = ['NORMAL', 'LOW_KEY', 'HIGH_KEY', 'HI_CONT', 'LOW_SAT', 'SKIN', 'BACKLIT'];
       const ST_COUNT = ST_NAMES.length;
 
-      /* ══ Analysis Worker Pool (Patch 4 & Patch 7 Applied) ══ */
+      /* ══ Analysis Worker Pool (Patch C & #10 Applied: Zero-copy + Sort Network) ══ */
       const ANALYSIS_WORKER_SRC = (() => {
         const workerFn = function() {
           const HIST_BINS = 256, ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
@@ -3532,11 +3580,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
                 sum+=l0+l1+l2+l3; sum2+=l0*l0+l1*l1+l2*l2+l3*l3; count+=4;
                 sumEdge += iabs(l0 - l1) + iabs(l1 - l2) + iabs(l2 - l3); edgePairCount+=3;
                 const pi0=rowOff+x; curLum[pi0]=l0; curLum[pi0+step]=l1; curLum[pi0+step*2]=l2; curLum[pi0+step*3]=l3;
-                const mx0=r0>g0?(r0>b0?r0:b0):(g0>b0?g0:b0), mn0=r0<g0?(r0<b0?r0:b0):(g0<b0?g0:b0);
-                const mx1=r1>g1?(r1>b1?r1:b1):(g1>b1?g1:b1), mn1=r1<g1?(r1<b1?r1:b1):(g1<b1?g1:b1);
-                const mx2=r2>g2?(r2>b2?r2:b2):(g2>b2?g2:b2), mn2=r2<g2?(r2<b2?r2:b2):(g2<b2?g2:b2);
-                const mx3=r3>g3?(r3>b3?r3:b3):(g3>b3?g3:b3), mn3=r3<g3?(r3<b3?r3:b3):(g3<b3?g3:b3);
-                sumChroma+=(mx0-mn0)+(mx1-mn1)+(mx2-mn2)+(mx3-mn3);
+
+                // Patch #10: Branchless Chroma via Sort Network (3-element)
+                let a0 = r0, b0_ = g0, c0 = b0; if (a0 > b0_) { const t = a0; a0 = b0_; b0_ = t; } if (a0 > c0) { const t = a0; a0 = c0; c0 = t; } if (b0_ > c0) { const t = b0_; b0_ = c0; c0 = t; }
+                let a1 = r1, b1_ = g1, c1 = b1; if (a1 > b1_) { const t = a1; a1 = b1_; b1_ = t; } if (a1 > c1) { const t = a1; a1 = c1; c1 = t; } if (b1_ > c1) { const t = b1_; b1_ = c1; c1 = t; }
+                let a2 = r2, b2_ = g2, c2 = b2; if (a2 > b2_) { const t = a2; a2 = b2_; b2_ = t; } if (a2 > c2) { const t = a2; a2 = c2; c2 = t; } if (b2_ > c2) { const t = b2_; b2_ = c2; c2 = t; }
+                let a3 = r3, b3_ = g3, c3 = b3; if (a3 > b3_) { const t = a3; a3 = b3_; b3_ = t; } if (a3 > c3) { const t = a3; a3 = c3; c3 = t; } if (b3_ > c3) { const t = b3_; b3_ = c3; c3 = t; }
+                sumChroma += (c0 - a0) + (c1 - a1) + (c2 - a2) + (c3 - a3);
+
                 const zi0=zyBase+zxLut[x], zi1=zyBase+zxLut[x+step], zi2=zyBase+zxLut[x+step*2], zi3=zyBase+zxLut[x+step*3];
                 zoneHists[zi0][l0]++;zoneCounts[zi0]++;zoneBrightSum[zi0]+=l0;
                 zoneHists[zi1][l1]++;zoneCounts[zi1]++;zoneBrightSum[zi1]+=l1;
@@ -3556,9 +3607,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
                 const pi=rowOff+x; const px=u32[pi];
                 const r=px&0xFF,g=(px>>>8)&0xFF,b=(px>>>16)&0xFF;
                 const l=(r*54+g*183+b*18+128)>>8;
-                const mx=r>g?(r>b?r:b):(g>b?g:b);
-                const mn=r<g?(r<b?r:b):(g<b?g:b);
-                curLum[pi]=l; sumChroma+=mx-mn; sum+=l; sum2+=l*l; count++;
+
+                // Patch #10: Branchless Chroma
+                let a = r, b_ = g, c = b; if (a > b_) { const t = a; a = b_; b_ = t; } if (a > c) { const t = a; a = c; c = t; } if (b_ > c) { const t = b_; b_ = c; c = t; }
+                sumChroma += (c - a);
+
+                curLum[pi]=l; sum+=l; sum2+=l*l; count++;
                 lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
                 const nx=x+step;
                 if(nx<sw){const npx=u32[rowOff+nx];const nl=((npx&0xFF)*54+((npx>>>8)&0xFF)*183+((npx>>>16)&0xFF)*18+128)>>8; sumEdge+=iabs(l-nl); edgePairCount++;}
@@ -3636,8 +3690,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
                 const imgData = ctx.getImageData(0, 0, sw, sh);
                 result = analyze(imgData.data, sw, sh);
               } else {
-                const { buf, sw, sh } = data;
-                const pixelData = new Uint8ClampedArray(buf);
+                // Patch C: Zero-copy buffer processing
+                const { buf, sw, sh, byteOffset, byteLength } = data;
+                const pixelData = new Uint8ClampedArray(buf, byteOffset || 0, byteLength || buf.byteLength);
                 result = analyze(pixelData, sw, sh);
               }
               const s = new Float64Array([ result.bright, result.contrast, result.chroma, result.edge, result.motionSAD, result.skinRatio, result.centerBright, result.edgeAvgBright, result.hiLumaRBratio, result.totalSamples ]);
@@ -3658,7 +3713,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const _workerPending = new Map();
       const _workerMsgOwner = new Map();
       let _workerMsgId = 0;
-      let WORKER_MSG_TIMEOUT_MS = 8000; // 적응형: 성공 시 축소
+      let WORKER_MSG_TIMEOUT_MS = 8000;
 
       function nextWorkerId() {
         _workerMsgId++;
@@ -3707,7 +3762,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
                 zoneStats: { centerBright: s[6], edgeAvgBright: s[7] }, _gpuPath: false
               };
               p.resolve(result);
-              // 적응형 타임아웃: 성공 시 축소 (최소 2초)
               const elapsed = performance.now() - (p._startTime || 0);
               if (elapsed > 0 && elapsed < WORKER_MSG_TIMEOUT_MS) {
                 WORKER_MSG_TIMEOUT_MS = Math.max(2000, Math.min(WORKER_MSG_TIMEOUT_MS, elapsed * 3));
@@ -3801,9 +3855,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             } else if (input.type === 'bitmap') {
               worker.postMessage({ type: 'bitmap', bitmap: input.bitmap, sw, sh, id }, [input.bitmap]);
             } else {
-              const copy = input.data.slice();
-              const buf = copy.buffer;
-              worker.postMessage({ type: 'buffer', buf, sw, sh, id }, [buf]);
+              // Patch C: Zero-copy ArrayBuffer transfer
+              const rawBuf = input.data.buffer;
+              const byteOff = input.data.byteOffset;
+              const byteLen = input.data.byteLength;
+              worker.postMessage(
+                { type: 'buffer', buf: rawBuf, byteOffset: byteOff, byteLength: byteLen, sw, sh, id },
+                [rawBuf]
+              );
             }
           } catch (e) {
             if (!settled) {
@@ -3977,7 +4036,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const FLICKER_MAX = 8; const FLICKER_DECAY = 0.9;
       function getTemporalAlpha(isCut, isFade) { const base = isCut ? 0.58 : (isFade ? 0.22 : 0.12); return base / (1 + flickerCount * 0.7); }
 
-      /* ── Perf 4 Applied (Main thread): skinTest inline ── */
       function computeFullAnalysis(data, sw, sh) {
         const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
         const iabs = (x) => (x ^ (x >> 31)) - (x >> 31);
@@ -4026,15 +4084,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             curLum[pi0] = l0; curLum[pi0 + step] = l1;
             curLum[pi0 + step * 2] = l2; curLum[pi0 + step * 3] = l3;
 
-            const mx0 = r0 > g0 ? (r0 > b0 ? r0 : b0) : (g0 > b0 ? g0 : b0);
-            const mn0 = r0 < g0 ? (r0 < b0 ? r0 : b0) : (g0 < b0 ? g0 : b0);
-            const mx1 = r1 > g1 ? (r1 > b1 ? r1 : b1) : (g1 > b1 ? g1 : b1);
-            const mn1 = r1 < g1 ? (r1 < b1 ? r1 : b1) : (g1 < b1 ? g1 : b1);
-            const mx2 = r2 > g2 ? (r2 > b2 ? r2 : b2) : (g2 > b2 ? g2 : b2);
-            const mn2 = r2 < g2 ? (r2 < b2 ? r2 : b2) : (g2 < b2 ? g2 : b2);
-            const mx3 = r3 > g3 ? (r3 > b3 ? r3 : b3) : (g3 > b3 ? g3 : b3);
-            const mn3 = r3 < g3 ? (r3 < b3 ? r3 : b3) : (g3 < b3 ? g3 : b3);
-            sumChroma += (mx0 - mn0) + (mx1 - mn1) + (mx2 - mn2) + (mx3 - mn3);
+            // Patch #10: Branchless Chroma via Sort Network (3-element)
+            let a0 = r0, b0_ = g0, c0 = b0; if (a0 > b0_) { const t = a0; a0 = b0_; b0_ = t; } if (a0 > c0) { const t = a0; a0 = c0; c0 = t; } if (b0_ > c0) { const t = b0_; b0_ = c0; c0 = t; }
+            let a1 = r1, b1_ = g1, c1 = b1; if (a1 > b1_) { const t = a1; a1 = b1_; b1_ = t; } if (a1 > c1) { const t = a1; a1 = c1; c1 = t; } if (b1_ > c1) { const t = b1_; b1_ = c1; c1 = t; }
+            let a2 = r2, b2_ = g2, c2 = b2; if (a2 > b2_) { const t = a2; a2 = b2_; b2_ = t; } if (a2 > c2) { const t = a2; a2 = c2; c2 = t; } if (b2_ > c2) { const t = b2_; b2_ = c2; c2 = t; }
+            let a3 = r3, b3_ = g3, c3 = b3; if (a3 > b3_) { const t = a3; a3 = b3_; b3_ = t; } if (a3 > c3) { const t = a3; a3 = c3; c3 = t; } if (b3_ > c3) { const t = b3_; b3_ = c3; c3 = t; }
+            sumChroma += (c0 - a0) + (c1 - a1) + (c2 - a2) + (c3 - a3);
 
             const zi0 = zyBase + zxLut[x], zi1 = zyBase + zxLut[x + step];
             const zi2 = zyBase + zxLut[x + step * 2], zi3 = zyBase + zxLut[x + step * 3];
@@ -4059,10 +4114,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             const r = px & 0xFF, g = (px >>> 8) & 0xFF, b = (px >>> 16) & 0xFF;
             const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
 
-            const mx = r > g ? (r > b ? r : b) : (g > b ? g : b);
-            const mn = r < g ? (r < b ? r : b) : (g < b ? g : b);
+            // Patch #10: Branchless Chroma
+            let a = r, b_ = g, c = b; if (a > b_) { const t = a; a = b_; b_ = t; } if (a > c) { const t = a; a = c; c = t; } if (b_ > c) { const t = b_; b_ = c; c = t; }
+            sumChroma += (c - a);
 
-            curLum[pi] = l; sumChroma += mx - mn; sum += l; sum2 += l * l; count++;
+            curLum[pi] = l; sum += l; sum2 += l * l; count++;
             lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
 
             if (x + step < sw) {
@@ -4179,7 +4235,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         if (isCut) target = AUTO.maxFps; else if (isFade) target = Math.max(target, 5); AUTO.curFps += clamp(target - AUTO.curFps, -1.5, 1.5); return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
       }
 
-      /* ── BUG 5 & Patch 7 Applied: VideoFrame + ImageBitmap 직접 전송 및 getReusableImageData 제거 ── */
       async function captureSceneFrame(v) {
         if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
 
@@ -4574,22 +4629,36 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return Object.freeze({ toggle, isActive: () => active || delegatedToTop, getTarget: () => targetVideo || targetIframe, doMaximize: toggle, undoMaximize() { if (isInIframe() && delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; } undoMaximize(); } });
     }
 
-    /* ── BUG 2 & Bonus A Patch Applied: isNeutralVideoParams 조기 탈출 ── */
-    const isNeutralVideoParams = (v) => {
-      // 핫 패스: auto 모드면 즉시 false (가장 흔한 non-neutral 케이스)
-      if (v._autoToneCurve !== null || v._autoChannelGains !== null) return false;
-      // CSS 필터 3종 먼저 (UI 슬라이더 조작 시 가장 먼저 변하는 값)
-      const cssBr = v._cssBr ?? 1, cssCt = v._cssCt ?? 1, cssSat = v._cssSat ?? 1;
-      if (cssBr < 0.99 || cssBr > 1.01 || cssCt < 0.99 || cssCt > 1.01 || cssSat < 0.99 || cssSat > 1.01) return false;
-      // 프리셋에 의해 설정되는 sharp (두 번째로 흔한 non-neutral)
-      const sharp = v.sharp ?? 0;
-      if (sharp > 0.01 || sharp < -0.01) return false;
-      // 나머지 (드물게 변경됨)
-      const T = 0.01;
-      return Math.abs(v.toe ?? 0) < T && Math.abs(v.mid ?? 0) < T && Math.abs(v.shoulder ?? 0) < T
-          && Math.abs((v.gain ?? 1) - 1) < T && Math.abs((v.gamma ?? 1) - 1) < T
-          && Math.abs((v.contrast ?? 1) - 1) < T && Math.abs(v.bright ?? 0) < T && Math.abs(v.temp ?? 0) < T;
-    };
+    /* ── isNeutralVideoParams (Patch #6 Applied) ── */
+    const isNeutralVideoParams = (() => {
+      let _lastHash = 0;
+      let _lastResult = true;
+
+      return function isNeutralCached(v) {
+        if (v._autoToneCurve !== null || v._autoChannelGains !== null) return false;
+
+        const h = ((v._cssBr * 1000) | 0) ^
+                  (((v._cssCt * 1000) | 0) << 10) ^
+                  (((v.sharp || 0) * 1000) | 0);
+
+        if (h === _lastHash) return _lastResult;
+
+        _lastHash = h;
+
+        const cssBr = v._cssBr ?? 1, cssCt = v._cssCt ?? 1, cssSat = v._cssSat ?? 1;
+        if (cssBr < 0.99 || cssBr > 1.01 || cssCt < 0.99 || cssCt > 1.01 || cssSat < 0.99 || cssSat > 1.01) { _lastResult = false; return false; }
+
+        const sharp = v.sharp ?? 0;
+        if (sharp > 0.01 || sharp < -0.01) { _lastResult = false; return false; }
+
+        const T = 0.01;
+        _lastResult = Math.abs(v.toe ?? 0) < T && Math.abs(v.mid ?? 0) < T && Math.abs(v.shoulder ?? 0) < T
+            && Math.abs((v.gain ?? 1) - 1) < T && Math.abs((v.gamma ?? 1) - 1) < T
+            && Math.abs((v.contrast ?? 1) - 1) < T && Math.abs(v.bright ?? 0) < T && Math.abs(v.temp ?? 0) < T;
+
+        return _lastResult;
+      };
+    })();
 
     /* ══════════════════════════════════════════════════════════════════
        createApplyLoop
@@ -4705,15 +4774,15 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       Scheduler.registerApply(apply); return { apply };
     }
 
-// ═══ END OF PART 3 (v211.0.0) ═══
-// ═══ PART 4 START (v211.0.0) — Filters, UI, Gestures & Bootstrap ═══
+// ═══ END OF PART 3 (v211.1.0) ═══
+// ═══ PART 4 START (v211.1.0) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
     const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
     const SCR_BRT_LABELS = ['리셋(OFF)', '1단', '2단', '3단', '4단', '5단'];
 
     /* ══════════════════════════════════════════════════════════════════
-       SVG Filter Engine (Patch 1, Patch 3, Patch 7 Applied)
+       SVG Filter Engine (Patch E & Patch B Applied)
        ══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -4722,22 +4791,24 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const _toneStrLut = new Array(10001); let _toneStrLutReady = false;
       function ensureToneStrLut() { if (_toneStrLutReady) return; for (let i = 0; i <= 10000; i++) _toneStrLut[i] = (i / 10000).toFixed(4); _toneStrLutReady = true; }
 
-      const _toneSvgBufPool = { a: null, b: null, active: 0 };
+      // ★ Patch E (#3): SVG Table 빌드 — 8x Unroll
       function float32ArrayToSvgTable(arr) {
         ensureToneStrLut();
         const len = arr.length, lut = _toneStrLut;
-        // 교대 버퍼 — GC 압력 제거
-        const key = _toneSvgBufPool.active ^= 1;
-        let buf = key ? _toneSvgBufPool.a : _toneSvgBufPool.b;
-        if (!buf || buf.length !== len) {
-          buf = new Array(len);
-          if (key) _toneSvgBufPool.a = buf; else _toneSvgBufPool.b = buf;
+        const chunks = [];
+        let i = 0;
+        const end8 = len - 7;
+        for (; i < end8; i += 8) {
+          const c = (idx) => lut[Math.max(0, Math.min(10000, (arr[idx] * 10000 + 0.5) | 0))];
+          chunks.push(
+            c(i) + ' ' + c(i+1) + ' ' + c(i+2) + ' ' + c(i+3) + ' ' +
+            c(i+4) + ' ' + c(i+5) + ' ' + c(i+6) + ' ' + c(i+7)
+          );
         }
-        for (let i = 0; i < len; i++) {
-          const idx = (arr[i] * 10000 + 0.5) | 0;
-          buf[i] = lut[idx < 0 ? 0 : (idx > 10000 ? 10000 : idx)];
+        for (; i < len; i++) {
+          chunks.push(lut[Math.max(0, Math.min(10000, (arr[i] * 10000 + 0.5) | 0))]);
         }
-        return buf.join(' ');
+        return chunks.join(' ');
       }
 
       function mkXfer(attrs, funcDefaults, withAlpha = false) {
@@ -4770,18 +4841,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         h = hashMix(h, s.bright || 0);
         if (s._autoToneCurve?.length >= 256) {
           const c = s._autoToneCurve;
-          h = hashMix(h, c[0]);
-          h = hashMix(h, c[32]);
-          h = hashMix(h, c[64]);
-          h = hashMix(h, c[128]);
-          h = hashMix(h, c[192]);
-          h = hashMix(h, c[255]);
+          h = hashMix(h, c[0]); h = hashMix(h, c[32]); h = hashMix(h, c[64]);
+          h = hashMix(h, c[128]); h = hashMix(h, c[192]); h = hashMix(h, c[255]);
         }
         if (s._autoChannelGains) {
           const g = s._autoChannelGains;
-          h = hashMix(h, g.rGain);
-          h = hashMix(h, g.gGain);
-          h = hashMix(h, g.bGain);
+          h = hashMix(h, g.rGain); h = hashMix(h, g.gGain); h = hashMix(h, g.bGain);
         }
         return h;
       }
@@ -4840,30 +4905,33 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         return (Math.abs(s.sharp || 0) > 0.005 || Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || !!s._autoToneCurve || !!s._autoChannelGains || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.temp || 0) > 0.5);
       }
 
+      // ★ Patch B (#9): Filter Apply 핫 패스 — internFilter L1 캐시
       const _filterInternMap = new Map();
       let _filterInternSeq = 0;
-      const INTERN_MAX = 64;
-      const _filterInternHot = new Map(); // 핫 캐시 (최근 8개, O(1) lookup)
-      const INTERN_HOT_MAX = 8;
+      const INTERN_MAX = 48;
+      let _ic0s = '', _ic0id = 0, _ic1s = '', _ic1id = 0;
+      let _ic2s = '', _ic2id = 0, _ic3s = '', _ic3id = 0;
 
       function internFilter(str) {
-        // 핫 패스: 최근 사용된 필터는 별도 소형 맵에서 O(1) 조회
-        let id = _filterInternHot.get(str);
-        if (id !== undefined) return id;
-        id = _filterInternMap.get(str);
+        if (str === _ic0s) return _ic0id;
+        if (str === _ic1s) return _ic1id;
+        if (str === _ic2s) return _ic2id;
+        if (str === _ic3s) return _ic3id;
+
+        let id = _filterInternMap.get(str);
         if (id !== undefined) {
           _filterInternMap.delete(str);
           _filterInternMap.set(str, id);
-          // 핫 캐시로 승격
-          if (_filterInternHot.size >= INTERN_HOT_MAX) _filterInternHot.delete(_filterInternHot.keys().next().value);
-          _filterInternHot.set(str, id);
-          return id;
+        } else {
+          if (_filterInternMap.size >= INTERN_MAX) _filterInternMap.delete(_filterInternMap.keys().next().value);
+          id = ++_filterInternSeq;
+          _filterInternMap.set(str, id);
         }
-        if (_filterInternMap.size >= INTERN_MAX) _filterInternMap.delete(_filterInternMap.keys().next().value);
-        id = ++_filterInternSeq;
-        _filterInternMap.set(str, id);
-        if (_filterInternHot.size >= INTERN_HOT_MAX) _filterInternHot.delete(_filterInternHot.keys().next().value);
-        _filterInternHot.set(str, id);
+
+        _ic3s = _ic2s; _ic3id = _ic2id;
+        _ic2s = _ic1s; _ic2id = _ic1id;
+        _ic1s = _ic0s; _ic1id = _ic0id;
+        _ic0s = str;   _ic0id = id;
         return id;
       }
 
@@ -4877,7 +4945,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         __svgUpdateQueued = true;
         requestAnimationFrame(() => {
           __svgUpdateQueued = false;
-          // swap pool — splice(0) 없이 배열 재사용
           const batch = __svgPendingUpdates;
           __svgPendingUpdates = __svgPendingPool;
           __svgPendingPool = batch;
@@ -4896,11 +4963,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         let dc = urlCache.get(root); if (!dc) { dc = { keyHash: 0, url: '', filterStr: 'none', cssOnly: false }; urlCache.set(root, dc); }
 
         const svgHash = makeKeyHash(s) ^ ((video.videoWidth || 0) * 0x10001);
-        const fullHash = svgHash
-          ^ hashMix(0, s._cssBr)
-          ^ hashMix(0x100, s._cssCt)
-          ^ hashMix(0x200, s._cssSat)
-          ^ (inShadow ? 0xDEAD : 0);
+        const fullHash = svgHash ^ hashMix(0, s._cssBr) ^ hashMix(0x100, s._cssCt) ^ hashMix(0x200, s._cssSat) ^ (inShadow ? 0xDEAD : 0);
 
         if (dc.keyHash === fullHash) return { svgUrl: dc.url, filterStr: dc.filterStr, cssOnly: dc.cssOnly };
 
@@ -4910,40 +4973,23 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (inShadow && needsSvgFilter(s)) {
             if (s._autoToneCurve && s._autoToneCurve.length >= 256) {
               const curve = s._autoToneCurve;
-              const midOut = curve[128];
-              const shadowOut = curve[32];
-              const highlightOut = curve[224];
-              const avgLift = (midOut - 0.5) * 2;
-              const cssBright = 1.0 + avgLift * 0.3;
-              if (Math.abs(cssBright - 1) > 0.005) {
-                parts.push(`brightness(${clamp(cssBright, 0.7, 1.5).toFixed(4)})`);
-              }
+              const midOut = curve[128]; const shadowOut = curve[32]; const highlightOut = curve[224];
+              const avgLift = (midOut - 0.5) * 2; const cssBright = 1.0 + avgLift * 0.3;
+              if (Math.abs(cssBright - 1) > 0.005) parts.push(`brightness(${clamp(cssBright, 0.7, 1.5).toFixed(4)})`);
               const slope = (highlightOut - shadowOut) / (224 / 255 - 32 / 255);
               const cssContrast = clamp(slope, 0.7, 1.4);
-              if (Math.abs(cssContrast - 1) > 0.005) {
-                parts.push(`contrast(${cssContrast.toFixed(4)})`);
-              }
-              if (Math.abs(midOut - 0.5) > 0.02) {
-                const gammaCompensation = midOut > 0.5 ? 1.0 + (midOut - 0.5) * 0.4 : 1.0 - (0.5 - midOut) * 0.4;
-              }
+              if (Math.abs(cssContrast - 1) > 0.005) parts.push(`contrast(${cssContrast.toFixed(4)})`);
+
               if (s._autoChannelGains) {
                 const ag = s._autoChannelGains;
                 const tempEstimate = (ag.rGain - ag.bGain) * 50;
-                if (Math.abs(tempEstimate) > 2) {
-                  parts.push(`hue-rotate(${clamp(tempEstimate * 0.3, -15, 15).toFixed(1)}deg)`);
-                }
+                if (Math.abs(tempEstimate) > 2) parts.push(`hue-rotate(${clamp(tempEstimate * 0.3, -15, 15).toFixed(1)}deg)`);
               }
             } else {
-              const gain = s.gain || 1;
-              const gamma = s.gamma || 1;
-              const approxBright = Math.pow(gain, 0.9) * Math.pow(1 / gamma, 0.5);
+              const approxBright = Math.pow(s.gain || 1, 0.9) * Math.pow(1 / (s.gamma || 1), 0.5);
               if (Math.abs(approxBright - 1) > 0.005) parts.push(`brightness(${approxBright.toFixed(4)})`);
-
-              const contrast = s.contrast || 1;
-              if (Math.abs(contrast - 1) > 0.005) parts.push(`contrast(${contrast.toFixed(4)})`);
-
-              const temp = s.temp || 0;
-              if (Math.abs(temp) > 1) parts.push(`hue-rotate(${(temp * 0.3).toFixed(1)}deg)`);
+              if (Math.abs((s.contrast || 1) - 1) > 0.005) parts.push(`contrast(${(s.contrast || 1).toFixed(4)})`);
+              if (Math.abs(s.temp || 0) > 1) parts.push(`hue-rotate(${((s.temp || 0) * 0.3).toFixed(1)}deg)`);
             }
           }
 
@@ -5049,18 +5095,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const st = getVState(el);
           if (st._inPiP) return;
           if (!st.visible && !isPiPActiveVideo(el)) {
-            if (st.applied) {
-              vscRemoveStyle(el, 'will-change');
-              vscRemoveStyle(el, 'contain');
-            }
+            if (st.applied) { vscRemoveStyle(el, 'will-change'); vscRemoveStyle(el, 'contain'); }
             return;
           }
           if (!filterResult) {
             if (st.applied) {
               vscClearAllStyles(el);
               st.applied = false; st.lastFilterUrl = null;
-              st.lastCssFilterStr = null; st._transitionCleared = false;
-              st._lastFilterHash = 0;
+              st.lastCssFilterStr = null; st._transitionCleared = false; st._lastFilterHash = 0;
             }
             return;
           }
@@ -5068,7 +5110,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const filterStr = filterResult.filterStr;
           const newHash = internFilter(filterStr);
 
-          // 해시 동일 + 이미 적용됨 = 완전 스킵 (DOM 조작 방지)
           if (st._lastFilterHash === newHash && st.applied) return;
 
           const isZoomed = !!window[VSC_INTERNAL_SYM]?.ZoomManager?.isZoomed(el);
@@ -5090,7 +5131,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Dynamic Sharpness Multiplier (Mobile Issue 1 Applied) ══ */
     function computeResolutionSharpMul(video) {
       const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
       const dW = video.clientWidth || video.offsetWidth || 0;
@@ -5124,7 +5164,16 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return { mul, autoBase };
     }
 
-    /* ── composeVideoParamsInto (Mobile Issue 1 Applied) ── */
+    // ★ Patch I (#13): Preset Sharp Base 사전 계산 LUT 적용
+    const _PRESET_SHARP_BASE = Object.freeze({
+      none: 0,
+      off: 0,
+      S:  (16 + 4 * 0.6 + 5 * 0.4) * 0.01,
+      M:  (22 + 12 * 0.6 + 12 * 0.4) * 0.01,
+      L:  (26 + 24 * 0.6 + 20 * 0.4) * 0.01,
+      XL: (32 + 22 * 0.6 + 26 * 0.4) * 0.01
+    });
+
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
       out.gain = 1; out.gamma = 1; out.contrast = 1; out.bright = 0;
       out.satF = 1; out.toe = 0; out.mid = 0; out.shoulder = 0;
@@ -5136,15 +5185,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const presetS = vUser.presetS;
       const mix = VSC_CLAMP(+vUser.presetMix || 1, 0, 1);
 
-      switch (presetS) {
-        case 'none': break;
-        case 'off':
-          out.sharp = autoSharpBase;
-          break;
-        default: {
-          const d = PRESETS.detail[presetS];
-          if (d) out.sharp = ((d.sharpAdd || 0) + (d.sharp2Add || 0) * 0.6 + (d.clarityAdd || 0) * 0.4) * 0.01 * mix * sharpMul;
-        }
+      if (presetS === 'off') {
+        out.sharp = autoSharpBase;
+      } else if (presetS !== 'none') {
+        const base = _PRESET_SHARP_BASE[presetS];
+        if (base > 0) out.sharp = base * mix * sharpMul;
       }
 
       if (motionSAD > 0.04 && out.sharp > 0.005) {
@@ -5159,9 +5204,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const mS = VSC_CLAMP(+vUser.manualShadow || 0, 0, 100);
       const mR = VSC_CLAMP(+vUser.manualRecovery || 0, 0, 100);
       const mB = VSC_CLAMP(+vUser.manualBright || 0, 0, 100);
-      out.toe = mS * 0.0035;
-      out.mid = mR * 0.0030;
-      out.shoulder = mB * 0.0040;
+      out.toe = mS * 0.0035; out.mid = mR * 0.0030; out.shoulder = mB * 0.0040;
       out.temp = VSC_CLAMP(+vUser.manualTemp || 0, -50, 50);
 
       const hasToneCurve = !!autoMods._toneCurve;
@@ -5176,11 +5219,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         out.contrast *= autoMods.ct;
         out._cssCt = VSC_CLAMP(out.contrast, 0.5, 2.0);
       }
-
       return out;
     }
 
-    /* ══ Video Params Memoization ══ */
     function createVideoParamsMemo(Store, P, Utils) {
       const cache = new Map(); const MAX_CACHE_SIZE = 16;
       function invalidate() { cache.clear(); }
@@ -5194,15 +5235,10 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const { mul, autoBase } = activeTarget ? computeResolutionSharpMul(activeTarget) : { mul: 0.0, autoBase: 0.0 };
           const finalMul = (mul === 0.0 && vfUser.presetS !== 'off') ? 0.50 : mul;
           const amHash = autoMods._toneCurve
-            ? ((autoMods._toneCurve[32] * 1000) | 0) * 1000000 +
-              ((autoMods._toneCurve[128] * 1000) | 0) * 1000 +
-              ((autoMods._toneCurve[224] * 1000) | 0)
+            ? ((autoMods._toneCurve[32] * 1000) | 0) * 1000000 + ((autoMods._toneCurve[128] * 1000) | 0) * 1000 + ((autoMods._toneCurve[224] * 1000) | 0)
             : ((autoMods.br * 1000) | 0) * 1000 + ((autoMods.ct * 1000) | 0);
           const motionBucket = (motionSAD * 20 + 0.5) | 0;
-          const key = vfUser.presetS + '|' + ((vfUser.presetMix * 1000) | 0) + '|' +
-            (vfUser.manualShadow || 0) + '|' + (vfUser.manualRecovery || 0) + '|' +
-            (vfUser.manualBright || 0) + '|' + w + 'x' + ht + '|' +
-            amHash + '|' + ((finalMul * 1000) | 0) + '|' + ((autoBase * 1000) | 0) + '|' + motionBucket;
+          const key = vfUser.presetS + '|' + ((vfUser.presetMix * 1000) | 0) + '|' + (vfUser.manualShadow || 0) + '|' + (vfUser.manualRecovery || 0) + '|' + (vfUser.manualBright || 0) + '|' + w + 'x' + ht + '|' + amHash + '|' + ((finalMul * 1000) | 0) + '|' + ((autoBase * 1000) | 0) + '|' + motionBucket;
 
           if (activeTarget) { const cached = cache.get(activeTarget); if (cached && cached.key === key) return cached.result; }
           const base = {}; composeVideoParamsInto(base, vfUser, autoMods, finalMul, autoBase, motionSAD);
@@ -5214,7 +5250,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Shadow style & UI Helpers ══ */
     const __styleCacheMaxSize = 16; const __styleCache = new Map();
     __globalSig.addEventListener('abort', () => { __styleCache.clear(); }, { once: true });
     function applyShadowStyle(shadow, cssText, h) {
@@ -5237,9 +5272,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return () => { if (!ended) { ended = true; try { ac.abort(); } catch (_) {} } };
     }
 
-    /* ══════════════════════════════════════════════════════════════════
-       SVG Icon Builders
-       ══════════════════════════════════════════════════════════════════ */
     const SVG_NS = 'http://www.w3.org/2000/svg';
     function createSvgElement(tag, attrs = {}, ...children) {
       const el = document.createElementNS(SVG_NS, tag);
@@ -5264,881 +5296,128 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
     const VSC_ICON_BUILDERS = new Proxy({}, { get: (_, name) => (size) => svgIcon(name, size) });
 
-    /* ══════════════════════════════════════════════════════════════════
-       CSS_VARS & PANEL_CSS (Redesign Applied)
-       ══════════════════════════════════════════════════════════════════ */
     const CSS_VARS = `
 :host {
-  position: fixed !important;
-  contain: none !important;
-  overflow: visible !important;
-  isolation: isolate;
-
-  /* ── 글래스모피즘 팔레트 ── */
-  --vsc-glass:        rgba(12, 12, 18, 0.72);
-  --vsc-glass-hover:  rgba(30, 30, 44, 0.78);
-  --vsc-glass-active: rgba(40, 40, 58, 0.82);
-  --vsc-glass-blur:   blur(24px) saturate(200%);
-  --vsc-glass-border: rgba(255, 255, 255, 0.06);
-
-  /* ── 네온 액센트 ── */
-  --vsc-neon:         #00e5ff;
-  --vsc-neon-glow:    0 0 12px rgba(0, 229, 255, 0.35), 0 0 40px rgba(0, 229, 255, 0.08);
-  --vsc-neon-soft:    rgba(0, 229, 255, 0.15);
-  --vsc-neon-border:  rgba(0, 229, 255, 0.25);
-  --vsc-neon-dim:     rgba(0, 229, 255, 0.08);
-
-  /* ── 보조 색상 ── */
-  --vsc-green:  #4cff8d;
-  --vsc-amber:  #ffbe46;
-  --vsc-red:    #ff4d6a;
-  --vsc-purple: #b47aff;
-
-  /* ── 텍스트 ── */
-  --vsc-text:       rgba(255, 255, 255, 0.92);
-  --vsc-text-dim:   rgba(255, 255, 255, 0.50);
-  --vsc-text-muted: rgba(255, 255, 255, 0.28);
-
-  /* ── 그림자 ── */
-  --vsc-shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.6),
-                      0 0 1px rgba(255, 255, 255, 0.05) inset,
-                      0 1px 0 rgba(255, 255, 255, 0.04) inset;
-  --vsc-shadow-btn:   0 2px 8px rgba(0, 0, 0, 0.3);
-  --vsc-shadow-fab:   0 6px 20px rgba(0, 0, 0, 0.5),
-                      0 0 0 1px rgba(255, 255, 255, 0.04);
-
-  /* ── 공간 ── */
-  --vsc-space-xs: 4px;
-  --vsc-space-sm: 6px;
-  --vsc-space-md: 10px;
-  --vsc-space-lg: 14px;
-  --vsc-space-xl: 20px;
-
-  /* ── 반경 ── */
-  --vsc-radius-sm: 6px;
-  --vsc-radius-md: 10px;
-  --vsc-radius-lg: 14px;
-  --vsc-radius-xl: 18px;
-  --vsc-radius-pill: 9999px;
-
-  /* ── 타이포 ── */
-  --vsc-font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --vsc-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
-  --vsc-font-xs:  10px;
-  --vsc-font-sm:  11px;
-  --vsc-font-md:  13px;
-  --vsc-font-lg:  15px;
-  --vsc-font-xl:  24px;
-  --vsc-font-xxl: 32px;
-
-  /* ── 터치/레이아웃 ── */
-  --vsc-touch-min: ${CONFIG.IS_MOBILE ? '44px' : '34px'};
-  --vsc-touch-slider: ${CONFIG.IS_MOBILE ? '20px' : '14px'};
-  --vsc-panel-width: 380px;
-  --vsc-panel-right: ${CONFIG.IS_MOBILE ? '56px' : '52px'};
-  --vsc-panel-max-h: 82vh;
-  --vsc-qbar-right: ${CONFIG.IS_MOBILE ? '6px' : '10px'};
-
-  /* ── 트랜지션 ── */
-  --vsc-ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
-  --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --vsc-t-fast:   0.15s var(--vsc-ease-out);
-  --vsc-t-normal: 0.25s var(--vsc-ease-out);
-  --vsc-t-slow:   0.4s  var(--vsc-ease-out);
+  position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate;
+  --vsc-glass: rgba(12, 12, 18, 0.72); --vsc-glass-hover: rgba(30, 30, 44, 0.78); --vsc-glass-active: rgba(40, 40, 58, 0.82); --vsc-glass-blur: blur(24px) saturate(200%); --vsc-glass-border: rgba(255, 255, 255, 0.06);
+  --vsc-neon: #00e5ff; --vsc-neon-glow: 0 0 12px rgba(0, 229, 255, 0.35), 0 0 40px rgba(0, 229, 255, 0.08); --vsc-neon-soft: rgba(0, 229, 255, 0.15); --vsc-neon-border: rgba(0, 229, 255, 0.25); --vsc-neon-dim: rgba(0, 229, 255, 0.08);
+  --vsc-green: #4cff8d; --vsc-amber: #ffbe46; --vsc-red: #ff4d6a; --vsc-purple: #b47aff;
+  --vsc-text: rgba(255, 255, 255, 0.92); --vsc-text-dim: rgba(255, 255, 255, 0.50); --vsc-text-muted: rgba(255, 255, 255, 0.28);
+  --vsc-shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.05) inset, 0 1px 0 rgba(255, 255, 255, 0.04) inset; --vsc-shadow-btn: 0 2px 8px rgba(0, 0, 0, 0.3); --vsc-shadow-fab: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  --vsc-space-xs: 4px; --vsc-space-sm: 6px; --vsc-space-md: 10px; --vsc-space-lg: 14px; --vsc-space-xl: 20px;
+  --vsc-radius-sm: 6px; --vsc-radius-md: 10px; --vsc-radius-lg: 14px; --vsc-radius-xl: 18px; --vsc-radius-pill: 9999px;
+  --vsc-font: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; --vsc-font-mono: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
+  --vsc-font-xs: 10px; --vsc-font-sm: 11px; --vsc-font-md: 13px; --vsc-font-lg: 15px; --vsc-font-xl: 24px; --vsc-font-xxl: 32px;
+  --vsc-touch-min: ${CONFIG.IS_MOBILE ? '44px' : '34px'}; --vsc-touch-slider: ${CONFIG.IS_MOBILE ? '20px' : '14px'}; --vsc-panel-width: 380px; --vsc-panel-right: ${CONFIG.IS_MOBILE ? '56px' : '52px'}; --vsc-panel-max-h: 82vh; --vsc-qbar-right: ${CONFIG.IS_MOBILE ? '6px' : '10px'};
+  --vsc-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --vsc-t-fast: 0.15s var(--vsc-ease-out); --vsc-t-normal: 0.25s var(--vsc-ease-out); --vsc-t-slow: 0.4s var(--vsc-ease-out);
 }`;
 
     const PANEL_CSS = `
 ${CSS_VARS}
-
-/* ── 리셋 ── */
-:host {
-  all: initial;
-  position: fixed !important;
-  z-index: 2147483647;
-  font-family: var(--vsc-font);
-  font-size: var(--vsc-font-md);
-  color: var(--vsc-text);
-  pointer-events: none;
-  contain: none !important;
-  overflow: visible !important;
-  isolation: isolate;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-  color: inherit;
-}
-
-/* ══════════════════════════════
-   패널 컨테이너
-   ══════════════════════════════ */
-.panel {
-  pointer-events: none;
-  position: fixed !important;
-  right: calc(var(--vsc-panel-right) + 12px);
-  top: 50%;
-  width: var(--vsc-panel-width);
-  max-height: var(--vsc-panel-max-h);
-  background: var(--vsc-glass);
-  border: 1px solid var(--vsc-glass-border);
-  border-radius: var(--vsc-radius-xl);
-  backdrop-filter: var(--vsc-glass-blur);
-  -webkit-backdrop-filter: var(--vsc-glass-blur);
-  box-shadow: var(--vsc-shadow-panel);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  user-select: none;
-  contain: none !important;
-
-  /* 닫힌 상태 */
-  opacity: 0;
-  transform: translate(16px, -50%) scale(0.92);
-  filter: blur(4px);
-  transition:
-    opacity 0.3s var(--vsc-ease-out),
-    transform 0.4s var(--vsc-ease-spring),
-    filter 0.3s var(--vsc-ease-out);
-}
-.panel.open {
-  opacity: 1;
-  transform: translate(0, -50%) scale(1);
-  filter: blur(0);
-  pointer-events: auto;
-}
-
-/* ── 패널 네온 보더 라인 (상단) ── */
-.panel::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 10%; right: 10%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--vsc-neon), transparent);
-  opacity: 0.6;
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* ══════════════════════════════
-   헤더
-   ══════════════════════════════ */
-.hdr {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  gap: 10px;
-  position: relative;
-}
-.hdr .tl {
-  font-weight: 800;
-  font-size: 16px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  background: linear-gradient(135deg, var(--vsc-neon), var(--vsc-purple));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  text-shadow: none;
-}
-.hdr .ver {
-  font-family: var(--vsc-font-mono);
-  font-size: var(--vsc-font-xs);
-  opacity: 0.30;
-  margin-left: auto;
-  letter-spacing: 0.5px;
-}
-
-/* ── 상태 도트 ── */
+:host { all: initial; position: fixed !important; z-index: 2147483647; font-family: var(--vsc-font); font-size: var(--vsc-font-md); color: var(--vsc-text); pointer-events: none; contain: none !important; overflow: visible !important; isolation: isolate; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
+.panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px); top: 50%; width: var(--vsc-panel-width); max-height: var(--vsc-panel-max-h); background: var(--vsc-glass); border: 1px solid var(--vsc-glass-border); border-radius: var(--vsc-radius-xl); backdrop-filter: var(--vsc-glass-blur); -webkit-backdrop-filter: var(--vsc-glass-blur); box-shadow: var(--vsc-shadow-panel); display: flex; flex-direction: column; overflow: hidden; user-select: none; contain: none !important; opacity: 0; transform: translate(16px, -50%) scale(0.92); filter: blur(4px); transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out); }
+.panel.open { opacity: 1; transform: translate(0, -50%) scale(1); filter: blur(0); pointer-events: auto; }
+.panel::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--vsc-neon), transparent); opacity: 0.6; pointer-events: none; z-index: 2; }
+.hdr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); gap: 10px; position: relative; }
+.hdr .tl { font-weight: 800; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; background: linear-gradient(135deg, var(--vsc-neon), var(--vsc-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: none; }
+.hdr .ver { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.30; margin-left: auto; letter-spacing: 0.5px; }
 .hdr-status { display: flex; gap: 8px; align-items: center; margin-left: 4px; }
-.hdr-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  position: relative;
-  cursor: help;
-  transition: box-shadow 0.3s;
-}
+.hdr-dot { width: 7px; height: 7px; border-radius: 50%; position: relative; cursor: help; transition: box-shadow 0.3s; }
 .hdr-dot.green  { background: var(--vsc-green);  box-shadow: 0 0 8px rgba(76, 255, 141, 0.5); }
 .hdr-dot.amber  { background: var(--vsc-amber);  box-shadow: 0 0 8px rgba(255, 190, 70, 0.5); }
 .hdr-dot.red    { background: var(--vsc-red);    box-shadow: 0 0 8px rgba(255, 77, 106, 0.5); }
 .hdr-dot.gray   { background: rgba(255, 255, 255, 0.15); }
-.hdr-dot::after {
-  content: attr(data-label);
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  font-size: 9px;
-  white-space: nowrap;
-  opacity: 0;
-  transition: all 0.2s var(--vsc-ease-out);
-  pointer-events: none;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.85);
-  padding: 3px 8px;
-  border-radius: var(--vsc-radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 10;
-  backdrop-filter: blur(8px);
-}
-.hdr-dot:hover::after {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-}
-
-/* ══════════════════════════════
-   탭 바
-   ══════════════════════════════ */
-.tabs {
-  display: flex;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  position: relative;
-  padding: 0 4px;
-}
-/* 활성 탭 슬라이딩 인디케이터 */
-.tabs::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  height: 2px;
-  background: var(--vsc-neon);
-  box-shadow: var(--vsc-neon-glow);
-  border-radius: 1px;
-  transition: left 0.3s var(--vsc-ease-out), width 0.3s var(--vsc-ease-out);
-  /* JS에서 left/width 제어 */
-  left: var(--tab-indicator-left, 0);
-  width: var(--tab-indicator-width, 25%);
-}
-
-.tab {
-  flex: 1;
-  padding: 10px 0;
-  text-align: center;
-  font-size: var(--vsc-font-sm);
-  font-weight: 600;
-  letter-spacing: 0.6px;
-  cursor: pointer;
-  opacity: 0.35;
-  border-bottom: 2px solid transparent;
-  transition: opacity 0.2s, color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  position: relative;
-  text-transform: uppercase;
-}
-.tab svg {
-  opacity: 0.6;
-  flex-shrink: 0;
-  width: 14px; height: 14px;
-  transition: opacity 0.2s, filter 0.2s;
-}
+.hdr-dot::after { content: attr(data-label); position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); font-size: 9px; white-space: nowrap; opacity: 0; transition: all 0.2s var(--vsc-ease-out); pointer-events: none; color: #fff; background: rgba(0, 0, 0, 0.85); padding: 3px 8px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 10; backdrop-filter: blur(8px); }
+.hdr-dot:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+.tabs { display: flex; border-bottom: 1px solid rgba(255, 255, 255, 0.04); position: relative; padding: 0 4px; }
+.tabs::after { content: ''; position: absolute; bottom: 0; height: 2px; background: var(--vsc-neon); box-shadow: var(--vsc-neon-glow); border-radius: 1px; transition: left 0.3s var(--vsc-ease-out), width 0.3s var(--vsc-ease-out); left: var(--tab-indicator-left, 0); width: var(--tab-indicator-width, 25%); }
+.tab { flex: 1; padding: 10px 0; text-align: center; font-size: var(--vsc-font-sm); font-weight: 600; letter-spacing: 0.6px; cursor: pointer; opacity: 0.35; border-bottom: 2px solid transparent; transition: opacity 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; text-transform: uppercase; }
+.tab svg { opacity: 0.6; flex-shrink: 0; width: 14px; height: 14px; transition: opacity 0.2s, filter 0.2s; }
 .tab:hover { opacity: 0.65; }
-.tab.on {
-  opacity: 1;
-  color: var(--vsc-neon);
-}
-.tab.on svg {
-  opacity: 1;
-  filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.4));
-}
-
-/* ══════════════════════════════
-   본문
-   ══════════════════════════════ */
-.body {
-  overflow-y: auto;
-  overflow-x: hidden;
-  flex: 1;
-  padding: 12px 16px 18px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 229, 255, 0.15) transparent;
-}
+.tab.on { opacity: 1; color: var(--vsc-neon); }
+.tab.on svg { opacity: 1; filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.4)); }
+.body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0, 229, 255, 0.15) transparent; }
 .body::-webkit-scrollbar { width: 4px; }
 .body::-webkit-scrollbar-track { background: transparent; }
-.body::-webkit-scrollbar-thumb {
-  background: rgba(0, 229, 255, 0.2);
-  border-radius: 2px;
-}
-.body::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 229, 255, 0.35);
-}
-
-/* ══════════════════════════════
-   행 (row)
-   ══════════════════════════════ */
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 5px 0;
-  min-height: var(--vsc-touch-min);
-}
-.row label {
-  font-size: 12px;
-  opacity: 0.75;
-  flex: 0 0 auto;
-  max-width: 48%;
-  font-weight: 500;
-}
-.row .ctrl {
-  display: flex;
-  align-items: center;
-  gap: var(--vsc-space-sm);
-  flex: 1;
-  justify-content: flex-end;
-}
-
-/* ══════════════════════════════
-   커스텀 슬라이더
-   ══════════════════════════════ */
-input[type=range] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  max-width: 140px;
-  height: 4px;
-  border-radius: 2px;
-  outline: none;
-  cursor: pointer;
-  background: transparent;
-  position: relative;
-  margin: 0;
-}
-/* 트랙 */
-input[type=range]::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(
-    to right,
-    var(--vsc-neon) 0%,
-    var(--vsc-neon) var(--fill, 50%),
-    rgba(255, 255, 255, 0.08) var(--fill, 50%)
-  );
-  box-shadow: inset 0 0 4px rgba(0, 229, 255, 0.15);
-}
-input[type=range]::-moz-range-track {
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.08);
-  border: none;
-}
-input[type=range]::-moz-range-progress {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--vsc-neon);
-}
-/* 썸(Thumb) — 네온 글로우 */
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: var(--vsc-touch-slider);
-  height: var(--vsc-touch-slider);
-  border-radius: 50%;
-  background: var(--vsc-neon);
-  cursor: pointer;
-  border: 2px solid rgba(0, 0, 0, 0.3);
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4), 0 0 2px rgba(0, 229, 255, 0.8);
-  margin-top: calc((4px - var(--vsc-touch-slider)) / 2);
-  transition: box-shadow 0.2s, transform 0.15s var(--vsc-ease-spring);
-}
-input[type=range]:active::-webkit-slider-thumb {
-  transform: scale(1.25);
-  box-shadow: 0 0 16px rgba(0, 229, 255, 0.6), 0 0 4px rgba(0, 229, 255, 1);
-}
-input[type=range]::-moz-range-thumb {
-  width: var(--vsc-touch-slider);
-  height: var(--vsc-touch-slider);
-  border-radius: 50%;
-  background: var(--vsc-neon);
-  cursor: pointer;
-  border: 2px solid rgba(0, 0, 0, 0.3);
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.4);
-}
-
-/* ── 값 표시 ── */
-.val {
-  font-family: var(--vsc-font-mono);
-  font-size: var(--vsc-font-sm);
-  min-width: 38px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.85;
-  color: var(--vsc-neon);
-}
-
-/* ══════════════════════════════
-   커스텀 토글 스위치
-   ══════════════════════════════ */
-.tgl {
-  position: relative;
-  width: 46px;
-  height: 24px;
-  border-radius: var(--vsc-radius-pill);
-  background: rgba(255, 255, 255, 0.08);
-  cursor: pointer;
-  transition: background 0.3s, box-shadow 0.3s;
-  overflow: visible;
-  flex-shrink: 0;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-.tgl.on {
-  background: var(--vsc-neon-soft);
-  border-color: var(--vsc-neon-border);
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.2);
-}
-/* 토글 손잡이 */
-.tgl::after {
-  content: '';
-  position: absolute;
-  top: 2px; left: 2px;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
-  transition: transform 0.3s var(--vsc-ease-spring), background 0.3s, box-shadow 0.3s;
-}
-.tgl.on::after {
-  transform: translateX(22px);
-  background: var(--vsc-neon);
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.6);
-}
-/* 상태 텍스트 */
-.tgl::before {
-  content: '';
-  position: absolute;
-  right: 7px; top: 50%;
-  transform: translateY(-50%);
-  font-size: 7px;
-  font-weight: 700;
-  opacity: 0;
-  letter-spacing: 0.5px;
-}
-.tgl.on::before {
-  content: '';
-  left: 7px; right: auto;
-}
-
-/* ══════════════════════════════
-   버튼
-   ══════════════════════════════ */
-.btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: var(--vsc-radius-md);
-  color: var(--vsc-text);
-  padding: var(--vsc-space-xs) var(--vsc-space-md);
-  font-size: var(--vsc-font-sm);
-  cursor: pointer;
-  transition: all 0.15s var(--vsc-ease-out);
-  min-height: var(--vsc-touch-min);
-  min-width: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--vsc-font);
-  font-weight: 500;
-  position: relative;
-  overflow: hidden;
-}
-/* 리플 효과 레이어 */
-.btn::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%),
-    rgba(0, 229, 255, 0.2), transparent 70%);
-  opacity: 0;
-  transition: opacity 0.4s;
-}
-.btn:hover {
-  background: rgba(255, 255, 255, 0.10);
-  border-color: rgba(255, 255, 255, 0.12);
-  transform: translateY(-1px);
-}
-.btn:active {
-  transform: translateY(0);
-}
+.body::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.2); border-radius: 2px; }
+.body::-webkit-scrollbar-thumb:hover { background: rgba(0, 229, 255, 0.35); }
+.row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; min-height: var(--vsc-touch-min); }
+.row label { font-size: 12px; opacity: 0.75; flex: 0 0 auto; max-width: 48%; font-weight: 500; }
+.row .ctrl { display: flex; align-items: center; gap: var(--vsc-space-sm); flex: 1; justify-content: flex-end; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; max-width: 140px; height: 4px; border-radius: 2px; outline: none; cursor: pointer; background: transparent; position: relative; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--vsc-neon) 0%, var(--vsc-neon) var(--fill, 50%), rgba(255, 255, 255, 0.08) var(--fill, 50%)); box-shadow: inset 0 0 4px rgba(0, 229, 255, 0.15); }
+input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); border: none; }
+input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--vsc-neon); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: var(--vsc-touch-slider); height: var(--vsc-touch-slider); border-radius: 50%; background: var(--vsc-neon); cursor: pointer; border: 2px solid rgba(0, 0, 0, 0.3); box-shadow: 0 0 8px rgba(0, 229, 255, 0.4), 0 0 2px rgba(0, 229, 255, 0.8); margin-top: calc((4px - var(--vsc-touch-slider)) / 2); transition: box-shadow 0.2s, transform 0.15s var(--vsc-ease-spring); }
+input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: 0 0 16px rgba(0, 229, 255, 0.6), 0 0 4px rgba(0, 229, 255, 1); }
+input[type=range]::-moz-range-thumb { width: var(--vsc-touch-slider); height: var(--vsc-touch-slider); border-radius: 50%; background: var(--vsc-neon); cursor: pointer; border: 2px solid rgba(0, 0, 0, 0.3); box-shadow: 0 0 8px rgba(0, 229, 255, 0.4); }
+.val { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-sm); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.85; color: var(--vsc-neon); }
+.tgl { position: relative; width: 46px; height: 24px; border-radius: var(--vsc-radius-pill); background: rgba(255, 255, 255, 0.08); cursor: pointer; transition: background 0.3s, box-shadow 0.3s; overflow: visible; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.06); }
+.tgl.on { background: var(--vsc-neon-soft); border-color: var(--vsc-neon-border); box-shadow: 0 0 12px rgba(0, 229, 255, 0.2); }
+.tgl::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); transition: transform 0.3s var(--vsc-ease-spring), background 0.3s, box-shadow 0.3s; }
+.tgl.on::after { transform: translateX(22px); background: var(--vsc-neon); box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
+.tgl::before { content: ''; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-size: 7px; font-weight: 700; opacity: 0; letter-spacing: 0.5px; }
+.tgl.on::before { content: ''; left: 7px; right: auto; }
+.btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--vsc-radius-md); color: var(--vsc-text); padding: var(--vsc-space-xs) var(--vsc-space-md); font-size: var(--vsc-font-sm); cursor: pointer; transition: all 0.15s var(--vsc-ease-out); min-height: var(--vsc-touch-min); min-width: 44px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--vsc-font); font-weight: 500; position: relative; overflow: hidden; }
+.btn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(0, 229, 255, 0.2), transparent 70%); opacity: 0; transition: opacity 0.4s; }
+.btn:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.12); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
 .btn:active::after { opacity: 1; }
-.btn.pr {
-  background: var(--vsc-neon-dim);
-  border-color: var(--vsc-neon-border);
-  color: var(--vsc-neon);
-}
-.btn.pr:hover {
-  background: var(--vsc-neon-soft);
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
-}
-
-/* ══════════════════════════════
-   칩(Chip)
-   ══════════════════════════════ */
-.chips {
-  padding: 4px 0;
-  display: flex;
-  gap: 5px;
-  justify-content: space-between;
-}
-.chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 5px 6px;
-  min-height: var(--vsc-touch-min);
-  min-width: 38px;
-  flex: 1;
-  font-size: var(--vsc-font-sm);
-  font-weight: 500;
-  border-radius: var(--vsc-radius-sm);
-  cursor: pointer;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--vsc-glass-border);
-  transition: all 0.2s var(--vsc-ease-out);
-  text-align: center;
-  -webkit-tap-highlight-color: transparent;
-  position: relative;
-}
-.chip:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-.chip.on {
-  background: var(--vsc-neon-dim);
-  border-color: var(--vsc-neon-border);
-  color: var(--vsc-neon);
-  box-shadow: 0 0 8px rgba(0, 229, 255, 0.1);
-}
-/* 활성 칩 상단 글로우 라인 */
-.chip.on::before {
-  content: '';
-  position: absolute;
-  top: -1px; left: 20%; right: 20%;
-  height: 1px;
-  background: var(--vsc-neon);
-  opacity: 0.5;
-}
-
-/* ══════════════════════════════
-   구분선
-   ══════════════════════════════ */
-.sep {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
-  margin: 8px 0;
-}
-
-/* ══════════════════════════════
-   메트릭 푸터
-   ══════════════════════════════ */
-.metrics-footer {
-  font-family: var(--vsc-font-mono);
-  font-size: 9px;
-  opacity: 0.35;
-  padding: 6px 16px 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
-  line-height: 1.6;
-  font-variant-numeric: tabular-nums;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-}
-
-/* ══════════════════════════════
-   단축키 그리드
-   ══════════════════════════════ */
-.shortcut-grid {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 3px 14px;
-  font-size: var(--vsc-font-xs);
-  line-height: 1.7;
-  padding: var(--vsc-space-xs) 0;
-}
-.shortcut-grid .sk {
-  font-family: var(--vsc-font-mono);
-  font-weight: 600;
-  color: var(--vsc-neon);
-  white-space: nowrap;
-  font-size: 10px;
-}
+.btn.pr { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); }
+.btn.pr:hover { background: var(--vsc-neon-soft); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
+.chips { padding: 4px 0; display: flex; gap: 5px; justify-content: space-between; }
+.chip { display: inline-flex; align-items: center; justify-content: center; padding: 5px 6px; min-height: var(--vsc-touch-min); min-width: 38px; flex: 1; font-size: var(--vsc-font-sm); font-weight: 500; border-radius: var(--vsc-radius-sm); cursor: pointer; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--vsc-glass-border); transition: all 0.2s var(--vsc-ease-out); text-align: center; -webkit-tap-highlight-color: transparent; position: relative; }
+.chip:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.10); }
+.chip.on { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); box-shadow: 0 0 8px rgba(0, 229, 255, 0.1); }
+.chip.on::before { content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 1px; background: var(--vsc-neon); opacity: 0.5; }
+.sep { height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent); margin: 8px 0; }
+.metrics-footer { font-family: var(--vsc-font-mono); font-size: 9px; opacity: 0.35; padding: 6px 16px 8px; border-top: 1px solid rgba(255, 255, 255, 0.03); line-height: 1.6; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.shortcut-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: var(--vsc-font-xs); line-height: 1.7; padding: var(--vsc-space-xs) 0; }
+.shortcut-grid .sk { font-family: var(--vsc-font-mono); font-weight: 600; color: var(--vsc-neon); white-space: nowrap; font-size: 10px; }
 .shortcut-grid .sd { opacity: 0.6; }
-
-/* ══════════════════════════════
-   속도 표시
-   ══════════════════════════════ */
-.rate-display {
-  font-family: var(--vsc-font-mono);
-  font-size: var(--vsc-font-xxl);
-  font-weight: 800;
-  text-align: center;
-  padding: 8px 0;
-  font-variant-numeric: tabular-nums;
-  background: linear-gradient(135deg, #fff, var(--vsc-neon));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.2));
-}
-
-/* ══════════════════════════════
-   미세 조절 버튼
-   ══════════════════════════════ */
-.fine-row {
-  display: flex;
-  gap: var(--vsc-space-xs);
-  justify-content: center;
-  padding: 4px 0;
-}
-.fine-btn {
-  padding: 5px 10px;
-  min-height: var(--vsc-touch-min);
-  min-width: 44px;
-  border-radius: var(--vsc-radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(255, 255, 255, 0.6);
-  font-family: var(--vsc-font-mono);
-  font-size: var(--vsc-font-sm);
-  cursor: pointer;
-  transition: all 0.15s var(--vsc-ease-out);
-  font-variant-numeric: tabular-nums;
-  -webkit-tap-highlight-color: transparent;
-}
-.fine-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--vsc-neon);
-  border-color: var(--vsc-neon-border);
-}
-.fine-btn:active {
-  transform: scale(0.95);
-}
-
-/* ══════════════════════════════
-   고급 설정 아코디언
-   ══════════════════════════════ */
-.adv-hd {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 0;
-  cursor: pointer;
-  font-size: var(--vsc-font-sm);
-  opacity: 0.45;
-  transition: opacity 0.15s;
-  font-weight: 500;
-}
+.rate-display { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xxl); font-weight: 800; text-align: center; padding: 8px 0; font-variant-numeric: tabular-nums; background: linear-gradient(135deg, #fff, var(--vsc-neon)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.2)); }
+.fine-row { display: flex; gap: var(--vsc-space-xs); justify-content: center; padding: 4px 0; }
+.fine-btn { padding: 5px 10px; min-height: var(--vsc-touch-min); min-width: 44px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255, 255, 255, 0.06); background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.6); font-family: var(--vsc-font-mono); font-size: var(--vsc-font-sm); cursor: pointer; transition: all 0.15s var(--vsc-ease-out); font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; }
+.fine-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--vsc-neon); border-color: var(--vsc-neon-border); }
+.fine-btn:active { transform: scale(0.95); }
+.adv-hd { display: flex; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; font-size: var(--vsc-font-sm); opacity: 0.45; transition: opacity 0.15s; font-weight: 500; }
 .adv-hd:hover { opacity: 0.8; }
-.adv-hd .arr {
-  transition: transform 0.3s var(--vsc-ease-spring);
-  font-size: 9px;
-  display: inline-block;
-}
+.adv-hd .arr { transition: transform 0.3s var(--vsc-ease-spring); font-size: 9px; display: inline-block; }
 .adv-hd .arr.open { transform: rotate(90deg); }
-.adv-bd {
-  overflow: hidden;
-  max-height: 0;
-  transition: max-height 0.4s var(--vsc-ease-out);
-}
+.adv-bd { overflow: hidden; max-height: 0; transition: max-height 0.4s var(--vsc-ease-out); }
 .adv-bd.open { max-height: 800px; }
-
-/* ── 정보 바 ── */
-.info-bar {
-  font-family: var(--vsc-font-mono);
-  font-size: var(--vsc-font-xs);
-  opacity: 0.40;
-  padding: 4px 0 6px;
-  line-height: 1.5;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ══════════════════════════════
-   스파크라인 캔버스
-   ══════════════════════════════ */
-.sparkline-canvas {
-  width: 100%;
-  height: 40px;
-  border-radius: var(--vsc-radius-sm);
-  background: rgba(255, 255, 255, 0.02);
-  display: block;
-  margin: 4px 0;
-}
-
-/* ══════════════════════════════
-   Quick Bar (FAB)
-   ══════════════════════════════ */
-.qbar {
-  pointer-events: none;
-  position: fixed !important;
-  top: 50%;
-  right: var(--vsc-qbar-right);
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  gap: 8px;
-  contain: none !important;
-}
-.qbar .qb-main {
-  pointer-events: auto;
-  width: 46px; height: 46px;
-  border-radius: 50%;
-  background: var(--vsc-glass);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  z-index: 2;
-  opacity: 0.20;
-  transition: all 0.3s var(--vsc-ease-out);
-  box-shadow: var(--vsc-shadow-fab);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  margin-right: env(safe-area-inset-right, 0px);
-  backdrop-filter: blur(16px) saturate(180%);
-}
-.qbar:hover .qb-main,
-.qbar.expanded .qb-main {
-  opacity: 1;
-  transform: scale(1.08);
-  border-color: var(--vsc-neon-border);
-  box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow);
-}
-.qbar .qb-sub {
-  width: 38px; height: 38px;
-  border-radius: 50%;
-  background: var(--vsc-glass);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  opacity: 0;
-  transform: scale(0.3) translateX(20px);
-  transition: all 0.25s var(--vsc-ease-spring);
-  pointer-events: none;
-  visibility: hidden;
-  z-index: 1;
-  box-shadow: var(--vsc-shadow-btn);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  backdrop-filter: blur(12px);
-}
-.qbar.expanded .qb-sub {
-  opacity: 1;
-  transform: scale(1) translateX(0);
-  pointer-events: auto;
-  visibility: visible;
-}
-/* 스태거 애니메이션 */
-${Array.from({length: 8}, (_, i) =>
-  `.qbar.expanded .qb-sub:nth-child(${i + 2}) { transition-delay: ${(i * 0.04).toFixed(2)}s; }`
-).join('\n')}
-
-.qbar .qb-sub:hover {
-  background: var(--vsc-glass-hover);
-  border-color: var(--vsc-neon-border);
-  transform: scale(1.12);
-  box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
-}
-
-.qbar svg {
-  width: 22px; height: 22px;
-  fill: none; stroke: #fff;
-  stroke-width: 2;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
-  transition: stroke 0.2s;
-}
+.info-bar { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.40; padding: 4px 0 6px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.sparkline-canvas { width: 100%; height: 40px; border-radius: var(--vsc-radius-sm); background: rgba(255, 255, 255, 0.02); display: block; margin: 4px 0; }
+.qbar { pointer-events: none; position: fixed !important; top: 50%; right: var(--vsc-qbar-right); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: center; gap: 8px; contain: none !important; }
+.qbar .qb-main { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; opacity: 0.20; transition: all 0.3s var(--vsc-ease-out); box-shadow: var(--vsc-shadow-fab); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; margin-right: env(safe-area-inset-right, 0px); backdrop-filter: blur(16px) saturate(180%); }
+.qbar:hover .qb-main, .qbar.expanded .qb-main { opacity: 1; transform: scale(1.08); border-color: var(--vsc-neon-border); box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow); }
+.qbar .qb-sub { width: 38px; height: 38px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.06); opacity: 0; transform: scale(0.3) translateX(20px); transition: all 0.25s var(--vsc-ease-spring); pointer-events: none; visibility: hidden; z-index: 1; box-shadow: var(--vsc-shadow-btn); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(12px); }
+.qbar.expanded .qb-sub { opacity: 1; transform: scale(1) translateX(0); pointer-events: auto; visibility: visible; }
+${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) { transition-delay: ${(i * 0.04).toFixed(2)}s; }`).join('\n')}
+.qbar .qb-sub:hover { background: var(--vsc-glass-hover); border-color: var(--vsc-neon-border); transform: scale(1.12); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
+.qbar svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); transition: stroke 0.2s; }
 .qbar .qb-sub svg { width: 18px; height: 18px; }
 .qbar .qb-sub:hover svg { stroke: var(--vsc-neon); }
-
-/* ══════════════════════════════
-   포커스 링
-   ══════════════════════════════ */
-.qb:focus-visible,
-.chip:focus-visible,
-.btn:focus-visible,
-.fine-btn:focus-visible {
-  outline: 2px solid var(--vsc-neon);
-  outline-offset: 2px;
-}
-
-/* ══════════════════════════════
-   풀스크린 모드
-   ══════════════════════════════ */
-:host-context(:fullscreen) .qbar {
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-:host-context(:fullscreen) .qbar:hover,
-:host-context(:fullscreen) .qbar:active {
-  opacity: 1;
-  pointer-events: auto;
-}
-:host-context(:fullscreen) .qbar .qb-main {
-  pointer-events: auto;
-}
-
-/* ══════════════════════════════
-   반응형
-   ══════════════════════════════ */
-@media (max-width: 600px) {
-  :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; }
-}
-@media (max-width: 400px) {
-  :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; }
-  .chips { gap: 6px; }
-  .fine-row { gap: 6px; }
-}
-@media (max-width: 350px) {
-  .tab span { display: none; }
-  .tab svg { width: 18px; height: 18px; opacity: 1; }
-}
-@media (orientation: landscape) and (max-height: 500px) {
-  .panel { max-height: 88vh; }
-  .body { max-height: calc(88vh - 80px); }
-}
-@supports (padding: env(safe-area-inset-right)) {
-  .qbar { right: calc(var(--vsc-qbar-right) + env(safe-area-inset-right)); }
-  .panel { right: calc(var(--vsc-panel-right) + 12px + env(safe-area-inset-right)); }
-}
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-  }
-}
-@media (prefers-contrast: high) {
-  :host {
-    --vsc-glass: rgba(0, 0, 0, 0.96);
-    --vsc-glass-border: rgba(255, 255, 255, 0.25);
-    --vsc-text: #fff;
-  }
-}
-@media (pointer: coarse) {
-  .qbar .qb-main { width: 50px; height: 50px; }
-  .qbar .qb-sub  { width: 44px; height: 44px; }
-}
-
-/* ══════════════════════════════
-   행 입장 애니메이션 (stagger)
-   ══════════════════════════════ */
-@keyframes vsc-row-in {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-.body > * {
-  animation: vsc-row-in 0.25s var(--vsc-ease-out) both;
-}
-${Array.from({length: 20}, (_, i) =>
-  `.body > *:nth-child(${i + 1}) { animation-delay: ${(i * 0.03).toFixed(2)}s; }`
-).join('\n')}
+.qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-neon); outline-offset: 2px; }
+:host-context(:fullscreen) .qbar { opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+:host-context(:fullscreen) .qbar:hover, :host-context(:fullscreen) .qbar:active { opacity: 1; pointer-events: auto; }
+:host-context(:fullscreen) .qbar .qb-main { pointer-events: auto; }
+@media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
+@media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } .chips { gap: 6px; } .fine-row { gap: 6px; } }
+@media (max-width: 350px) { .tab span { display: none; } .tab svg { width: 18px; height: 18px; opacity: 1; } }
+@media (orientation: landscape) and (max-height: 500px) { .panel { max-height: 88vh; } .body { max-height: calc(88vh - 80px); } }
+@supports (padding: env(safe-area-inset-right)) { .qbar { right: calc(var(--vsc-qbar-right) + env(safe-area-inset-right)); } .panel { right: calc(var(--vsc-panel-right) + 12px + env(safe-area-inset-right)); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+@media (prefers-contrast: high) { :host { --vsc-glass: rgba(0, 0, 0, 0.96); --vsc-glass-border: rgba(255, 255, 255, 0.25); --vsc-text: #fff; } }
+@media (pointer: coarse) { .qbar .qb-main { width: 50px; height: 50px; } .qbar .qb-sub  { width: 44px; height: 44px; } }
+@keyframes vsc-row-in { from { opacity: 0; transform: translateY(6px); } to   { opacity: 1; transform: translateY(0); } }
+.body > * { animation: vsc-row-in 0.25s var(--vsc-ease-out) both; }
+${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-delay: ${(i * 0.03).toFixed(2)}s; }`).join('\n')}
 `;
 
-    /* ══ OSD (Optimized) ══ */
     let __osdReady = false; onWin('pointerdown', () => { __osdReady = true; }, { passive: true, once: true }); onWin('keydown', () => { __osdReady = true; }, { passive: true, once: true });
-
     const _osdOpt = createOptimizedOSD();
     function showOSD(text, durationMs = 1200) { _osdOpt.show(text, durationMs); }
 
@@ -6183,29 +5462,30 @@ ${Array.from({length: 20}, (_, i) =>
       return { show };
     }
 
-    /* ══════════════════════════════════════════════════════════════════
-       UI Helpers (Batched Sync)
-       ══════════════════════════════════════════════════════════════════ */
+    // ★ Patch #15: SyncAll (이중 RAF 및 DOM 조작 중복 방지)
     function createBatchedSyncAll() {
       const permanentFns = [];
       const tabFns = [];
       let _scheduled = false;
+      let _rafId = 0;
+
       function run() {
         _scheduled = false;
-        const all = [...permanentFns, ...tabFns];
-        for (let i = 0; i < all.length; i++) {
-          try { all[i](); } catch (_) {}
-        }
+        _rafId = 0;
+        for (let i = 0; i < permanentFns.length; i++) { try { permanentFns[i](); } catch (_) {} }
+        for (let i = 0; i < tabFns.length; i++) { try { tabFns[i](); } catch (_) {} }
       }
+
       return {
         permanentFns,
         tabFns,
         syncAll() {
           if (_scheduled) return;
           _scheduled = true;
-          requestAnimationFrame(run);
+          _rafId = requestAnimationFrame(run);
         },
         syncNow() {
+          if (_rafId) { cancelAnimationFrame(_rafId); _rafId = 0; }
           _scheduled = false;
           run();
         }
@@ -6221,9 +5501,6 @@ ${Array.from({length: 20}, (_, i) =>
       return () => unsubs.forEach(u => u());
     }
 
-    /* ══════════════════════════════════════════════════════════════════
-       createUI (Optimized Components Applied)
-       ══════════════════════════════════════════════════════════════════ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
       const { h, clamp } = Utils;
       const uiAC = new AbortController(); const sig = getCombinedSignal(uiAC.signal);
@@ -6237,27 +5514,19 @@ ${Array.from({length: 20}, (_, i) =>
 
       let _shadow = null, _qbarShadow = null; let qbarVisible = false;
 
-      /* ── 화면 밝기 (Dimmer): soft-light 오버레이 방식 ── */
       let __scrBrtOverlay = null;
 
       function ensureScrBrtOverlay() {
         const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement;
-
         if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) {
           return __scrBrtOverlay;
         }
-
         if (!__scrBrtOverlay) {
           __scrBrtOverlay = document.createElement('div');
           __scrBrtOverlay.id = 'vsc-scr-brt';
           __scrBrtOverlay.setAttribute('data-vsc-ui', '1');
-          __scrBrtOverlay.style.cssText =
-            'position:fixed;top:0;left:0;width:100vw;height:100vh;' +
-            'background:white;mix-blend-mode:soft-light;' +
-            'pointer-events:none;z-index:2147483645;' +
-            'opacity:0;transition:opacity 0.3s ease;display:none;';
+          __scrBrtOverlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:white;mix-blend-mode:soft-light;pointer-events:none;z-index:2147483645;opacity:0;transition:opacity 0.3s ease;display:none;';
         }
-
         try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
         return __scrBrtOverlay;
       }
@@ -6265,7 +5534,6 @@ ${Array.from({length: 20}, (_, i) =>
       function applyScrBrt(level) {
         const idx = VSC_CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
         const val = SCR_BRT_LEVELS[idx];
-
         if (val <= 0) {
           if (__scrBrtOverlay) {
             __scrBrtOverlay.style.opacity = '0';
@@ -6273,7 +5541,6 @@ ${Array.from({length: 20}, (_, i) =>
           }
           return;
         }
-
         const ov = ensureScrBrtOverlay();
         ov.style.display = '';
         requestAnimationFrame(() => { ov.style.opacity = String(val); });
@@ -6403,7 +5670,6 @@ ${Array.from({length: 20}, (_, i) =>
         const s = step || ((max - min) / 100);
         const digits = (s >= 1) ? 0 : 2;
         const range = max - min;
-
         const inp = h('input', { type: 'range', min, max, step: s });
         const valEl = h('span', { class: 'val' });
 
@@ -6446,7 +5712,6 @@ ${Array.from({length: 20}, (_, i) =>
 
       function mkOptimizedToggle(path, onChange) {
         const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' });
-
         function sync() {
           const on = !!Store.get(path);
           el.classList.toggle('on', on);
@@ -6457,20 +5722,13 @@ ${Array.from({length: 20}, (_, i) =>
           const nv = !Store.get(path);
           Store.set(path, nv);
           sync();
-
-          if (navigator.vibrate && CONFIG.IS_MOBILE) {
-            navigator.vibrate(8);
-          }
-
+          if (navigator.vibrate && CONFIG.IS_MOBILE) navigator.vibrate(8);
           if (onChange) onChange(nv);
           else ApplyReq.soft();
         }, { signal: sig });
 
         el.addEventListener('keydown', (e) => {
-          if (e.key === ' ' || e.key === 'Enter') {
-            e.preventDefault();
-            el.click();
-          }
+          if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); el.click(); }
         }, { signal: sig });
 
         tabFns.push(sync); sync();
@@ -6713,33 +5971,19 @@ ${Array.from({length: 20}, (_, i) =>
 
         SCR_BRT_LABELS.forEach((label, idx) => {
           if (idx === 0) return;
-
-          const chip = h('span', {
-            class: 'chip',
-            'data-v': String(idx)
-          }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
-
+          const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
           chip.addEventListener('click', () => {
-            Store.set(P.APP_SCREEN_BRT, idx);
-            applyScrBrt(idx);
-            persistNow();
-            syncBrt();
+            Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
             showOSD('화면 조도: ' + label, 1000);
           }, { signal: sig });
-
-          brtBtns.push(chip);
-          brtChips.appendChild(chip);
+          brtBtns.push(chip); brtChips.appendChild(chip);
         });
 
         const brtResetBtn = h('button', {
           class: 'chip',
           style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
-
         brtResetBtn.addEventListener('click', () => {
-          Store.set(P.APP_SCREEN_BRT, 0);
-          applyScrBrt(0);
-          persistNow();
-          syncBrt();
+          Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
           showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
         }, { signal: sig });
 
@@ -6747,15 +5991,11 @@ ${Array.from({length: 20}, (_, i) =>
 
         function syncBrt() {
           const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-          brtBtns.forEach((btn) => {
-            btn.classList.toggle('on', btn.dataset.v === String(cur));
-          });
+          brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
           brtResetBtn.classList.toggle('on', cur === 0);
           brtValLabel.textContent = SCR_BRT_LABELS[cur];
         }
-
-        tabFns.push(syncBrt);
-        syncBrt();
+        tabFns.push(syncBrt); syncBrt();
 
         w.append(
           h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
@@ -6842,7 +6082,6 @@ ${Array.from({length: 20}, (_, i) =>
         body.innerHTML = '';
         tabFns.length = 0;
         switch (activeTab) { case 'video': body.appendChild(buildVideoTab()); break; case 'audio': body.appendChild(buildAudioTab()); break; case 'playback': body.appendChild(buildPlaybackTab()); break; case 'app': body.appendChild(buildAppTab()); break; }
-
         const tabBar = _shadow.querySelector('.tabs');
         if (tabBar) updateTabIndicator(tabBar, activeTab);
       }
@@ -6879,8 +6118,7 @@ ${Array.from({length: 20}, (_, i) =>
         while (el && el !== document.documentElement) {
           const s = getComputedStyle(el);
           const isJwContainer = el.classList?.toString().includes('jw') || el.id?.includes('jw') || el.querySelector?.('.jwplayer');
-          if (isJwContainer && (s.overflow === 'hidden' || s.contain !== 'none')) {
-          }
+          if (isJwContainer && (s.overflow === 'hidden' || s.contain !== 'none')) { }
           el = el.parentElement;
         }
         if (quickBarHost) {
@@ -6899,13 +6137,8 @@ ${Array.from({length: 20}, (_, i) =>
         if (!quickBarHost) return;
         const targetParent = getMountTarget();
         if (!targetParent) return;
-
-        if (quickBarHost.parentNode !== targetParent) {
-          try { targetParent.appendChild(quickBarHost); } catch (_) {}
-        }
-        if (panelHost && panelHost.parentNode !== targetParent) {
-          try { targetParent.appendChild(panelHost); } catch (_) {}
-        }
+        if (quickBarHost.parentNode !== targetParent) { try { targetParent.appendChild(quickBarHost); } catch (_) {} }
+        if (panelHost && panelHost.parentNode !== targetParent) { try { targetParent.appendChild(panelHost); } catch (_) {} }
         ensureJwPlayerUnclip(targetParent);
       }
 
@@ -7060,9 +6293,7 @@ ${Array.from({length: 20}, (_, i) =>
         _shadow = null; _qbarShadow = null;
         tabFns.length = 0; permanentFns.length = 0;
         qbarVisible = false;
-        if (window[VSC_INTERNAL_SYM]._uiEnsure) {
-          window[VSC_INTERNAL_SYM]._uiEnsure = () => {};
-        }
+        if (window[VSC_INTERNAL_SYM]._uiEnsure) { window[VSC_INTERNAL_SYM]._uiEnsure = () => {}; }
       }
 
       return Object.freeze({ init, destroy, togglePanel, syncAll, switchTab });
@@ -7098,9 +6329,7 @@ ${Array.from({length: 20}, (_, i) =>
     function resetDefaults() {
       if (!__Store) return;
       const d = typeof structuredClone === 'function' ? structuredClone(DEFAULTS) : JSON.parse(JSON.stringify(DEFAULTS));
-
       for (const [cat, vals] of Object.entries(d)) __Store.batch(cat, vals);
-
       const v = window[VSC_INTERNAL_SYM]?._activeVideo;
       if (v) clearVideoTransform(v);
 
@@ -7342,14 +6571,13 @@ ${Array.from({length: 20}, (_, i) =>
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       createTouchGestureManager (Mobile Issue 2, 4 Applied)
+       createTouchGestureManager
        ══════════════════════════════════════════════════════════════════ */
     function injectTouchGestureCSS() {
       if (document.getElementById('vsc-touch-gesture-css')) return;
       const style = document.createElement('style');
       style.id = 'vsc-touch-gesture-css';
       style.textContent = `
-        /* 1. 밝기/볼륨 스와이프 인디케이터 */
         .vsc-swipe-indicator { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
         .vsc-swipe-indicator.left  { left: 12%; }
         .vsc-swipe-indicator.right { right: 12%; }
@@ -7360,7 +6588,6 @@ ${Array.from({length: 20}, (_, i) =>
         .vsc-swipe-fill { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(110,168,254,0.85); border-radius: 2px; transition: height 0.08s linear; box-shadow: 0 0 6px rgba(110,168,254,0.5); }
         .vsc-swipe-label { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
 
-        /* 2. 더블 탭 시크(Seek) 리플 애니메이션 */
         .vsc-seek-ripple { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease-out; display: flex; flex-direction: row; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5); white-space: nowrap; }
         .vsc-seek-ripple.left  { left: 15%; }
         .vsc-seek-ripple.right { right: 15%; }
@@ -7375,31 +6602,18 @@ ${Array.from({length: 20}, (_, i) =>
         .vsc-arrow-slide-l { animation: vsc-arrow-l 0.6s infinite; }
         @keyframes vsc-arrow-l { 0%  { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(-4px); opacity: 0; } }
 
-        /* 3. 롱프레스 배지 애니메이션 */
         .vsc-longpress-badge { position: fixed; top: 8%; left: 50%; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0,0,0,0.55); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 6px 16px; font: 700 13px/1.4 system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
         .vsc-longpress-badge.show { opacity: 1; }
         .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
         @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
 
-        /* 4. 스와이프 시간 탐색 오버레이 */
         .vsc-seek-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(15px); color: white; padding: 16px 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); font-family: system-ui, sans-serif; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
         .vsc-seek-overlay.show { display: block; opacity: 1; }
         .vsc-seek-direction { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
         .vsc-seek-main { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
         .vsc-seek-delta { font-size: 15px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
-        /* 5. 유튜브 및 일반 플레이어의 로딩 스피너 강제 숨김 */
-        .ytp-spinner,
-        .vjs-loading-spinner,
-        .loading-indicator,
-        .mvp-spinner,
-        video::-webkit-media-controls-loading-indicator {
-          display: none !important;
-          visibility: hidden !important;
-          opacity: 0 !important;
-        }
-
-        /* 6. 접근성 (애니메이션 최소화 옵션) */
+        .ytp-spinner, .vjs-loading-spinner, .loading-indicator, .mvp-spinner, video::-webkit-media-controls-loading-indicator { display: none !important; visibility: hidden !important; opacity: 0 !important; }
         @media (prefers-reduced-motion: reduce) { .vsc-seek-pop, .vsc-arrow-slide-r, .vsc-arrow-slide-l, .vsc-longpress-badge .vsc-lp-icon { animation: none !important; } }
       `;
       (document.head || document.documentElement).appendChild(style);
@@ -7613,7 +6827,6 @@ ${Array.from({length: 20}, (_, i) =>
         if (isNativePlayerControl(e) || isInsideCloudflareWidget(e.target)) return;
 
         const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-
         const video = findVideoInRect(tx, ty);
         if (!video) return;
 
@@ -7751,10 +6964,10 @@ ${Array.from({length: 20}, (_, i) =>
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       BOOTSTRAP (Bug 4 Patch Applied)
+       BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.0.1';
+      const VSC_VERSION_ID = '211.1.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
