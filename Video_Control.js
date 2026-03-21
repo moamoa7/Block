@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.2.0)
+// @name         Video_Control (v211.3.0)
 // @namespace    https://github.com/
-// @version      211.2.0
-// @description  v211.2.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.3.0
+// @description  v211.3.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.2.0';
+    const VSC_VERSION = '211.3.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -361,6 +361,7 @@
       applied: false, desiredRate: undefined, lastFilterUrl: null,
       rectT: 0, rectEpoch: -1, fsPatched: false, _resizeDirty: false,
       _ac: null, _inPiP: false, _pipPending: false, lastCssFilterStr: null, _transitionCleared: false, _lastFilterHash: 0,
+      _lastSvgHash: 0, // ✅ 신규: SVG 해시 추적용 변수 추가
       __abCompare: false, __pipOrigComputed: null, __pipHadFilter: false, __pipSavedFilterStr: null,
       rateState: mkRateState(),
       resetTransient() {
@@ -5140,7 +5141,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
           const filterStrCss = parts.length > 0 ? parts.join(' ') : 'none';
           dc.keyHash = fullHash; dc.url = ''; dc.filterStr = filterStrCss; dc.cssOnly = true;
-          return { svgUrl: '', filterStr: filterStrCss, cssOnly: true };
+          // ✅ 수정: _svgHash: 0 포함 반환
+          return { svgUrl: '', filterStr: filterStrCss, cssOnly: true, _svgHash: 0 };
         }
 
         let ctx = ctxMap.get(root); if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
@@ -5235,7 +5237,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         const filterStr = _FILTER_PARTS.length === 1 ? url : _FILTER_PARTS.join(' ');
 
         dc.keyHash = fullHash; dc.url = url; dc.filterStr = filterStr; dc.cssOnly = false;
-        return { svgUrl: url, filterStr, cssOnly: false };
+        // ✅ 수정: _svgHash: svgHash 포함 반환
+        return { svgUrl: url, filterStr, cssOnly: false, _svgHash: svgHash };
       }
 
       function fnv1a(str) {
@@ -5261,22 +5264,37 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             if (st.applied) {
               vscClearAllStyles(el);
               st.applied = false; st.lastFilterUrl = null;
-              st.lastCssFilterStr = null; st._transitionCleared = false; st._lastFilterHash = 0;
+              st.lastCssFilterStr = null; st._transitionCleared = false;
+              st._lastFilterHash = 0;
+              st._lastSvgHash = 0; // ✅ 초기화 추가
             }
             return;
           }
 
           const filterStr = filterResult.filterStr;
-          const newHash = internFilter(filterStr);
+          const cssHash = internFilter(filterStr);
+          const svgHash = filterResult._svgHash || 0; // ✅ SVG 해시 가져오기
 
-          if (st._lastFilterHash === newHash && st.applied) return;
+          // ✅ 조건 수정: CSS 해시와 SVG 해시가 모두 같아야 조기 종료
+          if (st._lastFilterHash === cssHash && st._lastSvgHash === svgHash && st.applied) return;
 
           const isZoomed = !!window[VSC_INTERNAL_SYM]?.ZoomManager?.isZoomed(el);
+          const svgChanged = st._lastSvgHash !== svgHash && st.applied; // ✅ SVG 내용 변경 여부
 
           if (!st.applied) {
             vscApplyFilterStyles(el, filterStr, isZoomed);
             st.applied = true;
             st._transitionCleared = true;
+          } else if (svgChanged && cssHash === st._lastFilterHash) {
+            // ✅ 강제 터치 로직: 필터 문자열(CSS)은 같은데 SVG 내부 속성이 변한 경우
+            el.style.removeProperty('filter');
+            el.style.removeProperty('-webkit-filter');
+
+            // 브라우저 렌더링 파이프라인 강제 업데이트 (Reflow 유도)
+            void el.offsetWidth;
+
+            el.style.setProperty('filter', filterStr, 'important');
+            el.style.setProperty('-webkit-filter', filterStr, 'important');
           } else {
             el.style.setProperty('filter', filterStr, 'important');
             el.style.setProperty('-webkit-filter', filterStr, 'important');
@@ -5284,9 +5302,18 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
           st.lastFilterUrl = filterResult.svgUrl;
           st.lastCssFilterStr = filterStr;
-          st._lastFilterHash = newHash;
+          st._lastFilterHash = cssHash;
+          st._lastSvgHash = svgHash; // ✅ 마지막 해시 업데이트
         },
-        clear: (el) => { if (!el) return; const st = getVState(el); if (!st.applied && !vscHasManagedStyles(el)) return; vscClearAllStyles(el); st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false; st._lastFilterHash = 0; }
+        clear: (el) => {
+          if (!el) return;
+          const st = getVState(el);
+          if (!st.applied && !vscHasManagedStyles(el)) return;
+          vscClearAllStyles(el);
+          st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null;
+          st._transitionCleared = false; st._lastFilterHash = 0;
+          st._lastSvgHash = 0; // ✅ 초기화 추가
+        }
       };
     }
 
@@ -7121,7 +7148,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.2.0';
+      const VSC_VERSION_ID = '211.3.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
