@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v209.3.0)
+// @name         Video_Control (v209.4.0)
 // @namespace    https://github.com/
-// @version      209.3.0
-// @description  v209.3.0: Extreme optimization, Bugfixes, Screen Brightness Overlay & Video Transform
+// @version      209.4.0
+// @description  v209.4.0: Extreme optimization, Bugfixes, Screen Brightness Overlay & Video Transform
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -82,11 +82,10 @@
     };
     const clearRecurring = id => { if (!id) return; clearInterval(id); _timers.delete(id); };
 
-    /* ══ Signal combinators & Event binding (Patch 2 Applied: Fast-path AbortSignal.any) ══ */
+    /* ══ Signal combinators & Event binding (Patch 8 Applied: Fast-path AbortSignal.any) ══ */
     const combineSignals = (a, b) => {
-      if (!a || a === b) return b || a;
-      if (!b) return a;
-      if (a.aborted || b.aborted) return a.aborted ? a : b;
+      if (!a) return b;
+      if (!b || a === b) return a;
       return AbortSignal.any([a, b]);
     };
 
@@ -140,7 +139,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '209.3.0';
+    const VSC_VERSION = '209.4.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -249,7 +248,7 @@
     function vscHasManagedStyles(el) { return !!(el?.[VSC_MANAGED_PROPS]?.size); }
 
     /* ══ Video State ══ */
-    const mkRateState = () => ({ orig: null, suppressSyncUntil: 0, permanentlyBlocked: false, _rateRetryCount: 0, _totalRetries: 0, _settingRate: false, _lastRateChangeT: 0 });
+    const mkRateState = () => ({ orig: null, suppressSyncUntil: 0, permanentlyBlocked: false, _rateRetryCount: 0, _totalRetries: 0, _settingRate: false, _lastRateChangeT: 0, _lastRateSetTime: 0 });
     const mkVideoState = () => ({
       visible: false, rect: null, bound: false, audioFailUntil: 0,
       applied: false, desiredRate: undefined, lastFilterUrl: null,
@@ -391,33 +390,60 @@
       }
     }
 
-    /* ══ TOUCHED sets & eviction (Patch 5 Applied: Early Iterator Return) ══ */
-    const TOUCHED = { videos: new Set(), rateVideos: new Set() };
-    function touchedAddLimited(set, el, onEvict) {
-      if (!el) return;
-      if (set.has(el)) { set.delete(el); set.add(el); return; }
-      set.add(el);
-      if (set.size <= CONFIG.TOUCHED_MAX) return;
-      const limit = Math.ceil(CONFIG.TOUCHED_MAX * 0.25);
-      const toEvict = [];
-      for (const v of set) {
-        if (v === el) continue;
-        if (!v.isConnected || v.ended || (v.paused && !isPiPActiveVideo(v))) {
-          toEvict.push(v);
-          if (toEvict.length >= limit) break;
+    /* ══ TOUCHED sets & eviction (Patch 1 Applied: WeakRef Auto-GC) ══ */
+    function createTrackedSet(maxSize, onEvict) {
+      const refs = new Map();
+      const registry = new FinalizationRegistry(key => { refs.delete(key); });
+      return {
+        add(el) {
+          if (!el) return;
+          for (const [ref] of refs) { if (ref.deref() === el) return; }
+          if (refs.size >= maxSize) {
+            for (const [ref] of refs) {
+              const v = ref.deref();
+              if (!v || !v.isConnected || v.ended || (v.paused && !isPiPActiveVideo(v))) {
+                refs.delete(ref);
+                if (v && onEvict) queueMicrotask(() => { try { onEvict(v); } catch(_) {} });
+                break;
+              }
+            }
+          }
+          const ref = new WeakRef(el);
+          refs.set(ref, true);
+          registry.register(el, ref);
+        },
+        has(el) {
+          for (const [ref] of refs) { if (ref.deref() === el) return true; }
+          return false;
+        },
+        delete(el) {
+          for (const [ref] of refs) { if (ref.deref() === el) { refs.delete(ref); return true; } }
+          return false;
+        },
+        *[Symbol.iterator]() {
+          for (const [ref] of refs) {
+            const v = ref.deref();
+            if (v) yield v;
+            else refs.delete(ref);
+          }
+        },
+        get size() {
+          let count = 0;
+          for (const [ref] of refs) { if (ref.deref()) count++; else refs.delete(ref); }
+          return count;
         }
-      }
-      if (!toEvict.length) {
-        const first = set.values().next().value;
-        if (first !== el) toEvict.push(first);
-      }
-      for (const v of toEvict) set.delete(v);
-      if (onEvict && toEvict.length) {
-        queueMicrotask(() => {
-          for (const v of toEvict) { try { onEvict(v); } catch(_) {} }
-        });
-      }
+      };
     }
+
+    const TOUCHED = {
+      videos: createTrackedSet(CONFIG.TOUCHED_MAX, (evicted) => {
+        const vst = videoStateMap.get(evicted);
+        if (vst?._ac) { vst._ac.abort(); vst._ac = null; vst.bound = false; }
+        vscClearAllStyles(evicted);
+      }),
+      rateVideos: createTrackedSet(CONFIG.TOUCHED_MAX)
+    };
+    function touchedAddLimited(set, el) { set.add(el); } // Compatibility wrapper
 
     /* ══ Rect caching & viewport (Patch 3 Applied: rAF Timestamp Sync) ══ */
     let __vscRectEpoch = 0, __vscRectEpochQueued = false;
@@ -453,18 +479,39 @@
 
     function createDebounced(fn, ms = 250) { let t = 0; return (...args) => { clearTimer(t); t = setTimer(() => fn(...args), ms); }; }
 
-    /* ══ CircularBuffer (Patch 1 Applied: TypedArray.sort) ══ */
+    /* ══ CircularBuffer (Patch 10 Applied: Insertion Sort on Float64Array) ══ */
     class CircularBuffer {
-      constructor(maxLen) { this._buf = new Float32Array(maxLen); this._sorted = new Float32Array(maxLen); this._head = 0; this._size = 0; this._max = maxLen; this._sortDirty = true; }
-      push(val) { this._buf[this._head] = val; this._head = (this._head + 1) % this._max; if (this._size < this._max) this._size++; this._sortDirty = true; }
-      reduce(fn, init) { let acc = init; const start = (this._head - this._size + this._max) % this._max; for (let i = 0; i < this._size; i++) acc = fn(acc, this._buf[(start + i) % this._max]); return acc; }
+      constructor(maxLen) {
+        this._buf = new Float64Array(maxLen);
+        this._head = 0;
+        this._size = 0;
+        this._max = maxLen;
+        this._sortCache = new Float64Array(maxLen);
+        this._sortDirty = true;
+      }
+      push(val) {
+        this._buf[this._head] = val;
+        this._head = (this._head + 1) % this._max;
+        if (this._size < this._max) this._size++;
+        this._sortDirty = true;
+      }
+      reduce(fn, init) {
+        let acc = init; const start = (this._head - this._size + this._max) % this._max;
+        for (let i = 0; i < this._size; i++) acc = fn(acc, this._buf[(start + i) % this._max]);
+        return acc;
+      }
       get length() { return this._size; }
       toSorted() { return this.getSorted().slice(); }
       getSorted() {
-        if (!this._sortDirty) return this._sorted.subarray(0, this._size);
-        const n = this._size, out = this._sorted, start = (this._head - n + this._max) % this._max;
+        if (!this._sortDirty) return this._sortCache.subarray(0, this._size);
+        const n = this._size, out = this._sortCache;
+        const start = (this._head - n + this._max) % this._max;
         for (let i = 0; i < n; i++) out[i] = this._buf[(start + i) % this._max];
-        out.subarray(0, n).sort();
+        for (let i = 1; i < n; i++) {
+          const key = out[i]; let j = i - 1;
+          while (j >= 0 && out[j] > key) { out[j + 1] = out[j]; j--; }
+          out[j + 1] = key;
+        }
         this._sortDirty = false;
         return out.subarray(0, n);
       }
@@ -807,6 +854,15 @@
         if (!video) return;
         const st = getVState(video);
         if (!st._inPiP) return;
+        if (!__activeDocumentPiPWindow && !__pipOrigParent) {
+          if (!video.isConnected) {
+            const fallback = document.body || document.documentElement;
+            if (fallback) { try { fallback.appendChild(video); log.warn('[PiP] Emergency restore after lock contention'); } catch (_) {} }
+          }
+          st._inPiP = false; st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null;
+          try { __internal.ApplyReq?.hard(); } catch (_) {}
+          return;
+        }
       }
       __pipExiting = true;
 
@@ -820,6 +876,17 @@
       const snapPlaceholder = __pipPlaceholder;
       const snapOrigCss = __pipOrigCss;
       const savedComputed = st.__pipOrigComputed;
+
+      if (!snapPipWin && !snapOrigParent && st._inPiP) {
+        log.warn('[PiP] State references lost, emergency restore');
+        if (!video.isConnected) {
+          const fb = document.body || document.documentElement;
+          if (fb) try { fb.appendChild(video); } catch (_) {}
+        }
+        st._inPiP = false; st.applied = false; resetPiPState(); __pipExiting = false;
+        try { __internal.ApplyReq?.hard(); } catch (_) {}
+        return;
+      }
 
       try {
         if (snapPipWin && !snapPipWin.closed) {
@@ -1387,7 +1454,7 @@
         }
       });
     }
-// ═══ PART 2 START (v209.3.0) — GPU Analyzer, Audio Engine, Foundation Modules ═══
+// ═══ PART 2 START (v209.4.0) — GPU Analyzer, Audio Engine, Foundation Modules ═══
 
     /* ══════════════════════════════════════════════════════════════════
        WebGPU Scene Analysis Compute Shader
@@ -1457,7 +1524,7 @@ fn motionPass(@builtin(global_invocation_id) gid : vec3<u32>) {
 }
 `;
 
-    /* ── WebGPU Analyzer Module ── */
+    /* ── WebGPU Analyzer Module (Bug 5 Applied: Safe Buffer Unmap) ── */
     function createWebGPUAnalyzer() {
       let device = null, mainPipeline = null, motionPipeline = null, bindGroupLayout = null;
       let uniformBuf = null, pixelBuf = null, prevLumBuf = null, curLumBuf = null;
@@ -1573,36 +1640,43 @@ fn motionPass(@builtin(global_invocation_id) gid : vec3<u32>) {
           encoder.copyBufferToBuffer(curLumBuf, 0, prevLumBuf, 0, pixelCount * 4);
           device.queue.submit([encoder.finish()]);
 
-          await Promise.all([readbackAccumBuf.mapAsync(GPUMapMode.READ), readbackHistBuf.mapAsync(GPUMapMode.READ), readbackZoneBuf.mapAsync(GPUMapMode.READ), readbackZoneHistBuf.mapAsync(GPUMapMode.READ)]);
-          const accumData = new Uint32Array(readbackAccumBuf.getMappedRange().slice(0)); readbackAccumBuf.unmap();
-          const histData = new Uint32Array(readbackHistBuf.getMappedRange().slice(0)); readbackHistBuf.unmap();
-          const zoneData = new Uint32Array(readbackZoneBuf.getMappedRange().slice(0)); readbackZoneBuf.unmap();
-          const zoneHistData = new Uint32Array(readbackZoneHistBuf.getMappedRange().slice(0)); readbackZoneHistBuf.unmap();
-          hasPrevLum = true;
+          const mappedBuffers = [];
+          try {
+            await Promise.all([readbackAccumBuf.mapAsync(GPUMapMode.READ), readbackHistBuf.mapAsync(GPUMapMode.READ), readbackZoneBuf.mapAsync(GPUMapMode.READ), readbackZoneHistBuf.mapAsync(GPUMapMode.READ)]);
+            mappedBuffers.push(readbackAccumBuf, readbackHistBuf, readbackZoneBuf, readbackZoneHistBuf);
 
-          const count = Math.max(1, accumData[5]), sumLum = accumData[0], sumLumSq = accumData[1], sumChroma = accumData[2], sumEdge = accumData[3], skinCount = accumData[4];
-          const motionSadSum = accumData[6], motionSadCnt = Math.max(1, accumData[7]), hiLumaRSum = accumData[8], hiLumaBSum = accumData[9], hiLumaCount = accumData[10];
-          const mean = sumLum / count, variance = Math.max(0, (sumLumSq / count) - mean * mean), std = Math.sqrt(variance);
-          const motionSAD = motionSadCnt > 0 ? (motionSadSum / motionSadCnt) / 255 : 0;
-          const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
+            const accumData = new Uint32Array(readbackAccumBuf.getMappedRange().slice(0));
+            const histData = new Uint32Array(readbackHistBuf.getMappedRange().slice(0));
+            const zoneData = new Uint32Array(readbackZoneBuf.getMappedRange().slice(0));
+            const zoneHistData = new Uint32Array(readbackZoneHistBuf.getMappedRange().slice(0));
+            hasPrevLum = true;
 
-          const lumHist = new Uint32Array(HIST_BINS), rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
-          lumHist.set(histData.subarray(0, HIST_BINS)); rHist.set(histData.subarray(HIST_BINS, HIST_BINS * 2));
-          gHist.set(histData.subarray(HIST_BINS * 2, HIST_BINS * 3)); bHist.set(histData.subarray(HIST_BINS * 3, HIST_BINS * 4));
+            const count = Math.max(1, accumData[5]), sumLum = accumData[0], sumLumSq = accumData[1], sumChroma = accumData[2], sumEdge = accumData[3], skinCount = accumData[4];
+            const motionSadSum = accumData[6], motionSadCnt = Math.max(1, accumData[7]), hiLumaRSum = accumData[8], hiLumaBSum = accumData[9], hiLumaCount = accumData[10];
+            const mean = sumLum / count, variance = Math.max(0, (sumLumSq / count) - mean * mean), std = Math.sqrt(variance);
+            const motionSAD = motionSadCnt > 0 ? (motionSadSum / motionSadCnt) / 255 : 0;
+            const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
 
-          const zoneCounts = new Uint32Array(ZONE_COUNT), zoneBrightSum = new Float32Array(ZONE_COUNT);
-          for (let z = 0; z < ZONE_COUNT; z++) { zoneCounts[z] = zoneData[z]; zoneBrightSum[z] = zoneData[ZONE_COUNT + z]; }
-          const zoneHists = Array.from({ length: ZONE_COUNT }, (_, z) => new Uint32Array(zoneHistData.buffer, z * HIST_BINS * 4, HIST_BINS));
+            const lumHist = new Uint32Array(HIST_BINS), rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
+            lumHist.set(histData.subarray(0, HIST_BINS)); rHist.set(histData.subarray(HIST_BINS, HIST_BINS * 2));
+            gHist.set(histData.subarray(HIST_BINS * 2, HIST_BINS * 3)); bHist.set(histData.subarray(HIST_BINS * 3, HIST_BINS * 4));
 
-          const centerIndices = [5, 6, 9, 10]; let centerSum = 0, centerCnt = 0;
-          for (const ci of centerIndices) { if (zoneCounts[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneCounts[ci]; centerCnt++; } }
-          const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
+            const zoneCounts = new Uint32Array(ZONE_COUNT), zoneBrightSum = new Float32Array(ZONE_COUNT);
+            for (let z = 0; z < ZONE_COUNT; z++) { zoneCounts[z] = zoneData[z]; zoneBrightSum[z] = zoneData[ZONE_COUNT + z]; }
+            const zoneHists = Array.from({ length: ZONE_COUNT }, (_, z) => new Uint32Array(zoneHistData.buffer, z * HIST_BINS * 4, HIST_BINS));
 
-          let edgeSum = 0, edgeCnt = 0;
-          for (let z = 0; z < ZONE_COUNT; z++) { if (centerIndices.includes(z)) continue; if (zoneCounts[z] > 0) { edgeSum += zoneBrightSum[z] / zoneCounts[z]; edgeCnt++; } }
-          const edgeAvgBright = edgeCnt > 0 ? edgeSum / edgeCnt / 255 : mean / 255;
+            const centerIndices = [5, 6, 9, 10]; let centerSum = 0, centerCnt = 0;
+            for (const ci of centerIndices) { if (zoneCounts[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneCounts[ci]; centerCnt++; } }
+            const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
 
-          return { bright: mean / 255, contrast: std / 64, chroma: sumChroma / count / 255, edge: sumEdge / count, motionSAD, skinRatio: skinCount / count, centerBright, edgeAvgBright, hiLumaRBratio, lumHist, rHist, gHist, bHist, totalSamples: count, zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }, _gpuPath: true };
+            let edgeSum = 0, edgeCnt = 0;
+            for (let z = 0; z < ZONE_COUNT; z++) { if (centerIndices.includes(z)) continue; if (zoneCounts[z] > 0) { edgeSum += zoneBrightSum[z] / zoneCounts[z]; edgeCnt++; } }
+            const edgeAvgBright = edgeCnt > 0 ? edgeSum / edgeCnt / 255 : mean / 255;
+
+            return { bright: mean / 255, contrast: std / 64, chroma: sumChroma / count / 255, edge: sumEdge / count, motionSAD, skinRatio: skinCount / count, centerBright, edgeAvgBright, hiLumaRBratio, lumHist, rHist, gHist, bHist, totalSamples: count, zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }, _gpuPath: true };
+          } finally {
+            for (const buf of mappedBuffers) { try { buf.unmap(); } catch (_) {} }
+          }
         } catch (e) { log.warn('[GPU] analyzeFrame error:', e.message); return null; }
       }
 
@@ -1837,7 +1911,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return Object.freeze({ pickFastActiveOnly });
     }
 
-    /* ══ Event Bus (Patch 4 Applied: Single rAF Integration) ══ */
+    /* ══ Event Bus ══ */
     function createEventBus() {
       const subs = new Map();
       let _signalSubs = null;
@@ -1926,58 +2000,88 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Scheduler ══ */
+    /* ══ Scheduler (Patch 3 Applied: 3-tier Priority with AbortController) ══ */
     function createScheduler(minIntervalMs = 14) {
-      let queued = false, force = false, applyFn = null, lastRun = 0, timer = 0, rafId = 0, epoch = 0;
+      let queued = false, force = false, applyFn = null, lastRun = 0;
+      let epoch = 0, pendingHandle = null;
+
       const hasPostTask = !!globalThis.scheduler?.postTask;
       const hasRIC = typeof requestIdleCallback === 'function';
 
-      const scheduleUrgent = hasPostTask
-        ? (fn) => { rafId = -1; globalThis.scheduler.postTask(fn, { priority: 'user-visible' }).catch(() => { rafId = requestAnimationFrame(fn); }); }
-        : (fn) => { rafId = requestAnimationFrame(fn); };
-
-      const scheduleIdle = hasPostTask
-        ? (fn) => { rafId = -1; globalThis.scheduler.postTask(fn, { priority: 'background' }).catch(() => { rafId = hasRIC ? requestIdleCallback(fn, { timeout: 80 }) : requestAnimationFrame(fn); }); }
-        : hasRIC
-          ? (fn) => { rafId = requestIdleCallback(fn, { timeout: 120 }); }
-          : (fn) => { rafId = requestAnimationFrame(fn); };
-
-      function clearPending() { epoch++; if (timer) { clearTimer(timer); timer = 0; } if (rafId && rafId !== -1) { cancelAnimationFrame(rafId); rafId = 0; } }
-
-      function queueRaf() {
-        if (rafId) return;
-        const myEpoch = epoch;
-        const wrapper = () => { rafId = 0; if (myEpoch !== epoch) return; run(); };
-        force ? scheduleUrgent(wrapper) : scheduleIdle(wrapper);
+      function cancel() {
+        epoch++;
+        if (pendingHandle?.abort) pendingHandle.abort();
+        else if (typeof pendingHandle === 'number') {
+          cancelAnimationFrame(pendingHandle);
+        }
+        pendingHandle = null;
       }
 
-      function run() {
+      function schedule(priority) {
+        if (pendingHandle) return;
+        const myEpoch = epoch;
+        const run = () => {
+          pendingHandle = null;
+          if (myEpoch !== epoch) return;
+          execute();
+        };
+
+        if (hasPostTask) {
+          const ac = new AbortController();
+          globalThis.scheduler.postTask(run, {
+            priority,
+            signal: ac.signal
+          }).catch(() => {});
+          pendingHandle = ac;
+        } else if (priority === 'user-blocking') {
+          pendingHandle = requestAnimationFrame(run);
+        } else if (hasRIC) {
+          pendingHandle = requestIdleCallback(run, { timeout: priority === 'user-visible' ? 80 : 200 });
+        } else {
+          pendingHandle = requestAnimationFrame(run);
+        }
+      }
+
+      function execute() {
         queued = false;
-        const now = performance.now(), doForce = force; force = false;
-        const dt = now - lastRun;
-        if (!doForce && dt < minIntervalMs) {
-          const wait = Math.max(0, minIntervalMs - dt);
-          if (!timer) { const myEpoch = epoch; timer = setTimer(() => { timer = 0; if (myEpoch !== epoch) return; queueRaf(); }, wait); }
+        const now = performance.now(), doForce = force;
+        force = false;
+        if (!doForce && (now - lastRun) < minIntervalMs) {
+          queued = true;
+          setTimeout(() => { if (queued) schedule('background'); }, minIntervalMs - (now - lastRun));
           return;
         }
         lastRun = now;
-        if (applyFn) { try { applyFn(doForce); } catch (_) {} }
+        if (applyFn) try { applyFn(doForce); } catch (_) {}
       }
 
-      const request = (immediate = false) => {
-        if (immediate) { force = true; clearPending(); queued = true; queueRaf(); return; }
-        if (queued) return; queued = true; clearPending(); queueRaf();
+      return {
+        registerApply: fn => { applyFn = fn; },
+        request(immediate = false) {
+          if (immediate) force = true;
+          if (queued && !immediate) return;
+          queued = true;
+          cancel();
+          schedule(immediate ? 'user-blocking' : 'background');
+        }
       };
-
-      return { registerApply: (fn) => { applyFn = fn; }, request };
     }
 
-    /* ══ Local Store ══ */
+    /* ══ Local Store (Patch 6 & Bug 3 Applied: Dirty Bitmask & Batch Sync) ══ */
     function createLocalStore(defaults, scheduler, Utils, onSignal) {
       let rev = 0;
       const listeners = new Map();
       const state = Utils.deepClone(defaults);
       const pathCache = Object.create(null);
+
+      const DIRTY_BITS = Object.freeze({
+        VIDEO:    0b0001,
+        AUDIO:    0b0010,
+        PLAYBACK: 0b0100,
+        APP:      0b1000
+      });
+      const CAT_TO_BIT = { video: 0b0001, audio: 0b0010, playback: 0b0100, app: 0b1000 };
+      let dirtyMask = 0;
 
       const emit = (key, val) => {
         const a = listeners.get(key);
@@ -2004,7 +2108,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const [c, k] = parsePath(p);
           if (k != null) {
             if (Object.is(state[c]?.[k], val)) return;
-            state[c][k] = val; rev++; emit(p, val);
+            state[c][k] = val; rev++; dirtyMask |= CAT_TO_BIT[c] || 0; emit(p, val);
             scheduler.request(false); onSignal?.();
             return;
           }
@@ -2018,7 +2122,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
               }
             }
             if (changed) {
-              rev++;
+              rev++; dirtyMask |= CAT_TO_BIT[c] || 0;
               const b = listeners.get(`${c}.*`);
               if (b) for (const cb of b) { try { cb(undefined); } catch (_) {} }
               scheduler.request(false);
@@ -2026,21 +2130,27 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             }
           } else {
             if (Object.is(state[c], val)) return;
-            state[c] = val; rev++; emit(c, val);
+            state[c] = val; rev++; dirtyMask |= CAT_TO_BIT[c] || 0; emit(c, val);
             scheduler.request(false); onSignal?.();
           }
         },
         batch: (cat, obj) => {
           let changed = false;
+          const changedKeys = [];
           for (const [k, v] of Object.entries(obj)) {
             if (!Object.is(state[cat]?.[k], v)) {
-              state[cat][k] = v; changed = true;
-              const a = listeners.get(`${cat}.${k}`);
-              if (a) for (const cb of a) { try { cb(v); } catch (_) {} }
+              state[cat][k] = v;
+              changed = true;
+              changedKeys.push(k);
             }
           }
           if (changed) {
             rev++;
+            dirtyMask |= CAT_TO_BIT[cat] || 0;
+            for (const k of changedKeys) {
+              const a = listeners.get(`${cat}.${k}`);
+              if (a) for (const cb of a) { try { cb(state[cat][k]); } catch (_) {} }
+            }
             const b = listeners.get(`${cat}.*`);
             if (b) for (const cb of b) { try { cb(undefined); } catch (_) {} }
             scheduler.request(false);
@@ -2051,11 +2161,17 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           let s = listeners.get(k);
           if (!s) { s = new Set(); listeners.set(k, s); }
           s.add(f); return () => listeners.get(k)?.delete(f);
-        }
+        },
+        consumeDirty() {
+          const m = dirtyMask;
+          dirtyMask = 0;
+          return m;
+        },
+        isDirty(bit) { return !!(dirtyMask & bit); }
       };
     }
 
-    /* ══ Registry (Patch 7 Applied: Counter Based Batch processing) ══ */
+    /* ══ Registry (Bug 7 Applied: WeakRef Observer with Safe Disconnect) ══ */
     function createRegistry(scheduler) {
       const videos = new Set(), visible = { videos: new Set() };
       let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
@@ -2192,14 +2308,25 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
       const connectObserver = (root) => {
         if (!root) return;
+        const hostRef = (root instanceof ShadowRoot && root.host) ? new WeakRef(root.host) : null;
+
         const mo = new MutationObserver((muts) => {
           if (__globalSig.aborted) { mo.disconnect(); observers.delete(mo); return; }
-          if (root !== document && root !== document.body && root !== document.documentElement) {
+
+          if (hostRef) {
+            const host = hostRef.deref();
+            if (!host || !host.isConnected) {
+              mo.disconnect();
+              observers.delete(mo);
+              return;
+            }
+          } else if (root !== document && root !== document.body && root !== document.documentElement) {
             const host = root.host || root;
             if (host && typeof host.isConnected === 'boolean' && !host.isConnected) {
               mo.disconnect(); observers.delete(mo); return;
             }
           }
+
           let touchedVideoTree = false;
           for (const m of muts) {
             if (m.addedNodes && m.addedNodes.length) {
@@ -2222,16 +2349,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
           if (touchedVideoTree) requestRefreshCoalesced();
         });
+
         mo.observe(root, { childList: true, subtree: true });
         observers.add(mo);
-
-        if (root instanceof ShadowRoot && root.host) {
-          const hostEl = root.host;
-          const checkDisconnect = setRecurring(() => {
-            if (!hostEl.isConnected) { mo.disconnect(); observers.delete(mo); clearRecurring(checkDisconnect); }
-          }, 5000, { maxErrors: 10 });
-        }
-
         WorkQ.enqueue(root);
       };
 
@@ -2305,7 +2425,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Audio Engine (Bug 4 Applied: Safe connection with Error Bypass Fallback) ══ */
+    /* ══ Audio Engine ══ */
     function createAudio(sm) {
       let ctx;
       let target = null, currentSrc = null;
@@ -2937,8 +3057,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-// ═══ END OF PART 2 (v209.3.0) ═══
-// ═══ PART 3 START (v209.3.0) — Auto Scene Manager, Apply Loop ═══
+// ═══ END OF PART 2 (v209.4.0) ═══
+// ═══ PART 3 START (v209.4.0) — Auto Scene Manager, Apply Loop ═══
 
     /* ══════════════════════════════════════════════════════════════════
        Auto Scene Manager (Perf 8 & Bug 1, 3, 5, 6 Applied)
@@ -2986,7 +3106,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const ST_NAMES = ['NORMAL', 'LOW_KEY', 'HIGH_KEY', 'HI_CONT', 'LOW_SAT', 'SKIN', 'BACKLIT'];
       const ST_COUNT = ST_NAMES.length;
 
-      /* ══ Analysis Worker Pool (Patch 8 Applied: Branchless Skin Detection) ══ */
+      /* ══ Analysis Worker Pool (Patch 2, 5, 8 & Bug 1 Applied) ══ */
       const ANALYSIS_WORKER_SRC = (() => {
         const workerFn = function() {
           const HIST_BINS = 256, ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
@@ -3127,13 +3247,30 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           self.onmessage = async function({ data }) {
-            const { buf, sw, sh, id } = data;
             try {
-              const pixelData = new Uint8ClampedArray(buf);
-              const result = analyze(pixelData, sw, sh);
-              self.postMessage({ result, id });
+              let result;
+              if (data.type === 'frame') {
+                const { frame, sw, sh } = data;
+                const bmp = await createImageBitmap(frame, { resizeWidth: sw, resizeHeight: sh, resizeQuality: 'low' });
+                frame.close();
+                const cv = new OffscreenCanvas(sw, sh);
+                const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
+                ctx.drawImage(bmp, 0, 0);
+                bmp.close();
+                const imgData = ctx.getImageData(0, 0, sw, sh);
+                result = analyze(imgData.data, sw, sh);
+              } else {
+                const { buf, sw, sh } = data;
+                const pixelData = new Uint8ClampedArray(buf);
+                result = analyze(pixelData, sw, sh);
+              }
+              const s = new Float64Array([ result.bright, result.contrast, result.chroma, result.edge, result.motionSAD, result.skinRatio, result.centerBright, result.edgeAvgBright, result.hiLumaRBratio, result.totalSamples ]);
+              const hp = new Uint32Array(1040 + 16 * 256);
+              hp.set(result.lumHist, 0); hp.set(result.rHist, 256); hp.set(result.gHist, 512); hp.set(result.bHist, 768); hp.set(result.zoneCounts, 1024);
+              for (let z = 0; z < 16; z++) hp.set(result.zoneHists[z], 1040 + z * 256);
+              self.postMessage({ id: data.id, scalars: s, histPack: hp, _gpuPath: false }, [s.buffer, hp.buffer]);
             } catch(e) {
-              self.postMessage({ error: e.message, id });
+              self.postMessage({ error: e.message, id: data.id });
             }
           };
         };
@@ -3177,12 +3314,20 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const createWorker = () => {
             const w = new Worker(blobUrl);
 
-            w.onmessage = ({ data: { result, error, id } }) => {
+            w.onmessage = ({ data: { id, scalars, histPack, error } }) => {
               const p = _workerPending.get(id);
               if (!p) return;
               _workerPending.delete(id);
               _workerMsgOwner.delete(id);
-              error ? p.reject(new Error(error)) : p.resolve(result);
+              if (error) { p.reject(new Error(error)); return; }
+              const s = scalars;
+              const result = {
+                bright: s[0], contrast: s[1], chroma: s[2], edge: s[3], motionSAD: s[4], skinRatio: s[5], centerBright: s[6], edgeAvgBright: s[7], hiLumaRBratio: s[8], totalSamples: s[9],
+                lumHist: histPack.subarray(0, 256), rHist: histPack.subarray(256, 512), gHist: histPack.subarray(512, 768), bHist: histPack.subarray(768, 1024), zoneCounts: histPack.subarray(1024, 1040),
+                zoneHists: Array.from({length:16}, (_,z) => histPack.subarray(1040+z*256, 1040+(z+1)*256)),
+                zoneStats: { centerBright: s[6], edgeAvgBright: s[7] }, _gpuPath: false
+              };
+              p.resolve(result);
             };
 
             w.onerror = (e) => {
@@ -3225,15 +3370,17 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         return _analysisWorkers[0];
       }
 
-      async function analyzeImageDataWorker(imgData, sw, sh) {
+      async function analyzeImageDataWorker(input, sw, sh) {
         const worker = getAnalysisWorker();
-        if (!worker) return computeFullAnalysis(imgData.data, sw, sh);
+        if (!worker) {
+          if (input.type === 'frame') { input.frame.close(); return null; }
+          return computeFullAnalysis(input.data, sw, sh);
+        }
 
         const id = nextWorkerId();
         const currentWorkerIndex = _workerIdx % _WORKER_POOL_SIZE;
 
         _workerMsgOwner.set(id, currentWorkerIndex);
-        const buf = imgData.data.buffer;
 
         return new Promise((resolve, reject) => {
           let settled = false;
@@ -3258,7 +3405,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           });
 
           try {
-            worker.postMessage({ buf, sw, sh, id }, [buf]);
+            if (input.type === 'frame') {
+              worker.postMessage({ type: 'frame', frame: input.frame, sw, sh, id }, [input.frame]);
+            } else {
+              const copy = input.data.slice();
+              const buf = copy.buffer;
+              worker.postMessage({ type: 'buffer', buf, sw, sh, id }, [buf]);
+            }
           } catch (e) {
             if (!settled) {
               settled = true;
@@ -3283,10 +3436,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       let __gpuConsecutiveFailures = 0;
       const GPU_MAX_CONSECUTIVE_FAILURES = 5;
 
-      async function analyzeImageData(imgData, sw, sh) {
+      async function analyzeImageData(input, sw, sh) {
+        if (input.type === 'frame') return await analyzeImageDataWorker(input, sw, sh);
+
         if (AUTO._gpuActive && gpuAnalyzer?.isReady()) {
           try {
-            const result = await gpuAnalyzer.analyzeFrame(imgData.data, sw, sh);
+            const result = await gpuAnalyzer.analyzeFrame(input.data, sw, sh);
             if (result) { __gpuConsecutiveFailures = 0; return result; }
             __gpuConsecutiveFailures++;
             if (__gpuConsecutiveFailures >= GPU_MAX_CONSECUTIVE_FAILURES) { AUTO._gpuActive = false; log.warn('[AutoScene] GPU path disabled after repeated failures'); }
@@ -3297,10 +3452,10 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
         }
         if (_analysisWorkers !== null || typeof Worker !== 'undefined') {
-          try { return await analyzeImageDataWorker(imgData, sw, sh); }
+          try { return await analyzeImageDataWorker(input, sw, sh); }
           catch (e) { log.warn('[AutoScene] Worker 분석 실패, CPU fallback:', e.message); }
         }
-        return computeFullAnalysis(imgData.data, sw, sh);
+        return computeFullAnalysis(input.data, sw, sh);
       }
 
       const _claheClipped = new Float32Array(HIST_BINS); const _claheCdf = new Float32Array(HIST_BINS); const _claheZoneCDFPool = new Array(ZONE_COUNT); for (let i = 0; i < ZONE_COUNT; i++) _claheZoneCDFPool[i] = new Float32Array(HIST_BINS); const _claheCurveOut = new Float32Array(TONE_STEPS);
@@ -3429,7 +3584,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const FLICKER_MAX = 8; const FLICKER_DECAY = 0.9;
       function getTemporalAlpha(isCut, isFade) { const base = isCut ? 0.58 : (isFade ? 0.22 : 0.12); return base / (1 + flickerCount * 0.7); }
 
-      /* ── Branchless Skin Detection Applied Here ── */
       function computeFullAnalysis(data, sw, sh) {
         const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
         const lumHist = _pool_lumHist; lumHist.fill(0); const rHist = _pool_rHist; rHist.fill(0); const gHist = _pool_gHist; gHist.fill(0); const bHist = _pool_bHist; bHist.fill(0);
@@ -3636,6 +3790,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       async function captureSceneFrame(v) {
         if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
 
+        if (typeof VideoFrame === 'function' && _analysisWorkers) {
+          try {
+            const frame = new VideoFrame(v, { timestamp: (v.currentTime * 1e6) | 0 });
+            return { type: 'frame', frame };
+          } catch (_) {}
+        }
+
         if (typeof VideoFrame === 'function' && cv instanceof OffscreenCanvas) {
           let frame;
           try {
@@ -3781,13 +3942,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         try {
-          const img = await captureSceneFrame(v);
+          const input = await captureSceneFrame(v);
           if (!AUTO.running || __globalSig.aborted) return;
           if (!v.isConnected || v.paused || v.readyState < 2) { scheduleNext(v, 300); return; }
-          if (!img) { scheduleNext(v, 500); return; }
+          if (!input) { scheduleNext(v, 500); return; }
 
           AUTO.drmBlocked = false; drmRetryCount = 0;
-          const stats = await analyzeImageData(img, CANVAS_W, CANVAS_H);
+          const stats = await analyzeImageData(input, CANVAS_W, CANVAS_H);
           if (!AUTO.running || __globalSig.aborted) return;
 
           AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motionSAD * AUTO.motionAlpha; AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0;
@@ -4068,7 +4229,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     };
 
     /* ══════════════════════════════════════════════════════════════════
-       createApplyLoop
+       createApplyLoop (Bug 6 Fix for presetMix Applied)
        ══════════════════════════════════════════════════════════════════ */
     function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
       const __lastUserPt = { x: 0, y: 0, t: 0 };
@@ -4084,6 +4245,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
       function apply(forceApply) {
         if (__globalSig.aborted) return;
+
+        // Patch 6: Dirty Bitmask 활용 (오디오 및 재생속도 패스 생략)
+        const dirtyMask = Store.consumeDirty?.() || 0xFFFF;
         const applyAll = !!Store.get(P.APP_APPLY_ALL);
 
         if (!Store.get(P.APP_ACT)) {
@@ -4108,6 +4272,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         if (target !== prevTarget || forceApply) { if (prevTarget && prevTarget !== target) FiltersVO.clear(prevTarget); prevTarget = target; window[VSC_INTERNAL_SYM]._activeVideo = target; Audio.setTarget(target); }
+
         const vfUser = Store.getCatRef('video'); const pbEn = !!Store.get(P.PB_EN); const pbRate = Number(Store.get(P.PB_RATE));
 
         _targets.clear();
@@ -4121,26 +4286,31 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const vst = getVState(v); if (vst.applied) FiltersVO.clear(v);
         }
 
-        if (pbEn) {
-          for (const v of TOUCHED.rateVideos) {
-            if (!v.isConnected || _targets.has(v)) continue;
-            restoreRate(v);
+        // 재생 속도 반영 (dirty bit 확인)
+        if (dirtyMask & 0b0100 || forceApply || target !== prevTarget) {
+          if (pbEn) {
+            for (const v of TOUCHED.rateVideos) {
+              if (!v.isConnected || _targets.has(v)) continue;
+              restoreRate(v);
+            }
           }
         }
 
         _targets.forEach(v => {
-          if (pbEn && Number.isFinite(pbRate) && pbRate > 0) {
-            const rs = getRateState(v);
-            if (!rs.permanentlyBlocked) {
-              if (rs.orig == null) rs.orig = v.playbackRate;
-              if (Math.abs(v.playbackRate - pbRate) > 0.002) {
-                if (rs._totalRetries >= RATE_SESSION_MAX) rs.permanentlyBlocked = true;
-                else if (isVideoEncrypted(v)) { rs.permanentlyBlocked = true; if (rs.orig != null) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = rs.orig; } catch (_) {} } }
-                else { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = pbRate; rs._rateRetryCount = 0; } catch (_) { rs._rateRetryCount++; rs._totalRetries++; rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; } }
-                touchedAddLimited(TOUCHED.rateVideos, v);
+          if (dirtyMask & 0b0100 || forceApply || target !== prevTarget) {
+            if (pbEn && Number.isFinite(pbRate) && pbRate > 0) {
+              const rs = getRateState(v);
+              if (!rs.permanentlyBlocked) {
+                if (rs.orig == null) rs.orig = v.playbackRate;
+                if (Math.abs(v.playbackRate - pbRate) > 0.002) {
+                  if (rs._totalRetries >= RATE_SESSION_MAX) rs.permanentlyBlocked = true;
+                  else if (isVideoEncrypted(v)) { rs.permanentlyBlocked = true; if (rs.orig != null) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = rs.orig; } catch (_) {} } }
+                  else { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { v.playbackRate = pbRate; rs._rateRetryCount = 0; } catch (_) { rs._rateRetryCount++; rs._totalRetries++; rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; } }
+                  touchedAddLimited(TOUCHED.rateVideos, v);
+                }
               }
-            }
-          } else restoreRate(v);
+            } else restoreRate(v);
+          }
 
           const vst = getVState(v);
           if (vst.__abCompare) { FiltersVO.clear(v); return; }
@@ -4149,9 +4319,11 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (!params || isNeutralVideoParams(params)) FiltersVO.clear(v); else { const filterResult = FiltersVO.prepareCached(v, params); FiltersVO.applyFilter(v, filterResult); }
 
           // ── Video Transform (회전 / 비율) 적용 ──
-          const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
-          const fit = Store.get(P.APP_VID_FIT) || 'contain';
-          if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
+          if (dirtyMask & 0b1000 || forceApply || target !== prevTarget) {
+            const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
+            const fit = Store.get(P.APP_VID_FIT) || 'contain';
+            if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
+          }
 
           touchedAddLimited(TOUCHED.videos, v);
         });
@@ -4159,15 +4331,15 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       Scheduler.registerApply(apply); return { apply };
     }
 
-// ═══ END OF PART 3 (v209.3.0) ═══
-// ═══ PART 4 START (v209.3.0) — Filters, UI, Gestures & Bootstrap ═══
+// ═══ END OF PART 3 (v209.4.0) ═══
+// ═══ PART 4 START (v209.4.0) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
     const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
     const SCR_BRT_LABELS = ['리셋(OFF)', '1단', '2단', '3단', '4단', '5단'];
 
     /* ══════════════════════════════════════════════════════════════════
-       SVG Filter Engine
+       SVG Filter Engine (Patch 4 Applied: Filter String Interning)
        ══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -4261,22 +4433,39 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         if (config.IS_FIREFOX) return false;
         return (Math.abs(s.sharp || 0) > 0.005 || Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || !!s._autoToneCurve || !!s._autoChannelGains || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.temp || 0) > 0.5);
       }
-      function quickHash(str) { let hash = 5381; for (let i = 0, len = str.length; i < len; i++) { hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0; } return hash; }
 
-      const _INTERN_MAX = 8;
-      const _internKeys = new Array(_INTERN_MAX);
-      const _internVals = new Array(_INTERN_MAX);
-      let _internHead = 0, _internSize = 0;
+      /* ── Fast FNV-1a Hash & String Interning ── */
+      const _filterIntern = new Map();
+      const _filterHashMap = new Map();
+      let _filterInternSize = 0;
+      const INTERN_MAX = 64;
 
-      function internStr(s) {
-        for (let i = 0; i < _internSize; i++) {
-          if (_internKeys[i] === s) return _internVals[i];
+      function fnv1a(str) {
+        let h = 0x811c9dc5;
+        for (let i = 0, len = str.length; i < len; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 0x01000193);
         }
-        const slot = _internSize < _INTERN_MAX ? _internSize++ : (_internHead++ % _INTERN_MAX);
-        _internKeys[slot] = s;
-        _internVals[slot] = s;
-        return s;
+        return h >>> 0;
       }
+
+      function internFilter(str) {
+        const existing = _filterHashMap.get(str);
+        if (existing !== undefined) return existing;
+        const hash = fnv1a(str);
+        if (_filterInternSize >= INTERN_MAX) {
+          const firstKey = _filterIntern.keys().next().value;
+          const firstStr = _filterIntern.get(firstKey);
+          _filterIntern.delete(firstKey);
+          _filterHashMap.delete(firstStr);
+          _filterInternSize--;
+        }
+        _filterIntern.set(hash, str);
+        _filterHashMap.set(str, hash);
+        _filterInternSize++;
+        return hash;
+      }
+
       const _FILTER_PARTS = [];
 
       function prepare(video, s) {
@@ -4288,7 +4477,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
         if (!needsSvgFilter(s)) {
           const rawCssFilter = [Math.abs(s._cssBr-1)>0.001 ? `brightness(${s._cssBr.toFixed(4)})` : '', Math.abs(s._cssCt-1)>0.001 ? `contrast(${s._cssCt.toFixed(4)})` : '', Math.abs(s._cssSat-1)>0.001 ? `saturate(${s._cssSat.toFixed(4)})` : ''].filter(Boolean).join(' ');
-          const filterStrCss = internStr(rawCssFilter || 'none');
+          const filterStrCss = rawCssFilter || 'none';
           dc.key = fullKey; dc.url = ''; dc.filterStr = filterStrCss; dc.cssOnly = true;
           return { svgUrl: '', filterStr: filterStrCss, cssOnly: true };
         }
@@ -4323,7 +4512,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             } else { toneTable = st.toneKey; }
           } else {
             toneTable = getToneTableCached(steps, s.gain || 1, s.contrast || 1, s.bright * 0.004 || 0, gamma, s.toe || 0, s.mid || 0, s.shoulder || 0);
-            const toneHash = quickHash(toneTable);
+            const toneHash = fnv1a(toneTable);
             if (st.toneHash !== toneHash) { st.toneHash = toneHash; st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
           }
 
@@ -4343,7 +4532,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         if (Math.abs(s._cssBr - 1) > 0.001) _FILTER_PARTS.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) _FILTER_PARTS.push(`contrast(${s._cssCt.toFixed(4)})`);
         if (Math.abs(s._cssSat - 1) > 0.001) _FILTER_PARTS.push(`saturate(${s._cssSat.toFixed(4)})`);
-        const filterStr = internStr(_FILTER_PARTS.length === 1 ? url : _FILTER_PARTS.join(' '));
+        const filterStr = _FILTER_PARTS.length === 1 ? url : _FILTER_PARTS.join(' ');
 
         dc.key = fullKey; dc.url = url; dc.filterStr = filterStr; dc.cssOnly = false;
         return { svgUrl: url, filterStr, cssOnly: false };
@@ -4355,15 +4544,18 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           if (!el) return;
           const st = getVState(el); if (st._inPiP) return;
           if (!st.visible && !isPiPActiveVideo(el)) { if (st.applied) { vscRemoveStyle(el, 'will-change'); vscRemoveStyle(el, 'contain'); } return; }
-          if (!filterResult) { if (st.applied) { vscRemoveStyle(el, 'transition'); vscRemoveStyle(el, 'will-change'); vscRemoveStyle(el, 'filter'); vscRemoveStyle(el, '-webkit-filter'); vscRemoveStyle(el, 'background-color'); vscRemoveStyle(el, 'contain'); vscRemoveStyle(el, 'backface-visibility'); st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false; } return; }
+          if (!filterResult) { if (st.applied) { vscRemoveStyle(el, 'transition'); vscRemoveStyle(el, 'will-change'); vscRemoveStyle(el, 'filter'); vscRemoveStyle(el, '-webkit-filter'); vscRemoveStyle(el, 'background-color'); vscRemoveStyle(el, 'contain'); vscRemoveStyle(el, 'backface-visibility'); st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false; st._lastFilterHash = 0; } return; }
+
           const filterStr = filterResult.filterStr;
-          if (st.lastCssFilterStr === filterStr && st.applied) return;
+          const newHash = internFilter(filterStr);
+
+          if (st._lastFilterHash === newHash && st.applied) return;
           if (!st._transitionCleared) { vscSetStyle(el, 'transition', 'none'); st._transitionCleared = true; }
-          if (st.lastCssFilterStr !== filterStr) { vscSetStyle(el, 'filter', filterStr); vscSetStyle(el, '-webkit-filter', filterStr); }
+          if (st._lastFilterHash !== newHash) { vscSetStyle(el, 'filter', filterStr); vscSetStyle(el, '-webkit-filter', filterStr); }
           if (!st.applied) { const willChangeVal = window[VSC_INTERNAL_SYM]?.ZoomManager?.isZoomed(el) ? 'filter, transform' : 'filter'; vscSetStyle(el, 'will-change', willChangeVal); vscSetStyle(el, 'contain', 'content'); vscSetStyle(el, 'background-color', '#000'); vscSetStyle(el, 'backface-visibility', 'hidden'); }
-          st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr;
+          st.applied = true; st.lastFilterUrl = filterResult.svgUrl; st.lastCssFilterStr = filterStr; st._lastFilterHash = newHash;
         },
-        clear: (el) => { if (!el) return; const st = getVState(el); if (!st.applied && !vscHasManagedStyles(el)) return; vscClearAllStyles(el); st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false; }
+        clear: (el) => { if (!el) return; const st = getVState(el); if (!st.applied && !vscHasManagedStyles(el)) return; vscClearAllStyles(el); st.applied = false; st.lastFilterUrl = null; st.lastCssFilterStr = null; st._transitionCleared = false; st._lastFilterHash = 0; }
       };
     }
 
@@ -4399,10 +4591,10 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return { mul, autoBase };
     }
 
-    /* ── composeVideoParamsInto ── */
+    /* ── composeVideoParamsInto (Bug 6 Applied: presetMix safe handling) ── */
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
       out.gain = 1; out.gamma = 1; out.contrast = 1; out.bright = 0; out.satF = 1; out.toe = 0; out.mid = 0; out.shoulder = 0; out.temp = 0; out.sharp = 0; out._autoToneCurve = null; out._autoChannelGains = null; out._cssBr = 1; out._cssCt = 1; out._cssSat = 1; out._gamma = undefined; out._bright = undefined; out._temp = undefined;
-      const mix = VSC_CLAMP(Number(vUser.presetMix) || 1, 0, 1);
+      const mix = VSC_CLAMP(Number.isFinite(+vUser.presetMix) ? +vUser.presetMix : 1, 0, 1);
 
       if (vUser.presetS === 'none') { /* skip */ }
       else if (vUser.presetS === 'off') out.sharp = autoSharpBase;
@@ -4629,7 +4821,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
     __globalSig.addEventListener('abort', () => { clearTimer(__osdTimerId); __osdTimerId = 0; if (__osdEl?.isConnected) { try { __osdEl.remove(); } catch (_) {} } __osdEl = null; }, { once: true });
 
     /* ══════════════════════════════════════════════════════════════════
-       createUI
+       createUI (Patch 9 Applied: soft-light DOM Overlay Reverted)
        ══════════════════════════════════════════════════════════════════ */
     function createUI(Store, Bus, Utils, Audio, AutoScene, ZoomMgr, Targeting, Maximizer, FiltersVO, Registry, Scheduler, ApplyReq) {
       const { h, clamp } = Utils;
@@ -4644,39 +4836,46 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
 
       let _shadow = null, _qbarShadow = null; let qbarVisible = false;
 
-      /* ══ Screen Brightness Overlay ══ */
+      /* ── 화면 밝기 (Dimmer): soft-light 오버레이 방식 ── */
       let __scrBrtOverlay = null;
 
       function ensureScrBrtOverlay() {
         const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement;
+
         if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) {
           return __scrBrtOverlay;
         }
+
         if (!__scrBrtOverlay) {
           __scrBrtOverlay = document.createElement('div');
           __scrBrtOverlay.id = 'vsc-scr-brt';
           __scrBrtOverlay.setAttribute('data-vsc-ui', '1');
           __scrBrtOverlay.style.cssText =
             'position:fixed;top:0;left:0;width:100vw;height:100vh;' +
-            'background:white;opacity:0;pointer-events:none;' +
-            'z-index:2147483645;transition:opacity 0.3s ease;' +
-            'mix-blend-mode:soft-light;display:none';
+            'background:white;mix-blend-mode:soft-light;' +
+            'pointer-events:none;z-index:2147483645;' +
+            'opacity:0;transition:opacity 0.3s ease;display:none;';
         }
+
         try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
         return __scrBrtOverlay;
       }
 
       function applyScrBrt(level) {
         const idx = VSC_CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
-        const ov = ensureScrBrtOverlay();
         const val = SCR_BRT_LEVELS[idx];
+
         if (val <= 0) {
-          ov.style.opacity = '0';
-          setTimer(() => { if (ov.style.opacity === '0') ov.style.display = 'none'; }, 350);
-        } else {
-          ov.style.display = '';
-          requestAnimationFrame(() => { ov.style.opacity = String(val); });
+          if (__scrBrtOverlay) {
+            __scrBrtOverlay.style.opacity = '0';
+            setTimer(() => { if (__scrBrtOverlay && __scrBrtOverlay.style.opacity === '0') __scrBrtOverlay.style.display = 'none'; }, 350);
+          }
+          return;
         }
+
+        const ov = ensureScrBrtOverlay();
+        ov.style.display = '';
+        requestAnimationFrame(() => { ov.style.opacity = String(val); });
       }
 
       function cycleScrBrt() {
@@ -4684,41 +4883,15 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         const next = (cur + 1) % SCR_BRT_LEVELS.length;
         Store.set(P.APP_SCREEN_BRT, next);
         applyScrBrt(next);
-        showOSD('화면 밝기: ' + SCR_BRT_LABELS[next], 1000);
+        showOSD('화면 조도: ' + SCR_BRT_LABELS[next], 1000);
         persistNow();
       }
 
-      onDoc('fullscreenchange', () => {
-        const lv = Number(Store.get?.(P.APP_SCREEN_BRT)) || 0;
-        if (lv > 0) {
-          const ov = ensureScrBrtOverlay();
-          if (ov) {
-            ov.style.display = '';
-            ov.style.opacity = String(SCR_BRT_LEVELS[VSC_CLAMP(Math.round(lv), 0, SCR_BRT_LEVELS.length - 1)]);
-          }
-        }
-      });
-      onDoc('webkitfullscreenchange', () => {
-        const lv = Number(Store.get?.(P.APP_SCREEN_BRT)) || 0;
-        if (lv > 0) {
-          const ov = ensureScrBrtOverlay();
-          if (ov) {
-            ov.style.display = '';
-            ov.style.opacity = String(SCR_BRT_LEVELS[VSC_CLAMP(Math.round(lv), 0, SCR_BRT_LEVELS.length - 1)]);
-          }
-        }
-      });
+      onDoc('fullscreenchange', () => applyScrBrt(Number(Store.get?.(P.APP_SCREEN_BRT)) || 0));
+      onDoc('webkitfullscreenchange', () => applyScrBrt(Number(Store.get?.(P.APP_SCREEN_BRT)) || 0));
 
       Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
-      setTimer(() => {
-        const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-        if (saved > 0) applyScrBrt(saved);
-      }, 500);
-
-      sig.addEventListener('abort', () => {
-        try { __scrBrtOverlay?.remove(); } catch (_) {}
-        __scrBrtOverlay = null;
-      }, { once: true });
+      setTimer(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
 
       function getGpuStatus() {
         if (!Store.get(P.APP_GPU_EN)) return 'off';
@@ -4795,7 +4968,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
             h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
               "ℹ️ 파이어폭스 브라우저 제약으로 선명도 및 고급 암부 보정이 비활성화되었습니다. (재생속도/오디오/기본 밝기 사용 가능)"
             ),
-            mkRow('밝기 (CSS)', ...mkSlider(P.V_MAN_BRT, 0, 100, 1)),
+            mkRow('노출 보정 (CSS)', ...mkSlider(P.V_MAN_BRT, 0, 100, 1)),
             mkSep()
           );
         } else {
@@ -4857,7 +5030,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           w.append(
             mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
             mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
-            mkSliderWithFine('밝기', P.V_MAN_BRT, 0, 100, 1, 5),
+            mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5),
             mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
             mkSep()
           );
@@ -4897,7 +5070,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           })()
         );
 
-        // Aspect Ratio 칩
         const fitChips = h('div', { class: 'chips' });
         VID_FIT_MODES.forEach(mode => {
           const chip = h('span', { class: 'chip', 'data-v': mode }, VID_FIT_LABELS[mode]);
@@ -4912,7 +5084,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           fitChips.appendChild(chip);
         });
 
-        // 회전 버튼
         const rotRow = h('div', { style: 'display:flex;gap:4px;padding:4px 0;align-items:center' });
         const rotLabel = h('span', { style: 'font-size:11px;opacity:.7;flex:1' }, '회전');
         const rotValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-accent);min-width:30px;text-align:center' }, '0°');
@@ -4977,7 +5148,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
             applyScrBrt(idx);
             persistNow();
             syncBrt();
-            showOSD('화면 밝기: ' + label, 1000);
+            showOSD('화면 조도: ' + label, 1000);
           }, { signal: sig });
 
           brtBtns.push(chip);
@@ -4993,7 +5164,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           applyScrBrt(0);
           persistNow();
           syncBrt();
-          showOSD('화면 밝기: ' + SCR_BRT_LABELS[0], 1000);
+          showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
         }, { signal: sig });
 
         const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-accent);margin-left:6px' }, '');
@@ -5013,13 +5184,13 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         w.append(
           h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
             h('div', { style: 'display:flex;align-items:center' },
-              h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 밝기'),
+              h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
               brtValLabel
             ),
             brtResetBtn
           ),
           brtChips,
-          h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  화면 전체 밝기를 조절합니다')
+          h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다')
         );
 
         return w;
@@ -5067,7 +5238,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           ['Alt + V', '설정 패널 열기/닫기'],
           ['Alt + F', '화면 비율 (Fit/Fill) 순환'],
           ['Alt + T', '화면 90° 회전'],
-          ['Alt + L', '화면 밝기 단계 순환'],
+          ['Alt + L', '화면 조도 단계 순환'],
           ['Alt + P', 'PiP 전환'],
           ['Alt + M', '최대화 토글'],
           ['Alt + Z', '줌 ON/OFF 토글'],
@@ -5196,7 +5367,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           return btn;
         });
 
-        // ── 비디오 변환 퀵 버튼 ──
         const fitBtn = h('div', { class: 'qb qb-sub', title: '화면 비율 전환 (Alt+F)' });
         fitBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><rect x="6" y="6" width="12" height="12" rx="1" opacity="0.4"/></svg>';
         fitBtn.addEventListener('click', e => {
@@ -5281,7 +5451,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           sm.batch(c, rest);
           if (Array.isArray(slots)) sm.set('app.slots', slots);
         } else {
-          // Bug 5 Fix: Merge with DEFAULTS to prevent NaN propagation on missing fields (like manualTemp)
           const merged = { ...DEFAULTS[c], ...data[c] };
           sm.batch(c, merged);
         }
@@ -5294,12 +5463,14 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       if (!__Store) return;
       const d = typeof structuredClone === 'function' ? structuredClone(DEFAULTS) : JSON.parse(JSON.stringify(DEFAULTS));
       for (const [cat, vals] of Object.entries(d)) __Store.batch(cat, vals);
-      // Transform 초기화
       const v = window[VSC_INTERNAL_SYM]?._activeVideo;
       if (v) clearVideoTransform(v);
       try {
         const ov = document.getElementById('vsc-scr-brt');
-        if (ov) { ov.style.opacity = '0'; setTimer(() => { if (ov && ov.style.opacity === '0') ov.style.display = 'none'; }, 350); }
+        if (ov) {
+          ov.style.opacity = '0';
+          setTimeout(() => { if (ov.style.opacity === '0') ov.style.display = 'none'; }, 350);
+        }
       } catch (_) {}
     }
 
@@ -5348,8 +5519,24 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       bindVideoOnce
+       bindVideoOnce (Patch 7 & Bug 4 Applied: RVFC Sync & Safe Rate Guard)
        ══════════════════════════════════════════════════════════════════ */
+    function bindVideoFrameSync(video, applyFn) {
+      if (typeof video.requestVideoFrameCallback !== 'function') return null;
+      let active = true;
+      let lastPresentedFrames = -1;
+      function onFrame(now, metadata) {
+        if (!active || !video.isConnected) return;
+        if (metadata.presentedFrames !== lastPresentedFrames) {
+          lastPresentedFrames = metadata.presentedFrames;
+          applyFn(video, false);
+        }
+        video.requestVideoFrameCallback(onFrame);
+      }
+      video.requestVideoFrameCallback(onFrame);
+      return () => { active = false; };
+    }
+
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video); if (st.bound) return; st.bound = true;
       const videoAC = new AbortController(); const videoSig = combineSignals(__globalSig, videoAC.signal); st._ac = videoAC;
@@ -5381,6 +5568,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         s.rateState._settingRate = true;
         s.rateState.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS;
         try { v.playbackRate = rate; } catch (_) {}
+        s.rateState._lastRateSetTime = performance.now();
         queueMicrotask(() => { s.rateState._settingRate = false; });
       }
 
@@ -5389,6 +5577,19 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         const now = performance.now();
         if (now - (st.rateState._lastRateChangeT || 0) < 50) return;
         st.rateState._lastRateChangeT = now;
+
+        if (now - (st.rateState._lastRateSetTime || 0) < 200) {
+          st.rateState._rateRetryCount++;
+          if (st.rateState._rateRetryCount > RATE_MAX_RETRY) {
+            st.rateState.permanentlyBlocked = true;
+            if (st.rateState.orig != null) {
+              st.rateState.suppressSyncUntil = now + RATE_SUPPRESS_MS;
+              try { video.playbackRate = st.rateState.orig; } catch (_) {}
+            }
+            log.info('[RateGuard] Site is fighting back, rate control disabled');
+          }
+          return;
+        }
 
         if (!Store.get(P.PB_EN)) return; const expected = Number(Store.get(P.PB_RATE)); if (!Number.isFinite(expected)) return;
         if (Math.abs(video.playbackRate - expected) < 0.002) { st.rateState._rateRetryCount = 0; return; }
@@ -5410,9 +5611,10 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         }, delay);
       }, { signal: videoSig });
 
-      on(video, 'play', () => ApplyReq.soft(), { signal: videoSig }); on(video, 'pause', () => ApplyReq.soft(), { signal: videoSig });
+      const cancelRvfc = bindVideoFrameSync(video, () => { ApplyReq.soft(); });
+
       if (ZoomMgr) ZoomMgr.onNewVideoForZoom(video); patchFullscreenRequest(video);
-      videoSig.addEventListener('abort', () => { st.bound = false; st.resetTransient(); vscClearAllStyles(video); log.debug('[bindVideo] unbound', video.src?.slice(0, 40) || '(blob)'); }, { once: true });
+      videoSig.addEventListener('abort', () => { cancelRvfc?.(); st.bound = false; st.resetTransient(); vscClearAllStyles(video); log.debug('[bindVideo] unbound', video.src?.slice(0, 40) || '(blob)'); }, { once: true });
     }
 
     /* ══════════════════════════════════════════════════════════════════
@@ -5455,19 +5657,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
           const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
           const next = (cur + 1) % SCR_BRT_LEVELS.length;
           Store.set(P.APP_SCREEN_BRT, next);
-
-          let ov = document.getElementById('vsc-scr-brt');
-          if (ov) {
-            const val = SCR_BRT_LEVELS[next];
-            if (val <= 0) {
-              ov.style.opacity = '0';
-              setTimer(() => { if (ov && ov.style.opacity === '0') ov.style.display = 'none'; }, 350);
-            } else {
-              ov.style.display = '';
-              requestAnimationFrame(() => { if (ov) ov.style.opacity = String(val); });
-            }
-          }
-          showOSD('화면 밝기: ' + SCR_BRT_LABELS[next], 1000);
+          showOSD('화면 조도: ' + SCR_BRT_LABELS[next], 1000);
           persistNow();
         }
       };
@@ -5536,14 +5726,14 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
         @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
 
-        /* 4. 🔥 스와이프 시간 탐색 오버레이 */
+        /* 4. 스와이프 시간 탐색 오버레이 */
         .vsc-seek-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(15px); color: white; padding: 16px 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); font-family: system-ui, sans-serif; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
         .vsc-seek-overlay.show { display: block; opacity: 1; }
         .vsc-seek-direction { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
         .vsc-seek-main { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
         .vsc-seek-delta { font-size: 15px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
 
-        /* 5. 🔥 유튜브 및 일반 플레이어의 로딩 스피너 강제 숨김 */
+        /* 5. 유튜브 및 일반 플레이어의 로딩 스피너 강제 숨김 */
         .ytp-spinner,
         .vjs-loading-spinner,
         .loading-indicator,
@@ -5561,7 +5751,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
     }
 
     function createTouchGestureManager(Store, P, ApplyReq) {
-      // Bug 2 & 10 Fix: Define missing safePlay helper function
       function safePlay(video) {
         if (!video || video.readyState < 2) return;
         try {
@@ -5578,7 +5767,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       const LONG_PRESS_RATE = 2.0;
       const SENSITIVITY_VOL = 1.2;
       const SENSITIVITY_BRI = 1.2;
-      const SEEK_SENSITIVITY = 0.05; // 정밀한 탐색 감도
+      const SEEK_SENSITIVITY = 0.05;
 
       const GS = Object.freeze({ IDLE: 0, WAIT: 1, SWIPE_VOL: 2, SWIPE_BRI: 3, LONG_PRESS: 4, BLOCKED: 5, SWIPE_SEEK: 6 });
       let gesture = GS.IDLE;
@@ -5795,7 +5984,10 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         const video = touchVideo;
 
         if (gesture === GS.LONG_PRESS) { endLongPress(video); cancelGesture(); return; }
-        if (gesture === GS.SWIPE_VOL || gesture === GS.SWIPE_BRI) { hideSwipeUI(); cancelGesture(); return; }
+        if (gesture === GS.SWIPE_VOL || gesture === GS.SWIPE_BRI) {
+          if (gesture === GS.SWIPE_BRI) removeTouchBrightness();
+          hideSwipeUI(); cancelGesture(); return;
+        }
 
         if (gesture === GS.SWIPE_SEEK) {
           hideSeekOverlaySmooth();
@@ -5829,7 +6021,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
         cancelGesture();
       }
 
-      function onTouchCancel() { if (gesture === GS.LONG_PRESS && touchVideo) { endLongPress(touchVideo); } hideSwipeUI(); hideSeekOverlaySmooth(); cancelGesture(); }
+      function onTouchCancel() { if (gesture === GS.LONG_PRESS && touchVideo) { endLongPress(touchVideo); } hideSwipeUI(); hideSeekOverlaySmooth(); removeTouchBrightness(); cancelGesture(); }
       function cancelGesture() { clearTimer(lpTimerId); lpTimerId = 0; gesture = GS.IDLE; touchVideo = null; }
 
       function init() {
@@ -5860,7 +6052,7 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '209.3.0';
+      const VSC_VERSION_ID = '209.4.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -5917,7 +6109,6 @@ ${Array.from({length:6}, (_,i) => ".qbar.expanded .qb-sub:nth-child(" + (i+2) + 
       Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
       for (const cat of ['video.*', 'audio.*', 'playback.*', 'app.*']) Store.sub(cat, () => persistNow());
 
-      // Transform 변경 감지 → 즉시 적용
       Store.sub(P.APP_VID_ROT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
       Store.sub(P.APP_VID_FIT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
 
