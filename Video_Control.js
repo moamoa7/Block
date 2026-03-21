@@ -5337,7 +5337,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       if (presetS === 'off') {
         out.sharp = autoSharpBase;
       } else if (presetS !== 'none') {
-        const base = _PRESET_SHARP_BASE[presetS];
+        const base = _PRESET_SHARP_LUT[presetS];
         if (base > 0) out.sharp = base * mix * sharpMul;
       }
 
