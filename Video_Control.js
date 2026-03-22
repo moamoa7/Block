@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.9.0)
+// @name         Video_Control (v212.0.0)
 // @namespace    https://github.com/
-// @version      211.9.0
-// @description  v211.9.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      212.0.0
+// @description  v212.0.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.9.0';
+    const VSC_VERSION = '212.0.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -6038,275 +6038,276 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function buildVideoTab() {
-        const w = h('div', {}); const infoBar = h('div', { class: 'info-bar' });
-        function updateInfo() {
-          const active = window[VSC_INTERNAL_SYM]._activeVideo;
-          const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
-          if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
-          const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
-          if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
-          const { autoBase } = computeResolutionSharpMul(video); const presetS = Store.get(P.V_PRE_S);
-          let sharpLabel = presetS === 'none' ? '꺼짐(OFF)' : (presetS === 'off' ? `자동(${autoBase.toFixed(3)})` : `${getPresetLabel('detail', presetS)} (수동)`);
-          infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
-        }
-        Bus.on('signal', updateInfo); tabFns.push(updateInfo); updateInfo();
+        const w = h('div', {}); const infoBar = h('div', { class: 'info-bar' });
+        function updateInfo() {
+          const active = window[VSC_INTERNAL_SYM]._activeVideo;
+          const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
+          if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
+          const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
+          if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
+          const { autoBase } = computeResolutionSharpMul(video); const presetS = Store.get(P.V_PRE_S);
+          let sharpLabel = presetS === 'none' ? '꺼짐(OFF)' : (presetS === 'off' ? `자동(${autoBase.toFixed(3)})` : `${getPresetLabel('detail', presetS)} (수동)`);
+          infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
+        }
+        Bus.on('signal', updateInfo); tabFns.push(updateInfo); updateInfo();
 
-        const motionSpark = createSparkline(280, 36, 100);
-        const sparkWrap = h('div', { style: 'padding:4px 0' },
-          h('label', { style: 'font-size:10px;opacity:.4;display:block;margin-bottom:2px' }, 'Motion SAD'),
-          motionSpark.canvas
-        );
-        Bus.on('signal', () => {
-          const sad = AutoScene.getLastMotionSAD?.() || 0;
-          motionSpark.push(sad);
-        });
-        sig.addEventListener('abort', () => motionSpark.destroy(), { once: true });
+        const motionSpark = createSparkline(280, 36, 100);
+        const sparkWrap = h('div', { style: 'padding:4px 0' },
+          h('label', { style: 'font-size:10px;opacity:.4;display:block;margin-bottom:2px' }, 'Motion SAD'),
+          motionSpark.canvas
+        );
+        Bus.on('signal', () => {
+          const sad = AutoScene.getLastMotionSAD?.() || 0;
+          motionSpark.push(sad);
+        });
+        sig.addEventListener('abort', () => motionSpark.destroy(), { once: true });
 
-        w.append(infoBar, sparkWrap, mkSep());
+        w.append(infoBar, sparkWrap, mkSep());
 
-        if (CONFIG.IS_FIREFOX) {
-          w.append(
-            h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
-              "ℹ️ 파이어폭스 브라우저 제약으로 선명도 및 고급 암부 보정이 비활성화되었습니다. (재생속도/오디오/기본 밝기 사용 가능)"
-            ),
-            mkRow('노출 보정 (CSS)', ...mkOptimizedSlider(P.V_MAN_BRT, 0, 100, 1)),
-            mkSep()
-          );
-        } else {
-          w.append(
-            delegatedChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
-            mkRow('강도 믹스', ...mkOptimizedSlider(P.V_PRE_MIX, 0, 1, 0.01)),
-            mkSep()
-          );
+        if (CONFIG.IS_FIREFOX) {
+          w.append(
+            h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
+              "ℹ️ 파이어폭스 브라우저 제약으로 선명도 및 고급 암부 보정이 비활성화되었습니다. (재생속도/오디오/기본 밝기 사용 가능)"
+            ),
+            mkRow('노출 보정 (CSS)', ...mkOptimizedSlider(P.V_MAN_BRT, 0, 100, 1)),
+            mkSep()
+          );
+        } else {
+          // [자동보정 및 GPU 가속 섹션]
+          const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
+          function updateSceneBadge() {
+            const isOn = !!Store.get(P.APP_AUTO_SCENE);
+            if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
+            else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
+          }
+          w.append(h('div', { class: 'row' },
+            h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
+            mkOptimizedToggle(P.APP_AUTO_SCENE, v => {
+              if (v) AutoScene.start(); else AutoScene.stop();
+              updateSceneBadge(); ApplyReq.hard();
+            })
+          ));
+          Bus.on('signal', updateSceneBadge); tabFns.push(updateSceneBadge); updateSceneBadge();
 
-          const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-            h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
-            h('div', { style: 'display:flex;gap:4px' },
-              ...[
-                { n: 'OFF',  v: [0,  0,  0,  0  ] },
-                { n: '선명', v: [36,  0,  0,  0  ] },
-                { n: '복원', v: [32, 49,  7,  0  ] },
-                { n: '영화', v: [13, 23, 14, -22 ] },
-                { n: '심야', v: [54, 37,  0, -12  ] },
-                { n: '아트', v: [0,  41, 11, -19 ] },
-              ].map(p => {
-                const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
-                btn.onclick = () => {
-                  Store.batch('video', {
-                    manualShadow: p.v[0],
-                    manualRecovery: p.v[1],
-                    manualBright: p.v[2],
-                    manualTemp: p.v[3]
-                  });
-                  ApplyReq.hard(); persistNow(); syncAll();
-                  showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
-                };
+          const gpuToggle = mkOptimizedToggle(P.APP_GPU_EN, (nv) => {
+            window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!nv;
+            if (nv) { showOSD('GPU 장면분석 활성화 시도…', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} }
+            else { showOSD('GPU 장면분석 OFF → CPU fallback', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneDestroy?.(); } catch (_) {} }
+            ApplyReq.soft();
+          });
+          w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
 
-                const syncPresetBtn = () => {
-                  const curV = [
-                    Store.get(P.V_MAN_SHAD),
-                    Store.get(P.V_MAN_REC),
-                    Store.get(P.V_MAN_BRT),
-                    Store.get(P.V_MAN_TEMP)
-                  ];
-                  const isMatch = p.v.every((val, i) => val === curV[i]);
+          // [디테일 프리셋 섹션]
+          w.append(
+            delegatedChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
+            mkRow('강도 믹스', ...mkOptimizedSlider(P.V_PRE_MIX, 0, 1, 0.01)),
+            mkSep()
+          );
 
-                  btn.classList.toggle('on', isMatch);
-                  if (isMatch) {
-                    btn.style.backgroundColor = 'var(--vsc-neon-dim)';
-                    btn.style.borderColor = 'var(--vsc-neon-border)';
-                    btn.style.color = 'var(--vsc-neon)';
-                  } else {
-                    btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                    btn.style.borderColor = 'rgba(255,255,255,0.06)';
-                    btn.style.color = 'rgba(255,255,255,0.6)';
-                  }
-                };
+          const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+            h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
+            h('div', { style: 'display:flex;gap:4px' },
+              ...[
+                { n: 'OFF',  v: [0,  0,  0,  0  ] },
+                { n: '선명', v: [36,  0,  0,  0  ] },
+                { n: '복원', v: [32, 49,  7,  0  ] },
+                { n: '영화', v: [13, 23, 14, -22 ] },
+                { n: '심야', v: [54, 37,  0, -12  ] },
+                { n: '아트', v: [0,  41, 11, -19 ] },
+              ].map(p => {
+                const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
+                btn.onclick = () => {
+                  Store.batch('video', {
+                    manualShadow: p.v[0],
+                    manualRecovery: p.v[1],
+                    manualBright: p.v[2],
+                    manualTemp: p.v[3]
+                  });
+                  ApplyReq.hard(); persistNow(); syncAll();
+                  showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
+                };
 
-                tabFns.push(syncPresetBtn);
-                syncPresetBtn();
-                return btn;
-              })
-            )
-          );
-          w.append(manualHeader);
+                const syncPresetBtn = () => {
+                  const curV = [
+                    Store.get(P.V_MAN_SHAD),
+                    Store.get(P.V_MAN_REC),
+                    Store.get(P.V_MAN_BRT),
+                    Store.get(P.V_MAN_TEMP)
+                  ];
+                  const isMatch = p.v.every((val, i) => val === curV[i]);
 
-          function mkSliderWithFine(label, path, min, max, step, fineStep) {
-            const [slider, valEl] = mkOptimizedSlider(path, min, max, step);
-            const syncSliderUI = () => {
-              const v = Number(Store.get(path)) || 0; slider.value = String(v); valEl.textContent = String(Math.round(v));
-              const pct = ((v - min) / (max - min)) * 100; slider.style.setProperty('--fill', `${pct}%`);
-            };
-            const mkFine = (delta, text) => {
-              const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:32px;min-height:28px;font-size:11px' }, text);
-              btn.addEventListener('click', () => {
-                const cur = Number(Store.get(path)) || 0; const nv = VSC_CLAMP(Math.round(cur + delta), min, max);
-                Store.set(path, nv); ApplyReq.hard(); persistNow(); syncSliderUI();
-              }, { signal: sig });
-              return btn;
-            };
-            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:24px;min-height:28px;font-size:10px;opacity:.6' }, '0');
-            resetBtn.addEventListener('click', () => { Store.set(path, 0); ApplyReq.hard(); persistNow(); syncSliderUI(); }, { signal: sig });
-            const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn);
-            tabFns.push(syncSliderUI);
-            return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, fineRow));
-          }
+                  btn.classList.toggle('on', isMatch);
+                  if (isMatch) {
+                    btn.style.backgroundColor = 'var(--vsc-neon-dim)';
+                    btn.style.borderColor = 'var(--vsc-neon-border)';
+                    btn.style.color = 'var(--vsc-neon)';
+                  } else {
+                    btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                    btn.style.borderColor = 'rgba(255,255,255,0.06)';
+                    btn.style.color = 'rgba(255,255,255,0.6)';
+                  }
+                };
 
-          w.append(
-            mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
-            mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
-            mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5),
-            mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
-            mkSep()
-          );
+                tabFns.push(syncPresetBtn);
+                syncPresetBtn();
+                return btn;
+              })
+            )
+          );
+          w.append(manualHeader);
 
-          // --------------------------------------------------------
-          // 여기서부터 [화면 조도 (Dimmer)] 파트가 들어갑니다.
-          // --------------------------------------------------------
-          const brtBtns = [];
-          const brtChips = h('div', { class: 'chips' });
+          function mkSliderWithFine(label, path, min, max, step, fineStep) {
+            const [slider, valEl] = mkOptimizedSlider(path, min, max, step);
+            const syncSliderUI = () => {
+              const v = Number(Store.get(path)) || 0; slider.value = String(v); valEl.textContent = String(Math.round(v));
+              const pct = ((v - min) / (max - min)) * 100; slider.style.setProperty('--fill', `${pct}%`);
+            };
+            const mkFine = (delta, text) => {
+              const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:32px;min-height:28px;font-size:11px' }, text);
+              btn.addEventListener('click', () => {
+                const cur = Number(Store.get(path)) || 0; const nv = VSC_CLAMP(Math.round(cur + delta), min, max);
+                Store.set(path, nv); ApplyReq.hard(); persistNow(); syncSliderUI();
+              }, { signal: sig });
+              return btn;
+            };
+            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:24px;min-height:28px;font-size:10px;opacity:.6' }, '0');
+            resetBtn.addEventListener('click', () => { Store.set(path, 0); ApplyReq.hard(); persistNow(); syncSliderUI(); }, { signal: sig });
+            const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn);
+            tabFns.push(syncSliderUI);
+            return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, fineRow));
+          }
 
-          SCR_BRT_LABELS.forEach((label, idx) => {
-            if (idx === 0) return;
-            const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
-            chip.addEventListener('click', () => {
-              Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
-              showOSD('화면 조도: ' + label, 1000);
-            }, { signal: sig });
-            brtBtns.push(chip); brtChips.appendChild(chip);
-          });
+          w.append(
+            mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
+            mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
+            mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5),
+            mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
+            mkSep()
+          );
 
-          const brtResetBtn = h('button', {
-            class: 'chip',
-            style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
-          brtResetBtn.addEventListener('click', () => {
-            Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
-            showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
-          }, { signal: sig });
+          // --------------------------------------------------------
+          // [화면 조도 (Dimmer)] 파트
+          // --------------------------------------------------------
+          const brtBtns = [];
+          const brtChips = h('div', { class: 'chips' });
 
-          const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
+          SCR_BRT_LABELS.forEach((label, idx) => {
+            if (idx === 0) return;
+            const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
+            chip.addEventListener('click', () => {
+              Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
+              showOSD('화면 조도: ' + label, 1000);
+            }, { signal: sig });
+            brtBtns.push(chip); brtChips.appendChild(chip);
+          });
 
-          function syncBrt() {
-            const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-            brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
-            brtResetBtn.classList.toggle('on', cur === 0);
-            brtValLabel.textContent = SCR_BRT_LABELS[cur];
-          }
-          tabFns.push(syncBrt); syncBrt();
+          const brtResetBtn = h('button', {
+            class: 'chip',
+            style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
+          brtResetBtn.addEventListener('click', () => {
+            Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
+            showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
+          }, { signal: sig });
 
-          w.append(
-            h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-              h('div', { style: 'display:flex;align-items:center' },
-                h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
-                brtValLabel
-              ),
-              brtResetBtn
-            ),
-            brtChips,
-            h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
-            mkSep()
-          );
-          // --------------------------------------------------------
-          // [화면 조도 (Dimmer)] 파트 끝
-          // --------------------------------------------------------
+          const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
 
-          // [자동보정 및 GPU 가속 섹션]
-          const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
-          function updateSceneBadge() {
-            const isOn = !!Store.get(P.APP_AUTO_SCENE);
-            if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
-            else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
-          }
-          w.append(h('div', { class: 'row' },
-            h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
-            mkOptimizedToggle(P.APP_AUTO_SCENE, v => {
-              if (v) AutoScene.start(); else AutoScene.stop();
-              updateSceneBadge(); ApplyReq.hard();
-            })
-          ));
-          Bus.on('signal', updateSceneBadge); tabFns.push(updateSceneBadge); updateSceneBadge();
+          function syncBrt() {
+            const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
+            brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
+            brtResetBtn.classList.toggle('on', cur === 0);
+            brtValLabel.textContent = SCR_BRT_LABELS[cur];
+          }
+          tabFns.push(syncBrt); syncBrt();
 
-          const gpuToggle = mkOptimizedToggle(P.APP_GPU_EN, (nv) => {
-            window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!nv;
-            if (nv) { showOSD('GPU 장면분석 활성화 시도…', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} }
-            else { showOSD('GPU 장면분석 OFF → CPU fallback', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneDestroy?.(); } catch (_) {} }
-            ApplyReq.soft();
-          });
-          w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
-        }
+          w.append(
+            h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+              h('div', { style: 'display:flex;align-items:center' },
+                h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
+                brtValLabel
+              ),
+              brtResetBtn
+            ),
+            brtChips,
+            h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
+            mkSep()
+          );
+          // --------------------------------------------------------
+          // [화면 조도 (Dimmer)] 파트 끝
+          // --------------------------------------------------------
+        }
 
-        /* ── 비디오 변환 섹션 ── */
-        const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-          h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '비디오 변환'),
-          (() => {
-            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 8px;min-width:40px;font-size:10px;color:#ff8888;border-color:rgba(255,136,136,0.3)' }, '리셋');
-            resetBtn.onclick = () => { resetVideoTransform(Store); syncTransformUI(); };
-            return resetBtn;
-          })()
-        );
+        /* ── 비디오 변환 섹션 ── */
+        const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+          h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '비디오 변환'),
+          (() => {
+            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 8px;min-width:40px;font-size:10px;color:#ff8888;border-color:rgba(255,136,136,0.3)' }, '리셋');
+            resetBtn.onclick = () => { resetVideoTransform(Store); syncTransformUI(); };
+            return resetBtn;
+          })()
+        );
 
-        const fitChips = h('div', { class: 'chips' });
-        VID_FIT_MODES.forEach(mode => {
-          const chip = h('span', { class: 'chip', 'data-v': mode }, VID_FIT_LABELS[mode]);
-          chip.addEventListener('click', () => {
-            Store.set(P.APP_VID_FIT, mode);
-            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
-            if (v) applyVideoTransform(v, Store);
-            syncTransformUI();
-            persistNow();
-            showOSD(`화면 비율: ${VID_FIT_LABELS[mode]}`, 1000);
-          }, { signal: sig });
-          fitChips.appendChild(chip);
-        });
+        const fitChips = h('div', { class: 'chips' });
+        VID_FIT_MODES.forEach(mode => {
+          const chip = h('span', { class: 'chip', 'data-v': mode }, VID_FIT_LABELS[mode]);
+          chip.addEventListener('click', () => {
+            Store.set(P.APP_VID_FIT, mode);
+            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+            if (v) applyVideoTransform(v, Store);
+            syncTransformUI();
+            persistNow();
+            showOSD(`화면 비율: ${VID_FIT_LABELS[mode]}`, 1000);
+          }, { signal: sig });
+          fitChips.appendChild(chip);
+        });
 
-        const rotRow = h('div', { style: 'display:flex;gap:4px;padding:4px 0;align-items:center' });
-        const rotLabel = h('span', { style: 'font-size:11px;opacity:.7;flex:1' }, '회전');
-        const rotValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);min-width:30px;text-align:center' }, '0°');
-        const rotBtns = [0, 90, 180, 270].map(deg => {
-          const btn = h('button', { class: 'fine-btn', style: 'padding:3px 8px;min-width:36px;font-size:11px', 'data-v': String(deg) }, `${deg}°`);
-          btn.addEventListener('click', () => {
-            Store.set(P.APP_VID_ROT, deg);
-            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
-            if (v) applyVideoTransform(v, Store);
-            syncTransformUI();
-            persistNow();
-            showOSD(`회전: ${deg}°`, 1000);
-          }, { signal: sig });
-          return btn;
-        });
-        rotRow.append(rotLabel, ...rotBtns, rotValLabel);
+        const rotRow = h('div', { style: 'display:flex;gap:4px;padding:4px 0;align-items:center' });
+        const rotLabel = h('span', { style: 'font-size:11px;opacity:.7;flex:1' }, '회전');
+        const rotValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);min-width:30px;text-align:center' }, '0°');
+        const rotBtns = [0, 90, 180, 270].map(deg => {
+          const btn = h('button', { class: 'fine-btn', style: 'padding:3px 8px;min-width:36px;font-size:11px', 'data-v': String(deg) }, `${deg}°`);
+          btn.addEventListener('click', () => {
+            Store.set(P.APP_VID_ROT, deg);
+            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+            if (v) applyVideoTransform(v, Store);
+            syncTransformUI();
+            persistNow();
+            showOSD(`회전: ${deg}°`, 1000);
+          }, { signal: sig });
+          return btn;
+        });
+        rotRow.append(rotLabel, ...rotBtns, rotValLabel);
 
-        function syncTransformUI() {
-          const curFit = Store.get(P.APP_VID_FIT) || 'contain';
-          for (const c of fitChips.children) c.classList.toggle('on', c.dataset.v === curFit);
-          const curRot = Number(Store.get(P.APP_VID_ROT)) || 0;
-          rotValLabel.textContent = `${curRot}°`;
-          for (const btn of rotBtns) btn.classList.toggle('on', btn.dataset.v === String(curRot));
-        }
-        tabFns.push(syncTransformUI);
-        syncTransformUI();
+        function syncTransformUI() {
+          const curFit = Store.get(P.APP_VID_FIT) || 'contain';
+          for (const c of fitChips.children) c.classList.toggle('on', c.dataset.v === curFit);
+          const curRot = Number(Store.get(P.APP_VID_ROT)) || 0;
+          rotValLabel.textContent = `${curRot}°`;
+          for (const btn of rotBtns) btn.classList.toggle('on', btn.dataset.v === String(curRot));
+        }
+        tabFns.push(syncTransformUI);
+        syncTransformUI();
 
-        w.append(transformLabel,
-          h('div', { style: 'padding:2px 0' },
-            h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '화면 비율'),
-            fitChips
-          ),
-          rotRow,
-          h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0;line-height:1.4' }, '단축키: Alt+F (비율 순환) │ Alt+T (90° 회전)')
-        );
+        w.append(transformLabel,
+          h('div', { style: 'padding:2px 0' },
+            h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '화면 비율'),
+            fitChips
+          ),
+          rotRow,
+          h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0;line-height:1.4' }, '단축키: Alt+F (비율 순환) │ Alt+T (90° 회전)')
+        );
 
-        const arrSpan = h('span', { class: 'arr' }, '▶');
-        const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
-        const advBd = h('div', { class: 'adv-bd' });
-        advHd.addEventListener('click', () => {
-          advancedOpen = !advancedOpen;
-          arrSpan.classList.toggle('open', advancedOpen);
-          advBd.classList.toggle('open', advancedOpen);
-        }, { signal: sig });
-        w.append(advHd, advBd);
+        const arrSpan = h('span', { class: 'arr' }, '▶');
+        const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
+        const advBd = h('div', { class: 'adv-bd' });
+        advHd.addEventListener('click', () => {
+          advancedOpen = !advancedOpen;
+          arrSpan.classList.toggle('open', advancedOpen);
+          advBd.classList.toggle('open', advancedOpen);
+        }, { signal: sig });
+        w.append(advHd, advBd);
 
-        return w;
-      }
+        return w;
+      }
 
       function buildAudioTab() {
         const w = h('div', {});
@@ -7388,7 +7389,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.9.0'; // 버전 상승
+      const VSC_VERSION_ID = '212.0.0'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
