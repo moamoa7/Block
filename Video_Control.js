@@ -6117,6 +6117,33 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
                   ApplyReq.hard(); persistNow(); syncAll();
                   showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
                 };
+
+            // ✅ 활성화 상태 동기화 로직 추가
+            const syncPresetBtn = () => {
+              const curV = [
+                Store.get(P.V_MAN_SHAD),
+                Store.get(P.V_MAN_REC),
+                Store.get(P.V_MAN_BRT),
+                Store.get(P.V_MAN_TEMP)
+              ];
+              // 현재 스토어 값과 프리셋 값이 모두 일치하는지 확인
+              const isMatch = p.v.every((val, i) => val === curV[i]);
+
+              // 일치하면 'on' 클래스와 색상 적용
+              btn.classList.toggle('on', isMatch);
+              if (isMatch) {
+                btn.style.backgroundColor = 'var(--vsc-neon-dim)';
+                btn.style.borderColor = 'var(--vsc-neon-border)';
+                btn.style.color = 'var(--vsc-neon)';
+              } else {
+                btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                btn.style.borderColor = 'rgba(255,255,255,0.06)';
+                btn.style.color = 'rgba(255,255,255,0.6)';
+              }
+            };
+
+            tabFns.push(syncPresetBtn); // 탭 동기화 목록에 추가
+            syncPresetBtn(); // 초기 실행
                 return btn;
               })
             )
