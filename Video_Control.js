@@ -6099,12 +6099,12 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
             h('div', { style: 'display:flex;gap:4px' },
               ...[
-                { n: 'OFF',  v: [0, 0, 0, 0] },
-                { n: '선명', v: [25, 35, 10, 0] },
-                { n: '복원', v: [20, 55, 20, 0] },
-                { n: '영화', v: [50, 20, 10, -15] },
-                { n: '심야', v: [40, 15, 5, 15] },
-                { n: '아트', v: [0, 40, 30, -15] },
+                { n: 'OFF',  v: [0,  0,  0,  0  ] },
+                { n: '선명', v: [20, 25,  0,  0  ] },
+                { n: '복원', v: [45, 35,  0,  0  ] },
+                { n: '영화', v: [50, 20, 10, -15 ] },
+                { n: '심야', v: [40, 15,  5,  0 ] },
+                { n: '아트', v: [0,  35, 10, -15 ] },
               ].map(p => {
                 const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
                 btn.onclick = () => {
