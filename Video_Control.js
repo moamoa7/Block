@@ -6118,32 +6118,29 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
                   showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
                 };
 
-            // ✅ 활성화 상태 동기화 로직 추가
-            const syncPresetBtn = () => {
-              const curV = [
-                Store.get(P.V_MAN_SHAD),
-                Store.get(P.V_MAN_REC),
-                Store.get(P.V_MAN_BRT),
-                Store.get(P.V_MAN_TEMP)
-              ];
-              // 현재 스토어 값과 프리셋 값이 모두 일치하는지 확인
-              const isMatch = p.v.every((val, i) => val === curV[i]);
+                const syncPresetBtn = () => {
+                  const curV = [
+                    Store.get(P.V_MAN_SHAD),
+                    Store.get(P.V_MAN_REC),
+                    Store.get(P.V_MAN_BRT),
+                    Store.get(P.V_MAN_TEMP)
+                  ];
+                  const isMatch = p.v.every((val, i) => val === curV[i]);
 
-              // 일치하면 'on' 클래스와 색상 적용
-              btn.classList.toggle('on', isMatch);
-              if (isMatch) {
-                btn.style.backgroundColor = 'var(--vsc-neon-dim)';
-                btn.style.borderColor = 'var(--vsc-neon-border)';
-                btn.style.color = 'var(--vsc-neon)';
-              } else {
-                btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                btn.style.borderColor = 'rgba(255,255,255,0.06)';
-                btn.style.color = 'rgba(255,255,255,0.6)';
-              }
-            };
+                  btn.classList.toggle('on', isMatch);
+                  if (isMatch) {
+                    btn.style.backgroundColor = 'var(--vsc-neon-dim)';
+                    btn.style.borderColor = 'var(--vsc-neon-border)';
+                    btn.style.color = 'var(--vsc-neon)';
+                  } else {
+                    btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                    btn.style.borderColor = 'rgba(255,255,255,0.06)';
+                    btn.style.color = 'rgba(255,255,255,0.6)';
+                  }
+                };
 
-            tabFns.push(syncPresetBtn); // 탭 동기화 목록에 추가
-            syncPresetBtn(); // 초기 실행
+                tabFns.push(syncPresetBtn);
+                syncPresetBtn();
                 return btn;
               })
             )
@@ -6179,6 +6176,57 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             mkSep()
           );
 
+          // --------------------------------------------------------
+          // 여기서부터 [화면 조도 (Dimmer)] 파트가 들어갑니다.
+          // --------------------------------------------------------
+          const brtBtns = [];
+          const brtChips = h('div', { class: 'chips' });
+
+          SCR_BRT_LABELS.forEach((label, idx) => {
+            if (idx === 0) return;
+            const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
+            chip.addEventListener('click', () => {
+              Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
+              showOSD('화면 조도: ' + label, 1000);
+            }, { signal: sig });
+            brtBtns.push(chip); brtChips.appendChild(chip);
+          });
+
+          const brtResetBtn = h('button', {
+            class: 'chip',
+            style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
+          brtResetBtn.addEventListener('click', () => {
+            Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
+            showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
+          }, { signal: sig });
+
+          const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
+
+          function syncBrt() {
+            const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
+            brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
+            brtResetBtn.classList.toggle('on', cur === 0);
+            brtValLabel.textContent = SCR_BRT_LABELS[cur];
+          }
+          tabFns.push(syncBrt); syncBrt();
+
+          w.append(
+            h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+              h('div', { style: 'display:flex;align-items:center' },
+                h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
+                brtValLabel
+              ),
+              brtResetBtn
+            ),
+            brtChips,
+            h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
+            mkSep()
+          );
+          // --------------------------------------------------------
+          // [화면 조도 (Dimmer)] 파트 끝
+          // --------------------------------------------------------
+
+          // [자동보정 및 GPU 가속 섹션]
           const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
           function updateSceneBadge() {
             const isOn = !!Store.get(P.APP_AUTO_SCENE);
@@ -6204,7 +6252,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         }
 
         /* ── 비디오 변환 섹션 ── */
-        const transformSep = mkSep();
         const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
           h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '비디오 변환'),
           (() => {
@@ -6255,7 +6302,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         tabFns.push(syncTransformUI);
         syncTransformUI();
 
-        w.append(transformSep, transformLabel,
+        w.append(transformLabel,
           h('div', { style: 'padding:2px 0' },
             h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '화면 비율'),
             fitChips
@@ -6273,51 +6320,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           advBd.classList.toggle('open', advancedOpen);
         }, { signal: sig });
         w.append(advHd, advBd);
-
-        w.append(mkSep());
-
-        const brtBtns = [];
-        const brtChips = h('div', { class: 'chips' });
-
-        SCR_BRT_LABELS.forEach((label, idx) => {
-          if (idx === 0) return;
-          const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
-          chip.addEventListener('click', () => {
-            Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
-            showOSD('화면 조도: ' + label, 1000);
-          }, { signal: sig });
-          brtBtns.push(chip); brtChips.appendChild(chip);
-        });
-
-        const brtResetBtn = h('button', {
-          class: 'chip',
-          style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
-        brtResetBtn.addEventListener('click', () => {
-          Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
-          showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
-        }, { signal: sig });
-
-        const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
-
-        function syncBrt() {
-          const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-          brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
-          brtResetBtn.classList.toggle('on', cur === 0);
-          brtValLabel.textContent = SCR_BRT_LABELS[cur];
-        }
-        tabFns.push(syncBrt); syncBrt();
-
-        w.append(
-          h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-            h('div', { style: 'display:flex;align-items:center' },
-              h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
-              brtValLabel
-            ),
-            brtResetBtn
-          ),
-          brtChips,
-          h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다')
-        );
 
         return w;
       }
