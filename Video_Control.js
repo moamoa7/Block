@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.7.0)
+// @name         Video_Control (v211.8.0)
 // @namespace    https://github.com/
-// @version      211.7.0
-// @description  v211.7.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.8.0
+// @description  v211.8.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,19 +191,41 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.7.0';
+    const VSC_VERSION = '211.8.0';
 
     /* ══ Storage keys ══ */
-    const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
+    function normalizeHostnameForStorage(h) {
+      const parts = h.split('.');
+      if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) {
+        return parts.slice(1).join('.');
+      }
+      return h;
+    }
+
+    const STORAGE_KEY_BASE = 'vsc_v2_' + normalizeHostnameForStorage(location.hostname);
+
+    /* ══ Storage keys ══ */
     function getStorageKey() {
-      const h = location.hostname;
-      if (h.endsWith('youtube.com')) {
-        if (location.pathname.startsWith('/shorts')) return STORAGE_KEY_BASE + '_shorts';
-        if (location.pathname.startsWith('/watch')) return STORAGE_KEY_BASE + '_watch';
+      let h = location.hostname;
+      // Iframe 내부인 경우 부모 도메인을 추적하여 키를 통일
+      if (window !== window.top) {
+        try { h = window.top.location.hostname; }
+        catch (e) { if (document.referrer) { try { h = new URL(document.referrer).hostname; } catch (_) {} } }
       }
-      return STORAGE_KEY_BASE;
+
+      const parts = h.split('.');
+      // 05.avsee.ru 처럼 앞자리가 숫자인 경우 도메인 정규화
+      if (parts.length >= 3) h = parts.slice(-2).join('.');
+      else if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) h = parts.slice(1).join('.');
+
+      if (h.endsWith('youtube.com')) {
+        if (location.pathname.startsWith('/shorts')) return 'vsc_v2_' + h + '_shorts';
+        if (location.pathname.startsWith('/watch')) return 'vsc_v2_' + h + '_watch';
+      }
+      return 'vsc_v2_' + h;
     }
     const STORAGE_KEY = getStorageKey();
+    const STORAGE_KEY_BASE = STORAGE_KEY;
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -2802,7 +2824,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    /* ══ Audio Engine (Bug 3 Applied: srcMap pollution fix) ══ */
+    /* ══ Audio Engine (Bug 3 Applied: srcMap pollution fix + Autoplay/Mute fix) ══ */
     function createAudio(sm) {
       let ctx;
       let target = null, currentSrc = null;
@@ -3301,49 +3323,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         target = null;
       };
 
-      const updateMix = () => {
-        if (!ctx) return;
-        if (bypassMode) return;
-
-        const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
-        const isHooked = !!currentSrc;
-        const actuallyEnabled = en && isHooked;
-
-        if (currentSrc?.__vsc_isCaptureStream && target) {
-          if (actuallyEnabled) {
-            if (!target.muted) {
-              currentSrc.__vsc_originalMuted = target.muted;
-              currentSrc.__vsc_originalVolume = target.volume;
-              target.muted = true;
-            }
-          } else {
-            if (target.muted && currentSrc.__vsc_originalMuted === false) {
-              target.muted = false;
-              target.volume = currentSrc.__vsc_originalVolume ?? 1;
-            }
-          }
-        }
-
-        const dryTarget = actuallyEnabled ? 0 : 1;
-        const wetTarget = actuallyEnabled ? 1 : 0;
-        rampGainsSafe(dryTarget, wetTarget, 0.015);
-
-        if (__useWorklet && __workletNode) {
-          const boostDb = Number(sm.get(P.A_BST) || 0);
-          __workletNode.port.postMessage({ type: 'params', enabled: actuallyEnabled, boostDb });
-        }
-
-        loopTok++;
-        if (__audioLoopTimer) { clearTimer(__audioLoopTimer); __audioLoopTimer = 0; }
-        if (actuallyEnabled) scheduleAudioLoop(loopTok);
-      };
-
-      onDoc('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && ctx && ctx.state === 'running' && currentSrc) {
-          loopTok++; scheduleAudioLoop(loopTok);
-        }
-      }, { passive: true });
-
       function detectJwPlayer(video) {
         if (!video) return false;
         if (window.jwplayer) return true;
@@ -3401,45 +3380,30 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           }
 
           if (!s) {
-            const isJwPlayer = detectJwPlayer(v);
-            if (isJwPlayer && typeof v.captureStream === 'function') {
-              try {
-                s = connectViaCaptureStream(v);
-                if (s) {
-                  srcMap.set(v, s);
-                  log.info('[Audio] JWPlayer detected — using captureStream() path');
-                }
-              } catch (e) {
-                log.debug('[Audio] captureStream failed for JWPlayer:', e.message);
-                s = null;
-              }
-            }
-            if (!s) {
-              try {
-                s = ctx.createMediaElementSource(v);
-              } catch (e) {
-                log.warn('createMediaElementSource failed:', e.name, e.message);
-                if (e.name === 'InvalidStateError') {
-                  if (typeof v.captureStream === 'function') {
-                    try {
-                      s = connectViaCaptureStream(v);
-                      if (s) {
-                        srcMap.set(v, s);
-                        log.info('[Audio] Fallback to captureStream() after InvalidStateError');
-                      }
-                    } catch (e2) {
-                      log.debug('[Audio] captureStream fallback also failed:', e2.message);
+            try {
+              s = ctx.createMediaElementSource(v);
+            } catch (e) {
+              log.warn('createMediaElementSource failed:', e.name, e.message);
+              if (e.name === 'InvalidStateError') {
+                if (typeof v.captureStream === 'function') {
+                  try {
+                    s = connectViaCaptureStream(v);
+                    if (s) {
+                      srcMap.set(v, s);
+                      log.info('[Audio] Fallback to captureStream() after InvalidStateError');
                     }
+                  } catch (e2) {
+                    log.debug('[Audio] captureStream fallback also failed:', e2.message);
                   }
                 }
-                if (!s) {
-                  if (st) st.audioFailUntil = performance.now() + (e.name === 'InvalidStateError' ? 30000 : 10000);
-                  enterBypass(v);
-                  return false;
-                }
               }
-              if (s && !srcMap.has(v)) srcMap.set(v, s);
+              if (!s) {
+                if (st) st.audioFailUntil = performance.now() + (e.name === 'InvalidStateError' ? 30000 : 10000);
+                enterBypass(v);
+                return false;
+              }
             }
+            if (s && !srcMap.has(v)) srcMap.set(v, s);
           }
 
           try { s.disconnect(); } catch (_) {}
@@ -3461,6 +3425,28 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           return false;
         }
       }
+
+      const updateMix = () => {
+        if (!ctx) return;
+        if (bypassMode) return;
+
+        const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
+        const isHooked = !!currentSrc;
+        const actuallyEnabled = en && isHooked;
+
+        const dryTarget = actuallyEnabled ? 0 : 1;
+        const wetTarget = actuallyEnabled ? 1 : 0;
+        rampGainsSafe(dryTarget, wetTarget, 0.015);
+
+        if (__useWorklet && __workletNode) {
+          const boostDb = Number(sm.get(P.A_BST) || 0);
+          __workletNode.port.postMessage({ type: 'params', enabled: actuallyEnabled, boostDb });
+        }
+
+        loopTok++;
+        if (__audioLoopTimer) { clearTimer(__audioLoopTimer); __audioLoopTimer = 0; }
+        if (actuallyEnabled) scheduleAudioLoop(loopTok);
+      };
 
       async function setTarget(v) {
         const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
@@ -3528,8 +3514,22 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         makeupDbEma = 0;
       }
 
+      function prewarm() {
+        if (ctx || __ctxPermanentBlock) return;
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        try {
+          ctx = new AC({ latencyHint: 'playback' });
+          __ctxCreateCount++;
+          ctx.resume().catch(() => {});
+          ensureGestureResumeHook();
+          log.info('[Audio] Context pre-warmed during user gesture');
+        } catch (_) {}
+      }
+
       return {
         setTarget,
+        prewarm,
         update: updateMix,
         hasCtx: () => !!ctx,
         isHooked: () => !!currentSrc,
@@ -4985,14 +4985,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
 // ═══ END OF PART 3 (v211.7.0) ═══
-// ═══ PART 4 START (v211.7.0) — Filters, UI, Gestures & Bootstrap ═══
+// ═══ PART 4 START (v211.7.2) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
     const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
     const SCR_BRT_LABELS = ['리셋(OFF)', '1단', '2단', '3단', '4단', '5단'];
 
     /* ══════════════════════════════════════════════════════════════════
-       SVG Filter Engine (Patch 2, Patch 3, Patch 4, Fix B, Bug 5 Applied)
+       SVG Filter Engine
        ══════════════════════════════════════════════════════════════════ */
     function createFiltersVideoOnly(Utils, config) {
       const { h, clamp, createCappedMap } = Utils;
@@ -5001,7 +5001,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       const _toneStrLut = new Array(10001); let _toneStrLutReady = false;
       function ensureToneStrLut() { if (_toneStrLutReady) return; for (let i = 0; i <= 10000; i++) _toneStrLut[i] = (i / 10000).toFixed(4); _toneStrLutReady = true; }
 
-      // Patch 3: GC 압력 제거를 위한 고정 버퍼 재사용
       const _SVG_TABLE_BUF = new Array(256);
       let _svgTableBufLen = 256;
 
@@ -5129,7 +5128,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         _icLastStr = str; _icLastId = id; return id;
       }
 
-      // Patch 4: MessageChannel로 DOM 플러시 최적화
       const _svgMC = new MessageChannel();
       let __svgUpdateQueued = false;
       let __svgPendingUpdates  = [];
@@ -5390,24 +5388,25 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       };
     }
 
-    // Patch 2: computeResolutionSharpMul 성능 최적화
-    const _sharpMulCache = new WeakMap();
-
     function computeResolutionSharpMul(video) {
+      // 변수 누락 에러 방지를 위해 함수 자체 객체에 캐시를 저장하는 독립형 구조로 변경
+      if (!computeResolutionSharpMul.cache) computeResolutionSharpMul.cache = new WeakMap();
+      const _cache = computeResolutionSharpMul.cache;
+
       const nW = video.videoWidth  | 0;
       const nH = video.videoHeight | 0;
       const dW = (video.clientWidth  || video.offsetWidth  || 0) | 0;
       const dH = (video.clientHeight || video.offsetHeight || 0) | 0;
       const dpr = Math.min(Math.max(1, window.devicePixelRatio | 0), 4);
 
-      const c = _sharpMulCache.get(video);
+      const c = _cache.get(video);
       if (c !== undefined && c.nW === nW && c.nH === nH && c.dW === dW && c.dH === dH && c.dp === dpr) {
         return c.r;
       }
 
       if (nW < 16 || dW < 16) {
         const r = { mul: 0.0, autoBase: 0.0 };
-        _sharpMulCache.set(video, { nW, nH, dW, dH, dp: dpr, r });
+        _cache.set(video, { nW, nH, dW, dH, dp: dpr, r });
         return r;
       }
 
@@ -5430,13 +5429,14 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       else if (nW <= 1920) { autoBase = 0.12; }
       else                 { autoBase = 0.07; }
 
-      if (CONFIG.IS_MOBILE) mul = Math.max(mul, 0.72);
+      if (typeof CONFIG !== 'undefined' && CONFIG.IS_MOBILE) mul = Math.max(mul, 0.72);
 
-      mul      = VSC_CLAMP(mul, 0.0, 1.0);
-      autoBase = VSC_CLAMP(autoBase * mul, 0.0, 0.18);
+      const CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
+      mul      = CLAMP(mul, 0.0, 1.0);
+      autoBase = CLAMP(autoBase * mul, 0.0, 0.18);
 
       const result = { mul, autoBase };
-      _sharpMulCache.set(video, { nW, nH, dW, dH, dp: dpr, r: result });
+      _cache.set(video, { nW, nH, dW, dH, dp: dpr, r: result });
       return result;
     }
 
@@ -5488,7 +5488,6 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       return out;
     }
 
-    // Patch 1: createVideoParamsMemo 객체 문자열 해싱 개선
     function createVideoParamsMemo(Store, P, Utils) {
       const cache = new WeakMap();
 
@@ -5695,7 +5694,6 @@ ${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) 
 ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-delay: ${(i * 0.03).toFixed(2)}s; }`).join('\n')}
 `;
 
-    // Bug 1: Correctly declared OSD timer variables and state
     let __osdReady = false;
     let __osdEl = null, __osdTimerId = 0;
 
@@ -5745,7 +5743,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       return { show };
     }
 
-    // Patch 15: Batched UI Synchronization to prevent double-RAF overlap
     function createBatchedSyncAll() {
       const permanentFns = [];
       const tabFns = [];
@@ -6326,7 +6323,14 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
       function buildAudioTab() {
         const w = h('div', {});
-        w.append(mkRow('오디오 부스트', mkOptimizedToggle(P.A_EN, () => ApplyReq.soft())), mkRow('부스트 (dB)', ...mkOptimizedSlider(P.A_BST, 0, 15, 0.5)));
+        // Patch B+: 오디오 토글 시 prewarm() 즉시 호출하여 사용자 클릭 컨텍스트 확보
+        w.append(
+          mkRow('오디오 부스트', mkOptimizedToggle(P.A_EN, (nv) => {
+            if (nv) { Audio.prewarm?.(); }
+            ApplyReq.soft();
+          })),
+          mkRow('부스트 (dB)', ...mkOptimizedSlider(P.A_BST, 0, 15, 0.5))
+        );
         const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0' }, '오디오: 대기');
         Bus.on('signal', () => { const ctxReady = Audio.hasCtx(), hooked = Audio.isHooked(); status.textContent = `상태: ${ctxReady ? (hooked ? '활성' : '준비') : '대기'}`; });
         w.append(mkSep(), status); return w;
@@ -6681,6 +6685,17 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
     let __persistTimer = 0;
     function persistNow() { if (!__Store) return; clearTimer(__persistTimer); __persistTimer = setTimer(() => { try { GM_setValue(STORAGE_KEY, JSON.stringify(buildSaveDataFrom(__Store))); log.debug('[Persist] saved', STORAGE_KEY); } catch (e) { log.warn('[Persist] save error', e); } }, 600); }
+
+    // Patch C+: 페이지 이탈/숨김 시 타이머 무시하고 강제 동기화(Flush)
+    const flushPersist = () => {
+      if (!__Store) return;
+      if (__persistTimer) { clearTimer(__persistTimer); __persistTimer = 0; }
+      try {
+        GM_setValue(STORAGE_KEY, JSON.stringify(buildSaveDataFrom(__Store)));
+        log.debug('[Persist] forcefully flushed', STORAGE_KEY);
+      } catch (_) {}
+    };
+
     function loadPersisted(sm) {
       try {
         let raw = GM_getValue(STORAGE_KEY, null);
@@ -6719,6 +6734,12 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video); if (st.bound) return; st.bound = true;
+
+      // [Patch A+] CORS 우회를 위해 발견 즉시 crossOrigin 속성 세팅 시도
+      if (!video.crossOrigin && video.src && video.src.startsWith('http')) {
+        try { video.crossOrigin = "anonymous"; } catch(e){}
+      }
+
       const videoAC = new AbortController(); const videoSig = getCombinedSignal(videoAC.signal); st._ac = videoAC;
       touchedAddLimited(TOUCHED.videos, video, (evicted) => {
         const evictedState = getVState(evicted);
@@ -6730,7 +6751,13 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           vscClearAllStyles(evicted);
         });
       });
-      on(video, 'resize', () => { st._resizeDirty = true; _sharpMulCache.delete(video); }, { signal: videoSig });
+
+      // 안전한 캐시 삭제 처리로 변경
+      on(video, 'resize', () => {
+        st._resizeDirty = true;
+        if (computeResolutionSharpMul.cache) computeResolutionSharpMul.cache.delete(video);
+      }, { signal: videoSig });
+
       const onVideoReady = () => { st._resizeDirty = true; ApplyReq.hard(); };
       on(video, 'loadedmetadata', onVideoReady, { signal: videoSig }); on(video, 'loadeddata', onVideoReady, { signal: videoSig });
       if (video.readyState >= 1) setTimer(() => { if (!videoSig.aborted) ApplyReq.hard(); }, 80);
@@ -7323,7 +7350,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.7.0';
+      const VSC_VERSION_ID = '211.7.2'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -7379,6 +7406,15 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
       Bus.on('signal', (p) => Scheduler.request(!!p?.forceApply));
       for (const cat of ['video.*', 'audio.*', 'playback.*', 'app.*']) Store.sub(cat, () => persistNow());
+
+      // ──────────────────────────────────────────────
+      // Patch C+: 페이지 이탈/숨김 시 타이머 무시하고 강제 동기화(Flush)
+      // ──────────────────────────────────────────────
+      onDoc('visibilitychange', () => {
+        if (document.hidden) flushPersist();
+      }, { passive: true });
+      onWin('pagehide', flushPersist, { passive: true });
+      onWin('beforeunload', flushPersist, { passive: true });
 
       Store.sub(P.APP_VID_ROT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
       Store.sub(P.APP_VID_FIT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
