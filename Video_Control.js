@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v213.0.0)
+// @name         Video_Control (v213.2.0)
 // @namespace    https://github.com/
-// @version      213.0.0
-// @description  v213.0.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      213.2.0
+// @description  v213.2.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '213.0.0';
+    const VSC_VERSION = '213.2.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -754,6 +754,24 @@
           } catch (_) {}
         }
       }, { once: true });
+
+      // ✅ 추가: YouTube Shorts 특화 감지
+      // Shorts는 <video> 엘리먼트가 통째로 교체되는 패턴
+      if (location.hostname.endsWith('youtube.com')) {
+        const ytObserver = new MutationObserver(() => {
+          const next = location.href;
+          if (next !== lastHref) {
+            lastHref = next;
+            __rateBlockedSite = isRateBlockedContext();
+            onChanged();
+          }
+        });
+        const ytRoot = document.querySelector('ytd-app') || document.body;
+        if (ytRoot) {
+          ytObserver.observe(ytRoot, { childList: true, subtree: false });
+        }
+        __globalSig.addEventListener('abort', () => ytObserver.disconnect(), { once: true });
+      }
     }
 
     /* ══ Iframe injection ══ */
@@ -6714,6 +6732,38 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       } catch (e) { log.warn('[Persist] load error', e); }
     }
 
+    /* ══ Wake Lock Manager (전역, bindVideoOnce 위에 선언) ══ */
+    const WakeLock = (() => {
+      let _lock = null;
+      let _activeVideos = 0;
+
+      async function acquire() {
+        if (_lock || !('wakeLock' in navigator)) return;
+        try {
+          _lock = await navigator.wakeLock.request('screen');
+          _lock.addEventListener('release', () => { _lock = null; }, { once: true });
+          log.info('[WakeLock] acquired');
+        } catch (_) {}
+      }
+
+      function release() {
+        if (!_lock) return;
+        _lock.release().catch(() => {});
+        _lock = null;
+        log.info('[WakeLock] released');
+      }
+
+      // 탭이 다시 보일 때 재획득 (브라우저가 숨김 시 자동 해제함)
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && _activeVideos > 0) acquire();
+      });
+
+      return {
+        onPlay()  { _activeVideos++; acquire(); },
+        onPause() { _activeVideos = Math.max(0, _activeVideos - 1); if (_activeVideos === 0) release(); }
+      };
+    })();
+
     /* ══════════════════════════════════════════════════════════════════
        bindVideoOnce
        ══════════════════════════════════════════════════════════════════ */
@@ -6828,7 +6878,19 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       const cancelRvfc = bindVideoFrameSync(video, () => { ApplyReq.soft(); });
 
       if (ZoomMgr) ZoomMgr.onNewVideoForZoom(video); patchFullscreenRequest(video);
-      videoSig.addEventListener('abort', () => { cancelRvfc?.(); st.bound = false; st.resetTransient(); vscClearAllStyles(video); log.debug('[bindVideo] unbound', video.src?.slice(0, 40) || '(blob)'); }, { once: true });
+
+      // ✅ Wake Lock 훅 추가
+      on(video, 'play',  () => { if (CONFIG.IS_MOBILE) WakeLock.onPlay();  }, { signal: videoSig });
+      on(video, 'pause', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); }, { signal: videoSig });
+      on(video, 'ended', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); }, { signal: videoSig });
+
+      // 이미 재생 중인 경우 즉시 획득
+      if (CONFIG.IS_MOBILE && !video.paused && !video.ended) WakeLock.onPlay();
+
+      videoSig.addEventListener('abort', () => {
+        if (CONFIG.IS_MOBILE && !video.paused) WakeLock.onPause();
+        cancelRvfc?.(); st.bound = false; st.resetTransient(); vscClearAllStyles(video); log.debug('[bindVideo] unbound', video.src?.slice(0, 40) || '(blob)');
+      }, { once: true });
     }
 
     /* ══════════════════════════════════════════════════════════════════
@@ -7393,7 +7455,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '213.0.0'; // 버전 상승
+      const VSC_VERSION_ID = '213.2.0'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -7585,14 +7647,69 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         }
       };
 
+      // ✅ 기존 rescanDebounced (유지)
       const rescanDebounced = createDebounced(() => {
         flushPersist();
         scanAll(); Registry.rescanAll(); ApplyReq.hard();
-        const wasBlocked = __rateBlockedSite; __rateBlockedSite = isRateBlockedContext();
-        if (wasBlocked && !__rateBlockedSite) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.permanentlyBlocked && !isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } }
+        const wasBlocked = __rateBlockedSite;
+        __rateBlockedSite = isRateBlockedContext();
+        if (wasBlocked && !__rateBlockedSite) {
+          for (const v of TOUCHED.rateVideos) {
+            const rs = getRateState(v);
+            if (rs.permanentlyBlocked && !isVideoEncrypted(v)) {
+              rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0;
+            }
+          }
+        }
       }, SPA_RESCAN_DEBOUNCE_MS);
 
-      initSpaUrlDetector(rescanDebounced);
+      // ✅ URL 변경 시 즉각 처리 함수 (debounce 없이)
+      function onSpaNavigate() {
+        // 1. 현재 타겟 즉시 초기화 (이전 영상 필터 잔류 방지)
+        const prevActive = window[VSC_INTERNAL_SYM]._activeVideo;
+        if (prevActive) {
+          FiltersVO.clear(prevActive);
+          try { clearVideoTransform(prevActive); } catch (_) {}
+          const vst = getVState(prevActive);
+          vst.applied = false;
+          vst.lastFilterUrl = null;
+          vst.lastCssFilterStr = null;
+          vst._lastFilterHash = 0;
+          vst._lastSvgHash = 0;
+        }
+        window[VSC_INTERNAL_SYM]._activeVideo = null;
+        Audio.setTarget(null);
+
+        // 2. 즉시 1차 스캔 (이미 DOM에 있는 경우 대응)
+        scanAll();
+        ApplyReq.hard();
+
+        // 3. DOM 삽입 타이밍을 고려한 다단계 재스캔
+        //    YouTube: Shorts→Watch는 ~100ms, Watch→Shorts는 ~300ms 걸림
+        const delays = [100, 300, 600, 1200];
+        for (const delay of delays) {
+          setTimer(() => {
+            if (__globalSig.aborted) return;
+            const newHref = location.href;
+            const found = scanAll();
+            if (found > 0 || Registry.visible.videos.size > 0) {
+              ApplyReq.hard();
+              // AutoScene이 켜져 있으면 새 영상에 즉시 재시작
+              if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT)) {
+                AutoScene.stop();
+                setTimer(() => { if (!__globalSig.aborted) AutoScene.start(); }, 50);
+              }
+            }
+          }, delay);
+        }
+
+        // 4. 기존 debounced 재스캔도 유지 (안전망)
+        rescanDebounced();
+      }
+
+      // ✅ initSpaUrlDetector에 onSpaNavigate 전달
+      initSpaUrlDetector(onSpaNavigate);
+
       setRecurring(() => { flushPersist(); }, 15000);
       setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
 
