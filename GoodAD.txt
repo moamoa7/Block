@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260304
+! Version: 20260322
 !
 !
 !
@@ -2446,7 +2446,8 @@ avsee.ru##.div-title-wrap
 avsee.ru##.nav-justified
 ! - Mobile
 avsee.ru##.list-category
-avsee.ru##.tabs
+! - - - 스크립트의 ui 탭 을 막아서 해제
+avsee.ru#@#.tabs
 ! - 새창 방지
 !avsee.ru#%#//scriptlet("prevent-window-open")
 ! - - - - - uBlock filters – Ads
@@ -6588,4 +6589,3 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
-
