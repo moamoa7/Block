@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기 (Universal)
 // @namespace    https://github.com/moamoa7
-// @version      12.1.0
+// @version      12.2.0
 // @description  플랫폼 무관 — 모든 라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*/*
@@ -59,7 +59,7 @@
   };
 
   /* ── 기본 상수 ── */
-  const DEF_TARGET  = 2.5;
+  const DEF_TARGET  = 2.0;
   const MIN_TARGET  = 0.5;
   const MAX_TARGET  = 12;
   const BAR_MAX     = 15;
@@ -172,17 +172,17 @@
     return false;
   };
 
-  /* 버퍼 트렌드 (선형 회귀 기울기) */
-  const getBufferTrend = () => {
+ // ✅ 수정 — histLen 대신 n 사용
+const getBufferTrend = () => {
     const n = Math.min(histLen, 10);
     if (n < 3) return 0;
     let sX = 0, sY = 0, sXY = 0, sX2 = 0;
     for (let i = 0; i < n; i++) {
-      const y = hist[(histHead - n + i + HIST) % HIST];
-      sX += i; sY += y; sXY += i * y; sX2 += i * i;
+        const y = hist[(histHead - n + i + HIST) % HIST];  // ← n으로 교체
+        sX += i; sY += y; sXY += i * y; sX2 += i * i;
     }
     return (n * sXY - sX * sY) / (n * sX2 - sX * sX);
-  };
+};
 
   /* ── Video Tracking ── */
   const seen = new WeakSet();
@@ -350,7 +350,9 @@ self.onmessage = ({ data: d }) => {
       try {
         const offscreen = cvs.transferControlToOffscreen();
         const blob = new Blob([SPARK_WORKER_SRC], { type: 'text/javascript' });
-        sparkWorker = new Worker(URL.createObjectURL(blob));
+        const blobUrl = URL.createObjectURL(blob);
+        sparkWorker = new Worker(blobUrl);
+        URL.revokeObjectURL(blobUrl);  // Worker 생성 직후 즉시 해제 가능
         sparkWorker.postMessage({ type: 'init', canvas: offscreen, dpr }, [offscreen]);
         sparkCanvas = null; sparkCtx = null;
         return;
@@ -686,10 +688,16 @@ self.onmessage = ({ data: d }) => {
     /* Drag — FAB */
     const drag = (el, onEnd) => {
       let ox, oy, moved = false;
-      el.onpointerdown = e => {
-        if (e.button) return; moved = false; el.setPointerCapture(e.pointerId);
-        const r = el.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top;
-      };
+      // ✅ 수정 — onpointerdown에서 _m 초기화
+    el.onpointerdown = e => {
+        if (e.button) return;
+        moved = false;
+        el._m = false;   // ← 매 포인터 시작 시 초기화
+        el.setPointerCapture(e.pointerId);
+        const r = el.getBoundingClientRect();
+        ox = e.clientX - r.left;
+        oy = e.clientY - r.top;
+    };
       el.onpointermove = e => {
         if (!el.hasPointerCapture(e.pointerId)) return; moved = true;
         el.style.left = clamp(e.clientX - ox, 0, innerWidth - el.offsetWidth) + 'px';
