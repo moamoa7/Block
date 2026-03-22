@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.3.0)
+// @name         Video_Control (v211.4.0)
 // @namespace    https://github.com/
-// @version      211.3.0
-// @description  v211.3.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.4.0
+// @description  v211.4.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.3.0';
+    const VSC_VERSION = '211.4.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -5186,7 +5186,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             }
           }
 
-          const totalS = clamp(Number(s.sharp || 0), 0, 0.35); let kernelStr;
+          const SHARP_CAP = config.IS_MOBILE ? 0.60 : 0.45;
+          const totalS = clamp(Number(s.sharp || 0), 0, SHARP_CAP);
+          let kernelStr;
           if (totalS < 0.005) { kernelStr = '0,0,0, 0,1,0, 0,0,0'; }
           else { const diag = -totalS * 0.5; const edge = -totalS; const center = 1.0 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
 
@@ -5343,7 +5345,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       else if (nW <= 1920) { autoBase = 0.06; }
       else                 { autoBase = 0.03; }
 
-      if (CONFIG.IS_MOBILE && mul < 0.50) mul = 0.50;
+      if (CONFIG.IS_MOBILE) mul = Math.max(mul, 0.72);
 
       mul = VSC_CLAMP(mul, 0.0, 1.0);
       autoBase = VSC_CLAMP(autoBase * mul, 0.0, 0.18);
@@ -5372,7 +5374,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         const motionReduction = VSC_CLAMP((motionSAD - 0.04) * 4, 0, 0.40);
         out.sharp *= (1.0 - motionReduction);
         if (CONFIG.IS_MOBILE) {
-          const mobileFloor = 0.03;
+          const mobileFloor = 0.08;
           if (out.sharp < mobileFloor && out.sharp > 0) out.sharp = mobileFloor;
         }
       }
@@ -6814,34 +6816,48 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function isNativePlayerControl(e) {
-        let path;
-        try { path = typeof e.composedPath === 'function' ? e.composedPath() : [e.target]; }
-        catch (_) { path = [e.target]; }
-        for (let i = 0, len = Math.min(path.length, 15); i < len; i++) {
-          const node = path[i];
-          if (!node || node.nodeType !== 1) continue;
-          if (node.tagName === 'VIDEO') return false;
-          const tag = node.tagName;
-          if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return true;
-          const role = node.getAttribute?.('role');
-          if (role === 'button' || role === 'slider' || role === 'menuitem' || role === 'tab' || role === 'link') return true;
-          if (node.hasAttribute?.('tabindex') && node.getAttribute('tabindex') !== '-1') return true;
-          const cls = node.className?.toString?.() || '';
-          if (cls.includes('ytp-') && !cls.includes('ytp-cued-thumbnail-overlay')) return true;
-          if (cls.includes('jw-icon') || cls.includes('jw-slider') || cls.includes('jw-button') || cls.includes('jw-controlbar') || cls.includes('jw-controls')) return true;
-          if (cls.includes('vjs-control') || cls.includes('vjs-button') || cls.includes('vjs-slider')) return true;
-          if (cls.includes('plyr__control') || cls.includes('plyr__menu')) return true;
-          if (cls.includes('player-button') || cls.includes('control-button') || cls.includes('seek-button') || cls.includes('skip-button') || cls.includes('forward') || cls.includes('rewind') || cls.includes('progress-bar') || cls.includes('time-slider') || cls.includes('volume-slider')) return true;
-          if (node.hasAttribute?.('data-testid')) {
-            const testid = node.getAttribute('data-testid');
-            if (testid.includes('button') || testid.includes('control') || testid.includes('seek') || testid.includes('skip') || testid.includes('forward') || testid.includes('rewind')) return true;
-          }
-          const aria = node.getAttribute?.('aria-label')?.toLowerCase?.() || '';
-          if (aria && (aria.includes('seek') || aria.includes('forward') || aria.includes('rewind') || aria.includes('skip') || aria.includes('second') || aria.includes('back') || aria.includes('next') || aria.includes('previous') || aria.includes('play') || aria.includes('pause') || aria.includes('mute') || aria.includes('volume') || aria.includes('fullscreen') || aria.includes('setting') || aria.includes('앞으로') || aria.includes('뒤로') || aria.includes('재생') || aria.includes('일시정지') || aria.includes('음량') || aria.includes('전체화면'))) return true;
-          if (node.onclick || node.hasAttribute?.('onclick')) return true;
-        }
-        return false;
-      }
+  let path;
+  try { path = typeof e.composedPath === 'function' ? e.composedPath() : [e.target]; }
+  catch (_) { path = [e.target]; }
+
+  for (let i = 0, len = Math.min(path.length, 15); i < len; i++) {
+    const node = path[i];
+    if (!node || node.nodeType !== 1) continue;
+    if (node.tagName === 'VIDEO') return false; // VIDEO 자체는 컨트롤 아님
+
+    const tag = node.tagName;
+    // 명확한 인터랙티브 HTML 요소만 차단
+    if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' ||
+        tag === 'SELECT' || tag === 'TEXTAREA') return true;
+
+    const role = node.getAttribute?.('role');
+    if (role === 'button' || role === 'slider' || role === 'menuitem' ||
+        role === 'tab' || role === 'link') return true;
+
+    // 알려진 플레이어의 컨트롤바 클래스만 차단 (오버레이 wrapper div는 제외)
+    const cls = node.className?.toString?.() || '';
+    if (cls.includes('ytp-') &&
+        !cls.includes('ytp-cued-thumbnail-overlay') &&
+        !cls.includes('ytp-iv-player-content')) return true;
+    if (cls.includes('jw-icon') || cls.includes('jw-slider') ||
+        cls.includes('jw-button') || cls.includes('jw-controlbar')) return true;
+    if (cls.includes('vjs-control') || cls.includes('vjs-button') ||
+        cls.includes('vjs-slider')) return true;
+    if (cls.includes('plyr__control') || cls.includes('plyr__menu')) return true;
+    if (cls.includes('seek-bar') || cls.includes('progress-bar') ||
+        cls.includes('time-slider') || cls.includes('volume-slider')) return true;
+
+    const testid = node.getAttribute?.('data-testid') || '';
+    if (testid && (testid.includes('seek') || testid.includes('progress') ||
+        testid.includes('volume'))) return true;
+
+    const aria = node.getAttribute?.('aria-label')?.toLowerCase?.() || '';
+    if (aria && (aria.includes('seek') || aria.includes('forward') ||
+        aria.includes('rewind') || aria.includes('skip') ||
+        aria.includes('앞으로') || aria.includes('뒤로'))) return true;
+  }
+  return false;
+}
 
       const SWIPE_THRESHOLD = 12;
       const LONG_PRESS_MS = 450;
@@ -6881,15 +6897,38 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       function isVscUi(e) { try { const path = typeof e.composedPath === 'function' ? e.composedPath() : []; for (let i = 0, len = Math.min(path.length, 8); i < len; i++) { const n = path[i]; if (n?.hasAttribute?.('data-vsc-ui') || n?.id === 'vsc-host' || n?.id === 'vsc-gear-host') return true; } } catch (_) {} return false; }
 
       function findVideoInRect(tx, ty) {
-        const active = window[VSC_INTERNAL_SYM]?._activeVideo;
-        if (active?.isConnected) {
-          try {
-            const r = active.getBoundingClientRect();
-            if (r.width >= 40 && r.height >= 40 && tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) return active;
-          } catch (_) {}
-        }
-        return null;
+  const active = window[VSC_INTERNAL_SYM]?._activeVideo;
+  if (active?.isConnected) {
+    try {
+      const r = active.getBoundingClientRect();
+      if (r.width >= 40 && r.height >= 40 &&
+          tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) return active;
+    } catch (_) {}
+  }
+
+  // 폴백 1: TOUCHED.videos 전수 탐색 (가장 큰 면적 우선)
+  let bestVideo = null, bestArea = 0;
+  for (const v of TOUCHED.videos) {
+    if (!v?.isConnected) continue;
+    try {
+      const r = v.getBoundingClientRect();
+      if (r.width < 40 || r.height < 40) continue;
+      if (tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) {
+        const area = r.width * r.height;
+        if (area > bestArea) { bestArea = area; bestVideo = v; }
       }
+    } catch (_) {}
+  }
+  if (bestVideo) return bestVideo;
+
+  // 폴백 2: elementsFromPoint
+  try {
+    const els = document.elementsFromPoint(tx, ty);
+    for (const el of els) { if (el?.tagName === 'VIDEO' && el.isConnected) return el; }
+  } catch (_) {}
+
+  return null;
+}
 
       function getOverlayParent() { return document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement; }
 
@@ -7002,20 +7041,35 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       function removeTouchBrightness() { if (__touchBriOverlay?.isConnected) { __touchBriOverlay.style.opacity = '0'; const ov = __touchBriOverlay; setTimer(() => { ov?.remove(); }, 300); __touchBriOverlay = null; } }
 
       function onTouchStart(e) {
-        if (!shouldHandle()) return;
-        if (e.touches.length !== 1) { cancelGesture(); return; }
-        if (isVscUi(e) || isEditableTarget(e.target)) return;
-        if (isNativePlayerControl(e) || isInsideCloudflareWidget(e.target)) return;
+  if (!shouldHandle()) return;
+  if (e.touches.length !== 1) { cancelGesture(); return; }
+  if (isVscUi(e) || isEditableTarget(e.target)) return;
+  if (isInsideCloudflareWidget(e.target)) return;
+  // ← isNativePlayerControl을 이 위치에서 제거 (아래로 이동)
 
-        const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-        const video = findVideoInRect(tx, ty);
-        if (!video) return;
+  const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
+  const video = findVideoInRect(tx, ty);
+  if (!video) return;
 
-        touchVideo = video; startX = tx; startY = ty; initVol = video.volume; initBri = 1.0;
-        seekInitialTime = touchVideo.currentTime;
-        gesture = GS.WAIT;
-        clearTimer(lpTimerId); lpTimerId = setTimer(() => { lpTimerId = 0; if (gesture === GS.WAIT && touchVideo) { startLongPress(touchVideo); } }, LONG_PRESS_MS);
-      }
+  // 비디오 위에서도 실제 플레이어 전용 컨트롤(프로그레스바 등)은 통과
+  if (isNativePlayerControl(e)) return;
+
+  // 비디오 영역 확인 후 플레이어의 기본 터치 처리 차단
+  if (e.cancelable) e.preventDefault();
+
+  touchVideo = video;
+  startX = tx; startY = ty;
+  initVol = video.volume;
+  initBri = 1.0;
+  seekInitialTime = video.currentTime;
+  gesture = GS.WAIT;
+
+  clearTimer(lpTimerId);
+  lpTimerId = setTimer(() => {
+    lpTimerId = 0;
+    if (gesture === GS.WAIT && touchVideo) startLongPress(touchVideo);
+  }, LONG_PRESS_MS);
+}
 
       function onTouchMove(e) {
         if (gesture === GS.IDLE || gesture === GS.BLOCKED || !touchVideo) return;
@@ -7148,7 +7202,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.3.0';
+      const VSC_VERSION_ID = '211.4.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
