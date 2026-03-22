@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v213.2.0)
+// @name         Video_Control (v213.3.0)
 // @namespace    https://github.com/
-// @version      213.2.0
-// @description  v213.2.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      213.3.0
+// @description  v213.3.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '213.2.0';
+    const VSC_VERSION = '213.3.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -785,26 +785,59 @@
         __iframeFailed = new WeakSet();
       }
       const canAccess = (ifr) => { try { const w = ifr.contentWindow; if (!w) return false; void w.location.href; return true; } catch (_) { return false; } };
+
       const inject = (ifr) => {
         if (!ifr || __injectedIframes.has(ifr) || __iframeFailed.has(ifr)) return;
         if (isCloudflareElement(ifr)) return;
+
+        // ✅ 샌드박스에 스크립트 권한이 없는 경우 주입 시도 안 함
+        if (ifr.hasAttribute('sandbox') && !ifr.getAttribute('sandbox').includes('allow-scripts')) {
+          __iframeFailed.add(ifr);
+          return;
+        }
+
         if (!canAccess(ifr)) { if (ifr.contentWindow) __iframeFailed.add(ifr); return; }
+
         const tryInject = () => {
           try {
             const win = ifr.contentWindow; const doc = ifr.contentDocument || win?.document;
             if (!win || !doc) return;
             if (win[Symbol.for('__VSC_BOOT_LOCK__')]) { __injectedIframes.add(ifr); return; }
             const host = doc.head || doc.documentElement; if (!host) return;
-            const s = doc.createElement('script'); s.textContent = __VSC_INJECT_SOURCE; host.appendChild(s); s.remove?.();
+
+            const s = doc.createElement('script');
+            let scriptContent = __VSC_INJECT_SOURCE;
+
+            // ✅ Trusted Types 보안 정책 우회 (TrustedScript 생성)
+            if (win.trustedTypes && win.trustedTypes.createPolicy) {
+              try {
+                // 고유 이름으로 정책 생성 시도
+                if (!win.__vsc_ts_policy) win.__vsc_ts_policy = win.trustedTypes.createPolicy('vsc-script-policy', { createScript: text => text });
+                scriptContent = win.__vsc_ts_policy.createScript(scriptContent);
+              } catch (e) {
+                try {
+                  // 실패 시 사이트의 default 정책 활용 시도
+                  if (!win.__vsc_ts_default) win.__vsc_ts_default = win.trustedTypes.createPolicy('default', { createScript: text => text });
+                  scriptContent = win.__vsc_ts_default.createScript(scriptContent);
+                } catch (e2) {
+                  // 둘 다 막혀있다면 원본 문자열 유지 (브라우저 정책에 따라 catch 블록으로 빠질 수 있음)
+                }
+              }
+            }
+
+            s.textContent = scriptContent;
+            host.appendChild(s); s.remove?.();
             __injectedIframes.add(ifr);
           } catch (_) { __iframeFailed.add(ifr); }
         };
+
         tryInject();
         if (!__iframeLoadHooked.has(ifr)) {
           __iframeLoadHooked.add(ifr);
           ifr.addEventListener('load', () => { __iframeFailed.delete(ifr); if (canAccess(ifr)) tryInject(); else __iframeFailed.add(ifr); }, { passive: true, signal: __globalSig });
         }
       };
+
       document.querySelectorAll('iframe').forEach(inject);
       const mo = new MutationObserver((muts) => {
         if (__globalSig.aborted) { mo.disconnect(); return; }
@@ -6409,7 +6442,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
       function renderTab() {
         const body = _shadow?.querySelector('.body'); if (!body) return;
-        body.innerHTML = '';
+        body.textContent = ''; // innerHTML = '' 대신 사용
         tabFns.length = 0;
         switch (activeTab) { case 'video': body.appendChild(buildVideoTab()); break; case 'audio': body.appendChild(buildAudioTab()); break; case 'playback': body.appendChild(buildPlaybackTab()); break; case 'app': body.appendChild(buildAppTab()); break; }
         const tabBar = _shadow.querySelector('.tabs');
@@ -6562,7 +6595,13 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         });
 
         const fitBtn = h('div', { class: 'qb qb-sub', title: '화면 비율 전환 (Alt+F)' });
-        fitBtn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><rect x="6" y="6" width="12" height="12" rx="1" opacity="0.4"/></svg>';
+        // innerHTML 대신 DOM API(_s) 사용
+        const fitSvg = _s('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: '#fff', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' },
+          _s('rect', { x: 2, y: 2, width: 20, height: 20, rx: 2 }),
+          _s('rect', { x: 6, y: 6, width: 12, height: 12, rx: 1, opacity: 0.4 })
+        );
+        fitBtn.appendChild(fitSvg);
+
         fitBtn.addEventListener('click', e => {
           e.preventDefault(); e.stopPropagation();
           cycleVideoFit(Store); resetExpandTimer();
@@ -7142,42 +7181,90 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         const directionText = delta >= 0 ? "오른쪽 스와이프 중" : "왼쪽 스와이프 중";
         const deltaText = formatDelta(delta);
         const deltaColor = delta >= 0 ? "#8effa9" : "#ff8e8e";
-        ov.innerHTML = `<div class="vsc-seek-direction">${directionText}</div><div class="vsc-seek-main">(${formatTime(currentTime)})</div><div class="vsc-seek-delta" style="color: ${deltaColor}">(${deltaText})</div>`;
+
+        ov.textContent = '';
+        const dirEl = document.createElement('div'); dirEl.className = 'vsc-seek-direction'; dirEl.textContent = directionText;
+        const mainEl = document.createElement('div'); mainEl.className = 'vsc-seek-main'; mainEl.textContent = `(${formatTime(currentTime)})`;
+        const deltaEl = document.createElement('div'); deltaEl.className = 'vsc-seek-delta'; deltaEl.style.color = deltaColor; deltaEl.textContent = `(${deltaText})`;
+
+        ov.appendChild(dirEl); ov.appendChild(mainEl); ov.appendChild(deltaEl);
         ov.style.display = '';
         ov.classList.add('show');
       }
 
-      function hideSeekOverlaySmooth() {
-        if (!elSeekOverlay) return;
-        elSeekOverlay.classList.remove('show');
-        setTimer(() => { if (elSeekOverlay && !elSeekOverlay.classList.contains('show')) elSeekOverlay.style.display = 'none'; }, 200);
+      function createSwipeInd(isLeft) {
+        const ind = document.createElement('div');
+        ind.className = `vsc-swipe-indicator ${isLeft ? 'left' : 'right'}`;
+        ind.setAttribute('data-vsc-ui', '1');
+
+        const iconDiv = document.createElement('div'); iconDiv.className = 'vsc-swipe-icon';
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24');
+        if (isLeft) {
+          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); circle.setAttribute('cx', '12'); circle.setAttribute('cy', '12'); circle.setAttribute('r', '5');
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42');
+          svg.appendChild(circle); svg.appendChild(path);
+        } else {
+          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon'); poly.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07');
+          svg.appendChild(poly); svg.appendChild(path);
+        }
+        iconDiv.appendChild(svg);
+
+        const track = document.createElement('div'); track.className = 'vsc-swipe-track';
+        const fill = document.createElement('div'); fill.className = 'vsc-swipe-fill'; fill.style.height = '50%'; track.appendChild(fill);
+
+        const label = document.createElement('div'); label.className = 'vsc-swipe-label'; label.textContent = '100%';
+
+        ind.appendChild(iconDiv); ind.appendChild(track); ind.appendChild(label);
+        return ind;
       }
 
       function ensureSwipeIndicators() {
         const parent = getOverlayParent();
         if (!elSwipeLeft || !elSwipeLeft.isConnected || elSwipeLeft.parentNode !== parent) {
-          elSwipeLeft?.remove(); elSwipeLeft = document.createElement('div'); elSwipeLeft.className = 'vsc-swipe-indicator left'; elSwipeLeft.setAttribute('data-vsc-ui', '1');
-          elSwipeLeft.innerHTML = `<div class="vsc-swipe-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg></div><div class="vsc-swipe-track"><div class="vsc-swipe-fill" style="height:50%"></div></div><div class="vsc-swipe-label">100%</div>`;
-          parent.appendChild(elSwipeLeft);
+          elSwipeLeft?.remove(); elSwipeLeft = createSwipeInd(true); parent.appendChild(elSwipeLeft);
         }
         if (!elSwipeRight || !elSwipeRight.isConnected || elSwipeRight.parentNode !== parent) {
-          elSwipeRight?.remove(); elSwipeRight = document.createElement('div'); elSwipeRight.className = 'vsc-swipe-indicator right'; elSwipeRight.setAttribute('data-vsc-ui', '1');
-          elSwipeRight.innerHTML = `<div class="vsc-swipe-icon"><svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></div><div class="vsc-swipe-track"><div class="vsc-swipe-fill" style="height:50%"></div></div><div class="vsc-swipe-label">100%</div>`;
-          parent.appendChild(elSwipeRight);
+          elSwipeRight?.remove(); elSwipeRight = createSwipeInd(false); parent.appendChild(elSwipeRight);
         }
       }
 
-      function ensureSeekRipples() {
-        const parent = getOverlayParent();
-        if (!elSeekLeft || !elSeekLeft.isConnected || elSeekLeft.parentNode !== parent) { elSeekLeft?.remove(); elSeekLeft = document.createElement('div'); elSeekLeft.className = 'vsc-seek-ripple left'; elSeekLeft.setAttribute('data-vsc-ui', '1'); parent.appendChild(elSeekLeft); }
-        if (!elSeekRight || !elSeekRight.isConnected || elSeekRight.parentNode !== parent) { elSeekRight?.remove(); elSeekRight = document.createElement('div'); elSeekRight.className = 'vsc-seek-ripple right'; elSeekRight.setAttribute('data-vsc-ui', '1'); parent.appendChild(elSeekRight); }
+      function showSeekRipple(side, totalSec) {
+        ensureSeekRipples(); const el = side === 'left' ? elSeekLeft : elSeekRight; const other = side === 'left' ? elSeekRight : elSeekLeft;
+        other.classList.remove('show');
+        el.textContent = '';
+
+        if (side === 'left') {
+          const arrows = document.createElement('div'); arrows.className = 'vsc-seek-arrows';
+          const s1 = document.createElement('span'); s1.textContent = '‹';
+          const s2 = document.createElement('span'); s2.className = 'vsc-arrow-slide-l'; s2.textContent = '‹';
+          arrows.appendChild(s1); arrows.appendChild(s2);
+          const txt = document.createElement('span'); txt.className = 'vsc-seek-text vsc-seek-pop'; txt.textContent = `−${totalSec}s`;
+          el.appendChild(arrows); el.appendChild(txt);
+        } else {
+          const txt = document.createElement('span'); txt.className = 'vsc-seek-text vsc-seek-pop'; txt.textContent = `+${totalSec}s`;
+          const arrows = document.createElement('div'); arrows.className = 'vsc-seek-arrows';
+          const s1 = document.createElement('span'); s1.className = 'vsc-arrow-slide-r'; s1.textContent = '›';
+          const s2 = document.createElement('span'); s2.textContent = '›';
+          arrows.appendChild(s1); arrows.appendChild(s2);
+          el.appendChild(txt); el.appendChild(arrows);
+        }
+        el.classList.add('show');
       }
 
       function ensureLpBadge() {
         const parent = getOverlayParent();
         if (!elLpBadge || !elLpBadge.isConnected || elLpBadge.parentNode !== parent) {
           elLpBadge?.remove(); elLpBadge = document.createElement('div'); elLpBadge.className = 'vsc-longpress-badge'; elLpBadge.setAttribute('data-vsc-ui', '1');
-          elLpBadge.innerHTML = `<svg class="vsc-lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg><span class="vsc-lp-text">${LONG_PRESS_RATE}× 재생 중</span>`;
+
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('class', 'vsc-lp-icon'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('fill', 'none'); svg.setAttribute('stroke', 'currentColor'); svg.setAttribute('stroke-width', '2.5'); svg.setAttribute('stroke-linecap', 'round'); svg.setAttribute('stroke-linejoin', 'round');
+          const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon'); poly.setAttribute('points', '5 3 19 12 5 21 5 3');
+          svg.appendChild(poly);
+
+          const text = document.createElement('span'); text.className = 'vsc-lp-text'; text.textContent = `${LONG_PRESS_RATE}× 재생 중`;
+
+          elLpBadge.appendChild(svg); elLpBadge.appendChild(text);
           parent.appendChild(elLpBadge);
         }
       }
@@ -7455,7 +7542,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '213.2.0'; // 버전 상승
+      const VSC_VERSION_ID = '213.3.0'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
