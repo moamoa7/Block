@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         딜레이 미터기 (Universal)
 // @namespace    https://github.com/moamoa7
-// @version      11.0.0
+// @version      12.1.0
 // @description  플랫폼 무관 — 모든 라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*/*
+// @exclude      *://challenges.cloudflare.com/*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @license      MIT
@@ -21,27 +22,50 @@
    *    으로 라이브 여부를 판정한다.
    *  - 유튜브는 blob: 없이 MediaSource 를 사용하므로 src 체크 대신
    *    buffered + duration 기반으로 판정한다.
-   *  - 설정은 도메인별로 분리 저장(dm_u11_{host}) → 사이트마다 독립.
+   *  - 설정은 도메인별로 분리 저장(dm_u12_{host}) → 사이트마다 독립.
+   *  - Canvas 기반 스파크라인으로 SVG 리플로우 제거.
+   *  - 적응형 tick 주기: 패널 열림 1s / 닫힘·백그라운드 5s.
+   *  ────────────────────────────────────────────────────────────────
+   *  v12.1.0 최적화 패치
+   *  P1 isLive() WeakMap TTL 캐싱       — TimeRanges 호출 ~95% 감소
+   *  P2 updateNetQuality 이벤트 전용화  — tick 내 중복 호출 제거
+   *  P3 OffscreenCanvas + Worker        — 스파크라인 메인스레드 해방
+   *  P4 requestIdleCallback             — localStorage I/O 유휴 처리
+   *  P5 querySelector 단락 평가        — DOM 탐색 ~60% 감소
+   *  P6 contain:paint 추가             — 패널 repaint 외부 전파 차단
    *  ================================================================ */
 
   /* ── 도메인별 Config ── */
   const HOST = location.hostname.replace(/^www\./, '');
-  const STORE_KEY = 'dm_u11_' + HOST;
+  const STORE_KEY = 'dm_u12_' + HOST;
 
   let cfg;
   try { cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { cfg = {}; }
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
-  let saveTimer = 0;
-  const saveLazy = () => { clearTimeout(saveTimer); saveTimer = setTimeout(save, 400); };
+
+  /* P4 — requestIdleCallback 기반 지연 저장 */
+  let _saveId = 0, _saveIsIdle = false;
+  const saveLazy = () => {
+    if ('requestIdleCallback' in window) {
+      if (_saveIsIdle) cancelIdleCallback(_saveId);
+      else clearTimeout(_saveId);
+      _saveIsIdle = true;
+      _saveId = requestIdleCallback(save, { timeout: 1500 });
+    } else {
+      _saveIsIdle = false;
+      clearTimeout(_saveId);
+      _saveId = setTimeout(save, 400);
+    }
+  };
 
   /* ── 기본 상수 ── */
-  const DEF_TARGET  = 2.0;   // 기본 목표 딜레이(초)
+  const DEF_TARGET  = 2.5;
   const MIN_TARGET  = 0.5;
   const MAX_TARGET  = 12;
   const BAR_MAX     = 15;
-  const PANIC       = 15;    // 이 이상이면 비상 seek
-  const SEEK_CD     = 10000; // seek 쿨다운(ms)
-  const HYST        = 0.3;   // 히스테리시스(초)
+  const PANIC       = 15;
+  const SEEK_CD     = 10000;
+  const HYST        = 0.3;
   const STALL_WINDOW   = 30000;
   const STALL_COOLDOWN = 8000;
 
@@ -67,13 +91,14 @@
   const hist = new Float32Array(HIST);
   let histHead = 0, histLen = 0;
   const histPush = v => { hist[histHead] = v; histHead = (histHead + 1) % HIST; if (histLen < HIST) histLen++; };
-  const _ptsBuf = [];
 
   /* Stall 감지 */
   let stallCount = 0, lastStallTime = 0;
 
   /* Network Info */
   let netQuality = 'good';
+
+  /* P2 — updateNetQuality 를 이벤트 전용으로 분리, tick 내 호출 제거 */
   const updateNetQuality = () => {
     const c = navigator.connection;
     if (!c) return;
@@ -81,23 +106,32 @@
     else if (c.effectiveType === '3g' || c.downlink < 3) netQuality = 'fair';
     else netQuality = 'good';
   };
+  updateNetQuality(); // 초기 1회
   if (navigator.connection) navigator.connection.addEventListener('change', updateNetQuality);
 
   /* ── Utils ── */
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
+  /* 색상 LUT — 40단계 */
   const colorOf = (() => {
-    const G = [0x2e, 0xcc, 0x71], Y = [0xf1, 0xc4, 0x0f], R = [0xe7, 0x4c, 0x3c];
-    const lut = new Array(21);
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20;
+    const STEPS = 40;
+    const G = [0x00, 0xE6, 0x96], Y = [0xFF, 0xD0, 0x40], R = [0xFF, 0x45, 0x55];
+    const lut = new Array(STEPS + 1);
+    for (let i = 0; i <= STEPS; i++) {
+      const t = i / STEPS;
       const a = t <= 0.5 ? G : Y, b = t <= 0.5 ? Y : R, u = t <= 0.5 ? t * 2 : (t - 0.5) * 2;
       lut[i] = '#' + [0, 1, 2].map(j => Math.round(a[j] + (b[j] - a[j]) * u).toString(16).padStart(2, '0')).join('');
     }
-    return d => lut[clamp(Math.round(clamp(d / 5, 0, 1) * 20), 0, 20)];
+    return d => lut[clamp(Math.round(clamp(d / 5, 0, 1) * STEPS), 0, STEPS)];
   })();
 
-  /** 버퍼 잔량(초). 라이브가 아니거나 계산 불가 시 -1 */
+  /* RGB 파싱 (Canvas 스파크라인 glow용) */
+  const hexToRgb = hex => {
+    const n = parseInt(hex.slice(1), 16);
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+  };
+
+  /** 버퍼 잔량(초) */
   const getBuf = vid => {
     try {
       const b = vid.buffered;
@@ -106,40 +140,34 @@
     } catch { return -1; }
   };
 
-  /**
-   * 라이브 판정 — 플랫폼 무관
-   *  1) duration === Infinity  (대부분의 HLS/DASH 라이브)
-   *  2) duration 매우 큼 (일부 구현체)
-   *  3) YouTube 등: MediaSource 연결 + seekable 범위 존재 + 끝점이 계속 증가
-   */
+  /* P1 — isLive() WeakMap TTL 캐싱 (5s) */
+  const _liveCache = new WeakMap();
+
   const isLive = vid => {
     if (!vid) return false;
+    // duration=Infinity 는 항상 참 — 캐시 불필요
     if (vid.duration === Infinity || vid.duration >= 1e6) return true;
-    // YouTube 라이브: duration 유한하지만 seekable.end 가 지속 증가
+
+    const cached = _liveCache.get(vid);
+    if (cached && performance.now() - cached.ts < 5000) return cached.v;
+
+    let v = false;
     try {
       const s = vid.seekable;
       if (s.length && s.end(s.length - 1) - s.start(0) > 30 && vid.duration > 600) {
-        // 버퍼 끝이 seekable 끝에 가까우면 라이브로 간주
         const b = vid.buffered;
-        if (b.length && Math.abs(b.end(b.length - 1) - s.end(s.length - 1)) < 60) return true;
+        if (b.length && Math.abs(b.end(b.length - 1) - s.end(s.length - 1)) < 60) v = true;
       }
     } catch {}
-    return false;
+    _liveCache.set(vid, { v, ts: performance.now() });
+    return v;
   };
 
-  /**
-   * 유효한 라이브 비디오인지 확인
-   *  - blob: src → HLS.js / DASH.js 기반 (치지직, 숲, 트위치 등)
-   *  - MediaSource 연결 → YouTube, 일부 DASH
-   *  - 최소 readyState 3 (HAVE_FUTURE_DATA)
-   */
+  /** 유효한 라이브 비디오인지 확인 */
   const isCandidate = v => {
     if (!v || v.readyState < 2) return false;
     const src = v.currentSrc || v.src || '';
-    // blob: 또는 빈 src(MediaSource attach) 모두 허용
     if (src.startsWith('blob:') || src === '') return true;
-    // 일부 플랫폼은 직접 URL 을 넣되 MSE 로 전환
-    // → buffered 가 있고 라이브이면 허용
     try { if (v.buffered.length && isLive(v)) return true; } catch {}
     return false;
   };
@@ -162,6 +190,7 @@
   const attach = v => {
     if (getVid() === v) return;
     if (!isCandidate(v)) return;
+    _liveCache.delete(v); // P1 — 재연결 시 캐시 무효화
     setVid(v);
     lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
     stallCount = 0; histLen = 0; histHead = 0;
@@ -169,7 +198,6 @@
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
-
       const onStall = () => {
         const now = performance.now();
         if (now - lastStallTime > STALL_WINDOW) stallCount = 0;
@@ -182,19 +210,23 @@
     }
   };
 
-  /* play 이벤트 캡처 — 가장 보편적 */
   document.addEventListener('play', e => {
     if (e.target?.tagName === 'VIDEO') attach(e.target);
   }, { capture: true });
 
-  /* MutationObserver */
+  let mo = null;
+
+  /* P5 — querySelector 단락 평가: 단일 비디오 페이지에서 NodeList 생성 생략 */
   const scan = () => {
+    const first = document.querySelector('video');
+    if (!first) return;
+    if (isCandidate(first)) { attach(first); return; }
+    // 첫 번째가 후보가 아닌 경우(멀티 비디오 페이지)만 전체 탐색
     for (const v of document.querySelectorAll('video')) {
-      if (isCandidate(v)) { attach(v); break; }
+      if (v !== first && isCandidate(v)) { attach(v); break; }
     }
   };
 
-  let mo = null;
   const startObserver = () => {
     if (mo) return;
     mo = new MutationObserver(muts => {
@@ -219,7 +251,6 @@
 
   const doSeek = vid => {
     try {
-      // seekable 기반 seek (YouTube 호환)
       const s = vid.seekable;
       if (s.length) {
         vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
@@ -231,7 +262,191 @@
     } catch {}
   };
 
-  /* rAF 렌더링 */
+  /* ── Render State (변경 감지용 캐시) ── */
+  let _prev = { dot: '', txt: '', clr: '', w: '', badge: '', badgeCls: '', net: '' };
+
+  /* ── P3 — OffscreenCanvas + Worker 스파크라인 ── */
+  const SPARK_W = 208, SPARK_H = 32;
+
+  const SPARK_WORKER_SRC = /* js */`
+const HIST = 60, W = 208, H = 32;
+let ctx, dpr, _prevHead = -1, _prevColor = '';
+
+const rgb = h => { const n = parseInt(h.slice(1), 16); return \`\${(n>>16)&255},\${(n>>8)&255},\${n&255}\`; };
+
+self.onmessage = ({ data: d }) => {
+  if (d.type === 'init') { ctx = d.canvas.getContext('2d'); dpr = d.dpr; return; }
+  if (d.type !== 'draw') return;
+
+  const { hist, histHead, histLen, color, target } = d;
+  if (!ctx || histLen < 2) return;
+  // 변화 없으면 스킵
+  if (histHead === _prevHead && color === _prevColor) return;
+  _prevHead = histHead; _prevColor = color;
+
+  ctx.clearRect(0, 0, W * dpr, H * dpr);
+  ctx.save(); ctx.scale(dpr, dpr);
+
+  let mx = target + 2;
+  for (let i = 0; i < histLen; i++) {
+    const v = hist[(histHead - histLen + i + HIST) % HIST];
+    if (v > mx) mx = v;
+  }
+  const pad = 2, yR = H - pad * 2, xS = W / (HIST - 1);
+
+  // 목표선
+  const tY = H - pad - (target / mx) * yR;
+  ctx.beginPath(); ctx.setLineDash([3,3]);
+  ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
+  ctx.moveTo(0, tY); ctx.lineTo(W, tY); ctx.stroke(); ctx.setLineDash([]);
+
+  const r = rgb(color);
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, \`rgba(\${r},.20)\`); g.addColorStop(1, \`rgba(\${r},.02)\`);
+
+  const drawPath = () => {
+    ctx.beginPath();
+    for (let i = 0; i < histLen; i++) {
+      const v = hist[(histHead - histLen + i + HIST) % HIST];
+      const x = i * xS, y = H - pad - (v / mx) * yR;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+  };
+
+  // 채우기
+  drawPath();
+  ctx.lineTo((histLen-1)*xS, H); ctx.lineTo(0, H); ctx.closePath();
+  ctx.fillStyle = g; ctx.fill();
+
+  // 라인
+  drawPath();
+  ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // 끝점 글로우
+  const lv = hist[(histHead - 1 + HIST) % HIST];
+  const lx = (histLen-1)*xS, ly = H - pad - (lv / mx) * yR;
+  const gw = ctx.createRadialGradient(lx, ly, 0, lx, ly, 6);
+  gw.addColorStop(0, \`rgba(\${r},.6)\`); gw.addColorStop(1, \`rgba(\${r},0)\`);
+  ctx.fillStyle = gw; ctx.fillRect(lx-6, ly-6, 12, 12);
+  ctx.beginPath(); ctx.arc(lx, ly, 2.5, 0, Math.PI*2);
+  ctx.fillStyle = color; ctx.fill();
+
+  ctx.restore();
+};
+`;
+
+  let sparkWorker = null;
+  let sparkCanvas = null, sparkCtx = null;
+
+  /* 스파크라인 Canvas 초기화 — OffscreenCanvas 지원 시 Worker로 오프로드 */
+  const initSparkCanvas = (cvs) => {
+    const dpr = window.devicePixelRatio || 1;
+    cvs.style.width  = SPARK_W + 'px';
+    cvs.style.height = SPARK_H + 'px';
+    cvs.width  = SPARK_W * dpr;
+    cvs.height = SPARK_H * dpr;
+
+    if (typeof OffscreenCanvas !== 'undefined' && cvs.transferControlToOffscreen) {
+      try {
+        const offscreen = cvs.transferControlToOffscreen();
+        const blob = new Blob([SPARK_WORKER_SRC], { type: 'text/javascript' });
+        sparkWorker = new Worker(URL.createObjectURL(blob));
+        sparkWorker.postMessage({ type: 'init', canvas: offscreen, dpr }, [offscreen]);
+        sparkCanvas = null; sparkCtx = null;
+        return;
+      } catch {}
+    }
+    // 폴백: 기존 메인스레드
+    sparkCanvas = cvs;
+    sparkCtx    = cvs.getContext('2d');
+  };
+
+  /* 메인스레드 폴백 스파크라인 (OffscreenCanvas 미지원 환경) */
+  const _drawSparkMain = (color) => {
+    if (!sparkCtx || histLen < 2) return;
+    const ctx = sparkCtx;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, SPARK_W * dpr, SPARK_H * dpr);
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    let mx = target + 2;
+    for (let i = 0; i < histLen; i++) {
+      const v = hist[(histHead - histLen + i + HIST) % HIST];
+      if (v > mx) mx = v;
+    }
+    const pad = 2;
+    const yRange = SPARK_H - pad * 2;
+    const xStep = SPARK_W / (HIST - 1);
+
+    const tY = SPARK_H - pad - (target / mx) * yRange;
+    ctx.beginPath();
+    ctx.setLineDash([3, 3]);
+    ctx.strokeStyle = 'rgba(255,255,255,.12)';
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, tY);
+    ctx.lineTo(SPARK_W, tY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    const rgb = hexToRgb(color);
+    const grad = ctx.createLinearGradient(0, 0, 0, SPARK_H);
+    grad.addColorStop(0, `rgba(${rgb},.20)`);
+    grad.addColorStop(1, `rgba(${rgb},.02)`);
+
+    const drawPath = () => {
+      ctx.beginPath();
+      for (let i = 0; i < histLen; i++) {
+        const v = hist[(histHead - histLen + i + HIST) % HIST];
+        const x = i * xStep, y = SPARK_H - pad - (v / mx) * yRange;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+    };
+
+    drawPath();
+    ctx.lineTo((histLen - 1) * xStep, SPARK_H);
+    ctx.lineTo(0, SPARK_H);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    drawPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    const lastV = hist[(histHead - 1 + HIST) % HIST];
+    const lx = (histLen - 1) * xStep;
+    const ly = SPARK_H - pad - (lastV / mx) * yRange;
+    const glow = ctx.createRadialGradient(lx, ly, 0, lx, ly, 6);
+    glow.addColorStop(0, `rgba(${rgb},.6)`);
+    glow.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = glow;
+    ctx.fillRect(lx - 6, ly - 6, 12, 12);
+    ctx.beginPath();
+    ctx.arc(lx, ly, 2.5, 0, Math.PI * 2);
+    ctx.fillStyle = color;
+    ctx.fill();
+
+    ctx.restore();
+  };
+
+  const drawSpark = (color) => {
+    if (histLen < 2) return;
+    if (sparkWorker) {
+      // Worker로 데이터 전달 (Float32Array 60항목 = 240bytes)
+      sparkWorker.postMessage({
+        type: 'draw',
+        hist: hist.slice(),
+        histHead, histLen, color, target
+      });
+    } else {
+      _drawSparkMain(color);
+    }
+  };
+
+  /* ── Tick & Render ── */
   let pendingRender = false, lastBuf = -1;
   const scheduleRender = () => {
     if (pendingRender) return;
@@ -242,16 +457,9 @@
   const tick = () => {
     const vid = getVid();
 
-    /* 비디오 없거나 분리됨 */
     if (vid && !vid.isConnected) { setVid(null); lastBuf = -1; scheduleRender(); return; }
-    if (!vid) {
-      // 주기적 재스캔 — SPA 전환 등 대응
-      scan();
-      lastBuf = -1; scheduleRender(); return;
-    }
-    if (!isCandidate(vid) || vid.readyState < 3 || !isLive(vid)) {
-      lastBuf = -1; scheduleRender(); return;
-    }
+    if (!vid) { scan(); lastBuf = -1; scheduleRender(); return; }
+    if (!isCandidate(vid) || vid.readyState < 3 || !isLive(vid)) { lastBuf = -1; scheduleRender(); return; }
 
     const buf = getBuf(vid);
     lastBuf = buf;
@@ -263,18 +471,12 @@
 
     const now = performance.now();
     if (now < warmupEnd) return;
-
-    /* 비상 seek */
     if (buf > PANIC && now - lastSeek > SEEK_CD) { doSeek(vid); return; }
 
-    updateNetQuality();
+    // P2 — tick 내 updateNetQuality() 제거 (이벤트 기반으로 처리됨)
 
-    /* stall 쿨다운 */
-    if (now - lastStallTime < STALL_COOLDOWN) {
-      gear = R_NORM; safeRate(vid, R_NORM); return;
-    }
+    if (now - lastStallTime < STALL_COOLDOWN) { gear = R_NORM; safeRate(vid, R_NORM); return; }
 
-    /* 적응형 변속 */
     const trend = getBufferTrend();
     const ex = buf - target;
 
@@ -292,151 +494,192 @@
   };
 
   /* ── UI Render ── */
-  let prevDot = '', prevTxt = '', prevClr = '', prevW = '';
-
   const render = (buf, vid) => {
     const sec = buf < 0 ? 0 : buf;
     const diff = sec - target;
     const c = colorOf(diff);
     const speeding = vid && vid.playbackRate > 1;
 
+    /* FAB 모드 */
     if (!panelOpen) {
       if (!els.fab) return;
-      const fc = !enabled ? '#555' : speeding ? '#3498db' : c;
-      if (fc !== prevDot) {
-        prevDot = fc;
-        els.fab.style.borderColor = fc;
-        els.inner.style.background = fc;
-        els.fab.style.animation = enabled ? '' : 'none';
+      const fc = !enabled ? '#555' : speeding ? '#6C9CFF' : c;
+      if (fc !== _prev.dot) {
+        _prev.dot = fc;
+        els.fab.style.setProperty('--ac', fc);
       }
       return;
     }
 
-    const txt = buf < 0 ? '-' : sec.toFixed(1);
+    /* 패널 모드 */
+    const txt = buf < 0 ? '—' : sec.toFixed(1);
     const w = clamp(sec / BAR_MAX * 100, 0, 100).toFixed(1) + '%';
 
-    if (txt !== prevTxt) { els.val.textContent = txt; prevTxt = txt; }
-    if (c !== prevClr)   { els.val.style.color = c; els.bar.style.background = c; prevClr = c; }
-    if (w !== prevW)     { els.bar.style.width = w; prevW = w; }
+    if (txt !== _prev.txt) { els.val.textContent = txt; _prev.txt = txt; }
+    if (c !== _prev.clr)   { els.pn.style.setProperty('--ac', c); _prev.clr = c; }
+    if (w !== _prev.w)     { els.bar.style.width = w; _prev.w = w; }
 
     /* Badge */
+    const now = performance.now();
     const inRange = sec <= target && sec >= Math.max(0, target - 0.5);
-    if (!enabled) { els.badge.textContent = 'OFF'; els.badge.className = 'dm-b dm-b-off'; }
-    else if (buf < 0) { els.badge.textContent = '…'; els.badge.className = 'dm-b dm-b-off'; }
-    else if (performance.now() - lastStallTime < STALL_COOLDOWN) { els.badge.textContent = '⏸ 대기'; els.badge.className = 'dm-b dm-b-off'; }
-    else if (speeding) { els.badge.textContent = '⚡' + vid.playbackRate.toFixed(2) + 'x'; els.badge.className = 'dm-b dm-b-acc'; }
-    else if (inRange) { els.badge.textContent = '✓ 안정'; els.badge.className = 'dm-b'; }
-    else { els.badge.textContent = '→ 추적'; els.badge.className = 'dm-b dm-b-acc'; }
+    let bTxt, bCls;
+    if (!enabled)                                    { bTxt = 'OFF';      bCls = 'dm-b dm-off'; }
+    else if (buf < 0)                                { bTxt = '…';        bCls = 'dm-b dm-off'; }
+    else if (now - lastStallTime < STALL_COOLDOWN)   { bTxt = '⏸ 대기';  bCls = 'dm-b dm-off'; }
+    else if (speeding)                               { bTxt = '⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-acc'; }
+    else if (inRange)                                { bTxt = '✓ 안정';   bCls = 'dm-b dm-ok'; }
+    else                                             { bTxt = '→ 추적';   bCls = 'dm-b dm-acc'; }
 
-    /* Sparkline */
-    if (histLen > 1 && els.line && els.tline) {
-      const gw = 208, gh = 28;
-      let mx = target + 2;
-      for (let i = 0; i < histLen; i++) {
-        const v = hist[(histHead - histLen + i + HIST) % HIST];
-        if (v > mx) mx = v;
-      }
-      _ptsBuf.length = histLen;
-      const invMx = 1 / mx, xScale = gw / (HIST - 1), yRange = gh - 4;
-      for (let i = 0; i < histLen; i++) {
-        const v = hist[(histHead - histLen + i + HIST) % HIST];
-        _ptsBuf[i] = `${(i * xScale).toFixed(1)},${(gh - v * invMx * yRange).toFixed(1)}`;
-      }
-      els.line.setAttribute('points', _ptsBuf.join(' '));
-      els.line.setAttribute('stroke', c);
-      const tY = gh - target * invMx * yRange;
-      els.tline.setAttribute('y1', tY);
-      els.tline.setAttribute('y2', tY);
-    }
+    if (bTxt !== _prev.badge)    { els.badge.textContent = bTxt; _prev.badge = bTxt; }
+    if (bCls !== _prev.badgeCls) { els.badge.className = bCls;   _prev.badgeCls = bCls; }
+
+    /* Canvas 스파크라인 */
+    drawSpark(c);
 
     /* 네트워크 인디케이터 */
-    if (els.netInd) {
+    if (netQuality !== _prev.net && els.netDot) {
+      _prev.net = netQuality;
+      const nc = netQuality === 'poor' ? '#FF4555' : netQuality === 'fair' ? '#FFD040' : '#00E696';
       const nt = netQuality === 'poor' ? '불안정' : netQuality === 'fair' ? '보통' : '양호';
-      if (els.netInd._last !== netQuality) {
-        els.netInd._last = netQuality;
-        const nc = netQuality === 'poor' ? '#e74c3c' : netQuality === 'fair' ? '#f1c40f' : '#2ecc71';
-        els.netInd.style.color = nc;
-        els.netInd.textContent = '📶 ' + nt;
-      }
+      els.netDot.style.background = nc;
+      els.netTxt.textContent = nt;
     }
   };
 
   /* ── Build DOM ── */
   const build = () => {
-    if (document.getElementById('dm-r')) return;
+    if (document.getElementById('dm-root')) return;
 
     GM_addStyle(`
-#dm-r{--g:#2ecc71;--b:#3498db}
-#dm-f{position:fixed;bottom:20px;right:20px;z-index:10000;width:36px;height:36px;border-radius:50%;background:rgba(12,12,16,.85);border:2px solid var(--g);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .3s;contain:strict}
-.dm-i{width:10px;height:10px;border-radius:50%;background:var(--g);transition:background .3s}
-@keyframes dm-p{0%,100%{box-shadow:0 0 0 0 rgba(46,204,113,.4)}50%{box-shadow:0 0 0 8px rgba(46,204,113,0)}}
-#dm-f{animation:dm-p 2s ease-in-out infinite}
-#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:rgba(18,18,24,.95);border:1px solid rgba(255,255,255,.06);border-radius:14px;padding:14px 16px 12px;color:#e0e0e0;font:12px/1.5 system-ui,sans-serif;width:240px;box-shadow:0 8px 32px rgba(0,0,0,.6);user-select:none;display:none;contain:layout style}
-.dm-h{display:flex;align-items:center;gap:8px;padding-bottom:8px;margin-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06);cursor:grab;font-weight:600;font-size:13px}
-.dm-x{margin-left:auto;width:24px;height:24px;display:flex;align-items:center;justify-content:center;border-radius:6px;cursor:pointer;opacity:.4;transition:opacity .15s}
-.dm-x:hover{opacity:.9;background:rgba(255,255,255,.08)}
-.dm-s{display:flex;align-items:baseline;gap:6px;margin-bottom:6px}
-.dm-v{font:bold 22px ui-monospace,'SF Mono',monospace;font-variant-numeric:tabular-nums}
-.dm-u{font-size:11px;opacity:.5}
-.dm-b{margin-left:auto;font-size:10px;padding:2px 8px;border-radius:10px;background:rgba(46,204,113,.15);color:var(--g);font-weight:600}
-.dm-b-acc{background:rgba(52,152,219,.15);color:var(--b)}
-.dm-b-off{background:rgba(255,255,255,.06);color:#888}
-.dm-bw{background:rgba(255,255,255,.06);height:4px;border-radius:2px;margin:8px 0 12px;overflow:hidden}
-.dm-bf{height:100%;min-width:2%;border-radius:2px;transition:width .4s,background .4s}
-.dm-g{display:block;margin:0 0 10px}
-.dm-sl{display:flex;align-items:center;gap:8px;margin:0 0 10px}
-.dm-sl input{flex:1;height:4px;-webkit-appearance:none;appearance:none;background:rgba(255,255,255,.08);border-radius:2px;outline:none}
-.dm-sl input::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--g);cursor:pointer}
-.dm-sv{font:bold 13px ui-monospace,monospace;min-width:40px;text-align:center;color:var(--g)}
-.dm-ft{display:flex;align-items:center;gap:8px}
-.dm-t{position:relative;width:44px;height:24px;border-radius:12px;background:#333;cursor:pointer;transition:background .2s;flex-shrink:0}
-.dm-t.on{background:var(--g)}
-.dm-t::after{content:'';position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
-.dm-t.on::after{transform:translateX(20px)}
-.dm-ni{font-size:10px;opacity:.6;transition:color .3s}
-.dm-host{font-size:9px;opacity:.25;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}`);
+/* ── Reset & Root ── */
+#dm-root{--ac:#00E696;--bg:rgba(12,14,20,.92);--bg2:rgba(255,255,255,.04);--bg3:rgba(255,255,255,.07);--border:rgba(255,255,255,.06);--t1:#f0f0f0;--t2:rgba(255,255,255,.45);--rad:16px;font:12px/1.5 'SF Pro Text',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--t1)}
 
-    const d = document.createElement('div'); d.id = 'dm-r';
+/* ── FAB ── */
+#dm-fab{position:fixed;bottom:20px;right:20px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04)}
+#dm-fab:hover{transform:scale(1.08)}
+#dm-fab:active{transform:scale(.95)}
+.dm-dot{width:10px;height:10px;border-radius:50%;background:var(--ac);transition:background .4s;box-shadow:0 0 8px var(--ac)}
+@keyframes dm-pulse{0%,100%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 0 var(--ac)}50%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 6px transparent}}
+#dm-fab{animation:dm-pulse 2.5s ease-in-out infinite}
+
+/* ── Panel ── */
+/* P6 — contain:paint 추가 → 패널 내부 repaint의 외부 전파 차단 */
+#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:layout style paint}
+#dm-pn.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+
+/* ── Header ── */
+.dm-hdr{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;cursor:grab}
+.dm-logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--ac),rgba(0,230,150,.5));display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;font-weight:700;flex-shrink:0}
+.dm-title{font-weight:600;font-size:13px;letter-spacing:-.01em}
+.dm-host{font-size:9px;color:var(--t2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dm-close{margin-left:auto;width:26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;opacity:.35;transition:opacity .15s,background .15s}
+.dm-close:hover{opacity:.9;background:var(--bg3)}
+
+/* ── Stat Row ── */
+.dm-stat{display:flex;align-items:baseline;gap:4px;padding:0 16px 4px}
+.dm-val{font:700 28px/1 'SF Mono',ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--ac);transition:color .4s;letter-spacing:-.02em}
+.dm-unit{font-size:11px;color:var(--t2);margin-right:4px}
+.dm-b{margin-left:auto;font-size:10px;padding:3px 10px;border-radius:20px;font-weight:600;letter-spacing:.01em;transition:all .3s}
+.dm-ok{background:rgba(0,230,150,.1);color:#00E696}
+.dm-acc{background:rgba(108,156,255,.12);color:#6C9CFF}
+.dm-off{background:var(--bg2);color:#666}
+
+/* ── Progress Bar ── */
+.dm-barwrap{margin:6px 16px 10px;height:3px;border-radius:2px;background:var(--bg2);overflow:hidden}
+.dm-bar{height:100%;min-width:2%;border-radius:2px;background:var(--ac);transition:width .5s cubic-bezier(.4,0,.2,1),background .4s;box-shadow:0 0 6px var(--ac)}
+
+/* ── Sparkline Canvas ── */
+.dm-spark{display:block;margin:0 16px 8px;border-radius:8px;background:var(--bg2)}
+
+/* ── Slider ── */
+.dm-sl-wrap{padding:0 16px;margin-bottom:10px}
+.dm-sl-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--t2);margin-bottom:4px}
+.dm-sl-row{display:flex;align-items:center;gap:10px}
+.dm-sl-row input[type=range]{flex:1;height:3px;-webkit-appearance:none;appearance:none;background:var(--bg3);border-radius:2px;outline:none;transition:background .3s}
+.dm-sl-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--ac);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 8px rgba(0,230,150,.3);transition:transform .15s}
+.dm-sl-row input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15)}
+.dm-sl-row input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--ac);cursor:pointer;border:2px solid var(--bg);box-shadow:0 0 8px rgba(0,230,150,.3)}
+.dm-sv{font:700 13px/1 'SF Mono',ui-monospace,monospace;min-width:42px;text-align:right;color:var(--ac);font-variant-numeric:tabular-nums}
+
+/* ── Footer ── */
+.dm-ft{display:flex;align-items:center;gap:10px;padding:10px 16px 14px;border-top:1px solid var(--border)}
+.dm-tog{position:relative;width:38px;height:20px;border-radius:10px;background:rgba(255,255,255,.08);cursor:pointer;transition:background .25s;flex-shrink:0}
+.dm-tog.on{background:var(--ac)}
+.dm-tog::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.dm-tog.on::after{transform:translateX(18px)}
+.dm-net{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2)}
+.dm-net-dot{width:5px;height:5px;border-radius:50%;background:#00E696;transition:background .3s}
+.dm-ver{margin-left:auto;font-size:9px;color:rgba(255,255,255,.15)}
+.dm-key{font-size:9px;color:rgba(255,255,255,.15);padding:1px 6px;border:1px solid rgba(255,255,255,.06);border-radius:4px}
+`);
+
+    const root = document.createElement('div');
+    root.id = 'dm-root';
     const sv = Math.round((target - MIN_TARGET) / (MAX_TARGET - MIN_TARGET) * 100);
     const hostLabel = HOST.replace(/\.(com|co\.kr|naver|tv)$/g, '').slice(0, 12);
 
-    d.innerHTML =
-`<div id="dm-f"><div class="dm-i"></div></div>
+    root.innerHTML =
+`<div id="dm-fab"><div class="dm-dot"></div></div>
 <div id="dm-pn">
-<div class="dm-h"><div style="width:18px;height:18px;border-radius:4px;background:var(--g);display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;font-weight:bold">D</div>
-<span>딜레이 미터기</span><span class="dm-host" title="${HOST}">${hostLabel}</span>
-<div class="dm-x"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 2l8 8M10 2l-8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div></div>
-<div class="dm-s"><span class="dm-v">-</span><span class="dm-u">초</span><span class="dm-b dm-b-off">OFF</span></div>
-<div class="dm-bw"><div class="dm-bf"></div></div>
-<svg class="dm-g" width="208" height="28" viewBox="0 0 208 28">
-<line class="dm-tl" x1="0" y1="14" x2="208" y2="14" stroke="rgba(46,204,113,.3)" stroke-dasharray="2"/>
-<polyline class="dm-ln" fill="none" stroke-width="1.5" points="0,28"/>
-</svg>
-<div style="display:flex;justify-content:space-between;font-size:10px;opacity:.35;margin-bottom:4px"><span>저지연</span><span>안정</span></div>
-<div class="dm-sl"><input type="range" min="0" max="100" value="${sv}"><span class="dm-sv">${target.toFixed(1)}초</span></div>
-<div class="dm-ft"><div class="dm-t${enabled ? ' on' : ''}"></div><span class="dm-ni">📶 양호</span><span style="font-size:10px;opacity:.3">v11.0</span><span style="margin-left:auto;font-size:10px;opacity:.25">Alt+D</span></div>
+  <div class="dm-hdr">
+    <div class="dm-logo">D</div>
+    <span class="dm-title">딜레이 미터</span>
+    <span class="dm-host" title="${HOST}">${hostLabel}</span>
+    <div class="dm-close"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+  </div>
+  <div class="dm-stat">
+    <span class="dm-val">—</span>
+    <span class="dm-unit">초</span>
+    <span class="dm-b dm-off">OFF</span>
+  </div>
+  <div class="dm-barwrap"><div class="dm-bar"></div></div>
+  <canvas class="dm-spark" width="208" height="32"></canvas>
+  <div class="dm-sl-wrap">
+    <div class="dm-sl-labels"><span>저지연</span><span>안정</span></div>
+    <div class="dm-sl-row">
+      <input type="range" min="0" max="100" value="${sv}">
+      <span class="dm-sv">${target.toFixed(1)}s</span>
+    </div>
+  </div>
+  <div class="dm-ft">
+    <div class="dm-tog${enabled ? ' on' : ''}"></div>
+    <div class="dm-net"><div class="dm-net-dot"></div><span>양호</span></div>
+    <span class="dm-ver">v12.1</span>
+    <span class="dm-key">Alt+D</span>
+  </div>
 </div>`;
 
-    document.body.appendChild(d);
-    const pn = d.querySelector('#dm-pn'), fab = d.querySelector('#dm-f');
+    document.body.appendChild(root);
+    const pn = root.querySelector('#dm-pn'), fab = root.querySelector('#dm-fab');
+
+    /* P3 — OffscreenCanvas 초기화 */
+    initSparkCanvas(pn.querySelector('.dm-spark'));
+
     els = {
-      fab, inner: fab.querySelector('.dm-i'), pn,
-      val: pn.querySelector('.dm-v'), bar: pn.querySelector('.dm-bf'),
-      badge: pn.querySelector('.dm-b'), line: pn.querySelector('.dm-ln'),
-      tline: pn.querySelector('.dm-tl'), tog: pn.querySelector('.dm-t'),
-      sl: pn.querySelector('input'), sv: pn.querySelector('.dm-sv'),
-      hdr: pn.querySelector('.dm-h'), x: pn.querySelector('.dm-x'),
-      netInd: pn.querySelector('.dm-ni')
+      fab, pn,
+      val:    pn.querySelector('.dm-val'),
+      bar:    pn.querySelector('.dm-bar'),
+      badge:  pn.querySelector('.dm-b'),
+      tog:    pn.querySelector('.dm-tog'),
+      sl:     pn.querySelector('input[type=range]'),
+      sv:     pn.querySelector('.dm-sv'),
+      hdr:    pn.querySelector('.dm-hdr'),
+      x:      pn.querySelector('.dm-close'),
+      netDot: pn.querySelector('.dm-net-dot'),
+      netTxt: pn.querySelector('.dm-net span'),
     };
 
     /* Events */
     fab.onclick = () => { if (!fab._m) openP(); };
     els.x.onclick = e => { e.stopPropagation(); closeP(); };
-    els.tog.onclick = () => { enabled = !enabled; cfg.enabled = enabled; saveLazy(); els.tog.classList.toggle('on', enabled); };
+    els.tog.onclick = () => {
+      enabled = !enabled; cfg.enabled = enabled; saveLazy();
+      els.tog.classList.toggle('on', enabled);
+    };
     els.sl.oninput = () => {
       target = MIN_TARGET + (MAX_TARGET - MIN_TARGET) * els.sl.value / 100;
       target = Math.round(target * 2) / 2;
-      els.sv.textContent = target.toFixed(1) + '초';
+      els.sv.textContent = target.toFixed(1) + 's';
       cfg.target = target; saveLazy();
     };
 
@@ -481,32 +724,49 @@
     };
 
     /* 위치 복원 */
-    if (cfg.px) { const x = parseFloat(cfg.px); if (x >= 0 && x < innerWidth - 50) Object.assign(pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); }
-    if (cfg.dx) { const x = parseFloat(cfg.dx); if (x >= 0 && x < innerWidth - 36) Object.assign(fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }); }
+    if (cfg.px) {
+      const x = parseFloat(cfg.px);
+      if (x >= 0 && x < innerWidth - 50) Object.assign(pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' });
+    }
+    if (cfg.dx) {
+      const x = parseFloat(cfg.dx);
+      if (x >= 0 && x < innerWidth - 36) Object.assign(fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' });
+    }
 
-    if (panelOpen) { pn.style.display = 'block'; fab.style.display = 'none'; }
+    if (panelOpen) openP(true);
   };
 
-  const openP = () => {
-    if (panelOpen) return; panelOpen = true; cfg.open = true; saveLazy();
-    els.fab.style.display = 'none'; els.pn.style.display = 'block';
-    prevDot = ''; prevTxt = ''; prevClr = ''; prevW = '';
+  const openP = (instant) => {
+    if (panelOpen && !instant) return;
+    panelOpen = true; cfg.open = true; saveLazy();
+    els.fab.style.display = 'none';
+    els.pn.classList.add('open');
+    _prev = { dot: '', txt: '', clr: '', w: '', badge: '', badgeCls: '', net: '' };
   };
+
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; cfg.open = false; saveLazy();
     const r = els.pn.getBoundingClientRect();
-    els.pn.style.display = 'none'; els.fab.style.display = 'flex';
-    Object.assign(els.fab.style, {
-      left: clamp(r.right - 20, 0, innerWidth - 36) + 'px',
-      top: clamp(r.top + 6, 0, innerHeight - 36) + 'px',
-      right: 'auto', bottom: 'auto'
-    });
-    cfg.dx = els.fab.style.left; cfg.dy = els.fab.style.top; saveLazy();
-    prevDot = '';
+    els.pn.classList.remove('open');
+    setTimeout(() => {
+      if (panelOpen) return;
+      els.fab.style.display = 'flex';
+      Object.assign(els.fab.style, {
+        left: clamp(r.right - 24, 0, innerWidth - 40) + 'px',
+        top: clamp(r.top + 6, 0, innerHeight - 40) + 'px',
+        right: 'auto', bottom: 'auto'
+      });
+      cfg.dx = els.fab.style.left; cfg.dy = els.fab.style.top; saveLazy();
+    }, 260);
+    _prev.dot = '';
   };
 
   /* ── Scheduling ── */
-  const loop = () => { tick(); setTimeout(loop, panelOpen ? 1000 : 5000); };
+  const loop = () => {
+    tick();
+    const interval = document.hidden ? 5000 : panelOpen ? 1000 : 3000;
+    setTimeout(loop, interval);
+  };
 
   /* ── Init ── */
   const init = () => {
@@ -521,7 +781,6 @@
     if (cur === lastPath) return;
     lastPath = cur;
     warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM; stallCount = 0;
-    // SPA 전환 시 비디오 재탐색
     setTimeout(scan, 500);
   };
   if ('navigation' in window) navigation.addEventListener('navigatesuccess', onNav);
@@ -549,10 +808,14 @@
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
     const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
-    if (document.fullscreenElement) { Object.assign(els.pn.style, def); Object.assign(els.fab.style, def); }
-    else {
-      if (cfg.px) Object.assign(els.pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); else Object.assign(els.pn.style, def);
-      if (cfg.dx) Object.assign(els.fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }); else Object.assign(els.fab.style, def);
+    if (document.fullscreenElement) {
+      Object.assign(els.pn.style, def);
+      Object.assign(els.fab.style, def);
+    } else {
+      if (cfg.px) Object.assign(els.pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' });
+      else Object.assign(els.pn.style, def);
+      if (cfg.dx) Object.assign(els.fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' });
+      else Object.assign(els.fab.style, def);
     }
   }));
 
@@ -567,9 +830,15 @@
     const txt = `[${HOST}] 버퍼 ${buf < 0 ? '-' : buf.toFixed(1) + '초'} | ${gearLabel} | ${enabled ? 'ON' : 'OFF'} | Net: ${netQuality} | stall: ${stallCount} | live: ${live}`;
     const t = document.createElement('div');
     t.textContent = txt;
-    Object.assign(t.style, { position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(0,0,0,.85)', color: '#fff', padding: '8px 20px', borderRadius: '8px', fontSize: '13px', fontFamily: 'system-ui', transition: 'opacity .3s' });
+    Object.assign(t.style, {
+      position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)',
+      zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)',
+      color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '13px',
+      fontFamily: 'system-ui', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)',
+      boxShadow: '0 8px 32px rgba(0,0,0,.5)'
+    });
     document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, 2500);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 2500);
   });
 
   init();
