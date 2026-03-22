@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v212.0.0)
+// @name         Video_Control (v213.0.0)
 // @namespace    https://github.com/
-// @version      212.0.0
-// @description  v212.0.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      213.0.0
+// @description  v213.0.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '212.0.0';
+    const VSC_VERSION = '213.0.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -2807,7 +2807,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const body = document.body || document.documentElement;
           if (body) WorkQ.enqueue(body);
           for (const it of shadowRootsLRU) { if (it.host?.isConnected) WorkQ.enqueue(it.root); }
-        }
+        },
+        observeVideo // ✅ 추가
       };
     }
 
@@ -4499,7 +4500,8 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         const ct = v.currentTime;
-        const isStaticFrame = Math.abs(ct - AUTO._lastCurrentTime) < 0.001;
+        const isReadyToPlay = !v.seeking && v.readyState >= 3;
+        const isStaticFrame = isReadyToPlay && Math.abs(ct - AUTO._lastCurrentTime) < 0.001;
         const forceByStatic = AUTO._framesSinceUpdate >= STATIC_SCENE_FORCE_INTERVAL;
 
         if (isStaticFrame && !forceByStatic) {
@@ -4899,7 +4901,13 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           return;
         }
 
-        if (target !== prevTarget || forceApply) { if (prevTarget && prevTarget !== target) FiltersVO.clear(prevTarget); prevTarget = target; window[VSC_INTERNAL_SYM]._activeVideo = target; Audio.setTarget(target); }
+        const targetChanged = target !== prevTarget; // 플래그 추출
+if (targetChanged || forceApply) {
+  if (prevTarget && targetChanged) FiltersVO.clear(prevTarget);
+  prevTarget = target;
+  window[VSC_INTERNAL_SYM]._activeVideo = target;
+  Audio.setTarget(target);
+}
 
         const vfUser = Store.getCatRef('video'); const pbEn = !!Store.get(P.PB_EN); const pbRate = Number(Store.get(P.PB_RATE));
 
@@ -4914,7 +4922,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
           const vst = getVState(v); if (vst.applied) FiltersVO.clear(v);
         }
 
-        if (dirtyMask & 0b0100 || forceApply || target !== prevTarget) {
+        if (dirtyMask & 0b0100 || forceApply || targetChanged) { // ✅ 교체
           if (pbEn) {
             for (const v of TOUCHED.rateVideos) {
               if (!v.isConnected || _targets.has(v)) continue;
@@ -4924,7 +4932,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         for (const v of _targets) {
-          if (dirtyMask & 0b0100 || forceApply || target !== prevTarget) {
+          if (dirtyMask & 0b0100 || forceApply || targetChanged) { // ✅ 교체
             if (pbEn && Number.isFinite(pbRate) && pbRate > 0) {
               const rs = getRateState(v);
               if (!rs.permanentlyBlocked) {
@@ -4943,7 +4951,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 
           if (vst.__abCompare) {
             FiltersVO.clear(v);
-            if (dirtyMask & 0b1000 || forceApply || target !== prevTarget) {
+            if (dirtyMask & 0b1000 || forceApply || targetChanged) { // ✅ 교체
               const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
               const fit = Store.get(P.APP_VID_FIT) || 'contain';
               if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
@@ -4959,7 +4967,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             FiltersVO.applyFilter(v, filterResult);
           }
 
-          if (dirtyMask & 0b1000 || forceApply || target !== prevTarget) {
+          if (dirtyMask & 0b1000 || forceApply || targetChanged) { // ✅ 교체
             const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
             const fit = Store.get(P.APP_VID_FIT) || 'contain';
             if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
@@ -6734,16 +6742,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       const videoAC = new AbortController(); const videoSig = getCombinedSignal(videoAC.signal); st._ac = videoAC;
-      touchedAddLimited(TOUCHED.videos, video, (evicted) => {
-        const evictedState = getVState(evicted);
-        const evictedAC = evictedState._ac;
-        queueMicrotask(() => {
-          if (evictedState._ac !== evictedAC) return;
-          if (!evictedState.bound) return;
-          if (evictedAC) { evictedAC.abort(); evictedState._ac = null; evictedState.bound = false; }
-          vscClearAllStyles(evicted);
-        });
-      });
+      touchedAddLimited(TOUCHED.videos, video);
 
       // 안전한 캐시 삭제 처리로 변경
       on(video, 'resize', () => {
@@ -7394,7 +7393,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '212.0.0'; // 버전 상승
+      const VSC_VERSION_ID = '213.0.0'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -7458,7 +7457,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         if (document.hidden) flushPersist();
       }, { passive: true });
       onWin('pagehide', flushPersist, { passive: true });
-      onWin('beforeunload', flushPersist, { passive: true });
 
       Store.sub(P.APP_VID_ROT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
       Store.sub(P.APP_VID_FIT, () => { const v = window[VSC_INTERNAL_SYM]?._activeVideo; if (v) applyVideoTransform(v, Store); });
@@ -7474,6 +7472,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         let count = 0;
         document.querySelectorAll('video').forEach(v => {
           if (Registry.videos.has(v)) return;
+          Registry.observeVideo(v); // Registry 옵저버에 명시적 등록
           processVideo(v);
           count++;
         });
