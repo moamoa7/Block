@@ -5665,7 +5665,7 @@ ${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) 
 .qbar .qb-sub svg { width: 18px; height: 18px; }
 .qbar .qb-sub:hover svg { stroke: var(--vsc-neon); }
 .qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-neon); outline-offset: 2px; }
-:host-context(:fullscreen) .qbar { opacity: 0.25; transition: opacity 0.3s; pointer-events: auto; }
+:host-context(:fullscreen) .qbar { opacity: 0.4; transition: opacity 0.3s; pointer-events: auto; }
 :host-context(:fullscreen) .qbar:hover, :host-context(:fullscreen) .qbar:active { opacity: 1; pointer-events: auto; }
 :host-context(:fullscreen) .qbar .qb-main { pointer-events: auto; }
 @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
@@ -6945,10 +6945,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
     }
 
     /* ══════════════════════════════════════════════════════════════════
-       createTouchGestureManager
-       ══════════════════════════════════════════════════════════════════ */
-    /* ══════════════════════════════════════════════════════════════════
-       createTouchGestureManager (수정본: 단일 탭 허용)
+       createTouchGestureManager (수정본: 플레이어 컨테이너 전체화면 적용)
        ══════════════════════════════════════════════════════════════════ */
     function createTouchGestureManager(Store, P, ApplyReq) {
       function safePlay(video) {
@@ -7175,11 +7172,9 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
         const video = findVideoInRect(tx, ty);
         if (!video) return;
-
         if (isNativePlayerControl(e)) return;
 
-        // [핵심 패치] 여기서 e.preventDefault()를 호출하지 않아 단일 탭이 네이티브 컨트롤바를 호출하게 둠
-
+        // 의도적으로 클릭 이벤트(컨트롤 토글)를 허용하기 위해 e.preventDefault() 삭제
         touchVideo = video;
         startX = tx; startY = ty;
         initVol = video.volume;
@@ -7226,7 +7221,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           }
         }
 
-        // 제스처 모드로 확정되었을 때만 기본 스크롤 동작 방지
         if (e.cancelable) e.preventDefault();
 
         if (gesture === GS.SWIPE_SEEK) {
@@ -7246,7 +7240,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         if (gesture === GS.SWIPE_BRI) { const newBri = VSC_CLAMP(initBri + normalizedDy * SENSITIVITY_BRI, 0.05, 1.0); applyTouchBrightness(touchVideo, newBri); updateSwipeUI('bri', newBri); }
       }
 
-      /* ── 전체화면 + 가로 방향 잠금 헬퍼 ── */
+      /* ── 전체화면 + 가로 방향 잠금 헬퍼 (UI 유지 수정본) ── */
       async function enterFullscreenLandscape(video) {
         try {
           const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
@@ -7257,14 +7251,32 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
               if (document.exitFullscreen) await document.exitFullscreen();
               else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             } catch (_) {}
-            showOSD('전체화면 종료', 800);
+            if (typeof showOSD === 'function') showOSD('전체화면 종료', 800);
             return;
           }
 
-          const reqFs = video.requestFullscreen || video.webkitRequestFullscreen;
+          // 비디오 화면만 올리지 않고, 사이트 자체 플레이어 컨테이너(조작부 포함)를 찾아서 올립니다.
+          let target = video;
+          const containerSelectors = [
+            '.html5-video-player', // 유튜브
+            '.video-js', '.jwplayer', '.plyr', '.art-video-player',
+            '[data-player]', '.player-container', '#player'
+          ];
+
+          for (const sel of containerSelectors) {
+            const container = video.closest(sel);
+            if (container) { target = container; break; }
+          }
+
+          // 컨테이너가 없다면 VSC의 Wrapper를 사용합니다.
+          if (target === video && video.parentElement && video.parentElement.classList.contains('vsc-fs-wrap')) {
+            target = video.parentElement;
+          }
+
+          const reqFs = target.requestFullscreen || target.webkitRequestFullscreen;
           if (typeof reqFs === 'function') {
             try {
-              const p = reqFs.call(video);
+              const p = reqFs.call(target);
               if (p && typeof p.then === 'function') await p;
             } catch (_) {}
           }
@@ -7279,13 +7291,12 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             } else if (screen.msLockOrientation) {
               screen.msLockOrientation('landscape');
             }
-            showOSD('전체화면 · 가로모드', 1200);
+            if (typeof showOSD === 'function') showOSD('전체화면 · 가로모드', 1200);
           } catch (e) {
-            log.warn('Orientation lock failed:', e.message);
-            showOSD('전체화면 (방향 잠금 미지원)', 1200);
+            if (typeof showOSD === 'function') showOSD('전체화면 (방향 잠금 미지원)', 1200);
           }
         } catch (e) {
-          log.warn('[TouchGesture] enterFullscreenLandscape error:', e.message);
+          log.warn('[TouchGesture] Fullscreen error:', e.message);
         }
       }
 
@@ -7329,7 +7340,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           const now = performance.now(), tapX = e.changedTouches?.[0]?.clientX ?? startX, vRect = video.getBoundingClientRect(), relX = (tapX - vRect.left) / Math.max(1, vRect.width);
 
           if (now - lastTapTime < DOUBLE_TAP_MS) {
-            // [추가됨] 더블탭이 확정되었을 때만 기본 동작(줌 렌더링 등) 방지
             if (e.cancelable) e.preventDefault();
 
             if (seekSide && relX < 0.35 && seekSide === 'left') { doSeek(video, 'left'); }
@@ -7342,7 +7352,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           } else {
             lastTapTime = now; lastTapX = tapX;
             if (seekSide) { if (seekSide === 'left' && relX < 0.35) { doSeek(video, 'left'); lastTapTime = 0; } else if (seekSide === 'right' && relX > 0.65) { doSeek(video, 'right'); lastTapTime = 0; } }
-            // 단일 탭은 preventDefault를 적용하지 않으므로 자연스럽게 클릭 이벤트로 이어집니다.
           }
           cancelGesture(); return;
         }
@@ -7360,7 +7369,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         window.addEventListener('touchend', onTouchEnd, { capture: true, passive: true });
         window.addEventListener('touchcancel', onTouchCancel, { capture: true, passive: true });
         document.addEventListener('fullscreenchange', () => { if (elLpBadge?.classList.contains('show')) ensureLpBadge(); });
-        log.info('[TouchGesture] Mobile touch gesture module initialized (with seek/rect-check)');
       }
 
       function destroy() {
