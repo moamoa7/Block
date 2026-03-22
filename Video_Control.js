@@ -6100,11 +6100,11 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             h('div', { style: 'display:flex;gap:4px' },
               ...[
                 { n: 'OFF',  v: [0,  0,  0,  0  ] },
-                { n: '선명', v: [20, 25,  0,  0  ] },
-                { n: '복원', v: [45, 35,  0,  0  ] },
-                { n: '영화', v: [50, 20, 10, -15 ] },
-                { n: '심야', v: [40, 15,  5,  0 ] },
-                { n: '아트', v: [0,  35, 10, -15 ] },
+                { n: '선명', v: [32, 17,  0,  0  ] },
+                { n: '복원', v: [32, 49,  7,  0  ] },
+                { n: '영화', v: [13, 23, 14, -22 ] },
+                { n: '심야', v: [54, 37,  0, -12  ] },
+                { n: '아트', v: [0,  41, 11, -19 ] },
               ].map(p => {
                 const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
                 btn.onclick = () => {
