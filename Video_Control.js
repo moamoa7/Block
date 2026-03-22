@@ -7282,8 +7282,14 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           /* 전체화면 요청 */
           const reqFs = video.requestFullscreen || video.webkitRequestFullscreen;
           if (typeof reqFs === 'function') {
-            try { await reqFs.call(video); } catch (_) {}
+            try {
+              const p = reqFs.call(video);
+              if (p && typeof p.then === 'function') await p;
+            } catch (_) {}
           }
+
+          /* 전체화면이 완전히 적용되도록 0.1초 대기 (안드로이드 타이밍 이슈 해결) */
+          await new Promise(resolve => setTimeout(resolve, 100));
 
           /* 방향 잠금: landscape */
           try {
@@ -7295,8 +7301,9 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
               screen.msLockOrientation('landscape');
             }
             showOSD('전체화면 · 가로모드', 1200);
-          } catch (_) {
-            /* lock 권한 없는 브라우저(Safari 등)는 전체화면만 */
+          } catch (e) {
+            /* lock 권한 없는 브라우저(Safari 등) 또는 권한 에러 */
+            log.warn('Orientation lock failed:', e.message);
             showOSD('전체화면 (방향 잠금 미지원)', 1200);
           }
         } catch (e) {
