@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.7.0)
+// @name         Video_Control (v211.8.0)
 // @namespace    https://github.com/
-// @version      211.7.0
-// @description  v211.7.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.8.0
+// @description  v211.8.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.7.0';
+    const VSC_VERSION = '211.8.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -6944,6 +6944,9 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       (document.head || document.documentElement).appendChild(style);
     }
 
+    /* ══════════════════════════════════════════════════════════════════
+       createTouchGestureManager
+       ══════════════════════════════════════════════════════════════════ */
     function createTouchGestureManager(Store, P, ApplyReq) {
       function safePlay(video) {
         if (!video || video.readyState < 2) return;
@@ -7258,6 +7261,61 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         if (gesture === GS.SWIPE_BRI) { const newBri = VSC_CLAMP(initBri + normalizedDy * SENSITIVITY_BRI, 0.05, 1.0); applyTouchBrightness(touchVideo, newBri); updateSwipeUI('bri', newBri); }
       }
 
+      /* ── 전체화면 + 가로 방향 잠금 헬퍼 ── */
+      async function enterFullscreenLandscape(video) {
+        try {
+          const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+
+          if (fsEl) {
+            /* 이미 전체화면이면 해제 + 방향 잠금 해제 */
+            try {
+              if (screen.orientation?.unlock) screen.orientation.unlock();
+            } catch (_) {}
+            try {
+              if (document.exitFullscreen) await document.exitFullscreen();
+              else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+            } catch (_) {}
+            showOSD('전체화면 종료', 800);
+            return;
+          }
+
+          /* 전체화면 요청 */
+          const reqFs = video.requestFullscreen || video.webkitRequestFullscreen;
+          if (typeof reqFs === 'function') {
+            try { await reqFs.call(video); } catch (_) {}
+          }
+
+          /* 방향 잠금: landscape */
+          try {
+            if (screen.orientation?.lock) {
+              await screen.orientation.lock('landscape');
+            } else if (screen.lockOrientation) {
+              screen.lockOrientation('landscape');
+            } else if (screen.msLockOrientation) {
+              screen.msLockOrientation('landscape');
+            }
+            showOSD('전체화면 · 가로모드', 1200);
+          } catch (_) {
+            /* lock 권한 없는 브라우저(Safari 등)는 전체화면만 */
+            showOSD('전체화면 (방향 잠금 미지원)', 1200);
+          }
+        } catch (e) {
+          log.warn('[TouchGesture] enterFullscreenLandscape error:', e.message);
+        }
+      }
+
+      /* 전체화면 종료 시 방향 잠금 자동 해제 */
+      document.addEventListener('fullscreenchange', () => {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          try { if (screen.orientation?.unlock) screen.orientation.unlock(); } catch (_) {}
+        }
+      }, { signal: __globalSig });
+      document.addEventListener('webkitfullscreenchange', () => {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+          try { if (screen.orientation?.unlock) screen.orientation.unlock(); } catch (_) {}
+        }
+      }, { signal: __globalSig });
+
       function onTouchEnd(e) {
         if (gesture === GS.IDLE || !touchVideo) { cancelGesture(); return; }
         const video = touchVideo;
@@ -7290,11 +7348,8 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             else if (seekSide && relX > 0.65 && seekSide === 'right') { doSeek(video, 'right'); }
             else if (relX < 0.35) { doSeek(video, 'left'); } else if (relX > 0.65) { doSeek(video, 'right'); }
             else {
-            if (video.paused && video.readyState >= 2) {
-              safePlay(video);
-            } else if (!video.paused) {
-              video.pause();
-              }
+              /* 중앙 더블탭: 전체화면 + 가로모드 진입/해제 */
+              enterFullscreenLandscape(video);
             }
             lastTapTime = 0;
           } else {
