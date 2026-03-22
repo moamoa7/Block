@@ -571,6 +571,7 @@ dcinside.com##ul.cmt_list > li[id^="comment_li_"].ub-content.dory
 ! - - - - - PC
 gall.dcinside.com##.block-disable
 ! - - - - - 모바일
+m.dcinside.com##.block-disable
 gall.dcinside.com##li.block-disable
 ! 디시 뉴스 없애기 (중앙일보)
 ! - - - PC
@@ -6589,3 +6590,4 @@ trand.co.kr#@#[id][style*="background"][style]
 !||analytics*.tiktokw.us
 !||analytics-ipv6.tiktokw.us
 !||analytics.google.com
+
