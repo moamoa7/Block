@@ -6671,7 +6671,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
     }
 
     let __persistTimer = 0;
-    function persistNow() { if (!__Store) return; clearTimer(__persistTimer); __persistTimer = setTimer(() => { try { GM_setValue(STORAGE_KEY, JSON.stringify(buildSaveDataFrom(__Store))); log.debug('[Persist] saved', STORAGE_KEY); } catch (e) { log.warn('[Persist] save error', e); } }, 600); }
+    function persistNow() { if (!__Store) return; clearTimer(__persistTimer); __persistTimer = setTimer(() => { try { GM_setValue(STORAGE_KEY, JSON.stringify(buildSaveDataFrom(__Store))); log.debug('[Persist] saved', STORAGE_KEY); } catch (e) { log.warn('[Persist] save error', e); } }, 100); }
 
     // Patch C+: 페이지 이탈/숨김 시 타이머 무시하고 강제 동기화(Flush)
     const flushPersist = () => {
@@ -7508,6 +7508,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
                     const player = window.jwplayer(playerId);
                     player.on('ready', () => { setTimer(() => { scanAll(); ApplyReq.hard(); }, 300); });
                     player.on('playlistItem', () => {
+                      flushPersist();
                       setTimer(() => {
                         scanAll();
                         for (const v of TOUCHED.videos) { const st = getVState(v); st.audioFailUntil = 0; }
@@ -7529,12 +7530,14 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       };
 
       const rescanDebounced = createDebounced(() => {
+        flushPersist();
         scanAll(); Registry.rescanAll(); ApplyReq.hard();
         const wasBlocked = __rateBlockedSite; __rateBlockedSite = isRateBlockedContext();
         if (wasBlocked && !__rateBlockedSite) { for (const v of TOUCHED.rateVideos) { const rs = getRateState(v); if (rs.permanentlyBlocked && !isVideoEncrypted(v)) { rs.permanentlyBlocked = false; rs._rateRetryCount = 0; rs._totalRetries = 0; } } }
       }, SPA_RESCAN_DEBOUNCE_MS);
 
       initSpaUrlDetector(rescanDebounced);
+      setRecurring(() => { flushPersist(); }, 15000);
       setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
 
       if (document.readyState === 'loading') {
