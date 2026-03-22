@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.8.0)
+// @name         Video_Control (v211.9.0)
 // @namespace    https://github.com/
-// @version      211.8.0
-// @description  v211.8.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.9.0
+// @description  v211.9.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.8.0';
+    const VSC_VERSION = '211.9.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -5665,7 +5665,7 @@ ${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) 
 .qbar .qb-sub svg { width: 18px; height: 18px; }
 .qbar .qb-sub:hover svg { stroke: var(--vsc-neon); }
 .qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-neon); outline-offset: 2px; }
-:host-context(:fullscreen) .qbar { opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+:host-context(:fullscreen) .qbar { opacity: 0.25; transition: opacity 0.3s; pointer-events: auto; }
 :host-context(:fullscreen) .qbar:hover, :host-context(:fullscreen) .qbar:active { opacity: 1; pointer-events: auto; }
 :host-context(:fullscreen) .qbar .qb-main { pointer-events: auto; }
 @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
@@ -6947,6 +6947,9 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
     /* ══════════════════════════════════════════════════════════════════
        createTouchGestureManager
        ══════════════════════════════════════════════════════════════════ */
+    /* ══════════════════════════════════════════════════════════════════
+       createTouchGestureManager (수정본: 단일 탭 허용)
+       ══════════════════════════════════════════════════════════════════ */
     function createTouchGestureManager(Store, P, ApplyReq) {
       function safePlay(video) {
         if (!video || video.readyState < 2) return;
@@ -6971,33 +6974,23 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           if (node.tagName === 'VIDEO') return false;
 
           const tag = node.tagName;
-          if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' ||
-              tag === 'SELECT' || tag === 'TEXTAREA') return true;
+          if (tag === 'BUTTON' || tag === 'A' || tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA') return true;
 
           const role = node.getAttribute?.('role');
-          if (role === 'button' || role === 'slider' || role === 'menuitem' ||
-              role === 'tab' || role === 'link') return true;
+          if (role === 'button' || role === 'slider' || role === 'menuitem' || role === 'tab' || role === 'link') return true;
 
           const cls = node.className?.toString?.() || '';
-          if (cls.includes('ytp-') &&
-              !cls.includes('ytp-cued-thumbnail-overlay') &&
-              !cls.includes('ytp-iv-player-content')) return true;
-          if (cls.includes('jw-icon') || cls.includes('jw-slider') ||
-              cls.includes('jw-button') || cls.includes('jw-controlbar')) return true;
-          if (cls.includes('vjs-control') || cls.includes('vjs-button') ||
-              cls.includes('vjs-slider')) return true;
+          if (cls.includes('ytp-') && !cls.includes('ytp-cued-thumbnail-overlay') && !cls.includes('ytp-iv-player-content')) return true;
+          if (cls.includes('jw-icon') || cls.includes('jw-slider') || cls.includes('jw-button') || cls.includes('jw-controlbar')) return true;
+          if (cls.includes('vjs-control') || cls.includes('vjs-button') || cls.includes('vjs-slider')) return true;
           if (cls.includes('plyr__control') || cls.includes('plyr__menu')) return true;
-          if (cls.includes('seek-bar') || cls.includes('progress-bar') ||
-              cls.includes('time-slider') || cls.includes('volume-slider')) return true;
+          if (cls.includes('seek-bar') || cls.includes('progress-bar') || cls.includes('time-slider') || cls.includes('volume-slider')) return true;
 
           const testid = node.getAttribute?.('data-testid') || '';
-          if (testid && (testid.includes('seek') || testid.includes('progress') ||
-              testid.includes('volume'))) return true;
+          if (testid && (testid.includes('seek') || testid.includes('progress') || testid.includes('volume'))) return true;
 
           const aria = node.getAttribute?.('aria-label')?.toLowerCase?.() || '';
-          if (aria && (aria.includes('seek') || aria.includes('forward') ||
-              aria.includes('rewind') || aria.includes('skip') ||
-              aria.includes('앞으로') || aria.includes('뒤로'))) return true;
+          if (aria && (aria.includes('seek') || aria.includes('forward') || aria.includes('rewind') || aria.includes('skip') || aria.includes('앞으로') || aria.includes('뒤로'))) return true;
         }
         return false;
       }
@@ -7044,11 +7037,9 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         if (active?.isConnected) {
           try {
             const r = active.getBoundingClientRect();
-            if (r.width >= 40 && r.height >= 40 &&
-                tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) return active;
+            if (r.width >= 40 && r.height >= 40 && tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom) return active;
           } catch (_) {}
         }
-
         let bestVideo = null, bestArea = 0;
         for (const v of TOUCHED.videos) {
           if (!v?.isConnected) continue;
@@ -7062,12 +7053,10 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           } catch (_) {}
         }
         if (bestVideo) return bestVideo;
-
         try {
           const els = document.elementsFromPoint(tx, ty);
           for (const el of els) { if (el?.tagName === 'VIDEO' && el.isConnected) return el; }
         } catch (_) {}
-
         return null;
       }
 
@@ -7089,11 +7078,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         const directionText = delta >= 0 ? "오른쪽 스와이프 중" : "왼쪽 스와이프 중";
         const deltaText = formatDelta(delta);
         const deltaColor = delta >= 0 ? "#8effa9" : "#ff8e8e";
-        ov.innerHTML = `
-          <div class="vsc-seek-direction">${directionText}</div>
-          <div class="vsc-seek-main">(${formatTime(currentTime)})</div>
-          <div class="vsc-seek-delta" style="color: ${deltaColor}">(${deltaText})</div>
-        `;
+        ov.innerHTML = `<div class="vsc-seek-direction">${directionText}</div><div class="vsc-seek-main">(${formatTime(currentTime)})</div><div class="vsc-seek-delta" style="color: ${deltaColor}">(${deltaText})</div>`;
         ov.style.display = '';
         ov.classList.add('show');
       }
@@ -7193,7 +7178,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
         if (isNativePlayerControl(e)) return;
 
-        if (e.cancelable) e.preventDefault();
+        // [핵심 패치] 여기서 e.preventDefault()를 호출하지 않아 단일 탭이 네이티브 컨트롤바를 호출하게 둠
 
         touchVideo = video;
         startX = tx; startY = ty;
@@ -7228,7 +7213,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
           if (Math.abs(dx) > Math.abs(dy)) {
             gesture = GS.SWIPE_SEEK;
-            seekInitialTime = touchVideo.currentTime;
             if (e.cancelable) e.preventDefault();
             return;
           } else {
@@ -7242,6 +7226,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           }
         }
 
+        // 제스처 모드로 확정되었을 때만 기본 스크롤 동작 방지
         if (e.cancelable) e.preventDefault();
 
         if (gesture === GS.SWIPE_SEEK) {
@@ -7267,10 +7252,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
 
           if (fsEl) {
-            /* 이미 전체화면이면 해제 + 방향 잠금 해제 */
-            try {
-              if (screen.orientation?.unlock) screen.orientation.unlock();
-            } catch (_) {}
+            try { if (screen.orientation?.unlock) screen.orientation.unlock(); } catch (_) {}
             try {
               if (document.exitFullscreen) await document.exitFullscreen();
               else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -7279,7 +7261,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             return;
           }
 
-          /* 전체화면 요청 */
           const reqFs = video.requestFullscreen || video.webkitRequestFullscreen;
           if (typeof reqFs === 'function') {
             try {
@@ -7288,10 +7269,8 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             } catch (_) {}
           }
 
-          /* 전체화면이 완전히 적용되도록 0.1초 대기 (안드로이드 타이밍 이슈 해결) */
           await new Promise(resolve => setTimeout(resolve, 100));
 
-          /* 방향 잠금: landscape */
           try {
             if (screen.orientation?.lock) {
               await screen.orientation.lock('landscape');
@@ -7302,7 +7281,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             }
             showOSD('전체화면 · 가로모드', 1200);
           } catch (e) {
-            /* lock 권한 없는 브라우저(Safari 등) 또는 권한 에러 */
             log.warn('Orientation lock failed:', e.message);
             showOSD('전체화면 (방향 잠금 미지원)', 1200);
           }
@@ -7311,7 +7289,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         }
       }
 
-      /* 전체화면 종료 시 방향 잠금 자동 해제 */
       document.addEventListener('fullscreenchange', () => {
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
           try { if (screen.orientation?.unlock) screen.orientation.unlock(); } catch (_) {}
@@ -7350,18 +7327,22 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             return;
           }
           const now = performance.now(), tapX = e.changedTouches?.[0]?.clientX ?? startX, vRect = video.getBoundingClientRect(), relX = (tapX - vRect.left) / Math.max(1, vRect.width);
+
           if (now - lastTapTime < DOUBLE_TAP_MS) {
+            // [추가됨] 더블탭이 확정되었을 때만 기본 동작(줌 렌더링 등) 방지
+            if (e.cancelable) e.preventDefault();
+
             if (seekSide && relX < 0.35 && seekSide === 'left') { doSeek(video, 'left'); }
             else if (seekSide && relX > 0.65 && seekSide === 'right') { doSeek(video, 'right'); }
             else if (relX < 0.35) { doSeek(video, 'left'); } else if (relX > 0.65) { doSeek(video, 'right'); }
             else {
-              /* 중앙 더블탭: 전체화면 + 가로모드 진입/해제 */
               enterFullscreenLandscape(video);
             }
             lastTapTime = 0;
           } else {
             lastTapTime = now; lastTapX = tapX;
             if (seekSide) { if (seekSide === 'left' && relX < 0.35) { doSeek(video, 'left'); lastTapTime = 0; } else if (seekSide === 'right' && relX > 0.65) { doSeek(video, 'right'); lastTapTime = 0; } }
+            // 단일 탭은 preventDefault를 적용하지 않으므로 자연스럽게 클릭 이벤트로 이어집니다.
           }
           cancelGesture(); return;
         }
@@ -7399,7 +7380,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.7.2'; // 버전 상승
+      const VSC_VERSION_ID = '211.9.0'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
