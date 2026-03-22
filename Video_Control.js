@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.8.0)
+// @name         Video_Control (v211.7.0)
 // @namespace    https://github.com/
-// @version      211.8.0
-// @description  v211.8.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.7.0
+// @description  v211.7.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.8.0';
+    const VSC_VERSION = '211.7.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -204,28 +204,15 @@
 
     const STORAGE_KEY_BASE = 'vsc_v2_' + normalizeHostnameForStorage(location.hostname);
 
-    /* ══ Storage keys ══ */
-    function getStorageKey() {
-      let h = location.hostname;
-      // Iframe 내부인 경우 부모 도메인을 추적하여 키를 통일
-      if (window !== window.top) {
-        try { h = window.top.location.hostname; }
-        catch (e) { if (document.referrer) { try { h = new URL(document.referrer).hostname; } catch (_) {} } }
-      }
-
-      const parts = h.split('.');
-      // 05.avsee.ru 처럼 앞자리가 숫자인 경우 도메인 정규화
-      if (parts.length >= 3) h = parts.slice(-2).join('.');
-      else if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) h = parts.slice(1).join('.');
-
-      if (h.endsWith('youtube.com')) {
-        if (location.pathname.startsWith('/shorts')) return 'vsc_v2_' + h + '_shorts';
-        if (location.pathname.startsWith('/watch')) return 'vsc_v2_' + h + '_watch';
-      }
-      return 'vsc_v2_' + h;
-    }
-    const STORAGE_KEY = getStorageKey();
-    const STORAGE_KEY_BASE = STORAGE_KEY;
+    function getStorageKey() {
+      const h = location.hostname;
+      if (h.endsWith('youtube.com')) {
+        if (location.pathname.startsWith('/shorts')) return STORAGE_KEY_BASE + '_shorts';
+        if (location.pathname.startsWith('/watch')) return STORAGE_KEY_BASE + '_watch';
+      }
+      return STORAGE_KEY_BASE;
+    }
+    const STORAGE_KEY = getStorageKey();
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
