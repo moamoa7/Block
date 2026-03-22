@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.4.0)
+// @name         Video_Control (v211.5.0)
 // @namespace    https://github.com/
-// @version      211.4.0
-// @description  v211.4.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.5.0
+// @description  v211.5.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.4.0';
+    const VSC_VERSION = '211.5.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -5186,7 +5186,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
             }
           }
 
-          const SHARP_CAP = config.IS_MOBILE ? 0.60 : 0.45;
+          const SHARP_CAP = config.IS_MOBILE ? 0.60 : 0.60;
           const totalS = clamp(Number(s.sharp || 0), 0, SHARP_CAP);
           let kernelStr;
           if (totalS < 0.005) { kernelStr = '0,0,0, 0,1,0, 0,0,0'; }
@@ -5320,37 +5320,37 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     }
 
     function computeResolutionSharpMul(video) {
-      const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
-      const dW = video.clientWidth || video.offsetWidth || 0;
-      const dH = video.clientHeight || video.offsetHeight || 0;
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      if (nW < 16 || dW < 16) return { mul: 0.0, autoBase: 0.0 };
+  const nW = video.videoWidth || 0, nH = video.videoHeight || 0;
+  const dW = video.clientWidth || video.offsetWidth || 0;
+  const dH = video.clientHeight || video.offsetHeight || 0;
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  if (nW < 16 || dW < 16) return { mul: 0.0, autoBase: 0.0 };
 
-      const physW = dW * dpr;
-      const physH = dH * dpr;
-      const ratio = Math.max(physW / nW, physH / Math.max(1, nH));
+  const physW = dW * dpr;
+  const physH = dH * dpr;
+  const ratio = Math.max(physW / nW, physH / Math.max(1, nH));
 
-      let mul;
-      if (ratio <= 0.30)      mul = 0.40;
-      else if (ratio <= 0.60) mul = 0.40 + (ratio - 0.30) / 0.30 * 0.30;
-      else if (ratio <= 1.00) mul = 0.70 + (ratio - 0.60) / 0.40 * 0.30;
-      else if (ratio <= 1.80) mul = 1.00;
-      else if (ratio <= 4.00) mul = 1.00 - (ratio - 1.80) / 2.20 * 0.30;
-      else                    mul = 0.60;
+  let mul;
+  if (ratio <= 0.30)      mul = 0.40;
+  else if (ratio <= 0.60) mul = 0.40 + (ratio - 0.30) / 0.30 * 0.30;
+  else if (ratio <= 1.00) mul = 0.70 + (ratio - 0.60) / 0.40 * 0.30;
+  else if (ratio <= 1.80) mul = 1.00;
+  else if (ratio <= 4.00) mul = 1.00 - (ratio - 1.80) / 2.20 * 0.30;
+  else                    mul = 0.65;  // 0.60 → 0.65
 
-      let autoBase;
-      if (nW <= 640)       { mul *= 0.70; autoBase = 0.18; }
-      else if (nW <= 960)  { mul *= 0.80; autoBase = 0.14; }
-      else if (nW <= 1280) { autoBase = 0.10; }
-      else if (nW <= 1920) { autoBase = 0.06; }
-      else                 { autoBase = 0.03; }
+  let autoBase;
+  if (nW <= 640)       { mul *= 0.70; autoBase = 0.18; }
+  else if (nW <= 960)  { mul *= 0.80; autoBase = 0.14; }
+  else if (nW <= 1280) { autoBase = 0.10; }
+  else if (nW <= 1920) { autoBase = 0.08; }  // 0.06 → 0.08 (1080p/1440p)
+  else                 { autoBase = 0.04; }  // 0.03 → 0.04 (4K)
 
-      if (CONFIG.IS_MOBILE) mul = Math.max(mul, 0.72);
+  if (CONFIG.IS_MOBILE) mul = Math.max(mul, 0.72);
 
-      mul = VSC_CLAMP(mul, 0.0, 1.0);
-      autoBase = VSC_CLAMP(autoBase * mul, 0.0, 0.18);
-      return { mul, autoBase };
-    }
+  mul = VSC_CLAMP(mul, 0.0, 1.0);
+  autoBase = VSC_CLAMP(autoBase * mul, 0.0, 0.18);
+  return { mul, autoBase };
+}
 
     function composeVideoParamsInto(out, vUser, autoMods, sharpMul = 1.0, autoSharpBase = 0.0, motionSAD = 0) {
       out.gain = 1; out.gamma = 1; out.contrast = 1; out.bright = 0;
@@ -7202,7 +7202,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.4.0';
+      const VSC_VERSION_ID = '211.5.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
