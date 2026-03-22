@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v211.5.0)
+// @name         Video_Control (v211.6.0)
 // @namespace    https://github.com/
-// @version      211.5.0
-// @description  v211.5.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      211.6.0
+// @description  v211.6.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -191,7 +191,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '211.5.0';
+    const VSC_VERSION = '211.6.0';
 
     /* ══ Storage keys ══ */
     const STORAGE_KEY_BASE = 'vsc_v2_' + location.hostname;
@@ -5341,9 +5341,9 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
   let autoBase;
   if (nW <= 640)       { mul *= 0.70; autoBase = 0.18; }
   else if (nW <= 960)  { mul *= 0.80; autoBase = 0.14; }
-  else if (nW <= 1280) { autoBase = 0.10; }
-  else if (nW <= 1920) { autoBase = 0.08; }  // 0.06 → 0.08 (1080p/1440p)
-  else                 { autoBase = 0.04; }  // 0.03 → 0.04 (4K)
+  else if (nW <= 1280) { autoBase = 0.13; }  // 1단 절반(0.102) 이상 보장
+  else if (nW <= 1920) { autoBase = 0.12; }  // 1단 절반(0.102) 이상 보장
+  else                 { autoBase = 0.07; }  // 4K 개선
 
   if (CONFIG.IS_MOBILE) mul = Math.max(mul, 0.72);
 
@@ -7202,7 +7202,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '211.5.0';
+      const VSC_VERSION_ID = '211.6.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
