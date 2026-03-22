@@ -5655,7 +5655,7 @@ input[type=range]::-moz-range-thumb { width: var(--vsc-touch-slider); height: va
 .info-bar { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.40; padding: 4px 0 6px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .sparkline-canvas { width: 100%; height: 40px; border-radius: var(--vsc-radius-sm); background: rgba(255, 255, 255, 0.02); display: block; margin: 4px 0; }
 .qbar { pointer-events: none; position: fixed !important; top: 50%; right: var(--vsc-qbar-right); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: center; gap: 8px; contain: none !important; }
-.qbar .qb-main { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; opacity: 0.20; transition: all 0.3s var(--vsc-ease-out); box-shadow: var(--vsc-shadow-fab); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; margin-right: env(safe-area-inset-right, 0px); backdrop-filter: blur(16px) saturate(180%); }
+.qbar .qb-main { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; opacity: 0.20; transition: all 0.3s var(--vsc-ease-out); box-shadow: var(--vsc-shadow-fab); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(16px) saturate(180%); }
 .qbar:hover .qb-main, .qbar.expanded .qb-main { opacity: 1; transform: scale(1.08); border-color: var(--vsc-neon-border); box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow); }
 .qbar .qb-sub { width: 38px; height: 38px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.06); opacity: 0; transform: scale(0.3) translateX(20px); transition: all 0.25s var(--vsc-ease-spring); pointer-events: none; visibility: hidden; z-index: 1; box-shadow: var(--vsc-shadow-btn); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(12px); }
 .qbar.expanded .qb-sub { opacity: 1; transform: scale(1) translateX(0); pointer-events: auto; visibility: visible; }
@@ -5665,14 +5665,14 @@ ${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) 
 .qbar .qb-sub svg { width: 18px; height: 18px; }
 .qbar .qb-sub:hover svg { stroke: var(--vsc-neon); }
 .qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-neon); outline-offset: 2px; }
-:host-context(:fullscreen) .qbar { opacity: 0.4; transition: opacity 0.3s; pointer-events: auto; }
-:host-context(:fullscreen) .qbar:hover, :host-context(:fullscreen) .qbar:active { opacity: 1; pointer-events: auto; }
-:host-context(:fullscreen) .qbar .qb-main { pointer-events: auto; }
+:host(.is-fs) .qbar { opacity: 0.4; transition: opacity 0.3s; pointer-events: auto; }
+:host(.is-fs) .qbar:hover, :host(.is-fs) .qbar:active { opacity: 1; pointer-events: auto; }
+:host(.is-fs) .qbar .qb-main { pointer-events: auto; }
 @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
 @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } .chips { gap: 6px; } .fine-row { gap: 6px; } }
 @media (max-width: 350px) { .tab span { display: none; } .tab svg { width: 18px; height: 18px; opacity: 1; } }
 @media (orientation: landscape) and (max-height: 500px) { .panel { max-height: 88vh; } .body { max-height: calc(88vh - 80px); } }
-@supports (padding: env(safe-area-inset-right)) { .qbar { right: calc(var(--vsc-qbar-right) + env(safe-area-inset-right)); } .panel { right: calc(var(--vsc-panel-right) + 12px + env(safe-area-inset-right)); } }
+@supports (padding: env(safe-area-inset-right)) { :host(:not(.is-fs)) .qbar { right: calc(var(--vsc-qbar-right) + env(safe-area-inset-right)); } :host(:not(.is-fs)) .panel { right: calc(var(--vsc-panel-right) + 12px + env(safe-area-inset-right)); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
 @media (prefers-contrast: high) { :host { --vsc-glass: rgba(0, 0, 0, 0.96); --vsc-glass-border: rgba(255, 255, 255, 0.25); --vsc-text: #fff; } }
 @media (pointer: coarse) { .qbar .qb-main { width: 50px; height: 50px; } .qbar .qb-sub  { width: 44px; height: 44px; } }
@@ -6438,13 +6438,17 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function reparentForFullscreen() {
-        if (!quickBarHost) return;
-        const targetParent = getMountTarget();
-        if (!targetParent) return;
-        if (quickBarHost.parentNode !== targetParent) { try { targetParent.appendChild(quickBarHost); } catch (_) {} }
-        if (panelHost && panelHost.parentNode !== targetParent) { try { targetParent.appendChild(panelHost); } catch (_) {} }
-        ensureJwPlayerUnclip(targetParent);
-      }
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (quickBarHost) quickBarHost.classList.toggle('is-fs', isFs);
+        if (panelHost) panelHost.classList.toggle('is-fs', isFs);
+
+        if (!quickBarHost) return;
+        const targetParent = getMountTarget();
+        if (!targetParent) return;
+        if (quickBarHost.parentNode !== targetParent) { try { targetParent.appendChild(quickBarHost); } catch (_) {} }
+        if (panelHost && panelHost.parentNode !== targetParent) { try { targetParent.appendChild(panelHost); } catch (_) {} }
+        ensureJwPlayerUnclip(targetParent);
+      }
 
       function buildPanel() {
         if (panelHost) return;
@@ -6576,19 +6580,20 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function init() {
-        buildQuickBar();
-        initStoreSubscriptions(Store, syncAll);
-        setRecurring(updateQuickBarVisibility, 1500, { maxErrors: 50 });
-        Bus.on('signal', updateQuickBarVisibility);
-        onDoc('fullscreenchange', reparentForFullscreen);
-        onDoc('webkitfullscreenchange', reparentForFullscreen);
-        updateQuickBarVisibility();
-        window[VSC_INTERNAL_SYM]._uiEnsure = () => {
-          updateQuickBarVisibility();
-          reparentForFullscreen();
-          syncAll();
-        };
-      }
+        buildQuickBar();
+        initStoreSubscriptions(Store, syncAll);
+        setRecurring(updateQuickBarVisibility, 1500, { maxErrors: 50 });
+        Bus.on('signal', updateQuickBarVisibility);
+        onDoc('fullscreenchange', reparentForFullscreen);
+        onDoc('webkitfullscreenchange', reparentForFullscreen);
+        updateQuickBarVisibility();
+        reparentForFullscreen(); // <--- 새로 추가된 부분
+        window[VSC_INTERNAL_SYM]._uiEnsure = () => {
+          updateQuickBarVisibility();
+          reparentForFullscreen();
+          syncAll();
+        };
+      }
 
       function destroy() {
         uiAC.abort();
