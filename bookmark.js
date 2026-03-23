@@ -1,3 +1,4 @@
+
 // ==UserScript==
 // @name         북마크 (Glassmorphism v21.0)
 // @version      21.0
@@ -577,8 +578,12 @@
 *{box-sizing:border-box;font-family:var(--f)}
 
 /* ══ FAB ══ */
+/* ══ FAB ══ */
 #bm-fab{
-  position:fixed;bottom:20px;right:20px;width:var(--fab);height:var(--fab);
+ position:fixed;
+ top: 30%; /* 💡 위에서부터 40% 내려온 지점 (하단 bottom 속성은 지웁니다) */
+ right: 10px; /* 💡 오른쪽 여백 (만약 화면 중앙 쪽으로 40%를 밀고 싶다면 right: 40%; 로 하시면 됩니다) */
+ width:var(--fab);height:var(--fab);
   background:var(--c-glass);color:var(--c-text);border-radius:50%;
   display:flex;align-items:center;justify-content:center;cursor:pointer;
   font-size:22px;user-select:none;touch-action:none;border:1px solid var(--c-glass-border);
