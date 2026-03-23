@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v214.0.0)
+// @name         Video_Control (v214.2.0)
 // @namespace    https://github.com/
-// @version      214.0.0
-// @description  v214.0.0: ok.ru sharp fix
+// @version      214.2.0
+// @description  v214.2.0: Audio engine robust bypass & retry fix
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -198,28 +198,28 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '214.0.0';
+    const VSC_VERSION = '214.2.0';
 
     /* ══ Storage keys ══ */
-    function normalizeHostnameForStorage(h) {
-      const parts = h.split('.');
-      if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) {
-        return parts.slice(1).join('.');
-      }
-      return h;
-    }
+    function normalizeHostnameForStorage(h) {
+      const parts = h.split('.');
+      if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) {
+        return parts.slice(1).join('.');
+      }
+      return h;
+    }
 
-    const STORAGE_KEY_BASE = 'vsc_v2_' + normalizeHostnameForStorage(location.hostname);
+    const STORAGE_KEY_BASE = 'vsc_v2_' + normalizeHostnameForStorage(location.hostname);
 
-    function getStorageKey() {
-      const h = location.hostname;
-      if (h.endsWith('youtube.com')) {
-        if (location.pathname.startsWith('/shorts')) return STORAGE_KEY_BASE + '_shorts';
-        if (location.pathname.startsWith('/watch')) return STORAGE_KEY_BASE + '_watch';
-      }
-      return STORAGE_KEY_BASE;
-    }
-    const STORAGE_KEY = getStorageKey();
+    function getStorageKey() {
+      const h = location.hostname;
+      if (h.endsWith('youtube.com')) {
+        if (location.pathname.startsWith('/shorts')) return STORAGE_KEY_BASE + '_shorts';
+        if (location.pathname.startsWith('/watch')) return STORAGE_KEY_BASE + '_watch';
+      }
+      return STORAGE_KEY_BASE;
+    }
+    const STORAGE_KEY = getStorageKey();
 
     const VSC_CLAMP = (v, min, max) => (v < min ? min : (v > max ? max : v));
 
@@ -1783,12 +1783,12 @@
     }
 
 // ═══ PART 2 START ═══
-// ═══ PART 2 START (v211.7.0) — GPU Analyzer, Audio Engine, Foundation Modules ═══
+// ═══ PART 2 START (v214.2.0) — GPU Analyzer, Audio Engine, Foundation Modules ═══
 
-    /* ══════════════════════════════════════════════════════════════════
-       WebGPU Scene Analysis Compute Shader
-       ══════════════════════════════════════════════════════════════════ */
-    const VSC_GPU_WGSL = /* wgsl */ `
+    /* ══════════════════════════════════════════════════════════════════
+       WebGPU Scene Analysis Compute Shader
+       ══════════════════════════════════════════════════════════════════ */
+    const VSC_GPU_WGSL = /* wgsl */ `
 struct Params { width : u32, height : u32, step : u32, _pad : u32, };
 @group(0) @binding(0) var<uniform> params : Params;
 @group(0) @binding(1) var<storage, read> pixels : array<u32>;
@@ -1853,1030 +1853,1031 @@ fn motionPass(@builtin(global_invocation_id) gid : vec3<u32>) {
 }
 `;
 
-    /* ── WebGPU Analyzer Module ── */
-    function createWebGPUAnalyzer() {
-      let device = null, mainPipeline = null, motionPipeline = null, bindGroupLayout = null;
-      let uniformBuf = null, pixelBuf = null, prevLumBuf = null, curLumBuf = null;
-      let lumHistBuf = null, rHistBuf = null, gHistBuf = null, bHistBuf = null, zoneBuf = null, zoneHistBuf = null, accumBuf = null;
-      let readbackAccumBuf = null, readbackHistBuf = null, readbackZoneHistBuf = null, readbackZoneBuf = null;
-      let lastW = 0, lastH = 0, hasPrevLum = false, initFailed = false, initAttempted = false, gpuReady = false;
-      const GPU_STEP = 1;
-      const HIST_BINS = 256, ZONE_COUNT = 16, ACCUM_U32_COUNT = 12;
-      const ACCUM_BYTES = ACCUM_U32_COUNT * 4, HIST_BYTES = HIST_BINS * 4, ZONE_DATA_BYTES = ZONE_COUNT * 4 * 2, ZONE_HIST_BYTES = ZONE_COUNT * HIST_BINS * 4;
+    /* ── WebGPU Analyzer Module ── */
+    function createWebGPUAnalyzer() {
+      let device = null, mainPipeline = null, motionPipeline = null, bindGroupLayout = null;
+      let uniformBuf = null, pixelBuf = null, prevLumBuf = null, curLumBuf = null;
+      let lumHistBuf = null, rHistBuf = null, gHistBuf = null, bHistBuf = null, zoneBuf = null, zoneHistBuf = null, accumBuf = null;
+      let readbackAccumBuf = null, readbackHistBuf = null, readbackZoneHistBuf = null, readbackZoneBuf = null;
+      let lastW = 0, lastH = 0, hasPrevLum = false, initFailed = false, initAttempted = false, gpuReady = false;
+      const GPU_STEP = 1;
+      const HIST_BINS = 256, ZONE_COUNT = 16, ACCUM_U32_COUNT = 12;
+      const ACCUM_BYTES = ACCUM_U32_COUNT * 4, HIST_BYTES = HIST_BINS * 4, ZONE_DATA_BYTES = ZONE_COUNT * 4 * 2, ZONE_HIST_BYTES = ZONE_COUNT * HIST_BINS * 4;
 
-      async function initGPU() {
-        if (initAttempted) return gpuReady;
-        initAttempted = true;
-        if (!navigator.gpu) { log.info('[GPU] WebGPU not available, using CPU fallback'); initFailed = true; return false; }
-        try {
-          const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'low-power' });
-          if (!adapter) { log.info('[GPU] No adapter found, using CPU fallback'); initFailed = true; return false; }
+      async function initGPU() {
+        if (initAttempted) return gpuReady;
+        initAttempted = true;
+        if (!navigator.gpu) { log.info('[GPU] WebGPU not available, using CPU fallback'); initFailed = true; return false; }
+        try {
+          const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'low-power' });
+          if (!adapter) { log.info('[GPU] No adapter found, using CPU fallback'); initFailed = true; return false; }
 
-          const adapterLimits = adapter.limits;
-          const requiredLimits = {
-            maxStorageBuffersPerShaderStage: Math.max(12, Math.min(adapterLimits.maxStorageBuffersPerShaderStage || 8, 16)),
-            maxStorageBufferBindingSize: Math.min(adapterLimits.maxStorageBufferBindingSize || 134217728, 134217728),
-            maxBufferSize: Math.min(adapterLimits.maxBufferSize || 268435456, 268435456)
-          };
+          const adapterLimits = adapter.limits;
+          const requiredLimits = {
+            maxStorageBuffersPerShaderStage: Math.max(12, Math.min(adapterLimits.maxStorageBuffersPerShaderStage || 8, 16)),
+            maxStorageBufferBindingSize: Math.min(adapterLimits.maxStorageBufferBindingSize || 134217728, 134217728),
+            maxBufferSize: Math.min(adapterLimits.maxBufferSize || 268435456, 268435456)
+          };
 
-          device = await adapter.requestDevice({ requiredLimits });
-          device.lost.then((info) => { log.warn('[GPU] Device lost:', info.message); gpuReady = false; device = null; initAttempted = false; initFailed = false; });
+          device = await adapter.requestDevice({ requiredLimits });
+          device.lost.then((info) => { log.warn('[GPU] Device lost:', info.message); gpuReady = false; device = null; initAttempted = false; initFailed = false; });
 
-          const shaderModule = device.createShaderModule({ code: VSC_GPU_WGSL });
-          const compilationInfo = await shaderModule.getCompilationInfo();
-          if (compilationInfo.messages.some(m => m.type === 'error')) { log.warn('[GPU] Shader compilation errors:', compilationInfo.messages); device.destroy(); device = null; initFailed = true; return false; }
+          const shaderModule = device.createShaderModule({ code: VSC_GPU_WGSL });
+          const compilationInfo = await shaderModule.getCompilationInfo();
+          if (compilationInfo.messages.some(m => m.type === 'error')) { log.warn('[GPU] Shader compilation errors:', compilationInfo.messages); device.destroy(); device = null; initFailed = true; return false; }
 
-          bindGroupLayout = device.createBindGroupLayout({
-            entries: [
-              { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
-              { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-              { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
-              { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
-              { binding: 10, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
-            ]
-          });
-          const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
-          mainPipeline = device.createComputePipeline({ layout: pipelineLayout, compute: { module: shaderModule, entryPoint: 'main' } });
-          motionPipeline = device.createComputePipeline({ layout: pipelineLayout, compute: { module: shaderModule, entryPoint: 'motionPass' } });
-          uniformBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'vsc-uniform' });
-          readbackAccumBuf = device.createBuffer({ size: ACCUM_BYTES, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-accum' });
-          readbackHistBuf = device.createBuffer({ size: HIST_BYTES * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-hist' });
-          readbackZoneBuf = device.createBuffer({ size: ZONE_DATA_BYTES, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-zone' });
-          readbackZoneHistBuf = device.createBuffer({ size: ZONE_HIST_BYTES, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-zonehist' });
-          gpuReady = true; log.info('[GPU] WebGPU analyzer initialized successfully'); return true;
-        } catch (e) { log.warn('[GPU] Init failed:', e.message); initFailed = true; if (device) { try { device.destroy(); } catch (_) {} device = null; } return false; }
-      }
+          bindGroupLayout = device.createBindGroupLayout({
+            entries: [
+              { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+              { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+              { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+              { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 4, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 5, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 6, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 7, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 8, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 9, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } },
+              { binding: 10, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+            ]
+          });
+          const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] });
+          mainPipeline = device.createComputePipeline({ layout: pipelineLayout, compute: { module: shaderModule, entryPoint: 'main' } });
+          motionPipeline = device.createComputePipeline({ layout: pipelineLayout, compute: { module: shaderModule, entryPoint: 'motionPass' } });
+          uniformBuf = device.createBuffer({ size: 16, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST, label: 'vsc-uniform' });
+          readbackAccumBuf = device.createBuffer({ size: ACCUM_BYTES, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-accum' });
+          readbackHistBuf = device.createBuffer({ size: HIST_BYTES * 4, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-hist' });
+          readbackZoneBuf = device.createBuffer({ size: ZONE_DATA_BYTES, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-zone' });
+          readbackZoneHistBuf = device.createBuffer({ size: ZONE_HIST_BYTES, usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST, label: 'vsc-readback-zonehist' });
+          gpuReady = true; log.info('[GPU] WebGPU analyzer initialized successfully'); return true;
+        } catch (e) { log.warn('[GPU] Init failed:', e.message); initFailed = true; if (device) { try { device.destroy(); } catch (_) {} device = null; } return false; }
+      }
 
-      function ensureBuffers(sw, sh) {
-        if (!device || (sw === lastW && sh === lastH)) return;
-        const pixelBytes = sw * sh * 4, lumBytes = sw * sh * 4;
-        [pixelBuf, prevLumBuf, curLumBuf, lumHistBuf, rHistBuf, gHistBuf, bHistBuf, zoneBuf, zoneHistBuf, accumBuf].forEach(b => { if (b) b.destroy(); });
-        const SB = GPUBufferUsage.STORAGE, CD = GPUBufferUsage.COPY_DST, CS = GPUBufferUsage.COPY_SRC;
-        pixelBuf = device.createBuffer({ size: pixelBytes, usage: SB | CD, label: 'vsc-pixels' });
-        prevLumBuf = device.createBuffer({ size: lumBytes, usage: SB | CD, label: 'vsc-prevlum' });
-        curLumBuf = device.createBuffer({ size: lumBytes, usage: SB | CS, label: 'vsc-curlum' });
-        lumHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-lumhist' });
-        rHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-rhist' });
-        gHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-ghist' });
-        bHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-bhist' });
-        zoneBuf = device.createBuffer({ size: ZONE_DATA_BYTES, usage: SB | CS | CD, label: 'vsc-zones' });
-        zoneHistBuf = device.createBuffer({ size: ZONE_HIST_BYTES, usage: SB | CS | CD, label: 'vsc-zonehists' });
-        accumBuf = device.createBuffer({ size: ACCUM_BYTES, usage: SB | CS | CD, label: 'vsc-accum' });
-        lastW = sw; lastH = sh; hasPrevLum = false;
-      }
+      function ensureBuffers(sw, sh) {
+        if (!device || (sw === lastW && sh === lastH)) return;
+        const pixelBytes = sw * sh * 4, lumBytes = sw * sh * 4;
+        [pixelBuf, prevLumBuf, curLumBuf, lumHistBuf, rHistBuf, gHistBuf, bHistBuf, zoneBuf, zoneHistBuf, accumBuf].forEach(b => { if (b) b.destroy(); });
+        const SB = GPUBufferUsage.STORAGE, CD = GPUBufferUsage.COPY_DST, CS = GPUBufferUsage.COPY_SRC;
+        pixelBuf = device.createBuffer({ size: pixelBytes, usage: SB | CD, label: 'vsc-pixels' });
+        prevLumBuf = device.createBuffer({ size: lumBytes, usage: SB | CD, label: 'vsc-prevlum' });
+        curLumBuf = device.createBuffer({ size: lumBytes, usage: SB | CS, label: 'vsc-curlum' });
+        lumHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-lumhist' });
+        rHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-rhist' });
+        gHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-ghist' });
+        bHistBuf = device.createBuffer({ size: HIST_BYTES, usage: SB | CS | CD, label: 'vsc-bhist' });
+        zoneBuf = device.createBuffer({ size: ZONE_DATA_BYTES, usage: SB | CS | CD, label: 'vsc-zones' });
+        zoneHistBuf = device.createBuffer({ size: ZONE_HIST_BYTES, usage: SB | CS | CD, label: 'vsc-zonehists' });
+        accumBuf = device.createBuffer({ size: ACCUM_BYTES, usage: SB | CS | CD, label: 'vsc-accum' });
+        lastW = sw; lastH = sh; hasPrevLum = false;
+      }
 
-      async function analyzeFrame(imageData, sw, sh) {
-        if (!gpuReady || !device) return null;
-        try {
-          ensureBuffers(sw, sh);
-          const pixelCount = sw * sh;
-          const u32Data = new Uint32Array(imageData.buffer, imageData.byteOffset, imageData.byteLength >>> 2);
-          device.queue.writeBuffer(uniformBuf, 0, new Uint32Array([sw, sh, GPU_STEP, 0]));
-          device.queue.writeBuffer(pixelBuf, 0, u32Data);
-          const zeros256 = new Uint32Array(HIST_BINS);
-          device.queue.writeBuffer(lumHistBuf, 0, zeros256); device.queue.writeBuffer(rHistBuf, 0, zeros256); device.queue.writeBuffer(gHistBuf, 0, zeros256); device.queue.writeBuffer(bHistBuf, 0, zeros256);
-          device.queue.writeBuffer(zoneBuf, 0, new Uint32Array(ZONE_COUNT * 2));
-          device.queue.writeBuffer(zoneHistBuf, 0, new Uint32Array(ZONE_COUNT * HIST_BINS));
-          device.queue.writeBuffer(accumBuf, 0, new Uint32Array(ACCUM_U32_COUNT));
-          if (!hasPrevLum) device.queue.writeBuffer(prevLumBuf, 0, new Uint32Array(pixelCount));
-          const bindGroup = device.createBindGroup({
-            layout: bindGroupLayout,
-            entries: [
-              { binding: 0, resource: { buffer: uniformBuf } }, { binding: 1, resource: { buffer: pixelBuf } }, { binding: 2, resource: { buffer: prevLumBuf } },
-              { binding: 3, resource: { buffer: lumHistBuf } }, { binding: 4, resource: { buffer: rHistBuf } }, { binding: 5, resource: { buffer: gHistBuf } },
-              { binding: 6, resource: { buffer: bHistBuf } }, { binding: 7, resource: { buffer: zoneBuf } }, { binding: 8, resource: { buffer: zoneHistBuf } },
-              { binding: 9, resource: { buffer: accumBuf } }, { binding: 10, resource: { buffer: curLumBuf } }
-            ]
-          });
-          const encoder = device.createCommandEncoder();
-          const mainGroups = Math.ceil((Math.ceil(sw / GPU_STEP) * Math.ceil(sh / GPU_STEP)) / 256);
-          const mainPass = encoder.beginComputePass();
-          mainPass.setPipeline(mainPipeline); mainPass.setBindGroup(0, bindGroup); mainPass.dispatchWorkgroups(mainGroups); mainPass.end();
-          if (hasPrevLum) {
-            const motionGroups = Math.ceil((Math.floor(sw / 8) * Math.floor(sh / 8)) / 256);
-            if (motionGroups > 0) { const motionPass = encoder.beginComputePass(); motionPass.setPipeline(motionPipeline); motionPass.setBindGroup(0, bindGroup); motionPass.dispatchWorkgroups(motionGroups); motionPass.end(); }
-          }
-          encoder.copyBufferToBuffer(accumBuf, 0, readbackAccumBuf, 0, ACCUM_BYTES);
-          encoder.copyBufferToBuffer(lumHistBuf, 0, readbackHistBuf, 0, HIST_BYTES); encoder.copyBufferToBuffer(rHistBuf, 0, readbackHistBuf, HIST_BYTES, HIST_BYTES);
-          encoder.copyBufferToBuffer(gHistBuf, 0, readbackHistBuf, HIST_BYTES * 2, HIST_BYTES); encoder.copyBufferToBuffer(bHistBuf, 0, readbackHistBuf, HIST_BYTES * 3, HIST_BYTES);
-          encoder.copyBufferToBuffer(zoneBuf, 0, readbackZoneBuf, 0, ZONE_DATA_BYTES); encoder.copyBufferToBuffer(zoneHistBuf, 0, readbackZoneHistBuf, 0, ZONE_HIST_BYTES);
-          encoder.copyBufferToBuffer(curLumBuf, 0, prevLumBuf, 0, pixelCount * 4);
-          device.queue.submit([encoder.finish()]);
+      async function analyzeFrame(imageData, sw, sh) {
+        if (!gpuReady || !device) return null;
+        try {
+          ensureBuffers(sw, sh);
+          const pixelCount = sw * sh;
+          const u32Data = new Uint32Array(imageData.buffer, imageData.byteOffset, imageData.byteLength >>> 2);
+          device.queue.writeBuffer(uniformBuf, 0, new Uint32Array([sw, sh, GPU_STEP, 0]));
+          device.queue.writeBuffer(pixelBuf, 0, u32Data);
+          const zeros256 = new Uint32Array(HIST_BINS);
+          device.queue.writeBuffer(lumHistBuf, 0, zeros256); device.queue.writeBuffer(rHistBuf, 0, zeros256); device.queue.writeBuffer(gHistBuf, 0, zeros256); device.queue.writeBuffer(bHistBuf, 0, zeros256);
+          device.queue.writeBuffer(zoneBuf, 0, new Uint32Array(ZONE_COUNT * 2));
+          device.queue.writeBuffer(zoneHistBuf, 0, new Uint32Array(ZONE_COUNT * HIST_BINS));
+          device.queue.writeBuffer(accumBuf, 0, new Uint32Array(ACCUM_U32_COUNT));
+          if (!hasPrevLum) device.queue.writeBuffer(prevLumBuf, 0, new Uint32Array(pixelCount));
+          const bindGroup = device.createBindGroup({
+            layout: bindGroupLayout,
+            entries: [
+              { binding: 0, resource: { buffer: uniformBuf } }, { binding: 1, resource: { buffer: pixelBuf } }, { binding: 2, resource: { buffer: prevLumBuf } },
+              { binding: 3, resource: { buffer: lumHistBuf } }, { binding: 4, resource: { buffer: rHistBuf } }, { binding: 5, resource: { buffer: gHistBuf } },
+              { binding: 6, resource: { buffer: bHistBuf } }, { binding: 7, resource: { buffer: zoneBuf } }, { binding: 8, resource: { buffer: zoneHistBuf } },
+              { binding: 9, resource: { buffer: accumBuf } }, { binding: 10, resource: { buffer: curLumBuf } }
+            ]
+          });
+          const encoder = device.createCommandEncoder();
+          const mainGroups = Math.ceil((Math.ceil(sw / GPU_STEP) * Math.ceil(sh / GPU_STEP)) / 256);
+          const mainPass = encoder.beginComputePass();
+          mainPass.setPipeline(mainPipeline); mainPass.setBindGroup(0, bindGroup); mainPass.dispatchWorkgroups(mainGroups); mainPass.end();
+          if (hasPrevLum) {
+            const motionGroups = Math.ceil((Math.floor(sw / 8) * Math.floor(sh / 8)) / 256);
+            if (motionGroups > 0) { const motionPass = encoder.beginComputePass(); motionPass.setPipeline(motionPipeline); motionPass.setBindGroup(0, bindGroup); motionPass.dispatchWorkgroups(motionGroups); motionPass.end(); }
+          }
+          encoder.copyBufferToBuffer(accumBuf, 0, readbackAccumBuf, 0, ACCUM_BYTES);
+          encoder.copyBufferToBuffer(lumHistBuf, 0, readbackHistBuf, 0, HIST_BYTES); encoder.copyBufferToBuffer(rHistBuf, 0, readbackHistBuf, HIST_BYTES, HIST_BYTES);
+          encoder.copyBufferToBuffer(gHistBuf, 0, readbackHistBuf, HIST_BYTES * 2, HIST_BYTES); encoder.copyBufferToBuffer(bHistBuf, 0, readbackHistBuf, HIST_BYTES * 3, HIST_BYTES);
+          encoder.copyBufferToBuffer(zoneBuf, 0, readbackZoneBuf, 0, ZONE_DATA_BYTES); encoder.copyBufferToBuffer(zoneHistBuf, 0, readbackZoneHistBuf, 0, ZONE_HIST_BYTES);
+          encoder.copyBufferToBuffer(curLumBuf, 0, prevLumBuf, 0, pixelCount * 4);
+          device.queue.submit([encoder.finish()]);
 
-          const mappedBuffers = [];
-          try {
-            await Promise.all([readbackAccumBuf.mapAsync(GPUMapMode.READ), readbackHistBuf.mapAsync(GPUMapMode.READ), readbackZoneBuf.mapAsync(GPUMapMode.READ), readbackZoneHistBuf.mapAsync(GPUMapMode.READ)]);
-            mappedBuffers.push(readbackAccumBuf, readbackHistBuf, readbackZoneBuf, readbackZoneHistBuf);
+          const mappedBuffers = [];
+          try {
+            await Promise.all([readbackAccumBuf.mapAsync(GPUMapMode.READ), readbackHistBuf.mapAsync(GPUMapMode.READ), readbackZoneBuf.mapAsync(GPUMapMode.READ), readbackZoneHistBuf.mapAsync(GPUMapMode.READ)]);
+            mappedBuffers.push(readbackAccumBuf, readbackHistBuf, readbackZoneBuf, readbackZoneHistBuf);
 
-            const accumData = new Uint32Array(readbackAccumBuf.getMappedRange().slice(0));
-            const histData = new Uint32Array(readbackHistBuf.getMappedRange().slice(0));
-            const zoneData = new Uint32Array(readbackZoneBuf.getMappedRange().slice(0));
-            const zoneHistData = new Uint32Array(readbackZoneHistBuf.getMappedRange().slice(0));
-            hasPrevLum = true;
+            const accumData = new Uint32Array(readbackAccumBuf.getMappedRange().slice(0));
+            const histData = new Uint32Array(readbackHistBuf.getMappedRange().slice(0));
+            const zoneData = new Uint32Array(readbackZoneBuf.getMappedRange().slice(0));
+            const zoneHistData = new Uint32Array(readbackZoneHistBuf.getMappedRange().slice(0));
+            hasPrevLum = true;
 
-            const count = Math.max(1, accumData[5]), sumLum = accumData[0], sumLumSq = accumData[1], sumChroma = accumData[2], sumEdge = accumData[3], skinCount = accumData[4];
-            const motionSadSum = accumData[6], motionSadCnt = Math.max(1, accumData[7]), hiLumaRSum = accumData[8], hiLumaBSum = accumData[9], hiLumaCount = accumData[10];
-            const mean = sumLum / count, variance = Math.max(0, (sumLumSq / count) - mean * mean), std = Math.sqrt(variance);
-            const motionSAD = motionSadCnt > 0 ? (motionSadSum / motionSadCnt) / 255 : 0;
-            const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
+            const count = Math.max(1, accumData[5]), sumLum = accumData[0], sumLumSq = accumData[1], sumChroma = accumData[2], sumEdge = accumData[3], skinCount = accumData[4];
+            const motionSadSum = accumData[6], motionSadCnt = Math.max(1, accumData[7]), hiLumaRSum = accumData[8], hiLumaBSum = accumData[9], hiLumaCount = accumData[10];
+            const mean = sumLum / count, variance = Math.max(0, (sumLumSq / count) - mean * mean), std = Math.sqrt(variance);
+            const motionSAD = motionSadCnt > 0 ? (motionSadSum / motionSadCnt) / 255 : 0;
+            const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
 
-            const lumHist = new Uint32Array(HIST_BINS), rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
-            lumHist.set(histData.subarray(0, HIST_BINS)); rHist.set(histData.subarray(HIST_BINS, HIST_BINS * 2));
-            gHist.set(histData.subarray(HIST_BINS * 2, HIST_BINS * 3)); bHist.set(histData.subarray(HIST_BINS * 3, HIST_BINS * 4));
+            const lumHist = new Uint32Array(HIST_BINS), rHist = new Uint32Array(HIST_BINS), gHist = new Uint32Array(HIST_BINS), bHist = new Uint32Array(HIST_BINS);
+            lumHist.set(histData.subarray(0, HIST_BINS)); rHist.set(histData.subarray(HIST_BINS, HIST_BINS * 2));
+            gHist.set(histData.subarray(HIST_BINS * 2, HIST_BINS * 3)); bHist.set(histData.subarray(HIST_BINS * 3, HIST_BINS * 4));
 
-            const zoneCounts = new Uint32Array(ZONE_COUNT), zoneBrightSum = new Float32Array(ZONE_COUNT);
-            for (let z = 0; z < ZONE_COUNT; z++) { zoneCounts[z] = zoneData[z]; zoneBrightSum[z] = zoneData[ZONE_COUNT + z]; }
-            const zoneHists = Array.from({ length: ZONE_COUNT }, (_, z) => new Uint32Array(zoneHistData.buffer, z * HIST_BINS * 4, HIST_BINS));
+            const zoneCounts = new Uint32Array(ZONE_COUNT), zoneBrightSum = new Float32Array(ZONE_COUNT);
+            for (let z = 0; z < ZONE_COUNT; z++) { zoneCounts[z] = zoneData[z]; zoneBrightSum[z] = zoneData[ZONE_COUNT + z]; }
+            const zoneHists = Array.from({ length: ZONE_COUNT }, (_, z) => new Uint32Array(zoneHistData.buffer, z * HIST_BINS * 4, HIST_BINS));
 
-            const centerIndices = [5, 6, 9, 10]; let centerSum = 0, centerCnt = 0;
-            for (const ci of centerIndices) { if (zoneCounts[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneCounts[ci]; centerCnt++; } }
-            const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
+            const centerIndices = [5, 6, 9, 10]; let centerSum = 0, centerCnt = 0;
+            for (const ci of centerIndices) { if (zoneCounts[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneCounts[ci]; centerCnt++; } }
+            const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
 
-            let edgeSum = 0, edgeCnt = 0;
-            for (let z = 0; z < ZONE_COUNT; z++) { if (centerIndices.includes(z)) continue; if (zoneCounts[z] > 0) { edgeSum += zoneBrightSum[z] / zoneCounts[z]; edgeCnt++; } }
-            const edgeAvgBright = edgeCnt > 0 ? edgeSum / edgeCnt / 255 : mean / 255;
+            let edgeSum = 0, edgeCnt = 0;
+            for (let z = 0; z < ZONE_COUNT; z++) { if (centerIndices.includes(z)) continue; if (zoneCounts[z] > 0) { edgeSum += zoneBrightSum[z] / zoneCounts[z]; edgeCnt++; } }
+            const edgeAvgBright = edgeCnt > 0 ? edgeSum / edgeCnt / 255 : mean / 255;
 
-            return { bright: mean / 255, contrast: std / 64, chroma: sumChroma / count / 255, edge: sumEdge / count, motionSAD, skinRatio: skinCount / count, centerBright, edgeAvgBright, hiLumaRBratio, lumHist, rHist, gHist, bHist, totalSamples: count, zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }, _gpuPath: true };
-          } finally {
-            for (const buf of mappedBuffers) { try { buf.unmap(); } catch (_) {} }
-          }
-        } catch (e) { log.warn('[GPU] analyzeFrame error:', e.message); return null; }
-      }
+            return { bright: mean / 255, contrast: std / 64, chroma: sumChroma / count / 255, edge: sumEdge / count, motionSAD, skinRatio: skinCount / count, centerBright, edgeAvgBright, hiLumaRBratio, lumHist, rHist, gHist, bHist, totalSamples: count, zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }, _gpuPath: true };
+          } finally {
+            for (const buf of mappedBuffers) { try { buf.unmap(); } catch (_) {} }
+          }
+        } catch (e) { log.warn('[GPU] analyzeFrame error:', e.message); return null; }
+      }
 
-      function destroy() {
-        gpuReady = false;
-        [pixelBuf, prevLumBuf, curLumBuf, lumHistBuf, rHistBuf, gHistBuf, bHistBuf, zoneBuf, zoneHistBuf, accumBuf, readbackAccumBuf, readbackHistBuf, readbackZoneBuf, readbackZoneHistBuf, uniformBuf].forEach(b => { if (b) { try { b.destroy(); } catch (_) {} } });
-        pixelBuf = prevLumBuf = curLumBuf = lumHistBuf = rHistBuf = gHistBuf = bHistBuf = zoneBuf = zoneHistBuf = accumBuf = readbackAccumBuf = readbackHistBuf = readbackZoneBuf = readbackZoneHistBuf = uniformBuf = null;
-        if (device) { try { device.destroy(); } catch (_) {} device = null; }
-        lastW = 0; lastH = 0; hasPrevLum = false; mainPipeline = null; motionPipeline = null; bindGroupLayout = null;
-      }
-      __globalSig.addEventListener('abort', destroy, { once: true });
-      return Object.freeze({ initGPU, analyzeFrame, isReady: () => gpuReady, isFailed: () => initFailed, destroy });
-    }
+      function destroy() {
+        gpuReady = false;
+        [pixelBuf, prevLumBuf, curLumBuf, lumHistBuf, rHistBuf, gHistBuf, bHistBuf, zoneBuf, zoneHistBuf, accumBuf, readbackAccumBuf, readbackHistBuf, readbackZoneBuf, readbackZoneHistBuf, uniformBuf].forEach(b => { if (b) { try { b.destroy(); } catch (_) {} } });
+        pixelBuf = prevLumBuf = curLumBuf = lumHistBuf = rHistBuf = gHistBuf = bHistBuf = zoneBuf = zoneHistBuf = accumBuf = readbackAccumBuf = readbackHistBuf = readbackZoneBuf = readbackZoneHistBuf = uniformBuf = null;
+        if (device) { try { device.destroy(); } catch (_) {} device = null; }
+        lastW = 0; lastH = 0; hasPrevLum = false; mainPipeline = null; motionPipeline = null; bindGroupLayout = null;
+      }
+      __globalSig.addEventListener('abort', destroy, { once: true });
+      return Object.freeze({ initGPU, analyzeFrame, isReady: () => gpuReady, isFailed: () => initFailed, destroy });
+    }
 
-    /* ══════════════════════════════════════════════════════════════════
-       AudioWorklet DSP Processor Source
-       ══════════════════════════════════════════════════════════════════ */
-    const VSC_AUDIO_WORKLET_SOURCE = `
+    /* ══════════════════════════════════════════════════════════════════
+       AudioWorklet DSP Processor Source
+       ══════════════════════════════════════════════════════════════════ */
+    const VSC_AUDIO_WORKLET_SOURCE = `
 class Biquad {
- constructor(){this.x1=0;this.x2=0;this.y1=0;this.y2=0;this.b0=1;this.b1=0;this.b2=0;this.a1=0;this.a2=0;}
- setLowShelf(Fs,f0,Q,gainDb){const A=Math.pow(10,gainDb/40),w0=2*Math.PI*f0/Fs,alpha=Math.sin(w0)/2*Math.sqrt((A+1/A)*(1/Q-1)+2),a0=(A+1)+(A-1)*Math.cos(w0)+2*Math.sqrt(A)*alpha;this.b0=(A*((A+1)-(A-1)*Math.cos(w0)+2*Math.sqrt(A)*alpha))/a0;this.b1=(2*A*((A-1)-(A+1)*Math.cos(w0)))/a0;this.b2=(A*((A+1)-(A-1)*Math.cos(w0)-2*Math.sqrt(A)*alpha))/a0;this.a1=(-2*((A-1)+(A+1)*Math.cos(w0)))/a0;this.a2=((A+1)+(A-1)*Math.cos(w0)-2*Math.sqrt(A)*alpha)/a0;}
- setPeak(Fs,f0,Q,gainDb){const A=Math.pow(10,gainDb/40),w0=2*Math.PI*f0/Fs,alpha=Math.sin(w0)/(2*Q),a0=1+alpha/A;this.b0=(1+alpha*A)/a0;this.b1=(-2*Math.cos(w0))/a0;this.b2=(1-alpha*A)/a0;this.a1=(-2*Math.cos(w0))/a0;this.a2=(1-alpha/A)/a0;}
- process(x){const y=this.b0*x+this.b1*this.x1+this.b2*this.x2-this.a1*this.y1-this.a2*this.y2;this.x2=this.x1;this.x1=x;this.y2=this.y1;this.y1=y;return y;}
+ constructor(){this.x1=0;this.x2=0;this.y1=0;this.y2=0;this.b0=1;this.b1=0;this.b2=0;this.a1=0;this.a2=0;}
+ setLowShelf(Fs,f0,Q,gainDb){const A=Math.pow(10,gainDb/40),w0=2*Math.PI*f0/Fs,alpha=Math.sin(w0)/2*Math.sqrt((A+1/A)*(1/Q-1)+2),a0=(A+1)+(A-1)*Math.cos(w0)+2*Math.sqrt(A)*alpha;this.b0=(A*((A+1)-(A-1)*Math.cos(w0)+2*Math.sqrt(A)*alpha))/a0;this.b1=(2*A*((A-1)-(A+1)*Math.cos(w0)))/a0;this.b2=(A*((A+1)-(A-1)*Math.cos(w0)-2*Math.sqrt(A)*alpha))/a0;this.a1=(-2*((A-1)+(A+1)*Math.cos(w0)))/a0;this.a2=((A+1)+(A-1)*Math.cos(w0)-2*Math.sqrt(A)*alpha)/a0;}
+ setPeak(Fs,f0,Q,gainDb){const A=Math.pow(10,gainDb/40),w0=2*Math.PI*f0/Fs,alpha=Math.sin(w0)/(2*Q),a0=1+alpha/A;this.b0=(1+alpha*A)/a0;this.b1=(-2*Math.cos(w0))/a0;this.b2=(1-alpha*A)/a0;this.a1=(-2*Math.cos(w0))/a0;this.a2=(1-alpha/A)/a0;}
+ process(x){const y=this.b0*x+this.b1*this.x1+this.b2*this.x2-this.a1*this.y1-this.a2*this.y2;this.x2=this.x1;this.x1=x;this.y2=this.y1;this.y1=y;return y;}
 }
 class VSCDSPProcessor extends AudioWorkletProcessor {
- constructor(options) {
-   super(); const pd = (options && options.processorOptions) || {};
-   this.sampleRate = pd.sampleRate || 48000; this.enabled = false; this.boostLinear = 1.0; this.wetMix = 0.0; this.dryMix = 1.0;
-   this._hpfState = [{ x1:0,x2:0,y1:0,y2:0 },{ x1:0,x2:0,y1:0,y2:0 }];
-   this._computeHPFCoeffs(40, 0.707);
-   this.bassDb=0; this.voiceDb=0;
-   this.eq=[{b:new Biquad(),v:new Biquad()},{b:new Biquad(),v:new Biquad()}];
-   this._updateEQ();
-   this._compEnvDb = -100;
-   this._compThreshDb = -24;
-   this._compRatio = 3.8;
-   this._compKneeDb = 6;
-   this._compAttack = 0.003;
-   this._compRelease = 0.18;
-   this._limEnvDb = -100;
-   this._limThreshDb = -1.5;
-   this._limRatio = 20;
-   this._limAttack = 0.0003;
-   this._limRelease = 0.09;
-   this._clipKnee = 0.72;
-   this._clipDrive = 2.5;
-   this._clipTanhD = Math.tanh(this._clipDrive);
-   this._makeupDbEma = 0; this._rmsDb = -100; this._compReductionDb = 0; this._targetWet = 0; this._targetDry = 1; this._rampRate = 0.001;
-   this.port.onmessage = (e) => {
-     const d = e.data; if (!d) return;
-     if (d.type === 'init_sab') {
-       try {
-         this._metricsView = new Int32Array(d.sab);
-         Atomics.store(this._metricsView, 0, -10000);
-         Atomics.store(this._metricsView, 1, 0);
-         Atomics.store(this._metricsView, 2, 0);
-         Atomics.store(this._metricsView, 3, 0);
-       } catch (_) { this._metricsView = null; }
-       return;
-     }
-     if (d.type === 'params') {
-       if (typeof d.enabled === 'boolean') this.enabled = d.enabled;
-       if (typeof d.boostDb === 'number') this.boostLinear = Math.pow(10, d.boostDb / 20);
-       let eqChanged = false;
-       if (typeof d.bassDb === 'number' && d.bassDb !== this.bassDb) { this.bassDb = d.bassDb; eqChanged = true; }
-       if (typeof d.voiceDb === 'number' && d.voiceDb !== this.voiceDb) { this.voiceDb = d.voiceDb; eqChanged = true; }
-       if (eqChanged) this._updateEQ();
-       this._updateMixTargets();
-     }
-     if (d.type === 'getMetrics') {
-       if (!this._metricsView) {
-         this.port.postMessage({ type: 'metrics', rmsDb: this._rmsDb, compReduction: this._compReductionDb, makeupDb: this._makeupDbEma });
-       }
-     }
-   };
- }
- _updateEQ() {
-   for(let i=0;i<2;i++) {
-     this.eq[i].b.setLowShelf(this.sampleRate, 120, 0.707, this.bassDb);
-     this.eq[i].v.setPeak(this.sampleRate, 3000, 1.6, this.voiceDb);
-   }
- }
- _updateMixTargets() { if (this.enabled) { this._targetWet = 1; this._targetDry = 0; } else { this._targetWet = 0; this._targetDry = 1; } }
- _computeHPFCoeffs(freq, Q) { const w0 = 2 * Math.PI * freq / this.sampleRate; const cosW0 = Math.cos(w0); const sinW0 = Math.sin(w0); const alpha = sinW0 / (2 * Q); const a0 = 1 + alpha; this._hpfB0 = ((1 + cosW0) / 2) / a0; this._hpfB1 = (-(1 + cosW0)) / a0; this._hpfB2 = ((1 + cosW0) / 2) / a0; this._hpfA1 = (-2 * cosW0) / a0; this._hpfA2 = (1 - alpha) / a0; }
- _applyHPF(sample, chState) { const y = this._hpfB0 * sample + this._hpfB1 * chState.x1 + this._hpfB2 * chState.x2 - this._hpfA1 * chState.y1 - this._hpfA2 * chState.y2; chState.x2 = chState.x1; chState.x1 = sample; chState.y2 = chState.y1; chState.y1 = y; return y; }
- _compressDb(inputDb, threshDb, ratio, kneeDb) { const halfKnee = kneeDb / 2; if (inputDb < threshDb - halfKnee) return inputDb; if (inputDb > threshDb + halfKnee) { return threshDb + (inputDb - threshDb) / ratio; } const x = inputDb - threshDb + halfKnee; return inputDb + ((1 / ratio) - 1) * x * x / (2 * kneeDb); }
- _envFollow(envDb, inputDb, attack, release) { const coeff = inputDb > envDb ? 1 - Math.exp(-1 / (this.sampleRate * attack)) : 1 - Math.exp(-1 / (this.sampleRate * release)); return envDb + coeff * (inputDb - envDb); }
- _softClip(x) { const ax = Math.abs(x); if (ax <= this._clipKnee) return x; const t = (ax - this._clipKnee) / Math.max(1e-6, 1 - this._clipKnee); const s = Math.tanh(this._clipDrive * t) / this._clipTanhD; return Math.sign(x) * (this._clipKnee + (1 - this._clipKnee) * s); }
- process(inputs, outputs, parameters) {
-   const input = inputs[0]; const output = outputs[0]; if (!input || !input.length || !output || !output.length) return true;
-   const numChannels = Math.min(input.length, output.length, 2); const blockSize = input[0].length;
-   this.wetMix += (this._targetWet - this.wetMix) * Math.min(1, this._rampRate * blockSize); this.dryMix += (this._targetDry - this.dryMix) * Math.min(1, this._rampRate * blockSize);
-   const doProcess = this.wetMix > 0.001;
-   if (!doProcess) { for (let ch = 0; ch < numChannels; ch++) { const inp = input[ch]; const out = output[ch]; for (let i = 0; i < blockSize; i++) out[i] = inp[i] * this.dryMix; } for (let ch = numChannels; ch < output.length; ch++) output[ch].fill(0); return true; }
-   let sumSq = 0; let peakCompReduction = 0;
-   for (let i = 0; i < blockSize; i++) {
-     let monoIn = 0; for (let ch = 0; ch < numChannels; ch++) monoIn += input[ch][i]; monoIn /= numChannels;
-     let filtered = 0; for (let ch = 0; ch < numChannels; ch++) { let s = this._applyHPF(input[ch][i], this._hpfState[ch]); s = this.eq[ch].b.process(s); s = this.eq[ch].v.process(s); filtered += s; } filtered /= numChannels;
-     const inAbs = Math.abs(filtered); const inDb = inAbs > 1e-8 ? 20 * Math.log10(inAbs) : -160;
-     this._compEnvDb = this._envFollow(this._compEnvDb, inDb, this._compAttack, this._compRelease);
-     const compOutDb = this._compressDb(this._compEnvDb, this._compThreshDb, this._compRatio, this._compKneeDb);
-     const compGainDb = compOutDb - this._compEnvDb; const compReduction = -compGainDb; if (compReduction > peakCompReduction) peakCompReduction = compReduction;
-     const compGainLinear = Math.pow(10, compGainDb / 20);
-     let gateMult = 1.0;
-     if (this._compEnvDb < -60) gateMult = 0.0;
-     else if (this._compEnvDb < -50) gateMult = (this._compEnvDb + 60) / 10.0;
-     const makeupDbTarget = Math.min(6, Math.max(0, compReduction - 2) * 0.38) * gateMult;
-     const isAttack = makeupDbTarget < this._makeupDbEma; const alpha = isAttack ? 0.20 : 0.005; this._makeupDbEma += (makeupDbTarget - this._makeupDbEma) * alpha;
-     const makeupLinear = Math.pow(10, this._makeupDbEma / 20); const totalGain = compGainLinear * this.boostLinear * makeupLinear;
-     for (let ch = 0; ch < numChannels; ch++) {
-       let wet = this._applyHPF(input[ch][i], this._hpfState[ch]);
-       wet = this.eq[ch].b.process(wet); wet = this.eq[ch].v.process(wet);
-       wet *= totalGain;
-       const wetAbs = Math.abs(wet); const wetDb = wetAbs > 1e-8 ? 20 * Math.log10(wetAbs) : -160;
-       this._limEnvDb = this._envFollow(this._limEnvDb, wetDb, this._limAttack, this._limRelease);
-       const limOutDb = this._compressDb(this._limEnvDb, this._limThreshDb, this._limRatio, 0); const limGainDb = limOutDb - this._limEnvDb; const limGainLinear = Math.pow(10, limGainDb / 20);
-       wet *= limGainLinear; wet = this._softClip(wet); const dry = input[ch][i]; output[ch][i] = dry * this.dryMix + wet * this.wetMix;
-     }
-     const outSample = output[0][i]; sumSq += outSample * outSample;
-   }
-   for (let ch = numChannels; ch < output.length; ch++) output[ch].fill(0);
-   const rms = Math.sqrt(sumSq / blockSize); this._rmsDb = rms > 1e-8 ? 20 * Math.log10(rms) : -100; this._compReductionDb = peakCompReduction;
-   if (this._metricsView) {
-     const view = this._metricsView; const gen = Atomics.load(view, 3);
-     Atomics.store(view, 3, gen + 1);
-     Atomics.store(view, 0, (this._rmsDb * 100 + 0.5) | 0);
-     Atomics.store(view, 1, (peakCompReduction * 100 + 0.5) | 0);
-     Atomics.store(view, 2, (this._makeupDbEma * 100 + 0.5) | 0);
-     Atomics.store(view, 3, gen + 2);
-   }
-   return true;
- }
- static get parameterDescriptors() { return []; }
+ constructor(options) {
+   super(); const pd = (options && options.processorOptions) || {};
+   this.sampleRate = pd.sampleRate || 48000; this.enabled = false; this.boostLinear = 1.0; this.wetMix = 0.0; this.dryMix = 1.0;
+   this._hpfState = [{ x1:0,x2:0,y1:0,y2:0 },{ x1:0,x2:0,y1:0,y2:0 }];
+   this._computeHPFCoeffs(40, 0.707);
+   this.bassDb=0; this.voiceDb=0;
+   this.eq=[{b:new Biquad(),v:new Biquad()},{b:new Biquad(),v:new Biquad()}];
+   this._updateEQ();
+   this._compEnvDb = -100;
+   this._compThreshDb = -24;
+   this._compRatio = 3.8;
+   this._compKneeDb = 6;
+   this._compAttack = 0.003;
+   this._compRelease = 0.18;
+   this._limEnvDb = -100;
+   this._limThreshDb = -1.5;
+   this._limRatio = 20;
+   this._limAttack = 0.0003;
+   this._limRelease = 0.09;
+   this._clipKnee = 0.72;
+   this._clipDrive = 2.5;
+   this._clipTanhD = Math.tanh(this._clipDrive);
+   this._makeupDbEma = 0; this._rmsDb = -100; this._compReductionDb = 0; this._targetWet = 0; this._targetDry = 1; this._rampRate = 0.001;
+   this.port.onmessage = (e) => {
+     const d = e.data; if (!d) return;
+     if (d.type === 'init_sab') {
+       try {
+         this._metricsView = new Int32Array(d.sab);
+         Atomics.store(this._metricsView, 0, -10000);
+         Atomics.store(this._metricsView, 1, 0);
+         Atomics.store(this._metricsView, 2, 0);
+         Atomics.store(this._metricsView, 3, 0);
+       } catch (_) { this._metricsView = null; }
+       return;
+     }
+     if (d.type === 'params') {
+       if (typeof d.enabled === 'boolean') this.enabled = d.enabled;
+       if (typeof d.boostDb === 'number') this.boostLinear = Math.pow(10, d.boostDb / 20);
+       let eqChanged = false;
+       if (typeof d.bassDb === 'number' && d.bassDb !== this.bassDb) { this.bassDb = d.bassDb; eqChanged = true; }
+       if (typeof d.voiceDb === 'number' && d.voiceDb !== this.voiceDb) { this.voiceDb = d.voiceDb; eqChanged = true; }
+       if (eqChanged) this._updateEQ();
+       this._updateMixTargets();
+     }
+     if (d.type === 'getMetrics') {
+       if (!this._metricsView) {
+         this.port.postMessage({ type: 'metrics', rmsDb: this._rmsDb, compReduction: this._compReductionDb, makeupDb: this._makeupDbEma });
+       }
+     }
+   };
+ }
+ _updateEQ() {
+   for(let i=0;i<2;i++) {
+     this.eq[i].b.setLowShelf(this.sampleRate, 120, 0.707, this.bassDb);
+     this.eq[i].v.setPeak(this.sampleRate, 3000, 1.6, this.voiceDb);
+   }
+ }
+ _updateMixTargets() { if (this.enabled) { this._targetWet = 1; this._targetDry = 0; } else { this._targetWet = 0; this._targetDry = 1; } }
+ _computeHPFCoeffs(freq, Q) { const w0 = 2 * Math.PI * freq / this.sampleRate; const cosW0 = Math.cos(w0); const sinW0 = Math.sin(w0); const alpha = sinW0 / (2 * Q); const a0 = 1 + alpha; this._hpfB0 = ((1 + cosW0) / 2) / a0; this._hpfB1 = (-(1 + cosW0)) / a0; this._hpfB2 = ((1 + cosW0) / 2) / a0; this._hpfA1 = (-2 * cosW0) / a0; this._hpfA2 = (1 - alpha) / a0; }
+ _applyHPF(sample, chState) { const y = this._hpfB0 * sample + this._hpfB1 * chState.x1 + this._hpfB2 * chState.x2 - this._hpfA1 * chState.y1 - this._hpfA2 * chState.y2; chState.x2 = chState.x1; chState.x1 = sample; chState.y2 = chState.y1; chState.y1 = y; return y; }
+ _compressDb(inputDb, threshDb, ratio, kneeDb) { const halfKnee = kneeDb / 2; if (inputDb < threshDb - halfKnee) return inputDb; if (inputDb > threshDb + halfKnee) { return threshDb + (inputDb - threshDb) / ratio; } const x = inputDb - threshDb + halfKnee; return inputDb + ((1 / ratio) - 1) * x * x / (2 * kneeDb); }
+ _envFollow(envDb, inputDb, attack, release) { const coeff = inputDb > envDb ? 1 - Math.exp(-1 / (this.sampleRate * attack)) : 1 - Math.exp(-1 / (this.sampleRate * release)); return envDb + coeff * (inputDb - envDb); }
+ _softClip(x) { const ax = Math.abs(x); if (ax <= this._clipKnee) return x; const t = (ax - this._clipKnee) / Math.max(1e-6, 1 - this._clipKnee); const s = Math.tanh(this._clipDrive * t) / this._clipTanhD; return Math.sign(x) * (this._clipKnee + (1 - this._clipKnee) * s); }
+ process(inputs, outputs, parameters) {
+   const input = inputs[0]; const output = outputs[0]; if (!input || !input.length || !output || !output.length) return true;
+   const numChannels = Math.min(input.length, output.length, 2); const blockSize = input[0].length;
+   this.wetMix += (this._targetWet - this.wetMix) * Math.min(1, this._rampRate * blockSize); this.dryMix += (this._targetDry - this.dryMix) * Math.min(1, this._rampRate * blockSize);
+   const doProcess = this.wetMix > 0.001;
+   if (!doProcess) { for (let ch = 0; ch < numChannels; ch++) { const inp = input[ch]; const out = output[ch]; for (let i = 0; i < blockSize; i++) out[i] = inp[i] * this.dryMix; } for (let ch = numChannels; ch < output.length; ch++) output[ch].fill(0); return true; }
+   let sumSq = 0; let peakCompReduction = 0;
+   for (let i = 0; i < blockSize; i++) {
+     let monoIn = 0; for (let ch = 0; ch < numChannels; ch++) monoIn += input[ch][i]; monoIn /= numChannels;
+     let filtered = 0; for (let ch = 0; ch < numChannels; ch++) { let s = this._applyHPF(input[ch][i], this._hpfState[ch]); s = this.eq[ch].b.process(s); s = this.eq[ch].v.process(s); filtered += s; } filtered /= numChannels;
+     const inAbs = Math.abs(filtered); const inDb = inAbs > 1e-8 ? 20 * Math.log10(inAbs) : -160;
+     this._compEnvDb = this._envFollow(this._compEnvDb, inDb, this._compAttack, this._compRelease);
+     const compOutDb = this._compressDb(this._compEnvDb, this._compThreshDb, this._compRatio, this._compKneeDb);
+     const compGainDb = compOutDb - this._compEnvDb; const compReduction = -compGainDb; if (compReduction > peakCompReduction) peakCompReduction = compReduction;
+     const compGainLinear = Math.pow(10, compGainDb / 20);
+     let gateMult = 1.0;
+     if (this._compEnvDb < -60) gateMult = 0.0;
+     else if (this._compEnvDb < -50) gateMult = (this._compEnvDb + 60) / 10.0;
+     const makeupDbTarget = Math.min(6, Math.max(0, compReduction - 2) * 0.38) * gateMult;
+     const isAttack = makeupDbTarget < this._makeupDbEma; const alpha = isAttack ? 0.20 : 0.005; this._makeupDbEma += (makeupDbTarget - this._makeupDbEma) * alpha;
+     const makeupLinear = Math.pow(10, this._makeupDbEma / 20); const totalGain = compGainLinear * this.boostLinear * makeupLinear;
+     for (let ch = 0; ch < numChannels; ch++) {
+       let wet = this._applyHPF(input[ch][i], this._hpfState[ch]);
+       wet = this.eq[ch].b.process(wet); wet = this.eq[ch].v.process(wet);
+       wet *= totalGain;
+       const wetAbs = Math.abs(wet); const wetDb = wetAbs > 1e-8 ? 20 * Math.log10(wetAbs) : -160;
+       this._limEnvDb = this._envFollow(this._limEnvDb, wetDb, this._limAttack, this._limRelease);
+       const limOutDb = this._compressDb(this._limEnvDb, this._limThreshDb, this._limRatio, 0); const limGainDb = limOutDb - this._limEnvDb; const limGainLinear = Math.pow(10, limGainDb / 20);
+       wet *= limGainLinear; wet = this._softClip(wet); const dry = input[ch][i]; output[ch][i] = dry * this.dryMix + wet * this.wetMix;
+     }
+     const outSample = output[0][i]; sumSq += outSample * outSample;
+   }
+   for (let ch = numChannels; ch < output.length; ch++) output[ch].fill(0);
+   const rms = Math.sqrt(sumSq / blockSize); this._rmsDb = rms > 1e-8 ? 20 * Math.log10(rms) : -100; this._compReductionDb = peakCompReduction;
+   if (this._metricsView) {
+     const view = this._metricsView; const gen = Atomics.load(view, 3);
+     Atomics.store(view, 3, gen + 1);
+     Atomics.store(view, 0, (this._rmsDb * 100 + 0.5) | 0);
+     Atomics.store(view, 1, (peakCompReduction * 100 + 0.5) | 0);
+     Atomics.store(view, 2, (this._makeupDbEma * 100 + 0.5) | 0);
+     Atomics.store(view, 3, gen + 2);
+   }
+   return true;
+ }
+ static get parameterDescriptors() { return []; }
 }
 registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
 `;
 
-    /* ── AudioWorklet registration helper ── */
-    let __workletRegistered = false;
-    let __workletBlobUrl = null;
+    /* ── AudioWorklet registration helper ── */
+    let __workletRegistered = false;
+    let __workletBlobUrl = null;
 
-    async function ensureAudioWorkletModule(audioCtx) {
-      if (__workletRegistered) return true;
-      if (!audioCtx.audioWorklet || typeof audioCtx.audioWorklet.addModule !== 'function') return false;
-      try {
-        if (!__workletBlobUrl) { const blob = new Blob([VSC_AUDIO_WORKLET_SOURCE], { type: 'application/javascript' }); __workletBlobUrl = URL.createObjectURL(blob); }
-        await audioCtx.audioWorklet.addModule(__workletBlobUrl);
-        __workletRegistered = true; log.info('[AudioWorklet] DSP processor registered successfully'); return true;
-      } catch (e) { log.warn('[AudioWorklet] Registration failed:', e.message); return false; }
-    }
-    __globalSig.addEventListener('abort', () => { if (__workletBlobUrl) { try { URL.revokeObjectURL(__workletBlobUrl); } catch (_) {} __workletBlobUrl = null; } __workletRegistered = false; }, { once: true });
+    async function ensureAudioWorkletModule(audioCtx) {
+      if (__workletRegistered) return true;
+      if (!audioCtx.audioWorklet || typeof audioCtx.audioWorklet.addModule !== 'function') return false;
+      try {
+        if (!__workletBlobUrl) { const blob = new Blob([VSC_AUDIO_WORKLET_SOURCE], { type: 'application/javascript' }); __workletBlobUrl = URL.createObjectURL(blob); }
+        await audioCtx.audioWorklet.addModule(__workletBlobUrl);
+        __workletRegistered = true; log.info('[AudioWorklet] DSP processor registered successfully'); return true;
+      } catch (e) { log.warn('[AudioWorklet] Registration failed:', e.message); return false; }
+    }
+    __globalSig.addEventListener('abort', () => { if (__workletBlobUrl) { try { URL.revokeObjectURL(__workletBlobUrl); } catch (_) {} __workletBlobUrl = null; } __workletRegistered = false; }, { once: true });
 
-    /* ══ defineFeature — Declarative Module System ══ */
-    function createModuleSystem(globalSig) {
-      const STATUS = Object.freeze({ PENDING: 0, INITIALIZING: 1, ACTIVE: 2, SUSPENDED: 3, DESTROYED: 4, ERROR: 5 });
-      const modules = new Map(); const initOrder = []; const updateQueue = []; const destroyStack = []; let _resolving = new Set();
+    /* ══ defineFeature — Declarative Module System ══ */
+    function createModuleSystem(globalSig) {
+      const STATUS = Object.freeze({ PENDING: 0, INITIALIZING: 1, ACTIVE: 2, SUSPENDED: 3, DESTROYED: 4, ERROR: 5 });
+      const modules = new Map(); const initOrder = []; const updateQueue = []; const destroyStack = []; let _resolving = new Set();
 
-      function defineFeature(name, descriptor) {
-        if (modules.has(name)) { log.warn(`[ModuleSystem] duplicate: ${name}, skipping`); return; }
-        const { deps = [], init, update = null, destroy = null, priority = 100, updateCondition = null } = descriptor;
-        if (typeof init !== 'function') { throw new Error(`[ModuleSystem] ${name}: init must be a function`); }
-        modules.set(name, { name, deps, init, update, destroy, priority, updateCondition, instance: null, ac: null, signal: null, status: STATUS.PENDING, initTime: 0, updateCount: 0, lastError: null });
-      }
+      function defineFeature(name, descriptor) {
+        if (modules.has(name)) { log.warn(`[ModuleSystem] duplicate: ${name}, skipping`); return; }
+        const { deps = [], init, update = null, destroy = null, priority = 100, updateCondition = null } = descriptor;
+        if (typeof init !== 'function') { throw new Error(`[ModuleSystem] ${name}: init must be a function`); }
+        modules.set(name, { name, deps, init, update, destroy, priority, updateCondition, instance: null, ac: null, signal: null, status: STATUS.PENDING, initTime: 0, updateCount: 0, lastError: null });
+      }
 
-      function resolve(name) {
-        const mod = modules.get(name); if (!mod) throw new Error(`[ModuleSystem] unknown module: ${name}`);
-        if (mod.status === STATUS.ACTIVE || mod.status === STATUS.SUSPENDED) return mod.instance;
-        if (mod.status === STATUS.DESTROYED) throw new Error(`[ModuleSystem] ${name} already destroyed`);
-        if (_resolving.has(name)) throw new Error(`[ModuleSystem] circular dependency: ${[..._resolving, name].join(' → ')}`);
-        _resolving.add(name); mod.status = STATUS.INITIALIZING; const resolvedDeps = {};
-        for (const depName of mod.deps) { try { resolvedDeps[depName] = resolve(depName); } catch (e) { mod.status = STATUS.ERROR; mod.lastError = e; _resolving.delete(name); throw new Error(`[ModuleSystem] ${name}: dep '${depName}' failed: ${e.message}`); } }
-        const ac = new AbortController(); const moduleSignal = getCombinedSignal(ac.signal);
-        try {
-          const t0 = performance.now(); const instance = mod.init(resolvedDeps, moduleSignal); mod.initTime = performance.now() - t0;
-          mod.instance = instance; mod.ac = ac; mod.signal = moduleSignal; mod.status = STATUS.ACTIVE;
-          initOrder.push(name); destroyStack.push(name);
-          if (typeof mod.update === 'function') { updateQueue.push(mod); updateQueue.sort((a, b) => a.priority - b.priority); }
-          log.debug(`[ModuleSystem] ${name} initialized (${mod.initTime.toFixed(1)}ms)`); _resolving.delete(name); return instance;
-        } catch (e) { mod.status = STATUS.ERROR; mod.lastError = e; ac.abort(); _resolving.delete(name); log.error(`[ModuleSystem] ${name} init failed:`, e); throw e; }
-      }
+      function resolve(name) {
+        const mod = modules.get(name); if (!mod) throw new Error(`[ModuleSystem] unknown module: ${name}`);
+        if (mod.status === STATUS.ACTIVE || mod.status === STATUS.SUSPENDED) return mod.instance;
+        if (mod.status === STATUS.DESTROYED) throw new Error(`[ModuleSystem] ${name} already destroyed`);
+        if (_resolving.has(name)) throw new Error(`[ModuleSystem] circular dependency: ${[..._resolving, name].join(' → ')}`);
+        _resolving.add(name); mod.status = STATUS.INITIALIZING; const resolvedDeps = {};
+        for (const depName of mod.deps) { try { resolvedDeps[depName] = resolve(depName); } catch (e) { mod.status = STATUS.ERROR; mod.lastError = e; _resolving.delete(name); throw new Error(`[ModuleSystem] ${name}: dep '${depName}' failed: ${e.message}`); } }
+        const ac = new AbortController(); const moduleSignal = getCombinedSignal(ac.signal);
+        try {
+          const t0 = performance.now(); const instance = mod.init(resolvedDeps, moduleSignal); mod.initTime = performance.now() - t0;
+          mod.instance = instance; mod.ac = ac; mod.signal = moduleSignal; mod.status = STATUS.ACTIVE;
+          initOrder.push(name); destroyStack.push(name);
+          if (typeof mod.update === 'function') { updateQueue.push(mod); updateQueue.sort((a, b) => a.priority - b.priority); }
+          log.debug(`[ModuleSystem] ${name} initialized (${mod.initTime.toFixed(1)}ms)`); _resolving.delete(name); return instance;
+        } catch (e) { mod.status = STATUS.ERROR; mod.lastError = e; ac.abort(); _resolving.delete(name); log.error(`[ModuleSystem] ${name} init failed:`, e); throw e; }
+      }
 
-      function resolveAll(names) { const results = new Map(); for (const name of names) results.set(name, resolve(name)); return results; }
-      function runUpdates(ctx) {
-        for (const mod of updateQueue) {
-          if (mod.status !== STATUS.ACTIVE) continue;
-          if (mod.updateCondition && !mod.updateCondition(ctx)) continue;
-          try { mod.update(mod.instance, ctx); mod.updateCount++; } catch (e) { log.warn(`[ModuleSystem] ${mod.name} update error:`, e); mod.lastError = e; }
-        }
-      }
+      function resolveAll(names) { const results = new Map(); for (const name of names) results.set(name, resolve(name)); return results; }
+      function runUpdates(ctx) {
+        for (const mod of updateQueue) {
+          if (mod.status !== STATUS.ACTIVE) continue;
+          if (mod.updateCondition && !mod.updateCondition(ctx)) continue;
+          try { mod.update(mod.instance, ctx); mod.updateCount++; } catch (e) { log.warn(`[ModuleSystem] ${mod.name} update error:`, e); mod.lastError = e; }
+        }
+      }
 
-      function suspend(name) { const mod = modules.get(name); if (mod?.status === STATUS.ACTIVE) { mod.status = STATUS.SUSPENDED; log.debug(`[ModuleSystem] ${name} suspended`); } }
-      function resume(name) { const mod = modules.get(name); if (mod?.status === STATUS.SUSPENDED) { mod.status = STATUS.ACTIVE; log.debug(`[ModuleSystem] ${name} resumed`); } }
-      function destroyOne(name) {
-        const mod = modules.get(name); if (!mod || mod.status === STATUS.DESTROYED) return;
-        mod.status = STATUS.DESTROYED; if (mod.ac) { mod.ac.abort(); mod.ac = null; }
-        if (typeof mod.destroy === 'function' && mod.instance != null) { try { mod.destroy(mod.instance); } catch (e) { log.warn(`[ModuleSystem] ${name} destroy error:`, e); } }
-        const uIdx = updateQueue.indexOf(mod); if (uIdx >= 0) updateQueue.splice(uIdx, 1);
-        mod.instance = null; mod.signal = null; log.debug(`[ModuleSystem] ${name} destroyed`);
-      }
-      function destroyAll() { while (destroyStack.length > 0) destroyOne(destroyStack.pop()); initOrder.length = 0; }
-      function get(name) { return modules.get(name)?.instance ?? null; }
-      function getStatus(name) { return modules.get(name)?.status ?? null; }
-      function listActive() { const r = []; for (const [n, m] of modules) { if (m.status === STATUS.ACTIVE) r.push(n); } return r; }
-      function getStats() { const stats = {}; for (const [name, mod] of modules) { stats[name] = { status: mod.status, initTime: mod.initTime, updateCount: mod.updateCount, lastError: mod.lastError?.message || null }; } return stats; }
-      globalSig.addEventListener('abort', destroyAll, { once: true });
-      return Object.freeze({ defineFeature, resolve, resolveAll, runUpdates, suspend, resume, destroyOne, destroyAll, get, getStatus, listActive, getStats, STATUS });
-    }
+      function suspend(name) { const mod = modules.get(name); if (mod?.status === STATUS.ACTIVE) { mod.status = STATUS.SUSPENDED; log.debug(`[ModuleSystem] ${name} suspended`); } }
+      function resume(name) { const mod = modules.get(name); if (mod?.status === STATUS.SUSPENDED) { mod.status = STATUS.ACTIVE; log.debug(`[ModuleSystem] ${name} resumed`); } }
+      function destroyOne(name) {
+        const mod = modules.get(name); if (!mod || mod.status === STATUS.DESTROYED) return;
+        mod.status = STATUS.DESTROYED; if (mod.ac) { mod.ac.abort(); mod.ac = null; }
+        if (typeof mod.destroy === 'function' && mod.instance != null) { try { mod.destroy(mod.instance); } catch (e) { log.warn(`[ModuleSystem] ${name} destroy error:`, e); } }
+        const uIdx = updateQueue.indexOf(mod); if (uIdx >= 0) updateQueue.splice(uIdx, 1);
+        mod.instance = null; mod.signal = null; log.debug(`[ModuleSystem] ${name} destroyed`);
+      }
+      function destroyAll() { while (destroyStack.length > 0) destroyOne(destroyStack.pop()); initOrder.length = 0; }
+      function get(name) { return modules.get(name)?.instance ?? null; }
+      function getStatus(name) { return modules.get(name)?.status ?? null; }
+      function listActive() { const r = []; for (const [n, m] of modules) { if (m.status === STATUS.ACTIVE) r.push(n); } return r; }
+      function getStats() { const stats = {}; for (const [name, mod] of modules) { stats[name] = { status: mod.status, initTime: mod.initTime, updateCount: mod.updateCount, lastError: mod.lastError?.message || null }; } return stats; }
+      globalSig.addEventListener('abort', destroyAll, { once: true });
+      return Object.freeze({ defineFeature, resolve, resolveAll, runUpdates, suspend, resume, destroyOne, destroyAll, get, getStatus, listActive, getStats, STATUS });
+    }
 
-    /* ══ Targeting ══ */
-    function createTargeting() {
-      let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
-      const SCORE = Object.freeze({
-  PLAYING: 25.0, HAS_PROGRESS: 1.5, AREA_SCALE: 1.5, AREA_DIVISOR: 12000,
-        USER_PROX_MAX: 2.5, USER_PROX_DECAY: 1500, USER_PROX_RAD_SQ: 722500,
-        CENTER_BIAS: 0.5, CENTER_RAD_SQ: 810000, AUDIO_BASE: 1.5,
-        AUDIO_BOOST_EXTRA: 0.8, PIP_BONUS: 6.0
-      });
-      const _result = { target: null };
-      function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
-        const now = performance.now(); const vp = getViewportSnapshot();
-        let best = null, bestScore = -Infinity;
-        const evalScore = (v) => {
-          if (!v || v.readyState < 2) return;
-          const r = getRectCached(v, 350); const area = r.width * r.height;
+    /* ══ Targeting ══ */
+    function createTargeting() {
+      let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
+      const SCORE = Object.freeze({
+  PLAYING: 25.0, HAS_PROGRESS: 1.5, AREA_SCALE: 1.5, AREA_DIVISOR: 12000,
+        USER_PROX_MAX: 2.5, USER_PROX_DECAY: 1500, USER_PROX_RAD_SQ: 722500,
+        CENTER_BIAS: 0.5, CENTER_RAD_SQ: 810000, AUDIO_BASE: 1.5,
+        AUDIO_BOOST_EXTRA: 0.8, PIP_BONUS: 6.0
+      });
+      const _result = { target: null };
+      function pickFastActiveOnly(videos, lastUserPt, audioBoostOn) {
+        const now = performance.now(); const vp = getViewportSnapshot();
+        let best = null, bestScore = -Infinity;
+        const evalScore = (v) => {
+          if (!v || v.readyState < 2) return;
+          const r = getRectCached(v, 350); const area = r.width * r.height;
 const pip = isPiPActiveVideo(v);
 const isPlaying = !v.paused && !v.ended;
 // 면적이 0이든 일시정지 상태든 무조건 점수 심사에 포함시킵니다.
 const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
-          let s = 0;
-          if (!v.paused && !v.ended) s += SCORE.PLAYING;
-          if (v.currentTime > 0.2) s += SCORE.HAS_PROGRESS;
-          s += Math.log2(1 + area / SCORE.AREA_DIVISOR) * SCORE.AREA_SCALE;
+          let s = 0;
+          if (!v.paused && !v.ended) s += SCORE.PLAYING;
+          if (v.currentTime > 0.2) s += SCORE.HAS_PROGRESS;
+          s += Math.log2(1 + area / SCORE.AREA_DIVISOR) * SCORE.AREA_SCALE;
 
-          // 🎯 ok.ru가 몰래 재생시키는 보이지 않는 더미 비디오 강제 탈락
-          if (area < 10 && !pip) s -= 200;
+          // 🎯 ok.ru가 몰래 재생시키는 보이지 않는 더미 비디오 강제 탈락
+          if (area < 10 && !pip) s -= 200;
 
-          const ptAge = Math.max(0, now - (lastUserPt.t || 0));
-          const userBias = Math.exp(-ptAge / SCORE.USER_PROX_DECAY);
-          const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y;
-          s += (SCORE.USER_PROX_MAX * userBias) / (1 + (dx * dx + dy * dy) / SCORE.USER_PROX_RAD_SQ);
-          const cdx = cx - vp.cx, cdy = cy - vp.cy;
-          s += SCORE.CENTER_BIAS / (1 + (cdx * cdx + cdy * cdy) / SCORE.CENTER_RAD_SQ);
-          if (!v.muted && v.volume > 0.01) s += SCORE.AUDIO_BASE + (audioBoostOn ? SCORE.AUDIO_BOOST_EXTRA : 0);
-          if (pip) s += SCORE.PIP_BONUS;
-          if (s > bestScore) { bestScore = s; best = v; }
-        };
-        for (const v of videos) evalScore(v);
-        const activePip = getActivePiPVideo();
-        if (activePip && activePip.isConnected && !videos.has(activePip)) evalScore(activePip);
-        if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) {
-          if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) {
-            _result.target = stickyTarget; return _result;
-          }
-        }
-        stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS;
-        _result.target = best; return _result;
-      }
-      return Object.freeze({ pickFastActiveOnly });
-    }
+          const ptAge = Math.max(0, now - (lastUserPt.t || 0));
+          const userBias = Math.exp(-ptAge / SCORE.USER_PROX_DECAY);
+          const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y;
+          s += (SCORE.USER_PROX_MAX * userBias) / (1 + (dx * dx + dy * dy) / SCORE.USER_PROX_RAD_SQ);
+          const cdx = cx - vp.cx, cdy = cy - vp.cy;
+          s += SCORE.CENTER_BIAS / (1 + (cdx * cdx + cdy * cdy) / SCORE.CENTER_RAD_SQ);
+          if (!v.muted && v.volume > 0.01) s += SCORE.AUDIO_BASE + (audioBoostOn ? SCORE.AUDIO_BOOST_EXTRA : 0);
+          if (pip) s += SCORE.PIP_BONUS;
+          if (s > bestScore) { bestScore = s; best = v; }
+        };
+        for (const v of videos) evalScore(v);
+        const activePip = getActivePiPVideo();
+        if (activePip && activePip.isConnected && !videos.has(activePip)) evalScore(activePip);
+        if (stickyTarget && stickyTarget.isConnected && now < stickyUntil) {
+          if (!stickyTarget.paused && !stickyTarget.ended && best && stickyTarget !== best && (bestScore < stickyScore + GUARD.TARGET_HYSTERESIS_MARGIN)) {
+            _result.target = stickyTarget; return _result;
+          }
+        }
+        stickyTarget = best; stickyScore = bestScore; stickyUntil = now + GUARD.TARGET_HYSTERESIS_MS;
+        _result.target = best; return _result;
+      }
+      return Object.freeze({ pickFastActiveOnly });
+    }
 
-    /* ══ Event Bus (Patch F / #11 Applied) ══ */
-    function createEventBus() {
-      const subs = new Map();
-      let _signalSubs = null;
-      let _signalLen = 0;
+    /* ══ Event Bus (Patch F / #11 Applied) ══ */
+    function createEventBus() {
+      const subs = new Map();
+      let _signalSubs = null;
+      let _signalLen = 0;
 
-      const on = (name, fn) => {
-        if (name === 'signal') {
-          (_signalSubs ??= []).push(fn);
-          _signalLen++;
-          return () => {
-            const i = _signalSubs.indexOf(fn);
-            if (i >= 0) { _signalSubs.splice(i, 1); _signalLen--; }
-          };
-        }
-        (subs.get(name) ?? (subs.set(name, []), subs.get(name))).push(fn);
-        return () => { const a = subs.get(name); if (a) { const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } };
-      };
+      const on = (name, fn) => {
+        if (name === 'signal') {
+          (_signalSubs ??= []).push(fn);
+          _signalLen++;
+          return () => {
+            const i = _signalSubs.indexOf(fn);
+            if (i >= 0) { _signalSubs.splice(i, 1); _signalLen--; }
+          };
+        }
+        (subs.get(name) ?? (subs.set(name, []), subs.get(name))).push(fn);
+        return () => { const a = subs.get(name); if (a) { const i = a.indexOf(fn); if (i >= 0) a.splice(i, 1); } };
+      };
 
-      const emit = (name, data) => {
-        if (name === 'signal') {
-          if (_signalSubs) for (let i = 0; i < _signalLen; i++) { try { _signalSubs[i](data); } catch (_) {} }
-          return;
-        }
-        const a = subs.get(name);
-        if (a) for (let i = 0, len = a.length; i < len; i++) { try { a[i](data); } catch (_) {} }
-      };
+      const emit = (name, data) => {
+        if (name === 'signal') {
+          if (_signalSubs) for (let i = 0; i < _signalLen; i++) { try { _signalSubs[i](data); } catch (_) {} }
+          return;
+        }
+        const a = subs.get(name);
+        if (a) for (let i = 0, len = a.length; i < len; i++) { try { a[i](data); } catch (_) {} }
+      };
 
-      let queued = false, forceAgg = false;
-      const _resolved = Promise.resolve();
+      let queued = false, forceAgg = false;
+      const _resolved = Promise.resolve();
 
-      const flush = () => {
-        queued = false;
-        const f = forceAgg;
-        forceAgg = false;
-        if (_signalSubs) {
-          const d = { forceApply: f };
-          for (let i = 0; i < _signalLen; i++) {
-            try { _signalSubs[i](d); } catch (_) {}
-          }
-        }
-      };
+      const flush = () => {
+        queued = false;
+        const f = forceAgg;
+        forceAgg = false;
+        if (_signalSubs) {
+          const d = { forceApply: f };
+          for (let i = 0; i < _signalLen; i++) {
+            try { _signalSubs[i](d); } catch (_) {}
+          }
+        }
+      };
 
-      const signal = p => {
-        if (p?.forceApply) forceAgg = true;
-        if (queued) return;
-        queued = true;
-        _resolved.then(flush);
-      };
+      const signal = p => {
+        if (p?.forceApply) forceAgg = true;
+        if (queued) return;
+        queued = true;
+        _resolved.then(flush);
+      };
 
-      return Object.freeze({ on, emit, signal });
-    }
+      return Object.freeze({ on, emit, signal });
+    }
 
-    function createApplyRequester(Bus, Scheduler) {
-      return Object.freeze({
-        soft() { try { Bus.signal(); } catch (_) { try { Scheduler.request(false); } catch (_) {} } },
-        hard() { try { Bus.signal({ forceApply: true }); } catch (_) { try { Scheduler.request(true); } catch (_) {} } }
-      });
-    }
+    function createApplyRequester(Bus, Scheduler) {
+      return Object.freeze({
+        soft() { try { Bus.signal(); } catch (_) { try { Scheduler.request(false); } catch (_) {} } },
+        hard() { try { Bus.signal({ forceApply: true }); } catch (_) { try { Scheduler.request(true); } catch (_) {} } }
+      });
+    }
 
-    /* ══ Utils ══ */
-    function createUtils() {
-      const _SVG_NS = 'http://www.w3.org/2000/svg';
-      const _SVG_TAGS = new Set([
-        'svg', 'defs', 'filter', 'feComponentTransfer', 'feFuncR', 'feFuncG', 'feFuncB', 'feFuncA',
-        'feConvolveMatrix', 'feColorMatrix', 'feGaussianBlur', 'feMerge', 'feMergeNode',
-        'feComposite', 'feBlend', 'g', 'path', 'circle', 'rect', 'line', 'text', 'polyline'
-      ]);
-      return {
-        clamp: VSC_CLAMP,
-        h: (tag, props = {}, ...children) => {
-          const isSvgEl = props.ns === 'svg' || _SVG_TAGS.has(tag);
-          const el = isSvgEl ? document.createElementNS(_SVG_NS, tag) : document.createElement(tag);
-          for (const [k, v] of Object.entries(props)) {
-            if (k === 'ns') continue;
-            if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), (e) => { if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation(); v(e); }); }
-            else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); }
-            else if (k === 'class') { if (isSvgEl) el.setAttribute('class', v); else el.className = v; }
-            else if (v !== false && v != null) el.setAttribute(k, v);
-          }
-          children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
-          return el;
-        },
-        deepClone: (defaults) => {
-          const state = {};
-          for (const [cat, obj] of Object.entries(defaults)) {
-            if (Array.isArray(obj)) state[cat] = obj.map(v => v && typeof v === 'object' ? { ...v } : v);
-            else if (typeof obj === 'object' && obj !== null) state[cat] = { ...obj };
-            else state[cat] = obj;
-          }
-          return state;
-        },
-        createCappedMap: (max = 64) => {
-          const m = new Map();
-          return {
-            get(k) { if (!m.has(k)) return undefined; const v = m.get(k); m.delete(k); m.set(k, v); return v; },
-            set(k, v) { if (m.has(k)) m.delete(k); m.set(k, v); if (m.size > max) m.delete(m.keys().next().value); }
-          };
-        }
-      };
-    }
+    /* ══ Utils ══ */
+    function createUtils() {
+      const _SVG_NS = 'http://www.w3.org/2000/svg';
+      const _SVG_TAGS = new Set([
+        'svg', 'defs', 'filter', 'feComponentTransfer', 'feFuncR', 'feFuncG', 'feFuncB', 'feFuncA',
+        'feConvolveMatrix', 'feColorMatrix', 'feGaussianBlur', 'feMerge', 'feMergeNode',
+        'feComposite', 'feBlend', 'g', 'path', 'circle', 'rect', 'line', 'text', 'polyline'
+      ]);
+      return {
+        clamp: VSC_CLAMP,
+        h: (tag, props = {}, ...children) => {
+          const isSvgEl = props.ns === 'svg' || _SVG_TAGS.has(tag);
+          const el = isSvgEl ? document.createElementNS(_SVG_NS, tag) : document.createElement(tag);
+          for (const [k, v] of Object.entries(props)) {
+            if (k === 'ns') continue;
+            if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), (e) => { if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation(); v(e); }); }
+            else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); }
+            else if (k === 'class') { if (isSvgEl) el.setAttribute('class', v); else el.className = v; }
+            else if (v !== false && v != null) el.setAttribute(k, v);
+          }
+          children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
+          return el;
+        },
+        deepClone: (defaults) => {
+          const state = {};
+          for (const [cat, obj] of Object.entries(defaults)) {
+            if (Array.isArray(obj)) state[cat] = obj.map(v => v && typeof v === 'object' ? { ...v } : v);
+            else if (typeof obj === 'object' && obj !== null) state[cat] = { ...obj };
+            else state[cat] = obj;
+          }
+          return state;
+        },
+        createCappedMap: (max = 64) => {
+          const m = new Map();
+          return {
+            get(k) { if (!m.has(k)) return undefined; const v = m.get(k); m.delete(k); m.set(k, v); return v; },
+            set(k, v) { if (m.has(k)) m.delete(k); m.set(k, v); if (m.size > max) m.delete(m.keys().next().value); }
+          };
+        }
+      };
+    }
 
-    /* ══ Scheduler (Patch D / #7 Applied) ══ */
-    function createScheduler(minIntervalMs = 14) {
-      let queued = false, force = false, applyFn = null, lastRun = 0;
-      let epoch = 0;
+    /* ══ Scheduler (Patch D / #7 Applied) ══ */
+    function createScheduler(minIntervalMs = 14) {
+      let queued = false, force = false, applyFn = null, lastRun = 0;
+      let epoch = 0;
 
-      const _schedHi = typeof globalThis.scheduler?.postTask === 'function'
-        ? fn => globalThis.scheduler.postTask(fn, { priority: 'user-blocking' }).catch(() => requestAnimationFrame(fn))
-        : fn => requestAnimationFrame(fn);
+      const _schedHi = typeof globalThis.scheduler?.postTask === 'function'
+        ? fn => globalThis.scheduler.postTask(fn, { priority: 'user-blocking' }).catch(() => requestAnimationFrame(fn))
+        : fn => requestAnimationFrame(fn);
 
-      const _schedLo = typeof globalThis.scheduler?.postTask === 'function'
-        ? fn => globalThis.scheduler.postTask(fn, { priority: 'background' }).catch(() =>
-            typeof requestIdleCallback === 'function'
-              ? requestIdleCallback(fn, { timeout: 200 })
-              : requestAnimationFrame(fn))
-        : typeof requestIdleCallback === 'function'
-          ? fn => requestIdleCallback(fn, { timeout: 200 })
-          : fn => requestAnimationFrame(fn);
+      const _schedLo = typeof globalThis.scheduler?.postTask === 'function'
+        ? fn => globalThis.scheduler.postTask(fn, { priority: 'background' }).catch(() =>
+            typeof requestIdleCallback === 'function'
+              ? requestIdleCallback(fn, { timeout: 200 })
+              : requestAnimationFrame(fn))
+        : typeof requestIdleCallback === 'function'
+          ? fn => requestIdleCallback(fn, { timeout: 200 })
+          : fn => requestAnimationFrame(fn);
 
-      function execute() {
-        queued = false;
-        const now = performance.now(), doForce = force;
-        force = false;
-        if (!doForce && (now - lastRun) < minIntervalMs) {
-          const delay = minIntervalMs - (now - lastRun);
-          const throttleEpoch = ++epoch;
-          setTimeout(() => {
-            if (throttleEpoch !== epoch) return;
-            queued = false; force = false;
-            lastRun = performance.now();
-            if (applyFn) try { applyFn(doForce); } catch (_) {}
-          }, delay);
-          return;
-        }
-        lastRun = now;
-        if (applyFn) try { applyFn(doForce); } catch (_) {}
-      }
+      function execute() {
+        queued = false;
+        const now = performance.now(), doForce = force;
+        force = false;
+        if (!doForce && (now - lastRun) < minIntervalMs) {
+          const delay = minIntervalMs - (now - lastRun);
+          const throttleEpoch = ++epoch;
+          setTimeout(() => {
+            if (throttleEpoch !== epoch) return;
+            queued = false; force = false;
+            lastRun = performance.now();
+            if (applyFn) try { applyFn(doForce); } catch (_) {}
+          }, delay);
+          return;
+        }
+        lastRun = now;
+        if (applyFn) try { applyFn(doForce); } catch (_) {}
+      }
 
-      function request(immediate = false) {
-        if (immediate) force = true;
-        if (queued && !immediate) return;
-        queued = true;
-        const myEpoch = ++epoch;
-        (immediate ? _schedHi : _schedLo)(() => { if (myEpoch === epoch) execute(); });
-      }
+      function request(immediate = false) {
+        if (immediate) force = true;
+        if (queued && !immediate) return;
+        queued = true;
+        const myEpoch = ++epoch;
+        (immediate ? _schedHi : _schedLo)(() => { if (myEpoch === epoch) execute(); });
+      }
 
-      return { registerApply: fn => { applyFn = fn; }, request };
-    }
+      return { registerApply: fn => { applyFn = fn; }, request };
+    }
 
-    /* ══ Local Store (Patch #2 & Patch 3 Applied: Inline optimization & wildcard fast-path) ══ */
-    function createLocalStore(defaults, scheduler, Utils, onSignal) {
-      let rev = 0;
-      const listeners = new Map();
-      const state = Utils.deepClone(defaults);
-      const pathCache = Object.create(null);
-      let _emittingDepth = 0;
-      const _pendingRemovals = [];
-      let _wildcardCount = 0;
+    /* ══ Local Store (Patch #2 & Patch 3 Applied: Inline optimization & wildcard fast-path) ══ */
+    function createLocalStore(defaults, scheduler, Utils, onSignal) {
+      let rev = 0;
+      const listeners = new Map();
+      const state = Utils.deepClone(defaults);
+      const pathCache = Object.create(null);
+      let _emittingDepth = 0;
+      const _pendingRemovals = [];
+      let _wildcardCount = 0;
 
-      const DIRTY_BITS = Object.freeze({ VIDEO: 0b0001, AUDIO: 0b0010, PLAYBACK: 0b0100, APP: 0b1000 });
-      const CAT_TO_BIT = { video: 0b0001, audio: 0b0010, playback: 0b0100, app: 0b1000 };
-      let dirtyMask = 0;
+      const DIRTY_BITS = Object.freeze({ VIDEO: 0b0001, AUDIO: 0b0010, PLAYBACK: 0b0100, APP: 0b1000 });
+      const CAT_TO_BIT = { video: 0b0001, audio: 0b0010, playback: 0b0100, app: 0b1000 };
+      let dirtyMask = 0;
 
-      function _processPendingRemovals() {
-        for (let i = 0; i < _pendingRemovals.length; i++) {
-          const { key, fn } = _pendingRemovals[i];
-          const arr = listeners.get(key);
-          if (!arr) continue;
-          const idx = arr.indexOf(fn);
-          if (idx >= 0) {
-            const last = arr.length - 1;
-            if (idx !== last) arr[idx] = arr[last];
-            arr.pop();
-            if (key.endsWith('.*')) _wildcardCount--;
-          }
-        }
-        _pendingRemovals.length = 0;
-      }
+      function _processPendingRemovals() {
+        for (let i = 0; i < _pendingRemovals.length; i++) {
+          const { key, fn } = _pendingRemovals[i];
+          const arr = listeners.get(key);
+          if (!arr) continue;
+          const idx = arr.indexOf(fn);
+          if (idx >= 0) {
+            const last = arr.length - 1;
+            if (idx !== last) arr[idx] = arr[last];
+            arr.pop();
+            if (key.endsWith('.*')) _wildcardCount--;
+          }
+        }
+        _pendingRemovals.length = 0;
+      }
 
-      const parsePath = p => pathCache[p] ??= (i => i < 0 ? [p, null] : [p.slice(0, i), p.slice(i + 1)])(p.indexOf('.'));
+      const parsePath = p => pathCache[p] ??= (i => i < 0 ? [p, null] : [p.slice(0, i), p.slice(i + 1)])(p.indexOf('.'));
 
-      const _catStarMap = new Map();
-      function ensureCatStar(key) {
-        if (_catStarMap.has(key)) return _catStarMap.get(key);
-        const dot = key.indexOf('.');
-        const c = dot > 0 ? key.slice(0, dot) + '.*' : '';
-        _catStarMap.set(key, c);
-        return c;
-      }
+      const _catStarMap = new Map();
+      function ensureCatStar(key) {
+        if (_catStarMap.has(key)) return _catStarMap.get(key);
+        const dot = key.indexOf('.');
+        const c = dot > 0 ? key.slice(0, dot) + '.*' : '';
+        _catStarMap.set(key, c);
+        return c;
+      }
 
-      const emit = (key, val) => {
-        const a = listeners.get(key);
-        const aLen = a ? a.length : 0;
+      const emit = (key, val) => {
+        const a = listeners.get(key);
+        const aLen = a ? a.length : 0;
 
-        let b, bLen = 0;
-        if (_wildcardCount > 0) {
-          const catStar = ensureCatStar(key);
-          b = catStar ? listeners.get(catStar) : undefined;
-          bLen = b ? b.length : 0;
-        }
+        let b, bLen = 0;
+        if (_wildcardCount > 0) {
+          const catStar = ensureCatStar(key);
+          b = catStar ? listeners.get(catStar) : undefined;
+          bLen = b ? b.length : 0;
+        }
 
-        if (aLen === 0 && bLen === 0) return;
+        if (aLen === 0 && bLen === 0) return;
 
-        _emittingDepth++;
-        let i = 0;
-        try {
-          for (; i < aLen; i++) a[i](val);
-          for (i = 0; i < bLen; i++) b[i](val);
-        } catch (_) {
-          if (i < aLen) {
-            for (let j = i + 1; j < aLen; j++) { try { a[j](val); } catch (_) {} }
-            for (i = 0; i < bLen; i++) { try { b[i](val); } catch (_) {} }
-          } else {
-            for (let j = i + 1; j < bLen; j++) { try { b[j](val); } catch (_) {} }
-          }
-        } finally {
-          _emittingDepth--;
-        }
+        _emittingDepth++;
+        let i = 0;
+        try {
+          for (; i < aLen; i++) a[i](val);
+          for (i = 0; i < bLen; i++) b[i](val);
+        } catch (_) {
+          if (i < aLen) {
+            for (let j = i + 1; j < aLen; j++) { try { a[j](val); } catch (_) {} }
+            for (i = 0; i < bLen; i++) { try { b[i](val); } catch (_) {} }
+          } else {
+            for (let j = i + 1; j < bLen; j++) { try { b[j](val); } catch (_) {} }
+          }
+        } finally {
+          _emittingDepth--;
+        }
 
-        if (_emittingDepth === 0 && _pendingRemovals.length > 0) {
-          _processPendingRemovals();
-        }
-      };
+        if (_emittingDepth === 0 && _pendingRemovals.length > 0) {
+          _processPendingRemovals();
+        }
+      };
 
-      function notifyChange(fullPath, val) {
-        rev++; emit(fullPath, val); scheduler.request(false);
-      }
+      function notifyChange(fullPath, val) {
+        rev++; emit(fullPath, val); scheduler.request(false);
+      }
 
-      return {
-        state, rev: () => rev,
-        getCatRef: (cat) => state[cat],
-        get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; },
-        set: (p, val) => {
-          const [c, k] = parsePath(p);
-          if (k != null) {
-            if (Object.is(state[c]?.[k], val)) return;
-            state[c][k] = val; rev++; dirtyMask |= CAT_TO_BIT[c] || 0; emit(p, val);
-            scheduler.request(false); onSignal?.();
-            return;
-          }
-          if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) {
-            let changed = false;
-            for (const [subK, subV] of Object.entries(val)) {
-              if (!Object.is(state[c][subK], subV)) {
-                state[c][subK] = subV; changed = true;
-                emit(`${c}.${subK}`, subV);
-              }
-            }
-            if (changed) {
-              rev++; dirtyMask |= CAT_TO_BIT[c] || 0;
-              if (_wildcardCount > 0) {
-                const b = listeners.get(`${c}.*`);
-                if (b) {
-                  _emittingDepth++;
-                  try {
-                    const len = b.length;
-                    for (let i = 0; i < len; i++) { const fn = b[i]; if (fn) { try { fn(undefined); } catch (_) {} } }
-                  } finally {
-                    _emittingDepth--;
-                  }
-                  if (_emittingDepth === 0 && _pendingRemovals.length > 0) _processPendingRemovals();
-                }
-              }
-              scheduler.request(false); onSignal?.();
-            }
-          } else {
-            if (Object.is(state[c], val)) return;
-            state[c] = val; rev++; dirtyMask |= CAT_TO_BIT[c] || 0; emit(c, val);
-            scheduler.request(false); onSignal?.();
-          }
-        },
-        batch: (cat, obj) => {
-          let changed = false;
-          const changedKeys = [];
-          for (const [k, v] of Object.entries(obj)) {
-            if (!Object.is(state[cat]?.[k], v)) {
-              state[cat][k] = v; changed = true; changedKeys.push(k);
-            }
-          }
-          if (changed) {
-            rev++; dirtyMask |= CAT_TO_BIT[cat] || 0;
-            _emittingDepth++;
-            try {
-              for (const k of changedKeys) {
-                const a = listeners.get(`${cat}.${k}`);
-                if (a) {
-                  const len = a.length;
-                  for (let i = 0; i < len; i++) { const fn = a[i]; if (fn) { try { fn(state[cat][k]); } catch (_) {} } }
-                }
-              }
-              if (_wildcardCount > 0) {
-                const b = listeners.get(`${cat}.*`);
-                if (b) {
-                  const len = b.length;
-                  for (let i = 0; i < len; i++) { const fn = b[i]; if (fn) { try { fn(undefined); } catch (_) {} } }
-                }
-              }
-            } finally {
-              _emittingDepth--;
-            }
-            if (_emittingDepth === 0 && _pendingRemovals.length > 0) _processPendingRemovals();
-            scheduler.request(false); onSignal?.();
-          }
-        },
-        sub: (k, f) => {
-          let s = listeners.get(k);
-          if (!s) { s = []; listeners.set(k, s); }
-          s.push(f);
-          if (k.endsWith('.*')) _wildcardCount++;
-          return () => {
-            if (_emittingDepth > 0) {
-              _pendingRemovals.push({ key: k, fn: f });
-              return;
-            }
-            const arr = listeners.get(k);
-            if (!arr) return;
-            const idx = arr.indexOf(f);
-            if (idx >= 0) {
-              const last = arr.length - 1;
-              if (idx !== last) arr[idx] = arr[last];
-              arr.pop();
-              if (k.endsWith('.*')) _wildcardCount--;
-            }
-          };
-        },
-        consumeDirty() { const m = dirtyMask; dirtyMask = 0; return m; },
-        isDirty(bit) { return !!(dirtyMask & bit); }
-      };
-    }
+      return {
+        state, rev: () => rev,
+        getCatRef: (cat) => state[cat],
+        get: (p) => { const [c, k] = parsePath(p); return k ? state[c]?.[k] : state[c]; },
+        set: (p, val) => {
+          const [c, k] = parsePath(p);
+          if (k != null) {
+            if (Object.is(state[c]?.[k], val)) return;
+            state[c][k] = val; rev++; dirtyMask |= CAT_TO_BIT[c] || 0; emit(p, val);
+            scheduler.request(false); onSignal?.();
+            return;
+          }
+          if (typeof state[c] === 'object' && state[c] !== null && typeof val === 'object' && val !== null) {
+            let changed = false;
+            for (const [subK, subV] of Object.entries(val)) {
+              if (!Object.is(state[c][subK], subV)) {
+                state[c][subK] = subV; changed = true;
+                emit(`${c}.${subK}`, subV);
+              }
+            }
+            if (changed) {
+              rev++; dirtyMask |= CAT_TO_BIT[c] || 0;
+              if (_wildcardCount > 0) {
+                const b = listeners.get(`${c}.*`);
+                if (b) {
+                  _emittingDepth++;
+                  try {
+                    const len = b.length;
+                    for (let i = 0; i < len; i++) { const fn = b[i]; if (fn) { try { fn(undefined); } catch (_) {} } }
+                  } finally {
+                    _emittingDepth--;
+                  }
+                  if (_emittingDepth === 0 && _pendingRemovals.length > 0) _processPendingRemovals();
+                }
+              }
+              scheduler.request(false); onSignal?.();
+            }
+          } else {
+            if (Object.is(state[c], val)) return;
+            state[c] = val; rev++; dirtyMask |= CAT_TO_BIT[c] || 0; emit(c, val);
+            scheduler.request(false); onSignal?.();
+          }
+        },
+        batch: (cat, obj) => {
+          let changed = false;
+          const changedKeys = [];
+          for (const [k, v] of Object.entries(obj)) {
+            if (!Object.is(state[cat]?.[k], v)) {
+              state[cat][k] = v; changed = true; changedKeys.push(k);
+            }
+          }
+          if (changed) {
+            rev++; dirtyMask |= CAT_TO_BIT[cat] || 0;
+            _emittingDepth++;
+            try {
+              for (const k of changedKeys) {
+                const a = listeners.get(`${cat}.${k}`);
+                if (a) {
+                  const len = a.length;
+                  for (let i = 0; i < len; i++) { const fn = a[i]; if (fn) { try { fn(state[cat][k]); } catch (_) {} } }
+                }
+              }
+              if (_wildcardCount > 0) {
+                const b = listeners.get(`${cat}.*`);
+                if (b) {
+                  const len = b.length;
+                  for (let i = 0; i < len; i++) { const fn = b[i]; if (fn) { try { fn(undefined); } catch (_) {} } }
+                }
+              }
+            } finally {
+              _emittingDepth--;
+            }
+            if (_emittingDepth === 0 && _pendingRemovals.length > 0) _processPendingRemovals();
+            scheduler.request(false); onSignal?.();
+          }
+        },
+        sub: (k, f) => {
+          let s = listeners.get(k);
+          if (!s) { s = []; listeners.set(k, s); }
+          s.push(f);
+          if (k.endsWith('.*')) _wildcardCount++;
+          return () => {
+            if (_emittingDepth > 0) {
+              _pendingRemovals.push({ key: k, fn: f });
+              return;
+            }
+            const arr = listeners.get(k);
+            if (!arr) return;
+            const idx = arr.indexOf(f);
+            if (idx >= 0) {
+              const last = arr.length - 1;
+              if (idx !== last) arr[idx] = arr[last];
+              arr.pop();
+              if (k.endsWith('.*')) _wildcardCount--;
+            }
+          };
+        },
+        consumeDirty() { const m = dirtyMask; dirtyMask = 0; return m; },
+        isDirty(bit) { return !!(dirtyMask & bit); }
+      };
+    }
 
-    /* ══ Registry ══ */
-    const _observerCleanupRegistry = new FinalizationRegistry(({ mo, observers }) => {
-      try { mo.disconnect(); observers.delete(mo); } catch (_) {}
-    });
+    /* ══ Registry ══ */
+    const _observerCleanupRegistry = new FinalizationRegistry(({ mo, observers }) => {
+      try { mo.disconnect(); observers.delete(mo); } catch (_) {}
+    });
 
-    function createRegistry(scheduler) {
-      const videos = new Set(), visible = { videos: new Set() };
-      let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
-      const shadowRootsLRU = [];
-      const observedShadowHosts = new WeakSet();
-      let __refreshRafId = 0;
+    function createRegistry(scheduler) {
+      const videos = new Set(), visible = { videos: new Set() };
+      let dirtyA = { videos: new Set() }, dirtyB = { videos: new Set() }, dirty = dirtyA, rev = 0;
+      const shadowRootsLRU = [];
+      const observedShadowHosts = new WeakSet();
+      let __refreshRafId = 0;
 
-      function requestRefreshCoalesced() {
-        if (__refreshRafId) return;
-        __refreshRafId = requestAnimationFrame(() => { __refreshRafId = 0; scheduler.request(false); });
-      }
+      function requestRefreshCoalesced() {
+        if (__refreshRafId) return;
+        __refreshRafId = requestAnimationFrame(() => { __refreshRafId = 0; scheduler.request(false); });
+      }
 
-      const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
-        let changed = false; const now = performance.now();
-        for (const e of entries) {
-          const el = e.target;
-          const isVis = e.isIntersecting || e.intersectionRatio > 0;
-          const st = getVState(el);
-          st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now;
-          if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } }
-          else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } }
-        }
-        if (changed) { rev++; requestRefreshCoalesced(); }
-      }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
+      const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => {
+        let changed = false; const now = performance.now();
+        for (const e of entries) {
+          const el = e.target;
+          const isVis = e.isIntersecting || e.intersectionRatio > 0;
+          const st = getVState(el);
+          st.visible = isVis; st.rect = e.boundingClientRect; st.rectT = now;
+          if (isVis) { if (!visible.videos.has(el)) { visible.videos.add(el); dirty.videos.add(el); changed = true; } }
+          else { if (visible.videos.has(el)) { visible.videos.delete(el); dirty.videos.add(el); changed = true; } }
+        }
+        if (changed) { rev++; requestRefreshCoalesced(); }
+      }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
 
-      const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
+      const isInVscUI = (node) => (node.closest?.('[data-vsc-ui="1"]') || (node.getRootNode?.().host?.closest?.('[data-vsc-ui="1"]')));
 
-      const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => {
-        let changed = false; const now = performance.now();
-        for (const e of entries) {
-          const el = e.target;
-          if (!el || el.tagName !== 'VIDEO') continue;
-          const st = getVState(el);
-          st.rect = e.contentRect ? el.getBoundingClientRect() : null;
-          st.rectT = now; st.rectEpoch = -1; st._resizeDirty = true;
-          dirty.videos.add(el); changed = true;
-        }
-        if (changed) requestRefreshCoalesced();
-      }) : null;
+      const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => {
+        let changed = false; const now = performance.now();
+        for (const e of entries) {
+          const el = e.target;
+          if (!el || el.tagName !== 'VIDEO') continue;
+          const st = getVState(el);
+          st.rect = e.contentRect ? el.getBoundingClientRect() : null;
+          st.rectT = now; st.rectEpoch = -1; st._resizeDirty = true;
+          dirty.videos.add(el); changed = true;
+        }
+        if (changed) requestRefreshCoalesced();
+      }) : null;
 
-      const observeVideo = (el) => {
-        if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
-        videos.add(el);
-        if (io) {
-          io.observe(el);
-        } else {
-          const st = getVState(el);
-          st.visible = true;
-          if (!visible.videos.has(el)) {
-            visible.videos.add(el); dirty.videos.add(el); rev++;
-            if (!__refreshRafId) {
-              __refreshRafId = requestAnimationFrame(() => { __refreshRafId = 0; scheduler.request(true); });
-            }
-          }
-        }
-        if (ro) ro.observe(el);
-      };
+      const observeVideo = (el) => {
+        if (!el || el.tagName !== 'VIDEO' || isInVscUI(el) || videos.has(el)) return;
+        videos.add(el);
+        if (io) {
+          io.observe(el);
+        } else {
+          const st = getVState(el);
+          st.visible = true;
+          if (!visible.videos.has(el)) {
+            visible.videos.add(el); dirty.videos.add(el); rev++;
+            if (!__refreshRafId) {
+              __refreshRafId = requestAnimationFrame(() => { __refreshRafId = 0; scheduler.request(true); });
+            }
+          }
+        }
+        if (ro) ro.observe(el);
+      };
 
-      /* ── WorkQ (Patch #12 Applied: Adaptive drain) ── */
-      const WorkQ = (() => {
-        const MAX = 500, q = []; let head = 0, epoch = 1, scheduled = false;
-        const mark = new WeakMap();
+      /* ── WorkQ (Patch #12 Applied: Adaptive drain) ── */
+      const WorkQ = (() => {
+        const MAX = 500, q = []; let head = 0, epoch = 1, scheduled = false;
+        const mark = new WeakMap();
 
-        const mc = new MessageChannel();
-        const hasPostTask = typeof globalThis.scheduler?.postTask === 'function';
-        const hasRIC = typeof requestIdleCallback === 'function';
+        const mc = new MessageChannel();
+        const hasPostTask = typeof globalThis.scheduler?.postTask === 'function';
+        const hasRIC = typeof requestIdleCallback === 'function';
 
-        let idleCb = null;
-        mc.port1.onmessage = () => { if (idleCb) { const cb = idleCb; idleCb = null; cb(); } };
+        let idleCb = null;
+        mc.port1.onmessage = () => { if (idleCb) { const cb = idleCb; idleCb = null; cb(); } };
 
-        const schedIdle = (fn) => {
-          if (hasPostTask) {
-            globalThis.scheduler.postTask(fn, { priority: 'background' }).catch(() => {
-              idleCb = fn; mc.port2.postMessage(null);
-            });
-          } else if (hasRIC) {
-            requestIdleCallback(fn, { timeout: 120 });
-          } else {
-            idleCb = fn; mc.port2.postMessage(null);
-          }
-        };
+        const schedIdle = (fn) => {
+          if (hasPostTask) {
+            globalThis.scheduler.postTask(fn, { priority: 'background' }).catch(() => {
+              idleCb = fn; mc.port2.postMessage(null);
+            });
+          } else if (hasRIC) {
+            requestIdleCallback(fn, { timeout: 120 });
+          } else {
+            idleCb = fn; mc.port2.postMessage(null);
+          }
+        };
 
-        const scanNode = n => {
-  if (!n) return;
-  if (n.nodeType === 1) {
-    if (__cfPositive.has(n)) return;
-    if (n.tagName === 'VIDEO') { observeVideo(n); return; }
-    if (n.shadowRoot) WorkQ.enqueue(n.shadowRoot); // Shadow DOM 내부 강제 딥스캔
-    if (!n.childElementCount) return;
-            try { const vs = n.getElementsByTagName('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch(_) {}
-          } else if (n.nodeType === 11) {
-            try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch(_) {}
-          }
-        };
+        const scanNode = n => {
+  if (!n) return;
+  if (n.nodeType === 1) {
+    if (__cfPositive.has(n)) return;
+    if (n.tagName === 'VIDEO') { observeVideo(n); return; }
+    if (n.shadowRoot) WorkQ.enqueue(n.shadowRoot); // Shadow DOM 내부 강제 딥스캔
+    if (!n.childElementCount) return;
+            try { const vs = n.getElementsByTagName('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch(_) {}
+          } else if (n.nodeType === 11) {
+            try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch(_) {}
+          }
+        };
 
-        let BATCH_SIZE = 12;
-        const drain = () => {
-          scheduled = false;
-          const t0 = performance.now();
-          let count = 0;
-          while (count < BATCH_SIZE && head < q.length) { scanNode(q[head++]); count++; }
-          const elapsed = performance.now() - t0;
+        let BATCH_SIZE = 12;
+        const drain = () => {
+          scheduled = false;
+          const t0 = performance.now();
+          let count = 0;
+          while (count < BATCH_SIZE && head < q.length) { scanNode(q[head++]); count++; }
+          const elapsed = performance.now() - t0;
 
-          if (elapsed < 1 && BATCH_SIZE < 48) BATCH_SIZE = Math.min(48, BATCH_SIZE + 4);
-          else if (elapsed > 4 && BATCH_SIZE > 4) BATCH_SIZE = Math.max(4, BATCH_SIZE - 4);
+          if (elapsed < 1 && BATCH_SIZE < 48) BATCH_SIZE = Math.min(48, BATCH_SIZE + 4);
+          else if (elapsed > 4 && BATCH_SIZE > 4) BATCH_SIZE = Math.max(4, BATCH_SIZE - 4);
 
-          if (head >= q.length) { q.length = 0; head = 0; epoch++; }
-          else { scheduled = true; schedIdle(drain); }
-        };
+          if (head >= q.length) { q.length = 0; head = 0; epoch++; }
+          else { scheduled = true; schedIdle(drain); }
+        };
 
-        return Object.freeze({
-          enqueue(n) {
-            if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
-            if (q.length - head >= MAX) { q.splice(0, head + (q.length >> 1)); head = 0; epoch++; }
-            if (mark.get(n) === epoch) return;
-            mark.set(n, epoch); q.push(n);
-            if (!scheduled) { scheduled = true; schedIdle(drain); }
-          }
-        });
-      })();
+        return Object.freeze({
+          enqueue(n) {
+            if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
+            if (q.length - head >= MAX) { q.splice(0, head + (q.length >> 1)); head = 0; epoch++; }
+            if (mark.get(n) === epoch) return;
+            mark.set(n, epoch); q.push(n);
+            if (!scheduled) { scheduled = true; schedIdle(drain); }
+          }
+        });
+      })();
 
-      function nodeMayContainVideo(n) {
-        if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false;
-        if (n.nodeType === 1) {
-          if (n.tagName === 'VIDEO') return true;
-          if ((n.childElementCount || 0) === 0) return false;
-          try { const list = n.getElementsByTagName ? n.getElementsByTagName('video') : null; return !!(list && list.length); } catch (_) { try { return !!(n.querySelector && n.querySelector('video')); } catch (_) { return false; } }
-        }
-        try { const list = n.querySelectorAll ? n.querySelectorAll('video') : null; return !!(list && list.length); } catch (_) { return false; }
-      }
+      function nodeMayContainVideo(n) {
+        if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return false;
+        if (n.nodeType === 1) {
+          if (n.tagName === 'VIDEO') return true;
+          if ((n.childElementCount || 0) === 0) return false;
+          try { const list = n.getElementsByTagName ? n.getElementsByTagName('video') : null; return !!(list && list.length); } catch (_) { try { return !!(n.querySelector && n.querySelector('video')); } catch (_) { return false; } }
+        }
+        try { const list = n.querySelectorAll ? n.querySelectorAll('video') : null; return !!(list && list.length); } catch (_) { return false; }
+      }
 
-      const observers = new Set();
-      const isVscOwnNode = (n) => {
-        if (!n || n.nodeType !== 1) return false;
-        if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd') return true;
-        const tag = n.tagName;
-        if ((tag === 'svg' || tag === 'SVG') && n.querySelector?.('[id^="vsc-"]')) return true;
-        return false;
-      }
+      const observers = new Set();
+      const isVscOwnNode = (n) => {
+        if (!n || n.nodeType !== 1) return false;
+        if (n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd') return true;
+        const tag = n.tagName;
+        if ((tag === 'svg' || tag === 'SVG') && n.querySelector?.('[id^="vsc-"]')) return true;
+        return false;
+      }
 
-      const connectObserver = (root) => {
-        if (!root) return;
-        const hostRef = (root instanceof ShadowRoot && root.host) ? new WeakRef(root.host) : null;
+      const connectObserver = (root) => {
+        if (!root) return;
+        const hostRef = (root instanceof ShadowRoot && root.host) ? new WeakRef(root.host) : null;
 
-        const mo = new MutationObserver((muts) => {
-          if (__globalSig.aborted) { mo.disconnect(); observers.delete(mo); return; }
+        const mo = new MutationObserver((muts) => {
+          if (__globalSig.aborted) { mo.disconnect(); observers.delete(mo); return; }
 
-          if (hostRef) {
-            const host = hostRef.deref();
-            if (!host || !host.isConnected) {
-              mo.disconnect();
-              observers.delete(mo);
-              return;
-            }
-          } else if (root !== document && root !== document.body && root !== document.documentElement) {
-            const host = root.host || root;
-            if (host && typeof host.isConnected === 'boolean' && !host.isConnected) {
-              mo.disconnect(); observers.delete(mo); return;
-            }
-          }
+          if (hostRef) {
+            const host = hostRef.deref();
+            if (!host || !host.isConnected) {
+              mo.disconnect();
+              observers.delete(mo);
+              return;
+            }
+          } else if (root !== document && root !== document.body && root !== document.documentElement) {
+            const host = root.host || root;
+            if (host && typeof host.isConnected === 'boolean' && !host.isConnected) {
+              mo.disconnect(); observers.delete(mo); return;
+            }
+          }
 
-          let touchedVideoTree = false;
-          for (const m of muts) {
-            if (m.addedNodes && m.addedNodes.length) {
-              for (const n of m.addedNodes) {
-                if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) continue;
-                if (n.nodeType === 1 && (isVscOwnNode(n) || isCloudflareElement(n))) continue;
-                WorkQ.enqueue(n);
-                if (!touchedVideoTree && nodeMayContainVideo(n)) touchedVideoTree = true;
-              }
-            }
-            if (!touchedVideoTree && m.removedNodes && m.removedNodes.length) {
-              for (const n of m.removedNodes) {
-                if (!n || n.nodeType !== 1) continue;
-                if (n.tagName === 'VIDEO') { touchedVideoTree = true; break; }
-                if ((n.childElementCount || 0) > 0) {
-                  try { const list = n.getElementsByTagName?.('video'); if (list && list.length) { touchedVideoTree = true; break; } } catch (_) {}
-                }
-              }
-            }
-          }
-          if (touchedVideoTree) requestRefreshCoalesced();
-        });
+          let touchedVideoTree = false;
+          for (const m of muts) {
+            if (m.addedNodes && m.addedNodes.length) {
+              for (const n of m.addedNodes) {
+                if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) continue;
+                if (n.nodeType === 1 && (isVscOwnNode(n) || isCloudflareElement(n))) continue;
+                WorkQ.enqueue(n);
+                if (!touchedVideoTree && nodeMayContainVideo(n)) touchedVideoTree = true;
+              }
+            }
+            if (!touchedVideoTree && m.removedNodes && m.removedNodes.length) {
+              for (const n of m.removedNodes) {
+                if (!n || n.nodeType !== 1) continue;
+                if (n.tagName === 'VIDEO') { touchedVideoTree = true; break; }
+                if ((n.childElementCount || 0) > 0) {
+                  try { const list = n.getElementsByTagName?.('video'); if (list && list.length) { touchedVideoTree = true; break; } } catch (_) {}
+                }
+              }
+            }
+          }
+          if (touchedVideoTree) requestRefreshCoalesced();
+        });
 
-        mo.observe(root, { childList: true, subtree: true });
-        observers.add(mo);
+        mo.observe(root, { childList: true, subtree: true });
+        observers.add(mo);
 
-        if (hostRef) {
-          const host = hostRef.deref();
-          if (host) _observerCleanupRegistry.register(host, { mo, observers });
-        }
+        if (hostRef) {
+          const host = hostRef.deref();
+          if (host) _observerCleanupRegistry.register(host, { mo, observers });
+        }
 
-        WorkQ.enqueue(root);
-      };
+        WorkQ.enqueue(root);
+      };
 
-      const refreshObservers = () => {
-        for (const o of observers) o.disconnect(); observers.clear();
-        if (!FEATURE_FLAGS.trackShadowRoots) {
-          const root = document.body || document.documentElement;
-          if (root) { WorkQ.enqueue(root); connectObserver(root); } return;
-        }
-        for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); }
-        const root = document.body || document.documentElement;
-        if (root) { WorkQ.enqueue(root); connectObserver(root); }
-      };
+      const refreshObservers = () => {
+        for (const o of observers) o.disconnect(); observers.clear();
+        if (!FEATURE_FLAGS.trackShadowRoots) {
+          const root = document.body || document.documentElement;
+          if (root) { WorkQ.enqueue(root); connectObserver(root); } return;
+        }
+        for (const it of shadowRootsLRU) { if (it.host?.isConnected) connectObserver(it.root); }
+        const root = document.body || document.documentElement;
+        if (root) { WorkQ.enqueue(root); connectObserver(root); }
+      };
 
-      if (FEATURE_FLAGS.trackShadowRoots) {
-        __internal._onShadow = (host, sr) => {
-          try {
-            if (!sr || !host || observedShadowHosts.has(host)) return;
-            observedShadowHosts.add(host);
-            if (shadowRootsLRU.length >= SHADOW_ROOT_LRU_MAX) {
-              const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected);
-              if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift();
-            }
-            shadowRootsLRU.push({ host, root: sr });
-            connectObserver(sr);
-          } catch (_) {}
-        };
-      }
+      if (FEATURE_FLAGS.trackShadowRoots) {
+        __internal._onShadow = (host, sr) => {
+          try {
+            if (!sr || !host || observedShadowHosts.has(host)) return;
+            observedShadowHosts.add(host);
+            if (shadowRootsLRU.length >= SHADOW_ROOT_LRU_MAX) {
+              const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected);
+              if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift();
+            }
+            shadowRootsLRU.push({ host, root: sr });
+            connectObserver(sr);
+          } catch (_) {}
+        };
+      }
 
-      refreshObservers();
+      refreshObservers();
 
-      __globalSig.addEventListener('abort', () => {
-        for (const o of observers) { try { o.disconnect(); } catch (_) {} }
-        observers.clear();
-        if (io) { try { io.disconnect(); } catch (_) {} }
-        if (ro) { try { ro.disconnect(); } catch (_) {} }
-      }, { once: true });
+      __globalSig.addEventListener('abort', () => {
+        for (const o of observers) { try { o.disconnect(); } catch (_) {} }
+        observers.clear();
+        if (io) { try { io.disconnect(); } catch (_) {} }
+        if (ro) { try { ro.disconnect(); } catch (_) {} }
+      }, { once: true });
 
-      function pruneBatch(set, visibleSet, dirtySet, limit = 200) {
-        let removed = 0, scanned = 0;
-        for (const el of set) {
-          if (++scanned > limit) break;
-          if (!el || !el.isConnected) {
-            set.delete(el); visibleSet.delete(el); dirtySet.delete(el);
-            if (fsWraps.has(el)) {
-              const wrap = fsWraps.get(el);
-              try { if (wrap?.__vscPlaceholder?.parentNode) wrap.__vscPlaceholder.remove(); } catch (_) {}
-              try { if (wrap?.parentNode && !wrap.querySelector('video')) wrap.remove(); } catch (_) {}
-              fsWraps.delete(el);
-            }
-            const vst = videoStateMap.get(el);
-            if (vst?._ac) { vst._ac.abort(); vst._ac = null; vst.bound = false; }
-            vscClearAllStyles(el);
-            if (vst) {
-              vst.applied = false;
-              vst.lastFilterUrl = null;
-              vst.lastCssFilterStr = null;
-              vst._lastFilterHash = 0;
-              vst._lastSvgHash = 0;
-              vst._transitionCleared = false;
-            }
-            if (io) { try { io.unobserve(el); } catch (_) {} }
-            if (ro) { try { ro.unobserve(el); } catch (_) {} }
-            removed++;
-          }
-        }
-        return removed;
-      }
+      function pruneBatch(set, visibleSet, dirtySet, limit = 200) {
+        let removed = 0, scanned = 0;
+        for (const el of set) {
+          if (++scanned > limit) break;
+          if (!el || !el.isConnected) {
+            set.delete(el); visibleSet.delete(el); dirtySet.delete(el);
+            if (fsWraps.has(el)) {
+              const wrap = fsWraps.get(el);
+              try { if (wrap?.__vscPlaceholder?.parentNode) wrap.__vscPlaceholder.remove(); } catch (_) {}
+              try { if (wrap?.parentNode && !wrap.querySelector('video')) wrap.remove(); } catch (_) {}
+              fsWraps.delete(el);
+            }
+            const vst = videoStateMap.get(el);
+            if (vst?._ac) { vst._ac.abort(); vst._ac = null; vst.bound = false; }
+            vscClearAllStyles(el);
+            if (vst) {
+              vst.applied = false;
+              vst.lastFilterUrl = null;
+              vst.lastCssFilterStr = null;
+              vst._lastFilterHash = 0;
+              vst._lastSvgHash = 0;
+              vst._transitionCleared = false;
+            }
+            if (io) { try { io.unobserve(el); } catch (_) {} }
+            if (ro) { try { ro.unobserve(el); } catch (_) {} }
+            removed++;
+          }
+        }
+        return removed;
+      }
 
-      return {
-        videos, visible, rev: () => rev, refreshObservers,
-        prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, 220); if (removed) rev++; },
-        consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
-        rescanAll: () => {
-          const body = document.body || document.documentElement;
-          if (body) WorkQ.enqueue(body);
-          for (const it of shadowRootsLRU) { if (it.host?.isConnected) WorkQ.enqueue(it.root); }
-        },
-        observeVideo // ✅ 추가
-      };
-    }
+      return {
+        videos, visible, rev: () => rev, refreshObservers,
+        prune: () => { const removed = pruneBatch(videos, visible.videos, dirty.videos, 220); if (removed) rev++; },
+        consumeDirty: () => { const out = dirty; dirty = (dirty === dirtyA) ? dirtyB : dirtyA; dirty.videos.clear(); return out; },
+        rescanAll: () => {
+          const body = document.body || document.documentElement;
+          if (body) WorkQ.enqueue(body);
+          for (const it of shadowRootsLRU) { if (it.host?.isConnected) WorkQ.enqueue(it.root); }
+        },
+        observeVideo, // ✅ 기존 추가분
+        shadowRootsLRU // ✅ 여기를 추가하세요!
+      };
+    }
 
-    /* ══ Audio Engine (Bug 3 Applied: srcMap pollution fix + Autoplay/Mute fix) ══ */
+    /* ══ Audio Engine (Bug 3 Applied: srcMap pollution fix + Autoplay/Mute fix) ══ */
     function createAudio(sm) {
       let ctx;
       let target = null, currentSrc = null;
@@ -2927,9 +2928,17 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           const s = srcMap.get(v);
           if (s) {
             try { s.disconnect(); } catch (_) {}
-            try { s.connect(ctx.destination); } catch (_) {}
+            if (s.__vsc_isCaptureStream) {
+              if (v.muted && s.__vsc_originalMuted === false) {
+                v.muted = false;
+                log.info('[Audio] Restored original video audio');
+              }
+            } else {
+              try { s.connect(ctx.destination); } catch (_) {}
+            }
           }
         }
+        try { window[VSC_INTERNAL_SYM]?.ApplyReq?.soft(); } catch(_) {}
       }
 
       function exitBypass() {
@@ -3092,15 +3101,26 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
         }, delay);
       }
 
+      function getLegacyRms() {
+        if (!analyser || !dataArray) return -100;
+        analyser.getFloatTimeDomainData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i] * dataArray[i];
+        const rms = Math.sqrt(sum / dataArray.length);
+        return rms > 1e-6 ? 20 * Math.log10(rms) : -100;
+      }
+
+      let corsSilenceMs = 0;
+
       function runAudioLoop(tok) {
         if (tok !== loopTok || !ctx || __globalSig.aborted) return;
         if (ctx.state === 'suspended') { if (!__useWorklet) makeupDbEma = 0; scheduleAudioLoop(tok); return; }
-
         if (bypassMode) { scheduleAudioLoop(tok); return; }
 
         const en = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         const actuallyEnabled = en && !!currentSrc;
         const boostDb = Number(sm.get(P.A_BST) || 0);
+        const delay = document.hidden ? 600 : 80;
 
         let targetBassDb = 0, targetVoiceDb = 0;
         const autoSceneEnabled = sm.get(P.APP_AUTO_SCENE) && sm.get(P.APP_ACT);
@@ -3112,6 +3132,26 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
             targetBassDb = eqMap[st] ? eqMap[st][0] : 0;
             targetVoiceDb = eqMap[st] ? eqMap[st][1] : 0;
           }
+        }
+
+        const currentRms = __useWorklet ? __workletMetrics.rmsDb : getLegacyRms();
+
+        // CORS 무음 감지 보호막
+        if (actuallyEnabled && target && !target.paused && target.readyState >= 3) {
+          if (currentRms <= -98) {
+            corsSilenceMs += delay;
+            if (corsSilenceMs > 2000) {
+              log.warn('[Audio] CORS Mute detected. Auto-bypassing to restore original audio.');
+              try { if (typeof showOSD === 'function') showOSD('보안(CORS) 제한이 감지되어\\n원본 오디오로 우회합니다.', 3000); } catch(_) {}
+              enterBypass(target);
+              corsSilenceMs = 0;
+              return;
+            }
+          } else {
+            corsSilenceMs = 0;
+          }
+        } else {
+          corsSilenceMs = 0;
         }
 
         if (__useWorklet) {
@@ -3399,23 +3439,53 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
 
       function connectViaCaptureStream(video) {
         if (!ctx) return null;
-        const stream = video.captureStream();
-        if (!stream || stream.getAudioTracks().length === 0) {
-          log.debug('[Audio] captureStream returned no audio tracks');
+        let stream = video.__vsc_cached_stream;
+        if (!stream) {
+          try {
+            stream = typeof video.captureStream === 'function' ? video.captureStream() :
+                    (typeof video.mozCaptureStream === 'function' ? video.mozCaptureStream() : null);
+            if (stream) video.__vsc_cached_stream = stream;
+          } catch (e) {
+            return null;
+          }
+        }
+        if (!stream) return null;
+
+        try {
+          const audioTracks = stream.getAudioTracks();
+          if (audioTracks.length === 0) {
+            if (!video.__vsc_track_listener) {
+              video.__vsc_track_listener = true;
+              let pollCount = 0;
+              const pollId = setRecurring(() => {
+                if (stream.getAudioTracks().length > 0 || ++pollCount > 30) {
+                  clearRecurring(pollId);
+                  if (stream.getAudioTracks().length > 0) {
+                    if (!__globalSig.aborted) try { window[VSC_INTERNAL_SYM]?.ApplyReq?.hard(); } catch (_) {}
+                  }
+                }
+              }, 300);
+            }
+            return null;
+          }
+
+          const source = ctx.createMediaStreamSource(stream);
+          source.__vsc_captureStream = stream;
+          source.__vsc_isCaptureStream = true;
+          source.__vsc_originalMuted = video.muted;
+          source.__vsc_originalVolume = video.volume;
+
+          video.muted = true; // Web Audio에서만 소리가 나게 원래 영상 음소거
+
+          return source;
+        } catch (e) {
           return null;
         }
-        const source = ctx.createMediaStreamSource(stream);
-        source.__vsc_captureStream = stream;
-        source.__vsc_isCaptureStream = true;
-        source.__vsc_originalMuted = video.muted;
-        source.__vsc_originalVolume = video.volume;
-        return source;
       }
 
       function connectSource(v) {
         const st = v ? getVState(v) : null;
         try {
-          if (CONFIG.IS_FIREFOX && !v.crossOrigin) v.crossOrigin = "anonymous";
           let s = srcMap.get(v);
 
           if (s) {
@@ -3425,35 +3495,42 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
               srcMap.delete(v);
               s = null;
             } else {
-              log.debug('Source belongs to different live AudioContext — entering bypass');
+              log.info('[Audio] Video already owned by another AudioContext, trying captureStream');
+              s = connectViaCaptureStream(v);
+              if (s) {
+                srcMap.set(v, s);
+                try { s.disconnect(); } catch (_) {}
+                if (__useWorklet) {
+                  if (!__workletNode) { enterBypass(v); return false; }
+                  s.connect(__workletNode);
+                } else {
+                  if (!dryOut || !hpf) { enterBypass(v); return false; }
+                  s.connect(dryOut);
+                  s.connect(hpf);
+                }
+                currentSrc = s;
+                exitBypass();
+                return true;
+              }
               enterBypass(v);
               return false;
             }
           }
 
           if (!s) {
-            try {
-              s = ctx.createMediaElementSource(v);
-            } catch (e) {
-              log.warn('createMediaElementSource failed:', e.name, e.message);
-              if (e.name === 'InvalidStateError') {
-                if (typeof v.captureStream === 'function') {
-                  try {
-                    s = connectViaCaptureStream(v);
-                    if (s) {
-                      srcMap.set(v, s);
-                      log.info('[Audio] Fallback to captureStream() after InvalidStateError');
-                    }
-                  } catch (e2) {
-                    log.debug('[Audio] captureStream fallback also failed:', e2.message);
-                  }
-                }
-              }
-              if (!s) {
-                if (st) st.audioFailUntil = performance.now() + (e.name === 'InvalidStateError' ? 30000 : 10000);
-                enterBypass(v);
-                return false;
-              }
+            const isBlobOrJw = detectJwPlayer(v) || v.src?.startsWith('blob:');
+
+            if (isBlobOrJw) {
+              s = connectViaCaptureStream(v);
+            } else {
+              try { s = ctx.createMediaElementSource(v); }
+              catch (e) { s = connectViaCaptureStream(v); }
+            }
+
+            if (!s) {
+              if (st) st.audioFailUntil = performance.now() + 500;
+              enterBypass(v);
+              return false;
             }
             if (s && !srcMap.has(v)) srcMap.set(v, s);
           }
@@ -3461,10 +3538,10 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           try { s.disconnect(); } catch (_) {}
 
           if (__useWorklet) {
-            if (!__workletNode) { log.warn('AudioWorklet node not ready — entering bypass'); enterBypass(v); return false; }
+            if (!__workletNode) { enterBypass(v); return false; }
             s.connect(__workletNode);
           } else {
-            if (!dryOut || !hpf) { log.warn('Legacy audio graph not ready — entering bypass'); enterBypass(v); return false; }
+            if (!dryOut || !hpf) { enterBypass(v); return false; }
             s.connect(dryOut);
             s.connect(hpf);
           }
@@ -3472,7 +3549,25 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           exitBypass();
           return true;
         } catch (e) {
-          log.warn('Audio source connection failed — entering bypass:', e);
+          log.warn('[Audio] connectSource unexpected error:', e.message);
+          try {
+            const fallbackSrc = connectViaCaptureStream(v);
+            if (fallbackSrc) {
+              srcMap.set(v, fallbackSrc);
+              if (__useWorklet && __workletNode) {
+                fallbackSrc.connect(__workletNode);
+              } else if (dryOut && hpf) {
+                fallbackSrc.connect(dryOut);
+                fallbackSrc.connect(hpf);
+              } else {
+                enterBypass(v);
+                return false;
+              }
+              currentSrc = fallbackSrc;
+              exitBypass();
+              return true;
+            }
+          } catch (_) {}
           enterBypass(v);
           return false;
         }
@@ -3516,15 +3611,34 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           if (v !== target) fadeOutThen(() => { disconnectAll(); target = v; });
           updateMix(); return;
         }
+
         const ctxOk = await ensureCtx();
         if (!ctxOk) return;
         if (v && ctx?.state === 'suspended' && !v.paused) ctx.resume().catch(() => {});
-        if (v === target) { updateMix(); return; }
+
+        if (v === target && (currentSrc || bypassMode)) {
+          if (bypassMode && v && v.isConnected) {
+            exitBypass();
+            if (connectSource(v)) {
+              updateMix();
+              return;
+            }
+          }
+          updateMix();
+          return;
+        }
+
         fadeOutThen(() => {
           disconnectAll(); target = v;
           if (!v) { updateMix(); return; }
           if (!connectSource(v)) {
-            log.info('[Audio] connectSource failed, audio continues via bypass');
+            setTimer(() => {
+              if (!v.isConnected || target !== v || __globalSig.aborted) return;
+              exitBypass();
+              if (connectSource(v)) {
+                updateMix();
+              }
+            }, 800);
           }
           updateMix();
         });
@@ -3579,12 +3693,27 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
         } catch (_) {}
       }
 
+      const bypassRetryId = setRecurring(() => {
+        if (!bypassMode || !target || !target.isConnected || !ctx || ctx.state === 'closed') return;
+        if (!sm.get(P.A_EN) || !sm.get(P.APP_ACT)) return;
+
+        const st = getVState(target);
+        if (st.audioFailUntil > performance.now()) return;
+
+        exitBypass();
+        if (connectSource(target)) {
+          updateMix();
+        }
+      }, 5000, { maxErrors: 20 });
+
+      __globalSig.addEventListener('abort', () => clearRecurring(bypassRetryId), { once: true });
+
       return {
         setTarget,
         prewarm,
         update: updateMix,
         hasCtx: () => !!ctx,
-        isHooked: () => !!currentSrc,
+        isHooked: () => !!(currentSrc || bypassMode),
         isBypassed: () => bypassMode,
         isWorklet: () => __useWorklet,
         getWorkletMetrics: () => {
@@ -3607,1359 +3736,1359 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
     }
 
 // ═══ END OF PART 2 (v211.7.0) ═══
-// ═══ PART 3 START (v211.7.0) — Auto Scene Manager, Apply Loop ═══
-
-    /* ══════════════════════════════════════════════════════════════════
-       Auto Scene Manager (Patch C, Patch #10 Applied)
-       ══════════════════════════════════════════════════════════════════ */
-    function createAutoSceneManager(Store, P, Scheduler) {
-      const clamp = VSC_CLAMP;
-      const HIST_BINS = 256; const TONE_STEPS = 256;
-      const CANVAS_W = CONFIG.IS_MOBILE ? 80 : 112; const CANVAS_H = CONFIG.IS_MOBILE ? 63 : 63;
-      const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
-      const CENTER_ZONE_MASK = (1 << 5) | (1 << 6) | (1 << 9) | (1 << 10);
-
-      // Patch 1: Store revision tracker for AutoScene
-      let _autoSceneRev = 0;
-
-      // ── 메인 스레드용 풀 배열 및 버퍼 선언 ──────────────
-      const _pool_lumHist       = new Uint32Array(HIST_BINS);
-      const _pool_rHist         = new Uint32Array(HIST_BINS);
-      const _pool_gHist         = new Uint32Array(HIST_BINS);
-      const _pool_bHist         = new Uint32Array(HIST_BINS);
-      const _pool_zoneCounts    = new Uint32Array(ZONE_COUNT);
-      const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
-      const _pool_zoneHists     = Array.from({ length: ZONE_COUNT }, () => new Uint32Array(HIST_BINS));
-      let __curLumBuf     = null;
-      let __curLumBufSize = 0;
-      let __prevLumBuf    = null;
-      let __zoneLutCache  = null;
-
-      function getZoneLuts(sw, sh) {
-        if (__zoneLutCache?.w === sw && __zoneLutCache.h === sh) return __zoneLutCache;
-        const maxZx = ZONE_COLS - 1, maxZy = ZONE_ROWS - 1;
-        const invW = 1 / Math.max(1, (sw / ZONE_COLS) | 0);
-        const invH = 1 / Math.max(1, (sh / ZONE_ROWS) | 0);
-        const zxLut = new Uint8Array(sw);
-        const zyLut = new Uint8Array(sh);
-        for (let x = 0; x < sw; x++) zxLut[x] = Math.min(maxZx, (x * invW) | 0);
-        for (let y = 0; y < sh; y++) zyLut[y] = Math.min(maxZy, (y * invH) | 0);
-        return (__zoneLutCache = { w: sw, h: sh, zxLut, zyLut });
-      }
-
-      const _ZONE_WEIGHTS = Float32Array.from({ length: ZONE_COUNT }, (_, zi) => {
-        const zx = zi % ZONE_COLS, zy = (zi / ZONE_COLS) | 0;
-        const cx = (zx + 0.5) / ZONE_COLS, cy = (zy + 0.5) / ZONE_ROWS;
-        const dx = 0.5 - cx, dy = 0.5 - cy;
-        return 1.0 / (0.1 + Math.sqrt(dx * dx + dy * dy));
-      });
-
-      const ST = Object.freeze({ NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3, LOW_SAT: 4, SKIN: 5, BACKLIT: 6 });
-      const ST_NAMES = ['NORMAL', 'LOW_KEY', 'HIGH_KEY', 'HI_CONT', 'LOW_SAT', 'SKIN', 'BACKLIT'];
-      const ST_COUNT = ST_NAMES.length;
-
-      /* ══ Analysis Worker Pool (Patch 7 Applied: VideoFrame.copyTo) ══ */
-      const ANALYSIS_WORKER_SRC = (() => {
-        const workerFn = function() {
-          const HIST_BINS = 256, ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
-          const CENTER_ZONE_MASK = (1<<5)|(1<<6)|(1<<9)|(1<<10);
-          let __zoneLutCache = null, __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
-          const _pool_lumHist = new Uint32Array(HIST_BINS), _pool_rHist = new Uint32Array(HIST_BINS);
-          const _pool_gHist = new Uint32Array(HIST_BINS), _pool_bHist = new Uint32Array(HIST_BINS);
-          const _pool_zoneCounts = new Uint32Array(ZONE_COUNT);
-          const _pool_zoneHists = Array.from({length:ZONE_COUNT}, ()=>new Uint32Array(HIST_BINS));
-          const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
-
-          function getZoneLuts(sw, sh) {
-            if (__zoneLutCache?.w===sw && __zoneLutCache.h===sh) return __zoneLutCache;
-            const maxZx=ZONE_COLS-1, maxZy=ZONE_ROWS-1;
-            const invW=1/Math.max(1,(sw/ZONE_COLS)|0), invH=1/Math.max(1,(sh/ZONE_ROWS)|0);
-            const zxLut=new Uint8Array(sw), zyLut=new Uint8Array(sh);
-            for(let x=0;x<sw;x++) zxLut[x]=Math.min(maxZx,(x*invW)|0);
-            for(let y=0;y<sh;y++) zyLut[y]=Math.min(maxZy,(y*invH)|0);
-            return (__zoneLutCache={w:sw,h:sh,zxLut,zyLut});
-          }
-
-          function analyze(data, sw, sh) {
-            const step=2;
-            const iabs = (x) => (x ^ (x >> 31)) - (x >> 31);
-            let sum=0,sum2=0,sumEdge=0,sumChroma=0,count=0,skinCount=0,edgePairCount=0;
-            const lumHist=_pool_lumHist; lumHist.fill(0);
-            const rHist=_pool_rHist; rHist.fill(0);
-            const gHist=_pool_gHist; gHist.fill(0);
-            const bHist=_pool_bHist; bHist.fill(0);
-            const zoneCounts=_pool_zoneCounts; zoneCounts.fill(0);
-            const zoneHists=_pool_zoneHists; for(let z=0;z<ZONE_COUNT;z++) zoneHists[z].fill(0);
-            const zoneBrightSum=_pool_zoneBrightSum; zoneBrightSum.fill(0);
-            const pixelCount=sw*sh;
-            if(!__curLumBuf||__curLumBufSize!==pixelCount){__curLumBuf=new Uint8Array(pixelCount);__curLumBufSize=pixelCount;}
-            const curLum=__curLumBuf;
-            let hiLumaRSum=0,hiLumaBSum=0,hiLumaCount=0;
-            const {zxLut,zyLut}=getZoneLuts(sw,sh);
-            const u32=new Uint32Array(data.buffer,data.byteOffset,data.byteLength>>>2);
-            const maxX=sw-step;
-
-            for(let y=0;y<sh;y+=step){
-              const rowOff=y*sw; const zyBase=zyLut[y]<<2;
-              const xEnd=(maxX-3*step)|0;
-              let x=0;
-              for(;x<=xEnd;x+=step*4){
-                const px0=u32[rowOff+x], px1=u32[rowOff+x+step], px2=u32[rowOff+x+step*2], px3=u32[rowOff+x+step*3];
-                const r0=px0&0xFF,g0=(px0>>>8)&0xFF,b0=(px0>>>16)&0xFF;
-                const r1=px1&0xFF,g1=(px1>>>8)&0xFF,b1=(px1>>>16)&0xFF;
-                const r2=px2&0xFF,g2=(px2>>>8)&0xFF,b2=(px2>>>16)&0xFF;
-                const r3=px3&0xFF,g3=(px3>>>8)&0xFF,b3=(px3>>>16)&0xFF;
-                const l0=(r0*54+g0*183+b0*18+128)>>8, l1=(r1*54+g1*183+b1*18+128)>>8;
-                const l2=(r2*54+g2*183+b2*18+128)>>8, l3=(r3*54+g3*183+b3*18+128)>>8;
-                lumHist[l0]++;lumHist[l1]++;lumHist[l2]++;lumHist[l3]++;
-                rHist[r0]++;rHist[r1]++;rHist[r2]++;rHist[r3]++;
-                gHist[g0]++;gHist[g1]++;gHist[g2]++;gHist[g3]++;
-                bHist[b0]++;bHist[b1]++;bHist[b2]++;bHist[b3]++;
-                sum+=l0+l1+l2+l3; sum2+=l0*l0+l1*l1+l2*l2+l3*l3; count+=4;
-                sumEdge += iabs(l0 - l1) + iabs(l1 - l2) + iabs(l2 - l3); edgePairCount+=3;
-                const pi0=rowOff+x; curLum[pi0]=l0; curLum[pi0+step]=l1; curLum[pi0+step*2]=l2; curLum[pi0+step*3]=l3;
-
-                // Patch #10: Branchless Chroma via Sort Network (3-element)
-                let a0 = r0, b0_ = g0, c0 = b0; if (a0 > b0_) { const t = a0; a0 = b0_; b0_ = t; } if (a0 > c0) { const t = a0; a0 = c0; c0 = t; } if (b0_ > c0) { const t = b0_; b0_ = c0; c0 = t; }
-                let a1 = r1, b1_ = g1, c1 = b1; if (a1 > b1_) { const t = a1; a1 = b1_; b1_ = t; } if (a1 > c1) { const t = a1; a1 = c1; c1 = t; } if (b1_ > c1) { const t = b1_; b1_ = c1; c1 = t; }
-                let a2 = r2, b2_ = g2, c2 = b2; if (a2 > b2_) { const t = a2; a2 = b2_; b2_ = t; } if (a2 > c2) { const t = a2; a2 = c2; c2 = t; } if (b2_ > c2) { const t = b2_; b2_ = c2; c2 = t; }
-                let a3 = r3, b3_ = g3, c3 = b3; if (a3 > b3_) { const t = a3; a3 = b3_; b3_ = t; } if (a3 > c3) { const t = a3; a3 = c3; c3 = t; } if (b3_ > c3) { const t = b3_; b3_ = c3; c3 = t; }
-                sumChroma += (c0 - a0) + (c1 - a1) + (c2 - a2) + (c3 - a3);
-
-                const zi0=zyBase+zxLut[x], zi1=zyBase+zxLut[x+step], zi2=zyBase+zxLut[x+step*2], zi3=zyBase+zxLut[x+step*3];
-                zoneHists[zi0][l0]++;zoneCounts[zi0]++;zoneBrightSum[zi0]+=l0;
-                zoneHists[zi1][l1]++;zoneCounts[zi1]++;zoneBrightSum[zi1]+=l1;
-                zoneHists[zi2][l2]++;zoneCounts[zi2]++;zoneBrightSum[zi2]+=l2;
-                zoneHists[zi3][l3]++;zoneCounts[zi3]++;zoneBrightSum[zi3]+=l3;
-                if(l0>=180&&b0>10){hiLumaRSum+=r0;hiLumaBSum+=b0;hiLumaCount++;}
-                if(l1>=180&&b1>10){hiLumaRSum+=r1;hiLumaBSum+=b1;hiLumaCount++;}
-                if(l2>=180&&b2>10){hiLumaRSum+=r2;hiLumaBSum+=b2;hiLumaCount++;}
-                if(l3>=180&&b3>10){hiLumaRSum+=r3;hiLumaBSum+=b3;hiLumaCount++;}
-
-                skinCount += ((r0 - g0 > 12) & (r0 >= 80) & (g0 >= 35) & (b0 >= 20) & (r0 > b0))
-                           + ((r1 - g1 > 12) & (r1 >= 80) & (g1 >= 35) & (b1 >= 20) & (r1 > b1))
-                           + ((r2 - g2 > 12) & (r2 >= 80) & (g2 >= 35) & (b2 >= 20) & (r2 > b2))
-                           + ((r3 - g3 > 12) & (r3 >= 80) & (g3 >= 35) & (b3 >= 20) & (r3 > b3));
-              }
-              for(;x<=maxX;x+=step){
-                const pi=rowOff+x; const px=u32[pi];
-                const r=px&0xFF,g=(px>>>8)&0xFF,b=(px>>>16)&0xFF;
-                const l=(r*54+g*183+b*18+128)>>8;
-
-                // Patch #10: Branchless Chroma
-                let a = r, b_ = g, c = b; if (a > b_) { const t = a; a = b_; b_ = t; } if (a > c) { const t = a; a = c; c = t; } if (b_ > c) { const t = b_; b_ = c; c = t; }
-                sumChroma += (c - a);
-
-                curLum[pi]=l; sum+=l; sum2+=l*l; count++;
-                lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
-                const nx=x+step;
-                if(nx<sw){const npx=u32[rowOff+nx];const nl=((npx&0xFF)*54+((npx>>>8)&0xFF)*183+((npx>>>16)&0xFF)*18+128)>>8; sumEdge+=iabs(l-nl); edgePairCount++;}
-
-                skinCount += ((r - g > 12) & (r >= 80) & (g >= 35) & (b >= 20) & (r > b)) | 0;
-
-                const zi=zyBase+zxLut[x];
-                zoneHists[zi][l]++; zoneCounts[zi]++; zoneBrightSum[zi]+=l;
-                if(l>=180&&b>10){hiLumaRSum+=r;hiLumaBSum+=b;hiLumaCount++;}
-              }
-            }
-
-            let motionSAD=0;
-            if(__prevLumBuf&&__prevLumBuf.length===pixelCount){
-              let sadSum=0,sadCount=0;
-              for(let by=0;by+8<=sh;by+=8) for(let bx=0;bx+8<=sw;bx+=8){
-                let bs=0;
-                for(let dy=0;dy<8;dy+=step) for(let dx=0;dx<8;dx+=step){
-                  const pi=(by+dy)*sw+(bx+dx);
-                  const d = curLum[pi]-__prevLumBuf[pi];
-                  bs += (d ^ (d >> 31)) - (d >> 31);
-                }
-                sadSum+=bs; sadCount++;
-              }
-              motionSAD=sadCount>0?(sadSum/sadCount)/255:0;
-            }
-            if(!__prevLumBuf||__prevLumBuf.length!==pixelCount) __prevLumBuf=new Uint8Array(pixelCount);
-            __prevLumBuf.set(curLum);
-
-            const n=Math.max(1,count), mean=sum/n, std=Math.sqrt(Math.max(0,(sum2/n)-mean*mean));
-            let centerSum=0,centerCnt=0;
-            for(let mask=CENTER_ZONE_MASK;mask;mask&=mask-1){
-              const ci=31-Math.clz32(mask);
-              if(zoneCounts[ci]>0){centerSum+=zoneBrightSum[ci]/zoneCounts[ci];centerCnt++;}
-            }
-            const centerBright=centerCnt>0?centerSum/centerCnt/255:mean/255;
-            let edgeSum=0,edgeCount=0;
-            for(let z=0;z<ZONE_COUNT;z++){
-              if((CENTER_ZONE_MASK>>z)&1) continue;
-              if(zoneCounts[z]>0){edgeSum+=zoneBrightSum[z]/zoneCounts[z];edgeCount++;}
-            }
-            const edgeAvgBright=edgeCount>0?edgeSum/edgeCount/255:mean/255;
-            const hiLumaRBratio=hiLumaCount>=10?hiLumaRSum/Math.max(1,hiLumaBSum):NaN;
-
-            return {
-              bright:mean/255, contrast:std/64, chroma:sumChroma/n/255,
-              edge:edgePairCount>0?sumEdge/edgePairCount:0, motionSAD,
-              skinRatio:skinCount/n, centerBright, edgeAvgBright, hiLumaRBratio,
-              lumHist:Array.from(lumHist), rHist:Array.from(rHist),
-              gHist:Array.from(gHist), bHist:Array.from(bHist),
-              totalSamples:count,
-              zoneHists:zoneHists.map(h=>Array.from(h)),
-              zoneCounts:Array.from(zoneCounts),
-              zoneStats:{centerBright,edgeAvgBright}, _gpuPath:false
-            };
-          }
-
-          self.onmessage = async function({ data }) {
-            try {
-              let result;
-              if (data.type === 'frame') {
-                const { frame, sw, sh } = data;
-                if (typeof frame.copyTo === 'function' && frame.format) {
-                  try {
-                    const bufSize = frame.allocationSize({ rect: { x: 0, y: 0, width: sw, height: sh } });
-                    const buf = new ArrayBuffer(bufSize);
-                    await frame.copyTo(buf, { rect: { x: 0, y: 0, width: sw, height: sh } });
-                    frame.close();
-                    const pixelData = new Uint8ClampedArray(buf, 0, sw * sh * 4);
-                    result = analyze(pixelData, sw, sh);
-                  } catch (_) {
-                    const cv = new OffscreenCanvas(sw, sh);
-                    const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
-                    ctx.drawImage(frame, 0, 0, sw, sh);
-                    frame.close();
-                    result = analyze(ctx.getImageData(0, 0, sw, sh).data, sw, sh);
-                  }
-                } else {
-                  const cv = new OffscreenCanvas(sw, sh);
-                  const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
-                  ctx.drawImage(frame, 0, 0, sw, sh);
-                  frame.close();
-                  result = analyze(ctx.getImageData(0, 0, sw, sh).data, sw, sh);
-                }
-              } else if (data.type === 'bitmap') {
-                const { bitmap, sw, sh } = data;
-                const cv = new OffscreenCanvas(sw, sh);
-                const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
-                ctx.drawImage(bitmap, 0, 0);
-                bitmap.close();
-                const imgData = ctx.getImageData(0, 0, sw, sh);
-                result = analyze(imgData.data, sw, sh);
-              } else {
-                const { buf, sw, sh, byteOffset, byteLength } = data;
-                const pixelData = new Uint8ClampedArray(buf, byteOffset || 0, byteLength || buf.byteLength);
-                result = analyze(pixelData, sw, sh);
-              }
-              const s = new Float64Array([ result.bright, result.contrast, result.chroma, result.edge, result.motionSAD, result.skinRatio, result.centerBright, result.edgeAvgBright, result.hiLumaRBratio, result.totalSamples ]);
-              const hp = new Uint32Array(1040 + 16 * 256);
-              hp.set(result.lumHist, 0); hp.set(result.rHist, 256); hp.set(result.gHist, 512); hp.set(result.bHist, 768); hp.set(result.zoneCounts, 1024);
-              for (let z = 0; z < 16; z++) hp.set(result.zoneHists[z], 1040 + z * 256);
-              self.postMessage({ id: data.id, scalars: s, histPack: hp, _gpuPath: false }, [s.buffer, hp.buffer]);
-            } catch(e) {
-              self.postMessage({ error: e.message, id: data.id });
-            }
-          };
-        };
-        return `(${workerFn.toString()})();`;
-      })();
-
-      const _WORKER_POOL_SIZE = Math.min(2, navigator.hardwareConcurrency > 4 ? 2 : 1);
-      let _analysisWorkers = null, _workerIdx = -1;
-      const _workerPending = new Map();
-      const _workerMsgOwner = new Map();
-      let _workerMsgId = 0;
-      let WORKER_MSG_TIMEOUT_MS = 8000;
-
-      function nextWorkerId() {
-        _workerMsgId++;
-        if (_workerMsgId > 2147483640) _workerMsgId = 1;
-        return _workerMsgId;
-      }
-
-      function getAnalysisWorker() {
-        if (_analysisWorkers) {
-          for (let attempt = 0; attempt < _WORKER_POOL_SIZE; attempt++) {
-            _workerIdx = (_workerIdx + 1) & 0x7FFFFFFF;
-            const w = _analysisWorkers[_workerIdx % _WORKER_POOL_SIZE];
-            if (w) return w;
-          }
-          return null;
-        }
-
-        let blobUrl;
-        try {
-          const blob = new Blob([ANALYSIS_WORKER_SRC], { type: 'text/javascript' });
-          blobUrl = URL.createObjectURL(blob);
-        } catch (_) { return null; }
-
-        _analysisWorkers = Array.from({ length: _WORKER_POOL_SIZE }, (_, workerIndex) => {
-          const createWorker = () => {
-            const w = new Worker(blobUrl);
-
-            w.onmessage = ({ data: { id, scalars, histPack, error } }) => {
-              const p = _workerPending.get(id);
-              if (!p) return;
-
-              const expectedOwner = _workerMsgOwner.get(id);
-              if (expectedOwner !== undefined && expectedOwner !== workerIndex) {
-                log.debug(`[Worker ${workerIndex}] Received response for id ${id} owned by worker ${expectedOwner}, ignoring`);
-                return;
-              }
-
-              _workerPending.delete(id);
-              _workerMsgOwner.delete(id);
-              if (error) { p.reject(new Error(error)); return; }
-              const s = scalars;
-              const result = {
-                bright: s[0], contrast: s[1], chroma: s[2], edge: s[3], motionSAD: s[4], skinRatio: s[5], centerBright: s[6], edgeAvgBright: s[7], hiLumaRBratio: s[8], totalSamples: s[9],
-                lumHist: histPack.subarray(0, 256), rHist: histPack.subarray(256, 512), gHist: histPack.subarray(512, 768), bHist: histPack.subarray(768, 1024), zoneCounts: histPack.subarray(1024, 1040),
-                zoneHists: Array.from({length:16}, (_,z) => histPack.subarray(1040+z*256, 1040+(z+1)*256)),
-                zoneStats: { centerBright: s[6], edgeAvgBright: s[7] }, _gpuPath: false
-              };
-              p.resolve(result);
-              const elapsed = performance.now() - (p._startTime || 0);
-              if (elapsed > 0 && elapsed < WORKER_MSG_TIMEOUT_MS) {
-                WORKER_MSG_TIMEOUT_MS = Math.max(2000, Math.min(WORKER_MSG_TIMEOUT_MS, elapsed * 3));
-              }
-            };
-
-            // Bug 2 Applied: Removed direct double-decrement of _pendingAnalysisCount
-            w.onerror = (e) => {
-              const toReject = [];
-              for (const [id, p] of _workerPending) {
-                const owner = _workerMsgOwner.get(id);
-                if (owner === workerIndex || owner === undefined) {
-                  toReject.push([id, p]);
-                }
-              }
-              for (const [id, p] of toReject) {
-                _workerPending.delete(id);
-                _workerMsgOwner.delete(id);
-                if (p._timeoutId) clearTimeout(p._timeoutId);
-                p.reject(new Error(e?.message || 'Worker error'));
-              }
-              log.warn(`[Worker ${workerIndex}] crashed, recreating`);
-              try {
-                _analysisWorkers[workerIndex] = createWorker();
-              } catch (_) {
-                _analysisWorkers[workerIndex] = null;
-                log.error(`[Worker ${workerIndex}] recreation failed`);
-              }
-            };
-
-            return w;
-          };
-
-          return createWorker();
-        });
-
-        __globalSig.addEventListener('abort', () => {
-          _analysisWorkers?.forEach(w => { try { w?.terminate(); } catch (_) {} });
-          _analysisWorkers = null;
-          try { URL.revokeObjectURL(blobUrl); } catch (_) {}
-          for (const [, p] of _workerPending) {
-            if (p._timeoutId) clearTimeout(p._timeoutId);
-            p.reject(new Error('aborted'));
-          }
-          _workerPending.clear(); _workerMsgOwner.clear();
-        }, { once: true });
-
-        _workerIdx = -1;
-        return _analysisWorkers[0];
-      }
-
-      async function analyzeImageDataWorker(input, sw, sh) {
-        const worker = getAnalysisWorker();
-        if (!worker) {
-          if (input.type === 'frame') { input.frame.close(); return null; }
-          if (input.type === 'bitmap') { input.bitmap.close(); return null; }
-          return computeFullAnalysis(input.data, sw, sh);
-        }
-
-        const id = nextWorkerId();
-        const currentWorkerIndex = _workerIdx % _WORKER_POOL_SIZE;
-
-        _workerMsgOwner.set(id, currentWorkerIndex);
-
-        return new Promise((resolve, reject) => {
-          let settled = false;
-
-          const timeoutId = setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            _workerPending.delete(id);
-            _workerMsgOwner.delete(id);
-            reject(new Error('Worker timeout'));
-          }, WORKER_MSG_TIMEOUT_MS);
-
-          _workerPending.set(id, {
-            resolve: (res) => {
-              if (settled) return; settled = true;
-              clearTimeout(timeoutId); resolve(res);
-            },
-            reject: (err) => {
-              if (settled) return; settled = true;
-              clearTimeout(timeoutId); reject(err);
-            },
-            _timeoutId: timeoutId,
-            _startTime: performance.now()
-          });
-
-          try {
-            if (input.type === 'frame') {
-              worker.postMessage({ type: 'frame', frame: input.frame, sw, sh, id }, [input.frame]);
-            } else if (input.type === 'bitmap') {
-              worker.postMessage({ type: 'bitmap', bitmap: input.bitmap, sw, sh, id }, [input.bitmap]);
-            } else {
-              const rawBuf = input.data.buffer;
-              const byteOff = input.data.byteOffset;
-              const byteLen = input.data.byteLength;
-              worker.postMessage(
-                { type: 'buffer', buf: rawBuf, byteOffset: byteOff, byteLength: byteLen, sw, sh, id },
-                [rawBuf]
-              );
-            }
-          } catch (e) {
-            if (!settled) {
-              settled = true;
-              clearTimeout(timeoutId);
-              _workerPending.delete(id);
-              _workerMsgOwner.delete(id);
-              reject(e);
-            }
-          }
-        });
-      }
-
-      let gpuAnalyzer = null; let gpuInitAttempted = false;
-      async function ensureGPUAnalyzer() {
-        if (gpuInitAttempted) return gpuAnalyzer?.isReady() || false;
-        gpuInitAttempted = true;
-        if (!FEATURE_FLAGS.gpuAnalysis) return false;
-        try { gpuAnalyzer = createWebGPUAnalyzer(); const ok = await gpuAnalyzer.initGPU(); if (ok) { log.info('[AutoScene] WebGPU analyzer ready — GPU offload active'); return true; } log.info('[AutoScene] WebGPU unavailable — using CPU analysis'); return false; }
-        catch (e) { log.warn('[AutoScene] GPU init error:', e.message); return false; }
-      }
-
-      let __gpuConsecutiveFailures = 0;
-      const GPU_MAX_CONSECUTIVE_FAILURES = 5;
-      let _pendingAnalysisCount = 0;
-      const MAX_PENDING_ANALYSES = 2;
-
-      async function analyzeImageData(input, sw, sh) {
-        if (_pendingAnalysisCount >= MAX_PENDING_ANALYSES) {
-          if (input.type === 'frame') { try { input.frame.close(); } catch (_) {} }
-          if (input.type === 'bitmap') { try { input.bitmap.close(); } catch (_) {} }
-          return null;
-        }
-        _pendingAnalysisCount++;
-        try {
-          if (input.type === 'frame' || input.type === 'bitmap') return await analyzeImageDataWorker(input, sw, sh);
-
-          if (AUTO._gpuActive && gpuAnalyzer?.isReady()) {
-            try {
-              const result = await gpuAnalyzer.analyzeFrame(input.data, sw, sh);
-              if (result) { __gpuConsecutiveFailures = 0; return result; }
-              __gpuConsecutiveFailures++;
-              if (__gpuConsecutiveFailures >= GPU_MAX_CONSECUTIVE_FAILURES) { AUTO._gpuActive = false; log.warn('[AutoScene] GPU path disabled after repeated failures'); }
-            } catch (e) {
-              __gpuConsecutiveFailures++;
-              if (__gpuConsecutiveFailures >= GPU_MAX_CONSECUTIVE_FAILURES) { AUTO._gpuActive = false; }
-              log.warn('[AutoScene] GPU analyzeFrame error:', e.message);
-            }
-          }
-          if (_analysisWorkers !== null || typeof Worker !== 'undefined') {
-            try { return await analyzeImageDataWorker(input, sw, sh); }
-            catch (e) { log.warn('[AutoScene] Worker 분석 실패, CPU fallback:', e.message); }
-          }
-          return computeFullAnalysis(input.data, sw, sh);
-        } finally {
-          _pendingAnalysisCount--;
-        }
-      }
-
-      const _claheClipped = new Float32Array(HIST_BINS); const _claheCdf = new Float32Array(HIST_BINS); const _claheZoneCDFPool = new Array(ZONE_COUNT); for (let i = 0; i < ZONE_COUNT; i++) _claheZoneCDFPool[i] = new Float32Array(HIST_BINS); const _claheCurveOut = new Float32Array(TONE_STEPS);
-      function buildZonalCLAHE(zoneHists, zoneCounts, clipLimit) {
-        const bins = HIST_BINS; const zoneCount = ZONE_COLS * ZONE_ROWS;
-        for (let z = 0; z < zoneCount; z++) {
-          const hist = zoneHists[z]; const n = Math.max(1, zoneCounts[z]); const limit = (n / bins) * clipLimit; const clipped = _claheClipped; let excess = 0;
-          for (let i = 0; i < bins; i++) { if (hist[i] > limit) { excess += hist[i] - limit; clipped[i] = limit; } else clipped[i] = hist[i]; }
-          const perBin = excess / bins; for (let i = 0; i < bins; i++) clipped[i] += perBin;
-          const cdf = _claheCdf; cdf[0] = clipped[0]; for (let i = 1; i < bins; i++) cdf[i] = cdf[i - 1] + clipped[i];
-          const cdfMin = cdf[0]; const cdfRange = Math.max(1, cdf[bins - 1] - cdfMin); const normalized = _claheZoneCDFPool[z];
-          for (let i = 0; i < bins; i++) normalized[i] = (cdf[i] - cdfMin) / cdfRange;
-        }
-        const curve = _claheCurveOut;
-        for (let i = 0; i < TONE_STEPS; i++) {
-          const bin = Math.min(bins - 1, ((i / (TONE_STEPS - 1)) * (bins - 1)) | 0); let totalWeight = 0, totalVal = 0;
-          for (let zi = 0; zi < ZONE_COUNT; zi++) {
-            if (zoneCounts[zi] < 4) continue;
-            const w = _ZONE_WEIGHTS[zi];
-            totalVal += _claheZoneCDFPool[zi][bin] * w; totalWeight += w;
-          }
-          curve[i] = totalWeight > 0 ? totalVal / totalWeight : i / (TONE_STEPS - 1);
-        }
-        for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
-        return curve.slice();
-      }
-
-      function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
-        const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35, userMods = {} } = params;
-        const recMod = userMods.recovery || 0; const shadMod = userMods.shadow || 0; const brtMod = userMods.brightness || 0;
-        const finalClipLimit = clipLimit + (recMod * 0.8); const equalized = buildZonalCLAHE(zoneHists, zoneCounts, finalClipLimit);
-        const identity = new Float32Array(TONE_STEPS); for (let i = 0; i < TONE_STEPS; i++) identity[i] = i / (TONE_STEPS - 1); const raw = new Float32Array(TONE_STEPS);
-        const finalShadowProtect = Math.max(0, shadowProtect - (shadMod * 0.18)); const finalHighlightProtect = Math.max(0, highlightProtect - (brtMod * 0.14)); const shadowLift = shadMod * 0.055;
-        for (let i = 0; i < TONE_STEPS; i++) {
-          const x = i / (TONE_STEPS - 1); const eq = equalized[i], id = identity[i]; let regionWeight = 1.0;
-          if (x < 0.18) { const t = x / 0.18; regionWeight = 1.0 - finalShadowProtect * (1 - t * t); }
-          else if (x > 0.82) { const t = (x - 0.82) / 0.18; regionWeight = 1.0 - finalHighlightProtect * (t * t); }
-          let midBoost = 0; if (Math.abs(midtoneBoost) > 0.001) { const midW = Math.exp(-((x - 0.5) * (x - 0.5)) / (2 * 0.14 * 0.14)); midBoost = midtoneBoost * midW * 0.15; }
-          const effectiveStrength = strength * regionWeight; const lowEndLift = (x < 0.3) ? shadowLift * (1 - x / 0.3) : 0;
-          raw[i] = clamp(id * (1 - effectiveStrength) + eq * effectiveStrength + midBoost + lowEndLift, 0, 1);
-        }
-        const curve = new Float32Array(TONE_STEPS); curve[0] = raw[0]; curve[TONE_STEPS - 1] = raw[TONE_STEPS - 1];
-        for (let i = 1; i < TONE_STEPS - 1; i++) curve[i] = raw[i] * 0.6 + (raw[i - 1] + raw[i + 1]) * 0.2;
-        for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
-
-        const n = Math.max(1, totalSamples);
-        let pureBlackCount = 0;
-        for (let i = 0; i <= 5; i++) pureBlackCount += lumHist[i];
-        const pureBlackRatio = pureBlackCount / n;
-
-        if (pureBlackRatio > 0.03) {
-          const guardRange = 10;
-          const guardStrength = clamp(pureBlackRatio * 6, 0.25, 0.90);
-          for (let i = 0; i < guardRange; i++) {
-            const x = i / (TONE_STEPS - 1);
-            const t = i / guardRange;
-            const blendToIdentity = guardStrength * (1 - t * t);
-            curve[i] = curve[i] * (1 - blendToIdentity) + x * blendToIdentity;
-          }
-          for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
-        }
-
-        return curve;
-      }
-
-      function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiLumaRBratio) {
-        const correctionStrength = 0.12;
-        const n = Math.max(1, totalSamples);
-
-        let rMean = 0, gMean = 0, bMean = 0;
-        for (let i = 0; i < HIST_BINS; i++) {
-          const v = i / (HIST_BINS - 1);
-          rMean += v * rHist[i]; gMean += v * gHist[i]; bMean += v * bHist[i];
-        }
-        rMean /= n; gMean /= n; bMean /= n;
-        const avgMean = (rMean + gMean + bMean) / 3;
-        if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
-
-        let rHiMean = 0, gHiMean = 0, bHiMean = 0, hiCount = 0;
-        for (let i = 180; i < HIST_BINS; i++) {
-          const v = i / (HIST_BINS - 1);
-          rHiMean += v * rHist[i]; gHiMean += v * gHist[i]; bHiMean += v * bHist[i];
-          hiCount += (rHist[i] + gHist[i] + bHist[i]) / 3;
-        }
-        const hasHighlights = hiCount > n * 0.02;
-        if (hasHighlights && hiCount > 0) {
-          rHiMean /= hiCount; gHiMean /= hiCount; bHiMean /= hiCount;
-        }
-
-        const skinDampen = clamp(skinRatio || 0, 0, 0.4) / 0.4;
-        const rMul = 0.45 * (1 - skinDampen * 0.70);
-        const bMul = 0.55;
-
-        let rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul);
-        let gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.75);
-        let bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * (correctionStrength * bMul);
-
-        if (Number.isFinite(hiLumaRBratio) && hiLumaRBratio > 0) {
-          const deviation = clamp(hiLumaRBratio - 1.0, -0.3, 0.3);
-          const tempCorr = deviation * 0.18;
-          rGain -= tempCorr * 0.5;
-          bGain += tempCorr * 0.5;
-        }
-
-        if (hasHighlights) {
-          const hiAvg = (rHiMean + gHiMean + bHiMean) / 3;
-          if (hiAvg > 0.01) {
-            const hiRBratio = rHiMean / Math.max(0.01, bHiMean);
-            const hiNeutrality = 1.0 - clamp(Math.abs(hiRBratio - 1.0) * 5, 0, 0.8);
-            const dampFactor = hiNeutrality * 0.45;
-            rGain = rGain + (1.0 - rGain) * dampFactor;
-            bGain = bGain + (1.0 - bGain) * dampFactor;
-          }
-        }
-
-        return { rGain: clamp(rGain, 0.92, 1.08), gGain: clamp(gGain, 0.94, 1.06), bGain: clamp(bGain, 0.90, 1.10) };
-      }
-
-      const __fuzzyScores = new Float64Array(ST_COUNT); const __fuzzyEma = new Float64Array(ST_COUNT); let __fuzzyInited = false;
-      let __fuzzyLastVideoId = null;
-
-      function classifySceneFuzzy(stats, zoneStats, currentVideo) {
-        const scores = __fuzzyScores; scores.fill(0); const br = stats.bright, ct = stats.contrast, ch = stats.chroma, sk = stats.skinRatio;
-        scores[ST.NORMAL] = 1.0;
-        if (br < 0.32) scores[ST.LOW_KEY] += (0.32 - br) / 0.32 * 3.0;
-        if (ct < 0.18) scores[ST.LOW_KEY] += (0.18 - ct) / 0.18 * 1.5;
-        if (br > 0.65) scores[ST.HIGH_KEY] += (br - 0.65) / 0.35 * 2.8;
-        if (ct > 0.28) scores[ST.HIGH_CONTRAST] += (ct - 0.28) / 0.28 * 2.4;
-        if (ch < 0.10) scores[ST.LOW_SAT] += (0.10 - ch) / 0.10 * 2.2;
-        if (sk > 0.05) scores[ST.SKIN] += (sk - 0.05) / 0.10 * 2.4;
-        if (zoneStats) { const centerBr = zoneStats.centerBright, edgeBr = zoneStats.edgeAvgBright; if (edgeBr > 0.42 && centerBr < 0.40) { const gap = edgeBr - centerBr; if (gap > 0.12) scores[ST.BACKLIT] += gap / 0.20 * 3.5; } }
-
-        const videoChanged = currentVideo !== __fuzzyLastVideoId;
-        if (videoChanged) { __fuzzyLastVideoId = currentVideo; __fuzzyInited = false; }
-        const emaAlpha = videoChanged ? 1.0 : (stats._isCut ? 0.42 : 0.11);
-
-        if (!__fuzzyInited) { for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] = scores[i]; __fuzzyInited = true; } else { for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] += (scores[i] - __fuzzyEma[i]) * emaAlpha; }
-        let bestIdx = 0, bestVal = __fuzzyEma[0]; for (let i = 1; i < ST_COUNT; i++) { if (__fuzzyEma[i] > bestVal) { bestVal = __fuzzyEma[i]; bestIdx = i; } } return bestIdx;
-      }
-
-      const SCENE_TONE_PARAMS = Object.freeze({
-        [ST.NORMAL]:        { clipLimit: 2.8, shadowProtect: 0.30, highlightProtect: 0.28, midtoneBoost: 0.06, strength: 0.30, satTarget: 1.08 },
-        [ST.LOW_KEY]:       { clipLimit: 3.8, shadowProtect: 0.22, highlightProtect: 0.12, midtoneBoost: 0.18, strength: 0.46, satTarget: 1.15 },
-        [ST.HIGH_KEY]:      { clipLimit: 2.2, shadowProtect: 0.15, highlightProtect: 0.50, midtoneBoost: -0.10, strength: 0.22, satTarget: 1.06 },
-        [ST.HIGH_CONTRAST]: { clipLimit: 2.2, shadowProtect: 0.42, highlightProtect: 0.42, midtoneBoost: 0.0,  strength: 0.18, satTarget: 1.05 },
-        [ST.LOW_SAT]:       { clipLimit: 3.4, shadowProtect: 0.26, highlightProtect: 0.22, midtoneBoost: 0.10, strength: 0.44, satTarget: 1.32 },
-        [ST.SKIN]:          { clipLimit: 2.4, shadowProtect: 0.40, highlightProtect: 0.34, midtoneBoost: 0.04, strength: 0.20, satTarget: 1.06 },
-        [ST.BACKLIT]:       { clipLimit: 4.2, shadowProtect: 0.08, highlightProtect: 0.52, midtoneBoost: 0.22, strength: 0.54, satTarget: 1.16 }
-      });
-
-      let prevToneCurve = null; let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; let prevSatMul = 1.0;
-      const _interpBufA = new Float32Array(TONE_STEPS); const _interpBufB = new Float32Array(TONE_STEPS); let _interpActive = 0;
-      function interpolateCurves(prev, next, alpha) { if (!prev) { const out = _interpActive === 0 ? _interpBufA : _interpBufB; out.set(next); _interpActive ^= 1; return out; } const out = _interpActive === 0 ? _interpBufA : _interpBufB; for (let i = 0; i < TONE_STEPS; i++) out[i] = prev[i] + (next[i] - prev[i]) * alpha; _interpActive ^= 1; return out; }
-      function interpolateGains(prev, next, alpha) {
-        const rDelta = Math.abs(next.rGain - prev.rGain);
-        const bDelta = Math.abs(next.bGain - prev.bGain);
-        const maxDelta = Math.max(rDelta, bDelta);
-        let effectiveAlpha = alpha;
-        if (maxDelta > 0.03) effectiveAlpha *= clamp(0.03 / maxDelta, 0.3, 1.0);
-        return { rGain: prev.rGain + (next.rGain - prev.rGain) * effectiveAlpha, gGain: prev.gGain + (next.gGain - prev.gGain) * effectiveAlpha, bGain: prev.bGain + (next.bGain - prev.bGain) * effectiveAlpha };
-      }
-
-      const CUT_HIST_LEN = 20; const cutScores = new CircularBuffer(CUT_HIST_LEN); const gradualScores = new CircularBuffer(10);
-      function detectTransition(stats, prev) {
-        if (!prev) return { isCut: false, isFade: false, score: 0 };
-        const motionDelta = Math.abs((stats.motionSAD || 0) - (prev.motionSAD || 0));
-        const score = Math.abs(stats.bright - prev.bright) * 1.3 + Math.abs(stats.contrast - prev.contrast) * 0.7 + Math.abs(stats.chroma - prev.chroma) * 0.5 + Math.abs(stats.edge - prev.edge) * 0.3 + motionDelta * 0.35;
-        cutScores.push(score);
-        const sorted = cutScores.getSorted();
-        const q90 = sorted[Math.floor(sorted.length * 0.90)] || 0.15; const cutThr = Math.max(0.08, Math.min(0.24, q90 * 1.20)); const isCut = score > cutThr;
-        gradualScores.push(score); const gradualSum = gradualScores.reduce((a, b) => a + b, 0); const isFade = !isCut && gradualSum > cutThr * 3.0 && gradualScores.length >= 5;
-        return { isCut, isFade, score };
-      }
-
-      let flickerCount = 0, lastCurveDir = 0;
-      const FLICKER_MAX = 8; const FLICKER_DECAY = 0.9;
-      function getTemporalAlpha(isCut, isFade) { const base = isCut ? 0.44 : (isFade ? 0.18 : 0.10); return base / (1 + flickerCount * 0.7); }
-
-      function computeFullAnalysis(data, sw, sh) {
-        const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
-        const iabs = (x) => (x ^ (x >> 31)) - (x >> 31);
-        const lumHist = _pool_lumHist; lumHist.fill(0); const rHist = _pool_rHist; rHist.fill(0); const gHist = _pool_gHist; gHist.fill(0); const bHist = _pool_bHist; bHist.fill(0);
-        const zoneCounts = _pool_zoneCounts; zoneCounts.fill(0); const zoneHists = _pool_zoneHists; for (let z = 0; z < ZONE_COUNT; z++) zoneHists[z].fill(0);
-        const zoneBrightSum = _pool_zoneBrightSum; zoneBrightSum.fill(0);
-        const pixelCount = sw * sh; if (!__curLumBuf || __curLumBufSize !== pixelCount) { __curLumBuf = new Uint8Array(pixelCount); __curLumBufSize = pixelCount; }
-        const curLum = __curLumBuf; let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0; const HI_LUMA_THR = 180;
-        const { zxLut, zyLut } = getZoneLuts(sw, sh);
-
-        const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
-        const maxX = sw - step;
-
-        for (let y = 0; y < sh; y += step) {
-          const rowOff = y * sw; const zyBase = zyLut[y] << 2;
-          const xEnd = (maxX - 3 * step) | 0;
-          let x = 0;
-
-          for (; x <= xEnd; x += step * 4) {
-            const px0 = u32[rowOff + x], px1 = u32[rowOff + x + step];
-            const px2 = u32[rowOff + x + step * 2], px3 = u32[rowOff + x + step * 3];
-
-            const r0 = px0 & 0xFF, g0 = (px0 >>> 8) & 0xFF, b0 = (px0 >>> 16) & 0xFF;
-            const r1 = px1 & 0xFF, g1 = (px1 >>> 8) & 0xFF, b1 = (px1 >>> 16) & 0xFF;
-            const r2 = px2 & 0xFF, g2 = (px2 >>> 8) & 0xFF, b2 = (px2 >>> 16) & 0xFF;
-            const r3 = px3 & 0xFF, g3 = (px3 >>> 8) & 0xFF, b3 = (px3 >>> 16) & 0xFF;
-
-            const l0 = (r0 * 54 + g0 * 183 + b0 * 18 + 128) >> 8;
-            const l1 = (r1 * 54 + g1 * 183 + b1 * 18 + 128) >> 8;
-            const l2 = (r2 * 54 + g2 * 183 + b2 * 18 + 128) >> 8;
-            const l3 = (r3 * 54 + g3 * 183 + b3 * 18 + 128) >> 8;
-
-            lumHist[l0]++; lumHist[l1]++; lumHist[l2]++; lumHist[l3]++;
-            rHist[r0]++; rHist[r1]++; rHist[r2]++; rHist[r3]++;
-            gHist[g0]++; gHist[g1]++; gHist[g2]++; gHist[g3]++;
-            bHist[b0]++; bHist[b1]++; bHist[b2]++; bHist[b3]++;
-
-            sum += l0 + l1 + l2 + l3;
-            sum2 += l0 * l0 + l1 * l1 + l2 * l2 + l3 * l3;
-            count += 4;
-
-            sumEdge += iabs(l0 - l1) + iabs(l1 - l2) + iabs(l2 - l3);
-            edgePairCount += 3;
-
-            const pi0 = rowOff + x;
-            curLum[pi0] = l0; curLum[pi0 + step] = l1;
-            curLum[pi0 + step * 2] = l2; curLum[pi0 + step * 3] = l3;
-
-            let a0 = r0, b0_ = g0, c0 = b0; if (a0 > b0_) { const t = a0; a0 = b0_; b0_ = t; } if (a0 > c0) { const t = a0; a0 = c0; c0 = t; } if (b0_ > c0) { const t = b0_; b0_ = c0; c0 = t; }
-            let a1 = r1, b1_ = g1, c1 = b1; if (a1 > b1_) { const t = a1; a1 = b1_; b1_ = t; } if (a1 > c1) { const t = a1; a1 = c1; c1 = t; } if (b1_ > c1) { const t = b1_; b1_ = c1; c1 = t; }
-            let a2 = r2, b2_ = g2, c2 = b2; if (a2 > b2_) { const t = a2; a2 = b2_; b2_ = t; } if (a2 > c2) { const t = a2; a2 = c2; c2 = t; } if (b2_ > c2) { const t = b2_; b2_ = c2; c2 = t; }
-            let a3 = r3, b3_ = g3, c3 = b3; if (a3 > b3_) { const t = a3; a3 = b3_; b3_ = t; } if (a3 > c3) { const t = a3; a3 = c3; c3 = t; } if (b3_ > c3) { const t = b3_; b3_ = c3; c3 = t; }
-            sumChroma += (c0 - a0) + (c1 - a1) + (c2 - a2) + (c3 - a3);
-
-            const zi0 = zyBase + zxLut[x], zi1 = zyBase + zxLut[x + step];
-            const zi2 = zyBase + zxLut[x + step * 2], zi3 = zyBase + zxLut[x + step * 3];
-            zoneHists[zi0][l0]++; zoneCounts[zi0]++; zoneBrightSum[zi0] += l0;
-            zoneHists[zi1][l1]++; zoneCounts[zi1]++; zoneBrightSum[zi1] += l1;
-            zoneHists[zi2][l2]++; zoneCounts[zi2]++; zoneBrightSum[zi2] += l2;
-            zoneHists[zi3][l3]++; zoneCounts[zi3]++; zoneBrightSum[zi3] += l3;
-
-            if (l0 >= HI_LUMA_THR && b0 > 10) { hiLumaRSum += r0; hiLumaBSum += b0; hiLumaCount++; }
-            if (l1 >= HI_LUMA_THR && b1 > 10) { hiLumaRSum += r1; hiLumaBSum += b1; hiLumaCount++; }
-            if (l2 >= HI_LUMA_THR && b2 > 10) { hiLumaRSum += r2; hiLumaBSum += b2; hiLumaCount++; }
-            if (l3 >= HI_LUMA_THR && b3 > 10) { hiLumaRSum += r3; hiLumaBSum += b3; hiLumaCount++; }
-
-            skinCount += ((r0 - g0 > 12) & (r0 >= 80) & (g0 >= 35) & (b0 >= 20) & (r0 > b0))
-                       + ((r1 - g1 > 12) & (r1 >= 80) & (g1 >= 35) & (b1 >= 20) & (r1 > b1))
-                       + ((r2 - g2 > 12) & (r2 >= 80) & (g2 >= 35) & (b2 >= 20) & (r2 > b2))
-                       + ((r3 - g3 > 12) & (r3 >= 80) & (g3 >= 35) & (b3 >= 20) & (r3 > b3));
-          }
-
-          for (; x <= maxX; x += step) {
-            const pi = rowOff + x; const px = u32[pi];
-            const r = px & 0xFF, g = (px >>> 8) & 0xFF, b = (px >>> 16) & 0xFF;
-            const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
-
-            let a = r, b_ = g, c = b; if (a > b_) { const t = a; a = b_; b_ = t; } if (a > c) { const t = a; a = c; c = t; } if (b_ > c) { const t = b_; b_ = c; c = t; }
-            sumChroma += (c - a);
-
-            curLum[pi] = l; sum += l; sum2 += l * l; count++;
-            lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
-
-            if (x + step < sw) {
-              const npx = u32[rowOff + x + step];
-              const nl = ((npx & 0xFF) * 54 + ((npx >>> 8) & 0xFF) * 183 + ((npx >>> 16) & 0xFF) * 18 + 128) >> 8;
-              sumEdge += iabs(l - nl); edgePairCount++;
-            }
-
-            skinCount += ((r - g > 12) & (r >= 80) & (g >= 35) & (b >= 20) & (r > b)) | 0;
-
-            const zi = zyBase + zxLut[x];
-            zoneHists[zi][l]++; zoneCounts[zi]++; zoneBrightSum[zi] += l;
-            if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
-          }
-        }
-
-        let motionSAD = 0;
-        if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
-          let sadSum = 0, sadCount = 0; const bw = 8, bh = 8;
-          for (let by = 0; by + bh <= sh; by += bh) {
-            for (let bx = 0; bx + bw <= sw; bx += bw) {
-              let blockSad = 0;
-              for (let dy = 0; dy < bh; dy += step) {
-                for (let dx = 0; dx < bw; dx += step) {
-                  const pi = (by + dy) * sw + (bx + dx);
-                  const d = curLum[pi] - __prevLumBuf[pi];
-                  blockSad += (d ^ (d >> 31)) - (d >> 31);
-                }
-              }
-              sadSum += blockSad; sadCount++;
-            }
-          }
-          motionSAD = sadCount > 0 ? (sadSum / sadCount) / 255 : 0;
-        }
-        if (!__prevLumBuf || __prevLumBuf.length !== pixelCount) __prevLumBuf = new Uint8Array(pixelCount);
-        __prevLumBuf.set(curLum);
-
-        const n = Math.max(1, count); const mean = sum / n, std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
-
-        let centerSum = 0, centerCnt = 0;
-        for (let mask = CENTER_ZONE_MASK; mask; mask &= mask - 1) {
-          const ci = 31 - Math.clz32(mask);
-          if (zoneCounts[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneCounts[ci]; centerCnt++; }
-        }
-        const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
-
-        let edgeSum = 0, edgeCount = 0;
-        for (let z = 0; z < ZONE_COUNT; z++) {
-          if ((CENTER_ZONE_MASK >> z) & 1) continue;
-          if (zoneCounts[z] > 0) { edgeSum += zoneBrightSum[z] / zoneCounts[z]; edgeCount++; }
-        }
-        const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
-
-        const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
-
-        return {
-          bright: mean / 255, contrast: std / 64, chroma: sumChroma / n / 255, edge: edgePairCount > 0 ? sumEdge / edgePairCount : 0, motionSAD, skinRatio: skinCount / n,
-          centerBright, edgeAvgBright, hiLumaRBratio, lumHist, rHist, gHist, bHist, totalSamples: count,
-          zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }, _gpuPath: false
-        };
-      }
-
-      function generateManualMods() {
-        return { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
-      }
-
-      function updateManual() {
-        AUTO.cur = generateManualMods();
-        Scheduler.request(true);
-      }
-
-      const AUTO = {
-        running: false, canvasW: CANVAS_W, canvasH: CANVAS_H, cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
-        lastStats: null, statsEma: null, statsAlpha: 0.08, motionEma: 0, motionAlpha: 0.20, motionThresh: 0.012, motionFrames: 0,
-        drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 700, minFps: 1.0, maxFps: CONFIG.IS_MOBILE ? 5 : 9, curFps: 2,
-        _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL, _lastMean: 0, _framesSinceUpdate: 0, _gpuActive: false,
-        _lastCurrentTime: -1
-      };
-
-      const _fpsHistBuf = new CircularBuffer(6); let drmRetryCount = 0; const MAX_DRM_RETRIES = 3; let cv, cvCtx;
-      if (typeof OffscreenCanvas === 'function') { try { cv = new OffscreenCanvas(CANVAS_W, CANVAS_H); cvCtx = cv.getContext('2d', { willReadFrequently: true, alpha: false }); } catch (_) { cv = null; cvCtx = null; } }
-      if (!cvCtx) { cv = document.createElement('canvas'); cv.width = CANVAS_W; cv.height = CANVAS_H; try { cvCtx = cv.getContext('2d', { willReadFrequently: true, alpha: false }); } catch (_) { try { cvCtx = cv.getContext('2d', { willReadFrequently: true }); } catch (__) {} } }
-      let __asRvfcId = 0, __asRvfcVideo = null, __asTimeoutId = 0;
-
-      // [수정 전] - scheduleNext 함수 전체를 통째로 아래 코드로 덮어씌우세요.
+// ═══ PART 3 START (v214.2.0) — Auto Scene Manager, Apply Loop ═══
+
+    /* ══════════════════════════════════════════════════════════════════
+       Auto Scene Manager (Patch C, Patch #10 Applied)
+       ══════════════════════════════════════════════════════════════════ */
+    function createAutoSceneManager(Store, P, Scheduler) {
+      const clamp = VSC_CLAMP;
+      const HIST_BINS = 256; const TONE_STEPS = 256;
+      const CANVAS_W = CONFIG.IS_MOBILE ? 80 : 112; const CANVAS_H = CONFIG.IS_MOBILE ? 63 : 63;
+      const ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
+      const CENTER_ZONE_MASK = (1 << 5) | (1 << 6) | (1 << 9) | (1 << 10);
+
+      // Patch 1: Store revision tracker for AutoScene
+      let _autoSceneRev = 0;
+
+      // ── 메인 스레드용 풀 배열 및 버퍼 선언 ──────────────
+      const _pool_lumHist       = new Uint32Array(HIST_BINS);
+      const _pool_rHist         = new Uint32Array(HIST_BINS);
+      const _pool_gHist         = new Uint32Array(HIST_BINS);
+      const _pool_bHist         = new Uint32Array(HIST_BINS);
+      const _pool_zoneCounts    = new Uint32Array(ZONE_COUNT);
+      const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
+      const _pool_zoneHists     = Array.from({ length: ZONE_COUNT }, () => new Uint32Array(HIST_BINS));
+      let __curLumBuf     = null;
+      let __curLumBufSize = 0;
+      let __prevLumBuf    = null;
+      let __zoneLutCache  = null;
+
+      function getZoneLuts(sw, sh) {
+        if (__zoneLutCache?.w === sw && __zoneLutCache.h === sh) return __zoneLutCache;
+        const maxZx = ZONE_COLS - 1, maxZy = ZONE_ROWS - 1;
+        const invW = 1 / Math.max(1, (sw / ZONE_COLS) | 0);
+        const invH = 1 / Math.max(1, (sh / ZONE_ROWS) | 0);
+        const zxLut = new Uint8Array(sw);
+        const zyLut = new Uint8Array(sh);
+        for (let x = 0; x < sw; x++) zxLut[x] = Math.min(maxZx, (x * invW) | 0);
+        for (let y = 0; y < sh; y++) zyLut[y] = Math.min(maxZy, (y * invH) | 0);
+        return (__zoneLutCache = { w: sw, h: sh, zxLut, zyLut });
+      }
+
+      const _ZONE_WEIGHTS = Float32Array.from({ length: ZONE_COUNT }, (_, zi) => {
+        const zx = zi % ZONE_COLS, zy = (zi / ZONE_COLS) | 0;
+        const cx = (zx + 0.5) / ZONE_COLS, cy = (zy + 0.5) / ZONE_ROWS;
+        const dx = 0.5 - cx, dy = 0.5 - cy;
+        return 1.0 / (0.1 + Math.sqrt(dx * dx + dy * dy));
+      });
+
+      const ST = Object.freeze({ NORMAL: 0, LOW_KEY: 1, HIGH_KEY: 2, HIGH_CONTRAST: 3, LOW_SAT: 4, SKIN: 5, BACKLIT: 6 });
+      const ST_NAMES = ['NORMAL', 'LOW_KEY', 'HIGH_KEY', 'HI_CONT', 'LOW_SAT', 'SKIN', 'BACKLIT'];
+      const ST_COUNT = ST_NAMES.length;
+
+      /* ══ Analysis Worker Pool (Patch 7 Applied: VideoFrame.copyTo) ══ */
+      const ANALYSIS_WORKER_SRC = (() => {
+        const workerFn = function() {
+          const HIST_BINS = 256, ZONE_COLS = 4, ZONE_ROWS = 4, ZONE_COUNT = 16;
+          const CENTER_ZONE_MASK = (1<<5)|(1<<6)|(1<<9)|(1<<10);
+          let __zoneLutCache = null, __prevLumBuf = null, __curLumBuf = null, __curLumBufSize = 0;
+          const _pool_lumHist = new Uint32Array(HIST_BINS), _pool_rHist = new Uint32Array(HIST_BINS);
+          const _pool_gHist = new Uint32Array(HIST_BINS), _pool_bHist = new Uint32Array(HIST_BINS);
+          const _pool_zoneCounts = new Uint32Array(ZONE_COUNT);
+          const _pool_zoneHists = Array.from({length:ZONE_COUNT}, ()=>new Uint32Array(HIST_BINS));
+          const _pool_zoneBrightSum = new Float32Array(ZONE_COUNT);
+
+          function getZoneLuts(sw, sh) {
+            if (__zoneLutCache?.w===sw && __zoneLutCache.h===sh) return __zoneLutCache;
+            const maxZx=ZONE_COLS-1, maxZy=ZONE_ROWS-1;
+            const invW=1/Math.max(1,(sw/ZONE_COLS)|0), invH=1/Math.max(1,(sh/ZONE_ROWS)|0);
+            const zxLut=new Uint8Array(sw), zyLut=new Uint8Array(sh);
+            for(let x=0;x<sw;x++) zxLut[x]=Math.min(maxZx,(x*invW)|0);
+            for(let y=0;y<sh;y++) zyLut[y]=Math.min(maxZy,(y*invH)|0);
+            return (__zoneLutCache={w:sw,h:sh,zxLut,zyLut});
+          }
+
+          function analyze(data, sw, sh) {
+            const step=2;
+            const iabs = (x) => (x ^ (x >> 31)) - (x >> 31);
+            let sum=0,sum2=0,sumEdge=0,sumChroma=0,count=0,skinCount=0,edgePairCount=0;
+            const lumHist=_pool_lumHist; lumHist.fill(0);
+            const rHist=_pool_rHist; rHist.fill(0);
+            const gHist=_pool_gHist; gHist.fill(0);
+            const bHist=_pool_bHist; bHist.fill(0);
+            const zoneCounts=_pool_zoneCounts; zoneCounts.fill(0);
+            const zoneHists=_pool_zoneHists; for(let z=0;z<ZONE_COUNT;z++) zoneHists[z].fill(0);
+            const zoneBrightSum=_pool_zoneBrightSum; zoneBrightSum.fill(0);
+            const pixelCount=sw*sh;
+            if(!__curLumBuf||__curLumBufSize!==pixelCount){__curLumBuf=new Uint8Array(pixelCount);__curLumBufSize=pixelCount;}
+            const curLum=__curLumBuf;
+            let hiLumaRSum=0,hiLumaBSum=0,hiLumaCount=0;
+            const {zxLut,zyLut}=getZoneLuts(sw,sh);
+            const u32=new Uint32Array(data.buffer,data.byteOffset,data.byteLength>>>2);
+            const maxX=sw-step;
+
+            for(let y=0;y<sh;y+=step){
+              const rowOff=y*sw; const zyBase=zyLut[y]<<2;
+              const xEnd=(maxX-3*step)|0;
+              let x=0;
+              for(;x<=xEnd;x+=step*4){
+                const px0=u32[rowOff+x], px1=u32[rowOff+x+step], px2=u32[rowOff+x+step*2], px3=u32[rowOff+x+step*3];
+                const r0=px0&0xFF,g0=(px0>>>8)&0xFF,b0=(px0>>>16)&0xFF;
+                const r1=px1&0xFF,g1=(px1>>>8)&0xFF,b1=(px1>>>16)&0xFF;
+                const r2=px2&0xFF,g2=(px2>>>8)&0xFF,b2=(px2>>>16)&0xFF;
+                const r3=px3&0xFF,g3=(px3>>>8)&0xFF,b3=(px3>>>16)&0xFF;
+                const l0=(r0*54+g0*183+b0*18+128)>>8, l1=(r1*54+g1*183+b1*18+128)>>8;
+                const l2=(r2*54+g2*183+b2*18+128)>>8, l3=(r3*54+g3*183+b3*18+128)>>8;
+                lumHist[l0]++;lumHist[l1]++;lumHist[l2]++;lumHist[l3]++;
+                rHist[r0]++;rHist[r1]++;rHist[r2]++;rHist[r3]++;
+                gHist[g0]++;gHist[g1]++;gHist[g2]++;gHist[g3]++;
+                bHist[b0]++;bHist[b1]++;bHist[b2]++;bHist[b3]++;
+                sum+=l0+l1+l2+l3; sum2+=l0*l0+l1*l1+l2*l2+l3*l3; count+=4;
+                sumEdge += iabs(l0 - l1) + iabs(l1 - l2) + iabs(l2 - l3); edgePairCount+=3;
+                const pi0=rowOff+x; curLum[pi0]=l0; curLum[pi0+step]=l1; curLum[pi0+step*2]=l2; curLum[pi0+step*3]=l3;
+
+                // Patch #10: Branchless Chroma via Sort Network (3-element)
+                let a0 = r0, b0_ = g0, c0 = b0; if (a0 > b0_) { const t = a0; a0 = b0_; b0_ = t; } if (a0 > c0) { const t = a0; a0 = c0; c0 = t; } if (b0_ > c0) { const t = b0_; b0_ = c0; c0 = t; }
+                let a1 = r1, b1_ = g1, c1 = b1; if (a1 > b1_) { const t = a1; a1 = b1_; b1_ = t; } if (a1 > c1) { const t = a1; a1 = c1; c1 = t; } if (b1_ > c1) { const t = b1_; b1_ = c1; c1 = t; }
+                let a2 = r2, b2_ = g2, c2 = b2; if (a2 > b2_) { const t = a2; a2 = b2_; b2_ = t; } if (a2 > c2) { const t = a2; a2 = c2; c2 = t; } if (b2_ > c2) { const t = b2_; b2_ = c2; c2 = t; }
+                let a3 = r3, b3_ = g3, c3 = b3; if (a3 > b3_) { const t = a3; a3 = b3_; b3_ = t; } if (a3 > c3) { const t = a3; a3 = c3; c3 = t; } if (b3_ > c3) { const t = b3_; b3_ = c3; c3 = t; }
+                sumChroma += (c0 - a0) + (c1 - a1) + (c2 - a2) + (c3 - a3);
+
+                const zi0=zyBase+zxLut[x], zi1=zyBase+zxLut[x+step], zi2=zyBase+zxLut[x+step*2], zi3=zyBase+zxLut[x+step*3];
+                zoneHists[zi0][l0]++;zoneCounts[zi0]++;zoneBrightSum[zi0]+=l0;
+                zoneHists[zi1][l1]++;zoneCounts[zi1]++;zoneBrightSum[zi1]+=l1;
+                zoneHists[zi2][l2]++;zoneCounts[zi2]++;zoneBrightSum[zi2]+=l2;
+                zoneHists[zi3][l3]++;zoneCounts[zi3]++;zoneBrightSum[zi3]+=l3;
+                if(l0>=180&&b0>10){hiLumaRSum+=r0;hiLumaBSum+=b0;hiLumaCount++;}
+                if(l1>=180&&b1>10){hiLumaRSum+=r1;hiLumaBSum+=b1;hiLumaCount++;}
+                if(l2>=180&&b2>10){hiLumaRSum+=r2;hiLumaBSum+=b2;hiLumaCount++;}
+                if(l3>=180&&b3>10){hiLumaRSum+=r3;hiLumaBSum+=b3;hiLumaCount++;}
+
+                skinCount += ((r0 - g0 > 12) & (r0 >= 80) & (g0 >= 35) & (b0 >= 20) & (r0 > b0))
+                           + ((r1 - g1 > 12) & (r1 >= 80) & (g1 >= 35) & (b1 >= 20) & (r1 > b1))
+                           + ((r2 - g2 > 12) & (r2 >= 80) & (g2 >= 35) & (b2 >= 20) & (r2 > b2))
+                           + ((r3 - g3 > 12) & (r3 >= 80) & (g3 >= 35) & (b3 >= 20) & (r3 > b3));
+              }
+              for(;x<=maxX;x+=step){
+                const pi=rowOff+x; const px=u32[pi];
+                const r=px&0xFF,g=(px>>>8)&0xFF,b=(px>>>16)&0xFF;
+                const l=(r*54+g*183+b*18+128)>>8;
+
+                // Patch #10: Branchless Chroma
+                let a = r, b_ = g, c = b; if (a > b_) { const t = a; a = b_; b_ = t; } if (a > c) { const t = a; a = c; c = t; } if (b_ > c) { const t = b_; b_ = c; c = t; }
+                sumChroma += (c - a);
+
+                curLum[pi]=l; sum+=l; sum2+=l*l; count++;
+                lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
+                const nx=x+step;
+                if(nx<sw){const npx=u32[rowOff+nx];const nl=((npx&0xFF)*54+((npx>>>8)&0xFF)*183+((npx>>>16)&0xFF)*18+128)>>8; sumEdge+=iabs(l-nl); edgePairCount++;}
+
+                skinCount += ((r - g > 12) & (r >= 80) & (g >= 35) & (b >= 20) & (r > b)) | 0;
+
+                const zi=zyBase+zxLut[x];
+                zoneHists[zi][l]++; zoneCounts[zi]++; zoneBrightSum[zi]+=l;
+                if(l>=180&&b>10){hiLumaRSum+=r;hiLumaBSum+=b;hiLumaCount++;}
+              }
+            }
+
+            let motionSAD=0;
+            if(__prevLumBuf&&__prevLumBuf.length===pixelCount){
+              let sadSum=0,sadCount=0;
+              for(let by=0;by+8<=sh;by+=8) for(let bx=0;bx+8<=sw;bx+=8){
+                let bs=0;
+                for(let dy=0;dy<8;dy+=step) for(let dx=0;dx<8;dx+=step){
+                  const pi=(by+dy)*sw+(bx+dx);
+                  const d = curLum[pi]-__prevLumBuf[pi];
+                  bs += (d ^ (d >> 31)) - (d >> 31);
+                }
+                sadSum+=bs; sadCount++;
+              }
+              motionSAD=sadCount>0?(sadSum/sadCount)/255:0;
+            }
+            if(!__prevLumBuf||__prevLumBuf.length!==pixelCount) __prevLumBuf=new Uint8Array(pixelCount);
+            __prevLumBuf.set(curLum);
+
+            const n=Math.max(1,count), mean=sum/n, std=Math.sqrt(Math.max(0,(sum2/n)-mean*mean));
+            let centerSum=0,centerCnt=0;
+            for(let mask=CENTER_ZONE_MASK;mask;mask&=mask-1){
+              const ci=31-Math.clz32(mask);
+              if(zoneCounts[ci]>0){centerSum+=zoneBrightSum[ci]/zoneCounts[ci];centerCnt++;}
+            }
+            const centerBright=centerCnt>0?centerSum/centerCnt/255:mean/255;
+            let edgeSum=0,edgeCount=0;
+            for(let z=0;z<ZONE_COUNT;z++){
+              if((CENTER_ZONE_MASK>>z)&1) continue;
+              if(zoneCounts[z]>0){edgeSum+=zoneBrightSum[z]/zoneCounts[z];edgeCount++;}
+            }
+            const edgeAvgBright=edgeCount>0?edgeSum/edgeCount/255:mean/255;
+            const hiLumaRBratio=hiLumaCount>=10?hiLumaRSum/Math.max(1,hiLumaBSum):NaN;
+
+            return {
+              bright:mean/255, contrast:std/64, chroma:sumChroma/n/255,
+              edge:edgePairCount>0?sumEdge/edgePairCount:0, motionSAD,
+              skinRatio:skinCount/n, centerBright, edgeAvgBright, hiLumaRBratio,
+              lumHist:Array.from(lumHist), rHist:Array.from(rHist),
+              gHist:Array.from(gHist), bHist:Array.from(bHist),
+              totalSamples:count,
+              zoneHists:zoneHists.map(h=>Array.from(h)),
+              zoneCounts:Array.from(zoneCounts),
+              zoneStats:{centerBright,edgeAvgBright}, _gpuPath:false
+            };
+          }
+
+          self.onmessage = async function({ data }) {
+            try {
+              let result;
+              if (data.type === 'frame') {
+                const { frame, sw, sh } = data;
+                if (typeof frame.copyTo === 'function' && frame.format) {
+                  try {
+                    const bufSize = frame.allocationSize({ rect: { x: 0, y: 0, width: sw, height: sh } });
+                    const buf = new ArrayBuffer(bufSize);
+                    await frame.copyTo(buf, { rect: { x: 0, y: 0, width: sw, height: sh } });
+                    frame.close();
+                    const pixelData = new Uint8ClampedArray(buf, 0, sw * sh * 4);
+                    result = analyze(pixelData, sw, sh);
+                  } catch (_) {
+                    const cv = new OffscreenCanvas(sw, sh);
+                    const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
+                    ctx.drawImage(frame, 0, 0, sw, sh);
+                    frame.close();
+                    result = analyze(ctx.getImageData(0, 0, sw, sh).data, sw, sh);
+                  }
+                } else {
+                  const cv = new OffscreenCanvas(sw, sh);
+                  const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
+                  ctx.drawImage(frame, 0, 0, sw, sh);
+                  frame.close();
+                  result = analyze(ctx.getImageData(0, 0, sw, sh).data, sw, sh);
+                }
+              } else if (data.type === 'bitmap') {
+                const { bitmap, sw, sh } = data;
+                const cv = new OffscreenCanvas(sw, sh);
+                const ctx = cv.getContext('2d', { willReadFrequently: true, alpha: false });
+                ctx.drawImage(bitmap, 0, 0);
+                bitmap.close();
+                const imgData = ctx.getImageData(0, 0, sw, sh);
+                result = analyze(imgData.data, sw, sh);
+              } else {
+                const { buf, sw, sh, byteOffset, byteLength } = data;
+                const pixelData = new Uint8ClampedArray(buf, byteOffset || 0, byteLength || buf.byteLength);
+                result = analyze(pixelData, sw, sh);
+              }
+              const s = new Float64Array([ result.bright, result.contrast, result.chroma, result.edge, result.motionSAD, result.skinRatio, result.centerBright, result.edgeAvgBright, result.hiLumaRBratio, result.totalSamples ]);
+              const hp = new Uint32Array(1040 + 16 * 256);
+              hp.set(result.lumHist, 0); hp.set(result.rHist, 256); hp.set(result.gHist, 512); hp.set(result.bHist, 768); hp.set(result.zoneCounts, 1024);
+              for (let z = 0; z < 16; z++) hp.set(result.zoneHists[z], 1040 + z * 256);
+              self.postMessage({ id: data.id, scalars: s, histPack: hp, _gpuPath: false }, [s.buffer, hp.buffer]);
+            } catch(e) {
+              self.postMessage({ error: e.message, id: data.id });
+            }
+          };
+        };
+        return `(${workerFn.toString()})();`;
+      })();
+
+      const _WORKER_POOL_SIZE = Math.min(2, navigator.hardwareConcurrency > 4 ? 2 : 1);
+      let _analysisWorkers = null, _workerIdx = -1;
+      const _workerPending = new Map();
+      const _workerMsgOwner = new Map();
+      let _workerMsgId = 0;
+      let WORKER_MSG_TIMEOUT_MS = 8000;
+
+      function nextWorkerId() {
+        _workerMsgId++;
+        if (_workerMsgId > 2147483640) _workerMsgId = 1;
+        return _workerMsgId;
+      }
+
+      function getAnalysisWorker() {
+        if (_analysisWorkers) {
+          for (let attempt = 0; attempt < _WORKER_POOL_SIZE; attempt++) {
+            _workerIdx = (_workerIdx + 1) & 0x7FFFFFFF;
+            const w = _analysisWorkers[_workerIdx % _WORKER_POOL_SIZE];
+            if (w) return w;
+          }
+          return null;
+        }
+
+        let blobUrl;
+        try {
+          const blob = new Blob([ANALYSIS_WORKER_SRC], { type: 'text/javascript' });
+          blobUrl = URL.createObjectURL(blob);
+        } catch (_) { return null; }
+
+        _analysisWorkers = Array.from({ length: _WORKER_POOL_SIZE }, (_, workerIndex) => {
+          const createWorker = () => {
+            const w = new Worker(blobUrl);
+
+            w.onmessage = ({ data: { id, scalars, histPack, error } }) => {
+              const p = _workerPending.get(id);
+              if (!p) return;
+
+              const expectedOwner = _workerMsgOwner.get(id);
+              if (expectedOwner !== undefined && expectedOwner !== workerIndex) {
+                log.debug(`[Worker ${workerIndex}] Received response for id ${id} owned by worker ${expectedOwner}, ignoring`);
+                return;
+              }
+
+              _workerPending.delete(id);
+              _workerMsgOwner.delete(id);
+              if (error) { p.reject(new Error(error)); return; }
+              const s = scalars;
+              const result = {
+                bright: s[0], contrast: s[1], chroma: s[2], edge: s[3], motionSAD: s[4], skinRatio: s[5], centerBright: s[6], edgeAvgBright: s[7], hiLumaRBratio: s[8], totalSamples: s[9],
+                lumHist: histPack.subarray(0, 256), rHist: histPack.subarray(256, 512), gHist: histPack.subarray(512, 768), bHist: histPack.subarray(768, 1024), zoneCounts: histPack.subarray(1024, 1040),
+                zoneHists: Array.from({length:16}, (_,z) => histPack.subarray(1040+z*256, 1040+(z+1)*256)),
+                zoneStats: { centerBright: s[6], edgeAvgBright: s[7] }, _gpuPath: false
+              };
+              p.resolve(result);
+              const elapsed = performance.now() - (p._startTime || 0);
+              if (elapsed > 0 && elapsed < WORKER_MSG_TIMEOUT_MS) {
+                WORKER_MSG_TIMEOUT_MS = Math.max(2000, Math.min(WORKER_MSG_TIMEOUT_MS, elapsed * 3));
+              }
+            };
+
+            // Bug 2 Applied: Removed direct double-decrement of _pendingAnalysisCount
+            w.onerror = (e) => {
+              const toReject = [];
+              for (const [id, p] of _workerPending) {
+                const owner = _workerMsgOwner.get(id);
+                if (owner === workerIndex || owner === undefined) {
+                  toReject.push([id, p]);
+                }
+              }
+              for (const [id, p] of toReject) {
+                _workerPending.delete(id);
+                _workerMsgOwner.delete(id);
+                if (p._timeoutId) clearTimeout(p._timeoutId);
+                p.reject(new Error(e?.message || 'Worker error'));
+              }
+              log.warn(`[Worker ${workerIndex}] crashed, recreating`);
+              try {
+                _analysisWorkers[workerIndex] = createWorker();
+              } catch (_) {
+                _analysisWorkers[workerIndex] = null;
+                log.error(`[Worker ${workerIndex}] recreation failed`);
+              }
+            };
+
+            return w;
+          };
+
+          return createWorker();
+        });
+
+        __globalSig.addEventListener('abort', () => {
+          _analysisWorkers?.forEach(w => { try { w?.terminate(); } catch (_) {} });
+          _analysisWorkers = null;
+          try { URL.revokeObjectURL(blobUrl); } catch (_) {}
+          for (const [, p] of _workerPending) {
+            if (p._timeoutId) clearTimeout(p._timeoutId);
+            p.reject(new Error('aborted'));
+          }
+          _workerPending.clear(); _workerMsgOwner.clear();
+        }, { once: true });
+
+        _workerIdx = -1;
+        return _analysisWorkers[0];
+      }
+
+      async function analyzeImageDataWorker(input, sw, sh) {
+        const worker = getAnalysisWorker();
+        if (!worker) {
+          if (input.type === 'frame') { input.frame.close(); return null; }
+          if (input.type === 'bitmap') { input.bitmap.close(); return null; }
+          return computeFullAnalysis(input.data, sw, sh);
+        }
+
+        const id = nextWorkerId();
+        const currentWorkerIndex = _workerIdx % _WORKER_POOL_SIZE;
+
+        _workerMsgOwner.set(id, currentWorkerIndex);
+
+        return new Promise((resolve, reject) => {
+          let settled = false;
+
+          const timeoutId = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            _workerPending.delete(id);
+            _workerMsgOwner.delete(id);
+            reject(new Error('Worker timeout'));
+          }, WORKER_MSG_TIMEOUT_MS);
+
+          _workerPending.set(id, {
+            resolve: (res) => {
+              if (settled) return; settled = true;
+              clearTimeout(timeoutId); resolve(res);
+            },
+            reject: (err) => {
+              if (settled) return; settled = true;
+              clearTimeout(timeoutId); reject(err);
+            },
+            _timeoutId: timeoutId,
+            _startTime: performance.now()
+          });
+
+          try {
+            if (input.type === 'frame') {
+              worker.postMessage({ type: 'frame', frame: input.frame, sw, sh, id }, [input.frame]);
+            } else if (input.type === 'bitmap') {
+              worker.postMessage({ type: 'bitmap', bitmap: input.bitmap, sw, sh, id }, [input.bitmap]);
+            } else {
+              const rawBuf = input.data.buffer;
+              const byteOff = input.data.byteOffset;
+              const byteLen = input.data.byteLength;
+              worker.postMessage(
+                { type: 'buffer', buf: rawBuf, byteOffset: byteOff, byteLength: byteLen, sw, sh, id },
+                [rawBuf]
+              );
+            }
+          } catch (e) {
+            if (!settled) {
+              settled = true;
+              clearTimeout(timeoutId);
+              _workerPending.delete(id);
+              _workerMsgOwner.delete(id);
+              reject(e);
+            }
+          }
+        });
+      }
+
+      let gpuAnalyzer = null; let gpuInitAttempted = false;
+      async function ensureGPUAnalyzer() {
+        if (gpuInitAttempted) return gpuAnalyzer?.isReady() || false;
+        gpuInitAttempted = true;
+        if (!FEATURE_FLAGS.gpuAnalysis) return false;
+        try { gpuAnalyzer = createWebGPUAnalyzer(); const ok = await gpuAnalyzer.initGPU(); if (ok) { log.info('[AutoScene] WebGPU analyzer ready — GPU offload active'); return true; } log.info('[AutoScene] WebGPU unavailable — using CPU analysis'); return false; }
+        catch (e) { log.warn('[AutoScene] GPU init error:', e.message); return false; }
+      }
+
+      let __gpuConsecutiveFailures = 0;
+      const GPU_MAX_CONSECUTIVE_FAILURES = 5;
+      let _pendingAnalysisCount = 0;
+      const MAX_PENDING_ANALYSES = 2;
+
+      async function analyzeImageData(input, sw, sh) {
+        if (_pendingAnalysisCount >= MAX_PENDING_ANALYSES) {
+          if (input.type === 'frame') { try { input.frame.close(); } catch (_) {} }
+          if (input.type === 'bitmap') { try { input.bitmap.close(); } catch (_) {} }
+          return null;
+        }
+        _pendingAnalysisCount++;
+        try {
+          if (input.type === 'frame' || input.type === 'bitmap') return await analyzeImageDataWorker(input, sw, sh);
+
+          if (AUTO._gpuActive && gpuAnalyzer?.isReady()) {
+            try {
+              const result = await gpuAnalyzer.analyzeFrame(input.data, sw, sh);
+              if (result) { __gpuConsecutiveFailures = 0; return result; }
+              __gpuConsecutiveFailures++;
+              if (__gpuConsecutiveFailures >= GPU_MAX_CONSECUTIVE_FAILURES) { AUTO._gpuActive = false; log.warn('[AutoScene] GPU path disabled after repeated failures'); }
+            } catch (e) {
+              __gpuConsecutiveFailures++;
+              if (__gpuConsecutiveFailures >= GPU_MAX_CONSECUTIVE_FAILURES) { AUTO._gpuActive = false; }
+              log.warn('[AutoScene] GPU analyzeFrame error:', e.message);
+            }
+          }
+          if (_analysisWorkers !== null || typeof Worker !== 'undefined') {
+            try { return await analyzeImageDataWorker(input, sw, sh); }
+            catch (e) { log.warn('[AutoScene] Worker 분석 실패, CPU fallback:', e.message); }
+          }
+          return computeFullAnalysis(input.data, sw, sh);
+        } finally {
+          _pendingAnalysisCount--;
+        }
+      }
+
+      const _claheClipped = new Float32Array(HIST_BINS); const _claheCdf = new Float32Array(HIST_BINS); const _claheZoneCDFPool = new Array(ZONE_COUNT); for (let i = 0; i < ZONE_COUNT; i++) _claheZoneCDFPool[i] = new Float32Array(HIST_BINS); const _claheCurveOut = new Float32Array(TONE_STEPS);
+      function buildZonalCLAHE(zoneHists, zoneCounts, clipLimit) {
+        const bins = HIST_BINS; const zoneCount = ZONE_COLS * ZONE_ROWS;
+        for (let z = 0; z < zoneCount; z++) {
+          const hist = zoneHists[z]; const n = Math.max(1, zoneCounts[z]); const limit = (n / bins) * clipLimit; const clipped = _claheClipped; let excess = 0;
+          for (let i = 0; i < bins; i++) { if (hist[i] > limit) { excess += hist[i] - limit; clipped[i] = limit; } else clipped[i] = hist[i]; }
+          const perBin = excess / bins; for (let i = 0; i < bins; i++) clipped[i] += perBin;
+          const cdf = _claheCdf; cdf[0] = clipped[0]; for (let i = 1; i < bins; i++) cdf[i] = cdf[i - 1] + clipped[i];
+          const cdfMin = cdf[0]; const cdfRange = Math.max(1, cdf[bins - 1] - cdfMin); const normalized = _claheZoneCDFPool[z];
+          for (let i = 0; i < bins; i++) normalized[i] = (cdf[i] - cdfMin) / cdfRange;
+        }
+        const curve = _claheCurveOut;
+        for (let i = 0; i < TONE_STEPS; i++) {
+          const bin = Math.min(bins - 1, ((i / (TONE_STEPS - 1)) * (bins - 1)) | 0); let totalWeight = 0, totalVal = 0;
+          for (let zi = 0; zi < ZONE_COUNT; zi++) {
+            if (zoneCounts[zi] < 4) continue;
+            const w = _ZONE_WEIGHTS[zi];
+            totalVal += _claheZoneCDFPool[zi][bin] * w; totalWeight += w;
+          }
+          curve[i] = totalWeight > 0 ? totalVal / totalWeight : i / (TONE_STEPS - 1);
+        }
+        for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
+        return curve.slice();
+      }
+
+      function buildAdaptiveToneCurve(lumHist, totalSamples, params, zoneHists, zoneCounts) {
+        const { clipLimit = 2.5, shadowProtect = 0.4, highlightProtect = 0.3, midtoneBoost = 0.0, strength = 0.35, userMods = {} } = params;
+        const recMod = userMods.recovery || 0; const shadMod = userMods.shadow || 0; const brtMod = userMods.brightness || 0;
+        const finalClipLimit = clipLimit + (recMod * 0.8); const equalized = buildZonalCLAHE(zoneHists, zoneCounts, finalClipLimit);
+        const identity = new Float32Array(TONE_STEPS); for (let i = 0; i < TONE_STEPS; i++) identity[i] = i / (TONE_STEPS - 1); const raw = new Float32Array(TONE_STEPS);
+        const finalShadowProtect = Math.max(0, shadowProtect - (shadMod * 0.18)); const finalHighlightProtect = Math.max(0, highlightProtect - (brtMod * 0.14)); const shadowLift = shadMod * 0.055;
+        for (let i = 0; i < TONE_STEPS; i++) {
+          const x = i / (TONE_STEPS - 1); const eq = equalized[i], id = identity[i]; let regionWeight = 1.0;
+          if (x < 0.18) { const t = x / 0.18; regionWeight = 1.0 - finalShadowProtect * (1 - t * t); }
+          else if (x > 0.82) { const t = (x - 0.82) / 0.18; regionWeight = 1.0 - finalHighlightProtect * (t * t); }
+          let midBoost = 0; if (Math.abs(midtoneBoost) > 0.001) { const midW = Math.exp(-((x - 0.5) * (x - 0.5)) / (2 * 0.14 * 0.14)); midBoost = midtoneBoost * midW * 0.15; }
+          const effectiveStrength = strength * regionWeight; const lowEndLift = (x < 0.3) ? shadowLift * (1 - x / 0.3) : 0;
+          raw[i] = clamp(id * (1 - effectiveStrength) + eq * effectiveStrength + midBoost + lowEndLift, 0, 1);
+        }
+        const curve = new Float32Array(TONE_STEPS); curve[0] = raw[0]; curve[TONE_STEPS - 1] = raw[TONE_STEPS - 1];
+        for (let i = 1; i < TONE_STEPS - 1; i++) curve[i] = raw[i] * 0.6 + (raw[i - 1] + raw[i + 1]) * 0.2;
+        for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
+
+        const n = Math.max(1, totalSamples);
+        let pureBlackCount = 0;
+        for (let i = 0; i <= 5; i++) pureBlackCount += lumHist[i];
+        const pureBlackRatio = pureBlackCount / n;
+
+        if (pureBlackRatio > 0.03) {
+          const guardRange = 10;
+          const guardStrength = clamp(pureBlackRatio * 6, 0.25, 0.90);
+          for (let i = 0; i < guardRange; i++) {
+            const x = i / (TONE_STEPS - 1);
+            const t = i / guardRange;
+            const blendToIdentity = guardStrength * (1 - t * t);
+            curve[i] = curve[i] * (1 - blendToIdentity) + x * blendToIdentity;
+          }
+          for (let i = 1; i < TONE_STEPS; i++) { if (curve[i] < curve[i - 1]) curve[i] = curve[i - 1]; }
+        }
+
+        return curve;
+      }
+
+      function computeChannelBalance(rHist, gHist, bHist, totalSamples, skinRatio, hiLumaRBratio) {
+        const correctionStrength = 0.12;
+        const n = Math.max(1, totalSamples);
+
+        let rMean = 0, gMean = 0, bMean = 0;
+        for (let i = 0; i < HIST_BINS; i++) {
+          const v = i / (HIST_BINS - 1);
+          rMean += v * rHist[i]; gMean += v * gHist[i]; bMean += v * bHist[i];
+        }
+        rMean /= n; gMean /= n; bMean /= n;
+        const avgMean = (rMean + gMean + bMean) / 3;
+        if (avgMean < 0.01) return { rGain: 1, gGain: 1, bGain: 1 };
+
+        let rHiMean = 0, gHiMean = 0, bHiMean = 0, hiCount = 0;
+        for (let i = 180; i < HIST_BINS; i++) {
+          const v = i / (HIST_BINS - 1);
+          rHiMean += v * rHist[i]; gHiMean += v * gHist[i]; bHiMean += v * bHist[i];
+          hiCount += (rHist[i] + gHist[i] + bHist[i]) / 3;
+        }
+        const hasHighlights = hiCount > n * 0.02;
+        if (hasHighlights && hiCount > 0) {
+          rHiMean /= hiCount; gHiMean /= hiCount; bHiMean /= hiCount;
+        }
+
+        const skinDampen = clamp(skinRatio || 0, 0, 0.4) / 0.4;
+        const rMul = 0.45 * (1 - skinDampen * 0.70);
+        const bMul = 0.55;
+
+        let rGain = 1 + (avgMean / Math.max(0.01, rMean) - 1) * (correctionStrength * rMul);
+        let gGain = 1 + (avgMean / Math.max(0.01, gMean) - 1) * (correctionStrength * 0.75);
+        let bGain = 1 + (avgMean / Math.max(0.01, bMean) - 1) * (correctionStrength * bMul);
+
+        if (Number.isFinite(hiLumaRBratio) && hiLumaRBratio > 0) {
+          const deviation = clamp(hiLumaRBratio - 1.0, -0.3, 0.3);
+          const tempCorr = deviation * 0.18;
+          rGain -= tempCorr * 0.5;
+          bGain += tempCorr * 0.5;
+        }
+
+        if (hasHighlights) {
+          const hiAvg = (rHiMean + gHiMean + bHiMean) / 3;
+          if (hiAvg > 0.01) {
+            const hiRBratio = rHiMean / Math.max(0.01, bHiMean);
+            const hiNeutrality = 1.0 - clamp(Math.abs(hiRBratio - 1.0) * 5, 0, 0.8);
+            const dampFactor = hiNeutrality * 0.45;
+            rGain = rGain + (1.0 - rGain) * dampFactor;
+            bGain = bGain + (1.0 - bGain) * dampFactor;
+          }
+        }
+
+        return { rGain: clamp(rGain, 0.92, 1.08), gGain: clamp(gGain, 0.94, 1.06), bGain: clamp(bGain, 0.90, 1.10) };
+      }
+
+      const __fuzzyScores = new Float64Array(ST_COUNT); const __fuzzyEma = new Float64Array(ST_COUNT); let __fuzzyInited = false;
+      let __fuzzyLastVideoId = null;
+
+      function classifySceneFuzzy(stats, zoneStats, currentVideo) {
+        const scores = __fuzzyScores; scores.fill(0); const br = stats.bright, ct = stats.contrast, ch = stats.chroma, sk = stats.skinRatio;
+        scores[ST.NORMAL] = 1.0;
+        if (br < 0.32) scores[ST.LOW_KEY] += (0.32 - br) / 0.32 * 3.0;
+        if (ct < 0.18) scores[ST.LOW_KEY] += (0.18 - ct) / 0.18 * 1.5;
+        if (br > 0.65) scores[ST.HIGH_KEY] += (br - 0.65) / 0.35 * 2.8;
+        if (ct > 0.28) scores[ST.HIGH_CONTRAST] += (ct - 0.28) / 0.28 * 2.4;
+        if (ch < 0.10) scores[ST.LOW_SAT] += (0.10 - ch) / 0.10 * 2.2;
+        if (sk > 0.05) scores[ST.SKIN] += (sk - 0.05) / 0.10 * 2.4;
+        if (zoneStats) { const centerBr = zoneStats.centerBright, edgeBr = zoneStats.edgeAvgBright; if (edgeBr > 0.42 && centerBr < 0.40) { const gap = edgeBr - centerBr; if (gap > 0.12) scores[ST.BACKLIT] += gap / 0.20 * 3.5; } }
+
+        const videoChanged = currentVideo !== __fuzzyLastVideoId;
+        if (videoChanged) { __fuzzyLastVideoId = currentVideo; __fuzzyInited = false; }
+        const emaAlpha = videoChanged ? 1.0 : (stats._isCut ? 0.42 : 0.11);
+
+        if (!__fuzzyInited) { for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] = scores[i]; __fuzzyInited = true; } else { for (let i = 0; i < ST_COUNT; i++) __fuzzyEma[i] += (scores[i] - __fuzzyEma[i]) * emaAlpha; }
+        let bestIdx = 0, bestVal = __fuzzyEma[0]; for (let i = 1; i < ST_COUNT; i++) { if (__fuzzyEma[i] > bestVal) { bestVal = __fuzzyEma[i]; bestIdx = i; } } return bestIdx;
+      }
+
+      const SCENE_TONE_PARAMS = Object.freeze({
+        [ST.NORMAL]:        { clipLimit: 2.8, shadowProtect: 0.30, highlightProtect: 0.28, midtoneBoost: 0.06, strength: 0.30, satTarget: 1.08 },
+        [ST.LOW_KEY]:       { clipLimit: 3.8, shadowProtect: 0.22, highlightProtect: 0.12, midtoneBoost: 0.18, strength: 0.46, satTarget: 1.15 },
+        [ST.HIGH_KEY]:      { clipLimit: 2.2, shadowProtect: 0.15, highlightProtect: 0.50, midtoneBoost: -0.10, strength: 0.22, satTarget: 1.06 },
+        [ST.HIGH_CONTRAST]: { clipLimit: 2.2, shadowProtect: 0.42, highlightProtect: 0.42, midtoneBoost: 0.0,  strength: 0.18, satTarget: 1.05 },
+        [ST.LOW_SAT]:       { clipLimit: 3.4, shadowProtect: 0.26, highlightProtect: 0.22, midtoneBoost: 0.10, strength: 0.44, satTarget: 1.32 },
+        [ST.SKIN]:          { clipLimit: 2.4, shadowProtect: 0.40, highlightProtect: 0.34, midtoneBoost: 0.04, strength: 0.20, satTarget: 1.06 },
+        [ST.BACKLIT]:       { clipLimit: 4.2, shadowProtect: 0.08, highlightProtect: 0.52, midtoneBoost: 0.22, strength: 0.54, satTarget: 1.16 }
+      });
+
+      let prevToneCurve = null; let prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; let prevSatMul = 1.0;
+      const _interpBufA = new Float32Array(TONE_STEPS); const _interpBufB = new Float32Array(TONE_STEPS); let _interpActive = 0;
+      function interpolateCurves(prev, next, alpha) { if (!prev) { const out = _interpActive === 0 ? _interpBufA : _interpBufB; out.set(next); _interpActive ^= 1; return out; } const out = _interpActive === 0 ? _interpBufA : _interpBufB; for (let i = 0; i < TONE_STEPS; i++) out[i] = prev[i] + (next[i] - prev[i]) * alpha; _interpActive ^= 1; return out; }
+      function interpolateGains(prev, next, alpha) {
+        const rDelta = Math.abs(next.rGain - prev.rGain);
+        const bDelta = Math.abs(next.bGain - prev.bGain);
+        const maxDelta = Math.max(rDelta, bDelta);
+        let effectiveAlpha = alpha;
+        if (maxDelta > 0.03) effectiveAlpha *= clamp(0.03 / maxDelta, 0.3, 1.0);
+        return { rGain: prev.rGain + (next.rGain - prev.rGain) * effectiveAlpha, gGain: prev.gGain + (next.gGain - prev.gGain) * effectiveAlpha, bGain: prev.bGain + (next.bGain - prev.bGain) * effectiveAlpha };
+      }
+
+      const CUT_HIST_LEN = 20; const cutScores = new CircularBuffer(CUT_HIST_LEN); const gradualScores = new CircularBuffer(10);
+      function detectTransition(stats, prev) {
+        if (!prev) return { isCut: false, isFade: false, score: 0 };
+        const motionDelta = Math.abs((stats.motionSAD || 0) - (prev.motionSAD || 0));
+        const score = Math.abs(stats.bright - prev.bright) * 1.3 + Math.abs(stats.contrast - prev.contrast) * 0.7 + Math.abs(stats.chroma - prev.chroma) * 0.5 + Math.abs(stats.edge - prev.edge) * 0.3 + motionDelta * 0.35;
+        cutScores.push(score);
+        const sorted = cutScores.getSorted();
+        const q90 = sorted[Math.floor(sorted.length * 0.90)] || 0.15; const cutThr = Math.max(0.08, Math.min(0.24, q90 * 1.20)); const isCut = score > cutThr;
+        gradualScores.push(score); const gradualSum = gradualScores.reduce((a, b) => a + b, 0); const isFade = !isCut && gradualSum > cutThr * 3.0 && gradualScores.length >= 5;
+        return { isCut, isFade, score };
+      }
+
+      let flickerCount = 0, lastCurveDir = 0;
+      const FLICKER_MAX = 8; const FLICKER_DECAY = 0.9;
+      function getTemporalAlpha(isCut, isFade) { const base = isCut ? 0.44 : (isFade ? 0.18 : 0.10); return base / (1 + flickerCount * 0.7); }
+
+      function computeFullAnalysis(data, sw, sh) {
+        const step = 2; let sum = 0, sum2 = 0, sumEdge = 0, sumChroma = 0, count = 0, skinCount = 0, edgePairCount = 0;
+        const iabs = (x) => (x ^ (x >> 31)) - (x >> 31);
+        const lumHist = _pool_lumHist; lumHist.fill(0); const rHist = _pool_rHist; rHist.fill(0); const gHist = _pool_gHist; gHist.fill(0); const bHist = _pool_bHist; bHist.fill(0);
+        const zoneCounts = _pool_zoneCounts; zoneCounts.fill(0); const zoneHists = _pool_zoneHists; for (let z = 0; z < ZONE_COUNT; z++) zoneHists[z].fill(0);
+        const zoneBrightSum = _pool_zoneBrightSum; zoneBrightSum.fill(0);
+        const pixelCount = sw * sh; if (!__curLumBuf || __curLumBufSize !== pixelCount) { __curLumBuf = new Uint8Array(pixelCount); __curLumBufSize = pixelCount; }
+        const curLum = __curLumBuf; let hiLumaRSum = 0, hiLumaBSum = 0, hiLumaCount = 0; const HI_LUMA_THR = 180;
+        const { zxLut, zyLut } = getZoneLuts(sw, sh);
+
+        const u32 = new Uint32Array(data.buffer, data.byteOffset, data.byteLength >>> 2);
+        const maxX = sw - step;
+
+        for (let y = 0; y < sh; y += step) {
+          const rowOff = y * sw; const zyBase = zyLut[y] << 2;
+          const xEnd = (maxX - 3 * step) | 0;
+          let x = 0;
+
+          for (; x <= xEnd; x += step * 4) {
+            const px0 = u32[rowOff + x], px1 = u32[rowOff + x + step];
+            const px2 = u32[rowOff + x + step * 2], px3 = u32[rowOff + x + step * 3];
+
+            const r0 = px0 & 0xFF, g0 = (px0 >>> 8) & 0xFF, b0 = (px0 >>> 16) & 0xFF;
+            const r1 = px1 & 0xFF, g1 = (px1 >>> 8) & 0xFF, b1 = (px1 >>> 16) & 0xFF;
+            const r2 = px2 & 0xFF, g2 = (px2 >>> 8) & 0xFF, b2 = (px2 >>> 16) & 0xFF;
+            const r3 = px3 & 0xFF, g3 = (px3 >>> 8) & 0xFF, b3 = (px3 >>> 16) & 0xFF;
+
+            const l0 = (r0 * 54 + g0 * 183 + b0 * 18 + 128) >> 8;
+            const l1 = (r1 * 54 + g1 * 183 + b1 * 18 + 128) >> 8;
+            const l2 = (r2 * 54 + g2 * 183 + b2 * 18 + 128) >> 8;
+            const l3 = (r3 * 54 + g3 * 183 + b3 * 18 + 128) >> 8;
+
+            lumHist[l0]++; lumHist[l1]++; lumHist[l2]++; lumHist[l3]++;
+            rHist[r0]++; rHist[r1]++; rHist[r2]++; rHist[r3]++;
+            gHist[g0]++; gHist[g1]++; gHist[g2]++; gHist[g3]++;
+            bHist[b0]++; bHist[b1]++; bHist[b2]++; bHist[b3]++;
+
+            sum += l0 + l1 + l2 + l3;
+            sum2 += l0 * l0 + l1 * l1 + l2 * l2 + l3 * l3;
+            count += 4;
+
+            sumEdge += iabs(l0 - l1) + iabs(l1 - l2) + iabs(l2 - l3);
+            edgePairCount += 3;
+
+            const pi0 = rowOff + x;
+            curLum[pi0] = l0; curLum[pi0 + step] = l1;
+            curLum[pi0 + step * 2] = l2; curLum[pi0 + step * 3] = l3;
+
+            let a0 = r0, b0_ = g0, c0 = b0; if (a0 > b0_) { const t = a0; a0 = b0_; b0_ = t; } if (a0 > c0) { const t = a0; a0 = c0; c0 = t; } if (b0_ > c0) { const t = b0_; b0_ = c0; c0 = t; }
+            let a1 = r1, b1_ = g1, c1 = b1; if (a1 > b1_) { const t = a1; a1 = b1_; b1_ = t; } if (a1 > c1) { const t = a1; a1 = c1; c1 = t; } if (b1_ > c1) { const t = b1_; b1_ = c1; c1 = t; }
+            let a2 = r2, b2_ = g2, c2 = b2; if (a2 > b2_) { const t = a2; a2 = b2_; b2_ = t; } if (a2 > c2) { const t = a2; a2 = c2; c2 = t; } if (b2_ > c2) { const t = b2_; b2_ = c2; c2 = t; }
+            let a3 = r3, b3_ = g3, c3 = b3; if (a3 > b3_) { const t = a3; a3 = b3_; b3_ = t; } if (a3 > c3) { const t = a3; a3 = c3; c3 = t; } if (b3_ > c3) { const t = b3_; b3_ = c3; c3 = t; }
+            sumChroma += (c0 - a0) + (c1 - a1) + (c2 - a2) + (c3 - a3);
+
+            const zi0 = zyBase + zxLut[x], zi1 = zyBase + zxLut[x + step];
+            const zi2 = zyBase + zxLut[x + step * 2], zi3 = zyBase + zxLut[x + step * 3];
+            zoneHists[zi0][l0]++; zoneCounts[zi0]++; zoneBrightSum[zi0] += l0;
+            zoneHists[zi1][l1]++; zoneCounts[zi1]++; zoneBrightSum[zi1] += l1;
+            zoneHists[zi2][l2]++; zoneCounts[zi2]++; zoneBrightSum[zi2] += l2;
+            zoneHists[zi3][l3]++; zoneCounts[zi3]++; zoneBrightSum[zi3] += l3;
+
+            if (l0 >= HI_LUMA_THR && b0 > 10) { hiLumaRSum += r0; hiLumaBSum += b0; hiLumaCount++; }
+            if (l1 >= HI_LUMA_THR && b1 > 10) { hiLumaRSum += r1; hiLumaBSum += b1; hiLumaCount++; }
+            if (l2 >= HI_LUMA_THR && b2 > 10) { hiLumaRSum += r2; hiLumaBSum += b2; hiLumaCount++; }
+            if (l3 >= HI_LUMA_THR && b3 > 10) { hiLumaRSum += r3; hiLumaBSum += b3; hiLumaCount++; }
+
+            skinCount += ((r0 - g0 > 12) & (r0 >= 80) & (g0 >= 35) & (b0 >= 20) & (r0 > b0))
+                       + ((r1 - g1 > 12) & (r1 >= 80) & (g1 >= 35) & (b1 >= 20) & (r1 > b1))
+                       + ((r2 - g2 > 12) & (r2 >= 80) & (g2 >= 35) & (b2 >= 20) & (r2 > b2))
+                       + ((r3 - g3 > 12) & (r3 >= 80) & (g3 >= 35) & (b3 >= 20) & (r3 > b3));
+          }
+
+          for (; x <= maxX; x += step) {
+            const pi = rowOff + x; const px = u32[pi];
+            const r = px & 0xFF, g = (px >>> 8) & 0xFF, b = (px >>> 16) & 0xFF;
+            const l = (r * 54 + g * 183 + b * 18 + 128) >> 8;
+
+            let a = r, b_ = g, c = b; if (a > b_) { const t = a; a = b_; b_ = t; } if (a > c) { const t = a; a = c; c = t; } if (b_ > c) { const t = b_; b_ = c; c = t; }
+            sumChroma += (c - a);
+
+            curLum[pi] = l; sum += l; sum2 += l * l; count++;
+            lumHist[l]++; rHist[r]++; gHist[g]++; bHist[b]++;
+
+            if (x + step < sw) {
+              const npx = u32[rowOff + x + step];
+              const nl = ((npx & 0xFF) * 54 + ((npx >>> 8) & 0xFF) * 183 + ((npx >>> 16) & 0xFF) * 18 + 128) >> 8;
+              sumEdge += iabs(l - nl); edgePairCount++;
+            }
+
+            skinCount += ((r - g > 12) & (r >= 80) & (g >= 35) & (b >= 20) & (r > b)) | 0;
+
+            const zi = zyBase + zxLut[x];
+            zoneHists[zi][l]++; zoneCounts[zi]++; zoneBrightSum[zi] += l;
+            if (l >= HI_LUMA_THR && b > 10) { hiLumaRSum += r; hiLumaBSum += b; hiLumaCount++; }
+          }
+        }
+
+        let motionSAD = 0;
+        if (__prevLumBuf && __prevLumBuf.length === pixelCount) {
+          let sadSum = 0, sadCount = 0; const bw = 8, bh = 8;
+          for (let by = 0; by + bh <= sh; by += bh) {
+            for (let bx = 0; bx + bw <= sw; bx += bw) {
+              let blockSad = 0;
+              for (let dy = 0; dy < bh; dy += step) {
+                for (let dx = 0; dx < bw; dx += step) {
+                  const pi = (by + dy) * sw + (bx + dx);
+                  const d = curLum[pi] - __prevLumBuf[pi];
+                  blockSad += (d ^ (d >> 31)) - (d >> 31);
+                }
+              }
+              sadSum += blockSad; sadCount++;
+            }
+          }
+          motionSAD = sadCount > 0 ? (sadSum / sadCount) / 255 : 0;
+        }
+        if (!__prevLumBuf || __prevLumBuf.length !== pixelCount) __prevLumBuf = new Uint8Array(pixelCount);
+        __prevLumBuf.set(curLum);
+
+        const n = Math.max(1, count); const mean = sum / n, std = Math.sqrt(Math.max(0, (sum2 / n) - mean * mean));
+
+        let centerSum = 0, centerCnt = 0;
+        for (let mask = CENTER_ZONE_MASK; mask; mask &= mask - 1) {
+          const ci = 31 - Math.clz32(mask);
+          if (zoneCounts[ci] > 0) { centerSum += zoneBrightSum[ci] / zoneCounts[ci]; centerCnt++; }
+        }
+        const centerBright = centerCnt > 0 ? centerSum / centerCnt / 255 : mean / 255;
+
+        let edgeSum = 0, edgeCount = 0;
+        for (let z = 0; z < ZONE_COUNT; z++) {
+          if ((CENTER_ZONE_MASK >> z) & 1) continue;
+          if (zoneCounts[z] > 0) { edgeSum += zoneBrightSum[z] / zoneCounts[z]; edgeCount++; }
+        }
+        const edgeAvgBright = edgeCount > 0 ? edgeSum / edgeCount / 255 : mean / 255;
+
+        const hiLumaRBratio = hiLumaCount >= 10 ? hiLumaRSum / Math.max(1, hiLumaBSum) : NaN;
+
+        return {
+          bright: mean / 255, contrast: std / 64, chroma: sumChroma / n / 255, edge: edgePairCount > 0 ? sumEdge / edgePairCount : 0, motionSAD, skinRatio: skinCount / n,
+          centerBright, edgeAvgBright, hiLumaRBratio, lumHist, rHist, gHist, bHist, totalSamples: count,
+          zoneHists, zoneCounts, zoneStats: { centerBright, edgeAvgBright }, _gpuPath: false
+        };
+      }
+
+      function generateManualMods() {
+        return { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null };
+      }
+
+      function updateManual() {
+        AUTO.cur = generateManualMods();
+        Scheduler.request(true);
+      }
+
+      const AUTO = {
+        running: false, canvasW: CANVAS_W, canvasH: CANVAS_H, cur: { br: 1.0, ct: 1.0, sat: 1.0, _toneCurve: null, _channelGains: null },
+        lastStats: null, statsEma: null, statsAlpha: 0.08, motionEma: 0, motionAlpha: 0.20, motionThresh: 0.012, motionFrames: 0,
+        drmBlocked: false, blockUntilMs: 0, tBoostUntil: 0, tBoostStart: 0, boostMs: 700, minFps: 1.0, maxFps: CONFIG.IS_MOBILE ? 5 : 9, curFps: 2,
+        _sceneType: ST.NORMAL, _sceneStable: 0, _sceneTypeEma: ST.NORMAL, _lastMean: 0, _framesSinceUpdate: 0, _gpuActive: false,
+        _lastCurrentTime: -1
+      };
+
+      const _fpsHistBuf = new CircularBuffer(6); let drmRetryCount = 0; const MAX_DRM_RETRIES = 3; let cv, cvCtx;
+      if (typeof OffscreenCanvas === 'function') { try { cv = new OffscreenCanvas(CANVAS_W, CANVAS_H); cvCtx = cv.getContext('2d', { willReadFrequently: true, alpha: false }); } catch (_) { cv = null; cvCtx = null; } }
+      if (!cvCtx) { cv = document.createElement('canvas'); cv.width = CANVAS_W; cv.height = CANVAS_H; try { cvCtx = cv.getContext('2d', { willReadFrequently: true, alpha: false }); } catch (_) { try { cvCtx = cv.getContext('2d', { willReadFrequently: true }); } catch (__) {} } }
+      let __asRvfcId = 0, __asRvfcVideo = null, __asTimeoutId = 0;
+
+      // [수정 전] - scheduleNext 함수 전체를 통째로 아래 코드로 덮어씌우세요.
 function scheduleNext(v, delayMs) {
-  if (!AUTO.running || __globalSig.aborted) return;
-  if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; }
-  if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') {
-    try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
-    __asRvfcId = 0; __asRvfcVideo = null;
-  }
+  if (!AUTO.running || __globalSig.aborted) return;
+  if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; }
+  if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') {
+    try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
+    __asRvfcId = 0; __asRvfcVideo = null;
+  }
 
-  const useRvfc = v && !v.paused && typeof v.requestVideoFrameCallback === 'function';
-  const RVFC_THRESHOLD = 200;
+  const useRvfc = v && !v.paused && typeof v.requestVideoFrameCallback === 'function';
+  const RVFC_THRESHOLD = 200;
 
-  if (useRvfc) {
-    let fired = false;
-    // 워치독 타이머: 브라우저가 rvfc를 씹으면(비디오가 0x0이라서) 강제로 루프 속행
-    const fallbackTimer = setTimer(() => {
-      if (!fired && AUTO.running && !__globalSig.aborted) {
-        if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') {
-          try { v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
-        }
-        __asRvfcId = 0; __asRvfcVideo = null;
-        loop(); // 강제 심폐소생
-      }
-    }, Math.max(500, delayMs + 250));
+  if (useRvfc) {
+    let fired = false;
+    // 워치독 타이머: 브라우저가 rvfc를 씹으면(비디오가 0x0이라서) 강제로 루프 속행
+    const fallbackTimer = setTimer(() => {
+      if (!fired && AUTO.running && !__globalSig.aborted) {
+        if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') {
+          try { v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
+        }
+        __asRvfcId = 0; __asRvfcVideo = null;
+        loop(); // 강제 심폐소생
+      }
+    }, Math.max(500, delayMs + 250));
 
-    const target = performance.now() + Math.max(0, delayMs | 0);
-    __asRvfcVideo = v;
-    __asRvfcId = v.requestVideoFrameCallback((now, metadata) => {
-      fired = true;
-      clearTimer(fallbackTimer);
-      __asRvfcId = 0; __asRvfcVideo = null;
-      if (metadata && Number.isFinite(metadata.presentedFrames)) {
-        const dropped = metadata.expectedDisplayTime - now;
-        if (dropped > 33) AUTO.curFps = Math.max(AUTO.minFps, AUTO.curFps * 0.8);
-      }
-      const remain = target - performance.now();
-      if (remain > 6) { scheduleNext(v, remain); return; }
-      loop();
-    });
-    return;
-  }
-  __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
+    const target = performance.now() + Math.max(0, delayMs | 0);
+    __asRvfcVideo = v;
+    __asRvfcId = v.requestVideoFrameCallback((now, metadata) => {
+      fired = true;
+      clearTimer(fallbackTimer);
+      __asRvfcId = 0; __asRvfcVideo = null;
+      if (metadata && Number.isFinite(metadata.presentedFrames)) {
+        const dropped = metadata.expectedDisplayTime - now;
+        if (dropped > 33) AUTO.curFps = Math.max(AUTO.minFps, AUTO.curFps * 0.8);
+      }
+      const remain = target - performance.now();
+      if (remain > 6) { scheduleNext(v, remain); return; }
+      loop();
+    });
+    return;
+  }
+  __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
 }
 
-      let _fpsMotionAvg = 0;
-      function adaptiveFps(motionSAD, isCut, isFade) {
-        _fpsHistBuf.push(motionSAD);
-        const alpha = _fpsHistBuf.length >= 6 ? 0.16667 : (1 / _fpsHistBuf.length);
-        _fpsMotionAvg = _fpsMotionAvg * (1 - alpha) + motionSAD * alpha;
-        let target;
-        if      (_fpsMotionAvg < 0.02) target = 2;
-        else if (_fpsMotionAvg < 0.08) target = 3 + _fpsMotionAvg / 0.08 * 2;
-        else                           target = 5 + Math.min((_fpsMotionAvg - 0.08) / 0.25, 1) * 3;
-        if (isCut)       target = AUTO.maxFps;
-        else if (isFade) target = Math.max(target, 5);
-        AUTO.curFps += clamp(target - AUTO.curFps, -1.5, 1.5);
-        return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
-      }
-
-      async function captureSceneFrame(v) {
-        if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
-
-        if (typeof VideoFrame === 'function' && _analysisWorkers) {
-          try {
-            const frame = new VideoFrame(v, { timestamp: (v.currentTime * 1e6) | 0 });
-            return { type: 'frame', frame };
-          } catch (_) {}
-        }
-
-        if (typeof createImageBitmap === 'function') {
-          try {
-            const bmp = await createImageBitmap(v, {
-              resizeWidth: CANVAS_W, resizeHeight: CANVAS_H, resizeQuality: 'pixelated'
-            });
-            if (_analysisWorkers) return { type: 'bitmap', bitmap: bmp };
-            cvCtx.drawImage(bmp, 0, 0);
-            bmp.close();
-            return { type: 'buffer', data: cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H).data };
-          } catch (_) {}
-        }
-
-        try {
-          cvCtx.drawImage(v, 0, 0, CANVAS_W, CANVAS_H);
-          return { type: 'buffer', data: cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H).data };
-        } catch (_) { return null; }
-      }
-
-      const STATIC_SCENE_FORCE_INTERVAL = 20;
-
-      let __letterboxState = { detected: false, ratio: 0, lastCheck: 0, notified: false };
-      const LETTERBOX_CHECK_INTERVAL = 5000;
-      function detectLetterbox(lumHist, zoneHists, zoneCounts) {
-        const now = performance.now();
-        if (now - __letterboxState.lastCheck < LETTERBOX_CHECK_INTERVAL) return;
-        __letterboxState.lastCheck = now;
-
-        const topZones = [0, 1, 2, 3]; const bottomZones = [12, 13, 14, 15]; const middleZones = [4, 5, 6, 7, 8, 9, 10, 11];
-
-        let topDark = 0, topTotal = 0;
-        for (const zi of topZones) {
-          if (zoneCounts[zi] < 4) continue;
-          let darkCount = 0; for (let b = 0; b <= 10; b++) darkCount += zoneHists[zi][b];
-          topDark += darkCount; topTotal += zoneCounts[zi];
-        }
-
-        let bottomDark = 0, bottomTotal = 0;
-        for (const zi of bottomZones) {
-          if (zoneCounts[zi] < 4) continue;
-          let darkCount = 0; for (let b = 0; b <= 10; b++) darkCount += zoneHists[zi][b];
-          bottomDark += darkCount; bottomTotal += zoneCounts[zi];
-        }
-
-        let middleDark = 0, middleTotal = 0;
-        for (const zi of middleZones) {
-          if (zoneCounts[zi] < 4) continue;
-          let darkCount = 0; for (let b = 0; b <= 10; b++) darkCount += zoneHists[zi][b];
-          middleDark += darkCount; middleTotal += zoneCounts[zi];
-        }
-
-        const topBlackRatio = topTotal > 0 ? topDark / topTotal : 0;
-        const bottomBlackRatio = bottomTotal > 0 ? bottomDark / bottomTotal : 0;
-        const middleBlackRatio = middleTotal > 0 ? middleDark / middleTotal : 0;
-        const isLetterbox = topBlackRatio > 0.90 && bottomBlackRatio > 0.90 && middleBlackRatio < 0.50;
-
-        if (isLetterbox && !__letterboxState.detected) {
-          __letterboxState.detected = true; __letterboxState.ratio = 2.35;
-          if (!__letterboxState.notified) {
-            __letterboxState.notified = true;
-            try { if (typeof showOSD === 'function') showOSD('레터박스 감지됨 — Alt+Z로 줌 활성화 후 Alt+Wheel로 조절', 3000); } catch(_) {}
-          }
-        } else if (!isLetterbox && __letterboxState.detected) {
-          __letterboxState.detected = false; __letterboxState.notified = false;
-        }
-      }
-
-      async function loop() {
-        if (!AUTO.running || __globalSig.aborted) return;
-
-        if (globalThis.scheduler?.yield) {
-          try { await globalThis.scheduler.yield(); } catch (_) {}
-          if (!AUTO.running || __globalSig.aborted) return;
-        }
-
-        const now = performance.now();
-        const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
-        const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.();
-
-        if (!en) {
-          scheduleNext(v, 1000);
-          return;
-        }
-
-        if (AUTO.drmBlocked && now < AUTO.blockUntilMs) {
-          scheduleNext(v, 500);
-          return;
-        }
-
-        if (document.hidden) {
-          scheduleNext(v, 2000);
-          return;
-        }
-
-        if (!v || !cvCtx || v.paused || v.seeking || v.readyState < 2) {
-          try { Scheduler.request(true); } catch (_) {}
-          scheduleNext(v, 300);
-          return;
-        }
-
-        const ct = v.currentTime;
-        const isReadyToPlay = !v.seeking && v.readyState >= 3;
-        const isStaticFrame = isReadyToPlay && Math.abs(ct - AUTO._lastCurrentTime) < 0.001;
-        const forceByStatic = AUTO._framesSinceUpdate >= STATIC_SCENE_FORCE_INTERVAL;
-
-        if (isStaticFrame && !forceByStatic) {
-          scheduleNext(v, Math.max(200, Math.round(1000 / Math.max(1, AUTO.curFps))));
-          return;
-        }
-        AUTO._lastCurrentTime = ct;
-
-        if (!gpuInitAttempted && FEATURE_FLAGS.gpuAnalysis) {
-          const gpuOk = await ensureGPUAnalyzer();
-          AUTO._gpuActive = gpuOk;
-          if (gpuOk) log.info('[AutoScene] GPU analysis path activated');
-        }
-
-        try {
-          const input = await captureSceneFrame(v);
-          if (!AUTO.running || __globalSig.aborted) return;
-          if (!v.isConnected || v.paused || v.readyState < 2) { scheduleNext(v, 300); return; }
-          if (!input) { scheduleNext(v, 500); return; }
-
-          AUTO.drmBlocked = false; drmRetryCount = 0;
-          const stats = await analyzeImageData(input, CANVAS_W, CANVAS_H);
-          if (!AUTO.running || __globalSig.aborted) return;
-
-          AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motionSAD * AUTO.motionAlpha; AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0; if (typeof updateAdaptiveRectTTL === 'function') updateAdaptiveRectTTL(AUTO.motionEma);
-          const transition = detectTransition(stats, AUTO.lastStats); AUTO.lastStats = stats;
-          if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const a = transition.isCut ? 0.55 : 0.14; const e = AUTO.statsEma; for (const k of ['bright', 'contrast', 'chroma', 'edge', 'skinRatio', 'centerBright', 'edgeAvgBright']) e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a; }
-
-          const newScene = classifySceneFuzzy(AUTO.statsEma, stats.zoneStats, v); if (newScene !== AUTO._sceneType) AUTO._sceneStable = 0; else AUTO._sceneStable++;
-          AUTO._sceneType = newScene; if (AUTO._sceneStable >= 4) AUTO._sceneTypeEma = newScene;
-          if (transition.isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; flickerCount = Math.max(0, flickerCount - 2); }
-
-          AUTO._framesSinceUpdate++; const allowUpdate = transition.isCut || transition.isFade || AUTO.motionFrames >= 4 || forceByStatic;
-          let fps = AUTO.curFps;
-          if (allowUpdate) {
-            AUTO._framesSinceUpdate = 0; fps = adaptiveFps(stats.motionSAD, transition.isCut, transition.isFade); if (now < AUTO.tBoostUntil) fps = Math.max(fps, transition.isCut ? AUTO.maxFps : 5);
-            const sceneType = AUTO._sceneTypeEma;
-            const toneParams = { ...SCENE_TONE_PARAMS[sceneType], userMods: {} };
-            const rawCurve = buildAdaptiveToneCurve(stats.lumHist, stats.totalSamples, toneParams, stats.zoneHists, stats.zoneCounts);
-            const rawGains = computeChannelBalance(stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio, stats.hiLumaRBratio);
-            const rawSat = toneParams.satTarget;
-
-            const alphaTone = getTemporalAlpha(transition.isCut, transition.isFade);
-            const alphaColor = transition.isCut ? 0.55 : (transition.isFade ? 0.15 : 0.05);
-            const alphaSat = transition.isCut ? 0.65 : (transition.isFade ? 0.20 : 0.08);
-
-            const newMid = rawCurve[128], oldMid = prevToneCurve ? prevToneCurve[128] : 0.5; const dir = newMid > oldMid ? 1 : (newMid < oldMid ? -1 : 0);
-            if (dir !== 0 && dir !== lastCurveDir && lastCurveDir !== 0) flickerCount = Math.min(flickerCount + 1, FLICKER_MAX); else if (dir !== 0) flickerCount = Math.max(0, flickerCount - FLICKER_DECAY); lastCurveDir = dir || lastCurveDir;
-
-            const smoothedCurve = interpolateCurves(prevToneCurve, rawCurve, alphaTone);
-            const smoothedGains = interpolateGains(prevChannelGains, rawGains, alphaColor);
-            const smoothedSat = prevSatMul + (rawSat - prevSatMul) * alphaSat;
-
-            if (!prevToneCurve) prevToneCurve = new Float32Array(TONE_STEPS); prevToneCurve.set(smoothedCurve); prevChannelGains = smoothedGains; prevSatMul = smoothedSat;
-
-            const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
-            result.br = clamp(result.br, 0.88, 1.45);
-
-            const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
-            AUTO.cur.br = result.br; AUTO.cur.ct = result.ct; AUTO.cur.sat = result.sat; AUTO.cur._toneCurve = smoothedCurve; AUTO.cur._channelGains = smoothedGains; AUTO.cur._gamma = result._gamma; AUTO.cur._bright = result._bright; AUTO.cur._temp = result._temp;
-            if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) {
-              _autoSceneRev++;
-              Scheduler.request(true);
-            }
-          }
-
-          if (stats.zoneHists && stats.zoneCounts) detectLetterbox(stats.lumHist, stats.zoneHists, stats.zoneCounts);
-
-          scheduleNext(v, Math.max(100, Math.round(1000 / Math.max(1, fps))));
-        } catch (e) {
-          if (!AUTO.running || __globalSig.aborted) return;
-
-          const isDrm = (e.name === 'SecurityError' || e.message?.includes('tainted'));
-          if (VSC_DEFENSE.autoSceneDrmBackoff && isDrm) {
-            drmRetryCount++; AUTO.drmBlocked = true; if (AUTO._gpuActive) { AUTO._gpuActive = false; log.info('[AutoScene] GPU path disabled due to DRM taint'); }
-            if (drmRetryCount >= MAX_DRM_RETRIES) { AUTO.running = false; updateManual(); Store.set(P.APP_AUTO_SCENE, false); try{ if (typeof showOSD === 'function') showOSD('자동 장면: DRM 제한으로 비활성화됨', 3000); }catch(_){} Scheduler.request(true); return; }
-            scheduleNext(v, Math.min(30000, 8000 * Math.pow(1.5, drmRetryCount - 1)));
-          } else scheduleNext(v, 1000);
-        }
-      }
-
-      function resetAllModuleState() {
-        AUTO.statsEma = null; AUTO.lastStats = null; AUTO._lastMean = 0; AUTO._sceneStable = 0; AUTO._sceneTypeEma = ST.NORMAL; AUTO._sceneType = ST.NORMAL;
-        AUTO.motionEma = 0; AUTO.motionFrames = 0; AUTO.curFps = 2; AUTO._framesSinceUpdate = 0; _fpsHistBuf.clear(); prevToneCurve = null; prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; prevSatMul = 1.0;
-        cutScores.clear(); gradualScores.clear(); flickerCount = 0; lastCurveDir = 0; __prevLumBuf = null; __curLumBuf = null; __curLumBufSize = 0; __fuzzyInited = false; __fuzzyEma.fill(0); _interpActive = 0;
-        _fpsMotionAvg = 0; AUTO._lastCurrentTime = -1; __fuzzyLastVideoId = null;
-      }
-
-      function cleanupScheduler() { if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; } if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') { try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = 0; __asRvfcVideo = null; } }
-      __globalSig.addEventListener('abort', () => { AUTO.running = false; cleanupScheduler(); if (gpuAnalyzer) { gpuAnalyzer.destroy(); gpuAnalyzer = null; } }, { once: true });
-
-      Store.sub(P.APP_AUTO_SCENE, (en) => {
-        if (en && !AUTO.running) {
-          drmRetryCount = 0;
-          AUTO.running = true;
-          resetAllModuleState();
-          loop();
-        } else if (!en) {
-          AUTO.running = false;
-          cleanupScheduler();
-          resetAllModuleState();
-          updateManual();
-        }
-      });
-      Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
-
-      return {
-        getMods: () => AUTO.cur,
-        getAutoSceneRev: () => _autoSceneRev,
-        getSceneType: () => AUTO._sceneType,
-        getSceneTypeName: () => ST_NAMES[AUTO._sceneType] || 'UNKNOWN',
-        hasToneCurve: () => !!AUTO.cur._toneCurve,
-        isGpuActive: () => AUTO._gpuActive,
-        getLastMotionSAD: () => AUTO.motionEma,
-        start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } },
-        stop: () => { AUTO.running = false; cleanupScheduler(); resetAllModuleState(); updateManual(); },
-        diagnoseSubtitleTint() {
-          const mods = AUTO.cur;
-          if (!mods._channelGains) return { status: 'no_auto', tint: 'none' };
-
-          const ag = mods._channelGains;
-          const userTemp = tempToRgbGain(Store?.get(P.V_MAN_TEMP) || 0);
-
-          let fR = userTemp.rs * ag.rGain;
-          let fG = userTemp.gs * ag.gGain;
-          let fB = userTemp.bs * ag.bGain;
-
-          const lumAvg = fR * 0.2126 + fG * 0.7152 + fB * 0.0722;
-          if (lumAvg > 0.01) {
-            const scale = 1.0 / lumAvg;
-            fR *= scale; fG *= scale; fB *= scale;
-          }
-
-          const deltaRB = ((fR - fB) * 255).toFixed(1);
-          const tint = fR > fB + 0.005 ? 'warm(붉은끼)' :
-                       fB > fR + 0.005 ? 'cool(푸른끼)' : 'neutral';
-
-          return {
-            channelGains: { r: ag.rGain.toFixed(4), g: ag.gGain.toFixed(4), b: ag.bGain.toFixed(4) },
-            finalSlopes:  { r: fR.toFixed(4), g: fG.toFixed(4), b: fB.toFixed(4) },
-            whiteSubtitleDeltaRB: deltaRB,
-            tint,
-            scene: AUTO._sceneTypeEma !== undefined ? ST_NAMES[AUTO._sceneTypeEma] : 'unknown'
-          };
-        }
-      };
-    }
-
-    /* ══ curveToApproxParams ══ */
-    function curveToApproxParams(curve, satMul, channelGains) {
-      const clamp = VSC_CLAMP; const N = 32; const curveLen = curve.length; const step = (curveLen - 1) / (N - 1);
-      let S0 = 0, S1 = 0, S2 = 0, S3 = 0, S4 = 0, T0 = 0, T1 = 0, T2 = 0;
-      for (let i = 0; i < N; i++) { const ci = Math.min(curveLen - 1, Math.round(step * i)); const x = ci / (curveLen - 1), y = curve[ci], x2 = x * x; S0 += 1; S1 += x; S2 += x2; S3 += x2 * x; S4 += x2 * x2; T0 += y; T1 += x * y; T2 += x2 * y; }
-      const D = S4 * (S2 * S0 - S1 * S1) - S3 * (S3 * S0 - S1 * S2) + S2 * (S3 * S1 - S2 * S2); let a2, a1, a0;
-      if (Math.abs(D) < 1e-12) { a2 = 0; a1 = 1; a0 = 0; } else { const invD = 1 / D; a2 = (T2 * (S2 * S0 - S1 * S1) - S3 * (T1 * S0 - S1 * T0) + S2 * (T1 * S1 - S2 * T0)) * invD; a1 = (S4 * (T1 * S0 - S1 * T0) - T2 * (S3 * S0 - S1 * S2) + S2 * (S3 * T0 - T1 * S2)) * invD; a0 = (S4 * (S2 * T0 - S1 * T1) - S3 * (S3 * T0 - T1 * S2) + T2 * (S3 * S1 - S2 * S2)) * invD; }
-      if (!Number.isFinite(a2)) a2 = 0; if (!Number.isFinite(a1)) a1 = 1; if (!Number.isFinite(a0)) a0 = 0;
-      const mid = clamp(a2 * 0.25 + a1 * 0.5 + a0, 0.01, 0.99); let gamma = 1.0; if (mid > 0.01 && mid < 0.99) { gamma = Math.log(mid) / Math.log(0.5); gamma = clamp(gamma, 0.65, 1.6); }
-      const slopeAtMid = 2 * a2 * 0.5 + a1; const contrast = clamp(slopeAtMid, 0.75, 1.35); const curveIntegral = a2 / 3 + a1 / 2 + a0; const brightDiff = curveIntegral - 0.5; const bright = clamp(brightDiff * 45, -12, 12); const tempEstimate = (channelGains.rGain - channelGains.bGain) * 50; const temp = clamp(tempEstimate, -20, 20);
-      return { br: clamp(1.0 + bright * 0.010, 0.88, 1.45), ct: clamp(contrast, 0.78, 1.35), sat: clamp(satMul, 0.82, 1.50), _gamma: gamma, _bright: bright, _temp: temp, _channelGains: channelGains, _toneCurve: curve };
-    }
-
-    /* ══════════════════════════════════════════════════════════════════
-       createVideoMaximizer
-       ══════════════════════════════════════════════════════════════════ */
-    function createVideoMaximizer(Store, ApplyReq) {
-      const MAX_CLASS = 'vsc-vmax-max'; const HIDE_CLASS = 'vsc-vmax-hide'; const ANCESTOR_CLASS = 'vsc-vmax-ancestor'; const IFRAME_MAX_CLASS = 'vsc-vmax-iframe';
-      let active = false, targetVideo = null, targetIframe = null;
-      const savedStylesSet = new Set(); const savedStylesList = []; let hiddenSiblings = []; let savedScrollX = 0, savedScrollY = 0;
-      let classMO = null, isIframeMode = false; let delegatedToTop = false, innerMaxActive = false; const innerSavedStylesSet = new Set(); const innerSavedStylesList = [];
-
-      function isInIframe() { try { return window !== window.top; } catch (_) { return true; } }
-
-      function pickBestVideo() {
-        const explicit = window[VSC_INTERNAL_SYM]?._activeVideo;
-        if (explicit?.isConnected && explicit.readyState >= 2 && !explicit.ended) return explicit;
-        let best = null, bestScore = -1;
-        for (const v of document.querySelectorAll('video')) {
-          if (!v.isConnected || v.readyState < 1) continue;
-          let s = 0; const r = v.getBoundingClientRect(); const area = r.width * r.height;
-          if (!v.paused && !v.ended) s += 10; if (!v.muted && v.volume > 0.01) s += 3;
-          s += Math.log2(1 + area / 10000); if (v.currentTime > 0.5) s += 2;
-          if (s > bestScore) { bestScore = s; best = v; }
-        }
-        return best;
-      }
-
-      function findIframeForWindow(childWin) {
-        try { const iframes = document.querySelectorAll('iframe'); for (const ifr of iframes) { try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {} } } catch (_) {}
-        return null;
-      }
-
-      function backupAndApplyStyle(el, css, isInner = false) {
-        const sSet = isInner ? innerSavedStylesSet : savedStylesSet;
-        const sList = isInner ? innerSavedStylesList : savedStylesList;
-        if (!sSet.has(el)) { sSet.add(el); sList.push(el); }
-        for (const [prop, val] of Object.entries(css)) vscSetStyle(el, prop, val, 'important');
-      }
-      function restoreSavedStyle(el) { if (el) vscClearAllStyles(el); }
-
-      function hideSiblings(el) {
-        if (!el.parentNode) return;
-        for (const sib of el.parentNode.children) {
-          if (sib === el || sib.nodeType !== 1) continue;
-          if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
-          if (sib.hasAttribute?.('data-vsc-ui') || sib.id === 'vsc-host' || sib.id === 'vsc-gear-host' || sib.id === 'vsc-osd') continue;
-          const prevDisplay = sib.style.getPropertyValue('display'), prevDisplayPrio = sib.style.getPropertyPriority('display');
-          sib.classList.add(HIDE_CLASS); sib.style.setProperty('display', 'none', 'important');
-          hiddenSiblings.push({ el: sib, prevDisplay, prevDisplayPrio });
-        }
-      }
-
-      let styleInjected = false;
-      function injectStyle() {
-        if (styleInjected) return; styleInjected = true;
-        const s = document.createElement('style'); s.dataset.vscMaximizer = '1';
-        s.textContent = [
-          `.${MAX_CLASS}{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;transform:none!important;}`,
-          `.${HIDE_CLASS}{display:none!important;}`,
-          `.${ANCESTOR_CLASS}{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}`,
-          `.${IFRAME_MAX_CLASS}{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}`
-        ].join('\n');
-        (document.head || document.documentElement).appendChild(s);
-      }
-
-      function startClassGuard(primaryEl) {
-        if (classMO) { classMO.disconnect(); classMO = null; }
-        const guardClass = isIframeMode ? IFRAME_MAX_CLASS : MAX_CLASS;
-        classMO = new MutationObserver((muts) => {
-          for (const m of muts) {
-            if (m.type !== 'attributes' || m.attributeName !== 'class' || !active) continue;
-            const el = m.target;
-            if (el === primaryEl && !el.classList.contains(guardClass)) el.classList.add(guardClass);
-            if (el.dataset?.vscMaxAncestor === '1' && !el.classList.contains(ANCESTOR_CLASS)) el.classList.add(ANCESTOR_CLASS);
-          }
-        });
-        classMO.observe(primaryEl, { attributes: true, attributeFilter: ['class'] });
-        let cur = primaryEl.parentElement;
-        while (cur && cur !== document.body && cur !== document.documentElement) { classMO.observe(cur, { attributes: true, attributeFilter: ['class'] }); cur = cur.parentElement; }
-      }
-      function stopClassGuard() { if (classMO) { classMO.disconnect(); classMO = null; } }
-
-      function clearAncestorChain(startEl, isInner = false) {
-        let ancestor = startEl.parentElement;
-        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
-          ancestor.dataset.vscMaxAncestor = '1';
-          backupAndApplyStyle(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' }, isInner);
-          ancestor.classList.add(ANCESTOR_CLASS); hideSiblings(ancestor);
-          ancestor = ancestor.parentElement;
-        }
-      }
-      function lockBody(isInner = false) { backupAndApplyStyle(document.body, { overflow: 'hidden', margin: '0', padding: '0' }, isInner); if (document.documentElement) backupAndApplyStyle(document.documentElement, { overflow: 'hidden' }, isInner); }
-
-      function doMaximizeDirect(video) {
-        injectStyle(); targetVideo = video; isIframeMode = false; savedScrollX = window.scrollX; savedScrollY = window.scrollY;
-        clearAncestorChain(video); lockBody(); backupAndApplyStyle(video, {});
-        video.classList.add(MAX_CLASS); hideSiblings(video); window.scrollTo(0, 0);
-        startClassGuard(video); active = true; ApplyReq.hard(); try { if (typeof showOSD === 'function') showOSD('최대화 ON (ESC 또는 Alt+M 해제)', 1800); } catch(_) {}
-      }
-
-      function doMaximizeIframe(iframeEl) {
-        injectStyle(); targetIframe = iframeEl; isIframeMode = true; savedScrollX = window.scrollX; savedScrollY = window.scrollY;
-        clearAncestorChain(iframeEl); lockBody(); backupAndApplyStyle(iframeEl, {});
-        iframeEl.classList.add(IFRAME_MAX_CLASS); hideSiblings(iframeEl); window.scrollTo(0, 0);
-        startClassGuard(iframeEl); active = true; ApplyReq.hard(); try { if (typeof showOSD === 'function') showOSD('최대화 ON — iframe (ESC 또는 Alt+M 해제)', 1800); } catch(_) {}
-        try { iframeEl.contentWindow.postMessage({ __vsc_max: 'apply_inner' }, '*'); } catch (_) {}
-      }
-
-      function applyInnerMaximize() {
-        if (innerMaxActive) return; const video = pickBestVideo(); if (!video) return; innerMaxActive = true;
-        backupAndApplyStyle(video, { width: '100vw', height: '100vh', 'object-fit': 'contain', position: 'fixed', top: '0', left: '0', 'z-index': '2147483646', background: '#000', margin: '0', padding: '0', border: 'none' }, true);
-        clearAncestorChain(video, true); lockBody(true);
-      }
-      function undoInnerMaximize() {
-        if (!innerMaxActive) return;
-        for (let i = innerSavedStylesList.length - 1; i >= 0; i--) { restoreSavedStyle(innerSavedStylesList[i]); }
-        innerSavedStylesList.length = 0; innerSavedStylesSet.clear(); innerMaxActive = false;
-      }
-
-      function undoMaximize() {
-        if (!active) return; stopClassGuard();
-        if (isIframeMode && targetIframe) { try { targetIframe.contentWindow.postMessage({ __vsc_max: 'undo_inner' }, '*'); } catch (_) {} try { targetIframe.contentWindow.postMessage({ __vsc_max: 'state_off' }, '*'); } catch (_) {} }
-        for (const { el, prevDisplay, prevDisplayPrio } of hiddenSiblings) { try { el.classList.remove(HIDE_CLASS); if (prevDisplay) { el.style.setProperty('display', prevDisplay, prevDisplayPrio || ''); } else { el.style.removeProperty('display'); } } catch (_) {} }
-        hiddenSiblings = [];
-        for (let i = savedStylesList.length - 1; i >= 0; i--) { const el = savedStylesList[i]; restoreSavedStyle(el); try { el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS); delete el.dataset.vscMaxAncestor; } catch (_) {} }
-        savedStylesList.length = 0; savedStylesSet.clear(); window.scrollTo(savedScrollX, savedScrollY);
-        active = false; targetVideo = null; targetIframe = null; isIframeMode = false;
-        ApplyReq.hard(); try { if (typeof showOSD === 'function') showOSD('최대화 OFF', 1200); } catch(_) {}
-      }
-
-      function toggle() {
-        if (isInIframe()) {
-          if (delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; }
-          try { window.top.postMessage({ __vsc_max: 'request' }, '*'); delegatedToTop = true; } catch (_) { const video = pickBestVideo(); if (video) doMaximizeDirect(video); else { try { if (typeof showOSD === 'function') showOSD('최대화할 비디오를 찾을 수 없음', 1500); } catch(_) {} } }
-          return;
-        }
-        if (active) { undoMaximize(); return; }
-        const video = pickBestVideo(); if (video) { doMaximizeDirect(video); return; }
-        const iframes = document.querySelectorAll('iframe'); let bestIframe = null, bestArea = 0;
-        for (const ifr of iframes) {
-          if (!ifr.isConnected) continue; const r = ifr.getBoundingClientRect(); const area = r.width * r.height; if (area < 10000) continue;
-          try { const doc = ifr.contentDocument || ifr.contentWindow?.document; if (doc?.querySelector('video')) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } } } catch (_) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } }
-        }
-        if (bestIframe) { doMaximizeIframe(bestIframe); return; }
-        try { if (typeof showOSD === 'function') showOSD('최대화할 비디오를 찾을 수 없음', 1500); } catch(_) {}
-      }
-
-      function onMessage(e) {
-        if (!e.data || typeof e.data !== 'object' || !e.data.__vsc_max) return;
-        const cmd = e.data.__vsc_max;
-        if (!isInIframe()) {
-          if (cmd === 'request') { const iframeEl = findIframeForWindow(e.source); if (iframeEl) { if (active) undoMaximize(); doMaximizeIframe(iframeEl); try { e.source.postMessage({ __vsc_max: 'state_on' }, '*'); } catch (_) {} } return; }
-          if (cmd === 'undo') { if (active) undoMaximize(); return; } return;
-        }
-        if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
-        if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
-        if (cmd === 'state_on') { delegatedToTop = true; return; }
-        if (cmd === 'state_off') { delegatedToTop = false; return; }
-      }
-
-      on(window, 'message', onMessage, { passive: true });
-      __globalSig.addEventListener('abort', () => { if (active) { try { undoMaximize(); } catch (_) {} } if (innerMaxActive) { try { undoInnerMaximize(); } catch (_) {} } delegatedToTop = false; }, { once: true });
-
-      return Object.freeze({ toggle, isActive: () => active || delegatedToTop, getTarget: () => targetVideo || targetIframe, doMaximize: toggle, undoMaximize() { if (isInIframe() && delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; } undoMaximize(); } });
-    }
-
-    /* ── isNeutralVideoParams (Bug 4 Applied) ── */
-    const isNeutralVideoParams = (() => {
-      let _lastHash = 0;
-      let _lastResult = true;
-
-      return function isNeutralCached(v) {
-        if (v._autoToneCurve !== null || v._autoChannelGains !== null) return false;
-
-        const h = ((v._cssBr * 1000) | 0) ^
-                  (((v._cssCt * 1000) | 0) << 10) ^
-                  (((v._cssSat ?? 1) * 1000) | 0) << 20 ^
-                  (((v.sharp || 0) * 1000) | 0);
-
-        if (h === _lastHash) return _lastResult;
-
-        _lastHash = h;
-
-        const cssBr = v._cssBr ?? 1, cssCt = v._cssCt ?? 1, cssSat = v._cssSat ?? 1;
-        if (cssBr < 0.99 || cssBr > 1.01 || cssCt < 0.99 || cssCt > 1.01 || cssSat < 0.99 || cssSat > 1.01) { _lastResult = false; return false; }
-
-        const sharp = v.sharp ?? 0;
-        if (sharp > 0.01 || sharp < -0.01) { _lastResult = false; return false; }
-
-        const T = 0.01;
-        _lastResult = Math.abs(v.toe ?? 0) < T && Math.abs(v.mid ?? 0) < T && Math.abs(v.shoulder ?? 0) < T
-            && Math.abs((v.gain ?? 1) - 1) < T && Math.abs((v.gamma ?? 1) - 1) < T
-            && Math.abs((v.contrast ?? 1) - 1) < T && Math.abs(v.bright ?? 0) < T && Math.abs(v.temp ?? 0) < T;
-
-        return _lastResult;
-      };
-    })();
-
-    /* ══════════════════════════════════════════════════════════════════
-       createApplyLoop
-       ══════════════════════════════════════════════════════════════════ */
-    function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
-      const __lastUserPt = { x: 0, y: 0, t: 0 };
-      onWin('pointermove', e => { __lastUserPt.x = e.clientX; __lastUserPt.y = e.clientY; __lastUserPt.t = performance.now(); }, { passive: true });
-      onWin('touchstart', e => { if (e.touches.length > 0) { __lastUserPt.x = e.touches[0].clientX; __lastUserPt.y = e.touches[0].clientY; __lastUserPt.t = performance.now(); } }, { passive: true });
-
-      let prevTarget = null;
-      const _targets = new Set();
-
-      setRecurring(() => { if (Registry.videos.size === 0 && TOUCHED.videos.size === 0 && TOUCHED.rateVideos.size === 0) return; Registry.prune(); for (const key of ['videos', 'rateVideos']) { for (const v of TOUCHED[key]) { if (!v.isConnected) TOUCHED[key].delete(v); } } }, 5000, { maxErrors: 50 });
-
-      function restoreRate(video) { const rs = getRateState(video); if (rs.orig != null && Math.abs(video.playbackRate - (rs.orig || 1)) > 0.002) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { video.playbackRate = rs.orig || 1; } catch (_) {} } rs.orig = null; rs._rateRetryCount = 0; rs._totalRetries = 0; rs.permanentlyBlocked = false; }
-
-      function apply(forceApply) {
+      let _fpsMotionAvg = 0;
+      function adaptiveFps(motionSAD, isCut, isFade) {
+        _fpsHistBuf.push(motionSAD);
+        const alpha = _fpsHistBuf.length >= 6 ? 0.16667 : (1 / _fpsHistBuf.length);
+        _fpsMotionAvg = _fpsMotionAvg * (1 - alpha) + motionSAD * alpha;
+        let target;
+        if      (_fpsMotionAvg < 0.02) target = 2;
+        else if (_fpsMotionAvg < 0.08) target = 3 + _fpsMotionAvg / 0.08 * 2;
+        else                           target = 5 + Math.min((_fpsMotionAvg - 0.08) / 0.25, 1) * 3;
+        if (isCut)       target = AUTO.maxFps;
+        else if (isFade) target = Math.max(target, 5);
+        AUTO.curFps += clamp(target - AUTO.curFps, -1.5, 1.5);
+        return clamp(AUTO.curFps, AUTO.minFps, AUTO.maxFps);
+      }
+
+      async function captureSceneFrame(v) {
+        if (cv.width !== CANVAS_W || cv.height !== CANVAS_H) { cv.width = CANVAS_W; cv.height = CANVAS_H; }
+
+        if (typeof VideoFrame === 'function' && _analysisWorkers) {
+          try {
+            const frame = new VideoFrame(v, { timestamp: (v.currentTime * 1e6) | 0 });
+            return { type: 'frame', frame };
+          } catch (_) {}
+        }
+
+        if (typeof createImageBitmap === 'function') {
+          try {
+            const bmp = await createImageBitmap(v, {
+              resizeWidth: CANVAS_W, resizeHeight: CANVAS_H, resizeQuality: 'pixelated'
+            });
+            if (_analysisWorkers) return { type: 'bitmap', bitmap: bmp };
+            cvCtx.drawImage(bmp, 0, 0);
+            bmp.close();
+            return { type: 'buffer', data: cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H).data };
+          } catch (_) {}
+        }
+
+        try {
+          cvCtx.drawImage(v, 0, 0, CANVAS_W, CANVAS_H);
+          return { type: 'buffer', data: cvCtx.getImageData(0, 0, CANVAS_W, CANVAS_H).data };
+        } catch (_) { return null; }
+      }
+
+      const STATIC_SCENE_FORCE_INTERVAL = 20;
+
+      let __letterboxState = { detected: false, ratio: 0, lastCheck: 0, notified: false };
+      const LETTERBOX_CHECK_INTERVAL = 5000;
+      function detectLetterbox(lumHist, zoneHists, zoneCounts) {
+        const now = performance.now();
+        if (now - __letterboxState.lastCheck < LETTERBOX_CHECK_INTERVAL) return;
+        __letterboxState.lastCheck = now;
+
+        const topZones = [0, 1, 2, 3]; const bottomZones = [12, 13, 14, 15]; const middleZones = [4, 5, 6, 7, 8, 9, 10, 11];
+
+        let topDark = 0, topTotal = 0;
+        for (const zi of topZones) {
+          if (zoneCounts[zi] < 4) continue;
+          let darkCount = 0; for (let b = 0; b <= 10; b++) darkCount += zoneHists[zi][b];
+          topDark += darkCount; topTotal += zoneCounts[zi];
+        }
+
+        let bottomDark = 0, bottomTotal = 0;
+        for (const zi of bottomZones) {
+          if (zoneCounts[zi] < 4) continue;
+          let darkCount = 0; for (let b = 0; b <= 10; b++) darkCount += zoneHists[zi][b];
+          bottomDark += darkCount; bottomTotal += zoneCounts[zi];
+        }
+
+        let middleDark = 0, middleTotal = 0;
+        for (const zi of middleZones) {
+          if (zoneCounts[zi] < 4) continue;
+          let darkCount = 0; for (let b = 0; b <= 10; b++) darkCount += zoneHists[zi][b];
+          middleDark += darkCount; middleTotal += zoneCounts[zi];
+        }
+
+        const topBlackRatio = topTotal > 0 ? topDark / topTotal : 0;
+        const bottomBlackRatio = bottomTotal > 0 ? bottomDark / bottomTotal : 0;
+        const middleBlackRatio = middleTotal > 0 ? middleDark / middleTotal : 0;
+        const isLetterbox = topBlackRatio > 0.90 && bottomBlackRatio > 0.90 && middleBlackRatio < 0.50;
+
+        if (isLetterbox && !__letterboxState.detected) {
+          __letterboxState.detected = true; __letterboxState.ratio = 2.35;
+          if (!__letterboxState.notified) {
+            __letterboxState.notified = true;
+            try { if (typeof showOSD === 'function') showOSD('레터박스 감지됨 — Alt+Z로 줌 활성화 후 Alt+Wheel로 조절', 3000); } catch(_) {}
+          }
+        } else if (!isLetterbox && __letterboxState.detected) {
+          __letterboxState.detected = false; __letterboxState.notified = false;
+        }
+      }
+
+      async function loop() {
+        if (!AUTO.running || __globalSig.aborted) return;
+
+        if (globalThis.scheduler?.yield) {
+          try { await globalThis.scheduler.yield(); } catch (_) {}
+          if (!AUTO.running || __globalSig.aborted) return;
+        }
+
+        const now = performance.now();
+        const en = !!Store.get(P.APP_AUTO_SCENE) && !!Store.get(P.APP_ACT);
+        const v = window[VSC_INTERNAL_SYM]?.getActiveVideo?.();
+
+        if (!en) {
+          scheduleNext(v, 1000);
+          return;
+        }
+
+        if (AUTO.drmBlocked && now < AUTO.blockUntilMs) {
+          scheduleNext(v, 500);
+          return;
+        }
+
+        if (document.hidden) {
+          scheduleNext(v, 2000);
+          return;
+        }
+
+        if (!v || !cvCtx || v.paused || v.seeking || v.readyState < 2) {
+          try { Scheduler.request(true); } catch (_) {}
+          scheduleNext(v, 300);
+          return;
+        }
+
+        const ct = v.currentTime;
+        const isReadyToPlay = !v.seeking && v.readyState >= 3;
+        const isStaticFrame = isReadyToPlay && Math.abs(ct - AUTO._lastCurrentTime) < 0.001;
+        const forceByStatic = AUTO._framesSinceUpdate >= STATIC_SCENE_FORCE_INTERVAL;
+
+        if (isStaticFrame && !forceByStatic) {
+          scheduleNext(v, Math.max(200, Math.round(1000 / Math.max(1, AUTO.curFps))));
+          return;
+        }
+        AUTO._lastCurrentTime = ct;
+
+        if (!gpuInitAttempted && FEATURE_FLAGS.gpuAnalysis) {
+          const gpuOk = await ensureGPUAnalyzer();
+          AUTO._gpuActive = gpuOk;
+          if (gpuOk) log.info('[AutoScene] GPU analysis path activated');
+        }
+
+        try {
+          const input = await captureSceneFrame(v);
+          if (!AUTO.running || __globalSig.aborted) return;
+          if (!v.isConnected || v.paused || v.readyState < 2) { scheduleNext(v, 300); return; }
+          if (!input) { scheduleNext(v, 500); return; }
+
+          AUTO.drmBlocked = false; drmRetryCount = 0;
+          const stats = await analyzeImageData(input, CANVAS_W, CANVAS_H);
+          if (!AUTO.running || __globalSig.aborted) return;
+
+          AUTO.motionEma = AUTO.motionEma * (1 - AUTO.motionAlpha) + stats.motionSAD * AUTO.motionAlpha; AUTO.motionFrames = AUTO.motionEma >= AUTO.motionThresh ? AUTO.motionFrames + 1 : 0; if (typeof updateAdaptiveRectTTL === 'function') updateAdaptiveRectTTL(AUTO.motionEma);
+          const transition = detectTransition(stats, AUTO.lastStats); AUTO.lastStats = stats;
+          if (!AUTO.statsEma) AUTO.statsEma = { ...stats }; else { const a = transition.isCut ? 0.55 : 0.14; const e = AUTO.statsEma; for (const k of ['bright', 'contrast', 'chroma', 'edge', 'skinRatio', 'centerBright', 'edgeAvgBright']) e[k] = (e[k] ?? stats[k]) * (1 - a) + stats[k] * a; }
+
+          const newScene = classifySceneFuzzy(AUTO.statsEma, stats.zoneStats, v); if (newScene !== AUTO._sceneType) AUTO._sceneStable = 0; else AUTO._sceneStable++;
+          AUTO._sceneType = newScene; if (AUTO._sceneStable >= 4) AUTO._sceneTypeEma = newScene;
+          if (transition.isCut) { AUTO.tBoostStart = now; AUTO.tBoostUntil = now + AUTO.boostMs; flickerCount = Math.max(0, flickerCount - 2); }
+
+          AUTO._framesSinceUpdate++; const allowUpdate = transition.isCut || transition.isFade || AUTO.motionFrames >= 4 || forceByStatic;
+          let fps = AUTO.curFps;
+          if (allowUpdate) {
+            AUTO._framesSinceUpdate = 0; fps = adaptiveFps(stats.motionSAD, transition.isCut, transition.isFade); if (now < AUTO.tBoostUntil) fps = Math.max(fps, transition.isCut ? AUTO.maxFps : 5);
+            const sceneType = AUTO._sceneTypeEma;
+            const toneParams = { ...SCENE_TONE_PARAMS[sceneType], userMods: {} };
+            const rawCurve = buildAdaptiveToneCurve(stats.lumHist, stats.totalSamples, toneParams, stats.zoneHists, stats.zoneCounts);
+            const rawGains = computeChannelBalance(stats.rHist, stats.gHist, stats.bHist, stats.totalSamples, stats.skinRatio, stats.hiLumaRBratio);
+            const rawSat = toneParams.satTarget;
+
+            const alphaTone = getTemporalAlpha(transition.isCut, transition.isFade);
+            const alphaColor = transition.isCut ? 0.55 : (transition.isFade ? 0.15 : 0.05);
+            const alphaSat = transition.isCut ? 0.65 : (transition.isFade ? 0.20 : 0.08);
+
+            const newMid = rawCurve[128], oldMid = prevToneCurve ? prevToneCurve[128] : 0.5; const dir = newMid > oldMid ? 1 : (newMid < oldMid ? -1 : 0);
+            if (dir !== 0 && dir !== lastCurveDir && lastCurveDir !== 0) flickerCount = Math.min(flickerCount + 1, FLICKER_MAX); else if (dir !== 0) flickerCount = Math.max(0, flickerCount - FLICKER_DECAY); lastCurveDir = dir || lastCurveDir;
+
+            const smoothedCurve = interpolateCurves(prevToneCurve, rawCurve, alphaTone);
+            const smoothedGains = interpolateGains(prevChannelGains, rawGains, alphaColor);
+            const smoothedSat = prevSatMul + (rawSat - prevSatMul) * alphaSat;
+
+            if (!prevToneCurve) prevToneCurve = new Float32Array(TONE_STEPS); prevToneCurve.set(smoothedCurve); prevChannelGains = smoothedGains; prevSatMul = smoothedSat;
+
+            const result = curveToApproxParams(smoothedCurve, smoothedSat, smoothedGains);
+            result.br = clamp(result.br, 0.88, 1.45);
+
+            const prevBr = AUTO.cur.br, prevCt = AUTO.cur.ct, prevSat = AUTO.cur.sat;
+            AUTO.cur.br = result.br; AUTO.cur.ct = result.ct; AUTO.cur.sat = result.sat; AUTO.cur._toneCurve = smoothedCurve; AUTO.cur._channelGains = smoothedGains; AUTO.cur._gamma = result._gamma; AUTO.cur._bright = result._bright; AUTO.cur._temp = result._temp;
+            if (Math.abs(prevBr - AUTO.cur.br) > 0.001 || Math.abs(prevCt - AUTO.cur.ct) > 0.001 || Math.abs(prevSat - AUTO.cur.sat) > 0.001) {
+              _autoSceneRev++;
+              Scheduler.request(true);
+            }
+          }
+
+          if (stats.zoneHists && stats.zoneCounts) detectLetterbox(stats.lumHist, stats.zoneHists, stats.zoneCounts);
+
+          scheduleNext(v, Math.max(100, Math.round(1000 / Math.max(1, fps))));
+        } catch (e) {
+          if (!AUTO.running || __globalSig.aborted) return;
+
+          const isDrm = (e.name === 'SecurityError' || e.message?.includes('tainted'));
+          if (VSC_DEFENSE.autoSceneDrmBackoff && isDrm) {
+            drmRetryCount++; AUTO.drmBlocked = true; if (AUTO._gpuActive) { AUTO._gpuActive = false; log.info('[AutoScene] GPU path disabled due to DRM taint'); }
+            if (drmRetryCount >= MAX_DRM_RETRIES) { AUTO.running = false; updateManual(); Store.set(P.APP_AUTO_SCENE, false); try{ if (typeof showOSD === 'function') showOSD('자동 장면: DRM 제한으로 비활성화됨', 3000); }catch(_){} Scheduler.request(true); return; }
+            scheduleNext(v, Math.min(30000, 8000 * Math.pow(1.5, drmRetryCount - 1)));
+          } else scheduleNext(v, 1000);
+        }
+      }
+
+      function resetAllModuleState() {
+        AUTO.statsEma = null; AUTO.lastStats = null; AUTO._lastMean = 0; AUTO._sceneStable = 0; AUTO._sceneTypeEma = ST.NORMAL; AUTO._sceneType = ST.NORMAL;
+        AUTO.motionEma = 0; AUTO.motionFrames = 0; AUTO.curFps = 2; AUTO._framesSinceUpdate = 0; _fpsHistBuf.clear(); prevToneCurve = null; prevChannelGains = { rGain: 1, gGain: 1, bGain: 1 }; prevSatMul = 1.0;
+        cutScores.clear(); gradualScores.clear(); flickerCount = 0; lastCurveDir = 0; __prevLumBuf = null; __curLumBuf = null; __curLumBufSize = 0; __fuzzyInited = false; __fuzzyEma.fill(0); _interpActive = 0;
+        _fpsMotionAvg = 0; AUTO._lastCurrentTime = -1; __fuzzyLastVideoId = null;
+      }
+
+      function cleanupScheduler() { if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; } if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') { try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = 0; __asRvfcVideo = null; } }
+      __globalSig.addEventListener('abort', () => { AUTO.running = false; cleanupScheduler(); if (gpuAnalyzer) { gpuAnalyzer.destroy(); gpuAnalyzer = null; } }, { once: true });
+
+      Store.sub(P.APP_AUTO_SCENE, (en) => {
+        if (en && !AUTO.running) {
+          drmRetryCount = 0;
+          AUTO.running = true;
+          resetAllModuleState();
+          loop();
+        } else if (!en) {
+          AUTO.running = false;
+          cleanupScheduler();
+          resetAllModuleState();
+          updateManual();
+        }
+      });
+      Store.sub(P.APP_ACT, (en) => { if (en && Store.get(P.APP_AUTO_SCENE) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } });
+
+      return {
+        getMods: () => AUTO.cur,
+        getAutoSceneRev: () => _autoSceneRev,
+        getSceneType: () => AUTO._sceneType,
+        getSceneTypeName: () => ST_NAMES[AUTO._sceneType] || 'UNKNOWN',
+        hasToneCurve: () => !!AUTO.cur._toneCurve,
+        isGpuActive: () => AUTO._gpuActive,
+        getLastMotionSAD: () => AUTO.motionEma,
+        start: () => { if (Store.get(P.APP_AUTO_SCENE) && Store.get(P.APP_ACT) && !AUTO.running) { drmRetryCount = 0; AUTO.running = true; loop(); } },
+        stop: () => { AUTO.running = false; cleanupScheduler(); resetAllModuleState(); updateManual(); },
+        diagnoseSubtitleTint() {
+          const mods = AUTO.cur;
+          if (!mods._channelGains) return { status: 'no_auto', tint: 'none' };
+
+          const ag = mods._channelGains;
+          const userTemp = tempToRgbGain(Store?.get(P.V_MAN_TEMP) || 0);
+
+          let fR = userTemp.rs * ag.rGain;
+          let fG = userTemp.gs * ag.gGain;
+          let fB = userTemp.bs * ag.bGain;
+
+          const lumAvg = fR * 0.2126 + fG * 0.7152 + fB * 0.0722;
+          if (lumAvg > 0.01) {
+            const scale = 1.0 / lumAvg;
+            fR *= scale; fG *= scale; fB *= scale;
+          }
+
+          const deltaRB = ((fR - fB) * 255).toFixed(1);
+          const tint = fR > fB + 0.005 ? 'warm(붉은끼)' :
+                       fB > fR + 0.005 ? 'cool(푸른끼)' : 'neutral';
+
+          return {
+            channelGains: { r: ag.rGain.toFixed(4), g: ag.gGain.toFixed(4), b: ag.bGain.toFixed(4) },
+            finalSlopes:  { r: fR.toFixed(4), g: fG.toFixed(4), b: fB.toFixed(4) },
+            whiteSubtitleDeltaRB: deltaRB,
+            tint,
+            scene: AUTO._sceneTypeEma !== undefined ? ST_NAMES[AUTO._sceneTypeEma] : 'unknown'
+          };
+        }
+      };
+    }
+
+    /* ══ curveToApproxParams ══ */
+    function curveToApproxParams(curve, satMul, channelGains) {
+      const clamp = VSC_CLAMP; const N = 32; const curveLen = curve.length; const step = (curveLen - 1) / (N - 1);
+      let S0 = 0, S1 = 0, S2 = 0, S3 = 0, S4 = 0, T0 = 0, T1 = 0, T2 = 0;
+      for (let i = 0; i < N; i++) { const ci = Math.min(curveLen - 1, Math.round(step * i)); const x = ci / (curveLen - 1), y = curve[ci], x2 = x * x; S0 += 1; S1 += x; S2 += x2; S3 += x2 * x; S4 += x2 * x2; T0 += y; T1 += x * y; T2 += x2 * y; }
+      const D = S4 * (S2 * S0 - S1 * S1) - S3 * (S3 * S0 - S1 * S2) + S2 * (S3 * S1 - S2 * S2); let a2, a1, a0;
+      if (Math.abs(D) < 1e-12) { a2 = 0; a1 = 1; a0 = 0; } else { const invD = 1 / D; a2 = (T2 * (S2 * S0 - S1 * S1) - S3 * (T1 * S0 - S1 * T0) + S2 * (T1 * S1 - S2 * T0)) * invD; a1 = (S4 * (T1 * S0 - S1 * T0) - T2 * (S3 * S0 - S1 * S2) + S2 * (S3 * T0 - T1 * S2)) * invD; a0 = (S4 * (S2 * T0 - S1 * T1) - S3 * (S3 * T0 - T1 * S2) + T2 * (S3 * S1 - S2 * S2)) * invD; }
+      if (!Number.isFinite(a2)) a2 = 0; if (!Number.isFinite(a1)) a1 = 1; if (!Number.isFinite(a0)) a0 = 0;
+      const mid = clamp(a2 * 0.25 + a1 * 0.5 + a0, 0.01, 0.99); let gamma = 1.0; if (mid > 0.01 && mid < 0.99) { gamma = Math.log(mid) / Math.log(0.5); gamma = clamp(gamma, 0.65, 1.6); }
+      const slopeAtMid = 2 * a2 * 0.5 + a1; const contrast = clamp(slopeAtMid, 0.75, 1.35); const curveIntegral = a2 / 3 + a1 / 2 + a0; const brightDiff = curveIntegral - 0.5; const bright = clamp(brightDiff * 45, -12, 12); const tempEstimate = (channelGains.rGain - channelGains.bGain) * 50; const temp = clamp(tempEstimate, -20, 20);
+      return { br: clamp(1.0 + bright * 0.010, 0.88, 1.45), ct: clamp(contrast, 0.78, 1.35), sat: clamp(satMul, 0.82, 1.50), _gamma: gamma, _bright: bright, _temp: temp, _channelGains: channelGains, _toneCurve: curve };
+    }
+
+    /* ══════════════════════════════════════════════════════════════════
+       createVideoMaximizer
+       ══════════════════════════════════════════════════════════════════ */
+    function createVideoMaximizer(Store, ApplyReq) {
+      const MAX_CLASS = 'vsc-vmax-max'; const HIDE_CLASS = 'vsc-vmax-hide'; const ANCESTOR_CLASS = 'vsc-vmax-ancestor'; const IFRAME_MAX_CLASS = 'vsc-vmax-iframe';
+      let active = false, targetVideo = null, targetIframe = null;
+      const savedStylesSet = new Set(); const savedStylesList = []; let hiddenSiblings = []; let savedScrollX = 0, savedScrollY = 0;
+      let classMO = null, isIframeMode = false; let delegatedToTop = false, innerMaxActive = false; const innerSavedStylesSet = new Set(); const innerSavedStylesList = [];
+
+      function isInIframe() { try { return window !== window.top; } catch (_) { return true; } }
+
+      function pickBestVideo() {
+        const explicit = window[VSC_INTERNAL_SYM]?._activeVideo;
+        if (explicit?.isConnected && explicit.readyState >= 2 && !explicit.ended) return explicit;
+        let best = null, bestScore = -1;
+        for (const v of document.querySelectorAll('video')) {
+          if (!v.isConnected || v.readyState < 1) continue;
+          let s = 0; const r = v.getBoundingClientRect(); const area = r.width * r.height;
+          if (!v.paused && !v.ended) s += 10; if (!v.muted && v.volume > 0.01) s += 3;
+          s += Math.log2(1 + area / 10000); if (v.currentTime > 0.5) s += 2;
+          if (s > bestScore) { bestScore = s; best = v; }
+        }
+        return best;
+      }
+
+      function findIframeForWindow(childWin) {
+        try { const iframes = document.querySelectorAll('iframe'); for (const ifr of iframes) { try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {} } } catch (_) {}
+        return null;
+      }
+
+      function backupAndApplyStyle(el, css, isInner = false) {
+        const sSet = isInner ? innerSavedStylesSet : savedStylesSet;
+        const sList = isInner ? innerSavedStylesList : savedStylesList;
+        if (!sSet.has(el)) { sSet.add(el); sList.push(el); }
+        for (const [prop, val] of Object.entries(css)) vscSetStyle(el, prop, val, 'important');
+      }
+      function restoreSavedStyle(el) { if (el) vscClearAllStyles(el); }
+
+      function hideSiblings(el) {
+        if (!el.parentNode) return;
+        for (const sib of el.parentNode.children) {
+          if (sib === el || sib.nodeType !== 1) continue;
+          if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
+          if (sib.hasAttribute?.('data-vsc-ui') || sib.id === 'vsc-host' || sib.id === 'vsc-gear-host' || sib.id === 'vsc-osd') continue;
+          const prevDisplay = sib.style.getPropertyValue('display'), prevDisplayPrio = sib.style.getPropertyPriority('display');
+          sib.classList.add(HIDE_CLASS); sib.style.setProperty('display', 'none', 'important');
+          hiddenSiblings.push({ el: sib, prevDisplay, prevDisplayPrio });
+        }
+      }
+
+      let styleInjected = false;
+      function injectStyle() {
+        if (styleInjected) return; styleInjected = true;
+        const s = document.createElement('style'); s.dataset.vscMaximizer = '1';
+        s.textContent = [
+          `.${MAX_CLASS}{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;transform:none!important;}`,
+          `.${HIDE_CLASS}{display:none!important;}`,
+          `.${ANCESTOR_CLASS}{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}`,
+          `.${IFRAME_MAX_CLASS}{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}`
+        ].join('\n');
+        (document.head || document.documentElement).appendChild(s);
+      }
+
+      function startClassGuard(primaryEl) {
+        if (classMO) { classMO.disconnect(); classMO = null; }
+        const guardClass = isIframeMode ? IFRAME_MAX_CLASS : MAX_CLASS;
+        classMO = new MutationObserver((muts) => {
+          for (const m of muts) {
+            if (m.type !== 'attributes' || m.attributeName !== 'class' || !active) continue;
+            const el = m.target;
+            if (el === primaryEl && !el.classList.contains(guardClass)) el.classList.add(guardClass);
+            if (el.dataset?.vscMaxAncestor === '1' && !el.classList.contains(ANCESTOR_CLASS)) el.classList.add(ANCESTOR_CLASS);
+          }
+        });
+        classMO.observe(primaryEl, { attributes: true, attributeFilter: ['class'] });
+        let cur = primaryEl.parentElement;
+        while (cur && cur !== document.body && cur !== document.documentElement) { classMO.observe(cur, { attributes: true, attributeFilter: ['class'] }); cur = cur.parentElement; }
+      }
+      function stopClassGuard() { if (classMO) { classMO.disconnect(); classMO = null; } }
+
+      function clearAncestorChain(startEl, isInner = false) {
+        let ancestor = startEl.parentElement;
+        while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+          ancestor.dataset.vscMaxAncestor = '1';
+          backupAndApplyStyle(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' }, isInner);
+          ancestor.classList.add(ANCESTOR_CLASS); hideSiblings(ancestor);
+          ancestor = ancestor.parentElement;
+        }
+      }
+      function lockBody(isInner = false) { backupAndApplyStyle(document.body, { overflow: 'hidden', margin: '0', padding: '0' }, isInner); if (document.documentElement) backupAndApplyStyle(document.documentElement, { overflow: 'hidden' }, isInner); }
+
+      function doMaximizeDirect(video) {
+        injectStyle(); targetVideo = video; isIframeMode = false; savedScrollX = window.scrollX; savedScrollY = window.scrollY;
+        clearAncestorChain(video); lockBody(); backupAndApplyStyle(video, {});
+        video.classList.add(MAX_CLASS); hideSiblings(video); window.scrollTo(0, 0);
+        startClassGuard(video); active = true; ApplyReq.hard(); try { if (typeof showOSD === 'function') showOSD('최대화 ON (ESC 또는 Alt+M 해제)', 1800); } catch(_) {}
+      }
+
+      function doMaximizeIframe(iframeEl) {
+        injectStyle(); targetIframe = iframeEl; isIframeMode = true; savedScrollX = window.scrollX; savedScrollY = window.scrollY;
+        clearAncestorChain(iframeEl); lockBody(); backupAndApplyStyle(iframeEl, {});
+        iframeEl.classList.add(IFRAME_MAX_CLASS); hideSiblings(iframeEl); window.scrollTo(0, 0);
+        startClassGuard(iframeEl); active = true; ApplyReq.hard(); try { if (typeof showOSD === 'function') showOSD('최대화 ON — iframe (ESC 또는 Alt+M 해제)', 1800); } catch(_) {}
+        try { iframeEl.contentWindow.postMessage({ __vsc_max: 'apply_inner' }, '*'); } catch (_) {}
+      }
+
+      function applyInnerMaximize() {
+        if (innerMaxActive) return; const video = pickBestVideo(); if (!video) return; innerMaxActive = true;
+        backupAndApplyStyle(video, { width: '100vw', height: '100vh', 'object-fit': 'contain', position: 'fixed', top: '0', left: '0', 'z-index': '2147483646', background: '#000', margin: '0', padding: '0', border: 'none' }, true);
+        clearAncestorChain(video, true); lockBody(true);
+      }
+      function undoInnerMaximize() {
+        if (!innerMaxActive) return;
+        for (let i = innerSavedStylesList.length - 1; i >= 0; i--) { restoreSavedStyle(innerSavedStylesList[i]); }
+        innerSavedStylesList.length = 0; innerSavedStylesSet.clear(); innerMaxActive = false;
+      }
+
+      function undoMaximize() {
+        if (!active) return; stopClassGuard();
+        if (isIframeMode && targetIframe) { try { targetIframe.contentWindow.postMessage({ __vsc_max: 'undo_inner' }, '*'); } catch (_) {} try { targetIframe.contentWindow.postMessage({ __vsc_max: 'state_off' }, '*'); } catch (_) {} }
+        for (const { el, prevDisplay, prevDisplayPrio } of hiddenSiblings) { try { el.classList.remove(HIDE_CLASS); if (prevDisplay) { el.style.setProperty('display', prevDisplay, prevDisplayPrio || ''); } else { el.style.removeProperty('display'); } } catch (_) {} }
+        hiddenSiblings = [];
+        for (let i = savedStylesList.length - 1; i >= 0; i--) { const el = savedStylesList[i]; restoreSavedStyle(el); try { el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS); delete el.dataset.vscMaxAncestor; } catch (_) {} }
+        savedStylesList.length = 0; savedStylesSet.clear(); window.scrollTo(savedScrollX, savedScrollY);
+        active = false; targetVideo = null; targetIframe = null; isIframeMode = false;
+        ApplyReq.hard(); try { if (typeof showOSD === 'function') showOSD('최대화 OFF', 1200); } catch(_) {}
+      }
+
+      function toggle() {
+        if (isInIframe()) {
+          if (delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; }
+          try { window.top.postMessage({ __vsc_max: 'request' }, '*'); delegatedToTop = true; } catch (_) { const video = pickBestVideo(); if (video) doMaximizeDirect(video); else { try { if (typeof showOSD === 'function') showOSD('최대화할 비디오를 찾을 수 없음', 1500); } catch(_) {} } }
+          return;
+        }
+        if (active) { undoMaximize(); return; }
+        const video = pickBestVideo(); if (video) { doMaximizeDirect(video); return; }
+        const iframes = document.querySelectorAll('iframe'); let bestIframe = null, bestArea = 0;
+        for (const ifr of iframes) {
+          if (!ifr.isConnected) continue; const r = ifr.getBoundingClientRect(); const area = r.width * r.height; if (area < 10000) continue;
+          try { const doc = ifr.contentDocument || ifr.contentWindow?.document; if (doc?.querySelector('video')) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } } } catch (_) { if (area > bestArea) { bestArea = area; bestIframe = ifr; } }
+        }
+        if (bestIframe) { doMaximizeIframe(bestIframe); return; }
+        try { if (typeof showOSD === 'function') showOSD('최대화할 비디오를 찾을 수 없음', 1500); } catch(_) {}
+      }
+
+      function onMessage(e) {
+        if (!e.data || typeof e.data !== 'object' || !e.data.__vsc_max) return;
+        const cmd = e.data.__vsc_max;
+        if (!isInIframe()) {
+          if (cmd === 'request') { const iframeEl = findIframeForWindow(e.source); if (iframeEl) { if (active) undoMaximize(); doMaximizeIframe(iframeEl); try { e.source.postMessage({ __vsc_max: 'state_on' }, '*'); } catch (_) {} } return; }
+          if (cmd === 'undo') { if (active) undoMaximize(); return; } return;
+        }
+        if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
+        if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
+        if (cmd === 'state_on') { delegatedToTop = true; return; }
+        if (cmd === 'state_off') { delegatedToTop = false; return; }
+      }
+
+      on(window, 'message', onMessage, { passive: true });
+      __globalSig.addEventListener('abort', () => { if (active) { try { undoMaximize(); } catch (_) {} } if (innerMaxActive) { try { undoInnerMaximize(); } catch (_) {} } delegatedToTop = false; }, { once: true });
+
+      return Object.freeze({ toggle, isActive: () => active || delegatedToTop, getTarget: () => targetVideo || targetIframe, doMaximize: toggle, undoMaximize() { if (isInIframe() && delegatedToTop) { try { window.top.postMessage({ __vsc_max: 'undo' }, '*'); } catch (_) {} delegatedToTop = false; return; } undoMaximize(); } });
+    }
+
+    /* ── isNeutralVideoParams (Bug 4 Applied) ── */
+    const isNeutralVideoParams = (() => {
+      let _lastHash = 0;
+      let _lastResult = true;
+
+      return function isNeutralCached(v) {
+        if (v._autoToneCurve !== null || v._autoChannelGains !== null) return false;
+
+        const h = ((v._cssBr * 1000) | 0) ^
+                  (((v._cssCt * 1000) | 0) << 10) ^
+                  (((v._cssSat ?? 1) * 1000) | 0) << 20 ^
+                  (((v.sharp || 0) * 1000) | 0);
+
+        if (h === _lastHash) return _lastResult;
+
+        _lastHash = h;
+
+        const cssBr = v._cssBr ?? 1, cssCt = v._cssCt ?? 1, cssSat = v._cssSat ?? 1;
+        if (cssBr < 0.99 || cssBr > 1.01 || cssCt < 0.99 || cssCt > 1.01 || cssSat < 0.99 || cssSat > 1.01) { _lastResult = false; return false; }
+
+        const sharp = v.sharp ?? 0;
+        if (sharp > 0.01 || sharp < -0.01) { _lastResult = false; return false; }
+
+        const T = 0.01;
+        _lastResult = Math.abs(v.toe ?? 0) < T && Math.abs(v.mid ?? 0) < T && Math.abs(v.shoulder ?? 0) < T
+            && Math.abs((v.gain ?? 1) - 1) < T && Math.abs((v.gamma ?? 1) - 1) < T
+            && Math.abs((v.contrast ?? 1) - 1) < T && Math.abs(v.bright ?? 0) < T && Math.abs(v.temp ?? 0) < T;
+
+        return _lastResult;
+      };
+    })();
+
+    /* ══════════════════════════════════════════════════════════════════
+       createApplyLoop
+       ══════════════════════════════════════════════════════════════════ */
+    function createApplyLoop(Store, Scheduler, Registry, TargetingMod, Audio, AutoScene, FiltersVO, ParamsMemo, ApplyReq) {
+      const __lastUserPt = { x: 0, y: 0, t: 0 };
+      onWin('pointermove', e => { __lastUserPt.x = e.clientX; __lastUserPt.y = e.clientY; __lastUserPt.t = performance.now(); }, { passive: true });
+      onWin('touchstart', e => { if (e.touches.length > 0) { __lastUserPt.x = e.touches[0].clientX; __lastUserPt.y = e.touches[0].clientY; __lastUserPt.t = performance.now(); } }, { passive: true });
+
+      let prevTarget = null;
+      const _targets = new Set();
+
+      setRecurring(() => { if (Registry.videos.size === 0 && TOUCHED.videos.size === 0 && TOUCHED.rateVideos.size === 0) return; Registry.prune(); for (const key of ['videos', 'rateVideos']) { for (const v of TOUCHED[key]) { if (!v.isConnected) TOUCHED[key].delete(v); } } }, 5000, { maxErrors: 50 });
+
+      function restoreRate(video) { const rs = getRateState(video); if (rs.orig != null && Math.abs(video.playbackRate - (rs.orig || 1)) > 0.002) { rs.suppressSyncUntil = performance.now() + RATE_SUPPRESS_MS; try { video.playbackRate = rs.orig || 1; } catch (_) {} } rs.orig = null; rs._rateRetryCount = 0; rs._totalRetries = 0; rs.permanentlyBlocked = false; }
+
+      function apply(forceApply) {
         if (__globalSig.aborted) return;
 
         const dirtyMask = Store.consumeDirty?.() || 0xFFFF;
@@ -4986,28 +5115,31 @@ function scheduleNext(v, delayMs) {
           return;
         }
 
-        const targetChanged = target !== prevTarget; // 플래그 추출
-if (targetChanged || forceApply) {
-  if (prevTarget && targetChanged) FiltersVO.clear(prevTarget);
-  prevTarget = target;
-  window[VSC_INTERNAL_SYM]._activeVideo = target;
-  Audio.setTarget(target);
-}
+        const targetChanged = target !== prevTarget;
+        const audioDirty = !!(dirtyMask & 0b0010); // 💡 수정됨: 오디오 토글 상태 변화 감지
+
+        // 💡 수정됨: 오디오 스위치가 조작된 경우 타겟 변경이 없어도 억지로 Audio.setTarget 호출
+        if (targetChanged || forceApply || audioDirty) {
+          if (prevTarget && targetChanged) FiltersVO.clear(prevTarget);
+          prevTarget = target;
+          window[VSC_INTERNAL_SYM]._activeVideo = target;
+          Audio.setTarget(target);
+        }
 
         const vfUser = Store.getCatRef('video'); const pbEn = !!Store.get(P.PB_EN); const pbRate = Number(Store.get(P.PB_RATE));
 
         _targets.clear();
         if (target) _targets.add(target);
         if (applyAll) {
-  for (const v of Registry.videos) { if (v.isConnected) _targets.add(v); }
-}
+          for (const v of Registry.videos) { if (v.isConnected) _targets.add(v); }
+        }
 
         for (const v of TOUCHED.videos) {
           if (!v.isConnected || _targets.has(v)) continue;
           const vst = getVState(v); if (vst.applied) FiltersVO.clear(v);
         }
 
-        if (dirtyMask & 0b0100 || forceApply || targetChanged) { // ✅ 교체
+        if (dirtyMask & 0b0100 || forceApply || targetChanged) {
           if (pbEn) {
             for (const v of TOUCHED.rateVideos) {
               if (!v.isConnected || _targets.has(v)) continue;
@@ -5017,7 +5149,7 @@ if (targetChanged || forceApply) {
         }
 
         for (const v of _targets) {
-          if (dirtyMask & 0b0100 || forceApply || targetChanged) { // ✅ 교체
+          if (dirtyMask & 0b0100 || forceApply || targetChanged) {
             if (pbEn && Number.isFinite(pbRate) && pbRate > 0) {
               const rs = getRateState(v);
               if (!rs.permanentlyBlocked) {
@@ -5036,7 +5168,7 @@ if (targetChanged || forceApply) {
 
           if (vst.__abCompare) {
             FiltersVO.clear(v);
-            if (dirtyMask & 0b1000 || forceApply || targetChanged) { // ✅ 교체
+            if (dirtyMask & 0b1000 || forceApply || targetChanged) {
               const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
               const fit = Store.get(P.APP_VID_FIT) || 'contain';
               if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
@@ -5052,7 +5184,7 @@ if (targetChanged || forceApply) {
             FiltersVO.applyFilter(v, filterResult);
           }
 
-          if (dirtyMask & 0b1000 || forceApply || targetChanged) { // ✅ 교체
+          if (dirtyMask & 0b1000 || forceApply || targetChanged) {
             const rot = Number(Store.get(P.APP_VID_ROT)) || 0;
             const fit = Store.get(P.APP_VID_FIT) || 'contain';
             if (rot !== 0 || fit !== 'contain') applyVideoTransform(v, Store);
@@ -5061,11 +5193,11 @@ if (targetChanged || forceApply) {
           touchedAddLimited(TOUCHED.videos, v);
         }
       }
-      Scheduler.registerApply(apply); return { apply };
-    }
+      Scheduler.registerApply(apply); return { apply };
+    }
 
 // ═══ END OF PART 3 (v211.7.0) ═══
-// ═══ PART 4 START (v211.7.2) — Filters, UI, Gestures & Bootstrap ═══
+// ═══ PART 4 START (v214.2.0) — Filters, UI, Gestures & Bootstrap ═══
 
     /* ── 화면 밝기 공통 상수 ── */
     const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
@@ -5257,7 +5389,6 @@ if (targetChanged || forceApply) {
 
         const inFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
 
-        // 🐛 섀도우 DOM이라고 무조건 쫄아서 샤프닝(SVG)을 버리고 CSS로 도망가는 버그 수정! (전체화면 상태일 때만 폴백)
         const forceCssOnly = inFullscreen && (inShadow || video === (document.fullscreenElement || document.webkitFullscreenElement));
 
         const root = inShadow ? videoRoot : (video.ownerDocument || document);
@@ -5474,17 +5605,16 @@ if (targetChanged || forceApply) {
     }
 
     function computeResolutionSharpMul(video) {
-      // 변수 누락 에러 방지를 위해 함수 자체 객체에 캐시를 저장하는 독립형 구조로 변경
       if (!computeResolutionSharpMul.cache) computeResolutionSharpMul.cache = new WeakMap();
       const _cache = computeResolutionSharpMul.cache;
 
       const nW = video.videoWidth  | 0;
-const nH = video.videoHeight | 0;
-let dW = (video.clientWidth  || video.offsetWidth  || 0) | 0;
-let dH = (video.clientHeight || video.offsetHeight || 0) | 0;
-if (dW === 0) dW = nW; // 화면에 안 보여서 0x0일 경우 원본 크기로 덮어씌움
-if (dH === 0) dH = nH;
-const dpr = Math.min(Math.max(1, window.devicePixelRatio | 0), 4);
+      const nH = video.videoHeight | 0;
+      let dW = (video.clientWidth  || video.offsetWidth  || 0) | 0;
+      let dH = (video.clientHeight || video.offsetHeight || 0) | 0;
+      if (dW === 0) dW = nW;
+      if (dH === 0) dH = nH;
+      const dpr = Math.min(Math.max(1, window.devicePixelRatio | 0), 4);
 
       const c = _cache.get(video);
       if (c !== undefined && c.nW === nW && c.nH === nH && c.dW === dW && c.dH === dH && c.dp === dpr) {
@@ -5586,16 +5716,16 @@ const dpr = Math.min(Math.max(1, window.devicePixelRatio | 0), 4);
           const storeRev = Store.rev();
           const sceneRev = window[VSC_INTERNAL_SYM]?.AutoScene?.getAutoSceneRev?.() ?? 0;
           const w  = (activeTarget?.videoWidth  | 0) || 0;
-const ht = (activeTarget?.videoHeight | 0) || 0;
-const dw = (activeTarget?.clientWidth | 0) || 0;
-const dh = (activeTarget?.clientHeight | 0) || 0;
+          const ht = (activeTarget?.videoHeight | 0) || 0;
+          const dw = (activeTarget?.clientWidth | 0) || 0;
+          const dh = (activeTarget?.clientHeight | 0) || 0;
 
-if (activeTarget) {
-  const c = cache.get(activeTarget);
-  if (c !== undefined && c.sr === storeRev && c.ar === sceneRev && c.w === w && c.h === ht && c.dw === dw && c.dh === dh) {
-    return c.result;
-  }
-}
+          if (activeTarget) {
+            const c = cache.get(activeTarget);
+            if (c !== undefined && c.sr === storeRev && c.ar === sceneRev && c.w === w && c.h === ht && c.dw === dw && c.dh === dh) {
+              return c.result;
+            }
+          }
 
           const autoMods = window[VSC_INTERNAL_SYM]?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
           const motionSAD = window[VSC_INTERNAL_SYM]?.AutoScene?.getLastMotionSAD?.() || 0;
@@ -5608,8 +5738,8 @@ if (activeTarget) {
           svgBase.sharp = Math.min(Number(svgBase.sharp || 0), 28);
 
           if (activeTarget) {
-  cache.set(activeTarget, { sr: storeRev, ar: sceneRev, w, h: ht, dw, dh, result: svgBase });
-}
+            cache.set(activeTarget, { sr: storeRev, ar: sceneRev, w, h: ht, dw, dh, result: svgBase });
+          }
           return svgBase;
         },
         invalidate() {}
@@ -5684,104 +5814,104 @@ ${CSS_VARS}
 :host { all: initial; position: fixed !important; z-index: 2147483647; font-family: var(--vsc-font); font-size: var(--vsc-font-md); color: var(--vsc-text); pointer-events: none; contain: none !important; overflow: visible !important; isolation: isolate; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
 .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px); top: 50%; width: var(--vsc-panel-width); max-height: var(--vsc-panel-max-h); background: var(--vsc-glass); border: 1px solid var(--vsc-glass-border); border-radius: var(--vsc-radius-xl); backdrop-filter: var(--vsc-glass-blur); -webkit-backdrop-filter: var(--vsc-glass-blur); box-shadow: var(--vsc-shadow-panel); display: flex; flex-direction: column; overflow: hidden; user-select: none; contain: none !important; opacity: 0; transform: translate(16px, -50%) scale(0.92); filter: blur(4px); transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out); }
-.panel.open { opacity: 1; transform: translate(0, -50%) scale(1); filter: blur(0); pointer-events: auto; }
-.panel::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--vsc-neon), transparent); opacity: 0.6; pointer-events: none; z-index: 2; }
-.hdr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); gap: 10px; position: relative; }
-.hdr .tl { font-weight: 800; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; background: linear-gradient(135deg, var(--vsc-neon), var(--vsc-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: none; }
-.hdr .ver { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.30; margin-left: auto; letter-spacing: 0.5px; }
-.hdr-status { display: flex; gap: 8px; align-items: center; margin-left: 4px; }
-.hdr-dot { width: 7px; height: 7px; border-radius: 50%; position: relative; cursor: help; transition: box-shadow 0.3s; }
-.hdr-dot.green  { background: var(--vsc-green);  box-shadow: 0 0 8px rgba(76, 255, 141, 0.5); }
-.hdr-dot.amber  { background: var(--vsc-amber);  box-shadow: 0 0 8px rgba(255, 190, 70, 0.5); }
-.hdr-dot.red    { background: var(--vsc-red);    box-shadow: 0 0 8px rgba(255, 77, 106, 0.5); }
-.hdr-dot.gray   { background: rgba(255, 255, 255, 0.15); }
-.hdr-dot::after { content: attr(data-label); position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); font-size: 9px; white-space: nowrap; opacity: 0; transition: all 0.2s var(--vsc-ease-out); pointer-events: none; color: #fff; background: rgba(0, 0, 0, 0.85); padding: 3px 8px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 10; backdrop-filter: blur(8px); }
-.hdr-dot:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
-.tabs { display: flex; border-bottom: 1px solid rgba(255, 255, 255, 0.04); position: relative; padding: 0 4px; }
-.tabs::after { content: ''; position: absolute; bottom: 0; height: 2px; background: var(--vsc-neon); box-shadow: var(--vsc-neon-glow); border-radius: 1px; transition: left 0.3s var(--vsc-ease-out), width 0.3s var(--vsc-ease-out); left: var(--tab-indicator-left, 0); width: var(--tab-indicator-width, 25%); }
-.tab { flex: 1; padding: 10px 0; text-align: center; font-size: var(--vsc-font-sm); font-weight: 600; letter-spacing: 0.6px; cursor: pointer; opacity: 0.35; border-bottom: 2px solid transparent; transition: opacity 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; text-transform: uppercase; }
-.tab svg { opacity: 0.6; flex-shrink: 0; width: 14px; height: 14px; transition: opacity 0.2s, filter 0.2s; }
-.tab:hover { opacity: 0.65; }
-.tab.on { opacity: 1; color: var(--vsc-neon); }
-.tab.on svg { opacity: 1; filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.4)); }
-.body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0, 229, 255, 0.15) transparent; }
-.body::-webkit-scrollbar { width: 4px; }
-.body::-webkit-scrollbar-track { background: transparent; }
-.body::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.2); border-radius: 2px; }
-.body::-webkit-scrollbar-thumb:hover { background: rgba(0, 229, 255, 0.35); }
-.row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; min-height: var(--vsc-touch-min); }
-.row label { font-size: 12px; opacity: 0.75; flex: 0 0 auto; max-width: 48%; font-weight: 500; }
-.row .ctrl { display: flex; align-items: center; gap: var(--vsc-space-sm); flex: 1; justify-content: flex-end; }
-input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; max-width: 140px; height: 4px; border-radius: 2px; outline: none; cursor: pointer; background: transparent; position: relative; margin: 0; }
-input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--vsc-neon) 0%, var(--vsc-neon) var(--fill, 50%), rgba(255, 255, 255, 0.08) var(--fill, 50%)); box-shadow: inset 0 0 4px rgba(0, 229, 255, 0.15); }
-input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); border: none; }
-input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--vsc-neon); }
-input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: var(--vsc-touch-slider); height: var(--vsc-touch-slider); border-radius: 50%; background: var(--vsc-neon); cursor: pointer; border: 2px solid rgba(0, 0, 0, 0.3); box-shadow: 0 0 8px rgba(0, 229, 255, 0.4), 0 0 2px rgba(0, 229, 255, 0.8); margin-top: calc((4px - var(--vsc-touch-slider)) / 2); transition: box-shadow 0.2s, transform 0.15s var(--vsc-ease-spring); }
-input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: 0 0 16px rgba(0, 229, 255, 0.6), 0 0 4px rgba(0, 229, 255, 1); }
-input[type=range]::-moz-range-thumb { width: var(--vsc-touch-slider); height: var(--vsc-touch-slider); border-radius: 50%; background: var(--vsc-neon); cursor: pointer; border: 2px solid rgba(0, 0, 0, 0.3); box-shadow: 0 0 8px rgba(0, 229, 255, 0.4); }
-.val { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-sm); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.85; color: var(--vsc-neon); }
-.tgl { position: relative; width: 46px; height: 24px; border-radius: var(--vsc-radius-pill); background: rgba(255, 255, 255, 0.08); cursor: pointer; transition: background 0.3s, box-shadow 0.3s; overflow: visible; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.06); }
-.tgl.on { background: var(--vsc-neon-soft); border-color: var(--vsc-neon-border); box-shadow: 0 0 12px rgba(0, 229, 255, 0.2); }
-.tgl::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); transition: transform 0.3s var(--vsc-ease-spring), background 0.3s, box-shadow 0.3s; }
-.tgl.on::after { transform: translateX(22px); background: var(--vsc-neon); box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
-.tgl::before { content: ''; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-size: 7px; font-weight: 700; opacity: 0; letter-spacing: 0.5px; }
-.tgl.on::before { content: ''; left: 7px; right: auto; }
-.btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--vsc-radius-md); color: var(--vsc-text); padding: var(--vsc-space-xs) var(--vsc-space-md); font-size: var(--vsc-font-sm); cursor: pointer; transition: all 0.15s var(--vsc-ease-out); min-height: var(--vsc-touch-min); min-width: 44px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--vsc-font); font-weight: 500; position: relative; overflow: hidden; }
-.btn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(0, 229, 255, 0.2), transparent 70%); opacity: 0; transition: opacity 0.4s; }
-.btn:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.12); transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
-.btn:active::after { opacity: 1; }
-.btn.pr { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); }
-.btn.pr:hover { background: var(--vsc-neon-soft); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
-.chips { padding: 4px 0; display: flex; gap: 5px; justify-content: space-between; }
-.chip { display: inline-flex; align-items: center; justify-content: center; padding: 5px 6px; min-height: var(--vsc-touch-min); min-width: 38px; flex: 1; font-size: var(--vsc-font-sm); font-weight: 500; border-radius: var(--vsc-radius-sm); cursor: pointer; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--vsc-glass-border); transition: all 0.2s var(--vsc-ease-out); text-align: center; -webkit-tap-highlight-color: transparent; position: relative; }
-.chip:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.10); }
-.chip.on { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); box-shadow: 0 0 8px rgba(0, 229, 255, 0.1); }
-.chip.on::before { content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 1px; background: var(--vsc-neon); opacity: 0.5; }
-.sep { height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent); margin: 8px 0; }
-.metrics-footer { font-family: var(--vsc-font-mono); font-size: 9px; opacity: 0.35; padding: 6px 16px 8px; border-top: 1px solid rgba(255, 255, 255, 0.03); line-height: 1.6; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 6px 14px; }
-.shortcut-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: var(--vsc-font-xs); line-height: 1.7; padding: var(--vsc-space-xs) 0; }
-.shortcut-grid .sk { font-family: var(--vsc-font-mono); font-weight: 600; color: var(--vsc-neon); white-space: nowrap; font-size: 10px; }
-.shortcut-grid .sd { opacity: 0.6; }
-.rate-display { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xxl); font-weight: 800; text-align: center; padding: 8px 0; font-variant-numeric: tabular-nums; background: linear-gradient(135deg, #fff, var(--vsc-neon)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.2)); }
-.fine-row { display: flex; gap: var(--vsc-space-xs); justify-content: center; padding: 4px 0; }
-.fine-btn { padding: 5px 10px; min-height: var(--vsc-touch-min); min-width: 44px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255, 255, 255, 0.06); background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.6); font-family: var(--vsc-font-mono); font-size: var(--vsc-font-sm); cursor: pointer; transition: all 0.15s var(--vsc-ease-out); font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; }
-.fine-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--vsc-neon); border-color: var(--vsc-neon-border); }
-.fine-btn:active { transform: scale(0.95); }
-.adv-hd { display: flex; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; font-size: var(--vsc-font-sm); opacity: 0.45; transition: opacity 0.15s; font-weight: 500; }
-.adv-hd:hover { opacity: 0.8; }
-.adv-hd .arr { transition: transform 0.3s var(--vsc-ease-spring); font-size: 9px; display: inline-block; }
-.adv-hd .arr.open { transform: rotate(90deg); }
-.adv-bd { overflow: hidden; max-height: 0; transition: max-height 0.4s var(--vsc-ease-out); }
-.adv-bd.open { max-height: 800px; }
-.info-bar { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.40; padding: 4px 0 6px; line-height: 1.5; font-variant-numeric: tabular-nums; }
-.sparkline-canvas { width: 100%; height: 40px; border-radius: var(--vsc-radius-sm); background: rgba(255, 255, 255, 0.02); display: block; margin: 4px 0; }
-.qbar { pointer-events: none; position: fixed !important; top: 50%; right: var(--vsc-qbar-right); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: center; gap: 8px; contain: none !important; }
-.qbar .qb-main { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; opacity: 0.20; transition: all 0.3s var(--vsc-ease-out); box-shadow: var(--vsc-shadow-fab); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(16px) saturate(180%); }
-.qbar:hover .qb-main, .qbar.expanded .qb-main { opacity: 1; transform: scale(1.08); border-color: var(--vsc-neon-border); box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow); }
-.qbar .qb-sub { width: 38px; height: 38px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.06); opacity: 0; transform: scale(0.3) translateX(20px); transition: all 0.25s var(--vsc-ease-spring); pointer-events: none; visibility: hidden; z-index: 1; box-shadow: var(--vsc-shadow-btn); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(12px); }
-.qbar.expanded .qb-sub { opacity: 1; transform: scale(1) translateX(0); pointer-events: auto; visibility: visible; }
-${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) { transition-delay: ${(i * 0.04).toFixed(2)}s; }`).join('\n')}
-.qbar .qb-sub:hover { background: var(--vsc-glass-hover); border-color: var(--vsc-neon-border); transform: scale(1.12); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
-.qbar svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); transition: stroke 0.2s; }
-.qbar .qb-sub svg { width: 18px; height: 18px; }
-.qbar .qb-sub:hover svg { stroke: var(--vsc-neon); }
-.qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-neon); outline-offset: 2px; }
-:host(.is-fs) .qbar { opacity: 0.4; transition: opacity 0.3s; pointer-events: auto; }
-:host(.is-fs) .qbar:hover, :host(.is-fs) .qbar:active { opacity: 1; pointer-events: auto; }
-:host(.is-fs) .qbar .qb-main { pointer-events: auto; }
-@media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
-@media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } .chips { gap: 6px; } .fine-row { gap: 6px; } }
-@media (max-width: 350px) { .tab span { display: none; } .tab svg { width: 18px; height: 18px; opacity: 1; } }
-@media (orientation: landscape) and (max-height: 500px) { .panel { max-height: 88vh; } .body { max-height: calc(88vh - 80px); } }
-@supports (padding: env(safe-area-inset-right)) { :host(:not(.is-fs)) .qbar { right: calc(var(--vsc-qbar-right) + env(safe-area-inset-right)); } :host(:not(.is-fs)) .panel { right: calc(var(--vsc-panel-right) + 12px + env(safe-area-inset-right)); } }
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
-@media (prefers-contrast: high) { :host { --vsc-glass: rgba(0, 0, 0, 0.96); --vsc-glass-border: rgba(255, 255, 255, 0.25); --vsc-text: #fff; } }
-@media (pointer: coarse) { .qbar .qb-main { width: 50px; height: 50px; } .qbar .qb-sub  { width: 44px; height: 44px; } }
-@keyframes vsc-row-in { from { opacity: 0; transform: translateY(6px); } to    { opacity: 1; transform: translateY(0); } }
-.body > * { animation: vsc-row-in 0.25s var(--vsc-ease-out) both; }
-${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-delay: ${(i * 0.03).toFixed(2)}s; }`).join('\n')}
-`;
+    .panel.open { opacity: 1; transform: translate(0, -50%) scale(1); filter: blur(0); pointer-events: auto; }
+    .panel::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--vsc-neon), transparent); opacity: 0.6; pointer-events: none; z-index: 2; }
+    .hdr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); gap: 10px; position: relative; }
+    .hdr .tl { font-weight: 800; font-size: 16px; letter-spacing: 1.5px; text-transform: uppercase; background: linear-gradient(135deg, var(--vsc-neon), var(--vsc-purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; text-shadow: none; }
+    .hdr .ver { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.30; margin-left: auto; letter-spacing: 0.5px; }
+    .hdr-status { display: flex; gap: 8px; align-items: center; margin-left: 4px; }
+    .hdr-dot { width: 7px; height: 7px; border-radius: 50%; position: relative; cursor: help; transition: box-shadow 0.3s; }
+    .hdr-dot.green  { background: var(--vsc-green);  box-shadow: 0 0 8px rgba(76, 255, 141, 0.5); }
+    .hdr-dot.amber  { background: var(--vsc-amber);  box-shadow: 0 0 8px rgba(255, 190, 70, 0.5); }
+    .hdr-dot.red    { background: var(--vsc-red);    box-shadow: 0 0 8px rgba(255, 77, 106, 0.5); }
+    .hdr-dot.gray   { background: rgba(255, 255, 255, 0.15); }
+    .hdr-dot::after { content: attr(data-label); position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); font-size: 9px; white-space: nowrap; opacity: 0; transition: all 0.2s var(--vsc-ease-out); pointer-events: none; color: #fff; background: rgba(0, 0, 0, 0.85); padding: 3px 8px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 10; backdrop-filter: blur(8px); }
+    .hdr-dot:hover::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .tabs { display: flex; border-bottom: 1px solid rgba(255, 255, 255, 0.04); position: relative; padding: 0 4px; }
+    .tabs::after { content: ''; position: absolute; bottom: 0; height: 2px; background: var(--vsc-neon); box-shadow: var(--vsc-neon-glow); border-radius: 1px; transition: left 0.3s var(--vsc-ease-out), width 0.3s var(--vsc-ease-out); left: var(--tab-indicator-left, 0); width: var(--tab-indicator-width, 25%); }
+    .tab { flex: 1; padding: 10px 0; text-align: center; font-size: var(--vsc-font-sm); font-weight: 600; letter-spacing: 0.6px; cursor: pointer; opacity: 0.35; border-bottom: 2px solid transparent; transition: opacity 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; position: relative; text-transform: uppercase; }
+    .tab svg { opacity: 0.6; flex-shrink: 0; width: 14px; height: 14px; transition: opacity 0.2s, filter 0.2s; }
+    .tab:hover { opacity: 0.65; }
+    .tab.on { opacity: 1; color: var(--vsc-neon); }
+    .tab.on svg { opacity: 1; filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.4)); }
+    .body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0, 229, 255, 0.15) transparent; }
+    .body::-webkit-scrollbar { width: 4px; }
+    .body::-webkit-scrollbar-track { background: transparent; }
+    .body::-webkit-scrollbar-thumb { background: rgba(0, 229, 255, 0.2); border-radius: 2px; }
+    .body::-webkit-scrollbar-thumb:hover { background: rgba(0, 229, 255, 0.35); }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; min-height: var(--vsc-touch-min); }
+    .row label { font-size: 12px; opacity: 0.75; flex: 0 0 auto; max-width: 48%; font-weight: 500; }
+    .row .ctrl { display: flex; align-items: center; gap: var(--vsc-space-sm); flex: 1; justify-content: flex-end; }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; max-width: 140px; height: 4px; border-radius: 2px; outline: none; cursor: pointer; background: transparent; position: relative; margin: 0; }
+    input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--vsc-neon) 0%, var(--vsc-neon) var(--fill, 50%), rgba(255, 255, 255, 0.08) var(--fill, 50%)); box-shadow: inset 0 0 4px rgba(0, 229, 255, 0.15); }
+    input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); border: none; }
+    input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--vsc-neon); }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: var(--vsc-touch-slider); height: var(--vsc-touch-slider); border-radius: 50%; background: var(--vsc-neon); cursor: pointer; border: 2px solid rgba(0, 0, 0, 0.3); box-shadow: 0 0 8px rgba(0, 229, 255, 0.4), 0 0 2px rgba(0, 229, 255, 0.8); margin-top: calc((4px - var(--vsc-touch-slider)) / 2); transition: box-shadow 0.2s, transform 0.15s var(--vsc-ease-spring); }
+    input[type=range]:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: 0 0 16px rgba(0, 229, 255, 0.6), 0 0 4px rgba(0, 229, 255, 1); }
+    input[type=range]::-moz-range-thumb { width: var(--vsc-touch-slider); height: var(--vsc-touch-slider); border-radius: 50%; background: var(--vsc-neon); cursor: pointer; border: 2px solid rgba(0, 0, 0, 0.3); box-shadow: 0 0 8px rgba(0, 229, 255, 0.4); }
+    .val { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-sm); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.85; color: var(--vsc-neon); }
+    .tgl { position: relative; width: 46px; height: 24px; border-radius: var(--vsc-radius-pill); background: rgba(255, 255, 255, 0.08); cursor: pointer; transition: background 0.3s, box-shadow 0.3s; overflow: visible; flex-shrink: 0; border: 1px solid rgba(255, 255, 255, 0.06); }
+    .tgl.on { background: var(--vsc-neon-soft); border-color: var(--vsc-neon-border); box-shadow: 0 0 12px rgba(0, 229, 255, 0.2); }
+    .tgl::after { content: ''; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: rgba(255, 255, 255, 0.6); transition: transform 0.3s var(--vsc-ease-spring), background 0.3s, box-shadow 0.3s; }
+    .tgl.on::after { transform: translateX(22px); background: var(--vsc-neon); box-shadow: 0 0 8px rgba(0, 229, 255, 0.6); }
+    .tgl::before { content: ''; position: absolute; right: 7px; top: 50%; transform: translateY(-50%); font-size: 7px; font-weight: 700; opacity: 0; letter-spacing: 0.5px; }
+    .tgl.on::before { content: ''; left: 7px; right: auto; }
+    .btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: var(--vsc-radius-md); color: var(--vsc-text); padding: var(--vsc-space-xs) var(--vsc-space-md); font-size: var(--vsc-font-sm); cursor: pointer; transition: all 0.15s var(--vsc-ease-out); min-height: var(--vsc-touch-min); min-width: 44px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--vsc-font); font-weight: 500; position: relative; overflow: hidden; }
+    .btn::after { content: ''; position: absolute; inset: 0; background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), rgba(0, 229, 255, 0.2), transparent 70%); opacity: 0; transition: opacity 0.4s; }
+    .btn:hover { background: rgba(255, 255, 255, 0.10); border-color: rgba(255, 255, 255, 0.12); transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:active::after { opacity: 1; }
+    .btn.pr { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); }
+    .btn.pr:hover { background: var(--vsc-neon-soft); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
+    .chips { padding: 4px 0; display: flex; gap: 5px; justify-content: space-between; }
+    .chip { display: inline-flex; align-items: center; justify-content: center; padding: 5px 6px; min-height: var(--vsc-touch-min); min-width: 38px; flex: 1; font-size: var(--vsc-font-sm); font-weight: 500; border-radius: var(--vsc-radius-sm); cursor: pointer; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--vsc-glass-border); transition: all 0.2s var(--vsc-ease-out); text-align: center; -webkit-tap-highlight-color: transparent; position: relative; }
+    .chip:hover { background: rgba(255, 255, 255, 0.07); border-color: rgba(255, 255, 255, 0.10); }
+    .chip.on { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); box-shadow: 0 0 8px rgba(0, 229, 255, 0.1); }
+    .chip.on::before { content: ''; position: absolute; top: -1px; left: 20%; right: 20%; height: 1px; background: var(--vsc-neon); opacity: 0.5; }
+    .sep { height: 1px; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent); margin: 8px 0; }
+    .metrics-footer { font-family: var(--vsc-font-mono); font-size: 9px; opacity: 0.35; padding: 6px 16px 8px; border-top: 1px solid rgba(255, 255, 255, 0.03); line-height: 1.6; font-variant-numeric: tabular-nums; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+    .shortcut-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 14px; font-size: var(--vsc-font-xs); line-height: 1.7; padding: var(--vsc-space-xs) 0; }
+    .shortcut-grid .sk { font-family: var(--vsc-font-mono); font-weight: 600; color: var(--vsc-neon); white-space: nowrap; font-size: 10px; }
+    .shortcut-grid .sd { opacity: 0.6; }
+    .rate-display { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xxl); font-weight: 800; text-align: center; padding: 8px 0; font-variant-numeric: tabular-nums; background: linear-gradient(135deg, #fff, var(--vsc-neon)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.2)); }
+    .fine-row { display: flex; gap: var(--vsc-space-xs); justify-content: center; padding: 4px 0; }
+    .fine-btn { padding: 5px 10px; min-height: var(--vsc-touch-min); min-width: 44px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255, 255, 255, 0.06); background: rgba(255, 255, 255, 0.03); color: rgba(255, 255, 255, 0.6); font-family: var(--vsc-font-mono); font-size: var(--vsc-font-sm); cursor: pointer; transition: all 0.15s var(--vsc-ease-out); font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; }
+    .fine-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--vsc-neon); border-color: var(--vsc-neon-border); }
+    .fine-btn:active { transform: scale(0.95); }
+    .adv-hd { display: flex; align-items: center; gap: 6px; padding: 6px 0; cursor: pointer; font-size: var(--vsc-font-sm); opacity: 0.45; transition: opacity 0.15s; font-weight: 500; }
+    .adv-hd:hover { opacity: 0.8; }
+    .adv-hd .arr { transition: transform 0.3s var(--vsc-ease-spring); font-size: 9px; display: inline-block; }
+    .adv-hd .arr.open { transform: rotate(90deg); }
+    .adv-bd { overflow: hidden; max-height: 0; transition: max-height 0.4s var(--vsc-ease-out); }
+    .adv-bd.open { max-height: 800px; }
+    .info-bar { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xs); opacity: 0.40; padding: 4px 0 6px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+    .sparkline-canvas { width: 100%; height: 40px; border-radius: var(--vsc-radius-sm); background: rgba(255, 255, 255, 0.02); display: block; margin: 4px 0; }
+    .qbar { pointer-events: none; position: fixed !important; top: 50%; right: var(--vsc-qbar-right); transform: translateY(-50%); display: flex; flex-direction: row-reverse; align-items: center; gap: 8px; contain: none !important; }
+    .qbar .qb-main { pointer-events: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.08); z-index: 2; opacity: 0.20; transition: all 0.3s var(--vsc-ease-out); box-shadow: var(--vsc-shadow-fab); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(16px) saturate(180%); }
+    .qbar:hover .qb-main, .qbar.expanded .qb-main { opacity: 1; transform: scale(1.08); border-color: var(--vsc-neon-border); box-shadow: var(--vsc-shadow-fab), var(--vsc-neon-glow); }
+    .qbar .qb-sub { width: 38px; height: 38px; border-radius: 50%; background: var(--vsc-glass); border: 1px solid rgba(255, 255, 255, 0.06); opacity: 0; transform: scale(0.3) translateX(20px); transition: all 0.25s var(--vsc-ease-spring); pointer-events: none; visibility: hidden; z-index: 1; box-shadow: var(--vsc-shadow-btn); display: flex; align-items: center; justify-content: center; cursor: pointer; -webkit-tap-highlight-color: transparent; backdrop-filter: blur(12px); }
+    .qbar.expanded .qb-sub { opacity: 1; transform: scale(1) translateX(0); pointer-events: auto; visibility: visible; }
+    ${Array.from({length: 8}, (_, i) => `.qbar.expanded .qb-sub:nth-child(${i + 2}) { transition-delay: ${(i * 0.04).toFixed(2)}s; }`).join('\n')}
+    .qbar .qb-sub:hover { background: var(--vsc-glass-hover); border-color: var(--vsc-neon-border); transform: scale(1.12); box-shadow: 0 0 12px rgba(0, 229, 255, 0.15); }
+    .qbar svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4)); transition: stroke 0.2s; }
+    .qbar .qb-sub svg { width: 18px; height: 18px; }
+    .qbar .qb-sub:hover svg { stroke: var(--vsc-neon); }
+    .qb:focus-visible, .chip:focus-visible, .btn:focus-visible, .fine-btn:focus-visible { outline: 2px solid var(--vsc-neon); outline-offset: 2px; }
+    :host(.is-fs) .qbar { opacity: 0.4; transition: opacity 0.3s; pointer-events: auto; }
+    :host(.is-fs) .qbar:hover, :host(.is-fs) .qbar:active { opacity: 1; pointer-events: auto; }
+    :host(.is-fs) .qbar .qb-main { pointer-events: auto; }
+    @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
+    @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } .chips { gap: 6px; } .fine-row { gap: 6px; } }
+    @media (max-width: 350px) { .tab span { display: none; } .tab svg { width: 18px; height: 18px; opacity: 1; } }
+    @media (orientation: landscape) and (max-height: 500px) { .panel { max-height: 88vh; } .body { max-height: calc(88vh - 80px); } }
+    @supports (padding: env(safe-area-inset-right)) { :host(:not(.is-fs)) .qbar { right: calc(var(--vsc-qbar-right) + env(safe-area-inset-right)); } :host(:not(.is-fs)) .panel { right: calc(var(--vsc-panel-right) + 12px + env(safe-area-inset-right)); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
+    @media (prefers-contrast: high) { :host { --vsc-glass: rgba(0, 0, 0, 0.96); --vsc-glass-border: rgba(255, 255, 255, 0.25); --vsc-text: #fff; } }
+    @media (pointer: coarse) { .qbar .qb-main { width: 50px; height: 50px; } .qbar .qb-sub  { width: 44px; height: 44px; } }
+    @keyframes vsc-row-in { from { opacity: 0; transform: translateY(6px); } to    { opacity: 1; transform: translateY(0); } }
+    .body > * { animation: vsc-row-in 0.25s var(--vsc-ease-out) both; }
+    ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-delay: ${(i * 0.03).toFixed(2)}s; }`).join('\n')}
+    `;
 
     let __osdReady = false;
     let __osdEl = null, __osdTimerId = 0;
@@ -5935,7 +6065,8 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         return AutoScene.isGpuActive() ? 'active' : 'fallback';
       }
       function getDspStatus() {
-        if (!Audio || !Audio.hasCtx() || Audio.isBypassed()) return 'off';
+        if (!Audio || !Audio.hasCtx()) return 'off';
+        if (Audio.isBypassed()) return 'bypass'; // 💡 우회 상태를 명확히 리턴
         return Audio.isWorklet() ? 'worklet' : 'legacy';
       }
       function isDrmDetected() {
@@ -6140,276 +6271,276 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function buildVideoTab() {
-        const w = h('div', {}); const infoBar = h('div', { class: 'info-bar' });
-        function updateInfo() {
-          const active = window[VSC_INTERNAL_SYM]._activeVideo;
-          const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
-          if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
-          const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
-          if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
-          const { autoBase } = computeResolutionSharpMul(video); const presetS = Store.get(P.V_PRE_S);
-          let sharpLabel = presetS === 'none' ? '꺼짐(OFF)' : (presetS === 'off' ? `자동(${autoBase.toFixed(3)})` : `${getPresetLabel('detail', presetS)} (수동)`);
-          infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
-        }
-        Bus.on('signal', updateInfo); tabFns.push(updateInfo); updateInfo();
+        const w = h('div', {}); const infoBar = h('div', { class: 'info-bar' });
+        function updateInfo() {
+          const active = window[VSC_INTERNAL_SYM]._activeVideo;
+          const video = (active && active.isConnected) ? active : (() => { try { return document.querySelector('video'); } catch (_) { return null; } })();
+          if (!video || !video.isConnected) { infoBar.textContent = '영상 없음'; return; }
+          const nW = video.videoWidth || 0, nH = video.videoHeight || 0, dW = video.clientWidth || video.offsetWidth || 0, dH = video.clientHeight || video.offsetHeight || 0;
+          if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
+          const { autoBase } = computeResolutionSharpMul(video); const presetS = Store.get(P.V_PRE_S);
+          let sharpLabel = presetS === 'none' ? '꺼짐(OFF)' : (presetS === 'off' ? `자동(${autoBase.toFixed(3)})` : `${getPresetLabel('detail', presetS)} (수동)`);
+          infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
+        }
+        Bus.on('signal', updateInfo); tabFns.push(updateInfo); updateInfo();
 
-        const motionSpark = createSparkline(280, 36, 100);
-        const sparkWrap = h('div', { style: 'padding:4px 0' },
-          h('label', { style: 'font-size:10px;opacity:.4;display:block;margin-bottom:2px' }, 'Motion SAD'),
-          motionSpark.canvas
-        );
-        Bus.on('signal', () => {
-          const sad = AutoScene.getLastMotionSAD?.() || 0;
-          motionSpark.push(sad);
-        });
-        sig.addEventListener('abort', () => motionSpark.destroy(), { once: true });
+        const motionSpark = createSparkline(280, 36, 100);
+        const sparkWrap = h('div', { style: 'padding:4px 0' },
+          h('label', { style: 'font-size:10px;opacity:.4;display:block;margin-bottom:2px' }, 'Motion SAD'),
+          motionSpark.canvas
+        );
+        Bus.on('signal', () => {
+          const sad = AutoScene.getLastMotionSAD?.() || 0;
+          motionSpark.push(sad);
+        });
+        sig.addEventListener('abort', () => motionSpark.destroy(), { once: true });
 
-        w.append(infoBar, sparkWrap, mkSep());
+        w.append(infoBar, sparkWrap, mkSep());
 
-        if (CONFIG.IS_FIREFOX) {
-          w.append(
-            h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
-              "ℹ️ 파이어폭스 브라우저 제약으로 선명도 및 고급 암부 보정이 비활성화되었습니다. (재생속도/오디오/기본 밝기 사용 가능)"
-            ),
-            mkRow('노출 보정 (CSS)', ...mkOptimizedSlider(P.V_MAN_BRT, 0, 100, 1)),
-            mkSep()
-          );
-        } else {
-          // [자동보정 및 GPU 가속 섹션]
-          const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
-          function updateSceneBadge() {
-            const isOn = !!Store.get(P.APP_AUTO_SCENE);
-            if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
-            else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
-          }
-          w.append(h('div', { class: 'row' },
-            h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
-            mkOptimizedToggle(P.APP_AUTO_SCENE, v => {
-              if (v) AutoScene.start(); else AutoScene.stop();
-              updateSceneBadge(); ApplyReq.hard();
-            })
-          ));
-          Bus.on('signal', updateSceneBadge); tabFns.push(updateSceneBadge); updateSceneBadge();
+        if (CONFIG.IS_FIREFOX) {
+          w.append(
+            h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
+              "ℹ️ 파이어폭스 브라우저 제약으로 선명도 및 고급 암부 보정이 비활성화되었습니다. (재생속도/오디오/기본 밝기 사용 가능)"
+            ),
+            mkRow('노출 보정 (CSS)', ...mkOptimizedSlider(P.V_MAN_BRT, 0, 100, 1)),
+            mkSep()
+          );
+        } else {
+          // [자동보정 및 GPU 가속 섹션]
+          const sceneBadge = h('span', { class: 'badge', style: 'display:none' }, '');
+          function updateSceneBadge() {
+            const isOn = !!Store.get(P.APP_AUTO_SCENE);
+            if (isOn) { sceneBadge.style.display = ''; sceneBadge.textContent = AutoScene.getSceneTypeName?.() || ''; }
+            else { sceneBadge.style.display = 'none'; sceneBadge.textContent = ''; }
+          }
+          w.append(h('div', { class: 'row' },
+            h('label', {}, '자동 보정 (AutoScene) ', sceneBadge),
+            mkOptimizedToggle(P.APP_AUTO_SCENE, v => {
+              if (v) AutoScene.start(); else AutoScene.stop();
+              updateSceneBadge(); ApplyReq.hard();
+            })
+          ));
+          Bus.on('signal', updateSceneBadge); tabFns.push(updateSceneBadge); updateSceneBadge();
 
-          const gpuToggle = mkOptimizedToggle(P.APP_GPU_EN, (nv) => {
-            window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!nv;
-            if (nv) { showOSD('GPU 장면분석 활성화 시도…', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} }
-            else { showOSD('GPU 장면분석 OFF → CPU fallback', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneDestroy?.(); } catch (_) {} }
-            ApplyReq.soft();
-          });
-          w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
+          const gpuToggle = mkOptimizedToggle(P.APP_GPU_EN, (nv) => {
+            window[VSC_INTERNAL_SYM]._gpuSceneEnabled = !!nv;
+            if (nv) { showOSD('GPU 장면분석 활성화 시도…', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneInit?.(); } catch (_) {} }
+            else { showOSD('GPU 장면분석 OFF → CPU fallback', 1200); try { window[VSC_INTERNAL_SYM]?._gpuSceneDestroy?.(); } catch (_) {} }
+            ApplyReq.soft();
+          });
+          w.append(h('div', { class: 'row' }, h('label', {}, 'GPU 하드웨어 가속'), gpuToggle), mkSep());
 
-          // [디테일 프리셋 섹션]
-          w.append(
-            delegatedChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
-            mkRow('강도 믹스', ...mkOptimizedSlider(P.V_PRE_MIX, 0, 1, 0.01)),
-            mkSep()
-          );
+          // [디테일 프리셋 섹션]
+          w.append(
+            delegatedChipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: getPresetLabel('detail', k) })), () => ApplyReq.hard()),
+            mkRow('강도 믹스', ...mkOptimizedSlider(P.V_PRE_MIX, 0, 1, 0.01)),
+            mkSep()
+          );
 
-          const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-            h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
-            h('div', { style: 'display:flex;gap:4px' },
-              ...[
-                { n: 'OFF',  v: [0,  0,  0,  0  ] },
-                { n: '선명', v: [36,  0,  0,  0  ] },
-                { n: '복원', v: [32, 49,  7,  0  ] },
-                { n: '영화', v: [13, 23, 14, -22 ] },
-                { n: '심야', v: [54, 37,  0, -12  ] },
-                { n: '아트', v: [0,  41, 11, -19 ] },
-              ].map(p => {
-                const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
-                btn.onclick = () => {
-                  Store.batch('video', {
-                    manualShadow: p.v[0],
-                    manualRecovery: p.v[1],
-                    manualBright: p.v[2],
-                    manualTemp: p.v[3]
-                  });
-                  ApplyReq.hard(); persistNow(); syncAll();
-                  showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
-                };
+          const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+            h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
+            h('div', { style: 'display:flex;gap:4px' },
+              ...[
+                { n: 'OFF',  v: [0,  0,  0,  0  ] },
+                { n: '선명', v: [36,  0,  0,  0  ] },
+                { n: '복원', v: [32, 49,  7,  0  ] },
+                { n: '영화', v: [13, 23, 14, -22 ] },
+                { n: '심야', v: [54, 37,  0, -12  ] },
+                { n: '아트', v: [0,  41, 11, -19 ] },
+              ].map(p => {
+                const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:36px;font-size:10px;background:rgba(110,168,254,0.1)' }, p.n);
+                btn.onclick = () => {
+                  Store.batch('video', {
+                    manualShadow: p.v[0],
+                    manualRecovery: p.v[1],
+                    manualBright: p.v[2],
+                    manualTemp: p.v[3]
+                  });
+                  ApplyReq.hard(); persistNow(); syncAll();
+                  showOSD(`추천 프리셋 [${p.n}] 적용됨`, 1000);
+                };
 
-                const syncPresetBtn = () => {
-                  const curV = [
-                    Store.get(P.V_MAN_SHAD),
-                    Store.get(P.V_MAN_REC),
-                    Store.get(P.V_MAN_BRT),
-                    Store.get(P.V_MAN_TEMP)
-                  ];
-                  const isMatch = p.v.every((val, i) => val === curV[i]);
+                const syncPresetBtn = () => {
+                  const curV = [
+                    Store.get(P.V_MAN_SHAD),
+                    Store.get(P.V_MAN_REC),
+                    Store.get(P.V_MAN_BRT),
+                    Store.get(P.V_MAN_TEMP)
+                  ];
+                  const isMatch = p.v.every((val, i) => val === curV[i]);
 
-                  btn.classList.toggle('on', isMatch);
-                  if (isMatch) {
-                    btn.style.backgroundColor = 'var(--vsc-neon-dim)';
-                    btn.style.borderColor = 'var(--vsc-neon-border)';
-                    btn.style.color = 'var(--vsc-neon)';
-                  } else {
-                    btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
-                    btn.style.borderColor = 'rgba(255,255,255,0.06)';
-                    btn.style.color = 'rgba(255,255,255,0.6)';
-                  }
-                };
+                  btn.classList.toggle('on', isMatch);
+                  if (isMatch) {
+                    btn.style.backgroundColor = 'var(--vsc-neon-dim)';
+                    btn.style.borderColor = 'var(--vsc-neon-border)';
+                    btn.style.color = 'var(--vsc-neon)';
+                  } else {
+                    btn.style.backgroundColor = 'rgba(255,255,255,0.03)';
+                    btn.style.borderColor = 'rgba(255,255,255,0.06)';
+                    btn.style.color = 'rgba(255,255,255,0.6)';
+                  }
+                };
 
-                tabFns.push(syncPresetBtn);
-                syncPresetBtn();
-                return btn;
-              })
-            )
-          );
-          w.append(manualHeader);
+                tabFns.push(syncPresetBtn);
+                syncPresetBtn();
+                return btn;
+              })
+            )
+          );
+          w.append(manualHeader);
 
-          function mkSliderWithFine(label, path, min, max, step, fineStep) {
-            const [slider, valEl] = mkOptimizedSlider(path, min, max, step);
-            const syncSliderUI = () => {
-              const v = Number(Store.get(path)) || 0; slider.value = String(v); valEl.textContent = String(Math.round(v));
-              const pct = ((v - min) / (max - min)) * 100; slider.style.setProperty('--fill', `${pct}%`);
-            };
-            const mkFine = (delta, text) => {
-              const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:32px;min-height:28px;font-size:11px' }, text);
-              btn.addEventListener('click', () => {
-                const cur = Number(Store.get(path)) || 0; const nv = VSC_CLAMP(Math.round(cur + delta), min, max);
-                Store.set(path, nv); ApplyReq.hard(); persistNow(); syncSliderUI();
-              }, { signal: sig });
-              return btn;
-            };
-            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:24px;min-height:28px;font-size:10px;opacity:.6' }, '0');
-            resetBtn.addEventListener('click', () => { Store.set(path, 0); ApplyReq.hard(); persistNow(); syncSliderUI(); }, { signal: sig });
-            const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn);
-            tabFns.push(syncSliderUI);
-            return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, fineRow));
-          }
+          function mkSliderWithFine(label, path, min, max, step, fineStep) {
+            const [slider, valEl] = mkOptimizedSlider(path, min, max, step);
+            const syncSliderUI = () => {
+              const v = Number(Store.get(path)) || 0; slider.value = String(v); valEl.textContent = String(Math.round(v));
+              const pct = ((v - min) / (max - min)) * 100; slider.style.setProperty('--fill', `${pct}%`);
+            };
+            const mkFine = (delta, text) => {
+              const btn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:32px;min-height:28px;font-size:11px' }, text);
+              btn.addEventListener('click', () => {
+                const cur = Number(Store.get(path)) || 0; const nv = VSC_CLAMP(Math.round(cur + delta), min, max);
+                Store.set(path, nv); ApplyReq.hard(); persistNow(); syncSliderUI();
+              }, { signal: sig });
+              return btn;
+            };
+            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 6px;min-width:24px;min-height:28px;font-size:10px;opacity:.6' }, '0');
+            resetBtn.addEventListener('click', () => { Store.set(path, 0); ApplyReq.hard(); persistNow(); syncSliderUI(); }, { signal: sig });
+            const fineRow = h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn);
+            tabFns.push(syncSliderUI);
+            return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, fineRow));
+          }
 
-          w.append(
-            mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
-            mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
-            mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5),
-            mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
-            mkSep()
-          );
+          w.append(
+            mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
+            mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
+            mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5),
+            mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
+            mkSep()
+          );
 
-          // --------------------------------------------------------
-          // [화면 조도 (Dimmer)] 파트
-          // --------------------------------------------------------
-          const brtBtns = [];
-          const brtChips = h('div', { class: 'chips' });
+          // --------------------------------------------------------
+          // [화면 조도 (Dimmer)] 파트
+          // --------------------------------------------------------
+          const brtBtns = [];
+          const brtChips = h('div', { class: 'chips' });
 
-          SCR_BRT_LABELS.forEach((label, idx) => {
-            if (idx === 0) return;
-            const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
-            chip.addEventListener('click', () => {
-              Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
-              showOSD('화면 조도: ' + label, 1000);
-            }, { signal: sig });
-            brtBtns.push(chip); brtChips.appendChild(chip);
-          });
+          SCR_BRT_LABELS.forEach((label, idx) => {
+            if (idx === 0) return;
+            const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
+            chip.addEventListener('click', () => {
+              Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
+              showOSD('화면 조도: ' + label, 1000);
+            }, { signal: sig });
+            brtBtns.push(chip); brtChips.appendChild(chip);
+          });
 
-          const brtResetBtn = h('button', {
-            class: 'chip',
-            style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
-          brtResetBtn.addEventListener('click', () => {
-            Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
-            showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
-          }, { signal: sig });
+          const brtResetBtn = h('button', {
+            class: 'chip',
+            style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
+          brtResetBtn.addEventListener('click', () => {
+            Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
+            showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
+          }, { signal: sig });
 
-          const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
+          const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
 
-          function syncBrt() {
-            const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-            brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
-            brtResetBtn.classList.toggle('on', cur === 0);
-            brtValLabel.textContent = SCR_BRT_LABELS[cur];
-          }
-          tabFns.push(syncBrt); syncBrt();
+          function syncBrt() {
+            const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
+            brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
+            brtResetBtn.classList.toggle('on', cur === 0);
+            brtValLabel.textContent = SCR_BRT_LABELS[cur];
+          }
+          tabFns.push(syncBrt); syncBrt();
 
-          w.append(
-            h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-              h('div', { style: 'display:flex;align-items:center' },
-                h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
-                brtValLabel
-              ),
-              brtResetBtn
-            ),
-            brtChips,
-            h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
-            mkSep()
-          );
-          // --------------------------------------------------------
-          // [화면 조도 (Dimmer)] 파트 끝
-          // --------------------------------------------------------
-        }
+          w.append(
+            h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+              h('div', { style: 'display:flex;align-items:center' },
+                h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
+                brtValLabel
+              ),
+              brtResetBtn
+            ),
+            brtChips,
+            h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
+            mkSep()
+          );
+          // --------------------------------------------------------
+          // [화면 조도 (Dimmer)] 파트 끝
+          // --------------------------------------------------------
+        }
 
-        /* ── 비디오 변환 섹션 ── */
-        const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-          h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '비디오 변환'),
-          (() => {
-            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 8px;min-width:40px;font-size:10px;color:#ff8888;border-color:rgba(255,136,136,0.3)' }, '리셋');
-            resetBtn.onclick = () => { resetVideoTransform(Store); syncTransformUI(); };
-            return resetBtn;
-          })()
-        );
+        /* ── 비디오 변환 섹션 ── */
+        const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+          h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '비디오 변환'),
+          (() => {
+            const resetBtn = h('button', { class: 'fine-btn', style: 'padding:2px 8px;min-width:40px;font-size:10px;color:#ff8888;border-color:rgba(255,136,136,0.3)' }, '리셋');
+            resetBtn.onclick = () => { resetVideoTransform(Store); syncTransformUI(); };
+            return resetBtn;
+          })()
+        );
 
-        const fitChips = h('div', { class: 'chips' });
-        VID_FIT_MODES.forEach(mode => {
-          const chip = h('span', { class: 'chip', 'data-v': mode }, VID_FIT_LABELS[mode]);
-          chip.addEventListener('click', () => {
-            Store.set(P.APP_VID_FIT, mode);
-            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
-            if (v) applyVideoTransform(v, Store);
-            syncTransformUI();
-            persistNow();
-            showOSD(`화면 비율: ${VID_FIT_LABELS[mode]}`, 1000);
-          }, { signal: sig });
-          fitChips.appendChild(chip);
-        });
+        const fitChips = h('div', { class: 'chips' });
+        VID_FIT_MODES.forEach(mode => {
+          const chip = h('span', { class: 'chip', 'data-v': mode }, VID_FIT_LABELS[mode]);
+          chip.addEventListener('click', () => {
+            Store.set(P.APP_VID_FIT, mode);
+            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+            if (v) applyVideoTransform(v, Store);
+            syncTransformUI();
+            persistNow();
+            showOSD(`화면 비율: ${VID_FIT_LABELS[mode]}`, 1000);
+          }, { signal: sig });
+          fitChips.appendChild(chip);
+        });
 
-        const rotRow = h('div', { style: 'display:flex;gap:4px;padding:4px 0;align-items:center' });
-        const rotLabel = h('span', { style: 'font-size:11px;opacity:.7;flex:1' }, '회전');
-        const rotValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);min-width:30px;text-align:center' }, '0°');
-        const rotBtns = [0, 90, 180, 270].map(deg => {
-          const btn = h('button', { class: 'fine-btn', style: 'padding:3px 8px;min-width:36px;font-size:11px', 'data-v': String(deg) }, `${deg}°`);
-          btn.addEventListener('click', () => {
-            Store.set(P.APP_VID_ROT, deg);
-            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
-            if (v) applyVideoTransform(v, Store);
-            syncTransformUI();
-            persistNow();
-            showOSD(`회전: ${deg}°`, 1000);
-          }, { signal: sig });
-          return btn;
-        });
-        rotRow.append(rotLabel, ...rotBtns, rotValLabel);
+        const rotRow = h('div', { style: 'display:flex;gap:4px;padding:4px 0;align-items:center' });
+        const rotLabel = h('span', { style: 'font-size:11px;opacity:.7;flex:1' }, '회전');
+        const rotValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);min-width:30px;text-align:center' }, '0°');
+        const rotBtns = [0, 90, 180, 270].map(deg => {
+          const btn = h('button', { class: 'fine-btn', style: 'padding:3px 8px;min-width:36px;font-size:11px', 'data-v': String(deg) }, `${deg}°`);
+          btn.addEventListener('click', () => {
+            Store.set(P.APP_VID_ROT, deg);
+            const v = window[VSC_INTERNAL_SYM]?._activeVideo;
+            if (v) applyVideoTransform(v, Store);
+            syncTransformUI();
+            persistNow();
+            showOSD(`회전: ${deg}°`, 1000);
+          }, { signal: sig });
+          return btn;
+        });
+        rotRow.append(rotLabel, ...rotBtns, rotValLabel);
 
-        function syncTransformUI() {
-          const curFit = Store.get(P.APP_VID_FIT) || 'contain';
-          for (const c of fitChips.children) c.classList.toggle('on', c.dataset.v === curFit);
-          const curRot = Number(Store.get(P.APP_VID_ROT)) || 0;
-          rotValLabel.textContent = `${curRot}°`;
-          for (const btn of rotBtns) btn.classList.toggle('on', btn.dataset.v === String(curRot));
-        }
-        tabFns.push(syncTransformUI);
-        syncTransformUI();
+        function syncTransformUI() {
+          const curFit = Store.get(P.APP_VID_FIT) || 'contain';
+          for (const c of fitChips.children) c.classList.toggle('on', c.dataset.v === curFit);
+          const curRot = Number(Store.get(P.APP_VID_ROT)) || 0;
+          rotValLabel.textContent = `${curRot}°`;
+          for (const btn of rotBtns) btn.classList.toggle('on', btn.dataset.v === String(curRot));
+        }
+        tabFns.push(syncTransformUI);
+        syncTransformUI();
 
-        w.append(transformLabel,
-          h('div', { style: 'padding:2px 0' },
-            h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '화면 비율'),
-            fitChips
-          ),
-          rotRow,
-          h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0;line-height:1.4' }, '단축키: Alt+F (비율 순환) │ Alt+T (90° 회전)')
-        );
+        w.append(transformLabel,
+          h('div', { style: 'padding:2px 0' },
+            h('label', { style: 'font-size:11px;opacity:.7;display:block;margin-bottom:2px' }, '화면 비율'),
+            fitChips
+          ),
+          rotRow,
+          h('div', { style: 'font-size:10px;opacity:.35;padding:2px 0;line-height:1.4' }, '단축키: Alt+F (비율 순환) │ Alt+T (90° 회전)')
+        );
 
-        const arrSpan = h('span', { class: 'arr' }, '▶');
-        const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
-        const advBd = h('div', { class: 'adv-bd' });
-        advHd.addEventListener('click', () => {
-          advancedOpen = !advancedOpen;
-          arrSpan.classList.toggle('open', advancedOpen);
-          advBd.classList.toggle('open', advancedOpen);
-        }, { signal: sig });
-        w.append(advHd, advBd);
+        const arrSpan = h('span', { class: 'arr' }, '▶');
+        const advHd = h('div', { class: 'adv-hd' }, arrSpan, ' 고급 설정');
+        const advBd = h('div', { class: 'adv-bd' });
+        advHd.addEventListener('click', () => {
+          advancedOpen = !advancedOpen;
+          arrSpan.classList.toggle('open', advancedOpen);
+          advBd.classList.toggle('open', advancedOpen);
+        }, { signal: sig });
+        w.append(advHd, advBd);
 
-        return w;
-      }
+        return w;
+      }
 
       function buildAudioTab() {
         const w = h('div', {});
@@ -6422,7 +6553,13 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           mkRow('부스트 (dB)', ...mkOptimizedSlider(P.A_BST, 0, 15, 0.5))
         );
         const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0' }, '오디오: 대기');
-        Bus.on('signal', () => { const ctxReady = Audio.hasCtx(), hooked = Audio.isHooked(); status.textContent = `상태: ${ctxReady ? (hooked ? '활성' : '준비') : '대기'}`; });
+        Bus.on('signal', () => {
+          const ctxReady = Audio.hasCtx(), hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
+          if (!ctxReady) status.textContent = '상태: 대기';
+          else if (hooked && !bypassed) status.textContent = '상태: 활성 (DSP 처리 중)';
+          else if (bypassed) status.textContent = '상태: 바이패스 (원본 출력)';
+          else status.textContent = '상태: 준비 (연결 대기)';
+        });
         w.append(mkSep(), status); return w;
       }
 
@@ -6540,17 +6677,17 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function reparentForFullscreen() {
-        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        if (quickBarHost) quickBarHost.classList.toggle('is-fs', isFs);
-        if (panelHost) panelHost.classList.toggle('is-fs', isFs);
+        const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+        if (quickBarHost) quickBarHost.classList.toggle('is-fs', isFs);
+        if (panelHost) panelHost.classList.toggle('is-fs', isFs);
 
-        if (!quickBarHost) return;
-        const targetParent = getMountTarget();
-        if (!targetParent) return;
-        if (quickBarHost.parentNode !== targetParent) { try { targetParent.appendChild(quickBarHost); } catch (_) {} }
-        if (panelHost && panelHost.parentNode !== targetParent) { try { targetParent.appendChild(panelHost); } catch (_) {} }
-        ensureJwPlayerUnclip(targetParent);
-      }
+        if (!quickBarHost) return;
+        const targetParent = getMountTarget();
+        if (!targetParent) return;
+        if (quickBarHost.parentNode !== targetParent) { try { targetParent.appendChild(quickBarHost); } catch (_) {} }
+        if (panelHost && panelHost.parentNode !== targetParent) { try { targetParent.appendChild(panelHost); } catch (_) {} }
+        ensureJwPlayerUnclip(targetParent);
+      }
 
       function buildPanel() {
         if (panelHost) return;
@@ -6562,9 +6699,24 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
         statusDots.append(gpuDot, dspDot, drmDot);
 
         function syncStatusDots() {
-          const gpuSt = getGpuStatus(); gpuDot.className = `hdr-dot ${gpuSt === 'active' ? 'green' : (gpuSt === 'fallback' ? 'amber' : 'gray')}`;
-          const dspSt = getDspStatus(); dspDot.className = `hdr-dot ${dspSt === 'worklet' ? 'green' : (dspSt === 'legacy' ? 'amber' : 'gray')}`;
-          if (isDrmDetected()) { drmDot.style.display = ''; drmDot.className = 'hdr-dot red'; } else { drmDot.style.display = 'none'; }
+          const gpuSt = getGpuStatus();
+          gpuDot.className = `hdr-dot ${gpuSt === 'active' ? 'green' : (gpuSt === 'fallback' ? 'amber' : 'gray')}`;
+          gpuDot.setAttribute('data-label', `GPU: ${gpuSt}`);
+
+          const dspSt = getDspStatus();
+          dspDot.className = `hdr-dot ${
+            dspSt === 'worklet' ? 'green' :
+            dspSt === 'legacy' ? 'green' :
+            dspSt === 'bypass' ? 'amber' : 'gray'
+          }`;
+          dspDot.setAttribute('data-label', `DSP: ${dspSt}`);
+
+          if (isDrmDetected()) {
+            drmDot.style.display = '';
+            drmDot.className = 'hdr-dot red';
+          } else {
+            drmDot.style.display = 'none';
+          }
         }
         Bus.on('signal', syncStatusDots); permanentFns.push(syncStatusDots); syncStatusDots();
 
@@ -6688,20 +6840,20 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
 
       function init() {
-        buildQuickBar();
-        initStoreSubscriptions(Store, syncAll);
-        setRecurring(updateQuickBarVisibility, 1500, { maxErrors: 50 });
-        Bus.on('signal', updateQuickBarVisibility);
-        onDoc('fullscreenchange', reparentForFullscreen);
-        onDoc('webkitfullscreenchange', reparentForFullscreen);
-        updateQuickBarVisibility();
-        reparentForFullscreen(); // <--- 새로 추가된 부분
-        window[VSC_INTERNAL_SYM]._uiEnsure = () => {
-          updateQuickBarVisibility();
-          reparentForFullscreen();
-          syncAll();
-        };
-      }
+        buildQuickBar();
+        initStoreSubscriptions(Store, syncAll);
+        setRecurring(updateQuickBarVisibility, 1500, { maxErrors: 50 });
+        Bus.on('signal', updateQuickBarVisibility);
+        onDoc('fullscreenchange', reparentForFullscreen);
+        onDoc('webkitfullscreenchange', reparentForFullscreen);
+        updateQuickBarVisibility();
+        reparentForFullscreen(); // <--- 새로 추가된 부분
+        window[VSC_INTERNAL_SYM]._uiEnsure = () => {
+          updateQuickBarVisibility();
+          reparentForFullscreen();
+          syncAll();
+        };
+      }
 
       function destroy() {
         uiAC.abort();
@@ -6868,17 +7020,13 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
     function bindVideoOnce(video, Store, Registry, AutoScene, ApplyReq, ZoomMgr) {
       const st = getVState(video); if (st.bound) return; st.bound = true;
 
-      // [Patch A+] CORS 우회를 위해 발견 즉시 crossOrigin 속성 세팅 시도
-      if (!video.crossOrigin && video.src && video.src.startsWith('http')) {
-        try { video.crossOrigin = "anonymous"; } catch(e){}
-      }
+      // 무리한 CORS 강제 돌파 코드 제거됨 (영상이 멈추는 원인)
 
       const videoAC = new AbortController(); const videoSig = getCombinedSignal(videoAC.signal); st._ac = videoAC;
       touchedAddLimited(TOUCHED.videos, video);
 
       const onVideoStateChange = () => { st._resizeDirty = true; ApplyReq.hard(); };
 
-      // 안전한 캐시 삭제 처리 및 갱신 트리거
       on(video, 'resize', () => {
         st._resizeDirty = true;
         if (computeResolutionSharpMul.cache) computeResolutionSharpMul.cache.delete(video);
@@ -6890,7 +7038,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       on(video, 'canplay', onVideoStateChange, { signal: videoSig });
       on(video, 'playing', onVideoStateChange, { signal: videoSig });
 
-      // 최강의 안전망: 비디오가 재생되며 시간이 흐를 때, 필터가 안 씌워져 있다면 강제 갱신 트리거
       let _lastTimeUpdate = 0;
       on(video, 'timeupdate', () => {
         const now = performance.now();
@@ -6951,7 +7098,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
             st.rateState.suppressSyncUntil = now + RATE_SUPPRESS_MS;
             try { video.playbackRate = st.rateState.orig; } catch (_) {}
           }
-          log.info('[RateGuard] Site is fighting back, rate control disabled');
           return;
         }
 
@@ -6970,7 +7116,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           st.rateState._totalRetries++;
           if (st.rateState._totalRetries > RATE_SESSION_MAX) {
             st.rateState.permanentlyBlocked = true;
-            showOSD('속도 제어: 이 사이트에서 차단됨', 2000);
             return;
           }
           safeSetRate(video, st, expected);
@@ -6981,17 +7126,15 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
       if (ZoomMgr) ZoomMgr.onNewVideoForZoom(video); patchFullscreenRequest(video);
 
-      // ✅ Wake Lock 훅 추가 및 상태 변화 갱신 트리거 연결
       on(video, 'play',  () => { if (CONFIG.IS_MOBILE) WakeLock.onPlay(); onVideoStateChange(); }, { signal: videoSig });
       on(video, 'pause', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); onVideoStateChange(); }, { signal: videoSig });
       on(video, 'ended', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); onVideoStateChange(); }, { signal: videoSig });
 
-      // 이미 재생 중인 경우 즉시 획득
       if (CONFIG.IS_MOBILE && !video.paused && !video.ended) WakeLock.onPlay();
 
       videoSig.addEventListener('abort', () => {
         if (CONFIG.IS_MOBILE && !video.paused) WakeLock.onPause();
-        cancelRvfc?.(); st.bound = false; st.resetTransient(); vscClearAllStyles(video); log.debug('[bindVideo] unbound', video.src?.slice(0, 40) || '(blob)');
+        cancelRvfc?.(); st.bound = false; st.resetTransient(); vscClearAllStyles(video);
       }, { once: true });
     }
 
@@ -7062,55 +7205,6 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           e.preventDefault();
         }
       }, { signal: __globalSig, capture: true });
-    }
-
-    /* ══════════════════════════════════════════════════════════════════
-       createTouchGestureManager
-       ══════════════════════════════════════════════════════════════════ */
-    function injectTouchGestureCSS() {
-      if (document.getElementById('vsc-touch-gesture-css')) return;
-      const style = document.createElement('style');
-      style.id = 'vsc-touch-gesture-css';
-      style.textContent = `
-        .vsc-swipe-indicator { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
-        .vsc-swipe-indicator.left  { left: 12%; }
-        .vsc-swipe-indicator.right { right: 12%; }
-        .vsc-swipe-indicator.show  { opacity: 1; }
-        .vsc-swipe-icon { width: 40px; height: 40px; background: rgba(0,0,0,0.45); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); }
-        .vsc-swipe-icon svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-        .vsc-swipe-track { width: 4px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; position: relative; }
-        .vsc-swipe-fill { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(110,168,254,0.85); border-radius: 2px; transition: height 0.08s linear; box-shadow: 0 0 6px rgba(110,168,254,0.5); }
-        .vsc-swipe-label { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
-
-        .vsc-seek-ripple { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease-out; display: flex; flex-direction: row; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5); white-space: nowrap; }
-        .vsc-seek-ripple.left  { left: 15%; }
-        .vsc-seek-ripple.right { right: 15%; }
-        .vsc-seek-ripple.show  { opacity: 1; }
-        .vsc-seek-arrows { display: flex; align-items: center; font-size: 22px; font-weight: 400; line-height: 1; }
-        .vsc-seek-arrows span { display: block; line-height: 1; }
-        .vsc-seek-text { font-size: 15px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-        .vsc-seek-pop { animation: vsc-seek-pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes vsc-seek-pop { 0%  { transform: scale(1); } 40% { transform: scale(1.35); } 100%{ transform: scale(1); } }
-        .vsc-arrow-slide-r { animation: vsc-arrow-r 0.6s infinite; }
-        @keyframes vsc-arrow-r { 0%  { transform: translateX(-4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(4px); opacity: 0; } }
-        .vsc-arrow-slide-l { animation: vsc-arrow-l 0.6s infinite; }
-        @keyframes vsc-arrow-l { 0%  { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(-4px); opacity: 0; } }
-
-        .vsc-longpress-badge { position: fixed; top: 8%; left: 50%; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0,0,0,0.55); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 6px 16px; font: 700 13px/1.4 system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
-        .vsc-longpress-badge.show { opacity: 1; }
-        .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
-        @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
-
-        .vsc-seek-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(15px); color: white; padding: 16px 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); font-family: system-ui, sans-serif; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
-        .vsc-seek-overlay.show { display: block; opacity: 1; }
-        .vsc-seek-direction { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
-        .vsc-seek-main { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
-        .vsc-seek-delta { font-size: 15px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
-
-        .ytp-spinner, .vjs-loading-spinner, .loading-indicator, .mvp-spinner, video::-webkit-media-controls-loading-indicator { display: none !important; visibility: hidden !important; opacity: 0 !important; }
-        @media (prefers-reduced-motion: reduce) { .vsc-seek-pop, .vsc-arrow-slide-r, .vsc-arrow-slide-l, .vsc-longpress-badge .vsc-lp-icon { animation: none !important; } }
-      `;
-      (document.head || document.documentElement).appendChild(style);
     }
 
     /* ══════════════════════════════════════════════════════════════════
@@ -7340,15 +7434,20 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       }
       function hideSwipeUI() { elSwipeLeft?.classList.remove('show'); elSwipeRight?.classList.remove('show'); }
 
-      function showSeekRipple(side, totalSec) {
-        ensureSeekRipples(); const el = side === 'left' ? elSeekLeft : elSeekRight; const other = side === 'left' ? elSeekRight : elSeekLeft;
-        other.classList.remove('show');
-        if (side === 'left') { el.innerHTML = `<div class="vsc-seek-arrows"><span>‹</span><span class="vsc-arrow-slide-l">‹</span></div><span class="vsc-seek-text vsc-seek-pop">−${totalSec}s</span>`; }
-        else { el.innerHTML = `<span class="vsc-seek-text vsc-seek-pop">+${totalSec}s</span><div class="vsc-seek-arrows"><span class="vsc-arrow-slide-r">›</span><span>›</span></div>`; }
-        el.classList.add('show');
-      }
       function hideSeekRipple(side) { const el = side === 'left' ? elSeekLeft : elSeekRight; el?.classList.remove('show'); }
       function hideAllSeekRipples() { elSeekLeft?.classList.remove('show'); elSeekRight?.classList.remove('show'); }
+
+      function hideSeekOverlaySmooth() {
+        if (elSeekOverlay && elSeekOverlay.classList.contains('show')) {
+          elSeekOverlay.style.opacity = '0';
+          setTimeout(() => {
+            if (elSeekOverlay && elSeekOverlay.style.opacity === '0') {
+              elSeekOverlay.classList.remove('show');
+              elSeekOverlay.style.display = 'none';
+            }
+          }, 150);
+        }
+      }
 
       function doSeek(video, side) {
         if (!video || !Number.isFinite(video.duration)) return;
@@ -7578,6 +7677,24 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       function onTouchCancel() { if (gesture === GS.LONG_PRESS && touchVideo) { endLongPress(touchVideo); } hideSwipeUI(); hideSeekOverlaySmooth(); removeTouchBrightness(); cancelGesture(); }
       function cancelGesture() { clearTimer(lpTimerId); lpTimerId = 0; gesture = GS.IDLE; touchVideo = null; }
 
+      function ensureSeekRipples() {
+        const parent = getOverlayParent();
+        if (!elSeekLeft || !elSeekLeft.isConnected || elSeekLeft.parentNode !== parent) {
+          elSeekLeft?.remove();
+          elSeekLeft = document.createElement('div');
+          elSeekLeft.className = 'vsc-seek-ripple left';
+          elSeekLeft.setAttribute('data-vsc-ui', '1');
+          parent.appendChild(elSeekLeft);
+        }
+        if (!elSeekRight || !elSeekRight.isConnected || elSeekRight.parentNode !== parent) {
+          elSeekRight?.remove();
+          elSeekRight = document.createElement('div');
+          elSeekRight.className = 'vsc-seek-ripple right';
+          elSeekRight.setAttribute('data-vsc-ui', '1');
+          parent.appendChild(elSeekRight);
+        }
+      }
+
       function init() {
         if (!CONFIG.IS_MOBILE) return;
         injectTouchGestureCSS();
@@ -7605,7 +7722,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '214.0.0'; // 버전 상승
+      const VSC_VERSION_ID = '214.2.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -7689,19 +7806,20 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           count++;
         });
 
-        for (const it of shadowRootsLRU) {
-  if (it.host?.isConnected) {
-    try {
-      it.root.querySelectorAll('video').forEach(v => {
-        if (!Registry.videos.has(v)) {
-          Registry.observeVideo(v);
-          processVideo(v);
-          count++;
+        // 👇 Registry.shadowRootsLRU
+        for (const it of Registry.shadowRootsLRU) {
+          if (it.host?.isConnected) {
+            try {
+              it.root.querySelectorAll('video').forEach(v => {
+                if (!Registry.videos.has(v)) {
+                  Registry.observeVideo(v);
+                  processVideo(v);
+                  count++;
+                }
+              });
+            } catch (_) {}
+          }
         }
-      });
-    } catch (_) {}
-  }
-}
 
         document.querySelectorAll('iframe').forEach(ifr => {
           try {
