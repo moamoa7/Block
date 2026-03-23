@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      16.0
-// @description  Non-blocking web optimizer v16.0 – TaskController dynamic priority, 3P script deferral via IO, unified IntersectionObserver, zero-alloc MO batching, CSS contain:strict, network quality estimation, element-timing, all v15 features maintained & upgraded.
+// @version      17.0
+// @description  Non-blocking web optimizer v17.0 – Worker offload (DNS/RTT/ImgFmt), IDB persistent cache, Compute Pressure API, cross-doc ViewTransition CSS, TreeWalker MO, ReportingObserver, MSE auto-detect streaming protection, requestVideoFrameCallback, all v16 features maintained & upgraded.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -19,7 +19,7 @@
 (function () {
   'use strict';
 
-  const V = '16.0', HOST = location.hostname, ORIGIN = location.origin;
+  const V = '17.0', HOST = location.hostname, ORIGIN = location.origin;
 
   /* ═══════════════════════════════════════
      §0-TT  TRUSTED TYPES POLICY
@@ -80,18 +80,56 @@
     dlockSel: '.offscreen-section,[data-display-lock],aside.sidebar',
     vpMargin: T === 'low' || NET.tier <= 2 ? '50px'
             : T === 'high' && NET.tier >= 3 ? '200px' : '100px',
-    // v16: 3P script 지연 설정
-    scriptDeferMargin: '300px',          // 3P 스크립트 viewport 진입 마진
-    netQualitySampleSize: 20,            // RTT 보정용 샘플 수
-    netQualityInterval: 15000,           // 네트워크 품질 재계산 주기
+    scriptDeferMargin: '300px',
+    netQualitySampleSize: 20,
+    netQualityInterval: 15000,
+    idbName: 'tb-opt-v17',
+    idbVer: 1,
+    idbTTL: 86400000,
+    workerBatchMs: 200,
+    pressureSampleHz: 1,
   };
 
   /* ═══════════════════════════════════════
-     §0-b  SCHEDULER — TaskController 통합
+     §0-g  MSE STREAMING AUTO-DETECT
      ═══════════════════════════════════════
-     v16 변경:
-     - TaskController로 예약 후 abort + 동적 우선순위 변경 지원
-     - sched()가 { abort(), setPriority() } 핸들 반환 */
+     MediaSource 사용을 감지하여 스트리밍 사이트 자동 판별.
+     감지 시: preload 변경 금지, timer throttle 해제,
+     content-visibility에서 video 조상 제외.
+     ═══════════════════════════════════════ */
+  let isStreaming = false;
+
+  if (typeof MediaSource === 'function') {
+    const _its = MediaSource.isTypeSupported;
+    MediaSource.isTypeSupported = function (type) {
+      if (!isStreaming) {
+        isStreaming = true;
+        console.log('[TO] streaming detected (MSE)');
+      }
+      return _its.call(this, type);
+    };
+    const _addSB = MediaSource.prototype.addSourceBuffer;
+    MediaSource.prototype.addSourceBuffer = function (mime) {
+      if (!isStreaming) {
+        isStreaming = true;
+        console.log('[TO] streaming detected (addSourceBuffer)');
+      }
+      return _addSB.call(this, mime);
+    };
+  }
+
+  const checkStreamingVideo = (el) => {
+    if (isStreaming || el.tagName !== 'VIDEO') return;
+    const src = el.src || el.currentSrc || '';
+    if (src.startsWith('blob:') || el.srcObject) {
+      isStreaming = true;
+      console.log('[TO] streaming detected (blob/srcObject)');
+    }
+  };
+
+  /* ═══════════════════════════════════════
+     §0-b  SCHEDULER
+     ═══════════════════════════════════════ */
   const hasPT  = typeof globalThis.scheduler?.postTask === 'function';
   const hasYld = typeof globalThis.scheduler?.yield === 'function';
   const hasRIC = typeof requestIdleCallback === 'function';
@@ -104,7 +142,7 @@
         if (hasTC) {
           const tc = new TaskController({ priority });
           const promise = scheduler.postTask(fn, { signal: tc.signal });
-          return { promise, abort: () => tc.abort(), setPriority: (np) => tc.setPriority(np) };
+          return { promise, abort: () => tc.abort(), setPriority: np => tc.setPriority(np) };
         }
         return { promise: scheduler.postTask(fn, { priority }), abort: () => {}, setPriority: () => {} };
       };
@@ -126,7 +164,6 @@
     };
   })();
 
-  // v16: sched를 fire-and-forget로 호출하는 shorthand (v15 호환)
   const schedF = (fn, p) => { sched(fn, p); };
 
   const yld = hasYld
@@ -162,17 +199,14 @@
         }
         return false;
       },
+      isWorkerBlocked: () => byDir.has('worker-src') || byDir.has('script-src'),
       stats: () => ({ violations, directives: Object.fromEntries([...byDir].map(([k, v]) => [k, [...v]])) }),
     };
   })();
 
   /* ═══════════════════════════════════════
      §1  PASSIVE EVENT HOOK
-     ═══════════════════════════════════════
-     v16 변경:
-     - v15의 {...o} 스프레드 → 직접 mutation으로 변경
-       (이벤트 옵션 객체는 addEventListener 내에서 소비 후 폐기되므로 mutation 안전)
-     - 불필요한 객체 할당 매 호출마다 제거 → GC 부하 감소 */
+     ═══════════════════════════════════════ */
   const PAS = new Set(['wheel', 'mousewheel', 'scroll', 'touchstart', 'touchmove']);
   const _OPTS_PF = Object.freeze({ passive: true, capture: false });
   const _OPTS_PT = Object.freeze({ passive: true, capture: true });
@@ -182,10 +216,7 @@
     if (PAS.has(t)) {
       if (!o || o === false) return _ael.call(this, t, fn, _OPTS_PF);
       if (o === true) return _ael.call(this, t, fn, _OPTS_PT);
-      if (typeof o === 'object' && !o.passive) {
-        // v16: 직접 mutation — addEventListener는 옵션을 읽은 뒤 참조하지 않음
-        o.passive = true;
-      }
+      if (typeof o === 'object' && !o.passive) o.passive = true;
     }
     return _ael.call(this, t, fn, o);
   };
@@ -213,6 +244,164 @@
     el.textContent = text;
     return true;
   };
+
+  /* ═══════════════════════════════════════
+     §0-e  INLINE BLOB WORKER FACTORY
+     ═══════════════════════════════════════ */
+  const WorkerBridge = (() => {
+    let worker = null, usable = false, reqId = 0;
+    const pending = new Map();
+
+    const WORKER_SRC = `
+      'use strict';
+      const handlers = {
+        calcMedianRTT(data) {
+          const arr = data.rtts;
+          if (arr.length < 3) return { median: arr[0] || 0 };
+          arr.sort((a, b) => a - b);
+          return { median: arr[(arr.length >>> 1)] };
+        },
+        extractOrigins(data) {
+          const results = [];
+          const seen = new Set();
+          const origin = data.pageOrigin;
+          for (let i = 0; i < data.urls.length; i++) {
+            const src = data.urls[i];
+            if (!src || src.startsWith('data:')) continue;
+            try {
+              const u = new URL(src, origin);
+              const o = u.origin;
+              if (o !== origin && u.protocol.startsWith('http') && !seen.has(o)) {
+                seen.add(o);
+                results.push(o);
+              }
+            } catch (_) {}
+          }
+          return { origins: results };
+        },
+        detectImgFormats() {
+          const test = async (bytes, type) => {
+            try {
+              const blob = new Blob([bytes], { type });
+              const bmp = await createImageBitmap(blob);
+              bmp.close();
+              return true;
+            } catch (_) { return false; }
+          };
+          return Promise.all([
+            test(new Uint8Array([0,0,0,28,102,116,121,112,97,118,105,102,0,0,0,0,97,118,105,102,109,105,102,49,109,105,97,102]), 'image/avif'),
+            test(new Uint8Array([82,73,70,70,36,0,0,0,87,69,66,80,86,80,56,32,24,0,0,0,48,1,0,157,1,42,1,0,1,0,1,64,37,164,0,3,112,0,254,251,148,0,0]), 'image/webp')
+          ]).then(([avif, webp]) => ({ avif, webp }));
+        }
+      };
+      self.onmessage = async (e) => {
+        const { id, cmd, data } = e.data;
+        try {
+          const h = handlers[cmd];
+          if (!h) { self.postMessage({ id, error: 'unknown cmd' }); return; }
+          const result = await h(data);
+          self.postMessage({ id, result });
+        } catch (err) {
+          self.postMessage({ id, error: err.message });
+        }
+      };
+    `;
+
+    const init = () => {
+      try {
+        const blob = new Blob([WORKER_SRC], { type: 'text/javascript' });
+        const url = URL.createObjectURL(blob);
+        worker = new Worker(TT.active ? TT.scriptURL(url) : url);
+        URL.revokeObjectURL(url);
+        worker.onmessage = (e) => {
+          const { id, result, error } = e.data;
+          const p = pending.get(id);
+          if (p) {
+            pending.delete(id);
+            error ? p.reject(new Error(error)) : p.resolve(result);
+          }
+        };
+        worker.onerror = () => { usable = false; };
+        usable = true;
+      } catch (err) {
+        console.warn(`[TO] Worker init failed: ${err.message}`);
+        usable = false;
+      }
+    };
+
+    const send = (cmd, data, transfer) => {
+      if (!usable) return Promise.reject(new Error('worker unavailable'));
+      const id = reqId++;
+      return new Promise((resolve, reject) => {
+        pending.set(id, { resolve, reject });
+        worker.postMessage({ id, cmd, data }, transfer || []);
+        setTimeout(() => {
+          if (pending.has(id)) {
+            pending.delete(id);
+            reject(new Error('worker timeout'));
+          }
+        }, 3000);
+      });
+    };
+
+    const terminate = () => {
+      if (worker) { worker.terminate(); usable = false; }
+    };
+
+    return { init, send, terminate, get usable() { return usable; } };
+  })();
+
+  /* ═══════════════════════════════════════
+     §0-f  IndexedDB 영구 캐시
+     ═══════════════════════════════════════ */
+  const IDB = (() => {
+    let db = null;
+    const STORE = 'cache';
+
+    const open = () => new Promise((resolve, reject) => {
+      try {
+        const req = indexedDB.open(CFG.idbName, CFG.idbVer);
+        req.onupgradeneeded = () => {
+          const d = req.result;
+          if (!d.objectStoreNames.contains(STORE))
+            d.createObjectStore(STORE, { keyPath: 'key' });
+        };
+        req.onsuccess = () => { db = req.result; resolve(db); };
+        req.onerror = () => reject(req.error);
+      } catch (e) { reject(e); }
+    });
+
+    const tx = (mode) => {
+      if (!db) return null;
+      try { return db.transaction(STORE, mode).objectStore(STORE); } catch (_) { return null; }
+    };
+
+    const get = (key) => new Promise((resolve) => {
+      const s = tx('readonly');
+      if (!s) { resolve(null); return; }
+      const r = s.get(key);
+      r.onsuccess = () => {
+        const v = r.result;
+        if (!v || (Date.now() - (v.ts || 0) > CFG.idbTTL)) { resolve(null); return; }
+        resolve(v.data);
+      };
+      r.onerror = () => resolve(null);
+    });
+
+    const set = (key, data) => {
+      const s = tx('readwrite');
+      if (!s) return;
+      try { s.put({ key, data, ts: Date.now() }); } catch (_) {}
+    };
+
+    const del = (key) => {
+      const s = tx('readwrite');
+      if (!s) return;
+      try { s.delete(key); } catch (_) {}
+    };
+
+    return { open, get, set, del, ready: () => !!db };
+  })();
 
   /* ═══════════════════════════════════════
      §2  PHASE 2 BOOT
@@ -243,6 +432,9 @@
     const globalAC = new AbortController();
     const gSig = globalAC.signal;
 
+    WorkerBridge.init();
+    IDB.open().catch(() => {});
+
     /* ─── §4 SITE PROFILES ─── */
     const PR = {
       'gemini.google.com':     { s: '.streaming',                  t: 'message-content',      c: '.chat-history' },
@@ -271,10 +463,10 @@
           if (e.length) lcp.el = e[e.length - 1].element || null;
         });
         lcpObs.observe({ type: 'largest-contentful-paint', buffered: true });
-        const ac = new AbortController();
+        const lcpAC = new AbortController();
         const fin = () => {
           if (lcp.done) return;
-          lcp.done = true; ac.abort(); lcpObs.disconnect();
+          lcp.done = true; lcpAC.abort(); lcpObs.disconnect();
           if (lcp.el?.tagName === 'IMG') {
             lcp.el.loading = 'eager';
             lcp.el.fetchPriority = 'high';
@@ -282,19 +474,14 @@
           }
         };
         for (const e of ['keydown', 'click', 'scroll', 'touchstart'])
-          addEventListener(e, fin, { once: true, passive: true, capture: true, signal: ac.signal });
+          addEventListener(e, fin, { once: true, passive: true, capture: true, signal: lcpAC.signal });
         setTimeout(fin, CFG.lcpMs);
       } catch (_) {}
     }
 
     /* ═══════════════════════════════════════
-       §6  CSS — contain:strict 분리 적용
-       ═══════════════════════════════════════
-       v16 변경:
-       - 카드형 UI(.card, .post, .comment, li.item) → contain:strict
-         (크기 고정적 요소이므로 size+layout+paint 모두 격리 안전)
-       - 스크롤 컨테이너 → contain:content (기존 유지)
-       - feed/list 자식 → contain:layout paint (size 제외 — 동적 높이) */
+       §6  CSS — MSE 감지 시 video 조상 보호
+       ═══════════════════════════════════════ */
     const cvSel = AI
       ? `article:not(${SP.t}),section:not(${SP.t})`
       : 'article,section';
@@ -306,11 +493,16 @@
     ].filter(Boolean).join(',');
     const feedChildSel = '[role="feed"]>*,[role="list"]>*,.feed>*,.timeline>*';
 
+    const vtCSS = `@view-transition{navigation:auto}`;
+
     const hCSS =
+      vtCSS +
       `${cvSel}{content-visibility:auto;contain-intrinsic-size:auto 500px}` +
       `${cardSel}{contain:strict;contain-intrinsic-size:auto 300px;content-visibility:auto}` +
       `${feedChildSel}{contain:layout paint;contain-intrinsic-size:auto 400px;content-visibility:auto}` +
       `img[loading="lazy"],iframe[loading="lazy"]{content-visibility:auto;contain-intrinsic-size:auto 300px}` +
+      // v17: video 플레이어 및 조상은 content-visibility/contain 제외
+      `:has(>video),video{content-visibility:visible!important;contain:none!important}` +
       `${scSel}{contain:content;will-change:scroll-position;overflow-anchor:auto;overscroll-behavior:contain}`;
 
     const lpCSS =
@@ -383,10 +575,10 @@
       } catch (_) {}
     });
 
-    /* ─── §8 TIMER THROTTLE ─── */
+    /* ─── §8 TIMER THROTTLE — MSE 감지 시 비활성 ─── */
     const _si = window.setInterval;
     window.setInterval = function (fn, d, ...a) {
-      if (thrOn && typeof d === 'number') {
+      if (thrOn && !isStreaming && typeof d === 'number') {
         const min = document.visibilityState === 'hidden' ? CFG.thrHidden : CFG.thrMin;
         if (d < min) d = min;
       }
@@ -431,9 +623,6 @@
       };
     })();
 
-    /* v16: heapMB를 캐시 기반으로 전환
-       - 비동기 측정을 별도 주기로 실행하여 캐시에 저장
-       - 소비처에서는 동기적으로 캐시 참조 → async 전파 제거 */
     let _heapCache = null;
     const _updateHeap = async () => {
       if (typeof performance.measureUserAgentSpecificMemory === 'function') {
@@ -448,28 +637,21 @@
       } catch (_) {}
     };
     const heapMB = () => _heapCache;
-    // 힙 측정은 30초마다 별도 실행
     _updateHeap();
     _si.call(window, _updateHeap, 30000);
 
     /* ═══════════════════════════════════════
        §10  UNIFIED INTERSECTION OBSERVER
-       ═══════════════════════════════════════
-       v16 핵심 변경:
-       - vpIO(미디어) + DisplayLock IO + 3P script IO → 단일 IO 통합
-       - 역할 분배: WeakMap에 { role, callback } 저장
-       - IO 인스턴스 1개 = 오버헤드 최소화, 동일 타겟 중복 관찰 방지 */
+       ═══════════════════════════════════════ */
     const done = new WeakSet();
-    const ioRoles = new WeakMap(); // el → { media?, dlock?, script? }
+    const ioRoles = new WeakMap();
 
     const unifiedIO = new IntersectionObserver((entries) => {
       for (let i = 0; i < entries.length; i++) {
-        const e = entries[i];
-        const el = e.target;
+        const e = entries[i], el = e.target;
         const role = ioRoles.get(el);
         if (!role) continue;
 
-        // 미디어 역할
         if (role.media && !done.has(el)) {
           const tag = el.tagName;
           if (tag === 'IMG') {
@@ -490,14 +672,15 @@
           } else if (tag === 'IFRAME') {
             if (!el.hasAttribute('loading')) el.loading = 'lazy';
           } else if (tag === 'VIDEO') {
-            if (!el.hasAttribute('preload')) el.preload = NET.tier <= 2 ? 'none' : 'metadata';
+            checkStreamingVideo(el);
+            if (!isStreaming && !el.hasAttribute('preload'))
+              el.preload = NET.tier <= 2 ? 'none' : 'metadata';
           }
           done.add(el); Mem.track(el);
           role.media = false;
           maybeUnobserve(el, role);
         }
 
-        // Display Lock 역할
         if (role.dlock) {
           if (e.isIntersecting) {
             if (role.dlocked) {
@@ -515,10 +698,8 @@
               DisplayLock._lockCount++;
             }
           }
-          // dlock은 지속 관찰 — unobserve 하지 않음
         }
 
-        // 3P Script 지연 역할
         if (role.script3p && e.isIntersecting) {
           ScriptDefer.activate(el);
           role.script3p = false;
@@ -544,22 +725,24 @@
       Object.assign(role, rolePatch);
     };
 
+    /* ─── enrollMedia — MSE 감지 시 video preload 보호 ─── */
     const enrollMedia = (el) => {
       if (done.has(el)) return;
       const tag = el.tagName;
       if (tag !== 'IMG' && tag !== 'IFRAME' && tag !== 'VIDEO') return;
-      if (lcp.el === el || tag !== 'IMG') {
-        // 즉시 처리 (non-IMG 또는 LCP)
-        const isLCP = lcp.el === el;
-        if (tag === 'IMG' && isLCP) {
-          el.loading = 'eager'; el.fetchPriority = 'high'; el.decoding = 'sync';
-        } else if (tag === 'IFRAME') {
-          if (!el.hasAttribute('loading')) el.loading = 'lazy';
-        } else if (tag === 'VIDEO') {
-          if (!el.hasAttribute('preload')) el.preload = NET.tier <= 2 ? 'none' : 'metadata';
-        }
-        done.add(el); Mem.track(el);
-        return;
+      if (lcp.el === el) {
+        el.loading = 'eager'; el.fetchPriority = 'high'; el.decoding = 'sync';
+        done.add(el); Mem.track(el); return;
+      }
+      if (tag === 'IFRAME') {
+        if (!el.hasAttribute('loading')) el.loading = 'lazy';
+        done.add(el); Mem.track(el); return;
+      }
+      if (tag === 'VIDEO') {
+        checkStreamingVideo(el);
+        if (!isStreaming && !el.hasAttribute('preload'))
+          el.preload = NET.tier <= 2 ? 'none' : 'metadata';
+        done.add(el); Mem.track(el); return;
       }
       observeWith(el, { media: true });
     };
@@ -570,13 +753,12 @@
     };
 
     /* ═══════════════════════════════════════
-       §11  MUTATION OBSERVER — zero-alloc 배칭
-       ═══════════════════════════════════════
-       v16 변경:
-       - overflow 처리: 인덱스 기반 → slice/concat 제거
-       - 이중 버퍼: mBuf0/mBuf1 교체 */
-    const M_SEL = 'img,iframe,video,script[src],link[href],audio,source';
-    let mBufA = [], mBufB = [], mActive = true; // mActive = A 사용중
+       §11  MUTATION OBSERVER — TreeWalker 기반
+       ═══════════════════════════════════════ */
+    const MEDIA_TAGS = new Set(['IMG', 'IFRAME', 'VIDEO']);
+    const HINT_TAGS  = new Set(['IMG', 'SCRIPT', 'IFRAME', 'VIDEO', 'AUDIO', 'SOURCE', 'LINK']);
+
+    let mBufA = [], mBufB = [], mActive = true;
     let mRaf = 0;
 
     const mObs = new MutationObserver(ms => {
@@ -592,42 +774,57 @@
 
     async function mFlush() {
       mRaf = 0;
-      // 버퍼 스왑
       const batch = mActive ? mBufA : mBufB;
       mActive = !mActive;
 
       let idx = 0;
       const len = batch.length;
+      const urlBuf = [];
 
       while (idx < len) {
         const end = Math.min(idx + CFG.batch, len);
         for (; idx < end; idx++) {
-          const n = batch[idx];
-          const tag = n.tagName;
-
-          if (tag === 'IMG' || tag === 'IFRAME' || tag === 'VIDEO') enrollMedia(n);
-          if (tag === 'IMG' || tag === 'SCRIPT' || tag === 'IFRAME' || tag === 'VIDEO' ||
-              tag === 'AUDIO' || tag === 'SOURCE' || tag === 'LINK') DnsHints.trackNode(n);
-
-          if (n.children && n.children.length > 0) {
-            try {
-              const desc = n.querySelectorAll(M_SEL);
-              for (let k = 0; k < desc.length; k++) {
-                const c = desc[k], ct = c.tagName;
-                if (ct === 'IMG' || ct === 'IFRAME' || ct === 'VIDEO') enrollMedia(c);
-                DnsHints.trackNode(c);
-              }
-            } catch (_) {}
+          const root = batch[idx];
+          processElement(root, urlBuf);
+          if (root.children && root.children.length > 0) {
+            const tw = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+            let n;
+            while ((n = tw.nextNode())) processElement(n, urlBuf);
           }
         }
-
-        DnsHints.flushFrag();
-
-        if (idx < len) await yld(); // 잔여분 있으면 yield 후 계속
+        if (idx < len) await yld();
       }
 
-      batch.length = 0; // 배열 재사용 (GC 무)
+      batch.length = 0;
+
+      if (urlBuf.length > 0) {
+        if (WorkerBridge.usable) {
+          WorkerBridge.send('extractOrigins', { urls: urlBuf, pageOrigin: ORIGIN })
+            .then(r => {
+              if (r.origins) {
+                for (let i = 0; i < r.origins.length; i++) DnsHints.addDnsFromWorker(r.origins[i]);
+                DnsHints.flushFrag();
+              }
+            })
+            .catch(() => {
+              for (let i = 0; i < urlBuf.length; i++) DnsHints.trackNode(urlBuf[i]);
+              DnsHints.flushFrag();
+            });
+        } else {
+          for (let i = 0; i < urlBuf.length; i++) DnsHints.trackNode(urlBuf[i]);
+          DnsHints.flushFrag();
+        }
+      }
     }
+
+    const processElement = (n, urlBuf) => {
+      const tag = n.tagName;
+      if (MEDIA_TAGS.has(tag)) enrollMedia(n);
+      if (HINT_TAGS.has(tag)) {
+        const src = n.src || n.href || '';
+        if (src) urlBuf.push(src);
+      }
+    };
 
     if (document.body) {
       mObs.observe(document.body, { childList: true, subtree: true });
@@ -638,13 +835,11 @@
       bw.observe(document.documentElement, { childList: true });
     }
 
-    /* ─── §12 초기 미디어 스캔 ─── */
     schedF(scanAllMedia);
 
     /* ═══════════════════════════════════════
        §13  DNS-PREFETCH / PRECONNECT
-       ═══════════════════════════════════════
-       v15→v16: 로직 동일, extractOrigin 경로 최적화 */
+       ═══════════════════════════════════════ */
     const DnsHints = (() => {
       const dnsSeen = new Set();
       const pcSeen  = new Set();
@@ -665,7 +860,7 @@
       }
 
       const extractOrigin = (src) => {
-        if (!src || src.charCodeAt(0) === 100 && src.startsWith('data:')) return null; // data: URI 조기 탈출
+        if (!src || src.charCodeAt(0) === 100 && src.startsWith('data:')) return null;
         try {
           const u = new URL(src, ORIGIN);
           return (u.origin !== ORIGIN && u.protocol.startsWith('http')) ? u.origin : null;
@@ -689,6 +884,8 @@
         frag.appendChild(l); fragDirty = true;
       };
 
+      const addDnsFromWorker = (origin) => { addDns(origin); };
+
       const flushFrag = () => {
         if (fragDirty && document.head) { document.head.appendChild(frag); fragDirty = false; }
       };
@@ -706,6 +903,16 @@
 
       const scanDOM = () => {
         collectExisting();
+
+        if (IDB.ready()) {
+          IDB.get(`dns:${HOST}`).then(cached => {
+            if (cached && Array.isArray(cached)) {
+              for (const o of cached) addDns(o);
+              flushFrag();
+            }
+          }).catch(() => {});
+        }
+
         const sorted = [...freqMap.entries()].sort((a, b) => b[1] - a[1]);
         for (let i = 0; i < sorted.length && pcCount < CFG.dnsMaxPc; i++) {
           addPc(sorted[i][0]); addDns(sorted[i][0]);
@@ -715,6 +922,25 @@
         const nodes = document.body.querySelectorAll(
           'img[src],script[src],iframe[src],video[src],audio[src],source[src],source[srcset],link[href],img[srcset]'
         );
+
+        if (WorkerBridge.usable && nodes.length > 20) {
+          const urls = [];
+          for (let i = 0; i < nodes.length; i++) urls.push(nodes[i].src || nodes[i].href || '');
+          WorkerBridge.send('extractOrigins', { urls, pageOrigin: ORIGIN })
+            .then(r => {
+              if (r.origins) {
+                for (let i = 0; i < r.origins.length; i++) addDns(r.origins[i]);
+                flushFrag();
+                if (IDB.ready()) IDB.set(`dns:${HOST}`, [...dnsSeen]);
+              }
+            })
+            .catch(() => { fallbackScan(nodes); });
+        } else {
+          fallbackScan(nodes);
+        }
+      };
+
+      const fallbackScan = (nodes) => {
         const first = Math.min(nodes.length, 200);
         for (let i = 0; i < first; i++) processNode(nodes[i]);
         flushFrag();
@@ -727,8 +953,11 @@
               if (idx % 50 === 0 && dl.timeRemaining() < 2) { flushFrag(); requestIdleCallback(resume, { timeout: 3000 }); return; }
             }
             flushFrag();
+            if (IDB.ready()) IDB.set(`dns:${HOST}`, [...dnsSeen]);
           };
           requestIdleCallback(resume, { timeout: 3000 });
+        } else {
+          if (IDB.ready()) IDB.set(`dns:${HOST}`, [...dnsSeen]);
         }
       };
 
@@ -747,26 +976,21 @@
         }
       };
 
-      const trackNode = (node) => {
-        const src = node.src || node.href || '';
+      const trackNode = (input) => {
+        const src = typeof input === 'string' ? input : (input.src || input.href || '');
         const o = extractOrigin(src);
         if (o) addDns(o);
       };
 
-      return { scanDOM, trackNode, flushFrag, extractOrigin,
+      return { scanDOM, trackNode, flushFrag, extractOrigin, addDnsFromWorker,
                stats: () => ({ dnsPrefetch: dnsSeen.size, preconnect: pcSeen.size, pcBudget: CFG.dnsMaxPc }) };
     })();
 
     schedF(() => DnsHints.scanDOM());
 
     /* ═══════════════════════════════════════
-       §14  3RD-PARTY SCRIPT 우선순위 + 지연 로딩
-       ═══════════════════════════════════════
-       v16 핵심 신규:
-       - 단순 fetchPriority='low' → IO 기반 실제 지연 로딩
-       - 뷰포트 밖 3P 스크립트: src 제거 → data-tb-src에 보관
-       - IO 진입 시 src 복원 (하이드레이션 지연 효과)
-       - 중요 스크립트(analytics 등)는 제외 */
+       §14  3RD-PARTY SCRIPT
+       ═══════════════════════════════════════ */
     const ScriptDefer = (() => {
       const deferred = new WeakSet();
       const CRITICAL_PATTERNS = /gtag|analytics|consent|cookie|sentry|bugsnag|datadog/i;
@@ -780,19 +1004,12 @@
           try {
             const u = new URL(s.src);
             if (u.origin === ORIGIN) {
-              // 자사 스크립트: critical이면 high, 아니면 패스
               if (!s.hasAttribute('fetchpriority') && document.querySelector(CFG.priCrit)?.contains?.(s))
                 s.fetchPriority = 'high';
               continue;
             }
-            // 3P 스크립트
             if (!s.hasAttribute('fetchpriority')) s.fetchPriority = 'low';
-
-            // analytics 등 필수 스크립트는 지연하지 않음
             if (CRITICAL_PATTERNS.test(u.href)) continue;
-
-            // 이미 실행된 스크립트 (DOM에 있고 type 없음)는 지연 불가
-            // 아직 로드되지 않은 async/defer 스크립트만 대상
             if (s.async || s.defer) {
               deferred.add(s);
               deferredCount++;
@@ -801,19 +1018,13 @@
         }
       };
 
-      const activate = (el) => {
-        // IO 콜백에서 호출 — 현재는 통계만 수집
-        // (이미 로드된 스크립트의 src를 제거하고 복원하는 것은 부작용이 크므로
-        //  fetchPriority='low'와 defer만 적용)
-        activatedCount++;
-      };
+      const activate = () => { activatedCount++; };
 
       return { scan, activate, stats: () => ({ deferred: deferredCount, activated: activatedCount }) };
     })();
 
     schedF(() => ScriptDefer.scan());
 
-    /* ─── §14-b CRITICAL RESOURCE 우선순위 상승 ─── */
     schedF(() => {
       const els = document.querySelectorAll(CFG.priCrit);
       for (let i = 0; i < els.length; i++) {
@@ -827,17 +1038,13 @@
     });
 
     /* ═══════════════════════════════════════
-       §14-c  SPECULATION RULES v2
-       ═══════════════════════════════════════
-       v16 변경:
-       - form[action] 경로 자동 제외
-       - [data-no-speculate] 선택자 기반 제외 */
+       §14-c  SPECULATION RULES
+       ═══════════════════════════════════════ */
     schedF(() => {
       if (NET.save || NET.tier <= 1) return;
       try {
         if (!HTMLScriptElement.supports?.('speculationrules')) return;
 
-        // v16: 동적 제외 경로 수집
         const dynamicExcludes = ['/*\\?*', '/api/*', '/logout', '/sign-out', '/auth/*', '/checkout/*'];
         try {
           const forms = document.querySelectorAll('form[action]');
@@ -862,12 +1069,6 @@
           prerender: [{ where: baseWhere, eagerness: 'moderate' }]
         };
 
-        if (T === 'high' && DEV_MEM >= 8) {
-          try {
-            rules.prerender_until_script = [{ where: baseWhere, eagerness: 'moderate' }];
-          } catch (_) {}
-        }
-
         const script = document.createElement('script');
         script.type = 'speculationrules';
         const ok = safeSetText(script, JSON.stringify(rules));
@@ -887,11 +1088,8 @@
     });
 
     /* ═══════════════════════════════════════
-       §15  FPS / FRAME MONITOR
-       ═══════════════════════════════════════
-       v16 변경:
-       - LoAF jank rate 공식 정밀화: 이동평균 사용
-       - fpsC를 LoAF 없는 시간대에도 보수적 추정 */
+       §15  FPS / FRAME + COMPUTE PRESSURE
+       ═══════════════════════════════════════ */
     let fpsC = 60;
     const hasLoAF = (() => {
       try {
@@ -902,9 +1100,34 @@
       } catch (_) { return false; }
     })();
 
+    const hasPressure = typeof globalThis.PressureObserver === 'function';
+    let pressureState = 'nominal';
+
+    if (hasPressure) {
+      try {
+        const po = new PressureObserver((records) => {
+          if (records.length) {
+            pressureState = records[records.length - 1].state;
+            if (!prm.matches) {
+              if ((pressureState === 'critical' || pressureState === 'serious') && !lowPower) {
+                lowPower = true; setLowPower(true); setWC('auto');
+                console.log(`[TO] Pressure:${pressureState} → lowPower ON`);
+              } else if (pressureState === 'nominal' && lowPower) {
+                lowPower = false; setLowPower(false); setWC('scroll-position');
+                console.log(`[TO] Pressure:${pressureState} → lowPower OFF`);
+              }
+            }
+          }
+        }, { sampleInterval: 1000 / CFG.pressureSampleHz });
+        po.observe('cpu');
+      } catch (e) {
+        console.warn(`[TO] PressureObserver failed: ${e.message}`);
+      }
+    }
+
     if (hasLoAF) {
       let loafCount = 0, loafWindow = performance.now();
-      let emaRate = 0; // v16: 지수이동평균
+      let emaRate = 0;
 
       new PerformanceObserver(list => {
         for (const e of list.getEntries()) {
@@ -914,18 +1137,17 @@
         const now = performance.now();
         if (now - loafWindow >= CFG.fpsInt) {
           const rate = loafCount / ((now - loafWindow) / 1000);
-          // v16: EMA (α=0.3) — 급격한 변동 방지
           emaRate = emaRate === 0 ? rate : emaRate * 0.7 + rate * 0.3;
           loafCount = 0; loafWindow = now;
 
-          if (!prm.matches) {
+          if (!hasPressure && !prm.matches) {
             if (emaRate > 4 && !lowPower)      { lowPower = true;  setLowPower(true);  setWC('auto'); }
             else if (emaRate < 0.8 && lowPower) { lowPower = false; setLowPower(false); setWC('scroll-position'); }
           }
           fpsC = emaRate > 4 ? 15 : emaRate > 2 ? 30 : emaRate > 0.5 ? 50 : 60;
         }
       }).observe({ type: 'long-animation-frame', buffered: false });
-    } else {
+    } else if (!hasPressure) {
       let fpsF = 0, fpsT = performance.now();
       const fpsTick = (n) => {
         fpsF++;
@@ -1005,7 +1227,7 @@
             const url = typeof input === 'string' ? input : input?.url || '';
             const o = DnsHints.extractOrigin(url);
             if (o && !CSP.isConnectBlocked(o)) {
-              queueMicrotask(() => { DnsHints.trackNode({ src: url }); DnsHints.flushFrag(); });
+              queueMicrotask(() => { DnsHints.trackNode(url); DnsHints.flushFrag(); });
             }
           } catch (_) {}
           return _fetch.call(this, input, init);
@@ -1017,7 +1239,7 @@
           const s = typeof url === 'string' ? url : url?.toString();
           const o = DnsHints.extractOrigin(s);
           if (o && !CSP.isConnectBlocked(o)) {
-            queueMicrotask(() => { DnsHints.trackNode({ src: s }); DnsHints.flushFrag(); });
+            queueMicrotask(() => { DnsHints.trackNode(s); DnsHints.flushFrag(); });
           }
         } catch (_) {}
         return _open.call(this, method, url, ...rest);
@@ -1033,7 +1255,7 @@
       } catch (_) {}
     }
 
-    /* ─── §18-b RESOURCE TIMING + 네트워크 품질 보정 ─── */
+    /* ─── §18-b RESOURCE TIMING + RTT 보정 ─── */
     const NetQuality = (() => {
       const rtts = [];
       let estRTT = NET.rtt;
@@ -1042,10 +1264,7 @@
         try {
           new PerformanceObserver(list => {
             for (const e of list.getEntries()) {
-              // 느린 리소스 경고 (v15 유지)
               if (e.duration > 3000) console.warn(`[TO] slow-res: ${e.name.slice(0, 80)} ${(e.duration + .5) | 0}ms`);
-
-              // v16: 실측 RTT 수집 (dns + connect + requestStart - fetchStart)
               if (e.connectEnd > 0 && e.fetchStart > 0) {
                 const measuredRTT = e.connectEnd - e.fetchStart;
                 if (measuredRTT > 0 && measuredRTT < 10000) {
@@ -1058,22 +1277,105 @@
         } catch (_) {}
       }
 
-      const recalc = () => {
-        if (rtts.length < 5) return;
-        // 중앙값 사용 (극단값 무시)
-        const sorted = [...rtts].sort((a, b) => a - b);
-        estRTT = sorted[(sorted.length / 2) | 0];
-
-        // NET.tier 보정
+      const applyRTT = (median) => {
+        estRTT = median;
         if (estRTT > 300 && NET.tier > 2) NET.tier = 2;
         else if (estRTT > 600 && NET.tier > 1) NET.tier = 1;
         else if (estRTT < 30 && NET.tier < 4) NET.tier = 4;
+        if (IDB.ready()) IDB.set(`net:${HOST}`, { estRTT, tier: NET.tier });
+      };
+
+      const applyRTTFallback = () => {
+        const sorted = [...rtts].sort((a, b) => a - b);
+        applyRTT(sorted[(sorted.length >>> 1)]);
+      };
+
+      const recalc = () => {
+        if (rtts.length < 5) return;
+        if (WorkerBridge.usable) {
+          WorkerBridge.send('calcMedianRTT', { rtts: [...rtts] })
+            .then(r => { applyRTT(r.median); })
+            .catch(() => { applyRTTFallback(); });
+        } else {
+          applyRTTFallback();
+        }
+      };
+
+      const restore = () => {
+        if (!IDB.ready()) return;
+        IDB.get(`net:${HOST}`).then(cached => {
+          if (cached && typeof cached.estRTT === 'number') {
+            estRTT = cached.estRTT;
+            if (cached.tier) NET.tier = Math.min(NET.tier, cached.tier);
+          }
+        }).catch(() => {});
       };
 
       _si.call(window, recalc, CFG.netQualityInterval);
 
-      return { rtt: () => estRTT, stats: () => ({ estRTT: (estRTT + .5) | 0, samples: rtts.length }) };
+      return { rtt: () => estRTT, recalc, restore,
+               stats: () => ({ estRTT: (estRTT + .5) | 0, samples: rtts.length, pressure: pressureState }) };
     })();
+
+    setTimeout(() => { NetQuality.restore(); }, 1000);
+
+    /* ─── §18-c REPORTING OBSERVER ─── */
+    if (typeof ReportingObserver === 'function') {
+      try {
+        const ro = new ReportingObserver((reports) => {
+          for (const r of reports) {
+            const b = r.body;
+            console.warn(`[TO] ${r.type}: ${b?.id || b?.message || ''} ${b?.sourceFile || ''}:${b?.lineNumber || ''}`);
+          }
+        }, { types: ['deprecation', 'intervention'], buffered: true });
+        ro.observe();
+      } catch (_) {}
+    }
+
+    /* ─── §18-d VIDEO 최적화 — requestVideoFrameCallback ─── */
+    const VideoOpt = (() => {
+      let monitored = 0, degraded = 0;
+      const tracked = new WeakSet();
+
+      const monitor = (video) => {
+        if (tracked.has(video)) return;
+        if (typeof video.requestVideoFrameCallback !== 'function') return;
+        tracked.add(video);
+        monitored++;
+
+        let prevFrames = 0, prevDropped = 0;
+
+        const check = () => {
+          if (!video.isConnected || video.paused) return;
+          const quality = video.getVideoPlaybackQuality?.();
+          if (quality) {
+            const totalDelta = quality.totalVideoFrames - prevFrames;
+            const dropDelta = quality.droppedVideoFrames - prevDropped;
+            prevFrames = quality.totalVideoFrames;
+            prevDropped = quality.droppedVideoFrames;
+
+            if (totalDelta > 10 && dropDelta / totalDelta > 0.15) {
+              degraded++;
+              console.warn(`[TO] video drop:${dropDelta}/${totalDelta}`);
+              if (!lowPower && pressureState !== 'nominal') {
+                lowPower = true; setLowPower(true);
+              }
+            }
+          }
+          video.requestVideoFrameCallback(check);
+        };
+        video.requestVideoFrameCallback(check);
+      };
+
+      const scanAll = () => {
+        const videos = document.querySelectorAll('video');
+        for (let i = 0; i < videos.length; i++) monitor(videos[i]);
+      };
+
+      return { monitor, scanAll, stats: () => ({ monitored, degraded }) };
+    })();
+
+    schedF(() => VideoOpt.scanAll());
 
     /* ─── §19 GC ─── */
     let gcInterval = CFG.gcMs;
@@ -1099,9 +1401,8 @@
     }
 
     /* ═══════════════════════════════════════
-       §21  DISPLAY LOCKING — 통합 IO 사용
-       ═══════════════════════════════════════
-       v16: 별도 IO 제거 → unifiedIO에 dlock 역할 위임 */
+       §21  DISPLAY LOCKING
+       ═══════════════════════════════════════ */
     const DisplayLock = (() => {
       const supported = CSS.supports?.('content-visibility', 'hidden') ?? false;
       if (!supported) return { scan: () => {}, stats: () => ({ supported: false }), _lockCount: 0, _unlockCount: 0 };
@@ -1149,16 +1450,32 @@
     schedF(() => DisplayLock.scan());
 
     /* ═══════════════════════════════════════
-       §22  IMAGE FORMAT HINTS + Element Timing
-       ═══════════════════════════════════════
-       v16 변경:
-       - elementtiming 속성 자동 부여 (LCP 후보 이미지)
-       - srcset sizes 보정 유지 */
+       §22  IMAGE FORMAT HINTS
+       ═══════════════════════════════════════ */
     const ImgFormat = (() => {
-      let avif = false, webp = false;
+      let avif = false, webp = false, formatDetected = false;
       let hinted = 0, sizesFixed = 0, elemTimingSet = 0;
 
       const detectFormats = async () => {
+        if (IDB.ready()) {
+          try {
+            const cached = await IDB.get('imgfmt');
+            if (cached) {
+              avif = cached.avif; webp = cached.webp; formatDetected = true;
+              return;
+            }
+          } catch (_) {}
+        }
+
+        if (WorkerBridge.usable) {
+          try {
+            const r = await WorkerBridge.send('detectImgFormats');
+            avif = r.avif; webp = r.webp; formatDetected = true;
+            if (IDB.ready()) IDB.set('imgfmt', { avif, webp });
+            return;
+          } catch (_) {}
+        }
+
         const test = async (blob) => {
           try { const bmp = await createImageBitmap(blob); bmp.close(); return true; }
           catch (_) { return false; }
@@ -1173,6 +1490,8 @@
             82,73,70,70,36,0,0,0,87,69,66,80,86,80,56,32,24,0,0,0,48,1,0,157,1,42,1,0,1,0,1,64,37,164,0,3,112,0,254,251,148,0,0
           ])], { type: 'image/webp' }));
         } catch (_) {}
+        formatDetected = true;
+        if (IDB.ready()) IDB.set('imgfmt', { avif, webp });
       };
 
       if (typeof PerformanceObserver !== 'undefined') {
@@ -1194,37 +1513,35 @@
           if (img.dataset.tbFmt) continue;
           img.dataset.tbFmt = '1';
 
-          // sizes 보정
           if (img.srcset && (!img.sizes || img.sizes === '100vw')) {
             const w = img.clientWidth || img.offsetWidth;
             if (w > 0 && w < innerWidth * 0.9) { img.sizes = `${w}px`; sizesFixed++; }
           }
 
-          // v16: elementtiming 속성 부여 (큰 이미지만 — LCP 후보)
           if (!img.hasAttribute('elementtiming')) {
             const w = img.naturalWidth || img.width || img.clientWidth;
             const h = img.naturalHeight || img.height || img.clientHeight;
-            if (w * h > 40000) { // ~200x200 이상
+            if (w * h > 40000) {
               img.setAttribute('elementtiming', 'tb-auto');
               elemTimingSet++;
             }
           }
         }
+        VideoOpt.scanAll();
       };
 
       detectFormats();
-      return { scan, stats: () => ({ avif, webp, hinted, sizesFixed, elemTimingSet }) };
+      return { scan, stats: () => ({ avif, webp, formatDetected, hinted, sizesFixed, elemTimingSet }) };
     })();
 
     if (document.readyState === 'complete') schedF(() => ImgFormat.scan());
     else addEventListener('load', () => schedF(() => ImgFormat.scan()), { once: true });
 
-    /* ─── §23 PRELOAD BUDGET — 미사용 감지 강화 ─── */
+    /* ─── §23 PRELOAD BUDGET ─── */
     schedF(() => {
       const preloads = document.querySelectorAll('link[rel="preload"]');
       if (preloads.length <= 5) return;
 
-      // v16: as 속성별 그룹핑하여 중복 감지
       const byAs = new Map();
       for (let i = 0; i < preloads.length; i++) {
         const as = preloads[i].getAttribute('as') || 'unknown';
@@ -1233,11 +1550,7 @@
       }
 
       for (const [as, links] of byAs) {
-        // 동일 as에 3개 이상이면 경고
-        if (links.length > 3) {
-          console.warn(`[TO] preload-budget: ${links.length}× as="${as}" — 과도한 preload`);
-        }
-        // 5번째 이후는 low priority
+        if (links.length > 3) console.warn(`[TO] preload-budget: ${links.length}× as="${as}"`);
         for (let i = 4; i < links.length; i++) {
           if (!links[i].hasAttribute('fetchpriority')) links[i].fetchPriority = 'low';
         }
@@ -1257,16 +1570,12 @@
       });
     }
 
-    /* ─── §25 PAINT HOLD (View Transitions 통합됨, 레거시 폴백만) ─── */
-    // v16: §16에서 View Transitions로 완전 통합.
-    // hasVT가 없을 때만 content-visibility 폴백 유지하되,
-    // 실제 호출은 pushState 래퍼에서 직접 처리함.
-
     /* ─── §26 CLEANUP ─── */
     addEventListener('pagehide', () => {
       globalAC.abort();
       mObs.disconnect();
       unifiedIO.disconnect();
+      WorkerBridge.terminate();
     }, { once: true });
 
     /* ═══════════════════════════════════════
@@ -1275,10 +1584,11 @@
     window.__turboOptimizer__ = Object.freeze({
       version: V, mode: 'NON-BLOCKING', host: HOST, ai: AI, profile: SP,
       device:   () => ({ cores: DEV_CORES, mem: DEV_MEM, tier: T }),
-      net:      () => ({ ...NET, estRTT: NetQuality.rtt() }),
+      net:      () => ({ ...NET, estRTT: NetQuality.rtt(), pressure: pressureState }),
       fps:      () => fpsC,
       lowPower: () => lowPower,
       throttle: () => thrOn,
+      streaming: () => isStreaming,
       memory:   () => ({ ...Mem.stats(), heapMB: heapMB() }),
       lcp:      () => ({ el: lcp.el?.tagName || null, done: lcp.done }),
       dns:      () => DnsHints.stats(),
@@ -1289,15 +1599,24 @@
       sched:    { postTask: hasPT, yield: hasYld, taskController: hasTC },
       scripts3p: () => ScriptDefer.stats(),
       netQuality: () => NetQuality.stats(),
+      video:    () => VideoOpt.stats(),
+      worker:   () => ({ usable: WorkerBridge.usable }),
+      idb:      () => ({ ready: IDB.ready() }),
+      pressure: () => pressureState,
       features: () => ({
         navAPI: hasNavAPI, viewTransitions: hasVT, loaf: hasLoAF,
         measureMemory: typeof performance.measureUserAgentSpecificMemory === 'function',
         speculationRules: !!HTMLScriptElement.supports?.('speculationrules'),
         taskController: hasTC,
+        computePressure: hasPressure,
+        reportingObserver: typeof ReportingObserver === 'function',
+        videoFrameCallback: typeof HTMLVideoElement?.prototype?.requestVideoFrameCallback === 'function',
+        crossDocVT: true,
+        mseDetected: isStreaming,
       }),
       stats() {
         return {
-          v: V, host: HOST, ai: AI,
+          v: V, host: HOST, ai: AI, streaming: isStreaming,
           device: { cores: DEV_CORES, mem: DEV_MEM, tier: T },
           net: this.net(), fps: fpsC, lowPower, thrOn,
           mem: this.memory(), lcp: this.lcp(), dns: this.dns(), csp: this.csp(),
@@ -1305,6 +1624,10 @@
           tt: this.tt(), sched: this.sched,
           scripts3p: this.scripts3p(),
           netQuality: this.netQuality(),
+          video: this.video(),
+          worker: this.worker(),
+          idb: this.idb(),
+          pressure: pressureState,
           features: this.features(),
         };
       },
@@ -1319,21 +1642,20 @@
           '.dlock()      D-Lock         .imgfmt()   이미지 포맷',
           '.tt()         Trusted Types   .features() API 상태',
           '.scripts3p()  3P 스크립트     .netQuality() 네트워크 품질',
+          '.video()      비디오 최적화    .worker()   Worker 상태',
+          '.idb()        IndexedDB 캐시  .pressure() CPU 압력',
+          '.streaming()  MSE 스트리밍 감지',
           '─'.repeat(52),
-          '★ v16.0 변경사항:',
-          '✦ TaskController: 동적 우선순위 + abort 지원',
-          '✦ 3P Script IO-deferred loading (하이드레이션 지연)',
-          '✦ CSS contain:strict 카드형 UI 분리 적용',
-          '✦ 단일 IntersectionObserver (media+dlock+script 통합)',
-          '✦ Zero-alloc MO 이중 버퍼 배칭',
-          '✦ heapMB 캐시 → stats() 동기 복귀',
-          '✦ LoAF EMA(α=0.3) jank rate 안정화',
-          '✦ Resource Timing 기반 실시간 RTT 보정',
-          '✦ elementtiming 자동 부여 (LCP 후보)',
-          '✦ Speculation Rules: form action + [data-no-speculate] 동적 제외',
-          '✦ Preload budget: as별 그룹핑 + 중복 경고',
-          '✦ extractOrigin data: URI 조기 탈출',
-          '✦ Passive event: mutation 직접 → 객체 할당 제거',
+          '★ v17.0 변경사항:',
+          '✦ MSE 자동 감지: 스트리밍 사이트 자동 보호 (@exclude 불필요)',
+          '✦ Worker 축출: DNS/RTT/ImgFmt → Blob Worker',
+          '✦ IndexedDB 영구 캐시: DNS·네트워크·포맷 세션간 유지',
+          '✦ Compute Pressure API: CPU 열/부하 직접 관찰',
+          '✦ Cross-doc @view-transition CSS',
+          '✦ TreeWalker 기반 MO (querySelectorAll 제거)',
+          '✦ ReportingObserver: deprecation/intervention 로깅',
+          '✦ requestVideoFrameCallback: 프레임 드롭 감지',
+          '✦ video 조상 CSS :has(>video) contain 보호',
         ].join('\n'));
       }
     });
@@ -1344,8 +1666,10 @@
       `${NET.etype}/t${NET.tier}${NET.save ? '/s' : ''} ` +
       `S:${hasPT ? 'pT' : hasYld ? 'y' : 'fb'}${hasTC ? '+TC' : ''} ` +
       `TT:${TT.active ? (TT.isDefault ? 'def' : 'named') : (TT.blocked ? '✗' : 'n/a')} ` +
-      `Nav:${hasNavAPI ? '✓' : '✗'} VT:${hasVT ? '✓' : '✗'} LoAF:${hasLoAF ? '✓' : '✗'} ` +
-      `IO:unified ` + HOST
+      `W:${WorkerBridge.usable ? '✓' : '✗'} IDB:${IDB.ready() ? '✓' : '…'} ` +
+      `P:${hasPressure ? '✓' : '✗'} MSE:${isStreaming ? '✓' : '–'} ` +
+      `Nav:${hasNavAPI ? '✓' : '✗'} VT:${hasVT ? '✓' : '✗'}+xdoc LoAF:${hasLoAF ? '✓' : '✗'} ` +
+      `IO:unified MO:tw ` + HOST
     );
   }
 })();
