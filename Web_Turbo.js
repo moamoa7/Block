@@ -213,10 +213,10 @@
     const hS = document.createElement('style'); hS.id = 'tb-h';
     const cvSel = AI ? `article:not(${SP.t}),section:not(${SP.t})` : 'article,section,.post,.comment,.card,li.item';
     const scSel = [
-      '.chat-history', '.overflow-y-auto', '[class*="react-scroll"]',
-      '[class*="overflow"]', '.chat-scroll', '.scroller', '.overflow-auto',
-      AI ? SP.c : ''
-    ].filter(Boolean).join(',');
+  '.chat-history', '.overflow-y-auto', '[class*="react-scroll"]',
+  '.chat-scroll', '.scroller', '.overflow-auto',
+  AI ? SP.c : ''
+].filter(Boolean).join(',');
     hS.textContent =
       `${cvSel}{content-visibility:auto;contain-intrinsic-size:auto 500px}` +
       `img[loading="lazy"],iframe[loading="lazy"]{content-visibility:auto;contain-intrinsic-size:auto 300px}` +
