@@ -7207,6 +7207,55 @@ ${CSS_VARS}
       }, { signal: __globalSig, capture: true });
     }
 
+══════════════════════════════════════════════════════════════════
+       createTouchGestureManager
+       ══════════════════════════════════════════════════════════════════ */
+    function injectTouchGestureCSS() {
+      if (document.getElementById('vsc-touch-gesture-css')) return;
+      const style = document.createElement('style');
+      style.id = 'vsc-touch-gesture-css';
+      style.textContent = `
+        .vsc-swipe-indicator { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 2px 8px rgba(0,0,0,0.7); }
+        .vsc-swipe-indicator.left  { left: 12%; }
+        .vsc-swipe-indicator.right { right: 12%; }
+        .vsc-swipe-indicator.show  { opacity: 1; }
+        .vsc-swipe-icon { width: 40px; height: 40px; background: rgba(0,0,0,0.45); border-radius: 50%; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); border: 1px solid rgba(255,255,255,0.15); }
+        .vsc-swipe-icon svg { width: 22px; height: 22px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .vsc-swipe-track { width: 4px; height: 80px; background: rgba(255,255,255,0.15); border-radius: 2px; overflow: hidden; position: relative; }
+        .vsc-swipe-fill { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(110,168,254,0.85); border-radius: 2px; transition: height 0.08s linear; box-shadow: 0 0 6px rgba(110,168,254,0.5); }
+        .vsc-swipe-label { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
+
+        .vsc-seek-ripple { position: fixed; top: 50%; transform: translateY(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease-out; display: flex; flex-direction: row; align-items: center; gap: 6px; font-family: system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5); white-space: nowrap; }
+        .vsc-seek-ripple.left  { left: 15%; }
+        .vsc-seek-ripple.right { right: 15%; }
+        .vsc-seek-ripple.show  { opacity: 1; }
+        .vsc-seek-arrows { display: flex; align-items: center; font-size: 22px; font-weight: 400; line-height: 1; }
+        .vsc-seek-arrows span { display: block; line-height: 1; }
+        .vsc-seek-text { font-size: 15px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+        .vsc-seek-pop { animation: vsc-seek-pop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes vsc-seek-pop { 0%  { transform: scale(1); } 40% { transform: scale(1.35); } 100%{ transform: scale(1); } }
+        .vsc-arrow-slide-r { animation: vsc-arrow-r 0.6s infinite; }
+        @keyframes vsc-arrow-r { 0%  { transform: translateX(-4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(4px); opacity: 0; } }
+        .vsc-arrow-slide-l { animation: vsc-arrow-l 0.6s infinite; }
+        @keyframes vsc-arrow-l { 0%  { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100%{ transform: translateX(-4px); opacity: 0; } }
+
+        .vsc-longpress-badge { position: fixed; top: 8%; left: 50%; transform: translateX(-50%); z-index: 2147483646; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0,0,0,0.55); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); border-radius: 20px; padding: 6px 16px; font: 700 13px/1.4 system-ui, -apple-system, sans-serif; color: rgba(255,255,255,0.95); display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5); }
+        .vsc-longpress-badge.show { opacity: 1; }
+        .vsc-longpress-badge .vsc-lp-icon { width: 16px; height: 16px; animation: vsc-lp-pulse 0.8s infinite alternate; }
+        @keyframes vsc-lp-pulse { 0%  { opacity: 0.5; transform: scale(0.9); } 100%{ opacity: 1.0; transform: scale(1.1); } }
+
+        .vsc-seek-overlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.15s ease; background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(15px); color: white; padding: 16px 28px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.15); font-family: system-ui, sans-serif; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,0.5); display: none; }
+        .vsc-seek-overlay.show { display: block; opacity: 1; }
+        .vsc-seek-direction { font-size: 13px; font-weight: 600; opacity: 0.8; margin-bottom: 4px; }
+        .vsc-seek-main { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+        .vsc-seek-delta { font-size: 15px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+        .ytp-spinner, .vjs-loading-spinner, .loading-indicator, .mvp-spinner, video::-webkit-media-controls-loading-indicator { display: none !important; visibility: hidden !important; opacity: 0 !important; }
+        @media (prefers-reduced-motion: reduce) { .vsc-seek-pop, .vsc-arrow-slide-r, .vsc-arrow-slide-l, .vsc-longpress-badge .vsc-lp-icon { animation: none !important; } }
+      `;
+      (document.head || document.documentElement).appendChild(style);
+    }
+
     /* ══════════════════════════════════════════════════════════════════
        createTouchGestureManager (수정본: 플레이어 컨테이너 전체화면 적용)
        ══════════════════════════════════════════════════════════════════ */
