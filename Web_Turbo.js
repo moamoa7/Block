@@ -2,7 +2,7 @@
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
 // @version      17.0
-// @description  Non-blocking web optimizer v17.0 – Worker offload (DNS/RTT/ImgFmt), IDB persistent cache, Compute Pressure API, cross-doc ViewTransition CSS, TreeWalker MO, ReportingObserver, MSE auto-detect streaming protection, requestVideoFrameCallback, all v16 features maintained & upgraded.
+// @description  Non-blocking web optimizer v17.0 – Worker offload (DNS/RTT/ImgFmt), IDB persistent cache, Compute Pressure API, cross-doc ViewTransition CSS, TreeWalker MO, ReportingObserver, MSE auto-detect streaming protection, sticky/fixed element protection, requestVideoFrameCallback, all v16 features maintained & upgraded.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -92,10 +92,6 @@
 
   /* ═══════════════════════════════════════
      §0-g  MSE STREAMING AUTO-DETECT
-     ═══════════════════════════════════════
-     MediaSource 사용을 감지하여 스트리밍 사이트 자동 판별.
-     감지 시: preload 변경 금지, timer throttle 해제,
-     content-visibility에서 video 조상 제외.
      ═══════════════════════════════════════ */
   let isStreaming = false;
 
@@ -480,11 +476,17 @@
     }
 
     /* ═══════════════════════════════════════
-       §6  CSS — MSE 감지 시 video 조상 보호
+       §6  CSS — sticky/fixed/nav 구조적 보호
        ═══════════════════════════════════════ */
+    const cvExclude =
+      ':not(nav):not(header):not([role="navigation"]):not([role="banner"])' +
+      ':not([role="tablist"]):not([role="search"]):not([style*="sticky"])' +
+      ':not([style*="fixed"])';
+
     const cvSel = AI
-      ? `article:not(${SP.t}),section:not(${SP.t})`
-      : 'article,section';
+      ? `article:not(${SP.t})${cvExclude},section:not(${SP.t})${cvExclude}`
+      : `article${cvExclude},section${cvExclude}`;
+
     const cardSel = '.post,.comment,.card,li.item';
     const scSel = [
       '.chat-history', '.overflow-y-auto', '[class*="react-scroll"]',
@@ -495,14 +497,20 @@
 
     const vtCSS = `@view-transition{navigation:auto}`;
 
+    // sticky/fixed/nav 요소 강제 보호 선택자
+    const stickyProtectSel =
+      '[style*="sticky"],[style*="fixed"],' +
+      'nav,header,[role="navigation"],[role="banner"],' +
+      '[role="tablist"],[role="search"],[role="menubar"]';
+
     const hCSS =
       vtCSS +
       `${cvSel}{content-visibility:auto;contain-intrinsic-size:auto 500px}` +
       `${cardSel}{contain:strict;contain-intrinsic-size:auto 300px;content-visibility:auto}` +
       `${feedChildSel}{contain:layout paint;contain-intrinsic-size:auto 400px;content-visibility:auto}` +
       `img[loading="lazy"],iframe[loading="lazy"]{content-visibility:auto;contain-intrinsic-size:auto 300px}` +
-      // v17: video 플레이어 및 조상은 content-visibility/contain 제외
       `:has(>video),video{content-visibility:visible!important;contain:none!important}` +
+      `${stickyProtectSel}{content-visibility:visible!important;contain:none!important;contain-intrinsic-size:none!important}` +
       `${scSel}{contain:content;will-change:scroll-position;overflow-anchor:auto;overscroll-behavior:contain}`;
 
     const lpCSS =
@@ -725,7 +733,6 @@
       Object.assign(role, rolePatch);
     };
 
-    /* ─── enrollMedia — MSE 감지 시 video preload 보호 ─── */
     const enrollMedia = (el) => {
       if (done.has(el)) return;
       const tag = el.tagName;
@@ -835,7 +842,27 @@
       bw.observe(document.documentElement, { childList: true });
     }
 
+    /* ─── §12 초기 스캔 ─── */
     schedF(scanAllMedia);
+
+    /* ─── §12-b sticky/fixed 요소 JS 보호 (CSS 클래스 기반 position 대응) ─── */
+    const protectStickyElements = () => {
+      const targets = document.querySelectorAll(
+        'article,section,nav,header,div,aside,[role="navigation"],[role="banner"],[role="tablist"],[role="search"],[role="menubar"]'
+      );
+      for (let i = 0; i < targets.length; i++) {
+        const el = targets[i];
+        try {
+          const pos = getComputedStyle(el).position;
+          if (pos === 'sticky' || pos === 'fixed') {
+            el.style.contentVisibility = 'visible';
+            el.style.contain = 'none';
+            el.style.containIntrinsicSize = 'none';
+          }
+        } catch (_) {}
+      }
+    };
+    schedF(protectStickyElements);
 
     /* ═══════════════════════════════════════
        §13  DNS-PREFETCH / PRECONNECT
@@ -1174,6 +1201,7 @@
       spaT = setTimeout(() => {
         schedF(scanAllMedia, 'user-visible');
         schedF(() => { DnsHints.scanDOM(); DisplayLock.scan(); ScriptDefer.scan(); });
+        schedF(protectStickyElements);
         setTimeout(() => schedF(() => ImgFormat.scan()), 2000);
       }, CFG.spaDb);
     };
@@ -1215,6 +1243,7 @@
         console.log(`[TO v${V}] bfcache restore`);
         schedF(scanAllMedia, 'user-visible');
         schedF(() => { DnsHints.scanDOM(); DisplayLock.scan(); });
+        schedF(protectStickyElements);
       }
     }, { signal: gSig });
 
@@ -1647,7 +1676,8 @@
           '.streaming()  MSE 스트리밍 감지',
           '─'.repeat(52),
           '★ v17.0 변경사항:',
-          '✦ MSE 자동 감지: 스트리밍 사이트 자동 보호 (@exclude 불필요)',
+          '✦ MSE 자동 감지: 스트리밍 사이트 자동 보호',
+          '✦ sticky/fixed/nav 구조적 보호: CSS :not() + JS getComputedStyle 이중 방어',
           '✦ Worker 축출: DNS/RTT/ImgFmt → Blob Worker',
           '✦ IndexedDB 영구 캐시: DNS·네트워크·포맷 세션간 유지',
           '✦ Compute Pressure API: CPU 열/부하 직접 관찰',
@@ -1655,7 +1685,7 @@
           '✦ TreeWalker 기반 MO (querySelectorAll 제거)',
           '✦ ReportingObserver: deprecation/intervention 로깅',
           '✦ requestVideoFrameCallback: 프레임 드롭 감지',
-          '✦ video 조상 CSS :has(>video) contain 보호',
+          '✦ SPA 전환·bfcache 복원 시 sticky 보호 재실행',
         ].join('\n'));
       }
     });
