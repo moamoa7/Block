@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기
 // @namespace    https://github.com/moamoa7
-// @version      12.7.1
+// @version      12.7.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (WebRTC MediaStream 지원)
 // @author       DelayMeter
 // @match        *://*/*
@@ -76,6 +76,7 @@
 
   /* 페이지 컨텍스트에 주입 */
   const injectScript = () => {
+    if (!shouldInject) return;  // ← 이 한 줄 추가
     try {
       const s = document.createElement('script');
       s.textContent = INJECT_SRC;
@@ -702,6 +703,7 @@ ctx.restore()};`;
 
   const init = () => {
     if (!document.body) { document.addEventListener('DOMContentLoaded', init, { once: true }); return; }
+    if (!shouldInject) return;
     build(); scan(); startObserver(); loop();
   };
 
