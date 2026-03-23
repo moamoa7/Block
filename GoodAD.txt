@@ -515,6 +515,9 @@ point.pay.naver.com#@#[class*="Modal"]
 !tiktok.com##.TUXModal-overlay - ##[class$="verlay"] 로 대체
 ! - - - https://www.twitch.tv/ - 영상내 마우스 오버시 번쩍번쩍하면 화면에 아무것도 안보임
 twitch.tv#@#[class*="Modal"]
+! - - - popkontv.com - 로그인 하라는 팝업 차단되서 해제
+popkontv.com#@#[class*="Modal"]
+
 !
 !
 ! 씨네스트 (https://cineaste.co.kr/)
@@ -5776,6 +5779,8 @@ poooo.ml#@#[class*="layer"]
 !##[class][style="margin 0; color: #239d9668"]
 !##div>[class][style*="margin 0"]
 !namu.wiki##[class*="g"][style*="margin"]
+! - 광고 삭제
+namu.wiki##[class][style="background-color:#fdfff4;"]
 ! - ##[class^="ad"] 해제 - 내용 안나옴
 namu.wiki#@#[class^="ad"]
 
