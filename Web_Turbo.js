@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      11.1
-// @description  모든 웹사이트에서 렉을 제거하고 최적의 성능을 보장합니다. v11.1: SPA 내부 전환 시 신규 콘텐츠 렌더링 보장. GC 유예 기간 강화, flushBatch 내 GC 호출 제거.
+// @version      12.0
+// @description  모든 웹사이트에서 렉을 제거하고 최적의 성능을 보장합니다. v12.0: 초기화 경합 완전 해결. 프로토타입 훅만 즉시, 나머지 전부 지연 초기화.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -22,107 +22,110 @@
     'use strict';
 
     // ═══════════════════════════════════════════════
-    // §1. 사이트 프로필 감지
+    // PHASE 1: document-start에서 즉시 실행 (가볍게)
+    //   — 프로토타입 훅만 여기서 설치
+    //   — CSS, Observer, DOM 처리는 전부 PHASE 2로
+    // ═══════════════════════════════════════════════
+
+    // §2. 패시브 이벤트 (wheel/scroll만)
+    const origAddEventListener = EventTarget.prototype.addEventListener;
+    {
+        const PASSIVE_TYPES = new Set(['wheel', 'mousewheel', 'scroll']);
+        const PF = Object.freeze({ passive: true, capture: false });
+        const PT = Object.freeze({ passive: true, capture: true });
+        EventTarget.prototype.addEventListener = function (type, listener, options) {
+            if (PASSIVE_TYPES.has(type)) {
+                if (options == null || options === false) options = PF;
+                else if (options === true) options = PT;
+                else if (typeof options === 'object' && options.passive === undefined)
+                    options = { ...options, passive: true };
+            }
+            return origAddEventListener.call(this, type, listener, options);
+        };
+    }
+
+    // §1-b. OffscreenCanvas 감지
+    const offscreenCanvasSet = new WeakSet();
+    {
+        const orig = HTMLCanvasElement.prototype.transferControlToOffscreen;
+        if (orig) {
+            HTMLCanvasElement.prototype.transferControlToOffscreen = function (...a) {
+                offscreenCanvasSet.add(this);
+                return orig.apply(this, a);
+            };
+        }
+    }
+
+    // ═══════════════════════════════════════════════
+    // PHASE 2: 페이지가 충분히 로드된 후 실행
+    //   — CSS 주입, Observer 생성, DOM 처리 전부 여기
+    // ═══════════════════════════════════════════════
+     const boot = () => {
+        // 2초 고정 대기 후, 실제 렌더링이 완료되었는지 확인
+        setTimeout(() => {
+            // 안전장치: body에 콘텐츠가 실제로 그려져 있는지 확인
+            // 아직 비어있으면 추가 대기
+            const checkAndInit = (retries) => {
+                const hasContent = document.body && document.body.offsetHeight > 100;
+                if (hasContent || retries <= 0) {
+                    initAll();
+                } else {
+                    setTimeout(() => checkAndInit(retries - 1), 500);
+                }
+            };
+            checkAndInit(6); // 최대 3초 추가 대기 (500ms × 6)
+        }, 2000);
+    };
+    if (document.readyState === 'loading')
+        document.addEventListener('DOMContentLoaded', boot);
+    else
+        boot();
+
+    function initAll() {
+
+    // ═══════════════════════════════════════════════
+    // §1. 사이트 프로필
     // ═══════════════════════════════════════════════
     const HOST = location.hostname;
-
     const SITE_PROFILE = (() => {
         if (HOST.includes('gemini.google.com'))
-            return {
-                id: 'gemini',
-                streamingSelector: 'model-response[is-streaming], .loading-spinner, mat-progress-bar',
-                turnSelector: 'model-response, user-query',
-                scrollContainer: 'infinite-scroller.chat-history, .conversation-container',
-            };
+            return { id: 'gemini', streamingSelector: 'model-response[is-streaming], .loading-spinner, mat-progress-bar', turnSelector: 'model-response, user-query', scrollContainer: 'infinite-scroller.chat-history, .conversation-container' };
         if (HOST.includes('chatgpt.com') || HOST.includes('chat.openai.com'))
-            return {
-                id: 'chatgpt',
-                streamingSelector: '.result-streaming, button[aria-label="Stop generating"], .streaming',
-                turnSelector: 'article[data-testid^="conversation-turn-"]',
-                scrollContainer: '[class*="react-scroll-to-bottom"]',
-            };
+            return { id: 'chatgpt', streamingSelector: '.result-streaming, button[aria-label="Stop generating"], .streaming', turnSelector: 'article[data-testid^="conversation-turn-"]', scrollContainer: '[class*="react-scroll-to-bottom"]' };
         if (HOST.includes('claude.ai'))
-            return {
-                id: 'claude',
-                streamingSelector: '[data-is-streaming="true"], button[aria-label="Stop Response"]',
-                turnSelector: 'div[class*="ChatMessage"]',
-                scrollContainer: '.overflow-y-auto',
-            };
+            return { id: 'claude', streamingSelector: '[data-is-streaming="true"], button[aria-label="Stop Response"]', turnSelector: 'div[class*="ChatMessage"]', scrollContainer: '.overflow-y-auto' };
         if (HOST.includes('genspark.ai'))
-            return {
-                id: 'genspark',
-                streamingSelector: '.loading-spinner, .generating, .streaming-indicator, .thinking-indicator, button[class*="stop"], .moa-progress, .agent-thinking',
-                turnSelector: '.conversation-statement',
-                scrollContainer: '.chat-container, .conversation-list',
-            };
+            return { id: 'genspark', streamingSelector: '.loading-spinner, .generating, .streaming-indicator, .thinking-indicator, button[class*="stop"], .moa-progress, .agent-thinking', turnSelector: '.conversation-statement', scrollContainer: '.chat-container, .conversation-list' };
         if (HOST.includes('perplexity.ai'))
-            return {
-                id: 'perplexity',
-                streamingSelector: '[data-testid="streaming-indicator"], .animate-pulse, button[aria-label="Stop"]',
-                turnSelector: '[data-testid="message-content"]',
-                scrollContainer: 'main',
-            };
+            return { id: 'perplexity', streamingSelector: '[data-testid="streaming-indicator"], .animate-pulse, button[aria-label="Stop"]', turnSelector: '[data-testid="message-content"]', scrollContainer: 'main' };
         if (HOST.includes('aistudio.google.com'))
-            return {
-                id: 'aistudio',
-                streamingSelector: '.generating-indicator, mat-progress-bar, .loading',
-                turnSelector: 'ms-chat-turn, .chat-turn',
-                scrollContainer: '.chat-scroll-container',
-            };
+            return { id: 'aistudio', streamingSelector: '.generating-indicator, mat-progress-bar, .loading', turnSelector: 'ms-chat-turn, .chat-turn', scrollContainer: '.chat-scroll-container' };
         if (HOST.includes('copilot.microsoft.com'))
-            return {
-                id: 'copilot',
-                streamingSelector: '.typing-indicator, cib-typing-indicator, [is-streaming]',
-                turnSelector: 'cib-chat-turn, cib-message-group',
-                scrollContainer: 'cib-chat-main',
-            };
+            return { id: 'copilot', streamingSelector: '.typing-indicator, cib-typing-indicator, [is-streaming]', turnSelector: 'cib-chat-turn, cib-message-group', scrollContainer: 'cib-chat-main' };
         if (HOST.includes('grok.com') || HOST.includes('x.ai'))
-            return {
-                id: 'grok',
-                streamingSelector: '[data-streaming="true"], .animate-pulse',
-                turnSelector: '[class*="message"]',
-                scrollContainer: 'main',
-            };
+            return { id: 'grok', streamingSelector: '[data-streaming="true"], .animate-pulse', turnSelector: '[class*="message"]', scrollContainer: 'main' };
         if (HOST.includes('huggingface.co') && location.pathname.startsWith('/chat'))
-            return {
-                id: 'huggingchat',
-                streamingSelector: '.message.assistant .loading, button[aria-label="Stop generating"]',
-                turnSelector: '.message',
-                scrollContainer: '.overflow-y-auto',
-            };
+            return { id: 'huggingchat', streamingSelector: '.message.assistant .loading, button[aria-label="Stop generating"]', turnSelector: '.message', scrollContainer: '.overflow-y-auto' };
         if (HOST.includes('chat.deepseek.com'))
-            return {
-                id: 'deepseek',
-                streamingSelector: '.ds-loading, .thinking-block, button[class*="stop"]',
-                turnSelector: '[class*="Message"]',
-                scrollContainer: '.overflow-y-auto',
-            };
+            return { id: 'deepseek', streamingSelector: '.ds-loading, .thinking-block, button[class*="stop"]', turnSelector: '[class*="Message"]', scrollContainer: '.overflow-y-auto' };
         if (HOST.includes('poe.com'))
-            return {
-                id: 'poe',
-                streamingSelector: '[class*="ChatMessage_loading"], button[class*="StopButton"]',
-                turnSelector: '[class*="ChatMessage"]',
-                scrollContainer: '[class*="ChatMessagesView"]',
-            };
+            return { id: 'poe', streamingSelector: '[class*="ChatMessage_loading"], button[class*="StopButton"]', turnSelector: '[class*="ChatMessage"]', scrollContainer: '[class*="ChatMessagesView"]' };
         return null;
     })();
-
     const IS_AI_CHAT = SITE_PROFILE !== null;
 
     // ═══════════════════════════════════════════════
     // §1-a. 상수 & 설정
     // ═══════════════════════════════════════════════
     const SELECTOR_LIST = [
-        'article', 'section', 'main', '.post', '.content', '.comment',
+        'article', 'section', '.post', '.content', '.comment',
         'section[data-testid^="conversation-turn-"]',
         'div[class*="ChatMessage"]',
         'infinite-scroller > div', 'chat-view-item',
         '.conversation-statement',
         '[data-testid="message-content"]',
         'div[class*="Message"]',
-        'div[class*="ChatMessage"]',
     ];
-
     const SELECTORS = SELECTOR_LIST.join(', ');
     const MEDIA_TAG_SET = new Set(['IMG', 'VIDEO', 'IFRAME', 'CANVAS']);
 
@@ -138,7 +141,6 @@
         mediaMarginTop:           300,
         mediaMarginBottom:        1000,
         fpsAlpha:                 0.15,
-        gcTaskPriority:           'background',
         hardReclaimMarginTop:     4000,
         hardReclaimMarginBottom:  6000,
         restoreBatchSize:         3,
@@ -147,7 +149,6 @@
         loafJankThresholdMs:      100,
         loafJankWindowSize:       5,
         slowNetBatchSize:         1,
-        blobAutoExpireMs:         60000,
         timerThrottleMinInterval: 1000,
         timerThrottleThreshold:   500,
         yieldInterval:            4,
@@ -161,7 +162,6 @@
         streamingGcPauseMs:       2000,
         mutationCoalesceMs:       100,
         bulkCleanupThreshold:     50,
-        hydrationGracePeriodMs:   2500,
         spaNavigationGracePeriodMs: 3000,
     };
 
@@ -170,9 +170,10 @@
     let memoryPressure = false;
     let scrollDirection = 1;
     let effectiveRestoreBatch = CFG.restoreBatchSize;
-    let gcPausedUntil = 0;
+    let gcPausedUntil = performance.now() + 3000; // 추가 3초 유예
     let inputActiveUntil = 0;
     let isStreaming = false;
+    let isNavigating = false;
 
     let statsReclaimCount = 0;
     let statsRestoreCount = 0;
@@ -193,19 +194,8 @@
         ? () => scheduler.yield()
         : () => new Promise(r => setTimeout(r, 0));
 
-    // ═══════════════════════════════════════════════
-    // §1-b. OffscreenCanvas 감지
-    // ═══════════════════════════════════════════════
-    const offscreenCanvasSet = new WeakSet();
-    {
-        const orig = HTMLCanvasElement.prototype.transferControlToOffscreen;
-        if (orig) {
-            HTMLCanvasElement.prototype.transferControlToOffscreen = function (...a) {
-                offscreenCanvasSet.add(this);
-                return orig.apply(this, a);
-            };
-        }
-    }
+    const isGcPaused = () => performance.now() < gcPausedUntil;
+
     const safeCanvasResize = (c, w, h) => {
         if (offscreenCanvasSet.has(c)) return false;
         try { c.width = w; c.height = h; return true; }
@@ -232,39 +222,11 @@
             if (isStreaming && !wasStreaming) gcPausedUntil = Infinity;
             if (!isStreaming && wasStreaming) gcPausedUntil = performance.now() + CFG.streamingGcPauseMs;
         };
-        const startStreamingWatch = () => setInterval(checkStreaming, CFG.streamingCheckInterval);
-        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startStreamingWatch);
-        else startStreamingWatch();
+        setInterval(checkStreaming, CFG.streamingCheckInterval);
     }
 
     // ═══════════════════════════════════════════════
-    // §1-e. SPA 네비게이션 상태 추적
-    // ═══════════════════════════════════════════════
-    let isNavigating = false;
-    const isGcPaused = () => performance.now() < gcPausedUntil;
-
-    // ═══════════════════════════════════════════════
-    // §2. 패시브 이벤트 리스너 강제화
-    // ═══════════════════════════════════════════════
-    {
-        const origAdd = EventTarget.prototype.addEventListener;
-        const PASSIVE_TYPES = new Set(['touchstart', 'touchmove', 'wheel', 'mousewheel', 'scroll']);
-        const PF = Object.freeze({ passive: true, capture: false });
-        const PT = Object.freeze({ passive: true, capture: true });
-
-        EventTarget.prototype.addEventListener = function (type, listener, options) {
-            if (PASSIVE_TYPES.has(type)) {
-                if (options == null || options === false) options = PF;
-                else if (options === true) options = PT;
-                else if (typeof options === 'object' && options.passive === undefined)
-                    options = { ...options, passive: true };
-            }
-            return origAdd.call(this, type, listener, options);
-        };
-    }
-
-    // ═══════════════════════════════════════════════
-    // §2-b. 지능형 타이머 쓰로틀링
+    // §2-b. 타이머 쓰로틀링 (지연 활성화)
     // ═══════════════════════════════════════════════
     {
         const origSI = window.setInterval;
@@ -272,21 +234,21 @@
         const throttled = new Map();
         let hidden = document.hidden;
         let wrapId = 0x7FFFFFFF;
+        let active = false;
 
-        const reapply = () => {
+        document.addEventListener('visibilitychange', () => {
             hidden = document.hidden;
             for (const [, info] of throttled) {
                 origCI.call(window, info.rid);
                 info.rid = origSI.call(window, info.cb,
                     hidden ? Math.max(info.od, CFG.timerThrottleMinInterval) : info.od);
             }
-        };
-        document.addEventListener('visibilitychange', reapply);
+        });
 
         window.setInterval = function (cb, delay, ...args) {
             if (typeof cb !== 'function') return origSI.call(window, cb, delay, ...args);
             delay = Number(delay) || 0;
-            if (delay >= CFG.timerThrottleThreshold) return origSI.call(window, cb, delay, ...args);
+            if (!active || delay >= CFG.timerThrottleThreshold) return origSI.call(window, cb, delay, ...args);
             const bound = args.length ? () => cb(...args) : cb;
             const eff = hidden ? Math.max(delay, CFG.timerThrottleMinInterval) : delay;
             const rid = origSI.call(window, bound, eff);
@@ -295,16 +257,18 @@
             statsThrottledTimers++;
             return wid;
         };
-
         window.clearInterval = function (id) {
             const info = throttled.get(id);
             if (info) { origCI.call(window, info.rid); throttled.delete(id); }
             else origCI.call(window, id);
         };
+
+        // 5초 후 활성화
+        setTimeout(() => { active = true; }, 5000);
     }
 
     // ═══════════════════════════════════════════════
-    // §3. CSS 주입 (★ v11.1: 뼈대 보호 범위 확장)
+    // §3. CSS 주입
     // ═══════════════════════════════════════════════
     const skeletonProtectCSS = `
         body > *,
@@ -318,64 +282,58 @@
             content-visibility: visible !important;
             contain-intrinsic-size: none !important;
         }
-    `;
-
-    const baseCSS = `
-        ${skeletonProtectCSS}
-        ${SELECTORS}{content-visibility:auto;contain-intrinsic-size:auto 500px;contain:content}
-        @media not (prefers-reduced-motion:reduce){html{scroll-behavior:smooth!important}}
-        img{content-visibility:auto;decoding:async}
         input,textarea,[contenteditable="true"],[role="textbox"],
         .ProseMirror,.cm-editor,.CodeMirror,.ql-editor{
             content-visibility:visible!important;contain:none!important}
     `;
+    const optimizeCSS = `
+        ${SELECTORS}{content-visibility:auto;contain-intrinsic-size:auto 500px;contain:content}
+        @media not (prefers-reduced-motion:reduce){html{scroll-behavior:smooth!important}}
+        img{content-visibility:auto;decoding:async}
+    `;
     const lowPowerCSS = `*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important;transition-delay:0s!important}`;
 
-    const styleEl = document.createElement('style');
-    styleEl.textContent = baseCSS;
+    const protectStyleEl = document.createElement('style');
+    protectStyleEl.textContent = skeletonProtectCSS;
+
+    const optimizeStyleEl = document.createElement('style');
+    optimizeStyleEl.textContent = optimizeCSS;
+
     const lowPowerStyleEl = document.createElement('style');
     lowPowerStyleEl.textContent = lowPowerCSS;
     lowPowerStyleEl.disabled = true;
 
-    {
-        const insert = () => (document.head || document.documentElement).append(styleEl, lowPowerStyleEl);
-        if (document.head) insert();
-        else new MutationObserver((_, obs) => {
-            if (document.head) { obs.disconnect(); insert(); }
-        }).observe(document.documentElement, { childList: true });
-    }
+    (document.head || document.documentElement).append(protectStyleEl, optimizeStyleEl, lowPowerStyleEl);
+
+    let cssDisableTimer = 0;
+    const disableOptimizeCSS = (durationMs) => {
+        optimizeStyleEl.disabled = true;
+        clearTimeout(cssDisableTimer);
+        cssDisableTimer = setTimeout(() => { optimizeStyleEl.disabled = false; }, durationMs);
+    };
 
     const forceFontDisplaySwap = () => {
         try {
             if (document.fonts) {
                 for (const f of document.fonts)
                     if (f.display === 'block' || f.display === 'auto') f.display = 'swap';
-                return;
-            }
-            for (const s of document.styleSheets) {
-                try {
-                    for (const r of s.cssRules)
-                        if (r instanceof CSSFontFaceRule && !r.style.fontDisplay)
-                            r.style.fontDisplay = 'swap';
-                } catch {}
             }
         } catch {}
     };
+    forceFontDisplaySwap();
 
     // ═══════════════════════════════════════════════
-    // §4. 셀렉터 매칭 최적화
+    // §4. 셀렉터 매칭
     // ═══════════════════════════════════════════════
     const TAG_SEL = new Set();
     const CLASS_SEL = new Set();
     const COMPLEX_SEL = [];
-
     for (const s of SELECTOR_LIST) {
         if (/^[a-z][\w-]*$/i.test(s)) TAG_SEL.add(s.toUpperCase());
         else if (/^\.\w[\w-]*$/.test(s)) CLASS_SEL.add(s.slice(1));
         else COMPLEX_SEL.push(s);
     }
     const COMPLEX_JOINED = COMPLEX_SEL.length ? COMPLEX_SEL.join(', ') : null;
-
     const matchesSelectors = (el) => {
         if (TAG_SEL.has(el.tagName)) return true;
         const cl = el.classList;
@@ -386,7 +344,7 @@
     };
 
     // ═══════════════════════════════════════════════
-    // §5. 스크롤 방향 추적
+    // §5. 스크롤 방향
     // ═══════════════════════════════════════════════
     {
         let lastY = window.scrollY;
@@ -426,8 +384,7 @@
             processed++;
             if (processed % CFG.yieldInterval === 0) await yieldToMain();
         }
-        if (restoreQueue.length)
-            restoreRafId = requestAnimationFrame(drainRestoreQueue);
+        if (restoreQueue.length) restoreRafId = requestAnimationFrame(drainRestoreQueue);
     };
 
     // ═══════════════════════════════════════════════
@@ -435,11 +392,11 @@
     // ═══════════════════════════════════════════════
     const optimizedSet = new WeakSet();
     const S_IDLE = 0, S_DWELLING = 1, S_ACTIVE = 2, S_RECLAIMED = 3, S_HARD = 4;
-    const mediaState   = new WeakMap();
-    const mediaDwell   = new WeakMap();
-    const mediaSaved   = new WeakMap();
-    const canvasSaved  = new WeakMap();
-    const videoPaused  = new WeakSet();
+    const mediaState = new WeakMap();
+    const mediaDwell = new WeakMap();
+    const mediaSaved = new WeakMap();
+    const canvasSaved = new WeakMap();
+    const videoPaused = new WeakSet();
     const willChangeTm = new WeakMap();
 
     const preserveSize = (el) => {
@@ -479,9 +436,7 @@
         preserveSize(target);
         if (tag === 'IMG') {
             const saved = {};
-            if (target.src && !target.src.startsWith('data:')) {
-                saved.src = target.src; target.removeAttribute('src');
-            }
+            if (target.src && !target.src.startsWith('data:')) { saved.src = target.src; target.removeAttribute('src'); }
             if (target.srcset) { saved.srcset = target.srcset; target.removeAttribute('srcset'); }
             if (saved.src || saved.srcset) mediaSaved.set(target, saved);
         } else if (tag === 'VIDEO') {
@@ -501,17 +456,14 @@
     };
 
     const handleMediaIntersection = (target, isIntersecting, rect, isHardLevel) => {
-        // ★ [v11.1] GC 유예 중에는 미디어도 회수하지 않음
         if (isGcPaused() && !isIntersecting) return;
-
         const tag = target.tagName;
         const state = mediaState.get(target) || S_IDLE;
 
         if (isHardLevel) {
             if (tag === 'CANVAS') {
                 if (!isIntersecting) {
-                    if (!canvasSaved.has(target) && !offscreenCanvasSet.has(target)
-                        && (target.width > 0 || target.height > 0)) {
+                    if (!canvasSaved.has(target) && !offscreenCanvasSet.has(target) && (target.width > 0 || target.height > 0)) {
                         canvasSaved.set(target, { w: target.width, h: target.height });
                         safeCanvasResize(target, 0, 0);
                     }
@@ -540,7 +492,6 @@
                 scheduleWillChangeCleanup(target);
             }
             if (tag === 'IMG') target.fetchPriority = 'high';
-
             if (state === S_IDLE || state === S_RECLAIMED) {
                 mediaState.set(target, S_DWELLING);
                 if (!mediaDwell.has(target)) {
@@ -551,9 +502,7 @@
             }
         } else {
             if (mediaDwell.has(target)) { clearTimeout(mediaDwell.get(target)); mediaDwell.delete(target); }
-            if (tag === 'VIDEO' && target instanceof HTMLVideoElement && !target.paused) {
-                target.pause(); videoPaused.add(target);
-            }
+            if (tag === 'VIDEO' && target instanceof HTMLVideoElement && !target.paused) { target.pause(); videoPaused.add(target); }
             if (tag === 'IMG') target.fetchPriority = 'low';
             if (state === S_ACTIVE || state === S_DWELLING) {
                 mediaState.set(target, S_RECLAIMED);
@@ -604,10 +553,10 @@
     };
 
     // ═══════════════════════════════════════════════
-    // §8. GC 시스템 (★ v11.1: 스크롤 컨테이너 보호 강화)
+    // §8. GC 시스템
     // ═══════════════════════════════════════════════
     const trackedNodes = new Set();
-    const gcHiddenSet  = new Set();
+    const gcHiddenSet = new Set();
     const gcHiddenHeight = new WeakMap();
     const gcOriginalStyle = new WeakMap();
     const heightCache = new WeakMap();
@@ -621,77 +570,44 @@
 
     const SKIP_GC_TAGS = new Set(['MAIN', 'BODY', 'HTML']);
     const APP_SHELL_IDS = new Set(['app', 'root', '__next', '__nuxt', 'app-root', '__app']);
-
-    // ★ [v11.1] 스크롤 컨테이너 CSS 선택자를 모든 프로필에서 모아 하나의 판정용 문자열로 합침
     const ALL_SCROLL_CONTAINERS = (() => {
-        const set = new Set();
-        // 알려진 AI 챗 스크롤 컨테이너를 모두 등록 (프로필 유무와 무관하게)
-        const knownContainers = [
-            'infinite-scroller', '.conversation-container',
-            '[class*="react-scroll-to-bottom"]',
-            '.overflow-y-auto',
-            '.chat-container', '.conversation-list',
-            '.chat-scroll-container',
-            'cib-chat-main',
-            '[class*="ChatMessagesView"]',
-        ];
-        for (const s of knownContainers) set.add(s);
-        if (SITE_PROFILE?.scrollContainer) {
-            for (const s of SITE_PROFILE.scrollContainer.split(','))
-                set.add(s.trim());
-        }
+        const set = new Set(['infinite-scroller', '.conversation-container', '[class*="react-scroll-to-bottom"]', '.overflow-y-auto', '.chat-container', '.conversation-list', '.chat-scroll-container', 'cib-chat-main', '[class*="ChatMessagesView"]']);
+        if (SITE_PROFILE?.scrollContainer) for (const s of SITE_PROFILE.scrollContainer.split(',')) set.add(s.trim());
         return [...set].join(', ');
     })();
 
     const isStructuralSkeleton = (el) => {
         if (SKIP_GC_TAGS.has(el.tagName)) return true;
         if (el.id && APP_SHELL_IDS.has(el.id)) return true;
-
         const tagLower = el.tagName.toLowerCase();
         if (tagLower === 'app-root' || tagLower === 'infinite-scroller') return true;
-
         if (el.getAttribute('role') === 'main') return true;
-
         if (el.parentElement === document.body) {
             const tag = el.tagName;
             if (tag === 'MAIN' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'DIV') {
-                const directChildren = document.body.children;
-                if (directChildren.length <= 3) return true;
-                if (tag !== 'DIV' &&
-                    document.body.querySelectorAll(`:scope > ${tag.toLowerCase()}`).length <= 1)
-                    return true;
+                if (document.body.children.length <= 3) return true;
+                if (tag !== 'DIV' && document.body.querySelectorAll(`:scope > ${tag.toLowerCase()}`).length <= 1) return true;
             }
         }
-
-        // ★ [v11.1] 스크롤 컨테이너는 어떤 사이트에서든 뼈대로 보호
-        if (ALL_SCROLL_CONTAINERS) {
-            try { if (el.matches(ALL_SCROLL_CONTAINERS)) return true; } catch {}
-        }
-
+        if (ALL_SCROLL_CONTAINERS) { try { if (el.matches(ALL_SCROLL_CONTAINERS)) return true; } catch {} }
         return false;
     };
 
     const gcObserver = new IntersectionObserver((entries) => {
-        // ★ [v11.1] GC 유예 중에는 숨기기 작업 자체를 하지 않음
         if (isGcPaused()) {
-            // 단, 보이게 된 노드의 복원은 수행
             for (const { target, isIntersecting } of entries) {
                 if (isIntersecting && gcHiddenSet.has(target)) {
                     gcHiddenSet.delete(target);
                     gcHiddenHeight.delete(target);
-                    const orig = gcOriginalStyle.get(target);
+                    target.style.cssText = gcOriginalStyle.get(target) || '';
                     gcOriginalStyle.delete(target);
-                    target.style.cssText = orig || '';
                 }
             }
             return;
         }
-
         for (const { target, isIntersecting } of entries) {
             if (!isIntersecting && !gcHiddenSet.has(target)) {
-                if (isStructuralSkeleton(target)) continue;
-                if (isStreaming) continue;
-
+                if (isStructuralSkeleton(target) || isStreaming) continue;
                 const h = heightCache.get(target) || target.offsetHeight || 500;
                 gcHiddenSet.add(target);
                 gcHiddenHeight.set(target, h);
@@ -700,19 +616,16 @@
             } else if (isIntersecting && gcHiddenSet.has(target)) {
                 gcHiddenSet.delete(target);
                 gcHiddenHeight.delete(target);
-                const orig = gcOriginalStyle.get(target);
+                target.style.cssText = gcOriginalStyle.get(target) || '';
                 gcOriginalStyle.delete(target);
-                target.style.cssText = orig || '';
             }
         }
     }, { rootMargin: `${CFG.gcMarginTop}px 0px ${CFG.gcMarginBottom}px 0px`, threshold: 0 });
 
     const gcFeed = async () => {
-        if (isGcPaused()) return;
-        if (isStreaming) return;
+        if (isGcPaused() || isStreaming) return;
         const size = trackedNodes.size;
         if (size <= effectiveLimitNodes) return;
-
         const cutoff = size - effectiveLimitNodes;
         let i = 0, processed = 0;
         for (const el of trackedNodes) {
@@ -725,8 +638,7 @@
     };
 
     const trackNode = (el) => {
-        if (trackedNodes.has(el)) return;
-        if (isStructuralSkeleton(el)) return;
+        if (trackedNodes.has(el) || isStructuralSkeleton(el)) return;
         trackedNodes.add(el);
         resizeObserver.observe(el);
     };
@@ -735,56 +647,23 @@
         if (!trackedNodes.delete(el)) return;
         resizeObserver.unobserve(el);
         gcObserver.unobserve(el);
-        mediaLifecycleObserver.unobserve(el);
-        hardReclaimObserver.unobserve(el);
         if (gcHiddenSet.has(el)) {
             gcHiddenSet.delete(el);
             gcHiddenHeight.delete(el);
-            const orig = gcOriginalStyle.get(el);
+            el.style.cssText = gcOriginalStyle.get(el) || '';
             gcOriginalStyle.delete(el);
-            el.style.cssText = orig || '';
         }
-    };
-
-    const forceRestoreVisible = () => {
-        const vh = window.innerHeight;
-        const margin = CFG.gcMarginBottom;
-        let restored = 0;
-        for (const el of gcHiddenSet) {
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom > -margin && rect.top < vh + margin) {
-                gcHiddenSet.delete(el);
-                gcHiddenHeight.delete(el);
-                const orig = gcOriginalStyle.get(el);
-                gcOriginalStyle.delete(el);
-                el.style.cssText = orig || '';
-                restored++;
-            }
-        }
-        for (const el of trackedNodes) {
-            if (!el.isConnected) continue;
-            const mediaEls = el.querySelectorAll('img,video,iframe');
-            for (const m of mediaEls) {
-                if (mediaState.get(m) === S_HARD) {
-                    mediaState.set(m, S_RECLAIMED);
-                    mediaLifecycleObserver.unobserve(m);
-                    mediaLifecycleObserver.observe(m);
-                }
-            }
-        }
-        return restored;
     };
 
     const forceRestoreAll = () => {
         let restored = 0;
         for (const el of gcHiddenSet) {
-            gcHiddenSet.delete(el);
-            gcHiddenHeight.delete(el);
-            const orig = gcOriginalStyle.get(el);
+            el.style.cssText = gcOriginalStyle.get(el) || '';
             gcOriginalStyle.delete(el);
-            el.style.cssText = orig || '';
+            gcHiddenHeight.delete(el);
             restored++;
         }
+        gcHiddenSet.clear();
         return restored;
     };
 
@@ -810,43 +689,8 @@
         lowPowerStyleEl.disabled = true;
     };
 
-    let startFrameMonitor;
+    // FPS 모니터
     {
-        if (hasLoAF) {
-            const recent = [];
-            try {
-                new PerformanceObserver((list) => {
-                    for (const entry of list.getEntries()) {
-                        recent.push(entry.duration);
-                        if (recent.length > CFG.loafJankWindowSize) recent.shift();
-                    }
-                    if (recent.length >= CFG.loafJankWindowSize) {
-                        let jank = 0;
-                        for (const d of recent) if (d > CFG.loafJankThresholdMs) jank++;
-                        if (jank >= Math.ceil(CFG.loafJankWindowSize / 2)) {
-                            if (!isLowPowerMode) enterLowPowerMode();
-                            effectiveRestoreBatch = Math.max(1,
-                                Math.floor(CFG.restoreBatchSize * CFG.loafBatchReduction));
-                        } else {
-                            effectiveRestoreBatch = CFG.restoreBatchSize;
-                        }
-                    }
-                }).observe({ type: 'long-animation-frame', buffered: false });
-            } catch {}
-        } else if (hasLongTask) {
-            let ltCount = 0, ltTimer = 0;
-            try {
-                new PerformanceObserver((list) => {
-                    ltCount += list.getEntries().length;
-                    clearTimeout(ltTimer);
-                    ltTimer = setTimeout(() => {
-                        if (ltCount >= 3 && !isLowPowerMode) enterLowPowerMode();
-                        ltCount = 0;
-                    }, 2000);
-                }).observe({ type: 'longtask', buffered: false });
-            } catch {}
-        }
-
         let lastFT = 0, smoothFPS = 60, lowDur = 0, highDur = 0;
         let monActive = true, batLow = false;
 
@@ -857,7 +701,6 @@
                 if (delta > CFG.frameDeltaMaxMs) { lastFT = now; requestAnimationFrame(frameMon); return; }
                 smoothFPS += CFG.fpsAlpha * (1000 / delta - smoothFPS);
                 currentSmoothedFPS = smoothFPS;
-
                 if (smoothFPS < CFG.lowPowerFrameThreshold) {
                     lowDur += delta; highDur = 0;
                     if (lowDur > 500 && !isLowPowerMode) enterLowPowerMode();
@@ -875,12 +718,11 @@
             else { monActive = true; lastFT = 0; smoothFPS = 60; lowDur = highDur = 0; requestAnimationFrame(frameMon); }
         });
 
+        requestAnimationFrame(frameMon);
+
         if (navigator.getBattery) {
             navigator.getBattery().then((bat) => {
-                const chk = () => {
-                    batLow = !bat.charging && bat.level <= CFG.lowPowerBatteryThreshold;
-                    if (batLow) enterLowPowerMode();
-                };
+                const chk = () => { batLow = !bat.charging && bat.level <= CFG.lowPowerBatteryThreshold; if (batLow) enterLowPowerMode(); };
                 bat.addEventListener('chargingchange', chk);
                 bat.addEventListener('levelchange', chk);
                 chk();
@@ -909,87 +751,93 @@
             conn.addEventListener('change', upd); upd();
         }
 
-        startFrameMonitor = () => requestAnimationFrame(frameMon);
+        if (hasLoAF) {
+            const recent = [];
+            try {
+                new PerformanceObserver((list) => {
+                    for (const entry of list.getEntries()) {
+                        recent.push(entry.duration);
+                        if (recent.length > CFG.loafJankWindowSize) recent.shift();
+                    }
+                    if (recent.length >= CFG.loafJankWindowSize) {
+                        let jank = 0;
+                        for (const d of recent) if (d > CFG.loafJankThresholdMs) jank++;
+                        if (jank >= Math.ceil(CFG.loafJankWindowSize / 2)) {
+                            if (!isLowPowerMode) enterLowPowerMode();
+                            effectiveRestoreBatch = Math.max(1, Math.floor(CFG.restoreBatchSize * CFG.loafBatchReduction));
+                        } else {
+                            effectiveRestoreBatch = CFG.restoreBatchSize;
+                        }
+                    }
+                }).observe({ type: 'long-animation-frame', buffered: false });
+            } catch {}
+        }
     }
 
     // ═══════════════════════════════════════════════
-    // §10. 탭 복귀 + SPA 전환 (★ v11.1: 유예 기간 강화)
+    // §10. SPA 전환
     // ═══════════════════════════════════════════════
     {
-        const onResume = () => {
-            queueMicrotask(() => {
-                forceRestoreAll();
-                void document.body?.offsetHeight;
-                setTimeout(() => forceRestoreAll(), 500);
-            });
-        };
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                queueMicrotask(() => {
+                    forceRestoreAll();
+                    void document.body?.offsetHeight;
+                    setTimeout(() => forceRestoreAll(), 500);
+                });
+            }
+        });
 
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) onResume(); });
-
-        // ★ [v11.1] SPA 전환 공통 핸들러 — 충분한 유예 기간 부여
         const onSpaNavigate = () => {
             isNavigating = true;
             gcPausedUntil = performance.now() + CFG.spaNavigationGracePeriodMs;
-
-            // 즉시 모든 hidden 노드 복원
+            disableOptimizeCSS(CFG.spaNavigationGracePeriodMs);
             forceRestoreAll();
             purgeDisconnected();
-
-            // 새 콘텐츠가 렌더링된 후 한 번 더 복원
             requestAnimationFrame(() => {
                 forceRestoreAll();
                 void document.body?.offsetHeight;
             });
-
-            // 유예 기간 종료 후 네비게이션 플래그 해제
             setTimeout(() => { isNavigating = false; }, CFG.spaNavigationGracePeriodMs);
         };
 
-        if (hasNavigationAPI) {
-            try { navigation.addEventListener('navigatesuccess', onSpaNavigate); } catch {}
-        }
+        if (hasNavigationAPI) { try { navigation.addEventListener('navigatesuccess', onSpaNavigate); } catch {} }
         window.addEventListener('popstate', onSpaNavigate);
 
         let lastURL = location.href;
-        const urlCheck = () => {
-            if (location.href !== lastURL) {
-                lastURL = location.href;
-                onSpaNavigate();
-            }
-        };
-        const origPushState = history.pushState;
-        const origReplaceState = history.replaceState;
-        history.pushState = function (...a) {
-            origPushState.apply(this, a);
-            requestAnimationFrame(urlCheck);
-        };
-        history.replaceState = function (...a) {
-            origReplaceState.apply(this, a);
-            requestAnimationFrame(urlCheck);
-        };
+        const urlCheck = () => { if (location.href !== lastURL) { lastURL = location.href; onSpaNavigate(); } };
+        const origPS = history.pushState;
+        const origRS = history.replaceState;
+        history.pushState = function (...a) { origPS.apply(this, a); requestAnimationFrame(urlCheck); };
+        history.replaceState = function (...a) { origRS.apply(this, a); requestAnimationFrame(urlCheck); };
+
+        const orig = document.startViewTransition;
+        if (typeof orig === 'function') {
+            document.startViewTransition = function (...a) {
+                gcPausedUntil = performance.now() + CFG.viewTransitionPauseMs;
+                return orig.apply(this, a);
+            };
+        }
     }
 
     // ═══════════════════════════════════════════════
-    // §11. Shadow DOM 탐색
+    // §11. Shadow DOM
     // ═══════════════════════════════════════════════
     const observedShadows = new WeakSet();
-
     const processShadowRoot = (sr) => {
         if (observedShadows.has(sr)) return;
         observedShadows.add(sr);
         processSubtree(sr);
         new MutationObserver(handleMutations).observe(sr, { childList: true, subtree: true });
     };
-
     const checkShadow = (el) => {
         try { if (el.shadowRoot?.mode === 'open') processShadowRoot(el.shadowRoot); } catch {}
     };
 
     // ═══════════════════════════════════════════════
-    // §12. DOM 처리 + MutationObserver
+    // §12. DOM 처리
     // ═══════════════════════════════════════════════
     let batchScheduled = false;
-    let batchTimerId = 0;
     const pendingNodes = [];
     const pendingGuard = new WeakSet();
 
@@ -999,17 +847,13 @@
             const isEl = root.nodeType === 1;
             const isFrag = root.nodeType === 11;
             if (!isEl && !isFrag) return;
-
             if (isEl) {
                 if (MEDIA_TAG_SET.has(root.tagName)) optimizeMedia(root);
                 if (matchesSelectors(root)) trackNode(root);
                 checkShadow(root);
             }
-
             const tracked = root.querySelectorAll(SELECTORS);
-            for (let i = 0, n = tracked.length; i < n; i++) {
-                trackNode(tracked[i]); checkShadow(tracked[i]);
-            }
+            for (let i = 0, n = tracked.length; i < n; i++) { trackNode(tracked[i]); checkShadow(tracked[i]); }
             const media = root.querySelectorAll('img,video,iframe,canvas');
             for (let i = 0, n = media.length; i < n; i++) optimizeMedia(media[i]);
         } catch {}
@@ -1020,51 +864,26 @@
             if (!root || root.nodeType !== 1) return;
             if (trackedNodes.has(root)) untrackNode(root);
             const els = root.querySelectorAll(SELECTORS);
-            if (els.length <= CFG.bulkCleanupThreshold) {
-                for (let i = 0, n = els.length; i < n; i++)
-                    if (trackedNodes.has(els[i])) untrackNode(els[i]);
-            } else {
-                const arr = Array.from(els);
-                let idx = 0;
-                const chunk = CFG.bulkCleanupThreshold;
-                const processChunk = async () => {
-                    const end = Math.min(idx + chunk, arr.length);
-                    for (; idx < end; idx++)
-                        if (trackedNodes.has(arr[idx])) untrackNode(arr[idx]);
-                    if (idx < arr.length) {
-                        await yieldToMain();
-                        processChunk();
-                    }
-                };
-                processChunk();
-            }
+            for (let i = 0, n = els.length; i < n; i++)
+                if (trackedNodes.has(els[i])) untrackNode(els[i]);
         } catch {}
     };
 
-    // ★ [v11.1] flushBatch에서 gcFeed 직접 호출 제거
-    //   — GC는 오직 정기 스케줄러(§14)에 의해서만 실행됨
-    //   — SPA 전환 직후 새 노드가 들어올 때 즉시 GC가 돌지 않도록 방지
     const flushBatch = () => {
         batchScheduled = false;
-        batchTimerId = 0;
         const nodes = pendingNodes.splice(0);
         for (let i = 0; i < nodes.length; i++) {
             pendingGuard.delete(nodes[i]);
             if (nodes[i].nodeType === 1) processSubtree(nodes[i]);
         }
-        // gcFeed()를 여기서 호출하지 않음 — §14의 정기 스케줄러가 담당
     };
 
     const scheduleBatch = () => {
         if (batchScheduled) return;
         batchScheduled = true;
-        if (isInputActive()) {
-            batchTimerId = setTimeout(flushBatch, CFG.inputActiveDebounceMs);
-        } else if (isStreaming) {
-            batchTimerId = setTimeout(flushBatch, CFG.mutationCoalesceMs);
-        } else {
-            requestAnimationFrame(flushBatch);
-        }
+        if (isInputActive()) setTimeout(flushBatch, CFG.inputActiveDebounceMs);
+        else if (isStreaming) setTimeout(flushBatch, CFG.mutationCoalesceMs);
+        else requestAnimationFrame(flushBatch);
     };
 
     const handleMutations = (mutations) => {
@@ -1073,9 +892,7 @@
             const { addedNodes, removedNodes } = mutations[i];
             for (let j = 0; j < addedNodes.length; j++) {
                 const n = addedNodes[j];
-                if (n.nodeType === 1 && !pendingGuard.has(n)) {
-                    pendingGuard.add(n); pendingNodes.push(n); hasAdded = true;
-                }
+                if (n.nodeType === 1 && !pendingGuard.has(n)) { pendingGuard.add(n); pendingNodes.push(n); hasAdded = true; }
             }
             for (let j = 0; j < removedNodes.length; j++) {
                 const n = removedNodes[j];
@@ -1085,10 +902,8 @@
         if (hasAdded) scheduleBatch();
     };
 
-    const mutObserver = new MutationObserver(handleMutations);
-
     // ═══════════════════════════════════════════════
-    // §13. 메모리 압박 감지
+    // §13. 메모리
     // ═══════════════════════════════════════════════
     {
         const hasMemAPI = typeof performance.measureUserAgentSpecificMemory === 'function';
@@ -1097,15 +912,8 @@
                 try {
                     const r = await performance.measureUserAgentSpecificMemory();
                     if (r.bytes > CFG.memoryThresholdBytes) {
-                        if (!memoryPressure) {
-                            memoryPressure = true;
-                            effectiveLimitNodes = Math.min(effectiveLimitNodes, CFG.lowPowerLimitNodes);
-                            gcFeed();
-                        }
-                    } else if (memoryPressure) {
-                        memoryPressure = false;
-                        effectiveLimitNodes = isLowPowerMode ? CFG.lowPowerLimitNodes : CFG.limitNodes;
-                    }
+                        if (!memoryPressure) { memoryPressure = true; effectiveLimitNodes = Math.min(effectiveLimitNodes, CFG.lowPowerLimitNodes); gcFeed(); }
+                    } else if (memoryPressure) { memoryPressure = false; effectiveLimitNodes = isLowPowerMode ? CFG.lowPowerLimitNodes : CFG.limitNodes; }
                 } catch {}
                 setTimeout(check, CFG.memoryCheckInterval);
             };
@@ -1114,10 +922,10 @@
     }
 
     // ═══════════════════════════════════════════════
-    // §14. 정기 GC + ViewTransition
+    // §14. 정기 GC
     // ═══════════════════════════════════════════════
     const scheduleTask = hasSchedulerPostTask
-        ? (fn, pri) => scheduler.postTask(fn, { priority: pri || 'background' }).catch(() => {})
+        ? (fn) => scheduler.postTask(fn, { priority: 'background' }).catch(() => {})
         : hasRIC
             ? (fn) => requestIdleCallback((dl) => { if (dl.timeRemaining() > 5 || dl.didTimeout) fn(); }, { timeout: CFG.idleTimeout })
             : (fn) => setTimeout(fn, CFG.idleTimeout);
@@ -1134,31 +942,20 @@
     };
     document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleGC(); });
 
-    {
-        const orig = document.startViewTransition;
-        if (typeof orig === 'function') {
-            document.startViewTransition = function (...a) {
-                gcPausedUntil = performance.now() + CFG.viewTransitionPauseMs;
-                return orig.apply(this, a);
-            };
-        }
-    }
-
     let prefetchObserver = null;
     if (hasRIC) {
         prefetchObserver = new IntersectionObserver((entries) => {
             for (const { target, isIntersecting } of entries) {
-                if (isIntersecting && target.tagName === 'IMG'
-                    && !target.complete && typeof target.decode === 'function') {
+                if (isIntersecting && target.tagName === 'IMG' && !target.complete && typeof target.decode === 'function') {
                     requestIdleCallback(() => target.decode().catch(() => {}), { timeout: 2000 });
                     prefetchObserver.unobserve(target);
                 }
             }
-        }, { rootMargin: `1500px 0px 1500px 0px`, threshold: 0 });
+        }, { rootMargin: '1500px 0px 1500px 0px', threshold: 0 });
     }
 
     // ═══════════════════════════════════════════════
-    // §15. 진단 인터페이스
+    // §15. 진단
     // ═══════════════════════════════════════════════
     try {
         Object.defineProperty(window, '__turboOptimizer__', {
@@ -1168,79 +965,51 @@
                     let hiddenCount = 0;
                     for (const el of trackedNodes) if (gcHiddenSet.has(el)) hiddenCount++;
                     const info = {
-                        version: '11.1',
+                        version: '12.0',
                         siteProfile: SITE_PROFILE?.id || 'generic',
-                        isStreaming,
-                        isNavigating,
+                        isStreaming, isNavigating,
                         gcPaused: isGcPaused(),
+                        cssDisabled: optimizeStyleEl.disabled,
                         lowPowerMode: isLowPowerMode,
                         memoryPressure,
                         smoothedFPS: Math.round(currentSmoothedFPS * 10) / 10,
-                        effectiveLimitNodes,
-                        effectiveRestoreBatch,
+                        effectiveLimitNodes, effectiveRestoreBatch,
                         trackedNodes: trackedNodes.size,
                         gcHiddenNodes: hiddenCount,
                         restoreQueueLength: restoreQueue.length,
                         mediaReclaimed: statsReclaimCount,
                         mediaRestored: statsRestoreCount,
                         throttledTimers: statsThrottledTimers,
-                        network: navigator.connection
-                            ? { effectiveType: navigator.connection.effectiveType, saveData: navigator.connection.saveData }
-                            : 'unavailable',
+                        network: navigator.connection ? { effectiveType: navigator.connection.effectiveType, saveData: navigator.connection.saveData } : 'unavailable',
                     };
                     console.table(info);
                     return info;
                 },
                 gc() { gcFeed(); return 'GC feed executed'; },
-                emergencyRestore() {
-                    let restored = 0;
-                    for (const el of gcHiddenSet) {
-                        gcHiddenSet.delete(el);
-                        gcHiddenHeight.delete(el);
-                        const orig = gcOriginalStyle.get(el);
-                        gcOriginalStyle.delete(el);
-                        el.style.cssText = orig || '';
-                        restored++;
-                    }
-                    return `Emergency restored ${restored} nodes`;
-                },
-                forceRestore() { return `Force restored ${forceRestoreAll()} nodes`; },
+                emergencyRestore() { forceRestoreAll(); disableOptimizeCSS(10000); return 'Emergency: all restored + CSS disabled 10s'; },
+                forceRestore() { return `Restored ${forceRestoreAll()} nodes`; },
                 config: CFG,
             })
         });
     } catch {}
 
     // ═══════════════════════════════════════════════
-    // §16. 초기화
+    // §16. 시작
     // ═══════════════════════════════════════════════
-    const init = () => {
-        try {
-            gcPausedUntil = performance.now() + CFG.hydrationGracePeriodMs;
+    new MutationObserver(handleMutations).observe(document.body, { childList: true, subtree: true });
+    processSubtree(document.body);
+    scheduleGC();
 
-            mutObserver.observe(document.body, { childList: true, subtree: true });
-            processSubtree(document.body);
-            // ★ [v11.1] 초기화 시에도 gcFeed를 직접 호출하지 않음
-            // — hydration 유예 기간이 끝난 후 정기 스케줄러가 알아서 실행
-            scheduleGC();
-            startFrameMonitor();
-            forceFontDisplaySwap();
-            new MutationObserver(() => forceFontDisplaySwap())
-                .observe(document.head || document.documentElement, { childList: true, subtree: true });
+    if (prefetchObserver) {
+        const imgs = document.body.getElementsByTagName('img');
+        for (let i = 0; i < imgs.length; i++) prefetchObserver.observe(imgs[i]);
+    }
 
-            if (prefetchObserver) {
-                const imgs = document.body.getElementsByTagName('img');
-                for (let i = 0; i < imgs.length; i++) prefetchObserver.observe(imgs[i]);
-            }
+    console.log(
+        `%c🚀 Turbo Optimizer v12.0 %c Active: ${location.hostname} [${SITE_PROFILE?.id || 'generic'}]`,
+        'color:#00ffa3;font-weight:bold;background:#222;padding:3px 6px;border-radius:4px',
+        'color:#fff'
+    );
 
-            console.log(
-                `%c🚀 Turbo Optimizer v11.1 %c Active: ${location.hostname} [${SITE_PROFILE?.id || 'generic'}]`,
-                'color:#00ffa3;font-weight:bold;background:#222;padding:3px 6px;border-radius:4px',
-                'color:#fff'
-            );
-        } catch {}
-    };
-
-    if (document.readyState === 'loading')
-        document.addEventListener('DOMContentLoaded', init);
-    else init();
+    } // end initAll
 })();
