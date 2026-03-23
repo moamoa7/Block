@@ -581,7 +581,7 @@
 /* ══ FAB ══ */
 #bm-fab{
  position:fixed;
- top: 30%; /* 💡 위에서부터 40% 내려온 지점 (하단 bottom 속성은 지웁니다) */
+ top: 65%; /* 💡 위에서부터 40% 내려온 지점 (하단 bottom 속성은 지웁니다) */
  right: 10px; /* 💡 오른쪽 여백 (만약 화면 중앙 쪽으로 40%를 밀고 싶다면 right: 40%; 로 하시면 됩니다) */
  width:var(--fab);height:var(--fab);
   background:var(--c-glass);color:var(--c-text);border-radius:50%;
