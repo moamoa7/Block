@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      7.0
-// @description  // @description 모든 웹사이트에서 렉을 제거합니다. LoAF 렉 감지, 바이너리 힙 기반 복원 큐, 지능형 타이머 쓰로틀링 및 scheduler.yield를 이용한 비차단식 자원 관리를 통해 최상의 부드러움을 제공합니다.
+// @version      9.2
+// @description  모든 웹사이트에서 렉을 제거합니다. v9.2: 탭 복귀 시 화면 멈춤(Blank Screen) 현상 완벽 해결, 강제 리플로우 도입, LoAF 렉 감지, 캔버스 GPU 메모리 회수 등 무결점 가속 제공.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -31,60 +31,112 @@
         'infinite-scroller > div', 'chat-view-item'
     ];
     const SELECTORS = SELECTOR_LIST.join(', ');
-    const MEDIA_SELECTOR = 'img, video, iframe';
-    const CANVAS_SELECTOR = 'canvas';
-    const ALL_RESOURCE_SELECTOR = MEDIA_SELECTOR + ', ' + CANVAS_SELECTOR;
+    const MEDIA_TAGS = { IMG: 1, VIDEO: 2, IFRAME: 3, CANVAS: 4 };
 
-    const CONFIG = {
-        limitNodes:                150,
-        gcMarginTop:               800,
-        gcMarginBottom:            2500,
-        idleTimeout:               3000,
-        throttleDwell:             120,
-        lowPowerFrameThreshold:    40,
-        lowPowerLimitNodes:        80,
-        lowPowerBatteryThreshold:  0.15,
-        mediaMarginTop:            300,
-        mediaMarginBottom:         1000,
-        fpsAlpha:                  0.15,
-        gcTaskPriority:            'background',
-        hardReclaimMarginTop:      4000,
-        hardReclaimMarginBottom:   6000,
-        restoreBatchSize:          3,
-        memoryThresholdBytes:      800 * 1024 * 1024,
-        memoryCheckInterval:       15000,
-        loafJankThresholdMs:       100,
-        loafJankWindowSize:        5,
-        slowNetBatchSize:          1,
-        blobAutoExpireMs:          60000,
-        hibernateDelayMs:          30 * 60 * 1000,
-        bulkCleanupThreshold:      50,
-        timerThrottleMinInterval:  1000,
-        timerThrottleThreshold:    500,
-        deferRequestsUntilLoad:    true,
-        // [v7.0] 새 설정
-        heapInitialCapacity:       64,
-        yieldInterval:             4,        // yield 호출 주기 (매 N개 처리마다)
-        frameDeltaMaxMs:           500,      // 이 이상의 프레임 간격은 무시
+    const CFG = {
+        limitNodes:               150,
+        gcMarginTop:              800,
+        gcMarginBottom:           2500,
+        idleTimeout:              3000,
+        throttleDwell:            120,
+        lowPowerFrameThreshold:   40,
+        lowPowerLimitNodes:       80,
+        lowPowerBatteryThreshold: 0.15,
+        mediaMarginTop:           300,
+        mediaMarginBottom:        1000,
+        fpsAlpha:                 0.15,
+        gcTaskPriority:           'background',
+        hardReclaimMarginTop:     4000,
+        hardReclaimMarginBottom:  6000,
+        restoreBatchSize:         3,
+        memoryThresholdBytes:     800 * 1024 * 1024,
+        memoryCheckInterval:      15000,
+        loafJankThresholdMs:      100,
+        loafJankWindowSize:       5,
+        slowNetBatchSize:         1,
+        blobAutoExpireMs:         60000,
+        bulkCleanupThreshold:     50,
+        timerThrottleMinInterval: 1000,
+        timerThrottleThreshold:   500,
+        yieldInterval:            4,
+        frameDeltaMaxMs:          500,
+        gcYieldChunkSize:         30,
+        viewTransitionPauseMs:    300,
+        willChangeCleanupMs:      3000,
+        idlePrefetchMargin:       1500,
+        loafBatchReduction:       0.5,
+        mutationDebounceMs:       16,
+        inputActiveDebounceMs:    300,
     };
 
+    // ── 런타임 상태 ──
     let isLowPowerMode = false;
-    let effectiveLimitNodes = CONFIG.limitNodes;
+    let effectiveLimitNodes = CFG.limitNodes;
     let memoryPressure = false;
     let scrollDirection = 1;
-    let effectiveRestoreBatch = CONFIG.restoreBatchSize;
+    let effectiveRestoreBatch = CFG.restoreBatchSize;
+    let gcPausedUntil = 0;
 
     let statsReclaimCount = 0;
     let statsRestoreCount = 0;
     let statsHibernateCount = 0;
-    let statsDeferredRequests = 0;
     let statsThrottledTimers = 0;
 
-    // [v7.0] scheduler.yield 지원 감지
+    let inputActiveUntil = 0;
+
+    // ── 기능 감지 ──
     const hasSchedulerYield = typeof globalThis.scheduler?.yield === 'function';
+    const hasSchedulerPostTask = typeof globalThis.scheduler?.postTask === 'function';
+    const hasRIC = typeof requestIdleCallback === 'function';
+    const hasLoAF = typeof PerformanceObserver !== 'undefined'
+        && PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame');
+
     const yieldToMain = hasSchedulerYield
         ? () => scheduler.yield()
         : () => new Promise(r => setTimeout(r, 0));
+
+    // ═══════════════════════════════════════════════
+    // §1-b. OffscreenCanvas 감지
+    // ═══════════════════════════════════════════════
+    const offscreenCanvasSet = new WeakSet();
+
+    {
+        const origTransfer = HTMLCanvasElement.prototype.transferControlToOffscreen;
+        if (origTransfer) {
+            HTMLCanvasElement.prototype.transferControlToOffscreen = function (...args) {
+                offscreenCanvasSet.add(this);
+                return origTransfer.apply(this, args);
+            };
+        }
+    }
+
+    const safeCanvasResize = (canvas, width, height) => {
+        if (offscreenCanvasSet.has(canvas)) return false;
+        try {
+            canvas.width = width;
+            canvas.height = height;
+            return true;
+        } catch (_) {
+            offscreenCanvasSet.add(canvas);
+            return false;
+        }
+    };
+
+    // ═══════════════════════════════════════════════
+    // §1-c. 입력 활성 감지
+    // ═══════════════════════════════════════════════
+    {
+        const markInputActive = () => {
+            inputActiveUntil = performance.now() + CFG.inputActiveDebounceMs;
+        };
+
+        document.addEventListener('keydown', markInputActive, { capture: true, passive: true });
+        document.addEventListener('input', markInputActive, { capture: true, passive: true });
+        document.addEventListener('compositionstart', markInputActive, { capture: true, passive: true });
+        document.addEventListener('compositionupdate', markInputActive, { capture: true, passive: true });
+    }
+
+    const isInputActive = () => performance.now() < inputActiveUntil;
 
     // ═══════════════════════════════════════════════
     // §2. 패시브 이벤트 리스너 강제화
@@ -102,30 +154,30 @@
                 if (options == null || options === false) options = P_FALSE;
                 else if (options === true) options = P_TRUE;
                 else if (typeof options === 'object' && options.passive === undefined)
-                    options = Object.assign({}, options, { passive: true });
+                    options = { __proto__: null, ...options, passive: true };
             }
             return origAdd.call(this, type, listener, options);
         };
     }
 
     // ═══════════════════════════════════════════════
-    // §2-b. 지능형 타이머 쓰로틀링 (v7.0: ID 충돌 수정)
+    // §2-b. 지능형 타이머 쓰로틀링
     // ═══════════════════════════════════════════════
     {
         const origSetInterval = window.setInterval;
         const origClearInterval = window.clearInterval;
         const throttledTimers = new Map();
         let isTabHidden = document.hidden;
-        let nextWrappedId = 0x7FFFFFFF; // 높은 값에서 시작하여 브라우저 ID와 충돌 방지
+        let nextWrappedId = 0x7FFFFFFF;
 
         const reapplyThrottles = () => {
             isTabHidden = document.hidden;
-            for (const [wid, info] of throttledTimers) {
-                origClearInterval.call(window, info.realId);
+            for (const [, info] of throttledTimers) {
+                origClearInterval.call(window, info.rid);
                 const delay = isTabHidden
-                    ? Math.max(info.origDelay, CONFIG.timerThrottleMinInterval)
-                    : info.origDelay;
-                info.realId = origSetInterval.call(window, info.origCallback, delay);
+                    ? Math.max(info.od, CFG.timerThrottleMinInterval)
+                    : info.od;
+                info.rid = origSetInterval.call(window, info.cb, delay);
             }
         };
 
@@ -134,32 +186,24 @@
         window.setInterval = function (callback, delay, ...args) {
             if (typeof callback !== 'function')
                 return origSetInterval.call(window, callback, delay, ...args);
-
             delay = Number(delay) || 0;
-            if (delay >= CONFIG.timerThrottleThreshold)
+            if (delay >= CFG.timerThrottleThreshold)
                 return origSetInterval.call(window, callback, delay, ...args);
 
             const bound = args.length > 0 ? () => callback(...args) : callback;
             const effectiveDelay = isTabHidden
-                ? Math.max(delay, CONFIG.timerThrottleMinInterval) : delay;
-
-            const realId = origSetInterval.call(window, bound, effectiveDelay);
-            const wid = --nextWrappedId; // 고유 래핑 ID (음수 방향으로 감소)
-
-            throttledTimers.set(wid, {
-                origCallback: bound,
-                origDelay: delay,
-                realId,
-                lastRun: 0,
-            });
-
+                ? Math.max(delay, CFG.timerThrottleMinInterval) : delay;
+            const rid = origSetInterval.call(window, bound, effectiveDelay);
+            const wid = --nextWrappedId;
+            throttledTimers.set(wid, { cb: bound, od: delay, rid });
             statsThrottledTimers++;
             return wid;
         };
 
         window.clearInterval = function (id) {
-            if (throttledTimers.has(id)) {
-                origClearInterval.call(window, throttledTimers.get(id).realId);
+            const info = throttledTimers.get(id);
+            if (info) {
+                origClearInterval.call(window, info.rid);
                 throttledTimers.delete(id);
             } else {
                 origClearInterval.call(window, id);
@@ -168,84 +212,13 @@
     }
 
     // ═══════════════════════════════════════════════
-    // §2-c. 비핵심 요청 지연 (fetch/XHR)
-    // ═══════════════════════════════════════════════
-    {
-        const NON_ESSENTIAL_PATTERNS = [
-            'googletagmanager.com', 'google-analytics.com',
-            'googlesyndication.com', 'doubleclick.net', 'adservice.google.',
-            'facebook.net/tr', 'connect.facebook.net', 'analytics.',
-            'cdn.mxpnl.com', 'cdn.segment.com', 'bat.bing.com',
-            'ads.linkedin.com', 'static.hotjar.com', 'script.hotjar.com',
-            'plausible.io/api', 'cdn.amplitude.com',
-        ];
-
-        const isNonEssentialUrl = (url) => {
-            try {
-                const str = typeof url === 'string' ? url
-                    : (url instanceof URL) ? url.href
-                    : (url instanceof Request) ? url.url
-                    : String(url);
-                for (let i = 0; i < NON_ESSENTIAL_PATTERNS.length; i++)
-                    if (str.includes(NON_ESSENTIAL_PATTERNS[i])) return true;
-            } catch (_) {}
-            return false;
-        };
-
-        let pageLoaded = document.readyState === 'complete';
-        const deferredQueue = [];
-
-        if (!pageLoaded) {
-            window.addEventListener('load', () => {
-                pageLoaded = true;
-                while (deferredQueue.length > 0) {
-                    try { deferredQueue.shift()(); } catch (_) {}
-                }
-            }, { once: true });
-        }
-
-        if (CONFIG.deferRequestsUntilLoad) {
-            const origFetch = window.fetch;
-            window.fetch = function (input, init) {
-                if (!pageLoaded && isNonEssentialUrl(input)) {
-                    statsDeferredRequests++;
-                    return new Promise((resolve, reject) => {
-                        deferredQueue.push(() =>
-                            origFetch.call(window, input, init).then(resolve, reject));
-                    });
-                }
-                return origFetch.call(window, input, init);
-            };
-
-            const origXHROpen = XMLHttpRequest.prototype.open;
-            const origXHRSend = XMLHttpRequest.prototype.send;
-            const xhrUrlMap = new WeakMap();
-
-            XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-                xhrUrlMap.set(this, url);
-                return origXHROpen.call(this, method, url, ...rest);
-            };
-            XMLHttpRequest.prototype.send = function (body) {
-                const url = xhrUrlMap.get(this);
-                if (!pageLoaded && url && isNonEssentialUrl(url)) {
-                    statsDeferredRequests++;
-                    const xhr = this;
-                    deferredQueue.push(() => origXHRSend.call(xhr, body));
-                    return;
-                }
-                return origXHRSend.call(this, body);
-            };
-        }
-    }
-
-    // ═══════════════════════════════════════════════
-    // §3. CSS (v7.0: contain: strict)
+    // §3. CSS 주입
     // ═══════════════════════════════════════════════
     const baseCSS = `
         ${SELECTORS} {
             content-visibility: auto;
             contain-intrinsic-size: auto 500px;
-            contain: strict;
+            contain: content;
         }
         @media not (prefers-reduced-motion: reduce) {
             html { scroll-behavior: smooth !important; }
@@ -253,6 +226,11 @@
         img {
             content-visibility: auto;
             decoding: async;
+        }
+        input, textarea, [contenteditable="true"], [role="textbox"],
+        .ProseMirror, .cm-editor, .CodeMirror, .ql-editor {
+            content-visibility: visible !important;
+            contain: none !important;
         }
     `;
     const lowPowerCSS = `
@@ -283,7 +261,6 @@
         }
     }
 
-    // [v7.0] document.fonts API 사용
     const forceFontDisplaySwap = () => {
         try {
             if (document.fonts) {
@@ -293,10 +270,9 @@
                 }
                 return;
             }
-            // Fallback: 기존 방식
             for (const sheet of document.styleSheets) {
                 try {
-                    const rules = sheet.cssRules || sheet.rules;
+                    const rules = sheet.cssRules;
                     if (!rules) continue;
                     for (let i = 0; i < rules.length; i++) {
                         if (rules[i] instanceof CSSFontFaceRule && !rules[i].style.fontDisplay)
@@ -319,20 +295,24 @@
         else if (/^\.\w[\w-]*$/.test(s)) CLASS_SELECTORS.add(s.slice(1));
         else COMPLEX_SELECTORS.push(s);
     }
-    const COMPLEX_JOINED = COMPLEX_SELECTORS.length > 0
-        ? COMPLEX_SELECTORS.join(', ') : null;
+    const COMPLEX_JOINED = COMPLEX_SELECTORS.length ? COMPLEX_SELECTORS.join(', ') : null;
+    const complexMatchCache = new WeakMap();
 
     const matchesSelectors = (el) => {
         if (TAG_SELECTORS.has(el.tagName)) return true;
         const cl = el.classList;
-        if (cl) for (let i = 0, len = cl.length; i < len; i++)
+        if (cl) for (let i = 0, n = cl.length; i < n; i++)
             if (CLASS_SELECTORS.has(cl[i])) return true;
-        if (COMPLEX_JOINED && el.matches(COMPLEX_JOINED)) return true;
-        return false;
+        if (COMPLEX_JOINED === null) return false;
+        let cached = complexMatchCache.get(el);
+        if (cached !== undefined) return cached;
+        cached = el.matches(COMPLEX_JOINED);
+        complexMatchCache.set(el, cached);
+        return cached;
     };
 
     // ═══════════════════════════════════════════════
-    // §5. 스크롤 방향 추적 + MinHeap 복원 큐 (v7.0)
+    // §5. 스크롤 방향 추적 + MinHeap 복원 큐
     // ═══════════════════════════════════════════════
     {
         let lastScrollY = window.scrollY;
@@ -343,80 +323,91 @@
         }, { passive: true });
     }
 
-    // [v7.0] 바이너리 MinHeap — O(log n) 삽입/추출
     class MinHeap {
-        constructor() { this._d = []; }
-        get length() { return this._d.length; }
+        constructor(cap) {
+            this._d = new Array(cap || 64);
+            this._n = 0;
+        }
+        get length() { return this._n; }
 
-        push(item) {
-            this._d.push(item);
-            this._up(this._d.length - 1);
+        push(dist, target, tag) {
+            const i = this._n++;
+            this._d[i] = { distance: dist, target, tag };
+            this._up(i);
         }
 
         pop() {
-            const d = this._d;
-            if (d.length === 0) return undefined;
-            const top = d[0];
-            const last = d.pop();
-            if (d.length > 0) { d[0] = last; this._down(0); }
+            if (this._n === 0) return undefined;
+            const top = this._d[0];
+            if (--this._n > 0) {
+                this._d[0] = this._d[this._n];
+                this._down(0);
+            }
+            this._d[this._n] = undefined;
             return top;
+        }
+
+        clear() {
+            for (let i = 0; i < this._n; i++) this._d[i] = undefined;
+            this._n = 0;
         }
 
         _up(i) {
             const d = this._d;
+            const item = d[i];
             while (i > 0) {
                 const p = (i - 1) >> 1;
-                if (d[i].distance >= d[p].distance) break;
-                const tmp = d[i]; d[i] = d[p]; d[p] = tmp;
+                if (item.distance >= d[p].distance) break;
+                d[i] = d[p];
                 i = p;
             }
+            d[i] = item;
         }
 
         _down(i) {
-            const d = this._d;
-            const n = d.length;
-            while (true) {
-                let smallest = i;
-                const l = 2 * i + 1, r = 2 * i + 2;
-                if (l < n && d[l].distance < d[smallest].distance) smallest = l;
-                if (r < n && d[r].distance < d[smallest].distance) smallest = r;
-                if (smallest === i) break;
-                const tmp = d[i]; d[i] = d[smallest]; d[smallest] = tmp;
-                i = smallest;
+            const d = this._d, n = this._n;
+            const item = d[i];
+            const half = n >> 1;
+            while (i < half) {
+                let child = (i << 1) + 1;
+                const right = child + 1;
+                if (right < n && d[right].distance < d[child].distance) child = right;
+                if (item.distance <= d[child].distance) break;
+                d[i] = d[child];
+                i = child;
             }
+            d[i] = item;
         }
-
-        clear() { this._d.length = 0; }
     }
 
-    const restoreHeap = new MinHeap();
+    const restoreHeap = new MinHeap(64);
     let restoreRafId = 0;
     const restoreQueueSet = new WeakSet();
 
-    const enqueueRestore = (target, tag, boundingRect) => {
+    const enqueueRestore = (target, tag, rect) => {
         if (restoreQueueSet.has(target)) return;
         restoreQueueSet.add(target);
 
-        const viewportCenter = window.innerHeight / 2;
-        const elCenter = boundingRect.top + boundingRect.height / 2;
-        let distance = Math.abs(elCenter - viewportCenter);
-        const isInScrollDirection =
-            (scrollDirection > 0 && elCenter > viewportCenter) ||
-            (scrollDirection < 0 && elCenter < viewportCenter);
-        if (isInScrollDirection) distance *= 0.5;
+        const vc = window.innerHeight * 0.5;
+        const ec = rect.top + rect.height * 0.5;
+        let dist = Math.abs(ec - vc);
+        if ((scrollDirection > 0 && ec > vc) || (scrollDirection < 0 && ec < vc))
+            dist *= 0.5;
 
-        restoreHeap.push({ target, tag, distance });
+        restoreHeap.push(dist, target, tag);
         if (!restoreRafId) restoreRafId = requestAnimationFrame(drainRestoreQueue);
     };
 
-    const drainRestoreQueue = () => {
+    const drainRestoreQueue = async () => {
         restoreRafId = 0;
-        const batch = Math.min(restoreHeap.length, effectiveRestoreBatch);
-        for (let i = 0; i < batch; i++) {
+        let processed = 0;
+        while (restoreHeap.length > 0 && processed < effectiveRestoreBatch) {
             const item = restoreHeap.pop();
             if (!item) break;
             restoreQueueSet.delete(item.target);
             executeRestore(item.target, item.tag);
+            processed++;
+            if (processed % CFG.yieldInterval === 0) await yieldToMain();
         }
         if (restoreHeap.length > 0)
             restoreRafId = requestAnimationFrame(drainRestoreQueue);
@@ -426,12 +417,14 @@
     // §6. 미디어 최적화 + 통합 라이프사이클
     // ═══════════════════════════════════════════════
     const optimizedSet = new WeakSet();
-    const MEDIA_IDLE = 0, MEDIA_DWELLING = 1, MEDIA_ACTIVE = 2,
-          MEDIA_RECLAIMED = 3, MEDIA_HARD_RECLAIMED = 4;
+    const S_IDLE = 0, S_DWELLING = 1, S_ACTIVE = 2,
+          S_RECLAIMED = 3, S_HARD_RECLAIMED = 4;
     const mediaState = new WeakMap();
     const mediaDwellTimers = new WeakMap();
     const mediaSaved = new WeakMap();
     const videoPausedByUs = new WeakSet();
+
+    const willChangeTimers = new WeakMap();
 
     const optimizeMedia = (el) => {
         if (optimizedSet.has(el)) return;
@@ -440,16 +433,34 @@
         if (tag === 'IMG') {
             if (!el.loading) el.loading = 'lazy';
             el.decoding = 'async';
+            if (!el.fetchPriority) el.fetchPriority = 'low';
             mediaLifecycleObserver.observe(el);
         } else if (tag === 'VIDEO') {
             el.preload = 'metadata';
+            try { el.disablePictureInPicture = true; } catch (_) {}
+            try { el.disableRemotePlayback = true; } catch (_) {}
             mediaLifecycleObserver.observe(el);
         } else if (tag === 'IFRAME') {
             if (!el.loading) el.loading = 'lazy';
             mediaLifecycleObserver.observe(el);
         } else if (tag === 'CANVAS') {
-            hardReclaimObserver.observe(el);
+            if (!offscreenCanvasSet.has(el)) {
+                hardReclaimObserver.observe(el);
+            }
         }
+    };
+
+    const scheduleWillChangeCleanup = (target) => {
+        if (willChangeTimers.has(target)) {
+            clearTimeout(willChangeTimers.get(target));
+        }
+        const tid = setTimeout(() => {
+            willChangeTimers.delete(target);
+            if (target.style.willChange === 'transform') {
+                target.style.willChange = '';
+            }
+        }, CFG.willChangeCleanupMs);
+        willChangeTimers.set(target, tid);
     };
 
     const executeRestore = (target, tag) => {
@@ -461,12 +472,14 @@
         if (tag === 'IMG') {
             if (saved.src && !saved.src.startsWith('blob:')) target.src = saved.src;
             if (saved.srcset) target.srcset = saved.srcset;
+            target.fetchPriority = 'auto';
         } else if (tag === 'VIDEO') {
             if (saved.src && !saved.src.startsWith('blob:')) {
                 target.src = saved.src;
                 target.load();
             }
             target.style.willChange = 'transform';
+            scheduleWillChangeCleanup(target);
         } else if (tag === 'IFRAME') {
             if (saved.src) target.src = saved.src;
         }
@@ -494,6 +507,10 @@
             if (target.srcset) { saved.srcset = target.srcset; target.removeAttribute('srcset'); }
             if (saved.src || saved.srcset) mediaSaved.set(target, saved);
         } else if (tag === 'VIDEO') {
+            if (willChangeTimers.has(target)) {
+                clearTimeout(willChangeTimers.get(target));
+                willChangeTimers.delete(target);
+            }
             if (target.src && !target.src.startsWith('data:')) {
                 const saved = { src: target.src };
                 if (saved.src.startsWith('blob:'))
@@ -502,7 +519,7 @@
                 target.load();
                 mediaSaved.set(target, saved);
             }
-            target.style.willChange = 'auto';
+            target.style.willChange = '';
         } else if (tag === 'IFRAME') {
             if (target.src && target.src !== 'about:blank') {
                 mediaSaved.set(target, { src: target.src });
@@ -512,31 +529,42 @@
         statsReclaimCount++;
     };
 
+    const _dedupeMap = new Map();
+    const dedupeEntries = (entries) => {
+        _dedupeMap.clear();
+        for (let i = 0; i < entries.length; i++)
+            _dedupeMap.set(entries[i].target, entries[i]);
+        return _dedupeMap;
+    };
+
     const mediaLifecycleObserver = new IntersectionObserver((entries) => {
-        const seen = new Set();
-        for (let i = entries.length - 1; i >= 0; i--) {
-            const { target, isIntersecting, boundingClientRect } = entries[i];
-            if (seen.has(target)) continue;
-            seen.add(target);
+        const deduped = dedupeEntries(entries);
+        for (const [target, entry] of deduped) {
+            const { isIntersecting, boundingClientRect } = entry;
             const tag = target.tagName;
-            const state = mediaState.get(target) || MEDIA_IDLE;
-            if (state === MEDIA_HARD_RECLAIMED) continue;
+            const state = mediaState.get(target) || S_IDLE;
+            if (state === S_HARD_RECLAIMED) continue;
 
             if (isIntersecting) {
-                if (state === MEDIA_RECLAIMED)
+                if (state === S_RECLAIMED)
                     enqueueRestore(target, tag, boundingClientRect);
-                if (tag === 'VIDEO' && videoPausedByUs.has(target)) {
-                    videoPausedByUs.delete(target);
-                    target.play().catch(() => {});
+                if (tag === 'VIDEO') {
+                    if (videoPausedByUs.has(target)) {
+                        videoPausedByUs.delete(target);
+                        target.play().catch(() => {});
+                    }
+                    target.style.willChange = 'transform';
+                    scheduleWillChangeCleanup(target);
                 }
-                if (tag === 'VIDEO') target.style.willChange = 'transform';
-                if (state === MEDIA_IDLE || state === MEDIA_RECLAIMED) {
-                    mediaState.set(target, MEDIA_DWELLING);
+                if (tag === 'IMG') target.fetchPriority = 'high';
+
+                if (state === S_IDLE || state === S_RECLAIMED) {
+                    mediaState.set(target, S_DWELLING);
                     if (!mediaDwellTimers.has(target)) {
                         const id = setTimeout(() => {
                             mediaDwellTimers.delete(target);
-                            mediaState.set(target, MEDIA_ACTIVE);
-                        }, CONFIG.throttleDwell);
+                            mediaState.set(target, S_ACTIVE);
+                        }, CFG.throttleDwell);
                         mediaDwellTimers.set(target, id);
                     }
                 }
@@ -549,17 +577,19 @@
                     target.pause();
                     videoPausedByUs.add(target);
                 }
-                if (state === MEDIA_ACTIVE || state === MEDIA_DWELLING) {
-                    mediaState.set(target, MEDIA_RECLAIMED);
+                if (tag === 'IMG') target.fetchPriority = 'low';
+
+                if (state === S_ACTIVE || state === S_DWELLING) {
+                    mediaState.set(target, S_RECLAIMED);
                     reclaimMedia(target, tag);
                     restoreQueueSet.delete(target);
                 } else {
-                    mediaState.set(target, MEDIA_IDLE);
+                    mediaState.set(target, S_IDLE);
                 }
             }
         }
     }, {
-        rootMargin: `${CONFIG.mediaMarginTop}px 0px ${CONFIG.mediaMarginBottom}px 0px`,
+        rootMargin: `${CFG.mediaMarginTop}px 0px ${CFG.mediaMarginBottom}px 0px`,
         threshold: 0
     });
 
@@ -569,38 +599,37 @@
     const canvasSaved = new WeakMap();
 
     const hardReclaimObserver = new IntersectionObserver((entries) => {
-        const seen = new Set();
-        for (let i = entries.length - 1; i >= 0; i--) {
-            const { target, isIntersecting } = entries[i];
-            if (seen.has(target)) continue;
-            seen.add(target);
+        const deduped = dedupeEntries(entries);
+        for (const [target, entry] of deduped) {
             const tag = target.tagName;
-            if (!isIntersecting) {
+            if (!entry.isIntersecting) {
                 if (tag === 'CANVAS') {
-                    if (!canvasSaved.has(target) && (target.width > 0 || target.height > 0)) {
-                        canvasSaved.set(target, { width: target.width, height: target.height });
-                        target.width = 0;
-                        target.height = 0;
+                    if (!canvasSaved.has(target)
+                        && !offscreenCanvasSet.has(target)
+                        && (target.width > 0 || target.height > 0)) {
+                        canvasSaved.set(target, { w: target.width, h: target.height });
+                        safeCanvasResize(target, 0, 0);
                     }
-                } else if (tag === 'IMG' || tag === 'VIDEO' || tag === 'IFRAME') {
-                    const state = mediaState.get(target) || MEDIA_IDLE;
-                    if (state !== MEDIA_RECLAIMED && state !== MEDIA_HARD_RECLAIMED)
+                } else {
+                    const state = mediaState.get(target) || S_IDLE;
+                    if (state !== S_RECLAIMED && state !== S_HARD_RECLAIMED)
                         reclaimMedia(target, tag);
-                    mediaState.set(target, MEDIA_HARD_RECLAIMED);
+                    mediaState.set(target, S_HARD_RECLAIMED);
                 }
             } else {
-                if (tag === 'CANVAS' && canvasSaved.has(target)) {
-                    const saved = canvasSaved.get(target);
-                    canvasSaved.delete(target);
-                    target.width = saved.width;
-                    target.height = saved.height;
-                } else if (tag === 'IMG' || tag === 'VIDEO' || tag === 'IFRAME') {
-                    mediaState.set(target, MEDIA_RECLAIMED);
+                if (tag === 'CANVAS') {
+                    if (canvasSaved.has(target)) {
+                        const saved = canvasSaved.get(target);
+                        canvasSaved.delete(target);
+                        safeCanvasResize(target, saved.w, saved.h);
+                    }
+                } else if (MEDIA_TAGS[tag] && MEDIA_TAGS[tag] <= 3) {
+                    mediaState.set(target, S_RECLAIMED);
                 }
             }
         }
     }, {
-        rootMargin: `${CONFIG.hardReclaimMarginTop}px 0px ${CONFIG.hardReclaimMarginBottom}px 0px`,
+        rootMargin: `${CFG.hardReclaimMarginTop}px 0px ${CFG.hardReclaimMarginBottom}px 0px`,
         threshold: 0
     });
 
@@ -611,18 +640,18 @@
 
     const resizeObserver = new ResizeObserver((entries) => {
         for (let i = 0; i < entries.length; i++) {
-            const entry = entries[i];
-            const h = entry.borderBoxSize?.[0]?.blockSize
-                    ?? entry.contentRect.height;
-            if (h > 0) heightCache.set(entry.target, h);
+            const e = entries[i];
+            const h = e.borderBoxSize?.[0]?.blockSize ?? e.contentRect.height;
+            if (h > 0) heightCache.set(e.target, h);
         }
     });
 
     // ═══════════════════════════════════════════════
-    // §9. 스마트 GC — IO + WeakRef (v7.0: in-place compact)
+    // §9. 스마트 GC
     // ═══════════════════════════════════════════════
-    const gcHiddenMap = new WeakSet();
+    const gcHiddenSet = new WeakSet();
     const gcHiddenHeight = new WeakMap();
+    const gcOriginalStyle = new WeakMap();
     let allTrackedRefs = [];
     const trackedNodeSet = new WeakSet();
     let gcObserveWatermark = 0;
@@ -637,37 +666,92 @@
         }
     });
 
-    const HIDDEN_STYLE = (h) =>
-        `content-visibility:hidden;contain-intrinsic-size:auto ${h}px;overflow:hidden`;
-    const VISIBLE_STYLE = 'content-visibility:auto;contain-intrinsic-size:;overflow:';
+    const SKIP_GC_TAGS = new Set(['MAIN', 'BODY', 'HTML']);
+    const isTopLevelStructural = (el) => {
+        if (SKIP_GC_TAGS.has(el.tagName)) return true;
+        // [v9.2] 제미나이 등 특수 SPA 구조 강제 예외 (컨테이너 보호)
+        if (el.tagName === 'INFINITE-SCROLLER' || el.tagName === 'CHAT-VIEW-ITEM') return true;
+
+        if (el.parentElement === document.body) {
+            const tag = el.tagName;
+            if (tag === 'MAIN' || tag === 'SECTION' || tag === 'ARTICLE') {
+                const siblings = document.body.querySelectorAll(`:scope > ${tag.toLowerCase()}`);
+                if (siblings.length <= 1) return true;
+            }
+        }
+        return false;
+    };
 
     const gcObserver = new IntersectionObserver((entries) => {
         for (let i = 0; i < entries.length; i++) {
             const { target, isIntersecting } = entries[i];
-            if (!isIntersecting && !gcHiddenMap.has(target)) {
-                const h = heightCache.get(target) || 500;
-                gcHiddenMap.add(target);
+            if (!isIntersecting && !gcHiddenSet.has(target)) {
+                if (isTopLevelStructural(target)) continue;
+
+                const h = heightCache.get(target) || target.offsetHeight || 500;
+                gcHiddenSet.add(target);
                 gcHiddenHeight.set(target, h);
-                target.style.cssText = HIDDEN_STYLE(h);
-            } else if (isIntersecting && gcHiddenMap.has(target)) {
-                gcHiddenMap.delete(target);
+                gcOriginalStyle.set(target, target.style.cssText || '');
+                target.style.cssText =
+                    `content-visibility:hidden;contain-intrinsic-size:auto ${h}px`;
+            } else if (isIntersecting && gcHiddenSet.has(target)) {
+                gcHiddenSet.delete(target);
                 gcHiddenHeight.delete(target);
-                target.style.cssText = VISIBLE_STYLE;
+                const orig = gcOriginalStyle.get(target);
+                gcOriginalStyle.delete(target);
+                target.style.cssText = orig || '';
             }
         }
     }, {
-        rootMargin: `${CONFIG.gcMarginTop}px 0px ${CONFIG.gcMarginBottom}px 0px`,
+        rootMargin: `${CFG.gcMarginTop}px 0px ${CFG.gcMarginBottom}px 0px`,
         threshold: 0
     });
 
-    const gcFeed = () => {
+    const forceRestoreVisible = () => {
+        const vh = window.innerHeight;
+        const margin = CFG.gcMarginBottom;
+        let restored = 0;
+        for (let i = 0; i < allTrackedRefs.length; i++) {
+            const el = allTrackedRefs[i]?.deref();
+            if (!el || !gcHiddenSet.has(el)) continue;
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom > -margin && rect.top < vh + margin) {
+                gcHiddenSet.delete(el);
+                gcHiddenHeight.delete(el);
+                const orig = gcOriginalStyle.get(el);
+                gcOriginalStyle.delete(el);
+                el.style.cssText = orig || '';
+                restored++;
+            }
+        }
+        for (let i = 0; i < allTrackedRefs.length; i++) {
+            const el = allTrackedRefs[i]?.deref();
+            if (!el) continue;
+            const mediaEls = el.querySelectorAll('img,video,iframe');
+            for (let j = 0; j < mediaEls.length; j++) {
+                const m = mediaEls[j];
+                if (mediaState.get(m) === S_HARD_RECLAIMED) {
+                    mediaState.set(m, S_RECLAIMED);
+                    mediaLifecycleObserver.unobserve(m);
+                    mediaLifecycleObserver.observe(m);
+                }
+            }
+        }
+        return restored;
+    };
+
+    const gcFeed = async () => {
+        if (performance.now() < gcPausedUntil) return;
+
         const len = allTrackedRefs.length;
         if (len <= effectiveLimitNodes) return;
         const cutoff = len - effectiveLimitNodes;
         const start = Math.max(gcObserveWatermark, 0);
+        let processed = 0;
         for (let i = start; i < cutoff; i++) {
             const el = allTrackedRefs[i]?.deref();
             if (el) gcObserver.observe(el);
+            if (++processed % CFG.gcYieldChunkSize === 0) await yieldToMain();
         }
         if (cutoff > gcObserveWatermark) gcObserveWatermark = cutoff;
     };
@@ -679,8 +763,6 @@
         allTrackedRefs.push(ref);
         finalizer.register(el, ref);
         resizeObserver.observe(el);
-        const canvases = el.querySelectorAll(CANVAS_SELECTOR);
-        for (let i = 0; i < canvases.length; i++) optimizeMedia(canvases[i]);
     };
 
     const untrackNode = (el) => {
@@ -690,14 +772,16 @@
         gcObserver.unobserve(el);
         mediaLifecycleObserver.unobserve(el);
         hardReclaimObserver.unobserve(el);
-        if (gcHiddenMap.has(el)) {
-            gcHiddenMap.delete(el);
+        if (gcHiddenSet.has(el)) {
+            gcHiddenSet.delete(el);
             gcHiddenHeight.delete(el);
+            const orig = gcOriginalStyle.get(el);
+            gcOriginalStyle.delete(el);
+            el.style.cssText = orig || '';
         }
         finalizer.unregister(el);
     };
 
-    // [v7.0] in-place compaction — 배열 재할당 없음
     const compactTrackedRefs = () => {
         let write = 0;
         for (let read = 0; read < allTrackedRefs.length; read++) {
@@ -714,7 +798,7 @@
     const enterLowPowerMode = () => {
         if (isLowPowerMode) return;
         isLowPowerMode = true;
-        effectiveLimitNodes = CONFIG.lowPowerLimitNodes;
+        effectiveLimitNodes = CFG.lowPowerLimitNodes;
         lowPowerStyleEl.disabled = false;
         gcObserveWatermark = 0;
         gcFeed();
@@ -723,7 +807,7 @@
     const exitLowPowerMode = () => {
         if (!isLowPowerMode) return;
         isLowPowerMode = false;
-        effectiveLimitNodes = CONFIG.limitNodes;
+        effectiveLimitNodes = CFG.limitNodes;
         lowPowerStyleEl.disabled = true;
     };
 
@@ -731,22 +815,25 @@
     let currentSmoothedFPS = 60;
 
     {
-        const hasLoAF = typeof PerformanceObserver !== 'undefined'
-            && PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame');
-
         if (hasLoAF) {
             const recentLoAFs = [];
             const loafObserver = new PerformanceObserver((list) => {
                 for (const entry of list.getEntries()) {
                     recentLoAFs.push(entry.duration);
-                    if (recentLoAFs.length > CONFIG.loafJankWindowSize) recentLoAFs.shift();
+                    if (recentLoAFs.length > CFG.loafJankWindowSize) recentLoAFs.shift();
                 }
-                if (recentLoAFs.length >= CONFIG.loafJankWindowSize) {
+                if (recentLoAFs.length >= CFG.loafJankWindowSize) {
                     let jankCount = 0;
                     for (let i = 0; i < recentLoAFs.length; i++)
-                        if (recentLoAFs[i] > CONFIG.loafJankThresholdMs) jankCount++;
-                    if (jankCount >= Math.ceil(CONFIG.loafJankWindowSize / 2) && !isLowPowerMode)
-                        enterLowPowerMode();
+                        if (recentLoAFs[i] > CFG.loafJankThresholdMs) jankCount++;
+
+                    if (jankCount >= Math.ceil(CFG.loafJankWindowSize / 2)) {
+                        if (!isLowPowerMode) enterLowPowerMode();
+                        effectiveRestoreBatch = Math.max(1,
+                            Math.floor(CFG.restoreBatchSize * CFG.loafBatchReduction));
+                    } else {
+                        effectiveRestoreBatch = CFG.restoreBatchSize;
+                    }
                 }
             });
             try { loafObserver.observe({ type: 'long-animation-frame', buffered: false }); }
@@ -762,17 +849,16 @@
             if (!monitorActive) return;
             if (lastFrameTime > 0) {
                 const delta = now - lastFrameTime;
-                // [v7.0] 비정상 프레임 간격 무시 (탭 복귀 스파이크 방지)
-                if (delta > CONFIG.frameDeltaMaxMs) {
+                if (delta > CFG.frameDeltaMaxMs) {
                     lastFrameTime = now;
                     requestAnimationFrame(frameMonitor);
                     return;
                 }
                 const instantFPS = 1000 / delta;
-                smoothFPS += CONFIG.fpsAlpha * (instantFPS - smoothFPS);
+                smoothFPS += CFG.fpsAlpha * (instantFPS - smoothFPS);
                 currentSmoothedFPS = smoothFPS;
 
-                if (smoothFPS < CONFIG.lowPowerFrameThreshold) {
+                if (smoothFPS < CFG.lowPowerFrameThreshold) {
                     lowDuration += delta; highDuration = 0;
                     if (lowDuration > LOW_ENTER_MS && !isLowPowerMode) enterLowPowerMode();
                 } else {
@@ -801,7 +887,7 @@
             navigator.getBattery().then((battery) => {
                 const check = () => {
                     batteryLow = !battery.charging
-                        && battery.level <= CONFIG.lowPowerBatteryThreshold;
+                        && battery.level <= CFG.lowPowerBatteryThreshold;
                     if (batteryLow) enterLowPowerMode();
                 };
                 battery.addEventListener('chargingchange', check);
@@ -826,13 +912,13 @@
                 const etype = conn.effectiveType;
                 const saveData = conn.saveData === true;
                 if (saveData || etype === 'slow-2g' || etype === '2g') {
-                    effectiveRestoreBatch = CONFIG.slowNetBatchSize;
+                    effectiveRestoreBatch = CFG.slowNetBatchSize;
                     if (saveData) enterLowPowerMode();
                 } else if (etype === '3g') {
                     effectiveRestoreBatch = Math.max(1,
-                        Math.floor(CONFIG.restoreBatchSize / 2));
+                        Math.floor(CFG.restoreBatchSize / 2));
                 } else {
-                    effectiveRestoreBatch = CONFIG.restoreBatchSize;
+                    effectiveRestoreBatch = CFG.restoreBatchSize;
                 }
             };
             conn.addEventListener('change', update);
@@ -853,7 +939,7 @@
             const timerId = setTimeout(() => {
                 pendingBlobs.delete(url);
                 try { origRevoke.call(URL, url); } catch (_) {}
-            }, CONFIG.blobAutoExpireMs);
+            }, CFG.blobAutoExpireMs);
             pendingBlobs.set(url, timerId);
             return url;
         };
@@ -867,64 +953,29 @@
     }
 
     // ═══════════════════════════════════════════════
-    // §12. 탭 Hibernation
+    // §12. 탭 복귀 시 강제 복원 (v9.2 패치: 강제 리플로우 & 예외 처리)
     // ═══════════════════════════════════════════════
     {
-        let hibernateTimer = 0, isHibernated = false;
-
-        const hibernateTab = () => {
-            if (isHibernated) return;
-            isHibernated = true;
-            statsHibernateCount++;
-            for (let i = 0; i < allTrackedRefs.length; i++) {
-                const el = allTrackedRefs[i]?.deref();
-                if (!el) continue;
-                const mediaEls = el.querySelectorAll(MEDIA_SELECTOR);
-                for (let j = 0; j < mediaEls.length; j++) {
-                    const m = mediaEls[j], tag = m.tagName;
-                    const state = mediaState.get(m) || MEDIA_IDLE;
-                    if (state !== MEDIA_HARD_RECLAIMED) {
-                        if (state !== MEDIA_RECLAIMED) reclaimMedia(m, tag);
-                        mediaState.set(m, MEDIA_HARD_RECLAIMED);
-                    }
-                }
-                const canvasEls = el.querySelectorAll(CANVAS_SELECTOR);
-                for (let j = 0; j < canvasEls.length; j++) {
-                    const c = canvasEls[j];
-                    if (!canvasSaved.has(c) && (c.width > 0 || c.height > 0)) {
-                        canvasSaved.set(c, { width: c.width, height: c.height });
-                        c.width = 0; c.height = 0;
-                    }
-                }
-            }
-        };
-
-        const wakeTab = () => {
-            if (!isHibernated) return;
-            isHibernated = false;
-            for (let i = 0; i < allTrackedRefs.length; i++) {
-                const el = allTrackedRefs[i]?.deref();
-                if (!el) continue;
-                const mediaEls = el.querySelectorAll(MEDIA_SELECTOR);
-                for (let j = 0; j < mediaEls.length; j++)
-                    if (mediaState.get(mediaEls[j]) === MEDIA_HARD_RECLAIMED)
-                        mediaState.set(mediaEls[j], MEDIA_RECLAIMED);
-            }
-        };
-
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                hibernateTimer = setTimeout(hibernateTab, CONFIG.hibernateDelayMs);
-            } else {
-                clearTimeout(hibernateTimer);
-                hibernateTimer = 0;
-                wakeTab();
+            if (!document.hidden) {
+                // Microtask 레벨에서 우선 실행하여 브라우저 파이프라인 선점
+                queueMicrotask(() => {
+                    forceRestoreVisible();
+
+                    // 강제 리플로우(Reflow) 유발: 화면이 하얗게 굳는 현상 방지
+                    void document.body.offsetHeight; 
+
+                    // 2차 안전장치 (렌더링 엔진 지연 대비)
+                    setTimeout(() => {
+                        forceRestoreVisible();
+                    }, 500);
+                });
             }
         });
     }
 
     // ═══════════════════════════════════════════════
-    // §13. Shadow DOM 탐색 (v7.0: TreeWalker)
+    // §13. Shadow DOM 탐색
     // ═══════════════════════════════════════════════
     const observedShadowRoots = new WeakSet();
 
@@ -938,11 +989,20 @@
             for (let i = 0; i < mutations.length; i++) {
                 const added = mutations[i].addedNodes;
                 for (let j = 0; j < added.length; j++) {
-                    if (added[j].nodeType === 1) { pendingNodes.push(added[j]); pendingGuard.add(added[j]); hasAdded = true; }
+                    const node = added[j];
+                    if (node.nodeType === 1 && !pendingGuard.has(node)) {
+                        pendingGuard.add(node);
+                        pendingNodes.push(node);
+                        hasAdded = true;
+                    }
                 }
                 const removed = mutations[i].removedNodes;
                 for (let j = 0; j < removed.length; j++) {
-                    if (removed[j].nodeType === 1) { pendingGuard.delete(removed[j]); cleanupSubtree(removed[j]); }
+                    const node = removed[j];
+                    if (node.nodeType === 1) {
+                        pendingGuard.delete(node);
+                        cleanupSubtree(node);
+                    }
                 }
             }
             if (hasAdded) scheduleBatch();
@@ -958,13 +1018,13 @@
     };
 
     // ═══════════════════════════════════════════════
-    // §14. MutationObserver (v7.0: 배열 + WeakSet)
+    // §14. MutationObserver (입력 시 지연 처리)
     // ═══════════════════════════════════════════════
     let batchScheduled = false;
-    const pendingNodes = [];          // [v7.0] Set → Array (이터레이터 오버헤드 제거)
-    const pendingGuard = new WeakSet(); // 중복 방지
+    let batchTimerId = 0;
+    const pendingNodes = [];
+    const pendingGuard = new WeakSet();
 
-    // [v7.0] TreeWalker 기반 processSubtree
     const processSubtree = (root) => {
         try {
             if (!root) return;
@@ -973,45 +1033,34 @@
             if (!isFragment && !isElement) return;
 
             if (isElement) {
-                const rootTag = root.tagName;
-                if (rootTag === 'IMG' || rootTag === 'VIDEO'
-                    || rootTag === 'IFRAME' || rootTag === 'CANVAS')
-                    optimizeMedia(root);
+                if (MEDIA_TAGS[root.tagName]) optimizeMedia(root);
                 if (matchesSelectors(root)) trackNode(root);
                 checkShadowRoot(root);
             }
 
-            // [v7.0] 단일 TreeWalker로 미디어 + 콘텐츠 + Shadow DOM 모두 처리
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
             let cur;
             while ((cur = walker.nextNode())) {
-                const tag = cur.tagName;
-                // 미디어/캔버스 최적화
-                if (tag === 'IMG' || tag === 'VIDEO' || tag === 'IFRAME' || tag === 'CANVAS')
-                    optimizeMedia(cur);
-                // 콘텐츠 노드 추적
+                if (MEDIA_TAGS[cur.tagName]) optimizeMedia(cur);
                 if (matchesSelectors(cur)) trackNode(cur);
-                // Shadow DOM 탐색
                 checkShadowRoot(cur);
             }
         } catch (_) {}
     };
 
-    // [v7.0] scheduler.yield 기반 비동기 대량 cleanup
     const cleanupSubtree = (root) => {
         try {
             if (!root || root.nodeType !== 1) return;
             if (trackedNodeSet.has(root)) untrackNode(root);
 
             const els = root.querySelectorAll(SELECTORS);
-            if (els.length <= CONFIG.bulkCleanupThreshold) {
+            if (els.length <= CFG.bulkCleanupThreshold) {
                 for (let i = 0; i < els.length; i++)
                     if (trackedNodeSet.has(els[i])) untrackNode(els[i]);
             } else {
-                // 비동기 청크 처리 (scheduler.yield 활용)
                 const arr = Array.from(els);
                 let idx = 0;
-                const chunk = CONFIG.bulkCleanupThreshold;
+                const chunk = CFG.bulkCleanupThreshold;
                 const processChunk = async () => {
                     const end = Math.min(idx + chunk, arr.length);
                     for (; idx < end; idx++)
@@ -1028,18 +1077,22 @@
 
     const flushBatch = () => {
         batchScheduled = false;
-        for (let i = 0; i < pendingNodes.length; i++) {
-            const node = pendingNodes[i];
-            if (node.nodeType === 1) processSubtree(node);
+        batchTimerId = 0;
+        const nodes = pendingNodes.splice(0);
+        for (let i = 0; i < nodes.length; i++) {
+            if (nodes[i].nodeType === 1) processSubtree(nodes[i]);
         }
-        pendingNodes.length = 0;
         gcFeed();
     };
 
     const scheduleBatch = () => {
-        if (!batchScheduled) {
-            batchScheduled = true;
-            queueMicrotask(flushBatch);
+        if (batchScheduled) return;
+        batchScheduled = true;
+
+        if (isInputActive()) {
+            batchTimerId = setTimeout(flushBatch, CFG.inputActiveDebounceMs);
+        } else {
+            requestAnimationFrame(flushBatch);
         }
     };
 
@@ -1076,37 +1129,35 @@
             const checkMemory = async () => {
                 try {
                     const result = await performance.measureUserAgentSpecificMemory();
-                    if (result.bytes > CONFIG.memoryThresholdBytes) {
+                    if (result.bytes > CFG.memoryThresholdBytes) {
                         if (!memoryPressure) {
                             memoryPressure = true;
-                            effectiveLimitNodes = Math.min(effectiveLimitNodes, CONFIG.lowPowerLimitNodes);
+                            effectiveLimitNodes = Math.min(effectiveLimitNodes, CFG.lowPowerLimitNodes);
                             gcObserveWatermark = 0;
                             gcFeed();
                         }
                     } else if (memoryPressure) {
                         memoryPressure = false;
                         effectiveLimitNodes = isLowPowerMode
-                            ? CONFIG.lowPowerLimitNodes : CONFIG.limitNodes;
+                            ? CFG.lowPowerLimitNodes : CFG.limitNodes;
                     }
                 } catch (_) {}
-                setTimeout(checkMemory, CONFIG.memoryCheckInterval);
+                setTimeout(checkMemory, CFG.memoryCheckInterval);
             };
             setTimeout(checkMemory, 10000);
         }
     }
 
     // ═══════════════════════════════════════════════
-    // §16. 정기 GC — scheduler.postTask
+    // §16. 정기 GC + ViewTransition 일시정지
     // ═══════════════════════════════════════════════
-    const hasScheduler = typeof globalThis.scheduler?.postTask === 'function';
-
-    const scheduleTask = hasScheduler
-        ? (fn) => scheduler.postTask(fn, { priority: CONFIG.gcTaskPriority }).catch(() => {})
-        : (typeof requestIdleCallback === 'function')
+    const scheduleTask = hasSchedulerPostTask
+        ? (fn) => scheduler.postTask(fn, { priority: CFG.gcTaskPriority }).catch(() => {})
+        : hasRIC
             ? (fn) => requestIdleCallback((dl) => {
                   if (dl.timeRemaining() > 5 || dl.didTimeout) fn();
-              }, { timeout: CONFIG.idleTimeout })
-            : (fn) => setTimeout(fn, CONFIG.idleTimeout);
+              }, { timeout: CFG.idleTimeout })
+            : (fn) => setTimeout(fn, CFG.idleTimeout);
 
     let gcChainActive = false;
 
@@ -1124,6 +1175,37 @@
         if (!document.hidden) scheduleGC();
     });
 
+    {
+        const origStartViewTransition = document.startViewTransition;
+        if (typeof origStartViewTransition === 'function') {
+            document.startViewTransition = function (...args) {
+                gcPausedUntil = performance.now() + CFG.viewTransitionPauseMs;
+                return origStartViewTransition.apply(this, args);
+            };
+        }
+    }
+
+    {
+        if (hasRIC) {
+            const prefetchObserver = new IntersectionObserver((entries) => {
+                for (let i = 0; i < entries.length; i++) {
+                    const { target, isIntersecting } = entries[i];
+                    if (isIntersecting && target.tagName === 'IMG'
+                        && target.complete === false && typeof target.decode === 'function') {
+                        requestIdleCallback(() => {
+                            target.decode().catch(() => {});
+                        }, { timeout: 2000 });
+                        prefetchObserver.unobserve(target);
+                    }
+                }
+            }, {
+                rootMargin: `${CFG.idlePrefetchMargin}px 0px ${CFG.idlePrefetchMargin}px 0px`,
+                threshold: 0
+            });
+            window._turboPrefetchObserver = prefetchObserver;
+        }
+    }
+
     // ═══════════════════════════════════════════════
     // §17. 진단 인터페이스
     // ═══════════════════════════════════════════════
@@ -1138,11 +1220,11 @@
                         const el = allTrackedRefs[i].deref();
                         if (el !== undefined) {
                             aliveRefs++;
-                            if (gcHiddenMap.has(el)) hiddenCount++;
+                            if (gcHiddenSet.has(el)) hiddenCount++;
                         } else deadRefs++;
                     }
                     const info = {
-                        version: '7.0',
+                        version: '9.2',
                         lowPowerMode: isLowPowerMode,
                         memoryPressure,
                         smoothedFPS: Math.round(currentSmoothedFPS * 10) / 10,
@@ -1153,7 +1235,6 @@
                         restoreQueueLength: restoreHeap.length,
                         mediaActions: { reclaimed: statsReclaimCount, restored: statsRestoreCount },
                         hibernations: statsHibernateCount,
-                        deferredRequests: statsDeferredRequests,
                         throttledTimers: statsThrottledTimers,
                         network: navigator.connection ? {
                             effectiveType: navigator.connection.effectiveType,
@@ -1171,7 +1252,25 @@
                     return `Compacted: ${before} → ${allTrackedRefs.length} (${before - allTrackedRefs.length} removed)`;
                 },
                 gc() { gcFeed(); return 'GC feed executed'; },
-                config: CONFIG,
+                emergencyRestore() {
+                    let restored = 0;
+                    for (let i = 0; i < allTrackedRefs.length; i++) {
+                        const el = allTrackedRefs[i]?.deref();
+                        if (el && gcHiddenSet.has(el)) {
+                            gcHiddenSet.delete(el);
+                            gcHiddenHeight.delete(el);
+                            const orig = gcOriginalStyle.get(el);
+                            gcOriginalStyle.delete(el);
+                            el.style.cssText = orig || '';
+                            restored++;
+                        }
+                    }
+                    return `Emergency restored ${restored} nodes`;
+                },
+                forceRestore() {
+                    return `Force restored ${forceRestoreVisible()} visible nodes`;
+                },
+                config: CFG,
             })
         });
     } catch (_) {}
@@ -1191,6 +1290,19 @@
                 .observe(document.head || document.documentElement, {
                     childList: true, subtree: true
                 });
+
+            if (window._turboPrefetchObserver) {
+                const imgs = document.body.getElementsByTagName('img');
+                for (let i = 0; i < imgs.length; i++) {
+                    window._turboPrefetchObserver.observe(imgs[i]);
+                }
+            }
+
+            console.log(
+                `%c🚀 Turbo Optimizer v9.2 %c Active: ${location.hostname}`,
+                'color:#00ffa3;font-weight:bold;background:#222;padding:3px 6px;border-radius:4px',
+                'color:#fff'
+            );
         } catch (_) {}
     };
 
