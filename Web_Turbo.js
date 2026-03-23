@@ -503,17 +503,16 @@
       'nav,header,[role="navigation"],[role="banner"],' +
       '[role="tablist"],[role="search"],[role="menubar"]';
 
-    const hCSS =
-  vtCSS +
-  // auto 단독: 브라우저가 실제 렌더링된 높이를 기억해서 사용
-  // 고정 폴백값(500px 등) 없음 → 공백 발생 불가
-  `${cvSel}{content-visibility:auto;contain-intrinsic-size:auto none}` +
-  `${cardSel}{contain:strict;contain-intrinsic-size:auto none;content-visibility:auto}` +
-  `${feedChildSel}{contain:layout paint;contain-intrinsic-size:auto none;content-visibility:auto}` +
-  `img[loading="lazy"],iframe[loading="lazy"]{content-visibility:auto;contain-intrinsic-size:auto none}` +
-  `:has(>video),video{content-visibility:visible!important;contain:none!important}` +
-  `${stickyProtectSel}{content-visibility:visible!important;contain:none!important;contain-intrinsic-size:none!important}` +
-  `${scSel}{contain:content;will-change:scroll-position;overflow-anchor:auto;overscroll-behavior:contain}`;
+        const hCSS =
+      vtCSS +
+      `${cvSel}{content-visibility:auto}` +
+      `${cardSel}{contain:strict;content-visibility:auto}` +
+      `${feedChildSel}{contain:layout paint;content-visibility:auto}` +
+      `img[loading="lazy"],iframe[loading="lazy"]{content-visibility:auto}` +
+      `:has(>video),video{content-visibility:visible!important;contain:none!important}` +
+      `${stickyProtectSel}{content-visibility:visible!important;contain:none!important}` +
+      `${scSel}{contain:content;will-change:scroll-position;overflow-anchor:auto;overscroll-behavior:contain}`;
+
     const lpCSS =
       `*,*::before,*::after{animation-duration:${CFG.lpAn}!important;transition-duration:${CFG.lpTr}!important;text-rendering:optimizeSpeed!important}` +
       `[style*="infinite"],.animated,[class*="animate"],lottie-player,dotlottie-player{animation-play-state:paused!important}`;
@@ -693,12 +692,13 @@
         if (role.dlock) {
           if (e.isIntersecting) {
             // unlock 시 (기존: 'auto 500px' → 수정)
-if (role.dlocked) {
-  el.style.contentVisibility = 'auto';
-  el.style.containIntrinsicSize = 'auto none';  // ← 여기
-  role.dlocked = false;
-  DisplayLock._unlockCount++;
-}
+          if (role.dlocked) {
+            el.style.contentVisibility = 'auto';
+            el.style.containIntrinsicSize = '';  // 인라인 스타일 제거 → CSS 기본값 복귀
+            role.dlocked = false;
+            DisplayLock._unlockCount++;
+          }
+
           } else {
             if (!role.dlocked) {
               const h = e.boundingClientRect.height;
