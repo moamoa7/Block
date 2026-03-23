@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      9.2
-// @description  모든 웹사이트에서 렉을 제거합니다. v9.2: 탭 복귀 시 화면 멈춤(Blank Screen) 현상 완벽 해결, 강제 리플로우 도입, LoAF 렉 감지, 캔버스 GPU 메모리 회수 등 무결점 가속 제공.
+// @version      11.0
+// @description  모든 웹사이트에서 렉을 제거하고 최적의 성능을 보장합니다. v11.0: 모든 사이트에 일관된 뼈대 보호 정책 적용. 사이트별 분기 최소화, 구조적 안정성 대폭 강화.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -22,25 +22,118 @@
     'use strict';
 
     // ═══════════════════════════════════════════════
-    // §1. 상수 & 설정
+    // §1. 사이트 프로필 감지
+    // ═══════════════════════════════════════════════
+    const HOST = location.hostname;
+
+    const SITE_PROFILE = (() => {
+        if (HOST.includes('gemini.google.com'))
+            return {
+                id: 'gemini',
+                streamingSelector: 'model-response[is-streaming], .loading-spinner, mat-progress-bar',
+                turnSelector: 'model-response, user-query',
+                scrollContainer: 'infinite-scroller.chat-history, .conversation-container',
+            };
+        if (HOST.includes('chatgpt.com') || HOST.includes('chat.openai.com'))
+            return {
+                id: 'chatgpt',
+                streamingSelector: '.result-streaming, button[aria-label="Stop generating"], .streaming',
+                turnSelector: 'article[data-testid^="conversation-turn-"]',
+                scrollContainer: '[class*="react-scroll-to-bottom"]',
+            };
+        if (HOST.includes('claude.ai'))
+            return {
+                id: 'claude',
+                streamingSelector: '[data-is-streaming="true"], button[aria-label="Stop Response"]',
+                turnSelector: 'div[class*="ChatMessage"]',
+                scrollContainer: '.overflow-y-auto',
+            };
+        if (HOST.includes('genspark.ai'))
+            return {
+                id: 'genspark',
+                streamingSelector: '.loading-spinner, .generating, .streaming-indicator, .thinking-indicator, button[class*="stop"], .moa-progress, .agent-thinking',
+                turnSelector: '.conversation-statement',
+                scrollContainer: '.chat-container, .conversation-list',
+            };
+        if (HOST.includes('perplexity.ai'))
+            return {
+                id: 'perplexity',
+                streamingSelector: '[data-testid="streaming-indicator"], .animate-pulse, button[aria-label="Stop"]',
+                turnSelector: '[data-testid="message-content"]',
+                scrollContainer: 'main',
+            };
+        if (HOST.includes('aistudio.google.com'))
+            return {
+                id: 'aistudio',
+                streamingSelector: '.generating-indicator, mat-progress-bar, .loading',
+                turnSelector: 'ms-chat-turn, .chat-turn',
+                scrollContainer: '.chat-scroll-container',
+            };
+        if (HOST.includes('copilot.microsoft.com'))
+            return {
+                id: 'copilot',
+                streamingSelector: '.typing-indicator, cib-typing-indicator, [is-streaming]',
+                turnSelector: 'cib-chat-turn, cib-message-group',
+                scrollContainer: 'cib-chat-main',
+            };
+        if (HOST.includes('grok.com') || HOST.includes('x.ai'))
+            return {
+                id: 'grok',
+                streamingSelector: '[data-streaming="true"], .animate-pulse',
+                turnSelector: '[class*="message"]',
+                scrollContainer: 'main',
+            };
+        if (HOST.includes('huggingface.co') && location.pathname.startsWith('/chat'))
+            return {
+                id: 'huggingchat',
+                streamingSelector: '.message.assistant .loading, button[aria-label="Stop generating"]',
+                turnSelector: '.message',
+                scrollContainer: '.overflow-y-auto',
+            };
+        if (HOST.includes('chat.deepseek.com'))
+            return {
+                id: 'deepseek',
+                streamingSelector: '.ds-loading, .thinking-block, button[class*="stop"]',
+                turnSelector: '[class*="Message"]',
+                scrollContainer: '.overflow-y-auto',
+            };
+        if (HOST.includes('poe.com'))
+            return {
+                id: 'poe',
+                streamingSelector: '[class*="ChatMessage_loading"], button[class*="StopButton"]',
+                turnSelector: '[class*="ChatMessage"]',
+                scrollContainer: '[class*="ChatMessagesView"]',
+            };
+        return null;
+    })();
+
+    const IS_AI_CHAT = SITE_PROFILE !== null;
+
+    // ═══════════════════════════════════════════════
+    // §1-a. 상수 & 설정
     // ═══════════════════════════════════════════════
     const SELECTOR_LIST = [
         'article', 'section', 'main', '.post', '.content', '.comment',
         'section[data-testid^="conversation-turn-"]',
         'div[class*="ChatMessage"]',
-        'infinite-scroller > div', 'chat-view-item'
+        'infinite-scroller > div', 'chat-view-item',
+        '.conversation-statement',
+        '[data-testid="message-content"]',
+        'div[class*="Message"]',
+        'div[class*="ChatMessage"]',
     ];
+
     const SELECTORS = SELECTOR_LIST.join(', ');
-    const MEDIA_TAGS = { IMG: 1, VIDEO: 2, IFRAME: 3, CANVAS: 4 };
+    const MEDIA_TAG_SET = new Set(['IMG', 'VIDEO', 'IFRAME', 'CANVAS']);
 
     const CFG = {
-        limitNodes:               150,
+        limitNodes:               IS_AI_CHAT ? 80 : 150,
         gcMarginTop:              800,
-        gcMarginBottom:           2500,
+        gcMarginBottom:           IS_AI_CHAT ? 1500 : 2500,
         idleTimeout:              3000,
         throttleDwell:            120,
         lowPowerFrameThreshold:   40,
-        lowPowerLimitNodes:       80,
+        lowPowerLimitNodes:       50,
         lowPowerBatteryThreshold: 0.15,
         mediaMarginTop:           300,
         mediaMarginBottom:        1000,
@@ -55,7 +148,6 @@
         loafJankWindowSize:       5,
         slowNetBatchSize:         1,
         blobAutoExpireMs:         60000,
-        bulkCleanupThreshold:     50,
         timerThrottleMinInterval: 1000,
         timerThrottleThreshold:   500,
         yieldInterval:            4,
@@ -63,33 +155,38 @@
         gcYieldChunkSize:         30,
         viewTransitionPauseMs:    300,
         willChangeCleanupMs:      3000,
-        idlePrefetchMargin:       1500,
         loafBatchReduction:       0.5,
-        mutationDebounceMs:       16,
         inputActiveDebounceMs:    300,
+        streamingCheckInterval:   500,
+        streamingGcPauseMs:       2000,
+        mutationCoalesceMs:       100,
+        bulkCleanupThreshold:     50,
+        hydrationGracePeriodMs:   2500,
     };
 
-    // ── 런타임 상태 ──
     let isLowPowerMode = false;
     let effectiveLimitNodes = CFG.limitNodes;
     let memoryPressure = false;
     let scrollDirection = 1;
     let effectiveRestoreBatch = CFG.restoreBatchSize;
     let gcPausedUntil = 0;
+    let inputActiveUntil = 0;
+    let isStreaming = false;
 
     let statsReclaimCount = 0;
     let statsRestoreCount = 0;
-    let statsHibernateCount = 0;
     let statsThrottledTimers = 0;
+    let currentSmoothedFPS = 60;
 
-    let inputActiveUntil = 0;
-
-    // ── 기능 감지 ──
-    const hasSchedulerYield = typeof globalThis.scheduler?.yield === 'function';
+    const hasSchedulerYield    = typeof globalThis.scheduler?.yield === 'function';
     const hasSchedulerPostTask = typeof globalThis.scheduler?.postTask === 'function';
-    const hasRIC = typeof requestIdleCallback === 'function';
+    const hasRIC               = typeof requestIdleCallback === 'function';
     const hasLoAF = typeof PerformanceObserver !== 'undefined'
         && PerformanceObserver.supportedEntryTypes?.includes('long-animation-frame');
+    const hasLongTask = !hasLoAF && typeof PerformanceObserver !== 'undefined'
+        && PerformanceObserver.supportedEntryTypes?.includes('longtask');
+    const hasNavigationAPI = typeof navigation !== 'undefined'
+        && typeof navigation.addEventListener === 'function';
 
     const yieldToMain = hasSchedulerYield
         ? () => scheduler.yield()
@@ -99,62 +196,61 @@
     // §1-b. OffscreenCanvas 감지
     // ═══════════════════════════════════════════════
     const offscreenCanvasSet = new WeakSet();
-
     {
-        const origTransfer = HTMLCanvasElement.prototype.transferControlToOffscreen;
-        if (origTransfer) {
-            HTMLCanvasElement.prototype.transferControlToOffscreen = function (...args) {
+        const orig = HTMLCanvasElement.prototype.transferControlToOffscreen;
+        if (orig) {
+            HTMLCanvasElement.prototype.transferControlToOffscreen = function (...a) {
                 offscreenCanvasSet.add(this);
-                return origTransfer.apply(this, args);
+                return orig.apply(this, a);
             };
         }
     }
-
-    const safeCanvasResize = (canvas, width, height) => {
-        if (offscreenCanvasSet.has(canvas)) return false;
-        try {
-            canvas.width = width;
-            canvas.height = height;
-            return true;
-        } catch (_) {
-            offscreenCanvasSet.add(canvas);
-            return false;
-        }
+    const safeCanvasResize = (c, w, h) => {
+        if (offscreenCanvasSet.has(c)) return false;
+        try { c.width = w; c.height = h; return true; }
+        catch { offscreenCanvasSet.add(c); return false; }
     };
 
     // ═══════════════════════════════════════════════
     // §1-c. 입력 활성 감지
     // ═══════════════════════════════════════════════
     {
-        const markInputActive = () => {
-            inputActiveUntil = performance.now() + CFG.inputActiveDebounceMs;
-        };
-
-        document.addEventListener('keydown', markInputActive, { capture: true, passive: true });
-        document.addEventListener('input', markInputActive, { capture: true, passive: true });
-        document.addEventListener('compositionstart', markInputActive, { capture: true, passive: true });
-        document.addEventListener('compositionupdate', markInputActive, { capture: true, passive: true });
+        const mark = () => { inputActiveUntil = performance.now() + CFG.inputActiveDebounceMs; };
+        for (const evt of ['keydown', 'input', 'compositionstart', 'compositionupdate'])
+            document.addEventListener(evt, mark, { capture: true, passive: true });
     }
-
     const isInputActive = () => performance.now() < inputActiveUntil;
+
+    // ═══════════════════════════════════════════════
+    // §1-d. AI 스트리밍 감지
+    // ═══════════════════════════════════════════════
+    if (IS_AI_CHAT && SITE_PROFILE.streamingSelector) {
+        const checkStreaming = () => {
+            const wasStreaming = isStreaming;
+            isStreaming = !!document.querySelector(SITE_PROFILE.streamingSelector);
+            if (isStreaming && !wasStreaming) gcPausedUntil = Infinity;
+            if (!isStreaming && wasStreaming) gcPausedUntil = performance.now() + CFG.streamingGcPauseMs;
+        };
+        const startStreamingWatch = () => setInterval(checkStreaming, CFG.streamingCheckInterval);
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startStreamingWatch);
+        else startStreamingWatch();
+    }
 
     // ═══════════════════════════════════════════════
     // §2. 패시브 이벤트 리스너 강제화
     // ═══════════════════════════════════════════════
     {
         const origAdd = EventTarget.prototype.addEventListener;
-        const PASSIVE_TYPES = new Set([
-            'touchstart', 'touchmove', 'wheel', 'mousewheel', 'scroll'
-        ]);
-        const P_FALSE = Object.freeze({ passive: true, capture: false });
-        const P_TRUE  = Object.freeze({ passive: true, capture: true });
+        const PASSIVE_TYPES = new Set(['touchstart', 'touchmove', 'wheel', 'mousewheel', 'scroll']);
+        const PF = Object.freeze({ passive: true, capture: false });
+        const PT = Object.freeze({ passive: true, capture: true });
 
         EventTarget.prototype.addEventListener = function (type, listener, options) {
             if (PASSIVE_TYPES.has(type)) {
-                if (options == null || options === false) options = P_FALSE;
-                else if (options === true) options = P_TRUE;
+                if (options == null || options === false) options = PF;
+                else if (options === true) options = PT;
                 else if (typeof options === 'object' && options.passive === undefined)
-                    options = { __proto__: null, ...options, passive: true };
+                    options = { ...options, passive: true };
             }
             return origAdd.call(this, type, listener, options);
         };
@@ -164,83 +260,68 @@
     // §2-b. 지능형 타이머 쓰로틀링
     // ═══════════════════════════════════════════════
     {
-        const origSetInterval = window.setInterval;
-        const origClearInterval = window.clearInterval;
-        const throttledTimers = new Map();
-        let isTabHidden = document.hidden;
-        let nextWrappedId = 0x7FFFFFFF;
+        const origSI = window.setInterval;
+        const origCI = window.clearInterval;
+        const throttled = new Map();
+        let hidden = document.hidden;
+        let wrapId = 0x7FFFFFFF;
 
-        const reapplyThrottles = () => {
-            isTabHidden = document.hidden;
-            for (const [, info] of throttledTimers) {
-                origClearInterval.call(window, info.rid);
-                const delay = isTabHidden
-                    ? Math.max(info.od, CFG.timerThrottleMinInterval)
-                    : info.od;
-                info.rid = origSetInterval.call(window, info.cb, delay);
+        const reapply = () => {
+            hidden = document.hidden;
+            for (const [, info] of throttled) {
+                origCI.call(window, info.rid);
+                info.rid = origSI.call(window, info.cb,
+                    hidden ? Math.max(info.od, CFG.timerThrottleMinInterval) : info.od);
             }
         };
+        document.addEventListener('visibilitychange', reapply);
 
-        document.addEventListener('visibilitychange', reapplyThrottles);
-
-        window.setInterval = function (callback, delay, ...args) {
-            if (typeof callback !== 'function')
-                return origSetInterval.call(window, callback, delay, ...args);
+        window.setInterval = function (cb, delay, ...args) {
+            if (typeof cb !== 'function') return origSI.call(window, cb, delay, ...args);
             delay = Number(delay) || 0;
-            if (delay >= CFG.timerThrottleThreshold)
-                return origSetInterval.call(window, callback, delay, ...args);
-
-            const bound = args.length > 0 ? () => callback(...args) : callback;
-            const effectiveDelay = isTabHidden
-                ? Math.max(delay, CFG.timerThrottleMinInterval) : delay;
-            const rid = origSetInterval.call(window, bound, effectiveDelay);
-            const wid = --nextWrappedId;
-            throttledTimers.set(wid, { cb: bound, od: delay, rid });
+            if (delay >= CFG.timerThrottleThreshold) return origSI.call(window, cb, delay, ...args);
+            const bound = args.length ? () => cb(...args) : cb;
+            const eff = hidden ? Math.max(delay, CFG.timerThrottleMinInterval) : delay;
+            const rid = origSI.call(window, bound, eff);
+            const wid = --wrapId;
+            throttled.set(wid, { cb: bound, od: delay, rid });
             statsThrottledTimers++;
             return wid;
         };
 
         window.clearInterval = function (id) {
-            const info = throttledTimers.get(id);
-            if (info) {
-                origClearInterval.call(window, info.rid);
-                throttledTimers.delete(id);
-            } else {
-                origClearInterval.call(window, id);
-            }
+            const info = throttled.get(id);
+            if (info) { origCI.call(window, info.rid); throttled.delete(id); }
+            else origCI.call(window, id);
         };
     }
 
     // ═══════════════════════════════════════════════
-    // §3. CSS 주입
+    // §3. CSS 주입 (★ v11.0: 모든 사이트 공통 뼈대 보호)
     // ═══════════════════════════════════════════════
-    const baseCSS = `
-        ${SELECTORS} {
-            content-visibility: auto;
-            contain-intrinsic-size: auto 500px;
-            contain: content;
-        }
-        @media not (prefers-reduced-motion: reduce) {
-            html { scroll-behavior: smooth !important; }
-        }
-        img {
-            content-visibility: auto;
-            decoding: async;
-        }
-        input, textarea, [contenteditable="true"], [role="textbox"],
-        .ProseMirror, .cm-editor, .CodeMirror, .ql-editor {
+
+    // ★ [v11.0] 모든 사이트에서 body 직계 자식과 앱 셸 구조는
+    //    content-visibility:auto로 숨기지 않도록 원천 보호
+    const skeletonProtectCSS = `
+        body > *,
+        [id="app"], [id="root"], [id="__next"], [id="__nuxt"],
+        app-root, #app-root,
+        main, [role="main"] {
             content-visibility: visible !important;
-            contain: none !important;
+            contain-intrinsic-size: none !important;
         }
     `;
-    const lowPowerCSS = `
-        *, *::before, *::after {
-            animation-duration: 0s !important;
-            animation-delay: 0s !important;
-            transition-duration: 0s !important;
-            transition-delay: 0s !important;
-        }
+
+    const baseCSS = `
+        ${skeletonProtectCSS}
+        ${SELECTORS}{content-visibility:auto;contain-intrinsic-size:auto 500px;contain:content}
+        @media not (prefers-reduced-motion:reduce){html{scroll-behavior:smooth!important}}
+        img{content-visibility:auto;decoding:async}
+        input,textarea,[contenteditable="true"],[role="textbox"],
+        .ProseMirror,.cm-editor,.CodeMirror,.ql-editor{
+            content-visibility:visible!important;contain:none!important}
     `;
+    const lowPowerCSS = `*,*::before,*::after{animation-duration:0s!important;animation-delay:0s!important;transition-duration:0s!important;transition-delay:0s!important}`;
 
     const styleEl = document.createElement('style');
     styleEl.textContent = baseCSS;
@@ -249,218 +330,121 @@
     lowPowerStyleEl.disabled = true;
 
     {
-        const insertStyles = () => {
-            (document.head || document.documentElement).append(styleEl, lowPowerStyleEl);
-        };
-        if (document.head) insertStyles();
-        else {
-            const hw = new MutationObserver(() => {
-                if (document.head) { hw.disconnect(); insertStyles(); }
-            });
-            hw.observe(document.documentElement, { childList: true });
-        }
+        const insert = () => (document.head || document.documentElement).append(styleEl, lowPowerStyleEl);
+        if (document.head) insert();
+        else new MutationObserver((_, obs) => {
+            if (document.head) { obs.disconnect(); insert(); }
+        }).observe(document.documentElement, { childList: true });
     }
 
     const forceFontDisplaySwap = () => {
         try {
             if (document.fonts) {
-                for (const face of document.fonts) {
-                    if (face.display === 'block' || face.display === 'auto')
-                        face.display = 'swap';
-                }
+                for (const f of document.fonts)
+                    if (f.display === 'block' || f.display === 'auto') f.display = 'swap';
                 return;
             }
-            for (const sheet of document.styleSheets) {
+            for (const s of document.styleSheets) {
                 try {
-                    const rules = sheet.cssRules;
-                    if (!rules) continue;
-                    for (let i = 0; i < rules.length; i++) {
-                        if (rules[i] instanceof CSSFontFaceRule && !rules[i].style.fontDisplay)
-                            rules[i].style.fontDisplay = 'swap';
-                    }
-                } catch (_) {}
+                    for (const r of s.cssRules)
+                        if (r instanceof CSSFontFaceRule && !r.style.fontDisplay)
+                            r.style.fontDisplay = 'swap';
+                } catch {}
             }
-        } catch (_) {}
+        } catch {}
     };
 
     // ═══════════════════════════════════════════════
     // §4. 셀렉터 매칭 최적화
     // ═══════════════════════════════════════════════
-    const TAG_SELECTORS = new Set();
-    const CLASS_SELECTORS = new Set();
-    const COMPLEX_SELECTORS = [];
+    const TAG_SEL = new Set();
+    const CLASS_SEL = new Set();
+    const COMPLEX_SEL = [];
 
     for (const s of SELECTOR_LIST) {
-        if (/^[a-z][\w-]*$/i.test(s)) TAG_SELECTORS.add(s.toUpperCase());
-        else if (/^\.\w[\w-]*$/.test(s)) CLASS_SELECTORS.add(s.slice(1));
-        else COMPLEX_SELECTORS.push(s);
+        if (/^[a-z][\w-]*$/i.test(s)) TAG_SEL.add(s.toUpperCase());
+        else if (/^\.\w[\w-]*$/.test(s)) CLASS_SEL.add(s.slice(1));
+        else COMPLEX_SEL.push(s);
     }
-    const COMPLEX_JOINED = COMPLEX_SELECTORS.length ? COMPLEX_SELECTORS.join(', ') : null;
-    const complexMatchCache = new WeakMap();
+    const COMPLEX_JOINED = COMPLEX_SEL.length ? COMPLEX_SEL.join(', ') : null;
 
     const matchesSelectors = (el) => {
-        if (TAG_SELECTORS.has(el.tagName)) return true;
+        if (TAG_SEL.has(el.tagName)) return true;
         const cl = el.classList;
         if (cl) for (let i = 0, n = cl.length; i < n; i++)
-            if (CLASS_SELECTORS.has(cl[i])) return true;
-        if (COMPLEX_JOINED === null) return false;
-        let cached = complexMatchCache.get(el);
-        if (cached !== undefined) return cached;
-        cached = el.matches(COMPLEX_JOINED);
-        complexMatchCache.set(el, cached);
-        return cached;
+            if (CLASS_SEL.has(cl[i])) return true;
+        if (!COMPLEX_JOINED) return false;
+        return el.matches(COMPLEX_JOINED);
     };
 
     // ═══════════════════════════════════════════════
-    // §5. 스크롤 방향 추적 + MinHeap 복원 큐
+    // §5. 스크롤 방향 추적
     // ═══════════════════════════════════════════════
     {
-        let lastScrollY = window.scrollY;
+        let lastY = window.scrollY;
         window.addEventListener('scroll', () => {
             const y = window.scrollY;
-            scrollDirection = (y >= lastScrollY) ? 1 : -1;
-            lastScrollY = y;
+            scrollDirection = y >= lastY ? 1 : -1;
+            lastY = y;
         }, { passive: true });
     }
 
-    class MinHeap {
-        constructor(cap) {
-            this._d = new Array(cap || 64);
-            this._n = 0;
-        }
-        get length() { return this._n; }
-
-        push(dist, target, tag) {
-            const i = this._n++;
-            this._d[i] = { distance: dist, target, tag };
-            this._up(i);
-        }
-
-        pop() {
-            if (this._n === 0) return undefined;
-            const top = this._d[0];
-            if (--this._n > 0) {
-                this._d[0] = this._d[this._n];
-                this._down(0);
-            }
-            this._d[this._n] = undefined;
-            return top;
-        }
-
-        clear() {
-            for (let i = 0; i < this._n; i++) this._d[i] = undefined;
-            this._n = 0;
-        }
-
-        _up(i) {
-            const d = this._d;
-            const item = d[i];
-            while (i > 0) {
-                const p = (i - 1) >> 1;
-                if (item.distance >= d[p].distance) break;
-                d[i] = d[p];
-                i = p;
-            }
-            d[i] = item;
-        }
-
-        _down(i) {
-            const d = this._d, n = this._n;
-            const item = d[i];
-            const half = n >> 1;
-            while (i < half) {
-                let child = (i << 1) + 1;
-                const right = child + 1;
-                if (right < n && d[right].distance < d[child].distance) child = right;
-                if (item.distance <= d[child].distance) break;
-                d[i] = d[child];
-                i = child;
-            }
-            d[i] = item;
-        }
-    }
-
-    const restoreHeap = new MinHeap(64);
-    let restoreRafId = 0;
+    // ═══════════════════════════════════════════════
+    // §6. 복원 큐
+    // ═══════════════════════════════════════════════
+    const restoreQueue = [];
     const restoreQueueSet = new WeakSet();
+    let restoreRafId = 0;
 
     const enqueueRestore = (target, tag, rect) => {
         if (restoreQueueSet.has(target)) return;
         restoreQueueSet.add(target);
-
         const vc = window.innerHeight * 0.5;
         const ec = rect.top + rect.height * 0.5;
         let dist = Math.abs(ec - vc);
-        if ((scrollDirection > 0 && ec > vc) || (scrollDirection < 0 && ec < vc))
-            dist *= 0.5;
-
-        restoreHeap.push(dist, target, tag);
+        if ((scrollDirection > 0 && ec > vc) || (scrollDirection < 0 && ec < vc)) dist *= 0.5;
+        restoreQueue.push({ dist, target, tag });
         if (!restoreRafId) restoreRafId = requestAnimationFrame(drainRestoreQueue);
     };
 
     const drainRestoreQueue = async () => {
         restoreRafId = 0;
+        restoreQueue.sort((a, b) => a.dist - b.dist);
         let processed = 0;
-        while (restoreHeap.length > 0 && processed < effectiveRestoreBatch) {
-            const item = restoreHeap.pop();
-            if (!item) break;
+        while (restoreQueue.length && processed < effectiveRestoreBatch) {
+            const item = restoreQueue.shift();
             restoreQueueSet.delete(item.target);
             executeRestore(item.target, item.tag);
             processed++;
             if (processed % CFG.yieldInterval === 0) await yieldToMain();
         }
-        if (restoreHeap.length > 0)
+        if (restoreQueue.length)
             restoreRafId = requestAnimationFrame(drainRestoreQueue);
     };
 
     // ═══════════════════════════════════════════════
-    // §6. 미디어 최적화 + 통합 라이프사이클
+    // §7. 미디어 라이프사이클
     // ═══════════════════════════════════════════════
     const optimizedSet = new WeakSet();
-    const S_IDLE = 0, S_DWELLING = 1, S_ACTIVE = 2,
-          S_RECLAIMED = 3, S_HARD_RECLAIMED = 4;
-    const mediaState = new WeakMap();
-    const mediaDwellTimers = new WeakMap();
-    const mediaSaved = new WeakMap();
-    const videoPausedByUs = new WeakSet();
+    const S_IDLE = 0, S_DWELLING = 1, S_ACTIVE = 2, S_RECLAIMED = 3, S_HARD = 4;
+    const mediaState   = new WeakMap();
+    const mediaDwell   = new WeakMap();
+    const mediaSaved   = new WeakMap();
+    const canvasSaved  = new WeakMap();
+    const videoPaused  = new WeakSet();
+    const willChangeTm = new WeakMap();
 
-    const willChangeTimers = new WeakMap();
-
-    const optimizeMedia = (el) => {
-        if (optimizedSet.has(el)) return;
-        optimizedSet.add(el);
-        const tag = el.tagName;
-        if (tag === 'IMG') {
-            if (!el.loading) el.loading = 'lazy';
-            el.decoding = 'async';
-            if (!el.fetchPriority) el.fetchPriority = 'low';
-            mediaLifecycleObserver.observe(el);
-        } else if (tag === 'VIDEO') {
-            el.preload = 'metadata';
-            try { el.disablePictureInPicture = true; } catch (_) {}
-            try { el.disableRemotePlayback = true; } catch (_) {}
-            mediaLifecycleObserver.observe(el);
-        } else if (tag === 'IFRAME') {
-            if (!el.loading) el.loading = 'lazy';
-            mediaLifecycleObserver.observe(el);
-        } else if (tag === 'CANVAS') {
-            if (!offscreenCanvasSet.has(el)) {
-                hardReclaimObserver.observe(el);
-            }
-        }
+    const preserveSize = (el) => {
+        const w = el.offsetWidth, h = el.offsetHeight;
+        if (w > 0 && h > 0) { el.style.minWidth = w + 'px'; el.style.minHeight = h + 'px'; }
     };
 
-    const scheduleWillChangeCleanup = (target) => {
-        if (willChangeTimers.has(target)) {
-            clearTimeout(willChangeTimers.get(target));
-        }
-        const tid = setTimeout(() => {
-            willChangeTimers.delete(target);
-            if (target.style.willChange === 'transform') {
-                target.style.willChange = '';
-            }
-        }, CFG.willChangeCleanupMs);
-        willChangeTimers.set(target, tid);
+    const scheduleWillChangeCleanup = (el) => {
+        if (willChangeTm.has(el)) clearTimeout(willChangeTm.get(el));
+        willChangeTm.set(el, setTimeout(() => {
+            willChangeTm.delete(el);
+            if (el.style.willChange === 'transform') el.style.willChange = '';
+        }, CFG.willChangeCleanupMs));
     };
 
     const executeRestore = (target, tag) => {
@@ -470,14 +454,11 @@
         target.style.minWidth = '';
         target.style.minHeight = '';
         if (tag === 'IMG') {
-            if (saved.src && !saved.src.startsWith('blob:')) target.src = saved.src;
+            if (saved.src) target.src = saved.src;
             if (saved.srcset) target.srcset = saved.srcset;
             target.fetchPriority = 'auto';
         } else if (tag === 'VIDEO') {
-            if (saved.src && !saved.src.startsWith('blob:')) {
-                target.src = saved.src;
-                target.load();
-            }
+            if (saved.src) { target.src = saved.src; target.load(); }
             target.style.willChange = 'transform';
             scheduleWillChangeCleanup(target);
         } else if (tag === 'IFRAME') {
@@ -486,38 +467,20 @@
         statsRestoreCount++;
     };
 
-    const preserveSize = (target) => {
-        const w = target.offsetWidth, h = target.offsetHeight;
-        if (w > 0 && h > 0) {
-            target.style.minWidth = w + 'px';
-            target.style.minHeight = h + 'px';
-        }
-    };
-
     const reclaimMedia = (target, tag) => {
         preserveSize(target);
         if (tag === 'IMG') {
             const saved = {};
             if (target.src && !target.src.startsWith('data:')) {
-                saved.src = target.src;
-                if (saved.src.startsWith('blob:'))
-                    try { URL.revokeObjectURL(saved.src); } catch (_) {}
-                target.removeAttribute('src');
+                saved.src = target.src; target.removeAttribute('src');
             }
             if (target.srcset) { saved.srcset = target.srcset; target.removeAttribute('srcset'); }
             if (saved.src || saved.srcset) mediaSaved.set(target, saved);
         } else if (tag === 'VIDEO') {
-            if (willChangeTimers.has(target)) {
-                clearTimeout(willChangeTimers.get(target));
-                willChangeTimers.delete(target);
-            }
+            if (willChangeTm.has(target)) { clearTimeout(willChangeTm.get(target)); willChangeTm.delete(target); }
             if (target.src && !target.src.startsWith('data:')) {
-                const saved = { src: target.src };
-                if (saved.src.startsWith('blob:'))
-                    try { URL.revokeObjectURL(saved.src); } catch (_) {}
-                target.removeAttribute('src');
-                target.load();
-                mediaSaved.set(target, saved);
+                mediaSaved.set(target, { src: target.src });
+                target.removeAttribute('src'); target.load();
             }
             target.style.willChange = '';
         } else if (tag === 'IFRAME') {
@@ -529,171 +492,180 @@
         statsReclaimCount++;
     };
 
-    const _dedupeMap = new Map();
-    const dedupeEntries = (entries) => {
-        _dedupeMap.clear();
-        for (let i = 0; i < entries.length; i++)
-            _dedupeMap.set(entries[i].target, entries[i]);
-        return _dedupeMap;
-    };
+    const handleMediaIntersection = (target, isIntersecting, rect, isHardLevel) => {
+        const tag = target.tagName;
+        const state = mediaState.get(target) || S_IDLE;
 
-    const mediaLifecycleObserver = new IntersectionObserver((entries) => {
-        const deduped = dedupeEntries(entries);
-        for (const [target, entry] of deduped) {
-            const { isIntersecting, boundingClientRect } = entry;
-            const tag = target.tagName;
-            const state = mediaState.get(target) || S_IDLE;
-            if (state === S_HARD_RECLAIMED) continue;
-
-            if (isIntersecting) {
-                if (state === S_RECLAIMED)
-                    enqueueRestore(target, tag, boundingClientRect);
-                if (tag === 'VIDEO') {
-                    if (videoPausedByUs.has(target)) {
-                        videoPausedByUs.delete(target);
-                        target.play().catch(() => {});
-                    }
-                    target.style.willChange = 'transform';
-                    scheduleWillChangeCleanup(target);
-                }
-                if (tag === 'IMG') target.fetchPriority = 'high';
-
-                if (state === S_IDLE || state === S_RECLAIMED) {
-                    mediaState.set(target, S_DWELLING);
-                    if (!mediaDwellTimers.has(target)) {
-                        const id = setTimeout(() => {
-                            mediaDwellTimers.delete(target);
-                            mediaState.set(target, S_ACTIVE);
-                        }, CFG.throttleDwell);
-                        mediaDwellTimers.set(target, id);
-                    }
-                }
-            } else {
-                if (mediaDwellTimers.has(target)) {
-                    clearTimeout(mediaDwellTimers.get(target));
-                    mediaDwellTimers.delete(target);
-                }
-                if (tag === 'VIDEO' && target instanceof HTMLVideoElement && !target.paused) {
-                    target.pause();
-                    videoPausedByUs.add(target);
-                }
-                if (tag === 'IMG') target.fetchPriority = 'low';
-
-                if (state === S_ACTIVE || state === S_DWELLING) {
-                    mediaState.set(target, S_RECLAIMED);
-                    reclaimMedia(target, tag);
-                    restoreQueueSet.delete(target);
-                } else {
-                    mediaState.set(target, S_IDLE);
-                }
-            }
-        }
-    }, {
-        rootMargin: `${CFG.mediaMarginTop}px 0px ${CFG.mediaMarginBottom}px 0px`,
-        threshold: 0
-    });
-
-    // ═══════════════════════════════════════════════
-    // §7. 하드 리클레임 Observer
-    // ═══════════════════════════════════════════════
-    const canvasSaved = new WeakMap();
-
-    const hardReclaimObserver = new IntersectionObserver((entries) => {
-        const deduped = dedupeEntries(entries);
-        for (const [target, entry] of deduped) {
-            const tag = target.tagName;
-            if (!entry.isIntersecting) {
-                if (tag === 'CANVAS') {
-                    if (!canvasSaved.has(target)
-                        && !offscreenCanvasSet.has(target)
+        if (isHardLevel) {
+            if (tag === 'CANVAS') {
+                if (!isIntersecting) {
+                    if (!canvasSaved.has(target) && !offscreenCanvasSet.has(target)
                         && (target.width > 0 || target.height > 0)) {
                         canvasSaved.set(target, { w: target.width, h: target.height });
                         safeCanvasResize(target, 0, 0);
                     }
-                } else {
-                    const state = mediaState.get(target) || S_IDLE;
-                    if (state !== S_RECLAIMED && state !== S_HARD_RECLAIMED)
-                        reclaimMedia(target, tag);
-                    mediaState.set(target, S_HARD_RECLAIMED);
+                } else if (canvasSaved.has(target)) {
+                    const s = canvasSaved.get(target); canvasSaved.delete(target);
+                    safeCanvasResize(target, s.w, s.h);
                 }
+                return;
+            }
+            if (!isIntersecting) {
+                if (state !== S_RECLAIMED && state !== S_HARD) reclaimMedia(target, tag);
+                mediaState.set(target, S_HARD);
             } else {
-                if (tag === 'CANVAS') {
-                    if (canvasSaved.has(target)) {
-                        const saved = canvasSaved.get(target);
-                        canvasSaved.delete(target);
-                        safeCanvasResize(target, saved.w, saved.h);
-                    }
-                } else if (MEDIA_TAGS[tag] && MEDIA_TAGS[tag] <= 3) {
-                    mediaState.set(target, S_RECLAIMED);
+                if (state === S_HARD) mediaState.set(target, S_RECLAIMED);
+            }
+            return;
+        }
+
+        if (state === S_HARD) return;
+
+        if (isIntersecting) {
+            if (state === S_RECLAIMED) enqueueRestore(target, tag, rect);
+            if (tag === 'VIDEO') {
+                if (videoPaused.has(target)) { videoPaused.delete(target); target.play().catch(() => {}); }
+                target.style.willChange = 'transform';
+                scheduleWillChangeCleanup(target);
+            }
+            if (tag === 'IMG') target.fetchPriority = 'high';
+
+            if (state === S_IDLE || state === S_RECLAIMED) {
+                mediaState.set(target, S_DWELLING);
+                if (!mediaDwell.has(target)) {
+                    mediaDwell.set(target, setTimeout(() => {
+                        mediaDwell.delete(target); mediaState.set(target, S_ACTIVE);
+                    }, CFG.throttleDwell));
                 }
             }
+        } else {
+            if (mediaDwell.has(target)) { clearTimeout(mediaDwell.get(target)); mediaDwell.delete(target); }
+            if (tag === 'VIDEO' && target instanceof HTMLVideoElement && !target.paused) {
+                target.pause(); videoPaused.add(target);
+            }
+            if (tag === 'IMG') target.fetchPriority = 'low';
+            if (state === S_ACTIVE || state === S_DWELLING) {
+                mediaState.set(target, S_RECLAIMED);
+                reclaimMedia(target, tag);
+                restoreQueueSet.delete(target);
+            } else {
+                mediaState.set(target, S_IDLE);
+            }
         }
-    }, {
-        rootMargin: `${CFG.hardReclaimMarginTop}px 0px ${CFG.hardReclaimMarginBottom}px 0px`,
-        threshold: 0
-    });
+    };
+
+    const _dedup = new Map();
+    const dedup = (entries) => { _dedup.clear(); for (const e of entries) _dedup.set(e.target, e); return _dedup; };
+
+    const mediaLifecycleObserver = new IntersectionObserver((entries) => {
+        for (const [target, entry] of dedup(entries))
+            handleMediaIntersection(target, entry.isIntersecting, entry.boundingClientRect, false);
+    }, { rootMargin: `${CFG.mediaMarginTop}px 0px ${CFG.mediaMarginBottom}px 0px`, threshold: 0 });
+
+    const hardReclaimObserver = new IntersectionObserver((entries) => {
+        for (const [target, entry] of dedup(entries))
+            handleMediaIntersection(target, entry.isIntersecting, entry.boundingClientRect, true);
+    }, { rootMargin: `${CFG.hardReclaimMarginTop}px 0px ${CFG.hardReclaimMarginBottom}px 0px`, threshold: 0 });
+
+    const optimizeMedia = (el) => {
+        if (optimizedSet.has(el)) return;
+        optimizedSet.add(el);
+        const tag = el.tagName;
+        if (tag === 'IMG') {
+            if (!el.loading) el.loading = 'lazy';
+            el.decoding = 'async';
+            if (!el.fetchPriority) el.fetchPriority = 'low';
+            mediaLifecycleObserver.observe(el);
+            hardReclaimObserver.observe(el);
+        } else if (tag === 'VIDEO') {
+            el.preload = 'metadata';
+            try { el.disablePictureInPicture = true; } catch {}
+            try { el.disableRemotePlayback = true; } catch {}
+            mediaLifecycleObserver.observe(el);
+            hardReclaimObserver.observe(el);
+        } else if (tag === 'IFRAME') {
+            if (!el.loading) el.loading = 'lazy';
+            mediaLifecycleObserver.observe(el);
+            hardReclaimObserver.observe(el);
+        } else if (tag === 'CANVAS' && !offscreenCanvasSet.has(el)) {
+            hardReclaimObserver.observe(el);
+        }
+    };
 
     // ═══════════════════════════════════════════════
-    // §8. ResizeObserver 높이 캐싱
+    // §8. GC 시스템 (★ v11.0: 모든 사이트 공통 뼈대 보호)
     // ═══════════════════════════════════════════════
+    const trackedNodes = new Set();
+    const gcHiddenSet  = new Set();
+    const gcHiddenHeight = new WeakMap();
+    const gcOriginalStyle = new WeakMap();
     const heightCache = new WeakMap();
 
     const resizeObserver = new ResizeObserver((entries) => {
-        for (let i = 0; i < entries.length; i++) {
-            const e = entries[i];
+        for (const e of entries) {
             const h = e.borderBoxSize?.[0]?.blockSize ?? e.contentRect.height;
             if (h > 0) heightCache.set(e.target, h);
         }
     });
 
-    // ═══════════════════════════════════════════════
-    // §9. 스마트 GC
-    // ═══════════════════════════════════════════════
-    const gcHiddenSet = new WeakSet();
-    const gcHiddenHeight = new WeakMap();
-    const gcOriginalStyle = new WeakMap();
-    let allTrackedRefs = [];
-    const trackedNodeSet = new WeakSet();
-    let gcObserveWatermark = 0;
-
-    let deadRefCount = 0;
-    const COMPACT_THRESHOLD = 50;
-
-    const finalizer = new FinalizationRegistry(() => {
-        if (++deadRefCount >= COMPACT_THRESHOLD) {
-            deadRefCount = 0;
-            compactTrackedRefs();
-        }
-    });
-
+    // ★ [v11.0] 모든 사이트에서 공통으로 적용되는 뼈대 보호 판정
+    //   - body/html/main 태그 자체
+    //   - body 직계 자식 중 유일한 구조 태그
+    //   - 앱 셸 id (#app, #root, #__next, #__nuxt 등)
+    //   - 스크롤 컨테이너 (AI 사이트의 scrollContainer)
+    //   - role="main" 요소
     const SKIP_GC_TAGS = new Set(['MAIN', 'BODY', 'HTML']);
-    const isTopLevelStructural = (el) => {
-        if (SKIP_GC_TAGS.has(el.tagName)) return true;
-        // [v9.2] 제미나이 등 특수 SPA 구조 강제 예외 (컨테이너 보호)
-        if (el.tagName === 'INFINITE-SCROLLER' || el.tagName === 'CHAT-VIEW-ITEM') return true;
+    const APP_SHELL_IDS = new Set(['app', 'root', '__next', '__nuxt', 'app-root', '__app']);
 
+    const isStructuralSkeleton = (el) => {
+        // 1) html/body/main 태그 자체는 절대 건드리지 않음
+        if (SKIP_GC_TAGS.has(el.tagName)) return true;
+
+        // 2) 앱 셸 id를 가진 요소 보호
+        if (el.id && APP_SHELL_IDS.has(el.id)) return true;
+
+        // 3) 커스텀 엘리먼트 중 'app-root' 같은 앱 루트 태그 보호
+        const tagLower = el.tagName.toLowerCase();
+        if (tagLower === 'app-root') return true;
+
+        // 4) role="main" 보호
+        if (el.getAttribute('role') === 'main') return true;
+
+        // 5) body 직계 자식 중 유일한 구조 태그면 보호
         if (el.parentElement === document.body) {
             const tag = el.tagName;
-            if (tag === 'MAIN' || tag === 'SECTION' || tag === 'ARTICLE') {
-                const siblings = document.body.querySelectorAll(`:scope > ${tag.toLowerCase()}`);
-                if (siblings.length <= 1) return true;
+            if (tag === 'MAIN' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'DIV') {
+                // body 직계 자식이 3개 이하면 모두 뼈대로 판정
+                const directChildren = document.body.children;
+                if (directChildren.length <= 3) return true;
+                // 같은 태그가 하나뿐이면 뼈대
+                if (tag !== 'DIV' &&
+                    document.body.querySelectorAll(`:scope > ${tag.toLowerCase()}`).length <= 1)
+                    return true;
             }
         }
+
+        // 6) AI 챗의 스크롤 컨테이너 보호
+        if (IS_AI_CHAT && SITE_PROFILE.scrollContainer) {
+            try {
+                if (el.matches(SITE_PROFILE.scrollContainer)) return true;
+            } catch {}
+        }
+
         return false;
     };
 
     const gcObserver = new IntersectionObserver((entries) => {
-        for (let i = 0; i < entries.length; i++) {
-            const { target, isIntersecting } = entries[i];
+        for (const { target, isIntersecting } of entries) {
             if (!isIntersecting && !gcHiddenSet.has(target)) {
-                if (isTopLevelStructural(target)) continue;
+                if (isStructuralSkeleton(target)) continue;
+                if (isStreaming) continue;
 
                 const h = heightCache.get(target) || target.offsetHeight || 500;
                 gcHiddenSet.add(target);
                 gcHiddenHeight.set(target, h);
                 gcOriginalStyle.set(target, target.style.cssText || '');
-                target.style.cssText =
-                    `content-visibility:hidden;contain-intrinsic-size:auto ${h}px`;
+                target.style.cssText = `content-visibility:hidden;contain-intrinsic-size:auto ${h}px`;
             } else if (isIntersecting && gcHiddenSet.has(target)) {
                 gcHiddenSet.delete(target);
                 gcHiddenHeight.delete(target);
@@ -702,72 +674,35 @@
                 target.style.cssText = orig || '';
             }
         }
-    }, {
-        rootMargin: `${CFG.gcMarginTop}px 0px ${CFG.gcMarginBottom}px 0px`,
-        threshold: 0
-    });
-
-    const forceRestoreVisible = () => {
-        const vh = window.innerHeight;
-        const margin = CFG.gcMarginBottom;
-        let restored = 0;
-        for (let i = 0; i < allTrackedRefs.length; i++) {
-            const el = allTrackedRefs[i]?.deref();
-            if (!el || !gcHiddenSet.has(el)) continue;
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom > -margin && rect.top < vh + margin) {
-                gcHiddenSet.delete(el);
-                gcHiddenHeight.delete(el);
-                const orig = gcOriginalStyle.get(el);
-                gcOriginalStyle.delete(el);
-                el.style.cssText = orig || '';
-                restored++;
-            }
-        }
-        for (let i = 0; i < allTrackedRefs.length; i++) {
-            const el = allTrackedRefs[i]?.deref();
-            if (!el) continue;
-            const mediaEls = el.querySelectorAll('img,video,iframe');
-            for (let j = 0; j < mediaEls.length; j++) {
-                const m = mediaEls[j];
-                if (mediaState.get(m) === S_HARD_RECLAIMED) {
-                    mediaState.set(m, S_RECLAIMED);
-                    mediaLifecycleObserver.unobserve(m);
-                    mediaLifecycleObserver.observe(m);
-                }
-            }
-        }
-        return restored;
-    };
+    }, { rootMargin: `${CFG.gcMarginTop}px 0px ${CFG.gcMarginBottom}px 0px`, threshold: 0 });
 
     const gcFeed = async () => {
         if (performance.now() < gcPausedUntil) return;
+        if (isStreaming) return;
+        const size = trackedNodes.size;
+        if (size <= effectiveLimitNodes) return;
 
-        const len = allTrackedRefs.length;
-        if (len <= effectiveLimitNodes) return;
-        const cutoff = len - effectiveLimitNodes;
-        const start = Math.max(gcObserveWatermark, 0);
-        let processed = 0;
-        for (let i = start; i < cutoff; i++) {
-            const el = allTrackedRefs[i]?.deref();
-            if (el) gcObserver.observe(el);
+        const cutoff = size - effectiveLimitNodes;
+        let i = 0, processed = 0;
+        for (const el of trackedNodes) {
+            if (i++ >= cutoff) break;
+            if (!el.isConnected) { trackedNodes.delete(el); continue; }
+            if (isStructuralSkeleton(el)) continue;
+            gcObserver.observe(el);
             if (++processed % CFG.gcYieldChunkSize === 0) await yieldToMain();
         }
-        if (cutoff > gcObserveWatermark) gcObserveWatermark = cutoff;
     };
 
     const trackNode = (el) => {
-        if (trackedNodeSet.has(el)) return;
-        trackedNodeSet.add(el);
-        const ref = new WeakRef(el);
-        allTrackedRefs.push(ref);
-        finalizer.register(el, ref);
+        if (trackedNodes.has(el)) return;
+        // ★ [v11.0] 뼈대 요소는 어떤 사이트든 추적 셋에 넣지 않음
+        if (isStructuralSkeleton(el)) return;
+        trackedNodes.add(el);
         resizeObserver.observe(el);
     };
 
     const untrackNode = (el) => {
-        if (!trackedNodeSet.has(el)) return;
-        trackedNodeSet.delete(el);
+        if (!trackedNodes.delete(el)) return;
         resizeObserver.unobserve(el);
         gcObserver.unobserve(el);
         mediaLifecycleObserver.unobserve(el);
@@ -779,31 +714,65 @@
             gcOriginalStyle.delete(el);
             el.style.cssText = orig || '';
         }
-        finalizer.unregister(el);
     };
 
-    const compactTrackedRefs = () => {
-        let write = 0;
-        for (let read = 0; read < allTrackedRefs.length; read++) {
-            if (allTrackedRefs[read].deref() !== undefined)
-                allTrackedRefs[write++] = allTrackedRefs[read];
+    const forceRestoreVisible = () => {
+        const vh = window.innerHeight;
+        const margin = CFG.gcMarginBottom;
+        let restored = 0;
+        for (const el of gcHiddenSet) {
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom > -margin && rect.top < vh + margin) {
+                gcHiddenSet.delete(el);
+                gcHiddenHeight.delete(el);
+                const orig = gcOriginalStyle.get(el);
+                gcOriginalStyle.delete(el);
+                el.style.cssText = orig || '';
+                restored++;
+            }
         }
-        allTrackedRefs.length = write;
-        gcObserveWatermark = Math.min(gcObserveWatermark, write);
+        for (const el of trackedNodes) {
+            if (!el.isConnected) continue;
+            const mediaEls = el.querySelectorAll('img,video,iframe');
+            for (const m of mediaEls) {
+                if (mediaState.get(m) === S_HARD) {
+                    mediaState.set(m, S_RECLAIMED);
+                    mediaLifecycleObserver.unobserve(m);
+                    mediaLifecycleObserver.observe(m);
+                }
+            }
+        }
+        return restored;
+    };
+
+    const forceRestoreAll = () => {
+        let restored = 0;
+        for (const el of gcHiddenSet) {
+            gcHiddenSet.delete(el);
+            gcHiddenHeight.delete(el);
+            const orig = gcOriginalStyle.get(el);
+            gcOriginalStyle.delete(el);
+            el.style.cssText = orig || '';
+            restored++;
+        }
+        return restored;
+    };
+
+    const purgeDisconnected = () => {
+        for (const el of trackedNodes)
+            if (!el.isConnected) { trackedNodes.delete(el); gcHiddenSet.delete(el); }
     };
 
     // ═══════════════════════════════════════════════
-    // §10. 저사양 모드
+    // §9. 저사양 모드
     // ═══════════════════════════════════════════════
     const enterLowPowerMode = () => {
         if (isLowPowerMode) return;
         isLowPowerMode = true;
         effectiveLimitNodes = CFG.lowPowerLimitNodes;
         lowPowerStyleEl.disabled = false;
-        gcObserveWatermark = 0;
         gcFeed();
     };
-
     const exitLowPowerMode = () => {
         if (!isLowPowerMode) return;
         isLowPowerMode = false;
@@ -812,213 +781,171 @@
     };
 
     let startFrameMonitor;
-    let currentSmoothedFPS = 60;
-
     {
         if (hasLoAF) {
-            const recentLoAFs = [];
-            const loafObserver = new PerformanceObserver((list) => {
-                for (const entry of list.getEntries()) {
-                    recentLoAFs.push(entry.duration);
-                    if (recentLoAFs.length > CFG.loafJankWindowSize) recentLoAFs.shift();
-                }
-                if (recentLoAFs.length >= CFG.loafJankWindowSize) {
-                    let jankCount = 0;
-                    for (let i = 0; i < recentLoAFs.length; i++)
-                        if (recentLoAFs[i] > CFG.loafJankThresholdMs) jankCount++;
-
-                    if (jankCount >= Math.ceil(CFG.loafJankWindowSize / 2)) {
-                        if (!isLowPowerMode) enterLowPowerMode();
-                        effectiveRestoreBatch = Math.max(1,
-                            Math.floor(CFG.restoreBatchSize * CFG.loafBatchReduction));
-                    } else {
-                        effectiveRestoreBatch = CFG.restoreBatchSize;
+            const recent = [];
+            try {
+                new PerformanceObserver((list) => {
+                    for (const entry of list.getEntries()) {
+                        recent.push(entry.duration);
+                        if (recent.length > CFG.loafJankWindowSize) recent.shift();
                     }
-                }
-            });
-            try { loafObserver.observe({ type: 'long-animation-frame', buffered: false }); }
-            catch (_) {}
+                    if (recent.length >= CFG.loafJankWindowSize) {
+                        let jank = 0;
+                        for (const d of recent) if (d > CFG.loafJankThresholdMs) jank++;
+                        if (jank >= Math.ceil(CFG.loafJankWindowSize / 2)) {
+                            if (!isLowPowerMode) enterLowPowerMode();
+                            effectiveRestoreBatch = Math.max(1,
+                                Math.floor(CFG.restoreBatchSize * CFG.loafBatchReduction));
+                        } else {
+                            effectiveRestoreBatch = CFG.restoreBatchSize;
+                        }
+                    }
+                }).observe({ type: 'long-animation-frame', buffered: false });
+            } catch {}
+        } else if (hasLongTask) {
+            let ltCount = 0, ltTimer = 0;
+            try {
+                new PerformanceObserver((list) => {
+                    ltCount += list.getEntries().length;
+                    clearTimeout(ltTimer);
+                    ltTimer = setTimeout(() => {
+                        if (ltCount >= 3 && !isLowPowerMode) enterLowPowerMode();
+                        ltCount = 0;
+                    }, 2000);
+                }).observe({ type: 'longtask', buffered: false });
+            } catch {}
         }
 
-        let lastFrameTime = 0, smoothFPS = 60;
-        let lowDuration = 0, highDuration = 0;
-        let monitorActive = true, batteryLow = false;
-        const LOW_ENTER_MS = 500, LOW_EXIT_MS = 2000;
+        let lastFT = 0, smoothFPS = 60, lowDur = 0, highDur = 0;
+        let monActive = true, batLow = false;
 
-        const frameMonitor = (now) => {
-            if (!monitorActive) return;
-            if (lastFrameTime > 0) {
-                const delta = now - lastFrameTime;
-                if (delta > CFG.frameDeltaMaxMs) {
-                    lastFrameTime = now;
-                    requestAnimationFrame(frameMonitor);
-                    return;
-                }
-                const instantFPS = 1000 / delta;
-                smoothFPS += CFG.fpsAlpha * (instantFPS - smoothFPS);
+        const frameMon = (now) => {
+            if (!monActive) return;
+            if (lastFT > 0) {
+                const delta = now - lastFT;
+                if (delta > CFG.frameDeltaMaxMs) { lastFT = now; requestAnimationFrame(frameMon); return; }
+                smoothFPS += CFG.fpsAlpha * (1000 / delta - smoothFPS);
                 currentSmoothedFPS = smoothFPS;
 
                 if (smoothFPS < CFG.lowPowerFrameThreshold) {
-                    lowDuration += delta; highDuration = 0;
-                    if (lowDuration > LOW_ENTER_MS && !isLowPowerMode) enterLowPowerMode();
+                    lowDur += delta; highDur = 0;
+                    if (lowDur > 500 && !isLowPowerMode) enterLowPowerMode();
                 } else {
-                    highDuration += delta; lowDuration = 0;
-                    if (highDuration > LOW_EXIT_MS && isLowPowerMode && !batteryLow)
-                        exitLowPowerMode();
+                    highDur += delta; lowDur = 0;
+                    if (highDur > 2000 && isLowPowerMode && !batLow) exitLowPowerMode();
                 }
             }
-            lastFrameTime = now;
-            requestAnimationFrame(frameMonitor);
+            lastFT = now;
+            requestAnimationFrame(frameMon);
         };
 
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                monitorActive = false;
-            } else {
-                monitorActive = true;
-                lastFrameTime = 0;
-                smoothFPS = 60;
-                lowDuration = highDuration = 0;
-                requestAnimationFrame(frameMonitor);
-            }
+            if (document.hidden) monActive = false;
+            else { monActive = true; lastFT = 0; smoothFPS = 60; lowDur = highDur = 0; requestAnimationFrame(frameMon); }
         });
 
         if (navigator.getBattery) {
-            navigator.getBattery().then((battery) => {
-                const check = () => {
-                    batteryLow = !battery.charging
-                        && battery.level <= CFG.lowPowerBatteryThreshold;
-                    if (batteryLow) enterLowPowerMode();
+            navigator.getBattery().then((bat) => {
+                const chk = () => {
+                    batLow = !bat.charging && bat.level <= CFG.lowPowerBatteryThreshold;
+                    if (batLow) enterLowPowerMode();
                 };
-                battery.addEventListener('chargingchange', check);
-                battery.addEventListener('levelchange', check);
-                check();
+                bat.addEventListener('chargingchange', chk);
+                bat.addEventListener('levelchange', chk);
+                chk();
             }).catch(() => {});
         }
 
         try {
-            const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+            const mq = matchMedia('(prefers-reduced-motion: reduce)');
             mq.addEventListener('change', (e) => { if (e.matches) enterLowPowerMode(); });
             if (mq.matches) enterLowPowerMode();
-        } catch (_) {}
+        } catch {}
 
-        startFrameMonitor = () => requestAnimationFrame(frameMonitor);
-    }
-
-    {
         const conn = navigator.connection;
         if (conn) {
-            const update = () => {
-                const etype = conn.effectiveType;
-                const saveData = conn.saveData === true;
-                if (saveData || etype === 'slow-2g' || etype === '2g') {
+            const upd = () => {
+                const et = conn.effectiveType;
+                if (conn.saveData || et === 'slow-2g' || et === '2g') {
                     effectiveRestoreBatch = CFG.slowNetBatchSize;
-                    if (saveData) enterLowPowerMode();
-                } else if (etype === '3g') {
-                    effectiveRestoreBatch = Math.max(1,
-                        Math.floor(CFG.restoreBatchSize / 2));
+                    if (conn.saveData) enterLowPowerMode();
+                } else if (et === '3g') {
+                    effectiveRestoreBatch = Math.max(1, CFG.restoreBatchSize >> 1);
                 } else {
                     effectiveRestoreBatch = CFG.restoreBatchSize;
                 }
             };
-            conn.addEventListener('change', update);
-            update();
+            conn.addEventListener('change', upd); upd();
         }
+
+        startFrameMonitor = () => requestAnimationFrame(frameMon);
     }
 
     // ═══════════════════════════════════════════════
-    // §11. Blob URL 자동 추적 & 만료
+    // §10. 탭 복귀 + SPA 전환 (★ v11.0: 모든 사이트 공통)
     // ═══════════════════════════════════════════════
     {
-        const origCreate = URL.createObjectURL;
-        const origRevoke = URL.revokeObjectURL;
-        const pendingBlobs = new Map();
-
-        URL.createObjectURL = function (blob) {
-            const url = origCreate.call(this, blob);
-            const timerId = setTimeout(() => {
-                pendingBlobs.delete(url);
-                try { origRevoke.call(URL, url); } catch (_) {}
-            }, CFG.blobAutoExpireMs);
-            pendingBlobs.set(url, timerId);
-            return url;
+        const onResume = () => {
+            queueMicrotask(() => {
+                forceRestoreAll();
+                void document.body?.offsetHeight; // 렌더링 파이프라인 강제 트리거
+                setTimeout(() => forceRestoreAll(), 500);
+            });
         };
-        URL.revokeObjectURL = function (url) {
-            if (pendingBlobs.has(url)) {
-                clearTimeout(pendingBlobs.get(url));
-                pendingBlobs.delete(url);
+
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) onResume(); });
+
+        const onNavigate = () => {
+            gcPausedUntil = performance.now() + CFG.viewTransitionPauseMs;
+            requestAnimationFrame(() => { forceRestoreAll(); purgeDisconnected(); });
+        };
+
+        if (hasNavigationAPI) {
+            try { navigation.addEventListener('navigatesuccess', onNavigate); } catch {}
+        }
+        window.addEventListener('popstate', onNavigate);
+
+        // ★ [v11.0] SPA URL 변경 감지 — 모든 사이트 공통
+        let lastURL = location.href;
+        const urlCheck = () => {
+            if (location.href !== lastURL) {
+                lastURL = location.href;
+                gcPausedUntil = performance.now() + 1000;
+                forceRestoreAll();
+                purgeDisconnected();
             }
-            return origRevoke.call(this, url);
+        };
+        const origPushState = history.pushState;
+        const origReplaceState = history.replaceState;
+        history.pushState = function (...a) {
+            origPushState.apply(this, a);
+            requestAnimationFrame(urlCheck);
+        };
+        history.replaceState = function (...a) {
+            origReplaceState.apply(this, a);
+            requestAnimationFrame(urlCheck);
         };
     }
 
     // ═══════════════════════════════════════════════
-    // §12. 탭 복귀 시 강제 복원 (v9.2 패치: 강제 리플로우 & 예외 처리)
+    // §11. Shadow DOM 탐색
     // ═══════════════════════════════════════════════
-    {
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden) {
-                // Microtask 레벨에서 우선 실행하여 브라우저 파이프라인 선점
-                queueMicrotask(() => {
-                    forceRestoreVisible();
+    const observedShadows = new WeakSet();
 
-                    // 강제 리플로우(Reflow) 유발: 화면이 하얗게 굳는 현상 방지
-                    void document.body.offsetHeight; 
-
-                    // 2차 안전장치 (렌더링 엔진 지연 대비)
-                    setTimeout(() => {
-                        forceRestoreVisible();
-                    }, 500);
-                });
-            }
-        });
-    }
-
-    // ═══════════════════════════════════════════════
-    // §13. Shadow DOM 탐색
-    // ═══════════════════════════════════════════════
-    const observedShadowRoots = new WeakSet();
-
-    const processShadowRoot = (shadowRoot) => {
-        if (observedShadowRoots.has(shadowRoot)) return;
-        observedShadowRoots.add(shadowRoot);
-        processSubtree(shadowRoot);
-
-        const shadowMut = new MutationObserver((mutations) => {
-            let hasAdded = false;
-            for (let i = 0; i < mutations.length; i++) {
-                const added = mutations[i].addedNodes;
-                for (let j = 0; j < added.length; j++) {
-                    const node = added[j];
-                    if (node.nodeType === 1 && !pendingGuard.has(node)) {
-                        pendingGuard.add(node);
-                        pendingNodes.push(node);
-                        hasAdded = true;
-                    }
-                }
-                const removed = mutations[i].removedNodes;
-                for (let j = 0; j < removed.length; j++) {
-                    const node = removed[j];
-                    if (node.nodeType === 1) {
-                        pendingGuard.delete(node);
-                        cleanupSubtree(node);
-                    }
-                }
-            }
-            if (hasAdded) scheduleBatch();
-        });
-        shadowMut.observe(shadowRoot, { childList: true, subtree: true });
+    const processShadowRoot = (sr) => {
+        if (observedShadows.has(sr)) return;
+        observedShadows.add(sr);
+        processSubtree(sr);
+        new MutationObserver(handleMutations).observe(sr, { childList: true, subtree: true });
     };
 
-    const checkShadowRoot = (el) => {
-        try {
-            if (el.shadowRoot && el.shadowRoot.mode === 'open')
-                processShadowRoot(el.shadowRoot);
-        } catch (_) {}
+    const checkShadow = (el) => {
+        try { if (el.shadowRoot?.mode === 'open') processShadowRoot(el.shadowRoot); } catch {}
     };
 
     // ═══════════════════════════════════════════════
-    // §14. MutationObserver (입력 시 지연 처리)
+    // §12. DOM 처리 + MutationObserver
     // ═══════════════════════════════════════════════
     let batchScheduled = false;
     let batchTimerId = 0;
@@ -1028,35 +955,33 @@
     const processSubtree = (root) => {
         try {
             if (!root) return;
-            const isFragment = root.nodeType === Node.DOCUMENT_FRAGMENT_NODE;
-            const isElement  = root.nodeType === Node.ELEMENT_NODE;
-            if (!isFragment && !isElement) return;
+            const isEl = root.nodeType === 1;
+            const isFrag = root.nodeType === 11;
+            if (!isEl && !isFrag) return;
 
-            if (isElement) {
-                if (MEDIA_TAGS[root.tagName]) optimizeMedia(root);
+            if (isEl) {
+                if (MEDIA_TAG_SET.has(root.tagName)) optimizeMedia(root);
                 if (matchesSelectors(root)) trackNode(root);
-                checkShadowRoot(root);
+                checkShadow(root);
             }
 
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
-            let cur;
-            while ((cur = walker.nextNode())) {
-                if (MEDIA_TAGS[cur.tagName]) optimizeMedia(cur);
-                if (matchesSelectors(cur)) trackNode(cur);
-                checkShadowRoot(cur);
+            const tracked = root.querySelectorAll(SELECTORS);
+            for (let i = 0, n = tracked.length; i < n; i++) {
+                trackNode(tracked[i]); checkShadow(tracked[i]);
             }
-        } catch (_) {}
+            const media = root.querySelectorAll('img,video,iframe,canvas');
+            for (let i = 0, n = media.length; i < n; i++) optimizeMedia(media[i]);
+        } catch {}
     };
 
     const cleanupSubtree = (root) => {
         try {
             if (!root || root.nodeType !== 1) return;
-            if (trackedNodeSet.has(root)) untrackNode(root);
-
+            if (trackedNodes.has(root)) untrackNode(root);
             const els = root.querySelectorAll(SELECTORS);
             if (els.length <= CFG.bulkCleanupThreshold) {
-                for (let i = 0; i < els.length; i++)
-                    if (trackedNodeSet.has(els[i])) untrackNode(els[i]);
+                for (let i = 0, n = els.length; i < n; i++)
+                    if (trackedNodes.has(els[i])) untrackNode(els[i]);
             } else {
                 const arr = Array.from(els);
                 let idx = 0;
@@ -1064,7 +989,7 @@
                 const processChunk = async () => {
                     const end = Math.min(idx + chunk, arr.length);
                     for (; idx < end; idx++)
-                        if (trackedNodeSet.has(arr[idx])) untrackNode(arr[idx]);
+                        if (trackedNodes.has(arr[idx])) untrackNode(arr[idx]);
                     if (idx < arr.length) {
                         await yieldToMain();
                         processChunk();
@@ -1072,214 +997,179 @@
                 };
                 processChunk();
             }
-        } catch (_) {}
+        } catch {}
     };
 
     const flushBatch = () => {
         batchScheduled = false;
         batchTimerId = 0;
         const nodes = pendingNodes.splice(0);
-        for (let i = 0; i < nodes.length; i++) {
+        for (let i = 0; i < nodes.length; i++)
             if (nodes[i].nodeType === 1) processSubtree(nodes[i]);
-        }
-        gcFeed();
+        if (!isStreaming) gcFeed();
     };
 
     const scheduleBatch = () => {
         if (batchScheduled) return;
         batchScheduled = true;
-
         if (isInputActive()) {
             batchTimerId = setTimeout(flushBatch, CFG.inputActiveDebounceMs);
+        } else if (isStreaming) {
+            batchTimerId = setTimeout(flushBatch, CFG.mutationCoalesceMs);
         } else {
             requestAnimationFrame(flushBatch);
         }
     };
 
-    const mutObserver = new MutationObserver((mutations) => {
+    const handleMutations = (mutations) => {
         let hasAdded = false;
         for (let i = 0; i < mutations.length; i++) {
-            const added = mutations[i].addedNodes;
-            for (let j = 0; j < added.length; j++) {
-                const node = added[j];
-                if (node.nodeType === 1 && !pendingGuard.has(node)) {
-                    pendingGuard.add(node);
-                    pendingNodes.push(node);
-                    hasAdded = true;
+            const { addedNodes, removedNodes } = mutations[i];
+            for (let j = 0; j < addedNodes.length; j++) {
+                const n = addedNodes[j];
+                if (n.nodeType === 1 && !pendingGuard.has(n)) {
+                    pendingGuard.add(n); pendingNodes.push(n); hasAdded = true;
                 }
             }
-            const removed = mutations[i].removedNodes;
-            for (let j = 0; j < removed.length; j++) {
-                const node = removed[j];
-                if (node.nodeType === 1) {
-                    pendingGuard.delete(node);
-                    cleanupSubtree(node);
-                }
+            for (let j = 0; j < removedNodes.length; j++) {
+                const n = removedNodes[j];
+                if (n.nodeType === 1) { pendingGuard.delete(n); cleanupSubtree(n); }
             }
         }
         if (hasAdded) scheduleBatch();
-    });
+    };
+
+    const mutObserver = new MutationObserver(handleMutations);
 
     // ═══════════════════════════════════════════════
-    // §15. 메모리 압박 감지
+    // §13. 메모리 압박 감지
     // ═══════════════════════════════════════════════
     {
-        const hasMemoryAPI = typeof performance.measureUserAgentSpecificMemory === 'function';
-        if (hasMemoryAPI && typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated) {
-            const checkMemory = async () => {
+        const hasMemAPI = typeof performance.measureUserAgentSpecificMemory === 'function';
+        if (hasMemAPI && typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated) {
+            const check = async () => {
                 try {
-                    const result = await performance.measureUserAgentSpecificMemory();
-                    if (result.bytes > CFG.memoryThresholdBytes) {
+                    const r = await performance.measureUserAgentSpecificMemory();
+                    if (r.bytes > CFG.memoryThresholdBytes) {
                         if (!memoryPressure) {
                             memoryPressure = true;
                             effectiveLimitNodes = Math.min(effectiveLimitNodes, CFG.lowPowerLimitNodes);
-                            gcObserveWatermark = 0;
                             gcFeed();
                         }
                     } else if (memoryPressure) {
                         memoryPressure = false;
-                        effectiveLimitNodes = isLowPowerMode
-                            ? CFG.lowPowerLimitNodes : CFG.limitNodes;
+                        effectiveLimitNodes = isLowPowerMode ? CFG.lowPowerLimitNodes : CFG.limitNodes;
                     }
-                } catch (_) {}
-                setTimeout(checkMemory, CFG.memoryCheckInterval);
+                } catch {}
+                setTimeout(check, CFG.memoryCheckInterval);
             };
-            setTimeout(checkMemory, 10000);
+            setTimeout(check, 10000);
         }
     }
 
     // ═══════════════════════════════════════════════
-    // §16. 정기 GC + ViewTransition 일시정지
+    // §14. 정기 GC + ViewTransition
     // ═══════════════════════════════════════════════
     const scheduleTask = hasSchedulerPostTask
-        ? (fn) => scheduler.postTask(fn, { priority: CFG.gcTaskPriority }).catch(() => {})
+        ? (fn, pri) => scheduler.postTask(fn, { priority: pri || 'background' }).catch(() => {})
         : hasRIC
-            ? (fn) => requestIdleCallback((dl) => {
-                  if (dl.timeRemaining() > 5 || dl.didTimeout) fn();
-              }, { timeout: CFG.idleTimeout })
+            ? (fn) => requestIdleCallback((dl) => { if (dl.timeRemaining() > 5 || dl.didTimeout) fn(); }, { timeout: CFG.idleTimeout })
             : (fn) => setTimeout(fn, CFG.idleTimeout);
 
     let gcChainActive = false;
-
     const scheduleGC = () => {
         if (gcChainActive) return;
         gcChainActive = true;
         const tick = () => {
             if (document.hidden) { gcChainActive = false; return; }
-            scheduleTask(() => { gcFeed(); tick(); });
+            scheduleTask(() => { gcFeed(); purgeDisconnected(); tick(); });
         };
         tick();
     };
-
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) scheduleGC();
-    });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleGC(); });
 
     {
-        const origStartViewTransition = document.startViewTransition;
-        if (typeof origStartViewTransition === 'function') {
-            document.startViewTransition = function (...args) {
+        const orig = document.startViewTransition;
+        if (typeof orig === 'function') {
+            document.startViewTransition = function (...a) {
                 gcPausedUntil = performance.now() + CFG.viewTransitionPauseMs;
-                return origStartViewTransition.apply(this, args);
+                return orig.apply(this, a);
             };
         }
     }
 
-    {
-        if (hasRIC) {
-            const prefetchObserver = new IntersectionObserver((entries) => {
-                for (let i = 0; i < entries.length; i++) {
-                    const { target, isIntersecting } = entries[i];
-                    if (isIntersecting && target.tagName === 'IMG'
-                        && target.complete === false && typeof target.decode === 'function') {
-                        requestIdleCallback(() => {
-                            target.decode().catch(() => {});
-                        }, { timeout: 2000 });
-                        prefetchObserver.unobserve(target);
-                    }
+    let prefetchObserver = null;
+    if (hasRIC) {
+        prefetchObserver = new IntersectionObserver((entries) => {
+            for (const { target, isIntersecting } of entries) {
+                if (isIntersecting && target.tagName === 'IMG'
+                    && !target.complete && typeof target.decode === 'function') {
+                    requestIdleCallback(() => target.decode().catch(() => {}), { timeout: 2000 });
+                    prefetchObserver.unobserve(target);
                 }
-            }, {
-                rootMargin: `${CFG.idlePrefetchMargin}px 0px ${CFG.idlePrefetchMargin}px 0px`,
-                threshold: 0
-            });
-            window._turboPrefetchObserver = prefetchObserver;
-        }
+            }
+        }, { rootMargin: `1500px 0px 1500px 0px`, threshold: 0 });
     }
 
     // ═══════════════════════════════════════════════
-    // §17. 진단 인터페이스
+    // §15. 진단 인터페이스
     // ═══════════════════════════════════════════════
     try {
         Object.defineProperty(window, '__turboOptimizer__', {
-            configurable: false,
-            enumerable: false,
+            configurable: false, enumerable: false,
             value: Object.freeze({
                 stats() {
-                    let aliveRefs = 0, deadRefs = 0, hiddenCount = 0;
-                    for (let i = 0; i < allTrackedRefs.length; i++) {
-                        const el = allTrackedRefs[i].deref();
-                        if (el !== undefined) {
-                            aliveRefs++;
-                            if (gcHiddenSet.has(el)) hiddenCount++;
-                        } else deadRefs++;
-                    }
+                    let hiddenCount = 0;
+                    for (const el of trackedNodes) if (gcHiddenSet.has(el)) hiddenCount++;
                     const info = {
-                        version: '9.2',
+                        version: '11.0',
+                        siteProfile: SITE_PROFILE?.id || 'generic',
+                        isStreaming,
                         lowPowerMode: isLowPowerMode,
                         memoryPressure,
                         smoothedFPS: Math.round(currentSmoothedFPS * 10) / 10,
                         effectiveLimitNodes,
                         effectiveRestoreBatch,
-                        trackedNodes: { alive: aliveRefs, dead: deadRefs, total: allTrackedRefs.length },
+                        trackedNodes: trackedNodes.size,
                         gcHiddenNodes: hiddenCount,
-                        restoreQueueLength: restoreHeap.length,
-                        mediaActions: { reclaimed: statsReclaimCount, restored: statsRestoreCount },
-                        hibernations: statsHibernateCount,
+                        restoreQueueLength: restoreQueue.length,
+                        mediaReclaimed: statsReclaimCount,
+                        mediaRestored: statsRestoreCount,
                         throttledTimers: statsThrottledTimers,
-                        network: navigator.connection ? {
-                            effectiveType: navigator.connection.effectiveType,
-                            saveData: navigator.connection.saveData,
-                        } : 'unavailable',
+                        network: navigator.connection
+                            ? { effectiveType: navigator.connection.effectiveType, saveData: navigator.connection.saveData }
+                            : 'unavailable',
                     };
                     console.table(info);
-                    console.table(info.trackedNodes);
-                    console.table(info.mediaActions);
                     return info;
-                },
-                compact() {
-                    const before = allTrackedRefs.length;
-                    compactTrackedRefs();
-                    return `Compacted: ${before} → ${allTrackedRefs.length} (${before - allTrackedRefs.length} removed)`;
                 },
                 gc() { gcFeed(); return 'GC feed executed'; },
                 emergencyRestore() {
                     let restored = 0;
-                    for (let i = 0; i < allTrackedRefs.length; i++) {
-                        const el = allTrackedRefs[i]?.deref();
-                        if (el && gcHiddenSet.has(el)) {
-                            gcHiddenSet.delete(el);
-                            gcHiddenHeight.delete(el);
-                            const orig = gcOriginalStyle.get(el);
-                            gcOriginalStyle.delete(el);
-                            el.style.cssText = orig || '';
-                            restored++;
-                        }
+                    for (const el of gcHiddenSet) {
+                        gcHiddenSet.delete(el);
+                        gcHiddenHeight.delete(el);
+                        const orig = gcOriginalStyle.get(el);
+                        gcOriginalStyle.delete(el);
+                        el.style.cssText = orig || '';
+                        restored++;
                     }
                     return `Emergency restored ${restored} nodes`;
                 },
-                forceRestore() {
-                    return `Force restored ${forceRestoreVisible()} visible nodes`;
-                },
+                forceRestore() { return `Force restored ${forceRestoreAll()} nodes`; },
                 config: CFG,
             })
         });
-    } catch (_) {}
+    } catch {}
 
     // ═══════════════════════════════════════════════
-    // §18. 초기화
+    // §16. 초기화
     // ═══════════════════════════════════════════════
     const init = () => {
         try {
+            // ★ [v11.0] 모든 사이트에서 초기 렌더링(Hydration) 보호 유예
+            gcPausedUntil = performance.now() + CFG.hydrationGracePeriodMs;
+
             mutObserver.observe(document.body, { childList: true, subtree: true });
             processSubtree(document.body);
             gcFeed();
@@ -1287,27 +1177,22 @@
             startFrameMonitor();
             forceFontDisplaySwap();
             new MutationObserver(() => forceFontDisplaySwap())
-                .observe(document.head || document.documentElement, {
-                    childList: true, subtree: true
-                });
+                .observe(document.head || document.documentElement, { childList: true, subtree: true });
 
-            if (window._turboPrefetchObserver) {
+            if (prefetchObserver) {
                 const imgs = document.body.getElementsByTagName('img');
-                for (let i = 0; i < imgs.length; i++) {
-                    window._turboPrefetchObserver.observe(imgs[i]);
-                }
+                for (let i = 0; i < imgs.length; i++) prefetchObserver.observe(imgs[i]);
             }
 
             console.log(
-                `%c🚀 Turbo Optimizer v9.2 %c Active: ${location.hostname}`,
+                `%c🚀 Turbo Optimizer v11.0 %c Active: ${location.hostname} [${SITE_PROFILE?.id || 'generic'}]`,
                 'color:#00ffa3;font-weight:bold;background:#222;padding:3px 6px;border-radius:4px',
                 'color:#fff'
             );
-        } catch (_) {}
+        } catch {}
     };
 
     if (document.readyState === 'loading')
         document.addEventListener('DOMContentLoaded', init);
-    else
-        init();
+    else init();
 })();
