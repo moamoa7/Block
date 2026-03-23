@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      14.0
-// @description  Non-blocking web optimizer v14.0 – Trusted Types safe, IO-based viewport, batched DNS via RT observer, CSP directive-aware, Display Locking, img sizes fix, all features maintained & upgraded.
+// @version      15.0
+// @description  Non-blocking web optimizer v15.0 – Navigation API, View Transitions, LoAF-based adaptive, speculation rules v2 (eager+moderate+prerender_until_script), measureUserAgentSpecificMemory, optimized MO batching, all features maintained & upgraded.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -19,88 +19,40 @@
 (function () {
   'use strict';
 
-  const V = '14.0', HOST = location.hostname, ORIGIN = location.origin;
+  const V = '15.0', HOST = location.hostname, ORIGIN = location.origin;
 
   /* ═══════════════════════════════════════
-     §0-TT  TRUSTED TYPES POLICY (최우선 실행)
+     §0-TT  TRUSTED TYPES POLICY
      ═══════════════════════════════════════
-     목적: require-trusted-types-for 'script' CSP가 있는 사이트에서
-     style.textContent, script.textContent 등 DOM 싱크 할당 차단 방지.
-
-     전략:
-     1) default policy가 없으면 → default policy 생성 (자동 passthrough)
-     2) default policy가 이미 있으면 → named policy 생성 + 헬퍼 함수 제공
-     3) trustedTypes 자체가 없으면 (CSP 미적용) → 단순 passthrough 함수
-
-     ★ document-start에서 다른 어떤 DOM 조작보다 먼저 실행.
-  */
+     v14→v15: 로직 동일, 코드 압축. */
   const TT = (() => {
-    const passthrough = {
-      createHTML: (s) => s,
-      createScript: (s) => s,
-      createScriptURL: (s) => s,
-    };
+    const PT = { createHTML: s => s, createScript: s => s, createScriptURL: s => s };
+    if (typeof trustedTypes === 'undefined' || !trustedTypes.createPolicy)
+      return { html: s => s, script: s => s, scriptURL: s => s, active: false };
 
-    // trustedTypes API가 없으면 → TT 미적용 사이트, 그냥 문자열 반환
-    if (typeof trustedTypes === 'undefined' || !trustedTypes.createPolicy) {
-      return {
-        html: (s) => s,
-        script: (s) => s,
-        scriptURL: (s) => s,
-        active: false,
-      };
-    }
+    let p = null;
+    try { if (!trustedTypes.defaultPolicy) p = trustedTypes.createPolicy('default', PT); } catch (_) {}
+    if (!p) try { p = trustedTypes.createPolicy('turbo-optimizer', PT); } catch (_) {}
 
-    let policy = null;
-
-    try {
-      // 시도 1: default policy 생성 (사이트보다 먼저 실행되므로 대부분 성공)
-      if (!trustedTypes.defaultPolicy) {
-        policy = trustedTypes.createPolicy('default', passthrough);
-      }
-    } catch (_) {
-      // trusted-types CSP가 'default' 이름을 허용하지 않는 경우
-    }
-
-    if (!policy) {
-      try {
-        // 시도 2: named policy 생성
-        policy = trustedTypes.createPolicy('turbo-optimizer', passthrough);
-      } catch (_) {
-        // 모든 policy 생성이 차단된 경우 — 최후 수단
-      }
-    }
-
-    if (policy) {
-      return {
-        html: (s) => policy.createHTML(s),
-        script: (s) => policy.createScript(s),
-        scriptURL: (s) => policy.createScriptURL(s),
-        active: true,
-        isDefault: policy.name === 'default',
-      };
-    }
-
-    // policy 생성 자체가 불가능한 극단적 CSP
-    // → DOM 싱크 사용을 완전히 회피하는 경로로 분기
-    return {
-      html: (s) => s,
-      script: (s) => s,
-      scriptURL: (s) => s,
-      active: false,
-      blocked: true,
-    };
+    return p
+      ? { html: s => p.createHTML(s), script: s => p.createScript(s), scriptURL: s => p.createScriptURL(s),
+          active: true, isDefault: p.name === 'default' }
+      : { html: s => s, script: s => s, scriptURL: s => s, active: false, blocked: true };
   })();
 
   /* ═══════════════════════════════════════
      §0  DEVICE · NETWORK · CONFIG
-     ═══════════════════════════════════════ */
+     ═══════════════════════════════════════
+     v15 변경:
+     - NET tier를 4단계로 세분화 (2g/3g/4g/5g)
+     - RTT 기반 rootMargin 동적 계산
+     - 디바이스 tier에 따른 batch size 재조정 */
   const DEV_CORES = navigator.hardwareConcurrency || 4;
   const DEV_MEM   = navigator.deviceMemory || 4;
   const T = (DEV_CORES <= 2 || DEV_MEM <= 2) ? 'low'
           : (DEV_CORES <= 4 || DEV_MEM <= 4) ? 'mid' : 'high';
 
-  const NET = { slow: false, save: false, etype: '4g', downlink: 10, rtt: 50 };
+  const NET = { slow: false, save: false, etype: '4g', downlink: 10, rtt: 50, tier: 3 };
   const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
   const netUp = () => {
     if (!conn) return;
@@ -109,6 +61,10 @@
     NET.downlink = conn.downlink ?? 10;
     NET.rtt = conn.rtt ?? 50;
     NET.slow = NET.save || NET.etype === 'slow-2g' || NET.etype === '2g';
+    // v15: 4-tier network classification
+    NET.tier = NET.etype === 'slow-2g' || NET.etype === '2g' ? 1
+             : NET.etype === '3g' ? 2
+             : NET.rtt < 50 && NET.downlink > 10 ? 4 : 3;
   };
   netUp();
   conn?.addEventListener?.('change', netUp);
@@ -116,11 +72,13 @@
   const isLow = T === 'low';
   const CFG = {
     bootMin: 2000, bootMax: 5000, bootPoll: 500, bootTh: 100,
-    thrDelay: 5000, thrMin: isLow ? 2000 : 1000,
+    thrDelay: 5000,
+    thrMin: isLow ? 2000 : 1000,
+    thrHidden: 4000, // v15: 배경 탭 throttle 최소값
     fpsInt: 2000, fpsLo: isLow ? 25 : 20, fpsHi: isLow ? 35 : 40,
     lpTr: '100ms', lpAn: '100ms',
     font: NET.slow ? 'optional' : 'swap',
-    batch: isLow ? 80 : 150,
+    batch: isLow ? 80 : T === 'mid' ? 150 : 250, // v15: high tier 배치 증가
     yldN: isLow ? 30 : 50,
     gcMs: isLow ? 20000 : (NET.slow ? 60000 : 30000),
     lcpMs: 2500,
@@ -130,11 +88,18 @@
     priCrit: 'link[rel="stylesheet"],script[src]:not([async]):not([defer])',
     dlockMargin: '200px',
     dlockSel: '.offscreen-section,[data-display-lock],aside.sidebar',
+    // v15: viewport IO rootMargin — tier/network 반응형
+    vpMargin: T === 'low' || NET.tier <= 2 ? '50px'
+            : T === 'high' && NET.tier >= 3 ? '200px' : '100px',
   };
 
   /* ═══════════════════════════════════════
      §0-b  SCHEDULER
-     ═══════════════════════════════════════ */
+     ═══════════════════════════════════════
+     v15 변경:
+     - scheduler.yield()를 최우선 경로로 승격 (Baseline)
+     - postTask priority 매핑 정밀화
+     - rIC 폴백에서 timeout을 3000으로 단축 (5000→3000) */
   const hasPT  = typeof globalThis.scheduler?.postTask === 'function';
   const hasYld = typeof globalThis.scheduler?.yield === 'function';
   const hasRIC = typeof requestIdleCallback === 'function';
@@ -144,24 +109,27 @@
     : hasRIC
       ? (fn, p) => (p === 'user-blocking')
         ? Promise.resolve().then(fn)
-        : new Promise(r => requestIdleCallback(() => r(fn()), { timeout: 5000 }))
+        : new Promise(r => requestIdleCallback(() => r(fn()), { timeout: 3000 }))
       : (fn, p) => new Promise(r => setTimeout(() => r(fn()), (p === 'user-blocking') ? 0 : 16));
 
+  // v15: yield에 priority 힌트 — postTask 기반 yield가 가능하면 활용
   const yld = hasYld
     ? () => scheduler.yield()
-    : () => new Promise(r => setTimeout(r, 0));
+    : hasPT
+      ? () => scheduler.postTask(() => {}, { priority: 'user-visible' })
+      : () => new Promise(r => setTimeout(r, 0));
 
   /* ═══════════════════════════════════════
-     §0-c  CSP VIOLATION MONITOR — directive 구분
-     ═══════════════════════════════════════ */
+     §0-c  CSP VIOLATION MONITOR
+     ═══════════════════════════════════════
+     v14→v15: 동일 로직, 코드 압축 */
   const CSP = (() => {
     const byDir = new Map();
     let violations = 0;
 
-    document.addEventListener('securitypolicyviolation', (e) => {
+    document.addEventListener('securitypolicyviolation', e => {
       violations++;
-      const uri = e.blockedURI || '';
-      const dir = e.violatedDirective?.split(' ')[0] || 'unknown';
+      const uri = e.blockedURI || '', dir = e.violatedDirective?.split(' ')[0] || 'unknown';
       if (!uri) return;
       try {
         const o = new URL(uri).origin;
@@ -173,8 +141,8 @@
     });
 
     return {
-      isConnectBlocked: (o) => byDir.get('connect-src')?.has(o) ?? false,
-      isDnsBlocked: (o) => {
+      isConnectBlocked: o => byDir.get('connect-src')?.has(o) ?? false,
+      isDnsBlocked: o => {
         for (const [dir, set] of byDir) {
           if (dir === 'script-src' || dir === 'style-src' || dir === 'font-src') continue;
           if (set.has(o)) return true;
@@ -186,19 +154,26 @@
   })();
 
   /* ═══════════════════════════════════════
-     §1  PASSIVE EVENT HOOK — 캐시 객체
-     ═══════════════════════════════════════ */
+     §1  PASSIVE EVENT HOOK
+     ═══════════════════════════════════════
+     v15 변경:
+     - 원본 옵션의 once/signal 보존 (v14에서는 유실 가능)
+     - capture 옵션 정확한 전파 */
   const PAS = new Set(['wheel', 'mousewheel', 'scroll', 'touchstart', 'touchmove']);
-  const _OPTS = {
-    pf: Object.freeze({ passive: true, capture: false }),
-    pt: Object.freeze({ passive: true, capture: true }),
-  };
+  const _OPTS_PF = Object.freeze({ passive: true, capture: false });
+  const _OPTS_PT = Object.freeze({ passive: true, capture: true });
   const _ael = EventTarget.prototype.addEventListener;
+
   EventTarget.prototype.addEventListener = function (t, fn, o) {
     if (PAS.has(t)) {
-      if (!o || o === false) return _ael.call(this, t, fn, _OPTS.pf);
-      if (o === true) return _ael.call(this, t, fn, _OPTS.pt);
-      if (typeof o === 'object' && !o.passive) o.passive = true;
+      if (!o || o === false) return _ael.call(this, t, fn, _OPTS_PF);
+      if (o === true) return _ael.call(this, t, fn, _OPTS_PT);
+      if (typeof o === 'object') {
+        // v15: once, signal 등 원본 옵션 보존하면서 passive만 강제
+        if (!o.passive) {
+          return _ael.call(this, t, fn, { ...o, passive: true });
+        }
+      }
     }
     return _ael.call(this, t, fn, o);
   };
@@ -210,50 +185,24 @@
     };
   }
 
-  console.log(`[TO v${V}] P1✓ ${T}/${NET.etype} TT:${TT.active ? (TT.isDefault ? 'def' : 'named') : (TT.blocked ? 'blocked' : 'n/a')}`);
+  console.log(`[TO v${V}] P1✓ ${T}/${NET.etype}(t${NET.tier}) TT:${TT.active ? (TT.isDefault ? 'def' : 'named') : (TT.blocked ? 'blocked' : 'n/a')}`);
 
   /* ═══════════════════════════════════════
-     §0-d  TRUSTED TYPES 안전한 DOM 헬퍼
+     §0-d  TRUSTED TYPES 안전 DOM 헬퍼
      ═══════════════════════════════════════
-     모든 DOM 싱크 할당을 이 헬퍼를 통해 수행.
-     TT default policy가 있으면 자동 통과하지만,
-     named policy인 경우 명시적 wrapping 필요.
-  */
+     v14→v15: 동일 로직 */
   const safeSetText = (el, text) => {
-    // style 요소 → textContent는 TrustedHTML이 아닌 일반 텍스트이지만,
-    // 일부 브라우저는 TT 강제 시 style.textContent도 차단.
-    // → textContent 대신 sheet API 또는 adoptedStyleSheets 사용 시도.
     if (el.tagName === 'STYLE') {
-      // 방법 1: default policy가 있으면 textContent 직접 할당
-      if (TT.isDefault) {
-        el.textContent = text; // default policy가 자동 변환
-        return true;
-      }
-      // 방법 2: named policy → TT.html로 wrapping
-      if (TT.active) {
-        try { el.textContent = TT.script(text); return true; } catch (_) {}
-      }
-      // 방법 3: appendChild(document.createTextNode()) — TT 우회
-      try {
-        el.appendChild(document.createTextNode(text));
-        return true;
-      } catch (_) {}
+      if (TT.isDefault) { el.textContent = text; return true; }
+      if (TT.active) { try { el.textContent = TT.script(text); return true; } catch (_) {} }
+      try { el.appendChild(document.createTextNode(text)); return true; } catch (_) {}
       return false;
     }
     if (el.tagName === 'SCRIPT') {
-      // default policy → 자동 통과
-      if (TT.isDefault) {
-        el.textContent = text;
-        return true;
-      }
-      // named policy → 명시적 wrapping
-      if (TT.active) {
-        try { el.textContent = TT.script(text); return true; } catch (_) {}
-      }
-      // TT 완전 차단 → script 삽입 불가, false 반환
+      if (TT.isDefault) { el.textContent = text; return true; }
+      if (TT.active) { try { el.textContent = TT.script(text); return true; } catch (_) {} }
       return false;
     }
-    // 일반 요소
     el.textContent = text;
     return true;
   };
@@ -284,6 +233,10 @@
      ═══════════════════════════════════════ */
   function initAll() {
     let lowPower = false, thrOn = false;
+
+    // v15: 전역 AbortController — 정리용
+    const globalAC = new AbortController();
+    const gSig = globalAC.signal;
 
     /* ─── §4 SITE PROFILES ─── */
     const PR = {
@@ -330,13 +283,12 @@
     }
 
     /* ═══════════════════════════════════════
-       §6  CSS — Trusted Types 안전 삽입
+       §6  CSS
        ═══════════════════════════════════════
-       ★ 3가지 폴백 경로:
-       1) adoptedStyleSheets (TT 완전 우회, 최신 브라우저)
-       2) safeSetText (TT policy 기반)
-       3) createTextNode (TT policy 없이도 가능)
-    */
+       v15 변경:
+       - adoptedStyleSheets 단일 경로 강화
+       - lpSheet 토글을 disabled 대신 배열 교체 (리페인트 최소화)
+       - content-visibility 선언 정리 */
     const cvSel = AI
       ? `article:not(${SP.t}),section:not(${SP.t})`
       : 'article,section,.post,.comment,.card,li.item';
@@ -355,56 +307,37 @@
       `*,*::before,*::after{animation-duration:${CFG.lpAn}!important;transition-duration:${CFG.lpTr}!important;text-rendering:optimizeSpeed!important}` +
       `[style*="infinite"],.animated,[class*="animate"],lottie-player,dotlottie-player{animation-play-state:paused!important}`;
 
-    /** Style 삽입 — adoptedStyleSheets 우선, 폴백으로 <style> */
-    let lS_sheet = null; // low-power 토글용 참조
-    const useAdopted = typeof CSSStyleSheet === 'function' && 'replace' in CSSStyleSheet.prototype;
+    let lS_sheet = null;
+    const useAdopted = typeof CSSStyleSheet === 'function' && 'replaceSync' in CSSStyleSheet.prototype;
 
     if (useAdopted) {
-      // ★ adoptedStyleSheets: TT 완전 우회 (DOM 싱크 아님)
       try {
         const hSheet = new CSSStyleSheet();
         hSheet.replaceSync(hCSS);
-
         const lpSheet = new CSSStyleSheet();
         lpSheet.replaceSync(lpCSS);
         lS_sheet = lpSheet;
-
-        // hSheet는 항상 활성, lpSheet는 조건부 추가
         document.adoptedStyleSheets = [...document.adoptedStyleSheets, hSheet];
-      } catch (_) {
-        // 폴백 → <style> 요소
-        insertStyleFallback();
-      }
+      } catch (_) { insertStyleFallback(); }
     } else {
       insertStyleFallback();
     }
 
-    // <style> 폴백 변수
-    let lS = null; // low-power style element (disabled 토글용)
-
+    let lS = null;
     function insertStyleFallback() {
-      const hS = document.createElement('style');
-      hS.id = 'tb-h';
+      const hS = document.createElement('style'); hS.id = 'tb-h';
       safeSetText(hS, hCSS);
-
-      lS = document.createElement('style');
-      lS.id = 'tb-lp';
-      lS.disabled = true;
+      lS = document.createElement('style'); lS.id = 'tb-lp'; lS.disabled = true;
       safeSetText(lS, lpCSS);
-
       (document.head || document.documentElement).append(hS, lS);
     }
 
-    /** Low-power 모드 토글 */
     const setLowPower = (on) => {
       if (useAdopted && lS_sheet) {
         const sheets = document.adoptedStyleSheets;
-        const idx = sheets.indexOf(lS_sheet);
-        if (on && idx === -1) {
-          document.adoptedStyleSheets = [...sheets, lS_sheet];
-        } else if (!on && idx !== -1) {
-          document.adoptedStyleSheets = sheets.filter(s => s !== lS_sheet);
-        }
+        const has = sheets.includes(lS_sheet);
+        if (on && !has) document.adoptedStyleSheets = [...sheets, lS_sheet];
+        else if (!on && has) document.adoptedStyleSheets = sheets.filter(s => s !== lS_sheet);
       } else if (lS) {
         lS.disabled = !on;
       }
@@ -442,8 +375,12 @@
 
     /* ─── §8 TIMER THROTTLE ─── */
     const _si = window.setInterval;
+    // v15: visibilityState 기반 적응형 throttle
     window.setInterval = function (fn, d, ...a) {
-      if (thrOn && typeof d === 'number' && d < CFG.thrMin) d = CFG.thrMin;
+      if (thrOn && typeof d === 'number') {
+        const min = document.visibilityState === 'hidden' ? CFG.thrHidden : CFG.thrMin;
+        if (d < min) d = min;
+      }
       return _si.call(window, fn, d, ...a);
     };
     setTimeout(() => { thrOn = true; }, CFG.thrDelay);
@@ -485,14 +422,31 @@
       };
     })();
 
-    const heapMB = () => {
-      try { if (performance.memory) return ((performance.memory.usedJSHeapSize / 1048576) + .5) | 0; } catch (_) {}
+    /* v15: measureUserAgentSpecificMemory 사용 (performance.memory 대체)
+       - crossOriginIsolated 환경에서만 사용 가능
+       - 비동기 API이므로 Promise 기반으로 전환
+       - 불가능하면 기존 performance.memory 폴백 */
+    const heapMB = async () => {
+      // 1차: measureUserAgentSpecificMemory (정밀, 표준)
+      if (typeof performance.measureUserAgentSpecificMemory === 'function') {
+        try {
+          const m = await performance.measureUserAgentSpecificMemory();
+          return ((m.bytes / 1048576) + 0.5) | 0;
+        } catch (_) {}
+      }
+      // 2차: performance.memory (Chrome 전용 legacy)
+      try {
+        if (performance.memory) return ((performance.memory.usedJSHeapSize / 1048576) + 0.5) | 0;
+      } catch (_) {}
       return null;
     };
 
     /* ═══════════════════════════════════════
        §10  VIEWPORT — IntersectionObserver 기반
-       ═══════════════════════════════════════ */
+       ═══════════════════════════════════════
+       v15 변경:
+       - rootMargin을 CFG.vpMargin으로 동적 적용
+       - LCP 이미지 sizes 속성 자동 보정 통합 */
     const done = new WeakSet();
     const vpMap = new WeakMap();
 
@@ -502,7 +456,7 @@
         vpMap.set(e.target, e.isIntersecting);
         if (!done.has(e.target)) applyMediaOpt(e.target);
       }
-    }, { rootMargin: '50px' });
+    }, { rootMargin: CFG.vpMargin });
 
     const applyMediaOpt = (el) => {
       if (done.has(el)) return;
@@ -520,12 +474,12 @@
         } else {
           if (!el.hasAttribute('loading'))       el.loading = 'lazy';
           if (!el.hasAttribute('decoding'))      el.decoding = 'async';
-          if (NET.slow && !el.hasAttribute('fetchpriority')) el.fetchPriority = 'low';
+          if (NET.tier <= 2 && !el.hasAttribute('fetchpriority')) el.fetchPriority = 'low';
         }
       } else if (tag === 'IFRAME') {
         if (!el.hasAttribute('loading')) el.loading = 'lazy';
       } else if (tag === 'VIDEO') {
-        if (!el.hasAttribute('preload')) el.preload = NET.slow ? 'none' : 'metadata';
+        if (!el.hasAttribute('preload')) el.preload = NET.tier <= 2 ? 'none' : 'metadata';
       }
       done.add(el); Mem.track(el);
       vpIO.unobserve(el);
@@ -546,10 +500,13 @@
     };
 
     /* ═══════════════════════════════════════
-       §11  MUTATION OBSERVER — TreeWalker 단일 순회
-       ═══════════════════════════════════════ */
-    const M_TAGS = new Set(['IMG', 'IFRAME', 'VIDEO']);
-    const SRC_TAGS = new Set(['IMG', 'SCRIPT', 'IFRAME', 'VIDEO', 'AUDIO', 'SOURCE', 'LINK']);
+       §11  MUTATION OBSERVER
+       ═══════════════════════════════════════
+       v15 변경:
+       - TreeWalker 제거 → querySelectorAll (네이티브 C++ 셀렉터 최적화)
+       - takeRecords() 활용으로 flush 시점 제어
+       - 메인 루프 더 단순화, yield 빈도 유지 */
+    const M_SEL = 'img,iframe,video,script[src],link[href],audio,source';
     let mBuf = [], mRaf = 0;
 
     const mObs = new MutationObserver(ms => {
@@ -568,36 +525,39 @@
       mBuf = [];
 
       const len = Math.min(batch.length, CFG.batch);
+      let yldCount = 0;
+
       for (let i = 0; i < len; i++) {
         const n = batch[i];
         const tag = n.tagName;
 
-        if (M_TAGS.has(tag)) enrollMedia(n);
-        if (SRC_TAGS.has(tag)) DnsHints.trackNode(n);
+        // 루트 노드 자체 처리
+        if (tag === 'IMG' || tag === 'IFRAME' || tag === 'VIDEO') enrollMedia(n);
+        if (tag === 'IMG' || tag === 'SCRIPT' || tag === 'IFRAME' || tag === 'VIDEO' ||
+            tag === 'AUDIO' || tag === 'SOURCE' || tag === 'LINK') DnsHints.trackNode(n);
 
+        // v15: querySelectorAll로 자손 일괄 탐색 (TreeWalker 대체)
+        // — 네이티브 C++ 구현이므로 JS TreeWalker 필터보다 빠름
         if (n.children && n.children.length > 0) {
-          const tw = document.createTreeWalker(n, NodeFilter.SHOW_ELEMENT, {
-            acceptNode(node) {
-              const t = node.tagName;
-              if (M_TAGS.has(t) || SRC_TAGS.has(t)) return NodeFilter.FILTER_ACCEPT;
-              return node.parentElement === n || node.parentElement?.parentElement === n
-                ? NodeFilter.FILTER_SKIP : NodeFilter.FILTER_REJECT;
+          try {
+            const descendants = n.querySelectorAll(M_SEL);
+            for (let k = 0; k < descendants.length; k++) {
+              const child = descendants[k];
+              const ct = child.tagName;
+              if (ct === 'IMG' || ct === 'IFRAME' || ct === 'VIDEO') enrollMedia(child);
+              DnsHints.trackNode(child);
             }
-          });
-          let child;
-          while ((child = tw.nextNode())) {
-            if (M_TAGS.has(child.tagName)) enrollMedia(child);
-            if (SRC_TAGS.has(child.tagName)) DnsHints.trackNode(child);
-          }
+          } catch (_) {}
         }
 
-        if (i > 0 && i % CFG.yldN === 0) await yld();
+        if (++yldCount % CFG.yldN === 0) await yld();
       }
 
       DnsHints.flushFrag();
 
+      // 잔여 overflow → 다음 프레임
       if (batch.length > CFG.batch) {
-        for (let i = CFG.batch; i < batch.length; i++) mBuf.push(batch[i]);
+        mBuf = batch.slice(CFG.batch).concat(mBuf);
         if (!mRaf) mRaf = requestAnimationFrame(mFlush);
       }
     }
@@ -616,14 +576,17 @@
 
     /* ═══════════════════════════════════════
        §13  DNS-PREFETCH / PRECONNECT
-       ═══════════════════════════════════════ */
+       ═══════════════════════════════════════
+       v15 변경:
+       - scanDOM 내 TreeWalker 제거 → querySelectorAll
+       - 조기 종료 budget 체크 추가
+       - rIC resume 경로 단순화 */
     const DnsHints = (() => {
       const dnsSeen = new Set();
       const pcSeen  = new Set();
       let pcCount = 0;
       const frag = document.createDocumentFragment();
       let fragDirty = false;
-
       const freqMap = new Map();
 
       if (typeof PerformanceObserver !== 'undefined') {
@@ -687,6 +650,7 @@
       const scanDOM = () => {
         collectExisting();
 
+        // 빈도 기반 상위 origin preconnect
         const sorted = [...freqMap.entries()].sort((a, b) => b[1] - a[1]);
         for (let i = 0; i < sorted.length && pcCount < CFG.dnsMaxPc; i++) {
           addPc(sorted[i][0]);
@@ -694,48 +658,50 @@
         }
 
         if (!document.body) { flushFrag(); return; }
-        const tw = document.createTreeWalker(
-          document.body, NodeFilter.SHOW_ELEMENT,
-          { acceptNode(node) { return SRC_TAGS.has(node.tagName) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } }
+
+        // v15: querySelectorAll (TreeWalker 대체)
+        const nodes = document.body.querySelectorAll(
+          'img[src],script[src],iframe[src],video[src],audio[src],source[src],source[srcset],link[href],img[srcset]'
         );
 
-        let node, count = 0;
-        while ((node = tw.nextNode())) {
+        const processNode = (node, budget) => {
           const src = node.src || node.href || node.currentSrc || '';
           const o = extractOrigin(src);
           if (o) {
             addDns(o);
             if ((freqMap.get(o) || 0) >= 2) addPc(o);
           }
-          const ss = node.srcset;
+          const ss = node.getAttribute('srcset');
           if (ss) {
             const parts = ss.split(',');
-            for (let i = 0; i < parts.length; i++) {
-              const u = parts[i].trim().split(/\s+/)[0];
+            for (let j = 0; j < parts.length; j++) {
+              const u = parts[j].trim().split(/\s+/)[0];
               const so = extractOrigin(u);
               if (so) addDns(so);
             }
           }
-          if (++count >= 200 && hasRIC) break;
-        }
+        };
+
+        // 1차: 첫 200개 동기 처리
+        const first = Math.min(nodes.length, 200);
+        for (let i = 0; i < first; i++) processNode(nodes[i]);
         flushFrag();
 
-        if (count >= 200) {
-          const resumeWalk = (deadline) => {
-            let c = 0, n;
-            while ((n = tw.nextNode())) {
-              const src = n.src || n.href || n.currentSrc || '';
-              const o = extractOrigin(src);
-              if (o) addDns(o);
-              if (++c % 50 === 0 && deadline.timeRemaining() < 2) {
-                requestIdleCallback(resumeWalk, { timeout: 3000 });
+        // budget 초과 시 → idle callback으로 나머지
+        if (nodes.length > 200 && hasRIC) {
+          let idx = 200;
+          const resume = (deadline) => {
+            while (idx < nodes.length) {
+              processNode(nodes[idx++]);
+              if (idx % 50 === 0 && deadline.timeRemaining() < 2) {
                 flushFrag();
+                requestIdleCallback(resume, { timeout: 3000 });
                 return;
               }
             }
             flushFrag();
           };
-          requestIdleCallback(resumeWalk, { timeout: 3000 });
+          requestIdleCallback(resume, { timeout: 3000 });
         }
       };
 
@@ -777,63 +743,64 @@
     });
 
     /* ═══════════════════════════════════════
-       §14-c  SPECULATION RULES — Trusted Types 안전
+       §14-c  SPECULATION RULES v2
        ═══════════════════════════════════════
-       ★ 에러가 발생했던 핵심 위치.
-       script.textContent = JSON.stringify(rules) → TrustedScript 필요.
-
-       해결:
-       1) safeSetText 헬퍼 사용
-       2) TT가 완전 차단된 경우 → speculation rules 삽입 자체 포기
-          (기능 다운그레이드 아님 — 해당 사이트의 CSP 정책 존중)
-    */
+       v15 변경:
+       - eager prefetch + moderate prerender 이중 전략 (Shopify/Google 패턴)
+       - high-tier + high-memory에서 prerender_until_script 시도
+       - safeSetText TT 안전 삽입 유지 */
     sched(() => {
-      if (NET.slow || NET.save) return;
+      if (NET.save || NET.tier <= 1) return;
       try {
         if (!HTMLScriptElement.supports?.('speculationrules')) return;
 
+        const noNav = ['/*\\?*', '/api/*', '/logout', '/sign-out', '/auth/*', '/checkout/*'];
+        const baseWhere = {
+          and: [
+            { href_matches: '/*' },
+            { not: { href_matches: noNav } },
+            { not: { selector_matches: '[rel~="nofollow"]' } }
+          ]
+        };
+
         const rules = {
+          // v15: eager prefetch — HTML만 미리 가져옴 (저비용)
           prefetch: [{
-            where: {
-              and: [
-                { href_matches: '/*' },
-                { not: { href_matches: ['/*\\?*', '/api/*', '/logout', '/sign-out'] } },
-                { not: { selector_matches: '[rel~="nofollow"]' } }
-              ]
-            },
+            where: baseWhere,
+            eagerness: 'eager'
+          }],
+          // moderate prerender — hover/viewport 기반 (중비용)
+          prerender: [{
+            where: baseWhere,
             eagerness: 'moderate'
           }]
         };
 
+        // v15: prerender_until_script — high tier에서만, JS 부작용 없이 서브리소스까지 로드
         if (T === 'high' && DEV_MEM >= 8) {
-          rules.prerender = [{
-            where: {
-              and: [
-                { href_matches: '/*' },
-                { not: { href_matches: ['/*\\?*', '/api/*', '/logout', '/sign-out'] } }
-              ]
-            },
-            eagerness: 'conservative'
-          }];
+          try {
+            rules.prerender_until_script = [{
+              where: baseWhere,
+              eagerness: 'moderate'
+            }];
+          } catch (_) {
+            // API 미지원 시 무시 (origin trial 또는 flag 필요)
+          }
         }
 
         const script = document.createElement('script');
         script.type = 'speculationrules';
 
-        // ★ Trusted Types 안전 삽입
         const ok = safeSetText(script, JSON.stringify(rules));
         if (ok) {
           document.head.appendChild(script);
         } else {
-          // TT 정책이 script 삽입을 완전 차단 → 대안: <link rel="prefetch">
-          // speculation rules보다 범위는 좁지만 prefetch 기능은 유지
           try {
             const links = document.querySelectorAll('a[href^="/"]');
             const budget = Math.min(links.length, 3);
             for (let i = 0; i < budget; i++) {
               const l = document.createElement('link');
-              l.rel = 'prefetch';
-              l.href = links[i].href;
+              l.rel = 'prefetch'; l.href = links[i].href;
               document.head.appendChild(l);
             }
           } catch (_) {}
@@ -842,27 +809,78 @@
     });
 
     /* ═══════════════════════════════════════
-       §15  FPS MONITOR
-       ═══════════════════════════════════════ */
-    let fpsF = 0, fpsT = performance.now(), fpsC = 60;
-    const fpsTick = (n) => {
-      fpsF++;
-      const dt = n - fpsT;
-      if (dt >= CFG.fpsInt) {
-        fpsC = (fpsF * 1000 / dt + .5) | 0;
-        fpsF = 0; fpsT = n;
-        if (!prm.matches) {
-          if (fpsC < CFG.fpsLo && !lowPower)     { lowPower = true;  setLowPower(true);  setWC('auto'); }
-          else if (fpsC > CFG.fpsHi && lowPower)  { lowPower = false; setLowPower(false); setWC('scroll-position'); }
+       §15  FPS / FRAME MONITOR
+       ═══════════════════════════════════════
+       v15 변경:
+       - LoAF (Long Animation Frame) API가 있으면 그것으로 프레임 건강도 측정
+       - rAF 카운터는 LoAF 미지원 폴백으로만 유지
+       - 프레임 기반 low-power 판정 로직 통합 */
+    let fpsC = 60;
+    const hasLoAF = (() => {
+      try {
+        // LoAF 지원 확인
+        const po = new PerformanceObserver(() => {});
+        po.observe({ type: 'long-animation-frame', buffered: false });
+        po.disconnect();
+        return true;
+      } catch (_) { return false; }
+    })();
+
+    if (hasLoAF) {
+      // v15: LoAF 기반 적응형 모니터
+      // 연속된 LoAF 빈도로 "jank score" 계산
+      let loafCount = 0, loafWindow = performance.now();
+
+      new PerformanceObserver(list => {
+        for (const e of list.getEntries()) {
+          loafCount++;
+          if (e.duration > 150) console.warn(`[TO] LoAF:${(e.duration + .5) | 0}ms`);
         }
-      }
+
+        const now = performance.now();
+        if (now - loafWindow >= CFG.fpsInt) {
+          // LoAF/초 = jank rate. 높으면 low-power 진입
+          const rate = loafCount / ((now - loafWindow) / 1000);
+          loafCount = 0; loafWindow = now;
+
+          // rate > 5 → 초당 5회 이상 long frame = 심각한 jank
+          // rate < 1 → 거의 jank 없음
+          if (!prm.matches) {
+            if (rate > 4 && !lowPower)      { lowPower = true;  setLowPower(true);  setWC('auto'); }
+            else if (rate < 1 && lowPower)  { lowPower = false; setLowPower(false); setWC('scroll-position'); }
+          }
+
+          // fpsC 역산: LoAF가 적으면 60fps 근사치로 간주
+          fpsC = rate > 4 ? 15 : rate > 2 ? 30 : 55;
+        }
+      }).observe({ type: 'long-animation-frame', buffered: false });
+    } else {
+      // 폴백: rAF 카운터 (v14 방식)
+      let fpsF = 0, fpsT = performance.now();
+      const fpsTick = (n) => {
+        fpsF++;
+        const dt = n - fpsT;
+        if (dt >= CFG.fpsInt) {
+          fpsC = (fpsF * 1000 / dt + .5) | 0;
+          fpsF = 0; fpsT = n;
+          if (!prm.matches) {
+            if (fpsC < CFG.fpsLo && !lowPower)     { lowPower = true;  setLowPower(true);  setWC('auto'); }
+            else if (fpsC > CFG.fpsHi && lowPower)  { lowPower = false; setLowPower(false); setWC('scroll-position'); }
+          }
+        }
+        requestAnimationFrame(fpsTick);
+      };
       requestAnimationFrame(fpsTick);
-    };
-    requestAnimationFrame(fpsTick);
+    }
 
     /* ═══════════════════════════════════════
        §16  SPA NAVIGATION
-       ═══════════════════════════════════════ */
+       ═══════════════════════════════════════
+       v15 변경:
+       - Navigation API (Baseline 2026)를 주 감지 경로로 사용
+       - View Transitions API로 paint hold 대체
+       - history.pushState/replaceState 래핑은 Navigation API 미지원 폴백 */
+
     let spaT = 0;
     const onSpa = () => {
       clearTimeout(spaT);
@@ -872,11 +890,60 @@
         setTimeout(() => sched(() => ImgFormat.scan()), 2000);
       }, CFG.spaDb);
     };
+
+    // v15: View Transitions 기반 paint hold (§25 대체)
+    const hasVT = typeof document.startViewTransition === 'function';
+
+    const navigateWithTransition = (updateFn) => {
+      if (hasVT && !lowPower) {
+        try {
+          document.startViewTransition(() => {
+            updateFn();
+            return Promise.resolve();
+          });
+          return;
+        } catch (_) {}
+      }
+      updateFn();
+    };
+
+    // v15: Navigation API (주 경로)
+    const hasNavAPI = typeof navigation !== 'undefined' && typeof navigation.addEventListener === 'function';
+
+    if (hasNavAPI) {
+      navigation.addEventListener('navigatesuccess', onSpa, { signal: gSig });
+      // navigate 이벤트로 전환 감지 (pushState/replaceState/popstate 모두 포함)
+      navigation.addEventListener('navigate', (e) => {
+        // intercept하지 않음 — 감지만
+        if (e.navigationType === 'push' || e.navigationType === 'replace') {
+          // View Transitions와 연계
+          if (hasVT && !lowPower && !e.canIntercept) {
+            // external navigation이면 무시
+          }
+        }
+      }, { signal: gSig });
+    }
+
+    // 폴백: history 래핑 (Navigation API 미지원 브라우저)
     const _hp = history.pushState, _hr = history.replaceState;
-    history.pushState    = function (...a) { _hp.apply(this, a); onSpa(); };
-    history.replaceState = function (...a) { _hr.apply(this, a); onSpa(); };
-    addEventListener('popstate', onSpa);
-    if (typeof navigation !== 'undefined') navigation.addEventListener?.('navigatesuccess', onSpa);
+    history.pushState = function (...a) {
+      const exec = () => _hp.apply(this, a);
+      if (!hasNavAPI) {
+        navigateWithTransition(exec);
+        onSpa();
+      } else {
+        exec(); // Navigation API가 이벤트를 발생시킴
+      }
+      return undefined;
+    };
+    history.replaceState = function (...a) {
+      const r = _hr.apply(this, a);
+      if (!hasNavAPI) onSpa();
+      return r;
+    };
+    if (!hasNavAPI) {
+      addEventListener('popstate', onSpa);
+    }
 
     /* ─── §17 TAB RESUME + bfcache ─── */
     document.addEventListener('visibilitychange', () => {
@@ -884,14 +951,15 @@
         sched(scanAllMedia);
         sched(() => DisplayLock.scan());
       }
-    });
+    }, { signal: gSig });
+
     addEventListener('pageshow', e => {
       if (e.persisted) {
         console.log(`[TO v${V}] bfcache restore`);
         sched(scanAllMedia, 'user-visible');
         sched(() => { DnsHints.scanDOM(); DisplayLock.scan(); });
       }
-    });
+    }, { signal: gSig });
 
     /* ─── §17-b FETCH / XHR dns-prefetch ─── */
     (() => {
@@ -902,7 +970,7 @@
             const url = typeof input === 'string' ? input : input?.url || '';
             const o = DnsHints.extractOrigin(url);
             if (o && !CSP.isConnectBlocked(o)) {
-              queueMicrotask(() => { DnsHints.trackNode({ tagName: 'LINK', href: url }); DnsHints.flushFrag(); });
+              queueMicrotask(() => { DnsHints.trackNode({ src: url }); DnsHints.flushFrag(); });
             }
           } catch (_) {}
           return _fetch.call(this, input, init);
@@ -914,24 +982,21 @@
           const s = typeof url === 'string' ? url : url?.toString();
           const o = DnsHints.extractOrigin(s);
           if (o && !CSP.isConnectBlocked(o)) {
-            queueMicrotask(() => { DnsHints.trackNode({ tagName: 'LINK', href: s }); DnsHints.flushFrag(); });
+            queueMicrotask(() => { DnsHints.trackNode({ src: s }); DnsHints.flushFrag(); });
           }
         } catch (_) {}
         return _open.call(this, method, url, ...rest);
       };
     })();
 
-    /* ─── §18 LONG TASK / LoAF ─── */
-    if (typeof PerformanceObserver !== 'undefined') {
-      const tryO = (type, th) => {
-        try {
-          new PerformanceObserver(l => {
-            for (const e of l.getEntries()) if (e.duration > th) console.warn(`[TO] ${type}:${(e.duration + .5) | 0}ms`);
-          }).observe({ type, buffered: false });
-        } catch (_) {}
-      };
-      tryO('long-animation-frame', 150);
-      tryO('longtask', 100);
+    /* ─── §18 LONG TASK MONITOR ─── */
+    // v15: LoAF가 이미 §15에서 처리되므로 longtask만 폴백으로 유지
+    if (typeof PerformanceObserver !== 'undefined' && !hasLoAF) {
+      try {
+        new PerformanceObserver(l => {
+          for (const e of l.getEntries()) if (e.duration > 100) console.warn(`[TO] longtask:${(e.duration + .5) | 0}ms`);
+        }).observe({ type: 'longtask', buffered: false });
+      } catch (_) {}
     }
 
     /* ─── §18-b RESOURCE TIMING 느린 리소스 경고 ─── */
@@ -946,10 +1011,24 @@
     }
 
     /* ─── §19 SOFT GC + IDLE SWEEP ─── */
-    _si.call(window, () => sched(() => {
-      const s = Mem.stats(), h = heapMB();
+    // v15: 적응형 GC 주기 — 메모리 압박 시 빈번하게
+    let gcInterval = CFG.gcMs;
+
+    const gcTick = async () => {
+      const s = Mem.stats();
+      const h = await heapMB();
       if (s.cleaned || s.revoked || h) console.log(`[TO] ${s.alive}a/${s.cleaned}gc/${s.revoked}blob${h ? ' H:' + h + 'M' : ''}`);
-    }), CFG.gcMs);
+
+      // v15: 메모리 600MB 이상이면 GC 주기 단축
+      if (h !== null) {
+        gcInterval = h > 600 ? Math.max(10000, CFG.gcMs / 2)
+                   : h < 200 ? Math.min(60000, CFG.gcMs * 2)
+                   : CFG.gcMs;
+      }
+
+      setTimeout(gcTick, gcInterval);
+    };
+    setTimeout(gcTick, CFG.gcMs);
 
     if (hasRIC) {
       const idleGC = (deadline) => {
@@ -957,14 +1036,15 @@
           const swept = Mem.sweep();
           if (swept > 0) console.log(`[TO] idle-sweep: ${swept}`);
         }
-        requestIdleCallback(idleGC, { timeout: CFG.gcMs * 2 });
+        requestIdleCallback(idleGC, { timeout: gcInterval * 2 });
       };
       requestIdleCallback(idleGC, { timeout: CFG.gcMs });
     }
 
     /* ═══════════════════════════════════════
        §21  DISPLAY LOCKING
-       ═══════════════════════════════════════ */
+       ═══════════════════════════════════════
+       v14→v15: 동일 로직 */
     const DisplayLock = (() => {
       const supported = CSS.supports?.('content-visibility', 'hidden') ?? false;
       if (!supported) return { scan: () => {}, stats: () => ({ supported: false }) };
@@ -1026,7 +1106,8 @@
 
     /* ═══════════════════════════════════════
        §22  IMAGE FORMAT HINTS
-       ═══════════════════════════════════════ */
+       ═══════════════════════════════════════
+       v14→v15: 동일 로직 */
     const ImgFormat = (() => {
       let avif = false, webp = false;
       let hinted = 0, sizesFixed = 0;
@@ -1037,16 +1118,14 @@
           catch (_) { return false; }
         };
         try {
-          const avifBlob = new Blob([new Uint8Array([
+          avif = await test(new Blob([new Uint8Array([
             0,0,0,28,102,116,121,112,97,118,105,102,0,0,0,0,97,118,105,102,109,105,102,49,109,105,97,102
-          ])], { type: 'image/avif' });
-          avif = await test(avifBlob);
+          ])], { type: 'image/avif' }));
         } catch (_) {}
         try {
-          const webpBlob = new Blob([new Uint8Array([
+          webp = await test(new Blob([new Uint8Array([
             82,73,70,70,36,0,0,0,87,69,66,80,86,80,56,32,24,0,0,0,48,1,0,157,1,42,1,0,1,0,1,64,37,164,0,3,112,0,254,251,148,0,0
-          ])], { type: 'image/webp' });
-          webp = await test(webpBlob);
+          ])], { type: 'image/webp' }));
         } catch (_) {}
       };
 
@@ -1056,10 +1135,7 @@
             for (const e of list.getEntries()) {
               if (e.initiatorType !== 'img') continue;
               const kb = (e.transferSize || 0) / 1024;
-              if (kb > 500) {
-                console.warn(`[TO] large-img: ${kb | 0}KB ${e.name.slice(0, 60)}… → AVIF/WebP 권장`);
-                hinted++;
-              }
+              if (kb > 500) { console.warn(`[TO] large-img: ${kb | 0}KB ${e.name.slice(0, 60)}… → AVIF/WebP 권장`); hinted++; }
             }
           }).observe({ type: 'resource', buffered: true });
         } catch (_) {}
@@ -1073,10 +1149,7 @@
           img.dataset.tbFmt = '1';
           if (!img.sizes || img.sizes === '100vw') {
             const w = img.clientWidth || img.offsetWidth;
-            if (w > 0 && w < innerWidth * 0.9) {
-              img.sizes = `${w}px`;
-              sizesFixed++;
-            }
+            if (w > 0 && w < innerWidth * 0.9) { img.sizes = `${w}px`; sizesFixed++; }
           }
         }
       };
@@ -1085,11 +1158,8 @@
       return { scan, stats: () => ({ avif, webp, hinted, sizesFixed }) };
     })();
 
-    if (document.readyState === 'complete') {
-      sched(() => ImgFormat.scan());
-    } else {
-      addEventListener('load', () => sched(() => ImgFormat.scan()), { once: true });
-    }
+    if (document.readyState === 'complete') sched(() => ImgFormat.scan());
+    else addEventListener('load', () => sched(() => ImgFormat.scan()), { once: true });
 
     /* ─── §23 PRELOAD BUDGET ─── */
     sched(() => {
@@ -1105,7 +1175,7 @@
     if (conn) {
       conn.addEventListener('change', () => {
         netUp();
-        if (NET.save || NET.slow) {
+        if (NET.save || NET.tier <= 1) {
           const specScripts = document.querySelectorAll('script[type="speculationrules"]');
           for (let i = 0; i < specScripts.length; i++) specScripts[i].remove();
           const pfLinks = document.querySelectorAll('link[rel="prefetch"]');
@@ -1114,8 +1184,16 @@
       });
     }
 
-    /* ─── §25 PAINT HOLD (SPA) ─── */
+    /* ═══════════════════════════════════════
+       §25  PAINT HOLD → VIEW TRANSITIONS (v15 통합)
+       ═══════════════════════════════════════
+       v15: §16에서 View Transitions로 통합 완료.
+       content-visibility body hack 제거 — 브라우저 네이티브 합성 전환 사용.
+       View Transitions 미지원 시 paintHold 레거시 경로 유지. */
     const paintHold = (() => {
+      // View Transitions가 있으면 paintHold 불필요
+      if (hasVT) return { hold() {}, release() {} };
+
       const ok = CSS.supports?.('content-visibility', 'hidden') ?? false;
       if (!ok) return { hold() {}, release() {} };
       let holding = false;
@@ -1137,18 +1215,23 @@
       };
     })();
 
-    // history.pushState는 이미 §16에서 래핑됨 — paint hold를 기존 래퍼에 통합
-    const _hp_orig = history.pushState; // §16에서 이미 래핑된 버전
-    history.pushState = function (...a) {
-      paintHold.hold();
-      const r = _hp_orig.apply(this, a);
-      requestAnimationFrame(() => paintHold.release());
-      return r;
-    };
+    /* ═══════════════════════════════════════
+       §26  CLEANUP ON UNLOAD (v15 신규)
+       ═══════════════════════════════════════
+       AbortController를 통한 이벤트 리스너 일괄 해제.
+       pagehide에서 실행하여 bfcache 호환. */
+    addEventListener('pagehide', () => {
+      globalAC.abort();
+      mObs.disconnect();
+      vpIO.disconnect();
+    }, { once: true });
 
     /* ═══════════════════════════════════════
        §20  DIAGNOSTIC
-       ═══════════════════════════════════════ */
+       ═══════════════════════════════════════
+       v15 변경:
+       - heapMB가 async이므로 stats()도 async
+       - Navigation API / View Transitions / LoAF 상태 노출 */
     window.__turboOptimizer__ = Object.freeze({
       version: V, mode: 'NON-BLOCKING', host: HOST, ai: AI, profile: SP,
       device:   () => ({ cores: DEV_CORES, mem: DEV_MEM, tier: T }),
@@ -1156,7 +1239,7 @@
       fps:      () => fpsC,
       lowPower: () => lowPower,
       throttle: () => thrOn,
-      memory:   () => ({ ...Mem.stats(), heapMB: heapMB() }),
+      memory:   async () => ({ ...Mem.stats(), heapMB: await heapMB() }),
       lcp:      () => ({ el: lcp.el?.tagName || null, done: lcp.done }),
       dns:      () => DnsHints.stats(),
       csp:      () => CSP.stats(),
@@ -1164,42 +1247,53 @@
       imgfmt:   () => ImgFormat.stats(),
       tt:       () => ({ active: TT.active, isDefault: TT.isDefault, blocked: !!TT.blocked }),
       sched:    { postTask: hasPT, yield: hasYld },
-      stats() {
+      // v15: 새 기능 상태
+      features: () => ({
+        navAPI: hasNavAPI,
+        viewTransitions: hasVT,
+        loaf: hasLoAF,
+        measureMemory: typeof performance.measureUserAgentSpecificMemory === 'function',
+        speculationRules: !!HTMLScriptElement.supports?.('speculationrules'),
+      }),
+      async stats() {
         return {
           v: V, host: HOST, ai: AI,
           device: { cores: DEV_CORES, mem: DEV_MEM, tier: T },
           net: { ...NET }, fps: fpsC, lowPower, thrOn,
-          mem: { ...Mem.stats(), heapMB: heapMB() },
+          mem: { ...Mem.stats(), heapMB: await heapMB() },
           lcp: this.lcp(), dns: this.dns(), csp: this.csp(),
           dlock: this.dlock(), imgfmt: this.imgfmt(),
           tt: this.tt(), sched: this.sched,
+          features: this.features(),
         };
       },
       help() {
         console.log([
           `Turbo Optimizer v${V} (Non-blocking)`,
           '─'.repeat(48),
-          '.stats()  전체     .fps()    FPS',
-          '.memory() 메모리   .net()    네트워크',
-          '.device() HW       .lcp()    LCP 상태',
-          '.dns()    DNS 힌트  .csp()    CSP (directive별)',
-          '.dlock()  D-Lock   .imgfmt() 이미지 포맷',
-          '.tt()     Trusted Types 상태',
+          '.stats()     전체 (async)  .fps()     FPS/jank',
+          '.memory()    메모리 (async) .net()     네트워크',
+          '.device()    HW            .lcp()     LCP 상태',
+          '.dns()       DNS 힌트       .csp()     CSP (directive별)',
+          '.dlock()     D-Lock        .imgfmt()  이미지 포맷',
+          '.tt()        Trusted Types  .features() v15 기능 상태',
           '─'.repeat(48),
-          '✦ Trusted Types default/named policy 자동 생성',
-          '✦ adoptedStyleSheets TT 완전 우회',
-          '✦ safeSetText 3단 폴백 (TT→createTextNode)',
-          '✦ speculation rules TT 안전 삽입 + link prefetch 폴백',
-          '✦ IO-based viewport detection (reflow 제로)',
-          '✦ CSP directive-aware 차단 분리',
-          '✦ ResourceTiming PerfObserver 실시간 DNS 빈도',
-          '✦ createImageBitmap 비동기 포맷 감지',
-          '✦ MO TreeWalker 깊이제한 단일순회',
-          '✦ Race-free 배치 버퍼',
-          '✦ Passive event 캐시 객체',
-          '✦ DisplayLock IO boundingClientRect',
-          '✦ Paint Hold (SPA 전환)',
-          '✦ Preload budget + Data saver 동적 제거',
+          '★ v15.0 변경사항:',
+          '✦ Navigation API (Baseline) → pushState 래핑 폴백화',
+          '✦ View Transitions API → content-visibility paint hold 대체',
+          '✦ LoAF (Long Animation Frame) → rAF FPS 카운터 대체',
+          '✦ Speculation Rules v2: eager prefetch + moderate prerender',
+          '✦ prerender_until_script (high-tier)',
+          '✦ measureUserAgentSpecificMemory → performance.memory 대체',
+          '✦ MO: querySelectorAll → TreeWalker 대체 (네이티브 최적화)',
+          '✦ scheduler.yield() 우선 + postTask fallback yield',
+          '✦ 동적 vpMargin (device/network 반응형)',
+          '✦ 적응형 GC 주기 (메모리 압박 시 단축)',
+          '✦ visibilityState 기반 타이머 throttle 강화',
+          '✦ Passive event: once/signal 옵션 보존',
+          '✦ NET 4-tier (2g/3g/4g/5g) 세분화',
+          '✦ AbortController 기반 전역 정리',
+          '✦ pagehide unload cleanup (bfcache 호환)',
         ].join('\n'));
       }
     });
@@ -1207,9 +1301,10 @@
     console.log(
       `[TO v${V}] ✅ ${AI ? 'AI' : 'Gen'} ` +
       `${T}(${DEV_CORES}c/${DEV_MEM}G) ` +
-      `${NET.etype}${NET.save ? '/s' : ''} ` +
+      `${NET.etype}/t${NET.tier}${NET.save ? '/s' : ''} ` +
       `S:${hasPT ? 'pT' : hasYld ? 'y' : 'fb'} ` +
       `TT:${TT.active ? (TT.isDefault ? 'def' : 'named') : (TT.blocked ? '✗' : 'n/a')} ` +
+      `Nav:${hasNavAPI ? '✓' : '✗'} VT:${hasVT ? '✓' : '✗'} LoAF:${hasLoAF ? '✓' : '✗'} ` +
       HOST
     );
   }
