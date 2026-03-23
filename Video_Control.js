@@ -7104,8 +7104,8 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       const SEEK_STEP = 5;
       const SEEK_SESSION_MS = 800;
       const LONG_PRESS_RATE = 2.0;
-      const SENSITIVITY_VOL = 1.2;
-      const SENSITIVITY_BRI = 1.2;
+      const SENSITIVITY_VOL = 2.0;
+      const SENSITIVITY_BRI = 2.0;
       const SEEK_SENSITIVITY = 0.05;
 
       const GS = Object.freeze({ IDLE: 0, WAIT: 1, SWIPE_VOL: 2, SWIPE_BRI: 3, LONG_PRESS: 4, BLOCKED: 5, SWIPE_SEEK: 6 });
