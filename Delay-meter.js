@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터기
 // @namespace    https://github.com/moamoa7
-// @version      12.7.4
+// @version      12.7.5
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (WebRTC MediaStream 지원)
 // @author       DelayMeter
 // @match        *://*/*
@@ -256,17 +256,30 @@
     if (!vid) return false;
     if (isMediaStream(vid)) return true;
     if (vid.duration === Infinity || vid.duration >= 1e6) return true;
+
     if (IS_YOUTUBE) {
+      // YouTube 전용: 신뢰도 높은 판정만 사용
       if (location.pathname.includes('/live')) return true;
       try {
         const p = document.querySelector('#movie_player');
-        if (p && typeof p.getVideoData === 'function') { const d = p.getVideoData(); if (d && d.isLive) return true; }
+        if (p && typeof p.getVideoData === 'function') {
+          const d = p.getVideoData();
+          if (d && d.isLive) return true;
+        }
         if (p && typeof p.getPlayerResponse === 'function') {
-          const r = p.getPlayerResponse(); if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) return true;
+          const r = p.getPlayerResponse();
+          if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) return true;
         }
       } catch {}
-      if (document.querySelector('.ytp-live-badge[disabled]') || document.querySelector('.ytp-live') || document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
+      if (document.querySelector('.ytp-live-badge[disabled]') ||
+          document.querySelector('.ytp-live') ||
+          document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
+
+      // YouTube에서 위 조건에 해당하지 않으면 VOD로 간주
+      return false;
     }
+
+    // ── 이하 YouTube 이외 플랫폼용 범용 로직 ──
     const cached = _liveCache.get(vid);
     if (cached && performance.now() - cached.ts < 3000) return cached.v;
     let v = false;
@@ -283,7 +296,7 @@
             if (!tr) { tr = { end, dur: d, ts: performance.now(), count: 0 }; _liveTracker.set(vid, tr); }
             else {
               if (end > tr.end + 0.5 || d > tr.dur + 0.5) { tr.count++; tr.end = end; tr.dur = d; tr.ts = performance.now(); }
-              if (tr.count >= 1) v = true;
+              if (tr.count >= 2) v = true;  // 1 → 2로 상향하여 오판 감소
             }
           }
           if (!v && (end - start > 20)) { const b = vid.buffered; if (b.length && Math.abs(b.end(b.length - 1) - end) < 120) v = true; }
@@ -294,7 +307,8 @@
       const d = vid.duration;
       if (d > 0 && isFinite(d) && vid.currentTime > 0) {
         const gap = d - vid.currentTime;
-        if (gap >= 0 && gap < 60 && (src.startsWith('blob:') || isHlsSrc(src))) v = true;
+        // blob: URL 단독으로는 라이브 판정하지 않음 — HLS만 허용
+        if (gap >= 0 && gap < 60 && isHlsSrc(src)) v = true;
       }
     }
     _liveCache.set(vid, { v, ts: performance.now() });
@@ -623,7 +637,7 @@ ctx.restore()};`;
   <div class="dm-ft">
     <div class="dm-tog${enabled ? ' on' : ''}"></div>
     <div class="dm-net"><div class="dm-net-dot"></div><span>양호</span></div>
-    <span class="dm-ver">v12.7.3</span>
+    <span class="dm-ver">v12.7.5</span>
     <span class="dm-key">Alt+D</span>
   </div>
 </div>`;
