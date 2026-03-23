@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    http://tampermonkey.net/
-// @version      11.0
-// @description  모든 웹사이트에서 렉을 제거하고 최적의 성능을 보장합니다. v11.0: 모든 사이트에 일관된 뼈대 보호 정책 적용. 사이트별 분기 최소화, 구조적 안정성 대폭 강화.
+// @version      11.1
+// @description  모든 웹사이트에서 렉을 제거하고 최적의 성능을 보장합니다. v11.1: SPA 내부 전환 시 신규 콘텐츠 렌더링 보장. GC 유예 기간 강화, flushBatch 내 GC 호출 제거.
 // @author       You & Oppai1442 Logic
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
@@ -162,6 +162,7 @@
         mutationCoalesceMs:       100,
         bulkCleanupThreshold:     50,
         hydrationGracePeriodMs:   2500,
+        spaNavigationGracePeriodMs: 3000,
     };
 
     let isLowPowerMode = false;
@@ -237,6 +238,12 @@
     }
 
     // ═══════════════════════════════════════════════
+    // §1-e. SPA 네비게이션 상태 추적
+    // ═══════════════════════════════════════════════
+    let isNavigating = false;
+    const isGcPaused = () => performance.now() < gcPausedUntil;
+
+    // ═══════════════════════════════════════════════
     // §2. 패시브 이벤트 리스너 강제화
     // ═══════════════════════════════════════════════
     {
@@ -297,16 +304,17 @@
     }
 
     // ═══════════════════════════════════════════════
-    // §3. CSS 주입 (★ v11.0: 모든 사이트 공통 뼈대 보호)
+    // §3. CSS 주입 (★ v11.1: 뼈대 보호 범위 확장)
     // ═══════════════════════════════════════════════
-
-    // ★ [v11.0] 모든 사이트에서 body 직계 자식과 앱 셸 구조는
-    //    content-visibility:auto로 숨기지 않도록 원천 보호
     const skeletonProtectCSS = `
         body > *,
         [id="app"], [id="root"], [id="__next"], [id="__nuxt"],
         app-root, #app-root,
-        main, [role="main"] {
+        main, [role="main"],
+        infinite-scroller, .conversation-container,
+        [class*="react-scroll-to-bottom"],
+        .overflow-y-auto,
+        .chat-container, .conversation-list {
             content-visibility: visible !important;
             contain-intrinsic-size: none !important;
         }
@@ -493,6 +501,9 @@
     };
 
     const handleMediaIntersection = (target, isIntersecting, rect, isHardLevel) => {
+        // ★ [v11.1] GC 유예 중에는 미디어도 회수하지 않음
+        if (isGcPaused() && !isIntersecting) return;
+
         const tag = target.tagName;
         const state = mediaState.get(target) || S_IDLE;
 
@@ -593,7 +604,7 @@
     };
 
     // ═══════════════════════════════════════════════
-    // §8. GC 시스템 (★ v11.0: 모든 사이트 공통 뼈대 보호)
+    // §8. GC 시스템 (★ v11.1: 스크롤 컨테이너 보호 강화)
     // ═══════════════════════════════════════════════
     const trackedNodes = new Set();
     const gcHiddenSet  = new Set();
@@ -608,54 +619,74 @@
         }
     });
 
-    // ★ [v11.0] 모든 사이트에서 공통으로 적용되는 뼈대 보호 판정
-    //   - body/html/main 태그 자체
-    //   - body 직계 자식 중 유일한 구조 태그
-    //   - 앱 셸 id (#app, #root, #__next, #__nuxt 등)
-    //   - 스크롤 컨테이너 (AI 사이트의 scrollContainer)
-    //   - role="main" 요소
     const SKIP_GC_TAGS = new Set(['MAIN', 'BODY', 'HTML']);
     const APP_SHELL_IDS = new Set(['app', 'root', '__next', '__nuxt', 'app-root', '__app']);
 
-    const isStructuralSkeleton = (el) => {
-        // 1) html/body/main 태그 자체는 절대 건드리지 않음
-        if (SKIP_GC_TAGS.has(el.tagName)) return true;
+    // ★ [v11.1] 스크롤 컨테이너 CSS 선택자를 모든 프로필에서 모아 하나의 판정용 문자열로 합침
+    const ALL_SCROLL_CONTAINERS = (() => {
+        const set = new Set();
+        // 알려진 AI 챗 스크롤 컨테이너를 모두 등록 (프로필 유무와 무관하게)
+        const knownContainers = [
+            'infinite-scroller', '.conversation-container',
+            '[class*="react-scroll-to-bottom"]',
+            '.overflow-y-auto',
+            '.chat-container', '.conversation-list',
+            '.chat-scroll-container',
+            'cib-chat-main',
+            '[class*="ChatMessagesView"]',
+        ];
+        for (const s of knownContainers) set.add(s);
+        if (SITE_PROFILE?.scrollContainer) {
+            for (const s of SITE_PROFILE.scrollContainer.split(','))
+                set.add(s.trim());
+        }
+        return [...set].join(', ');
+    })();
 
-        // 2) 앱 셸 id를 가진 요소 보호
+    const isStructuralSkeleton = (el) => {
+        if (SKIP_GC_TAGS.has(el.tagName)) return true;
         if (el.id && APP_SHELL_IDS.has(el.id)) return true;
 
-        // 3) 커스텀 엘리먼트 중 'app-root' 같은 앱 루트 태그 보호
         const tagLower = el.tagName.toLowerCase();
-        if (tagLower === 'app-root') return true;
+        if (tagLower === 'app-root' || tagLower === 'infinite-scroller') return true;
 
-        // 4) role="main" 보호
         if (el.getAttribute('role') === 'main') return true;
 
-        // 5) body 직계 자식 중 유일한 구조 태그면 보호
         if (el.parentElement === document.body) {
             const tag = el.tagName;
             if (tag === 'MAIN' || tag === 'SECTION' || tag === 'ARTICLE' || tag === 'DIV') {
-                // body 직계 자식이 3개 이하면 모두 뼈대로 판정
                 const directChildren = document.body.children;
                 if (directChildren.length <= 3) return true;
-                // 같은 태그가 하나뿐이면 뼈대
                 if (tag !== 'DIV' &&
                     document.body.querySelectorAll(`:scope > ${tag.toLowerCase()}`).length <= 1)
                     return true;
             }
         }
 
-        // 6) AI 챗의 스크롤 컨테이너 보호
-        if (IS_AI_CHAT && SITE_PROFILE.scrollContainer) {
-            try {
-                if (el.matches(SITE_PROFILE.scrollContainer)) return true;
-            } catch {}
+        // ★ [v11.1] 스크롤 컨테이너는 어떤 사이트에서든 뼈대로 보호
+        if (ALL_SCROLL_CONTAINERS) {
+            try { if (el.matches(ALL_SCROLL_CONTAINERS)) return true; } catch {}
         }
 
         return false;
     };
 
     const gcObserver = new IntersectionObserver((entries) => {
+        // ★ [v11.1] GC 유예 중에는 숨기기 작업 자체를 하지 않음
+        if (isGcPaused()) {
+            // 단, 보이게 된 노드의 복원은 수행
+            for (const { target, isIntersecting } of entries) {
+                if (isIntersecting && gcHiddenSet.has(target)) {
+                    gcHiddenSet.delete(target);
+                    gcHiddenHeight.delete(target);
+                    const orig = gcOriginalStyle.get(target);
+                    gcOriginalStyle.delete(target);
+                    target.style.cssText = orig || '';
+                }
+            }
+            return;
+        }
+
         for (const { target, isIntersecting } of entries) {
             if (!isIntersecting && !gcHiddenSet.has(target)) {
                 if (isStructuralSkeleton(target)) continue;
@@ -677,7 +708,7 @@
     }, { rootMargin: `${CFG.gcMarginTop}px 0px ${CFG.gcMarginBottom}px 0px`, threshold: 0 });
 
     const gcFeed = async () => {
-        if (performance.now() < gcPausedUntil) return;
+        if (isGcPaused()) return;
         if (isStreaming) return;
         const size = trackedNodes.size;
         if (size <= effectiveLimitNodes) return;
@@ -695,7 +726,6 @@
 
     const trackNode = (el) => {
         if (trackedNodes.has(el)) return;
-        // ★ [v11.0] 뼈대 요소는 어떤 사이트든 추적 셋에 넣지 않음
         if (isStructuralSkeleton(el)) return;
         trackedNodes.add(el);
         resizeObserver.observe(el);
@@ -883,37 +913,48 @@
     }
 
     // ═══════════════════════════════════════════════
-    // §10. 탭 복귀 + SPA 전환 (★ v11.0: 모든 사이트 공통)
+    // §10. 탭 복귀 + SPA 전환 (★ v11.1: 유예 기간 강화)
     // ═══════════════════════════════════════════════
     {
         const onResume = () => {
             queueMicrotask(() => {
                 forceRestoreAll();
-                void document.body?.offsetHeight; // 렌더링 파이프라인 강제 트리거
+                void document.body?.offsetHeight;
                 setTimeout(() => forceRestoreAll(), 500);
             });
         };
 
         document.addEventListener('visibilitychange', () => { if (!document.hidden) onResume(); });
 
-        const onNavigate = () => {
-            gcPausedUntil = performance.now() + CFG.viewTransitionPauseMs;
-            requestAnimationFrame(() => { forceRestoreAll(); purgeDisconnected(); });
+        // ★ [v11.1] SPA 전환 공통 핸들러 — 충분한 유예 기간 부여
+        const onSpaNavigate = () => {
+            isNavigating = true;
+            gcPausedUntil = performance.now() + CFG.spaNavigationGracePeriodMs;
+
+            // 즉시 모든 hidden 노드 복원
+            forceRestoreAll();
+            purgeDisconnected();
+
+            // 새 콘텐츠가 렌더링된 후 한 번 더 복원
+            requestAnimationFrame(() => {
+                forceRestoreAll();
+                void document.body?.offsetHeight;
+            });
+
+            // 유예 기간 종료 후 네비게이션 플래그 해제
+            setTimeout(() => { isNavigating = false; }, CFG.spaNavigationGracePeriodMs);
         };
 
         if (hasNavigationAPI) {
-            try { navigation.addEventListener('navigatesuccess', onNavigate); } catch {}
+            try { navigation.addEventListener('navigatesuccess', onSpaNavigate); } catch {}
         }
-        window.addEventListener('popstate', onNavigate);
+        window.addEventListener('popstate', onSpaNavigate);
 
-        // ★ [v11.0] SPA URL 변경 감지 — 모든 사이트 공통
         let lastURL = location.href;
         const urlCheck = () => {
             if (location.href !== lastURL) {
                 lastURL = location.href;
-                gcPausedUntil = performance.now() + 1000;
-                forceRestoreAll();
-                purgeDisconnected();
+                onSpaNavigate();
             }
         };
         const origPushState = history.pushState;
@@ -1000,13 +1041,18 @@
         } catch {}
     };
 
+    // ★ [v11.1] flushBatch에서 gcFeed 직접 호출 제거
+    //   — GC는 오직 정기 스케줄러(§14)에 의해서만 실행됨
+    //   — SPA 전환 직후 새 노드가 들어올 때 즉시 GC가 돌지 않도록 방지
     const flushBatch = () => {
         batchScheduled = false;
         batchTimerId = 0;
         const nodes = pendingNodes.splice(0);
-        for (let i = 0; i < nodes.length; i++)
+        for (let i = 0; i < nodes.length; i++) {
+            pendingGuard.delete(nodes[i]);
             if (nodes[i].nodeType === 1) processSubtree(nodes[i]);
-        if (!isStreaming) gcFeed();
+        }
+        // gcFeed()를 여기서 호출하지 않음 — §14의 정기 스케줄러가 담당
     };
 
     const scheduleBatch = () => {
@@ -1122,9 +1168,11 @@
                     let hiddenCount = 0;
                     for (const el of trackedNodes) if (gcHiddenSet.has(el)) hiddenCount++;
                     const info = {
-                        version: '11.0',
+                        version: '11.1',
                         siteProfile: SITE_PROFILE?.id || 'generic',
                         isStreaming,
+                        isNavigating,
+                        gcPaused: isGcPaused(),
                         lowPowerMode: isLowPowerMode,
                         memoryPressure,
                         smoothedFPS: Math.round(currentSmoothedFPS * 10) / 10,
@@ -1167,12 +1215,12 @@
     // ═══════════════════════════════════════════════
     const init = () => {
         try {
-            // ★ [v11.0] 모든 사이트에서 초기 렌더링(Hydration) 보호 유예
             gcPausedUntil = performance.now() + CFG.hydrationGracePeriodMs;
 
             mutObserver.observe(document.body, { childList: true, subtree: true });
             processSubtree(document.body);
-            gcFeed();
+            // ★ [v11.1] 초기화 시에도 gcFeed를 직접 호출하지 않음
+            // — hydration 유예 기간이 끝난 후 정기 스케줄러가 알아서 실행
             scheduleGC();
             startFrameMonitor();
             forceFontDisplaySwap();
@@ -1185,7 +1233,7 @@
             }
 
             console.log(
-                `%c🚀 Turbo Optimizer v11.0 %c Active: ${location.hostname} [${SITE_PROFILE?.id || 'generic'}]`,
+                `%c🚀 Turbo Optimizer v11.1 %c Active: ${location.hostname} [${SITE_PROFILE?.id || 'generic'}]`,
                 'color:#00ffa3;font-weight:bold;background:#222;padding:3px 6px;border-radius:4px',
                 'color:#fff'
             );
