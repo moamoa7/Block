@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v213.3.0)
+// @name         Video_Control (v214.0.0)
 // @namespace    https://github.com/
-// @version      213.3.0
-// @description  v213.3.0: CF Turnstile fix + comprehensive perf optimizations & core bug fixes
+// @version      214.0.0
+// @description  v214.0.0: ok.ru sharp fix
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -133,33 +133,40 @@
     }
 
     const _GLOBAL_OPTS = Object.freeze(
-      Array.from({ length: 8 }, (_, idx) => Object.freeze({
-        passive: !!(idx & 4), capture: !!(idx & 2), once: !!(idx & 1), signal: __globalSig
-      }))
-    );
+     Array.from({ length: 8 }, (_, idx) => Object.freeze({
+       passive: !!(idx & 4), capture: !!(idx & 2), once: !!(idx & 1), signal: __globalSig
+     }))
+   );
 
-    const _signalOptsCache = new WeakMap();
+   const _signalOptsCache = new WeakMap();
+   const _origAddEvt = EventTarget.prototype.addEventListener; // 플레이어의 이벤트 하이재킹 무력화
 
-    function on(target, type, fn, opts) {
-      if (!target?.addEventListener || __globalSig.aborted) return;
-      if (!opts) { target.addEventListener(type, fn, _GLOBAL_OPTS[0]); return; }
-      const sig = getCombinedSignal(opts.signal);
-      if (sig.aborted) return;
-      const idx = (opts.passive ? 4 : 0) | (opts.capture ? 2 : 0) | (opts.once ? 1 : 0);
+   function on(target, type, fn, opts) {
+     if (!target || __globalSig.aborted) return;
 
-      if (sig === __globalSig) {
-        target.addEventListener(type, fn, _GLOBAL_OPTS[idx]);
-      } else {
-        let sigCache = _signalOptsCache.get(sig);
-        if (!sigCache) { sigCache = new Array(8); _signalOptsCache.set(sig, sigCache); }
-        let cached = sigCache[idx];
-        if (!cached) {
-          cached = Object.freeze({ passive: !!(idx & 4), capture: !!(idx & 2), once: !!(idx & 1), signal: sig });
-          sigCache[idx] = cached;
-        }
-        target.addEventListener(type, fn, cached);
-      }
-    }
+     const bind = (evtOpts) => {
+       try { _origAddEvt.call(target, type, fn, evtOpts); }
+       catch (_) { try { target.addEventListener(type, fn, evtOpts); } catch (__) {} }
+     };
+
+     if (!opts) { bind(_GLOBAL_OPTS[0]); return; }
+     const sig = getCombinedSignal(opts.signal);
+     if (sig.aborted) return;
+     const idx = (opts.passive ? 4 : 0) | (opts.capture ? 2 : 0) | (opts.once ? 1 : 0);
+
+     if (sig === __globalSig) {
+       bind(_GLOBAL_OPTS[idx]);
+     } else {
+       let sigCache = _signalOptsCache.get(sig);
+       if (!sigCache) { sigCache = new Array(8); _signalOptsCache.set(sig, sigCache); }
+       let cached = sigCache[idx];
+       if (!cached) {
+         cached = Object.freeze({ passive: !!(idx & 4), capture: !!(idx & 2), once: !!(idx & 1), signal: sig });
+         sigCache[idx] = cached;
+       }
+       bind(cached);
+     }
+   }
     const mkOn = tgt => (type, fn, opts) => on(tgt, type, fn, opts);
     const onWin = mkOn(window), onDoc = mkOn(document);
 
@@ -191,7 +198,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '213.3.0';
+    const VSC_VERSION = '214.0.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -502,7 +509,7 @@
           const sr = _origAttach.call(this, init);
           const internalRef = window[VSC_INTERNAL_SYM];
           if (internalRef?._onShadow && !__globalSig.aborted) {
-            if (init && init.mode === 'open' && !isInsideCloudflareWidget(this)) queueMicrotask(() => internalRef._onShadow(this, sr));
+            if (!isInsideCloudflareWidget(this)) queueMicrotask(() => internalRef._onShadow(this, sr));
           }
           return sr;
         };
@@ -2211,7 +2218,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
     function createTargeting() {
       let stickyTarget = null, stickyScore = -Infinity, stickyUntil = 0;
       const SCORE = Object.freeze({
-        PLAYING: 5.0, HAS_PROGRESS: 1.5, AREA_SCALE: 1.5, AREA_DIVISOR: 12000,
+  PLAYING: 25.0, HAS_PROGRESS: 1.5, AREA_SCALE: 1.5, AREA_DIVISOR: 12000,
         USER_PROX_MAX: 2.5, USER_PROX_DECAY: 1500, USER_PROX_RAD_SQ: 722500,
         CENTER_BIAS: 0.5, CENTER_RAD_SQ: 810000, AUDIO_BASE: 1.5,
         AUDIO_BOOST_EXTRA: 0.8, PIP_BONUS: 6.0
@@ -2223,13 +2230,18 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         const evalScore = (v) => {
           if (!v || v.readyState < 2) return;
           const r = getRectCached(v, 350); const area = r.width * r.height;
-          const pip = isPiPActiveVideo(v);
-          if (area < 100 && !pip) return;
-          const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
+const pip = isPiPActiveVideo(v);
+const isPlaying = !v.paused && !v.ended;
+// 면적이 0이든 일시정지 상태든 무조건 점수 심사에 포함시킵니다.
+const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           let s = 0;
           if (!v.paused && !v.ended) s += SCORE.PLAYING;
           if (v.currentTime > 0.2) s += SCORE.HAS_PROGRESS;
           s += Math.log2(1 + area / SCORE.AREA_DIVISOR) * SCORE.AREA_SCALE;
+
+          // 🎯 ok.ru가 몰래 재생시키는 보이지 않는 더미 비디오 강제 탈락
+          if (area < 10 && !pip) s -= 200;
+
           const ptAge = Math.max(0, now - (lastUserPt.t || 0));
           const userBias = Math.exp(-ptAge / SCORE.USER_PROX_DECAY);
           const dx = cx - lastUserPt.x, dy = cy - lastUserPt.y;
@@ -2673,11 +2685,12 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         };
 
         const scanNode = n => {
-          if (!n) return;
-          if (n.nodeType === 1) {
-            if (__cfPositive.has(n)) return;
-            if (n.tagName === 'VIDEO') { observeVideo(n); return; }
-            if (!n.childElementCount) return;
+  if (!n) return;
+  if (n.nodeType === 1) {
+    if (__cfPositive.has(n)) return;
+    if (n.tagName === 'VIDEO') { observeVideo(n); return; }
+    if (n.shadowRoot) WorkQ.enqueue(n.shadowRoot); // Shadow DOM 내부 강제 딥스캔
+    if (!n.childElementCount) return;
             try { const vs = n.getElementsByTagName('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch(_) {}
           } else if (n.nodeType === 11) {
             try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch(_) {}
@@ -4403,28 +4416,49 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
       if (!cvCtx) { cv = document.createElement('canvas'); cv.width = CANVAS_W; cv.height = CANVAS_H; try { cvCtx = cv.getContext('2d', { willReadFrequently: true, alpha: false }); } catch (_) { try { cvCtx = cv.getContext('2d', { willReadFrequently: true }); } catch (__) {} } }
       let __asRvfcId = 0, __asRvfcVideo = null, __asTimeoutId = 0;
 
-      function scheduleNext(v, delayMs) {
-        if (!AUTO.running || __globalSig.aborted) return;
-        if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; }
-        if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') { try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {} __asRvfcId = 0; __asRvfcVideo = null; }
-        const useRvfc = v && !v.paused && typeof v.requestVideoFrameCallback === 'function';
-        const RVFC_THRESHOLD = 200;
-        if (delayMs > RVFC_THRESHOLD) {
-          const waitMs = delayMs - (useRvfc ? 80 : 0);
-          __asTimeoutId = setTimer(() => {
-            __asTimeoutId = 0; if (!AUTO.running || __globalSig.aborted) return;
-            if (useRvfc) { __asRvfcVideo = v; __asRvfcId = v.requestVideoFrameCallback((now, metadata) => { __asRvfcId = 0; __asRvfcVideo = null; if (metadata && Number.isFinite(metadata.presentedFrames)) { const dropped = metadata.expectedDisplayTime - now; if (dropped > 33) AUTO.curFps = Math.max(AUTO.minFps, AUTO.curFps * 0.8); } loop(); }); } else loop();
-          }, Math.max(16, waitMs)); return;
+      // [수정 전] - scheduleNext 함수 전체를 통째로 아래 코드로 덮어씌우세요.
+function scheduleNext(v, delayMs) {
+  if (!AUTO.running || __globalSig.aborted) return;
+  if (__asTimeoutId) { clearTimer(__asTimeoutId); __asTimeoutId = 0; }
+  if (__asRvfcId && __asRvfcVideo && typeof __asRvfcVideo.cancelVideoFrameCallback === 'function') {
+    try { __asRvfcVideo.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
+    __asRvfcId = 0; __asRvfcVideo = null;
+  }
+
+  const useRvfc = v && !v.paused && typeof v.requestVideoFrameCallback === 'function';
+  const RVFC_THRESHOLD = 200;
+
+  if (useRvfc) {
+    let fired = false;
+    // 워치독 타이머: 브라우저가 rvfc를 씹으면(비디오가 0x0이라서) 강제로 루프 속행
+    const fallbackTimer = setTimer(() => {
+      if (!fired && AUTO.running && !__globalSig.aborted) {
+        if (__asRvfcId && typeof v.cancelVideoFrameCallback === 'function') {
+          try { v.cancelVideoFrameCallback(__asRvfcId); } catch (_) {}
         }
-        if (useRvfc) {
-          const target = performance.now() + Math.max(0, delayMs | 0); __asRvfcVideo = v;
-          __asRvfcId = v.requestVideoFrameCallback((now, metadata) => {
-            __asRvfcId = 0; __asRvfcVideo = null; if (metadata && Number.isFinite(metadata.presentedFrames)) { const dropped = metadata.expectedDisplayTime - now; if (dropped > 33) AUTO.curFps = Math.max(AUTO.minFps, AUTO.curFps * 0.8); }
-            const remain = target - performance.now(); if (remain > 6) { scheduleNext(v, remain); return; } loop();
-          }); return;
-        }
-        __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
+        __asRvfcId = 0; __asRvfcVideo = null;
+        loop(); // 강제 심폐소생
       }
+    }, Math.max(500, delayMs + 250));
+
+    const target = performance.now() + Math.max(0, delayMs | 0);
+    __asRvfcVideo = v;
+    __asRvfcId = v.requestVideoFrameCallback((now, metadata) => {
+      fired = true;
+      clearTimer(fallbackTimer);
+      __asRvfcId = 0; __asRvfcVideo = null;
+      if (metadata && Number.isFinite(metadata.presentedFrames)) {
+        const dropped = metadata.expectedDisplayTime - now;
+        if (dropped > 33) AUTO.curFps = Math.max(AUTO.minFps, AUTO.curFps * 0.8);
+      }
+      const remain = target - performance.now();
+      if (remain > 6) { scheduleNext(v, remain); return; }
+      loop();
+    });
+    return;
+  }
+  __asTimeoutId = setTimer(loop, Math.max(16, delayMs | 0));
+}
 
       let _fpsMotionAvg = 0;
       function adaptiveFps(motionSAD, isCut, isFade) {
@@ -4940,7 +4974,7 @@ registerProcessor('vsc-dsp-processor', VSCDSPProcessor);
         }
 
         const audioBoostOn = !!Store.get(P.A_EN);
-        const { target } = TargetingMod.pickFastActiveOnly(Registry.visible.videos, __lastUserPt, audioBoostOn);
+        const { target } = TargetingMod.pickFastActiveOnly(Registry.videos, __lastUserPt, audioBoostOn);
 
         if (!target && !applyAll) {
           if (prevTarget !== null) {
@@ -4965,8 +4999,8 @@ if (targetChanged || forceApply) {
         _targets.clear();
         if (target) _targets.add(target);
         if (applyAll) {
-          for (const v of Registry.visible.videos) { if (v.isConnected) _targets.add(v); }
-        }
+  for (const v of Registry.videos) { if (v.isConnected) _targets.add(v); }
+}
 
         for (const v of TOUCHED.videos) {
           if (!v.isConnected || _targets.has(v)) continue;
@@ -5222,7 +5256,9 @@ if (targetChanged || forceApply) {
         const inShadow = videoRoot instanceof ShadowRoot;
 
         const inFullscreen = !!(document.fullscreenElement || document.webkitFullscreenElement);
-        const forceCssOnly = inShadow || (inFullscreen && video === (document.fullscreenElement || document.webkitFullscreenElement));
+
+        // 🐛 섀도우 DOM이라고 무조건 쫄아서 샤프닝(SVG)을 버리고 CSS로 도망가는 버그 수정! (전체화면 상태일 때만 폴백)
+        const forceCssOnly = inFullscreen && (inShadow || video === (document.fullscreenElement || document.webkitFullscreenElement));
 
         const root = inShadow ? videoRoot : (video.ownerDocument || document);
         let dc = urlCache.get(root); if (!dc) { dc = { keyHash: 0, url: '', filterStr: 'none', cssOnly: false }; urlCache.set(root, dc); }
@@ -5378,10 +5414,7 @@ if (targetChanged || forceApply) {
           if (!el) return;
           const st = getVState(el);
           if (st._inPiP) return;
-          if (!st.visible && !isPiPActiveVideo(el)) {
-            if (st.applied) { vscRemoveStyle(el, 'will-change'); vscRemoveStyle(el, 'contain'); }
-            return;
-          }
+
           if (!filterResult) {
             if (st.applied) {
               vscClearAllStyles(el);
@@ -5397,12 +5430,18 @@ if (targetChanged || forceApply) {
           const cssHash = internFilter(filterStr);
           const svgHash = filterResult._svgHash || 0;
 
-          if (st._lastFilterHash === cssHash && st._lastSvgHash === svgHash && st.applied) return;
+          // 🛡️ 사이트가 VSC의 필터 CSS를 몰래 지워버렸는지 감시하는 불사조 로직
+          let isStripped = false;
+          if (st.applied && !el.style.getPropertyValue('filter')) {
+            isStripped = true;
+          }
+
+          if (st._lastFilterHash === cssHash && st._lastSvgHash === svgHash && st.applied && !isStripped) return;
 
           const isZoomed = !!window[VSC_INTERNAL_SYM]?.ZoomManager?.isZoomed(el);
           const svgChanged = st._lastSvgHash !== svgHash && st.applied;
 
-          if (!st.applied) {
+          if (!st.applied || isStripped) {
             vscApplyFilterStyles(el, filterStr, isZoomed);
             st.applied = true;
             st._transitionCleared = true;
@@ -5440,10 +5479,12 @@ if (targetChanged || forceApply) {
       const _cache = computeResolutionSharpMul.cache;
 
       const nW = video.videoWidth  | 0;
-      const nH = video.videoHeight | 0;
-      const dW = (video.clientWidth  || video.offsetWidth  || 0) | 0;
-      const dH = (video.clientHeight || video.offsetHeight || 0) | 0;
-      const dpr = Math.min(Math.max(1, window.devicePixelRatio | 0), 4);
+const nH = video.videoHeight | 0;
+let dW = (video.clientWidth  || video.offsetWidth  || 0) | 0;
+let dH = (video.clientHeight || video.offsetHeight || 0) | 0;
+if (dW === 0) dW = nW; // 화면에 안 보여서 0x0일 경우 원본 크기로 덮어씌움
+if (dH === 0) dH = nH;
+const dpr = Math.min(Math.max(1, window.devicePixelRatio | 0), 4);
 
       const c = _cache.get(video);
       if (c !== undefined && c.nW === nW && c.nH === nH && c.dW === dW && c.dH === dH && c.dp === dpr) {
@@ -5545,14 +5586,16 @@ if (targetChanged || forceApply) {
           const storeRev = Store.rev();
           const sceneRev = window[VSC_INTERNAL_SYM]?.AutoScene?.getAutoSceneRev?.() ?? 0;
           const w  = (activeTarget?.videoWidth  | 0) || 0;
-          const ht = (activeTarget?.videoHeight | 0) || 0;
+const ht = (activeTarget?.videoHeight | 0) || 0;
+const dw = (activeTarget?.clientWidth | 0) || 0;
+const dh = (activeTarget?.clientHeight | 0) || 0;
 
-          if (activeTarget) {
-            const c = cache.get(activeTarget);
-            if (c !== undefined && c.sr === storeRev && c.ar === sceneRev && c.w  === w && c.h  === ht) {
-              return c.result;
-            }
-          }
+if (activeTarget) {
+  const c = cache.get(activeTarget);
+  if (c !== undefined && c.sr === storeRev && c.ar === sceneRev && c.w === w && c.h === ht && c.dw === dw && c.dh === dh) {
+    return c.result;
+  }
+}
 
           const autoMods = window[VSC_INTERNAL_SYM]?.AutoScene?.getMods?.() || { br: 1.0, ct: 1.0, sat: 1.0 };
           const motionSAD = window[VSC_INTERNAL_SYM]?.AutoScene?.getLastMotionSAD?.() || 0;
@@ -5565,8 +5608,8 @@ if (targetChanged || forceApply) {
           svgBase.sharp = Math.min(Number(svgBase.sharp || 0), 28);
 
           if (activeTarget) {
-            cache.set(activeTarget, { sr: storeRev, ar: sceneRev, w, h: ht, result: svgBase });
-          }
+  cache.set(activeTarget, { sr: storeRev, ar: sceneRev, w, h: ht, dw, dh, result: svgBase });
+}
           return svgBase;
         },
         invalidate() {}
@@ -6833,11 +6876,31 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
       const videoAC = new AbortController(); const videoSig = getCombinedSignal(videoAC.signal); st._ac = videoAC;
       touchedAddLimited(TOUCHED.videos, video);
 
-      // 안전한 캐시 삭제 처리로 변경
+      const onVideoStateChange = () => { st._resizeDirty = true; ApplyReq.hard(); };
+
+      // 안전한 캐시 삭제 처리 및 갱신 트리거
       on(video, 'resize', () => {
         st._resizeDirty = true;
         if (computeResolutionSharpMul.cache) computeResolutionSharpMul.cache.delete(video);
+        ApplyReq.soft();
       }, { signal: videoSig });
+
+      on(video, 'loadedmetadata', onVideoStateChange, { signal: videoSig });
+      on(video, 'loadeddata', onVideoStateChange, { signal: videoSig });
+      on(video, 'canplay', onVideoStateChange, { signal: videoSig });
+      on(video, 'playing', onVideoStateChange, { signal: videoSig });
+
+      // 최강의 안전망: 비디오가 재생되며 시간이 흐를 때, 필터가 안 씌워져 있다면 강제 갱신 트리거
+      let _lastTimeUpdate = 0;
+      on(video, 'timeupdate', () => {
+        const now = performance.now();
+        if (now - _lastTimeUpdate > 1000) {
+          _lastTimeUpdate = now;
+          if (!st.applied) ApplyReq.soft();
+        }
+      }, { signal: videoSig, passive: true });
+
+      if (video.readyState >= 1) setTimer(() => { if (!videoSig.aborted) ApplyReq.hard(); }, 80);
 
       const onVideoReady = () => { st._resizeDirty = true; ApplyReq.hard(); };
       on(video, 'loadedmetadata', onVideoReady, { signal: videoSig }); on(video, 'loadeddata', onVideoReady, { signal: videoSig });
@@ -6918,10 +6981,10 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
       if (ZoomMgr) ZoomMgr.onNewVideoForZoom(video); patchFullscreenRequest(video);
 
-      // ✅ Wake Lock 훅 추가
-      on(video, 'play',  () => { if (CONFIG.IS_MOBILE) WakeLock.onPlay();  }, { signal: videoSig });
-      on(video, 'pause', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); }, { signal: videoSig });
-      on(video, 'ended', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); }, { signal: videoSig });
+      // ✅ Wake Lock 훅 추가 및 상태 변화 갱신 트리거 연결
+      on(video, 'play',  () => { if (CONFIG.IS_MOBILE) WakeLock.onPlay(); onVideoStateChange(); }, { signal: videoSig });
+      on(video, 'pause', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); onVideoStateChange(); }, { signal: videoSig });
+      on(video, 'ended', () => { if (CONFIG.IS_MOBILE) WakeLock.onPause(); onVideoStateChange(); }, { signal: videoSig });
 
       // 이미 재생 중인 경우 즉시 획득
       if (CONFIG.IS_MOBILE && !video.paused && !video.ended) WakeLock.onPlay();
@@ -7542,7 +7605,7 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '213.3.0'; // 버전 상승
+      const VSC_VERSION_ID = '214.0.0'; // 버전 상승
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
@@ -7625,6 +7688,20 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
           processVideo(v);
           count++;
         });
+
+        for (const it of shadowRootsLRU) {
+  if (it.host?.isConnected) {
+    try {
+      it.root.querySelectorAll('video').forEach(v => {
+        if (!Registry.videos.has(v)) {
+          Registry.observeVideo(v);
+          processVideo(v);
+          count++;
+        }
+      });
+    } catch (_) {}
+  }
+}
 
         document.querySelectorAll('iframe').forEach(ifr => {
           try {
@@ -7799,6 +7876,9 @@ ${Array.from({length: 20}, (_, i) => `.body > *:nth-child(${i + 1}) { animation-
 
       setRecurring(() => { flushPersist(); }, 15000);
       setRecurring(() => { for (const v of Registry.videos) { if (v.isConnected && !getVState(v).bound) processVideo(v); } }, 800, { maxErrors: 50 });
+
+      // 플레이어가 모든 이벤트를 씹어버리는 극단적 상황을 대비한 최후의 심박동(Heartbeat)
+      setRecurring(() => { ApplyReq.soft(); }, 1500, { maxErrors: 50 });
 
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => {
