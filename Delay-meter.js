@@ -1,13 +1,19 @@
 // ==UserScript==
 // @name         딜레이 미터기
 // @namespace    https://github.com/moamoa7
-// @version      12.7.2
+// @version      12.7.4
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (WebRTC MediaStream 지원)
 // @author       DelayMeter
 // @match        *://*/*
 // @exclude      *://*.youtube.com/live_chat*
+// @exclude      *://challenges.cloudflare.com/*
+// @exclude      *://*.challenges.cloudflare.com/*
+// @exclude      *://*.hcaptcha.com/*
+// @exclude      *://accounts.google.com/*
+// @exclude      *://*.recaptcha.net/*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
+// @grant        unsafeWindow
 // @license      MIT
 // @run-at       document-start
 // ==/UserScript==
@@ -17,77 +23,72 @@
 
   /* ══════════════════════════════════════════════
      페이지 컨텍스트에 RTCPeerConnection 인터셉터 주입
-     UserScript 샌드박스를 우회하여 실제 window에 접근
+     unsafeWindow를 통해 CSP를 우회하여 실제 window에 접근
      ══════════════════════════════════════════════ */
-  const INJECT_SRC = `(function(){
-    if(window.__dm_rtc_injected)return;window.__dm_rtc_injected=true;
-    var pcList=[];
-    var Orig=window.RTCPeerConnection||window.webkitRTCPeerConnection;
-    if(!Orig)return;
-    var Wrapped=function(){
-      var pc=new(Function.prototype.bind.apply(Orig,[null].concat(Array.prototype.slice.call(arguments))));
-      pcList.push(pc);return pc;
-    };
-    Wrapped.prototype=Orig.prototype;
-    try{Object.setPrototypeOf(Wrapped,Orig)}catch(e){}
-    if(window.RTCPeerConnection)window.RTCPeerConnection=Wrapped;
-    if(window.webkitRTCPeerConnection)window.webkitRTCPeerConnection=Wrapped;
+  const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
 
-    /* 주기적으로 jitterBufferDelay를 측정하여 CustomEvent로 전달 */
-    var prevD=0,prevC=0;
-    function poll(){
-      for(var i=pcList.length-1;i>=0;i--){
-        var pc=pcList[i];
-        try{if(pc.connectionState==='closed'||pc.connectionState==='failed'){pcList.splice(i,1);continue}}catch(e){pcList.splice(i,1);continue}
-        if(pc.connectionState!=='connected'&&pc.connectionState!=='connecting')continue;
-        pc.getStats().then(function(stats){
-          stats.forEach(function(r){
-            if((r.type==='inbound-rtp'||r.type==='track')&&(r.kind==='video'||r.mediaType==='video')){
-              var d=r.jitterBufferDelay,c=r.jitterBufferEmittedCount;
-              if(d!=null&&c!=null&&c>0){
-                var delay;
-                if(prevC>0&&c>prevC)delay=(d-prevD)/(c-prevC);
-                else delay=d/c;
-                prevD=d;prevC=c;
-                window.dispatchEvent(new CustomEvent('__dm_jb',{detail:{delay:delay,ts:Date.now()}}));
+  const injectRTC = () => {
+    if (W.__dm_rtc_injected) return;
+    W.__dm_rtc_injected = true;
+
+    const pcList = [];
+    const Orig = W.RTCPeerConnection || W.webkitRTCPeerConnection;
+    if (!Orig) return;
+
+    const Wrapped = function () {
+      const pc = new (Function.prototype.bind.apply(Orig, [null].concat(Array.prototype.slice.call(arguments))))();
+      pcList.push(pc);
+      return pc;
+    };
+    Wrapped.prototype = Orig.prototype;
+    try { Object.setPrototypeOf(Wrapped, Orig); } catch (e) {}
+
+    if (W.RTCPeerConnection) W.RTCPeerConnection = Wrapped;
+    if (W.webkitRTCPeerConnection) W.webkitRTCPeerConnection = Wrapped;
+
+    let prevD = 0, prevC = 0;
+    function poll() {
+      for (let i = pcList.length - 1; i >= 0; i--) {
+        const pc = pcList[i];
+        try {
+          if (pc.connectionState === 'closed' || pc.connectionState === 'failed') { pcList.splice(i, 1); continue; }
+        } catch (e) { pcList.splice(i, 1); continue; }
+        if (pc.connectionState !== 'connected' && pc.connectionState !== 'connecting') continue;
+        pc.getStats().then(function (stats) {
+          stats.forEach(function (r) {
+            if ((r.type === 'inbound-rtp' || r.type === 'track') && (r.kind === 'video' || r.mediaType === 'video')) {
+              const d = r.jitterBufferDelay, c = r.jitterBufferEmittedCount;
+              if (d != null && c != null && c > 0) {
+                let delay;
+                if (prevC > 0 && c > prevC) delay = (d - prevD) / (c - prevC);
+                else delay = d / c;
+                prevD = d; prevC = c;
+                W.dispatchEvent(new W.CustomEvent('__dm_jb', { detail: { delay: delay, ts: Date.now() } }));
               }
             }
           });
-        }).catch(function(){});
+        }).catch(function () {});
         break;
       }
     }
-    setInterval(poll,1000);
+    W.setInterval(poll, 1000);
 
-    /* PC 상태도 전달 */
-    setInterval(function(){
-      var active=null;
-      for(var i=pcList.length-1;i>=0;i--){
-        var pc=pcList[i];
-        try{if(pc.connectionState==='closed'||pc.connectionState==='failed'){pcList.splice(i,1);continue}}catch(e){pcList.splice(i,1);continue}
-        if(pc.connectionState==='connected'||pc.connectionState==='connecting'){active=pc;break}
+    W.setInterval(function () {
+      let active = null;
+      for (let i = pcList.length - 1; i >= 0; i--) {
+        const pc = pcList[i];
+        try {
+          if (pc.connectionState === 'closed' || pc.connectionState === 'failed') { pcList.splice(i, 1); continue; }
+        } catch (e) { pcList.splice(i, 1); continue; }
+        if (pc.connectionState === 'connected' || pc.connectionState === 'connecting') { active = pc; break; }
       }
-      window.dispatchEvent(new CustomEvent('__dm_pc',{detail:{
-        count:pcList.length,
-        state:active?active.connectionState:'none'
-      }}));
-    },3000);
-  })();`;
-
-  /* 페이지 컨텍스트에 주입 */
-  const injectScript = () => {
-    if (!shouldInject) return;  // ← 이 한 줄 추가
-    try {
-      const s = document.createElement('script');
-      s.textContent = INJECT_SRC;
-      (document.documentElement || document.head || document.body).appendChild(s);
-      s.remove();
-    } catch {}
+      W.dispatchEvent(new W.CustomEvent('__dm_pc', { detail: { count: pcList.length, state: active ? active.connectionState : 'none' } }));
+    }, 3000);
   };
-  injectScript();
-  /* DOMContentLoaded 이후에도 한 번 더 시도 (혹시 너무 일찍이면) */
+
+  injectRTC();
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectScript, { once: true });
+    document.addEventListener('DOMContentLoaded', injectRTC, { once: true });
   }
 
   /* ── 주입된 스크립트에서 이벤트 수신 ── */
@@ -474,14 +475,13 @@ ctx.restore()};`;
     if (!isLive(vid)) { if (IS_YOUTUBE) _scanRetry = 0; lastBuf = -1; scheduleRender(); return; }
 
     const msMode = isMediaStream(vid);
-    /* jitter buffer는 주입 스크립트가 자동 갱신하므로 여기서 별도 처리 불필요 */
 
     const buf = getBuf(vid); lastBuf = buf;
     if (!vid.paused && buf >= 0) histPush(buf);
     scheduleRender();
     if (vid.paused) return;
     if (!enabled) { safeRate(vid, R_NORM); gear = R_NORM; return; }
-    if (msMode) return; /* WebRTC: playbackRate 제어 불가, 모니터링만 */
+    if (msMode) return;
 
     const now = performance.now();
     if (now < warmupEnd) return;
@@ -498,7 +498,6 @@ ctx.restore()};`;
   };
 
   const render = (buf, vid) => {
-    // ★ 추가된 로직: 라이브 감지 시에만 UI 표시
     const actuallyLive = vid && isCandidate(vid) && isLive(vid);
     if (els.root) {
       if (!actuallyLive) {
@@ -594,7 +593,7 @@ ctx.restore()};`;
 `);
 
     const root = document.createElement('div'); root.id = 'dm-root';
-    root.style.display = 'none'; // ★ 추가: 처음에 UI를 무조건 숨김
+    root.style.display = 'none';
 
     const html = `<div id="dm-fab"><div class="dm-dot"></div></div>
 <div id="dm-pn">
@@ -624,7 +623,7 @@ ctx.restore()};`;
   <div class="dm-ft">
     <div class="dm-tog${enabled ? ' on' : ''}"></div>
     <div class="dm-net"><div class="dm-net-dot"></div><span>양호</span></div>
-    <span class="dm-ver">v12.7.1</span>
+    <span class="dm-ver">v12.7.3</span>
     <span class="dm-key">Alt+D</span>
   </div>
 </div>`;
@@ -635,7 +634,7 @@ ctx.restore()};`;
     initSparkCanvas(pn.querySelector('.dm-spark'));
 
     els = {
-      root, // ★ 추가: root 요소를 els에 저장하여 render에서 컨트롤 가능하게 함
+      root,
       fab, pn,
       val: pn.querySelector('.dm-val'), bar: pn.querySelector('.dm-bar'),
       badge: pn.querySelector('.dm-b'), tog: pn.querySelector('.dm-tog'),
@@ -703,7 +702,6 @@ ctx.restore()};`;
 
   const init = () => {
     if (!document.body) { document.addEventListener('DOMContentLoaded', init, { once: true }); return; }
-    if (!shouldInject) return;
     build(); scan(); startObserver(); loop();
   };
 
