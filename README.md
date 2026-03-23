@@ -7,7 +7,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
-※ Web_Tubro.js
+※ Web_Turbo.js
 - 모든 웹사이트에서 렉을 제거하고 최적의 성능 향상
 
 ```
