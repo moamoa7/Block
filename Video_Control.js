@@ -246,7 +246,7 @@
     }
 
     const VSC_DEFENSE = Object.freeze({ audioCooldown: true, autoSceneDrmBackoff: true });
-    const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: true, zoomFeature: true, gpuAnalysis: true, audioWorklet: true });
+    const FEATURE_FLAGS = Object.freeze({ trackShadowRoots: true, iframeInjection: false, zoomFeature: true, gpuAnalysis: true, audioWorklet: true });
     const GUARD = Object.freeze({ AUDIO_SRC_COOLDOWN: 2000, AUDIO_SRC_COOLDOWN_DRM: 6000, TARGET_HYSTERESIS_MS: 350, TARGET_HYSTERESIS_MARGIN: 1.5 });
     const SHADOW_ROOT_LRU_MAX = 16;
     const SPA_RESCAN_DEBOUNCE_MS = 500;
