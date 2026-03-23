@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v214.2.0)
+// @name         Video_Control (v214.3.0)
 // @namespace    https://github.com/
-// @version      214.2.0
-// @description  v214.2.0: Audio engine robust bypass & retry fix
+// @version      214.3.0
+// @description  v214.3.0: Audio engine robust bypass & retry fix
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -198,7 +198,7 @@
       VSC_ID: (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''),
       DEBUG: false
     });
-    const VSC_VERSION = '214.2.0';
+    const VSC_VERSION = '214.3.0';
 
     /* ══ Storage keys ══ */
     function normalizeHostnameForStorage(h) {
@@ -377,12 +377,12 @@
       applied: false, desiredRate: undefined, lastFilterUrl: null,
       rectT: 0, rectEpoch: -1, fsPatched: false, _resizeDirty: false,
       _ac: null, _inPiP: false, _pipPending: false, lastCssFilterStr: null, _transitionCleared: false, _lastFilterHash: 0,
-      _lastSvgHash: 0, // ✅ 신규: SVG 해시 추적용 변수 추가
+      _lastSvgHash: 0, _corsOsdShown: false, // ✅ 수정됨: OSD 중복 방지 플래그 추가
       __abCompare: false, __pipOrigComputed: null, __pipHadFilter: false, __pipSavedFilterStr: null,
       rateState: mkRateState(),
       resetTransient() {
         this.audioFailUntil = 0; this.rect = null; this.rectT = 0; this.rectEpoch = -1;
-        this.desiredRate = undefined; this._pipPending = false; Object.assign(this.rateState, mkRateState());
+        this.desiredRate = undefined; this._pipPending = false; this._corsOsdShown = false; Object.assign(this.rateState, mkRateState());
       }
     });
 
@@ -3136,13 +3136,19 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
 
         const currentRms = __useWorklet ? __workletMetrics.rmsDb : getLegacyRms();
 
-        // CORS 무음 감지 보호막
-        if (actuallyEnabled && target && !target.paused && target.readyState >= 3) {
+        // ✅ 수정됨: 뮤트나 볼륨 0이 아닐 때만 감지 & 대기시간 4초로 연장 & 30초 쿨다운 & 알림창 중복 방지
+        if (actuallyEnabled && target && !target.paused && target.readyState >= 3 && target.volume > 0 && !target.muted) {
           if (currentRms <= -98) {
             corsSilenceMs += delay;
-            if (corsSilenceMs > 2000) {
+            if (corsSilenceMs > 4000) {
               log.warn('[Audio] CORS Mute detected. Auto-bypassing to restore original audio.');
-              try { if (typeof showOSD === 'function') showOSD('보안(CORS) 제한이 감지되어\\n원본 오디오로 우회합니다.', 3000); } catch(_) {}
+              const st = getVState(target);
+              if (st) st.audioFailUntil = performance.now() + 30000;
+
+              if (st && !st._corsOsdShown) {
+                try { if (typeof showOSD === 'function') showOSD('보안(CORS) 제한이 감지되어\\n원본 오디오로 우회합니다.', 3000); } catch(_) {}
+                st._corsOsdShown = true;
+              }
               enterBypass(target);
               corsSilenceMs = 0;
               return;
@@ -3475,7 +3481,7 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           source.__vsc_originalMuted = video.muted;
           source.__vsc_originalVolume = video.volume;
 
-          video.muted = true; // Web Audio에서만 소리가 나게 원래 영상 음소거
+          video.muted = true;
 
           return source;
         } catch (e) {
@@ -3518,9 +3524,10 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
           }
 
           if (!s) {
-            const isBlobOrJw = detectJwPlayer(v) || v.src?.startsWith('blob:');
+            // ✅ 수정됨: 모든 blob을 captureStream으로 강제하는 로직 삭제. JWPlayer만 예외 처리.
+            const isJw = detectJwPlayer(v);
 
-            if (isBlobOrJw) {
+            if (isJw) {
               s = connectViaCaptureStream(v);
             } else {
               try { s = ctx.createMediaElementSource(v); }
@@ -3596,6 +3603,12 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
       };
 
       async function setTarget(v) {
+        if (CONFIG.IS_FIREFOX) {
+          if (currentSrc || target) fadeOutThen(() => { disconnectAll(); });
+          target = v;
+          return;
+        }
+
         const enabled = !!(sm.get(P.A_EN) && sm.get(P.APP_ACT));
         const st = v ? getVState(v) : null;
 
@@ -3698,6 +3711,7 @@ const cx = r.left + r.width * 0.5, cy = r.top + r.height * 0.5;
         if (!sm.get(P.A_EN) || !sm.get(P.APP_ACT)) return;
 
         const st = getVState(target);
+        // ✅ 수정됨: 쿨다운 기간(30초) 중에는 재시도 무시
         if (st.audioFailUntil > performance.now()) return;
 
         exitBypass();
@@ -6280,6 +6294,9 @@ ${CSS_VARS}
           if (nW === 0 || nH === 0) { infoBar.textContent = '로딩 중...'; return; }
           const { autoBase } = computeResolutionSharpMul(video); const presetS = Store.get(P.V_PRE_S);
           let sharpLabel = presetS === 'none' ? '꺼짐(OFF)' : (presetS === 'off' ? `자동(${autoBase.toFixed(3)})` : `${getPresetLabel('detail', presetS)} (수동)`);
+
+          if (CONFIG.IS_FIREFOX) sharpLabel = '사용 불가(Firefox)';
+
           infoBar.textContent = `원본 ${nW}×${nH} → 출력 ${dW}×${dH}  │  샤프닝: ${sharpLabel}`;
         }
         Bus.on('signal', updateInfo); tabFns.push(updateInfo); updateInfo();
@@ -6300,9 +6317,8 @@ ${CSS_VARS}
         if (CONFIG.IS_FIREFOX) {
           w.append(
             h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
-              "ℹ️ 파이어폭스 브라우저 제약으로 선명도 및 고급 암부 보정이 비활성화되었습니다. (재생속도/오디오/기본 밝기 사용 가능)"
+              "ℹ️ 파이어폭스 브라우저 제약으로 화질 보정 기능이 비활성화되었습니다.\n(재생 속도 / 비디오 변환 / 화면 조도만 사용 가능)"
             ),
-            mkRow('노출 보정 (CSS)', ...mkOptimizedSlider(P.V_MAN_BRT, 0, 100, 1)),
             mkSep()
           );
         } else {
@@ -6417,57 +6433,52 @@ ${CSS_VARS}
             mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
             mkSep()
           );
-
-          // --------------------------------------------------------
-          // [화면 조도 (Dimmer)] 파트
-          // --------------------------------------------------------
-          const brtBtns = [];
-          const brtChips = h('div', { class: 'chips' });
-
-          SCR_BRT_LABELS.forEach((label, idx) => {
-            if (idx === 0) return;
-            const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
-            chip.addEventListener('click', () => {
-              Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
-              showOSD('화면 조도: ' + label, 1000);
-            }, { signal: sig });
-            brtBtns.push(chip); brtChips.appendChild(chip);
-          });
-
-          const brtResetBtn = h('button', {
-            class: 'chip',
-            style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
-          brtResetBtn.addEventListener('click', () => {
-            Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
-            showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
-          }, { signal: sig });
-
-          const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
-
-          function syncBrt() {
-            const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-            brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
-            brtResetBtn.classList.toggle('on', cur === 0);
-            brtValLabel.textContent = SCR_BRT_LABELS[cur];
-          }
-          tabFns.push(syncBrt); syncBrt();
-
-          w.append(
-            h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-              h('div', { style: 'display:flex;align-items:center' },
-                h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
-                brtValLabel
-              ),
-              brtResetBtn
-            ),
-            brtChips,
-            h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
-            mkSep()
-          );
-          // --------------------------------------------------------
-          // [화면 조도 (Dimmer)] 파트 끝
-          // --------------------------------------------------------
         }
+
+        // --- 공통 기능: 화면 조도 (Dimmer) ---
+        const brtBtns = [];
+        const brtChips = h('div', { class: 'chips' });
+
+        SCR_BRT_LABELS.forEach((label, idx) => {
+          if (idx === 0) return;
+          const chip = h('span', { class: 'chip', 'data-v': String(idx) }, label === '기본' ? '☀ 기본' : '☀ ' + (idx - 0));
+          chip.addEventListener('click', () => {
+            Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); persistNow(); syncBrt();
+            showOSD('화면 조도: ' + label, 1000);
+          }, { signal: sig });
+          brtBtns.push(chip); brtChips.appendChild(chip);
+        });
+
+        const brtResetBtn = h('button', {
+          class: 'chip',
+          style: 'margin-left:auto; flex:none; width:70px; font-size:10px; border-color:var(--vsc-text-muted); color: #fff !important;'}, '리셋(OFF)');
+        brtResetBtn.addEventListener('click', () => {
+          Store.set(P.APP_SCREEN_BRT, 0); applyScrBrt(0); persistNow(); syncBrt();
+          showOSD('화면 조도: ' + SCR_BRT_LABELS[0], 1000);
+        }, { signal: sig });
+
+        const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
+
+        function syncBrt() {
+          const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
+          brtBtns.forEach((btn) => { btn.classList.toggle('on', btn.dataset.v === String(cur)); });
+          brtResetBtn.classList.toggle('on', cur === 0);
+          brtValLabel.textContent = SCR_BRT_LABELS[cur];
+        }
+        tabFns.push(syncBrt); syncBrt();
+
+        w.append(
+          h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+            h('div', { style: 'display:flex;align-items:center' },
+              h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도 (Dimmer)'),
+              brtValLabel
+            ),
+            brtResetBtn
+          ),
+          brtChips,
+          h('div', { style: 'font-size:10px;opacity:.35;padding:4px 0 0;line-height:1.4' }, '단축키: Alt+L  │  영상 외 전체 화면의 조도를 줄여줍니다'),
+          mkSep()
+        );
 
         /* ── 비디오 변환 섹션 ── */
         const transformLabel = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
@@ -6544,16 +6555,29 @@ ${CSS_VARS}
 
       function buildAudioTab() {
         const w = h('div', {});
-        // Patch B+: 오디오 토글 시 prewarm() 즉시 호출하여 사용자 클릭 컨텍스트 확보
-        w.append(
-          mkRow('오디오 부스트', mkOptimizedToggle(P.A_EN, (nv) => {
-            if (nv) { Audio.prewarm?.(); }
-            ApplyReq.soft();
-          })),
-          mkRow('부스트 (dB)', ...mkOptimizedSlider(P.A_BST, 0, 15, 0.5))
-        );
+
+        if (CONFIG.IS_FIREFOX) {
+          w.append(
+            h('div', { style: 'padding:10px;background:rgba(255,100,100,0.1);border-radius:8px;font-size:11px;color:#ff8888;margin-bottom:10px;line-height:1.4' },
+              "⚠️ 파이어폭스는 보안 정책이 엄격하여 스트리밍 사이트 등에서 오디오 부스트를 켤 경우 소리가 완전히 차단(영구 무음)될 수 있습니다. 안전을 위해 해당 브라우저에서는 오디오 기능이 비활성화됩니다."
+            )
+          );
+        } else {
+          w.append(
+            mkRow('오디오 부스트', mkOptimizedToggle(P.A_EN, (nv) => {
+              if (nv) { Audio.prewarm?.(); }
+              ApplyReq.soft();
+            })),
+            mkRow('부스트 (dB)', ...mkOptimizedSlider(P.A_BST, 0, 15, 0.5))
+          );
+        }
+
         const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0' }, '오디오: 대기');
         Bus.on('signal', () => {
+          if (CONFIG.IS_FIREFOX) {
+             status.textContent = '상태: 사용 불가 (Firefox 정책 제한)';
+             return;
+          }
           const ctxReady = Audio.hasCtx(), hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
           if (!ctxReady) status.textContent = '상태: 대기';
           else if (hooked && !bypassed) status.textContent = '상태: 활성 (DSP 처리 중)';
@@ -7764,7 +7788,7 @@ ${CSS_VARS}
        BOOTSTRAP
        ══════════════════════════════════════════════════════════════════ */
     function bootstrap() {
-      const VSC_VERSION_ID = '214.2.0';
+      const VSC_VERSION_ID = '214.3.0';
       log.info(`[VSC] v${VSC_VERSION_ID} booting on ${location.hostname}`);
 
       window[VSC_INTERNAL_SYM]._gpuSceneActive = false;
