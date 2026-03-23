@@ -1,23 +1,104 @@
 // ==UserScript==
 // @name         딜레이 미터기
 // @namespace    https://github.com/moamoa7
-// @version      12.4.4
-// @description  라이브 방송의 딜레이를 자동 감지·제어
+// @version      12.7.1
+// @description  라이브 방송의 딜레이를 자동 감지·제어 (WebRTC MediaStream 지원)
 // @author       DelayMeter
-// @match        *://*.youtube.com/*
-// @match        *://*.twitch.tv/*
-// @match        *://chzzk.naver.com/*
-// @match        *://*.sooplive.co.kr/*
-// @match        *://*.afreecatv.com/*
+// @match        *://*/*
 // @exclude      *://*.youtube.com/live_chat*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @license      MIT
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 (function () {
   'use strict';
+
+  /* ══════════════════════════════════════════════
+     페이지 컨텍스트에 RTCPeerConnection 인터셉터 주입
+     UserScript 샌드박스를 우회하여 실제 window에 접근
+     ══════════════════════════════════════════════ */
+  const INJECT_SRC = `(function(){
+    if(window.__dm_rtc_injected)return;window.__dm_rtc_injected=true;
+    var pcList=[];
+    var Orig=window.RTCPeerConnection||window.webkitRTCPeerConnection;
+    if(!Orig)return;
+    var Wrapped=function(){
+      var pc=new(Function.prototype.bind.apply(Orig,[null].concat(Array.prototype.slice.call(arguments))));
+      pcList.push(pc);return pc;
+    };
+    Wrapped.prototype=Orig.prototype;
+    try{Object.setPrototypeOf(Wrapped,Orig)}catch(e){}
+    if(window.RTCPeerConnection)window.RTCPeerConnection=Wrapped;
+    if(window.webkitRTCPeerConnection)window.webkitRTCPeerConnection=Wrapped;
+
+    /* 주기적으로 jitterBufferDelay를 측정하여 CustomEvent로 전달 */
+    var prevD=0,prevC=0;
+    function poll(){
+      for(var i=pcList.length-1;i>=0;i--){
+        var pc=pcList[i];
+        try{if(pc.connectionState==='closed'||pc.connectionState==='failed'){pcList.splice(i,1);continue}}catch(e){pcList.splice(i,1);continue}
+        if(pc.connectionState!=='connected'&&pc.connectionState!=='connecting')continue;
+        pc.getStats().then(function(stats){
+          stats.forEach(function(r){
+            if((r.type==='inbound-rtp'||r.type==='track')&&(r.kind==='video'||r.mediaType==='video')){
+              var d=r.jitterBufferDelay,c=r.jitterBufferEmittedCount;
+              if(d!=null&&c!=null&&c>0){
+                var delay;
+                if(prevC>0&&c>prevC)delay=(d-prevD)/(c-prevC);
+                else delay=d/c;
+                prevD=d;prevC=c;
+                window.dispatchEvent(new CustomEvent('__dm_jb',{detail:{delay:delay,ts:Date.now()}}));
+              }
+            }
+          });
+        }).catch(function(){});
+        break;
+      }
+    }
+    setInterval(poll,1000);
+
+    /* PC 상태도 전달 */
+    setInterval(function(){
+      var active=null;
+      for(var i=pcList.length-1;i>=0;i--){
+        var pc=pcList[i];
+        try{if(pc.connectionState==='closed'||pc.connectionState==='failed'){pcList.splice(i,1);continue}}catch(e){pcList.splice(i,1);continue}
+        if(pc.connectionState==='connected'||pc.connectionState==='connecting'){active=pc;break}
+      }
+      window.dispatchEvent(new CustomEvent('__dm_pc',{detail:{
+        count:pcList.length,
+        state:active?active.connectionState:'none'
+      }}));
+    },3000);
+  })();`;
+
+  /* 페이지 컨텍스트에 주입 */
+  const injectScript = () => {
+    try {
+      const s = document.createElement('script');
+      s.textContent = INJECT_SRC;
+      (document.documentElement || document.head || document.body).appendChild(s);
+      s.remove();
+    } catch {}
+  };
+  injectScript();
+  /* DOMContentLoaded 이후에도 한 번 더 시도 (혹시 너무 일찍이면) */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', injectScript, { once: true });
+  }
+
+  /* ── 주입된 스크립트에서 이벤트 수신 ── */
+  let _jbDelay = -1;
+  let _pcState = 'none';
+  let _pcCount = 0;
+  window.addEventListener('__dm_jb', e => {
+    if (e.detail && typeof e.detail.delay === 'number') _jbDelay = e.detail.delay;
+  });
+  window.addEventListener('__dm_pc', e => {
+    if (e.detail) { _pcState = e.detail.state || 'none'; _pcCount = e.detail.count || 0; }
+  });
 
   /* ── Trusted Types ── */
   let ttPolicy;
@@ -38,16 +119,16 @@
   const STORE_KEY = 'dm_u12_' + HOST;
 
   const detectPlatform = () => {
-    if (HOST.includes('youtube'))                              return 'youtube';
-    if (HOST.includes('chzzk'))                                return 'chzzk';
-    if (HOST.includes('sooplive') || HOST.includes('afreeca')) return 'soop';
-    if (HOST.includes('twitch'))                               return 'twitch';
+    if (HOST.includes('youtube'))  return 'youtube';
+    if (HOST.includes('chzzk'))    return 'chzzk';
+    if (HOST.includes('sooplive')) return 'soop';
+    if (HOST.includes('twitch'))   return 'twitch';
     return 'default';
   };
-  const PLATFORM    = detectPlatform();
-  const IS_YOUTUBE  = PLATFORM === 'youtube';
+  const PLATFORM   = detectPlatform();
+  const IS_YOUTUBE = PLATFORM === 'youtube';
 
-  /* ── 플랫폼별 설정 (기준 타겟 명시 + 나머지 자동 계산) ── */
+  /* ── 플랫폼별 설정 ── */
   const PLATFORM_SETTINGS = {
     youtube: { target: 10 },
     chzzk:   { target: 2 },
@@ -61,7 +142,6 @@
     const t = s.target;
     return {
       target: t,
-      // 0.5 단위로 딱 떨어지게 반올림하여 슬라이더 스텝(0.5)과 동기화
       min:    s.min    ?? (Math.round(Math.max(0.5, t * 0.2) * 2) / 2),
       max:    s.max    ?? Math.round(Math.max(10, t * 3)),
       barMax: s.barMax ?? Math.round(Math.max(15, t * 3 + 5)),
@@ -76,10 +156,10 @@
   const BAR_MAX    = PD.barMax;
   const PANIC      = PD.panic;
 
-  const SEEK_CD       = 10000;
-  const HYST          = 0.3;
-  const STALL_WINDOW  = 30000;
-  const STALL_COOLDOWN= 8000;
+  const SEEK_CD        = 10000;
+  const HYST           = 0.3;
+  const STALL_WINDOW   = 30000;
+  const STALL_COOLDOWN = 8000;
   const R_NORM = 1.00, R_SOFT = 1.02, R_HIGH = 2.0;
 
   /* ── Config ── */
@@ -102,15 +182,14 @@
 
   let enabled = cfg.enabled ?? true;
 
-  /* target 갱신 처리 */
   let target;
   if (cfg._platform === PLATFORM && cfg._lastDef === DEF_TARGET && cfg.target != null) {
     target = cfg.target;
   } else {
     target = DEF_TARGET;
     cfg._platform = PLATFORM;
-    cfg._lastDef = DEF_TARGET;
-    cfg.target = target;
+    cfg._lastDef  = DEF_TARGET;
+    cfg.target    = target;
     saveLazy();
   }
 
@@ -135,11 +214,10 @@
     else netQuality = 'good';
   };
   updateNetQuality();
-  if (navigator.connection) navigator.connection.addEventListener('change', updateNetQuality);
+  try { if (navigator.connection) navigator.connection.addEventListener('change', updateNetQuality); } catch {}
 
   /* ── Utils ── */
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-
   const colorOf = (() => {
     const STEPS = 40;
     const G = [0x00,0xE6,0x96], Y = [0xFF,0xD0,0x40], R = [0xFF,0x45,0x55];
@@ -154,23 +232,28 @@
       return lut[clamp(Math.round(ratio * STEPS), 0, STEPS)];
     };
   })();
-
   const hexToRgb = hex => {
     const n = parseInt(hex.slice(1), 16);
     return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
   };
 
+  /* ── MediaStream 감지 ── */
+  const isMediaStream = v => !!(v && v.srcObject && v.srcObject instanceof MediaStream);
+
   const getBuf = vid => {
+    if (isMediaStream(vid)) return _jbDelay;
     try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - vid.currentTime; }
     catch { return -1; }
   };
+  const isHlsSrc = src => /\.m3u8($|\?)/i.test(src);
 
-  /* ── isLive ── */
   const _liveCache = new WeakMap();
+  const _liveTracker = new WeakMap();
+
   const isLive = vid => {
     if (!vid) return false;
+    if (isMediaStream(vid)) return true;
     if (vid.duration === Infinity || vid.duration >= 1e6) return true;
-
     if (IS_YOUTUBE) {
       if (location.pathname.includes('/live')) return true;
       try {
@@ -180,31 +263,49 @@
           const r = p.getPlayerResponse(); if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) return true;
         }
       } catch {}
-      if (document.querySelector('.ytp-live-badge[disabled]') ||
-          document.querySelector('.ytp-live') ||
-          document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
+      if (document.querySelector('.ytp-live-badge[disabled]') || document.querySelector('.ytp-live') || document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
     }
-
     const cached = _liveCache.get(vid);
-    if (cached && performance.now() - cached.ts < 5000) return cached.v;
+    if (cached && performance.now() - cached.ts < 3000) return cached.v;
     let v = false;
-    try {
-      const s = vid.seekable;
-      if (s.length && s.end(s.length - 1) - s.start(0) > 20) {
-        const b = vid.buffered;
-        if (b.length && Math.abs(b.end(b.length - 1) - s.end(s.length - 1)) < 120) v = true;
+    const src = vid.currentSrc || vid.src || '';
+    if (isHlsSrc(src) && vid.buffered.length > 0) v = true;
+    if (!v) {
+      try {
+        const s = vid.seekable, d = vid.duration;
+        if (s.length > 0) {
+          const start = s.start(0), end = s.end(s.length - 1);
+          if (start > 10) v = true;
+          else {
+            let tr = _liveTracker.get(vid);
+            if (!tr) { tr = { end, dur: d, ts: performance.now(), count: 0 }; _liveTracker.set(vid, tr); }
+            else {
+              if (end > tr.end + 0.5 || d > tr.dur + 0.5) { tr.count++; tr.end = end; tr.dur = d; tr.ts = performance.now(); }
+              if (tr.count >= 1) v = true;
+            }
+          }
+          if (!v && (end - start > 20)) { const b = vid.buffered; if (b.length && Math.abs(b.end(b.length - 1) - end) < 120) v = true; }
+        }
+      } catch {}
+    }
+    if (!v && vid.buffered.length > 0) {
+      const d = vid.duration;
+      if (d > 0 && isFinite(d) && vid.currentTime > 0) {
+        const gap = d - vid.currentTime;
+        if (gap >= 0 && gap < 60 && (src.startsWith('blob:') || isHlsSrc(src))) v = true;
       }
-    } catch {}
+    }
     _liveCache.set(vid, { v, ts: performance.now() });
     return v;
   };
 
-  /* ── Engine ── */
   const isCandidate = v => {
     if (!v || v.readyState < 2) return false;
+    if (isMediaStream(v)) return true;
     const src = v.currentSrc || v.src || '';
     if (src.startsWith('blob:') || src === '') return true;
     if (IS_YOUTUBE) { try { if (v.buffered.length > 0) return true; } catch {} }
+    if (isHlsSrc(src)) return true;
     try { if (v.buffered.length && isLive(v)) return true; } catch {}
     return false;
   };
@@ -224,6 +325,7 @@
     setVid(v);
     lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
     stallCount = 0; histLen = 0; histHead = 0;
+    _jbDelay = -1;
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
@@ -246,15 +348,20 @@
 
   let mo = null, _scanRetry = 0;
   const scan = () => {
-    const vids = document.querySelectorAll('video'); if (!vids.length) return;
+    const vids = document.querySelectorAll('video');
+    if (!vids.length) {
+      if (_scanRetry < 15) { _scanRetry++; setTimeout(scan, 800 * Math.min(_scanRetry, 5)); }
+      return;
+    }
     let attached = false;
     for (const v of vids) { if (isCandidate(v)) { attach(v); attached = true; break; } }
-    if (!attached && _scanRetry < 8) { _scanRetry++; setTimeout(scan, 800 * _scanRetry); }
-    else if (attached) _scanRetry = 0;
+    if (!attached) setTimeout(scan, 2000);
+    else _scanRetry = 0;
   };
 
   const startObserver = () => {
     if (mo) return;
+    if (!document.body) return;
     mo = new MutationObserver(muts => {
       for (const m of muts) for (const n of m.addedNodes) {
         if (n.nodeType !== 1) continue;
@@ -265,8 +372,14 @@
     mo.observe(document.body, { childList: true, subtree: true });
   };
 
-  const safeRate = (vid, r) => { if (!vid || vid.playbackRate === r) return; vid.playbackRate = r; try { vid.preservesPitch = true; } catch {} };
+  const safeRate = (vid, r) => {
+    if (!vid || isMediaStream(vid) || vid.playbackRate === r) return;
+    vid.playbackRate = r;
+    try { vid.preservesPitch = true; } catch {}
+  };
+
   const doSeek = vid => {
+    if (isMediaStream(vid)) return;
     try {
       const s = vid.seekable;
       if (s.length) vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
@@ -359,11 +472,15 @@ ctx.restore()};`;
     if (!isCandidate(vid) || vid.readyState < 3) { lastBuf = -1; scheduleRender(); return; }
     if (!isLive(vid)) { if (IS_YOUTUBE) _scanRetry = 0; lastBuf = -1; scheduleRender(); return; }
 
+    const msMode = isMediaStream(vid);
+    /* jitter buffer는 주입 스크립트가 자동 갱신하므로 여기서 별도 처리 불필요 */
+
     const buf = getBuf(vid); lastBuf = buf;
     if (!vid.paused && buf >= 0) histPush(buf);
     scheduleRender();
     if (vid.paused) return;
     if (!enabled) { safeRate(vid, R_NORM); gear = R_NORM; return; }
+    if (msMode) return; /* WebRTC: playbackRate 제어 불가, 모니터링만 */
 
     const now = performance.now();
     if (now < warmupEnd) return;
@@ -380,26 +497,44 @@ ctx.restore()};`;
   };
 
   const render = (buf, vid) => {
-    const sec = buf < 0 ? 0 : buf, diff = sec - target, c = colorOf(diff), speeding = vid && vid.playbackRate > 1;
+    // ★ 추가된 로직: 라이브 감지 시에만 UI 표시
+    const actuallyLive = vid && isCandidate(vid) && isLive(vid);
+    if (els.root) {
+      if (!actuallyLive) {
+        if (els.root.style.display !== 'none') els.root.style.display = 'none';
+        return;
+      } else {
+        if (els.root.style.display === 'none') els.root.style.display = 'block';
+      }
+    }
+
+    const msMode = vid && isMediaStream(vid);
+    const sec = buf < 0 ? 0 : buf, diff = sec - target, c = colorOf(diff);
+    const speeding = vid && !msMode && vid.playbackRate > 1;
+
     if (!panelOpen) {
       if (!els.fab) return;
       const fc = !enabled ? '#555' : speeding ? '#6C9CFF' : c;
       if (fc !== _prev.dot) { _prev.dot = fc; els.fab.style.setProperty('--ac', fc); }
       return;
     }
-    const txt = buf < 0 ? '—' : sec.toFixed(1), w = clamp(sec / BAR_MAX * 100, 0, 100).toFixed(1) + '%';
+
+    const txt = buf < 0 ? (msMode ? '측정중' : '—') : sec.toFixed(1);
+    const w = clamp(sec / BAR_MAX * 100, 0, 100).toFixed(1) + '%';
     if (txt !== _prev.txt) { els.val.textContent = txt; _prev.txt = txt; }
     if (c !== _prev.clr)   { els.pn.style.setProperty('--ac', c); _prev.clr = c; }
     if (w !== _prev.w)     { els.bar.style.width = w; _prev.w = w; }
 
     const now = performance.now(), inRange = sec <= target && sec >= Math.max(0, target - 0.5);
     let bTxt, bCls;
-    if (!enabled)                                  { bTxt = 'OFF';     bCls = 'dm-b dm-off'; }
-    else if (buf < 0)                              { bTxt = '…';       bCls = 'dm-b dm-off'; }
-    else if (now - lastStallTime < STALL_COOLDOWN) { bTxt = '⏸ 대기'; bCls = 'dm-b dm-off'; }
+    if (!enabled)                                  { bTxt = 'OFF';       bCls = 'dm-b dm-off'; }
+    else if (msMode && buf < 0)                    { bTxt = '⏳ WebRTC'; bCls = 'dm-b dm-acc'; }
+    else if (msMode && buf >= 0)                   { bTxt = '📡 WebRTC'; bCls = 'dm-b dm-ok'; }
+    else if (buf < 0)                              { bTxt = '…';         bCls = 'dm-b dm-off'; }
+    else if (now - lastStallTime < STALL_COOLDOWN) { bTxt = '⏸ 대기';   bCls = 'dm-b dm-off'; }
     else if (speeding)                             { bTxt = '⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-acc'; }
-    else if (inRange)                              { bTxt = '✓ 안정';  bCls = 'dm-b dm-ok'; }
-    else                                           { bTxt = '→ 추적';  bCls = 'dm-b dm-acc'; }
+    else if (inRange)                              { bTxt = '✓ 안정';    bCls = 'dm-b dm-ok'; }
+    else                                           { bTxt = '→ 추적';    bCls = 'dm-b dm-acc'; }
     if (bTxt !== _prev.badge)    { els.badge.textContent = bTxt; _prev.badge = bTxt; }
     if (bCls !== _prev.badgeCls) { els.badge.className = bCls;   _prev.badgeCls = bCls; }
     drawSpark(c);
@@ -458,6 +593,7 @@ ctx.restore()};`;
 `);
 
     const root = document.createElement('div'); root.id = 'dm-root';
+    root.style.display = 'none'; // ★ 추가: 처음에 UI를 무조건 숨김
 
     const html = `<div id="dm-fab"><div class="dm-dot"></div></div>
 <div id="dm-pn">
@@ -487,7 +623,7 @@ ctx.restore()};`;
   <div class="dm-ft">
     <div class="dm-tog${enabled ? ' on' : ''}"></div>
     <div class="dm-net"><div class="dm-net-dot"></div><span>양호</span></div>
-    <span class="dm-ver">v12.4.4</span>
+    <span class="dm-ver">v12.7.1</span>
     <span class="dm-key">Alt+D</span>
   </div>
 </div>`;
@@ -498,6 +634,7 @@ ctx.restore()};`;
     initSparkCanvas(pn.querySelector('.dm-spark'));
 
     els = {
+      root, // ★ 추가: root 요소를 els에 저장하여 render에서 컨트롤 가능하게 함
       fab, pn,
       val: pn.querySelector('.dm-val'), bar: pn.querySelector('.dm-bar'),
       badge: pn.querySelector('.dm-b'), tog: pn.querySelector('.dm-tog'),
@@ -523,7 +660,6 @@ ctx.restore()};`;
       cfg.target = target; saveLazy();
     };
 
-    /* Drag */
     const drag = (el, onEnd) => {
       let ox, oy, moved = false;
       el.onpointerdown = e => { if (e.button) return; moved = false; el._m = false; el.setPointerCapture(e.pointerId); const r = el.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top; };
@@ -576,7 +712,7 @@ ctx.restore()};`;
     setVid(null);
     setTimeout(scan, 500); setTimeout(scan, 1500); setTimeout(scan, 3000);
   };
-  if ('navigation' in window) navigation.addEventListener('navigatesuccess', onNav);
+  if ('navigation' in window) try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
   else {
     for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
     window.addEventListener('popstate', onNav);
@@ -607,12 +743,17 @@ ctx.restore()};`;
     const gl = gear > 1.05 ? 'HIGH' : gear > 1 ? 'SOFT' : 'NORM';
     const live = vid ? isLive(vid) : false;
     const dur = vid ? vid.duration : -1;
-    const txt = `[${PLATFORM}] target=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(1) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | net=${netQuality} | stall=${stallCount} | live=${live} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(0)}`;
+    const msMode = vid ? isMediaStream(vid) : false;
+    const src = vid ? (vid.currentSrc || vid.src || '') : '';
+    const srcShort = src.length > 30 ? src.slice(0, 15) + '…' + src.slice(-15) : (src || '(empty)');
+    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | net=${netQuality} | live=${live} | ms=${msMode} | pc=${_pcState}(${_pcCount}) | jb=${_jbDelay >= 0 ? _jbDelay.toFixed(3) : '-'} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
     const t = document.createElement('div'); t.textContent = txt;
-    Object.assign(t.style, { position:'fixed',top:'12px',left:'50%',transform:'translateX(-50%)',zIndex:'10001',background:'rgba(12,14,20,.92)',backdropFilter:'blur(12px)',color:'#f0f0f0',padding:'10px 24px',borderRadius:'12px',fontSize:'12px',fontFamily:'monospace',transition:'opacity .4s',border:'1px solid rgba(255,255,255,.06)',boxShadow:'0 8px 32px rgba(0,0,0,.5)',maxWidth:'90vw',wordBreak:'break-all' });
+    Object.assign(t.style, { position:'fixed',top:'12px',left:'50%',transform:'translateX(-50%)',zIndex:'10001',background:'rgba(12,14,20,.92)',backdropFilter:'blur(12px)',color:'#f0f0f0',padding:'10px 24px',borderRadius:'12px',fontSize:'11px',fontFamily:'monospace',transition:'opacity .4s',border:'1px solid rgba(255,255,255,.06)',boxShadow:'0 8px 32px rgba(0,0,0,.5)',maxWidth:'94vw',wordBreak:'break-all' });
     document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 4000);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 6000);
   });
 
-  init();
+  if (document.body) init();
+  else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+  else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
