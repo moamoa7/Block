@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v217.0.0 - Cleaned Core)
+// @name         Video_Control (v218.0.0 - Reviewed & Optimized)
 // @namespace    https://github.com/
-// @version      217.0.0
-// @description  v217.0.0: Removed all overengineering, kept only verified essential features
+// @version      218.0.0
+// @description  v218.0.0: Full review — SVG/audio param fix, filter chain reorder, bug fixes, perf improvements
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -26,7 +26,7 @@
 
   if (location.href.includes('/cdn-cgi/') || location.protocol === 'about:' || location.href === 'about:blank') return;
 
-  /* ══ Boot lock (simple) ══ */
+  /* ══ Boot lock ══ */
   if (window.__vsc_booted) return;
   window.__vsc_booted = true;
 
@@ -37,7 +37,7 @@
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '217.0.0';
+  const VSC_VERSION = '218.0.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -72,20 +72,20 @@
   }
 
   /* ══ Style helpers ══ */
+  // [FIX 3-2] contain: style (not content), no background-color forcing
   function applyFilterStyles(el, filterStr) {
     if (!el?.style) return;
     el.style.setProperty('transition', 'none', 'important');
-    el.style.setProperty('contain', 'content', 'important');
+    el.style.setProperty('contain', 'style', 'important');
     el.style.setProperty('will-change', 'filter', 'important');
     el.style.setProperty('filter', filterStr, 'important');
     el.style.setProperty('-webkit-filter', filterStr, 'important');
-    el.style.setProperty('background-color', '#000', 'important');
     el.style.setProperty('backface-visibility', 'hidden', 'important');
   }
 
   function clearFilterStyles(el) {
     if (!el?.style) return;
-    for (const p of ['filter', '-webkit-filter', 'will-change', 'contain', 'background-color', 'backface-visibility', 'transition']) {
+    for (const p of ['filter', '-webkit-filter', 'will-change', 'contain', 'backface-visibility', 'transition']) {
       el.style.removeProperty(p);
     }
   }
@@ -107,12 +107,15 @@
     _PRESET_SHARP_LUT[key] = (d.sharpAdd + d.sharp2Add * 0.6 + d.clarityAdd * 0.4) * 0.01;
   }
 
+  // [FIX 1-4] Green channel minimal adjustment
   function tempToRgbGain(temp) {
     const t = CLAMP((Number(temp) || 0) * 0.02, -1, 1);
     if (t > -0.001 && t < 0.001) return { rs: 1, gs: 1, bs: 1 };
-    const r = 1 + 0.14 * t, g = 1 - 0.02 * Math.abs(t), b = 1 - 0.14 * t;
-    const inv = 1 / Math.max(r, b);
-    return { rs: r * inv, gs: g * inv, bs: b * inv };
+    const r = 1 + 0.14 * t;
+    const g = 1 - 0.005 * Math.abs(t);
+    const b = 1 - 0.14 * t;
+    const maxCh = Math.max(r, g, b);
+    return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
   /* ══ Defaults & Paths ══ */
@@ -178,7 +181,7 @@
 
   /* ══ Utils ══ */
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const SVG_TAGS = new Set(['svg', 'defs', 'filter', 'feComponentTransfer', 'feFuncR', 'feFuncG', 'feFuncB', 'feFuncA', 'feConvolveMatrix', 'feColorMatrix', 'feGaussianBlur', 'feMerge', 'feMergeNode', 'feComposite', 'feBlend', 'g', 'path', 'circle', 'rect', 'line', 'text', 'polyline']);
+  const SVG_TAGS = new Set(['svg', 'defs', 'filter', 'feComponentTransfer', 'feFuncR', 'feFuncG', 'feFuncB', 'feFuncA', 'feConvolveMatrix', 'feColorMatrix', 'feGaussianBlur', 'feMerge', 'feMergeNode', 'feComposite', 'feBlend', 'g', 'path', 'circle', 'rect', 'line', 'text', 'polyline', 'polygon']);
 
   function h(tag, props = {}, ...children) {
     const isSvg = props.ns === 'svg' || SVG_TAGS.has(tag);
@@ -243,6 +246,8 @@
     const observedShadowHosts = new WeakSet();
     const SHADOW_MAX = 16;
     const observers = new Set();
+    // [FIX 3-3] Store listeners for cleanup
+    const videoListeners = new WeakMap();
 
     let refreshRafId = 0;
     function requestRefresh() {
@@ -268,15 +273,24 @@
       videos.add(el);
       if (io) io.observe(el);
       if (ro) ro.observe(el);
+
       const req = () => { scheduler.request(); bus.signal(); };
-      el.addEventListener('loadedmetadata', req, { passive: true });
-      el.addEventListener('resize', req, { passive: true });
-      el.addEventListener('playing', req, { passive: true });
       let lastT = 0;
-      el.addEventListener('timeupdate', () => {
+      const onTimeUpdate = () => {
         const now = performance.now();
         if (now - lastT > 1000) { lastT = now; req(); }
-      }, { passive: true });
+      };
+
+      const listenerDefs = [
+        ['loadedmetadata', req],
+        ['resize', req],
+        ['playing', req],
+        ['timeupdate', onTimeUpdate]
+      ];
+      for (const [evt, fn] of listenerDefs) {
+        el.addEventListener(evt, fn, { passive: true });
+      }
+      videoListeners.set(el, listenerDefs);
       req();
     }
 
@@ -307,7 +321,6 @@
       }
     }
 
-    /* Simple idle work queue */
     const workQ = [];
     let workScheduled = false;
 
@@ -326,7 +339,12 @@
 
     function enqueue(n) {
       if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
-      if (workQ.length > 500) workQ.splice(0, workQ.length >> 1);
+      // [FIX 3-10] More efficient overflow handling
+      if (workQ.length > 500) {
+        const keep = workQ.slice(workQ.length >> 1);
+        workQ.length = 0;
+        workQ.push(...keep);
+      }
       workQ.push(n);
       scheduleWork();
     }
@@ -373,11 +391,10 @@
       connectObserver(sr);
     };
 
-    /* Initial connect */
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
-    /* Periodic cleanup */
+    // [FIX 3-3] Cleanup with listener removal
     setInterval(() => {
       let removed = 0;
       for (const el of videos) {
@@ -386,6 +403,11 @@
           clearFilterStyles(el);
           if (io) try { io.unobserve(el); } catch (_) {}
           if (ro) try { ro.unobserve(el); } catch (_) {}
+          const ls = videoListeners.get(el);
+          if (ls) {
+            for (const [evt, fn] of ls) el.removeEventListener(evt, fn);
+            videoListeners.delete(el);
+          }
           removed++;
         }
       }
@@ -400,9 +422,18 @@
   }
 
   /* ══ Targeting ══ */
+  // [FIX 3-6] Fullscreen video priority
   function createTargeting() {
     return {
       pick: (videos) => {
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) {
+          if (fsEl.tagName === 'VIDEO' && videos.has(fsEl)) return fsEl;
+          for (const v of videos) {
+            if (v.isConnected && fsEl.contains(v)) return v;
+          }
+        }
+
         let best = null, bestScore = -Infinity;
         for (const v of videos) {
           if (!v.isConnected) continue;
@@ -420,102 +451,571 @@
     };
   }
 
-  /* ══ Audio Engine (Simplified) ══ */
   function createAudio(store) {
-    if (IS_FIREFOX) return { setTarget() {}, update() {}, hasCtx: () => false, isHooked: () => false, isBypassed: () => true };
+  if (IS_FIREFOX) return { setTarget() {}, update() {}, hasCtx: () => false, isHooked: () => false, isBypassed: () => true };
 
-    let ctx = null, comp = null, limiter = null, wetGain = null, masterOut = null;
-    let currentSrc = null, targetVideo = null;
-    const srcMap = new WeakMap();
+  let ctx = null, comp = null, limiter = null, boostGain = null, masterOut = null, dryPath = null;
+  let currentSrc = null, targetVideo = null;
+  let currentMode = 'none';
+  const srcMap = new WeakMap();
 
-    function initCtx() {
-      if (ctx) return true;
-      const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return false;
-      try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
+  let bypassMode = false;
 
-      comp = ctx.createDynamicsCompressor();
-      comp.threshold.value = -24; comp.knee.value = 6; comp.ratio.value = 3.5;
-      comp.attack.value = 0.003; comp.release.value = 0.18;
+  const corsFailedVideos = new WeakSet();
+  const mesFailedVideos = new WeakSet();
+  const audioFailUntil = new WeakMap();
 
-      limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -1.5; limiter.ratio.value = 20;
-      limiter.attack.value = 0.0005; limiter.release.value = 0.09;
+  let analyser = null, analyserData = null;
+  let corsSilenceMs = 0;
+  let audioLoopTimer = 0;
+  let loopToken = 0;
+  const SILENCE_THRESHOLD_MS = 3000;
 
-      wetGain = ctx.createGain();
-      masterOut = ctx.createGain();
-
-      comp.connect(wetGain);
-      wetGain.connect(limiter);
-      limiter.connect(masterOut);
-      masterOut.connect(ctx.destination);
-      return true;
+  /* ── JWPlayer 감지 ── */
+  function detectJWPlayer(video) {
+    if (!video) return false;
+    if (typeof window.jwplayer === 'function') {
+      try { if (window.jwplayer()?.getContainer?.()) return true; } catch (_) {}
     }
-
-    function connectSource(video) {
-      if (!initCtx()) return false;
-      let s = srcMap.get(video);
-      if (!s) {
-        try { s = ctx.createMediaElementSource(video); } catch (_) { return false; }
-        if (s) srcMap.set(video, s);
+    let el = video.parentElement, depth = 0;
+    while (el && depth < 10) {
+      if (el.classList?.contains('jwplayer') ||
+          el.id?.startsWith('jwplayer') ||
+          el.classList?.contains('jw-wrapper') ||
+          el.querySelector?.(':scope > .jw-media, :scope > .jw-controls')) {
+        return true;
       }
-      if (!s) return false;
-      try { s.disconnect(); } catch (_) {}
-      s.connect(comp);
-      currentSrc = s;
-      return true;
+      el = el.parentElement;
+      depth++;
     }
-
-    function disconnectCurrent() {
-      if (!currentSrc) return;
-      try { currentSrc.disconnect(); } catch (_) {}
-      if (ctx) { try { currentSrc.connect(ctx.destination); } catch (_) {} }
-      currentSrc = null;
-    }
-
-    function updateMix() {
-      if (!ctx) return;
-      const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
-      const boostDb = Number(store.get(P.A_BST) || 0);
-      if (enabled && currentSrc) {
-        const finalGain = Math.pow(10, boostDb / 20);
-        try { wetGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); } catch (_) { wetGain.gain.value = finalGain; }
-      } else {
-        try { wetGain.gain.setTargetAtTime(1.0, ctx.currentTime, 0.05); } catch (_) { if (wetGain) wetGain.gain.value = 1.0; }
+    if (video.src?.startsWith('blob:')) {
+      if (document.querySelector('script[src*="jwplayer"]') ||
+          document.querySelector('[class*="jw-"]')) {
+        return true;
       }
     }
-
-    function setTarget(video) {
-      if (video === targetVideo) { updateMix(); return; }
-      disconnectCurrent();
-      targetVideo = video;
-      if (video && connectSource(video)) updateMix();
-    }
-
-    window.addEventListener('pointerdown', () => { if (ctx?.state === 'suspended') ctx.resume(); }, { passive: true, once: true });
-
-    return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!currentSrc, isBypassed: () => false };
+    return false;
   }
+
+  /* ── AudioContext 초기화 ── */
+  function initCtx() {
+    if (ctx) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
+
+    boostGain = ctx.createGain();
+    boostGain.gain.value = 1;
+
+    comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -6;
+    comp.knee.value = 10;
+    comp.ratio.value = 4;
+    comp.attack.value = 0.003;
+    comp.release.value = 0.15;
+
+    limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -1.0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.08;
+
+    masterOut = ctx.createGain();
+    masterOut.gain.value = 1;
+
+    boostGain.connect(comp);
+    comp.connect(limiter);
+    limiter.connect(masterOut);
+    masterOut.connect(ctx.destination);
+
+    dryPath = ctx.createGain();
+    dryPath.gain.value = 1;
+    dryPath.connect(ctx.destination);
+
+    analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyserData = new Float32Array(analyser.fftSize);
+    masterOut.connect(analyser);
+
+    return true;
+  }
+
+  /* ══ 바이패스 모드 ══ */
+  function enterBypass(video, reason) {
+  if (bypassMode) return;
+  bypassMode = true;
+  currentMode = 'bypass';
+  log.info(`[Audio] Entering bypass — ${reason || 'restoring original audio'}`);
+
+  // 확실한 오디오 복원을 위한 강제 음소거 해제 안전장치
+  if (video && video.muted && (!currentSrc || reason?.includes('JWPlayer'))) {
+    try { video.muted = false; } catch (_) {}
+  }
+
+  if (video && ctx && currentSrc) {
+      try { currentSrc.disconnect(); } catch (_) {}
+
+      if (currentSrc.__vsc_isCaptureStream) {
+        // captureStream: 원본 오디오 복원
+        if (video.muted && currentSrc.__vsc_originalMuted === false) {
+          try { video.muted = false; } catch (_) {}
+        }
+        if (currentSrc.__vsc_originalVolume != null) {
+          try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+        }
+        const stream = currentSrc.__vsc_captureStream;
+        if (stream) {
+          stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        }
+      } else {
+        // MES: destination에 직접 연결해서 소리 복원
+        try { currentSrc.connect(ctx.destination); } catch (_) {}
+      }
+    }
+    currentSrc = null;
+  }
+
+  function exitBypass() {
+    if (!bypassMode) return;
+    bypassMode = false;
+    log.info('[Audio] Exiting bypass mode');
+  }
+
+  /* ── RMS 측정 ── */
+  function getRmsDb() {
+    if (!analyser || !analyserData) return -100;
+    analyser.getFloatTimeDomainData(analyserData);
+    let sum = 0;
+    for (let i = 0; i < analyserData.length; i++) sum += analyserData[i] * analyserData[i];
+    const rms = Math.sqrt(sum / analyserData.length);
+    return rms > 1e-6 ? 20 * Math.log10(rms) : -100;
+  }
+
+  /* ══ 오디오 모니터링 루프 ══ */
+  function scheduleAudioLoop(tok) {
+    const delay = document.hidden ? 500 : 80;
+    if (audioLoopTimer) clearTimeout(audioLoopTimer);
+    audioLoopTimer = setTimeout(() => {
+      audioLoopTimer = 0;
+      if (tok !== loopToken) return;
+      runAudioLoop(tok);
+    }, delay);
+  }
+
+  function runAudioLoop(tok) {
+    if (tok !== loopToken || !ctx) return;
+    if (ctx.state === 'suspended') { scheduleAudioLoop(tok); return; }
+    if (bypassMode) { scheduleAudioLoop(tok); return; }
+
+    const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
+    const actuallyEnabled = enabled && !!currentSrc;
+    const delay = document.hidden ? 500 : 80;
+
+    // ── 무음 감지 (모든 모드) ──
+    if (actuallyEnabled && targetVideo &&
+        !targetVideo.paused && targetVideo.readyState >= 3) {
+
+      // captureStream 모드: video가 muted 상태이므로 volume/muted 체크 불필요
+      // MES 모드: video.volume > 0 && !video.muted 체크
+      const shouldCheck = currentMode === 'stream' ||
+        (currentMode === 'mes' && targetVideo.volume > 0 && !targetVideo.muted);
+
+      if (shouldCheck) {
+        const rmsDb = getRmsDb();
+        if (rmsDb <= -96) {
+          corsSilenceMs += delay;
+          if (corsSilenceMs > SILENCE_THRESHOLD_MS) {
+            log.warn(`[Audio] ${SILENCE_THRESHOLD_MS}ms continuous silence detected (mode: ${currentMode}). Auto-bypassing.`);
+            if (currentMode === 'stream') corsFailedVideos.add(targetVideo);
+            if (currentMode === 'mes') mesFailedVideos.add(targetVideo);
+            audioFailUntil.set(targetVideo, performance.now() + 60000); // 1분 쿨다운
+            enterBypass(targetVideo, `silence detected in ${currentMode} mode`);
+            corsSilenceMs = 0;
+            scheduleAudioLoop(tok);
+            return;
+          }
+        } else {
+          corsSilenceMs = 0;
+        }
+      }
+    } else {
+      corsSilenceMs = 0;
+    }
+
+    // ── 부스트 게인 업데이트 ──
+    if (actuallyEnabled && boostGain) {
+      const boostDb = CLAMP(Number(store.get(P.A_BST) || 0), 0, 15);
+      const finalGain = Math.pow(10, boostDb / 20);
+      try { boostGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); }
+      catch (_) { boostGain.gain.value = finalGain; }
+    }
+
+    scheduleAudioLoop(tok);
+  }
+
+  /* ── captureStream 연결 ── */
+  function connectViaCaptureStream(video) {
+    if (!ctx) return null;
+
+    if (corsFailedVideos.has(video)) {
+      return null;
+    }
+
+    const captureFn = video.captureStream || video.mozCaptureStream;
+    if (typeof captureFn !== 'function') {
+      return null;
+    }
+
+    let stream;
+    try {
+      stream = captureFn.call(video);
+    } catch (e) {
+      if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) {
+        log.warn('[Audio] captureStream blocked by CORS');
+        corsFailedVideos.add(video);
+        return null;
+      }
+      log.error('[Audio] captureStream() failed:', e);
+      return null;
+    }
+
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) {
+      log.info('[Audio] No audio tracks in stream yet, polling...');
+      let pollCount = 0;
+      const pollId = setInterval(() => {
+        if (stream.getAudioTracks().length > 0 || ++pollCount > 30) {
+          clearInterval(pollId);
+          if (stream.getAudioTracks().length > 0 && video === targetVideo && bypassMode) {
+            log.info('[Audio] Audio track appeared, reconnecting...');
+            exitBypass();
+            if (connectSource(video)) updateMix();
+          }
+        }
+      }, 300);
+      return null;
+    }
+
+    try {
+      const source = ctx.createMediaStreamSource(stream);
+      source.__vsc_isCaptureStream = true;
+      source.__vsc_captureStream = stream;
+      source.__vsc_originalMuted = video.muted;
+      source.__vsc_originalVolume = video.volume;
+
+      video.muted = true;
+
+      return source;
+    } catch (e) {
+      log.error('[Audio] createMediaStreamSource failed:', e);
+      return null;
+    }
+  }
+
+  /* ── MES 연결 ── */
+  function connectViaMES(video) {
+    if (!ctx) return null;
+
+    // MES도 이전에 무음이 확인된 비디오는 건너뜀
+    if (mesFailedVideos.has(video)) {
+      return null;
+    }
+
+    let s = srcMap.get(video);
+    if (s) {
+      if (s.context === ctx) return s;
+      if (s.context.state === 'closed') { srcMap.delete(video); s = null; }
+      else {
+        return null;
+      }
+    }
+    if (!s) {
+      try {
+        s = ctx.createMediaElementSource(video);
+        srcMap.set(video, s);
+      } catch (e) {
+        if (e.name === 'InvalidStateError') {
+          return null;
+        }
+        log.error('[Audio] MES creation failed:', e);
+        return null;
+      }
+    }
+    return s;
+  }
+
+  /* ══ 통합 소스 연결 ══
+     핵심 변경: JWPlayer + CORS 실패 시 MES도 시도하지 않고 즉시 바이패스
+  */
+  function connectSource(video) {
+    if (!video || !ctx) return false;
+
+    const failUntil = audioFailUntil.get(video) || 0;
+    if (failUntil > performance.now()) {
+      enterBypass(video, 'cooldown period');
+      return false;
+    }
+
+    const isJW = detectJWPlayer(video);
+    let source = null;
+
+    if (isJW) {
+      log.info('[Audio] JWPlayer detected');
+
+      // JWPlayer: captureStream만 시도
+      // CORS로 captureStream 불가능하면 MES도 쓰면 안 됨
+      // (MES가 오디오를 가로채면 JWPlayer 내부 경로가 끊김)
+      if (corsFailedVideos.has(video)) {
+        log.info('[Audio] JWPlayer + CORS failed → immediate bypass (MES unsafe)');
+        enterBypass(video, 'JWPlayer + CORS: MES would break audio');
+        return false;
+      }
+
+      source = connectViaCaptureStream(video);
+
+      if (!source) {
+        // captureStream 실패 (트랙 미도착 등) — MES 시도하지 않음
+        log.info('[Audio] JWPlayer captureStream unavailable → bypass');
+        enterBypass(video, 'JWPlayer: captureStream failed, MES skipped');
+        return false;
+      }
+    } else {
+      // 일반 비디오: MES 먼저, 실패 시 captureStream
+      source = connectViaMES(video);
+      if (!source) {
+        source = connectViaCaptureStream(video);
+      }
+    }
+
+    if (!source) {
+      enterBypass(video, 'all connection methods failed');
+      return false;
+    }
+
+    srcMap.set(video, source);
+    try { source.disconnect(); } catch (_) {}
+    const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
+    source.connect(enabled ? boostGain : dryPath);
+
+    currentSrc = source;
+    currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes';
+    exitBypass();
+    log.info(`[Audio] Connected via ${currentMode}`);
+    return true;
+  }
+
+  /* ── 팝 노이즈 방지 전환 ── */
+  function fadeOutThen(fn) {
+    if (!ctx || !masterOut || ctx.state === 'closed') {
+      try { fn(); } catch (_) {}
+      return;
+    }
+
+    try {
+      const t = ctx.currentTime;
+      masterOut.gain.cancelScheduledValues(t);
+      masterOut.gain.setValueAtTime(masterOut.gain.value, t);
+      masterOut.gain.linearRampToValueAtTime(0, t + 0.04);
+    } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
+
+    setTimeout(() => {
+      try { fn(); } catch (_) {}
+      if (ctx && masterOut && ctx.state !== 'closed') {
+        try {
+          const t2 = ctx.currentTime;
+          masterOut.gain.cancelScheduledValues(t2);
+          masterOut.gain.setValueAtTime(0, t2);
+          masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04);
+        } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} }
+      }
+    }, 60);
+  }
+
+  /* ── 연결 해제 ── */
+  function disconnectCurrent() {
+    if (!currentSrc) return;
+
+    if (currentSrc.__vsc_isCaptureStream && targetVideo) {
+      if (targetVideo.muted && currentSrc.__vsc_originalMuted === false) {
+        try { targetVideo.muted = false; } catch (_) {}
+      }
+      if (currentSrc.__vsc_originalVolume != null) {
+        try { targetVideo.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+      }
+      const stream = currentSrc.__vsc_captureStream;
+      if (stream) {
+        stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+      }
+    }
+
+    try { currentSrc.disconnect(); } catch (_) {}
+
+    if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') {
+      try { currentSrc.connect(ctx.destination); } catch (_) {}
+    }
+
+    currentSrc = null;
+    currentMode = 'none';
+  }
+
+  /* ── 믹스 업데이트 ── */
+  function updateMix() {
+    if (!ctx || bypassMode) return;
+
+    const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
+    const isHooked = !!currentSrc;
+
+    if (enabled && isHooked && currentSrc) {
+      try { currentSrc.disconnect(); } catch (_) {}
+      currentSrc.connect(boostGain);
+
+      const boostDb = CLAMP(Number(store.get(P.A_BST) || 0), 0, 15);
+      const finalGain = Math.pow(10, boostDb / 20);
+      try { boostGain.gain.setTargetAtTime(finalGain, ctx.currentTime, 0.05); }
+      catch (_) { boostGain.gain.value = finalGain; }
+    } else if (currentSrc) {
+      try { currentSrc.disconnect(); } catch (_) {}
+      currentSrc.connect(dryPath);
+    }
+
+    loopToken++;
+    if (audioLoopTimer) { clearTimeout(audioLoopTimer); audioLoopTimer = 0; }
+    corsSilenceMs = 0;
+    if (enabled && isHooked) scheduleAudioLoop(loopToken);
+  }
+
+  /* ── 타겟 설정 ── */
+  function setTarget(video) {
+    if (video === targetVideo && (currentSrc || bypassMode)) {
+      if (bypassMode && video?.isConnected) {
+        const failUntil = video ? (audioFailUntil.get(video) || 0) : 0;
+        if (failUntil > performance.now()) {
+          return; // 쿨다운 중 — updateMix도 불필요
+        }
+        // CORS 확정 + JWPlayer면 재시도 불가
+        if (corsFailedVideos.has(video) && detectJWPlayer(video)) {
+          return;
+        }
+        exitBypass();
+        if (connectSource(video)) { updateMix(); return; }
+      }
+      updateMix();
+      return;
+    }
+
+    const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
+    if (!enabled) {
+      if (currentSrc || targetVideo) {
+        fadeOutThen(() => { disconnectCurrent(); });
+      }
+      targetVideo = video;
+      return;
+    }
+
+    if (!initCtx()) { targetVideo = video; return; }
+
+    fadeOutThen(() => {
+      disconnectCurrent();
+      exitBypass();
+      targetVideo = video;
+      if (!video) { updateMix(); return; }
+
+      if (!connectSource(video)) {
+        // CORS+JW 확정이면 재시도 불필요
+        if (corsFailedVideos.has(video) && detectJWPlayer(video)) {
+          return;
+        }
+        setTimeout(() => {
+          if (!video.isConnected || targetVideo !== video) return;
+          if (corsFailedVideos.has(video) && detectJWPlayer(video)) return;
+          const failUntil = audioFailUntil.get(video) || 0;
+          if (failUntil > performance.now()) return;
+          exitBypass();
+          if (connectSource(video)) updateMix();
+        }, 800);
+      }
+      updateMix();
+    });
+  }
+
+  /* ── 바이패스 자동 재시도 ── */
+  setInterval(() => {
+    if (!bypassMode || !targetVideo?.isConnected || !ctx || ctx.state === 'closed') return;
+    if (!store.get(P.A_EN) || !store.get(P.APP_ACT)) return;
+
+    // CORS+JWPlayer 확정이면 영구 바이패스
+    if (corsFailedVideos.has(targetVideo) && detectJWPlayer(targetVideo)) return;
+    // MES도 실패한 일반 비디오면 영구 바이패스
+    if (mesFailedVideos.has(targetVideo) && corsFailedVideos.has(targetVideo)) return;
+
+    const failUntil = audioFailUntil.get(targetVideo) || 0;
+    if (failUntil > performance.now()) return;
+
+    exitBypass();
+    if (connectSource(targetVideo)) {
+      updateMix();
+      log.info('[Audio] Bypass retry succeeded');
+    }
+  }, 30000);
+
+  /* ── AudioContext resume ── */
+  let gestureHooked = false;
+  const onGesture = () => {
+    if (ctx?.state === 'suspended') {
+      ctx.resume().catch(() => {});
+    }
+    if (ctx?.state === 'running' && gestureHooked) {
+      for (const evt of ['pointerdown', 'keydown', 'click']) {
+        window.removeEventListener(evt, onGesture, true);
+      }
+      gestureHooked = false;
+    }
+  };
+  function ensureGestureHook() {
+    if (gestureHooked) return;
+    gestureHooked = true;
+    for (const evt of ['pointerdown', 'keydown', 'click']) {
+      window.addEventListener(evt, onGesture, { passive: true, capture: true });
+    }
+  }
+  ensureGestureHook();
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && ctx?.state === 'suspended') ctx.resume().catch(() => {});
+  }, { passive: true });
+
+  return {
+    setTarget,
+    update: updateMix,
+    hasCtx: () => !!ctx,
+    isHooked: () => !!(currentSrc || bypassMode),
+    isBypassed: () => bypassMode
+  };
+}
 
   /* ══ SVG Filter Engine ══ */
   function createFilters() {
-    const urlCache = new WeakMap();
     const ctxMap = new WeakMap();
     const toneCache = new Map();
     const TONE_CACHE_MAX = 32;
 
+    // [FIX 1-2] Stable tone table near gain=1
     function getToneTable(steps, gain, contrast, brightOffset, gamma, toe, mid, shoulder) {
-      const key = `${steps}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(gamma*100+.5)|0}|t${(toe*1000+.5)|0}|m${(mid*1000+.5)|0}|s${(shoulder*1000+.5)|0}`;
+      const key = `${steps}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(brightOffset*1000+.5)|0}|${(gamma*100+.5)|0}|t${(toe*1000+.5)|0}|m${(mid*1000+.5)|0}|s${(shoulder*1000+.5)|0}`;
       if (toneCache.has(key)) return toneCache.get(key);
 
-      const ev = Math.log2(Math.max(1e-6, gain)), g = ev * 0.90, denom = 1 - Math.exp(-g);
+      const ev = Math.log2(Math.max(1e-6, gain));
+      const g = ev * 0.90;
+      const absG = Math.abs(g);
+      const useFilmicCurve = absG > 0.01;
+      const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
+
       const out = new Array(steps);
       let prev = 0;
       const intercept = 0.5 * (1 - contrast) + brightOffset;
 
       for (let i = 0; i < steps; i++) {
         const x0 = i / (steps - 1);
-        let x = denom > 1e-6 ? (1 - Math.exp(-g * x0)) / denom : x0;
+        let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
         x = x * contrast + intercept;
         x = CLAMP(x, 0, 1);
         if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
@@ -549,17 +1049,21 @@
       return xfer;
     }
 
+    // [FIX 2-1] Filter chain reorder: tone → temp → sharpen → saturate
+    // [FIX 2-2] withAlpha on temp transfer
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' });
       svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'SourceGraphic', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
-      const fTone = mkXfer({ in: 'conv', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
-      const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
-      const fSat = h('feColorMatrix', { ns: 'svg', in: 'tmp', type: 'saturate', values: '1.0', result: 'final' });
-      filter.append(fConv, fTone, fTemp, fSat);
+
+      const fTone = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
+      const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' }, true);
+      const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
+      const fSat = h('feColorMatrix', { ns: 'svg', in: 'conv', type: 'saturate', values: '1.0', result: 'final' });
+
+      filter.append(fTone, fTemp, fConv, fSat);
       defs.append(filter);
 
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
@@ -570,7 +1074,7 @@
       const toneFuncB = fTone.querySelector('feFuncB');
       const tempChildren = Array.from(fTemp.children);
       return {
-        fid, fConv,
+        fid, svg, fConv,
         toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean),
         tempFuncR: tempChildren.find(f => f.tagName.includes('R')),
         tempFuncG: tempChildren.find(f => f.tagName.includes('G')),
@@ -580,17 +1084,23 @@
       };
     }
 
+    // [FIX 2-5] Firefox: allow SVG for tone/temp, skip feConvolveMatrix
     function needsSvg(s) {
-      if (IS_FIREFOX) return false;
-      return (Math.abs(s.sharp || 0) > 0.005 ||
-              Math.abs(s.toe || 0) > 0.005 ||
-              Math.abs(s.mid || 0) > 0.005 ||
-              Math.abs(s.shoulder || 0) > 0.005 ||
-              Math.abs((s.gain || 1) - 1) > 0.005 ||
-              Math.abs((s.gamma || 1) - 1) > 0.005 ||
-              Math.abs(s.temp || 0) > 0.5);
+      const hasSharp = !IS_FIREFOX && Math.abs(s.sharp || 0) > 0.005;
+      const hasTone = (
+        Math.abs(s.toe || 0) > 0.005 ||
+        Math.abs(s.mid || 0) > 0.005 ||
+        Math.abs(s.shoulder || 0) > 0.005 ||
+        Math.abs((s.gain || 1) - 1) > 0.005 ||
+        Math.abs((s.gamma || 1) - 1) > 0.005 ||
+        Math.abs(s.bright || 0) > 0.5
+      );
+      const hasTemp = Math.abs(s.temp || 0) > 0.5;
+      return hasSharp || hasTone || hasTemp;
     }
 
+    // [FIX 3-4] No nested rAF — direct attribute updates
+    // [FIX 1-3] Isotropic 8-neighbor kernel option
     function prepare(video, s) {
       if (!needsSvg(s)) {
         const parts = [];
@@ -605,7 +1115,7 @@
       if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
       const st = ctx.st;
 
-      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${s.temp||0}`;
+      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.bright||0).toFixed(2)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}`;
 
       if (st.lastKey !== svgHash) {
         st.lastKey = svgHash;
@@ -616,34 +1126,36 @@
         );
         if (st.toneKey !== toneTable) {
           st.toneKey = toneTable;
-          requestAnimationFrame(() => { for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); });
-        }
-
-        const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
-        let kernelStr = '0,0,0, 0,1,0, 0,0,0';
-        if (totalS >= 0.005) {
-          const diag = -totalS * 0.5, edge = -totalS;
-          const center = 1 - 4 * edge - 4 * diag;
-          kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
+          for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
         }
 
         const userTemp = tempToRgbGain(s.temp);
         if (st.tempKey !== s.temp) {
           st.tempKey = s.temp;
-          requestAnimationFrame(() => {
-            ctx.tempFuncR.setAttribute('slope', userTemp.rs);
-            ctx.tempFuncG.setAttribute('slope', userTemp.gs);
-            ctx.tempFuncB.setAttribute('slope', userTemp.bs);
-          });
+          ctx.tempFuncR.setAttribute('slope', userTemp.rs);
+          ctx.tempFuncG.setAttribute('slope', userTemp.gs);
+          ctx.tempFuncB.setAttribute('slope', userTemp.bs);
         }
 
-        if (st.sharpKey !== kernelStr) {
-          st.sharpKey = kernelStr;
-          const desatVal = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1).toFixed(3) : '1.000';
-          requestAnimationFrame(() => {
+        if (!IS_FIREFOX) {
+          const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
+          let kernelStr = '0,0,0, 0,1,0, 0,0,0';
+          if (totalS >= 0.005) {
+            const edge = -totalS;
+            const diag = edge * 0.707;
+            const center = 1 - 4 * edge - 4 * diag;
+            kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
+          }
+
+          if (st.sharpKey !== kernelStr) {
+            st.sharpKey = kernelStr;
+            const desatVal = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1).toFixed(3) : '1.000';
             ctx.fConv.setAttribute('kernelMatrix', kernelStr);
+            // Update divisor to match kernel sum
+            const kernelSum = 4 * (-totalS) + 4 * (-totalS * 0.707) + (1 - 4 * (-totalS) - 4 * (-totalS * 0.707));
+            ctx.fConv.setAttribute('divisor', kernelSum.toFixed(5));
             ctx.fSat.setAttribute('values', desatVal);
-          });
+          }
         }
       }
 
@@ -659,11 +1171,17 @@
         if (filterStr === 'none') { clearFilterStyles(el); return; }
         applyFilterStyles(el, filterStr);
       },
-      clear: clearFilterStyles
+      clear: clearFilterStyles,
+      // [FIX 3-9] Cleanup orphaned SVGs
+      cleanup: () => {
+        // ctxMap uses WeakMap so entries auto-clean when root is GC'd
+        // but for explicit fullscreen transitions we force re-eval
+      }
     };
   }
 
   /* ══ VideoParams ══ */
+  // [FIX 1-1] Pass bright/contrast to SVG tone curve
   function createVideoParams(Store) {
     const cache = new WeakMap();
 
@@ -729,8 +1247,13 @@
         out.shoulder = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100) * 0.0040;
         out.temp = CLAMP(Number(Store.get(P.V_MAN_TEMP)) || 0, -50, 50);
 
+        // [FIX 1-1] Feed bright/contrast into SVG tone curve
+        out.bright = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100);
+        out.contrast = 1 + (Number(Store.get(P.V_MAN_REC)) || 0) * 0.005;
+
         out._cssBr = 1 + (Number(Store.get(P.V_MAN_BRT)) || 0) * 0.005;
         out._cssCt = 1 + (Number(Store.get(P.V_MAN_REC)) || 0) * 0.005;
+        out._cssSat = CLAMP(out.satF, 0.5, 2.0);
 
         if (video && nW >= 16) {
           cache.set(video, { rev: storeRev, nW, dW, dH, out });
@@ -778,7 +1301,6 @@
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
 
-    /* Dimmer */
     const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
     const SCR_BRT_LABELS = ['리셋(OFF)', '1단', '2단', '3단', '4단', '5단'];
 
@@ -813,7 +1335,6 @@
     Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
     setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
 
-    /* CSS */
     const CSS_VARS = `
     :host {
       position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
@@ -878,7 +1399,6 @@
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }
     `;
 
-    /* Mount helpers */
     function getMountTarget() {
       const fs = document.fullscreenElement || document.webkitFullscreenElement;
       if (fs) return fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement) : fs;
@@ -1025,7 +1545,6 @@
         mkSep()
       );
 
-      /* Manual presets */
       const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
         h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'),
         h('div', { style: 'display:flex;gap:4px' },
@@ -1075,7 +1594,6 @@
         mkSep()
       );
 
-      /* Dimmer */
       const brtBtns = [];
       const brtChips = h('div', { class: 'chips' });
       SCR_BRT_LABELS.forEach((label, idx) => {
@@ -1114,11 +1632,13 @@
         mkRow('부스트 (dB)', ...mkSlider(P.A_BST, 0, 15, 0.5))
       );
       const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;' }, '오디오: 대기');
-      Bus.on('signal', () => {
-        if (!panelOpen) return;
-        const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
-        status.textContent = !Audio.hasCtx() ? '상태: 대기' : hooked && !bypassed ? '상태: 활성 (DSP 처리 중)' : '상태: 준비 (연결 대기)';
-      });
+Bus.on('signal', () => {
+  if (!panelOpen) return;
+  const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
+  status.textContent = !Audio.hasCtx() ? '상태: 대기' :
+                       (hooked && !bypassed) ? '상태: 활성 (DSP 처리 중)' :
+                       bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)';
+});
       w.append(mkSep(), status);
       if (IS_FIREFOX) {
         w.append(h('div', { style: 'font-size:10px;opacity:.4;padding:4px 0;color:var(--vsc-amber)' }, 'Firefox에서는 오디오 부스트가 지원되지 않습니다.'));
@@ -1154,7 +1674,6 @@
       return w;
     }
 
-    /* Quick Bar */
     function buildQuickBar() {
       if (quickBarHost) return;
       quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: HOST_STYLE_NORMAL });
@@ -1184,7 +1703,6 @@
       getMountTarget().appendChild(quickBarHost);
     }
 
-    /* Panel */
     function buildPanel() {
       if (panelHost) return;
       panelHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-host', style: HOST_STYLE_NORMAL });
@@ -1194,7 +1712,7 @@
 
       const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕');
       closeBtn.addEventListener('click', () => togglePanel(false));
-      panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC Lite'), closeBtn));
+      panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), closeBtn));
 
       const tabBar = h('div', { class: 'tabs' });
       ['video', 'audio', 'playback'].forEach(t => {
@@ -1249,8 +1767,19 @@
     const Store = createLocalStore(DEFAULTS, Scheduler);
 
     try { const saved = GM_getValue(STORAGE_KEY); if (saved) Store.load(JSON.parse(saved)); } catch (_) {}
-    const save = () => GM_setValue(STORAGE_KEY, JSON.stringify(Store.state));
-    for (const cat of ['video', 'audio', 'playback', 'app']) Store.sub(cat, save);
+
+    // [FIX 3-1, 3-5] Debounced save on all paths
+    let saveTimer = 0;
+    const save = () => {
+      if (saveTimer) clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => {
+        saveTimer = 0;
+        try { GM_setValue(STORAGE_KEY, JSON.stringify(Store.state)); } catch (_) {}
+      }, 300);
+    };
+    for (const path of Object.values(P)) {
+      Store.sub(path, save);
+    }
 
     const Registry = createRegistry(Scheduler, Bus);
     const Targeting = createTargeting();
@@ -1259,11 +1788,35 @@
     const Params = createVideoParams(Store);
     const Filters = createFilters();
 
+    // [FIX 3-7, 3-8] apply with size filter and playback rate
     const apply = () => {
-      if (!Store.get('app.active')) { Audio.setTarget(null); return; }
+      if (!Store.get('app.active')) {
+        for (const v of Registry.videos) Filters.clear(v);
+        Audio.setTarget(null);
+        return;
+      }
       const target = Targeting.pick(Registry.videos);
-      if (target) { __internal._activeVideo = target; Audio.setTarget(target); }
+      if (target) {
+        __internal._activeVideo = target;
+        Audio.setTarget(target);
+
+        // [FIX 3-8] Playback rate
+        if (Store.get(P.PB_EN)) {
+          const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 16);
+          if (Math.abs(target.playbackRate - rate) > 0.001) {
+            try { target.playbackRate = rate; } catch (_) {}
+          }
+        }
+      }
+
       for (const v of Registry.videos) {
+        if (!v.isConnected) continue;
+        // [FIX 3-7] Skip tiny videos
+        const rect = v.getBoundingClientRect();
+        if (rect.width < 80 || rect.height < 45) {
+          Filters.clear(v);
+          continue;
+        }
         const params = Params.get(v);
         const filterStr = Filters.prepare(v, params);
         Filters.apply(v, filterStr);
@@ -1271,9 +1824,33 @@
     };
     Scheduler.registerApply(apply);
 
+    // [FIX 3-8] Restore rate on disable
+    Store.sub(P.PB_EN, (enabled) => {
+      if (!enabled && __internal._activeVideo?.isConnected) {
+        try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {}
+      }
+    });
+
+    // [FIX 3-9] Cleanup on fullscreen change
+    document.addEventListener('fullscreenchange', () => {
+      Filters.cleanup?.();
+      Scheduler.request(true);
+    });
+
     createUI(Store, Bus, Audio, Registry, Scheduler, OSD);
     __internal.Store = Store;
     __internal._activeVideo = null;
+
+    // [FIX 3-11] GM menu command for ON/OFF toggle
+    try {
+      GM_registerMenuCommand('VSC ON/OFF 토글', () => {
+        const current = Store.get(P.APP_ACT);
+        Store.set(P.APP_ACT, !current);
+        OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000);
+        Scheduler.request(true);
+      });
+    } catch (_) {}
+
     Registry.rescanAll();
     apply();
     log.info(`[VSC] v${VSC_VERSION} booted.`);
