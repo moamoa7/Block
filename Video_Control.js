@@ -1772,16 +1772,21 @@ Bus.on('signal', () => {
     let touchStartX = 0, touchStartY = 0;
     let lastTapTime = 0;
     let isSwiping = false;
-    let swipeType = ''; // 'h'(가로-탐색), 'vL'(세로좌측-밝기/배속), 'vR'(세로우측-볼륨)
-    let initialVal = 0;
-    let seekInitialTime = 0;
-    let elSeekOverlay = null;
+    let swipeType = ''; // 'h'(가로-탐색), 'vL'(세로좌측-밝기), 'vR'(세로우측-볼륨)
+    let initialVal = 0, seekInitialTime = 0;
+
+    // UI 요소들
+    let touchVideo = null, seekTimerId = 0, seekSide = null, seekAccum = 0;
+    let elSwipeLeft = null, elSwipeRight = null;
+    let elSeekLeft = null, elSeekRight = null, elSeekOverlay = null;
     let __touchBriOverlay = null;
 
     const SWIPE_THRESHOLD = 15;
-    const SEEK_SENSITIVITY = 0.08; // 전체 화면 너비 스와이프 시 이동할 영상 길이 비율
+    const SEEK_SENSITIVITY = 0.08;
+    const DOUBLE_TAP_MS = 300;
+    const SEEK_STEP = 10;
+    const SEEK_SESSION_MS = 800;
 
-    // 타겟이 비디오인지 확인하는 유틸 (이벤트 위임 최적화)
     const isValidTarget = (e) => {
       const v = __internal._activeVideo;
       if (!v || !v.isConnected) return false;
@@ -1793,14 +1798,17 @@ Bus.on('signal', () => {
       return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
     }
 
-    /* ── OSD 시간 포맷 유틸 ── */
+    function getOverlayParent() {
+      return document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement;
+    }
+
+    /* ── 시간 포맷팅 ── */
     function formatTime(sec) {
       if (!Number.isFinite(sec) || sec < 0) sec = 0;
       const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
       const p = v => String(v).padStart(2, '0');
       return h > 0 ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
     }
-
     function formatDelta(sec) {
       const sign = sec < 0 ? '−' : '+';
       const abs = Math.floor(Math.abs(sec));
@@ -1809,11 +1817,7 @@ Bus.on('signal', () => {
       return h > 0 ? `${sign}${p(h)}:${p(m)}:${p(s)}` : `${sign}${p(m)}:${p(s)}`;
     }
 
-    /* ── 탐색 전용 중앙 OSD 오버레이 (v214.3.0 디자인 이식) ── */
-    function getOverlayParent() {
-      return document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement;
-    }
-
+    /* ── UI 생성: 중앙 탐색 오버레이 ── */
     function ensureSeekOverlay() {
       const parent = getOverlayParent();
       if (elSeekOverlay?.isConnected && elSeekOverlay.parentNode === parent) return elSeekOverlay;
@@ -1824,7 +1828,6 @@ Bus.on('signal', () => {
       parent.appendChild(elSeekOverlay);
       return elSeekOverlay;
     }
-
     function updateSeekUI(currentTime, delta) {
       const ov = ensureSeekOverlay();
       const directionText = delta >= 0 ? "오른쪽 스와이프 중" : "왼쪽 스와이프 중";
@@ -1840,7 +1843,6 @@ Bus.on('signal', () => {
       ov.style.display = 'flex';
       ov.classList.add('show');
     }
-
     function hideSeekOverlaySmooth() {
       if (elSeekOverlay && elSeekOverlay.classList.contains('show')) {
         elSeekOverlay.style.opacity = '0';
@@ -1853,7 +1855,90 @@ Bus.on('signal', () => {
       }
     }
 
-    /* ── 화면 밝기(Dimmer) 터치 조절 전용 오버레이 ── */
+    /* ── UI 생성: 좌우 밝기/볼륨 스와이프 인디케이터 (동그라미 + 게이지) ── */
+    function createSwipeInd(isLeft) {
+      const ind = document.createElement('div');
+      ind.className = `vsc-swipe-indicator ${isLeft ? 'left' : 'right'}`;
+      ind.setAttribute('data-vsc-ui', '1');
+
+      const iconDiv = document.createElement('div'); iconDiv.className = 'vsc-swipe-icon';
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24');
+      if (isLeft) {
+        // 밝기 아이콘 (해)
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); circle.setAttribute('cx', '12'); circle.setAttribute('cy', '12'); circle.setAttribute('r', '5');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42');
+        svg.appendChild(circle); svg.appendChild(path);
+      } else {
+        // 볼륨 아이콘 (스피커)
+        const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon'); poly.setAttribute('points', '11 5 6 9 2 9 2 15 6 15 11 19 11 5');
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', 'M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07');
+        svg.appendChild(poly); svg.appendChild(path);
+      }
+      iconDiv.appendChild(svg);
+
+      const track = document.createElement('div'); track.className = 'vsc-swipe-track';
+      const fill = document.createElement('div'); fill.className = 'vsc-swipe-fill'; fill.style.height = '50%'; track.appendChild(fill);
+      const label = document.createElement('div'); label.className = 'vsc-swipe-label'; label.textContent = '100%';
+
+      ind.appendChild(iconDiv); ind.appendChild(track); ind.appendChild(label);
+      return ind;
+    }
+    function ensureSwipeIndicators() {
+      const parent = getOverlayParent();
+      if (!elSwipeLeft || !elSwipeLeft.isConnected || elSwipeLeft.parentNode !== parent) {
+        elSwipeLeft?.remove(); elSwipeLeft = createSwipeInd(true); parent.appendChild(elSwipeLeft);
+      }
+      if (!elSwipeRight || !elSwipeRight.isConnected || elSwipeRight.parentNode !== parent) {
+        elSwipeRight?.remove(); elSwipeRight = createSwipeInd(false); parent.appendChild(elSwipeRight);
+      }
+    }
+    function updateSwipeUI(type, value) {
+      ensureSwipeIndicators();
+      const el = type === 'bri' ? elSwipeLeft : elSwipeRight;
+      const other = type === 'bri' ? elSwipeRight : elSwipeLeft;
+      other.classList.remove('show'); el.classList.add('show');
+      const pct = Math.round(value * 100);
+      const fill = el.querySelector('.vsc-swipe-fill');
+      const label = el.querySelector('.vsc-swipe-label');
+      if (fill) fill.style.height = `${CLAMP(pct, 0, 100)}%`;
+      if (label) label.textContent = `${pct}%`;
+    }
+    function hideSwipeUI() { elSwipeLeft?.classList.remove('show'); elSwipeRight?.classList.remove('show'); }
+
+    /* ── UI 생성: 좌우 더블탭 탐색 리플 (물결 효과) ── */
+    function ensureSeekRipples() {
+      const parent = getOverlayParent();
+      if (!elSeekLeft || !elSeekLeft.isConnected || elSeekLeft.parentNode !== parent) {
+        elSeekLeft?.remove(); elSeekLeft = document.createElement('div');
+        elSeekLeft.className = 'vsc-seek-ripple left'; elSeekLeft.setAttribute('data-vsc-ui', '1'); parent.appendChild(elSeekLeft);
+      }
+      if (!elSeekRight || !elSeekRight.isConnected || elSeekRight.parentNode !== parent) {
+        elSeekRight?.remove(); elSeekRight = document.createElement('div');
+        elSeekRight.className = 'vsc-seek-ripple right'; elSeekRight.setAttribute('data-vsc-ui', '1'); parent.appendChild(elSeekRight);
+      }
+    }
+    function showSeekRipple(side, totalSec) {
+      ensureSeekRipples(); const el = side === 'left' ? elSeekLeft : elSeekRight; const other = side === 'left' ? elSeekRight : elSeekLeft;
+      other.classList.remove('show'); el.textContent = '';
+      if (side === 'left') {
+        const arrows = document.createElement('div'); arrows.className = 'vsc-seek-arrows';
+        arrows.appendChild(document.createElement('span')).textContent = '‹';
+        const s2 = document.createElement('span'); s2.className = 'vsc-arrow-slide-l'; s2.textContent = '‹'; arrows.appendChild(s2);
+        const txt = document.createElement('span'); txt.className = 'vsc-seek-text vsc-seek-pop'; txt.textContent = `−${totalSec}s`;
+        el.appendChild(arrows); el.appendChild(txt);
+      } else {
+        const txt = document.createElement('span'); txt.className = 'vsc-seek-text vsc-seek-pop'; txt.textContent = `+${totalSec}s`;
+        const arrows = document.createElement('div'); arrows.className = 'vsc-seek-arrows';
+        const s1 = document.createElement('span'); s1.className = 'vsc-arrow-slide-r'; s1.textContent = '›'; arrows.appendChild(s1);
+        arrows.appendChild(document.createElement('span')).textContent = '›';
+        el.appendChild(txt); el.appendChild(arrows);
+      }
+      el.classList.add('show');
+    }
+    function hideSeekRipple(side) { const el = side === 'left' ? elSeekLeft : elSeekRight; el?.classList.remove('show'); }
+    function hideAllSeekRipples() { elSeekLeft?.classList.remove('show'); elSeekRight?.classList.remove('show'); }
+
+    /* ── UI 생성: 화면 밝기 조절 오버레이 ── */
     function ensureBriOverlay(video) {
       const parent = video.parentElement || getOverlayParent();
       if (__touchBriOverlay?.isConnected && __touchBriOverlay.parentNode === parent) return __touchBriOverlay;
@@ -1863,22 +1948,20 @@ Bus.on('signal', () => {
       const pos = getComputedStyle(parent).position; if (pos === 'static') parent.style.position = 'relative';
       return __touchBriOverlay;
     }
+    function applyTouchBrightness(video, brightness01) { const clamped = CLAMP(brightness01, 0.05, 1.0); const overlay = ensureBriOverlay(video); overlay.style.opacity = String(1 - clamped); }
+    function removeTouchBrightness() { if (__touchBriOverlay?.isConnected) { __touchBriOverlay.style.opacity = '0'; const ov = __touchBriOverlay; setTimeout(() => { ov?.remove(); }, 300); __touchBriOverlay = null; } }
 
-    function applyTouchBrightness(video, brightness01) {
-      const clamped = CLAMP(brightness01, 0.05, 1.0);
-      const overlay = ensureBriOverlay(video);
-      overlay.style.opacity = String(1 - clamped);
+    /* ── 더블탭 탐색 실행 함수 ── */
+    function doSeek(video, side) {
+      if (!video || !Number.isFinite(video.duration)) return;
+      seekSide = side; seekAccum += SEEK_STEP;
+      if (side === 'left') { video.currentTime = Math.max(0, video.currentTime - SEEK_STEP); }
+      else { video.currentTime = Math.min(video.duration, video.currentTime + SEEK_STEP); }
+      if (video.paused && video.readyState >= 2) { try { video.play().catch(()=>{}); } catch (_) {} }
+      showSeekRipple(side, seekAccum);
+      if (seekTimerId) clearTimeout(seekTimerId);
+      seekTimerId = setTimeout(() => { hideSeekRipple(side); seekSide = null; seekAccum = 0; seekTimerId = 0; }, SEEK_SESSION_MS);
     }
-
-    function removeTouchBrightness() {
-      if (__touchBriOverlay?.isConnected) {
-        __touchBriOverlay.style.opacity = '0';
-        const ov = __touchBriOverlay;
-        setTimeout(() => { ov?.remove(); }, 300);
-        __touchBriOverlay = null;
-      }
-    }
-
 
     /* ── 이벤트 리스너 ── */
     window.addEventListener('touchstart', (e) => {
@@ -1892,12 +1975,11 @@ Bus.on('signal', () => {
       isSwiping = false;
       swipeType = '';
       seekInitialTime = v.currentTime;
+      touchVideo = v;
     }, { passive: true });
 
     window.addEventListener('touchmove', (e) => {
-      if (e.touches.length !== 1) return;
-      const v = isValidTarget(e);
-      if (!v) return;
+      if (e.touches.length !== 1 || !touchVideo) return;
 
       const t = e.touches[0];
       const dx = t.clientX - touchStartX;
@@ -1908,18 +1990,18 @@ Bus.on('signal', () => {
       // 스와이프 시작 판정
       if (!isSwiping && (absDx > SWIPE_THRESHOLD || absDy > SWIPE_THRESHOLD)) {
         if (absDx > absDy) {
-          // 가로: 탐색
+          // 가로 스와이프 (어디서나 허용)
           swipeType = 'h';
           isSwiping = true;
         } else {
-          // 세로: 밝기/볼륨 조절 (단, 전체화면일 때만 허용)
+          // 세로 스와이프 (★ 전체화면일 때만 허용)
           if (isInFullscreen()) {
             isSwiping = true;
-            const rect = v.getBoundingClientRect();
+            const rect = touchVideo.getBoundingClientRect();
             swipeType = (touchStartX < rect.left + rect.width / 2) ? 'vL' : 'vR';
-            initialVal = swipeType === 'vL' ? 1.0 : v.volume; // vL은 밝기(1.0)를 기본값으로
+            initialVal = swipeType === 'vL' ? 1.0 : touchVideo.volume;
           } else {
-            // 전체화면이 아닐 때는 세로 스크롤을 위해 스와이프 판정을 포기합니다.
+            // 일반 화면에서는 기본 스크롤(위아래 넘기기) 작동하도록 방치
             swipeType = '';
             isSwiping = false;
             return;
@@ -1928,59 +2010,54 @@ Bus.on('signal', () => {
       }
 
       if (isSwiping) {
-        if (e.cancelable) e.preventDefault(); // 기본 스크롤/액션 방지
+        if (e.cancelable) e.preventDefault(); // 스와이프 중일 때만 브라우저 스크롤 락
 
         if (swipeType === 'h') {
-          const duration = v.duration;
+          const duration = touchVideo.duration;
           if (!Number.isFinite(duration) || duration <= 0) return;
-          const vRect = v.getBoundingClientRect();
+          const vRect = touchVideo.getBoundingClientRect();
           const normalizedDx = dx / Math.max(1, vRect.width);
           const timeChange = normalizedDx * duration * SEEK_SENSITIVITY;
           const newTime = CLAMP(seekInitialTime + timeChange, 0, duration);
-
-          v.currentTime = newTime;
+          touchVideo.currentTime = newTime;
           updateSeekUI(newTime, newTime - seekInitialTime);
         } else if (swipeType === 'vR') {
-          // 우측 세로: 볼륨
+          // 볼륨 조절
           const volDelta = -(dy / window.innerHeight) * 2.0;
           let newVal = CLAMP(initialVal + volDelta, 0, 1);
-          v.volume = newVal;
-          if (newVal > 0 && v.muted) v.muted = false;
-          OSD.show(`볼륨: ${Math.round(newVal * 100)}%`, 500);
+          touchVideo.volume = newVal;
+          if (newVal > 0 && touchVideo.muted) { try { touchVideo.muted = false; } catch (_) {} }
+          updateSwipeUI('vol', newVal);
         } else if (swipeType === 'vL') {
-          // 좌측 세로: 밝기 조절 (Dimmer)
+          // 밝기 조절
           const briDelta = -(dy / window.innerHeight) * 2.0;
           let newBri = CLAMP(initialVal + briDelta, 0.05, 1.0);
-          applyTouchBrightness(v, newBri);
-          OSD.show(`밝기: ${Math.round(newBri * 100)}%`, 500);
+          applyTouchBrightness(touchVideo, newBri);
+          updateSwipeUI('bri', newBri);
         }
       }
     }, { passive: false });
 
     window.addEventListener('touchend', (e) => {
-      if (e.changedTouches.length !== 1) return;
-      const v = isValidTarget(e);
-      if (!v) return;
+      if (e.changedTouches.length !== 1 || !touchVideo) return;
+      const v = touchVideo;
 
       if (!isSwiping) {
-        // 제자리 더블 탭 판정 (300ms 이내)
+        // 제자리 더블 탭 판정
         const now = Date.now();
-        if (now - lastTapTime < 300) {
+        if (now - lastTapTime < DOUBLE_TAP_MS) {
           const rect = v.getBoundingClientRect();
           const w = rect.width;
           const x = e.changedTouches[0].clientX - rect.left;
 
           if (x < w * 0.3) {
-            v.currentTime = Math.max(0, v.currentTime - 10);
-            OSD.show('⏪ -10초');
+            doSeek(v, 'left');
           } else if (x > w * 0.7) {
-            v.currentTime += 10;
-            OSD.show('+10초 ⏩');
+            doSeek(v, 'right');
           } else {
-            // 가운데 더블 탭: 전체화면 및 가로모드 전환
+            // 가운데 더블 탭 (전체화면 + 가로 고정)
             const isFs = isInFullscreen();
             const targetEl = v.closest('.html5-video-player, .jwplayer, .video-js') || v;
-
             if (!isFs) {
               const reqFs = targetEl.requestFullscreen || targetEl.webkitRequestFullscreen;
               if (reqFs) {
@@ -2002,9 +2079,7 @@ Bus.on('signal', () => {
             } else {
               const extFs = document.exitFullscreen || document.webkitExitFullscreen;
               if (extFs) {
-                if (screen.orientation && screen.orientation.unlock) {
-                  screen.orientation.unlock();
-                }
+                if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
                 extFs.call(document);
                 OSD.show('✖ 화면 복구');
               }
@@ -2016,21 +2091,25 @@ Bus.on('signal', () => {
           lastTapTime = now;
         }
       } else {
-        // 스와이프 종료 시 OSD 정리
+        // 스와이프 종료 후 UI 정리
         if (swipeType === 'h') {
           hideSeekOverlaySmooth();
           const delta = v.currentTime - seekInitialTime;
           if (Math.abs(delta) > 0.5) OSD.show(`${formatDelta(delta)}  →  ${formatTime(v.currentTime)}`, 1200);
-        } else if (swipeType === 'vL') {
-          removeTouchBrightness();
+        } else {
+          hideSwipeUI();
+          if (swipeType === 'vL') removeTouchBrightness();
         }
         isSwiping = false;
       }
+      touchVideo = null;
     }, { passive: false });
 
     window.addEventListener('touchcancel', () => {
       isSwiping = false;
+      touchVideo = null;
       hideSeekOverlaySmooth();
+      hideSwipeUI();
       removeTouchBrightness();
     });
   }
