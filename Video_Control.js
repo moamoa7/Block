@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v218.0.0 - Reviewed & Optimized)
+// @name         Video_Control (v219.0.0 - Reviewed & Optimized)
 // @namespace    https://github.com/
-// @version      218.0.0
-// @description  v218.0.0: Full review — SVG/audio param fix, filter chain reorder, bug fixes, perf improvements
+// @version      219.0.0
+// @description  v219.0.0: Full review — SVG/audio param fix, filter chain reorder, bug fixes, perf improvements
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -37,7 +37,7 @@
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '218.0.0';
+  const VSC_VERSION = '219.0.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -1760,6 +1760,160 @@ Bus.on('signal', () => {
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
   }
 
+  /* ══ Mobile Gestures ══ */
+  function createGestures(Store, Scheduler, OSD) {
+    if (!IS_MOBILE) return; // 모바일 환경에서만 활성화
+
+    let touchStartX = 0, touchStartY = 0;
+    let lastTapTime = 0;
+    let isSwiping = false;
+    let swipeType = ''; // 'h'(가로-탐색), 'vL'(세로좌측-배속), 'vR'(세로우측-볼륨)
+    let initialVal = 0;
+
+    // 타겟이 비디오인지 확인하는 유틸 (이벤트 위임 최적화)
+    const isValidTarget = (e) => {
+      const v = __internal._activeVideo;
+      if (!v || !v.isConnected) return false;
+      if (e.target.tagName === 'VIDEO' || (e.target.closest && e.target.closest('video, .html5-video-player'))) return v;
+      return false;
+    };
+
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      if (!isValidTarget(e)) return;
+
+      const t = e.touches[0];
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+      isSwiping = false;
+      swipeType = '';
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 1) return;
+      const v = isValidTarget(e);
+      if (!v) return;
+
+      const t = e.touches[0];
+      const dx = t.clientX - touchStartX;
+      const dy = t.clientY - touchStartY;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // 15px 이상 움직이면 스와이프 시작으로 판정
+      if (!isSwiping && (absDx > 15 || absDy > 15)) {
+        isSwiping = true;
+        if (absDx > absDy) {
+          swipeType = 'h';
+          initialVal = v.currentTime;
+        } else {
+          const rect = v.getBoundingClientRect();
+          // 화면 좌측은 배속, 우측은 볼륨
+          swipeType = (touchStartX < rect.left + rect.width / 2) ? 'vL' : 'vR';
+          initialVal = swipeType === 'vL' ? (Number(Store.get(P.PB_RATE)) || 1) : v.volume;
+        }
+      }
+
+      if (isSwiping) {
+        if (e.cancelable) e.preventDefault(); // 스와이프 중 화면 스크롤 방지
+
+        if (swipeType === 'h') {
+          const seekDelta = (dx / window.innerWidth) * 90; // 화면 끝에서 끝까지 90초 이동
+          OSD.show(`탐색: ${seekDelta > 0 ? '+' : ''}${Math.round(seekDelta)}초`, 500);
+        } else if (swipeType === 'vR') {
+          const volDelta = -(dy / window.innerHeight) * 1.5; // 민감도 1.5
+          let newVal = Math.max(0, Math.min(1, initialVal + volDelta));
+          v.volume = newVal;
+          if (newVal > 0 && v.muted) v.muted = false;
+          OSD.show(`볼륨: ${Math.round(newVal * 100)}%`, 500);
+        } else if (swipeType === 'vL') {
+          const rateDelta = -(dy / window.innerHeight) * 2; // 민감도 2
+          let newVal = Math.max(0.25, Math.min(4.0, initialVal + rateDelta));
+          newVal = Math.round(newVal / 0.05) * 0.05; // 0.05 단위 스냅
+          OSD.show(`속도: ${newVal.toFixed(2)}x`, 500);
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length !== 1) return;
+      const v = isValidTarget(e);
+      if (!v) return;
+
+      if (!isSwiping) {
+        // 제자리 더블 탭 판정 (300ms 이내)
+        const now = Date.now();
+        if (now - lastTapTime < 300) {
+          const rect = v.getBoundingClientRect();
+          const w = rect.width;
+          const x = e.changedTouches[0].clientX - rect.left;
+
+          if (x < w * 0.3) {
+            v.currentTime = Math.max(0, v.currentTime - 10);
+            OSD.show('⏪ -10초');
+          } else if (x > w * 0.7) {
+            v.currentTime += 10;
+            OSD.show('+10초 ⏩');
+          } else {
+            // ★ 가운데 더블 탭: 전체화면 및 가로모드 전환
+            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
+            const targetEl = v.closest('.html5-video-player') || v.closest('.jwplayer') || v; // 래퍼가 있으면 래퍼 통째로
+
+            if (!isFullscreen) {
+              // 전체화면 진입
+              const reqFs = targetEl.requestFullscreen || targetEl.webkitRequestFullscreen;
+              if (reqFs) {
+                reqFs.call(targetEl).then(() => {
+                  // 성공적으로 진입 후 가로모드 고정 시도
+                  if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {
+                      log.warn('가로모드 고정 권한이 없거나 지원하지 않는 기기입니다.');
+                    });
+                  }
+                }).catch(err => log.error('전체화면 진입 실패:', err));
+                OSD.show('🔲 전체화면 (가로모드)');
+              }
+            } else {
+              // 전체화면 해제
+              const extFs = document.exitFullscreen || document.webkitExitFullscreen;
+              if (extFs) {
+                extFs.call(document);
+                // 화면 고정 해제
+                if (screen.orientation && screen.orientation.unlock) {
+                  screen.orientation.unlock();
+                }
+                OSD.show('✖ 화면 복구');
+              }
+            }
+          }
+          lastTapTime = 0;
+          if (e.cancelable) e.preventDefault();
+        } else {
+          lastTapTime = now;
+        }
+      } else {
+        // 스와이프 종료 시 확정 적용 (가로, 좌측 세로)
+        const t = e.changedTouches[0];
+        const dx = t.clientX - touchStartX;
+        const dy = t.clientY - touchStartY;
+
+        if (swipeType === 'h') {
+          const seekDelta = (dx / window.innerWidth) * 90;
+          v.currentTime += seekDelta;
+          OSD.show(`이동: ${Math.round(v.currentTime)}초`);
+        } else if (swipeType === 'vL') {
+          const rateDelta = -(dy / window.innerHeight) * 2;
+          let newVal = Math.max(0.25, Math.min(4.0, initialVal + rateDelta));
+          newVal = Math.round(newVal / 0.05) * 0.05;
+          Store.set(P.PB_RATE, newVal);
+          Store.set(P.PB_EN, true);
+          Scheduler.request();
+          OSD.show(`속도 변경: ${newVal.toFixed(2)}x`);
+        }
+      }
+    }, { passive: false });
+  }
+
   /* ══ Bootstrap ══ */
   function bootstrap() {
     const Scheduler = createScheduler();
@@ -1787,6 +1941,7 @@ Bus.on('signal', () => {
     const OSD = createOSD();
     const Params = createVideoParams(Store);
     const Filters = createFilters();
+    const Gestures = createGestures(Store, Scheduler, OSD);
 
     // [FIX 3-7, 3-8] apply with size filter and playback rate
     const apply = () => {
