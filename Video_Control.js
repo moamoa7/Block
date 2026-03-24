@@ -826,18 +826,20 @@
       _shadow = panelHost.attachShadow({ mode: 'closed' });
       _shadow.appendChild(h('style', {}, PANEL_CSS));
 
-      /* ── 패널 컨테이너: 모바일 스크롤 격리 ── */
+      /* ── 패널 컨테이너: CSS로 모바일 격리 & PC 휠 차단 ── */
       panelEl = h('div', { class: 'panel' });
-      panelEl.addEventListener('touchmove', e => {
-        if (e.target.closest('.body')) return; // body 내부 스크롤은 허용
-        if (e.cancelable) e.preventDefault();  // 바깥쪽 스크롤 원천 차단
-        e.stopPropagation();
-      }, { passive: false });
+
+      // ❌ 문제의 원인이었던 touchmove 리스너 완전 삭제
+      // 🟢 PC 마우스 휠 스크롤 전파만 차단해서 배경 페이지가 스크롤되는 현상 방지
+      panelEl.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
+
+      // CSS 설정과 함께 명시적으로 한 번 더 적용
       panelEl.style.overscrollBehavior = 'none';
 
       const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕');
       closeBtn.addEventListener('click', () => togglePanel(false));
       panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), closeBtn));
+
       const tabBar = h('div', { class: 'tabs' });
       ['video','audio','playback'].forEach(t => {
         const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t });
@@ -847,9 +849,9 @@
       });
       panelEl.appendChild(tabBar);
 
-      /* ── body 영역: 모바일 스크롤 격리 ── */
+      /* ── body 영역 ── */
       const bodyEl = h('div', { class: 'body' });
-      bodyEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+      // ❌ bodyEl의 touchmove 리스너도 삭제
       bodyEl.style.overscrollBehavior = 'none';
       panelEl.appendChild(bodyEl);
 
