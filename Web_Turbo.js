@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      18.1
-// @description  Lean web optimizer v18.1 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration. Zero prototype hooks except FontFace.
+// @version      18.2
+// @description  Lean web optimizer v18.2 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,7 +16,7 @@
 
 'use strict';
 (() => {
-  const V = '18.1';
+  const V = '18.2';
   const doc = document;
   const win = window;
   const HOST = location.hostname;
@@ -34,8 +34,13 @@
     rtt : conn.rtt           || 50,
     save: !!(conn.saveData),
   };
-  const TIER = NET.ect === '4g' && NET.dl >= 5 ? 't3'
-             : NET.ect === '4g' || NET.ect === '3g' ? 't2' : 't1';
+
+  /* [FIX-opt3] TIER를 동적 계산 가능하도록 let + 함수화 */
+  const getTier = () =>
+    NET.ect === '4g' && NET.dl >= 5 ? 't3'
+    : NET.ect === '4g' || NET.ect === '3g' ? 't2' : 't1';
+  let TIER = getTier();
+
   const DEV_TIER = DEV_CORES >= 4 && DEV_MEM >= 4 ? 'high'
                  : DEV_CORES >= 2 && DEV_MEM >= 2 ? 'mid' : 'low';
 
@@ -44,8 +49,47 @@
     dnsPreconnMax    : 4,
     dnsFreqThreshold : 3,
     slowResMs        : 3000,
-    lazyMarginPx     : 300,   /* below-fold 판정 마진 */
+    lazyMarginPx     : 300,
   };
+
+  /* ═══════════════════════════════════════════════
+   *  §0.5  Safe Head Append Helper
+   *  [FIX-7] document-start 시점에서 head가 없을 수 있음
+   * ═══════════════════════════════════════════════ */
+  const pendingHeadEls = [];
+  let headReady = false;
+
+  const appendToHead = (el) => {
+    if (doc.head) {
+      doc.head.appendChild(el);
+    } else {
+      pendingHeadEls.push(el);
+    }
+  };
+
+  const flushHeadQueue = () => {
+    if (headReady) return;
+    headReady = true;
+    for (const el of pendingHeadEls) {
+      if (doc.head) doc.head.appendChild(el);
+    }
+    pendingHeadEls.length = 0;
+  };
+
+  /* doc.head가 생성되면 flush */
+  if (doc.head) {
+    headReady = true;
+  } else {
+    const headObs = new MutationObserver(() => {
+      if (doc.head) { flushHeadQueue(); headObs.disconnect(); }
+    });
+    if (doc.documentElement) {
+      headObs.observe(doc.documentElement, { childList: true });
+    } else {
+      /* documentElement조차 없는 극초기 — document 자체를 관찰 */
+      headObs.observe(doc, { childList: true, subtree: true });
+    }
+  }
 
   /* ═══════════════════════════════════════════════
    *  §1  Trusted Types (named policy)
@@ -91,7 +135,8 @@
       streamStyle = doc.createElement('style');
       streamStyle.id = 'tb-stream';
       streamStyle.textContent = 'video,video *,:has(>video),:has(>video) *{content-visibility:visible!important;contain-intrinsic-size:none!important}';
-      (doc.head || doc.documentElement).appendChild(streamStyle);
+      /* [FIX-7] safe head append */
+      appendToHead(streamStyle);
     } catch (_) {}
   };
 
@@ -145,7 +190,8 @@
       if (!parts.length) return;
       const s = doc.createElement('style'); s.id = 'tb-css';
       s.textContent = parts.join('\n');
-      (doc.head || doc.documentElement).appendChild(s);
+      /* [FIX-7] safe head append */
+      appendToHead(s);
     } catch (_) {}
   };
 
@@ -161,32 +207,39 @@
     };
     win.FontFace.prototype = Orig.prototype;
     Object.setPrototypeOf(win.FontFace, Orig);
+    /* [FIX-5] name 프로퍼티 보존 */
+    Object.defineProperty(win.FontFace, 'name', { value: 'FontFace', configurable: true });
   }
+
   const patchFontRules = () => {
+    /* [FIX-opt4] CORS 스타일시트 명확한 스킵 */
     try {
       for (const ss of doc.styleSheets) {
-        try { for (const r of ss.cssRules) {
+        let rules;
+        try { rules = ss.cssRules; } catch (_) { continue; }
+        for (const r of rules) {
           if (r instanceof CSSFontFaceRule) {
             const s = r.style;
             if (!s.fontDisplay || s.fontDisplay === 'auto') s.fontDisplay = FONT_DISPLAY;
           }
-        }} catch (_) {}
+        }
       }
     } catch (_) {}
   };
 
   /* ═══════════════════════════════════════════════
-   *  §7  LCP Boost + Below‑fold Optimization (v18.1 신규)
+   *  §7  LCP Boost + Below‑fold Optimization (v18.2)
    *
    *  web.dev 권장:
    *  - LCP 이미지: fetchpriority="high", loading="lazy" 제거
    *  - 비-LCP 하위 이미지: loading="lazy", decoding="async",
    *    fetchpriority="low"
    *  - iframe: loading="lazy"
-   *  - 반응형 img: sizes 누락 보정
+   *  - 반응형 img: sizes 누락 보정 (lazy 한정)
    *
-   *  IO 기반이지만 스타일/레이아웃 변경 없음 (속성만 설정)
-   *  → 리사이즈 딜레이 없음
+   *  [FIX-6] LCP 확정 후 IO 시작으로 race condition 제거
+   *  [FIX-3] sizes="auto"는 loading="lazy" + srcset 조합만
+   *  [FIX-4] boostLCP stale 참조 방지
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
 
@@ -201,94 +254,111 @@
     } catch (_) {}
   }
 
+  /* [FIX-4] DOM 연결 확인 + 로딩 상태 체크 */
   const boostLCP = () => {
     if (!lcpEl) return;
+    if (!lcpEl.isConnected) { lcpEl = null; return; }
     if (lcpEl.tagName === 'IMG') {
-      lcpEl.fetchPriority = 'high';
-      /* web.dev: LCP 이미지에서 loading="lazy" 제거 (7% 사이트가 실수) */
       if (lcpEl.loading === 'lazy') lcpEl.loading = 'eager';
-      lcpEl.decoding = 'auto';
+      if (!lcpEl.complete) {
+        lcpEl.fetchPriority = 'high';
+        lcpEl.decoding = 'auto';
+      }
     }
   };
 
   /* Below‑fold 이미지/iframe 최적화 — IntersectionObserver */
   let belowFoldIO = null;
+  let belowFoldMO = null;
+
   const optimizeBelowFold = () => {
-    /* 이미 observed 요소 추적 */
     const observed = new WeakSet();
 
+    /* [FIX-1] rootMargin 명시적 4-value 형식 */
     belowFoldIO = new IntersectionObserver((entries) => {
       for (const e of entries) {
         const el = e.target;
         const tag = el.tagName;
 
         if (tag === 'IMG') {
-          /* LCP 이미지는 건드리지 않음 */
           if (el === lcpEl) { belowFoldIO.unobserve(el); continue; }
 
           if (!e.isIntersecting) {
-            /* 화면 밖: lazy + async + low priority */
             if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
             if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
             if (!el.fetchPriority || el.fetchPriority === 'high') el.fetchPriority = 'low';
+
+            /* [FIX-3] sizes="auto"는 lazy + srcset 조합에서만 유효 (스펙 준수) */
+            if (el.srcset && el.loading === 'lazy' && (!el.sizes || el.sizes === '')) {
+              el.sizes = 'auto';
+            }
           }
-          /* 반응형 sizes 보정 */
-          if (el.srcset && (!el.sizes || el.sizes === '')) el.sizes = 'auto';
+
+          belowFoldIO.unobserve(el);
         }
 
         if (tag === 'IFRAME') {
           if (!e.isIntersecting) {
             if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
           }
+          belowFoldIO.unobserve(el);
         }
-
-        /* 한 번만 설정하면 되므로 unobserve */
-        belowFoldIO.unobserve(el);
       }
-    }, { rootMargin: `${CFG.lazyMarginPx}px` });
+    }, { rootMargin: `${CFG.lazyMarginPx}px 0px ${CFG.lazyMarginPx}px 0px` });
+
+    const observeEl = (el) => {
+      if (!observed.has(el)) { observed.add(el); belowFoldIO.observe(el); }
+    };
 
     /* 기존 요소 등록 */
-    doc.querySelectorAll('img, iframe').forEach(el => {
-      if (!observed.has(el)) { observed.add(el); belowFoldIO.observe(el); }
-    });
+    doc.querySelectorAll('img, iframe').forEach(observeEl);
 
-    /* 새 요소 감지 (경량 MO — 1단계만, TreeWalker 없음) */
-    const mo = new MutationObserver(mutations => {
+    /* [FIX-2] body만 감시 (img/iframe은 body 내에만 의미 있음) */
+    /* [FIX-opt1] video 감지도 MO에 통합하여 setInterval 제거 */
+    belowFoldMO = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeType !== 1) continue;
           const tag = node.tagName;
-          if ((tag === 'IMG' || tag === 'IFRAME') && !observed.has(node)) {
-            observed.add(node); belowFoldIO.observe(node);
-          }
-          /* 직계 자식만 체크 (TreeWalker 없음 — 성능 안전) */
+          if (tag === 'IMG' || tag === 'IFRAME') observeEl(node);
+          if (tag === 'VIDEO') checkVideo(node);
           if (node.children) {
             for (const child of node.children) {
               const ct = child.tagName;
-              if ((ct === 'IMG' || ct === 'IFRAME') && !observed.has(child)) {
-                observed.add(child); belowFoldIO.observe(child);
-              }
+              if (ct === 'IMG' || ct === 'IFRAME') observeEl(child);
+              if (ct === 'VIDEO') checkVideo(child);
             }
           }
         }
       }
     });
-    mo.observe(doc.documentElement || doc.body, { childList: true, subtree: true });
-    return mo;
+    belowFoldMO.observe(doc.body, { childList: true, subtree: true });
+
+    return belowFoldMO;
   };
 
   /* ═══════════════════════════════════════════════
    *  §8  DNS Prefetch / Preconnect Auto‑Promotion
+   *  [FIX-opt5] DocumentFragment 배치 삽입
    * ═══════════════════════════════════════════════ */
   const DnsHints = (() => {
     const seen = new Set(), linkMap = new Map(), freqMap = new Map();
     let hintCount = 0, preconnCount = 0;
+    const pending = [];
+
+    const flushPending = () => {
+      if (!pending.length || !doc.head) return;
+      const frag = doc.createDocumentFragment();
+      for (const l of pending) frag.appendChild(l);
+      doc.head.appendChild(frag);
+      pending.length = 0;
+    };
 
     const add = origin => {
       if (!origin || seen.has(origin) || origin === location.origin || hintCount >= CFG.dnsHintMax) return;
       seen.add(origin);
       const l = doc.createElement('link'); l.rel = 'dns-prefetch'; l.href = origin;
-      doc.head.appendChild(l); linkMap.set(origin, l); hintCount++;
+      pending.push(l); linkMap.set(origin, l); hintCount++;
     };
     const track = origin => {
       if (!origin || origin === location.origin) return;
@@ -299,7 +369,7 @@
         else if (!seen.has(origin)) {
           seen.add(origin);
           const l = doc.createElement('link'); l.rel = 'preconnect'; l.href = origin; l.crossOrigin = 'anonymous';
-          doc.head.appendChild(l); linkMap.set(origin, l); preconnCount++; hintCount++;
+          pending.push(l); linkMap.set(origin, l); preconnCount++; hintCount++;
         }
       } else if (!seen.has(origin)) add(origin);
     };
@@ -314,16 +384,18 @@
                 console.warn(`[TO] Slow resource (${Math.round(e.duration)}ms): ${e.name.slice(0, 80)}`);
             } catch (_) {}
           }
+          flushPending();
         });
         obs.observe({ type: 'resource', buffered: true });
       } catch (_) {}
     }
 
-    return { stats: () => ({ hints: hintCount, preconnects: preconnCount, tracked: freqMap.size }) };
+    return { flush: flushPending, stats: () => ({ hints: hintCount, preconnects: preconnCount, tracked: freqMap.size }) };
   })();
 
   /* ═══════════════════════════════════════════════
    *  §9  Data‑Saver Listener
+   *  [FIX-opt3] TIER 재계산
    * ═══════════════════════════════════════════════ */
   const initDataSaver = () => {
     if (!conn.addEventListener) return;
@@ -332,6 +404,7 @@
       NET.dl  = conn.downlink ?? NET.dl;
       NET.rtt = conn.rtt ?? NET.rtt;
       NET.save = !!conn.saveData;
+      TIER = getTier();
     });
   };
 
@@ -345,7 +418,6 @@
     win.addEventListener('pageshow', e => {
       if (e.persisted) { scanVideos(); patchFontRules(); boostLCP(); }
     });
-    /* unload 미사용 → BFCache 호환 보장 */
   };
 
   /* ═══════════════════════════════════════════════
@@ -369,19 +441,28 @@
 
     /* Phase 2: DOM ready */
     const onReady = () => {
+      flushHeadQueue();
       patchFontRules();
       scanVideos();
       boostLCP();
 
-      /* v18.1: Below-fold 최적화 */
-      const mo = optimizeBelowFold();
+      /* [FIX-6] Below-fold 최적화를 LCP 확정 후로 지연 */
+      const startBelowFold = () => {
+        optimizeBelowFold();
+        DnsHints.flush();
+      };
+
+      if ('requestIdleCallback' in win) {
+        requestIdleCallback(startBelowFold, { timeout: 3000 });
+      } else {
+        setTimeout(startBelowFold, 1500);
+      }
 
       initVisibility();
       initNavigation();
       initDataSaver();
 
-      /* 주기적 비디오 스캔 */
-      setInterval(scanVideos, 10000);
+      /* [FIX-opt1] setInterval(scanVideos) 제거 — MO에 통합됨 */
 
       /* Diagnostic API */
       win.__turboOptimizer__ = {
@@ -403,7 +484,6 @@
         },
       };
 
-      /* Boot log */
       const f = win.__turboOptimizer__.features;
       const mode = isChat ? 'Chat' : isStreaming ? 'Stream' : 'Gen';
       console.log(
