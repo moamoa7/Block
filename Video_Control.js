@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v221.0.0 - Final)
+// @name         Video_Control (v221.1.0 - Final)
 // @namespace    https://github.com/
-// @version      221.0.0
-// @description  v221: JWPlayer 바이패스, 화면 조도, 오디오 평준화+리미터
+// @version      221.1.0
+// @description  v221.1: 모바일 패널 스크롤 격리 패치
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '221.0.0';
+  const VSC_VERSION = '221.1.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -255,16 +255,14 @@
 
     let ctx = null, comp = null, limiter = null, makeupGain = null, masterOut = null, dryPath = null;
     let currentSrc = null, targetVideo = null;
-    let currentMode = 'none'; // 'none' | 'mes' | 'stream' | 'bypass'
+    let currentMode = 'none';
     const srcMap = new WeakMap();
     let bypassMode = false;
 
-    // 실패 추적
     const corsFailedVideos = new WeakSet();
     const mesFailedVideos = new WeakSet();
     const permanentBypassVideos = new WeakSet();
 
-    /* ── JWPlayer 감지 ── */
     function detectJWPlayer(video) {
       if (!video) return false;
       if (typeof window.jwplayer === 'function') { try { if (window.jwplayer()?.getContainer?.()) return true; } catch (_) {} }
@@ -277,7 +275,6 @@
       return false;
     }
 
-    /* ── 연결 가능 판단 ── */
     function canConnect(video) {
       if (!video) return false;
       if (permanentBypassVideos.has(video)) return false;
@@ -286,7 +283,6 @@
       return true;
     }
 
-    /* ── AudioContext 초기화 ── */
     function initCtx() {
       if (ctx) return true;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -320,7 +316,6 @@
       return true;
     }
 
-    /* ── 강도 조절 ── */
     function applyStrength(strength) {
       if (!comp || !makeupGain || !ctx) return;
       const s = CLAMP(strength, 0, 100) / 100;
@@ -337,7 +332,6 @@
       catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 4); }
     }
 
-    /* ── 바이패스 ── */
     function enterBypass(video, reason) {
       if (bypassMode) return;
       bypassMode = true;
@@ -360,7 +354,6 @@
 
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
-    /* ── captureStream ── */
     function connectViaCaptureStream(video) {
       if (!ctx || corsFailedVideos.has(video)) return null;
       const captureFn = video.captureStream || video.mozCaptureStream;
@@ -383,7 +376,6 @@
       } catch (e) { log.error('[Audio] createMediaStreamSource failed:', e); return null; }
     }
 
-    /* ── MES ── */
     function connectViaMES(video) {
       if (!ctx || mesFailedVideos.has(video)) return null;
       let s = srcMap.get(video);
@@ -392,7 +384,6 @@
       catch (e) { if (e.name === 'InvalidStateError') return null; log.error('[Audio] MES failed:', e); return null; }
     }
 
-    /* ── 통합 연결 (JWPlayer 안전 로직) ── */
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
@@ -401,7 +392,6 @@
       let source = null;
 
       if (isJW) {
-        // JWPlayer: captureStream만 시도. MES는 오디오 경로를 파괴하므로 금지.
         source = connectViaCaptureStream(video);
         if (!source) {
           permanentBypassVideos.add(video);
@@ -409,7 +399,6 @@
           return false;
         }
       } else {
-        // 일반: MES 먼저, 실패 시 captureStream
         source = connectViaMES(video);
         if (!source) source = connectViaCaptureStream(video);
       }
@@ -431,7 +420,6 @@
       return true;
     }
 
-    /* ── 팝 노이즈 방지 ── */
     function fadeOutThen(fn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { try { fn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
@@ -441,7 +429,6 @@
       }, 60);
     }
 
-    /* ── 연결 해제 ── */
     function disconnectCurrent() {
       if (!currentSrc) return;
       if (currentSrc.__vsc_isCaptureStream && targetVideo) {
@@ -455,7 +442,6 @@
       currentSrc = null; currentMode = 'none';
     }
 
-    /* ── 믹스 업데이트 ── */
     function updateMix() {
       if (!ctx || bypassMode) return;
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
@@ -469,7 +455,6 @@
       }
     }
 
-    /* ── 타겟 설정 ── */
     function setTarget(video) {
       if (video === targetVideo) {
         if (bypassMode) {
@@ -507,7 +492,6 @@
       });
     }
 
-    /* ── AudioContext resume ── */
     let gestureHooked = false;
     const onGesture = () => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); if (ctx?.state === 'running' && gestureHooked) { for (const evt of ['pointerdown','keydown','click']) window.removeEventListener(evt, onGesture, true); gestureHooked = false; } };
     function ensureGestureHook() { if (gestureHooked) return; gestureHooked = true; for (const evt of ['pointerdown','keydown','click']) window.addEventListener(evt, onGesture, { passive: true, capture: true }); }
@@ -707,7 +691,7 @@
 
     const PANEL_CSS = `${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
-    .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; }
+    .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; overscroll-behavior: contain !important; }
     .panel.open { opacity: 1 !important; transform: translate(0, -50%) scale(1) !important; filter: blur(0) !important; pointer-events: auto !important; }
     .panel::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--vsc-neon), transparent); opacity: 0.6; pointer-events: none; z-index: 2; }
     .hdr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); gap: 10px; }
@@ -719,7 +703,7 @@
     .tab:hover { opacity: 0.65; }
     .tab.on { opacity: 1; color: var(--vsc-neon); }
     .tab.on svg { opacity: 1; filter: drop-shadow(0 0 4px rgba(0,229,255,0.4)); stroke: var(--vsc-neon); }
-    .body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0,229,255,0.15) transparent; text-align: left; }
+    .body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0,229,255,0.15) transparent; text-align: left; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
     .body::-webkit-scrollbar { width: 4px; } .body::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
     .row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; min-height: var(--vsc-touch-min); }
     .row label { font-size: 12px; opacity: 0.75; flex: 0 0 auto; max-width: 48%; font-weight: 500; }
@@ -838,10 +822,36 @@
 
     function buildPanel() {
       if (panelHost) return;
-      panelHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-host', style: HOST_STYLE_NORMAL }); _shadow = panelHost.attachShadow({ mode: 'closed' }); _shadow.appendChild(h('style', {}, PANEL_CSS)); panelEl = h('div', { class: 'panel' });
-      const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕'); closeBtn.addEventListener('click', () => togglePanel(false)); panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), closeBtn));
-      const tabBar = h('div', { class: 'tabs' }); ['video','audio','playback'].forEach(t => { const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }); tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t])); tab.addEventListener('click', () => { activeTab = t; renderTab(); }); tabBar.appendChild(tab); });
-      panelEl.appendChild(tabBar); panelEl.appendChild(h('div', { class: 'body' })); panelEl.appendChild(createSmartMetrics()); _shadow.appendChild(panelEl); renderTab(); getMountTarget().appendChild(panelHost);
+      panelHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-host', style: HOST_STYLE_NORMAL });
+      _shadow = panelHost.attachShadow({ mode: 'closed' });
+      _shadow.appendChild(h('style', {}, PANEL_CSS));
+
+      /* ── 패널 컨테이너: 모바일 스크롤 격리 ── */
+      panelEl = h('div', { class: 'panel' });
+      panelEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+      panelEl.style.overscrollBehavior = 'contain';
+
+      const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕');
+      closeBtn.addEventListener('click', () => togglePanel(false));
+      panelEl.appendChild(h('div', { class: 'hdr' }, h('span', { class: 'tl' }, 'VSC'), closeBtn));
+      const tabBar = h('div', { class: 'tabs' });
+      ['video','audio','playback'].forEach(t => {
+        const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t });
+        tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t]));
+        tab.addEventListener('click', () => { activeTab = t; renderTab(); });
+        tabBar.appendChild(tab);
+      });
+      panelEl.appendChild(tabBar);
+
+      /* ── body 영역: 모바일 스크롤 격리 ── */
+      const bodyEl = h('div', { class: 'body' });
+      bodyEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+      panelEl.appendChild(bodyEl);
+
+      panelEl.appendChild(createSmartMetrics());
+      _shadow.appendChild(panelEl);
+      renderTab();
+      getMountTarget().appendChild(panelHost);
     }
 
     function renderTab() { const body = _shadow?.querySelector('.body'); if (!body) return; body.textContent = ''; tabFns.length = 0; const w = h('div', {}); if (activeTab === 'video') w.appendChild(buildVideoTab()); else if (activeTab === 'audio') w.appendChild(buildAudioTab()); else if (activeTab === 'playback') w.appendChild(buildPlaybackTab()); body.appendChild(w); tabFns.forEach(f => f()); _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab)); updateTabIndicator(_shadow.querySelector('.tabs'), activeTab); }
