@@ -2,7 +2,7 @@
 // @name         Video_Control (v221.1.0 - Final)
 // @namespace    https://github.com/
 // @version      221.1.0
-// @description  v221.1: 모바일 패널 스크롤 격리 패치
+// @description  v221.1: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -691,7 +691,7 @@
 
     const PANEL_CSS = `${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
-    .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; overscroll-behavior: contain !important; }
+    .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; overscroll-behavior: none !important; }
     .panel.open { opacity: 1 !important; transform: translate(0, -50%) scale(1) !important; filter: blur(0) !important; pointer-events: auto !important; }
     .panel::before { content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px; background: linear-gradient(90deg, transparent, var(--vsc-neon), transparent); opacity: 0.6; pointer-events: none; z-index: 2; }
     .hdr { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); gap: 10px; }
@@ -703,7 +703,7 @@
     .tab:hover { opacity: 0.65; }
     .tab.on { opacity: 1; color: var(--vsc-neon); }
     .tab.on svg { opacity: 1; filter: drop-shadow(0 0 4px rgba(0,229,255,0.4)); stroke: var(--vsc-neon); }
-    .body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0,229,255,0.15) transparent; text-align: left; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    .body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0,229,255,0.15) transparent; text-align: left; overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
     .body::-webkit-scrollbar { width: 4px; } .body::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
     .row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; min-height: var(--vsc-touch-min); }
     .row label { font-size: 12px; opacity: 0.75; flex: 0 0 auto; max-width: 48%; font-weight: 500; }
@@ -828,8 +828,12 @@
 
       /* ── 패널 컨테이너: 모바일 스크롤 격리 ── */
       panelEl = h('div', { class: 'panel' });
-      panelEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
-      panelEl.style.overscrollBehavior = 'contain';
+      panelEl.addEventListener('touchmove', e => {
+        if (e.target.closest('.body')) return; // body 내부 스크롤은 허용
+        if (e.cancelable) e.preventDefault();  // 바깥쪽 스크롤 원천 차단
+        e.stopPropagation();
+      }, { passive: false });
+      panelEl.style.overscrollBehavior = 'none';
 
       const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕');
       closeBtn.addEventListener('click', () => togglePanel(false));
@@ -846,6 +850,7 @@
       /* ── body 영역: 모바일 스크롤 격리 ── */
       const bodyEl = h('div', { class: 'body' });
       bodyEl.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+      bodyEl.style.overscrollBehavior = 'none';
       panelEl.appendChild(bodyEl);
 
       panelEl.appendChild(createSmartMetrics());
