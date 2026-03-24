@@ -735,13 +735,71 @@
     function getMountTarget() { const fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs) return fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement) : fs; return document.documentElement || document.body; }
     const HOST_STYLE_NORMAL = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
     const HOST_STYLE_FS = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
-    let _lastMount = null, _qbarHasVideo = false;
+    
+    let _lastMount = null, _qbarHasVideo = false, _lastIsFs = null;
 
-    function reparent() { if (!quickBarHost) return; const target = getMountTarget(); if (!target) return; const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement); if (target !== _lastMount || isFs) { _lastMount = target; try { target.appendChild(quickBarHost); } catch (_) {} if (panelHost) try { target.appendChild(panelHost); } catch (_) {} } const style = isFs ? HOST_STYLE_FS : HOST_STYLE_NORMAL; quickBarHost.style.cssText = style; if (panelHost) panelHost.style.cssText = style; if (!_qbarHasVideo) quickBarHost.style.setProperty('display', 'none', 'important'); if (panelHost && panelOpen && panelEl) panelEl.style.pointerEvents = 'auto'; }
+    function reparent() {
+      if (!quickBarHost) return;
+      const target = getMountTarget();
+      if (!target) return;
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      
+      // 1. 부모 요소가 진짜로 달라졌을 때만 DOM을 옮김 (스크롤 초기화 방지 핵심)
+      if (target !== _lastMount) {
+        _lastMount = target;
+        if (quickBarHost.parentNode !== target) try { target.appendChild(quickBarHost); } catch (_) {}
+        if (panelHost && panelHost.parentNode !== target) try { target.appendChild(panelHost); } catch (_) {}
+      }
+      
+      // 2. 풀스크린 상태가 변했을 때만 스타일 덮어쓰기
+      if (_lastIsFs !== isFs) {
+        _lastIsFs = isFs;
+        const style = isFs ? HOST_STYLE_FS : HOST_STYLE_NORMAL;
+        quickBarHost.style.cssText = style;
+        if (panelHost) panelHost.style.cssText = style;
+        if (!_qbarHasVideo) quickBarHost.style.setProperty('display', 'none', 'important');
+      }
+      
+      if (panelHost && panelOpen && panelEl) panelEl.style.pointerEvents = 'auto';
+    }
 
-    function onFullscreenChange() { reparent(); setTimeout(reparent, 80); setTimeout(reparent, 400); if (!document.fullscreenElement && !document.webkitFullscreenElement) { _lastMount = null; setTimeout(() => { const root = document.documentElement || document.body; if (quickBarHost?.parentNode !== root) try { root.appendChild(quickBarHost); } catch (_) {} if (panelHost?.parentNode !== root) try { root.appendChild(panelHost); } catch (_) {} reparent(); }, 100); } }
+    function onFullscreenChange() { 
+      reparent(); 
+      setTimeout(reparent, 80); 
+      setTimeout(reparent, 400); 
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) { 
+        _lastMount = null; 
+        _lastIsFs = null; // 강제 업데이트를 위해 초기화
+        setTimeout(() => { 
+          const root = document.documentElement || document.body; 
+          if (quickBarHost?.parentNode !== root) try { root.appendChild(quickBarHost); } catch (_) {} 
+          if (panelHost?.parentNode !== root) try { root.appendChild(panelHost); } catch (_) {} 
+          reparent(); 
+        }, 100); 
+      } 
+    }
 
-    function updateQuickBarVisibility() { if (!quickBarHost) return; let has = Registry.videos.size > 0; if (!has) try { has = !!document.querySelector('video'); } catch (_) {} if (!has && Registry.shadowRootsLRU) { for (const it of Registry.shadowRootsLRU) { if (it.host?.isConnected && it.root) { try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {} } } } if (has && !_qbarHasVideo) { _qbarHasVideo = true; quickBarHost.style.removeProperty('display'); } else if (!has && _qbarHasVideo) { _qbarHasVideo = false; quickBarHost.style.setProperty('display', 'none', 'important'); if (panelOpen) togglePanel(false); } if (_qbarHasVideo) reparent(); }
+    function updateQuickBarVisibility() { 
+      if (!quickBarHost) return; 
+      let has = Registry.videos.size > 0; 
+      if (!has) try { has = !!document.querySelector('video'); } catch (_) {} 
+      if (!has && Registry.shadowRootsLRU) { 
+        for (const it of Registry.shadowRootsLRU) { 
+          if (it.host?.isConnected && it.root) { 
+            try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {} 
+          } 
+        } 
+      } 
+      if (has && !_qbarHasVideo) { 
+        _qbarHasVideo = true; 
+        quickBarHost.style.removeProperty('display'); 
+      } else if (!has && _qbarHasVideo) { 
+        _qbarHasVideo = false; 
+        quickBarHost.style.setProperty('display', 'none', 'important'); 
+        if (panelOpen) togglePanel(false); 
+      } 
+      // ❌ 문제의 원인이었던 무조건적인 if (_qbarHasVideo) reparent(); 호출 완전 삭제
+    }
 
     function updateTabIndicator(tabBar, tabName) { if (!tabBar) return; const tabs = tabBar.querySelectorAll('.tab'); const idx = ['video','audio','playback'].indexOf(tabName); if (idx < 0) return; const tabEl = tabs[idx]; if (!tabEl) return; requestAnimationFrame(() => { const barRect = tabBar.getBoundingClientRect(); const tabRect = tabEl.getBoundingClientRect(); tabBar.style.setProperty('--tab-indicator-left', `${tabRect.left - barRect.left}px`); tabBar.style.setProperty('--tab-indicator-width', `${tabRect.width}px`); tabs.forEach(t => t.classList.toggle('on', t.dataset.t === tabName)); }); }
 
