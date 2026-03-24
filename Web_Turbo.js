@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      17.4
-// @description  Non‑blocking web optimizer v17.4 – Zero‑hook MSE detection (DRM‑safe), PerformanceObserver streaming discovery, named Trusted Types policy, passive‑listener video exemption, no fetch/XHR wrapping, Worker offload, IDB cache, Compute Pressure, ViewTransition CSS, TreeWalker MO, ReportingObserver, IO‑based content‑visibility, requestVideoFrameCallback, FinalizationRegistry, full v16+v17 feature set.
+// @version      17.6
+// @description  Non‑blocking web optimizer v17.6 – Navigation intercept fix (form/cross‑origin safe), pagehide replaces unload, PressureObserver permissions‑safe, TrustedScriptURL Worker fix, zero‑hook MSE detection (DRM‑safe), named Trusted Types policy, passive‑listener video exemption, no fetch/XHR wrapping, Worker offload, IDB cache, ViewTransition CSS, TreeWalker MO, ReportingObserver, IO‑based content‑visibility, requestVideoFrameCallback, FinalizationRegistry.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,10 +16,7 @@
 
 'use strict';
 (() => {
-  /* ─────────────────────────────────────────────
-   *  §0  Constants & Environment
-   * ───────────────────────────────────────────── */
-  const V = '17.4';
+  const V = '17.6';
   const doc = document;
   const win = window;
   const HOST = location.hostname;
@@ -68,15 +65,13 @@
     loafEmaAlpha     : 0.3,
   };
 
-  /* §0‑c  Trusted Types (named policy — avoids default‑policy collision) --- */
+  /* §0‑c  Trusted Types --------------------------------------------------- */
   const TT = (() => {
     if (typeof trustedTypes === 'undefined') return { p: null, ok: false, name: 'none' };
-    /* If a default policy already exists (e.g. Netflix), do NOT register another default */
     try {
       const existing = trustedTypes.defaultPolicy;
       if (existing) return { p: existing, ok: true, name: 'default(existing)' };
     } catch (_) {}
-    /* Register as a NAMED policy so we never collide */
     try {
       const p = trustedTypes.createPolicy('turbo-optimizer', {
         createHTML:      s => s,
@@ -95,7 +90,16 @@
     try { el.innerText = txt; } catch (_) {}
   };
 
-  /* §0‑d  MSE Streaming Detection — ZERO‑HOOK (DRM‑safe) ----------------- */
+  const safeBlobURL = code => {
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const raw = URL.createObjectURL(blob);
+    if (TT.p && TT.p.createScriptURL) {
+      try { return TT.p.createScriptURL(raw); } catch (_) {}
+    }
+    return raw;
+  };
+
+  /* §0‑d  MSE Streaming Detection ----------------------------------------- */
   let isStreaming = false;
   let streamProtectStyle = null;
 
@@ -113,7 +117,6 @@
       ].join('\n'));
       (doc.head || doc.documentElement).appendChild(streamProtectStyle);
     } catch (_) {}
-    /* Strip any inline content‑visibility that was already applied near videos */
     try {
       doc.querySelectorAll('[style*="content-visibility"]').forEach(el => {
         if (el.tagName === 'VIDEO' || el.querySelector?.('video')) {
@@ -124,7 +127,6 @@
     } catch (_) {}
   };
 
-  /* Detection path A: PerformanceObserver — resource timing */
   if (typeof PerformanceObserver === 'function') {
     try {
       const mseObs = new PerformanceObserver(list => {
@@ -142,7 +144,6 @@
     } catch (_) {}
   }
 
-  /* Detection path B: scan <video> for blob: src */
   const checkStreamingVideo = el => {
     if (isStreaming || !el || el.tagName !== 'VIDEO') return;
     const src = el.src || el.currentSrc || '';
@@ -180,11 +181,7 @@
         if (d.startsWith('script-src') && (e.disposition === 'enforce')) inlineBlocked = true;
       });
     } catch (_) {}
-    return {
-      isWorkerBlocked : () => workerBlocked,
-      isInlineBlocked : () => inlineBlocked,
-      stats,
-    };
+    return { isWorkerBlocked: () => workerBlocked, isInlineBlocked: () => inlineBlocked, stats };
   })();
 
   /* §0‑g  Passive Event Listeners (video‑player exempt) ------------------- */
@@ -192,11 +189,9 @@
     'wheel','mousewheel','touchstart','touchmove','touchend','touchcancel','scroll',
   ]);
   const origAEL = EventTarget.prototype.addEventListener;
-  const origREL = EventTarget.prototype.removeEventListener;
 
   EventTarget.prototype.addEventListener = function (type, fn, opts) {
     if (PASSIVE_EVENTS.has(type)) {
-      /* Exempt video‑player elements — they may need preventDefault() */
       let isPlayer = false;
       try {
         isPlayer = this instanceof HTMLVideoElement ||
@@ -228,10 +223,9 @@
   /* §0‑h  Boot Timing ----------------------------------------------------- */
   const BOOT = { t0: performance.now(), phase: 0 };
 
-  /* §0‑i  Phase 1 Boot Log ------------------------------------------------ */
   console.log(`[TO v${V}] ⏳ boot ${DEV_TIER}(${DEV_CORES}c/${DEV_MEM}G) ${NET.ect}/${TIER} TT:${TT.name}`);
   /* ─────────────────────────────────────────────
-   *  §1  Worker Bridge (inline Blob Worker)
+   *  §1  Worker Bridge
    * ───────────────────────────────────────────── */
   const WorkerBridge = (() => {
     let worker = null, mid = 0;
@@ -249,32 +243,24 @@
         },
         checkImgFormat(data) {
           const d = data.bytes;
-          if (d[0]===0&&d[1]===0&&d[2]===0&&(d[3]===0x1C||d[3]===0x20)&&d[4]===0x66&&d[5]===0x74&&d[6]===0x79&&d[7]===0x70)
-            return 'avif';
-          if (d[0]===0x52&&d[1]===0x49&&d[2]===0x46&&d[3]===0x46&&d[8]===0x57&&d[9]===0x45&&d[10]===0x42&&d[11]===0x50)
-            return 'webp';
+          if (d[0]===0&&d[1]===0&&d[2]===0&&(d[3]===0x1C||d[3]===0x20)&&d[4]===0x66&&d[5]===0x74&&d[6]===0x79&&d[7]===0x70) return 'avif';
+          if (d[0]===0x52&&d[1]===0x49&&d[2]===0x46&&d[3]===0x46&&d[8]===0x57&&d[9]===0x45&&d[10]===0x42&&d[11]===0x50) return 'webp';
           return 'unknown';
         },
       };
       self.onmessage = e => {
         const {id, cmd, data} = e.data;
         const fn = handlers[cmd];
-        if (fn) {
-          try { self.postMessage({id, result: fn(data)}); }
-          catch(err) { self.postMessage({id, error: err.message}); }
-        } else {
-          self.postMessage({id, error: 'unknown cmd: '+cmd});
-        }
+        if (fn) { try { self.postMessage({id, result: fn(data)}); } catch(err) { self.postMessage({id, error: err.message}); } }
+        else { self.postMessage({id, error: 'unknown cmd: '+cmd}); }
       };
     `;
-
     const init = () => {
       if (worker || CSP.isWorkerBlocked()) return false;
       try {
-        const blob = new Blob([WORKER_CODE], { type: 'text/javascript' });
-        const url = URL.createObjectURL(blob);
+        const url = safeBlobURL(WORKER_CODE);
         worker = new Worker(url);
-        URL.revokeObjectURL(url);
+        setTimeout(() => { try { URL.revokeObjectURL(url); } catch (_) {} }, 100);
         worker.onmessage = e => {
           const { id, result, error } = e.data;
           const p = pending.get(id);
@@ -284,7 +270,6 @@
         return true;
       } catch (_) { return false; }
     };
-
     const send = (cmd, data, timeout = 5000) => new Promise((resolve, reject) => {
       if (!worker) { reject(new Error('no worker')); return; }
       const id = ++mid;
@@ -295,7 +280,6 @@
       });
       worker.postMessage({ id, cmd, data });
     });
-
     return { init, send, get alive() { return !!worker; } };
   })();
 
@@ -313,7 +297,6 @@
         req.onerror = () => reject(req.error);
       } catch (e) { reject(e); }
     });
-
     const get = key => new Promise(resolve => {
       if (!db) { resolve(null); return; }
       try {
@@ -327,7 +310,6 @@
         rq.onerror = () => resolve(null);
       } catch (_) { resolve(null); }
     });
-
     const set = (key, data) => {
       if (!db) return;
       try {
@@ -335,12 +317,11 @@
         tx.objectStore(STORE).put({ data, ts: Date.now() }, key);
       } catch (_) {}
     };
-
     return { open, get, set, get ready() { return !!db; } };
   })();
 
   /* ─────────────────────────────────────────────
-   *  §3  Site Profiles (AI chat + feed — NO site URLs for streaming)
+   *  §3  Site Profiles
    * ───────────────────────────────────────────── */
   const SP = (() => {
     const chatProfiles = {
@@ -368,13 +349,8 @@
     const isChat = !!p?.isChat;
     const name = p ? HOST.split('.').slice(-2, -1)[0] : 'generic';
     return {
-      t     : p?.t || '',
-      c     : p?.c || '',
-      s     : p?.s || '',
-      isChat,
-      isStream: false,           /* determined dynamically by MSE detection */
-      AI    : !p,
-      name,
+      t: p?.t || '', c: p?.c || '', s: p?.s || '',
+      isChat, isStream: false, AI: !p, name,
       get effectiveStream() { return isStreaming; },
     };
   })();
@@ -394,38 +370,26 @@
     } catch (_) {}
   }
 
-  /* ─────────────────────────────────────────────
-   *  §5  Boot Timing
-   * ───────────────────────────────────────────── */
+  /* §5  Boot Timing ------------------------------------------------------- */
   const inBootPhase = () => (performance.now() - BOOT.t0) < 3000;
   /* ─────────────────────────────────────────────
    *  §6  CSS Injection
    * ───────────────────────────────────────────── */
   const injectCSS = () => {
     try {
-      /* ViewTransition CSS */
       const vtCSS = (typeof doc.startViewTransition === 'function')
-        ? `::view-transition-old(*),::view-transition-new(*){animation-duration:.15s}`
-        : '';
-
-      /* Content‑visibility for images & videos (generic — NOT for chat / streaming) */
+        ? `::view-transition-old(*),::view-transition-new(*){animation-duration:.15s}` : '';
       const cvImgCSS = (SP.isChat || isStreaming) ? '' :
         `img[loading="lazy"],video[preload="none"]{content-visibility:auto;contain-intrinsic-size:300px 200px}`;
-
-      /* Chat‑site protection CSS */
       let chatCSS = '';
       if (SP.isChat) {
         chatCSS = `${SP.s||'.streaming'}{content-visibility:visible!important}` +
                   `${SP.c||'[class*="scroll"]'}{overflow-anchor:auto;overscroll-behavior:contain;contain:content}`;
       }
-
-      /* Scroll container optimize */
       const scSel = SP.c || '[class*="scroll"],[class*="feed"],[role="main"]';
       const scrollCSS = `${scSel}{contain:content;overflow-anchor:auto;overscroll-behavior-y:contain}`;
-
       const full = [vtCSS, cvImgCSS, chatCSS, scrollCSS].filter(Boolean).join('\n');
       if (!full) return;
-
       const style = doc.createElement('style');
       style.id = 'tb-main-css';
       safeSetText(style, full);
@@ -434,10 +398,9 @@
   };
 
   /* ─────────────────────────────────────────────
-   *  §7  FontFace Constructor Override + font‑display
+   *  §7  FontFace Constructor Override
    * ───────────────────────────────────────────── */
   const FONT_DISPLAY = TIER === 't1' ? 'optional' : 'swap';
-
   if (typeof FontFace === 'function') {
     const OrigFontFace = FontFace;
     win.FontFace = function (family, source, descriptors = {}) {
@@ -447,8 +410,6 @@
     win.FontFace.prototype = OrigFontFace.prototype;
     Object.setPrototypeOf(win.FontFace, OrigFontFace);
   }
-
-  /* link[rel="stylesheet"] font‑display override */
   const overrideFontDisplay = () => {
     try {
       for (const ss of doc.styleSheets) {
@@ -459,30 +420,27 @@
               if (!s.fontDisplay || s.fontDisplay === 'auto') s.fontDisplay = FONT_DISPLAY;
             }
           }
-        } catch (_) { /* cross‑origin stylesheet — skip */ }
+        } catch (_) {}
       }
     } catch (_) {}
   };
 
   /* ─────────────────────────────────────────────
-   *  §8  Timer Throttling (streaming‑exempt)
+   *  §8  Timer Throttling
    * ───────────────────────────────────────────── */
   const initTimerThrottle = () => {
-    /* Skip entirely on chat sites (streaming text), or if device is low‑end and timers are vital */
     if (SP.isChat) return;
-
     const origSI = win.setInterval;
     const origST = win.setTimeout;
     const minMs  = CFG.timerThrottleMs;
-
     setTimeout(() => {
       win.setInterval = function (fn, ms, ...args) {
-        if (isStreaming) return origSI.call(win, fn, ms, ...args);  /* DRM‑safe */
+        if (isStreaming) return origSI.call(win, fn, ms, ...args);
         if (typeof ms === 'number' && ms > 0 && ms < minMs) ms = minMs;
         return origSI.call(win, fn, ms, ...args);
       };
       win.setTimeout = function (fn, ms, ...args) {
-        if (isStreaming) return origST.call(win, fn, ms, ...args);  /* DRM‑safe */
+        if (isStreaming) return origST.call(win, fn, ms, ...args);
         if (typeof ms === 'number' && ms > 0 && ms < minMs) ms = minMs;
         return origST.call(win, fn, ms, ...args);
       };
@@ -496,32 +454,25 @@
     const tracked = new Set();
     const blobURLs = new Set();
     let registry = null;
-
-    /* FinalizationRegistry: auto‑revoke blob URLs when media elements are GC'd */
     if (typeof FinalizationRegistry === 'function') {
       registry = new FinalizationRegistry(url => {
         try { URL.revokeObjectURL(url); } catch (_) {}
         blobURLs.delete(url);
       });
     }
-
     const trackMedia = el => {
       if (!el || tracked.has(el)) return;
       tracked.add(el);
       const src = el.src || el.currentSrc || '';
       if (src.startsWith('blob:')) {
         blobURLs.add(src);
-        if (registry) {
-          try { registry.register(el, src); } catch (_) {}
-        }
+        if (registry) { try { registry.register(el, src); } catch (_) {} }
       }
     };
-
     const sweep = () => {
       if (!performance.memory) return;
       const used = performance.memory.usedJSHeapSize / 1048576;
       if (used > CFG.memCriticalMB) {
-        /* Revoke unreferenced blob URLs */
         blobURLs.forEach(url => {
           let stillReferenced = false;
           try {
@@ -536,7 +487,6 @@
         });
       }
     };
-
     const stats = () => {
       if (!performance.memory) return { used: 0, total: 0, limit: 0 };
       return {
@@ -545,19 +495,14 @@
         limit : +(performance.memory.jsHeapSizeLimit / 1048576).toFixed(1),
       };
     };
-
     return { trackMedia, sweep, stats, get blobCount() { return blobURLs.size; } };
   })();
 
-  /* ─────────────────────────────────────────────
-   *  §9‑b  Low‑Power Mode + LoAF EMA FPS
-   * ───────────────────────────────────────────── */
+  /* §9‑b  Low‑Power Mode -------------------------------------------------- */
   let lowPower = false;
   let emaFPS = CFG.fpsTarget;
   let lowPowerSheet = null;
-
   const LOW_POWER_CSS = `*{animation-duration:0s!important;transition-duration:0s!important}`;
-
   const setLowPower = on => {
     if (lowPower === on) return;
     lowPower = on;
@@ -569,14 +514,10 @@
         }
         if (lowPowerSheet) doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, lowPowerSheet];
       } else {
-        if (lowPowerSheet) {
-          doc.adoptedStyleSheets = doc.adoptedStyleSheets.filter(s => s !== lowPowerSheet);
-        }
+        if (lowPowerSheet) doc.adoptedStyleSheets = doc.adoptedStyleSheets.filter(s => s !== lowPowerSheet);
       }
     } catch (_) {}
   };
-
-  /* prefers‑reduced‑motion listener */
   try {
     const mq = win.matchMedia('(prefers-reduced-motion: reduce)');
     if (mq.matches) setLowPower(true);
@@ -589,36 +530,20 @@
   /* §10‑a  Unified IntersectionObserver ----------------------------------- */
   const unifiedIO = new IntersectionObserver((entries) => {
     for (const e of entries) {
-      const el = e.target;
-      const tag = el.tagName;
-      const visible = e.isIntersecting;
-
-      /* Media lazy‑load / fetchPriority / decoding */
+      const el = e.target, tag = el.tagName, visible = e.isIntersecting;
       if (tag === 'IMG') {
         if (visible) {
           if (el.loading === 'lazy' && !el.complete) el.loading = 'eager';
-          el.fetchPriority = 'high';
-          el.decoding = 'sync';
-        } else {
-          el.fetchPriority = 'low';
-          el.decoding = 'async';
-        }
-        /* Large images: elementtiming, sizes */
+          el.fetchPriority = 'high'; el.decoding = 'sync';
+        } else { el.fetchPriority = 'low'; el.decoding = 'async'; }
         if (!el.getAttribute('elementtiming')) el.setAttribute('elementtiming', 'auto');
         if (el.sizes === '' && el.srcset) el.sizes = 'auto';
       }
-
       if (tag === 'VIDEO' || tag === 'AUDIO') {
-        checkStreamingVideo(el);
-        Mem.trackMedia(el);
-        if (visible) {
-          if (el.preload === 'none') el.preload = 'metadata';
-        } else {
-          if (!el.paused && tag === 'VIDEO') { /* do not pause — user may be listening */ }
-          el.preload = 'none';
-        }
+        checkStreamingVideo(el); Mem.trackMedia(el);
+        if (visible) { if (el.preload === 'none') el.preload = 'metadata'; }
+        else { el.preload = 'none'; }
       }
-
       if (tag === 'IFRAME') {
         if (visible) { if (el.loading === 'lazy') el.loading = 'eager'; }
         else { el.loading = 'lazy'; }
@@ -631,83 +556,57 @@
     const tag = el.tagName;
     if (tag === 'IMG' || tag === 'VIDEO' || tag === 'AUDIO' || tag === 'IFRAME') {
       unifiedIO.observe(el);
-      if (tag === 'VIDEO' || tag === 'AUDIO') {
-        Mem.trackMedia(el);
-        checkStreamingVideo(el);
-      }
+      if (tag === 'VIDEO' || tag === 'AUDIO') { Mem.trackMedia(el); checkStreamingVideo(el); }
     }
   };
 
-  /* §10‑b  content‑visibility: auto (IO‑based, skip chat/stream) --------- */
+  /* §10‑b  content‑visibility: auto -------------------------------------- */
   let cvIO = null;
-
   const applyCVAuto = () => {
     if (SP.isChat || isStreaming) return;
-
     cvIO = new IntersectionObserver((entries) => {
       for (const e of entries) {
-        const el = e.target;
-        if (e.isIntersecting) {
-          el.style.contentVisibility = '';
-          el.style.containIntrinsicSize = '';
-        } else {
-          el.style.contentVisibility = 'auto';
-          el.style.containIntrinsicSize = 'auto 500px';
-        }
+        if (e.isIntersecting) { e.target.style.contentVisibility = ''; e.target.style.containIntrinsicSize = ''; }
+        else { e.target.style.contentVisibility = 'auto'; e.target.style.containIntrinsicSize = 'auto 500px'; }
       }
     }, { rootMargin: `${Math.round(win.innerHeight * CFG.cvOffscreenThr)}px` });
-
-    const candidates = doc.querySelectorAll(
-      SP.t || 'article, section, [class*="item"], [class*="card"], [class*="post"]'
-    );
+    const candidates = doc.querySelectorAll(SP.t || 'article, section, [class*="item"], [class*="card"], [class*="post"]');
     candidates.forEach(el => {
-      /* Skip if it contains or is near a video */
       if (el.querySelector?.('video') || el.closest?.('video')) return;
       cvIO.observe(el);
     });
   };
 
   /* §10‑c  TreeWalker MutationObserver ------------------------------------ */
-  let moQueue = [];
-  let moTimer = 0;
-
+  let moQueue = [], moTimer = 0;
   const processMOBatch = () => {
     moTimer = 0;
-    const nodes = moQueue;
-    moQueue = [];
+    const nodes = moQueue; moQueue = [];
     for (const node of nodes) {
       if (node.nodeType !== 1) continue;
-      const el = node;
-      enrollMediaIO(el);
-      /* For streaming sites, we only enroll media, skip CV */
+      enrollMediaIO(node);
       if (!isStreaming && !SP.isChat && cvIO) {
-        const tag = el.tagName;
+        const tag = node.tagName;
         if (tag === 'ARTICLE' || tag === 'SECTION' ||
-            (el.className && typeof el.className === 'string' &&
-             (/item|card|post/i.test(el.className)))) {
-          if (!el.querySelector?.('video')) cvIO.observe(el);
+            (node.className && typeof node.className === 'string' && /item|card|post/i.test(node.className))) {
+          if (!node.querySelector?.('video')) cvIO.observe(node);
         }
       }
     }
   };
-
   const initMutationObserver = () => {
     const mo = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeType !== 1) continue;
           moQueue.push(node);
-          /* TreeWalker for descendants */
           if (node.firstElementChild) {
             const tw = doc.createTreeWalker(node, NodeFilter.SHOW_ELEMENT);
-            let n;
-            while ((n = tw.nextNode())) moQueue.push(n);
+            let n; while ((n = tw.nextNode())) moQueue.push(n);
           }
         }
       }
-      if (moQueue.length && !moTimer) {
-        moTimer = setTimeout(processMOBatch, CFG.workerBatchMs);
-      }
+      if (moQueue.length && !moTimer) moTimer = setTimeout(processMOBatch, CFG.workerBatchMs);
     });
     mo.observe(doc.documentElement || doc.body || doc, { childList: true, subtree: true });
     return mo;
@@ -715,72 +614,44 @@
 
   /* §10‑d  DNS Prefetch Hints --------------------------------------------- */
   const DnsHints = (() => {
-    const seen = new Set();
-    const linkMap = new Map();
-    const freqMap = new Map();
+    const seen = new Set(), linkMap = new Map(), freqMap = new Map();
     let hintCount = 0, preconnCount = 0;
-
     const add = origin => {
       if (!origin || seen.has(origin) || origin === location.origin) return;
       if (hintCount >= CFG.dnsHintMax) return;
       seen.add(origin);
-      const link = doc.createElement('link');
-      link.rel = 'dns-prefetch';
-      link.href = origin;
-      doc.head.appendChild(link);
-      linkMap.set(origin, link);
-      hintCount++;
+      const link = doc.createElement('link'); link.rel = 'dns-prefetch'; link.href = origin;
+      doc.head.appendChild(link); linkMap.set(origin, link); hintCount++;
     };
-
     const track = origin => {
       if (!origin || origin === location.origin) return;
-      const c = (freqMap.get(origin) || 0) + 1;
-      freqMap.set(origin, c);
-      /* Promote to preconnect if frequently requested */
+      const c = (freqMap.get(origin) || 0) + 1; freqMap.set(origin, c);
       if (c >= CFG.dnsFreqThreshold && preconnCount < CFG.dnsPreconnMax) {
         const existing = linkMap.get(origin);
         if (existing && existing.rel === 'dns-prefetch') {
-          existing.rel = 'preconnect';
-          existing.crossOrigin = 'anonymous';
-          preconnCount++;
+          existing.rel = 'preconnect'; existing.crossOrigin = 'anonymous'; preconnCount++;
         } else if (!seen.has(origin)) {
           seen.add(origin);
-          const link = doc.createElement('link');
-          link.rel = 'preconnect';
-          link.href = origin;
-          link.crossOrigin = 'anonymous';
-          doc.head.appendChild(link);
-          linkMap.set(origin, link);
-          preconnCount++;
-          hintCount++;
+          const link = doc.createElement('link'); link.rel = 'preconnect'; link.href = origin;
+          link.crossOrigin = 'anonymous'; doc.head.appendChild(link);
+          linkMap.set(origin, link); preconnCount++; hintCount++;
         }
-      } else if (!seen.has(origin)) {
-        add(origin);
-      }
+      } else if (!seen.has(origin)) { add(origin); }
     };
-
-    /* PerformanceObserver — track resource origins & frequency */
     if (typeof PerformanceObserver === 'function') {
       try {
         const resObs = new PerformanceObserver(list => {
           for (const e of list.getEntries()) {
             try {
-              const o = new URL(e.name).origin;
-              track(o);
-              /* Slow resource warning */
-              if (e.duration > CFG.slowResMs) {
-                console.warn(`[TO] Slow resource (${Math.round(e.duration)}ms): ${e.name.slice(0, 80)}`);
-              }
+              track(new URL(e.name).origin);
+              if (e.duration > CFG.slowResMs) console.warn(`[TO] Slow resource (${Math.round(e.duration)}ms): ${e.name.slice(0, 80)}`);
             } catch (_) {}
           }
         });
         resObs.observe({ type: 'resource', buffered: true });
       } catch (_) {}
     }
-
-    const stats = () => ({ hints: hintCount, preconnects: preconnCount, tracked: freqMap.size });
-
-    return { add, track, stats };
+    return { add, track, stats: () => ({ hints: hintCount, preconnects: preconnCount, tracked: freqMap.size }) };
   })();
 
   /* §10‑e  3rd‑party Script Deferral -------------------------------------- */
@@ -790,49 +661,42 @@
         try {
           const o = new URL(s.src).origin;
           if (o !== location.origin && !s.async && !s.defer) {
-            s.defer = true;
-            if (s.fetchPriority !== 'high') s.fetchPriority = 'low';
+            s.defer = true; if (s.fetchPriority !== 'high') s.fetchPriority = 'low';
           }
         } catch (_) {}
       });
     } catch (_) {}
   };
 
-  /* §10‑f  Speculation Rules (CSP‑safe, skip streaming) ------------------- */
+  /* §10‑f  Speculation Rules ---------------------------------------------- */
   const injectSpecRules = () => {
     if (!HTMLScriptElement.supports?.('speculationrules')) return;
     if (CSP.isWorkerBlocked() || CSP.isInlineBlocked()) return;
     if (isStreaming || NET.save) return;
-
-    /* Probe: inject empty {} to check CSP */
     let canInline = false;
     try {
-      const probe = doc.createElement('script');
-      probe.type = 'speculationrules';
+      const probe = doc.createElement('script'); probe.type = 'speculationrules';
       const nonce = doc.querySelector('script[nonce]')?.nonce;
       if (nonce) probe.nonce = nonce;
-      safeSetText(probe, '{}');
-      doc.head.appendChild(probe);
-      canInline = !!probe.parentNode;
-      probe.remove();
+      safeSetText(probe, '{}'); doc.head.appendChild(probe);
+      canInline = !!probe.parentNode; probe.remove();
     } catch (_) {}
     if (!canInline) return;
-
     const rules = {
       prerender: [{ where: { href_matches: '/*' }, eagerness: CFG.specEagerness }],
       prefetch:  [{ where: { href_matches: '/*' }, eagerness: 'conservative' }],
     };
-    const s = doc.createElement('script');
-    s.type = 'speculationrules';
+    const s = doc.createElement('script'); s.type = 'speculationrules';
     const nonce = doc.querySelector('script[nonce]')?.nonce;
     if (nonce) s.setAttribute('nonce', nonce);
     safeSetText(s, JSON.stringify(rules));
     s.addEventListener('error', () => { s.remove(); });
     doc.head.appendChild(s);
   };
-  /* §10‑g  Compute Pressure Observer -------------------------------------- */
-  let pressureState = 'nominal';
-  const initPressure = () => {
+
+  /* §10‑g  Compute Pressure — async + permissions‑safe -------------------- */
+  let pressureState = 'nominal', pressureSupported = false;
+  const initPressure = async () => {
     if (typeof PressureObserver !== 'function') return;
     try {
       const po = new PressureObserver(records => {
@@ -843,15 +707,15 @@
           else if (last.state === 'nominal' && lowPower) setLowPower(false);
         }
       }, { sampleInterval: Math.round(1000 / CFG.pressureSampleHz) });
-      po.observe('cpu');
-    } catch (_) {}
+      await po.observe('cpu');
+      pressureSupported = true;
+    } catch (_) { pressureSupported = false; }
   };
 
   /* §10‑h  Long‑task / LoAF ----------------------------------------------- */
   let loafSupported = false;
   const initLongTask = () => {
     if (typeof PerformanceObserver !== 'function') return;
-    /* Try LoAF first */
     try {
       const lo = new PerformanceObserver(list => {
         for (const e of list.getEntries()) {
@@ -862,10 +726,8 @@
         }
       });
       lo.observe({ type: 'long-animation-frame', buffered: false });
-      loafSupported = true;
-      return;
+      loafSupported = true; return;
     } catch (_) {}
-    /* Fallback: longtask */
     try {
       const lt = new PerformanceObserver(list => {
         for (const e of list.getEntries()) {
@@ -876,21 +738,28 @@
     } catch (_) {}
   };
 
-  /* §10‑i  SPA Navigation (Navigation API + ViewTransition) --------------- */
+  /* ─────────────────────────────────────────────
+   *  §10‑i  SPA Navigation — v17.6: LISTEN ONLY, never intercept
+   *
+   *  Previous versions called e.intercept() which swallows the
+   *  browser's default navigation (form submissions, link clicks,
+   *  search bar Enter on Google, etc.).
+   *
+   *  Now we ONLY listen to the 'navigatesuccess' event to re‑run
+   *  scans AFTER the navigation completes. We never call intercept().
+   * ───────────────────────────────────────────── */
   let navSupported = false;
   const initNavigation = () => {
     if (typeof navigation === 'undefined' || !navigation.addEventListener) return;
     navSupported = true;
-    navigation.addEventListener('navigate', e => {
-      if (!e.canIntercept || e.hashChange) return;
-      e.intercept({
-        async handler() {
-          /* Re‑scan on SPA navigation */
-          scanForStreamingVideos();
-          deferThirdParty();
-          overrideFontDisplay();
-          if (!isStreaming && !SP.isChat) applyCVAuto();
-        },
+
+    /* v17.6 fix — post‑navigation hook only, no intercept */
+    navigation.addEventListener('navigatesuccess', () => {
+      postTask(() => {
+        scanForStreamingVideos();
+        deferThirdParty();
+        overrideFontDisplay();
+        if (!isStreaming && !SP.isChat) applyCVAuto();
       });
     });
   };
@@ -898,20 +767,15 @@
   /* §10‑j  Visibility & BFCache ------------------------------------------- */
   const initVisibility = () => {
     doc.addEventListener('visibilitychange', () => {
-      if (doc.visibilityState === 'visible') {
-        scanForStreamingVideos();
-      }
+      if (doc.visibilityState === 'visible') scanForStreamingVideos();
     });
+    /* v17.6 fix — use 'pagehide' instead of 'unload' (Permissions Policy safe) */
     win.addEventListener('pageshow', e => {
-      if (e.persisted) {
-        /* Restored from BFCache */
-        scanForStreamingVideos();
-        overrideFontDisplay();
-      }
+      if (e.persisted) { scanForStreamingVideos(); overrideFontDisplay(); }
     });
   };
 
-  /* §10‑k  Network Quality (RTT median via Worker) ------------------------ */
+  /* §10‑k  Network Quality ------------------------------------------------ */
   const NetQuality = (() => {
     const rtts = [];
     const measure = () => {
@@ -921,8 +785,6 @@
         IDB.set('netQuality', { medianRTT: med, ect: NET.ect, dl: NET.dl });
       }).catch(() => {});
     };
-
-    /* Collect RTT from resource timing */
     if (typeof PerformanceObserver === 'function') {
       try {
         const nqObs = new PerformanceObserver(list => {
@@ -936,7 +798,6 @@
         nqObs.observe({ type: 'resource', buffered: true });
       } catch (_) {}
     }
-
     return { measure, get rttCount() { return rtts.length; } };
   })();
 
@@ -953,100 +814,69 @@
     } catch (_) {}
   };
 
-  /* §10‑m  requestVideoFrameCallback — frame‑drop monitor ----------------- */
+  /* §10‑m  requestVideoFrameCallback ------------------------------------- */
   const initVideoFrameMonitor = () => {
     const monitorVideo = v => {
       if (!v.requestVideoFrameCallback) return;
-      let lastTime = 0, drops = 0;
-      const step = (now, meta) => {
-        if (lastTime) {
-          const delta = now - lastTime;
-          if (delta > 50) drops++; /* > 50ms gap → likely dropped frame */
-        }
-        lastTime = now;
-        try { v.requestVideoFrameCallback(step); } catch (_) {}
-      };
+      let lastTime = 0;
+      const step = (now) => { lastTime = now; try { v.requestVideoFrameCallback(step); } catch (_) {} };
       try { v.requestVideoFrameCallback(step); } catch (_) {}
     };
     doc.querySelectorAll('video').forEach(monitorVideo);
-    /* Also monitor newly‑added videos via MutationObserver */
     return monitorVideo;
   };
 
-  /* §10‑n  GC Tuning + Idle Sweep ----------------------------------------- */
+  /* §10‑n  GC Tuning ------------------------------------------------------ */
   const initGC = () => {
-    /* Periodic sweep */
     setInterval(() => {
       if (performance.memory) {
         const used = performance.memory.usedJSHeapSize / 1048576;
-        if (used > CFG.memWarnMB) {
-          console.warn(`[TO] Memory high: ${used.toFixed(0)} MB`);
-        }
+        if (used > CFG.memWarnMB) console.warn(`[TO] Memory high: ${used.toFixed(0)} MB`);
       }
       Mem.sweep();
     }, CFG.gcIntervalMs);
-
-    /* Idle GC sweep */
     if (typeof requestIdleCallback === 'function') {
       const idleSweep = () => {
-        requestIdleCallback(dl => {
-          if (dl.timeRemaining() > 10) Mem.sweep();
-          idleSweep();
-        }, { timeout: 60000 });
+        requestIdleCallback(dl => { if (dl.timeRemaining() > 10) Mem.sweep(); idleSweep(); }, { timeout: 60000 });
       };
       idleSweep();
     }
   };
 
-  /* §10‑o  DisplayLock (IO‑based, skip chat/stream) ----------------------- */
+  /* §10‑o  DisplayLock ---------------------------------------------------- */
   const DisplayLock = (() => {
     let count = 0;
     const lockIO = new IntersectionObserver((entries) => {
       for (const e of entries) {
-        if (e.isIntersecting) {
-          e.target.style.contentVisibility = '';
-        } else {
-          e.target.style.contentVisibility = 'hidden';
-          count++;
-        }
+        if (e.isIntersecting) e.target.style.contentVisibility = '';
+        else { e.target.style.contentVisibility = 'hidden'; count++; }
       }
     }, { rootMargin: '500px' });
-
     const scan = () => {
       if (SP.isChat || isStreaming) return;
-      const targets = doc.querySelectorAll(
-        SP.t || 'article, section, [class*="item"], [class*="card"]'
-      );
-      targets.forEach(el => {
-        if (el.querySelector?.('video')) return; /* Don't lock video containers */
+      doc.querySelectorAll(SP.t || 'article, section, [class*="item"], [class*="card"]').forEach(el => {
+        if (el.querySelector?.('video')) return;
         lockIO.observe(el);
       });
     };
-
     return { scan, get count() { return count; } };
   })();
 
-  /* §10‑p  Image Format Detection (Worker + IDB) ------------------------- */
+  /* §10‑p  Image Format -------------------------------------------------- */
   const ImgFormat = (() => {
     const stats = { avif: 0, webp: 0, other: 0 };
-
     const scan = () => {
       doc.querySelectorAll('img[src]').forEach(img => {
-        /* Add elementtiming + fix sizes */
         if (!img.getAttribute('elementtiming')) img.setAttribute('elementtiming', 'auto');
         if (img.sizes === '' && img.srcset) img.sizes = 'auto';
-
-        /* Large image warning */
-        if (img.naturalWidth > 2000 || img.naturalHeight > 2000) {
+        if (img.naturalWidth > 2000 || img.naturalHeight > 2000)
           console.info(`[TO] Large image: ${img.naturalWidth}×${img.naturalHeight} ${(img.src||'').slice(0,60)}`);
-        }
       });
     };
-
     return { scan, stats };
   })();
 
-  /* §10‑q  Preload Budget Grouping ---------------------------------------- */
+  /* §10‑q  Preload Budget ------------------------------------------------- */
   const checkPreloadBudget = () => {
     const groups = new Map();
     doc.querySelectorAll('link[rel="preload"]').forEach(link => {
@@ -1062,21 +892,20 @@
     });
   };
 
-  /* §10‑r  Sticky / Fixed Element Protection ------------------------------ */
+  /* §10‑r  Sticky Protection ---------------------------------------------- */
   const protectStickyElements = () => {
     if (SP.isChat || isStreaming) return;
     try {
       doc.querySelectorAll('header, nav, [class*="sticky"], [class*="fixed"], [role="banner"]').forEach(el => {
         const cs = getComputedStyle(el);
         if (cs.position === 'sticky' || cs.position === 'fixed') {
-          el.style.contentVisibility = 'visible';
-          el.style.containIntrinsicSize = 'none';
+          el.style.contentVisibility = 'visible'; el.style.containIntrinsicSize = 'none';
         }
       });
     } catch (_) {}
   };
 
-  /* §10‑s  Data‑Saver Adjustments ----------------------------------------- */
+  /* §10‑s  Data‑Saver ----------------------------------------------------- */
   const initDataSaver = () => {
     if (!conn.addEventListener) return;
     conn.addEventListener('change', () => {
@@ -1084,9 +913,7 @@
       NET.dl = conn.downlink ?? NET.dl;
       NET.rtt = conn.rtt ?? NET.rtt;
       NET.save = !!conn.saveData;
-
       if (NET.save || NET.ect === 'slow-2g' || NET.ect === '2g') {
-        /* Remove speculation rules + prefetch links */
         doc.querySelectorAll('script[type="speculationrules"]').forEach(s => s.remove());
         doc.querySelectorAll('link[rel="prefetch"]').forEach(l => l.remove());
       }
@@ -1097,100 +924,48 @@
    * ───────────────────────────────────────────── */
   const boot = async () => {
     BOOT.phase = 1;
-
-    /* Worker + IDB (parallel) */
     const wOk = WorkerBridge.init();
     let idbOk = false;
     try { idbOk = await IDB.open(); } catch (_) {}
-
-    /* Load cached network quality */
     if (idbOk) {
-      try {
-        const cached = await IDB.get('netQuality');
-        if (cached?.medianRTT) NET.medianRTT = cached.medianRTT;
-      } catch (_) {}
+      try { const c = await IDB.get('netQuality'); if (c?.medianRTT) NET.medianRTT = c.medianRTT; } catch (_) {}
     }
 
     BOOT.phase = 2;
-
-    /* CSS + Font */
     injectCSS();
     overrideFontDisplay();
-
-    /* Low‑power + Timers */
     setLowPower(DEV_TIER === 'low');
     initTimerThrottle();
-
-    /* Pressure */
-    initPressure();
-
-    /* Long‑task / LoAF */
+    await initPressure();
     initLongTask();
 
     BOOT.phase = 3;
-
-    /* Wait for DOM ready */
-    const whenReady = () => new Promise(resolve => {
+    await new Promise(resolve => {
       if (doc.readyState !== 'loading') resolve();
       else doc.addEventListener('DOMContentLoaded', resolve, { once: true });
     });
-    await whenReady();
 
-    /* Scan streaming videos */
     scanForStreamingVideos();
-
-    /* Media IO enrollment */
     doc.querySelectorAll('img, video, audio, iframe').forEach(enrollMediaIO);
-
-    /* content‑visibility */
     if (!SP.isChat && !isStreaming) applyCVAuto();
-
-    /* DisplayLock */
     DisplayLock.scan();
-
-    /* Video frame monitor */
     const monitorNewVideo = initVideoFrameMonitor();
-
-    /* 3rd‑party defer */
     deferThirdParty();
-
-    /* Critical resource fetchPriority */
     if (lcpEl && lcpEl.tagName === 'IMG') lcpEl.fetchPriority = 'high';
 
-    /* Speculation rules */
     postTask(() => injectSpecRules());
-
-    /* Preload budget */
     postTask(() => checkPreloadBudget());
-
-    /* Sticky protection */
     postTask(() => protectStickyElements());
-
-    /* Image format scan */
     postTask(() => ImgFormat.scan());
 
-    /* Reporting Observer */
     initReportingObserver();
-
-    /* Navigation (SPA) */
     initNavigation();
-
-    /* Visibility + BFCache */
     initVisibility();
-
-    /* Data Saver listener */
     initDataSaver();
-
-    /* GC */
     initGC();
-
-    /* NetQuality periodic */
     setInterval(() => NetQuality.measure(), 15000);
 
-    /* MutationObserver */
     const mo = initMutationObserver();
-
-    /* Periodic streaming re‑check */
     setInterval(() => {
       scanForStreamingVideos();
       doc.querySelectorAll('video').forEach(v => {
@@ -1201,47 +976,41 @@
 
     BOOT.phase = 4;
 
-    /* ─────────────────────────────────────────────
-     *  §12  Diagnostic API
-     * ───────────────────────────────────────────── */
+    /* §12  Diagnostic API ------------------------------------------------- */
     win.__turboOptimizer__ = {
-      version    : V,
-      device     : { cores: DEV_CORES, mem: DEV_MEM, tier: DEV_TIER, mobile: IS_MOBILE },
-      network    : NET,
-      tier       : TIER,
-      fps        : () => +emaFPS.toFixed(1),
-      lowPower   : () => lowPower,
-      pressure   : () => pressureState,
-      streaming  : () => isStreaming,
-      memory     : () => Mem.stats(),
-      blobURLs   : () => Mem.blobCount,
-      dns        : () => DnsHints.stats(),
-      csp        : () => CSP.stats,
-      imgFormats : () => ImgFormat.stats,
-      lcp        : () => ({ time: lcpTime, el: lcpEl?.tagName || null }),
+      version: V,
+      device: { cores: DEV_CORES, mem: DEV_MEM, tier: DEV_TIER, mobile: IS_MOBILE },
+      network: NET, tier: TIER,
+      fps: () => +emaFPS.toFixed(1),
+      lowPower: () => lowPower,
+      pressure: () => pressureState,
+      streaming: () => isStreaming,
+      memory: () => Mem.stats(),
+      blobURLs: () => Mem.blobCount,
+      dns: () => DnsHints.stats(),
+      csp: () => CSP.stats,
+      imgFormats: () => ImgFormat.stats,
+      lcp: () => ({ time: lcpTime, el: lcpEl?.tagName || null }),
       displayLock: () => DisplayLock.count,
-      netQuality : () => ({ medianRTT: NET.medianRTT, rttSamples: NetQuality.rttCount }),
+      netQuality: () => ({ medianRTT: NET.medianRTT, rttSamples: NetQuality.rttCount }),
       trustedTypes: TT.name,
-      worker     : () => WorkerBridge.alive,
-      idb        : () => IDB.ready,
+      worker: () => WorkerBridge.alive,
+      idb: () => IDB.ready,
       offscreenCanvas: () => offscreenCanvasUsed,
-      features   : {
-        worker      : wOk,
-        idb         : idbOk,
-        pressure    : typeof PressureObserver === 'function',
-        mse         : typeof MediaSource === 'function',
-        navigation  : navSupported,
+      features: {
+        worker: wOk, idb: idbOk,
+        pressure: pressureSupported,
+        mse: typeof MediaSource === 'function',
+        navigation: navSupported,
         viewTransition: typeof doc.startViewTransition === 'function',
-        loaf        : loafSupported,
+        loaf: loafSupported,
         finalization: typeof FinalizationRegistry === 'function',
-        reporting   : typeof ReportingObserver === 'function',
-        videoFrame  : 'requestVideoFrameCallback' in HTMLVideoElement.prototype,
+        reporting: typeof ReportingObserver === 'function',
+        videoFrame: 'requestVideoFrameCallback' in HTMLVideoElement.prototype,
       },
     };
 
-    /* ─────────────────────────────────────────────
-     *  §13  Boot Log
-     * ───────────────────────────────────────────── */
+    /* §13  Boot Log ------------------------------------------------------- */
     const f = win.__turboOptimizer__.features;
     const mode = SP.isChat ? 'Chat' : isStreaming ? 'Stream' : SP.AI ? 'Gen' : 'Feed';
     const cvStatus = SP.isChat ? 'off(chat)' : isStreaming ? 'off(MSE)' : 'IO-based';
@@ -1253,25 +1022,16 @@
       `P:${f.pressure ? '✓' : '✗'} MSE:${isStreaming ? '✓(prot)' : f.mse ? '✓' : '✗'} ` +
       `Nav:${f.navigation ? '✓' : '✗'} VT:${f.viewTransition ? '✓' : '✗'} ` +
       `LoAF:${f.loaf ? '✓' : '✗'} FR:${f.finalization ? '✓' : '✗'} ` +
-      `CV:${cvStatus} ` +
-      HOST
+      `CV:${cvStatus} ` + HOST
     );
 
-    /* ─────────────────────────────────────────────
-     *  §14  Cleanup on Unload
-     * ───────────────────────────────────────────── */
-    win.addEventListener('unload', () => {
-      try {
-        unifiedIO.disconnect();
-        if (cvIO) cvIO.disconnect();
-        mo.disconnect();
-      } catch (_) {}
+    /* §14  Cleanup — v17.6: pagehide instead of unload -------------------- */
+    win.addEventListener('pagehide', () => {
+      try { unifiedIO.disconnect(); if (cvIO) cvIO.disconnect(); mo.disconnect(); } catch (_) {}
     }, { once: true });
   };
 
-  /* ─────────────────────────────────────────────
-   *  §15  Entry Point
-   * ───────────────────────────────────────────── */
+  /* §15  Entry Point ------------------------------------------------------ */
   boot().catch(err => console.error('[TO] Boot error:', err));
 
 })();
