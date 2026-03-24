@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터
 // @namespace    https://github.com/moamoa7
-// @version      14.0.0
+// @version      14.1.1
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -42,12 +42,12 @@
   const PLATFORM_SETTINGS = {
     youtube: { target: 10 },
     chzzk:   { target: 2 },
-    soop:    { target: 5 },
+    soop:    { target: 4 },
     twitch:  { target: 3 },
     default: { target: 3 },
   };
 
-  const getDef = (p) => {
+  const getDef = p => {
     const s = PLATFORM_SETTINGS[p] || PLATFORM_SETTINGS.default;
     const t = s.target;
     return {
@@ -84,10 +84,7 @@
 
   /* ── State ── */
   let _vidRef = null;
-  const getVid = () => {
-    if (_vidRef && !_vidRef.isConnected) { _vidRef = null; }
-    return _vidRef;
-  };
+  const getVid = () => { if (_vidRef && !_vidRef.isConnected) _vidRef = null; return _vidRef; };
   const setVid = v => { _vidRef = v || null; };
 
   let enabled = cfg.enabled ?? true;
@@ -111,12 +108,23 @@
 
   const HIST = 60;
   const hist = new Float32Array(HIST);
-  let histHead = 0, histLen = 0;
-  const histPush = v => { hist[histHead] = v; histHead = (histHead + 1) % HIST; if (histLen < HIST) histLen++; };
+  let histHead = 0, histLen = 0, histMax = 0;
+  const histPush = v => {
+    hist[histHead] = v;
+    histHead = (histHead + 1) % HIST;
+    if (histLen < HIST) histLen++;
+    if (v >= histMax) { histMax = v; }
+    else if (histLen === HIST && (histHead & 7) === 0) {
+      histMax = 0;
+      for (let i = 0; i < HIST; i++) { if (hist[i] > histMax) histMax = hist[i]; }
+    }
+  };
 
   let stallCount = 0, lastStallTime = 0;
+  let _isCurrentlyLive = false;
+  let _liveConfirmedOnce = false;
 
-  /* ── 프레임 품질 모니터링 (getVideoPlaybackQuality) ── */
+  /* ── 프레임 품질 모니터링 ── */
   let _prevDropped = 0, _prevTotal = 0, _dropRate = 0;
   const updateDropRate = vid => {
     if (typeof vid.getVideoPlaybackQuality !== 'function') return;
@@ -129,7 +137,7 @@
   };
   const resetDropRate = () => { _prevDropped = 0; _prevTotal = 0; _dropRate = 0; };
 
-  /* ── 디코더 스트레스 감지 (rVFC processingDuration) ── */
+  /* ── 디코더 스트레스 감지 ── */
   let _decoderStressed = false;
 
   /* ── Utils ── */
@@ -137,16 +145,22 @@
 
   const colorOf = d => {
     const ratio = clamp(d / (DEF_TARGET * 0.5), 0, 1);
-    const G = [0x00, 0xE6, 0x96], Y = [0xFF, 0xD0, 0x40], R = [0xFF, 0x45, 0x55];
-    const a = ratio <= 0.5 ? G : Y;
-    const b = ratio <= 0.5 ? Y : R;
-    const u = ratio <= 0.5 ? ratio * 2 : (ratio - 0.5) * 2;
-    return '#' + [0, 1, 2].map(j => Math.round(a[j] + (b[j] - a[j]) * u).toString(16).padStart(2, '0')).join('');
+    let a0,a1,a2,b0,b1,b2,u;
+    if (ratio <= 0.5) { a0=0x00;a1=0xE6;a2=0x96; b0=0xFF;b1=0xD0;b2=0x40; u=ratio*2; }
+    else              { a0=0xFF;a1=0xD0;a2=0x40; b0=0xFF;b1=0x45;b2=0x55; u=(ratio-0.5)*2; }
+    const r = Math.round(a0+(b0-a0)*u);
+    const g = Math.round(a1+(b1-a1)*u);
+    const bl= Math.round(a2+(b2-a2)*u);
+    return '#' + (r<16?'0':'') + r.toString(16) + (g<16?'0':'') + g.toString(16) + (bl<16?'0':'') + bl.toString(16);
   };
 
+  let _lastHex = '', _lastRgbStr = '';
   const hexToRgb = hex => {
+    if (hex === _lastHex) return _lastRgbStr;
+    _lastHex = hex;
     const n = parseInt(hex.slice(1), 16);
-    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    _lastRgbStr = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    return _lastRgbStr;
   };
 
   /* ── 버퍼 측정 ── */
@@ -154,36 +168,56 @@
     try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - vid.currentTime; }
     catch { return -1; }
   };
-
-  const getBufPrecise = (vid, mediaTime) => {
-    try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - mediaTime; }
-    catch { return -1; }
-  };
-
   const isHlsSrc = src => /\.m3u8($|\?)/i.test(src);
 
-  /* ── 라이브 판정 (플랫폼별 분리) ── */
+  /* ── 라이브 판정 ── */
   const _liveCache = new WeakMap();
   const _liveTracker = new WeakMap();
+
+  let _ytPlayerEl = null, _ytPlayerTs = 0;
+  let _ytLiveResult = false, _ytLiveTs = 0;
+
+  const getYTPlayer = () => {
+    const now = performance.now();
+    if (_ytPlayerEl && now - _ytPlayerTs < 5000) return _ytPlayerEl;
+    _ytPlayerEl = document.getElementById('movie_player');
+    _ytPlayerTs = now;
+    return _ytPlayerEl;
+  };
 
   const isLiveYouTube = vid => {
     if (vid.duration === Infinity || vid.duration >= 1e6) return true;
     if (location.pathname.includes('/live')) return true;
-    try {
-      const p = document.querySelector('#movie_player');
-      if (p && typeof p.getVideoData === 'function') {
-        const d = p.getVideoData();
-        if (d && d.isLive) return true;
+
+    const now = performance.now();
+    /* false 결과는 1초만 캐시, true 결과는 3초 캐시 */
+    const ttl = _ytLiveResult ? 3000 : 1000;
+    if (now - _ytLiveTs < ttl) return _ytLiveResult;
+
+    let result = false;
+    const p = getYTPlayer();
+    if (p) {
+      try {
+        if (typeof p.getVideoData === 'function') {
+          const d = p.getVideoData();
+          if (d && d.isLive) result = true;
+        }
+        if (!result && typeof p.getPlayerResponse === 'function') {
+          const r = p.getPlayerResponse();
+          if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) result = true;
+        }
+      } catch {}
+    }
+    if (!result) {
+      if (document.querySelector('.ytp-live-badge[disabled]') ||
+          document.querySelector('.ytp-live') ||
+          document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) {
+        result = true;
       }
-      if (p && typeof p.getPlayerResponse === 'function') {
-        const r = p.getPlayerResponse();
-        if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) return true;
-      }
-    } catch {}
-    if (document.querySelector('.ytp-live-badge[disabled]') ||
-        document.querySelector('.ytp-live') ||
-        document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
-    return false;
+    }
+    _ytLiveResult = result;
+    _ytLiveTs = now;
+    return result;
   };
 
   const isLiveGeneric = vid => {
@@ -246,32 +280,36 @@
     return false;
   };
 
+  let _trendValue = 0, _trendTs = 0;
   const getBufferTrend = () => {
-    const n = Math.min(histLen, 10); if (n < 3) return 0;
-    let sX = 0, sY = 0, sXY = 0, sX2 = 0;
-    for (let i = 0; i < n; i++) { const y = hist[(histHead - n + i + HIST) % HIST]; sX += i; sY += y; sXY += i * y; sX2 += i * i; }
-    return (n * sXY - sX * sY) / (n * sX2 - sX * sX);
+    const now = performance.now();
+    if (now - _trendTs < 2000) return _trendValue;
+    _trendTs = now;
+
+    const step = _rvfcActive ? Math.max(1, Math.floor(histLen / 10)) : 1;
+    const maxN = Math.min(histLen, 10 * step);
+    if (maxN < 3 * step) { _trendValue = 0; return 0; }
+
+    let sX = 0, sY = 0, sXY = 0, sX2 = 0, count = 0;
+    for (let i = 0; i < maxN; i += step) {
+      const y = hist[(histHead - maxN + i + HIST) % HIST];
+      sX += count; sY += y; sXY += count * y; sX2 += count * count;
+      count++;
+    }
+    _trendValue = count > 1 ? (count * sXY - sX * sY) / (count * sX2 - sX * sX) : 0;
+    return _trendValue;
   };
 
-  /* ── requestVideoFrameCallback 기반 프레임 동기 측정 ── */
-  let _rvfcActive = false;
-  let _rvfcVid = null;
-  let _lastFrameBuf = -1;
+  /* ── rVFC 프레임 동기 측정 ── */
+  let _rvfcActive = false, _rvfcVid = null, _lastFrameBuf = -1;
 
   const startRVFC = vid => {
     if (!HAS_RVFC) return false;
     if (_rvfcVid === vid && _rvfcActive) return true;
-
     _rvfcActive = true;
     _rvfcVid = vid;
-
     const onFrame = (now, metadata) => {
-      if (!_rvfcActive || getVid() !== vid || _rvfcVid !== vid) {
-        _rvfcActive = false;
-        _rvfcVid = null;
-        return;
-      }
-
+      if (!_rvfcActive || getVid() !== vid || _rvfcVid !== vid) { _rvfcActive = false; _rvfcVid = null; return; }
       try {
         const b = vid.buffered;
         if (b.length > 0) {
@@ -280,25 +318,14 @@
           if (!vid.paused && buf >= 0) histPush(buf);
         }
       } catch {}
-
-      if (metadata.processingDuration != null) {
-        _decoderStressed = metadata.processingDuration > 0.033;
-      }
-
-      scheduleRender();
+      if (metadata.processingDuration != null) _decoderStressed = metadata.processingDuration > 0.033;
       vid.requestVideoFrameCallback(onFrame);
     };
-
     vid.requestVideoFrameCallback(onFrame);
     return true;
   };
 
-  const stopRVFC = () => {
-    _rvfcActive = false;
-    _rvfcVid = null;
-    _lastFrameBuf = -1;
-    _decoderStressed = false;
-  };
+  const stopRVFC = () => { _rvfcActive = false; _rvfcVid = null; _lastFrameBuf = -1; _decoderStressed = false; };
 
   /* ── Video 감지·연결 ── */
   const seen = new WeakSet();
@@ -309,8 +336,10 @@
     stopRVFC();
     setVid(v);
     lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
-    stallCount = 0; histLen = 0; histHead = 0;
+    stallCount = 0; histLen = 0; histHead = 0; histMax = 0;
     resetDropRate();
+    _isCurrentlyLive = false;
+    _liveConfirmedOnce = false;
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
@@ -333,25 +362,29 @@
 
   let mo = null, _scanRetry = 0;
   const scan = () => {
-    const vids = document.querySelectorAll('video');
+    const vids = document.getElementsByTagName('video');
     if (!vids.length) {
       if (_scanRetry < 15) { _scanRetry++; setTimeout(scan, 800 * Math.min(_scanRetry, 5)); }
       return;
     }
-    let attached = false;
-    for (const v of vids) { if (isCandidate(v)) { attach(v); attached = true; break; } }
-    if (!attached) setTimeout(scan, 2000);
-    else _scanRetry = 0;
+    for (let i = 0; i < vids.length; i++) {
+      if (isCandidate(vids[i])) { attach(vids[i]); _scanRetry = 0; return; }
+    }
+    setTimeout(scan, 2000);
   };
 
   const startObserver = () => {
     if (mo) return;
     if (!document.body) return;
     mo = new MutationObserver(muts => {
-      for (const m of muts) for (const n of m.addedNodes) {
-        if (n.nodeType !== 1) continue;
-        if (n.tagName === 'VIDEO') { attach(n); return; }
-        if (n.getElementsByTagName) { const v = n.getElementsByTagName('video')[0]; if (v) { attach(v); return; } }
+      if (getVid()) return;
+      outer:
+      for (const m of muts) {
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.tagName === 'VIDEO') { attach(n); break outer; }
+          if (n.childElementCount > 0) { const v = n.querySelector('video'); if (v) { attach(v); break outer; } }
+        }
       }
     });
     mo.observe(document.body, { childList: true, subtree: true });
@@ -373,25 +406,24 @@
     } catch {}
   };
 
-  /* ── 스파크라인 (메인 스레드 Canvas) ── */
+  /* ── 스파크라인 ── */
   const SPARK_W = 208, SPARK_H = 32;
-  let sparkCanvas = null, sparkCtx = null;
+  let sparkCtx = null;
 
   const initSparkCanvas = cvs => {
     const dpr = devicePixelRatio || 1;
     cvs.style.width = SPARK_W + 'px'; cvs.style.height = SPARK_H + 'px';
     cvs.width = SPARK_W * dpr; cvs.height = SPARK_H * dpr;
-    sparkCanvas = cvs; sparkCtx = cvs.getContext('2d');
+    sparkCtx = cvs.getContext('2d');
   };
 
   const drawSpark = color => {
     if (!sparkCtx || histLen < 2) return;
     const ctx = sparkCtx, dpr = devicePixelRatio || 1;
-    ctx.clearRect(0, 0, SPARK_W * dpr, SPARK_H * dpr); ctx.save(); ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, SPARK_W * dpr, SPARK_H * dpr);
+    ctx.save(); ctx.scale(dpr, dpr);
 
-    let mx = target + 2;
-    for (let i = 0; i < histLen; i++) { const v = hist[(histHead - histLen + i + HIST) % HIST]; if (v > mx) mx = v; }
-
+    const mx = Math.max(target + 2, histMax);
     const pad = 2, yR = SPARK_H - pad * 2, xS = SPARK_W / (HIST - 1);
     const tY = SPARK_H - pad - (target / mx) * yR;
 
@@ -419,29 +451,44 @@
 
   const tick = () => {
     const vid = getVid();
-    if (!vid) { scan(); stopRVFC(); lastBuf = -1; scheduleRender(); return; }
-    if (!isCandidate(vid) || vid.readyState < 3) { lastBuf = -1; scheduleRender(); return; }
-    if (!isLive(vid)) { if (IS_YOUTUBE) _scanRetry = 0; stopRVFC(); lastBuf = -1; scheduleRender(); return; }
-
-    /* rVFC 활성화 시도 */
-    const rvfcRunning = startRVFC(vid);
-
-    /* 버퍼 측정: rVFC 활성 시 프레임 정밀값 사용, 아니면 폴링 */
-    let buf;
-    if (rvfcRunning && _lastFrameBuf >= 0) {
-      buf = _lastFrameBuf;
-    } else {
-      buf = getBuf(vid);
+    if (!vid) { scan(); stopRVFC(); lastBuf = -1; _isCurrentlyLive = false; scheduleRender(); return; }
+    if (!isCandidate(vid) || vid.readyState < 3) {
+      lastBuf = -1;
+      /* 한 번이라도 라이브가 확인됐으면 일시적 readyState 저하로 즉시 숨기지 않음 */
+      if (!_liveConfirmedOnce) _isCurrentlyLive = false;
+      scheduleRender();
+      return;
     }
+
+    const live = isLive(vid);
+    if (!live) {
+      if (IS_YOUTUBE) _scanRetry = 0;
+      /* 한 번이라도 라이브 확인된 뒤에는 연속 3회 false 시에만 해제 */
+      if (_liveConfirmedOnce) {
+        _liveFalseCount = (_liveFalseCount || 0) + 1;
+        if (_liveFalseCount < 3) { scheduleRender(); return; }
+      }
+      stopRVFC(); lastBuf = -1;
+      _isCurrentlyLive = false;
+      _liveConfirmedOnce = false;
+      _liveFalseCount = 0;
+      scheduleRender();
+      return;
+    }
+    _isCurrentlyLive = true;
+    _liveConfirmedOnce = true;
+    _liveFalseCount = 0;
+
+    const rvfcRunning = startRVFC(vid);
+    let buf;
+    if (rvfcRunning && _lastFrameBuf >= 0) buf = _lastFrameBuf;
+    else buf = getBuf(vid);
     lastBuf = buf;
 
-    /* rVFC 미사용 시 폴링으로 히스토리 기록 */
     if (!rvfcRunning && !vid.paused && buf >= 0) histPush(buf);
-
-    /* 프레임 드롭률 갱신 */
     updateDropRate(vid);
-
     scheduleRender();
+
     if (vid.paused) return;
     if (!enabled) { safeRate(vid, R_NORM); gear = R_NORM; return; }
 
@@ -452,7 +499,6 @@
 
     const trend = getBufferTrend(), ex = buf - target;
 
-    /* 기어 결정 */
     if (ex > target * 0.8)       gear = R_HIGH;
     else if (ex > target * 0.4)  gear = R_MED;
     else if (ex > HYST) {
@@ -461,23 +507,21 @@
     }
     else if (ex < -HYST)         gear = R_NORM;
 
-    /* 프레임 드롭 또는 디코더 부하 시 기어 자동 다운 */
-    if (gear > R_SOFT) {
-      if (_dropRate > 0.05 || _decoderStressed) {
-        gear = gear === R_HIGH ? R_MED : gear === R_MED ? R_SOFT : R_NORM;
-      }
+    if (gear > R_SOFT && (_dropRate > 0.05 || _decoderStressed)) {
+      gear = gear === R_HIGH ? R_MED : gear === R_MED ? R_SOFT : R_NORM;
     }
 
     safeRate(vid, gear);
   };
+  let _liveFalseCount = 0;
 
   /* ── 렌더 ── */
-  let _prev = { dot: '', txt: '', clr: '', w: '', badge: '', badgeCls: '' };
+  let _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
+  let _prevBufRound = -999, _prevBarPct = -1;
 
   const render = (buf, vid) => {
-    const actuallyLive = vid && isCandidate(vid) && isLive(vid);
     if (els.root) {
-      if (!actuallyLive) {
+      if (!_isCurrentlyLive || !vid) {
         if (els.root.style.display !== 'none') els.root.style.display = 'none';
         return;
       } else {
@@ -495,11 +539,18 @@
       return;
     }
 
-    const txt = buf < 0 ? '—' : sec.toFixed(1);
-    const w = clamp(sec / BAR_MAX * 100, 0, 100).toFixed(1) + '%';
-    if (txt !== _prev.txt) { els.val.textContent = txt; _prev.txt = txt; }
-    if (c !== _prev.clr)   { els.pn.style.setProperty('--ac', c); _prev.clr = c; }
-    if (w !== _prev.w)     { els.bar.style.width = w; _prev.w = w; }
+    const bufRound = buf < 0 ? -1 : Math.round(sec * 10);
+    if (bufRound !== _prevBufRound) {
+      _prevBufRound = bufRound;
+      els.val.textContent = buf < 0 ? '—' : (bufRound / 10).toFixed(1);
+    }
+    if (c !== _prev.clr) { els.pn.style.setProperty('--ac', c); _prev.clr = c; }
+
+    const barPct = Math.round(clamp(sec / BAR_MAX * 100, 0, 100) * 10);
+    if (barPct !== _prevBarPct) {
+      _prevBarPct = barPct;
+      els.bar.style.width = (barPct / 10).toFixed(1) + '%';
+    }
 
     const now = performance.now(), inRange = sec <= target && sec >= Math.max(0, target - 0.5);
     let bTxt, bCls;
@@ -516,7 +567,7 @@
     drawSpark(c);
   };
 
-  /* ── DOM 구축 (DOM API) ── */
+  /* ── DOM 구축 ── */
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
   const el = (tag, attrs, children) => {
@@ -544,15 +595,14 @@
     if (document.getElementById('dm-root')) return;
     GM_addStyle(`
 #dm-root{--ac:#00E696;--bg:rgba(12,14,20,.92);--bg2:rgba(255,255,255,.04);--bg3:rgba(255,255,255,.07);--border:rgba(255,255,255,.06);--t1:#f0f0f0;--t2:rgba(255,255,255,.45);--rad:16px;font:12px/1.5 'SF Pro Text',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--t1)}
-#dm-fab{position:fixed;bottom:20px;right:20px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04)}
+#dm-fab{position:fixed;bottom:20px;right:20px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04);will-change:transform,box-shadow}
 #dm-fab:hover{transform:scale(1.08)}#dm-fab:active{transform:scale(.95)}
 .dm-dot{width:10px;height:10px;border-radius:50%;background:var(--ac);transition:background .4s;box-shadow:0 0 8px var(--ac)}
 @keyframes dm-pulse{0%,100%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 0 var(--ac)}50%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 6px transparent}}
 #dm-fab{animation:dm-pulse 2.5s ease-in-out infinite}
-#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:layout style paint}
-#dm-pn.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
-#dm-pn:not(.open){content-visibility:hidden}
-.dm-hdr{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;cursor:grab}
+#dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:content;will-change:opacity,transform,visibility}
+#dm-pn.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;visibility:visible}
+#dm-pn:not(.open){visibility:hidden;transition:opacity .25s,transform .25s,visibility 0s .25s}.dm-hdr{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;cursor:grab}
 .dm-logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--ac),rgba(0,230,150,.5));display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;font-weight:700;flex-shrink:0}
 .dm-title{font-weight:600;font-size:13px;letter-spacing:-.01em}
 .dm-host{font-size:9px;color:var(--t2);max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -584,14 +634,9 @@
 `);
 
     const root = el('div', { id: 'dm-root', style: { display: 'none' } });
-
-    // FAB
     const fab = el('div', { id: 'dm-fab' }, [el('div', { className: 'dm-dot' })]);
-
-    // Panel
     const pn = el('div', { id: 'dm-pn' });
 
-    // Header
     const closeSvg = svgEl('svg', { width: '12', height: '12', viewBox: '0 0 12 12', fill: 'none' });
     closeSvg.appendChild(svgEl('path', { d: 'M2.5 2.5l7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' }));
     closeSvg.appendChild(svgEl('path', { d: 'M9.5 2.5l-7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' }));
@@ -603,21 +648,16 @@
       closeBtn
     ]);
 
-    // Stat
     const valSpan = el('span', { className: 'dm-val', textContent: '—' });
     const badgeSpan = el('span', { className: 'dm-b dm-off', textContent: 'OFF' });
     const stat = el('div', { className: 'dm-stat' }, [
       valSpan, el('span', { className: 'dm-unit', textContent: '초' }), badgeSpan
     ]);
 
-    // Bar
     const barDiv = el('div', { className: 'dm-bar' });
     const barWrap = el('div', { className: 'dm-barwrap' }, [barDiv]);
-
-    // Spark
     const sparkCvs = el('canvas', { className: 'dm-spark', width: '208', height: '32' });
 
-    // Slider
     const slInput = el('input', { type: 'range', min: String(MIN_TARGET), max: String(MAX_TARGET), step: '0.5', value: String(target) });
     const svSpan = el('span', { className: 'dm-sv', textContent: target.toFixed(1) + 's' });
     const defLabel = el('span', { textContent: `기본 ${DEF_TARGET}s` });
@@ -633,11 +673,10 @@
       ])
     ]);
 
-    // Footer
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v14.0.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v14.1.1' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -665,7 +704,6 @@
       cfg.target = target; saveLazy();
     };
 
-    // Drag FAB
     const drag = (dragEl, onEnd) => {
       let ox, oy, moved = false;
       dragEl.onpointerdown = e => { if (e.button) return; moved = false; dragEl._m = false; dragEl.setPointerCapture(e.pointerId); const r = dragEl.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top; };
@@ -674,7 +712,6 @@
     };
     drag(fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
 
-    // Drag panel header
     hdr.onpointerdown = e => {
       if (e.button || e.target === closeBtn || closeBtn.contains(e.target)) return;
       hdr.setPointerCapture(e.pointerId);
@@ -688,12 +725,27 @@
     if (panelOpen) openP(true);
   };
 
-  const openP = (instant) => {
-    if (panelOpen && !instant) return;
-    panelOpen = true; cfg.open = true; saveLazy();
-    els.fab.style.display = 'none'; els.pn.classList.add('open');
-    _prev = { dot: '', txt: '', clr: '', w: '', badge: '', badgeCls: '' };
-  };
+  const openP = instant => {
+    if (panelOpen && !instant) return;
+    panelOpen = true; cfg.open = true; saveLazy();
+
+    /* 추가된 부분: 아이콘 위치를 기준으로 UI 패널을 근처로 불러오기 */
+    if (els.fab && els.fab.style.display !== 'none') {
+      const r = els.fab.getBoundingClientRect();
+      if (r.width > 0) {
+        els.pn.style.left = clamp(r.right - 256 + 24, 0, innerWidth - 256) + 'px';
+        els.pn.style.top = clamp(r.top - 6, 0, innerHeight - 180) + 'px';
+        els.pn.style.right = 'auto';
+        els.pn.style.bottom = 'auto';
+        cfg.px = els.pn.style.left;
+        cfg.py = els.pn.style.top;
+      }
+    }
+
+    els.fab.style.display = 'none'; els.pn.classList.add('open');
+    _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
+    _prevBufRound = -999; _prevBarPct = -1;
+  };
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; cfg.open = false; saveLazy();
     const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
@@ -705,7 +757,7 @@
     _prev.dot = '';
   };
 
-  /* ── 메인 루프 시작 ── */
+  /* ── 메인 루프 ── */
   const loop = () => { tick(); setTimeout(loop, document.hidden ? 5000 : panelOpen ? 1000 : 3000); };
 
   const init = () => {
@@ -713,13 +765,19 @@
     build(); scan(); startObserver(); loop();
   };
 
-  /* ── SPA 네비게이션 대응 ── */
+  /* ── SPA 네비게이션 ── */
   let lastPath = location.pathname + location.search;
+  let _navDebounce = 0;
   const onNav = () => {
-    const cur = location.pathname + location.search; if (cur === lastPath) return; lastPath = cur;
-    warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
-    stopRVFC(); setVid(null); resetDropRate();
-    setTimeout(scan, 500); setTimeout(scan, 1500); setTimeout(scan, 3000);
+    clearTimeout(_navDebounce);
+    _navDebounce = setTimeout(() => {
+      const cur = location.pathname + location.search; if (cur === lastPath) return; lastPath = cur;
+      warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
+      stopRVFC(); setVid(null); resetDropRate();
+      _isCurrentlyLive = false; _liveConfirmedOnce = false; _liveFalseCount = 0;
+      _ytLiveTs = 0; _ytPlayerTs = 0;
+      setTimeout(scan, 500); setTimeout(scan, 1500);
+    }, 100);
   };
   if ('navigation' in window) try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
   else {
@@ -736,7 +794,7 @@
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
-  /* ── 탭 전환·풀스크린 대응 ── */
+  /* ── 탭·풀스크린 ── */
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { warmupEnd = performance.now() + 4000; lastSeek = 0; } });
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
@@ -749,9 +807,9 @@
   }));
   window.addEventListener('beforeunload', save);
 
-  /* ── 디버그 메뉴 ── */
+  /* ── 디버그 ── */
   GM_registerMenuCommand('현재 상태', () => {
-    const vid = getVid(), buf = vid ? (HAS_RVFC && _lastFrameBuf >= 0 ? _lastFrameBuf : getBuf(vid)) : -1;
+    const vid = getVid(), buf = vid ? (_rvfcActive && _lastFrameBuf >= 0 ? _lastFrameBuf : getBuf(vid)) : -1;
     const gl = gear > 1.05 ? (gear > 1.2 ? 'HIGH' : 'MED') : gear > 1 ? 'SOFT' : 'NORM';
     const live = vid ? isLive(vid) : false;
     const dur = vid ? vid.duration : -1;
