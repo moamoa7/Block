@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260323
+! Version: 20260325
 !
 !
 !
@@ -283,68 +283,68 @@ entertain.naver.com##.AsideBanner_comp_aside_banner__SxRMD
 !||cyad1.nate.com^
 !
 !
-! 숲 (https://www.sooplive.co.kr/)
+! 숲 (https://www.sooplive.com/)
 ! - 팝업
-sooplive.co.kr##.bnrimg_area
+sooplive.com##.bnrimg_area
 ! - 개인페이지내 팝업
-sooplive.co.kr##[class*="NoticeLayer"]
+sooplive.com##[class*="NoticeLayer"]
 ! - 메인 모르겠는데 떠 있는거
-sooplive.co.kr###soopi_wrap
+sooplive.com###soopi_wrap
 ! - 채팅 위 연관상품
-sooplive.co.kr##.store_box.box
-sooplive.co.kr##.floating_btns
+sooplive.com##.store_box.box
+sooplive.com##.floating_btns
 ! - 구독 플러스
-sooplive.co.kr##.subs_plus.seasonal_area
+sooplive.com##.subs_plus.seasonal_area
 ! - 구독 플러스 안내 메시지
-sooplive.co.kr##.message_player_wrap
+sooplive.com##.message_player_wrap
 ! - 구독 플러스 툴팁
 ##.event_tooltip
 ! - 프로모션 배너
-!sooplive.co.kr##.promotion_banner
-! - 영상 (https://play.sooplive.co.kr)
+!sooplive.com##.promotion_banner
+! - 영상 (https://play.sooplive.com)
 ! - - - 정상인데도 버퍼링 도는 작은 동그라미
 !##[class="buffering"]
 ##.buffering
 ! - 메인 상단 광고 & 검색 옆에 숲 광고 (List-KR)
-!||static.sooplive.co.kr/asset/service/ad/
+!||static.sooplive.com/asset/service/ad/
 ! -  채팅 광고
 !##[class*="chat_banner"]
 ##.chat_banner
 ! - 채팅 상단 배너
-!sooplive.co.kr##.on.chat_banner2
+!sooplive.com##.on.chat_banner2
 ! - 채팅 공지 (필요시)
-!sooplive.co.kr##.chat_notice
+!sooplive.com##.chat_notice
 ! - 채팅 상단 배너 & 채팅 공지 (필요시)
-!sooplive.co.kr##.chat_topbox
+!sooplive.com##.chat_topbox
 ! - 채팅 버블 메시지
-sooplive.co.kr##.bubble-container
+sooplive.com##.bubble-container
 ! -스트리머에게 수익이 후원되는 광고를 재생하고 계십니다. 없애기
-sooplive.co.kr##.text_output
+sooplive.com##.text_output
 ! - - - 광고 영상 안보이게 (광고 차단 안될시 소리만 나오고 영상은 재생되지 않음)
-!||vod-player*.sooplive.co.kr
-!||deapi.sooplive.co.kr^
-sooplive.co.kr##.da_area
-sooplive.co.kr###da_video
+!||vod-player*.sooplive.com
+!||deapi.sooplive.com^
+sooplive.com##.da_area
+sooplive.com###da_video
 ! - 방송요약 팝업
-sooplive.co.kr###sarsa_btn
+sooplive.com###sarsa_btn
 ||connect.facebook.net^$3p,from=~facebook.com|~fb.com
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
-sooplive.co.kr##.tuneout
+sooplive.com##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
 !##[class="extensions_item"]
-sooplive.co.kr##.extensions_item
+sooplive.com##.extensions_item
 ! - 영상 왼쪽 하단 애드벌룬 배너
-!sooplive.co.kr##.adballoon_icon
+!sooplive.com##.adballoon_icon
 ##.adballoon_icon
-! - 개인채널 (https://ch.sooplive.co.kr/) 팝업
-sooplive.co.kr##.bs-notice_layer
-! - 개인채널 (https://ch.sooplive.co.kr/) 오른쪽 배너
-sooplive.co.kr###side-layer
+! - 개인채널 (https://ch.sooplive.com/) 팝업
+sooplive.com##.bs-notice_layer
+! - 개인채널 (https://ch.sooplive.com/) 오른쪽 배너
+sooplive.com###side-layer
 !###side-layer
-! - 개인채널 (https://ch.sooplive.co.kr/) 하단 배너
-sooplive.co.kr##.sct-bnr
-! - 개인채널  (https://ch.sooplive.co.kr/) VOD 업로드 툴팁
-sooplive.co.kr###FeedLayerToolTip
+! - 개인채널 (https://ch.sooplive.com/) 하단 배너
+sooplive.com##.sct-bnr
+! - 개인채널  (https://ch.sooplive.com/) VOD 업로드 툴팁
+sooplive.com###FeedLayerToolTip
 ! - 프로모션 배너 (적용이 안되고 있는지 딱히 나오는건 없음)
 !##[class="promotion_banner"]
 ##.promotion_banner
@@ -352,29 +352,29 @@ sooplive.co.kr###FeedLayerToolTip
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
-play.sooplive.co.kr##.event_tooltip
+play.sooplive.com##.event_tooltip
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
-@@||*stimg.sooplive.co.kr/LOGO/gg/*.webp
+@@||*stimg.sooplive.com/LOGO/gg/*.webp
 ! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
 #@#.share
 ! - 즐겨찾기 추가(삭제)시 문구 안나옴 해결
-sooplive.co.kr#@#[class*="AD"]
+sooplive.com#@#[class*="AD"]
 ! ##[class^="ad"] 해제
-point.sooplive.co.kr#@#[class^="ad"]
+point.sooplive.com#@#[class^="ad"]
 
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
 ! - 해제 목록
-cinety.sooplive.co.kr#@##main_banner
-cinety.sooplive.co.kr#@#a[href]:has(img[src*="banner"])
-cinety.sooplive.co.kr#@#[class*="_banner"]
-cinety.sooplive.co.kr#@#[id*="banner"]
-cinety.sooplive.co.kr#@#[id^="banner_"]
-cinety.sooplive.co.kr#@#.banner
-cinety.sooplive.co.kr#@#.banner_list
+cinety.sooplive.com#@##main_banner
+cinety.sooplive.com#@#a[href]:has(img[src*="banner"])
+cinety.sooplive.com#@#[class*="_banner"]
+cinety.sooplive.com#@#[id*="banner"]
+cinety.sooplive.com#@#[id^="banner_"]
+cinety.sooplive.com#@#.banner
+cinety.sooplive.com#@#.banner_list
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 시네티 영상 새창 차단 해제
-@@||sooplive.co.kr/asset/service/common/common_analysis.js
+@@||sooplive.com/asset/service/common/common_analysis.js
 !
 !
 ! https://javleak.com/
@@ -690,7 +690,7 @@ platinmods.com#@#[class*="ad_"] [style]
 ! 게시물 하단 배너
 !fmkorea.com##ins.adsbygoogle
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기
-!fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.co.kr"])
+!fmkorea.com##div[class="video-container"]:has(iframe[src^="https://vod.sooplive.com"])
 ! - 아프리카 탭 게시물 중 VOD iframe 없애기 (streamable.com 안나와서 해제)
 !fmkorea.com##.video-container
 ! - 모바일
@@ -1959,7 +1959,7 @@ yna.co.kr##.wrap-header01
 !yna.co.kr##[class^="aside-box"]
 yna.co.kr##[class^="aside"]
 ! - 대부분의 필요없는 부분까지 삭제할려고 광역으로 대체
-! - - - 숲 (https://www.sooplive.co.kr/search) 연관검색어 삭제
+! - - - 숲 (https://www.sooplive.com/search) 연관검색어 삭제
 ! - - - 클리앙 (https://www.clien.net/) - 로그인 부분까지 삭제되어 하면 안됨
 !##[class*="aside"]
 ! - 기사 오른쪽 필요없는 부분
@@ -3687,7 +3687,7 @@ jusogall.com#@#.rainbow-text
 !chaturbate.com#@#[class*="verlay"]
 !chaturbate.com#@#[class$="verlay"]
 ! - - - ##[class*="overlay"] 로 하면 숲 영상 차단됨 (티비위키 등 도 안나옴)
-!play.sooplive.co.kr#@#[class*="overlay"]
+!play.sooplive.con#@#[class*="overlay"]
 ! - - - 픽팍 로그인 팝업 안뜸
 mypikpak.com#@#[class$="verlay"]
 google.com/recaptcha/#@#[class$="verlay"]
@@ -5756,7 +5756,7 @@ poooo.ml#@#[class*="layer"]
 ! MISSAV (https://missav.ws/) - 메인 하단 / 영상 하단 비디오 광고
 !##[id*="video"] video
 ! - - - 예외
-! - - - 숲 (https://play.sooplive.co.kr/)  - 영상 안보임
+! - - - 숲 (https://play.sooplive.com/)  - 영상 안보임
 !play.sooplive.co.kr#@#[id*="video"] video - 아래 규칙으로 변경
 !##[id*="_ad_"] video
 
@@ -6359,7 +6359,7 @@ trand.co.kr#@#[id][style*="background"][style]
 
 
 
-! 숲 (https://www.sooplive.co.kr/) - 실시간 영상 이미지 안보임
+! 숲 (https://www.sooplive.com/) - 실시간 영상 이미지 안보임
 ! KICK (https://kick.com/) - 일부 이미지 사라짐
 ! 웨이브 (https://www.wavve.com/) - 팝업 이미지 안보임
 !sooplive.co.kr,kick.com,wavve.com#@#a[href][target] img
