@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v219.0.0 - Reviewed & Optimized)
+// @name         Video_Control (v219.1.0 - Reviewed & Optimized)
 // @namespace    https://github.com/
-// @version      219.0.0
-// @description  v219.0.0: Full review — SVG/audio param fix, filter chain reorder, bug fixes, perf improvements
+// @version      219.1.0
+// @description  v219.1.0: Full review — SVG/audio param fix, filter chain reorder, bug fixes, perf improvements
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -37,7 +37,7 @@
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
 
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '219.0.0';
+  const VSC_VERSION = '219.1.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -1413,13 +1413,18 @@
       if (!quickBarHost) return;
       const target = getMountTarget();
       if (!target) return;
-      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      const needsMove = target !== _lastMount;
-      if (needsMove || isFs) {
-        _lastMount = target;
-        try { target.appendChild(quickBarHost); } catch (_) {}
-        if (panelHost) try { target.appendChild(panelHost); } catch (_) {}
+
+      // [수정] 스크롤 튕김 방지: 실제 부모 노드가 다를 때만 DOM을 이동하도록 조건 강화
+      let moved = false;
+      if (quickBarHost.parentNode !== target) {
+        try { target.appendChild(quickBarHost); moved = true; } catch (_) {}
       }
+      if (panelHost && panelHost.parentNode !== target) {
+        try { target.appendChild(panelHost); moved = true; } catch (_) {}
+      }
+      if (moved) _lastMount = target;
+
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
       const style = isFs ? HOST_STYLE_FS : HOST_STYLE_NORMAL;
       quickBarHost.style.cssText = style;
       if (panelHost) panelHost.style.cssText = style;
@@ -1761,158 +1766,274 @@ Bus.on('signal', () => {
   }
 
   /* ══ Mobile Gestures ══ */
-  function createGestures(Store, Scheduler, OSD) {
-    if (!IS_MOBILE) return; // 모바일 환경에서만 활성화
+  function createGestures(Store, Scheduler, OSD) {
+    if (!IS_MOBILE) return; // 모바일 환경에서만 활성화
 
-    let touchStartX = 0, touchStartY = 0;
-    let lastTapTime = 0;
-    let isSwiping = false;
-    let swipeType = ''; // 'h'(가로-탐색), 'vL'(세로좌측-배속), 'vR'(세로우측-볼륨)
-    let initialVal = 0;
+    let touchStartX = 0, touchStartY = 0;
+    let lastTapTime = 0;
+    let isSwiping = false;
+    let swipeType = ''; // 'h'(가로-탐색), 'vL'(세로좌측-밝기/배속), 'vR'(세로우측-볼륨)
+    let initialVal = 0;
+    let seekInitialTime = 0;
+    let elSeekOverlay = null;
+    let __touchBriOverlay = null;
 
-    // 타겟이 비디오인지 확인하는 유틸 (이벤트 위임 최적화)
-    const isValidTarget = (e) => {
-      const v = __internal._activeVideo;
-      if (!v || !v.isConnected) return false;
-      if (e.target.tagName === 'VIDEO' || (e.target.closest && e.target.closest('video, .html5-video-player'))) return v;
-      return false;
-    };
+    const SWIPE_THRESHOLD = 15;
+    const SEEK_SENSITIVITY = 0.08; // 전체 화면 너비 스와이프 시 이동할 영상 길이 비율
 
-    window.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
-      if (!isValidTarget(e)) return;
+    // 타겟이 비디오인지 확인하는 유틸 (이벤트 위임 최적화)
+    const isValidTarget = (e) => {
+      const v = __internal._activeVideo;
+      if (!v || !v.isConnected) return false;
+      if (e.target.tagName === 'VIDEO' || (e.target.closest && e.target.closest('video, .html5-video-player, .jwplayer'))) return v;
+      return false;
+    };
 
-      const t = e.touches[0];
-      touchStartX = t.clientX;
-      touchStartY = t.clientY;
-      isSwiping = false;
-      swipeType = '';
-    }, { passive: true });
+    function isInFullscreen() {
+      return !!(document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement);
+    }
 
-    window.addEventListener('touchmove', (e) => {
-      if (e.touches.length !== 1) return;
-      const v = isValidTarget(e);
-      if (!v) return;
+    /* ── OSD 시간 포맷 유틸 ── */
+    function formatTime(sec) {
+      if (!Number.isFinite(sec) || sec < 0) sec = 0;
+      const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = Math.floor(sec % 60);
+      const p = v => String(v).padStart(2, '0');
+      return h > 0 ? `${h}:${p(m)}:${p(s)}` : `${p(m)}:${p(s)}`;
+    }
 
-      const t = e.touches[0];
-      const dx = t.clientX - touchStartX;
-      const dy = t.clientY - touchStartY;
-      const absDx = Math.abs(dx);
-      const absDy = Math.abs(dy);
+    function formatDelta(sec) {
+      const sign = sec < 0 ? '−' : '+';
+      const abs = Math.floor(Math.abs(sec));
+      const h = Math.floor(abs / 3600), m = Math.floor((abs % 3600) / 60), s = abs % 60;
+      const p = v => String(v).padStart(2, '0');
+      return h > 0 ? `${sign}${p(h)}:${p(m)}:${p(s)}` : `${sign}${p(m)}:${p(s)}`;
+    }
 
-      // 15px 이상 움직이면 스와이프 시작으로 판정
-      if (!isSwiping && (absDx > 15 || absDy > 15)) {
-        isSwiping = true;
-        if (absDx > absDy) {
-          swipeType = 'h';
-          initialVal = v.currentTime;
-        } else {
-          const rect = v.getBoundingClientRect();
-          // 화면 좌측은 배속, 우측은 볼륨
-          swipeType = (touchStartX < rect.left + rect.width / 2) ? 'vL' : 'vR';
-          initialVal = swipeType === 'vL' ? (Number(Store.get(P.PB_RATE)) || 1) : v.volume;
-        }
-      }
+    /* ── 탐색 전용 중앙 OSD 오버레이 (v214.3.0 디자인 이식) ── */
+    function getOverlayParent() {
+      return document.fullscreenElement || document.webkitFullscreenElement || document.body || document.documentElement;
+    }
 
-      if (isSwiping) {
-        if (e.cancelable) e.preventDefault(); // 스와이프 중 화면 스크롤 방지
+    function ensureSeekOverlay() {
+      const parent = getOverlayParent();
+      if (elSeekOverlay?.isConnected && elSeekOverlay.parentNode === parent) return elSeekOverlay;
+      elSeekOverlay?.remove();
+      elSeekOverlay = document.createElement('div');
+      elSeekOverlay.className = 'vsc-seek-overlay';
+      elSeekOverlay.setAttribute('data-vsc-ui', '1');
+      parent.appendChild(elSeekOverlay);
+      return elSeekOverlay;
+    }
 
-        if (swipeType === 'h') {
-          const seekDelta = (dx / window.innerWidth) * 90; // 화면 끝에서 끝까지 90초 이동
-          OSD.show(`탐색: ${seekDelta > 0 ? '+' : ''}${Math.round(seekDelta)}초`, 500);
-        } else if (swipeType === 'vR') {
-          const volDelta = -(dy / window.innerHeight) * 1.5; // 민감도 1.5
-          let newVal = Math.max(0, Math.min(1, initialVal + volDelta));
-          v.volume = newVal;
-          if (newVal > 0 && v.muted) v.muted = false;
-          OSD.show(`볼륨: ${Math.round(newVal * 100)}%`, 500);
-        } else if (swipeType === 'vL') {
-          const rateDelta = -(dy / window.innerHeight) * 2; // 민감도 2
-          let newVal = Math.max(0.25, Math.min(4.0, initialVal + rateDelta));
-          newVal = Math.round(newVal / 0.05) * 0.05; // 0.05 단위 스냅
-          OSD.show(`속도: ${newVal.toFixed(2)}x`, 500);
-        }
-      }
-    }, { passive: false });
+    function updateSeekUI(currentTime, delta) {
+      const ov = ensureSeekOverlay();
+      const directionText = delta >= 0 ? "오른쪽 스와이프 중" : "왼쪽 스와이프 중";
+      const deltaText = formatDelta(delta);
+      const deltaColor = delta >= 0 ? "#8effa9" : "#ff8e8e";
 
-    window.addEventListener('touchend', (e) => {
-      if (e.changedTouches.length !== 1) return;
-      const v = isValidTarget(e);
-      if (!v) return;
+      ov.textContent = '';
+      const dirEl = document.createElement('div'); dirEl.className = 'vsc-seek-direction'; dirEl.textContent = directionText;
+      const mainEl = document.createElement('div'); mainEl.className = 'vsc-seek-main'; mainEl.textContent = `(${formatTime(currentTime)})`;
+      const deltaEl = document.createElement('div'); deltaEl.className = 'vsc-seek-delta'; deltaEl.style.color = deltaColor; deltaEl.textContent = `(${deltaText})`;
 
-      if (!isSwiping) {
-        // 제자리 더블 탭 판정 (300ms 이내)
-        const now = Date.now();
-        if (now - lastTapTime < 300) {
-          const rect = v.getBoundingClientRect();
-          const w = rect.width;
-          const x = e.changedTouches[0].clientX - rect.left;
+      ov.appendChild(dirEl); ov.appendChild(mainEl); ov.appendChild(deltaEl);
+      ov.style.display = 'flex';
+      ov.classList.add('show');
+    }
 
-          if (x < w * 0.3) {
-            v.currentTime = Math.max(0, v.currentTime - 10);
-            OSD.show('⏪ -10초');
-          } else if (x > w * 0.7) {
-            v.currentTime += 10;
-            OSD.show('+10초 ⏩');
-          } else {
-            // ★ 가운데 더블 탭: 전체화면 및 가로모드 전환
-            const isFullscreen = document.fullscreenElement || document.webkitFullscreenElement;
-            const targetEl = v.closest('.html5-video-player') || v.closest('.jwplayer') || v; // 래퍼가 있으면 래퍼 통째로
+    function hideSeekOverlaySmooth() {
+      if (elSeekOverlay && elSeekOverlay.classList.contains('show')) {
+        elSeekOverlay.style.opacity = '0';
+        setTimeout(() => {
+          if (elSeekOverlay && elSeekOverlay.style.opacity === '0') {
+            elSeekOverlay.classList.remove('show');
+            elSeekOverlay.style.display = 'none';
+          }
+        }, 150);
+      }
+    }
 
-            if (!isFullscreen) {
-              // 전체화면 진입
-              const reqFs = targetEl.requestFullscreen || targetEl.webkitRequestFullscreen;
-              if (reqFs) {
-                reqFs.call(targetEl).then(() => {
-                  // 성공적으로 진입 후 가로모드 고정 시도
-                  if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').catch(() => {
-                      log.warn('가로모드 고정 권한이 없거나 지원하지 않는 기기입니다.');
-                    });
-                  }
-                }).catch(err => log.error('전체화면 진입 실패:', err));
-                OSD.show('🔲 전체화면 (가로모드)');
-              }
-            } else {
-              // 전체화면 해제
-              const extFs = document.exitFullscreen || document.webkitExitFullscreen;
-              if (extFs) {
-                extFs.call(document);
-                // 화면 고정 해제
-                if (screen.orientation && screen.orientation.unlock) {
-                  screen.orientation.unlock();
-                }
-                OSD.show('✖ 화면 복구');
-              }
-            }
-          }
-          lastTapTime = 0;
-          if (e.cancelable) e.preventDefault();
-        } else {
-          lastTapTime = now;
-        }
-      } else {
-        // 스와이프 종료 시 확정 적용 (가로, 좌측 세로)
-        const t = e.changedTouches[0];
-        const dx = t.clientX - touchStartX;
-        const dy = t.clientY - touchStartY;
+    /* ── 화면 밝기(Dimmer) 터치 조절 전용 오버레이 ── */
+    function ensureBriOverlay(video) {
+      const parent = video.parentElement || getOverlayParent();
+      if (__touchBriOverlay?.isConnected && __touchBriOverlay.parentNode === parent) return __touchBriOverlay;
+      __touchBriOverlay?.remove(); __touchBriOverlay = document.createElement('div'); __touchBriOverlay.setAttribute('data-vsc-ui', '1');
+      __touchBriOverlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;background:black;opacity:0;pointer-events:none;z-index:1;transition:opacity 0.08s linear;';
+      parent.appendChild(__touchBriOverlay);
+      const pos = getComputedStyle(parent).position; if (pos === 'static') parent.style.position = 'relative';
+      return __touchBriOverlay;
+    }
 
-        if (swipeType === 'h') {
-          const seekDelta = (dx / window.innerWidth) * 90;
-          v.currentTime += seekDelta;
-          OSD.show(`이동: ${Math.round(v.currentTime)}초`);
-        } else if (swipeType === 'vL') {
-          const rateDelta = -(dy / window.innerHeight) * 2;
-          let newVal = Math.max(0.25, Math.min(4.0, initialVal + rateDelta));
-          newVal = Math.round(newVal / 0.05) * 0.05;
-          Store.set(P.PB_RATE, newVal);
-          Store.set(P.PB_EN, true);
-          Scheduler.request();
-          OSD.show(`속도 변경: ${newVal.toFixed(2)}x`);
-        }
-      }
-    }, { passive: false });
-  }
+    function applyTouchBrightness(video, brightness01) {
+      const clamped = CLAMP(brightness01, 0.05, 1.0);
+      const overlay = ensureBriOverlay(video);
+      overlay.style.opacity = String(1 - clamped);
+    }
+
+    function removeTouchBrightness() {
+      if (__touchBriOverlay?.isConnected) {
+        __touchBriOverlay.style.opacity = '0';
+        const ov = __touchBriOverlay;
+        setTimeout(() => { ov?.remove(); }, 300);
+        __touchBriOverlay = null;
+      }
+    }
+
+
+    /* ── 이벤트 리스너 ── */
+    window.addEventListener('touchstart', (e) => {
+      if (e.touches.length !== 1) return;
+      const v = isValidTarget(e);
+      if (!v) return;
+
+      const t = e.touches[0];
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+      isSwiping = false;
+      swipeType = '';
+      seekInitialTime = v.currentTime;
+    }, { passive: true });
+
+    window.addEventListener('touchmove', (e) => {
+      if (e.touches.length !== 1) return;
+      const v = isValidTarget(e);
+      if (!v) return;
+
+      const t = e.touches[0];
+      const dx = t.clientX - touchStartX;
+      const dy = t.clientY - touchStartY;
+      const absDx = Math.abs(dx);
+      const absDy = Math.abs(dy);
+
+      // 스와이프 시작 판정
+      if (!isSwiping && (absDx > SWIPE_THRESHOLD || absDy > SWIPE_THRESHOLD)) {
+        if (absDx > absDy) {
+          // 가로: 탐색
+          swipeType = 'h';
+          isSwiping = true;
+        } else {
+          // 세로: 밝기/볼륨 조절 (단, 전체화면일 때만 허용)
+          if (isInFullscreen()) {
+            isSwiping = true;
+            const rect = v.getBoundingClientRect();
+            swipeType = (touchStartX < rect.left + rect.width / 2) ? 'vL' : 'vR';
+            initialVal = swipeType === 'vL' ? 1.0 : v.volume; // vL은 밝기(1.0)를 기본값으로
+          } else {
+            // 전체화면이 아닐 때는 세로 스크롤을 위해 스와이프 판정을 포기합니다.
+            swipeType = '';
+            isSwiping = false;
+            return;
+          }
+        }
+      }
+
+      if (isSwiping) {
+        if (e.cancelable) e.preventDefault(); // 기본 스크롤/액션 방지
+
+        if (swipeType === 'h') {
+          const duration = v.duration;
+          if (!Number.isFinite(duration) || duration <= 0) return;
+          const vRect = v.getBoundingClientRect();
+          const normalizedDx = dx / Math.max(1, vRect.width);
+          const timeChange = normalizedDx * duration * SEEK_SENSITIVITY;
+          const newTime = CLAMP(seekInitialTime + timeChange, 0, duration);
+
+          v.currentTime = newTime;
+          updateSeekUI(newTime, newTime - seekInitialTime);
+        } else if (swipeType === 'vR') {
+          // 우측 세로: 볼륨
+          const volDelta = -(dy / window.innerHeight) * 2.0;
+          let newVal = CLAMP(initialVal + volDelta, 0, 1);
+          v.volume = newVal;
+          if (newVal > 0 && v.muted) v.muted = false;
+          OSD.show(`볼륨: ${Math.round(newVal * 100)}%`, 500);
+        } else if (swipeType === 'vL') {
+          // 좌측 세로: 밝기 조절 (Dimmer)
+          const briDelta = -(dy / window.innerHeight) * 2.0;
+          let newBri = CLAMP(initialVal + briDelta, 0.05, 1.0);
+          applyTouchBrightness(v, newBri);
+          OSD.show(`밝기: ${Math.round(newBri * 100)}%`, 500);
+        }
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchend', (e) => {
+      if (e.changedTouches.length !== 1) return;
+      const v = isValidTarget(e);
+      if (!v) return;
+
+      if (!isSwiping) {
+        // 제자리 더블 탭 판정 (300ms 이내)
+        const now = Date.now();
+        if (now - lastTapTime < 300) {
+          const rect = v.getBoundingClientRect();
+          const w = rect.width;
+          const x = e.changedTouches[0].clientX - rect.left;
+
+          if (x < w * 0.3) {
+            v.currentTime = Math.max(0, v.currentTime - 10);
+            OSD.show('⏪ -10초');
+          } else if (x > w * 0.7) {
+            v.currentTime += 10;
+            OSD.show('+10초 ⏩');
+          } else {
+            // 가운데 더블 탭: 전체화면 및 가로모드 전환
+            const isFs = isInFullscreen();
+            const targetEl = v.closest('.html5-video-player, .jwplayer, .video-js') || v;
+
+            if (!isFs) {
+              const reqFs = targetEl.requestFullscreen || targetEl.webkitRequestFullscreen;
+              if (reqFs) {
+                reqFs.call(targetEl).then(() => {
+                  setTimeout(() => {
+                    if (screen.orientation && screen.orientation.lock) {
+                      screen.orientation.lock('landscape').catch(() => {});
+                    }
+                  }, 400);
+                }).catch(() => {
+                  if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+                  else if (v.requestFullscreen) v.requestFullscreen();
+                });
+                OSD.show('🔲 전체화면');
+              } else if (v.webkitEnterFullscreen) {
+                v.webkitEnterFullscreen();
+                OSD.show('🔲 전체화면 (iOS)');
+              }
+            } else {
+              const extFs = document.exitFullscreen || document.webkitExitFullscreen;
+              if (extFs) {
+                if (screen.orientation && screen.orientation.unlock) {
+                  screen.orientation.unlock();
+                }
+                extFs.call(document);
+                OSD.show('✖ 화면 복구');
+              }
+            }
+          }
+          lastTapTime = 0;
+          if (e.cancelable) e.preventDefault();
+        } else {
+          lastTapTime = now;
+        }
+      } else {
+        // 스와이프 종료 시 OSD 정리
+        if (swipeType === 'h') {
+          hideSeekOverlaySmooth();
+          const delta = v.currentTime - seekInitialTime;
+          if (Math.abs(delta) > 0.5) OSD.show(`${formatDelta(delta)}  →  ${formatTime(v.currentTime)}`, 1200);
+        } else if (swipeType === 'vL') {
+          removeTouchBrightness();
+        }
+        isSwiping = false;
+      }
+    }, { passive: false });
+
+    window.addEventListener('touchcancel', () => {
+      isSwiping = false;
+      hideSeekOverlaySmooth();
+      removeTouchBrightness();
+    });
+  }
 
   /* ══ Bootstrap ══ */
   function bootstrap() {
