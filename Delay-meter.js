@@ -1,10 +1,13 @@
 // ==UserScript==
-// @name         딜레이 미터기
+// @name         딜레이 미터
 // @namespace    https://github.com/moamoa7
-// @version      12.7.5
-// @description  라이브 방송의 딜레이를 자동 감지·제어 (WebRTC MediaStream 지원)
+// @version      13.0.0
+// @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
-// @match        *://*/*
+// @match        *://*.youtube.com/*
+// @match        *://*.chzzk.naver.com/*
+// @match        *://*.sooplive.co.kr/*
+// @match        *://*.twitch.tv/*
 // @exclude      *://*.youtube.com/live_chat*
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.challenges.cloudflare.com/*
@@ -13,7 +16,6 @@
 // @exclude      *://*.recaptcha.net/*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
-// @grant        unsafeWindow
 // @license      MIT
 // @run-at       document-start
 // ==/UserScript==
@@ -21,104 +23,8 @@
 (function () {
   'use strict';
 
-  /* ══════════════════════════════════════════════
-     페이지 컨텍스트에 RTCPeerConnection 인터셉터 주입
-     unsafeWindow를 통해 CSP를 우회하여 실제 window에 접근
-     ══════════════════════════════════════════════ */
-  const W = (typeof unsafeWindow !== 'undefined') ? unsafeWindow : window;
-
-  const injectRTC = () => {
-    if (W.__dm_rtc_injected) return;
-    W.__dm_rtc_injected = true;
-
-    const pcList = [];
-    const Orig = W.RTCPeerConnection || W.webkitRTCPeerConnection;
-    if (!Orig) return;
-
-    const Wrapped = function () {
-      const pc = new (Function.prototype.bind.apply(Orig, [null].concat(Array.prototype.slice.call(arguments))))();
-      pcList.push(pc);
-      return pc;
-    };
-    Wrapped.prototype = Orig.prototype;
-    try { Object.setPrototypeOf(Wrapped, Orig); } catch (e) {}
-
-    if (W.RTCPeerConnection) W.RTCPeerConnection = Wrapped;
-    if (W.webkitRTCPeerConnection) W.webkitRTCPeerConnection = Wrapped;
-
-    let prevD = 0, prevC = 0;
-    function poll() {
-      for (let i = pcList.length - 1; i >= 0; i--) {
-        const pc = pcList[i];
-        try {
-          if (pc.connectionState === 'closed' || pc.connectionState === 'failed') { pcList.splice(i, 1); continue; }
-        } catch (e) { pcList.splice(i, 1); continue; }
-        if (pc.connectionState !== 'connected' && pc.connectionState !== 'connecting') continue;
-        pc.getStats().then(function (stats) {
-          stats.forEach(function (r) {
-            if ((r.type === 'inbound-rtp' || r.type === 'track') && (r.kind === 'video' || r.mediaType === 'video')) {
-              const d = r.jitterBufferDelay, c = r.jitterBufferEmittedCount;
-              if (d != null && c != null && c > 0) {
-                let delay;
-                if (prevC > 0 && c > prevC) delay = (d - prevD) / (c - prevC);
-                else delay = d / c;
-                prevD = d; prevC = c;
-                W.dispatchEvent(new W.CustomEvent('__dm_jb', { detail: { delay: delay, ts: Date.now() } }));
-              }
-            }
-          });
-        }).catch(function () {});
-        break;
-      }
-    }
-    W.setInterval(poll, 1000);
-
-    W.setInterval(function () {
-      let active = null;
-      for (let i = pcList.length - 1; i >= 0; i--) {
-        const pc = pcList[i];
-        try {
-          if (pc.connectionState === 'closed' || pc.connectionState === 'failed') { pcList.splice(i, 1); continue; }
-        } catch (e) { pcList.splice(i, 1); continue; }
-        if (pc.connectionState === 'connected' || pc.connectionState === 'connecting') { active = pc; break; }
-      }
-      W.dispatchEvent(new W.CustomEvent('__dm_pc', { detail: { count: pcList.length, state: active ? active.connectionState : 'none' } }));
-    }, 3000);
-  };
-
-  injectRTC();
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectRTC, { once: true });
-  }
-
-  /* ── 주입된 스크립트에서 이벤트 수신 ── */
-  let _jbDelay = -1;
-  let _pcState = 'none';
-  let _pcCount = 0;
-  window.addEventListener('__dm_jb', e => {
-    if (e.detail && typeof e.detail.delay === 'number') _jbDelay = e.detail.delay;
-  });
-  window.addEventListener('__dm_pc', e => {
-    if (e.detail) { _pcState = e.detail.state || 'none'; _pcCount = e.detail.count || 0; }
-  });
-
-  /* ── Trusted Types ── */
-  let ttPolicy;
-  if (window.trustedTypes && window.trustedTypes.createPolicy) {
-    try {
-      ttPolicy = window.trustedTypes.createPolicy('dm-html-policy-v12', {
-        createHTML: s => s, createScriptURL: s => s
-      });
-    } catch (e) {
-      ttPolicy = window.trustedTypes.defaultPolicy || { createHTML: s => s, createScriptURL: s => s };
-    }
-  } else {
-    ttPolicy = { createHTML: s => s, createScriptURL: s => s };
-  }
-
   /* ── 도메인·플랫폼 감지 ── */
   const HOST = location.hostname.replace(/^www\./, '');
-  const STORE_KEY = 'dm_u12_' + HOST;
 
   const detectPlatform = () => {
     if (HOST.includes('youtube'))  return 'youtube';
@@ -129,6 +35,7 @@
   };
   const PLATFORM   = detectPlatform();
   const IS_YOUTUBE = PLATFORM === 'youtube';
+  const STORE_KEY  = 'dm_u13_' + HOST;
 
   /* ── 플랫폼별 설정 ── */
   const PLATFORM_SETTINGS = {
@@ -162,25 +69,22 @@
   const HYST           = 0.3;
   const STALL_WINDOW   = 30000;
   const STALL_COOLDOWN = 8000;
-  const R_NORM = 1.00, R_SOFT = 1.02, R_HIGH = 2.0;
+  const R_NORM = 1.00, R_SOFT = 1.02, R_MED = 1.10, R_HIGH = 1.50;
 
   /* ── Config ── */
   let cfg;
   try { cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { cfg = {}; }
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
-  let _saveId = 0, _saveIsIdle = false;
-  const saveLazy = () => {
-    if ('requestIdleCallback' in window) {
-      if (_saveIsIdle) cancelIdleCallback(_saveId); else clearTimeout(_saveId);
-      _saveIsIdle = true;
-      _saveId = requestIdleCallback(save, { timeout: 1500 });
-    } else { _saveIsIdle = false; clearTimeout(_saveId); _saveId = setTimeout(save, 400); }
-  };
+  let _saveId = 0;
+  const saveLazy = () => { clearTimeout(_saveId); _saveId = setTimeout(save, 400); };
 
   /* ── State ── */
   let _vidRef = null;
-  const getVid = () => _vidRef?.deref() ?? null;
-  const setVid = v => { _vidRef = v ? new WeakRef(v) : null; };
+  const getVid = () => {
+    if (_vidRef && !_vidRef.isConnected) { _vidRef = null; }
+    return _vidRef;
+  };
+  const setVid = v => { _vidRef = v || null; };
 
   let enabled = cfg.enabled ?? true;
 
@@ -207,117 +111,108 @@
   const histPush = v => { hist[histHead] = v; histHead = (histHead + 1) % HIST; if (histLen < HIST) histLen++; };
 
   let stallCount = 0, lastStallTime = 0;
-  let netQuality = 'good';
-  const updateNetQuality = () => {
-    const c = navigator.connection;
-    if (!c) return;
-    if (c.effectiveType === 'slow-2g' || c.effectiveType === '2g' || c.downlink < 1) netQuality = 'poor';
-    else if (c.effectiveType === '3g' || c.downlink < 3) netQuality = 'fair';
-    else netQuality = 'good';
-  };
-  updateNetQuality();
-  try { if (navigator.connection) navigator.connection.addEventListener('change', updateNetQuality); } catch {}
 
   /* ── Utils ── */
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
-  const colorOf = (() => {
-    const STEPS = 40;
-    const G = [0x00,0xE6,0x96], Y = [0xFF,0xD0,0x40], R = [0xFF,0x45,0x55];
-    const lut = new Array(STEPS + 1);
-    for (let i = 0; i <= STEPS; i++) {
-      const t = i / STEPS;
-      const a = t <= 0.5 ? G : Y, b = t <= 0.5 ? Y : R, u = t <= 0.5 ? t * 2 : (t - 0.5) * 2;
-      lut[i] = '#' + [0,1,2].map(j => Math.round(a[j] + (b[j] - a[j]) * u).toString(16).padStart(2,'0')).join('');
-    }
-    return d => {
-      const ratio = clamp(d / (DEF_TARGET * 0.5), 0, 1);
-      return lut[clamp(Math.round(ratio * STEPS), 0, STEPS)];
-    };
-  })();
+
+  const colorOf = d => {
+    const ratio = clamp(d / (DEF_TARGET * 0.5), 0, 1);
+    const G = [0x00, 0xE6, 0x96], Y = [0xFF, 0xD0, 0x40], R = [0xFF, 0x45, 0x55];
+    const a = ratio <= 0.5 ? G : Y;
+    const b = ratio <= 0.5 ? Y : R;
+    const u = ratio <= 0.5 ? ratio * 2 : (ratio - 0.5) * 2;
+    return '#' + [0, 1, 2].map(j => Math.round(a[j] + (b[j] - a[j]) * u).toString(16).padStart(2, '0')).join('');
+  };
+
   const hexToRgb = hex => {
     const n = parseInt(hex.slice(1), 16);
     return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
   };
 
-  /* ── MediaStream 감지 ── */
-  const isMediaStream = v => !!(v && v.srcObject && v.srcObject instanceof MediaStream);
-
+  /* ── 버퍼 측정 ── */
   const getBuf = vid => {
-    if (isMediaStream(vid)) return _jbDelay;
     try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - vid.currentTime; }
     catch { return -1; }
   };
+
   const isHlsSrc = src => /\.m3u8($|\?)/i.test(src);
 
+  /* ── 라이브 판정 (플랫폼별 분리) ── */
   const _liveCache = new WeakMap();
   const _liveTracker = new WeakMap();
 
-  const isLive = vid => {
-    if (!vid) return false;
-    if (isMediaStream(vid)) return true;
+  const isLiveYouTube = vid => {
+    if (vid.duration === Infinity || vid.duration >= 1e6) return true;
+    if (location.pathname.includes('/live')) return true;
+    try {
+      const p = document.querySelector('#movie_player');
+      if (p && typeof p.getVideoData === 'function') {
+        const d = p.getVideoData();
+        if (d && d.isLive) return true;
+      }
+      if (p && typeof p.getPlayerResponse === 'function') {
+        const r = p.getPlayerResponse();
+        if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) return true;
+      }
+    } catch {}
+    if (document.querySelector('.ytp-live-badge[disabled]') ||
+        document.querySelector('.ytp-live') ||
+        document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
+    return false;
+  };
+
+  const isLiveGeneric = vid => {
     if (vid.duration === Infinity || vid.duration >= 1e6) return true;
 
-    if (IS_YOUTUBE) {
-      // YouTube 전용: 신뢰도 높은 판정만 사용
-      if (location.pathname.includes('/live')) return true;
-      try {
-        const p = document.querySelector('#movie_player');
-        if (p && typeof p.getVideoData === 'function') {
-          const d = p.getVideoData();
-          if (d && d.isLive) return true;
-        }
-        if (p && typeof p.getPlayerResponse === 'function') {
-          const r = p.getPlayerResponse();
-          if (r?.videoDetails?.isLiveContent && r?.videoDetails?.isLive) return true;
-        }
-      } catch {}
-      if (document.querySelector('.ytp-live-badge[disabled]') ||
-          document.querySelector('.ytp-live') ||
-          document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) return true;
-
-      // YouTube에서 위 조건에 해당하지 않으면 VOD로 간주
-      return false;
-    }
-
-    // ── 이하 YouTube 이외 플랫폼용 범용 로직 ──
     const cached = _liveCache.get(vid);
     if (cached && performance.now() - cached.ts < 3000) return cached.v;
+
     let v = false;
     const src = vid.currentSrc || vid.src || '';
+
     if (isHlsSrc(src) && vid.buffered.length > 0) v = true;
+
     if (!v) {
       try {
-        const s = vid.seekable, d = vid.duration;
+        const s = vid.seekable;
         if (s.length > 0) {
-          const start = s.start(0), end = s.end(s.length - 1);
-          if (start > 10) v = true;
+          const start = s.start(0), end = s.end(s.length - 1), d = vid.duration;
+          if (start > 10) { v = true; }
           else {
             let tr = _liveTracker.get(vid);
             if (!tr) { tr = { end, dur: d, ts: performance.now(), count: 0 }; _liveTracker.set(vid, tr); }
             else {
               if (end > tr.end + 0.5 || d > tr.dur + 0.5) { tr.count++; tr.end = end; tr.dur = d; tr.ts = performance.now(); }
-              if (tr.count >= 2) v = true;  // 1 → 2로 상향하여 오판 감소
+              if (tr.count >= 2) v = true;
             }
           }
-          if (!v && (end - start > 20)) { const b = vid.buffered; if (b.length && Math.abs(b.end(b.length - 1) - end) < 120) v = true; }
+          if (!v && (end - start > 20)) {
+            const b = vid.buffered;
+            if (b.length && Math.abs(b.end(b.length - 1) - end) < 120) v = true;
+          }
         }
       } catch {}
     }
+
     if (!v && vid.buffered.length > 0) {
       const d = vid.duration;
       if (d > 0 && isFinite(d) && vid.currentTime > 0) {
         const gap = d - vid.currentTime;
-        // blob: URL 단독으로는 라이브 판정하지 않음 — HLS만 허용
         if (gap >= 0 && gap < 60 && isHlsSrc(src)) v = true;
       }
     }
+
     _liveCache.set(vid, { v, ts: performance.now() });
     return v;
   };
 
+  const isLive = vid => {
+    if (!vid) return false;
+    return IS_YOUTUBE ? isLiveYouTube(vid) : isLiveGeneric(vid);
+  };
+
   const isCandidate = v => {
     if (!v || v.readyState < 2) return false;
-    if (isMediaStream(v)) return true;
     const src = v.currentSrc || v.src || '';
     if (src.startsWith('blob:') || src === '') return true;
     if (IS_YOUTUBE) { try { if (v.buffered.length > 0) return true; } catch {} }
@@ -333,6 +228,7 @@
     return (n * sXY - sX * sY) / (n * sX2 - sX * sX);
   };
 
+  /* ── Video 감지·연결 ── */
   const seen = new WeakSet();
   const attach = v => {
     if (getVid() === v) return;
@@ -341,7 +237,6 @@
     setVid(v);
     lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
     stallCount = 0; histLen = 0; histHead = 0;
-    _jbDelay = -1;
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
@@ -388,14 +283,14 @@
     mo.observe(document.body, { childList: true, subtree: true });
   };
 
+  /* ── 제어 ── */
   const safeRate = (vid, r) => {
-    if (!vid || isMediaStream(vid) || vid.playbackRate === r) return;
+    if (!vid || vid.playbackRate === r) return;
     vid.playbackRate = r;
     try { vid.preservesPitch = true; } catch {}
   };
 
   const doSeek = vid => {
-    if (isMediaStream(vid)) return;
     try {
       const s = vid.seekable;
       if (s.length) vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
@@ -404,66 +299,38 @@
     } catch {}
   };
 
-  let _prev = { dot:'', txt:'', clr:'', w:'', badge:'', badgeCls:'', net:'' };
-
+  /* ── 스파크라인 (메인 스레드 Canvas) ── */
   const SPARK_W = 208, SPARK_H = 32;
-  const SPARK_WORKER_SRC = `
-const HIST=60,W=208,H=32;let ctx,dpr,_pH=-1,_pC='';
-const rgb=h=>{const n=parseInt(h.slice(1),16);return\`\${(n>>16)&255},\${(n>>8)&255},\${n&255}\`};
-self.onmessage=({data:d})=>{
-if(d.type==='init'){ctx=d.canvas.getContext('2d');dpr=d.dpr;return}
-if(d.type!=='draw')return;
-const{hist,histHead,histLen,color,target}=d;
-if(!ctx||histLen<2)return;if(histHead===_pH&&color===_pC)return;_pH=histHead;_pC=color;
-ctx.clearRect(0,0,W*dpr,H*dpr);ctx.save();ctx.scale(dpr,dpr);
-let mx=target+2;for(let i=0;i<histLen;i++){const v=hist[(histHead-histLen+i+HIST)%HIST];if(v>mx)mx=v}
-const pad=2,yR=H-pad*2,xS=W/(HIST-1),tY=H-pad-(target/mx)*yR;
-ctx.beginPath();ctx.setLineDash([3,3]);ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=1;
-ctx.moveTo(0,tY);ctx.lineTo(W,tY);ctx.stroke();ctx.setLineDash([]);
-const r=rgb(color),g=ctx.createLinearGradient(0,0,0,H);
-g.addColorStop(0,\`rgba(\${r},.20)\`);g.addColorStop(1,\`rgba(\${r},.02)\`);
-const dp=()=>{ctx.beginPath();for(let i=0;i<histLen;i++){const v=hist[(histHead-histLen+i+HIST)%HIST],x=i*xS,y=H-pad-(v/mx)*yR;i===0?ctx.moveTo(x,y):ctx.lineTo(x,y)}};
-dp();ctx.lineTo((histLen-1)*xS,H);ctx.lineTo(0,H);ctx.closePath();ctx.fillStyle=g;ctx.fill();
-dp();ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.lineJoin='round';ctx.stroke();
-const lv=hist[(histHead-1+HIST)%HIST],lx=(histLen-1)*xS,ly=H-pad-(lv/mx)*yR;
-const gw=ctx.createRadialGradient(lx,ly,0,lx,ly,6);gw.addColorStop(0,\`rgba(\${r},.6)\`);gw.addColorStop(1,\`rgba(\${r},0)\`);
-ctx.fillStyle=gw;ctx.fillRect(lx-6,ly-6,12,12);ctx.beginPath();ctx.arc(lx,ly,2.5,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();
-ctx.restore()};`;
+  let sparkCanvas = null, sparkCtx = null;
 
-  let sparkWorker = null, sparkCanvas = null, sparkCtx = null;
   const initSparkCanvas = cvs => {
     const dpr = devicePixelRatio || 1;
     cvs.style.width = SPARK_W + 'px'; cvs.style.height = SPARK_H + 'px';
     cvs.width = SPARK_W * dpr; cvs.height = SPARK_H * dpr;
-    if (typeof OffscreenCanvas !== 'undefined' && cvs.transferControlToOffscreen) {
-      try {
-        const blob = new Blob([SPARK_WORKER_SRC], { type: 'text/javascript' });
-        let url = URL.createObjectURL(blob);
-        if (ttPolicy?.createScriptURL) url = ttPolicy.createScriptURL(url);
-        sparkWorker = new Worker(url); URL.revokeObjectURL(url);
-        const off = cvs.transferControlToOffscreen();
-        sparkWorker.postMessage({ type: 'init', canvas: off, dpr }, [off]);
-        sparkCanvas = null; sparkCtx = null; return;
-      } catch { sparkWorker = null; }
-    }
     sparkCanvas = cvs; sparkCtx = cvs.getContext('2d');
   };
 
-  const _drawSparkMain = color => {
+  const drawSpark = color => {
     if (!sparkCtx || histLen < 2) return;
     const ctx = sparkCtx, dpr = devicePixelRatio || 1;
     ctx.clearRect(0, 0, SPARK_W * dpr, SPARK_H * dpr); ctx.save(); ctx.scale(dpr, dpr);
+
     let mx = target + 2;
     for (let i = 0; i < histLen; i++) { const v = hist[(histHead - histLen + i + HIST) % HIST]; if (v > mx) mx = v; }
+
     const pad = 2, yR = SPARK_H - pad * 2, xS = SPARK_W / (HIST - 1);
     const tY = SPARK_H - pad - (target / mx) * yR;
-    ctx.beginPath(); ctx.setLineDash([3,3]); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
+
+    ctx.beginPath(); ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
     ctx.moveTo(0, tY); ctx.lineTo(SPARK_W, tY); ctx.stroke(); ctx.setLineDash([]);
+
     const rgb = hexToRgb(color), grad = ctx.createLinearGradient(0, 0, 0, SPARK_H);
     grad.addColorStop(0, `rgba(${rgb},.20)`); grad.addColorStop(1, `rgba(${rgb},.02)`);
+
     const dp = () => { ctx.beginPath(); for (let i = 0; i < histLen; i++) { const v = hist[(histHead - histLen + i + HIST) % HIST], x = i * xS, y = SPARK_H - pad - (v / mx) * yR; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } };
     dp(); ctx.lineTo((histLen - 1) * xS, SPARK_H); ctx.lineTo(0, SPARK_H); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
     dp(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+
     const lV = hist[(histHead - 1 + HIST) % HIST], lx = (histLen - 1) * xS, ly = SPARK_H - pad - (lV / mx) * yR;
     const gw = ctx.createRadialGradient(lx, ly, 0, lx, ly, 6);
     gw.addColorStop(0, `rgba(${rgb},.6)`); gw.addColorStop(1, `rgba(${rgb},0)`);
@@ -472,30 +339,21 @@ ctx.restore()};`;
     ctx.restore();
   };
 
-  const drawSpark = color => {
-    if (histLen < 2) return;
-    if (sparkWorker) sparkWorker.postMessage({ type: 'draw', hist: hist.slice(), histHead, histLen, color, target });
-    else _drawSparkMain(color);
-  };
-
+  /* ── 메인 루프 ── */
   let pendingRender = false, lastBuf = -1;
   const scheduleRender = () => { if (pendingRender) return; pendingRender = true; requestAnimationFrame(() => { pendingRender = false; render(lastBuf, getVid()); }); };
 
   const tick = () => {
     const vid = getVid();
-    if (vid && !vid.isConnected) { setVid(null); lastBuf = -1; scheduleRender(); return; }
     if (!vid) { scan(); lastBuf = -1; scheduleRender(); return; }
     if (!isCandidate(vid) || vid.readyState < 3) { lastBuf = -1; scheduleRender(); return; }
     if (!isLive(vid)) { if (IS_YOUTUBE) _scanRetry = 0; lastBuf = -1; scheduleRender(); return; }
-
-    const msMode = isMediaStream(vid);
 
     const buf = getBuf(vid); lastBuf = buf;
     if (!vid.paused && buf >= 0) histPush(buf);
     scheduleRender();
     if (vid.paused) return;
     if (!enabled) { safeRate(vid, R_NORM); gear = R_NORM; return; }
-    if (msMode) return;
 
     const now = performance.now();
     if (now < warmupEnd) return;
@@ -503,13 +361,20 @@ ctx.restore()};`;
     if (now - lastStallTime < STALL_COOLDOWN) { gear = R_NORM; safeRate(vid, R_NORM); return; }
 
     const trend = getBufferTrend(), ex = buf - target;
-    if (ex > target * 0.5) gear = R_HIGH;
+
+    if (ex > target * 0.8)       gear = R_HIGH;  // 1.50×
+    else if (ex > target * 0.4)  gear = R_MED;   // 1.10×
     else if (ex > HYST) {
-      if (netQuality === 'poor' || trend < -0.15) gear = R_NORM;
-      else gear = R_SOFT;
-    } else if (ex < -HYST) gear = R_NORM;
+      if (trend < -0.15)         gear = R_NORM;
+      else                       gear = R_SOFT;   // 1.02×
+    }
+    else if (ex < -HYST)         gear = R_NORM;
+
     safeRate(vid, gear);
   };
+
+  /* ── 렌더 ── */
+  let _prev = { dot: '', txt: '', clr: '', w: '', badge: '', badgeCls: '' };
 
   const render = (buf, vid) => {
     const actuallyLive = vid && isCandidate(vid) && isLive(vid);
@@ -522,9 +387,8 @@ ctx.restore()};`;
       }
     }
 
-    const msMode = vid && isMediaStream(vid);
     const sec = buf < 0 ? 0 : buf, diff = sec - target, c = colorOf(diff);
-    const speeding = vid && !msMode && vid.playbackRate > 1;
+    const speeding = vid && vid.playbackRate > 1;
 
     if (!panelOpen) {
       if (!els.fab) return;
@@ -533,7 +397,7 @@ ctx.restore()};`;
       return;
     }
 
-    const txt = buf < 0 ? (msMode ? '측정중' : '—') : sec.toFixed(1);
+    const txt = buf < 0 ? '—' : sec.toFixed(1);
     const w = clamp(sec / BAR_MAX * 100, 0, 100).toFixed(1) + '%';
     if (txt !== _prev.txt) { els.val.textContent = txt; _prev.txt = txt; }
     if (c !== _prev.clr)   { els.pn.style.setProperty('--ac', c); _prev.clr = c; }
@@ -542,8 +406,6 @@ ctx.restore()};`;
     const now = performance.now(), inRange = sec <= target && sec >= Math.max(0, target - 0.5);
     let bTxt, bCls;
     if (!enabled)                                  { bTxt = 'OFF';       bCls = 'dm-b dm-off'; }
-    else if (msMode && buf < 0)                    { bTxt = '⏳ WebRTC'; bCls = 'dm-b dm-acc'; }
-    else if (msMode && buf >= 0)                   { bTxt = '📡 WebRTC'; bCls = 'dm-b dm-ok'; }
     else if (buf < 0)                              { bTxt = '…';         bCls = 'dm-b dm-off'; }
     else if (now - lastStallTime < STALL_COOLDOWN) { bTxt = '⏸ 대기';   bCls = 'dm-b dm-off'; }
     else if (speeding)                             { bTxt = '⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-acc'; }
@@ -551,16 +413,33 @@ ctx.restore()};`;
     else                                           { bTxt = '→ 추적';    bCls = 'dm-b dm-acc'; }
     if (bTxt !== _prev.badge)    { els.badge.textContent = bTxt; _prev.badge = bTxt; }
     if (bCls !== _prev.badgeCls) { els.badge.className = bCls;   _prev.badgeCls = bCls; }
+
     drawSpark(c);
-    if (netQuality !== _prev.net && els.netDot) {
-      _prev.net = netQuality;
-      els.netDot.style.background = netQuality === 'poor' ? '#FF4555' : netQuality === 'fair' ? '#FFD040' : '#00E696';
-      els.netTxt.textContent = netQuality === 'poor' ? '불안정' : netQuality === 'fair' ? '보통' : '양호';
-    }
   };
 
-  /* ── Build DOM ── */
+  /* ── DOM 구축 (DOM API 사용) ── */
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
+
+  const el = (tag, attrs, children) => {
+    const e = document.createElement(tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'style' && typeof v === 'object') Object.assign(e.style, v);
+      else if (k === 'className') e.className = v;
+      else if (k === 'textContent') e.textContent = v;
+      else e.setAttribute(k, v);
+    }
+    if (children) for (const c of children) {
+      if (typeof c === 'string') e.appendChild(document.createTextNode(c));
+      else if (c) e.appendChild(c);
+    }
+    return e;
+  };
+
+  const svgEl = (tag, attrs) => {
+    const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    return e;
+  };
 
   const build = () => {
     if (document.getElementById('dm-root')) return;
@@ -600,95 +479,116 @@ ctx.restore()};`;
 .dm-tog.on{background:var(--ac)}
 .dm-tog::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .25s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 3px rgba(0,0,0,.3)}
 .dm-tog.on::after{transform:translateX(18px)}
-.dm-net{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--t2)}
-.dm-net-dot{width:5px;height:5px;border-radius:50%;background:#00E696;transition:background .3s}
 .dm-ver{margin-left:auto;font-size:9px;color:rgba(255,255,255,.15)}
 .dm-key{font-size:9px;color:rgba(255,255,255,.15);padding:1px 6px;border:1px solid rgba(255,255,255,.06);border-radius:4px}
 `);
 
-    const root = document.createElement('div'); root.id = 'dm-root';
-    root.style.display = 'none';
+    const root = el('div', { id: 'dm-root', style: { display: 'none' } });
 
-    const html = `<div id="dm-fab"><div class="dm-dot"></div></div>
-<div id="dm-pn">
-  <div class="dm-hdr">
-    <div class="dm-logo">D</div>
-    <span class="dm-title">딜레이 미터</span>
-    <span class="dm-host" title="${HOST}">${PLATFORM_LABEL}</span>
-    <div class="dm-close"><svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></div>
-  </div>
-  <div class="dm-stat">
-    <span class="dm-val">\u2014</span>
-    <span class="dm-unit">초</span>
-    <span class="dm-b dm-off">OFF</span>
-  </div>
-  <div class="dm-barwrap"><div class="dm-bar"></div></div>
-  <canvas class="dm-spark" width="208" height="32"></canvas>
-  <div class="dm-sl-wrap">
-    <div class="dm-sl-labels"><span>저지연 (${MIN_TARGET.toFixed(1)}s)</span><span>안정 (${MAX_TARGET}s)</span></div>
-    <div class="dm-sl-row">
-      <input type="range" min="${MIN_TARGET}" max="${MAX_TARGET}" step="0.5" value="${target}">
-      <div style="display:flex; flex-direction:column; align-items:flex-end;">
-        <span class="dm-sv">${target.toFixed(1)}s</span>
-        <span style="font-size:8.5px; color:var(--t2); margin-top:2px; letter-spacing:-0.02em;">기본 ${DEF_TARGET}s</span>
-      </div>
-    </div>
-  </div>
-  <div class="dm-ft">
-    <div class="dm-tog${enabled ? ' on' : ''}"></div>
-    <div class="dm-net"><div class="dm-net-dot"></div><span>양호</span></div>
-    <span class="dm-ver">v12.7.5</span>
-    <span class="dm-key">Alt+D</span>
-  </div>
-</div>`;
+    // FAB
+    const fab = el('div', { id: 'dm-fab' }, [el('div', { className: 'dm-dot' })]);
 
-    root.innerHTML = ttPolicy.createHTML(html);
+    // Panel
+    const pn = el('div', { id: 'dm-pn' });
+
+    // Header
+    const closeSvg = svgEl('svg', { width: '12', height: '12', viewBox: '0 0 12 12', fill: 'none' });
+    const path1 = svgEl('path', { d: 'M2.5 2.5l7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' });
+    const path2 = svgEl('path', { d: 'M9.5 2.5l-7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' });
+    closeSvg.appendChild(path1); closeSvg.appendChild(path2);
+    const closeBtn = el('div', { className: 'dm-close' }, [closeSvg]);
+    const hostSpan = el('span', { className: 'dm-host', title: HOST, textContent: PLATFORM_LABEL });
+    const hdr = el('div', { className: 'dm-hdr' }, [
+      el('div', { className: 'dm-logo', textContent: 'D' }),
+      el('span', { className: 'dm-title', textContent: '딜레이 미터' }),
+      hostSpan, closeBtn
+    ]);
+
+    // Stat
+    const valSpan = el('span', { className: 'dm-val', textContent: '—' });
+    const badgeSpan = el('span', { className: 'dm-b dm-off', textContent: 'OFF' });
+    const stat = el('div', { className: 'dm-stat' }, [
+      valSpan, el('span', { className: 'dm-unit', textContent: '초' }), badgeSpan
+    ]);
+
+    // Bar
+    const barDiv = el('div', { className: 'dm-bar' });
+    const barWrap = el('div', { className: 'dm-barwrap' }, [barDiv]);
+
+    // Spark canvas
+    const sparkCvs = el('canvas', { className: 'dm-spark', width: '208', height: '32' });
+
+    // Slider
+    const slLabels = el('div', { className: 'dm-sl-labels' }, [
+      el('span', { textContent: `저지연 (${MIN_TARGET.toFixed(1)}s)` }),
+      el('span', { textContent: `안정 (${MAX_TARGET}s)` })
+    ]);
+    const slInput = el('input', { type: 'range', min: String(MIN_TARGET), max: String(MAX_TARGET), step: '0.5', value: String(target) });
+    const svSpan = el('span', { className: 'dm-sv', textContent: target.toFixed(1) + 's' });
+    const defLabel = el('span', { textContent: `기본 ${DEF_TARGET}s` });
+    defLabel.style.cssText = 'font-size:8.5px; color:var(--t2); margin-top:2px; letter-spacing:-0.02em;';
+    const svCol = el('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' } }, [svSpan, defLabel]);
+    const slRow = el('div', { className: 'dm-sl-row' }, [slInput, svCol]);
+    const slWrap = el('div', { className: 'dm-sl-wrap' }, [slLabels, slRow]);
+
+    // Footer
+    const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
+    const ft = el('div', { className: 'dm-ft' }, [
+      togDiv,
+      el('span', { className: 'dm-ver', textContent: 'v13.0.0' }),
+      el('span', { className: 'dm-key', textContent: 'Alt+D' })
+    ]);
+
+    // Assemble panel
+    pn.appendChild(hdr); pn.appendChild(stat); pn.appendChild(barWrap);
+    pn.appendChild(sparkCvs); pn.appendChild(slWrap); pn.appendChild(ft);
+
+    root.appendChild(fab); root.appendChild(pn);
     document.body.appendChild(root);
-    const pn = root.querySelector('#dm-pn'), fab = root.querySelector('#dm-fab');
-    initSparkCanvas(pn.querySelector('.dm-spark'));
+
+    initSparkCanvas(sparkCvs);
 
     els = {
-      root,
-      fab, pn,
-      val: pn.querySelector('.dm-val'), bar: pn.querySelector('.dm-bar'),
-      badge: pn.querySelector('.dm-b'), tog: pn.querySelector('.dm-tog'),
-      sl: pn.querySelector('input[type=range]'), sv: pn.querySelector('.dm-sv'),
-      hdr: pn.querySelector('.dm-hdr'), x: pn.querySelector('.dm-close'),
-      netDot: pn.querySelector('.dm-net-dot'), netTxt: pn.querySelector('.dm-net span'),
+      root, fab, pn,
+      val: valSpan, bar: barDiv,
+      badge: badgeSpan, tog: togDiv,
+      sl: slInput, sv: svSpan,
+      hdr, x: closeBtn,
     };
 
     fab.onclick = () => { if (!fab._m) openP(); };
-    els.x.onclick = e => { e.stopPropagation(); closeP(); };
-    els.tog.onclick = () => { enabled = !enabled; cfg.enabled = enabled; saveLazy(); els.tog.classList.toggle('on', enabled); };
+    closeBtn.onclick = e => { e.stopPropagation(); closeP(); };
+    togDiv.onclick = () => { enabled = !enabled; cfg.enabled = enabled; saveLazy(); togDiv.classList.toggle('on', enabled); };
 
-    els.sl.oninput = () => {
-      target = parseFloat(els.sl.value);
-      els.sv.textContent = target.toFixed(1) + 's';
+    slInput.oninput = () => {
+      target = parseFloat(slInput.value);
+      svSpan.textContent = target.toFixed(1) + 's';
       cfg.target = target; saveLazy();
     };
-
-    els.sl.ondblclick = () => {
+    slInput.ondblclick = () => {
       target = DEF_TARGET;
-      els.sl.value = target;
-      els.sv.textContent = target.toFixed(1) + 's';
+      slInput.value = target;
+      svSpan.textContent = target.toFixed(1) + 's';
       cfg.target = target; saveLazy();
     };
 
-    const drag = (el, onEnd) => {
+    // Drag FAB
+    const drag = (dragEl, onEnd) => {
       let ox, oy, moved = false;
-      el.onpointerdown = e => { if (e.button) return; moved = false; el._m = false; el.setPointerCapture(e.pointerId); const r = el.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top; };
-      el.onpointermove = e => { if (!el.hasPointerCapture(e.pointerId)) return; moved = true; el.style.left = clamp(e.clientX - ox, 0, innerWidth - el.offsetWidth) + 'px'; el.style.top = clamp(e.clientY - oy, 0, innerHeight - el.offsetHeight) + 'px'; el.style.right = el.style.bottom = 'auto'; };
-      el.onpointerup = e => { if (!el.hasPointerCapture(e.pointerId)) return; el._m = moved; if (moved && onEnd) onEnd(); };
+      dragEl.onpointerdown = e => { if (e.button) return; moved = false; dragEl._m = false; dragEl.setPointerCapture(e.pointerId); const r = dragEl.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top; };
+      dragEl.onpointermove = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; moved = true; dragEl.style.left = clamp(e.clientX - ox, 0, innerWidth - dragEl.offsetWidth) + 'px'; dragEl.style.top = clamp(e.clientY - oy, 0, innerHeight - dragEl.offsetHeight) + 'px'; dragEl.style.right = dragEl.style.bottom = 'auto'; };
+      dragEl.onpointerup = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; dragEl._m = moved; if (moved && onEnd) onEnd(); };
     };
     drag(fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
 
-    els.hdr.onpointerdown = e => {
-      if (e.button || e.target === els.x || els.x.contains(e.target)) return;
-      els.hdr.setPointerCapture(e.pointerId);
-      const r = pn.getBoundingClientRect(); els.hdr._ox = e.clientX - r.left; els.hdr._oy = e.clientY - r.top; els.hdr._m = false;
+    // Drag panel header
+    hdr.onpointerdown = e => {
+      if (e.button || e.target === closeBtn || closeBtn.contains(e.target)) return;
+      hdr.setPointerCapture(e.pointerId);
+      const r = pn.getBoundingClientRect(); hdr._ox = e.clientX - r.left; hdr._oy = e.clientY - r.top; hdr._m = false;
     };
-    els.hdr.onpointermove = e => { if (!els.hdr.hasPointerCapture(e.pointerId)) return; els.hdr._m = true; pn.style.left = clamp(e.clientX - (els.hdr._ox ?? 0), 0, innerWidth - pn.offsetWidth) + 'px'; pn.style.top = clamp(e.clientY - (els.hdr._oy ?? 0), 0, innerHeight - pn.offsetHeight) + 'px'; pn.style.right = pn.style.bottom = 'auto'; };
-    els.hdr.onpointerup = e => { if (!els.hdr.hasPointerCapture(e.pointerId)) return; if (els.hdr._m) { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); } };
+    hdr.onpointermove = e => { if (!hdr.hasPointerCapture(e.pointerId)) return; hdr._m = true; pn.style.left = clamp(e.clientX - (hdr._ox ?? 0), 0, innerWidth - pn.offsetWidth) + 'px'; pn.style.top = clamp(e.clientY - (hdr._oy ?? 0), 0, innerHeight - pn.offsetHeight) + 'px'; pn.style.right = pn.style.bottom = 'auto'; };
+    hdr.onpointerup = e => { if (!hdr.hasPointerCapture(e.pointerId)) return; if (hdr._m) { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); } };
 
     if (cfg.px) { const x = parseFloat(cfg.px); if (x >= 0 && x < innerWidth - 50) Object.assign(pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); }
     if (cfg.dx) { const x = parseFloat(cfg.dx); if (x >= 0 && x < innerWidth - 36) Object.assign(fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }); }
@@ -699,7 +599,7 @@ ctx.restore()};`;
     if (panelOpen && !instant) return;
     panelOpen = true; cfg.open = true; saveLazy();
     els.fab.style.display = 'none'; els.pn.classList.add('open');
-    _prev = { dot:'', txt:'', clr:'', w:'', badge:'', badgeCls:'', net:'' };
+    _prev = { dot: '', txt: '', clr: '', w: '', badge: '', badgeCls: '' };
   };
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; cfg.open = false; saveLazy();
@@ -712,6 +612,7 @@ ctx.restore()};`;
     _prev.dot = '';
   };
 
+  /* ── 메인 루프 시작 ── */
   const loop = () => { tick(); setTimeout(loop, document.hidden ? 5000 : panelOpen ? 1000 : 3000); };
 
   const init = () => {
@@ -719,6 +620,7 @@ ctx.restore()};`;
     build(); scan(); startObserver(); loop();
   };
 
+  /* ── SPA 네비게이션 대응 ── */
   let lastPath = location.pathname + location.search;
   const onNav = () => {
     const cur = location.pathname + location.search; if (cur === lastPath) return; lastPath = cur;
@@ -732,6 +634,7 @@ ctx.restore()};`;
     window.addEventListener('popstate', onNav);
   }
 
+  /* ── 단축키 ── */
   document.addEventListener('keydown', e => {
     if (!e.altKey || e.code !== 'KeyD' || e.ctrlKey || e.shiftKey || e.metaKey) return;
     const t = document.activeElement?.tagName;
@@ -740,6 +643,7 @@ ctx.restore()};`;
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
+  /* ── 탭 전환·풀스크린 대응 ── */
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { warmupEnd = performance.now() + 4000; lastSeek = 0; } });
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
@@ -752,22 +656,21 @@ ctx.restore()};`;
   }));
   window.addEventListener('beforeunload', save);
 
+  /* ── 디버그 메뉴 ── */
   GM_registerMenuCommand('현재 상태', () => {
     const vid = getVid(), buf = vid ? getBuf(vid) : -1;
-    const gl = gear > 1.05 ? 'HIGH' : gear > 1 ? 'SOFT' : 'NORM';
+    const gl = gear > 1.05 ? (gear > 1.2 ? 'HIGH' : 'MED') : gear > 1 ? 'SOFT' : 'NORM';
     const live = vid ? isLive(vid) : false;
     const dur = vid ? vid.duration : -1;
-    const msMode = vid ? isMediaStream(vid) : false;
     const src = vid ? (vid.currentSrc || vid.src || '') : '';
     const srcShort = src.length > 30 ? src.slice(0, 15) + '…' + src.slice(-15) : (src || '(empty)');
-    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | net=${netQuality} | live=${live} | ms=${msMode} | pc=${_pcState}(${_pcCount}) | jb=${_jbDelay >= 0 ? _jbDelay.toFixed(3) : '-'} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
-    const t = document.createElement('div'); t.textContent = txt;
-    Object.assign(t.style, { position:'fixed',top:'12px',left:'50%',transform:'translateX(-50%)',zIndex:'10001',background:'rgba(12,14,20,.92)',backdropFilter:'blur(12px)',color:'#f0f0f0',padding:'10px 24px',borderRadius:'12px',fontSize:'11px',fontFamily:'monospace',transition:'opacity .4s',border:'1px solid rgba(255,255,255,.06)',boxShadow:'0 8px 32px rgba(0,0,0,.5)',maxWidth:'94vw',wordBreak:'break-all' });
+    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${live} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
+    const t = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 6000);
   });
 
+  /* ── 초기화 ── */
   if (document.body) init();
-  else if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else document.addEventListener('DOMContentLoaded', init, { once: true });
 })();
