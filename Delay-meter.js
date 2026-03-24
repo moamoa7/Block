@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         딜레이 미터
 // @namespace    https://github.com/moamoa7
-// @version      13.0.0
+// @version      14.0.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
 // @match        *://*.chzzk.naver.com/*
+// @match        *://*.sooplive.com/*
 // @match        *://*.sooplive.co.kr/*
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.youtube.com/live_chat*
@@ -35,13 +36,13 @@
   };
   const PLATFORM   = detectPlatform();
   const IS_YOUTUBE = PLATFORM === 'youtube';
-  const STORE_KEY  = 'dm_u13_' + HOST;
+  const STORE_KEY  = 'dm_u14_' + HOST;
 
   /* ── 플랫폼별 설정 ── */
   const PLATFORM_SETTINGS = {
     youtube: { target: 10 },
     chzzk:   { target: 2 },
-    soop:    { target: 4 },
+    soop:    { target: 5 },
     twitch:  { target: 3 },
     default: { target: 3 },
   };
@@ -70,6 +71,9 @@
   const STALL_WINDOW   = 30000;
   const STALL_COOLDOWN = 8000;
   const R_NORM = 1.00, R_SOFT = 1.02, R_MED = 1.10, R_HIGH = 1.50;
+
+  /* ── 기능 감지 ── */
+  const HAS_RVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 
   /* ── Config ── */
   let cfg;
@@ -112,6 +116,22 @@
 
   let stallCount = 0, lastStallTime = 0;
 
+  /* ── 프레임 품질 모니터링 (getVideoPlaybackQuality) ── */
+  let _prevDropped = 0, _prevTotal = 0, _dropRate = 0;
+  const updateDropRate = vid => {
+    if (typeof vid.getVideoPlaybackQuality !== 'function') return;
+    const q = vid.getVideoPlaybackQuality();
+    const dD = q.droppedVideoFrames - _prevDropped;
+    const dT = q.totalVideoFrames - _prevTotal;
+    _prevDropped = q.droppedVideoFrames;
+    _prevTotal = q.totalVideoFrames;
+    if (dT >= 5) _dropRate = dD / dT;
+  };
+  const resetDropRate = () => { _prevDropped = 0; _prevTotal = 0; _dropRate = 0; };
+
+  /* ── 디코더 스트레스 감지 (rVFC processingDuration) ── */
+  let _decoderStressed = false;
+
   /* ── Utils ── */
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
@@ -132,6 +152,11 @@
   /* ── 버퍼 측정 ── */
   const getBuf = vid => {
     try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - vid.currentTime; }
+    catch { return -1; }
+  };
+
+  const getBufPrecise = (vid, mediaTime) => {
+    try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - mediaTime; }
     catch { return -1; }
   };
 
@@ -228,15 +253,64 @@
     return (n * sXY - sX * sY) / (n * sX2 - sX * sX);
   };
 
+  /* ── requestVideoFrameCallback 기반 프레임 동기 측정 ── */
+  let _rvfcActive = false;
+  let _rvfcVid = null;
+  let _lastFrameBuf = -1;
+
+  const startRVFC = vid => {
+    if (!HAS_RVFC) return false;
+    if (_rvfcVid === vid && _rvfcActive) return true;
+
+    _rvfcActive = true;
+    _rvfcVid = vid;
+
+    const onFrame = (now, metadata) => {
+      if (!_rvfcActive || getVid() !== vid || _rvfcVid !== vid) {
+        _rvfcActive = false;
+        _rvfcVid = null;
+        return;
+      }
+
+      try {
+        const b = vid.buffered;
+        if (b.length > 0) {
+          const buf = b.end(b.length - 1) - metadata.mediaTime;
+          _lastFrameBuf = buf;
+          if (!vid.paused && buf >= 0) histPush(buf);
+        }
+      } catch {}
+
+      if (metadata.processingDuration != null) {
+        _decoderStressed = metadata.processingDuration > 0.033;
+      }
+
+      scheduleRender();
+      vid.requestVideoFrameCallback(onFrame);
+    };
+
+    vid.requestVideoFrameCallback(onFrame);
+    return true;
+  };
+
+  const stopRVFC = () => {
+    _rvfcActive = false;
+    _rvfcVid = null;
+    _lastFrameBuf = -1;
+    _decoderStressed = false;
+  };
+
   /* ── Video 감지·연결 ── */
   const seen = new WeakSet();
   const attach = v => {
     if (getVid() === v) return;
     if (!isCandidate(v)) return;
     _liveCache.delete(v);
+    stopRVFC();
     setVid(v);
     lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
     stallCount = 0; histLen = 0; histHead = 0;
+    resetDropRate();
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
@@ -345,12 +419,28 @@
 
   const tick = () => {
     const vid = getVid();
-    if (!vid) { scan(); lastBuf = -1; scheduleRender(); return; }
+    if (!vid) { scan(); stopRVFC(); lastBuf = -1; scheduleRender(); return; }
     if (!isCandidate(vid) || vid.readyState < 3) { lastBuf = -1; scheduleRender(); return; }
-    if (!isLive(vid)) { if (IS_YOUTUBE) _scanRetry = 0; lastBuf = -1; scheduleRender(); return; }
+    if (!isLive(vid)) { if (IS_YOUTUBE) _scanRetry = 0; stopRVFC(); lastBuf = -1; scheduleRender(); return; }
 
-    const buf = getBuf(vid); lastBuf = buf;
-    if (!vid.paused && buf >= 0) histPush(buf);
+    /* rVFC 활성화 시도 */
+    const rvfcRunning = startRVFC(vid);
+
+    /* 버퍼 측정: rVFC 활성 시 프레임 정밀값 사용, 아니면 폴링 */
+    let buf;
+    if (rvfcRunning && _lastFrameBuf >= 0) {
+      buf = _lastFrameBuf;
+    } else {
+      buf = getBuf(vid);
+    }
+    lastBuf = buf;
+
+    /* rVFC 미사용 시 폴링으로 히스토리 기록 */
+    if (!rvfcRunning && !vid.paused && buf >= 0) histPush(buf);
+
+    /* 프레임 드롭률 갱신 */
+    updateDropRate(vid);
+
     scheduleRender();
     if (vid.paused) return;
     if (!enabled) { safeRate(vid, R_NORM); gear = R_NORM; return; }
@@ -362,13 +452,21 @@
 
     const trend = getBufferTrend(), ex = buf - target;
 
-    if (ex > target * 0.8)       gear = R_HIGH;  // 1.50×
-    else if (ex > target * 0.4)  gear = R_MED;   // 1.10×
+    /* 기어 결정 */
+    if (ex > target * 0.8)       gear = R_HIGH;
+    else if (ex > target * 0.4)  gear = R_MED;
     else if (ex > HYST) {
       if (trend < -0.15)         gear = R_NORM;
-      else                       gear = R_SOFT;   // 1.02×
+      else                       gear = R_SOFT;
     }
     else if (ex < -HYST)         gear = R_NORM;
+
+    /* 프레임 드롭 또는 디코더 부하 시 기어 자동 다운 */
+    if (gear > R_SOFT) {
+      if (_dropRate > 0.05 || _decoderStressed) {
+        gear = gear === R_HIGH ? R_MED : gear === R_MED ? R_SOFT : R_NORM;
+      }
+    }
 
     safeRate(vid, gear);
   };
@@ -408,6 +506,7 @@
     if (!enabled)                                  { bTxt = 'OFF';       bCls = 'dm-b dm-off'; }
     else if (buf < 0)                              { bTxt = '…';         bCls = 'dm-b dm-off'; }
     else if (now - lastStallTime < STALL_COOLDOWN) { bTxt = '⏸ 대기';   bCls = 'dm-b dm-off'; }
+    else if (_dropRate > 0.05)                     { bTxt = '⚠ 드롭';   bCls = 'dm-b dm-off'; }
     else if (speeding)                             { bTxt = '⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-acc'; }
     else if (inRange)                              { bTxt = '✓ 안정';    bCls = 'dm-b dm-ok'; }
     else                                           { bTxt = '→ 추적';    bCls = 'dm-b dm-acc'; }
@@ -417,7 +516,7 @@
     drawSpark(c);
   };
 
-  /* ── DOM 구축 (DOM API 사용) ── */
+  /* ── DOM 구축 (DOM API) ── */
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
   const el = (tag, attrs, children) => {
@@ -452,6 +551,7 @@
 #dm-fab{animation:dm-pulse 2.5s ease-in-out infinite}
 #dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:layout style paint}
 #dm-pn.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto}
+#dm-pn:not(.open){content-visibility:hidden}
 .dm-hdr{display:flex;align-items:center;gap:8px;padding:14px 16px 10px;cursor:grab}
 .dm-logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--ac),rgba(0,230,150,.5));display:flex;align-items:center;justify-content:center;font-size:10px;color:#000;font-weight:700;flex-shrink:0}
 .dm-title{font-weight:600;font-size:13px;letter-spacing:-.01em}
@@ -493,15 +593,14 @@
 
     // Header
     const closeSvg = svgEl('svg', { width: '12', height: '12', viewBox: '0 0 12 12', fill: 'none' });
-    const path1 = svgEl('path', { d: 'M2.5 2.5l7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' });
-    const path2 = svgEl('path', { d: 'M9.5 2.5l-7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' });
-    closeSvg.appendChild(path1); closeSvg.appendChild(path2);
+    closeSvg.appendChild(svgEl('path', { d: 'M2.5 2.5l7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' }));
+    closeSvg.appendChild(svgEl('path', { d: 'M9.5 2.5l-7 7', stroke: 'currentColor', 'stroke-width': '1.5', 'stroke-linecap': 'round' }));
     const closeBtn = el('div', { className: 'dm-close' }, [closeSvg]);
-    const hostSpan = el('span', { className: 'dm-host', title: HOST, textContent: PLATFORM_LABEL });
     const hdr = el('div', { className: 'dm-hdr' }, [
       el('div', { className: 'dm-logo', textContent: 'D' }),
       el('span', { className: 'dm-title', textContent: '딜레이 미터' }),
-      hostSpan, closeBtn
+      el('span', { className: 'dm-host', title: HOST, textContent: PLATFORM_LABEL }),
+      closeBtn
     ]);
 
     // Stat
@@ -515,46 +614,41 @@
     const barDiv = el('div', { className: 'dm-bar' });
     const barWrap = el('div', { className: 'dm-barwrap' }, [barDiv]);
 
-    // Spark canvas
+    // Spark
     const sparkCvs = el('canvas', { className: 'dm-spark', width: '208', height: '32' });
 
     // Slider
-    const slLabels = el('div', { className: 'dm-sl-labels' }, [
-      el('span', { textContent: `저지연 (${MIN_TARGET.toFixed(1)}s)` }),
-      el('span', { textContent: `안정 (${MAX_TARGET}s)` })
-    ]);
     const slInput = el('input', { type: 'range', min: String(MIN_TARGET), max: String(MAX_TARGET), step: '0.5', value: String(target) });
     const svSpan = el('span', { className: 'dm-sv', textContent: target.toFixed(1) + 's' });
     const defLabel = el('span', { textContent: `기본 ${DEF_TARGET}s` });
-    defLabel.style.cssText = 'font-size:8.5px; color:var(--t2); margin-top:2px; letter-spacing:-0.02em;';
-    const svCol = el('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' } }, [svSpan, defLabel]);
-    const slRow = el('div', { className: 'dm-sl-row' }, [slInput, svCol]);
-    const slWrap = el('div', { className: 'dm-sl-wrap' }, [slLabels, slRow]);
+    defLabel.style.cssText = 'font-size:8.5px;color:var(--t2);margin-top:2px;letter-spacing:-0.02em';
+    const slWrap = el('div', { className: 'dm-sl-wrap' }, [
+      el('div', { className: 'dm-sl-labels' }, [
+        el('span', { textContent: `저지연 (${MIN_TARGET.toFixed(1)}s)` }),
+        el('span', { textContent: `안정 (${MAX_TARGET}s)` })
+      ]),
+      el('div', { className: 'dm-sl-row' }, [
+        slInput,
+        el('div', { style: { display: 'flex', flexDirection: 'column', alignItems: 'flex-end' } }, [svSpan, defLabel])
+      ])
+    ]);
 
     // Footer
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v13.0.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v14.0.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
-    // Assemble panel
     pn.appendChild(hdr); pn.appendChild(stat); pn.appendChild(barWrap);
     pn.appendChild(sparkCvs); pn.appendChild(slWrap); pn.appendChild(ft);
-
     root.appendChild(fab); root.appendChild(pn);
     document.body.appendChild(root);
 
     initSparkCanvas(sparkCvs);
 
-    els = {
-      root, fab, pn,
-      val: valSpan, bar: barDiv,
-      badge: badgeSpan, tog: togDiv,
-      sl: slInput, sv: svSpan,
-      hdr, x: closeBtn,
-    };
+    els = { root, fab, pn, val: valSpan, bar: barDiv, badge: badgeSpan, tog: togDiv, sl: slInput, sv: svSpan, hdr, x: closeBtn };
 
     fab.onclick = () => { if (!fab._m) openP(); };
     closeBtn.onclick = e => { e.stopPropagation(); closeP(); };
@@ -566,8 +660,7 @@
       cfg.target = target; saveLazy();
     };
     slInput.ondblclick = () => {
-      target = DEF_TARGET;
-      slInput.value = target;
+      target = DEF_TARGET; slInput.value = target;
       svSpan.textContent = target.toFixed(1) + 's';
       cfg.target = target; saveLazy();
     };
@@ -625,7 +718,7 @@
   const onNav = () => {
     const cur = location.pathname + location.search; if (cur === lastPath) return; lastPath = cur;
     warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
-    setVid(null);
+    stopRVFC(); setVid(null); resetDropRate();
     setTimeout(scan, 500); setTimeout(scan, 1500); setTimeout(scan, 3000);
   };
   if ('navigation' in window) try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
@@ -658,13 +751,13 @@
 
   /* ── 디버그 메뉴 ── */
   GM_registerMenuCommand('현재 상태', () => {
-    const vid = getVid(), buf = vid ? getBuf(vid) : -1;
+    const vid = getVid(), buf = vid ? (HAS_RVFC && _lastFrameBuf >= 0 ? _lastFrameBuf : getBuf(vid)) : -1;
     const gl = gear > 1.05 ? (gear > 1.2 ? 'HIGH' : 'MED') : gear > 1 ? 'SOFT' : 'NORM';
     const live = vid ? isLive(vid) : false;
     const dur = vid ? vid.duration : -1;
     const src = vid ? (vid.currentSrc || vid.src || '') : '';
     const srcShort = src.length > 30 ? src.slice(0, 15) + '…' + src.slice(-15) : (src || '(empty)');
-    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${live} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
+    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${live} | drop=${(_dropRate * 100).toFixed(1)}% | dec=${_decoderStressed ? 'STRESS' : 'ok'} | rvfc=${_rvfcActive ? 'ON' : 'OFF'} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
     const t = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 6000);
