@@ -613,9 +613,28 @@
         const { mul, autoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10 }; const finalMul = (mul === 0 && presetS !== 'off') ? 0.50 : mul;
         if (presetS === 'off') out.sharp = autoBase; else if (presetS !== 'none') out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul;
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
-        out.toe = CLAMP(Number(Store.get(P.V_MAN_SHAD)) || 0, 0, 100) * 0.0035; out.mid = CLAMP(Number(Store.get(P.V_MAN_REC)) || 0, 0, 100) * 0.0030; out.shoulder = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100) * 0.0040; out.temp = CLAMP(Number(Store.get(P.V_MAN_TEMP)) || 0, -50, 50);
-        out.bright = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100); out.contrast = 1 + (Number(Store.get(P.V_MAN_REC)) || 0) * 0.005;
-        out._cssBr = 1 + (Number(Store.get(P.V_MAN_BRT)) || 0) * 0.005; out._cssCt = 1 + (Number(Store.get(P.V_MAN_REC)) || 0) * 0.005; out._cssSat = CLAMP(out.satF, 0.5, 2.0);
+
+        // 🚨 [수정 완료된 수동 보정 매핑]
+        const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD)) || 0, 0, 100);
+        const mRec  = CLAMP(Number(Store.get(P.V_MAN_REC)) || 0, 0, 100);
+        const mBrt  = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100);
+        const mTemp = CLAMP(Number(Store.get(P.V_MAN_TEMP)) || 0, -50, 50);
+
+        // 1. 비선형 톤 커브 (214.3.0의 오리지널 매핑 복구)
+        out.toe      = mShad * 0.0035; // 암부 부스트 (그림자만 들어올림)
+        out.mid      = mRec  * 0.0030; // 디테일 복원 (중간톤만 들어올림)
+        out.shoulder = mBrt  * 0.0040; // 노출 보정 (명부만 들어올림)
+        out.temp     = mTemp;          // 색온도
+
+        // 2. 전체 선형 대비/밝기 (화면을 까맣게/하얗게 파괴하던 주범 제거)
+        out.contrast = 1;
+        out.bright   = 0;
+
+        // 3. CSS Fallback (파이어폭스나 전체화면 모드용. CSS는 블랙을 파괴하지 않으므로 적용)
+        out._cssBr   = 1 + (mBrt * 0.005);
+        out._cssCt   = 1 + (mRec * 0.005);
+        out._cssSat  = CLAMP(out.satF, 0.5, 2.0);
+
         if (video && nW >= 16) cache.set(video, { rev: storeRev, nW, dW, dH, out });
         return out;
       }
@@ -654,26 +673,46 @@
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
 
     /* ── 화면 조도 ── */
-    const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
-    const SCR_BRT_LABELS = ['OFF', '1단', '2단', '3단', '4단', '5단'];
+  const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
+  const SCR_BRT_LABELS = ['OFF', '1단', '2단', '3단', '4단', '5단'];
 
-    function ensureScrBrtOverlay() {
-      const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.documentElement || document.body;
-      if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) return __scrBrtOverlay;
-      if (!__scrBrtOverlay) { __scrBrtOverlay = document.createElement('div'); __scrBrtOverlay.id = 'vsc-scr-brt'; __scrBrtOverlay.setAttribute('data-vsc-ui', '1'); __scrBrtOverlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:white!important;mix-blend-mode:soft-light!important;pointer-events:none!important;z-index:2147483645!important;opacity:0!important;transition:opacity 0.3s ease!important;display:none!important;'; }
-      try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
-      return __scrBrtOverlay;
+  function ensureScrBrtOverlay() {
+    const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.documentElement || document.body;
+    if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) return __scrBrtOverlay;
+    if (!__scrBrtOverlay) {
+      __scrBrtOverlay = document.createElement('div');
+      __scrBrtOverlay.id = 'vsc-scr-brt';
+      __scrBrtOverlay.setAttribute('data-vsc-ui', '1');
+      // 🚨 214.3.0의 원본 스타일(white + soft-light) 유지 및 221.1.0의 !important 규칙 적용
+      __scrBrtOverlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:white!important;mix-blend-mode:soft-light!important;pointer-events:none!important;z-index:2147483645!important;opacity:0!important;transition:opacity 0.3s ease!important;display:none!important;';
     }
+    try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
+    return __scrBrtOverlay;
+  }
 
-    function applyScrBrt(level) {
-      const idx = CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
-      const val = SCR_BRT_LEVELS[idx];
-      if (val <= 0) { if (__scrBrtOverlay) { __scrBrtOverlay.style.setProperty('opacity', '0', 'important'); setTimeout(() => { if (__scrBrtOverlay?.style.opacity === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important'); }, 350); } return; }
-      const ov = ensureScrBrtOverlay(); ov.style.removeProperty('display'); requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
+  function applyScrBrt(level) {
+    const idx = CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
+    const val = SCR_BRT_LEVELS[idx];
+    if (val <= 0) {
+      if (__scrBrtOverlay) {
+        __scrBrtOverlay.style.setProperty('opacity', '0', 'important');
+        setTimeout(() => {
+          if (__scrBrtOverlay?.style.opacity === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important');
+        }, 350);
+      }
+      return;
     }
+    const ov = ensureScrBrtOverlay();
+    ov.style.removeProperty('display');
+    requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
+  }
 
-    Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
-    setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
+  Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
+  setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
+
+  // 🚨 214.3.0에 있던 전체화면 대응 로직 복구
+  document.addEventListener('fullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
+  document.addEventListener('webkitfullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
 
     const CSS_VARS = `
     :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
@@ -723,7 +762,6 @@
     .chip:hover { background: rgba(255,255,255,0.07); }
     .chip.on { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); box-shadow: 0 0 8px rgba(0,229,255,0.1); }
     .sep { height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent); margin: 8px 0; }
-    .metrics-footer { font-family: var(--vsc-font-mono); font-size: 11px; opacity: 0.6; padding: 6px 16px 8px; border-top: 1px solid rgba(255,255,255,0.03); line-height: 1.6; display: flex; flex-wrap: wrap; gap: 6px 14px; }
     .rate-display { font-family: var(--vsc-font-mono); font-size: var(--vsc-font-xxl); font-weight: 800; text-align: center; padding: 8px 0; background: linear-gradient(135deg, #fff, var(--vsc-neon)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; filter: drop-shadow(0 0 12px rgba(0,229,255,0.2)); }
     .fine-row { display: flex; gap: 4px; justify-content: center; padding: 4px 0; }
     .fine-btn { padding: 2px 4px; min-height: 24px; min-width: 32px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6); font-family: var(--vsc-font-mono); font-size: 10px; cursor: pointer; transition: all 0.15s var(--vsc-ease-out); }
@@ -735,7 +773,7 @@
     function getMountTarget() { const fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs) return fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement) : fs; return document.documentElement || document.body; }
     const HOST_STYLE_NORMAL = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
     const HOST_STYLE_FS = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
-    
+
     let _lastMount = null, _qbarHasVideo = false, _lastIsFs = null;
 
     function reparent() {
@@ -743,14 +781,14 @@
       const target = getMountTarget();
       if (!target) return;
       const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
-      
+
       // 1. 부모 요소가 진짜로 달라졌을 때만 DOM을 옮김 (스크롤 초기화 방지 핵심)
       if (target !== _lastMount) {
         _lastMount = target;
         if (quickBarHost.parentNode !== target) try { target.appendChild(quickBarHost); } catch (_) {}
         if (panelHost && panelHost.parentNode !== target) try { target.appendChild(panelHost); } catch (_) {}
       }
-      
+
       // 2. 풀스크린 상태가 변했을 때만 스타일 덮어쓰기
       if (_lastIsFs !== isFs) {
         _lastIsFs = isFs;
@@ -759,51 +797,49 @@
         if (panelHost) panelHost.style.cssText = style;
         if (!_qbarHasVideo) quickBarHost.style.setProperty('display', 'none', 'important');
       }
-      
+
       if (panelHost && panelOpen && panelEl) panelEl.style.pointerEvents = 'auto';
     }
 
-    function onFullscreenChange() { 
-      reparent(); 
-      setTimeout(reparent, 80); 
-      setTimeout(reparent, 400); 
-      if (!document.fullscreenElement && !document.webkitFullscreenElement) { 
-        _lastMount = null; 
+    function onFullscreenChange() {
+      reparent();
+      setTimeout(reparent, 80);
+      setTimeout(reparent, 400);
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        _lastMount = null;
         _lastIsFs = null; // 강제 업데이트를 위해 초기화
-        setTimeout(() => { 
-          const root = document.documentElement || document.body; 
-          if (quickBarHost?.parentNode !== root) try { root.appendChild(quickBarHost); } catch (_) {} 
-          if (panelHost?.parentNode !== root) try { root.appendChild(panelHost); } catch (_) {} 
-          reparent(); 
-        }, 100); 
-      } 
+        setTimeout(() => {
+          const root = document.documentElement || document.body;
+          if (quickBarHost?.parentNode !== root) try { root.appendChild(quickBarHost); } catch (_) {}
+          if (panelHost?.parentNode !== root) try { root.appendChild(panelHost); } catch (_) {}
+          reparent();
+        }, 100);
+      }
     }
 
-    function updateQuickBarVisibility() { 
-      if (!quickBarHost) return; 
-      let has = Registry.videos.size > 0; 
-      if (!has) try { has = !!document.querySelector('video'); } catch (_) {} 
-      if (!has && Registry.shadowRootsLRU) { 
-        for (const it of Registry.shadowRootsLRU) { 
-          if (it.host?.isConnected && it.root) { 
-            try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {} 
-          } 
-        } 
-      } 
-      if (has && !_qbarHasVideo) { 
-        _qbarHasVideo = true; 
-        quickBarHost.style.removeProperty('display'); 
-      } else if (!has && _qbarHasVideo) { 
-        _qbarHasVideo = false; 
-        quickBarHost.style.setProperty('display', 'none', 'important'); 
-        if (panelOpen) togglePanel(false); 
-      } 
+    function updateQuickBarVisibility() {
+      if (!quickBarHost) return;
+      let has = Registry.videos.size > 0;
+      if (!has) try { has = !!document.querySelector('video'); } catch (_) {}
+      if (!has && Registry.shadowRootsLRU) {
+        for (const it of Registry.shadowRootsLRU) {
+          if (it.host?.isConnected && it.root) {
+            try { if (it.root.querySelector('video')) { has = true; break; } } catch (_) {}
+          }
+        }
+      }
+      if (has && !_qbarHasVideo) {
+        _qbarHasVideo = true;
+        quickBarHost.style.removeProperty('display');
+      } else if (!has && _qbarHasVideo) {
+        _qbarHasVideo = false;
+        quickBarHost.style.setProperty('display', 'none', 'important');
+        if (panelOpen) togglePanel(false);
+      }
       // ❌ 문제의 원인이었던 무조건적인 if (_qbarHasVideo) reparent(); 호출 완전 삭제
     }
 
     function updateTabIndicator(tabBar, tabName) { if (!tabBar) return; const tabs = tabBar.querySelectorAll('.tab'); const idx = ['video','audio','playback'].indexOf(tabName); if (idx < 0) return; const tabEl = tabs[idx]; if (!tabEl) return; requestAnimationFrame(() => { const barRect = tabBar.getBoundingClientRect(); const tabRect = tabEl.getBoundingClientRect(); tabBar.style.setProperty('--tab-indicator-left', `${tabRect.left - barRect.left}px`); tabBar.style.setProperty('--tab-indicator-width', `${tabRect.width}px`); tabs.forEach(t => t.classList.toggle('on', t.dataset.t === tabName)); }); }
-
-    function createSmartMetrics() { const footer = h('div', { class: 'metrics-footer' }); const elRes = h('span', {}, '—'), elRate = h('span', {}, '—'); footer.append(elRes, elRate); Scheduler.onSignal(() => { if (!panelOpen) return; const v = __internal._activeVideo; if (v?.isConnected) { elRes.textContent = v.videoWidth ? `${v.videoWidth}×${v.videoHeight}` : '—'; elRate.textContent = `${v.playbackRate.toFixed(2)}×`; } else { elRes.textContent = '—'; elRate.textContent = '—'; } }); return footer; }
 
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
@@ -832,8 +868,18 @@
 
       // 화면 조도
       const brtBtns = [], brtChips = h('div', { class: 'chips' });
-      SCR_BRT_LABELS.forEach((label, idx) => { if (idx === 0) return; const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + idx); chip.addEventListener('click', () => cycleScrBrtTo(idx)); brtBtns.push(chip); brtChips.appendChild(chip); });
-      const brtResetBtn = h('button', { class: 'chip', style: 'margin-left:auto;flex:none;width:70px;font-size:10px;border-color:var(--vsc-text-muted);color:#fff!important;' }, 'OFF');
+      SCR_BRT_LABELS.forEach((label, idx) => {
+        if (idx === 0) return;
+        // 🚨 수정 전: const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + idx);
+        // 👇 수정 후: 라벨 배열 값 사용
+        const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + label);
+        chip.addEventListener('click', () => cycleScrBrtTo(idx));
+        brtBtns.push(chip);
+        brtChips.appendChild(chip);
+      });
+      // 🚨 수정 전: ... }, 'OFF');
+      // 👇 수정 후: 리셋(OFF)로 명확하게 표시
+      const brtResetBtn = h('button', { class: 'chip', style: 'margin-left:auto;flex:none;width:70px;font-size:10px;border-color:var(--vsc-text-muted);color:#fff!important;' }, '리셋(OFF)');
       brtResetBtn.addEventListener('click', () => cycleScrBrtTo(0));
       const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
       function cycleScrBrtTo(idx) { Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); syncBrt(); }
@@ -913,7 +959,6 @@
       bodyEl.style.overscrollBehavior = 'none';
       panelEl.appendChild(bodyEl);
 
-      panelEl.appendChild(createSmartMetrics());
       _shadow.appendChild(panelEl);
       renderTab();
       getMountTarget().appendChild(panelHost);
