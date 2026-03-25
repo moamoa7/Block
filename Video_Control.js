@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v226.0.0)
+// @name         Video_Control (v227.0.0)
 // @namespace    https://github.com/
-// @version      226.0.0
-// @description  v226.0.0: 자동 장면 프리셋 + 9축 수동보정 + 40개 프리셋
+// @version      227.0.0
+// @description  v227.0.0: 자동 장면 프리셋(상세표시) + 9축 수동보정 + 40개 프리셋
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -35,7 +35,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '226.0.0';
+  const VSC_VERSION = '227.0.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -637,17 +637,15 @@
   }
 
   /* ══ Auto Scene ══ */
-  function createAutoScene(store, scheduler, registry) {
+  function createAutoScene(store, scheduler) {
     let currentProfile = 'default';
     let lastCheck = 0;
     let lastVideoW = 0;
     let suppressUntil = 0;
 
-    // 사이트 감지
     function detectSite() {
       const host = location.hostname;
       const path = location.pathname;
-
       if (host.includes('youtube.com') || host.includes('youtu.be')) {
         if (path.startsWith('/shorts')) return 'youtube_shorts';
         if (path.includes('/live')) return 'youtube_live';
@@ -679,12 +677,11 @@
       return 'generic';
     }
 
-    // 해상도 기반 콘텐츠 추정
     function detectResClass(video) {
       const w = video.videoWidth || 0;
-      const h = video.videoHeight || 0;
-      const ratio = w / Math.max(h, 1);
-      if (ratio < 0.75 && h > w) return 'vertical';
+      const hh = video.videoHeight || 0;
+      const ratio = w / Math.max(hh, 1);
+      if (ratio < 0.75 && hh > w) return 'vertical';
       if (w > 0 && w <= 480) return 'low_res';
       if (w > 480 && w <= 768) return 'sd';
       if (w > 768 && w <= 1280) return 'hd';
@@ -693,9 +690,7 @@
       return 'unknown';
     }
 
-    // [암부, 복원, 노출, 색온도, 틴트, 채도, 감마, 콘트라스트, 게인]  + presetS(옵션)
     const SCENE_PROFILES = {
-      // ── 사이트별 ──
       youtube_shorts:  { label: '유튜브 쇼츠',    v: [5,  10,  3,  0,  0,  3,  0,  5,  1],  presetS: 'S' },
       youtube_live:    { label: '유튜브 라이브',   v: [10, 15,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
       youtube_watch:   { label: '유튜브',          v: [5,  10,  3,  0,  0,  0, -1,  3,  1],  presetS: 'off' },
@@ -722,20 +717,17 @@
       weverse:         { label: '위버스',          v: [5,  10,  3,  0,  0,  3,  0,  4,  1],  presetS: 'S' },
       dailymotion:     { label: '데일리모션',      v: [8,  15,  5,  0,  0,  0, -2,  5,  3],  presetS: 'M' },
       community:       { label: '커뮤니티 임베드', v: [8,  15,  5,  0,  0,  0, -2,  5,  3],  presetS: 'M' },
-
-      // ── 해상도별 (사이트 미매칭 시 폴백) ──
       vertical:        { label: '세로 영상',       v: [5,  10,  3,  0,  0,  3,  0,  5,  1],  presetS: 'S' },
       low_res:         { label: '저해상도(~480p)', v: [15, 22,  8,  0,  0,  3, -3,  6,  5],  presetS: 'XL' },
       sd:              { label: 'SD(~768p)',       v: [10, 18,  5,  0,  0,  0, -2,  5,  3],  presetS: 'L' },
       hd:              { label: 'HD(~720p)',       v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'M' },
       fhd:             { label: 'FHD(1080p)',      v: [3,   8,  0,  0,  0,  0,  0,  3,  1],  presetS: 'S' },
       uhd:             { label: '4K+',             v: [0,   3,  0,  0,  0,  0,  0,  2,  0],  presetS: 'none' },
-
-      // 기본값
       default:         { label: '기본',            v: [0,   0,  0,  0,  0,  0,  0,  0,  0],  presetS: null },
     };
 
     const MANUAL_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
+    const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
     function evaluate(video) {
       if (!video?.isConnected) return 'default';
@@ -746,29 +738,39 @@
       return 'default';
     }
 
+    function buildDetailText(profileKey) {
+      const p = SCENE_PROFILES[profileKey];
+      if (!p || profileKey === 'default') return '보정 없음';
+      const vals = p.v;
+      const active = [];
+      vals.forEach((val, i) => {
+        if (val !== 0) active.push(`${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}`);
+      });
+      const sharpLabel = p.presetS ? (p.presetS === 'none' ? '샤프닝:OFF' : p.presetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[p.presetS]?.label || p.presetS}`) : '';
+      const parts = [];
+      if (sharpLabel) parts.push(sharpLabel);
+      if (active.length > 0) parts.push(active.join(' · '));
+      return parts.join(' │ ') || '보정 없음';
+    }
+
     function applyProfile(profileKey) {
       const p = SCENE_PROFILES[profileKey];
       if (!p) return;
       const obj = {};
       MANUAL_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
       store.batch('video', obj);
-      if (p.presetS != null) {
-        store.set(P.V_PRE_S, p.presetS);
-      }
+      if (p.presetS != null) store.set(P.V_PRE_S, p.presetS);
       currentProfile = profileKey;
       scheduler.request();
     }
 
-    // 수동 조작 감지 → suppressUntil 세팅
     function onManualChange() {
       if (!store.get(P.V_AUTO_SCENE)) return;
       suppressUntil = performance.now() + 500;
     }
 
-    // 수동 슬라이더 변경 시 자동 모드 해제
     const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
     let _manualSubCleanups = [];
-
     function hookManualSubs() {
       _manualSubCleanups.forEach(fn => fn());
       _manualSubCleanups = MANUAL_PATHS.map(path => store.sub(path, onManualChange));
@@ -778,15 +780,12 @@
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
-
       const now = performance.now();
       if (now < suppressUntil) return;
       if (now - lastCheck < 3000) return;
       lastCheck = now;
-
       const vW = video.videoWidth || 0;
       const profile = evaluate(video);
-
       if (profile !== currentProfile || vW !== lastVideoW) {
         lastVideoW = vW;
         if (profile !== currentProfile) {
@@ -814,13 +813,11 @@
     }
 
     return {
-      tick,
-      activate,
-      deactivate,
+      tick, activate, deactivate,
       getProfile: () => currentProfile,
       getProfileLabel: () => SCENE_PROFILES[currentProfile]?.label || '—',
-      SCENE_PROFILES,
-      evaluate
+      getProfileDetail: () => buildDetailText(currentProfile),
+      SCENE_PROFILES, evaluate
     };
   }
 
@@ -921,12 +918,15 @@
     .section-label { font-size: 11px; opacity: 0.5; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 0 2px; }
     .preset-grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
     .preset-grid .fine-btn { flex: 0 0 calc(20% - 3.2px); min-width: 0; text-align: center; justify-content: center; display: inline-flex; align-items: center; padding: 4px 2px; font-size: 10px; }
-    .auto-scene-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--vsc-radius-md); background: rgba(76,255,142,0.04); border: 1px solid rgba(76,255,142,0.12); margin-bottom: 6px; }
-    .auto-scene-bar.off { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.06); }
-    .auto-scene-bar .asl { font-size: 11px; font-weight: 600; color: var(--vsc-green); flex: 1; }
-    .auto-scene-bar.off .asl { color: var(--vsc-text-dim); }
-    .auto-scene-tag { font-family: var(--vsc-font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--vsc-radius-sm); background: rgba(76,255,142,0.1); color: var(--vsc-green); border: 1px solid rgba(76,255,142,0.2); white-space: nowrap; }
-    .auto-scene-bar.off .auto-scene-tag { background: rgba(255,255,255,0.04); color: var(--vsc-text-muted); border-color: rgba(255,255,255,0.06); }
+    .as-box { display: flex; flex-direction: column; padding: 8px 10px; border-radius: var(--vsc-radius-md); background: rgba(76,255,142,0.04); border: 1px solid rgba(76,255,142,0.12); margin-bottom: 6px; gap: 4px; }
+    .as-box.off { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.06); }
+    .as-top { display: flex; align-items: center; gap: 8px; width: 100%; }
+    .as-top .asl { font-size: 11px; font-weight: 600; color: var(--vsc-green); }
+    .as-box.off .as-top .asl { color: var(--vsc-text-dim); }
+    .as-tag { font-family: var(--vsc-font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--vsc-radius-sm); background: rgba(76,255,142,0.1); color: var(--vsc-green); border: 1px solid rgba(76,255,142,0.2); white-space: nowrap; }
+    .as-box.off .as-tag { background: rgba(255,255,255,0.04); color: var(--vsc-text-muted); border-color: rgba(255,255,255,0.06); }
+    .as-detail { font-family: var(--vsc-font-mono); font-size: 10px; line-height: 1.5; opacity: 0.65; color: var(--vsc-green); word-break: break-all; }
+    .as-box.off .as-detail { color: var(--vsc-text-muted); }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -979,73 +979,77 @@
       tabFns.push(updateInfo);
       w.append(infoBar);
 
-      /* ── 자동 장면 프리셋 ── */
-      const autoSceneBar = h('div', { class: 'auto-scene-bar off' });
-      const autoSceneLabel = h('span', { class: 'asl' }, '자동 장면');
-      const autoSceneTag = h('span', { class: 'auto-scene-tag' }, '—');
-      const autoSceneToggle = mkToggle(P.V_AUTO_SCENE, (on) => {
+      /* ── 자동 장면 프리셋 (상세 표시) ── */
+      const asBox = h('div', { class: 'as-box off' });
+      const asLabel = h('span', { class: 'asl' }, '자동 장면');
+      const asTag = h('span', { class: 'as-tag' }, '—');
+      const asToggle = mkToggle(P.V_AUTO_SCENE, (on) => {
         if (on) { AutoScene.activate(); OSD.show('자동 장면 ON', 800); }
         else { AutoScene.deactivate(); OSD.show('자동 장면 OFF', 800); }
         Scheduler.request();
       });
-      autoSceneBar.append(autoSceneLabel, autoSceneTag, autoSceneToggle);
+      const asTopRow = h('div', { class: 'as-top' }, asLabel, asTag, h('div', { style: 'flex:1' }), asToggle);
+      const asDetail = h('div', { class: 'as-detail' }, '');
+
+      asBox.append(asTopRow, asDetail);
+
       const syncAutoScene = () => {
         const on = !!Store.get(P.V_AUTO_SCENE);
-        autoSceneBar.classList.toggle('off', !on);
-        autoSceneTag.textContent = on ? AutoScene.getProfileLabel() : 'OFF';
+        asBox.classList.toggle('off', !on);
+        if (!on) {
+          asTag.textContent = 'OFF';
+          asDetail.textContent = '';
+          return;
+        }
+        const profileKey = AutoScene.getProfile();
+        asTag.textContent = AutoScene.getProfileLabel();
+        asDetail.textContent = AutoScene.getProfileDetail();
       };
       tabFns.push(syncAutoScene);
       tabSignalCleanups.push(Scheduler.onSignal(syncAutoScene));
-      w.append(autoSceneBar, mkSep());
+      w.append(asBox, mkSep());
 
       if (IS_FIREFOX) { w.append(h('div', { style: 'font-size:10px;opacity:.7;padding-bottom:8px;color:var(--vsc-amber)' }, '⚠️ Firefox에서는 SVG 기반 수동 톤 보정이 지원되지 않습니다.')); }
 
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
-      /* ── 수동 보정 프리셋 (5×N 그리드) ── */
+      /* ── 수동 보정 프리셋 ── */
       const MANUAL_PRESETS = [
         { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
         { n: '내추럴',     v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
         { n: '또렷',       v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
         { n: '선명강조',   v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
         { n: '피부톤',     v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
-
         { n: '시네마',     v: [15, 15,   8,  -6,  -2,  -8,   3,   5,  -2] },
         { n: '필름누아르', v: [5,   8,   0, -10,   0, -30,  10,  18,  -8] },
         { n: '블리치바이패스', v: [10, 18, 3, -3, 0, -20, 2, 16, 0] },
         { n: '오렌지틸',   v: [12, 12,   5,  15,  -8,  10,   0,   8,   1] },
         { n: '무디블루',   v: [8,  10,   0, -18,   5,  -5,   4,   6,  -3] },
-
         { n: '웹캠보정',   v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
         { n: '유물복원',   v: [45, 30,  10,   0,   0,   8,  -6,  12,  10] },
         { n: '극한복원',   v: [60, 35,  12,   0,   0,   5,  -8,   5,  15] },
         { n: '야간모드',   v: [50, 18,  15,   5,   0, -10,  -8,   4,  12] },
         { n: 'HDR',        v: [35, 25,   8,   0,   0,   5,  -4,  -2,   8] },
-
         { n: '애니메이션', v: [3,  15,   0,   0,   0,  12,   2,  12,   2] },
         { n: '뮤직비디오', v: [5,  20,   5,   0,   0,  25,   0,   8,   3] },
         { n: '다큐멘터리', v: [12, 18,   5,  -3,   0,   3,  -2,   6,   1] },
         { n: '뉴스',       v: [3,  22,   0,   0,   0,  -5,   0,   8,   2] },
         { n: '스포츠',     v: [5,  25,   3,   0,   0,  10,   0,  10,   4] },
-
         { n: '사이버펑크', v: [10, 15,   5, -12,   8,  30,   2,  10,   5] },
         { n: '레트로VHS',  v: [18,  5,   8,  20,   5,  -8,  -6,  -4,   3] },
         { n: '파스텔',     v: [5,   8,  12,   8,   3, -12,  -8,  -6,   5] },
         { n: '네온나이트', v: [8,  12,   0, -15,  12,  35,   4,  14,   0] },
         { n: '빈티지세피아', v: [15, 8,  5,  25,   8, -18,  -3,  -2,   0] },
-
         { n: '안개/스모그', v: [20, 28,   0,  -5,   0,   8,  -2,  15,   4] },
         { n: '수중촬영',   v: [25, 22,   8, -20, -10,  12,  -4,   8,   6] },
         { n: '석양골든',   v: [10, 10,   8,  22,   5,  15,  -2,   4,   2] },
         { n: '눈/겨울',    v: [3,  15,   0, -12,   3,  -8,   6,   8,  -4] },
         { n: '형광등보정', v: [5,  12,   3,   8, -15,   3,   0,   4,   1] },
-
         { n: '독서모드',   v: [5,   5,   0,  25,   0, -15,   5,  -8,  -8] },
         { n: '딥블랙',     v: [0,   5,   0,  -4,   0,   5,   8,  15,  -5] },
         { n: 'AMOLED',     v: [0,   0,   0,   0,   0,   8,  12,  20,  -8] },
         { n: '눈보호',     v: [5,   5,   5,  30,   5, -20,  -5, -10,  -5] },
         { n: 'CCTV복원',   v: [65, 40,  15,   0,   0,   0, -10,  10,  18] },
-
         { n: '포트레이트', v: [10, 15,  10,   8,   2,   5,  -4,   2,   3] },
         { n: '풍경',       v: [8,  18,   3,  -3,   0,  15,   0,   8,   2] },
         { n: '흑백하이키', v: [5,  20,  15,   0,   0, -50,  -6,  -4,   8] },
@@ -1236,7 +1240,7 @@
     const OSD = createOSD();
     const Params = createVideoParams(Store);
     const Filters = createFilters();
-    const AutoScene = createAutoScene(Store, Scheduler, Registry);
+    const AutoScene = createAutoScene(Store, Scheduler);
 
     const apply = () => {
       if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
@@ -1271,7 +1275,6 @@
     __internal.Store = Store; __internal._activeVideo = null;
     try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(true); }); } catch (_) {}
 
-    // 자동 장면이 저장 상태에서 켜져 있으면 활성화
     if (Store.get(P.V_AUTO_SCENE)) {
       setTimeout(() => { AutoScene.activate(); }, 1000);
     }
