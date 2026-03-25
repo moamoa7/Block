@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v221.5.0 - Final)
+// @name         Video_Control (v221.6.0 - Final)
 // @namespace    https://github.com/
-// @version      221.5.0
-// @description  v221.5: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
+// @version      221.6.0
+// @description  v221.6: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '221.5.0';
+  const VSC_VERSION = '221.6.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -608,44 +608,64 @@
   /* ══ VideoParams ══ */
   function createVideoParams(Store) {
     const cache = new WeakMap();
+
     function computeSharpMul(video) {
-      const nW = video.videoWidth | 0; if (nW < 16) return { mul: 0.5, autoBase: 0.10 };
+      const nW = video.videoWidth | 0;
+      if (nW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+
       const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
-      let dW, dH; try { const rect = video.getBoundingClientRect(); dW = rect.width || video.clientWidth || nW; dH = rect.height || video.clientHeight || (video.videoHeight | 0); } catch (_) { dW = video.clientWidth || nW; dH = video.clientHeight || (video.videoHeight | 0); }
-      if (dW < 16) return { mul: 0.5, autoBase: 0.10 };
+      let dW, dH;
+      try { const rect = video.getBoundingClientRect(); dW = rect.width || video.clientWidth || nW; dH = rect.height || video.clientHeight || (video.videoHeight | 0); } catch (_) { dW = video.clientWidth || nW; dH = video.clientHeight || (video.videoHeight | 0); }
+
+      if (dW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
       const nH = video.videoHeight | 0; const ratioW = (dW * dpr) / nW; const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW; const ratio = Math.min(ratioW, ratioH);
+
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
-      let autoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
+      let rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
+
       if (IS_MOBILE) mul = Math.max(mul, 0.72);
-      return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(autoBase * mul, 0, 0.18) };
+
+      return {
+        mul: CLAMP(mul, 0, 1),
+        autoBase: CLAMP(rawAutoBase * mul, 0, 0.18),
+        rawAutoBase // 👉 순수 해상도 베이스 반환 추가
+      };
     }
+
     return {
       get: (video) => {
         const storeRev = Store.rev(); const nW = video ? (video.videoWidth | 0) : 0; const dW = video ? (video.clientWidth || video.offsetWidth || 0) : 0; const dH = video ? (video.clientHeight || video.offsetHeight || 0) : 0;
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH) return cached.out; }
+
         const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
         const presetS = Store.get(P.V_PRE_S); const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
-        const { mul, autoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10 }; const finalMul = (mul === 0 && presetS !== 'off') ? 0.50 : mul;
-        if (presetS === 'off') out.sharp = autoBase; else if (presetS !== 'none') out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul;
+
+        const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+        const finalMul = (mul === 0 && presetS !== 'off') ? 0.50 : mul;
+
+        // 👉 유저님 아이디어 적용: 수동 프리셋에도 원본 해상도 가중치 부여
+        if (presetS === 'off') {
+          out.sharp = autoBase;
+        } else if (presetS !== 'none') {
+          const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50);
+          out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor;
+        }
+
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
 
-        // 🚨 [수정 완료된 수동 보정 매핑]
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD)) || 0, 0, 100);
         const mRec  = CLAMP(Number(Store.get(P.V_MAN_REC)) || 0, 0, 100);
         const mBrt  = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100);
         const mTemp = CLAMP(Number(Store.get(P.V_MAN_TEMP)) || 0, -50, 50);
 
-        // 1. 비선형 톤 커브 (214.3.0의 오리지널 매핑 복구)
-        out.toe      = mShad * 0.0035; // 암부 부스트 (그림자만 들어올림)
-        out.mid      = mRec  * 0.0030; // 디테일 복원 (중간톤만 들어올림)
-        out.shoulder = mBrt  * 0.0040; // 노출 보정 (명부만 들어올림)
-        out.temp     = mTemp;          // 색온도
+        out.toe      = mShad * 0.0035;
+        out.mid      = mRec  * 0.0030;
+        out.shoulder = mBrt  * 0.0040;
+        out.temp     = mTemp;
 
-        // 2. 전체 선형 대비/밝기 (화면을 까맣게/하얗게 파괴하던 주범 제거)
         out.contrast = 1;
         out.bright   = 0;
 
-        // 3. CSS Fallback (파이어폭스나 전체화면 모드용. CSS는 블랙을 파괴하지 않으므로 적용)
         out._cssBr   = 1 + (mBrt * 0.005);
         out._cssCt   = 1 + (mRec * 0.005);
         out._cssSat  = CLAMP(out.satF, 0.5, 2.0);
