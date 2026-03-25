@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터
 // @namespace    https://github.com/moamoa7
-// @version      14.1.2
+// @version      14.2.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -26,68 +26,33 @@
 
   /* ── 도메인·플랫폼 감지 ── */
   const HOST = location.hostname.replace(/^www\./, '');
-
-  const detectPlatform = () => {
-    if (HOST.includes('youtube'))  return 'youtube';
-    if (HOST.includes('chzzk'))    return 'chzzk';
-    if (HOST.includes('sooplive')) return 'soop';
-    if (HOST.includes('twitch'))   return 'twitch';
-    return 'default';
-  };
-  const PLATFORM   = detectPlatform();
+  const PLATFORM = HOST.includes('youtube') ? 'youtube'
+    : HOST.includes('chzzk') ? 'chzzk'
+    : HOST.includes('sooplive') ? 'soop'
+    : HOST.includes('twitch') ? 'twitch' : 'default';
   const IS_YOUTUBE = PLATFORM === 'youtube';
   const STORE_KEY  = 'dm_u14_' + HOST;
 
-  /* ── 플랫폼별 설정 ── */
-  const PLATFORM_SETTINGS = {
-    youtube: { target: 10 },
-    chzzk:   { target: 2 },
-    soop:    { target: 3 },
-    twitch:  { target: 3 },
-    default: { target: 3 },
+  /* ── 플랫폼별 설정 (사전 계산) ── */
+  const PS = {
+    youtube: { target: 10, min: 2,   max: 30, barMax: 35, panic: 40 },
+    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15, panic: 15 },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, panic: 15 },
+    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, panic: 15 },
+    default: { target: 3,  min: 1,   max: 10, barMax: 15, panic: 15 },
   };
+  const PD = PS[PLATFORM] || PS.default;
+  const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX, panic: PANIC } = PD;
 
-  const getDef = p => {
-    const s = PLATFORM_SETTINGS[p] || PLATFORM_SETTINGS.default;
-    const t = s.target;
-    return {
-      target: t,
-      min:    s.min    ?? (Math.round(Math.max(0.5, t * 0.2) * 2) / 2),
-      max:    s.max    ?? Math.round(Math.max(10, t * 3)),
-      barMax: s.barMax ?? Math.round(Math.max(15, t * 3 + 5)),
-      panic:  s.panic  ?? Math.round(Math.max(15, t * 4))
-    };
-  };
-
-  const PD         = getDef(PLATFORM);
-  const DEF_TARGET = PD.target;
-  const MIN_TARGET = PD.min;
-  const MAX_TARGET = PD.max;
-  const BAR_MAX    = PD.barMax;
-  const PANIC      = PD.panic;
-
-  const SEEK_CD        = 10000;
-  const HYST           = 0.3;
-  const STALL_WINDOW   = 30000;
-  const STALL_COOLDOWN = 8000;
-  const WARMUP_MS      = 4000;
+  const SEEK_CD = 10000, HYST = 0.3, STALL_WINDOW = 30000, STALL_COOLDOWN = 8000, WARMUP_MS = 4000;
   const R_NORM = 1.00, R_SOFT = 1.02, R_MED = 1.10, R_HIGH = 1.50;
-
-  /* ── 기능 감지 ── */
   const HAS_RVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype;
 
   /* ── Config ── */
   let cfg;
-  try { 
-    cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; 
-  } catch (e) { 
-    console.debug('DelayMeter:', e); 
-    cfg = {}; 
-  }
-  const save = () => { 
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } 
-    catch (e) { console.debug('DelayMeter:', e); } 
-  };
+  try { cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; }
+  catch { cfg = {}; }
+  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
   let _saveId = 0;
   const saveLazy = () => { clearTimeout(_saveId); _saveId = setTimeout(save, 400); };
 
@@ -97,43 +62,35 @@
   const setVid = v => { _vidRef = v || null; };
 
   let enabled = cfg.enabled ?? true;
-
   let target;
   if (cfg._platform === PLATFORM && cfg._lastDef === DEF_TARGET && cfg.target != null) {
     target = cfg.target;
   } else {
     target = DEF_TARGET;
-    cfg._platform = PLATFORM;
-    cfg._lastDef  = DEF_TARGET;
-    cfg.target    = target;
+    Object.assign(cfg, { _platform: PLATFORM, _lastDef: DEF_TARGET, target });
     saveLazy();
   }
 
-  let lastSeek  = 0;
-  let warmupEnd = performance.now() + WARMUP_MS;
-  let gear      = R_NORM;
-  let panelOpen = cfg.open ?? false;
-  let els       = {};
-
+  let lastSeek = 0, warmupEnd = 0, gear = R_NORM, panelOpen = cfg.open ?? false, els = {};
   let stallCount = 0, lastStallTime = 0;
-  let _isCurrentlyLive = false;
-  let _liveConfirmedOnce = false;
-  let _liveFalseCount = 0;
+  let _isCurrentlyLive = false, _liveConfirmedOnce = false, _liveFalseCount = 0;
 
+  /* ── 히스토리 링 버퍼 ── */
   const HIST = 60;
   const hist = new Float32Array(HIST);
   let histHead = 0, histLen = 0, histMax = 0;
   const histPush = v => {
+    const wasFull = histLen === HIST;
     const oldVal = hist[histHead];
     hist[histHead] = v;
     histHead = (histHead + 1) % HIST;
     if (histLen < HIST) histLen++;
-    
-    if (v >= histMax) { 
-      histMax = v; 
-    } else if (oldVal >= histMax || (histLen === HIST && (histHead & 7) === 0)) {
+
+    if (v >= histMax) {
+      histMax = v;
+    } else if (wasFull && (oldVal >= histMax || (histHead & 7) === 0)) {
       histMax = 0;
-      for (let i = 0; i < histLen; i++) { if (hist[i] > histMax) histMax = hist[i]; }
+      for (let i = 0; i < histLen; i++) if (hist[i] > histMax) histMax = hist[i];
     }
   };
 
@@ -148,23 +105,26 @@
     _prevTotal = q.totalVideoFrames;
     if (dT >= 5) _dropRate = dD / dT;
   };
-  const resetDropRate = () => { _prevDropped = 0; _prevTotal = 0; _dropRate = 0; };
+  const resetDropRate = () => { _prevDropped = _prevTotal = 0; _dropRate = 0; };
 
-  /* ── 디코더 스트레스 감지 ── */
+  /* ── 디코더 스트레스 ── */
   let _decoderStressed = false;
 
   /* ── Utils ── */
   const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
+  let _colorOfKey = -999, _colorOfCache = '';
   const colorOf = d => {
-    const ratio = clamp(d / (DEF_TARGET * 0.5), 0, 1);
-    let a0,a1,a2,b0,b1,b2,u;
+    const key = Math.round(clamp(d / (DEF_TARGET * 0.5), 0, 1) * 200);
+    if (key === _colorOfKey) return _colorOfCache;
+    _colorOfKey = key;
+    const ratio = key / 200;
+    let a0, a1, a2, b0, b1, b2, u;
     if (ratio <= 0.5) { a0=0x00;a1=0xE6;a2=0x96; b0=0xFF;b1=0xD0;b2=0x40; u=ratio*2; }
     else              { a0=0xFF;a1=0xD0;a2=0x40; b0=0xFF;b1=0x45;b2=0x55; u=(ratio-0.5)*2; }
-    const r = Math.round(a0+(b0-a0)*u);
-    const g = Math.round(a1+(b1-a1)*u);
-    const bl= Math.round(a2+(b2-a2)*u);
-    return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
+    const r = Math.round(a0+(b0-a0)*u), g = Math.round(a1+(b1-a1)*u), bl = Math.round(a2+(b2-a2)*u);
+    _colorOfCache = '#' + ((1<<24)|(r<<16)|(g<<8)|bl).toString(16).slice(1);
+    return _colorOfCache;
   };
 
   let _lastHex = '', _lastRgbStr = '';
@@ -172,13 +132,12 @@
     if (hex === _lastHex) return _lastRgbStr;
     _lastHex = hex;
     const n = parseInt(hex.slice(1), 16);
-    _lastRgbStr = `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`;
+    _lastRgbStr = `${(n>>16)&255},${(n>>8)&255},${n&255}`;
     return _lastRgbStr;
   };
 
-  /* ── 버퍼 측정 ── */
   const getBuf = vid => {
-    try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length - 1) - vid.currentTime; }
+    try { const b = vid.buffered; if (!b.length) return -1; return b.end(b.length-1) - vid.currentTime; }
     catch { return -1; }
   };
   const isHlsSrc = src => /\.m3u8($|\?)/i.test(src);
@@ -186,9 +145,7 @@
   /* ── 라이브 판정 ── */
   const _liveCache = new WeakMap();
   const _liveTracker = new WeakMap();
-
-  let _ytPlayerEl = null, _ytPlayerTs = 0;
-  let _ytLiveResult = false, _ytLiveTs = 0;
+  let _ytPlayerEl = null, _ytPlayerTs = 0, _ytLiveResult = false, _ytLiveTs = 0;
 
   const getYTPlayer = () => {
     const now = performance.now();
@@ -212,7 +169,7 @@
       try {
         if (typeof p.getVideoData === 'function') {
           const d = p.getVideoData();
-          if (d && d.isLive) result = true;
+          if (d?.isLive) result = true;
         }
         if (!result && typeof p.getPlayerResponse === 'function') {
           const r = p.getPlayerResponse();
@@ -220,10 +177,9 @@
         }
       } catch {}
     }
+    // API 실패 시에만 DOM 폴백
     if (!result) {
-      if (document.querySelector('.ytp-live-badge[disabled]') ||
-          document.querySelector('.ytp-live') ||
-          document.querySelector('ytd-badge-supported-renderer .badge-style-type-live-now')) {
+      if (document.querySelector('.ytp-live-badge[disabled],.ytp-live,ytd-badge-supported-renderer .badge-style-type-live-now')) {
         result = true;
       }
     }
@@ -247,7 +203,7 @@
       try {
         const s = vid.seekable;
         if (s.length > 0) {
-          const start = s.start(0), end = s.end(s.length - 1), d = vid.duration;
+          const start = s.start(0), end = s.end(s.length-1), d = vid.duration;
           if (start > 10) { v = true; }
           else {
             let tr = _liveTracker.get(vid);
@@ -259,7 +215,7 @@
           }
           if (!v && (end - start > 20)) {
             const b = vid.buffered;
-            if (b.length && Math.abs(b.end(b.length - 1) - end) < 120) v = true;
+            if (b.length && Math.abs(b.end(b.length-1) - end) < 120) v = true;
           }
         }
       } catch {}
@@ -268,8 +224,7 @@
     if (!v && vid.buffered.length > 0) {
       const d = vid.duration;
       if (d > 0 && isFinite(d) && vid.currentTime > 0) {
-        const gap = d - vid.currentTime;
-        if (gap >= 0 && gap < 60 && isHlsSrc(src)) v = true;
+        if (d - vid.currentTime < 60 && isHlsSrc(src)) v = true;
       }
     }
 
@@ -277,10 +232,7 @@
     return v;
   };
 
-  const isLive = vid => {
-    if (!vid) return false;
-    return IS_YOUTUBE ? isLiveYouTube(vid) : isLiveGeneric(vid);
-  };
+  const isLive = vid => vid ? (IS_YOUTUBE ? isLiveYouTube(vid) : isLiveGeneric(vid)) : false;
 
   const isCandidate = v => {
     if (!v || v.readyState < 2) return false;
@@ -312,7 +264,7 @@
     return _trendValue;
   };
 
-  /* ── rVFC 프레임 동기 측정 ── */
+  /* ── rVFC ── */
   let _rvfcActive = false, _rvfcVid = null, _lastFrameBuf = -1;
 
   const startRVFC = vid => {
@@ -325,7 +277,7 @@
       try {
         const b = vid.buffered;
         if (b.length > 0) {
-          const buf = b.end(b.length - 1) - metadata.mediaTime;
+          const buf = b.end(b.length-1) - metadata.mediaTime;
           _lastFrameBuf = buf;
           if (!vid.paused && buf >= 0) histPush(buf);
         }
@@ -346,10 +298,13 @@
     if (!isCandidate(v)) return;
     _liveCache.delete(v);
     stopRVFC();
-    stopObserver(); 
+    stopObserver();
     setVid(v);
-    lastSeek = 0; warmupEnd = performance.now(); gear = R_NORM;
-    stallCount = 0; histLen = 0; histHead = 0; histMax = 0;
+    lastSeek = 0;
+    warmupEnd = performance.now() + WARMUP_MS; // 버그 수정: 워밍업 적용
+    gear = R_NORM;
+    stallCount = 0;
+    histLen = 0; histHead = 0; histMax = 0;
     resetDropRate();
     _isCurrentlyLive = false;
     _liveConfirmedOnce = false;
@@ -368,14 +323,15 @@
     }
   };
 
-  document.addEventListener('play', e => { if (e.target?.tagName === 'VIDEO') attach(e.target); }, { capture: true });
-  document.addEventListener('playing', e => {
-    if (e.target?.tagName === 'VIDEO') { const v = e.target; if (!getVid() || getVid() !== v) { if (isCandidate(v)) attach(v); } }
-  }, { capture: true });
+  for (const evt of ['play', 'playing']) {
+    document.addEventListener(evt, e => {
+      if (e.target?.tagName === 'VIDEO') attach(e.target);
+    }, { capture: true });
+  }
 
   let mo = null, _scanRetry = 0;
   const stopObserver = () => { if (mo) { mo.disconnect(); mo = null; } };
-  
+
   const scan = () => {
     const vids = document.getElementsByTagName('video');
     if (!vids.length) {
@@ -385,21 +341,17 @@
     for (let i = 0; i < vids.length; i++) {
       if (isCandidate(vids[i])) { attach(vids[i]); _scanRetry = 0; return; }
     }
-    setTimeout(scan, 2000);
+    if (_scanRetry < 15) { _scanRetry++; setTimeout(scan, 2000); }
   };
 
   const startObserver = () => {
-    if (mo) return;
-    if (!document.body) return;
+    if (mo || !document.body) return;
     mo = new MutationObserver(muts => {
       if (getVid()) { stopObserver(); return; }
-      outer:
-      for (const m of muts) {
-        for (const n of m.addedNodes) {
-          if (n.nodeType !== 1) continue;
-          if (n.tagName === 'VIDEO') { attach(n); break outer; }
-          if (n.childElementCount > 0) { const v = n.querySelector('video'); if (v) { attach(v); break outer; } }
-        }
+      for (const m of muts) for (const n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.tagName === 'VIDEO') { attach(n); return; }
+        if (n.childElementCount > 0) { const v = n.querySelector('video'); if (v) { attach(v); return; } }
       }
     });
     mo.observe(document.body, { childList: true, subtree: true });
@@ -416,20 +368,20 @@
     try {
       const s = vid.seekable;
       if (s.length) {
-        vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
-      } else { 
-        const b = vid.buffered; 
+        vid.currentTime = Math.max(s.start(s.length-1), s.end(s.length-1) - target - 1);
+      } else {
+        const b = vid.buffered;
         if (!b.length) return;
-        const i = b.length - 1; 
-        vid.currentTime = Math.max(b.start(i), b.end(i) - target - 1); 
+        const i = b.length - 1;
+        vid.currentTime = Math.max(b.start(i), b.end(i) - target - 1);
       }
       lastSeek = performance.now();
-    } catch (e) { console.debug('DelayMeter:', e); }
+    } catch {}
   };
 
   /* ── 스파크라인 ── */
   const SPARK_W = 208, SPARK_H = 32;
-  let sparkCtx = null;
+  let sparkCtx = null, _sparkLastHead = -1, _sparkLastLen = -1;
 
   const initSparkCanvas = cvs => {
     const dpr = devicePixelRatio || 1;
@@ -440,6 +392,9 @@
 
   const drawSpark = color => {
     if (!sparkCtx || histLen < 2) return;
+    if (histHead === _sparkLastHead && histLen === _sparkLastLen) return;
+    _sparkLastHead = histHead; _sparkLastLen = histLen;
+
     const ctx = sparkCtx, dpr = devicePixelRatio || 1;
     ctx.clearRect(0, 0, SPARK_W * dpr, SPARK_H * dpr);
     ctx.save(); ctx.scale(dpr, dpr);
@@ -454,15 +409,22 @@
     const rgb = hexToRgb(color), grad = ctx.createLinearGradient(0, 0, 0, SPARK_H);
     grad.addColorStop(0, `rgba(${rgb},.20)`); grad.addColorStop(1, `rgba(${rgb},.02)`);
 
-    const dp = () => { ctx.beginPath(); for (let i = 0; i < histLen; i++) { const v = hist[(histHead - histLen + i + HIST) % HIST], x = i * xS, y = SPARK_H - pad - (v / mx) * yR; i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } };
-    dp(); ctx.lineTo((histLen - 1) * xS, SPARK_H); ctx.lineTo(0, SPARK_H); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
+    const dp = () => {
+      ctx.beginPath();
+      for (let i = 0; i < histLen; i++) {
+        const v = hist[(histHead - histLen + i + HIST) % HIST];
+        const x = i * xS, y = SPARK_H - pad - (v / mx) * yR;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+    };
+    dp(); ctx.lineTo((histLen-1)*xS, SPARK_H); ctx.lineTo(0, SPARK_H); ctx.closePath(); ctx.fillStyle = grad; ctx.fill();
     dp(); ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
 
-    const lV = hist[(histHead - 1 + HIST) % HIST], lx = (histLen - 1) * xS, ly = SPARK_H - pad - (lV / mx) * yR;
+    const lV = hist[(histHead-1+HIST) % HIST], lx = (histLen-1)*xS, ly = SPARK_H - pad - (lV / mx) * yR;
     const gw = ctx.createRadialGradient(lx, ly, 0, lx, ly, 6);
     gw.addColorStop(0, `rgba(${rgb},.6)`); gw.addColorStop(1, `rgba(${rgb},0)`);
-    ctx.fillStyle = gw; ctx.fillRect(lx - 6, ly - 6, 12, 12);
-    ctx.beginPath(); ctx.arc(lx, ly, 2.5, 0, Math.PI * 2); ctx.fillStyle = color; ctx.fill();
+    ctx.fillStyle = gw; ctx.fillRect(lx-6, ly-6, 12, 12);
+    ctx.beginPath(); ctx.arc(lx, ly, 2.5, 0, Math.PI*2); ctx.fillStyle = color; ctx.fill();
     ctx.restore();
   };
 
@@ -472,31 +434,29 @@
 
   const tick = () => {
     const vid = getVid();
-    if (!vid) { scan(); stopRVFC(); startObserver(); lastBuf = -1; _isCurrentlyLive = false; scheduleRender(); return; }
+    if (!vid) {
+      scan(); stopRVFC(); startObserver();
+      lastBuf = -1; _isCurrentlyLive = false;
+      scheduleRender(); return;
+    }
     if (!isCandidate(vid) || vid.readyState < 3) {
       lastBuf = -1;
       if (!_liveConfirmedOnce) _isCurrentlyLive = false;
-      scheduleRender();
-      return;
+      scheduleRender(); return;
     }
 
     const live = isLive(vid);
     if (!live) {
       if (IS_YOUTUBE) _scanRetry = 0;
       if (_liveConfirmedOnce) {
-        _liveFalseCount = (_liveFalseCount || 0) + 1;
+        _liveFalseCount++;
         if (_liveFalseCount < 3) { scheduleRender(); return; }
       }
       stopRVFC(); lastBuf = -1;
-      _isCurrentlyLive = false;
-      _liveConfirmedOnce = false;
-      _liveFalseCount = 0;
-      scheduleRender();
-      return;
+      _isCurrentlyLive = false; _liveConfirmedOnce = false; _liveFalseCount = 0;
+      scheduleRender(); return;
     }
-    _isCurrentlyLive = true;
-    _liveConfirmedOnce = true;
-    _liveFalseCount = 0;
+    _isCurrentlyLive = true; _liveConfirmedOnce = true; _liveFalseCount = 0;
 
     const rvfcRunning = startRVFC(vid);
     let buf;
@@ -521,13 +481,12 @@
     if (ex > target * 0.8)       gear = R_HIGH;
     else if (ex > target * 0.4)  gear = R_MED;
     else if (ex > HYST) {
-      if (trend < -0.15)         gear = R_NORM;
-      else                       gear = R_SOFT;
+      gear = trend < -0.15 ? R_NORM : R_SOFT;
     }
     else if (ex < -HYST)         gear = R_NORM;
 
     if (gear > R_SOFT && (_dropRate > 0.05 || _decoderStressed)) {
-      gear = gear === R_HIGH ? R_MED : gear === R_MED ? R_SOFT : R_NORM;
+      gear = gear === R_HIGH ? R_MED : R_SOFT;
     }
 
     safeRate(vid, gear);
@@ -542,9 +501,8 @@
     if (!_isCurrentlyLive || !vid) {
       if (els.root.style.display !== 'none') els.root.style.display = 'none';
       return;
-    } else {
-      if (els.root.style.display === 'none') els.root.style.display = 'block';
     }
+    if (els.root.style.display === 'none') els.root.style.display = 'block';
 
     const sec = buf < 0 ? 0 : buf, diff = sec - target, c = colorOf(diff);
     const speeding = vid && vid.playbackRate > 1;
@@ -573,8 +531,8 @@
     let bTxt, bCls;
     if (!enabled)                                  { bTxt = 'OFF';       bCls = 'dm-b dm-off'; }
     else if (buf < 0)                              { bTxt = '…';         bCls = 'dm-b dm-off'; }
-    else if (now - lastStallTime < STALL_COOLDOWN) { bTxt = '⏸ 대기';   bCls = 'dm-b dm-off'; }
-    else if (_dropRate > 0.05)                     { bTxt = '⚠ 드롭';   bCls = 'dm-b dm-off'; }
+    else if (now - lastStallTime < STALL_COOLDOWN) { bTxt = '⏸ 대기';    bCls = 'dm-b dm-off'; }
+    else if (_dropRate > 0.05)                     { bTxt = '⚠ 드롭';    bCls = 'dm-b dm-off'; }
     else if (speeding)                             { bTxt = '⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-acc'; }
     else if (inRange)                              { bTxt = '✓ 안정';    bCls = 'dm-b dm-ok'; }
     else                                           { bTxt = '→ 추적';    bCls = 'dm-b dm-acc'; }
@@ -693,13 +651,12 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v14.1.2' }),
+      el('span', { className: 'dm-ver', textContent: 'v14.2.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
-    pn.appendChild(hdr); pn.appendChild(stat); pn.appendChild(barWrap);
-    pn.appendChild(sparkCvs); pn.appendChild(slWrap); pn.appendChild(ft);
-    root.appendChild(fab); root.appendChild(pn);
+    pn.append(hdr, stat, barWrap, sparkCvs, slWrap, ft);
+    root.append(fab, pn);
     document.body.appendChild(root);
 
     initSparkCanvas(sparkCvs);
@@ -746,22 +703,24 @@
     if (panelOpen && !instant) return;
     panelOpen = true; cfg.open = true; saveLazy();
 
-    if (!cfg.px && els.fab && els.fab.style.display !== 'none') {
+    if (!cfg.px && els.fab?.style.display !== 'none') {
       const r = els.fab.getBoundingClientRect();
       if (r.width > 0) {
-        els.pn.style.left = clamp(r.right - 256 + 24, 0, innerWidth - 256) + 'px';
-        els.pn.style.top = clamp(r.top - 6, 0, innerHeight - 180) + 'px';
-        els.pn.style.right = 'auto';
-        els.pn.style.bottom = 'auto';
-        cfg.px = els.pn.style.left;
-        cfg.py = els.pn.style.top;
+        Object.assign(els.pn.style, {
+          left: clamp(r.right - 256 + 24, 0, innerWidth - 256) + 'px',
+          top: clamp(r.top - 6, 0, innerHeight - 180) + 'px',
+          right: 'auto', bottom: 'auto'
+        });
+        cfg.px = els.pn.style.left; cfg.py = els.pn.style.top;
       }
     }
 
     els.fab.style.display = 'none'; els.pn.classList.add('open');
     _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
     _prevBufRound = -999; _prevBarPct = -1;
+    _sparkLastHead = -1; _sparkLastLen = -1;
   };
+
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; cfg.open = false; saveLazy();
     const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
@@ -773,7 +732,7 @@
     _prev.dot = '';
   };
 
-  /* ── 메인 루프 ── */
+  /* ── 메인 루프 시작 ── */
   const loop = () => { tick(); setTimeout(loop, document.hidden ? 5000 : panelOpen ? 1000 : 3000); };
 
   const init = () => {
@@ -787,20 +746,25 @@
   const onNav = () => {
     clearTimeout(_navDebounce);
     _navDebounce = setTimeout(() => {
-      const cur = location.pathname + location.search; if (cur === lastPath) return; lastPath = cur;
-      warmupEnd = performance.now() + WARMUP_MS; lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
+      const cur = location.pathname + location.search;
+      if (cur === lastPath) return;
+      lastPath = cur;
+      warmupEnd = performance.now() + WARMUP_MS;
+      lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
       stopRVFC(); setVid(null); resetDropRate();
       _isCurrentlyLive = false; _liveConfirmedOnce = false; _liveFalseCount = 0;
       _ytLiveTs = 0; _ytPlayerTs = 0;
       setTimeout(scan, 500); setTimeout(scan, 1500);
     }, 100);
   };
-  
-  let navApiUsed = false;
+
   if ('navigation' in window) {
-    try { navigation.addEventListener('navigatesuccess', onNav); navApiUsed = true; } catch (e) { console.debug('DelayMeter:', e); }
-  }
-  if (!navApiUsed) {
+    try { navigation.addEventListener('navigatesuccess', onNav); }
+    catch {
+      for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
+      window.addEventListener('popstate', onNav);
+    }
+  } else {
     for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
     window.addEventListener('popstate', onNav);
   }
@@ -821,8 +785,8 @@
     const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
     if (document.fullscreenElement) { Object.assign(els.pn.style, def); Object.assign(els.fab.style, def); }
     else {
-      if (cfg.px) Object.assign(els.pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); else Object.assign(els.pn.style, def);
-      if (cfg.dx) Object.assign(els.fab.style, { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }); else Object.assign(els.fab.style, def);
+      Object.assign(els.pn.style, cfg.px ? { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' } : def);
+      Object.assign(els.fab.style, cfg.dx ? { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' } : def);
     }
   }));
   window.addEventListener('beforeunload', save);
@@ -831,11 +795,10 @@
   GM_registerMenuCommand('현재 상태', () => {
     const vid = getVid(), buf = vid ? (_rvfcActive && _lastFrameBuf >= 0 ? _lastFrameBuf : getBuf(vid)) : -1;
     const gl = gear > 1.05 ? (gear > 1.2 ? 'HIGH' : 'MED') : gear > 1 ? 'SOFT' : 'NORM';
-    const live = vid ? isLive(vid) : false;
-    const dur = vid ? vid.duration : -1;
     const src = vid ? (vid.currentSrc || vid.src || '') : '';
     const srcShort = src.length > 30 ? src.slice(0, 15) + '…' + src.slice(-15) : (src || '(empty)');
-    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${live} | drop=${(_dropRate * 100).toFixed(1)}% | dec=${_decoderStressed ? 'STRESS' : 'ok'} | rvfc=${_rvfcActive ? 'ON' : 'OFF'} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
+    const dur = vid ? vid.duration : -1;
+    const txt = `[${PLATFORM}] t=${target}s | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? isLive(vid) : false} | drop=${(_dropRate * 100).toFixed(1)}% | dec=${_decoderStressed ? 'STRESS' : 'ok'} | rvfc=${_rvfcActive ? 'ON' : 'OFF'} | rs=${vid?.readyState ?? -1} | dur=${dur === Infinity ? '∞' : dur?.toFixed(1)} | src=${srcShort}`;
     const t = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 400); }, 6000);
