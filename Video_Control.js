@@ -623,7 +623,7 @@
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
       let rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
 
-      if (IS_MOBILE) mul = Math.max(mul, 0.50);
+      if (IS_MOBILE) mul = Math.max(mul, 0.60);
 
       return {
         mul: CLAMP(mul, 0, 1),
@@ -641,7 +641,7 @@
         const presetS = Store.get(P.V_PRE_S); const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
 
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
-        const mobileThrottle = IS_MOBILE ? 0.50 : 1.0;
+        const mobileThrottle = IS_MOBILE ? 0.60 : 0.40;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * mobileThrottle;
 
         // 👉 유저님 아이디어 적용: 수동 프리셋에도 원본 해상도 가중치 부여
