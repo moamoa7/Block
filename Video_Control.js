@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v225.0.0)
+// @name         Video_Control (v226.0.0)
 // @namespace    https://github.com/
-// @version      225.0.0
-// @description  v225.0.0: 9축 수동보정(tint 추가) + 15개 프리셋(5×3 레이아웃)
+// @version      226.0.0
+// @description  v226.0.0: 자동 장면 프리셋 + 9축 수동보정 + 40개 프리셋
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -35,7 +35,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '225.0.0';
+  const VSC_VERSION = '226.0.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -98,7 +98,7 @@
   }
 
   const DEFAULTS = {
-    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
+    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
     audio: { enabled: false, strength: 50 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false, screenBright: 0 }
@@ -110,7 +110,7 @@
     V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
     V_MAN_TINT: 'video.manualTint', V_MAN_SAT: 'video.manualSat',
     V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
-    V_MAN_GAIN: 'video.manualGain',
+    V_MAN_GAIN: 'video.manualGain', V_AUTO_SCENE: 'video.autoScene',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
@@ -636,8 +636,196 @@
     };
   }
 
+  /* ══ Auto Scene ══ */
+  function createAutoScene(store, scheduler, registry) {
+    let currentProfile = 'default';
+    let lastCheck = 0;
+    let lastVideoW = 0;
+    let suppressUntil = 0;
+
+    // 사이트 감지
+    function detectSite() {
+      const host = location.hostname;
+      const path = location.pathname;
+
+      if (host.includes('youtube.com') || host.includes('youtu.be')) {
+        if (path.startsWith('/shorts')) return 'youtube_shorts';
+        if (path.includes('/live')) return 'youtube_live';
+        if (path.startsWith('/watch')) return 'youtube_watch';
+        return 'youtube';
+      }
+      if (host.includes('twitch.tv')) return 'twitch';
+      if (host.includes('chzzk.naver.com')) return 'chzzk';
+      if (host.includes('afreecatv.com') || host.includes('afreeca.com')) return 'afreeca';
+      if (host.includes('vlive') || host.includes('weverse')) return 'weverse';
+      if (host.includes('vimeo.com')) return 'vimeo';
+      if (host.includes('dailymotion.com')) return 'dailymotion';
+      if (host.includes('bilibili.com')) return 'bilibili';
+      if (host.includes('nicovideo.jp') || host.includes('niconico')) return 'niconico';
+      if (host.includes('crunchyroll.com')) return 'crunchyroll';
+      if (host.includes('laftel.net')) return 'laftel';
+      if (host.includes('tving.com')) return 'tving';
+      if (host.includes('wavve.com')) return 'wavve';
+      if (host.includes('watcha.com')) return 'watcha';
+      if (host.includes('coupangplay.com')) return 'coupang';
+      if (host.includes('zoom.us') || host.includes('meet.google.com') || host.includes('teams.microsoft.com') || host.includes('teams.live.com')) return 'videocall';
+      if (host.includes('instagram.com')) return 'instagram';
+      if (host.includes('tiktok.com')) return 'tiktok';
+      if (host.includes('facebook.com') || host.includes('fb.watch')) return 'facebook';
+      if (host.includes('twitter.com') || host.includes('x.com')) return 'twitter';
+      if (host.includes('naver.com') && (path.includes('/video') || path.includes('/tv'))) return 'navertv';
+      if (host.includes('kakao.com') && path.includes('/channel')) return 'kakaotv';
+      if (host.includes('dcinside.com') || host.includes('fmkorea.com') || host.includes('ruliweb.com') || host.includes('clien.net') || host.includes('ppomppu.co.kr') || host.includes('theqoo.net') || host.includes('mlbpark.donga.com') || host.includes('humoruniv.com') || host.includes('instiz.net') || host.includes('todayhumor.co.kr') || host.includes('82cook.com') || host.includes('bobaedream.co.kr') || host.includes('ilbe.com') || host.includes('etoland.co.kr') || host.includes('ygosu.com') || host.includes('reddit.com')) return 'community';
+      return 'generic';
+    }
+
+    // 해상도 기반 콘텐츠 추정
+    function detectResClass(video) {
+      const w = video.videoWidth || 0;
+      const h = video.videoHeight || 0;
+      const ratio = w / Math.max(h, 1);
+      if (ratio < 0.75 && h > w) return 'vertical';
+      if (w > 0 && w <= 480) return 'low_res';
+      if (w > 480 && w <= 768) return 'sd';
+      if (w > 768 && w <= 1280) return 'hd';
+      if (w > 1280 && w <= 1920) return 'fhd';
+      if (w > 1920) return 'uhd';
+      return 'unknown';
+    }
+
+    // [암부, 복원, 노출, 색온도, 틴트, 채도, 감마, 콘트라스트, 게인]  + presetS(옵션)
+    const SCENE_PROFILES = {
+      // ── 사이트별 ──
+      youtube_shorts:  { label: '유튜브 쇼츠',    v: [5,  10,  3,  0,  0,  3,  0,  5,  1],  presetS: 'S' },
+      youtube_live:    { label: '유튜브 라이브',   v: [10, 15,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
+      youtube_watch:   { label: '유튜브',          v: [5,  10,  3,  0,  0,  0, -1,  3,  1],  presetS: 'off' },
+      youtube:         { label: '유튜브',          v: [5,  10,  3,  0,  0,  0, -1,  3,  1],  presetS: 'off' },
+      twitch:          { label: '트위치',          v: [8,  12,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
+      chzzk:           { label: '치지직',          v: [8,  12,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
+      afreeca:         { label: '아프리카TV',      v: [10, 15,  5,  0,  0,  3, -2,  5,  3],  presetS: 'M' },
+      videocall:       { label: '화상회의',        v: [18, 22, 10,  0,  3,  5, -4,  6,  5],  presetS: 'L' },
+      instagram:       { label: '인스타그램',      v: [3,   8,  3,  0,  0,  5,  0,  4,  1],  presetS: 'S' },
+      tiktok:          { label: '틱톡',            v: [3,   8,  3,  0,  0,  5,  0,  4,  1],  presetS: 'S' },
+      facebook:        { label: '페이스북',        v: [5,  12,  5,  0,  0,  0, -1,  3,  2],  presetS: 'S' },
+      twitter:         { label: 'X(트위터)',       v: [5,  10,  3,  0,  0,  0,  0,  3,  1],  presetS: 'S' },
+      vimeo:           { label: '비메오',          v: [3,   5,  0,  0,  0,  0,  0,  2,  0],  presetS: 'off' },
+      bilibili:        { label: '비리비리',        v: [5,  12,  3,  0,  0,  5,  0,  5,  2],  presetS: 'S' },
+      niconico:        { label: '니코니코',        v: [8,  15,  5,  0,  0,  3, -2,  5,  3],  presetS: 'M' },
+      crunchyroll:     { label: '크런치롤(애니)',  v: [3,  12,  0,  0,  0, 10,  1, 10,  1],  presetS: 'S' },
+      laftel:          { label: '라프텔(애니)',    v: [3,  12,  0,  0,  0, 10,  1, 10,  1],  presetS: 'S' },
+      tving:           { label: '티빙',            v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
+      wavve:           { label: '웨이브',          v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
+      watcha:          { label: '왓챠',            v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
+      coupang:         { label: '쿠팡플레이',      v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
+      navertv:         { label: '네이버TV',        v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'S' },
+      kakaotv:         { label: '카카오TV',        v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'S' },
+      weverse:         { label: '위버스',          v: [5,  10,  3,  0,  0,  3,  0,  4,  1],  presetS: 'S' },
+      dailymotion:     { label: '데일리모션',      v: [8,  15,  5,  0,  0,  0, -2,  5,  3],  presetS: 'M' },
+      community:       { label: '커뮤니티 임베드', v: [8,  15,  5,  0,  0,  0, -2,  5,  3],  presetS: 'M' },
+
+      // ── 해상도별 (사이트 미매칭 시 폴백) ──
+      vertical:        { label: '세로 영상',       v: [5,  10,  3,  0,  0,  3,  0,  5,  1],  presetS: 'S' },
+      low_res:         { label: '저해상도(~480p)', v: [15, 22,  8,  0,  0,  3, -3,  6,  5],  presetS: 'XL' },
+      sd:              { label: 'SD(~768p)',       v: [10, 18,  5,  0,  0,  0, -2,  5,  3],  presetS: 'L' },
+      hd:              { label: 'HD(~720p)',       v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'M' },
+      fhd:             { label: 'FHD(1080p)',      v: [3,   8,  0,  0,  0,  0,  0,  3,  1],  presetS: 'S' },
+      uhd:             { label: '4K+',             v: [0,   3,  0,  0,  0,  0,  0,  2,  0],  presetS: 'none' },
+
+      // 기본값
+      default:         { label: '기본',            v: [0,   0,  0,  0,  0,  0,  0,  0,  0],  presetS: null },
+    };
+
+    const MANUAL_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
+
+    function evaluate(video) {
+      if (!video?.isConnected) return 'default';
+      const site = detectSite();
+      if (SCENE_PROFILES[site] && site !== 'generic') return site;
+      const resClass = detectResClass(video);
+      if (SCENE_PROFILES[resClass] && resClass !== 'unknown') return resClass;
+      return 'default';
+    }
+
+    function applyProfile(profileKey) {
+      const p = SCENE_PROFILES[profileKey];
+      if (!p) return;
+      const obj = {};
+      MANUAL_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
+      store.batch('video', obj);
+      if (p.presetS != null) {
+        store.set(P.V_PRE_S, p.presetS);
+      }
+      currentProfile = profileKey;
+      scheduler.request();
+    }
+
+    // 수동 조작 감지 → suppressUntil 세팅
+    function onManualChange() {
+      if (!store.get(P.V_AUTO_SCENE)) return;
+      suppressUntil = performance.now() + 500;
+    }
+
+    // 수동 슬라이더 변경 시 자동 모드 해제
+    const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
+    let _manualSubCleanups = [];
+
+    function hookManualSubs() {
+      _manualSubCleanups.forEach(fn => fn());
+      _manualSubCleanups = MANUAL_PATHS.map(path => store.sub(path, onManualChange));
+    }
+    hookManualSubs();
+
+    function tick(video) {
+      if (!store.get(P.V_AUTO_SCENE)) return;
+      if (!video?.isConnected) return;
+
+      const now = performance.now();
+      if (now < suppressUntil) return;
+      if (now - lastCheck < 3000) return;
+      lastCheck = now;
+
+      const vW = video.videoWidth || 0;
+      const profile = evaluate(video);
+
+      if (profile !== currentProfile || vW !== lastVideoW) {
+        lastVideoW = vW;
+        if (profile !== currentProfile) {
+          applyProfile(profile);
+          log.info(`[AutoScene] → ${profile} (${SCENE_PROFILES[profile]?.label})`);
+        }
+      }
+    }
+
+    function activate() {
+      const video = __internal._activeVideo;
+      currentProfile = 'default';
+      lastVideoW = 0;
+      lastCheck = 0;
+      suppressUntil = 0;
+      if (video?.isConnected) {
+        const profile = evaluate(video);
+        applyProfile(profile);
+        log.info(`[AutoScene] activated → ${profile} (${SCENE_PROFILES[profile]?.label})`);
+      }
+    }
+
+    function deactivate() {
+      currentProfile = 'default';
+    }
+
+    return {
+      tick,
+      activate,
+      deactivate,
+      getProfile: () => currentProfile,
+      getProfileLabel: () => SCENE_PROFILES[currentProfile]?.label || '—',
+      SCENE_PROFILES,
+      evaluate
+    };
+  }
+
   /* ══ UI ══ */
-  function createUI(Store, Audio, Registry, Scheduler, OSD) {
+  function createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
@@ -681,7 +869,7 @@
     :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
       --vsc-glass: rgba(12, 12, 18, 0.72); --vsc-glass-blur: blur(24px) saturate(200%); --vsc-glass-border: rgba(255, 255, 255, 0.06);
       --vsc-neon: #00e5ff; --vsc-neon-glow: 0 0 12px rgba(0, 229, 255, 0.35), 0 0 40px rgba(0, 229, 255, 0.08); --vsc-neon-soft: rgba(0, 229, 255, 0.15); --vsc-neon-border: rgba(0, 229, 255, 0.25); --vsc-neon-dim: rgba(0, 229, 255, 0.08);
-      --vsc-purple: #b47aff; --vsc-amber: #ffbe46;
+      --vsc-purple: #b47aff; --vsc-amber: #ffbe46; --vsc-green: #4cff8e;
       --vsc-text: rgba(255, 255, 255, 0.92); --vsc-text-dim: rgba(255, 255, 255, 0.50); --vsc-text-muted: rgba(255, 255, 255, 0.28);
       --vsc-shadow-panel: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.05) inset, 0 1px 0 rgba(255, 255, 255, 0.04) inset; --vsc-shadow-fab: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04);
       --vsc-radius-sm: 6px; --vsc-radius-md: 10px; --vsc-radius-xl: 18px; --vsc-radius-pill: 9999px;
@@ -733,6 +921,12 @@
     .section-label { font-size: 11px; opacity: 0.5; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 0 2px; }
     .preset-grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
     .preset-grid .fine-btn { flex: 0 0 calc(20% - 3.2px); min-width: 0; text-align: center; justify-content: center; display: inline-flex; align-items: center; padding: 4px 2px; font-size: 10px; }
+    .auto-scene-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: var(--vsc-radius-md); background: rgba(76,255,142,0.04); border: 1px solid rgba(76,255,142,0.12); margin-bottom: 6px; }
+    .auto-scene-bar.off { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.06); }
+    .auto-scene-bar .asl { font-size: 11px; font-weight: 600; color: var(--vsc-green); flex: 1; }
+    .auto-scene-bar.off .asl { color: var(--vsc-text-dim); }
+    .auto-scene-tag { font-family: var(--vsc-font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--vsc-radius-sm); background: rgba(76,255,142,0.1); color: var(--vsc-green); border: 1px solid rgba(76,255,142,0.2); white-space: nowrap; }
+    .auto-scene-bar.off .auto-scene-tag { background: rgba(255,255,255,0.04); color: var(--vsc-text-muted); border-color: rgba(255,255,255,0.06); }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -783,71 +977,81 @@
       tabSignalCleanups.push(Scheduler.onSignal(updateInfo));
       tabSignalCleanups.push(Store.sub(P.V_PRE_S, updateInfo));
       tabFns.push(updateInfo);
-      w.append(infoBar, mkSep());
+      w.append(infoBar);
+
+      /* ── 자동 장면 프리셋 ── */
+      const autoSceneBar = h('div', { class: 'auto-scene-bar off' });
+      const autoSceneLabel = h('span', { class: 'asl' }, '자동 장면');
+      const autoSceneTag = h('span', { class: 'auto-scene-tag' }, '—');
+      const autoSceneToggle = mkToggle(P.V_AUTO_SCENE, (on) => {
+        if (on) { AutoScene.activate(); OSD.show('자동 장면 ON', 800); }
+        else { AutoScene.deactivate(); OSD.show('자동 장면 OFF', 800); }
+        Scheduler.request();
+      });
+      autoSceneBar.append(autoSceneLabel, autoSceneTag, autoSceneToggle);
+      const syncAutoScene = () => {
+        const on = !!Store.get(P.V_AUTO_SCENE);
+        autoSceneBar.classList.toggle('off', !on);
+        autoSceneTag.textContent = on ? AutoScene.getProfileLabel() : 'OFF';
+      };
+      tabFns.push(syncAutoScene);
+      tabSignalCleanups.push(Scheduler.onSignal(syncAutoScene));
+      w.append(autoSceneBar, mkSep());
 
       if (IS_FIREFOX) { w.append(h('div', { style: 'font-size:10px;opacity:.7;padding-bottom:8px;color:var(--vsc-amber)' }, '⚠️ Firefox에서는 SVG 기반 수동 톤 보정이 지원되지 않습니다.')); }
 
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
-      /* ── 9축 수동 보정 프리셋 (5×3 그리드) ── */
-      // [암부, 복원, 노출, 색온도, 틴트, 채도, 감마, 콘트라스트, 게인]
+      /* ── 수동 보정 프리셋 (5×N 그리드) ── */
       const MANUAL_PRESETS = [
-  // ── 기본 ──
-  { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
-  { n: '내추럴',     v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
-  { n: '또렷',       v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
-  { n: '선명강조',   v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
-  { n: '피부톤',     v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
+        { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
+        { n: '내추럴',     v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
+        { n: '또렷',       v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
+        { n: '선명강조',   v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
+        { n: '피부톤',     v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
 
-  // ── 시네마/무드 ──
-  { n: '시네마',     v: [15, 15,   8,  -6,  -2,  -8,   3,   5,  -2] },
-  { n: '필름누아르', v: [5,   8,   0, -10,   0, -30,  10,  18,  -8] },
-  { n: '블리치바이패스', v: [10, 18, 3, -3, 0, -20, 2, 16, 0] },
-  { n: '오렌지틸',   v: [12, 12,   5,  15,  -8,  10,   0,   8,   1] },
-  { n: '무디블루',   v: [8,  10,   0, -18,   5,  -5,   4,   6,  -3] },
+        { n: '시네마',     v: [15, 15,   8,  -6,  -2,  -8,   3,   5,  -2] },
+        { n: '필름누아르', v: [5,   8,   0, -10,   0, -30,  10,  18,  -8] },
+        { n: '블리치바이패스', v: [10, 18, 3, -3, 0, -20, 2, 16, 0] },
+        { n: '오렌지틸',   v: [12, 12,   5,  15,  -8,  10,   0,   8,   1] },
+        { n: '무디블루',   v: [8,  10,   0, -18,   5,  -5,   4,   6,  -3] },
 
-  // ── 복원/보정 ──
-  { n: '웹캠보정',   v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
-  { n: '유물복원',   v: [45, 30,  10,   0,   0,   8,  -6,  12,  10] },
-  { n: '극한복원',   v: [60, 35,  12,   0,   0,   5,  -8,   5,  15] },
-  { n: '야간모드',   v: [50, 18,  15,   5,   0, -10,  -8,   4,  12] },
-  { n: 'HDR',        v: [35, 25,   8,   0,   0,   5,  -4,  -2,   8] },
+        { n: '웹캠보정',   v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
+        { n: '유물복원',   v: [45, 30,  10,   0,   0,   8,  -6,  12,  10] },
+        { n: '극한복원',   v: [60, 35,  12,   0,   0,   5,  -8,   5,  15] },
+        { n: '야간모드',   v: [50, 18,  15,   5,   0, -10,  -8,   4,  12] },
+        { n: 'HDR',        v: [35, 25,   8,   0,   0,   5,  -4,  -2,   8] },
 
-  // ── 장르 특화 ──
-  { n: '애니메이션', v: [3,  15,   0,   0,   0,  12,   2,  12,   2] },
-  { n: '뮤직비디오', v: [5,  20,   5,   0,   0,  25,   0,   8,   3] },
-  { n: '다큐멘터리', v: [12, 18,   5,  -3,   0,   3,  -2,   6,   1] },
-  { n: '뉴스',       v: [3,  22,   0,   0,   0,  -5,   0,   8,   2] },
-  { n: '스포츠',     v: [5,  25,   3,   0,   0,  10,   0,  10,   4] },
+        { n: '애니메이션', v: [3,  15,   0,   0,   0,  12,   2,  12,   2] },
+        { n: '뮤직비디오', v: [5,  20,   5,   0,   0,  25,   0,   8,   3] },
+        { n: '다큐멘터리', v: [12, 18,   5,  -3,   0,   3,  -2,   6,   1] },
+        { n: '뉴스',       v: [3,  22,   0,   0,   0,  -5,   0,   8,   2] },
+        { n: '스포츠',     v: [5,  25,   3,   0,   0,  10,   0,  10,   4] },
 
-  // ── 아트/크리에이티브 ──
-  { n: '사이버펑크', v: [10, 15,   5, -12,   8,  30,   2,  10,   5] },
-  { n: '레트로VHS',  v: [18,  5,   8,  20,   5,  -8,  -6,  -4,   3] },
-  { n: '파스텔',     v: [5,   8,  12,   8,   3, -12,  -8,  -6,   5] },
-  { n: '네온나이트', v: [8,  12,   0, -15,  12,  35,   4,  14,   0] },
-  { n: '빈티지세피아', v: [15, 8,  5,  25,   8, -18,  -3,  -2,   0] },
+        { n: '사이버펑크', v: [10, 15,   5, -12,   8,  30,   2,  10,   5] },
+        { n: '레트로VHS',  v: [18,  5,   8,  20,   5,  -8,  -6,  -4,   3] },
+        { n: '파스텔',     v: [5,   8,  12,   8,   3, -12,  -8,  -6,   5] },
+        { n: '네온나이트', v: [8,  12,   0, -15,  12,  35,   4,  14,   0] },
+        { n: '빈티지세피아', v: [15, 8,  5,  25,   8, -18,  -3,  -2,   0] },
 
-  // ── 환경 특화 ──
-  { n: '안개/스모그', v: [20, 28,   0,  -5,   0,   8,  -2,  15,   4] },
-  { n: '수중촬영',   v: [25, 22,   8, -20, -10,  12,  -4,   8,   6] },
-  { n: '석양골든',   v: [10, 10,   8,  22,   5,  15,  -2,   4,   2] },
-  { n: '눈/겨울',    v: [3,  15,   0, -12,   3,  -8,   6,   8,  -4] },
-  { n: '형광등보정', v: [5,  12,   3,   8, -15,   3,   0,   4,   1] },
+        { n: '안개/스모그', v: [20, 28,   0,  -5,   0,   8,  -2,  15,   4] },
+        { n: '수중촬영',   v: [25, 22,   8, -20, -10,  12,  -4,   8,   6] },
+        { n: '석양골든',   v: [10, 10,   8,  22,   5,  15,  -2,   4,   2] },
+        { n: '눈/겨울',    v: [3,  15,   0, -12,   3,  -8,   6,   8,  -4] },
+        { n: '형광등보정', v: [5,  12,   3,   8, -15,   3,   0,   4,   1] },
 
-  // ── 용도별 ──
-  { n: '독서모드',   v: [5,   5,   0,  25,   0, -15,   5,  -8,  -8] },
-  { n: '딥블랙',     v: [0,   5,   0,  -4,   0,   5,   8,  15,  -5] },
-  { n: 'AMOLED',     v: [0,   0,   0,   0,   0,   8,  12,  20,  -8] },
-  { n: '눈보호',     v: [5,   5,   5,  30,   5, -20,  -5, -10,  -5] },
-  { n: 'CCTV복원',   v: [65, 40,  15,   0,   0,   0, -10,  10,  18] },
+        { n: '독서모드',   v: [5,   5,   0,  25,   0, -15,   5,  -8,  -8] },
+        { n: '딥블랙',     v: [0,   5,   0,  -4,   0,   5,   8,  15,  -5] },
+        { n: 'AMOLED',     v: [0,   0,   0,   0,   0,   8,  12,  20,  -8] },
+        { n: '눈보호',     v: [5,   5,   5,  30,   5, -20,  -5, -10,  -5] },
+        { n: 'CCTV복원',   v: [65, 40,  15,   0,   0,   0, -10,  10,  18] },
 
-  // ── 사진 스타일 ──
-  { n: '포트레이트', v: [10, 15,  10,   8,   2,   5,  -4,   2,   3] },
-  { n: '풍경',       v: [8,  18,   3,  -3,   0,  15,   0,   8,   2] },
-  { n: '흑백하이키', v: [5,  20,  15,   0,   0, -50,  -6,  -4,   8] },
-  { n: '흑백로우키', v: [0,   8,   0,   0,   0, -50,   8,  18,  -6] },
-  { n: '크로스프로세스', v: [12, 10, 5, -8, 15, 20, 2, 12, 3] },
-];
+        { n: '포트레이트', v: [10, 15,  10,   8,   2,   5,  -4,   2,   3] },
+        { n: '풍경',       v: [8,  18,   3,  -3,   0,  15,   0,   8,   2] },
+        { n: '흑백하이키', v: [5,  20,  15,   0,   0, -50,  -6,  -4,   8] },
+        { n: '흑백로우키', v: [0,   8,   0,   0,   0, -50,   8,  18,  -6] },
+        { n: '크로스프로세스', v: [12, 10, 5, -8, 15, 20, 2, 12, 3] },
+      ];
 
       const PRESET_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
       const PRESET_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
@@ -858,6 +1062,7 @@
       MANUAL_PRESETS.forEach(p => {
         const btn = h('button', { class: 'fine-btn' }, p.n);
         btn.addEventListener('click', () => {
+          if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(); OSD.show('자동 장면 OFF (수동 프리셋 선택)', 1000); }
           const obj = {};
           PRESET_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
           Store.batch('video', obj);
@@ -883,7 +1088,6 @@
         return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
       }
 
-      /* ── 톤 보정 섹션 ── */
       w.append(mkSep(), h('div', { class: 'section-label' }, '톤 보정'));
       w.append(
         mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
@@ -894,7 +1098,6 @@
         mkSliderWithFine('콘트라스트', P.V_MAN_CON, -30, 30, 1, 3),
       );
 
-      /* ── 색상 보정 섹션 ── */
       w.append(mkSep(), h('div', { class: 'section-label' }, '색상 보정'));
       w.append(
         mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
@@ -904,7 +1107,6 @@
 
       w.append(mkSep());
 
-      /* ── 화면 조도 ── */
       const brtBtns = [], brtChips = h('div', { class: 'chips' });
       SCR_BRT_LABELS.forEach((label, idx) => {
         if (idx === 0) return;
@@ -1034,6 +1236,7 @@
     const OSD = createOSD();
     const Params = createVideoParams(Store);
     const Filters = createFilters();
+    const AutoScene = createAutoScene(Store, Scheduler, Registry);
 
     const apply = () => {
       if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
@@ -1041,6 +1244,7 @@
       if (target) {
         __internal._activeVideo = target;
         Audio.setTarget(target);
+        AutoScene.tick(target);
         if (Store.get(P.PB_EN)) {
           const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
           if (Math.abs(target.playbackRate - rate) > 0.001) {
@@ -1063,9 +1267,14 @@
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
     document.addEventListener('fullscreenchange', () => Scheduler.request(true));
 
-    createUI(Store, Audio, Registry, Scheduler, OSD);
+    createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene);
     __internal.Store = Store; __internal._activeVideo = null;
     try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(true); }); } catch (_) {}
+
+    // 자동 장면이 저장 상태에서 켜져 있으면 활성화
+    if (Store.get(P.V_AUTO_SCENE)) {
+      setTimeout(() => { AutoScene.activate(); }, 1000);
+    }
 
     Registry.rescanAll(); apply();
     log.info(`[VSC] v${VSC_VERSION} booted.`);
