@@ -12,9 +12,6 @@
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
-// @exclude      *://*.netflix.com/*
-// @exclude      *://*.disneyplus.com/*
-// @exclude      *://*.primevideo.com/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -636,106 +633,84 @@
     };
   }
 
-  /* ══ Auto Scene ══ */
+  /* ══ Auto Scene (Universal Pixel Analysis & DRM Fallback) ══ */
   function createAutoScene(store, scheduler) {
     let currentProfile = 'default';
     let lastCheck = 0;
-    let lastVideoW = 0;
     let suppressUntil = 0;
 
-    function detectSite() {
-      const host = location.hostname;
-      const path = location.pathname;
-      if (host.includes('youtube.com') || host.includes('youtu.be')) {
-        if (path.startsWith('/shorts')) return 'youtube_shorts';
-        if (path.includes('/live')) return 'youtube_live';
-        if (path.startsWith('/watch')) return 'youtube_watch';
-        return 'youtube';
-      }
-      if (host.includes('twitch.tv')) return 'twitch';
-      if (host.includes('chzzk.naver.com')) return 'chzzk';
-      if (host.includes('afreecatv.com') || host.includes('afreeca.com')) return 'afreeca';
-      if (host.includes('vlive') || host.includes('weverse')) return 'weverse';
-      if (host.includes('vimeo.com')) return 'vimeo';
-      if (host.includes('dailymotion.com')) return 'dailymotion';
-      if (host.includes('bilibili.com')) return 'bilibili';
-      if (host.includes('nicovideo.jp') || host.includes('niconico')) return 'niconico';
-      if (host.includes('crunchyroll.com')) return 'crunchyroll';
-      if (host.includes('laftel.net')) return 'laftel';
-      if (host.includes('tving.com')) return 'tving';
-      if (host.includes('wavve.com')) return 'wavve';
-      if (host.includes('watcha.com')) return 'watcha';
-      if (host.includes('coupangplay.com')) return 'coupang';
-      if (host.includes('zoom.us') || host.includes('meet.google.com') || host.includes('teams.microsoft.com') || host.includes('teams.live.com')) return 'videocall';
-      if (host.includes('instagram.com')) return 'instagram';
-      if (host.includes('tiktok.com')) return 'tiktok';
-      if (host.includes('facebook.com') || host.includes('fb.watch')) return 'facebook';
-      if (host.includes('twitter.com') || host.includes('x.com')) return 'twitter';
-      if (host.includes('naver.com') && (path.includes('/video') || path.includes('/tv'))) return 'navertv';
-      if (host.includes('kakao.com') && path.includes('/channel')) return 'kakaotv';
-      if (host.includes('dcinside.com') || host.includes('fmkorea.com') || host.includes('ruliweb.com') || host.includes('clien.net') || host.includes('ppomppu.co.kr') || host.includes('theqoo.net') || host.includes('mlbpark.donga.com') || host.includes('humoruniv.com') || host.includes('instiz.net') || host.includes('todayhumor.co.kr') || host.includes('82cook.com') || host.includes('bobaedream.co.kr') || host.includes('ilbe.com') || host.includes('etoland.co.kr') || host.includes('ygosu.com') || host.includes('reddit.com')) return 'community';
-      return 'generic';
-    }
+    // 분석용 도화지 (실시간 픽셀 스캐너)
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    canvas.width = 16;
+    canvas.height = 16;
 
-    function detectResClass(video) {
-      const w = video.videoWidth || 0;
-      const hh = video.videoHeight || 0;
-      const ratio = w / Math.max(hh, 1);
-      if (ratio < 0.75 && hh > w) return 'vertical';
-      if (w > 0 && w <= 480) return 'low_res';
-      if (w > 480 && w <= 768) return 'sd';
-      if (w > 768 && w <= 1280) return 'hd';
-      if (w > 1280 && w <= 1920) return 'fhd';
-      if (w > 1920) return 'uhd';
-      return 'unknown';
-    }
-
+    // 🌟 모든 사이트 URL을 지우고 딱 5개의 상황만 정의합니다.
     const SCENE_PROFILES = {
-      youtube_shorts:  { label: '유튜브 쇼츠',    v: [5,  10,  3,  0,  0,  3,  0,  5,  1],  presetS: 'S' },
-      youtube_live:    { label: '유튜브 라이브',   v: [10, 15,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
-      youtube_watch:   { label: '유튜브',          v: [5,  10,  3,  0,  0,  0, -1,  3,  1],  presetS: 'off' },
-      youtube:         { label: '유튜브',          v: [5,  10,  3,  0,  0,  0, -1,  3,  1],  presetS: 'off' },
-      twitch:          { label: '트위치',          v: [8,  12,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
-      chzzk:           { label: '치지직',          v: [8,  12,  5,  0,  0,  0, -2,  4,  2],  presetS: 'M' },
-      afreeca:         { label: '아프리카TV',      v: [10, 15,  5,  0,  0,  3, -2,  5,  3],  presetS: 'M' },
-      videocall:       { label: '화상회의',        v: [18, 22, 10,  0,  3,  5, -4,  6,  5],  presetS: 'L' },
-      instagram:       { label: '인스타그램',      v: [3,   8,  3,  0,  0,  5,  0,  4,  1],  presetS: 'S' },
-      tiktok:          { label: '틱톡',            v: [3,   8,  3,  0,  0,  5,  0,  4,  1],  presetS: 'S' },
-      facebook:        { label: '페이스북',        v: [5,  12,  5,  0,  0,  0, -1,  3,  2],  presetS: 'S' },
-      twitter:         { label: 'X(트위터)',       v: [5,  10,  3,  0,  0,  0,  0,  3,  1],  presetS: 'S' },
-      vimeo:           { label: '비메오',          v: [3,   5,  0,  0,  0,  0,  0,  2,  0],  presetS: 'off' },
-      bilibili:        { label: '비리비리',        v: [5,  12,  3,  0,  0,  5,  0,  5,  2],  presetS: 'S' },
-      niconico:        { label: '니코니코',        v: [8,  15,  5,  0,  0,  3, -2,  5,  3],  presetS: 'M' },
-      crunchyroll:     { label: '크런치롤(애니)',  v: [3,  12,  0,  0,  0, 10,  1, 10,  1],  presetS: 'S' },
-      laftel:          { label: '라프텔(애니)',    v: [3,  12,  0,  0,  0, 10,  1, 10,  1],  presetS: 'S' },
-      tving:           { label: '티빙',            v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
-      wavve:           { label: '웨이브',          v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
-      watcha:          { label: '왓챠',            v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
-      coupang:         { label: '쿠팡플레이',      v: [5,   8,  3,  0,  0,  0,  0,  3,  1],  presetS: 'off' },
-      navertv:         { label: '네이버TV',        v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'S' },
-      kakaotv:         { label: '카카오TV',        v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'S' },
-      weverse:         { label: '위버스',          v: [5,  10,  3,  0,  0,  3,  0,  4,  1],  presetS: 'S' },
-      dailymotion:     { label: '데일리모션',      v: [8,  15,  5,  0,  0,  0, -2,  5,  3],  presetS: 'M' },
-      community:       { label: '커뮤니티 임베드', v: [8,  15,  5,  0,  0,  0, -2,  5,  3],  presetS: 'M' },
-      vertical:        { label: '세로 영상',       v: [5,  10,  3,  0,  0,  3,  0,  5,  1],  presetS: 'S' },
-      low_res:         { label: '저해상도(~480p)', v: [15, 22,  8,  0,  0,  3, -3,  6,  5],  presetS: 'XL' },
-      sd:              { label: 'SD(~768p)',       v: [10, 18,  5,  0,  0,  0, -2,  5,  3],  presetS: 'L' },
-      hd:              { label: 'HD(~720p)',       v: [5,  12,  3,  0,  0,  0, -1,  4,  2],  presetS: 'M' },
-      fhd:             { label: 'FHD(1080p)',      v: [3,   8,  0,  0,  0,  0,  0,  3,  1],  presetS: 'S' },
-      uhd:             { label: '4K+',             v: [0,   3,  0,  0,  0,  0,  0,  2,  0],  presetS: 'none' },
-      default:         { label: '기본',            v: [0,   0,  0,  0,  0,  0,  0,  0,  0],  presetS: null },
+      dark_scene:   { label: '어두운 장면 (소프트 복원)', v: [35, 15, 10, 3, 0, -5, -6, 3, 8], presetS: 'L' },
+      bright_scene: { label: '눈부신 장면 (독서 모드)', v: [ 5,  5,  0, 25,  0, -15,  5, -8, -8], presetS: 'S' },
+      normal_scene: { label: '일반 영상 (자동 최적화)', v: [ 5, 10,  3,  0,  0,   0, -1,  3,  1], presetS: 'off' },
+      vertical:     { label: '세로형 영상 (쇼츠/릴스)', v: [ 5, 10,  3,  0,  0,   3,  0,  5,  1], presetS: 'S' },
+      drm_fallback: { label: '보안 영상 (네추럴)',   v: [8,  12,   5,   0,   0,   0,  -2,   4,   0], presetS: 'M' }, // 🌟 DRM 전용 프리셋
+      default:      { label: '분석 대기중',            v: [ 0,  0,  0,  0,  0,   0,  0,  0,  0], presetS: null }
     };
 
     const MANUAL_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
+    // 1. 비율 판별 (세로 직캠용)
+    function detectVertical(video) {
+      const w = video.videoWidth || 0;
+      const h = video.videoHeight || 0;
+      return (w > 0 && h > 0 && (w / h) < 0.75);
+    }
+
+    // 2. 실시간 픽셀 분석 (DRM 가짜 블랙 필터링 탑재)
+    function analyzeFrame(video) {
+      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1" || video.dataset.vscDrm === "1") return -1;
+      try {
+        ctx.drawImage(video, 0, 0, 16, 16);
+        const data = ctx.getImageData(0, 0, 16, 16).data;
+        let r = 0, g = 0, b = 0;
+        let isAllZero = true; // 가짜 블랙 판별용
+
+        for (let i = 0; i < data.length; i += 4) {
+          r += data[i]; g += data[i+1]; b += data[i+2];
+          if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false;
+        }
+
+        // 🌟 완벽한 0(블랙)이면 넷플릭스 등 DRM으로 간주하고 -1 반환
+        if (isAllZero) {
+          video.dataset.vscDrm = "1";
+          return -1;
+        }
+
+        const count = data.length / 4;
+        return ( (r/count)*0.299 + (g/count)*0.587 + (b/count)*0.114 );
+      } catch (e) {
+        // 교차 출처(CORS) 등 보안 에러 발생 시에도 -1 반환
+        video.dataset.vscCorsFail = "1";
+        return -1;
+      }
+    }
+
+    // 3. 상황 평가기 (사용자님 아이디어 적용!)
     function evaluate(video) {
       if (!video?.isConnected) return 'default';
-      const site = detectSite();
-      if (SCENE_PROFILES[site] && site !== 'generic') return site;
-      const resClass = detectResClass(video);
-      if (SCENE_PROFILES[resClass] && resClass !== 'unknown') return resClass;
-      return 'default';
+      if (detectVertical(video)) return 'vertical';
+
+      const brightness = analyzeFrame(video);
+
+      // 정상적으로 화면 밝기가 분석된 경우 (유튜브, 트위치 등)
+      if (brightness >= 0) {
+        if (brightness < 35) return 'dark_scene';
+        if (brightness > 210) return 'bright_scene';
+        return 'normal_scene';
+      }
+
+      // 🌟 밝기 분석이 실패(-1)한 경우 -> 즉, DRM 보안 사이트!
+      // 영화/드라마에 맞는 시네마 톤으로 자동 풀백
+      return 'drm_fallback';
     }
 
     function buildDetailText(profileKey) {
@@ -782,29 +757,24 @@
       if (!video?.isConnected) return;
       const now = performance.now();
       if (now < suppressUntil) return;
-      if (now - lastCheck < 3000) return;
+      if (now - lastCheck < 3000) return; // 3초 주기 분석
       lastCheck = now;
-      const vW = video.videoWidth || 0;
+
       const profile = evaluate(video);
-      if (profile !== currentProfile || vW !== lastVideoW) {
-        lastVideoW = vW;
-        if (profile !== currentProfile) {
-          applyProfile(profile);
-          log.info(`[AutoScene] → ${profile} (${SCENE_PROFILES[profile]?.label})`);
-        }
+      if (profile !== currentProfile) {
+        applyProfile(profile);
+        log.info(`[AutoScene] → ${profile} (${SCENE_PROFILES[profile]?.label})`);
       }
     }
 
     function activate() {
       const video = __internal._activeVideo;
       currentProfile = 'default';
-      lastVideoW = 0;
       lastCheck = 0;
       suppressUntil = 0;
       if (video?.isConnected) {
         const profile = evaluate(video);
         applyProfile(profile);
-        log.info(`[AutoScene] activated → ${profile} (${SCENE_PROFILES[profile]?.label})`);
       }
     }
 
@@ -816,8 +786,7 @@
       tick, activate, deactivate,
       getProfile: () => currentProfile,
       getProfileLabel: () => SCENE_PROFILES[currentProfile]?.label || '—',
-      getProfileDetail: () => buildDetailText(currentProfile),
-      SCENE_PROFILES, evaluate
+      getProfileDetail: () => buildDetailText(currentProfile)
     };
   }
 
