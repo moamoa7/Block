@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v221.1.0 - Final)
+// @name         Video_Control (v221.5.0 - Final)
 // @namespace    https://github.com/
-// @version      221.1.0
-// @description  v221.1: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
+// @version      221.5.0
+// @description  v221.5: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '221.1.0';
+  const VSC_VERSION = '221.5.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -183,6 +183,11 @@
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
+
+      // 👉 추가: DRM 암호화 영상 감지 시 플래그 삽입
+      el.addEventListener('encrypted', () => el.dataset.vscDrm = "1", { once: true });
+      el.addEventListener('waitingforkey', () => el.dataset.vscDrm = "1", { once: true });
+
       if (io) io.observe(el);
       if (ro) ro.observe(el);
       const req = () => { scheduler.request(); };
@@ -364,7 +369,11 @@
         if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { corsFailedVideos.add(video); log.warn('[Audio] captureStream CORS blocked'); return null; }
         return null;
       }
-      if (stream.getAudioTracks().length === 0) return null;
+      if (stream.getAudioTracks().length === 0) {
+    // 트랙이 당장 없으면 약간 기다렸다가 스케줄러를 통해 다시 시도하도록 유도
+    setTimeout(() => { if (stream.getAudioTracks().length > 0) Scheduler.request(); }, 500);
+    return null;
+  }
       try {
         const source = ctx.createMediaStreamSource(stream);
         source.__vsc_isCaptureStream = true;
@@ -552,6 +561,7 @@
     }
 
     function needsSvg(s) {
+      if (IS_FIREFOX) return false;
       const hasSharp = !IS_FIREFOX && Math.abs(s.sharp || 0) > 0.005;
       const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.bright || 0) > 0.5);
       return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5;
@@ -587,7 +597,12 @@
       return parts.join(' ');
     }
 
-    return { prepare, apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { clearFilterStyles(el); return; } applyFilterStyles(el, filterStr); }, clear: clearFilterStyles };
+    return { prepare, apply: (el, filterStr) => {
+  if (!el) return;
+  if (filterStr === 'none') { clearFilterStyles(el); return; }
+  if (el.style.getPropertyValue('filter') === filterStr) return;
+  applyFilterStyles(el, filterStr);
+}, clear: clearFilterStyles };
   }
 
   /* ══ VideoParams ══ */
@@ -844,7 +859,7 @@
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
 
-    function mkSlider(path, min, max, step) { const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2; const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' }); function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); } inp.addEventListener('input', () => { Store.set(path, parseFloat(inp.value)); updateUI(parseFloat(inp.value)); Scheduler.request(); }); const sync = () => updateUI(Number(Store.get(path)) || min); tabFns.push(sync); sync(); return [inp, valEl]; }
+    function mkSlider(path, min, max, step) { const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2; const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' }); function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); } inp.addEventListener('input', () => { Store.set(path, parseFloat(inp.value)); updateUI(parseFloat(inp.value)); Scheduler.request(); }); const sync = () => updateUI(Number(Store.get(path) ?? min)); tabFns.push(sync); sync(); return [inp, valEl]; }
 
     function mkToggle(path, onChange) { const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' }); function sync() { const on = !!Store.get(path); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); } el.addEventListener('click', () => { const nv = !Store.get(path); Store.set(path, nv); sync(); if (onChange) onChange(nv); else Scheduler.request(); }); tabFns.push(sync); sync(); return el; }
 
@@ -858,7 +873,7 @@
       w.append(infoBar, mkSep());
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
-      const MANUAL_PRESETS = [ { n: 'OFF', v: [0,0,0,0] }, { n: '선명', v: [0,35,0,0] }, { n: '영화', v: [20,15,10,-18] }, { n: '복원', v: [45,50,5,0] }, { n: '심야', v: [60,20,0,15] }, { n: '아트', v: [5,45,15,-25] } ];
+      const MANUAL_PRESETS = [ { n: 'OFF', v: [0,0,0,0] }, { n: '선명', v: [0,15,0,0] }, { n: '영화', v: [20,15,10,-18] }, { n: '복원', v: [45,50,5,0] }, { n: '심야', v: [60,20,0,15] }, { n: '아트', v: [5,45,15,-25] } ];
       const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' }, h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'), h('div', { style: 'display:flex;gap:4px' }, ...MANUAL_PRESETS.map(p => { const btn = h('button', { class: 'fine-btn' }, p.n); btn.onclick = () => { Store.batch('video', { manualShadow: p.v[0], manualRecovery: p.v[1], manualBright: p.v[2], manualTemp: p.v[3] }); Scheduler.request(); tabFns.forEach(f => f()); }; const syncBtn = () => { const match = [Store.get(P.V_MAN_SHAD), Store.get(P.V_MAN_REC), Store.get(P.V_MAN_BRT), Store.get(P.V_MAN_TEMP)].every((val, i) => val === p.v[i]); btn.style.background = match ? 'var(--vsc-neon-dim)' : 'rgba(255,255,255,0.03)'; btn.style.color = match ? 'var(--vsc-neon)' : 'rgba(255,255,255,0.6)'; btn.style.borderColor = match ? 'var(--vsc-neon-border)' : 'rgba(255,255,255,0.06)'; }; tabFns.push(syncBtn); syncBtn(); return btn; })));
       w.append(manualHeader);
 
@@ -901,16 +916,48 @@
     }
 
     function buildPlaybackTab() {
-      const w = h('div', {});
-      w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => Scheduler.request())));
-      const rateDisplay = h('div', { class: 'rate-display' }); function syncRate() { rateDisplay.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; } tabFns.push(syncRate); syncRate(); w.append(rateDisplay);
-      const chipRow2 = h('div', { class: 'chips' }); function syncChips() { const cur = Number(Store.get(P.PB_RATE)) || 1; for (const c of chipRow2.children) c.classList.toggle('on', Math.abs(cur - parseFloat(c.dataset.v)) < 0.01); }
-      [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0].forEach(p => { const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`); el.addEventListener('click', () => { Store.set(P.PB_RATE, p); Store.set(P.PB_EN, true); Scheduler.request(); tabFns.forEach(f => f()); }); chipRow2.appendChild(el); });
-      tabFns.push(syncChips); syncChips(); w.append(chipRow2);
-      const fineRow = h('div', { class: 'fine-row' }); [{ l: '−0.25', d: -0.25 }, { l: '−0.05', d: -0.05 }, { l: '+0.05', d: +0.05 }, { l: '+0.25', d: +0.25 }].forEach(fs => { const btn = h('button', { class: 'fine-btn' }, fs.l); btn.addEventListener('click', () => { Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 16)); Store.set(P.PB_EN, true); Scheduler.request(); tabFns.forEach(f => f()); }); fineRow.appendChild(btn); });
-      w.append(fineRow, mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 4, 0.01)));
-      return w;
+    const w = h('div', {});
+    w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => Scheduler.request())));
+
+    const rateDisplay = h('div', { class: 'rate-display' });
+    function syncRate() { rateDisplay.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }
+    tabFns.push(syncRate); syncRate(); w.append(rateDisplay);
+
+    const chipRow2 = h('div', { class: 'chips' });
+    function syncChips() {
+      const cur = Number(Store.get(P.PB_RATE)) || 1;
+      for (const c of chipRow2.children) c.classList.toggle('on', Math.abs(cur - parseFloat(c.dataset.v)) < 0.01);
     }
+
+    // 💡 0.75 제거됨: 한 줄에 8개 배치
+    [0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0].forEach(p => {
+      const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
+      el.addEventListener('click', () => {
+        Store.set(P.PB_RATE, p);
+        Store.set(P.PB_EN, true);
+        Scheduler.request();
+        tabFns.forEach(f => f());
+      });
+      chipRow2.appendChild(el);
+    });
+
+    tabFns.push(syncChips); syncChips(); w.append(chipRow2);
+
+    const fineRow = h('div', { class: 'fine-row' });
+    [{ l: '−0.25', d: -0.25 }, { l: '−0.05', d: -0.05 }, { l: '+0.05', d: +0.05 }, { l: '+0.25', d: +0.25 }].forEach(fs => {
+      const btn = h('button', { class: 'fine-btn' }, fs.l);
+      btn.addEventListener('click', () => {
+        Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 16));
+        Store.set(P.PB_EN, true);
+        Scheduler.request();
+        tabFns.forEach(f => f());
+      });
+      fineRow.appendChild(btn);
+    });
+
+    w.append(fineRow, mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 4, 0.01)));
+    return w;
+  }
 
     function buildQuickBar() {
       if (quickBarHost) return;
@@ -994,7 +1041,18 @@
     const apply = () => {
       if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
       const target = Targeting.pick(Registry.videos);
-      if (target) { __internal._activeVideo = target; Audio.setTarget(target); if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 16); if (Math.abs(target.playbackRate - rate) > 0.001) try { target.playbackRate = rate; } catch (_) {} } }
+      if (target) {
+        __internal._activeVideo = target;
+        Audio.setTarget(target);
+        if (Store.get(P.PB_EN)) {
+          const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 16);
+          if (Math.abs(target.playbackRate - rate) > 0.001) {
+            if (target.dataset.vscDrm !== "1") {
+              try { target.playbackRate = rate; } catch (_) {}
+            }
+          }
+        }
+      }
       for (const v of Registry.videos) { if (!v.isConnected) continue; const rect = v.getBoundingClientRect(); if (rect.width < 80 || rect.height < 45) { Filters.clear(v); continue; } const params = Params.get(v); const filterStr = Filters.prepare(v, params); Filters.apply(v, filterStr); }
     };
     Scheduler.registerApply(apply);
