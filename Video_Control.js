@@ -647,12 +647,22 @@
 
     // 🌟 모든 사이트 URL을 지우고 딱 5개의 상황만 정의합니다.
     const SCENE_PROFILES = {
-      dark_scene:   { label: '어두운 장면 (소프트 복원)', v: [35, 15, 10, 3, 0, -5, -6, 3, 8], presetS: 'L' },
-      bright_scene: { label: '눈부신 장면 (독서 모드)', v: [ 5,  5,  0, 25,  0, -15,  5, -8, -8], presetS: 'S' },
-      normal_scene: { label: '일반 영상 (자동 최적화)', v: [ 5, 10,  3,  0,  0,   0, -1,  3,  1], presetS: 'off' },
-      vertical:     { label: '세로형 영상 (쇼츠/릴스)', v: [ 5, 10,  3,  0,  0,   3,  0,  5,  1], presetS: 'S' },
-      drm_fallback: { label: '보안 영상 (네추럴)',   v: [8,  12,   5,   0,   0,   0,  -2,   4,   0], presetS: 'M' }, // 🌟 DRM 전용 프리셋
-      default:      { label: '분석 대기중',            v: [ 0,  0,  0,  0,  0,   0,  0,  0,  0], presetS: null }
+      // 샤프닝 'M'(2단)으로 어두운 곳의 윤곽을 적절히 확보
+      dark_scene:   { label: '어두운 장면 (소프트 복원)', v: [35, 15, 10, 3, 0, -5, -6, 3, 8], presetS: 'M' },
+
+      // 독서 모드에서는 샤프닝을 완전히 꺼서(none) 글자 테두리의 피로도 제거
+      bright_scene: { label: '눈부신 장면 (독서 모드)', v: [ 5,  5,  0, 25, 0, -15,  5, -8, -8], presetS: 'none' },
+
+      // 일반 영상은 기존의 해상도 기반 'AUTO'(off) 로직에 위임
+      normal_scene: { label: '일반 영상 (자동 최적화)', v: [ 5, 10,  3,  0, 0,   0, -1,  3,  1], presetS: 'off' },
+
+      // 압축률이 높은 세로 영상은 노이즈 방지를 위해 'S'(1단) 고정
+      vertical:     { label: '세로형 영상 (쇼츠/릴스)', v: [ 5, 10,  3,  0, 0,   3,  0,  5,  1], presetS: 'S' },
+
+      // 보안 영상도 영화적 디테일을 위해 'M'(2단) 적용
+      drm_fallback: { label: '보안 영상 (네추럴)',   v: [ 8, 12,  5,  0, 0,   0, -2,  4,  0], presetS: 'M' },
+
+      default:      { label: '분석 대기중',            v: [ 0,  0,  0,  0, 0,   0,  0,  0,  0], presetS: null }
     };
 
     const MANUAL_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
