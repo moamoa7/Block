@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v227.1.0)
+// @name         Video_Control (v227.2.0)
 // @namespace    https://github.com/
-// @version      227.1.0
-// @description  v227.1.0: 자동 장면 프리셋(상세표시) + 9축 수동보정 + 40개 프리셋
+// @version      227.2.0
+// @description  v227.2.0: 자동 장면 프리셋(상세표시) + 9축 수동보정 + 40개 프리셋
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '227.1.0';
+  const VSC_VERSION = '227.2.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -478,14 +478,12 @@
         if (mid > 0.001) {
   const mc = 0.45, sig = 0.18;
   const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
-  // 기존: x = CLAMP(x + (x0 - mc) * mid * mw * 1.5, 0, 1);
-  // 수정: 0.45 이하 영역은 보호
   const delta = (x0 - mc) * mid * mw * 1.5;
-  if (delta > 0) {
-    x = CLAMP(x + delta, 0, 1);           // 밝은 쪽: 그대로 올림
-  } else {
-    x = CLAMP(x + delta * 0.15, 0, 1);    // 어두운 쪽: 85% 억제
-  }
+
+  // 🌟 핵심 패치: 밝은 영역(Highlight)은 100% 살리고,
+  // 어두운 영역(Shadow)은 15%만 반영하여 암부 떡짐/들뜸 방지
+  const appliedDelta = delta > 0 ? delta : delta * 0.15;
+  x = CLAMP(x + appliedDelta, 0, 1);
 }
         if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
@@ -659,16 +657,16 @@
     // 🌟 모든 사이트 URL을 지우고 딱 5개의 상황만 정의합니다.
     const SCENE_PROFILES = {
       // 샤프닝 'M'(2단)으로 어두운 곳의 윤곽을 적절히 확보
-      dark_scene:   { label: '어두운 장면 (소프트 복원)', v: [35, 15, 10, 3, 0, -5, -6, 3, 8], presetS: 'M' },
+      dark_scene:   { label: '어두운 장면 (소프트 복원)', v: [25, 14, 8, 2, 0, -3, -5, 3, 6], presetS: 'M' },
 
       // 독서 모드에서는 샤프닝을 완전히 꺼서(none) 글자 테두리의 피로도 제거
-      bright_scene: { label: '눈부신 장면 (독서 모드)', v: [ 5,  5,  0, 25, 0, -15,  5, -8, -8], presetS: 'none' },
+      bright_scene: { label: '눈부신 장면 (독서 모드)', v: [ 6,  8,  2, 15, 0, -8,  3, -4, -4], presetS: 'none' },
 
       // 일반 영상은 기존의 해상도 기반 'AUTO'(off) 로직에 위임
-      normal_scene: { label: '일반 영상 (자동 최적화)', v: [ 5, 10,  3,  0, 0,   0, -1,  3,  1], presetS: 'off' },
+      normal_scene: { label: '일반 영상 (자동 최적화)', v: [ 8, 10,  5,  0, 0,   0, -2,  3,  2], presetS: 'off' },
 
       // 압축률이 높은 세로 영상은 노이즈 방지를 위해 'S'(1단) 고정
-      vertical:     { label: '세로형 영상 (쇼츠/릴스)', v: [ 5, 10,  3,  0, 0,   3,  0,  5,  1], presetS: 'S' },
+      vertical:     { label: '세로형 영상 (쇼츠/릴스)', v: [ 6, 10,  4,  0, 0,  2, -1,  4,  1], presetS: 'S' },
 
       // 보안 영상도 영화적 디테일을 위해 'M'(2단) 적용
       drm_fallback: { label: '보안 영상 (네추럴)',   v: [ 8, 12,  5,  0, 0,   0, -2,  4,  0], presetS: 'M' },
