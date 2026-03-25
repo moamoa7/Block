@@ -2,7 +2,7 @@
 // @name         Video_Control (v222.0.5)
 // @namespace    https://github.com/
 // @version      222.0.5
-// @description  v222.0.5: streamMap Context 유효성 검사 추가 및 전역/탭 시그널 생명주기 분리 (안정성 극대화)
+// @description  v222.0.5: 렌더링 파이프라인 최적화 (모든 Reflow 유발 요소 제거) 및 UI 상태 즉시 동기화 패치
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -52,6 +52,13 @@
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.60;
+
+  function checkNeedsSvg(s) {
+    if (IS_FIREFOX) return false;
+    const hasSharp = Math.abs(s.sharp || 0) > 0.005;
+    const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.bright || 0) > 0.5);
+    return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5;
+  }
 
   /* ══ Style helpers ══ */
   function applyFilterStyles(el, filterStr) {
@@ -116,7 +123,11 @@
       get: (p) => { const parts = p.split('.'); return parts.length > 1 ? state[parts[0]]?.[parts[1]] : state[parts[0]]; },
       set: (p, val) => { const [c, k] = p.split('.'); if (k != null) { if (Object.is(state[c]?.[k], val)) return; state[c][k] = val; rev++; emit(p, val); scheduler.request(); } },
       batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; scheduler.request(); } },
-      sub: (k, f) => { if (!listeners.has(k)) listeners.set(k, []); listeners.get(k).push(f); },
+      sub: (k, f) => {
+        if (!listeners.has(k)) listeners.set(k, new Set());
+        listeners.get(k).add(f);
+        return () => listeners.get(k).delete(f);
+      },
       load: (data) => { if (!data) return; for (const c of ['video', 'audio', 'playback', 'app']) { if (data[c]) Object.assign(state[c], data[c]); } rev++; }
     };
   }
@@ -130,18 +141,12 @@
     const el = isSvg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
     for (const [k, v] of Object.entries(props)) {
       if (k === 'ns') continue;
-      if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), (e) => { if (k === 'onclick' && (tag === 'button' || tag === 'input')) e.stopPropagation(); v(e); }); }
+      if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), v); }
       else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); }
       else if (k === 'class') { if (isSvg) el.setAttribute('class', v); else el.className = v; }
-      else if (v !== false && v != null) el.setAttribute(k, v);
+      else if (v !== false && v != null) el.setAttribute(k, String(v));
     }
     children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
-    return el;
-  }
-  function _s(tag, attrs = {}, ...children) {
-    const el = document.createElementNS(SVG_NS, tag);
-    for (const [k, v] of Object.entries(attrs)) { if (v != null && v !== false) el.setAttribute(k, String(v)); }
-    children.flat().forEach(c => { if (c != null) el.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
     return el;
   }
 
@@ -240,12 +245,10 @@
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
-    setInterval(() => {
+    const runTreeWalker = () => {
       try {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
-          acceptNode: function(node) {
-            return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-          }
+          acceptNode: function(node) { return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; }
         });
         let el;
         while(el = walker.nextNode()) {
@@ -258,6 +261,11 @@
           }
         }
       } catch (_) {}
+    };
+
+    setInterval(() => {
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(runTreeWalker, { timeout: 200 });
+      else setTimeout(runTreeWalker, 0);
     }, 3000);
 
     setInterval(() => { let removed = 0; for (const el of videos) { if (!el?.isConnected) { videos.delete(el); clearFilterStyles(el); if (io) try { io.unobserve(el); } catch (_) {} if (ro) try { ro.unobserve(el); } catch (_) {} const ls = videoListeners.get(el); if (ls) { for (const [evt, fn] of ls) el.removeEventListener(evt, fn); videoListeners.delete(el); } removed++; } } if (removed) requestRefresh(); }, 5000);
@@ -269,30 +277,31 @@
   function createTargeting() {
     return {
       pick: (videos) => {
-  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-  if (fsEl) {
-    if (fsEl.tagName === 'VIDEO' && videos.has(fsEl)) return fsEl;
-    for (const v of videos) { if (v.isConnected && fsEl.contains(v)) return v; }
+        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+        if (fsEl) { 
+          if (fsEl.tagName === 'VIDEO' && videos.has(fsEl)) return fsEl; 
+          for (const v of videos) { if (v.isConnected && fsEl.contains(v)) return v; } 
+        }
+        
+        let best = null, bestScore = -Infinity;
+        for (const v of videos) { 
+          if (!v.isConnected) continue; 
+          
+          const dW = v.clientWidth || 0;
+          const dH = v.clientHeight || 0;
+          const area = dW * dH; 
+          
+          if (area === 0 && v.readyState === 0 && v.paused) continue; 
+          let s = Math.log2(1 + Math.max(0, area)); 
+          if (!v.paused && !v.ended) s += 25; 
+          if (v.currentTime > 0) s += 5; 
+          if (!v.muted && v.volume > 0.01) s += 5; 
+          if (s > bestScore) { bestScore = s; best = v; } 
+        }
+        return best;
+      }
+    };
   }
-
-  let best = null, bestScore = -Infinity;
-  for (const v of videos) {
-    if (!v.isConnected) continue;
-
-    // ✅ getBoundingClientRect() 제거 및 clientWidth/Height로 대체
-    const dW = v.clientWidth || 0;
-    const dH = v.clientHeight || 0;
-    const area = dW * dH;
-
-    if (area === 0 && v.readyState === 0 && v.paused) continue;
-    let s = Math.log2(1 + Math.max(0, area));
-    if (!v.paused && !v.ended) s += 25;
-    if (v.currentTime > 0) s += 5;
-    if (!v.muted && v.volume > 0.01) s += 5;
-    if (s > bestScore) { bestScore = s; best = v; }
-  }
-  return best;
-}
 
   /* ══ Audio ══ */
   function createAudio(store, scheduler) {
@@ -304,10 +313,6 @@
     const mesMap = new WeakMap();
     const streamMap = new WeakMap();
     let bypassMode = false;
-
-    const corsFailedVideos = new WeakSet();
-    const mesFailedVideos = new WeakSet();
-    const permanentBypassVideos = new WeakSet();
 
     function detectJWPlayer(video) {
       if (!video) return false;
@@ -323,9 +328,9 @@
 
     function canConnect(video) {
       if (!video) return false;
-      if (permanentBypassVideos.has(video)) return false;
-      if (detectJWPlayer(video) && corsFailedVideos.has(video)) return false;
-      if (mesFailedVideos.has(video) && corsFailedVideos.has(video)) return false;
+      if (video.dataset.vscPermBypass === "1") return false;
+      if (detectJWPlayer(video) && video.dataset.vscCorsFail === "1") return false;
+      if (video.dataset.vscMesFail === "1" && video.dataset.vscCorsFail === "1") return false;
       return true;
     }
 
@@ -401,11 +406,11 @@
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
     function connectViaCaptureStream(video) {
-      if (!ctx || corsFailedVideos.has(video)) return null;
+      if (!ctx || video.dataset.vscCorsFail === "1") return null;
       let s = streamMap.get(video);
       if (s) {
         if (s.context === ctx) return s;
-        // AudioContext가 변경된 경우 기존 소스 정리 (방어적 코드)
+        if (currentSrc === s) { currentSrc = null; currentMode = 'none'; }
         try { s.disconnect(); } catch (_) {}
         if (s.__vsc_captureStream) {
           s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
@@ -422,7 +427,7 @@
       let stream;
       try { stream = captureFn.call(video); }
       catch (e) {
-        if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { corsFailedVideos.add(video); return null; }
+        if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { video.dataset.vscCorsFail = "1"; return null; }
         return null;
       }
 
@@ -448,9 +453,13 @@
     }
 
     function connectViaMES(video) {
-      if (!ctx || mesFailedVideos.has(video)) return null;
+      if (!ctx || video.dataset.vscMesFail === "1") return null;
       let s = mesMap.get(video);
-      if (s) { if (s.context === ctx) return s; if (s.context.state === 'closed') { mesMap.delete(video); s = null; } else return null; }
+      if (s) {
+        if (s.context === ctx) return s;
+        mesMap.delete(video);
+        return null;
+      }
       try { s = ctx.createMediaElementSource(video); mesMap.set(video, s); return s; }
       catch (e) { if (e.name === 'InvalidStateError') return null; log.error('[Audio] MES failed:', e); return null; }
     }
@@ -465,7 +474,7 @@
       if (isJW) {
         source = connectViaCaptureStream(video);
         if (!source) {
-          permanentBypassVideos.add(video);
+          video.dataset.vscPermBypass = "1";
           enterBypass(video, 'JWPlayer: captureStream failed → permanent bypass');
           return false;
         }
@@ -475,7 +484,7 @@
       }
 
       if (!source) {
-        if (!isJW) { mesFailedVideos.add(video); corsFailedVideos.add(video); }
+        if (!isJW) { video.dataset.vscMesFail = "1"; video.dataset.vscCorsFail = "1"; }
         enterBypass(video, 'all methods failed');
         return false;
       }
@@ -548,11 +557,12 @@
           fadeOutThen(() => {
             disconnectCurrent(oldTarget);
             targetVideo = video;
+            if (bypassMode) { bypassMode = false; currentMode = 'none'; }
           });
         } else {
           targetVideo = video;
+          if (bypassMode) { bypassMode = false; currentMode = 'none'; }
         }
-        if (bypassMode) { bypassMode = false; currentMode = 'none'; }
         return;
       }
       if (!initCtx()) { targetVideo = video; return; }
@@ -594,7 +604,7 @@
     const TONE_CACHE_MAX = 32;
 
     function getToneTable(steps, gain, contrast, brightOffset, gamma, toe, mid, shoulder) {
-      const key = `${steps}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(brightOffset*1000+.5)|0}|${(gamma*100+.5)|0}|t${(toe*1000+.5)|0}|m${(mid*1000+.5)|0}|s${(shoulder*1000+.5)|0}`;
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(brightOffset*1000)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) {
         const val = toneCache.get(key);
         toneCache.delete(key);
@@ -647,15 +657,8 @@
       return { fid, svg, fConv, toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean), tempFuncR: tempChildren.find(f => f.tagName.includes('R')), tempFuncG: tempChildren.find(f => f.tagName.includes('G')), tempFuncB: tempChildren.find(f => f.tagName.includes('B')), fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
     }
 
-    function needsSvg(s) {
-      if (IS_FIREFOX) return false;
-      const hasSharp = Math.abs(s.sharp || 0) > 0.005;
-      const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.bright || 0) > 0.5);
-      return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5;
-    }
-
     function prepare(video, s) {
-      if (!needsSvg(s)) {
+      if (!checkNeedsSvg(s)) {
         const parts = [];
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
@@ -696,35 +699,14 @@
   function createVideoParams(Store) {
     const cache = new WeakMap();
 
-    function wouldUseSvg(out) {
-      if (IS_FIREFOX) return false;
-      const hasSharp = Math.abs(out.sharp || 0) > 0.005;
-      const hasTone = (
-        Math.abs(out.toe || 0) > 0.005 ||
-        Math.abs(out.mid || 0) > 0.005 ||
-        Math.abs(out.shoulder || 0) > 0.005 ||
-        Math.abs((out.gain || 1) - 1) > 0.005 ||
-        Math.abs((out.gamma || 1) - 1) > 0.005 ||
-        Math.abs(out.bright || 0) > 0.5
-      );
-      return hasSharp || hasTone || Math.abs(out.temp || 0) > 0.5;
-    }
-
     function computeSharpMul(video) {
       const nW = video.videoWidth | 0;
-      if (nW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+      let dW = video.clientWidth;
+      let dH = video.clientHeight;
+
+      if (!dW || !dH) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
 
       const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
-      let dW, dH;
-      try {
-        const rect = video.getBoundingClientRect();
-        dW = rect.width || video.clientWidth || nW;
-        dH = rect.height || video.clientHeight || (video.videoHeight | 0);
-      } catch (_) {
-        dW = video.clientWidth || nW;
-        dH = video.clientHeight || (video.videoHeight | 0);
-      }
-
       if (dW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
       const nH = video.videoHeight | 0;
       const ratioW = (dW * dpr) / nW;
@@ -743,8 +725,8 @@
       get: (video) => {
         const storeRev = Store.rev();
         const nW = video ? (video.videoWidth | 0) : 0;
-        const dW = video ? (video.clientWidth || video.offsetWidth || 0) : 0;
-        const dH = video ? (video.clientHeight || video.offsetHeight || 0) : 0;
+        const dW = video ? (video.clientWidth || 0) : 0;
+        const dH = video ? (video.clientHeight || 0) : 0;
 
         if (video && nW >= 16) {
           const cached = cache.get(video);
@@ -778,7 +760,7 @@
         out.shoulder = mBrt  * 0.0045;
         out.temp     = mTemp;
 
-        if (wouldUseSvg(out)) {
+        if (checkNeedsSvg(out)) {
           out._cssBr = 1.0;
           out._cssCt = 1.0;
         } else {
@@ -821,9 +803,9 @@
     let __scrBrtOverlay = null;
 
     const TAB_ICONS = {
-      video: () => _s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, _s('rect', { x: 2, y: 4, width: 16, height: 16, rx: 2 }), _s('path', { d: 'M22 7l-6 4 6 4z' })),
-      audio: () => _s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, _s('path', { d: 'M11 5L6 9H2v6h4l5 4V5z' }), _s('path', { d: 'M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07' })),
-      playback: () => _s('svg', { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, _s('circle', { cx: 12, cy: 12, r: 10 }), _s('polygon', { points: '10 8 16 12 10 16' }))
+      video: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('rect', { ns: 'svg', x: 2, y: 4, width: 16, height: 16, rx: 2 }), h('path', { ns: 'svg', d: 'M22 7l-6 4 6 4z' })),
+      audio: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('path', { ns: 'svg', d: 'M11 5L6 9H2v6h4l5 4V5z' }), h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07' })),
+      playback: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('circle', { ns: 'svg', cx: 12, cy: 12, r: 10 }), h('polygon', { ns: 'svg', points: '10 8 16 12 10 16' }))
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
 
@@ -860,7 +842,7 @@
       requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
     }
 
-    Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
+    globalSignalCleanups.push(Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0)));
     setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
 
     document.addEventListener('fullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
@@ -1005,7 +987,8 @@
       const updateInfo = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { infoBar.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; infoBar.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
 
       tabSignalCleanups.push(Scheduler.onSignal(updateInfo));
-      Store.sub(P.V_PRE_S, updateInfo); tabFns.push(updateInfo);
+      tabSignalCleanups.push(Store.sub(P.V_PRE_S, updateInfo));
+      tabFns.push(updateInfo);
       w.append(infoBar, mkSep());
 
       if (IS_FIREFOX) {
@@ -1015,10 +998,10 @@
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
       const MANUAL_PRESETS = [ { n: 'OFF', v: [0,0,0,0] }, { n: '선명', v: [0,15,0,0] }, { n: '영화', v: [20,15,10,-18] }, { n: '복원', v: [45,50,5,0] }, { n: '심야', v: [60,20,0,15] }, { n: '아트', v: [5,45,15,-25] } ];
-      const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' }, h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'), h('div', { style: 'display:flex;gap:4px' }, ...MANUAL_PRESETS.map(p => { const btn = h('button', { class: 'fine-btn' }, p.n); btn.onclick = () => { Store.batch('video', { manualShadow: p.v[0], manualRecovery: p.v[1], manualBright: p.v[2], manualTemp: p.v[3] }); Scheduler.request(); tabFns.forEach(f => f()); }; const syncBtn = () => { const match = [Store.get(P.V_MAN_SHAD), Store.get(P.V_MAN_REC), Store.get(P.V_MAN_BRT), Store.get(P.V_MAN_TEMP)].every((val, i) => val === p.v[i]); btn.style.background = match ? 'var(--vsc-neon-dim)' : 'rgba(255,255,255,0.03)'; btn.style.color = match ? 'var(--vsc-neon)' : 'rgba(255,255,255,0.6)'; btn.style.borderColor = match ? 'var(--vsc-neon-border)' : 'rgba(255,255,255,0.06)'; }; tabFns.push(syncBtn); syncBtn(); return btn; })));
+      const manualHeader = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' }, h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '수동 보정'), h('div', { style: 'display:flex;gap:4px' }, ...MANUAL_PRESETS.map(p => { const btn = h('button', { class: 'fine-btn' }, p.n); btn.onclick = () => { Store.batch('video', { manualShadow: p.v[0], manualRecovery: p.v[1], manualBright: p.v[2], manualTemp: p.v[3] }); Scheduler.request(); }; const syncBtn = () => { const match = [Store.get(P.V_MAN_SHAD), Store.get(P.V_MAN_REC), Store.get(P.V_MAN_BRT), Store.get(P.V_MAN_TEMP)].every((val, i) => val === p.v[i]); btn.style.background = match ? 'var(--vsc-neon-dim)' : 'rgba(255,255,255,0.03)'; btn.style.color = match ? 'var(--vsc-neon)' : 'rgba(255,255,255,0.6)'; btn.style.borderColor = match ? 'var(--vsc-neon-border)' : 'rgba(255,255,255,0.06)'; }; tabFns.push(syncBtn); syncBtn(); return btn; })));
       w.append(manualHeader);
 
-      function mkSliderWithFine(label, path, min, max, step, fineStep) { const [slider, valEl] = mkSlider(path, min, max, step); const mkFine = (delta, text) => { const btn = h('button', { class: 'fine-btn', style: 'font-size:11px' }, text); btn.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path)) || 0) + delta), min, max)); Scheduler.request(); tabFns.forEach(f => f()); }); return btn; }; const resetBtn = h('button', { class: 'fine-btn', style: 'min-width:24px;font-size:10px;opacity:.6' }, '0'); resetBtn.addEventListener('click', () => { Store.set(path, 0); Scheduler.request(); tabFns.forEach(f => f()); }); return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn))); }
+      function mkSliderWithFine(label, path, min, max, step, fineStep) { const [slider, valEl] = mkSlider(path, min, max, step); const mkFine = (delta, text) => { const btn = h('button', { class: 'fine-btn', style: 'font-size:11px' }, text); btn.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path)) || 0) + delta), min, max)); Scheduler.request(); }); return btn; }; const resetBtn = h('button', { class: 'fine-btn', style: 'min-width:24px;font-size:10px;opacity:.6' }, '0'); resetBtn.addEventListener('click', () => { Store.set(path, 0); Scheduler.request(); }); return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn))); }
 
       w.append(mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5), mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5), mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5), mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5), mkSep());
 
@@ -1068,12 +1051,7 @@
 
       [0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0].forEach(p => {
         const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
-        el.addEventListener('click', () => {
-          Store.set(P.PB_RATE, p);
-          Store.set(P.PB_EN, true);
-          Scheduler.request();
-          tabFns.forEach(f => f());
-        });
+        el.addEventListener('click', () => { Store.set(P.PB_RATE, p); Store.set(P.PB_EN, true); Scheduler.request(); });
         chipRow2.appendChild(el);
       });
 
@@ -1082,12 +1060,7 @@
       const fineRow = h('div', { class: 'fine-row' });
       [{ l: '−0.25', d: -0.25 }, { l: '−0.05', d: -0.05 }, { l: '+0.05', d: +0.05 }, { l: '+0.25', d: +0.25 }].forEach(fs => {
         const btn = h('button', { class: 'fine-btn' }, fs.l);
-        btn.addEventListener('click', () => {
-          Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 5));
-          Store.set(P.PB_EN, true);
-          Scheduler.request();
-          tabFns.forEach(f => f());
-        });
+        btn.addEventListener('click', () => { Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 5)); Store.set(P.PB_EN, true); Scheduler.request(); });
         fineRow.appendChild(btn);
       });
 
@@ -1103,7 +1076,7 @@
       qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px;height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:0.4; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex;align-items:center;justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); } .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar svg { width:22px;height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; }`;
       _qbarShadow.appendChild(qStyle);
       const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
-      mainBtn.appendChild(_s('svg', { viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, _s('circle', { cx: '12', cy: '12', r: '3' }), _s('path', { d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
+      mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
     }
 
@@ -1140,29 +1113,28 @@
     }
 
     function renderTab() {
-  const body = _shadow?.querySelector('.body');
-  if (!body) return;
-  body.textContent = '';
+      const body = _shadow?.querySelector('.body');
+      if (!body) return;
+      body.textContent = '';
 
-  tabSignalCleanups.forEach(cleanup => cleanup());
-  tabSignalCleanups.length = 0;
-  tabFns.length = 0;
+      tabSignalCleanups.forEach(cleanup => cleanup());
+      tabSignalCleanups.length = 0;
+      tabFns.length = 0;
 
-  const w = h('div', {});
-  if (activeTab === 'video') w.appendChild(buildVideoTab());
-  else if (activeTab === 'audio') w.appendChild(buildAudioTab());
-  else if (activeTab === 'playback') w.appendChild(buildPlaybackTab());
-  body.appendChild(w);
+      const w = h('div', {});
+      if (activeTab === 'video') w.appendChild(buildVideoTab());
+      else if (activeTab === 'audio') w.appendChild(buildAudioTab());
+      else if (activeTab === 'playback') w.appendChild(buildPlaybackTab());
+      body.appendChild(w);
 
-  tabFns.forEach(f => f());
-  _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab));
-  updateTabIndicator(_shadow.querySelector('.tabs'), activeTab);
+      tabFns.forEach(f => f());
+      _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab));
+      updateTabIndicator(_shadow.querySelector('.tabs'), activeTab);
 
-  // ✅ 추가된 로직: 패널이 열려있을 때 스케줄러 신호에 맞춰 UI 상태 동기화
-  tabSignalCleanups.push(Scheduler.onSignal(() => {
-    if (panelOpen) tabFns.forEach(f => f());
-  }));
-}
+      tabSignalCleanups.push(Scheduler.onSignal(() => {
+        if (panelOpen) tabFns.forEach(f => f());
+      }));
+    }
 
     function togglePanel(force) { buildPanel(); panelOpen = force !== undefined ? force : !panelOpen; if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); } else { panelEl.classList.remove('open'); setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); } }
 
@@ -1201,16 +1173,21 @@
           if (Math.abs(target.playbackRate - rate) > 0.001) {
             let isDRM = target.dataset.vscDrm === "1";
             try { isDRM = isDRM || !!target.mediaKeys; } catch (_) {}
-
+            
             if (!isDRM) {
               try { target.playbackRate = rate; } catch (_) {}
-            } else if (target.playbackRate !== 1.0) {
-              try { target.playbackRate = 1.0; } catch (_) {}
             }
           }
         }
       }
-      for (const v of Registry.videos) { if (!v.isConnected) continue; const rect = v.getBoundingClientRect(); if (rect.width < 80 || rect.height < 45) { Filters.clear(v); continue; } const params = Params.get(v); const filterStr = Filters.prepare(v, params); Filters.apply(v, filterStr); }
+      for (const v of Registry.videos) { 
+        if (!v.isConnected) continue; 
+        const dW = v.clientWidth || 0, dH = v.clientHeight || 0;
+        if (dW < 80 || dH < 45) { Filters.clear(v); continue; } 
+        const params = Params.get(v); 
+        const filterStr = Filters.prepare(v, params); 
+        Filters.apply(v, filterStr); 
+      }
     };
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
