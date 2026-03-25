@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v227.2.0)
+// @name         Video_Control (v228.1.0)
 // @namespace    https://github.com/
-// @version      227.2.0
-// @description  v227.2.0: 자동 장면 프리셋(상세표시) + 9축 수동보정 + 40개 프리셋
+// @version      228.1.0
+// @description  v228.1.0: 지능형 보간 자동장면 + 비대칭 디테일 복원 + DRM 폴백
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '227.2.0';
+  const VSC_VERSION = '228.1.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -198,7 +198,7 @@
       const req = () => { scheduler.request(); };
       let lastT = 0;
       const onTimeUpdate = () => { const now = performance.now(); if (now - lastT > 1000) { lastT = now; req(); } };
-      const listenerDefs = [['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate]];
+      const listenerDefs = [ ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate], ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; req(); }] ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
       req();
@@ -475,16 +475,16 @@
         const x0 = i / (steps - 1); let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
         x = x * contrast + intercept; x = CLAMP(x, 0, 1);
         if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
-        if (mid > 0.001) {
-  const mc = 0.45, sig = 0.18;
-  const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
-  const delta = (x0 - mc) * mid * mw * 1.5;
 
-  // 🌟 핵심 패치: 밝은 영역(Highlight)은 100% 살리고,
-  // 어두운 영역(Shadow)은 15%만 반영하여 암부 떡짐/들뜸 방지
-  const appliedDelta = delta > 0 ? delta : delta * 0.15;
-  x = CLAMP(x + appliedDelta, 0, 1);
-}
+        // 🌟 [핵심 패치] 비대칭 디테일 복원 (그림자 보호 로직)
+        if (mid > 0.001) {
+          const mc = 0.45, sig = 0.18;
+          const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
+          const delta = (x0 - mc) * mid * mw * 1.5;
+          const appliedDelta = delta > 0 ? delta : delta * 0.15; // 어두운 쪽 억제
+          x = CLAMP(x + appliedDelta, 0, 1);
+        }
+
         if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
         if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
@@ -642,119 +642,119 @@
     };
   }
 
-  /* ══ Auto Scene (Universal Pixel Analysis & DRM Fallback) ══ */
+  /* ══ Auto Scene v2.1 (완전 동기화 + 이동평균) ══ */
   function createAutoScene(store, scheduler) {
-    let currentProfile = 'default';
     let lastCheck = 0;
     let suppressUntil = 0;
+    let currentBrightness = -1;
+    let currentLabel = '분석 대기중';
+    let currentValues = [0,0,0,0,0,0,0,0,0];
+    let currentPresetS = null;
+    let currentMode = 'wait'; // wait, interpolate, vertical, drm
 
-    // 분석용 도화지 (실시간 픽셀 스캐너)
+    // 분석용 캔버스
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
     canvas.width = 16;
     canvas.height = 16;
 
-    // 🌟 모든 사이트 URL을 지우고 딱 5개의 상황만 정의합니다.
-    const SCENE_PROFILES = {
-      // 샤프닝 'M'(2단)으로 어두운 곳의 윤곽을 적절히 확보
-      dark_scene:   { label: '어두운 장면 (소프트 복원)', v: [25, 14, 8, 2, 0, -3, -5, 3, 6], presetS: 'M' },
+    // 이동평균 버퍼
+    const brightHistory = [];
+    const HISTORY_SIZE = 5;
 
-      // 독서 모드에서는 샤프닝을 완전히 꺼서(none) 글자 테두리의 피로도 제거
-      bright_scene: { label: '눈부신 장면 (독서 모드)', v: [ 6,  8,  2, 15, 0, -8,  3, -4, -4], presetS: 'none' },
+    // 🌟 [재정리] 보간 기준 벡터 (v227.2.0 수치와 100% 동기화)
+    //                          암부 복원 노출 색온 틴트 채도 감마 콘트 게인
+    const BASE     = [  8,  10,   5,   0,   0,   0,  -2,   3,   2 ]; // 일반 영상
+    const DARK_V   = [ 25,  14,   8,   2,   0,  -3,  -5,   3,   6 ]; // 어두운 장면 (소프트 복원)
+    const BRIGHT_V = [  6,   8,   2,  15,   0,  -8,   3,  -4,  -4 ]; // 눈부신 장면 (독서 모드)
+    const VERTICAL = [  6,  10,   4,   0,   0,   2,  -1,   4,   1 ]; // 세로형 영상
+    const DRM_BASE = [  8,  12,   5,   0,   0,   0,  -2,   4,   0 ]; // 보안 영상 (내추럴)
 
-      // 일반 영상은 기존의 해상도 기반 'AUTO'(off) 로직에 위임
-      normal_scene: { label: '일반 영상 (자동 최적화)', v: [ 8, 10,  5,  0, 0,   0, -2,  3,  2], presetS: 'off' },
-
-      // 압축률이 높은 세로 영상은 노이즈 방지를 위해 'S'(1단) 고정
-      vertical:     { label: '세로형 영상 (쇼츠/릴스)', v: [ 6, 10,  4,  0, 0,  2, -1,  4,  1], presetS: 'S' },
-
-      // 보안 영상도 영화적 디테일을 위해 'M'(2단) 적용
-      drm_fallback: { label: '보안 영상 (네추럴)',   v: [ 8, 12,  5,  0, 0,   0, -2,  4,  0], presetS: 'M' },
-
-      default:      { label: '분석 대기중',            v: [ 0,  0,  0,  0, 0,   0,  0,  0,  0], presetS: null }
-    };
+    // 차분 벡터 계산
+    const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
+    const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
 
     const MANUAL_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
-    const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
+    const VAL_NAMES   = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
-    // 1. 비율 판별 (세로 직캠용)
-    function detectVertical(video) {
-      const w = video.videoWidth || 0;
-      const h = video.videoHeight || 0;
-      return (w > 0 && h > 0 && (w / h) < 0.75);
+    function getBrightnessFactor(brightness) {
+      const mid = 120;
+      return CLAMP((mid - brightness) / mid, -0.8, 1.0);
     }
 
-    // 2. 실시간 픽셀 분석 (DRM 가짜 블랙 필터링 탑재)
+    function interpolate(factor) {
+      return BASE.map((base, i) => {
+        if (factor >= 0) return Math.round(base + DARK_BOOST[i] * factor);
+        else return Math.round(base + BRIGHT_CUT[i] * (-factor / 0.8));
+      });
+    }
+
+    function getPresetSByFactor(factor) {
+      if (factor > 0.5)  return 'M';
+      if (factor > 0.1)  return 'S';
+      if (factor > -0.3) return 'off';
+      return 'none';
+    }
+
+    function getBrightnessLabel(brightness) {
+      if (brightness < 0)   return '보안 영상 ◉ DRM';
+      if (brightness < 35)  return `어두운 장면 ◉ 밝기 ${Math.round(brightness)}`;
+      if (brightness > 210) return `눈부신 장면 ◉ 밝기 ${Math.round(brightness)}`;
+      return `일반 영상 ◉ 밝기 ${Math.round(brightness)}`;
+    }
+
+    function pushBrightness(raw) {
+      brightHistory.push(raw);
+      if (brightHistory.length > HISTORY_SIZE) brightHistory.shift();
+      return brightHistory.reduce((a, b) => a + b, 0) / brightHistory.length;
+    }
+
+    function detectVertical(video) {
+      const w = video.videoWidth || 0;
+      const vh = video.videoHeight || 0;
+      return (w > 0 && vh > 0 && (w / vh) < 0.75);
+    }
+
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1" || video.dataset.vscDrm === "1") return -1;
       try {
-        ctx.drawImage(video, 0, 0, 16, 16);
-        const data = ctx.getImageData(0, 0, 16, 16).data;
-        let r = 0, g = 0, b = 0;
-        let isAllZero = true; // 가짜 블랙 판별용
-
+        canvasCtx.drawImage(video, 0, 0, 16, 16);
+        const data = canvasCtx.getImageData(0, 0, 16, 16).data;
+        let r = 0, g = 0, b = 0, isAllZero = true;
         for (let i = 0; i < data.length; i += 4) {
           r += data[i]; g += data[i+1]; b += data[i+2];
           if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false;
         }
-
-        // 🌟 완벽한 0(블랙)이면 넷플릭스 등 DRM으로 간주하고 -1 반환
-        if (isAllZero) {
-          video.dataset.vscDrm = "1";
-          return -1;
-        }
-
+        if (isAllZero) { video.dataset.vscDrm = "1"; return -1; }
         const count = data.length / 4;
-        return ( (r/count)*0.299 + (g/count)*0.587 + (b/count)*0.114 );
+        return (r/count)*0.299 + (g/count)*0.587 + (b/count)*0.114;
       } catch (e) {
-        // 교차 출처(CORS) 등 보안 에러 발생 시에도 -1 반환
         video.dataset.vscCorsFail = "1";
         return -1;
       }
     }
 
-    // 3. 상황 평가기 (사용자님 아이디어 적용!)
-    function evaluate(video) {
-      if (!video?.isConnected) return 'default';
-      if (detectVertical(video)) return 'vertical';
-
-      const brightness = analyzeFrame(video);
-
-      // 정상적으로 화면 밝기가 분석된 경우 (유튜브, 트위치 등)
-      if (brightness >= 0) {
-        if (brightness < 35) return 'dark_scene';
-        if (brightness > 210) return 'bright_scene';
-        return 'normal_scene';
-      }
-
-      // 🌟 밝기 분석이 실패(-1)한 경우 -> 즉, DRM 보안 사이트!
-      // 영화/드라마에 맞는 시네마 톤으로 자동 풀백
-      return 'drm_fallback';
-    }
-
-    function buildDetailText(profileKey) {
-      const p = SCENE_PROFILES[profileKey];
-      if (!p || profileKey === 'default') return '보정 없음';
-      const vals = p.v;
+    function buildDetailText() {
       const active = [];
-      vals.forEach((val, i) => {
+      currentValues.forEach((val, i) => {
         if (val !== 0) active.push(`${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}`);
       });
-      const sharpLabel = p.presetS ? (p.presetS === 'none' ? '샤프닝:OFF' : p.presetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[p.presetS]?.label || p.presetS}`) : '';
+      const sharpLabel = currentPresetS != null
+        ? (currentPresetS === 'none' ? '샤프닝:OFF' : currentPresetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[currentPresetS]?.label || currentPresetS}`)
+        : '';
       const parts = [];
       if (sharpLabel) parts.push(sharpLabel);
       if (active.length > 0) parts.push(active.join(' · '));
       return parts.join(' │ ') || '보정 없음';
     }
 
-    function applyProfile(profileKey) {
-      const p = SCENE_PROFILES[profileKey];
-      if (!p) return;
+    function applyValues(values, presetS) {
       const obj = {};
-      MANUAL_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
+      MANUAL_KEYS.forEach((k, i) => { obj[k] = values[i]; });
       store.batch('video', obj);
-      if (p.presetS != null) store.set(P.V_PRE_S, p.presetS);
-      currentProfile = profileKey;
+      if (presetS != null) store.set(P.V_PRE_S, presetS);
+      currentValues = values;
+      currentPresetS = presetS;
       scheduler.request();
     }
 
@@ -762,7 +762,6 @@
       if (!store.get(P.V_AUTO_SCENE)) return;
       suppressUntil = performance.now() + 500;
     }
-
     const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
     let _manualSubCleanups = [];
     function hookManualSubs() {
@@ -776,36 +775,78 @@
       if (!video?.isConnected) return;
       const now = performance.now();
       if (now < suppressUntil) return;
-      if (now - lastCheck < 3000) return; // 3초 주기 분석
+      if (now - lastCheck < 3000) return;
       lastCheck = now;
 
-      const profile = evaluate(video);
-      if (profile !== currentProfile) {
-        applyProfile(profile);
-        log.info(`[AutoScene] → ${profile} (${SCENE_PROFILES[profile]?.label})`);
+      if (detectVertical(video)) {
+        if (currentMode !== 'vertical') {
+          currentMode = 'vertical';
+          currentBrightness = -1;
+          currentLabel = '세로형 영상 (쇼츠/릴스)';
+          applyValues(VERTICAL, 'S');
+          log.info('[AutoScene] → 세로형 영상');
+        }
+        return;
+      }
+
+      const rawBrt = analyzeFrame(video);
+
+      if (rawBrt < 0) {
+        if (currentMode !== 'drm') {
+          currentMode = 'drm';
+          currentBrightness = -1;
+          currentLabel = '보안 영상 ◉ DRM';
+          applyValues(DRM_BASE, 'M');
+          log.info('[AutoScene] → DRM 폴백');
+        }
+        return;
+      }
+
+      const smoothed = pushBrightness(rawBrt);
+      currentBrightness = smoothed;
+      currentMode = 'interpolate';
+      currentLabel = getBrightnessLabel(smoothed);
+
+      const factor = getBrightnessFactor(smoothed);
+      const values = interpolate(factor);
+      const presetS = getPresetSByFactor(factor);
+
+      const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
+      if (changed) {
+        applyValues(values, presetS);
+        log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} → factor ${factor.toFixed(2)} → [${values}]`);
       }
     }
 
     function activate() {
-      const video = __internal._activeVideo;
-      currentProfile = 'default';
+      currentMode = 'wait';
+      currentBrightness = -1;
+      currentLabel = '분석 대기중';
+      currentValues = [0,0,0,0,0,0,0,0,0];
+      currentPresetS = null;
+      brightHistory.length = 0;
       lastCheck = 0;
       suppressUntil = 0;
+      const video = __internal._activeVideo;
       if (video?.isConnected) {
-        const profile = evaluate(video);
-        applyProfile(profile);
+        lastCheck = 0;
+        tick(video);
       }
     }
 
     function deactivate() {
-      currentProfile = 'default';
+      currentMode = 'wait';
+      currentBrightness = -1;
+      currentLabel = '분석 대기중';
+      brightHistory.length = 0;
     }
 
     return {
       tick, activate, deactivate,
-      getProfile: () => currentProfile,
-      getProfileLabel: () => SCENE_PROFILES[currentProfile]?.label || '—',
-      getProfileDetail: () => buildDetailText(currentProfile)
+      getLabel:  () => currentLabel,
+      getDetail: () => buildDetailText(),
+      getBrightness: () => currentBrightness,
+      getMode: () => currentMode
     };
   }
 
@@ -911,7 +952,7 @@
     .as-top { display: flex; align-items: center; gap: 8px; width: 100%; }
     .as-top .asl { font-size: 11px; font-weight: 600; color: var(--vsc-green); }
     .as-box.off .as-top .asl { color: var(--vsc-text-dim); }
-    .as-tag { font-family: var(--vsc-font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--vsc-radius-sm); background: rgba(76,255,142,0.1); color: var(--vsc-green); border: 1px solid rgba(76,255,142,0.2); white-space: nowrap; }
+    .as-tag { font-family: var(--vsc-font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--vsc-radius-sm); background: rgba(76,255,142,0.1); color: var(--vsc-green); border: 1px solid rgba(76,255,142,0.2); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
     .as-box.off .as-tag { background: rgba(255,255,255,0.04); color: var(--vsc-text-muted); border-color: rgba(255,255,255,0.06); }
     .as-detail { font-family: var(--vsc-font-mono); font-size: 10px; line-height: 1.5; opacity: 0.65; color: var(--vsc-green); word-break: break-all; }
     .as-box.off .as-detail { color: var(--vsc-text-muted); }
@@ -967,7 +1008,7 @@
       tabFns.push(updateInfo);
       w.append(infoBar);
 
-      /* ── 자동 장면 프리셋 (상세 표시) ── */
+      /* ── 자동 장면 (보간 방식 + 실시간 표시) ── */
       const asBox = h('div', { class: 'as-box off' });
       const asLabel = h('span', { class: 'asl' }, '자동 장면');
       const asTag = h('span', { class: 'as-tag' }, '—');
@@ -989,9 +1030,8 @@
           asDetail.textContent = '';
           return;
         }
-        const profileKey = AutoScene.getProfile();
-        asTag.textContent = AutoScene.getProfileLabel();
-        asDetail.textContent = AutoScene.getProfileDetail();
+        asTag.textContent = AutoScene.getLabel();
+        asDetail.textContent = AutoScene.getDetail();
       };
       tabFns.push(syncAutoScene);
       tabSignalCleanups.push(Scheduler.onSignal(syncAutoScene));
@@ -1001,7 +1041,7 @@
 
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
-      /* ── 수동 보정 프리셋 ── */
+      /* ── 수동 보정 프리셋 (40개) ── */
       const MANUAL_PRESETS = [
         { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
         { n: '내추럴',     v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
