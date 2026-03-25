@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      18.2
-// @description  Lean web optimizer v18.2 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration. Zero prototype hooks except FontFace.
+// @version      18.3
+// @description  Lean web optimizer v18.3 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration, Speculation Rules prefetch. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,7 +16,7 @@
 
 'use strict';
 (() => {
-  const V = '18.2';
+  const V = '18.3';
   const doc = document;
   const win = window;
   const HOST = location.hostname;
@@ -394,6 +394,78 @@
   })();
 
   /* ═══════════════════════════════════════════════
+   *  §8.5  Speculation Rules — Same-origin Prefetch (v18.3)
+   *
+   *  Chrome 109+ / Edge 109+ 지원. 미지원 브라우저 무시.
+   *  - document rules + moderate eagerness (hover 200ms / pointerdown)
+   *  - same-origin만 매칭 (href_matches: "/*")
+   *  - logout, api, download 링크 제외
+   *  - Data Saver, 에너지 절약 모드에서 Chrome이 자동 비활성화
+   *  - FIFO 한도 2개 → 대역폭 낭비 극소
+   *  - SPA(chat) 사이트 제외 (클라이언트 라우팅이라 효과 없음)
+   *  - CSP 위반 감지 시 스킵
+   *  - textContent은 Trusted Types 대상 아님 → TT 안전
+   * ═══════════════════════════════════════════════ */
+  let speculationInjected = false;
+
+  const injectSpeculationRules = () => {
+    /* 이미 삽입됨 */
+    if (speculationInjected) return;
+
+    /* SPA/Chat 사이트는 클라이언트 라우팅 → 효과 없음 */
+    if (isChat) return;
+
+    /* Data Saver 활성 → Chrome이 자동 스킵하지만, 삽입 자체를 방지 */
+    if (NET.save) return;
+
+    /* 저사양 네트워크에서는 prefetch 부담 → 스킵 */
+    if (TIER === 't1') return;
+
+    /* Feature detection: 브라우저가 speculationrules를 지원하는지 확인 */
+    if (typeof HTMLScriptElement === 'undefined' ||
+        typeof HTMLScriptElement.supports !== 'function' ||
+        !HTMLScriptElement.supports('speculationrules')) return;
+
+    /* CSP가 이미 위반을 감지한 상태면 스킵 (script 삽입 차단 가능성) */
+    if (CSP.isBlocked()) return;
+
+    try {
+      const rules = {
+        prefetch: [{
+          where: {
+            and: [
+              /* same-origin 링크만 */
+              { href_matches: '/*' },
+              /* 위험/불필요 경로 제외 */
+              { not: { href_matches: '/logout/*' } },
+              { not: { href_matches: '/signout/*' } },
+              { not: { href_matches: '/api/*' } },
+              { not: { href_matches: '/*?*action=logout*' } },
+              /* download 링크 제외 */
+              { not: { selector_matches: '[download]' } },
+              /* 외부 링크 방지: hash-only, javascript: 등 제외 */
+              { not: { href_matches: '' } },
+            ]
+          },
+          /* moderate: hover 200ms 또는 pointerdown 시 prefetch
+             Chrome FIFO 한도 2개 → 리소스 낭비 극소 */
+          eagerness: 'moderate'
+        }]
+      };
+
+      const s = doc.createElement('script');
+      s.type = 'speculationrules';
+      /* textContent은 Trusted Types 제어 대상 아님 (innerHTML과 다름) */
+      s.textContent = JSON.stringify(rules);
+      appendToHead(s);
+
+      speculationInjected = true;
+    } catch (_) {
+      /* CSP script-src 위반 등 → 조용히 실패 */
+    }
+  };
+
+  /* ═══════════════════════════════════════════════
    *  §9  Data‑Saver Listener
    *  [FIX-opt3] TIER 재계산
    * ═══════════════════════════════════════════════ */
@@ -446,6 +518,9 @@
       scanVideos();
       boostLCP();
 
+      /* §8.5 Speculation Rules 삽입 */
+      injectSpeculationRules();
+
       /* [FIX-6] Below-fold 최적화를 LCP 확정 후로 지연 */
       const startBelowFold = () => {
         optimizeBelowFold();
@@ -476,11 +551,13 @@
         trustedTypes: TT.name,
         chat: isChat,
         nav: navSupported,
+        speculation: speculationInjected,
         features: {
           viewTransition: typeof doc.startViewTransition === 'function',
           navigation: navSupported,
           mse: typeof MediaSource === 'function',
           schedulerYield: typeof scheduler !== 'undefined' && typeof scheduler.yield === 'function',
+          speculationRules: speculationInjected,
         },
       };
 
@@ -490,7 +567,8 @@
         `[TO v${V}] ✅ ${mode} ${DEV_TIER}(${DEV_CORES}c/${DEV_MEM}G) ` +
         `${NET.ect}/${TIER} TT:${TT.name} ` +
         `MSE:${isStreaming ? '✓(prot)' : '–'} DNS:${DnsHints.stats().hints} ` +
-        `Nav:${navSupported ? '✓' : '✗'} Yield:${f.schedulerYield ? '✓' : '✗'} ${HOST}`
+        `Nav:${navSupported ? '✓' : '✗'} Yield:${f.schedulerYield ? '✓' : '✗'} ` +
+        `Spec:${speculationInjected ? '✓' : '✗'} ${HOST}`
       );
     };
 
