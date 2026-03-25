@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v222.0.1)
+// @name         Video_Control (v222.0.3)
 // @namespace    https://github.com/
-// @version      222.0.1
-// @description  v222.0.1: 리뷰 기반 치명적 버그 및 오디오 훅 안정성 수정
+// @version      222.0.3
+// @description  v222.0.3: streamMap Context 유효성 검사 추가 및 전역/탭 시그널 생명주기 분리 (안정성 극대화)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -12,6 +12,9 @@
 // @exclude      *://*.paypal.com/*
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
+// @exclude      *://*.netflix.com/*
+// @exclude      *://*.disneyplus.com/*
+// @exclude      *://*.primevideo.com/*
 // @run-at       document-start
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -32,7 +35,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '222.0.1';
+  const VSC_VERSION = '222.0.3';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -41,9 +44,10 @@
   };
 
   function normalizeHostname(h) {
-    const parts = h.split('.');
+    let parts = h.split('.');
+    if (parts[0] === 'www') parts = parts.slice(1);
     if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) return parts.slice(1).join('.');
-    return h;
+    return parts.join('.');
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
@@ -147,7 +151,10 @@
     const signalFns = [];
     return {
       registerApply: fn => { applyFn = fn; },
-      onSignal: fn => { signalFns.push(fn); },
+      onSignal: fn => { 
+        signalFns.push(fn); 
+        return () => { const idx = signalFns.indexOf(fn); if (idx > -1) signalFns.splice(idx, 1); }; 
+      },
       request: (immediate = false) => {
         if (queued && !immediate) return;
         queued = true;
@@ -233,7 +240,25 @@
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
-    setInterval(() => { try { const allEls = document.querySelectorAll('*'); for (const el of allEls) { if (el.shadowRoot && !observedShadowHosts.has(el)) { observedShadowHosts.add(el); if (shadowRootsLRU.length >= SHADOW_MAX) { const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected); if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift(); } shadowRootsLRU.push({ host: el, root: el.shadowRoot }); connectObserver(el.shadowRoot); scanNode(el.shadowRoot); } } } catch (_) {} }, 3000);
+    setInterval(() => { 
+      try { 
+        const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
+          acceptNode: function(node) {
+            return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+          }
+        });
+        let el;
+        while(el = walker.nextNode()) {
+          if (!observedShadowHosts.has(el)) {
+            observedShadowHosts.add(el); 
+            if (shadowRootsLRU.length >= SHADOW_MAX) { const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected); if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift(); } 
+            shadowRootsLRU.push({ host: el, root: el.shadowRoot }); 
+            connectObserver(el.shadowRoot); 
+            scanNode(el.shadowRoot); 
+          }
+        }
+      } catch (_) {} 
+    }, 3000);
 
     setInterval(() => { let removed = 0; for (const el of videos) { if (!el?.isConnected) { videos.delete(el); clearFilterStyles(el); if (io) try { io.unobserve(el); } catch (_) {} if (ro) try { ro.unobserve(el); } catch (_) {} const ls = videoListeners.get(el); if (ls) { for (const [evt, fn] of ls) el.removeEventListener(evt, fn); videoListeners.delete(el); } removed++; } } if (removed) requestRefresh(); }, 5000);
 
@@ -260,7 +285,8 @@
     let ctx = null, comp = null, limiter = null, makeupGain = null, masterOut = null, dryPath = null;
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
-    const srcMap = new WeakMap();
+    const mesMap = new WeakMap();     
+    const streamMap = new WeakMap();  
     let bypassMode = false;
 
     const corsFailedVideos = new WeakSet();
@@ -360,10 +386,20 @@
 
     function connectViaCaptureStream(video) {
       if (!ctx || corsFailedVideos.has(video)) return null;
+      let s = streamMap.get(video);
+      if (s) {
+        if (s.context === ctx) return s;
+        // AudioContext가 변경된 경우 기존 소스 정리 (방어적 코드)
+        try { s.disconnect(); } catch (_) {}
+        if (s.__vsc_captureStream) {
+          s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        }
+        streamMap.delete(video);
+      }
+
       const captureFn = video.captureStream || video.mozCaptureStream;
       if (typeof captureFn !== 'function') return null;
 
-      // 음소거 전에 원본 상태 먼저 저장 (버그 픽스 #2 반영)
       const originalMuted = video.muted;
       const originalVolume = video.volume;
 
@@ -386,16 +422,20 @@
         source.__vsc_originalMuted = originalMuted;
         source.__vsc_originalVolume = originalVolume;
 
-        video.muted = true; // source 생성 성공 후에만 음소거
+        video.muted = true;
+        streamMap.set(video, source);
         return source;
-      } catch (e) { return null; }
+      } catch (e) { 
+        stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        return null; 
+      }
     }
 
     function connectViaMES(video) {
       if (!ctx || mesFailedVideos.has(video)) return null;
-      let s = srcMap.get(video);
-      if (s) { if (s.context === ctx) return s; if (s.context.state === 'closed') { srcMap.delete(video); s = null; } else return null; }
-      try { s = ctx.createMediaElementSource(video); srcMap.set(video, s); return s; }
+      let s = mesMap.get(video);
+      if (s) { if (s.context === ctx) return s; if (s.context.state === 'closed') { mesMap.delete(video); s = null; } else return null; }
+      try { s = ctx.createMediaElementSource(video); mesMap.set(video, s); return s; }
       catch (e) { if (e.name === 'InvalidStateError') return null; log.error('[Audio] MES failed:', e); return null; }
     }
 
@@ -424,7 +464,6 @@
         return false;
       }
 
-      srcMap.set(video, source);
       try { source.disconnect(); } catch (_) {}
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       source.connect(enabled ? comp : dryPath);
@@ -444,16 +483,16 @@
       }, 60);
     }
 
-    // 버그 픽스 #3 반영: 명시적 vid 매개변수 추가
     function disconnectCurrent(vid) {
       if (!currentSrc) return;
-      const target = vid || targetVideo; // 명시적으로 전달받은 타겟 사용
+      const target = vid || targetVideo; 
 
       if (currentSrc.__vsc_isCaptureStream && target) {
         if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
         if (currentSrc.__vsc_originalVolume != null) try { target.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
         const stream = currentSrc.__vsc_captureStream;
         if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        streamMap.delete(target);
       }
       try { currentSrc.disconnect(); } catch (_) {}
       if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
@@ -488,21 +527,31 @@
 
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       if (!enabled) {
-        const oldTarget = targetVideo; // 현재 타겟 저장
-        if (currentSrc || targetVideo) fadeOutThen(() => { disconnectCurrent(oldTarget); });
-        targetVideo = video;
+        const oldTarget = targetVideo;
+        if (currentSrc || targetVideo) {
+          fadeOutThen(() => { 
+            disconnectCurrent(oldTarget); 
+            targetVideo = video; 
+          });
+        } else {
+          targetVideo = video;
+        }
         if (bypassMode) { bypassMode = false; currentMode = 'none'; }
         return;
       }
       if (!initCtx()) { targetVideo = video; return; }
 
       if (video && !canConnect(video)) {
-        const oldTarget = targetVideo; // 현재 타겟 저장
-        fadeOutThen(() => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } });
+        const oldTarget = targetVideo;
+        fadeOutThen(() => { 
+          disconnectCurrent(oldTarget); 
+          targetVideo = video; 
+          if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } 
+        });
         return;
       }
 
-      const oldTarget = targetVideo; // 현재 타겟 저장
+      const oldTarget = targetVideo;
       fadeOutThen(() => {
         disconnectCurrent(oldTarget);
         if (bypassMode) { bypassMode = false; currentMode = 'none'; }
@@ -550,7 +599,6 @@
       }
       const res = out.join(' ');
 
-      // 버그 픽스 #4 반영: toneCache LRU 방어코드
       if (toneCache.size >= TONE_CACHE_MAX) {
         const first = toneCache.keys().next();
         if (!first.done) toneCache.delete(first.value);
@@ -583,7 +631,6 @@
       return { fid, svg, fConv, toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean), tempFuncR: tempChildren.find(f => f.tagName.includes('R')), tempFuncG: tempChildren.find(f => f.tagName.includes('G')), tempFuncB: tempChildren.find(f => f.tagName.includes('B')), fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
     }
 
-    // 버그 픽스 #5 반영: !IS_FIREFOX 중복 조건 제거 (상단에서 조기 반환됨)
     function needsSvg(s) {
       if (IS_FIREFOX) return false;
       const hasSharp = Math.abs(s.sharp || 0) > 0.005;
@@ -753,6 +800,8 @@
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
     const tabFns = [];
+    const tabSignalCleanups = []; 
+    const globalSignalCleanups = []; 
     let __scrBrtOverlay = null;
 
     const TAB_ICONS = {
@@ -938,8 +987,15 @@
       const w = h('div', {});
       const infoBar = h('div', { class: 'info-bar' });
       const updateInfo = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { infoBar.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; infoBar.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
-      Scheduler.onSignal(updateInfo); Store.sub(P.V_PRE_S, updateInfo); tabFns.push(updateInfo);
+      
+      tabSignalCleanups.push(Scheduler.onSignal(updateInfo)); 
+      Store.sub(P.V_PRE_S, updateInfo); tabFns.push(updateInfo);
       w.append(infoBar, mkSep());
+
+      if (IS_FIREFOX) {
+        w.append(h('div', { style: 'font-size:10px;opacity:.7;padding-bottom:8px;color:var(--vsc-amber)' }, '⚠️ Firefox에서는 SVG 기반 수동 톤 보정이 지원되지 않습니다.'));
+      }
+
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
       const MANUAL_PRESETS = [ { n: 'OFF', v: [0,0,0,0] }, { n: '선명', v: [0,15,0,0] }, { n: '영화', v: [20,15,10,-18] }, { n: '복원', v: [45,50,5,0] }, { n: '심야', v: [60,20,0,15] }, { n: '아트', v: [5,45,15,-25] } ];
@@ -973,7 +1029,8 @@
       w.append(mkRow('오디오 평준화', mkToggle(P.A_EN, () => Audio.setTarget(__internal._activeVideo))), mkRow('평준화 강도', ...mkSlider(P.A_STR, 0, 100, 1)), mkSep());
       w.append(h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;line-height:1.5' }, '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 광고/폭발음 등 갑작스런 큰 소리를 방지합니다.'));
       const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;' }, '상태: 대기');
-      Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); status.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (평준화 처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; });
+      
+      tabSignalCleanups.push(Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); status.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (평준화 처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; }));
       w.append(status);
       if (IS_FIREFOX) w.append(h('div', { style: 'font-size:10px;opacity:.4;padding:4px 0;color:var(--vsc-amber)' }, 'Firefox에서는 오디오 평준화가 지원되지 않습니다.'));
       return w;
@@ -1018,7 +1075,6 @@
         fineRow.appendChild(btn);
       });
 
-      // 버그 픽스 #10 반영: 슬라이더 상한을 프리셋과 일치시킴 (4 -> 5배)
       w.append(fineRow, mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 5, 0.01)));
       return w;
     }
@@ -1067,12 +1123,32 @@
       getMountTarget().appendChild(panelHost);
     }
 
-    function renderTab() { const body = _shadow?.querySelector('.body'); if (!body) return; body.textContent = ''; tabFns.length = 0; const w = h('div', {}); if (activeTab === 'video') w.appendChild(buildVideoTab()); else if (activeTab === 'audio') w.appendChild(buildAudioTab()); else if (activeTab === 'playback') w.appendChild(buildPlaybackTab()); body.appendChild(w); tabFns.forEach(f => f()); _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab)); updateTabIndicator(_shadow.querySelector('.tabs'), activeTab); }
+    function renderTab() { 
+      const body = _shadow?.querySelector('.body'); 
+      if (!body) return; 
+      body.textContent = ''; 
+      
+      // 탭 전용 리스너만 클린업
+      tabSignalCleanups.forEach(cleanup => cleanup());
+      tabSignalCleanups.length = 0;
+      tabFns.length = 0; 
+      
+      const w = h('div', {}); 
+      if (activeTab === 'video') w.appendChild(buildVideoTab()); 
+      else if (activeTab === 'audio') w.appendChild(buildAudioTab()); 
+      else if (activeTab === 'playback') w.appendChild(buildPlaybackTab()); 
+      body.appendChild(w); 
+      
+      tabFns.forEach(f => f()); 
+      _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab)); 
+      updateTabIndicator(_shadow.querySelector('.tabs'), activeTab); 
+    }
 
     function togglePanel(force) { buildPanel(); panelOpen = force !== undefined ? force : !panelOpen; if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); } else { panelEl.classList.remove('open'); setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); } }
 
     buildQuickBar(); updateQuickBarVisibility();
-    Scheduler.onSignal(updateQuickBarVisibility); setInterval(updateQuickBarVisibility, 2000);
+    globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility)); 
+    setInterval(updateQuickBarVisibility, 2000);
     document.addEventListener('fullscreenchange', onFullscreenChange); document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     setInterval(() => { if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
@@ -1103,7 +1179,6 @@
         if (Store.get(P.PB_EN)) {
           const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
           if (Math.abs(target.playbackRate - rate) > 0.001) {
-            // 버그 픽스 #6 반영: 미디어키 브라우저 예외 방지
             let isDRM = target.dataset.vscDrm === "1";
             try { isDRM = isDRM || !!target.mediaKeys; } catch (_) {}
 
