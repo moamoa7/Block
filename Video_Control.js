@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v227.0.0)
+// @name         Video_Control (v227.1.0)
 // @namespace    https://github.com/
-// @version      227.0.0
-// @description  v227.0.0: 자동 장면 프리셋(상세표시) + 9축 수동보정 + 40개 프리셋
+// @version      227.1.0
+// @description  v227.1.0: 자동 장면 프리셋(상세표시) + 9축 수동보정 + 40개 프리셋
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '227.0.0';
+  const VSC_VERSION = '227.1.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -475,7 +475,18 @@
         const x0 = i / (steps - 1); let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
         x = x * contrast + intercept; x = CLAMP(x, 0, 1);
         if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
-        if (mid > 0.001) { const mc = 0.45, sig = 0.18; const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig)); x = CLAMP(x + (x0 - mc) * mid * mw * 1.5, 0, 1); }
+        if (mid > 0.001) {
+  const mc = 0.45, sig = 0.18;
+  const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
+  // 기존: x = CLAMP(x + (x0 - mc) * mid * mw * 1.5, 0, 1);
+  // 수정: 0.45 이하 영역은 보호
+  const delta = (x0 - mc) * mid * mw * 1.5;
+  if (delta > 0) {
+    x = CLAMP(x + delta, 0, 1);           // 밝은 쪽: 그대로 올림
+  } else {
+    x = CLAMP(x + delta * 0.15, 0, 1);    // 어두운 쪽: 85% 억제
+  }
+}
         if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
         if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
