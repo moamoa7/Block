@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v222.0.3)
+// @name         Video_Control (v222.0.5)
 // @namespace    https://github.com/
-// @version      222.0.3
-// @description  v222.0.3: streamMap Context 유효성 검사 추가 및 전역/탭 시그널 생명주기 분리 (안정성 극대화)
+// @version      222.0.5
+// @description  v222.0.5: streamMap Context 유효성 검사 추가 및 전역/탭 시그널 생명주기 분리 (안정성 극대화)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -35,7 +35,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '222.0.3';
+  const VSC_VERSION = '222.0.5';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -151,9 +151,9 @@
     const signalFns = [];
     return {
       registerApply: fn => { applyFn = fn; },
-      onSignal: fn => { 
-        signalFns.push(fn); 
-        return () => { const idx = signalFns.indexOf(fn); if (idx > -1) signalFns.splice(idx, 1); }; 
+      onSignal: fn => {
+        signalFns.push(fn);
+        return () => { const idx = signalFns.indexOf(fn); if (idx > -1) signalFns.splice(idx, 1); };
       },
       request: (immediate = false) => {
         if (queued && !immediate) return;
@@ -240,8 +240,8 @@
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
-    setInterval(() => { 
-      try { 
+    setInterval(() => {
+      try {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
           acceptNode: function(node) {
             return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
@@ -250,14 +250,14 @@
         let el;
         while(el = walker.nextNode()) {
           if (!observedShadowHosts.has(el)) {
-            observedShadowHosts.add(el); 
-            if (shadowRootsLRU.length >= SHADOW_MAX) { const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected); if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift(); } 
-            shadowRootsLRU.push({ host: el, root: el.shadowRoot }); 
-            connectObserver(el.shadowRoot); 
-            scanNode(el.shadowRoot); 
+            observedShadowHosts.add(el);
+            if (shadowRootsLRU.length >= SHADOW_MAX) { const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected); if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift(); }
+            shadowRootsLRU.push({ host: el, root: el.shadowRoot });
+            connectObserver(el.shadowRoot);
+            scanNode(el.shadowRoot);
           }
         }
-      } catch (_) {} 
+      } catch (_) {}
     }, 3000);
 
     setInterval(() => { let removed = 0; for (const el of videos) { if (!el?.isConnected) { videos.delete(el); clearFilterStyles(el); if (io) try { io.unobserve(el); } catch (_) {} if (ro) try { ro.unobserve(el); } catch (_) {} const ls = videoListeners.get(el); if (ls) { for (const [evt, fn] of ls) el.removeEventListener(evt, fn); videoListeners.delete(el); } removed++; } } if (removed) requestRefresh(); }, 5000);
@@ -269,14 +269,30 @@
   function createTargeting() {
     return {
       pick: (videos) => {
-        const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-        if (fsEl) { if (fsEl.tagName === 'VIDEO' && videos.has(fsEl)) return fsEl; for (const v of videos) { if (v.isConnected && fsEl.contains(v)) return v; } }
-        let best = null, bestScore = -Infinity;
-        for (const v of videos) { if (!v.isConnected) continue; const r = v.getBoundingClientRect(); const area = r.width * r.height; if (area === 0 && v.readyState === 0 && v.paused) continue; let s = Math.log2(1 + Math.max(0, area)); if (!v.paused && !v.ended) s += 25; if (v.currentTime > 0) s += 5; if (!v.muted && v.volume > 0.01) s += 5; if (s > bestScore) { bestScore = s; best = v; } }
-        return best;
-      }
-    };
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    if (fsEl.tagName === 'VIDEO' && videos.has(fsEl)) return fsEl;
+    for (const v of videos) { if (v.isConnected && fsEl.contains(v)) return v; }
   }
+
+  let best = null, bestScore = -Infinity;
+  for (const v of videos) {
+    if (!v.isConnected) continue;
+
+    // ✅ getBoundingClientRect() 제거 및 clientWidth/Height로 대체
+    const dW = v.clientWidth || 0;
+    const dH = v.clientHeight || 0;
+    const area = dW * dH;
+
+    if (area === 0 && v.readyState === 0 && v.paused) continue;
+    let s = Math.log2(1 + Math.max(0, area));
+    if (!v.paused && !v.ended) s += 25;
+    if (v.currentTime > 0) s += 5;
+    if (!v.muted && v.volume > 0.01) s += 5;
+    if (s > bestScore) { bestScore = s; best = v; }
+  }
+  return best;
+}
 
   /* ══ Audio ══ */
   function createAudio(store, scheduler) {
@@ -285,8 +301,8 @@
     let ctx = null, comp = null, limiter = null, makeupGain = null, masterOut = null, dryPath = null;
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
-    const mesMap = new WeakMap();     
-    const streamMap = new WeakMap();  
+    const mesMap = new WeakMap();
+    const streamMap = new WeakMap();
     let bypassMode = false;
 
     const corsFailedVideos = new WeakSet();
@@ -425,9 +441,9 @@
         video.muted = true;
         streamMap.set(video, source);
         return source;
-      } catch (e) { 
+      } catch (e) {
         stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
-        return null; 
+        return null;
       }
     }
 
@@ -485,7 +501,7 @@
 
     function disconnectCurrent(vid) {
       if (!currentSrc) return;
-      const target = vid || targetVideo; 
+      const target = vid || targetVideo;
 
       if (currentSrc.__vsc_isCaptureStream && target) {
         if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
@@ -529,9 +545,9 @@
       if (!enabled) {
         const oldTarget = targetVideo;
         if (currentSrc || targetVideo) {
-          fadeOutThen(() => { 
-            disconnectCurrent(oldTarget); 
-            targetVideo = video; 
+          fadeOutThen(() => {
+            disconnectCurrent(oldTarget);
+            targetVideo = video;
           });
         } else {
           targetVideo = video;
@@ -543,10 +559,10 @@
 
       if (video && !canConnect(video)) {
         const oldTarget = targetVideo;
-        fadeOutThen(() => { 
-          disconnectCurrent(oldTarget); 
-          targetVideo = video; 
-          if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } 
+        fadeOutThen(() => {
+          disconnectCurrent(oldTarget);
+          targetVideo = video;
+          if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; }
         });
         return;
       }
@@ -800,8 +816,8 @@
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
     const tabFns = [];
-    const tabSignalCleanups = []; 
-    const globalSignalCleanups = []; 
+    const tabSignalCleanups = [];
+    const globalSignalCleanups = [];
     let __scrBrtOverlay = null;
 
     const TAB_ICONS = {
@@ -987,8 +1003,8 @@
       const w = h('div', {});
       const infoBar = h('div', { class: 'info-bar' });
       const updateInfo = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { infoBar.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; infoBar.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
-      
-      tabSignalCleanups.push(Scheduler.onSignal(updateInfo)); 
+
+      tabSignalCleanups.push(Scheduler.onSignal(updateInfo));
       Store.sub(P.V_PRE_S, updateInfo); tabFns.push(updateInfo);
       w.append(infoBar, mkSep());
 
@@ -1029,7 +1045,7 @@
       w.append(mkRow('오디오 평준화', mkToggle(P.A_EN, () => Audio.setTarget(__internal._activeVideo))), mkRow('평준화 강도', ...mkSlider(P.A_STR, 0, 100, 1)), mkSep());
       w.append(h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;line-height:1.5' }, '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 광고/폭발음 등 갑작스런 큰 소리를 방지합니다.'));
       const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;' }, '상태: 대기');
-      
+
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); status.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (평준화 처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; }));
       w.append(status);
       if (IS_FIREFOX) w.append(h('div', { style: 'font-size:10px;opacity:.4;padding:4px 0;color:var(--vsc-amber)' }, 'Firefox에서는 오디오 평준화가 지원되지 않습니다.'));
@@ -1123,31 +1139,35 @@
       getMountTarget().appendChild(panelHost);
     }
 
-    function renderTab() { 
-      const body = _shadow?.querySelector('.body'); 
-      if (!body) return; 
-      body.textContent = ''; 
-      
-      // 탭 전용 리스너만 클린업
-      tabSignalCleanups.forEach(cleanup => cleanup());
-      tabSignalCleanups.length = 0;
-      tabFns.length = 0; 
-      
-      const w = h('div', {}); 
-      if (activeTab === 'video') w.appendChild(buildVideoTab()); 
-      else if (activeTab === 'audio') w.appendChild(buildAudioTab()); 
-      else if (activeTab === 'playback') w.appendChild(buildPlaybackTab()); 
-      body.appendChild(w); 
-      
-      tabFns.forEach(f => f()); 
-      _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab)); 
-      updateTabIndicator(_shadow.querySelector('.tabs'), activeTab); 
-    }
+    function renderTab() {
+  const body = _shadow?.querySelector('.body');
+  if (!body) return;
+  body.textContent = '';
+
+  tabSignalCleanups.forEach(cleanup => cleanup());
+  tabSignalCleanups.length = 0;
+  tabFns.length = 0;
+
+  const w = h('div', {});
+  if (activeTab === 'video') w.appendChild(buildVideoTab());
+  else if (activeTab === 'audio') w.appendChild(buildAudioTab());
+  else if (activeTab === 'playback') w.appendChild(buildPlaybackTab());
+  body.appendChild(w);
+
+  tabFns.forEach(f => f());
+  _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab));
+  updateTabIndicator(_shadow.querySelector('.tabs'), activeTab);
+
+  // ✅ 추가된 로직: 패널이 열려있을 때 스케줄러 신호에 맞춰 UI 상태 동기화
+  tabSignalCleanups.push(Scheduler.onSignal(() => {
+    if (panelOpen) tabFns.forEach(f => f());
+  }));
+}
 
     function togglePanel(force) { buildPanel(); panelOpen = force !== undefined ? force : !panelOpen; if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); } else { panelEl.classList.remove('open'); setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); } }
 
     buildQuickBar(); updateQuickBarVisibility();
-    globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility)); 
+    globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(updateQuickBarVisibility, 2000);
     document.addEventListener('fullscreenchange', onFullscreenChange); document.addEventListener('webkitfullscreenchange', onFullscreenChange);
     setInterval(() => { if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
