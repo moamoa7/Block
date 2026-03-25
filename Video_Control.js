@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v221.6.0 - Final)
+// @name         Video_Control (v221.7.0 - Final)
 // @namespace    https://github.com/
-// @version      221.6.0
-// @description  v221.6: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
+// @version      221.7.0
+// @description  v221.7: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '221.6.0';
+  const VSC_VERSION = '221.7.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -623,7 +623,7 @@
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
       let rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
 
-      if (IS_MOBILE) mul = Math.max(mul, 0.72);
+      if (IS_MOBILE) mul = Math.max(mul, 0.60);
 
       return {
         mul: CLAMP(mul, 0, 1),
@@ -641,7 +641,8 @@
         const presetS = Store.get(P.V_PRE_S); const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
 
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
-        const finalMul = (mul === 0 && presetS !== 'off') ? 0.50 : mul;
+        const mobileThrottle = IS_MOBILE ? 0.85 : 1.0;
+        const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * mobileThrottle;
 
         // 👉 유저님 아이디어 적용: 수동 프리셋에도 원본 해상도 가중치 부여
         if (presetS === 'off') {
