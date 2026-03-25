@@ -609,67 +609,112 @@
   function createVideoParams(Store) {
     const cache = new WeakMap();
 
+    // SVG 필터 사용 여부를 판단하는 내부 로직 (경로 격리용)
+    function wouldUseSvg(out) {
+      if (IS_FIREFOX) return false;
+      const hasSharp = Math.abs(out.sharp || 0) > 0.005;
+      const hasTone = (
+        Math.abs(out.toe || 0) > 0.005 ||
+        Math.abs(out.mid || 0) > 0.005 ||
+        Math.abs(out.shoulder || 0) > 0.005 ||
+        Math.abs((out.gain || 1) - 1) > 0.005 ||
+        Math.abs((out.gamma || 1) - 1) > 0.005 ||
+        Math.abs(out.bright || 0) > 0.5
+      );
+      return hasSharp || hasTone || Math.abs(out.temp || 0) > 0.5;
+    }
+
     function computeSharpMul(video) {
       const nW = video.videoWidth | 0;
       if (nW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
 
       const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
       let dW, dH;
-      try { const rect = video.getBoundingClientRect(); dW = rect.width || video.clientWidth || nW; dH = rect.height || video.clientHeight || (video.videoHeight | 0); } catch (_) { dW = video.clientWidth || nW; dH = video.clientHeight || (video.videoHeight | 0); }
+      try {
+        const rect = video.getBoundingClientRect();
+        dW = rect.width || video.clientWidth || nW;
+        dH = rect.height || video.clientHeight || (video.videoHeight | 0);
+      } catch (_) {
+        dW = video.clientWidth || nW;
+        dH = video.clientHeight || (video.videoHeight | 0);
+      }
 
       if (dW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
-      const nH = video.videoHeight | 0; const ratioW = (dW * dpr) / nW; const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW; const ratio = Math.min(ratioW, ratioH);
+      const nH = video.videoHeight | 0;
+      const ratioW = (dW * dpr) / nW;
+      const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW;
+      const ratio = Math.min(ratioW, ratioH);
 
+      // 디스플레이 배율 가중치
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
+
+      // 원본 해상도 기반 베이스값
       let rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
 
-      if (IS_MOBILE) mul = Math.max(mul, 0.60);
+      if (IS_MOBILE) mul = Math.max(mul, 0.60); // 모바일 하한선 완화
 
       return {
         mul: CLAMP(mul, 0, 1),
         autoBase: CLAMP(rawAutoBase * mul, 0, 0.18),
-        rawAutoBase // 👉 순수 해상도 베이스 반환 추가
+        rawAutoBase // 정규화용 원본 베이스 반환
       };
     }
 
     return {
       get: (video) => {
-        const storeRev = Store.rev(); const nW = video ? (video.videoWidth | 0) : 0; const dW = video ? (video.clientWidth || video.offsetWidth || 0) : 0; const dH = video ? (video.clientHeight || video.offsetHeight || 0) : 0;
-        if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH) return cached.out; }
+        const storeRev = Store.rev();
+        const nW = video ? (video.videoWidth | 0) : 0;
+        const dW = video ? (video.clientWidth || video.offsetWidth || 0) : 0;
+        const dH = video ? (video.clientHeight || video.offsetHeight || 0) : 0;
+
+        if (video && nW >= 16) {
+          const cached = cache.get(video);
+          if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH) return cached.out;
+        }
 
         const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
-        const presetS = Store.get(P.V_PRE_S); const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
+        const presetS = Store.get(P.V_PRE_S);
+        const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
 
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+
+        // 모바일 전체 강도 미세 감쇄 (눈의 피로도 저하)
         const mobileThrottle = IS_MOBILE ? 0.60 : 0.40;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * mobileThrottle;
 
-        // 👉 유저님 아이디어 적용: 수동 프리셋에도 원본 해상도 가중치 부여
+        // 해상도 가중치 정규화 (1080p 기준)
         if (presetS === 'off') {
-          out.sharp = autoBase;
+          out.sharp = autoBase * mobileThrottle;
         } else if (presetS !== 'none') {
           const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50);
           out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor;
         }
-
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
 
-        const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD)) || 0, 0, 100);
-        const mRec  = CLAMP(Number(Store.get(P.V_MAN_REC)) || 0, 0, 100);
-        const mBrt  = CLAMP(Number(Store.get(P.V_MAN_BRT)) || 0, 0, 100);
-        const mTemp = CLAMP(Number(Store.get(P.V_MAN_TEMP)) || 0, -50, 50);
+        // 수동 보정값 취득 (?? 사용하여 0값 버그 방지)
+        const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
+        const mRec  = CLAMP(Number(Store.get(P.V_MAN_REC) ?? 0), 0, 100);
+        const mBrt  = CLAMP(Number(Store.get(P.V_MAN_BRT) ?? 0), 0, 100);
+        const mTemp = CLAMP(Number(Store.get(P.V_MAN_TEMP) ?? 0), -50, 50);
 
-        out.toe      = mShad * 0.0035;
-        out.mid      = mRec  * 0.0030;
-        out.shoulder = mBrt  * 0.0040;
+        // 1. SVG 전용 비선형 톤 커브 (상향된 계수)
+        out.toe      = mShad * 0.0040; // 암부 부스트
+        out.mid      = mRec  * 0.0035; // 디테일 복원
+        out.shoulder = mBrt  * 0.0045; // 노출 보정
         out.temp     = mTemp;
 
-        out.contrast = 1;
-        out.bright   = 0;
+        // 2. 경로 격리 (이중 보정 방지)
+        if (wouldUseSvg(out)) {
+          // SVG가 작동 중이면 CSS 경로는 투명하게(1.0) 유지
+          out._cssBr = 1.0;
+          out._cssCt = 1.0;
+        } else {
+          // Firefox 등 CSS 전용 경로일 때만 선형 보정 적용
+          out._cssBr = 1 + (mBrt * 0.003);
+          out._cssCt = 1 + (mRec * 0.003);
+        }
 
-        out._cssBr   = 1 + (mBrt * 0.005);
-        out._cssCt   = 1 + (mRec * 0.005);
-        out._cssSat  = CLAMP(out.satF, 0.5, 2.0);
+        out._cssSat = CLAMP(out.satF, 0.5, 2.0);
 
         if (video && nW >= 16) cache.set(video, { rev: storeRev, nW, dW, dH, out });
         return out;
