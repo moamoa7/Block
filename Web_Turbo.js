@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      18.4
-// @description  Lean web optimizer v18.4 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration, Speculation Rules prefetch. Zero prototype hooks except FontFace.
+// @version      18.5
+// @description  Lean web optimizer v18.5 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration, Speculation Rules prefetch, popstate SPA fallback, background-tab grace period. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,7 +16,7 @@
 
 'use strict';
 (() => {
-  const V = '18.4';
+  const V = '18.5';
   const doc = document;
   const win = window;
   const HOST = location.hostname;
@@ -49,6 +49,7 @@
     dnsFreqThreshold : 3,
     slowResMs        : 3000,
     lazyMarginPx     : 300,
+    gracePeriodMs    : 30000,
   };
 
   /* ═══════════════════════════════════════════════
@@ -468,12 +469,37 @@
   };
 
   /* ═══════════════════════════════════════════════
-   *  §10  Visibility & BFCache
+   *  §10  Visibility, BFCache & Background Tab
+   *        Grace Period
+   *
+   *  [v18.5] 탭이 CFG.gracePeriodMs(30s) 이상 숨겨진 뒤
+   *  복귀하면 전체 상태를 재초기화한다.
+   *  프로토타입 훅 없이 비활성 탭 복귀 시나리오를 견고하게 처리.
    * ═══════════════════════════════════════════════ */
+  let hiddenSince = 0;
+
   const initVisibility = () => {
     doc.addEventListener('visibilitychange', () => {
-      if (doc.visibilityState === 'visible') scanVideos();
+      if (doc.visibilityState === 'hidden') {
+        hiddenSince = performance.now();
+      } else {
+        /* 탭이 다시 보이게 됨 */
+        const elapsed = hiddenSince ? performance.now() - hiddenSince : 0;
+        hiddenSince = 0;
+
+        if (elapsed >= CFG.gracePeriodMs) {
+          /* 장시간 백그라운드 → 전체 재초기화 */
+          scanVideos();
+          patchFontRules();
+          boostLCP();
+          DnsHints.flush();
+        } else {
+          /* 짧은 전환 → 기존 최소 동작 */
+          scanVideos();
+        }
+      }
     });
+
     win.addEventListener('pageshow', e => {
       if (e.persisted) { scanVideos(); patchFontRules(); boostLCP(); }
     });
@@ -482,14 +508,29 @@
   /* ═══════════════════════════════════════════════
    *  §11  SPA Navigation (listen only)
    *  [PATCH-8] navigation optional chaining — null 방어
+   *
+   *  [v18.5] popstate 폴백 추가 — Navigation API 미지원
+   *  브라우저에서 뒤로가기/앞으로가기 시에도 상태 갱신.
    * ═══════════════════════════════════════════════ */
   let navSupported = false;
+
   const initNavigation = () => {
-    if (typeof navigation === 'undefined' || !navigation?.addEventListener) return;
-    navSupported = true;
-    navigation.addEventListener('navigatesuccess', () => {
-      scanVideos(); patchFontRules(); boostLCP();
-    });
+    const onNav = () => {
+      scanVideos();
+      patchFontRules();
+      boostLCP();
+    };
+
+    /* Navigation API (modern browsers) */
+    if (typeof navigation !== 'undefined' && navigation?.addEventListener) {
+      navSupported = true;
+      navigation.addEventListener('navigatesuccess', onNav);
+    }
+
+    /* popstate 폴백 — Navigation API 유무와 무관하게 항상 등록.
+     * history.back()/forward(), hash 변경 등을 커버.
+     * Navigation API와 중복 발생해도 각 함수가 멱등(idempotent)이므로 안전. */
+    win.addEventListener('popstate', onNav);
   };
 
   /* ═══════════════════════════════════════════════
