@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 미터
 // @namespace    https://github.com/moamoa7
-// @version      14.1.1
+// @version      14.1.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -42,7 +42,7 @@
   const PLATFORM_SETTINGS = {
     youtube: { target: 10 },
     chzzk:   { target: 2 },
-    soop:    { target: 4 },
+    soop:    { target: 3 },
     twitch:  { target: 3 },
     default: { target: 3 },
   };
@@ -70,6 +70,7 @@
   const HYST           = 0.3;
   const STALL_WINDOW   = 30000;
   const STALL_COOLDOWN = 8000;
+  const WARMUP_MS      = 4000;
   const R_NORM = 1.00, R_SOFT = 1.02, R_MED = 1.10, R_HIGH = 1.50;
 
   /* ── 기능 감지 ── */
@@ -77,8 +78,16 @@
 
   /* ── Config ── */
   let cfg;
-  try { cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; } catch { cfg = {}; }
-  const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
+  try { 
+    cfg = JSON.parse(localStorage.getItem(STORE_KEY)) || {}; 
+  } catch (e) { 
+    console.debug('DelayMeter:', e); 
+    cfg = {}; 
+  }
+  const save = () => { 
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } 
+    catch (e) { console.debug('DelayMeter:', e); } 
+  };
   let _saveId = 0;
   const saveLazy = () => { clearTimeout(_saveId); _saveId = setTimeout(save, 400); };
 
@@ -101,28 +110,32 @@
   }
 
   let lastSeek  = 0;
-  let warmupEnd = performance.now() + 4000;
+  let warmupEnd = performance.now() + WARMUP_MS;
   let gear      = R_NORM;
   let panelOpen = cfg.open ?? false;
   let els       = {};
+
+  let stallCount = 0, lastStallTime = 0;
+  let _isCurrentlyLive = false;
+  let _liveConfirmedOnce = false;
+  let _liveFalseCount = 0;
 
   const HIST = 60;
   const hist = new Float32Array(HIST);
   let histHead = 0, histLen = 0, histMax = 0;
   const histPush = v => {
+    const oldVal = hist[histHead];
     hist[histHead] = v;
     histHead = (histHead + 1) % HIST;
     if (histLen < HIST) histLen++;
-    if (v >= histMax) { histMax = v; }
-    else if (histLen === HIST && (histHead & 7) === 0) {
+    
+    if (v >= histMax) { 
+      histMax = v; 
+    } else if (oldVal >= histMax || (histLen === HIST && (histHead & 7) === 0)) {
       histMax = 0;
-      for (let i = 0; i < HIST; i++) { if (hist[i] > histMax) histMax = hist[i]; }
+      for (let i = 0; i < histLen; i++) { if (hist[i] > histMax) histMax = hist[i]; }
     }
   };
-
-  let stallCount = 0, lastStallTime = 0;
-  let _isCurrentlyLive = false;
-  let _liveConfirmedOnce = false;
 
   /* ── 프레임 품질 모니터링 ── */
   let _prevDropped = 0, _prevTotal = 0, _dropRate = 0;
@@ -151,7 +164,7 @@
     const r = Math.round(a0+(b0-a0)*u);
     const g = Math.round(a1+(b1-a1)*u);
     const bl= Math.round(a2+(b2-a2)*u);
-    return '#' + (r<16?'0':'') + r.toString(16) + (g<16?'0':'') + g.toString(16) + (bl<16?'0':'') + bl.toString(16);
+    return '#' + ((1 << 24) | (r << 16) | (g << 8) | bl).toString(16).slice(1);
   };
 
   let _lastHex = '', _lastRgbStr = '';
@@ -190,7 +203,6 @@
     if (location.pathname.includes('/live')) return true;
 
     const now = performance.now();
-    /* false 결과는 1초만 캐시, true 결과는 3초 캐시 */
     const ttl = _ytLiveResult ? 3000 : 1000;
     if (now - _ytLiveTs < ttl) return _ytLiveResult;
 
@@ -334,8 +346,9 @@
     if (!isCandidate(v)) return;
     _liveCache.delete(v);
     stopRVFC();
+    stopObserver(); 
     setVid(v);
-    lastSeek = 0; warmupEnd = performance.now() + 4000; gear = R_NORM;
+    lastSeek = 0; warmupEnd = performance.now(); gear = R_NORM;
     stallCount = 0; histLen = 0; histHead = 0; histMax = 0;
     resetDropRate();
     _isCurrentlyLive = false;
@@ -361,6 +374,8 @@
   }, { capture: true });
 
   let mo = null, _scanRetry = 0;
+  const stopObserver = () => { if (mo) { mo.disconnect(); mo = null; } };
+  
   const scan = () => {
     const vids = document.getElementsByTagName('video');
     if (!vids.length) {
@@ -377,7 +392,7 @@
     if (mo) return;
     if (!document.body) return;
     mo = new MutationObserver(muts => {
-      if (getVid()) return;
+      if (getVid()) { stopObserver(); return; }
       outer:
       for (const m of muts) {
         for (const n of m.addedNodes) {
@@ -400,10 +415,16 @@
   const doSeek = vid => {
     try {
       const s = vid.seekable;
-      if (s.length) vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
-      else { const b = vid.buffered, i = b.length - 1; vid.currentTime = Math.max(b.start(i), b.end(i) - target - 1); }
+      if (s.length) {
+        vid.currentTime = Math.max(s.start(s.length - 1), s.end(s.length - 1) - target - 1);
+      } else { 
+        const b = vid.buffered; 
+        if (!b.length) return;
+        const i = b.length - 1; 
+        vid.currentTime = Math.max(b.start(i), b.end(i) - target - 1); 
+      }
       lastSeek = performance.now();
-    } catch {}
+    } catch (e) { console.debug('DelayMeter:', e); }
   };
 
   /* ── 스파크라인 ── */
@@ -451,10 +472,9 @@
 
   const tick = () => {
     const vid = getVid();
-    if (!vid) { scan(); stopRVFC(); lastBuf = -1; _isCurrentlyLive = false; scheduleRender(); return; }
+    if (!vid) { scan(); stopRVFC(); startObserver(); lastBuf = -1; _isCurrentlyLive = false; scheduleRender(); return; }
     if (!isCandidate(vid) || vid.readyState < 3) {
       lastBuf = -1;
-      /* 한 번이라도 라이브가 확인됐으면 일시적 readyState 저하로 즉시 숨기지 않음 */
       if (!_liveConfirmedOnce) _isCurrentlyLive = false;
       scheduleRender();
       return;
@@ -463,7 +483,6 @@
     const live = isLive(vid);
     if (!live) {
       if (IS_YOUTUBE) _scanRetry = 0;
-      /* 한 번이라도 라이브 확인된 뒤에는 연속 3회 false 시에만 해제 */
       if (_liveConfirmedOnce) {
         _liveFalseCount = (_liveFalseCount || 0) + 1;
         if (_liveFalseCount < 3) { scheduleRender(); return; }
@@ -513,20 +532,18 @@
 
     safeRate(vid, gear);
   };
-  let _liveFalseCount = 0;
 
   /* ── 렌더 ── */
   let _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
   let _prevBufRound = -999, _prevBarPct = -1;
 
   const render = (buf, vid) => {
-    if (els.root) {
-      if (!_isCurrentlyLive || !vid) {
-        if (els.root.style.display !== 'none') els.root.style.display = 'none';
-        return;
-      } else {
-        if (els.root.style.display === 'none') els.root.style.display = 'block';
-      }
+    if (!els.root) return;
+    if (!_isCurrentlyLive || !vid) {
+      if (els.root.style.display !== 'none') els.root.style.display = 'none';
+      return;
+    } else {
+      if (els.root.style.display === 'none') els.root.style.display = 'block';
     }
 
     const sec = buf < 0 ? 0 : buf, diff = sec - target, c = colorOf(diff);
@@ -676,7 +693,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v14.1.1' }),
+      el('span', { className: 'dm-ver', textContent: 'v14.1.2' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -708,7 +725,7 @@
       let ox, oy, moved = false;
       dragEl.onpointerdown = e => { if (e.button) return; moved = false; dragEl._m = false; dragEl.setPointerCapture(e.pointerId); const r = dragEl.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top; };
       dragEl.onpointermove = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; moved = true; dragEl.style.left = clamp(e.clientX - ox, 0, innerWidth - dragEl.offsetWidth) + 'px'; dragEl.style.top = clamp(e.clientY - oy, 0, innerHeight - dragEl.offsetHeight) + 'px'; dragEl.style.right = dragEl.style.bottom = 'auto'; };
-      dragEl.onpointerup = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; dragEl._m = moved; if (moved && onEnd) onEnd(); };
+      dragEl.onpointerup = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; dragEl._m = moved; if (moved && onEnd) onEnd(); moved = false; };
     };
     drag(fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
 
@@ -726,26 +743,25 @@
   };
 
   const openP = instant => {
-    if (panelOpen && !instant) return;
-    panelOpen = true; cfg.open = true; saveLazy();
+    if (panelOpen && !instant) return;
+    panelOpen = true; cfg.open = true; saveLazy();
 
-    /* 추가된 부분: 아이콘 위치를 기준으로 UI 패널을 근처로 불러오기 */
-    if (els.fab && els.fab.style.display !== 'none') {
-      const r = els.fab.getBoundingClientRect();
-      if (r.width > 0) {
-        els.pn.style.left = clamp(r.right - 256 + 24, 0, innerWidth - 256) + 'px';
-        els.pn.style.top = clamp(r.top - 6, 0, innerHeight - 180) + 'px';
-        els.pn.style.right = 'auto';
-        els.pn.style.bottom = 'auto';
-        cfg.px = els.pn.style.left;
-        cfg.py = els.pn.style.top;
-      }
-    }
+    if (!cfg.px && els.fab && els.fab.style.display !== 'none') {
+      const r = els.fab.getBoundingClientRect();
+      if (r.width > 0) {
+        els.pn.style.left = clamp(r.right - 256 + 24, 0, innerWidth - 256) + 'px';
+        els.pn.style.top = clamp(r.top - 6, 0, innerHeight - 180) + 'px';
+        els.pn.style.right = 'auto';
+        els.pn.style.bottom = 'auto';
+        cfg.px = els.pn.style.left;
+        cfg.py = els.pn.style.top;
+      }
+    }
 
-    els.fab.style.display = 'none'; els.pn.classList.add('open');
-    _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
-    _prevBufRound = -999; _prevBarPct = -1;
-  };
+    els.fab.style.display = 'none'; els.pn.classList.add('open');
+    _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
+    _prevBufRound = -999; _prevBarPct = -1;
+  };
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; cfg.open = false; saveLazy();
     const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
@@ -772,15 +788,19 @@
     clearTimeout(_navDebounce);
     _navDebounce = setTimeout(() => {
       const cur = location.pathname + location.search; if (cur === lastPath) return; lastPath = cur;
-      warmupEnd = performance.now() + 4000; lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
+      warmupEnd = performance.now() + WARMUP_MS; lastSeek = 0; gear = R_NORM; stallCount = 0; _scanRetry = 0;
       stopRVFC(); setVid(null); resetDropRate();
       _isCurrentlyLive = false; _liveConfirmedOnce = false; _liveFalseCount = 0;
       _ytLiveTs = 0; _ytPlayerTs = 0;
       setTimeout(scan, 500); setTimeout(scan, 1500);
     }, 100);
   };
-  if ('navigation' in window) try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
-  else {
+  
+  let navApiUsed = false;
+  if ('navigation' in window) {
+    try { navigation.addEventListener('navigatesuccess', onNav); navApiUsed = true; } catch (e) { console.debug('DelayMeter:', e); }
+  }
+  if (!navApiUsed) {
     for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
     window.addEventListener('popstate', onNav);
   }
@@ -795,7 +815,7 @@
   });
 
   /* ── 탭·풀스크린 ── */
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) { warmupEnd = performance.now() + 4000; lastSeek = 0; } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { warmupEnd = performance.now() + WARMUP_MS; lastSeek = 0; } });
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
     const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
