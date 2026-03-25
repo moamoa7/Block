@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v224.0.0)
+// @name         Video_Control (v225.0.0)
 // @namespace    https://github.com/
-// @version      224.0.0
-// @description  v224.0.0: 8축 수동보정(gain 추가) + 10개 프리셋(5×2 레이아웃)
+// @version      225.0.0
+// @description  v225.0.0: 9축 수동보정(tint 추가) + 15개 프리셋(5×3 레이아웃)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -35,7 +35,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '224.0.0';
+  const VSC_VERSION = '225.0.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -57,7 +57,7 @@
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
     const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.bright || 0) > 0.5);
-    return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5;
+    return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
   function applyFilterStyles(el, filterStr) {
@@ -86,16 +86,19 @@
     _PRESET_SHARP_LUT[key] = (d.sharpAdd + d.sharp2Add * 0.6 + d.clarityAdd * 0.4) * 0.01;
   }
 
-  function tempToRgbGain(temp) {
+  function tempTintToRgbGain(temp, tint) {
     const t = CLAMP((Number(temp) || 0) * 0.02, -1, 1);
-    if (t > -0.001 && t < 0.001) return { rs: 1, gs: 1, bs: 1 };
-    const r = 1 + 0.14 * t, g = 1 - 0.005 * Math.abs(t), b = 1 - 0.14 * t;
+    const n = CLAMP((Number(tint) || 0) * 0.02, -1, 1);
+    if (Math.abs(t) < 0.001 && Math.abs(n) < 0.001) return { rs: 1, gs: 1, bs: 1 };
+    let r = 1 + 0.14 * t + 0.06 * n;
+    let g = 1 - 0.005 * Math.abs(t) - 0.14 * n;
+    let b = 1 - 0.14 * t + 0.06 * n;
     const maxCh = Math.max(r, g, b);
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
   const DEFAULTS = {
-    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
+    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
     audio: { enabled: false, strength: 50 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false, screenBright: 0 }
@@ -105,8 +108,9 @@
     V_PRE_S: 'video.presetS', V_PRE_MIX: 'video.presetMix',
     V_MAN_SHAD: 'video.manualShadow', V_MAN_REC: 'video.manualRecovery',
     V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
-    V_MAN_SAT: 'video.manualSat', V_MAN_GAMMA: 'video.manualGamma',
-    V_MAN_CON: 'video.manualContrast', V_MAN_GAIN: 'video.manualGain',
+    V_MAN_TINT: 'video.manualTint', V_MAN_SAT: 'video.manualSat',
+    V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
+    V_MAN_GAIN: 'video.manualGain',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
@@ -519,14 +523,15 @@
       const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document);
       let ctx = ctxMap.get(root); if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
       const st = ctx.st;
-      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.bright||0).toFixed(2)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${(s._cssSat||1).toFixed(3)}`;
+      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.bright||0).toFixed(2)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
 
       if (st.lastKey !== svgHash) {
         st.lastKey = svgHash;
         const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, (s.bright || 0) * 0.004, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
         if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
-        const userTemp = tempToRgbGain(s.temp);
-        if (st.tempKey !== s.temp) { st.tempKey = s.temp; ctx.tempFuncR.setAttribute('slope', userTemp.rs); ctx.tempFuncG.setAttribute('slope', userTemp.gs); ctx.tempFuncB.setAttribute('slope', userTemp.bs); }
+        const colorGain = tempTintToRgbGain(s.temp, s.tint);
+        const tempTintKey = `${s.temp}|${s.tint}`;
+        if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; ctx.tempFuncR.setAttribute('slope', colorGain.rs); ctx.tempFuncG.setAttribute('slope', colorGain.gs); ctx.tempFuncB.setAttribute('slope', colorGain.bs); }
         if (!IS_FIREFOX) {
           const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
           let kernelStr = '0,0,0, 0,1,0, 0,0,0';
@@ -575,7 +580,7 @@
         const dH = video ? (video.clientHeight || 0) : 0;
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH) return cached.out; }
 
-        const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
+        const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
@@ -590,6 +595,7 @@
         const mRec   = CLAMP(Number(Store.get(P.V_MAN_REC) ?? 0), 0, 100);
         const mBrt   = CLAMP(Number(Store.get(P.V_MAN_BRT) ?? 0), 0, 100);
         const mTemp  = CLAMP(Number(Store.get(P.V_MAN_TEMP) ?? 0), -50, 50);
+        const mTint  = CLAMP(Number(Store.get(P.V_MAN_TINT) ?? 0), -50, 50);
         const mSat   = CLAMP(Number(Store.get(P.V_MAN_SAT) ?? 0), -50, 50);
         const mGamma = CLAMP(Number(Store.get(P.V_MAN_GAMMA) ?? 0), -30, 30);
         const mCon   = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
@@ -599,6 +605,7 @@
         out.mid      = mRec  * 0.0035;
         out.shoulder = mBrt  * 0.0045;
         out.temp     = mTemp;
+        out.tint     = mTint;
         out.gamma    = 1 + mGamma * (-0.008);
         out.contrast = 1 + mCon * 0.008;
         out.gain     = Math.pow(2, mGain * 0.03);
@@ -782,31 +789,30 @@
 
       w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
 
-      /* ── 8축 수동 보정 프리셋 (5×2 그리드) ── */
-      // [암부, 복원, 노출, 색온도, 채도, 감마, 콘트라스트, 게인]
+      /* ── 9축 수동 보정 프리셋 (5×3 그리드) ── */
+      // [암부, 복원, 노출, 색온도, 틴트, 채도, 감마, 콘트라스트, 게인]
       const MANUAL_PRESETS = [
-        { n: 'OFF',     v: [0,   0,   0,   0,   0,   0,   0,   0] },
-        { n: '내추럴',  v: [8,  12,   5,   0,   0,  -2,   4,   0] },
-        { n: '또렷',    v: [8,  20,   0,   0,   5,   0,   8,   2] },
-        { n: '선명강조', v: [15, 22,   5,   0,   8,   0,  10,   3] },
-        { n: '피부톤',     v: [ 8, 15,  8,  12,   0,  -4,   4,   2] }, // 인터뷰/얼굴용(약간 따뜻, 과포화 방지)
+        { n: 'OFF',      v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
+        { n: '내추럴',   v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
+        { n: '또렷',     v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
+        { n: '선명강조',  v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
+        { n: '피부톤',    v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
 
-        { n: '시네마',  v: [15, 15,   8,  -6,  -8,   3,   5,  -2] },
-        { n: '웹캠보정',   v: [20, 25,  10,   0,   8,  -4,   6,   6] },
-        { n: 'HDR',  v: [35, 25,   8,   0,   5,  -4,  -2,   8] },
-        { n: '극한복원',   v: [60, 35,  12,   0,   5,  -8,   5,  15] },
-        { n: '야간모드', v: [50, 18,  15,   5, -10,  -8,   4,  12] },
+        { n: '시네마',   v: [15, 15,   8,  -6,  -2,  -8,   3,   5,  -2] },
+        { n: '웹캠보정',  v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
+        { n: 'HDR',      v: [35, 25,   8,   0,   0,   5,  -4,  -2,   8] },
+        { n: '극한복원',  v: [60, 35,  12,   0,   0,   5,  -8,   5,  15] },
+        { n: '야간모드',  v: [50, 18,  15,   5,   0, -10,  -8,   4,  12] },
 
-        { n: '애니메이션', v: [ 3, 15,   0,   0,  12,   2,  12,   2] },
-        { n: '뮤직비디오', v: [ 5, 20,   5,   0,  25,   0,   8,   3] },
-        { n: '다큐멘터리', v: [12, 18,   5,  -3,   3,  -2,   6,   1] },
-        { n: '뉴스',       v: [ 3, 22,   0,   0,  -5,   0,   8,   2] },
-        { n: '스포츠',     v: [ 5, 25,   3,   0,  10,   0,  10,   4] },
-
+        { n: '애니메이션', v: [3,  15,   0,   0,   0,  12,   2,  12,   2] },
+        { n: '뮤직비디오', v: [5,  20,   5,   0,   0,  25,   0,   8,   3] },
+        { n: '다큐멘터리', v: [12, 18,   5,  -3,   0,   3,  -2,   6,   1] },
+        { n: '뉴스',      v: [3,  22,   0,   0,   0,  -5,   0,   8,   2] },
+        { n: '스포츠',    v: [5,  25,   3,   0,   0,  10,   0,  10,   4] },
       ];
 
-      const PRESET_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualSat','manualGamma','manualContrast','manualGain'];
-      const PRESET_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
+      const PRESET_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
+      const PRESET_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
 
       const presetLabel = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정');
       const presetGrid = h('div', { class: 'preset-grid' });
@@ -854,6 +860,7 @@
       w.append(mkSep(), h('div', { class: 'section-label' }, '색상 보정'));
       w.append(
         mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
+        mkSliderWithFine('틴트', P.V_MAN_TINT, -50, 50, 1, 5),
         mkSliderWithFine('채도', P.V_MAN_SAT, -50, 50, 1, 5),
       );
 
