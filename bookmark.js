@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v23.0)
-// @version      23.0
-// @description  v22.0 기반 — 성능 최적화 + 한국어 초성검색 + 건강체크 + IndexedDB 아이콘캐시
+// @name         북마크 (Glassmorphism v24.0)
+// @version      24.0
+// @description  v23.0 기반 — 건강체크 제거, IndexedDB 제거, FAB 단순화, dirty flag 전환
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -15,22 +15,14 @@
     'use strict';
 
     /* ═══════════════════════════════════
-       [패치] structuredClone 폴리필
+       유틸리티 & 최적화
        ═══════════════════════════════════ */
     const deepClone = typeof structuredClone === 'function'
         ? structuredClone
         : obj => JSON.parse(JSON.stringify(obj));
 
-    /* ═══════════════════════════════════
-       유틸리티 & 최적화
-       ═══════════════════════════════════ */
-    const yieldToMain = () => new Promise(r =>
-        'scheduler' in window
-            ? scheduler.postTask(r, { priority: 'user-visible' })
-            : setTimeout(r, 0)
-    );
+    const yieldToMain = () => new Promise(r => setTimeout(r, 0));
 
-    /* [패치 2] $ 함수 — for...in + charCode 분기로 ~40% 빠른 DOM 생성 */
     const $ = (tag, attrs, children) => {
         const e = document.createElement(tag);
         if (attrs) {
@@ -44,7 +36,7 @@
                         if (typeof v === 'object') { const s = e.style; for (const p in v) s[p] = v[p]; }
                         break;
                     default:
-                        if (k.charCodeAt(0) === 111 && k.charCodeAt(1) === 110 && typeof v === 'function') {
+                        if (k.startsWith('on') && typeof v === 'function') {
                             e.addEventListener(k.slice(2).toLowerCase(), v);
                         } else {
                             e.setAttribute(k, v);
@@ -87,14 +79,9 @@
         return null;
     };
 
-    /* [패치 9] URL 정리 — 추적 파라미터 포괄적 제거 */
     const _utmParams = new Set([
         'utm_source','utm_medium','utm_campaign','utm_term','utm_content',
-        'fbclid','gclid','msclkid','mc_eid','_ga',
-        'dclid','twclid','li_fat_id','igshid','s_kwcid',
-        'ttclid','wbraid','gbraid','_gl','yclid',
-        'ref','ref_src','ref_url','source','campaign_id',
-        'ad_id','adset_id','scid','click_id','zanpid'
+        'fbclid','gclid','msclkid','_ga','dclid'
     ]);
     const cleanUrl = s => {
         try {
@@ -143,7 +130,7 @@
     /* ═══════════════════════════════════
        DB & 동기화 관리
        ═══════════════════════════════════ */
-    let _urls = null, db = null, _undo = [], _saveTimer = null,
+    let _urls = null, db = null, _undo = [], _saveTimer = null, _dirty = false,
         _lastBackup = GM_getValue('bm_last_backup', 0);
 
     const forEachItem = cb => {
@@ -170,28 +157,17 @@
 
     const refreshDB = () => {
         const fresh = GM_getValue('bm_db_v2', null);
-        if (validateDB(fresh)) { db = fresh; _urls = null; _searchIndex = null; return true; }
+        if (validateDB(fresh)) { db = fresh; _urls = null; _searchIndex = null; _dirty = false; return true; }
         return false;
     };
 
-    /* [패치 6] 스마트 저장 — 해시 기반 변경 감지 + Idle 저장 */
-    let _dbHash = 0;
-    const quickHash = obj => {
-        const s = JSON.stringify(obj);
-        let h = 0;
-        for (let i = 0, l = s.length; i < l; i++) {
-            h = ((h << 5) - h + s.charCodeAt(i)) | 0;
-        }
-        return h;
-    };
-    _dbHash = quickHash(db);
+    const markDirty = () => { _dirty = true; };
 
     const saveNow = () => {
         clearTimeout(_saveTimer);
-        const h = quickHash(db);
-        if (h === _dbHash) return;
-        _dbHash = h;
-        _searchIndex = null; // 검색 인덱스 무효화
+        if (!_dirty) return;
+        _dirty = false;
+        _searchIndex = null;
         try {
             GM_setValue('bm_db_v2', db);
             const now = Date.now();
@@ -204,14 +180,10 @@
 
     const saveLazy = () => {
         clearTimeout(_saveTimer);
-        if ('requestIdleCallback' in window) {
-            _saveTimer = setTimeout(() => {
-                requestIdleCallback(() => saveNow(), { timeout: 1000 });
-            }, 200);
-        } else {
-            _saveTimer = setTimeout(saveNow, 300);
-        }
+        _saveTimer = setTimeout(saveNow, 300);
     };
+
+    const save = () => { markDirty(); saveNow(); };
 
     const pushUndo = () => {
         try {
@@ -221,7 +193,7 @@
     };
     const popUndo = () => {
         if (!_undo.length) return false;
-        db = _undo.pop(); _urls = null; _searchIndex = null; saveNow(); rerender();
+        db = _undo.pop(); _urls = null; _searchIndex = null; _dirty = true; saveNow(); rerender();
         toast('↩ 되돌리기 완료');
         return true;
     };
@@ -279,76 +251,7 @@
 
     const FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDdiZmYiLz48cGF0aCBkPSJNMiAxMmgyME0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=";
 
-    /* [패치 3] 2-Tier 파비콘 캐시: L1 Map + L2 IndexedDB */
-    const IconDB = (() => {
-        const DB_NAME = 'bm_icon_cache';
-        const STORE = 'icons';
-        const TTL = 30 * 24 * 3600 * 1000;
-        const MAX_ENTRIES = 2000;
-        let _db = null;
-
-        const open = () => new Promise((resolve) => {
-            if (_db) return resolve(_db);
-            try {
-                const req = indexedDB.open(DB_NAME, 1);
-                req.onupgradeneeded = e => {
-                    const d = e.target.result;
-                    if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: 'host' });
-                };
-                req.onsuccess = e => { _db = e.target.result; resolve(_db); };
-                req.onerror = () => resolve(null);
-            } catch { resolve(null); }
-        });
-
-        const get = async host => {
-            try {
-                const d = await open();
-                if (!d) return null;
-                return new Promise(r => {
-                    const tx = d.transaction(STORE, 'readonly');
-                    const req = tx.objectStore(STORE).get(host);
-                    req.onsuccess = () => {
-                        const v = req.result;
-                        r(v && Date.now() - v.ts < TTL ? v.data : null);
-                    };
-                    req.onerror = () => r(null);
-                });
-            } catch { return null; }
-        };
-
-        const set = async (host, data) => {
-            try {
-                const d = await open();
-                if (!d) return;
-                const tx = d.transaction(STORE, 'readwrite');
-                tx.objectStore(STORE).put({ host, data, ts: Date.now() });
-            } catch {}
-        };
-
-        const cleanup = async () => {
-            try {
-                const d = await open();
-                if (!d) return;
-                const tx = d.transaction(STORE, 'readwrite');
-                const store = tx.objectStore(STORE);
-                const req = store.openCursor();
-                const now = Date.now();
-                let count = 0;
-                const toDelete = [];
-                req.onsuccess = e => {
-                    const cursor = e.target.result;
-                    if (!cursor) { toDelete.forEach(k => store.delete(k)); return; }
-                    count++;
-                    if (now - cursor.value.ts > TTL || count > MAX_ENTRIES) toDelete.push(cursor.value.host);
-                    cursor.continue();
-                };
-            } catch {}
-        };
-        if ('requestIdleCallback' in window) requestIdleCallback(() => cleanup(), { timeout: 10000 });
-
-        return { get, set };
-    })();
-
+    /* 파비콘 캐시 — Map만 사용 */
     const _icnCache = new Map();
     const ICON_CACHE_MAX = 200;
 
@@ -367,18 +270,11 @@
                 _icnCache.delete(h); _icnCache.set(h, v);
                 return v;
             }
-            const cached = await IconDB.get(h);
-            if (cached) {
-                if (_icnCache.size >= ICON_CACHE_MAX) _icnCache.delete(_icnCache.keys().next().value);
-                _icnCache.set(h, cached);
-                return cached;
-            }
             const b = await gmFetchBlob(`https://icon.horse/icon/${h}`, 3000)
                 || await gmFetchBlob(`https://www.google.com/s2/favicons?domain=${h}&sz=128`, 4000);
             const res = b ? await toB64(b) : FALLBACK;
             if (_icnCache.size >= ICON_CACHE_MAX) _icnCache.delete(_icnCache.keys().next().value);
             _icnCache.set(h, res);
-            if (res !== FALLBACK) IconDB.set(h, res);
             return res;
         } catch { return FALLBACK; }
     }
@@ -400,7 +296,7 @@
     };
 
     /* ═══════════════════════════════════
-       [패치 4] 한국어 초성 검색
+       한국어 초성 검색
        ═══════════════════════════════════ */
     const KoreanSearch = (() => {
         const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
@@ -514,7 +410,7 @@
                 const arr = curPage()[gName];
                 const i = arr[idx]?.url === item.url ? idx : arr.findIndex(x => x.url === item.url);
                 if (i > -1) { arr.splice(i, 1); delUrl(item.url); }
-                saveNow(); rerender();
+                save(); rerender();
             }}
         ];
         const m = $('div', { cls: 'bm-ctx', style: { position: 'fixed', zIndex: '999999' } },
@@ -567,119 +463,9 @@
             status.textContent = `업데이트 중... ${Math.min(i + 5, all.length)} / ${all.length}`;
             await yieldToMain();
         }
-        saveNow(); m.close();
+        save(); m.close();
         toast(cancel ? '중단됨' : '✅ 복구 완료');
         rerender();
-    }
-
-    /* [신규] 건강 체크 */
-    async function showHealthCheck() {
-        const all = [];
-        forEachItem((it, pn, gn) => all.push({ ...it, pn, gn }));
-        if (!all.length) return toast('북마크가 없습니다.');
-
-        let cancel = false;
-        const m = modal('', { prevent: true });
-        const status = $('div', { text: '검사 준비 중...' });
-        const resultList = $('div', { cls: 'bm-scroll-list', style: { marginTop: '10px', maxHeight: '50vh' } });
-
-        m.append($('div', { cls: 'bm-modal-content' }, [
-            $('h3', { text: '🏥 북마크 건강 체크', style: { marginTop: 0 } }),
-            status, resultList,
-            $('div', { cls: 'bm-flex-row bm-mt-10' }, [
-                btn('취소', 'bm-btn-red', () => { cancel = true; }, { flex: '1', padding: '10px' }),
-                btn('닫기', '', () => m.close(), { flex: '1', padding: '10px', background: 'var(--c-text-muted)' })
-            ])
-        ]));
-
-        const dead = [];
-        const duplicates = new Map();
-        for (const it of all) {
-            if (!duplicates.has(it.url)) duplicates.set(it.url, []);
-            duplicates.get(it.url).push(it);
-        }
-        const dups = [...duplicates.entries()].filter(([, v]) => v.length > 1);
-
-        if (dups.length) {
-            resultList.append($('div', {
-                text: `⚠️ 중복 ${dups.length}개 발견`,
-                style: { color: 'var(--c-amber)', fontWeight: 'bold', padding: '8px', fontSize: '12px' }
-            }));
-            for (const [url, items] of dups.slice(0, 20)) {
-                const locs = items.map(i => `${i.pn}>${i.gn}`).join(', ');
-                resultList.append($('div', {
-                    text: `🔗 ${items[0].name} → ${locs}`, title: url,
-                    style: { fontSize: '11px', padding: '4px 8px', color: 'var(--c-text-dim)', borderBottom: '1px solid var(--c-glass-border)' }
-                }));
-            }
-        }
-
-        for (let i = 0; i < all.length; i += 8) {
-            if (cancel) break;
-            status.textContent = `검사 중... ${Math.min(i + 8, all.length)} / ${all.length}`;
-            await Promise.allSettled(
-                all.slice(i, i + 8).map(async it => {
-                    if (cancel) return;
-                    try {
-                        const ok = await new Promise(r =>
-                            GM_xmlhttpRequest({
-                                method: 'HEAD', url: it.url, timeout: 5000,
-                                onload: res => r(res.status < 400),
-                                onerror: () => r(false), ontimeout: () => r(false)
-                            })
-                        );
-                        if (!ok) {
-                            dead.push(it);
-                            resultList.append($('div', {
-                                text: `❌ ${it.name} (${it.pn}>${it.gn})`, title: it.url,
-                                style: { fontSize: '11px', padding: '4px 8px', color: 'var(--c-red)', borderBottom: '1px solid var(--c-glass-border)', cursor: 'pointer' },
-                                onclick: () => { navigator.clipboard?.writeText(it.url); toast('URL 복사됨'); }
-                            }));
-                        }
-                    } catch {}
-                })
-            );
-            await yieldToMain();
-        }
-
-        status.textContent = cancel
-            ? `중단됨 — 죽은 링크 ${dead.length}개, 중복 ${dups.length}개`
-            : `✅ 완료 — 죽은 링크 ${dead.length}개, 중복 ${dups.length}개`;
-
-        if (dups.length) {
-            resultList.append(btn('🧹 중복 자동 정리', 'bm-btn-blue', () => {
-                if (!confirm(`${dups.length}개 중복 그룹에서 첫 번째만 남기고 제거합니다.`)) return;
-                pushUndo();
-                for (const [url, items] of dups) {
-                    for (let k = 1; k < items.length; k++) {
-                        const it = items[k];
-                        const arr = db.pages[it.pn]?.[it.gn];
-                        if (!arr) continue;
-                        const idx = arr.findIndex(x => x.url === url && x.name === it.name);
-                        if (idx > -1) arr.splice(idx, 1);
-                    }
-                }
-                _urls = null; saveNow(); rerender();
-                toast(`✅ ${dups.length}개 중복 정리됨`);
-                m.close();
-            }, { width: '100%', marginTop: '10px', padding: '10px' }));
-        }
-
-        if (dead.length) {
-            resultList.append(btn('🗑 죽은 링크 일괄 삭제', 'bm-btn-red', () => {
-                if (!confirm(`${dead.length}개 죽은 링크를 삭제합니다.`)) return;
-                pushUndo();
-                for (const it of dead) {
-                    const arr = db.pages[it.pn]?.[it.gn];
-                    if (!arr) continue;
-                    const idx = arr.findIndex(x => x.url === it.url);
-                    if (idx > -1) arr.splice(idx, 1);
-                }
-                _urls = null; saveNow(); rerender();
-                toast(`✅ ${dead.length}개 삭제됨`);
-                m.close();
-            }, { width: '100%', marginTop: '5px', padding: '10px' }));
-        }
     }
 
     const triggerDl = (blob, fn) => {
@@ -690,7 +476,7 @@
     };
 
     const exportJSON = () => {
-        saveNow();
+        if (_dirty) saveNow();
         triggerDl(new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' }), 'bookmarks.json');
     };
 
@@ -718,7 +504,7 @@
                 try {
                     const p = JSON.parse(re.target.result);
                     if (!validateDB(p)) throw 1;
-                    db = p; _urls = null; _searchIndex = null; saveNow(); rerender();
+                    db = p; _urls = null; _searchIndex = null; save(); rerender();
                     toast('✅ 복구 완료');
                 } catch { alert('잘못된 파일 구조입니다.'); }
             };
@@ -851,9 +637,9 @@
                 if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) mvd = true;
             };
             t.ontouchend = e => {
-                if (!mvd) { e.preventDefault(); db.currentPage = pn; isSortMode = false; saveNow(); renderDash(); }
+                if (!mvd) { e.preventDefault(); db.currentPage = pn; isSortMode = false; save(); renderDash(); }
             };
-            t.onclick = () => { db.currentPage = pn; isSortMode = false; saveNow(); renderDash(); };
+            t.onclick = () => { db.currentPage = pn; isSortMode = false; save(); renderDash(); };
             tabs.append(t);
         }
 
@@ -898,7 +684,7 @@
                 const err = vName(n, Object.keys(p));
                 if (err) { if (n) alert(err); return; }
                 p[n.trim()] = [];
-                saveNow(); renderDash();
+                save(); renderDash();
             }),
             iconBtn('⋯', '더보기', '', e => {
                 e.stopPropagation();
@@ -906,7 +692,6 @@
                 _ctxAC = new AbortController();
                 const menuItems = [
                     { i: '🔄', t: '아이콘 복구', fn: fixAllIcons },
-                    { i: '🏥', t: '건강 체크', fn: showHealthCheck },
                     { i: '📂', t: '탭 관리', fn: showTabMgr },
                     { i: '🗂', t: '접기/펼치기', fn: () => {
                         const ks = Object.keys(p).map(colKey);
@@ -947,38 +732,9 @@
         _ctr.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; _ctr.style.outline = '2px dashed var(--c-neon)'; };
         _ctr.ondragleave = () => _ctr.style.outline = '';
 
-        /* [신규] 드래그 앤 드롭 — HTML 파일 임포트 지원 */
         _ctr.ondrop = async e => {
             e.preventDefault();
             _ctr.style.outline = '';
-
-            const file = [...(e.dataTransfer.files || [])].find(f =>
-                f.name.endsWith('.html') || f.name.endsWith('.htm')
-            );
-            if (file) {
-                const text = await file.text();
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(text, 'text/html');
-                const links = doc.querySelectorAll('a[href]');
-                if (!links.length) return toast('⚠ 북마크를 찾을 수 없습니다.');
-                if (!confirm(`${links.length}개 북마크를 현재 페이지에 임포트?`)) return;
-                pushUndo();
-                const targetGroup = Object.keys(p)[0] || '가져오기';
-                if (!p[targetGroup]) p[targetGroup] = [];
-                let added = 0;
-                for (const a of links) {
-                    const url = a.href;
-                    if (!isUrl(url) || isDup(url)) continue;
-                    p[targetGroup].push({
-                        name: (a.textContent || url).trim().substring(0, 30),
-                        url: cleanUrl(url), icon: FALLBACK, addedAt: Date.now()
-                    });
-                    addUrl(url); added++;
-                }
-                saveNow(); renderDash();
-                toast(`✅ ${added}개 임포트 완료`);
-                return;
-            }
 
             const raw = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
             if (!raw || !isUrl(raw.trim())) return;
@@ -993,7 +749,7 @@
             } catch {}
             pushUndo();
             p[g].push({ name: nm, url: u, icon: await fetchIcon(u), addedAt: Date.now() });
-            addUrl(u); saveNow(); renderDash();
+            addUrl(u); save(); renderDash();
             toast(`✅ "${g}" 추가됨`);
         };
 
@@ -1075,7 +831,7 @@
                             url: u, icon: await fetchIcon(u), addedAt: Date.now()
                         });
                         addUrl(u); setRecent(db.currentPage, gn);
-                        saveNow(); renderDash();
+                        save(); renderDash();
                         toast(`✅ "${gn}" 추가됨`);
                     }}),
                     $('button', { cls: 'bm-mgr-btn', text: '관리' })
@@ -1105,7 +861,7 @@
                         const pg = t.dataset.page;
                         if (db.pages[pg]) o[pg] = db.pages[pg];
                     });
-                    db.pages = o; saveNow();
+                    db.pages = o; save();
                 }
             }));
         }
@@ -1120,7 +876,7 @@
                         if (p[s.dataset.id]) o[s.dataset.id] = p[s.dataset.id];
                     });
                     db.pages[db.currentPage] = o;
-                    saveNow();
+                    save();
                 }
             }));
         } else {
@@ -1136,7 +892,7 @@
                             const toGroup = ev.to.dataset.group;
                             page[fromGroup] = rebuildGroupFromDOM(ev.from, page);
                             if (fromGroup !== toGroup) page[toGroup] = rebuildGroupFromDOM(ev.to, page);
-                            _urls = null; saveNow();
+                            _urls = null; save();
                         }
                     }));
                 }
@@ -1233,14 +989,14 @@
                     } else {
                         pg[gn] = nIs;
                     }
-                    _urls = null; saveNow(); rerender(); m.close();
+                    _urls = null; save(); rerender(); m.close();
                 }, { flex: '2', padding: '12px' }),
                 btn('닫기', '', () => m.close(), { flex: '1', background: 'var(--c-text-muted)', padding: '12px' })
             ]),
             btn('🗑 그룹 삭제', 'bm-btn-red', () => {
                 if (is.length && !confirm(`"${gn}" 삭제?`)) return;
                 pushUndo(); delete curPage()[gn];
-                _urls = null; saveNow(); rerender(); m.close();
+                _urls = null; save(); rerender(); m.close();
             }, { width: '100%', marginTop: '10px', padding: '10px' })
         ]));
 
@@ -1271,7 +1027,7 @@
                                 o[k === tn ? nn.trim() : k] = db.pages[k];
                             db.pages = o;
                             if (db.currentPage === tn) db.currentPage = nn.trim();
-                            saveNow(); rnd(); rerender();
+                            save(); rnd(); rerender();
                         }, { padding: '4px 8px' }),
                         btn('삭제', 'bm-btn-red', () => {
                             if (Object.keys(db.pages).length < 2) return alert('최소 1개');
@@ -1279,7 +1035,7 @@
                             pushUndo();
                             delete db.pages[tn];
                             if (db.currentPage === tn) db.currentPage = Object.keys(db.pages)[0];
-                            _urls = null; saveNow(); m.close(); rerender();
+                            _urls = null; save(); m.close(); rerender();
                         }, { padding: '4px 8px' })
                     ])
                 ]));
@@ -1293,7 +1049,7 @@
                 if (!n || vName(n, Object.keys(db.pages))) return;
                 db.pages[n.trim()] = {};
                 db.currentPage = n.trim();
-                saveNow(); rerender(); m.close();
+                save(); rerender(); m.close();
             }, { width: '100%', marginTop: '15px', padding: '12px' }),
             btn('닫기', '', () => m.close(), { width: '100%', marginTop: '10px', background: 'var(--c-text-muted)', padding: '10px' })
         ]));
@@ -1330,7 +1086,7 @@
             pushUndo();
             if (!db.pages[p][g]) db.pages[p][g] = [];
             db.pages[p][g].push({ name: nn, url: uu, icon: await fetchIcon(uu), addedAt: Date.now() });
-            addUrl(uu); setRecent(p, g); saveNow(); m.close(); rerender(); updateFab();
+            addUrl(uu); setRecent(p, g); save(); m.close(); rerender(); updateFab();
             toast('✅ 저장됨');
         };
 
@@ -1427,7 +1183,7 @@
     };
 
     /* ═══════════════════════════════════
-       [패치 5] CSS — content-visibility 추가
+       CSS
        ═══════════════════════════════════ */
     const GLASS_CSS = `
 :host {
@@ -1515,7 +1271,7 @@
 .bm-search{
   max-width:180px;padding:8px 14px!important;font-size:13px!important;margin:0!important;
   background:rgba(255,255,255,0.04)!important;border:1px solid var(--c-glass-border)!important;
-    border-radius:var(--r)!important;color:var(--c-text)!important;transition:all .2s var(--ease)!important;
+  border-radius:var(--r)!important;color:var(--c-text)!important;transition:all .2s var(--ease)!important;
 }
 .bm-search:focus{
   border-color:var(--c-neon-border)!important;
@@ -1574,7 +1330,6 @@ label{display:block;font-size:11px;font-weight:600;color:var(--c-text-dim);margi
   overflow:hidden;backdrop-filter:var(--c-glass-blur);-webkit-backdrop-filter:var(--c-glass-blur);
   box-shadow:0 4px 20px rgba(0,0,0,0.15);transition:all .3s var(--ease);
   animation:bm-sec-in .4s var(--ease) both;animation-delay:var(--sec-delay, 0s);
-  content-visibility:auto;contain-intrinsic-size:auto 300px;
 }
 @keyframes bm-sec-in{from{opacity:0;transform:translateY(12px) scale(0.97)}to{opacity:1;transform:none}}
 .bm-sec:hover{border-color:var(--c-glass-border-hover);box-shadow:0 8px 32px rgba(0,0,0,0.2)}
@@ -1610,12 +1365,10 @@ label{display:block;font-size:11px;font-weight:600;color:var(--c-text-dim);margi
 .bm-grid{
   display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--item-min),1fr));
   gap:14px;padding:16px;min-height:60px;justify-items:center;
-  contain:layout style paint;
 }
 .bm-wrap{
   display:flex;flex-direction:column;align-items:center;
   text-decoration:none;color:inherit;width:100%;max-width:80px;
-  contain:layout style;content-visibility:auto;contain-intrinsic-size:auto 90px;
 }
 .bm-item{
   display:flex;flex-direction:column;align-items:center;text-align:center;width:100%;
@@ -1707,12 +1460,6 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
 }
 .bm-scroll-list::-webkit-scrollbar{width:4px}
 .bm-scroll-list::-webkit-scrollbar-thumb{background:var(--c-neon-border);border-radius:2px}
-#bm-swipe{
-  position:fixed;width:32px;height:32px;background:var(--c-glass);border:1px solid var(--c-neon-border);
-  color:var(--c-neon);border-radius:50%;display:flex;align-items:center;justify-content:center;
-  font-size:18px;font-weight:700;pointer-events:none;z-index:999999;
-  backdrop-filter:blur(12px);box-shadow:var(--c-neon-glow);
-}
 .bm-wrap.kb-focus .bm-item{
   background:var(--c-neon-soft);outline:2px solid var(--c-neon-border);outline-offset:-2px;
 }
@@ -1739,92 +1486,55 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         const fab = $('div', { id: 'bm-fab' }, [document.createTextNode('🔖')]);
         shadow.append($('style', { text: GLASS_CSS }), ov, fab);
 
-        /* ── FAB 상호작용 ── */
-        const st = { t: 0, r: false, d: false, sx: 0, sy: 0, ox: 0, oy: 0, lx: 0, ly: 0, tp: 0 };
+        /* ── FAB: 싱글탭 토글 + 드래그 이동만 ── */
+        const st = { dragging: false, moved: false, sx: 0, sy: 0, ox: 0, oy: 0 };
+        const DRAG_THRESHOLD = 10;
 
         fab.onpointerdown = e => {
             fab.setPointerCapture(e.pointerId);
-            st.sx = st.lx = e.clientX;
-            st.sy = st.ly = e.clientY;
+            st.sx = e.clientX;
+            st.sy = e.clientY;
             const r = fab.getBoundingClientRect();
             st.ox = e.clientX - r.left;
             st.oy = e.clientY - r.top;
-            st.r = st.d = false;
-            st.t = setTimeout(() => {
-                st.r = true;
-                fab.style.willChange = 'transform,left,top';
-                fab.style.cursor = 'grabbing';
-                fab.style.boxShadow = '0 6px 20px rgba(0,0,0,.5)';
-            }, 500);
+            st.dragging = false;
+            st.moved = false;
         };
 
         fab.onpointermove = e => {
-            st.lx = e.clientX;
-            st.ly = e.clientY;
-            if (!st.r) {
-                if (Math.hypot(e.clientX - st.sx, e.clientY - st.sy) > 10) clearTimeout(st.t);
-                const dy = st.sy - e.clientY;
-                let h = shadow.querySelector('#bm-swipe');
-                if (dy > 20 && Math.abs(e.clientX - st.sx) < 40) {
-                    if (!h) shadow.append(h = $('div', { id: 'bm-swipe', text: '＋' }));
-                    const r = fab.getBoundingClientRect();
-                    h.style.left = (r.left + r.width / 2 - 16) + 'px';
-                    h.style.top = (r.top - 42) + 'px';
-                    h.style.opacity = String(Math.min(1, (dy - 20) / 30));
-                } else {
-                    h?.remove();
+            if (Math.hypot(e.clientX - st.sx, e.clientY - st.sy) > DRAG_THRESHOLD) {
+                st.moved = true;
+                if (!st.dragging) {
+                    st.dragging = true;
+                    fab.style.willChange = 'transform,left,top';
+                    fab.style.cursor = 'grabbing';
                 }
-                return;
             }
-            st.d = true;
-            fab.style.transition = 'none';
-            fab.style.left = Math.max(0, Math.min(innerWidth - 48, e.clientX - st.ox)) + 'px';
-            fab.style.top = Math.max(0, Math.min(innerHeight - 48, e.clientY - st.oy)) + 'px';
-            fab.style.right = fab.style.bottom = 'auto';
+            if (st.dragging) {
+                fab.style.transition = 'none';
+                fab.style.left = Math.max(0, Math.min(innerWidth - 48, e.clientX - st.ox)) + 'px';
+                fab.style.top = Math.max(0, Math.min(innerHeight - 48, e.clientY - st.oy)) + 'px';
+                fab.style.right = fab.style.bottom = 'auto';
+            }
         };
 
         fab.onpointerup = e => {
-            clearTimeout(st.t);
             try { fab.releasePointerCapture(e.pointerId); } catch {}
-            shadow.querySelector('#bm-swipe')?.remove();
 
-            if (st.d) {
+            if (st.dragging) {
                 fab.style.transition = '';
                 fab.style.bottom = 'auto';
                 fab.style.willChange = '';
-                const s = fab.getBoundingClientRect().left + 24 > innerWidth / 2;
-                fab.style.left = s ? 'auto' : '15px';
-                fab.style.right = s ? '15px' : 'auto';
-                st.d = st.r = false;
                 fab.style.cursor = 'pointer';
-                fab.style.boxShadow = '';
-                st.tp = 0;
+                const snapRight = fab.getBoundingClientRect().left + 24 > innerWidth / 2;
+                fab.style.left = snapRight ? 'auto' : '15px';
+                fab.style.right = snapRight ? '15px' : 'auto';
+                st.dragging = false;
                 return;
             }
-            if (st.r) {
-                st.r = false;
-                fab.style.cursor = 'pointer';
-                fab.style.boxShadow = fab.style.willChange = '';
-                st.tp = 0;
-                return;
-            }
-            if (st.sy - st.ly > 50 && Math.abs(st.lx - st.sx) < 40) {
-                st.tp = 0;
-                showQuickAdd();
-                return;
-            }
-            const n = Date.now();
-            if (n - st.tp < 350) {
-                st.tp = 0;
-                showQuickAdd();
-            } else {
-                st.tp = n;
-                setTimeout(() => {
-                    if (st.tp && Date.now() - st.tp >= 340) {
-                        st.tp = 0;
-                        toggle(ov, fab);
-                    }
-                }, 350);
+
+            if (!st.moved) {
+                toggle(ov, fab);
             }
         };
 
@@ -1842,24 +1552,19 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
             }
         };
 
-        /* ── [신규] 오버레이 내 키보드 네비게이션 ── */
+        /* ── 오버레이 내 키보드 네비게이션 ── */
         ov.onkeydown = e => {
-            // '/' 키로 검색 포커스
             if (e.key === '/' && !shadow.querySelector('.bm-search:focus')) {
                 e.preventDefault();
                 shadow.querySelector('.bm-search')?.focus();
                 return;
             }
-
-            // 검색 결과 화살표 탐색
             const gsr = shadow.querySelector('.bm-gsr');
             if (!gsr) return;
             const items = gsr.querySelectorAll('.bm-wrap');
             if (!items.length) return;
-
             let curr = gsr.querySelector('.bm-wrap.kb-focus');
             let idx = curr ? [...items].indexOf(curr) : -1;
-
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 curr?.classList.remove('kb-focus');
