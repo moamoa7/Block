@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v221.7.0 - Final)
+// @name         Video_Control (v222.0.1)
 // @namespace    https://github.com/
-// @version      221.7.0
-// @description  v221.7: 모바일 패널 스크롤 격리 패치 (네이티브 바운스 완벽 차단)
+// @version      222.0.1
+// @description  v222.0.1: 리뷰 기반 치명적 버그 및 오디오 훅 안정성 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '221.7.0';
+  const VSC_VERSION = '222.0.1';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -184,9 +184,8 @@
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
 
-      // 👉 추가: DRM 암호화 영상 감지 시 플래그 삽입
-      el.addEventListener('encrypted', () => el.dataset.vscDrm = "1", { once: true });
-      el.addEventListener('waitingforkey', () => el.dataset.vscDrm = "1", { once: true });
+      el.addEventListener('encrypted', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
+      el.addEventListener('waitingforkey', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
 
       if (io) io.observe(el);
       if (ro) ro.observe(el);
@@ -254,8 +253,8 @@
     };
   }
 
-  /* ══ Audio: Normalization + Limiter + JWPlayer Bypass ══ */
-  function createAudio(store) {
+  /* ══ Audio ══ */
+  function createAudio(store, scheduler) {
     if (IS_FIREFOX) return { setTarget() {}, update() {}, hasCtx: () => false, isHooked: () => false, isBypassed: () => true };
 
     let ctx = null, comp = null, limiter = null, makeupGain = null, masterOut = null, dryPath = null;
@@ -363,26 +362,33 @@
       if (!ctx || corsFailedVideos.has(video)) return null;
       const captureFn = video.captureStream || video.mozCaptureStream;
       if (typeof captureFn !== 'function') return null;
+
+      // 음소거 전에 원본 상태 먼저 저장 (버그 픽스 #2 반영)
+      const originalMuted = video.muted;
+      const originalVolume = video.volume;
+
       let stream;
       try { stream = captureFn.call(video); }
       catch (e) {
-        if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { corsFailedVideos.add(video); log.warn('[Audio] captureStream CORS blocked'); return null; }
+        if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { corsFailedVideos.add(video); return null; }
         return null;
       }
+
       if (stream.getAudioTracks().length === 0) {
-    // 트랙이 당장 없으면 약간 기다렸다가 스케줄러를 통해 다시 시도하도록 유도
-    setTimeout(() => { if (stream.getAudioTracks().length > 0) Scheduler.request(); }, 500);
-    return null;
-  }
+        setTimeout(() => { if (stream.getAudioTracks().length > 0) scheduler.request(); }, 500);
+        return null;
+      }
+
       try {
         const source = ctx.createMediaStreamSource(stream);
         source.__vsc_isCaptureStream = true;
         source.__vsc_captureStream = stream;
-        source.__vsc_originalMuted = video.muted;
-        source.__vsc_originalVolume = video.volume;
-        video.muted = true;
+        source.__vsc_originalMuted = originalMuted;
+        source.__vsc_originalVolume = originalVolume;
+
+        video.muted = true; // source 생성 성공 후에만 음소거
         return source;
-      } catch (e) { log.error('[Audio] createMediaStreamSource failed:', e); return null; }
+      } catch (e) { return null; }
     }
 
     function connectViaMES(video) {
@@ -438,11 +444,14 @@
       }, 60);
     }
 
-    function disconnectCurrent() {
+    // 버그 픽스 #3 반영: 명시적 vid 매개변수 추가
+    function disconnectCurrent(vid) {
       if (!currentSrc) return;
-      if (currentSrc.__vsc_isCaptureStream && targetVideo) {
-        if (targetVideo.muted && currentSrc.__vsc_originalMuted === false) try { targetVideo.muted = false; } catch (_) {}
-        if (currentSrc.__vsc_originalVolume != null) try { targetVideo.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+      const target = vid || targetVideo; // 명시적으로 전달받은 타겟 사용
+
+      if (currentSrc.__vsc_isCaptureStream && target) {
+        if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
+        if (currentSrc.__vsc_originalVolume != null) try { target.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
         const stream = currentSrc.__vsc_captureStream;
         if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
       }
@@ -479,7 +488,8 @@
 
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       if (!enabled) {
-        if (currentSrc || targetVideo) fadeOutThen(() => { disconnectCurrent(); });
+        const oldTarget = targetVideo; // 현재 타겟 저장
+        if (currentSrc || targetVideo) fadeOutThen(() => { disconnectCurrent(oldTarget); });
         targetVideo = video;
         if (bypassMode) { bypassMode = false; currentMode = 'none'; }
         return;
@@ -487,12 +497,14 @@
       if (!initCtx()) { targetVideo = video; return; }
 
       if (video && !canConnect(video)) {
-        fadeOutThen(() => { disconnectCurrent(); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } });
+        const oldTarget = targetVideo; // 현재 타겟 저장
+        fadeOutThen(() => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } });
         return;
       }
 
+      const oldTarget = targetVideo; // 현재 타겟 저장
       fadeOutThen(() => {
-        disconnectCurrent();
+        disconnectCurrent(oldTarget);
         if (bypassMode) { bypassMode = false; currentMode = 'none'; }
         targetVideo = video;
         if (!video) { updateMix(); return; }
@@ -518,7 +530,12 @@
 
     function getToneTable(steps, gain, contrast, brightOffset, gamma, toe, mid, shoulder) {
       const key = `${steps}|${(gain*100+.5)|0}|${(contrast*100+.5)|0}|${(brightOffset*1000+.5)|0}|${(gamma*100+.5)|0}|t${(toe*1000+.5)|0}|m${(mid*1000+.5)|0}|s${(shoulder*1000+.5)|0}`;
-      if (toneCache.has(key)) return toneCache.get(key);
+      if (toneCache.has(key)) {
+        const val = toneCache.get(key);
+        toneCache.delete(key);
+        toneCache.set(key, val);
+        return val;
+      }
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const absG = Math.abs(g); const useFilmicCurve = absG > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
       const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast) + brightOffset;
@@ -532,8 +549,14 @@
         if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
       }
       const res = out.join(' ');
-      if (toneCache.size >= TONE_CACHE_MAX) { const firstKey = toneCache.keys().next().value; toneCache.delete(firstKey); }
-      toneCache.set(key, res); return res;
+
+      // 버그 픽스 #4 반영: toneCache LRU 방어코드
+      if (toneCache.size >= TONE_CACHE_MAX) {
+        const first = toneCache.keys().next();
+        if (!first.done) toneCache.delete(first.value);
+      }
+      toneCache.set(key, res);
+      return res;
     }
 
     function mkXfer(attrs, funcDefaults, withAlpha = false) {
@@ -560,9 +583,10 @@
       return { fid, svg, fConv, toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean), tempFuncR: tempChildren.find(f => f.tagName.includes('R')), tempFuncG: tempChildren.find(f => f.tagName.includes('G')), tempFuncB: tempChildren.find(f => f.tagName.includes('B')), fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
     }
 
+    // 버그 픽스 #5 반영: !IS_FIREFOX 중복 조건 제거 (상단에서 조기 반환됨)
     function needsSvg(s) {
       if (IS_FIREFOX) return false;
-      const hasSharp = !IS_FIREFOX && Math.abs(s.sharp || 0) > 0.005;
+      const hasSharp = Math.abs(s.sharp || 0) > 0.005;
       const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.bright || 0) > 0.5);
       return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5;
     }
@@ -598,18 +622,17 @@
     }
 
     return { prepare, apply: (el, filterStr) => {
-  if (!el) return;
-  if (filterStr === 'none') { clearFilterStyles(el); return; }
-  if (el.style.getPropertyValue('filter') === filterStr) return;
-  applyFilterStyles(el, filterStr);
-}, clear: clearFilterStyles };
+      if (!el) return;
+      if (filterStr === 'none') { clearFilterStyles(el); return; }
+      if (el.style.getPropertyValue('filter') === filterStr) return;
+      applyFilterStyles(el, filterStr);
+    }, clear: clearFilterStyles };
   }
 
   /* ══ VideoParams ══ */
   function createVideoParams(Store) {
     const cache = new WeakMap();
 
-    // SVG 필터 사용 여부를 판단하는 내부 로직 (경로 격리용)
     function wouldUseSvg(out) {
       if (IS_FIREFOX) return false;
       const hasSharp = Math.abs(out.sharp || 0) > 0.005;
@@ -645,19 +668,12 @@
       const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW;
       const ratio = Math.min(ratioW, ratioH);
 
-      // 디스플레이 배율 가중치
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
-
-      // 원본 해상도 기반 베이스값
       let rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
 
-      if (IS_MOBILE) mul = Math.max(mul, 0.60); // 모바일 하한선 완화
+      if (IS_MOBILE) mul = Math.max(mul, 0.60);
 
-      return {
-        mul: CLAMP(mul, 0, 1),
-        autoBase: CLAMP(rawAutoBase * mul, 0, 0.18),
-        rawAutoBase // 정규화용 원본 베이스 반환
-      };
+      return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, 0.18), rawAutoBase };
     }
 
     return {
@@ -678,11 +694,9 @@
 
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
 
-        // 모바일 전체 강도 미세 감쇄 (눈의 피로도 저하)
         const mobileThrottle = IS_MOBILE ? 0.60 : 0.40;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * mobileThrottle;
 
-        // 해상도 가중치 정규화 (1080p 기준)
         if (presetS === 'off') {
           out.sharp = autoBase * mobileThrottle;
         } else if (presetS !== 'none') {
@@ -691,25 +705,20 @@
         }
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
 
-        // 수동 보정값 취득 (?? 사용하여 0값 버그 방지)
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
         const mRec  = CLAMP(Number(Store.get(P.V_MAN_REC) ?? 0), 0, 100);
         const mBrt  = CLAMP(Number(Store.get(P.V_MAN_BRT) ?? 0), 0, 100);
         const mTemp = CLAMP(Number(Store.get(P.V_MAN_TEMP) ?? 0), -50, 50);
 
-        // 1. SVG 전용 비선형 톤 커브 (상향된 계수)
-        out.toe      = mShad * 0.0040; // 암부 부스트
-        out.mid      = mRec  * 0.0035; // 디테일 복원
-        out.shoulder = mBrt  * 0.0045; // 노출 보정
+        out.toe      = mShad * 0.0040;
+        out.mid      = mRec  * 0.0035;
+        out.shoulder = mBrt  * 0.0045;
         out.temp     = mTemp;
 
-        // 2. 경로 격리 (이중 보정 방지)
         if (wouldUseSvg(out)) {
-          // SVG가 작동 중이면 CSS 경로는 투명하게(1.0) 유지
           out._cssBr = 1.0;
           out._cssCt = 1.0;
         } else {
-          // Firefox 등 CSS 전용 경로일 때만 선형 보정 적용
           out._cssBr = 1 + (mBrt * 0.003);
           out._cssCt = 1 + (mRec * 0.003);
         }
@@ -753,47 +762,44 @@
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
 
-    /* ── 화면 조도 ── */
-  const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
-  const SCR_BRT_LABELS = ['OFF', '1단', '2단', '3단', '4단', '5단'];
+    const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
+    const SCR_BRT_LABELS = ['OFF', '1단', '2단', '3단', '4단', '5단'];
 
-  function ensureScrBrtOverlay() {
-    const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.documentElement || document.body;
-    if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) return __scrBrtOverlay;
-    if (!__scrBrtOverlay) {
-      __scrBrtOverlay = document.createElement('div');
-      __scrBrtOverlay.id = 'vsc-scr-brt';
-      __scrBrtOverlay.setAttribute('data-vsc-ui', '1');
-      // 🚨 214.3.0의 원본 스타일(white + soft-light) 유지 및 221.1.0의 !important 규칙 적용
-      __scrBrtOverlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:white!important;mix-blend-mode:soft-light!important;pointer-events:none!important;z-index:2147483645!important;opacity:0!important;transition:opacity 0.3s ease!important;display:none!important;';
-    }
-    try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
-    return __scrBrtOverlay;
-  }
-
-  function applyScrBrt(level) {
-    const idx = CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
-    const val = SCR_BRT_LEVELS[idx];
-    if (val <= 0) {
-      if (__scrBrtOverlay) {
-        __scrBrtOverlay.style.setProperty('opacity', '0', 'important');
-        setTimeout(() => {
-          if (__scrBrtOverlay?.style.opacity === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important');
-        }, 350);
+    function ensureScrBrtOverlay() {
+      const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.documentElement || document.body;
+      if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) return __scrBrtOverlay;
+      if (!__scrBrtOverlay) {
+        __scrBrtOverlay = document.createElement('div');
+        __scrBrtOverlay.id = 'vsc-scr-brt';
+        __scrBrtOverlay.setAttribute('data-vsc-ui', '1');
+        __scrBrtOverlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:white!important;mix-blend-mode:soft-light!important;pointer-events:none!important;z-index:2147483645!important;opacity:0!important;transition:opacity 0.3s ease!important;display:none!important;';
       }
-      return;
+      try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
+      return __scrBrtOverlay;
     }
-    const ov = ensureScrBrtOverlay();
-    ov.style.removeProperty('display');
-    requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
-  }
 
-  Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
-  setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
+    function applyScrBrt(level) {
+      const idx = CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
+      const val = SCR_BRT_LEVELS[idx];
+      if (val <= 0) {
+        if (__scrBrtOverlay) {
+          __scrBrtOverlay.style.setProperty('opacity', '0', 'important');
+          setTimeout(() => {
+            if (__scrBrtOverlay?.style.opacity === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important');
+          }, 350);
+        }
+        return;
+      }
+      const ov = ensureScrBrtOverlay();
+      ov.style.removeProperty('display');
+      requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
+    }
 
-  // 🚨 214.3.0에 있던 전체화면 대응 로직 복구
-  document.addEventListener('fullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
-  document.addEventListener('webkitfullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
+    Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0));
+    setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
+
+    document.addEventListener('fullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
+    document.addEventListener('webkitfullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
 
     const CSS_VARS = `
     :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
@@ -863,14 +869,12 @@
       if (!target) return;
       const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
 
-      // 1. 부모 요소가 진짜로 달라졌을 때만 DOM을 옮김 (스크롤 초기화 방지 핵심)
       if (target !== _lastMount) {
         _lastMount = target;
         if (quickBarHost.parentNode !== target) try { target.appendChild(quickBarHost); } catch (_) {}
         if (panelHost && panelHost.parentNode !== target) try { target.appendChild(panelHost); } catch (_) {}
       }
 
-      // 2. 풀스크린 상태가 변했을 때만 스타일 덮어쓰기
       if (_lastIsFs !== isFs) {
         _lastIsFs = isFs;
         const style = isFs ? HOST_STYLE_FS : HOST_STYLE_NORMAL;
@@ -888,7 +892,7 @@
       setTimeout(reparent, 400);
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         _lastMount = null;
-        _lastIsFs = null; // 강제 업데이트를 위해 초기화
+        _lastIsFs = null;
         setTimeout(() => {
           const root = document.documentElement || document.body;
           if (quickBarHost?.parentNode !== root) try { root.appendChild(quickBarHost); } catch (_) {}
@@ -917,7 +921,6 @@
         quickBarHost.style.setProperty('display', 'none', 'important');
         if (panelOpen) togglePanel(false);
       }
-      // ❌ 문제의 원인이었던 무조건적인 if (_qbarHasVideo) reparent(); 호출 완전 삭제
     }
 
     function updateTabIndicator(tabBar, tabName) { if (!tabBar) return; const tabs = tabBar.querySelectorAll('.tab'); const idx = ['video','audio','playback'].indexOf(tabName); if (idx < 0) return; const tabEl = tabs[idx]; if (!tabEl) return; requestAnimationFrame(() => { const barRect = tabBar.getBoundingClientRect(); const tabRect = tabEl.getBoundingClientRect(); tabBar.style.setProperty('--tab-indicator-left', `${tabRect.left - barRect.left}px`); tabBar.style.setProperty('--tab-indicator-width', `${tabRect.width}px`); tabs.forEach(t => t.classList.toggle('on', t.dataset.t === tabName)); }); }
@@ -947,19 +950,14 @@
 
       w.append(mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5), mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5), mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5), mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5), mkSep());
 
-      // 화면 조도
       const brtBtns = [], brtChips = h('div', { class: 'chips' });
       SCR_BRT_LABELS.forEach((label, idx) => {
         if (idx === 0) return;
-        // 🚨 수정 전: const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + idx);
-        // 👇 수정 후: 라벨 배열 값 사용
         const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + label);
         chip.addEventListener('click', () => cycleScrBrtTo(idx));
         brtBtns.push(chip);
         brtChips.appendChild(chip);
       });
-      // 🚨 수정 전: ... }, 'OFF');
-      // 👇 수정 후: 리셋(OFF)로 명확하게 표시
       const brtResetBtn = h('button', { class: 'chip', style: 'margin-left:auto;flex:none;width:70px;font-size:10px;border-color:var(--vsc-text-muted);color:#fff!important;' }, '리셋(OFF)');
       brtResetBtn.addEventListener('click', () => cycleScrBrtTo(0));
       const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
@@ -982,48 +980,48 @@
     }
 
     function buildPlaybackTab() {
-    const w = h('div', {});
-    w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => Scheduler.request())));
+      const w = h('div', {});
+      w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => Scheduler.request())));
 
-    const rateDisplay = h('div', { class: 'rate-display' });
-    function syncRate() { rateDisplay.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }
-    tabFns.push(syncRate); syncRate(); w.append(rateDisplay);
+      const rateDisplay = h('div', { class: 'rate-display' });
+      function syncRate() { rateDisplay.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }
+      tabFns.push(syncRate); syncRate(); w.append(rateDisplay);
 
-    const chipRow2 = h('div', { class: 'chips' });
-    function syncChips() {
-      const cur = Number(Store.get(P.PB_RATE)) || 1;
-      for (const c of chipRow2.children) c.classList.toggle('on', Math.abs(cur - parseFloat(c.dataset.v)) < 0.01);
+      const chipRow2 = h('div', { class: 'chips' });
+      function syncChips() {
+        const cur = Number(Store.get(P.PB_RATE)) || 1;
+        for (const c of chipRow2.children) c.classList.toggle('on', Math.abs(cur - parseFloat(c.dataset.v)) < 0.01);
+      }
+
+      [0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0].forEach(p => {
+        const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
+        el.addEventListener('click', () => {
+          Store.set(P.PB_RATE, p);
+          Store.set(P.PB_EN, true);
+          Scheduler.request();
+          tabFns.forEach(f => f());
+        });
+        chipRow2.appendChild(el);
+      });
+
+      tabFns.push(syncChips); syncChips(); w.append(chipRow2);
+
+      const fineRow = h('div', { class: 'fine-row' });
+      [{ l: '−0.25', d: -0.25 }, { l: '−0.05', d: -0.05 }, { l: '+0.05', d: +0.05 }, { l: '+0.25', d: +0.25 }].forEach(fs => {
+        const btn = h('button', { class: 'fine-btn' }, fs.l);
+        btn.addEventListener('click', () => {
+          Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 5));
+          Store.set(P.PB_EN, true);
+          Scheduler.request();
+          tabFns.forEach(f => f());
+        });
+        fineRow.appendChild(btn);
+      });
+
+      // 버그 픽스 #10 반영: 슬라이더 상한을 프리셋과 일치시킴 (4 -> 5배)
+      w.append(fineRow, mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 5, 0.01)));
+      return w;
     }
-
-    // 💡 0.75 제거됨: 한 줄에 8개 배치
-    [0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0].forEach(p => {
-      const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
-      el.addEventListener('click', () => {
-        Store.set(P.PB_RATE, p);
-        Store.set(P.PB_EN, true);
-        Scheduler.request();
-        tabFns.forEach(f => f());
-      });
-      chipRow2.appendChild(el);
-    });
-
-    tabFns.push(syncChips); syncChips(); w.append(chipRow2);
-
-    const fineRow = h('div', { class: 'fine-row' });
-    [{ l: '−0.25', d: -0.25 }, { l: '−0.05', d: -0.05 }, { l: '+0.05', d: +0.05 }, { l: '+0.25', d: +0.25 }].forEach(fs => {
-      const btn = h('button', { class: 'fine-btn' }, fs.l);
-      btn.addEventListener('click', () => {
-        Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 16));
-        Store.set(P.PB_EN, true);
-        Scheduler.request();
-        tabFns.forEach(f => f());
-      });
-      fineRow.appendChild(btn);
-    });
-
-    w.append(fineRow, mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 4, 0.01)));
-    return w;
-  }
 
     function buildQuickBar() {
       if (quickBarHost) return;
@@ -1043,14 +1041,8 @@
       _shadow = panelHost.attachShadow({ mode: 'closed' });
       _shadow.appendChild(h('style', {}, PANEL_CSS));
 
-      /* ── 패널 컨테이너: CSS로 모바일 격리 & PC 휠 차단 ── */
       panelEl = h('div', { class: 'panel' });
-
-      // ❌ 문제의 원인이었던 touchmove 리스너 완전 삭제
-      // 🟢 PC 마우스 휠 스크롤 전파만 차단해서 배경 페이지가 스크롤되는 현상 방지
       panelEl.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
-
-      // CSS 설정과 함께 명시적으로 한 번 더 적용
       panelEl.style.overscrollBehavior = 'none';
 
       const closeBtn = h('button', { class: 'btn', style: 'margin-left:auto' }, '✕');
@@ -1066,9 +1058,7 @@
       });
       panelEl.appendChild(tabBar);
 
-      /* ── body 영역 ── */
       const bodyEl = h('div', { class: 'body' });
-      // ❌ bodyEl의 touchmove 리스너도 삭제
       bodyEl.style.overscrollBehavior = 'none';
       panelEl.appendChild(bodyEl);
 
@@ -1099,7 +1089,7 @@
 
     const Registry = createRegistry(Scheduler);
     const Targeting = createTargeting();
-    const Audio = createAudio(Store);
+    const Audio = createAudio(Store, Scheduler);
     const OSD = createOSD();
     const Params = createVideoParams(Store);
     const Filters = createFilters();
@@ -1111,10 +1101,16 @@
         __internal._activeVideo = target;
         Audio.setTarget(target);
         if (Store.get(P.PB_EN)) {
-          const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 16);
+          const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
           if (Math.abs(target.playbackRate - rate) > 0.001) {
-            if (target.dataset.vscDrm !== "1") {
+            // 버그 픽스 #6 반영: 미디어키 브라우저 예외 방지
+            let isDRM = target.dataset.vscDrm === "1";
+            try { isDRM = isDRM || !!target.mediaKeys; } catch (_) {}
+
+            if (!isDRM) {
               try { target.playbackRate = rate; } catch (_) {}
+            } else if (target.playbackRate !== 1.0) {
+              try { target.playbackRate = 1.0; } catch (_) {}
             }
           }
         }
