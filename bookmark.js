@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v24.0)
-// @version      24.0
-// @description  v23.0 기반 — 건강체크 제거, IndexedDB 제거, FAB 단순화, dirty flag 전환
+// @name         북마크 (Glassmorphism v24.1)
+// @version      24.1
+// @description  v24.0 기반 버그 픽스 — saveLazy 개선, 드래그 로직 격리, FAB 포지션 충돌 해결, 스토리지 용량 방어
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -63,9 +63,9 @@
     const btn = (text, cls = '', onclick = null, style = {}) =>
         $('button', { cls: `bm-btn ${cls}`.trim(), text, onclick, style });
     const iconBtn = (icon, title, cls, onclick) =>
-        $('button', { cls: `bm-icon-btn ${cls}`.trim(), text: icon, title, onclick });
+        $('button', { cls: `bm-icon-btn ${cls}`.trim(), text: icon, title, 'aria-label': title, onclick });
 
-    const isUrl = s => { try { return /^https?:/.test(new URL(s).protocol); } catch { return false; } };
+    const isUrl = s => { try { return /^https?:/.test(new URL(s).protocol); } catch (e) { return false; } };
 
     const _escMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
     const escHtml = s => s.replace(/[&<>"]/g, c => _escMap[c]);
@@ -74,7 +74,7 @@
         const t = name?.trim();
         if (!t) return '이름을 입력하세요.';
         if (t.length > 30) return '이름은 30자 이하여야 합니다.';
-        if (/[::\/\\<>"|?*]/.test(t)) return '사용할 수 없는 문자가 포함되어 있습니다.';
+        if (/[:：\/\\<>"|?*]/.test(t)) return '사용할 수 없는 문자가 포함되어 있습니다.';
         if (exist.includes(t)) return '이미 존재하는 이름입니다.';
         return null;
     };
@@ -94,11 +94,11 @@
             for (const key of toDelete) { u.searchParams.delete(key); changed = true; }
             if (u.hash === '#') { u.hash = ''; changed = true; }
             return changed ? u.toString() : s;
-        } catch { return s; }
+        } catch (e) { return s; }
     };
 
     const pathContains = (ev, el) => {
-        try { return ev.composedPath().includes(el); } catch { return false; }
+        try { return ev.composedPath().includes(el); } catch (e) { return false; }
     };
 
     /* ═══════════════════════════════════
@@ -135,9 +135,9 @@
 
     const forEachItem = cb => {
         const pages = db.pages;
-        for (const p in pages) {
+        for (const p of Object.keys(pages)) {
             const groups = pages[p];
-            for (const g in groups) {
+            for (const g of Object.keys(groups)) {
                 const items = groups[g];
                 for (let i = 0, len = items.length; i < len; i++) {
                     if (cb(items[i], p, g, i) === false) return;
@@ -169,16 +169,25 @@
         _dirty = false;
         _searchIndex = null;
         try {
+            const dbString = JSON.stringify(db);
+            // 약 4.5MB 초과 시 경고 (GM Storage 한계 방어)
+            if (dbString.length > 4500000) {
+                toast('⚠ 스토리지 용량 한계 임박! 안 쓰는 북마크를 정리하세요.', 5000);
+            }
             GM_setValue('bm_db_v2', db);
             const now = Date.now();
             if (now - _lastBackup > 3600000) {
                 GM_setValue('bm_db_v2_backup', deepClone(db));
                 GM_setValue('bm_last_backup', _lastBackup = now);
             }
-        } catch (e) { console.error(e); toast('❌ 저장 실패!'); }
+        } catch (e) { 
+            console.error(e); 
+            alert('❌ 저장 실패! 스토리지 용량이 초과되었을 수 있습니다.'); 
+        }
     };
 
     const saveLazy = () => {
+        markDirty(); // dirty flag 활성화
         clearTimeout(_saveTimer);
         _saveTimer = setTimeout(saveNow, 300);
     };
@@ -189,7 +198,7 @@
         try {
             _undo.push(deepClone(db));
             if (_undo.length > 5) _undo.shift();
-        } catch { _undo.length = 0; }
+        } catch (e) { _undo.length = 0; }
     };
     const popUndo = () => {
         if (!_undo.length) return false;
@@ -230,23 +239,23 @@
     };
 
     const setRecent = (p, g) => GM_setValue('bm_recent', JSON.stringify({ page: p, group: g, ts: Date.now() }));
-    const getRecent = () => { try { return JSON.parse(GM_getValue('bm_recent', 'null')); } catch { return null; } };
+    const getRecent = () => { try { return JSON.parse(GM_getValue('bm_recent', 'null')); } catch (e) { return null; } };
 
     const suggestGroup = u => {
         try {
             const h = new URL(u).hostname;
             const c = {};
             const page = curPage();
-            for (const g in page) {
+            for (const g of Object.keys(page)) {
                 const items = page[g];
                 for (let i = 0, len = items.length; i < len; i++) {
-                    try { if (new URL(items[i].url).hostname === h) c[g] = (c[g] || 0) + 1; } catch {}
+                    try { if (new URL(items[i].url).hostname === h) c[g] = (c[g] || 0) + 1; } catch (e) {}
                 }
             }
             let best = null, bestN = 0;
-            for (const g in c) if (c[g] > bestN) { best = g; bestN = c[g]; }
+            for (const g of Object.keys(c)) if (c[g] > bestN) { best = g; bestN = c[g]; }
             return best;
-        } catch { return null; }
+        } catch (e) { return null; }
     };
 
     const FALLBACK = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDdiZmYiLz48cGF0aCBkPSJNMiAxMmgyME0xMiAyYTE1LjMgMTUuMyAwIDAgMSA0IDEwIDE1LjMgMTUuMyAwIDAgMS00IDEwIDE1LjMgMTUuMyAwIDAgMS00LTEwIDE1LjMgMTUuMyAwIDAgMSA0LTEweiIgc3Ryb2tlPSIjZmZmIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz48L3N2Zz4=";
@@ -276,7 +285,7 @@
             if (_icnCache.size >= ICON_CACHE_MAX) _icnCache.delete(_icnCache.keys().next().value);
             _icnCache.set(h, res);
             return res;
-        } catch { return FALLBACK; }
+        } catch (e) { return FALLBACK; }
     }
 
     let _obs = null;
@@ -506,7 +515,7 @@
                     if (!validateDB(p)) throw 1;
                     db = p; _urls = null; _searchIndex = null; save(); rerender();
                     toast('✅ 복구 완료');
-                } catch { alert('잘못된 파일 구조입니다.'); }
+                } catch (e) { alert('잘못된 파일 구조입니다.'); }
             };
             if (e.target.files[0]) r.readAsText(e.target.files[0]);
         }});
@@ -574,22 +583,21 @@
         }
     }
 
-    const rebuildGroupFromDOM = (gridEl, page) => {
+    const rebuildGroupFromDOM = (gridEl, page, groupName) => {
         const itemMap = new Map();
-        for (const g in page) {
-            const items = page[g];
-            for (let i = 0; i < items.length; i++) {
-                const it = items[i];
-                if (!itemMap.has(it.url)) itemMap.set(it.url, []);
-                itemMap.get(it.url).push(it);
-            }
+        const items = page[groupName] || [];
+        for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            if (!itemMap.has(it.url)) itemMap.set(it.url, []);
+            itemMap.get(it.url).push(it);
         }
+        
         const wraps = gridEl.querySelectorAll('.bm-wrap');
         const result = [];
         for (let i = 0; i < wraps.length; i++) {
             const w = wraps[i];
             const url = w.href;
-            const name = w.textContent;
+            const name = w.querySelector('span')?.textContent || w.textContent;
             const candidates = itemMap.get(url);
             if (candidates?.length) {
                 const exactIdx = candidates.findIndex(c => c.name === name);
@@ -746,10 +754,10 @@
             try {
                 const html = await gmFetchText(u, 5000);
                 nm = extractTitle(html) || u;
-            } catch {}
+            } catch (e) {}
             pushUndo();
             p[g].push({ name: nm, url: u, icon: await fetchIcon(u), addedAt: Date.now() });
-            addUrl(u); save(); renderDash();
+            addUrl(u); saveLazy(); renderDash();
             toast(`✅ "${g}" 추가됨`);
         };
 
@@ -831,7 +839,7 @@
                             url: u, icon: await fetchIcon(u), addedAt: Date.now()
                         });
                         addUrl(u); setRecent(db.currentPage, gn);
-                        save(); renderDash();
+                        saveLazy(); renderDash();
                         toast(`✅ "${gn}" 추가됨`);
                     }}),
                     $('button', { cls: 'bm-mgr-btn', text: '관리' })
@@ -861,7 +869,7 @@
                         const pg = t.dataset.page;
                         if (db.pages[pg]) o[pg] = db.pages[pg];
                     });
-                    db.pages = o; save();
+                    db.pages = o; saveLazy();
                 }
             }));
         }
@@ -876,7 +884,7 @@
                         if (p[s.dataset.id]) o[s.dataset.id] = p[s.dataset.id];
                     });
                     db.pages[db.currentPage] = o;
-                    save();
+                    saveLazy();
                 }
             }));
         } else {
@@ -890,9 +898,9 @@
                             const page = curPage();
                             const fromGroup = ev.from.dataset.group;
                             const toGroup = ev.to.dataset.group;
-                            page[fromGroup] = rebuildGroupFromDOM(ev.from, page);
-                            if (fromGroup !== toGroup) page[toGroup] = rebuildGroupFromDOM(ev.to, page);
-                            _urls = null; save();
+                            page[fromGroup] = rebuildGroupFromDOM(ev.from, page, fromGroup);
+                            if (fromGroup !== toGroup) page[toGroup] = rebuildGroupFromDOM(ev.to, page, toGroup);
+                            _urls = null; saveLazy();
                         }
                     }));
                 }
@@ -1086,7 +1094,9 @@
             pushUndo();
             if (!db.pages[p][g]) db.pages[p][g] = [];
             db.pages[p][g].push({ name: nn, url: uu, icon: await fetchIcon(uu), addedAt: Date.now() });
-            addUrl(uu); setRecent(p, g); save(); m.close(); rerender(); updateFab();
+            addUrl(uu); setRecent(p, g); 
+            _urls = null; // searchIndex 리셋 및 동기화 무결성 확보
+            save(); m.close(); rerender(); updateFab();
             toast('✅ 저장됨');
         };
 
@@ -1327,7 +1337,7 @@ label{display:block;font-size:11px;font-weight:600;color:var(--c-text-dim);margi
 }
 .bm-sec{
   background:var(--c-glass);border:1px solid var(--c-glass-border);border-radius:14px;
-  overflow:hidden;backdrop-filter:var(--c-glass-blur);-webkit-backdrop-filter:var(--c-glass-blur);
+  overflow:hidden;
   box-shadow:0 4px 20px rgba(0,0,0,0.15);transition:all .3s var(--ease);
   animation:bm-sec-in .4s var(--ease) both;animation-delay:var(--sec-delay, 0s);
 }
@@ -1392,7 +1402,9 @@ label{display:block;font-size:11px;font-weight:600;color:var(--c-text-dim);margi
   grid-column:1/-1;text-align:center;color:var(--c-text-muted);font-size:12px;
   padding:30px;border:2px dashed var(--c-glass-border);border-radius:var(--r);
 }
-.sort-active .bm-grid{display:none}
+.sort-active .bm-grid {
+  opacity: 0.4; pointer-events: none; filter: grayscale(50%);
+}
 .sort-active .bm-sec{border:2px dashed var(--c-neon);cursor:move}
 .bm-grid .sortable-ghost{opacity:.3;background:var(--c-neon-dim);border-radius:var(--r)}
 dialog.bm-modal-bg{background:transparent;border:0;padding:0;margin:auto;max-width:100vw;max-height:100vh}
@@ -1465,7 +1477,8 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}
-}`;
+}
+`;
 
     /* ═══════════════════════════════════
        Init
@@ -1483,7 +1496,7 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         shadow = host.attachShadow({ mode: 'open' });
 
         const ov = $('div', { id: 'bm-overlay' });
-        const fab = $('div', { id: 'bm-fab' }, [document.createTextNode('🔖')]);
+        const fab = $('div', { id: 'bm-fab', role: 'button', 'aria-label': '북마크 열람' }, [document.createTextNode('🔖')]);
         shadow.append($('style', { text: GLASS_CSS }), ov, fab);
 
         /* ── FAB: 싱글탭 토글 + 드래그 이동만 ── */
@@ -1499,6 +1512,10 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
             st.oy = e.clientY - r.top;
             st.dragging = false;
             st.moved = false;
+            
+            // 기존 CSS 포지셔닝 해제
+            fab.style.right = 'auto';
+            fab.style.bottom = 'auto';
         };
 
         fab.onpointermove = e => {
@@ -1514,12 +1531,11 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
                 fab.style.transition = 'none';
                 fab.style.left = Math.max(0, Math.min(innerWidth - 48, e.clientX - st.ox)) + 'px';
                 fab.style.top = Math.max(0, Math.min(innerHeight - 48, e.clientY - st.oy)) + 'px';
-                fab.style.right = fab.style.bottom = 'auto';
             }
         };
 
         fab.onpointerup = e => {
-            try { fab.releasePointerCapture(e.pointerId); } catch {}
+            try { fab.releasePointerCapture(e.pointerId); } catch (err) {}
 
             if (st.dragging) {
                 fab.style.transition = '';
@@ -1540,8 +1556,8 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
 
         fab.oncontextmenu = e => e.preventDefault();
 
-        /* ── 키보드 단축키 ── */
-        document.onkeydown = e => {
+        /* ── 키보드 단축키 방어 ── */
+        document.addEventListener('keydown', e => {
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyB') { e.preventDefault(); toggle(ov, fab); }
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyD') { e.preventDefault(); showQuickAdd(); }
             if (e.ctrlKey && !e.shiftKey && e.code === 'KeyZ' && ov.style.display === 'block') {
@@ -1550,7 +1566,7 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
             if (e.key === 'Escape' && ov.style.display === 'block' && !shadow.querySelector('dialog[open]')) {
                 e.preventDefault(); toggle(ov, fab);
             }
-        };
+        });
 
         /* ── 오버레이 내 키보드 네비게이션 ── */
         ov.onkeydown = e => {
