@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      18.3
-// @description  Lean web optimizer v18.3 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration, Speculation Rules prefetch. Zero prototype hooks except FontFace.
+// @version      18.4
+// @description  Lean web optimizer v18.4 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration, Speculation Rules prefetch. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,7 +16,7 @@
 
 'use strict';
 (() => {
-  const V = '18.3';
+  const V = '18.4';
   const doc = document;
   const win = window;
   const HOST = location.hostname;
@@ -35,7 +35,6 @@
     save: !!(conn.saveData),
   };
 
-  /* [FIX-opt3] TIER를 동적 계산 가능하도록 let + 함수화 */
   const getTier = () =>
     NET.ect === '4g' && NET.dl >= 5 ? 't3'
     : NET.ect === '4g' || NET.ect === '3g' ? 't2' : 't1';
@@ -54,7 +53,6 @@
 
   /* ═══════════════════════════════════════════════
    *  §0.5  Safe Head Append Helper
-   *  [FIX-7] document-start 시점에서 head가 없을 수 있음
    * ═══════════════════════════════════════════════ */
   const pendingHeadEls = [];
   let headReady = false;
@@ -76,7 +74,6 @@
     pendingHeadEls.length = 0;
   };
 
-  /* doc.head가 생성되면 flush */
   if (doc.head) {
     headReady = true;
   } else {
@@ -86,7 +83,6 @@
     if (doc.documentElement) {
       headObs.observe(doc.documentElement, { childList: true });
     } else {
-      /* documentElement조차 없는 극초기 — document 자체를 관찰 */
       headObs.observe(doc, { childList: true, subtree: true });
     }
   }
@@ -110,13 +106,20 @@
 
   /* ═══════════════════════════════════════════════
    *  §2  CSP Monitor
+   *  [PATCH-14] directive별 필터링 — script-src/default-src
+   *  위반만 blocked 처리. img-src 등 무관한 위반으로
+   *  Speculation Rules 삽입이 차단되는 오탐 방지.
    * ═══════════════════════════════════════════════ */
   const CSP = (() => {
     let blocked = false;
     const stats = { violations: 0 };
     try {
-      doc.addEventListener('securitypolicyviolation', () => {
-        stats.violations++; blocked = true;
+      doc.addEventListener('securitypolicyviolation', (e) => {
+        stats.violations++;
+        const dir = e.violatedDirective || '';
+        if (dir.startsWith('script-src') || dir.startsWith('default-src')) {
+          blocked = true;
+        }
       });
     } catch (_) {}
     return { isBlocked: () => blocked, stats };
@@ -135,7 +138,6 @@
       streamStyle = doc.createElement('style');
       streamStyle.id = 'tb-stream';
       streamStyle.textContent = 'video,video *,:has(>video),:has(>video) *{content-visibility:visible!important;contain-intrinsic-size:none!important}';
-      /* [FIX-7] safe head append */
       appendToHead(streamStyle);
     } catch (_) {}
   };
@@ -190,29 +192,29 @@
       if (!parts.length) return;
       const s = doc.createElement('style'); s.id = 'tb-css';
       s.textContent = parts.join('\n');
-      /* [FIX-7] safe head append */
       appendToHead(s);
     } catch (_) {}
   };
 
   /* ═══════════════════════════════════════════════
    *  §6  FontFace Override (FOIT 방지)
+   *  [PATCH-1] desc 객체 방어적 복사 — 호출자의 원본
+   *  descriptor 객체가 변이(mutate)되는 것을 방지.
    * ═══════════════════════════════════════════════ */
   const FONT_DISPLAY = TIER === 't1' ? 'optional' : 'swap';
   if (typeof FontFace === 'function') {
     const Orig = FontFace;
     win.FontFace = function (f, src, desc = {}) {
-      if (!desc.display) desc.display = FONT_DISPLAY;
-      return new Orig(f, src, desc);
+      const d = Object.assign({}, desc);
+      if (!d.display) d.display = FONT_DISPLAY;
+      return new Orig(f, src, d);
     };
     win.FontFace.prototype = Orig.prototype;
     Object.setPrototypeOf(win.FontFace, Orig);
-    /* [FIX-5] name 프로퍼티 보존 */
     Object.defineProperty(win.FontFace, 'name', { value: 'FontFace', configurable: true });
   }
 
   const patchFontRules = () => {
-    /* [FIX-opt4] CORS 스타일시트 명확한 스킵 */
     try {
       for (const ss of doc.styleSheets) {
         let rules;
@@ -228,18 +230,15 @@
   };
 
   /* ═══════════════════════════════════════════════
-   *  §7  LCP Boost + Below‑fold Optimization (v18.2)
+   *  §7  LCP Boost + Below‑fold Optimization
    *
-   *  web.dev 권장:
-   *  - LCP 이미지: fetchpriority="high", loading="lazy" 제거
-   *  - 비-LCP 하위 이미지: loading="lazy", decoding="async",
-   *    fetchpriority="low"
-   *  - iframe: loading="lazy"
-   *  - 반응형 img: sizes 누락 보정 (lazy 한정)
+   *  [PATCH-2] PerformanceObserver 콜백 내에서도
+   *  boostLCP() 호출 — DOMContentLoaded보다 LCP 엔트리가
+   *  늦게 도착하는 느린 페이지 커버.
    *
-   *  [FIX-6] LCP 확정 후 IO 시작으로 race condition 제거
-   *  [FIX-3] sizes="auto"는 loading="lazy" + srcset 조합만
-   *  [FIX-4] boostLCP stale 참조 방지
+   *  [PATCH-5] sizes="auto"는 width descriptor(`w`)가 있는
+   *  srcset에서만 적용 — 미지원 브라우저 100vw 폴백 시
+   *  불필요한 과대 이미지 방지.
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
 
@@ -248,14 +247,18 @@
       const obs = new PerformanceObserver(list => {
         const entries = list.getEntries();
         const last = entries[entries.length - 1];
-        if (last?.element) lcpEl = last.element;
+        if (last?.element) {
+          lcpEl = last.element;
+          /* [PATCH-2] LCP 업데이트 시 즉시 boost */
+          boostLCP();
+        }
       });
       obs.observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (_) {}
   }
 
-  /* [FIX-4] DOM 연결 확인 + 로딩 상태 체크 */
-  const boostLCP = () => {
+  /* boostLCP를 hoisting 가능하도록 function 선언 사용 */
+  function boostLCP() {
     if (!lcpEl) return;
     if (!lcpEl.isConnected) { lcpEl = null; return; }
     if (lcpEl.tagName === 'IMG') {
@@ -265,7 +268,7 @@
         lcpEl.decoding = 'auto';
       }
     }
-  };
+  }
 
   /* Below‑fold 이미지/iframe 최적화 — IntersectionObserver */
   let belowFoldIO = null;
@@ -274,7 +277,6 @@
   const optimizeBelowFold = () => {
     const observed = new WeakSet();
 
-    /* [FIX-1] rootMargin 명시적 4-value 형식 */
     belowFoldIO = new IntersectionObserver((entries) => {
       for (const e of entries) {
         const el = e.target;
@@ -288,8 +290,10 @@
             if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
             if (!el.fetchPriority || el.fetchPriority === 'high') el.fetchPriority = 'low';
 
-            /* [FIX-3] sizes="auto"는 lazy + srcset 조합에서만 유효 (스펙 준수) */
-            if (el.srcset && el.loading === 'lazy' && (!el.sizes || el.sizes === '')) {
+            /* [PATCH-5] sizes="auto"는 lazy + width descriptor srcset에서만 */
+            if (el.srcset && el.loading === 'lazy' &&
+                (!el.sizes || el.sizes === '') &&
+                /\d+w/.test(el.srcset)) {
               el.sizes = 'auto';
             }
           }
@@ -313,17 +317,22 @@
     /* 기존 요소 등록 */
     doc.querySelectorAll('img, iframe').forEach(observeEl);
 
-    /* [FIX-2] body만 감시 (img/iframe은 body 내에만 의미 있음) */
-    /* [FIX-opt1] video 감지도 MO에 통합하여 setInterval 제거 */
+    /* [PATCH-9] MutationObserver — 깊은 자식 탐색
+     * subtree:true이어도 addedNodes에는 직접 삽입된 최상위
+     * 노드만 포함. innerHTML 등으로 삽입된 중첩 img/iframe/video는
+     * querySelectorAll로 탐색해야 함. */
     belowFoldMO = new MutationObserver(mutations => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeType !== 1) continue;
           const tag = node.tagName;
+          /* 노드 자신 확인 */
           if (tag === 'IMG' || tag === 'IFRAME') observeEl(node);
           if (tag === 'VIDEO') checkVideo(node);
-          if (node.children) {
-            for (const child of node.children) {
+          /* 깊은 자식 탐색 */
+          if (node.querySelectorAll) {
+            const imgs = node.querySelectorAll('img, iframe, video');
+            for (const child of imgs) {
               const ct = child.tagName;
               if (ct === 'IMG' || ct === 'IFRAME') observeEl(child);
               if (ct === 'VIDEO') checkVideo(child);
@@ -339,7 +348,6 @@
 
   /* ═══════════════════════════════════════════════
    *  §8  DNS Prefetch / Preconnect Auto‑Promotion
-   *  [FIX-opt5] DocumentFragment 배치 삽입
    * ═══════════════════════════════════════════════ */
   const DnsHints = (() => {
     const seen = new Set(), linkMap = new Map(), freqMap = new Map();
@@ -379,9 +387,11 @@
         const obs = new PerformanceObserver(list => {
           for (const e of list.getEntries()) {
             try {
-              track(new URL(e.name).origin);
+              const name = e.name || '';
+              if (!name.startsWith('http')) continue;
+              track(new URL(name).origin);
               if (e.duration > CFG.slowResMs)
-                console.warn(`[TO] Slow resource (${Math.round(e.duration)}ms): ${e.name.slice(0, 80)}`);
+                console.warn(`[TO] Slow resource (${Math.round(e.duration)}ms): ${name.slice(0, 80)}`);
             } catch (_) {}
           }
           flushPending();
@@ -394,39 +404,23 @@
   })();
 
   /* ═══════════════════════════════════════════════
-   *  §8.5  Speculation Rules — Same-origin Prefetch (v18.3)
+   *  §8.5  Speculation Rules — Same-origin Prefetch
    *
-   *  Chrome 109+ / Edge 109+ 지원. 미지원 브라우저 무시.
-   *  - document rules + moderate eagerness (hover 200ms / pointerdown)
-   *  - same-origin만 매칭 (href_matches: "/*")
-   *  - logout, api, download 링크 제외
-   *  - Data Saver, 에너지 절약 모드에서 Chrome이 자동 비활성화
-   *  - FIFO 한도 2개 → 대역폭 낭비 극소
-   *  - SPA(chat) 사이트 제외 (클라이언트 라우팅이라 효과 없음)
-   *  - CSP 위반 감지 시 스킵
-   *  - textContent은 Trusted Types 대상 아님 → TT 안전
+   *  [PATCH-6] href_matches 빈 문자열 → selector_matches로
+   *  빈 href, hash-only, javascript: 링크를 명확히 제외.
    * ═══════════════════════════════════════════════ */
   let speculationInjected = false;
 
   const injectSpeculationRules = () => {
-    /* 이미 삽입됨 */
     if (speculationInjected) return;
-
-    /* SPA/Chat 사이트는 클라이언트 라우팅 → 효과 없음 */
     if (isChat) return;
-
-    /* Data Saver 활성 → Chrome이 자동 스킵하지만, 삽입 자체를 방지 */
     if (NET.save) return;
-
-    /* 저사양 네트워크에서는 prefetch 부담 → 스킵 */
     if (TIER === 't1') return;
 
-    /* Feature detection: 브라우저가 speculationrules를 지원하는지 확인 */
     if (typeof HTMLScriptElement === 'undefined' ||
         typeof HTMLScriptElement.supports !== 'function' ||
         !HTMLScriptElement.supports('speculationrules')) return;
 
-    /* CSP가 이미 위반을 감지한 상태면 스킵 (script 삽입 차단 가능성) */
     if (CSP.isBlocked()) return;
 
     try {
@@ -434,49 +428,42 @@
         prefetch: [{
           where: {
             and: [
-              /* same-origin 링크만 */
               { href_matches: '/*' },
-              /* 위험/불필요 경로 제외 */
               { not: { href_matches: '/logout/*' } },
               { not: { href_matches: '/signout/*' } },
               { not: { href_matches: '/api/*' } },
               { not: { href_matches: '/*?*action=logout*' } },
-              /* download 링크 제외 */
-              { not: { selector_matches: '[download]' } },
-              /* 외부 링크 방지: hash-only, javascript: 등 제외 */
-              { not: { href_matches: '' } },
+              { not: { selector_matches: '[download], [href=""], [href^="#"], [href^="javascript:"]' } },
             ]
           },
-          /* moderate: hover 200ms 또는 pointerdown 시 prefetch
-             Chrome FIFO 한도 2개 → 리소스 낭비 극소 */
           eagerness: 'moderate'
         }]
       };
 
       const s = doc.createElement('script');
       s.type = 'speculationrules';
-      /* textContent은 Trusted Types 제어 대상 아님 (innerHTML과 다름) */
       s.textContent = JSON.stringify(rules);
       appendToHead(s);
 
       speculationInjected = true;
-    } catch (_) {
-      /* CSP script-src 위반 등 → 조용히 실패 */
-    }
+    } catch (_) {}
   };
 
   /* ═══════════════════════════════════════════════
    *  §9  Data‑Saver Listener
-   *  [FIX-opt3] TIER 재계산
+   *  [PATCH-10] TIER 변경 시 Speculation Rules 재주입
    * ═══════════════════════════════════════════════ */
   const initDataSaver = () => {
     if (!conn.addEventListener) return;
     conn.addEventListener('change', () => {
+      const oldTier = TIER;
       NET.ect = conn.effectiveType || NET.ect;
       NET.dl  = conn.downlink ?? NET.dl;
       NET.rtt = conn.rtt ?? NET.rtt;
       NET.save = !!conn.saveData;
       TIER = getTier();
+      /* 네트워크 개선 시 Speculation Rules 재시도 */
+      if (oldTier === 't1' && TIER !== 't1') injectSpeculationRules();
     });
   };
 
@@ -494,10 +481,11 @@
 
   /* ═══════════════════════════════════════════════
    *  §11  SPA Navigation (listen only)
+   *  [PATCH-8] navigation optional chaining — null 방어
    * ═══════════════════════════════════════════════ */
   let navSupported = false;
   const initNavigation = () => {
-    if (typeof navigation === 'undefined' || !navigation.addEventListener) return;
+    if (typeof navigation === 'undefined' || !navigation?.addEventListener) return;
     navSupported = true;
     navigation.addEventListener('navigatesuccess', () => {
       scanVideos(); patchFontRules(); boostLCP();
@@ -518,10 +506,8 @@
       scanVideos();
       boostLCP();
 
-      /* §8.5 Speculation Rules 삽입 */
       injectSpeculationRules();
 
-      /* [FIX-6] Below-fold 최적화를 LCP 확정 후로 지연 */
       const startBelowFold = () => {
         optimizeBelowFold();
         DnsHints.flush();
@@ -536,8 +522,6 @@
       initVisibility();
       initNavigation();
       initDataSaver();
-
-      /* [FIX-opt1] setInterval(scanVideos) 제거 — MO에 통합됨 */
 
       /* Diagnostic API */
       win.__turboOptimizer__ = {
