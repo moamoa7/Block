@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.4.0)
+// @name         Video_Control (v28.5.0)
 // @namespace    https://github.com/
-// @version      28.4.0
-// @description  v28.4.0: autoScene 1초 주기 + 밝기 변화 임계값 기반 반영 로직
+// @version      28.5.0
+// @description  v28.5.0: 탭 복귀 시 brightHistory 초기화 패치
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.4.0';
+  const VSC_VERSION = '28.5.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -738,14 +738,15 @@
     };
   }
 
-  /* ══ createAutoScene — 1초 주기 + 밝기 변화 임계값 기반 반영 ══ */
+  /* ══ createAutoScene — 1초 주기 + 임계값 + 탭 복귀 히스토리 초기화 ══ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
-    let lastAppliedBrightness = -999; // 마지막으로 실제 반영된 smoothed 밝기
+    let lastAppliedBrightness = -999;
 
-    const CHECK_INTERVAL = 1000; // 1초 주기
+    const CHECK_INTERVAL = 1000;
+    const STALE_THRESHOLD = 10000; // 10초 이상 공백이면 히스토리 폐기
 
     const canvas = document.createElement('canvas');
     const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
@@ -765,11 +766,10 @@
 
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
-    /* 밝기 구간별 적응형 임계값 */
     function getBrightnessThreshold(brightness) {
-      if (brightness < 60)  return 6;   // 어두운 장면: 민감하게
-      if (brightness > 180) return 8;   // 밝은 장면: 적당히
-      return 10;                        // 일반 영상: 여유 있게
+      if (brightness < 60)  return 6;
+      if (brightness > 180) return 8;
+      return 10;
     }
 
     function getBrightnessFactor(brightness) { return CLAMP((120 - brightness) / 120, -0.8, 1.0); }
@@ -858,6 +858,14 @@
       if (video.paused || video.ended) return;
       const now = performance.now();
       if (now - lastCheck < CHECK_INTERVAL) return;
+
+      /* [v28.5.0] 탭 복귀 감지: 마지막 체크 후 10초 이상 공백이면 히스토리 폐기 */
+      if (now - lastCheck > STALE_THRESHOLD) {
+        brightHistory.length = 0;
+        lastAppliedBrightness = -999;
+        log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
+      }
+
       lastCheck = now;
 
       if (detectVertical(video)) {
@@ -887,12 +895,10 @@
       currentBrightness = smoothed;
       currentLabel = getBrightnessLabel(smoothed);
 
-      /* 임계값 비교: 이전 반영 밝기 대비 변화폭이 임계 미만이면 skip */
       const threshold = getBrightnessThreshold(smoothed);
       const delta = Math.abs(smoothed - lastAppliedBrightness);
       if (currentMode === 'interpolate' && delta < threshold) return;
 
-      /* 임계 초과 → 보정값 계산 및 반영 */
       currentMode = 'interpolate';
       const factor = getBrightnessFactor(smoothed);
       const values = interpolate(factor);
@@ -903,7 +909,6 @@
         lastAppliedBrightness = smoothed;
         log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} (Δ${Math.round(delta)}>임계${threshold}) → factor ${factor.toFixed(2)} → [${values}]`);
       } else {
-        /* 보정값 자체는 같지만 밝기 기준점은 갱신 (안 하면 미세 누적으로 영원히 skip) */
         lastAppliedBrightness = smoothed;
       }
     }
@@ -913,7 +918,7 @@
       currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
       brightHistory.length = 0;
       lastAppliedBrightness = -999;
-      lastCheck = performance.now() - CHECK_INTERVAL - 1; // 즉시 첫 분석 가능
+      lastCheck = performance.now() - CHECK_INTERVAL - 1;
       const video = __internal._activeVideo;
       if (video?.isConnected) tick(video);
     }
