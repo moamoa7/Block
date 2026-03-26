@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v25.1)
-// @version      25.1
-// @description  v25.0 기반 버그 픽스 & 최적화 — favicon 폴백, 필터 접기복원, 마이그레이션 저장, 드래그 데이터 보존, dirty 안전 처리
+// @name         북마크 (Glassmorphism v26.0)
+// @version      26.0
+// @description  v25.1 기반 + v23.0 기능 전체 복원 — 탭관리, 초성검색, 건강체크, Undo, cleanUrl, HTML내보내기, D&D임포트, FAB제스처, 도메인추천 (아이콘캐시 제외)
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -13,6 +13,13 @@
 
 (function () {
     'use strict';
+
+    /* ═══════════════════════════════════
+       structuredClone 폴리필
+       ═══════════════════════════════════ */
+    const deepClone = typeof structuredClone === 'function'
+        ? structuredClone
+        : obj => JSON.parse(JSON.stringify(obj));
 
     /* ═══════════════════════════════════
        유틸리티
@@ -58,6 +65,9 @@
 
     const isUrl = s => { try { return /^https?:/.test(new URL(s).protocol); } catch { return false; } };
 
+    const _escMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+    const escHtml = s => s.replace(/[&<>"]/g, c => _escMap[c]);
+
     const vName = (name, exist = []) => {
         const t = name?.trim();
         if (!t) return '이름을 입력하세요.';
@@ -71,9 +81,31 @@
         try { return ev.composedPath().includes(el); } catch { return false; }
     };
 
-    /* [B1 fix] 빈 문자열 대신 투명 1px data URI 사용 */
-    const FALLBACK_ICON = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    /* URL 추적 파라미터 제거 */
+    const _utmParams = new Set([
+        'utm_source','utm_medium','utm_campaign','utm_term','utm_content',
+        'fbclid','gclid','msclkid','mc_eid','_ga',
+        'dclid','twclid','li_fat_id','igshid','s_kwcid',
+        'ttclid','wbraid','gbraid','_gl','yclid',
+        'ref','ref_src','ref_url','source','campaign_id',
+        'ad_id','adset_id','scid','click_id','zanpid'
+    ]);
+    const cleanUrl = s => {
+        try {
+            const u = new URL(s);
+            const toDelete = [];
+            for (const key of u.searchParams.keys()) {
+                if (_utmParams.has(key)) toDelete.push(key);
+            }
+            let changed = false;
+            for (const key of toDelete) { u.searchParams.delete(key); changed = true; }
+            if (u.hash === '#') { u.hash = ''; changed = true; }
+            return changed ? u.toString() : s;
+        } catch { return s; }
+    };
 
+    /* 파비콘 */
+    const FALLBACK_ICON = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     const faviconUrl = url => {
         try {
             const h = new URL(url).hostname;
@@ -82,7 +114,7 @@
         } catch { return FALLBACK_ICON; }
     };
 
-    /* [S3 fix] Range 헤더 제거 — 서버 호환성 문제 */
+    /* 네트워크 */
     const gmFetchText = (url, timeout = 5000) => new Promise(r =>
         GM_xmlhttpRequest({
             method: 'GET', url, timeout,
@@ -98,53 +130,70 @@
     };
 
     /* ═══════════════════════════════════
+       한국어 초성 검색
+       ═══════════════════════════════════ */
+    const KoreanSearch = (() => {
+        const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+        const BASE = 0xAC00;
+        const choSet = new Set(CHO);
+        const getChosung = str => {
+            let r = '';
+            for (let i = 0, l = str.length; i < l; i++) {
+                const c = str.charCodeAt(i);
+                r += (c >= BASE && c <= 0xD7A3) ? CHO[Math.floor((c - BASE) / 588)] : str[i];
+            }
+            return r;
+        };
+        const hasChosung = str => { for (let i = 0; i < str.length; i++) if (choSet.has(str[i])) return true; return false; };
+        const match = (text, query) => {
+            const lt = text.toLowerCase(), lq = query.toLowerCase();
+            if (lt.includes(lq)) return true;
+            if (hasChosung(lq)) return getChosung(lt).includes(lq);
+            return false;
+        };
+        return { match, getChosung, hasChosung };
+    })();
+
+    /* ═══════════════════════════════════
        DB
        ═══════════════════════════════════ */
     let db = null, shadow = null, isSortMode = false, _isOpen = false,
-        _dirty = false, _saveTimer = null, _urlSet = null;
+        _dirty = false, _saveTimer = null, _urlSet = null,
+        _undo = [], _searchIndex = null;
 
-    const validateDB = d => d?.groups && typeof d.groups === 'object';
-
-    const migrateFromV2 = () => {
-        const old = GM_getValue('bm_db_v2', null);
-        if (!old?.pages) return null;
-        const groups = {};
-        const pageKeys = Object.keys(old.pages);
-        for (const [pageName, pageGroups] of Object.entries(old.pages)) {
-            for (const [groupName, items] of Object.entries(pageGroups)) {
-                const key = pageKeys.length > 1 ? `${pageName}/${groupName}` : groupName;
-                groups[key] = items.map(it => ({
-                    name: it.name,
-                    url: it.url,
-                    addedAt: it.addedAt || Date.now()
-                }));
+    const forEachItem = cb => {
+        for (const p in db.pages) {
+            const groups = db.pages[p];
+            for (const g in groups) {
+                const items = groups[g];
+                for (let i = 0, len = items.length; i < len; i++) {
+                    if (cb(items[i], p, g, i) === false) return;
+                }
             }
         }
-        return { groups };
     };
 
+    const validateDB = d =>
+        d?.pages && typeof d.pages === 'object' && d.currentPage && d.pages[d.currentPage];
+
     const loadDB = () => {
-        const raw = GM_getValue('bm_db_v25', null);
+        const raw = GM_getValue('bm_db_v2', null);
         if (validateDB(raw)) return raw;
-        const migrated = migrateFromV2();
-        if (migrated) {
-            /* [B4 fix] 마이그레이션 결과 즉시 저장 */
-            GM_setValue('bm_db_v25', migrated);
-            return migrated;
-        }
-        return { groups: { "북마크": [] } };
+        return { currentPage: "기본", pages: { "기본": { "북마크": [] } } };
     };
 
     db = loadDB();
 
-    /* [M3 fix] save 내부에서 _urlSet 자동 리셋 */
+    const curPage = () => db.pages[db.currentPage];
+
     const saveNow = () => {
         clearTimeout(_saveTimer);
         if (!_dirty) return;
         _dirty = false;
         _urlSet = null;
+        _searchIndex = null;
         try {
-            GM_setValue('bm_db_v25', db);
+            GM_setValue('bm_db_v2', db);
         } catch (e) {
             console.error(e);
             alert('❌ 저장 실패!');
@@ -157,42 +206,109 @@
         _saveTimer = setTimeout(saveNow, 300);
     };
 
-    /* [M2 fix] save를 직관적으로 단순화 */
     const save = () => {
         _dirty = true;
         saveNow();
     };
 
-    /* [P2 fix] refreshDB 호출 전 미저장 변경 보호 */
     const refreshDB = () => {
         if (_dirty) saveNow();
-        const fresh = GM_getValue('bm_db_v25', null);
-        if (validateDB(fresh)) { db = fresh; _dirty = false; _urlSet = null; return true; }
+        const fresh = GM_getValue('bm_db_v2', null);
+        if (validateDB(fresh)) { db = fresh; _dirty = false; _urlSet = null; _searchIndex = null; return true; }
         return false;
     };
 
-    /* URL 중복 체크 — Set */
-    const buildUrlSet = () => {
-        _urlSet = new Set();
-        for (const items of Object.values(db.groups)) {
-            for (const it of items) _urlSet.add(it.url);
-        }
+    /* Undo */
+    const pushUndo = () => {
+        try {
+            _undo.push(deepClone(db));
+            if (_undo.length > 5) _undo.shift();
+        } catch { _undo.length = 0; }
     };
-    const isDup = u => { if (!_urlSet) buildUrlSet(); return _urlSet.has(u); };
-    const addUrl = u => { if (!_urlSet) buildUrlSet(); _urlSet.add(u); };
-    const delUrl = u => { if (_urlSet) _urlSet.delete(u); };
+    const popUndo = () => {
+        if (!_undo.length) return false;
+        db = _undo.pop(); _urlSet = null; _searchIndex = null; save(); rerender();
+        toast('↩ 되돌리기 완료');
+        return true;
+    };
+
+    /* URL 중복 체크 */
+    const buildUrlSet = () => {
+        _urlSet = new Map();
+        forEachItem(it => _urlSet.set(it.url, (_urlSet.get(it.url) || 0) + 1));
+    };
+    const isDup = u => { if (!_urlSet) buildUrlSet(); return (_urlSet.get(u) || 0) > 0; };
+    const addUrl = u => { if (!_urlSet) buildUrlSet(); _urlSet.set(u, (_urlSet.get(u) || 0) + 1); };
+    const delUrl = u => {
+        if (!_urlSet) return;
+        const c = _urlSet.get(u) || 0;
+        if (c <= 1) _urlSet.delete(u); else _urlSet.set(u, c - 1);
+    };
+    const findLocs = u => {
+        const r = [];
+        if (isDup(u)) forEachItem((it, p, g) => { if (it.url === u) r.push(`${p} > ${g}`); });
+        return r;
+    };
+
+    /* 검색 인덱스 */
+    const buildSearchIndex = () => {
+        _searchIndex = [];
+        forEachItem((it, pn, gn) => {
+            _searchIndex.push({
+                name: it.name,
+                nameLower: it.name.toLowerCase(),
+                chosung: KoreanSearch.getChosung(it.name.toLowerCase()),
+                url: it.url,
+                urlLower: it.url.toLowerCase(),
+                pn, gn, item: it
+            });
+        });
+    };
+    const searchAll = (query, limit = 50) => {
+        if (!_searchIndex) buildSearchIndex();
+        const lq = query.toLowerCase();
+        const isC = KoreanSearch.hasChosung(lq);
+        const results = [];
+        for (let i = 0, l = _searchIndex.length; i < l && results.length < limit; i++) {
+            const e = _searchIndex[i];
+            if (e.nameLower.includes(lq) || e.urlLower.includes(lq) || (isC && e.chosung.includes(lq))) {
+                results.push(e);
+            }
+        }
+        return results;
+    };
 
     /* 접기 상태 */
-    const _col = new Set(JSON.parse(GM_getValue('bm_collapsed_v25', '[]') || '[]'));
-    const saveCol = () => GM_setValue('bm_collapsed_v25', JSON.stringify([..._col]));
+    const _col = new Set(JSON.parse(GM_getValue('bm_collapsed', '[]') || '[]'));
+    const colKey = g => `${db.currentPage}::${g}`;
+    const saveCol = () => GM_setValue('bm_collapsed', JSON.stringify([..._col]));
     const toggleCol = g => {
-        _col.has(g) ? _col.delete(g) : _col.add(g);
+        const k = colKey(g);
+        _col.has(k) ? _col.delete(k) : _col.add(k);
         saveCol();
     };
 
-    /* 최근 저장 그룹 */
-    const setRecent = g => GM_setValue('bm_recent_v25', g);
-    const getRecent = () => GM_getValue('bm_recent_v25', null);
+    /* 최근 저장 */
+    const setRecent = (p, g) => GM_setValue('bm_recent', JSON.stringify({ page: p, group: g, ts: Date.now() }));
+    const getRecent = () => { try { return JSON.parse(GM_getValue('bm_recent', 'null')); } catch { return null; } };
+
+    /* 도메인 기반 그룹 추천 */
+    const suggestGroup = u => {
+        try {
+            const h = new URL(u).hostname;
+            const c = {};
+            const page = curPage();
+            for (const g in page) {
+                const items = page[g];
+                for (let i = 0; i < items.length; i++) {
+                    try { if (new URL(items[i].url).hostname === h) c[g] = (c[g] || 0) + 1; } catch {}
+                }
+            }
+            let best = null, bestN = 0;
+            for (const g in c) if (c[g] > bestN) { best = g; bestN = c[g]; }
+            return best;
+        } catch { return null; }
+    };
 
     /* ═══════════════════════════════════
        Toast, Modal, Context
@@ -212,12 +328,14 @@
 
     const modal = (opts = {}) => {
         const d = document.createElement('dialog');
+        if (opts.id) d.id = opts.id;
         d.className = 'bm-modal-bg';
         d.onclick = e => {
             const r = d.getBoundingClientRect();
             if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) d.close();
         };
         d.onclose = () => { opts.onClose?.(); d.remove(); };
+        if (opts.prevent) d.oncancel = e => e.preventDefault();
         shadow.appendChild(d);
         d.showModal();
         return d;
@@ -241,7 +359,8 @@
             { t: '📋 URL 복사', fn: () => { navigator.clipboard?.writeText(item.url); toast('📋 URL 복사됨'); } },
             { t: '🗑 삭제', c: 'ctx-danger', fn: () => {
                 if (!confirm(`"${item.name}" 삭제?`)) return;
-                const arr = db.groups[gName];
+                pushUndo();
+                const arr = curPage()[gName];
                 const i = arr[idx]?.url === item.url ? idx : arr.findIndex(x => x.url === item.url);
                 if (i > -1) { arr.splice(i, 1); delUrl(item.url); }
                 save(); rerender();
@@ -274,13 +393,34 @@
     /* ═══════════════════════════════════
        내보내기 / 가져오기
        ═══════════════════════════════════ */
-    const exportJSON = () => {
-        if (_dirty) saveNow();
-        const blob = new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' });
+    const triggerDl = (blob, fn) => {
         const u = URL.createObjectURL(blob);
-        const a = $('a', { href: u, download: 'bookmarks.json' });
+        const a = $('a', { href: u, download: fn });
         a.click();
         setTimeout(() => URL.revokeObjectURL(u), 1000);
+    };
+
+    const exportJSON = () => {
+        if (_dirty) saveNow();
+        triggerDl(new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' }), 'bookmarks.json');
+    };
+
+    const exportHTML = () => {
+        if (_dirty) saveNow();
+        const parts = [
+            '<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">\n<TITLE>Bookmarks</TITLE>\n<H1>Bookmarks</H1>\n<DL><p>\n'
+        ];
+        for (const [p, gs] of Object.entries(db.pages)) {
+            parts.push(`  <DT><H3>${escHtml(p)}</H3>\n  <DL><p>\n`);
+            for (const [g, is] of Object.entries(gs)) {
+                parts.push(`    <DT><H3>${escHtml(g)}</H3>\n    <DL><p>\n`);
+                for (const it of is) parts.push(`      <DT><A HREF="${escHtml(it.url)}">${escHtml(it.name)}</A>\n`);
+                parts.push('    </DL><p>\n');
+            }
+            parts.push('  </DL><p>\n');
+        }
+        parts.push('</DL><p>');
+        triggerDl(new Blob([parts.join('')], { type: 'text/html' }), 'bookmarks.html');
     };
 
     const importJSON = () => {
@@ -300,17 +440,131 @@
     };
 
     /* ═══════════════════════════════════
+       건강 체크
+       ═══════════════════════════════════ */
+    async function showHealthCheck() {
+        const all = [];
+        forEachItem((it, pn, gn) => all.push({ ...it, pn, gn }));
+        if (!all.length) return toast('북마크가 없습니다.');
+
+        let cancel = false;
+        const m = modal({ prevent: true });
+        const status = $('div', { text: '검사 준비 중...' });
+        const resultList = $('div', { cls: 'bm-scroll-list', style: { marginTop: '10px', maxHeight: '50vh' } });
+
+        m.append($('div', { cls: 'bm-modal-content' }, [
+            $('h3', { text: '🏥 북마크 건강 체크', style: { marginTop: 0 } }),
+            status, resultList,
+            $('div', { cls: 'bm-flex-row bm-mt-10' }, [
+                btn('취소', 'bm-btn-red', () => { cancel = true; }, { flex: '1', padding: '10px' }),
+                btn('닫기', '', () => m.close(), { flex: '1', padding: '10px', background: 'var(--c-text-muted)' })
+            ])
+        ]));
+
+        const dead = [];
+        const duplicates = new Map();
+        for (const it of all) {
+            if (!duplicates.has(it.url)) duplicates.set(it.url, []);
+            duplicates.get(it.url).push(it);
+        }
+        const dups = [...duplicates.entries()].filter(([, v]) => v.length > 1);
+
+        if (dups.length) {
+            resultList.append($('div', {
+                text: `⚠️ 중복 ${dups.length}개 발견`,
+                style: { color: 'var(--c-amber)', fontWeight: 'bold', padding: '8px', fontSize: '12px' }
+            }));
+            for (const [url, items] of dups.slice(0, 20)) {
+                const locs = items.map(i => `${i.pn}>${i.gn}`).join(', ');
+                resultList.append($('div', {
+                    text: `🔗 ${items[0].name} → ${locs}`, title: url,
+                    style: { fontSize: '11px', padding: '4px 8px', color: 'var(--c-text-dim)', borderBottom: '1px solid var(--c-glass-border)' }
+                }));
+            }
+        }
+
+        for (let i = 0; i < all.length; i += 8) {
+            if (cancel) break;
+            status.textContent = `검사 중... ${Math.min(i + 8, all.length)} / ${all.length}`;
+            await Promise.allSettled(
+                all.slice(i, i + 8).map(async it => {
+                    if (cancel) return;
+                    try {
+                        const ok = await new Promise(r =>
+                            GM_xmlhttpRequest({
+                                method: 'HEAD', url: it.url, timeout: 5000,
+                                onload: res => r(res.status < 400),
+                                onerror: () => r(false), ontimeout: () => r(false)
+                            })
+                        );
+                        if (!ok) {
+                            dead.push(it);
+                            resultList.append($('div', {
+                                text: `❌ ${it.name} (${it.pn}>${it.gn})`, title: it.url,
+                                style: { fontSize: '11px', padding: '4px 8px', color: 'var(--c-red)', borderBottom: '1px solid var(--c-glass-border)', cursor: 'pointer' },
+                                onclick: () => { navigator.clipboard?.writeText(it.url); toast('URL 복사됨'); }
+                            }));
+                        }
+                    } catch {}
+                })
+            );
+        }
+
+        status.textContent = cancel
+            ? `중단됨 — 죽은 링크 ${dead.length}개, 중복 ${dups.length}개`
+            : `✅ 완료 — 죽은 링크 ${dead.length}개, 중복 ${dups.length}개`;
+
+        if (dups.length) {
+            resultList.append(btn('🧹 중복 자동 정리', 'bm-btn-blue', () => {
+                if (!confirm(`${dups.length}개 중복 그룹에서 첫 번째만 남기고 제거합니다.`)) return;
+                pushUndo();
+                for (const [url, items] of dups) {
+                    for (let k = 1; k < items.length; k++) {
+                        const it = items[k];
+                        const arr = db.pages[it.pn]?.[it.gn];
+                        if (!arr) continue;
+                        const idx = arr.findIndex(x => x.url === url && x.name === it.name);
+                        if (idx > -1) arr.splice(idx, 1);
+                    }
+                }
+                _urlSet = null; save(); rerender();
+                toast(`✅ ${dups.length}개 중복 정리됨`);
+                m.close();
+            }, { width: '100%', marginTop: '10px', padding: '10px' }));
+        }
+
+        if (dead.length) {
+            resultList.append(btn('🗑 죽은 링크 일괄 삭제', 'bm-btn-red', () => {
+                if (!confirm(`${dead.length}개 죽은 링크를 삭제합니다.`)) return;
+                pushUndo();
+                for (const it of dead) {
+                    const arr = db.pages[it.pn]?.[it.gn];
+                    if (!arr) continue;
+                    const idx = arr.findIndex(x => x.url === it.url);
+                    if (idx > -1) arr.splice(idx, 1);
+                }
+                _urlSet = null; save(); rerender();
+                toast(`✅ ${dead.length}개 삭제됨`);
+                m.close();
+            }, { width: '100%', marginTop: '5px', padding: '10px' }));
+        }
+    }
+
+    /* ═══════════════════════════════════
        Sortable 관리
        ═══════════════════════════════════ */
     let _sorts = [];
     const killSorts = () => { _sorts.forEach(s => s.destroy()); _sorts.length = 0; };
 
-    /* [B5 fix] 드래그 이동 시 원본 스냅샷을 먼저 확보하여 addedAt 보존 */
-    const rebuildGroupFromDOM = (gridEl, snapshot) => {
+    const rebuildGroupFromDOM = (gridEl, page) => {
         const itemMap = new Map();
-        for (const it of snapshot) {
-            if (!itemMap.has(it.url)) itemMap.set(it.url, []);
-            itemMap.get(it.url).push(it);
+        for (const g in page) {
+            const items = page[g];
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                if (!itemMap.has(it.url)) itemMap.set(it.url, []);
+                itemMap.get(it.url).push(it);
+            }
         }
         const result = [];
         for (const w of gridEl.querySelectorAll('.bm-wrap')) {
@@ -328,14 +582,12 @@
     };
 
     /* ═══════════════════════════════════
-       필터
+       필터 (초성 지원)
        ═══════════════════════════════════ */
     let _filterRaf = 0;
-    /* [B2 fix] sec.dataset.id로 그룹명 참조 */
     const filterItems = (q, container) => {
         cancelAnimationFrame(_filterRaf);
         _filterRaf = requestAnimationFrame(() => {
-            const lq = q.toLowerCase();
             for (const sec of container.querySelectorAll('.bm-sec')) {
                 const grid = sec.querySelector('.bm-grid');
                 if (!grid) continue;
@@ -343,8 +595,8 @@
                 let vis = false;
                 for (const wrap of grid.querySelectorAll('.bm-wrap')) {
                     const match = !q
-                        || wrap.textContent.toLowerCase().includes(lq)
-                        || (wrap.href || '').toLowerCase().includes(lq);
+                        || KoreanSearch.match(wrap.textContent, q)
+                        || (wrap.href || '').toLowerCase().includes(q.toLowerCase());
                     wrap.style.display = match ? '' : 'none';
                     if (match) vis = true;
                 }
@@ -353,7 +605,7 @@
                     sec.style.display = vis ? '' : 'none';
                 } else {
                     sec.style.display = '';
-                    grid.style.display = !isSortMode && _col.has(gn) ? 'none' : '';
+                    grid.style.display = !isSortMode && _col.has(colKey(gn)) ? 'none' : '';
                 }
             }
         });
@@ -363,8 +615,6 @@
        대시보드 렌더링
        ═══════════════════════════════════ */
     let _sTimer = null, _ctr = null;
-
-    /* [S2 fix] _isOpen 상태 변수 사용 */
     const rerender = () => { if (_isOpen) renderDash(); };
 
     function renderDash() {
@@ -374,22 +624,68 @@
         ov.className = isSortMode ? 'sort-active' : '';
         ov.replaceChildren();
 
-        const groups = db.groups;
+        const p = curPage(), frag = document.createDocumentFragment();
 
-        /* [O2 fix] totalCount, maxN 한 번의 순회로 계산 */
+        /* 전체 카운트 */
         let totalCount = 0, maxN = 1;
-        for (const items of Object.values(groups)) {
+        for (const items of Object.values(p)) {
             totalCount += items.length;
             if (items.length > maxN) maxN = items.length;
         }
 
-        const frag = document.createDocumentFragment();
+        /* ── 탭 바 ── */
+        const tabs = $('div', { cls: 'bm-tabs' });
+        const pageKeys = Object.keys(db.pages);
+        for (const pn of pageKeys) {
+            const gs = db.pages[pn];
+            const count = Object.values(gs).reduce((s, a) => s + a.length, 0);
+            const t = $('div', {
+                cls: `bm-tab ${db.currentPage === pn ? 'active' : ''}`,
+                text: `${pn} (${count})`,
+                'data-page': pn
+            });
+            let sx, sy, mvd;
+            t.ontouchstart = e => { sx = e.touches[0].clientX; sy = e.touches[0].clientY; mvd = false; };
+            t.ontouchmove = e => {
+                if (Math.abs(e.touches[0].clientX - sx) > 8 || Math.abs(e.touches[0].clientY - sy) > 8) mvd = true;
+            };
+            t.ontouchend = e => {
+                if (!mvd) { e.preventDefault(); db.currentPage = pn; isSortMode = false; save(); renderDash(); }
+            };
+            t.onclick = () => { db.currentPage = pn; isSortMode = false; save(); renderDash(); };
+            tabs.append(t);
+        }
 
         /* ── 상단 바 ── */
         const bar = $('div', { cls: 'bm-bar' }, [
-            $('input', { type: 'search', placeholder: '🔍 검색...', cls: 'bm-search', oninput: e => {
+            $('input', { type: 'search', placeholder: '🔍 검색 (초성 지원)...', cls: 'bm-search', oninput: e => {
                 clearTimeout(_sTimer);
-                _sTimer = setTimeout(() => filterItems(e.target.value.trim(), _ctr ?? shadow), 120);
+                _sTimer = setTimeout(() => {
+                    const q = e.target.value.trim();
+                    filterItems(q, _ctr ?? shadow);
+                    _ctr?.querySelector('.bm-gsr')?.remove();
+                    if (q.length >= 1 && _ctr) {
+                        _searchIndex = null;
+                        const res = searchAll(q, 50);
+                        if (res.length) _ctr.prepend($('div', { cls: 'bm-gsr', style: { gridColumn: '1/-1' } }, [
+                            $('div', {
+                                text: `🔍 전체 검색 (${res.length}건)`,
+                                style: { fontWeight: 'bold', fontSize: '13px', padding: '10px', background: 'var(--c-glass)', borderRadius: '12px 12px 0 0' }
+                            }),
+                            $('div', { cls: 'bm-grid' },
+                                res.map(r => {
+                                    const icon = faviconUrl(r.url);
+                                    const img = $('img', { loading: 'lazy', src: icon });
+                                    img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
+                                    return $('a', {
+                                        cls: 'bm-wrap', href: r.url, target: '_blank',
+                                        title: `${r.pn} > ${r.gn}`
+                                    }, [$('div', { cls: 'bm-item' }, [img, $('span', { text: r.name })])]);
+                                })
+                            )
+                        ]));
+                    }
+                }, 120);
             }}),
             $('span', {
                 text: `${totalCount}개`,
@@ -399,9 +695,9 @@
             iconBtn(isSortMode ? '✅' : '↕️', '정렬', 'bm-btn-blue', () => { isSortMode = !isSortMode; renderDash(); }),
             iconBtn('➕', '새 그룹', '', () => {
                 const n = prompt("새 그룹:");
-                const err = vName(n, Object.keys(groups));
+                const err = vName(n, Object.keys(p));
                 if (err) { if (n) alert(err); return; }
-                groups[n.trim()] = [];
+                p[n.trim()] = [];
                 save(); renderDash();
             }),
             iconBtn('⋯', '더보기', '', e => {
@@ -409,14 +705,17 @@
                 _ctxAC?.abort();
                 _ctxAC = new AbortController();
                 const menuItems = [
+                    { i: '🏥', t: '건강 체크', fn: showHealthCheck },
+                    { i: '📂', t: '탭 관리', fn: showTabMgr },
                     { i: '🗂', t: '접기/펼치기', fn: () => {
-                        const ks = Object.keys(groups);
+                        const ks = Object.keys(p).map(colKey);
                         const all = ks.every(k => _col.has(k));
                         ks.forEach(k => all ? _col.delete(k) : _col.add(k));
                         saveCol();
                         renderDash();
                     }},
                     { i: '💾', t: '백업 (JSON)', fn: exportJSON },
+                    { i: '📄', t: '백업 (HTML)', fn: exportHTML },
                     { i: '📥', t: '복구', fn: importJSON }
                 ];
                 const m = $('div', { cls: 'bm-admin-menu' },
@@ -438,7 +737,7 @@
             })
         ]);
 
-        frag.append($('div', { cls: 'bm-top' }, [bar]));
+        frag.append($('div', { cls: 'bm-top' }, [tabs, bar]));
 
         /* ── 그룹들 ── */
         _ctr = $('div', { cls: 'bm-ctr', onclick: e => {
@@ -446,14 +745,64 @@
             if (b) showGroupMgr(b.closest('.bm-sec')?.dataset.id);
         }});
 
+        /* D&D 임포트 */
+        _ctr.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; _ctr.style.outline = '2px dashed var(--c-neon)'; };
+        _ctr.ondragleave = () => _ctr.style.outline = '';
+        _ctr.ondrop = async e => {
+            e.preventDefault();
+            _ctr.style.outline = '';
+            const file = [...(e.dataTransfer.files || [])].find(f =>
+                f.name.endsWith('.html') || f.name.endsWith('.htm')
+            );
+            if (file) {
+                const text = await file.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const links = doc.querySelectorAll('a[href]');
+                if (!links.length) return toast('⚠ 북마크를 찾을 수 없습니다.');
+                if (!confirm(`${links.length}개 북마크를 현재 페이지에 임포트?`)) return;
+                pushUndo();
+                const targetGroup = Object.keys(p)[0] || '가져오기';
+                if (!p[targetGroup]) p[targetGroup] = [];
+                let added = 0;
+                for (const a of links) {
+                    const url = a.href;
+                    if (!isUrl(url) || isDup(url)) continue;
+                    p[targetGroup].push({
+                        name: (a.textContent || url).trim().substring(0, 30),
+                        url: cleanUrl(url), addedAt: Date.now()
+                    });
+                    addUrl(url); added++;
+                }
+                save(); renderDash();
+                toast(`✅ ${added}개 임포트 완료`);
+                return;
+            }
+            const raw = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+            if (!raw || !isUrl(raw.trim())) return;
+            const u = cleanUrl(raw.trim());
+            if (isDup(u)) return toast('⚠ 이미 저장됨');
+            const g = e.target.closest('.bm-grid')?.dataset.group || Object.keys(p)[0];
+            if (!g) return toast('⚠ 그룹 없음');
+            let nm = u;
+            try { const html = await gmFetchText(u, 5000); nm = extractTitle(html) || u; } catch {}
+            pushUndo();
+            p[g].push({ name: nm, url: u, addedAt: Date.now() });
+            addUrl(u); save(); renderDash();
+            toast(`✅ "${g}" 추가됨`);
+        };
+
         let secIdx = 0;
-        for (const [gn, items] of Object.entries(groups)) {
-            const col = _col.has(gn);
+        for (const [gn, items] of Object.entries(p)) {
+            const col = _col.has(colKey(gn));
             const gEl = $('div', { cls: 'bm-grid', 'data-group': gn });
             if (col && !isSortMode) gEl.style.display = 'none';
 
             if (!items.length && !isSortMode) {
-                gEl.append($('div', { cls: 'bm-empty', text: '비어 있음' }));
+                gEl.append($('div', { cls: 'bm-empty' }, [
+                    $('div', { text: '📎', style: { fontSize: '24px', opacity: '.5' } }),
+                    $('div', { text: '드래그하여 추가' })
+                ]));
             }
 
             for (let idx = 0; idx < items.length; idx++) {
@@ -465,14 +814,9 @@
                 w.oncontextmenu = e => ctxMenu(e, it, gn, idx);
                 bindLP(w, e => ctxMenu(e, it, gn, idx));
 
-                /* [B1 fix] onerror 시 FALLBACK_ICON 사용, 무한루프 방지 */
                 const icon = faviconUrl(it.url);
                 const img = $('img', { loading: 'lazy', src: icon });
-                img.onerror = () => {
-                    img.onerror = null;
-                    img.src = FALLBACK_ICON;
-                    img.style.opacity = '0.3';
-                };
+                img.onerror = () => { img.onerror = null; img.src = FALLBACK_ICON; img.style.opacity = '0.3'; };
                 w.append($('div', { cls: 'bm-item' }, [img, $('span', { text: it.name })]));
                 gEl.append(w);
             }
@@ -483,25 +827,26 @@
                     onclick: () => {
                         if (isSortMode) return;
                         toggleCol(gn);
-                        const now = _col.has(gn);
+                        const now = _col.has(colKey(gn));
                         gEl.style.display = now ? 'none' : '';
                         hdr.firstChild.childNodes[0].textContent = `${now ? '▶' : '📁'} ${gn} `;
                     }
                 }, [
                     document.createTextNode(`${isSortMode ? '≡' : (col ? '▶' : '📁')} ${gn} `),
-                    $('span', { cls: 'bm-gcnt', text: `${items.length}` })
+                    $('span', { cls: 'bm-gcnt', text: `${items.length}` }),
+                    ...(items.length >= 50 ? [$('span', { cls: 'bm-gwarn', text: '⚠' })] : [])
                 ]),
                 ...(!isSortMode ? [
-                    /* [P1 fix] 사용자 명시 액션은 save() 사용 */
                     $('button', { cls: 'bm-qadd', text: '+', onclick: e => {
                         e.stopPropagation();
-                        const u = location.href;
+                        const u = cleanUrl(location.href);
                         if (isDup(u)) return toast('⚠ 이미 저장됨');
-                        groups[gn].push({
+                        pushUndo();
+                        p[gn].push({
                             name: (document.title || u).substring(0, 30),
                             url: u, addedAt: Date.now()
                         });
-                        addUrl(u); setRecent(gn);
+                        addUrl(u); setRecent(db.currentPage, gn);
                         save(); renderDash();
                         toast(`✅ "${gn}" 추가됨`);
                     }}),
@@ -517,20 +862,37 @@
 
         frag.append(
             _ctr,
-            $('div', { cls: 'bm-hint', text: 'Ctrl+Shift+B: 열기 | Ctrl+Shift+D: 빠른추가 | /: 검색' })
+            $('div', { cls: 'bm-hint', text: 'Ctrl+Shift+B: 열기 | Ctrl+Shift+D: 빠른추가 | Ctrl+Z: 되돌리기 | /: 검색' })
         );
         ov.append(frag);
         killSorts();
+
+        /* 탭 드래그 정렬 */
+        if (pageKeys.length > 1) {
+            _sorts.push(new Sortable(tabs, {
+                animation: 150, direction: 'horizontal', draggable: '.bm-tab',
+                delay: 300, delayOnTouchOnly: true,
+                onEnd: () => {
+                    const o = {};
+                    tabs.querySelectorAll('.bm-tab').forEach(t => {
+                        const pg = t.dataset.page;
+                        if (db.pages[pg]) o[pg] = db.pages[pg];
+                    });
+                    db.pages = o; save();
+                }
+            }));
+        }
 
         if (isSortMode) {
             _sorts.push(new Sortable(_ctr, {
                 animation: 150, handle: '.bm-sec-hdr', draggable: '.bm-sec',
                 onEnd: () => {
+                    pushUndo();
                     const o = {};
                     _ctr.querySelectorAll('.bm-sec').forEach(s => {
-                        if (groups[s.dataset.id]) o[s.dataset.id] = groups[s.dataset.id];
+                        if (p[s.dataset.id]) o[s.dataset.id] = p[s.dataset.id];
                     });
-                    db.groups = o;
+                    db.pages[db.currentPage] = o;
                     saveLazy();
                 }
             }));
@@ -540,33 +902,26 @@
                     _sorts.push(new Sortable(g, {
                         group: 'bm-items', animation: 150,
                         delay: 300, delayOnTouchOnly: true,
-                        /* [B5 fix] onStart에서 스냅샷 확보 */
                         onStart: ev => {
                             const fromGn = ev.from.dataset.group;
+                            ev.from._snapshot = [...(curPage()[fromGn] || [])];
                             const toGn = ev.to?.dataset.group;
-                            ev.from._snapshot = [...(db.groups[fromGn] || [])];
                             if (toGn && toGn !== fromGn && ev.to) {
-                                ev.to._snapshot = [...(db.groups[toGn] || [])];
+                                ev.to._snapshot = [...(curPage()[toGn] || [])];
                             }
                         },
                         onEnd: ev => {
+                            pushUndo();
+                            const page = curPage();
                             const fromGroup = ev.from.dataset.group;
                             const toGroup = ev.to.dataset.group;
-
-                            /* from 스냅샷은 onStart에서 확보됨 */
-                            const fromSnap = ev.from._snapshot || [...(db.groups[fromGroup] || [])];
-                            /* to 스냅샷: 그룹 간 이동이면 from+to 합산에서 찾아야 함 */
-                            const toSnap = fromGroup !== toGroup
-                                ? [...(ev.to._snapshot || db.groups[toGroup] || []), ...fromSnap]
-                                : fromSnap;
-
-                            db.groups[fromGroup] = rebuildGroupFromDOM(ev.from, fromSnap);
+                            page[fromGroup] = rebuildGroupFromDOM(ev.from, page);
                             if (fromGroup !== toGroup) {
-                                db.groups[toGroup] = rebuildGroupFromDOM(ev.to, toSnap);
+                                page[toGroup] = rebuildGroupFromDOM(ev.to, page);
                             }
-
                             delete ev.from._snapshot;
                             delete ev.to._snapshot;
+                            _urlSet = null;
                             saveLazy();
                         }
                     }));
@@ -605,7 +960,7 @@
     };
 
     function showGroupMgr(gn) {
-        const items = db.groups[gn];
+        const items = curPage()[gn];
         if (!items) return;
         let sInst;
         const m = modal({ onClose: () => sInst?.destroy() });
@@ -646,27 +1001,28 @@
                         nItems.push({ name: n, url: u, addedAt: old?.addedAt || Date.now() });
                     }
                     if (bad && !confirm('유효하지 않은 URL 제외?')) return;
-
+                    pushUndo();
+                    const pg = curPage();
                     if (nnm !== gn) {
-                        if (db.groups[nnm]) return alert('존재하는 이름입니다.');
-                        const rebuilt = {};
-                        for (const k of Object.keys(db.groups)) {
-                            rebuilt[k === gn ? nnm : k] = k === gn ? nItems : db.groups[k];
-                        }
-                        db.groups = rebuilt;
-                        if (_col.has(gn)) { _col.delete(gn); _col.add(nnm); }
+                        if (pg[nnm]) return alert('존재하는 이름입니다.');
+                        const oK = colKey(gn), wC = _col.has(oK), rebuilt = {};
+                        for (const k of Object.keys(pg))
+                            rebuilt[k === gn ? nnm : k] = k === gn ? nItems : pg[k];
+                        db.pages[db.currentPage] = rebuilt;
+                        _col.delete(oK);
+                        if (wC) _col.add(colKey(nnm));
                         saveCol();
                     } else {
-                        db.groups[gn] = nItems;
+                        pg[gn] = nItems;
                     }
-                    save(); rerender(); m.close();
+                    _urlSet = null; save(); rerender(); m.close();
                 }, { flex: '2', padding: '12px' }),
                 btn('닫기', '', () => m.close(), { flex: '1', background: 'var(--c-text-muted)', padding: '12px' })
             ]),
             btn('🗑 그룹 삭제', 'bm-btn-red', () => {
                 if (items.length && !confirm(`"${gn}" 삭제?`)) return;
-                delete db.groups[gn];
-                save(); rerender(); m.close();
+                pushUndo(); delete curPage()[gn];
+                _urlSet = null; save(); rerender(); m.close();
             }, { width: '100%', marginTop: '10px', padding: '10px' })
         ]));
 
@@ -680,68 +1036,151 @@
     }
 
     /* ═══════════════════════════════════
+       탭 관리 모달
+       ═══════════════════════════════════ */
+    function showTabMgr() {
+        const m = modal();
+        const list = $('div', { cls: 'bm-scroll-list' });
+        const rnd = () => {
+            list.replaceChildren();
+            for (const tn of Object.keys(db.pages)) {
+                list.append($('div', { cls: 'tab-row' }, [
+                    $('span', { text: tn, style: { flex: '1', overflow: 'hidden', textOverflow: 'ellipsis' } }),
+                    $('div', { style: { display: 'flex', gap: '4px' } }, [
+                        btn('변경', 'bm-btn-blue', () => {
+                            const nn = prompt('새 이름:', tn);
+                            if (!nn || nn === tn) return;
+                            if (vName(nn, Object.keys(db.pages))) return alert('오류');
+                            const o = {};
+                            for (const k of Object.keys(db.pages))
+                                o[k === tn ? nn.trim() : k] = db.pages[k];
+                            db.pages = o;
+                            if (db.currentPage === tn) db.currentPage = nn.trim();
+                            save(); rnd(); rerender();
+                        }, { padding: '4px 8px' }),
+                        btn('삭제', 'bm-btn-red', () => {
+                            if (Object.keys(db.pages).length < 2) return alert('최소 1개');
+                            if (!confirm(`"${tn}" 삭제?`)) return;
+                            pushUndo();
+                            delete db.pages[tn];
+                            if (db.currentPage === tn) db.currentPage = Object.keys(db.pages)[0];
+                            _urlSet = null; save(); m.close(); rerender();
+                        }, { padding: '4px 8px' })
+                    ])
+                ]));
+            }
+        };
+        rnd();
+        m.append($('div', { cls: 'bm-modal-content' }, [
+            $('h3', { text: '📂 탭 관리', style: { marginTop: 0 } }), list,
+            btn('+ 새 탭', 'bm-btn-blue', () => {
+                const n = prompt('탭 이름:');
+                if (!n || vName(n, Object.keys(db.pages))) return;
+                db.pages[n.trim()] = {};
+                db.currentPage = n.trim();
+                save(); rerender(); m.close();
+            }, { width: '100%', marginTop: '15px', padding: '12px' }),
+            btn('닫기', '', () => m.close(), { width: '100%', marginTop: '10px', background: 'var(--c-text-muted)', padding: '10px' })
+        ]));
+    }
+
+    /* ═══════════════════════════════════
        빠른 추가
        ═══════════════════════════════════ */
     function showQuickAdd() {
         shadow.querySelector('#bm-quick')?.remove();
-        const m = modal();
-        m.id = 'bm-quick';
-        const cu = location.href;
+        const m = modal({ id: 'bm-quick' });
+        const cu = cleanUrl(location.href);
         const c = $('div', { cls: 'bm-modal-content' }, [
             $('h3', { text: '🔖 북마크 저장', style: { marginTop: 0 } })
         ]);
 
-        /* [B3 fix] 이미 저장된 경우 경고 + 중복 저장 방지 */
         const dup = isDup(cu);
         if (dup) {
             c.append($('div', {
-                text: '⚠ 이미 저장된 URL입니다',
+                text: `⚠ 기저장: ${findLocs(cu).join(', ')}`,
                 style: { color: 'var(--c-amber)', fontSize: '12px', marginBottom: '8px', fontWeight: 'bold' }
             }));
         }
 
-        const ni = $('input', { type: 'text', value: document.title.substring(0, 30) });
-        const ui = $('input', { type: 'text', value: cu });
+        const ni = $('input', { type: 'text', value: document.title.substring(0, 30), oninput: () => ni.dataset.m = '1' });
+        const ui = $('input', { type: 'text', value: cu, onchange: async () => {
+            if (isUrl(ui.value) && !ni.dataset.m) {
+                const html = await gmFetchText(ui.value, 5000);
+                const title = extractTitle(html);
+                if (title) ni.value = title;
+            }
+        }});
         c.append($('label', { text: '이름' }), ni, $('label', { text: 'URL' }), ui);
 
-        const saveTo = g => {
-            const nn = ni.value.trim(), uu = ui.value.trim();
+        const saveTo = (p, g) => {
+            const nn = ni.value.trim(), uu = cleanUrl(ui.value.trim());
             if (!nn || !isUrl(uu)) return alert('올바른 값을 입력하세요.');
             if (isDup(uu)) return toast('⚠ 이미 저장된 URL입니다');
-            if (!db.groups[g]) db.groups[g] = [];
-            db.groups[g].push({ name: nn, url: uu, addedAt: Date.now() });
-            addUrl(uu); setRecent(g);
+            pushUndo();
+            if (!db.pages[p][g]) db.pages[p][g] = [];
+            db.pages[p][g].push({ name: nn, url: uu, addedAt: Date.now() });
+            addUrl(uu); setRecent(p, g);
             save(); m.close(); rerender(); updateFab();
             toast('✅ 저장됨');
         };
 
         /* 최근 그룹 바로저장 */
         const rct = getRecent();
-        if (rct && db.groups[rct]) {
+        const dSug = suggestGroup(cu);
+
+        if (rct && db.pages[rct.page]?.[rct.group]) {
             c.append(
-                $('p', { text: `최근: ${rct}`, style: { fontSize: '11px', color: 'var(--c-text-dim)', margin: '10px 0 2px' } }),
-                btn('⚡ 바로 저장', 'bm-btn-blue', () => saveTo(rct), { width: '100%', padding: '10px' })
+                $('p', { text: `최근: ${rct.page} > ${rct.group}`, style: { fontSize: '11px', color: 'var(--c-text-dim)', margin: '10px 0 2px' } }),
+                btn('⚡ 바로 저장', 'bm-btn-blue', () => saveTo(rct.page, rct.group), { width: '100%', padding: '10px' })
             );
         }
 
-        /* 그룹 선택 */
-        const groupBtns = $('div', { cls: 'bm-flex-col', style: { marginTop: '15px' } });
-        for (const g of Object.keys(db.groups)) {
-            groupBtns.append(btn(`📁 ${g}`, '', () => saveTo(g), {
-                background: 'var(--c-glass)', color: 'var(--c-text)',
-                justifyContent: 'flex-start', padding: '12px'
-            }));
+        if (dSug && dSug !== rct?.group) {
+            c.append(
+                $('p', { text: `💡 도메인 일치: ${dSug}`, style: { fontSize: '11px', color: 'var(--c-neon)', margin: '5px 0 2px' } }),
+                btn(`📁 ${dSug}에 저장`, 'bm-btn-blue', () => saveTo(db.currentPage, dSug), { width: '100%', padding: '10px' })
+            );
         }
-        groupBtns.append(btn('+ 새 그룹', '', () => {
-            const n = prompt("새 그룹:");
-            if (n && !vName(n, Object.keys(db.groups))) saveTo(n.trim());
-        }, { background: 'var(--c-surface)', color: 'var(--c-neon)', padding: '12px', border: '1px dashed var(--c-neon-border)' }));
 
-        ni.onkeydown = ui.onkeydown = e => {
-            if (e.key === 'Enter' && rct && db.groups[rct]) { e.preventDefault(); saveTo(rct); }
+        /* 그룹 선택 영역 */
+        const gArea = $('div');
+        const rPicker = pName => {
+            gArea.replaceChildren(
+                $('p', { text: `그룹 선택 (${pName}):`, style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } })
+            );
+            const cEl = $('div', { cls: 'bm-flex-col' });
+            Object.keys(db.pages[pName]).forEach(g =>
+                cEl.append(btn(`📁 ${g}`, '', () => saveTo(pName, g), {
+                    background: 'var(--c-glass)', color: 'var(--c-text)',
+                    justifyContent: 'flex-start', padding: '12px'
+                }))
+            );
+            cEl.append(btn('+ 새 그룹', '', () => {
+                const n = prompt("새 그룹:");
+                if (n && !vName(n, Object.keys(db.pages[pName]))) saveTo(pName, n.trim());
+            }, { background: 'var(--c-surface)', color: 'var(--c-neon)', padding: '12px', border: '1px dashed var(--c-neon-border)' }));
+            gArea.append(cEl);
         };
 
-        c.append(groupBtns, $('button', {
+        const ps = Object.keys(db.pages);
+        if (ps.length === 1) {
+            rPicker(ps[0]);
+        } else {
+            c.append($('p', { text: '탭 선택:', style: { fontSize: '12px', fontWeight: 'bold', marginTop: '15px' } }));
+            const bs = $('div', { style: { display: 'flex', gap: '5px', flexWrap: 'wrap' } });
+            ps.forEach(pn => bs.append(btn(pn, '', () => rPicker(pn), { background: 'var(--c-glass)', color: 'var(--c-text)' })));
+            c.append(bs);
+        }
+
+        ni.onkeydown = ui.onkeydown = e => {
+            if (e.key === 'Enter' && rct && db.pages[rct.page]?.[rct.group]) {
+                e.preventDefault();
+                saveTo(rct.page, rct.group);
+            }
+        };
+
+        c.append(gArea, $('button', {
             text: '취소',
             style: { width: '100%', border: '0', background: 'none', marginTop: '20px', color: 'var(--c-text-dim)', cursor: 'pointer' },
             onclick: () => m.close()
@@ -757,10 +1196,11 @@
         const f = shadow?.querySelector('#bm-fab');
         if (!f || _isOpen) return;
         f.querySelector('.bm-badge')?.remove();
-        if (isDup(location.href)) {
+        const c = findLocs(location.href).length;
+        if (c) {
             f.style.outline = '3px solid var(--c-neon)';
             f.style.outlineOffset = '2px';
-            f.append($('span', { cls: 'bm-badge', text: '✓' }));
+            f.append($('span', { cls: 'bm-badge', text: c > 9 ? '9+' : String(c) }));
         } else {
             f.style.outline = 'none';
         }
@@ -838,7 +1278,7 @@
   position:fixed;top:85%;right:10px;width:var(--fab);height:var(--fab);
   background:var(--c-glass);color:var(--c-text);border-radius:50%;
   display:flex;align-items:center;justify-content:center;cursor:pointer;
-  font-size:22px;user-select:none;border:1px solid var(--c-glass-border);
+  font-size:22px;user-select:none;touch-action:none;border:1px solid var(--c-glass-border);
   backdrop-filter:var(--c-glass-blur);-webkit-backdrop-filter:var(--c-glass-blur);
   box-shadow:0 6px 24px rgba(0,0,0,0.4),var(--c-neon-glow);
   transition:all .3s var(--ease);z-index:99;
@@ -848,9 +1288,10 @@
   border-color:var(--c-neon-border);transform:scale(1.06);
 }
 .bm-badge{
-  position:absolute;top:-5px;right:-5px;background:var(--c-neon);color:#000;
+  position:absolute;top:-5px;right:-5px;background:var(--c-red);color:#fff;
   font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;
   display:flex;align-items:center;justify-content:center;padding:0 4px;
+  box-shadow:0 0 8px rgba(255,77,106,0.5);
 }
 #bm-overlay{
   position:fixed;inset:0;background:var(--c-overlay);display:none;overflow-y:auto;
@@ -858,10 +1299,10 @@
   color:var(--c-text);text-align:left;
 }
 .bm-top{
-  max-width:var(--grid-max);margin:0 auto 12px;
+  max-width:var(--grid-max);margin:0 auto 12px;display:flex;flex-direction:column;gap:8px;
   position:sticky;top:0;z-index:100;
   background:var(--c-glass);backdrop-filter:var(--c-glass-blur);-webkit-backdrop-filter:var(--c-glass-blur);
-  padding:12px 16px;border-radius:16px;border:1px solid var(--c-glass-border);
+  padding:12px 16px 8px;border-radius:16px;border:1px solid var(--c-glass-border);
   box-shadow:0 8px 32px rgba(0,0,0,0.2);
 }
 .bm-bar{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;width:100%;align-items:center}
@@ -876,6 +1317,18 @@
   background:rgba(255,255,255,0.06)!important;
 }
 .bm-search::placeholder{color:var(--c-text-muted)!important}
+.bm-tabs{display:flex;gap:6px;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:6px;width:100%}
+.bm-tab{
+  padding:8px 16px;background:rgba(255,255,255,0.04);border-radius:var(--r);
+  cursor:pointer;font-size:12px;font-weight:600;color:var(--c-text-dim);
+  white-space:nowrap;flex-shrink:0;user-select:none;border:1px solid transparent;
+  transition:all .2s var(--ease);letter-spacing:0.3px;
+}
+.bm-tab:hover{background:rgba(255,255,255,0.08);color:var(--c-text)}
+.bm-tab.active{
+  background:var(--c-neon-dim);color:var(--c-neon);border-color:var(--c-neon-border);
+  box-shadow:0 0 10px rgba(0,229,255,0.1);
+}
 button{outline:0;border:0;font-family:var(--f)}
 .bm-btn,.bm-mgr-btn{font-size:11px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
 .bm-btn{
@@ -931,6 +1384,7 @@ label{display:block;font-size:11px;font-weight:600;color:var(--c-text-dim);margi
   font-weight:400;font-size:11px;color:var(--c-text-dim);
   background:rgba(255,255,255,0.05);padding:2px 8px;border-radius:20px;font-family:var(--f-mono);
 }
+.bm-gwarn{color:var(--c-amber);font-size:12px}
 .bm-mgr-btn{
   border:1px solid var(--c-glass-border);background:rgba(255,255,255,0.04);
   color:var(--c-text-dim);padding:5px 12px;border-radius:var(--r);font-weight:600;
@@ -971,7 +1425,8 @@ label{display:block;font-size:11px;font-weight:600;color:var(--c-text-dim);margi
 }
 .bm-item:hover span{color:var(--c-text)}
 .bm-empty{
-  grid-column:1/-1;text-align:center;color:var(--c-text-muted);font-size:12px;padding:30px;
+  grid-column:1/-1;text-align:center;color:var(--c-text-muted);font-size:12px;
+  padding:30px;border:2px dashed var(--c-glass-border);border-radius:var(--r);
 }
 .sort-active .bm-grid{opacity:0.4;pointer-events:none;filter:grayscale(50%)}
 .sort-active .bm-sec{border:2px dashed var(--c-neon);cursor:move}
@@ -1005,9 +1460,17 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
 }
 .bm-ctx-item:hover,.bm-admin-item:hover{background:rgba(255,255,255,0.06)}
 .ctx-danger{color:var(--c-red)}
+.bm-gsr{
+  background:var(--c-glass);border:1px solid var(--c-neon-border);border-radius:14px;
+  box-shadow:0 4px 20px rgba(0,229,255,0.1);overflow:hidden;
+}
 .e-r{
   border-bottom:1px solid var(--c-glass-border);padding:10px 0;
   display:flex;gap:10px;align-items:center;animation:bm-sec-in .25s var(--ease) both;
+}
+.tab-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px;border-bottom:1px solid var(--c-glass-border);gap:10px;
 }
 .bm-drag-handle{cursor:grab;font-size:18px;margin-right:10px;color:var(--c-text-muted);transition:color .2s}
 .bm-drag-handle:hover{color:var(--c-neon)}
@@ -1033,6 +1496,15 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
 }
 .bm-scroll-list::-webkit-scrollbar{width:4px}
 .bm-scroll-list::-webkit-scrollbar-thumb{background:var(--c-neon-border);border-radius:2px}
+#bm-swipe{
+  position:fixed;width:32px;height:32px;background:var(--c-glass);border:1px solid var(--c-neon-border);
+  color:var(--c-neon);border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:700;pointer-events:none;z-index:999999;
+  backdrop-filter:blur(12px);box-shadow:var(--c-neon-glow);
+}
+.bm-wrap.kb-focus .bm-item{
+  background:var(--c-neon-soft);outline:2px solid var(--c-neon-border);outline-offset:-2px;
+}
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:0.01ms!important;animation-duration:0.01ms!important}
 }
@@ -1057,12 +1529,104 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         const fab = $('div', { id: 'bm-fab', role: 'button', 'aria-label': '북마크' }, [document.createTextNode('🔖')]);
         shadow.append($('style', { text: GLASS_CSS }), ov, fab);
 
-        fab.onclick = () => toggle(ov, fab);
+        /* ── FAB 제스처 ── */
+        const st = { t: 0, r: false, d: false, sx: 0, sy: 0, ox: 0, oy: 0, lx: 0, ly: 0, tp: 0 };
 
-        /* 키보드 단축키 */
+        fab.onpointerdown = e => {
+            fab.setPointerCapture(e.pointerId);
+            st.sx = st.lx = e.clientX;
+            st.sy = st.ly = e.clientY;
+            const r = fab.getBoundingClientRect();
+            st.ox = e.clientX - r.left;
+            st.oy = e.clientY - r.top;
+            st.r = st.d = false;
+            st.t = setTimeout(() => {
+                st.r = true;
+                fab.style.willChange = 'transform,left,top';
+                fab.style.cursor = 'grabbing';
+                fab.style.boxShadow = '0 6px 20px rgba(0,0,0,.5)';
+            }, 500);
+        };
+
+        fab.onpointermove = e => {
+            st.lx = e.clientX;
+            st.ly = e.clientY;
+            if (!st.r) {
+                if (Math.hypot(e.clientX - st.sx, e.clientY - st.sy) > 10) clearTimeout(st.t);
+                const dy = st.sy - e.clientY;
+                let h = shadow.querySelector('#bm-swipe');
+                if (dy > 20 && Math.abs(e.clientX - st.sx) < 40) {
+                    if (!h) shadow.append(h = $('div', { id: 'bm-swipe', text: '＋' }));
+                    const r = fab.getBoundingClientRect();
+                    h.style.left = (r.left + r.width / 2 - 16) + 'px';
+                    h.style.top = (r.top - 42) + 'px';
+                    h.style.opacity = String(Math.min(1, (dy - 20) / 30));
+                } else {
+                    h?.remove();
+                }
+                return;
+            }
+            st.d = true;
+            fab.style.transition = 'none';
+            fab.style.left = Math.max(0, Math.min(innerWidth - 48, e.clientX - st.ox)) + 'px';
+            fab.style.top = Math.max(0, Math.min(innerHeight - 48, e.clientY - st.oy)) + 'px';
+            fab.style.right = fab.style.bottom = 'auto';
+        };
+
+        fab.onpointerup = e => {
+            clearTimeout(st.t);
+            try { fab.releasePointerCapture(e.pointerId); } catch {}
+            shadow.querySelector('#bm-swipe')?.remove();
+
+            if (st.d) {
+                fab.style.transition = '';
+                fab.style.bottom = 'auto';
+                fab.style.willChange = '';
+                const s = fab.getBoundingClientRect().left + 24 > innerWidth / 2;
+                fab.style.left = s ? 'auto' : '15px';
+                fab.style.right = s ? '15px' : 'auto';
+                st.d = st.r = false;
+                fab.style.cursor = 'pointer';
+                fab.style.boxShadow = '';
+                st.tp = 0;
+                return;
+            }
+            if (st.r) {
+                st.r = false;
+                fab.style.cursor = 'pointer';
+                fab.style.boxShadow = fab.style.willChange = '';
+                st.tp = 0;
+                return;
+            }
+            if (st.sy - st.ly > 50 && Math.abs(st.lx - st.sx) < 40) {
+                st.tp = 0;
+                showQuickAdd();
+                return;
+            }
+            const n = Date.now();
+            if (n - st.tp < 350) {
+                st.tp = 0;
+                showQuickAdd();
+            } else {
+                st.tp = n;
+                setTimeout(() => {
+                    if (st.tp && Date.now() - st.tp >= 340) {
+                        st.tp = 0;
+                        toggle(ov, fab);
+                    }
+                }, 350);
+            }
+        };
+
+        fab.oncontextmenu = e => e.preventDefault();
+
+        /* ── 키보드 단축키 ── */
         document.addEventListener('keydown', e => {
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyB') { e.preventDefault(); toggle(ov, fab); }
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyD') { e.preventDefault(); showQuickAdd(); }
+            if (e.ctrlKey && !e.shiftKey && e.code === 'KeyZ' && _isOpen && !shadow.querySelector('dialog[open]')) {
+                e.preventDefault(); popUndo() || toast('되돌릴 내역 없음');
+            }
             if (e.key === 'Escape' && _isOpen && !shadow.querySelector('dialog[open]')) {
                 e.preventDefault(); toggle(ov, fab);
             }
@@ -1072,7 +1636,38 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
             }
         });
 
-        /* [P3 fix] visibilitychange에서 불필요한 렌더링 방지 */
+        /* 오버레이 키보드 탐색 */
+        ov.onkeydown = e => {
+            if (e.key === '/' && !shadow.querySelector('.bm-search:focus')) {
+                e.preventDefault();
+                shadow.querySelector('.bm-search')?.focus();
+                return;
+            }
+            const gsr = shadow.querySelector('.bm-gsr');
+            if (!gsr) return;
+            const items = gsr.querySelectorAll('.bm-wrap');
+            if (!items.length) return;
+            let curr = gsr.querySelector('.bm-wrap.kb-focus');
+            let idx = curr ? [...items].indexOf(curr) : -1;
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                curr?.classList.remove('kb-focus');
+                idx = Math.min(idx + 1, items.length - 1);
+                items[idx].classList.add('kb-focus');
+                items[idx].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                curr?.classList.remove('kb-focus');
+                idx = Math.max(idx - 1, 0);
+                items[idx].classList.add('kb-focus');
+                items[idx].scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter' && curr) {
+                e.preventDefault();
+                window.open(curr.href, '_blank');
+            }
+        };
+
+        /* ── 라이프사이클 ── */
         document.addEventListener('visibilitychange', () => {
             if (document.hidden) {
                 saveNow();
