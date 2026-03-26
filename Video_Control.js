@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.0)
+// @name         Video_Control (v28.8.1)
 // @namespace    https://github.com/
-// @version      28.8.0
-// @description  v28.8.0: B-1~B-6,P-1,O-1,R-4,M-3 critical patches from v28.7.9 audit
+// @version      28.8.1
+// @description  v28.8.1: 화면 조도 기능 삭제
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.0'; /* [v28.8.0] */
+  const VSC_VERSION = '28.8.1';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -123,10 +123,10 @@
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
     audio: { enabled: false, strength: 50 },
     playback: { rate: 1.0, enabled: false },
-    app: { active: true, uiVisible: false, screenBright: 0 }
+    app: { active: true, uiVisible: false }
   };
   const P = {
-    APP_ACT: 'app.active', APP_UI: 'app.uiVisible', APP_SCREEN_BRT: 'app.screenBright',
+    APP_ACT: 'app.active', APP_UI: 'app.uiVisible',
     V_PRE_S: 'video.presetS', V_PRE_MIX: 'video.presetMix',
     V_MAN_SHAD: 'video.manualShadow', V_MAN_REC: 'video.manualRecovery',
     V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
@@ -160,7 +160,6 @@
         listeners.get(k).add(f);
         return () => listeners.get(k).delete(f);
       },
-      /* [PATCH R-4] null/undefined 명시적 체크 */
       load: (data) => { if (!data) return; for (const c of Object.keys(defaults)) { if (data[c] != null && typeof data[c] === 'object') Object.assign(state[c], data[c]); } rev++; }
     };
   }
@@ -182,7 +181,6 @@
     return el;
   }
 
-  /* [PATCH B-1] immediate=true 중복 RAF 등록 수정 — queued 상태에서도 immediate 플래그만 설정하고 return */
   function createScheduler(minIntervalMs = 16) {
     let queued = false, applyFn = null, lastRun = 0;
     let immediateRequested = false;
@@ -195,7 +193,7 @@
       },
       request: (immediate = false) => {
         if (immediate) immediateRequested = true;
-        if (queued) return; /* [B-1] immediate 플래그만 세팅 후 기존 RAF에 위임 */
+        if (queued) return;
         queued = true;
         requestAnimationFrame(() => {
           queued = false;
@@ -489,12 +487,11 @@
       return true;
     }
 
-    /* [PATCH B-5] fadeOutThen에 generation 파라미터 추가 — gain 복원도 세대 체크 */
     function fadeOutThen(gen, fn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
-        if (gen !== generation) return; /* [B-5] stale 콜백 전체 무시 */
+        if (gen !== generation) return;
         try { fn(); } catch (_) {}
         if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
       }, 60);
@@ -522,7 +519,6 @@
       else if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} currentSrc.connect(dryPath); }
     }
 
-    /* [PATCH B-5] setTarget 내 fadeOutThen 호출에 gen 인자 전달 */
     function setTarget(video) {
       if (video === targetVideo) {
         if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); return; } return; }
@@ -613,7 +609,6 @@
     }
 
     function prepare(video, s) {
-      /* [PATCH P-1] needsSvg 캐시 사용 — checkNeedsSvg 이중 호출 제거 */
       if (!s._needsSvg) {
         if (video) {
           const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document);
@@ -728,7 +723,6 @@
         out.contrast = 1 + mCon * 0.008;
         out.gain     = Math.pow(2, mGain * 0.03);
 
-        /* [PATCH P-1] needsSvg를 params 객체에 캐시 — Filters.prepare에서 재계산 불필요 */
         out._needsSvg = checkNeedsSvg(out);
 
         if (out._needsSvg) { out._cssBr = 1.0; out._cssCt = 1.0; }
@@ -757,9 +751,6 @@
     };
   }
 
-  /* ══════════════════════════════════════════════════════════════
-     createAutoScene — [v28.8.0] B-6 STALE/paused lastCheck 수정, O-1 activate 타이밍 수정
-     ══════════════════════════════════════════════════════════════ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
@@ -804,7 +795,6 @@
 
     function classifyBrightness(brightness, cfg) {
       let darkRaw = 0, brightRaw = 0;
-
       if (brightness < cfg.dark.max) {
         darkRaw = cfg.useSmoothstep
           ? 1 - smoothstep(0, cfg.dark.max, brightness)
@@ -815,15 +805,12 @@
           ? smoothstep(cfg.bright.min, 255, brightness)
           : (brightness - cfg.bright.min) / (255 - cfg.bright.min);
       }
-
       const darkFactor  = darkRaw  > 0 ? Math.pow(darkRaw,  1 / cfg.gamma) : 0;
       const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0;
-
       let label;
       if (darkFactor > 0)        label = `${cfg.dark.label} ◉ 밝기 ${Math.round(brightness)}`;
       else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`;
       else                       label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`;
-
       return { label, darkFactor, brightFactor };
     }
 
@@ -858,9 +845,8 @@
         canvasCtx.drawImage(video, 0, 0, 16, 16);
         const data = canvasCtx.getImageData(0, 0, 16, 16).data;
         let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true;
-        const COLS = 16;
         for (let i = 0; i < data.length; i += 4) {
-          const row = (i >> 2) >> 4; /* [P-5 경량 적용] 비트연산 */
+          const row = (i >> 2) >> 4;
           const yWeight = row >= 13 ? 0.3 : 1.0;
           r += data[i]   * yWeight;
           g += data[i+1] * yWeight;
@@ -922,7 +908,6 @@
         log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
       }
 
-      /* [PATCH B-6] lastCheck를 항상 현재 시점으로 갱신 — paused return 후에도 정상 주기 유지 */
       lastCheck = now;
 
       if (video.paused || video.ended) return;
@@ -1006,7 +991,6 @@
     const tabFns = [];
     const tabSignalCleanups = [];
     const globalSignalCleanups = [];
-    let __scrBrtOverlay = null;
 
     const TAB_ICONS = {
       video: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('rect', { ns: 'svg', x: 2, y: 4, width: 16, height: 16, rx: 2 }), h('path', { ns: 'svg', d: 'M22 7l-6 4 6 4z' })),
@@ -1014,29 +998,6 @@
       playback: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '10' }), h('polygon', { ns: 'svg', points: '10 8 16 12 10 16' }))
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
-
-    const SCR_BRT_LEVELS = [0, 0.05, 0.10, 0.15, 0.20, 0.25];
-    const SCR_BRT_LABELS = ['OFF', '1단', '2단', '3단', '4단', '5단'];
-
-    function ensureScrBrtOverlay() {
-      const targetRoot = document.fullscreenElement || document.webkitFullscreenElement || document.documentElement || document.body;
-      if (__scrBrtOverlay?.isConnected && __scrBrtOverlay.parentNode === targetRoot) return __scrBrtOverlay;
-      if (!__scrBrtOverlay) { __scrBrtOverlay = document.createElement('div'); __scrBrtOverlay.id = 'vsc-scr-brt'; __scrBrtOverlay.setAttribute('data-vsc-ui', '1'); __scrBrtOverlay.style.cssText = 'position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;background:white!important;mix-blend-mode:soft-light!important;pointer-events:none!important;z-index:2147483645!important;opacity:0!important;transition:opacity 0.3s ease!important;display:none!important;'; }
-      try { targetRoot.appendChild(__scrBrtOverlay); } catch (_) {}
-      return __scrBrtOverlay;
-    }
-
-    function applyScrBrt(level) {
-      const idx = CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
-      const val = SCR_BRT_LEVELS[idx];
-      if (val <= 0) { if (__scrBrtOverlay) { __scrBrtOverlay.style.setProperty('opacity', '0', 'important'); setTimeout(() => { if (__scrBrtOverlay?.style.getPropertyValue('opacity') === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important'); }, 350); } return; }
-      const ov = ensureScrBrtOverlay(); ov.style.removeProperty('display');
-      requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
-    }
-
-    globalSignalCleanups.push(Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0)));
-    setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
-    onFsChange(() => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
 
     const CSS_VARS = `
     :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
@@ -1177,7 +1138,6 @@
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
 
-    /* [PATCH M-3] mkChipRow — onSelectOverride 후에도 항상 Store.set 보장 */
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {});
       if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
@@ -1189,7 +1149,6 @@
         const parsed = isNaN(Number(val)) ? val : Number(val);
         if (onSelectOverride) {
           onSelectOverride(parsed);
-          /* [M-3] onSelectOverride가 path에 Store.set하지 않았을 경우 폴백 */
           if (String(Store.get(path)) !== String(parsed)) Store.set(path, parsed);
         }
         else { Store.set(path, val); }
@@ -1251,7 +1210,6 @@
       return box;
     }
 
-    /* [PATCH B-4] buildPresetGrid — 수동 프리셋 클릭 시 presetS도 함께 초기화 */
     function buildPresetGrid() {
       const wrap = h('div', {});
       wrap.append(h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정'));
@@ -1260,7 +1218,7 @@
         const btn = h('button', { class: 'fine-btn' }, p.n);
         btn.addEventListener('click', () => {
           if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(); OSD.show('자동 장면 OFF (수동 프리셋 선택)', 1000); }
-          const obj = { presetS: 'off' }; /* [B-4] 프리셋 샤프닝도 AUTO로 초기화 */
+          const obj = { presetS: 'off' };
           for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i];
           Store.batch('video', obj); Scheduler.request();
         });
@@ -1278,38 +1236,6 @@
       };
       tabFns.push(syncGrid);
       wrap.append(grid);
-      return wrap;
-    }
-
-    /* [PATCH B-2] buildScreenBright — applyScrBrt 직접 호출 제거, Store.sub 구독에 위임 */
-    function buildScreenBright() {
-      const wrap = h('div', {});
-      const brtChips = h('div', { class: 'chips' });
-      const brtBtns = [];
-      SCR_BRT_LABELS.forEach((label, idx) => {
-        if (idx === 0) return;
-        const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + label);
-        chip.addEventListener('click', () => setTo(idx));
-        brtBtns.push(chip); brtChips.appendChild(chip);
-      });
-      const resetBtn = h('button', { class: 'chip', style: 'margin-left:auto;flex:none;width:70px;font-size:10px;border-color:var(--vsc-text-muted);color:#fff!important;' }, '리셋(OFF)');
-      resetBtn.addEventListener('click', () => setTo(0));
-      const valLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
-      function setTo(idx) { Store.set(P.APP_SCREEN_BRT, idx); /* [B-2] applyScrBrt는 Store.sub에서 자동 호출 */ sync(); }
-      function sync() {
-        const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
-        brtBtns.forEach(b => b.classList.toggle('on', b.dataset.v === String(cur)));
-        resetBtn.classList.toggle('on', cur === 0);
-        valLabel.textContent = SCR_BRT_LABELS[cur];
-      }
-      tabFns.push(sync); sync();
-      wrap.append(
-        h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
-          h('div', { style: 'display:flex;align-items:center' }, h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도'), valLabel),
-          resetBtn
-        ),
-        brtChips
-      );
       return wrap;
     }
 
@@ -1354,8 +1280,6 @@
         { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 },
         { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 },
         { type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 },
-        { type: 'sep' },
-        { type: 'widget', build: buildScreenBright },
       ],
       audio: [
         { type: 'toggle', label: '오디오 평준화', path: P.A_EN, onChange: () => Audio.setTarget(__internal._activeVideo) },
@@ -1506,11 +1430,8 @@
     __internal.Store = Store; __internal._activeVideo = null;
     try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(true); }); } catch (_) {}
 
-    /* [PATCH O-1] AutoScene activate 타이밍 — tick()이 activate 전에 호출되어도
-       lastCheck=0 → STALE 무한 리셋 문제 해결: activate를 즉시 호출하되,
-       첫 tick은 비디오 로드 후 자연스럽게 발동 */
     if (Store.get(P.V_AUTO_SCENE)) {
-      AutoScene.activate(); /* 즉시 activate — lastCheck가 now 기반으로 설정됨 */
+      AutoScene.activate();
     }
 
     Registry.rescanAll(); apply();
