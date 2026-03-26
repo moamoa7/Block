@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.5.0)
+// @name         Video_Control (v28.6.0)
 // @namespace    https://github.com/
-// @version      28.5.0
-// @description  v28.5.0: 탭 복귀 시 brightHistory 초기화 패치
+// @version      28.6.0
+// @description  v28.6.0: shadow scan 중복 제거, audio 플래그 정확도, SVG purge, tick 순서 개선
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.5.0';
+  const VSC_VERSION = '28.6.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -103,60 +103,21 @@
 
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
-    { n: '내추럴',     v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
-    { n: '또렷',       v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
-    { n: '선명강조',   v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
-    { n: '피부톤',     v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
-    { n: '시네마',     v: [15, 15,   8,  -6,  -2,  -8,   3,   5,  -2] },
-    { n: '화사한팝콘', v: [25, 15, 15, 0, 0, 15, -5, 8, 8] },
-    { n: '숨은그림',   v: [40, 20, 10, 5, 0, 5, -8, 8, 8] },
-    { n: '유물복원',   v: [45, 30,  10,   0,   0,   8,  -6,  12,  10] },
-    { n: '애니메이션', v: [3,  15,   0,   0,   0,  12,   2,  12,   2] },
-    { n: '뮤직비디오', v: [5,  20,   5,   0,   0,  25,   0,   8,   3] },
-    { n: '다큐멘터리', v: [12, 18,   5,  -3,   0,   3,  -2,   6,   1] },
-    { n: '뉴스',       v: [3,  22,   0,   0,   0,  -5,   0,   8,   2] },
-    { n: '스포츠',     v: [5,  25,   3,   0,   0,  10,   0,  10,   4] },
-    { n: 'HDR',        v: [35, 25,   8,   0,   0,   5,  -4,  -2,   8] },
-    { n: '웹캠보정_1단', v: [20, 25, 10, 0, 5, 8, -4, 6, 6] },
-    { n: '웹캠보정_2단', v: [30, 30, 14, 0, 6, 10, -6, 8, 9] },
-    { n: '웹캠보정_3단', v: [40, 35, 18, 0, 7, 12, -8, 10, 12] },
-    { n: '웹캠보정_4단', v: [50, 40, 22, 0, 8, 14, -10, 12, 15] },
-    { n: '웹캠보정_5단', v: [60, 45, 26, 0, 9, 16, -12, 14, 18] },
-    { n: '내추럴_1단', v: [8, 12, 5, 0, 0, 0, -2, 4, 0] },
-    { n: '내추럴_2단', v: [12, 18, 7, 0, 0, 0, -3, 6, 2] },
-    { n: '내추럴_3단', v: [16, 24, 9, 0, 0, 0, -4, 8, 4] },
-    { n: '내추럴_4단', v: [20, 30, 11, 0, 0, 0, -5, 10, 6] },
-    { n: '내추럴_5단', v: [24, 36, 13, 0, 0, 0, -6, 12, 8] },
-    { n: '극한복원_1단', v: [12, 7, 2, 0, 0, 1, -2, 1, 3] },
-    { n: '극한복원_2단', v: [24, 14, 5, 0, 0, 2, -3, 2, 6] },
-    { n: '극한복원_3단', v: [36, 21, 7, 0, 0, 3, -5, 3, 9] },
-    { n: '극한복원_4단', v: [48, 28, 10, 0, 0, 4, -6, 4, 12] },
-    { n: '극한복원_5단', v: [60, 35, 12, 0, 0, 5, -8, 5, 15] },
-    { n: 'CCTV복원_1', v: [13, 8, 3, 0, 0, 0, -2, 2, 4] },
-    { n: 'CCTV복원_2', v: [26, 16, 6, 0, 0, 0, -4, 4, 7] },
-    { n: 'CCTV복원_3', v: [39, 24, 9, 0, 0, 0, -6, 6, 11] },
-    { n: 'CCTV복원_4', v: [52, 32, 12, 0, 0, 0, -8, 8, 14] },
-    { n: 'CCTV복원_5', v: [65, 40, 15, 0, 0, 0, -10, 10, 18] },
-    { n: '야간모드_1단', v: [10, 4, 3, 1, 0, -2, -2, 1, 2] },
-    { n: '야간모드_2단', v: [20, 7, 6, 2, 0, -4, -3, 2, 5] },
-    { n: '야간모드_3단', v: [30, 11, 9, 3, 0, -6, -5, 3, 7] },
-    { n: '야간모드_4단', v: [40, 14, 12, 4, 0, -8, -6, 3, 10] },
-    { n: '야간모드_5단', v: [50, 18, 15, 5, 0, -10, -8, 4, 12] },
-    { n: '사용자1_1단', v: [8, 10, 5, 0, 0, 0, -2, 3, 2] },
-    { n: '사용자1_2단', v: [15, 15, 8, 0, 0, 0, -3, 4, 4] },
-    { n: '사용자1_3단', v: [22, 20, 11, 0, 0, 0, -4, 5, 6] },
-    { n: '사용자1_4단', v: [30, 25, 14, 0, 0, 0, -5, 6, 8] },
-    { n: '사용자1_5단', v: [40, 30, 17, 0, 0, 0, -6, 7, 10] },
-    { n: '사용자2', v: [25, 14, 8, 2, 0, -3, -5, 3, 6] },
-    { n: '사용자2_2단', v: [35, 20, 12, 2, 0, -2, -8, 4, 9] },
-    { n: '사용자2_3단', v: [45, 26, 16, 2, 0, -1, -11, 5, 12] },
-    { n: '사용자2_4단', v: [55, 32, 20, 2, 0, 0, -14, 6, 15] },
-    { n: '사용자2_5단', v: [65, 40, 24, 2, 0, 1, -17, 7, 18] },
-    { n: '사용자2_화사', v: [35, 16, 10, 2, 0, -3, -10, 4, 8] },
-    { n: '사용자2_밝게', v: [25, 14, 15, 2, 0, -2, -6, 3, 10] },
-    { n: '사용자2_맑음', v: [20, 18, 18, 2, 0, 0, -4, 5, 12] },
-  ];
-
+    { n: '또렷',        v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
+    { n: '피부톤',      v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
+    { n: '선명강조',    v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
+    { n: '웹캠보정',    v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
+    { n: '사용자10', v: [10, 10,  5,  0, 0, -1, -2, 3,  2] },
+    { n: '사용자15', v: [15, 13,  8,  0, 0, -1, -3, 4,  4] },
+    { n: '사용자20', v: [20, 15, 10,  0, 0, -2, -3, 4,  6] },
+    { n: '사용자25', v: [25, 18, 13,  0, 0, -2, -4, 5,  7] },
+    { n: '사용자30', v: [30, 20, 15,  0, 0, -3, -5, 6,  9] },
+    { n: '사용자35', v: [35, 23, 18,  0, 0, -3, -5, 6, 10] },
+    { n: '사용자40', v: [40, 25, 20,  0, 0, -4, -6, 7, 12] },
+    { n: '사용자45', v: [45, 28, 23,  0, 0, -5, -6, 7, 13] },
+    { n: '사용자50', v: [50, 30, 25,  0, 0, -6, -7, 8, 15] },
+    { n: '사용자55', v: [55, 33, 28,  0, 0, -7, -7, 8, 16] },
+];
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
     audio: { enabled: false, strength: 50 },
@@ -238,6 +199,7 @@
     };
   }
 
+  /* ══ createRegistry — [v28.6.0] addShadowRoot 헬퍼로 중복 제거 ══ */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -270,16 +232,25 @@
       req();
     }
 
+    /* [v28.6.0] 공통 shadow root 등록 헬퍼 */
+    function addShadowRoot(host) {
+      if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
+      observedShadowHosts.add(host);
+      if (shadowRootsLRU.length >= SHADOW_MAX) {
+        const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected);
+        if (idx >= 0) shadowRootsLRU.splice(idx, 1);
+        else shadowRootsLRU.shift();
+      }
+      shadowRootsLRU.push({ host, root: host.shadowRoot });
+      connectObserver(host.shadowRoot);
+      return true;
+    }
+
     function scanNode(n) {
       if (!n) return;
       if (n.nodeType === 1) {
         if (n.tagName === 'VIDEO') { observeVideo(n); return; }
-        if (n.shadowRoot && !observedShadowHosts.has(n)) {
-          observedShadowHosts.add(n);
-          if (shadowRootsLRU.length >= SHADOW_MAX) { const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected); if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift(); }
-          shadowRootsLRU.push({ host: n, root: n.shadowRoot });
-          connectObserver(n.shadowRoot); scanNode(n.shadowRoot);
-        }
+        if (n.shadowRoot && addShadowRoot(n)) scanNode(n.shadowRoot);
         if (!n.childElementCount) return;
         try { const vs = n.getElementsByTagName('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {}
       } else if (n.nodeType === 11) { try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} }
@@ -305,19 +276,15 @@
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
+    /* [v28.6.0] addShadowRoot 헬퍼 사용으로 간결화 */
     function scanShadowRoots() {
       try {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
           acceptNode: function(node) { return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; }
         });
         let el;
-        while(el = walker.nextNode()) {
-          if (!observedShadowHosts.has(el)) {
-            observedShadowHosts.add(el);
-            if (shadowRootsLRU.length >= SHADOW_MAX) { const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected); if (idx >= 0) shadowRootsLRU.splice(idx, 1); else shadowRootsLRU.shift(); }
-            shadowRootsLRU.push({ host: el, root: el.shadowRoot });
-            connectObserver(el.shadowRoot); scanNode(el.shadowRoot);
-          }
+        while (el = walker.nextNode()) {
+          if (addShadowRoot(el)) scanNode(el.shadowRoot);
         }
       } catch (_) {}
     }
@@ -367,6 +334,7 @@
     };
   }
 
+  /* ══ createAudio — [v28.6.0] connectSource 플래그 정확도 개선 ══ */
   function createAudio(store, scheduler) {
     if (IS_FIREFOX) return { setTarget() {}, update() {}, hasCtx: () => false, isHooked: () => false, isBypassed: () => true };
 
@@ -466,14 +434,29 @@
       catch (e) { if (e.name === 'InvalidStateError') return null; return null; }
     }
 
+    /* [v28.6.0] MES 실패 시 vscCorsFail을 세팅하지 않음.
+       captureStream도 실패해야 vscCorsFail 세팅. */
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
       const isJW = detectJWPlayer(video);
       let source = null;
-      if (isJW) { source = connectViaCaptureStream(video); if (!source) { video.dataset.vscPermBypass = "1"; enterBypass(video, 'JWPlayer: captureStream failed'); return false; } }
-      else { source = connectViaMES(video); if (!source) source = connectViaCaptureStream(video); }
-      if (!source) { if (!isJW) { video.dataset.vscMesFail = "1"; video.dataset.vscCorsFail = "1"; } enterBypass(video, 'all methods failed'); return false; }
+      if (isJW) {
+        source = connectViaCaptureStream(video);
+        if (!source) { video.dataset.vscPermBypass = "1"; enterBypass(video, 'JWPlayer: captureStream failed'); return false; }
+      } else {
+        source = connectViaMES(video);
+        if (!source) {
+          video.dataset.vscMesFail = "1";
+          /* MES 실패 → captureStream 시도. CORS 플래그는 여기서 세팅하지 않음 */
+          source = connectViaCaptureStream(video);
+          if (!source) {
+            /* captureStream도 실패한 경우에만 bypass */
+            enterBypass(video, 'all methods failed');
+            return false;
+          }
+        }
+      }
       try { source.disconnect(); } catch (_) {}
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       source.connect(enabled ? comp : dryPath);
@@ -541,6 +524,7 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
+  /* ══ createFilters — [v28.6.0] CSS-only 전환 시 잔여 SVG purge ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -596,8 +580,18 @@
       return { fid, svg, fConv, toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean), tempFuncR: tempChildren.find(f => f.tagName.includes('R')), tempFuncG: tempChildren.find(f => f.tagName.includes('G')), tempFuncB: tempChildren.find(f => f.tagName.includes('B')), fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
     }
 
+    function purge(root) {
+      const ctx = ctxMap.get(root);
+      if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); }
+    }
+
     function prepare(video, s) {
       if (!checkNeedsSvg(s)) {
+        /* [v28.6.0] SVG → CSS-only 전환 시 잔여 SVG 정리 */
+        if (video) {
+          const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document);
+          if (ctxMap.has(root)) purge(root);
+        }
         const parts = [];
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
@@ -634,11 +628,6 @@
         ctx.fSat.setAttribute('values', satVal);
       }
       return `url(#${ctx.fid})`;
-    }
-
-    function purge(root) {
-      const ctx = ctxMap.get(root);
-      if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); }
     }
 
     return {
@@ -738,7 +727,7 @@
     };
   }
 
-  /* ══ createAutoScene — 1초 주기 + 임계값 + 탭 복귀 히스토리 초기화 ══ */
+  /* ══ createAutoScene — [v28.6.0] tick 내 paused/ended 체크 순서 개선 ══ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
@@ -746,7 +735,7 @@
     let lastAppliedBrightness = -999;
 
     const CHECK_INTERVAL = 1000;
-    const STALE_THRESHOLD = 10000; // 10초 이상 공백이면 히스토리 폐기
+    const STALE_THRESHOLD = 10000;
 
     const canvas = document.createElement('canvas');
     const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
@@ -755,11 +744,11 @@
     const brightHistory = [];
     const HISTORY_SIZE = 5;
 
-    const BASE     = [  8, 10,  5,  0, 0,  0, -2, 3,  2 ];
-    const DARK_V   = [ 40, 30, 17,  0, 0,  0, -6, 7, 10 ];
+    const BASE = [8, 10, 5, 0, 0, -1, -2, 3, 2];
+    const DARK_V = [50, 30, 25, 0, 0, -6, -7, 8, 15];
     const BRIGHT_V = [  6,  8,  2, 15, 0, -8,  3,-4, -4 ];
     const VERTICAL = [  6, 10,  4,  0, 0,  2, -1, 4,  1 ];
-    const DRM_BASE = [ 22, 20, 11,  0, 0,  0, -4, 5,  6 ];
+    const DRM_BASE = [ 25, 18, 13,  0, 0, -4, -4, 5,  7 ];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -852,14 +841,23 @@
 
     for (const path of MANUAL_PATHS) store.sub(path, onManualChange);
 
+    /* [v28.6.0] tick 순서 개선:
+       1. autoScene 활성 여부 확인
+       2. 비디오 연결 확인
+       3. CHECK_INTERVAL 게이팅
+       4. STALE_THRESHOLD 히스토리 초기화
+       5. paused/ended 체크 (interval 안에서만)
+       6. 분석 수행
+       → paused/ended가 interval 뒤에 위치하므로
+         불필요한 performance.now() 호출이 줄어듦 */
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
-      if (video.paused || video.ended) return;
+
       const now = performance.now();
       if (now - lastCheck < CHECK_INTERVAL) return;
 
-      /* [v28.5.0] 탭 복귀 감지: 마지막 체크 후 10초 이상 공백이면 히스토리 폐기 */
+      /* 탭 복귀 감지: 10초 이상 공백이면 히스토리 폐기 */
       if (now - lastCheck > STALE_THRESHOLD) {
         brightHistory.length = 0;
         lastAppliedBrightness = -999;
@@ -867,6 +865,9 @@
       }
 
       lastCheck = now;
+
+      /* paused/ended 체크를 interval 게이팅 뒤에 배치 */
+      if (video.paused || video.ended) return;
 
       if (detectVertical(video)) {
         if (currentMode !== 'vertical') {
