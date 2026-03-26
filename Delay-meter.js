@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.0.2
+// @version      15.1.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -92,6 +92,7 @@
 
   /* ================================================================
    *  §3. 설정 저장/로드
+   *  [PATCH 2] resolveTarget() 제거 — 초기화 블록 통합
    * ================================================================ */
 
   const STORE_KEY = 'dm_u15_' + HOST;
@@ -103,16 +104,13 @@
   const saveLazy = () => { clearTimeout(_saveId); _saveId = setTimeout(save, 400); };
   const setCfg = (k, v) => { cfg[k] = v; saveLazy(); };
 
-  const resolveTarget = () =>
-    (cfg._platform === PLATFORM && cfg._lastDef === DEF_TARGET && cfg.target != null) ? cfg.target : DEF_TARGET;
-
   /* ================================================================
    *  §4. 상태
+   *  [PATCH 4] _hyst 캐시 도입 — target 변경 시에만 갱신
    * ================================================================ */
 
   let _vidRef = null;
 
-  // [PATCH 1] isConnected 소실 시 _needScan 복원 + 옵저버 재시동
   const getVid = () => {
     if (_vidRef && !_vidRef.isConnected) {
       _vidRef = null;
@@ -124,16 +122,21 @@
   const setVid = v => { _vidRef = v || null; };
 
   let enabled = cfg.enabled ?? true;
-  let target = resolveTarget();
-  if (cfg._platform !== PLATFORM || cfg._lastDef !== DEF_TARGET) {
+
+  /* [PATCH 2] 단일 블록으로 target 초기화 + cfg 동기화 */
+  let target;
+  if (cfg._platform !== PLATFORM || cfg._lastDef !== DEF_TARGET || cfg.target == null) {
+    target = DEF_TARGET;
     Object.assign(cfg, { _platform: PLATFORM, _lastDef: DEF_TARGET, target });
     saveLazy();
+  } else {
+    target = cfg.target;
   }
 
   let panelOpen = cfg.open ?? false;
 
-  /* 히스테리시스: target 비례 (최소 0.2) */
-  const getHyst = () => Math.max(0.2, target * 0.1);
+  /* [PATCH 4] 히스테리시스 캐시 — target 변경 지점에서만 갱신 */
+  let _hyst = Math.max(0.2, target * 0.1);
 
   const control = {
     gear: R_NORM,
@@ -206,7 +209,6 @@
             const start = s.start(0), end = s.end(s.length - 1), d = vid.duration;
             if (start > 10) { v = true; }
             else {
-              // [PATCH 6] tracker.ts(dead field) 제거 - count/end/dur 만 유지
               let tr = tracker.get(vid);
               if (!tr) { tr = { end, dur: d, count: 0 }; tracker.set(vid, tr); }
               else {
@@ -240,6 +242,8 @@
 
   /* ================================================================
    *  §6. 비디오 감지 · 연결
+   *  [PATCH 5] scan() 중복 체인 차단 — 진입 시 _needScan = false
+   *  [PATCH 6] loadeddata 핸들러에서 LiveDetect.clearCache 추가
    * ================================================================ */
 
   const isCandidate = v => {
@@ -290,12 +294,15 @@
       v.addEventListener('emptied', () => {
         if (getVid() === v) resetControlState();
       });
-      v.addEventListener('loadeddata', () => { if (!getVid() && isCandidate(v)) attach(v); });
+      /* [PATCH 6] loadeddata 시 라이브 판정 캐시 클리어 — 동일 <video> 재사용 시 감지 지연 방지 */
+      v.addEventListener('loadeddata', () => {
+        LiveDetect.clearCache(v);
+        if (!getVid() && isCandidate(v)) attach(v);
+      });
       const onStall = () => {
         const now = performance.now();
         control.lastStallTime = now;
         control.lastGearChange = -GEAR_HOLD_MS;
-        // [PATCH 2] stall 후 warmup 재시작 — 이미 만료된 warmup이어도 보호 보장
         control.warmupEnd = now + WARMUP_MS;
         if (getVid() === v) { control.gear = R_NORM; safeRate(v, R_NORM); }
       };
@@ -310,16 +317,27 @@
     }, { capture: true });
   }
 
+  /* [PATCH 5] scan() 진입 시 _needScan 즉시 해제하여 tick() 경유 중복 호출 차단 */
   const scan = () => {
+    _needScan = false;
     const vids = document.getElementsByTagName('video');
     if (!vids.length) {
-      if (_scanRetry < 15) { _scanRetry++; setTimeout(scan, 800 * Math.min(_scanRetry, 5)); }
+      if (_scanRetry < 15) {
+        _needScan = true;
+        _scanRetry++;
+        setTimeout(scan, 800 * Math.min(_scanRetry, 5));
+      }
       return;
     }
     for (let i = 0; i < vids.length; i++) {
       if (isCandidate(vids[i])) { attach(vids[i]); _scanRetry = 0; return; }
     }
-    if (_scanRetry < 15) { _scanRetry++; setTimeout(scan, 2000); }
+    /* 비디오 엘리먼트 존재하지만 candidate 아님 → 재시도 필요 */
+    if (_scanRetry < 15) {
+      _needScan = true;
+      _scanRetry++;
+      setTimeout(scan, 2000);
+    }
   };
 
   const startObserver = () => {
@@ -337,15 +355,15 @@
 
   /* ================================================================
    *  §7. 제어 엔진
+   *  [PATCH 1] computeDesiredGear dead branch 제거 — 간결화
    * ================================================================ */
 
   const computeDesiredGear = buf => {
     const ex = buf - target;
-    const hyst = getHyst();
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
-    if (ex < -hyst)        return R_NORM;
-    if (ex < hyst)         return control.gear;   /* 히스테리시스 밴드: 현재 유지 */
+    if (ex < -_hyst)       return R_NORM;
+    /* 히스테리시스 밴드 (-_hyst ≤ ex ≤ target*0.4): 현재 기어 유지 */
     return control.gear;
   };
 
@@ -359,6 +377,7 @@
 
   /* ================================================================
    *  §8. 메인 루프
+   *  [PATCH 7] falseCount 디바운스 최적화 — 첫 틱에서만 상태 변경, 주석 보강
    * ================================================================ */
 
   let pendingRender = false, lastBuf = -1, lastTickStall = false;
@@ -375,7 +394,6 @@
     if (!vid) {
       if (_needScan) { scan(); startObserver(); }
       lastBuf = -1;
-      // [PATCH 4] live.isCurrent = false 제거 — getVid() null 경로는 이미 라이브 미확인 상태
       scheduleRender(); return;
     }
 
@@ -389,11 +407,19 @@
     /* 라이브 판정 */
     const isLiveNow = LiveDetect.check(vid);
     if (!isLiveNow) {
-      // [PATCH 5] _scanRetry 리셋은 debounce 진입 전에만 수행 (매 tick 실행 방지)
+      /*
+       * 라이브 → 비라이브 전환 디바운스 (3틱)
+       * ─────────────────────────────────────
+       * falseCount 0 (첫 틱): 즉시 제어 해제 (rate 복원, UI 갱신)
+       * falseCount 1~2:       재확인 대기 (YouTube 라이브 뱃지 일시 소실 대응)
+       * falseCount ≥ 3:       완전히 비라이브로 확정, YouTube에서 _scanRetry 리셋
+       */
       if (live.falseCount >= 0) {
+        if (live.falseCount === 0) {
+          live.isCurrent = false;
+          resetRate(vid);
+        }
         live.falseCount++;
-        live.isCurrent = false;
-        resetRate(vid);
         if (live.falseCount < 3) { scheduleRender(); return; }
       }
       if (IS_YOUTUBE) _scanRetry = 0;
@@ -629,7 +655,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.0.2' }),
+      el('span', { className: 'dm-ver', textContent: 'v15.1.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -648,13 +674,16 @@
       togDiv.classList.toggle('on', enabled);
     };
 
+    /* [PATCH 4] target 변경 시 _hyst 캐시도 함께 갱신 */
     slInput.oninput = () => {
       target = parseFloat(slInput.value);
+      _hyst = Math.max(0.2, target * 0.1);
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
     };
     slInput.ondblclick = () => {
       target = DEF_TARGET;
+      _hyst = Math.max(0.2, target * 0.1);
       slInput.value = target;
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
@@ -712,7 +741,6 @@
    *  §12. 초기화 · 메인 루프
    * ================================================================ */
 
-  // [PATCH 3] getVid() 체크 추가 — live.isCurrent 잔존값으로 인한 불필요한 1s 폴링 방지
   const getTickInterval = () =>
     document.hidden ? 5000 : (live.isCurrent && enabled && !!getVid()) ? 1000 : 3000;
   const loop = () => { tick(); setTimeout(loop, getTickInterval()); };
@@ -724,6 +752,7 @@
 
   /* ================================================================
    *  §13. SPA 네비게이션 대응
+   *  [PATCH 3] history 패치 코드 중복 제거 — patchHistory 헬퍼 추출
    * ================================================================ */
 
   let lastPath = location.pathname + location.search;
@@ -746,15 +775,20 @@
     }, 100);
   };
 
+  /* [PATCH 3] pushState/replaceState 패치를 헬퍼로 추출하여 중복 제거 */
+  const patchHistory = () => {
+    for (const m of ['pushState', 'replaceState']) {
+      const o = history[m];
+      history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; };
+    }
+    window.addEventListener('popstate', onNav);
+  };
+
   if ('navigation' in window) {
     try { navigation.addEventListener('navigatesuccess', onNav); }
-    catch {
-      for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
-      window.addEventListener('popstate', onNav);
-    }
+    catch { patchHistory(); }
   } else {
-    for (const m of ['pushState', 'replaceState']) { const o = history[m]; history[m] = function (...a) { const r = o.apply(this, a); onNav(); return r; }; }
-    window.addEventListener('popstate', onNav);
+    patchHistory();
   }
 
   /* ================================================================
@@ -797,7 +831,7 @@
     const vid = getVid();
     const buf = vid ? getBuf(vid) : -1;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const txt = `[${PLATFORM}] t=${target}s hyst=${getHyst().toFixed(2)} | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
