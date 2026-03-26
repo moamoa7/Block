@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.6.0)
+// @name         Video_Control (v28.7.0)
 // @namespace    https://github.com/
-// @version      28.6.0
-// @description  v28.6.0: shadow scan 중복 제거, audio 플래그 정확도, SVG purge, tick 순서 개선
+// @version      28.7.0
+// @description  v28.7.0: linearRGB 전환으로 톤 보정 색 편향 근본 해결, 톤 계수 재조정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.6.0';
+  const VSC_VERSION = '28.7.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -101,23 +101,25 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
+  /* [v28.7.0] linearRGB에서 과도한 채도 보정 불필요 → 채도값 완화 */
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
     { n: '또렷',        v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
     { n: '피부톤',      v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
     { n: '선명강조',    v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
     { n: '웹캠보정',    v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
-    { n: '사용자10', v: [10, 10,  5,  0, 0, -1, -2, 3,  2] },
-    { n: '사용자15', v: [15, 13,  8,  0, 0, -1, -3, 4,  4] },
-    { n: '사용자20', v: [20, 15, 10,  0, 0, -2, -3, 4,  6] },
-    { n: '사용자25', v: [25, 18, 13,  0, 0, -2, -4, 5,  7] },
-    { n: '사용자30', v: [30, 20, 15,  0, 0, -3, -5, 6,  9] },
-    { n: '사용자35', v: [35, 23, 18,  0, 0, -3, -5, 6, 10] },
-    { n: '사용자40', v: [40, 25, 20,  0, 0, -4, -6, 7, 12] },
-    { n: '사용자45', v: [45, 28, 23,  0, 0, -5, -6, 7, 13] },
-    { n: '사용자50', v: [50, 30, 25,  0, 0, -6, -7, 8, 15] },
-    { n: '사용자55', v: [55, 33, 28,  0, 0, -7, -7, 8, 16] },
-];
+    { n: '사용자10', v: [10, 10,  5,  0, 0,  0, -2, 3,  2] },
+    { n: '사용자15', v: [15, 13,  8,  0, 0,  0, -3, 4,  4] },
+    { n: '사용자20', v: [20, 15, 10,  0, 0, -1, -3, 4,  6] },
+    { n: '사용자25', v: [25, 18, 13,  0, 0, -1, -4, 5,  7] },
+    { n: '사용자30', v: [30, 20, 15,  0, 0, -1, -5, 6,  9] },
+    { n: '사용자35', v: [35, 23, 18,  0, 0, -2, -5, 6, 10] },
+    { n: '사용자40', v: [40, 25, 20,  0, 0, -2, -6, 7, 12] },
+    { n: '사용자45', v: [45, 28, 23,  0, 0, -3, -6, 7, 13] },
+    { n: '사용자50', v: [50, 30, 25,  0, 0, -3, -7, 8, 15] },
+    { n: '사용자55', v: [55, 33, 28,  0, 0, -4, -7, 8, 16] },
+  ];
+
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
     audio: { enabled: false, strength: 50 },
@@ -199,7 +201,6 @@
     };
   }
 
-  /* ══ createRegistry — [v28.6.0] addShadowRoot 헬퍼로 중복 제거 ══ */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -232,7 +233,6 @@
       req();
     }
 
-    /* [v28.6.0] 공통 shadow root 등록 헬퍼 */
     function addShadowRoot(host) {
       if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
       observedShadowHosts.add(host);
@@ -276,7 +276,6 @@
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
-    /* [v28.6.0] addShadowRoot 헬퍼 사용으로 간결화 */
     function scanShadowRoots() {
       try {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
@@ -334,7 +333,6 @@
     };
   }
 
-  /* ══ createAudio — [v28.6.0] connectSource 플래그 정확도 개선 ══ */
   function createAudio(store, scheduler) {
     if (IS_FIREFOX) return { setTarget() {}, update() {}, hasCtx: () => false, isHooked: () => false, isBypassed: () => true };
 
@@ -434,8 +432,6 @@
       catch (e) { if (e.name === 'InvalidStateError') return null; return null; }
     }
 
-    /* [v28.6.0] MES 실패 시 vscCorsFail을 세팅하지 않음.
-       captureStream도 실패해야 vscCorsFail 세팅. */
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
@@ -448,10 +444,8 @@
         source = connectViaMES(video);
         if (!source) {
           video.dataset.vscMesFail = "1";
-          /* MES 실패 → captureStream 시도. CORS 플래그는 여기서 세팅하지 않음 */
           source = connectViaCaptureStream(video);
           if (!source) {
-            /* captureStream도 실패한 경우에만 bypass */
             enterBypass(video, 'all methods failed');
             return false;
           }
@@ -524,7 +518,7 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
-  /* ══ createFilters — [v28.6.0] CSS-only 전환 시 잔여 SVG purge ══ */
+  /* ══ createFilters — [v28.7.0] linearRGB 전환 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -567,7 +561,8 @@
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
-      const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
+      /* [v28.7.0] linearRGB로 변경 — sRGB 비선형 감마로 인한 색 편향 제거 */
+      const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'linearRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
       const fTone = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
       const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' }, true);
       const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
@@ -587,7 +582,6 @@
 
     function prepare(video, s) {
       if (!checkNeedsSvg(s)) {
-        /* [v28.6.0] SVG → CSS-only 전환 시 잔여 SVG 정리 */
         if (video) {
           const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document);
           if (ctxMap.has(root)) purge(root);
@@ -643,6 +637,7 @@
     };
   }
 
+  /* [v28.7.0] 톤 계수 linearRGB 기준 재조정 (약 70% 스케일) */
   function createVideoParams(Store) {
     const cache = new WeakMap();
 
@@ -692,9 +687,10 @@
         const mCon   = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain  = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
 
-        out.toe      = mShad * 0.0040;
-        out.mid      = mRec  * 0.0035;
-        out.shoulder = mBrt  * 0.0045;
+        /* [v28.7.0] linearRGB 기준 톤 계수 (sRGB 대비 ~70%) */
+        out.toe      = mShad * 0.0028;
+        out.mid      = mRec  * 0.0025;
+        out.shoulder = mBrt  * 0.0032;
         out.temp     = mTemp;
         out.tint     = mTint;
         out.gamma    = 1 + mGamma * (-0.008);
@@ -727,7 +723,7 @@
     };
   }
 
-  /* ══ createAutoScene — [v28.6.0] tick 내 paused/ended 체크 순서 개선 ══ */
+  /* ══ createAutoScene — [v28.7.0] 색온도/채도 보정값 linearRGB 기준 원복 ══ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
@@ -744,11 +740,13 @@
     const brightHistory = [];
     const HISTORY_SIZE = 5;
 
-    const BASE = [8, 10, 5, 0, 0, -1, -2, 3, 2];
-    const DARK_V = [50, 30, 25, 0, 0, -6, -7, 8, 15];
-    const BRIGHT_V = [  6,  8,  2, 15, 0, -8,  3,-4, -4 ];
+    /* [v28.7.0] linearRGB에서는 sRGB 비선형 색 편향 없음
+       → 색온도 보정 불필요(0), 채도 보정 최소화 */
+    const BASE     = [  8, 10,  5,  0, 0,  0, -2, 3,  2 ];
+    const DARK_V   = [ 50, 30, 25,  0, 0, -3, -7, 8, 15 ];
+    const BRIGHT_V = [  6,  8,  2, 15, 0, -4,  3,-4, -4 ];
     const VERTICAL = [  6, 10,  4,  0, 0,  2, -1, 4,  1 ];
-    const DRM_BASE = [ 25, 18, 13,  0, 0, -4, -4, 5,  7 ];
+    const DRM_BASE = [ 25, 18, 13,  0, 0, -2, -4, 5,  7 ];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -841,15 +839,6 @@
 
     for (const path of MANUAL_PATHS) store.sub(path, onManualChange);
 
-    /* [v28.6.0] tick 순서 개선:
-       1. autoScene 활성 여부 확인
-       2. 비디오 연결 확인
-       3. CHECK_INTERVAL 게이팅
-       4. STALE_THRESHOLD 히스토리 초기화
-       5. paused/ended 체크 (interval 안에서만)
-       6. 분석 수행
-       → paused/ended가 interval 뒤에 위치하므로
-         불필요한 performance.now() 호출이 줄어듦 */
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
@@ -857,7 +846,6 @@
       const now = performance.now();
       if (now - lastCheck < CHECK_INTERVAL) return;
 
-      /* 탭 복귀 감지: 10초 이상 공백이면 히스토리 폐기 */
       if (now - lastCheck > STALE_THRESHOLD) {
         brightHistory.length = 0;
         lastAppliedBrightness = -999;
@@ -866,7 +854,6 @@
 
       lastCheck = now;
 
-      /* paused/ended 체크를 interval 게이팅 뒤에 배치 */
       if (video.paused || video.ended) return;
 
       if (detectVertical(video)) {
@@ -937,7 +924,7 @@
     };
   }
 
-  /* ══ createUI — 선언적 스키마 + 범용 렌더러 ══ */
+  /* ══ createUI ══ */
   function createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
