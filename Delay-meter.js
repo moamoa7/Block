@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      14.3.0
+// @version      14.3.1
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (외부 배속 방어, 채널별 설정, 연속 조건 필터 추가)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -29,10 +29,8 @@
    * ================================================================ */
 
   const HOST = location.hostname.replace(/^www\./, '');
-  const PLATFORM = HOST.includes('youtube') ? 'youtube'
-    : HOST.includes('chzzk') ? 'chzzk'
-    : HOST.includes('sooplive') ? 'soop'
-    : HOST.includes('twitch') ? 'twitch' : 'default';
+  const PLATFORM = [['youtube','youtube'],['chzzk','chzzk'],['sooplive','soop'],['twitch','twitch']]
+    .find(([k]) => HOST.includes(k))?.[1] || 'default';
   const IS_YOUTUBE = PLATFORM === 'youtube';
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
@@ -49,7 +47,6 @@
   /* 제어 상수 */
   const SEEK_CD = 10000;
   const HYST = 0.3;
-  const STALL_WINDOW = 30000;
   const STALL_COOLDOWN = 8000;
   const WARMUP_MS = 4000;
   const CONSECUTIVE_REQUIRED = 3;
@@ -115,6 +112,7 @@
   const save = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(cfg)); } catch {} };
   let _saveId = 0;
   const saveLazy = () => { clearTimeout(_saveId); _saveId = setTimeout(save, 400); };
+  const setCfg = (k, v) => { cfg[k] = v; saveLazy(); };
 
   /* 채널별 목표 딜레이 */
   const ChannelConfig = {
@@ -144,6 +142,10 @@
       this._saveAll(t);
     }
   };
+
+  /* 글로벌 target 결정 (채널별 설정 없을 때) */
+  const resolveGlobalTarget = () =>
+    (cfg._platform === PLATFORM && cfg._lastDef === DEF_TARGET && cfg.target != null) ? cfg.target : DEF_TARGET;
 
   /* 플랫폼별 채널 ID 추출 */
   const getChannelId = () => {
@@ -184,9 +186,7 @@
 
   const resolveTarget = () => {
     const chT = ChannelConfig.load(currentChannelId);
-    if (chT != null) return chT;
-    if (cfg._platform === PLATFORM && cfg._lastDef === DEF_TARGET && cfg.target != null) return cfg.target;
-    return DEF_TARGET;
+    return chT != null ? chT : resolveGlobalTarget();
   };
 
   let target = resolveTarget();
@@ -203,7 +203,6 @@
     intendedRate: R_NORM,
     lastSeek: 0,
     warmupEnd: 0,
-    stallCount: 0,
     lastStallTime: 0,
     /* 연속 조건 필터 */
     consUp: 0,
@@ -212,6 +211,7 @@
     /* 외부 배속 방어 */
     isSettingRate: false,
     rateHandler: null,
+    rateHandlerVid: null,
   };
 
   /* --- 라이브 판정 상태 --- */
@@ -442,10 +442,12 @@
     return false;
   };
 
-  /* 외부 배속 리셋 방어 설치 */
+  /* 외부 배속 리셋 방어 설치 — FIX: 이전 비디오에서 정확히 제거 */
   const installRateProtection = vid => {
     if (!vid) return;
-    if (control.rateHandler) vid.removeEventListener('ratechange', control.rateHandler, true);
+    if (control.rateHandler && control.rateHandlerVid) {
+      control.rateHandlerVid.removeEventListener('ratechange', control.rateHandler, true);
+    }
     control.rateHandler = () => {
       if (control.isSettingRate || !vid || !vid.isConnected) return;
       if (enabled && live.isCurrent && Math.abs(vid.playbackRate - control.intendedRate) > 0.005) {
@@ -456,6 +458,7 @@
       }
     };
     vid.addEventListener('ratechange', control.rateHandler, true);
+    control.rateHandlerVid = vid;
   };
 
   const safeRate = (vid, r) => {
@@ -465,6 +468,15 @@
     vid.playbackRate = r;
     try { vid.preservesPitch = true; } catch {}
     setTimeout(() => { control.isSettingRate = false; }, 50);
+  };
+
+  /* 배속을 정상으로 복원하는 헬퍼 */
+  const resetRate = vid => {
+    if (control.gear !== R_NORM) {
+      control.gear = R_NORM;
+      control.intendedRate = R_NORM;
+      if (vid) safeRate(vid, R_NORM);
+    }
   };
 
   /* 비디오 감지·연결 */
@@ -477,7 +489,7 @@
     control.intendedRate = R_NORM;
     control.lastSeek = 0;
     control.warmupEnd = performance.now() + WARMUP_MS;
-    control.stallCount = 0;
+    control.lastStallTime = 0;
     control.consUp = 0;
     control.consDown = 0;
     control.pendingGear = R_NORM;
@@ -500,12 +512,18 @@
     installRateProtection(v);
     if (!seen.has(v)) {
       seen.add(v);
-      v.addEventListener('emptied', () => { if (getVid() === v) attach(v); });
+      /* FIX: emptied 시 상태 리셋 (소스 변경 대응) */
+      v.addEventListener('emptied', () => {
+        if (getVid() === v) {
+          resetControlState();
+          rvfc.stop();
+          installRateProtection(v);
+        }
+      });
       v.addEventListener('loadeddata', () => { if (!getVid() && isCandidate(v)) attach(v); });
       const onStall = () => {
         const now = performance.now();
-        if (now - control.lastStallTime > STALL_WINDOW) control.stallCount = 0;
-        control.stallCount++; control.lastStallTime = now;
+        control.lastStallTime = now;
         if (getVid() === v) { control.gear = R_NORM; control.intendedRate = R_NORM; safeRate(v, R_NORM); }
       };
       v.addEventListener('waiting', onStall);
@@ -625,6 +643,7 @@
         const pad = 2, yR = H - pad * 2, xS = W / (History.SIZE - 1);
         const tY = H - pad - (target / mx) * yR;
 
+        /* 목표선 */
         ctx.beginPath(); ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1;
         ctx.moveTo(0, tY); ctx.lineTo(W, tY); ctx.stroke(); ctx.setLineDash([]);
 
@@ -632,22 +651,26 @@
         const grad = ctx.createLinearGradient(0, 0, 0, H);
         grad.addColorStop(0, `rgba(${rgb},.20)`); grad.addColorStop(1, `rgba(${rgb},.02)`);
 
-        const drawPath = () => {
-          ctx.beginPath();
-          for (let i = 0; i < History.length; i++) {
-            const v = History.at(i);
-            const x = i * xS, y = H - pad - (v / mx) * yR;
-            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-          }
-        };
+        /* Path2D로 한 번만 경로 계산 */
+        const linePath = new Path2D();
+        for (let i = 0; i < History.length; i++) {
+          const x = i * xS, y = H - pad - (History.at(i) / mx) * yR;
+          i === 0 ? linePath.moveTo(x, y) : linePath.lineTo(x, y);
+        }
 
-        drawPath();
-        ctx.lineTo((History.length - 1) * xS, H); ctx.lineTo(0, H); ctx.closePath();
-        ctx.fillStyle = grad; ctx.fill();
+        /* fill: 경로 + 하단 닫기 */
+        const fillPath = new Path2D();
+        fillPath.addPath(linePath);
+        fillPath.lineTo((History.length - 1) * xS, H);
+        fillPath.lineTo(0, H);
+        fillPath.closePath();
+        ctx.fillStyle = grad; ctx.fill(fillPath);
 
-        drawPath();
-        ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round'; ctx.stroke();
+        /* stroke */
+        ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+        ctx.stroke(linePath);
 
+        /* 끝점 글로우 + 도트 */
         const lV = History.at(History.length - 1);
         const lx = (History.length - 1) * xS;
         const ly = H - pad - (lV / mx) * yR;
@@ -695,10 +718,14 @@
       if (IS_YOUTUBE) _scanRetry = 0;
       if (live.confirmedOnce) {
         live.falseCount++;
+        /* FIX: 디바운싱 중에도 배속 정상화 */
+        resetRate(vid);
         if (live.falseCount < 3) { scheduleRender(); return; }
       }
       rvfc.stop(); lastBuf = -1;
       live.isCurrent = false; live.confirmedOnce = false; live.falseCount = 0;
+      /* FIX: 라이브 → 비라이브 전환 시 배속 복원 */
+      resetRate(vid);
       scheduleRender(); return;
     }
     live.isCurrent = true; live.confirmedOnce = true; live.falseCount = 0;
@@ -716,7 +743,7 @@
 
     /* 제어 */
     if (vid.paused) return;
-    if (!enabled) { safeRate(vid, R_NORM); control.gear = R_NORM; return; }
+    if (!enabled) { resetRate(vid); return; }
 
     const now = performance.now();
     if (now < control.warmupEnd) return;
@@ -871,6 +898,33 @@
 `);
   };
 
+  /* 범용 드래그 헬퍼 */
+  const makeDrag = (gripEl, moveEl, onEnd) => {
+    let ox, oy, moved = false;
+    gripEl.onpointerdown = e => {
+      if (e.button) return;
+      /* 클로즈 버튼 등 예외 처리 */
+      if (gripEl._ignoreTarget && gripEl._ignoreTarget(e.target)) return;
+      moved = false; gripEl._m = false;
+      gripEl.setPointerCapture(e.pointerId);
+      const r = moveEl.getBoundingClientRect();
+      ox = e.clientX - r.left; oy = e.clientY - r.top;
+    };
+    gripEl.onpointermove = e => {
+      if (!gripEl.hasPointerCapture(e.pointerId)) return;
+      moved = true;
+      moveEl.style.left = clamp(e.clientX - ox, 0, innerWidth - moveEl.offsetWidth) + 'px';
+      moveEl.style.top  = clamp(e.clientY - oy, 0, innerHeight - moveEl.offsetHeight) + 'px';
+      moveEl.style.right = moveEl.style.bottom = 'auto';
+    };
+    gripEl.onpointerup = e => {
+      if (!gripEl.hasPointerCapture(e.pointerId)) return;
+      gripEl._m = moved;
+      if (moved && onEnd) onEnd();
+      moved = false;
+    };
+  };
+
   const build = () => {
     if (document.getElementById('dm-root')) return;
     injectStyles();
@@ -946,6 +1000,12 @@
       chSaveBtn.style.display = '';
     };
 
+    /* 슬라이더 + UI 동기화 헬퍼 */
+    const syncSliderUI = () => {
+      slInput.value = target;
+      svSpan.textContent = target.toFixed(1) + 's';
+    };
+
     chSaveBtn.onclick = () => {
       if (!currentChannelId) return;
       ChannelConfig.save(currentChannelId, target);
@@ -954,8 +1014,8 @@
     chResetBtn.onclick = () => {
       if (!currentChannelId) return;
       ChannelConfig.remove(currentChannelId);
-      target = (cfg._platform === PLATFORM && cfg._lastDef === DEF_TARGET && cfg.target != null) ? cfg.target : DEF_TARGET;
-      slInput.value = target; svSpan.textContent = target.toFixed(1) + 's';
+      target = resolveGlobalTarget();
+      syncSliderUI();
       updateChStatus();
     };
     updateChStatus();
@@ -964,7 +1024,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v14.3.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v14.3.1' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -976,45 +1036,35 @@
 
     els = { root, fab, pn, val: valSpan, bar: barDiv, badge: badgeSpan, tog: togDiv, sl: slInput, sv: svSpan, hdr, x: closeBtn, chLabel, chRow, chSaveBtn, chResetBtn, chStatusLabel };
     els._updateChStatus = updateChStatus;
+    els._syncSliderUI = syncSliderUI;
 
     /* ── 이벤트 바인딩 ── */
     fab.onclick = () => { if (!fab._m) openP(); };
     closeBtn.onclick = e => { e.stopPropagation(); closeP(); };
     togDiv.onclick = () => {
-      enabled = !enabled; cfg.enabled = enabled; saveLazy();
+      enabled = !enabled; setCfg('enabled', enabled);
       togDiv.classList.toggle('on', enabled);
     };
 
     slInput.oninput = () => {
       target = parseFloat(slInput.value);
       svSpan.textContent = target.toFixed(1) + 's';
-      cfg.target = target; saveLazy();
+      setCfg('target', target);
       control.consUp = 0; control.consDown = 0;
     };
     slInput.ondblclick = () => {
-      target = DEF_TARGET; slInput.value = target;
-      svSpan.textContent = target.toFixed(1) + 's';
-      cfg.target = target; saveLazy();
+      target = DEF_TARGET;
+      syncSliderUI();
+      setCfg('target', target);
       control.consUp = 0; control.consDown = 0;
     };
 
     /* FAB 드래그 */
-    const makeDrag = (dragEl, onEnd) => {
-      let ox, oy, moved = false;
-      dragEl.onpointerdown = e => { if (e.button) return; moved = false; dragEl._m = false; dragEl.setPointerCapture(e.pointerId); const r = dragEl.getBoundingClientRect(); ox = e.clientX - r.left; oy = e.clientY - r.top; };
-      dragEl.onpointermove = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; moved = true; dragEl.style.left = clamp(e.clientX - ox, 0, innerWidth - dragEl.offsetWidth) + 'px'; dragEl.style.top = clamp(e.clientY - oy, 0, innerHeight - dragEl.offsetHeight) + 'px'; dragEl.style.right = dragEl.style.bottom = 'auto'; };
-      dragEl.onpointerup = e => { if (!dragEl.hasPointerCapture(e.pointerId)) return; dragEl._m = moved; if (moved && onEnd) onEnd(); moved = false; };
-    };
-    makeDrag(fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
+    makeDrag(fab, fab, () => { cfg.dx = fab.style.left; cfg.dy = fab.style.top; saveLazy(); });
 
-    /* 패널 헤더 드래그 */
-    hdr.onpointerdown = e => {
-      if (e.button || e.target === closeBtn || closeBtn.contains(e.target)) return;
-      hdr.setPointerCapture(e.pointerId);
-      const r = pn.getBoundingClientRect(); hdr._ox = e.clientX - r.left; hdr._oy = e.clientY - r.top; hdr._m = false;
-    };
-    hdr.onpointermove = e => { if (!hdr.hasPointerCapture(e.pointerId)) return; hdr._m = true; pn.style.left = clamp(e.clientX - (hdr._ox ?? 0), 0, innerWidth - pn.offsetWidth) + 'px'; pn.style.top = clamp(e.clientY - (hdr._oy ?? 0), 0, innerHeight - pn.offsetHeight) + 'px'; pn.style.right = pn.style.bottom = 'auto'; };
-    hdr.onpointerup = e => { if (!hdr.hasPointerCapture(e.pointerId)) return; if (hdr._m) { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); } };
+    /* 패널 헤더 드래그 — 클로즈 버튼 영역 제외 */
+    hdr._ignoreTarget = t => t === closeBtn || closeBtn.contains(t);
+    makeDrag(hdr, pn, () => { cfg.px = pn.style.left; cfg.py = pn.style.top; saveLazy(); });
 
     /* 저장된 위치 복원 */
     if (cfg.px) { const x = parseFloat(cfg.px); if (x >= 0 && x < innerWidth - 50) Object.assign(pn.style, { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }); }
@@ -1028,7 +1078,7 @@
 
   const openP = instant => {
     if (panelOpen && !instant) return;
-    panelOpen = true; cfg.open = true; saveLazy();
+    panelOpen = true; setCfg('open', true);
 
     if (!cfg.px && els.fab?.style.display !== 'none') {
       const r = els.fab.getBoundingClientRect();
@@ -1048,7 +1098,7 @@
   };
 
   const closeP = () => {
-    if (!panelOpen) return; panelOpen = false; cfg.open = false; saveLazy();
+    if (!panelOpen) return; panelOpen = false; setCfg('open', false);
     const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
     setTimeout(() => {
       if (panelOpen) return; els.fab.style.display = 'flex';
@@ -1062,7 +1112,10 @@
    *  §15. 초기화 · 메인 루프 시작
    * ================================================================ */
 
-  const loop = () => { tick(); setTimeout(loop, document.hidden ? 5000 : panelOpen ? 1000 : 3000); };
+  /* 라이브+활성 시 1초, 그 외 3초, 탭 숨김 시 5초 */
+  const getTickInterval = () => document.hidden ? 5000 : (live.isCurrent && enabled) ? 1000 : 3000;
+
+  const loop = () => { tick(); setTimeout(loop, getTickInterval()); };
 
   const init = () => {
     if (!document.body) { document.addEventListener('DOMContentLoaded', init, { once: true }); return; }
@@ -1085,7 +1138,7 @@
 
       control.warmupEnd = performance.now() + WARMUP_MS;
       control.lastSeek = 0; control.gear = R_NORM; control.intendedRate = R_NORM;
-      control.stallCount = 0; control.consUp = 0; control.consDown = 0;
+      control.lastStallTime = 0; control.consUp = 0; control.consDown = 0;
       control.pendingGear = R_NORM;
       _scanRetry = 0;
       rvfc.stop(); setVid(null); quality.reset();
@@ -1096,9 +1149,10 @@
       const newCh = getChannelId();
       if (newCh !== currentChannelId) {
         currentChannelId = newCh;
+        /* FIX: 채널별 설정이 없으면 글로벌/기본값으로 복원 */
         const chT = ChannelConfig.load(currentChannelId);
-        if (chT != null) target = chT;
-        if (els.sl) { els.sl.value = target; els.sv.textContent = target.toFixed(1) + 's'; }
+        target = chT != null ? chT : resolveGlobalTarget();
+        if (els._syncSliderUI) els._syncSliderUI();
         if (els.chLabel) els.chLabel.textContent = currentChannelId || '';
         if (els._updateChStatus) els._updateChStatus();
       }
@@ -1127,7 +1181,7 @@
     if (!e.altKey || e.code !== 'KeyD' || e.ctrlKey || e.shiftKey || e.metaKey) return;
     const t = document.activeElement?.tagName;
     if (t === 'INPUT' || t === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
-    e.preventDefault(); enabled = !enabled; cfg.enabled = enabled; saveLazy();
+    e.preventDefault(); enabled = !enabled; setCfg('enabled', enabled);
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
