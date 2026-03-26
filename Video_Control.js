@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.7.5)
+// @name         Video_Control (v28.7.6)
 // @namespace    https://github.com/
-// @version      28.7.5
-// @description  v28.7.5: 장면 분류를 설정 객체+smoothstep+gamma 방식으로 개선 → 경계 불연속 제거, 튜닝 외부화
+// @version      28.7.6
+// @description  v28.7.6: Rec.709 luma, 자막 영역 가중치, rawBrt 1차분류 제거, STALE 복귀 타이밍 개선
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.7.5'; /* [v28.7.5] */
+  const VSC_VERSION = '28.7.6'; /* [v28.7.6] */
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -839,14 +839,21 @@
       try {
         canvasCtx.drawImage(video, 0, 0, 16, 16);
         const data = canvasCtx.getImageData(0, 0, 16, 16).data;
-        let r = 0, g = 0, b = 0, isAllZero = true;
+        let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true;
+        const COLS = 16;
         for (let i = 0; i < data.length; i += 4) {
-          r += data[i]; g += data[i+1]; b += data[i+2];
+          const row = Math.floor((i / 4) / COLS);
+          /* [v28.7.6] 하단 자막 영역(row 13–15) 가중치 0.3으로 축소 */
+          const yWeight = row >= 13 ? 0.3 : 1.0;
+          r += data[i]   * yWeight;
+          g += data[i+1] * yWeight;
+          b += data[i+2] * yWeight;
+          totalWeight += yWeight;
           if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false;
         }
         if (isAllZero) { video.dataset.vscDrm = "1"; return -1; }
-        const count = data.length / 4;
-        return (r/count)*0.299 + (g/count)*0.587 + (b/count)*0.114;
+        /* [v28.7.6] Rec.709 luma (구형 Rec.601 → HD 표준) */
+        return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
       } catch (e) { video.dataset.vscCorsFail = "1"; return -1; }
     }
 
@@ -894,9 +901,11 @@
         brightHistory.length = 0;
         lastAppliedBrightness = -999;
         log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
+        /* [v28.7.6] 다음 tick에서 즉시 재분석되도록 lastCheck를 한 주기 전으로 */
+        lastCheck = now - CHECK_INTERVAL - 1;
+      } else {
+        lastCheck = now;
       }
-
-      lastCheck = now;
 
       if (video.paused || video.ended) return;
 
@@ -913,14 +922,12 @@
 
       const rawBrt = analyzeFrame(video);
 
-      /* [v28.7.5] classifyBrightness로 통합 분류 */
-      const scene = classifyBrightness(rawBrt, SCENE_CONFIG);
-
-      if (scene.isDRM) {
+      /* [v28.7.6] DRM(-1) 체크만 raw로 수행 → 분류는 smoothed 한 번만 */
+      if (rawBrt < 0) {
         if (currentMode !== 'drm') {
           currentMode = 'drm'; currentBrightness = -1;
           lastAppliedBrightness = -999;
-          currentLabel = scene.label;
+          currentLabel = SCENE_CONFIG.drm.label;
           applyValues(DRM_BASE, 'M');
           log.info('[AutoScene] → DRM 폴백');
         }
