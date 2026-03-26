@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.7.8)
+// @name         Video_Control (v28.7.9)
 // @namespace    https://github.com/
-// @version      28.7.8
-// @description  v28.7.8: activate() 타이밍 경쟁 수정(scheduler.request), STALE 블록 _brightSum 초기화 누락 수정
+// @version      28.7.9
+// @description  v28.7.9: 20-item audit patch — _brightSum 선언, fadeOutThen 경쟁, scheduler immediate, 톤테이블 bright 제거 등
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.7.8'; /* [v28.7.8] */
+  const VSC_VERSION = '28.7.9'; /* [v28.7.9] */
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -60,7 +60,8 @@
   function checkNeedsSvg(s) {
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
-    const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs(s.bright || 0) > 0.5);
+    /* [PATCH #3] s.bright 제거 → hasTone에서 bright 조건 삭제 */
+    const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005);
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
@@ -94,6 +95,8 @@
     const t = CLAMP((Number(temp) || 0) * 0.02, -1, 1);
     const n = CLAMP((Number(tint) || 0) * 0.02, -1, 1);
     if (Math.abs(t) < 0.001 && Math.abs(n) < 0.001) return { rs: 1, gs: 1, bs: 1 };
+    /* [PATCH #17] 주석 추가: g 채널에 Math.abs(t) 사용은 의도적 — 색온도 이동 시
+       녹색을 미세하게 억제하여 마젠타/그린 축 중립 유지 (피부톤 보호 목적) */
     let r = 1 + 0.14 * t + 0.06 * n;
     let g = 1 - 0.005 * Math.abs(t) - 0.14 * n;
     let b = 1 - 0.14 * t + 0.06 * n;
@@ -149,14 +152,20 @@
     return {
       state, rev: () => rev,
       get: (p) => { let pts = _kc[p] || (_kc[p] = p.split('.')); return pts.length > 1 ? state[pts[0]]?.[pts[1]] : state[pts[0]]; },
-      set: (p, val) => { const [c, k] = p.split('.'); if (k != null) { if (Object.is(state[c]?.[k], val)) return; state[c][k] = val; rev++; emit(p, val); scheduler.request(); } },
-      batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; scheduler.request(); } },
+      /* [PATCH #20] NaN 방어: 숫자 타입 값이 NaN이면 세팅 거부 */
+      set: (p, val) => {
+        if (typeof val === 'number' && Number.isNaN(val)) return;
+        const [c, k] = p.split('.');
+        if (k != null) { if (Object.is(state[c]?.[k], val)) return; state[c][k] = val; rev++; emit(p, val); scheduler.request(); }
+      },
+      batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (typeof v === 'number' && Number.isNaN(v)) continue; if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; scheduler.request(); } },
       sub: (k, f) => {
         if (!listeners.has(k)) listeners.set(k, new Set());
         listeners.get(k).add(f);
         return () => listeners.get(k).delete(f);
       },
-      load: (data) => { if (!data) return; for (const c of ['video', 'audio', 'playback', 'app']) { if (data[c]) Object.assign(state[c], data[c]); } rev++; }
+      /* [PATCH #7] 카테고리를 defaults 키에서 동적 추출 */
+      load: (data) => { if (!data) return; for (const c of Object.keys(defaults)) { if (data[c]) Object.assign(state[c], data[c]); } rev++; }
     };
   }
 
@@ -177,8 +186,10 @@
     return el;
   }
 
+  /* [PATCH #19] immediate 플래그를 상태로 승격 — 동일 프레임 내 false→true 순서 호출 시에도 throttle 무시 보장 */
   function createScheduler(minIntervalMs = 16) {
     let queued = false, applyFn = null, lastRun = 0;
+    let immediateRequested = false;
     const signalFns = [];
     return {
       registerApply: fn => { applyFn = fn; },
@@ -187,12 +198,15 @@
         return () => { const idx = signalFns.indexOf(fn); if (idx > -1) signalFns.splice(idx, 1); };
       },
       request: (immediate = false) => {
+        if (immediate) immediateRequested = true;
         if (queued && !immediate) return;
         queued = true;
         requestAnimationFrame(() => {
           queued = false;
+          const isImmediate = immediateRequested;
+          immediateRequested = false;
           const now = performance.now();
-          if (!immediate && now - lastRun < minIntervalMs) return;
+          if (!isImmediate && now - lastRun < minIntervalMs) return;
           lastRun = now;
           if (applyFn) try { applyFn(); } catch (_) {}
           for (const fn of signalFns) try { fn(); } catch (_) {}
@@ -256,8 +270,22 @@
       } else if (n.nodeType === 11) { try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} }
     }
 
-    const workQ = []; let workScheduled = false;
-    function scheduleWork() { if (workScheduled) return; workScheduled = true; const doWork = () => { workScheduled = false; const batch = workQ.splice(0, 20); for (const n of batch) scanNode(n); if (workQ.length > 0) scheduleWork(); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(doWork, { timeout: 120 }); else setTimeout(doWork, 0); }
+    /* [PATCH #16] 재귀 깊이 제한 추가 */
+    const workQ = []; let workScheduled = false; let workDepth = 0;
+    const MAX_WORK_DEPTH = 8;
+    function scheduleWork() {
+      if (workScheduled) return; workScheduled = true;
+      const doWork = () => {
+        workScheduled = false;
+        if (workDepth >= MAX_WORK_DEPTH) { workQ.length = 0; workDepth = 0; return; }
+        workDepth++;
+        const batch = workQ.splice(0, 20);
+        for (const n of batch) scanNode(n);
+        workDepth--;
+        if (workQ.length > 0) scheduleWork();
+      };
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(doWork, { timeout: 120 }); else setTimeout(doWork, 0);
+    }
     function enqueue(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; if (workQ.length > 500) workQ.length = 0; workQ.push(n); scheduleWork(); }
 
     function connectObserver(root) {
@@ -273,8 +301,9 @@
       mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
     }
 
+    /* [PATCH #5] 초기화 시 enqueue 이중 호출 제거 — connectObserver 내부에서 enqueue 호출됨 */
     const root = document.body || document.documentElement;
-    if (root) { enqueue(root); connectObserver(root); }
+    if (root) { connectObserver(root); }
 
     function scanShadowRoots() {
       try {
@@ -287,6 +316,10 @@
         }
       } catch (_) {}
     }
+
+    /* [PATCH #12] cleanup에서 Filters.purge는 외부에서 호출 — purgeCallback 추가 */
+    let _purgeCallback = null;
+    function setPurgeCallback(fn) { _purgeCallback = fn; }
 
     function cleanup() {
       let removed = 0;
@@ -301,12 +334,17 @@
         }
       }
       for (let i = shadowRootsLRU.length - 1; i >= 0; i--) {
-        if (!shadowRootsLRU[i].host?.isConnected) shadowRootsLRU.splice(i, 1);
+        const entry = shadowRootsLRU[i];
+        if (!entry.host?.isConnected) {
+          /* [PATCH #12] 제거되는 ShadowRoot의 SVG 필터 정리 */
+          if (_purgeCallback && entry.root) try { _purgeCallback(entry.root); } catch (_) {}
+          shadowRootsLRU.splice(i, 1);
+        }
       }
       if (removed) requestRefresh();
     }
 
-    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots };
+    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback };
   }
 
   function createTargeting() {
@@ -342,6 +380,8 @@
     const mesMap = new WeakMap();
     const streamMap = new WeakMap();
     let bypassMode = false;
+    /* [PATCH #14] 세대 카운터로 fadeOutThen 경쟁 조건 해소 */
+    let generation = 0;
 
     function detectJWPlayer(video) {
       if (!video) return false;
@@ -424,12 +464,13 @@
       } catch (e) { stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null; }
     }
 
+    /* [PATCH #1] catch 분기 중복 제거 */
     function connectViaMES(video) {
       if (!ctx || video.dataset.vscMesFail === "1") return null;
       let s = mesMap.get(video);
       if (s) { if (s.context === ctx) return s; mesMap.delete(video); return null; }
       try { s = ctx.createMediaElementSource(video); mesMap.set(video, s); return s; }
-      catch (e) { if (e.name === 'InvalidStateError') return null; return null; }
+      catch (e) { return null; }
     }
 
     function connectSource(video) {
@@ -489,6 +530,7 @@
       else if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} currentSrc.connect(dryPath); }
     }
 
+    /* [PATCH #14] setTarget에 세대 카운터 적용 — fadeOutThen 60ms 지연 중 재호출 시 stale 콜백 무시 */
     function setTarget(video) {
       if (video === targetVideo) {
         if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); return; } return; }
@@ -496,17 +538,18 @@
         if (canConnect(video)) { if (!initCtx()) return; if (connectSource(video)) updateMix(); }
         return;
       }
+      const gen = ++generation;
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       if (!enabled) {
         const oldTarget = targetVideo;
-        if (currentSrc || targetVideo) { fadeOutThen(() => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }); }
+        if (currentSrc || targetVideo) { fadeOutThen(() => { if (gen !== generation) return; disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }); }
         else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }
         return;
       }
       if (!initCtx()) { targetVideo = video; return; }
-      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(() => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } }); return; }
+      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(() => { if (gen !== generation) return; disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } }); return; }
       const oldTarget = targetVideo;
-      fadeOutThen(() => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
+      fadeOutThen(() => { if (gen !== generation) return; disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
     }
 
     let gestureHooked = false;
@@ -523,16 +566,19 @@
     const toneCache = new Map();
     const TONE_CACHE_MAX = 32;
 
-    function getToneTable(steps, gain, contrast, brightOffset, gamma, toe, mid, shoulder) {
-      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(brightOffset*1000)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
+    /* [PATCH #3] brightOffset 파라미터 제거 — 항상 0이었으므로 불필요 */
+    function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) { const val = toneCache.get(key); toneCache.delete(key); toneCache.set(key, val); return val; }
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
-      const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast) + brightOffset;
+      const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast);
       for (let i = 0; i < steps; i++) {
         const x0 = i / (steps - 1); let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
         x = x * contrast + intercept; x = CLAMP(x, 0, 1);
         if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
+        /* [PATCH #18] mid 보정: 비대칭 delta 처리에 주석 추가 — 양의 delta는 밝기 증가,
+           음의 delta는 0.15배로 억제하여 어두운 방향 과보정 방지 */
         if (mid > 0.001) {
           const mc = 0.45, sig = 0.18;
           const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
@@ -560,7 +606,6 @@
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
-      /* [v28.7.4] linearRGB → sRGB 전환 */
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
       const fTone = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
       const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' }, true);
@@ -570,8 +615,8 @@
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
       const toneFuncR = fTone.querySelector('feFuncR'), toneFuncG = fTone.querySelector('feFuncG'), toneFuncB = fTone.querySelector('feFuncB');
-      const tempChildren = Array.from(fTemp.children);
-      return { fid, svg, fConv, toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean), tempFuncR: tempChildren.find(f => f.tagName.includes('R')), tempFuncG: tempChildren.find(f => f.tagName.includes('G')), tempFuncB: tempChildren.find(f => f.tagName.includes('B')), fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
+      /* [PATCH #4] querySelector 통일 — tagName.includes() 제거 */
+      return { fid, svg, fConv, toneFuncsRGB: [toneFuncR, toneFuncG, toneFuncB].filter(Boolean), tempFuncR: fTemp.querySelector('feFuncR'), tempFuncG: fTemp.querySelector('feFuncG'), tempFuncB: fTemp.querySelector('feFuncB'), fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
     }
 
     function purge(root) {
@@ -599,11 +644,13 @@
         if (target?.appendChild) target.appendChild(ctx.svg);
       }
       const st = ctx.st;
-      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.bright||0).toFixed(2)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
+      /* [PATCH #3] s.bright 제거 — svgHash에서 bright 필드 삭제 */
+      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
 
       if (st.lastKey !== svgHash) {
         st.lastKey = svgHash;
-        const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, (s.bright || 0) * 0.004, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
+        /* [PATCH #3] brightOffset 인수 제거 */
+        const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
         if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
         const colorGain = tempTintToRgbGain(s.temp, s.tint);
         const tempTintKey = `${s.temp}|${s.tint}`;
@@ -664,7 +711,8 @@
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
 
-        const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
+        /* [PATCH #3] out.bright 필드 제거 */
+        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
@@ -685,7 +733,6 @@
         const mCon   = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain  = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
 
-        /* [v28.7.4] 톤 계수를 228.1.0 수준으로 복원 */
         out.toe      = mShad * 0.0040;
         out.mid      = mRec  * 0.0035;
         out.shoulder = mBrt  * 0.0045;
@@ -722,8 +769,8 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     createAutoScene — [v28.7.5] 설정 객체 + smoothstep + gamma
-     경계 불연속 제거, 임계값 외부화로 튜닝 용이
+     createAutoScene — [v28.7.9] _brightSum 선언 수정, activate() STALE 오진 수정,
+     구독 해제 함수 저장
      ══════════════════════════════════════════════════════════════ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
@@ -739,6 +786,8 @@
     canvas.width = 16; canvas.height = 16;
 
     const brightHistory = [];
+    /* [PATCH #10] _brightSum 변수 선언 — strict mode ReferenceError 방지 */
+    let _brightSum = 0;
     const HISTORY_SIZE = 5;
 
     const BASE     = [ 22, 16, 11,  0, 0, -1, -3,  4,  6 ];
@@ -752,26 +801,20 @@
 
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
-    /* ── [v28.7.5] 장면 분류 설정 객체 ── */
     const SCENE_CONFIG = {
-      dark:   { max: 30,  label: '어두운 장면' },   // 이 숫자만 바꾸면 어두운 경계 조정
-      bright: { min: 220, label: '눈부신 장면' },   // 이 숫자만 바꾸면 밝은 경계 조정
+      dark:   { max: 30,  label: '어두운 장면' },
+      bright: { min: 220, label: '눈부신 장면' },
       normal:            { label: '일반 영상'   },
       drm:               { label: '보안 영상 ◉ DRM' },
-      gamma: 2.2,          // 지각 보정 강도 (높을수록 어두운 쪽 완만)
-      useSmoothstep: true, // false → gamma-only, true → smoothstep+gamma
+      gamma: 2.2,
+      useSmoothstep: true,
     };
 
-    /* ── smoothstep: S-커브로 경계 충격 제거 ── */
     function smoothstep(edge0, edge1, x) {
       const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
       return t * t * (3 - 2 * t);
     }
 
-    /* ── [v28.7.5] 통합 장면 분류 함수 ──
-       반환: { label, darkFactor, brightFactor }
-       - darkFactor  : 0(일반)→1(극어두움)  smoothstep+gamma 적용
-       - brightFactor: 0(일반)→1(극밝음)    smoothstep+gamma 적용  */
     function classifyBrightness(brightness, cfg) {
       let darkRaw = 0, brightRaw = 0;
 
@@ -786,7 +829,6 @@
           : (brightness - cfg.bright.min) / (255 - cfg.bright.min);
       }
 
-      // gamma 지각 보정
       const darkFactor  = darkRaw  > 0 ? Math.pow(darkRaw,  1 / cfg.gamma) : 0;
       const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0;
 
@@ -798,10 +840,8 @@
       return { label, darkFactor, brightFactor };
     }
 
-    /* ── 변화 감지 임계값 (기존 유지) ── */
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    /* ── [v28.7.5] 보간: darkFactor/brightFactor를 직접 사용 ── */
     function interpolate(darkFactor, brightFactor) {
       return BASE.map((base, i) => {
         if (darkFactor > 0)   return Math.round(base + DARK_BOOST[i] * darkFactor);
@@ -810,7 +850,6 @@
       });
     }
 
-    /* ── [v28.7.5] 샤프닝 프리셋도 factor 기반 ── */
     function getPresetSByFactors(darkFactor, brightFactor) {
       if (darkFactor > 0.5)   return 'M';
       if (darkFactor > 0.1)   return 'S';
@@ -826,7 +865,6 @@
       return _brightSum / brightHistory.length;
     }
 
-
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1" || video.dataset.vscDrm === "1") return -1;
       try {
@@ -836,7 +874,6 @@
         const COLS = 16;
         for (let i = 0; i < data.length; i += 4) {
           const row = Math.floor((i / 4) / COLS);
-          /* [v28.7.6] 하단 자막 영역(row 13–15) 가중치 0.3으로 축소 */
           const yWeight = row >= 13 ? 0.3 : 1.0;
           r += data[i]   * yWeight;
           g += data[i+1] * yWeight;
@@ -845,14 +882,15 @@
           if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false;
         }
         if (isAllZero) { video.dataset.vscDrm = "1"; return -1; }
-        /* [v28.7.6] Rec.709 luma (구형 Rec.601 → HD 표준) */
         return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
       } catch (e) { video.dataset.vscCorsFail = "1"; return -1; }
     }
 
+    /* [PATCH #8] forEach+push → map+filter 패턴 */
     function buildDetailText() {
-      const active = [];
-      currentValues.forEach((val, i) => { if (val !== 0) active.push(`${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}`); });
+      const active = currentValues
+        .map((val, i) => val !== 0 ? `${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}` : null)
+        .filter(Boolean);
       const sharpLabel = currentPresetS != null
         ? (currentPresetS === 'none' ? '샤프닝:OFF' : currentPresetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[currentPresetS]?.label || currentPresetS}`)
         : '';
@@ -881,7 +919,9 @@
       log.info('[AutoScene] 수동 조작 감지 → 자동 장면 OFF');
     }
 
-    for (const path of MANUAL_PATHS) store.sub(path, onManualChange);
+    /* [PATCH #13] 구독 해제 함수 저장 */
+    const _subCleanups = [];
+    for (const path of MANUAL_PATHS) _subCleanups.push(store.sub(path, onManualChange));
 
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
@@ -892,7 +932,7 @@
 
       if (now - lastCheck > STALE_THRESHOLD) {
         brightHistory.length = 0;
-        _brightSum = 0; /* [v28.7.8] 누적합 초기화 누락 수정 */
+        _brightSum = 0;
         lastAppliedBrightness = -999;
         log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
         lastCheck = now - CHECK_INTERVAL - 1;
@@ -916,7 +956,6 @@
 
       const rawBrt = analyzeFrame(video);
 
-      /* [v28.7.6] DRM(-1) 체크만 raw로 수행 → 분류는 smoothed 한 번만 */
       if (rawBrt < 0) {
         if (currentMode !== 'drm') {
           currentMode = 'drm'; currentBrightness = -1;
@@ -931,7 +970,6 @@
       const smoothed = pushBrightness(rawBrt);
       currentBrightness = smoothed;
 
-      /* smoothed로 다시 분류 (이동 평균 적용된 값) */
       const smoothScene = classifyBrightness(smoothed, SCENE_CONFIG);
       currentLabel = smoothScene.label;
 
@@ -957,20 +995,22 @@
       brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999;
     }
 
+    /* [PATCH #11] activate()에서 lastCheck를 performance.now() 기반으로 설정
+       → STALE 오진 방지하면서 즉시 실행 보장 */
     function activate() {
       resetAutoState();
       currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
-      /* [v28.7.8] lastCheck=0 → CHECK_INTERVAL 조건 확실히 통과
-         tick() 직접 호출 제거 → scheduler.request(true)로 apply()→tick() 경로 보장
-         (_activeVideo는 apply() 내부에서 세팅되므로 타이밍 경쟁 해소) */
-      lastCheck = 0;
+      lastCheck = performance.now() - CHECK_INTERVAL - 1;
       scheduler.request(true);
     }
 
     function deactivate() { resetAutoState(); }
 
+    /* [PATCH #13] destroy 메서드 추가 (현재 아키텍처에서 1회 생성이므로 호출 안 되지만 설계 완전성) */
+    function destroy() { for (const unsub of _subCleanups) unsub(); _subCleanups.length = 0; }
+
     return {
-      tick, activate, deactivate,
+      tick, activate, deactivate, destroy,
       getLabel: () => currentLabel, getDetail: () => buildDetailText(),
       getBrightness: () => currentBrightness, getMode: () => currentMode
     };
@@ -1004,10 +1044,11 @@
       return __scrBrtOverlay;
     }
 
+    /* [PATCH #2] getPropertyValue로 !important 값 안정적 읽기 */
     function applyScrBrt(level) {
       const idx = CLAMP(Math.round(level), 0, SCR_BRT_LEVELS.length - 1);
       const val = SCR_BRT_LEVELS[idx];
-      if (val <= 0) { if (__scrBrtOverlay) { __scrBrtOverlay.style.setProperty('opacity', '0', 'important'); setTimeout(() => { if (__scrBrtOverlay?.style.opacity === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important'); }, 350); } return; }
+      if (val <= 0) { if (__scrBrtOverlay) { __scrBrtOverlay.style.setProperty('opacity', '0', 'important'); setTimeout(() => { if (__scrBrtOverlay?.style.getPropertyValue('opacity') === '0') __scrBrtOverlay.style.setProperty('display', 'none', 'important'); }, 350); } return; }
       const ov = ensureScrBrtOverlay(); ov.style.removeProperty('display');
       requestAnimationFrame(() => { ov.style.setProperty('opacity', String(val), 'important'); });
     }
@@ -1129,7 +1170,12 @@
       const inp = h('input', { type: 'range', min, max, step: s });
       const valEl = h('span', { class: 'val' });
       function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
-      inp.addEventListener('input', () => { Store.set(path, parseFloat(inp.value)); updateUI(parseFloat(inp.value)); Scheduler.request(); });
+      /* [PATCH #6] Store.set 내부에서 이미 scheduler.request() 호출 → 중복 제거, parseFloat 1회로 통합 */
+      inp.addEventListener('input', () => {
+        const v = parseFloat(inp.value);
+        Store.set(path, v);
+        updateUI(v);
+      });
       const sync = () => updateUI(Number(Store.get(path) ?? min));
       tabFns.push(sync); sync();
       return [inp, valEl];
@@ -1145,12 +1191,14 @@
 
     function mkSliderWithFine(label, path, min, max, step, fineStep) {
       const [slider, valEl] = mkSlider(path, min, max, step);
-      const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); Scheduler.request(); }); return b; };
+      const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); }); return b; };
       const resetBtn = h('button', { class: 'fine-btn', style: 'min-width:24px;font-size:10px;opacity:.6' }, '0');
-      resetBtn.addEventListener('click', () => { Store.set(path, 0); Scheduler.request(); });
+      resetBtn.addEventListener('click', () => { Store.set(path, 0); });
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
 
+    /* [PATCH #15] mkChipRow — sync에서 onSelectOverride 존재 시에도 path 기반 동기화 유지
+       (현재 모든 onSelectOverride가 동일 path에 값을 세팅하므로 동작하지만, 주석으로 의도 명시) */
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {});
       if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
@@ -1159,7 +1207,10 @@
       row.addEventListener('click', e => {
         const chip = e.target.closest('.chip'); if (!chip) return;
         const val = chip.dataset.v;
-        if (onSelectOverride) { onSelectOverride(isNaN(Number(val)) ? val : Number(val)); }
+        if (onSelectOverride) {
+          /* NOTE: onSelectOverride는 반드시 path에 해당하는 Store 값을 세팅해야 sync()가 정상 동작 */
+          onSelectOverride(isNaN(Number(val)) ? val : Number(val));
+        }
         else { Store.set(path, val); }
         requestAnimationFrame(() => { for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
         Scheduler.request();
@@ -1436,6 +1487,9 @@
     const Params = createVideoParams(Store);
     const Filters = createFilters();
     const AutoScene = createAutoScene(Store, Scheduler);
+
+    /* [PATCH #12] Registry에 Filters.purge 콜백 등록 */
+    Registry.setPurgeCallback((root) => Filters.purge(root));
 
     const apply = () => {
       if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
