@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.2.0-fix)
+// @name         Video_Control (v28.3.0)
 // @namespace    https://github.com/
-// @version      28.2.0-fix
-// @description  v28.2.0-fix: createFilters 중첩 선언 버그 수정 + UI 선언적 스키마 리팩터링
+// @version      28.3.0
+// @description  v28.3.0: 리뷰 기반 버그 수정 + 성능 개선 + 간결화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.2.0-fix';
+  const VSC_VERSION = '28.3.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -40,15 +40,25 @@
     error: (...a) => console.error('[VSC]', ...a)
   };
 
+  /* ── [5-2 fix] normalizeHostname: IP 주소 오판 수정 ── */
   function normalizeHostname(h) {
-    let parts = h.split('.');
-    if (parts[0] === 'www') parts = parts.slice(1);
-    if (parts.length > 2 && /^\d{1,3}$/.test(parts[0])) return parts.slice(1).join('.');
-    return parts.join('.');
+    const parts = h.split('.');
+    // IP 주소 판별 (순수 숫자 4옥텟)
+    if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return h;
+    let norm = parts;
+    if (norm[0] === 'www') norm = norm.slice(1);
+    if (norm.length > 2 && /^\d{1,3}$/.test(norm[0])) return norm.slice(1).join('.');
+    return norm.join('.');
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.60;
+
+  /* ── [4-3 fix] fullscreenchange 유틸리티 ── */
+  function onFsChange(fn) {
+    document.addEventListener('fullscreenchange', fn);
+    document.addEventListener('webkitfullscreenchange', fn);
+  }
 
   function checkNeedsSvg(s) {
     if (IS_FIREFOX) return false;
@@ -327,6 +337,10 @@
           removed++;
         }
       }
+      /* [1-1 개선] disconnected shadow root 정리 */
+      for (let i = shadowRootsLRU.length - 1; i >= 0; i--) {
+        if (!shadowRootsLRU[i].host?.isConnected) shadowRootsLRU.splice(i, 1);
+      }
       if (removed) requestRefresh();
     }
 
@@ -531,7 +545,6 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
-  /* ══ 🔧 [핵심 수정] createFilters — 중첩 선언 제거, 단일 함수로 복원 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -627,6 +640,12 @@
       return `url(#${ctx.fid})`;
     }
 
+    /* [1-1 개선] disconnected root의 SVG 정리 메서드 */
+    function purge(root) {
+      const ctx = ctxMap.get(root);
+      if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); }
+    }
+
     return {
       prepare,
       apply: (el, filterStr) => {
@@ -635,7 +654,8 @@
         if (el.style.getPropertyValue('filter') === filterStr) return;
         applyFilterStyles(el, filterStr);
       },
-      clear: clearFilterStyles
+      clear: clearFilterStyles,
+      purge
     };
   }
 
@@ -816,10 +836,14 @@
       currentPresetS = presetS;
     }
 
+    /* ── [1-5 fix] 수동 슬라이더 조작 시 autoScene 비활성화 ── */
     function onManualChange() {
       if (_internalBatch) return;
       if (!store.get(P.V_AUTO_SCENE)) return;
-      suppressUntil = performance.now() + 500;
+      // 사용자가 수동으로 슬라이더를 조작하면 autoScene을 끈다
+      store.set(P.V_AUTO_SCENE, false);
+      deactivate();
+      log.info('[AutoScene] 수동 조작 감지 → 자동 장면 OFF');
     }
 
     for (const path of MANUAL_PATHS) store.sub(path, onManualChange);
@@ -827,7 +851,6 @@
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
-      // 👉 추가: 영상이 일시정지되었거나 끝났으면 아무것도 안 하고 퇴근!
       if (video.paused || video.ended) return;
       const now = performance.now();
       if (now < suppressUntil) return;
@@ -868,12 +891,14 @@
       }
     }
 
+    /* ── [2-2 fix] activate에서 lastCheck를 즉시 분석 가능하도록 설정 ── */
     function activate() {
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
-      brightHistory.length = 0; lastCheck = 0; suppressUntil = 0;
+      brightHistory.length = 0; suppressUntil = 0;
+      lastCheck = performance.now() - 3001; // 즉시 첫 분석 가능
       const video = __internal._activeVideo;
-      if (video?.isConnected) { lastCheck = 0; tick(video); }
+      if (video?.isConnected) tick(video);
     }
 
     function deactivate() {
@@ -889,7 +914,7 @@
   }
 
   /* ══ createUI — 선언적 스키마 + 범용 렌더러 ══ */
-  function createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene) {
+  function createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
@@ -926,8 +951,8 @@
 
     globalSignalCleanups.push(Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0)));
     setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
-    document.addEventListener('fullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
-    document.addEventListener('webkitfullscreenchange', () => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
+    /* [4-3 fix] onFsChange 유틸리티 사용 */
+    onFsChange(() => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
 
     const CSS_VARS = `
     :host { position: fixed !important; contain: none !important; overflow: visible !important; isolation: isolate; z-index: 2147483647 !important;
@@ -1001,8 +1026,11 @@
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
     function getMountTarget() { const fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs) return fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement) : fs; return document.documentElement || document.body; }
-    const HOST_STYLE_NORMAL = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;width:0!important;height:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
-    const HOST_STYLE_FS = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;right:0!important;bottom:0!important;width:100%!important;height:100%!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
+
+    /* [4-2 fix] HOST_STYLE 중복 제거 */
+    const HOST_STYLE_BASE = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
+    const HOST_STYLE_NORMAL = HOST_STYLE_BASE + 'width:0!important;height:0!important;';
+    const HOST_STYLE_FS = HOST_STYLE_BASE + 'right:0!important;bottom:0!important;width:100%!important;height:100%!important;';
 
     let _lastMount = null, _qbarHasVideo = false, _lastIsFs = null;
 
@@ -1326,8 +1354,8 @@
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
-    document.addEventListener('fullscreenchange', onFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+    /* [4-3 fix] onFsChange 유틸리티 사용 */
+    onFsChange(onFullscreenChange);
 
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
   }
@@ -1376,9 +1404,11 @@
     };
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
-    document.addEventListener('fullscreenchange', () => Scheduler.request(true));
+    /* [4-3 fix] onFsChange 유틸리티 사용 */
+    onFsChange(() => Scheduler.request(true));
 
-    createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene);
+    /* [1-1 개선] Filters.purge를 UI에 전달 */
+    createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters);
     __internal.Store = Store; __internal._activeVideo = null;
     try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(true); }); } catch (_) {}
 
