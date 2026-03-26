@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.7.0)
+// @name         Video_Control (v28.7.4)
 // @namespace    https://github.com/
-// @version      28.7.0
-// @description  v28.7.0: linearRGB 전환으로 톤 보정 색 편향 근본 해결, 톤 계수 재조정
+// @version      28.7.4
+// @description  v28.7.4: 톤 계수 228.1.0 수준 복원 + sRGB 색공간 전환 → 자동장면 어두워짐 해결
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.7.0';
+  const VSC_VERSION = '28.7.4'; /* [v28.7.4] */
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -101,7 +101,6 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-  /* [v28.7.0] linearRGB에서 과도한 채도 보정 불필요 → 채도값 완화 */
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
     { n: '또렷',        v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
@@ -518,7 +517,6 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
-  /* ══ createFilters — [v28.7.0] linearRGB 전환 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -561,8 +559,8 @@
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
-      /* [v28.7.0] linearRGB로 변경 — sRGB 비선형 감마로 인한 색 편향 제거 */
-      const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'linearRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
+      /* [v28.7.4] linearRGB → sRGB 전환 */
+      const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
       const fTone = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
       const fTemp = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' }, true);
       const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
@@ -637,7 +635,6 @@
     };
   }
 
-  /* [v28.7.0] 톤 계수 linearRGB 기준 재조정 (약 70% 스케일) */
   function createVideoParams(Store) {
     const cache = new WeakMap();
 
@@ -687,10 +684,10 @@
         const mCon   = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain  = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
 
-        /* [v28.7.0] linearRGB 기준 톤 계수 (sRGB 대비 ~70%) */
-        out.toe      = mShad * 0.0028;
-        out.mid      = mRec  * 0.0025;
-        out.shoulder = mBrt  * 0.0032;
+        /* [v28.7.4] 톤 계수를 228.1.0 수준으로 복원 (was 0.0020/0.0018/0.0024) */
+        out.toe      = mShad * 0.0040;
+        out.mid      = mRec  * 0.0035;
+        out.shoulder = mBrt  * 0.0045;
         out.temp     = mTemp;
         out.tint     = mTint;
         out.gamma    = 1 + mGamma * (-0.008);
@@ -723,7 +720,7 @@
     };
   }
 
-  /* ══ createAutoScene — [v28.7.0] 색온도/채도 보정값 linearRGB 기준 원복 ══ */
+  /* ══ createAutoScene — [v28.7.3] 기본 체급 대폭 상향, 눈부심 방어선 완화 ══ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
@@ -740,13 +737,11 @@
     const brightHistory = [];
     const HISTORY_SIZE = 5;
 
-    /* [v28.7.0] linearRGB에서는 sRGB 비선형 색 편향 없음
-       → 색온도 보정 불필요(0), 채도 보정 최소화 */
-    const BASE     = [  8, 10,  5,  0, 0,  0, -2, 3,  2 ];
-    const DARK_V   = [ 50, 30, 25,  0, 0, -3, -7, 8, 15 ];
-    const BRIGHT_V = [  6,  8,  2, 15, 0, -4,  3,-4, -4 ];
-    const VERTICAL = [  6, 10,  4,  0, 0,  2, -1, 4,  1 ];
-    const DRM_BASE = [ 25, 18, 13,  0, 0, -2, -4, 5,  7 ];
+    const BASE     = [ 22, 16, 11,  0, 0, -1, -3,  4,  6 ];
+    const DARK_V   = [ 55, 33, 28,  0, 0, -4, -7,  8, 16 ];
+    const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  3,  2 ];
+    const VERTICAL = [ 15, 12,  8,  0, 0, -1, -2,  3,  4 ];
+    const DRM_BASE = [ 30, 20, 15,  0, 0, -1, -5,  6,  9 ];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -759,12 +754,14 @@
       return 10;
     }
 
-    function getBrightnessFactor(brightness) { return CLAMP((120 - brightness) / 120, -0.8, 1.0); }
+    function getBrightnessFactor(brightness) {
+      return CLAMP((100 - brightness) / 100, -1.0, 1.0);
+    }
 
     function interpolate(factor) {
       return BASE.map((base, i) => {
         if (factor >= 0) return Math.round(base + DARK_BOOST[i] * factor);
-        else return Math.round(base + BRIGHT_CUT[i] * (-factor / 0.8));
+        else return Math.round(base + BRIGHT_CUT[i] * (-factor));
       });
     }
 
@@ -777,8 +774,8 @@
 
     function getBrightnessLabel(brightness) {
       if (brightness < 0)   return '보안 영상 ◉ DRM';
-      if (brightness < 35)  return `어두운 장면 ◉ 밝기 ${Math.round(brightness)}`;
-      if (brightness > 210) return `눈부신 장면 ◉ 밝기 ${Math.round(brightness)}`;
+      if (brightness < 40)  return `어두운 장면 ◉ 밝기 ${Math.round(brightness)}`;
+      if (brightness > 160) return `눈부신 장면 ◉ 밝기 ${Math.round(brightness)}`;
       return `일반 영상 ◉ 밝기 ${Math.round(brightness)}`;
     }
 
