@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.1.3)
+// @name         Video_Control (v28.2.0-fix)
 // @namespace    https://github.com/
-// @version      28.1.3
-// @description  v28.1.3: [핫픽스] 섀도우 돔 감지(TreeWalker) 복구 및 마스터 타이머 통합
+// @version      28.2.0-fix
+// @description  v28.2.0-fix: createFilters 중첩 선언 버그 수정 + UI 선언적 스키마 리팩터링
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.1.3';
+  const VSC_VERSION = '28.2.0-fix';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -94,7 +94,6 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-  /* ══ 수동 보정 프리셋 ══ */
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
     { n: '내추럴',     v: [8,  12,   5,   0,   0,   0,  -2,   4,   0] },
@@ -169,6 +168,9 @@
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
+  const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
+  const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
+
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
     const listeners = new Map();
@@ -205,8 +207,8 @@
     return el;
   }
 
-  function createScheduler() {
-    let queued = false, applyFn = null;
+  function createScheduler(minIntervalMs = 16) {
+    let queued = false, applyFn = null, lastRun = 0;
     const signalFns = [];
     return {
       registerApply: fn => { applyFn = fn; },
@@ -214,11 +216,14 @@
         signalFns.push(fn);
         return () => { const idx = signalFns.indexOf(fn); if (idx > -1) signalFns.splice(idx, 1); };
       },
-      request: () => {
-        if (queued) return;
+      request: (immediate = false) => {
+        if (queued && !immediate) return;
         queued = true;
         requestAnimationFrame(() => {
           queued = false;
+          const now = performance.now();
+          if (!immediate && now - lastRun < minIntervalMs) return;
+          lastRun = now;
           if (applyFn) try { applyFn(); } catch (_) {}
           for (const fn of signalFns) try { fn(); } catch (_) {}
         });
@@ -293,7 +298,6 @@
     const root = document.body || document.documentElement;
     if (root) { enqueue(root); connectObserver(root); }
 
-    // 🌟 [핫픽스 복원] 섀도우 돔 감지용 스캐너 (마스터 타이머에서 안전하게 호출됨)
     function scanShadowRoots() {
       try {
         const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
@@ -315,8 +319,7 @@
       let removed = 0;
       for (const el of videos) {
         if (!el?.isConnected) {
-          videos.delete(el);
-          clearFilterStyles(el);
+          videos.delete(el); clearFilterStyles(el);
           if (io) try { io.unobserve(el); } catch (_) {}
           if (ro) try { ro.unobserve(el); } catch (_) {}
           const ls = videoListeners.get(el);
@@ -361,12 +364,26 @@
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
     const mesMap = new WeakMap();
+    const streamMap = new WeakMap();
     let bypassMode = false;
+
+    function detectJWPlayer(video) {
+      if (!video) return false;
+      if (typeof window.jwplayer === 'function') { try { if (window.jwplayer()?.getContainer?.()) return true; } catch (_) {} }
+      let el = video.parentElement, depth = 0;
+      while (el && depth < 10) {
+        if (el.classList?.contains('jwplayer') || el.id?.startsWith('jwplayer') || el.classList?.contains('jw-wrapper') || el.querySelector?.(':scope > .jw-media, :scope > .jw-controls')) return true;
+        el = el.parentElement; depth++;
+      }
+      if (video.src?.startsWith('blob:')) { if (document.querySelector('script[src*="jwplayer"]') || document.querySelector('[class*="jw-"]')) return true; }
+      return false;
+    }
 
     function canConnect(video) {
       if (!video) return false;
       if (video.dataset.vscPermBypass === "1") return false;
-      if (video.dataset.vscMesFail === "1") return false;
+      if (detectJWPlayer(video) && video.dataset.vscCorsFail === "1") return false;
+      if (video.dataset.vscMesFail === "1" && video.dataset.vscCorsFail === "1") return false;
       return true;
     }
 
@@ -400,38 +417,81 @@
 
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass';
-      if (ctx && currentSrc) {
+      if (video && ctx && currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
-        try { currentSrc.connect(ctx.destination); } catch (_) {}
+        if (currentSrc.__vsc_isCaptureStream) {
+          if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
+          if (currentSrc.__vsc_originalVolume != null) try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+          const stream = currentSrc.__vsc_captureStream;
+          if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        } else { try { currentSrc.connect(ctx.destination); } catch (_) {} }
       }
       currentSrc = null;
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
+
+    function connectViaCaptureStream(video) {
+      if (!ctx || video.dataset.vscCorsFail === "1") return null;
+      let s = streamMap.get(video);
+      if (s) { if (s.context === ctx) return s; if (currentSrc === s) { currentSrc = null; currentMode = 'none'; } try { s.disconnect(); } catch (_) {} if (s.__vsc_captureStream) { s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); } streamMap.delete(video); }
+      const captureFn = video.captureStream || video.mozCaptureStream;
+      if (typeof captureFn !== 'function') return null;
+      const originalMuted = video.muted, originalVolume = video.volume;
+      let stream;
+      try { stream = captureFn.call(video); } catch (e) { if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { video.dataset.vscCorsFail = "1"; return null; } return null; }
+      if (stream.getAudioTracks().length === 0) { setTimeout(() => { if (stream.getAudioTracks().length > 0) scheduler.request(); }, 500); return null; }
+      try {
+        const source = ctx.createMediaStreamSource(stream);
+        source.__vsc_isCaptureStream = true; source.__vsc_captureStream = stream;
+        source.__vsc_originalMuted = originalMuted; source.__vsc_originalVolume = originalVolume;
+        video.muted = true; streamMap.set(video, source); return source;
+      } catch (e) { stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null; }
+    }
 
     function connectViaMES(video) {
       if (!ctx || video.dataset.vscMesFail === "1") return null;
       let s = mesMap.get(video);
       if (s) { if (s.context === ctx) return s; mesMap.delete(video); return null; }
       try { s = ctx.createMediaElementSource(video); mesMap.set(video, s); return s; }
-      catch (e) { video.dataset.vscMesFail = "1"; return null; }
+      catch (e) { if (e.name === 'InvalidStateError') return null; return null; }
     }
 
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
-      let source = connectViaMES(video);
-      if (!source) { enterBypass(video, 'MES failed'); return false; }
+      const isJW = detectJWPlayer(video);
+      let source = null;
+      if (isJW) { source = connectViaCaptureStream(video); if (!source) { video.dataset.vscPermBypass = "1"; enterBypass(video, 'JWPlayer: captureStream failed'); return false; } }
+      else { source = connectViaMES(video); if (!source) source = connectViaCaptureStream(video); }
+      if (!source) { if (!isJW) { video.dataset.vscMesFail = "1"; video.dataset.vscCorsFail = "1"; } enterBypass(video, 'all methods failed'); return false; }
       try { source.disconnect(); } catch (_) {}
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       source.connect(enabled ? comp : dryPath);
-      currentSrc = source; currentMode = 'mes'; exitBypass();
+      currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes'; exitBypass();
       return true;
     }
 
-    function disconnectCurrent() {
+    function fadeOutThen(fn) {
+      if (!ctx || !masterOut || ctx.state === 'closed') { try { fn(); } catch (_) {} return; }
+      try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
+      setTimeout(() => {
+        try { fn(); } catch (_) {}
+        if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
+      }, 60);
+    }
+
+    function disconnectCurrent(vid) {
       if (!currentSrc) return;
+      const target = vid || targetVideo;
+      if (currentSrc.__vsc_isCaptureStream && target) {
+        if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
+        if (currentSrc.__vsc_originalVolume != null) try { target.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+        const stream = currentSrc.__vsc_captureStream;
+        if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        streamMap.delete(target);
+      }
       try { currentSrc.disconnect(); } catch (_) {}
-      if (ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
+      if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
       currentSrc = null; currentMode = 'none';
     }
 
@@ -444,31 +504,22 @@
 
     function setTarget(video) {
       if (video === targetVideo) {
-        if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); } return; }
+        if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); return; } return; }
         if (currentSrc) { updateMix(); return; }
         if (canConnect(video)) { if (!initCtx()) return; if (connectSource(video)) updateMix(); }
         return;
       }
       const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
       if (!enabled) {
-        disconnectCurrent();
-        targetVideo = video;
-        if (bypassMode) { bypassMode = false; currentMode = 'none'; }
+        const oldTarget = targetVideo;
+        if (currentSrc || targetVideo) { fadeOutThen(() => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }); }
+        else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }
         return;
       }
       if (!initCtx()) { targetVideo = video; return; }
-      if (video && !canConnect(video)) {
-        disconnectCurrent();
-        targetVideo = video;
-        enterBypass(video, 'not connectable');
-        return;
-      }
-      disconnectCurrent();
-      if (bypassMode) { bypassMode = false; currentMode = 'none'; }
-      targetVideo = video;
-      if (!video) { updateMix(); return; }
-      connectSource(video);
-      updateMix();
+      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(() => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } }); return; }
+      const oldTarget = targetVideo;
+      fadeOutThen(() => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
     }
 
     let gestureHooked = false;
@@ -480,11 +531,15 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
+  /* ══ 🔧 [핵심 수정] createFilters — 중첩 선언 제거, 단일 함수로 복원 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
-    const lastFilterMap = new WeakMap();
+    const toneCache = new Map();
+    const TONE_CACHE_MAX = 32;
 
     function getToneTable(steps, gain, contrast, brightOffset, gamma, toe, mid, shoulder) {
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(brightOffset*1000)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
+      if (toneCache.has(key)) { const val = toneCache.get(key); toneCache.delete(key); toneCache.set(key, val); return val; }
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const absG = Math.abs(g); const useFilmicCurve = absG > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
       const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast) + brightOffset;
@@ -503,7 +558,9 @@
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
         if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
       }
-      return out.join(' ');
+      const res = out.join(' ');
+      if (toneCache.size >= TONE_CACHE_MAX) { const first = toneCache.keys().next(); if (!first.done) toneCache.delete(first.value); }
+      toneCache.set(key, res); return res;
     }
 
     function mkXfer(attrs, funcDefaults, withAlpha = false) {
@@ -539,7 +596,12 @@
         return parts.length > 0 ? parts.join(' ') : 'none';
       }
       const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document);
-      let ctx = ctxMap.get(root); if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
+      let ctx = ctxMap.get(root);
+      if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
+      else if (!ctx.svg.isConnected) {
+        const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
+        if (target?.appendChild) target.appendChild(ctx.svg);
+      }
       const st = ctx.st;
       const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.bright||0).toFixed(2)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
 
@@ -569,12 +631,11 @@
       prepare,
       apply: (el, filterStr) => {
         if (!el) return;
-        if (filterStr === 'none') { clearFilterStyles(el); lastFilterMap.delete(el); return; }
-        if (lastFilterMap.get(el) === filterStr) return;
-        lastFilterMap.set(el, filterStr);
+        if (filterStr === 'none') { clearFilterStyles(el); return; }
+        if (el.style.getPropertyValue('filter') === filterStr) return;
         applyFilterStyles(el, filterStr);
       },
-      clear: (el) => { clearFilterStyles(el); lastFilterMap.delete(el); }
+      clear: clearFilterStyles
     };
   }
 
@@ -663,19 +724,13 @@
   }
 
   function createAutoScene(store, scheduler) {
-    let lastCheck = 0;
-    let suppressUntil = 0;
-    let currentBrightness = -1;
-    let currentLabel = '분석 대기중';
-    let currentValues = [0,0,0,0,0,0,0,0,0];
-    let currentPresetS = null;
-    let currentMode = 'wait';
-    let _internalBatch = false;
+    let lastCheck = 0, suppressUntil = 0, currentBrightness = -1;
+    let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
+    let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
 
     const canvas = document.createElement('canvas');
     const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
-    canvas.width = 16;
-    canvas.height = 16;
+    canvas.width = 16; canvas.height = 16;
 
     const brightHistory = [];
     const HISTORY_SIZE = 5;
@@ -689,13 +744,9 @@
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
 
-    const MANUAL_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
-    const VAL_NAMES   = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
+    const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
-    function getBrightnessFactor(brightness) {
-      const mid = 120;
-      return CLAMP((mid - brightness) / mid, -0.8, 1.0);
-    }
+    function getBrightnessFactor(brightness) { return CLAMP((120 - brightness) / 120, -0.8, 1.0); }
 
     function interpolate(factor) {
       return BASE.map((base, i) => {
@@ -724,34 +775,27 @@
       return brightHistory.reduce((a, b) => a + b, 0) / brightHistory.length;
     }
 
-    function detectVertical(video) {
-      const w = video.videoWidth || 0;
-      const vh = video.videoHeight || 0;
-      return (w > 0 && vh > 0 && (w / vh) < 0.75);
-    }
+    function detectVertical(video) { const w = video.videoWidth || 0, vh = video.videoHeight || 0; return (w > 0 && vh > 0 && (w / vh) < 0.75); }
 
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1" || video.dataset.vscDrm === "1") return -1;
       try {
         canvasCtx.drawImage(video, 0, 0, 16, 16);
         const data = canvasCtx.getImageData(0, 0, 16, 16).data;
-        let r = 0, g = 0, b = 0;
+        let r = 0, g = 0, b = 0, isAllZero = true;
         for (let i = 0; i < data.length; i += 4) {
           r += data[i]; g += data[i+1]; b += data[i+2];
+          if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false;
         }
+        if (isAllZero) { video.dataset.vscDrm = "1"; return -1; }
         const count = data.length / 4;
         return (r/count)*0.299 + (g/count)*0.587 + (b/count)*0.114;
-      } catch (e) {
-        video.dataset.vscCorsFail = "1";
-        return -1;
-      }
+      } catch (e) { video.dataset.vscCorsFail = "1"; return -1; }
     }
 
     function buildDetailText() {
       const active = [];
-      currentValues.forEach((val, i) => {
-        if (val !== 0) active.push(`${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}`);
-      });
+      currentValues.forEach((val, i) => { if (val !== 0) active.push(`${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}`); });
       const sharpLabel = currentPresetS != null
         ? (currentPresetS === 'none' ? '샤프닝:OFF' : currentPresetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[currentPresetS]?.label || currentPresetS}`)
         : '';
@@ -778,7 +822,6 @@
       suppressUntil = performance.now() + 500;
     }
 
-    const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
     for (const path of MANUAL_PATHS) store.sub(path, onManualChange);
 
     function tick(video) {
@@ -791,8 +834,7 @@
 
       if (detectVertical(video)) {
         if (currentMode !== 'vertical') {
-          currentMode = 'vertical';
-          currentBrightness = -1;
+          currentMode = 'vertical'; currentBrightness = -1;
           currentLabel = '세로형 영상 (쇼츠/릴스)';
           applyValues(VERTICAL, 'S');
           log.info('[AutoScene] → 세로형 영상');
@@ -801,11 +843,9 @@
       }
 
       const rawBrt = analyzeFrame(video);
-
       if (rawBrt < 0) {
         if (currentMode !== 'drm') {
-          currentMode = 'drm';
-          currentBrightness = -1;
+          currentMode = 'drm'; currentBrightness = -1;
           currentLabel = '보안 영상 ◉ DRM';
           applyValues(DRM_BASE, 'M');
           log.info('[AutoScene] → DRM 폴백');
@@ -814,14 +854,11 @@
       }
 
       const smoothed = pushBrightness(rawBrt);
-      currentBrightness = smoothed;
-      currentMode = 'interpolate';
+      currentBrightness = smoothed; currentMode = 'interpolate';
       currentLabel = getBrightnessLabel(smoothed);
-
       const factor = getBrightnessFactor(smoothed);
       const values = interpolate(factor);
       const presetS = getPresetSByFactor(factor);
-
       const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
       if (changed) {
         applyValues(values, presetS);
@@ -830,37 +867,26 @@
     }
 
     function activate() {
-      currentMode = 'wait';
-      currentBrightness = -1;
-      currentLabel = '분석 대기중';
-      currentValues = [0,0,0,0,0,0,0,0,0];
-      currentPresetS = null;
-      brightHistory.length = 0;
-      lastCheck = 0;
-      suppressUntil = 0;
+      currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
+      currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
+      brightHistory.length = 0; lastCheck = 0; suppressUntil = 0;
       const video = __internal._activeVideo;
-      if (video?.isConnected) {
-        lastCheck = 0;
-        tick(video);
-      }
+      if (video?.isConnected) { lastCheck = 0; tick(video); }
     }
 
     function deactivate() {
-      currentMode = 'wait';
-      currentBrightness = -1;
-      currentLabel = '분석 대기중';
+      currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       brightHistory.length = 0;
     }
 
     return {
       tick, activate, deactivate,
-      getLabel:  () => currentLabel,
-      getDetail: () => buildDetailText(),
-      getBrightness: () => currentBrightness,
-      getMode: () => currentMode
+      getLabel: () => currentLabel, getDetail: () => buildDetailText(),
+      getBrightness: () => currentBrightness, getMode: () => currentMode
     };
   }
 
+  /* ══ createUI — 선언적 스키마 + 범용 렌더러 ══ */
   function createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
@@ -966,6 +992,9 @@
     .as-box.off .as-tag { background: rgba(255,255,255,0.04); color: var(--vsc-text-muted); border-color: rgba(255,255,255,0.06); }
     .as-detail { font-family: var(--vsc-font-mono); font-size: 10px; line-height: 1.5; opacity: 0.65; color: var(--vsc-green); word-break: break-all; }
     .as-box.off .as-detail { color: var(--vsc-text-muted); }
+    .hint { font-size: 10px; opacity: 0.5; padding: 4px 0; text-align: left; line-height: 1.5; }
+    .hint.warn { opacity: 0.7; color: var(--vsc-amber); }
+    .hint.dim { opacity: 0.4; color: var(--vsc-amber); }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1003,156 +1032,239 @@
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
 
-    function mkSlider(path, min, max, step) { const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2; const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' }); function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); } inp.addEventListener('input', () => { Store.set(path, parseFloat(inp.value)); updateUI(parseFloat(inp.value)); Scheduler.request(); }); const sync = () => updateUI(Number(Store.get(path) ?? min)); tabFns.push(sync); sync(); return [inp, valEl]; }
+    function mkSlider(path, min, max, step) {
+      const s = step || ((max - min) / 100);
+      const digits = s >= 1 ? 0 : 2;
+      const inp = h('input', { type: 'range', min, max, step: s });
+      const valEl = h('span', { class: 'val' });
+      function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
+      inp.addEventListener('input', () => { Store.set(path, parseFloat(inp.value)); updateUI(parseFloat(inp.value)); Scheduler.request(); });
+      const sync = () => updateUI(Number(Store.get(path) ?? min));
+      tabFns.push(sync); sync();
+      return [inp, valEl];
+    }
 
-    function mkToggle(path, onChange) { const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' }); function sync() { const on = !!Store.get(path); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); } el.addEventListener('click', () => { const nv = !Store.get(path); Store.set(path, nv); sync(); if (onChange) onChange(nv); else Scheduler.request(); }); tabFns.push(sync); sync(); return el; }
+    function mkToggle(path, onChange) {
+      const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' });
+      function sync() { const on = !!Store.get(path); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); }
+      el.addEventListener('click', () => { const nv = !Store.get(path); Store.set(path, nv); sync(); if (onChange) onChange(nv); else Scheduler.request(); });
+      tabFns.push(sync); sync();
+      return el;
+    }
 
-    function chipRow(label, path, chips) { const wrap = h('div', {}, h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label)); const row = h('div', { class: 'chips' }); for (const ch of chips) row.appendChild(h('span', { class: 'chip', 'data-v': String(ch.v) }, ch.l)); row.addEventListener('click', e => { const chip = e.target.closest('.chip'); if (!chip) return; Store.set(path, chip.dataset.v); requestAnimationFrame(() => { for (const c of row.children) c.classList.toggle('on', c.dataset.v === chip.dataset.v); }); Scheduler.request(); }); const sync = () => { const cur = String(Store.get(path)); for (const c of row.children) c.classList.toggle('on', c.dataset.v === cur); }; wrap.appendChild(row); tabFns.push(sync); sync(); return wrap; }
+    function mkSliderWithFine(label, path, min, max, step, fineStep) {
+      const [slider, valEl] = mkSlider(path, min, max, step);
+      const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); Scheduler.request(); }); return b; };
+      const resetBtn = h('button', { class: 'fine-btn', style: 'min-width:24px;font-size:10px;opacity:.6' }, '0');
+      resetBtn.addEventListener('click', () => { Store.set(path, 0); Scheduler.request(); });
+      return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
+    }
 
-    function buildVideoTab() {
-      const w = h('div', {});
-      const infoBar = h('div', { class: 'info-bar' });
-      const updateInfo = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { infoBar.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; infoBar.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
-      tabSignalCleanups.push(Scheduler.onSignal(updateInfo));
-      tabSignalCleanups.push(Store.sub(P.V_PRE_S, updateInfo));
-      tabFns.push(updateInfo);
-      w.append(infoBar);
+    function mkChipRow(label, path, chips, onSelectOverride) {
+      const wrap = h('div', {});
+      if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
+      const row = h('div', { class: 'chips' });
+      for (const ch of chips) row.appendChild(h('span', { class: 'chip', 'data-v': String(ch.v) }, ch.l));
+      row.addEventListener('click', e => {
+        const chip = e.target.closest('.chip'); if (!chip) return;
+        const val = chip.dataset.v;
+        if (onSelectOverride) { onSelectOverride(isNaN(Number(val)) ? val : Number(val)); }
+        else { Store.set(path, val); }
+        requestAnimationFrame(() => { for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
+        Scheduler.request();
+      });
+      const sync = () => { const cur = String(Store.get(path)); for (const c of row.children) c.classList.toggle('on', c.dataset.v === cur); };
+      wrap.appendChild(row); tabFns.push(sync); sync();
+      return wrap;
+    }
 
-      /* ── 자동 장면 ── */
-      const asBox = h('div', { class: 'as-box off' });
-      const asLabel = h('span', { class: 'asl' }, '자동 장면');
-      const asTag = h('span', { class: 'as-tag' }, '—');
-      const asToggle = mkToggle(P.V_AUTO_SCENE, (on) => {
+    function mkFineButtons(path, steps, min, max) {
+      const row = h('div', { class: 'fine-row' });
+      for (const d of steps) {
+        const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`);
+        btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); Scheduler.request(); });
+        row.appendChild(btn);
+      }
+      return row;
+    }
+
+    function buildInfoBar() {
+      const el = h('div', { class: 'info-bar' });
+      const update = () => {
+        const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S);
+        const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p;
+        if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; }
+        const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0;
+        el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`;
+      };
+      tabSignalCleanups.push(Scheduler.onSignal(update));
+      tabSignalCleanups.push(Store.sub(P.V_PRE_S, update));
+      tabFns.push(update);
+      return el;
+    }
+
+    function buildAutoSceneBox() {
+      const box = h('div', { class: 'as-box off' });
+      const tag = h('span', { class: 'as-tag' }, '—');
+      const detail = h('div', { class: 'as-detail' }, '');
+      const tgl = mkToggle(P.V_AUTO_SCENE, (on) => {
         if (on) { AutoScene.activate(); OSD.show('자동 장면 ON', 800); }
         else { AutoScene.deactivate(); OSD.show('자동 장면 OFF', 800); }
         Scheduler.request();
       });
-      const asTopRow = h('div', { class: 'as-top' }, asLabel, asTag, h('div', { style: 'flex:1' }), asToggle);
-      const asDetail = h('div', { class: 'as-detail' }, '');
-
-      asBox.append(asTopRow, asDetail);
-
-      const syncAutoScene = () => {
+      box.append(
+        h('div', { class: 'as-top' }, h('span', { class: 'asl' }, '자동 장면'), tag, h('div', { style: 'flex:1' }), tgl),
+        detail
+      );
+      const sync = () => {
         const on = !!Store.get(P.V_AUTO_SCENE);
-        asBox.classList.toggle('off', !on);
-        if (!on) { asTag.textContent = 'OFF'; asDetail.textContent = ''; return; }
-        asTag.textContent = AutoScene.getLabel();
-        asDetail.textContent = AutoScene.getDetail();
+        box.classList.toggle('off', !on);
+        if (!on) { tag.textContent = 'OFF'; detail.textContent = ''; return; }
+        tag.textContent = AutoScene.getLabel();
+        detail.textContent = AutoScene.getDetail();
       };
-      tabFns.push(syncAutoScene);
-      tabSignalCleanups.push(Scheduler.onSignal(syncAutoScene));
-      w.append(asBox, mkSep());
+      tabFns.push(sync);
+      tabSignalCleanups.push(Scheduler.onSignal(sync));
+      return box;
+    }
 
-      if (IS_FIREFOX) { w.append(h('div', { style: 'font-size:10px;opacity:.7;padding-bottom:8px;color:var(--vsc-amber)' }, '⚠️ Firefox에서는 SVG 기반 수동 톤 보정이 지원되지 않습니다.')); }
-
-      w.append(chipRow('디테일 프리셋', P.V_PRE_S, Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k }))), mkRow('강도 믹스', ...mkSlider(P.V_PRE_MIX, 0, 1, 0.01)), mkSep());
-
-      const PRESET_KEYS = ['manualShadow','manualRecovery','manualBright','manualTemp','manualTint','manualSat','manualGamma','manualContrast','manualGain'];
-      const PRESET_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
-
-      const presetLabel = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정');
-      const presetGrid = h('div', { class: 'preset-grid' });
-
-      MANUAL_PRESETS.forEach(p => {
+    function buildPresetGrid() {
+      const wrap = h('div', {});
+      wrap.append(h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정'));
+      const grid = h('div', { class: 'preset-grid' });
+      const buttons = MANUAL_PRESETS.map(p => {
         const btn = h('button', { class: 'fine-btn' }, p.n);
         btn.addEventListener('click', () => {
           if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(); OSD.show('자동 장면 OFF (수동 프리셋 선택)', 1000); }
           const obj = {};
-          PRESET_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
-          Store.batch('video', obj);
-          Scheduler.request();
+          MANUAL_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
+          Store.batch('video', obj); Scheduler.request();
         });
-        const syncBtn = () => {
-          const match = PRESET_PATHS.every((path, i) => Store.get(path) === p.v[i]);
-          btn.style.background = match ? 'var(--vsc-neon-dim)' : 'rgba(255,255,255,0.03)';
-          btn.style.color = match ? 'var(--vsc-neon)' : 'rgba(255,255,255,0.6)';
-          btn.style.borderColor = match ? 'var(--vsc-neon-border)' : 'rgba(255,255,255,0.06)';
-        };
-        tabFns.push(syncBtn); syncBtn();
-        presetGrid.appendChild(btn);
+        grid.appendChild(btn);
+        return { btn, values: p.v };
       });
+      const syncGrid = () => {
+        const current = MANUAL_PATHS.map(p => Store.get(p));
+        for (const { btn, values } of buttons) {
+          const match = values.every((v, i) => current[i] === v);
+          btn.style.background = match ? 'var(--vsc-neon-dim)' : '';
+          btn.style.color = match ? 'var(--vsc-neon)' : '';
+          btn.style.borderColor = match ? 'var(--vsc-neon-border)' : '';
+        }
+      };
+      tabFns.push(syncGrid);
+      wrap.append(grid);
+      return wrap;
+    }
 
-      w.append(presetLabel, presetGrid);
-
-      function mkSliderWithFine(label, path, min, max, step, fineStep) {
-        const [slider, valEl] = mkSlider(path, min, max, step);
-        const mkFine = (delta, text) => { const btn = h('button', { class: 'fine-btn', style: 'font-size:11px' }, text); btn.addEventListener('click', () => { const cur = Number(Store.get(path)) || 0; Store.set(path, CLAMP(Math.round((cur + delta) * 100) / 100, min, max)); Scheduler.request(); }); return btn; };
-        const resetBtn = h('button', { class: 'fine-btn', style: 'min-width:24px;font-size:10px;opacity:.6' }, '0');
-        resetBtn.addEventListener('click', () => { Store.set(path, 0); Scheduler.request(); });
-        return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
-      }
-
-      w.append(mkSep(), h('div', { class: 'section-label' }, '톤 보정'));
-      w.append(
-        mkSliderWithFine('암부 부스트', P.V_MAN_SHAD, 0, 100, 1, 5),
-        mkSliderWithFine('디테일 복원', P.V_MAN_REC, 0, 100, 1, 5),
-        mkSliderWithFine('노출 보정', P.V_MAN_BRT, 0, 100, 1, 5),
-        mkSliderWithFine('노출 게인', P.V_MAN_GAIN, -30, 30, 1, 3),
-        mkSliderWithFine('감마', P.V_MAN_GAMMA, -30, 30, 1, 3),
-        mkSliderWithFine('콘트라스트', P.V_MAN_CON, -30, 30, 1, 3),
-      );
-
-      w.append(mkSep(), h('div', { class: 'section-label' }, '색상 보정'));
-      w.append(
-        mkSliderWithFine('색온도', P.V_MAN_TEMP, -50, 50, 1, 5),
-        mkSliderWithFine('틴트', P.V_MAN_TINT, -50, 50, 1, 5),
-        mkSliderWithFine('채도', P.V_MAN_SAT, -50, 50, 1, 5),
-      );
-
-      w.append(mkSep());
-
-      const brtBtns = [], brtChips = h('div', { class: 'chips' });
+    function buildScreenBright() {
+      const wrap = h('div', {});
+      const brtChips = h('div', { class: 'chips' });
+      const brtBtns = [];
       SCR_BRT_LABELS.forEach((label, idx) => {
         if (idx === 0) return;
         const chip = h('span', { class: 'chip', 'data-v': String(idx) }, '☀ ' + label);
-        chip.addEventListener('click', () => cycleScrBrtTo(idx));
+        chip.addEventListener('click', () => setTo(idx));
         brtBtns.push(chip); brtChips.appendChild(chip);
       });
-      const brtResetBtn = h('button', { class: 'chip', style: 'margin-left:auto;flex:none;width:70px;font-size:10px;border-color:var(--vsc-text-muted);color:#fff!important;' }, '리셋(OFF)');
-      brtResetBtn.addEventListener('click', () => cycleScrBrtTo(0));
-      const brtValLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
-      function cycleScrBrtTo(idx) { Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); syncBrt(); }
-      function syncBrt() { const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0; brtBtns.forEach(btn => btn.classList.toggle('on', btn.dataset.v === String(cur))); brtResetBtn.classList.toggle('on', cur === 0); brtValLabel.textContent = SCR_BRT_LABELS[cur]; }
-      tabFns.push(syncBrt); syncBrt();
-      w.append(h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' }, h('div', { style: 'display:flex;align-items:center' }, h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도'), brtValLabel), brtResetBtn), brtChips);
-      return w;
+      const resetBtn = h('button', { class: 'chip', style: 'margin-left:auto;flex:none;width:70px;font-size:10px;border-color:var(--vsc-text-muted);color:#fff!important;' }, '리셋(OFF)');
+      resetBtn.addEventListener('click', () => setTo(0));
+      const valLabel = h('span', { style: 'font-size:11px;color:var(--vsc-neon);margin-left:6px' }, '');
+      function setTo(idx) { Store.set(P.APP_SCREEN_BRT, idx); applyScrBrt(idx); sync(); }
+      function sync() {
+        const cur = Number(Store.get(P.APP_SCREEN_BRT)) || 0;
+        brtBtns.forEach(b => b.classList.toggle('on', b.dataset.v === String(cur)));
+        resetBtn.classList.toggle('on', cur === 0);
+        valLabel.textContent = SCR_BRT_LABELS[cur];
+      }
+      tabFns.push(sync); sync();
+      wrap.append(
+        h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0' },
+          h('div', { style: 'display:flex;align-items:center' }, h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '화면 조도'), valLabel),
+          resetBtn
+        ),
+        brtChips
+      );
+      return wrap;
     }
 
-    function buildAudioTab() {
-      const w = h('div', {});
-      w.append(mkRow('오디오 평준화', mkToggle(P.A_EN, () => Audio.setTarget(__internal._activeVideo))), mkRow('평준화 강도', ...mkSlider(P.A_STR, 0, 100, 1)), mkSep());
-      w.append(h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;line-height:1.5' }, '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 광고/폭발음 등 갑작스런 큰 소리를 방지합니다.'));
-      const status = h('div', { style: 'font-size:10px;opacity:.5;padding:4px 0;text-align:left;' }, '상태: 대기');
-      tabSignalCleanups.push(Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); status.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (평준화 처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; }));
-      w.append(status);
-      if (IS_FIREFOX) w.append(h('div', { style: 'font-size:10px;opacity:.4;padding:4px 0;color:var(--vsc-amber)' }, 'Firefox에서는 오디오 평준화가 지원되지 않습니다.'));
-      return w;
+    function buildRateDisplay() {
+      const el = h('div', { class: 'rate-display' });
+      const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; };
+      tabFns.push(sync); sync();
+      return el;
     }
 
-    function buildPlaybackTab() {
-      const w = h('div', {});
-      w.append(mkRow('속도 제어', mkToggle(P.PB_EN, () => Scheduler.request())));
-      const rateDisplay = h('div', { class: 'rate-display' });
-      function syncRate() { rateDisplay.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }
-      tabFns.push(syncRate); syncRate(); w.append(rateDisplay);
+    function buildAudioStatus() {
+      const el = h('div', { class: 'hint' }, '상태: 대기');
+      tabSignalCleanups.push(Scheduler.onSignal(() => {
+        if (!panelOpen) return;
+        const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
+        el.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (평준화 처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)';
+      }));
+      return el;
+    }
 
-      const chipRow2 = h('div', { class: 'chips' });
-      function syncChips() { const cur = Number(Store.get(P.PB_RATE)) || 1; for (const c of chipRow2.children) c.classList.toggle('on', Math.abs(cur - parseFloat(c.dataset.v)) < 0.01); }
-      [0.25, 0.5, 1.0, 1.25, 1.5, 2.0, 3.0, 5.0].forEach(p => {
-        const el = h('span', { class: 'chip', 'data-v': String(p) }, `${p}×`);
-        el.addEventListener('click', () => { Store.set(P.PB_RATE, p); Store.set(P.PB_EN, true); Scheduler.request(); });
-        chipRow2.appendChild(el);
-      });
-      tabFns.push(syncChips); syncChips(); w.append(chipRow2);
+    const TAB_SCHEMA = {
+      video: [
+        { type: 'widget', build: buildInfoBar },
+        { type: 'widget', build: buildAutoSceneBox },
+        { type: 'sep' },
+        ...(IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 SVG 기반 수동 톤 보정이 지원되지 않습니다.' }] : []),
+        { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S,
+          items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
+        { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 },
+        { type: 'sep' },
+        { type: 'widget', build: buildPresetGrid },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '톤 보정' },
+        { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '색상 보정' },
+        { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 },
+        { type: 'sep' },
+        { type: 'widget', build: buildScreenBright },
+      ],
+      audio: [
+        { type: 'toggle', label: '오디오 평준화', path: P.A_EN, onChange: () => Audio.setTarget(__internal._activeVideo) },
+        { type: 'slider', label: '평준화 강도', path: P.A_STR, min: 0, max: 100, step: 1 },
+        { type: 'sep' },
+        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 광고/폭발음 등 갑작스런 큰 소리를 방지합니다.' },
+        { type: 'widget', build: buildAudioStatus },
+        ...(IS_FIREFOX ? [{ type: 'hint', cls: 'dim', text: 'Firefox에서는 오디오 평준화가 지원되지 않습니다.' }] : []),
+      ],
+      playback: [
+        { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
+        { type: 'widget', build: buildRateDisplay },
+        { type: 'chips', path: P.PB_RATE,
+          onSelect: v => { Store.set(P.PB_RATE, v); Store.set(P.PB_EN, true); },
+          items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
+        { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
+        { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01 },
+      ]
+    };
 
-      const fineRow = h('div', { class: 'fine-row' });
-      [{ l: '−0.25', d: -0.25 }, { l: '−0.05', d: -0.05 }, { l: '+0.05', d: +0.05 }, { l: '+0.25', d: +0.25 }].forEach(fs => {
-        const btn = h('button', { class: 'fine-btn' }, fs.l);
-        btn.addEventListener('click', () => { Store.set(P.PB_RATE, CLAMP((Number(Store.get(P.PB_RATE)) || 1) + fs.d, 0.07, 5)); Store.set(P.PB_EN, true); Scheduler.request(); });
-        fineRow.appendChild(btn);
-      });
-      w.append(fineRow, mkRow('속도 슬라이더', ...mkSlider(P.PB_RATE, 0.07, 5, 0.01)));
-      return w;
+    function renderSchema(schema, container) {
+      for (const item of schema) {
+        switch (item.type) {
+          case 'sep':          container.append(mkSep()); break;
+          case 'sectionLabel': container.append(h('div', { class: 'section-label' }, item.text)); break;
+          case 'hint':         container.append(h('div', { class: `hint${item.cls ? ' ' + item.cls : ''}` }, item.text)); break;
+          case 'slider':       container.append(mkRow(item.label, ...mkSlider(item.path, item.min, item.max, item.step))); break;
+          case 'fineSlider':   container.append(mkSliderWithFine(item.label, item.path, item.min, item.max, item.step, item.fine)); break;
+          case 'toggle':       container.append(mkRow(item.label, mkToggle(item.path, item.onChange))); break;
+          case 'chips':        container.append(mkChipRow(item.label || '', item.path, item.items, item.onSelect)); break;
+          case 'fineButtons':  container.append(mkFineButtons(item.path, item.steps, item.min, item.max)); break;
+          case 'widget':       container.append(item.build()); break;
+        }
+      }
     }
 
     function buildQuickBar() {
@@ -1193,40 +1305,25 @@
     function renderTab() {
       const body = _shadow?.querySelector('.body'); if (!body) return;
       body.textContent = '';
-      tabSignalCleanups.forEach(cleanup => cleanup()); tabSignalCleanups.length = 0; tabFns.length = 0;
-      const w = h('div', {});
-      if (activeTab === 'video') w.appendChild(buildVideoTab());
-      else if (activeTab === 'audio') w.appendChild(buildAudioTab());
-      else if (activeTab === 'playback') w.appendChild(buildPlaybackTab());
-      body.appendChild(w);
+      tabSignalCleanups.forEach(c => c()); tabSignalCleanups.length = 0; tabFns.length = 0;
+      const schema = TAB_SCHEMA[activeTab];
+      if (schema) renderSchema(schema, body);
       tabFns.forEach(f => f());
-      _shadow.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.t === activeTab));
       updateTabIndicator(_shadow.querySelector('.tabs'), activeTab);
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) tabFns.forEach(f => f()); }));
     }
 
-    function togglePanel(force) { buildPanel(); panelOpen = force !== undefined ? force : !panelOpen; if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); } else { panelEl.classList.remove('open'); setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); } }
+    function togglePanel(force) {
+      buildPanel();
+      panelOpen = force !== undefined ? force : !panelOpen;
+      if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); }
+      else { panelEl.classList.remove('open'); setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); }
+    }
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-
-    // 🌟 [핫픽스] 마스터 타이머: 성능 낭비 없이 4초마다 가볍게 섀도우 돔 스캔 진행
-    let maintTick = 0;
-    setInterval(() => {
-      maintTick++;
-      
-      if (maintTick % 2 === 0) {
-        Registry.scanShadowRoots();
-      }
-
-      updateQuickBarVisibility();
-      if (quickBarHost?.parentNode !== getMountTarget()) reparent();
-      
-      if (maintTick % 3 === 0) {
-        Registry.cleanup();
-      }
-    }, 2000);
-
+    setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
+    setInterval(() => { if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
     document.addEventListener('fullscreenchange', onFullscreenChange);
     document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
@@ -1268,7 +1365,6 @@
       }
       for (const v of Registry.videos) {
         if (!v.isConnected) continue;
-        if (v !== target) { Filters.clear(v); continue; }
         const dW = v.clientWidth || 0, dH = v.clientHeight || 0;
         if (dW < 80 || dH < 45) { Filters.clear(v); continue; }
         const params = Params.get(v);
@@ -1277,16 +1373,12 @@
       }
     };
     Scheduler.registerApply(apply);
-    Store.sub(P.PB_EN, (enabled) => {
-      if (!enabled && __internal._activeVideo?.isConnected) {
-        try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {}
-      }
-    });
-    document.addEventListener('fullscreenchange', () => Scheduler.request());
+    Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
+    document.addEventListener('fullscreenchange', () => Scheduler.request(true));
 
     createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene);
     __internal.Store = Store; __internal._activeVideo = null;
-    try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(); }); } catch (_) {}
+    try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(true); }); } catch (_) {}
 
     if (Store.get(P.V_AUTO_SCENE)) {
       setTimeout(() => { AutoScene.activate(); }, 1000);
