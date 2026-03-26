@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.7.4)
+// @name         Video_Control (v28.7.5)
 // @namespace    https://github.com/
-// @version      28.7.4
-// @description  v28.7.4: 톤 계수 228.1.0 수준 복원 + sRGB 색공간 전환 → 자동장면 어두워짐 해결
+// @version      28.7.5
+// @description  v28.7.5: 장면 분류를 설정 객체+smoothstep+gamma 방식으로 개선 → 경계 불연속 제거, 튜닝 외부화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.7.4'; /* [v28.7.4] */
+  const VSC_VERSION = '28.7.5'; /* [v28.7.5] */
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -684,7 +684,7 @@
         const mCon   = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain  = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
 
-        /* [v28.7.4] 톤 계수를 228.1.0 수준으로 복원 (was 0.0020/0.0018/0.0024) */
+        /* [v28.7.4] 톤 계수를 228.1.0 수준으로 복원 */
         out.toe      = mShad * 0.0040;
         out.mid      = mRec  * 0.0035;
         out.shoulder = mBrt  * 0.0045;
@@ -720,7 +720,10 @@
     };
   }
 
-  /* ══ createAutoScene — [v28.7.3] 기본 체급 대폭 상향, 눈부심 방어선 완화 ══ */
+  /* ══════════════════════════════════════════════════════════════
+     createAutoScene — [v28.7.5] 설정 객체 + smoothstep + gamma
+     경계 불연속 제거, 임계값 외부화로 튜닝 용이
+     ══════════════════════════════════════════════════════════════ */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
@@ -748,35 +751,79 @@
 
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
+    /* ── [v28.7.5] 장면 분류 설정 객체 ── */
+    const SCENE_CONFIG = {
+      dark:   { max: 30,  label: '어두운 장면' },   // 이 숫자만 바꾸면 어두운 경계 조정
+      bright: { min: 220, label: '눈부신 장면' },   // 이 숫자만 바꾸면 밝은 경계 조정
+      normal:            { label: '일반 영상'   },
+      drm:               { label: '보안 영상 ◉ DRM' },
+      gamma: 2.2,          // 지각 보정 강도 (높을수록 어두운 쪽 완만)
+      useSmoothstep: true, // false → gamma-only, true → smoothstep+gamma
+    };
+
+    /* ── smoothstep: S-커브로 경계 충격 제거 ── */
+    function smoothstep(edge0, edge1, x) {
+      const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    /* ── [v28.7.5] 통합 장면 분류 함수 ──
+       반환: { label, darkFactor, brightFactor }
+       - darkFactor  : 0(일반)→1(극어두움)  smoothstep+gamma 적용
+       - brightFactor: 0(일반)→1(극밝음)    smoothstep+gamma 적용  */
+    function classifyBrightness(brightness, cfg) {
+      if (brightness < 0) {
+        return { label: cfg.drm.label, darkFactor: 0, brightFactor: 0, isDRM: true };
+      }
+
+      let darkRaw = 0, brightRaw = 0;
+
+      if (brightness < cfg.dark.max) {
+        darkRaw = cfg.useSmoothstep
+          ? 1 - smoothstep(0, cfg.dark.max, brightness)
+          : 1 - brightness / cfg.dark.max;
+      }
+      if (brightness > cfg.bright.min) {
+        brightRaw = cfg.useSmoothstep
+          ? smoothstep(cfg.bright.min, 255, brightness)
+          : (brightness - cfg.bright.min) / (255 - cfg.bright.min);
+      }
+
+      // gamma 지각 보정
+      const darkFactor  = darkRaw  > 0 ? Math.pow(darkRaw,  1 / cfg.gamma) : 0;
+      const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0;
+
+      let label;
+      if (darkFactor > 0)        label = `${cfg.dark.label} ◉ 밝기 ${Math.round(brightness)}`;
+      else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`;
+      else                       label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`;
+
+      return { label, darkFactor, brightFactor, isDRM: false };
+    }
+
+    /* ── 변화 감지 임계값 (기존 유지) ── */
     function getBrightnessThreshold(brightness) {
       if (brightness < 60)  return 6;
       if (brightness > 180) return 8;
       return 10;
     }
 
-    function getBrightnessFactor(brightness) {
-      return CLAMP((100 - brightness) / 100, -1.0, 1.0);
-    }
-
-    function interpolate(factor) {
+    /* ── [v28.7.5] 보간: darkFactor/brightFactor를 직접 사용 ── */
+    function interpolate(darkFactor, brightFactor) {
       return BASE.map((base, i) => {
-        if (factor >= 0) return Math.round(base + DARK_BOOST[i] * factor);
-        else return Math.round(base + BRIGHT_CUT[i] * (-factor));
+        if (darkFactor > 0)   return Math.round(base + DARK_BOOST[i] * darkFactor);
+        if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor);
+        return base;
       });
     }
 
-    function getPresetSByFactor(factor) {
-      if (factor > 0.5)  return 'M';
-      if (factor > 0.1)  return 'S';
-      if (factor > -0.3) return 'off';
-      return 'none';
-    }
-
-    function getBrightnessLabel(brightness) {
-      if (brightness < 0)   return '보안 영상 ◉ DRM';
-      if (brightness < 40)  return `어두운 장면 ◉ 밝기 ${Math.round(brightness)}`;
-      if (brightness > 160) return `눈부신 장면 ◉ 밝기 ${Math.round(brightness)}`;
-      return `일반 영상 ◉ 밝기 ${Math.round(brightness)}`;
+    /* ── [v28.7.5] 샤프닝 프리셋도 factor 기반 ── */
+    function getPresetSByFactors(darkFactor, brightFactor) {
+      if (darkFactor > 0.5)   return 'M';
+      if (darkFactor > 0.1)   return 'S';
+      if (brightFactor > 0.3) return 'none';
+      if (brightFactor > 0)   return 'off';
+      return 'off';
     }
 
     function pushBrightness(raw) {
@@ -865,11 +912,15 @@
       }
 
       const rawBrt = analyzeFrame(video);
-      if (rawBrt < 0) {
+
+      /* [v28.7.5] classifyBrightness로 통합 분류 */
+      const scene = classifyBrightness(rawBrt, SCENE_CONFIG);
+
+      if (scene.isDRM) {
         if (currentMode !== 'drm') {
           currentMode = 'drm'; currentBrightness = -1;
           lastAppliedBrightness = -999;
-          currentLabel = '보안 영상 ◉ DRM';
+          currentLabel = scene.label;
           applyValues(DRM_BASE, 'M');
           log.info('[AutoScene] → DRM 폴백');
         }
@@ -878,21 +929,23 @@
 
       const smoothed = pushBrightness(rawBrt);
       currentBrightness = smoothed;
-      currentLabel = getBrightnessLabel(smoothed);
+
+      /* smoothed로 다시 분류 (이동 평균 적용된 값) */
+      const smoothScene = classifyBrightness(smoothed, SCENE_CONFIG);
+      currentLabel = smoothScene.label;
 
       const threshold = getBrightnessThreshold(smoothed);
       const delta = Math.abs(smoothed - lastAppliedBrightness);
       if (currentMode === 'interpolate' && delta < threshold) return;
 
       currentMode = 'interpolate';
-      const factor = getBrightnessFactor(smoothed);
-      const values = interpolate(factor);
-      const presetS = getPresetSByFactor(factor);
+      const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor);
+      const presetS = getPresetSByFactors(smoothScene.darkFactor, smoothScene.brightFactor);
       const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
       if (changed) {
         applyValues(values, presetS);
         lastAppliedBrightness = smoothed;
-        log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} (Δ${Math.round(delta)}>임계${threshold}) → factor ${factor.toFixed(2)} → [${values}]`);
+        log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} (Δ${Math.round(delta)}>임계${threshold}) → dark ${smoothScene.darkFactor.toFixed(2)} bright ${smoothScene.brightFactor.toFixed(2)} → [${values}]`);
       } else {
         lastAppliedBrightness = smoothed;
       }
