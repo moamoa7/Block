@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v228.1.0)
+// @name         Video_Control (v28.1.1)
 // @namespace    https://github.com/
-// @version      228.1.0
-// @description  v228.1.0: 지능형 보간 자동장면 + 비대칭 디테일 복원 + DRM 폴백
+// @version      28.1.1
+// @description  v28.1.1: 지능형 보간 자동장면 + 비대칭 디테일 복원 + DRM 폴백 + 렌더링 최적화 핫픽스
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '228.1.0';
+  const VSC_VERSION = '28.1.1';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -121,7 +121,7 @@
       state, rev: () => rev,
       get: (p) => { const parts = p.split('.'); return parts.length > 1 ? state[parts[0]]?.[parts[1]] : state[parts[0]]; },
       set: (p, val) => { const [c, k] = p.split('.'); if (k != null) { if (Object.is(state[c]?.[k], val)) return; state[c][k] = val; rev++; emit(p, val); scheduler.request(); } },
-      batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; scheduler.request(); } },
+      batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; } },
       sub: (k, f) => {
         if (!listeners.has(k)) listeners.set(k, new Set());
         listeners.get(k).add(f);
@@ -538,13 +538,16 @@
         const colorGain = tempTintToRgbGain(s.temp, s.tint);
         const tempTintKey = `${s.temp}|${s.tint}`;
         if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; ctx.tempFuncR.setAttribute('slope', colorGain.rs); ctx.tempFuncG.setAttribute('slope', colorGain.gs); ctx.tempFuncB.setAttribute('slope', colorGain.bs); }
+
+        let desatMul = 1;
         if (!IS_FIREFOX) {
           const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
           let kernelStr = '0,0,0, 0,1,0, 0,0,0';
           if (totalS >= 0.005) { const edge = -totalS; const diag = edge * 0.707; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
-          if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; const desatVal = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1).toFixed(3) : '1.000'; ctx.fConv.setAttribute('kernelMatrix', kernelStr); const kernelSum = 4 * (-totalS) + 4 * (-totalS * 0.707) + (1 - 4 * (-totalS) - 4 * (-totalS * 0.707)); ctx.fConv.setAttribute('divisor', kernelSum.toFixed(5)); ctx.fSat.setAttribute('values', desatVal); }
+          if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); ctx.fConv.setAttribute('divisor', '1'); }
+          desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
         }
-        const satVal = CLAMP(s._cssSat, 0.4, 1.8).toFixed(3);
+        const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
         ctx.fSat.setAttribute('values', satVal);
       }
       const parts = [`url(#${ctx.fid})`];
@@ -662,13 +665,13 @@
     const brightHistory = [];
     const HISTORY_SIZE = 5;
 
-    // 🌟 [재정리] 보간 기준 벡터 (v227.2.0 수치와 100% 동기화)
+    // 🌟 [재정리] 보간 기준 벡터 (v228.1.1 최종 확정)
     //                          암부 복원 노출 색온 틴트 채도 감마 콘트 게인
-    const BASE     = [  8,  10,   5,   0,   0,   0,  -2,   3,   2 ]; // 일반 영상
-    const DARK_V   = [ 40, 30, 17, 0, 0, 0, -6, 7, 10 ]; // 어두운 장면 (사용자1_5단)
-    const BRIGHT_V = [  6,   8,   2,  15,   0,  -8,   3,  -4,  -4 ]; // 눈부신 장면 (독서 모드)
-    const VERTICAL = [  6,  10,   4,   0,   0,   2,  -1,   4,   1 ]; // 세로형 영상
-    const DRM_BASE = [  22, 20, 11, 0, 0, 0, -4, 5, 6 ]; // 보안 영상 (사용자1_3단)
+    const BASE     = [  8, 10,  5,  0, 0,  0, -2, 3,  2 ]; // 일반 영상
+    const DARK_V   = [ 40, 30, 17,  0, 0,  0, -6, 7, 10 ]; // 어두운 장면 보간 상한 (사용자1_5단)
+    const BRIGHT_V = [  6,  8,  2, 15, 0, -8,  3,-4, -4 ]; // 눈부신 장면 (독서 모드)
+    const VERTICAL = [  6, 10,  4,  0, 0,  2, -1, 4,  1 ]; // 세로형 영상
+    const DRM_BASE = [ 22, 20, 11,  0, 0,  0, -4, 5,  6 ]; // DRM 고정 폴백 (사용자1_3단)
 
     // 차분 벡터 계산
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
@@ -751,11 +754,10 @@
     function applyValues(values, presetS) {
       const obj = {};
       MANUAL_KEYS.forEach((k, i) => { obj[k] = values[i]; });
+      if (presetS != null) obj.presetS = presetS;
       store.batch('video', obj);
-      if (presetS != null) store.set(P.V_PRE_S, presetS);
       currentValues = values;
       currentPresetS = presetS;
-      scheduler.request();
     }
 
     function onManualChange() {
