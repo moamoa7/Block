@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.3.0)
+// @name         Video_Control (v28.4.0)
 // @namespace    https://github.com/
-// @version      28.3.0
-// @description  v28.3.0: 리뷰 기반 버그 수정 + 성능 개선 + 간결화
+// @version      28.4.0
+// @description  v28.4.0: autoScene 1초 주기 + 밝기 변화 임계값 기반 반영 로직
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.3.0';
+  const VSC_VERSION = '28.4.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -40,10 +40,8 @@
     error: (...a) => console.error('[VSC]', ...a)
   };
 
-  /* ── [5-2 fix] normalizeHostname: IP 주소 오판 수정 ── */
   function normalizeHostname(h) {
     const parts = h.split('.');
-    // IP 주소 판별 (순수 숫자 4옥텟)
     if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return h;
     let norm = parts;
     if (norm[0] === 'www') norm = norm.slice(1);
@@ -54,7 +52,6 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.60;
 
-  /* ── [4-3 fix] fullscreenchange 유틸리티 ── */
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
     document.addEventListener('webkitfullscreenchange', fn);
@@ -337,7 +334,6 @@
           removed++;
         }
       }
-      /* [1-1 개선] disconnected shadow root 정리 */
       for (let i = shadowRootsLRU.length - 1; i >= 0; i--) {
         if (!shadowRootsLRU[i].host?.isConnected) shadowRootsLRU.splice(i, 1);
       }
@@ -640,7 +636,6 @@
       return `url(#${ctx.fid})`;
     }
 
-    /* [1-1 개선] disconnected root의 SVG 정리 메서드 */
     function purge(root) {
       const ctx = ctxMap.get(root);
       if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); }
@@ -743,10 +738,14 @@
     };
   }
 
+  /* ══ createAutoScene — 1초 주기 + 밝기 변화 임계값 기반 반영 ══ */
   function createAutoScene(store, scheduler) {
-    let lastCheck = 0, suppressUntil = 0, currentBrightness = -1;
+    let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
+    let lastAppliedBrightness = -999; // 마지막으로 실제 반영된 smoothed 밝기
+
+    const CHECK_INTERVAL = 1000; // 1초 주기
 
     const canvas = document.createElement('canvas');
     const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
@@ -765,6 +764,13 @@
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
 
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
+
+    /* 밝기 구간별 적응형 임계값 */
+    function getBrightnessThreshold(brightness) {
+      if (brightness < 60)  return 6;   // 어두운 장면: 민감하게
+      if (brightness > 180) return 8;   // 밝은 장면: 적당히
+      return 10;                        // 일반 영상: 여유 있게
+    }
 
     function getBrightnessFactor(brightness) { return CLAMP((120 - brightness) / 120, -0.8, 1.0); }
 
@@ -836,11 +842,9 @@
       currentPresetS = presetS;
     }
 
-    /* ── [1-5 fix] 수동 슬라이더 조작 시 autoScene 비활성화 ── */
     function onManualChange() {
       if (_internalBatch) return;
       if (!store.get(P.V_AUTO_SCENE)) return;
-      // 사용자가 수동으로 슬라이더를 조작하면 autoScene을 끈다
       store.set(P.V_AUTO_SCENE, false);
       deactivate();
       log.info('[AutoScene] 수동 조작 감지 → 자동 장면 OFF');
@@ -853,13 +857,13 @@
       if (!video?.isConnected) return;
       if (video.paused || video.ended) return;
       const now = performance.now();
-      if (now < suppressUntil) return;
-      if (now - lastCheck < 3000) return;
+      if (now - lastCheck < CHECK_INTERVAL) return;
       lastCheck = now;
 
       if (detectVertical(video)) {
         if (currentMode !== 'vertical') {
           currentMode = 'vertical'; currentBrightness = -1;
+          lastAppliedBrightness = -999;
           currentLabel = '세로형 영상 (쇼츠/릴스)';
           applyValues(VERTICAL, 'S');
           log.info('[AutoScene] → 세로형 영상');
@@ -871,6 +875,7 @@
       if (rawBrt < 0) {
         if (currentMode !== 'drm') {
           currentMode = 'drm'; currentBrightness = -1;
+          lastAppliedBrightness = -999;
           currentLabel = '보안 영상 ◉ DRM';
           applyValues(DRM_BASE, 'M');
           log.info('[AutoScene] → DRM 폴백');
@@ -879,24 +884,36 @@
       }
 
       const smoothed = pushBrightness(rawBrt);
-      currentBrightness = smoothed; currentMode = 'interpolate';
+      currentBrightness = smoothed;
       currentLabel = getBrightnessLabel(smoothed);
+
+      /* 임계값 비교: 이전 반영 밝기 대비 변화폭이 임계 미만이면 skip */
+      const threshold = getBrightnessThreshold(smoothed);
+      const delta = Math.abs(smoothed - lastAppliedBrightness);
+      if (currentMode === 'interpolate' && delta < threshold) return;
+
+      /* 임계 초과 → 보정값 계산 및 반영 */
+      currentMode = 'interpolate';
       const factor = getBrightnessFactor(smoothed);
       const values = interpolate(factor);
       const presetS = getPresetSByFactor(factor);
       const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
       if (changed) {
         applyValues(values, presetS);
-        log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} → factor ${factor.toFixed(2)} → [${values}]`);
+        lastAppliedBrightness = smoothed;
+        log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} (Δ${Math.round(delta)}>임계${threshold}) → factor ${factor.toFixed(2)} → [${values}]`);
+      } else {
+        /* 보정값 자체는 같지만 밝기 기준점은 갱신 (안 하면 미세 누적으로 영원히 skip) */
+        lastAppliedBrightness = smoothed;
       }
     }
 
-    /* ── [2-2 fix] activate에서 lastCheck를 즉시 분석 가능하도록 설정 ── */
     function activate() {
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
-      brightHistory.length = 0; suppressUntil = 0;
-      lastCheck = performance.now() - 3001; // 즉시 첫 분석 가능
+      brightHistory.length = 0;
+      lastAppliedBrightness = -999;
+      lastCheck = performance.now() - CHECK_INTERVAL - 1; // 즉시 첫 분석 가능
       const video = __internal._activeVideo;
       if (video?.isConnected) tick(video);
     }
@@ -904,6 +921,7 @@
     function deactivate() {
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       brightHistory.length = 0;
+      lastAppliedBrightness = -999;
     }
 
     return {
@@ -951,7 +969,6 @@
 
     globalSignalCleanups.push(Store.sub(P.APP_SCREEN_BRT, v => applyScrBrt(Number(v) || 0)));
     setTimeout(() => { const saved = Number(Store.get(P.APP_SCREEN_BRT)) || 0; if (saved > 0) applyScrBrt(saved); }, 500);
-    /* [4-3 fix] onFsChange 유틸리티 사용 */
     onFsChange(() => applyScrBrt(Number(Store.get(P.APP_SCREEN_BRT)) || 0));
 
     const CSS_VARS = `
@@ -1027,7 +1044,6 @@
 
     function getMountTarget() { const fs = document.fullscreenElement || document.webkitFullscreenElement; if (fs) return fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement) : fs; return document.documentElement || document.body; }
 
-    /* [4-2 fix] HOST_STYLE 중복 제거 */
     const HOST_STYLE_BASE = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
     const HOST_STYLE_NORMAL = HOST_STYLE_BASE + 'width:0!important;height:0!important;';
     const HOST_STYLE_FS = HOST_STYLE_BASE + 'right:0!important;bottom:0!important;width:100%!important;height:100%!important;';
@@ -1354,7 +1370,6 @@
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
-    /* [4-3 fix] onFsChange 유틸리티 사용 */
     onFsChange(onFullscreenChange);
 
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
@@ -1404,10 +1419,8 @@
     };
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
-    /* [4-3 fix] onFsChange 유틸리티 사용 */
     onFsChange(() => Scheduler.request(true));
 
-    /* [1-1 개선] Filters.purge를 UI에 전달 */
     createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters);
     __internal.Store = Store; __internal._activeVideo = null;
     try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(true); }); } catch (_) {}
