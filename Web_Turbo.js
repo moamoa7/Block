@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      18.5
-// @description  Lean web optimizer v18.5 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, chat CSS guard, BFCache safe, scheduler.yield integration, Speculation Rules prefetch, popstate SPA fallback, background-tab grace period. Zero prototype hooks except FontFace.
+// @version      19.0
+// @description  Lean web optimizer v19.0 – Font FOIT prevention, DNS auto-preconnect, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, DRM-safe MSE stream protection, BFCache safe, Speculation Rules prefetch, popstate SPA fallback, background-tab grace period, auto chat-UI detection. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,7 +16,7 @@
 
 'use strict';
 (() => {
-  const V = '18.5';
+  const V = '19.0';
   const doc = document;
   const win = window;
   const HOST = location.hostname;
@@ -26,13 +26,13 @@
    *  §0  Environment
    * ═══════════════════════════════════════════════ */
   const DEV_CORES = navigator.hardwareConcurrency || 4;
-  const DEV_MEM   = (navigator.deviceMemory ?? (IS_MOBILE ? 4 : 8));
+  const DEV_MEM   = navigator.deviceMemory ?? (IS_MOBILE ? 4 : 8);
   const conn      = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
   const NET = {
     ect : conn.effectiveType || '4g',
     dl  : conn.downlink      || 10,
     rtt : conn.rtt           || 50,
-    save: !!(conn.saveData),
+    save: !!conn.saveData,
   };
 
   const getTier = () =>
@@ -50,42 +50,36 @@
     slowResMs        : 3000,
     lazyMarginPx     : 300,
     gracePeriodMs    : 30000,
+    chatStructThreshold : 4,
+    chatMutationWindow  : 2000,
+    chatMutationThreshold: 60,
   };
 
   /* ═══════════════════════════════════════════════
    *  §0.5  Safe Head Append Helper
    * ═══════════════════════════════════════════════ */
   const pendingHeadEls = [];
-  let headReady = false;
+  let headReady = !!doc.head;
 
   const appendToHead = (el) => {
-    if (doc.head) {
-      doc.head.appendChild(el);
-    } else {
-      pendingHeadEls.push(el);
-    }
+    if (doc.head) doc.head.appendChild(el);
+    else pendingHeadEls.push(el);
   };
 
   const flushHeadQueue = () => {
     if (headReady) return;
     headReady = true;
-    for (const el of pendingHeadEls) {
-      if (doc.head) doc.head.appendChild(el);
-    }
+    if (!doc.head) return;
+    for (const el of pendingHeadEls) doc.head.appendChild(el);
     pendingHeadEls.length = 0;
   };
 
-  if (doc.head) {
-    headReady = true;
-  } else {
+  if (!headReady) {
+    const target = doc.documentElement || doc;
     const headObs = new MutationObserver(() => {
       if (doc.head) { flushHeadQueue(); headObs.disconnect(); }
     });
-    if (doc.documentElement) {
-      headObs.observe(doc.documentElement, { childList: true });
-    } else {
-      headObs.observe(doc, { childList: true, subtree: true });
-    }
+    headObs.observe(target, { childList: true, subtree: !doc.documentElement });
   }
 
   /* ═══════════════════════════════════════════════
@@ -107,22 +101,15 @@
 
   /* ═══════════════════════════════════════════════
    *  §2  CSP Monitor
-   *  [PATCH-14] directive별 필터링 — script-src/default-src
-   *  위반만 blocked 처리. img-src 등 무관한 위반으로
-   *  Speculation Rules 삽입이 차단되는 오탐 방지.
    * ═══════════════════════════════════════════════ */
   const CSP = (() => {
     let blocked = false;
     const stats = { violations: 0 };
-    try {
-      doc.addEventListener('securitypolicyviolation', (e) => {
-        stats.violations++;
-        const dir = e.violatedDirective || '';
-        if (dir.startsWith('script-src') || dir.startsWith('default-src')) {
-          blocked = true;
-        }
-      });
-    } catch (_) {}
+    doc.addEventListener('securitypolicyviolation', (e) => {
+      stats.violations++;
+      const dir = e.violatedDirective || '';
+      if (dir.startsWith('script-src') || dir.startsWith('default-src')) blocked = true;
+    });
     return { isBlocked: () => blocked, stats };
   })();
 
@@ -135,12 +122,10 @@
   const activateStreamProtection = () => {
     if (streamStyle) return;
     isStreaming = true;
-    try {
-      streamStyle = doc.createElement('style');
-      streamStyle.id = 'tb-stream';
-      streamStyle.textContent = 'video,video *,:has(>video),:has(>video) *{content-visibility:visible!important;contain-intrinsic-size:none!important}';
-      appendToHead(streamStyle);
-    } catch (_) {}
+    streamStyle = doc.createElement('style');
+    streamStyle.id = 'tb-stream';
+    streamStyle.textContent = 'video,video *,:has(>video),:has(>video) *{content-visibility:visible!important;contain-intrinsic-size:none!important}';
+    appendToHead(streamStyle);
   };
 
   if (typeof PerformanceObserver === 'function') {
@@ -158,54 +143,142 @@
     } catch (_) {}
   }
 
-  const checkVideo = el => {
+  const checkVideo = (el) => {
     if (isStreaming || !el || el.tagName !== 'VIDEO') return;
     const src = el.src || el.currentSrc || '';
     if (src.startsWith('blob:') || el.srcObject) activateStreamProtection();
   };
+
   const scanVideos = () => {
     if (isStreaming) return;
-    try { doc.querySelectorAll('video').forEach(checkVideo); } catch (_) {}
+    doc.querySelectorAll('video').forEach(checkVideo);
   };
 
   /* ═══════════════════════════════════════════════
-   *  §4  Chat Site Detection
+   *  §4  Chat UI Auto-Detection
+   *
+   *  전략: Phase A(구조 점수)가 역치 이상이면
+   *  즉시 보호 CSS를 적용하고, Phase B(변이 감시)를
+   *  지속적으로 돌려서 오탐 시 해제한다.
+   *
+   *  ─ Phase A만 통과  → 선제 보호 ON
+   *  ─ Phase B 확인    → 보호 확정, 감시 종료
+   *  ─ Phase B 3회 실패 → 오탐 판정, 보호 해제
    * ═══════════════════════════════════════════════ */
-  const isChat = new Set([
-    'chatgpt.com','chat.openai.com','gemini.google.com','claude.ai',
-    'genspark.ai','perplexity.ai','aistudio.google.com',
-    'copilot.microsoft.com','grok.com','huggingface.co',
-    'chat.deepseek.com','poe.com',
-  ]).has(HOST);
+  let isChat = false;
+  let chatStyle = null;
+  let chatDetectionDone = false;
+
+  const CHAT_SELECTORS = [
+    { s: '[data-message-id]',        w: 2 },
+    { s: '[data-turn]',              w: 2 },
+    { s: '[data-testid*="message"]', w: 2 },
+    { s: '[role="log"]',             w: 2 },
+    { s: '[class*="streaming"]',     w: 2 },
+    { s: '[class*="generating"]',    w: 2 },
+    { s: '[class*="conversation"]',  w: 1.5 },
+    { s: '[class*="typing"]',        w: 1 },
+    { s: '[class*="markdown"] [class*="message"]', w: 1.5 },
+    { s: '[class*="prose"] [class*="message"]',    w: 1.5 },
+    { s: '[contenteditable="true"]', w: 1 },
+    { s: 'textarea',                 w: 0.5 },
+  ];
+
+  const calcStructScore = () => {
+    let score = 0;
+    for (const { s, w } of CHAT_SELECTORS) {
+      if (doc.querySelector(s)) score += w;
+    }
+    return score;
+  };
+
+  const setChatProtection = (on) => {
+    if (on && !chatStyle) {
+      isChat = true;
+      chatStyle = doc.createElement('style');
+      chatStyle.id = 'tb-chat';
+      chatStyle.textContent =
+        '[class*="streaming"],[class*="generating"],[class*="loading"],[class*="pending"]' +
+        '{content-visibility:visible!important}';
+      appendToHead(chatStyle);
+    } else if (!on && chatStyle) {
+      isChat = false;
+      chatStyle.remove();
+      chatStyle = null;
+    }
+  };
+
+  const runChatDetection = () => {
+    const structScore = calcStructScore();
+    if (structScore < CFG.chatStructThreshold) {
+      chatDetectionDone = true;
+      return;
+    }
+
+    /* Phase A 통과 → 선제 보호 */
+    setChatProtection(true);
+
+    /* Phase B — 지속 감시로 확정 또는 해제 */
+    let attempts = 0;
+    const maxAttempts = 3;
+
+    const runPhaseB = () => {
+      let count = 0;
+      const mo = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.type === 'characterData') count++;
+          else if (m.type === 'childList') count += m.addedNodes.length;
+        }
+        if (count >= CFG.chatMutationThreshold) {
+          mo.disconnect();
+          chatDetectionDone = true;
+          /* 확정 — 보호 유지 */
+        }
+      });
+      mo.observe(doc.body, { childList: true, characterData: true, subtree: true });
+
+      setTimeout(() => {
+        mo.disconnect();
+        if (chatDetectionDone) return;
+
+        attempts++;
+        if (count >= CFG.chatMutationThreshold) {
+          chatDetectionDone = true;
+          return;
+        }
+        if (attempts >= maxAttempts) {
+          /* 오탐 판정 → 보호 해제 */
+          setChatProtection(false);
+          chatDetectionDone = true;
+          return;
+        }
+        /* 재시도 — 사용자가 아직 질문을 안 했을 수 있음 */
+        setTimeout(runPhaseB, 10000);
+      }, CFG.chatMutationWindow);
+    };
+
+    runPhaseB();
+  };
 
   /* ═══════════════════════════════════════════════
-   *  §5  CSS (ViewTransition + Chat 보호)
+   *  §5  CSS (ViewTransition)
    * ═══════════════════════════════════════════════ */
   const injectCSS = () => {
-    try {
-      const parts = [];
-      if (typeof doc.startViewTransition === 'function') {
-        parts.push('::view-transition-old(*),::view-transition-new(*){animation-duration:.15s}');
-      }
-      if (isChat) {
-        parts.push('[class*="streaming"],[class*="generating"],[class*="loading"],[class*="pending"]{content-visibility:visible!important}');
-      }
-      if (!parts.length) return;
-      const s = doc.createElement('style'); s.id = 'tb-css';
-      s.textContent = parts.join('\n');
-      appendToHead(s);
-    } catch (_) {}
+    if (typeof doc.startViewTransition !== 'function') return;
+    const s = doc.createElement('style');
+    s.id = 'tb-css';
+    s.textContent = '::view-transition-old(*),::view-transition-new(*){animation-duration:.15s}';
+    appendToHead(s);
   };
 
   /* ═══════════════════════════════════════════════
    *  §6  FontFace Override (FOIT 방지)
-   *  [PATCH-1] desc 객체 방어적 복사 — 호출자의 원본
-   *  descriptor 객체가 변이(mutate)되는 것을 방지.
    * ═══════════════════════════════════════════════ */
   const FONT_DISPLAY = TIER === 't1' ? 'optional' : 'swap';
+
   if (typeof FontFace === 'function') {
     const Orig = FontFace;
-    win.FontFace = function (f, src, desc = {}) {
+    win.FontFace = function (f, src, desc) {
       const d = Object.assign({}, desc);
       if (!d.display) d.display = FONT_DISPLAY;
       return new Orig(f, src, d);
@@ -216,49 +289,34 @@
   }
 
   const patchFontRules = () => {
-    try {
-      for (const ss of doc.styleSheets) {
-        let rules;
-        try { rules = ss.cssRules; } catch (_) { continue; }
-        for (const r of rules) {
-          if (r instanceof CSSFontFaceRule) {
-            const s = r.style;
-            if (!s.fontDisplay || s.fontDisplay === 'auto') s.fontDisplay = FONT_DISPLAY;
-          }
+    for (const ss of doc.styleSheets) {
+      let rules;
+      try { rules = ss.cssRules; } catch (_) { continue; }
+      for (const r of rules) {
+        if (r instanceof CSSFontFaceRule) {
+          const s = r.style;
+          if (!s.fontDisplay || s.fontDisplay === 'auto') s.fontDisplay = FONT_DISPLAY;
         }
       }
-    } catch (_) {}
+    }
   };
 
   /* ═══════════════════════════════════════════════
-   *  §7  LCP Boost + Below‑fold Optimization
-   *
-   *  [PATCH-2] PerformanceObserver 콜백 내에서도
-   *  boostLCP() 호출 — DOMContentLoaded보다 LCP 엔트리가
-   *  늦게 도착하는 느린 페이지 커버.
-   *
-   *  [PATCH-5] sizes="auto"는 width descriptor(`w`)가 있는
-   *  srcset에서만 적용 — 미지원 브라우저 100vw 폴백 시
-   *  불필요한 과대 이미지 방지.
+   *  §7  LCP Boost + Below-fold Optimization
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
 
   if (typeof PerformanceObserver === 'function') {
     try {
-      const obs = new PerformanceObserver(list => {
+      const obs = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const last = entries[entries.length - 1];
-        if (last?.element) {
-          lcpEl = last.element;
-          /* [PATCH-2] LCP 업데이트 시 즉시 boost */
-          boostLCP();
-        }
+        if (last?.element) { lcpEl = last.element; boostLCP(); }
       });
       obs.observe({ type: 'largest-contentful-paint', buffered: true });
     } catch (_) {}
   }
 
-  /* boostLCP를 hoisting 가능하도록 function 선언 사용 */
   function boostLCP() {
     if (!lcpEl) return;
     if (!lcpEl.isConnected) { lcpEl = null; return; }
@@ -271,91 +329,71 @@
     }
   }
 
-  /* Below‑fold 이미지/iframe 최적화 — IntersectionObserver */
-  let belowFoldIO = null;
-  let belowFoldMO = null;
-
   const optimizeBelowFold = () => {
     const observed = new WeakSet();
+    const margin = `${CFG.lazyMarginPx}px 0px ${CFG.lazyMarginPx}px 0px`;
 
-    belowFoldIO = new IntersectionObserver((entries) => {
+    const io = new IntersectionObserver((entries) => {
       for (const e of entries) {
         const el = e.target;
         const tag = el.tagName;
+        io.unobserve(el);
 
         if (tag === 'IMG') {
-          if (el === lcpEl) { belowFoldIO.unobserve(el); continue; }
-
-          if (!e.isIntersecting) {
-            if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
-            if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
-            if (!el.fetchPriority || el.fetchPriority === 'high') el.fetchPriority = 'low';
-
-            /* [PATCH-5] sizes="auto"는 lazy + width descriptor srcset에서만 */
-            if (el.srcset && el.loading === 'lazy' &&
-                (!el.sizes || el.sizes === '') &&
-                /\d+w/.test(el.srcset)) {
-              el.sizes = 'auto';
-            }
+          if (el === lcpEl || e.isIntersecting) continue;
+          if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
+          if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
+          if (!el.fetchPriority || el.fetchPriority === 'high') el.fetchPriority = 'low';
+          if (el.srcset && el.loading === 'lazy' &&
+              (!el.sizes || el.sizes === '') && /\d+w/.test(el.srcset)) {
+            el.sizes = 'auto';
           }
-
-          belowFoldIO.unobserve(el);
-        }
-
-        if (tag === 'IFRAME') {
-          if (!e.isIntersecting) {
-            if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
+        } else if (tag === 'IFRAME') {
+          if (!e.isIntersecting && (!el.loading || el.loading === 'eager')) {
+            el.loading = 'lazy';
           }
-          belowFoldIO.unobserve(el);
         }
       }
-    }, { rootMargin: `${CFG.lazyMarginPx}px 0px ${CFG.lazyMarginPx}px 0px` });
+    }, { rootMargin: margin });
 
     const observeEl = (el) => {
-      if (!observed.has(el)) { observed.add(el); belowFoldIO.observe(el); }
+      if (!observed.has(el)) { observed.add(el); io.observe(el); }
     };
 
-    /* 기존 요소 등록 */
     doc.querySelectorAll('img, iframe').forEach(observeEl);
 
-    /* [PATCH-9] MutationObserver — 깊은 자식 탐색
-     * subtree:true이어도 addedNodes에는 직접 삽입된 최상위
-     * 노드만 포함. innerHTML 등으로 삽입된 중첩 img/iframe/video는
-     * querySelectorAll로 탐색해야 함. */
-    belowFoldMO = new MutationObserver(mutations => {
+    const mo = new MutationObserver((mutations) => {
       for (const m of mutations) {
         for (const node of m.addedNodes) {
           if (node.nodeType !== 1) continue;
           const tag = node.tagName;
-          /* 노드 자신 확인 */
           if (tag === 'IMG' || tag === 'IFRAME') observeEl(node);
-          if (tag === 'VIDEO') checkVideo(node);
-          /* 깊은 자식 탐색 */
-          if (node.querySelectorAll) {
-            const imgs = node.querySelectorAll('img, iframe, video');
-            for (const child of imgs) {
-              const ct = child.tagName;
-              if (ct === 'IMG' || ct === 'IFRAME') observeEl(child);
-              if (ct === 'VIDEO') checkVideo(child);
-            }
+          else if (tag === 'VIDEO') checkVideo(node);
+
+          if (!node.querySelectorAll) continue;
+          for (const child of node.querySelectorAll('img, iframe, video')) {
+            const ct = child.tagName;
+            if (ct === 'IMG' || ct === 'IFRAME') observeEl(child);
+            else if (ct === 'VIDEO') checkVideo(child);
           }
         }
       }
     });
-    belowFoldMO.observe(doc.body, { childList: true, subtree: true });
-
-    return belowFoldMO;
+    mo.observe(doc.body, { childList: true, subtree: true });
   };
 
   /* ═══════════════════════════════════════════════
-   *  §8  DNS Prefetch / Preconnect Auto‑Promotion
+   *  §8  DNS Prefetch / Preconnect Auto-Promotion
    * ═══════════════════════════════════════════════ */
   const DnsHints = (() => {
-    const seen = new Set(), linkMap = new Map(), freqMap = new Map();
+    const seen = new Set();
+    const linkMap = new Map();
+    const freqMap = new Map();
     let hintCount = 0, preconnCount = 0;
     const pending = [];
+    const origin = location.origin;
 
-    const flushPending = () => {
+    const flush = () => {
       if (!pending.length || !doc.head) return;
       const frag = doc.createDocumentFragment();
       for (const l of pending) frag.appendChild(l);
@@ -363,196 +401,171 @@
       pending.length = 0;
     };
 
-    const add = origin => {
-      if (!origin || seen.has(origin) || origin === location.origin || hintCount >= CFG.dnsHintMax) return;
-      seen.add(origin);
-      const l = doc.createElement('link'); l.rel = 'dns-prefetch'; l.href = origin;
-      pending.push(l); linkMap.set(origin, l); hintCount++;
+    const addHint = (o, rel, crossOrigin) => {
+      if (seen.has(o) || hintCount >= CFG.dnsHintMax) return;
+      seen.add(o);
+      const l = doc.createElement('link');
+      l.rel = rel;
+      l.href = o;
+      if (crossOrigin) l.crossOrigin = 'anonymous';
+      pending.push(l);
+      linkMap.set(o, l);
+      hintCount++;
+      if (rel === 'preconnect') preconnCount++;
     };
-    const track = origin => {
-      if (!origin || origin === location.origin) return;
-      const c = (freqMap.get(origin) || 0) + 1; freqMap.set(origin, c);
+
+    const track = (o) => {
+      if (!o || o === origin) return;
+      const c = (freqMap.get(o) || 0) + 1;
+      freqMap.set(o, c);
+
       if (c >= CFG.dnsFreqThreshold && preconnCount < CFG.dnsPreconnMax) {
-        const ex = linkMap.get(origin);
-        if (ex && ex.rel === 'dns-prefetch') { ex.rel = 'preconnect'; ex.crossOrigin = 'anonymous'; preconnCount++; }
-        else if (!seen.has(origin)) {
-          seen.add(origin);
-          const l = doc.createElement('link'); l.rel = 'preconnect'; l.href = origin; l.crossOrigin = 'anonymous';
-          pending.push(l); linkMap.set(origin, l); preconnCount++; hintCount++;
+        const ex = linkMap.get(o);
+        if (ex && ex.rel === 'dns-prefetch') {
+          ex.rel = 'preconnect';
+          ex.crossOrigin = 'anonymous';
+          preconnCount++;
+        } else if (!seen.has(o)) {
+          addHint(o, 'preconnect', true);
         }
-      } else if (!seen.has(origin)) add(origin);
+      } else if (!seen.has(o)) {
+        addHint(o, 'dns-prefetch', false);
+      }
     };
 
     if (typeof PerformanceObserver === 'function') {
       try {
-        const obs = new PerformanceObserver(list => {
+        const obs = new PerformanceObserver((list) => {
           for (const e of list.getEntries()) {
-            try {
-              const name = e.name || '';
-              if (!name.startsWith('http')) continue;
-              track(new URL(name).origin);
-              if (e.duration > CFG.slowResMs)
-                console.warn(`[TO] Slow resource (${Math.round(e.duration)}ms): ${name.slice(0, 80)}`);
-            } catch (_) {}
+            const name = e.name || '';
+            if (!name.startsWith('http')) continue;
+            try { track(new URL(name).origin); } catch (_) {}
           }
-          flushPending();
+          flush();
         });
         obs.observe({ type: 'resource', buffered: true });
       } catch (_) {}
     }
 
-    return { flush: flushPending, stats: () => ({ hints: hintCount, preconnects: preconnCount, tracked: freqMap.size }) };
+    return {
+      flush,
+      stats: () => ({ hints: hintCount, preconnects: preconnCount, tracked: freqMap.size }),
+    };
   })();
 
   /* ═══════════════════════════════════════════════
    *  §8.5  Speculation Rules — Same-origin Prefetch
-   *
-   *  [PATCH-6] href_matches 빈 문자열 → selector_matches로
-   *  빈 href, hash-only, javascript: 링크를 명확히 제외.
    * ═══════════════════════════════════════════════ */
   let speculationInjected = false;
 
   const injectSpeculationRules = () => {
-    if (speculationInjected) return;
-    if (isChat) return;
-    if (NET.save) return;
-    if (TIER === 't1') return;
-
+    if (speculationInjected || isChat || NET.save || TIER === 't1') return;
     if (typeof HTMLScriptElement === 'undefined' ||
         typeof HTMLScriptElement.supports !== 'function' ||
         !HTMLScriptElement.supports('speculationrules')) return;
-
     if (CSP.isBlocked()) return;
 
-    try {
-      const rules = {
-        prefetch: [{
-          where: {
-            and: [
-              { href_matches: '/*' },
-              { not: { href_matches: '/logout/*' } },
-              { not: { href_matches: '/signout/*' } },
-              { not: { href_matches: '/api/*' } },
-              { not: { href_matches: '/*?*action=logout*' } },
-              { not: { selector_matches: '[download], [href=""], [href^="#"], [href^="javascript:"]' } },
-            ]
-          },
-          eagerness: 'moderate'
-        }]
-      };
+    const rules = {
+      prefetch: [{
+        where: {
+          and: [
+            { href_matches: '/*' },
+            { not: { href_matches: '/logout/*' } },
+            { not: { href_matches: '/signout/*' } },
+            { not: { href_matches: '/api/*' } },
+            { not: { href_matches: '/*?*action=logout*' } },
+            { not: { selector_matches: '[download],[href=""],[href^="#"],[href^="javascript:"]' } },
+          ]
+        },
+        eagerness: 'moderate',
+      }],
+    };
 
-      const s = doc.createElement('script');
-      s.type = 'speculationrules';
-      s.textContent = JSON.stringify(rules);
-      appendToHead(s);
-
-      speculationInjected = true;
-    } catch (_) {}
+    const s = doc.createElement('script');
+    s.type = 'speculationrules';
+    s.textContent = JSON.stringify(rules);
+    appendToHead(s);
+    speculationInjected = true;
   };
 
   /* ═══════════════════════════════════════════════
-   *  §9  Data‑Saver Listener
-   *  [PATCH-10] TIER 변경 시 Speculation Rules 재주입
+   *  §9  Data-Saver Listener
    * ═══════════════════════════════════════════════ */
   const initDataSaver = () => {
     if (!conn.addEventListener) return;
     conn.addEventListener('change', () => {
       const oldTier = TIER;
-      NET.ect = conn.effectiveType || NET.ect;
-      NET.dl  = conn.downlink ?? NET.dl;
-      NET.rtt = conn.rtt ?? NET.rtt;
+      NET.ect  = conn.effectiveType || NET.ect;
+      NET.dl   = conn.downlink ?? NET.dl;
+      NET.rtt  = conn.rtt ?? NET.rtt;
       NET.save = !!conn.saveData;
       TIER = getTier();
-      /* 네트워크 개선 시 Speculation Rules 재시도 */
       if (oldTier === 't1' && TIER !== 't1') injectSpeculationRules();
     });
   };
 
   /* ═══════════════════════════════════════════════
    *  §10  Visibility, BFCache & Background Tab
-   *        Grace Period
-   *
-   *  [v18.5] 탭이 CFG.gracePeriodMs(30s) 이상 숨겨진 뒤
-   *  복귀하면 전체 상태를 재초기화한다.
-   *  프로토타입 훅 없이 비활성 탭 복귀 시나리오를 견고하게 처리.
    * ═══════════════════════════════════════════════ */
   let hiddenSince = 0;
+
+  const refresh = () => { scanVideos(); patchFontRules(); boostLCP(); };
 
   const initVisibility = () => {
     doc.addEventListener('visibilitychange', () => {
       if (doc.visibilityState === 'hidden') {
         hiddenSince = performance.now();
-      } else {
-        /* 탭이 다시 보이게 됨 */
-        const elapsed = hiddenSince ? performance.now() - hiddenSince : 0;
-        hiddenSince = 0;
+        return;
+      }
+      const elapsed = hiddenSince ? performance.now() - hiddenSince : 0;
+      hiddenSince = 0;
 
-        if (elapsed >= CFG.gracePeriodMs) {
-          /* 장시간 백그라운드 → 전체 재초기화 */
-          scanVideos();
-          patchFontRules();
-          boostLCP();
-          DnsHints.flush();
-        } else {
-          /* 짧은 전환 → 기존 최소 동작 */
-          scanVideos();
-        }
+      if (elapsed >= CFG.gracePeriodMs) {
+        refresh();
+        DnsHints.flush();
+      } else {
+        scanVideos();
       }
     });
 
-    win.addEventListener('pageshow', e => {
-      if (e.persisted) { scanVideos(); patchFontRules(); boostLCP(); }
+    win.addEventListener('pageshow', (e) => {
+      if (e.persisted) refresh();
     });
   };
 
   /* ═══════════════════════════════════════════════
-   *  §11  SPA Navigation (listen only)
-   *  [PATCH-8] navigation optional chaining — null 방어
-   *
-   *  [v18.5] popstate 폴백 추가 — Navigation API 미지원
-   *  브라우저에서 뒤로가기/앞으로가기 시에도 상태 갱신.
+   *  §11  SPA Navigation
    * ═══════════════════════════════════════════════ */
   let navSupported = false;
 
   const initNavigation = () => {
-    const onNav = () => {
-      scanVideos();
-      patchFontRules();
-      boostLCP();
-    };
-
-    /* Navigation API (modern browsers) */
     if (typeof navigation !== 'undefined' && navigation?.addEventListener) {
       navSupported = true;
-      navigation.addEventListener('navigatesuccess', onNav);
+      navigation.addEventListener('navigatesuccess', refresh);
     }
-
-    /* popstate 폴백 — Navigation API 유무와 무관하게 항상 등록.
-     * history.back()/forward(), hash 변경 등을 커버.
-     * Navigation API와 중복 발생해도 각 함수가 멱등(idempotent)이므로 안전. */
-    win.addEventListener('popstate', onNav);
+    win.addEventListener('popstate', refresh);
   };
 
   /* ═══════════════════════════════════════════════
    *  §12  Boot
    * ═══════════════════════════════════════════════ */
   const boot = () => {
-    /* Phase 1: document-start */
     injectCSS();
 
-    /* Phase 2: DOM ready */
     const onReady = () => {
       flushHeadQueue();
       patchFontRules();
       scanVideos();
       boostLCP();
+      DnsHints.flush();
 
+      /* Chat 감지 (동기 Phase A → 비동기 Phase B) */
+      runChatDetection();
+
+      /* Speculation Rules — Chat 선제 보호와 독립적으로 판단 */
       injectSpeculationRules();
 
-      const startBelowFold = () => {
-        optimizeBelowFold();
-        DnsHints.flush();
-      };
+      const startBelowFold = () => { optimizeBelowFold(); };
 
       if ('requestIdleCallback' in win) {
         requestIdleCallback(startBelowFold, { timeout: 3000 });
@@ -564,37 +577,20 @@
       initNavigation();
       initDataSaver();
 
-      /* Diagnostic API */
+      /* Diagnostic */
       win.__turboOptimizer__ = {
         version: V,
         device: { cores: DEV_CORES, mem: DEV_MEM, tier: DEV_TIER, mobile: IS_MOBILE },
         network: NET, tier: TIER,
         streaming: () => isStreaming,
-        dns: () => DnsHints.stats(),
+        chat: () => isChat,
+        dns: DnsHints.stats,
         csp: () => CSP.stats,
         lcp: () => lcpEl?.tagName || null,
         trustedTypes: TT.name,
-        chat: isChat,
         nav: navSupported,
-        speculation: speculationInjected,
-        features: {
-          viewTransition: typeof doc.startViewTransition === 'function',
-          navigation: navSupported,
-          mse: typeof MediaSource === 'function',
-          schedulerYield: typeof scheduler !== 'undefined' && typeof scheduler.yield === 'function',
-          speculationRules: speculationInjected,
-        },
+        speculation: () => speculationInjected,
       };
-
-      const f = win.__turboOptimizer__.features;
-      const mode = isChat ? 'Chat' : isStreaming ? 'Stream' : 'Gen';
-      console.log(
-        `[TO v${V}] ✅ ${mode} ${DEV_TIER}(${DEV_CORES}c/${DEV_MEM}G) ` +
-        `${NET.ect}/${TIER} TT:${TT.name} ` +
-        `MSE:${isStreaming ? '✓(prot)' : '–'} DNS:${DnsHints.stats().hints} ` +
-        `Nav:${navSupported ? '✓' : '✗'} Yield:${f.schedulerYield ? '✓' : '✗'} ` +
-        `Spec:${speculationInjected ? '✓' : '✗'} ${HOST}`
-      );
     };
 
     if (doc.readyState !== 'loading') onReady();
