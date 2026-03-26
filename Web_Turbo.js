@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
-// @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      22.0
-// @description  Lean web optimizer v22.0 – Font FOIT prevention (swap/optional), LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, AI chat memory optimization. Zero prototype hooks except FontFace.
+// @namespace    https://github.com/moamoa7
+// @version      22.1
+// @description  Lean web optimizer v22.1 – Font FOIT prevention (swap/optional), LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, AI chat memory optimization. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -64,15 +64,20 @@
    *  §2  LCP Boost + Below-fold Optimization
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
+  const lcpEls = new Set();                           // [Fix 5] 모든 LCP 후보 누적 보관
   let lcpResolve;
-  const lcpReady = new Promise((r) => { lcpResolve = r; });
+  const lcpReady = new Promise(r => (lcpResolve = r)); // [Fix 7] Promise 간소화
 
   if (typeof PerformanceObserver === 'function') {
     try {
       const obs = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const last = entries[entries.length - 1];
-        if (last?.element) { lcpEl = last.element; boostLCP(); }
+        if (last?.element) {
+          lcpEl = last.element;
+          lcpEls.add(lcpEl);                          // [Fix 5] Set에 누적
+          boostLCP();
+        }
       });
       obs.observe({ type: 'largest-contentful-paint', buffered: true });
 
@@ -115,10 +120,11 @@
           io.unobserve(el);
 
           if (tag === 'IMG') {
-            if (el === lcpEl || e.isIntersecting) continue;
+            if (lcpEls.has(el) || e.isIntersecting) continue;  // [Fix 5] Set으로 보호
             if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
             if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
-            if (!el.fetchPriority || el.fetchPriority === 'high') el.fetchPriority = 'low';
+            if (!el.fetchPriority || el.fetchPriority === 'auto' || el.fetchPriority === 'high') // [Fix 1] 'auto' 추가
+              el.fetchPriority = 'low';
             if (el.srcset && el.loading === 'lazy' &&
                 (!el.sizes || el.sizes === '') && /\d+w/.test(el.srcset)) {
               el.sizes = 'auto';
@@ -139,6 +145,7 @@
 
       let pending = [];
       let rafScheduled = false;
+      let chatCheckScheduled = false;                // [Fix 3] rAF 디바운스용 플래그
 
       const flushPending = () => {
         for (const node of pending) {
@@ -162,8 +169,14 @@
           rafScheduled = true;
           requestAnimationFrame(flushPending);
         }
-        // DOM이 변할 때마다 채팅창 조건이 충족되었는지 백그라운드에서 체크 (이미 적용되었으면 바로 return됨)
-        if (!chatStyleInjected) applyChatMemoryOptimization();
+        // [Fix 3] rAF 디바운스로 호출 빈도 제한
+        if (!chatStyleInjected && !chatCheckScheduled) {
+          chatCheckScheduled = true;
+          requestAnimationFrame(() => {
+            applyChatMemoryOptimization();
+            chatCheckScheduled = false;
+          });
+        }
       }).observe(doc.body, { childList: true, subtree: true });
     });
   };
@@ -178,26 +191,25 @@
     '[class*="ConversationItem"]',  // Claude 등
     '[class*="msg-content"]',       // 기타 채팅 서비스
   ];
-  const CHAT_MIN_COUNT = 6; // 이 수 이상 반복되면 채팅 UI로 판단
+  const CHAT_MIN_COUNT = 6;
   let chatStyleInjected = false;
 
   const applyChatMemoryOptimization = () => {
     if (chatStyleInjected) return;
 
-    for (const sel of CHAT_SELECTORS) {
-      if (doc.querySelectorAll(sel).length >= CHAT_MIN_COUNT) {
-        const style = doc.createElement('style');
-        style.textContent = `
-          ${sel} {
-            content-visibility: auto;
-            contain-intrinsic-size: auto 200px;
-          }
-        `;
-        doc.head.appendChild(style);
-        chatStyleInjected = true;
-        return;
+    // [Fix 2] 매칭되는 모든 셀렉터 수집 후 단일 <style> 인젝션
+    const matched = CHAT_SELECTORS.filter(sel => doc.querySelectorAll(sel).length >= CHAT_MIN_COUNT);
+    if (!matched.length) return;
+
+    const style = doc.createElement('style');
+    style.textContent = `
+      ${matched.join(',\n      ')} {
+        content-visibility: auto;
+        contain-intrinsic-size: auto 200px;
       }
-    }
+    `;
+    doc.head.appendChild(style);
+    chatStyleInjected = true;
   };
 
   /* ═══════════════════════════════════════════════
@@ -206,14 +218,12 @@
   const onReady = () => {
     patchFontRules();
 
-    // Below-fold 최적화
     if ('requestIdleCallback' in win) {
       requestIdleCallback(optimizeBelowFold, { timeout: 2000 });
     } else {
       setTimeout(optimizeBelowFold, 2000);
     }
 
-    // 채팅 최적화: SPA 렌더링 완료 후 검사 (3초, 8초 재검사)
     setTimeout(applyChatMemoryOptimization, 3000);
     setTimeout(applyChatMemoryOptimization, 8000);
   };
