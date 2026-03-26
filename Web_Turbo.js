@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      20.1
-// @description  Lean web optimizer v20.1 – Font FOIT prevention, LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, Speculation Rules prefetch, BFCache safe, SPA popstate fallback. Zero prototype hooks except FontFace.
+// @version      21.0
+// @description  Lean web optimizer v21.0 – Font FOIT prevention (swap/optional), LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -16,7 +16,6 @@
 
 'use strict';
 (() => {
-  const V = '20.1';
   const doc = document;
   const win = window;
 
@@ -25,17 +24,10 @@
    * ═══════════════════════════════════════════════ */
   const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection || {};
   const IS_SLOW = !!conn.saveData || conn.effectiveType === 'slow-2g' || conn.effectiveType === '2g';
-
   const LAZY_MARGIN = '300px 0px 300px 0px';
-  const GRACE_MS = 30000;
-  const IDLE_TIMEOUT = 2000;
 
   /* ═══════════════════════════════════════════════
    *  §1  FontFace Override (FOIT 방지)
-   *
-   *  - 'auto'도 패치 대상으로 통일
-   *  - patchFontRules: 처리 완료 시트를 WeakSet으로
-   *    기억하여 SPA 전환 시 중복 순회 방지
    * ═══════════════════════════════════════════════ */
   const FONT_DISPLAY = IS_SLOW ? 'optional' : 'swap';
 
@@ -70,18 +62,11 @@
 
   /* ═══════════════════════════════════════════════
    *  §2  LCP Boost + Below-fold Optimization
-   *
-   *  수정사항:
-   *  - LCP observer: 확정 후 disconnect
-   *  - lcpReady Promise로 below-fold와 타이밍 동기화
-   *  - onReady에서 중복 boostLCP() 호출 제거
-   *  - MutationObserver: rAF 배치 처리
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
   let lcpResolve;
   const lcpReady = new Promise((r) => { lcpResolve = r; });
 
-  /* LCP 확정 시점: 첫 사용자 인터랙션 시 observer disconnect */
   if (typeof PerformanceObserver === 'function') {
     try {
       const obs = new PerformanceObserver((list) => {
@@ -101,8 +86,6 @@
       for (const evt of ['click', 'keydown', 'scroll']) {
         win.addEventListener(evt, stopLCP, { capture: true, once: true, passive: true });
       }
-
-      /* 안전망: 10초 후 강제 종료 */
       setTimeout(stopLCP, 10000);
     } catch (_) { lcpResolve(); }
   } else {
@@ -122,7 +105,6 @@
   }
 
   const optimizeBelowFold = () => {
-    /* lcpReady 이후 실행하여 LCP 요소를 lazy로 잘못 설정하는 경합 방지 */
     lcpReady.then(() => {
       const observed = new WeakSet();
 
@@ -155,7 +137,6 @@
 
       doc.querySelectorAll('img, iframe').forEach(observeEl);
 
-      /* MutationObserver — rAF 배치 처리 */
       let pending = [];
       let rafScheduled = false;
 
@@ -186,93 +167,16 @@
   };
 
   /* ═══════════════════════════════════════════════
-   *  §3  Speculation Rules — Same-origin Prefetch
-   * ═══════════════════════════════════════════════ */
-  let speculationInjected = false;
-
-  const injectSpeculationRules = () => {
-    if (speculationInjected || IS_SLOW) return;
-    if (typeof HTMLScriptElement === 'undefined' ||
-        typeof HTMLScriptElement.supports !== 'function' ||
-        !HTMLScriptElement.supports('speculationrules')) return;
-
-    const rules = {
-      prefetch: [{
-        where: {
-          and: [
-            { href_matches: '/*' },
-            { not: { href_matches: '/logout/*' } },
-            { not: { href_matches: '/signout/*' } },
-            { not: { href_matches: '/api/*' } },
-            { not: { href_matches: '/*?*action=logout*' } },
-            { not: { selector_matches: '[download],[href=""],[href^="#"],[href^="javascript:"]' } },
-          ]
-        },
-        eagerness: 'moderate',
-      }],
-    };
-
-    const s = doc.createElement('script');
-    s.type = 'speculationrules';
-    s.textContent = JSON.stringify(rules);
-    doc.head.appendChild(s);
-    speculationInjected = true;
-  };
-
-  /* ═══════════════════════════════════════════════
-   *  §4  Visibility, BFCache & Background Tab
-   * ═══════════════════════════════════════════════ */
-  let hiddenSince = 0;
-
-  const initVisibility = () => {
-    doc.addEventListener('visibilitychange', () => {
-      if (doc.visibilityState === 'hidden') {
-        hiddenSince = performance.now();
-        return;
-      }
-      const elapsed = hiddenSince ? performance.now() - hiddenSince : 0;
-      hiddenSince = 0;
-      if (elapsed >= GRACE_MS) patchFontRules();
-    });
-
-    win.addEventListener('pageshow', (e) => {
-      if (e.persisted) patchFontRules();
-    });
-  };
-
-  /* ═══════════════════════════════════════════════
-   *  §5  SPA Navigation
-   * ═══════════════════════════════════════════════ */
-  const initNavigation = () => {
-    const onNav = () => patchFontRules();
-    if (typeof navigation !== 'undefined' && navigation?.addEventListener) {
-      navigation.addEventListener('navigatesuccess', onNav);
-    }
-    win.addEventListener('popstate', onNav);
-  };
-
-  /* ═══════════════════════════════════════════════
-   *  §6  Boot
+   *  §3  Boot
    * ═══════════════════════════════════════════════ */
   const onReady = () => {
     patchFontRules();
-    injectSpeculationRules();
 
     if ('requestIdleCallback' in win) {
-      requestIdleCallback(optimizeBelowFold, { timeout: IDLE_TIMEOUT });
+      requestIdleCallback(optimizeBelowFold, { timeout: 2000 });
     } else {
-      setTimeout(optimizeBelowFold, IDLE_TIMEOUT);
+      setTimeout(optimizeBelowFold, 2000);
     }
-
-    initVisibility();
-    initNavigation();
-
-    win.__turboOptimizer__ = {
-      version: V,
-      slow: IS_SLOW,
-      lcp: () => lcpEl?.tagName || null,
-      speculation: () => speculationInjected,
-    };
   };
 
   if (doc.readyState !== 'loading') onReady();
