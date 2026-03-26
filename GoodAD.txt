@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260325
+! Version: 20260326
 !
 !
 !
@@ -136,6 +136,11 @@ google.*#@#+js(ubo-acs, addEventListener, mouseleave)
 !- 차단 목록 (AdRules AdBlock List Plus)
 @@/^https?:\/\/([a-z0-9-]+\.)*?google(\.[a-z]{2,}){1,}(\/upload)?\/drive\//$removeparam
 @@/^https?:\/\/([a-z0-9-\.])*(chat|drive)\.google\.com\/videoplayback/$removeparam
+!
+!
+! - 제미나이 (https://gemini.google.com/)
+! - - - 질문을 차단함 (Cosmetic Combined Filterlist)
+@@/log?format=
 !
 !
 ! 유튜브 (https://www.youtube.com/)
@@ -6567,7 +6572,7 @@ trand.co.kr#@#[id][style*="background"][style]
 !yastagram.kr,4khd.com,nznami.com,of996.com,fc2ppvdb.com#@#a[href][target*="blank"] img
 
 
-!sooplive.co.kr###videoLayerCover
+
 ! - - - 광고차단?
 !sooplive.co.kr##[class*="promotion"]
 !||admv.digitalcamp.co.kr
