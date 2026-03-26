@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.0.1
+// @version      15.0.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -111,7 +111,16 @@
    * ================================================================ */
 
   let _vidRef = null;
-  const getVid = () => { if (_vidRef && !_vidRef.isConnected) _vidRef = null; return _vidRef; };
+
+  // [PATCH 1] isConnected 소실 시 _needScan 복원 + 옵저버 재시동
+  const getVid = () => {
+    if (_vidRef && !_vidRef.isConnected) {
+      _vidRef = null;
+      _needScan = true;
+      startObserver();
+    }
+    return _vidRef;
+  };
   const setVid = v => { _vidRef = v || null; };
 
   let enabled = cfg.enabled ?? true;
@@ -197,10 +206,11 @@
             const start = s.start(0), end = s.end(s.length - 1), d = vid.duration;
             if (start > 10) { v = true; }
             else {
+              // [PATCH 6] tracker.ts(dead field) 제거 - count/end/dur 만 유지
               let tr = tracker.get(vid);
-              if (!tr) { tr = { end, dur: d, ts: performance.now(), count: 0 }; tracker.set(vid, tr); }
+              if (!tr) { tr = { end, dur: d, count: 0 }; tracker.set(vid, tr); }
               else {
-                if (end > tr.end + 0.5 || d > tr.dur + 0.5) { tr.count++; tr.end = end; tr.dur = d; tr.ts = performance.now(); }
+                if (end > tr.end + 0.5 || d > tr.dur + 0.5) { tr.count++; tr.end = end; tr.dur = d; }
                 if (tr.count >= 2) v = true;
               }
             }
@@ -285,6 +295,8 @@
         const now = performance.now();
         control.lastStallTime = now;
         control.lastGearChange = -GEAR_HOLD_MS;
+        // [PATCH 2] stall 후 warmup 재시작 — 이미 만료된 warmup이어도 보호 보장
+        control.warmupEnd = now + WARMUP_MS;
         if (getVid() === v) { control.gear = R_NORM; safeRate(v, R_NORM); }
       };
       v.addEventListener('waiting', onStall);
@@ -362,7 +374,8 @@
     /* 비디오 없음 */
     if (!vid) {
       if (_needScan) { scan(); startObserver(); }
-      lastBuf = -1; live.isCurrent = false;
+      lastBuf = -1;
+      // [PATCH 4] live.isCurrent = false 제거 — getVid() null 경로는 이미 라이브 미확인 상태
       scheduleRender(); return;
     }
 
@@ -376,13 +389,14 @@
     /* 라이브 판정 */
     const isLiveNow = LiveDetect.check(vid);
     if (!isLiveNow) {
-      if (IS_YOUTUBE) _scanRetry = 0;
+      // [PATCH 5] _scanRetry 리셋은 debounce 진입 전에만 수행 (매 tick 실행 방지)
       if (live.falseCount >= 0) {
         live.falseCount++;
         live.isCurrent = false;
         resetRate(vid);
         if (live.falseCount < 3) { scheduleRender(); return; }
       }
+      if (IS_YOUTUBE) _scanRetry = 0;
       lastBuf = -1;
       live.isCurrent = false; live.falseCount = -1;
       resetRate(vid);
@@ -615,7 +629,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.0.1' }),
+      el('span', { className: 'dm-ver', textContent: 'v15.0.2' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -698,7 +712,9 @@
    *  §12. 초기화 · 메인 루프
    * ================================================================ */
 
-  const getTickInterval = () => document.hidden ? 5000 : (live.isCurrent && enabled) ? 1000 : 3000;
+  // [PATCH 3] getVid() 체크 추가 — live.isCurrent 잔존값으로 인한 불필요한 1s 폴링 방지
+  const getTickInterval = () =>
+    document.hidden ? 5000 : (live.isCurrent && enabled && !!getVid()) ? 1000 : 3000;
   const loop = () => { tick(); setTimeout(loop, getTickInterval()); };
 
   const init = () => {
