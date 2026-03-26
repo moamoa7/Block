@@ -827,6 +827,8 @@
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
+      // 👉 추가: 영상이 일시정지되었거나 끝났으면 아무것도 안 하고 퇴근!
+      if (video.paused || video.ended) return;
       const now = performance.now();
       if (now < suppressUntil) return;
       if (now - lastCheck < 3000) return;
