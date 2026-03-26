@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.7.6)
+// @name         Video_Control (v28.7.7)
 // @namespace    https://github.com/
-// @version      28.7.6
-// @description  v28.7.6: Rec.709 luma, 자막 영역 가중치, rawBrt 1차분류 제거, STALE 복귀 타이밍 개선
+// @version      28.7.7
+// @description  v28.7.7: satF 데드필드 제거, absG 인라인, 누적합 pushBrightness, forEach→for, store.get 캐시, paused 체크 앞당기기, detectVertical 인라인, classifyBrightness DRM 분기 제거, activate/deactivate 공통화, workQ 전체 비우기
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.7.6'; /* [v28.7.6] */
+  const VSC_VERSION = '28.7.7'; /* [v28.7.7] */
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -142,12 +142,13 @@
 
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
+    const _kc = {};
     const listeners = new Map();
     const state = JSON.parse(JSON.stringify(defaults));
     const emit = (key, val) => { const a = listeners.get(key); if (a) for (const fn of a) try { fn(val); } catch (_) {} };
     return {
       state, rev: () => rev,
-      get: (p) => { const parts = p.split('.'); return parts.length > 1 ? state[parts[0]]?.[parts[1]] : state[parts[0]]; },
+      get: (p) => { let pts = _kc[p] || (_kc[p] = p.split('.')); return pts.length > 1 ? state[pts[0]]?.[pts[1]] : state[pts[0]]; },
       set: (p, val) => { const [c, k] = p.split('.'); if (k != null) { if (Object.is(state[c]?.[k], val)) return; state[c][k] = val; rev++; emit(p, val); scheduler.request(); } },
       batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; scheduler.request(); } },
       sub: (k, f) => {
@@ -257,7 +258,7 @@
 
     const workQ = []; let workScheduled = false;
     function scheduleWork() { if (workScheduled) return; workScheduled = true; const doWork = () => { workScheduled = false; const batch = workQ.splice(0, 20); for (const n of batch) scanNode(n); if (workQ.length > 0) scheduleWork(); }; if (typeof requestIdleCallback === 'function') requestIdleCallback(doWork, { timeout: 120 }); else setTimeout(doWork, 0); }
-    function enqueue(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; if (workQ.length > 500) workQ.splice(0, workQ.length >> 1); workQ.push(n); scheduleWork(); }
+    function enqueue(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; if (workQ.length > 500) workQ.length = 0; workQ.push(n); scheduleWork(); }
 
     function connectObserver(root) {
       if (!root) return;
@@ -526,7 +527,7 @@
       const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(brightOffset*1000)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) { const val = toneCache.get(key); toneCache.delete(key); toneCache.set(key, val); return val; }
       const ev = Math.log2(Math.max(1e-6, gain));
-      const g = ev * 0.90; const absG = Math.abs(g); const useFilmicCurve = absG > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
+      const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
       const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast) + brightOffset;
       for (let i = 0; i < steps; i++) {
         const x0 = i / (steps - 1); let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
@@ -663,7 +664,7 @@
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
 
-        const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, satF: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
+        const out = { gain: 1, gamma: 1, contrast: 1, bright: 0, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
@@ -772,10 +773,6 @@
        - darkFactor  : 0(일반)→1(극어두움)  smoothstep+gamma 적용
        - brightFactor: 0(일반)→1(극밝음)    smoothstep+gamma 적용  */
     function classifyBrightness(brightness, cfg) {
-      if (brightness < 0) {
-        return { label: cfg.drm.label, darkFactor: 0, brightFactor: 0, isDRM: true };
-      }
-
       let darkRaw = 0, brightRaw = 0;
 
       if (brightness < cfg.dark.max) {
@@ -798,15 +795,11 @@
       else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`;
       else                       label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`;
 
-      return { label, darkFactor, brightFactor, isDRM: false };
+      return { label, darkFactor, brightFactor };
     }
 
     /* ── 변화 감지 임계값 (기존 유지) ── */
-    function getBrightnessThreshold(brightness) {
-      if (brightness < 60)  return 6;
-      if (brightness > 180) return 8;
-      return 10;
-    }
+    function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
     /* ── [v28.7.5] 보간: darkFactor/brightFactor를 직접 사용 ── */
     function interpolate(darkFactor, brightFactor) {
@@ -827,12 +820,12 @@
     }
 
     function pushBrightness(raw) {
+      if (brightHistory.length >= HISTORY_SIZE) _brightSum -= brightHistory.shift();
       brightHistory.push(raw);
-      if (brightHistory.length > HISTORY_SIZE) brightHistory.shift();
-      return brightHistory.reduce((a, b) => a + b, 0) / brightHistory.length;
+      _brightSum += raw;
+      return _brightSum / brightHistory.length;
     }
 
-    function detectVertical(video) { const w = video.videoWidth || 0, vh = video.videoHeight || 0; return (w > 0 && vh > 0 && (w / vh) < 0.75); }
 
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1" || video.dataset.vscDrm === "1") return -1;
@@ -872,7 +865,7 @@
     function applyValues(values, presetS) {
       _internalBatch = true;
       const obj = {};
-      MANUAL_KEYS.forEach((k, i) => { obj[k] = values[i]; });
+      for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = values[i];
       if (presetS != null) obj.presetS = presetS;
       store.batch('video', obj);
       _internalBatch = false;
@@ -909,7 +902,8 @@
 
       if (video.paused || video.ended) return;
 
-      if (detectVertical(video)) {
+      const _vw = video.videoWidth || 0, _vh = video.videoHeight || 0;
+      if (_vw > 0 && _vh > 0 && (_vw / _vh) < 0.75) {
         if (currentMode !== 'vertical') {
           currentMode = 'vertical'; currentBrightness = -1;
           lastAppliedBrightness = -999;
@@ -958,21 +952,20 @@
       }
     }
 
-    function activate() {
+    function resetAutoState() {
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
+      brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999;
+    }
+
+    function activate() {
+      resetAutoState();
       currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
-      brightHistory.length = 0;
-      lastAppliedBrightness = -999;
       lastCheck = performance.now() - CHECK_INTERVAL - 1;
       const video = __internal._activeVideo;
       if (video?.isConnected) tick(video);
     }
 
-    function deactivate() {
-      currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
-      brightHistory.length = 0;
-      lastAppliedBrightness = -999;
-    }
+    function deactivate() { resetAutoState(); }
 
     return {
       tick, activate, deactivate,
@@ -1233,7 +1226,7 @@
         btn.addEventListener('click', () => {
           if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(); OSD.show('자동 장면 OFF (수동 프리셋 선택)', 1000); }
           const obj = {};
-          MANUAL_KEYS.forEach((k, i) => { obj[k] = p.v[i]; });
+          for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i];
           Store.batch('video', obj); Scheduler.request();
         });
         grid.appendChild(btn);
