@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v25.0)
-// @version      25.0
-// @description  v24.1 기반 전면 리팩토링 — 과잉 기능 제거, 아이콘 URL 방식, 단일 페이지, 경량화
+// @name         북마크 (Glassmorphism v25.1)
+// @version      25.1
+// @description  v25.0 기반 버그 픽스 & 최적화 — favicon 폴백, 필터 접기복원, 마이그레이션 저장, 드래그 데이터 보존, dirty 안전 처리
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -58,8 +58,6 @@
 
     const isUrl = s => { try { return /^https?:/.test(new URL(s).protocol); } catch { return false; } };
 
-    const escHtml = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
     const vName = (name, exist = []) => {
         const t = name?.trim();
         if (!t) return '이름을 입력하세요.';
@@ -73,18 +71,22 @@
         try { return ev.composedPath().includes(el); } catch { return false; }
     };
 
+    /* [B1 fix] 빈 문자열 대신 투명 1px data URI 사용 */
+    const FALLBACK_ICON = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
     const faviconUrl = url => {
         try {
             const h = new URL(url).hostname;
+            if (!h) return FALLBACK_ICON;
             return `https://www.google.com/s2/favicons?domain=${h}&sz=128`;
-        } catch { return ''; }
+        } catch { return FALLBACK_ICON; }
     };
 
+    /* [S3 fix] Range 헤더 제거 — 서버 호환성 문제 */
     const gmFetchText = (url, timeout = 5000) => new Promise(r =>
         GM_xmlhttpRequest({
             method: 'GET', url, timeout,
-            headers: { 'Range': 'bytes=0-8192' },
-            onload: res => r(res.status >= 200 && res.status < 400 ? res.responseText : null),
+            onload: res => r(res.status >= 200 && res.status < 400 ? res.responseText?.substring(0, 8192) : null),
             onerror: () => r(null), ontimeout: () => r(null)
         })
     );
@@ -98,18 +100,19 @@
     /* ═══════════════════════════════════
        DB
        ═══════════════════════════════════ */
-    let db = null, shadow = null, isSortMode = false, _dirty = false, _saveTimer = null;
+    let db = null, shadow = null, isSortMode = false, _isOpen = false,
+        _dirty = false, _saveTimer = null, _urlSet = null;
 
     const validateDB = d => d?.groups && typeof d.groups === 'object';
 
     const migrateFromV2 = () => {
         const old = GM_getValue('bm_db_v2', null);
         if (!old?.pages) return null;
-        // v2 → v25: 모든 페이지의 그룹을 하나로 합침
         const groups = {};
+        const pageKeys = Object.keys(old.pages);
         for (const [pageName, pageGroups] of Object.entries(old.pages)) {
             for (const [groupName, items] of Object.entries(pageGroups)) {
-                const key = Object.keys(old.pages).length > 1 ? `${pageName}/${groupName}` : groupName;
+                const key = pageKeys.length > 1 ? `${pageName}/${groupName}` : groupName;
                 groups[key] = items.map(it => ({
                     name: it.name,
                     url: it.url,
@@ -124,16 +127,22 @@
         const raw = GM_getValue('bm_db_v25', null);
         if (validateDB(raw)) return raw;
         const migrated = migrateFromV2();
-        if (migrated) return migrated;
+        if (migrated) {
+            /* [B4 fix] 마이그레이션 결과 즉시 저장 */
+            GM_setValue('bm_db_v25', migrated);
+            return migrated;
+        }
         return { groups: { "북마크": [] } };
     };
 
     db = loadDB();
 
+    /* [M3 fix] save 내부에서 _urlSet 자동 리셋 */
     const saveNow = () => {
         clearTimeout(_saveTimer);
         if (!_dirty) return;
         _dirty = false;
+        _urlSet = null;
         try {
             GM_setValue('bm_db_v25', db);
         } catch (e) {
@@ -148,16 +157,21 @@
         _saveTimer = setTimeout(saveNow, 300);
     };
 
-    const save = () => { _dirty = true; saveNow(); };
+    /* [M2 fix] save를 직관적으로 단순화 */
+    const save = () => {
+        _dirty = true;
+        saveNow();
+    };
 
+    /* [P2 fix] refreshDB 호출 전 미저장 변경 보호 */
     const refreshDB = () => {
+        if (_dirty) saveNow();
         const fresh = GM_getValue('bm_db_v25', null);
         if (validateDB(fresh)) { db = fresh; _dirty = false; _urlSet = null; return true; }
         return false;
     };
 
-    /* URL 중복 체크 — 단순 Set */
-    let _urlSet = null;
+    /* URL 중복 체크 — Set */
     const buildUrlSet = () => {
         _urlSet = new Set();
         for (const items of Object.values(db.groups)) {
@@ -170,9 +184,10 @@
 
     /* 접기 상태 */
     const _col = new Set(JSON.parse(GM_getValue('bm_collapsed_v25', '[]') || '[]'));
+    const saveCol = () => GM_setValue('bm_collapsed_v25', JSON.stringify([..._col]));
     const toggleCol = g => {
         _col.has(g) ? _col.delete(g) : _col.add(g);
-        GM_setValue('bm_collapsed_v25', JSON.stringify([..._col]));
+        saveCol();
     };
 
     /* 최근 저장 그룹 */
@@ -275,7 +290,7 @@
                 try {
                     const p = JSON.parse(re.target.result);
                     if (!validateDB(p)) throw 1;
-                    db = p; _urlSet = null; save(); rerender();
+                    db = p; save(); rerender();
                     toast('✅ 복구 완료');
                 } catch { alert('잘못된 파일 구조입니다.'); }
             };
@@ -290,10 +305,10 @@
     let _sorts = [];
     const killSorts = () => { _sorts.forEach(s => s.destroy()); _sorts.length = 0; };
 
-    const rebuildGroupFromDOM = (gridEl, groupName) => {
+    /* [B5 fix] 드래그 이동 시 원본 스냅샷을 먼저 확보하여 addedAt 보존 */
+    const rebuildGroupFromDOM = (gridEl, snapshot) => {
         const itemMap = new Map();
-        const items = db.groups[groupName] || [];
-        for (const it of items) {
+        for (const it of snapshot) {
             if (!itemMap.has(it.url)) itemMap.set(it.url, []);
             itemMap.get(it.url).push(it);
         }
@@ -316,6 +331,7 @@
        필터
        ═══════════════════════════════════ */
     let _filterRaf = 0;
+    /* [B2 fix] sec.dataset.id로 그룹명 참조 */
     const filterItems = (q, container) => {
         cancelAnimationFrame(_filterRaf);
         _filterRaf = requestAnimationFrame(() => {
@@ -323,6 +339,7 @@
             for (const sec of container.querySelectorAll('.bm-sec')) {
                 const grid = sec.querySelector('.bm-grid');
                 if (!grid) continue;
+                const gn = sec.dataset.id;
                 let vis = false;
                 for (const wrap of grid.querySelectorAll('.bm-wrap')) {
                     const match = !q
@@ -336,7 +353,6 @@
                     sec.style.display = vis ? '' : 'none';
                 } else {
                     sec.style.display = '';
-                    const gn = sec.dataset.id;
                     grid.style.display = !isSortMode && _col.has(gn) ? 'none' : '';
                 }
             }
@@ -347,9 +363,9 @@
        대시보드 렌더링
        ═══════════════════════════════════ */
     let _sTimer = null, _ctr = null;
-    const rerender = () => {
-        if (shadow?.querySelector('#bm-overlay')?.style.display === 'block') renderDash();
-    };
+
+    /* [S2 fix] _isOpen 상태 변수 사용 */
+    const rerender = () => { if (_isOpen) renderDash(); };
 
     function renderDash() {
         const ov = shadow.querySelector('#bm-overlay');
@@ -359,8 +375,14 @@
         ov.replaceChildren();
 
         const groups = db.groups;
-        const totalCount = Object.values(groups).reduce((s, a) => s + a.length, 0);
-        const maxN = Math.max(...Object.values(groups).map(a => a.length), 1);
+
+        /* [O2 fix] totalCount, maxN 한 번의 순회로 계산 */
+        let totalCount = 0, maxN = 1;
+        for (const items of Object.values(groups)) {
+            totalCount += items.length;
+            if (items.length > maxN) maxN = items.length;
+        }
+
         const frag = document.createDocumentFragment();
 
         /* ── 상단 바 ── */
@@ -391,7 +413,7 @@
                         const ks = Object.keys(groups);
                         const all = ks.every(k => _col.has(k));
                         ks.forEach(k => all ? _col.delete(k) : _col.add(k));
-                        GM_setValue('bm_collapsed_v25', JSON.stringify([..._col]));
+                        saveCol();
                         renderDash();
                     }},
                     { i: '💾', t: '백업 (JSON)', fn: exportJSON },
@@ -442,9 +464,15 @@
                 });
                 w.oncontextmenu = e => ctxMenu(e, it, gn, idx);
                 bindLP(w, e => ctxMenu(e, it, gn, idx));
+
+                /* [B1 fix] onerror 시 FALLBACK_ICON 사용, 무한루프 방지 */
                 const icon = faviconUrl(it.url);
-                const img = $('img', { loading: 'lazy', src: icon || '' });
-                img.onerror = () => { img.onerror = null; img.src = ''; img.style.opacity = '0.3'; };
+                const img = $('img', { loading: 'lazy', src: icon });
+                img.onerror = () => {
+                    img.onerror = null;
+                    img.src = FALLBACK_ICON;
+                    img.style.opacity = '0.3';
+                };
                 w.append($('div', { cls: 'bm-item' }, [img, $('span', { text: it.name })]));
                 gEl.append(w);
             }
@@ -464,7 +492,8 @@
                     $('span', { cls: 'bm-gcnt', text: `${items.length}` })
                 ]),
                 ...(!isSortMode ? [
-                    $('button', { cls: 'bm-qadd', text: '+', onclick: async e => {
+                    /* [P1 fix] 사용자 명시 액션은 save() 사용 */
+                    $('button', { cls: 'bm-qadd', text: '+', onclick: e => {
                         e.stopPropagation();
                         const u = location.href;
                         if (isDup(u)) return toast('⚠ 이미 저장됨');
@@ -473,7 +502,7 @@
                             url: u, addedAt: Date.now()
                         });
                         addUrl(u); setRecent(gn);
-                        saveLazy(); renderDash();
+                        save(); renderDash();
                         toast(`✅ "${gn}" 추가됨`);
                     }}),
                     $('button', { cls: 'bm-mgr-btn', text: '관리' })
@@ -511,12 +540,34 @@
                     _sorts.push(new Sortable(g, {
                         group: 'bm-items', animation: 150,
                         delay: 300, delayOnTouchOnly: true,
+                        /* [B5 fix] onStart에서 스냅샷 확보 */
+                        onStart: ev => {
+                            const fromGn = ev.from.dataset.group;
+                            const toGn = ev.to?.dataset.group;
+                            ev.from._snapshot = [...(db.groups[fromGn] || [])];
+                            if (toGn && toGn !== fromGn && ev.to) {
+                                ev.to._snapshot = [...(db.groups[toGn] || [])];
+                            }
+                        },
                         onEnd: ev => {
                             const fromGroup = ev.from.dataset.group;
                             const toGroup = ev.to.dataset.group;
-                            db.groups[fromGroup] = rebuildGroupFromDOM(ev.from, fromGroup);
-                            if (fromGroup !== toGroup) db.groups[toGroup] = rebuildGroupFromDOM(ev.to, toGroup);
-                            _urlSet = null; saveLazy();
+
+                            /* from 스냅샷은 onStart에서 확보됨 */
+                            const fromSnap = ev.from._snapshot || [...(db.groups[fromGroup] || [])];
+                            /* to 스냅샷: 그룹 간 이동이면 from+to 합산에서 찾아야 함 */
+                            const toSnap = fromGroup !== toGroup
+                                ? [...(ev.to._snapshot || db.groups[toGroup] || []), ...fromSnap]
+                                : fromSnap;
+
+                            db.groups[fromGroup] = rebuildGroupFromDOM(ev.from, fromSnap);
+                            if (fromGroup !== toGroup) {
+                                db.groups[toGroup] = rebuildGroupFromDOM(ev.to, toSnap);
+                            }
+
+                            delete ev.from._snapshot;
+                            delete ev.to._snapshot;
+                            saveLazy();
                         }
                     }));
                 }
@@ -604,18 +655,18 @@
                         }
                         db.groups = rebuilt;
                         if (_col.has(gn)) { _col.delete(gn); _col.add(nnm); }
-                        GM_setValue('bm_collapsed_v25', JSON.stringify([..._col]));
+                        saveCol();
                     } else {
                         db.groups[gn] = nItems;
                     }
-                    _urlSet = null; save(); rerender(); m.close();
+                    save(); rerender(); m.close();
                 }, { flex: '2', padding: '12px' }),
                 btn('닫기', '', () => m.close(), { flex: '1', background: 'var(--c-text-muted)', padding: '12px' })
             ]),
             btn('🗑 그룹 삭제', 'bm-btn-red', () => {
                 if (items.length && !confirm(`"${gn}" 삭제?`)) return;
                 delete db.groups[gn];
-                _urlSet = null; save(); rerender(); m.close();
+                save(); rerender(); m.close();
             }, { width: '100%', marginTop: '10px', padding: '10px' })
         ]));
 
@@ -631,7 +682,7 @@
     /* ═══════════════════════════════════
        빠른 추가
        ═══════════════════════════════════ */
-    async function showQuickAdd() {
+    function showQuickAdd() {
         shadow.querySelector('#bm-quick')?.remove();
         const m = modal();
         m.id = 'bm-quick';
@@ -640,7 +691,9 @@
             $('h3', { text: '🔖 북마크 저장', style: { marginTop: 0 } })
         ]);
 
-        if (isDup(cu)) {
+        /* [B3 fix] 이미 저장된 경우 경고 + 중복 저장 방지 */
+        const dup = isDup(cu);
+        if (dup) {
             c.append($('div', {
                 text: '⚠ 이미 저장된 URL입니다',
                 style: { color: 'var(--c-amber)', fontSize: '12px', marginBottom: '8px', fontWeight: 'bold' }
@@ -654,6 +707,7 @@
         const saveTo = g => {
             const nn = ni.value.trim(), uu = ui.value.trim();
             if (!nn || !isUrl(uu)) return alert('올바른 값을 입력하세요.');
+            if (isDup(uu)) return toast('⚠ 이미 저장된 URL입니다');
             if (!db.groups[g]) db.groups[g] = [];
             db.groups[g].push({ name: nn, url: uu, addedAt: Date.now() });
             addUrl(uu); setRecent(g);
@@ -701,7 +755,7 @@
        ═══════════════════════════════════ */
     const updateFab = () => {
         const f = shadow?.querySelector('#bm-fab');
-        if (!f || shadow.querySelector('#bm-overlay')?.style.display === 'block') return;
+        if (!f || _isOpen) return;
         f.querySelector('.bm-badge')?.remove();
         if (isDup(location.href)) {
             f.style.outline = '3px solid var(--c-neon)';
@@ -713,15 +767,17 @@
     };
 
     const toggle = (ov, fab) => {
-        if (ov.style.display !== 'block') {
+        if (!_isOpen) {
             refreshDB(); renderDash();
             document.body.classList.add('bm-overlay-open');
             ov.style.display = 'block';
             fab.firstChild.textContent = '✕';
+            _isOpen = true;
         } else {
             document.body.classList.remove('bm-overlay-open');
             ov.style.display = 'none';
             fab.firstChild.textContent = '🔖';
+            _isOpen = false;
             killSorts(); _ctr = null;
             updateFab();
         }
@@ -1007,19 +1063,24 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         document.addEventListener('keydown', e => {
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyB') { e.preventDefault(); toggle(ov, fab); }
             if (e.ctrlKey && e.shiftKey && e.code === 'KeyD') { e.preventDefault(); showQuickAdd(); }
-            if (e.key === 'Escape' && ov.style.display === 'block' && !shadow.querySelector('dialog[open]')) {
+            if (e.key === 'Escape' && _isOpen && !shadow.querySelector('dialog[open]')) {
                 e.preventDefault(); toggle(ov, fab);
             }
-            if (e.key === '/' && ov.style.display === 'block' && !shadow.querySelector('dialog[open]')) {
+            if (e.key === '/' && _isOpen && !shadow.querySelector('dialog[open]')) {
                 const s = shadow.querySelector('.bm-search');
                 if (s && document.activeElement !== s) { e.preventDefault(); s.focus(); }
             }
         });
 
-        /* 라이프사이클 */
+        /* [P3 fix] visibilitychange에서 불필요한 렌더링 방지 */
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden) saveNow();
-            else { refreshDB(); updateFab(); rerender(); }
+            if (document.hidden) {
+                saveNow();
+            } else if (_isOpen) {
+                refreshDB(); rerender();
+            } else {
+                updateFab();
+            }
         });
         window.addEventListener('pagehide', saveNow);
         window.addEventListener('beforeunload', saveNow);
