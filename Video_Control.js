@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.7.7)
+// @name         Video_Control (v28.7.8)
 // @namespace    https://github.com/
-// @version      28.7.7
-// @description  v28.7.7: satF 데드필드 제거, absG 인라인, 누적합 pushBrightness, forEach→for, store.get 캐시, paused 체크 앞당기기, detectVertical 인라인, classifyBrightness DRM 분기 제거, activate/deactivate 공통화, workQ 전체 비우기
+// @version      28.7.8
+// @description  v28.7.8: activate() 타이밍 경쟁 수정(scheduler.request), STALE 블록 _brightSum 초기화 누락 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.7.7'; /* [v28.7.7] */
+  const VSC_VERSION = '28.7.8'; /* [v28.7.8] */
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -892,9 +892,9 @@
 
       if (now - lastCheck > STALE_THRESHOLD) {
         brightHistory.length = 0;
+        _brightSum = 0; /* [v28.7.8] 누적합 초기화 누락 수정 */
         lastAppliedBrightness = -999;
         log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
-        /* [v28.7.6] 다음 tick에서 즉시 재분석되도록 lastCheck를 한 주기 전으로 */
         lastCheck = now - CHECK_INTERVAL - 1;
       } else {
         lastCheck = now;
@@ -960,9 +960,11 @@
     function activate() {
       resetAutoState();
       currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
-      lastCheck = performance.now() - CHECK_INTERVAL - 1;
-      const video = __internal._activeVideo;
-      if (video?.isConnected) tick(video);
+      /* [v28.7.8] lastCheck=0 → CHECK_INTERVAL 조건 확실히 통과
+         tick() 직접 호출 제거 → scheduler.request(true)로 apply()→tick() 경로 보장
+         (_activeVideo는 apply() 내부에서 세팅되므로 타이밍 경쟁 해소) */
+      lastCheck = 0;
+      scheduler.request(true);
     }
 
     function deactivate() { resetAutoState(); }
