@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://greasyfork.org/users/turbo-optimizer
-// @version      21.0
-// @description  Lean web optimizer v21.0 – Font FOIT prevention (swap/optional), LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix. Zero prototype hooks except FontFace.
+// @version      22.0
+// @description  Lean web optimizer v22.0 – Font FOIT prevention (swap/optional), LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, AI chat memory optimization. Zero prototype hooks except FontFace.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -162,21 +162,60 @@
           rafScheduled = true;
           requestAnimationFrame(flushPending);
         }
+        // DOM이 변할 때마다 채팅창 조건이 충족되었는지 백그라운드에서 체크 (이미 적용되었으면 바로 return됨)
+        if (!chatStyleInjected) applyChatMemoryOptimization();
       }).observe(doc.body, { childList: true, subtree: true });
     });
   };
 
   /* ═══════════════════════════════════════════════
-   *  §3  Boot
+   *  §3  AI Chat Memory Auto-Optimizer (Generic)
+   * ═══════════════════════════════════════════════ */
+  const CHAT_SELECTORS = [
+    '[data-message-author-role]',   // ChatGPT
+    '[data-testid*="message"]',     // React 기반 AI 챗
+    '[class*="chat-message"]',      // 일반적인 채팅 UI
+    '[class*="ConversationItem"]',  // Claude 등
+    '[class*="msg-content"]',       // 기타 채팅 서비스
+  ];
+  const CHAT_MIN_COUNT = 6; // 이 수 이상 반복되면 채팅 UI로 판단
+  let chatStyleInjected = false;
+
+  const applyChatMemoryOptimization = () => {
+    if (chatStyleInjected) return;
+
+    for (const sel of CHAT_SELECTORS) {
+      if (doc.querySelectorAll(sel).length >= CHAT_MIN_COUNT) {
+        const style = doc.createElement('style');
+        style.textContent = `
+          ${sel} {
+            content-visibility: auto;
+            contain-intrinsic-size: auto 200px;
+          }
+        `;
+        doc.head.appendChild(style);
+        chatStyleInjected = true;
+        return;
+      }
+    }
+  };
+
+  /* ═══════════════════════════════════════════════
+   *  §4  Boot
    * ═══════════════════════════════════════════════ */
   const onReady = () => {
     patchFontRules();
 
+    // Below-fold 최적화
     if ('requestIdleCallback' in win) {
       requestIdleCallback(optimizeBelowFold, { timeout: 2000 });
     } else {
       setTimeout(optimizeBelowFold, 2000);
     }
+
+    // 채팅 최적화: SPA 렌더링 완료 후 검사 (3초, 8초 재검사)
+    setTimeout(applyChatMemoryOptimization, 3000);
+    setTimeout(applyChatMemoryOptimization, 8000);
   };
 
   if (doc.readyState !== 'loading') onReady();
