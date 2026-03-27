@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.7)
+// @name         Video_Control (v28.8.8)
 // @namespace    https://github.com/
-// @version      28.8.7
-// @description  v28.8.7: checkNeedsSvg contrast 누락 수정, CSS filter 캐싱, 패널 닫힘 시 signal 정리
+// @version      28.8.8
+// @description  v28.8.8: DRM 오탐 방지, 리미터 임계값 조정, 프리셋 그리드 CSS 클래스화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.7';
+  const VSC_VERSION = '28.8.8';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -57,7 +57,6 @@
     document.addEventListener('webkitfullscreenchange', fn);
   }
 
-  /* ── [v28.8.7] #1 수정: contrast 조건 추가 ── */
   function checkNeedsSvg(s) {
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
@@ -405,7 +404,8 @@
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
       limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -1.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.08; limiter.knee.value = 0;
+      /* ── [v28.8.8] #2 수정: -1.0 → -3.0 dBFS ── */
+      limiter.threshold.value = -3.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.08; limiter.knee.value = 0;
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
       comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(masterOut); masterOut.connect(ctx.destination);
       dryPath = ctx.createGain(); dryPath.gain.value = 1; dryPath.connect(ctx.destination);
@@ -554,7 +554,6 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
-  /* ── [v28.8.7] #2 수정: appliedFilter WeakMap 캐싱 추가 ── */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -789,7 +788,7 @@
 
     const _videoAnalyzeState = new WeakMap();
     function getAnalyzeState(v) {
-      if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0 });
+      if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 });
       return _videoAnalyzeState.get(v);
     }
 
@@ -876,6 +875,7 @@
       return _brightSum / brightHistory.length;
     }
 
+    /* ── [v28.8.8] #1 수정: DRM 오탐 방지 — blackCount 임계값 상향 + currentTime 진행 확인 ── */
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1;
 
@@ -904,13 +904,19 @@
 
         if (isAllZero) {
           vs.blackCount++;
-          if (vs.blackCount >= 5) {
+          /* ── [v28.8.8] 암전 씬 vs DRM 구분:
+               - 임계값 5 → 12 (500ms × 12 = 6초 연속 검정)
+               - currentTime이 진행 중이면 암전 씬으로 간주하여 DRM 플래그 설정하지 않음 ── */
+          const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended;
+          const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000;
+          if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) {
             video.dataset.vscDrm = "1";
           }
           return -1;
         }
 
         vs.blackCount = 0;
+        vs.lastNonBlackTime = performance.now();
         if (video.dataset.vscDrm === "1") {
           delete video.dataset.vscDrm;
           vs.drmRetry = 0;
@@ -1110,6 +1116,7 @@
       --vsc-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
       font-family: var(--vsc-font) !important; font-size: var(--vsc-font-md) !important; color: var(--vsc-text) !important; -webkit-font-smoothing: antialiased; }`;
 
+    /* ── [v28.8.8] #3 수정: .fine-btn.active 클래스 추가 ── */
     const PANEL_CSS = `${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
     .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; overscroll-behavior: none !important; }
@@ -1148,6 +1155,7 @@
     .fine-row { display: flex; gap: 4px; justify-content: center; padding: 4px 0; }
     .fine-btn { padding: 2px 4px; min-height: 24px; min-width: 32px; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6); font-family: var(--vsc-font-mono); font-size: 10px; cursor: pointer; transition: all 0.15s var(--vsc-ease-out); }
     .fine-btn:hover { background: rgba(255,255,255,0.08); color: var(--vsc-neon); border-color: var(--vsc-neon-border); }
+    .fine-btn.active { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); }
     .info-bar { font-family: var(--vsc-font-mono); font-size: 12px; opacity: 0.8; padding: 4px 0 6px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; color: var(--vsc-neon); text-align: left; }
     .section-label { font-size: 11px; opacity: 0.5; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 0 2px; }
     .preset-grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
@@ -1276,7 +1284,6 @@
         const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0;
         el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`;
       };
-      /* ── [v28.8.7] #3 수정: panelOpen 가드 추가 ── */
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) update(); }));
       tabSignalCleanups.push(Store.sub(P.V_PRE_S, () => { if (panelOpen) update(); }));
       tabFns.push(update);
@@ -1304,11 +1311,11 @@
         detail.textContent = AutoScene.getDetail();
       };
       tabFns.push(sync);
-      /* ── [v28.8.7] #3 수정: panelOpen 가드 추가 ── */
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) sync(); }));
       return box;
     }
 
+    /* ── [v28.8.8] #3 수정: inline style → classList.toggle('active') ── */
     function buildPresetGrid() {
       const wrap = h('div', {});
       wrap.append(h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정'));
@@ -1328,9 +1335,7 @@
         const current = MANUAL_PATHS.map(p => Store.get(p));
         for (const { btn, values } of buttons) {
           const match = values.every((v, i) => current[i] === v);
-          btn.style.background = match ? 'var(--vsc-neon-dim)' : '';
-          btn.style.color = match ? 'var(--vsc-neon)' : '';
-          btn.style.borderColor = match ? 'var(--vsc-neon-border)' : '';
+          btn.classList.toggle('active', match);
         }
       };
       tabFns.push(syncGrid);
@@ -1347,7 +1352,6 @@
 
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
-      /* ── [v28.8.7] #3 수정: panelOpen 가드 추가 ── */
       tabSignalCleanups.push(Scheduler.onSignal(() => {
         if (!panelOpen) return;
         const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
@@ -1477,7 +1481,6 @@
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) tabFns.forEach(f => f()); }));
     }
 
-    /* ── [v28.8.7] #3 수정: 패널 닫힘 시 signal/tabFn 정리 ── */
     function togglePanel(force) {
       buildPanel();
       panelOpen = force !== undefined ? force : !panelOpen;
