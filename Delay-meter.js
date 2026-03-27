@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.4.0
+// @version      15.5.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -26,6 +26,16 @@
 
   /* ================================================================
    *  §1. 플랫폼 감지 · 상수
+   *
+   *  rHigh: 플랫폼별 최고 기어 배속
+   *  ─────────────────────────────────────
+   *  YouTube (target=10s, hyst=1.0s): 넓은 히스테리시스 밴드에서
+   *    1.50은 언더슈트 위험 → 1.30으로 제한
+   *  CHZZK/SOOP/Twitch (target=2~3s, hyst=0.2~0.3s): 좁은 밴드,
+   *    언더슈트 위험 낮음 → 1.50으로 빠른 추적
+   *
+   *  ⚠ 패치 시 주의: rHigh를 일괄 변경하면 안 됨.
+   *    플랫폼별 target/hyst 비율에 따라 개별 설정 필요.
    * ================================================================ */
 
   const HOST = location.hostname.replace(/^www\./, '');
@@ -35,11 +45,11 @@
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
   const PLATFORM_DEFAULTS = {
-    youtube: { target: 10, min: 2,   max: 30, barMax: 35 },
-    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
-    soop:    { target: 3,  min: 1,   max: 10, barMax: 15 },
-    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
-    default: { target: 3,  min: 1,   max: 10, barMax: 15 },
+    youtube: { target: 10, min: 2,   max: 30, barMax: 35, rHigh: 1.30 },
+    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15, rHigh: 1.50 },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50 },
+    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50 },
+    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50 },
   };
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
@@ -50,11 +60,24 @@
   const GEAR_HOLD_MS = 3000;
 
   /* 기어 (3단계)
-   * R_HIGH: 1.50 → 1.30 — 언더슈트 위험 감소, 히스테리시스 밴드까지
-   * R_HIGH 유지를 허용하여 따라잡기 속도와 안정성의 균형점 확보 */
+   *
+   * ⚠ 따라잡기 속도 보호 규칙 — 아래 3가지를 위반하면 딜레이 수렴이 느려짐
+   *
+   * 규칙 1: R_HIGH는 히스테리시스 밴드에서 강제 강하하지 않는다.
+   *   computeDesiredGear에 `if (gear===R_HIGH) return R_MED` 같은 코드 금지.
+   *   R_HIGH 값 자체가 플랫폼별로 안전하게 설정되어 있으므로 밴드 유지가 안전함.
+   *
+   * 규칙 2: R_HIGH는 플랫폼별 값을 유지한다.
+   *   YouTube=1.30 (넓은 밴드 → 언더슈트 방지)
+   *   그 외=1.50 (좁은 밴드 → 빠른 추적)
+   *   일괄 변경 금지. target/hyst 비율이 다르므로 개별 튜닝 필요.
+   *
+   * 규칙 3: 긴급 강등(→R_NORM)만 즉시, 일반 강등은 쿨다운 유지.
+   *   모든 강등을 즉시 허용하면 R_HIGH 유지 시간이 줄어 따라잡기 속도 저하.
+   *   버퍼 급감 시에만 즉시 R_NORM 복귀. */
   const R_NORM = 1.00;
   const R_MED  = 1.10;
-  const R_HIGH = 1.30;
+  const R_HIGH = PD.rHigh;
 
   /* ================================================================
    *  §2. 유틸리티
@@ -345,11 +368,8 @@
   /* ================================================================
    *  §7. 제어 엔진
    *
-   *  computeDesiredGear: R_HIGH 강제 강하 없음 — R_HIGH=1.30으로 낮춰
-   *  언더슈트 위험을 줄이면서 히스테리시스 밴드까지 유지 허용
-   *
-   *  applyGear: 긴급 강등(→R_NORM)만 즉시 허용,
-   *  일반 단계 강등(R_HIGH→R_MED)은 쿨다운 유지하여 배속 유지 시간 확보
+   *  ⚠ 따라잡기 속도 보호 규칙 (§1 주석 참조)
+   *  이 섹션을 수정할 때 반드시 3가지 규칙을 확인할 것
    * ================================================================ */
 
   const computeDesiredGear = buf => {
@@ -357,15 +377,13 @@
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
     if (ex < -_hyst)       return R_NORM;
-    /* 히스테리시스 밴드 (-_hyst ≤ ex ≤ target*0.4): 현재 기어 유지
-     * R_HIGH도 이 밴드에서 유지됨 — 1.30배속이므로 언더슈트 위험 낮음 */
+    /* 히스테리시스 밴드: 현재 기어 유지 (R_HIGH 포함 — 규칙 1) */
     return control.gear;
   };
 
+  /* 긴급 강등(→R_NORM)만 즉시, 일반 강등은 쿨다운 유지 — 규칙 3 */
   const applyGear = (vid, desired, now) => {
     if (desired === control.gear) return;
-    /* 긴급 강등: R_NORM으로의 복귀만 즉시 허용 (버퍼 급감 대응)
-     * 일반 단계 강등(R_HIGH→R_MED)은 쿨다운 적용하여 배속 유지 시간 확보 */
     const isEmergency = desired === R_NORM && control.gear > R_NORM;
     if (!isEmergency && now - control.lastGearChange < GEAR_HOLD_MS) return;
     control.gear = desired;
@@ -647,7 +665,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.4.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v15.5.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -828,7 +846,7 @@
     const vid = getVid();
     const buf = vid ? getBuf(vid) : -1;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH} | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
