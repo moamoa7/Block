@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.1.0
+// @version      15.2.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -92,7 +92,6 @@
 
   /* ================================================================
    *  §3. 설정 저장/로드
-   *  [PATCH 2] resolveTarget() 제거 — 초기화 블록 통합
    * ================================================================ */
 
   const STORE_KEY = 'dm_u15_' + HOST;
@@ -106,7 +105,6 @@
 
   /* ================================================================
    *  §4. 상태
-   *  [PATCH 4] _hyst 캐시 도입 — target 변경 시에만 갱신
    * ================================================================ */
 
   let _vidRef = null;
@@ -123,7 +121,7 @@
 
   let enabled = cfg.enabled ?? true;
 
-  /* [PATCH 2] 단일 블록으로 target 초기화 + cfg 동기화 */
+  /* 단일 블록으로 target 초기화 + cfg 동기화 */
   let target;
   if (cfg._platform !== PLATFORM || cfg._lastDef !== DEF_TARGET || cfg.target == null) {
     target = DEF_TARGET;
@@ -135,7 +133,7 @@
 
   let panelOpen = cfg.open ?? false;
 
-  /* [PATCH 4] 히스테리시스 캐시 — target 변경 지점에서만 갱신 */
+  /* 히스테리시스 캐시 — target 변경 지점에서만 갱신 */
   let _hyst = Math.max(0.2, target * 0.1);
 
   const control = {
@@ -156,6 +154,8 @@
 
   /* ================================================================
    *  §5. 라이브 판정
+   *  [FIX #12] YouTube TTL 캐시 히트 시 DOM 쿼리 스킵 — 분기 순서 수정
+   *  [FIX #8]  clearCache에서 tracker도 삭제
    * ================================================================ */
 
   const LiveDetect = (() => {
@@ -171,6 +171,7 @@
       return ytPlayerEl;
     };
 
+    /* [FIX #12] TTL 캐시 반환을 DOM 쿼리 이전으로 이동 */
     const youtube = vid => {
       if (vid.duration === Infinity || vid.duration >= 1e6) return true;
       if (location.pathname.includes('/live')) return true;
@@ -236,14 +237,14 @@
     return {
       check: vid => vid ? (IS_YOUTUBE ? youtube(vid) : generic(vid)) : false,
       resetYT() { ytTs = 0; ytPlayerTs = 0; },
-      clearCache: vid => { if (vid) cache.delete(vid); },
+      /* [FIX #8] tracker도 함께 삭제 — 동일 <video> 재사용 시 오염 방지 */
+      clearCache: vid => { if (vid) { cache.delete(vid); tracker.delete(vid); } },
     };
   })();
 
   /* ================================================================
    *  §6. 비디오 감지 · 연결
-   *  [PATCH 5] scan() 중복 체인 차단 — 진입 시 _needScan = false
-   *  [PATCH 6] loadeddata 핸들러에서 LiveDetect.clearCache 추가
+   *  [FIX #5] onStall에서 warmupEnd 재설정 제거 — STALL_COOLDOWN으로 충분
    * ================================================================ */
 
   const isCandidate = v => {
@@ -294,16 +295,15 @@
       v.addEventListener('emptied', () => {
         if (getVid() === v) resetControlState();
       });
-      /* [PATCH 6] loadeddata 시 라이브 판정 캐시 클리어 — 동일 <video> 재사용 시 감지 지연 방지 */
       v.addEventListener('loadeddata', () => {
         LiveDetect.clearCache(v);
         if (!getVid() && isCandidate(v)) attach(v);
       });
+      /* [FIX #5] warmupEnd 재설정 제거 — STALL_COOLDOWN이 이미 8초 보호 */
       const onStall = () => {
         const now = performance.now();
         control.lastStallTime = now;
         control.lastGearChange = -GEAR_HOLD_MS;
-        control.warmupEnd = now + WARMUP_MS;
         if (getVid() === v) { control.gear = R_NORM; safeRate(v, R_NORM); }
       };
       v.addEventListener('waiting', onStall);
@@ -317,7 +317,6 @@
     }, { capture: true });
   }
 
-  /* [PATCH 5] scan() 진입 시 _needScan 즉시 해제하여 tick() 경유 중복 호출 차단 */
   const scan = () => {
     _needScan = false;
     const vids = document.getElementsByTagName('video');
@@ -332,7 +331,6 @@
     for (let i = 0; i < vids.length; i++) {
       if (isCandidate(vids[i])) { attach(vids[i]); _scanRetry = 0; return; }
     }
-    /* 비디오 엘리먼트 존재하지만 candidate 아님 → 재시도 필요 */
     if (_scanRetry < 15) {
       _needScan = true;
       _scanRetry++;
@@ -355,21 +353,26 @@
 
   /* ================================================================
    *  §7. 제어 엔진
-   *  [PATCH 1] computeDesiredGear dead branch 제거 — 간결화
+   *  [FIX #3] R_HIGH 상태에서 버퍼 급감 시 R_MED 경유 강제
+   *  [FIX #4] 기어 강등(downshift)은 GEAR_HOLD_MS 쿨다운 면제
    * ================================================================ */
 
   const computeDesiredGear = buf => {
     const ex = buf - target;
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
+    /* [FIX #3] R_HIGH 고착 방지 — 히스테리시스 밴드 진입 시 R_MED로 단계 강하 */
+    if (control.gear === R_HIGH) return R_MED;
     if (ex < -_hyst)       return R_NORM;
     /* 히스테리시스 밴드 (-_hyst ≤ ex ≤ target*0.4): 현재 기어 유지 */
     return control.gear;
   };
 
+  /* [FIX #4] 강등(desired < current)은 즉시 허용 — 버퍼 급감 시 배속 복원 지연 방지 */
   const applyGear = (vid, desired, now) => {
     if (desired === control.gear) return;
-    if (now - control.lastGearChange < GEAR_HOLD_MS) return;
+    const isDownshift = desired < control.gear;
+    if (!isDownshift && now - control.lastGearChange < GEAR_HOLD_MS) return;
     control.gear = desired;
     control.lastGearChange = now;
     safeRate(vid, control.gear);
@@ -377,7 +380,8 @@
 
   /* ================================================================
    *  §8. 메인 루프
-   *  [PATCH 7] falseCount 디바운스 최적화 — 첫 틱에서만 상태 변경, 주석 보강
+   *  [FIX #1] falseCount 디바운스 수정 — 첫 틱에서 즉시 해제하지 않고
+   *           카운터만 증가, 3틱 이상 연속 false일 때 비라이브 확정
    * ================================================================ */
 
   let pendingRender = false, lastBuf = -1, lastTickStall = false;
@@ -408,19 +412,23 @@
     const isLiveNow = LiveDetect.check(vid);
     if (!isLiveNow) {
       /*
-       * 라이브 → 비라이브 전환 디바운스 (3틱)
+       * [FIX #1] 라이브 → 비라이브 전환 디바운스
        * ─────────────────────────────────────
-       * falseCount 0 (첫 틱): 즉시 제어 해제 (rate 복원, UI 갱신)
-       * falseCount 1~2:       재확인 대기 (YouTube 라이브 뱃지 일시 소실 대응)
-       * falseCount ≥ 3:       완전히 비라이브로 확정, YouTube에서 _scanRetry 리셋
+       * falseCount 0~2: 재확인 대기 (제어·UI 상태 유지, rate만 안전 복원)
+       * falseCount ≥ 3: 완전히 비라이브로 확정
+       *
+       * 기존: falseCount === 0에서 즉시 isCurrent = false + resetRate → 1틱 끊김
+       * 수정: 카운터만 증가하며 기어를 NORM으로 안전 복원, isCurrent는 3틱까지 유지
        */
       if (live.falseCount >= 0) {
-        if (live.falseCount === 0) {
-          live.isCurrent = false;
-          resetRate(vid);
-        }
         live.falseCount++;
-        if (live.falseCount < 3) { scheduleRender(); return; }
+        if (live.falseCount <= 3) {
+          /* 디바운스 구간: 제어는 중단(안전 복원)하되 라이브 표시는 유지 */
+          if (control.gear !== R_NORM) resetRate(vid);
+          scheduleRender();
+          return;
+        }
+        /* falseCount > 3: 비라이브 확정 */
       }
       if (IS_YOUTUBE) _scanRetry = 0;
       lastBuf = -1;
@@ -655,7 +663,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.1.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v15.2.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -674,7 +682,6 @@
       togDiv.classList.toggle('on', enabled);
     };
 
-    /* [PATCH 4] target 변경 시 _hyst 캐시도 함께 갱신 */
     slInput.oninput = () => {
       target = parseFloat(slInput.value);
       _hyst = Math.max(0.2, target * 0.1);
@@ -752,7 +759,8 @@
 
   /* ================================================================
    *  §13. SPA 네비게이션 대응
-   *  [PATCH 3] history 패치 코드 중복 제거 — patchHistory 헬퍼 추출
+   *  [FIX #15] navigation API와 patchHistory를 병행 적용 —
+   *            YouTube 등 pushState 직접 호출 SPA에서 navigatesuccess 미발동 대응
    * ================================================================ */
 
   let lastPath = location.pathname + location.search;
@@ -775,7 +783,6 @@
     }, 100);
   };
 
-  /* [PATCH 3] pushState/replaceState 패치를 헬퍼로 추출하여 중복 제거 */
   const patchHistory = () => {
     for (const m of ['pushState', 'replaceState']) {
       const o = history[m];
@@ -784,11 +791,10 @@
     window.addEventListener('popstate', onNav);
   };
 
+  /* [FIX #15] 병행 적용: navigation API가 있어도 pushState 패치 항상 실행 */
+  patchHistory();
   if ('navigation' in window) {
-    try { navigation.addEventListener('navigatesuccess', onNav); }
-    catch { patchHistory(); }
-  } else {
-    patchHistory();
+    try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
   }
 
   /* ================================================================
