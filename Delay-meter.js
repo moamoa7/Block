@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.6.0
+// @version      15.6.1
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -17,6 +17,7 @@
 // @exclude      *://*.recaptcha.net/*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
+// @grant        GM_info
 // @license      MIT
 // @run-at       document-start
 // ==/UserScript==
@@ -36,30 +37,46 @@
    *
    *  ⚠ 패치 시 주의: rHigh를 일괄 변경하면 안 됨.
    *    플랫폼별 target/hyst 비율에 따라 개별 설정 필요.
+   *
+   *  stallCooldown: 플랫폼별 스톨 후 제어 유예 시간
+   *  ─────────────────────────────────────
+   *  target 대비 적절한 비율로 설정. stallCooldown ≥ GEAR_HOLD_MS 유지 필수.
+   *  YouTube: target=10s → 8000ms (0.8×)
+   *  CHZZK:  target=2s  → 3500ms (1.75×, GEAR_HOLD_MS=3000 대비 500ms 마진)
+   *  SOOP/Twitch: target=3s → 4000ms (1.33×)
    * ================================================================ */
 
+  /* [B-1] 버전 단일 출처 */
+  const SCRIPT_VERSION = typeof GM_info !== 'undefined'
+    ? GM_info?.script?.version ?? '15.6.1'
+    : '15.6.1';
+
   const HOST = location.hostname.replace(/^www\./, '');
-  const PLATFORM = [['youtube','youtube'],['chzzk','chzzk'],['sooplive','soop'],['twitch','twitch']]
-    .find(([k]) => HOST.includes(k))?.[1] || 'default';
+  const PLATFORM = (() => {
+    const map = { youtube: 'youtube', chzzk: 'chzzk', sooplive: 'soop', twitch: 'twitch' };
+    for (const [k, v] of Object.entries(map)) if (HOST.includes(k)) return v;
+    return 'default';
+  })();
   const IS_YOUTUBE = PLATFORM === 'youtube';
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
+  /* [S-1] stallCooldown 플랫폼별 분리 */
   const PLATFORM_DEFAULTS = {
-    youtube: { target: 10, min: 2,   max: 30, barMax: 35, rHigh: 1.30 },
-    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15, rHigh: 1.50 },
-    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50 },
-    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50 },
-    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50 },
+    youtube: { target: 10, min: 2,   max: 30, barMax: 35, rHigh: 1.30, stallCooldown: 8000 },
+    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 3500 },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 4000 },
+    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 4000 },
+    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 4000 },
   };
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
-  const COLOR_DENOM = DEF_TARGET * 0.5;  /* #6: 상수화 */
+  const COLOR_DENOM = DEF_TARGET * 0.5;
 
   /* 제어 상수
-   * ⚠ STALL_COOLDOWN ≥ GEAR_HOLD_MS 유지 필수 (#11)
+   * ⚠ STALL_COOLDOWN ≥ GEAR_HOLD_MS 유지 필수
    *   스톨 쿨다운 중 기어 변경은 tick()에서 R_NORM 강제이므로
    *   GEAR_HOLD_MS보다 짧으면 스톨↔가속 진동 발생 */
-  const STALL_COOLDOWN = 8000;
+  const STALL_COOLDOWN = PD.stallCooldown;
   const WARMUP_MS = 4000;
   const GEAR_HOLD_MS = 3000;
 
@@ -99,7 +116,7 @@
   /* 색상: 단일 캐시 */
   let _colorKey = -1, _colorVal = '';
   const getColor = diff => {
-    const key = Math.round(clamp(diff / COLOR_DENOM, 0, 1) * 100);  /* #6 */
+    const key = Math.round(clamp(diff / COLOR_DENOM, 0, 1) * 100);
     if (key === _colorKey) return _colorVal;
     _colorKey = key;
     const ratio = key / 100;
@@ -138,13 +155,16 @@
 
   let _vidRef = null;
 
-  /* #2: getVid()는 순수 접근자. isConnected 체크는 tick()에서 수행 */
+  /* getVid()는 순수 접근자. 향후 다중 비디오 우선순위 등 확장점 역할.
+   * isConnected 체크는 tick()에서 수행 */
   const getVid = () => _vidRef;
 
+  /* [B-3] detachVid 진입 시 stopObserver 선행 호출로 방어적 정리 */
   const detachVid = () => {
-    if (_vidRef) LiveDetect.clearCache(_vidRef);  /* #7 */
+    if (_vidRef) LiveDetect.clearCache(_vidRef);
     _vidRef = null;
     _needScan = true;
+    stopObserver();
     startObserver();
   };
 
@@ -218,6 +238,12 @@
       return result;
     };
 
+    /* [R-2] generic 함수: 도달 불가능한 HLS 이중 체크 제거
+     *
+     * tracker 로직 설명: non-HLS 스트림에서 seekable 범위의 증가를
+     * 2회 이상 확인하여 라이브 여부를 판정하는 폴백.
+     * HLS는 첫 조건(isHlsSrc + buffered)에서 즉시 판정되므로
+     * tracker는 non-HLS 전용. */
     const generic = vid => {
       if (vid.duration === Infinity || vid.duration >= 1e6) return true;
       const cached = cache.get(vid);
@@ -245,12 +271,6 @@
             }
           }
         } catch {}
-      }
-      if (!v && vid.buffered.length > 0) {
-        const d = vid.duration;
-        if (d > 0 && isFinite(d) && vid.currentTime > 0) {
-          if (d - vid.currentTime < 60 && isHlsSrc(src)) v = true;
-        }
       }
       cache.set(vid, { v, ts: performance.now() });
       return v;
@@ -283,6 +303,7 @@
     try { vid.preservesPitch = true; } catch {}
   };
 
+  /* [C-2] resetRate는 경량 리셋 (기어+속도만). resetControlState가 호출함 */
   const resetRate = vid => {
     control.gear = R_NORM;
     control.lastGearChange = -GEAR_HOLD_MS;
@@ -293,14 +314,13 @@
   let mo = null, _scanRetry = 0, _needScan = true;
   const stopObserver = () => { if (mo) { mo.disconnect(); mo = null; } };
 
+  /* [C-2] resetControlState는 resetRate를 내부 호출 + 추가 상태 리셋 */
   const resetControlState = vid => {
-    control.gear = R_NORM;
-    control.lastGearChange = -GEAR_HOLD_MS;
+    resetRate(vid);
     control.warmupEnd = performance.now() + WARMUP_MS;
     control.lastStallTime = 0;
     live.isCurrent = false;
     live.falseCount = -1;
-    if (vid) safeRate(vid, R_NORM);
   };
 
   const attach = v => {
@@ -377,7 +397,7 @@
    *  ⚠ 따라잡기 속도 보호 규칙 (§1 주석 참조)
    *  이 섹션을 수정할 때 반드시 3가지 규칙을 확인할 것
    *
-   *  비대칭 히스테리시스 — 의도적 설계 (#10)
+   *  비대칭 히스테리시스 — 의도적 설계
    *  상한 밴드(가속 진입): target * 0.4 ~ target * 0.8
    *    → 넓게 잡아 불필요한 가속 진입/이탈 진동 방지
    *  하한 밴드(감속 복귀): _hyst (target * 0.1)
@@ -387,7 +407,9 @@
    *  CHZZK 예:  target=2s  → [1.8s,  2.8s] 유지 밴드
    * ================================================================ */
 
+  /* [B-2] buf<0 명시적 가드: 버퍼 미확보 시 즉시 R_NORM 반환 */
   const computeDesiredGear = buf => {
+    if (buf < 0) return R_NORM;
     const ex = buf - target;
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
@@ -418,7 +440,7 @@
   };
 
   const tick = () => {
-    /* #2: isConnected 체크를 tick()에서 수행 */
+    /* isConnected 체크를 tick()에서 수행 */
     if (_vidRef && !_vidRef.isConnected) detachVid();
 
     const vid = getVid();
@@ -437,7 +459,7 @@
       scheduleRender(); return;
     }
 
-    /* 라이브 판정 (#1: live.isCurrent 게이트로 유예 보호) */
+    /* 라이브 판정 (live.isCurrent 게이트로 유예 보호) */
     const isLiveNow = LiveDetect.check(vid);
     if (!isLiveNow) {
       if (live.isCurrent) {
@@ -481,7 +503,7 @@
   };
 
   /* ================================================================
-   *  §9. 렌더러 (#18: _prev 통합)
+   *  §9. 렌더러
    * ================================================================ */
 
   let els = {};
@@ -664,7 +686,8 @@
     /* 슬라이더 */
     const slInput = el('input', { type: 'range', min: String(MIN_TARGET), max: String(MAX_TARGET), step: '0.5', value: String(target) });
     const svSpan = el('span', { className: 'dm-sv', textContent: target.toFixed(1) + 's' });
-    const defLabel = el('span', { textContent: `기본 ${DEF_TARGET}s` });
+    /* [U-1] 더블클릭 리셋 힌트 */
+    const defLabel = el('span', { textContent: `기본 ${DEF_TARGET}s · 더블클릭 리셋` });
     defLabel.style.cssText = 'font-size:8.5px;color:var(--t2);margin-top:2px;letter-spacing:-0.02em';
     const slWrap = el('div', { className: 'dm-sl-wrap' }, [
       el('div', { className: 'dm-sl-labels' }, [
@@ -679,9 +702,10 @@
 
     /* 푸터 */
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
+    /* [B-1] 버전 단일 출처 */
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.5.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v' + SCRIPT_VERSION }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -706,7 +730,6 @@
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
     };
-    /* #4: 더블클릭 시 기어 쿨다운 리셋 추가 */
     slInput.ondblclick = () => {
       target = DEF_TARGET;
       _hyst = Math.max(0.2, target * 0.1);
@@ -733,8 +756,9 @@
    *  §11. 패널 열기/닫기
    * ================================================================ */
 
-  const openP = instant => {
-    if (panelOpen && !instant) return;
+  /* [C-3] force: 이미 열려있어도 강제 재초기화 (저장 위치 복원 등) */
+  const openP = force => {
+    if (panelOpen && !force) return;
     panelOpen = true; setCfg('open', true);
 
     if (!cfg.px && els.fab?.style.display !== 'none') {
@@ -831,7 +855,6 @@
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
-  /* #5: 탭 복귀 즉시 tick() 1회 실행 */
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       control.warmupEnd = performance.now() + WARMUP_MS;
@@ -845,7 +868,6 @@
     }
   });
 
-  /* #20: 전체화면 핸들러에 panelOpen 분기 추가 */
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
     const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
@@ -878,7 +900,7 @@
     const vid = getVid();
     const buf = vid ? getBuf(vid) : -1;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH} | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
