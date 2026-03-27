@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.5.0
+// @version      15.6.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -53,8 +53,12 @@
   };
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
+  const COLOR_DENOM = DEF_TARGET * 0.5;  /* #6: 상수화 */
 
-  /* 제어 상수 */
+  /* 제어 상수
+   * ⚠ STALL_COOLDOWN ≥ GEAR_HOLD_MS 유지 필수 (#11)
+   *   스톨 쿨다운 중 기어 변경은 tick()에서 R_NORM 강제이므로
+   *   GEAR_HOLD_MS보다 짧으면 스톨↔가속 진동 발생 */
   const STALL_COOLDOWN = 8000;
   const WARMUP_MS = 4000;
   const GEAR_HOLD_MS = 3000;
@@ -95,7 +99,7 @@
   /* 색상: 단일 캐시 */
   let _colorKey = -1, _colorVal = '';
   const getColor = diff => {
-    const key = Math.round(clamp(diff / (DEF_TARGET * 0.5), 0, 1) * 100);
+    const key = Math.round(clamp(diff / COLOR_DENOM, 0, 1) * 100);  /* #6 */
     if (key === _colorKey) return _colorVal;
     _colorKey = key;
     const ratio = key / 100;
@@ -134,14 +138,16 @@
 
   let _vidRef = null;
 
-  const getVid = () => {
-    if (_vidRef && !_vidRef.isConnected) {
-      _vidRef = null;
-      _needScan = true;
-      startObserver();
-    }
-    return _vidRef;
+  /* #2: getVid()는 순수 접근자. isConnected 체크는 tick()에서 수행 */
+  const getVid = () => _vidRef;
+
+  const detachVid = () => {
+    if (_vidRef) LiveDetect.clearCache(_vidRef);  /* #7 */
+    _vidRef = null;
+    _needScan = true;
+    startObserver();
   };
+
   const setVid = v => { _vidRef = v || null; };
 
   let enabled = cfg.enabled ?? true;
@@ -370,6 +376,15 @@
    *
    *  ⚠ 따라잡기 속도 보호 규칙 (§1 주석 참조)
    *  이 섹션을 수정할 때 반드시 3가지 규칙을 확인할 것
+   *
+   *  비대칭 히스테리시스 — 의도적 설계 (#10)
+   *  상한 밴드(가속 진입): target * 0.4 ~ target * 0.8
+   *    → 넓게 잡아 불필요한 가속 진입/이탈 진동 방지
+   *  하한 밴드(감속 복귀): _hyst (target * 0.1)
+   *    → 좁게 잡아 타겟 이하에서 빠르게 R_NORM 복귀 (언더슈트 방지)
+   *
+   *  YouTube 예: target=10s → [9.0s, 14.0s] 유지 밴드
+   *  CHZZK 예:  target=2s  → [1.8s,  2.8s] 유지 밴드
    * ================================================================ */
 
   const computeDesiredGear = buf => {
@@ -403,6 +418,9 @@
   };
 
   const tick = () => {
+    /* #2: isConnected 체크를 tick()에서 수행 */
+    if (_vidRef && !_vidRef.isConnected) detachVid();
+
     const vid = getVid();
 
     /* 비디오 없음 */
@@ -419,11 +437,12 @@
       scheduleRender(); return;
     }
 
-    /* 라이브 판정 */
+    /* 라이브 판정 (#1: live.isCurrent 게이트로 유예 보호) */
     const isLiveNow = LiveDetect.check(vid);
     if (!isLiveNow) {
-      if (live.falseCount >= 0) {
-        live.falseCount++;
+      if (live.isCurrent) {
+        /* 라이브→비라이브 전환: 최대 3tick 유예 */
+        live.falseCount = (live.falseCount < 0) ? 1 : live.falseCount + 1;
         if (live.falseCount <= 3) {
           if (control.gear !== R_NORM) resetRate(vid);
           scheduleRender();
@@ -462,12 +481,11 @@
   };
 
   /* ================================================================
-   *  §9. 렌더러
+   *  §9. 렌더러 (#18: _prev 통합)
    * ================================================================ */
 
   let els = {};
-  let _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
-  let _prevBufRound = -999, _prevBarPct = -1;
+  let _prev = { dot: '', clr: '', badge: '', badgeCls: '', bufRound: -999, barPct: -1 };
 
   const Renderer = {
     update(buf, vid, isStalled) {
@@ -491,14 +509,14 @@
 
       /* 패널 표시 중 */
       const bufRound = buf < 0 ? -1 : Math.round(sec * 10);
-      if (bufRound !== _prevBufRound) {
-        _prevBufRound = bufRound;
+      if (bufRound !== _prev.bufRound) {
+        _prev.bufRound = bufRound;
         els.val.textContent = buf < 0 ? '—' : (bufRound / 10).toFixed(1);
       }
       if (c !== _prev.clr) { els.pn.style.setProperty('--ac', c); _prev.clr = c; }
 
       const barPct = Math.round(clamp(sec / BAR_MAX * 100, 0, 100) * 10);
-      if (barPct !== _prevBarPct) { _prevBarPct = barPct; els.bar.style.width = (barPct / 10).toFixed(1) + '%'; }
+      if (barPct !== _prev.barPct) { _prev.barPct = barPct; els.bar.style.width = (barPct / 10).toFixed(1) + '%'; }
 
       let bTxt, bCls;
       if (!enabled)         { bTxt = 'OFF';      bCls = 'dm-b dm-off'; }
@@ -513,9 +531,7 @@
     },
 
     invalidate() {
-      _prev = { dot: '', clr: '', badge: '', badgeCls: '' };
-      _prevBufRound = -999;
-      _prevBarPct = -1;
+      _prev = { dot: '', clr: '', badge: '', badgeCls: '', bufRound: -999, barPct: -1 };
     }
   };
 
@@ -690,12 +706,14 @@
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
     };
+    /* #4: 더블클릭 시 기어 쿨다운 리셋 추가 */
     slInput.ondblclick = () => {
       target = DEF_TARGET;
       _hyst = Math.max(0.2, target * 0.1);
       slInput.value = target;
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
+      control.lastGearChange = -GEAR_HOLD_MS;
     };
 
     /* FAB 드래그 */
@@ -813,6 +831,7 @@
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
+  /* #5: 탭 복귀 즉시 tick() 1회 실행 */
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       control.warmupEnd = performance.now() + WARMUP_MS;
@@ -822,17 +841,30 @@
         control.gear = R_NORM;
         safeRate(vid, R_NORM);
       }
+      tick();
     }
   });
 
+  /* #20: 전체화면 핸들러에 panelOpen 분기 추가 */
   document.addEventListener('fullscreenchange', () => requestAnimationFrame(() => {
     if (!els.pn) return;
     const def = { right: '20px', bottom: '20px', left: 'auto', top: 'auto' };
     if (document.fullscreenElement) {
-      Object.assign(els.pn.style, def); Object.assign(els.fab.style, def);
+      if (panelOpen) {
+        Object.assign(els.pn.style, def);
+      } else {
+        Object.assign(els.fab.style, def);
+      }
     } else {
-      Object.assign(els.pn.style, cfg.px ? { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' } : def);
-      Object.assign(els.fab.style, cfg.dx ? { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' } : def);
+      if (panelOpen) {
+        Object.assign(els.pn.style, cfg.px
+          ? { left: cfg.px, top: cfg.py, right: 'auto', bottom: 'auto' }
+          : def);
+      } else {
+        Object.assign(els.fab.style, cfg.dx
+          ? { left: cfg.dx, top: cfg.dy, right: 'auto', bottom: 'auto' }
+          : def);
+      }
     }
   }));
 
