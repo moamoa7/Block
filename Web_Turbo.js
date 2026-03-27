@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://github.com/moamoa7
-// @version      22.1
-// @description  Lean web optimizer v22.1 – Font FOIT prevention (swap/optional), LCP boost + lazy removal, below-fold img lazy/async/low-priority, iframe lazy, responsive sizes fix, AI chat memory optimization. Zero prototype hooks except FontFace.
+// @version      23.0
+// @description  Lean web optimizer v23 – Font FOIT prevention, LCP boost, below-fold lazy, iframe lazy. No chat DOM intervention.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://www.figma.com/*
@@ -64,9 +64,9 @@
    *  §2  LCP Boost + Below-fold Optimization
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
-  const lcpEls = new Set();                           // [Fix 5] 모든 LCP 후보 누적 보관
+  const lcpEls = new WeakSet();  // WeakSet으로 변경: GC 허용
   let lcpResolve;
-  const lcpReady = new Promise(r => (lcpResolve = r)); // [Fix 7] Promise 간소화
+  const lcpReady = new Promise(r => (lcpResolve = r));
 
   if (typeof PerformanceObserver === 'function') {
     try {
@@ -75,7 +75,7 @@
         const last = entries[entries.length - 1];
         if (last?.element) {
           lcpEl = last.element;
-          lcpEls.add(lcpEl);                          // [Fix 5] Set에 누적
+          lcpEls.add(lcpEl);
           boostLCP();
         }
       });
@@ -83,6 +83,7 @@
 
       const stopLCP = () => {
         obs.disconnect();
+        lcpEl = null;  // 강한 참조 해제
         lcpResolve();
         for (const evt of ['click', 'keydown', 'scroll']) {
           win.removeEventListener(evt, stopLCP, { capture: true });
@@ -120,10 +121,10 @@
           io.unobserve(el);
 
           if (tag === 'IMG') {
-            if (lcpEls.has(el) || e.isIntersecting) continue;  // [Fix 5] Set으로 보호
+            if (lcpEls.has(el) || e.isIntersecting) continue;
             if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
             if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
-            if (!el.fetchPriority || el.fetchPriority === 'auto' || el.fetchPriority === 'high') // [Fix 1] 'auto' 추가
+            if (!el.fetchPriority || el.fetchPriority === 'auto' || el.fetchPriority === 'high')
               el.fetchPriority = 'low';
             if (el.srcset && el.loading === 'lazy' &&
                 (!el.sizes || el.sizes === '') && /\d+w/.test(el.srcset)) {
@@ -141,22 +142,25 @@
         if (!observed.has(el)) { observed.add(el); io.observe(el); }
       };
 
+      // 초기 스캔
       doc.querySelectorAll('img, iframe').forEach(observeEl);
 
+      // 동적 요소 감시 – throttle로 비용 제한
       let pending = [];
-      let rafScheduled = false;
-      let chatCheckScheduled = false;                // [Fix 3] rAF 디바운스용 플래그
+      let flushScheduled = false;
 
       const flushPending = () => {
-        for (const node of pending) {
+        const batch = pending;
+        pending = [];
+        flushScheduled = false;
+
+        for (const node of batch) {
           const tag = node.tagName;
           if (tag === 'IMG' || tag === 'IFRAME') { observeEl(node); continue; }
           if (node.querySelectorAll) {
             for (const child of node.querySelectorAll('img, iframe')) observeEl(child);
           }
         }
-        pending = [];
-        rafScheduled = false;
       };
 
       new MutationObserver((mutations) => {
@@ -165,52 +169,26 @@
             if (node.nodeType === 1) pending.push(node);
           }
         }
-        if (pending.length && !rafScheduled) {
-          rafScheduled = true;
-          requestAnimationFrame(flushPending);
-        }
-        // [Fix 3] rAF 디바운스로 호출 빈도 제한
-        if (!chatStyleInjected && !chatCheckScheduled) {
-          chatCheckScheduled = true;
-          requestAnimationFrame(() => {
-            applyChatMemoryOptimization();
-            chatCheckScheduled = false;
-          });
+        if (pending.length && !flushScheduled) {
+          flushScheduled = true;
+          // requestIdleCallback으로 메인 스레드 양보
+          if ('requestIdleCallback' in win) {
+            requestIdleCallback(flushPending, { timeout: 500 });
+          } else {
+            setTimeout(flushPending, 100);
+          }
         }
       }).observe(doc.body, { childList: true, subtree: true });
     });
   };
 
   /* ═══════════════════════════════════════════════
-   *  §3  AI Chat Memory Auto-Optimizer (Generic)
+   *  §3  Chat Memory Optimization – 완전 제거
+   *
+   *  content-visibility: auto는 동적 높이 요소
+   *  (AI 채팅 스트리밍)에서 layout thrashing과
+   *  scroll anchoring 충돌을 유발하므로 제거.
    * ═══════════════════════════════════════════════ */
-  const CHAT_SELECTORS = [
-    '[data-message-author-role]',   // ChatGPT
-    '[data-testid*="message"]',     // React 기반 AI 챗
-    '[class*="chat-message"]',      // 일반적인 채팅 UI
-    '[class*="ConversationItem"]',  // Claude 등
-    '[class*="msg-content"]',       // 기타 채팅 서비스
-  ];
-  const CHAT_MIN_COUNT = 6;
-  let chatStyleInjected = false;
-
-  const applyChatMemoryOptimization = () => {
-    if (chatStyleInjected) return;
-
-    // [Fix 2] 매칭되는 모든 셀렉터 수집 후 단일 <style> 인젝션
-    const matched = CHAT_SELECTORS.filter(sel => doc.querySelectorAll(sel).length >= CHAT_MIN_COUNT);
-    if (!matched.length) return;
-
-    const style = doc.createElement('style');
-    style.textContent = `
-      ${matched.join(',\n      ')} {
-        content-visibility: auto;
-        contain-intrinsic-size: auto 200px;
-      }
-    `;
-    doc.head.appendChild(style);
-    chatStyleInjected = true;
-  };
 
   /* ═══════════════════════════════════════════════
    *  §4  Boot
@@ -223,9 +201,6 @@
     } else {
       setTimeout(optimizeBelowFold, 2000);
     }
-
-    setTimeout(applyChatMemoryOptimization, 3000);
-    setTimeout(applyChatMemoryOptimization, 8000);
   };
 
   if (doc.readyState !== 'loading') onReady();
