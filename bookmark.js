@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v26.0)
-// @version      26.0
-// @description  v25.1 기반 + v23.0 기능 전체 복원 — 탭관리, 초성검색, 건강체크, Undo, cleanUrl, HTML내보내기, D&D임포트, FAB제스처, 도메인추천 (아이콘캐시 제외)
+// @name         북마크 (Glassmorphism v26.1)
+// @version      26.1
+// @description  v26.0 기반 — dead code 제거, 터치 롱프레스/드래그 경합 수정, cross-group D&D 매칭 수정
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -556,12 +556,12 @@
     let _sorts = [];
     const killSorts = () => { _sorts.forEach(s => s.destroy()); _sorts.length = 0; };
 
-    const rebuildGroupFromDOM = (gridEl, page) => {
+    /* [패치 #3] 관련 그룹 배열만으로 itemMap 구축 — cross-group 오매칭 방지 */
+    const rebuildGroupFromDOM = (gridEl, ...sourceArrays) => {
         const itemMap = new Map();
-        for (const g in page) {
-            const items = page[g];
-            for (let i = 0; i < items.length; i++) {
-                const it = items[i];
+        for (const arr of sourceArrays) {
+            for (let i = 0; i < arr.length; i++) {
+                const it = arr[i];
                 if (!itemMap.has(it.url)) itemMap.set(it.url, []);
                 itemMap.get(it.url).push(it);
             }
@@ -901,26 +901,21 @@
                 if (g.style.display !== 'none') {
                     _sorts.push(new Sortable(g, {
                         group: 'bm-items', animation: 150,
-                        delay: 300, delayOnTouchOnly: true,
-                        onStart: ev => {
-                            const fromGn = ev.from.dataset.group;
-                            ev.from._snapshot = [...(curPage()[fromGn] || [])];
-                            const toGn = ev.to?.dataset.group;
-                            if (toGn && toGn !== fromGn && ev.to) {
-                                ev.to._snapshot = [...(curPage()[toGn] || [])];
-                            }
-                        },
+                        /* [패치 #2] 터치 드래그 딜레이를 600ms로 상향 — 500ms 롱프레스 컨텍스트 메뉴 우선 발동 보장 */
+                        delay: 600, delayOnTouchOnly: true,
+                        /* [패치 #1] onStart 제거 — ev.to가 undefined이고 _snapshot도 미사용 dead code였음 */
                         onEnd: ev => {
                             pushUndo();
                             const page = curPage();
                             const fromGroup = ev.from.dataset.group;
                             const toGroup = ev.to.dataset.group;
-                            page[fromGroup] = rebuildGroupFromDOM(ev.from, page);
+                            /* [패치 #3] 관련 그룹의 아이템 배열만 전달하여 cross-group 오매칭 방지 */
+                            const fromItems = page[fromGroup] || [];
+                            const toItems = fromGroup !== toGroup ? (page[toGroup] || []) : fromItems;
+                            page[fromGroup] = rebuildGroupFromDOM(ev.from, fromItems, toItems);
                             if (fromGroup !== toGroup) {
-                                page[toGroup] = rebuildGroupFromDOM(ev.to, page);
+                                page[toGroup] = rebuildGroupFromDOM(ev.to, fromItems, toItems);
                             }
-                            delete ev.from._snapshot;
-                            delete ev.to._snapshot;
                             _urlSet = null;
                             saveLazy();
                         }
