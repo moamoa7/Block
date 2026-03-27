@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.1)
+// @name         Video_Control (v28.8.2)
 // @namespace    https://github.com/
-// @version      28.8.1
-// @description  v28.8.1: 화면 조도 기능 삭제
+// @version      28.8.2
+// @description  v28.8.2: DRM 판정 오류 방지
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.1';
+  const VSC_VERSION = '28.8.2';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -772,7 +772,7 @@
     const DARK_V   = [ 55, 33, 28,  0, 0, -4, -7,  8, 16 ];
     const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  3,  2 ];
     const VERTICAL = [ 15, 12,  8,  0, 0, -1, -2,  3,  4 ];
-    const DRM_BASE = [ 30, 20, 15,  0, 0, -1, -5,  6,  9 ];
+    const DRM_BASE = [ 20, 15, 0,  0, 0, -1, -3,  0,  0 ];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -840,13 +840,24 @@
     }
 
     function analyzeFrame(video) {
-      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1" || video.dataset.vscDrm === "1") return -1;
+      // 기존: vscDrm === "1" 이면 무조건 튕겨냈으나, 이제 통과시켜서 아래에서 재검증함
+      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1;
+
+      // DRM 플래그가 있어도 주기적으로 재검증
+      if (video.dataset.vscDrm === "1") {
+        if (!video._vscDrmRetry) video._vscDrmRetry = 0;
+        video._vscDrmRetry++;
+        if (video._vscDrmRetry < 10) return -1;  // 10틱(~10초)마다 재시도
+        video._vscDrmRetry = 0;
+      }
+
       try {
         canvasCtx.drawImage(video, 0, 0, 16, 16);
         const data = canvasCtx.getImageData(0, 0, 16, 16).data;
         let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true;
+
         for (let i = 0; i < data.length; i += 4) {
-          const row = (i >> 2) >> 4;
+          const row = (i >> 2) >> 4; // 비트 연산 최적화
           const yWeight = row >= 13 ? 0.3 : 1.0;
           r += data[i]   * yWeight;
           g += data[i+1] * yWeight;
@@ -854,9 +865,29 @@
           totalWeight += yWeight;
           if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false;
         }
-        if (isAllZero) { video.dataset.vscDrm = "1"; return -1; }
+
+        if (isAllZero) {
+          // 연속 검정 프레임 카운트로 판단 (1회가 아닌 N회 연속)
+          if (!video._vscBlackCount) video._vscBlackCount = 0;
+          video._vscBlackCount++;
+          if (video._vscBlackCount >= 5) {  // 5초 연속 검정이면 DRM 판정
+            video.dataset.vscDrm = "1";
+          }
+          return -1;
+        }
+
+        // 정상 프레임이 나오면 카운터 및 DRM 플래그 해제
+        video._vscBlackCount = 0;
+        if (video.dataset.vscDrm === "1") {
+          delete video.dataset.vscDrm;
+          log.info('[AutoScene] DRM 플래그 해제 - 정상 프레임 감지');
+        }
+
         return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
-      } catch (e) { video.dataset.vscCorsFail = "1"; return -1; }
+      } catch (e) {
+        video.dataset.vscCorsFail = "1";
+        return -1;
+      }
     }
 
     function buildDetailText() {
