@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.2.0
+// @version      15.3.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -121,7 +121,6 @@
 
   let enabled = cfg.enabled ?? true;
 
-  /* 단일 블록으로 target 초기화 + cfg 동기화 */
   let target;
   if (cfg._platform !== PLATFORM || cfg._lastDef !== DEF_TARGET || cfg.target == null) {
     target = DEF_TARGET;
@@ -133,7 +132,6 @@
 
   let panelOpen = cfg.open ?? false;
 
-  /* 히스테리시스 캐시 — target 변경 지점에서만 갱신 */
   let _hyst = Math.max(0.2, target * 0.1);
 
   const control = {
@@ -143,10 +141,6 @@
     lastStallTime: 0,
   };
 
-  /*
-   * 라이브 판정 상태
-   * falseCount: -1 = 라이브 확인된 적 없음, 0+ = 확인 후 디바운싱 카운터
-   */
   const live = {
     isCurrent: false,
     falseCount: -1,
@@ -154,8 +148,6 @@
 
   /* ================================================================
    *  §5. 라이브 판정
-   *  [FIX #12] YouTube TTL 캐시 히트 시 DOM 쿼리 스킵 — 분기 순서 수정
-   *  [FIX #8]  clearCache에서 tracker도 삭제
    * ================================================================ */
 
   const LiveDetect = (() => {
@@ -171,7 +163,6 @@
       return ytPlayerEl;
     };
 
-    /* [FIX #12] TTL 캐시 반환을 DOM 쿼리 이전으로 이동 */
     const youtube = vid => {
       if (vid.duration === Infinity || vid.duration >= 1e6) return true;
       if (location.pathname.includes('/live')) return true;
@@ -237,14 +228,12 @@
     return {
       check: vid => vid ? (IS_YOUTUBE ? youtube(vid) : generic(vid)) : false,
       resetYT() { ytTs = 0; ytPlayerTs = 0; },
-      /* [FIX #8] tracker도 함께 삭제 — 동일 <video> 재사용 시 오염 방지 */
       clearCache: vid => { if (vid) { cache.delete(vid); tracker.delete(vid); } },
     };
   })();
 
   /* ================================================================
    *  §6. 비디오 감지 · 연결
-   *  [FIX #5] onStall에서 warmupEnd 재설정 제거 — STALL_COOLDOWN으로 충분
    * ================================================================ */
 
   const isCandidate = v => {
@@ -273,13 +262,18 @@
   let mo = null, _scanRetry = 0, _needScan = true;
   const stopObserver = () => { if (mo) { mo.disconnect(); mo = null; } };
 
-  const resetControlState = () => {
+  /*
+   * [FIX B1] resetControlState — vid 인자를 받아 실제 playbackRate도 복원
+   * 호출처: attach(), emptied 핸들러, onNav()
+   */
+  const resetControlState = vid => {
     control.gear = R_NORM;
     control.lastGearChange = -GEAR_HOLD_MS;
     control.warmupEnd = performance.now() + WARMUP_MS;
     control.lastStallTime = 0;
     live.isCurrent = false;
     live.falseCount = -1;
+    if (vid) safeRate(vid, R_NORM);
   };
 
   const attach = v => {
@@ -288,18 +282,18 @@
     LiveDetect.clearCache(v);
     stopObserver();
     setVid(v);
-    resetControlState();
+    /* [FIX B1] 새 비디오의 playbackRate를 즉시 R_NORM으로 복원 */
+    resetControlState(v);
     _needScan = false;
     if (!seen.has(v)) {
       seen.add(v);
       v.addEventListener('emptied', () => {
-        if (getVid() === v) resetControlState();
+        if (getVid() === v) resetControlState(v);
       });
       v.addEventListener('loadeddata', () => {
         LiveDetect.clearCache(v);
         if (!getVid() && isCandidate(v)) attach(v);
       });
-      /* [FIX #5] warmupEnd 재설정 제거 — STALL_COOLDOWN이 이미 8초 보호 */
       const onStall = () => {
         const now = performance.now();
         control.lastStallTime = now;
@@ -353,22 +347,17 @@
 
   /* ================================================================
    *  §7. 제어 엔진
-   *  [FIX #3] R_HIGH 상태에서 버퍼 급감 시 R_MED 경유 강제
-   *  [FIX #4] 기어 강등(downshift)은 GEAR_HOLD_MS 쿨다운 면제
    * ================================================================ */
 
   const computeDesiredGear = buf => {
     const ex = buf - target;
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
-    /* [FIX #3] R_HIGH 고착 방지 — 히스테리시스 밴드 진입 시 R_MED로 단계 강하 */
     if (control.gear === R_HIGH) return R_MED;
     if (ex < -_hyst)       return R_NORM;
-    /* 히스테리시스 밴드 (-_hyst ≤ ex ≤ target*0.4): 현재 기어 유지 */
     return control.gear;
   };
 
-  /* [FIX #4] 강등(desired < current)은 즉시 허용 — 버퍼 급감 시 배속 복원 지연 방지 */
   const applyGear = (vid, desired, now) => {
     if (desired === control.gear) return;
     const isDownshift = desired < control.gear;
@@ -380,8 +369,8 @@
 
   /* ================================================================
    *  §8. 메인 루프
-   *  [FIX #1] falseCount 디바운스 수정 — 첫 틱에서 즉시 해제하지 않고
-   *           카운터만 증가, 3틱 이상 연속 false일 때 비라이브 확정
+   *  [FIX O1] scheduleRender()를 제어 로직 이후로 이동 —
+   *           기어 변경이 반영된 상태에서 렌더링
    * ================================================================ */
 
   let pendingRender = false, lastBuf = -1, lastTickStall = false;
@@ -411,24 +400,13 @@
     /* 라이브 판정 */
     const isLiveNow = LiveDetect.check(vid);
     if (!isLiveNow) {
-      /*
-       * [FIX #1] 라이브 → 비라이브 전환 디바운스
-       * ─────────────────────────────────────
-       * falseCount 0~2: 재확인 대기 (제어·UI 상태 유지, rate만 안전 복원)
-       * falseCount ≥ 3: 완전히 비라이브로 확정
-       *
-       * 기존: falseCount === 0에서 즉시 isCurrent = false + resetRate → 1틱 끊김
-       * 수정: 카운터만 증가하며 기어를 NORM으로 안전 복원, isCurrent는 3틱까지 유지
-       */
       if (live.falseCount >= 0) {
         live.falseCount++;
         if (live.falseCount <= 3) {
-          /* 디바운스 구간: 제어는 중단(안전 복원)하되 라이브 표시는 유지 */
           if (control.gear !== R_NORM) resetRate(vid);
           scheduleRender();
           return;
         }
-        /* falseCount > 3: 비라이브 확정 */
       }
       if (IS_YOUTUBE) _scanRetry = 0;
       lastBuf = -1;
@@ -445,20 +423,20 @@
     const now = performance.now();
     lastTickStall = (now - control.lastStallTime < STALL_COOLDOWN);
 
-    scheduleRender();
-
-    /* 제어 */
-    if (vid.paused) return;
-    if (!enabled) { resetRate(vid); return; }
-    if (now < control.warmupEnd) return;
-
-    if (lastTickStall) {
-      if (control.gear !== R_NORM) resetRate(vid);
-      return;
+    /* 제어 — scheduleRender 이전에 실행하여 기어 변경이 렌더에 반영됨 */
+    if (!vid.paused && enabled) {
+      if (now >= control.warmupEnd && !lastTickStall) {
+        const desired = computeDesiredGear(buf);
+        applyGear(vid, desired, now);
+      } else if (lastTickStall && control.gear !== R_NORM) {
+        resetRate(vid);
+      }
+    } else if (!enabled) {
+      resetRate(vid);
     }
 
-    const desired = computeDesiredGear(buf);
-    applyGear(vid, desired, now);
+    /* [FIX O1] 제어 완료 후 렌더 스케줄 */
+    scheduleRender();
   };
 
   /* ================================================================
@@ -586,7 +564,7 @@
 `);
   };
 
-  /* 드래그 헬퍼 */
+  /* [FIX B4] 드래그 헬퍼 — pointercancel 처리 추가 */
   const makeDrag = (gripEl, moveEl, onEnd) => {
     let ox, oy, moved = false;
     gripEl.onpointerdown = e => {
@@ -604,12 +582,14 @@
       moveEl.style.top  = clamp(e.clientY - oy, 0, innerHeight - moveEl.offsetHeight) + 'px';
       moveEl.style.right = moveEl.style.bottom = 'auto';
     };
-    gripEl.onpointerup = e => {
+    const onRelease = e => {
       if (!gripEl.hasPointerCapture(e.pointerId)) return;
       gripEl._m = moved;
       if (moved && onEnd) onEnd();
       moved = false;
     };
+    gripEl.onpointerup = onRelease;
+    gripEl.onpointercancel = onRelease;
   };
 
   const build = () => {
@@ -663,7 +643,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.2.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v15.3.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -759,8 +739,7 @@
 
   /* ================================================================
    *  §13. SPA 네비게이션 대응
-   *  [FIX #15] navigation API와 patchHistory를 병행 적용 —
-   *            YouTube 등 pushState 직접 호출 SPA에서 navigatesuccess 미발동 대응
+   *  [FIX O3] YouTube yt-navigate-finish 이벤트 리스너 추가
    * ================================================================ */
 
   let lastPath = location.pathname + location.search;
@@ -773,8 +752,11 @@
       if (cur === lastPath) return;
       lastPath = cur;
 
+      /* [FIX B5] 이전 비디오의 playbackRate를 복원한 후 참조 해제 */
+      const prev = getVid();
+      if (prev) safeRate(prev, R_NORM);
       setVid(null);
-      resetControlState();
+      resetControlState(null);
       _scanRetry = 0;
       _needScan = true;
       LiveDetect.resetYT();
@@ -791,10 +773,13 @@
     window.addEventListener('popstate', onNav);
   };
 
-  /* [FIX #15] 병행 적용: navigation API가 있어도 pushState 패치 항상 실행 */
   patchHistory();
   if ('navigation' in window) {
     try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
+  }
+  /* [FIX O3] YouTube 전용: yt-navigate-finish로 SPA 전환 확실히 감지 */
+  if (IS_YOUTUBE) {
+    document.addEventListener('yt-navigate-finish', onNav);
   }
 
   /* ================================================================
@@ -809,10 +794,16 @@
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
+  /* [FIX B3] visibilitychange — 탭 복귀 시 기어도 R_NORM으로 복원 */
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       control.warmupEnd = performance.now() + WARMUP_MS;
       control.lastGearChange = -GEAR_HOLD_MS;
+      const vid = getVid();
+      if (vid && control.gear !== R_NORM) {
+        control.gear = R_NORM;
+        safeRate(vid, R_NORM);
+      }
     }
   });
 
