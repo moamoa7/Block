@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.6)
+// @name         Video_Control (v28.8.7)
 // @namespace    https://github.com/
-// @version      28.8.6
-// @description  v28.8.6: 기어 아이콘 투명도 PC / 모바일 변경
+// @version      28.8.7
+// @description  v28.8.7: checkNeedsSvg contrast 누락 수정, CSS filter 캐싱, 패널 닫힘 시 signal 정리
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.6';
+  const VSC_VERSION = '28.8.7';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -57,10 +57,11 @@
     document.addEventListener('webkitfullscreenchange', fn);
   }
 
+  /* ── [v28.8.7] #1 수정: contrast 조건 추가 ── */
   function checkNeedsSvg(s) {
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
-    const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005);
+    const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs((s.contrast || 1) - 1) > 0.005);
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
@@ -234,11 +235,9 @@
       if (ro) ro.observe(el);
       const req = () => { scheduler.request(); };
       let lastT = 0;
-      /* ── [v28.8.5] timeupdate 스로틀 1000ms → 500ms ── */
       const onTimeUpdate = () => { const now = performance.now(); if (now - lastT > 500) { lastT = now; req(); } };
       const listenerDefs = [
         ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
-        /* ── [v28.8.5] seeked 이벤트에 즉시 반응 추가 ── */
         ['seeked', () => { scheduler.request(true); }],
         ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; req(); }]
       ];
@@ -555,9 +554,11 @@
     return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
   }
 
+  /* ── [v28.8.7] #2 수정: appliedFilter WeakMap 캐싱 추가 ── */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
+    const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
@@ -662,11 +663,20 @@
       prepare,
       apply: (el, filterStr) => {
         if (!el) return;
-        if (filterStr === 'none') { clearFilterStyles(el); return; }
-        if (el.style.getPropertyValue('filter') === filterStr) return;
+        if (filterStr === 'none') {
+          if (appliedFilter.get(el) === 'none') return;
+          clearFilterStyles(el);
+          appliedFilter.set(el, 'none');
+          return;
+        }
+        if (appliedFilter.get(el) === filterStr) return;
         applyFilterStyles(el, filterStr);
+        appliedFilter.set(el, filterStr);
       },
-      clear: clearFilterStyles,
+      clear: (el) => {
+        clearFilterStyles(el);
+        appliedFilter.delete(el);
+      },
       purge
     };
   }
@@ -766,7 +776,6 @@
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
     let lastAppliedBrightness = -999;
 
-    /* ── [v28.8.5] 반응속도 개선: 500ms 간격 ── */
     const CHECK_INTERVAL = 500;
     const STALE_THRESHOLD = 10000;
 
@@ -776,7 +785,6 @@
 
     const brightHistory = [];
     let _brightSum = 0;
-    /* ── [v28.8.5] HISTORY_SIZE 5→8 (500ms×8=4초 이동평균, 안정성 보상) ── */
     const HISTORY_SIZE = 8;
 
     const _videoAnalyzeState = new WeakMap();
@@ -785,7 +793,6 @@
       return _videoAnalyzeState.get(v);
     }
 
-    /* ── [v28.8.5] 영상 전환 감지용 ── */
     let _lastTickVideo = null;
 
     const BASE     = [ 20, 15, 8,  0, 0, -1, -1,  0,  4 ];
@@ -967,7 +974,6 @@
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
 
-      /* ── [v28.8.5] 영상 전환 감지: target video가 바뀌면 히스토리 즉시 초기화 ── */
       if (video !== _lastTickVideo) {
         _lastTickVideo = video;
         brightHistory.length = 0;
@@ -1270,8 +1276,9 @@
         const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0;
         el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`;
       };
-      tabSignalCleanups.push(Scheduler.onSignal(update));
-      tabSignalCleanups.push(Store.sub(P.V_PRE_S, update));
+      /* ── [v28.8.7] #3 수정: panelOpen 가드 추가 ── */
+      tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) update(); }));
+      tabSignalCleanups.push(Store.sub(P.V_PRE_S, () => { if (panelOpen) update(); }));
       tabFns.push(update);
       return el;
     }
@@ -1297,7 +1304,8 @@
         detail.textContent = AutoScene.getDetail();
       };
       tabFns.push(sync);
-      tabSignalCleanups.push(Scheduler.onSignal(sync));
+      /* ── [v28.8.7] #3 수정: panelOpen 가드 추가 ── */
+      tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) sync(); }));
       return box;
     }
 
@@ -1339,6 +1347,7 @@
 
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
+      /* ── [v28.8.7] #3 수정: panelOpen 가드 추가 ── */
       tabSignalCleanups.push(Scheduler.onSignal(() => {
         if (!panelOpen) return;
         const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
@@ -1417,26 +1426,21 @@
       const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
       mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
-      /* ── 모바일 전용: 화면 터치 시 아이콘 등장 로직 ── */
-if (IS_MOBILE) {
-  let touchRevealTimer = 0;
-  const revealGear = () => {
-    mainBtn.classList.add('touch-reveal');
-    clearTimeout(touchRevealTimer);
-    touchRevealTimer = setTimeout(() => {
-      mainBtn.classList.remove('touch-reveal');
-    }, 2500); // 2.5초 후 다시 투명화
-  };
-
-  // 1. 화면 어디든 터치하면 기어 표시
-  document.addEventListener('touchstart', revealGear, { passive: true });
-
-  // 2. 기어 아이콘 자체를 터치하면 사라지지 않게 타이머 취소 (클릭 대기)
-  mainBtn.addEventListener('touchstart', (e) => {
-    mainBtn.classList.add('touch-reveal');
-    clearTimeout(touchRevealTimer);
-  }, { passive: true });
-}
+      if (IS_MOBILE) {
+        let touchRevealTimer = 0;
+        const revealGear = () => {
+          mainBtn.classList.add('touch-reveal');
+          clearTimeout(touchRevealTimer);
+          touchRevealTimer = setTimeout(() => {
+            mainBtn.classList.remove('touch-reveal');
+          }, 2500);
+        };
+        document.addEventListener('touchstart', revealGear, { passive: true });
+        mainBtn.addEventListener('touchstart', (e) => {
+          mainBtn.classList.add('touch-reveal');
+          clearTimeout(touchRevealTimer);
+        }, { passive: true });
+      }
     }
 
     function buildPanel() {
@@ -1473,11 +1477,21 @@ if (IS_MOBILE) {
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) tabFns.forEach(f => f()); }));
     }
 
+    /* ── [v28.8.7] #3 수정: 패널 닫힘 시 signal/tabFn 정리 ── */
     function togglePanel(force) {
       buildPanel();
       panelOpen = force !== undefined ? force : !panelOpen;
-      if (panelOpen) { panelEl.classList.add('open'); panelEl.style.pointerEvents = 'auto'; renderTab(); }
-      else { panelEl.classList.remove('open'); setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300); }
+      if (panelOpen) {
+        panelEl.classList.add('open');
+        panelEl.style.pointerEvents = 'auto';
+        renderTab();
+      } else {
+        panelEl.classList.remove('open');
+        tabSignalCleanups.forEach(c => c());
+        tabSignalCleanups.length = 0;
+        tabFns.length = 0;
+        setTimeout(() => { if (!panelOpen) panelEl.style.pointerEvents = 'none'; }, 300);
+      }
     }
 
     buildQuickBar(); updateQuickBarVisibility();
