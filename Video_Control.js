@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.2)
+// @name         Video_Control (v28.8.3)
 // @namespace    https://github.com/
-// @version      28.8.2
-// @description  v28.8.2: DRM 판정 오류 방지
+// @version      28.8.3
+// @description  v28.8.3: 샤프닝 throttle 수정, DRM 상태 WeakMap, 자동장면 OFF 리셋, Firefox 샤프닝 명시처리
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.2';
+  const VSC_VERSION = '28.8.3';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -697,12 +697,17 @@
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
-        const mobileThrottle = IS_MOBILE ? 0.60 : 0.40;
-        const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * mobileThrottle;
 
-        if (presetS === 'off') { out.sharp = autoBase * mobileThrottle; }
+        /* ── [v28.8.3] 플랫폼 스케일 수정: 데스크탑 throttle 제거 ── */
+        const platformScale = IS_MOBILE ? 0.65 : 1.0;
+        const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
+
+        if (presetS === 'off') { out.sharp = autoBase * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
+
+        /* ── [v28.8.3] Firefox: SVG 샤프닝 불가이므로 sharp를 명시적 0 처리 ── */
+        if (IS_FIREFOX) out.sharp = 0;
 
         const mShad  = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
         const mRec   = CLAMP(Number(Store.get(P.V_MAN_REC) ?? 0), 0, 100);
@@ -767,6 +772,13 @@
     const brightHistory = [];
     let _brightSum = 0;
     const HISTORY_SIZE = 5;
+
+    /* ── [v28.8.3] DRM/black 상태를 WeakMap으로 관리 (DOM 프로퍼티 오염 방지) ── */
+    const _videoAnalyzeState = new WeakMap();
+    function getAnalyzeState(v) {
+      if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0 });
+      return _videoAnalyzeState.get(v);
+    }
 
     const BASE     = [ 22, 16, 11,  0, 0, -1, -3,  4,  6 ];
     const DARK_V   = [ 55, 33, 28,  0, 0, -4, -7,  8, 16 ];
@@ -840,15 +852,15 @@
     }
 
     function analyzeFrame(video) {
-      // 기존: vscDrm === "1" 이면 무조건 튕겨냈으나, 이제 통과시켜서 아래에서 재검증함
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1;
 
-      // DRM 플래그가 있어도 주기적으로 재검증
+      const vs = getAnalyzeState(video);
+
+      /* DRM 플래그가 있어도 주기적으로 재검증 */
       if (video.dataset.vscDrm === "1") {
-        if (!video._vscDrmRetry) video._vscDrmRetry = 0;
-        video._vscDrmRetry++;
-        if (video._vscDrmRetry < 10) return -1;  // 10틱(~10초)마다 재시도
-        video._vscDrmRetry = 0;
+        vs.drmRetry++;
+        if (vs.drmRetry < 10) return -1;
+        vs.drmRetry = 0;
       }
 
       try {
@@ -857,7 +869,7 @@
         let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true;
 
         for (let i = 0; i < data.length; i += 4) {
-          const row = (i >> 2) >> 4; // 비트 연산 최적화
+          const row = (i >> 2) >> 4;
           const yWeight = row >= 13 ? 0.3 : 1.0;
           r += data[i]   * yWeight;
           g += data[i+1] * yWeight;
@@ -867,20 +879,19 @@
         }
 
         if (isAllZero) {
-          // 연속 검정 프레임 카운트로 판단 (1회가 아닌 N회 연속)
-          if (!video._vscBlackCount) video._vscBlackCount = 0;
-          video._vscBlackCount++;
-          if (video._vscBlackCount >= 5) {  // 5초 연속 검정이면 DRM 판정
+          vs.blackCount++;
+          if (vs.blackCount >= 5) {
             video.dataset.vscDrm = "1";
           }
           return -1;
         }
 
-        // 정상 프레임이 나오면 카운터 및 DRM 플래그 해제
-        video._vscBlackCount = 0;
+        /* 정상 프레임 → 카운터 및 DRM 플래그 해제 */
+        vs.blackCount = 0;
         if (video.dataset.vscDrm === "1") {
           delete video.dataset.vscDrm;
-          log.info('[AutoScene] DRM 플래그 해제 - 정상 프레임 감지');
+          vs.drmRetry = 0;
+          log.info('[AutoScene] DRM 플래그 해제 — 정상 프레임 감지');
         }
 
         return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
@@ -914,11 +925,23 @@
       currentPresetS = presetS;
     }
 
+    /* ── [v28.8.3] 자동 장면 OFF 시 manual 값 초기화 ── */
+    function applyZeroValues() {
+      _internalBatch = true;
+      const zeros = {};
+      for (const k of MANUAL_KEYS) zeros[k] = 0;
+      zeros.presetS = 'off';
+      store.batch('video', zeros);
+      _internalBatch = false;
+      currentValues = [0,0,0,0,0,0,0,0,0];
+      currentPresetS = 'off';
+    }
+
     function onManualChange() {
       if (_internalBatch) return;
       if (!store.get(P.V_AUTO_SCENE)) return;
       store.set(P.V_AUTO_SCENE, false);
-      deactivate();
+      deactivate(false);
       log.info('[AutoScene] 수동 조작 감지 → 자동 장면 OFF');
     }
 
@@ -968,6 +991,15 @@
         return;
       }
 
+      /* DRM 폴백에서 정상 복귀 시 모드 리셋 */
+      if (currentMode === 'drm') {
+        currentMode = 'wait';
+        lastAppliedBrightness = -999;
+        brightHistory.length = 0;
+        _brightSum = 0;
+        log.info('[AutoScene] DRM → 정상 복귀');
+      }
+
       const smoothed = pushBrightness(rawBrt);
       currentBrightness = smoothed;
 
@@ -1003,7 +1035,11 @@
       scheduler.request(true);
     }
 
-    function deactivate() { resetAutoState(); }
+    /* ── [v28.8.3] deactivate에 resetValues 파라미터 추가 ── */
+    function deactivate(resetValues = true) {
+      resetAutoState();
+      if (resetValues) applyZeroValues();
+    }
 
     function destroy() { for (const unsub of _subCleanups) unsub(); _subCleanups.length = 0; }
 
@@ -1248,7 +1284,7 @@
       const buttons = MANUAL_PRESETS.map(p => {
         const btn = h('button', { class: 'fine-btn' }, p.n);
         btn.addEventListener('click', () => {
-          if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(); OSD.show('자동 장면 OFF (수동 프리셋 선택)', 1000); }
+          if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(false); OSD.show('자동 장면 OFF (수동 프리셋 선택)', 1000); }
           const obj = { presetS: 'off' };
           for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i];
           Store.batch('video', obj); Scheduler.request();
@@ -1292,7 +1328,7 @@
         { type: 'widget', build: buildInfoBar },
         { type: 'widget', build: buildAutoSceneBox },
         { type: 'sep' },
-        ...(IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 SVG 기반 수동 톤 보정이 지원되지 않습니다.' }] : []),
+        ...(IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 SVG 기반 샤프닝 및 수동 톤 보정이 지원되지 않습니다.' }] : []),
         { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S,
           items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
         { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 },
@@ -1428,7 +1464,12 @@
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
 
+    /* ── [v28.8.3] apply 루프 내 간헐적 cleanup 호출 ── */
+    let _cleanupTick = 0;
+
     const apply = () => {
+      if (++_cleanupTick % 300 === 0) Registry.cleanup();
+
       if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
       const target = Targeting.pick(Registry.videos);
       if (target) {
