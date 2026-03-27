@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.3.0
+// @version      15.4.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -49,10 +49,12 @@
   const WARMUP_MS = 4000;
   const GEAR_HOLD_MS = 3000;
 
-  /* 기어 (3단계) */
+  /* 기어 (3단계)
+   * R_HIGH: 1.50 → 1.30 — 언더슈트 위험 감소, 히스테리시스 밴드까지
+   * R_HIGH 유지를 허용하여 따라잡기 속도와 안정성의 균형점 확보 */
   const R_NORM = 1.00;
   const R_MED  = 1.10;
-  const R_HIGH = 1.50;
+  const R_HIGH = 1.30;
 
   /* ================================================================
    *  §2. 유틸리티
@@ -262,10 +264,6 @@
   let mo = null, _scanRetry = 0, _needScan = true;
   const stopObserver = () => { if (mo) { mo.disconnect(); mo = null; } };
 
-  /*
-   * [FIX B1] resetControlState — vid 인자를 받아 실제 playbackRate도 복원
-   * 호출처: attach(), emptied 핸들러, onNav()
-   */
   const resetControlState = vid => {
     control.gear = R_NORM;
     control.lastGearChange = -GEAR_HOLD_MS;
@@ -282,7 +280,6 @@
     LiveDetect.clearCache(v);
     stopObserver();
     setVid(v);
-    /* [FIX B1] 새 비디오의 playbackRate를 즉시 R_NORM으로 복원 */
     resetControlState(v);
     _needScan = false;
     if (!seen.has(v)) {
@@ -347,21 +344,30 @@
 
   /* ================================================================
    *  §7. 제어 엔진
+   *
+   *  computeDesiredGear: R_HIGH 강제 강하 없음 — R_HIGH=1.30으로 낮춰
+   *  언더슈트 위험을 줄이면서 히스테리시스 밴드까지 유지 허용
+   *
+   *  applyGear: 긴급 강등(→R_NORM)만 즉시 허용,
+   *  일반 단계 강등(R_HIGH→R_MED)은 쿨다운 유지하여 배속 유지 시간 확보
    * ================================================================ */
 
   const computeDesiredGear = buf => {
     const ex = buf - target;
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
-    if (control.gear === R_HIGH) return R_MED;
     if (ex < -_hyst)       return R_NORM;
+    /* 히스테리시스 밴드 (-_hyst ≤ ex ≤ target*0.4): 현재 기어 유지
+     * R_HIGH도 이 밴드에서 유지됨 — 1.30배속이므로 언더슈트 위험 낮음 */
     return control.gear;
   };
 
   const applyGear = (vid, desired, now) => {
     if (desired === control.gear) return;
-    const isDownshift = desired < control.gear;
-    if (!isDownshift && now - control.lastGearChange < GEAR_HOLD_MS) return;
+    /* 긴급 강등: R_NORM으로의 복귀만 즉시 허용 (버퍼 급감 대응)
+     * 일반 단계 강등(R_HIGH→R_MED)은 쿨다운 적용하여 배속 유지 시간 확보 */
+    const isEmergency = desired === R_NORM && control.gear > R_NORM;
+    if (!isEmergency && now - control.lastGearChange < GEAR_HOLD_MS) return;
     control.gear = desired;
     control.lastGearChange = now;
     safeRate(vid, control.gear);
@@ -369,8 +375,6 @@
 
   /* ================================================================
    *  §8. 메인 루프
-   *  [FIX O1] scheduleRender()를 제어 로직 이후로 이동 —
-   *           기어 변경이 반영된 상태에서 렌더링
    * ================================================================ */
 
   let pendingRender = false, lastBuf = -1, lastTickStall = false;
@@ -423,7 +427,7 @@
     const now = performance.now();
     lastTickStall = (now - control.lastStallTime < STALL_COOLDOWN);
 
-    /* 제어 — scheduleRender 이전에 실행하여 기어 변경이 렌더에 반영됨 */
+    /* 제어 */
     if (!vid.paused && enabled) {
       if (now >= control.warmupEnd && !lastTickStall) {
         const desired = computeDesiredGear(buf);
@@ -435,7 +439,7 @@
       resetRate(vid);
     }
 
-    /* [FIX O1] 제어 완료 후 렌더 스케줄 */
+    /* 제어 완료 후 렌더 */
     scheduleRender();
   };
 
@@ -564,7 +568,7 @@
 `);
   };
 
-  /* [FIX B4] 드래그 헬퍼 — pointercancel 처리 추가 */
+  /* 드래그 헬퍼 */
   const makeDrag = (gripEl, moveEl, onEnd) => {
     let ox, oy, moved = false;
     gripEl.onpointerdown = e => {
@@ -643,7 +647,7 @@
     const togDiv = el('div', { className: 'dm-tog' + (enabled ? ' on' : '') });
     const ft = el('div', { className: 'dm-ft' }, [
       togDiv,
-      el('span', { className: 'dm-ver', textContent: 'v15.3.0' }),
+      el('span', { className: 'dm-ver', textContent: 'v15.4.0' }),
       el('span', { className: 'dm-key', textContent: 'Alt+D' })
     ]);
 
@@ -739,7 +743,6 @@
 
   /* ================================================================
    *  §13. SPA 네비게이션 대응
-   *  [FIX O3] YouTube yt-navigate-finish 이벤트 리스너 추가
    * ================================================================ */
 
   let lastPath = location.pathname + location.search;
@@ -752,7 +755,6 @@
       if (cur === lastPath) return;
       lastPath = cur;
 
-      /* [FIX B5] 이전 비디오의 playbackRate를 복원한 후 참조 해제 */
       const prev = getVid();
       if (prev) safeRate(prev, R_NORM);
       setVid(null);
@@ -777,7 +779,6 @@
   if ('navigation' in window) {
     try { navigation.addEventListener('navigatesuccess', onNav); } catch {}
   }
-  /* [FIX O3] YouTube 전용: yt-navigate-finish로 SPA 전환 확실히 감지 */
   if (IS_YOUTUBE) {
     document.addEventListener('yt-navigate-finish', onNav);
   }
@@ -794,7 +795,6 @@
     if (els.tog) els.tog.classList.toggle('on', enabled);
   });
 
-  /* [FIX B3] visibilitychange — 탭 복귀 시 기어도 R_NORM으로 복원 */
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       control.warmupEnd = performance.now() + WARMUP_MS;
