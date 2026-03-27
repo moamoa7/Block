@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.4)
+// @name         Video_Control (v28.8.5)
 // @namespace    https://github.com/
-// @version      28.8.4
-// @description  v28.8.4: 자동 장면 밝기 비례 노출/게인/콘트 감쇄
+// @version      28.8.5
+// @description  v28.8.5: 자동장면 반응속도 개선, 영상전환 히스토리 리셋
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.4';
+  const VSC_VERSION = '28.8.5';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -79,7 +79,7 @@
     detail: {
       none: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
       off:  { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'AUTO' },
-      S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
+            S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
       M:    { sharpAdd: 22, sharp2Add: 12, clarityAdd: 12, label: '2단' },
       L:    { sharpAdd: 26, sharp2Add: 24, clarityAdd: 20, label: '3단' },
       XL:   { sharpAdd: 32, sharp2Add: 22, clarityAdd: 26, label: '4단' }
@@ -234,8 +234,14 @@
       if (ro) ro.observe(el);
       const req = () => { scheduler.request(); };
       let lastT = 0;
-      const onTimeUpdate = () => { const now = performance.now(); if (now - lastT > 1000) { lastT = now; req(); } };
-      const listenerDefs = [ ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate], ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; req(); }] ];
+      /* ── [v28.8.5] timeupdate 스로틀 1000ms → 500ms ── */
+      const onTimeUpdate = () => { const now = performance.now(); if (now - lastT > 500) { lastT = now; req(); } };
+      const listenerDefs = [
+        ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
+        /* ── [v28.8.5] seeked 이벤트에 즉시 반응 추가 ── */
+        ['seeked', () => { scheduler.request(true); }],
+        ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; req(); }]
+      ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
       req();
@@ -291,7 +297,7 @@
         }
         if (touchedVideo) requestRefresh();
       });
-            mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
+      mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
     }
 
     const root = document.body || document.documentElement;
@@ -760,7 +766,8 @@
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
     let lastAppliedBrightness = -999;
 
-    const CHECK_INTERVAL = 1000;
+    /* ── [v28.8.5] 반응속도 개선: 500ms 간격 ── */
+    const CHECK_INTERVAL = 500;
     const STALE_THRESHOLD = 10000;
 
     const canvas = document.createElement('canvas');
@@ -769,13 +776,17 @@
 
     const brightHistory = [];
     let _brightSum = 0;
-    const HISTORY_SIZE = 5;
+    /* ── [v28.8.5] HISTORY_SIZE 5→8 (500ms×8=4초 이동평균, 안정성 보상) ── */
+    const HISTORY_SIZE = 8;
 
     const _videoAnalyzeState = new WeakMap();
     function getAnalyzeState(v) {
       if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0 });
       return _videoAnalyzeState.get(v);
     }
+
+    /* ── [v28.8.5] 영상 전환 감지용 ── */
+    let _lastTickVideo = null;
 
     const BASE     = [ 22, 16, 11,  0, 0, -1, -3,  4,  6 ];
     const DARK_V   = [ 55, 33, 28,  0, 0, -4, -7,  8, 16 ];
@@ -786,7 +797,6 @@
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
 
-    /* ── [v28.8.4] 밝기 비례 감쇄 대상 인덱스 (노출=2, 콘트=7, 게인=8) ── */
     const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]);
     const ATTENUATE_MID = 128;
     const ATTENUATE_CEIL = 220;
@@ -830,7 +840,6 @@
 
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    /* ── [v28.8.4] interpolate에 brightness 파라미터 추가, 일반 구간 밝기 비례 감쇄 ── */
     function interpolate(darkFactor, brightFactor, brightness) {
       return BASE.map((base, i) => {
         if (darkFactor > 0)   return Math.round(base + DARK_BOOST[i] * darkFactor);
@@ -958,6 +967,16 @@
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
 
+      /* ── [v28.8.5] 영상 전환 감지: target video가 바뀌면 히스토리 즉시 초기화 ── */
+      if (video !== _lastTickVideo) {
+        _lastTickVideo = video;
+        brightHistory.length = 0;
+        _brightSum = 0;
+        lastAppliedBrightness = -999;
+        currentMode = 'wait';
+        log.info('[AutoScene] 영상 전환 감지 → 히스토리 초기화');
+      }
+
       const now = performance.now();
       if (now - lastCheck < CHECK_INTERVAL) return;
 
@@ -1016,7 +1035,6 @@
       if (currentMode === 'interpolate' && delta < threshold) return;
 
       currentMode = 'interpolate';
-      /* ── [v28.8.4] interpolate에 smoothed 전달 ── */
       const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor, smoothed);
       const presetS = getPresetSByFactors(smoothScene.darkFactor, smoothScene.brightFactor);
       const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
@@ -1032,6 +1050,7 @@
     function resetAutoState() {
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999;
+      _lastTickVideo = null;
     }
 
     function activate() {
