@@ -2487,7 +2487,7 @@ avsee.ru#@#.tabs
 ! - 상단 공백 (EasyList)
 ##.pt-45.container
 ! - 영상 위 하얀 css
-##.text-center
+javneon.tv,javeve.tv,javsaga.ninja,javbull.tv##.text-center
 ! - 팝업 방지
 !||go.reebr.com^$popup
 !
