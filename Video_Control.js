@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.3)
+// @name         Video_Control (v28.8.4)
 // @namespace    https://github.com/
-// @version      28.8.3
-// @description  v28.8.3: 샤프닝 throttle 수정, DRM 상태 WeakMap, 자동장면 OFF 리셋, Firefox 샤프닝 명시처리
+// @version      28.8.4
+// @description  v28.8.4: 자동 장면 밝기 비례 노출/게인/콘트 감쇄
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.3';
+  const VSC_VERSION = '28.8.4';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -291,7 +291,7 @@
         }
         if (touchedVideo) requestRefresh();
       });
-      mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
+            mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
     }
 
     const root = document.body || document.documentElement;
@@ -698,7 +698,6 @@
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
 
-        /* ── [v28.8.3] 플랫폼 스케일 수정: 데스크탑 throttle 제거 ── */
         const platformScale = IS_MOBILE ? 0.65 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
 
@@ -706,7 +705,6 @@
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
 
-        /* ── [v28.8.3] Firefox: SVG 샤프닝 불가이므로 sharp를 명시적 0 처리 ── */
         if (IS_FIREFOX) out.sharp = 0;
 
         const mShad  = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
@@ -773,7 +771,6 @@
     let _brightSum = 0;
     const HISTORY_SIZE = 5;
 
-    /* ── [v28.8.3] DRM/black 상태를 WeakMap으로 관리 (DOM 프로퍼티 오염 방지) ── */
     const _videoAnalyzeState = new WeakMap();
     function getAnalyzeState(v) {
       if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0 });
@@ -784,10 +781,15 @@
     const DARK_V   = [ 55, 33, 28,  0, 0, -4, -7,  8, 16 ];
     const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  3,  2 ];
     const VERTICAL = [ 15, 12,  8,  0, 0, -1, -2,  3,  4 ];
-    const DRM_BASE = [ 20, 15, 0,  0, 0, -1, -3,  0,  0 ];
+    const DRM_BASE = [ 20, 15,  0,  0, 0, -1, -3,  0,  0 ];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
+
+    /* ── [v28.8.4] 밝기 비례 감쇄 대상 인덱스 (노출=2, 콘트=7, 게인=8) ── */
+    const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]);
+    const ATTENUATE_MID = 128;
+    const ATTENUATE_CEIL = 220;
 
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
@@ -828,10 +830,17 @@
 
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    function interpolate(darkFactor, brightFactor) {
+    /* ── [v28.8.4] interpolate에 brightness 파라미터 추가, 일반 구간 밝기 비례 감쇄 ── */
+    function interpolate(darkFactor, brightFactor, brightness) {
       return BASE.map((base, i) => {
         if (darkFactor > 0)   return Math.round(base + DARK_BOOST[i] * darkFactor);
         if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor);
+
+        if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) {
+          const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID);
+          const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7);
+          return Math.round(base * scale);
+        }
         return base;
       });
     }
@@ -856,7 +865,6 @@
 
       const vs = getAnalyzeState(video);
 
-      /* DRM 플래그가 있어도 주기적으로 재검증 */
       if (video.dataset.vscDrm === "1") {
         vs.drmRetry++;
         if (vs.drmRetry < 10) return -1;
@@ -886,7 +894,6 @@
           return -1;
         }
 
-        /* 정상 프레임 → 카운터 및 DRM 플래그 해제 */
         vs.blackCount = 0;
         if (video.dataset.vscDrm === "1") {
           delete video.dataset.vscDrm;
@@ -925,7 +932,6 @@
       currentPresetS = presetS;
     }
 
-    /* ── [v28.8.3] 자동 장면 OFF 시 manual 값 초기화 ── */
     function applyZeroValues() {
       _internalBatch = true;
       const zeros = {};
@@ -991,7 +997,6 @@
         return;
       }
 
-      /* DRM 폴백에서 정상 복귀 시 모드 리셋 */
       if (currentMode === 'drm') {
         currentMode = 'wait';
         lastAppliedBrightness = -999;
@@ -1011,7 +1016,8 @@
       if (currentMode === 'interpolate' && delta < threshold) return;
 
       currentMode = 'interpolate';
-      const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor);
+      /* ── [v28.8.4] interpolate에 smoothed 전달 ── */
+      const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor, smoothed);
       const presetS = getPresetSByFactors(smoothScene.darkFactor, smoothScene.brightFactor);
       const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
       if (changed) {
@@ -1035,7 +1041,6 @@
       scheduler.request(true);
     }
 
-    /* ── [v28.8.3] deactivate에 resetValues 파라미터 추가 ── */
     function deactivate(resetValues = true) {
       resetAutoState();
       if (resetValues) applyZeroValues();
@@ -1464,7 +1469,6 @@
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
 
-    /* ── [v28.8.3] apply 루프 내 간헐적 cleanup 호출 ── */
     let _cleanupTick = 0;
 
     const apply = () => {
