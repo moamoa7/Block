@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.5)
+// @name         Video_Control (v28.8.6)
 // @namespace    https://github.com/
-// @version      28.8.5
-// @description  v28.8.5: 자동장면 반응속도 개선, 영상전환 히스토리 리셋
+// @version      28.8.6
+// @description  v28.8.6: 기어 아이콘 투명도 PC / 모바일 변경
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.5';
+  const VSC_VERSION = '28.8.6';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -1412,11 +1412,31 @@
       quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: HOST_STYLE_NORMAL }); quickBarHost.style.setProperty('display', 'none', 'important');
       _qbarShadow = quickBarHost.attachShadow({ mode: 'closed' });
       const qStyle = document.createElement('style');
-      qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px;height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:0.4; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex;align-items:center;justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); } .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar svg { width:22px;height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; }`;
+      qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; }`;
       _qbarShadow.appendChild(qStyle);
       const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
       mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
+      /* ── 모바일 전용: 화면 터치 시 아이콘 등장 로직 ── */
+if (IS_MOBILE) {
+  let touchRevealTimer = 0;
+  const revealGear = () => {
+    mainBtn.classList.add('touch-reveal');
+    clearTimeout(touchRevealTimer);
+    touchRevealTimer = setTimeout(() => {
+      mainBtn.classList.remove('touch-reveal');
+    }, 2500); // 2.5초 후 다시 투명화
+  };
+
+  // 1. 화면 어디든 터치하면 기어 표시
+  document.addEventListener('touchstart', revealGear, { passive: true });
+
+  // 2. 기어 아이콘 자체를 터치하면 사라지지 않게 타이머 취소 (클릭 대기)
+  mainBtn.addEventListener('touchstart', (e) => {
+    mainBtn.classList.add('touch-reveal');
+    clearTimeout(touchRevealTimer);
+  }, { passive: true });
+}
     }
 
     function buildPanel() {
