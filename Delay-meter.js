@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.6.1
+// @version      15.7.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -48,8 +48,8 @@
 
   /* [B-1] 버전 단일 출처 */
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '15.6.1'
-    : '15.6.1';
+    ? GM_info?.script?.version ?? '15.7.0'
+    : '15.7.0';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -63,10 +63,10 @@
   /* [S-1] stallCooldown 플랫폼별 분리 */
   const PLATFORM_DEFAULTS = {
     youtube: { target: 10, min: 2,   max: 30, barMax: 35, rHigh: 1.30, stallCooldown: 8000 },
-    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 3500 },
-    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 4000 },
-    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 4000 },
-    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.50, stallCooldown: 4000 },
+    chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15, rHigh: 1.30, stallCooldown: 3500 },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.25, stallCooldown: 4000 },
+    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.30, stallCooldown: 4000 },
+    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.30, stallCooldown: 4000 },
   };
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
@@ -85,19 +85,10 @@
    * ⚠ 따라잡기 속도 보호 규칙 — 아래 3가지를 위반하면 딜레이 수렴이 느려짐
    *
    * 규칙 1: R_HIGH는 히스테리시스 밴드에서 강제 강하하지 않는다.
-   *   computeDesiredGear에 `if (gear===R_HIGH) return R_MED` 같은 코드 금지.
-   *   R_HIGH 값 자체가 플랫폼별로 안전하게 설정되어 있으므로 밴드 유지가 안전함.
-   *
    * 규칙 2: R_HIGH는 플랫폼별 값을 유지한다.
-   *   YouTube=1.30 (넓은 밴드 → 언더슈트 방지)
-   *   그 외=1.50 (좁은 밴드 → 빠른 추적)
-   *   일괄 변경 금지. target/hyst 비율이 다르므로 개별 튜닝 필요.
-   *
-   * 규칙 3: 긴급 강등(→R_NORM)만 즉시, 일반 강등은 쿨다운 유지.
-   *   모든 강등을 즉시 허용하면 R_HIGH 유지 시간이 줄어 따라잡기 속도 저하.
-   *   버퍼 급감 시에만 즉시 R_NORM 복귀. */
+   * 규칙 3: 긴급 강등(→R_NORM)만 즉시, 일반 강등은 쿨다운 유지. */
   const R_NORM = 1.00;
-  const R_MED  = 1.10;
+  const R_MED  = 1.025;
   const R_HIGH = PD.rHigh;
 
   /* ================================================================
@@ -111,6 +102,60 @@
     const b = vid.buffered;
     if (!b.length) return -1;
     return b.end(b.length - 1) - vid.currentTime;
+  };
+
+  /* ────────────────────────────────────────────
+   *  버퍼 중앙값 평활 (SOOP 세그먼트 계단식 버퍼 대응)
+   *
+   *  SOOP은 HLS 세그먼트 도착 주기에 따라 buffered가 계단식으로
+   *  갱신되어, 세그먼트 도착 직전 버퍼가 0 근처로 떨어지는 현상 발생.
+   *  단일 측정값으로 기어를 결정하면 불필요한 R_NORM 복귀 + 스톨 진동.
+   *
+   *  대응: 최근 N회 측정의 중앙값(median)을 사용.
+   *  - 평균(mean)은 이상값에 취약 → 버퍼 0이 평균을 끌어내림
+   *  - 중앙값은 단발성 이상값을 자연스럽게 무시
+   *  - N=5 (1000ms × 5 = 5초 윈도우): 세그먼트 주기(2~6초)를 커버
+   *
+   *  전 플랫폼 통합 적용: YouTube/CHZZK/Twitch는 버퍼가 안정적이므로
+   *  중앙값 ≈ 현재값. 조건 분기 없이 통합하는 것이 코드 단순성에 유리.
+   * ──────────────────────────────────────────── */
+  const BUF_WINDOW = 5;
+  const _bufRing = new Float64Array(BUF_WINDOW).fill(-1);
+  const _bufSort = new Float64Array(BUF_WINDOW);
+  let _bufIdx = 0, _bufCount = 0;
+
+  const pushBuf = raw => {
+    if (raw < 0) return;
+    _bufRing[_bufIdx] = raw;
+    _bufIdx = (_bufIdx + 1) % BUF_WINDOW;
+    if (_bufCount < BUF_WINDOW) _bufCount++;
+  };
+
+  const getSmoothedBuf = raw => {
+    pushBuf(raw);
+    if (_bufCount === 0) return raw;
+
+    /* 유효한 값만 수집 → 중앙값 */
+    let n = 0;
+    for (let i = 0; i < BUF_WINDOW; i++) {
+      if (_bufRing[i] >= 0) _bufSort[n++] = _bufRing[i];
+    }
+    if (n === 0) return raw;
+
+    /* 삽입 정렬 (n ≤ 5, 분기 최소) */
+    for (let i = 1; i < n; i++) {
+      const v = _bufSort[i];
+      let j = i;
+      while (j > 0 && _bufSort[j - 1] > v) { _bufSort[j] = _bufSort[j - 1]; j--; }
+      _bufSort[j] = v;
+    }
+    return _bufSort[n >> 1];
+  };
+
+  const resetBufRing = () => {
+    _bufRing.fill(-1);
+    _bufIdx = 0;
+    _bufCount = 0;
   };
 
   /* 색상: 단일 캐시 */
@@ -321,6 +366,7 @@
     control.lastStallTime = 0;
     live.isCurrent = false;
     live.falseCount = -1;
+    resetBufRing();
   };
 
   const attach = v => {
@@ -402,9 +448,6 @@
    *    → 넓게 잡아 불필요한 가속 진입/이탈 진동 방지
    *  하한 밴드(감속 복귀): _hyst (target * 0.1)
    *    → 좁게 잡아 타겟 이하에서 빠르게 R_NORM 복귀 (언더슈트 방지)
-   *
-   *  YouTube 예: target=10s → [9.0s, 14.0s] 유지 밴드
-   *  CHZZK 예:  target=2s  → [1.8s,  2.8s] 유지 밴드
    * ================================================================ */
 
   /* [B-2] buf<0 명시적 가드: 버퍼 미확보 시 즉시 R_NORM 반환 */
@@ -479,8 +522,9 @@
     }
     live.isCurrent = true; live.falseCount = 0;
 
-    /* 버퍼 측정 */
-    const buf = getBuf(vid);
+    /* 버퍼 측정 — 중앙값 평활 적용 */
+    const rawBuf = getBuf(vid);
+    const buf = getSmoothedBuf(rawBuf);
     lastBuf = buf;
 
     const now = performance.now();
@@ -864,6 +908,7 @@
         control.gear = R_NORM;
         safeRate(vid, R_NORM);
       }
+      resetBufRing();
       tick();
     }
   });
@@ -898,9 +943,10 @@
 
   GM_registerMenuCommand('현재 상태', () => {
     const vid = getVid();
-    const buf = vid ? getBuf(vid) : -1;
+    const rawBuf = vid ? getBuf(vid) : -1;
+    const smoothed = lastBuf;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms | buf=${buf < 0 ? '-' : buf.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH} stall=${STALL_COOLDOWN}ms | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl} | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
