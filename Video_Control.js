@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video_Control (v29.1.0)
-// @namespace    https://github.com/
+// @namespace    https://github.com/moamoa7
 // @version      29.1.0
 // @description  v29.1.0: requestRefresh 이중RAF 제거, FS reparent 중복 정리, MES 방어, Schema 빌더 리팩토링
 // @match        *://*/*
