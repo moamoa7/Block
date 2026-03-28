@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.4.1)
+// @name         Video_Control (v29.5.1)
 // @namespace    https://github.com/moamoa7
-// @version      29.4.1
-// @description  v29.4.1: 평준화 strength 0에서도 최소 압축 유지 (threshold -8dB 시작)
+// @version      29.5.1
+// @description  v29.5.1: 음향효과(EQ/공간감/모노)와 평준화(컴프레서) 완전 독립 동작
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.4.1';
+  const VSC_VERSION = '29.5.1';
   const DEBUG = false;
 
   const log = {
@@ -114,9 +114,46 @@
     { n: '최대',        v: [100, 55,  8,   0,   0,  -9,  -9,   4,   9] },
   ];
 
+  /* [29.5.0] 오디오 EQ 프리셋 정의 */
+  const AUDIO_PRESETS = {
+    off:     { label: '기본',         filters: [] },
+    night:   { label: '야간 모드',    filters: [
+      { type:'highpass',  freq:100,   Q:0.7,  gain:0   },
+      { type:'peaking',   freq:800,   Q:1.2,  gain:+5  },
+      { type:'peaking',   freq:2500,  Q:1.0,  gain:+4  },
+      { type:'lowshelf',  freq:200,   Q:0.7,  gain:-3  },
+      { type:'highshelf', freq:6000,  Q:0.7,  gain:-4  },
+    ], compOverride: { threshold:-20, ratio:8, knee:12, attack:0.008, release:0.40 } },
+    voice:   { label: '목소리 강조',  filters: [
+      { type:'highpass',  freq:120,   Q:0.7,  gain:0   },
+      { type:'peaking',   freq:800,   Q:1.2,  gain:+4  },
+      { type:'peaking',   freq:2500,  Q:1.0,  gain:+3  },
+      { type:'peaking',   freq:4000,  Q:0.8,  gain:+2  },
+      { type:'lowpass',   freq:8000,  Q:0.7,  gain:0   },
+    ] },
+    music:   { label: '음악 강조',    filters: [
+      { type:'peaking',   freq:80,    Q:0.8,  gain:+4  },
+      { type:'peaking',   freq:250,   Q:0.7,  gain:+2  },
+      { type:'peaking',   freq:6000,  Q:1.0,  gain:+3  },
+      { type:'peaking',   freq:12000, Q:0.7,  gain:+2  },
+    ] },
+    bass:    { label: '베이스 부스트', filters: [
+      { type:'peaking',   freq:60,    Q:0.6,  gain:+6  },
+      { type:'peaking',   freq:150,   Q:0.8,  gain:+4  },
+      { type:'peaking',   freq:400,   Q:0.7,  gain:-1  },
+    ] },
+    clarity: { label: '선명도',       filters: [
+      { type:'peaking',   freq:300,   Q:0.8,  gain:-2  },
+      { type:'peaking',   freq:2500,  Q:1.0,  gain:+3  },
+      { type:'peaking',   freq:5000,  Q:0.8,  gain:+4  },
+      { type:'highshelf', freq:10000, Q:0.7,  gain:+2  },
+    ] },
+    custom:  { label: '사용자 정의',  filters: 'dynamic' }
+  };
+
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
-    audio: { enabled: false, strength: 50 },
+    audio: { enabled: false, strength: 50, audioPreset: 'off', eqLow: 0, eqMid: 0, eqHigh: 0, surroundWidth: 0, monoMix: false },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false }
   };
@@ -129,13 +166,14 @@
     V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
     V_MAN_GAIN: 'video.manualGain', V_AUTO_SCENE: 'video.autoScene',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
+    A_PRESET: 'audio.audioPreset', A_EQ_LO: 'audio.eqLow', A_EQ_MID: 'audio.eqMid', A_EQ_HI: 'audio.eqHigh',
+    A_SURROUND: 'audio.surroundWidth', A_MONO: 'audio.monoMix',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
-  /* [29.4.1] threshold -8dB 시작으로 보정 */
   function strengthToDisplayDb(strength) {
     const s = CLAMP(strength, 0, 100) / 100;
     const thresh = 8 + s * 24;
@@ -379,10 +417,21 @@
     };
   }
 
+  /* ══ createAudio — [29.5.1] 평준화와 음향효과 완전 독립 ══ */
   function createAudio(store, scheduler) {
-    if (IS_FIREFOX) return { setTarget() {}, update() {}, hasCtx: () => false, isHooked: () => false, isBypassed: () => true };
+    if (IS_FIREFOX) return { setTarget(){}, update(){}, hasCtx:()=>false, isHooked:()=>false, isBypassed:()=>true, applyStrength(){}, applyEqPreset(){}, applySurroundWidth(){}, applyMonoMix(){} };
 
-    let ctx = null, comp = null, limiter = null, makeupGain = null, masterOut = null, dryPath = null;
+    let ctx = null;
+    /* 체인 노드들 */
+    let eqInput = null, eqOutput = null, eqNodes = [];
+    let splitter = null, merger = null;
+    let delayL = null, delayR = null, crossGainLR = null, crossGainRL = null, dryGainL = null, dryGainR = null;
+    let monoGain = null;
+    let comp = null, limiter = null, makeupGain = null;
+    let compBypass = null;   /* [29.5.1] 평준화 OFF 시 comp 우회 */
+    let masterOut = null;
+    let fullDryPath = null;  /* 오디오 체인 완전 바이패스 (연결 불가 시) */
+
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
     const mesMap = new WeakMap();
@@ -418,36 +467,237 @@
       return true;
     }
 
+    /* [29.5.1] 오디오 기능이 하나라도 활성인지 검사 */
+    function isAnyAudioActive() {
+      if (store.get(P.A_EN)) return true;
+      const preset = store.get(P.A_PRESET);
+      if (preset && preset !== 'off') return true;
+      if (Number(store.get(P.A_SURROUND)) > 0) return true;
+      if (store.get(P.A_MONO)) return true;
+      return false;
+    }
+
     function initCtx() {
       if (ctx) return true;
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
+
+      /* EQ 입출력 */
+      eqInput = ctx.createGain(); eqInput.gain.value = 1;
+      eqOutput = ctx.createGain(); eqOutput.gain.value = 1;
+      eqNodes = [];
+      eqInput.connect(eqOutput); // 초기 EQ bypass
+
+      /* 공간감 (Pseudo-Surround) */
+      splitter = ctx.createChannelSplitter(2);
+      merger = ctx.createChannelMerger(2);
+      delayL = ctx.createDelay(0.05);
+      delayR = ctx.createDelay(0.05);
+      crossGainLR = ctx.createGain();
+      crossGainRL = ctx.createGain();
+      dryGainL = ctx.createGain();
+      dryGainR = ctx.createGain();
+
+      dryGainL.gain.value = 1;
+      dryGainR.gain.value = 1;
+      crossGainLR.gain.value = 0;
+      crossGainRL.gain.value = 0;
+      delayL.delayTime.value = 0.012;
+      delayR.delayTime.value = 0.018;
+
+      splitter.connect(dryGainL, 0);
+      splitter.connect(dryGainR, 1);
+      dryGainL.connect(merger, 0, 0);
+      dryGainR.connect(merger, 0, 1);
+      splitter.connect(delayL, 0);
+      splitter.connect(delayR, 1);
+      delayL.connect(crossGainLR);
+      delayR.connect(crossGainRL);
+      crossGainLR.connect(merger, 0, 1);
+      crossGainRL.connect(merger, 0, 0);
+
+      /* 모노 다운믹스 */
+      monoGain = ctx.createGain();
+      monoGain.gain.value = 1;
+      monoGain.channelCount = 2;
+      monoGain.channelCountMode = 'max';
+
+      /* Compressor */
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
       limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -3.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 2;
+      limiter.threshold.value = -3.0; limiter.ratio.value = 20;
+      limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 2;
+
+      /* [29.5.1] comp bypass 경로 */
+      compBypass = ctx.createGain(); compBypass.gain.value = 1;
+
+      /* Master output */
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
-      comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(masterOut); masterOut.connect(ctx.destination);
-      dryPath = ctx.createGain(); dryPath.gain.value = 1; dryPath.connect(ctx.destination);
+
+      /* [29.5.1] 체인 연결:
+         source → eqInput → [EQ필터] → eqOutput → splitter → merger → monoGain
+           ├─ (평준화 ON)  comp → makeupGain → limiter ─┐
+           └─ (평준화 OFF) compBypass ──────────────────┘→ masterOut → destination
+      */
+      eqOutput.connect(splitter);
+      merger.connect(monoGain);
+      // comp 경로
+      comp.connect(makeupGain);
+      makeupGain.connect(limiter);
+      limiter.connect(masterOut);
+      // bypass 경로
+      compBypass.connect(masterOut);
+      masterOut.connect(ctx.destination);
+
+      /* monoGain 출력은 routeCompressor 에서 연결 */
+
+      /* 완전 바이패스 (연결 실패 시) */
+      fullDryPath = ctx.createGain(); fullDryPath.gain.value = 1;
+      fullDryPath.connect(ctx.destination);
+
       applyStrength(Number(store.get(P.A_STR)) || 50);
+      applyEqPreset(store.get(P.A_PRESET) || 'off');
+      applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
+      applyMonoMix(!!store.get(P.A_MONO));
+      routeCompressor();
       return true;
     }
 
-    /* [29.4.1] threshold: -8 - s*24 (0→-8dB 최소 압축, 100→-32dB 강한 압축) */
+    /* [29.5.1] monoGain → comp 또는 compBypass 라우팅 */
+    function routeCompressor() {
+      if (!monoGain || !comp || !compBypass) return;
+      try { monoGain.disconnect(); } catch (_) {}
+      const leveling = !!store.get(P.A_EN);
+      if (leveling) {
+        monoGain.connect(comp);
+      } else {
+        monoGain.connect(compBypass);
+      }
+    }
+
+    /* [29.5.1] applyStrength — release 바닥 0.30초 (울림 방지) */
     function applyStrength(strength) {
       if (!comp || !makeupGain || !ctx) return;
+      const preset = store.get(P.A_PRESET);
+      if (AUDIO_PRESETS[preset]?.compOverride && store.get(P.A_EN)) return;
+
       const s = CLAMP(strength, 0, 100) / 100;
       comp.threshold.value = -8 - s * 24;
       comp.ratio.value = 1.5 + s * 10.5;
       comp.knee.value = 16 - s * 10;
       comp.attack.value = 0.005 + (1 - s) * 0.015;
-      comp.release.value = 0.18 + (1 - s) * 0.32;
+      comp.release.value = 0.30 + (1 - s) * 0.20;
+
       const threshAbs = Math.abs(comp.threshold.value);
       const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
       const gain = Math.pow(10, makeupDb / 20);
       try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
       catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
+    }
+
+    /* EQ 프리셋 적용 */
+    function applyEqPreset(presetKey) {
+      if (!ctx || !eqInput || !eqOutput) return;
+
+      try { eqInput.disconnect(); } catch (_) {}
+      for (const n of eqNodes) { try { n.disconnect(); } catch (_) {} }
+      eqNodes = [];
+
+      let filterDefs;
+      if (presetKey === 'custom') {
+        const lo  = Number(store.get(P.A_EQ_LO))  || 0;
+        const mid = Number(store.get(P.A_EQ_MID)) || 0;
+        const hi  = Number(store.get(P.A_EQ_HI))  || 0;
+        if (Math.abs(lo) < 0.1 && Math.abs(mid) < 0.1 && Math.abs(hi) < 0.1) {
+          eqInput.connect(eqOutput);
+          restoreCompFromOverride();
+          return;
+        }
+        filterDefs = [
+          { type:'lowshelf',  freq:250,   Q:0.7,  gain:lo  },
+          { type:'peaking',   freq:1000,  Q:1.0,  gain:mid },
+          { type:'highshelf', freq:4000,  Q:0.7,  gain:hi  },
+        ];
+      } else {
+        const preset = AUDIO_PRESETS[presetKey];
+        if (!preset || !preset.filters || preset.filters.length === 0) {
+          eqInput.connect(eqOutput);
+          restoreCompFromOverride();
+          return;
+        }
+        filterDefs = preset.filters;
+      }
+
+      let prev = eqInput;
+      for (const def of filterDefs) {
+        const bq = ctx.createBiquadFilter();
+        bq.type = def.type;
+        bq.frequency.value = def.freq;
+        bq.Q.value = def.Q;
+        if (def.type !== 'highpass' && def.type !== 'lowpass') {
+          bq.gain.value = def.gain;
+        }
+        prev.connect(bq);
+        eqNodes.push(bq);
+        prev = bq;
+      }
+      prev.connect(eqOutput);
+
+      // 야간 모드 compressor override (평준화 ON일 때만)
+      const preset = AUDIO_PRESETS[presetKey];
+      if (preset && preset.compOverride && comp && store.get(P.A_EN)) {
+        const o = preset.compOverride;
+        comp.threshold.value = o.threshold;
+        comp.ratio.value     = o.ratio;
+        comp.knee.value      = o.knee;
+        comp.attack.value    = o.attack;
+        comp.release.value   = o.release;
+        const threshAbs = Math.abs(o.threshold);
+        const makeupDb = threshAbs * (1 - 1 / o.ratio) * 0.4;
+        const gain = Math.pow(10, makeupDb / 20);
+        try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
+        catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
+      } else {
+        restoreCompFromOverride();
+      }
+    }
+
+    function restoreCompFromOverride() {
+      if (store.get(P.A_EN)) {
+        applyStrength(Number(store.get(P.A_STR)) || 50);
+      }
+    }
+
+    /* 공간감 폭 적용 */
+    function applySurroundWidth(width) {
+      if (!ctx || !crossGainLR || !crossGainRL || !delayL || !delayR) return;
+      const w = CLAMP(width, 0, 100) / 100;
+      const crossLevel = w * 0.4;
+      try {
+        crossGainLR.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
+        crossGainRL.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
+        delayL.delayTime.setTargetAtTime(0.005 + w * 0.015, ctx.currentTime, 0.05);
+        delayR.delayTime.setTargetAtTime(0.008 + w * 0.020, ctx.currentTime, 0.05);
+      } catch (_) {
+        crossGainLR.gain.value = crossLevel;
+        crossGainRL.gain.value = crossLevel;
+        delayL.delayTime.value = 0.005 + w * 0.015;
+        delayR.delayTime.value = 0.008 + w * 0.020;
+      }
+    }
+
+    /* 모노 다운믹스 토글 */
+    function applyMonoMix(enabled) {
+      if (!monoGain) return;
+      if (enabled) {
+        monoGain.channelCount = 1;
+        monoGain.channelCountMode = 'explicit';
+      } else {
+        monoGain.channelCount = 2;
+        monoGain.channelCountMode = 'max';
+      }
     }
 
     function enterBypass(video, reason) {
@@ -507,8 +757,12 @@
         if (!source) { source = connectViaCaptureStream(video); if (!source) { enterBypass(video, 'all methods failed'); return false; } }
       }
       try { source.disconnect(); } catch (_) {}
-      const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
-      source.connect(enabled ? comp : dryPath);
+      /* [29.5.1] 오디오 기능이 하나라도 활성이면 체인으로, 아니면 fullDryPath */
+      if (isAnyAudioActive()) {
+        source.connect(eqInput);
+      } else {
+        source.connect(fullDryPath);
+      }
       currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes'; exitBypass();
       return true;
     }
@@ -541,11 +795,21 @@
       currentSrc = null; currentMode = 'none';
     }
 
+    /* [29.5.1] updateMix — 소스 라우팅 + comp 라우팅 통합 */
     function updateMix() {
       if (!ctx || bypassMode) return;
-      const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
-      if (enabled && currentSrc) { try { currentSrc.disconnect(); } catch (_) {} currentSrc.connect(comp); applyStrength(Number(store.get(P.A_STR)) || 50); }
-      else if (currentSrc) { try { currentSrc.disconnect(); } catch (_) {} currentSrc.connect(dryPath); }
+      routeCompressor();
+      if (currentSrc) {
+        try { currentSrc.disconnect(); } catch (_) {}
+        if (isAnyAudioActive()) {
+          currentSrc.connect(eqInput);
+        } else {
+          currentSrc.connect(fullDryPath);
+        }
+        if (store.get(P.A_EN)) {
+          applyStrength(Number(store.get(P.A_STR)) || 50);
+        }
+      }
     }
 
     function setTarget(video) {
@@ -556,8 +820,8 @@
         return;
       }
       const gen = ++generation;
-      const enabled = !!(store.get(P.A_EN) && store.get(P.APP_ACT));
-      if (!enabled) {
+      const active = isAnyAudioActive();
+      if (!active) {
         const oldTarget = targetVideo;
         if (currentSrc || targetVideo) { fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }); }
         else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }
@@ -575,7 +839,11 @@
     ensureGestureHook();
     document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx?.state === 'suspended') ctx.resume().catch(() => {}); }, { passive: true });
 
-    return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode };
+    return {
+      setTarget, update: updateMix,
+      hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode,
+      applyStrength, applyEqPreset, applySurroundWidth, applyMonoMix, routeCompressor
+    };
   }
 
   function createFilters() {
@@ -1029,6 +1297,12 @@
     .as-box.off .as-detail { color: var(--vsc-text-muted); }
     .hint { font-size: 10px; opacity: 0.5; padding: 4px 0; text-align: left; line-height: 1.5; }
     .hint.warn { opacity: 0.7; color: var(--vsc-amber); }
+    select.vsc-select { -webkit-appearance: none; appearance: none; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--vsc-radius-sm); color: var(--vsc-text); font-size: 11px; font-family: var(--vsc-font); padding: 4px 24px 4px 8px; cursor: pointer; min-height: var(--vsc-touch-min); outline: none; transition: border-color 0.2s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+    select.vsc-select:focus { border-color: var(--vsc-neon-border); }
+    select.vsc-select option { background: #1a1a2e; color: #fff; }
+    .cond-group { overflow: hidden; transition: max-height 0.3s var(--vsc-ease-out), opacity 0.3s; }
+    .cond-group.hidden { max-height: 0 !important; opacity: 0; pointer-events: none; }
+    .cond-group.visible { max-height: 300px; opacity: 1; }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1080,6 +1354,13 @@
       resetBtn.addEventListener('click', () => { Store.set(path, 0); });
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
+    function mkSliderWithDb(label, path, min, max, step, suffix) {
+      const inp = h('input', { type: 'range', min, max, step }); const valEl = h('span', { class: 'val' });
+      function updateUI(v) { inp.value = String(v); valEl.textContent = `${v > 0 ? '+' : ''}${v}${suffix || 'dB'}`; inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
+      inp.addEventListener('input', () => { const v = parseInt(inp.value, 10); Store.set(path, v); updateUI(v); });
+      const sync = () => updateUI(Number(Store.get(path) ?? 0));
+      tabFns.push(sync); sync(); return mkRow(label, inp, valEl);
+    }
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
@@ -1099,6 +1380,14 @@
       const row = h('div', { class: 'fine-row' });
       for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); Scheduler.request(); }); row.appendChild(btn); }
       return row;
+    }
+    function mkSelect(label, path, options, onChange) {
+      const sel = h('select', { class: 'vsc-select' });
+      for (const opt of options) sel.appendChild(h('option', { value: opt.value }, opt.label));
+      sel.addEventListener('change', () => { Store.set(path, sel.value); if (onChange) onChange(sel.value); });
+      const sync = () => { sel.value = Store.get(path) || options[0].value; };
+      tabFns.push(sync); sync();
+      return mkRow(label, sel);
     }
 
     function buildInfoBar() {
@@ -1129,7 +1418,7 @@
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
-      tabSignalCleanups.push(Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); el.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (평준화 처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; }));
+      tabSignalCleanups.push(Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); el.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; }));
       return el;
     }
 
@@ -1141,6 +1430,41 @@
       const sync = () => updateUI(Number(Store.get(path) ?? 50));
       tabFns.push(sync); sync();
       return mkRow('평준화 강도', inp, valEl);
+    }
+
+    /* [29.5.1] 음향 효과 섹션 — 평준화와 독립 */
+    function buildAudioEffectsSection() {
+      const wrap = h('div', {});
+      const presetOptions = Object.entries(AUDIO_PRESETS).map(([k, v]) => ({ value: k, label: v.label }));
+      let eqGroup;
+      const presetSelect = mkSelect('음향 효과', P.A_PRESET, presetOptions, (val) => {
+        Audio.applyEqPreset(val);
+        Audio.update();
+        if (eqGroup) {
+          eqGroup.classList.toggle('hidden', val !== 'custom');
+          eqGroup.classList.toggle('visible', val === 'custom');
+        }
+      });
+      wrap.appendChild(presetSelect);
+
+      eqGroup = h('div', { class: 'cond-group hidden' });
+      eqGroup.appendChild(mkSliderWithDb('저음 (Bass)', P.A_EQ_LO, -12, 12, 1, 'dB'));
+      eqGroup.appendChild(mkSliderWithDb('중음 (Mid)', P.A_EQ_MID, -12, 12, 1, 'dB'));
+      eqGroup.appendChild(mkSliderWithDb('고음 (Treble)', P.A_EQ_HI, -12, 12, 1, 'dB'));
+      wrap.appendChild(eqGroup);
+
+      const syncEqVis = () => {
+        const cur = Store.get(P.A_PRESET);
+        eqGroup.classList.toggle('hidden', cur !== 'custom');
+        eqGroup.classList.toggle('visible', cur === 'custom');
+      };
+      tabFns.push(syncEqVis);
+
+      wrap.appendChild(mkSep());
+      const [surInp, surVal] = mkSlider(P.A_SURROUND, 0, 100, 1);
+      wrap.appendChild(mkRow('공간감 (헤드폰)', surInp, surVal));
+      wrap.appendChild(mkRow('모노 다운믹스', mkToggle(P.A_MONO, (on) => { Audio.applyMonoMix(on); Audio.update(); })));
+      return wrap;
     }
 
     function buildVideoSchema() {
@@ -1158,11 +1482,16 @@
 
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
-      audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 평준화가 지원되지 않습니다.' }] : [
-        { type: 'toggle', label: '오디오 평준화', path: P.A_EN, onChange: () => Audio.setTarget(__internal._activeVideo) },
+      audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
+        { type: 'sectionLabel', text: '볼륨 평준화' },
+        { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN, onChange: (on) => { Audio.routeCompressor(); Audio.update(); } },
         { type: 'widget', build: buildAudioStrengthSlider },
+        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다.' },
         { type: 'sep' },
-        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 슬라이더가 낮을수록 가볍게, 높을수록 강하게 평준화합니다.' },
+        { type: 'sectionLabel', text: '음향 효과' },
+        { type: 'widget', build: buildAudioEffectsSection },
+        { type: 'hint', text: '음향 효과는 평준화와 독립적으로 동작합니다. 프리셋 선택, 공간감, 모노 믹스 중 하나라도 활성이면 오디오 체인이 연결됩니다.' },
+        { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
       playback: [
@@ -1265,6 +1594,15 @@
     const Filters = createFilters();
     const AutoScene = createAutoScene(Store, Scheduler);
     Registry.setPurgeCallback((root) => Filters.purge(root));
+
+    /* [29.5.1] 오디오 Store 리스너 — 효과 변경 시 체인 재연결 */
+    Store.sub(P.A_EN, () => { Audio.routeCompressor(); Audio.update(); });
+    Store.sub(P.A_PRESET, (v) => { Audio.applyEqPreset(v); Audio.update(); });
+    Store.sub(P.A_EQ_LO, () => { if (Store.get(P.A_PRESET) === 'custom') { Audio.applyEqPreset('custom'); Audio.update(); } });
+    Store.sub(P.A_EQ_MID, () => { if (Store.get(P.A_PRESET) === 'custom') { Audio.applyEqPreset('custom'); Audio.update(); } });
+    Store.sub(P.A_EQ_HI, () => { if (Store.get(P.A_PRESET) === 'custom') { Audio.applyEqPreset('custom'); Audio.update(); } });
+    Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
+    Store.sub(P.A_MONO, (v) => { Audio.applyMonoMix(v); Audio.update(); });
 
     const apply = () => {
       if (!Store.get(P.APP_ACT)) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
