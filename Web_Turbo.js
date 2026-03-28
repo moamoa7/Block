@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://github.com/moamoa7
-// @version      23.0
-// @description  Lean web optimizer v23 – Font FOIT prevention, LCP boost, below-fold lazy, iframe lazy. No chat DOM intervention.
+// @version      24.0
+// @description  Lean web optimizer v24 – Font FOIT prevention, LCP boost, below-fold lazy, iframe lazy. No chat DOM intervention.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
+// @exclude      *://maps.google.com/*
 // @exclude      *://www.figma.com/*
+// @exclude      *://*.figma.com/*
 // @exclude      *://excalidraw.com/*
 // @exclude      *://*.unity.com/*
 // @exclude      *://*.unity3d.com/*
@@ -28,6 +30,11 @@
 
   /* ═══════════════════════════════════════════════
    *  §1  FontFace Override (FOIT 방지)
+   *
+   *  Known Limitation: patchFontRules()는 DOMContentLoaded 시
+   *  1회만 실행됨. SPA에서 JS로 동적 삽입되는 <style>/<link>의
+   *  @font-face는 패치되지 않음. 단, FontFace 생성자 패치가
+   *  JS API를 통한 동적 폰트 로딩은 처리함.
    * ═══════════════════════════════════════════════ */
   const FONT_DISPLAY = IS_SLOW ? 'optional' : 'swap';
 
@@ -35,7 +42,11 @@
     const Orig = FontFace;
     win.FontFace = function (f, src, desc) {
       const d = Object.assign({}, desc);
-      if (!d.display || d.display === 'auto') d.display = FONT_DISPLAY;
+      if (!d.display || d.display === 'auto' || d.display === 'block') {
+        // 'block'은 FOIT를 유발하므로 override 대상에 포함.
+        // 주의: 아이콘 폰트 등에서 의도적 block 사용 시 fallback 깜빡임 발생 가능.
+        d.display = FONT_DISPLAY;
+      }
       return new Orig(f, src, d);
     };
     win.FontFace.prototype = Orig.prototype;
@@ -53,7 +64,9 @@
       for (const r of rules) {
         if (r instanceof CSSFontFaceRule) {
           const s = r.style;
-          if (!s.fontDisplay || s.fontDisplay === 'auto') s.fontDisplay = FONT_DISPLAY;
+          if (!s.fontDisplay || s.fontDisplay === 'auto' || s.fontDisplay === 'block') {
+            s.fontDisplay = FONT_DISPLAY;
+          }
         }
       }
       patchedSheets.add(ss);
@@ -64,7 +77,12 @@
    *  §2  LCP Boost + Below-fold Optimization
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
-  const lcpEls = new WeakSet();  // WeakSet으로 변경: GC 허용
+
+  // LCP 요소를 lazy 변환에서 제외하기 위한 집합.
+  // WeakSet이므로 요소가 DOM에서 제거된 후에는 GC 대상이 됨.
+  // (DOM에 연결된 동안은 DOM 트리가 강한 참조를 유지하므로 GC 불가)
+  const lcpEls = new WeakSet();
+
   let lcpResolve;
   const lcpReady = new Promise(r => (lcpResolve = r));
 
@@ -81,37 +99,42 @@
       });
       obs.observe({ type: 'largest-contentful-paint', buffered: true });
 
+      const ac = new AbortController();
+
       const stopLCP = () => {
         obs.disconnect();
-        lcpEl = null;  // 강한 참조 해제
+        lcpEl = null;
         lcpResolve();
-        for (const evt of ['click', 'keydown', 'scroll']) {
-          win.removeEventListener(evt, stopLCP, { capture: true });
-        }
+        ac.abort();
       };
+
       for (const evt of ['click', 'keydown', 'scroll']) {
-        win.addEventListener(evt, stopLCP, { capture: true, once: true, passive: true });
+        win.addEventListener(evt, stopLCP, {
+          signal: ac.signal,
+          capture: true,
+          passive: true,
+        });
       }
-      setTimeout(stopLCP, 10000);
+
+      // 저속 환경에서는 LCP 후보 변경이 늦게 발생할 수 있으므로 여유를 둠
+      setTimeout(stopLCP, IS_SLOW ? 10000 : 5000);
     } catch (_) { lcpResolve(); }
   } else {
     lcpResolve();
   }
 
   function boostLCP() {
-    if (!lcpEl) return;
-    if (!lcpEl.isConnected) { lcpEl = null; return; }
-    if (lcpEl.tagName === 'IMG') {
-      if (lcpEl.loading === 'lazy') lcpEl.loading = 'eager';
-      if (!lcpEl.complete) {
-        lcpEl.fetchPriority = 'high';
-        lcpEl.decoding = 'auto';
-      }
-    }
+    // LCP 엔트리는 렌더링 이후 발화하므로 fetchPriority/decoding 설정은 무효.
+    // 유일하게 유효한 처리: lazy→eager 복원 (아직 fetch가 시작되지 않은 경우 대비)
+    if (!lcpEl?.isConnected) { lcpEl = null; return; }
+    if (lcpEl.tagName === 'IMG' && lcpEl.loading === 'lazy') lcpEl.loading = 'eager';
   }
 
   const optimizeBelowFold = () => {
     lcpReady.then(() => {
+      // doc.body가 아직 없는 극단적 경우 방어
+      if (!doc.body) return;
+
       const observed = new WeakSet();
 
       const io = new IntersectionObserver((entries) => {
@@ -121,11 +144,23 @@
           io.unobserve(el);
 
           if (tag === 'IMG') {
+            // LCP 요소는 lazy 변환에서 제외
             if (lcpEls.has(el) || e.isIntersecting) continue;
+
+            // NOTE: HTML 파서가 이미 처리한 <img>에 대해서는 loading='lazy'를
+            // 사후 설정해도 브라우저가 이미 시작한 fetch를 취소하지 않음.
+            // 이 처리는 주로 MutationObserver가 감지한 동적 삽입 요소에 효과적임.
             if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
             if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
-            if (!el.fetchPriority || el.fetchPriority === 'auto' || el.fetchPriority === 'high')
+
+            // fetchPriority는 in-flight 요청에도 우선순위 재평가가 가능하므로 유지
+            if (!el.fetchPriority || el.fetchPriority === 'auto' || el.fetchPriority === 'high') {
               el.fetchPriority = 'low';
+            }
+
+            // sizes='auto'는 loading="lazy"와 함께 적용될 때만 유효.
+            // 이미 파싱된 이미지에서는 loading='lazy'가 실질적으로 적용되지 않으므로
+            // 동적 삽입 요소에서만 효과가 있음.
             if (el.srcset && el.loading === 'lazy' &&
                 (!el.sizes || el.sizes === '') && /\d+w/.test(el.srcset)) {
               el.sizes = 'auto';
@@ -171,7 +206,6 @@
         }
         if (pending.length && !flushScheduled) {
           flushScheduled = true;
-          // requestIdleCallback으로 메인 스레드 양보
           if ('requestIdleCallback' in win) {
             requestIdleCallback(flushPending, { timeout: 500 });
           } else {
