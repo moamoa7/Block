@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.9.18)
+// @name         Video_Control (v28.9.19)
 // @namespace    https://github.com/
-// @version      28.9.18
-// @description  v28.9.18: 모바일 기어 아이콘 터치 리빌 수정 (capture 단계 리스너)
+// @version      28.9.19
+// @description  v28.9.19: 어두운 영상 판정 범위 확장 (dark.max 30→55), 재보정 안정화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.9.18';
+  const VSC_VERSION = '28.9.19';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -111,8 +111,6 @@
     { n: '피부톤',      v: [8,  15,   8,  12,   3,   0,  -4,   4,   2,   0,   0] },
     { n: '선명강조',    v: [15, 22,   5,   0,   0,   8,   0,  10,   3,   0,   0] },
     { n: '웹캠보정',    v: [20, 25,  10,   0,   5,   8,  -4,   6,   6,   0,   0] },
-    { n: '밝은영상',    v: [0,   8,   0,   0,   0,   8,  -2,  10,   0,  22,  15] },
-    { n: '태블릿풍',    v: [6,  12,   5,   0,   0,  10,  -2,   8,   2,  16,  10] },
     { n: '야간보정',    v: [45, 28,  18,   0,   0,  -3,  -5,   0,  16,   0,   0] },
     { n: '사용자10',   v: [11,  9,   5,   0,   0,   0,  -1,   0,   1,   0,   0] },
     { n: '사용자20',   v: [16, 12,   6,   0,   0,  -1,  -1,   0,   3,   0,   0] },
@@ -567,8 +565,11 @@
     const ATTENUATE_CEIL = 220;
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인','선명도','하이롤'];
 
+    /* ── [v28.9.19] dark.max: 30 → 55 ──
+       밝기 30~55 구간(체감상 "보통 어두운" 영상)에도 완만한 DARK_BOOST 적용.
+       극암부(0~10)는 기존과 거의 동일, 중간 어두움(20~50)에 실질적 보정 추가. */
     const SCENE_CONFIG = {
-      dark: { max: 30, label: '어두운 장면' },
+      dark: { max: 55, label: '어두운 장면' },
       bright: { min: 220, label: '눈부신 장면' },
       normal: { label: '일반 영상' },
       drm: { label: '보안 영상 ◉ DRM' },
@@ -588,7 +589,14 @@
 
     function smoothstep(edge0, edge1, x) { const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t); }
     function classifyBrightness(brightness, cfg) { let darkRaw = 0, brightRaw = 0; if (brightness < cfg.dark.max) { darkRaw = cfg.useSmoothstep ? 1 - smoothstep(0, cfg.dark.max, brightness) : 1 - brightness / cfg.dark.max; } if (brightness > cfg.bright.min) { brightRaw = cfg.useSmoothstep ? smoothstep(cfg.bright.min, 255, brightness) : (brightness - cfg.bright.min) / (255 - cfg.bright.min); } const darkFactor = darkRaw > 0 ? Math.pow(darkRaw, 1 / cfg.gamma) : 0; const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0; let label; if (darkFactor > 0) label = `${cfg.dark.label} ◉ 밝기 ${Math.round(brightness)}`; else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`; else label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`; return { label, darkFactor, brightFactor }; }
-    function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
+
+    /* ── [v28.9.19] getBrightnessThreshold 조정 ──
+       dark.max 확장(55)으로 30~55 구간에서 잦은 재보정이 발생할 수 있으므로
+       어두운 구간의 threshold를 넓혀 안정화.
+       기존: b<60→6, b>180→8, 나머지→10
+       변경: b<40→8, b<70→10, b>180→8, 나머지→12 */
+    function getBrightnessThreshold(b) { return b < 40 ? 8 : b < 70 ? 10 : b > 180 ? 8 : 12; }
+
     function getAutoClarity(frameBrightness) { if (frameBrightness <= 130) return 0; if (frameBrightness <= 180) return Math.round((frameBrightness - 130) / 50 * 5); if (frameBrightness <= 240) return Math.max(2, Math.round(5 - (frameBrightness - 180) / 60 * 3)); return 2; }
     function getAutoHighRoll(frameBrightness) { if (frameBrightness <= 150) return 0; if (frameBrightness <= 200) return Math.round((frameBrightness - 150) / 50 * 8); return Math.round(8 + Math.min(frameBrightness - 200, 55) / 55 * 10); }
 
@@ -795,10 +803,6 @@
 
   function renderSchema(schema, container) { for (const item of schema) { switch (item.type) { case 'sep': container.append(mkSep()); break; case 'sectionLabel': container.append(h('div', { class: 'section-label' }, item.text)); break; case 'hint': container.append(h('div', { class: `hint${item.cls ? ' ' + item.cls : ''}` }, item.text)); break; case 'slider': container.append(mkRow(item.label, ...mkSlider(item.path, item.min, item.max, item.step))); break; case 'fineSlider': container.append(mkSliderWithFine(item.label, item.path, item.min, item.max, item.step, item.fine)); break; case 'toggle': container.append(mkRow(item.label, mkToggle(item.path, item.onChange))); break; case 'chips': container.append(mkChipRow(item.label || '', item.path, item.items, item.onSelect)); break; case 'fineButtons': container.append(mkFineButtons(item.path, item.steps, item.min, item.max)); break; case 'widget': container.append(item.build()); break; } } }
   function buildQuickBar() { if (quickBarHost) return; quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: HOST_STYLE_NORMAL }); quickBarHost.style.setProperty('display', 'none', 'important'); _qbarShadow = quickBarHost.attachShadow({ mode: 'closed' }); const qStyle = document.createElement('style'); qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; }`; _qbarShadow.appendChild(qStyle); const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' }); mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' }))); mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
-
-    /* ── [v28.9.18] 모바일 터치 리빌: window capture 단계로 변경 ──
-       플레이어가 버블링 단계에서 stopPropagation()을 호출해도
-       캡처 단계에서 이미 수신하므로 기어 아이콘이 항상 표시됨 */
     if (IS_MOBILE) {
       let touchRevealTimer = 0;
       const revealGear = () => {
