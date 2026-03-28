@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video_Control (v29.0.0)
-// @namespace    https://github.com/
+// @namespace    https://github.com/moamoa7
 // @version      29.0.0
 // @description  v29.0.0: 종합 패치 — Firefox UX, AutoScene 정확도, 프리셋 실효성, Scheduler/save/cleanup 개선, GPU 부하 감소
 // @match        *://*/*
