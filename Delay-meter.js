@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.8.3
+// @version      15.8.4
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '15.8.2'
-    : '15.8.2';
+    ? GM_info?.script?.version ?? '15.8.4'
+    : '15.8.4';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -963,6 +963,35 @@
   }));
 
   window.addEventListener('beforeunload', save);
+
+    /* ── 브라우저 리사이즈 대응 ── */
+  let _resizeId = 0;
+  window.addEventListener('resize', () => {
+    clearTimeout(_resizeId);
+    _resizeId = setTimeout(() => {
+      if (!els.pn) return;
+      const vw = innerWidth, vh = innerHeight;
+
+      if (panelOpen) {
+        const r = els.pn.getBoundingClientRect();
+        const nx = clamp(r.left, 0, vw - r.width);
+        const ny = clamp(r.top, 0, vh - r.height);
+        if (nx !== r.left || ny !== r.top) {
+          Object.assign(els.pn.style, { left: nx + 'px', top: ny + 'px', right: 'auto', bottom: 'auto' });
+          cfg.px = els.pn.style.left; cfg.py = els.pn.style.top; saveLazy();
+        }
+      } else if (els.fab) {
+        const r = els.fab.getBoundingClientRect();
+        const nx = clamp(r.left, 0, vw - r.width);
+        const ny = clamp(r.top, 0, vh - r.height);
+        if (nx !== r.left || ny !== r.top) {
+          Object.assign(els.fab.style, { left: nx + 'px', top: ny + 'px', right: 'auto', bottom: 'auto' });
+          cfg.dx = els.fab.style.left; cfg.dy = els.fab.style.top; saveLazy();
+        }
+      }
+    }, 150);
+  });
+
 
   /* ================================================================
    *  §15. 디버그
