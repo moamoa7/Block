@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.3.0)
+// @name         Video_Control (v29.3.1)
 // @namespace    https://github.com/moamoa7
-// @version      29.3.0
-// @description  v29.3.0: batch emit 순서 교정, onFsChange 이중 등록 제거, workDepth 데드코드 제거, hidden 가드 추가
+// @version      29.3.1
+// @description  v29.3.1: AutoScene 무한대기 수정 — CORS 플래그 분리, 실패경로 상태갱신, 일시정지 초회분석
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.3.0';
+  const VSC_VERSION = '29.3.1';
   const DEBUG = false;
 
   const log = {
@@ -135,7 +135,6 @@
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
-  /* [29.3.0] 패치 #1: Store.batch — 상태 전부 커밋 후 일괄 emit */
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
     const _kc = {};
@@ -218,7 +217,6 @@
     };
   }
 
-  /* [29.3.0] 패치 #4: workDepth 데드코드 제거 */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -245,7 +243,8 @@
       const listenerDefs = [
         ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
         ['seeked', () => { scheduler.request(); }],
-        ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; req(); }]
+        /* [29.3.1] loadstart: vscAudioCorsFail도 초기화 추가 */
+        ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; req(); }]
       ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
@@ -403,11 +402,12 @@
       return result;
     }
 
+    /* [29.3.1] canConnect: vscAudioCorsFail 전용 플래그 사용 */
     function canConnect(video) {
       if (!video) return false;
       if (video.dataset.vscPermBypass === "1") return false;
-      if (detectJWPlayer(video) && video.dataset.vscCorsFail === "1") return false;
-      if (video.dataset.vscMesFail === "1" && video.dataset.vscCorsFail === "1") return false;
+      if (detectJWPlayer(video) && video.dataset.vscAudioCorsFail === "1") return false;
+      if (video.dataset.vscMesFail === "1" && video.dataset.vscAudioCorsFail === "1") return false;
       return true;
     }
 
@@ -455,15 +455,16 @@
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
+    /* [29.3.1] connectViaCaptureStream: CORS 실패 시 vscAudioCorsFail 전용 플래그 사용 */
     function connectViaCaptureStream(video) {
-      if (!ctx || video.dataset.vscCorsFail === "1") return null;
+      if (!ctx || video.dataset.vscAudioCorsFail === "1") return null;
       let s = streamMap.get(video);
       if (s) { if (s.context === ctx) return s; if (currentSrc === s) { currentSrc = null; currentMode = 'none'; } try { s.disconnect(); } catch (_) {} if (s.__vsc_captureStream) { s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); } streamMap.delete(video); }
       const captureFn = video.captureStream || video.mozCaptureStream;
       if (typeof captureFn !== 'function') return null;
       const originalMuted = video.muted, originalVolume = video.volume;
       let stream;
-      try { stream = captureFn.call(video); } catch (e) { if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { video.dataset.vscCorsFail = "1"; return null; } return null; }
+      try { stream = captureFn.call(video); } catch (e) { if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { video.dataset.vscAudioCorsFail = "1"; return null; } return null; }
       if (stream.getAudioTracks().length === 0) { setTimeout(() => { if (stream.getAudioTracks().length > 0) scheduler.request(); }, 500); return null; }
       try {
         const source = ctx.createMediaStreamSource(stream);
@@ -810,11 +811,14 @@
     };
   }
 
+  /* [29.3.1] createAutoScene — 무한대기 수정: 실패경로 상태갱신 + CORS 플래그 분리 + 일시정지 초회분석 */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
     let lastAppliedBrightness = -999;
+    /* [29.3.1] 일시정지 초회분석용 플래그 */
+    let _pausedAnalyzed = false;
 
     const CHECK_INTERVAL = 500;
     const STALE_THRESHOLD = 10000;
@@ -917,6 +921,7 @@
       return _brightSum / brightHistory.length;
     }
 
+    /* [29.3.1] analyzeFrame: vscCorsFail만 체크 (캔버스 전용), vscAudioCorsFail과 분리 */
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -2;
 
@@ -963,6 +968,7 @@
 
         return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
       } catch (e) {
+        /* [29.3.1] 캔버스 전용 플래그 — 오디오 vscAudioCorsFail과 독립 */
         video.dataset.vscCorsFail = "1";
         return -2;
       }
@@ -995,60 +1001,8 @@
       currentPresetS = presetS;
     }
 
-    function onManualChange() {
-      if (_internalBatch) return;
-      if (!store.get(P.V_AUTO_SCENE)) return;
-      store.set(P.V_AUTO_SCENE, false);
-      deactivate(false);
-      log.info('[AutoScene] 수동 조작 감지 → 자동 장면 OFF');
-    }
-
-    const _subCleanups = [];
-    for (const path of MANUAL_PATHS) _subCleanups.push(store.sub(path, onManualChange));
-
-    function tick(video) {
-      if (!store.get(P.V_AUTO_SCENE)) return;
-      if (!video?.isConnected) return;
-
-      if (video !== _lastTickVideo) {
-        _lastTickVideo = video;
-        brightHistory.length = 0;
-        _brightSum = 0;
-        lastAppliedBrightness = -999;
-        currentMode = 'wait';
-        log.info('[AutoScene] 영상 전환 감지 → 히스토리 초기화');
-      }
-
-      const now = performance.now();
-      if (now - lastCheck < CHECK_INTERVAL) return;
-
-      if (now - lastCheck > STALE_THRESHOLD && !video.paused) {
-        brightHistory.length = 0;
-        _brightSum = 0;
-        lastAppliedBrightness = -999;
-        log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
-      }
-
-      lastCheck = now;
-
-      const _vw = video.videoWidth || 0, _vh = video.videoHeight || 0;
-      if (_vw > 0 && _vh > 0 && (_vw / _vh) < 0.75) {
-        if (currentMode !== 'vertical') {
-          currentMode = 'vertical'; currentBrightness = -1;
-          lastAppliedBrightness = -999;
-          currentLabel = '세로형 영상 (쇼츠/릴스)';
-          applyValues(VERTICAL, 'S');
-          log.info('[AutoScene] → 세로형 영상');
-        }
-        return;
-      }
-
-      if (video.paused || video.ended) return;
-
-      const rawBrt = analyzeFrame(video);
-
-      if (rawBrt === -2) return;
-
+    /* [29.3.1] 분석 결과를 적용하는 공통 함수 — tick 내부와 일시정지 초회분석에서 공유 */
+    function applyAnalysisResult(rawBrt) {
       if (rawBrt === -1) {
         if (currentMode !== 'drm') {
           currentMode = 'drm'; currentBrightness = -1;
@@ -1091,10 +1045,115 @@
       }
     }
 
+    function onManualChange() {
+      if (_internalBatch) return;
+      if (!store.get(P.V_AUTO_SCENE)) return;
+      store.set(P.V_AUTO_SCENE, false);
+      deactivate(false);
+      log.info('[AutoScene] 수동 조작 감지 → 자동 장면 OFF');
+    }
+
+    const _subCleanups = [];
+    for (const path of MANUAL_PATHS) _subCleanups.push(store.sub(path, onManualChange));
+
+    function tick(video) {
+      if (!store.get(P.V_AUTO_SCENE)) return;
+      if (!video?.isConnected) return;
+
+      if (video !== _lastTickVideo) {
+        _lastTickVideo = video;
+        brightHistory.length = 0;
+        _brightSum = 0;
+        lastAppliedBrightness = -999;
+        currentMode = 'wait';
+        _pausedAnalyzed = false;
+        log.info('[AutoScene] 영상 전환 감지 → 히스토리 초기화');
+      }
+
+      const now = performance.now();
+      if (now - lastCheck < CHECK_INTERVAL) return;
+
+      if (now - lastCheck > STALE_THRESHOLD && !video.paused) {
+        brightHistory.length = 0;
+        _brightSum = 0;
+        lastAppliedBrightness = -999;
+        log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
+      }
+
+      lastCheck = now;
+
+      const _vw = video.videoWidth || 0, _vh = video.videoHeight || 0;
+      if (_vw > 0 && _vh > 0 && (_vw / _vh) < 0.75) {
+        if (currentMode !== 'vertical') {
+          currentMode = 'vertical'; currentBrightness = -1;
+          lastAppliedBrightness = -999;
+          currentLabel = '세로형 영상 (쇼츠/릴스)';
+          applyValues(VERTICAL, 'S');
+          log.info('[AutoScene] → 세로형 영상');
+        }
+        return;
+      }
+
+      /* [29.3.1] 일시정지/종료 상태 처리 — 초회 1회 분석 후 라벨 갱신 */
+      if (video.paused || video.ended) {
+        if (!_pausedAnalyzed && video.readyState >= 2) {
+          _pausedAnalyzed = true;
+          const rawBrt = analyzeFrame(video);
+          if (rawBrt === -2) {
+            if (currentMode !== 'cors') {
+              currentMode = 'cors';
+              currentLabel = '분석 불가 ◉ CORS';
+              applyValues(BASE, 'off');
+              log.info('[AutoScene] 일시정지 초회분석 → CORS 실패');
+            }
+          } else {
+            applyAnalysisResult(rawBrt);
+            currentLabel = (currentLabel || '일반 영상') + ' ◉ 일시정지';
+            log.info('[AutoScene] 일시정지 초회분석 완료');
+          }
+        } else if (currentMode === 'wait') {
+          currentLabel = video.readyState < 2 ? '로딩 대기중...' : '일시정지 ◉ 재생하면 분석 시작';
+        }
+        return;
+      }
+
+      /* 재생 시작 시 _pausedAnalyzed 리셋 */
+      if (_pausedAnalyzed) _pausedAnalyzed = false;
+
+      const rawBrt = analyzeFrame(video);
+
+      /* [29.3.1] -2 (CORS/readyState<2) 실패 경로 상태 갱신 */
+      if (rawBrt === -2) {
+        if (video.dataset.vscCorsFail === "1") {
+          if (currentMode !== 'cors') {
+            currentMode = 'cors';
+            currentLabel = '분석 불가 ◉ CORS';
+            applyValues(BASE, 'off');
+            log.info('[AutoScene] → CORS 실패 — 기본 보정 적용');
+          }
+        } else if (video.readyState < 2) {
+          if (currentMode !== 'loading') {
+            currentMode = 'loading';
+            currentLabel = '로딩 대기중...';
+          }
+        }
+        return;
+      }
+
+      /* loading 상태에서 복귀 */
+      if (currentMode === 'loading') {
+        currentMode = 'wait';
+        lastAppliedBrightness = -999;
+        log.info('[AutoScene] 로딩 → 분석 시작');
+      }
+
+      applyAnalysisResult(rawBrt);
+    }
+
     function resetAutoState() {
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999;
-      _lastTickVideo = null;
+      _lastTickVideo = null; _pausedAnalyzed = false;
     }
 
     function activate() {
@@ -1558,7 +1617,6 @@
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
-    /* [29.3.0] 패치 #5: document.hidden 가드 추가 — 백그라운드 탭에서 불필요한 DOM 순회 차단 */
     setInterval(() => {
       if (document.hidden) return;
       if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); }
@@ -1596,7 +1654,6 @@
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
 
-    /* [29.3.0] 패치 #3: 'app.active' → P.APP_ACT 상수 사용으로 통일 */
     const apply = () => {
       if (!Store.get(P.APP_ACT)) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
       const target = Targeting.pick(Registry.videos);
@@ -1624,7 +1681,6 @@
     };
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
-    /* [29.3.0] 패치 #2: bootstrap의 onFsChange 제거 — createUI의 onFullscreenChange로 일원화 */
 
     createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters);
     __internal.Store = Store; __internal._activeVideo = null;
