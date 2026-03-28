@@ -6,8 +6,8 @@
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
 // @match        *://*.chzzk.naver.com/*
-// @match        *://*.sooplive.com/*
-// @match        *://*.sooplive.co.kr/*
+// @match        *://play.sooplive.com/*
+// @match        *://play.sooplive.co.kr/*
 // @match        *://*.twitch.tv/*
 // @exclude      *://*.youtube.com/live_chat*
 // @exclude      *://challenges.cloudflare.com/*
@@ -15,8 +15,6 @@
 // @exclude      *://*.hcaptcha.com/*
 // @exclude      *://accounts.google.com/*
 // @exclude      *://*.recaptcha.net/*
-// @exclude      *://vod.sooplive.com/*
-// @exclude      *://vod.sooplive.co.kr/*
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @grant        GM_info
