@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.3.1)
+// @name         Video_Control (v29.3.2)
 // @namespace    https://github.com/moamoa7
-// @version      29.3.1
-// @description  v29.3.1: AutoScene 무한대기 수정 — CORS 플래그 분리, 실패경로 상태갱신, 일시정지 초회분석
+// @version      29.3.2
+// @description  v29.3.2: CORS 제한재시도(3회/10s), 2단계 임계값 장면분석 스킵
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.3.1';
+  const VSC_VERSION = '29.3.2';
   const DEBUG = false;
 
   const log = {
@@ -243,8 +243,8 @@
       const listenerDefs = [
         ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
         ['seeked', () => { scheduler.request(); }],
-        /* [29.3.1] loadstart: vscAudioCorsFail도 초기화 추가 */
-        ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; req(); }]
+        /* [29.3.2] loadstart: CORS 재시도 카운터도 초기화 */
+        ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry; req(); }]
       ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
@@ -402,7 +402,6 @@
       return result;
     }
 
-    /* [29.3.1] canConnect: vscAudioCorsFail 전용 플래그 사용 */
     function canConnect(video) {
       if (!video) return false;
       if (video.dataset.vscPermBypass === "1") return false;
@@ -455,7 +454,6 @@
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
-    /* [29.3.1] connectViaCaptureStream: CORS 실패 시 vscAudioCorsFail 전용 플래그 사용 */
     function connectViaCaptureStream(video) {
       if (!ctx || video.dataset.vscAudioCorsFail === "1") return null;
       let s = streamMap.get(video);
@@ -811,18 +809,54 @@
     };
   }
 
-  /* [29.3.1] createAutoScene — 무한대기 수정: 실패경로 상태갱신 + CORS 플래그 분리 + 일시정지 초회분석 */
+  /* [29.3.2] createAutoScene — CORS 재시도 + 2단계 임계값 스킵 추가 */
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
     let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
     let lastAppliedBrightness = -999;
-    /* [29.3.1] 일시정지 초회분석용 플래그 */
     let _pausedAnalyzed = false;
 
     const CHECK_INTERVAL = 500;
     const STALE_THRESHOLD = 10000;
     const ZERO_VALUES = Object.freeze([0,0,0,0,0,0,0,0,0]);
+
+    /* [29.3.2] CORS 제한 재시도 상수 */
+    const CORS_RETRY_MAX = 3;
+    const CORS_RETRY_INTERVAL = 10000;
+
+    /* [29.3.2] 2단계 임계값 — quickLuma용 축소 캔버스 (16×9) */
+    const SCENE_THRESHOLD = { dark: 12, mid: 18, bright: 25 };
+    let _quickCanvas = null, _quickCtx = null;
+    let _prevQuickLuma = -1;
+
+    function getQuickCanvas() {
+      if (!_quickCanvas) {
+        _quickCanvas = document.createElement('canvas');
+        _quickCanvas.width = 16; _quickCanvas.height = 9;
+        _quickCtx = _quickCanvas.getContext('2d', { willReadFrequently: true });
+      }
+      return _quickCtx;
+    }
+
+    function sampleQuickLuma(video) {
+      const ctx = getQuickCanvas();
+      try { ctx.drawImage(video, 0, 0, 16, 9); }
+      catch (e) { return -1; }
+      const data = ctx.getImageData(0, 0, 16, 9).data;
+      let sum = 0;
+      const pixels = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        sum += data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+      }
+      return sum / pixels;
+    }
+
+    function getSceneThreshold(luma) {
+      if (luma < 60) return SCENE_THRESHOLD.dark;
+      if (luma > 170) return SCENE_THRESHOLD.bright;
+      return SCENE_THRESHOLD.mid;
+    }
 
     const canvas = document.createElement('canvas');
     const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
@@ -921,9 +955,25 @@
       return _brightSum / brightHistory.length;
     }
 
-    /* [29.3.1] analyzeFrame: vscCorsFail만 체크 (캔버스 전용), vscAudioCorsFail과 분리 */
+    /* [29.3.2] analyzeFrame: CORS 제한 횟수 재시도 (3회, 10초 간격) */
     function analyzeFrame(video) {
-      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -2;
+      if (!video || video.readyState < 2) return -2;
+
+      /* [29.3.2] CORS 재시도 로직 — 1회 실패 후 영구 차단 대신 최대 3회 재시도 */
+      if (video.dataset.vscCorsFail === "1") {
+        const retries = Number(video.dataset.vscCorsRetry || 0);
+        const lastTry = Number(video.dataset.vscCorsLastTry || 0);
+        const now = performance.now();
+
+        if (retries >= CORS_RETRY_MAX) return -2;
+        if (now - lastTry < CORS_RETRY_INTERVAL) return -2;
+
+        /* 재시도 허용 */
+        delete video.dataset.vscCorsFail;
+        video.dataset.vscCorsRetry = String(retries + 1);
+        video.dataset.vscCorsLastTry = String(now);
+        log.info(`[AutoScene] CORS 재시도 ${retries + 1}/${CORS_RETRY_MAX}`);
+      }
 
       const vs = getAnalyzeState(video);
 
@@ -968,7 +1018,6 @@
 
         return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
       } catch (e) {
-        /* [29.3.1] 캔버스 전용 플래그 — 오디오 vscAudioCorsFail과 독립 */
         video.dataset.vscCorsFail = "1";
         return -2;
       }
@@ -1001,7 +1050,6 @@
       currentPresetS = presetS;
     }
 
-    /* [29.3.1] 분석 결과를 적용하는 공통 함수 — tick 내부와 일시정지 초회분석에서 공유 */
     function applyAnalysisResult(rawBrt) {
       if (rawBrt === -1) {
         if (currentMode !== 'drm') {
@@ -1067,6 +1115,7 @@
         lastAppliedBrightness = -999;
         currentMode = 'wait';
         _pausedAnalyzed = false;
+        _prevQuickLuma = -1; /* [29.3.2] quickLuma 리셋 */
         log.info('[AutoScene] 영상 전환 감지 → 히스토리 초기화');
       }
 
@@ -1077,6 +1126,7 @@
         brightHistory.length = 0;
         _brightSum = 0;
         lastAppliedBrightness = -999;
+        _prevQuickLuma = -1; /* [29.3.2] quickLuma 리셋 */
         log.info(`[AutoScene] 탭 복귀 감지 (공백 ${Math.round((now - lastCheck) / 1000)}초) → 히스토리 초기화`);
       }
 
@@ -1094,7 +1144,7 @@
         return;
       }
 
-      /* [29.3.1] 일시정지/종료 상태 처리 — 초회 1회 분석 후 라벨 갱신 */
+      /* 일시정지/종료 상태 처리 — 초회 1회 분석 */
       if (video.paused || video.ended) {
         if (!_pausedAnalyzed && video.readyState >= 2) {
           _pausedAnalyzed = true;
@@ -1109,6 +1159,7 @@
           } else {
             applyAnalysisResult(rawBrt);
             currentLabel = (currentLabel || '일반 영상') + ' ◉ 일시정지';
+            _prevQuickLuma = -1; /* [29.3.2] 일시정지 분석 후 quickLuma 기준 리셋 */
             log.info('[AutoScene] 일시정지 초회분석 완료');
           }
         } else if (currentMode === 'wait') {
@@ -1117,12 +1168,22 @@
         return;
       }
 
-      /* 재생 시작 시 _pausedAnalyzed 리셋 */
       if (_pausedAnalyzed) _pausedAnalyzed = false;
+
+      /* [29.3.2] 2단계 임계값 스킵: quickLuma로 장면 변화 감지 후 전체 분석 여부 결정 */
+      if (video.readyState >= 2 && currentMode === 'interpolate' && _prevQuickLuma >= 0) {
+        const quickLuma = sampleQuickLuma(video);
+        if (quickLuma >= 0) {
+          const sceneThreshold = getSceneThreshold(_prevQuickLuma);
+          if (Math.abs(quickLuma - _prevQuickLuma) < sceneThreshold) {
+            /* 장면 변화 없음 → 전체 분석 생략 */
+            return;
+          }
+        }
+      }
 
       const rawBrt = analyzeFrame(video);
 
-      /* [29.3.1] -2 (CORS/readyState<2) 실패 경로 상태 갱신 */
       if (rawBrt === -2) {
         if (video.dataset.vscCorsFail === "1") {
           if (currentMode !== 'cors') {
@@ -1140,12 +1201,16 @@
         return;
       }
 
-      /* loading 상태에서 복귀 */
       if (currentMode === 'loading') {
         currentMode = 'wait';
         lastAppliedBrightness = -999;
+        _prevQuickLuma = -1;
         log.info('[AutoScene] 로딩 → 분석 시작');
       }
+
+      /* [29.3.2] 전체 분석 성공 시 quickLuma 기준값 갱신 */
+      const postLuma = sampleQuickLuma(video);
+      if (postLuma >= 0) _prevQuickLuma = postLuma;
 
       applyAnalysisResult(rawBrt);
     }
@@ -1154,6 +1219,7 @@
       currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중';
       brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999;
       _lastTickVideo = null; _pausedAnalyzed = false;
+      _prevQuickLuma = -1; /* [29.3.2] */
     }
 
     function activate() {
