@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.1.0)
+// @name         Video_Control (v29.2.0)
 // @namespace    https://github.com/moamoa7
-// @version      29.1.0
-// @description  v29.1.0: requestRefresh 이중RAF 제거, FS reparent 중복 정리, MES 방어, Schema 빌더 리팩토링
+// @version      29.2.0
+// @description  v29.2.0: vscMesFail 이중설정 제거, captureStream muted 순서 교정, enterBypass 복원순서 교정, fadeOutThen generation 복원, apply() cleanup 중복 제거, Store.set _kc 캐시 통합, mkXfer withAlpha 기본값 정리
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,9 +31,8 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
-  /* [29.1.0] 패치#7: crypto.randomUUID 경로에만 replace 적용, Math.random fallback은 하이픈 없음 */
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.1.0';
+  const VSC_VERSION = '29.2.0';
   const DEBUG = false;
 
   const log = {
@@ -58,7 +57,6 @@
     document.addEventListener('webkitfullscreenchange', fn);
   }
 
-  /* [29.1.0] 패치#12: 채도(_cssSat)는 SVG/CSS 양쪽에서 독립 처리되므로 SVG 필요 판정에 미포함 */
   function checkNeedsSvg(s) {
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
@@ -137,18 +135,21 @@
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
+  /* [29.2.0] 패치: Store.set에서 _kc 캐시 사용하도록 통합 */
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
     const _kc = {};
     const listeners = new Map();
     const state = JSON.parse(JSON.stringify(defaults));
     const emit = (key, val) => { const a = listeners.get(key); if (a) for (const fn of a) try { fn(val); } catch (_) {} };
+    const _resolve = (p) => _kc[p] || (_kc[p] = p.split('.'));
     return {
       state, rev: () => rev,
-      get: (p) => { let pts = _kc[p] || (_kc[p] = p.split('.')); return pts.length > 1 ? state[pts[0]]?.[pts[1]] : state[pts[0]]; },
+      get: (p) => { const pts = _resolve(p); return pts.length > 1 ? state[pts[0]]?.[pts[1]] : state[pts[0]]; },
       set: (p, val) => {
         if (typeof val === 'number' && Number.isNaN(val)) return;
-        const [c, k] = p.split('.');
+        const pts = _resolve(p);
+        const [c, k] = pts;
         if (k == null) { log.warn('[Store] single-level key 미지원:', p); return; }
         if (Object.is(state[c]?.[k], val)) return;
         state[c][k] = val; rev++; emit(p, val); scheduler.request();
@@ -208,8 +209,6 @@
     const SHADOW_MAX = 16;
     const observers = new Set();
     const videoListeners = new WeakMap();
-
-    /* [29.1.0] 패치#1: requestRefresh 이중RAF 제거 — scheduler.request()를 직접 호출 */
 
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { for (const e of entries) { if (e.isIntersecting || e.intersectionRatio > 0) { scheduler.request(); return; } } }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
     const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { for (const e of entries) { if (e.target.tagName === 'VIDEO') { scheduler.request(); return; } } }) : null;
@@ -427,13 +426,14 @@
       catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
     }
 
+    /* [29.2.0] 패치: enterBypass — volume 복원 후 muted 해제 순서로 교정 */
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass';
       if (video && ctx && currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
         if (currentSrc.__vsc_isCaptureStream) {
-          if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
           if (currentSrc.__vsc_originalVolume != null) try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+          if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
           const stream = currentSrc.__vsc_captureStream;
           if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
         } else { try { currentSrc.connect(ctx.destination); } catch (_) {} }
@@ -442,6 +442,7 @@
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
+    /* [29.2.0] 패치: connectViaCaptureStream — muted 설정을 createMediaStreamSource 성공 이후로 이동 */
     function connectViaCaptureStream(video) {
       if (!ctx || video.dataset.vscCorsFail === "1") return null;
       let s = streamMap.get(video);
@@ -456,11 +457,14 @@
         const source = ctx.createMediaStreamSource(stream);
         source.__vsc_isCaptureStream = true; source.__vsc_captureStream = stream;
         source.__vsc_originalMuted = originalMuted; source.__vsc_originalVolume = originalVolume;
-        video.muted = true; streamMap.set(video, source); return source;
-      } catch (e) { stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null; }
+        video.muted = true;
+        streamMap.set(video, source); return source;
+      } catch (e) {
+        /* createMediaStreamSource 실패 시 stream 정리만 수행, video.muted는 아직 변경 전이므로 복원 불필요 */
+        stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null;
+      }
     }
 
-    /* [29.1.0] 패치#4: connectViaMES — catch 내에서 vscMesFail 직접 설정 (방어적) */
     function connectViaMES(video) {
       if (!ctx || video.dataset.vscMesFail === "1") return null;
       let s = mesMap.get(video);
@@ -469,6 +473,7 @@
       catch (e) { video.dataset.vscMesFail = "1"; return null; }
     }
 
+    /* [29.2.0] 패치: connectSource — vscMesFail 외부 중복 설정 라인 제거 */
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
@@ -480,7 +485,7 @@
       } else {
         source = connectViaMES(video);
         if (!source) {
-          video.dataset.vscMesFail = "1";
+          /* connectViaMES 내부에서 이미 vscMesFail을 설정하므로 여기서는 중복 설정하지 않음 */
           source = connectViaCaptureStream(video);
           if (!source) {
             enterBypass(video, 'all methods failed');
@@ -495,11 +500,19 @@
       return true;
     }
 
+    /* [29.2.0] 패치: fadeOutThen — generation 불일치 시 masterOut.gain 복원 추가 */
     function fadeOutThen(gen, fn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
-        if (gen !== generation) return;
+        if (gen !== generation) {
+          /* generation 불일치로 fn을 실행하지 않지만, masterOut.gain이 0인 채로 남지 않도록 복원 */
+          if (ctx && masterOut && ctx.state !== 'closed') {
+            try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(0, t); masterOut.gain.linearRampToValueAtTime(1, t + 0.04); }
+            catch (_) { try { masterOut.gain.value = 1; } catch (__) {} }
+          }
+          return;
+        }
         try { fn(); } catch (_) {}
         if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
       }, 60);
@@ -509,8 +522,8 @@
       if (!currentSrc) return;
       const target = vid || targetVideo;
       if (currentSrc.__vsc_isCaptureStream && target) {
-        if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
         if (currentSrc.__vsc_originalVolume != null) try { target.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
+        if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
         const stream = currentSrc.__vsc_captureStream;
         if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
         streamMap.delete(target);
@@ -589,7 +602,8 @@
       toneCache.set(key, res); return res;
     }
 
-    function mkXfer(attrs, funcDefaults, withAlpha = false) {
+    /* [29.2.0] 패치: mkXfer — withAlpha 기본값을 true로 변경 */
+    function mkXfer(attrs, funcDefaults, withAlpha = true) {
       const xfer = h('feComponentTransfer', { ns: 'svg', ...attrs });
       const refs = {};
       const channels = ['R', 'G', 'B']; if (withAlpha) channels.push('A');
@@ -608,8 +622,9 @@
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      const toneResult = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' }, true);
-      const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' }, true);
+      /* [29.2.0] withAlpha 인수 제거 — 기본값 true로 통합 */
+      const toneResult = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' });
+      const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
       const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
       const fSat = h('feColorMatrix', { ns: 'svg', in: 'conv', type: 'saturate', values: '1.0', result: 'final' });
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
@@ -817,11 +832,11 @@
 
     let _lastTickVideo = null;
 
-    const BASE     = [20, 15, 0, 0, 0, -1, -1, 2, 5];   // [8] 8→5
-    const DARK_V   = [50, 30, 3, 0, 0, -4, -4, 5, 17];   // [8] 20→17  (BOOST 12 유지)
-    const BRIGHT_V = [10, 10, 0, 0, 0,  0, -2, 3, -3];   // [8] 0→-3   (CUT -8 유지)
+    const BASE     = [20, 15, 0, 0, 0, -1, -1, 2, 5];
+    const DARK_V   = [50, 30, 3, 0, 0, -4, -4, 5, 17];
+    const BRIGHT_V = [10, 10, 0, 0, 0,  0, -2, 3, -3];
     const VERTICAL = [ 15, 12,  8,  0, 0, -1, -2,  3,  4 ];
-    const DRM_BASE = [30, 20, 1, 0, 0, -2, -2, 2, -1];   // [8] 2→-1   (BOOST -6 유지)
+    const DRM_BASE = [30, 20, 1, 0, 0, -2, -2, 2, -1];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -1012,8 +1027,9 @@
 
       lastCheck = now;
 
-      if (video.paused || video.ended) return;
-
+      /* [29.2.0] 세로형 영상은 paused 여부와 무관하게 비율 기반으로 판별.
+         세로형은 영상의 고유 속성이므로 재생 상태 변경 시 보정 깜빡임을 방지하기 위해
+         paused 체크 이전에 의도적으로 배치. */
       const _vw = video.videoWidth || 0, _vh = video.videoHeight || 0;
       if (_vw > 0 && _vh > 0 && (_vw / _vh) < 0.75) {
         if (currentMode !== 'vertical') {
@@ -1025,6 +1041,8 @@
         }
         return;
       }
+
+      if (video.paused || video.ended) return;
 
       const rawBrt = analyzeFrame(video);
 
@@ -1078,7 +1096,6 @@
       _lastTickVideo = null;
     }
 
-    /* [29.1.0] 패치#22: ZERO_VALUES 상수 일관성 사용 */
     function activate() {
       resetAutoState();
       currentValues = ZERO_VALUES; currentPresetS = null;
@@ -1205,10 +1222,10 @@
       if (panelHost && panelOpen && panelEl) panelEl.style.pointerEvents = 'auto';
     }
 
-    /* [29.1.0] 패치#2: onFullscreenChange — fs해제 분기의 100ms 중복 타이머 제거 (80ms reparent가 동일 역할) */
     function onFullscreenChange() {
       reparent();
       setTimeout(reparent, 80);
+      /* 400ms: Safari 등 느린 브라우저에서 풀스크린 전환 후 레이아웃 재계산이 지연되는 케이스 대응 */
       setTimeout(reparent, 400);
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         _lastMount = null; _lastIsFs = null;
@@ -1377,7 +1394,6 @@
       return el;
     }
 
-    /* [29.1.0] 패치#21: TAB_SCHEMA — IS_FIREFOX 분기를 빌더 함수로 통합, 산재 조건 제거 */
     function buildVideoSchema() {
       const s = [
         { type: 'widget', build: buildInfoBar },
@@ -1540,7 +1556,6 @@
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-    /* 방어적 폴링: MO/IO가 감지하지 못하는 orphan 비디오 케이스 대응 (iframe 내부, 동적 Shadow DOM 등) */
     setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
     onFsChange(onFullscreenChange);
@@ -1576,12 +1591,8 @@
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
 
-    let lastCleanupTime = 0;
-
+    /* [29.2.0] 패치: apply() 내 cleanup 제거 — createUI의 5초 setInterval에서 이미 수행 */
     const apply = () => {
-      const now = performance.now();
-      if (now - lastCleanupTime > 5000) { lastCleanupTime = now; Registry.cleanup(); }
-
       if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
       const target = Targeting.pick(Registry.videos);
       if (target) {
