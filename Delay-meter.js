@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.8.4
+// @version      15.8.5
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '15.8.4'
-    : '15.8.4';
+    ? GM_info?.script?.version ?? '15.8.5'
+    : '15.8.5';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -88,7 +88,9 @@
     if (_bufCount < BUF_WINDOW) _bufCount++;
   };
 
+  /* FIX: raw < 0일 때 링버퍼의 stale 중앙값 반환 방지 */
   const getSmoothedBuf = raw => {
+    if (raw < 0) return raw;
     pushBuf(raw);
     if (_bufCount === 0) return raw;
     let n = 0;
@@ -135,23 +137,6 @@
 
   /* ================================================================
    *  §2-T. 트위치 전용: 광고 감지 · 리런/VOD 감지
-   *
-   *  리런 감지의 한계:
-   *  ─────────────────────────────────────
-   *  2025년 기준 트위치는 리런 표시기를 사실상 제거.
-   *  스트리머가 "Rerun" 체크박스를 체크해도 시청자 페이지에는
-   *  일반 라이브와 동일한 빨간 "LIVE" 표시만 나옴.
-   *  [data-a-target="rerun-indicator"] 등 DOM 셀렉터는 매칭 불가.
-   *
-   *  리런은 기술적으로 OBS 등으로 VOD를 재캡처→송출하는 것이므로
-   *  video.duration=Infinity, seekable 범위 증가 등 모든 속성이
-   *  일반 라이브와 동일. API 없이는 100% 구분 불가.
-   *
-   *  현실적 대응:
-   *  1) 스트림 제목에 [Rerun]/[RE]/[재방송] 등 키워드 포함 여부로 힌트 감지
-   *  2) /videos/ URL 패턴으로 VOD 페이지 감지
-   *  3) 감지 시 UI에 "📼 리런?" 표시 + 제어는 계속 (오탐 시 피해 최소화)
-   *     → 사용자가 원하면 Alt+D 또는 토글로 수동 OFF
    * ================================================================ */
 
   const TwitchDetect = (() => {
@@ -174,18 +159,6 @@
       return _adResult;
     };
 
-    /* 리런 힌트 감지 (확정이 아닌 "의심" 수준)
-     *
-     * 감지 소스:
-     * 1) /videos/\d+ URL → VOD 확정 (isLive에서 false 반환)
-     * 2) 스트림 제목에 리런 키워드 → 힌트 (UI 표시용, 제어 차단 안 함)
-     *    키워드: [rerun], [re], [재방송], [리런], rerun, 재방송, 다시보기
-     *    대소문자 무시, 부분 매칭
-     *
-     * 반환값:
-     *   'vod'   — /videos/ 페이지 (확정, isLive에서 차단)
-     *   'hint'  — 제목 키워드 매칭 (의심, UI 표시만)
-     *   false   — 감지 안 됨 */
     const RERUN_KEYWORDS = /\brerun\b|\bre\b|\b재방송\b|\b리런\b|\b다시\s*보기\b/i;
 
     const checkRerun = () => {
@@ -194,13 +167,11 @@
       if (now - _rerunTs < 3000) return _rerunResult;
       _rerunTs = now;
 
-      /* VOD 페이지 확정 */
       if (/\/videos\/\d+/.test(location.pathname)) {
         _rerunResult = 'vod';
         return _rerunResult;
       }
 
-      /* 스트림 제목 키워드 힌트 */
       const titleEl =
         document.querySelector('[data-a-target="stream-title"]') ||
         document.querySelector('h2[data-a-target]') ||
@@ -214,7 +185,6 @@
         }
       }
 
-      /* document.title 폴백 (트위치 제목 형식: "스트리머 - 제목 - Twitch") */
       const docTitle = document.title || '';
       if (RERUN_KEYWORDS.test(docTitle)) {
         _rerunResult = 'hint';
@@ -327,9 +297,7 @@
     };
 
     const twitch = vid => {
-      /* VOD 페이지는 확정 비라이브 */
       if (/\/videos\/\d+/.test(location.pathname)) return false;
-      /* 리런 힌트('hint')는 차단하지 않음 — UI 표시만 */
       if (vid.duration === Infinity || vid.duration >= 1e6) return true;
       const cached = cache.get(vid);
       if (cached && performance.now() - cached.ts < 3000) return cached.v;
@@ -572,6 +540,7 @@
         live.falseCount = (live.falseCount < 0) ? 1 : live.falseCount + 1;
         if (live.falseCount <= 3) {
           if (control.gear !== R_NORM) resetRate(vid);
+          lastBuf = -1; /* FIX: grace period 중 stale UI 방지 */
           scheduleRender(); return;
         }
       }
@@ -909,6 +878,7 @@
       if (prev) safeRate(prev, R_NORM);
       setVid(null);
       resetControlState(null);
+      lastBuf = -1; lastTickAd = false; lastTickRerun = false; /* FIX: SPA 전환 시 stale 렌더 방지 */
       _scanRetry = 0; _needScan = true;
       LiveDetect.resetYT();
       if (IS_TWITCH) TwitchDetect.resetCache();
@@ -964,7 +934,7 @@
 
   window.addEventListener('beforeunload', save);
 
-    /* ── 브라우저 리사이즈 대응 ── */
+  /* ── 브라우저 리사이즈 대응 ── */
   let _resizeId = 0;
   window.addEventListener('resize', () => {
     clearTimeout(_resizeId);
@@ -991,7 +961,6 @@
       }
     }, 150);
   });
-
 
   /* ================================================================
    *  §15. 디버그
