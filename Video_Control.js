@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.9.2)
+// @name         Video_Control (v28.9.3)
 // @namespace    https://github.com/
-// @version      28.9.2
-// @description  v28.9.2: Clarity를 중간톤 S커브 대비로 재구현, 밝은 영상 체감 개선
+// @version      28.9.3
+// @description  v28.9.3: AutoScene에서 밝기 구간별 Clarity 및 HighRoll 자동(점진적) 적용 로직 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.9.2';
+  const VSC_VERSION = '28.9.3';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -296,11 +296,6 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
-    /* ── [v28.9.2] getToneTable: clarity를 중간톤 S커브 대비로 재구현 ──
-       기존: clarity → 샤프닝 커널에 미세 합산 (0.003배율 → 체감 불가)
-       변경: clarity → 톤 커브의 0.25~0.75 구간에 S자 대비 강화
-             밝은 영상(입력값이 0.5~0.8에 몰린 상태)에서 중간톤 분리 효과
-    ── */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder, highRoll, clarity) {
       const hr = highRoll || 0;
       const cl = clarity || 0;
@@ -323,7 +318,6 @@
         }
         if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
 
-        /* 하이라이트 롤오프 */
         if (hr > 0.001 && x0 > 0.55) {
           const rollStart = 0.55;
           const t = (x0 - rollStart) / (1.0 - rollStart);
@@ -331,20 +325,12 @@
           x = CLAMP(x - rollAmount * x, 0, 1);
         }
 
-        /* ── [v28.9.2] Clarity: 중간톤 S커브 대비 ──
-           중심 0.50, 시그마 0.22 의 가우시안 윈도우로
-           0.25~0.75 구간에 집중적 S자 대비를 건다.
-           x0 < 중심이면 살짝 어둡게, x0 > 중심이면 살짝 밝게 → 중간톤 분리
-           cl 범위: 0~1 (슬라이더 0~50을 0.02 배율로 전달)
-        ── */
         if (cl > 0.001) {
           const cCenter = 0.50;
           const cSigma = 0.22;
           const cw = Math.exp(-((x0 - cCenter) ** 2) / (2 * cSigma * cSigma));
           const deviation = (x0 - cCenter);
-          // S자: 중심 아래는 끌어내리고, 중심 위는 끌어올림
           const sDelta = cl * deviation * cw * 1.8;
-          // 밝은 쪽(x0 > 0.5)에서도 효과가 나도록 감쇠 없이 적용
           x = CLAMP(x + sDelta, 0, 1);
         }
 
@@ -399,7 +385,6 @@
 
       if (st.lastKey !== svgHash) {
         st.lastKey = svgHash;
-        /* [v28.9.2] clarity를 톤 테이블에 전달 */
         const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0, s.highRoll || 0, s.clarity || 0);
         if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
         const colorGain = tempTintToRgbGain(s.temp, s.tint);
@@ -408,7 +393,6 @@
 
         let desatMul = 1;
         if (!IS_FIREFOX) {
-          /* 샤프닝 커널: clarity는 더 이상 여기에 합산하지 않음 */
           const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
           let kernelStr = '0,0,0, 0,1,0, 0,0,0';
           if (totalS >= 0.005) { const edge = -totalS; const diag = edge * 0.707; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
@@ -470,7 +454,6 @@
         out.temp = mTemp; out.tint = mTint;
         out.gamma = 1 + mGamma * (-0.008); out.contrast = 1 + mCon * 0.008;
         out.gain = Math.pow(2, mGain * 0.03);
-        /* [v28.9.2] clarity: 슬라이더 0~50 → 내부값 0~1.0 (0.02 배율) */
         out.clarity = mClarity * 0.02;
         out.highRoll = mHighRoll * 0.02;
 
@@ -513,9 +496,44 @@
     const SCENE_CONFIG = { dark: { max: 30, label: '어두운 장면' }, bright: { min: 220, label: '눈부신 장면' }, normal: { label: '일반 영상' }, drm: { label: '보안 영상 ◉ DRM' }, gamma: 2.2, useSmoothstep: true };
 
     function smoothstep(edge0, edge1, x) { const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t); }
+
     function classifyBrightness(brightness, cfg) { let darkRaw = 0, brightRaw = 0; if (brightness < cfg.dark.max) { darkRaw = cfg.useSmoothstep ? 1 - smoothstep(0, cfg.dark.max, brightness) : 1 - brightness / cfg.dark.max; } if (brightness > cfg.bright.min) { brightRaw = cfg.useSmoothstep ? smoothstep(cfg.bright.min, 255, brightness) : (brightness - cfg.bright.min) / (255 - cfg.bright.min); } const darkFactor = darkRaw > 0 ? Math.pow(darkRaw, 1 / cfg.gamma) : 0; const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0; let label; if (darkFactor > 0) label = `${cfg.dark.label} ◉ 밝기 ${Math.round(brightness)}`; else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`; else label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`; return { label, darkFactor, brightFactor }; }
+
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
-    function interpolate(darkFactor, brightFactor, brightness) { return BASE.map((base, i) => { if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor); if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor); if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) { const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID); const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7); return Math.round(base * scale); } return base; }); }
+
+    /* ── [v28.9.3] 밝기 구간별 자동 Clarity & HighRoll 로직 ── */
+    function getAutoClarity(frameBrightness) {
+      if (frameBrightness <= 80)  return 0;
+      if (frameBrightness <= 140) return Math.round((frameBrightness - 80) / 60 * 12);
+      if (frameBrightness <= 220) return Math.round(12 + (frameBrightness - 140) / 80 * 16);
+      return Math.round(28 + Math.min(frameBrightness - 220, 35) / 35 * 12);
+    }
+
+    function getAutoHighRoll(frameBrightness) {
+      if (frameBrightness <= 140) return 0;
+      if (frameBrightness <= 220) return Math.round((frameBrightness - 140) / 80 * 12);
+      return Math.round(12 + Math.min(frameBrightness - 220, 35) / 35 * 8);
+    }
+
+    function interpolate(darkFactor, brightFactor, brightness) {
+      const mapped = BASE.map((base, i) => {
+        if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor);
+        if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor);
+        if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) {
+          const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID);
+          const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7);
+          return Math.round(base * scale);
+        }
+        return base;
+      });
+
+      // 자동 보정 시 밝기 구간에 따른 Clarity(인덱스 9), HighRoll(인덱스 10) 적용
+      mapped[9] = Math.max(mapped[9], getAutoClarity(brightness));
+      mapped[10] = Math.max(mapped[10], getAutoHighRoll(brightness));
+
+      return mapped;
+    }
+
     function getPresetSByFactors(darkFactor, brightFactor) { if (darkFactor > 0.5) return 'M'; if (darkFactor > 0.1) return 'S'; if (brightFactor > 0.3) return 'none'; if (brightFactor > 0) return 'off'; return 'off'; }
     function pushBrightness(raw) { if (brightHistory.length >= HISTORY_SIZE) _brightSum -= brightHistory.shift(); brightHistory.push(raw); _brightSum += raw; return _brightSum / brightHistory.length; }
     function analyzeFrame(video) { if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1; const vs = getAnalyzeState(video); if (video.dataset.vscDrm === "1") { vs.drmRetry++; if (vs.drmRetry < 10) return -1; vs.drmRetry = 0; } try { canvasCtx.drawImage(video, 0, 0, 16, 16); const data = canvasCtx.getImageData(0, 0, 16, 16).data; let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true; for (let i = 0; i < data.length; i += 4) { const row = (i >> 2) >> 4; const yWeight = row >= 13 ? 0.3 : 1.0; r += data[i] * yWeight; g += data[i+1] * yWeight; b += data[i+2] * yWeight; totalWeight += yWeight; if (data[i] > 0 || data[i+1] > 0 || data[i+2] > 0) isAllZero = false; } if (isAllZero) { vs.blackCount++; const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended; const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000; if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) { video.dataset.vscDrm = "1"; } return -1; } vs.blackCount = 0; vs.lastNonBlackTime = performance.now(); if (video.dataset.vscDrm === "1") { delete video.dataset.vscDrm; vs.drmRetry = 0; log.info('[AutoScene] DRM 플래그 해제'); } return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722; } catch (e) { video.dataset.vscCorsFail = "1"; return -1; } }
