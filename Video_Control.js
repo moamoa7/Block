@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.9.3)
+// @name         Video_Control (v28.9.4)
 // @namespace    https://github.com/
-// @version      28.9.3
-// @description  v28.9.3: AutoScene에서 밝기 구간별 Clarity 및 HighRoll 자동(점진적) 적용 로직 추가
+// @version      28.9.4
+// @description  v28.9.4: AutoScene Clarity/HighRoll 곡선 재설계 및 S커브 강도(2.8) 확대 적용
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.9.3';
+  const VSC_VERSION = '28.9.4';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -296,6 +296,7 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
+    /* ── [v28.9.4] Clarity 효과 범위 및 강도 최적화 적용 ── */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder, highRoll, clarity) {
       const hr = highRoll || 0;
       const cl = clarity || 0;
@@ -325,12 +326,13 @@
           x = CLAMP(x - rollAmount * x, 0, 1);
         }
 
+        /* ── v28.9.4: S커브 작용 범위(cSigma: 0.25) 및 강도(2.8) 확대 ── */
         if (cl > 0.001) {
           const cCenter = 0.50;
-          const cSigma = 0.22;
+          const cSigma = 0.25;
           const cw = Math.exp(-((x0 - cCenter) ** 2) / (2 * cSigma * cSigma));
           const deviation = (x0 - cCenter);
-          const sDelta = cl * deviation * cw * 1.8;
+          const sDelta = cl * deviation * cw * 2.8;
           x = CLAMP(x + sDelta, 0, 1);
         }
 
@@ -501,18 +503,20 @@
 
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    /* ── [v28.9.3] 밝기 구간별 자동 Clarity & HighRoll 로직 ── */
+    /* ── [v28.9.4] 구간 확장된 자동 Clarity & HighRoll 로직 ── */
     function getAutoClarity(frameBrightness) {
       if (frameBrightness <= 80)  return 0;
-      if (frameBrightness <= 140) return Math.round((frameBrightness - 80) / 60 * 12);
-      if (frameBrightness <= 220) return Math.round(12 + (frameBrightness - 140) / 80 * 16);
-      return Math.round(28 + Math.min(frameBrightness - 220, 35) / 35 * 12);
+      if (frameBrightness <= 120) return Math.round((frameBrightness - 80) / 40 * 18);
+      if (frameBrightness <= 180) return Math.round(18 + (frameBrightness - 120) / 60 * 14);
+      if (frameBrightness <= 220) return Math.round(32 + (frameBrightness - 180) / 40 * 8);
+      return Math.round(40 + Math.min(frameBrightness - 220, 35) / 35 * 10);
     }
 
     function getAutoHighRoll(frameBrightness) {
-      if (frameBrightness <= 140) return 0;
-      if (frameBrightness <= 220) return Math.round((frameBrightness - 140) / 80 * 12);
-      return Math.round(12 + Math.min(frameBrightness - 220, 35) / 35 * 8);
+      if (frameBrightness <= 120) return 0;
+      if (frameBrightness <= 180) return Math.round((frameBrightness - 120) / 60 * 15);
+      if (frameBrightness <= 220) return Math.round(15 + (frameBrightness - 180) / 40 * 10);
+      return Math.round(25 + Math.min(frameBrightness - 220, 35) / 35 * 10);
     }
 
     function interpolate(darkFactor, brightFactor, brightness) {
@@ -527,7 +531,6 @@
         return base;
       });
 
-      // 자동 보정 시 밝기 구간에 따른 Clarity(인덱스 9), HighRoll(인덱스 10) 적용
       mapped[9] = Math.max(mapped[9], getAutoClarity(brightness));
       mapped[10] = Math.max(mapped[10], getAutoHighRoll(brightness));
 
