@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.9.11)
+// @name         Video_Control (v28.9.12)
 // @namespace    https://github.com/
-// @version      28.9.11
-// @description  v28.9.11: Clarity 자동 곡선 기울기 최적화 및 톤 테이블 루프 연산 마이크로 최적화 적용
+// @version      28.9.12
+// @description  v28.9.12: (최종) Clarity 곡선 완화, 톤테이블 최적화 및 BRIGHT_V 타겟값 정상화 완벽 통합
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.9.11';
+  const VSC_VERSION = '28.9.12';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -218,9 +218,11 @@
     const videoListeners = new WeakMap();
     let refreshRafId = 0;
     function requestRefresh() { if (refreshRafId) return; refreshRafId = requestAnimationFrame(() => { refreshRafId = 0; scheduler.request(); }); }
+
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { for (const e of entries) { if (e.isIntersecting || e.intersectionRatio > 0) { requestRefresh(); return; } } }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
     const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { for (const e of entries) { if (e.target.tagName === 'VIDEO') { requestRefresh(); return; } } }) : null;
     const isVscNode = (n) => { if (!n || n.nodeType !== 1) return false; return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd'); };
+
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return; videos.add(el);
       el.addEventListener('encrypted', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
@@ -296,7 +298,6 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
-    /* ── [v28.9.11] 톤 테이블: 조건문 단순화 최적화 적용 ── */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder, highRoll, clarity) {
       const hr = highRoll || 0;
       const cl = clarity || 0;
@@ -305,12 +306,12 @@
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
       const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast);
-      
+
       for (let i = 0; i < steps; i++) {
         const x0 = i / (steps - 1);
         let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
         x = x * contrast + intercept; x = CLAMP(x, 0, 1);
-        
+
         if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
         if (mid > 0.001) {
           const mc = 0.45, sig = 0.18;
@@ -328,17 +329,17 @@
           x = CLAMP(x - rollAmount * x, 0, 1);
         }
 
-        /* ── Method 3 마이크로 최적화: 불필요한 deviation 연산 제외 ── */
+        /* ── [v28.9.12] 최적화된 Method 3 하이라이트 보호 ── */
         if (cl > 0.001) {
           const cCenter = 0.50;
           const cSigma = 0.25;
           const cw = Math.exp(-((x0 - cCenter) ** 2) / (2 * cSigma * cSigma));
           const deviation = (x0 - cCenter);
-          
+
           const hlProtect = (x0 > 0.70)
             ? Math.max(0, 1 - (x0 - 0.70) / 0.30)
             : 1;
-            
+
           const sDelta = cl * deviation * cw * 2.8 * hlProtect;
           x = CLAMP(x + sDelta, 0, 1);
         }
@@ -390,7 +391,7 @@
       if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
-      
+
       const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}|${(s.highRoll||0).toFixed(3)}|${(s.clarity||0).toFixed(3)}`;
 
       if (st.lastKey !== svgHash) {
@@ -494,27 +495,28 @@
     function getAnalyzeState(v) { if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 }); return _videoAnalyzeState.get(v); }
     let _lastTickVideo = null;
 
+    /* ── [v28.9.12] BRIGHT_V 타겟값 [15, 10] 완전 복구 ── */
     const BASE     = [ 20, 15,  8,  0, 0, -1, -1,  0,  4,   0,   0 ];
     const DARK_V   = [ 50, 30, 20,  0, 0, -4, -4,  0, 11,   0,   0 ];
-    const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  0,  2,  20,  15 ]; 
+    const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  0,  2,  15,  10 ];
     const VERTICAL = [ 15, 13,  0,  0, 0, -1, -1,  0,  3,   0,   0 ];
     const DRM_BASE = [ 20, 15,  8,  0, 0, -1, -1,  0,  4,   0,   0 ];
-    
+
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
-    
-    const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]); 
-    const ATTENUATE_MID = 128; 
+
+    const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]);
+    const ATTENUATE_MID = 128;
     const ATTENUATE_CEIL = 220;
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인','선명도','하이롤'];
-    
-    const SCENE_CONFIG = { 
-      dark: { max: 30, label: '어두운 장면' }, 
-      bright: { min: 220, label: '눈부신 장면' }, 
-      normal: { label: '일반 영상' }, 
-      drm: { label: '보안 영상 ◉ DRM' }, 
-      gamma: 2.2, 
-      useSmoothstep: true 
+
+    const SCENE_CONFIG = {
+      dark: { max: 30, label: '어두운 장면' },
+      bright: { min: 220, label: '눈부신 장면' },
+      normal: { label: '일반 영상' },
+      drm: { label: '보안 영상 ◉ DRM' },
+      gamma: 2.2,
+      useSmoothstep: true
     };
 
     function smoothstep(edge0, edge1, x) { const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t); }
@@ -523,17 +525,17 @@
 
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    /* ── [v28.9.11] 완만하게 최적화된 Clarity 곡선 ── */
+    /* ── [v28.9.12] 기울기(Slope)가 완만해진 Clarity 자동 개입 곡선 ── */
     function getAutoClarity(frameBrightness) {
       if (frameBrightness <= 130) return 0;
-      if (frameBrightness <= 180) return Math.round((frameBrightness - 130) / 50 * 5);  // 180에서 정확히 5
-      if (frameBrightness <= 230) return Math.round(5 + (frameBrightness - 180) / 50 * 7); // 기울기 완화
+      if (frameBrightness <= 180) return Math.round((frameBrightness - 130) / 50 * 5);
+      if (frameBrightness <= 230) return Math.round(5 + (frameBrightness - 180) / 50 * 7);
       return Math.round(12 + Math.min(frameBrightness - 230, 25) / 25 * 4);
     }
 
     function getAutoHighRoll(frameBrightness) {
-      if (frameBrightness <= 150) return 0; 
-      if (frameBrightness <= 200) return Math.round((frameBrightness - 150) / 50 * 8);  
+      if (frameBrightness <= 150) return 0;
+      if (frameBrightness <= 200) return Math.round((frameBrightness - 150) / 50 * 8);
       return Math.round(8 + Math.min(frameBrightness - 200, 55) / 55 * 10);
     }
 
