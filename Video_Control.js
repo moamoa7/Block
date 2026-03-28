@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.9.5)
+// @name         Video_Control (v28.9.7)
 // @namespace    https://github.com/
-// @version      28.9.5
-// @description  v28.9.5: 중앙 집중 측광 도입 및 밝기 임계값 하향을 통한 Clarity/HighRoll 체감 최적화
+// @version      28.9.7
+// @description  v28.9.7: Clarity/HighRoll 자동 적용 제거(수동 전용), 블랙바 무시 측광 유지
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.9.5';
+  const VSC_VERSION = '28.9.7';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -327,10 +327,10 @@
 
         if (cl > 0.001) {
           const cCenter = 0.50;
-          const cSigma = 0.25;  
+          const cSigma = 0.25;
           const cw = Math.exp(-((x0 - cCenter) ** 2) / (2 * cSigma * cSigma));
           const deviation = (x0 - cCenter);
-          const sDelta = cl * deviation * cw * 2.8; 
+          const sDelta = cl * deviation * cw * 2.8;
           x = CLAMP(x + sDelta, 0, 1);
         }
 
@@ -484,9 +484,10 @@
     function getAnalyzeState(v) { if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 }); return _videoAnalyzeState.get(v); }
     let _lastTickVideo = null;
 
+    /* ── [v28.9.6] BRIGHT_V: Clarity/HighRoll 자동값 제거 (인덱스 9,10 → 0) ── */
     const BASE     = [ 20, 15,  8,  0, 0, -1, -1,  0,  4,   0,   0 ];
     const DARK_V   = [ 50, 30, 20,  0, 0, -4, -4,  0, 11,   0,   0 ];
-    const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  0,  2,  20,  15 ];
+    const BRIGHT_V = [ 10, 10,  5,  0, 0,  0, -2,  0,  2,   0,   0 ];
     const VERTICAL = [ 15, 13,  0,  0, 0, -1, -1,  0,  3,   0,   0 ];
     const DRM_BASE = [ 20, 15,  8,  0, 0, -1, -1,  0,  4,   0,   0 ];
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
@@ -496,79 +497,81 @@
     const SCENE_CONFIG = { dark: { max: 30, label: '어두운 장면' }, bright: { min: 220, label: '눈부신 장면' }, normal: { label: '일반 영상' }, drm: { label: '보안 영상 ◉ DRM' }, gamma: 2.2, useSmoothstep: true };
 
     function smoothstep(edge0, edge1, x) { const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t); }
-    
+
     function classifyBrightness(brightness, cfg) { let darkRaw = 0, brightRaw = 0; if (brightness < cfg.dark.max) { darkRaw = cfg.useSmoothstep ? 1 - smoothstep(0, cfg.dark.max, brightness) : 1 - brightness / cfg.dark.max; } if (brightness > cfg.bright.min) { brightRaw = cfg.useSmoothstep ? smoothstep(cfg.bright.min, 255, brightness) : (brightness - cfg.bright.min) / (255 - cfg.bright.min); } const darkFactor = darkRaw > 0 ? Math.pow(darkRaw, 1 / cfg.gamma) : 0; const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0; let label; if (darkFactor > 0) label = `${cfg.dark.label} ◉ 밝기 ${Math.round(brightness)}`; else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`; else label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`; return { label, darkFactor, brightFactor }; }
-    
+
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    /* ── [v28.9.5] 임계값 하향된 자동 Clarity & HighRoll 로직 ── */
-    function getAutoClarity(frameBrightness) {
-      if (frameBrightness <= 50)  return 0;
-      if (frameBrightness <= 90)  return Math.round((frameBrightness - 50) / 40 * 15);
-      if (frameBrightness <= 150) return Math.round(15 + (frameBrightness - 90) / 60 * 15);
-      if (frameBrightness <= 200) return Math.round(30 + (frameBrightness - 150) / 50 * 10);
-      return Math.round(40 + Math.min(frameBrightness - 200, 55) / 55 * 10);
-    }
-
-    function getAutoHighRoll(frameBrightness) {
-      if (frameBrightness <= 90)  return 0;
-      if (frameBrightness <= 150) return Math.round((frameBrightness - 90) / 60 * 15);
-      if (frameBrightness <= 200) return Math.round(15 + (frameBrightness - 150) / 50 * 10);
-      return Math.round(25 + Math.min(frameBrightness - 200, 55) / 55 * 10);
-    }
-
-    function interpolate(darkFactor, brightFactor, brightness) { 
-      const mapped = BASE.map((base, i) => { 
-        if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor); 
-        if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor); 
-        if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) { 
-          const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID); 
-          const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7); 
-          return Math.round(base * scale); 
-        } 
-        return base; 
+    /* ── [v28.9.6] interpolate: Clarity/HighRoll 자동 덮어쓰기 완전 제거 ── */
+    function interpolate(darkFactor, brightFactor, brightness) {
+      return BASE.map((base, i) => {
+        if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor);
+        if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor);
+        if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) {
+          const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID);
+          const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7);
+          return Math.round(base * scale);
+        }
+        return base;
       });
-
-      mapped[9] = Math.max(mapped[9], getAutoClarity(brightness));
-      mapped[10] = Math.max(mapped[10], getAutoHighRoll(brightness));
-      
-      return mapped;
     }
-    
+
     function getPresetSByFactors(darkFactor, brightFactor) { if (darkFactor > 0.5) return 'M'; if (darkFactor > 0.1) return 'S'; if (brightFactor > 0.3) return 'none'; if (brightFactor > 0) return 'off'; return 'off'; }
     function pushBrightness(raw) { if (brightHistory.length >= HISTORY_SIZE) _brightSum -= brightHistory.shift(); brightHistory.push(raw); _brightSum += raw; return _brightSum / brightHistory.length; }
-    
-    /* ── [v28.9.5] 중앙 집중 측광 (블랙바 및 자막 영역 무시) ── */
-    function analyzeFrame(video) { 
-      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1; 
-      const vs = getAnalyzeState(video); 
-      if (video.dataset.vscDrm === "1") { vs.drmRetry++; if (vs.drmRetry < 10) return -1; vs.drmRetry = 0; } 
-      try { 
-        canvasCtx.drawImage(video, 0, 0, 16, 16); 
-        const data = canvasCtx.getImageData(0, 0, 16, 16).data; 
-        let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true; 
-        for (let i = 0; i < data.length; i += 4) { 
-          const row = (i >> 2) >> 4; 
+
+    /* ── [v28.9.5 유지] 블랙바 무시 중앙집중 측광 ── */
+    function analyzeFrame(video) {
+      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1;
+      const vs = getAnalyzeState(video);
+      if (video.dataset.vscDrm === "1") { vs.drmRetry++; if (vs.drmRetry < 10) return -1; vs.drmRetry = 0; }
+      try {
+        canvasCtx.drawImage(video, 0, 0, 16, 16);
+        const data = canvasCtx.getImageData(0, 0, 16, 16).data;
+        let r = 0, g = 0, b = 0, totalWeight = 0, isAllZero = true;
+
+        for (let i = 0; i < data.length; i += 4) {
+          const row = (i >> 2) >> 4;
+          const col = (i >> 2) & 15;
+
           let yWeight = 1.0;
           if (row < 2 || row > 13) yWeight = 0.1;
           else if (row === 12 || row === 13) yWeight = 0.5;
-          r += data[i] * yWeight; g += data[i+1] * yWeight; b += data[i+2] * yWeight; 
-          totalWeight += yWeight; 
-          if (data[i] > 5 || data[i+1] > 5 || data[i+2] > 5) isAllZero = false; 
-        } 
-        if (isAllZero) { 
-          vs.blackCount++; 
-          const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended; 
-          const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000; 
-          if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) { video.dataset.vscDrm = "1"; } 
-          return -1; 
-        } 
-        vs.blackCount = 0; vs.lastNonBlackTime = performance.now(); 
-        if (video.dataset.vscDrm === "1") { delete video.dataset.vscDrm; vs.drmRetry = 0; log.info('[AutoScene] DRM 플래그 해제'); } 
-        return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722; 
-      } catch (e) { video.dataset.vscCorsFail = "1"; return -1; } 
+
+          let xWeight = 1.0;
+          if (col < 2 || col > 13) xWeight = 0.3;
+          else if (col < 4 || col > 11) xWeight = 0.6;
+
+          const w = yWeight * xWeight;
+
+          r += data[i]     * w;
+          g += data[i + 1] * w;
+          b += data[i + 2] * w;
+          totalWeight += w;
+
+          if (data[i] > 5 || data[i + 1] > 5 || data[i + 2] > 5) isAllZero = false;
+        }
+
+        if (isAllZero) {
+          vs.blackCount++;
+          const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended;
+          const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000;
+          if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) {
+            video.dataset.vscDrm = "1";
+          }
+          return -1;
+        }
+
+        vs.blackCount = 0;
+        vs.lastNonBlackTime = performance.now();
+        if (video.dataset.vscDrm === "1") { delete video.dataset.vscDrm; vs.drmRetry = 0; log.info('[AutoScene] DRM 플래그 해제'); }
+
+        return (r / totalWeight) * 0.2126 + (g / totalWeight) * 0.7152 + (b / totalWeight) * 0.0722;
+      } catch (e) {
+        video.dataset.vscCorsFail = "1";
+        return -1;
+      }
     }
-    
+
     function buildDetailText() { const active = currentValues.map((val, i) => val !== 0 ? `${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}` : null).filter(Boolean); const sharpLabel = currentPresetS != null ? (currentPresetS === 'none' ? '샤프닝:OFF' : currentPresetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[currentPresetS]?.label || currentPresetS}`) : ''; const parts = []; if (sharpLabel) parts.push(sharpLabel); if (active.length > 0) parts.push(active.join(' · ')); return parts.join(' │ ') || '보정 없음'; }
     function applyValues(values, presetS) { _internalBatch = true; const obj = {}; for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = values[i]; if (presetS != null) obj.presetS = presetS; store.batch('video', obj); _internalBatch = false; currentValues = values; currentPresetS = presetS; }
     function applyZeroValues() { _internalBatch = true; const zeros = {}; for (const k of MANUAL_KEYS) zeros[k] = 0; zeros.presetS = 'off'; store.batch('video', zeros); _internalBatch = false; currentValues = new Array(MANUAL_KEYS.length).fill(0); currentPresetS = 'off'; }
@@ -656,8 +659,8 @@
         { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 },
         { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 },
         { type: 'sep' },
-        { type: 'sectionLabel', text: '밝은 영상 보정' },
-        { type: 'hint', text: '선명도: 중간톤 S커브 대비로 밋밋한 밝은 영상에 입체감을 줍니다. 하이라이트 롤오프: 밝은 부분을 눌러 중간톤이 살아납니다.' },
+        { type: 'sectionLabel', text: '수동 보정 (Clarity / HighRoll)' },
+        { type: 'hint', text: '선명도: 중간톤 S커브 대비 (수동 전용). 하이라이트 롤오프: 밝은 부분 억제 (수동 전용). 필요할 때만 직접 조절하세요.' },
         { type: 'fineSlider', label: '선명도 (Clarity)', path: P.V_MAN_CLARITY, min: 0, max: 50, step: 1, fine: 5 },
         { type: 'fineSlider', label: '하이라이트 롤오프', path: P.V_MAN_HIGHROLL, min: 0, max: 50, step: 1, fine: 5 },
         { type: 'sep' },
