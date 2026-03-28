@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.8)
+// @name         Video_Control (v28.9.0)
 // @namespace    https://github.com/
-// @version      28.8.8
-// @description  v28.8.8: DRM 오탐 방지, 리미터 임계값 조정, 프리셋 그리드 CSS 클래스화
+// @version      28.9.0
+// @description  v28.9.0: 밝은 영상 보정 강화 — 하이라이트 롤오프 + 선명도(Clarity) 슬라이더 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.8';
+  const VSC_VERSION = '28.9.0';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -61,7 +61,9 @@
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
     const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs((s.contrast || 1) - 1) > 0.005);
-    return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
+    const hasHighRoll = Math.abs(s.highRoll || 0) > 0.005;
+    const hasClarity = Math.abs(s.clarity || 0) > 0.005;
+    return hasSharp || hasTone || hasHighRoll || hasClarity || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
   function applyFilterStyles(el, filterStr) {
@@ -79,7 +81,7 @@
     detail: {
       none: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
       off:  { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'AUTO' },
-            S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
+      S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
       M:    { sharpAdd: 22, sharp2Add: 12, clarityAdd: 12, label: '2단' },
       L:    { sharpAdd: 26, sharp2Add: 24, clarityAdd: 20, label: '3단' },
       XL:   { sharpAdd: 32, sharp2Add: 22, clarityAdd: 26, label: '4단' }
@@ -101,26 +103,29 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
+  /* ── 수동 프리셋: 인덱스 9 = 선명도(clarity), 10 = 하이라이트(highRoll) 추가 ── */
   const MANUAL_PRESETS = [
-    { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
-    { n: '또렷',        v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
-    { n: '피부톤',      v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
-    { n: '선명강조',    v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
-    { n: '웹캠보정',    v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
-    { n: '사용자10',   v: [11,  9,   5,  0, 0,  0, -1,  0,  1] }, // 밝은 장면 (억제)
-    { n: '사용자20',   v: [16, 12,   6,  0, 0, -1, -1,  0,  3] },
-    { n: '사용자30',   v: [20, 15,   8,  0, 0, -1, -1,  0,  4] }, // [BASE] 표준 점
-    { n: '사용자40',   v: [24, 17,  10,  0, 0, -1, -1,  0,  5] },
-    { n: '사용자50',   v: [29, 19,  11,  0, 0, -2, -2,  0,  6] },
-    { n: '사용자60',   v: [33, 21,  13,  0, 0, -2, -2,  0,  7] },
-    { n: '사용자70',   v: [37, 24,  15,  0, 0, -3, -3,  0,  8] },
-    { n: '사용자80',   v: [41, 26,  17,  0, 0, -3, -3,  0,  9] },
-    { n: '사용자90',   v: [46, 28,  18,  0, 0, -4, -4,  0, 10] },
-    { n: '사용자100',  v: [50, 30,  20,  0, 0, -4, -4,  0, 11] }, // [DARK_V] 암부 점
-];
+    { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0] },
+    { n: '또렷',        v: [8,  20,   0,   0,   0,   5,   0,   8,   2,  12,   0] },
+    { n: '피부톤',      v: [8,  15,   8,  12,   3,   0,  -4,   4,   2,   6,   5] },
+    { n: '선명강조',    v: [15, 22,   5,   0,   0,   8,   0,  10,   3,  18,   0] },
+    { n: '웹캠보정',    v: [20, 25,  10,   0,   5,   8,  -4,   6,   6,  10,   8] },
+    { n: '밝은영상',    v: [0,   8,   0,   0,   0,   8,  -2,  10,   0,  22,  15] },
+    { n: '태블릿풍',    v: [6,  12,   5,   0,   0,  10,  -2,   8,   2,  16,  10] },
+    { n: '사용자10',   v: [11,  9,   5,  0, 0,  0, -1,  0,  1,   4,   0] },
+    { n: '사용자20',   v: [16, 12,   6,  0, 0, -1, -1,  0,  3,   6,   0] },
+    { n: '사용자30',   v: [20, 15,   8,  0, 0, -1, -1,  0,  4,   8,   0] },
+    { n: '사용자40',   v: [24, 17,  10,  0, 0, -1, -1,  0,  5,  10,   3] },
+    { n: '사용자50',   v: [29, 19,  11,  0, 0, -2, -2,  0,  6,  12,   5] },
+    { n: '사용자60',   v: [33, 21,  13,  0, 0, -2, -2,  0,  7,  14,   6] },
+    { n: '사용자70',   v: [37, 24,  15,  0, 0, -3, -3,  0,  8,  16,   8] },
+    { n: '사용자80',   v: [41, 26,  17,  0, 0, -3, -3,  0,  9,  18,   9] },
+    { n: '사용자90',   v: [46, 28,  18,  0, 0, -4, -4,  0, 10,  20,  10] },
+    { n: '사용자100',  v: [50, 30,  20,  0, 0, -4, -4,  0, 11,  22,  12] },
+  ];
 
   const DEFAULTS = {
-    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
+    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualClarity: 0, manualHighRoll: 0, autoScene: false },
     audio: { enabled: false, strength: 50 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false }
@@ -132,12 +137,15 @@
     V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
     V_MAN_TINT: 'video.manualTint', V_MAN_SAT: 'video.manualSat',
     V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
-    V_MAN_GAIN: 'video.manualGain', V_AUTO_SCENE: 'video.autoScene',
+    V_MAN_GAIN: 'video.manualGain',
+    V_MAN_CLARITY: 'video.manualClarity',
+    V_MAN_HIGHROLL: 'video.manualHighRoll',
+    V_AUTO_SCENE: 'video.autoScene',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
-  const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
+  const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN, P.V_MAN_CLARITY, P.V_MAN_HIGHROLL];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
   function createLocalStore(defaults, scheduler) {
@@ -404,7 +412,6 @@
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
       limiter = ctx.createDynamicsCompressor();
-      /* ── [v28.8.8] #2 수정: -1.0 → -3.0 dBFS ── */
       limiter.threshold.value = -3.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.08; limiter.knee.value = 0;
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
       comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(masterOut); masterOut.connect(ctx.destination);
@@ -479,10 +486,7 @@
         if (!source) {
           video.dataset.vscMesFail = "1";
           source = connectViaCaptureStream(video);
-          if (!source) {
-            enterBypass(video, 'all methods failed');
-            return false;
-          }
+          if (!source) { enterBypass(video, 'all methods failed'); return false; }
         }
       }
       try { source.disconnect(); } catch (_) {}
@@ -560,8 +564,10 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
-    function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
-      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
+    /* ── [v28.9.0] 톤 테이블: highRoll(하이라이트 롤오프) 파라미터 추가 ── */
+    function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder, highRoll) {
+      const hr = highRoll || 0;
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}|h${Math.round(hr*1000)}`;
       if (toneCache.has(key)) { const val = toneCache.get(key); toneCache.delete(key); toneCache.set(key, val); return val; }
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
@@ -578,6 +584,15 @@
           x = CLAMP(x + appliedDelta, 0, 1);
         }
         if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
+
+        /* ── [v28.9.0] 하이라이트 롤오프: 밝은 영역(x0 > 0.55)을 눌러서 중간톤 대비를 살림 ── */
+        if (hr > 0.001 && x0 > 0.55) {
+          const rollStart = 0.55;
+          const t = (x0 - rollStart) / (1.0 - rollStart);
+          const rollAmount = hr * t * t * 0.35;
+          x = CLAMP(x - rollAmount * x, 0, 1);
+        }
+
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
         if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
       }
@@ -634,11 +649,11 @@
         if (target?.appendChild) target.appendChild(ctx.svg);
       }
       const st = ctx.st;
-      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
+      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}|${(s.highRoll||0).toFixed(3)}|${(s.clarity||0).toFixed(3)}`;
 
       if (st.lastKey !== svgHash) {
         st.lastKey = svgHash;
-        const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
+        const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0, s.highRoll || 0);
         if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
         const colorGain = tempTintToRgbGain(s.temp, s.tint);
         const tempTintKey = `${s.temp}|${s.tint}`;
@@ -646,7 +661,9 @@
 
         let desatMul = 1;
         if (!IS_FIREFOX) {
-          const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
+          /* ── [v28.9.0] clarity를 샤프닝 커널에 합산 — 로컬 콘트라스트 증가 효과 ── */
+          const claritySharp = CLAMP((s.clarity || 0) * 0.003, 0, 0.08);
+          const totalS = CLAMP(Number(s.sharp || 0) + claritySharp, 0, SHARP_CAP);
           let kernelStr = '0,0,0, 0,1,0, 0,0,0';
           if (totalS >= 0.005) { const edge = -totalS; const diag = edge * 0.707; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
           if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); ctx.fConv.setAttribute('divisor', '1'); }
@@ -708,7 +725,7 @@
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
 
-        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false };
+        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, highRoll: 0, clarity: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
@@ -731,6 +748,8 @@
         const mGamma = CLAMP(Number(Store.get(P.V_MAN_GAMMA) ?? 0), -30, 30);
         const mCon   = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain  = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
+        const mClarity  = CLAMP(Number(Store.get(P.V_MAN_CLARITY) ?? 0), 0, 50);
+        const mHighRoll = CLAMP(Number(Store.get(P.V_MAN_HIGHROLL) ?? 0), 0, 50);
 
         out.toe      = mShad * 0.0040;
         out.mid      = mRec  * 0.0035;
@@ -740,6 +759,8 @@
         out.gamma    = 1 + mGamma * (-0.008);
         out.contrast = 1 + mCon * 0.008;
         out.gain     = Math.pow(2, mGain * 0.03);
+        out.clarity  = mClarity;
+        out.highRoll = mHighRoll * 0.02;
 
         out._needsSvg = checkNeedsSvg(out);
 
@@ -771,7 +792,7 @@
 
   function createAutoScene(store, scheduler) {
     let lastCheck = 0, currentBrightness = -1;
-    let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
+    let currentLabel = '분석 대기중', currentValues = new Array(MANUAL_KEYS.length).fill(0);
     let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
     let lastAppliedBrightness = -999;
 
@@ -794,11 +815,12 @@
 
     let _lastTickVideo = null;
 
-    const BASE     = [ 20, 15, 8,  0, 0, -1, -1,  0,  4 ];
-    const DARK_V   = [ 50, 30, 20, 0, 0, -4, -4,  0, 11 ];
-    const BRIGHT_V = [ 10, 10, 5,  0, 0,  0, -2,  0,  2 ];
-    const VERTICAL = [ 15, 13, 0,  0, 0, -1, -1,  0,  3 ];
-    const DRM_BASE = [ 20, 15, 8,  0, 0, -1, -1,  0,  4 ];
+    /* ── 자동 장면 벡터: clarity(인덱스9), highRoll(인덱스10) 포함 ── */
+    const BASE     = [ 20, 15, 8,  0, 0, -1, -1,  0,  4,   8,   0 ];
+    const DARK_V   = [ 50, 30, 20, 0, 0, -4, -4,  0, 11,  14,   0 ];
+    const BRIGHT_V = [ 10, 10, 5,  0, 0,  0, -2,  0,  2,  20,  15 ];
+    const VERTICAL = [ 15, 13, 0,  0, 0, -1, -1,  0,  3,   6,   0 ];
+    const DRM_BASE = [ 20, 15, 8,  0, 0, -1, -1,  0,  4,   8,   0 ];
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -807,7 +829,7 @@
     const ATTENUATE_MID = 128;
     const ATTENUATE_CEIL = 220;
 
-    const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
+    const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인','선명도','하이롤'];
 
     const SCENE_CONFIG = {
       dark:   { max: 30,  label: '어두운 장면' },
@@ -875,7 +897,6 @@
       return _brightSum / brightHistory.length;
     }
 
-    /* ── [v28.8.8] #1 수정: DRM 오탐 방지 — blackCount 임계값 상향 + currentTime 진행 확인 ── */
     function analyzeFrame(video) {
       if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1;
 
@@ -904,9 +925,6 @@
 
         if (isAllZero) {
           vs.blackCount++;
-          /* ── [v28.8.8] 암전 씬 vs DRM 구분:
-               - 임계값 5 → 12 (500ms × 12 = 6초 연속 검정)
-               - currentTime이 진행 중이면 암전 씬으로 간주하여 DRM 플래그 설정하지 않음 ── */
           const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended;
           const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000;
           if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) {
@@ -961,7 +979,7 @@
       zeros.presetS = 'off';
       store.batch('video', zeros);
       _internalBatch = false;
-      currentValues = [0,0,0,0,0,0,0,0,0];
+      currentValues = new Array(MANUAL_KEYS.length).fill(0);
       currentPresetS = 'off';
     }
 
@@ -1067,7 +1085,7 @@
 
     function activate() {
       resetAutoState();
-      currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
+      currentValues = new Array(MANUAL_KEYS.length).fill(0); currentPresetS = null;
       lastCheck = performance.now() - CHECK_INTERVAL - 1;
       scheduler.request(true);
     }
@@ -1116,7 +1134,6 @@
       --vsc-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
       font-family: var(--vsc-font) !important; font-size: var(--vsc-font-md) !important; color: var(--vsc-text) !important; -webkit-font-smoothing: antialiased; }`;
 
-    /* ── [v28.8.8] #3 수정: .fine-btn.active 클래스 추가 ── */
     const PANEL_CSS = `${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
     .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; overscroll-behavior: none !important; }
@@ -1315,7 +1332,6 @@
       return box;
     }
 
-    /* ── [v28.8.8] #3 수정: inline style → classList.toggle('active') ── */
     function buildPresetGrid() {
       const wrap = h('div', {});
       wrap.append(h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정'));
@@ -1380,6 +1396,11 @@
         { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 },
         { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 },
         { type: 'sep' },
+        { type: 'sectionLabel', text: '밝은 영상 보정' },
+        { type: 'hint', text: '밝기 100+ 영상에서 효과가 큽니다. 선명도는 로컬 콘트라스트를, 하이라이트 롤오프는 밝은 부분을 눌러 중간톤 대비를 살립니다.' },
+        { type: 'fineSlider', label: '선명도 (Clarity)', path: P.V_MAN_CLARITY, min: 0, max: 50, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '하이라이트 롤오프', path: P.V_MAN_HIGHROLL, min: 0, max: 50, step: 1, fine: 5 },
+        { type: 'sep' },
         { type: 'sectionLabel', text: '색상 보정' },
         { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 },
         { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 },
@@ -1435,15 +1456,10 @@
         const revealGear = () => {
           mainBtn.classList.add('touch-reveal');
           clearTimeout(touchRevealTimer);
-          touchRevealTimer = setTimeout(() => {
-            mainBtn.classList.remove('touch-reveal');
-          }, 2500);
+          touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500);
         };
         document.addEventListener('touchstart', revealGear, { passive: true });
-        mainBtn.addEventListener('touchstart', (e) => {
-          mainBtn.classList.add('touch-reveal');
-          clearTimeout(touchRevealTimer);
-        }, { passive: true });
+        mainBtn.addEventListener('touchstart', (e) => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true });
       }
     }
 
@@ -1567,7 +1583,7 @@
     }
 
     Registry.rescanAll(); apply();
-    log.info(`[VSC] v${VSC_VERSION} booted.`);
+    log.info(`[VSC] v${VSC_VERSION} booted. Device: ${getDeviceType()}`);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootstrap, { once: true });
