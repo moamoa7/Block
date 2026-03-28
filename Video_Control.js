@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.2.0)
+// @name         Video_Control (v29.2.1)
 // @namespace    https://github.com/moamoa7
-// @version      29.2.0
-// @description  v29.2.0: vscMesFail 이중설정 제거, captureStream muted 순서 교정, enterBypass 복원순서 교정, fadeOutThen generation 복원, apply() cleanup 중복 제거, Store.set _kc 캐시 통합, mkXfer withAlpha 기본값 정리
+// @version      29.2.1
+// @description  v29.2.1: AUTO 샤프닝 강도 하향 (autoBase*0.45) — OFF<AUTO<S<M<L<XL 계층 정상화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.2.0';
+  const VSC_VERSION = '29.2.1';
   const DEBUG = false;
 
   const log = {
@@ -752,8 +752,8 @@
 
         const platformScale = IS_MOBILE ? 0.65 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
-
-        if (presetS === 'off') { out.sharp = autoBase * platformScale; }
+        /* [29.2.1] 패치: AUTO 샤프닝 강도 하향 (autoBase*0.45) */
+        if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
 
