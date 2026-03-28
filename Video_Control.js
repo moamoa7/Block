@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.9.13)
+// @name         Video_Control (v28.9.14)
 // @namespace    https://github.com/
-// @version      28.9.13
-// @description  v28.9.13: Clarity 자동 개입에 180~220 하강 곡선(Roll-off) 도입 및 BRIGHT_V 핸드오프 최적화
+// @version      28.9.14
+// @description  v28.9.14: (최종) Clarity 데드존(Dead Zone) 해결을 위한 크로스페이드 곡선 적용 및 180 정점(5) 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.9.13';
+  const VSC_VERSION = '28.9.14';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -298,6 +298,7 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
+    /* ── [v28.9.14] 톤 테이블 최적화 ── */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder, highRoll, clarity) {
       const hr = highRoll || 0;
       const cl = clarity || 0;
@@ -329,7 +330,6 @@
           x = CLAMP(x - rollAmount * x, 0, 1);
         }
 
-        /* ── [v28.9.12] Method 3 마이크로 최적화 ── */
         if (cl > 0.001) {
           const cCenter = 0.50;
           const cSigma = 0.25;
@@ -524,12 +524,12 @@
 
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 8 : 10; }
 
-    /* ── [v28.9.12] 개선된 롤오프(내리막) 곡선 ── */
+    /* ── [v28.9.14] 데드존 해결을 위한 Clarity 크로스페이드 하강 곡선 ── */
     function getAutoClarity(frameBrightness) {
       if (frameBrightness <= 130) return 0;
-      if (frameBrightness <= 180) return Math.round((frameBrightness - 130) / 50 * 6); // 180 기준 정점(6)
-      if (frameBrightness <= 220) return Math.round(6 * (1 - (frameBrightness - 180) / 40)); // 220으로 수렴(0)
-      return 0; // 초고휘도 영역은 BRIGHT_V 핸드오프
+      if (frameBrightness <= 180) return Math.round((frameBrightness - 130) / 50 * 5);  // 180에서 5 (정점)
+      if (frameBrightness <= 240) return Math.max(2, Math.round(5 - (frameBrightness - 180) / 60 * 3)); // 180~240: 서서히 하강
+      return 2; // 초고휘도 영역에서도 0으로 떨어지지 않고 안전한 하한선(2) 유지
     }
 
     function getAutoHighRoll(frameBrightness) {
