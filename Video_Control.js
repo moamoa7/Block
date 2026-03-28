@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.0.0)
-// @namespace    https://github.com/moamoa7
-// @version      29.0.0
-// @description  v29.0.0: 종합 패치 — Firefox UX, AutoScene 정확도, 프리셋 실효성, Scheduler/save/cleanup 개선, GPU 부하 감소
+// @name         Video_Control (v29.1.0)
+// @namespace    https://github.com/
+// @version      29.1.0
+// @description  v29.1.0: requestRefresh 이중RAF 제거, FS reparent 중복 정리, MES 방어, Schema 빌더 리팩토링
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -31,8 +31,9 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
-  const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '29.0.0';
+  /* [29.1.0] 패치#7: crypto.randomUUID 경로에만 replace 적용, Math.random fallback은 하이픈 없음 */
+  const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
+  const VSC_VERSION = '29.1.0';
   const DEBUG = false;
 
   const log = {
@@ -41,7 +42,6 @@
     error: (...a) => console.error('[VSC]', ...a)
   };
 
-  /* [29.0.0] 패치 1-1: normalizeHostname — 불필요한 두 번째 조건 제거 */
   function normalizeHostname(h) {
     const parts = h.split('.');
     if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return h;
@@ -51,13 +51,14 @@
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
-  const SHARP_CAP = 0.15;
+  const SHARP_CAP = 0.22;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
     document.addEventListener('webkitfullscreenchange', fn);
   }
 
+  /* [29.1.0] 패치#12: 채도(_cssSat)는 SVG/CSS 양쪽에서 독립 처리되므로 SVG 필요 판정에 미포함 */
   function checkNeedsSvg(s) {
     if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
@@ -76,7 +77,6 @@
     el.style.removeProperty('-webkit-filter');
   }
 
-  /* [29.0.0] 패치 8-1: PRESETS.detail LUT값 — S/M/L/XL이 SHARP_CAP 이내에서 실제로 구분되도록 조정 */
   const PRESETS = Object.freeze({
     detail: {
       none: { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'OFF' },
@@ -87,7 +87,6 @@
       XL:   { sharpAdd: 12, sharp2Add: 6,  clarityAdd: 5,  label: '4단' }
     }
   });
-  /* [29.0.0] 패치 1-2: none/off는 LUT에서 제외 (읽히지 않는 엔트리) */
   const _PRESET_SHARP_LUT = {};
   for (const [key, d] of Object.entries(PRESETS.detail)) {
     if (key === 'none' || key === 'off') continue;
@@ -105,7 +104,6 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-  /* [29.0.0] 패치 6-1: MANUAL_PRESETS — 19개 사용자 프리셋을 의미 있는 7단계로 축소 */
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
     { n: '또렷',        v: [8,  20,   0,   0,   0,   5,   0,   8,   2] },
@@ -141,14 +139,13 @@
 
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
-    const _kc = {}; /* hot-path split 캐시: RAF 내 get() 반복 호출 시 배열 할당 방지 */
+    const _kc = {};
     const listeners = new Map();
     const state = JSON.parse(JSON.stringify(defaults));
     const emit = (key, val) => { const a = listeners.get(key); if (a) for (const fn of a) try { fn(val); } catch (_) {} };
     return {
       state, rev: () => rev,
       get: (p) => { let pts = _kc[p] || (_kc[p] = p.split('.')); return pts.length > 1 ? state[pts[0]]?.[pts[1]] : state[pts[0]]; },
-      /* [29.0.0] 패치 1-4: single-level key 방어 경고 */
       set: (p, val) => {
         if (typeof val === 'number' && Number.isNaN(val)) return;
         const [c, k] = p.split('.');
@@ -183,7 +180,6 @@
     return el;
   }
 
-  /* [29.0.0] 패치 2-1: Scheduler — minIntervalMs/lastRun/immediate 이중 throttle 제거, RAF 단일 큐로 단순화 */
   function createScheduler() {
     let queued = false, applyFn = null;
     const signalFns = [];
@@ -213,15 +209,13 @@
     const observers = new Set();
     const videoListeners = new WeakMap();
 
-    let refreshRafId = 0;
-    function requestRefresh() { if (refreshRafId) return; refreshRafId = requestAnimationFrame(() => { refreshRafId = 0; scheduler.request(); }); }
+    /* [29.1.0] 패치#1: requestRefresh 이중RAF 제거 — scheduler.request()를 직접 호출 */
 
-    const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { for (const e of entries) { if (e.isIntersecting || e.intersectionRatio > 0) { requestRefresh(); return; } } }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
-    const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { for (const e of entries) { if (e.target.tagName === 'VIDEO') { requestRefresh(); return; } } }) : null;
+    const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { for (const e of entries) { if (e.isIntersecting || e.intersectionRatio > 0) { scheduler.request(); return; } } }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
+    const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { for (const e of entries) { if (e.target.tagName === 'VIDEO') { scheduler.request(); return; } } }) : null;
 
     const isVscNode = (n) => { if (!n || n.nodeType !== 1) return false; return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd'); };
 
-    /* [29.0.0] 패치 8-2: loadstart에서 모든 vsc 플래그 리셋 (vscPermBypass, vscMesFail 추가) */
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
@@ -294,7 +288,7 @@
           if (m.addedNodes?.length) { for (const n of m.addedNodes) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) continue; if (n.nodeType === 1 && isVscNode(n)) continue; enqueue(n); if (!touchedVideo && n.nodeType === 1) { if (n.tagName === 'VIDEO') touchedVideo = true; else if (n.childElementCount) { try { const l = n.getElementsByTagName('video'); if (l?.length) touchedVideo = true; } catch (_) {} } } } }
           if (!touchedVideo && m.removedNodes?.length) { for (const n of m.removedNodes) { if (n?.nodeType === 1 && (n.tagName === 'VIDEO' || n.querySelector?.('video'))) { touchedVideo = true; break; } } }
         }
-        if (touchedVideo) requestRefresh();
+        if (touchedVideo) scheduler.request();
       });
       mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
     }
@@ -336,7 +330,7 @@
           shadowRootsLRU.splice(i, 1);
         }
       }
-      if (removed) requestRefresh();
+      if (removed) scheduler.request();
     }
 
     return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback };
@@ -377,7 +371,6 @@
     let bypassMode = false;
     let generation = 0;
 
-    /* [29.0.0] 패치 2-6: detectJWPlayer — WeakMap 캐싱으로 반복 DOM 순회 방지 */
     const jwCache = new WeakMap();
     function detectJWPlayer(video) {
       if (!video) return false;
@@ -391,7 +384,7 @@
           el = el.parentElement; depth++;
         }
       }
-            if (!result && video.src?.startsWith('blob:')) {
+      if (!result && video.src?.startsWith('blob:')) {
         if (document.querySelector('script[src*="jwplayer"]') || document.querySelector('[class*="jw-"]')) result = true;
       }
       jwCache.set(video, result);
@@ -430,7 +423,6 @@
       const threshAbs = Math.abs(comp.threshold.value);
       const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
       const gain = Math.pow(10, makeupDb / 20);
-      /* [29.0.0] 패치 4-2: makeupGain 상한 4→3 (과증폭 시 노이즈 증폭 억제) */
       try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
       catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
     }
@@ -468,12 +460,13 @@
       } catch (e) { stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null; }
     }
 
+    /* [29.1.0] 패치#4: connectViaMES — catch 내에서 vscMesFail 직접 설정 (방어적) */
     function connectViaMES(video) {
       if (!ctx || video.dataset.vscMesFail === "1") return null;
       let s = mesMap.get(video);
       if (s) { if (s.context === ctx) return s; mesMap.delete(video); return null; }
       try { s = ctx.createMediaElementSource(video); mesMap.set(video, s); return s; }
-      catch (e) { return null; }
+      catch (e) { video.dataset.vscMesFail = "1"; return null; }
     }
 
     function connectSource(video) {
@@ -596,7 +589,6 @@
       toneCache.set(key, res); return res;
     }
 
-    /* [29.0.0] 패치 3-3: mkXfer — querySelector 제거, 생성 시 참조 직접 반환 */
     function mkXfer(attrs, funcDefaults, withAlpha = false) {
       const xfer = h('feComponentTransfer', { ns: 'svg', ...attrs });
       const refs = {};
@@ -631,7 +623,6 @@
       };
     }
 
-    /* [29.0.0] 패치 8-3: purge 시 해당 root 내 비디오의 appliedFilter 캐시도 정리 */
     function purge(root) {
       const ctx = ctxMap.get(root);
       if (ctx) {
@@ -785,7 +776,6 @@
     };
   }
 
-  /* [29.0.0] 패치 2-4: OSD — backdrop-filter 제거 (GPU 레이어 불필요), 단색 배경으로 대체 */
   function createOSD() {
     let el = null, timerId = 0;
     return {
@@ -817,7 +807,7 @@
 
     const brightHistory = [];
     let _brightSum = 0;
-    const HISTORY_SIZE = 8; /* 500ms × 8 = 4초 이동평균. 급변 시 delta>threshold로 즉시 반응하므로 지연 문제 제한적 */
+    const HISTORY_SIZE = 8;
 
     const _videoAnalyzeState = new WeakMap();
     function getAnalyzeState(v) {
@@ -827,12 +817,11 @@
 
     let _lastTickVideo = null;
 
-    const BASE     = [ 20, 15, 0,  0, 0, -1, -1, 2, 8 ];
-    const DARK_V   = [ 50, 30, 3,  0, 0, -4, -4, 5, 20 ];
-    /* [29.0.0] 패치 1-6: BRIGHT_V — 밝은 장면에서 노출(shoulder)·게인 증가 제거 (직관 반대 수정) */
-    const BRIGHT_V = [ 10, 10, 0,  0, 0,  0, -2,  3,  0 ];
+    const BASE     = [20, 15, 0, 0, 0, -1, -1, 2, 5];   // [8] 8→5
+    const DARK_V   = [50, 30, 3, 0, 0, -4, -4, 5, 17];   // [8] 20→17  (BOOST 12 유지)
+    const BRIGHT_V = [10, 10, 0, 0, 0,  0, -2, 3, -3];   // [8] 0→-3   (CUT -8 유지)
     const VERTICAL = [ 15, 12,  8,  0, 0, -1, -2,  3,  4 ];
-    const DRM_BASE = [ 30, 20, 1,  0, 0, -2, -2, 2, 2 ];
+    const DRM_BASE = [30, 20, 1, 0, 0, -2, -2, 2, -1];   // [8] 2→-1   (BOOST -6 유지)
 
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -878,7 +867,6 @@
       return { label, darkFactor, brightFactor };
     }
 
-    /* [29.0.0] 패치 1-5: getBrightnessThreshold — 단조 증가로 변경 (어두울수록 민감, 밝을수록 보수적) */
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 10 : 8; }
 
     function interpolate(darkFactor, brightFactor, brightness) {
@@ -974,7 +962,6 @@
       return parts.join(' │ ') || '보정 없음';
     }
 
-    /* [29.0.0] 패치 3-2: applyZeroValues 제거 → applyValues(ZERO_VALUES, 'off')로 통합 */
     function applyValues(values, presetS) {
       _internalBatch = true;
       try {
@@ -1016,7 +1003,6 @@
       const now = performance.now();
       if (now - lastCheck < CHECK_INTERVAL) return;
 
-      /* [29.0.0] 패치 4-3: STALE_THRESHOLD — 일시정지 상태면 리셋 불필요 */
       if (now - lastCheck > STALE_THRESHOLD && !video.paused) {
         brightHistory.length = 0;
         _brightSum = 0;
@@ -1092,9 +1078,10 @@
       _lastTickVideo = null;
     }
 
+    /* [29.1.0] 패치#22: ZERO_VALUES 상수 일관성 사용 */
     function activate() {
       resetAutoState();
-      currentValues = [0,0,0,0,0,0,0,0,0]; currentPresetS = null;
+      currentValues = ZERO_VALUES; currentPresetS = null;
       lastCheck = performance.now() - CHECK_INTERVAL - 1;
       scheduler.request();
     }
@@ -1143,7 +1130,6 @@
       --vsc-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
       font-family: var(--vsc-font) !important; font-size: var(--vsc-font-md) !important; color: var(--vsc-text) !important; -webkit-font-smoothing: antialiased; }`;
 
-    /* [29.0.0] 패치 2-5: 패널 트랜지션에서 filter: blur(4px) 제거 — GPU composite layer 생성 방지 */
     const PANEL_CSS = `${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
     .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring) !important; overscroll-behavior: none !important; }
@@ -1219,9 +1205,14 @@
       if (panelHost && panelOpen && panelEl) panelEl.style.pointerEvents = 'auto';
     }
 
+    /* [29.1.0] 패치#2: onFullscreenChange — fs해제 분기의 100ms 중복 타이머 제거 (80ms reparent가 동일 역할) */
     function onFullscreenChange() {
-      reparent(); setTimeout(reparent, 80); setTimeout(reparent, 400);
-      if (!document.fullscreenElement && !document.webkitFullscreenElement) { _lastMount = null; _lastIsFs = null; setTimeout(() => { const root = document.documentElement || document.body; if (quickBarHost?.parentNode !== root) try { root.appendChild(quickBarHost); } catch (_) {} if (panelHost?.parentNode !== root) try { root.appendChild(panelHost); } catch (_) {} reparent(); }, 100); }
+      reparent();
+      setTimeout(reparent, 80);
+      setTimeout(reparent, 400);
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        _lastMount = null; _lastIsFs = null;
+      }
     }
 
     function updateQuickBarVisibility() {
@@ -1386,50 +1377,62 @@
       return el;
     }
 
-    /* [29.0.0] 패치 1-3: Firefox UI — 동작하지 않는 컨트롤 제거/분리
-       - 오디오 탭: Firefox에서 토글/슬라이더 제거, 안내만 표시
-       - 영상 탭: Firefox에서 SVG 미지원 톤/색상 슬라이더 제거, CSS 가능 항목만 표시 */
-    const TAB_SCHEMA = {
-      video: [
+    /* [29.1.0] 패치#21: TAB_SCHEMA — IS_FIREFOX 분기를 빌더 함수로 통합, 산재 조건 제거 */
+    function buildVideoSchema() {
+      const s = [
         { type: 'widget', build: buildInfoBar },
         { type: 'widget', build: buildAutoSceneBox },
         { type: 'sep' },
-        ...(IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox: 샤프닝 및 SVG 기반 톤/색상 보정은 Chromium 전용입니다. 아래 CSS 보정만 사용 가능합니다.' }] : []),
-        { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S,
-          items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
+      ];
+      if (IS_FIREFOX) {
+        s.push({ type: 'hint', cls: 'warn', text: '⚠️ Firefox: 샤프닝 및 SVG 기반 톤/색상 보정은 Chromium 전용입니다.' });
+      }
+      s.push(
+        { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
         { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 },
-        { type: 'sep' },
-        ...(IS_FIREFOX ? [] : [{ type: 'widget', build: buildPresetGrid }]),
-        ...(IS_FIREFOX ? [] : [{ type: 'sep' }]),
-        ...(IS_FIREFOX ? [] : [
+        { type: 'sep' }
+      );
+      if (!IS_FIREFOX) {
+        s.push(
+          { type: 'widget', build: buildPresetGrid },
+          { type: 'sep' },
           { type: 'sectionLabel', text: '톤 보정' },
-          { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 },
-        ]),
+          { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 }
+        );
+      }
+      s.push(
         { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 },
-        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 },
-        ...(IS_FIREFOX ? [] : [
+        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 }
+      );
+      if (!IS_FIREFOX) {
+        s.push(
           { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 3 },
           { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 },
-          { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 },
-        ]),
-        { type: 'sep' },
-        ...(IS_FIREFOX ? [] : [
+          { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 }
+        );
+      }
+      s.push({ type: 'sep' });
+      if (!IS_FIREFOX) {
+        s.push(
           { type: 'sectionLabel', text: '색상 보정' },
           { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 },
-          { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 },
-        ]),
-        { type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 },
-      ],
-      audio: [
-        ...(IS_FIREFOX ? [
-          { type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 평준화가 지원되지 않습니다.' },
-        ] : [
-          { type: 'toggle', label: '오디오 평준화', path: P.A_EN, onChange: () => Audio.setTarget(__internal._activeVideo) },
-          { type: 'slider', label: '평준화 강도', path: P.A_STR, min: 0, max: 100, step: 1 },
-          { type: 'sep' },
-          { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 광고/폭발음 등 갑작스런 큰 소리를 방지합니다.' },
-          { type: 'widget', build: buildAudioStatus },
-        ]),
+          { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 }
+        );
+      }
+      s.push({ type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 });
+      return s;
+    }
+
+    const TAB_SCHEMA = {
+      video: buildVideoSchema(),
+      audio: IS_FIREFOX ? [
+        { type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 평준화가 지원되지 않습니다.' },
+      ] : [
+        { type: 'toggle', label: '오디오 평준화', path: P.A_EN, onChange: () => Audio.setTarget(__internal._activeVideo) },
+        { type: 'slider', label: '평준화 강도', path: P.A_STR, min: 0, max: 100, step: 1 },
+        { type: 'sep' },
+        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 광고/폭발음 등 갑작스런 큰 소리를 방지합니다.' },
+        { type: 'widget', build: buildAudioStatus },
       ],
       playback: [
         { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
@@ -1537,6 +1540,7 @@
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
+    /* 방어적 폴링: MO/IO가 감지하지 못하는 orphan 비디오 케이스 대응 (iframe 내부, 동적 Shadow DOM 등) */
     setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
     onFsChange(onFullscreenChange);
@@ -1550,7 +1554,6 @@
     const Store = createLocalStore(DEFAULTS, Scheduler);
     try { const saved = GM_getValue(STORAGE_KEY); if (saved) Store.load(JSON.parse(saved)); } catch (_) {}
 
-    /* [29.0.0] 패치 5-3: save — Store.sub 다중 등록 제거, Scheduler.onSignal + rev 기반 단일 저장 */
     let saveTimer = 0, lastSavedRev = 0;
     Scheduler.onSignal(() => {
       const currentRev = Store.rev();
@@ -1573,7 +1576,6 @@
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
 
-    /* [29.0.0] 패치 2-2: cleanup — frame 카운터 대신 시간 기반 (백그라운드 탭에서도 정확한 간격) */
     let lastCleanupTime = 0;
 
     const apply = () => {
