@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v28.8.8)
+// @name         Video_Control (v28.8.9)
 // @namespace    https://github.com/
-// @version      28.8.8
-// @description  v28.8.8: DRM 오탐 방지, 리미터 임계값 조정, 프리셋 그리드 CSS 클래스화
+// @version      28.8.9
+// @description  v28.8.9: signalFns throttle 분리, analyzeFrame 반환값 구분, workQ 안전처리, internalBatch 보호
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, '');
-  const VSC_VERSION = '28.8.8';
+  const VSC_VERSION = '28.8.9';
 
   const log = {
     info: (...a) => console.info('[VSC]', ...a),
@@ -79,7 +79,7 @@
     detail: {
       none: { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'OFF' },
       off:  { sharpAdd: 0, sharp2Add: 0, clarityAdd: 0, label: 'AUTO' },
-            S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
+      S:    { sharpAdd: 16, sharp2Add: 4, clarityAdd: 5, label: '1단' },
       M:    { sharpAdd: 22, sharp2Add: 12, clarityAdd: 12, label: '2단' },
       L:    { sharpAdd: 26, sharp2Add: 24, clarityAdd: 20, label: '3단' },
       XL:   { sharpAdd: 32, sharp2Add: 22, clarityAdd: 26, label: '4단' }
@@ -126,7 +126,7 @@
     { n: '사용자90', v: [90, 50, 7,  0, 0, -8, -8, 8, 8] },
     { n: '사용자95', v: [95, 53, 8,  0, 0, -9, -9, 9, 9] },
     { n: '사용자100', v: [100, 55, 8,  0, 0, -9, -9, 9, 9] },
-];
+  ];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
@@ -190,6 +190,7 @@
     return el;
   }
 
+  /* ── [v28.8.9] 패치#1: signalFns는 throttle 스킵과 무관하게 항상 실행 ── */
   function createScheduler(minIntervalMs = 16) {
     let queued = false, applyFn = null, lastRun = 0;
     let immediateRequested = false;
@@ -209,9 +210,11 @@
           const isImmediate = immediateRequested;
           immediateRequested = false;
           const now = performance.now();
-          if (!isImmediate && now - lastRun < minIntervalMs) return;
-          lastRun = now;
-          if (applyFn) try { applyFn(); } catch (_) {}
+          const skip = !isImmediate && now - lastRun < minIntervalMs;
+          if (!skip) {
+            lastRun = now;
+            if (applyFn) try { applyFn(); } catch (_) {}
+          }
           for (const fn of signalFns) try { fn(); } catch (_) {}
         });
       }
@@ -277,6 +280,7 @@
       } else if (n.nodeType === 11) { try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} }
     }
 
+    /* ── [v28.8.9] 패치#3: workQ 오버플로우 시 전체 폐기 → 신규 진입 차단 ── */
     const workQ = []; let workScheduled = false; let workDepth = 0;
     const MAX_WORK_DEPTH = 8;
     function scheduleWork() {
@@ -292,7 +296,11 @@
       };
       if (typeof requestIdleCallback === 'function') requestIdleCallback(doWork, { timeout: 120 }); else setTimeout(doWork, 0);
     }
-    function enqueue(n) { if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return; if (workQ.length > 500) workQ.length = 0; workQ.push(n); scheduleWork(); }
+    function enqueue(n) {
+      if (!n || (n.nodeType !== 1 && n.nodeType !== 11)) return;
+      if (workQ.length > 500) return;
+      workQ.push(n); scheduleWork();
+    }
 
     function connectObserver(root) {
       if (!root) return;
@@ -413,7 +421,6 @@
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
       limiter = ctx.createDynamicsCompressor();
-      /* ── [v28.8.8] #2 수정: -1.0 → -3.0 dBFS ── */
       limiter.threshold.value = -3.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.08; limiter.knee.value = 0;
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
       comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(masterOut); masterOut.connect(ctx.destination);
@@ -885,9 +892,9 @@
       return _brightSum / brightHistory.length;
     }
 
-    /* ── [v28.8.8] #1 수정: DRM 오탐 방지 — blackCount 임계값 상향 + currentTime 진행 확인 ── */
+    /* ── [v28.8.9] 패치#2: analyzeFrame 반환값 구분 — -1=DRM의심, -2=일시적불가 ── */
     function analyzeFrame(video) {
-      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -1;
+      if (!video || video.readyState < 2 || video.dataset.vscCorsFail === "1") return -2;
 
       const vs = getAnalyzeState(video);
 
@@ -914,9 +921,6 @@
 
         if (isAllZero) {
           vs.blackCount++;
-          /* ── [v28.8.8] 암전 씬 vs DRM 구분:
-               - 임계값 5 → 12 (500ms × 12 = 6초 연속 검정)
-               - currentTime이 진행 중이면 암전 씬으로 간주하여 DRM 플래그 설정하지 않음 ── */
           const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended;
           const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000;
           if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) {
@@ -936,7 +940,7 @@
         return (r/totalWeight)*0.2126 + (g/totalWeight)*0.7152 + (b/totalWeight)*0.0722;
       } catch (e) {
         video.dataset.vscCorsFail = "1";
-        return -1;
+        return -2;
       }
     }
 
@@ -953,24 +957,31 @@
       return parts.join(' │ ') || '보정 없음';
     }
 
+    /* ── [v28.8.9] 패치#4: _internalBatch try/finally 보호 ── */
     function applyValues(values, presetS) {
       _internalBatch = true;
-      const obj = {};
-      for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = values[i];
-      if (presetS != null) obj.presetS = presetS;
-      store.batch('video', obj);
-      _internalBatch = false;
+      try {
+        const obj = {};
+        for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = values[i];
+        if (presetS != null) obj.presetS = presetS;
+        store.batch('video', obj);
+      } finally {
+        _internalBatch = false;
+      }
       currentValues = values;
       currentPresetS = presetS;
     }
 
     function applyZeroValues() {
       _internalBatch = true;
-      const zeros = {};
-      for (const k of MANUAL_KEYS) zeros[k] = 0;
-      zeros.presetS = 'off';
-      store.batch('video', zeros);
-      _internalBatch = false;
+      try {
+        const zeros = {};
+        for (const k of MANUAL_KEYS) zeros[k] = 0;
+        zeros.presetS = 'off';
+        store.batch('video', zeros);
+      } finally {
+        _internalBatch = false;
+      }
       currentValues = [0,0,0,0,0,0,0,0,0];
       currentPresetS = 'off';
     }
@@ -986,6 +997,7 @@
     const _subCleanups = [];
     for (const path of MANUAL_PATHS) _subCleanups.push(store.sub(path, onManualChange));
 
+    /* ── [v28.8.9] 패치#2 적용: tick()에서 -2(일시적불가)와 -1(DRM의심) 분리 처리 ── */
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
@@ -1027,7 +1039,11 @@
 
       const rawBrt = analyzeFrame(video);
 
-      if (rawBrt < 0) {
+      /* -2: 일시적 불가 (로딩/CORS) → 현재 모드 유지, 아무것도 안 함 */
+      if (rawBrt === -2) return;
+
+      /* -1: DRM 의심 (blackCount 초과 또는 drmRetry 중) → DRM 폴백 */
+      if (rawBrt === -1) {
         if (currentMode !== 'drm') {
           currentMode = 'drm'; currentBrightness = -1;
           lastAppliedBrightness = -999;
@@ -1126,7 +1142,6 @@
       --vsc-ease-out: cubic-bezier(0.16, 1, 0.3, 1); --vsc-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
       font-family: var(--vsc-font) !important; font-size: var(--vsc-font-md) !important; color: var(--vsc-text) !important; -webkit-font-smoothing: antialiased; }`;
 
-    /* ── [v28.8.8] #3 수정: .fine-btn.active 클래스 추가 ── */
     const PANEL_CSS = `${CSS_VARS}
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; color: inherit; }
     .panel { pointer-events: none; position: fixed !important; right: calc(var(--vsc-panel-right) + 12px) !important; top: 50% !important; width: var(--vsc-panel-width) !important; max-height: var(--vsc-panel-max-h) !important; background: var(--vsc-glass) !important; border: 1px solid var(--vsc-glass-border) !important; border-radius: var(--vsc-radius-xl) !important; backdrop-filter: var(--vsc-glass-blur) !important; -webkit-backdrop-filter: var(--vsc-glass-blur) !important; box-shadow: var(--vsc-shadow-panel) !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; user-select: none !important; opacity: 0 !important; transform: translate(16px, -50%) scale(0.92) !important; filter: blur(4px) !important; transition: opacity 0.3s var(--vsc-ease-out), transform 0.4s var(--vsc-ease-spring), filter 0.3s var(--vsc-ease-out) !important; overscroll-behavior: none !important; }
@@ -1325,7 +1340,6 @@
       return box;
     }
 
-    /* ── [v28.8.8] #3 수정: inline style → classList.toggle('active') ── */
     function buildPresetGrid() {
       const wrap = h('div', {});
       wrap.append(h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정'));
