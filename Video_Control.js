@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.2.1)
+// @name         Video_Control (v29.3.0)
 // @namespace    https://github.com/moamoa7
-// @version      29.2.1
-// @description  v29.2.1: AUTO 샤프닝 강도 하향 (autoBase*0.45) — OFF<AUTO<S<M<L<XL 계층 정상화
+// @version      29.3.0
+// @description  v29.3.0: batch emit 순서 교정, onFsChange 이중 등록 제거, workDepth 데드코드 제거, hidden 가드 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.2.1';
+  const VSC_VERSION = '29.3.0';
   const DEBUG = false;
 
   const log = {
@@ -135,7 +135,7 @@
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
-  /* [29.2.0] 패치: Store.set에서 _kc 캐시 사용하도록 통합 */
+  /* [29.3.0] 패치 #1: Store.batch — 상태 전부 커밋 후 일괄 emit */
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
     const _kc = {};
@@ -154,7 +154,23 @@
         if (Object.is(state[c]?.[k], val)) return;
         state[c][k] = val; rev++; emit(p, val); scheduler.request();
       },
-      batch: (cat, obj) => { let changed = false; for (const [k, v] of Object.entries(obj)) { if (typeof v === 'number' && Number.isNaN(v)) continue; if (!Object.is(state[cat]?.[k], v)) { state[cat][k] = v; changed = true; emit(`${cat}.${k}`, v); } } if (changed) { rev++; scheduler.request(); } },
+      batch: (cat, obj) => {
+        let changed = false;
+        const pending = [];
+        for (const [k, v] of Object.entries(obj)) {
+          if (typeof v === 'number' && Number.isNaN(v)) continue;
+          if (!Object.is(state[cat]?.[k], v)) {
+            state[cat][k] = v;
+            changed = true;
+            pending.push([`${cat}.${k}`, v]);
+          }
+        }
+        if (changed) {
+          rev++;
+          for (const [path, val] of pending) emit(path, val);
+          scheduler.request();
+        }
+      },
       sub: (k, f) => {
         if (!listeners.has(k)) listeners.set(k, new Set());
         listeners.get(k).add(f);
@@ -202,6 +218,7 @@
     };
   }
 
+  /* [29.3.0] 패치 #4: workDepth 데드코드 제거 */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -258,17 +275,13 @@
       } else if (n.nodeType === 11) { try { const vs = n.querySelectorAll('video'); for (let i = 0; i < vs.length; i++) observeVideo(vs[i]); } catch (_) {} }
     }
 
-    const workQ = []; let workScheduled = false; let workDepth = 0;
-    const MAX_WORK_DEPTH = 8;
+    const workQ = []; let workScheduled = false;
     function scheduleWork() {
       if (workScheduled) return; workScheduled = true;
       const doWork = () => {
         workScheduled = false;
-        if (workDepth >= MAX_WORK_DEPTH) { workQ.length = 0; workDepth = 0; return; }
-        workDepth++;
         const batch = workQ.splice(0, 20);
         for (const n of batch) scanNode(n);
-        workDepth--;
         if (workQ.length > 0) scheduleWork();
       };
       if (typeof requestIdleCallback === 'function') requestIdleCallback(doWork, { timeout: 120 }); else setTimeout(doWork, 0);
@@ -398,6 +411,7 @@
       return true;
     }
 
+    /* limiter: makeupGain 최대 +9.5dB 출력의 클리핑 방지 안전장치 — 제거 금지 */
     function initCtx() {
       if (ctx) return true;
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -426,7 +440,6 @@
       catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
     }
 
-    /* [29.2.0] 패치: enterBypass — volume 복원 후 muted 해제 순서로 교정 */
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass';
       if (video && ctx && currentSrc) {
@@ -442,7 +455,6 @@
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
-    /* [29.2.0] 패치: connectViaCaptureStream — muted 설정을 createMediaStreamSource 성공 이후로 이동 */
     function connectViaCaptureStream(video) {
       if (!ctx || video.dataset.vscCorsFail === "1") return null;
       let s = streamMap.get(video);
@@ -460,7 +472,6 @@
         video.muted = true;
         streamMap.set(video, source); return source;
       } catch (e) {
-        /* createMediaStreamSource 실패 시 stream 정리만 수행, video.muted는 아직 변경 전이므로 복원 불필요 */
         stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null;
       }
     }
@@ -473,7 +484,6 @@
       catch (e) { video.dataset.vscMesFail = "1"; return null; }
     }
 
-    /* [29.2.0] 패치: connectSource — vscMesFail 외부 중복 설정 라인 제거 */
     function connectSource(video) {
       if (!video || !ctx) return false;
       if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
@@ -485,7 +495,6 @@
       } else {
         source = connectViaMES(video);
         if (!source) {
-          /* connectViaMES 내부에서 이미 vscMesFail을 설정하므로 여기서는 중복 설정하지 않음 */
           source = connectViaCaptureStream(video);
           if (!source) {
             enterBypass(video, 'all methods failed');
@@ -500,13 +509,11 @@
       return true;
     }
 
-    /* [29.2.0] 패치: fadeOutThen — generation 불일치 시 masterOut.gain 복원 추가 */
     function fadeOutThen(gen, fn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
         if (gen !== generation) {
-          /* generation 불일치로 fn을 실행하지 않지만, masterOut.gain이 0인 채로 남지 않도록 복원 */
           if (ctx && masterOut && ctx.state !== 'closed') {
             try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(0, t); masterOut.gain.linearRampToValueAtTime(1, t + 0.04); }
             catch (_) { try { masterOut.gain.value = 1; } catch (__) {} }
@@ -602,7 +609,6 @@
       toneCache.set(key, res); return res;
     }
 
-    /* [29.2.0] 패치: mkXfer — withAlpha 기본값을 true로 변경 */
     function mkXfer(attrs, funcDefaults, withAlpha = true) {
       const xfer = h('feComponentTransfer', { ns: 'svg', ...attrs });
       const refs = {};
@@ -622,7 +628,6 @@
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      /* [29.2.0] withAlpha 인수 제거 — 기본값 true로 통합 */
       const toneResult = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' });
       const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
       const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
@@ -752,7 +757,6 @@
 
         const platformScale = IS_MOBILE ? 0.65 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
-        /* [29.2.1] 패치: AUTO 샤프닝 강도 하향 (autoBase*0.45) */
         if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
@@ -1027,9 +1031,6 @@
 
       lastCheck = now;
 
-      /* [29.2.0] 세로형 영상은 paused 여부와 무관하게 비율 기반으로 판별.
-         세로형은 영상의 고유 속성이므로 재생 상태 변경 시 보정 깜빡임을 방지하기 위해
-         paused 체크 이전에 의도적으로 배치. */
       const _vw = video.videoWidth || 0, _vh = video.videoHeight || 0;
       if (_vw > 0 && _vh > 0 && (_vw / _vh) < 0.75) {
         if (currentMode !== 'vertical') {
@@ -1224,8 +1225,8 @@
 
     function onFullscreenChange() {
       reparent();
+      Scheduler.request();
       setTimeout(reparent, 80);
-      /* 400ms: Safari 등 느린 브라우저에서 풀스크린 전환 후 레이아웃 재계산이 지연되는 케이스 대응 */
       setTimeout(reparent, 400);
       if (!document.fullscreenElement && !document.webkitFullscreenElement) {
         _lastMount = null; _lastIsFs = null;
@@ -1557,7 +1558,11 @@
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
     setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
-    setInterval(() => { if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
+    /* [29.3.0] 패치 #5: document.hidden 가드 추가 — 백그라운드 탭에서 불필요한 DOM 순회 차단 */
+    setInterval(() => {
+      if (document.hidden) return;
+      if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); }
+    }, 5000);
     onFsChange(onFullscreenChange);
 
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
@@ -1591,9 +1596,9 @@
 
     Registry.setPurgeCallback((root) => Filters.purge(root));
 
-    /* [29.2.0] 패치: apply() 내 cleanup 제거 — createUI의 5초 setInterval에서 이미 수행 */
+    /* [29.3.0] 패치 #3: 'app.active' → P.APP_ACT 상수 사용으로 통일 */
     const apply = () => {
-      if (!Store.get('app.active')) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
+      if (!Store.get(P.APP_ACT)) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
       const target = Targeting.pick(Registry.videos);
       if (target) {
         __internal._activeVideo = target;
@@ -1619,7 +1624,7 @@
     };
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
-    onFsChange(() => Scheduler.request());
+    /* [29.3.0] 패치 #2: bootstrap의 onFsChange 제거 — createUI의 onFullscreenChange로 일원화 */
 
     createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters);
     __internal.Store = Store; __internal._activeVideo = null;
