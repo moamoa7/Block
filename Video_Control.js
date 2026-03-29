@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v30.0.0)
+// @name         Video_Control (v30.0.1)
 // @namespace    https://github.com/moamoa7
-// @version      30.0.0
-// @description  v30.0.0: 오디오 간소화 (평준화+공간감만), 수동보정 프리셋 디테일 유지
+// @version      30.0.1
+// @description  v30.0.1: 버그 패치 (activeVideo null화, BT.709 통일, A_EN 이중실행, playbackRate 복구, 백그라운드 탭)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '30.0.0';
+  const VSC_VERSION = '30.0.1';
   const DEBUG = false;
 
   const log = {
@@ -861,12 +861,13 @@
       if (!_quickCanvas) { _quickCanvas = document.createElement('canvas'); _quickCanvas.width = 16; _quickCanvas.height = 9; _quickCtx = _quickCanvas.getContext('2d', { willReadFrequently: true }); }
       return _quickCtx;
     }
+    // [PATCH ④] BT.709 계수로 통일 (기존 BT.601: 0.299/0.587/0.114)
     function sampleQuickLuma(video) {
       const ctx = getQuickCanvas();
       try { ctx.drawImage(video, 0, 0, 16, 9); } catch (e) { return -1; }
       const data = ctx.getImageData(0, 0, 16, 9).data;
       let sum = 0; const pixels = data.length / 4;
-      for (let i = 0; i < data.length; i += 4) { sum += data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114; }
+      for (let i = 0; i < data.length; i += 4) { sum += data[i] * 0.2126 + data[i+1] * 0.7152 + data[i+2] * 0.0722; }
       return sum / pixels;
     }
     function getSceneThreshold(luma) { if (luma < 60) return SCENE_THRESHOLD.dark; if (luma > 170) return SCENE_THRESHOLD.bright; return SCENE_THRESHOLD.mid; }
@@ -1280,7 +1281,8 @@
       video: buildVideoSchema(),
       audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
-        { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN, onChange: (on) => { Audio.routeCompressor(); Audio.update(); } },
+        // [PATCH ③] onChange 제거 — Store.sub(P.A_EN)가 이미 처리
+        { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'widget', build: buildAudioStrengthSlider },
         { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
         { type: 'sep' },
@@ -1367,7 +1369,8 @@
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-    setInterval(() => { updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
+    // [PATCH ⑤] 2000ms interval에 백그라운드 탭 가드 추가
+    setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
     onFsChange(onFullscreenChange);
 
@@ -1398,11 +1401,30 @@
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
 
     const apply = () => {
-      if (!Store.get(P.APP_ACT)) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
+      // [PATCH ①②] APP_ACT 비활성 시 _activeVideo null화
+      if (!Store.get(P.APP_ACT)) {
+        for (const v of Registry.videos) Filters.clear(v);
+        Audio.setTarget(null);
+        __internal._activeVideo = null;
+        return;
+      }
       const target = Targeting.pick(Registry.videos);
+      // [PATCH ①] target 없을 때 이전 참조 해제 + playbackRate 복구
+      const prevTarget = __internal._activeVideo;
+      __internal._activeVideo = target || null;
       if (target) {
-        __internal._activeVideo = target; Audio.setTarget(target); AutoScene.tick(target);
+        // [PATCH: playbackRate 복구] target 교체 시 이전 비디오 rate 복원
+        if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) {
+          try { prevTarget.playbackRate = 1.0; } catch (_) {}
+        }
+        Audio.setTarget(target); AutoScene.tick(target);
         if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5); if (Math.abs(target.playbackRate - rate) > 0.001) { let isDRM = target.dataset.vscDrm === "1"; try { isDRM = isDRM || !!target.mediaKeys; } catch (_) {} if (!isDRM) { try { target.playbackRate = rate; } catch (_) {} } } }
+      } else {
+        // target이 null — 이전 비디오 playbackRate 복구
+        if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) {
+          try { prevTarget.playbackRate = 1.0; } catch (_) {}
+        }
+        Audio.setTarget(null);
       }
       for (const v of Registry.videos) { if (!v.isConnected) continue; const dW = v.clientWidth || 0, dH = v.clientHeight || 0; if (dW < 80 || dH < 45) { Filters.clear(v); continue; } const params = Params.get(v); const filterStr = Filters.prepare(v, params); Filters.apply(v, filterStr); }
     };
