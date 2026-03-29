@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v30.0.3)
+// @name         Video_Control (v30.0.4)
 // @namespace    https://github.com/moamoa7
-// @version      30.0.3
-// @description  v30.0.3: CORS/DRM 폴백 통일 (DRM_BASE), BUG-02(presetS AutoScene 감지), BUG-03/04(dead code), OPT-01(signalFns Set)
+// @version      30.0.4
+// @description  v30.0.4: AutoScene 비가시 조기종료(PIP제외), CORS/DRM 폴백 통일, BUG-02~04, OPT-01
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '30.0.3';
+  const VSC_VERSION = '30.0.4';
   const DEBUG = false;
 
   const log = {
@@ -1018,6 +1018,11 @@
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
+
+      // [OPT-02] 비가시 상태 조기 종료 (PIP 제외)
+      if (video.clientWidth === 0 || video.clientHeight === 0) return;
+      if (document.hidden && !document.pictureInPictureElement) return;
+
       if (video !== _lastTickVideo) { _lastTickVideo = video; brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999; currentMode = 'wait'; _pausedAnalyzed = false; _prevQuickLuma = -1; log.info('[AutoScene] 영상 전환 감지'); }
       const now = performance.now();
       if (now - lastCheck < CHECK_INTERVAL) return;
