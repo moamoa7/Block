@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.8.6
+// @version      15.9.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '15.8.6'
-    : '15.8.6';
+    ? GM_info?.script?.version ?? '15.9.0'
+    : '15.9.0';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -41,6 +41,8 @@
   })();
   const IS_YOUTUBE = PLATFORM === 'youtube';
   const IS_TWITCH = PLATFORM === 'twitch';
+  const IS_CHZZK = PLATFORM === 'chzzk';
+  const IS_SOOP = PLATFORM === 'soop';
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
   const PLATFORM_DEFAULTS = {
@@ -69,7 +71,6 @@
   const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   const isHlsSrc = src => /\.m3u8($|\?)/i.test(src);
 
-  /* [D-3] 동적 색상 기준 — target 변경 시 자동 반영 */
   let _colorDenom = DEF_TARGET * 0.5;
 
   const getBuf = vid => {
@@ -114,7 +115,6 @@
     _bufCount = 0;
   };
 
-  /* [D-3] _colorKey 캐시에 _colorDenom 변경 감지 추가 */
   let _colorKey = -1, _colorVal = '', _colorDenomCached = -1;
   const getColor = diff => {
     const key = Math.round(clamp(diff / _colorDenom, 0, 1) * 100);
@@ -139,19 +139,99 @@
   };
 
   /* ================================================================
-   *  §2-T. 트위치 전용: 광고 감지 · 리런/VOD 감지
-   * ================================================================ */
+   *  §2-A. 광고 감지 (전 플랫폼 통합)
+   * ================================================================
+   *
+   *  목적: 광고 재생 중 playbackRate 조작을 방지.
+   *  각 플랫폼별 DOM 기반 감지 + 캐시.
+   *
+   *  YouTube  — #movie_player.ad-showing / .ad-interrupting 클래스
+   *             + .ytp-ad-player-overlay 요소
+   *             + getAdState() API (player 객체)
+   *  CHZZK   — 프리롤 광고 시 video.duration이 finite (라이브는 Infinity)
+   *             + 별도 광고 video 요소 존재 여부
+   *  SOOP    — 광고 레이어/컨테이너 DOM 요소 감지
+   *  Twitch  — 기존 로직 유지 (DOM 셀렉터 기반)
+   */
 
-  const TwitchDetect = (() => {
-    let _adTs = 0, _adResult = false;
-    let _rerunTs = 0, _rerunResult = false;
+  const AdDetect = (() => {
+    let _ts = 0, _result = false;
 
-    const isAd = () => {
-      if (!IS_TWITCH) return false;
+    /* 플랫폼별 캐시 TTL (ms) */
+    const TTL = 1000;
+
+    /* ── YouTube ── */
+    let _ytPlayerEl = null, _ytPlayerTs = 0;
+    const getYTPlayerForAd = () => {
       const now = performance.now();
-      if (now - _adTs < 500) return _adResult;
-      _adTs = now;
-      _adResult = !!(
+      if (_ytPlayerEl && now - _ytPlayerTs < 5000) return _ytPlayerEl;
+      _ytPlayerEl = document.getElementById('movie_player');
+      _ytPlayerTs = now;
+      return _ytPlayerEl;
+    };
+
+    const youtubeAd = () => {
+      const p = getYTPlayerForAd();
+      if (p) {
+        /* 가장 신뢰도 높은 방법: 클래스 기반 */
+        if (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting')) return true;
+        /* API 기반 보조 */
+        try {
+          if (typeof p.getAdState === 'function') {
+            const st = p.getAdState();
+            /* getAdState() !== -1 이면 광고 재생 중 */
+            if (st !== undefined && st !== -1 && st !== null) return true;
+          }
+        } catch {}
+      }
+      /* DOM 요소 보조 */
+      if (document.querySelector('.ytp-ad-player-overlay, .ytp-ad-player-overlay-instream-info, .video-ads.ytp-ad-module .ytp-ad-text')) return true;
+      return false;
+    };
+
+    /* ── CHZZK ──
+     *  치지직 프리롤 광고는 동일한 video 요소를 사용하되 duration이 finite.
+     *  라이브 스트림은 duration === Infinity.
+     *  추가로 광고 중에는 플레이어 UI에 광고 관련 요소가 나타남.
+     */
+    const chzzkAd = (vid) => {
+      /* 광고 UI 요소 감지 */
+      if (document.querySelector(
+        '.pzp-ad-dimmed-container,' +
+        '.pzp-ad__button,' +
+        '.pzp-ad-skip-button,' +
+        '[class*="pzp-ad"]>[class*="ad-"],' +
+        '.pzp-pc__ad,' +
+        '.pzp-pc__dimmed'
+      )) return true;
+      /* 라이브 페이지인데 video duration이 유한하면 광고일 가능성 높음 */
+      if (vid && location.pathname.includes('/live/')) {
+        const d = vid.duration;
+        if (Number.isFinite(d) && d > 0 && d < 300) return true;
+      }
+      return false;
+    };
+
+    /* ── SOOP ──
+     *  SOOP 프리롤/미드롤 광고는 별도 레이어나 iframe으로 재생됨.
+     *  알려진 DOM 패턴으로 감지.
+     */
+    const soopAd = () => {
+      if (document.querySelector(
+        '#areaAdBanner,' +
+        '.ad_player_wrap,' +
+        '.videoAdContainer,' +
+        '[class*="adBanner"],' +
+        '#player_area .ad_info,' +
+        '.preroll_ad,' +
+        '#adPlayer'
+      )) return true;
+      return false;
+    };
+
+    /* ── Twitch ── (기존 로직 이관) */
+    const twitchAd = () => {
+      return !!(
         document.querySelector('[data-a-target="video-ad-label"]') ||
         document.querySelector('[data-a-target="video-ad-countdown"]') ||
         document.querySelector('.ad-banner') ||
@@ -159,10 +239,35 @@
         document.querySelector('.video-ads__container') ||
         document.querySelector('[class*="AdBanner"]')
       );
-      return _adResult;
     };
 
-    /* [D-2] \bre\b 제거 — 오탐 방지 */
+    /* ── 통합 인터페이스 ── */
+    const isAd = (vid) => {
+      const now = performance.now();
+      if (now - _ts < TTL) return _result;
+      _ts = now;
+
+      if (IS_YOUTUBE)     _result = youtubeAd();
+      else if (IS_CHZZK)  _result = chzzkAd(vid);
+      else if (IS_SOOP)   _result = soopAd();
+      else if (IS_TWITCH) _result = twitchAd();
+      else                _result = false;
+
+      return _result;
+    };
+
+    const resetCache = () => { _ts = 0; _result = false; _ytPlayerTs = 0; };
+
+    return { isAd, resetCache };
+  })();
+
+  /* ================================================================
+   *  §2-T. 트위치 전용: 리런/VOD 감지
+   * ================================================================ */
+
+  const TwitchDetect = (() => {
+    let _rerunTs = 0, _rerunResult = false;
+
     const RERUN_KEYWORDS = /\brerun\b|\b재방송\b|\b리런\b|\b다시\s*보기\b/i;
 
     const checkRerun = () => {
@@ -199,8 +304,8 @@
       return _rerunResult;
     };
 
-    const resetCache = () => { _adTs = 0; _adResult = false; _rerunTs = 0; _rerunResult = false; };
-    return { isAd, checkRerun, resetCache };
+    const resetCache = () => { _rerunTs = 0; _rerunResult = false; };
+    return { checkRerun, resetCache };
   })();
 
   /* ================================================================
@@ -247,7 +352,6 @@
   let panelOpen = cfg.open ?? false;
   let _hyst = Math.max(0.2, target * 0.1);
 
-  /* [D-3] 초기 target에 맞춰 색상 기준 동기화 */
   _colorDenom = target * 0.5;
 
   const control = {
@@ -387,7 +491,6 @@
     try { vid.preservesPitch = true; } catch {}
   };
 
-  /* [RF-4] 조기 리턴 — gear가 이미 NORM이면 불필요한 재할당 방지 */
   const resetRate = vid => {
     if (control.gear === R_NORM) return;
     control.gear = R_NORM;
@@ -406,6 +509,7 @@
     live.isCurrent = false;
     live.falseCount = -1;
     resetBufRing();
+    AdDetect.resetCache();
     if (IS_TWITCH) TwitchDetect.resetCache();
   };
 
@@ -479,7 +583,6 @@
    *  §7. 제어 엔진
    * ================================================================ */
 
-  /* [D-1] HIGH→MED 단계적 다운그레이드 경로 추가 */
   const computeDesiredGear = buf => {
     if (buf < 0) return R_NORM;
     const ex = buf - target;
@@ -531,8 +634,8 @@
       scheduleRender(); return;
     }
 
-    /* 트위치 광고 감지 */
-    const isAdNow = TwitchDetect.isAd();
+    /* 광고 감지 (전 플랫폼) */
+    const isAdNow = AdDetect.isAd(vid);
     lastTickAd = isAdNow;
     if (isAdNow) {
       if (control.gear !== R_NORM) resetRate(vid);
@@ -603,8 +706,6 @@
       if (els.root.style.display === 'none') els.root.style.display = 'block';
 
       const sec = buf < 0 ? 0 : buf, diff = sec - target, c = getColor(diff);
-
-      /* [B-1] vid null 안전 접근 — isAd && !vid 경로에서 TypeError 방지 */
       const speeding = !!vid && vid.playbackRate > 1.005;
 
       if (!panelOpen) {
@@ -804,7 +905,6 @@
       togDiv.classList.toggle('on', enabled);
     };
 
-    /* [D-3] 슬라이더 변경 시 색상 기준(_colorDenom) 동기화 + 캐시 무효화 */
     slInput.oninput = () => {
       target = parseFloat(slInput.value);
       _hyst = Math.max(0.2, target * 0.1);
@@ -899,6 +999,7 @@
       lastBuf = -1; lastTickAd = false; lastTickRerun = false;
       _scanRetry = 0; _needScan = true;
       LiveDetect.resetYT();
+      AdDetect.resetCache();
       if (IS_TWITCH) TwitchDetect.resetCache();
       setTimeout(scan, 500); setTimeout(scan, 1500);
     }, 100);
@@ -989,9 +1090,10 @@
     const rawBuf = vid ? getBuf(vid) : -1;
     const smoothed = lastBuf;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const adInfo = IS_TWITCH ? ` ad=${TwitchDetect.isAd()} rerun=${TwitchDetect.checkRerun() || 'no'}` : '';
+    const adInfo = ` ad=${AdDetect.isAd(vid)}`;
+    const rerunInfo = IS_TWITCH ? ` rerun=${TwitchDetect.checkRerun() || 'no'}` : '';
     const stallInfo = ` stall=${STALL_GENTLE ? 'gentle' : 'full'}(${STALL_COOLDOWN}ms)`;
-    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH}${stallInfo} | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}${adInfo}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH}${stallInfo} | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}${adInfo}${rerunInfo}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
