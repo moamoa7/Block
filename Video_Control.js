@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v29.5.3)
+// @name         Video_Control (v30.0.0)
 // @namespace    https://github.com/moamoa7
-// @version      29.5.3
-// @description  v29.5.3: RGB채널 색온도 감지, 분산+상하구역 역광/안개 감지, postLuma 중복 drawImage 제거, seeked 재분석, activate() Store 초기화
+// @version      30.0.0
+// @description  v30.0.0: 오디오 간소화 (평준화+공간감만), 수동보정 프리셋 디테일 유지, RGB채널 색온도 감지, 분산+상하구역 역광/안개 감지
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '29.5.3';
+  const VSC_VERSION = '30.0.0';
   const DEBUG = false;
 
   const log = {
@@ -52,14 +52,13 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.22;
 
-  /* ── v29.5.3: 장면 분석 확장 상수 ── */
-  const VARIANCE_HIGH            = 2800;   // 역광 의심 분산 임계값
-  const VARIANCE_LOW             = 400;    // 안개/저대비 분산 임계값
-  const REGION_DIFF_MIN          = 40;     // 상-하 밝기 차 최소 (역광 판정)
-  const COLOR_TEMP_CLAMP         = 3;      // Temperature 보정 ±상한
-  const BACKLIGHT_SHADOW_BOOST   = 18;     // 역광 시 Shadow 추가
-  const BACKLIGHT_RECOVERY_BOOST = 14;     // 역광 시 Recovery 추가
-  const HAZE_CONTRAST_BOOST      = 6;      // 안개 시 Contrast 추가
+  const VARIANCE_HIGH            = 2800;
+  const VARIANCE_LOW             = 400;
+  const REGION_DIFF_MIN          = 40;
+  const COLOR_TEMP_CLAMP         = 3;
+  const BACKLIGHT_SHADOW_BOOST   = 18;
+  const BACKLIGHT_RECOVERY_BOOST = 14;
+  const HAZE_CONTRAST_BOOST      = 6;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -117,52 +116,21 @@
     { n: '피부톤',      v: [8,  15,   8,  12,   3,   0,  -4,   4,   2] },
     { n: '선명강조',    v: [15, 22,   5,   0,   0,   8,   0,  10,   3] },
     { n: '웹캠보정',    v: [20, 25,  10,   0,   5,   8,  -4,   6,   6] },
-    { n: '최소',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
-    { n: '약하게',    v: [40, 30,   2,   0,   0,  -3,  -3,   1,   3] },
-    { n: '보통',      v: [60, 45,   4,   0,   0,  -5,  -5,   2,   5] },
-    { n: '강하게',      v: [80, 60,   6,   0,   0,  -7,  -7,   3,   7] },
-    { n: '최대',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
+    { n: '최소1',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
+    { n: '약하게1',    v: [40, 30,   2,   0,   0,  -3,  -3,   1,   3] },
+    { n: '보통1',      v: [60, 45,   4,   0,   0,  -5,  -5,   2,   5] },
+    { n: '강하게1',      v: [80, 60,   6,   0,   0,  -7,  -7,   3,   7] },
+    { n: '최대1',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
+    { n: '최소2',      v: [20, 12,   5,   0,   0,  -1,  -1,   0,   4] },
+    { n: '약하게2',    v: [40, 24,   10,   0,   0,  -3,  -3,   4,   8] },
+    { n: '보통2',      v: [60, 36,   15,   0,   0,  -5,  -5,   6,   12] },
+    { n: '강하게2',      v: [80, 48,  20,   0,   0,  -7,  -7,   8,   16] },
+    { n: '최대2',        v: [100, 60,  25,   0,   0,  -9,  -9,   10,   20] },
   ];
-
-  const AUDIO_PRESETS = {
-    off:     { label: '기본',         filters: [] },
-    night:   { label: '야간 모드',    filters: [
-      { type:'highpass',  freq:100,   Q:0.7,  gain:0   },
-      { type:'peaking',   freq:800,   Q:1.2,  gain:+5  },
-      { type:'peaking',   freq:2500,  Q:1.0,  gain:+4  },
-      { type:'lowshelf',  freq:200,   Q:0.7,  gain:-3  },
-      { type:'highshelf', freq:6000,  Q:0.7,  gain:-4  },
-    ], compOverride: { threshold:-20, ratio:8, knee:12, attack:0.008, release:0.40 } },
-    voice:   { label: '목소리 강조',  filters: [
-      { type:'highpass',  freq:120,   Q:0.7,  gain:0   },
-      { type:'peaking',   freq:800,   Q:1.2,  gain:+4  },
-      { type:'peaking',   freq:2500,  Q:1.0,  gain:+3  },
-      { type:'peaking',   freq:4000,  Q:0.8,  gain:+2  },
-      { type:'lowpass',   freq:8000,  Q:0.7,  gain:0   },
-    ] },
-    music:   { label: '음악 강조',    filters: [
-      { type:'peaking',   freq:80,    Q:0.8,  gain:+4  },
-      { type:'peaking',   freq:250,   Q:0.7,  gain:+2  },
-      { type:'peaking',   freq:6000,  Q:1.0,  gain:+3  },
-      { type:'peaking',   freq:12000, Q:0.7,  gain:+2  },
-    ] },
-    bass:    { label: '베이스 부스트', filters: [
-      { type:'peaking',   freq:60,    Q:0.6,  gain:+6  },
-      { type:'peaking',   freq:150,   Q:0.8,  gain:+4  },
-      { type:'peaking',   freq:400,   Q:0.7,  gain:-1  },
-    ] },
-    clarity: { label: '선명도',       filters: [
-      { type:'peaking',   freq:300,   Q:0.8,  gain:-2  },
-      { type:'peaking',   freq:2500,  Q:1.0,  gain:+3  },
-      { type:'peaking',   freq:5000,  Q:0.8,  gain:+4  },
-      { type:'highshelf', freq:10000, Q:0.7,  gain:+2  },
-    ] },
-    custom:  { label: '사용자 정의',  filters: 'dynamic' }
-  };
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
-    audio: { enabled: false, strength: 50, audioPreset: 'off', eqLow: 0, eqMid: 0, eqHigh: 0, surroundWidth: 0, monoMix: false },
+    audio: { enabled: false, strength: 50, surroundWidth: 0 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false }
   };
@@ -175,8 +143,7 @@
     V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
     V_MAN_GAIN: 'video.manualGain', V_AUTO_SCENE: 'video.autoScene',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
-    A_PRESET: 'audio.audioPreset', A_EQ_LO: 'audio.eqLow', A_EQ_MID: 'audio.eqMid', A_EQ_HI: 'audio.eqHigh',
-    A_SURROUND: 'audio.surroundWidth', A_MONO: 'audio.monoMix',
+    A_SURROUND: 'audio.surroundWidth',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
@@ -430,13 +397,12 @@
   }
 
   function createAudio(store, scheduler) {
-    if (IS_FIREFOX) return { setTarget(){}, update(){}, hasCtx:()=>false, isHooked:()=>false, isBypassed:()=>true, applyStrength(){}, applyEqPreset(){}, applySurroundWidth(){}, applyMonoMix(){}, routeCompressor(){} };
+    if (IS_FIREFOX) return { setTarget(){}, update(){}, hasCtx:()=>false, isHooked:()=>false, isBypassed:()=>true, applyStrength(){}, applySurroundWidth(){}, routeCompressor(){} };
 
     let ctx = null;
-    let eqInput = null, eqOutput = null, eqNodes = [];
     let splitter = null, merger = null;
     let delayL = null, delayR = null, crossGainLR = null, crossGainRL = null, dryGainL = null, dryGainR = null;
-    let monoGain = null;
+    let routeGain = null;
     let comp = null, limiter = null, makeupGain = null;
     let compBypass = null;
     let masterOut = null;
@@ -479,10 +445,7 @@
 
     function isAnyAudioActive() {
       if (store.get(P.A_EN)) return true;
-      const preset = store.get(P.A_PRESET);
-      if (preset && preset !== 'off') return true;
       if (Number(store.get(P.A_SURROUND)) > 0) return true;
-      if (store.get(P.A_MONO)) return true;
       return false;
     }
 
@@ -491,11 +454,6 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
-
-      eqInput = ctx.createGain(); eqInput.gain.value = 1;
-      eqOutput = ctx.createGain(); eqOutput.gain.value = 1;
-      eqNodes = [];
-      eqInput.connect(eqOutput);
 
       splitter = ctx.createChannelSplitter(2);
       merger = ctx.createChannelMerger(2);
@@ -516,8 +474,7 @@
       delayL.connect(crossGainLR); delayR.connect(crossGainRL);
       crossGainLR.connect(merger, 0, 1); crossGainRL.connect(merger, 0, 0);
 
-      monoGain = ctx.createGain(); monoGain.gain.value = 1;
-      monoGain.channelCount = 2; monoGain.channelCountMode = 'max';
+      routeGain = ctx.createGain(); routeGain.gain.value = 1;
 
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
@@ -528,8 +485,7 @@
       compBypass = ctx.createGain(); compBypass.gain.value = 1;
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
 
-      eqOutput.connect(splitter);
-      merger.connect(monoGain);
+      merger.connect(routeGain);
       comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(masterOut);
       compBypass.connect(masterOut);
       masterOut.connect(ctx.destination);
@@ -538,25 +494,20 @@
       fullDryPath.connect(ctx.destination);
 
       applyStrength(Number(store.get(P.A_STR)) || 50);
-      applyEqPreset(store.get(P.A_PRESET) || 'off');
       applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
-      applyMonoMix(!!store.get(P.A_MONO));
       routeCompressor();
       return true;
     }
 
     function routeCompressor() {
-      if (!monoGain || !comp || !compBypass) return;
-      try { monoGain.disconnect(); } catch (_) {}
-      if (store.get(P.A_EN)) { monoGain.connect(comp); }
-      else { monoGain.connect(compBypass); }
+      if (!routeGain || !comp || !compBypass) return;
+      try { routeGain.disconnect(); } catch (_) {}
+      if (store.get(P.A_EN)) { routeGain.connect(comp); }
+      else { routeGain.connect(compBypass); }
     }
 
     function applyStrength(strength) {
       if (!comp || !makeupGain || !ctx) return;
-      const preset = store.get(P.A_PRESET);
-      if (AUDIO_PRESETS[preset]?.compOverride && store.get(P.A_EN)) return;
-
       const s = CLAMP(strength, 0, 100) / 100;
       comp.threshold.value = -8 - s * 24;
       comp.ratio.value = 1.5 + s * 10.5;
@@ -569,59 +520,6 @@
       const gain = Math.pow(10, makeupDb / 20);
       try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
       catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
-    }
-
-    function applyEqPreset(presetKey) {
-      if (!ctx || !eqInput || !eqOutput) return;
-      try { eqInput.disconnect(); } catch (_) {}
-      for (const n of eqNodes) { try { n.disconnect(); } catch (_) {} }
-      eqNodes = [];
-
-      let filterDefs;
-      if (presetKey === 'custom') {
-        const lo  = Number(store.get(P.A_EQ_LO))  || 0;
-        const mid = Number(store.get(P.A_EQ_MID)) || 0;
-        const hi  = Number(store.get(P.A_EQ_HI))  || 0;
-        if (Math.abs(lo) < 0.1 && Math.abs(mid) < 0.1 && Math.abs(hi) < 0.1) {
-          eqInput.connect(eqOutput); restoreCompFromOverride(); return;
-        }
-        filterDefs = [
-          { type:'lowshelf',  freq:250,  Q:0.7, gain:lo  },
-          { type:'peaking',   freq:1000, Q:1.0, gain:mid },
-          { type:'highshelf', freq:4000, Q:0.7, gain:hi  },
-        ];
-      } else {
-        const preset = AUDIO_PRESETS[presetKey];
-        if (!preset || !preset.filters || preset.filters.length === 0) {
-          eqInput.connect(eqOutput); restoreCompFromOverride(); return;
-        }
-        filterDefs = preset.filters;
-      }
-
-      let prev = eqInput;
-      for (const def of filterDefs) {
-        const bq = ctx.createBiquadFilter();
-        bq.type = def.type; bq.frequency.value = def.freq; bq.Q.value = def.Q;
-        if (def.type !== 'highpass' && def.type !== 'lowpass') bq.gain.value = def.gain;
-        prev.connect(bq); eqNodes.push(bq); prev = bq;
-      }
-      prev.connect(eqOutput);
-
-      const preset = AUDIO_PRESETS[presetKey];
-      if (preset && preset.compOverride && comp && store.get(P.A_EN)) {
-        const o = preset.compOverride;
-        comp.threshold.value = o.threshold; comp.ratio.value = o.ratio;
-        comp.knee.value = o.knee; comp.attack.value = o.attack; comp.release.value = o.release;
-        const threshAbs = Math.abs(o.threshold);
-        const makeupDb = threshAbs * (1 - 1 / o.ratio) * 0.4;
-        const gain = Math.pow(10, makeupDb / 20);
-        try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
-        catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
-      } else { restoreCompFromOverride(); }
-    }
-
-    function restoreCompFromOverride() {
-      if (store.get(P.A_EN)) applyStrength(Number(store.get(P.A_STR)) || 50);
     }
 
     function applySurroundWidth(width) {
@@ -637,12 +535,6 @@
         crossGainLR.gain.value = crossLevel; crossGainRL.gain.value = crossLevel;
         delayL.delayTime.value = 0.005 + w * 0.015; delayR.delayTime.value = 0.008 + w * 0.020;
       }
-    }
-
-    function applyMonoMix(enabled) {
-      if (!monoGain) return;
-      if (enabled) { monoGain.channelCount = 1; monoGain.channelCountMode = 'explicit'; }
-      else { monoGain.channelCount = 2; monoGain.channelCountMode = 'max'; }
     }
 
     function enterBypass(video, reason) {
@@ -702,7 +594,7 @@
         if (!source) { source = connectViaCaptureStream(video); if (!source) { enterBypass(video, 'all methods failed'); return false; } }
       }
       try { source.disconnect(); } catch (_) {}
-      if (isAnyAudioActive()) { source.connect(eqInput); }
+      if (isAnyAudioActive()) { source.connect(splitter); }
       else { source.connect(fullDryPath); }
       currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes'; exitBypass();
       return true;
@@ -741,7 +633,7 @@
       routeCompressor();
       if (currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
-        if (isAnyAudioActive()) { currentSrc.connect(eqInput); }
+        if (isAnyAudioActive()) { currentSrc.connect(splitter); }
         else { currentSrc.connect(fullDryPath); }
         if (store.get(P.A_EN)) applyStrength(Number(store.get(P.A_STR)) || 50);
       }
@@ -777,7 +669,7 @@
     return {
       setTarget, update: updateMix,
       hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode,
-      applyStrength, applyEqPreset, applySurroundWidth, applyMonoMix, routeCompressor
+      applyStrength, applySurroundWidth, routeCompressor
     };
   }
 
@@ -1022,7 +914,6 @@
     }
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 10 : 8; }
 
-    /* v29.5.3: interpolate에 분석 결과 객체 전달 */
     function interpolate(darkFactor, brightFactor, brightness, analysisExtra) {
       const values = BASE.map((base, i) => {
         if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor);
@@ -1030,30 +921,22 @@
         if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) { const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID); const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7); return Math.round(base * scale); }
         return base;
       });
-
-      /* ── v29.5.3: RGB 색온도 보정 (인덱스 3 = Temperature) ── */
       if (analysisExtra && typeof analysisExtra.colorTemp === 'number') {
         values[3] = CLAMP(Math.round(values[3] + analysisExtra.colorTemp), -COLOR_TEMP_CLAMP, COLOR_TEMP_CLAMP);
       }
-
-      /* ── v29.5.3: 역광 보정 (Shadow + Recovery 부스트) ── */
       if (analysisExtra && analysisExtra.isBacklit) {
-        values[0] += BACKLIGHT_SHADOW_BOOST;    // Shadow
-        values[1] += BACKLIGHT_RECOVERY_BOOST;  // Recovery
+        values[0] += BACKLIGHT_SHADOW_BOOST;
+        values[1] += BACKLIGHT_RECOVERY_BOOST;
       }
-
-      /* ── v29.5.3: 안개/저대비 보정 (Contrast 부스트) ── */
       if (analysisExtra && analysisExtra.isHazy) {
-        values[7] += HAZE_CONTRAST_BOOST;       // Contrast
+        values[7] += HAZE_CONTRAST_BOOST;
       }
-
       return values;
     }
 
     function getPresetSByFactors(darkFactor, brightFactor) { if (darkFactor > 0.5) return 'M'; if (darkFactor > 0.1) return 'S'; if (brightFactor > 0.3) return 'none'; if (brightFactor > 0) return 'off'; return 'off'; }
     function pushBrightness(raw) { if (brightHistory.length >= HISTORY_SIZE) _brightSum -= brightHistory.shift(); brightHistory.push(raw); _brightSum += raw; return _brightSum / brightHistory.length; }
 
-    /* v29.5.3: analyzeFrame이 숫자 대신 객체를 반환 (에러 시에는 숫자 유지) */
     function analyzeFrame(video) {
       if (!video || video.readyState < 2) return -2;
       if (video.dataset.vscCorsFail === "1") {
@@ -1073,35 +956,26 @@
         canvasCtx.drawImage(video, 0, 0, 16, 16);
         const data = canvasCtx.getImageData(0, 0, 16, 16).data;
         let weightedR = 0, weightedG = 0, weightedB = 0, totalWeight = 0, isAllZero = true;
-
-        /* v29.5.3: 추가 누적 변수 */
-        let sumR = 0, sumB = 0;                 // RGB 채널 분리 (색온도)
-        let sumLumaSq = 0, sumLumaRaw = 0;      // 분산 계산
-        let sumTop = 0, countTop = 0;            // 상단 구역
-        let sumBot = 0, countBot = 0;            // 하단 구역
-        const N = 16 * 16;                       // 총 픽셀 수
+        let sumR = 0, sumB = 0;
+        let sumLumaSq = 0, sumLumaRaw = 0;
+        let sumTop = 0, countTop = 0;
+        let sumBot = 0, countBot = 0;
+        const N = 16 * 16;
 
         for (let i = 0; i < data.length; i += 4) {
           const row = (i >> 2) >> 4;
           const yWeight = row >= 13 ? 0.3 : 1.0;
           const pR = data[i], pG = data[i+1], pB = data[i+2];
-
           weightedR += pR * yWeight;
           weightedG += pG * yWeight;
           weightedB += pB * yWeight;
           totalWeight += yWeight;
           if (pR > 0 || pG > 0 || pB > 0) isAllZero = false;
-
-          /* ── v29.5.3: RGB 채널 누적 ── */
           sumR += pR;
           sumB += pB;
-
-          /* ── v29.5.3: 루마 분산용 ── */
           const pixelLuma = pR * 0.2126 + pG * 0.7152 + pB * 0.0722;
           sumLumaRaw += pixelLuma;
           sumLumaSq += pixelLuma * pixelLuma;
-
-          /* ── v29.5.3: 상하 구역 분리 ── */
           if (row < 8) { sumTop += pixelLuma; countTop++; }
           else         { sumBot += pixelLuma; countBot++; }
         }
@@ -1117,26 +991,17 @@
         if (video.dataset.vscDrm === "1") { delete video.dataset.vscDrm; vs.drmRetry = 0; log.info('[AutoScene] DRM 플래그 해제'); }
 
         const rawBrt = (weightedR/totalWeight)*0.2126 + (weightedG/totalWeight)*0.7152 + (weightedB/totalWeight)*0.0722;
-
-        /* ── v29.5.3: 확장 분석 결과 계산 ── */
         const avgR = sumR / N;
         const avgB = sumB / N;
         const avgLuma = sumLumaRaw / N;
         const variance = (sumLumaSq / N) - (avgLuma * avgLuma);
         const topAvg = countTop > 0 ? sumTop / countTop : avgLuma;
         const botAvg = countBot > 0 ? sumBot / countBot : avgLuma;
-
-        // 색온도 추정: R>B면 따뜻함 → 보정은 반대 방향(음수)으로
-        const colorTempRaw = (avgR - avgB) / 255;  // -1 ~ +1
+        const colorTempRaw = (avgR - avgB) / 255;
         const colorTemp = CLAMP(-colorTempRaw * COLOR_TEMP_CLAMP * 2, -COLOR_TEMP_CLAMP, COLOR_TEMP_CLAMP);
-
-        // 역광 판정: 분산 높음 + 상단이 하단보다 유의미하게 밝음
         const isBacklit = (variance > VARIANCE_HIGH) && ((topAvg - botAvg) > REGION_DIFF_MIN);
-
-        // 안개/저대비 판정: 분산 낮음 + 상하 차이 작음
         const isHazy = (variance < VARIANCE_LOW) && (Math.abs(topAvg - botAvg) < 15);
 
-        /* v29.5.3: 객체로 반환 */
         return { rawBrt, colorTemp, variance, topAvg, botAvg, isBacklit, isHazy };
       } catch (e) { video.dataset.vscCorsFail = "1"; return -2; }
     }
@@ -1155,16 +1020,10 @@
       currentValues = values; currentPresetS = presetS;
     }
 
-    /* v29.5.3: applyAnalysisResult가 객체 또는 숫자를 처리 */
     function applyAnalysisResult(result) {
       let rawBrt, analysisExtra;
-      if (typeof result === 'number') {
-        rawBrt = result;
-        analysisExtra = null;
-      } else {
-        rawBrt = result.rawBrt;
-        analysisExtra = result;
-      }
+      if (typeof result === 'number') { rawBrt = result; analysisExtra = null; }
+      else { rawBrt = result.rawBrt; analysisExtra = result; }
 
       if (rawBrt === -1 || (typeof result === 'number' && result === -1)) {
         if (currentMode !== 'drm') { currentMode = 'drm'; currentBrightness = -1; lastAppliedBrightness = -999; currentLabel = SCENE_CONFIG.drm.label; applyValues(DRM_BASE, 'M'); log.info('[AutoScene] → DRM 폴백'); } return;
@@ -1173,7 +1032,6 @@
       const smoothed = pushBrightness(rawBrt); currentBrightness = smoothed;
       const smoothScene = classifyBrightness(smoothed, SCENE_CONFIG);
 
-      /* v29.5.3: 라벨에 역광/안개 표시 추가 */
       let extraLabel = '';
       if (analysisExtra) {
         if (analysisExtra.isBacklit) extraLabel = ' ◉ 역광';
@@ -1234,7 +1092,6 @@
       }
       if (result === -1) { applyAnalysisResult(-1); return; }
       if (currentMode === 'loading') { currentMode = 'wait'; lastAppliedBrightness = -999; _prevQuickLuma = -1; log.info('[AutoScene] 로딩 → 분석 시작'); }
-      /* [29.5.2] postLuma 중복 drawImage 제거 — rawBrt를 직접 사용 */
       if (result.rawBrt >= 0) _prevQuickLuma = result.rawBrt;
       applyAnalysisResult(result);
     }
@@ -1345,12 +1202,6 @@
     .as-box.off .as-detail { color: var(--vsc-text-muted); }
     .hint { font-size: 10px; opacity: 0.5; padding: 4px 0; text-align: left; line-height: 1.5; }
     .hint.warn { opacity: 0.7; color: var(--vsc-amber); }
-    select.vsc-select { -webkit-appearance: none; appearance: none; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: var(--vsc-radius-sm); color: var(--vsc-text); font-size: 11px; font-family: var(--vsc-font); padding: 4px 24px 4px 8px; cursor: pointer; min-height: var(--vsc-touch-min); outline: none; transition: border-color 0.2s; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.5)'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
-    select.vsc-select:focus { border-color: var(--vsc-neon-border); }
-    select.vsc-select option { background: #1a1a2e; color: #fff; }
-    .cond-group { overflow: hidden; transition: max-height 0.3s var(--vsc-ease-out), opacity 0.3s; }
-    .cond-group.hidden { max-height: 0 !important; opacity: 0; pointer-events: none; }
-    .cond-group.visible { max-height: 300px; opacity: 1; }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1402,13 +1253,6 @@
       resetBtn.addEventListener('click', () => { Store.set(path, 0); });
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
-    function mkSliderWithDb(label, path, min, max, step, suffix) {
-      const inp = h('input', { type: 'range', min, max, step }); const valEl = h('span', { class: 'val' });
-      function updateUI(v) { inp.value = String(v); valEl.textContent = `${v > 0 ? '+' : ''}${v}${suffix || 'dB'}`; inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
-      inp.addEventListener('input', () => { const v = parseInt(inp.value, 10); Store.set(path, v); updateUI(v); });
-      const sync = () => updateUI(Number(Store.get(path) ?? 0));
-      tabFns.push(sync); sync(); return mkRow(label, inp, valEl);
-    }
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
@@ -1428,14 +1272,6 @@
       const row = h('div', { class: 'fine-row' });
       for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); Scheduler.request(); }); row.appendChild(btn); }
       return row;
-    }
-    function mkSelect(label, path, options, onChange) {
-      const sel = h('select', { class: 'vsc-select' });
-      for (const opt of options) sel.appendChild(h('option', { value: opt.value }, opt.label));
-      sel.addEventListener('change', () => { Store.set(path, sel.value); if (onChange) onChange(sel.value); });
-      const sync = () => { sel.value = Store.get(path) || options[0].value; };
-      tabFns.push(sync); sync();
-      return mkRow(label, sel);
     }
 
     function buildInfoBar() {
@@ -1457,7 +1293,7 @@
       const grid = h('div', { class: 'preset-grid' });
       const buttons = MANUAL_PRESETS.map(p => {
         const btn = h('button', { class: 'fine-btn' }, p.n);
-        btn.addEventListener('click', () => { if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(false); OSD.show('자동 장면 OFF (수동 프리셋)', 1000); } const obj = { presetS: 'off' }; for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i]; Store.batch('video', obj); Scheduler.request(); });
+        btn.addEventListener('click', () => { if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(false); OSD.show('자동 장면 OFF (수동 프리셋)', 1000); } const obj = {}; for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i]; Store.batch('video', obj); Scheduler.request(); });
         grid.appendChild(btn); return { btn, values: p.v };
       });
       const syncGrid = () => { const current = MANUAL_PATHS.map(p => Store.get(p)); for (const { btn, values } of buttons) { btn.classList.toggle('active', values.every((v, i) => current[i] === v)); } };
@@ -1480,32 +1316,6 @@
       return mkRow('평준화 강도', inp, valEl);
     }
 
-    function buildAudioEffectsSection() {
-      const wrap = h('div', {});
-      const presetOptions = Object.entries(AUDIO_PRESETS).map(([k, v]) => ({ value: k, label: v.label }));
-      let eqGroup;
-      const presetSelect = mkSelect('음향 효과', P.A_PRESET, presetOptions, (val) => {
-        Audio.applyEqPreset(val); Audio.update();
-        if (eqGroup) { eqGroup.classList.toggle('hidden', val !== 'custom'); eqGroup.classList.toggle('visible', val === 'custom'); }
-      });
-      wrap.appendChild(presetSelect);
-
-      eqGroup = h('div', { class: 'cond-group hidden' });
-      eqGroup.appendChild(mkSliderWithDb('저음 (Bass)', P.A_EQ_LO, -12, 12, 1, 'dB'));
-      eqGroup.appendChild(mkSliderWithDb('중음 (Mid)', P.A_EQ_MID, -12, 12, 1, 'dB'));
-      eqGroup.appendChild(mkSliderWithDb('고음 (Treble)', P.A_EQ_HI, -12, 12, 1, 'dB'));
-      wrap.appendChild(eqGroup);
-
-      const syncEqVis = () => { const cur = Store.get(P.A_PRESET); eqGroup.classList.toggle('hidden', cur !== 'custom'); eqGroup.classList.toggle('visible', cur === 'custom'); };
-      tabFns.push(syncEqVis);
-
-      wrap.appendChild(mkSep());
-      const [surInp, surVal] = mkSlider(P.A_SURROUND, 0, 100, 1);
-      wrap.appendChild(mkRow('공간감 (헤드폰)', surInp, surVal));
-      wrap.appendChild(mkRow('모노 다운믹스', mkToggle(P.A_MONO, (on) => { Audio.applyMonoMix(on); Audio.update(); })));
-      return wrap;
-    }
-
     function buildVideoSchema() {
       const s = [{ type: 'widget', build: buildInfoBar }, { type: 'widget', build: buildAutoSceneBox }, { type: 'sep' }];
       if (IS_FIREFOX) { s.push({ type: 'hint', cls: 'warn', text: '⚠️ Firefox: 샤프닝 및 SVG 기반 톤/색상 보정은 Chromium 전용입니다.' }); }
@@ -1522,14 +1332,14 @@
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
       audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
-        { type: 'sectionLabel', text: '볼륨 평준화' },
+        { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN, onChange: (on) => { Audio.routeCompressor(); Audio.update(); } },
         { type: 'widget', build: buildAudioStrengthSlider },
-        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다.' },
+        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
         { type: 'sep' },
-        { type: 'sectionLabel', text: '음향 효과' },
-        { type: 'widget', build: buildAudioEffectsSection },
-        { type: 'hint', text: '음향 효과는 평준화와 독립적으로 동작합니다. 프리셋 선택, 공간감, 모노 믹스 중 하나라도 활성이면 오디오 체인이 연결됩니다.' },
+        { type: 'sectionLabel', text: '공간감 (헤드폰)' },
+        { type: 'slider', label: '공간감', path: P.A_SURROUND, min: 0, max: 100, step: 1 },
+        { type: 'hint', text: '헤드폰 착용 시 좌우 채널 크로스피드로 넓은 음장감을 제공합니다.' },
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
@@ -1637,12 +1447,8 @@
     Registry.setOnSeekedCallback(() => AutoScene.onSeeked());
 
     Store.sub(P.A_EN, () => { Audio.routeCompressor(); Audio.update(); });
-    Store.sub(P.A_PRESET, (v) => { Audio.applyEqPreset(v); Audio.update(); });
-    Store.sub(P.A_EQ_LO, () => { if (Store.get(P.A_PRESET) === 'custom') { Audio.applyEqPreset('custom'); Audio.update(); } });
-    Store.sub(P.A_EQ_MID, () => { if (Store.get(P.A_PRESET) === 'custom') { Audio.applyEqPreset('custom'); Audio.update(); } });
-    Store.sub(P.A_EQ_HI, () => { if (Store.get(P.A_PRESET) === 'custom') { Audio.applyEqPreset('custom'); Audio.update(); } });
+    Store.sub(P.A_STR, () => { Audio.applyStrength(Number(Store.get(P.A_STR)) || 50); Audio.update(); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
-    Store.sub(P.A_MONO, (v) => { Audio.applyMonoMix(v); Audio.update(); });
 
     const apply = () => {
       if (!Store.get(P.APP_ACT)) { for (const v of Registry.videos) Filters.clear(v); Audio.setTarget(null); return; }
