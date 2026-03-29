@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.8.5
+// @version      15.8.6
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '15.8.5'
-    : '15.8.5';
+    ? GM_info?.script?.version ?? '15.8.6'
+    : '15.8.6';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -52,7 +52,6 @@
   };
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
-  const COLOR_DENOM = DEF_TARGET * 0.5;
 
   const STALL_COOLDOWN = PD.stallCooldown;
   const STALL_GENTLE = PD.stallMode === 'gentle';
@@ -69,6 +68,9 @@
 
   const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
   const isHlsSrc = src => /\.m3u8($|\?)/i.test(src);
+
+  /* [D-3] 동적 색상 기준 — target 변경 시 자동 반영 */
+  let _colorDenom = DEF_TARGET * 0.5;
 
   const getBuf = vid => {
     const b = vid.buffered;
@@ -88,7 +90,6 @@
     if (_bufCount < BUF_WINDOW) _bufCount++;
   };
 
-  /* FIX: raw < 0일 때 링버퍼의 stale 중앙값 반환 방지 */
   const getSmoothedBuf = raw => {
     if (raw < 0) return raw;
     pushBuf(raw);
@@ -113,11 +114,13 @@
     _bufCount = 0;
   };
 
-  let _colorKey = -1, _colorVal = '';
+  /* [D-3] _colorKey 캐시에 _colorDenom 변경 감지 추가 */
+  let _colorKey = -1, _colorVal = '', _colorDenomCached = -1;
   const getColor = diff => {
-    const key = Math.round(clamp(diff / COLOR_DENOM, 0, 1) * 100);
-    if (key === _colorKey) return _colorVal;
+    const key = Math.round(clamp(diff / _colorDenom, 0, 1) * 100);
+    if (key === _colorKey && _colorDenom === _colorDenomCached) return _colorVal;
     _colorKey = key;
+    _colorDenomCached = _colorDenom;
     const ratio = key / 100;
     let r, g, bl;
     if (ratio <= 0.5) {
@@ -159,7 +162,8 @@
       return _adResult;
     };
 
-    const RERUN_KEYWORDS = /\brerun\b|\bre\b|\b재방송\b|\b리런\b|\b다시\s*보기\b/i;
+    /* [D-2] \bre\b 제거 — 오탐 방지 */
+    const RERUN_KEYWORDS = /\brerun\b|\b재방송\b|\b리런\b|\b다시\s*보기\b/i;
 
     const checkRerun = () => {
       if (!IS_TWITCH) return false;
@@ -242,6 +246,9 @@
 
   let panelOpen = cfg.open ?? false;
   let _hyst = Math.max(0.2, target * 0.1);
+
+  /* [D-3] 초기 target에 맞춰 색상 기준 동기화 */
+  _colorDenom = target * 0.5;
 
   const control = {
     gear: R_NORM,
@@ -380,7 +387,9 @@
     try { vid.preservesPitch = true; } catch {}
   };
 
+  /* [RF-4] 조기 리턴 — gear가 이미 NORM이면 불필요한 재할당 방지 */
   const resetRate = vid => {
+    if (control.gear === R_NORM) return;
     control.gear = R_NORM;
     control.lastGearChange = -GEAR_HOLD_MS;
     if (vid) safeRate(vid, R_NORM);
@@ -470,12 +479,14 @@
    *  §7. 제어 엔진
    * ================================================================ */
 
+  /* [D-1] HIGH→MED 단계적 다운그레이드 경로 추가 */
   const computeDesiredGear = buf => {
     if (buf < 0) return R_NORM;
     const ex = buf - target;
     if (ex > target * 0.8) return R_HIGH;
     if (ex > target * 0.4) return R_MED;
     if (ex < -_hyst)       return R_NORM;
+    if (control.gear === R_HIGH) return R_MED;
     return control.gear;
   };
 
@@ -540,7 +551,7 @@
         live.falseCount = (live.falseCount < 0) ? 1 : live.falseCount + 1;
         if (live.falseCount <= 3) {
           if (control.gear !== R_NORM) resetRate(vid);
-          lastBuf = -1; /* FIX: grace period 중 stale UI 방지 */
+          lastBuf = -1;
           scheduleRender(); return;
         }
       }
@@ -592,7 +603,9 @@
       if (els.root.style.display === 'none') els.root.style.display = 'block';
 
       const sec = buf < 0 ? 0 : buf, diff = sec - target, c = getColor(diff);
-      const speeding = vid.playbackRate > 1.005;
+
+      /* [B-1] vid null 안전 접근 — isAd && !vid 경로에서 TypeError 방지 */
+      const speeding = !!vid && vid.playbackRate > 1.005;
 
       if (!panelOpen) {
         if (!els.fab) return;
@@ -661,7 +674,7 @@
   const injectStyles = () => {
     GM_addStyle(`
 #dm-root{--ac:#00E696;--bg:rgba(12,14,20,.92);--bg2:rgba(255,255,255,.04);--bg3:rgba(255,255,255,.07);--border:rgba(255,255,255,.06);--t1:#f0f0f0;--t2:rgba(255,255,255,.45);--rad:16px;font:12px/1.5 'SF Pro Text',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;color:var(--t1)}
-#dm-fab{position:fixed;bottom:20px;right:20px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04);will-change:transform,box-shadow}
+#dm-fab{position:fixed;bottom:20px;right:20px;z-index:10000;width:40px;height:40px;border-radius:50%;background:var(--bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border:1.5px solid var(--ac);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:border-color .4s,box-shadow .4s,transform .15s;contain:strict;box-shadow:0 0 12px rgba(0,0,0,.4),inset 0 0 0 1px rgba(255,255,255,.04);will-change:transform}
 #dm-fab:hover{transform:scale(1.08)}#dm-fab:active{transform:scale(.95)}
 .dm-dot{width:10px;height:10px;border-radius:50%;background:var(--ac);transition:background .4s;box-shadow:0 0 8px var(--ac)}
 @keyframes dm-pulse{0%,100%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 0 var(--ac)}50%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 6px transparent}}
@@ -791,15 +804,20 @@
       togDiv.classList.toggle('on', enabled);
     };
 
+    /* [D-3] 슬라이더 변경 시 색상 기준(_colorDenom) 동기화 + 캐시 무효화 */
     slInput.oninput = () => {
       target = parseFloat(slInput.value);
       _hyst = Math.max(0.2, target * 0.1);
+      _colorDenom = target * 0.5;
+      _colorKey = -1;
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
     };
     slInput.ondblclick = () => {
       target = DEF_TARGET;
       _hyst = Math.max(0.2, target * 0.1);
+      _colorDenom = target * 0.5;
+      _colorKey = -1;
       slInput.value = target;
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
@@ -878,7 +896,7 @@
       if (prev) safeRate(prev, R_NORM);
       setVid(null);
       resetControlState(null);
-      lastBuf = -1; lastTickAd = false; lastTickRerun = false; /* FIX: SPA 전환 시 stale 렌더 방지 */
+      lastBuf = -1; lastTickAd = false; lastTickRerun = false;
       _scanRetry = 0; _needScan = true;
       LiveDetect.resetYT();
       if (IS_TWITCH) TwitchDetect.resetCache();
