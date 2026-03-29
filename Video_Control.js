@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v30.0.5)
+// @name         Video_Control (v30.1.0)
 // @namespace    https://github.com/moamoa7
-// @version      30.0.5
-// @description  v30.0.5: BUG-01(h섀도잉),BUG-03(dB→%),BUG-04(jwCache),PERF-03(toneCache),REFACTOR-01/03/04,UI-01(OSD),IDEA-01(mediaKeys)
+// @version      30.1.0
+// @description  30.1.0: 자동장면 색감 개선(채도/색온도), 수동프리셋 계열화(내추럴/시네마/야간/사용자)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '30.0.5';
+  const VSC_VERSION = '30.1.0';
   const DEBUG = false;
 
   const log = {
@@ -105,22 +105,29 @@
   }
 
   const MANUAL_PRESETS = [
-    { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
-    { n: '내추럴(약)', v: [20, 18, 10, 0, 0, 6, -4, 7, 3] },
-    { n: '내추럴(중)', v: [40, 32, 18, 0, 0, 8, -6, 10, 7] },
-    { n: 'Drama Dark', v: [ 60, 40, 10,  -3,   0,  -6,  -8,  +6,  5] },
-    { n: 'Night Hard', v: [ 80, 55, 15,   0,   0,  -8, -12,  +8,  8] },
-    { n: '최소1',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
-    { n: '약하게1',    v: [40, 30,   2,   0,   0,  -3,  -3,   1,   3] },
-    { n: '보통1',      v: [60, 45,   4,   0,   0,  -5,  -5,   2,   5] },
-    { n: '강하게1',      v: [80, 60,   6,   0,   0,  -7,  -7,   3,   7] },
-    { n: '최대1',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
-    { n: '최소2',      v: [20, 12,   5,   0,   0,  -1,  -1,   0,   4] },
-    { n: '약하게2',    v: [40, 24,   10,   0,   0,  -3,  -3,   2,   8] },
-    { n: '보통2',      v: [60, 36,   15,   0,   0,  -5,  -5,   5,   12] },
-    { n: '강하게2',      v: [80, 48,  20,   0,   0,  -7,  -7,   8,   16] },
-    { n: '최대2',        v: [100, 60,  25,   0,   0,  -9,  -9,   10,   20] },
-  ];
+  { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
+
+  // 내추럴 — 화사하고 선명한 스타일
+  { n: '내추럴(약)', v: [20, 18, 10,   0,  0,   5,  -4,   7,   3] },
+  { n: '내추럴(중)', v: [40, 32, 18,   0,  0,   7,  -6,  10,   7] },
+  { n: '내추럴(강)', v: [60, 42, 25,   0,  0,   8,  -7,  12,  10] },
+
+  // 시네마 — 채도 억제, 대비 강조
+  { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
+  { n: '시네마(중)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
+  { n: '시네마(강)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
+
+  // 야간 — 어두운 영상 복원 특화
+  { n: '야간(약)',   v: [30, 20, 15,   0,  0,   0,  -4,   6,   9] },
+  { n: '야간(중)',   v: [50, 30, 25,   1,  0,   3,  -6,   9,  15] },
+  { n: '야간(강)',   v: [70, 40, 35,   2,  0,   5,  -8,  11,  21] },
+
+  // 사용자 — 색상 중립, 단순 톤 보정
+  { n: '사용자(약)', v: [15, 13,  8,   0,  0,   0,  -3,   4,   4] },
+  { n: '사용자(중)', v: [30, 20, 15,   0,  0,   0,  -5,   6,   9] },
+  { n: '사용자(강)', v: [50, 30, 25,   0,  0,   0,  -7,   8,  15] },
+  { n: '사용자(최대)', v: [80, 45, 40,  0,  0,   0, -10,  11,  24] },
+];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
@@ -898,11 +905,11 @@
     function getAnalyzeState(v) { if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 }); return _videoAnalyzeState.get(v); }
     let _lastTickVideo = null;
 
-    const BASE     = [15, 13, 8, 0, 0, 0, -3, 4, 4];
-    const DARK_V   = [50, 30, 25, 0, 0, 0, -7, 8, 15];
-    const BRIGHT_V = [5, 5, 3, 0, 0, 0, -1, 2, 1];
-    const VERTICAL = [10, 10, 5, 0, 0, 0, -2, 3, 2];
-    const DRM_BASE = [30, 20, 15, 0, 0, 0, -5, 6, 9];
+    const BASE     = [15, 13,  8,  0, 0,  3, -3, 5,  4];
+    const DARK_V   = [50, 30, 25,  2, 0,  6, -6, 9, 15];
+    const BRIGHT_V = [ 5,  5,  3,  0, 0, -2, -1, 2,  1];
+    const VERTICAL = [10, 10,  5,  0, 0,  3, -2, 4,  2];
+    const DRM_BASE = [30, 20, 15,  1, 0,  4, -5, 7,  9];
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
     const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]);
