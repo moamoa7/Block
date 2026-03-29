@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v30.1.0)
+// @name         Video_Control (v31.0.0)
 // @namespace    https://github.com/moamoa7
-// @version      30.1.0
-// @description  30.1.0: 자동장면 색감 개선(채도/색온도), 수동프리셋 계열화(내추럴/시네마/야간/사용자)
+// @version      31.0.0
+// @description  v31.0.0: 자동장면 삭제, 수동프리셋 4계열화(내추럴/선명/시네마/사용자), 톤보정 UI 개선
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '30.1.0';
+  const VSC_VERSION = '31.0.0';
   const DEBUG = false;
 
   const log = {
@@ -41,7 +41,6 @@
     error: (...a) => console.error('[VSC]', ...a)
   };
 
-  // [BUG-01] 파라미터명 h → hostname (전역 h 함수 섀도잉 방지)
   function normalizeHostname(hostname) {
     const parts = hostname.split('.');
     if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return hostname;
@@ -76,7 +75,6 @@
     el.style.removeProperty('-webkit-filter');
   }
 
-  // [REFACTOR-04] none/off에서 미사용 필드 제거
   const PRESETS = Object.freeze({
     detail: {
       none: { label: 'OFF' },
@@ -105,32 +103,31 @@
   }
 
   const MANUAL_PRESETS = [
-  { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
-
-  // 내추럴 — 화사하고 선명한 스타일
-  { n: '내추럴(약)', v: [20, 18, 10,   0,  0,   5,  -4,   7,   3] },
-  { n: '내추럴(중)', v: [40, 32, 18,   0,  0,   7,  -6,  10,   7] },
-  { n: '내추럴(강)', v: [60, 42, 25,   0,  0,   8,  -7,  12,  10] },
-
-  // 시네마 — 채도 억제, 대비 강조
-  { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
-  { n: '시네마(중)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
-  { n: '시네마(강)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
-
-  // 야간 — 어두운 영상 복원 특화
-  { n: '야간(약)',   v: [30, 20, 15,   0,  0,   0,  -4,   6,   9] },
-  { n: '야간(중)',   v: [50, 30, 25,   1,  0,   3,  -6,   9,  15] },
-  { n: '야간(강)',   v: [70, 40, 35,   2,  0,   5,  -8,  11,  21] },
-
-  // 사용자 — 색상 중립, 단순 톤 보정
-  { n: '사용자(약)', v: [15, 13,  8,   0,  0,   0,  -3,   4,   4] },
-  { n: '사용자(중)', v: [30, 20, 15,   0,  0,   0,  -5,   6,   9] },
-  { n: '사용자(강)', v: [50, 30, 25,   0,  0,   0,  -7,   8,  15] },
-  { n: '사용자(최대)', v: [80, 45, 40,  0,  0,   0, -10,  11,  24] },
-];
+    { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
+    { n: '내추럴(약)', v: [20, 10,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(보통)', v: [40, 20,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(중간)', v: [60, 30,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(강)', v: [80, 40,  0,  0, 0,  0, 0,  0,  0] },
+    { n: '내추럴(최대)', v: [100, 50,  0,  0, 0,  0, 0,  0,  0] },
+    { n: '선명(약)', v: [20, 16,  5,  0, 0,  2, -2,  3,  2] },
+    { n: '선명(보통)', v: [40, 30, 10,  0, 0,  4, -4,  6,  5] },
+    { n: '선명(중간)', v: [60, 42, 15,  0, 0,  6, -6,  9,  8] },
+    { n: '선명(강)',   v: [80, 52, 20, 0, 0, 8, -8, 12, 11] },
+    { n: '선명(최대)', v: [100, 60, 25, 0, 0, 10, -10, 15, 14] },
+    { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
+    { n: '시네마(보통)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
+    { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
+    { n: '시네마(강)',   v: [80, 48, 20, -4, 0, -8, -8, 13, 16] },
+    { n: '시네마(최대)', v: [100, 60, 25, -5, 0, -10, -10, 16, 20] },
+    { n: '사용자(약)', v: [20, 15, 10, 0, 0, 0, -3, 4, 6] },
+    { n: '사용자(보통)', v: [40, 25, 20, 0, 0, 0, -6, 7, 12] },
+    { n: '사용자(중간)', v: [60, 35, 30, 0, 0, 0, -8, 9, 18] },
+    { n: '사용자(강)', v: [80, 45, 40, 0, 0, 0, -10, 11, 24] },
+    { n: '사용자(최대)', v: [100, 55, 50, 0, 0, 0, -12, 13, 30] },
+  ];
 
   const DEFAULTS = {
-    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, autoScene: false },
+    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
     audio: { enabled: false, strength: 50, surroundWidth: 0 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false }
@@ -142,7 +139,7 @@
     V_MAN_BRT: 'video.manualBright', V_MAN_TEMP: 'video.manualTemp',
     V_MAN_TINT: 'video.manualTint', V_MAN_SAT: 'video.manualSat',
     V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
-    V_MAN_GAIN: 'video.manualGain', V_AUTO_SCENE: 'video.autoScene',
+    V_MAN_GAIN: 'video.manualGain',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     A_SURROUND: 'audio.surroundWidth',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
@@ -150,8 +147,6 @@
 
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
-
-  const AUTOSCENE_WATCH_PATHS = [...MANUAL_PATHS, P.V_PRE_S, P.V_PRE_MIX];
 
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
@@ -248,10 +243,6 @@
 
     const isVscNode = (n) => { if (!n || n.nodeType !== 1) return false; return !!(n.hasAttribute?.('data-vsc-ui') || n.id === 'vsc-host' || n.id === 'vsc-gear-host' || n.id === 'vsc-osd'); };
 
-    let _onSeekedCallback = null;
-    function setOnSeekedCallback(fn) { _onSeekedCallback = fn; }
-
-    // [BUG-04] loadstart 시 외부 캐시 정리 콜백
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
 
@@ -267,7 +258,7 @@
       const onTimeUpdate = () => { const now = performance.now(); if (now - lastT > 500) { lastT = now; req(); } };
       const listenerDefs = [
         ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
-        ['seeked', () => { if (_onSeekedCallback) try { _onSeekedCallback(); } catch (_) {} scheduler.request(); }],
+        ['seeked', () => { scheduler.request(); }],
         ['loadstart', () => {
           delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
           if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
@@ -372,7 +363,7 @@
       if (removed) scheduler.request();
     }
 
-    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnSeekedCallback, setOnLoadstartCallback };
+    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnLoadstartCallback };
   }
 
   function createTargeting() {
@@ -446,7 +437,6 @@
       return true;
     }
 
-    // [REFACTOR-01] 단순화
     const isAnyAudioActive = () => store.get(P.A_EN) || Number(store.get(P.A_SURROUND)) > 0;
 
     function initCtx() {
@@ -659,7 +649,6 @@
       fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
     }
 
-    // [BUG-04] loadstart 시 jwCache + streamMap 정리
     function onVideoLoadstart(video) {
       jwCache.delete(video);
       const s = streamMap.get(video);
@@ -692,7 +681,6 @@
 
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
       const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
-      // [PERF-03] hit 시 재삽입 제거
       if (toneCache.has(key)) return toneCache.get(key);
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
@@ -847,7 +835,6 @@
     };
   }
 
-  // [UI-01] OSD 재생성 → 이동
   function createOSD() {
     let el = null, timerId = 0;
     return {
@@ -868,249 +855,8 @@
     };
   }
 
-  function createAutoScene(store, scheduler) {
-    let lastCheck = 0, currentBrightness = -1;
-    let currentLabel = '분석 대기중', currentValues = [0,0,0,0,0,0,0,0,0];
-    let currentPresetS = null, currentMode = 'wait', _internalBatch = false;
-    let lastAppliedBrightness = -999;
-    let _pausedAnalyzed = false;
-    const CHECK_INTERVAL = 500;
-    const STALE_THRESHOLD = 10000;
-    const ZERO_VALUES = Object.freeze([0,0,0,0,0,0,0,0,0]);
-    const CORS_RETRY_MAX = 3;
-    const CORS_RETRY_INTERVAL = 10000;
-    const SCENE_THRESHOLD = { dark: 12, mid: 18, bright: 25 };
-    let _quickCanvas = null, _quickCtx = null;
-    let _prevQuickLuma = -1;
-
-    function getQuickCanvas() {
-      if (!_quickCanvas) { _quickCanvas = document.createElement('canvas'); _quickCanvas.width = 16; _quickCanvas.height = 9; _quickCtx = _quickCanvas.getContext('2d', { willReadFrequently: true }); }
-      return _quickCtx;
-    }
-    function sampleQuickLuma(video) {
-      const ctx = getQuickCanvas();
-      try { ctx.drawImage(video, 0, 0, 16, 9); } catch (e) { return -1; }
-      const data = ctx.getImageData(0, 0, 16, 9).data;
-      let sum = 0; const pixels = data.length / 4;
-      for (let i = 0; i < data.length; i += 4) { sum += data[i] * 0.2126 + data[i+1] * 0.7152 + data[i+2] * 0.0722; }
-      return sum / pixels;
-    }
-    function getSceneThreshold(luma) { if (luma < 60) return SCENE_THRESHOLD.dark; if (luma > 170) return SCENE_THRESHOLD.bright; return SCENE_THRESHOLD.mid; }
-
-    const canvas = document.createElement('canvas');
-    const canvasCtx = canvas.getContext('2d', { willReadFrequently: true });
-    canvas.width = 16; canvas.height = 16;
-    const brightHistory = []; let _brightSum = 0; const HISTORY_SIZE = 8;
-    const _videoAnalyzeState = new WeakMap();
-    function getAnalyzeState(v) { if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 }); return _videoAnalyzeState.get(v); }
-    let _lastTickVideo = null;
-
-    const BASE     = [15, 13,  8,  0, 0,  3, -3, 5,  4];
-    const DARK_V   = [50, 30, 25,  2, 0,  6, -6, 9, 15];
-    const BRIGHT_V = [ 5,  5,  3,  0, 0, -2, -1, 2,  1];
-    const VERTICAL = [10, 10,  5,  0, 0,  3, -2, 4,  2];
-    const DRM_BASE = [30, 20, 15,  1, 0,  4, -5, 7,  9];
-    const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
-    const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
-    const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]);
-    const ATTENUATE_MID = 128; const ATTENUATE_CEIL = 220;
-    const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
-
-    const SCENE_CONFIG = { dark: { max: 30, label: '어두운 장면' }, bright: { min: 220, label: '눈부신 장면' }, normal: { label: '일반 영상' }, drm: { label: '보안 영상 ◉ DRM' }, cors: { label: '분석 불가 ◉ CORS' }, gamma: 2.2, useSmoothstep: true };
-    function smoothstep(edge0, edge1, x) { const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t); }
-    function classifyBrightness(brightness, cfg) {
-      let darkRaw = 0, brightRaw = 0;
-      if (brightness < cfg.dark.max) { darkRaw = cfg.useSmoothstep ? 1 - smoothstep(0, cfg.dark.max, brightness) : 1 - brightness / cfg.dark.max; }
-      if (brightness > cfg.bright.min) { brightRaw = cfg.useSmoothstep ? smoothstep(cfg.bright.min, 255, brightness) : (brightness - cfg.bright.min) / (255 - cfg.bright.min); }
-      const darkFactor = darkRaw > 0 ? Math.pow(darkRaw, 1 / cfg.gamma) : 0;
-      const brightFactor = brightRaw > 0 ? Math.pow(brightRaw, 1 / cfg.gamma) : 0;
-      let label;
-      if (darkFactor > 0) label = `${cfg.dark.label} ◉ 밝기 ${Math.round(brightness)}`;
-      else if (brightFactor > 0) label = `${cfg.bright.label} ◉ 밝기 ${Math.round(brightness)}`;
-      else label = `${cfg.normal.label} ◉ 밝기 ${Math.round(brightness)}`;
-      return { label, darkFactor, brightFactor };
-    }
-    function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 10 : 8; }
-
-    function interpolate(darkFactor, brightFactor, brightness) {
-      const values = BASE.map((base, i) => {
-        if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor);
-        if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor);
-        if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) { const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID); const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7); return Math.round(base * scale); }
-        return base;
-      });
-      return values;
-    }
-
-    function getPresetSByFactors(darkFactor, brightFactor) { if (darkFactor > 0.5) return 'M'; if (darkFactor > 0.1) return 'S'; if (brightFactor > 0.3) return 'none'; if (brightFactor > 0) return 'off'; return 'off'; }
-    function pushBrightness(raw) { if (brightHistory.length >= HISTORY_SIZE) _brightSum -= brightHistory.shift(); brightHistory.push(raw); _brightSum += raw; return _brightSum / brightHistory.length; }
-
-    function analyzeFrame(video) {
-      if (!video || video.readyState < 2) return -2;
-      if (video.dataset.vscCorsFail === "1") {
-        const retries = Number(video.dataset.vscCorsRetry || 0);
-        const lastTry = Number(video.dataset.vscCorsLastTry || 0);
-        const now = performance.now();
-        if (retries >= CORS_RETRY_MAX) return -2;
-        if (now - lastTry < CORS_RETRY_INTERVAL) return -2;
-        delete video.dataset.vscCorsFail;
-        video.dataset.vscCorsRetry = String(retries + 1);
-        video.dataset.vscCorsLastTry = String(now);
-        log.info(`[AutoScene] CORS 재시도 ${retries + 1}/${CORS_RETRY_MAX}`);
-      }
-      const vs = getAnalyzeState(video);
-      if (video.dataset.vscDrm === "1") { vs.drmRetry++; if (vs.drmRetry < 10) return -1; vs.drmRetry = 0; }
-      try {
-        canvasCtx.drawImage(video, 0, 0, 16, 16);
-        const data = canvasCtx.getImageData(0, 0, 16, 16).data;
-        let weightedR = 0, weightedG = 0, weightedB = 0, totalWeight = 0, isAllZero = true;
-
-        for (let i = 0; i < data.length; i += 4) {
-          const row = (i >> 2) >> 4;
-          const yWeight = row >= 13 ? 0.3 : 1.0;
-          const pR = data[i], pG = data[i+1], pB = data[i+2];
-          weightedR += pR * yWeight;
-          weightedG += pG * yWeight;
-          weightedB += pB * yWeight;
-          totalWeight += yWeight;
-          if (pR > 0 || pG > 0 || pB > 0) isAllZero = false;
-        }
-
-        if (isAllZero) {
-          vs.blackCount++;
-          const timeProgressing = video.currentTime > 0 && !video.paused && !video.ended;
-          const recentlyHadContent = (performance.now() - vs.lastNonBlackTime) < 15000;
-          if (vs.blackCount >= 12 && !(timeProgressing && recentlyHadContent)) { video.dataset.vscDrm = "1"; }
-          return -1;
-        }
-        vs.blackCount = 0; vs.lastNonBlackTime = performance.now();
-        if (video.dataset.vscDrm === "1") { delete video.dataset.vscDrm; vs.drmRetry = 0; log.info('[AutoScene] DRM 플래그 해제'); }
-
-        const rawBrt = (weightedR/totalWeight)*0.2126 + (weightedG/totalWeight)*0.7152 + (weightedB/totalWeight)*0.0722;
-        return rawBrt;
-      } catch (e) { video.dataset.vscCorsFail = "1"; return -2; }
-    }
-
-    function buildDetailText() {
-      const active = currentValues.map((val, i) => val !== 0 ? `${VAL_NAMES[i]}${val > 0 ? '+' : ''}${val}` : null).filter(Boolean);
-      const sharpLabel = currentPresetS != null ? (currentPresetS === 'none' ? '샤프닝:OFF' : currentPresetS === 'off' ? '샤프닝:AUTO' : `샤프닝:${PRESETS.detail[currentPresetS]?.label || currentPresetS}`) : '';
-      const parts = []; if (sharpLabel) parts.push(sharpLabel); if (active.length > 0) parts.push(active.join(' · '));
-      return parts.join(' │ ') || '보정 없음';
-    }
-
-    // [REFACTOR-03] buildDetailText 캐싱
-    let _cachedDetailText = '보정 없음';
-
-    function applyValues(values, presetS) {
-      _internalBatch = true;
-      try { const obj = {}; for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = values[i]; if (presetS != null) obj.presetS = presetS; store.batch('video', obj); }
-      finally { _internalBatch = false; }
-      currentValues = values; currentPresetS = presetS;
-      _cachedDetailText = buildDetailText();
-    }
-
-    function applyAnalysisResult(rawBrt) {
-      if (rawBrt === -1) {
-        if (currentMode !== 'drm') { currentMode = 'drm'; currentBrightness = -1; lastAppliedBrightness = -999; currentLabel = SCENE_CONFIG.drm.label; applyValues(DRM_BASE, 'M'); log.info('[AutoScene] → DRM 폴백'); } return;
-      }
-      if (currentMode === 'drm') { currentMode = 'wait'; lastAppliedBrightness = -999; brightHistory.length = 0; _brightSum = 0; log.info('[AutoScene] DRM → 정상 복귀'); }
-      const smoothed = pushBrightness(rawBrt); currentBrightness = smoothed;
-      const smoothScene = classifyBrightness(smoothed, SCENE_CONFIG);
-
-      currentLabel = smoothScene.label;
-
-      const threshold = getBrightnessThreshold(smoothed);
-      const delta = Math.abs(smoothed - lastAppliedBrightness);
-      if (currentMode === 'interpolate' && delta < threshold) return;
-      currentMode = 'interpolate';
-      const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor, smoothed);
-      const presetS = getPresetSByFactors(smoothScene.darkFactor, smoothScene.brightFactor);
-      const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
-      if (changed) { applyValues(values, presetS); lastAppliedBrightness = smoothed; log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} → [${values}]`); }
-      else { lastAppliedBrightness = smoothed; }
-    }
-
-    function onManualChange() { if (_internalBatch) return; if (!store.get(P.V_AUTO_SCENE)) return; store.set(P.V_AUTO_SCENE, false); deactivate(false); log.info('[AutoScene] 수동 조작 감지 → OFF'); }
-    const _subCleanups = [];
-    for (const path of AUTOSCENE_WATCH_PATHS) _subCleanups.push(store.sub(path, onManualChange));
-
-    function onSeeked() { _pausedAnalyzed = false; }
-
-    function applyUnanalyzableFallback() {
-      if (currentMode !== 'cors') {
-        currentMode = 'cors';
-        currentLabel = SCENE_CONFIG.cors.label;
-        applyValues(DRM_BASE, 'M');
-        log.info('[AutoScene] → CORS/분석불가 폴백 (DRM_BASE)');
-      }
-    }
-
-    function tick(video) {
-      if (!store.get(P.V_AUTO_SCENE)) return;
-      if (!video?.isConnected) return;
-
-      if (video.clientWidth === 0 || video.clientHeight === 0) return;
-      if (document.hidden && !document.pictureInPictureElement) return;
-
-      if (video !== _lastTickVideo) { _lastTickVideo = video; brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999; currentMode = 'wait'; _pausedAnalyzed = false; _prevQuickLuma = -1; log.info('[AutoScene] 영상 전환 감지'); }
-      const now = performance.now();
-      if (now - lastCheck < CHECK_INTERVAL) return;
-      if (now - lastCheck > STALE_THRESHOLD && !video.paused) { brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999; _prevQuickLuma = -1; log.info(`[AutoScene] 탭 복귀 감지`); }
-      lastCheck = now;
-      const _vw = video.videoWidth || 0, _vh = video.videoHeight || 0;
-      if (_vw > 0 && _vh > 0 && (_vw / _vh) < 0.75) { if (currentMode !== 'vertical') { currentMode = 'vertical'; currentBrightness = -1; lastAppliedBrightness = -999; currentLabel = '세로형 영상 (쇼츠/릴스)'; applyValues(VERTICAL, 'S'); log.info('[AutoScene] → 세로형'); } return; }
-      if (video.paused || video.ended) {
-        if (!_pausedAnalyzed && video.readyState >= 2) {
-          _pausedAnalyzed = true;
-          const result = analyzeFrame(video);
-          if (result === -2) { applyUnanalyzableFallback(); }
-          else if (result === -1) { applyAnalysisResult(-1); }
-          else { applyAnalysisResult(result); currentLabel = (currentLabel || '일반 영상') + ' ◉ 일시정지'; _prevQuickLuma = -1; }
-        } else if (currentMode === 'wait') { currentLabel = video.readyState < 2 ? '로딩 대기중...' : '일시정지 ◉ 재생하면 분석 시작'; }
-        return;
-      }
-      if (_pausedAnalyzed) _pausedAnalyzed = false;
-      if (video.readyState >= 2 && currentMode === 'interpolate' && _prevQuickLuma >= 0) {
-        const quickLuma = sampleQuickLuma(video);
-        if (quickLuma >= 0) { const sceneThreshold = getSceneThreshold(_prevQuickLuma); if (Math.abs(quickLuma - _prevQuickLuma) < sceneThreshold) return; }
-      }
-      const result = analyzeFrame(video);
-      if (result === -2) {
-        if (video.dataset.vscCorsFail === "1") { applyUnanalyzableFallback(); }
-        else if (video.readyState < 2) { if (currentMode !== 'loading') { currentMode = 'loading'; currentLabel = '로딩 대기중...'; } }
-        return;
-      }
-      if (result === -1) { applyAnalysisResult(-1); return; }
-      if (currentMode === 'loading') { currentMode = 'wait'; lastAppliedBrightness = -999; _prevQuickLuma = -1; log.info('[AutoScene] 로딩 → 분석 시작'); }
-      if (result >= 0) _prevQuickLuma = result;
-      applyAnalysisResult(result);
-    }
-
-    function resetAutoState() { currentMode = 'wait'; currentBrightness = -1; currentLabel = '분석 대기중'; brightHistory.length = 0; _brightSum = 0; lastAppliedBrightness = -999; _lastTickVideo = null; _pausedAnalyzed = false; _prevQuickLuma = -1; }
-
-    function activate() {
-      resetAutoState();
-      currentValues = ZERO_VALUES;
-      currentPresetS = null;
-      _cachedDetailText = '보정 없음';
-      _internalBatch = true;
-      try {
-        const obj = { presetS: 'off' };
-        for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = 0;
-        store.batch('video', obj);
-      } finally { _internalBatch = false; }
-      lastCheck = performance.now() - CHECK_INTERVAL - 1;
-      scheduler.request();
-    }
-
-    function deactivate(resetValues = true) { resetAutoState(); if (resetValues) applyValues(ZERO_VALUES, 'off'); }
-    function destroy() { for (const unsub of _subCleanups) unsub(); _subCleanups.length = 0; }
-
-    return { tick, activate, deactivate, destroy, onSeeked, getLabel: () => currentLabel, getDetail: () => _cachedDetailText, getBrightness: () => currentBrightness, getMode: () => currentMode };
-  }
-
   /* ══ createUI ══ */
-  function createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters) {
+  function createUI(Store, Audio, Registry, Scheduler, OSD, Filters) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
@@ -1182,15 +928,6 @@
     .section-label { font-size: 11px; opacity: 0.5; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; padding: 6px 0 2px; }
     .preset-grid { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 0; }
     .preset-grid .fine-btn { flex: 0 0 calc(20% - 3.2px); min-width: 0; text-align: center; justify-content: center; display: inline-flex; align-items: center; padding: 4px 2px; font-size: 10px; }
-    .as-box { display: flex; flex-direction: column; padding: 8px 10px; border-radius: var(--vsc-radius-md); background: rgba(76,255,142,0.04); border: 1px solid rgba(76,255,142,0.12); margin-bottom: 6px; gap: 4px; }
-    .as-box.off { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.06); }
-    .as-top { display: flex; align-items: center; gap: 8px; width: 100%; }
-    .as-top .asl { font-size: 11px; font-weight: 600; color: var(--vsc-green); }
-    .as-box.off .as-top .asl { color: var(--vsc-text-dim); }
-    .as-tag { font-family: var(--vsc-font-mono); font-size: 10px; padding: 2px 8px; border-radius: var(--vsc-radius-sm); background: rgba(76,255,142,0.1); color: var(--vsc-green); border: 1px solid rgba(76,255,142,0.2); white-space: nowrap; max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
-    .as-box.off .as-tag { background: rgba(255,255,255,0.04); color: var(--vsc-text-muted); border-color: rgba(255,255,255,0.06); }
-    .as-detail { font-family: var(--vsc-font-mono); font-size: 10px; line-height: 1.5; opacity: 0.65; color: var(--vsc-green); word-break: break-all; }
-    .as-box.off .as-detail { color: var(--vsc-text-muted); }
     .hint { font-size: 10px; opacity: 0.5; padding: 4px 0; text-align: left; line-height: 1.5; }
     .hint.warn { opacity: 0.7; color: var(--vsc-amber); }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
@@ -1272,24 +1009,49 @@
       tabSignalCleanups.push(Store.sub(P.V_PRE_S, () => { if (panelOpen) update(); }));
       tabFns.push(update); return el;
     }
-    function buildAutoSceneBox() {
-      const box = h('div', { class: 'as-box off' }); const tag = h('span', { class: 'as-tag' }, '—'); const detail = h('div', { class: 'as-detail' }, '');
-      const tgl = mkToggle(P.V_AUTO_SCENE, (on) => { if (on) { AutoScene.activate(); OSD.show('자동 장면 ON', 800); } else { AutoScene.deactivate(); OSD.show('자동 장면 OFF', 800); } Scheduler.request(); });
-      box.append(h('div', { class: 'as-top' }, h('span', { class: 'asl' }, '자동 장면'), tag, h('div', { style: 'flex:1' }), tgl), detail);
-      const sync = () => { const on = !!Store.get(P.V_AUTO_SCENE); box.classList.toggle('off', !on); if (!on) { tag.textContent = 'OFF'; detail.textContent = ''; return; } tag.textContent = AutoScene.getLabel(); detail.textContent = AutoScene.getDetail(); };
-      tabFns.push(sync); tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) sync(); })); return box;
-    }
+
     function buildPresetGrid() {
-      const wrap = h('div', {}); wrap.append(h('label', { style: 'font-size:12px;opacity:.8;font-weight:600;display:block;padding:4px 0 2px' }, '수동 보정'));
-      const grid = h('div', { class: 'preset-grid' });
-      const buttons = MANUAL_PRESETS.map(p => {
-        const btn = h('button', { class: 'fine-btn' }, p.n);
-        btn.addEventListener('click', () => { if (Store.get(P.V_AUTO_SCENE)) { Store.set(P.V_AUTO_SCENE, false); AutoScene.deactivate(false); OSD.show('자동 장면 OFF (수동 프리셋)', 1000); } const obj = {}; for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i]; Store.batch('video', obj); Scheduler.request(); });
-        grid.appendChild(btn); return { btn, values: p.v };
+      const wrap = h('div', {});
+      const headerRow = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0 2px' });
+      const label = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '톤 보정');
+      const offBtn = h('button', { class: 'fine-btn', style: 'font-size:10px;min-width:36px' }, 'OFF');
+      offBtn.addEventListener('click', () => {
+        const obj = {};
+        for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = 0;
+        Store.batch('video', obj);
+        Scheduler.request();
       });
-      const syncGrid = () => { const current = MANUAL_PATHS.map(p => Store.get(p)); for (const { btn, values } of buttons) { btn.classList.toggle('active', values.every((v, i) => current[i] === v)); } };
-      tabFns.push(syncGrid); wrap.append(grid); return wrap;
+      headerRow.append(label, offBtn);
+      wrap.append(headerRow);
+
+      const grid = h('div', { class: 'preset-grid' });
+      const presets = MANUAL_PRESETS.filter(p => p.n !== 'OFF');
+      const buttons = presets.map(p => {
+        const btn = h('button', { class: 'fine-btn' }, p.n);
+        btn.addEventListener('click', () => {
+          const obj = {};
+          for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i];
+          Store.batch('video', obj);
+          Scheduler.request();
+        });
+        grid.appendChild(btn);
+        return { btn, values: p.v };
+      });
+
+      const offValues = MANUAL_PRESETS[0].v;
+      const syncGrid = () => {
+        const current = MANUAL_PATHS.map(p => Store.get(p));
+        const isOff = offValues.every((v, i) => current[i] === v);
+        offBtn.classList.toggle('active', isOff);
+        for (const { btn, values } of buttons) {
+          btn.classList.toggle('active', values.every((v, i) => current[i] === v));
+        }
+      };
+      tabFns.push(syncGrid);
+      wrap.append(grid);
+      return wrap;
     }
+
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
@@ -1297,7 +1059,6 @@
       return el;
     }
 
-    // [BUG-03] dB 표시 → % 표기
     function buildAudioStrengthSlider() {
       const path = P.A_STR; const min = 0, max = 100, step = 1;
       const inp = h('input', { type: 'range', min, max, step }); const valEl = h('span', { class: 'val' });
@@ -1309,7 +1070,7 @@
     }
 
     function buildVideoSchema() {
-      const s = [{ type: 'widget', build: buildInfoBar }, { type: 'widget', build: buildAutoSceneBox }, { type: 'sep' }];
+      const s = [{ type: 'widget', build: buildInfoBar }, { type: 'sep' }];
       if (IS_FIREFOX) { s.push({ type: 'hint', cls: 'warn', text: '⚠️ Firefox: 샤프닝 및 SVG 기반 톤/색상 보정은 Chromium 전용입니다.' }); }
       s.push({ type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) }, { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 }, { type: 'sep' });
       if (!IS_FIREFOX) { s.push({ type: 'widget', build: buildPresetGrid }, { type: 'sep' }, { type: 'sectionLabel', text: '톤 보정' }, { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 }); }
@@ -1433,10 +1194,7 @@
     const OSD = createOSD();
     const Params = createVideoParams(Store);
     const Filters = createFilters();
-    const AutoScene = createAutoScene(Store, Scheduler);
     Registry.setPurgeCallback((root) => Filters.purge(root));
-    Registry.setOnSeekedCallback(() => AutoScene.onSeeked());
-    // [BUG-04] loadstart 콜백 연결
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
     Store.sub(P.A_EN, () => { Audio.routeCompressor(); Audio.update(); });
@@ -1457,8 +1215,7 @@
         if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) {
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
         }
-        Audio.setTarget(target); AutoScene.tick(target);
-        // [IDEA-01] mediaKeys 반복 접근 제거 — vscDrm 플래그만으로 판단
+        Audio.setTarget(target);
         if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5); if (Math.abs(target.playbackRate - rate) > 0.001) { if (target.dataset.vscDrm !== "1") { try { target.playbackRate = rate; } catch (_) {} } } }
       } else {
         if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) {
@@ -1471,10 +1228,9 @@
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
 
-    createUI(Store, Audio, Registry, Scheduler, OSD, AutoScene, Filters);
+    createUI(Store, Audio, Registry, Scheduler, OSD, Filters);
     __internal.Store = Store; __internal._activeVideo = null;
     try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(); }); } catch (_) {}
-    if (Store.get(P.V_AUTO_SCENE)) { AutoScene.activate(); }
     Registry.rescanAll(); apply();
     log.info(`[VSC] v${VSC_VERSION} booted.`);
   }
