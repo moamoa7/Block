@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v30.0.1)
+// @name         Video_Control (v30.0.3)
 // @namespace    https://github.com/moamoa7
-// @version      30.0.1
-// @description  v30.0.1: 버그 패치 (activeVideo null화, BT.709 통일, A_EN 이중실행, playbackRate 복구, 백그라운드 탭)
+// @version      30.0.3
+// @description  v30.0.3: CORS/DRM 폴백 통일 (DRM_BASE), BUG-02(presetS AutoScene 감지), BUG-03/04(dead code), OPT-01(signalFns Set)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '30.0.1';
+  const VSC_VERSION = '30.0.3';
   const DEBUG = false;
 
   const log = {
@@ -104,18 +104,18 @@
 
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,   0,   0,   0,   0,   0] },
-    { n: '내추럴', v: [12, 18, 7, 0, 0, 0, -3, 6, 2] },
-    { n: '일상', v: [25, 14, 8, 2, 0, -3, -5, 3, 6] },
-    { n: '맑음', v: [20, 18, 18, 2, 0, 0, -4, 5, 12] },
-    { n: 'CCTV복원', v: [65, 40, 15, 0, 0, 0, -10, 10, 18] },
-     { n: '최소1',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
+    { n: '내추럴(약)', v: [20, 18, 10, 0, 0, 6, -4, 7, 3] },
+    { n: '내추럴(중)', v: [40, 32, 18, 0, 0, 8, -6, 10, 7] },
+    { n: 'Drama Dark', v: [ 60, 40, 10,  -3,   0,  -6,  -8,  +6,  5] },
+    { n: 'Night Hard', v: [ 80, 55, 15,   0,   0,  -8, -12,  +8,  8] },
+    { n: '최소1',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
     { n: '약하게1',    v: [40, 30,   2,   0,   0,  -3,  -3,   1,   3] },
     { n: '보통1',      v: [60, 45,   4,   0,   0,  -5,  -5,   2,   5] },
     { n: '강하게1',      v: [80, 60,   6,   0,   0,  -7,  -7,   3,   7] },
-     { n: '최대1',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
+    { n: '최대1',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
     { n: '최소2',      v: [20, 12,   5,   0,   0,  -1,  -1,   0,   4] },
-    { n: '약하게2',    v: [40, 24,   10,   0,   0,  -3,  -3,   4,   8] },
-    { n: '보통2',      v: [60, 36,   15,   0,   0,  -5,  -5,   6,   12] },
+    { n: '약하게2',    v: [40, 24,   10,   0,   0,  -3,  -3,   2,   8] },
+    { n: '보통2',      v: [60, 36,   15,   0,   0,  -5,  -5,   5,   12] },
     { n: '강하게2',      v: [80, 48,  20,   0,   0,  -7,  -7,   8,   16] },
     { n: '최대2',        v: [100, 60,  25,   0,   0,  -9,  -9,   10,   20] },
   ];
@@ -142,11 +142,12 @@
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
+  const AUTOSCENE_WATCH_PATHS = [...MANUAL_PATHS, P.V_PRE_S, P.V_PRE_MIX];
+
   function strengthToDisplayDb(strength) {
     const s = CLAMP(strength, 0, 100) / 100;
     const thresh = 8 + s * 24;
     const ratio = 1.5 + s * 10.5;
-    if (thresh < 0.01) return 0;
     return thresh * (1 - 1 / ratio) * 0.4;
   }
 
@@ -213,12 +214,12 @@
 
   function createScheduler() {
     let queued = false, applyFn = null;
-    const signalFns = [];
+    const signalFns = new Set();
     return {
       registerApply: fn => { applyFn = fn; },
       onSignal: fn => {
-        signalFns.push(fn);
-        return () => { const idx = signalFns.indexOf(fn); if (idx > -1) signalFns.splice(idx, 1); };
+        signalFns.add(fn);
+        return () => signalFns.delete(fn);
       },
       request: () => {
         if (queued) return;
@@ -458,7 +459,6 @@
 
       dryGainL.gain.value = 1; dryGainR.gain.value = 1;
       crossGainLR.gain.value = 0; crossGainRL.gain.value = 0;
-      delayL.delayTime.value = 0.012; delayR.delayTime.value = 0.018;
 
       splitter.connect(dryGainL, 0); splitter.connect(dryGainR, 1);
       dryGainL.connect(merger, 0, 0); dryGainR.connect(merger, 0, 1);
@@ -861,7 +861,6 @@
       if (!_quickCanvas) { _quickCanvas = document.createElement('canvas'); _quickCanvas.width = 16; _quickCanvas.height = 9; _quickCtx = _quickCanvas.getContext('2d', { willReadFrequently: true }); }
       return _quickCtx;
     }
-    // [PATCH ④] BT.709 계수로 통일 (기존 BT.601: 0.299/0.587/0.114)
     function sampleQuickLuma(video) {
       const ctx = getQuickCanvas();
       try { ctx.drawImage(video, 0, 0, 16, 9); } catch (e) { return -1; }
@@ -880,10 +879,10 @@
     function getAnalyzeState(v) { if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 }); return _videoAnalyzeState.get(v); }
     let _lastTickVideo = null;
 
-    const BASE     = [20, 15, 10, 0, 0, 0, -3, 4, 6];
-    const DARK_V   = [80, 45, 40, 0, 0, 0, -10, 11, 24];
-    const BRIGHT_V = [10, 10, 5, 0, 0, 0, -2, 3, 2];
-    const VERTICAL = [15, 13, 8, 0, 0, 0, -3, 4, 4];
+    const BASE     = [15, 13, 8, 0, 0, 0, -3, 4, 4];
+    const DARK_V   = [50, 30, 25, 0, 0, 0, -7, 8, 15];
+    const BRIGHT_V = [5, 5, 3, 0, 0, 0, -1, 2, 1];
+    const VERTICAL = [10, 10, 5, 0, 0, 0, -2, 3, 2];
     const DRM_BASE = [30, 20, 15, 0, 0, 0, -5, 6, 9];
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
@@ -891,7 +890,7 @@
     const ATTENUATE_MID = 128; const ATTENUATE_CEIL = 220;
     const VAL_NAMES = ['암부','복원','노출','색온도','틴트','채도','감마','콘트','게인'];
 
-    const SCENE_CONFIG = { dark: { max: 30, label: '어두운 장면' }, bright: { min: 220, label: '눈부신 장면' }, normal: { label: '일반 영상' }, drm: { label: '보안 영상 ◉ DRM' }, gamma: 2.2, useSmoothstep: true };
+    const SCENE_CONFIG = { dark: { max: 30, label: '어두운 장면' }, bright: { min: 220, label: '눈부신 장면' }, normal: { label: '일반 영상' }, drm: { label: '보안 영상 ◉ DRM' }, cors: { label: '분석 불가 ◉ CORS' }, gamma: 2.2, useSmoothstep: true };
     function smoothstep(edge0, edge1, x) { const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0))); return t * t * (3 - 2 * t); }
     function classifyBrightness(brightness, cfg) {
       let darkRaw = 0, brightRaw = 0;
@@ -1003,9 +1002,18 @@
 
     function onManualChange() { if (_internalBatch) return; if (!store.get(P.V_AUTO_SCENE)) return; store.set(P.V_AUTO_SCENE, false); deactivate(false); log.info('[AutoScene] 수동 조작 감지 → OFF'); }
     const _subCleanups = [];
-    for (const path of MANUAL_PATHS) _subCleanups.push(store.sub(path, onManualChange));
+    for (const path of AUTOSCENE_WATCH_PATHS) _subCleanups.push(store.sub(path, onManualChange));
 
     function onSeeked() { _pausedAnalyzed = false; }
+
+    function applyUnanalyzableFallback() {
+      if (currentMode !== 'cors') {
+        currentMode = 'cors';
+        currentLabel = SCENE_CONFIG.cors.label;
+        applyValues(DRM_BASE, 'M');
+        log.info('[AutoScene] → CORS/분석불가 폴백 (DRM_BASE)');
+      }
+    }
 
     function tick(video) {
       if (!store.get(P.V_AUTO_SCENE)) return;
@@ -1021,7 +1029,7 @@
         if (!_pausedAnalyzed && video.readyState >= 2) {
           _pausedAnalyzed = true;
           const result = analyzeFrame(video);
-          if (result === -2) { if (currentMode !== 'cors') { currentMode = 'cors'; currentLabel = '분석 불가 ◉ CORS'; applyValues(BASE, 'off'); } }
+          if (result === -2) { applyUnanalyzableFallback(); }
           else if (result === -1) { applyAnalysisResult(-1); }
           else { applyAnalysisResult(result); currentLabel = (currentLabel || '일반 영상') + ' ◉ 일시정지'; _prevQuickLuma = -1; }
         } else if (currentMode === 'wait') { currentLabel = video.readyState < 2 ? '로딩 대기중...' : '일시정지 ◉ 재생하면 분석 시작'; }
@@ -1034,7 +1042,7 @@
       }
       const result = analyzeFrame(video);
       if (result === -2) {
-        if (video.dataset.vscCorsFail === "1") { if (currentMode !== 'cors') { currentMode = 'cors'; currentLabel = '분석 불가 ◉ CORS'; applyValues(BASE, 'off'); } }
+        if (video.dataset.vscCorsFail === "1") { applyUnanalyzableFallback(); }
         else if (video.readyState < 2) { if (currentMode !== 'loading') { currentMode = 'loading'; currentLabel = '로딩 대기중...'; } }
         return;
       }
@@ -1281,7 +1289,6 @@
       video: buildVideoSchema(),
       audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
-        // [PATCH ③] onChange 제거 — Store.sub(P.A_EN)가 이미 처리
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'widget', build: buildAudioStrengthSlider },
         { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
@@ -1369,7 +1376,6 @@
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-    // [PATCH ⑤] 2000ms interval에 백그라운드 탭 가드 추가
     setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
     onFsChange(onFullscreenChange);
@@ -1401,7 +1407,6 @@
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
 
     const apply = () => {
-      // [PATCH ①②] APP_ACT 비활성 시 _activeVideo null화
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
         Audio.setTarget(null);
@@ -1409,18 +1414,15 @@
         return;
       }
       const target = Targeting.pick(Registry.videos);
-      // [PATCH ①] target 없을 때 이전 참조 해제 + playbackRate 복구
       const prevTarget = __internal._activeVideo;
       __internal._activeVideo = target || null;
       if (target) {
-        // [PATCH: playbackRate 복구] target 교체 시 이전 비디오 rate 복원
         if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) {
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
         }
         Audio.setTarget(target); AutoScene.tick(target);
         if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5); if (Math.abs(target.playbackRate - rate) > 0.001) { let isDRM = target.dataset.vscDrm === "1"; try { isDRM = isDRM || !!target.mediaKeys; } catch (_) {} if (!isDRM) { try { target.playbackRate = rate; } catch (_) {} } } }
       } else {
-        // target이 null — 이전 비디오 playbackRate 복구
         if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) {
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
         }
