@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v30.0.4)
+// @name         Video_Control (v30.0.5)
 // @namespace    https://github.com/moamoa7
-// @version      30.0.4
-// @description  v30.0.4: AutoScene 비가시 조기종료(PIP제외), CORS/DRM 폴백 통일, BUG-02~04, OPT-01
+// @version      30.0.5
+// @description  v30.0.5: BUG-01(h섀도잉),BUG-03(dB→%),BUG-04(jwCache),PERF-03(toneCache),REFACTOR-01/03/04,UI-01(OSD),IDEA-01(mediaKeys)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '30.0.4';
+  const VSC_VERSION = '30.0.5';
   const DEBUG = false;
 
   const log = {
@@ -41,9 +41,10 @@
     error: (...a) => console.error('[VSC]', ...a)
   };
 
-  function normalizeHostname(h) {
-    const parts = h.split('.');
-    if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return h;
+  // [BUG-01] 파라미터명 h → hostname (전역 h 함수 섀도잉 방지)
+  function normalizeHostname(hostname) {
+    const parts = hostname.split('.');
+    if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return hostname;
     let norm = parts;
     if (norm[0] === 'www') norm = norm.slice(1);
     return norm.join('.');
@@ -75,10 +76,11 @@
     el.style.removeProperty('-webkit-filter');
   }
 
+  // [REFACTOR-04] none/off에서 미사용 필드 제거
   const PRESETS = Object.freeze({
     detail: {
-      none: { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'OFF' },
-      off:  { sharpAdd: 0,  sharp2Add: 0,  clarityAdd: 0,  label: 'AUTO' },
+      none: { label: 'OFF' },
+      off:  { label: 'AUTO' },
       S:    { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' },
       M:    { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 4,  label: '2단' },
       L:    { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 5,  label: '3단' },
@@ -143,13 +145,6 @@
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
   const AUTOSCENE_WATCH_PATHS = [...MANUAL_PATHS, P.V_PRE_S, P.V_PRE_MIX];
-
-  function strengthToDisplayDb(strength) {
-    const s = CLAMP(strength, 0, 100) / 100;
-    const thresh = 8 + s * 24;
-    const ratio = 1.5 + s * 10.5;
-    return thresh * (1 - 1 / ratio) * 0.4;
-  }
 
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
@@ -249,6 +244,10 @@
     let _onSeekedCallback = null;
     function setOnSeekedCallback(fn) { _onSeekedCallback = fn; }
 
+    // [BUG-04] loadstart 시 외부 캐시 정리 콜백
+    let _onLoadstartCallback = null;
+    function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
+
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
@@ -262,7 +261,11 @@
       const listenerDefs = [
         ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
         ['seeked', () => { if (_onSeekedCallback) try { _onSeekedCallback(); } catch (_) {} scheduler.request(); }],
-        ['loadstart', () => { delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry; req(); }]
+        ['loadstart', () => {
+          delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
+          if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
+          req();
+        }]
       ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
@@ -362,7 +365,7 @@
       if (removed) scheduler.request();
     }
 
-    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnSeekedCallback };
+    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnSeekedCallback, setOnLoadstartCallback };
   }
 
   function createTargeting() {
@@ -390,7 +393,7 @@
   }
 
   function createAudio(store, scheduler) {
-    if (IS_FIREFOX) return { setTarget(){}, update(){}, hasCtx:()=>false, isHooked:()=>false, isBypassed:()=>true, applyStrength(){}, applySurroundWidth(){}, routeCompressor(){} };
+    if (IS_FIREFOX) return { setTarget(){}, update(){}, hasCtx:()=>false, isHooked:()=>false, isBypassed:()=>true, applyStrength(){}, applySurroundWidth(){}, routeCompressor(){}, onVideoLoadstart(){} };
 
     let ctx = null;
     let splitter = null, merger = null;
@@ -436,11 +439,8 @@
       return true;
     }
 
-    function isAnyAudioActive() {
-      if (store.get(P.A_EN)) return true;
-      if (Number(store.get(P.A_SURROUND)) > 0) return true;
-      return false;
-    }
+    // [REFACTOR-01] 단순화
+    const isAnyAudioActive = () => store.get(P.A_EN) || Number(store.get(P.A_SURROUND)) > 0;
 
     function initCtx() {
       if (ctx) return true;
@@ -652,6 +652,18 @@
       fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
     }
 
+    // [BUG-04] loadstart 시 jwCache + streamMap 정리
+    function onVideoLoadstart(video) {
+      jwCache.delete(video);
+      const s = streamMap.get(video);
+      if (s) {
+        if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        try { s.disconnect(); } catch (_) {}
+        streamMap.delete(video);
+        if (currentSrc === s) { currentSrc = null; currentMode = 'none'; }
+      }
+    }
+
     let gestureHooked = false;
     const onGesture = () => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); if (ctx?.state === 'running' && gestureHooked) { for (const evt of ['pointerdown','keydown','click']) window.removeEventListener(evt, onGesture, true); gestureHooked = false; } };
     function ensureGestureHook() { if (gestureHooked) return; gestureHooked = true; for (const evt of ['pointerdown','keydown','click']) window.addEventListener(evt, onGesture, { passive: true, capture: true }); }
@@ -661,7 +673,7 @@
     return {
       setTarget, update: updateMix,
       hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode,
-      applyStrength, applySurroundWidth, routeCompressor
+      applyStrength, applySurroundWidth, routeCompressor, onVideoLoadstart
     };
   }
 
@@ -673,7 +685,8 @@
 
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
       const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
-      if (toneCache.has(key)) { const val = toneCache.get(key); toneCache.delete(key); toneCache.set(key, val); return val; }
+      // [PERF-03] hit 시 재삽입 제거
+      if (toneCache.has(key)) return toneCache.get(key);
       const ev = Math.log2(Math.max(1e-6, gain));
       const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
       const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast);
@@ -827,13 +840,19 @@
     };
   }
 
+  // [UI-01] OSD 재생성 → 이동
   function createOSD() {
     let el = null, timerId = 0;
     return {
       show: (text, ms = 1200) => {
         if (!document.body) return;
         const root = document.fullscreenElement || document.documentElement || document.body;
-        if (!el || el.parentNode !== root) { el?.remove(); el = document.createElement('div'); el.id = 'vsc-osd'; el.setAttribute('data-vsc-ui', '1'); el.style.cssText = 'position:fixed!important;top:48px!important;left:50%!important;transform:translateX(-50%)!important;background:rgba(12,12,18,0.92)!important;color:rgba(255,255,255,0.95)!important;padding:10px 28px!important;border-radius:14px!important;border:1px solid rgba(0,229,255,0.15)!important;font:600 13px/1.4 system-ui,sans-serif!important;z-index:2147483647!important;pointer-events:none!important;opacity:0!important;transition:opacity 0.2s,transform 0.3s!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(0,229,255,0.08)!important;text-align:center!important;'; root.appendChild(el); }
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'vsc-osd'; el.setAttribute('data-vsc-ui', '1');
+          el.style.cssText = 'position:fixed!important;top:48px!important;left:50%!important;transform:translateX(-50%)!important;background:rgba(12,12,18,0.92)!important;color:rgba(255,255,255,0.95)!important;padding:10px 28px!important;border-radius:14px!important;border:1px solid rgba(0,229,255,0.15)!important;font:600 13px/1.4 system-ui,sans-serif!important;z-index:2147483647!important;pointer-events:none!important;opacity:0!important;transition:opacity 0.2s,transform 0.3s!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(0,229,255,0.08)!important;text-align:center!important;';
+        }
+        if (el.parentNode !== root) root.appendChild(el);
         el.textContent = text;
         requestAnimationFrame(() => { el.style.setProperty('opacity', '1', 'important'); });
         clearTimeout(timerId);
@@ -972,11 +991,15 @@
       return parts.join(' │ ') || '보정 없음';
     }
 
+    // [REFACTOR-03] buildDetailText 캐싱
+    let _cachedDetailText = '보정 없음';
+
     function applyValues(values, presetS) {
       _internalBatch = true;
       try { const obj = {}; for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = values[i]; if (presetS != null) obj.presetS = presetS; store.batch('video', obj); }
       finally { _internalBatch = false; }
       currentValues = values; currentPresetS = presetS;
+      _cachedDetailText = buildDetailText();
     }
 
     function applyAnalysisResult(rawBrt) {
@@ -1019,7 +1042,6 @@
       if (!store.get(P.V_AUTO_SCENE)) return;
       if (!video?.isConnected) return;
 
-      // [OPT-02] 비가시 상태 조기 종료 (PIP 제외)
       if (video.clientWidth === 0 || video.clientHeight === 0) return;
       if (document.hidden && !document.pictureInPictureElement) return;
 
@@ -1063,6 +1085,7 @@
       resetAutoState();
       currentValues = ZERO_VALUES;
       currentPresetS = null;
+      _cachedDetailText = '보정 없음';
       _internalBatch = true;
       try {
         const obj = { presetS: 'off' };
@@ -1076,7 +1099,7 @@
     function deactivate(resetValues = true) { resetAutoState(); if (resetValues) applyValues(ZERO_VALUES, 'off'); }
     function destroy() { for (const unsub of _subCleanups) unsub(); _subCleanups.length = 0; }
 
-    return { tick, activate, deactivate, destroy, onSeeked, getLabel: () => currentLabel, getDetail: () => buildDetailText(), getBrightness: () => currentBrightness, getMode: () => currentMode };
+    return { tick, activate, deactivate, destroy, onSeeked, getLabel: () => currentLabel, getDetail: () => _cachedDetailText, getBrightness: () => currentBrightness, getMode: () => currentMode };
   }
 
   /* ══ createUI ══ */
@@ -1267,10 +1290,11 @@
       return el;
     }
 
+    // [BUG-03] dB 표시 → % 표기
     function buildAudioStrengthSlider() {
       const path = P.A_STR; const min = 0, max = 100, step = 1;
       const inp = h('input', { type: 'range', min, max, step }); const valEl = h('span', { class: 'val' });
-      function updateUI(v) { inp.value = String(v); const db = strengthToDisplayDb(v); valEl.textContent = `+${db.toFixed(1)}dB`; inp.style.setProperty('--fill', `${(v / 100) * 100}%`); }
+      function updateUI(v) { inp.value = String(v); valEl.textContent = `${v}%`; inp.style.setProperty('--fill', `${(v / 100) * 100}%`); }
       inp.addEventListener('input', () => { const v = parseInt(inp.value, 10); Store.set(path, v); updateUI(v); });
       const sync = () => updateUI(Number(Store.get(path) ?? 50));
       tabFns.push(sync); sync();
@@ -1404,8 +1428,9 @@
     const Filters = createFilters();
     const AutoScene = createAutoScene(Store, Scheduler);
     Registry.setPurgeCallback((root) => Filters.purge(root));
-
     Registry.setOnSeekedCallback(() => AutoScene.onSeeked());
+    // [BUG-04] loadstart 콜백 연결
+    Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
     Store.sub(P.A_EN, () => { Audio.routeCompressor(); Audio.update(); });
     Store.sub(P.A_STR, () => { Audio.applyStrength(Number(Store.get(P.A_STR)) || 50); Audio.update(); });
@@ -1426,7 +1451,8 @@
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
         }
         Audio.setTarget(target); AutoScene.tick(target);
-        if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5); if (Math.abs(target.playbackRate - rate) > 0.001) { let isDRM = target.dataset.vscDrm === "1"; try { isDRM = isDRM || !!target.mediaKeys; } catch (_) {} if (!isDRM) { try { target.playbackRate = rate; } catch (_) {} } } }
+        // [IDEA-01] mediaKeys 반복 접근 제거 — vscDrm 플래그만으로 판단
+        if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5); if (Math.abs(target.playbackRate - rate) > 0.001) { if (target.dataset.vscDrm !== "1") { try { target.playbackRate = rate; } catch (_) {} } } }
       } else {
         if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) {
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
