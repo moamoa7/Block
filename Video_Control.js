@@ -2,7 +2,7 @@
 // @name         Video_Control (v30.0.0)
 // @namespace    https://github.com/moamoa7
 // @version      30.0.0
-// @description  v30.0.0: 오디오 간소화 (평준화+공간감만), 수동보정 프리셋 디테일 유지, RGB채널 색온도 감지, 분산+상하구역 역광/안개 감지
+// @description  v30.0.0: 오디오 간소화 (평준화+공간감만), 수동보정 프리셋 디테일 유지
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -51,14 +51,6 @@
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.22;
-
-  const VARIANCE_HIGH            = 2800;
-  const VARIANCE_LOW             = 400;
-  const REGION_DIFF_MIN          = 40;
-  const COLOR_TEMP_CLAMP         = 3;
-  const BACKLIGHT_SHADOW_BOOST   = 18;
-  const BACKLIGHT_RECOVERY_BOOST = 14;
-  const HAZE_CONTRAST_BOOST      = 6;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -115,12 +107,12 @@
     { n: '내추럴', v: [12, 18, 7, 0, 0, 0, -3, 6, 2] },
     { n: '일상', v: [25, 14, 8, 2, 0, -3, -5, 3, 6] },
     { n: '맑음', v: [20, 18, 18, 2, 0, 0, -4, 5, 12] },
-    { n: 'CCTV복원', v: [39, 24, 9, 0, 0, 0, -6, 6, 11] },
-    { n: '최소1',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
+    { n: 'CCTV복원', v: [65, 40, 15, 0, 0, 0, -10, 10, 18] },
+     { n: '최소1',      v: [20, 15,   0,   0,   0,  -1,  -1,   0,   1] },
     { n: '약하게1',    v: [40, 30,   2,   0,   0,  -3,  -3,   1,   3] },
     { n: '보통1',      v: [60, 45,   4,   0,   0,  -5,  -5,   2,   5] },
     { n: '강하게1',      v: [80, 60,   6,   0,   0,  -7,  -7,   3,   7] },
-    { n: '최대1',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
+     { n: '최대1',        v: [100, 75,  8,   0,   0,  -9,  -9,   4,   9] },
     { n: '최소2',      v: [20, 12,   5,   0,   0,  -1,  -1,   0,   4] },
     { n: '약하게2',    v: [40, 24,   10,   0,   0,  -3,  -3,   4,   8] },
     { n: '보통2',      v: [60, 36,   15,   0,   0,  -5,  -5,   6,   12] },
@@ -887,11 +879,11 @@
     function getAnalyzeState(v) { if (!_videoAnalyzeState.has(v)) _videoAnalyzeState.set(v, { blackCount: 0, drmRetry: 0, lastNonBlackTime: 0 }); return _videoAnalyzeState.get(v); }
     let _lastTickVideo = null;
 
-    const BASE     = [20, 15, 0, 0, 0, -1, -1, 2, 5];
-    const DARK_V   = [50, 30, 3, 0, 0, -4, -4, 5, 17];
-    const BRIGHT_V = [10, 10, 0, 0, 0,  0, -2, 3, -3];
-    const VERTICAL = [15, 12, 8, 0, 0, -1, -2, 3, 4];
-    const DRM_BASE = [30, 20, 1, 0, 0, -2, -2, 2, -1];
+    const BASE     = [20, 15, 10, 0, 0, 0, -3, 4, 6];
+    const DARK_V   = [80, 45, 40, 0, 0, 0, -10, 11, 24];
+    const BRIGHT_V = [10, 10, 5, 0, 0, 0, -2, 3, 2];
+    const VERTICAL = [15, 13, 8, 0, 0, 0, -3, 4, 4];
+    const DRM_BASE = [30, 20, 15, 0, 0, 0, -5, 6, 9];
     const DARK_BOOST = DARK_V.map((v, i) => v - BASE[i]);
     const BRIGHT_CUT = BRIGHT_V.map((v, i) => v - BASE[i]);
     const BRIGHT_ATTENUATE_IDX = new Set([2, 7, 8]);
@@ -914,23 +906,13 @@
     }
     function getBrightnessThreshold(b) { return b < 60 ? 6 : b > 180 ? 10 : 8; }
 
-    function interpolate(darkFactor, brightFactor, brightness, analysisExtra) {
+    function interpolate(darkFactor, brightFactor, brightness) {
       const values = BASE.map((base, i) => {
         if (darkFactor > 0) return Math.round(base + DARK_BOOST[i] * darkFactor);
         if (brightFactor > 0) return Math.round(base + BRIGHT_CUT[i] * brightFactor);
         if (BRIGHT_ATTENUATE_IDX.has(i) && brightness > ATTENUATE_MID) { const t = (brightness - ATTENUATE_MID) / (ATTENUATE_CEIL - ATTENUATE_MID); const scale = Math.max(0.3, 1.0 - CLAMP(t, 0, 1) * 0.7); return Math.round(base * scale); }
         return base;
       });
-      if (analysisExtra && typeof analysisExtra.colorTemp === 'number') {
-        values[3] = CLAMP(Math.round(values[3] + analysisExtra.colorTemp), -COLOR_TEMP_CLAMP, COLOR_TEMP_CLAMP);
-      }
-      if (analysisExtra && analysisExtra.isBacklit) {
-        values[0] += BACKLIGHT_SHADOW_BOOST;
-        values[1] += BACKLIGHT_RECOVERY_BOOST;
-      }
-      if (analysisExtra && analysisExtra.isHazy) {
-        values[7] += HAZE_CONTRAST_BOOST;
-      }
       return values;
     }
 
@@ -956,11 +938,6 @@
         canvasCtx.drawImage(video, 0, 0, 16, 16);
         const data = canvasCtx.getImageData(0, 0, 16, 16).data;
         let weightedR = 0, weightedG = 0, weightedB = 0, totalWeight = 0, isAllZero = true;
-        let sumR = 0, sumB = 0;
-        let sumLumaSq = 0, sumLumaRaw = 0;
-        let sumTop = 0, countTop = 0;
-        let sumBot = 0, countBot = 0;
-        const N = 16 * 16;
 
         for (let i = 0; i < data.length; i += 4) {
           const row = (i >> 2) >> 4;
@@ -971,13 +948,6 @@
           weightedB += pB * yWeight;
           totalWeight += yWeight;
           if (pR > 0 || pG > 0 || pB > 0) isAllZero = false;
-          sumR += pR;
-          sumB += pB;
-          const pixelLuma = pR * 0.2126 + pG * 0.7152 + pB * 0.0722;
-          sumLumaRaw += pixelLuma;
-          sumLumaSq += pixelLuma * pixelLuma;
-          if (row < 8) { sumTop += pixelLuma; countTop++; }
-          else         { sumBot += pixelLuma; countBot++; }
         }
 
         if (isAllZero) {
@@ -991,18 +961,7 @@
         if (video.dataset.vscDrm === "1") { delete video.dataset.vscDrm; vs.drmRetry = 0; log.info('[AutoScene] DRM 플래그 해제'); }
 
         const rawBrt = (weightedR/totalWeight)*0.2126 + (weightedG/totalWeight)*0.7152 + (weightedB/totalWeight)*0.0722;
-        const avgR = sumR / N;
-        const avgB = sumB / N;
-        const avgLuma = sumLumaRaw / N;
-        const variance = (sumLumaSq / N) - (avgLuma * avgLuma);
-        const topAvg = countTop > 0 ? sumTop / countTop : avgLuma;
-        const botAvg = countBot > 0 ? sumBot / countBot : avgLuma;
-        const colorTempRaw = (avgR - avgB) / 255;
-        const colorTemp = CLAMP(-colorTempRaw * COLOR_TEMP_CLAMP * 2, -COLOR_TEMP_CLAMP, COLOR_TEMP_CLAMP);
-        const isBacklit = (variance > VARIANCE_HIGH) && ((topAvg - botAvg) > REGION_DIFF_MIN);
-        const isHazy = (variance < VARIANCE_LOW) && (Math.abs(topAvg - botAvg) < 15);
-
-        return { rawBrt, colorTemp, variance, topAvg, botAvg, isBacklit, isHazy };
+        return rawBrt;
       } catch (e) { video.dataset.vscCorsFail = "1"; return -2; }
     }
 
@@ -1020,36 +979,24 @@
       currentValues = values; currentPresetS = presetS;
     }
 
-    function applyAnalysisResult(result) {
-      let rawBrt, analysisExtra;
-      if (typeof result === 'number') { rawBrt = result; analysisExtra = null; }
-      else { rawBrt = result.rawBrt; analysisExtra = result; }
-
-      if (rawBrt === -1 || (typeof result === 'number' && result === -1)) {
+    function applyAnalysisResult(rawBrt) {
+      if (rawBrt === -1) {
         if (currentMode !== 'drm') { currentMode = 'drm'; currentBrightness = -1; lastAppliedBrightness = -999; currentLabel = SCENE_CONFIG.drm.label; applyValues(DRM_BASE, 'M'); log.info('[AutoScene] → DRM 폴백'); } return;
       }
       if (currentMode === 'drm') { currentMode = 'wait'; lastAppliedBrightness = -999; brightHistory.length = 0; _brightSum = 0; log.info('[AutoScene] DRM → 정상 복귀'); }
       const smoothed = pushBrightness(rawBrt); currentBrightness = smoothed;
       const smoothScene = classifyBrightness(smoothed, SCENE_CONFIG);
 
-      let extraLabel = '';
-      if (analysisExtra) {
-        if (analysisExtra.isBacklit) extraLabel = ' ◉ 역광';
-        else if (analysisExtra.isHazy) extraLabel = ' ◉ 안개';
-        if (Math.abs(analysisExtra.colorTemp) > 0.5) {
-          extraLabel += analysisExtra.colorTemp < 0 ? ' ◉ 쿨톤' : ' ◉ 웜톤';
-        }
-      }
-      currentLabel = smoothScene.label + extraLabel;
+      currentLabel = smoothScene.label;
 
       const threshold = getBrightnessThreshold(smoothed);
       const delta = Math.abs(smoothed - lastAppliedBrightness);
       if (currentMode === 'interpolate' && delta < threshold) return;
       currentMode = 'interpolate';
-      const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor, smoothed, analysisExtra);
+      const values = interpolate(smoothScene.darkFactor, smoothScene.brightFactor, smoothed);
       const presetS = getPresetSByFactors(smoothScene.darkFactor, smoothScene.brightFactor);
       const changed = values.some((v, i) => v !== currentValues[i]) || presetS !== currentPresetS;
-      if (changed) { applyValues(values, presetS); lastAppliedBrightness = smoothed; log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} → [${values}]${extraLabel}`); }
+      if (changed) { applyValues(values, presetS); lastAppliedBrightness = smoothed; log.info(`[AutoScene] 밝기 ${Math.round(smoothed)} → [${values}]`); }
       else { lastAppliedBrightness = smoothed; }
     }
 
@@ -1092,7 +1039,7 @@
       }
       if (result === -1) { applyAnalysisResult(-1); return; }
       if (currentMode === 'loading') { currentMode = 'wait'; lastAppliedBrightness = -999; _prevQuickLuma = -1; log.info('[AutoScene] 로딩 → 분석 시작'); }
-      if (result.rawBrt >= 0) _prevQuickLuma = result.rawBrt;
+      if (result >= 0) _prevQuickLuma = result;
       applyAnalysisResult(result);
     }
 
