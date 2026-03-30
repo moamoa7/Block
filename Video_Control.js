@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.0.0)
+// @name         Video_Control (v31.1.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.0.0
-// @description  v31.0.0: 자동장면 삭제, 수동프리셋 4계열화(내추럴/선명/시네마/사용자), 톤보정 UI 개선
+// @version      31.1.0
+// @description  v31.1.0: 오디오 상태 체크 보완 / 오디오 버튼 클릭으로 변경 / 수동보정 - 게임 버튼 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.0.0';
+  const VSC_VERSION = '31.1.0';
   const DEBUG = false;
 
   const log = {
@@ -109,16 +109,21 @@
     { n: '내추럴(중간)', v: [60, 30,  0,  0, 0,  0,  0,  0,  0] },
     { n: '내추럴(강)', v: [80, 40,  0,  0, 0,  0, 0,  0,  0] },
     { n: '내추럴(최대)', v: [100, 50,  0,  0, 0,  0, 0,  0,  0] },
+    { n: '게임(약)',   v: [25, 10,  3, 0, 0,  0,  -3,  3,  2] },
+    { n: '게임(보통)', v: [45, 20,  6, 0, 0,  0,  -5,  5,  4] },
+    { n: '게임(중간)', v: [60, 30, 10, 0, 0,  1,  -7,  7,  6] },
+    { n: '게임(강)',   v: [75, 38, 14, 0, 0,  1,  -9,  9,  8] },
+    { n: '게임(최대)', v: [90, 45, 18, 0, 0,  2, -11, 10, 10] },
     { n: '드라마(약)',   v: [20, 12,  5, 0, 0,  3,  -2,  7,  4] },
     { n: '드라마(보통)', v: [35, 22, 10, 0, 0,  5,  -4, 11,  8] },
     { n: '드라마(중간)', v: [50, 32, 15, 0, 0,  6,  -6, 14, 11] },
     { n: '드라마(강)',   v: [65, 42, 20, 0, 0,  7,  -8, 16, 14] },
     { n: '드라마(최대)', v: [80, 52, 25, 0, 0,  7, -10, 17, 17] },
-    { n: '소프트(약)',   v: [25, 16,  5,  4, 0, -1, -4,  1,  2] },
-    { n: '소프트(보통)', v: [45, 30, 10,  6, 0, -2, -6,  2,  4] },
-    { n: '소프트(중간)', v: [62, 42, 15,  8, 0, -3, -8,  3,  6] },
-    { n: '소프트(강)',   v: [78, 52, 20, 10, 0, -4,-10,  4,  9] },
-    { n: '소프트(최대)', v: [95, 62, 25, 12, 0, -5,-12,  5, 12] },
+    { n: '야간(약)',   v: [25, 16,  5,  4, 0, -1, -4,  1,  2] },
+    { n: '야간(보통)', v: [45, 30, 10,  6, 0, -2, -6,  2,  4] },
+    { n: '야간(중간)', v: [62, 42, 15,  8, 0, -3, -8,  3,  6] },
+    { n: '야간(강)',   v: [78, 52, 20, 10, 0, -4,-10,  4,  9] },
+    { n: '야간(최대)', v: [95, 62, 25, 12, 0, -5,-12,  5, 12] },
     { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
     { n: '시네마(보통)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
     { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
@@ -1085,16 +1090,6 @@
 }
 
 
-    function buildAudioStrengthSlider() {
-      const path = P.A_STR; const min = 0, max = 100, step = 1;
-      const inp = h('input', { type: 'range', min, max, step }); const valEl = h('span', { class: 'val' });
-      function updateUI(v) { inp.value = String(v); valEl.textContent = `${v}%`; inp.style.setProperty('--fill', `${(v / 100) * 100}%`); }
-      inp.addEventListener('input', () => { const v = parseInt(inp.value, 10); Store.set(path, v); updateUI(v); });
-      const sync = () => updateUI(Number(Store.get(path) ?? 50));
-      tabFns.push(sync); sync();
-      return mkRow('평준화 강도', inp, valEl);
-    }
-
     function buildVideoSchema() {
       const s = [{ type: 'widget', build: buildInfoBar }, { type: 'sep' }];
       if (IS_FIREFOX) { s.push({ type: 'hint', cls: 'warn', text: '⚠️ Firefox: 샤프닝 및 SVG 기반 톤/색상 보정은 Chromium 전용입니다.' }); }
@@ -1110,18 +1105,35 @@
 
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
-      audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
-        { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
-        { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
-        { type: 'widget', build: buildAudioStrengthSlider },
-        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
-        { type: 'sep' },
-        { type: 'sectionLabel', text: '공간감 (헤드폰)' },
-        { type: 'slider', label: '공간감', path: P.A_SURROUND, min: 0, max: 100, step: 1 },
-        { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 0을 권장합니다.' },
-        { type: 'sep' },
-        { type: 'widget', build: buildAudioStatus },
-      ],
+      // 기존 buildAudioStrengthSlider 함수 삭제하고, TAB_SCHEMA의 audio 부분을 이렇게 변경
+
+audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
+  { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
+  { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
+  { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
+    { v: 0, l: 'OFF' },
+    { v: 20, l: '20%' },
+    { v: 40, l: '40%' },
+    { v: 60, l: '60%' },
+    { v: 80, l: '80%' },
+    { v: 100, l: '100%' },
+  ]},
+  { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
+  { type: 'sep' },
+  { type: 'sectionLabel', text: '공간감 (헤드폰/이어폰)' },
+  { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [
+    { v: 0, l: 'OFF' },
+    { v: 20, l: '20' },
+    { v: 40, l: '40' },
+    { v: 60, l: '60' },
+    { v: 80, l: '80' },
+    { v: 100, l: '100' },
+  ]},
+  { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
+  { type: 'sep' },
+  { type: 'widget', build: buildAudioStatus },
+],
+
       playback: [
         { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
         { type: 'widget', build: buildRateDisplay },
