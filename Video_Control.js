@@ -50,7 +50,7 @@
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
-  const SHARP_CAP = 0.22;
+  const SHARP_CAP = 0.50;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
