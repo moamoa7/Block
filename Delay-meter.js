@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.0.0
+// @version      16.1.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '16.0.0'
-    : '16.0.0';
+    ? GM_info?.script?.version ?? '16.1.0'
+    : '16.1.0';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -139,28 +139,16 @@
 
   /* ================================================================
    *  §2-A. 버퍼 급변 감지 (광고·소스전환 등 통합 대응)
-   * ================================================================
-   *
-   *  목적: 광고 전환, CDN 전환, 품질 변경 등으로 버퍼 값이
-   *        급격히 변할 때 제어 엔진의 오작동을 방지.
-   *
-   *  원리: 이전 안정 버퍼 대비 현재 raw 값의 차이가 임계치를
-   *        넘으면 제어를 유보하고 R_NORM을 유지.
-   *        연속 STABLE_NEEDED tick 동안 정상 범위이면 제어 재개.
-   */
+   * ================================================================ */
 
   const BufGuard = (() => {
-    const SPIKE_THRESH_RATIO = 1.5;   // target 대비 급변 임계 배율
-    const STABLE_NEEDED = 3;          // 연속 안정 tick 수
+    const SPIKE_THRESH_RATIO = 1.5;
+    const STABLE_NEEDED = 3;
 
-    let _lastStable = -1;   // 마지막 안정 버퍼값
-    let _holdTicks = 0;     // 급변 후 안정 카운터
-    let _holding = false;   // 현재 유보 중 여부
+    let _lastStable = -1;
+    let _holdTicks = 0;
+    let _holding = false;
 
-    /**
-     * @param {number} raw  - 현재 raw 버퍼 (초)
-     * @returns {boolean}   - true이면 제어 유보 필요
-     */
     const check = raw => {
       if (raw < 0) return false;
 
@@ -169,7 +157,6 @@
       if (_lastStable >= 0) {
         const delta = Math.abs(raw - _lastStable);
         if (delta > thresh) {
-          /* 급변 감지: 유보 진입 + 버퍼 링 리셋 */
           _holding = true;
           _holdTicks = 0;
           resetBufRing();
@@ -180,7 +167,6 @@
       if (_holding) {
         _holdTicks++;
         if (_holdTicks >= STABLE_NEEDED) {
-          /* 충분히 안정됨: 유보 해제 */
           _holding = false;
           _holdTicks = 0;
           _lastStable = raw;
@@ -189,7 +175,6 @@
         return true;
       }
 
-      /* 정상 상태: 안정값 갱신 */
       _lastStable = raw;
       return false;
     };
@@ -293,7 +278,11 @@
   }
 
   let panelOpen = cfg.open ?? false;
-  let _hyst = Math.max(0.2, target * 0.1);
+
+  /* ── 히스테리시스 (데드존) ──
+   *  v16.1: target * 0.1 → target * 0.15 로 확장.
+   *  목표값 근처에서 기어가 불필요하게 전환되는 것을 억제. */
+  let _hyst = Math.max(0.3, target * 0.15);
 
   _colorDenom = target * 0.5;
 
@@ -524,15 +513,37 @@
 
   /* ================================================================
    *  §7. 제어 엔진
-   * ================================================================ */
+   * ================================================================
+   *
+   *  v16.1 변경 사항:
+   *  ─ 데드존 확장 (_hyst: target*0.1 → target*0.15, 최소 0.3s)
+   *  ─ R_NORM 상태에서 초과가 데드존 이내이면 가속하지 않음
+   *  ─ 목표보다 짧을 때: sleep·감속 없이 1.0× 유지 → 자연 회복
+   *    (라이브 스트리밍은 서버가 계속 세그먼트를 보내므로
+   *     1.0× 재생만으로도 버퍼가 서서히 다시 쌓임)
+   */
 
   const computeDesiredGear = buf => {
     if (buf < 0) return R_NORM;
     const ex = buf - target;
+
+    /* 목표보다 많이 초과 → 고속 */
     if (ex > target * 0.8) return R_HIGH;
+
+    /* 목표보다 적당히 초과 → 중속 */
     if (ex > target * 0.4) return R_MED;
-    if (ex < -_hyst)       return R_NORM;
+
+    /* 목표보다 짧음 → 1.0× 유지, 자연 회복에 맡김 */
+    if (ex < -_hyst) return R_NORM;
+
+    /* ── 데드존: 초과가 있지만 _hyst 이내 ──
+     *  현재 R_NORM이면 굳이 가속하지 않는다.
+     *  목표 근처에서 NORM↔MED를 반복하는 진동을 방지. */
+    if (ex <= _hyst && control.gear === R_NORM) return R_NORM;
+
+    /* 이미 HIGH였으면 MED로 한 단계 내림 */
     if (control.gear === R_HIGH) return R_MED;
+
     return control.gear;
   };
 
@@ -850,7 +861,7 @@
     /* 슬라이더 타겟 변경 공통 로직 */
     const applyTarget = t => {
       target = t;
-      _hyst = Math.max(0.2, target * 0.1);
+      _hyst = Math.max(0.3, target * 0.15);
       _colorDenom = target * 0.5;
       _colorKey = -1;
       slInput.value = target;
