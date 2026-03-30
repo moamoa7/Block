@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.2.1)
+// @name         Video_Control (v31.2.2)
 // @namespace    https://github.com/moamoa7
-// @version      31.2.1
-// @description  v31.2.1: 수동보정의 게임셋 -> 마스터셋으로 이름 변경 및 상수 조정
+// @version      31.2.2
+// @description  v31.2.2: 패치 일부 취소 (폴링 간격 완화 : ok.ru에서 아이콘 사라짐 방지) / 모바일 샤프 강도 조절 상향
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.2.1';
+  const VSC_VERSION = '31.2.2';
   const DEBUG = false;
 
   const log = {
@@ -50,7 +50,7 @@
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
-  const SHARP_CAP = 0.50;
+  const SHARP_CAP = 0.15;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -102,7 +102,7 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-const MANUAL_PRESETS = [
+  const MANUAL_PRESETS = [
   { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
   { n: '내추럴(약)', v: [20, 10,  0,  0, 0,  0,  0,  0,  0] },
   { n: '내추럴(보통)', v: [40, 20,  0,  0, 0,  0,  0,  0,  0] },
@@ -135,7 +135,6 @@ const MANUAL_PRESETS = [
   { n: '사용자(강)',   v: [80, 52, 32,  0, 0, 0, -10, 11, 13] },
   { n: '사용자(최대)', v: [100, 65, 40, 0, 0, 0, -12, 13, 17] },
 ];
-
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
@@ -825,7 +824,7 @@ const MANUAL_PRESETS = [
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
-        const platformScale = IS_MOBILE ? 0.65 : 1.0;
+        const platformScale = IS_MOBILE ? 0.70 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
         if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
@@ -1216,9 +1215,10 @@ const MANUAL_PRESETS = [
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-    /* [패치4] 폴링 간격 완화: 2s→5s, 5s→15s */
-    setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 5000);
-    setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 15000);
+
+    setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
+    setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
+
     onFsChange(onFullscreenChange);
 
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
