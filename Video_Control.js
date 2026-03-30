@@ -119,11 +119,11 @@
     { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
     { n: '시네마(강)',   v: [80, 48, 20, -4, 0, -8, -8, 13, 16] },
     { n: '시네마(최대)', v: [100, 60, 25, -5, 0, -10, -10, 16, 20] },
-    { n: '사용자(약)', v: [20, 15, 10, 0, 0, 0, -3, 4, 6] },
-    { n: '사용자(보통)', v: [40, 25, 20, 0, 0, 0, -6, 7, 12] },
-    { n: '사용자(중간)', v: [60, 35, 30, 0, 0, 0, -8, 9, 18] },
-    { n: '사용자(강)', v: [80, 45, 40, 0, 0, 0, -10, 11, 24] },
-    { n: '사용자(최대)', v: [100, 55, 50, 0, 0, 0, -12, 13, 30] },
+    { n: '사용자(약)',   v: [20, 14,  8,  0, 0, 0,  -4,  4,  3] },
+    { n: '사용자(보통)', v: [40, 28, 16,  0, 0, 0,  -6,  7,  6] },
+    { n: '사용자(중간)', v: [60, 40, 24,  0, 0, 0,  -8,  9, 10] },
+    { n: '사용자(강)',   v: [80, 52, 32,  0, 0, 0, -10, 11, 13] },
+    { n: '사용자(최대)', v: [100, 65, 40, 0, 0, 0, -12, 13, 17] },
   ];
 
   const DEFAULTS = {
@@ -1054,10 +1054,31 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
     function buildAudioStatus() {
-      const el = h('div', { class: 'hint' }, '상태: 대기');
-      tabSignalCleanups.push(Scheduler.onSignal(() => { if (!panelOpen) return; const hooked = Audio.isHooked(), bypassed = Audio.isBypassed(); el.textContent = !Audio.hasCtx() ? '상태: 대기' : (hooked && !bypassed) ? '상태: 활성 (처리 중)' : bypassed ? '상태: 바이패스 (원본 출력)' : '상태: 준비 (연결 대기)'; }));
-      return el;
+  const el = h('div', { class: 'hint' }, '상태: 대기');
+  tabSignalCleanups.push(Scheduler.onSignal(() => {
+    if (!panelOpen) return;
+    const enabled = Store.get(P.A_EN);
+    const surround = Number(Store.get(P.A_SURROUND)) > 0;
+    const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
+
+    if (!Audio.hasCtx()) {
+      el.textContent = '상태: 대기';
+    } else if (!enabled && !surround) {
+      el.textContent = '상태: 비활성 (오디오 처리 OFF)';
+    } else if (hooked && !bypassed) {
+      const parts = [];
+      if (enabled) parts.push('평준화');
+      if (surround) parts.push('공간감');
+      el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`;
+    } else if (bypassed) {
+      el.textContent = '상태: 바이패스 (원본 출력)';
+    } else {
+      el.textContent = '상태: 준비 (연결 대기)';
     }
+  }));
+  return el;
+}
+
 
     function buildAudioStrengthSlider() {
       const path = P.A_STR; const min = 0, max = 100, step = 1;
@@ -1092,7 +1113,7 @@
         { type: 'sep' },
         { type: 'sectionLabel', text: '공간감 (헤드폰)' },
         { type: 'slider', label: '공간감', path: P.A_SURROUND, min: 0, max: 100, step: 1 },
-        { type: 'hint', text: '헤드폰 착용 시 좌우 채널 크로스피드로 넓은 음장감을 제공합니다.' },
+        { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 0을 권장합니다.' },
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
