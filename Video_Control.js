@@ -1172,7 +1172,7 @@
 
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
-      audio: [
+            audio: [
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
@@ -1189,15 +1189,22 @@
         { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '대화 선명도' },
-        { type: 'slider', label: '대화 선명도', path: P.A_CLARITY, min: 0, max: 100, step: 1 },
+        { type: 'chips', label: '대화 선명도', path: P.A_CLARITY, items: [
+          { v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' },
+          { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' },
+        ]},
         { type: 'hint', text: '대사가 잘 안 들릴 때 올려보세요. 저음을 줄이고 대화 주파수(2.5kHz)를 강조합니다.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '볼륨 부스트' },
-        { type: 'slider', label: '볼륨 부스트', path: P.A_BOOST, min: 100, max: 300, step: 5 },
+        { type: 'chips', label: '볼륨 부스트', path: P.A_BOOST, items: [
+          { v: 100, l: '100%' }, { v: 150, l: '150%' }, { v: 200, l: '200%' },
+          { v: 250, l: '250%' }, { v: 300, l: '300%' },
+        ]},
         { type: 'hint', text: '소리가 너무 작은 영상에서 볼륨을 100% 이상으로 증폭합니다. 리미터가 클리핑을 방지합니다.' },
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
+
       playback: [
         { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
         { type: 'widget', build: buildRateDisplay },
