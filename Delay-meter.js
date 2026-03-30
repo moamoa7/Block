@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      15.9.0
+// @version      16.0.0
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '15.9.0'
-    : '15.9.0';
+    ? GM_info?.script?.version ?? '16.0.0'
+    : '16.0.0';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -94,7 +94,6 @@
   const getSmoothedBuf = raw => {
     if (raw < 0) return raw;
     pushBuf(raw);
-    if (_bufCount === 0) return raw;
     let n = 0;
     for (let i = 0; i < BUF_WINDOW; i++) {
       if (_bufRing[i] >= 0) _bufSort[n++] = _bufRing[i];
@@ -139,126 +138,71 @@
   };
 
   /* ================================================================
-   *  §2-A. 광고 감지 (전 플랫폼 통합)
+   *  §2-A. 버퍼 급변 감지 (광고·소스전환 등 통합 대응)
    * ================================================================
    *
-   *  목적: 광고 재생 중 playbackRate 조작을 방지.
-   *  각 플랫폼별 DOM 기반 감지 + 캐시.
+   *  목적: 광고 전환, CDN 전환, 품질 변경 등으로 버퍼 값이
+   *        급격히 변할 때 제어 엔진의 오작동을 방지.
    *
-   *  YouTube  — #movie_player.ad-showing / .ad-interrupting 클래스
-   *             + .ytp-ad-player-overlay 요소
-   *             + getAdState() API (player 객체)
-   *  CHZZK   — 프리롤 광고 시 video.duration이 finite (라이브는 Infinity)
-   *             + 별도 광고 video 요소 존재 여부
-   *  SOOP    — 광고 레이어/컨테이너 DOM 요소 감지
-   *  Twitch  — 기존 로직 유지 (DOM 셀렉터 기반)
+   *  원리: 이전 안정 버퍼 대비 현재 raw 값의 차이가 임계치를
+   *        넘으면 제어를 유보하고 R_NORM을 유지.
+   *        연속 STABLE_NEEDED tick 동안 정상 범위이면 제어 재개.
    */
 
-  const AdDetect = (() => {
-    let _ts = 0, _result = false;
+  const BufGuard = (() => {
+    const SPIKE_THRESH_RATIO = 1.5;   // target 대비 급변 임계 배율
+    const STABLE_NEEDED = 3;          // 연속 안정 tick 수
 
-    /* 플랫폼별 캐시 TTL (ms) */
-    const TTL = 1000;
+    let _lastStable = -1;   // 마지막 안정 버퍼값
+    let _holdTicks = 0;     // 급변 후 안정 카운터
+    let _holding = false;   // 현재 유보 중 여부
 
-    /* ── YouTube ── */
-    let _ytPlayerEl = null, _ytPlayerTs = 0;
-    const getYTPlayerForAd = () => {
-      const now = performance.now();
-      if (_ytPlayerEl && now - _ytPlayerTs < 5000) return _ytPlayerEl;
-      _ytPlayerEl = document.getElementById('movie_player');
-      _ytPlayerTs = now;
-      return _ytPlayerEl;
-    };
-
-    const youtubeAd = () => {
-      const p = getYTPlayerForAd();
-      if (p) {
-        /* 가장 신뢰도 높은 방법: 클래스 기반 */
-        if (p.classList.contains('ad-showing') || p.classList.contains('ad-interrupting')) return true;
-        /* API 기반 보조 */
-        try {
-          if (typeof p.getAdState === 'function') {
-            const st = p.getAdState();
-            /* getAdState() !== -1 이면 광고 재생 중 */
-            if (st !== undefined && st !== -1 && st !== null) return true;
-          }
-        } catch {}
-      }
-      /* DOM 요소 보조 */
-      if (document.querySelector('.ytp-ad-player-overlay, .ytp-ad-player-overlay-instream-info, .video-ads.ytp-ad-module .ytp-ad-text')) return true;
-      return false;
-    };
-
-    /* ── CHZZK ──
-     *  치지직 프리롤 광고는 동일한 video 요소를 사용하되 duration이 finite.
-     *  라이브 스트림은 duration === Infinity.
-     *  추가로 광고 중에는 플레이어 UI에 광고 관련 요소가 나타남.
+    /**
+     * @param {number} raw  - 현재 raw 버퍼 (초)
+     * @returns {boolean}   - true이면 제어 유보 필요
      */
-    const chzzkAd = (vid) => {
-      /* 광고 UI 요소 감지 */
-      if (document.querySelector(
-        '.pzp-ad-dimmed-container,' +
-        '.pzp-ad__button,' +
-        '.pzp-ad-skip-button,' +
-        '[class*="pzp-ad"]>[class*="ad-"],' +
-        '.pzp-pc__ad,' +
-        '.pzp-pc__dimmed'
-      )) return true;
-      /* 라이브 페이지인데 video duration이 유한하면 광고일 가능성 높음 */
-      if (vid && location.pathname.includes('/live/')) {
-        const d = vid.duration;
-        if (Number.isFinite(d) && d > 0 && d < 300) return true;
+    const check = raw => {
+      if (raw < 0) return false;
+
+      const thresh = Math.max(target * SPIKE_THRESH_RATIO, 3);
+
+      if (_lastStable >= 0) {
+        const delta = Math.abs(raw - _lastStable);
+        if (delta > thresh) {
+          /* 급변 감지: 유보 진입 + 버퍼 링 리셋 */
+          _holding = true;
+          _holdTicks = 0;
+          resetBufRing();
+          return true;
+        }
       }
+
+      if (_holding) {
+        _holdTicks++;
+        if (_holdTicks >= STABLE_NEEDED) {
+          /* 충분히 안정됨: 유보 해제 */
+          _holding = false;
+          _holdTicks = 0;
+          _lastStable = raw;
+          return false;
+        }
+        return true;
+      }
+
+      /* 정상 상태: 안정값 갱신 */
+      _lastStable = raw;
       return false;
     };
 
-    /* ── SOOP ──
-     *  SOOP 프리롤/미드롤 광고는 별도 레이어나 iframe으로 재생됨.
-     *  알려진 DOM 패턴으로 감지.
-     */
-    const soopAd = () => {
-      if (document.querySelector(
-        '#areaAdBanner,' +
-        '.ad_player_wrap,' +
-        '.videoAdContainer,' +
-        '[class*="adBanner"],' +
-        '#player_area .ad_info,' +
-        '.preroll_ad,' +
-        '#adPlayer'
-      )) return true;
-      return false;
+    const reset = () => {
+      _lastStable = -1;
+      _holdTicks = 0;
+      _holding = false;
     };
 
-    /* ── Twitch ── (기존 로직 이관) */
-    const twitchAd = () => {
-      return !!(
-        document.querySelector('[data-a-target="video-ad-label"]') ||
-        document.querySelector('[data-a-target="video-ad-countdown"]') ||
-        document.querySelector('.ad-banner') ||
-        document.querySelector('[data-test-selector="ad-banner-default-id"]') ||
-        document.querySelector('.video-ads__container') ||
-        document.querySelector('[class*="AdBanner"]')
-      );
-    };
+    const isHolding = () => _holding;
 
-    /* ── 통합 인터페이스 ── */
-    const isAd = (vid) => {
-      const now = performance.now();
-      if (now - _ts < TTL) return _result;
-      _ts = now;
-
-      if (IS_YOUTUBE)     _result = youtubeAd();
-      else if (IS_CHZZK)  _result = chzzkAd(vid);
-      else if (IS_SOOP)   _result = soopAd();
-      else if (IS_TWITCH) _result = twitchAd();
-      else                _result = false;
-
-      return _result;
-    };
-
-    const resetCache = () => { _ts = 0; _result = false; _ytPlayerTs = 0; };
-
-    return { isAd, resetCache };
+    return { check, reset, isHolding };
   })();
 
   /* ================================================================
@@ -271,7 +215,6 @@
     const RERUN_KEYWORDS = /\brerun\b|\b재방송\b|\b리런\b|\b다시\s*보기\b/i;
 
     const checkRerun = () => {
-      if (!IS_TWITCH) return false;
       const now = performance.now();
       if (now - _rerunTs < 3000) return _rerunResult;
       _rerunTs = now;
@@ -509,7 +452,7 @@
     live.isCurrent = false;
     live.falseCount = -1;
     resetBufRing();
-    AdDetect.resetCache();
+    BufGuard.reset();
     if (IS_TWITCH) TwitchDetect.resetCache();
   };
 
@@ -595,9 +538,8 @@
 
   const applyGear = (vid, desired, now) => {
     if (desired === control.gear) return;
-    const isUpgrade = desired > control.gear;
     const isEmergency = desired === R_NORM && control.gear > R_NORM;
-    const isBigUpgrade = isUpgrade && desired === R_HIGH;
+    const isBigUpgrade = desired > control.gear && desired === R_HIGH;
     if (!isEmergency && !isBigUpgrade && now - control.lastGearChange < GEAR_HOLD_MS) return;
     control.gear = desired;
     control.lastGearChange = now;
@@ -609,12 +551,12 @@
    * ================================================================ */
 
   let pendingRender = false, lastBuf = -1, lastTickStall = false;
-  let lastTickAd = false, lastTickRerun = false;
+  let lastTickRerun = false, lastTickGuard = false;
 
   const scheduleRender = () => {
     if (pendingRender) return;
     pendingRender = true;
-    requestAnimationFrame(() => { pendingRender = false; Renderer.update(lastBuf, getVid(), lastTickStall, lastTickAd, lastTickRerun); });
+    requestAnimationFrame(() => { pendingRender = false; Renderer.update(lastBuf, getVid(), lastTickStall, lastTickGuard, lastTickRerun); });
   };
 
   const tick = () => {
@@ -624,27 +566,18 @@
 
     if (!vid) {
       if (_needScan) { scan(); startObserver(); }
-      lastBuf = -1; lastTickAd = false; lastTickRerun = false;
+      lastBuf = -1; lastTickRerun = false; lastTickGuard = false;
       scheduleRender(); return;
     }
 
     if (!isCandidate(vid) || vid.readyState < 3) {
-      lastBuf = -1; lastTickAd = false; lastTickRerun = false;
+      lastBuf = -1; lastTickRerun = false; lastTickGuard = false;
       if (live.falseCount < 0) live.isCurrent = false;
       scheduleRender(); return;
     }
 
-    /* 광고 감지 (전 플랫폼) */
-    const isAdNow = AdDetect.isAd(vid);
-    lastTickAd = isAdNow;
-    if (isAdNow) {
-      if (control.gear !== R_NORM) resetRate(vid);
-      lastBuf = -1; lastTickRerun = false;
-      scheduleRender(); return;
-    }
-
-    /* 트위치 리런 힌트 감지 (UI 표시용, 제어 차단 안 함) */
-    const rerunStatus = TwitchDetect.checkRerun();
+    /* 트위치 리런 힌트 감지 (UI 표시용) */
+    const rerunStatus = IS_TWITCH ? TwitchDetect.checkRerun() : false;
     lastTickRerun = rerunStatus;
 
     /* 라이브 판정 */
@@ -666,6 +599,16 @@
 
     /* 버퍼 측정 */
     const rawBuf = getBuf(vid);
+
+    /* 버퍼 급변 감지 (광고·소스전환 등 통합 대응) */
+    const guarding = BufGuard.check(rawBuf);
+    lastTickGuard = guarding;
+    if (guarding) {
+      if (control.gear !== R_NORM) resetRate(vid);
+      lastBuf = rawBuf;
+      scheduleRender(); return;
+    }
+
     const buf = getSmoothedBuf(rawBuf);
     lastBuf = buf;
 
@@ -695,13 +638,11 @@
   let _prev = { dot: '', clr: '', badge: '', badgeCls: '', bufRound: -999, barPct: -1 };
 
   const Renderer = {
-    update(buf, vid, isStalled, isAd, rerunStatus) {
+    update(buf, vid, isStalled, isGuarding, rerunStatus) {
       if (!els.root) return;
       if (!live.isCurrent || !vid) {
-        if (!isAd) {
-          if (els.root.style.display !== 'none') els.root.style.display = 'none';
-          return;
-        }
+        if (els.root.style.display !== 'none') els.root.style.display = 'none';
+        return;
       }
       if (els.root.style.display === 'none') els.root.style.display = 'block';
 
@@ -710,7 +651,7 @@
 
       if (!panelOpen) {
         if (!els.fab) return;
-        const fc = isAd ? '#888' : !enabled ? '#555' : speeding ? '#6C9CFF' : c;
+        const fc = isGuarding ? '#888' : !enabled ? '#555' : speeding ? '#6C9CFF' : c;
         if (fc !== _prev.dot) { _prev.dot = fc; els.fab.style.setProperty('--ac', fc); }
         return;
       }
@@ -725,19 +666,20 @@
       const barPct = Math.round(clamp(sec / BAR_MAX * 100, 0, 100) * 10);
       if (barPct !== _prev.barPct) { _prev.barPct = barPct; els.bar.style.width = (barPct / 10).toFixed(1) + '%'; }
 
+      /* 배지 텍스트 결정 (우선순위 순) */
       let bTxt, bCls;
-      if (isAd)             { bTxt = '📺 광고';  bCls = 'dm-b dm-off'; }
-      else if (!enabled)    { bTxt = 'OFF';      bCls = 'dm-b dm-off'; }
-      else if (buf < 0)     { bTxt = '…';        bCls = 'dm-b dm-off'; }
-      else if (isStalled)   { bTxt = '⏸ 대기';   bCls = 'dm-b dm-off'; }
+      if (isGuarding)       { bTxt = '⏳ 안정화'; bCls = 'dm-b dm-off'; }
+      else if (!enabled)    { bTxt = 'OFF';       bCls = 'dm-b dm-off'; }
+      else if (buf < 0)     { bTxt = '…';         bCls = 'dm-b dm-off'; }
+      else if (isStalled)   { bTxt = '⏸ 대기';    bCls = 'dm-b dm-off'; }
       else if (rerunStatus === 'hint' && speeding)
                             { bTxt = '📼 리런? ⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-warn'; }
       else if (rerunStatus === 'hint')
-                            { bTxt = '📼 리런?';  bCls = 'dm-b dm-warn'; }
+                            { bTxt = '📼 리런?';   bCls = 'dm-b dm-warn'; }
       else if (speeding)    { bTxt = '⚡' + vid.playbackRate.toFixed(2) + '×'; bCls = 'dm-b dm-acc'; }
       else if (sec <= target && sec >= Math.max(0, target - 0.5))
-                            { bTxt = '✓ 안정';   bCls = 'dm-b dm-ok'; }
-      else                  { bTxt = '→ 추적';   bCls = 'dm-b dm-acc'; }
+                            { bTxt = '✓ 안정';    bCls = 'dm-b dm-ok'; }
+      else                  { bTxt = '→ 추적';    bCls = 'dm-b dm-acc'; }
       if (bTxt !== _prev.badge)    { els.badge.textContent = bTxt; _prev.badge = bTxt; }
       if (bCls !== _prev.badgeCls) { els.badge.className = bCls;   _prev.badgeCls = bCls; }
     },
@@ -779,7 +721,7 @@
 #dm-fab:hover{transform:scale(1.08)}#dm-fab:active{transform:scale(.95)}
 .dm-dot{width:10px;height:10px;border-radius:50%;background:var(--ac);transition:background .4s;box-shadow:0 0 8px var(--ac)}
 @keyframes dm-pulse{0%,100%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 0 var(--ac)}50%{box-shadow:0 0 12px rgba(0,0,0,.4),0 0 0 6px transparent}}
-#dm-fab{animation:dm-pulse 2.5s ease-in-out infinite}
+#dm-fab{animation:dm-pulse 2.5s ease-in-out 4}
 #dm-pn{position:fixed;bottom:20px;right:20px;z-index:10000;background:var(--bg);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--rad);padding:0;color:var(--t1);width:256px;box-shadow:0 12px 48px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.03);user-select:none;opacity:0;transform:translateY(8px) scale(.97);pointer-events:none;transition:opacity .25s cubic-bezier(.4,0,.2,1),transform .25s cubic-bezier(.4,0,.2,1);contain:content;will-change:opacity,transform,visibility}
 #dm-pn.open{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;visibility:visible}
 #dm-pn:not(.open){visibility:hidden;transition:opacity .25s,transform .25s,visibility 0s .25s}
@@ -905,22 +847,20 @@
       togDiv.classList.toggle('on', enabled);
     };
 
-    slInput.oninput = () => {
-      target = parseFloat(slInput.value);
-      _hyst = Math.max(0.2, target * 0.1);
-      _colorDenom = target * 0.5;
-      _colorKey = -1;
-      svSpan.textContent = target.toFixed(1) + 's';
-      setCfg('target', target);
-    };
-    slInput.ondblclick = () => {
-      target = DEF_TARGET;
+    /* 슬라이더 타겟 변경 공통 로직 */
+    const applyTarget = t => {
+      target = t;
       _hyst = Math.max(0.2, target * 0.1);
       _colorDenom = target * 0.5;
       _colorKey = -1;
       slInput.value = target;
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
+    };
+
+    slInput.oninput = () => applyTarget(parseFloat(slInput.value));
+    slInput.ondblclick = () => {
+      applyTarget(DEF_TARGET);
       control.lastGearChange = -GEAR_HOLD_MS;
     };
 
@@ -993,15 +933,17 @@
       if (cur === lastPath) return;
       lastPath = cur;
       const prev = getVid();
-      if (prev) safeRate(prev, R_NORM);
+      if (prev) {
+        safeRate(prev, R_NORM);
+        LiveDetect.clearCache(prev);
+      }
       setVid(null);
       resetControlState(null);
-      lastBuf = -1; lastTickAd = false; lastTickRerun = false;
+      lastBuf = -1; lastTickRerun = false; lastTickGuard = false;
       _scanRetry = 0; _needScan = true;
       LiveDetect.resetYT();
-      AdDetect.resetCache();
       if (IS_TWITCH) TwitchDetect.resetCache();
-      setTimeout(scan, 500); setTimeout(scan, 1500);
+      setTimeout(scan, 500);
     }, 100);
   };
 
@@ -1035,7 +977,7 @@
       control.lastGearChange = -GEAR_HOLD_MS;
       const vid = getVid();
       if (vid && control.gear !== R_NORM) { control.gear = R_NORM; safeRate(vid, R_NORM); }
-      resetBufRing(); tick();
+      resetBufRing(); BufGuard.reset(); tick();
     }
   });
 
@@ -1090,10 +1032,10 @@
     const rawBuf = vid ? getBuf(vid) : -1;
     const smoothed = lastBuf;
     const gl = control.gear > 1.2 ? 'HIGH' : control.gear > 1 ? 'MED' : 'NORM';
-    const adInfo = ` ad=${AdDetect.isAd(vid)}`;
     const rerunInfo = IS_TWITCH ? ` rerun=${TwitchDetect.checkRerun() || 'no'}` : '';
+    const guardInfo = ` guard=${BufGuard.isHolding()}`;
     const stallInfo = ` stall=${STALL_GENTLE ? 'gentle' : 'full'}(${STALL_COOLDOWN}ms)`;
-    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH}${stallInfo} | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}${adInfo}${rerunInfo}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH}${stallInfo} | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}${guardInfo}${rerunInfo}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
