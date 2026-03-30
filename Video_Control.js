@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.0)
+// @name         Video_Control (v31.3.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.0
-// @description  v31.3.0: Chromium 전용으로 전환 — Firefox/Safari 등 비-Chromium 브라우저 코드 완전 제거, 코드 경량화
+// @version      31.3.1
+// @description  v31.3.1: 오디오 대화 선명도(3-band EQ) + 볼륨 부스트 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -34,7 +34,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.0';
+  const VSC_VERSION = '31.3.1';
   const DEBUG = false;
 
   const log = {
@@ -144,7 +144,7 @@
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
-    audio: { enabled: false, strength: 50, surroundWidth: 0 },
+    audio: { enabled: false, strength: 50, surroundWidth: 0, clarity: 0, boost: 100 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false }
   };
@@ -158,6 +158,7 @@
     V_MAN_GAIN: 'video.manualGain',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     A_SURROUND: 'audio.surroundWidth',
+    A_CLARITY: 'audio.clarity', A_BOOST: 'audio.boost',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
@@ -411,9 +412,11 @@
     let ctx = null;
     let splitter = null, merger = null;
     let delayL = null, delayR = null, crossGainLR = null, crossGainRL = null, dryGainL = null, dryGainR = null;
+    let eqLow = null, eqMid = null, eqHigh = null;
     let routeGain = null;
     let comp = null, limiter = null, makeupGain = null;
     let compBypass = null;
+    let boostGain = null;
     let masterOut = null;
     let fullDryPath = null;
 
@@ -452,7 +455,7 @@
       return true;
     }
 
-    const isAnyAudioActive = () => store.get(P.A_EN) || Number(store.get(P.A_SURROUND)) > 0;
+    const isAnyAudioActive = () => store.get(P.A_EN) || Number(store.get(P.A_SURROUND)) > 0 || Number(store.get(P.A_CLARITY)) > 0 || Number(store.get(P.A_BOOST)) !== 100;
 
     function initCtx() {
       if (ctx) return true;
@@ -478,7 +481,20 @@
       delayL.connect(crossGainLR); delayR.connect(crossGainRL);
       crossGainLR.connect(merger, 0, 1); crossGainRL.connect(merger, 0, 0);
 
+      /* ── 3-band EQ: merger → eqLow → eqMid → eqHigh → routeGain ── */
+      eqLow = ctx.createBiquadFilter();
+      eqLow.type = 'lowshelf'; eqLow.frequency.value = 200; eqLow.gain.value = 0;
+      eqMid = ctx.createBiquadFilter();
+      eqMid.type = 'peaking'; eqMid.frequency.value = 2500; eqMid.Q.value = 1.2; eqMid.gain.value = 0;
+      eqHigh = ctx.createBiquadFilter();
+      eqHigh.type = 'highshelf'; eqHigh.frequency.value = 8000; eqHigh.gain.value = 0;
+
       routeGain = ctx.createGain(); routeGain.gain.value = 1;
+
+      merger.connect(eqLow);
+      eqLow.connect(eqMid);
+      eqMid.connect(eqHigh);
+      eqHigh.connect(routeGain);
 
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
@@ -487,11 +503,15 @@
       limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 2;
 
       compBypass = ctx.createGain(); compBypass.gain.value = 1;
+
+      /* ── 볼륨 부스트: limiter 뒤, masterOut 앞 ── */
+      boostGain = ctx.createGain(); boostGain.gain.value = 1;
+
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
 
-      merger.connect(routeGain);
-      comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(masterOut);
-      compBypass.connect(masterOut);
+      comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(boostGain);
+      compBypass.connect(boostGain);
+      boostGain.connect(masterOut);
       masterOut.connect(ctx.destination);
 
       fullDryPath = ctx.createGain(); fullDryPath.gain.value = 1;
@@ -499,6 +519,8 @@
 
       applyStrength(Number(store.get(P.A_STR)) || 50);
       applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
+      applyClarity(Number(store.get(P.A_CLARITY)) || 0);
+      applyBoost(Number(store.get(P.A_BOOST)) ?? 100);
       routeCompressor();
       return true;
     }
@@ -543,6 +565,31 @@
         dryGainL.gain.value = dry; dryGainR.gain.value = dry;
         delayL.delayTime.value = 0.005 + w * 0.015; delayR.delayTime.value = 0.008 + w * 0.020;
       }
+    }
+
+    function applyClarity(clarity) {
+      if (!ctx || !eqLow) return;
+      const c = CLAMP(clarity, 0, 100) / 100;
+      /* c=0 → 전부 0dB, c=1 → low -4dB, mid +6dB, high +3dB */
+      const lowDb = -4 * c;
+      const midDb = 6 * c;
+      const highDb = 3 * c;
+      try {
+        eqLow.gain.setTargetAtTime(lowDb, ctx.currentTime, 0.05);
+        eqMid.gain.setTargetAtTime(midDb, ctx.currentTime, 0.05);
+        eqHigh.gain.setTargetAtTime(highDb, ctx.currentTime, 0.05);
+      } catch (_) {
+        eqLow.gain.value = lowDb;
+        eqMid.gain.value = midDb;
+        eqHigh.gain.value = highDb;
+      }
+    }
+
+    function applyBoost(boostPercent) {
+      if (!ctx || !boostGain) return;
+      const gain = CLAMP(boostPercent, 100, 300) / 100;
+      try { boostGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); }
+      catch (_) { boostGain.gain.value = gain; }
     }
 
     function enterBypass(video, reason) {
@@ -688,7 +735,7 @@
     return {
       setTarget, update: updateMix,
       hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode,
-      applyStrength, applySurroundWidth, routeCompressor, onVideoLoadstart
+      applyStrength, applySurroundWidth, applyClarity, applyBoost, routeCompressor, onVideoLoadstart
     };
   }
 
@@ -1075,16 +1122,20 @@
         if (!panelOpen) return;
         const enabled = Store.get(P.A_EN);
         const surround = Number(Store.get(P.A_SURROUND)) > 0;
+        const clarity = Number(Store.get(P.A_CLARITY)) > 0;
+        const boost = Number(Store.get(P.A_BOOST)) !== 100;
         const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
 
         if (!Audio.hasCtx()) {
           el.textContent = '상태: 대기';
-        } else if (!enabled && !surround) {
+        } else if (!enabled && !surround && !clarity && !boost) {
           el.textContent = '상태: 비활성 (오디오 처리 OFF)';
         } else if (hooked && !bypassed) {
           const parts = [];
           if (enabled) parts.push('평준화');
           if (surround) parts.push('공간감');
+          if (clarity) parts.push('선명도');
+          if (boost) parts.push('부스트');
           el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`;
         } else if (bypassed) {
           el.textContent = '상태: 바이패스 (원본 출력)';
@@ -1125,25 +1176,25 @@
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
-          { v: 0, l: 'OFF' },
-          { v: 20, l: '20%' },
-          { v: 40, l: '40%' },
-          { v: 60, l: '60%' },
-          { v: 80, l: '80%' },
-          { v: 100, l: '100%' },
+          { v: 0, l: 'OFF' }, { v: 20, l: '20%' }, { v: 40, l: '40%' },
+          { v: 60, l: '60%' }, { v: 80, l: '80%' }, { v: 100, l: '100%' },
         ]},
         { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '공간감 (헤드폰/이어폰)' },
         { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [
-          { v: 0, l: 'OFF' },
-          { v: 20, l: '20' },
-          { v: 40, l: '40' },
-          { v: 60, l: '60' },
-          { v: 80, l: '80' },
-          { v: 100, l: '100' },
+          { v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' },
+          { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' },
         ]},
         { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '대화 선명도' },
+        { type: 'slider', label: '대화 선명도', path: P.A_CLARITY, min: 0, max: 100, step: 1 },
+        { type: 'hint', text: '대사가 잘 안 들릴 때 올려보세요. 저음을 줄이고 대화 주파수(2.5kHz)를 강조합니다.' },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '볼륨 부스트' },
+        { type: 'slider', label: '볼륨 부스트', path: P.A_BOOST, min: 100, max: 300, step: 5 },
+        { type: 'hint', text: '소리가 너무 작은 영상에서 볼륨을 100% 이상으로 증폭합니다. 리미터가 클리핑을 방지합니다.' },
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
@@ -1253,6 +1304,8 @@
     Store.sub(P.A_EN, () => { Audio.routeCompressor(); Audio.update(); });
     Store.sub(P.A_STR, () => { Audio.applyStrength(Number(Store.get(P.A_STR)) || 50); Audio.update(); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
+    Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
+    Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
 
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
