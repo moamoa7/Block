@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.1.0)
+// @name         Video_Control (v31.2.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.1.0
-// @description  v31.1.0: 오디오 상태 체크 보완 / 오디오 버튼 클릭으로 변경 / 수동보정 - 게임 버튼 추가
+// @version      31.2.0
+// @description  v31.2.0: 칩 타입 수정, 서라운드 게인보정, 활성비디오 필터, 폴링 완화, 백그라운드 차단
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.1.0';
+  const VSC_VERSION = '31.2.0';
   const DEBUG = false;
 
   const log = {
@@ -230,6 +230,8 @@
       },
       request: () => {
         if (queued) return;
+        /* [패치5] 백그라운드 탭 rAF 차단 */
+        if (document.hidden) return;
         queued = true;
         requestAnimationFrame(() => {
           queued = false;
@@ -525,13 +527,18 @@
       if (!ctx || !crossGainLR) return;
       const w = CLAMP(width, 0, 100) / 100;
       const crossLevel = w * 0.4;
+      /* [패치2] 에너지 보존을 위한 dryGain 보정 */
+      const dry = Math.sqrt(1 - crossLevel * crossLevel);
       try {
         crossGainLR.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
         crossGainRL.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
+        dryGainL.gain.setTargetAtTime(dry, ctx.currentTime, 0.05);
+        dryGainR.gain.setTargetAtTime(dry, ctx.currentTime, 0.05);
         delayL.delayTime.setTargetAtTime(0.005 + w * 0.015, ctx.currentTime, 0.05);
         delayR.delayTime.setTargetAtTime(0.008 + w * 0.020, ctx.currentTime, 0.05);
       } catch (_) {
         crossGainLR.gain.value = crossLevel; crossGainRL.gain.value = crossLevel;
+        dryGainL.gain.value = dry; dryGainR.gain.value = dry;
         delayL.delayTime.value = 0.005 + w * 0.015; delayR.delayTime.value = 0.008 + w * 0.020;
       }
     }
@@ -999,7 +1006,8 @@
         const chip = e.target.closest('.chip'); if (!chip) return;
         const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val);
         if (onSelectOverride) { onSelectOverride(parsed); if (String(Store.get(path)) !== String(parsed)) Store.set(path, parsed); }
-        else { Store.set(path, val); }
+        /* [패치1] val → parsed 로 숫자 타입 일관성 보장 */
+        else { Store.set(path, parsed); }
         requestAnimationFrame(() => { for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
         Scheduler.request();
       });
@@ -1064,31 +1072,30 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
     function buildAudioStatus() {
-  const el = h('div', { class: 'hint' }, '상태: 대기');
-  tabSignalCleanups.push(Scheduler.onSignal(() => {
-    if (!panelOpen) return;
-    const enabled = Store.get(P.A_EN);
-    const surround = Number(Store.get(P.A_SURROUND)) > 0;
-    const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
+      const el = h('div', { class: 'hint' }, '상태: 대기');
+      tabSignalCleanups.push(Scheduler.onSignal(() => {
+        if (!panelOpen) return;
+        const enabled = Store.get(P.A_EN);
+        const surround = Number(Store.get(P.A_SURROUND)) > 0;
+        const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
 
-    if (!Audio.hasCtx()) {
-      el.textContent = '상태: 대기';
-    } else if (!enabled && !surround) {
-      el.textContent = '상태: 비활성 (오디오 처리 OFF)';
-    } else if (hooked && !bypassed) {
-      const parts = [];
-      if (enabled) parts.push('평준화');
-      if (surround) parts.push('공간감');
-      el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`;
-    } else if (bypassed) {
-      el.textContent = '상태: 바이패스 (원본 출력)';
-    } else {
-      el.textContent = '상태: 준비 (연결 대기)';
+        if (!Audio.hasCtx()) {
+          el.textContent = '상태: 대기';
+        } else if (!enabled && !surround) {
+          el.textContent = '상태: 비활성 (오디오 처리 OFF)';
+        } else if (hooked && !bypassed) {
+          const parts = [];
+          if (enabled) parts.push('평준화');
+          if (surround) parts.push('공간감');
+          el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`;
+        } else if (bypassed) {
+          el.textContent = '상태: 바이패스 (원본 출력)';
+        } else {
+          el.textContent = '상태: 준비 (연결 대기)';
+        }
+      }));
+      return el;
     }
-  }));
-  return el;
-}
-
 
     function buildVideoSchema() {
       const s = [{ type: 'widget', build: buildInfoBar }, { type: 'sep' }];
@@ -1105,35 +1112,32 @@
 
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
-      // 기존 buildAudioStrengthSlider 함수 삭제하고, TAB_SCHEMA의 audio 부분을 이렇게 변경
-
-audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
-  { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
-  { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
-  { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
-    { v: 0, l: 'OFF' },
-    { v: 20, l: '20%' },
-    { v: 40, l: '40%' },
-    { v: 60, l: '60%' },
-    { v: 80, l: '80%' },
-    { v: 100, l: '100%' },
-  ]},
-  { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
-  { type: 'sep' },
-  { type: 'sectionLabel', text: '공간감 (헤드폰/이어폰)' },
-  { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [
-    { v: 0, l: 'OFF' },
-    { v: 20, l: '20' },
-    { v: 40, l: '40' },
-    { v: 60, l: '60' },
-    { v: 80, l: '80' },
-    { v: 100, l: '100' },
-  ]},
-  { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
-  { type: 'sep' },
-  { type: 'widget', build: buildAudioStatus },
-],
-
+      audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
+        { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
+        { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
+        { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
+          { v: 0, l: 'OFF' },
+          { v: 20, l: '20%' },
+          { v: 40, l: '40%' },
+          { v: 60, l: '60%' },
+          { v: 80, l: '80%' },
+          { v: 100, l: '100%' },
+        ]},
+        { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '공간감 (헤드폰/이어폰)' },
+        { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [
+          { v: 0, l: 'OFF' },
+          { v: 20, l: '20' },
+          { v: 40, l: '40' },
+          { v: 60, l: '60' },
+          { v: 80, l: '80' },
+          { v: 100, l: '100' },
+        ]},
+        { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
+        { type: 'sep' },
+        { type: 'widget', build: buildAudioStatus },
+      ],
       playback: [
         { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
         { type: 'widget', build: buildRateDisplay },
@@ -1211,8 +1215,9 @@ audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-    setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
-    setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
+    /* [패치4] 폴링 간격 완화: 2s→5s, 5s→15s */
+    setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 5000);
+    setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 15000);
     onFsChange(onFullscreenChange);
 
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
@@ -1261,7 +1266,16 @@ audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는
         }
         Audio.setTarget(null);
       }
-      for (const v of Registry.videos) { if (!v.isConnected) continue; const dW = v.clientWidth || 0, dH = v.clientHeight || 0; if (dW < 80 || dH < 45) { Filters.clear(v); continue; } const params = Params.get(v); const filterStr = Filters.prepare(v, params); Filters.apply(v, filterStr); }
+      /* [패치3] 활성 비디오(target)만 필터 적용, 나머지는 clear */
+      for (const v of Registry.videos) {
+        if (!v.isConnected) continue;
+        if (v !== target) { Filters.clear(v); continue; }
+        const dW = v.clientWidth || 0, dH = v.clientHeight || 0;
+        if (dW < 80 || dH < 45) { Filters.clear(v); continue; }
+        const params = Params.get(v);
+        const filterStr = Filters.prepare(v, params);
+        Filters.apply(v, filterStr);
+      }
     };
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
