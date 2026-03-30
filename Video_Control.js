@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.2.2)
+// @name         Video_Control (v31.3.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.2.2
-// @description  v31.2.2: 패치 일부 취소 (폴링 간격 완화 : ok.ru에서 아이콘 사라짐 방지) / 모바일 샤프 강도 조절 상향
+// @version      31.3.0
+// @description  v31.3.0: Chromium 전용으로 전환 — Firefox/Safari 등 비-Chromium 브라우저 코드 완전 제거, 코드 경량화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -24,15 +24,17 @@
 (function () {
   'use strict';
 
+  /* ── Chromium 전용: 비-Chromium 브라우저 즉시 종료 ── */
+  if (!window.chrome && !navigator.userAgentData) return;
+
   if (location.href.includes('/cdn-cgi/') || location.protocol === 'about:' || location.href === 'about:blank') return;
   if (window.__vsc_booted) return;
   window.__vsc_booted = true;
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const IS_FIREFOX = navigator.userAgent.includes('Firefox');
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.2.2';
+  const VSC_VERSION = '31.3.0';
   const DEBUG = false;
 
   const log = {
@@ -58,7 +60,6 @@
   }
 
   function checkNeedsSvg(s) {
-    if (IS_FIREFOX) return false;
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
     const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs((s.contrast || 1) - 1) > 0.005);
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
@@ -103,43 +104,43 @@
   }
 
   const MANUAL_PRESETS = [
-  { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
-  { n: '내추럴(약)', v: [20, 10,  0,  0, 0,  0,  0,  0,  0] },
-  { n: '내추럴(보통)', v: [40, 20,  0,  0, 0,  0,  0,  0,  0] },
-  { n: '내추럴(중간)', v: [60, 30,  0,  0, 0,  0,  0,  0,  0] },
-  { n: '내추럴(강)', v: [80, 40,  0,  0, 0,  0,  0,  0,  0] },
-  { n: '내추럴(최대)', v: [100, 50,  0,  0, 0,  0,  0,  0,  0] },
-  { n: '마스터(약)',   v: [25, 10,  3, 0, 0, 0,  -3,  3,  2] },
-  { n: '마스터(보통)', v: [45, 20,  6, 0, 0, 0,  -5,  5,  4] },
-  { n: '마스터(중간)', v: [60, 30, 10, 0, 0, 0,  -6,  7,  6] },
-  { n: '마스터(강)',   v: [75, 38, 14, 0, 0, 0,  -8,  9,  8] },
-  { n: '마스터(최대)', v: [90, 45, 18, 0, 0, 0, -10, 10, 10] },
-  { n: '창조(약)', v: [20, 12, 4, 0, 0, 1, 0, 3, 5] },
-  { n: '창조(보통)', v: [40, 24, 8, 0, 0, 0,  0, 4, 10] },
-  { n: '창조(중간)', v: [60, 36, 12, 0, 0, -1, 0, 5, 15] },
-  { n: '창조(강)', v: [80, 48, 16, 0, 0, -2, 0, 6, 20] },
-  { n: '창조(최대)', v: [100, 60, 20, 0, 0, -3, 0, 7, 25] },
-  { n: '드라마(약)',   v: [20, 12,  5, 0, 0,  3,  -2,  7,  4] },
-  { n: '드라마(보통)', v: [35, 22, 10, 0, 0,  5,  -4, 11,  8] },
-  { n: '드라마(중간)', v: [50, 32, 15, 0, 0,  6,  -6, 14, 11] },
-  { n: '드라마(강)',   v: [65, 42, 20, 0, 0,  7,  -8, 16, 14] },
-  { n: '드라마(최대)', v: [80, 52, 25, 0, 0,  7, -10, 17, 17] },
-  { n: '야간(약)',   v: [25, 16,  5,  4, 0, -1, -4,  1,  2] },
-  { n: '야간(보통)', v: [45, 30, 10,  6, 0, -2, -6,  2,  4] },
-  { n: '야간(중간)', v: [62, 42, 15,  8, 0, -3, -8,  3,  6] },
-  { n: '야간(강)',   v: [78, 52, 20, 10, 0, -4,-10,  4,  9] },
-  { n: '야간(최대)', v: [95, 62, 25, 12, 0, -5,-12,  5, 12] },
-  { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
-  { n: '시네마(보통)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
-  { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
-  { n: '시네마(강)',   v: [80, 48, 20, -4, 0, -8, -8, 13, 16] },
-  { n: '시네마(최대)', v: [100, 60, 25, -5, 0, -10, -10, 16, 20] },
-  { n: '사용자(약)',   v: [20, 14,  8,  0, 0, 0,  -4,  4,  3] },
-  { n: '사용자(보통)', v: [40, 28, 16,  0, 0, 0,  -6,  7,  6] },
-  { n: '사용자(중간)', v: [60, 40, 24,  0, 0, 0,  -8,  9, 10] },
-  { n: '사용자(강)',   v: [80, 52, 32,  0, 0, 0, -10, 11, 13] },
-  { n: '사용자(최대)', v: [100, 65, 40, 0, 0, 0, -12, 13, 17] },
-];
+    { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
+    { n: '내추럴(약)', v: [20, 10,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(보통)', v: [40, 20,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(중간)', v: [60, 30,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(강)', v: [80, 40,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '내추럴(최대)', v: [100, 50,  0,  0, 0,  0,  0,  0,  0] },
+    { n: '마스터(약)',   v: [25, 10,  3, 0, 0, 0,  -3,  3,  2] },
+    { n: '마스터(보통)', v: [45, 20,  6, 0, 0, 0,  -5,  5,  4] },
+    { n: '마스터(중간)', v: [60, 30, 10, 0, 0, 0,  -6,  7,  6] },
+    { n: '마스터(강)',   v: [75, 38, 14, 0, 0, 0,  -8,  9,  8] },
+    { n: '마스터(최대)', v: [90, 45, 18, 0, 0, 0, -10, 10, 10] },
+    { n: '창조(약)', v: [20, 12, 4, 0, 0, 1, 0, 3, 5] },
+    { n: '창조(보통)', v: [40, 24, 8, 0, 0, 0,  0, 4, 10] },
+    { n: '창조(중간)', v: [60, 36, 12, 0, 0, -1, 0, 5, 15] },
+    { n: '창조(강)', v: [80, 48, 16, 0, 0, -2, 0, 6, 20] },
+    { n: '창조(최대)', v: [100, 60, 20, 0, 0, -3, 0, 7, 25] },
+    { n: '드라마(약)',   v: [20, 12,  5, 0, 0,  3,  -2,  7,  4] },
+    { n: '드라마(보통)', v: [35, 22, 10, 0, 0,  5,  -4, 11,  8] },
+    { n: '드라마(중간)', v: [50, 32, 15, 0, 0,  6,  -6, 14, 11] },
+    { n: '드라마(강)',   v: [65, 42, 20, 0, 0,  7,  -8, 16, 14] },
+    { n: '드라마(최대)', v: [80, 52, 25, 0, 0,  7, -10, 17, 17] },
+    { n: '야간(약)',   v: [25, 16,  5,  4, 0, -1, -4,  1,  2] },
+    { n: '야간(보통)', v: [45, 30, 10,  6, 0, -2, -6,  2,  4] },
+    { n: '야간(중간)', v: [62, 42, 15,  8, 0, -3, -8,  3,  6] },
+    { n: '야간(강)',   v: [78, 52, 20, 10, 0, -4,-10,  4,  9] },
+    { n: '야간(최대)', v: [95, 62, 25, 12, 0, -5,-12,  5, 12] },
+    { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
+    { n: '시네마(보통)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
+    { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
+    { n: '시네마(강)',   v: [80, 48, 20, -4, 0, -8, -8, 13, 16] },
+    { n: '시네마(최대)', v: [100, 60, 25, -5, 0, -10, -10, 16, 20] },
+    { n: '사용자(약)',   v: [20, 14,  8,  0, 0, 0,  -4,  4,  3] },
+    { n: '사용자(보통)', v: [40, 28, 16,  0, 0, 0,  -6,  7,  6] },
+    { n: '사용자(중간)', v: [60, 40, 24,  0, 0, 0,  -8,  9, 10] },
+    { n: '사용자(강)',   v: [80, 52, 32,  0, 0, 0, -10, 11, 13] },
+    { n: '사용자(최대)', v: [100, 65, 40, 0, 0, 0, -12, 13, 17] },
+  ];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
@@ -235,7 +236,6 @@
       },
       request: () => {
         if (queued) return;
-        /* [패치5] 백그라운드 탭 rAF 차단 */
         if (document.hidden) return;
         queued = true;
         requestAnimationFrame(() => {
@@ -408,8 +408,6 @@
   }
 
   function createAudio(store, scheduler) {
-    if (IS_FIREFOX) return { setTarget(){}, update(){}, hasCtx:()=>false, isHooked:()=>false, isBypassed:()=>true, applyStrength(){}, applySurroundWidth(){}, routeCompressor(){}, onVideoLoadstart(){} };
-
     let ctx = null;
     let splitter = null, merger = null;
     let delayL = null, delayR = null, crossGainLR = null, crossGainRL = null, dryGainL = null, dryGainR = null;
@@ -532,7 +530,6 @@
       if (!ctx || !crossGainLR) return;
       const w = CLAMP(width, 0, 100) / 100;
       const crossLevel = w * 0.4;
-      /* [패치2] 에너지 보존을 위한 dryGain 보정 */
       const dry = Math.sqrt(1 - crossLevel * crossLevel);
       try {
         crossGainLR.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
@@ -779,13 +776,11 @@
         const tempTintKey = `${s.temp}|${s.tint}`;
         if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; ctx.tempFuncR.setAttribute('slope', colorGain.rs); ctx.tempFuncG.setAttribute('slope', colorGain.gs); ctx.tempFuncB.setAttribute('slope', colorGain.bs); }
         let desatMul = 1;
-        if (!IS_FIREFOX) {
-          const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
-          let kernelStr = '0,0,0, 0,1,0, 0,0,0';
-          if (totalS >= 0.005) { const edge = -totalS; const diag = edge * 0.707; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
-          if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); ctx.fConv.setAttribute('divisor', '1'); }
-          desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
-        }
+        const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
+        let kernelStr = '0,0,0, 0,1,0, 0,0,0';
+        if (totalS >= 0.005) { const edge = -totalS; const diag = edge * 0.707; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
+        if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); ctx.fConv.setAttribute('divisor', '1'); }
+        desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
         const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
         ctx.fSat.setAttribute('values', satVal);
       }
@@ -834,7 +829,6 @@
         if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
-        if (IS_FIREFOX) out.sharp = 0;
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
         const mRec = CLAMP(Number(Store.get(P.V_MAN_REC) ?? 0), 0, 100);
         const mBrt = CLAMP(Number(Store.get(P.V_MAN_BRT) ?? 0), 0, 100);
@@ -1011,7 +1005,6 @@
         const chip = e.target.closest('.chip'); if (!chip) return;
         const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val);
         if (onSelectOverride) { onSelectOverride(parsed); if (String(Store.get(path)) !== String(parsed)) Store.set(path, parsed); }
-        /* [패치1] val → parsed 로 숫자 타입 일관성 보장 */
         else { Store.set(path, parsed); }
         requestAnimationFrame(() => { for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
         Scheduler.request();
@@ -1103,21 +1096,32 @@
     }
 
     function buildVideoSchema() {
-      const s = [{ type: 'widget', build: buildInfoBar }, { type: 'sep' }];
-      if (IS_FIREFOX) { s.push({ type: 'hint', cls: 'warn', text: '⚠️ Firefox: 샤프닝 및 SVG 기반 톤/색상 보정은 Chromium 전용입니다.' }); }
-      s.push({ type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) }, { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 }, { type: 'sep' });
-      if (!IS_FIREFOX) { s.push({ type: 'widget', build: buildPresetGrid }, { type: 'sep' }, { type: 'sectionLabel', text: '톤 보정' }, { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 }); }
-      s.push({ type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 }, { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 });
-      if (!IS_FIREFOX) { s.push({ type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 3 }, { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 }, { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 }); }
-      s.push({ type: 'sep' });
-      if (!IS_FIREFOX) { s.push({ type: 'sectionLabel', text: '색상 보정' }, { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 }, { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 }); }
-      s.push({ type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 });
-      return s;
+      return [
+        { type: 'widget', build: buildInfoBar },
+        { type: 'sep' },
+        { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
+        { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 },
+        { type: 'sep' },
+        { type: 'widget', build: buildPresetGrid },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '톤 보정' },
+        { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'sep' },
+        { type: 'sectionLabel', text: '색상 보정' },
+        { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 },
+      ];
     }
 
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
-      audio: IS_FIREFOX ? [{ type: 'hint', cls: 'warn', text: '⚠️ Firefox에서는 오디오 기능이 지원되지 않습니다.' }] : [
+      audio: [
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
@@ -1272,7 +1276,6 @@
         }
         Audio.setTarget(null);
       }
-      /* [패치3] 활성 비디오(target)만 필터 적용, 나머지는 clear */
       for (const v of Registry.videos) {
         if (!v.isConnected) continue;
         if (v !== target) { Filters.clear(v); continue; }
