@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.1.0
+// @version      16.1.1
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '16.1.0'
-    : '16.1.0';
+    ? GM_info?.script?.version ?? '16.1.1'
+    : '16.1.1';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -257,7 +257,11 @@
   const getVid = () => _vidRef;
 
   const detachVid = () => {
-    if (_vidRef) LiveDetect.clearCache(_vidRef);
+    const prev = _vidRef;
+    if (prev) {
+      resetRate(prev);
+      LiveDetect.clearCache(prev);
+    }
     _vidRef = null;
     _needScan = true;
     stopObserver();
@@ -280,7 +284,7 @@
   let panelOpen = cfg.open ?? false;
 
   /* ── 히스테리시스 (데드존) ──
-   *  v16.1: target * 0.1 → target * 0.15 로 확장.
+   *  target * 0.15 (최소 0.3s).
    *  목표값 근처에서 기어가 불필요하게 전환되는 것을 억제. */
   let _hyst = Math.max(0.3, target * 0.15);
 
@@ -436,6 +440,7 @@
 
   const resetControlState = vid => {
     resetRate(vid);
+    control.lastGearChange = -GEAR_HOLD_MS;
     control.warmupEnd = performance.now() + WARMUP_MS;
     control.lastStallTime = 0;
     live.isCurrent = false;
@@ -515,12 +520,11 @@
    *  §7. 제어 엔진
    * ================================================================
    *
-   *  v16.1 변경 사항:
-   *  ─ 데드존 확장 (_hyst: target*0.1 → target*0.15, 최소 0.3s)
-   *  ─ R_NORM 상태에서 초과가 데드존 이내이면 가속하지 않음
-   *  ─ 목표보다 짧을 때: sleep·감속 없이 1.0× 유지 → 자연 회복
-   *    (라이브 스트리밍은 서버가 계속 세그먼트를 보내므로
-   *     1.0× 재생만으로도 버퍼가 서서히 다시 쌓임)
+   *  v16.1.1 변경:
+   *  ─ 데드존 내부에서 MED→NORM 복귀 경로 추가.
+   *    ex < _hyst * 0.5 이면 기어와 무관하게 NORM 복귀.
+   *    이전 버전에서는 MED 상태로 데드존 진입 시
+   *    NORM으로 내려오지 못하는 결함이 있었음.
    */
 
   const computeDesiredGear = buf => {
@@ -536,14 +540,15 @@
     /* 목표보다 짧음 → 1.0× 유지, 자연 회복에 맡김 */
     if (ex < -_hyst) return R_NORM;
 
-    /* ── 데드존: 초과가 있지만 _hyst 이내 ──
-     *  현재 R_NORM이면 굳이 가속하지 않는다.
-     *  목표 근처에서 NORM↔MED를 반복하는 진동을 방지. */
-    if (ex <= _hyst && control.gear === R_NORM) return R_NORM;
+    /* ── 데드존: -_hyst ≤ ex ≤ target*0.4 ──
+     *  ex가 데드존 하한에 가까우면(< _hyst * 0.5) 기어와 무관하게 NORM 복귀.
+     *  이전에 MED였다가 버퍼가 줄어 데드존에 진입한 경우의 복귀 경로. */
+    if (ex < _hyst * 0.5) return R_NORM;
 
-    /* 이미 HIGH였으면 MED로 한 단계 내림 */
+    /* HIGH→MED 한 단계 감속 */
     if (control.gear === R_HIGH) return R_MED;
 
+    /* 그 외: 현재 기어 유지 (NORM이면 NORM, MED이면 MED) */
     return control.gear;
   };
 
@@ -867,6 +872,8 @@
       slInput.value = target;
       svSpan.textContent = target.toFixed(1) + 's';
       setCfg('target', target);
+      BufGuard.reset();
+      resetBufRing();
     };
 
     slInput.oninput = () => applyTarget(parseFloat(slInput.value));
@@ -944,12 +951,8 @@
       if (cur === lastPath) return;
       lastPath = cur;
       const prev = getVid();
-      if (prev) {
-        safeRate(prev, R_NORM);
-        LiveDetect.clearCache(prev);
-      }
       setVid(null);
-      resetControlState(null);
+      resetControlState(prev);
       lastBuf = -1; lastTickRerun = false; lastTickGuard = false;
       _scanRetry = 0; _needScan = true;
       LiveDetect.resetYT();
