@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.5)
+// @name         Video_Control (v31.3.6)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.5
-// @description  v31.3.5: fSat.in 조건부 호출, mkChipRow 정리, svgHash 정수화, Store.load 검증
+// @version      31.3.6
+// @description  v31.3.6: 재생슬라이더 PB_EN 버그 수정, A_STR 이중호출 제거, mkFineButtons batch 전환, audioStatus 즉시렌더
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.5';
+  const VSC_VERSION = '31.3.6';
   const DEBUG = false;
 
   const log = {
@@ -110,15 +110,15 @@
     { n: '마스터(중간)', v: [60, 30, 10, 0, 0, 0,  -6,  7,  6] },
     { n: '마스터(강)',   v: [75, 38, 14, 0, 0, 0,  -8,  9,  8] },
     { n: '마스터(최대)', v: [90, 45, 18, 0, 0, 0, -10, 10, 10] },
+    { n: '드라마(약)',   v: [20, 12,  5, 0, 0,  3,  -2,  7,  4] },
+    { n: '드라마(보통)', v: [35, 22, 10, 0, 0,  5,  -4, 11,  8] },
+    { n: '드라마(중간)', v: [50, 32, 15, 0, 0,  6,  -6, 14, 11] },
+    { n: '드라마(강)',   v: [65, 42, 20, 0, 0,  7,  -8, 16, 14] },
     { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
     { n: '시네마(보통)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
     { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
     { n: '시네마(강)',   v: [80, 48, 20, -4, 0, -8, -8, 13, 16] },
     { n: '시네마(최대)', v: [100, 60, 25, -5, 0, -10, -10, 16, 20] },
-    { n: '드라마(약)',   v: [20, 12,  5, 0, 0,  3,  -2,  7,  4] },
-    { n: '드라마(보통)', v: [35, 22, 10, 0, 0,  5,  -4, 11,  8] },
-    { n: '드라마(중간)', v: [50, 32, 15, 0, 0,  6,  -6, 14, 11] },
-    { n: '드라마(강)',   v: [65, 42, 20, 0, 0,  7,  -8, 16, 14] },
     { n: '드라마(최대)', v: [80, 52, 25, 0, 0,  7, -10, 17, 17] },
     { n: '창조(약)', v: [20, 12, 5, 0, 0, 1, 0, 2, 4] },
     { n: '창조(보통)', v: [40, 24, 10, 0, 0, 3, -3, 4, 8] },
@@ -195,7 +195,6 @@
         listeners.get(k).add(f);
         return () => listeners.get(k).delete(f);
       },
-      /* patch #5: Store.load 유효성 검증 — DEFAULTS 키·타입 기준 필터링 */
       load: (data) => {
         if (!data) return;
         for (const c of Object.keys(defaults)) {
@@ -591,34 +590,32 @@
     }
 
     function applyStrength(strength) {
-  if (!comp || !makeupGain || !ctx) return;
-  const s = CLAMP(strength, 0, 100) / 100;
+      if (!comp || !makeupGain || !ctx) return;
+      const s = CLAMP(strength, 0, 100) / 100;
 
-  /* 강도 0이면 컴프레서 패스스루 */
-  if (s === 0) {
-    comp.threshold.value = 0;
-    comp.ratio.value = 1;
-    comp.knee.value = 40;
-    comp.attack.value = 0.02;
-    comp.release.value = 0.25;
-    try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); }
-    catch (_) { makeupGain.gain.value = 1; }
-    return;
-  }
+      if (s === 0) {
+        comp.threshold.value = 0;
+        comp.ratio.value = 1;
+        comp.knee.value = 40;
+        comp.attack.value = 0.02;
+        comp.release.value = 0.25;
+        try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); }
+        catch (_) { makeupGain.gain.value = 1; }
+        return;
+      }
 
-  comp.threshold.value = -8 - s * 24;
-  comp.ratio.value = 1.5 + s * 10.5;
-  comp.knee.value = 16 - s * 10;
-  comp.attack.value = 0.005 + (1 - s) * 0.015;
-  comp.release.value = 0.30 + (1 - s) * 0.20;
+      comp.threshold.value = -8 - s * 24;
+      comp.ratio.value = 1.5 + s * 10.5;
+      comp.knee.value = 16 - s * 10;
+      comp.attack.value = 0.005 + (1 - s) * 0.015;
+      comp.release.value = 0.30 + (1 - s) * 0.20;
 
-  const threshAbs = Math.abs(comp.threshold.value);
-  const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
-  const gain = Math.pow(10, makeupDb / 20);
-  try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
-  catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
-}
-
+      const threshAbs = Math.abs(comp.threshold.value);
+      const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
+      const gain = Math.pow(10, makeupDb / 20);
+      try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
+      catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
+    }
 
     function applySurroundWidth(width) {
       if (!ctx || !crossGainLR) return;
@@ -754,6 +751,7 @@
       currentSrc = null; currentMode = 'none';
     }
 
+    /* patch ②: updateMix에서 applyStrength 중복 호출 제거 */
     function updateMix() {
       if (!ctx || bypassMode) return;
       routeCompressor();
@@ -761,7 +759,6 @@
         try { currentSrc.disconnect(); } catch (_) {}
         if (isAnyAudioActive()) { currentSrc.connect(splitter); }
         else { currentSrc.connect(fullDryPath); }
-        if (store.get(P.A_EN)) applyStrength(Number(store.get(P.A_STR)) || 50);
       }
     }
 
@@ -862,7 +859,6 @@
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
-      /* patch #1: satInputKey 추가 */
       return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '' } };
     }
 
@@ -886,7 +882,6 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      /* patch #4: svgHash — toFixed → Math.round 정수 비교 */
       const svgHash = `${Math.round((s.sharp||0)*1000)}|${Math.round((s.toe||0)*1000)}|${Math.round((s.mid||0)*1000)}|${Math.round((s.shoulder||0)*1000)}|${Math.round((s.gain||1)*1000)}|${Math.round((s.gamma||1)*1000)}|${Math.round((s.contrast||1)*1000)}|${s.temp||0}|${s.tint||0}|${Math.round((s._cssSat||1)*1000)}`;
       if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
 
@@ -921,7 +916,6 @@
         ctx.fConv.setAttribute('divisor', '1');
       }
 
-      /* patch #1: fSat.in 조건부 호출 — 변경 시에만 setAttribute */
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
       if (st.satInputKey !== satInput) {
         st.satInputKey = satInput;
@@ -1126,11 +1120,13 @@
 
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
-    function mkSlider(path, min, max, step) {
+
+    /* patch ①: mkSlider에 onChange 콜백 파라미터 추가 */
+    function mkSlider(path, min, max, step, onChange) {
       const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2;
       const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' });
       function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
-      inp.addEventListener('input', () => { const v = parseFloat(inp.value); Store.set(path, v); updateUI(v); });
+      inp.addEventListener('input', () => { const v = parseFloat(inp.value); Store.set(path, v); updateUI(v); if (onChange) onChange(v); });
       const sync = () => updateUI(Number(Store.get(path) ?? min));
       tabFns.push(sync); sync(); return [inp, valEl];
     }
@@ -1155,7 +1151,6 @@
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
 
-    /* patch #2/#3: mkChipRow — onSelectOverride 분기 정리 + 잉여 Scheduler.request() 제거 */
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
@@ -1171,9 +1166,19 @@
       wrap.appendChild(row); tabFns.push(sync); sync(); return wrap;
     }
 
+    /* patch ③: mkFineButtons — Store.batch로 단일 스케줄러 요청 */
     function mkFineButtons(path, steps, min, max) {
       const row = h('div', { class: 'fine-row' });
-      for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); }); row.appendChild(btn); }
+      for (const d of steps) {
+        const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`);
+        btn.addEventListener('click', () => {
+          Store.batch('playback', {
+            rate: CLAMP((Number(Store.get(path)) || 1) + d, min, max),
+            enabled: true
+          });
+        });
+        row.appendChild(btn);
+      }
       return row;
     }
 
@@ -1232,10 +1237,11 @@
     }
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
+
+    /* patch ④: buildAudioStatus — tabFns.push(update) 추가로 초기 렌더 즉시 반영 */
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
-      tabSignalCleanups.push(Scheduler.onSignal(() => {
-        if (!panelOpen) return;
+      const update = () => {
         const enabled = Store.get(P.A_EN);
         const surround = Number(Store.get(P.A_SURROUND)) > 0;
         const clarity = Number(Store.get(P.A_CLARITY)) > 0;
@@ -1258,7 +1264,9 @@
         } else {
           el.textContent = '상태: 준비 (연결 대기)';
         }
-      }));
+      };
+      tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) update(); }));
+      tabFns.push(update);
       return el;
     }
 
@@ -1325,17 +1333,19 @@
         { type: 'widget', build: buildRateDisplay },
         { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.set(P.PB_RATE, v); Store.set(P.PB_EN, true); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
         { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
-        { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01 },
+        /* patch ①: 재생속도 슬라이더에 onChange 추가 — PB_EN 활성화 */
+        { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01, onChange: () => Store.set(P.PB_EN, true) },
       ]
     };
 
+    /* patch ①: renderSchema slider case에 onChange 전달 */
     function renderSchema(schema, container) {
       for (const item of schema) {
         switch (item.type) {
           case 'sep': container.append(mkSep()); break;
           case 'sectionLabel': container.append(h('div', { class: 'section-label' }, item.text)); break;
           case 'hint': container.append(h('div', { class: `hint${item.cls ? ' ' + item.cls : ''}` }, item.text)); break;
-          case 'slider': container.append(mkRow(item.label, ...mkSlider(item.path, item.min, item.max, item.step))); break;
+          case 'slider': container.append(mkRow(item.label, ...mkSlider(item.path, item.min, item.max, item.step, item.onChange))); break;
           case 'fineSlider': container.append(mkSliderWithFine(item.label, item.path, item.min, item.max, item.step, item.fine)); break;
           case 'toggle': container.append(mkRow(item.label, mkToggle(item.path, item.onChange))); break;
           case 'chips': container.append(mkChipRow(item.label || '', item.path, item.items, item.onSelect)); break;
@@ -1423,7 +1433,8 @@
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
     Store.sub(P.A_EN, () => { Audio.update(); });
-    Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) || 50); Audio.update(); });
+    /* patch ②: A_STR 구독에서 Audio.update() 제거 — updateMix 내 이중 호출 방지 */
+    Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) || 50); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
