@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.2)
+// @name         Video_Control (v31.3.3)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.2
-// @description  v31.3.2: rVFC 해상도 감지 + SVG 필터 분리 캐시 최적화
+// @version      31.3.3
+// @description  v31.3.3: 리스너 누수 수정, hidden 탭 복구, SVG 파이프라인 최적화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,8 +33,8 @@
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.2';
+  const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2); /* patch #9: replace 제거 */
+  const VSC_VERSION = '31.3.3';
   const DEBUG = false;
 
   const log = {
@@ -54,9 +54,9 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.15;
 
+  /* patch #6: webkitfullscreenchange 제거 — Chromium 전용 */
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
-    document.addEventListener('webkitfullscreenchange', fn);
   }
 
   function checkNeedsSvg(s) {
@@ -165,9 +165,10 @@
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
+  /* patch #8: Object.create(null) — 프로토타입 오염 방지 */
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
-    const _kc = {};
+    const _kc = Object.create(null);
     const listeners = new Map();
     const state = JSON.parse(JSON.stringify(defaults));
     const emit = (key, val) => { const a = listeners.get(key); if (a) for (const fn of a) try { fn(val); } catch (_) {} };
@@ -226,10 +227,18 @@
     return el;
   }
 
+  /* patch #2: Scheduler hidden 드롭 복구 */
   function createScheduler() {
-    let queued = false, applyFn = null;
+    let queued = false, applyFn = null, pendingHidden = false;
     const signalFns = new Set();
-    return {
+
+    function doFrame() {
+      queued = false;
+      if (applyFn) try { applyFn(); } catch (_) {}
+      for (const fn of signalFns) try { fn(); } catch (_) {}
+    }
+
+    const self = {
       registerApply: fn => { applyFn = fn; },
       onSignal: fn => {
         signalFns.add(fn);
@@ -237,18 +246,23 @@
       },
       request: () => {
         if (queued) return;
-        if (document.hidden) return;
+        if (document.hidden) { pendingHidden = true; return; }
         queued = true;
-        requestAnimationFrame(() => {
-          queued = false;
-          if (applyFn) try { applyFn(); } catch (_) {}
-          for (const fn of signalFns) try { fn(); } catch (_) {}
-        });
+        requestAnimationFrame(doFrame);
       }
     };
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && pendingHidden) {
+        pendingHidden = false;
+        self.request();
+      }
+    }, { passive: true });
+
+    return self;
   }
 
-  /* ══ createRegistry — rVFC 해상도 감지 통합 ══ */
+  /* ══ createRegistry — patch #1: 모든 리스너를 listenerDefs로 통합 ══ */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -266,14 +280,13 @@
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
 
-        function observeVideo(el) {
+    function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
-      el.addEventListener('encrypted', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
-      el.addEventListener('waitingforkey', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
 
       const req = () => { scheduler.request(); };
 
+      /* ── rVFC 해상도 감지 ── */
       let lastFW = 0, lastFH = 0;
       let rvfcHandle = 0;
       let rvfcRunning = false;
@@ -298,20 +311,31 @@
 
       rvfcHandles.set(el, { getHandle: () => rvfcHandle });
 
-      el.addEventListener('playing', startRVFC, { passive: true });
-      el.addEventListener('seeked', () => { rvfcRunning = false; startRVFC(); }, { passive: true });
-      el.addEventListener('loadedmetadata', () => { rvfcRunning = false; startRVFC(); req(); }, { passive: true });
-      el.addEventListener('pause', () => { rvfcRunning = false; }, { passive: true });
+      const onEncrypted = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
+      const onWaitingForKey = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
+      const onPlaying = () => { startRVFC(); };
+      const onSeeked = () => { rvfcRunning = false; startRVFC(); };
+      const onLoadedMetadata = () => { rvfcRunning = false; startRVFC(); req(); };
+      const onPause = () => { rvfcRunning = false; };
+      const onResize = req;
+      const onLoadstart = () => {
+        rvfcRunning = false;
+        if (rvfcHandle) { try { el.cancelVideoFrameCallback(rvfcHandle); } catch(_){} rvfcHandle = 0; }
+        delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
+        if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
+        req();
+      };
 
+      /* patch #1: 모든 리스너를 단일 배열로 관리 */
       const listenerDefs = [
-        ['resize', req],
-        ['loadstart', () => {
-          rvfcRunning = false;
-          if (rvfcHandle) { try { el.cancelVideoFrameCallback(rvfcHandle); } catch(_){} rvfcHandle = 0; }
-          delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
-          if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
-          req();
-        }]
+        ['encrypted', onEncrypted],
+        ['waitingforkey', onWaitingForKey],
+        ['playing', onPlaying],
+        ['seeked', onSeeked],
+        ['loadedmetadata', onLoadedMetadata],
+        ['pause', onPause],
+        ['resize', onResize],
+        ['loadstart', onLoadstart]
       ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
@@ -320,7 +344,6 @@
       if (ro) ro.observe(el);
       req();
     }
-
 
     function addShadowRoot(host) {
       if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
@@ -393,7 +416,7 @@
     let _purgeCallback = null;
     function setPurgeCallback(fn) { _purgeCallback = fn; }
 
-        function cleanup() {
+    function cleanup() {
       let removed = 0;
       for (const el of videos) {
         if (!el?.isConnected) {
@@ -419,7 +442,6 @@
       }
       if (removed) scheduler.request();
     }
-
 
     return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnLoadstartCallback };
   }
@@ -521,7 +543,6 @@
       delayL.connect(crossGainLR); delayR.connect(crossGainRL);
       crossGainLR.connect(merger, 0, 1); crossGainRL.connect(merger, 0, 0);
 
-      /* ── 3-band EQ: merger → eqLow → eqMid → eqHigh → routeGain ── */
       eqLow = ctx.createBiquadFilter();
       eqLow.type = 'lowshelf'; eqLow.frequency.value = 200; eqLow.gain.value = 0;
       eqMid = ctx.createBiquadFilter();
@@ -544,7 +565,6 @@
 
       compBypass = ctx.createGain(); compBypass.gain.value = 1;
 
-      /* ── 볼륨 부스트: limiter 뒤, masterOut 앞 ── */
       boostGain = ctx.createGain(); boostGain.gain.value = 1;
 
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
@@ -778,7 +798,7 @@
     };
   }
 
-  /* ══ createFilters — SVG 필터 분리 캐시 최적화 ══ */
+  /* ══ createFilters — patch #3: feConvolveMatrix 조건 우회 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -854,21 +874,18 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      /* ── 전체 해시: appliedFilter 무효화 판단용 ── */
       const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
       if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
 
       st.lastKey = svgHash;
       if (video) appliedFilter.delete(video);
 
-      /* ── tone curve (개별 비교) ── */
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) {
         st.toneKey = toneTable;
         for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
       }
 
-      /* ── temp/tint (개별 비교) ── */
       const tempTintKey = `${s.temp}|${s.tint}`;
       if (st.tempKey !== tempTintKey) {
         st.tempKey = tempTintKey;
@@ -878,7 +895,6 @@
         ctx.tempFuncB.setAttribute('slope', colorGain.bs);
       }
 
-      /* ── sharpening kernel (개별 비교) ── */
       const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
       let kernelStr = '0,0,0, 0,1,0, 0,0,0';
       if (totalS >= 0.005) {
@@ -892,7 +908,10 @@
         ctx.fConv.setAttribute('divisor', '1');
       }
 
-      /* ── saturation (개별 비교) ── */
+      /* patch #3: sharp=0이면 fConv를 GPU에서 건너뛰도록 fSat.in 전환 */
+      const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
+      ctx.fSat.setAttribute('in', satInput);
+
       const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
       if (st.satKey !== satVal) {
@@ -1113,6 +1132,7 @@
       resetBtn.addEventListener('click', () => { Store.set(path, 0); });
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
+    /* patch #7: mkChipRow rAF 제거 — 동기 실행 */
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
@@ -1122,7 +1142,7 @@
         const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val);
         if (onSelectOverride) { onSelectOverride(parsed); if (String(Store.get(path)) !== String(parsed)) Store.set(path, parsed); }
         else { Store.set(path, parsed); }
-        requestAnimationFrame(() => { for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
+        for (const c of row.children) c.classList.toggle('on', c.dataset.v === val);
         Scheduler.request();
       });
       const sync = () => { const cur = String(Store.get(path)); for (const c of row.children) c.classList.toggle('on', c.dataset.v === cur); };
@@ -1134,11 +1154,11 @@
       return row;
     }
 
+    /* patch #5: buildInfoBar — Store.sub(V_PRE_S) 이중 구독 제거 */
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
       const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
       tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) update(); }));
-      tabSignalCleanups.push(Store.sub(P.V_PRE_S, () => { if (panelOpen) update(); }));
       tabFns.push(update); return el;
     }
 
@@ -1376,8 +1396,9 @@
     Registry.setPurgeCallback((root) => Filters.purge(root));
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
-    Store.sub(P.A_EN, () => { Audio.routeCompressor(); Audio.update(); });
-    Store.sub(P.A_STR, () => { Audio.applyStrength(Number(Store.get(P.A_STR)) || 50); Audio.update(); });
+    /* patch #4: 오디오 구독 이중 호출 제거 — Audio.update() 하나로 통합 */
+    Store.sub(P.A_EN, () => { Audio.update(); });
+    Store.sub(P.A_STR, () => { Audio.update(); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
