@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.7)
+// @name         Video_Control (v31.3.8)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.7
-// @description  v31.3.7: MO 누수 수정(WeakMap+disconnect), webkitfullscreenchange 등록, Filters.clear early return, mkSlider lastRendered 캐시
+// @version      31.3.8
+// @description  v31.3.8: RVFC 이중체인 수정, APP_ACT OFF playbackRate 복원, mkSlider NaN 방어, Filters.clear 논리 수정, getRootNode 중복 제거, UI 레이블 수정, h() class 통일, divisor 재할당 제거
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.7';
+  const VSC_VERSION = '31.3.8';
   const DEBUG = false;
 
   const log = {
@@ -52,7 +52,6 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.18;
 
-  /* ── patch #2: webkitfullscreenchange 등록 ── */
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
     document.addEventListener('webkitfullscreenchange', fn);
@@ -216,6 +215,7 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const SVG_TAGS = new Set(['svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA','feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode','feComposite','feBlend','g','path','circle','rect','line','text','polyline','polygon']);
 
+  /* patch #7: h() class 처리 — setAttribute 단일 경로로 통일 */
   function h(tag, props = {}, ...children) {
     const isSvg = props.ns === 'svg' || SVG_TAGS.has(tag);
     const el = isSvg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
@@ -223,7 +223,7 @@
       if (k === 'ns') continue;
       if (k.startsWith('on')) { el.addEventListener(k.slice(2).toLowerCase(), v); }
       else if (k === 'style') { if (typeof v === 'string') el.style.cssText = v; else Object.assign(el.style, v); }
-      else if (k === 'class') { if (isSvg) el.setAttribute('class', v); else el.className = v; }
+      else if (k === 'class') { el.setAttribute('class', v); }
       else if (v !== false && v != null) el.setAttribute(k, String(v));
     }
     children.flat().forEach(c => { if (c != null) el.append(typeof c === 'string' ? document.createTextNode(c) : c); });
@@ -270,7 +270,6 @@
     const observedShadowHosts = new WeakSet();
     const SHADOW_MAX = 16;
     const observers = new Set();
-    /* ── patch #1: shadow root MO 추적용 WeakMap ── */
     const shadowMOs = new WeakMap();
     const videoListeners = new WeakMap();
     const rvfcHandles = new WeakMap();
@@ -283,6 +282,7 @@
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
 
+    /* patch #1: cancelRVFC 헬퍼 추출 — RVFC 이중 체인 방지 */
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
@@ -292,6 +292,11 @@
       let lastFW = 0, lastFH = 0;
       let rvfcHandle = 0;
       let rvfcRunning = false;
+
+      function cancelRVFC() {
+        if (rvfcHandle) { try { el.cancelVideoFrameCallback(rvfcHandle); } catch(_){} rvfcHandle = 0; }
+        rvfcRunning = false;
+      }
 
       function vfcTick(now, meta) {
         if (!el.isConnected) { rvfcRunning = false; rvfcHandle = 0; return; }
@@ -316,13 +321,12 @@
       const onEncrypted = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
       const onWaitingForKey = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
       const onPlaying = () => { startRVFC(); };
-      const onSeeked = () => { rvfcRunning = false; startRVFC(); };
-      const onLoadedMetadata = () => { rvfcRunning = false; startRVFC(); req(); };
-      const onPause = () => { rvfcRunning = false; };
+      const onSeeked = () => { cancelRVFC(); startRVFC(); };
+      const onLoadedMetadata = () => { cancelRVFC(); startRVFC(); req(); };
+      const onPause = () => { cancelRVFC(); };
       const onResize = req;
       const onLoadstart = () => {
-        rvfcRunning = false;
-        if (rvfcHandle) { try { el.cancelVideoFrameCallback(rvfcHandle); } catch(_){} rvfcHandle = 0; }
+        cancelRVFC();
         delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
         if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
         req();
@@ -386,7 +390,6 @@
       workQ.push(n); scheduleWork();
     }
 
-    /* ── patch #1: connectObserver — shadow root MO는 WeakMap, document MO는 Set ── */
     function connectObserver(root) {
       if (!root) return;
       const mo = new MutationObserver((muts) => {
@@ -421,7 +424,6 @@
     let _purgeCallback = null;
     function setPurgeCallback(fn) { _purgeCallback = fn; }
 
-    /* ── patch #1: cleanup — shadow root 만료 시 MO disconnect 호출 ── */
     function cleanup() {
       let removed = 0;
       for (const el of videos) {
@@ -877,16 +879,19 @@
       if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); try { const videos = root.querySelectorAll?.('video') || []; for (const v of videos) appliedFilter.delete(v); } catch (_) {} }
     }
 
+    /* patch #5: prepare() — getRootNode 1회 계산으로 중복 DOM 탐색 제거 */
     function prepare(video, s) {
+      const rn = video?.getRootNode?.();
+      const root = (rn instanceof ShadowRoot) ? rn : (video?.ownerDocument || document);
+
       if (!s._needsSvg) {
-        if (video) { const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document); if (ctxMap.has(root)) purge(root); }
+        if (video && ctxMap.has(root)) purge(root);
         const parts = [];
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
         if (Math.abs(s._cssSat - 1) > 0.001) parts.push(`saturate(${s._cssSat.toFixed(4)})`);
         return parts.length > 0 ? parts.join(' ') : 'none';
       }
-      const root = (video.getRootNode?.() instanceof ShadowRoot) ? video.getRootNode() : (video.ownerDocument || document);
       let ctx = ctxMap.get(root);
       if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
@@ -920,10 +925,10 @@
         const center = 1 - 4 * edge - 4 * diag;
         kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
       }
+      /* patch #8: divisor 재할당 제거 — buildSvg에서 이미 초기화됨 */
       if (st.sharpKey !== kernelStr) {
         st.sharpKey = kernelStr;
         ctx.fConv.setAttribute('kernelMatrix', kernelStr);
-        ctx.fConv.setAttribute('divisor', '1');
       }
 
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
@@ -945,11 +950,11 @@
     return {
       prepare,
       apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); return; } if (appliedFilter.get(el) === filterStr) return; applyFilterStyles(el, filterStr); appliedFilter.set(el, filterStr); },
-      /* ── patch #3: appliedFilter.has 선행 검사로 불필요 DOM 호출 방지 ── */
+      /* patch #4: Filters.clear — delete 대신 set('none')으로 이중 호출 방지 */
       clear: (el) => {
         if (!appliedFilter.has(el)) return;
         clearFilterStyles(el);
-        appliedFilter.delete(el);
+        appliedFilter.set(el, 'none');
       },
       purge
     };
@@ -1136,14 +1141,14 @@
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
 
-    /* ── patch #4: mkSlider — lastRendered 캐시로 불필요 DOM 기록 방지 ── */
+    /* patch #3: mkSlider sync — Number.isNaN으로 NaN만 방어, 0은 정상 통과 */
     function mkSlider(path, min, max, step, onChange) {
       const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2;
       const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' });
       let lastRendered;
       function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
       inp.addEventListener('input', () => { const v = parseFloat(inp.value); lastRendered = v; Store.set(path, v); updateUI(v); if (onChange) onChange(v); });
-      const sync = () => { const v = Number(Store.get(path) ?? min) || min; if (v === lastRendered) return; lastRendered = v; updateUI(v); };
+      const sync = () => { const raw = Number(Store.get(path) ?? min); const v = Number.isNaN(raw) ? min : raw; if (v === lastRendered) return; lastRendered = v; updateUI(v); };
       tabFns.push(sync); sync(); return [inp, valEl];
     }
 
@@ -1293,7 +1298,8 @@
         { type: 'sep' },
         { type: 'widget', build: buildPresetGrid },
         { type: 'sep' },
-        { type: 'sectionLabel', text: '톤 보정' },
+        /* patch #6: sectionLabel '톤 보정' → '수동 조정'으로 중복 제거 */
+        { type: 'sectionLabel', text: '수동 조정' },
         { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 },
         { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 },
         { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 },
@@ -1450,9 +1456,13 @@
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
 
+    /* patch #2: APP_ACT OFF 시 playbackRate 1.0 복원 */
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
+        if (__internal._activeVideo?.isConnected && Store.get(P.PB_EN)) {
+          try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {}
+        }
         Audio.setTarget(null);
         __internal._activeVideo = null;
         return;
