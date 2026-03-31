@@ -110,31 +110,26 @@
     { n: '마스터(중간)', v: [60, 30, 10, 0, 0, 0,  -6,  7,  6] },
     { n: '마스터(강)',   v: [75, 38, 14, 0, 0, 0,  -8,  9,  8] },
     { n: '마스터(최대)', v: [90, 45, 18, 0, 0, 0, -10, 10, 10] },
-    { n: '창조(약)', v: [20, 12, 5, 0, 0, 1, 0, 2, 4] },
-    { n: '창조(보통)', v: [40, 24, 10, 0, 0, 3, -3, 4, 8] },
-    { n: '창조(중간)', v: [60, 36, 15, 0, 0, 5, -6, 6, 12] },
-    { n: '창조(강)', v: [80, 48, 20, 0, 0, 7, -9, 8, 16] },
-    { n: '창조(최대)', v: [100, 60, 25, 0, 0, 9, -12, 10, 20] },
     { n: '드라마(약)',   v: [20, 12,  5, 0, 0,  3,  -2,  7,  4] },
     { n: '드라마(보통)', v: [35, 22, 10, 0, 0,  5,  -4, 11,  8] },
     { n: '드라마(중간)', v: [50, 32, 15, 0, 0,  6,  -6, 14, 11] },
     { n: '드라마(강)',   v: [65, 42, 20, 0, 0,  7,  -8, 16, 14] },
     { n: '드라마(최대)', v: [80, 52, 25, 0, 0,  7, -10, 17, 17] },
-    { n: '야간(약)',   v: [25, 16,  5,  4, 0, -1, -4,  1,  2] },
-    { n: '야간(보통)', v: [45, 30, 10,  6, 0, -2, -6,  2,  4] },
-    { n: '야간(중간)', v: [62, 42, 15,  8, 0, -3, -8,  3,  6] },
-    { n: '야간(강)',   v: [78, 52, 20, 10, 0, -4,-10,  4,  9] },
-    { n: '야간(최대)', v: [95, 62, 25, 12, 0, -5,-12,  5, 12] },
     { n: '시네마(약)', v: [20, 12,  5,   0,  0,  -2,  -2,   4,   4] },
     { n: '시네마(보통)', v: [40, 24, 10,   0,  0,  -4,  -4,   7,   8] },
     { n: '시네마(중간)', v: [60, 36, 15,  -2,  0,  -6,  -6,  10,  12] },
     { n: '시네마(강)',   v: [80, 48, 20, -4, 0, -8, -8, 13, 16] },
     { n: '시네마(최대)', v: [100, 60, 25, -5, 0, -10, -10, 16, 20] },
-    { n: '사용자(약)',   v: [20, 14,  8,  0, 0, 0,  -4,  4,  3] },
-    { n: '사용자(보통)', v: [40, 28, 16,  0, 0, 0,  -6,  7,  6] },
-    { n: '사용자(중간)', v: [60, 40, 24,  0, 0, 0,  -8,  9, 10] },
-    { n: '사용자(강)',   v: [80, 52, 32,  0, 0, 0, -10, 11, 13] },
-    { n: '사용자(최대)', v: [100, 65, 40, 0, 0, 0, -12, 13, 17] },
+    { n: 'CCTV(약)', v: [20, 12, 5, 0, 0, 0, -3, 3, 6] },
+    { n: 'CCTV(보통)', v: [40, 24, 10, 0, 0, 0, -6, 6, 12] },
+    { n: 'CCTV(중간)', v: [60, 36, 15, 0, 0, 0, -9, 9, 18] },
+    { n: 'CCTV(강)', v: [80, 48, 20, 0, 0, 0, -12, 12, 24] },
+    { n: 'CCTV(최대)', v: [100, 60, 25, 0, 0, 0, -15, 15, 30] },
+    { n: '야간(약)',   v: [25, 16,  5,  4, 0, -1, -4,  1,  2] },
+    { n: '야간(보통)', v: [45, 30, 10,  6, 0, -2, -6,  2,  4] },
+    { n: '야간(중간)', v: [62, 42, 15,  8, 0, -3, -8,  3,  6] },
+    { n: '야간(강)',   v: [78, 52, 20, 10, 0, -4,-10,  4,  9] },
+    { n: '야간(최대)', v: [95, 62, 25, 12, 0, -5,-12,  5, 12] },
   ];
 
   const DEFAULTS = {
@@ -596,20 +591,34 @@
     }
 
     function applyStrength(strength) {
-      if (!comp || !makeupGain || !ctx) return;
-      const s = CLAMP(strength, 0, 100) / 100;
-      comp.threshold.value = -8 - s * 24;
-      comp.ratio.value = 1.5 + s * 10.5;
-      comp.knee.value = 16 - s * 10;
-      comp.attack.value = 0.005 + (1 - s) * 0.015;
-      comp.release.value = 0.30 + (1 - s) * 0.20;
+  if (!comp || !makeupGain || !ctx) return;
+  const s = CLAMP(strength, 0, 100) / 100;
 
-      const threshAbs = Math.abs(comp.threshold.value);
-      const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
-      const gain = Math.pow(10, makeupDb / 20);
-      try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
-      catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
-    }
+  /* 강도 0이면 컴프레서 패스스루 */
+  if (s === 0) {
+    comp.threshold.value = 0;
+    comp.ratio.value = 1;
+    comp.knee.value = 40;
+    comp.attack.value = 0.02;
+    comp.release.value = 0.25;
+    try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); }
+    catch (_) { makeupGain.gain.value = 1; }
+    return;
+  }
+
+  comp.threshold.value = -8 - s * 24;
+  comp.ratio.value = 1.5 + s * 10.5;
+  comp.knee.value = 16 - s * 10;
+  comp.attack.value = 0.005 + (1 - s) * 0.015;
+  comp.release.value = 0.30 + (1 - s) * 0.20;
+
+  const threshAbs = Math.abs(comp.threshold.value);
+  const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
+  const gain = Math.pow(10, makeupDb / 20);
+  try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
+  catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
+}
+
 
     function applySurroundWidth(width) {
       if (!ctx || !crossGainLR) return;
