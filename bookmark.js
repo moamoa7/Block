@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         북마크 (Glassmorphism v26.1)
-// @version      26.1
-// @description  v26.0 기반 — dead code 제거, 터치 롱프레스/드래그 경합 수정, cross-group D&D 매칭 수정
+// @name         북마크 (Glassmorphism v26.2)
+// @version      26.2
+// @description  v26.1 기반 — toggle 닫기 시 saveNow 누락 수정, _col 가비지 정리, rerender RAF 병합, findLocs 이중순회 제거, favicon sz=64, Fragment 분기 제거, 건강체크 405 허용
 // @author       User
 // @match        *://*/*
 // @grant        GM_setValue
@@ -47,9 +47,7 @@
         }
         if (children) {
             if (Array.isArray(children)) {
-                const f = children.length > 3 ? document.createDocumentFragment() : null;
-                for (const c of children) if (c) (f || e).append(c);
-                if (f) e.append(f);
+                for (const c of children) if (c) e.append(c);
             } else {
                 e.append(children);
             }
@@ -106,11 +104,12 @@
 
     /* 파비콘 */
     const FALLBACK_ICON = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    /* [패치] sz=128 → sz=64: 표시 크기 34~40px 대비 2x면 충분, 네트워크 절약 */
     const faviconUrl = url => {
         try {
             const h = new URL(url).hostname;
             if (!h) return FALLBACK_ICON;
-            return `https://www.google.com/s2/favicons?domain=${h}&sz=128`;
+            return `https://www.google.com/s2/favicons?domain=${h}&sz=64`;
         } catch { return FALLBACK_ICON; }
     };
 
@@ -158,7 +157,7 @@
        DB
        ═══════════════════════════════════ */
     let db = null, shadow = null, isSortMode = false, _isOpen = false,
-        _dirty = false, _saveTimer = null, _urlSet = null,
+        _dirty = false, _saveTimer = null, _urlSet = null, _urlLocs = null,
         _undo = [], _searchIndex = null;
 
     const forEachItem = cb => {
@@ -191,6 +190,7 @@
         if (!_dirty) return;
         _dirty = false;
         _urlSet = null;
+        _urlLocs = null;
         _searchIndex = null;
         try {
             GM_setValue('bm_db_v2', db);
@@ -214,7 +214,7 @@
     const refreshDB = () => {
         if (_dirty) saveNow();
         const fresh = GM_getValue('bm_db_v2', null);
-        if (validateDB(fresh)) { db = fresh; _dirty = false; _urlSet = null; _searchIndex = null; return true; }
+        if (validateDB(fresh)) { db = fresh; _dirty = false; _urlSet = null; _urlLocs = null; _searchIndex = null; return true; }
         return false;
     };
 
@@ -227,27 +227,37 @@
     };
     const popUndo = () => {
         if (!_undo.length) return false;
-        db = _undo.pop(); _urlSet = null; _searchIndex = null; save(); rerender();
+        db = _undo.pop(); _urlSet = null; _urlLocs = null; _searchIndex = null; save(); rerender();
         toast('↩ 되돌리기 완료');
         return true;
     };
 
-    /* URL 중복 체크 */
+    /* [패치] URL 중복 체크 + 위치 정보 통합 — findLocs 이중 순회 제거 */
     const buildUrlSet = () => {
         _urlSet = new Map();
-        forEachItem(it => _urlSet.set(it.url, (_urlSet.get(it.url) || 0) + 1));
+        _urlLocs = new Map();
+        forEachItem((it, p, g) => {
+            _urlSet.set(it.url, (_urlSet.get(it.url) || 0) + 1);
+            if (!_urlLocs.has(it.url)) _urlLocs.set(it.url, []);
+            _urlLocs.get(it.url).push(`${p} > ${g}`);
+        });
     };
     const isDup = u => { if (!_urlSet) buildUrlSet(); return (_urlSet.get(u) || 0) > 0; };
-    const addUrl = u => { if (!_urlSet) buildUrlSet(); _urlSet.set(u, (_urlSet.get(u) || 0) + 1); };
+    const addUrl = u => {
+        if (!_urlSet) buildUrlSet();
+        _urlSet.set(u, (_urlSet.get(u) || 0) + 1);
+        /* _urlLocs는 정밀 위치가 필요하므로 무효화하여 다음 조회 시 재구축 */
+        _urlLocs = null;
+    };
     const delUrl = u => {
         if (!_urlSet) return;
         const c = _urlSet.get(u) || 0;
         if (c <= 1) _urlSet.delete(u); else _urlSet.set(u, c - 1);
+        _urlLocs = null;
     };
     const findLocs = u => {
-        const r = [];
-        if (isDup(u)) forEachItem((it, p, g) => { if (it.url === u) r.push(`${p} > ${g}`); });
-        return r;
+        if (!_urlLocs) buildUrlSet();
+        return _urlLocs.get(u) || [];
     };
 
     /* 검색 인덱스 */
@@ -286,6 +296,19 @@
         const k = colKey(g);
         _col.has(k) ? _col.delete(k) : _col.add(k);
         saveCol();
+    };
+
+    /* [패치] _col 가비지 정리 — 존재하지 않는 페이지::그룹 키 제거 */
+    const cleanCol = () => {
+        let changed = false;
+        for (const k of _col) {
+            const [pn, gn] = k.split('::');
+            if (!db.pages[pn] || !db.pages[pn][gn]) {
+                _col.delete(k);
+                changed = true;
+            }
+        }
+        if (changed) saveCol();
     };
 
     /* 최근 저장 */
@@ -493,7 +516,8 @@
                         const ok = await new Promise(r =>
                             GM_xmlhttpRequest({
                                 method: 'HEAD', url: it.url, timeout: 5000,
-                                onload: res => r(res.status < 400),
+                                /* [패치] 405 허용 — HEAD를 거부하지만 실제로는 살아있는 사이트 오탐 방지 */
+                                onload: res => r(res.status < 400 || res.status === 405),
                                 onerror: () => r(false), ontimeout: () => r(false)
                             })
                         );
@@ -527,7 +551,7 @@
                         if (idx > -1) arr.splice(idx, 1);
                     }
                 }
-                _urlSet = null; save(); rerender();
+                _urlSet = null; _urlLocs = null; save(); rerender();
                 toast(`✅ ${dups.length}개 중복 정리됨`);
                 m.close();
             }, { width: '100%', marginTop: '10px', padding: '10px' }));
@@ -543,7 +567,7 @@
                     const idx = arr.findIndex(x => x.url === it.url);
                     if (idx > -1) arr.splice(idx, 1);
                 }
-                _urlSet = null; save(); rerender();
+                _urlSet = null; _urlLocs = null; save(); rerender();
                 toast(`✅ ${dead.length}개 삭제됨`);
                 m.close();
             }, { width: '100%', marginTop: '5px', padding: '10px' }));
@@ -556,7 +580,6 @@
     let _sorts = [];
     const killSorts = () => { _sorts.forEach(s => s.destroy()); _sorts.length = 0; };
 
-    /* [패치 #3] 관련 그룹 배열만으로 itemMap 구축 — cross-group 오매칭 방지 */
     const rebuildGroupFromDOM = (gridEl, ...sourceArrays) => {
         const itemMap = new Map();
         for (const arr of sourceArrays) {
@@ -615,7 +638,14 @@
        대시보드 렌더링
        ═══════════════════════════════════ */
     let _sTimer = null, _ctr = null;
-    const rerender = () => { if (_isOpen) renderDash(); };
+
+    /* [패치] rerender RAF 병합 — 연속 호출 시 마지막 1회만 실행 */
+    let _renderRaf = 0;
+    const rerender = () => {
+        if (!_isOpen) return;
+        cancelAnimationFrame(_renderRaf);
+        _renderRaf = requestAnimationFrame(renderDash);
+    };
 
     function renderDash() {
         const ov = shadow.querySelector('#bm-overlay');
@@ -901,15 +931,12 @@
                 if (g.style.display !== 'none') {
                     _sorts.push(new Sortable(g, {
                         group: 'bm-items', animation: 150,
-                        /* [패치 #2] 터치 드래그 딜레이를 600ms로 상향 — 500ms 롱프레스 컨텍스트 메뉴 우선 발동 보장 */
                         delay: 600, delayOnTouchOnly: true,
-                        /* [패치 #1] onStart 제거 — ev.to가 undefined이고 _snapshot도 미사용 dead code였음 */
                         onEnd: ev => {
                             pushUndo();
                             const page = curPage();
                             const fromGroup = ev.from.dataset.group;
                             const toGroup = ev.to.dataset.group;
-                            /* [패치 #3] 관련 그룹의 아이템 배열만 전달하여 cross-group 오매칭 방지 */
                             const fromItems = page[fromGroup] || [];
                             const toItems = fromGroup !== toGroup ? (page[toGroup] || []) : fromItems;
                             page[fromGroup] = rebuildGroupFromDOM(ev.from, fromItems, toItems);
@@ -917,6 +944,7 @@
                                 page[toGroup] = rebuildGroupFromDOM(ev.to, fromItems, toItems);
                             }
                             _urlSet = null;
+                            _urlLocs = null;
                             saveLazy();
                         }
                     }));
@@ -1010,14 +1038,16 @@
                     } else {
                         pg[gn] = nItems;
                     }
-                    _urlSet = null; save(); rerender(); m.close();
+                    _urlSet = null; _urlLocs = null; save(); rerender(); m.close();
                 }, { flex: '2', padding: '12px' }),
                 btn('닫기', '', () => m.close(), { flex: '1', background: 'var(--c-text-muted)', padding: '12px' })
             ]),
             btn('🗑 그룹 삭제', 'bm-btn-red', () => {
                 if (items.length && !confirm(`"${gn}" 삭제?`)) return;
                 pushUndo(); delete curPage()[gn];
-                _urlSet = null; save(); rerender(); m.close();
+                /* [패치] 그룹 삭제 시 _col 가비지 정리 */
+                _col.delete(colKey(gn)); saveCol();
+                _urlSet = null; _urlLocs = null; save(); rerender(); m.close();
             }, { width: '100%', marginTop: '10px', padding: '10px' })
         ]));
 
@@ -1057,9 +1087,12 @@
                             if (Object.keys(db.pages).length < 2) return alert('최소 1개');
                             if (!confirm(`"${tn}" 삭제?`)) return;
                             pushUndo();
+                            /* [패치] 페이지 삭제 시 _col 가비지 정리 */
+                            for (const g of Object.keys(db.pages[tn] || {})) _col.delete(`${tn}::${g}`);
+                            saveCol();
                             delete db.pages[tn];
                             if (db.currentPage === tn) db.currentPage = Object.keys(db.pages)[0];
-                            _urlSet = null; save(); m.close(); rerender();
+                            _urlSet = null; _urlLocs = null; save(); m.close(); rerender();
                         }, { padding: '4px 8px' })
                     ])
                 ]));
@@ -1209,6 +1242,8 @@
             fab.firstChild.textContent = '✕';
             _isOpen = true;
         } else {
+            /* [패치] 닫기 시 미저장 데이터 즉시 flush — saveLazy 타이머 잔존 방지 */
+            if (_dirty) saveNow();
             document.body.classList.remove('bm-overlay-open');
             ov.style.display = 'none';
             fab.firstChild.textContent = '🔖';
@@ -1523,6 +1558,9 @@ dialog.bm-modal-bg::backdrop{background:rgba(0,0,0,0.55);backdrop-filter:blur(8p
         const ov = $('div', { id: 'bm-overlay' });
         const fab = $('div', { id: 'bm-fab', role: 'button', 'aria-label': '북마크' }, [document.createTextNode('🔖')]);
         shadow.append($('style', { text: GLASS_CSS }), ov, fab);
+
+        /* [패치] 초기화 시 _col 가비지 정리 */
+        cleanCol();
 
         /* ── FAB 제스처 ── */
         const st = { t: 0, r: false, d: false, sx: 0, sy: 0, ox: 0, oy: 0, lx: 0, ly: 0, tp: 0 };
