@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.4)
+// @name         Video_Control (v31.3.5)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.4
-// @description  v31.3.4: buildInfoBar 이중구독 제거, vfcTick handle 초기화, mkToggle dead code 제거, -webkit-filter 제거, syncGrid 최적화, A_STR applyStrength 추가
+// @version      31.3.5
+// @description  v31.3.5: fSat.in 조건부 호출, mkChipRow 정리, svgHash 정수화, Store.load 검증
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -24,9 +24,7 @@
 (function () {
   'use strict';
 
-  /* ── Chromium 전용: 비-Chromium 브라우저 즉시 종료 ── */
   if (!window.chrome && !navigator.userAgentData) return;
-
   if (location.href.includes('/cdn-cgi/') || location.protocol === 'about:' || location.href === 'about:blank') return;
   if (window.__vsc_booted) return;
   window.__vsc_booted = true;
@@ -34,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.4';
+  const VSC_VERSION = '31.3.5';
   const DEBUG = false;
 
   const log = {
@@ -64,7 +62,6 @@
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
-  /* ── patch #4: -webkit-filter 제거 — Chromium 전용이므로 filter만 사용 ── */
   function applyFilterStyles(el, filterStr) {
     if (!el?.style) return;
     el.style.setProperty('filter', filterStr, 'important');
@@ -203,7 +200,20 @@
         listeners.get(k).add(f);
         return () => listeners.get(k).delete(f);
       },
-      load: (data) => { if (!data) return; for (const c of Object.keys(defaults)) { if (data[c] != null && typeof data[c] === 'object') Object.assign(state[c], data[c]); } rev++; }
+      /* patch #5: Store.load 유효성 검증 — DEFAULTS 키·타입 기준 필터링 */
+      load: (data) => {
+        if (!data) return;
+        for (const c of Object.keys(defaults)) {
+          if (data[c] != null && typeof data[c] === 'object') {
+            for (const [k, v] of Object.entries(data[c])) {
+              if (k in defaults[c] && typeof v === typeof defaults[c][k]) {
+                state[c][k] = v;
+              }
+            }
+          }
+        }
+        rev++;
+      }
     };
   }
 
@@ -286,7 +296,6 @@
       let rvfcRunning = false;
 
       function vfcTick(now, meta) {
-        /* patch #2: 조기 종료 시 rvfcHandle 초기화 */
         if (!el.isConnected) { rvfcRunning = false; rvfcHandle = 0; return; }
         const fw = meta.width  || el.videoWidth  || 0;
         const fh = meta.height || el.videoHeight || 0;
@@ -844,7 +853,8 @@
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
-      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '', satKey: '' } };
+      /* patch #1: satInputKey 추가 */
+      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '' } };
     }
 
     function purge(root) {
@@ -867,7 +877,8 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
+      /* patch #4: svgHash — toFixed → Math.round 정수 비교 */
+      const svgHash = `${Math.round((s.sharp||0)*1000)}|${Math.round((s.toe||0)*1000)}|${Math.round((s.mid||0)*1000)}|${Math.round((s.shoulder||0)*1000)}|${Math.round((s.gain||1)*1000)}|${Math.round((s.gamma||1)*1000)}|${Math.round((s.contrast||1)*1000)}|${s.temp||0}|${s.tint||0}|${Math.round((s._cssSat||1)*1000)}`;
       if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
 
       st.lastKey = svgHash;
@@ -901,8 +912,12 @@
         ctx.fConv.setAttribute('divisor', '1');
       }
 
+      /* patch #1: fSat.in 조건부 호출 — 변경 시에만 setAttribute */
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
-      ctx.fSat.setAttribute('in', satInput);
+      if (st.satInputKey !== satInput) {
+        st.satInputKey = satInput;
+        ctx.fSat.setAttribute('in', satInput);
+      }
 
       const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
@@ -1111,13 +1126,12 @@
       tabFns.push(sync); sync(); return [inp, valEl];
     }
 
-    /* ── patch #3: mkToggle — dead code 및 이중 Scheduler.request() 제거 ── */
     function mkToggle(path, onChange) {
       const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' });
       function sync() { const on = !!Store.get(path); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); }
       el.addEventListener('click', () => {
         const nv = !Store.get(path);
-        Store.set(path, nv);   /* Store.set 내부에서 scheduler.request() 이미 호출 */
+        Store.set(path, nv);
         sync();
         if (onChange) onChange(nv);
       });
@@ -1132,6 +1146,7 @@
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
 
+    /* patch #2/#3: mkChipRow — onSelectOverride 분기 정리 + 잉여 Scheduler.request() 제거 */
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
@@ -1139,20 +1154,20 @@
       row.addEventListener('click', e => {
         const chip = e.target.closest('.chip'); if (!chip) return;
         const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val);
-        if (onSelectOverride) { onSelectOverride(parsed); if (String(Store.get(path)) !== String(parsed)) Store.set(path, parsed); }
+        if (onSelectOverride) { onSelectOverride(parsed); }
         else { Store.set(path, parsed); }
         for (const c of row.children) c.classList.toggle('on', c.dataset.v === val);
       });
       const sync = () => { const cur = String(Store.get(path)); for (const c of row.children) c.classList.toggle('on', c.dataset.v === cur); };
       wrap.appendChild(row); tabFns.push(sync); sync(); return wrap;
     }
+
     function mkFineButtons(path, steps, min, max) {
       const row = h('div', { class: 'fine-row' });
       for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); }); row.appendChild(btn); }
       return row;
     }
 
-    /* ── patch #1: buildInfoBar — Scheduler.onSignal 이중 구독 제거 ── */
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
       const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
@@ -1188,7 +1203,6 @@
 
       const offValues = MANUAL_PRESETS[0].v;
 
-      /* ── patch #5: syncGrid — 배열 할당 제거, 직접 루프 비교 ── */
       const syncGrid = () => {
         let isOff = true;
         for (let i = 0; i < MANUAL_PATHS.length; i++) {
@@ -1298,7 +1312,6 @@
         { type: 'widget', build: buildAudioStatus },
       ],
       playback: [
-        /* patch #3: onChange에서 Scheduler.request() 제거 — Store.set이 이미 트리거 */
         { type: 'toggle', label: '속도 제어', path: P.PB_EN },
         { type: 'widget', build: buildRateDisplay },
         { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.set(P.PB_RATE, v); Store.set(P.PB_EN, true); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
@@ -1384,7 +1397,6 @@
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
   }
 
-  /* ══ Bootstrap ══ */
   function bootstrap() {
     const Scheduler = createScheduler();
     const Store = createLocalStore(DEFAULTS, Scheduler);
@@ -1401,7 +1413,6 @@
     Registry.setPurgeCallback((root) => Filters.purge(root));
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
-    /* ── patch #6: A_STR 구독에 applyStrength 직접 호출 추가 ── */
     Store.sub(P.A_EN, () => { Audio.update(); });
     Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) || 50); Audio.update(); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
