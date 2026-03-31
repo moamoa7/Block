@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.3)
+// @name         Video_Control (v31.3.4)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.3
-// @description  v31.3.3: 리스너 누수 수정, hidden 탭 복구, SVG 파이프라인 최적화
+// @version      31.3.4
+// @description  v31.3.4: buildInfoBar 이중구독 제거, vfcTick handle 초기화, mkToggle dead code 제거, -webkit-filter 제거, syncGrid 최적화, A_STR applyStrength 추가
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -33,8 +33,8 @@
 
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
-  const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2); /* patch #9: replace 제거 */
-  const VSC_VERSION = '31.3.3';
+  const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
+  const VSC_VERSION = '31.3.4';
   const DEBUG = false;
 
   const log = {
@@ -54,7 +54,6 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.15;
 
-  /* patch #6: webkitfullscreenchange 제거 — Chromium 전용 */
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
   }
@@ -65,15 +64,14 @@
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
+  /* ── patch #4: -webkit-filter 제거 — Chromium 전용이므로 filter만 사용 ── */
   function applyFilterStyles(el, filterStr) {
     if (!el?.style) return;
     el.style.setProperty('filter', filterStr, 'important');
-    el.style.setProperty('-webkit-filter', filterStr, 'important');
   }
   function clearFilterStyles(el) {
     if (!el?.style) return;
     el.style.removeProperty('filter');
-    el.style.removeProperty('-webkit-filter');
   }
 
   const PRESETS = Object.freeze({
@@ -165,7 +163,6 @@
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
-  /* patch #8: Object.create(null) — 프로토타입 오염 방지 */
   function createLocalStore(defaults, scheduler) {
     let rev = 0;
     const _kc = Object.create(null);
@@ -227,7 +224,6 @@
     return el;
   }
 
-  /* patch #2: Scheduler hidden 드롭 복구 */
   function createScheduler() {
     let queued = false, applyFn = null, pendingHidden = false;
     const signalFns = new Set();
@@ -262,7 +258,6 @@
     return self;
   }
 
-  /* ══ createRegistry — patch #1: 모든 리스너를 listenerDefs로 통합 ══ */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -286,13 +281,13 @@
 
       const req = () => { scheduler.request(); };
 
-      /* ── rVFC 해상도 감지 ── */
       let lastFW = 0, lastFH = 0;
       let rvfcHandle = 0;
       let rvfcRunning = false;
 
       function vfcTick(now, meta) {
-        if (!el.isConnected) { rvfcRunning = false; return; }
+        /* patch #2: 조기 종료 시 rvfcHandle 초기화 */
+        if (!el.isConnected) { rvfcRunning = false; rvfcHandle = 0; return; }
         const fw = meta.width  || el.videoWidth  || 0;
         const fh = meta.height || el.videoHeight || 0;
         if (fw !== lastFW || fh !== lastFH) {
@@ -326,7 +321,6 @@
         req();
       };
 
-      /* patch #1: 모든 리스너를 단일 배열로 관리 */
       const listenerDefs = [
         ['encrypted', onEncrypted],
         ['waitingforkey', onWaitingForKey],
@@ -798,7 +792,6 @@
     };
   }
 
-  /* ══ createFilters — patch #3: feConvolveMatrix 조건 우회 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -908,7 +901,6 @@
         ctx.fConv.setAttribute('divisor', '1');
       }
 
-      /* patch #3: sharp=0이면 fConv를 GPU에서 건너뛰도록 fSat.in 전환 */
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
       ctx.fSat.setAttribute('in', satInput);
 
@@ -1006,7 +998,6 @@
     };
   }
 
-  /* ══ createUI ══ */
   function createUI(Store, Audio, Registry, Scheduler, OSD, Filters) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
@@ -1119,12 +1110,20 @@
       const sync = () => updateUI(Number(Store.get(path) ?? min));
       tabFns.push(sync); sync(); return [inp, valEl];
     }
+
+    /* ── patch #3: mkToggle — dead code 및 이중 Scheduler.request() 제거 ── */
     function mkToggle(path, onChange) {
       const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' });
       function sync() { const on = !!Store.get(path); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); }
-      el.addEventListener('click', () => { const nv = !Store.get(path); Store.set(path, nv); sync(); if (onChange) onChange(nv); else Scheduler.request(); });
+      el.addEventListener('click', () => {
+        const nv = !Store.get(path);
+        Store.set(path, nv);   /* Store.set 내부에서 scheduler.request() 이미 호출 */
+        sync();
+        if (onChange) onChange(nv);
+      });
       tabFns.push(sync); sync(); return el;
     }
+
     function mkSliderWithFine(label, path, min, max, step, fineStep) {
       const [slider, valEl] = mkSlider(path, min, max, step);
       const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); }); return b; };
@@ -1132,7 +1131,7 @@
       resetBtn.addEventListener('click', () => { Store.set(path, 0); });
       return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, slider, valEl, h('div', { style: 'display:flex;gap:3px;margin-left:4px' }, mkFine(-fineStep, `−${fineStep}`), mkFine(+fineStep, `+${fineStep}`), resetBtn)));
     }
-    /* patch #7: mkChipRow rAF 제거 — 동기 실행 */
+
     function mkChipRow(label, path, chips, onSelectOverride) {
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
@@ -1143,23 +1142,22 @@
         if (onSelectOverride) { onSelectOverride(parsed); if (String(Store.get(path)) !== String(parsed)) Store.set(path, parsed); }
         else { Store.set(path, parsed); }
         for (const c of row.children) c.classList.toggle('on', c.dataset.v === val);
-        Scheduler.request();
       });
       const sync = () => { const cur = String(Store.get(path)); for (const c of row.children) c.classList.toggle('on', c.dataset.v === cur); };
       wrap.appendChild(row); tabFns.push(sync); sync(); return wrap;
     }
     function mkFineButtons(path, steps, min, max) {
       const row = h('div', { class: 'fine-row' });
-      for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); Scheduler.request(); }); row.appendChild(btn); }
+      for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.set(path, CLAMP((Number(Store.get(path)) || 1) + d, min, max)); Store.set(P.PB_EN, true); }); row.appendChild(btn); }
       return row;
     }
 
-    /* patch #5: buildInfoBar — Store.sub(V_PRE_S) 이중 구독 제거 */
+    /* ── patch #1: buildInfoBar — Scheduler.onSignal 이중 구독 제거 ── */
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
       const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
-      tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) update(); }));
-      tabFns.push(update); return el;
+      tabFns.push(update);
+      return el;
     }
 
     function buildPresetGrid() {
@@ -1171,7 +1169,6 @@
         const obj = {};
         for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = 0;
         Store.batch('video', obj);
-        Scheduler.request();
       });
       headerRow.append(label, offBtn);
       wrap.append(headerRow);
@@ -1184,19 +1181,26 @@
           const obj = {};
           for (let i = 0; i < MANUAL_KEYS.length; i++) obj[MANUAL_KEYS[i]] = p.v[i];
           Store.batch('video', obj);
-          Scheduler.request();
         });
         grid.appendChild(btn);
         return { btn, values: p.v };
       });
 
       const offValues = MANUAL_PRESETS[0].v;
+
+      /* ── patch #5: syncGrid — 배열 할당 제거, 직접 루프 비교 ── */
       const syncGrid = () => {
-        const current = MANUAL_PATHS.map(p => Store.get(p));
-        const isOff = offValues.every((v, i) => current[i] === v);
+        let isOff = true;
+        for (let i = 0; i < MANUAL_PATHS.length; i++) {
+          if (Store.get(MANUAL_PATHS[i]) !== offValues[i]) { isOff = false; break; }
+        }
         offBtn.classList.toggle('active', isOff);
         for (const { btn, values } of buttons) {
-          btn.classList.toggle('active', values.every((v, i) => current[i] === v));
+          let match = true;
+          for (let i = 0; i < MANUAL_PATHS.length; i++) {
+            if (Store.get(MANUAL_PATHS[i]) !== values[i]) { match = false; break; }
+          }
+          btn.classList.toggle('active', match);
         }
       };
       tabFns.push(syncGrid);
@@ -1294,7 +1298,8 @@
         { type: 'widget', build: buildAudioStatus },
       ],
       playback: [
-        { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
+        /* patch #3: onChange에서 Scheduler.request() 제거 — Store.set이 이미 트리거 */
+        { type: 'toggle', label: '속도 제어', path: P.PB_EN },
         { type: 'widget', build: buildRateDisplay },
         { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.set(P.PB_RATE, v); Store.set(P.PB_EN, true); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
         { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
@@ -1396,9 +1401,9 @@
     Registry.setPurgeCallback((root) => Filters.purge(root));
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
-    /* patch #4: 오디오 구독 이중 호출 제거 — Audio.update() 하나로 통합 */
+    /* ── patch #6: A_STR 구독에 applyStrength 직접 호출 추가 ── */
     Store.sub(P.A_EN, () => { Audio.update(); });
-    Store.sub(P.A_STR, () => { Audio.update(); });
+    Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) || 50); Audio.update(); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
@@ -1440,7 +1445,7 @@
 
     createUI(Store, Audio, Registry, Scheduler, OSD, Filters);
     __internal.Store = Store; __internal._activeVideo = null;
-    try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); Scheduler.request(); }); } catch (_) {}
+    try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); }); } catch (_) {}
     Registry.rescanAll(); apply();
     log.info(`[VSC] v${VSC_VERSION} booted.`);
   }
