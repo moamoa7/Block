@@ -256,6 +256,7 @@
     const SHADOW_MAX = 16;
     const observers = new Set();
     const videoListeners = new WeakMap();
+    const rvfcHandles = new WeakMap();
 
     const io = (typeof IntersectionObserver === 'function') ? new IntersectionObserver((entries) => { for (const e of entries) { if (e.isIntersecting || e.intersectionRatio > 0) { scheduler.request(); return; } } }, { root: null, threshold: [0, 0.05, 0.5], rootMargin: '150px' }) : null;
     const ro = (typeof ResizeObserver === 'function') ? new ResizeObserver((entries) => { for (const e of entries) { if (e.target.tagName === 'VIDEO') { scheduler.request(); return; } } }) : null;
@@ -273,7 +274,6 @@
 
       const req = () => { scheduler.request(); };
 
-      /* ── rVFC 해상도 감지 (Chromium 전용) ── */
       let lastFW = 0, lastFH = 0;
       let rvfcHandle = 0;
       let rvfcRunning = false;
@@ -295,6 +295,8 @@
         lastFW = 0; lastFH = 0;
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
       }
+
+      rvfcHandles.set(el, { getHandle: () => rvfcHandle });
 
       el.addEventListener('playing', startRVFC, { passive: true });
       el.addEventListener('seeked', () => { rvfcRunning = false; startRVFC(); }, { passive: true });
@@ -391,11 +393,16 @@
     let _purgeCallback = null;
     function setPurgeCallback(fn) { _purgeCallback = fn; }
 
-    function cleanup() {
+        function cleanup() {
       let removed = 0;
       for (const el of videos) {
         if (!el?.isConnected) {
           videos.delete(el); clearFilterStyles(el);
+          const rvfc = rvfcHandles.get(el);
+          if (rvfc) {
+            try { el.cancelVideoFrameCallback(rvfc.getHandle()); } catch (_) {}
+            rvfcHandles.delete(el);
+          }
           if (io) try { io.unobserve(el); } catch (_) {}
           if (ro) try { ro.unobserve(el); } catch (_) {}
           const ls = videoListeners.get(el);
@@ -412,6 +419,7 @@
       }
       if (removed) scheduler.request();
     }
+
 
     return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnLoadstartCallback };
   }
