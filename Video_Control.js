@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.1)
+// @name         Video_Control (v31.3.2)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.1
-// @description  v31.3.1: 오디오 대화 선명도(3-band EQ) + 볼륨 부스트 추가
+// @version      31.3.2
+// @description  v31.3.2: rVFC 해상도 감지 + SVG 필터 분리 캐시 최적화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -34,7 +34,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.()?.replace(/-/g, '') || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.1';
+  const VSC_VERSION = '31.3.2';
   const DEBUG = false;
 
   const log = {
@@ -248,6 +248,7 @@
     };
   }
 
+  /* ══ createRegistry — rVFC 해상도 감지 통합 ══ */
   function createRegistry(scheduler) {
     const videos = new Set();
     const shadowRootsLRU = [];
@@ -264,20 +265,47 @@
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
 
-    function observeVideo(el) {
+        function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
       el.addEventListener('encrypted', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
       el.addEventListener('waitingforkey', () => { el.dataset.vscDrm = "1"; scheduler.request(); });
-      if (io) io.observe(el);
-      if (ro) ro.observe(el);
+
       const req = () => { scheduler.request(); };
-      let lastT = 0;
-      const onTimeUpdate = () => { const now = performance.now(); if (now - lastT > 500) { lastT = now; req(); } };
+
+      /* ── rVFC 해상도 감지 (Chromium 전용) ── */
+      let lastFW = 0, lastFH = 0;
+      let rvfcHandle = 0;
+      let rvfcRunning = false;
+
+      function vfcTick(now, meta) {
+        if (!el.isConnected) { rvfcRunning = false; return; }
+        const fw = meta.width  || el.videoWidth  || 0;
+        const fh = meta.height || el.videoHeight || 0;
+        if (fw !== lastFW || fh !== lastFH) {
+          lastFW = fw; lastFH = fh;
+          scheduler.request();
+        }
+        rvfcHandle = el.requestVideoFrameCallback(vfcTick);
+      }
+
+      function startRVFC() {
+        if (rvfcRunning) return;
+        rvfcRunning = true;
+        lastFW = 0; lastFH = 0;
+        rvfcHandle = el.requestVideoFrameCallback(vfcTick);
+      }
+
+      el.addEventListener('playing', startRVFC, { passive: true });
+      el.addEventListener('seeked', () => { rvfcRunning = false; startRVFC(); }, { passive: true });
+      el.addEventListener('loadedmetadata', () => { rvfcRunning = false; startRVFC(); req(); }, { passive: true });
+      el.addEventListener('pause', () => { rvfcRunning = false; }, { passive: true });
+
       const listenerDefs = [
-        ['loadedmetadata', req], ['resize', req], ['playing', req], ['timeupdate', onTimeUpdate],
-        ['seeked', () => { scheduler.request(); }],
+        ['resize', req],
         ['loadstart', () => {
+          rvfcRunning = false;
+          if (rvfcHandle) { try { el.cancelVideoFrameCallback(rvfcHandle); } catch(_){} rvfcHandle = 0; }
           delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
           if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
           req();
@@ -285,8 +313,12 @@
       ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
+
+      if (io) io.observe(el);
+      if (ro) ro.observe(el);
       req();
     }
+
 
     function addShadowRoot(host) {
       if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
@@ -570,7 +602,6 @@
     function applyClarity(clarity) {
       if (!ctx || !eqLow) return;
       const c = CLAMP(clarity, 0, 100) / 100;
-      /* c=0 → 전부 0dB, c=1 → low -4dB, mid +6dB, high +3dB */
       const lowDb = -4 * c;
       const midDb = 6 * c;
       const highDb = 3 * c;
@@ -739,6 +770,7 @@
     };
   }
 
+  /* ══ createFilters — SVG 필터 분리 캐시 최적화 ══ */
   function createFilters() {
     const ctxMap = new WeakMap();
     const toneCache = new Map();
@@ -791,7 +823,7 @@
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
-      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '' } };
+      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '', satKey: '' } };
     }
 
     function purge(root) {
@@ -813,24 +845,53 @@
       if (!ctx) { ctx = buildSvg(root); ctxMap.set(root, ctx); }
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
+
+      /* ── 전체 해시: appliedFilter 무효화 판단용 ── */
       const svgHash = `${(s.sharp||0).toFixed(3)}|${(s.toe||0).toFixed(3)}|${(s.mid||0).toFixed(3)}|${(s.shoulder||0).toFixed(3)}|${(s.gain||1).toFixed(3)}|${(s.gamma||1).toFixed(3)}|${(s.contrast||1).toFixed(3)}|${s.temp||0}|${s.tint||0}|${(s._cssSat||1).toFixed(3)}`;
-      if (st.lastKey !== svgHash) {
-        st.lastKey = svgHash;
-        if (video) appliedFilter.delete(video);
-        const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
-        if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
+      if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
+
+      st.lastKey = svgHash;
+      if (video) appliedFilter.delete(video);
+
+      /* ── tone curve (개별 비교) ── */
+      const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
+      if (st.toneKey !== toneTable) {
+        st.toneKey = toneTable;
+        for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
+      }
+
+      /* ── temp/tint (개별 비교) ── */
+      const tempTintKey = `${s.temp}|${s.tint}`;
+      if (st.tempKey !== tempTintKey) {
+        st.tempKey = tempTintKey;
         const colorGain = tempTintToRgbGain(s.temp, s.tint);
-        const tempTintKey = `${s.temp}|${s.tint}`;
-        if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; ctx.tempFuncR.setAttribute('slope', colorGain.rs); ctx.tempFuncG.setAttribute('slope', colorGain.gs); ctx.tempFuncB.setAttribute('slope', colorGain.bs); }
-        let desatMul = 1;
-        const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
-        let kernelStr = '0,0,0, 0,1,0, 0,0,0';
-        if (totalS >= 0.005) { const edge = -totalS; const diag = edge * 0.707; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
-        if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); ctx.fConv.setAttribute('divisor', '1'); }
-        desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
-        const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
+        ctx.tempFuncR.setAttribute('slope', colorGain.rs);
+        ctx.tempFuncG.setAttribute('slope', colorGain.gs);
+        ctx.tempFuncB.setAttribute('slope', colorGain.bs);
+      }
+
+      /* ── sharpening kernel (개별 비교) ── */
+      const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
+      let kernelStr = '0,0,0, 0,1,0, 0,0,0';
+      if (totalS >= 0.005) {
+        const edge = -totalS; const diag = edge * 0.707;
+        const center = 1 - 4 * edge - 4 * diag;
+        kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
+      }
+      if (st.sharpKey !== kernelStr) {
+        st.sharpKey = kernelStr;
+        ctx.fConv.setAttribute('kernelMatrix', kernelStr);
+        ctx.fConv.setAttribute('divisor', '1');
+      }
+
+      /* ── saturation (개별 비교) ── */
+      const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
+      const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
+      if (st.satKey !== satVal) {
+        st.satKey = satVal;
         ctx.fSat.setAttribute('values', satVal);
       }
+
       return `url(#${ctx.fid})`;
     }
 
@@ -1172,7 +1233,7 @@
 
     const TAB_SCHEMA = {
       video: buildVideoSchema(),
-            audio: [
+      audio: [
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
         { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
@@ -1204,7 +1265,6 @@
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
       ],
-
       playback: [
         { type: 'toggle', label: '속도 제어', path: P.PB_EN, onChange: () => Scheduler.request() },
         { type: 'widget', build: buildRateDisplay },
