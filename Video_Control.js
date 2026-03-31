@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.6)
+// @name         Video_Control (v31.3.7)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.6
-// @description  v31.3.6: 재생슬라이더 PB_EN 버그 수정, A_STR 이중호출 제거, mkFineButtons batch 전환, audioStatus 즉시렌더
+// @version      31.3.7
+// @description  v31.3.7: MO 누수 수정(WeakMap+disconnect), webkitfullscreenchange 등록, Filters.clear early return, mkSlider lastRendered 캐시
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.6';
+  const VSC_VERSION = '31.3.7';
   const DEBUG = false;
 
   const log = {
@@ -52,8 +52,10 @@
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
   const SHARP_CAP = 0.18;
 
+  /* ── patch #2: webkitfullscreenchange 등록 ── */
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
+    document.addEventListener('webkitfullscreenchange', fn);
   }
 
   function checkNeedsSvg(s) {
@@ -268,6 +270,8 @@
     const observedShadowHosts = new WeakSet();
     const SHADOW_MAX = 16;
     const observers = new Set();
+    /* ── patch #1: shadow root MO 추적용 WeakMap ── */
+    const shadowMOs = new WeakMap();
     const videoListeners = new WeakMap();
     const rvfcHandles = new WeakMap();
 
@@ -382,6 +386,7 @@
       workQ.push(n); scheduleWork();
     }
 
+    /* ── patch #1: connectObserver — shadow root MO는 WeakMap, document MO는 Set ── */
     function connectObserver(root) {
       if (!root) return;
       const mo = new MutationObserver((muts) => {
@@ -392,7 +397,10 @@
         }
         if (touchedVideo) scheduler.request();
       });
-      mo.observe(root, { childList: true, subtree: true }); observers.add(mo); enqueue(root);
+      mo.observe(root, { childList: true, subtree: true });
+      if (root instanceof ShadowRoot) shadowMOs.set(root, mo);
+      else observers.add(mo);
+      enqueue(root);
     }
 
     const root = document.body || document.documentElement;
@@ -413,6 +421,7 @@
     let _purgeCallback = null;
     function setPurgeCallback(fn) { _purgeCallback = fn; }
 
+    /* ── patch #1: cleanup — shadow root 만료 시 MO disconnect 호출 ── */
     function cleanup() {
       let removed = 0;
       for (const el of videos) {
@@ -434,6 +443,8 @@
         const entry = shadowRootsLRU[i];
         if (!entry.host?.isConnected) {
           if (_purgeCallback && entry.root) try { _purgeCallback(entry.root); } catch (_) {}
+          const mo = entry.root ? shadowMOs.get(entry.root) : null;
+          if (mo) { try { mo.disconnect(); } catch (_) {} }
           shadowRootsLRU.splice(i, 1);
         }
       }
@@ -751,7 +762,6 @@
       currentSrc = null; currentMode = 'none';
     }
 
-    /* patch ②: updateMix에서 applyStrength 중복 호출 제거 */
     function updateMix() {
       if (!ctx || bypassMode) return;
       routeCompressor();
@@ -935,7 +945,12 @@
     return {
       prepare,
       apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); return; } if (appliedFilter.get(el) === filterStr) return; applyFilterStyles(el, filterStr); appliedFilter.set(el, filterStr); },
-      clear: (el) => { clearFilterStyles(el); appliedFilter.delete(el); },
+      /* ── patch #3: appliedFilter.has 선행 검사로 불필요 DOM 호출 방지 ── */
+      clear: (el) => {
+        if (!appliedFilter.has(el)) return;
+        clearFilterStyles(el);
+        appliedFilter.delete(el);
+      },
       purge
     };
   }
@@ -1121,13 +1136,14 @@
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
 
-    /* patch ①: mkSlider에 onChange 콜백 파라미터 추가 */
+    /* ── patch #4: mkSlider — lastRendered 캐시로 불필요 DOM 기록 방지 ── */
     function mkSlider(path, min, max, step, onChange) {
       const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2;
       const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' });
+      let lastRendered;
       function updateUI(v) { inp.value = String(v); valEl.textContent = Number(v).toFixed(digits); inp.style.setProperty('--fill', `${((v - min) / (max - min)) * 100}%`); }
-      inp.addEventListener('input', () => { const v = parseFloat(inp.value); Store.set(path, v); updateUI(v); if (onChange) onChange(v); });
-      const sync = () => updateUI(Number(Store.get(path) ?? min));
+      inp.addEventListener('input', () => { const v = parseFloat(inp.value); lastRendered = v; Store.set(path, v); updateUI(v); if (onChange) onChange(v); });
+      const sync = () => { const v = Number(Store.get(path) ?? min) || min; if (v === lastRendered) return; lastRendered = v; updateUI(v); };
       tabFns.push(sync); sync(); return [inp, valEl];
     }
 
@@ -1166,7 +1182,6 @@
       wrap.appendChild(row); tabFns.push(sync); sync(); return wrap;
     }
 
-    /* patch ③: mkFineButtons — Store.batch로 단일 스케줄러 요청 */
     function mkFineButtons(path, steps, min, max) {
       const row = h('div', { class: 'fine-row' });
       for (const d of steps) {
@@ -1238,7 +1253,6 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
 
-    /* patch ④: buildAudioStatus — tabFns.push(update) 추가로 초기 렌더 즉시 반영 */
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
       const update = () => {
@@ -1333,12 +1347,10 @@
         { type: 'widget', build: buildRateDisplay },
         { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.set(P.PB_RATE, v); Store.set(P.PB_EN, true); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
         { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
-        /* patch ①: 재생속도 슬라이더에 onChange 추가 — PB_EN 활성화 */
         { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01, onChange: () => Store.set(P.PB_EN, true) },
       ]
     };
 
-    /* patch ①: renderSchema slider case에 onChange 전달 */
     function renderSchema(schema, container) {
       for (const item of schema) {
         switch (item.type) {
@@ -1433,7 +1445,6 @@
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
     Store.sub(P.A_EN, () => { Audio.update(); });
-    /* patch ②: A_STR 구독에서 Audio.update() 제거 — updateMix 내 이중 호출 방지 */
     Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) || 50); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
