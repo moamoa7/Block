@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Yellow Tint Detector
 // @namespace    https://github.com/
-// @version      3.2.0
+// @version      3.2.1
 // @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 표시
 // @match        *://*/*
 // @grant        none
@@ -89,18 +89,24 @@
     return -(Math.round(score / CFG.tempPerScore));
   }
 
-  /* ── FAB 상태 ────────────────────────────────────────── */
   function updateFabState(status, score) {
-    if (!fab) return;
-    lastStatus = status;
-    const scoreEl = fab.querySelector('.ytd-fab-score');
-    if (scoreEl) {
-      scoreEl.textContent = status === 'idle' ? ''
-        : status === 'error' ? '!'
-        : Math.round(score);
+  if (!fab) return;
+  lastStatus = status;
+  const scoreEl = fab.querySelector('.ytd-fab-score');
+  if (scoreEl) {
+    if (status === 'idle') {
+      scoreEl.textContent = '';
+    } else if (status === 'error') {
+      scoreEl.textContent = '!';
+    } else {
+      // 핵심 변경: score 대신 scoreToTemp 함수를 사용
+      const tempValue = scoreToTemp(score);
+      // 0일 때는 빈칸 혹은 0으로 표시, 그 외에는 -1, -2 등으로 표시
+      scoreEl.textContent = tempValue === 0 ? '0' : tempValue;
     }
-    fab.className = 'ytd-fab ytd-fab--' + status;
   }
+  fab.className = 'ytd-fab ytd-fab--' + status;
+}
 
   function setFabVisible(show) {
     if (!fab) return;
@@ -315,7 +321,7 @@
     fabStyle = document.createElement('style');
     fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
-      .ytd-fab{position:fixed;top:130px;right:14px;z-index:2147483647;
+      .ytd-fab{position:fixed;top:40px;right:0px;z-index:2147483647; opacity: 0.5;
         width:40px;height:40px;border-radius:50%;
         background:#15171c;border:2px solid #2a2d36;
         cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -334,11 +340,22 @@
         width:10px;height:10px;border-radius:50%;
         background:transparent;border:2px solid #15171c;
         transition:all .3s ease;pointer-events:none}
-      .ytd-fab-score{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
-        font:700 9px/1 monospace;color:#4a5060;
-        background:#15171c;padding:1px 4px;border-radius:6px;
-        border:1px solid #2a2d36;pointer-events:none;
-        transition:all .3s ease;min-width:18px;text-align:center}
+      .ytd-fab-score {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font: 700 9px/1 monospace;
+  color: #4a5060;
+  background: #15171c;
+  padding: 1px 4px;
+  border-radius: 6px;
+  border: 1px solid #2a2d36;
+  pointer-events: none;
+  transition: all .3s ease;
+  min-width: 24px; /* 18px에서 24px로 살짝 늘림 (마이너스 기호 대비) */
+  text-align: center;
+}
       .ytd-fab--idle{border-color:#2a2d36}
       .ytd-fab--idle .ytd-fab-icon svg{fill:#4a5060;stroke:#4a5060}
       .ytd-fab--idle .ytd-fab-dot{background:transparent}
