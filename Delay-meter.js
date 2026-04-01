@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.1.1
+// @version      16.1.2
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -30,8 +30,8 @@
    * ================================================================ */
 
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '16.1.1'
-    : '16.1.1';
+    ? GM_info?.script?.version ?? '16.1.2'
+    : '16.1.2';
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -520,11 +520,12 @@
    *  §7. 제어 엔진
    * ================================================================
    *
-   *  v16.1.1 변경:
-   *  ─ 데드존 내부에서 MED→NORM 복귀 경로 추가.
-   *    ex < _hyst * 0.5 이면 기어와 무관하게 NORM 복귀.
-   *    이전 버전에서는 MED 상태로 데드존 진입 시
-   *    NORM으로 내려오지 못하는 결함이 있었음.
+   *  v16.1.2 변경:
+   *  ─ 데드존 내부 분기 순서 수정.
+   *    ex < -_hyst (버퍼 부족) 판정 후, HIGH 기어 점진 감속 분기를
+   *    NORM 복귀 분기보다 앞에 배치하여 HIGH→MED→NORM 단계적 감속이
+   *    정상 동작하도록 수정. 이전 버전에서는 HIGH 상태에서 데드존 진입 시
+   *    MED를 경유하지 않고 NORM으로 즉시 점프하는 버그가 있었음.
    */
 
   const computeDesiredGear = buf => {
@@ -541,12 +542,12 @@
     if (ex < -_hyst) return R_NORM;
 
     /* ── 데드존: -_hyst ≤ ex ≤ target*0.4 ──
-     *  ex가 데드존 하한에 가까우면(< _hyst * 0.5) 기어와 무관하게 NORM 복귀.
-     *  이전에 MED였다가 버퍼가 줄어 데드존에 진입한 경우의 복귀 경로. */
-    if (ex < _hyst * 0.5) return R_NORM;
-
-    /* HIGH→MED 한 단계 감속 */
+     *  HIGH 기어에서는 MED로 한 단계 감속 (점진적 감속 보장) */
     if (control.gear === R_HIGH) return R_MED;
+
+    /* 데드존 하한 근처이면 NORM 복귀
+     *  MED였다가 버퍼가 줄어 데드존에 진입한 경우의 복귀 경로 */
+    if (ex < _hyst * 0.5) return R_NORM;
 
     /* 그 외: 현재 기어 유지 (NORM이면 NORM, MED이면 MED) */
     return control.gear;
@@ -913,13 +914,26 @@
     Renderer.invalidate();
   };
 
+  /* [#4 fix] 패널 닫을 때 FAB 위치 복원:
+   *  드래그로 저장된 좌표(cfg.dx)가 있으면 그 위치로 복원,
+   *  없을 때만 패널 인접 위치로 계산. */
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; setCfg('open', false);
     const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
     setTimeout(() => {
       if (panelOpen) return; els.fab.style.display = 'flex';
-      Object.assign(els.fab.style, { left: clamp(r.right - 24, 0, innerWidth - 40) + 'px', top: clamp(r.top + 6, 0, innerHeight - 40) + 'px', right: 'auto', bottom: 'auto' });
-      cfg.dx = els.fab.style.left; cfg.dy = els.fab.style.top; saveLazy();
+      if (cfg.dx) {
+        const x = clamp(parseFloat(cfg.dx), 0, innerWidth - 40);
+        const y = clamp(parseFloat(cfg.dy), 0, innerHeight - 40);
+        Object.assign(els.fab.style, { left: x + 'px', top: y + 'px', right: 'auto', bottom: 'auto' });
+      } else {
+        Object.assign(els.fab.style, {
+          left: clamp(r.right - 24, 0, innerWidth - 40) + 'px',
+          top:  clamp(r.top + 6,   0, innerHeight - 40) + 'px',
+          right: 'auto', bottom: 'auto'
+        });
+        cfg.dx = els.fab.style.left; cfg.dy = els.fab.style.top; saveLazy();
+      }
     }, 260);
     _prev.dot = '';
   };
