@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Yellow Tint Detector
 // @namespace    https://github.com/
-// @version      3.2.1
-// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 표시
+// @version      3.3.0
+// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 + 전체화면 대응
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -16,7 +16,7 @@
     intervalMs:  800,
     threshold:   12,
     histLen:     24,
-    tempPerScore: 5,  // score 5당 색온도 -1
+    tempPerScore: 5,
   };
 
   let timerID    = null;
@@ -30,9 +30,14 @@
   let panelOpen  = false;
   let lastStatus = 'idle';
 
-  const offscreen = document.createElement('canvas');
-  offscreen.width = offscreen.height = CFG.sampleSize;
-  const oCtx = offscreen.getContext('2d', { willReadFrequently: true });
+  /* #1: canvas taint 대응 — let + resetCanvas */
+  let offscreen, oCtx;
+  function resetCanvas() {
+    offscreen = document.createElement('canvas');
+    offscreen.width = offscreen.height = CFG.sampleSize;
+    oCtx = offscreen.getContext('2d', { willReadFrequently: true });
+  }
+  resetCanvas();
 
   /* ── cross-origin 조기 주입 ──────────────────────────── */
   const injected = new WeakSet();
@@ -60,6 +65,7 @@
       r /= n; g /= n; b /= n;
       return { ok: true, r, g, b, score: (r - b) + (g - b) * 0.5 };
     } catch (e) {
+      resetCanvas(); /* #1: tainted canvas 폐기 후 재생성 */
       return { ok: false, error: e.name + ': ' + e.message };
     }
   }
@@ -89,24 +95,23 @@
     return -(Math.round(score / CFG.tempPerScore));
   }
 
+  /* ── FAB 상태 ────────────────────────────────────────── */
   function updateFabState(status, score) {
-  if (!fab) return;
-  lastStatus = status;
-  const scoreEl = fab.querySelector('.ytd-fab-score');
-  if (scoreEl) {
-    if (status === 'idle') {
-      scoreEl.textContent = '';
-    } else if (status === 'error') {
-      scoreEl.textContent = '!';
-    } else {
-      // 핵심 변경: score 대신 scoreToTemp 함수를 사용
-      const tempValue = scoreToTemp(score);
-      // 0일 때는 빈칸 혹은 0으로 표시, 그 외에는 -1, -2 등으로 표시
-      scoreEl.textContent = tempValue === 0 ? '0' : tempValue;
+    if (!fab) return;
+    lastStatus = status;
+    const scoreEl = fab.querySelector('.ytd-fab-score');
+    if (scoreEl) {
+      if (status === 'idle') {
+        scoreEl.textContent = '';
+      } else if (status === 'error') {
+        scoreEl.textContent = '!';
+      } else {
+        const tempValue = scoreToTemp(score);
+        scoreEl.textContent = tempValue === 0 ? '0' : tempValue;
+      }
     }
+    fab.className = 'ytd-fab ytd-fab--' + status;
   }
-  fab.className = 'ytd-fab ytd-fab--' + status;
-}
 
   function setFabVisible(show) {
     if (!fab) return;
@@ -117,10 +122,33 @@
     }
   }
 
+  /* ── 전체화면 대응 ───────────────────────────────────── */
+  function getFsRoot() {
+    const fs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!fs) return document.documentElement;
+    return fs.tagName === 'VIDEO' ? (fs.parentElement || document.documentElement) : fs;
+  }
+
+  function reparent() {
+    const target = getFsRoot();
+    if (fab && fab.parentNode !== target) {
+      try { target.appendChild(fab); } catch (_) {}
+    }
+    if (panel && panelOpen && panel.parentNode !== target) {
+      try { target.appendChild(panel); } catch (_) {}
+    }
+  }
+
+  function onFsChange() {
+    reparent();
+    setTimeout(reparent, 100);
+  }
+
   /* ── 분석 tick ───────────────────────────────────────── */
   function tick() {
     if (!liveVideo || !liveVideo.isConnected) {
       liveVideo = null;
+      killShadow(); /* #2: 고아 shadowVid 방지 */
       scheduleDetect();
       return;
     }
@@ -174,7 +202,6 @@
     if (score > CFG.threshold) { bd.textContent = '⚠️  노란끼 감지됨'; bd.className = 'warn'; }
     else                       { bd.textContent = '✅  색조 정상';     bd.className = 'ok'; }
 
-    /* 권장 색온도 표시 */
     const tempEl = q('ytd-temp');
     if (tempEl) {
       const temp = scoreToTemp(score);
@@ -321,7 +348,7 @@
     fabStyle = document.createElement('style');
     fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
-      .ytd-fab{position:fixed;top:40px;right:0px;z-index:2147483647; opacity: 0.5;
+      .ytd-fab{position:fixed;top:40px;right:0px;z-index:2147483647;opacity:0.5;
         width:40px;height:40px;border-radius:50%;
         background:#15171c;border:2px solid #2a2d36;
         cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -340,22 +367,11 @@
         width:10px;height:10px;border-radius:50%;
         background:transparent;border:2px solid #15171c;
         transition:all .3s ease;pointer-events:none}
-      .ytd-fab-score {
-  position: absolute;
-  bottom: -6px;
-  left: 50%;
-  transform: translateX(-50%);
-  font: 700 9px/1 monospace;
-  color: #4a5060;
-  background: #15171c;
-  padding: 1px 4px;
-  border-radius: 6px;
-  border: 1px solid #2a2d36;
-  pointer-events: none;
-  transition: all .3s ease;
-  min-width: 24px; /* 18px에서 24px로 살짝 늘림 (마이너스 기호 대비) */
-  text-align: center;
-}
+      .ytd-fab-score{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+        font:700 9px/1 monospace;color:#4a5060;
+        background:#15171c;padding:1px 4px;border-radius:6px;
+        border:1px solid #2a2d36;pointer-events:none;
+        transition:all .3s ease;min-width:24px;text-align:center}
       .ytd-fab--idle{border-color:#2a2d36}
       .ytd-fab--idle .ytd-fab-icon svg{fill:#4a5060;stroke:#4a5060}
       .ytd-fab--idle .ytd-fab-dot{background:transparent}
@@ -464,7 +480,8 @@
         <span id="ytd-st">대기</span>
       </div>
       <div id="ytd-err"></div>`;
-    document.documentElement.appendChild(el);
+
+    getFsRoot().appendChild(el);
 
     panelStyle = document.createElement('style');
     panelStyle.id = '__ytd2_style__';
@@ -521,6 +538,7 @@
 
   function ensurePanel() {
     if (panel && document.documentElement.contains(panel)) return;
+    if (panel && getFsRoot().contains(panel)) return;
     panel = buildPanel();
     bindPanelEvents();
   }
@@ -583,6 +601,10 @@
 
     new MutationObserver(() => scheduleDetect())
       .observe(document.body || document.documentElement, { childList: true, subtree: true });
+
+    /* 전체화면 변경 감지 */
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
 
     setInterval(() => {
       if (liveVideo && !liveVideo.isConnected) { liveVideo = null; }
