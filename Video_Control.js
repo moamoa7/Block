@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.4.0)
+// @name         Video_Control (v31.4.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.4.0
-// @description  v31.4.0: AudioContext resume 지연 대응 (Promise+타이머+onstatechange), 고해상도(QHD/4K) 샤프닝 커널 가중치 체계 재설계
+// @version      31.4.1
+// @description  v31.4.1: Filters.clear 조기리턴 개선, vfcTick cancelRVFC 일관성, cleanup Set순회 안전화, syncGrid 캐싱
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.4.0';
+  const VSC_VERSION = '31.4.1';
   const DEBUG = false;
 
   const log = {
@@ -51,11 +51,10 @@
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
-  /* ── 고해상도 샤프닝 체계 ── */
   function getSharpProfile(nW) {
     if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.12 };
     if (nW > 1920) return { cap: 0.22, diagRatio: 0.65, autoBase: 0.10 };
-    return { cap: 0.18, diagRatio: 0.707, autoBase: null }; // autoBase null → 기존 테이블 사용
+    return { cap: 0.18, diagRatio: 0.707, autoBase: null };
   }
   const SHARP_CAP_DEFAULT = 0.18;
 
@@ -108,19 +107,16 @@
 
   const MANUAL_PRESETS = [
     { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
-
     { n: '마스터(약)',   v: [0, 0,  1, 0, 0, 0,  -1,  1, 3] },
     { n: '마스터(보통)', v: [0, 0,  2, 0, 0, 0,  -2,  2,  6] },
     { n: '마스터(중간)', v: [0, 0, 3, 0, 0, 0,  -3,  3,  9] },
     { n: '마스터(강)',   v: [0, 0, 4, 0, 0, 0,  -4,  4,  12] },
     { n: '마스터(최대)', v: [0, 0, 5, 0, 0, 0, -5, 5, 15] },
-
-   { n: '시네마(약)',   v: [0, 0, 2,  -3, 0,  -2,  -2,  1,  6] },
-   { n: '시네마(보통)', v: [0, 0, 4,  -5, 0,  -4,  -4,  2, 12] },
-   { n: '시네마(중간)', v: [0, 0, 6,  -7, 0,  -5,  -5,  3, 16] },
-   { n: '시네마(강)',   v: [0, 0, 8,  -9, 0,  -6,  -6,  4, 20] },
-   { n: '시네마(최대)', v: [0, 0, 9, -10, 0,  -7,  -7,  4, 22] },
-
+    { n: '시네마(약)',   v: [0, 0, 2,  -3, 0,  -2,  -2,  1,  6] },
+    { n: '시네마(보통)', v: [0, 0, 4,  -5, 0,  -4,  -4,  2, 12] },
+    { n: '시네마(중간)', v: [0, 0, 6,  -7, 0,  -5,  -5,  3, 16] },
+    { n: '시네마(강)',   v: [0, 0, 8,  -9, 0,  -6,  -6,  4, 20] },
+    { n: '시네마(최대)', v: [0, 0, 9, -10, 0,  -7,  -7,  4, 22] },
   ];
 
   const DEFAULTS = {
@@ -286,8 +282,9 @@
         rvfcRunning = false;
       }
 
+      /* patch #5: vfcTick — cancelRVFC() 사용으로 일관성 확보 */
       function vfcTick(now, meta) {
-        if (!el.isConnected) { rvfcRunning = false; rvfcHandle = 0; return; }
+        if (!el.isConnected) { cancelRVFC(); return; }
         const fw = meta.width  || el.videoWidth  || 0;
         const fh = meta.height || el.videoHeight || 0;
         if (fw !== lastFW || fh !== lastFH) {
@@ -412,22 +409,23 @@
     let _purgeCallback = null;
     function setPurgeCallback(fn) { _purgeCallback = fn; }
 
+    /* patch #9: cleanup — Set 순회 중 삭제를 별도 배열로 분리 */
     function cleanup() {
-      let removed = 0;
+      const dead = [];
       for (const el of videos) {
-        if (!el?.isConnected) {
-          videos.delete(el); clearFilterStyles(el);
-          const rvfc = rvfcHandles.get(el);
-          if (rvfc) {
-            try { el.cancelVideoFrameCallback(rvfc.getHandle()); } catch (_) {}
-            rvfcHandles.delete(el);
-          }
-          if (io) try { io.unobserve(el); } catch (_) {}
-          if (ro) try { ro.unobserve(el); } catch (_) {}
-          const ls = videoListeners.get(el);
-          if (ls) { for (const [evt, fn] of ls) el.removeEventListener(evt, fn); videoListeners.delete(el); }
-          removed++;
+        if (!el?.isConnected) dead.push(el);
+      }
+      for (const el of dead) {
+        videos.delete(el); clearFilterStyles(el);
+        const rvfc = rvfcHandles.get(el);
+        if (rvfc) {
+          try { el.cancelVideoFrameCallback(rvfc.getHandle()); } catch (_) {}
+          rvfcHandles.delete(el);
         }
+        if (io) try { io.unobserve(el); } catch (_) {}
+        if (ro) try { ro.unobserve(el); } catch (_) {}
+        const ls = videoListeners.get(el);
+        if (ls) { for (const [evt, fn] of ls) el.removeEventListener(evt, fn); videoListeners.delete(el); }
       }
       for (let i = shadowRootsLRU.length - 1; i >= 0; i--) {
         const entry = shadowRootsLRU[i];
@@ -438,7 +436,7 @@
           shadowRootsLRU.splice(i, 1);
         }
       }
-      if (removed) scheduler.request();
+      if (dead.length) scheduler.request();
     }
 
     return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnLoadstartCallback };
@@ -523,7 +521,6 @@
       if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
 
-      /* ── patch: onstatechange 리스너 ── */
       try {
         ctx.addEventListener('statechange', () => {
           if (ctx.state === 'running') scheduler.request();
@@ -801,7 +798,6 @@
       }
     }
 
-    /* ── patch: AudioContext resume 지연 대응 ── */
     let gestureHooked = false;
     const onGesture = () => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); if (ctx?.state === 'running' && gestureHooked) { for (const evt of ['pointerdown','keydown','click']) window.removeEventListener(evt, onGesture, true); gestureHooked = false; } };
     function ensureGestureHook() { if (gestureHooked) return; gestureHooked = true; for (const evt of ['pointerdown','keydown','click']) window.addEventListener(evt, onGesture, { passive: true, capture: true }); }
@@ -902,7 +898,6 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      /* ── patch: diagRatio를 해시에 포함 ── */
       const svgHash = `${Math.round((s.sharp||0)*1000)}|${Math.round((s._diagRatio||0.707)*1000)}|${Math.round((s.toe||0)*1000)}|${Math.round((s.mid||0)*1000)}|${Math.round((s.shoulder||0)*1000)}|${Math.round((s.gain||1)*1000)}|${Math.round((s.gamma||1)*1000)}|${Math.round((s.contrast||1)*1000)}|${s.temp||0}|${s.tint||0}|${Math.round((s._cssSat||1)*1000)}`;
       if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
 
@@ -924,7 +919,6 @@
         ctx.tempFuncB.setAttribute('slope', colorGain.bs);
       }
 
-      /* ── patch: 해상도별 diagRatio 사용 ── */
       const sharpCap = s._sharpCap || SHARP_CAP_DEFAULT;
       const diagRatio = s._diagRatio || 0.707;
       const totalS = CLAMP(Number(s.sharp || 0), 0, sharpCap);
@@ -959,8 +953,9 @@
     return {
       prepare,
       apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); return; } if (appliedFilter.get(el) === filterStr) return; applyFilterStyles(el, filterStr); appliedFilter.set(el, filterStr); },
+      /* patch #1: get(el) === 'none'으로 이미 지워진 경우만 스킵, 미등록 요소도 처리 */
       clear: (el) => {
-        if (!appliedFilter.has(el)) return;
+        if (appliedFilter.get(el) === 'none') return;
         clearFilterStyles(el);
         appliedFilter.set(el, 'none');
       },
@@ -982,14 +977,11 @@
       const ratio = Math.min(ratioW, ratioH);
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
 
-      /* ── patch: 고해상도 프로파일 적용 ── */
       const sharpProfile = getSharpProfile(nW);
       let rawAutoBase;
       if (sharpProfile.autoBase !== null) {
-        // QHD/4K 이상: 프로파일에서 제공하는 autoBase 사용
         rawAutoBase = sharpProfile.autoBase;
       } else {
-        // 기존 테이블
         rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
       }
 
@@ -1011,7 +1003,6 @@
         const platformScale = IS_MOBILE ? 0.70 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
 
-        /* ── patch: 해상도별 cap/diagRatio를 out에 전달 ── */
         out._sharpCap = sharpProfile.cap;
         out._diagRatio = sharpProfile.diagRatio;
 
@@ -1228,7 +1219,7 @@
 
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
-      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const profile = getSharpProfile(nW); const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
+      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
       tabFns.push(update);
       return el;
     }
@@ -1261,17 +1252,13 @@
 
       const offValues = MANUAL_PRESETS[0].v;
 
+      /* patch #19: syncGrid — Store.get 결과를 1회 캐싱 후 재사용 */
       const syncGrid = () => {
-        let isOff = true;
-        for (let i = 0; i < MANUAL_PATHS.length; i++) {
-          if (Store.get(MANUAL_PATHS[i]) !== offValues[i]) { isOff = false; break; }
-        }
+        const cur = MANUAL_PATHS.map(p => Store.get(p));
+        const isOff = cur.every((v, i) => v === offValues[i]);
         offBtn.classList.toggle('active', isOff);
         for (const { btn, values } of buttons) {
-          let match = true;
-          for (let i = 0; i < MANUAL_PATHS.length; i++) {
-            if (Store.get(MANUAL_PATHS[i]) !== values[i]) { match = false; break; }
-          }
+          const match = cur.every((v, i) => v === values[i]);
           btn.classList.toggle('active', match);
         }
       };
