@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.5.0)
+// @name         Video_Control (v31.5.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.5.0
-// @description  v31.5.0: updateMix null연결 수정, fadeOutThen gain글리치 수정, svgHash 정수비교, updateMix dirty-check, buildAudioStatus 중복signal 제거
+// @version      31.5.1
+// @description  v31.5.1: 시네마 색온도 삭제 - Yellow Tint Detector 스크립트 참고로 색온도 수동 조정으로 변경
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.5.0';
+  const VSC_VERSION = '31.5.1';
   const DEBUG = false;
 
   const log = {
@@ -120,11 +120,11 @@
     { n: '화사(강)',   v: [0, 0, 12, 0, 0,  3,  -8,  4, 16] },
     { n: '화사(최대)', v: [0, 0, 15, 0, 0,  4,  -10,  5, 20] },
 
-    { n: '시네마(약)',   v: [0, 0, 5,  -3, 0,  -2,  -2,  1,  6] },
-    { n: '시네마(보통)', v: [0, 0, 10,  -5, 0,  -3,  -4,  2, 13] },
-    { n: '시네마(중간)', v: [0, 0, 15,  -7, 0,  -4,  -6,  3, 18] },
-    { n: '시네마(강)',   v: [0, 0, 18,  -9, 0,  -5,  -8,  4, 21] },
-    { n: '시네마(최대)', v: [0, 0, 21, -11, 0,  -6,  -10,  5, 24] },
+    { n: '시네마(약)',   v: [0, 0, 5, 0, 0,  -2,  -2,  1,  6] },
+    { n: '시네마(보통)', v: [0, 0, 10, 0, 0,  -3,  -4,  2, 13] },
+    { n: '시네마(중간)', v: [0, 0, 15, 0, 0,  -4,  -6,  3, 18] },
+    { n: '시네마(강)',   v: [0, 0, 18, 0, 0,  -5,  -8,  4, 21] },
+    { n: '시네마(최대)', v: [0, 0, 21, 0, 0,  -6,  -10,  5, 24] },
   ];
 
   const DEFAULTS = {
