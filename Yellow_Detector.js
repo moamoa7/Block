@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Yellow Tint Detector
 // @namespace    https://github.com/
-// @version      3.1.0
+// @version      3.1.2
 // @description  영상의 노란끼(황조) 실시간 감지 — FAB 아이콘 + 패널 토글 (영상 없을 때 숨김)
 // @match        *://*/*
 // @grant        none
@@ -68,7 +68,7 @@
     killShadow();
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous';
-    v.muted = true; v.volume = 0;
+    v.muted = true;
     v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:.001;top:0;left:0;pointer-events:none';
     document.body.appendChild(v);
     v.src = src;
@@ -120,10 +120,15 @@
         if (panelOpen) setStatus('CORS 우회 시도…', false);
         makeShadow(src, liveVideo.currentTime);
       }
-      if (shadowVid) {
+      if (shadowVid && shadowVid.readyState >= 2) {
         shadowVid.currentTime = liveVideo.currentTime;
         res = sampleRGB(shadowVid);
       }
+    }
+
+    /* #3: shadow 로딩 대기 중이면 에러 표시 없이 tick 스킵 */
+    if (!res.ok && shadowVid) {
+      return;
     }
 
     if (!res.ok) {
@@ -272,14 +277,14 @@
     return best;
   }
 
+  /* #2: DOM 쿼리 이중 호출 제거 — pickBestVideo 결과로 존재 여부 판단 */
   function autoDetect() {
-    const videos = document.querySelectorAll('video');
-    const hasVid = videos.length > 0;
+    const best = pickBestVideo();
+    const hasVid = !!best;
     setFabVisible(hasVid);
 
     if (hasVid && !liveVideo) {
-      const best = pickBestVideo();
-      if (best) startAnalysis(best);
+      startAnalysis(best);
     } else if (!hasVid && liveVideo) {
       stopAnalysis();
       liveVideo = null;
@@ -367,7 +372,6 @@
       </div>
       <span class="ytd-fab-score"></span>`;
 
-    /* 드래그 + 클릭 분리 */
     let dragging = false, moved = false, startX = 0, startY = 0, fabX = 0, fabY = 0;
 
     fab.addEventListener('pointerdown', e => {
@@ -419,7 +423,7 @@
         <div class="row"><span>B</span><div class="trk"><div id="bb" class="fill" style="background:#5090e0"></div></div><span id="bv">—</span></div>
       </div>
       <div id="ytd-score"><span>Yellow Score</span><b id="sv">—</b></div>
-      <canvas id="ytd-gc" width="212" height="52"></canvas>
+      <canvas id="ytd-gc" width="216" height="52"></canvas>
       <div id="ytd-foot">
         <select id="ytd-sel"></select>
         <span id="ytd-st">대기</span>
@@ -496,7 +500,6 @@
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
 
-    /* 패널 헤더 드래그 */
     let dragging = false, dx = 0, dy = 0;
     q('ytd-hdr').addEventListener('pointerdown', e => {
       if (e.button !== 0) return;
@@ -528,22 +531,7 @@
       }
     } else {
       if (panel) panel.classList.remove('open');
-      /* 트랜지션 후 DOM 제거 */
       setTimeout(() => { if (!panelOpen) destroyPanel(); }, 350);
-    }
-  }
-
-  /* ── 영상 자동 감지 ──────────────────────────────────── */
-  function autoDetect() {
-    const hasVid = !!document.querySelector('video');
-    setFabVisible(hasVid);
-
-    if (hasVid && !liveVideo) {
-      const best = pickBestVideo();
-      if (best) startAnalysis(best);
-    } else if (!hasVid && liveVideo) {
-      stopAnalysis();
-      liveVideo = null;
     }
   }
 
@@ -552,11 +540,9 @@
     buildFab();
     autoDetect();
 
-    /* DOM 변경 감지 — 쓰로틀 적용 */
     new MutationObserver(() => scheduleDetect())
       .observe(document.body || document.documentElement, { childList: true, subtree: true });
 
-    /* 주기적 폴백 (SPA 네비게이션 등) */
     setInterval(() => {
       if (liveVideo && !liveVideo.isConnected) { liveVideo = null; }
       autoDetect();
