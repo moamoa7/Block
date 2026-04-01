@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.3.8)
+// @name         Video_Control (v31.4.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.3.8
-// @description  v31.3.8: RVFC 이중체인 수정, APP_ACT OFF playbackRate 복원, mkSlider NaN 방어, Filters.clear 논리 수정, getRootNode 중복 제거, UI 레이블 수정, h() class 통일, divisor 재할당 제거
+// @version      31.4.0
+// @description  v31.4.0: AudioContext resume 지연 대응 (Promise+타이머+onstatechange), 고해상도(QHD/4K) 샤프닝 커널 가중치 체계 재설계
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.3.8';
+  const VSC_VERSION = '31.4.0';
   const DEBUG = false;
 
   const log = {
@@ -50,7 +50,14 @@
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
-  const SHARP_CAP = 0.18;
+
+  /* ── 고해상도 샤프닝 체계 ── */
+  function getSharpProfile(nW) {
+    if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.12 };
+    if (nW > 1920) return { cap: 0.22, diagRatio: 0.65, autoBase: 0.10 };
+    return { cap: 0.18, diagRatio: 0.707, autoBase: null }; // autoBase null → 기존 테이블 사용
+  }
+  const SHARP_CAP_DEFAULT = 0.18;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -198,7 +205,6 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const SVG_TAGS = new Set(['svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA','feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode','feComposite','feBlend','g','path','circle','rect','line','text','polyline','polygon']);
 
-  /* patch #7: h() class 처리 — setAttribute 단일 경로로 통일 */
   function h(tag, props = {}, ...children) {
     const isSvg = props.ns === 'svg' || SVG_TAGS.has(tag);
     const el = isSvg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
@@ -265,7 +271,6 @@
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
 
-    /* patch #1: cancelRVFC 헬퍼 추출 — RVFC 이중 체인 방지 */
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
@@ -517,6 +522,13 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
+
+      /* ── patch: onstatechange 리스너 ── */
+      try {
+        ctx.addEventListener('statechange', () => {
+          if (ctx.state === 'running') scheduler.request();
+        });
+      } catch (_) {}
 
       splitter = ctx.createChannelSplitter(2);
       merger = ctx.createChannelMerger(2);
@@ -789,11 +801,22 @@
       }
     }
 
+    /* ── patch: AudioContext resume 지연 대응 ── */
     let gestureHooked = false;
     const onGesture = () => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); if (ctx?.state === 'running' && gestureHooked) { for (const evt of ['pointerdown','keydown','click']) window.removeEventListener(evt, onGesture, true); gestureHooked = false; } };
     function ensureGestureHook() { if (gestureHooked) return; gestureHooked = true; for (const evt of ['pointerdown','keydown','click']) window.addEventListener(evt, onGesture, { passive: true, capture: true }); }
     ensureGestureHook();
-    document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx?.state === 'suspended') ctx.resume().catch(() => {}); }, { passive: true });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && ctx?.state === 'suspended') {
+        ctx.resume().then(() => {
+          if (ctx.state === 'running') return;
+          setTimeout(() => {
+            if (ctx?.state === 'suspended') ctx.resume().catch(() => {});
+          }, 120);
+        }).catch(() => {});
+      }
+    }, { passive: true });
 
     return {
       setTarget, update: updateMix,
@@ -862,7 +885,6 @@
       if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); try { const videos = root.querySelectorAll?.('video') || []; for (const v of videos) appliedFilter.delete(v); } catch (_) {} }
     }
 
-    /* patch #5: prepare() — getRootNode 1회 계산으로 중복 DOM 탐색 제거 */
     function prepare(video, s) {
       const rn = video?.getRootNode?.();
       const root = (rn instanceof ShadowRoot) ? rn : (video?.ownerDocument || document);
@@ -880,7 +902,8 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      const svgHash = `${Math.round((s.sharp||0)*1000)}|${Math.round((s.toe||0)*1000)}|${Math.round((s.mid||0)*1000)}|${Math.round((s.shoulder||0)*1000)}|${Math.round((s.gain||1)*1000)}|${Math.round((s.gamma||1)*1000)}|${Math.round((s.contrast||1)*1000)}|${s.temp||0}|${s.tint||0}|${Math.round((s._cssSat||1)*1000)}`;
+      /* ── patch: diagRatio를 해시에 포함 ── */
+      const svgHash = `${Math.round((s.sharp||0)*1000)}|${Math.round((s._diagRatio||0.707)*1000)}|${Math.round((s.toe||0)*1000)}|${Math.round((s.mid||0)*1000)}|${Math.round((s.shoulder||0)*1000)}|${Math.round((s.gain||1)*1000)}|${Math.round((s.gamma||1)*1000)}|${Math.round((s.contrast||1)*1000)}|${s.temp||0}|${s.tint||0}|${Math.round((s._cssSat||1)*1000)}`;
       if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
 
       st.lastKey = svgHash;
@@ -901,14 +924,17 @@
         ctx.tempFuncB.setAttribute('slope', colorGain.bs);
       }
 
-      const totalS = CLAMP(Number(s.sharp || 0), 0, SHARP_CAP);
+      /* ── patch: 해상도별 diagRatio 사용 ── */
+      const sharpCap = s._sharpCap || SHARP_CAP_DEFAULT;
+      const diagRatio = s._diagRatio || 0.707;
+      const totalS = CLAMP(Number(s.sharp || 0), 0, sharpCap);
       let kernelStr = '0,0,0, 0,1,0, 0,0,0';
       if (totalS >= 0.005) {
-        const edge = -totalS; const diag = edge * 0.707;
+        const edge = -totalS;
+        const diag = edge * diagRatio;
         const center = 1 - 4 * edge - 4 * diag;
         kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
       }
-      /* patch #8: divisor 재할당 제거 — buildSvg에서 이미 초기화됨 */
       if (st.sharpKey !== kernelStr) {
         st.sharpKey = kernelStr;
         ctx.fConv.setAttribute('kernelMatrix', kernelStr);
@@ -933,7 +959,6 @@
     return {
       prepare,
       apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); return; } if (appliedFilter.get(el) === filterStr) return; applyFilterStyles(el, filterStr); appliedFilter.set(el, filterStr); },
-      /* patch #4: Filters.clear — delete 대신 set('none')으로 이중 호출 방지 */
       clear: (el) => {
         if (!appliedFilter.has(el)) return;
         clearFilterStyles(el);
@@ -948,17 +973,28 @@
     function computeSharpMul(video) {
       const nW = video.videoWidth | 0;
       let dW = video.clientWidth, dH = video.clientHeight;
-      if (!dW || !dH) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+      if (!dW || !dH) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(nW) };
       const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
-      if (dW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+      if (dW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(nW) };
       const nH = video.videoHeight | 0;
       const ratioW = (dW * dpr) / nW;
       const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW;
       const ratio = Math.min(ratioW, ratioH);
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
-      let rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
+
+      /* ── patch: 고해상도 프로파일 적용 ── */
+      const sharpProfile = getSharpProfile(nW);
+      let rawAutoBase;
+      if (sharpProfile.autoBase !== null) {
+        // QHD/4K 이상: 프로파일에서 제공하는 autoBase 사용
+        rawAutoBase = sharpProfile.autoBase;
+      } else {
+        // 기존 테이블
+        rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
+      }
+
       if (IS_MOBILE) mul = Math.max(mul, 0.60);
-      return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, 0.18), rawAutoBase };
+      return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, sharpProfile.cap), rawAutoBase, sharpProfile };
     }
     return {
       get: (video) => {
@@ -968,15 +1004,21 @@
         const dH = video ? (video.clientHeight || 0) : 0;
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
-        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false };
+        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false, _sharpCap: SHARP_CAP_DEFAULT, _diagRatio: 0.707 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
-        const { mul, autoBase, rawAutoBase } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12 };
+        const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
         const platformScale = IS_MOBILE ? 0.70 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
+
+        /* ── patch: 해상도별 cap/diagRatio를 out에 전달 ── */
+        out._sharpCap = sharpProfile.cap;
+        out._diagRatio = sharpProfile.diagRatio;
+
         if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
-        out.sharp = CLAMP(out.sharp, 0, SHARP_CAP);
+        out.sharp = CLAMP(out.sharp, 0, sharpProfile.cap);
+
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
         const mRec = CLAMP(Number(Store.get(P.V_MAN_REC) ?? 0), 0, 100);
         const mBrt = CLAMP(Number(Store.get(P.V_MAN_BRT) ?? 0), 0, 100);
@@ -1124,7 +1166,6 @@
     function mkRow(label, ...ctrls) { return h('div', { class: 'row' }, h('label', {}, label), h('div', { class: 'ctrl' }, ...ctrls)); }
     function mkSep() { return h('div', { class: 'sep' }); }
 
-    /* patch #3: mkSlider sync — Number.isNaN으로 NaN만 방어, 0은 정상 통과 */
     function mkSlider(path, min, max, step, onChange) {
       const s = step || ((max - min) / 100); const digits = s >= 1 ? 0 : 2;
       const inp = h('input', { type: 'range', min, max, step: s }); const valEl = h('span', { class: 'val' });
@@ -1187,7 +1228,7 @@
 
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
-      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; el.textContent = nW ? `원본 ${nW}×${nH} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
+      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const profile = getSharpProfile(nW); const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
       tabFns.push(update);
       return el;
     }
@@ -1281,7 +1322,6 @@
         { type: 'sep' },
         { type: 'widget', build: buildPresetGrid },
         { type: 'sep' },
-        /* patch #6: sectionLabel '톤 보정' → '수동 조정'으로 중복 제거 */
         { type: 'sectionLabel', text: '수동 조정' },
         { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 },
         { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 },
@@ -1439,7 +1479,6 @@
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
 
-    /* patch #2: APP_ACT OFF 시 playbackRate 1.0 복원 */
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
