@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.4.1)
+// @name         Video_Control (v31.5.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.4.1
-// @description  v31.4.1: Filters.clear 조기리턴 개선, vfcTick cancelRVFC 일관성, cleanup Set순회 안전화, syncGrid 캐싱
+// @version      31.5.0
+// @description  v31.5.0: updateMix null연결 수정, fadeOutThen gain글리치 수정, svgHash 정수비교, updateMix dirty-check, buildAudioStatus 중복signal 제거
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.4.1';
+  const VSC_VERSION = '31.5.0';
   const DEBUG = false;
 
   const log = {
@@ -282,7 +282,6 @@
         rvfcRunning = false;
       }
 
-      /* patch #5: vfcTick — cancelRVFC() 사용으로 일관성 확보 */
       function vfcTick(now, meta) {
         if (!el.isConnected) { cancelRVFC(); return; }
         const fw = meta.width  || el.videoWidth  || 0;
@@ -409,7 +408,6 @@
     let _purgeCallback = null;
     function setPurgeCallback(fn) { _purgeCallback = fn; }
 
-    /* patch #9: cleanup — Set 순회 중 삭제를 별도 배열로 분리 */
     function cleanup() {
       const dead = [];
       for (const el of videos) {
@@ -480,6 +478,7 @@
 
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
+    let currentRouteIsProcessed = false; /* patch #2: dirty-check 플래그 */
     const mesMap = new WeakMap();
     const streamMap = new WeakMap();
     let bypassMode = false;
@@ -667,6 +666,7 @@
 
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass';
+      currentRouteIsProcessed = false; /* patch #2 */
       if (video && ctx && currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
         if (currentSrc.__vsc_isCaptureStream) {
@@ -722,22 +722,26 @@
         if (!source) { source = connectViaCaptureStream(video); if (!source) { enterBypass(video, 'all methods failed'); return false; } }
       }
       try { source.disconnect(); } catch (_) {}
-      if (isAnyAudioActive()) { source.connect(splitter); }
+      const wantProcessed = isAnyAudioActive();
+      if (wantProcessed) { source.connect(splitter); }
       else { source.connect(fullDryPath); }
-      currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes'; exitBypass();
+      currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes';
+      currentRouteIsProcessed = wantProcessed; /* patch #2 */
+      exitBypass();
       return true;
     }
 
+    /* patch #5: fadeOutThen — masterOut.gain.value 사용으로 불연속 점프 방지 */
     function fadeOutThen(gen, fn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
         if (gen !== generation) {
-          if (ctx && masterOut && ctx.state !== 'closed') { try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(0, t); masterOut.gain.linearRampToValueAtTime(1, t + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
+          if (ctx && masterOut && ctx.state !== 'closed') { try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(1, t + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
           return;
         }
         try { fn(); } catch (_) {}
-        if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(0, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
+        if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(masterOut.gain.value, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
       }, 60);
     }
 
@@ -754,15 +758,23 @@
       try { currentSrc.disconnect(); } catch (_) {}
       if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
       currentSrc = null; currentMode = 'none';
+      currentRouteIsProcessed = false; /* patch #2 */
     }
 
+    /* patch #2: dirty-check로 불필요 disconnect/reconnect 방지, patch #16: null시 connectSource */
     function updateMix() {
       if (!ctx || bypassMode) return;
       routeCompressor();
       if (currentSrc) {
+        const wantProcessed = isAnyAudioActive();
+        if (wantProcessed === currentRouteIsProcessed) return; /* patch #2: 경로 동일하면 스킵 */
         try { currentSrc.disconnect(); } catch (_) {}
-        if (isAnyAudioActive()) { currentSrc.connect(splitter); }
+        if (wantProcessed) { currentSrc.connect(splitter); }
         else { currentSrc.connect(fullDryPath); }
+        currentRouteIsProcessed = wantProcessed;
+      } else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) {
+        /* patch #16: 오디오 기능이 나중에 켜졌을 때 연결 시도 */
+        connectSource(targetVideo);
       }
     }
 
@@ -777,14 +789,14 @@
       const active = isAnyAudioActive();
       if (!active) {
         const oldTarget = targetVideo;
-        if (currentSrc || targetVideo) { fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }); }
-        else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; } }
+        if (currentSrc || targetVideo) { fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }); }
+        else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }
         return;
       }
       if (!initCtx()) { targetVideo = video; return; }
-      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; } }); return; }
+      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; } }); return; }
       const oldTarget = targetVideo;
-      fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
+      fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
     }
 
     function onVideoLoadstart(video) {
@@ -794,7 +806,7 @@
         if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
         try { s.disconnect(); } catch (_) {}
         streamMap.delete(video);
-        if (currentSrc === s) { currentSrc = null; currentMode = 'none'; }
+        if (currentSrc === s) { currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false; }
       }
     }
 
@@ -873,7 +885,8 @@
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
-      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { lastKey: '', toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '' } };
+      /* patch #4: 정수 비교용 슬롯 초기화 */
+      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1 } };
     }
 
     function purge(root) {
@@ -898,10 +911,27 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      const svgHash = `${Math.round((s.sharp||0)*1000)}|${Math.round((s._diagRatio||0.707)*1000)}|${Math.round((s.toe||0)*1000)}|${Math.round((s.mid||0)*1000)}|${Math.round((s.shoulder||0)*1000)}|${Math.round((s.gain||1)*1000)}|${Math.round((s.gamma||1)*1000)}|${Math.round((s.contrast||1)*1000)}|${s.temp||0}|${s.tint||0}|${Math.round((s._cssSat||1)*1000)}`;
-      if (st.lastKey === svgHash) return `url(#${ctx.fid})`;
+      /* patch #4: svgHash — 정수 비교로 대체하여 매 프레임 문자열 할당 제거 */
+      const h1 = Math.round((s.sharp || 0) * 1000);
+      const h2 = Math.round((s._diagRatio || 0.707) * 1000);
+      const h3 = Math.round((s.toe || 0) * 1000);
+      const h4 = Math.round((s.mid || 0) * 1000);
+      const h5 = Math.round((s.shoulder || 0) * 1000);
+      const h6 = Math.round((s.gain || 1) * 1000);
+      const h7 = Math.round((s.gamma || 1) * 1000);
+      const h8 = Math.round((s.contrast || 1) * 1000);
+      const h9 = s.temp | 0;
+      const h10 = s.tint | 0;
+      const h11 = Math.round((s._cssSat || 1) * 1000);
 
-      st.lastKey = svgHash;
+      if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
+          st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
+          st._h9 === h9 && st._h10 === h10 && st._h11 === h11) {
+        return `url(#${ctx.fid})`;
+      }
+      st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
+      st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
+
       if (video) appliedFilter.delete(video);
 
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
@@ -953,7 +983,6 @@
     return {
       prepare,
       apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); return; } if (appliedFilter.get(el) === filterStr) return; applyFilterStyles(el, filterStr); appliedFilter.set(el, filterStr); },
-      /* patch #1: get(el) === 'none'으로 이미 지워진 경우만 스킵, 미등록 요소도 처리 */
       clear: (el) => {
         if (appliedFilter.get(el) === 'none') return;
         clearFilterStyles(el);
@@ -1252,7 +1281,6 @@
 
       const offValues = MANUAL_PRESETS[0].v;
 
-      /* patch #19: syncGrid — Store.get 결과를 1회 캐싱 후 재사용 */
       const syncGrid = () => {
         const cur = MANUAL_PATHS.map(p => Store.get(p));
         const isOff = cur.every((v, i) => v === offValues[i]);
@@ -1269,6 +1297,7 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
 
+    /* patch #13: buildAudioStatus — 중복 signal 등록 제거 (tabFns로 이미 호출됨) */
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
       const update = () => {
@@ -1295,7 +1324,6 @@
           el.textContent = '상태: 준비 (연결 대기)';
         }
       };
-      tabSignalCleanups.push(Scheduler.onSignal(() => { if (panelOpen) update(); }));
       tabFns.push(update);
       return el;
     }
