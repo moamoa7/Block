@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Yellow Tint Detector
 // @namespace    https://github.com/
-// @version      3.1.2
-// @description  영상의 노란끼(황조) 실시간 감지 — FAB 아이콘 + 패널 토글 (영상 없을 때 숨김)
+// @version      3.2.0
+// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 표시
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -16,6 +16,7 @@
     intervalMs:  800,
     threshold:   12,
     histLen:     24,
+    tempPerScore: 5,  // score 5당 색온도 -1
   };
 
   let timerID    = null;
@@ -82,6 +83,12 @@
     shadowVid.src = ''; shadowVid.remove(); shadowVid = null;
   }
 
+  /* ── 권장 색온도 계산 ────────────────────────────────── */
+  function scoreToTemp(score) {
+    if (score <= 0) return 0;
+    return -(Math.round(score / CFG.tempPerScore));
+  }
+
   /* ── FAB 상태 ────────────────────────────────────────── */
   function updateFabState(status, score) {
     if (!fab) return;
@@ -126,10 +133,7 @@
       }
     }
 
-    /* #3: shadow 로딩 대기 중이면 에러 표시 없이 tick 스킵 */
-    if (!res.ok && shadowVid) {
-      return;
-    }
+    if (!res.ok && shadowVid) return;
 
     if (!res.ok) {
       if (panelOpen) showError('이 사이트는 픽셀 읽기가 차단됩니다\n(' + res.error + ')');
@@ -159,9 +163,23 @@
     q('gb').style.width = pct(g); q('gv').textContent = Math.round(g);
     q('bb').style.width = pct(b); q('bv').textContent = Math.round(b);
     q('sv').textContent = score.toFixed(1);
+
     const bd = q('ytd-badge');
     if (score > CFG.threshold) { bd.textContent = '⚠️  노란끼 감지됨'; bd.className = 'warn'; }
     else                       { bd.textContent = '✅  색조 정상';     bd.className = 'ok'; }
+
+    /* 권장 색온도 표시 */
+    const tempEl = q('ytd-temp');
+    if (tempEl) {
+      const temp = scoreToTemp(score);
+      if (temp === 0) {
+        tempEl.textContent = '권장 색온도 보정: 불필요';
+        tempEl.className = 'ytd-temp ok';
+      } else {
+        tempEl.textContent = `권장 색온도 보정: ${temp}`;
+        tempEl.className = 'ytd-temp ' + (Math.abs(temp) >= 3 ? 'warn' : 'mild');
+      }
+    }
   }
 
   function drawGraph() {
@@ -277,7 +295,6 @@
     return best;
   }
 
-  /* #2: DOM 쿼리 이중 호출 제거 — pickBestVideo 결과로 존재 여부 판단 */
   function autoDetect() {
     const best = pickBestVideo();
     const hasVid = !!best;
@@ -423,6 +440,7 @@
         <div class="row"><span>B</span><div class="trk"><div id="bb" class="fill" style="background:#5090e0"></div></div><span id="bv">—</span></div>
       </div>
       <div id="ytd-score"><span>Yellow Score</span><b id="sv">—</b></div>
+      <div id="ytd-temp" class="ytd-temp">권장 색온도 보정: —</div>
       <canvas id="ytd-gc" width="216" height="52"></canvas>
       <div id="ytd-foot">
         <select id="ytd-sel"></select>
@@ -464,7 +482,13 @@
       #ytd-score{display:flex;justify-content:space-between;align-items:center;
         padding:5px 10px;border-top:1px solid #1a1d24;margin-top:3px;font-size:10px;color:#4a5060}
       #ytd-score b{font-size:14px;color:#ccd0d8}
-      #ytd-gc{display:block;margin:0 10px 6px;width:calc(100% - 20px);background:#0b0d10;border-radius:4px}
+      .ytd-temp{font-size:11px;font-weight:600;text-align:center;
+        padding:4px 10px;margin:2px 10px;border-radius:5px;
+        background:#1a1d24;color:#7a8499;transition:all .25s}
+      .ytd-temp.ok{color:#50d070}
+      .ytd-temp.mild{color:#d4a84a}
+      .ytd-temp.warn{color:#f5c842;background:#2c1f00}
+      #ytd-gc{display:block;margin:4px 10px 6px;width:calc(100% - 20px);background:#0b0d10;border-radius:4px}
       #ytd-foot{display:flex;align-items:center;justify-content:space-between;
         padding:5px 10px;border-top:1px solid #252830;background:#181b21}
       #ytd-sel{flex:1;max-width:134px;background:#1a1d24;color:#7a8499;
