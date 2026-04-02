@@ -3,7 +3,7 @@
 !
 ! Title: GoodAD
 ! Description: Personal AdBlock List
-! Version: 20260327
+! Version: 20260402
 !
 !
 !
@@ -505,8 +505,8 @@ kakaotv.daum.net#@#[class^="ad"]
 ##[class*="Modal"]
 ! - - - 예외
 pornhub.com#@#[class*="Modal"]
-www.sooplive.co.kr#@#[class*="Modal"]
-play.sooplive.co.kr#@#[class*="Modal"]
+www.sooplive.com#@#[class*="Modal"]
+play.sooplive.com#@#[class*="Modal"]
 tiktok.com#@#[class*="Modal"]
 urahame.com#@#[class*="Modal"]
 ! - - point.pay.naver.com - 팝업 차단으로 인한 뿌연 화면 발생
@@ -1314,6 +1314,10 @@ tvhot.store##.object-cover
 !@@tvwiki*.com/img/*$image
 ! - 기타 (일부 필터 차단 해제)
 @@/videojs-chromecast.min.js^$script
+! - 로딩 동그라마
+##.iframe-loading-spinner
+! - 로딩 텍스트
+##.iframe-loading-text
 !
 !
 ! 코사이트 (https://korsite.net/) 영화사이트 (코티비씨/코무비/코왓챠/왓챠KR)
