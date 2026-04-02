@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.5.1)
+// @name         Video_Control (v31.5.2)
 // @namespace    https://github.com/moamoa7
-// @version      31.5.1
-// @description  v31.5.1: 시네마 색온도 삭제 - Yellow Tint Detector 스크립트 참고로 색온도 수동 조정으로 변경
+// @version      31.5.2
+// @description  v31.5.2: addShadowRoot LRU eviction시 MO 미해제 및 observedShadowHosts 잔류 버그 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.5.1';
+  const VSC_VERSION = '31.5.2';
   const DEBUG = false;
 
   const log = {
@@ -342,13 +342,23 @@
       req();
     }
 
+    /* patch #1: LRU eviction 시 MO disconnect + observedShadowHosts 정리 */
     function addShadowRoot(host) {
       if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
       observedShadowHosts.add(host);
       if (shadowRootsLRU.length >= SHADOW_MAX) {
         const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected);
-        if (idx >= 0) shadowRootsLRU.splice(idx, 1);
-        else shadowRootsLRU.shift();
+        let evicted;
+        if (idx >= 0) {
+          evicted = shadowRootsLRU.splice(idx, 1)[0];
+        } else {
+          evicted = shadowRootsLRU.shift();
+          if (evicted?.host) observedShadowHosts.delete(evicted.host);
+        }
+        if (evicted?.root) {
+          const mo = shadowMOs.get(evicted.root);
+          if (mo) { try { mo.disconnect(); } catch (_) {} }
+        }
       }
       shadowRootsLRU.push({ host, root: host.shadowRoot });
       connectObserver(host.shadowRoot);
@@ -486,7 +496,7 @@
 
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
-    let currentRouteIsProcessed = false; /* patch #2: dirty-check 플래그 */
+    let currentRouteIsProcessed = false;
     const mesMap = new WeakMap();
     const streamMap = new WeakMap();
     let bypassMode = false;
@@ -674,7 +684,7 @@
 
     function enterBypass(video, reason) {
       if (bypassMode) return; bypassMode = true; currentMode = 'bypass';
-      currentRouteIsProcessed = false; /* patch #2 */
+      currentRouteIsProcessed = false;
       if (video && ctx && currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
         if (currentSrc.__vsc_isCaptureStream) {
@@ -734,12 +744,11 @@
       if (wantProcessed) { source.connect(splitter); }
       else { source.connect(fullDryPath); }
       currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes';
-      currentRouteIsProcessed = wantProcessed; /* patch #2 */
+      currentRouteIsProcessed = wantProcessed;
       exitBypass();
       return true;
     }
 
-    /* patch #5: fadeOutThen — masterOut.gain.value 사용으로 불연속 점프 방지 */
     function fadeOutThen(gen, fn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
@@ -766,22 +775,20 @@
       try { currentSrc.disconnect(); } catch (_) {}
       if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
       currentSrc = null; currentMode = 'none';
-      currentRouteIsProcessed = false; /* patch #2 */
+      currentRouteIsProcessed = false;
     }
 
-    /* patch #2: dirty-check로 불필요 disconnect/reconnect 방지, patch #16: null시 connectSource */
     function updateMix() {
       if (!ctx || bypassMode) return;
       routeCompressor();
       if (currentSrc) {
         const wantProcessed = isAnyAudioActive();
-        if (wantProcessed === currentRouteIsProcessed) return; /* patch #2: 경로 동일하면 스킵 */
+        if (wantProcessed === currentRouteIsProcessed) return;
         try { currentSrc.disconnect(); } catch (_) {}
         if (wantProcessed) { currentSrc.connect(splitter); }
         else { currentSrc.connect(fullDryPath); }
         currentRouteIsProcessed = wantProcessed;
       } else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) {
-        /* patch #16: 오디오 기능이 나중에 켜졌을 때 연결 시도 */
         connectSource(targetVideo);
       }
     }
@@ -893,7 +900,6 @@
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
-      /* patch #4: 정수 비교용 슬롯 초기화 */
       return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1 } };
     }
 
@@ -919,7 +925,6 @@
       else if (!ctx.svg.isConnected) { const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root); if (target?.appendChild) target.appendChild(ctx.svg); }
       const st = ctx.st;
 
-      /* patch #4: svgHash — 정수 비교로 대체하여 매 프레임 문자열 할당 제거 */
       const h1 = Math.round((s.sharp || 0) * 1000);
       const h2 = Math.round((s._diagRatio || 0.707) * 1000);
       const h3 = Math.round((s.toe || 0) * 1000);
@@ -1305,7 +1310,6 @@
 
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
 
-    /* patch #13: buildAudioStatus — 중복 signal 등록 제거 (tabFns로 이미 호출됨) */
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
       const update = () => {
