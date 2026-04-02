@@ -58,6 +58,7 @@ https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/ma
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 ```
 
