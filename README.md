@@ -37,9 +37,21 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
 - 2025년 4월 6일 필터 다시 살아남 (https://pastebin.com/raw/y5tsuMN8)
 - 2025년 4월 8일 새로운 주소 확인<br/>
-홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
+- 2026년 2월 8일 임시 대체주소로 이전 <br>
+- 2026년 2월 21일 이전 주소 폐쇄
+
+이전 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
 ```
-https://raw.githubusercontent.com/Zziniswell/Adguard-gallery-filter/main/filter.txt
+이전 임시 주소<br/>
+필터<br/>
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt<br/>
+
+유저스크립트 - Gallery Extension for FMKOREA, 3.30<br/>
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js<br/>
+
+DNS 필터
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt<br/>
+
 ```
 
 <br/>
