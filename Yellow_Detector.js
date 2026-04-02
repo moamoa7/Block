@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Yellow Tint Detector (with Maximizer)
+// @name         Yellow Tint Detector (with Maximizer & Mobile Zoom)
 // @namespace    https://github.com/
-// @version      3.8.1
-// @description  영상의 노란끼 감지 + 비디오 플로팅 최대화 버튼
+// @version      3.9.5
+// @description  영상의 노란끼 감지 + 비디오 최대화 + PC/모바일 완벽 지원 줌(Zoom) 기능
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -27,7 +27,7 @@
   const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, histLen: 24, tempPerScore: 5 };
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
-  let history = [], panel = null, fab = null, maxFab = null, fabStyle = null, panelStyle = null;
+  let history = [], panel = null, fab = null, maxFab = null, zoomFab = null, fabStyle = null, panelStyle = null;
   let panelOpen = false, lastStatus = 'idle';
 
   let offscreen, oCtx;
@@ -37,6 +37,43 @@
     oCtx = offscreen.getContext('2d', { willReadFrequently: true });
   }
   resetCanvas();
+
+  /* ── OSD (On-Screen Display) 로직 복구 ──────────────── */
+  let __osdEl = null, __osdTimerId = 0;
+  function showOSD(text, durationMs = 1200) {
+    if (!document.body) return;
+    const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+    const root = fsEl || document.body;
+    if (!__osdEl || !__osdEl.isConnected || __osdEl.parentNode !== root) {
+      __osdEl?.remove();
+      __osdEl = document.createElement('div');
+      __osdEl.id = 'ytd-osd';
+      __osdEl.style.cssText = [
+        'position:fixed', 'top:48px', 'left:50%', 'transform:translateX(-50%) translateY(0)',
+        'background:rgba(12, 12, 18, 0.85)', 'backdrop-filter:blur(24px) saturate(200%)',
+        'color:rgba(255, 255, 255, 0.95)', 'padding:10px 28px', 'border-radius:14px',
+        'border:1px solid rgba(0, 229, 255, 0.15)', 'font:600 13px/1.4 system-ui, -apple-system, sans-serif',
+        'z-index:2147483647', 'pointer-events:none', 'opacity:0', 'will-change:opacity, transform',
+        'transition:opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'box-shadow:0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 229, 255, 0.08)',
+        'letter-spacing:0.3px', 'white-space:pre-line', 'max-width:90vw', 'text-align:center', 'word-break:keep-all'
+      ].join(';');
+      root.appendChild(__osdEl);
+    }
+    __osdEl.textContent = text;
+    requestAnimationFrame(() => {
+      if (!__osdEl) return;
+      __osdEl.style.opacity = '1';
+      __osdEl.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    clearTimeout(__osdTimerId);
+    __osdTimerId = setTimeout(() => {
+      if (__osdEl) {
+        __osdEl.style.opacity = '0';
+        __osdEl.style.transform = 'translateX(-50%) translateY(-8px)';
+      }
+    }, durationMs);
+  }
 
   /* ── cross-origin 조기 주입 ──────────────────────────── */
   const injected = new WeakSet();
@@ -153,13 +190,15 @@
 
   function setFabVisible(show) {
     if (!fab) return;
-    if (show) {
-      if (fab.style.display === 'none') fab.style.display = '';
+    if (show) { 
+      if (fab.style.display === 'none') fab.style.display = ''; 
       if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
-    } else {
-      if (fab.style.display !== 'none') fab.style.display = 'none';
+      if (zoomFab && zoomFab.style.display === 'none') zoomFab.style.display = '';
+    } else { 
+      if (fab.style.display !== 'none') fab.style.display = 'none'; 
       if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
-      if (panelOpen) togglePanel(false);
+      if (zoomFab && zoomFab.style.display !== 'none') zoomFab.style.display = 'none';
+      if (panelOpen) togglePanel(false); 
     }
   }
 
@@ -172,6 +211,7 @@
     const target = getFsRoot();
     if (fab && fab.parentNode !== target) try { target.appendChild(fab); } catch (_) {}
     if (maxFab && maxFab.parentNode !== target) try { target.appendChild(maxFab); } catch (_) {}
+    if (zoomFab && zoomFab.parentNode !== target) try { target.appendChild(zoomFab); } catch (_) {}
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
   function onFsChange() { reparent(); setTimeout(reparent, 100); }
@@ -435,6 +475,7 @@
       startClassGuard(video);
       active = true;
       syncBtnUI();
+      showOSD('최대화 ON', 1200);
     }
 
     function doMaximizeIframe(iframeEl) {
@@ -453,6 +494,7 @@
       startClassGuard(iframeEl);
       active = true;
       syncBtnUI();
+      showOSD('최대화 ON (iframe)', 1200);
       try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner' }, '*'); } catch (_) {}
     }
 
@@ -491,6 +533,7 @@
       targetIframe = null;
       isIframeMode = false;
       syncBtnUI();
+      showOSD('최대화 OFF', 1200);
     }
 
     // Inner iframe logic
@@ -566,6 +609,7 @@
         if (area > bestArea) { bestArea = area; bestIframe = ifr; }
       }
       if (bestIframe) doMaximizeIframe(bestIframe);
+      else showOSD('최대화할 비디오를 찾을 수 없습니다.', 1500);
     }
 
     function handleMessage(e) {
@@ -593,27 +637,315 @@
 
     function syncBtnUI() {
       const isMax = active || delegatedToTop;
+      
       if (maxFab) {
-         // 최대화 상태면 초록색 라인으로 변경
          maxFab.style.borderColor = isMax ? '#50d070' : '#2a2d36';
          const svg = maxFab.querySelector('svg path');
-         if (svg) {
-            svg.setAttribute('stroke', isMax ? '#50d070' : '#4a5060');
-         }
+         if (svg) svg.style.stroke = isMax ? '#50d070' : '#4a5060';
       }
+
+      const btn = document.getElementById('ytd-maximize');
+      if (btn) btn.style.color = isMax ? '#50d070' : '';
     }
 
     window.addEventListener('message', handleMessage);
 
     return {
       toggle,
-      undoMaximize
+      undoMaximize,
+      isActive: () => active
     };
   })();
   /* ═════════════════════════════════════════════════════════════════════════ */
 
 
-  /* ── FAB 빌드 (기존 1개에서 2개로 분리) ─────────────────────────── */
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ 통합된 Zoomer 모듈 (PC/모바일 터치 완벽 대응 및 Settle Timer 복구)
+  ═════════════════════════════════════════════════════════════════════════ */
+  const Zoomer = (() => {
+    let active = false;
+    const states = new WeakMap();
+    let activeVideo = null;
+    let rafId = null;
+
+    // 터치 충돌 방지를 위한 WeakMap
+    const _savedTouchActions = new WeakMap();
+    const __touchBlocked = new WeakSet();
+
+    const TS = Object.freeze({ IDLE: 0, WAIT_PAN: 1, PANNING: 2, PINCHING: 3, PINCH_RELEASED: 4 });
+    let touchState = TS.IDLE;
+    let settleTimerId = 0;
+    const TOUCH_SETTLE_MS = 120;
+    const PAN_THRESHOLD_SQ = 64; // 8px * 8px
+
+    let isPanning = false;
+    let startX = 0, startY = 0, touchOriginX = 0, touchOriginY = 0, activePointerId = null;
+    const pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0, elemCx: 0, elemCy: 0 };
+
+    function setTouchState(next) { touchState = next; }
+    function startSettleTimer(cb) {
+      if (settleTimerId) clearTimeout(settleTimerId);
+      settleTimerId = setTimeout(() => { settleTimerId = 0; cb(); }, TOUCH_SETTLE_MS);
+    }
+    function clearSettleTimer() {
+      if (settleTimerId) { clearTimeout(settleTimerId); settleTimerId = 0; }
+    }
+
+    // 모바일 터치 충돌(스크롤, 당기기) 방지 로직 (원본 복구)
+    function walkParents(el, maxDepth, fn) {
+      let p = el.parentElement, d = 0;
+      while (p && p !== document.body && p !== document.documentElement && d < maxDepth) {
+        fn(p, d); p = p.parentElement; d++;
+      }
+    }
+
+    function setTouchActionBlocking(v, enable) {
+      if (!v) return;
+      if (enable) {
+        if (!_savedTouchActions.has(v)) _savedTouchActions.set(v, v.style.getPropertyValue('touch-action'));
+        v.style.setProperty('touch-action', 'none', 'important');
+        v.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+        __touchBlocked.add(v);
+        walkParents(v, 3, p => {
+          if (!_savedTouchActions.has(p)) _savedTouchActions.set(p, p.style.getPropertyValue('touch-action'));
+          p.style.setProperty('touch-action', 'none', 'important');
+          p.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
+          p.dataset.vscTouchBlocked = '1';
+        });
+      } else {
+        restoreTouchAction(v);
+        __touchBlocked.delete(v);
+        walkParents(v, 3, p => {
+          if (p.dataset?.vscTouchBlocked) { restoreTouchAction(p); delete p.dataset.vscTouchBlocked; }
+        });
+      }
+    }
+
+    function restoreTouchAction(el) {
+      if (!el) return;
+      const saved = _savedTouchActions.get(el);
+      if (saved !== undefined) {
+        if (saved) el.style.setProperty('touch-action', saved);
+        else el.style.removeProperty('touch-action');
+        _savedTouchActions.delete(el);
+      } else {
+        el.style.removeProperty('touch-action');
+      }
+      el.style.removeProperty('-webkit-tap-highlight-color');
+    }
+
+    function getSt(v) {
+      let s = states.get(v);
+      if (!s) { 
+        s = { scale: 1, tx: 0, ty: 0, zoomed: false, _savedPos: '', _savedZ: '', _savedTouch: '' }; 
+        states.set(v, s); 
+      }
+      return s;
+    }
+
+    function clampPan(v, st) {
+      try {
+        const r = v.getBoundingClientRect();
+        const maxTx = Math.max(0, (r.width * st.scale - r.width) / 2 / st.scale);
+        const maxTy = Math.max(0, (r.height * st.scale - r.height) / 2 / st.scale);
+        st.tx = Math.max(-maxTx, Math.min(maxTx, st.tx));
+        st.ty = Math.max(-maxTy, Math.min(maxTy, st.ty));
+      } catch (_) {}
+    }
+
+    function update(v) {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const st = getSt(v);
+        if (st.scale <= 1 && st.zoomed) { reset(v); return; }
+        if (st.scale > 1) {
+          if (!st.zoomed) {
+            st._savedPos = v.style.getPropertyValue('position');
+            st._savedZ = v.style.getPropertyValue('z-index');
+            st._savedTouch = v.style.getPropertyValue('touch-action');
+
+            v.style.setProperty('position', 'relative', 'important');
+            v.style.setProperty('z-index', '999999', 'important');
+            v.style.setProperty('touch-action', 'none', 'important'); // 모바일 스크롤 방지
+            st.zoomed = true;
+          }
+          v.style.setProperty('transform', `scale(${st.scale}) translate(${st.tx}px, ${st.ty}px)`, 'important');
+          v.style.setProperty('transform-origin', 'center center', 'important');
+          v.style.setProperty('will-change', 'transform', 'important');
+        }
+      });
+    }
+
+    function zoomTo(v, scale) {
+      const st = getSt(v);
+      st.scale = scale;
+      clampPan(v, st);
+      update(v);
+    }
+
+    function reset(v) {
+      const st = getSt(v);
+      v.style.removeProperty('transform');
+      v.style.removeProperty('transform-origin');
+      v.style.removeProperty('will-change');
+
+      if (st._savedPos) v.style.setProperty('position', st._savedPos); 
+      else v.style.removeProperty('position');
+
+      if (st._savedZ) v.style.setProperty('z-index', st._savedZ); 
+      else v.style.removeProperty('z-index');
+
+      if (st._savedTouch) v.style.setProperty('touch-action', st._savedTouch);
+      else v.style.removeProperty('touch-action');
+      
+      st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false;
+      setTouchActionBlocking(v, false);
+      if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); activeVideo = null; }
+    }
+
+    function getTargetVideo(clientX, clientY) {
+      const els = document.elementsFromPoint(clientX, clientY);
+      for (let el of els) { if (el.tagName === 'VIDEO') return el; }
+      return pickBestVideo();
+    }
+
+    function getTouchDist(ts) {
+      const dx = ts[0].clientX - ts[1].clientX, dy = ts[0].clientY - ts[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    function getTouchCenter(ts) {
+      return { x: (ts[0].clientX + ts[1].clientX) / 2, y: (ts[0].clientY + ts[1].clientY) / 2 };
+    }
+
+    // --- PC (Mouse/Keyboard) Events ---
+    window.addEventListener('wheel', e => {
+      if (!active || !e.altKey) return;
+      const v = getTargetVideo(e.clientX, e.clientY); if (!v) return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(v);
+      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+      st.scale = Math.max(1, Math.min(st.scale * zoomFactor, 10));
+      if (st.scale < 1.05) { reset(v); return; }
+      clampPan(v, st); update(v);
+    }, { passive: false, capture: true });
+
+    window.addEventListener('pointerdown', e => {
+      if (!active || !e.altKey || e.pointerType === 'touch') return;
+      const v = getTargetVideo(e.clientX, e.clientY); if (!v) return;
+      const st = getSt(v); if (st.scale <= 1) return;
+      e.preventDefault(); e.stopPropagation();
+      activeVideo = v; activePointerId = e.pointerId; isPanning = true;
+      startX = e.clientX - st.tx; startY = e.clientY - st.ty;
+      try { v.setPointerCapture(e.pointerId); } catch(_) {}
+    }, { passive: false, capture: true });
+
+    window.addEventListener('pointermove', e => {
+      if (!isPanning || !activeVideo || e.pointerId !== activePointerId || e.pointerType === 'touch') return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(activeVideo);
+      st.tx = e.clientX - startX; st.ty = e.clientY - startY;
+      clampPan(activeVideo, st); update(activeVideo);
+    }, { passive: false, capture: true });
+
+    const endPan = (e) => {
+      if (!isPanning || e.pointerId !== activePointerId || e.pointerType === 'touch') return;
+      isPanning = false;
+      try { activeVideo.releasePointerCapture(e.pointerId); } catch(_) {}
+      activeVideo = null; activePointerId = null;
+    };
+    window.addEventListener('pointerup', endPan, { capture: true });
+    window.addEventListener('pointercancel', endPan, { capture: true });
+
+    window.addEventListener('dblclick', e => {
+      if (!active || !e.altKey) return;
+      const v = getTargetVideo(e.clientX, e.clientY); if (!v) return;
+      e.preventDefault(); e.stopPropagation();
+      const st = getSt(v);
+      if (st.scale === 1) { st.scale = 2.5; clampPan(v, st); update(v); } else { reset(v); }
+    }, { capture: true });
+
+    // --- Mobile Touch Gestures ---
+    window.addEventListener('touchstart', e => {
+      if (!active) return;
+      const v = getTargetVideo(e.touches[0].clientX, e.touches[0].clientY); 
+      if (!v) return;
+
+      const st = getSt(v);
+
+      if (e.touches.length === 2) {
+        // Pinch to Zoom 시작
+        e.preventDefault();
+        activeVideo = v;
+        initialPinchDist = getTouchDist(e.touches);
+        initialScale = st.scale;
+      } else if (e.touches.length === 1 && st.scale > 1) {
+        // 확대된 상태에서 한 손가락 Panning 시작
+        activeVideo = v;
+        isPanning = true;
+        startX = e.touches[0].clientX - st.tx;
+        startY = e.touches[0].clientY - st.ty;
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchmove', e => {
+      if (!active || !activeVideo) return;
+      const st = getSt(activeVideo);
+
+      if (e.touches.length === 2) {
+        e.preventDefault(); // 스크롤 방지
+        const dist = getTouchDist(e.touches);
+        const ns = initialScale * (dist / Math.max(1, initialPinchDist));
+        st.scale = Math.max(1, Math.min(ns, 10));
+        if (st.scale < 1.05) { reset(activeVideo); return; }
+        clampPan(activeVideo, st);
+        update(activeVideo);
+      } else if (e.touches.length === 1 && isPanning) {
+        e.preventDefault(); // 스크롤 방지
+        st.tx = e.touches[0].clientX - startX;
+        st.ty = e.touches[0].clientY - startY;
+        clampPan(activeVideo, st);
+        update(activeVideo);
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchend', e => {
+      if (!activeVideo) return;
+      if (e.touches.length < 2) {
+        initialPinchDist = 0;
+      }
+      if (e.touches.length === 0) {
+        isPanning = false;
+        activeVideo = null;
+      }
+    }, { passive: false, capture: true });
+
+
+    function syncZoomUI() {
+      if (zoomFab) {
+         zoomFab.style.borderColor = active ? '#50d070' : '#2a2d36';
+         const svg = zoomFab.querySelector('svg');
+         if (svg) svg.style.stroke = active ? '#50d070' : '#4a5060';
+      }
+      const btn = document.getElementById('ytd-zoom');
+      if (btn) btn.style.color = active ? '#50d070' : '';
+    }
+
+    return {
+      toggle: () => {
+        active = !active;
+        if (!active) getAllVideos().forEach(reset);
+        syncZoomUI();
+        showOSD(active ? '줌 ON' : '줌 OFF', 1200);
+        return active;
+      },
+      isActive: () => active
+    };
+  })();
+  /* ═════════════════════════════════════════════════════════════════════════ */
+
+
+  /* ── FAB 빌드 (기존 1개에서 3개로 분리: Zoom, Max, Main) ─────────────────────────── */
   function buildFab() {
     if (fab) return;
     fabStyle = document.createElement('style'); fabStyle.id = '__ytd3_fab_style__';
@@ -654,10 +986,11 @@
       @keyframes ytd-dot-blink{0%,100%{opacity:1}50%{opacity:.3}}`;
     document.documentElement.appendChild(fabStyle);
 
-    // 1. 기존 YTD (색상 감지) FAB
+    const svgNS = 'http://www.w3.org/2000/svg';
+
+    // 1. 기존 YTD (메인: 색상 감지 및 패널 열기) FAB (오른쪽 5px)
     fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
-    const svgNS = 'http://www.w3.org/2000/svg';
     const svg = document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke-width','2'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
     const circle = document.createElementNS(svgNS,'circle'); circle.setAttribute('cx','12'); circle.setAttribute('cy','12'); circle.setAttribute('r','5'); svg.appendChild(circle);
     [[12,1,12,3],[12,21,12,23],[4.22,4.22,5.64,5.64],[18.36,18.36,19.78,19.78],[1,12,3,12],[21,12,23,12],[4.22,19.78,5.64,18.36],[18.36,5.64,19.78,4.22]].forEach(([x1,y1,x2,y2])=>{const ln=document.createElementNS(svgNS,'line');ln.setAttribute('x1',x1);ln.setAttribute('y1',y1);ln.setAttribute('x2',x2);ln.setAttribute('y2',y2);svg.appendChild(ln);});
@@ -668,36 +1001,60 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
-    // 2. 최대화 (Maximizer) FAB (기존 아이콘의 왼쪽에 띄우기)
-    maxFab = document.createElement('div');
-    maxFab.className = 'ytd-fab ytd-fab--idle';
+    // 2. 최대화 (Maximizer) FAB (오른쪽 55px)
+    maxFab = document.createElement('div'); 
+    maxFab.className = 'ytd-fab ytd-fab--idle'; 
     maxFab.style.display = 'none';
-    maxFab.style.right = '55px'; // 기존 fab가 right:5px, 폭이 40px이므로 55px면 딱 왼쪽에 나란히 붙음.
-    maxFab.title = "화면 최대화 (Maximizer)";
-
+    maxFab.style.right = '55px';
+    maxFab.title = "화면 최대화/해제";
+    
     const maxIconWrap = document.createElement('div'); maxIconWrap.className = 'ytd-fab-icon';
     const maxSvg = document.createElementNS(svgNS,'svg'); maxSvg.setAttribute('viewBox','0 0 24 24'); maxSvg.setAttribute('fill','none'); maxSvg.setAttribute('stroke-width','2'); maxSvg.setAttribute('stroke-linecap','round'); maxSvg.setAttribute('stroke-linejoin','round');
     const maxPath = document.createElementNS(svgNS, 'path');
     maxPath.setAttribute('d', 'M15,3L21,3L21,9 M9,21L3,21L3,15 M21,3L14,10 M3,21L10,14');
-    maxPath.setAttribute('stroke', '#4a5060');
+    maxPath.style.stroke = '#4a5060';
     maxSvg.appendChild(maxPath);
     maxIconWrap.appendChild(maxSvg);
     maxFab.appendChild(maxIconWrap);
 
+    // 3. 줌 (Zoom) FAB (오른쪽 105px)
+    zoomFab = document.createElement('div'); 
+    zoomFab.className = 'ytd-fab ytd-fab--idle'; 
+    zoomFab.style.display = 'none';
+    zoomFab.style.right = '105px';
+    zoomFab.title = "줌 모드 (PC: Alt+Wheel / Mobile: Pinch)";
+
+    const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
+    const zoomSvg = document.createElementNS(svgNS,'svg'); zoomSvg.setAttribute('viewBox','0 0 24 24'); zoomSvg.setAttribute('fill','none'); zoomSvg.setAttribute('stroke-width','2'); zoomSvg.setAttribute('stroke-linecap','round'); zoomSvg.setAttribute('stroke-linejoin','round');
+    zoomSvg.style.stroke = '#4a5060'; 
+    const zoomCircle = document.createElementNS(svgNS, 'circle');
+    zoomCircle.setAttribute('cx', '11'); zoomCircle.setAttribute('cy', '11'); zoomCircle.setAttribute('r', '8');
+    const zoomLine = document.createElementNS(svgNS, 'line');
+    zoomLine.setAttribute('x1', '21'); zoomLine.setAttribute('y1', '21'); zoomLine.setAttribute('x2', '16.65'); zoomLine.setAttribute('y2', '16.65');
+    zoomSvg.appendChild(zoomCircle);
+    zoomSvg.appendChild(zoomLine);
+    zoomIconWrap.appendChild(zoomSvg);
+    zoomFab.appendChild(zoomIconWrap);
+
+    // DOM에 3개의 FAB 추가
+    document.documentElement.appendChild(zoomFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // 3. 두 버튼이 같이 이동하도록 드래그 로직 통일
-    let dragging=false, moved=false, startX=0, startY=0, fabX=0, fabY=0, maxX=0, maxY=0;
+    // 4. 세 개의 버튼이 같이 이동하도록 드래그 로직 구현
+    let dragging=false, moved=false, startX=0, startY=0;
+    let fabX=0, fabY=0, maxX=0, maxY=0, zoomX=0, zoomY=0;
 
     const onDown = (e, targetEl) => {
       if(e.button!==0)return;
       dragging=true; moved=false;
       const rF = fab.getBoundingClientRect();
       const rM = maxFab.getBoundingClientRect();
+      const rZ = zoomFab.getBoundingClientRect();
       startX = e.clientX; startY = e.clientY;
       fabX = rF.left; fabY = rF.top;
       maxX = rM.left; maxY = rM.top;
+      zoomX = rZ.left; zoomY = rZ.top;
       targetEl.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
@@ -709,9 +1066,10 @@
       moved = true;
       fab.style.left = (fabX+dx)+'px'; fab.style.top = (fabY+dy)+'px'; fab.style.right = 'auto';
       maxFab.style.left = (maxX+dx)+'px'; maxFab.style.top = (maxY+dy)+'px'; maxFab.style.right = 'auto';
+      zoomFab.style.left = (zoomX+dx)+'px'; zoomFab.style.top = (zoomY+dy)+'px'; zoomFab.style.right = 'auto';
     };
 
-    // 기존 FAB 드래그 바인딩
+    // 기존 (메인) FAB 바인딩
     fab.addEventListener('pointerdown', e => onDown(e, fab));
     fab.addEventListener('pointermove', onMove);
     fab.addEventListener('pointerup', e => {
@@ -719,7 +1077,7 @@
       if(!moved) togglePanel();
     });
 
-    // 새 MaxFAB 드래그 바인딩
+    // 최대화 FAB 바인딩
     maxFab.addEventListener('pointerdown', e => onDown(e, maxFab));
     maxFab.addEventListener('pointermove', onMove);
     maxFab.addEventListener('pointerup', e => {
@@ -727,16 +1085,26 @@
       if(!moved) Maximizer.toggle();
     });
 
+    // 줌 FAB 바인딩
+    zoomFab.addEventListener('pointerdown', e => onDown(e, zoomFab));
+    zoomFab.addEventListener('pointermove', onMove);
+    zoomFab.addEventListener('pointerup', e => {
+      if(!dragging)return; dragging=false; zoomFab.releasePointerCapture(e.pointerId);
+      if(!moved) Zoomer.toggle();
+    });
+
     startClock();
   }
 
-  /* ── 패널 빌드 (원래 스크립트 그대로 유지) ────────────────────────── */
+  /* ── 패널 빌드 ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
     el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
-        <div>
+        <div style="display:flex; gap:6px;">
+          <button id="ytd-zoom" title="줌 모드 (PC: Alt+Wheel / Mobile: Pinch)">🔍</button>
+          <button id="ytd-maximize" title="최대화/해제">🗖</button>
           <button id="ytd-refresh" title="재탐색">↺</button>
           <button id="ytd-close" title="닫기">✕</button>
         </div>
@@ -758,8 +1126,7 @@
       #__ytd2__{position:fixed;top:70px;right:64px;width:236px;background:#101215;color:#ccd0d8;font:11.5px/1.5 monospace;border:1px solid #252830;border-radius:10px;box-shadow:0 8px 32px #000a;z-index:2147483646;overflow:hidden;opacity:0;transform:translateX(12px) scale(.95);transition:opacity .25s cubic-bezier(.16,1,.3,1),transform .3s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
       #__ytd2__.open{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
       #ytd-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#181b21;border-bottom:1px solid #252830;cursor:move;font-size:11px;color:#7a8499;letter-spacing:.05em}
-      #ytd-hdr div{display:flex;gap:3px}
-      #ytd-hdr button{background:none;border:none;color:#4a5060;cursor:pointer;font-size:13px;padding:0 3px;line-height:1;transition:color .2s}
+      #ytd-hdr button{background:none;border:none;color:#4a5060;cursor:pointer;font-size:14px;padding:0 2px;line-height:1;transition:color .2s}
       #ytd-hdr button:hover{color:#ccd0d8}
       #ytd-badge{margin:9px 10px 2px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-align:center;background:#1a1d24;color:#7a8499;transition:background .25s,color .25s}
       #ytd-badge.warn{background:#2c1f00;color:#f5c842}
@@ -782,7 +1149,7 @@
       #ytd-st.on{color:#50d070;animation:ytdblink 1.3s infinite}
       #ytd-err{padding:0 10px 7px;font-size:10px;color:#c04040;word-break:break-all;display:none;line-height:1.45}
       @keyframes ytdblink{0%,100%{opacity:1}50%{opacity:.3}}
-
+      
       /* Maximizer CSS 추가 */
       .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;transform:none!important;}
       .ytd-vmax-hide{display:none!important;}
@@ -799,11 +1166,19 @@
     panel = buildPanel(); bindPanelEvents();
   }
   function destroyPanel() { if (!panel) return; panel.remove(); panel = null; if (panelStyle) { panelStyle.remove(); panelStyle = null; } panelOpen = false; }
-
+  
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
+    
+    // Zoom 버튼 클릭 이벤트
+    q('ytd-zoom').addEventListener('click', () => Zoomer.toggle());
+    
+    // 최대화 버튼 이벤트
+    q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
+
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
+    
     let dragging = false, dx = 0, dy = 0;
     q('ytd-hdr').addEventListener('pointerdown', e => { if (e.button !== 0) return; dragging = true; const r = panel.getBoundingClientRect(); dx = e.clientX - r.left; dy = e.clientY - r.top; e.target.setPointerCapture(e.pointerId); });
     q('ytd-hdr').addEventListener('pointermove', e => { if (!dragging) return; panel.style.left = (e.clientX - dx) + 'px'; panel.style.top = (e.clientY - dy) + 'px'; panel.style.right = 'auto'; });
