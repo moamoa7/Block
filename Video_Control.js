@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.5.3)
+// @name         Video_Control (v31.5.4)
 // @namespace    https://github.com/moamoa7
-// @version      31.5.3
-// @description  v31.5.3: addShadowRoot LRU eviction시 MO 미해제 및 observedShadowHosts 잔류 버그 수정
+// @version      31.5.4
+// @description  v31.5.4: addShadowRoot LRU eviction시 MO 미해제 및 observedShadowHosts 잔류 버그 수정 + 어두운 영상 빛구름계단 제거 (Dithering)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.5.3';
+  const VSC_VERSION = '31.5.4';
   const DEBUG = false;
 
   const log = {
@@ -845,24 +845,68 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
+    /* PATCH: Dithering 추가 - 어두운 영상 빛구름계단 제거 */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
-      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
+      const ditherStrength = Math.max(toe, mid) * 0.15;
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}|d${Math.round(ditherStrength*1000)}`;
       if (toneCache.has(key)) return toneCache.get(key);
+
       const ev = Math.log2(Math.max(1e-6, gain));
-      const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
-      const out = new Array(steps); let prev = 0; const intercept = 0.5 * (1 - contrast);
+      const g = ev * 0.90;
+      const useFilmicCurve = Math.abs(g) > 0.01;
+      const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
+
+      const out = new Array(steps);
+      let prev = 0;
+      const intercept = 0.5 * (1 - contrast);
+
       for (let i = 0; i < steps; i++) {
-        const x0 = i / (steps - 1); let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
-        x = x * contrast + intercept; x = CLAMP(x, 0, 1);
-        if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
-        if (mid > 0.001) { const mc = 0.45, sig = 0.18; const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig)); const delta = (x0 - mc) * mid * mw * 1.5; const appliedDelta = delta > 0 ? delta : delta * 0.15; x = CLAMP(x + appliedDelta, 0, 1); }
-        if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
+        const x0 = i / (steps - 1);
+        let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
+
+        x = x * contrast + intercept;
+        x = CLAMP(x, 0, 1);
+
+        if (toe > 0.001 && x0 < 0.40) {
+          const t = x0 / 0.40;
+          x = x + toe * (1 - t) * (t * t) * (1 - x);
+        }
+
+        if (mid > 0.001) {
+          const mc = 0.45, sig = 0.18;
+          const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
+          const delta = (x0 - mc) * mid * mw * 1.5;
+          const appliedDelta = delta > 0 ? delta : delta * 0.15;
+          x = CLAMP(x + appliedDelta, 0, 1);
+        }
+
+        if (shoulder > 0.001) {
+          const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0;
+          x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1);
+        }
+
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
-        if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
+
+        // Dithering 적용 (저휘도 영역에만)
+        if (ditherStrength > 0.001 && x < 0.4) {
+          const ditherAmount = 1.0 / 256;
+          const seed = (i * 73 + Math.floor(1000 * ditherStrength)) % 256;
+          const dither = (seed / 256 - 0.5) * ditherAmount * ditherStrength;
+          x = CLAMP(x + dither, 0, 1);
+        }
+
+        if (x < prev) x = prev;
+        prev = x;
+        out[i] = (x).toFixed(4);
       }
+
       const res = out.join(' ');
-      if (toneCache.size >= TONE_CACHE_MAX) { const first = toneCache.keys().next(); if (!first.done) toneCache.delete(first.value); }
-      toneCache.set(key, res); return res;
+      if (toneCache.size >= TONE_CACHE_MAX) {
+        const first = toneCache.keys().next();
+        if (!first.done) toneCache.delete(first.value);
+      }
+      toneCache.set(key, res);
+      return res;
     }
 
     function mkXfer(attrs, funcDefaults, withAlpha = true) {
