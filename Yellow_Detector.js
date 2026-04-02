@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Yellow Tint Detector
 // @namespace    https://github.com/
-// @version      3.3.0
-// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 + 전체화면 대응
+// @version      3.4.0
+// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 + 전체화면 대응 + Trusted Types 대응
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -10,6 +10,31 @@
 
 (() => {
   'use strict';
+
+  /* ── Trusted Types 정책 생성 ─────────────────────────── */
+  let ttPolicy = null;
+  if (typeof trustedTypes !== 'undefined' && trustedTypes.createPolicy) {
+    try {
+      ttPolicy = trustedTypes.createPolicy('ytd-tint-detector', {
+        createHTML: (str) => str,
+      });
+    } catch (_) {
+      // 이미 default 정책이 있거나, 정책 생성이 차단된 경우
+      // fallback: default 정책 시도
+      try {
+        ttPolicy = trustedTypes.createPolicy('default', {
+          createHTML: (str) => str,
+        });
+      } catch (__) {
+        // 둘 다 실패하면 ttPolicy = null 유지
+      }
+    }
+  }
+
+  /** innerHTML 할당용 래퍼 — Trusted Types 환경이면 변환, 아니면 원본 반환 */
+  function safeHTML(str) {
+    return ttPolicy ? ttPolicy.createHTML(str) : str;
+  }
 
   const CFG = {
     sampleSize:  48,
@@ -65,7 +90,7 @@
       r /= n; g /= n; b /= n;
       return { ok: true, r, g, b, score: (r - b) + (g - b) * 0.5 };
     } catch (e) {
-      resetCanvas(); /* #1: tainted canvas 폐기 후 재생성 */
+      resetCanvas();
       return { ok: false, error: e.name + ': ' + e.message };
     }
   }
@@ -148,7 +173,7 @@
   function tick() {
     if (!liveVideo || !liveVideo.isConnected) {
       liveVideo = null;
-      killShadow(); /* #2: 고아 shadowVid 방지 */
+      killShadow();
       scheduleDetect();
       return;
     }
@@ -281,9 +306,9 @@
     const videos = [...document.querySelectorAll('video')];
 
     if (sel) {
-      sel.innerHTML = '';
+      sel.innerHTML = safeHTML('');
       if (!videos.length) {
-        sel.innerHTML = '<option>영상 없음</option>';
+        sel.innerHTML = safeHTML('<option>영상 없음</option>');
         stopAnalysis();
         const bd = q('ytd-badge'); if (bd) { bd.textContent = '영상 없음'; bd.className = ''; }
         return;
@@ -404,23 +429,49 @@
     fab = document.createElement('div');
     fab.className = 'ytd-fab ytd-fab--idle';
     fab.style.display = 'none';
-    fab.innerHTML = `
-      <div class="ytd-fab-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="5"/>
-          <line x1="12" y1="1" x2="12" y2="3"/>
-          <line x1="12" y1="21" x2="12" y2="23"/>
-          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
-          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-          <line x1="1" y1="12" x2="3" y2="12"/>
-          <line x1="21" y1="12" x2="23" y2="12"/>
-          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-        <div class="ytd-fab-ring"></div>
-        <div class="ytd-fab-dot"></div>
-      </div>
-      <span class="ytd-fab-score"></span>`;
+
+    // ★ innerHTML → DOM API로 교체
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'ytd-fab-icon';
+
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(svgNS, 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+
+    const circle = document.createElementNS(svgNS, 'circle');
+    circle.setAttribute('cx', '12'); circle.setAttribute('cy', '12'); circle.setAttribute('r', '5');
+    svg.appendChild(circle);
+
+    const lines = [
+      [12,1,12,3],[12,21,12,23],[4.22,4.22,5.64,5.64],
+      [18.36,18.36,19.78,19.78],[1,12,3,12],[21,12,23,12],
+      [4.22,19.78,5.64,18.36],[18.36,5.64,19.78,4.22]
+    ];
+    for (const [x1,y1,x2,y2] of lines) {
+      const ln = document.createElementNS(svgNS, 'line');
+      ln.setAttribute('x1', x1); ln.setAttribute('y1', y1);
+      ln.setAttribute('x2', x2); ln.setAttribute('y2', y2);
+      svg.appendChild(ln);
+    }
+    iconWrap.appendChild(svg);
+
+    const ring = document.createElement('div');
+    ring.className = 'ytd-fab-ring';
+    iconWrap.appendChild(ring);
+
+    const dot = document.createElement('div');
+    dot.className = 'ytd-fab-dot';
+    iconWrap.appendChild(dot);
+
+    fab.appendChild(iconWrap);
+
+    const scoreSpan = document.createElement('span');
+    scoreSpan.className = 'ytd-fab-score';
+    fab.appendChild(scoreSpan);
 
     let dragging = false, moved = false, startX = 0, startY = 0, fabX = 0, fabY = 0;
 
@@ -458,7 +509,9 @@
   function buildPanel() {
     const el = document.createElement('div');
     el.id = '__ytd2__';
-    el.innerHTML = `
+
+    // ★ innerHTML → safeHTML 래퍼 사용
+    el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
         <div>
@@ -479,7 +532,7 @@
         <select id="ytd-sel"></select>
         <span id="ytd-st">대기</span>
       </div>
-      <div id="ytd-err"></div>`;
+      <div id="ytd-err"></div>`);
 
     getFsRoot().appendChild(el);
 
@@ -602,7 +655,6 @@
     new MutationObserver(() => scheduleDetect())
       .observe(document.body || document.documentElement, { childList: true, subtree: true });
 
-    /* 전체화면 변경 감지 */
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
 
