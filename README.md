@@ -7,14 +7,6 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
-※ Yellow_Detector.js
-- 영상내 노란끼 체크 (색온도 조절시 참고) / 시계(시:분)
-
-```
-https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
-```
-<br>
-
 ※ Video_Control.js
 - 영상 화질 선명하게 보기 / 영상 배속
 
@@ -28,6 +20,14 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
+```
+<br>
+
+※ Yellow_Detector.js
+- 영상내 노란끼 체크 (색온도 조절시 참고) / 시계(시:분)
+
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
 ```
 <br>
 
