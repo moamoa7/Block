@@ -43,6 +43,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 이전 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
 
 이전 임시 주소<br/>
+홈페이지 : https://github.com/hooray804/adguard-gallery-filter<br/>
 필터<br/>
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt<br/>
 
