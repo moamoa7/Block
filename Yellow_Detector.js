@@ -32,7 +32,7 @@
 
   const CFG = {
     sampleSize:  48,
-    intervalMs:  1000,   // ★ 1초에 1번
+    intervalMs:  1000,
     threshold:   12,
     histLen:     24,
     tempPerScore: 5,
@@ -122,8 +122,7 @@
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, '0');
     const mm = String(now.getMinutes()).padStart(2, '0');
-    const ss = String(now.getSeconds()).padStart(2, '0');
-    clockEl.textContent = `${hh}:${mm}:${ss}`;
+    clockEl.textContent = `${hh}:${mm}`;
   }
 
   function startClock() {
@@ -386,14 +385,13 @@
     fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
       .ytd-fab{position:fixed;top:40px;right:0px;z-index:2147483647;opacity:0.5;
-        width:48px;height:62px;border-radius:14px;
+        width:40px;height:40px;border-radius:50%;
         background:#15171c;border:2px solid #2a2d36;
-        cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;
-        gap:2px;padding:4px 0 2px;
+        cursor:pointer;display:flex;align-items:center;justify-content:center;
         transition:all .35s cubic-bezier(.16,1,.3,1);
         box-shadow:0 4px 16px rgba(0,0,0,.5);
         user-select:none;-webkit-tap-highlight-color:transparent}
-      .ytd-fab:hover{transform:scale(1.08);border-color:#3a3d48;
+      .ytd-fab:hover{transform:scale(1.12);border-color:#3a3d48;
         box-shadow:0 6px 24px rgba(0,0,0,.6)}
       .ytd-fab-icon{width:20px;height:20px;position:relative;
         display:flex;align-items:center;justify-content:center}
@@ -405,15 +403,15 @@
         width:10px;height:10px;border-radius:50%;
         background:transparent;border:2px solid #15171c;
         transition:all .3s ease;pointer-events:none}
-      .ytd-fab-score{
+      .ytd-fab-score{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
         font:700 9px/1 monospace;color:#4a5060;
-        background:#1a1d24;padding:1px 5px;border-radius:6px;
+        background:#15171c;padding:1px 4px;border-radius:6px;
         border:1px solid #2a2d36;pointer-events:none;
         transition:all .3s ease;min-width:24px;text-align:center}
-      .ytd-fab-clock{
-        font:600 8px/1 monospace;color:#555a68;
-        letter-spacing:.5px;pointer-events:none;
-        transition:color .3s ease;margin-top:1px}
+      .ytd-fab-clock{position:absolute;bottom:-25px;left:50%;transform:translateX(-50%);
+        font:600 15px/1 monospace;color:#555a68;
+        pointer-events:none;white-space:nowrap;
+        transition:color .3s ease}
       .ytd-fab--idle{border-color:#2a2d36}
       .ytd-fab--idle .ytd-fab-icon svg{fill:#4a5060;stroke:#4a5060}
       .ytd-fab--idle .ytd-fab-dot{background:transparent}
@@ -495,10 +493,10 @@
     scoreSpan.className = 'ytd-fab-score';
     fab.appendChild(scoreSpan);
 
-    // ★ 시계
+    // 시계
     const clockSpan = document.createElement('span');
     clockSpan.className = 'ytd-fab-clock';
-    clockSpan.textContent = '--:--:--';
+    clockSpan.textContent = '--:--';
     fab.appendChild(clockSpan);
 
     // 드래그 & 클릭
@@ -533,7 +531,7 @@
 
     document.documentElement.appendChild(fab);
 
-    // ★ 시계 시작
+    // 시계 시작
     startClock();
   }
 
