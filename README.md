@@ -224,11 +224,22 @@ Violentmonkey 확장프로그램 설치 후 사용
 
 # 추천 브라우저 (모바일)
 
+
+※ Microsoft Edge: AI 브라우저
+
+홈페이지 : https://www.microsoft.com/edge
+
+설치주소
+
+https://play.google.com/store/apps/details?id=com.microsoft.emmx
+
+<br/><br/>
+
 ※ Ultimatum Browser
 
 https://github.com/gonzazoid/Ultimatum/releases/
 
-<br>
+<br/><br/>
 
 ※ Quetta Browser
 
