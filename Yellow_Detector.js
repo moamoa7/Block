@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Yellow Tint Detector
+// @name         Yellow Tint Detector (with Maximizer)
 // @namespace    https://github.com/
-// @version      3.7.1
-// @description  영상의 노란끼(황조) 실시간 감지 — 모바일 호버 미지원에 따른 조치
+// @version      3.8.1
+// @description  영상의 노란끼 감지 + 비디오 플로팅 최대화 버튼
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -27,7 +27,7 @@
   const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, histLen: 24, tempPerScore: 5 };
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
-  let history = [], panel = null, fab = null, fabStyle = null, panelStyle = null;
+  let history = [], panel = null, fab = null, maxFab = null, fabStyle = null, panelStyle = null;
   let panelOpen = false, lastStatus = 'idle';
 
   let offscreen, oCtx;
@@ -53,12 +53,7 @@
       }
   }).observe(document.documentElement, { childList: true, subtree: true });
 
-  /* ══════════════════════════════════════════════════════
-     ★ 3.5.0 → 3.7.0 핵심 변경: 영상 탐색 강화
-     1) document.querySelectorAll('video') — 기본
-     2) Shadow DOM 직접 탐색 — ok.ru 등 대응
-     3) VSC _activeVideo 참조 — VSC가 이미 찾은 것 활용
-  ══════════════════════════════════════════════════════ */
+  /* ── 영상 탐색 ───────────────────────────────────────── */
   function findVideosInShadowRoots(root, results, depth) {
     if (depth > 8) return;
     let els;
@@ -77,23 +72,38 @@
   }
 
   function getAllVideos() {
-    // 1) 일반 DOM
     const set = new Set(document.querySelectorAll('video'));
-
-    // 2) Shadow DOM 탐색
-    try { findVideosInShadowRoots(document, [...set], 0).forEach(v => set.add(v)); } catch (_) {}
-    // 위는 버그 — 아래처럼 수정
     const shadowResults = [];
     try { findVideosInShadowRoots(document, shadowResults, 0); } catch (_) {}
     for (const v of shadowResults) set.add(v);
 
-    // 3) VSC activeVideo
     try {
       const vsc = window.__vsc_internal;
       if (vsc?._activeVideo?.isConnected) set.add(vsc._activeVideo);
     } catch (_) {}
 
     return [...set];
+  }
+
+  function pickBestVideo() {
+    const videos = getAllVideos();
+    if (!videos.length) return null;
+    try {
+      const vsc = window.__vsc_internal;
+      if (vsc?._activeVideo?.isConnected) {
+        const av = vsc._activeVideo;
+        if ((av.clientWidth || 0) >= 100 && (av.clientHeight || 0) >= 56) return av;
+      }
+    } catch (_) {}
+    let best = null, bestScore = -1;
+    for (const v of videos) {
+      const area = (v.clientWidth || 0) * (v.clientHeight || 0);
+      let s = area;
+      if (!v.paused && !v.ended) s += 1e7;
+      if (v.readyState >= 2) s += 1e5;
+      if (s > bestScore) { bestScore = s; best = v; }
+    }
+    return best;
   }
 
   /* ── 샘플링 ─────────────────────────────────────────── */
@@ -108,7 +118,6 @@
     } catch (e) { resetCanvas(); return { ok: false, error: e.name + ': ' + e.message }; }
   }
 
-  /* ── shadow video ────────────────────────────────────── */
   function makeShadow(src, currentTime) {
     killShadow();
     const v = document.createElement('video');
@@ -122,7 +131,7 @@
 
   function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.round(score / CFG.tempPerScore)); }
 
-  /* ── 시계 ────────────────────────────────────────────── */
+  /* ── 시계 & FAB 상태 ─────────────────────────────────── */
   function updateClock() {
     if (!fab) return;
     const el = fab.querySelector('.ytd-fab-clock'); if (!el) return;
@@ -131,7 +140,6 @@
   }
   function startClock() { if (clockTimer) return; updateClock(); clockTimer = setInterval(updateClock, 1000); }
 
-  /* ── FAB 상태 ────────────────────────────────────────── */
   function updateFabState(status, score) {
     if (!fab) return; lastStatus = status;
     const scoreEl = fab.querySelector('.ytd-fab-score');
@@ -145,11 +153,16 @@
 
   function setFabVisible(show) {
     if (!fab) return;
-    if (show) { if (fab.style.display === 'none') fab.style.display = ''; }
-    else { if (fab.style.display !== 'none') fab.style.display = 'none'; if (panelOpen) togglePanel(false); }
+    if (show) {
+      if (fab.style.display === 'none') fab.style.display = '';
+      if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
+    } else {
+      if (fab.style.display !== 'none') fab.style.display = 'none';
+      if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
+      if (panelOpen) togglePanel(false);
+    }
   }
 
-  /* ── 전체화면 ────────────────────────────────────────── */
   function getFsRoot() {
     const fs = document.fullscreenElement || document.webkitFullscreenElement;
     if (!fs) return document.documentElement;
@@ -158,6 +171,7 @@
   function reparent() {
     const target = getFsRoot();
     if (fab && fab.parentNode !== target) try { target.appendChild(fab); } catch (_) {}
+    if (maxFab && maxFab.parentNode !== target) try { target.appendChild(maxFab); } catch (_) {}
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
   function onFsChange() { reparent(); setTimeout(reparent, 100); }
@@ -184,7 +198,7 @@
     if (panelOpen && panel) { renderUI(res); drawGraph(); }
   }
 
-  /* ── 패널 UI ─────────────────────────────────────────── */
+  /* ── 패널 UI 업데이트 ────────────────────────────────── */
   function q(id) { return panel?.querySelector('#' + id); }
 
   function renderUI({ r, g, b, score }) {
@@ -243,7 +257,6 @@
     updateFabState('idle', 0);
   }
 
-  /* ── 영상 목록 (패널용) ──────────────────────────────── */
   function refreshVideoList() {
     const sel = q('ytd-sel');
     const videos = getAllVideos();
@@ -278,28 +291,6 @@
     detectTimer = setTimeout(() => { detectTimer = 0; autoDetect(); }, 300);
   }
 
-  function pickBestVideo() {
-    const videos = getAllVideos();
-    if (!videos.length) return null;
-    // VSC activeVideo 우선
-    try {
-      const vsc = window.__vsc_internal;
-      if (vsc?._activeVideo?.isConnected) {
-        const av = vsc._activeVideo;
-        if ((av.clientWidth || 0) >= 100 && (av.clientHeight || 0) >= 56) return av;
-      }
-    } catch (_) {}
-    let best = null, bestScore = -1;
-    for (const v of videos) {
-      const area = (v.clientWidth || 0) * (v.clientHeight || 0);
-      let s = area;
-      if (!v.paused && !v.ended) s += 1e7;
-      if (v.readyState >= 2) s += 1e5;
-      if (s > bestScore) { bestScore = s; best = v; }
-    }
-    return best;
-  }
-
   function autoDetect() {
     const best = pickBestVideo();
     const hasVid = !!best;
@@ -309,7 +300,320 @@
     else if (!hasVid && liveVideo) { stopAnalysis(); liveVideo = null; }
   }
 
-  /* ── FAB 빌드 (3.5.0과 동일) ─────────────────────────── */
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     ★ 통합된 Video Maximizer 모듈
+  ═════════════════════════════════════════════════════════════════════════ */
+  const Maximizer = (() => {
+    const MAX_CLASS = 'ytd-vmax-max';
+    const HIDE_CLASS = 'ytd-vmax-hide';
+    const ANCESTOR_CLASS = 'ytd-vmax-ancestor';
+    const IFRAME_MAX_CLASS = 'ytd-vmax-iframe';
+
+    let active = false;
+    let targetVideo = null;
+    let targetIframe = null;
+    let isIframeMode = false;
+    let delegatedToTop = false;
+
+    const savedElementsSet = new Set();
+    const savedElementsList = [];
+    let hiddenSiblings = [];
+    let savedScrollX = 0, savedScrollY = 0;
+    let classMO = null;
+
+    function isInIframe() {
+      try { return window !== window.top; } catch (_) { return true; }
+    }
+
+    function findIframeForWindow(childWin) {
+      try {
+        const iframes = document.querySelectorAll('iframe');
+        for (const ifr of iframes) {
+          try { if (ifr.contentWindow === childWin) return ifr; } catch (_) {}
+        }
+      } catch (_) {}
+      return null;
+    }
+
+    function backupAndApplyStyle(el, css) {
+      if (!savedElementsSet.has(el)) {
+        savedElementsSet.add(el);
+        savedElementsList.push(el);
+        if (!el.__ytd_max_saved) el.__ytd_max_saved = {};
+      }
+      for (const prop in css) {
+        if (!(prop in el.__ytd_max_saved)) {
+          el.__ytd_max_saved[prop] = el.style.getPropertyValue(prop);
+        }
+        el.style.setProperty(prop, css[prop], 'important');
+      }
+    }
+
+    function restoreStyle(el) {
+      if (!el.__ytd_max_saved) return;
+      for (const prop in el.__ytd_max_saved) {
+        const val = el.__ytd_max_saved[prop];
+        if (val) el.style.setProperty(prop, val);
+        else el.style.removeProperty(prop);
+      }
+      delete el.__ytd_max_saved;
+    }
+
+    function hideSiblings(el) {
+      if (!el.parentNode) return;
+      for (const sib of el.parentNode.children) {
+        if (sib === el || sib.nodeType !== 1) continue;
+        if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
+        if (sib.id === '__ytd2__' || sib.classList.contains('ytd-fab')) continue;
+
+        const prevDisplay = sib.style.getPropertyValue('display');
+        const prevDisplayPrio = sib.style.getPropertyPriority('display');
+        sib.classList.add(HIDE_CLASS);
+        sib.style.setProperty('display', 'none', 'important');
+        hiddenSiblings.push({ el: sib, prevDisplay, prevDisplayPrio });
+      }
+    }
+
+    function clearAncestorChain(startEl) {
+      let ancestor = startEl.parentElement;
+      while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+        ancestor.dataset.ytdMaxAncestor = '1';
+        backupAndApplyStyle(ancestor, {
+          overflow: 'visible', position: 'static', transform: 'none',
+          clip: 'auto', 'clip-path': 'none', contain: 'none'
+        });
+        ancestor.classList.add(ANCESTOR_CLASS);
+        hideSiblings(ancestor);
+        ancestor = ancestor.parentElement;
+      }
+    }
+
+    function lockBody() {
+      backupAndApplyStyle(document.body, { overflow: 'hidden', margin: '0', padding: '0' });
+      if (document.documentElement) {
+        backupAndApplyStyle(document.documentElement, { overflow: 'hidden' });
+      }
+    }
+
+    function startClassGuard(primaryEl) {
+      if (classMO) { classMO.disconnect(); classMO = null; }
+      const guardClass = isIframeMode ? IFRAME_MAX_CLASS : MAX_CLASS;
+      classMO = new MutationObserver((muts) => {
+        for (const m of muts) {
+          if (m.type !== 'attributes' || m.attributeName !== 'class' || !active) continue;
+          const el = m.target;
+          if (el === primaryEl && !el.classList.contains(guardClass)) el.classList.add(guardClass);
+          if (el.dataset?.ytdMaxAncestor === '1' && !el.classList.contains(ANCESTOR_CLASS)) el.classList.add(ANCESTOR_CLASS);
+        }
+      });
+      classMO.observe(primaryEl, { attributes: true, attributeFilter: ['class'] });
+      let cur = primaryEl.parentElement;
+      while (cur && cur !== document.body && cur !== document.documentElement) {
+        classMO.observe(cur, { attributes: true, attributeFilter: ['class'] });
+        cur = cur.parentElement;
+      }
+    }
+
+    function stopClassGuard() {
+      if (classMO) { classMO.disconnect(); classMO = null; }
+    }
+
+    function doMaximizeDirect(video) {
+      targetVideo = video;
+      isIframeMode = false;
+      savedScrollX = window.scrollX;
+      savedScrollY = window.scrollY;
+
+      clearAncestorChain(video);
+      lockBody();
+      backupAndApplyStyle(video, {});
+      video.classList.add(MAX_CLASS);
+      hideSiblings(video);
+      window.scrollTo(0, 0);
+
+      startClassGuard(video);
+      active = true;
+      syncBtnUI();
+    }
+
+    function doMaximizeIframe(iframeEl) {
+      targetIframe = iframeEl;
+      isIframeMode = true;
+      savedScrollX = window.scrollX;
+      savedScrollY = window.scrollY;
+
+      clearAncestorChain(iframeEl);
+      lockBody();
+      backupAndApplyStyle(iframeEl, {});
+      iframeEl.classList.add(IFRAME_MAX_CLASS);
+      hideSiblings(iframeEl);
+      window.scrollTo(0, 0);
+
+      startClassGuard(iframeEl);
+      active = true;
+      syncBtnUI();
+      try { iframeEl.contentWindow.postMessage({ __ytd_max: 'apply_inner' }, '*'); } catch (_) {}
+    }
+
+    function undoMaximize() {
+      if (!active) return;
+      stopClassGuard();
+
+      if (isIframeMode && targetIframe) {
+        try { targetIframe.contentWindow.postMessage({ __ytd_max: 'undo_inner' }, '*'); } catch (_) {}
+        try { targetIframe.contentWindow.postMessage({ __ytd_max: 'state_off' }, '*'); } catch (_) {}
+      }
+
+      for (const { el, prevDisplay, prevDisplayPrio } of hiddenSiblings) {
+        try {
+          el.classList.remove(HIDE_CLASS);
+          if (prevDisplay) el.style.setProperty('display', prevDisplay, prevDisplayPrio || '');
+          else el.style.removeProperty('display');
+        } catch (_) {}
+      }
+      hiddenSiblings = [];
+
+      for (let i = savedElementsList.length - 1; i >= 0; i--) {
+        const el = savedElementsList[i];
+        restoreStyle(el);
+        try {
+          el.classList.remove(MAX_CLASS, IFRAME_MAX_CLASS, ANCESTOR_CLASS);
+          delete el.dataset.ytdMaxAncestor;
+        } catch (_) {}
+      }
+      savedElementsList.length = 0;
+      savedElementsSet.clear();
+
+      window.scrollTo(savedScrollX, savedScrollY);
+      active = false;
+      targetVideo = null;
+      targetIframe = null;
+      isIframeMode = false;
+      syncBtnUI();
+    }
+
+    // Inner iframe logic
+    let innerMaxActive = false;
+    const innerSavedSet = new Set();
+    const innerSavedList = [];
+
+    function backupInner(el, css) {
+      if (!innerSavedSet.has(el)) { innerSavedSet.add(el); innerSavedList.push(el); if (!el.__ytd_max_saved) el.__ytd_max_saved = {}; }
+      for (const prop in css) {
+        if (!(prop in el.__ytd_max_saved)) el.__ytd_max_saved[prop] = el.style.getPropertyValue(prop);
+        el.style.setProperty(prop, css[prop], 'important');
+      }
+    }
+
+    function applyInnerMaximize() {
+      if (innerMaxActive) return;
+      const video = pickBestVideo();
+      if (!video) return;
+      innerMaxActive = true;
+
+      backupInner(video, {
+        width: '100vw', height: '100vh', 'object-fit': 'contain',
+        position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
+        background: '#000', margin: '0', padding: '0', border: 'none'
+      });
+
+      let ancestor = video.parentElement;
+      while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
+        backupInner(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' });
+        ancestor = ancestor.parentElement;
+      }
+      backupInner(document.body, { overflow: 'hidden', margin: '0', padding: '0' });
+      if (document.documentElement) backupInner(document.documentElement, { overflow: 'hidden' });
+    }
+
+    function undoInnerMaximize() {
+      if (!innerMaxActive) return;
+      for (let i = innerSavedList.length - 1; i >= 0; i--) restoreStyle(innerSavedList[i]);
+      innerSavedList.length = 0; innerSavedSet.clear();
+      innerMaxActive = false;
+    }
+
+    function toggle() {
+      if (isInIframe()) {
+        if (delegatedToTop) {
+          try { window.top.postMessage({ __ytd_max: 'undo' }, '*'); } catch (_) {}
+          delegatedToTop = false;
+          return;
+        }
+        try {
+          window.top.postMessage({ __ytd_max: 'request' }, '*');
+          delegatedToTop = true;
+        } catch (_) {
+          const video = pickBestVideo();
+          if (video) doMaximizeDirect(video);
+        }
+        return;
+      }
+
+      if (active) { undoMaximize(); return; }
+
+      const video = pickBestVideo();
+      if (video) { doMaximizeDirect(video); return; }
+
+      const iframes = document.querySelectorAll('iframe');
+      let bestIframe = null, bestArea = 0;
+      for (const ifr of iframes) {
+        if (!ifr.isConnected) continue;
+        const r = ifr.getBoundingClientRect();
+        const area = r.width * r.height;
+        if (area < 10000) continue;
+        if (area > bestArea) { bestArea = area; bestIframe = ifr; }
+      }
+      if (bestIframe) doMaximizeIframe(bestIframe);
+    }
+
+    function handleMessage(e) {
+      if (!e.data || typeof e.data !== 'object' || !e.data.__ytd_max) return;
+      const cmd = e.data.__ytd_max;
+
+      if (!isInIframe()) {
+        if (cmd === 'request') {
+          const iframeEl = findIframeForWindow(e.source);
+          if (iframeEl) {
+            if (active) undoMaximize();
+            doMaximizeIframe(iframeEl);
+            try { e.source.postMessage({ __ytd_max: 'state_on' }, '*'); } catch (_) {}
+          }
+        }
+        if (cmd === 'undo') { if (active) undoMaximize(); }
+        return;
+      }
+
+      if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
+      if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
+      if (cmd === 'state_on') { delegatedToTop = true; syncBtnUI(); return; }
+      if (cmd === 'state_off') { delegatedToTop = false; syncBtnUI(); return; }
+    }
+
+    function syncBtnUI() {
+      const isMax = active || delegatedToTop;
+      if (maxFab) {
+         // 최대화 상태면 초록색 라인으로 변경
+         maxFab.style.borderColor = isMax ? '#50d070' : '#2a2d36';
+         const svg = maxFab.querySelector('svg path');
+         if (svg) {
+            svg.setAttribute('stroke', isMax ? '#50d070' : '#4a5060');
+         }
+      }
+    }
+
+    window.addEventListener('message', handleMessage);
+
+    return {
+      toggle,
+      undoMaximize
+    };
+  })();
+  /* ═════════════════════════════════════════════════════════════════════════ */
+
+
+  /* ── FAB 빌드 (기존 1개에서 2개로 분리) ─────────────────────────── */
   function buildFab() {
     if (fab) return;
     fabStyle = document.createElement('style'); fabStyle.id = '__ytd3_fab_style__';
@@ -350,6 +654,7 @@
       @keyframes ytd-dot-blink{0%,100%{opacity:1}50%{opacity:.3}}`;
     document.documentElement.appendChild(fabStyle);
 
+    // 1. 기존 YTD (색상 감지) FAB
     fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
     const svgNS = 'http://www.w3.org/2000/svg';
@@ -363,20 +668,79 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
-    let dragging=false,moved=false,startX=0,startY=0,fabX=0,fabY=0;
-    fab.addEventListener('pointerdown',e=>{if(e.button!==0)return;dragging=true;moved=false;const r=fab.getBoundingClientRect();startX=e.clientX;startY=e.clientY;fabX=r.left;fabY=r.top;fab.setPointerCapture(e.pointerId);e.preventDefault();});
-    fab.addEventListener('pointermove',e=>{if(!dragging)return;const dx=e.clientX-startX,dy=e.clientY-startY;if(!moved&&Math.abs(dx)<4&&Math.abs(dy)<4)return;moved=true;fab.style.left=(fabX+dx)+'px';fab.style.top=(fabY+dy)+'px';fab.style.right='auto';});
-    fab.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;fab.releasePointerCapture(e.pointerId);if(!moved)togglePanel();});
+    // 2. 최대화 (Maximizer) FAB (기존 아이콘의 왼쪽에 띄우기)
+    maxFab = document.createElement('div');
+    maxFab.className = 'ytd-fab ytd-fab--idle';
+    maxFab.style.display = 'none';
+    maxFab.style.right = '55px'; // 기존 fab가 right:5px, 폭이 40px이므로 55px면 딱 왼쪽에 나란히 붙음.
+    maxFab.title = "화면 최대화 (Maximizer)";
 
+    const maxIconWrap = document.createElement('div'); maxIconWrap.className = 'ytd-fab-icon';
+    const maxSvg = document.createElementNS(svgNS,'svg'); maxSvg.setAttribute('viewBox','0 0 24 24'); maxSvg.setAttribute('fill','none'); maxSvg.setAttribute('stroke-width','2'); maxSvg.setAttribute('stroke-linecap','round'); maxSvg.setAttribute('stroke-linejoin','round');
+    const maxPath = document.createElementNS(svgNS, 'path');
+    maxPath.setAttribute('d', 'M15,3L21,3L21,9 M9,21L3,21L3,15 M21,3L14,10 M3,21L10,14');
+    maxPath.setAttribute('stroke', '#4a5060');
+    maxSvg.appendChild(maxPath);
+    maxIconWrap.appendChild(maxSvg);
+    maxFab.appendChild(maxIconWrap);
+
+    document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
+
+    // 3. 두 버튼이 같이 이동하도록 드래그 로직 통일
+    let dragging=false, moved=false, startX=0, startY=0, fabX=0, fabY=0, maxX=0, maxY=0;
+
+    const onDown = (e, targetEl) => {
+      if(e.button!==0)return;
+      dragging=true; moved=false;
+      const rF = fab.getBoundingClientRect();
+      const rM = maxFab.getBoundingClientRect();
+      startX = e.clientX; startY = e.clientY;
+      fabX = rF.left; fabY = rF.top;
+      maxX = rM.left; maxY = rM.top;
+      targetEl.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    };
+
+    const onMove = (e) => {
+      if(!dragging)return;
+      const dx=e.clientX-startX, dy=e.clientY-startY;
+      if(!moved && Math.abs(dx)<4 && Math.abs(dy)<4) return;
+      moved = true;
+      fab.style.left = (fabX+dx)+'px'; fab.style.top = (fabY+dy)+'px'; fab.style.right = 'auto';
+      maxFab.style.left = (maxX+dx)+'px'; maxFab.style.top = (maxY+dy)+'px'; maxFab.style.right = 'auto';
+    };
+
+    // 기존 FAB 드래그 바인딩
+    fab.addEventListener('pointerdown', e => onDown(e, fab));
+    fab.addEventListener('pointermove', onMove);
+    fab.addEventListener('pointerup', e => {
+      if(!dragging)return; dragging=false; fab.releasePointerCapture(e.pointerId);
+      if(!moved) togglePanel();
+    });
+
+    // 새 MaxFAB 드래그 바인딩
+    maxFab.addEventListener('pointerdown', e => onDown(e, maxFab));
+    maxFab.addEventListener('pointermove', onMove);
+    maxFab.addEventListener('pointerup', e => {
+      if(!dragging)return; dragging=false; maxFab.releasePointerCapture(e.pointerId);
+      if(!moved) Maximizer.toggle();
+    });
+
     startClock();
   }
 
-  /* ── 패널 빌드 (3.5.0과 동일) ────────────────────────── */
+  /* ── 패널 빌드 (원래 스크립트 그대로 유지) ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
     el.innerHTML = safeHTML(`
-      <div id="ytd-hdr"><span>🔍 Tint Detector</span><div><button id="ytd-refresh" title="재탐색">↺</button><button id="ytd-close" title="닫기">✕</button></div></div>
+      <div id="ytd-hdr">
+        <span>🔍 Tint Detector</span>
+        <div>
+          <button id="ytd-refresh" title="재탐색">↺</button>
+          <button id="ytd-close" title="닫기">✕</button>
+        </div>
+      </div>
       <div id="ytd-badge">초기화 중…</div>
       <div id="ytd-bars">
         <div class="row"><span>R</span><div class="trk"><div id="rb" class="fill" style="background:#e05858"></div></div><span id="rv">—</span></div>
@@ -395,7 +759,7 @@
       #__ytd2__.open{opacity:1;transform:translateX(0) scale(1);pointer-events:auto}
       #ytd-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:#181b21;border-bottom:1px solid #252830;cursor:move;font-size:11px;color:#7a8499;letter-spacing:.05em}
       #ytd-hdr div{display:flex;gap:3px}
-      #ytd-hdr button{background:none;border:none;color:#4a5060;cursor:pointer;font-size:13px;padding:0 3px;line-height:1}
+      #ytd-hdr button{background:none;border:none;color:#4a5060;cursor:pointer;font-size:13px;padding:0 3px;line-height:1;transition:color .2s}
       #ytd-hdr button:hover{color:#ccd0d8}
       #ytd-badge{margin:9px 10px 2px;padding:5px 10px;border-radius:6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-align:center;background:#1a1d24;color:#7a8499;transition:background .25s,color .25s}
       #ytd-badge.warn{background:#2c1f00;color:#f5c842}
@@ -417,7 +781,14 @@
       #ytd-st{font-size:10px;color:#4a5060}
       #ytd-st.on{color:#50d070;animation:ytdblink 1.3s infinite}
       #ytd-err{padding:0 10px 7px;font-size:10px;color:#c04040;word-break:break-all;display:none;line-height:1.45}
-      @keyframes ytdblink{0%,100%{opacity:1}50%{opacity:.3}}`;
+      @keyframes ytdblink{0%,100%{opacity:1}50%{opacity:.3}}
+
+      /* Maximizer CSS 추가 */
+      .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;transform:none!important;}
+      .ytd-vmax-hide{display:none!important;}
+      .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}
+      .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}
+    `;
     document.documentElement.appendChild(panelStyle);
     return el;
   }
@@ -428,6 +799,7 @@
     panel = buildPanel(); bindPanelEvents();
   }
   function destroyPanel() { if (!panel) return; panel.remove(); panel = null; if (panelStyle) { panelStyle.remove(); panelStyle = null; } panelOpen = false; }
+
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
     q('ytd-refresh').addEventListener('click', refreshVideoList);
