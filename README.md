@@ -47,8 +47,11 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 필터<br/>
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt<br/>
 
-유저스크립트 - Gallery Extension for FMKOREA, 3.30<br/>
+유저스크립트<br/>
+에펨코리아 익스텐션 (Gallery Extension)<br/>
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js<br/>
+디시인사이드 엑스퍼트 익스텐션<br/>
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js<br/>
 
 DNS 필터
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt<br/>
