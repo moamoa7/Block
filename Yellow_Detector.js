@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Yellow Tint Detector
 // @namespace    https://github.com/
-// @version      3.4.0
-// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 권장 색온도 + 전체화면 대응 + Trusted Types 대응
+// @version      3.5.0
+// @description  영상의 노란끼(황조) 실시간 감지 — FAB + 시계 + 권장 색온도 + 전체화면 대응
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -19,32 +19,27 @@
         createHTML: (str) => str,
       });
     } catch (_) {
-      // 이미 default 정책이 있거나, 정책 생성이 차단된 경우
-      // fallback: default 정책 시도
       try {
         ttPolicy = trustedTypes.createPolicy('default', {
           createHTML: (str) => str,
         });
-      } catch (__) {
-        // 둘 다 실패하면 ttPolicy = null 유지
-      }
+      } catch (__) {}
     }
   }
-
-  /** innerHTML 할당용 래퍼 — Trusted Types 환경이면 변환, 아니면 원본 반환 */
   function safeHTML(str) {
     return ttPolicy ? ttPolicy.createHTML(str) : str;
   }
 
   const CFG = {
     sampleSize:  48,
-    intervalMs:  800,
+    intervalMs:  1000,   // ★ 1초에 1번
     threshold:   12,
     histLen:     24,
     tempPerScore: 5,
   };
 
   let timerID    = null;
+  let clockTimer = null;
   let liveVideo  = null;
   let shadowVid  = null;
   let history    = [];
@@ -55,7 +50,6 @@
   let panelOpen  = false;
   let lastStatus = 'idle';
 
-  /* #1: canvas taint 대응 — let + resetCanvas */
   let offscreen, oCtx;
   function resetCanvas() {
     offscreen = document.createElement('canvas');
@@ -95,7 +89,7 @@
     }
   }
 
-  /* ── shadow video (CORS fallback) ────────────────────── */
+  /* ── shadow video ────────────────────────────────────── */
   function makeShadow(src, currentTime) {
     killShadow();
     const v = document.createElement('video');
@@ -114,10 +108,28 @@
     shadowVid.src = ''; shadowVid.remove(); shadowVid = null;
   }
 
-  /* ── 권장 색온도 계산 ────────────────────────────────── */
+  /* ── 권장 색온도 ─────────────────────────────────────── */
   function scoreToTemp(score) {
     if (score <= 0) return 0;
     return -(Math.round(score / CFG.tempPerScore));
+  }
+
+  /* ── 시계 갱신 ───────────────────────────────────────── */
+  function updateClock() {
+    if (!fab) return;
+    const clockEl = fab.querySelector('.ytd-fab-clock');
+    if (!clockEl) return;
+    const now = new Date();
+    const hh = String(now.getHours()).padStart(2, '0');
+    const mm = String(now.getMinutes()).padStart(2, '0');
+    const ss = String(now.getSeconds()).padStart(2, '0');
+    clockEl.textContent = `${hh}:${mm}:${ss}`;
+  }
+
+  function startClock() {
+    if (clockTimer) return;
+    updateClock();
+    clockTimer = setInterval(updateClock, 1000);
   }
 
   /* ── FAB 상태 ────────────────────────────────────────── */
@@ -300,7 +312,7 @@
     updateFabState('idle', 0);
   }
 
-  /* ── 영상 목록 (패널용) ──────────────────────────────── */
+  /* ── 영상 목록 ───────────────────────────────────────── */
   function refreshVideoList() {
     const sel = q('ytd-sel');
     const videos = [...document.querySelectorAll('video')];
@@ -329,7 +341,7 @@
     }
   }
 
-  /* ── 영상 자동 감지 (쓰로틀) ─────────────────────────── */
+  /* ── 영상 자동 감지 ──────────────────────────────────── */
   let detectTimer = 0;
   function scheduleDetect() {
     if (detectTimer) return;
@@ -374,13 +386,14 @@
     fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
       .ytd-fab{position:fixed;top:40px;right:0px;z-index:2147483647;opacity:0.5;
-        width:40px;height:40px;border-radius:50%;
+        width:48px;height:62px;border-radius:14px;
         background:#15171c;border:2px solid #2a2d36;
-        cursor:pointer;display:flex;align-items:center;justify-content:center;
+        cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:2px;padding:4px 0 2px;
         transition:all .35s cubic-bezier(.16,1,.3,1);
         box-shadow:0 4px 16px rgba(0,0,0,.5);
         user-select:none;-webkit-tap-highlight-color:transparent}
-      .ytd-fab:hover{transform:scale(1.12);border-color:#3a3d48;
+      .ytd-fab:hover{transform:scale(1.08);border-color:#3a3d48;
         box-shadow:0 6px 24px rgba(0,0,0,.6)}
       .ytd-fab-icon{width:20px;height:20px;position:relative;
         display:flex;align-items:center;justify-content:center}
@@ -392,20 +405,26 @@
         width:10px;height:10px;border-radius:50%;
         background:transparent;border:2px solid #15171c;
         transition:all .3s ease;pointer-events:none}
-      .ytd-fab-score{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);
+      .ytd-fab-score{
         font:700 9px/1 monospace;color:#4a5060;
-        background:#15171c;padding:1px 4px;border-radius:6px;
+        background:#1a1d24;padding:1px 5px;border-radius:6px;
         border:1px solid #2a2d36;pointer-events:none;
         transition:all .3s ease;min-width:24px;text-align:center}
+      .ytd-fab-clock{
+        font:600 8px/1 monospace;color:#555a68;
+        letter-spacing:.5px;pointer-events:none;
+        transition:color .3s ease;margin-top:1px}
       .ytd-fab--idle{border-color:#2a2d36}
       .ytd-fab--idle .ytd-fab-icon svg{fill:#4a5060;stroke:#4a5060}
       .ytd-fab--idle .ytd-fab-dot{background:transparent}
       .ytd-fab--idle .ytd-fab-score{color:#4a5060;border-color:#2a2d36}
+      .ytd-fab--idle .ytd-fab-clock{color:#3a3d48}
       .ytd-fab--ok{border-color:#1a3a22}
       .ytd-fab--ok .ytd-fab-icon svg{fill:none;stroke:#50d070}
       .ytd-fab--ok .ytd-fab-ring{border-color:rgba(80,208,112,.15)}
       .ytd-fab--ok .ytd-fab-dot{background:#50d070;box-shadow:0 0 6px rgba(80,208,112,.5)}
       .ytd-fab--ok .ytd-fab-score{color:#50d070;border-color:#1a3a22}
+      .ytd-fab--ok .ytd-fab-clock{color:#3a6a42}
       .ytd-fab--warn{border-color:#f5c842;
         box-shadow:0 0 16px rgba(245,200,66,.25),0 0 40px rgba(245,200,66,.08),0 4px 16px rgba(0,0,0,.5);
         animation:ytd-fab-pulse 1.8s ease-in-out infinite}
@@ -415,10 +434,12 @@
       .ytd-fab--warn .ytd-fab-dot{background:#f5c842;
         box-shadow:0 0 8px rgba(245,200,66,.7);animation:ytd-dot-blink 1s ease-in-out infinite}
       .ytd-fab--warn .ytd-fab-score{color:#f5c842;border-color:#4a3800;background:#1f1a08}
+      .ytd-fab--warn .ytd-fab-clock{color:#8a7030}
       .ytd-fab--error{border-color:#3a1515}
       .ytd-fab--error .ytd-fab-icon svg{fill:none;stroke:#e06060}
       .ytd-fab--error .ytd-fab-dot{background:#e06060;box-shadow:0 0 6px rgba(224,96,96,.5)}
       .ytd-fab--error .ytd-fab-score{color:#e06060;border-color:#3a1515}
+      .ytd-fab--error .ytd-fab-clock{color:#6a3030}
       @keyframes ytd-fab-pulse{
         0%,100%{box-shadow:0 0 16px rgba(245,200,66,.25),0 0 40px rgba(245,200,66,.08),0 4px 16px rgba(0,0,0,.5)}
         50%{box-shadow:0 0 24px rgba(245,200,66,.4),0 0 60px rgba(245,200,66,.12),0 4px 16px rgba(0,0,0,.5)}}
@@ -430,7 +451,7 @@
     fab.className = 'ytd-fab ytd-fab--idle';
     fab.style.display = 'none';
 
-    // ★ innerHTML → DOM API로 교체
+    // 아이콘
     const iconWrap = document.createElement('div');
     iconWrap.className = 'ytd-fab-icon';
 
@@ -469,10 +490,18 @@
 
     fab.appendChild(iconWrap);
 
+    // 스코어
     const scoreSpan = document.createElement('span');
     scoreSpan.className = 'ytd-fab-score';
     fab.appendChild(scoreSpan);
 
+    // ★ 시계
+    const clockSpan = document.createElement('span');
+    clockSpan.className = 'ytd-fab-clock';
+    clockSpan.textContent = '--:--:--';
+    fab.appendChild(clockSpan);
+
+    // 드래그 & 클릭
     let dragging = false, moved = false, startX = 0, startY = 0, fabX = 0, fabY = 0;
 
     fab.addEventListener('pointerdown', e => {
@@ -503,14 +532,15 @@
     });
 
     document.documentElement.appendChild(fab);
+
+    // ★ 시계 시작
+    startClock();
   }
 
   /* ── 패널 빌드 ───────────────────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div');
     el.id = '__ytd2__';
-
-    // ★ innerHTML → safeHTML 래퍼 사용
     el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
