@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Yellow Tint Detector (with Maximizer & Mobile Zoom)
-// @namespace    https://github.com/
-// @version      3.9.6
-// @description  영상의 노란끼 감지 + 비디오 최대화 + PC/모바일 완벽 지원 줌(Zoom) 기능
+// @name         Video Tools
+// @namespace    https://github.com/moamoa7
+// @version      3.9.7
+// @description  영상의 노란끼 감지 + 비디오 최대화 + 비디오 ZOOM + 항상 보이는 시계
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -29,6 +29,8 @@
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
   let history = [], panel = null, fab = null, maxFab = null, zoomFab = null, fabStyle = null, panelStyle = null;
   let panelOpen = false, lastStatus = 'idle';
+  /* Maximizer/Zoomer CSS를 패널과 독립적으로 유지하기 위한 별도 style 태그 */
+  let coreStyle = null;
 
   let offscreen, oCtx;
   function resetCanvas() {
@@ -157,6 +159,8 @@
 
   function makeShadow(src, currentTime) {
     killShadow();
+    if (!document.body) return null;
+    if (src.startsWith('blob:')) return null;
     const v = document.createElement('video');
     v.crossOrigin = 'anonymous'; v.muted = true;
     v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:.001;top:0;left:0;pointer-events:none';
@@ -165,6 +169,11 @@
     v.play().catch(() => {}); shadowVid = v; return v;
   }
   function killShadow() { if (!shadowVid) return; shadowVid.src = ''; shadowVid.remove(); shadowVid = null; }
+  /**
+   * score → 색온도 보정 단계 변환
+   * tempPerScore=5이므로: score 0~2 → 0(불필요), 3~7 → -1(미세), 8~12 → -2(경미), 13+ → -3 이상(주의)
+   * threshold(12)와 독립적 스케일: threshold는 "노란끼 감지" 판정, temp는 "보정 권장량"
+   */
   function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.round(score / CFG.tempPerScore)); }
 
   /* ── 시계 & FAB 상태 ─────────────────────────────────── */
@@ -189,15 +198,15 @@
 
   function setFabVisible(show) {
     if (!fab) return;
-    if (show) { 
-      if (fab.style.display === 'none') fab.style.display = ''; 
+    if (show) {
+      if (fab.style.display === 'none') fab.style.display = '';
       if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
       if (zoomFab && zoomFab.style.display === 'none') zoomFab.style.display = '';
-    } else { 
-      if (fab.style.display !== 'none') fab.style.display = 'none'; 
+    } else {
+      if (fab.style.display !== 'none') fab.style.display = 'none';
       if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
       if (zoomFab && zoomFab.style.display !== 'none') zoomFab.style.display = 'none';
-      if (panelOpen) togglePanel(false); 
+      if (panelOpen) togglePanel(false);
     }
   }
 
@@ -213,7 +222,16 @@
     if (zoomFab && zoomFab.parentNode !== target) try { target.appendChild(zoomFab); } catch (_) {}
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
-  function onFsChange() { reparent(); setTimeout(reparent, 100); }
+  function onFsChange() {
+    reparent();
+    setTimeout(reparent, 120);
+    /* 풀스크린 요소가 DOM에서 제거되는 케이스 대비: FAB 고아화 방지 */
+    setTimeout(() => {
+      if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
+      if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
+      if (zoomFab && !zoomFab.isConnected) document.documentElement.appendChild(zoomFab);
+    }, 300);
+  }
 
   /* ── tick ─────────────────────────────────────────────── */
   function tick() {
@@ -375,10 +393,10 @@
       return null;
     }
 
-    function backupAndApplyStyle(el, css) {
-      if (!savedElementsSet.has(el)) {
-        savedElementsSet.add(el);
-        savedElementsList.push(el);
+    /* 범용 스타일 백업+적용 */
+    function _backupApply(set, list, el, css) {
+      if (!set.has(el)) {
+        set.add(el); list.push(el);
         if (!el.__ytd_max_saved) el.__ytd_max_saved = {};
       }
       for (const prop in css) {
@@ -387,6 +405,10 @@
         }
         el.style.setProperty(prop, css[prop], 'important');
       }
+    }
+
+    function backupAndApplyStyle(el, css) {
+      _backupApply(savedElementsSet, savedElementsList, el, css);
     }
 
     function restoreStyle(el) {
@@ -468,6 +490,8 @@
       lockBody();
       backupAndApplyStyle(video, {});
       video.classList.add(MAX_CLASS);
+      /* Zoomer가 적용한 transform이 있다면 최대화 진입 시 리셋 */
+      video.style.setProperty('transform', 'none', 'important');
       hideSiblings(video);
       window.scrollTo(0, 0);
 
@@ -506,7 +530,9 @@
         try { targetIframe.contentWindow.postMessage({ __ytd_max: 'state_off' }, '*'); } catch (_) {}
       }
 
-      for (const { el, prevDisplay, prevDisplayPrio } of hiddenSiblings) {
+      /* 역순 복원: clearAncestorChain이 하위→상위 순서로 push하므로 복원은 역순 */
+      for (let i = hiddenSiblings.length - 1; i >= 0; i--) {
+        const { el, prevDisplay, prevDisplayPrio } = hiddenSiblings[i];
         try {
           el.classList.remove(HIDE_CLASS);
           if (prevDisplay) el.style.setProperty('display', prevDisplay, prevDisplayPrio || '');
@@ -541,11 +567,7 @@
     const innerSavedList = [];
 
     function backupInner(el, css) {
-      if (!innerSavedSet.has(el)) { innerSavedSet.add(el); innerSavedList.push(el); if (!el.__ytd_max_saved) el.__ytd_max_saved = {}; }
-      for (const prop in css) {
-        if (!(prop in el.__ytd_max_saved)) el.__ytd_max_saved[prop] = el.style.getPropertyValue(prop);
-        el.style.setProperty(prop, css[prop], 'important');
-      }
+      _backupApply(innerSavedSet, innerSavedList, el, css);
     }
 
     function applyInnerMaximize() {
@@ -636,7 +658,7 @@
 
     function syncBtnUI() {
       const isMax = active || delegatedToTop;
-      
+
       if (maxFab) {
          maxFab.style.borderColor = isMax ? '#50d070' : '#2a2d36';
          const svg = maxFab.querySelector('svg path');
@@ -649,7 +671,6 @@
 
     window.addEventListener('message', handleMessage);
 
-    // ESC 키로 최대화 해제 (단축키 제거 후 유일하게 남긴 키 바인딩)
     window.addEventListener('keydown', e => {
       if (e.key === 'Escape' && (active || delegatedToTop)) {
         undoMaximize();
@@ -681,7 +702,7 @@
     let touchState = TS.IDLE;
     let settleTimerId = 0;
     const TOUCH_SETTLE_MS = 120;
-    const PAN_THRESHOLD_SQ = 64; 
+    const PAN_THRESHOLD_SQ = 64;
 
     let isPanning = false;
     let startX = 0, startY = 0, touchOriginX = 0, touchOriginY = 0, activePointerId = null;
@@ -740,9 +761,9 @@
 
     function getSt(v) {
       let s = states.get(v);
-      if (!s) { 
-        s = { scale: 1, tx: 0, ty: 0, zoomed: false, _savedPos: '', _savedZ: '' }; 
-        states.set(v, s); 
+      if (!s) {
+        s = { scale: 1, tx: 0, ty: 0, zoomed: false, _savedPos: '', _savedZ: '' };
+        states.set(v, s);
       }
       return s;
     }
@@ -792,14 +813,14 @@
       v.style.removeProperty('transform-origin');
       v.style.removeProperty('will-change');
 
-      if (st._savedPos) v.style.setProperty('position', st._savedPos); 
+      if (st._savedPos) v.style.setProperty('position', st._savedPos);
       else v.style.removeProperty('position');
 
-      if (st._savedZ) v.style.setProperty('z-index', st._savedZ); 
+      if (st._savedZ) v.style.setProperty('z-index', st._savedZ);
       else v.style.removeProperty('z-index');
-      
+
       st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false;
-      
+
       if (!active) setTouchActionBlocking(v, false);
       if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); activeVideo = null; }
     }
@@ -820,7 +841,7 @@
       const px = e.touches ? e.touches[0].clientX : e.clientX;
       const py = e.touches ? e.touches[0].clientY : e.clientY;
       let bestVideo = null, bestArea = 0;
-      
+
       const videos = getAllVideos();
       for (const v of videos) {
         if (!v.isConnected) continue;
@@ -894,13 +915,13 @@
     // --- Mobile Events ---
     window.addEventListener('touchstart', e => {
       if (!active || isUiEvent(e)) return;
-      const v = getTargetVideo(e); 
+      const v = getTargetVideo(e);
       if (!v) return;
 
       const st = getSt(v);
 
       if (e.touches.length === 2) {
-        if (e.cancelable) e.preventDefault(); // 스크롤 차단 시작
+        if (e.cancelable) e.preventDefault();
         clearSettleTimer();
         activeVideo = v;
         isPanning = false;
@@ -909,13 +930,13 @@
         pinchState.initialScale = st.scale;
         const c = getTouchCenter(e.touches);
         pinchState.lastCx = c.x; pinchState.lastCy = c.y;
-        
+
         const _rect = v.getBoundingClientRect();
         pinchState.elemCx = _rect.left + _rect.width / 2 - st.scale * st.tx;
         pinchState.elemCy = _rect.top + _rect.height / 2 - st.scale * st.ty;
         setTouchState(TS.PINCHING);
       } else if (e.touches.length === 1 && st.scale > 1) {
-        if (e.cancelable) e.preventDefault(); // 확대 상태면 스크롤 차단
+        if (e.cancelable) e.preventDefault();
         clearSettleTimer();
         activeVideo = v;
         touchOriginX = e.touches[0].clientX; touchOriginY = e.touches[0].clientY;
@@ -927,7 +948,6 @@
     window.addEventListener('touchmove', e => {
       if (!active) return;
 
-      // 두 번째 손가락이 나중에 닿았을 때
       if (touchState !== TS.PINCHING && !pinchState.active && e.touches.length === 2) {
         const v = getTargetVideo(e);
         if (v) {
@@ -956,10 +976,10 @@
         const center = getTouchCenter(e.touches);
         let ns = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
         ns = Math.max(1, Math.min(ns, 10));
-        
+
         if (ns < 1.05) {
           if (st.zoomed) { reset(activeVideo); showOSD('줌 1× (리셋)', 800); }
-          pinchState.initialDist = getTouchDist(e.touches); 
+          pinchState.initialDist = getTouchDist(e.touches);
           pinchState.initialScale = 1.0;
           st.scale = 1; st.tx = 0; st.ty = 0;
         } else {
@@ -973,12 +993,12 @@
         }
         pinchState.lastCx = center.x; pinchState.lastCy = center.y;
       } else if (touchState === TS.WAIT_PAN && e.touches.length === 1 && st.scale > 1) {
-        const dx = e.touches[0].clientX - touchOriginX; 
+        const dx = e.touches[0].clientX - touchOriginX;
         const dy = e.touches[0].clientY - touchOriginY;
-        if (dx * dx + dy * dy >= PAN_THRESHOLD_SQ) { 
-          if (e.cancelable) e.preventDefault(); 
-          isPanning = true; 
-          setTouchState(TS.PANNING); 
+        if (dx * dx + dy * dy >= PAN_THRESHOLD_SQ) {
+          if (e.cancelable) e.preventDefault();
+          isPanning = true;
+          setTouchState(TS.PANNING);
         }
       } else if (touchState === TS.PANNING && isPanning && e.touches.length === 1 && st.scale > 1) {
         if (e.cancelable) e.preventDefault();
@@ -991,13 +1011,20 @@
 
     window.addEventListener('touchend', e => {
       if (!activeVideo) return;
-      
+
       if (touchState === TS.PINCHING && e.touches.length < 2) {
-        pinchState.active = false; setTouchState(TS.PINCH_RELEASED);
+        pinchState.active = false;
         const currentScale = activeVideo ? getSt(activeVideo).scale : 1;
         if (e.touches.length === 1 && activeVideo?.isConnected && currentScale > 1) {
-          startSettleTimer(() => setTouchState(TS.IDLE));
+          /* 핀치 종료 후 1-finger가 남아있으면 즉시 팬 대기 상태로 전환 (settle 불필요) */
+          const st = getSt(activeVideo);
+          touchOriginX = e.touches[0].clientX;
+          touchOriginY = e.touches[0].clientY;
+          startX = e.touches[0].clientX - st.tx;
+          startY = e.touches[0].clientY - st.ty;
+          setTouchState(TS.WAIT_PAN);
         } else if (e.touches.length === 0) {
+          setTouchState(TS.PINCH_RELEASED);
           startSettleTimer(() => {
             setTouchState(TS.IDLE); isPanning = false;
             if (activeVideo && getSt(activeVideo).scale <= 1 && getSt(activeVideo).zoomed) reset(activeVideo);
@@ -1006,12 +1033,12 @@
         }
         return;
       }
-      
+
       if (touchState === TS.PINCH_RELEASED || touchState === TS.IDLE) {
         if (e.touches.length === 0) { clearSettleTimer(); isPanning = false; setTouchState(TS.IDLE); activeVideo = null; }
         return;
       }
-      
+
       if (e.touches.length === 1 && activeVideo?.isConnected && getSt(activeVideo).scale > 1) {
         touchOriginX = e.touches[0].clientX; touchOriginY = e.touches[0].clientY;
         startX = e.touches[0].clientX - getSt(activeVideo).tx; startY = e.touches[0].clientY - getSt(activeVideo).ty;
@@ -1055,9 +1082,23 @@
   /* ═════════════════════════════════════════════════════════════════════════ */
 
 
-  /* ── FAB 빌드 (기존 1개에서 3개로 분리: Zoom, Max, Main) ─────────────────────────── */
+  /* ── FAB 빌드 (3개: Zoom, Max, Main) ─────────────────────────── */
   function buildFab() {
     if (fab) return;
+
+    /* Maximizer/Zoomer CSS — 패널과 독립 (destroyPanel에 영향받지 않음) */
+    if (!coreStyle) {
+      coreStyle = document.createElement('style');
+      coreStyle.id = '__ytd3_core_style__';
+      coreStyle.textContent = `
+        .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;}
+        .ytd-vmax-hide{display:none!important;}
+        .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}
+        .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}
+      `;
+      document.documentElement.appendChild(coreStyle);
+    }
+
     fabStyle = document.createElement('style'); fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
       .ytd-fab{position:fixed;top:40px;right:5px;z-index:2147483647;opacity:0.5;width:40px;height:40px;border-radius:50%;background:#15171c;border:2px solid #2a2d36;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .35s cubic-bezier(.16,1,.3,1);box-shadow:0 4px 16px rgba(0,0,0,.5);user-select:none;-webkit-tap-highlight-color:transparent}
@@ -1112,12 +1153,12 @@
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
     // 2. 최대화 (Maximizer) FAB (오른쪽 55px)
-    maxFab = document.createElement('div'); 
-    maxFab.className = 'ytd-fab ytd-fab--idle'; 
+    maxFab = document.createElement('div');
+    maxFab.className = 'ytd-fab ytd-fab--idle';
     maxFab.style.display = 'none';
     maxFab.style.right = '55px';
     maxFab.title = "화면 최대화/해제";
-    
+
     const maxIconWrap = document.createElement('div'); maxIconWrap.className = 'ytd-fab-icon';
     const maxSvg = document.createElementNS(svgNS,'svg'); maxSvg.setAttribute('viewBox','0 0 24 24'); maxSvg.setAttribute('fill','none'); maxSvg.setAttribute('stroke-width','2'); maxSvg.setAttribute('stroke-linecap','round'); maxSvg.setAttribute('stroke-linejoin','round');
     const maxPath = document.createElementNS(svgNS, 'path');
@@ -1128,15 +1169,15 @@
     maxFab.appendChild(maxIconWrap);
 
     // 3. 줌 (Zoom) FAB (오른쪽 105px)
-    zoomFab = document.createElement('div'); 
-    zoomFab.className = 'ytd-fab ytd-fab--idle'; 
+    zoomFab = document.createElement('div');
+    zoomFab.className = 'ytd-fab ytd-fab--idle';
     zoomFab.style.display = 'none';
     zoomFab.style.right = '105px';
     zoomFab.title = "줌 모드 (PC: Alt+Wheel / Mobile: Pinch)";
 
     const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
     const zoomSvg = document.createElementNS(svgNS,'svg'); zoomSvg.setAttribute('viewBox','0 0 24 24'); zoomSvg.setAttribute('fill','none'); zoomSvg.setAttribute('stroke-width','2'); zoomSvg.setAttribute('stroke-linecap','round'); zoomSvg.setAttribute('stroke-linejoin','round');
-    zoomSvg.style.stroke = '#4a5060'; 
+    zoomSvg.style.stroke = '#4a5060';
     const zoomCircle = document.createElementNS(svgNS, 'circle');
     zoomCircle.setAttribute('cx', '11'); zoomCircle.setAttribute('cy', '11'); zoomCircle.setAttribute('r', '8');
     const zoomLine = document.createElementNS(svgNS, 'line');
@@ -1151,8 +1192,8 @@
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // 4. 세 개의 버튼이 같이 이동하도록 드래그 로직 구현
-    let dragging=false, moved=false, startX=0, startY=0;
+    // 4. 3개 FAB 공용 드래그 + 클릭 로직
+    let dragging=false, moved=false, dragStartX=0, dragStartY=0;
     let fabX=0, fabY=0, maxX=0, maxY=0, zoomX=0, zoomY=0;
 
     const onDown = (e, targetEl) => {
@@ -1161,7 +1202,7 @@
       const rF = fab.getBoundingClientRect();
       const rM = maxFab.getBoundingClientRect();
       const rZ = zoomFab.getBoundingClientRect();
-      startX = e.clientX; startY = e.clientY;
+      dragStartX = e.clientX; dragStartY = e.clientY;
       fabX = rF.left; fabY = rF.top;
       maxX = rM.left; maxY = rM.top;
       zoomX = rZ.left; zoomY = rZ.top;
@@ -1171,7 +1212,7 @@
 
     const onMove = (e) => {
       if(!dragging)return;
-      const dx=e.clientX-startX, dy=e.clientY-startY;
+      const dx=e.clientX-dragStartX, dy=e.clientY-dragStartY;
       if(!moved && Math.abs(dx)<4 && Math.abs(dy)<4) return;
       moved = true;
       fab.style.left = (fabX+dx)+'px'; fab.style.top = (fabY+dy)+'px'; fab.style.right = 'auto';
@@ -1179,29 +1220,22 @@
       zoomFab.style.left = (zoomX+dx)+'px'; zoomFab.style.top = (zoomY+dy)+'px'; zoomFab.style.right = 'auto';
     };
 
-    // 기존 (메인) FAB 바인딩
-    fab.addEventListener('pointerdown', e => onDown(e, fab));
-    fab.addEventListener('pointermove', onMove);
-    fab.addEventListener('pointerup', e => {
-      if(!dragging)return; dragging=false; fab.releasePointerCapture(e.pointerId);
-      if(!moved) togglePanel();
-    });
+    const fabActions = new Map([
+      [fab,     () => togglePanel()],
+      [maxFab,  () => Maximizer.toggle()],
+      [zoomFab, () => Zoomer.toggle()],
+    ]);
 
-    // 최대화 FAB 바인딩
-    maxFab.addEventListener('pointerdown', e => onDown(e, maxFab));
-    maxFab.addEventListener('pointermove', onMove);
-    maxFab.addEventListener('pointerup', e => {
-      if(!dragging)return; dragging=false; maxFab.releasePointerCapture(e.pointerId);
-      if(!moved) Maximizer.toggle();
-    });
-
-    // 줌 FAB 바인딩
-    zoomFab.addEventListener('pointerdown', e => onDown(e, zoomFab));
-    zoomFab.addEventListener('pointermove', onMove);
-    zoomFab.addEventListener('pointerup', e => {
-      if(!dragging)return; dragging=false; zoomFab.releasePointerCapture(e.pointerId);
-      if(!moved) Zoomer.toggle();
-    });
+    for (const [btn, action] of fabActions) {
+      btn.addEventListener('pointerdown', e => onDown(e, btn));
+      btn.addEventListener('pointermove', onMove);
+      btn.addEventListener('pointerup', e => {
+        if (!dragging) return;
+        dragging = false;
+        btn.releasePointerCapture(e.pointerId);
+        if (!moved) action();
+      });
+    }
 
     startClock();
   }
@@ -1259,12 +1293,6 @@
       #ytd-st.on{color:#50d070;animation:ytdblink 1.3s infinite}
       #ytd-err{padding:0 10px 7px;font-size:10px;color:#c04040;word-break:break-all;display:none;line-height:1.45}
       @keyframes ytdblink{0%,100%{opacity:1}50%{opacity:.3}}
-      
-      /* Maximizer CSS 추가 */
-      .ytd-vmax-max{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;object-fit:contain!important;background:#000!important;margin:0!important;padding:0!important;border:none!important;transform:none!important;}
-      .ytd-vmax-hide{display:none!important;}
-      .ytd-vmax-ancestor{overflow:visible!important;position:static!important;transform:none!important;clip:auto!important;clip-path:none!important;contain:none!important;}
-      .ytd-vmax-iframe{position:fixed!important;top:0!important;left:0!important;width:100vw!important;height:100vh!important;z-index:2147483646!important;border:none!important;margin:0!important;padding:0!important;}
     `;
     document.documentElement.appendChild(panelStyle);
     return el;
@@ -1276,19 +1304,15 @@
     panel = buildPanel(); bindPanelEvents();
   }
   function destroyPanel() { if (!panel) return; panel.remove(); panel = null; if (panelStyle) { panelStyle.remove(); panelStyle = null; } panelOpen = false; }
-  
+
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
-    
-    // Zoom 버튼 클릭 이벤트
-    q('ytd-zoom').addEventListener('click', () => Zoomer.toggle());
-    
-    // 최대화 버튼 이벤트
-    q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
 
+    q('ytd-zoom').addEventListener('click', () => Zoomer.toggle());
+    q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
-    
+
     let dragging = false, dx = 0, dy = 0;
     q('ytd-hdr').addEventListener('pointerdown', e => { if (e.button !== 0) return; dragging = true; const r = panel.getBoundingClientRect(); dx = e.clientX - r.left; dy = e.clientY - r.top; e.target.setPointerCapture(e.pointerId); });
     q('ytd-hdr').addEventListener('pointermove', e => { if (!dragging) return; panel.style.left = (e.clientX - dx) + 'px'; panel.style.top = (e.clientY - dy) + 'px'; panel.style.right = 'auto'; });
