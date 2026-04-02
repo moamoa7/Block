@@ -23,9 +23,8 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 ```
 <br>
 
-※ Yellow_Detector.js
-- 영상내 노란끼 체크 (색온도 조절시 참고) / 시계(시:분)
-
+※ Video_Tools.js
+- 영상의 노란끼 감지 + 비디오 최대화 + 비디오 ZOOM + 항상 보이는 시계
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
 ```
