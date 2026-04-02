@@ -106,25 +106,13 @@
   }
 
   const MANUAL_PRESETS = [
-    { n: 'OFF',        v: [0,   0,   0,   0,  0,   0,   0,   0,   0] },
 
-    { n: '마스터(약)',   v: [0, 0, 0, 0, 0, 0,  -2,  1, 3] },
-    { n: '마스터(보통)', v: [0, 0, 0, 0, 0, 0,  -4,  2,  6] },
-    { n: '마스터(중간)', v: [0, 0, 0, 0, 0, 0,  -6,  3,  9] },
-    { n: '마스터(강)',   v: [0, 0, 0, 0, 0, 0,  -8,  4,  12] },
-    { n: '마스터(최대)', v: [0, 0, 0, 0, 0, 0, -10, 5, 15] },
+    { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { n: '보정', v: [0, 0, 0, 0, 0, 0,  -6,  3,  0] },
+    { n: '선명강조',    v: [0, 0,  5,  0,  0,  0,  0,  6,  3] },
+    { n: '뽀샤시', v: [0, 0, 3, 0, 0, 0, -4, 2, 10] },
+    { n: '복원', v: [65, 0, 9, 0, 0, 0, -12, 6, 15] },
 
-    { n: '화사(약)',   v: [0, 0, 3, 0, 0,  0,  -2,  1,  4] },
-    { n: '화사(보통)', v: [0, 0, 6, 0,  0,  1,  -4,  2, 8] },
-    { n: '화사(중간)', v: [0, 0, 9, 0, 0,  2,  -6,  3, 12] },
-    { n: '화사(강)',   v: [0, 0, 12, 0, 0, 3,  -8,  4, 16] },
-    { n: '화사(최대)', v: [0, 0, 15, 0, 0,  4,  -10,  5, 20] },
-
-    { n: '시네마(약)',   v: [20, 0, 4, 0, 0,  0,  -2,  1,  5] },
-    { n: '시네마(보통)', v: [35, 0, 8, 0, 0,  0,  -4,  2, 10] },
-    { n: '시네마(중간)', v: [50, 0, 12, 0, 0,  0,  -6,  3, 15] },
-    { n: '시네마(강)',   v: [65, 0, 16, 0, 0,  0,  -9,  4, 20] },
-    { n: '시네마(최대)', v: [80, 0, 20, 0, 0,  0,  -12,  5, 25] },
   ];
 
   const DEFAULTS = {
@@ -1345,22 +1333,22 @@
         { type: 'widget', build: buildInfoBar },
         { type: 'sep' },
         { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
-        { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.01 },
+        { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.1 },
         { type: 'sep' },
         { type: 'widget', build: buildPresetGrid },
         { type: 'sep' },
         { type: 'sectionLabel', text: '수동 조정' },
-        { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 5 },
-        { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 5 },
-        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 5 },
-        { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 3 },
-        { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 3 },
-        { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 3 },
+        { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 1 },
         { type: 'sep' },
         { type: 'sectionLabel', text: '색상 보정' },
-        { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 5 },
-        { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 5 },
-        { type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 5 },
+        { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '틴트', path: P.V_MAN_TINT, min: -50, max: 50, step: 1, fine: 1 },
+        { type: 'fineSlider', label: '채도', path: P.V_MAN_SAT, min: -50, max: 50, step: 1, fine: 1 },
       ];
     }
 
