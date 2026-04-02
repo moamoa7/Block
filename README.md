@@ -7,8 +7,8 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/GoodAD.txt
 ```
 <br>
 
-※ Web_Turbo.js
-- 모든 웹사이트에서 렉을 제거하고 최적의 성능 향상
+※ Yellow_Detector.js
+- 영상내 노란끼 체크 (색온도 조절시 참고) / 시계(시:분)
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
@@ -16,7 +16,7 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Web_Tubro.js
 <br>
 
 ※ Video_Control.js
-- 영상 화질 선명하게 보기 / 영상 배속 / PIP / 영상 ZOOM 등
+- 영상 화질 선명하게 보기 / 영상 배속
 
 ```
 https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
@@ -24,13 +24,20 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Video_Control.js
 <br>
 
 ※ Delay-meter.js
-- 숲 / 치지직 안정적인 딜레이를 위한 장치
+- 유튜브 / 트위치 / 숲 / 치지직 등 안정적인 딜레이를 위한 장치
 
 ```
-
 https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 ```
 <br>
+
+※ bookmarj.js
+- 인터넷 북마크 (저장 및 백업 가능)
+
+```
+https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
+```
+<br><br>
 
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
