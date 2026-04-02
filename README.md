@@ -228,7 +228,7 @@ Violentmonkey 확장프로그램 설치 후 사용
 
 https://github.com/gonzazoid/Ultimatum/releases/
 
-<br><br>
+<br>
 
 ※ Quetta Browser
 
