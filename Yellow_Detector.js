@@ -320,7 +320,7 @@
       .ytd-fab-icon svg{width:18px;height:18px}
       .ytd-fab-ring{position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:50%;border:2px solid transparent;transition:all .4s ease;pointer-events:none}
       .ytd-fab-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:transparent;border:2px solid #15171c;transition:all .3s ease;pointer-events:none}
-      .ytd-fab-score{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font:700 9px/1 monospace;color:#4a5060;background:#15171c;padding:1px 4px;border-radius:6px;border:1px solid #2a2d36;pointer-events:none;transition:all .3s ease;min-width:24px;text-align:center}
+      .ytd-fab-score{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);font:900 12px/1 monospace;color:#4a5060;background:#15171c;padding:1px 4px;border-radius:6px;border:1px solid #2a2d36;pointer-events:none;transition:all .3s ease;min-width:24px;text-align:center}
       .ytd-fab-clock{position:absolute;bottom:-25px;left:50%;transform:translateX(-50%);font:900 15px/1 monospace;color:#8a94a8;text-shadow:0 1px 4px rgba(0,0,0,0.85);pointer-events:none;white-space:nowrap;transition:color .3s ease}
       .ytd-fab--idle{border-color:#2a2d36}
       .ytd-fab--idle .ytd-fab-icon svg{fill:#4a5060;stroke:#4a5060}
