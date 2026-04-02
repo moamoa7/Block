@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      3.9.7
+// @version      3.9.8
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 비디오 ZOOM + 항상 보이는 시계
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -241,7 +241,8 @@
     let res = sampleRGB(liveVideo);
     if (!res.ok) {
       const src = liveVideo.currentSrc || liveVideo.src;
-      if (src && !shadowVid) { if (panelOpen) setStatus('CORS 우회 시도…', false); makeShadow(src, liveVideo.currentTime); }
+      /* [#3] blob: URL은 shadow 복제 불가 — 매 tick 반복 호출 방지 */
+      if (src && !shadowVid && !src.startsWith('blob:')) { if (panelOpen) setStatus('CORS 우회 시도…', false); makeShadow(src, liveVideo.currentTime); }
       if (shadowVid && shadowVid.readyState >= 2) { shadowVid.currentTime = liveVideo.currentTime; res = sampleRGB(shadowVid); }
     }
     if (!res.ok && shadowVid) return;
@@ -488,10 +489,9 @@
 
       clearAncestorChain(video);
       lockBody();
-      backupAndApplyStyle(video, {});
+      /* [#2] transform을 backupAndApplyStyle로 통합 — undo 시 정확히 복원됨 */
+      backupAndApplyStyle(video, { transform: 'none' });
       video.classList.add(MAX_CLASS);
-      /* Zoomer가 적용한 transform이 있다면 최대화 진입 시 리셋 */
-      video.style.setProperty('transform', 'none', 'important');
       hideSiblings(video);
       window.scrollTo(0, 0);
 
@@ -671,9 +671,16 @@
 
     window.addEventListener('message', handleMessage);
 
+    /* [#1] ESC 핸들러: active(top 직접 최대화)와 delegatedToTop(iframe 위임) 분기 */
     window.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && (active || delegatedToTop)) {
+      if (e.key !== 'Escape') return;
+      if (active) {
         undoMaximize();
+      } else if (delegatedToTop) {
+        try { window.top.postMessage({ __ytd_max: 'undo' }, '*'); } catch (_) {}
+        delegatedToTop = false;
+        syncBtnUI();
+        showOSD('최대화 OFF', 1200);
       }
     }, { capture: true });
 
