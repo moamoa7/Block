@@ -314,36 +314,36 @@
     if (fab) return;
     fabStyle = document.createElement('style'); fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
-      .ytd-fab{position:fixed;top:40px;right:5px;z-index:2147483647;opacity:0.7;width:40px;height:40px;border-radius:50%;background:#15171c;border:2px solid #2a2d36;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .35s cubic-bezier(.16,1,.3,1);box-shadow:0 4px 16px rgba(0,0,0,.5);user-select:none;-webkit-tap-highlight-color:transparent}
+      .ytd-fab{position:fixed;top:40px;right:5px;z-index:2147483647;opacity:0.5;width:40px;height:40px;border-radius:50%;background:#15171c;border:2px solid #2a2d36;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .35s cubic-bezier(.16,1,.3,1);box-shadow:0 4px 16px rgba(0,0,0,.5);user-select:none;-webkit-tap-highlight-color:transparent}
       .ytd-fab:hover{transform:scale(1.12);border-color:#3a3d48;box-shadow:0 6px 24px rgba(0,0,0,.6)}
       .ytd-fab-icon{width:20px;height:20px;position:relative;display:flex;align-items:center;justify-content:center}
       .ytd-fab-icon svg{width:18px;height:18px}
       .ytd-fab-ring{position:absolute;top:-4px;left:-4px;right:-4px;bottom:-4px;border-radius:50%;border:2px solid transparent;transition:all .4s ease;pointer-events:none}
       .ytd-fab-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:transparent;border:2px solid #15171c;transition:all .3s ease;pointer-events:none}
       .ytd-fab-score{position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);font:700 9px/1 monospace;color:#4a5060;background:#15171c;padding:1px 4px;border-radius:6px;border:1px solid #2a2d36;pointer-events:none;transition:all .3s ease;min-width:24px;text-align:center}
-      .ytd-fab-clock{position:absolute;bottom:-25px;left:50%;transform:translateX(-50%);font:900 15px/1 monospace;color:#555a68;pointer-events:none;white-space:nowrap;transition:color .3s ease}
+      .ytd-fab-clock{position:absolute;bottom:-25px;left:50%;transform:translateX(-50%);font:900 15px/1 monospace;color:#8a94a8;text-shadow:0 1px 4px rgba(0,0,0,0.85);pointer-events:none;white-space:nowrap;transition:color .3s ease}
       .ytd-fab--idle{border-color:#2a2d36}
       .ytd-fab--idle .ytd-fab-icon svg{fill:#4a5060;stroke:#4a5060}
       .ytd-fab--idle .ytd-fab-dot{background:transparent}
       .ytd-fab--idle .ytd-fab-score{color:#4a5060;border-color:#2a2d36}
-      .ytd-fab--idle .ytd-fab-clock{color:#3a3d48}
+      .ytd-fab--idle .ytd-fab-clock{color:#8a94a8}
       .ytd-fab--ok{border-color:#1a3a22}
       .ytd-fab--ok .ytd-fab-icon svg{fill:none;stroke:#50d070}
       .ytd-fab--ok .ytd-fab-ring{border-color:rgba(80,208,112,.15)}
       .ytd-fab--ok .ytd-fab-dot{background:#50d070;box-shadow:0 0 6px rgba(80,208,112,.5)}
       .ytd-fab--ok .ytd-fab-score{color:#50d070;border-color:#1a3a22}
-      .ytd-fab--ok .ytd-fab-clock{color:#3a6a42}
+      .ytd-fab--ok .ytd-fab-clock{color:#50d070}
       .ytd-fab--warn{border-color:#f5c842;box-shadow:0 0 16px rgba(245,200,66,.25),0 0 40px rgba(245,200,66,.08),0 4px 16px rgba(0,0,0,.5);animation:ytd-fab-pulse 1.8s ease-in-out infinite}
       .ytd-fab--warn .ytd-fab-icon svg{fill:none;stroke:#f5c842}
       .ytd-fab--warn .ytd-fab-ring{border-color:rgba(245,200,66,.35);box-shadow:0 0 12px rgba(245,200,66,.15);animation:ytd-ring-pulse 1.8s ease-in-out infinite}
       .ytd-fab--warn .ytd-fab-dot{background:#f5c842;box-shadow:0 0 8px rgba(245,200,66,.7);animation:ytd-dot-blink 1s ease-in-out infinite}
       .ytd-fab--warn .ytd-fab-score{color:#f5c842;border-color:#4a3800;background:#1f1a08}
-      .ytd-fab--warn .ytd-fab-clock{color:#8a7030}
+      .ytd-fab--warn .ytd-fab-clock{color:#f5c842}
       .ytd-fab--error{border-color:#3a1515}
       .ytd-fab--error .ytd-fab-icon svg{fill:none;stroke:#e06060}
       .ytd-fab--error .ytd-fab-dot{background:#e06060;box-shadow:0 0 6px rgba(224,96,96,.5)}
       .ytd-fab--error .ytd-fab-score{color:#e06060;border-color:#3a1515}
-      .ytd-fab--error .ytd-fab-clock{color:#6a3030}
+      .ytd-fab--error .ytd-fab-clock{color:#e06060}
       @keyframes ytd-fab-pulse{0%,100%{box-shadow:0 0 16px rgba(245,200,66,.25),0 0 40px rgba(245,200,66,.08),0 4px 16px rgba(0,0,0,.5)}50%{box-shadow:0 0 24px rgba(245,200,66,.4),0 0 60px rgba(245,200,66,.12),0 4px 16px rgba(0,0,0,.5)}}
       @keyframes ytd-ring-pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.1);opacity:.6}}
       @keyframes ytd-dot-blink{0%,100%{opacity:1}50%{opacity:.3}}`;
