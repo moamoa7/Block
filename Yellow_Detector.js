@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Yellow Tint Detector (with Maximizer & Mobile Zoom)
 // @namespace    https://github.com/
-// @version      3.9.5
+// @version      3.9.6
 // @description  영상의 노란끼 감지 + 비디오 최대화 + PC/모바일 완벽 지원 줌(Zoom) 기능
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -38,7 +38,7 @@
   }
   resetCanvas();
 
-  /* ── OSD (On-Screen Display) 로직 복구 ──────────────── */
+  /* ── OSD (On-Screen Display) ───────────────────────── */
   let __osdEl = null, __osdTimerId = 0;
   function showOSD(text, durationMs = 1200) {
     if (!document.body) return;
@@ -165,7 +165,6 @@
     v.play().catch(() => {}); shadowVid = v; return v;
   }
   function killShadow() { if (!shadowVid) return; shadowVid.src = ''; shadowVid.remove(); shadowVid = null; }
-
   function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.round(score / CFG.tempPerScore)); }
 
   /* ── 시계 & FAB 상태 ─────────────────────────────────── */
@@ -475,7 +474,7 @@
       startClassGuard(video);
       active = true;
       syncBtnUI();
-      showOSD('최대화 ON', 1200);
+      showOSD('최대화 ON (ESC 복원)', 1200);
     }
 
     function doMaximizeIframe(iframeEl) {
@@ -650,10 +649,17 @@
 
     window.addEventListener('message', handleMessage);
 
+    // ESC 키로 최대화 해제 (단축키 제거 후 유일하게 남긴 키 바인딩)
+    window.addEventListener('keydown', e => {
+      if (e.key === 'Escape' && (active || delegatedToTop)) {
+        undoMaximize();
+      }
+    }, { capture: true });
+
     return {
       toggle,
       undoMaximize,
-      isActive: () => active
+      isActive: () => active || delegatedToTop
     };
   })();
   /* ═════════════════════════════════════════════════════════════════════════ */
@@ -668,7 +674,6 @@
     let activeVideo = null;
     let rafId = null;
 
-    // 터치 충돌 방지를 위한 WeakMap
     const _savedTouchActions = new WeakMap();
     const __touchBlocked = new WeakSet();
 
@@ -676,7 +681,7 @@
     let touchState = TS.IDLE;
     let settleTimerId = 0;
     const TOUCH_SETTLE_MS = 120;
-    const PAN_THRESHOLD_SQ = 64; // 8px * 8px
+    const PAN_THRESHOLD_SQ = 64; 
 
     let isPanning = false;
     let startX = 0, startY = 0, touchOriginX = 0, touchOriginY = 0, activePointerId = null;
@@ -691,7 +696,6 @@
       if (settleTimerId) { clearTimeout(settleTimerId); settleTimerId = 0; }
     }
 
-    // 모바일 터치 충돌(스크롤, 당기기) 방지 로직 (원본 복구)
     function walkParents(el, maxDepth, fn) {
       let p = el.parentElement, d = 0;
       while (p && p !== document.body && p !== document.documentElement && d < maxDepth) {
@@ -710,13 +714,13 @@
           if (!_savedTouchActions.has(p)) _savedTouchActions.set(p, p.style.getPropertyValue('touch-action'));
           p.style.setProperty('touch-action', 'none', 'important');
           p.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
-          p.dataset.vscTouchBlocked = '1';
+          p.dataset.ytdTouchBlocked = '1';
         });
       } else {
         restoreTouchAction(v);
         __touchBlocked.delete(v);
         walkParents(v, 3, p => {
-          if (p.dataset?.vscTouchBlocked) { restoreTouchAction(p); delete p.dataset.vscTouchBlocked; }
+          if (p.dataset?.ytdTouchBlocked) { restoreTouchAction(p); delete p.dataset.ytdTouchBlocked; }
         });
       }
     }
@@ -737,7 +741,7 @@
     function getSt(v) {
       let s = states.get(v);
       if (!s) { 
-        s = { scale: 1, tx: 0, ty: 0, zoomed: false, _savedPos: '', _savedZ: '', _savedTouch: '' }; 
+        s = { scale: 1, tx: 0, ty: 0, zoomed: false, _savedPos: '', _savedZ: '' }; 
         states.set(v, s); 
       }
       return s;
@@ -763,11 +767,9 @@
           if (!st.zoomed) {
             st._savedPos = v.style.getPropertyValue('position');
             st._savedZ = v.style.getPropertyValue('z-index');
-            st._savedTouch = v.style.getPropertyValue('touch-action');
 
             v.style.setProperty('position', 'relative', 'important');
             v.style.setProperty('z-index', '999999', 'important');
-            v.style.setProperty('touch-action', 'none', 'important'); // 모바일 스크롤 방지
             st.zoomed = true;
           }
           v.style.setProperty('transform', `scale(${st.scale}) translate(${st.tx}px, ${st.ty}px)`, 'important');
@@ -795,19 +797,43 @@
 
       if (st._savedZ) v.style.setProperty('z-index', st._savedZ); 
       else v.style.removeProperty('z-index');
-
-      if (st._savedTouch) v.style.setProperty('touch-action', st._savedTouch);
-      else v.style.removeProperty('touch-action');
       
       st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false;
-      setTouchActionBlocking(v, false);
+      
+      if (!active) setTouchActionBlocking(v, false);
       if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); activeVideo = null; }
     }
 
-    function getTargetVideo(clientX, clientY) {
-      const els = document.elementsFromPoint(clientX, clientY);
-      for (let el of els) { if (el.tagName === 'VIDEO') return el; }
-      return pickBestVideo();
+    function isUiEvent(e) {
+      try {
+        const path = e.composedPath ? e.composedPath() : [];
+        for (let i = 0; i < Math.min(path.length, 8); i++) {
+          const n = path[i];
+          if (n && n.classList && n.classList.contains('ytd-fab')) return true;
+          if (n && n.id === '__ytd2__') return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    function getTargetVideo(e) {
+      const px = e.touches ? e.touches[0].clientX : e.clientX;
+      const py = e.touches ? e.touches[0].clientY : e.clientY;
+      let bestVideo = null, bestArea = 0;
+      
+      const videos = getAllVideos();
+      for (const v of videos) {
+        if (!v.isConnected) continue;
+        try {
+          const r = v.getBoundingClientRect();
+          if (r.width < 10 || r.height < 10) continue;
+          if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+            const area = r.width * r.height;
+            if (area > bestArea) { bestArea = area; bestVideo = v; }
+          }
+        } catch (_) {}
+      }
+      return bestVideo || pickBestVideo();
     }
 
     function getTouchDist(ts) {
@@ -818,10 +844,10 @@
       return { x: (ts[0].clientX + ts[1].clientX) / 2, y: (ts[0].clientY + ts[1].clientY) / 2 };
     }
 
-    // --- PC (Mouse/Keyboard) Events ---
+    // --- PC Events ---
     window.addEventListener('wheel', e => {
-      if (!active || !e.altKey) return;
-      const v = getTargetVideo(e.clientX, e.clientY); if (!v) return;
+      if (!active || !e.altKey || isUiEvent(e)) return;
+      const v = getTargetVideo(e); if (!v) return;
       e.preventDefault(); e.stopPropagation();
       const st = getSt(v);
       const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
@@ -831,8 +857,8 @@
     }, { passive: false, capture: true });
 
     window.addEventListener('pointerdown', e => {
-      if (!active || !e.altKey || e.pointerType === 'touch') return;
-      const v = getTargetVideo(e.clientX, e.clientY); if (!v) return;
+      if (!active || !e.altKey || e.pointerType === 'touch' || isUiEvent(e)) return;
+      const v = getTargetVideo(e); if (!v) return;
       const st = getSt(v); if (st.scale <= 1) return;
       e.preventDefault(); e.stopPropagation();
       activeVideo = v; activePointerId = e.pointerId; isPanning = true;
@@ -858,50 +884,104 @@
     window.addEventListener('pointercancel', endPan, { capture: true });
 
     window.addEventListener('dblclick', e => {
-      if (!active || !e.altKey) return;
-      const v = getTargetVideo(e.clientX, e.clientY); if (!v) return;
+      if (!active || !e.altKey || isUiEvent(e)) return;
+      const v = getTargetVideo(e); if (!v) return;
       e.preventDefault(); e.stopPropagation();
       const st = getSt(v);
       if (st.scale === 1) { st.scale = 2.5; clampPan(v, st); update(v); } else { reset(v); }
     }, { capture: true });
 
-    // --- Mobile Touch Gestures ---
+    // --- Mobile Events ---
     window.addEventListener('touchstart', e => {
-      if (!active) return;
-      const v = getTargetVideo(e.touches[0].clientX, e.touches[0].clientY); 
+      if (!active || isUiEvent(e)) return;
+      const v = getTargetVideo(e); 
       if (!v) return;
 
       const st = getSt(v);
 
       if (e.touches.length === 2) {
-        // Pinch to Zoom 시작
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault(); // 스크롤 차단 시작
+        clearSettleTimer();
         activeVideo = v;
-        initialPinchDist = getTouchDist(e.touches);
-        initialScale = st.scale;
+        isPanning = false;
+        pinchState.active = true;
+        pinchState.initialDist = getTouchDist(e.touches);
+        pinchState.initialScale = st.scale;
+        const c = getTouchCenter(e.touches);
+        pinchState.lastCx = c.x; pinchState.lastCy = c.y;
+        
+        const _rect = v.getBoundingClientRect();
+        pinchState.elemCx = _rect.left + _rect.width / 2 - st.scale * st.tx;
+        pinchState.elemCy = _rect.top + _rect.height / 2 - st.scale * st.ty;
+        setTouchState(TS.PINCHING);
       } else if (e.touches.length === 1 && st.scale > 1) {
-        // 확대된 상태에서 한 손가락 Panning 시작
+        if (e.cancelable) e.preventDefault(); // 확대 상태면 스크롤 차단
+        clearSettleTimer();
         activeVideo = v;
-        isPanning = true;
-        startX = e.touches[0].clientX - st.tx;
-        startY = e.touches[0].clientY - st.ty;
+        touchOriginX = e.touches[0].clientX; touchOriginY = e.touches[0].clientY;
+        startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
+        setTouchState(TS.WAIT_PAN);
       }
     }, { passive: false, capture: true });
 
     window.addEventListener('touchmove', e => {
-      if (!active || !activeVideo) return;
+      if (!active) return;
+
+      // 두 번째 손가락이 나중에 닿았을 때
+      if (touchState !== TS.PINCHING && !pinchState.active && e.touches.length === 2) {
+        const v = getTargetVideo(e);
+        if (v) {
+          if (e.cancelable) e.preventDefault();
+          clearSettleTimer();
+          activeVideo = v;
+          pinchState.active = true;
+          pinchState.initialDist = getTouchDist(e.touches);
+          pinchState.initialScale = getSt(v).scale;
+          const c = getTouchCenter(e.touches);
+          pinchState.lastCx = c.x; pinchState.lastCy = c.y;
+          const _rect = v.getBoundingClientRect();
+          pinchState.elemCx = _rect.left + _rect.width / 2 - getSt(v).scale * getSt(v).tx;
+          pinchState.elemCy = _rect.top + _rect.height / 2 - getSt(v).scale * getSt(v).ty;
+          setTouchState(TS.PINCHING);
+        }
+        return;
+      }
+
+      if (!activeVideo) return;
       const st = getSt(activeVideo);
 
-      if (e.touches.length === 2) {
-        e.preventDefault(); // 스크롤 방지
+      if (touchState === TS.PINCHING && pinchState.active && e.touches.length === 2) {
+        if (e.cancelable) e.preventDefault();
         const dist = getTouchDist(e.touches);
-        const ns = initialScale * (dist / Math.max(1, initialPinchDist));
-        st.scale = Math.max(1, Math.min(ns, 10));
-        if (st.scale < 1.05) { reset(activeVideo); return; }
-        clampPan(activeVideo, st);
-        update(activeVideo);
-      } else if (e.touches.length === 1 && isPanning) {
-        e.preventDefault(); // 스크롤 방지
+        const center = getTouchCenter(e.touches);
+        let ns = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
+        ns = Math.max(1, Math.min(ns, 10));
+        
+        if (ns < 1.05) {
+          if (st.zoomed) { reset(activeVideo); showOSD('줌 1× (리셋)', 800); }
+          pinchState.initialDist = getTouchDist(e.touches); 
+          pinchState.initialScale = 1.0;
+          st.scale = 1; st.tx = 0; st.ty = 0;
+        } else {
+          const prevScale = st.scale;
+          const Cx = pinchState.elemCx, Cy = pinchState.elemCy;
+          st.tx = (center.x - Cx) / ns - (pinchState.lastCx - Cx) / prevScale + st.tx;
+          st.ty = (center.y - Cy) / ns - (pinchState.lastCy - Cy) / prevScale + st.ty;
+          st.scale = ns;
+          clampPan(activeVideo, st);
+          update(activeVideo);
+        }
+        pinchState.lastCx = center.x; pinchState.lastCy = center.y;
+      } else if (touchState === TS.WAIT_PAN && e.touches.length === 1 && st.scale > 1) {
+        const dx = e.touches[0].clientX - touchOriginX; 
+        const dy = e.touches[0].clientY - touchOriginY;
+        if (dx * dx + dy * dy >= PAN_THRESHOLD_SQ) { 
+          if (e.cancelable) e.preventDefault(); 
+          isPanning = true; 
+          setTouchState(TS.PANNING); 
+        }
+      } else if (touchState === TS.PANNING && isPanning && e.touches.length === 1 && st.scale > 1) {
+        if (e.cancelable) e.preventDefault();
         st.tx = e.touches[0].clientX - startX;
         st.ty = e.touches[0].clientY - startY;
         clampPan(activeVideo, st);
@@ -911,15 +991,40 @@
 
     window.addEventListener('touchend', e => {
       if (!activeVideo) return;
-      if (e.touches.length < 2) {
-        initialPinchDist = 0;
+      
+      if (touchState === TS.PINCHING && e.touches.length < 2) {
+        pinchState.active = false; setTouchState(TS.PINCH_RELEASED);
+        const currentScale = activeVideo ? getSt(activeVideo).scale : 1;
+        if (e.touches.length === 1 && activeVideo?.isConnected && currentScale > 1) {
+          startSettleTimer(() => setTouchState(TS.IDLE));
+        } else if (e.touches.length === 0) {
+          startSettleTimer(() => {
+            setTouchState(TS.IDLE); isPanning = false;
+            if (activeVideo && getSt(activeVideo).scale <= 1 && getSt(activeVideo).zoomed) reset(activeVideo);
+            activeVideo = null;
+          });
+        }
+        return;
       }
-      if (e.touches.length === 0) {
-        isPanning = false;
-        activeVideo = null;
+      
+      if (touchState === TS.PINCH_RELEASED || touchState === TS.IDLE) {
+        if (e.touches.length === 0) { clearSettleTimer(); isPanning = false; setTouchState(TS.IDLE); activeVideo = null; }
+        return;
+      }
+      
+      if (e.touches.length === 1 && activeVideo?.isConnected && getSt(activeVideo).scale > 1) {
+        touchOriginX = e.touches[0].clientX; touchOriginY = e.touches[0].clientY;
+        startX = e.touches[0].clientX - getSt(activeVideo).tx; startY = e.touches[0].clientY - getSt(activeVideo).ty;
+        setTouchState(TS.WAIT_PAN);
+      } else if (e.touches.length === 0) {
+        clearSettleTimer(); isPanning = false; setTouchState(TS.IDLE); activeVideo = null;
       }
     }, { passive: false, capture: true });
 
+    window.addEventListener('touchcancel', () => {
+      if (!activeVideo) return; clearSettleTimer();
+      isPanning = false; pinchState.active = false; setTouchState(TS.IDLE); activeVideo = null;
+    }, { passive: true, capture: true });
 
     function syncZoomUI() {
       if (zoomFab) {
@@ -934,7 +1039,12 @@
     return {
       toggle: () => {
         active = !active;
-        if (!active) getAllVideos().forEach(reset);
+        const videos = getAllVideos();
+        if (active) {
+          videos.forEach(v => setTouchActionBlocking(v, true));
+        } else {
+          videos.forEach(reset);
+        }
         syncZoomUI();
         showOSD(active ? '줌 ON' : '줌 OFF', 1200);
         return active;
