@@ -384,7 +384,7 @@
     fabStyle = document.createElement('style');
     fabStyle.id = '__ytd3_fab_style__';
     fabStyle.textContent = `
-      .ytd-fab{position:fixed;top:40px;right:0px;z-index:2147483647;opacity:0.5;
+      .ytd-fab{position:fixed;top:40px;right:5px;z-index:2147483647;opacity:0.5;
         width:40px;height:40px;border-radius:50%;
         background:#15171c;border:2px solid #2a2d36;
         cursor:pointer;display:flex;align-items:center;justify-content:center;
@@ -409,7 +409,7 @@
         border:1px solid #2a2d36;pointer-events:none;
         transition:all .3s ease;min-width:24px;text-align:center}
       .ytd-fab-clock{position:absolute;bottom:-25px;left:50%;transform:translateX(-50%);
-        font:600 15px/1 monospace;color:#555a68;
+        font:900 15px/1 monospace;color:#555a68;
         pointer-events:none;white-space:nowrap;
         transition:color .3s ease}
       .ytd-fab--idle{border-color:#2a2d36}
