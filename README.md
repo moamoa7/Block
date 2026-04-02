@@ -34,27 +34,25 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 
 ※ adguard_gallery.txt
 - 애드가드 갤러리 (https://gall.dcinside.com/adguard) 에서 배포된 필터
+- 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter
 - 2025년 4월 4일 이후 갑자스럽게 배포가 사라져 임시로 올려놓은 List
 - 2025년 4월 6일 필터 다시 살아남 (https://pastebin.com/raw/y5tsuMN8)
-- 2025년 4월 8일 새로운 주소 확인<br/>
-- 2026년 2월 8일 임시 대체주소로 이전 <br>
+- 2025년 4월 8일 새로운 주소 확인
+- 2026년 2월 8일 임시 대체주소로 이전
 - 2026년 2월 21일 이전 주소 폐쇄
 
-이전 홈페이지 : https://github.com/Zziniswell/Adguard-gallery-filter<br/>
+이전 임시 주소
+홈페이지 : https://github.com/hooray804/adguard-gallery-filter
+필터
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 
-이전 임시 주소<br/>
-홈페이지 : https://github.com/hooray804/adguard-gallery-filter<br/>
-필터<br/>
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt<br/>
-
-유저스크립트<br/>
-에펨코리아 익스텐션 (Gallery Extension)<br/>
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js<br/>
-디시인사이드 엑스퍼트 익스텐션<br/>
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js<br/>
-
+유저스크립트
+에펨코리아 익스텐션 (Gallery Extension)
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
+디시인사이드 엑스퍼트 익스텐션
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
 DNS 필터
-https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt<br/>
+https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 
 ```
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
