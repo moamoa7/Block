@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.5.2)
+// @name         Video_Control (v31.5.3)
 // @namespace    https://github.com/moamoa7
-// @version      31.5.2
-// @description  v31.5.2: addShadowRoot LRU eviction시 MO 미해제 및 observedShadowHosts 잔류 버그 수정
+// @version      31.5.3
+// @description  v31.5.3: addShadowRoot LRU eviction시 MO 미해제 및 observedShadowHosts 잔류 버그 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.5.2';
+  const VSC_VERSION = '31.5.3';
   const DEBUG = false;
 
   const log = {
@@ -113,6 +113,7 @@
     { n: '영화',     v: [0, 0,  6, 0, 0, -8, -8, 12, 14] },
     { n: '애니',     v: [0, 0, 12,  0, 0, 15, -4,  9, 10] },
     { n: '복원', v: [0, 0, 15, 0, 0, 0, -8, 4, 18] },
+
 
   ];
 
@@ -331,7 +332,7 @@
       req();
     }
 
-    /* patch #1: LRU eviction 시 MO disconnect + observedShadowHosts 정리 */
+    /* PATCH: LRU eviction 시 MO disconnect + WeakSet/WeakMap 정리 */
     function addShadowRoot(host) {
       if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
       observedShadowHosts.add(host);
@@ -340,13 +341,14 @@
         let evicted;
         if (idx >= 0) {
           evicted = shadowRootsLRU.splice(idx, 1)[0];
+          if (evicted?.host) observedShadowHosts.delete(evicted.host);
         } else {
           evicted = shadowRootsLRU.shift();
           if (evicted?.host) observedShadowHosts.delete(evicted.host);
         }
         if (evicted?.root) {
           const mo = shadowMOs.get(evicted.root);
-          if (mo) { try { mo.disconnect(); } catch (_) {} }
+          if (mo) { try { mo.disconnect(); } catch (_) {} shadowMOs.delete(evicted.root); }
         }
       }
       shadowRootsLRU.push({ host, root: host.shadowRoot });
@@ -437,7 +439,8 @@
         if (!entry.host?.isConnected) {
           if (_purgeCallback && entry.root) try { _purgeCallback(entry.root); } catch (_) {}
           const mo = entry.root ? shadowMOs.get(entry.root) : null;
-          if (mo) { try { mo.disconnect(); } catch (_) {} }
+          if (mo) { try { mo.disconnect(); } catch (_) {} shadowMOs.delete(entry.root); }
+          if (entry.host) observedShadowHosts.delete(entry.host);
           shadowRootsLRU.splice(i, 1);
         }
       }
@@ -585,7 +588,7 @@
       fullDryPath = ctx.createGain(); fullDryPath.gain.value = 1;
       fullDryPath.connect(ctx.destination);
 
-      applyStrength(Number(store.get(P.A_STR)) || 50);
+      applyStrength(Number(store.get(P.A_STR) ?? 50));
       applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
       applyClarity(Number(store.get(P.A_CLARITY)) || 0);
       applyBoost(Number(store.get(P.A_BOOST)) ?? 100);
@@ -1092,9 +1095,9 @@
     const globalSignalCleanups = [];
 
     const TAB_ICONS = {
-      video: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('rect', { ns: 'svg', x: 2, y: 4, width: 16, height: 16, rx: 2 }), h('path', { ns: 'svg', d: 'M22 7l-6 4 6 4z' })),
-      audio: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('path', { ns: 'svg', d: 'M11 5L6 9H2v6h4l5 4V5z' }), h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07' })),
-      playback: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': 2 }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '10' }), h('polygon', { ns: 'svg', points: '10 8 16 12 10 16' }))
+      video: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('rect', { ns: 'svg', x: 2, y: 4, width: 16, height: 16, rx: 2 }), h('path', { ns: 'svg', d: 'M22 7l-6 4 6 4z' })),
+      audio: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('path', { ns: 'svg', d: 'M11 5L6 9H2v6h4l5 4V5z' }), h('path', { ns: 'svg', d: 'M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07' })),
+      playback: () => h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', 'stroke-width': '2' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '10' }), h('polygon', { ns: 'svg', points: '10 8 16 12 10 16' }))
     };
     const TAB_LABELS = { video: '영상', audio: '오디오', playback: '재생' };
 
@@ -1445,7 +1448,7 @@
       ['video','audio','playback'].forEach(t => { const tab = h('div', { class: `tab${t === activeTab ? ' on' : ''}`, 'data-t': t }); tab.append(TAB_ICONS[t]?.() || '', h('span', {}, TAB_LABELS[t])); tab.addEventListener('click', () => { activeTab = t; renderTab(); }); tabBar.appendChild(tab); });
       panelEl.appendChild(tabBar);
       const bodyEl = h('div', { class: 'body' }); bodyEl.style.overscrollBehavior = 'none'; panelEl.appendChild(bodyEl);
-      _shadow.appendChild(panelEl); renderTab(); getMountTarget().appendChild(panelHost);
+      _shadow.appendChild(panelEl); getMountTarget().appendChild(panelHost);
     }
 
     function renderTab() {
@@ -1490,7 +1493,7 @@
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
     Store.sub(P.A_EN, () => { Audio.update(); });
-    Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) || 50); });
+    Store.sub(P.A_STR, (v) => { Audio.applyStrength(Number(v) ?? 50); });
     Store.sub(P.A_SURROUND, (v) => { Audio.applySurroundWidth(v); Audio.update(); });
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
