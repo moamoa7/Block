@@ -224,6 +224,11 @@ Violentmonkey 확장프로그램 설치 후 사용
 
 # 추천 브라우저 (모바일)
 
+※ Ultimatum Browser
+
+https://github.com/gonzazoid/Ultimatum/releases/
+
+
 ※ Quetta Browser
 
 홈페이지 : https://www.quetta.net/
