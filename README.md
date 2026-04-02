@@ -42,16 +42,16 @@ https://raw.githubusercontent.com/moamoa7/adblock/main/Delay-meter.js
 - 2026년 2월 21일 이전 주소 폐쇄
 
 이전 임시 주소
-홈페이지 : https://github.com/hooray804/adguard-gallery-filter
-필터
+- 홈페이지 : https://github.com/hooray804/adguard-gallery-filter
+- 필터
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/filter.txt
 
-유저스크립트
-에펨코리아 익스텐션 (Gallery Extension)
+- 유저스크립트
+. 에펨코리아 익스텐션 (Gallery Extension)
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/Gallery%20Extension.user.js
-디시인사이드 엑스퍼트 익스텐션
+. 디시인사이드 엑스퍼트 익스텐션
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/dc.user.js
-DNS 필터
+. DNS 필터
 https://raw.githubusercontent.com/hooray804/adguard-gallery-filter/refs/heads/main/DNS.txt
 
 ```
