@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.5.4)
+// @name         Video_Control (v31.5.5)
 // @namespace    https://github.com/moamoa7
-// @version      31.5.4
-// @description  v31.5.4: addShadowRoot LRU eviction시 MO 미해제 및 observedShadowHosts 잔류 버그 수정 + 어두운 영상 빛구름계단 제거 (Dithering)
+// @version      31.5.5
+// @description  v31.5.5: dithering dead code 제거, captureStream 볼륨 미복원 버그 수정, ended 이벤트 RVFC 정리
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.5.4';
+  const VSC_VERSION = '31.5.5';
   const DEBUG = false;
 
   const log = {
@@ -108,13 +108,18 @@
   const MANUAL_PRESETS = [
 
     { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-    { n: '선명강조',    v: [0, 0,  5,  0,  0,  0,  0,  5,  5] },
-    { n: '드라마', v: [ 0, 0, 10,  0,   0,  -6,  -8,  6,  5] },
-    { n: '영화',     v: [0, 0,  6, 0, 0, -8, -8, 12, 14] },
-    { n: '애니',     v: [0, 0, 12,  0, 0, 8, 0,  6, 10] },
-    { n: '복원',   v: [0, 0,  20,  0,  0,  0,  -5,  0,  20] },
 
-  ];
+    { n: '선명강조', v: [10, 15, 8, 0, 0, 6, -4, 6, 8] },
+
+    { n: '드라마', v: [15, 18, 6, 0, 0, 4, -6, 10, 6] },
+
+    { n: '영화', v: [0, 0,  6, 0, 0, -8, -8, 12, 14] },
+
+    { n: '애니', v: [12, 18, 6, 0, 0, 10, -6, 8, 4] },
+
+    { n: '복원', v: [0, 0,  20,  0,  0,  0,  0,  0,  20] },
+
+];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
@@ -320,6 +325,7 @@
         ['seeked', onSeeked],
         ['loadedmetadata', onLoadedMetadata],
         ['pause', onPause],
+        ['ended', onPause],
         ['resize', onResize],
         ['loadstart', onLoadstart]
       ];
@@ -331,7 +337,6 @@
       req();
     }
 
-    /* PATCH: LRU eviction 시 MO disconnect + WeakSet/WeakMap 정리 */
     function addShadowRoot(host) {
       if (!host?.shadowRoot || observedShadowHosts.has(host)) return false;
       observedShadowHosts.add(host);
@@ -740,11 +745,14 @@
       return true;
     }
 
-    function fadeOutThen(gen, fn) {
-      if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} return; }
+    /* PATCH #2: fadeOutThen에 cleanupFn 파라미터 추가 —
+       generation 불일치 시에도 이전 타겟의 captureStream 볼륨 복원 수행 */
+    function fadeOutThen(gen, fn, cleanupFn) {
+      if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} else if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
         if (gen !== generation) {
+          if (cleanupFn) try { cleanupFn(); } catch (_) {}
           if (ctx && masterOut && ctx.state !== 'closed') { try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(1, t + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
           return;
         }
@@ -767,6 +775,19 @@
       if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
       currentSrc = null; currentMode = 'none';
       currentRouteIsProcessed = false;
+    }
+
+    /* PATCH #2: 고아 captureStream 복원 헬퍼 —
+       fadeOutThen의 generation 불일치 시 호출되어 이전 비디오의 볼륨/음소거를 복원 */
+    function restoreOrphanedStream(video) {
+      if (!video) return;
+      const s = streamMap.get(video);
+      if (!s || !s.__vsc_isCaptureStream) return;
+      if (s.__vsc_originalVolume != null) try { video.volume = s.__vsc_originalVolume; } catch (_) {}
+      if (video.muted && s.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
+      if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+      try { s.disconnect(); } catch (_) {}
+      streamMap.delete(video);
     }
 
     function updateMix() {
@@ -795,14 +816,35 @@
       const active = isAnyAudioActive();
       if (!active) {
         const oldTarget = targetVideo;
-        if (currentSrc || targetVideo) { fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }); }
+        if (currentSrc || targetVideo) {
+          fadeOutThen(gen, () => {
+            disconnectCurrent(oldTarget);
+            targetVideo = video;
+            if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
+          }, () => restoreOrphanedStream(oldTarget));
+        }
         else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }
         return;
       }
       if (!initCtx()) { targetVideo = video; return; }
-      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; } }); return; }
+      if (video && !canConnect(video)) {
+        const oldTarget = targetVideo;
+        fadeOutThen(gen, () => {
+          disconnectCurrent(oldTarget);
+          targetVideo = video;
+          if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; }
+        }, () => restoreOrphanedStream(oldTarget));
+        return;
+      }
       const oldTarget = targetVideo;
-      fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); });
+      fadeOutThen(gen, () => {
+        disconnectCurrent(oldTarget);
+        if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
+        targetVideo = video;
+        if (!video) { updateMix(); return; }
+        connectSource(video);
+        updateMix();
+      }, () => restoreOrphanedStream(oldTarget));
     }
 
     function onVideoLoadstart(video) {
@@ -845,10 +887,10 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
-    /* PATCH: Dithering 추가 - 어두운 영상 빛구름계단 제거 */
+    /* PATCH #1: dithering 제거 — LUT 기반 톤맵에서 공간적 dithering은 원리적으로 불가능하며,
+       결정적 seed로 인한 단조증가 보정 충돌로 미세 양의 편향만 발생시키는 dead code */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
-      const ditherStrength = Math.max(toe, mid) * 0.15;
-      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}|d${Math.round(ditherStrength*1000)}`;
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) return toneCache.get(key);
 
       const ev = Math.log2(Math.max(1e-6, gain));
@@ -886,14 +928,6 @@
         }
 
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
-
-        // Dithering 적용 (저휘도 영역에만)
-        if (ditherStrength > 0.001 && x < 0.4) {
-          const ditherAmount = 1.0 / 256;
-          const seed = (i * 73 + Math.floor(1000 * ditherStrength)) % 256;
-          const dither = (seed / 256 - 0.5) * ditherAmount * ditherStrength;
-          x = CLAMP(x + dither, 0, 1);
-        }
 
         if (x < prev) x = prev;
         prev = x;
