@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.5.5)
+// @name         Video_Control (v31.6.0)
 // @namespace    https://github.com/moamoa7
-// @version      31.5.5
-// @description  v31.5.5: dithering dead code 제거, captureStream 볼륨 미복원 버그 수정, ended 이벤트 RVFC 정리
+// @version      31.6.0
+// @description  v31.6.0: 콘트라스트 암부 보호(Shadow Guard) — 중간톤 이하 디테일 보존
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.5.5';
+  const VSC_VERSION = '31.6.0';
   const DEBUG = false;
 
   const log = {
@@ -105,21 +105,28 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
+  /* v31.6.0: 프리셋 값 재조정 — Shadow Guard 적용으로 콘트라스트가 암부를 덜 누르므로,
+     기존 대비 콘트라스트를 약간 올리고 보상용 암부/감마를 소폭 조정 */
   const MANUAL_PRESETS = [
-
     { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
 
-    { n: '선명강조', v: [10, 15, 8, 0, 0, 6, -4, 6, 8] },
+    { n: '선명강조', v: [0, 0, 6, 0, 0, 4, -10, 10, 6] },
 
-    { n: '드라마', v: [15, 18, 6, 0, 0, 4, -6, 10, 6] },
+    { n: '드라마', v: [0, 0, 6, 0, 0, 4, -6, 10, 6] },
 
-    { n: '영화', v: [0, 0,  6, 0, 0, -8, -8, 12, 14] },
+    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 16, 14] },
 
-    { n: '애니', v: [12, 18, 6, 0, 0, 10, -6, 8, 4] },
+    { n: '애니', v: [0, 0, 6, 0, 0, 10, -6, 10, 4] },
 
-    { n: '복원', v: [0, 0,  21,  0,  0,  -7,  7,  0,  21] },
+    { n: '복원1', v: [0, 0, 20, 0, 0, 0, 0, 0, 20] },
 
-];
+    { n: '복원2', v: [0, 0,  21,  0,  0,  -7,  7,  0,  21] },
+
+    { n: '복원3', v: [0, 0,  20,  0,  0,  -10,  -10,  0,  20] },
+
+    { n: '복원4', v: [0, 0, 10, 0, 0, -10, -20, 20, 10] },
+
+  ];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
@@ -745,8 +752,6 @@
       return true;
     }
 
-    /* PATCH #2: fadeOutThen에 cleanupFn 파라미터 추가 —
-       generation 불일치 시에도 이전 타겟의 captureStream 볼륨 복원 수행 */
     function fadeOutThen(gen, fn, cleanupFn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} else if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
@@ -777,8 +782,6 @@
       currentRouteIsProcessed = false;
     }
 
-    /* PATCH #2: 고아 captureStream 복원 헬퍼 —
-       fadeOutThen의 generation 불일치 시 호출되어 이전 비디오의 볼륨/음소거를 복원 */
     function restoreOrphanedStream(video) {
       if (!video) return;
       const s = streamMap.get(video);
@@ -887,8 +890,9 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
-    /* PATCH #1: dithering 제거 — LUT 기반 톤맵에서 공간적 dithering은 원리적으로 불가능하며,
-       결정적 seed로 인한 단조증가 보정 충돌로 미세 양의 편향만 발생시키는 dead code */
+    /* v31.6.0 PATCH: Shadow Guard 콘트라스트 —
+       저휘도 영역(x0 < 0.20)에서 콘트라스트 강도를 선형 감쇠하여 암부 디테일 보존.
+       x0 >= 0.20 이상에서는 기존과 100% 동일한 동작. */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
       const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) return toneCache.get(key);
@@ -900,13 +904,16 @@
 
       const out = new Array(steps);
       let prev = 0;
-      const intercept = 0.5 * (1 - contrast);
 
       for (let i = 0; i < steps; i++) {
         const x0 = i / (steps - 1);
         let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
 
-        x = x * contrast + intercept;
+        /* Shadow Guard: 0~0.20 구간에서 콘트라스트 강도를 0→1로 선형 증가 */
+        const shadowGuard = x0 < 0.20 ? x0 / 0.20 : 1.0;
+        const localContrast = 1 + (contrast - 1) * shadowGuard;
+        const intercept = 0.5 * (1 - localContrast);
+        x = x * localContrast + intercept;
         x = CLAMP(x, 0, 1);
 
         if (toe > 0.001 && x0 < 0.40) {
