@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      3.9.8
+// @version      3.9.9
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 비디오 ZOOM + 항상 보이는 시계
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -171,10 +171,10 @@
   function killShadow() { if (!shadowVid) return; shadowVid.src = ''; shadowVid.remove(); shadowVid = null; }
   /**
    * score → 색온도 보정 단계 변환
-   * tempPerScore=5이므로: score 0~2 → 0(불필요), 3~7 → -1(미세), 8~12 → -2(경미), 13+ → -3 이상(주의)
+   * tempPerScore=5이므로: score 0~4 → 0(불필요), 5~9 → -1(미세), 10~14 → -2(경미), 15+ → -3 이상(주의)
    * threshold(12)와 독립적 스케일: threshold는 "노란끼 감지" 판정, temp는 "보정 권장량"
    */
-  function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.round(score / CFG.tempPerScore)); }
+  function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.floor(score / CFG.tempPerScore)); }
 
   /* ── 시계 & FAB 상태 ─────────────────────────────────── */
   function updateClock() {
@@ -234,23 +234,39 @@
   }
 
   /* ── tick ─────────────────────────────────────────────── */
+  let shadowRetries = 0;
+  const MAX_SHADOW_RETRIES = 5;
+
   function tick() {
     if (!liveVideo || !liveVideo.isConnected) {
-      liveVideo = null; killShadow(); scheduleDetect(); return;
+      liveVideo = null; killShadow(); shadowRetries = 0; scheduleDetect(); return;
     }
     let res = sampleRGB(liveVideo);
     if (!res.ok) {
       const src = liveVideo.currentSrc || liveVideo.src;
       /* [#3] blob: URL은 shadow 복제 불가 — 매 tick 반복 호출 방지 */
-      if (src && !shadowVid && !src.startsWith('blob:')) { if (panelOpen) setStatus('CORS 우회 시도…', false); makeShadow(src, liveVideo.currentTime); }
+      if (src && !shadowVid && !src.startsWith('blob:')) {
+        if (panelOpen) setStatus('CORS 우회 시도…', false);
+        makeShadow(src, liveVideo.currentTime);
+        shadowRetries = 0;
+      }
       if (shadowVid && shadowVid.readyState >= 2) { shadowVid.currentTime = liveVideo.currentTime; res = sampleRGB(shadowVid); }
     }
-    if (!res.ok && shadowVid) return;
+    if (!res.ok && shadowVid) {
+      shadowRetries++;
+      if (shadowRetries > MAX_SHADOW_RETRIES) {
+        killShadow(); shadowRetries = 0;
+        if (panelOpen) showError('CORS 우회 실패 — shadow 포기');
+        updateFabState('error', 0);
+      }
+      return;
+    }
     if (!res.ok) {
       if (panelOpen) showError('이 사이트는 픽셀 읽기가 차단됩니다\n(' + res.error + ')');
       updateFabState('error', 0); return;
     }
     if (panelOpen) clearError();
+    shadowRetries = 0;
     history.push(res); if (history.length > CFG.histLen) history.shift();
     updateFabState(res.score > CFG.threshold ? 'warn' : 'ok', res.score);
     if (panelOpen && panel) { renderUI(res); drawGraph(); }
@@ -305,7 +321,7 @@
 
   /* ── 분석 시작/중지 ──────────────────────────────────── */
   function startAnalysis(video) {
-    stopAnalysis(); liveVideo = video; history = [];
+    stopAnalysis(); liveVideo = video; history = []; shadowRetries = 0;
     if (panelOpen) setStatus('분석 중', true);
     timerID = setInterval(tick, CFG.intervalMs);
   }
@@ -427,13 +443,10 @@
       for (const sib of el.parentNode.children) {
         if (sib === el || sib.nodeType !== 1) continue;
         if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
-        if (sib.id === '__ytd2__' || sib.classList.contains('ytd-fab')) continue;
+        if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.classList.contains('ytd-fab')) continue;
 
-        const prevDisplay = sib.style.getPropertyValue('display');
-        const prevDisplayPrio = sib.style.getPropertyPriority('display');
         sib.classList.add(HIDE_CLASS);
-        sib.style.setProperty('display', 'none', 'important');
-        hiddenSiblings.push({ el: sib, prevDisplay, prevDisplayPrio });
+        hiddenSiblings.push({ el: sib });
       }
     }
 
@@ -532,11 +545,9 @@
 
       /* 역순 복원: clearAncestorChain이 하위→상위 순서로 push하므로 복원은 역순 */
       for (let i = hiddenSiblings.length - 1; i >= 0; i--) {
-        const { el, prevDisplay, prevDisplayPrio } = hiddenSiblings[i];
+        const { el } = hiddenSiblings[i];
         try {
           el.classList.remove(HIDE_CLASS);
-          if (prevDisplay) el.style.setProperty('display', prevDisplay, prevDisplayPrio || '');
-          else el.style.removeProperty('display');
         } catch (_) {}
       }
       hiddenSiblings = [];
@@ -1094,7 +1105,8 @@
     if (fab) return;
 
     /* Maximizer/Zoomer CSS — 패널과 독립 (destroyPanel에 영향받지 않음) */
-    if (!coreStyle) {
+    if (!coreStyle || !coreStyle.isConnected) {
+      coreStyle?.remove();
       coreStyle = document.createElement('style');
       coreStyle.id = '__ytd3_core_style__';
       coreStyle.textContent = `
