@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      3.9.9
-// @description  영상의 노란끼 감지 + 비디오 최대화 + 비디오 ZOOM + 항상 보이는 시계
+// @version      4.0.0
+// @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
 // @match        *://*/*
 // @grant        none
 // @run-at       document-start
@@ -25,9 +25,9 @@
   const CFG = { sampleSize: 48, intervalMs: 1000, threshold: 12, histLen: 24, tempPerScore: 5 };
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
-  let history = [], panel = null, fab = null, maxFab = null, zoomFab = null, fabStyle = null, panelStyle = null;
+  let history = [], panel = null, fab = null, maxFab = null, fabStyle = null, panelStyle = null;
+  // [REMOVED: Zoomer] zoomFab 제거
   let panelOpen = false, lastStatus = 'idle';
-  /* Maximizer/Zoomer CSS를 패널과 독립적으로 유지하기 위한 별도 style 태그 */
   let coreStyle = null;
 
   let offscreen, oCtx;
@@ -113,12 +113,10 @@
     const shadowResults = [];
     try { findVideosInShadowRoots(document, shadowResults, 0); } catch (_) {}
     for (const v of shadowResults) set.add(v);
-
     try {
       const vsc = window.__vsc_internal;
       if (vsc?._activeVideo?.isConnected) set.add(vsc._activeVideo);
     } catch (_) {}
-
     return [...set];
   }
 
@@ -167,11 +165,6 @@
     v.play().catch(() => {}); shadowVid = v; return v;
   }
   function killShadow() { if (!shadowVid) return; shadowVid.src = ''; shadowVid.remove(); shadowVid = null; }
-  /**
-   * score → 색온도 보정 단계 변환
-   * tempPerScore=5이므로: score 0~4 → 0(불필요), 5~9 → -1(미세), 10~14 → -2(경미), 15+ → -3 이상(주의)
-   * threshold(12)와 독립적 스케일: threshold는 "노란끼 감지" 판정, temp는 "보정 권장량"
-   */
   function scoreToTemp(score) { return score <= 0 ? 0 : -(Math.floor(score / CFG.tempPerScore)); }
 
   /* ── 시계 & FAB 상태 ─────────────────────────────────── */
@@ -199,11 +192,11 @@
     if (show) {
       if (fab.style.display === 'none') fab.style.display = '';
       if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
-      if (zoomFab && zoomFab.style.display === 'none') zoomFab.style.display = '';
+      // [REMOVED: Zoomer] zoomFab visibility 제거
     } else {
       if (fab.style.display !== 'none') fab.style.display = 'none';
       if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
-      if (zoomFab && zoomFab.style.display !== 'none') zoomFab.style.display = 'none';
+      // [REMOVED: Zoomer] zoomFab visibility 제거
       if (panelOpen) togglePanel(false);
     }
   }
@@ -217,17 +210,16 @@
     const target = getFsRoot();
     if (fab && fab.parentNode !== target) try { target.appendChild(fab); } catch (_) {}
     if (maxFab && maxFab.parentNode !== target) try { target.appendChild(maxFab); } catch (_) {}
-    if (zoomFab && zoomFab.parentNode !== target) try { target.appendChild(zoomFab); } catch (_) {}
+    // [REMOVED: Zoomer] zoomFab reparent 제거
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
   function onFsChange() {
     reparent();
     setTimeout(reparent, 120);
-    /* 풀스크린 요소가 DOM에서 제거되는 케이스 대비: FAB 고아화 방지 */
     setTimeout(() => {
       if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
       if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
-      if (zoomFab && !zoomFab.isConnected) document.documentElement.appendChild(zoomFab);
+      // [REMOVED: Zoomer] zoomFab 고아 방지 제거
     }, 300);
   }
 
@@ -242,7 +234,6 @@
     let res = sampleRGB(liveVideo);
     if (!res.ok) {
       const src = liveVideo.currentSrc || liveVideo.src;
-      /* [#3] blob: URL은 shadow 복제 불가 — 매 tick 반복 호출 방지 */
       if (src && !shadowVid && !src.startsWith('blob:')) {
         if (panelOpen) setStatus('CORS 우회 시도…', false);
         makeShadow(src, liveVideo.currentTime);
@@ -408,7 +399,6 @@
       return null;
     }
 
-    /* 범용 스타일 백업+적용 */
     function _backupApply(set, list, el, css) {
       if (!set.has(el)) {
         set.add(el); list.push(el);
@@ -442,7 +432,6 @@
         if (sib === el || sib.nodeType !== 1) continue;
         if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
         if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.classList.contains('ytd-fab')) continue;
-
         sib.classList.add(HIDE_CLASS);
         hiddenSiblings.push({ el: sib });
       }
@@ -497,15 +486,12 @@
       isIframeMode = false;
       savedScrollX = window.scrollX;
       savedScrollY = window.scrollY;
-
       clearAncestorChain(video);
       lockBody();
-      /* [#2] transform을 backupAndApplyStyle로 통합 — undo 시 정확히 복원됨 */
       backupAndApplyStyle(video, { transform: 'none' });
       video.classList.add(MAX_CLASS);
       hideSiblings(video);
       window.scrollTo(0, 0);
-
       startClassGuard(video);
       active = true;
       syncBtnUI();
@@ -517,14 +503,12 @@
       isIframeMode = true;
       savedScrollX = window.scrollX;
       savedScrollY = window.scrollY;
-
       clearAncestorChain(iframeEl);
       lockBody();
       backupAndApplyStyle(iframeEl, {});
       iframeEl.classList.add(IFRAME_MAX_CLASS);
       hideSiblings(iframeEl);
       window.scrollTo(0, 0);
-
       startClassGuard(iframeEl);
       active = true;
       syncBtnUI();
@@ -535,21 +519,15 @@
     function undoMaximize() {
       if (!active) return;
       stopClassGuard();
-
       if (isIframeMode && targetIframe) {
         try { targetIframe.contentWindow.postMessage({ __ytd_max: 'undo_inner' }, '*'); } catch (_) {}
         try { targetIframe.contentWindow.postMessage({ __ytd_max: 'state_off' }, '*'); } catch (_) {}
       }
-
-      /* 역순 복원: clearAncestorChain이 하위→상위 순서로 push하므로 복원은 역순 */
       for (let i = hiddenSiblings.length - 1; i >= 0; i--) {
         const { el } = hiddenSiblings[i];
-        try {
-          el.classList.remove(HIDE_CLASS);
-        } catch (_) {}
+        try { el.classList.remove(HIDE_CLASS); } catch (_) {}
       }
       hiddenSiblings = [];
-
       for (let i = savedElementsList.length - 1; i >= 0; i--) {
         const el = savedElementsList[i];
         restoreStyle(el);
@@ -560,7 +538,6 @@
       }
       savedElementsList.length = 0;
       savedElementsSet.clear();
-
       window.scrollTo(savedScrollX, savedScrollY);
       active = false;
       targetVideo = null;
@@ -570,7 +547,6 @@
       showOSD('최대화 OFF', 1200);
     }
 
-    // Inner iframe logic
     let innerMaxActive = false;
     const innerSavedSet = new Set();
     const innerSavedList = [];
@@ -584,13 +560,11 @@
       const video = pickBestVideo();
       if (!video) return;
       innerMaxActive = true;
-
       backupInner(video, {
         width: '100vw', height: '100vh', 'object-fit': 'contain',
         position: 'fixed', top: '0', left: '0', 'z-index': '2147483646',
         background: '#000', margin: '0', padding: '0', border: 'none'
       });
-
       let ancestor = video.parentElement;
       while (ancestor && ancestor !== document.body && ancestor !== document.documentElement) {
         backupInner(ancestor, { overflow: 'visible', position: 'static', transform: 'none', clip: 'auto', 'clip-path': 'none', contain: 'none' });
@@ -623,12 +597,9 @@
         }
         return;
       }
-
       if (active) { undoMaximize(); return; }
-
       const video = pickBestVideo();
       if (video) { doMaximizeDirect(video); return; }
-
       const iframes = document.querySelectorAll('iframe');
       let bestIframe = null, bestArea = 0;
       for (const ifr of iframes) {
@@ -645,7 +616,6 @@
     function handleMessage(e) {
       if (!e.data || typeof e.data !== 'object' || !e.data.__ytd_max) return;
       const cmd = e.data.__ytd_max;
-
       if (!isInIframe()) {
         if (cmd === 'request') {
           const iframeEl = findIframeForWindow(e.source);
@@ -658,7 +628,6 @@
         if (cmd === 'undo') { if (active) undoMaximize(); }
         return;
       }
-
       if (cmd === 'apply_inner') { applyInnerMaximize(); return; }
       if (cmd === 'undo_inner') { undoInnerMaximize(); return; }
       if (cmd === 'state_on') { delegatedToTop = true; syncBtnUI(); return; }
@@ -667,20 +636,17 @@
 
     function syncBtnUI() {
       const isMax = active || delegatedToTop;
-
       if (maxFab) {
          maxFab.style.borderColor = isMax ? '#50d070' : '#2a2d36';
          const svg = maxFab.querySelector('svg path');
          if (svg) svg.style.stroke = isMax ? '#50d070' : '#4a5060';
       }
-
       const btn = document.getElementById('ytd-maximize');
       if (btn) btn.style.color = isMax ? '#50d070' : '';
     }
 
     window.addEventListener('message', handleMessage);
 
-    /* [#1] ESC 핸들러: active(top 직접 최대화)와 delegatedToTop(iframe 위임) 분기 */
     window.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if (active) {
@@ -699,410 +665,16 @@
       isActive: () => active || delegatedToTop
     };
   })();
-  /* ═════════════════════════════════════════════════════════════════════════ */
 
 
-  /* ═════════════════════════════════════════════════════════════════════════
-     ★ 통합된 Zoomer 모듈 (PC/모바일 터치 완벽 대응 및 Settle Timer 복구)
-  ═════════════════════════════════════════════════════════════════════════ */
-  const Zoomer = (() => {
-    let active = false;
-    const states = new WeakMap();
-    let activeVideo = null;
-    let rafId = null;
-
-    const _savedTouchActions = new WeakMap();
-    const __touchBlocked = new WeakSet();
-
-    const TS = Object.freeze({ IDLE: 0, WAIT_PAN: 1, PANNING: 2, PINCHING: 3, PINCH_RELEASED: 4 });
-    let touchState = TS.IDLE;
-    let settleTimerId = 0;
-    const TOUCH_SETTLE_MS = 120;
-    const PAN_THRESHOLD_SQ = 64;
-
-    let isPanning = false;
-    let startX = 0, startY = 0, touchOriginX = 0, touchOriginY = 0, activePointerId = null;
-    const pinchState = { active: false, initialDist: 0, initialScale: 1, lastCx: 0, lastCy: 0, elemCx: 0, elemCy: 0 };
-
-    function setTouchState(next) { touchState = next; }
-    function startSettleTimer(cb) {
-      if (settleTimerId) clearTimeout(settleTimerId);
-      settleTimerId = setTimeout(() => { settleTimerId = 0; cb(); }, TOUCH_SETTLE_MS);
-    }
-    function clearSettleTimer() {
-      if (settleTimerId) { clearTimeout(settleTimerId); settleTimerId = 0; }
-    }
-
-    function walkParents(el, maxDepth, fn) {
-      let p = el.parentElement, d = 0;
-      while (p && p !== document.body && p !== document.documentElement && d < maxDepth) {
-        fn(p, d); p = p.parentElement; d++;
-      }
-    }
-
-    function setTouchActionBlocking(v, enable) {
-      if (!v) return;
-      if (enable) {
-        if (!_savedTouchActions.has(v)) _savedTouchActions.set(v, v.style.getPropertyValue('touch-action'));
-        v.style.setProperty('touch-action', 'none', 'important');
-        v.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
-        __touchBlocked.add(v);
-        walkParents(v, 3, p => {
-          if (!_savedTouchActions.has(p)) _savedTouchActions.set(p, p.style.getPropertyValue('touch-action'));
-          p.style.setProperty('touch-action', 'none', 'important');
-          p.style.setProperty('-webkit-tap-highlight-color', 'transparent', 'important');
-          p.dataset.ytdTouchBlocked = '1';
-        });
-      } else {
-        restoreTouchAction(v);
-        __touchBlocked.delete(v);
-        walkParents(v, 3, p => {
-          if (p.dataset?.ytdTouchBlocked) { restoreTouchAction(p); delete p.dataset.ytdTouchBlocked; }
-        });
-      }
-    }
-
-    function restoreTouchAction(el) {
-      if (!el) return;
-      const saved = _savedTouchActions.get(el);
-      if (saved !== undefined) {
-        if (saved) el.style.setProperty('touch-action', saved);
-        else el.style.removeProperty('touch-action');
-        _savedTouchActions.delete(el);
-      } else {
-        el.style.removeProperty('touch-action');
-      }
-      el.style.removeProperty('-webkit-tap-highlight-color');
-    }
-
-    function getSt(v) {
-      let s = states.get(v);
-      if (!s) {
-        s = { scale: 1, tx: 0, ty: 0, zoomed: false, _savedPos: '', _savedZ: '' };
-        states.set(v, s);
-      }
-      return s;
-    }
-
-    function clampPan(v, st) {
-      try {
-        const r = v.getBoundingClientRect();
-        const maxTx = Math.max(0, (r.width * st.scale - r.width) / 2 / st.scale);
-        const maxTy = Math.max(0, (r.height * st.scale - r.height) / 2 / st.scale);
-        st.tx = Math.max(-maxTx, Math.min(maxTx, st.tx));
-        st.ty = Math.max(-maxTy, Math.min(maxTy, st.ty));
-      } catch (_) {}
-    }
-
-    function update(v) {
-      if (rafId !== null) return;
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        const st = getSt(v);
-        if (st.scale <= 1 && st.zoomed) { reset(v); return; }
-        if (st.scale > 1) {
-          if (!st.zoomed) {
-            st._savedPos = v.style.getPropertyValue('position');
-            st._savedZ = v.style.getPropertyValue('z-index');
-
-            v.style.setProperty('position', 'relative', 'important');
-            v.style.setProperty('z-index', '999999', 'important');
-            st.zoomed = true;
-          }
-          v.style.setProperty('transform', `scale(${st.scale}) translate(${st.tx}px, ${st.ty}px)`, 'important');
-          v.style.setProperty('transform-origin', 'center center', 'important');
-          v.style.setProperty('will-change', 'transform', 'important');
-        }
-      });
-    }
-
-    function zoomTo(v, scale) {
-      const st = getSt(v);
-      st.scale = scale;
-      clampPan(v, st);
-      update(v);
-    }
-
-    function reset(v) {
-      const st = getSt(v);
-      v.style.removeProperty('transform');
-      v.style.removeProperty('transform-origin');
-      v.style.removeProperty('will-change');
-
-      if (st._savedPos) v.style.setProperty('position', st._savedPos);
-      else v.style.removeProperty('position');
-
-      if (st._savedZ) v.style.setProperty('z-index', st._savedZ);
-      else v.style.removeProperty('z-index');
-
-      st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false;
-
-      if (!active) setTouchActionBlocking(v, false);
-      if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); activeVideo = null; }
-    }
-
-    function isUiEvent(e) {
-      try {
-        const path = e.composedPath ? e.composedPath() : [];
-        for (let i = 0; i < Math.min(path.length, 8); i++) {
-          const n = path[i];
-          if (n && n.classList && n.classList.contains('ytd-fab')) return true;
-          if (n && n.id === '__ytd2__') return true;
-        }
-      } catch (_) {}
-      return false;
-    }
-
-    function getTargetVideo(e) {
-      const px = e.touches ? e.touches[0].clientX : e.clientX;
-      const py = e.touches ? e.touches[0].clientY : e.clientY;
-      let bestVideo = null, bestArea = 0;
-
-      const videos = getAllVideos();
-      for (const v of videos) {
-        if (!v.isConnected) continue;
-        try {
-          const r = v.getBoundingClientRect();
-          if (r.width < 10 || r.height < 10) continue;
-          if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
-            const area = r.width * r.height;
-            if (area > bestArea) { bestArea = area; bestVideo = v; }
-          }
-        } catch (_) {}
-      }
-      return bestVideo || pickBestVideo();
-    }
-
-    function getTouchDist(ts) {
-      const dx = ts[0].clientX - ts[1].clientX, dy = ts[0].clientY - ts[1].clientY;
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-    function getTouchCenter(ts) {
-      return { x: (ts[0].clientX + ts[1].clientX) / 2, y: (ts[0].clientY + ts[1].clientY) / 2 };
-    }
-
-    // --- PC Events ---
-    window.addEventListener('wheel', e => {
-      if (!active || !e.altKey || isUiEvent(e)) return;
-      const v = getTargetVideo(e); if (!v) return;
-      e.preventDefault(); e.stopPropagation();
-      const st = getSt(v);
-      const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-      st.scale = Math.max(1, Math.min(st.scale * zoomFactor, 10));
-      if (st.scale < 1.05) { reset(v); return; }
-      clampPan(v, st); update(v);
-    }, { passive: false, capture: true });
-
-    window.addEventListener('pointerdown', e => {
-      if (!active || !e.altKey || e.pointerType === 'touch' || isUiEvent(e)) return;
-      const v = getTargetVideo(e); if (!v) return;
-      const st = getSt(v); if (st.scale <= 1) return;
-      e.preventDefault(); e.stopPropagation();
-      activeVideo = v; activePointerId = e.pointerId; isPanning = true;
-      startX = e.clientX - st.tx; startY = e.clientY - st.ty;
-      try { v.setPointerCapture(e.pointerId); } catch(_) {}
-    }, { passive: false, capture: true });
-
-    window.addEventListener('pointermove', e => {
-      if (!isPanning || !activeVideo || e.pointerId !== activePointerId || e.pointerType === 'touch') return;
-      e.preventDefault(); e.stopPropagation();
-      const st = getSt(activeVideo);
-      st.tx = e.clientX - startX; st.ty = e.clientY - startY;
-      clampPan(activeVideo, st); update(activeVideo);
-    }, { passive: false, capture: true });
-
-    const endPan = (e) => {
-      if (!isPanning || e.pointerId !== activePointerId || e.pointerType === 'touch') return;
-      isPanning = false;
-      try { activeVideo.releasePointerCapture(e.pointerId); } catch(_) {}
-      activeVideo = null; activePointerId = null;
-    };
-    window.addEventListener('pointerup', endPan, { capture: true });
-    window.addEventListener('pointercancel', endPan, { capture: true });
-
-    window.addEventListener('dblclick', e => {
-      if (!active || !e.altKey || isUiEvent(e)) return;
-      const v = getTargetVideo(e); if (!v) return;
-      e.preventDefault(); e.stopPropagation();
-      const st = getSt(v);
-      if (st.scale === 1) { st.scale = 2.5; clampPan(v, st); update(v); } else { reset(v); }
-    }, { capture: true });
-
-    // --- Mobile Events ---
-    window.addEventListener('touchstart', e => {
-      if (!active || isUiEvent(e)) return;
-      const v = getTargetVideo(e);
-      if (!v) return;
-
-      const st = getSt(v);
-
-      if (e.touches.length === 2) {
-        if (e.cancelable) e.preventDefault();
-        clearSettleTimer();
-        activeVideo = v;
-        isPanning = false;
-        pinchState.active = true;
-        pinchState.initialDist = getTouchDist(e.touches);
-        pinchState.initialScale = st.scale;
-        const c = getTouchCenter(e.touches);
-        pinchState.lastCx = c.x; pinchState.lastCy = c.y;
-
-        const _rect = v.getBoundingClientRect();
-        pinchState.elemCx = _rect.left + _rect.width / 2 - st.scale * st.tx;
-        pinchState.elemCy = _rect.top + _rect.height / 2 - st.scale * st.ty;
-        setTouchState(TS.PINCHING);
-      } else if (e.touches.length === 1 && st.scale > 1) {
-        if (e.cancelable) e.preventDefault();
-        clearSettleTimer();
-        activeVideo = v;
-        touchOriginX = e.touches[0].clientX; touchOriginY = e.touches[0].clientY;
-        startX = e.touches[0].clientX - st.tx; startY = e.touches[0].clientY - st.ty;
-        setTouchState(TS.WAIT_PAN);
-      }
-    }, { passive: false, capture: true });
-
-    window.addEventListener('touchmove', e => {
-      if (!active) return;
-
-      if (touchState !== TS.PINCHING && !pinchState.active && e.touches.length === 2) {
-        const v = getTargetVideo(e);
-        if (v) {
-          if (e.cancelable) e.preventDefault();
-          clearSettleTimer();
-          activeVideo = v;
-          pinchState.active = true;
-          pinchState.initialDist = getTouchDist(e.touches);
-          pinchState.initialScale = getSt(v).scale;
-          const c = getTouchCenter(e.touches);
-          pinchState.lastCx = c.x; pinchState.lastCy = c.y;
-          const _rect = v.getBoundingClientRect();
-          pinchState.elemCx = _rect.left + _rect.width / 2 - getSt(v).scale * getSt(v).tx;
-          pinchState.elemCy = _rect.top + _rect.height / 2 - getSt(v).scale * getSt(v).ty;
-          setTouchState(TS.PINCHING);
-        }
-        return;
-      }
-
-      if (!activeVideo) return;
-      const st = getSt(activeVideo);
-
-      if (touchState === TS.PINCHING && pinchState.active && e.touches.length === 2) {
-        if (e.cancelable) e.preventDefault();
-        const dist = getTouchDist(e.touches);
-        const center = getTouchCenter(e.touches);
-        let ns = pinchState.initialScale * (dist / Math.max(1, pinchState.initialDist));
-        ns = Math.max(1, Math.min(ns, 10));
-
-        if (ns < 1.05) {
-          if (st.zoomed) { reset(activeVideo); showOSD('줌 1× (리셋)', 800); }
-          pinchState.initialDist = getTouchDist(e.touches);
-          pinchState.initialScale = 1.0;
-          st.scale = 1; st.tx = 0; st.ty = 0;
-        } else {
-          const prevScale = st.scale;
-          const Cx = pinchState.elemCx, Cy = pinchState.elemCy;
-          st.tx = (center.x - Cx) / ns - (pinchState.lastCx - Cx) / prevScale + st.tx;
-          st.ty = (center.y - Cy) / ns - (pinchState.lastCy - Cy) / prevScale + st.ty;
-          st.scale = ns;
-          clampPan(activeVideo, st);
-          update(activeVideo);
-        }
-        pinchState.lastCx = center.x; pinchState.lastCy = center.y;
-      } else if (touchState === TS.WAIT_PAN && e.touches.length === 1 && st.scale > 1) {
-        const dx = e.touches[0].clientX - touchOriginX;
-        const dy = e.touches[0].clientY - touchOriginY;
-        if (dx * dx + dy * dy >= PAN_THRESHOLD_SQ) {
-          if (e.cancelable) e.preventDefault();
-          isPanning = true;
-          setTouchState(TS.PANNING);
-        }
-      } else if (touchState === TS.PANNING && isPanning && e.touches.length === 1 && st.scale > 1) {
-        if (e.cancelable) e.preventDefault();
-        st.tx = e.touches[0].clientX - startX;
-        st.ty = e.touches[0].clientY - startY;
-        clampPan(activeVideo, st);
-        update(activeVideo);
-      }
-    }, { passive: false, capture: true });
-
-    window.addEventListener('touchend', e => {
-      if (!activeVideo) return;
-
-      if (touchState === TS.PINCHING && e.touches.length < 2) {
-        pinchState.active = false;
-        const currentScale = activeVideo ? getSt(activeVideo).scale : 1;
-        if (e.touches.length === 1 && activeVideo?.isConnected && currentScale > 1) {
-          /* 핀치 종료 후 1-finger가 남아있으면 즉시 팬 대기 상태로 전환 (settle 불필요) */
-          const st = getSt(activeVideo);
-          touchOriginX = e.touches[0].clientX;
-          touchOriginY = e.touches[0].clientY;
-          startX = e.touches[0].clientX - st.tx;
-          startY = e.touches[0].clientY - st.ty;
-          setTouchState(TS.WAIT_PAN);
-        } else if (e.touches.length === 0) {
-          setTouchState(TS.PINCH_RELEASED);
-          startSettleTimer(() => {
-            setTouchState(TS.IDLE); isPanning = false;
-            if (activeVideo && getSt(activeVideo).scale <= 1 && getSt(activeVideo).zoomed) reset(activeVideo);
-            activeVideo = null;
-          });
-        }
-        return;
-      }
-
-      if (touchState === TS.PINCH_RELEASED || touchState === TS.IDLE) {
-        if (e.touches.length === 0) { clearSettleTimer(); isPanning = false; setTouchState(TS.IDLE); activeVideo = null; }
-        return;
-      }
-
-      if (e.touches.length === 1 && activeVideo?.isConnected && getSt(activeVideo).scale > 1) {
-        touchOriginX = e.touches[0].clientX; touchOriginY = e.touches[0].clientY;
-        startX = e.touches[0].clientX - getSt(activeVideo).tx; startY = e.touches[0].clientY - getSt(activeVideo).ty;
-        setTouchState(TS.WAIT_PAN);
-      } else if (e.touches.length === 0) {
-        clearSettleTimer(); isPanning = false; setTouchState(TS.IDLE); activeVideo = null;
-      }
-    }, { passive: false, capture: true });
-
-    window.addEventListener('touchcancel', () => {
-      if (!activeVideo) return; clearSettleTimer();
-      isPanning = false; pinchState.active = false; setTouchState(TS.IDLE); activeVideo = null;
-    }, { passive: true, capture: true });
-
-    function syncZoomUI() {
-      if (zoomFab) {
-         zoomFab.style.borderColor = active ? '#50d070' : '#2a2d36';
-         const svg = zoomFab.querySelector('svg');
-         if (svg) svg.style.stroke = active ? '#50d070' : '#4a5060';
-      }
-      const btn = document.getElementById('ytd-zoom');
-      if (btn) btn.style.color = active ? '#50d070' : '';
-    }
-
-    return {
-      toggle: () => {
-        active = !active;
-        const videos = getAllVideos();
-        if (active) {
-          videos.forEach(v => setTouchActionBlocking(v, true));
-        } else {
-          videos.forEach(reset);
-        }
-        syncZoomUI();
-        showOSD(active ? '줌 ON' : '줌 OFF', 1200);
-        return active;
-      },
-      isActive: () => active
-    };
-  })();
-  /* ═════════════════════════════════════════════════════════════════════════ */
+  // [REMOVED: Zoomer] — 전체 Zoomer 모듈 제거됨
+  // 줌 기능은 HTML5视频手势 스크립트에 위임
 
 
-  /* ── FAB 빌드 (3개: Zoom, Max, Main) ─────────────────────────── */
+  /* ── FAB 빌드 (2개: Max, Main) ─────────────────────────── */
   function buildFab() {
     if (fab) return;
 
-    /* Maximizer/Zoomer CSS — 패널과 독립 (destroyPanel에 영향받지 않음) */
     if (!coreStyle || !coreStyle.isConnected) {
       coreStyle?.remove();
       coreStyle = document.createElement('style');
@@ -1156,7 +728,7 @@
 
     const svgNS = 'http://www.w3.org/2000/svg';
 
-    // 1. 기존 YTD (메인: 색상 감지 및 패널 열기) FAB (오른쪽 5px)
+    // 1. 메인 FAB (색상 감지 및 패널 열기) — right: 5px
     fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
     const svg = document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke-width','2'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
@@ -1169,7 +741,7 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
-    // 2. 최대화 (Maximizer) FAB (오른쪽 55px)
+    // 2. 최대화 (Maximizer) FAB — right: 55px
     maxFab = document.createElement('div');
     maxFab.className = 'ytd-fab ytd-fab--idle';
     maxFab.style.display = 'none';
@@ -1185,44 +757,24 @@
     maxIconWrap.appendChild(maxSvg);
     maxFab.appendChild(maxIconWrap);
 
-    // 3. 줌 (Zoom) FAB (오른쪽 105px)
-    zoomFab = document.createElement('div');
-    zoomFab.className = 'ytd-fab ytd-fab--idle';
-    zoomFab.style.display = 'none';
-    zoomFab.style.right = '105px';
-    zoomFab.title = "줌 모드 (PC: Alt+Wheel / Mobile: Pinch)";
+    // [REMOVED: Zoomer] zoomFab 생성 코드 전체 제거
 
-    const zoomIconWrap = document.createElement('div'); zoomIconWrap.className = 'ytd-fab-icon';
-    const zoomSvg = document.createElementNS(svgNS,'svg'); zoomSvg.setAttribute('viewBox','0 0 24 24'); zoomSvg.setAttribute('fill','none'); zoomSvg.setAttribute('stroke-width','2'); zoomSvg.setAttribute('stroke-linecap','round'); zoomSvg.setAttribute('stroke-linejoin','round');
-    zoomSvg.style.stroke = '#4a5060';
-    const zoomCircle = document.createElementNS(svgNS, 'circle');
-    zoomCircle.setAttribute('cx', '11'); zoomCircle.setAttribute('cy', '11'); zoomCircle.setAttribute('r', '8');
-    const zoomLine = document.createElementNS(svgNS, 'line');
-    zoomLine.setAttribute('x1', '21'); zoomLine.setAttribute('y1', '21'); zoomLine.setAttribute('x2', '16.65'); zoomLine.setAttribute('y2', '16.65');
-    zoomSvg.appendChild(zoomCircle);
-    zoomSvg.appendChild(zoomLine);
-    zoomIconWrap.appendChild(zoomSvg);
-    zoomFab.appendChild(zoomIconWrap);
-
-    // DOM에 3개의 FAB 추가
-    document.documentElement.appendChild(zoomFab);
+    // DOM에 2개의 FAB 추가
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // 4. 3개 FAB 공용 드래그 + 클릭 로직
+    // FAB 공용 드래그 + 클릭 로직 (2개)
     let dragging=false, moved=false, dragStartX=0, dragStartY=0;
-    let fabX=0, fabY=0, maxX=0, maxY=0, zoomX=0, zoomY=0;
+    let fabX=0, fabY=0, maxX=0, maxY=0;
 
     const onDown = (e, targetEl) => {
       if(e.button!==0)return;
       dragging=true; moved=false;
       const rF = fab.getBoundingClientRect();
       const rM = maxFab.getBoundingClientRect();
-      const rZ = zoomFab.getBoundingClientRect();
       dragStartX = e.clientX; dragStartY = e.clientY;
       fabX = rF.left; fabY = rF.top;
       maxX = rM.left; maxY = rM.top;
-      zoomX = rZ.left; zoomY = rZ.top;
       targetEl.setPointerCapture(e.pointerId);
       e.preventDefault();
     };
@@ -1234,13 +786,12 @@
       moved = true;
       fab.style.left = (fabX+dx)+'px'; fab.style.top = (fabY+dy)+'px'; fab.style.right = 'auto';
       maxFab.style.left = (maxX+dx)+'px'; maxFab.style.top = (maxY+dy)+'px'; maxFab.style.right = 'auto';
-      zoomFab.style.left = (zoomX+dx)+'px'; zoomFab.style.top = (zoomY+dy)+'px'; zoomFab.style.right = 'auto';
     };
 
     const fabActions = new Map([
       [fab,     () => togglePanel()],
       [maxFab,  () => Maximizer.toggle()],
-      [zoomFab, () => Zoomer.toggle()],
+      // [REMOVED: Zoomer] zoomFab 항목 제거
     ]);
 
     for (const [btn, action] of fabActions) {
@@ -1260,11 +811,11 @@
   /* ── 패널 빌드 ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
+    // [REMOVED: Zoomer] 패널에서 줌 버튼 제거
     el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
         <div style="display:flex; gap:6px;">
-          <button id="ytd-zoom" title="줌 모드 (PC: Alt+Wheel / Mobile: Pinch)">🔍</button>
           <button id="ytd-maximize" title="최대화/해제">🗖</button>
           <button id="ytd-refresh" title="재탐색">↺</button>
           <button id="ytd-close" title="닫기">✕</button>
@@ -1325,7 +876,7 @@
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
 
-    q('ytd-zoom').addEventListener('click', () => Zoomer.toggle());
+    // [REMOVED: Zoomer] ytd-zoom 이벤트 바인딩 제거
     q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
