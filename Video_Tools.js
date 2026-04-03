@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      3.9.9
+// @version      3.9.10
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 비디오 ZOOM + 항상 보이는 시계
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
@@ -29,7 +29,6 @@
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
   let history = [], panel = null, fab = null, maxFab = null, zoomFab = null, fabStyle = null, panelStyle = null;
   let panelOpen = false, lastStatus = 'idle';
-  /* Maximizer/Zoomer CSS를 패널과 독립적으로 유지하기 위한 별도 style 태그 */
   let coreStyle = null;
 
   let offscreen, oCtx;
@@ -94,7 +93,7 @@
 
   /* ── 영상 탐색 ───────────────────────────────────────── */
   function findVideosInShadowRoots(root, results, depth) {
-    if (depth > 8) return;
+    if (depth > 4) return;
     let els;
     try { els = root.querySelectorAll('*'); } catch (_) { return; }
     for (let i = 0; i < els.length; i++) {
@@ -102,8 +101,6 @@
       if (el.tagName === 'VIDEO') results.push(el);
       if (el.shadowRoot) {
         try {
-          const svids = el.shadowRoot.querySelectorAll('video');
-          for (let j = 0; j < svids.length; j++) results.push(svids[j]);
           findVideosInShadowRoots(el.shadowRoot, results, depth + 1);
         } catch (_) {}
       }
@@ -225,7 +222,6 @@
   function onFsChange() {
     reparent();
     setTimeout(reparent, 120);
-    /* 풀스크린 요소가 DOM에서 제거되는 케이스 대비: FAB 고아화 방지 */
     setTimeout(() => {
       if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
       if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
@@ -241,10 +237,10 @@
     if (!liveVideo || !liveVideo.isConnected) {
       liveVideo = null; killShadow(); shadowRetries = 0; scheduleDetect(); return;
     }
+    if (liveVideo.paused || liveVideo.ended) return;
     let res = sampleRGB(liveVideo);
     if (!res.ok) {
       const src = liveVideo.currentSrc || liveVideo.src;
-      /* [#3] blob: URL은 shadow 복제 불가 — 매 tick 반복 호출 방지 */
       if (src && !shadowVid && !src.startsWith('blob:')) {
         if (panelOpen) setStatus('CORS 우회 시도…', false);
         makeShadow(src, liveVideo.currentTime);
@@ -257,6 +253,8 @@
       if (shadowRetries > MAX_SHADOW_RETRIES) {
         killShadow(); shadowRetries = 0;
         if (panelOpen) showError('CORS 우회 실패 — shadow 포기');
+        updateFabState('error', 0);
+      } else {
         updateFabState('error', 0);
       }
       return;
@@ -410,7 +408,6 @@
       return null;
     }
 
-    /* 범용 스타일 백업+적용 */
     function _backupApply(set, list, el, css) {
       if (!set.has(el)) {
         set.add(el); list.push(el);
@@ -502,7 +499,6 @@
 
       clearAncestorChain(video);
       lockBody();
-      /* [#2] transform을 backupAndApplyStyle로 통합 — undo 시 정확히 복원됨 */
       backupAndApplyStyle(video, { transform: 'none' });
       video.classList.add(MAX_CLASS);
       hideSiblings(video);
@@ -543,7 +539,6 @@
         try { targetIframe.contentWindow.postMessage({ __ytd_max: 'state_off' }, '*'); } catch (_) {}
       }
 
-      /* 역순 복원: clearAncestorChain이 하위→상위 순서로 push하므로 복원은 역순 */
       for (let i = hiddenSiblings.length - 1; i >= 0; i--) {
         const { el } = hiddenSiblings[i];
         try {
@@ -572,7 +567,6 @@
       showOSD('최대화 OFF', 1200);
     }
 
-    // Inner iframe logic
     let innerMaxActive = false;
     const innerSavedSet = new Set();
     const innerSavedList = [];
@@ -682,7 +676,6 @@
 
     window.addEventListener('message', handleMessage);
 
-    /* [#1] ESC 핸들러: active(top 직접 최대화)와 delegatedToTop(iframe 위임) 분기 */
     window.addEventListener('keydown', e => {
       if (e.key !== 'Escape') return;
       if (active) {
@@ -840,7 +833,7 @@
       st.scale = 1; st.tx = 0; st.ty = 0; st.zoomed = false;
 
       if (!active) setTouchActionBlocking(v, false);
-      if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); activeVideo = null; }
+      if (activeVideo === v) { setTouchState(TS.IDLE); clearSettleTimer(); isPanning = false; activeVideo = null; }
     }
 
     function isUiEvent(e) {
@@ -1034,7 +1027,6 @@
         pinchState.active = false;
         const currentScale = activeVideo ? getSt(activeVideo).scale : 1;
         if (e.touches.length === 1 && activeVideo?.isConnected && currentScale > 1) {
-          /* 핀치 종료 후 1-finger가 남아있으면 즉시 팬 대기 상태로 전환 (settle 불필요) */
           const st = getSt(activeVideo);
           touchOriginX = e.touches[0].clientX;
           touchOriginY = e.touches[0].clientY;
@@ -1104,7 +1096,6 @@
   function buildFab() {
     if (fab) return;
 
-    /* Maximizer/Zoomer CSS — 패널과 독립 (destroyPanel에 영향받지 않음) */
     if (!coreStyle || !coreStyle.isConnected) {
       coreStyle?.remove();
       coreStyle = document.createElement('style');
@@ -1158,7 +1149,6 @@
 
     const svgNS = 'http://www.w3.org/2000/svg';
 
-    // 1. 기존 YTD (메인: 색상 감지 및 패널 열기) FAB (오른쪽 5px)
     fab = document.createElement('div'); fab.className = 'ytd-fab ytd-fab--idle'; fab.style.display = 'none';
     const iconWrap = document.createElement('div'); iconWrap.className = 'ytd-fab-icon';
     const svg = document.createElementNS(svgNS,'svg'); svg.setAttribute('viewBox','0 0 24 24'); svg.setAttribute('fill','none'); svg.setAttribute('stroke-width','2'); svg.setAttribute('stroke-linecap','round'); svg.setAttribute('stroke-linejoin','round');
@@ -1171,7 +1161,6 @@
     fab.appendChild(Object.assign(document.createElement('span'),{className:'ytd-fab-score'}));
     const clockSpan = document.createElement('span'); clockSpan.className = 'ytd-fab-clock'; clockSpan.textContent = '--:--'; fab.appendChild(clockSpan);
 
-    // 2. 최대화 (Maximizer) FAB (오른쪽 55px)
     maxFab = document.createElement('div');
     maxFab.className = 'ytd-fab ytd-fab--idle';
     maxFab.style.display = 'none';
@@ -1187,7 +1176,6 @@
     maxIconWrap.appendChild(maxSvg);
     maxFab.appendChild(maxIconWrap);
 
-    // 3. 줌 (Zoom) FAB (오른쪽 105px)
     zoomFab = document.createElement('div');
     zoomFab.className = 'ytd-fab ytd-fab--idle';
     zoomFab.style.display = 'none';
@@ -1206,12 +1194,10 @@
     zoomIconWrap.appendChild(zoomSvg);
     zoomFab.appendChild(zoomIconWrap);
 
-    // DOM에 3개의 FAB 추가
     document.documentElement.appendChild(zoomFab);
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
 
-    // 4. 3개 FAB 공용 드래그 + 클릭 로직
     let dragging=false, moved=false, dragStartX=0, dragStartY=0;
     let fabX=0, fabY=0, maxX=0, maxY=0, zoomX=0, zoomY=0;
 
@@ -1355,8 +1341,19 @@
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
 
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        if (timerID) { clearInterval(timerID); timerID = null; }
+      } else {
+        if (liveVideo?.isConnected && !timerID) {
+          timerID = setInterval(tick, CFG.intervalMs);
+        } else if (!liveVideo) {
+          autoDetect();
+        }
+      }
+    });
+
     setInterval(() => {
-      if (liveVideo && !liveVideo.isConnected) { liveVideo = null; }
       autoDetect();
     }, 3000);
   }
