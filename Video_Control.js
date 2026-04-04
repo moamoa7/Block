@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.6.2)
+// @name         Video_Control (v31.6.3)
 // @namespace    https://github.com/moamoa7
-// @version      31.6.2
-// @description  v31.6.2: UI 이벤트 격리 — 외부 제스처 스크립트 간섭 차단
+// @version      31.6.3
+// @description  v31.6.3: UI 이벤트 격리 수정 — 모바일 UI 클릭 정상화
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.6.2';
+  const VSC_VERSION = '31.6.3';
   const DEBUG = false;
 
   const log = {
@@ -78,14 +78,13 @@
     el.style.removeProperty('filter');
   }
 
-  /* v31.6.2: UI 이벤트 격리 — Shadow Root 내부 이벤트가 외부로 전파되지 않도록 차단 */
-  const _SHIELD_EVENTS = ['pointerdown','pointerup','pointermove','mousedown','mouseup','mousemove','touchstart','touchmove','touchend','click','dblclick','contextmenu','keydown','keyup'];
-  function shieldShadow(shadowRoot) {
+  /* v31.6.3: UI 이벤트 격리 — host 요소의 bubble 단계에서 외부 전파만 차단 */
+  const _SHIELD_EVENTS = ['pointerdown','pointerup','pointermove','mousedown','mouseup','mousemove','touchstart','touchmove','touchend','click','dblclick','contextmenu'];
+  function shieldHost(hostEl) {
     for (const evt of _SHIELD_EVENTS) {
-      shadowRoot.addEventListener(evt, (e) => {
+      hostEl.addEventListener(evt, (e) => {
         e.stopPropagation();
-        e.stopImmediatePropagation();
-      }, { capture: true, passive: false });
+      }, { capture: false, passive: false });
     }
   }
 
@@ -1504,8 +1503,8 @@
     function buildQuickBar() {
       if (quickBarHost) return;
       quickBarHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-gear-host', style: HOST_STYLE_NORMAL }); quickBarHost.style.setProperty('display', 'none', 'important');
+      shieldHost(quickBarHost);
       _qbarShadow = quickBarHost.attachShadow({ mode: 'closed' });
-      shieldShadow(_qbarShadow);
       const qStyle = document.createElement('style');
       qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; }`;
       _qbarShadow.appendChild(qStyle);
@@ -1523,8 +1522,8 @@
     function buildPanel() {
       if (panelHost) return;
       panelHost = h('div', { 'data-vsc-ui': '1', id: 'vsc-host', style: HOST_STYLE_NORMAL });
+      shieldHost(panelHost);
       _shadow = panelHost.attachShadow({ mode: 'closed' });
-      shieldShadow(_shadow);
       _shadow.appendChild(h('style', {}, PANEL_CSS));
       panelEl = h('div', { class: 'panel' });
       panelEl.addEventListener('wheel', e => e.stopPropagation(), { passive: true });
