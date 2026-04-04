@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.6.3)
+// @name         Video_Control (v31.6.4)
 // @namespace    https://github.com/moamoa7
-// @version      31.6.3
-// @description  v31.6.3: UI 이벤트 격리 수정 — 모바일 UI 클릭 정상화
+// @version      31.6.4
+// @description  v31.6.4: DRM playbackRate 재시도 방지
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.6.3';
+  const VSC_VERSION = '31.6.4';
   const DEBUG = false;
 
   const log = {
@@ -115,10 +115,11 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
+  // MANUAL_PRESETS 값 순서: [Shadow, Recovery, Bright, Temp, Tint, Sat, Gamma, Contrast, Gain]
   const MANUAL_PRESETS = [
     { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
 
-    { n: '보정', v: [0, 0, 12, 0, 0, -1, -3, 4, 6] },
+    { n: '보정', v: [0, 0, 8, 0, 0, 0, -3, 3, 4] },
 
     { n: '선명', v: [0, 0, 6, 0, 0, -4, -8, 10, 6] },
 
@@ -322,7 +323,7 @@
       const onResize = req;
       const onLoadstart = () => {
         cancelRVFC();
-        delete el.dataset.vscDrm; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
+        delete el.dataset.vscDrm; delete el.dataset.vscPbFail; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
         if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
         req();
       };
@@ -609,6 +610,8 @@
       return true;
     }
 
+    // 볼륨 평준화(comp)는 A_EN이 true일 때만 활성화
+    // 공간감/선명도/부스트는 comp 이후 체인이므로 A_EN과 무관하게 동작
     function routeCompressor() {
       if (!routeGain || !comp || !compBypass) return;
       try { routeGain.disconnect(); } catch (_) {}
@@ -1603,7 +1606,18 @@
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
         }
         Audio.setTarget(target);
-        if (Store.get(P.PB_EN)) { const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5); if (Math.abs(target.playbackRate - rate) > 0.001) { if (target.dataset.vscDrm !== "1") { try { target.playbackRate = rate; } catch (_) {} } } }
+        if (Store.get(P.PB_EN)) {
+          const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
+          if (Math.abs(target.playbackRate - rate) > 0.001) {
+            if (target.dataset.vscDrm !== "1" && target.dataset.vscPbFail !== "1") {
+              try {
+                target.playbackRate = rate;
+              } catch (_) {
+                target.dataset.vscPbFail = "1";
+              }
+            }
+          }
+        }
       } else {
         if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) {
           try { prevTarget.playbackRate = 1.0; } catch (_) {}
