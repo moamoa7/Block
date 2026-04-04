@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.6.0)
+// @name         Video_Control (v31.6.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.6.0
-// @description  v31.6.0: 콘트라스트 암부 보호(Shadow Guard) — 중간톤 이하 디테일 보존
+// @version      31.6.1
+// @description  v31.6.1: 콘트라스트 시소 축 변경
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.6.0';
+  const VSC_VERSION = '31.6.1';
   const DEBUG = false;
 
   const log = {
@@ -110,15 +110,15 @@
   const MANUAL_PRESETS = [
     { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
 
-    { n: '선명', v: [0, 0, 6, 0, 0, -4, -8, 10, 4] },  // 게인 6→4, 감마 -10→-8
+    { n: '보정', v: [0, 0, 12, 0, 0, -1, -3, 4, 6] },
 
-    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 12, 10] },  // 게인 14→10
+    { n: '선명', v: [0, 0, 6, 0, 0, -4, -8, 10, 6] },
+
+    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 12, 10] },
 
     { n: '애니', v: [0, 0, 6, 0, 0, 4, -6, 8, 4] },
 
-    { n: '복원1', v: [0, 0, 10, 0, 0, 0, -3, 0, 5] },
-
-    { n: '복원2', v: [0, 0, 21, 0, 0, 0, -6, 0, 12] },
+    { n: '복원', v: [0, 0, 25, 0, 0, -4, -6, 7, 15] },
 
   ];
 
@@ -903,10 +903,14 @@
         const x0 = i / (steps - 1);
         let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
 
-        /* Shadow Guard: 0~0.20 구간에서 콘트라스트 강도를 0→1로 선형 증가 */
         const shadowGuard = x0 < 0.20 ? x0 / 0.20 : 1.0;
         const localContrast = 1 + (contrast - 1) * shadowGuard;
-        const intercept = 0.5 * (1 - localContrast);
+
+        // --- 수정된 부분 ---
+        const pivot = 0.45; // 0.35 ~ 0.40 사이에서 입맛에 맞게 조절하세요
+        const intercept = pivot * (1 - localContrast);
+        // -------------------
+
         x = x * localContrast + intercept;
         x = CLAMP(x, 0, 1);
 
