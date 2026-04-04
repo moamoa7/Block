@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v32.2.0)
+// @name         Video_Control (v31.6.0)
 // @namespace    https://github.com/moamoa7
-// @version      32.2.0
-// @description  v32.2.0: linearRGB 파이프라인 + 선형 gain + 샤프닝·채도 sRGB 분리 + 프리셋 조정
+// @version      31.6.0
+// @description  v31.6.0: 콘트라스트 암부 보호(Shadow Guard) — 중간톤 이하 디테일 보존
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '32.2.0';
+  const VSC_VERSION = '31.6.0';
   const DEBUG = false;
 
   const log = {
@@ -50,14 +50,6 @@
   }
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
-
-  /* ① sRGB ↔ Linear 변환 (IEC 61966-2-1) */
-  function toLinear(v) {
-    return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
-  }
-  function toPerceptual(v) {
-    return v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1.0 / 2.4) - 0.055;
-  }
 
   function getSharpProfile(nW) {
     if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.12 };
@@ -113,14 +105,21 @@
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-  /* ⑧ 프리셋 값 조정 — linearRGB 체감에 맞춰 밝기 과다 보정 */
+  /* v31.6.0: 프리셋 값 재조정 — Shadow Guard 적용으로 콘트라스트가 암부를 덜 누르므로,
+     기존 대비 콘트라스트를 약간 올리고 보상용 암부/감마를 소폭 조정 */
   const MANUAL_PRESETS = [
     { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-    { n: '화사', v: [0, 0, 3, 0, 0, -4, -6, 12, 3] },
-    { n: '영화', v: [0, 0, 3, 0, 0, -8, -4, 14, 8] },
-    { n: '애니', v: [0, 0, 3, 0, 0, 4, -3, 10, 2] },
-    { n: '복원1', v: [0, 0, 14, 0, 0, -7, 7, 0, 14] },
-    { n: '복원2', v: [0, 0, 12, 0, 0, -10, 0, 0, 12] },
+
+    { n: '선명', v: [0, 0, 6, 0, 0, -4, -8, 10, 4] },  // 게인 6→4, 감마 -10→-8
+
+    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 12, 10] },  // 게인 14→10
+
+    { n: '애니', v: [0, 0, 6, 0, 0, 4, -6, 8, 4] },
+
+    { n: '복원1', v: [0, 0, 10, 0, 0, 0, -3, 0, 5] },
+
+    { n: '복원2', v: [0, 0, 21, 0, 0, 0, -6, 0, 12] },
+
   ];
 
   const DEFAULTS = {
@@ -885,64 +884,55 @@
     const appliedFilter = new WeakMap();
     const TONE_CACHE_MAX = 32;
 
-    /* ② getToneTable 재작성 — linearRGB + 선형 gain + perceptual 보정
-       입력/출력 모두 linear 값 (0~1). gain은 linear에서 곱셈,
-       contrast/toe/mid/shoulder/gamma는 perceptual에서 수행 후 linear 복귀.
-       shadowGuard 없음 — 전역 콘트라스트 적용. */
+    /* v31.6.0 PATCH: Shadow Guard 콘트라스트 —
+       저휘도 영역(x0 < 0.20)에서 콘트라스트 강도를 선형 감쇠하여 암부 디테일 보존.
+       x0 >= 0.20 이상에서는 기존과 100% 동일한 동작. */
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
-      const key = `${steps}|${Math.round(gain*1e4)}|${Math.round(contrast*1e4)}|${Math.round(gamma*1e4)}|t${Math.round(toe*1e4)}|m${Math.round(mid*1e4)}|s${Math.round(shoulder*1e4)}`;
+      const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) return toneCache.get(key);
+
+      const ev = Math.log2(Math.max(1e-6, gain));
+      const g = ev * 0.90;
+      const useFilmicCurve = Math.abs(g) > 0.01;
+      const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
 
       const out = new Array(steps);
       let prev = 0;
 
       for (let i = 0; i < steps; i++) {
-        const x0lin = i / (steps - 1);
+        const x0 = i / (steps - 1);
+        let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
 
-        /* gain: linear 공간에서 곱셈 → R:G:B 비율 수학적 보존 */
-        let vLin = CLAMP(x0lin * gain, 0, 1);
+        /* Shadow Guard: 0~0.20 구간에서 콘트라스트 강도를 0→1로 선형 증가 */
+        const shadowGuard = x0 < 0.20 ? x0 / 0.20 : 1.0;
+        const localContrast = 1 + (contrast - 1) * shadowGuard;
+        const intercept = 0.5 * (1 - localContrast);
+        x = x * localContrast + intercept;
+        x = CLAMP(x, 0, 1);
 
-        /* perceptual 공간으로 변환하여 예술적 보정 수행 */
-        const x0p = toPerceptual(x0lin);   /* 원본 위치 (보정 기준) */
-        let vP = toPerceptual(vLin);        /* gain 적용된 값 */
-
-        /* 콘트라스트: 전역 동일 적용 (shadowGuard 없음) */
-        const intercept = 0.5 * (1 - contrast);
-        vP = CLAMP(vP * contrast + intercept, 0, 1);
-
-        /* toe (암부 부스트) */
-        if (toe > 0.001 && x0p < 0.40) {
-          const t = x0p / 0.40;
-          vP = vP + toe * (1 - t) * (t * t) * (1 - vP);
+        if (toe > 0.001 && x0 < 0.40) {
+          const t = x0 / 0.40;
+          x = x + toe * (1 - t) * (t * t) * (1 - x);
         }
 
-        /* mid (디테일 복원) */
         if (mid > 0.001) {
           const mc = 0.45, sig = 0.18;
-          const mw = Math.exp(-((x0p - mc) ** 2) / (2 * sig * sig));
-          const delta = (x0p - mc) * mid * mw * 1.5;
+          const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
+          const delta = (x0 - mc) * mid * mw * 1.5;
           const appliedDelta = delta > 0 ? delta : delta * 0.15;
-          vP = CLAMP(vP + appliedDelta, 0, 1);
+          x = CLAMP(x + appliedDelta, 0, 1);
         }
 
-        /* shoulder (노출 보정) */
         if (shoulder > 0.001) {
-          const hw = x0p > 0.4 ? (x0p - 0.4) / 0.6 : 0;
-          vP = CLAMP(vP + shoulder * 0.6 * x0p + shoulder * hw * hw * 0.5 * (1 - vP), 0, 1);
+          const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0;
+          x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1);
         }
 
-        /* gamma */
-        if (Math.abs(gamma - 1) > 0.001) vP = Math.pow(vP, gamma);
+        if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
 
-        vP = CLAMP(vP, 0, 1);
-
-        /* linear로 복귀 — 테이블 출력은 linear */
-        let vOut = toLinear(vP);
-
-        /* 단조 증가 보장 */
-        if (vOut < prev) vOut = prev;
-        prev = vOut;
-        out[i] = vOut.toFixed(5);
+        if (x < prev) x = prev;
+        prev = x;
+        out[i] = (x).toFixed(4);
       }
 
       const res = out.join(' ');
@@ -972,17 +962,11 @@
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
-
-      /* ③ linearRGB — 톤 커브와 색온도가 물리적 선형 광에서 동작 */
-      const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'linearRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-
+      const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
       const toneResult = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' });
       const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
-
-      /* ④⑤ 샤프닝·채도는 sRGB에서 수행 — 기존 perceptual 느낌 유지 */
-      const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv', 'color-interpolation-filters': 'sRGB' });
-      const fSat = h('feColorMatrix', { ns: 'svg', in: 'conv', type: 'saturate', values: '1.0', result: 'final', 'color-interpolation-filters': 'sRGB' });
-
+      const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
+      const fSat = h('feColorMatrix', { ns: 'svg', in: 'conv', type: 'saturate', values: '1.0', result: 'final' });
       filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
@@ -1033,8 +1017,7 @@
 
       if (video) appliedFilter.delete(video);
 
-      /* ② 512 해상도 + linearRGB 톤 테이블 */
-      const toneTable = getToneTable(512, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
+      const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) {
         st.toneKey = toneTable;
         for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
@@ -1148,16 +1131,9 @@
         const mGamma = CLAMP(Number(Store.get(P.V_MAN_GAMMA) ?? 0), -30, 30);
         const mCon = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
-
-        /* ⑥⑦ linearRGB 체감에 맞춘 계수 */
-        out.toe = mShad * 0.0032;          /* 0.0040 → 0.0032 (−20%) */
-        out.mid = mRec * 0.0028;           /* 0.0035 → 0.0028 (−20%) */
-        out.shoulder = mBrt * 0.0036;      /* 0.0045 → 0.0036 (−20%) */
+        out.toe = mShad * 0.0040; out.mid = mRec * 0.0035; out.shoulder = mBrt * 0.0045;
         out.temp = mTemp; out.tint = mTint;
-        out.gamma = 1 + mGamma * (-0.006); /* −0.008 → −0.006 (−25%) */
-        out.contrast = 1 + mCon * 0.006;   /* 0.008 → 0.006 (−25%) */
-        out.gain = Math.pow(2, mGain * 0.02); /* 0.03 → 0.02 (−33%) */
-
+        out.gamma = 1 + mGamma * (-0.008); out.contrast = 1 + mCon * 0.008; out.gain = Math.pow(2, mGain * 0.03);
         out._needsSvg = checkNeedsSvg(out);
         if (out._needsSvg) { out._cssBr = 1.0; out._cssCt = 1.0; }
         else { out._cssBr = 1 + (mBrt * 0.003); out._cssCt = 1 + (mRec * 0.003); }
