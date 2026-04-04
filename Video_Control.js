@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.6.5)
+// @name         Video_Control (v31.6.6)
 // @namespace    https://github.com/moamoa7
-// @version      31.6.5
-// @description  v31.6.5: fadeOut 경합 수정, DRM playbackRate 레이스 해소, body-null 안전장치, enqueue 최적화, FS shadow mount 보정
+// @version      31.6.6
+// @description  v31.6.6: SVG 디더 노이즈 도입 (밴딩 완화)
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.6.5';
+  const VSC_VERSION = '31.6.6';
   const DEBUG = false;
 
   const log = {
@@ -203,7 +203,7 @@
   }
 
   const SVG_NS = 'http://www.w3.org/2000/svg';
-  const SVG_TAGS = new Set(['svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA','feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode','feComposite','feBlend','g','path','circle','rect','line','text','polyline','polygon']);
+  const SVG_TAGS = new Set(['svg','defs','filter','feComponentTransfer','feFuncR','feFuncG','feFuncB','feFuncA','feConvolveMatrix','feColorMatrix','feGaussianBlur','feMerge','feMergeNode','feComposite','feBlend','feTurbulence','g','path','circle','rect','line','text','polyline','polygon']);
 
   function h(tag, props = {}, ...children) {
     const isSvg = props.ns === 'svg' || SVG_TAGS.has(tag);
@@ -406,7 +406,6 @@
       enqueue(root);
     }
 
-    /* #2 fix: document-start에서 body가 아직 없으면 body 생성 시 재연결 */
     const root = document.body || document.documentElement;
     if (root) { connectObserver(root); }
     if (!document.body && document.documentElement) {
@@ -758,14 +757,12 @@
       return true;
     }
 
-    /* #5 fix: generation 불일치 시 gain 복원을 새 generation에 위임 */
     function fadeOutThen(gen, fn, cleanupFn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} else if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
         if (gen !== generation) {
           if (cleanupFn) try { cleanupFn(); } catch (_) {}
-          /* gain 복원하지 않음 — 현재 활성 generation이 관리 */
           return;
         }
         try { fn(); } catch (_) {}
@@ -970,16 +967,41 @@
       return { el: xfer, refs };
     }
 
+    /* v31.6.6: 디더 노이즈 주입 — 톤커브 전에 ±1LSB 노이즈를 추가하여 밴딩 완화 */
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
-      const toneResult = mkXfer({ in: 'SourceGraphic', result: 'tone' }, { type: 'table', tableValues: '0 1' });
+
+      /* ── 디더 노이즈 (3 primitives, GPU-only) ── */
+      const feTurb = h('feTurbulence', { ns: 'svg',
+        type: 'fractalNoise',
+        baseFrequency: '0.75',
+        numOctaves: '1',
+        seed: String(Math.trunc(Math.random() * 1000)),
+        result: 'rawNoise'
+      });
+      const feGrayNoise = h('feColorMatrix', { ns: 'svg',
+        type: 'saturate', values: '0',
+        in: 'rawNoise', result: 'monoNoise'
+      });
+      const feAddNoise = h('feComposite', { ns: 'svg',
+        operator: 'arithmetic',
+        k1: '0', k2: '1', k3: '0.008', k4: '-0.004',
+        in: 'SourceGraphic', in2: 'monoNoise',
+        result: 'dithered'
+      });
+      /* ── 디더 노이즈 끝 ── */
+
+      const toneResult = mkXfer({ in: 'dithered', result: 'tone' }, { type: 'table', tableValues: '0 1' });
       const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
       const fConv = h('feConvolveMatrix', { ns: 'svg', in: 'tmp', order: '3', kernelMatrix: '0,0,0, 0,1,0, 0,0,0', divisor: '1', bias: '0', targetX: '1', targetY: '1', edgeMode: 'duplicate', preserveAlpha: 'true', result: 'conv' });
       const fSat = h('feColorMatrix', { ns: 'svg', in: 'conv', type: 'saturate', values: '1.0', result: 'final' });
-      filter.append(toneResult.el, tempResult.el, fConv, fSat); defs.append(filter);
+
+      filter.append(feTurb, feGrayNoise, feAddNoise, toneResult.el, tempResult.el, fConv, fSat);
+      defs.append(filter);
+
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
       return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1 } };
@@ -1253,7 +1275,6 @@
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
-    /* #14 fix: fullscreen shadow host인 경우 documentElement에 마운트 */
     function getMountTarget() {
       const fs = document.fullscreenElement || document.webkitFullscreenElement;
       if (fs) {
@@ -1599,7 +1620,6 @@
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
 
-    /* #1 fix: playbackRate DRM 레이스 해소 — retry 1회 허용, readyState 기반 DRM 신뢰 */
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
@@ -1622,7 +1642,6 @@
           const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
           if (Math.abs(target.playbackRate - rate) > 0.001) {
             if (target.dataset.vscPbFail !== "1") {
-              /* DRM 플래그는 메타데이터 로드 후에만 신뢰 */
               if (!(target.dataset.vscDrm === "1" && target.readyState >= 1)) {
                 try {
                   target.playbackRate = rate;
