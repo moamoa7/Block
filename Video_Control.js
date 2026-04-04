@@ -84,7 +84,7 @@
     for (const evt of _SHIELD_EVENTS) {
       hostEl.addEventListener(evt, (e) => {
         e.stopPropagation();
-      }, { capture: false, passive: false });
+       }, { capture: false, passive: true });
     }
   }
 
@@ -323,7 +323,7 @@
       const onResize = req;
       const onLoadstart = () => {
         cancelRVFC();
-        delete el.dataset.vscDrm; delete el.dataset.vscPbFail; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail; delete el.dataset.vscCorsRetry; delete el.dataset.vscCorsLastTry;
+        delete el.dataset.vscDrm; delete el.dataset.vscPbFail; delete el.dataset.vscCorsFail; delete el.dataset.vscAudioCorsFail; delete el.dataset.vscPermBypass; delete el.dataset.vscMesFail;
         if (_onLoadstartCallback) try { _onLoadstartCallback(el); } catch (_) {}
         req();
       };
@@ -1481,7 +1481,7 @@
       playback: [
         { type: 'toggle', label: '속도 제어', path: P.PB_EN },
         { type: 'widget', build: buildRateDisplay },
-        { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.set(P.PB_RATE, v); Store.set(P.PB_EN, true); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
+        { type: 'chips', path: P.PB_RATE, onSelect: v => { Store.batch('playback', { rate: v, enabled: true }); }, items: [0.25,0.5,1.0,1.25,1.5,2.0,3.0,5.0].map(p => ({ v: p, l: `${p}×` })) },
         { type: 'fineButtons', path: P.PB_RATE, steps: [-0.25,-0.05,0.05,0.25], min: 0.07, max: 5 },
         { type: 'slider', label: '속도 슬라이더', path: P.PB_RATE, min: 0.07, max: 5, step: 0.01, onChange: () => Store.set(P.PB_EN, true) },
       ]
