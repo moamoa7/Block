@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Video Tools
 // @namespace    https://github.com/moamoa7
-// @version      4.0.0
+// @version      4.0.1
 // @description  영상의 노란끼 감지 + 비디오 최대화 + 항상 보이는 시계
 // @match        *://*/*
 // @grant        none
@@ -26,7 +26,6 @@
 
   let timerID = null, clockTimer = null, liveVideo = null, shadowVid = null;
   let history = [], panel = null, fab = null, maxFab = null, fabStyle = null, panelStyle = null;
-  // [REMOVED: Zoomer] zoomFab 제거
   let panelOpen = false, lastStatus = 'idle';
   let coreStyle = null;
 
@@ -149,7 +148,11 @@
       let r = 0, g = 0, b = 0, n = px.length / 4;
       for (let i = 0; i < px.length; i += 4) { r += px[i]; g += px[i+1]; b += px[i+2]; }
       r /= n; g /= n; b /= n;
-      return { ok: true, r, g, b, score: (r - b) + (g - b) * 0.5 };
+      /* #16: 저휘도 장면 false-positive 억제 — 밝기 40 이하에서 score 선형 감쇠 */
+      const rawScore = (r - b) + (g - b) * 0.5;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      const score = rawScore * (lum < 40 ? lum / 40 : 1);
+      return { ok: true, r, g, b, score };
     } catch (e) { resetCanvas(); return { ok: false, error: e.name + ': ' + e.message }; }
   }
 
@@ -192,11 +195,9 @@
     if (show) {
       if (fab.style.display === 'none') fab.style.display = '';
       if (maxFab && maxFab.style.display === 'none') maxFab.style.display = '';
-      // [REMOVED: Zoomer] zoomFab visibility 제거
     } else {
       if (fab.style.display !== 'none') fab.style.display = 'none';
       if (maxFab && maxFab.style.display !== 'none') maxFab.style.display = 'none';
-      // [REMOVED: Zoomer] zoomFab visibility 제거
       if (panelOpen) togglePanel(false);
     }
   }
@@ -210,7 +211,6 @@
     const target = getFsRoot();
     if (fab && fab.parentNode !== target) try { target.appendChild(fab); } catch (_) {}
     if (maxFab && maxFab.parentNode !== target) try { target.appendChild(maxFab); } catch (_) {}
-    // [REMOVED: Zoomer] zoomFab reparent 제거
     if (panel && panelOpen && panel.parentNode !== target) try { target.appendChild(panel); } catch (_) {}
   }
   function onFsChange() {
@@ -219,7 +219,6 @@
     setTimeout(() => {
       if (fab && !fab.isConnected) document.documentElement.appendChild(fab);
       if (maxFab && !maxFab.isConnected) document.documentElement.appendChild(maxFab);
-      // [REMOVED: Zoomer] zoomFab 고아 방지 제거
     }, 300);
   }
 
@@ -229,7 +228,8 @@
 
   function tick() {
     if (!liveVideo || !liveVideo.isConnected) {
-      liveVideo = null; killShadow(); shadowRetries = 0; scheduleDetect(); return;
+      /* #1: stopAnalysis()로 timerID를 정리하여 좀비 polling 방지 */
+      liveVideo = null; stopAnalysis(); scheduleDetect(); return;
     }
     let res = sampleRGB(liveVideo);
     if (!res.ok) {
@@ -316,7 +316,8 @@
   }
   function stopAnalysis() {
     if (timerID) { clearInterval(timerID); timerID = null; }
-    killShadow(); if (panelOpen) setStatus('대기', false);
+    /* #8: shadowRetries 잔류 방지 */
+    killShadow(); shadowRetries = 0; if (panelOpen) setStatus('대기', false);
     updateFabState('idle', 0);
   }
 
@@ -324,7 +325,8 @@
     const sel = q('ytd-sel');
     const videos = getAllVideos();
     if (sel) {
-      sel.innerHTML = safeHTML('');
+      /* #12: Trusted Types 불필요 — textContent로 안전하게 초기화 */
+      sel.textContent = '';
       if (!videos.length) {
         sel.innerHTML = safeHTML('<option>영상 없음</option>');
         stopAnalysis();
@@ -432,6 +434,8 @@
         if (sib === el || sib.nodeType !== 1) continue;
         if (sib.tagName === 'SCRIPT' || sib.tagName === 'LINK' || sib.tagName === 'STYLE') continue;
         if (sib.id === '__ytd2__' || sib.id === 'ytd-osd' || sib.classList.contains('ytd-fab')) continue;
+        /* #3: FAB/패널 요소를 직접 참조로 제외하여 Maximizer와 FAB 충돌 방지 */
+        if (sib === fab || sib === maxFab || sib === panel) continue;
         sib.classList.add(HIDE_CLASS);
         hiddenSiblings.push({ el: sib });
       }
@@ -667,10 +671,6 @@
   })();
 
 
-  // [REMOVED: Zoomer] — 전체 Zoomer 모듈 제거됨
-  // 줌 기능은 HTML5视频手势 스크립트에 위임
-
-
   /* ── FAB 빌드 (2개: Max, Main) ─────────────────────────── */
   function buildFab() {
     if (fab) return;
@@ -757,8 +757,6 @@
     maxIconWrap.appendChild(maxSvg);
     maxFab.appendChild(maxIconWrap);
 
-    // [REMOVED: Zoomer] zoomFab 생성 코드 전체 제거
-
     // DOM에 2개의 FAB 추가
     document.documentElement.appendChild(maxFab);
     document.documentElement.appendChild(fab);
@@ -791,7 +789,6 @@
     const fabActions = new Map([
       [fab,     () => togglePanel()],
       [maxFab,  () => Maximizer.toggle()],
-      // [REMOVED: Zoomer] zoomFab 항목 제거
     ]);
 
     for (const [btn, action] of fabActions) {
@@ -811,7 +808,6 @@
   /* ── 패널 빌드 ────────────────────────── */
   function buildPanel() {
     const el = document.createElement('div'); el.id = '__ytd2__';
-    // [REMOVED: Zoomer] 패널에서 줌 버튼 제거
     el.innerHTML = safeHTML(`
       <div id="ytd-hdr">
         <span>🔍 Tint Detector</span>
@@ -876,7 +872,6 @@
   function bindPanelEvents() {
     q('ytd-sel').addEventListener('change', () => { const videos = getAllVideos(); const v = videos[+q('ytd-sel').value]; if (v) startAnalysis(v); });
 
-    // [REMOVED: Zoomer] ytd-zoom 이벤트 바인딩 제거
     q('ytd-maximize').addEventListener('click', () => Maximizer.toggle());
     q('ytd-refresh').addEventListener('click', refreshVideoList);
     q('ytd-close').addEventListener('click', () => togglePanel(false));
