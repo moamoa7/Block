@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.1.2
+// @version      16.1.3
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -29,9 +29,10 @@
    *  §1. 플랫폼 감지 · 상수
    * ================================================================ */
 
+  const FALLBACK_VER = '16.1.3';
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
-    ? GM_info?.script?.version ?? '16.1.2'
-    : '16.1.2';
+    ? GM_info?.script?.version ?? FALLBACK_VER
+    : FALLBACK_VER;
 
   const HOST = location.hostname.replace(/^www\./, '');
   const PLATFORM = (() => {
@@ -82,13 +83,12 @@
   const BUF_WINDOW = 5;
   const _bufRing = new Float64Array(BUF_WINDOW).fill(-1);
   const _bufSort = new Float64Array(BUF_WINDOW);
-  let _bufIdx = 0, _bufCount = 0;
+  let _bufIdx = 0;
 
   const pushBuf = raw => {
     if (raw < 0) return;
     _bufRing[_bufIdx] = raw;
     _bufIdx = (_bufIdx + 1) % BUF_WINDOW;
-    if (_bufCount < BUF_WINDOW) _bufCount++;
   };
 
   const getSmoothedBuf = raw => {
@@ -111,7 +111,6 @@
   const resetBufRing = () => {
     _bufRing.fill(-1);
     _bufIdx = 0;
-    _bufCount = 0;
   };
 
   let _colorKey = -1, _colorVal = '', _colorDenomCached = -1;
@@ -439,8 +438,12 @@
   const stopObserver = () => { if (mo) { mo.disconnect(); mo = null; } };
 
   const resetControlState = vid => {
-    resetRate(vid);
-    control.lastGearChange = -GEAR_HOLD_MS;
+    if (vid?.isConnected) {
+      resetRate(vid);
+    } else {
+      control.gear = R_NORM;
+      control.lastGearChange = -GEAR_HOLD_MS;
+    }
     control.warmupEnd = performance.now() + WARMUP_MS;
     control.lastStallTime = 0;
     live.isCurrent = false;
@@ -520,12 +523,11 @@
    *  §7. 제어 엔진
    * ================================================================
    *
-   *  v16.1.2 변경:
-   *  ─ 데드존 내부 분기 순서 수정.
-   *    ex < -_hyst (버퍼 부족) 판정 후, HIGH 기어 점진 감속 분기를
-   *    NORM 복귀 분기보다 앞에 배치하여 HIGH→MED→NORM 단계적 감속이
-   *    정상 동작하도록 수정. 이전 버전에서는 HIGH 상태에서 데드존 진입 시
-   *    MED를 경유하지 않고 NORM으로 즉시 점프하는 버그가 있었음.
+   *  v16.1.3 변경:
+   *  ─ 데드존 내부 MED→NORM 복귀 조건을 ex < _hyst*0.5 에서 ex < 0 으로
+   *    변경하여, 버퍼가 목표 이하로 떨어지면 즉시 NORM 복귀하도록 수정.
+   *    기존에는 _hyst가 0.3s일 때 0.15s 폭의 극소 구간에서만 복귀 가능하여
+   *    MED 기어가 불필요하게 오래 유지되는 문제가 있었음.
    */
 
   const computeDesiredGear = buf => {
@@ -545,9 +547,8 @@
      *  HIGH 기어에서는 MED로 한 단계 감속 (점진적 감속 보장) */
     if (control.gear === R_HIGH) return R_MED;
 
-    /* 데드존 하한 근처이면 NORM 복귀
-     *  MED였다가 버퍼가 줄어 데드존에 진입한 경우의 복귀 경로 */
-    if (ex < _hyst * 0.5) return R_NORM;
+    /* 버퍼가 목표 이하이면 NORM 복귀 */
+    if (ex < 0) return R_NORM;
 
     /* 그 외: 현재 기어 유지 (NORM이면 NORM, MED이면 MED) */
     return control.gear;
@@ -572,6 +573,7 @@
 
   const scheduleRender = () => {
     if (pendingRender) return;
+    if (!live.isCurrent && !getVid()) return;
     pendingRender = true;
     requestAnimationFrame(() => { pendingRender = false; Renderer.update(lastBuf, getVid(), lastTickStall, lastTickGuard, lastTickRerun); });
   };
