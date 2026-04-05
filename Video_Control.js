@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.7.2-FIXED)
+// @name         Video_Control (v31.7.4)
 // @namespace    https://github.com/moamoa7
-// @version      31.7.3
-// @description  v31.7.3: 노출/감마/콘트라스트 배수 조정으로 과도한 변화 개선
+// @version      31.7.4
+// @description  v31.7.4: 샤프닝 강도 재수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.7.3';
+  const VSC_VERSION = '31.7.4';
   const DEBUG = false;
 
   const log = {
@@ -51,13 +51,17 @@
   const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
-  function getSharpProfile(nW) {
-    if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.12 };
-    if (nW > 1920) return { cap: 0.22, diagRatio: 0.65, autoBase: 0.10 };
-    const autoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : 0.12;
-    return { cap: 0.18, diagRatio: 0.707, autoBase };
-  }
-  const SHARP_CAP_DEFAULT = 0.18;
+  // (1) getSharpProfile - autoBase 하향 & cap 하향
+function getSharpProfile(nW) {
+    if (nW > 2560) return { cap: 0.20, diagRatio: 0.60, autoBase: 0.12 };  // cap 0.25→0.20
+    if (nW > 1920) return { cap: 0.18, diagRatio: 0.65, autoBase: 0.10 };  // cap 0.22→0.18
+    const autoBase = nW <= 640 ? 0.14    // 0.18→0.14
+                   : nW <= 960 ? 0.12    // 0.14→0.12
+                   : nW <= 1280 ? 0.12   // 0.13→0.12 (통일)
+                   : 0.12;
+    return { cap: 0.16, diagRatio: 0.707, autoBase };  // cap 0.18→0.16
+}
+  const SHARP_CAP_DEFAULT = 0.16;
 
   function onFsChange(fn) {
     document.addEventListener('fullscreenchange', fn);
@@ -101,8 +105,8 @@
       off:  { label: 'AUTO' },
       S:    { sharpAdd: 4,  sharp2Add: 2,  clarityAdd: 2,  label: '1단' },
       M:    { sharpAdd: 7,  sharp2Add: 4,  clarityAdd: 4,  label: '2단' },
-      L:    { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 5,  label: '3단' },
-      XL:   { sharpAdd: 12, sharp2Add: 6,  clarityAdd: 5,  label: '4단' }
+      L:  { sharpAdd: 8,  sharp2Add: 4,  clarityAdd: 4,  label: '3단' },  // 10→8
+      XL: { sharpAdd: 10, sharp2Add: 5,  clarityAdd: 4,  label: '4단' },  // 12→10, 5→4
     }
   });
   const _PRESET_SHARP_LUT = {};
@@ -861,7 +865,7 @@
         out._sharpCap = sharpProfile.cap; out._diagRatio = sharpProfile.diagRatio;
 
         if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
-        else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
+        else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.25); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
         out.sharp = CLAMP(out.sharp, 0, sharpProfile.cap);
 
         const mShad = CLAMP(Number(Store.get(P.V_MAN_SHAD) ?? 0), 0, 100);
