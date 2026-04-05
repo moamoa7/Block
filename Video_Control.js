@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.7.2)
+// @name         Video_Control (v31.7.2-FIXED)
 // @namespace    https://github.com/moamoa7
-// @version      31.7.2
-// @description  v31.7.2: 프리 게인 CSS brightness 방식으로 전환, 밝은 영상 호환
+// @version      31.7.3
+// @description  v31.7.3: 노출/감마/콘트라스트 배수 조정으로 과도한 변화 개선
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.7.2';  // ★ 버전 업
+  const VSC_VERSION = '31.7.3';
   const DEBUG = false;
 
   const log = {
@@ -64,7 +64,6 @@
     document.addEventListener('webkitfullscreenchange', fn);
   }
 
-  // ★ checkNeedsSvg: _brSlope 제거 — 프리 게인은 CSS로 처리하므로 SVG 판단에서 제외
   function checkNeedsSvg(s) {
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
     const hasTone = (
@@ -75,7 +74,6 @@
       Math.abs((s.gamma    || 1) - 1) > 0.005 ||
       Math.abs((s.contrast || 1) - 1) > 0.005
     );
-    // ★ hasPreGain 제거됨 — 프리 게인은 CSS brightness로 처리
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
@@ -155,7 +153,6 @@
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
-  // ★ MANUAL_PATHS/KEYS: preGain 제외 — 프리셋과 독립
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
@@ -724,14 +721,12 @@
       return { el: xfer, refs };
     }
 
-    // ★ buildSvg: 프리 게인(preGain) SVG 노드 제거 — CSS brightness로 처리
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
 
-      // ★ preGain feComponentTransfer 제거됨 — SourceGraphic 바로 사용
       const feTurb = h('feTurbulence', { ns: 'svg', type: 'fractalNoise', baseFrequency: '0.75', numOctaves: '1', seed: String(Math.trunc(Math.random() * 1000)), result: 'rawNoise' });
       const feGrayNoise = h('feColorMatrix', { ns: 'svg', type: 'saturate', values: '0', in: 'rawNoise', result: 'monoNoise' });
       const feAddNoise = h('feComposite', { ns: 'svg', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.008', k4: '-0.004', in: 'SourceGraphic', in2: 'monoNoise', result: 'dithered' });
@@ -760,19 +755,16 @@
       if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); try { const videos = root.querySelectorAll?.('video') || []; for (const v of videos) appliedFilter.delete(v); } catch (_) {} }
     }
 
-    // ★ prepare: 프리 게인을 CSS brightness로 SVG 필터와 체이닝
     function prepare(video, s) {
       const rn = video?.getRootNode?.();
       const root = (rn instanceof ShadowRoot) ? rn : (video?.ownerDocument || document);
 
-      // ★ 프리 게인 CSS brightness 문자열 생성
       const preGainSlope = s._preGain || 1;
       const preGainCss = (Math.abs(preGainSlope - 1) > 0.001) ? `brightness(${preGainSlope.toFixed(3)})` : '';
 
       if (!s._needsSvg) {
         if (video && ctxMap.has(root)) purge(root);
         const parts = [];
-        // ★ 프리 게인을 CSS brightness로 맨 앞에 추가
         if (preGainCss) parts.push(preGainCss);
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
@@ -799,13 +791,10 @@
       if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
           st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
           st._h9 === h9 && st._h10 === h10 && st._h11 === h11) {
-        // ★ SVG 필터 앞에 프리 게인 CSS brightness 체이닝
         return preGainCss ? `${preGainCss} url(#${ctx.fid})` : `url(#${ctx.fid})`;
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
-
-      // ★ pgFuncR/G/B 관련 코드 제거됨
 
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
@@ -826,7 +815,6 @@
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
       if (st.satKey !== satVal) { st.satKey = satVal; ctx.fSat.setAttribute('values', satVal); }
 
-      // ★ SVG 필터 앞에 프리 게인 CSS brightness 체이닝
       return preGainCss ? `${preGainCss} url(#${ctx.fid})` : `url(#${ctx.fid})`;
     }
 
@@ -838,7 +826,7 @@
     };
   }
 
-  // ★ createVideoParams: _preGain을 CSS brightness 비율로 저장 (SVG _brSlope 제거)
+  // ⭐ 수정 부분 1: createVideoParams에서 배수 조정
   function createVideoParams(Store) {
     const cache = new WeakMap();
     function computeSharpMul(video) {
@@ -860,7 +848,6 @@
         const dH = video ? (video.clientHeight || 0) : 0;
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
-        // ★ _brSlope 제거, _preGain 추가
         const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false, _sharpCap: SHARP_CAP_DEFAULT, _diagRatio: 0.707, _preGain: 1 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
@@ -884,15 +871,20 @@
         const mGain = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
         const mPreGain = CLAMP(Number(Store.get(P.V_MAN_PREGAIN) ?? 100), 10, 200);
 
-        out.toe = mShad * 0.0040; out.mid = mRec * 0.0035; out.shoulder = mBrt * 0.0045;
-        out.temp = mTemp; out.tint = mTint;
-        out.gamma = 1 + mGamma * (-0.008); out.contrast = 1 + mCon * 0.008; out.gain = Math.pow(2, mGain * 0.03);
-        // ★ CSS brightness 비율로 저장
+        // ⭐ 배수 조정: 원래의 약 1/3로 축소
+        out.toe = mShad * 0.0013;        // 0.0040 → 0.0013
+        out.mid = mRec * 0.0012;         // 0.0035 → 0.0012
+        out.shoulder = mBrt * 0.0015;    // 0.0045 → 0.0015
+        out.temp = mTemp;
+        out.tint = mTint;
+        out.gamma = 1 + mGamma * (-0.0027);  // -0.008 → -0.0027
+        out.contrast = 1 + mCon * 0.0027;     // 0.008 → 0.0027
+        out.gain = Math.pow(2, mGain * 0.03);
         out._preGain = mPreGain / 100;
 
         out._needsSvg = checkNeedsSvg(out);
         if (out._needsSvg) { out._cssBr = 1.0; out._cssCt = 1.0; }
-        else { out._cssBr = 1 + (mBrt * 0.003); out._cssCt = 1 + (mRec * 0.003); }
+        else { out._cssBr = 1 + (mBrt * 0.001); out._cssCt = 1 + (mRec * 0.001); }
         out._cssSat = CLAMP(1 + mSat * 0.012, 0.4, 1.8);
         if (video && nW >= 16) cache.set(video, { rev: storeRev, nW, dW, dH, dpr, out });
         return out;
@@ -1045,6 +1037,7 @@
       tabFns.push(sync); sync(); return el;
     }
 
+    // ⭐ 수정 부분 2: mkSliderWithFine에서 step: 0.5로 변경
     function mkSliderWithFine(label, path, min, max, step, fineStep) {
       const [slider, valEl] = mkSlider(path, min, max, step);
       const mkFine = (d, t) => { const b = h('button', { class: 'fine-btn', style: 'font-size:11px' }, t); b.addEventListener('click', () => { Store.set(path, CLAMP(Math.round((Number(Store.get(path) || 0) + d) * 100) / 100, min, max)); }); return b; };
@@ -1068,7 +1061,7 @@
       return row;
     }
 
-      function buildPreGainButtons() {
+    function buildPreGainButtons() {
       const wrap = h('div', {});
       const headerRow = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0 2px' });
       const label = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '프리 게인');
@@ -1185,12 +1178,14 @@
         { type: 'widget', build: buildPreGainButtons },
         { type: 'sep' },
         { type: 'sectionLabel', text: '수동 조정' },
-        { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 1 },
-        { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 1, fine: 1 },
-        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 1, fine: 1 },
-        { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 1, fine: 1 },
-        { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 1, fine: 1 },
-        { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 1, fine: 1 },
+        // ⭐ step: 0.5로 변경 (암부 부스트, 디테일 복원, 노출 보정, 노출 게인)
+        { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 0.5, fine: 0.5 },
+        { type: 'fineSlider', label: '디테일 복원', path: P.V_MAN_REC, min: 0, max: 100, step: 0.5, fine: 0.5 },
+        { type: 'fineSlider', label: '노출 보정', path: P.V_MAN_BRT, min: 0, max: 100, step: 0.5, fine: 0.5 },
+        { type: 'fineSlider', label: '노출 게인', path: P.V_MAN_GAIN, min: -30, max: 30, step: 0.5, fine: 0.5 },
+        // ⭐ step: 0.5로 변경 (감마, 콘트라스트)
+        { type: 'fineSlider', label: '감마', path: P.V_MAN_GAMMA, min: -30, max: 30, step: 0.5, fine: 0.5 },
+        { type: 'fineSlider', label: '콘트라스트', path: P.V_MAN_CON, min: -30, max: 30, step: 0.5, fine: 0.5 },
         { type: 'sep' },
         { type: 'sectionLabel', text: '색상 보정' },
         { type: 'fineSlider', label: '색온도', path: P.V_MAN_TEMP, min: -50, max: 50, step: 1, fine: 1 },
@@ -1255,7 +1250,7 @@
       qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; }`;
       _qbarShadow.appendChild(qStyle);
       const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
-      mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
+      mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
       if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; document.addEventListener('touchstart', revealGear, { passive: true }); mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
     }
