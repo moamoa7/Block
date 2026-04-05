@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.6.7)
+// @name         Video_Control (v31.7.2)
 // @namespace    https://github.com/moamoa7
-// @version      31.6.7
-// @description  v31.6.7: 필터 적용 최적화, SVG/CSS 전환 불연속 수정, 샤프닝 프로파일 정리
+// @version      31.7.2
+// @description  v31.7.2: 프리 게인 CSS brightness 방식으로 전환, 밝은 영상 호환
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.6.7';
+  const VSC_VERSION = '31.7.2';  // ★ 버전 업
   const DEBUG = false;
 
   const log = {
@@ -64,6 +64,7 @@
     document.addEventListener('webkitfullscreenchange', fn);
   }
 
+  // ★ checkNeedsSvg: _brSlope 제거 — 프리 게인은 CSS로 처리하므로 SVG 판단에서 제외
   function checkNeedsSvg(s) {
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
     const hasTone = (
@@ -74,6 +75,7 @@
       Math.abs((s.gamma    || 1) - 1) > 0.005 ||
       Math.abs((s.contrast || 1) - 1) > 0.005
     );
+    // ★ hasPreGain 제거됨 — 프리 게인은 CSS brightness로 처리
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
@@ -133,7 +135,7 @@
   ];
 
   const DEFAULTS = {
-    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0 },
+    video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
     audio: { enabled: false, strength: 50, surroundWidth: 0, clarity: 0, boost: 100 },
     playback: { rate: 1.0, enabled: false },
     app: { active: true, uiVisible: false }
@@ -146,12 +148,14 @@
     V_MAN_TINT: 'video.manualTint', V_MAN_SAT: 'video.manualSat',
     V_MAN_GAMMA: 'video.manualGamma', V_MAN_CON: 'video.manualContrast',
     V_MAN_GAIN: 'video.manualGain',
+    V_MAN_PREGAIN: 'video.manualPreGain',
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     A_SURROUND: 'audio.surroundWidth',
     A_CLARITY: 'audio.clarity', A_BOOST: 'audio.boost',
     PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
   };
 
+  // ★ MANUAL_PATHS/KEYS: preGain 제외 — 프리셋과 독립
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
   const MANUAL_KEYS = MANUAL_PATHS.map(p => p.split('.')[1]);
 
@@ -283,9 +287,7 @@
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
-
       const req = () => { scheduler.request(); };
-
       let lastFW = 0, lastFH = 0;
       let rvfcHandle = 0;
       let rvfcRunning = false;
@@ -294,25 +296,18 @@
         if (rvfcHandle) { try { el.cancelVideoFrameCallback(rvfcHandle); } catch(_){} rvfcHandle = 0; }
         rvfcRunning = false;
       }
-
       function vfcTick(now, meta) {
         if (!el.isConnected) { cancelRVFC(); return; }
-        const fw = meta.width  || el.videoWidth  || 0;
+        const fw = meta.width || el.videoWidth || 0;
         const fh = meta.height || el.videoHeight || 0;
-        if (fw !== lastFW || fh !== lastFH) {
-          lastFW = fw; lastFH = fh;
-          scheduler.request();
-        }
+        if (fw !== lastFW || fh !== lastFH) { lastFW = fw; lastFH = fh; scheduler.request(); }
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
       }
-
       function startRVFC() {
         if (rvfcRunning) return;
-        rvfcRunning = true;
-        lastFW = 0; lastFH = 0;
+        rvfcRunning = true; lastFW = 0; lastFH = 0;
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
       }
-
       rvfcHandles.set(el, { getHandle: () => rvfcHandle });
 
       const onEncrypted = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
@@ -330,19 +325,13 @@
       };
 
       const listenerDefs = [
-        ['encrypted', onEncrypted],
-        ['waitingforkey', onWaitingForKey],
-        ['playing', onPlaying],
-        ['seeked', onSeeked],
-        ['loadedmetadata', onLoadedMetadata],
-        ['pause', onPause],
-        ['ended', onPause],
-        ['resize', onResize],
-        ['loadstart', onLoadstart]
+        ['encrypted', onEncrypted], ['waitingforkey', onWaitingForKey],
+        ['playing', onPlaying], ['seeked', onSeeked],
+        ['loadedmetadata', onLoadedMetadata], ['pause', onPause],
+        ['ended', onPause], ['resize', onResize], ['loadstart', onLoadstart]
       ];
       for (const [evt, fn] of listenerDefs) el.addEventListener(evt, fn, { passive: true });
       videoListeners.set(el, listenerDefs);
-
       if (io) io.observe(el);
       if (ro) ro.observe(el);
       req();
@@ -354,17 +343,9 @@
       if (shadowRootsLRU.length >= SHADOW_MAX) {
         const idx = shadowRootsLRU.findIndex(it => !it.host?.isConnected);
         let evicted;
-        if (idx >= 0) {
-          evicted = shadowRootsLRU.splice(idx, 1)[0];
-          if (evicted?.host) observedShadowHosts.delete(evicted.host);
-        } else {
-          evicted = shadowRootsLRU.shift();
-          if (evicted?.host) observedShadowHosts.delete(evicted.host);
-        }
-        if (evicted?.root) {
-          const mo = shadowMOs.get(evicted.root);
-          if (mo) { try { mo.disconnect(); } catch (_) {} shadowMOs.delete(evicted.root); }
-        }
+        if (idx >= 0) { evicted = shadowRootsLRU.splice(idx, 1)[0]; if (evicted?.host) observedShadowHosts.delete(evicted.host); }
+        else { evicted = shadowRootsLRU.shift(); if (evicted?.host) observedShadowHosts.delete(evicted.host); }
+        if (evicted?.root) { const mo = shadowMOs.get(evicted.root); if (mo) { try { mo.disconnect(); } catch (_) {} shadowMOs.delete(evicted.root); } }
       }
       shadowRootsLRU.push({ host, root: host.shadowRoot });
       connectObserver(host.shadowRoot);
@@ -384,12 +365,7 @@
     const workQ = []; let workScheduled = false;
     function scheduleWork() {
       if (workScheduled) return; workScheduled = true;
-      const doWork = () => {
-        workScheduled = false;
-        const batch = workQ.splice(0, 20);
-        for (const n of batch) scanNode(n);
-        if (workQ.length > 0) scheduleWork();
-      };
+      const doWork = () => { workScheduled = false; const batch = workQ.splice(0, 20); for (const n of batch) scanNode(n); if (workQ.length > 0) scheduleWork(); };
       if (typeof requestIdleCallback === 'function') requestIdleCallback(doWork, { timeout: 120 }); else setTimeout(doWork, 0);
     }
     function enqueue(n) {
@@ -410,32 +386,21 @@
         if (touchedVideo) scheduler.request();
       });
       mo.observe(root, { childList: true, subtree: true });
-      if (root instanceof ShadowRoot) shadowMOs.set(root, mo);
-      else observers.add(mo);
+      if (root instanceof ShadowRoot) shadowMOs.set(root, mo); else observers.add(mo);
       enqueue(root);
     }
 
     const root = document.body || document.documentElement;
     if (root) { connectObserver(root); }
     if (!document.body && document.documentElement) {
-      const earlyMo = new MutationObserver(() => {
-        if (document.body) {
-          earlyMo.disconnect();
-          connectObserver(document.body);
-        }
-      });
+      const earlyMo = new MutationObserver(() => { if (document.body) { earlyMo.disconnect(); connectObserver(document.body); } });
       earlyMo.observe(document.documentElement, { childList: true });
     }
 
     function scanShadowRoots() {
       try {
-        const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, {
-          acceptNode: function(node) { return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; }
-        });
-        let el;
-        while (el = walker.nextNode()) {
-          if (addShadowRoot(el)) scanNode(el.shadowRoot);
-        }
+        const walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_ELEMENT, { acceptNode: function(node) { return node.shadowRoot ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP; } });
+        let el; while (el = walker.nextNode()) { if (addShadowRoot(el)) scanNode(el.shadowRoot); }
       } catch (_) {}
     }
 
@@ -444,16 +409,11 @@
 
     function cleanup() {
       const dead = [];
-      for (const el of videos) {
-        if (!el?.isConnected) dead.push(el);
-      }
+      for (const el of videos) { if (!el?.isConnected) dead.push(el); }
       for (const el of dead) {
         videos.delete(el); clearFilterStyles(el);
         const rvfc = rvfcHandles.get(el);
-        if (rvfc) {
-          try { el.cancelVideoFrameCallback(rvfc.getHandle()); } catch (_) {}
-          rvfcHandles.delete(el);
-        }
+        if (rvfc) { try { el.cancelVideoFrameCallback(rvfc.getHandle()); } catch (_) {} rvfcHandles.delete(el); }
         if (io) try { io.unobserve(el); } catch (_) {}
         if (ro) try { ro.unobserve(el); } catch (_) {}
         const ls = videoListeners.get(el);
@@ -510,7 +470,6 @@
     let boostGain = null;
     let masterOut = null;
     let fullDryPath = null;
-
     let currentSrc = null, targetVideo = null;
     let currentMode = 'none';
     let currentRouteIsProcessed = false;
@@ -525,18 +484,9 @@
       if (jwCache.has(video)) return jwCache.get(video);
       let result = false;
       if (typeof window.jwplayer === 'function') { try { if (window.jwplayer()?.getContainer?.()) result = true; } catch (_) {} }
-      if (!result) {
-        let el = video.parentElement, depth = 0;
-        while (el && depth < 10) {
-          if (el.classList?.contains('jwplayer') || el.id?.startsWith('jwplayer') || el.classList?.contains('jw-wrapper') || el.querySelector?.(':scope > .jw-media, :scope > .jw-controls')) { result = true; break; }
-          el = el.parentElement; depth++;
-        }
-      }
-      if (!result && video.src?.startsWith('blob:')) {
-        if (document.querySelector('script[src*="jwplayer"]') || document.querySelector('[class*="jw-"]')) result = true;
-      }
-      jwCache.set(video, result);
-      return result;
+      if (!result) { let el = video.parentElement, depth = 0; while (el && depth < 10) { if (el.classList?.contains('jwplayer') || el.id?.startsWith('jwplayer') || el.classList?.contains('jw-wrapper') || el.querySelector?.(':scope > .jw-media, :scope > .jw-controls')) { result = true; break; } el = el.parentElement; depth++; } }
+      if (!result && video.src?.startsWith('blob:')) { if (document.querySelector('script[src*="jwplayer"]') || document.querySelector('[class*="jw-"]')) result = true; }
+      jwCache.set(video, result); return result;
     }
 
     function canConnect(video) {
@@ -554,64 +504,36 @@
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return false;
       try { ctx = new AC({ latencyHint: 'playback' }); } catch (_) { return false; }
+      try { ctx.addEventListener('statechange', () => { if (ctx.state === 'running') scheduler.request(); }); } catch (_) {}
 
-      try {
-        ctx.addEventListener('statechange', () => {
-          if (ctx.state === 'running') scheduler.request();
-        });
-      } catch (_) {}
-
-      splitter = ctx.createChannelSplitter(2);
-      merger = ctx.createChannelMerger(2);
-      delayL = ctx.createDelay(0.05);
-      delayR = ctx.createDelay(0.05);
-      crossGainLR = ctx.createGain();
-      crossGainRL = ctx.createGain();
-      dryGainL = ctx.createGain();
-      dryGainR = ctx.createGain();
-
+      splitter = ctx.createChannelSplitter(2); merger = ctx.createChannelMerger(2);
+      delayL = ctx.createDelay(0.05); delayR = ctx.createDelay(0.05);
+      crossGainLR = ctx.createGain(); crossGainRL = ctx.createGain();
+      dryGainL = ctx.createGain(); dryGainR = ctx.createGain();
       dryGainL.gain.value = 1; dryGainR.gain.value = 1;
       crossGainLR.gain.value = 0; crossGainRL.gain.value = 0;
-
       splitter.connect(dryGainL, 0); splitter.connect(dryGainR, 1);
       dryGainL.connect(merger, 0, 0); dryGainR.connect(merger, 0, 1);
       splitter.connect(delayL, 0); splitter.connect(delayR, 1);
       delayL.connect(crossGainLR); delayR.connect(crossGainRL);
       crossGainLR.connect(merger, 0, 1); crossGainRL.connect(merger, 0, 0);
 
-      eqLow = ctx.createBiquadFilter();
-      eqLow.type = 'lowshelf'; eqLow.frequency.value = 200; eqLow.gain.value = 0;
-      eqMid = ctx.createBiquadFilter();
-      eqMid.type = 'peaking'; eqMid.frequency.value = 2500; eqMid.Q.value = 1.2; eqMid.gain.value = 0;
-      eqHigh = ctx.createBiquadFilter();
-      eqHigh.type = 'highshelf'; eqHigh.frequency.value = 8000; eqHigh.gain.value = 0;
-
+      eqLow = ctx.createBiquadFilter(); eqLow.type = 'lowshelf'; eqLow.frequency.value = 200; eqLow.gain.value = 0;
+      eqMid = ctx.createBiquadFilter(); eqMid.type = 'peaking'; eqMid.frequency.value = 2500; eqMid.Q.value = 1.2; eqMid.gain.value = 0;
+      eqHigh = ctx.createBiquadFilter(); eqHigh.type = 'highshelf'; eqHigh.frequency.value = 8000; eqHigh.gain.value = 0;
       routeGain = ctx.createGain(); routeGain.gain.value = 1;
-
-      merger.connect(eqLow);
-      eqLow.connect(eqMid);
-      eqMid.connect(eqHigh);
-      eqHigh.connect(routeGain);
+      merger.connect(eqLow); eqLow.connect(eqMid); eqMid.connect(eqHigh); eqHigh.connect(routeGain);
 
       comp = ctx.createDynamicsCompressor();
       makeupGain = ctx.createGain(); makeupGain.gain.value = 1;
       limiter = ctx.createDynamicsCompressor();
-      limiter.threshold.value = -3.0; limiter.ratio.value = 20;
-      limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 2;
-
+      limiter.threshold.value = -3.0; limiter.ratio.value = 20; limiter.attack.value = 0.001; limiter.release.value = 0.15; limiter.knee.value = 2;
       compBypass = ctx.createGain(); compBypass.gain.value = 1;
-
       boostGain = ctx.createGain(); boostGain.gain.value = 1;
-
       masterOut = ctx.createGain(); masterOut.gain.value = 1;
-
       comp.connect(makeupGain); makeupGain.connect(limiter); limiter.connect(boostGain);
-      compBypass.connect(boostGain);
-      boostGain.connect(masterOut);
-      masterOut.connect(ctx.destination);
-
-      fullDryPath = ctx.createGain(); fullDryPath.gain.value = 1;
-      fullDryPath.connect(ctx.destination);
+      compBypass.connect(boostGain); boostGain.connect(masterOut); masterOut.connect(ctx.destination);
+      fullDryPath = ctx.createGain(); fullDryPath.gain.value = 1; fullDryPath.connect(ctx.destination);
 
       applyStrength(Number(store.get(P.A_STR) ?? 50));
       applySurroundWidth(Number(store.get(P.A_SURROUND)) || 0);
@@ -624,92 +546,44 @@
     function routeCompressor() {
       if (!routeGain || !comp || !compBypass) return;
       try { routeGain.disconnect(); } catch (_) {}
-      if (store.get(P.A_EN)) { routeGain.connect(comp); }
-      else { routeGain.connect(compBypass); }
+      if (store.get(P.A_EN)) { routeGain.connect(comp); } else { routeGain.connect(compBypass); }
     }
 
     function applyStrength(strength) {
       if (!comp || !makeupGain || !ctx) return;
       const s = CLAMP(strength, 0, 100) / 100;
-
-      if (s === 0) {
-        comp.threshold.value = 0;
-        comp.ratio.value = 1;
-        comp.knee.value = 40;
-        comp.attack.value = 0.02;
-        comp.release.value = 0.25;
-        try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); }
-        catch (_) { makeupGain.gain.value = 1; }
-        return;
-      }
-
-      comp.threshold.value = -8 - s * 24;
-      comp.ratio.value = 1.5 + s * 10.5;
-      comp.knee.value = 16 - s * 10;
-      comp.attack.value = 0.005 + (1 - s) * 0.015;
-      comp.release.value = 0.30 + (1 - s) * 0.20;
-
-      const threshAbs = Math.abs(comp.threshold.value);
-      const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4;
-      const gain = Math.pow(10, makeupDb / 20);
-      try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); }
-      catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
+      if (s === 0) { comp.threshold.value = 0; comp.ratio.value = 1; comp.knee.value = 40; comp.attack.value = 0.02; comp.release.value = 0.25; try { makeupGain.gain.setTargetAtTime(1, ctx.currentTime, 0.05); } catch (_) { makeupGain.gain.value = 1; } return; }
+      comp.threshold.value = -8 - s * 24; comp.ratio.value = 1.5 + s * 10.5; comp.knee.value = 16 - s * 10; comp.attack.value = 0.005 + (1 - s) * 0.015; comp.release.value = 0.30 + (1 - s) * 0.20;
+      const threshAbs = Math.abs(comp.threshold.value); const makeupDb = threshAbs * (1 - 1 / comp.ratio.value) * 0.4; const gain = Math.pow(10, makeupDb / 20);
+      try { makeupGain.gain.setTargetAtTime(CLAMP(gain, 1, 3), ctx.currentTime, 0.05); } catch (_) { makeupGain.gain.value = CLAMP(gain, 1, 3); }
     }
 
     function applySurroundWidth(width) {
       if (!ctx || !crossGainLR) return;
-      const w = CLAMP(width, 0, 100) / 100;
-      const crossLevel = w * 0.4;
-      const dry = Math.sqrt(1 - crossLevel * crossLevel);
-      try {
-        crossGainLR.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
-        crossGainRL.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05);
-        dryGainL.gain.setTargetAtTime(dry, ctx.currentTime, 0.05);
-        dryGainR.gain.setTargetAtTime(dry, ctx.currentTime, 0.05);
-        delayL.delayTime.setTargetAtTime(0.005 + w * 0.015, ctx.currentTime, 0.05);
-        delayR.delayTime.setTargetAtTime(0.008 + w * 0.020, ctx.currentTime, 0.05);
-      } catch (_) {
-        crossGainLR.gain.value = crossLevel; crossGainRL.gain.value = crossLevel;
-        dryGainL.gain.value = dry; dryGainR.gain.value = dry;
-        delayL.delayTime.value = 0.005 + w * 0.015; delayR.delayTime.value = 0.008 + w * 0.020;
-      }
+      const w = CLAMP(width, 0, 100) / 100; const crossLevel = w * 0.4; const dry = Math.sqrt(1 - crossLevel * crossLevel);
+      try { crossGainLR.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05); crossGainRL.gain.setTargetAtTime(crossLevel, ctx.currentTime, 0.05); dryGainL.gain.setTargetAtTime(dry, ctx.currentTime, 0.05); dryGainR.gain.setTargetAtTime(dry, ctx.currentTime, 0.05); delayL.delayTime.setTargetAtTime(0.005 + w * 0.015, ctx.currentTime, 0.05); delayR.delayTime.setTargetAtTime(0.008 + w * 0.020, ctx.currentTime, 0.05); }
+      catch (_) { crossGainLR.gain.value = crossLevel; crossGainRL.gain.value = crossLevel; dryGainL.gain.value = dry; dryGainR.gain.value = dry; delayL.delayTime.value = 0.005 + w * 0.015; delayR.delayTime.value = 0.008 + w * 0.020; }
     }
 
     function applyClarity(clarity) {
       if (!ctx || !eqLow) return;
       const c = CLAMP(clarity, 0, 100) / 100;
-      const lowDb = -4 * c;
-      const midDb = 6 * c;
-      const highDb = 3 * c;
-      try {
-        eqLow.gain.setTargetAtTime(lowDb, ctx.currentTime, 0.05);
-        eqMid.gain.setTargetAtTime(midDb, ctx.currentTime, 0.05);
-        eqHigh.gain.setTargetAtTime(highDb, ctx.currentTime, 0.05);
-      } catch (_) {
-        eqLow.gain.value = lowDb;
-        eqMid.gain.value = midDb;
-        eqHigh.gain.value = highDb;
-      }
+      try { eqLow.gain.setTargetAtTime(-4 * c, ctx.currentTime, 0.05); eqMid.gain.setTargetAtTime(6 * c, ctx.currentTime, 0.05); eqHigh.gain.setTargetAtTime(3 * c, ctx.currentTime, 0.05); }
+      catch (_) { eqLow.gain.value = -4 * c; eqMid.gain.value = 6 * c; eqHigh.gain.value = 3 * c; }
     }
 
     function applyBoost(boostPercent) {
       if (!ctx || !boostGain) return;
       const gain = CLAMP(boostPercent, 100, 300) / 100;
-      try { boostGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); }
-      catch (_) { boostGain.gain.value = gain; }
+      try { boostGain.gain.setTargetAtTime(gain, ctx.currentTime, 0.05); } catch (_) { boostGain.gain.value = gain; }
     }
 
     function enterBypass(video, reason) {
-      if (bypassMode) return; bypassMode = true; currentMode = 'bypass';
-      currentRouteIsProcessed = false;
+      if (bypassMode) return; bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false;
       if (video && ctx && currentSrc) {
         try { currentSrc.disconnect(); } catch (_) {}
-        if (currentSrc.__vsc_isCaptureStream) {
-          if (currentSrc.__vsc_originalVolume != null) try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
-          if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
-          const stream = currentSrc.__vsc_captureStream;
-          if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
-        } else { try { currentSrc.connect(ctx.destination); } catch (_) {} }
+        if (currentSrc.__vsc_isCaptureStream) { if (currentSrc.__vsc_originalVolume != null) try { video.volume = currentSrc.__vsc_originalVolume; } catch (_) {} if (video.muted && currentSrc.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {} const stream = currentSrc.__vsc_captureStream; if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); }
+        else { try { currentSrc.connect(ctx.destination); } catch (_) {} }
       }
       currentSrc = null;
     }
@@ -725,15 +599,8 @@
       let stream;
       try { stream = captureFn.call(video); } catch (e) { if (e.name === 'SecurityError' || e.message?.includes('cross-origin')) { video.dataset.vscAudioCorsFail = "1"; return null; } return null; }
       if (stream.getAudioTracks().length === 0) { setTimeout(() => { if (stream.getAudioTracks().length > 0) scheduler.request(); }, 500); return null; }
-      try {
-        const source = ctx.createMediaStreamSource(stream);
-        source.__vsc_isCaptureStream = true; source.__vsc_captureStream = stream;
-        source.__vsc_originalMuted = originalMuted; source.__vsc_originalVolume = originalVolume;
-        video.muted = true;
-        streamMap.set(video, source); return source;
-      } catch (e) {
-        stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null;
-      }
+      try { const source = ctx.createMediaStreamSource(stream); source.__vsc_isCaptureStream = true; source.__vsc_captureStream = stream; source.__vsc_originalMuted = originalMuted; source.__vsc_originalVolume = originalVolume; video.muted = true; streamMap.set(video, source); return source; }
+      catch (e) { stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); return null; }
     }
 
     function connectViaMES(video) {
@@ -746,34 +613,23 @@
 
     function connectSource(video) {
       if (!video || !ctx) return false;
-      if (!canConnect(video)) { enterBypass(video, 'pre-check: not connectable'); return false; }
+      if (!canConnect(video)) { enterBypass(video, 'pre-check'); return false; }
       const isJW = detectJWPlayer(video);
       let source = null;
-      if (isJW) {
-        source = connectViaCaptureStream(video);
-        if (!source) { video.dataset.vscPermBypass = "1"; enterBypass(video, 'JWPlayer: captureStream failed'); return false; }
-      } else {
-        source = connectViaMES(video);
-        if (!source) { source = connectViaCaptureStream(video); if (!source) { enterBypass(video, 'all methods failed'); return false; } }
-      }
+      if (isJW) { source = connectViaCaptureStream(video); if (!source) { video.dataset.vscPermBypass = "1"; enterBypass(video, 'JW fail'); return false; } }
+      else { source = connectViaMES(video); if (!source) { source = connectViaCaptureStream(video); if (!source) { enterBypass(video, 'all fail'); return false; } } }
       try { source.disconnect(); } catch (_) {}
       const wantProcessed = isAnyAudioActive();
-      if (wantProcessed) { source.connect(splitter); }
-      else { source.connect(fullDryPath); }
-      currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes';
-      currentRouteIsProcessed = wantProcessed;
-      exitBypass();
-      return true;
+      if (wantProcessed) { source.connect(splitter); } else { source.connect(fullDryPath); }
+      currentSrc = source; currentMode = source.__vsc_isCaptureStream ? 'stream' : 'mes'; currentRouteIsProcessed = wantProcessed;
+      exitBypass(); return true;
     }
 
     function fadeOutThen(gen, fn, cleanupFn) {
       if (!ctx || !masterOut || ctx.state === 'closed') { if (gen === generation) try { fn(); } catch (_) {} else if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
       try { const t = ctx.currentTime; masterOut.gain.cancelScheduledValues(t); masterOut.gain.setValueAtTime(masterOut.gain.value, t); masterOut.gain.linearRampToValueAtTime(0, t + 0.04); } catch (_) { try { masterOut.gain.value = 0; } catch (__) {} }
       setTimeout(() => {
-        if (gen !== generation) {
-          if (cleanupFn) try { cleanupFn(); } catch (_) {}
-          return;
-        }
+        if (gen !== generation) { if (cleanupFn) try { cleanupFn(); } catch (_) {} return; }
         try { fn(); } catch (_) {}
         if (ctx && masterOut && ctx.state !== 'closed') { try { const t2 = ctx.currentTime; masterOut.gain.cancelScheduledValues(t2); masterOut.gain.setValueAtTime(masterOut.gain.value, t2); masterOut.gain.linearRampToValueAtTime(1, t2 + 0.04); } catch (_) { try { masterOut.gain.value = 1; } catch (__) {} } }
       }, 60);
@@ -785,93 +641,41 @@
       if (currentSrc.__vsc_isCaptureStream && target) {
         if (currentSrc.__vsc_originalVolume != null) try { target.volume = currentSrc.__vsc_originalVolume; } catch (_) {}
         if (target.muted && currentSrc.__vsc_originalMuted === false) try { target.muted = false; } catch (_) {}
-        const stream = currentSrc.__vsc_captureStream;
-        if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+        const stream = currentSrc.__vsc_captureStream; if (stream) stream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
         streamMap.delete(target);
       }
       try { currentSrc.disconnect(); } catch (_) {}
       if (!currentSrc.__vsc_isCaptureStream && ctx && ctx.state !== 'closed') { try { currentSrc.connect(ctx.destination); } catch (_) {} }
-      currentSrc = null; currentMode = 'none';
-      currentRouteIsProcessed = false;
+      currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false;
     }
 
     function restoreOrphanedStream(video) {
-      if (!video) return;
-      const s = streamMap.get(video);
-      if (!s || !s.__vsc_isCaptureStream) return;
+      if (!video) return; const s = streamMap.get(video); if (!s || !s.__vsc_isCaptureStream) return;
       if (s.__vsc_originalVolume != null) try { video.volume = s.__vsc_originalVolume; } catch (_) {}
       if (video.muted && s.__vsc_originalMuted === false) try { video.muted = false; } catch (_) {}
       if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
-      try { s.disconnect(); } catch (_) {}
-      streamMap.delete(video);
+      try { s.disconnect(); } catch (_) {} streamMap.delete(video);
     }
 
     function updateMix() {
-      if (!ctx || bypassMode) return;
-      routeCompressor();
-      if (currentSrc) {
-        const wantProcessed = isAnyAudioActive();
-        if (wantProcessed === currentRouteIsProcessed) return;
-        try { currentSrc.disconnect(); } catch (_) {}
-        if (wantProcessed) { currentSrc.connect(splitter); }
-        else { currentSrc.connect(fullDryPath); }
-        currentRouteIsProcessed = wantProcessed;
-      } else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) {
-        connectSource(targetVideo);
-      }
+      if (!ctx || bypassMode) return; routeCompressor();
+      if (currentSrc) { const wantProcessed = isAnyAudioActive(); if (wantProcessed === currentRouteIsProcessed) return; try { currentSrc.disconnect(); } catch (_) {} if (wantProcessed) { currentSrc.connect(splitter); } else { currentSrc.connect(fullDryPath); } currentRouteIsProcessed = wantProcessed; }
+      else if (targetVideo?.isConnected && isAnyAudioActive() && canConnect(targetVideo)) { connectSource(targetVideo); }
     }
 
     function setTarget(video) {
-      if (video === targetVideo) {
-        if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); return; } return; }
-        if (currentSrc) { updateMix(); return; }
-        if (canConnect(video)) { if (!initCtx()) return; if (connectSource(video)) updateMix(); }
-        return;
-      }
-      const gen = ++generation;
-      const active = isAnyAudioActive();
-      if (!active) {
-        const oldTarget = targetVideo;
-        if (currentSrc || targetVideo) {
-          fadeOutThen(gen, () => {
-            disconnectCurrent(oldTarget);
-            targetVideo = video;
-            if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
-          }, () => restoreOrphanedStream(oldTarget));
-        }
-        else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }
-        return;
-      }
+      if (video === targetVideo) { if (bypassMode) { if (!canConnect(video)) return; exitBypass(); if (connectSource(video)) { updateMix(); return; } return; } if (currentSrc) { updateMix(); return; } if (canConnect(video)) { if (!initCtx()) return; if (connectSource(video)) updateMix(); } return; }
+      const gen = ++generation; const active = isAnyAudioActive();
+      if (!active) { const oldTarget = targetVideo; if (currentSrc || targetVideo) { fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } }, () => restoreOrphanedStream(oldTarget)); } else { targetVideo = video; if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } } return; }
       if (!initCtx()) { targetVideo = video; return; }
-      if (video && !canConnect(video)) {
-        const oldTarget = targetVideo;
-        fadeOutThen(gen, () => {
-          disconnectCurrent(oldTarget);
-          targetVideo = video;
-          if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; }
-        }, () => restoreOrphanedStream(oldTarget));
-        return;
-      }
+      if (video && !canConnect(video)) { const oldTarget = targetVideo; fadeOutThen(gen, () => { disconnectCurrent(oldTarget); targetVideo = video; if (!bypassMode) { bypassMode = true; currentMode = 'bypass'; currentRouteIsProcessed = false; } }, () => restoreOrphanedStream(oldTarget)); return; }
       const oldTarget = targetVideo;
-      fadeOutThen(gen, () => {
-        disconnectCurrent(oldTarget);
-        if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; }
-        targetVideo = video;
-        if (!video) { updateMix(); return; }
-        connectSource(video);
-        updateMix();
-      }, () => restoreOrphanedStream(oldTarget));
+      fadeOutThen(gen, () => { disconnectCurrent(oldTarget); if (bypassMode) { bypassMode = false; currentMode = 'none'; currentRouteIsProcessed = false; } targetVideo = video; if (!video) { updateMix(); return; } connectSource(video); updateMix(); }, () => restoreOrphanedStream(oldTarget));
     }
 
     function onVideoLoadstart(video) {
-      jwCache.delete(video);
-      const s = streamMap.get(video);
-      if (s) {
-        if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} });
-        try { s.disconnect(); } catch (_) {}
-        streamMap.delete(video);
-        if (currentSrc === s) { currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false; }
-      }
+      jwCache.delete(video); const s = streamMap.get(video);
+      if (s) { if (s.__vsc_captureStream) s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); try { s.disconnect(); } catch (_) {} streamMap.delete(video); if (currentSrc === s) { currentSrc = null; currentMode = 'none'; currentRouteIsProcessed = false; } }
     }
 
     let gestureHooked = false;
@@ -880,21 +684,10 @@
     ensureGestureHook();
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && ctx?.state === 'suspended') {
-        ctx.resume().then(() => {
-          if (ctx.state === 'running') return;
-          setTimeout(() => {
-            if (ctx?.state === 'suspended') ctx.resume().catch(() => {});
-          }, 120);
-        }).catch(() => {});
-      }
+      if (!document.hidden && ctx?.state === 'suspended') { ctx.resume().then(() => { if (ctx.state === 'running') return; setTimeout(() => { if (ctx?.state === 'suspended') ctx.resume().catch(() => {}); }, 120); }).catch(() => {}); }
     }, { passive: true });
 
-    return {
-      setTarget, update: updateMix,
-      hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode,
-      applyStrength, applySurroundWidth, applyClarity, applyBoost, routeCompressor, onVideoLoadstart
-    };
+    return { setTarget, update: updateMix, hasCtx: () => !!ctx, isHooked: () => !!(currentSrc || bypassMode), isBypassed: () => bypassMode, applyStrength, applySurroundWidth, applyClarity, applyBoost, routeCompressor, onVideoLoadstart };
   }
 
   function createFilters() {
@@ -906,99 +699,42 @@
     function getToneTable(steps, gain, contrast, gamma, toe, mid, shoulder) {
       const key = `${steps}|${Math.round(gain*100)}|${Math.round(contrast*100)}|${Math.round(gamma*100)}|t${Math.round(toe*1000)}|m${Math.round(mid*1000)}|s${Math.round(shoulder*1000)}`;
       if (toneCache.has(key)) return toneCache.get(key);
-
-      const ev = Math.log2(Math.max(1e-6, gain));
-      const g = ev * 0.90;
-      const useFilmicCurve = Math.abs(g) > 0.01;
-      const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
-
-      const out = new Array(steps);
-      let prev = 0;
-
+      const ev = Math.log2(Math.max(1e-6, gain)); const g = ev * 0.90; const useFilmicCurve = Math.abs(g) > 0.01; const denom = useFilmicCurve ? (1 - Math.exp(-g)) : 1;
+      const out = new Array(steps); let prev = 0;
       for (let i = 0; i < steps; i++) {
-        const x0 = i / (steps - 1);
-        let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
-
-        const shadowGuard = x0 < 0.20 ? x0 / 0.20 : 1.0;
-        const localContrast = 1 + (contrast - 1) * shadowGuard;
-
-        const pivot = 0.45;
-        const intercept = pivot * (1 - localContrast);
-
-        x = x * localContrast + intercept;
-        x = CLAMP(x, 0, 1);
-
-        if (toe > 0.001 && x0 < 0.40) {
-          const t = x0 / 0.40;
-          x = x + toe * (1 - t) * (t * t) * (1 - x);
-        }
-
-        if (mid > 0.001) {
-          const mc = 0.45, sig = 0.18;
-          const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig));
-          const delta = (x0 - mc) * mid * mw * 1.5;
-          const appliedDelta = delta > 0 ? delta : delta * 0.15;
-          x = CLAMP(x + appliedDelta, 0, 1);
-        }
-
-        if (shoulder > 0.001) {
-          const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0;
-          x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1);
-        }
-
+        const x0 = i / (steps - 1); let x = useFilmicCurve ? (1 - Math.exp(-g * x0)) / denom : x0;
+        const shadowGuard = x0 < 0.20 ? x0 / 0.20 : 1.0; const localContrast = 1 + (contrast - 1) * shadowGuard;
+        const pivot = 0.45; const intercept = pivot * (1 - localContrast);
+        x = x * localContrast + intercept; x = CLAMP(x, 0, 1);
+        if (toe > 0.001 && x0 < 0.40) { const t = x0 / 0.40; x = x + toe * (1 - t) * (t * t) * (1 - x); }
+        if (mid > 0.001) { const mc = 0.45, sig = 0.18; const mw = Math.exp(-((x0 - mc) ** 2) / (2 * sig * sig)); const delta = (x0 - mc) * mid * mw * 1.5; const appliedDelta = delta > 0 ? delta : delta * 0.15; x = CLAMP(x + appliedDelta, 0, 1); }
+        if (shoulder > 0.001) { const hw = x0 > 0.4 ? (x0 - 0.4) / 0.6 : 0; x = CLAMP(x + shoulder * 0.6 * x0 + shoulder * hw * hw * 0.5 * (1 - x), 0, 1); }
         if (Math.abs(gamma - 1) > 0.001) x = Math.pow(x, gamma);
-
-        if (x < prev) x = prev;
-        prev = x;
-        out[i] = (x).toFixed(4);
+        if (x < prev) x = prev; prev = x; out[i] = (x).toFixed(4);
       }
-
       const res = out.join(' ');
-      if (toneCache.size >= TONE_CACHE_MAX) {
-        const first = toneCache.keys().next();
-        if (!first.done) toneCache.delete(first.value);
-      }
-      toneCache.set(key, res);
-      return res;
+      if (toneCache.size >= TONE_CACHE_MAX) { const first = toneCache.keys().next(); if (!first.done) toneCache.delete(first.value); }
+      toneCache.set(key, res); return res;
     }
 
     function mkXfer(attrs, funcDefaults, withAlpha = true) {
-      const xfer = h('feComponentTransfer', { ns: 'svg', ...attrs });
-      const refs = {};
+      const xfer = h('feComponentTransfer', { ns: 'svg', ...attrs }); const refs = {};
       const channels = ['R', 'G', 'B']; if (withAlpha) channels.push('A');
-      for (const ch of channels) {
-        const fa = { ns: 'svg' };
-        if (ch === 'A') fa.type = 'identity';
-        else { for (const [k, v] of Object.entries(funcDefaults)) fa[k] = v; }
-        refs[ch] = h(`feFunc${ch}`, fa);
-        xfer.append(refs[ch]);
-      }
+      for (const ch of channels) { const fa = { ns: 'svg' }; if (ch === 'A') fa.type = 'identity'; else { for (const [k, v] of Object.entries(funcDefaults)) fa[k] = v; } refs[ch] = h(`feFunc${ch}`, fa); xfer.append(refs[ch]); }
       return { el: xfer, refs };
     }
 
+    // ★ buildSvg: 프리 게인(preGain) SVG 노드 제거 — CSS brightness로 처리
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
 
-      const feTurb = h('feTurbulence', { ns: 'svg',
-        type: 'fractalNoise',
-        baseFrequency: '0.75',
-        numOctaves: '1',
-        seed: String(Math.trunc(Math.random() * 1000)),
-        result: 'rawNoise'
-      });
-      const feGrayNoise = h('feColorMatrix', { ns: 'svg',
-        type: 'saturate', values: '0',
-        in: 'rawNoise', result: 'monoNoise'
-      });
-      const feAddNoise = h('feComposite', { ns: 'svg',
-        operator: 'arithmetic',
-        k1: '0', k2: '1', k3: '0.008', k4: '-0.004',
-        in: 'SourceGraphic', in2: 'monoNoise',
-        result: 'dithered'
-      });
+      // ★ preGain feComponentTransfer 제거됨 — SourceGraphic 바로 사용
+      const feTurb = h('feTurbulence', { ns: 'svg', type: 'fractalNoise', baseFrequency: '0.75', numOctaves: '1', seed: String(Math.trunc(Math.random() * 1000)), result: 'rawNoise' });
+      const feGrayNoise = h('feColorMatrix', { ns: 'svg', type: 'saturate', values: '0', in: 'rawNoise', result: 'monoNoise' });
+      const feAddNoise = h('feComposite', { ns: 'svg', operator: 'arithmetic', k1: '0', k2: '1', k3: '0.008', k4: '-0.004', in: 'SourceGraphic', in2: 'monoNoise', result: 'dithered' });
 
       const toneResult = mkXfer({ in: 'dithered', result: 'tone' }, { type: 'table', tableValues: '0 1' });
       const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
@@ -1010,7 +746,13 @@
 
       const target = (root instanceof ShadowRoot) ? root : (root.body || root.documentElement || root);
       if (target?.appendChild) target.appendChild(svg);
-      return { fid, svg, fConv, toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean), tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B, fSat, st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1 } };
+      return {
+        fid, svg, fConv,
+        toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean),
+        tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B,
+        fSat,
+        st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1 }
+      };
     }
 
     function purge(root) {
@@ -1018,13 +760,20 @@
       if (ctx) { try { ctx.svg.remove(); } catch (_) {} ctxMap.delete(root); try { const videos = root.querySelectorAll?.('video') || []; for (const v of videos) appliedFilter.delete(v); } catch (_) {} }
     }
 
+    // ★ prepare: 프리 게인을 CSS brightness로 SVG 필터와 체이닝
     function prepare(video, s) {
       const rn = video?.getRootNode?.();
       const root = (rn instanceof ShadowRoot) ? rn : (video?.ownerDocument || document);
 
+      // ★ 프리 게인 CSS brightness 문자열 생성
+      const preGainSlope = s._preGain || 1;
+      const preGainCss = (Math.abs(preGainSlope - 1) > 0.001) ? `brightness(${preGainSlope.toFixed(3)})` : '';
+
       if (!s._needsSvg) {
         if (video && ctxMap.has(root)) purge(root);
         const parts = [];
+        // ★ 프리 게인을 CSS brightness로 맨 앞에 추가
+        if (preGainCss) parts.push(preGainCss);
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
         if (Math.abs(s._cssSat - 1) > 0.001) parts.push(`saturate(${s._cssSat.toFixed(4)})`);
@@ -1050,86 +799,56 @@
       if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
           st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
           st._h9 === h9 && st._h10 === h10 && st._h11 === h11) {
-        return `url(#${ctx.fid})`;
+        // ★ SVG 필터 앞에 프리 게인 CSS brightness 체이닝
+        return preGainCss ? `${preGainCss} url(#${ctx.fid})` : `url(#${ctx.fid})`;
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
 
+      // ★ pgFuncR/G/B 관련 코드 제거됨
+
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
-      if (st.toneKey !== toneTable) {
-        st.toneKey = toneTable;
-        for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable);
-      }
+      if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
 
       const tempTintKey = `${s.temp}|${s.tint}`;
-      if (st.tempKey !== tempTintKey) {
-        st.tempKey = tempTintKey;
-        const colorGain = tempTintToRgbGain(s.temp, s.tint);
-        ctx.tempFuncR.setAttribute('slope', colorGain.rs);
-        ctx.tempFuncG.setAttribute('slope', colorGain.gs);
-        ctx.tempFuncB.setAttribute('slope', colorGain.bs);
-      }
+      if (st.tempKey !== tempTintKey) { st.tempKey = tempTintKey; const colorGain = tempTintToRgbGain(s.temp, s.tint); ctx.tempFuncR.setAttribute('slope', colorGain.rs); ctx.tempFuncG.setAttribute('slope', colorGain.gs); ctx.tempFuncB.setAttribute('slope', colorGain.bs); }
 
-      const sharpCap = s._sharpCap || SHARP_CAP_DEFAULT;
-      const diagRatio = s._diagRatio || 0.707;
+      const sharpCap = s._sharpCap || SHARP_CAP_DEFAULT; const diagRatio = s._diagRatio || 0.707;
       const totalS = CLAMP(Number(s.sharp || 0), 0, sharpCap);
       let kernelStr = '0,0,0, 0,1,0, 0,0,0';
-      if (totalS >= 0.005) {
-        const edge = -totalS;
-        const diag = edge * diagRatio;
-        const center = 1 - 4 * edge - 4 * diag;
-        kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`;
-      }
-      if (st.sharpKey !== kernelStr) {
-        st.sharpKey = kernelStr;
-        ctx.fConv.setAttribute('kernelMatrix', kernelStr);
-      }
+      if (totalS >= 0.005) { const edge = -totalS; const diag = edge * diagRatio; const center = 1 - 4 * edge - 4 * diag; kernelStr = `${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}, ${edge.toFixed(5)},${center.toFixed(5)},${edge.toFixed(5)}, ${diag.toFixed(5)},${edge.toFixed(5)},${diag.toFixed(5)}`; }
+      if (st.sharpKey !== kernelStr) { st.sharpKey = kernelStr; ctx.fConv.setAttribute('kernelMatrix', kernelStr); }
 
       const satInput = totalS >= 0.005 ? 'conv' : 'tmp';
-      if (st.satInputKey !== satInput) {
-        st.satInputKey = satInput;
-        ctx.fSat.setAttribute('in', satInput);
-      }
+      if (st.satInputKey !== satInput) { st.satInputKey = satInput; ctx.fSat.setAttribute('in', satInput); }
 
       const desatMul = totalS > 0.008 ? CLAMP(1 - totalS * 0.1, 0.90, 1) : 1;
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
-      if (st.satKey !== satVal) {
-        st.satKey = satVal;
-        ctx.fSat.setAttribute('values', satVal);
-      }
+      if (st.satKey !== satVal) { st.satKey = satVal; ctx.fSat.setAttribute('values', satVal); }
 
-      return `url(#${ctx.fid})`;
+      // ★ SVG 필터 앞에 프리 게인 CSS brightness 체이닝
+      return preGainCss ? `${preGainCss} url(#${ctx.fid})` : `url(#${ctx.fid})`;
     }
 
     return {
       prepare,
       apply: (el, filterStr) => { if (!el) return; if (filterStr === 'none') { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); return; } if (appliedFilter.get(el) === filterStr) return; applyFilterStyles(el, filterStr); appliedFilter.set(el, filterStr); },
-      clear: (el) => {
-        if (appliedFilter.get(el) === 'none') return;
-        clearFilterStyles(el);
-        appliedFilter.set(el, 'none');
-      },
+      clear: (el) => { if (appliedFilter.get(el) === 'none') return; clearFilterStyles(el); appliedFilter.set(el, 'none'); },
       purge
     };
   }
 
+  // ★ createVideoParams: _preGain을 CSS brightness 비율로 저장 (SVG _brSlope 제거)
   function createVideoParams(Store) {
     const cache = new WeakMap();
     function computeSharpMul(video) {
-      const nW = video.videoWidth | 0;
-      let dW = video.clientWidth, dH = video.clientHeight;
+      const nW = video.videoWidth | 0; let dW = video.clientWidth, dH = video.clientHeight;
       if (!dW || !dH) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(nW) };
       const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
       if (dW < 16) return { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(nW) };
-      const nH = video.videoHeight | 0;
-      const ratioW = (dW * dpr) / nW;
-      const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW;
-      const ratio = Math.min(ratioW, ratioH);
+      const nH = video.videoHeight | 0; const ratioW = (dW * dpr) / nW; const ratioH = (nH > 16 && dH > 16) ? (dH * dpr) / nH : ratioW; const ratio = Math.min(ratioW, ratioH);
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
-
-      const sharpProfile = getSharpProfile(nW);
-      const rawAutoBase = sharpProfile.autoBase;
-
+      const sharpProfile = getSharpProfile(nW); const rawAutoBase = sharpProfile.autoBase;
       if (IS_MOBILE) mul = Math.max(mul, 0.60);
       return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, sharpProfile.cap), rawAutoBase, sharpProfile };
     }
@@ -1141,15 +860,14 @@
         const dH = video ? (video.clientHeight || 0) : 0;
         const dpr = Math.min(Math.max(1, window.devicePixelRatio || 1), 4);
         if (video && nW >= 16) { const cached = cache.get(video); if (cached && cached.rev === storeRev && cached.nW === nW && cached.dW === dW && cached.dH === dH && cached.dpr === dpr) return cached.out; }
-        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false, _sharpCap: SHARP_CAP_DEFAULT, _diagRatio: 0.707 };
+        // ★ _brSlope 제거, _preGain 추가
+        const out = { gain: 1, gamma: 1, contrast: 1, toe: 0, mid: 0, shoulder: 0, temp: 0, tint: 0, sharp: 0, _cssBr: 1, _cssCt: 1, _cssSat: 1, _needsSvg: false, _sharpCap: SHARP_CAP_DEFAULT, _diagRatio: 0.707, _preGain: 1 };
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
         const platformScale = IS_MOBILE ? 0.70 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
-
-        out._sharpCap = sharpProfile.cap;
-        out._diagRatio = sharpProfile.diagRatio;
+        out._sharpCap = sharpProfile.cap; out._diagRatio = sharpProfile.diagRatio;
 
         if (presetS === 'off') { out.sharp = autoBase * 0.45 * platformScale; }
         else if (presetS !== 'none') { const resFactor = CLAMP(rawAutoBase / 0.12, 0.58, 1.50); out.sharp = (_PRESET_SHARP_LUT[presetS] || 0) * mix * finalMul * resFactor; }
@@ -1164,9 +882,14 @@
         const mGamma = CLAMP(Number(Store.get(P.V_MAN_GAMMA) ?? 0), -30, 30);
         const mCon = CLAMP(Number(Store.get(P.V_MAN_CON) ?? 0), -30, 30);
         const mGain = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
+        const mPreGain = CLAMP(Number(Store.get(P.V_MAN_PREGAIN) ?? 100), 10, 200);
+
         out.toe = mShad * 0.0040; out.mid = mRec * 0.0035; out.shoulder = mBrt * 0.0045;
         out.temp = mTemp; out.tint = mTint;
         out.gamma = 1 + mGamma * (-0.008); out.contrast = 1 + mCon * 0.008; out.gain = Math.pow(2, mGain * 0.03);
+        // ★ CSS brightness 비율로 저장
+        out._preGain = mPreGain / 100;
+
         out._needsSvg = checkNeedsSvg(out);
         if (out._needsSvg) { out._cssBr = 1.0; out._cssCt = 1.0; }
         else { out._cssBr = 1 + (mBrt * 0.003); out._cssCt = 1 + (mRec * 0.003); }
@@ -1183,11 +906,7 @@
       show: (text, ms = 1200) => {
         if (!document.body) return;
         const root = document.fullscreenElement || document.documentElement || document.body;
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'vsc-osd'; el.setAttribute('data-vsc-ui', '1');
-          el.style.cssText = 'position:fixed!important;top:48px!important;left:50%!important;transform:translateX(-50%)!important;background:rgba(12,12,18,0.92)!important;color:rgba(255,255,255,0.95)!important;padding:10px 28px!important;border-radius:14px!important;border:1px solid rgba(0,229,255,0.15)!important;font:600 13px/1.4 system-ui,sans-serif!important;z-index:2147483647!important;pointer-events:none!important;opacity:0!important;transition:opacity 0.2s,transform 0.3s!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(0,229,255,0.08)!important;text-align:center!important;';
-        }
+        if (!el) { el = document.createElement('div'); el.id = 'vsc-osd'; el.setAttribute('data-vsc-ui', '1'); el.style.cssText = 'position:fixed!important;top:48px!important;left:50%!important;transform:translateX(-50%)!important;background:rgba(12,12,18,0.92)!important;color:rgba(255,255,255,0.95)!important;padding:10px 28px!important;border-radius:14px!important;border:1px solid rgba(0,229,255,0.15)!important;font:600 13px/1.4 system-ui,sans-serif!important;z-index:2147483647!important;pointer-events:none!important;opacity:0!important;transition:opacity 0.2s,transform 0.3s!important;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 20px rgba(0,229,255,0.08)!important;text-align:center!important;'; }
         if (el.parentNode !== root) root.appendChild(el);
         el.textContent = text;
         requestAnimationFrame(() => { el.style.setProperty('opacity', '1', 'important'); });
@@ -1237,8 +956,7 @@
     .tabs::after { content: ''; position: absolute; bottom: 0; height: 2px; background: var(--vsc-neon); box-shadow: var(--vsc-neon-glow); border-radius: 1px; transition: left 0.3s var(--vsc-ease-out), width 0.3s var(--vsc-ease-out); left: var(--tab-indicator-left, 0); width: var(--tab-indicator-width, 25%); }
     .tab { flex: 1; padding: 10px 0; text-align: center; font-size: var(--vsc-font-sm); font-weight: 600; letter-spacing: 0.6px; cursor: pointer; opacity: 0.35; transition: opacity 0.2s, color 0.2s; display: flex; align-items: center; justify-content: center; gap: 4px; text-transform: uppercase; }
     .tab svg { opacity: 0.6; flex-shrink: 0; width: 14px; height: 14px; stroke: currentColor; }
-    .tab:hover { opacity: 0.65; }
-    .tab.on { opacity: 1; color: var(--vsc-neon); }
+    .tab:hover { opacity: 0.65; } .tab.on { opacity: 1; color: var(--vsc-neon); }
     .tab.on svg { opacity: 1; filter: drop-shadow(0 0 4px rgba(0,229,255,0.4)); stroke: var(--vsc-neon); }
     .body { overflow-y: auto; overflow-x: hidden; flex: 1; padding: 12px 16px 18px; scrollbar-width: thin; scrollbar-color: rgba(0,229,255,0.15) transparent; text-align: left; overscroll-behavior: none; -webkit-overflow-scrolling: touch; }
     .body::-webkit-scrollbar { width: 4px; } .body::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.2); border-radius: 2px; }
@@ -1271,16 +989,17 @@
     .preset-grid .fine-btn { flex: 0 0 calc(20% - 3.2px); min-width: 0; text-align: center; justify-content: center; display: inline-flex; align-items: center; padding: 4px 2px; font-size: 10px; }
     .hint { font-size: 10px; opacity: 0.5; padding: 4px 0; text-align: left; line-height: 1.5; }
     .hint.warn { opacity: 0.7; color: var(--vsc-amber); }
+    .pg-row { display: flex; gap: 3px; padding: 4px 0; flex-wrap: wrap; justify-content: center; }
+    .pg-btn { padding: 4px 0; min-height: 28px; min-width: 0; flex: 1; border-radius: var(--vsc-radius-sm); border: 1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.6); font-family: var(--vsc-font-mono); font-size: 10px; cursor: pointer; transition: all 0.15s var(--vsc-ease-out); text-align: center; }
+    .pg-btn:hover { background: rgba(255,255,255,0.08); color: var(--vsc-neon); border-color: var(--vsc-neon-border); }
+    .pg-btn.on { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); box-shadow: 0 0 6px rgba(0,229,255,0.15); }
+    .pg-btn.default { border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
     function getMountTarget() {
       const fs = document.fullscreenElement || document.webkitFullscreenElement;
-      if (fs) {
-        if (fs.tagName === 'VIDEO') return fs.parentElement || document.documentElement;
-        if (fs.shadowRoot) return document.documentElement;
-        return fs;
-      }
+      if (fs) { if (fs.tagName === 'VIDEO') return fs.parentElement || document.documentElement; if (fs.shadowRoot) return document.documentElement; return fs; }
       return document.documentElement || document.body;
     }
     const HOST_STYLE_BASE = 'all:initial!important;position:fixed!important;top:0!important;left:0!important;z-index:2147483647!important;pointer-events:none!important;contain:none!important;overflow:visible!important;';
@@ -1289,8 +1008,7 @@
     let _lastMount = null, _qbarHasVideo = false, _lastIsFs = null;
 
     function reparent() {
-      if (!quickBarHost) return;
-      const target = getMountTarget(); if (!target) return;
+      if (!quickBarHost) return; const target = getMountTarget(); if (!target) return;
       const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
       if (target !== _lastMount) { _lastMount = target; if (quickBarHost.parentNode !== target) try { target.appendChild(quickBarHost); } catch (_) {} if (panelHost && panelHost.parentNode !== target) try { target.appendChild(panelHost); } catch (_) {} }
       if (_lastIsFs !== isFs) { _lastIsFs = isFs; const style = isFs ? HOST_STYLE_FS : HOST_STYLE_NORMAL; quickBarHost.style.cssText = style; if (panelHost) panelHost.style.cssText = style; if (!_qbarHasVideo) quickBarHost.style.setProperty('display', 'none', 'important'); }
@@ -1323,12 +1041,7 @@
     function mkToggle(path, onChange) {
       const el = h('div', { class: 'tgl', tabindex: '0', role: 'switch', 'aria-checked': 'false' });
       function sync() { const on = !!Store.get(path); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); }
-      el.addEventListener('click', () => {
-        const nv = !Store.get(path);
-        Store.set(path, nv);
-        sync();
-        if (onChange) onChange(nv);
-      });
+      el.addEventListener('click', () => { const nv = !Store.get(path); Store.set(path, nv); sync(); if (onChange) onChange(nv); });
       tabFns.push(sync); sync(); return el;
     }
 
@@ -1344,35 +1057,64 @@
       const wrap = h('div', {}); if (label) wrap.append(h('label', { style: 'font-size:11px;opacity:.6;display:block;margin-bottom:3px' }, label));
       const row = h('div', { class: 'chips' });
       for (const ch of chips) row.appendChild(h('span', { class: 'chip', 'data-v': String(ch.v) }, ch.l));
-      row.addEventListener('click', e => {
-        const chip = e.target.closest('.chip'); if (!chip) return;
-        const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val);
-        if (onSelectOverride) { onSelectOverride(parsed); }
-        else { Store.set(path, parsed); }
-        for (const c of row.children) c.classList.toggle('on', c.dataset.v === val);
-      });
+      row.addEventListener('click', e => { const chip = e.target.closest('.chip'); if (!chip) return; const val = chip.dataset.v; const parsed = isNaN(Number(val)) ? val : Number(val); if (onSelectOverride) { onSelectOverride(parsed); } else { Store.set(path, parsed); } for (const c of row.children) c.classList.toggle('on', c.dataset.v === val); });
       const sync = () => { const cur = String(Store.get(path)); for (const c of row.children) c.classList.toggle('on', c.dataset.v === cur); };
       wrap.appendChild(row); tabFns.push(sync); sync(); return wrap;
     }
 
     function mkFineButtons(path, steps, min, max) {
       const row = h('div', { class: 'fine-row' });
-      for (const d of steps) {
-        const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`);
-        btn.addEventListener('click', () => {
-          Store.batch('playback', {
-            rate: CLAMP((Number(Store.get(path)) || 1) + d, min, max),
-            enabled: true
-          });
-        });
-        row.appendChild(btn);
-      }
+      for (const d of steps) { const btn = h('button', { class: 'fine-btn' }, `${d > 0 ? '+' : ''}${d}`); btn.addEventListener('click', () => { Store.batch('playback', { rate: CLAMP((Number(Store.get(path)) || 1) + d, min, max), enabled: true }); }); row.appendChild(btn); }
       return row;
+    }
+
+      function buildPreGainButtons() {
+      const wrap = h('div', {});
+      const headerRow = h('div', { style: 'display:flex;align-items:center;justify-content:space-between;padding:4px 0 2px' });
+      const label = h('label', { style: 'font-size:12px;opacity:.8;font-weight:600' }, '프리 게인');
+      headerRow.append(label);
+      wrap.append(headerRow);
+
+      const ctrlRow = h('div', { style: 'display:flex;align-items:center;justify-content:center;gap:8px;padding:6px 0' });
+
+      const btnDown = h('button', { class: 'fine-btn', style: 'font-size:14px;min-width:36px;min-height:36px' }, '◀');
+      const valDisplay = h('span', { style: 'font-family:var(--vsc-font-mono);font-size:18px;font-weight:700;color:var(--vsc-neon);min-width:52px;text-align:center' }, '100%');
+      const btnUp = h('button', { class: 'fine-btn', style: 'font-size:14px;min-width:36px;min-height:36px' }, '▶');
+      const resetBtn = h('button', { class: 'fine-btn', style: 'font-size:10px;min-width:36px;opacity:.6' }, '100');
+
+      const STEP = 1;
+      const MIN = 1;
+      const MAX = 200;
+
+      btnDown.addEventListener('click', () => {
+        const cur = Number(Store.get(P.V_MAN_PREGAIN) ?? 100);
+        Store.set(P.V_MAN_PREGAIN, CLAMP(cur - STEP, MIN, MAX));
+      });
+      btnUp.addEventListener('click', () => {
+        const cur = Number(Store.get(P.V_MAN_PREGAIN) ?? 100);
+        Store.set(P.V_MAN_PREGAIN, CLAMP(cur + STEP, MIN, MAX));
+      });
+      resetBtn.addEventListener('click', () => {
+        Store.set(P.V_MAN_PREGAIN, 100);
+      });
+
+      ctrlRow.append(btnDown, valDisplay, btnUp, resetBtn);
+
+      const sync = () => {
+        const cur = Number(Store.get(P.V_MAN_PREGAIN) ?? 100);
+        valDisplay.textContent = `${cur}%`;
+        valDisplay.style.color = cur < 100 ? 'var(--vsc-amber)' : cur > 100 ? 'var(--vsc-green)' : 'var(--vsc-neon)';
+      };
+      tabFns.push(sync);
+
+      wrap.append(ctrlRow);
+      wrap.append(h('div', { class: 'hint' }, '◀ 내리기: 밝은 영상 보정 체감↑ │ ▶ 올리기: 어두운 영상 │ 1% 단위'));
+      return wrap;
     }
 
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
-      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
+      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; const pg = Number(Store.get(P.V_MAN_PREGAIN) ?? 100); const pgTag = pg !== 100 ? ` │ PG:${pg}%` : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}${pgTag}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
       tabFns.push(update);
       return el;
     }
@@ -1404,15 +1146,11 @@
       });
 
       const offValues = MANUAL_PRESETS[0].v;
-
       const syncGrid = () => {
         const cur = MANUAL_PATHS.map(p => Store.get(p));
         const isOff = cur.every((v, i) => v === offValues[i]);
         offBtn.classList.toggle('active', isOff);
-        for (const { btn, values } of buttons) {
-          const match = cur.every((v, i) => v === values[i]);
-          btn.classList.toggle('active', match);
-        }
+        for (const { btn, values } of buttons) { const match = cur.every((v, i) => v === values[i]); btn.classList.toggle('active', match); }
       };
       tabFns.push(syncGrid);
       wrap.append(grid);
@@ -1424,31 +1162,15 @@
     function buildAudioStatus() {
       const el = h('div', { class: 'hint' }, '상태: 대기');
       const update = () => {
-        const enabled = Store.get(P.A_EN);
-        const surround = Number(Store.get(P.A_SURROUND)) > 0;
-        const clarity = Number(Store.get(P.A_CLARITY)) > 0;
-        const boost = Number(Store.get(P.A_BOOST)) !== 100;
+        const enabled = Store.get(P.A_EN); const surround = Number(Store.get(P.A_SURROUND)) > 0; const clarity = Number(Store.get(P.A_CLARITY)) > 0; const boost = Number(Store.get(P.A_BOOST)) !== 100;
         const hooked = Audio.isHooked(), bypassed = Audio.isBypassed();
-
-        if (!Audio.hasCtx()) {
-          el.textContent = '상태: 대기';
-        } else if (!enabled && !surround && !clarity && !boost) {
-          el.textContent = '상태: 비활성 (오디오 처리 OFF)';
-        } else if (hooked && !bypassed) {
-          const parts = [];
-          if (enabled) parts.push('평준화');
-          if (surround) parts.push('공간감');
-          if (clarity) parts.push('선명도');
-          if (boost) parts.push('부스트');
-          el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`;
-        } else if (bypassed) {
-          el.textContent = '상태: 바이패스 (원본 출력)';
-        } else {
-          el.textContent = '상태: 준비 (연결 대기)';
-        }
+        if (!Audio.hasCtx()) { el.textContent = '상태: 대기'; }
+        else if (!enabled && !surround && !clarity && !boost) { el.textContent = '상태: 비활성 (오디오 처리 OFF)'; }
+        else if (hooked && !bypassed) { const parts = []; if (enabled) parts.push('평준화'); if (surround) parts.push('공간감'); if (clarity) parts.push('선명도'); if (boost) parts.push('부스트'); el.textContent = `상태: 활성 (${parts.join(' + ')} 처리 중)`; }
+        else if (bypassed) { el.textContent = '상태: 바이패스 (원본 출력)'; }
+        else { el.textContent = '상태: 준비 (연결 대기)'; }
       };
-      tabFns.push(update);
-      return el;
+      tabFns.push(update); return el;
     }
 
     function buildVideoSchema() {
@@ -1459,6 +1181,8 @@
         { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.1 },
         { type: 'sep' },
         { type: 'widget', build: buildPresetGrid },
+        { type: 'sep' },
+        { type: 'widget', build: buildPreGainButtons },
         { type: 'sep' },
         { type: 'sectionLabel', text: '수동 조정' },
         { type: 'fineSlider', label: '암부 부스트', path: P.V_MAN_SHAD, min: 0, max: 100, step: 1, fine: 1 },
@@ -1480,31 +1204,19 @@
       audio: [
         { type: 'sectionLabel', text: '볼륨 평준화 (야간 모드)' },
         { type: 'toggle', label: '평준화 ON/OFF', path: P.A_EN },
-        { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [
-          { v: 0, l: 'OFF' }, { v: 20, l: '20%' }, { v: 40, l: '40%' },
-          { v: 60, l: '60%' }, { v: 80, l: '80%' }, { v: 100, l: '100%' },
-        ]},
+        { type: 'chips', label: '평준화 강도', path: P.A_STR, items: [{ v: 0, l: 'OFF' }, { v: 20, l: '20%' }, { v: 40, l: '40%' }, { v: 60, l: '60%' }, { v: 80, l: '80%' }, { v: 100, l: '100%' }] },
         { type: 'hint', text: '큰 소리는 줄이고 작은 소리는 키워서 볼륨 편차를 줄입니다. 야간 시청 시 유용합니다.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '공간감 (헤드폰/이어폰)' },
-        { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [
-          { v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' },
-          { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' },
-        ]},
+        { type: 'chips', label: '공간감', path: P.A_SURROUND, items: [{ v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' }, { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' }] },
         { type: 'hint', text: '헤드폰/이어폰 착용 시 효과적입니다. 스피커 출력 시에는 OFF를 권장합니다.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '대화 선명도' },
-        { type: 'chips', label: '대화 선명도', path: P.A_CLARITY, items: [
-          { v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' },
-          { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' },
-        ]},
+        { type: 'chips', label: '대화 선명도', path: P.A_CLARITY, items: [{ v: 0, l: 'OFF' }, { v: 20, l: '20' }, { v: 40, l: '40' }, { v: 60, l: '60' }, { v: 80, l: '80' }, { v: 100, l: '100' }] },
         { type: 'hint', text: '대사가 잘 안 들릴 때 올려보세요. 저음을 줄이고 대화 주파수(2.5kHz)를 강조합니다.' },
         { type: 'sep' },
         { type: 'sectionLabel', text: '볼륨 부스트' },
-        { type: 'chips', label: '볼륨 부스트', path: P.A_BOOST, items: [
-          { v: 100, l: '100%' }, { v: 150, l: '150%' }, { v: 200, l: '200%' },
-          { v: 250, l: '250%' }, { v: 300, l: '300%' },
-        ]},
+        { type: 'chips', label: '볼륨 부스트', path: P.A_BOOST, items: [{ v: 100, l: '100%' }, { v: 150, l: '150%' }, { v: 200, l: '200%' }, { v: 250, l: '250%' }, { v: 300, l: '300%' }] },
         { type: 'hint', text: '소리가 너무 작은 영상에서 볼륨을 100% 이상으로 증폭합니다. 리미터가 클리핑을 방지합니다.' },
         { type: 'sep' },
         { type: 'widget', build: buildAudioStatus },
@@ -1545,12 +1257,7 @@
       const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
       mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
-      if (IS_MOBILE) {
-        let touchRevealTimer = 0;
-        const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); };
-        document.addEventListener('touchstart', revealGear, { passive: true });
-        mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true });
-      }
+      if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; document.addEventListener('touchstart', revealGear, { passive: true }); mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
     }
 
     function buildPanel() {
@@ -1588,10 +1295,8 @@
 
     buildQuickBar(); updateQuickBarVisibility();
     globalSignalCleanups.push(Scheduler.onSignal(updateQuickBarVisibility));
-
     setInterval(() => { if (document.hidden) return; updateQuickBarVisibility(); if (quickBarHost?.parentNode !== getMountTarget()) reparent(); }, 2000);
     setInterval(() => { if (document.hidden) return; if (typeof requestIdleCallback === 'function') requestIdleCallback(() => { Registry.scanShadowRoots(); Registry.cleanup(); }, { timeout: 500 }); else { Registry.scanShadowRoots(); Registry.cleanup(); } }, 5000);
-
     onFsChange(onFullscreenChange);
 
     return { togglePanel, syncAll: () => tabFns.forEach(f => f()) };
@@ -1622,44 +1327,23 @@
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
-        if (__internal._activeVideo?.isConnected && Store.get(P.PB_EN)) {
-          try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {}
-        }
-        Audio.setTarget(null);
-        __internal._activeVideo = null;
-        return;
+        if (__internal._activeVideo?.isConnected && Store.get(P.PB_EN)) { try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} }
+        Audio.setTarget(null); __internal._activeVideo = null; return;
       }
       const target = Targeting.pick(Registry.videos);
       const prevTarget = __internal._activeVideo;
       __internal._activeVideo = target || null;
       if (target) {
-        if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) {
-          try { prevTarget.playbackRate = 1.0; } catch (_) {}
-        }
+        if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) { try { prevTarget.playbackRate = 1.0; } catch (_) {} }
         Audio.setTarget(target);
         if (Store.get(P.PB_EN)) {
           const rate = CLAMP(Number(Store.get(P.PB_RATE)) || 1, 0.07, 5);
           if (Math.abs(target.playbackRate - rate) > 0.001) {
-            if (target.dataset.vscPbFail !== "1") {
-              if (!(target.dataset.vscDrm === "1" && target.readyState >= 1)) {
-                try {
-                  target.playbackRate = rate;
-                  delete target.dataset.vscPbRetry;
-                } catch (_) {
-                  if (target.dataset.vscPbRetry === "1") {
-                    target.dataset.vscPbFail = "1";
-                  } else {
-                    target.dataset.vscPbRetry = "1";
-                  }
-                }
-              }
-            }
+            if (target.dataset.vscPbFail !== "1") { if (!(target.dataset.vscDrm === "1" && target.readyState >= 1)) { try { target.playbackRate = rate; delete target.dataset.vscPbRetry; } catch (_) { if (target.dataset.vscPbRetry === "1") { target.dataset.vscPbFail = "1"; } else { target.dataset.vscPbRetry = "1"; } } } }
           }
         }
       } else {
-        if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) {
-          try { prevTarget.playbackRate = 1.0; } catch (_) {}
-        }
+        if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) { try { prevTarget.playbackRate = 1.0; } catch (_) {} }
         Audio.setTarget(null);
       }
       for (const v of Registry.videos) {
