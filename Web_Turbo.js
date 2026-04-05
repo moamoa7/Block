@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         All-in-One Web Turbo Optimizer
 // @namespace    https://github.com/moamoa7
-// @version      24.0
-// @description  Lean web optimizer v24 – Font FOIT prevention, LCP boost, below-fold lazy, iframe lazy. No chat DOM intervention.
+// @version      25.0
+// @description  Lean web optimizer v25 – Font FOIT prevention, LCP boost, below-fold lazy, iframe lazy. No chat DOM intervention.
 // @match        *://*/*
 // @exclude      *://www.google.com/maps/*
 // @exclude      *://maps.google.com/*
@@ -43,8 +43,6 @@
     win.FontFace = function (f, src, desc) {
       const d = Object.assign({}, desc);
       if (!d.display || d.display === 'auto' || d.display === 'block') {
-        // 'block'은 FOIT를 유발하므로 override 대상에 포함.
-        // 주의: 아이콘 폰트 등에서 의도적 block 사용 시 fallback 깜빡임 발생 가능.
         d.display = FONT_DISPLAY;
       }
       return new Orig(f, src, d);
@@ -56,19 +54,27 @@
 
   const patchedSheets = new WeakSet();
 
+  const patchRuleList = (rules) => {
+    for (const r of rules) {
+      if (r instanceof CSSFontFaceRule) {
+        const s = r.style;
+        if (!s.fontDisplay || s.fontDisplay === 'auto' || s.fontDisplay === 'block') {
+          s.fontDisplay = FONT_DISPLAY;
+        }
+      } else if (r instanceof CSSImportRule) {
+        try {
+          if (r.styleSheet?.cssRules) patchRuleList(r.styleSheet.cssRules);
+        } catch (_) { /* cross-origin @import */ }
+      }
+    }
+  };
+
   const patchFontRules = () => {
     for (const ss of doc.styleSheets) {
       if (patchedSheets.has(ss)) continue;
       let rules;
       try { rules = ss.cssRules; } catch (_) { patchedSheets.add(ss); continue; }
-      for (const r of rules) {
-        if (r instanceof CSSFontFaceRule) {
-          const s = r.style;
-          if (!s.fontDisplay || s.fontDisplay === 'auto' || s.fontDisplay === 'block') {
-            s.fontDisplay = FONT_DISPLAY;
-          }
-        }
-      }
+      patchRuleList(rules);
       patchedSheets.add(ss);
     }
   };
@@ -78,9 +84,6 @@
    * ═══════════════════════════════════════════════ */
   let lcpEl = null;
 
-  // LCP 요소를 lazy 변환에서 제외하기 위한 집합.
-  // WeakSet이므로 요소가 DOM에서 제거된 후에는 GC 대상이 됨.
-  // (DOM에 연결된 동안은 DOM 트리가 강한 참조를 유지하므로 GC 불가)
   const lcpEls = new WeakSet();
 
   let lcpResolve;
@@ -116,7 +119,6 @@
         });
       }
 
-      // 저속 환경에서는 LCP 후보 변경이 늦게 발생할 수 있으므로 여유를 둠
       setTimeout(stopLCP, IS_SLOW ? 10000 : 5000);
     } catch (_) { lcpResolve(); }
   } else {
@@ -124,15 +126,16 @@
   }
 
   function boostLCP() {
-    // LCP 엔트리는 렌더링 이후 발화하므로 fetchPriority/decoding 설정은 무효.
-    // 유일하게 유효한 처리: lazy→eager 복원 (아직 fetch가 시작되지 않은 경우 대비)
     if (!lcpEl?.isConnected) { lcpEl = null; return; }
-    if (lcpEl.tagName === 'IMG' && lcpEl.loading === 'lazy') lcpEl.loading = 'eager';
+    if (lcpEl.tagName === 'IMG') {
+      if (lcpEl.loading === 'lazy') lcpEl.loading = 'eager';
+      if (lcpEl.fetchPriority === 'low') lcpEl.fetchPriority = 'high';
+      if (lcpEl.decoding === 'async') lcpEl.decoding = 'auto';
+    }
   }
 
   const optimizeBelowFold = () => {
     lcpReady.then(() => {
-      // doc.body가 아직 없는 극단적 경우 방어
       if (!doc.body) return;
 
       const observed = new WeakSet();
@@ -144,23 +147,15 @@
           io.unobserve(el);
 
           if (tag === 'IMG') {
-            // LCP 요소는 lazy 변환에서 제외
             if (lcpEls.has(el) || e.isIntersecting) continue;
 
-            // NOTE: HTML 파서가 이미 처리한 <img>에 대해서는 loading='lazy'를
-            // 사후 설정해도 브라우저가 이미 시작한 fetch를 취소하지 않음.
-            // 이 처리는 주로 MutationObserver가 감지한 동적 삽입 요소에 효과적임.
             if (!el.loading || el.loading === 'eager') el.loading = 'lazy';
             if (!el.decoding || el.decoding === 'auto') el.decoding = 'async';
 
-            // fetchPriority는 in-flight 요청에도 우선순위 재평가가 가능하므로 유지
             if (!el.fetchPriority || el.fetchPriority === 'auto' || el.fetchPriority === 'high') {
               el.fetchPriority = 'low';
             }
 
-            // sizes='auto'는 loading="lazy"와 함께 적용될 때만 유효.
-            // 이미 파싱된 이미지에서는 loading='lazy'가 실질적으로 적용되지 않으므로
-            // 동적 삽입 요소에서만 효과가 있음.
             if (el.srcset && el.loading === 'lazy' &&
                 (!el.sizes || el.sizes === '') && /\d+w/.test(el.srcset)) {
               el.sizes = 'auto';
@@ -177,10 +172,8 @@
         if (!observed.has(el)) { observed.add(el); io.observe(el); }
       };
 
-      // 초기 스캔
       doc.querySelectorAll('img, iframe').forEach(observeEl);
 
-      // 동적 요소 감시 – throttle로 비용 제한
       let pending = [];
       let flushScheduled = false;
 
