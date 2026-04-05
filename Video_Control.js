@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.6.6)
+// @name         Video_Control (v31.6.7)
 // @namespace    https://github.com/moamoa7
-// @version      31.6.6
-// @description  v31.6.6: SVG 디더 노이즈 도입 (밴딩 완화)
+// @version      31.6.7
+// @description  v31.6.7: 필터 적용 최적화, SVG/CSS 전환 불연속 수정, 샤프닝 프로파일 정리
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.6.6';
+  const VSC_VERSION = '31.6.7';
   const DEBUG = false;
 
   const log = {
@@ -54,7 +54,8 @@
   function getSharpProfile(nW) {
     if (nW > 2560) return { cap: 0.25, diagRatio: 0.60, autoBase: 0.12 };
     if (nW > 1920) return { cap: 0.22, diagRatio: 0.65, autoBase: 0.10 };
-    return { cap: 0.18, diagRatio: 0.707, autoBase: null };
+    const autoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : 0.12;
+    return { cap: 0.18, diagRatio: 0.707, autoBase };
   }
   const SHARP_CAP_DEFAULT = 0.18;
 
@@ -65,7 +66,14 @@
 
   function checkNeedsSvg(s) {
     const hasSharp = Math.abs(s.sharp || 0) > 0.005;
-    const hasTone = (Math.abs(s.toe || 0) > 0.005 || Math.abs(s.mid || 0) > 0.005 || Math.abs(s.shoulder || 0) > 0.005 || Math.abs((s.gain || 1) - 1) > 0.005 || Math.abs((s.gamma || 1) - 1) > 0.005 || Math.abs((s.contrast || 1) - 1) > 0.005);
+    const hasTone = (
+      Math.abs(s.toe      || 0) > 0.001 ||
+      Math.abs(s.mid      || 0) > 0.001 ||
+      Math.abs(s.shoulder || 0) > 0.001 ||
+      Math.abs((s.gain     || 1) - 1) > 0.005 ||
+      Math.abs((s.gamma    || 1) - 1) > 0.005 ||
+      Math.abs((s.contrast || 1) - 1) > 0.005
+    );
     return hasSharp || hasTone || Math.abs(s.temp || 0) > 0.5 || Math.abs(s.tint || 0) > 0.5;
   }
 
@@ -121,8 +129,7 @@
     { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 12, 10] },
     { n: '애니', v: [0, 0, 6, 0, 0, 4, -6, 8, 4] },
     { n: '복원', v: [0, 0, 25, 0, 0, 0, -6, 7, 15] },
-    { n: '투명1', v: [0, 0, 10, 0, 0, 0, -10, 0, 10] },
-    { n: '투명2', v: [0, 0, 10, 0, 0, 0, -10, -10, 10] },
+    { n: '투명', v: [0, 0, 10, 0, 0, 0, -10, -10, 10] },
   ];
 
   const DEFAULTS = {
@@ -969,14 +976,12 @@
       return { el: xfer, refs };
     }
 
-    /* v31.6.6: 디더 노이즈 주입 — 톤커브 전에 ±1LSB 노이즈를 추가하여 밴딩 완화 */
     function buildSvg(root) {
       const svg = h('svg', { ns: 'svg', style: 'position:absolute;left:-9999px;width:0;height:0;' });
       const defs = h('defs', { ns: 'svg' }); svg.append(defs);
       const fid = `vsc-f-${VSC_ID}`;
       const filter = h('filter', { ns: 'svg', id: fid, 'color-interpolation-filters': 'sRGB', x: '0%', y: '0%', width: '100%', height: '100%' });
 
-      /* ── 디더 노이즈 (3 primitives, GPU-only) ── */
       const feTurb = h('feTurbulence', { ns: 'svg',
         type: 'fractalNoise',
         baseFrequency: '0.75',
@@ -994,7 +999,6 @@
         in: 'SourceGraphic', in2: 'monoNoise',
         result: 'dithered'
       });
-      /* ── 디더 노이즈 끝 ── */
 
       const toneResult = mkXfer({ in: 'dithered', result: 'tone' }, { type: 'table', tableValues: '0 1' });
       const tempResult = mkXfer({ in: 'tone', result: 'tmp' }, { type: 'linear', slope: '1' });
@@ -1050,8 +1054,6 @@
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
-
-      if (video) appliedFilter.delete(video);
 
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) {
@@ -1126,12 +1128,7 @@
       let mul = ratio <= 0.30 ? 0.40 : ratio <= 0.60 ? 0.40 + (ratio - 0.30) / 0.30 * 0.30 : ratio <= 1.00 ? 0.70 + (ratio - 0.60) / 0.40 * 0.30 : ratio <= 1.80 ? 1.00 : ratio <= 4.00 ? 1.00 - (ratio - 1.80) / 2.20 * 0.30 : 0.65;
 
       const sharpProfile = getSharpProfile(nW);
-      let rawAutoBase;
-      if (sharpProfile.autoBase !== null) {
-        rawAutoBase = sharpProfile.autoBase;
-      } else {
-        rawAutoBase = nW <= 640 ? 0.18 : nW <= 960 ? 0.14 : nW <= 1280 ? 0.13 : nW <= 1920 ? 0.12 : 0.07;
-      }
+      const rawAutoBase = sharpProfile.autoBase;
 
       if (IS_MOBILE) mul = Math.max(mul, 0.60);
       return { mul: CLAMP(mul, 0, 1), autoBase: CLAMP(rawAutoBase * mul, 0, sharpProfile.cap), rawAutoBase, sharpProfile };
