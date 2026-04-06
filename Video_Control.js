@@ -126,18 +126,16 @@ function getSharpProfile(nW) {
     return { rs: r / maxCh, gs: g / maxCh, bs: b / maxCh };
   }
 
-  const MANUAL_PRESETS = [
-    { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-    { n: '보정', v: [0, 0, 8, 0, 0, 0, -3, 3, 4] },
-    { n: '선명', v: [0, 0, 6, 0, 0, 0, -8, 11, 7] },
-    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 10, 11] },
-    { n: '영화1', v: [0, 0, 4, 6, 0, -10, -12, 12, 8] },
-    { n: '영화2', v: [0, 0, 6, 8, -2, -8, -10, 14, 10] },
-    { n: '애니', v: [0, 0, 6, 0, 0, 4, -6, 8, 4] },
-    { n: '복원', v: [0, 0, 12, 0, 0, 0, -12, 6, 14] },
-    { n: '투명', v: [0, 0, 18, 0, 0, 0, -18, 0, 20] },
-
-  ];
+const MANUAL_PRESETS = [
+  //              shad rec brt temp tint sat  gamma con  gain
+  { n: 'OFF',  v: [ 0,  0,  0,  0,  0,  0,   0,   0,   0] },
+  { n: '보정', v: [ 0,  0,  6,  0,  0,  0,  -5,   7,   4] },
+  { n: '필름', v: [14,  0,  4,  8, -2,-12,  -8,   4,   3] },
+  { n: '블버', v: [ 0,  0,  8, -4,  2, -6,  -3,  12,   6] },
+  { n: '애니', v: [ 0,  0,  6,  0,  0,  6,  -4,   6,   3] },
+  { n: '복원', v: [18, 12, 10,  0,  0,  0, -10,   4,   8] },
+  { n: '투명', v: [ 0,  0, 14,  0,  0,  0, -14,   0,  10] },
+];
 
   const DEFAULTS = {
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
