@@ -15,15 +15,15 @@
 (function() {
     'use strict';
 
-    const CFG = { 
-        minDist: 10, longPress: 500, rateBase: 2.0, senseX: 0.25, senseY: 1.0, 
-        progressBarColor: '#FF6699', uiTimeout: 2500, maxScale: 8.0, senseRate: 0.015 
+    const CFG = {
+        minDist: 10, longPress: 500, rateBase: 2.0, senseX: 0.25, senseY: 1.0,
+        progressBarColor: '#FF6699', uiTimeout: 2500, maxScale: 8.0, senseRate: 0.015
     };
 
     let seekSec = GM_getValue('gt_seek_sec', 10);
     let seekMode = GM_getValue('gt_seek_mode', 'sec');
     let fpsMode = GM_getValue('gt_fps', 30);
-    
+
     let state = { isScreenLocked: false, pinchMode: 'speed', scale: 1.0, panX: 0, panY: 0 };
     let startX, startY, initVol, initTime, initRate, targetV, targetP, isTouch = false, action = null, lpTimer = null, toastTimer = null, lastTapTime = 0, tapCount = 0, uiTimer = null;
     let activeSeekSide = null, seekAccumulator = 0, seekSessionTimer = null, wasPlayingBeforeSequence = false;
@@ -31,7 +31,7 @@
 
     let blockGestureUntil = 0;
     let enforceStateUntil = 0;
-    let enforceTarget = null; 
+    let enforceTarget = null;
 
     window.addEventListener('message', (e) => {
         if (e.data && e.data.type === 'gt_lock_orientation') {
@@ -42,8 +42,8 @@
     });
 
     const VIP_SELECTORS = '.video-js, .vjs-custom-skin, .player-container, .art-video-player, .xgplayer, .tcplayer, .prism-player, .mui-player, [data-testid="videoComponent"], .plyr, #html5video, #movie_player, .html5-video-player, .bpx-player-container, .dplayer, .artplayer-app, .MacPlayer, .ckplayer, #playleft, iframe';
-    
-    const IGNORE_TOUCH_SELECTORS = '.gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, input[type="range"], .buttons-bar, .progress-bar-container';
+
+    const IGNORE_TOUCH_SELECTORS = '[data-vsc-ui="1"], .gt-btn-base, .dplayer-controller, .dplayer-bar-wrap, .vjs-control-bar, .art-bottom, .art-controls, .bpx-player-control-wrap, .plyr__controls, .xgplayer-controls, .tcplayer-controls, .prism-controlbar, .mui-player-controls, input[type="range"], .buttons-bar, .progress-bar-container';
 
     const findUp = (el, selector) => { while (el && el !== document.body) { if (el.matches && el.matches(selector)) return el; el = el.parentNode; } return null; };
     const isExcludedZone = (target) => !!findUp(target, IGNORE_TOUCH_SELECTORS);
@@ -62,7 +62,7 @@
                             target.classList.add('gt-fullscreen-active');
                         }
                     }
-                    
+
                     const promise = originalMethod.apply(target, args);
                     let v = target.tagName === 'VIDEO' ? target : (target.querySelector('video') || document.querySelector('video'));
                     if (v && screen.orientation && screen.orientation.lock) {
@@ -84,7 +84,7 @@
 
         if (isFS) {
             if (fsBtn) { try { fsBtn.click(); } catch(e){} }
-            
+
             if (document.exitFullscreen) document.exitFullscreen().catch(()=>{});
             else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
             container.classList.remove('gt-fullscreen-active');
@@ -108,12 +108,12 @@
 
             container.classList.add('gt-fullscreen-active');
             const reqFs = container.requestFullscreen || container.webkitRequestFullscreen || container.mozRequestFullScreen;
-            
+
             if (reqFs) {
                 const p = reqFs.call(container);
                 if (p && p.then) {
-                    p.then(() => setTimeout(forceLockLandscape, 150)).catch(()=>{ 
-                        if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); 
+                    p.then(() => setTimeout(forceLockLandscape, 150)).catch(()=>{
+                        if (video.webkitEnterFullscreen) video.webkitEnterFullscreen();
                         setTimeout(forceLockLandscape, 150);
                     });
                 } else {
@@ -126,8 +126,8 @@
         }
     };
 
-    const toggleOrientation = () => { 
-        if (!screen.orientation) return; 
+    const toggleOrientation = () => {
+        if (!screen.orientation) return;
         const dir = screen.orientation.type.startsWith('landscape') ? 'portrait' : 'landscape';
         if (screen.orientation.lock) {
             screen.orientation.lock(dir).catch(()=>{
@@ -140,7 +140,7 @@
 
     GM_addStyle(`
         ${TOUCH_LOCK_SELECTORS} { touch-action: none !important; overscroll-behavior: none !important; }
-        
+
         .gt-toast { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.15); color: #fff; padding: 4px 10px; border-radius: 4px; font: 700 14px system-ui; z-index: 2147483647; pointer-events: none; opacity: 0; transition: opacity 0.2s; text-shadow: 0 0 2px #000; border: 1px solid rgba(255,255,255,0.05); }
         .gt-toast.show { opacity: 1; }
         .gt-seek-msg { position: absolute !important; top: 50% !important; color: rgba(255, 255, 255, 0.95) !important; z-index: 2147483647 !important; pointer-events: none !important; opacity: 0; transition: opacity 0.15s ease-out; display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; align-items: center !important; justify-content: center !important; gap: 6px !important; font-family: system-ui, -apple-system, sans-serif !important; white-space: nowrap !important; text-shadow: 0 0 10px rgba(0,0,0,0.8), 0 0 4px rgba(0,0,0,0.6), 0 2px 4px rgba(0,0,0,0.5) !important; }
@@ -157,25 +157,25 @@
         .gt-arrow-slide-l { animation: gt-slide-l 0.6s infinite; }
         @keyframes gt-slide-l { 0% { transform: translateX(4px); opacity: 0; } 40% { opacity: 1; } 100% { transform: translateX(-4px); opacity: 0; } }
         :fullscreen { background-color: #000 !important; }
-        
+
         .gt-ui-layer { position: absolute !important; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none !important; z-index: 2147483647 !important; }
-        
+
         .gt-mini-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: rgba(255,255,255,0.2); z-index: 2147483640; pointer-events: none; overflow: hidden; opacity: 0.9; transition: height 0.2s, opacity 0.3s; box-shadow: 0 -1px 1px rgba(0,0,0,0.2); }
         .gt-mini-progress .gt-fill { height: 100%; width: 0%; background: ${CFG.progressBarColor}; transition: width 0.1s linear; box-shadow: 0 0 4px ${CFG.progressBarColor}; }
         :fullscreen .gt-mini-progress, .gt-fullscreen-active .gt-mini-progress { height: 3px !important; }
         .gt-lock-shield { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2147483645; background: rgba(0,0,0,0); touch-action: none; display: none; pointer-events: auto; }
         :fullscreen .gt-lock-shield, .gt-fullscreen-active .gt-lock-shield { position: fixed !important; top: 0 !important; left: 0 !important; width: 100vw !important; height: 100vh !important; }
-        
+
         .gt-btn-base { position: absolute; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; z-index: 2147483647; opacity: 0; pointer-events: none; transition: opacity 0.3s ease, transform 0.15s ease; border: none; background: transparent; color: rgba(255, 255, 255, 0.95); filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.8)); }
         .gt-btn-base * { pointer-events: none !important; }
         .gt-btn-base svg { width: 15px; height: 15px; transition: all 0.2s ease; transform-origin: center center; fill: none !important; stroke: currentColor !important; stroke-width: 2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
         .gt-btn-base svg * { fill: none !important; stroke: currentColor !important; stroke-width: 2 !important; stroke-linecap: round !important; stroke-linejoin: round !important; }
-        
+
         .gt-btn-base span { font-size: 11px; font-weight: 800; font-family: system-ui; letter-spacing: 0.5px; transform-origin: center center; display: inline-block; }
         .gt-ui-visible .gt-btn-base { opacity: 0.65 !important; pointer-events: auto !important; }
         .gt-ui-visible .gt-btn-base.hidden-by-state { display: none !important; pointer-events: none !important; }
         .gt-btn-base:active { opacity: 0.9 !important; color: #fff; }
-        
+
         .gt-rotate-btn { top: 10px; left: 10px; }
         .gt-seek-mode-btn { top: calc(10px + 32px); left: 10px; }
         .gt-seek-val-btn { top: calc(10px + 64px); left: 10px; }
@@ -187,12 +187,12 @@
         .gt-lock-btn { top: calc(50% - 32px); right: 10px; transform: translateY(-50%); }
         .gt-mode-btn { top: calc(50% + 32px); right: 10px; transform: translateY(-50%); }
         .gt-reset-zoom-btn { top: calc(50% + 72px); right: 10px; transform: translateY(-50%); }
-        
+
         :fullscreen .gt-btn-base, .gt-fullscreen-active .gt-btn-base { width: 38px; height: 38px; }
         :fullscreen .gt-ui-visible .gt-btn-base, .gt-fullscreen-active .gt-ui-visible .gt-btn-base { opacity: 0.5 !important; }
         :fullscreen .gt-btn-base svg, .gt-fullscreen-active .gt-btn-base svg { width: 22px; height: 22px; }
         :fullscreen .gt-btn-base span, .gt-fullscreen-active .gt-btn-base span { font-size: 14px; }
-        
+
         :fullscreen .gt-rotate-btn, .gt-fullscreen-active .gt-rotate-btn { top: 20px; left: 20px; }
         :fullscreen .gt-seek-mode-btn, .gt-fullscreen-active .gt-seek-mode-btn { top: calc(20px + 60px); left: 20px; }
         :fullscreen .gt-seek-val-btn, .gt-fullscreen-active .gt-seek-val-btn { top: calc(20px + 120px); left: 20px; }
@@ -221,7 +221,7 @@
 
     const identify = (e) => {
         const t = e.target; let targetVideo = null; let rootContainer = null;
-        
+
         const vip = findUp(t, VIP_SELECTORS);
         if (vip) {
             targetVideo = vip.tagName === 'VIDEO' ? vip : (vip.querySelector('video') || (vip.shadowRoot ? vip.shadowRoot.querySelector('video') : null));
@@ -232,12 +232,12 @@
             const videos = document.querySelectorAll('video');
             if (videos.length > 0) {
                 targetVideo = Array.from(videos).sort((a,b) => (b.clientWidth*b.clientHeight) - (a.clientWidth*a.clientHeight))[0];
-                if (targetVideo && targetVideo.clientWidth > 50) { 
+                if (targetVideo && targetVideo.clientWidth > 50) {
                     rootContainer = findUp(targetVideo, VIP_SELECTORS) || targetVideo.parentNode;
                 } else targetVideo = null;
             }
         }
-        
+
         if (!targetVideo) return null;
 
         if (rootContainer && rootContainer.tagName === 'VIDEO') {
@@ -249,10 +249,10 @@
             if (!isFS) {
                 const checkBox = rootContainer || targetVideo;
                 const rect = checkBox.getBoundingClientRect(); const touch = e.touches[0];
-                if (touch.clientX < rect.left - 10 || touch.clientX > rect.right + 10 || touch.clientY < rect.top - 10 || touch.clientY > rect.bottom + 10) return null; 
+                if (touch.clientX < rect.left - 10 || touch.clientX > rect.right + 10 || touch.clientY < rect.top - 10 || touch.clientY > rect.bottom + 10) return null;
             }
         }
-        
+
         return { root: rootContainer, video: targetVideo, isNaked: (!rootContainer.classList?.contains('gt-video-wrapper') && !findUp(rootContainer, VIP_SELECTORS.replace(', iframe', ''))) };
     };
 
@@ -276,7 +276,7 @@
         if(btnFit) btnFit.innerHTML = SVG_FIT;
         if(btnShot) btnShot.innerHTML = SVG_SHOT;
         if(btnPip) btnPip.innerHTML = SVG_PIP;
-        
+
         if (state.isScreenLocked) {
             if(shield) shield.style.display = 'block';
             [btnMode, btnRot, btnRst, btnZoomRst, btnSeekMode, btnSeekVal, btnFit, btnShot, btnPip].forEach(b => b?.classList.add('hidden-by-state'));
@@ -290,7 +290,7 @@
     };
 
     const wakeUpUI = (root, video) => {
-        if (!root) return; 
+        if (!root) return;
         const uiLayer = root.querySelector('.gt-ui-layer'); if(!uiLayer) return;
         if (activeUIEl && activeUIEl !== uiLayer) activeUIEl.classList.remove('gt-ui-visible');
         activeUIEl = uiLayer; uiLayer.classList.add('gt-ui-visible'); updateUIState(root, video);
@@ -300,8 +300,8 @@
 
     const applyTransform = () => {
         if(!targetV) return;
-        if (state.scale <= 1.05) { 
-            state.scale = 1.0; state.panX = 0; state.panY = 0; 
+        if (state.scale <= 1.05) {
+            state.scale = 1.0; state.panX = 0; state.panY = 0;
         } else {
             const mX = (targetV.clientWidth * state.scale - targetV.clientWidth) / 2, mY = (targetV.clientHeight * state.scale - targetV.clientHeight) / 2;
             state.panX = Math.max(-mX, Math.min(mX, state.panX)); state.panY = Math.max(-mY, Math.min(mY, state.panY));
@@ -316,7 +316,7 @@
         let lastExec = 0;
         const wrap = (e) => {
             e.stopPropagation(); e.stopImmediatePropagation(); if (e.type === 'touchend' && e.cancelable) e.preventDefault();
-            const now = Date.now(); if (now - lastExec < 300) return; lastExec = now; handler(e); 
+            const now = Date.now(); if (now - lastExec < 300) return; lastExec = now; handler(e);
             const icon = btn.querySelector('svg') || btn.querySelector('span');
             if (icon) { icon.classList.remove('gt-pop-anim'); void icon.offsetWidth; icon.classList.add('gt-pop-anim'); }
         };
@@ -326,7 +326,7 @@
 
     const ensureUIAndWrapper = (hit) => {
         let { root, video, isNaked } = hit;
-        
+
         if (!root.classList.contains('gt-lock-touch')) root.classList.add('gt-lock-touch');
         if (!video.classList.contains('gt-lock-touch')) video.classList.add('gt-lock-touch');
 
@@ -338,9 +338,9 @@
         if (!uiLayer) {
             uiLayer = document.createElement('div');
             uiLayer.className = 'gt-ui-layer';
-            
-            const bar = document.createElement('div'); bar.className = 'gt-mini-progress'; bar.innerHTML = '<div class="gt-fill"></div>'; uiLayer.appendChild(bar); 
-            
+
+            const bar = document.createElement('div'); bar.className = 'gt-mini-progress'; bar.innerHTML = '<div class="gt-fill"></div>'; uiLayer.appendChild(bar);
+
             const shield = document.createElement('div'); shield.className = 'gt-lock-shield';
             const blk = (e) => { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); wakeUpUI(root, video); };
             ['click', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'dblclick', 'touchstart', 'touchend'].forEach(evt => shield.addEventListener(evt, blk, {capture:true, passive:false}));
@@ -348,13 +348,13 @@
 
             const rBtn = document.createElement('div'); rBtn.className = 'gt-btn-base gt-rotate-btn'; rBtn.innerHTML = `<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>`;
             bindTap(rBtn, () => { toggleOrientation(); wakeUpUI(root, video); }); uiLayer.appendChild(rBtn);
-            
+
             const smBtn = document.createElement('div'); smBtn.className = 'gt-btn-base gt-seek-mode-btn';
             bindTap(smBtn, () => { seekMode = seekMode === 'sec' ? 'frame' : 'sec'; GM_setValue('gt_seek_mode', seekMode); updateUIState(root, video); showMsg(`탐색 모드: ${seekMode==='sec'?'초 단위':'프레임 단위'}`); wakeUpUI(root, video); }); uiLayer.appendChild(smBtn);
-            
+
             const svBtn = document.createElement('div'); svBtn.className = 'gt-btn-base gt-seek-val-btn';
             bindTap(svBtn, () => { if(seekMode==='sec'){ const a=[10,15,30,1,5]; seekSec=a[(a.indexOf(seekSec)+1)%a.length]; GM_setValue('gt_seek_sec', seekSec); showMsg(`이동 간격: ${seekSec}초`);} else { fpsMode=fpsMode===30?60:30; GM_setValue('gt_fps', fpsMode); showMsg(`프레임 레이트: ${fpsMode}`);} updateUIState(root, video); wakeUpUI(root, video); }); uiLayer.appendChild(svBtn);
-            
+
             const fitBtn = document.createElement('div'); fitBtn.className = 'gt-btn-base gt-fit-btn'; fitBtn.innerHTML = SVG_FIT;
             bindTap(fitBtn, () => {
                 const fits = ['contain', 'cover', 'fill'];
@@ -398,23 +398,23 @@
 
             const lBtn = document.createElement('div'); lBtn.className = 'gt-btn-base gt-lock-btn';
             bindTap(lBtn, () => { state.isScreenLocked = !state.isScreenLocked; if(state.isScreenLocked){ const r=video.getBoundingClientRect(); const clk=new MouseEvent('click', {bubbles:true, cancelable:true, clientX:r.left+r.width/2, clientY:r.top+r.height/2}); video.dispatchEvent(clk); } wakeUpUI(root, video); }); uiLayer.appendChild(lBtn);
-            
+
             const mBtn = document.createElement('div'); mBtn.className = 'gt-btn-base gt-mode-btn';
             bindTap(mBtn, () => { state.pinchMode = state.pinchMode==='speed'?'zoom':'speed'; wakeUpUI(root, video); showMsg(state.pinchMode==='speed'?'두 손가락: 재생 속도 조절':'두 손가락: 화면 확대/이동'); }); uiLayer.appendChild(mBtn);
-            
+
             const rstBtn = document.createElement('div'); rstBtn.className = 'gt-btn-base gt-reset-speed-btn'; rstBtn.innerHTML = `<span>1.0x</span>`;
             bindTap(rstBtn, () => { video.playbackRate = 1.0; showMsg('원래 속도로 복구'); wakeUpUI(root, video); }); uiLayer.appendChild(rstBtn);
-            
+
             const zoomRstBtn = document.createElement('div'); zoomRstBtn.className = 'gt-btn-base gt-reset-zoom-btn'; zoomRstBtn.innerHTML = SVG_RESET_ZOOM;
             bindTap(zoomRstBtn, () => { state.scale = 1.0; state.panX = 0; state.panY = 0; if (video.parentNode && video.parentNode.dataset.gtOverflow) { video.parentNode.style.overflow = video.parentNode.dataset.gtOverflow; } if (video) video.style.transform = `translate(0px, 0px) scale(1)`; showMsg('원래 크기로 복구'); wakeUpUI(root, video); }); uiLayer.appendChild(zoomRstBtn);
-            
+
             const style = window.getComputedStyle(root);
             if (style.position === 'static') root.style.position = 'relative';
             root.appendChild(uiLayer);
         }
-        
+
         if (!video.dataset.gtTimeupdate) {
-            video.addEventListener('timeupdate', () => { 
+            video.addEventListener('timeupdate', () => {
                 const fill = uiLayer.querySelector('.gt-mini-progress .gt-fill');
                 if (fill && video.duration) fill.style.width = `${(video.currentTime / video.duration) * 100}%`;
             }); video.dataset.gtTimeupdate = 'true';
@@ -425,7 +425,7 @@
             video.addEventListener('play', () => { if (Date.now() < enforceStateUntil && enforceTarget === 'paused') video.pause(); });
             video.dataset.gtStateLock = 'true';
         }
-        
+
         return root;
     };
 
@@ -440,22 +440,22 @@
         let t = uiLayer.querySelector('#gt-seek-' + dir); if (!t) { t = document.createElement('div'); t.id = 'gt-seek-' + dir; t.className = `gt-seek-msg ${dir}`; uiLayer.appendChild(t); }
         t.innerHTML = dir === 'left' ? `<div class="gt-arrows"><span>‹</span><span class="gt-arrow-slide-l">‹</span></div><span class="gt-seek-text gt-pop-anim">-${seekMode==='sec'?seekAccumulator:Math.round(seekAccumulator*fpsMode)}${seekMode==='sec'?'초':'프레임'}</span>` : `<span class="gt-seek-text gt-pop-anim">+${seekMode==='sec'?seekAccumulator:Math.round(seekAccumulator*fpsMode)}${seekMode==='sec'?'초':'프레임'}</span><div class="gt-arrows"><span class="gt-arrow-slide-r">›</span><span>›</span></div>`;
         t.classList.add('show'); clearTimeout(seekSessionTimer);
-        seekSessionTimer = setTimeout(() => { t.classList.remove('show'); activeSeekSide = null; seekAccumulator = 0; setTimeout(() => { if (t && t.parentNode && !t.classList.contains('show')) t.innerHTML = ''; }, 200); }, 800); 
+        seekSessionTimer = setTimeout(() => { t.classList.remove('show'); activeSeekSide = null; seekAccumulator = 0; setTimeout(() => { if (t && t.parentNode && !t.classList.contains('show')) t.innerHTML = ''; }, 200); }, 800);
     };
 
     const onStart = (e) => {
         if (!getFS()) { document.querySelectorAll('.plyr--fullscreen-active, .jw-flag-fullscreen, .gt-fullscreen-active, .gt-ui-visible').forEach(el => { el.classList.remove('plyr--fullscreen-active', 'jw-flag-fullscreen', 'gt-fullscreen-active', 'gt-ui-visible'); el.style.cssText = ''; }); }
-        
+
         const isEx = isExcludedZone(e.target);
         const isFS = !!getFS() || (targetP && targetP.classList.contains('gt-fullscreen-active'));
-        
+
         if (state.isScreenLocked && !isEx) {
             if (isFS || (targetP && targetP.contains(e.target))) {
                 if (e.cancelable) e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation();
                 if (targetP && targetV) wakeUpUI(targetP, targetV); lastTapTime = Date.now(); return;
             }
         }
-        
+
         if (isEx) { clearTimeout(lpTimer); return; }
 
         let hit = identify(e); if (!hit || !hit.video) return;
@@ -482,13 +482,13 @@
         }
 
         if (tapCount >= 2) {
-            blockGestureUntil = now + 500; 
-            if (e.cancelable) e.preventDefault(); 
+            blockGestureUntil = now + 500;
+            if (e.cancelable) e.preventDefault();
             e.stopPropagation(); e.stopImmediatePropagation();
-            
+
             const r = (e.touches ? e.touches[0].clientX : e.clientX) / window.innerWidth;
             const uiLayer = targetP.querySelector('.gt-ui-layer') || targetP;
-            
+
             if (r < 0.3) handleAccumulatedSeek('left', uiLayer, targetV);
             else if (r > 0.7) handleAccumulatedSeek('right', uiLayer, targetV);
             else if (tapCount === 2) toggleNativeFullscreen(targetP, targetV);
@@ -498,8 +498,8 @@
             else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
 
             isTouch = false;
-            if (getFS()) hideUI(targetP); 
-            return; 
+            if (getFS()) hideUI(targetP);
+            return;
         }
 
         isTouch = true; action = null; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
@@ -511,8 +511,8 @@
             const rect = targetV.getBoundingClientRect(); originDx = initCenterX - (rect.left + rect.width/2 - initPanX); originDy = initCenterY - (rect.top + rect.height/2 - initPanY);
             action = 'pinch'; if (getFS()) hideUI(targetP);
         } else if (e.touches.length === 1 && state.scale === 1.0) {
-            lpTimer = setTimeout(() => { 
-                if (isTouch) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`); if (getFS()) hideUI(targetP); } 
+            lpTimer = setTimeout(() => {
+                if (isTouch) { action = 'rate'; targetV.playbackRate = Math.max(0.1, initRate + CFG.rateBase - 1.0); showMsg(`${targetV.playbackRate.toFixed(1)}x`); if (getFS()) hideUI(targetP); }
             }, CFG.longPress);
         }
     };
@@ -525,7 +525,7 @@
         }
 
         if (!isTouch || !targetV) return;
-        
+
         if (action === 'pinch' || action === 'rate' || action === 'seek' || action === 'vol' || action === 'bri') {
             if (e.cancelable) e.preventDefault();
             e.stopPropagation(); e.stopImmediatePropagation();
@@ -542,27 +542,27 @@
                 let finalSpeed = s;
                 if (finalSpeed > 0.95 && finalSpeed < 1.05) finalSpeed = 1.0;
                 finalSpeed = Math.max(0.1, Math.min(4.0, finalSpeed));
-                setRateThrottled(targetV, finalSpeed); 
+                setRateThrottled(targetV, finalSpeed);
                 showMsg(finalSpeed === 1.0 ? '1.0x' : `${finalSpeed.toFixed(2)}x`);
             } return;
         }
 
-        if (action === 'pinch' || action === 'pinch_wait') return; 
+        if (action === 'pinch' || action === 'pinch_wait') return;
 
         const dx = e.touches[0].clientX - startX, dy = startY - e.touches[0].clientY;
 
         if (action === 'rate') { targetV.playbackRate = Math.max(0.1, Math.min(4.0, initRate + (CFG.rateBase + dx * CFG.senseRate) - 1.0)); showMsg(`${targetV.playbackRate.toFixed(1)}x`); return; }
-        
-        if (!action) { 
-            if (Math.abs(dx) > CFG.minDist || Math.abs(dy) > CFG.minDist) { 
-                clearTimeout(lpTimer); action = Math.abs(dx) > Math.abs(dy) ? 'seek' : (startX < innerWidth/2 ? 'bri' : 'vol'); 
-                
+
+        if (!action) {
+            if (Math.abs(dx) > CFG.minDist || Math.abs(dy) > CFG.minDist) {
+                clearTimeout(lpTimer); action = Math.abs(dx) > Math.abs(dy) ? 'seek' : (startX < innerWidth/2 ? 'bri' : 'vol');
+
                 enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = Date.now() + 800;
                 if (enforceTarget === 'playing' && targetV.paused) targetV.play().catch(()=>{});
                 else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
-                
+
                 if (getFS()) hideUI(targetP);
-            } else return; 
+            } else return;
         }
 
         if (action === 'seek') { targetV.currentTime = Math.max(0, Math.min(targetV.duration||0, initTime + dx * CFG.senseX)); showMsg(`${Math.floor(targetV.currentTime/60)}:${(Math.floor(targetV.currentTime%60)+'').padStart(2,'0')}`); }
@@ -573,7 +573,7 @@
     const onEnd = (e) => {
         const now = Date.now();
         const isEx = isExcludedZone(e.target);
-        
+
         if (now < blockGestureUntil && !isEx) {
             e.stopPropagation(); e.stopImmediatePropagation();
             if (e.cancelable) e.preventDefault();
@@ -587,13 +587,13 @@
         }
         if (!isTouch) return;
         if (e.touches.length > 0) { if (action === 'pinch') action = 'pinch_wait'; return; }
-        
+
         if (pendingRate !== null && targetV) { targetV.playbackRate = pendingRate; pendingRate = null; }
 
-        clearTimeout(lpTimer); 
+        clearTimeout(lpTimer);
         if (action === 'rate' && targetV) { targetV.playbackRate = initRate; showMsg(''); wakeUpUI(targetP, targetV); }
         if ((action === 'pinch' || action === 'pinch_wait' || action === 'pan') && targetV) { wakeUpUI(targetP, targetV); }
-        
+
         if (!action) { if (!activeSeekSide) wakeUpUI(targetP, targetV); }
         else { blockGestureUntil = now + 500; }
 
@@ -601,9 +601,9 @@
         isTouch = false; targetV = null; action = null;
     };
 
-    const pOpt = { passive: false, capture: true }; 
+    const pOpt = { passive: false, capture: true };
     document.addEventListener('touchstart', onStart, pOpt); document.addEventListener('touchmove', onMove, pOpt); document.addEventListener('touchend', onEnd, pOpt); document.addEventListener('touchcancel', onEnd, pOpt);
-    
+
     ['pointerdown', 'pointerup', 'pointercancel', 'click', 'dblclick'].forEach(evt => {
         document.addEventListener(evt, (e) => {
             const isEx = isExcludedZone(e.target);
@@ -623,29 +623,29 @@
     });
 
     ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(evt => {
-        document.addEventListener(evt, () => { 
+        document.addEventListener(evt, () => {
             let fsEl = getFS();
-            if (!fsEl) { 
-                hideUI(targetP); 
+            if (!fsEl) {
+                hideUI(targetP);
                 document.querySelectorAll('.gt-lock-touch').forEach(el => el.classList.remove('gt-lock-touch'));
                 if (screen.orientation?.unlock) {
                     screen.orientation.unlock();
                     try { window.top.postMessage({ type: 'gt_unlock_orientation' }, '*'); } catch(e){}
                 }
-            } else { 
+            } else {
                 setTimeout(() => {
                     let v = targetV || document.querySelector('video');
                     let root = fsEl;
                     if (root && root.tagName === 'VIDEO') root = root.parentNode;
-                    
+
                     let uiLayer = targetP ? targetP.querySelector('.gt-ui-layer') : null;
                     if (!uiLayer) uiLayer = document.querySelector('.gt-ui-layer');
-                    
+
                     if (uiLayer && root && !root.contains(uiLayer)) {
                         const style = window.getComputedStyle(root);
                         if (style.position === 'static') root.style.position = 'relative';
                         root.appendChild(uiLayer);
-                        targetP = root; 
+                        targetP = root;
                     }
 
                     wakeUpUI(root, v);
@@ -660,7 +660,7 @@
                         }
                     }
                 }, 200);
-            } 
+            }
         });
     });
 })();
