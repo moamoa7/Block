@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         딜레이 자동 제어
 // @namespace    https://github.com/moamoa7
-// @version      16.1.3
+// @version      16.1.4
 // @description  라이브 방송의 딜레이를 자동 감지·제어 (경량화)
 // @author       DelayMeter
 // @match        *://*.youtube.com/*
@@ -29,7 +29,7 @@
    *  §1. 플랫폼 감지 · 상수
    * ================================================================ */
 
-  const FALLBACK_VER = '16.1.3';
+  const FALLBACK_VER = '16.1.4';
   const SCRIPT_VERSION = typeof GM_info !== 'undefined'
     ? GM_info?.script?.version ?? FALLBACK_VER
     : FALLBACK_VER;
@@ -47,11 +47,11 @@
   const PLATFORM_LABEL = { youtube: 'YouTube', chzzk: 'CHZZK', soop: 'SOOP', twitch: 'Twitch', default: HOST }[PLATFORM];
 
   const PLATFORM_DEFAULTS = {
-    youtube: { target: 10, min: 2,   max: 30, barMax: 35, rHigh: 1.30, stallCooldown: 8000, stallMode: 'full' },
-    chzzk:   { target: 1.5,  min: 0.5, max: 10, barMax: 15, rHigh: 1.30, stallCooldown: 3500, stallMode: 'full' },
-    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.25, stallCooldown: 0, stallMode: 'gentle' },
-    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.30, stallCooldown: 0, stallMode: 'gentle' },
-    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.30, stallCooldown: 4000, stallMode: 'full' },
+    youtube: { target: 10, min: 2,   max: 30, barMax: 35, rHigh: 1.30, rMed: 1.025, stallCooldown: 8000, stallMode: 'full' },
+    chzzk:   { target: 1.5,  min: 0.5, max: 10, barMax: 15, rHigh: 1.30, rMed: 1.025, stallCooldown: 3500, stallMode: 'full' },
+    soop:    { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.12, rMed: 1.015, stallCooldown: 3000, stallMode: 'gentle' },  /* [FIX] rHigh 1.25→1.12, rMed 추가, stallCooldown 0→3000 */
+    twitch:  { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.30, rMed: 1.025, stallCooldown: 2000, stallMode: 'gentle' },  /* [FIX] stallCooldown 0→2000 */
+    default: { target: 3,  min: 1,   max: 10, barMax: 15, rHigh: 1.30, rMed: 1.025, stallCooldown: 4000, stallMode: 'full' },
   };
   const PD = PLATFORM_DEFAULTS[PLATFORM] || PLATFORM_DEFAULTS.default;
   const { target: DEF_TARGET, min: MIN_TARGET, max: MAX_TARGET, barMax: BAR_MAX } = PD;
@@ -59,10 +59,10 @@
   const STALL_COOLDOWN = PD.stallCooldown;
   const STALL_GENTLE = PD.stallMode === 'gentle';
   const WARMUP_MS = 4000;
-  const GEAR_HOLD_MS = 3000;
+  const GEAR_HOLD_MS = IS_SOOP ? 5000 : 3000;  /* [FIX] SOOP 기어 전환 간격 확대 */
 
   const R_NORM = 1.00;
-  const R_MED  = 1.025;
+  const R_MED  = PD.rMed;    /* [FIX] 플랫폼별 rMed */
   const R_HIGH = PD.rHigh;
 
   /* ================================================================
@@ -80,7 +80,8 @@
     return b.end(b.length - 1) - vid.currentTime;
   };
 
-  const BUF_WINDOW = 5;
+  /* [FIX] SOOP 전용: 버퍼 스무딩 윈도우 확대 (5→7) — 변동 완화 */
+  const BUF_WINDOW = IS_SOOP ? 7 : 5;
   const _bufRing = new Float64Array(BUF_WINDOW).fill(-1);
   const _bufSort = new Float64Array(BUF_WINDOW);
   let _bufIdx = 0;
@@ -141,8 +142,8 @@
    * ================================================================ */
 
   const BufGuard = (() => {
-    const SPIKE_THRESH_RATIO = 1.5;
-    const STABLE_NEEDED = 3;
+    const SPIKE_THRESH_RATIO = IS_SOOP ? 2.0 : 1.5;  /* [FIX] SOOP 오탐 감소 */
+    const STABLE_NEEDED = IS_SOOP ? 5 : 3;            /* [FIX] SOOP 안정화 확인 횟수 확대 */
 
     let _lastStable = -1;
     let _holdTicks = 0;
@@ -283,9 +284,10 @@
   let panelOpen = cfg.open ?? false;
 
   /* ── 히스테리시스 (데드존) ──
-   *  target * 0.15 (최소 0.3s).
-   *  목표값 근처에서 기어가 불필요하게 전환되는 것을 억제. */
-  let _hyst = Math.max(0.3, target * 0.15);
+   *  [FIX] SOOP: target * 0.25 (최소 0.5s) — 데드존 확대로 진동 억제 */
+  const HYST_RATIO = IS_SOOP ? 0.25 : 0.15;
+  const HYST_MIN   = IS_SOOP ? 0.5  : 0.3;
+  let _hyst = Math.max(HYST_MIN, target * HYST_RATIO);
 
   _colorDenom = target * 0.5;
 
@@ -419,9 +421,10 @@
     return false;
   };
 
+  /* [FIX] safeRate 최소 변경 임계값 확대 — 미세한 변경 억제 */
   const safeRate = (vid, r) => {
     if (!vid) return;
-    if (Math.abs(vid.playbackRate - r) < 0.005) return;
+    if (Math.abs(vid.playbackRate - r) < 0.008) return;
     vid.playbackRate = r;
     try { vid.preservesPitch = true; } catch {}
   };
@@ -470,12 +473,15 @@
         LiveDetect.clearCache(v);
         if (!getVid() && isCandidate(v)) attach(v);
       });
+
+      /* [FIX] stall 핸들러: SOOP gentle 모드에서도 cooldown 적용 */
       const onStall = () => {
         if (getVid() !== v) return;
+        const now = performance.now();
         if (STALL_GENTLE) {
           if (control.gear !== R_NORM) { control.gear = R_NORM; safeRate(v, R_NORM); }
+          control.lastStallTime = now;  /* [FIX] gentle에서도 stall 시각 기록 */
         } else {
-          const now = performance.now();
           control.lastStallTime = now;
           control.lastGearChange = -GEAR_HOLD_MS;
           control.gear = R_NORM;
@@ -523,11 +529,13 @@
    *  §7. 제어 엔진
    * ================================================================
    *
-   *  v16.1.3 변경:
-   *  ─ 데드존 내부 MED→NORM 복귀 조건을 ex < _hyst*0.5 에서 ex < 0 으로
-   *    변경하여, 버퍼가 목표 이하로 떨어지면 즉시 NORM 복귀하도록 수정.
-   *    기존에는 _hyst가 0.3s일 때 0.15s 폭의 극소 구간에서만 복귀 가능하여
-   *    MED 기어가 불필요하게 오래 유지되는 문제가 있었음.
+   *  v16.1.4 변경 (SOOP 끊김 해결):
+   *  ─ 데드존 내 NORM 복귀 조건을 ex < -_hyst*0.3 으로 재조정.
+   *    v16.1.3의 ex < 0 은 너무 민감하여 NORM↔MED 진동 유발.
+   *  ─ SOOP 전용: rHigh 1.25→1.12, rMed 1.025→1.015 (부드러운 가속)
+   *  ─ SOOP 전용: stallCooldown 0→3000, GEAR_HOLD_MS 3000→5000
+   *  ─ SOOP 전용: 데드존 확대 (hyst 0.75s @target=3)
+   *  ─ SOOP 전용: 버퍼 스무딩 윈도우 5→7
    */
 
   const computeDesiredGear = buf => {
@@ -547,8 +555,9 @@
      *  HIGH 기어에서는 MED로 한 단계 감속 (점진적 감속 보장) */
     if (control.gear === R_HIGH) return R_MED;
 
-    /* 버퍼가 목표 이하이면 NORM 복귀 */
-    if (ex < 0) return R_NORM;
+    /* [FIX] 버퍼가 목표 아래 + 데드존 30% 이상 침투 시 NORM 복귀
+     *  v16.1.3의 ex < 0 은 너무 민감 → ex < -_hyst*0.3 으로 완화 */
+    if (ex < -_hyst * 0.3) return R_NORM;
 
     /* 그 외: 현재 기어 유지 (NORM이면 NORM, MED이면 MED) */
     return control.gear;
@@ -869,7 +878,7 @@
     /* 슬라이더 타겟 변경 공통 로직 */
     const applyTarget = t => {
       target = t;
-      _hyst = Math.max(0.3, target * 0.15);
+      _hyst = Math.max(HYST_MIN, target * HYST_RATIO);
       _colorDenom = target * 0.5;
       _colorKey = -1;
       slInput.value = target;
@@ -916,9 +925,6 @@
     Renderer.invalidate();
   };
 
-  /* [#4 fix] 패널 닫을 때 FAB 위치 복원:
-   *  드래그로 저장된 좌표(cfg.dx)가 있으면 그 위치로 복원,
-   *  없을 때만 패널 인접 위치로 계산. */
   const closeP = () => {
     if (!panelOpen) return; panelOpen = false; setCfg('open', false);
     const r = els.pn.getBoundingClientRect(); els.pn.classList.remove('open');
@@ -1065,7 +1071,7 @@
     const rerunInfo = IS_TWITCH ? ` rerun=${TwitchDetect.checkRerun() || 'no'}` : '';
     const guardInfo = ` guard=${BufGuard.isHolding()}`;
     const stallInfo = ` stall=${STALL_GENTLE ? 'gentle' : 'full'}(${STALL_COOLDOWN}ms)`;
-    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH}${stallInfo} | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}${guardInfo}${rerunInfo}`;
+    const txt = `[${PLATFORM}] t=${target}s hyst=${_hyst.toFixed(2)} rH=${R_HIGH} rM=${R_MED}${stallInfo} | raw=${rawBuf < 0 ? '-' : rawBuf.toFixed(3) + 's'} med=${smoothed < 0 ? '-' : smoothed.toFixed(3) + 's'} | ${gl}(${control.gear.toFixed(3)}×) | ${enabled ? 'ON' : 'OFF'} | live=${vid ? LiveDetect.check(vid) : false} | rs=${vid?.readyState ?? -1} | dur=${vid ? (vid.duration === Infinity ? '∞' : vid.duration?.toFixed(1)) : '-'}${guardInfo}${rerunInfo}`;
     const toast = el('div', { textContent: txt, style: { position: 'fixed', top: '12px', left: '50%', transform: 'translateX(-50%)', zIndex: '10001', background: 'rgba(12,14,20,.92)', backdropFilter: 'blur(12px)', color: '#f0f0f0', padding: '10px 24px', borderRadius: '12px', fontSize: '11px', fontFamily: 'monospace', transition: 'opacity .4s', border: '1px solid rgba(255,255,255,.06)', boxShadow: '0 8px 32px rgba(0,0,0,.5)', maxWidth: '94vw', wordBreak: 'break-all' } });
     document.body.appendChild(toast);
     setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 5000);
