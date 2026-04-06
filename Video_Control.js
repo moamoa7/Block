@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.7.4)
+// @name         Video_Control (v31.7.5)
 // @namespace    https://github.com/moamoa7
-// @version      31.7.4
-// @description  v31.7.4: 샤프닝 강도 재수정
+// @version      31.7.5
+// @description  v31.7.5: 필터 미적용 수정 / UI 이벤트 격리 무력화 풀림 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.7.4';
+  const VSC_VERSION = '31.7.5';
   const DEBUG = false;
 
   const log = {
@@ -95,7 +95,7 @@ function getSharpProfile(nW) {
     for (const evt of _SHIELD_EVENTS) {
       hostEl.addEventListener(evt, (e) => {
         e.stopPropagation();
-       }, { capture: false, passive: true });
+       }, { capture: false, passive: false });
     }
   }
 
@@ -129,14 +129,11 @@ function getSharpProfile(nW) {
   const MANUAL_PRESETS = [
     { n: 'OFF', v: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
     { n: '보정', v: [0, 0, 8, 0, 0, 0, -3, 3, 4] },
-    { n: '선명', v: [0, 0, 6, 0, 0, 0, -8, 10, 6] },
-    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 12, 10] },
-    { n: '영화수정', v: [0, 0, 6, 0, 0, -8, -8, 10, 10] },  // ⭐ contrast: 12 → 10
+    { n: '선명', v: [0, 0, 6, 0, 0, 0, -8, 11, 7] },
+    { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 10, 11] },
     { n: '애니', v: [0, 0, 6, 0, 0, 4, -6, 8, 4] },
-    { n: '복원', v: [0, 0, 25, 0, 0, 0, -6, 7, 15] },
-    { n: '복원수정', v: [0, 0, 15, 0, 0, 0, -6, 7, 15] },   // ⭐ shoulder: 25 → 15
-    { n: '투명', v: [0, 0, 10, 0, 0, 0, -10, -10, 10] },
-    { n: '투명수정', v: [0, 0, 8, 0, 0, 0, -8, -6, 10] },   // ⭐ 전체 세분화
+    { n: '복원', v: [0, 0, 12, 0, 0, 0, -6, 8, 15] },
+    { n: '투명', v: [0, 0, 10, 0, 0, 0, -12, -5, 13] },
 
   ];
 
@@ -804,6 +801,8 @@ function getSharpProfile(nW) {
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
 
+      if (video) appliedFilter.delete(video); 
+
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
 
@@ -860,7 +859,7 @@ function getSharpProfile(nW) {
         const presetS = Store.get(P.V_PRE_S);
         const mix = CLAMP(Number(Store.get(P.V_PRE_MIX)) || 1, 0, 1);
         const { mul, autoBase, rawAutoBase, sharpProfile } = video ? computeSharpMul(video) : { mul: 0.5, autoBase: 0.10, rawAutoBase: 0.12, sharpProfile: getSharpProfile(0) };
-        const platformScale = IS_MOBILE ? 0.70 : 1.0;
+        const platformScale = IS_MOBILE ? 0.7 : 1.0;
         const finalMul = ((mul === 0 && presetS !== 'off') ? 0.50 : mul) * platformScale;
         out._sharpCap = sharpProfile.cap; out._diagRatio = sharpProfile.diagRatio;
 
