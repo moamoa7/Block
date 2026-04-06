@@ -132,8 +132,8 @@ function getSharpProfile(nW) {
     { n: '선명', v: [0, 0, 6, 0, 0, 0, -8, 11, 7] },
     { n: '영화', v: [0, 0, 6, 0, 0, -8, -8, 10, 11] },
     { n: '애니', v: [0, 0, 6, 0, 0, 4, -6, 8, 4] },
-    { n: '복원', v: [0, 0, 12, 0, 0, 0, -6, 8, 15] },
-    { n: '투명', v: [0, 0, 10, 0, 0, 0, -12, -5, 13] },
+    { n: '복원', v: [0, 0, 12, 0, 0, 0, -12, 5, 15] },
+    { n: '투명', v: [0, 0, 16, 0, 0, 0, -16, 0, 19] },
 
   ];
 
@@ -801,7 +801,7 @@ function getSharpProfile(nW) {
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
       st._h6 = h6; st._h7 = h7; st._h8 = h8; st._h9 = h9; st._h10 = h10; st._h11 = h11;
 
-      if (video) appliedFilter.delete(video); 
+      if (video) appliedFilter.delete(video);
 
       const toneTable = getToneTable(256, s.gain || 1, s.contrast || 1, 1 / CLAMP(s.gamma || 1, 0.1, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
