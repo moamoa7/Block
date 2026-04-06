@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.7.5)
+// @name         Video_Control (v31.7.6)
 // @namespace    https://github.com/moamoa7
-// @version      31.7.5
-// @description  v31.7.5: 필터 미적용 수정 / UI 이벤트 격리 무력화 풀림 수정
+// @version      31.7.6
+// @description  v31.7.6: 수동 조정 파라미터 재조정 (2/3) toe / mid / shoulder / gamma / contrast
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -32,7 +32,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.7.5';
+  const VSC_VERSION = '31.7.6';
   const DEBUG = false;
 
   const log = {
@@ -878,14 +878,12 @@ function getSharpProfile(nW) {
         const mGain = CLAMP(Number(Store.get(P.V_MAN_GAIN) ?? 0), -30, 30);
         const mPreGain = CLAMP(Number(Store.get(P.V_MAN_PREGAIN) ?? 100), 10, 200);
 
-        // ⭐ 배수 조정: 원래의 약 1/3로 축소
-        out.toe = mShad * 0.0013;        // 0.0040 → 0.0013
-        out.mid = mRec * 0.0012;         // 0.0035 → 0.0012
-        out.shoulder = mBrt * 0.0015;    // 0.0045 → 0.0015
-        out.temp = mTemp;
-        out.tint = mTint;
-        out.gamma = 1 + mGamma * (-0.0027);  // -0.008 → -0.0027
-        out.contrast = 1 + mCon * 0.0027;     // 0.008 → 0.0027
+        // ▼ 권장 (원래의 약 2/3 수준 — 체감 가능하면서 과하지 않은 선)
+        out.toe      = mShad * 0.0027;          // 0~100 → 0~0.27
+        out.mid      = mRec  * 0.0024;          // 0~100 → 0~0.24
+        out.shoulder = mBrt  * 0.0030;          // 0~100 → 0~0.30
+        out.gamma    = 1 + mGamma * (-0.0055);  // ±30 → 0.835~1.165
+        out.contrast = 1 + mCon   *  0.0055;   // ±30 → 0.835~1.165
         out.gain = Math.pow(2, mGain * 0.03);
         out._preGain = mPreGain / 100;
 
