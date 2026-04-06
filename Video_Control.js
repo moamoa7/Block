@@ -95,7 +95,7 @@ function getSharpProfile(nW) {
     for (const evt of _SHIELD_EVENTS) {
       hostEl.addEventListener(evt, (e) => {
         e.stopPropagation();
-       }, { capture: false, passive: false });
+       }, { capture: false, passive: true });
     }
   }
 
