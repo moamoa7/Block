@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Mobile Gesture
 // @namespace    http://tampermonkey.net/
-// @version      66.05.2
-// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판)
+// @version      66.05.3
+// @description  모바일 브라우저에서 동영상을 전용 앱처럼 편리하게 제어할 수 있는 터치 제스처 플러그인입니다. (수정판: 밝기/볼륨 상하 드래그 제거)
 // @author       Gemini & 仙
 // @license      MIT
 // @match        *://*/*
@@ -25,7 +25,7 @@
     let fpsMode = GM_getValue('gt_fps', 30);
 
     let state = { isScreenLocked: false, pinchMode: 'speed', scale: 1.0, panX: 0, panY: 0 };
-    let startX, startY, initVol, initTime, initRate, targetV, targetP, isTouch = false, action = null, lpTimer = null, toastTimer = null, lastTapTime = 0, tapCount = 0, uiTimer = null;
+    let startX, startY, initTime, initRate, targetV, targetP, isTouch = false, action = null, lpTimer = null, toastTimer = null, lastTapTime = 0, tapCount = 0, uiTimer = null;
     let activeSeekSide = null, seekAccumulator = 0, seekSessionTimer = null, wasPlayingBeforeSequence = false;
     let initPinchDist = 0, initScale = 1.0, initPanX = 0, initPanY = 0, initSpeed = 1.0, initCenterX = 0, initCenterY = 0, originDx = 0, originDy = 0;
 
@@ -503,7 +503,7 @@
         }
 
         isTouch = true; action = null; startX = e.touches[0].clientX; startY = e.touches[0].clientY;
-        initVol = targetV.volume; initTime = targetV.currentTime; initRate = targetV.playbackRate;
+        initTime = targetV.currentTime; initRate = targetV.playbackRate;
 
         if (e.touches.length === 2) {
             const p = getPinchData(e.touches); initPinchDist = p.dist; initCenterX = p.cx; initCenterY = p.cy;
@@ -526,7 +526,7 @@
 
         if (!isTouch || !targetV) return;
 
-        if (action === 'pinch' || action === 'rate' || action === 'seek' || action === 'vol' || action === 'bri') {
+        if (action === 'pinch' || action === 'rate' || action === 'seek' || action === 'ignore') {
             if (e.cancelable) e.preventDefault();
             e.stopPropagation(); e.stopImmediatePropagation();
         }
@@ -547,7 +547,7 @@
             } return;
         }
 
-        if (action === 'pinch' || action === 'pinch_wait') return;
+        if (action === 'pinch' || action === 'pinch_wait' || action === 'ignore') return;
 
         const dx = e.touches[0].clientX - startX, dy = startY - e.touches[0].clientY;
 
@@ -555,19 +555,21 @@
 
         if (!action) {
             if (Math.abs(dx) > CFG.minDist || Math.abs(dy) > CFG.minDist) {
-                clearTimeout(lpTimer); action = Math.abs(dx) > Math.abs(dy) ? 'seek' : (startX < innerWidth/2 ? 'bri' : 'vol');
-
-                enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = Date.now() + 800;
-                if (enforceTarget === 'playing' && targetV.paused) targetV.play().catch(()=>{});
-                else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
-
-                if (getFS()) hideUI(targetP);
+                clearTimeout(lpTimer);
+                // 오직 좌우(seek) 드래그만 허용하고 상하 드래그는 무시 처리
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    action = 'seek';
+                    enforceTarget = wasPlayingBeforeSequence ? 'playing' : 'paused'; enforceStateUntil = Date.now() + 800;
+                    if (enforceTarget === 'playing' && targetV.paused) targetV.play().catch(()=>{});
+                    else if (enforceTarget === 'paused' && !targetV.paused) targetV.pause();
+                    if (getFS()) hideUI(targetP);
+                } else {
+                    action = 'ignore';
+                }
             } else return;
         }
 
         if (action === 'seek') { targetV.currentTime = Math.max(0, Math.min(targetV.duration||0, initTime + dx * CFG.senseX)); showMsg(`${Math.floor(targetV.currentTime/60)}:${(Math.floor(targetV.currentTime%60)+'').padStart(2,'0')}`); }
-        else if (action === 'vol') { targetV.volume = Math.max(0, Math.min(1, initVol + dy/innerHeight * 2 * CFG.senseY)); showMsg(`볼륨: ${Math.round(targetV.volume*100)}%`); }
-        else if (action === 'bri') { let b = Math.max(0.1, Math.min(2.0, 1 + dy/innerHeight * 2 * CFG.senseY)); targetV.style.filter = `brightness(${b})`; showMsg(`밝기: ${Math.round(b*100)}%`); }
     };
 
     const onEnd = (e) => {
@@ -594,7 +596,7 @@
         if (action === 'rate' && targetV) { targetV.playbackRate = initRate; showMsg(''); wakeUpUI(targetP, targetV); }
         if ((action === 'pinch' || action === 'pinch_wait' || action === 'pan') && targetV) { wakeUpUI(targetP, targetV); }
 
-        if (!action) { if (!activeSeekSide) wakeUpUI(targetP, targetV); }
+        if (!action || action === 'ignore') { if (!activeSeekSide) wakeUpUI(targetP, targetV); }
         else { blockGestureUntil = now + 500; }
 
         setTimeout(() => { if(targetP && !getFS()) targetP.classList.remove('gt-lock-touch'); if(targetV) targetV.classList.remove('gt-lock-touch'); }, 100);
