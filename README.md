@@ -108,6 +108,9 @@ https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_f
 ※  Cosmetic Combined Filterlist
 https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/cosmetic_combined_filterlist.txt
 
+※  Blocklist Combined Filterlist
+https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/blocklist_combined_filterlist.txt
+
 ※  HaGeZi's Pop-Up Ads DNS Blocklist
 https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
 
@@ -144,6 +147,7 @@ https://raw.githubusercontent.com/dimisa-RUAdList/RUAdListCDN/main/lists/ruadlis
 https://ublockorigin.github.io/uAssetsCDN/filters/filters.min.txt
 https://raw.githubusercontent.com/yokoffing/filterlists/main/block_third_party_fonts.txt
 https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/cosmetic_combined_filterlist.txt
+https://raw.githubusercontent.com/hl2guide/combined-adblock-lists/refs/heads/main/blocklist_combined_filterlist.txt
 https://cdn.jsdelivr.net/gh/hagezi/dns-blocklists@latest/adblock/popupads.txt
 https://cdn.jsdelivr.net/gh/List-KR/List-KR@latest/filter-uBlockOrigin.txt
 https://raw.githubusercontent.com/HelloKS/list-kr-flat/latest/list-kr-flat.txt
