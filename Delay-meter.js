@@ -38,7 +38,7 @@
   const PLATFORM_DEFAULTS = {
     youtube: { target: 10, min: 2,   max: 30, barMax: 35 },
     chzzk:   { target: 2,  min: 0.5, max: 10, barMax: 15 },
-    soop:    { target: 3,  min: 1,   max: 10, barMax: 15 },
+    soop:    { target: 3.5,  min: 1,   max: 10, barMax: 15 },
     twitch:  { target: 3,  min: 1,   max: 10, barMax: 15 },
     default: { target: 3,  min: 1,   max: 10, barMax: 15 },
   };
