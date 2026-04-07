@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         Video_Control (v31.7.7)
+// @name         Video_Control (v31.8.1)
 // @namespace    https://github.com/moamoa7
-// @version      31.7.7
-// @description  v31.7.7: bugfix — temp/tint 할당, gamma 역수 이중적용, hash preGain 누락, preGain GPU 이중패스
+// @version      31.8.1
+// @description  v31.8.1: 자동저장 제거, 라디오 모드, CLAMP 누락 수정
 // @match        *://*/*
 // @exclude      *://*.google.com/recaptcha/*
 // @exclude      *://*.hcaptcha.com/*
@@ -13,9 +13,6 @@
 // @exclude      *://challenges.cloudflare.com/*
 // @exclude      *://*.cloudflare.com/cdn-cgi/*
 // @run-at       document-start
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_deleteValue
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 // @allFrames    true
@@ -32,7 +29,7 @@
   const __internal = window.__vsc_internal || (window.__vsc_internal = {});
   const IS_MOBILE = navigator.userAgentData?.mobile ?? /Mobi|Android|iPhone/i.test(navigator.userAgent);
   const VSC_ID = globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2);
-  const VSC_VERSION = '31.7.7';
+  const VSC_VERSION = '31.8.1';
   const DEBUG = false;
 
   const log = {
@@ -41,14 +38,6 @@
     error: (...a) => console.error('[VSC]', ...a)
   };
 
-  function normalizeHostname(hostname) {
-    const parts = hostname.split('.');
-    if (parts.length === 4 && parts.every(p => /^\d{1,3}$/.test(p))) return hostname;
-    let norm = parts;
-    if (norm[0] === 'www') norm = norm.slice(1);
-    return norm.join('.');
-  }
-  const STORAGE_KEY = 'vsc_v2_' + normalizeHostname(location.hostname) + (location.pathname.startsWith('/shorts') ? '_shorts' : '');
   const CLAMP = (v, min, max) => v < min ? min : v > max ? max : v;
 
   function getSharpProfile(nW) {
@@ -130,7 +119,7 @@ const MANUAL_PRESETS = [
   { n: '보정', v: [ 0,  0,  5,  0,  0,  -5,   0,  10,   5] },
   { n: '밝음', v: [ 0,  0,  5,  0,  0, -10, 10,  20,  5] },
   { n: '복구', v: [30, 20,  0,  0,  0,  0,  15,  15,  15] },
-  { n: '야외', v: [ 0,  0,  0,  0,  0,  0,  -15,  30,   0] },
+  { n: '야외', v: [ 0,  0,  0,  -3,  0,  -15,  -15,  30,   0] },
   { n: '역광', v: [ 0,  0,  0,  0,  0,  0,  -30,   0,   -30] },
   { n: '필름', v: [14,  0,  4,  8, -2, -12,  8,   4,   3] },
   { n: '블버(일반)', v: [ 0,  0,  8, -4,  2, -6,  3,  12,   6] },
@@ -142,6 +131,7 @@ const MANUAL_PRESETS = [
     video: { presetS: 'off', presetMix: 1.0, manualShadow: 0, manualRecovery: 0, manualBright: 0, manualTemp: 0, manualTint: 0, manualSat: 0, manualGamma: 0, manualContrast: 0, manualGain: 0, manualPreGain: 100 },
     audio: { enabled: false, strength: 50, surroundWidth: 0, clarity: 0, boost: 100 },
     playback: { rate: 1.0, enabled: false },
+    radio: { enabled: false },
     app: { active: true, uiVisible: false }
   };
   const P = {
@@ -156,7 +146,8 @@ const MANUAL_PRESETS = [
     A_EN: 'audio.enabled', A_STR: 'audio.strength',
     A_SURROUND: 'audio.surroundWidth',
     A_CLARITY: 'audio.clarity', A_BOOST: 'audio.boost',
-    PB_RATE: 'playback.rate', PB_EN: 'playback.enabled'
+    PB_RATE: 'playback.rate', PB_EN: 'playback.enabled',
+    RADIO_EN: 'radio.enabled'
   };
 
   const MANUAL_PATHS = [P.V_MAN_SHAD, P.V_MAN_REC, P.V_MAN_BRT, P.V_MAN_TEMP, P.V_MAN_TINT, P.V_MAN_SAT, P.V_MAN_GAMMA, P.V_MAN_CON, P.V_MAN_GAIN];
@@ -202,19 +193,6 @@ const MANUAL_PRESETS = [
         listeners.get(k).add(f);
         return () => listeners.get(k).delete(f);
       },
-      load: (data) => {
-        if (!data) return;
-        for (const c of Object.keys(defaults)) {
-          if (data[c] != null && typeof data[c] === 'object') {
-            for (const [k, v] of Object.entries(data[c])) {
-              if (k in defaults[c] && typeof v === typeof defaults[c][k]) {
-                state[c][k] = v;
-              }
-            }
-          }
-        }
-        rev++;
-      }
     };
   }
 
@@ -287,6 +265,8 @@ const MANUAL_PRESETS = [
     let _onLoadstartCallback = null;
     function setOnLoadstartCallback(fn) { _onLoadstartCallback = fn; }
 
+    let _rvfcPaused = false;
+
     function observeVideo(el) {
       if (!el || el.tagName !== 'VIDEO' || videos.has(el)) return;
       videos.add(el);
@@ -300,24 +280,24 @@ const MANUAL_PRESETS = [
         rvfcRunning = false;
       }
       function vfcTick(now, meta) {
-        if (!el.isConnected) { cancelRVFC(); return; }
+        if (!el.isConnected || _rvfcPaused) { cancelRVFC(); return; }
         const fw = meta.width || el.videoWidth || 0;
         const fh = meta.height || el.videoHeight || 0;
         if (fw !== lastFW || fh !== lastFH) { lastFW = fw; lastFH = fh; scheduler.request(); }
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
       }
       function startRVFC() {
-        if (rvfcRunning) return;
+        if (rvfcRunning || _rvfcPaused) return;
         rvfcRunning = true; lastFW = 0; lastFH = 0;
         rvfcHandle = el.requestVideoFrameCallback(vfcTick);
       }
-      rvfcHandles.set(el, { getHandle: () => rvfcHandle });
+      rvfcHandles.set(el, { getHandle: () => rvfcHandle, cancel: cancelRVFC, start: startRVFC });
 
       const onEncrypted = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
       const onWaitingForKey = () => { el.dataset.vscDrm = "1"; scheduler.request(); };
-      const onPlaying = () => { startRVFC(); };
-      const onSeeked = () => { cancelRVFC(); startRVFC(); };
-      const onLoadedMetadata = () => { cancelRVFC(); startRVFC(); req(); };
+      const onPlaying = () => { if (!_rvfcPaused) startRVFC(); };
+      const onSeeked = () => { cancelRVFC(); if (!_rvfcPaused) startRVFC(); };
+      const onLoadedMetadata = () => { cancelRVFC(); if (!_rvfcPaused) startRVFC(); req(); };
       const onPause = () => { cancelRVFC(); };
       const onResize = req;
       const onLoadstart = () => {
@@ -435,7 +415,25 @@ const MANUAL_PRESETS = [
       if (dead.length) scheduler.request();
     }
 
-    return { videos, shadowRootsLRU, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnLoadstartCallback };
+    function pauseAllRvfc() {
+      _rvfcPaused = true;
+      for (const el of videos) {
+        const handle = rvfcHandles.get(el);
+        if (handle) handle.cancel();
+      }
+    }
+
+    function resumeAllRvfc() {
+      _rvfcPaused = false;
+      for (const el of videos) {
+        if (!el.paused && !el.ended && el.isConnected) {
+          const handle = rvfcHandles.get(el);
+          if (handle) handle.start();
+        }
+      }
+    }
+
+    return { videos, shadowRootsLRU, rvfcHandles, rescanAll: () => scanNode(document.body || document.documentElement), cleanup, scanShadowRoots, setPurgeCallback, setOnLoadstartCallback, pauseAllRvfc, resumeAllRvfc };
   }
 
   function createTargeting() {
@@ -592,7 +590,7 @@ const MANUAL_PRESETS = [
     }
     function exitBypass() { if (!bypassMode) return; bypassMode = false; }
 
-    function connectViaCaptureStream(video) {
+        function connectViaCaptureStream(video) {
       if (!ctx || video.dataset.vscAudioCorsFail === "1") return null;
       let s = streamMap.get(video);
       if (s) { if (s.context === ctx) return s; if (currentSrc === s) { currentSrc = null; currentMode = 'none'; } try { s.disconnect(); } catch (_) {} if (s.__vsc_captureStream) { s.__vsc_captureStream.getAudioTracks().forEach(t => { try { t.stop(); } catch (_) {} }); } streamMap.delete(video); }
@@ -752,7 +750,6 @@ const MANUAL_PRESETS = [
         toneFuncsRGB: [toneResult.refs.R, toneResult.refs.G, toneResult.refs.B].filter(Boolean),
         tempFuncR: tempResult.refs.R, tempFuncG: tempResult.refs.G, tempFuncB: tempResult.refs.B,
         fSat,
-        // [패치 #3] _h12 추가
         st: { toneKey: '', sharpKey: '', tempKey: '', satKey: '', satInputKey: '', _h1: -1, _h2: -1, _h3: -1, _h4: -1, _h5: -1, _h6: -1, _h7: -1, _h8: -1, _h9: -1, _h10: -1, _h11: -1, _h12: -1 }
       };
     }
@@ -766,14 +763,11 @@ const MANUAL_PRESETS = [
       const rn = video?.getRootNode?.();
       const root = (rn instanceof ShadowRoot) ? rn : (video?.ownerDocument || document);
 
-      // [패치 #4] preGain을 CSS brightness()로 분리하지 않고 SVG gain에 통합
-      // non-SVG 경로에서만 CSS brightness 사용
       const preGainSlope = s._preGain || 1;
 
       if (!s._needsSvg) {
         if (video && ctxMap.has(root)) purge(root);
         const parts = [];
-        // non-SVG: preGain은 CSS brightness로 적용 (SVG 파이프라인 없으므로 단일 패스)
         if (Math.abs(preGainSlope - 1) > 0.001) parts.push(`brightness(${preGainSlope.toFixed(3)})`);
         if (Math.abs(s._cssBr - 1) > 0.001) parts.push(`brightness(${s._cssBr.toFixed(4)})`);
         if (Math.abs(s._cssCt - 1) > 0.001) parts.push(`contrast(${s._cssCt.toFixed(4)})`);
@@ -790,7 +784,6 @@ const MANUAL_PRESETS = [
       const h3 = Math.round((s.toe || 0) * 1000);
       const h4 = Math.round((s.mid || 0) * 1000);
       const h5 = Math.round((s.shoulder || 0) * 1000);
-      // [패치 #4] hash용 gain에 preGain 통합 반영
       const effectiveGain = (s.gain || 1) * preGainSlope;
       const h6 = Math.round(effectiveGain * 1000);
       const h7 = Math.round((s.gamma || 1) * 1000);
@@ -798,13 +791,11 @@ const MANUAL_PRESETS = [
       const h9 = s.temp | 0;
       const h10 = s.tint | 0;
       const h11 = Math.round((s._cssSat || 1) * 1000);
-      // [패치 #3] preGain을 별도 hash 슬롯으로도 보존 (effectiveGain과 별개로 preGain 단독 변경 감지)
       const h12 = Math.round(preGainSlope * 1000);
 
       if (st._h1 === h1 && st._h2 === h2 && st._h3 === h3 && st._h4 === h4 &&
           st._h5 === h5 && st._h6 === h6 && st._h7 === h7 && st._h8 === h8 &&
           st._h9 === h9 && st._h10 === h10 && st._h11 === h11 && st._h12 === h12) {
-        // [패치 #4] SVG 경로: CSS brightness 없이 url()만 반환
         return `url(#${ctx.fid})`;
       }
       st._h1 = h1; st._h2 = h2; st._h3 = h3; st._h4 = h4; st._h5 = h5;
@@ -812,9 +803,6 @@ const MANUAL_PRESETS = [
 
       if (video) appliedFilter.delete(video);
 
-      // [패치 #2] gamma 역수 제거 — getToneTable이 직접 Math.pow(x, gamma)로 적용
-      // gamma < 1 → 밝아짐(슬라이더 +), gamma > 1 → 어두워짐(슬라이더 -)
-      // [패치 #4] gain에 preGain을 곱하여 SVG 톤커브 내부에서 일괄 처리 → GPU 단일 패스
       const toneTable = getToneTable(256, effectiveGain, s.contrast || 1, CLAMP(s.gamma || 1, 0.2, 5), s.toe || 0, s.mid || 0, s.shoulder || 0);
       if (st.toneKey !== toneTable) { st.toneKey = toneTable; for (const fn of ctx.toneFuncsRGB) fn.setAttribute('tableValues', toneTable); }
 
@@ -834,7 +822,6 @@ const MANUAL_PRESETS = [
       const satVal = CLAMP(s._cssSat * desatMul, 0.4, 1.8).toFixed(3);
       if (st.satKey !== satVal) { st.satKey = satVal; ctx.fSat.setAttribute('values', satVal); }
 
-      // [패치 #4] SVG 경로: url()만 반환, CSS brightness 체이닝 제거
       return `url(#${ctx.fid})`;
     }
 
@@ -898,7 +885,6 @@ const MANUAL_PRESETS = [
         out.gain = Math.pow(2, mGain * 0.03);
         out._preGain = mPreGain / 100;
 
-        // [패치 #1] temp/tint 할당 — 누락 수정
         out.temp = mTemp;
         out.tint = mTint;
 
@@ -928,7 +914,189 @@ const MANUAL_PRESETS = [
     };
   }
 
-  function createUI(Store, Audio, Registry, Scheduler, OSD, Filters) {
+  /* ── Radio Mode ── */
+  function createRadioMode(Store, Registry, Scheduler, Filters) {
+    const overlays = new WeakMap();
+    let active = false;
+    let timeUpdateHandler = null;
+
+    function formatTime(sec) {
+      if (!sec || !isFinite(sec)) return '--:--';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = Math.floor(sec % 60);
+      return h > 0
+        ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`
+        : `${m}:${String(s).padStart(2,'0')}`;
+    }
+
+    function createOverlay(video) {
+      if (overlays.has(video)) return overlays.get(video);
+
+      const container = video.parentElement;
+      if (!container) return null;
+
+      const overlay = document.createElement('div');
+      overlay.setAttribute('data-vsc-ui', '1');
+      overlay.setAttribute('data-vsc-radio', '1');
+      overlay.style.cssText = `
+        position:absolute!important; top:0!important; left:0!important;
+        width:100%!important; height:100%!important;
+        background:linear-gradient(135deg, rgba(8,8,16,0.97) 0%, rgba(12,12,24,0.98) 50%, rgba(8,8,16,0.97) 100%)!important;
+        z-index:2147483646!important; pointer-events:none!important;
+        display:flex!important; flex-direction:column!important;
+        align-items:center!important; justify-content:center!important;
+        gap:16px!important; font-family:system-ui,sans-serif!important;
+        transition:opacity 0.4s ease!important; opacity:0!important;
+      `;
+
+      // 라디오 아이콘 (CSS 전용 펄스)
+      const iconWrap = document.createElement('div');
+      iconWrap.style.cssText = 'position:relative!important;width:64px!important;height:64px!important;display:flex!important;align-items:center!important;justify-content:center!important;';
+
+      const pulse = document.createElement('div');
+      pulse.style.cssText = `
+        position:absolute!important;width:64px!important;height:64px!important;
+        border-radius:50%!important;border:2px solid rgba(0,229,255,0.3)!important;
+        animation:vsc-radio-pulse 2s ease-in-out infinite!important;
+      `;
+
+      const icon = document.createElement('div');
+      icon.innerHTML = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(0,229,255,0.9)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 19.07a10 10 0 0 1 0-14.14"/></svg>`;
+      icon.style.cssText = 'position:relative!important;z-index:1!important;display:flex!important;';
+
+      iconWrap.append(pulse, icon);
+
+      const label = document.createElement('div');
+      label.textContent = 'RADIO MODE';
+      label.style.cssText = `
+        font-size:14px!important;font-weight:700!important;letter-spacing:3px!important;
+        color:rgba(0,229,255,0.8)!important;text-transform:uppercase!important;
+      `;
+
+      const timeEl = document.createElement('div');
+      timeEl.style.cssText = `
+        font-family:'SF Mono',monospace!important;font-size:18px!important;
+        color:rgba(255,255,255,0.5)!important;font-variant-numeric:tabular-nums!important;
+      `;
+      timeEl.textContent = '--:-- / --:--';
+
+      const hint = document.createElement('div');
+      hint.textContent = '영상의 화면만 검게 차단합니다';
+      hint.style.cssText = 'font-size:11px!important;color:rgba(255,255,255,0.25)!important;';
+
+      overlay.append(iconWrap, label, timeEl, hint);
+
+      // CSS 애니메이션 주입
+      if (!document.getElementById('vsc-radio-css')) {
+        const style = document.createElement('style');
+        style.id = 'vsc-radio-css';
+        style.textContent = `
+          @keyframes vsc-radio-pulse {
+            0% { transform:scale(1); opacity:0.6; }
+            50% { transform:scale(1.4); opacity:0; }
+            100% { transform:scale(1); opacity:0; }
+          }
+        `;
+        (document.head || document.documentElement).appendChild(style);
+      }
+
+      // position: relative 보장
+      const pos = getComputedStyle(container).position;
+      if (pos === 'static') container.style.position = 'relative';
+
+      container.appendChild(overlay);
+      requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+
+      overlays.set(video, { overlay, timeEl });
+      return { overlay, timeEl };
+    }
+
+    function removeOverlay(video) {
+      const data = overlays.get(video);
+      if (!data) return;
+      data.overlay.style.opacity = '0';
+      setTimeout(() => { try { data.overlay.remove(); } catch (_) {} }, 400);
+      overlays.delete(video);
+    }
+
+    function updateTime(video) {
+      const data = overlays.get(video);
+      if (!data) return;
+      data.timeEl.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+    }
+
+    function engage(video) {
+      if (!video?.isConnected) return;
+
+      // 1) SVG 필터 해제 → GPU 셰이더 패스 제거
+      Filters.clear(video);
+
+      // 2) visibility: hidden → 컴포지팅 스킵 힌트
+      video.style.setProperty('visibility', 'hidden', 'important');
+
+      // 3) rVFC 중단 → 프레임 콜백 오버헤드 제거
+      Registry.pauseAllRvfc();
+
+      // 4) 오버레이 표시
+      createOverlay(video);
+      updateTime(video);
+
+      // 5) 시간 업데이트 (1초 간격 — rAF 대신 setInterval로 최소 부하)
+      if (timeUpdateHandler) clearInterval(timeUpdateHandler);
+      timeUpdateHandler = setInterval(() => {
+        const v = __internal._activeVideo;
+        if (v?.isConnected && active) updateTime(v);
+      }, 1000);
+    }
+
+    function disengage(video) {
+      if (timeUpdateHandler) { clearInterval(timeUpdateHandler); timeUpdateHandler = null; }
+
+      if (video) {
+        video.style.removeProperty('visibility');
+        removeOverlay(video);
+      }
+
+      // 모든 비디오에서 오버레이/visibility 정리
+      for (const v of Registry.videos) {
+        if (overlays.has(v)) removeOverlay(v);
+        v.style.removeProperty('visibility');
+      }
+
+      // rVFC 재개
+      Registry.resumeAllRvfc();
+
+      // 필터 재적용 트리거
+      Scheduler.request();
+    }
+
+    function setActive(on) {
+      const wasActive = active;
+      active = on;
+
+      if (on && !wasActive) {
+        const video = __internal._activeVideo;
+        if (video) engage(video);
+      } else if (!on && wasActive) {
+        const video = __internal._activeVideo;
+        disengage(video);
+      }
+    }
+
+    function onTargetChange(newVideo, oldVideo) {
+      if (!active) return;
+      if (oldVideo) {
+        oldVideo.style.removeProperty('visibility');
+        removeOverlay(oldVideo);
+      }
+      if (newVideo) engage(newVideo);
+    }
+
+    return { setActive, isActive: () => active, onTargetChange, updateTime };
+  }
+
+  function createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio) {
     let panelHost = null, panelEl = null, quickBarHost = null;
     let activeTab = 'video', panelOpen = false;
     let _shadow = null, _qbarShadow = null;
@@ -1006,6 +1174,18 @@ const MANUAL_PRESETS = [
     .pg-btn:hover { background: rgba(255,255,255,0.08); color: var(--vsc-neon); border-color: var(--vsc-neon-border); }
     .pg-btn.on { background: var(--vsc-neon-dim); border-color: var(--vsc-neon-border); color: var(--vsc-neon); box-shadow: 0 0 6px rgba(0,229,255,0.15); }
     .pg-btn.default { border-color: rgba(255,255,255,0.12); color: rgba(255,255,255,0.8); }
+    .radio-card { background:rgba(0,229,255,0.04)!important; border:1px solid rgba(0,229,255,0.12)!important; border-radius:var(--vsc-radius-md)!important; padding:12px 14px!important; margin:4px 0!important; display:flex!important; align-items:center!important; gap:12px!important; cursor:pointer!important; transition:all 0.2s var(--vsc-ease-out)!important; }
+    .radio-card:hover { background:rgba(0,229,255,0.08)!important; }
+    .radio-card.on { background:rgba(0,229,255,0.12)!important; border-color:rgba(0,229,255,0.35)!important; box-shadow:0 0 20px rgba(0,229,255,0.1)!important; }
+    .radio-icon { width:40px; height:40px; border-radius:50%; background:rgba(0,229,255,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.3s; }
+    .radio-card.on .radio-icon { background:rgba(0,229,255,0.2); box-shadow:0 0 16px rgba(0,229,255,0.3); }
+    .radio-info { flex:1; }
+    .radio-title { font-size:13px; font-weight:700; color:rgba(255,255,255,0.9); }
+    .radio-card.on .radio-title { color:var(--vsc-neon); }
+    .radio-desc { font-size:10px; color:rgba(255,255,255,0.4); margin-top:2px; line-height:1.4; }
+    .radio-card.on .radio-desc { color:rgba(0,229,255,0.5); }
+    .radio-badge { font-family:var(--vsc-font-mono); font-size:10px; padding:2px 8px; border-radius:var(--vsc-radius-pill); background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.4); font-weight:600; flex-shrink:0; }
+    .radio-card.on .radio-badge { background:rgba(0,229,255,0.15); color:var(--vsc-neon); }
     @media (max-width: 600px) { :host { --vsc-panel-width: calc(100vw - 80px); --vsc-panel-right: 60px; } }
     @media (max-width: 400px) { :host { --vsc-panel-width: calc(100vw - 64px); --vsc-panel-right: 52px; } }`;
 
@@ -1126,7 +1306,7 @@ const MANUAL_PRESETS = [
 
     function buildInfoBar() {
       const el = h('div', { class: 'info-bar' });
-      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; const pg = Number(Store.get(P.V_MAN_PREGAIN) ?? 100); const pgTag = pg !== 100 ? ` │ PG:${pg}%` : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}${pgTag}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
+      const update = () => { const v = __internal._activeVideo; const p = Store.get(P.V_PRE_S); const lbl = p === 'none' ? 'OFF' : p === 'off' ? 'AUTO' : PRESETS.detail[p]?.label || p; if (!v?.isConnected) { el.textContent = `영상 없음 │ 샤프닝: ${lbl}`; return; } const nW = v.videoWidth || 0, nH = v.videoHeight || 0, dW = v.clientWidth || 0, dH = v.clientHeight || 0; const resTag = nW > 2560 ? ' [4K+]' : nW > 1920 ? ' [QHD]' : ''; const pg = Number(Store.get(P.V_MAN_PREGAIN) ?? 100); const pgTag = pg !== 100 ? ` │ PG:${pg}%` : ''; const radioTag = Radio.isActive() ? ' │ 📻 RADIO' : ''; el.textContent = nW ? `원본 ${nW}×${nH}${resTag} → 출력 ${dW}×${dH} │ 샤프닝: ${lbl}${pgTag}${radioTag}` : `로딩 대기중... │ 샤프닝: ${lbl}`; };
       tabFns.push(update);
       return el;
     }
@@ -1169,6 +1349,38 @@ const MANUAL_PRESETS = [
       return wrap;
     }
 
+    function buildRadioCard() {
+      const card = h('div', { class: 'radio-card' });
+
+      const iconWrap = h('div', { class: 'radio-icon' });
+      iconWrap.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49"/><path d="M7.76 16.24a6 6 0 0 1 0-8.49"/></svg>`;
+
+      const info = h('div', { class: 'radio-info' },
+        h('div', { class: 'radio-title' }, '라디오 모드'),
+        h('div', { class: 'radio-desc' }, '화면만 검게 차단')
+      );
+
+      const badge = h('div', { class: 'radio-badge' }, 'OFF');
+
+      card.append(iconWrap, info, badge);
+
+      card.addEventListener('click', () => {
+        const next = !Store.get(P.RADIO_EN);
+        Store.set(P.RADIO_EN, next);
+      });
+
+      const sync = () => {
+        const on = !!Store.get(P.RADIO_EN);
+        card.classList.toggle('on', on);
+        badge.textContent = on ? 'ON' : 'OFF';
+        iconWrap.style.color = on ? 'var(--vsc-neon)' : 'rgba(255,255,255,0.4)';
+      };
+      tabFns.push(sync);
+      sync();
+
+      return card;
+    }
+
     function buildRateDisplay() { const el = h('div', { class: 'rate-display' }); const sync = () => { el.textContent = `${(Number(Store.get(P.PB_RATE)) || 1).toFixed(2)}×`; }; tabFns.push(sync); sync(); return el; }
 
     function buildAudioStatus() {
@@ -1188,6 +1400,8 @@ const MANUAL_PRESETS = [
     function buildVideoSchema() {
       return [
         { type: 'widget', build: buildInfoBar },
+        { type: 'sep' },
+        { type: 'widget', build: buildRadioCard },
         { type: 'sep' },
         { type: 'chips', label: '디테일 프리셋', path: P.V_PRE_S, items: Object.keys(PRESETS.detail).map(k => ({ v: k, l: PRESETS.detail[k].label || k })) },
         { type: 'slider', label: '강도 믹스', path: P.V_PRE_MIX, min: 0, max: 1, step: 0.1 },
@@ -1264,11 +1478,18 @@ const MANUAL_PRESETS = [
       shieldHost(quickBarHost);
       _qbarShadow = quickBarHost.attachShadow({ mode: 'closed' });
       const qStyle = document.createElement('style');
-      qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; }`;
+      qStyle.textContent = `${CSS_VARS} .qbar { pointer-events:none; position:fixed!important; top:50%!important; right:var(--vsc-qbar-right)!important; transform:translateY(-50%)!important; display:flex!important; align-items:center!important; z-index:2147483647!important; } .qbar .qb-main { pointer-events:auto; width:46px; height:46px; border-radius:50%; background:var(--vsc-glass); border:1px solid rgba(255,255,255,0.08); opacity:${IS_MOBILE ? '0' : '0.1'}; transition:all 0.3s var(--vsc-ease-out); box-shadow:var(--vsc-shadow-fab); display:flex; align-items:center; justify-content:center; cursor:pointer; backdrop-filter:blur(16px) saturate(180%); -webkit-tap-highlight-color:transparent; } @media (hover: hover) and (pointer: fine) { .qbar:hover .qb-main { opacity:1; transform:scale(1.08); border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar:hover .qb-main svg { stroke:var(--vsc-neon)!important; } } .qbar .qb-main.touch-reveal { opacity:0.85!important; border-color:var(--vsc-neon-border); box-shadow:var(--vsc-shadow-fab),var(--vsc-neon-glow); } .qbar .qb-main.touch-reveal svg { stroke:var(--vsc-neon)!important; } .qbar svg { width:22px; height:22px; fill:none; stroke:#fff!important; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; display:block!important; pointer-events:none!important; } .qbar .qb-main.radio-active { opacity:0.9; border-color:rgba(0,229,255,0.4); animation:qb-radio-blink 2s ease-in-out infinite; } @keyframes qb-radio-blink { 0%,100% { box-shadow:var(--vsc-shadow-fab), 0 0 8px rgba(0,229,255,0.2); } 50% { box-shadow:var(--vsc-shadow-fab), 0 0 20px rgba(0,229,255,0.5); } }`;
       _qbarShadow.appendChild(qStyle);
       const bar = h('div', { class: 'qbar' }); const mainBtn = h('div', { class: 'qb qb-main' });
       mainBtn.appendChild(h('svg', { ns: 'svg', viewBox: '0 0 24 24', fill: 'none', 'stroke-width': '2', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, h('circle', { ns: 'svg', cx: '12', cy: '12', r: '3' }), h('path', { ns: 'svg', d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z' })));
       mainBtn.addEventListener('click', e => { e.preventDefault(); togglePanel(); }); bar.append(mainBtn); _qbarShadow.appendChild(bar); getMountTarget().appendChild(quickBarHost);
+
+      // 라디오 모드 시 기어 버튼 시각 피드백
+      const syncRadioBadge = () => {
+        mainBtn.classList.toggle('radio-active', Radio.isActive());
+      };
+      globalSignalCleanups.push(Scheduler.onSignal(syncRadioBadge));
+
       if (IS_MOBILE) { let touchRevealTimer = 0; const revealGear = () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); touchRevealTimer = setTimeout(() => { mainBtn.classList.remove('touch-reveal'); }, 2500); }; document.addEventListener('touchstart', revealGear, { passive: true }); mainBtn.addEventListener('touchstart', () => { mainBtn.classList.add('touch-reveal'); clearTimeout(touchRevealTimer); }, { passive: true }); }
     }
 
@@ -1317,16 +1538,14 @@ const MANUAL_PRESETS = [
   function bootstrap() {
     const Scheduler = createScheduler();
     const Store = createLocalStore(DEFAULTS, Scheduler);
-    try { const saved = GM_getValue(STORAGE_KEY); if (saved) Store.load(JSON.parse(saved)); } catch (_) {}
-    let saveTimer = 0, lastSavedRev = 0;
-    Scheduler.onSignal(() => { const currentRev = Store.rev(); if (currentRev === lastSavedRev) return; if (saveTimer) clearTimeout(saveTimer); saveTimer = setTimeout(() => { saveTimer = 0; lastSavedRev = Store.rev(); try { GM_setValue(STORAGE_KEY, JSON.stringify(Store.state)); } catch (_) {} }, 300); });
-
     const Registry = createRegistry(Scheduler);
     const Targeting = createTargeting();
     const Audio = createAudio(Store, Scheduler);
     const OSD = createOSD();
     const Params = createVideoParams(Store);
     const Filters = createFilters();
+    const Radio = createRadioMode(Store, Registry, Scheduler, Filters);
+
     Registry.setPurgeCallback((root) => Filters.purge(root));
     Registry.setOnLoadstartCallback((video) => Audio.onVideoLoadstart(video));
 
@@ -1336,15 +1555,29 @@ const MANUAL_PRESETS = [
     Store.sub(P.A_CLARITY, (v) => { Audio.applyClarity(v); Audio.update(); });
     Store.sub(P.A_BOOST, (v) => { Audio.applyBoost(v); Audio.update(); });
 
+    // 라디오 모드 토글
+    Store.sub(P.RADIO_EN, (on) => {
+      Radio.setActive(on);
+      OSD.show(on ? '📻 라디오 모드 ON' : '📻 라디오 모드 OFF', 1200);
+    });
+
     const apply = () => {
       if (!Store.get(P.APP_ACT)) {
         for (const v of Registry.videos) Filters.clear(v);
         if (__internal._activeVideo?.isConnected && Store.get(P.PB_EN)) { try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} }
-        Audio.setTarget(null); __internal._activeVideo = null; return;
+        Audio.setTarget(null); __internal._activeVideo = null;
+        if (Radio.isActive()) Radio.setActive(false);
+        return;
       }
       const target = Targeting.pick(Registry.videos);
       const prevTarget = __internal._activeVideo;
       __internal._activeVideo = target || null;
+
+      // 라디오 모드: 타겟 변경 알림
+      if (target !== prevTarget) {
+        Radio.onTargetChange(target, prevTarget);
+      }
+
       if (target) {
         if (prevTarget && prevTarget !== target && prevTarget.isConnected && Store.get(P.PB_EN)) { try { prevTarget.playbackRate = 1.0; } catch (_) {} }
         Audio.setTarget(target);
@@ -1358,9 +1591,20 @@ const MANUAL_PRESETS = [
         if (prevTarget && prevTarget.isConnected && Store.get(P.PB_EN)) { try { prevTarget.playbackRate = 1.0; } catch (_) {} }
         Audio.setTarget(null);
       }
+
+      // 라디오 모드 활성 시 필터 스킵
+      const radioOn = Radio.isActive();
+
       for (const v of Registry.videos) {
         if (!v.isConnected) continue;
         if (v !== target) { Filters.clear(v); continue; }
+
+        if (radioOn) {
+          // 라디오 모드: 필터 적용 안 함, visibility hidden 유지
+          Filters.clear(v);
+          continue;
+        }
+
         const dW = v.clientWidth || 0, dH = v.clientHeight || 0;
         if (dW < 80 || dH < 45) { Filters.clear(v); continue; }
         const params = Params.get(v);
@@ -1371,9 +1615,12 @@ const MANUAL_PRESETS = [
     Scheduler.registerApply(apply);
     Store.sub(P.PB_EN, (enabled) => { if (!enabled && __internal._activeVideo?.isConnected) try { __internal._activeVideo.playbackRate = 1.0; } catch (_) {} });
 
-    createUI(Store, Audio, Registry, Scheduler, OSD, Filters);
+    createUI(Store, Audio, Registry, Scheduler, OSD, Filters, Radio);
     __internal.Store = Store; __internal._activeVideo = null;
-    try { GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); }); } catch (_) {}
+    try {
+      GM_registerMenuCommand('VSC ON/OFF 토글', () => { const current = Store.get(P.APP_ACT); Store.set(P.APP_ACT, !current); OSD.show(Store.get(P.APP_ACT) ? 'VSC ON' : 'VSC OFF', 1000); });
+      GM_registerMenuCommand('📻 라디오 모드 토글', () => { const current = Store.get(P.RADIO_EN); Store.set(P.RADIO_EN, !current); });
+    } catch (_) {}
     Registry.rescanAll(); apply();
     log.info(`[VSC] v${VSC_VERSION} booted.`);
   }
