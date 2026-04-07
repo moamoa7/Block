@@ -2879,6 +2879,15 @@ jav.direct##div:nth-of-type(12)
 !openload.mov##div:nth-of-type(4)
 !
 !
+! https://javtiful.com/
+! - 영상 위 배너
+javtiful.com##.nopop.fah-btn
+! - - 영상 플레이내 버튼
+javtiful.com##.v3sb-box
+! -스폰 배너
+javtiful.com##div.pb-3.col:nth-of-type(1)
+!
+!
 ! 야통령 (https://xn--4-v10fo35av1l.com/)
 ! - 오른쪽 배너
 !##[class="happy-sidebar"]
@@ -3717,6 +3726,8 @@ tokyomotion.net#@#[class$="verlay"]
 chaturbate.com#@#[class$="verlay"]
 ! - - - https://www.twitch.tv/ - 영상플레이어 설정 버튼 안보임
 twitch.tv#@#[class$="verlay"]
+! - - - https://javtiful.com/ - 영상 플레이 버튼 안보임
+javtiful.com#@#[class$="verlay"]
 
 ! - 영상 하단 이미지
 !||yakong*.net/img/*$image
