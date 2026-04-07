@@ -983,7 +983,7 @@ const MANUAL_PRESETS = [
 
       // ◀ 패치: 안내 문구 수정 (디코딩 유지 안내)
       const hint = document.createElement('div');
-      hint.textContent = '화면 렌더링 OFF · 비디오 디코딩은 유지됩니다';
+      hint.textContent = '영상 화면만 검게 표시';
       hint.style.cssText = 'font-size:11px!important;color:rgba(255,255,255,0.25)!important;';
 
       // ◀ 패치: 오디오 상태 경고 영역
@@ -1401,7 +1401,7 @@ const MANUAL_PRESETS = [
 
       const info = h('div', { class: 'radio-info' },
         h('div', { class: 'radio-title' }, '라디오 모드'),
-        h('div', { class: 'radio-desc' }, '화면 렌더링 OFF → GPU 필터·합성 절약. 비디오 디코딩은 유지됩니다.')
+        h('div', { class: 'radio-desc' }, '영상 화면만 검게 표시')
       );
 
       const badge = h('div', { class: 'radio-badge' }, 'OFF');
