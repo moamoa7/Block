@@ -325,15 +325,13 @@ sooplive.com##.da_area
 sooplive.com###da_video
 ! - 방송요약 팝업
 sooplive.com###sarsa_btn
-||connect.facebook.net^$3p,from=~facebook.com|~fb.com
 ! - 사전 협의되지 않은 탐방 및 재송출은 정중히 사절합니다 없애기
 sooplive.com##.tuneout
 ! - 영상 오른쪽 가운데 마우스 가져가면 나오는 확장프로그램 (뽑기판 등)
 !##[class="extensions_item"]
 sooplive.com##.extensions_item
 ! - 영상 왼쪽 하단 애드벌룬 배너
-!sooplive.com##.adballoon_icon
-##.adballoon_icon
+sooplive.com##.adballoon_icon
 ! - 개인채널 (https://ch.sooplive.com/) 팝업
 sooplive.com##.bs-notice_layer
 ! - 개인채널 (https://ch.sooplive.com/) 오른쪽 배너
@@ -350,7 +348,7 @@ sooplive.com###FeedLayerToolTip
 !##[class="shopProduct_banner"]
 ##.shopProduct_banner
 ! - 구독버튼 내 버플 안내문구
-play.sooplive.com##.event_tooltip
+sooplive.com##.event_tooltip
 ! - 차단해제 (Adblock-Rule-Collection-Lite) - 이미지 차단해제
 @@||*stimg.sooplive.com/LOGO/gg/*.webp
 ! - 차단 목록 (AdVoid.Full) 해제 - 픽팍 등에서 공유 안보임
@@ -359,7 +357,6 @@ play.sooplive.com##.event_tooltip
 sooplive.com#@#[class*="AD"]
 ! ##[class^="ad"] 해제
 point.sooplive.com#@#[class^="ad"]
-
 !
 !
 ! 시네티 (https://cinety.sooplive.co.kr/)
