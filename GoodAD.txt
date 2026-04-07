@@ -1286,7 +1286,7 @@ poooo.ml#@#.ad
 ##.row-banner
 ![$domain=/^tvmon\d+.org/]###banner-row-1
 ! - - - 배너 공간 없애기
-tvmon.site##:matches-path(/\/(movie|drama|kor_movie|ent|sisa|world|ott_ent|ani_movie|animation|old_ent|old_drama)/) #content_wrap:style(margin-top: -875px !important; padding-top: 0 !important;)
+tvmon.site##:matches-path(/^\/(movie|drama|kor_movie|ent|sisa|world|ott_ent|ani_movie|animation|old_ent|old_drama)\/?$/) #content_wrap:style(margin-top: -875px !important; padding-top: 0 !important;)
 ! - - - 티비핫 (주소 바뀌므로 나중에 수동으로 수정해야 함)
 ! - - - 사이트 지정 안하면 kick.com 실시간 영상 썸네일이 안보임
 !##[class="object-cover"]
